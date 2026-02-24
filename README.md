@@ -222,7 +222,7 @@ a .= " sıcaklık 16 derece.";
 | **4** | `_>` | **Relocate** | Masayı/Context'i başka bir bölgeye taşır (Örn: GPU'ya). |
 | **5** | `?(n,ms)->`| **Rolling** | Hata durumunda n kez ms milisaniye bekleyerek tekrar dener. |
 | **6** | `=?>` | **If (Koşul)** | Akışın yönü için ilk mantıksal karar noktası. |
-| **7** | `?->` | **Catch (Saptırıcı)**| Rolling başarısızsa akışı hata bloğuna sapıtır. |
+| **7** | `?->` | **Catch (Saptırıcı)**| Işlem, Fonksiyon başarısızsa akışı hata bloğuna sapıtır. |
 | **8** | `?=>` | **Fallback** | Hata saptırıcı yoksa veya veri `null` ise alternatif veri enjekte eder. |
 | **9** | `->`  | **Success (Başarı)**| Veriyi bir sonraki işleme/fonksiyona taşır. |
 | **10** | `!->` | **Ignore (Sessiz)** | Hata olsa bile akışı zorla devam ettirir. |
