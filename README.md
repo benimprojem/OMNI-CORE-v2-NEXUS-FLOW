@@ -1,9 +1,9 @@
 # OMNI CORE v2 NEXUS FLOW - REFERENCE GUIDE
-**Version:** 1.0 (gama)  
-**Architecture:** Nexus Flow & Handler-Oriented Memory  
-**Compiler:** OCC (Omni Core Compiler)
-**Language:** Nexus Flow
-**Güvenlik:** Hash doğrulamalı bütünlük kontrolü (EXE/DLL).
+- **Version:** 1.0 (gama)  
+- **Architecture:** Nexus Flow & Handler-Oriented Memory  
+- **Compiler:** OCC (Omni Core Compiler)
+- **Language:** Nexus Flow
+- **Güvenlik:** Hash doğrulamalı bütünlük kontrolü (EXE/DLL).
 
 > Nexus Flow için, önerilerde bulunabilirsinizz. Neler daha iyi olabilir, neler fazlalık, neler eksik; Tüm yapıcı önerileri kabul ediyorum bilginize.
 Şuan ki Durum:
