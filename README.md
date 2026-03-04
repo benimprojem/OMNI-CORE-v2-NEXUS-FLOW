@@ -4,7 +4,7 @@
 **Compiler:** OCC (Omni Core Compiler)
 **Language:** Nexus Flow
 
-
+## Burada Bir dilin ve o dile ait bir Derleyicinin tam tasarım planları bulunmaktadadır. Umarım bu bilgiler kendi dil ve derleyicilerini tasarlayan kişiler için öğretici ve bilgilendirici olur. Eğer buradaki bilgiler içerisinde herhangi bir öneriniz veya eleştiriniz var ise paylaşmaktan çekinmeyin.
 ---
 
 ## Bölüm 1. TASARIM FELSEFESİ: MİNİMALİZM VE AKIŞ
