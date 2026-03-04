@@ -1,4 +1,3 @@
-Bu lisans, **OmniCore** derleyici pipeline'ı (Lexer, AST, OIR, Codegen) ve **Primordial Core** gibi tüm alt yapı bileşenlerini kapsayacak şekilde tasarlanmıştır.
 
 ### NexusFlow Alt Yapı ve Derleyici Lisansı (N-AAL)
 
@@ -25,5 +24,32 @@ Tıpkı derleyicimizin handler doluluğunda uyguladığı **Table-Occupied (Hard
 
 **4. Donanım ve Performans Garantisi**
 NexusFlow, kaynakları yük altına sokmayan (low CPU/RAM usage) optimize çözümler üretmeyi hedefler. Ancak, alt yapının yanlış yapılandırılması veya `.target` dosyalarındaki hatalı ABI tanımlarından kaynaklanabilecek donanım sorunlarında sorumluluk kullanıcıya aittir.
+
+---
+
+### NexusFlow Mimari Kullanım ve Telif Matrisi
+
+| Bileşen | Erişim Durumu | Ticari Kullanım Şartı | Bireysel/Hobi Kullanımı |
+| --- | --- | --- | --- |
+| **Slot Matrix System** | **Spec Açık** | **Telifli (Lisans Ücretine Tabi)** | **Özgür / Ücretsiz** |
+| **Target (.target) System** | **Altyapı Açık** | **Telifli (Yazılı İzin Şartı)** | **Özgür / Ücretsiz** |
+| **OmniCore / OIR** | **Altyapı Açık** | **Telifli (Partnerlik Gerekli)** | **Özgür / Ücretsiz** |
+
+---
+
+### NexusFlow Ticari Telif ve Kullanım Şartları (N-CCB)
+
+**1. Mimari Serbestlik**
+**Slot Matrix** spec dosyalarının ve **Target Sistemi** altyapısının GitHub üzerinde halka açık olması, bu teknolojilerin ticari amaçla yağmalanabileceği anlamına gelmez. Bu dökümanlar, "Sistem Mimarı" vizyonunu yaymak ve topluluk gelişimini desteklemek içindir.
+
+**2. Ticari Kullanım Bariyeri**
+Aşağıdaki faaliyetler doğrudan **Telif Hakkı** kapsamındadır ve NexusFlow hak sahiplerinden (Cem cemden@gmail.com) ticari lisans alınmasını zorunlu kılar:
+
+* **Slot Matrix** algoritmasını kullanarak gelir getiren bir zamanlayıcı (scheduler) veya sunucu altyapısı kurmak.
+* **Target Sistemi**'ni ticari bir derleyici (compiler) veya otomasyon aracına entegre etmek.
+* NexusFlow altyapısını kullanarak kurumsal düzeyde ücretli teknik destek veya danışmanlık vermek.
+
+**3. Bireysel ve Geliştirici Hakları**
+Öğrenciler, hobi geliştiricileri ve bağımsız araştırmacılar için hiçbir kısıtlama yoktur. Spec dosyalarına bakarak kendi kernel'larını yazabilir, `.target` dosyalarıyla donanımlarını uçurabilirler. Tek şart; bu emeğin ticari bir meta haline getirilmemesidir.
 
 ---
