@@ -228,16 +228,6 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
   * Başka bloklar `(h)`'yi okuyamaz → izinsiz erişim yok.
 
 ---
->Keyword / Operatör,Mimari Rolü (Adres Odaklı),Parser/OIR Karşılığı
-(h) / (name),"Masa (Address Holder): Bir adresi temsil eden ""slot"".",TOKEN_HANDLE - OIR: OP_REG_HANDLE
-<- (Capture),Adres Atama: Sağdaki fonksiyonun döndürdüğü adresi masa içine mühürler.,TOKEN_OP_CAPTURE - OIR: OP_BIND_ADDR
-_> (Relocate),"Adres Taşıma: Adres değerini bir masadan diğerine kopyalar, eski masayı null yapar.",TOKEN_OP_RELOCATE - OIR: OP_MOVE_ADDR
-}?; (Cleanup),Adres Temizleme: Masadaki adresi serbest bırakır (free/close) ve masayı imha eder.,TOKEN_TERMINATOR - OIR: OP_FREE_HANDLE
-addr(v),Adres Alma: Değişkenin veya masanın tuttuğu ham adresi döndürür.,TOKEN_KW_ADDR - OIR: OP_GET_PTR
-peek / poke,Adres Erişimi: Masadaki adrese doğrudan veri yazar veya okur.,TOKEN_KW_PEEK / POKE - OIR: OP_MEM_IO
-v:,Value: Stack/Register üzerinde duran doğrudan veriler.,TOKEN_PREFIX_VAR - OIR: OP_DEF_VAL
-rules,Constraint: Adreslerin kullanım sınırlarını belirler (örn: Read-Only).,TOKEN_KW_RULES - OIR: BLOCK_RULES
-area / zone,Memory Allocator: Adres üreticiler. Çıktıları bir masaya <- ile bağlanır.,TOKEN_KW_AREA - OIR: OP_ALLOC
 
 ### 4.2 Standart Masa Takma Adları (Shims)
 - `(h)` : Handle/Header (Dosya/Sistem kaynakları).
