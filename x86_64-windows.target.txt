@@ -1,0 +1,41 @@
+[target_info]
+spec_version = 1.0
+identifier = "x86_64-windows"
+author = "NexusFlow Team"
+
+[cpu_arch]
+family = "x86"
+bits = 64
+endian = "little"
+# Codegen için register havuzu
+registers = ["rax", "rbx", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11"]
+scratch_regs = ["r10", "r11"] # Geçici işlemler için
+reserved_regs = ["rsp", "rbp"] # Dokunulmazlar
+
+[instruction_set]
+simd = "avx512"
+atomic = true
+fastexec_support = true
+
+[memory_model]
+page_size = 4096
+stack_alignment = 16
+default_area_size = 1M  # area() default
+zone_sync_mode = "atomic"
+
+[abi_convention]
+name = "ms_x64"
+shadow_space = 32 # Windows için gerekli 32-byte alan
+return_reg = "rax"
+param_regs = ["rcx", "rdx", "r8", "r9"]
+
+[output_format]
+binary_type = "pe" # Portable Executable
+object_ext = ".obj"
+shared_lib_ext = ".dll"
+entry_point = "WinMain"
+
+[nexus_primitives]
+# NexusFlow'a özel düşük seviye eşlemeler
+handler_init = "xor rax, rax"
+relocate_op = "mov rdi, rsi; xor rsi, rsi" # Sahiplik transferi mantığı

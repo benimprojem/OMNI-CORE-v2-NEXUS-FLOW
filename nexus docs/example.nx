@@ -1,0 +1,87 @@
+
+# --- Dosya işlemleri ---
+v:file_handle!*file_handle = file.open("test.txt", "rw");
+
+# Dosyaya yaz
+file.write(file_handle, "Merhaba Nexus Flow!\n");
+
+# Dosyadan oku
+v:content!str = file.read(file_handle);
+echo("Dosya içeriği: {content}");
+
+# Dosya boyutu
+v:size!u64 = file.size(file_handle);
+echo("Dosya boyutu: {size} bytes");
+
+# Dosyayı kapat
+file.close(file_handle);
+
+# --- Bellek işlemleri ---
+v:area_handle!*mem_handle = mem.area(1024);  # 1 KB alan ayır
+mem.poke(area_handle, 0x41);                 # İlk byte'a 'A' yaz
+v:val!u8 = mem.peek(area_handle, "u8");      # Byte'u oku
+echo("Bellekten okunan değer: {val}");
+
+# --- Thread işlemleri ---
+thread.spawn(f:(){
+    echo("Thread çalışıyor...");
+}, "");
+
+# --- Zaman işlemleri ---
+v:now!u64 = time.now();
+echo("Sistem zamanı: {now}");
+
+# --- Hata ve log ---
+err.last();
+err.trace();
+log.echo("Uygulama tamamlandı.");
+
+# --- Kripto ---
+v:hash_val!str = crypto.hash("Test mesajı", "SHA256");
+echo("Mesaj hash: {hash_val}");
+
+
+
+# =========================
+# Mini File Manager Demo
+# =========================
+
+echo("=== Nexus Flow Mini File Manager ===\n");
+
+// Kullanıcıdan dosya adı al
+(file_name) <- input("Dosya adı girin: ") ?-> (e){ echo("Dosya adı alınamadı.\n"); };
+
+// Dosya varsa uyar, yoksa oluştur
+exists <- File.exists(file_name) ?-> (e){ echo("Dosya kontrol edilemiyor.\n"); return false; };
+if(exists){
+    echo("Dosya zaten mevcut: {file_name}\n");
+} else {
+    fh <- File.open(file_name, "w");
+    echo("Dosya oluşturuldu: {file_name}\n");
+    File.close(fh);
+}
+
+// Dosyaya yaz
+fh <- File.open(file_name, "rw");
+File.write(fh, "Merhaba Nexus Flow!\n");
+File.write(fh, "Mini File Manager demo dosyası.\n");
+echo("Dosyaya yazıldı.\n");
+File.close(fh);
+
+// Dosyayı oku ve ekrana bas
+fh <- File.open(file_name, "r");
+content <- File.read(fh) ?-> (e){ echo("Dosya okunamadı!\n"); return ""; };
+echo("Dosya içeriği:\n");
+echo("---------------------------\n");
+echo(content);
+echo("---------------------------\n");
+File.close(fh);
+
+// Dosya listesini simüle et (minimal, aynı dizindeki dosyaları gösterir)
+echo("Dosya listesi:\n");
+v:files = ["test.txt", "sample.db", file_name]; // Örnek array
+loop(i, i < Array.len(files), i++){
+    echo(" - {Array.get(files,i)}\n");
+}
+
+echo("Demo tamamlandı.\n");
