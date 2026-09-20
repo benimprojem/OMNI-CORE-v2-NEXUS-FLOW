@@ -1,0 +1,12 @@
+# Derleme direktifleri: 
+# Komut:  occ -nexus  tüm derlemeleri birkerede yapabilirsin.
+
+!!=[occ-nexus]
+occ source_file.nx -olib -dll
+&& source_file2.nx -olib -dll
+&& source_file3.nx -olib -dll
+&& source_file4.nx -olib -dll -t win64 --release
+&& main.nx -lsource_file -lsource_file2 -lsource_file3 -lsource_file4 -o file.exe -t win64 --release
+
+
+

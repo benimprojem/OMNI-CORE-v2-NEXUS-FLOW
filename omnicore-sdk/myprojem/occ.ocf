@@ -1,0 +1,20 @@
+[package]
+name 	= "occ"
+version = "0.2.0"
+edition = "2026"
+author 	= "DissConnecTed"
+
+[package.metadata]
+date 	= "12-01-2026"
+info 	= "Omni Core Nexus Flow"
+
+# Derleyicinin modülleri arayacağı ek dizinler.
+# coremodule otomatik yüklenir no:coremodule; kullanılarak iptal edilebilir. 
+# Baremetal, kernel yazıyorsanız iptal edebilirsiniz.
+[include]
+./lib
+
+# dpslib/  Eğer ekleyeceğiniz bağımlıklar o.c.sdk içerisinde var ise yüklenmez. 
+# Yok ise o.c.sdk/dpslib/ yüklenir, bir başka projede gerekli olur ise tekrar yüklemekten kurtarır.
+[dependencies]
+
