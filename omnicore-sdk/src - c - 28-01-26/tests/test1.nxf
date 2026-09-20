@@ -1,0 +1,11 @@
+# OmniCore v2 - Test 1: Temel Yapılar
+
+f:topla(a!i32, b!i32) !i32 {
+    ret a + b;
+}
+
+f:main() {
+    v:x = 10;
+    v:y = 20;
+    v:sonuc = topla(x, y);
+}

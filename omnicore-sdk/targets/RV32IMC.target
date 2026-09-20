@@ -1,0 +1,39 @@
+[target_info]
+spec_version = 1.0
+identifier = "RV32IMC"
+author = "NexusFlow Team"
+
+[cpu_arch]
+family = "riscv32"
+bits = 32
+endian = "little"
+registers = ["x1", "x5", "x6", "x7", "x10", "x11", "x12", "x13"]
+scratch_regs = ["x6", "x7"]
+reserved_regs = ["sp", "gp", "tp"]
+
+[instruction_set]
+simd = "none" # Genelde desteklenmez
+atomic = true # 'A' extension
+fastexec_support = false
+
+[memory_model]
+page_size = 4096
+stack_alignment = 4 # 32-bit mimari
+default_area_size = 64K
+zone_sync_mode = "none" # Donanımsal kesme (interrupt) öncelikli
+
+[abi_convention]
+name = "ilp32"
+shadow_space = 0
+return_reg = "x10"
+param_regs = ["x10", "x11", "x12", "x13"]
+
+[output_format]
+binary_type = "bin"
+object_ext = ".elf"
+shared_lib_ext = "none"
+entry_point = "reset_handler"
+
+[nexus_primitives]
+handler_init = "li x10, 0"
+relocate_op = "lw t0, 0(a1); sw t0, 0(a0)"

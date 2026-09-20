@@ -1,0 +1,39 @@
+[target_info]
+spec_version = 1.0
+identifier = "BareMetal64"
+author = "NexusFlow Team"
+
+[cpu_arch]
+family = "x86_64"
+bits = 64
+endian = "little"
+registers = ["rax", "rbx", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11"]
+scratch_regs = ["rax", "rcx", "rdx"]
+reserved_regs = ["rsp"]
+
+[instruction_set]
+simd = "sse4_2" # En güvenli ortak küme
+atomic = true
+fastexec_support = true
+
+[memory_model]
+page_size = 4096
+stack_alignment = 8 # OS bağımsız olduğu için daha esnek
+default_area_size = 512K
+zone_sync_mode = "spinlock" # En düşük seviye eşitleme
+
+[abi_convention]
+name = "none" # Özel kernel ABI
+shadow_space = 0
+return_reg = "rax"
+param_regs = ["rdi", "rsi", "rdx"]
+
+[output_format]
+binary_type = "raw" # Doğrudan bellek yansıması
+object_ext = ".bin"
+shared_lib_ext = "none"
+entry_point = "_kernel_main"
+
+[nexus_primitives]
+handler_init = "cli; xor rax, rax; lidt [idtr]"
+relocate_op = "mov rax, [rsi]; mov [rdi], rax"

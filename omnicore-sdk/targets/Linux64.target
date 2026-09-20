@@ -1,0 +1,39 @@
+[target_info]
+spec_version = 1.0
+identifier = "Linux64"
+author = "NexusFlow Team"
+
+[cpu_arch]
+family = "x86_64"
+bits = 64
+endian = "little"
+registers = ["rax", "rdi", "rsi", "rdx", "rcx", "r8", "r9", "r10", "r11"]
+scratch_regs = ["r10", "r11"]
+reserved_regs = ["rsp", "rbp"]
+
+[instruction_set]
+simd = "avx2" # Standart Linux x64 desteği
+atomic = true
+fastexec_support = true
+
+[memory_model]
+page_size = 4096
+stack_alignment = 16
+default_area_size = 2M
+zone_sync_mode = "futex" # Linux özgü eşitleme
+
+[abi_convention]
+name = "sysv_amd64"
+shadow_space = 0 # System V ABI'da shadow space gerekmez
+return_reg = "rax"
+param_regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
+
+[output_format]
+binary_type = "elf"
+object_ext = ".o"
+shared_lib_ext = ".so"
+entry_point = "_start"
+
+[nexus_primitives]
+handler_init = "xor rax, rax; mov rdi, [rsp+8]"
+relocate_op = "xchg rdi, rsi"

@@ -1,0 +1,18 @@
+[target_info]
+# Yeni mimari (örneğin: Nöromorfik veya özel DSP)
+identifier = "Custom_DSP_V1"
+...
+
+[memory_model]
+...
+scratchpad_addr = 0x20000000
+dma_support = true # DMA ile bellek erişimi
+
+[nexus_primitives.common]
+# Tüm platformlarda ortak olanlar
+...
+
+[nexus_primitives.arch_specific]
+# Bu mimariye özel, derleyicinin doğrudan emit edeceği op-code'lar
+trigger_compute = "dsp_macc r1, r2, acc0"
+sync_barrier = "dsb sy"

@@ -1,0 +1,189 @@
+# =========================
+# CoreModule.exf
+# Nexus Flow OS-dependent core module
+# Otomatik yüklenir; no:CoreModule; ile iptal edilebilir.
+# =========================
+
+# -------------------------
+# Extern Kütüphane Tanımları
+# -------------------------
+!!=[target = "windows"] {
+    !!=link name = "msvcrt";
+    exf:_write(fd!i32, buf!*char, size!u32)!i32;
+    exf:_read(fd!i32, buf!*char, size!u32)!i32;
+    exf:_open(path!*char, mode!i32)!i32;
+    exf:_close(fd!i32)!i32;
+}
+
+!!=[target = "linux"] {
+    !!=link name = "libc";
+    exf:write(fd!i32, buf!*char, size!u32)!i32;
+    exf:read(fd!i32, buf!*char, size!u32)!i32;
+    exf:open(path!*char, flags!i32)!i32;
+    exf:close(fd!i32)!i32;
+}
+
+!!=[target = "macos"] {
+    !!=link name = "libc";
+    exf:write(fd!i32, buf!*char, size!u32)!i32;
+    exf:read(fd!i32, buf!*char, size!u32)!i32;
+    exf:open(path!*char, flags!i32)!i32;
+    exf:close(fd!i32)!i32;
+}
+
+# -------------------------
+# I/O Fonksiyonları
+# -------------------------
+f:echo(msg!str) { SysIO.output(msg); }
+
+f:input(prompt!str)?->(res!str) {
+    res <- SysIO.input(prompt) ?-> (e){ SysIO.output("Girdi alınamadı!\n"); return ""; };
+    return res;
+}
+
+group SysIO {
+    output => f:(msg!str) {
+        v:len = len(msg);
+        v:ptr = addr(msg);
+
+        !!=[target = "windows"] { _write(1, ptr, len); }
+        !!=[target = "linux"]   { write(1, ptr, len); }
+        !!=[target = "macos"]   { write(1, ptr, len); }
+
+        !!=[target = "bare-metal"] {
+            loop(i, i < len, i++) {
+                poke(0xB8000 + (i*2), msg[i]);
+                poke(0xB8000 + (i*2) + 1, 0x07);
+            }
+        }
+    }
+
+    input => f:(prompt!str)?->(res!str) {
+        output(prompt);
+        v:buf[256]!char;
+        !!=[target = "windows"] { _read(0, addr(buf), 256); }
+        !!=[target = "linux"]   { read(0, addr(buf), 256); }
+        !!=[target = "macos"]   { read(0, addr(buf), 256); }
+
+        res = str_from_buf(buf);
+        return res;
+    }
+
+    default { output("SysIO: output/input fonksiyonlarını kullanın.\n"); }
+}
+
+# -------------------------
+# File / Dosya İşlemleri
+# -------------------------
+group File {
+    open  => f:(path!str, mode!str)?->(fh!file_handle) { fh <- file_open(path, mode) ?-> (e){ echo("Dosya açılamıyor!"); return null; }; return fh; }
+    read  => f:(fh!file_handle)?->(data!str) { return file_read(fh); }
+    write => f:(fh!file_handle, data!str) { file_write(fh, data); }
+    close => f:(fh!file_handle) { file_close(fh); }
+    exists => f:(path!str)?->(res!bool) { return file_exists(path); }
+
+    default { echo("File modülü: open/read/write/close/exists"); }
+}
+
+# -------------------------
+# Bellek ve Bölge Yönetimi
+# -------------------------
+group Mem {
+    area   => f:(size!u64)?->(h!handle) { return mem_area(size); }
+    zone   => f:(size!u64)?->(h!handle) { return mem_zone(size); }
+    resize => f:(h!handle, size!u64) { mem_resize(h, size); }
+    copy   => f:(dst!handle, src!handle) { mem_copy(dst, src); }
+    peek   => f:(ptr!ptr, type!str)?->(val) { return mem_peek(ptr,type); }
+    poke   => f:(ptr!ptr, val) { mem_poke(ptr,val); }
+    move   => f:(dst!ptr, src!ptr, size!u64) { mem_move(dst,src,size); }
+    stat   => f:(h!handle)?->(info!str) { return mem_stat(h); }
+
+    default { echo("Mem modülü: area/zone/resize/copy/peek/poke/move/stat"); }
+}
+
+# -------------------------
+# Zaman ve Hassas Ölçüm
+# -------------------------
+group Time {
+    ticks => f:()?->(v!u64) { return time_ticks(); }
+    now   => f:()?->(v!u64) { return time_now(); }
+
+    default { echo("Time modülü: ticks/now"); }
+}
+
+# -------------------------
+# Kripto / Güvenlik
+# -------------------------
+group Crypto {
+    hash   => f:(h!handle, alg!str)?->(res!str) { return crypto_hash(h, alg); }
+    verify => f:(h!handle, sig!str)?->(ok!bool) { return crypto_verify(h, sig); }
+    seal   => f:(h!handle) { crypto_seal(h); }
+
+    default { echo("Crypto modülü: hash/verify/seal"); }
+}
+
+# -------------------------
+# Hata ve Tanı
+# -------------------------
+group Err {
+    last  => f:()?->(res!str) { return err_last(); }
+    trace => f:()?->(res!str) { return err_trace(); }
+
+    default { echo("Err modülü: last/trace"); }
+}
+
+# -------------------------
+# Flow / Veri Akışı
+# -------------------------
+group Flow {
+    push  => f:(h!handle, data!str) { flow_push(h,data); }
+    pull  => f:(h!handle)?->(data!str) { return flow_pull(h); }
+    sync  => f:(z!handle) { flow_sync(z); }
+    lock  => f:(z!handle) { flow_lock(z); }
+    delay => f:(ms!u64) { flow_delay(ms); }
+
+    default { echo("Flow modülü: push/pull/sync/lock/delay"); }
+}
+
+# -------------------------
+# Array / String / Math
+# -------------------------
+group Array {
+    new    => f:(len!u64)?->(arr!array) { return array_new(len); }
+    get    => f:(arr!array, idx!u64)?->(val) { return array_get(arr,idx); }
+    set    => f:(arr!array, idx!u64, val) { array_set(arr,idx,val); }
+    len    => f:(arr!array)?->(l!u64) { return array_len(arr); }
+    push   => f:(arr!array, val) { array_push(arr,val); }
+    pop    => f:(arr!array)?->(val) { return array_pop(arr); }
+
+    default { echo("Array modülü: new/get/set/len/push/pop"); }
+}
+
+group String {
+    len  => f:(s!str)?->(v!u64) { return str_len(s); }
+    at   => f:(s!str, idx!u64)?->(v!char) { return str_at(s,idx); }
+    slice=> f:(s!str, start!u64, end!u64)?->(v!str) { return str_slice(s,start,end); }
+    concat=> f:(s!str, a!str, b!str)?->(v!str) { return str_concat(a,b); }
+    to_int => f:(s!str)?->(v!i64) { return str_to_int(s); }
+    to_float => f:(s!str)?->(v!f64) { return str_to_float(s); }
+
+    default { echo("String modülü: len/at/slice/concat/to_int/to_float"); }
+}
+
+group Math {
+    add => f:(a!f64, b!f64)?->(v!f64) { return math_add(a,b); }
+    sub => f:(a!f64, b!f64)?->(v!f64) { return math_sub(a,b); }
+    mul => f:(a!f64, b!f64)?->(v!f64) { return math_mul(a,b); }
+    div => f:(a!f64, b!f64)?->(v!f64) { return math_div(a,b); }
+
+    default { echo("Math modülü: add/sub/mul/div"); }
+}
+
+/*
+# -------------------------
+# Örnek Kullanım
+# -------------------------
+echo("CoreModule tam hazır!\n");
+(v_name) <- input("Adınızı giriniz: ") ?-> (e){ echo("Girdi alınamadı!\n"); };
+echo("Hoşgeldiniz, {v_name}!\n");
+*/

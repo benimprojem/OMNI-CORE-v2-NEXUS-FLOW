@@ -1,0 +1,28 @@
+f:main() {
+    v:counter = 0;
+
+    # While Loop
+    loop(counter < 5) -> {
+        counter = counter + 1;
+    }
+
+    # For Loop
+    v:i = 0;
+    loop(i, i < 5, i = i + 1) -> {
+        counter = counter + 1;
+    }
+
+    # Label & Jump
+    v:step = 0;
+    (start_point):>
+    step = step + 1;
+    
+    # Conditional Jump
+    loop(step < 3) -> {
+        ?>(start_point);
+    }
+
+    # Nexus Flow If
+    v:status = 0;
+    (counter > 5) =?> status = 1 ?=> status = -1;
+}

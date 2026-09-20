@@ -1,0 +1,22 @@
+f:main()!void {
+    # Tip Zorlama ve Yeni Tipler
+    v:sayi!i32 = 100;
+    v:kucuk!u16 = 50;
+    v:isaretli!i8 = -5;
+    
+    # Struct Tanimi (Analyzer DEF_STRUCT scope acar)
+    nt:struct:Player {
+        v:id!i32,
+        v:hp!f32
+    };
+
+    # Ownership Test (Kullanıcı Örneği):
+    (h) <- "Veri";
+    (h) _> (v); 
+    
+    # Bu satir artik hata VERMEMELI (h bosaldi)
+    (h) <- "Tekrar Kullanim";
+    
+    # Bu satir hata VERMELI (v zaten dolu) [A2001]
+    (v) <- "Masa Dolu Hatasi Bekleniyor"; 
+}

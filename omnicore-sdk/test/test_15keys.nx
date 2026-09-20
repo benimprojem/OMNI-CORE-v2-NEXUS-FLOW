@@ -1,0 +1,35 @@
+
+# Rule definition
+rules Security {
+    r:Access { (user) -> check(); }
+}
+
+f:check() { return true; }
+
+f:main() {
+    
+    # 1. Capture (<-)
+    (h1) <- "Initial";
+    
+    # 2. Pipe (->)
+    (h1) -> f:(val) { 
+        # 3. Intent (@)
+        @log "Processing" {
+            # 4. Zone Write (<<)
+            (h1) << val;
+            (h1) _> (v2); 
+        } 
+    }
+  
+    # (v2) kullanılmayan masa uyarısı..
+    
+    v:testr = false; #uyarı vermeli tanımlanmış ama kullanılmamış.
+   
+    # 13. Apply Rules
+    apply rules(Security);
+
+    # 14. On Rule
+    on Security.Access {
+        @info "Access granted";
+    }
+}

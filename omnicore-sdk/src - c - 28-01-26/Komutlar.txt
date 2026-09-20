@@ -1,0 +1,14 @@
+# Konsolu Türkçe karakterler için ayarla
+chcp 65001
+
+# 1. parser.dll Derleme (İçe aktarma kütüphanesi libparser.a ile birlikte)
+gcc -shared -DBUILD_PARSER_DLL -o parser.dll parser/parser.c parser/lexer.c parser/ast.c parser/semantic.c -Wl,--out-implib,libparser.a
+
+# 2. codegen.dll Derleme (libparser.a'ya linklenir)
+gcc -shared -DBUILD_CODEGEN_DLL -o codegen.dll codegen/codegen.c -L. -lparser -Wl,--out-implib,libcodegen.a
+
+# 3. occ.exe Derleme (Ana driver, libparser.a'ya linklenir)
+gcc main.c -L. -lparser -o occ.exe
+
+# Örnek Test Kullanımı
+# occ.exe tests/test.nxf

@@ -1,0 +1,50 @@
+
+
+f:main(){
+
+    struct: Point {
+        v:x!i32,
+        v:y!i32
+    }
+
+    nt:id = u64;
+    v:p!Point = {25, 23};
+    v:k = p.x;
+    
+    nt:struct: V4{
+        v:x!f32,
+        v:y!f32,
+        v:z!f32,
+        v:w!f32
+    };
+
+    nt: struct{
+        v:x!f32,
+        v:y!f32,
+        v:z!f32
+    }V3;
+
+    v:vec!V3;
+    vec = (2.4, 1.8, 0.5);
+    
+    !struct: NetworkPacket {
+        v:id!u8,
+        v:data!u32
+    }
+
+    enum:State {
+        Idle,
+        Running(pid!u32),
+        Error(code!u16)
+    }
+
+    v:current = State.Running(1024);
+    
+    union:Register32 {
+        v:full!u32,
+        v:parts!struct {
+            v:low!u16,
+            v:high!u16
+        }
+    }
+}
