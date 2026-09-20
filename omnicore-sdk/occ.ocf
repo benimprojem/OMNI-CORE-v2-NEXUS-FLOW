@@ -1,0 +1,28 @@
+[package]
+name 	= "occ"
+version = "0.2.0"
+edition = "2026"
+author 	= "DissConnecTed"
+
+[package.metadata]
+date 	= "12-01-2026"
+info 	= "Omni Core Nexus Flow"
+language = "en"  # "tr" -Türkçe  "en" -English eğer ayar yoksa (error/info) mesajları için ingilizce otomatik seçilir.
+lisans 	= "";
+
+
+# Derleyicinin modülleri arayacağı ek dizinler.
+[include]
+./lib
+
+# dpslib/  Eğer ekleyeceğiniz bağımlıklar omnicore-sdk içerisinde var ise yüklenmez. 
+# Yok ise "omnicore-sdk/dpslib/" içerisine yüklenir, bir başka projede gerekli olur ise tekrar yüklemekten kurtarır.
+[dependencies]
+
+
+# Compiler flags (opsiyonel)
+flags = ["-O2", "-march=native"]
+
+# Macro ve default library tanımları
+default_macros = 
+default_libs = ["msvcrt.exf"]
