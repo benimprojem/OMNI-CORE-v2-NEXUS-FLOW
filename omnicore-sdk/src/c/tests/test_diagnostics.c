@@ -1,0 +1,110 @@
+#include "diagnostics.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#define CHECK(condition, message) do { \
+    if (!(condition)) { \
+        fprintf(stderr, "FAIL: %s (line %d)\n", message, __LINE__); \
+        return 1; \
+    } \
+} while (0)
+
+int main(void) {
+    OccDiagnosticCollector collector;
+    OccDiagnosticInput input;
+    OccDiagnosticView view;
+    char mutable_message[] = "undefined symbol";
+    char mutable_hint[] = "declare the symbol first";
+
+    occ_diagnostics_init(&collector);
+    memset(&input, 0, sizeof(input));
+    input.code = 3001;
+    input.stage_id = 3;
+    input.message_id = 3001;
+    input.severity = OCC_DIAG_ERROR;
+    input.span.source_id = 0;
+    input.span.start_offset = 12;
+    input.span.end_offset = 17;
+    input.span.start_line = 2;
+    input.span.start_column = 4;
+    input.span.end_line = 2;
+    input.span.end_column = 9;
+    input.span.has_location = 1;
+    input.message = mutable_message;
+    input.message_length = strlen(mutable_message);
+    input.hint = mutable_hint;
+    input.hint_length = strlen(mutable_hint);
+
+    CHECK(occ_diagnostics_add(&collector, &input),
+        "collector should accept valid diagnostic");
+    mutable_message[0] = 'X';
+    mutable_hint[0] = 'Y';
+
+    CHECK(occ_diagnostics_count(&collector) == 1,
+        "diagnostic count should increment");
+    CHECK(occ_diagnostics_count_severity(&collector, OCC_DIAG_ERROR) == 1,
+        "severity count should increment");
+    CHECK(occ_diagnostics_blocks_output(&collector),
+        "an error should block final output");
+    CHECK(occ_diagnostics_get(&collector, 0, &view),
+        "stored diagnostic should be readable");
+    CHECK(view.record->code == 3001 && view.record->stage_id == 3,
+        "diagnostic identity should be preserved");
+    CHECK(strcmp(view.message, "undefined symbol") == 0 &&
+        strcmp(view.hint, "declare the symbol first") == 0,
+        "collector should own copies of message and hint");
+    CHECK(view.record->span.start_offset == 12 &&
+        view.record->span.end_offset == 17 &&
+        view.record->span.start_line == 2,
+        "source span should be preserved");
+
+    memset(&input, 0, sizeof(input));
+    input.code = 9001;
+    input.stage_id = 1;
+    input.severity = OCC_DIAG_NOTE;
+    input.message = "analysis completed with note";
+    input.message_length = strlen(input.message);
+    CHECK(occ_diagnostics_add(&collector, &input),
+        "collector should accept a location-free note");
+    CHECK(!occ_diagnostics_blocks_output(&collector) == 0,
+        "existing error should continue blocking output");
+    CHECK(occ_diagnostics_count_severity(&collector, OCC_DIAG_NOTE) == 1,
+        "note count should increment");
+
+    {
+        OccDiagnosticCollector notes_only;
+        occ_diagnostics_init(&notes_only);
+        CHECK(occ_diagnostics_add(&notes_only, &input),
+            "notes-only collector should accept note");
+        CHECK(!occ_diagnostics_blocks_output(&notes_only),
+            "notes alone should not block output");
+        occ_diagnostics_destroy(&notes_only);
+    }
+
+    input.code = 9002;
+    input.severity = OCC_DIAG_WARNING;
+    input.message = "warning";
+    input.message_length = strlen(input.message);
+    CHECK(occ_diagnostics_add(&collector, &input),
+        "collector should accept warning");
+    CHECK(occ_diagnostics_blocks_output(&collector),
+        "warning should block output under strict policy");
+
+    input.code = 0;
+    CHECK(!occ_diagnostics_add(&collector, &input),
+        "zero diagnostic code should be rejected");
+    input.code = 9003;
+    input.severity = 99;
+    CHECK(!occ_diagnostics_add(&collector, &input),
+        "unknown severity should be rejected");
+
+    CHECK(!occ_diagnostics_get(&collector, 999, &view),
+        "out-of-range diagnostic index should be rejected");
+
+    occ_diagnostics_destroy(&collector);
+    CHECK(occ_diagnostics_count(&collector) == 0,
+        "destroy should reset collector");
+    puts("Diagnostic collector tests passed.");
+    return 0;
+}
