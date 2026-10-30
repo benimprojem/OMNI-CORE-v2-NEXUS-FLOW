@@ -16,7 +16,7 @@
 - [x] C OCC için Windows build hedefi ve Linux/macOS build hedefleri oluştur.
 - [x] Parser, semantic ve codegen için ayrı build hedefleri oluştur.
 - [ ] Config okuyucuyu bölüm/satır sırasından bağımsız hale getir.
-- [ ] CLI argüman ayrıştırmasını kaynak dosyası ve seçenek sırasına dayanıklı yap.
+- [x] CLI argüman ayrıştırmasını kaynak dosyası ve seçenek sırasına dayanıklı yap (hedef öncesi/sonrası, eksik hedef, bilinmeyen seçenek ve birden fazla kaynak testleri).
 - [ ] Path işlemlerindeki NULL pointer karşılaştırmasını kaldır.
 - [ ] Parser/codegen hata durumlarını OCC çıkış koduna aktar.
 - [ ] Otomatik lexer/parser/semantic test iskeletini kur.
