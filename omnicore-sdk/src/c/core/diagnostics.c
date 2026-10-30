@@ -85,11 +85,21 @@ int occ_diagnostics_add(
     hint_length = input->hint_length;
     if (message_length > UINT32_MAX || hint_length > UINT32_MAX ||
         collector->text_length > UINT32_MAX ||
-        message_length > SIZE_MAX - collector->text_length ||
-        hint_length > SIZE_MAX - collector->text_length - message_length) {
+        collector->count == SIZE_MAX ||
+        collector->severity_counts[input->severity] == SIZE_MAX ||
+        collector->text_length > SIZE_MAX - 1u) {
         return 0;
     }
-    required_text = collector->text_length + message_length + hint_length;
+    if (message_length > SIZE_MAX - collector->text_length - 1u) return 0;
+    extra_text = message_length + 1u;
+    if (hint_length) {
+        if (extra_text > SIZE_MAX - collector->text_length - 1u ||
+            hint_length > SIZE_MAX - collector->text_length - extra_text - 1u) {
+            return 0;
+        }
+        extra_text += hint_length + 1u;
+    }
+    required_text = collector->text_length + extra_text;
     if (required_text > UINT32_MAX) return 0;
 
     if (!reserve_records(collector, collector->count + 1u) ||
