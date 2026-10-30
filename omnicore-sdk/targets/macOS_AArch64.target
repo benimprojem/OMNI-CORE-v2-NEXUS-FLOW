@@ -1,6 +1,7 @@
 [target_info]
 spec_version = 1.0
 identifier = "macOS_AArch64"
+os = "macos"
 author = "NexusFlow Team"
 
 [cpu_arch]
