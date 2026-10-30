@@ -183,7 +183,7 @@ static int populate_ast_fixture(ASTNode* node) {
 
         case AST_LITERAL: {
             ASTLiteral* value = (ASTLiteral*)node;
-            value->type = TOKEN_NUMBER;
+            value->type = TOKEN_STRING;
             value->lit_type = 2;
             value->int_value = 654;
             value->float_value = 654.125;
