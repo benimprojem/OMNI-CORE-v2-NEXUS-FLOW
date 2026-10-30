@@ -130,6 +130,14 @@ if(BUILD_TESTING)
         WILL_FAIL TRUE
     )
 
+    add_test(NAME occ_rejects_missing_source
+        COMMAND occ tests/does_not_exist.nxf
+    )
+    set_tests_properties(occ_rejects_missing_source PROPERTIES
+        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+        WILL_FAIL TRUE
+    )
+
     # Exercises the complete C path: lexer, parser, semantic analysis,
     # AST serialization/deserialization, shared-library loading and codegen.
     add_test(NAME occ_compiles_basic_source
