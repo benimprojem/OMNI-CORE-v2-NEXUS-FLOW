@@ -94,7 +94,7 @@ static void skip_whitespace(ParserContext* ctx) {
 
 // Tanımlayıcı veya Anahtar Kelime Kontrolü
 static OmniTokenType check_keyword(const char* start, int length, const char* rest, OmniTokenType type) {
-    if (length == strlen(rest) && memcmp(start, rest, length) == 0) {
+    if (length >= 0 && (size_t)length == strlen(rest) && memcmp(start, rest, (size_t)length) == 0) {
         return type;
     }
     return TOKEN_IDENTIFIER;
