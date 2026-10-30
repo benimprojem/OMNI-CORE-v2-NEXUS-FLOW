@@ -16,11 +16,21 @@ static int check_file(const char* path, int expect_error, ErrorCode expected_cod
         return 0;
     }
 
+    OccDiagnosticCollector diagnostics;
+    occ_diagnostics_init(&diagnostics);
+
     SemanticContext semantic;
     semantic_init(&semantic, path, NULL);
+    semantic_attach_diagnostics(&semantic, &diagnostics, OCC_STAGE_SEMANTIC);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
 
     int ok = expect_error ? semantic.error_count > 0 : semantic.error_count == 0;
+    if (expect_error) {
+        ok = ok && occ_diagnostics_count(&diagnostics) > 0 &&
+            occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) > 0;
+    } else {
+        ok = ok && occ_diagnostics_count(&diagnostics) == 0;
+    }
     if (ok && expect_error) {
         int found = 0;
         for (Error* error = semantic.error_head; error; error = error->next) {
@@ -34,6 +44,7 @@ static int check_file(const char* path, int expect_error, ErrorCode expected_cod
     }
 
     semantic_destroy(&semantic);
+    occ_diagnostics_destroy(&diagnostics);
     parser_destroy(parser);
     return ok;
 }
