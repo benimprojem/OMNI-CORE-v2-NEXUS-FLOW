@@ -51,6 +51,13 @@ add_library(occ_oir STATIC
 
 target_include_directories(occ_oir PUBLIC "${C_SOURCE_DIR}/oir")
 
+# Job-owned diagnostics collector; modules report through a host-owned context.
+add_library(occ_diagnostics STATIC
+    "${C_SOURCE_DIR}/core/diagnostics.c"
+)
+target_include_directories(occ_diagnostics PUBLIC "${C_SOURCE_DIR}/core")
+
+
 # Frontend token enum <-> stable OIR token ID adapter. Kept separate from the
 # container library so the canonical OIR layer does not depend on parser types.
 add_library(occ_oir_lexer_adapter STATIC
@@ -139,12 +146,14 @@ target_link_libraries(occ PRIVATE occ_frontend ${CMAKE_DL_LIBS})
 
 if(MSVC)
     target_compile_options(occ_oir PRIVATE /W4)
+    target_compile_options(occ_diagnostics PRIVATE /W4)
     target_compile_options(occ_oir_lexer_adapter PRIVATE /W4)
     target_compile_options(occ_frontend PRIVATE /W4)
     target_compile_options(occ_codegen PRIVATE /W4)
     target_compile_options(occ PRIVATE /W4)
 else()
     target_compile_options(occ_oir PRIVATE -Wall -Wextra)
+    target_compile_options(occ_diagnostics PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_lexer_adapter PRIVATE -Wall -Wextra)
     target_compile_options(occ_frontend PRIVATE -Wall -Wextra)
     target_compile_options(occ_codegen PRIVATE -Wall -Wextra)
@@ -260,6 +269,15 @@ if(BUILD_TESTING)
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         PASS_REGULAR_EXPRESSION "Tanımsız değişken"
     )
+
+    add_executable(test_diagnostics "${C_SOURCE_DIR}/tests/test_diagnostics.c")
+    target_link_libraries(test_diagnostics PRIVATE occ_diagnostics)
+    if(MSVC)
+        target_compile_options(test_diagnostics PRIVATE /W4)
+    else()
+        target_compile_options(test_diagnostics PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME diagnostic_collector_and_strict_output_gate COMMAND test_diagnostics)
 
     add_executable(test_oir_token_map "${C_SOURCE_DIR}/tests/test_oir_token_map.c")
     target_link_libraries(test_oir_token_map PRIVATE occ_oir_lexer_adapter)
