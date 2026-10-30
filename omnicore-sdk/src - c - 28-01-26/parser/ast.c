@@ -632,18 +632,51 @@ static void write_string(FILE* out, const char* s) {
     fwrite(s, 1, len, out);
 }
 
-static char* read_string(FILE* in) {
-    int len;
-    if (fread(&len, sizeof(int), 1, in) != 1) return NULL;
+#define AST_MAX_STRING_LENGTH (16u * 1024u * 1024u)
+#define AST_MAX_NODE_COUNT 1000000u
+#define AST_MAX_RECURSION_DEPTH 512u
+
+typedef struct {
+    FILE* stream;
+    size_t node_count;
+    size_t depth;
+    int failed;
+} ASTReader;
+
+static int ast_read_exact(ASTReader* reader, void* destination, size_t size) {
+    if (!reader || reader->failed || !destination) return 0;
+    if (size == 0) return 1;
+
+    if (fread(destination, 1, size, reader->stream) != size) {
+        reader->failed = 1;
+        return 0;
+    }
+    return 1;
+}
+
+static char* read_string(ASTReader* reader) {
+    int len = -1;
+    if (!ast_read_exact(reader, &len, sizeof(len))) return NULL;
     if (len == -1) return NULL;
-    char* s = malloc(len + 1);
-    if (!s) return NULL;
-    if (fread(s, 1, len, in) != (size_t)len) {
-        free(s);
+
+    if (len < 0 || (unsigned int)len > AST_MAX_STRING_LENGTH) {
+        reader->failed = 1;
         return NULL;
     }
-    s[len] = '\0';
-    return s;
+
+    char* value = (char*)malloc((size_t)len + 1u);
+    if (!value) {
+        reader->failed = 1;
+        return NULL;
+    }
+
+    if (!ast_read_exact(reader, value, (size_t)len)) {
+        free(value);
+        return NULL;
+    }
+
+    value[len] = '\0';
+    return value;
 }
 
 static void ast_serialize_recursive(ASTNode* node, FILE* out) {
@@ -901,61 +934,82 @@ void ast_serialize(ASTNode* root, FILE* out) {
     ast_serialize_recursive(root, out);
 }
 
-static ASTNode* ast_deserialize_recursive(FILE* in) {
+static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
     int type_val;
-    if (fread(&type_val, sizeof(int), 1, in) != 1) return NULL;
+    if (!ast_read_exact(reader, &type_val, sizeof(type_val))) return NULL;
     if (type_val == -1) return NULL;
+
+    if (type_val < AST_PROGRAM || type_val > AST_ZONE_LOCK) {
+        reader->failed = 1;
+        return NULL;
+    }
+    if (reader->node_count >= AST_MAX_NODE_COUNT ||
+        reader->depth >= AST_MAX_RECURSION_DEPTH) {
+        reader->failed = 1;
+        return NULL;
+    }
+
+    reader->node_count++;
+    reader->depth++;
 
     ASTNodeType type = (ASTNodeType)type_val;
     ASTNode* node = ast_create(type);
-    fread(&node->line, sizeof(int), 1, in);
-    fread(&node->col, sizeof(int), 1, in);
+    if (!node) {
+        reader->failed = 1;
+        reader->depth--;
+        return NULL;
+    }
+
+    if (!ast_read_exact(reader, &node->line, sizeof(node->line)) ||
+        !ast_read_exact(reader, &node->col, sizeof(node->col))) {
+        goto fail;
+    }
 
     switch(type) {
         case AST_VAR_DECL: {
             ASTVarDecl* d = (ASTVarDecl*)node;
-            d->name = read_string(in);
-            d->type_name = read_string(in);
-            fread(&d->is_const, sizeof(int), 1, in);
-            fread(&d->is_hard_typed, sizeof(int), 1, in);
-            fread(&d->is_public, sizeof(int), 1, in);
-            fread(&d->is_exported, sizeof(int), 1, in);
-            d->initializer = ast_deserialize_recursive(in);
-            d->inline_type = ast_deserialize_recursive(in);
+            d->name = read_string(reader);
+            d->type_name = read_string(reader);
+            if (!ast_read_exact(reader, &d->is_const, sizeof(int))) goto fail;
+            if (!ast_read_exact(reader, &d->is_hard_typed, sizeof(int))) goto fail;
+            if (!ast_read_exact(reader, &d->is_public, sizeof(int))) goto fail;
+            if (!ast_read_exact(reader, &d->is_exported, sizeof(int))) goto fail;
+            d->initializer = ast_deserialize_recursive(reader);
+            d->inline_type = ast_deserialize_recursive(reader);
             break;
         }
         case AST_FUNC_DECL: {
             ASTFuncDecl* f = (ASTFuncDecl*)node;
-            f->name = read_string(in);
-            f->return_type = read_string(in);
-            fread(&f->is_extern, sizeof(int), 1, in);
-            fread(&f->is_public, sizeof(int), 1, in);
-            fread(&f->is_exported, sizeof(int), 1, in);
-            f->params = ast_deserialize_recursive(in);
-            f->body = ast_deserialize_recursive(in);
+            f->name = read_string(reader);
+            f->return_type = read_string(reader);
+            if (!ast_read_exact(reader, &f->is_extern, sizeof(int))) goto fail;
+            if (!ast_read_exact(reader, &f->is_public, sizeof(int))) goto fail;
+            if (!ast_read_exact(reader, &f->is_exported, sizeof(int))) goto fail;
+            f->params = ast_deserialize_recursive(reader);
+            f->body = ast_deserialize_recursive(reader);
             break;
         }
         case AST_STRUCT_DECL:
         case AST_UNION_DECL: {
             ASTStructDecl* s = (ASTStructDecl*)node;
-            s->name = read_string(in);
-            fread(&s->is_packed, sizeof(int), 1, in);
-            fread(&s->is_union, sizeof(int), 1, in);
-            fread(&s->is_public, sizeof(int), 1, in);
-            fread(&s->is_exported, sizeof(int), 1, in);
-            s->fields = ast_deserialize_recursive(in);
+            s->name = read_string(reader);
+            if (!ast_read_exact(reader, &s->is_packed, sizeof(int))) goto fail;
+            if (!ast_read_exact(reader, &s->is_union, sizeof(int))) goto fail;
+            if (!ast_read_exact(reader, &s->is_public, sizeof(int))) goto fail;
+            if (!ast_read_exact(reader, &s->is_exported, sizeof(int))) goto fail;
+            s->fields = ast_deserialize_recursive(reader);
             break;
         }
         case AST_LITERAL: {
             ASTLiteral* l = (ASTLiteral*)node;
-            fread(&l->lit_type, sizeof(int), 1, in);
-            fread(&l->int_value, sizeof(long long), 1, in);
-            fread(&l->float_value, sizeof(double), 1, in);
-            l->string_value = read_string(in);
+            if (!ast_read_exact(reader, &l->lit_type, sizeof(int))) goto fail;
+            if (!ast_read_exact(reader, &l->int_value, sizeof(long long))) goto fail;
+            if (!ast_read_exact(reader, &l->float_value, sizeof(double))) goto fail;
+            l->string_value = read_string(reader);
             break;
         }
         case AST_IDENTIFIER: {
-            ((ASTIdentifier*)node)->name = read_string(in);
+            ((ASTIdentifier*)node)->name = read_string(reader);
             break;
         }
         case AST_BINARY_EXPR:
@@ -964,14 +1018,14 @@ static ASTNode* ast_deserialize_recursive(FILE* in) {
         case AST_NEXUS_FLOW:
         case AST_NEXUS_PIPE: {
             ASTBinaryExpr* b = (ASTBinaryExpr*)node;
-            fread(&b->op, sizeof(OmniTokenType), 1, in);
-            b->left = ast_deserialize_recursive(in);
-            b->right = ast_deserialize_recursive(in);
+            if (!ast_read_exact(reader, &b->op, sizeof(OmniTokenType))) goto fail;
+            b->left = ast_deserialize_recursive(reader);
+            b->right = ast_deserialize_recursive(reader);
             if (type == AST_NEXUS_FLOW || type == AST_NEXUS_PIPE) {
                  ASTNexusFlow* f = (ASTNexusFlow*)node;
-                 fread(&f->retry_count, sizeof(int), 1, in);
-                 fread(&f->retry_delay, sizeof(int), 1, in);
-                 f->catch_block = ast_deserialize_recursive(in);
+                 if (!ast_read_exact(reader, &f->retry_count, sizeof(int))) goto fail;
+                 if (!ast_read_exact(reader, &f->retry_delay, sizeof(int))) goto fail;
+                 f->catch_block = ast_deserialize_recursive(reader);
             }
             break;
         }
@@ -982,14 +1036,14 @@ static ASTNode* ast_deserialize_recursive(FILE* in) {
         case AST_UNPACK:
         case AST_NEXUS_HALT: {
             ASTUnaryExpr* u = (ASTUnaryExpr*)node;
-            fread(&u->op, sizeof(OmniTokenType), 1, in);
-            u->operand = ast_deserialize_recursive(in);
+            if (!ast_read_exact(reader, &u->op, sizeof(OmniTokenType))) goto fail;
+            u->operand = ast_deserialize_recursive(reader);
             break;
         }
         case AST_BLOCK:
         case AST_PROGRAM:
         case AST_ASM_BLOCK: {
-            ((ASTBlock*)node)->statements = ast_deserialize_recursive(in);
+            ((ASTBlock*)node)->statements = ast_deserialize_recursive(reader);
             break;
         }
         case AST_FUNC_CALL:
@@ -1031,127 +1085,154 @@ static ASTNode* ast_deserialize_recursive(FILE* in) {
         case AST_RECEIVE:
         case AST_DONE: {
             ASTCall* c = (ASTCall*)node;
-            c->callee = ast_deserialize_recursive(in);
-            c->args = ast_deserialize_recursive(in);
+            c->callee = ast_deserialize_recursive(reader);
+            c->args = ast_deserialize_recursive(reader);
             break;
         }
         case AST_IF: {
             ASTIf* i = (ASTIf*)node;
-            i->condition = ast_deserialize_recursive(in);
-            i->then_branch = ast_deserialize_recursive(in);
-            i->else_branch = ast_deserialize_recursive(in);
+            i->condition = ast_deserialize_recursive(reader);
+            i->then_branch = ast_deserialize_recursive(reader);
+            i->else_branch = ast_deserialize_recursive(reader);
             break;
         }
         case AST_LOOP: {
             ASTLoop* l = (ASTLoop*)node;
-            fread(&l->loop_type, sizeof(int), 1, in);
-            l->init = ast_deserialize_recursive(in);
-            l->condition = ast_deserialize_recursive(in);
-            l->increment = ast_deserialize_recursive(in);
-            l->body = ast_deserialize_recursive(in);
-            l->collection = ast_deserialize_recursive(in);
-            l->variable = ast_deserialize_recursive(in);
+            if (!ast_read_exact(reader, &l->loop_type, sizeof(int))) goto fail;
+            l->init = ast_deserialize_recursive(reader);
+            l->condition = ast_deserialize_recursive(reader);
+            l->increment = ast_deserialize_recursive(reader);
+            l->body = ast_deserialize_recursive(reader);
+            l->collection = ast_deserialize_recursive(reader);
+            l->variable = ast_deserialize_recursive(reader);
             break;
         }
         case AST_GROUP_DECL: {
             ASTGroupDecl* g = (ASTGroupDecl*)node;
-            g->name = read_string(in);
-            fread(&g->is_public, sizeof(int), 1, in);
-            fread(&g->is_exported, sizeof(int), 1, in);
-            g->members = ast_deserialize_recursive(in);
+            g->name = read_string(reader);
+            if (!ast_read_exact(reader, &g->is_public, sizeof(int))) goto fail;
+            if (!ast_read_exact(reader, &g->is_exported, sizeof(int))) goto fail;
+            g->members = ast_deserialize_recursive(reader);
             break;
         }
         case AST_METHOD: {
             ASTMethod* m = (ASTMethod*)node;
-            m->public_name = read_string(in);
-            m->implementation = ast_deserialize_recursive(in);
+            m->public_name = read_string(reader);
+            m->implementation = ast_deserialize_recursive(reader);
             break;
         }
         case AST_USE: {
             ASTUse* u = (ASTUse*)node;
-            u->module_name = read_string(in);
-            u->alias = read_string(in);
+            u->module_name = read_string(reader);
+            u->alias = read_string(reader);
             break;
         }
         case AST_DEFER: {
-            ((ASTDefer*)node)->body = ast_deserialize_recursive(in);
+            ((ASTDefer*)node)->body = ast_deserialize_recursive(reader);
             break;
         }
         case AST_THREAD_BLOCK: {
             ASTThreadBlock* t = (ASTThreadBlock*)node;
-            t->name = read_string(in);
-            t->body = ast_deserialize_recursive(in);
-            t->mode = ast_deserialize_recursive(in);
-            t->timeout = ast_deserialize_recursive(in);
+            t->name = read_string(reader);
+            t->body = ast_deserialize_recursive(reader);
+            t->mode = ast_deserialize_recursive(reader);
+            t->timeout = ast_deserialize_recursive(reader);
             break;
         }
         case AST_MEMBER_ACCESS: {
             ASTMemberAccess* m = (ASTMemberAccess*)node;
-            m->member_name = read_string(in);
-            m->object = ast_deserialize_recursive(in);
+            m->member_name = read_string(reader);
+            m->object = ast_deserialize_recursive(reader);
             break;
         }
         case AST_TUPLE: {
-            ((ASTTuple*)node)->elements = ast_deserialize_recursive(in);
+            ((ASTTuple*)node)->elements = ast_deserialize_recursive(reader);
             break;
         }
         case AST_ENUM_DECL: {
             ASTEnumDecl* e = (ASTEnumDecl*)node;
-            e->name = read_string(in);
-            e->variants = ast_deserialize_recursive(in);
+            e->name = read_string(reader);
+            e->variants = ast_deserialize_recursive(reader);
             break;
         }
         case AST_ENUM_VARIANT: {
             ASTEnumVariant* v = (ASTEnumVariant*)node;
-            v->name = read_string(in);
-            v->data = ast_deserialize_recursive(in);
+            v->name = read_string(reader);
+            v->data = ast_deserialize_recursive(reader);
             break;
         }
         case AST_NEWTYPE_DECL: {
             ASTNewTypeDecl* nt = (ASTNewTypeDecl*)node;
-            nt->name = read_string(in);
-            nt->target_type = read_string(in);
+            nt->name = read_string(reader);
+            nt->target_type = read_string(reader);
             break;
         }
         case AST_NEXUS_CAPTURE:
         case AST_LISTEN: {
             ASTNexusCapture* c = (ASTNexusCapture*)node;
-            c->handler_name = read_string(in);
-            c->expr = ast_deserialize_recursive(in);
+            c->handler_name = read_string(reader);
+            c->expr = ast_deserialize_recursive(reader);
             break;
         }
         case AST_NEXUS_LABEL: {
             ASTNexusLabel* l = (ASTNexusLabel*)node;
-            l->label_name = read_string(in);
-            l->statement = ast_deserialize_recursive(in);
+            l->label_name = read_string(reader);
+            l->statement = ast_deserialize_recursive(reader);
             break;
         }
         case AST_NEXUS_JUMP: {
-            ((ASTNexusJump*)node)->label_name = read_string(in);
+            ((ASTNexusJump*)node)->label_name = read_string(reader);
             break;
         }
         case AST_NEXUS_INTENT: {
             ASTIntent* i = (ASTIntent*)node;
-            i->intent_name = read_string(in);
-            i->target = ast_deserialize_recursive(in);
+            i->intent_name = read_string(reader);
+            i->target = ast_deserialize_recursive(reader);
             break;
         }
         case AST_AI_LOGIC: {
-            ((ASTAiLogic*)node)->query = read_string(in);
+            ((ASTAiLogic*)node)->query = read_string(reader);
             break;
         }
         case AST_PANIC: {
-            ((ASTPanic*)node)->message = read_string(in);
+            ((ASTPanic*)node)->message = read_string(reader);
             break;
         }
         default: break;
     }
 
-    node->next = ast_deserialize_recursive(in);
+    if (reader->failed) goto fail;
+
+    node->next = ast_deserialize_recursive(reader);
+    if (reader->failed) goto fail;
+
+    reader->depth--;
     return node;
+
+fail:
+    ast_destroy(node);
+    reader->depth--;
+    return NULL;
 }
 
 ASTNode* ast_deserialize(FILE* in) {
     if (!in) return NULL;
-    return ast_deserialize_recursive(in);
+
+    ASTReader reader = { in, 0u, 0u, 0 };
+    ASTNode* root = ast_deserialize_recursive(&reader);
+
+    if (reader.failed) {
+        ast_destroy(root);
+        return NULL;
+    }
+
+    if (!root) return NULL;
+
+    /* The serialized tree must consume the complete input stream. */
+    if (fgetc(in) != EOF || ferror(in)) {
+        ast_destroy(root);
+        return NULL;
+    }
+
+    return root;
 }
