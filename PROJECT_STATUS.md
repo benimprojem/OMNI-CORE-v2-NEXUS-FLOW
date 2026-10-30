@@ -53,7 +53,7 @@ Konum: src/
 4. **C codegen — açık:** Çıktı üretimi hâlâ x86-64/NASM varsayımlarına dayanıyor. Target dosyasının varlığı ARM64 desteğini kanıtlamaz.
 5. **C hata kodları — kısmen doğrulandı:** Normal compile yolu ve CLI hata yolları test edildi. Codegen modülünün yüklenememesi/bozuk sembol gibi hata enjeksiyon testleri henüz yok.
 6. **C++ OIR — açık:** C++ OIR2 reader/writer formatı C AST serialization ile aynı değil. Reader'ın header/offset/length doğrulaması ve string sonlandırması ayrıca denetlenmeli.
-7. **Build düzeni — ilk katman çözüldü:** CMake build, Windows/Ubuntu/macOS CI matrisi ve sekiz CTest kontrolü mevcut.
+7. **Build düzeni — ilk katman çözüldü:** CMake build, Windows/Ubuntu/macOS CI matrisi ve dokuz CTest kontrolü mevcut (sonraki target-parser testi eklenmeden önceki durum).
 8. **Görev listesi:** İlerleme yüzdeleri yerine test veya kod kanıtı olan tamamlanma durumu kullanılmaya devam edilecek.
 
 ## Bu raporun kapsamı dışı
@@ -91,8 +91,8 @@ NEXSUS işlemcisi mevcut bir bağımlılık veya ön koşul değildir. Derleyici
 
 Target modeli için ayrı [TARGET_MODEL.md](TARGET_MODEL.md) sözleşmesi oluşturuldu. Mevcut C kodu bu hedefle henüz aynı noktada değil:
 
-1. **Default target adı uyuşmazlığı:** `main.c` varsayılan olarak `x86_64_baremetal` seçiyor; depodaki descriptor adı `BareMetal64.target`. Host OS/architecture tespiti de henüz yok.
-2. **Target yolu — ilk katman çözüldü:** Target dizini artık executable konumundan `../targets` olarak kuruluyor; ancak default target adı ve descriptor parser şeması uyumsuzluğu sürüyor.
+1. **Default target:** `main.c` şu an `BareMetal64` descriptor'ını varsayılan seçiyor. Host OS/architecture otomatik tespiti henüz yok; bu nedenle host-default target kararı henüz uygulanmadı.
+2. **Target yolu — ilk katman çözüldü:** Target dizini executable konumundan `../targets` olarak kuruluyor. Varsayılan `BareMetal64` dosyasıyla mevcut descriptor biçimi eşleşiyor.
 3. **Target listesi — ilk katman çözüldü:** `list_targets()` Windows FindFirstFile ve POSIX opendir/readdir yollarını destekliyor.
 4. **Codegen yüklemesi — ilk katman çözüldü:** Windows `LoadLibrary`, Linux/macOS `dlopen` kullanıyor; shared library executable yanından mutlak yol ile yükleniyor.
 5. **Codegen hata kodu:** Modül veya `codegen_run` sembolü bulunamadığında ve codegen hata döndürdüğünde OCC başarısız çıkış kodu üretir. Başarı yolu test edildi; failure injection testi henüz yok.
@@ -101,14 +101,17 @@ Target modeli için ayrı [TARGET_MODEL.md](TARGET_MODEL.md) sözleşmesi oluşt
 C derleyicisinin Windows, Linux ve macOS host sistemlerinde derlenmesi ve temel compile yolu CI ile doğrulanmıştır. Bu, codegen'in her target OS/architecture için doğru makine kodu ürettiği anlamına gelmez.
 
 
-## Codegen target parser riskleri
+## Codegen target parser — mevcut durum
 
-- `parse_target()` target dosyası açılamadığında hata döndürmek yerine varsayılan değerlerle devam ediyor. Yanlış/olmayan target dosyası geçerliymiş gibi işlenebilir.
-- Target alanları `strcpy()` ile sabit boyutlu tamponlara kopyalanıyor; uzun veya bozuk alanlar tampon taşmasına yol açabilir.
-- Bilinmeyen feature adları ve bazı geçersiz alan değerleri açık hata üretmeden atlanabiliyor.
-- Codegen çıktısı target'ın `arch/os/format` alanlarına bakmaksızın x86-64 NASM şablonuna dayanıyor.
+İlk statik incelemede kaydedilen parser riskleri güncel C kodunda giderilmiş görünüyor:
 
-Bu nedenle target parser'ı güvenli ve doğrulayıcı hale getirilmeden mevcut .target dosyaları için genişletilmiş bir şema uygulanmamalıdır.
+- target_config_load() dosya açılamadığında hata döndürüyor; varsayılanlarla sessizce devam etmiyor.
+- String alanları hedef tampon boyutuna göre doğrulanıyor; satır uzunluğu, section/key uzunluğu ve toplam key sayısı sınırlandırılıyor.
+- Bilinmeyen section/key, yinelenen key, eksik zorunlu alan, desteklenmeyen enum/SIMD ve hatalı sayı/boolean/array değerleri reddediliyor.
+- target_backend_check() descriptor'ın parse edilebilmesini gerçek backend desteğinden ayırıyor.
+- Codegen hâlâ x86-64 NASM şablonu üretir; ancak desteklenmeyen OS/ABI/format/mimari kombinasyonlarını backend kontrolü reddetmelidir.
+
+**Kalan doğrulama:** Parser test dosyası depoda bulunuyordu ancak CMake/CTest'e bağlı değildi. 31 Ekim'de test kendi bozuk fixture'larını üretecek şekilde genişletildi ve CTest'e eklendi. Yeni testin üç platformlu CI sonucu henüz alınmadı.
 
 
 ## C build altyapısı — 30 Ekim 2026
@@ -151,12 +154,20 @@ Son doğrulanan CI koşusunda üç platformda da derleyici uyarısı kalmadı. B
 **Kalan işler:** AST düğüm türlerinin tamamı için round-trip test matrisi; AST serializer yazma tarafında fwrite hata raporlaması; ASan/UBSan/Valgrind ile bellek güvenliği doğrulaması.
 
 
-## Hâlâ açık target/codegen riskleri
+## Hâlâ açık target/codegen işleri
 
-- `parse_target()` target dosyası açılamadığında hata döndürmek yerine varsayılanlarla devam ediyor.
-- Target alanları hâlâ sabit tamponlara `strcpy()` ile kopyalanıyor; uzun/bozuk alanlar için sınır kontrolü yok.
-- Mevcut `.target` dosyalarının INI benzeri alanları ile C codegen parser'ın beklediği `key: value` biçimi uyuşmuyor.
-- Codegen hâlâ target alanlarından bağımsız x86-64 NASM şablonu üretiyor.
-- Default target adı ve target dosyası çözümlemesi henüz host/target modeline bağlanmadı.
+- Host OS + host architecture otomatik tespiti ve host-default target çözümlemesi uygulanmadı.
+- C backend yalnızca x86-64/64-bit/little-endian/bare-metal/raw profili destekliyor; Linux/Windows/macOS ABI'leri ve AArch64/RISC-V için codegen henüz yok.
+- Codegen'in assembly şablonu target'tan bağımsız genel bir backend mimarisine ayrılmadı; mevcut destekli profilin dışına çıkılmamalı.
+- Target parser testinin yeni CTest entegrasyonu Windows/Linux/macOS üzerinde henüz doğrulanmadı.
 
-Bu yüzden Windows/Linux/macOS üzerinde C uygulamasının derlenmesi doğrulanmış olsa da, bu durum bütün platformlar veya mimariler için doğru makine kodu üretildiği anlamına gelmez.
+Windows/Linux/macOS üzerinde C uygulamasının derlenmesi, bu işletim sistemleri veya mimarileri için doğru makine kodu üretildiği anlamına gelmez.
+
+
+## Target parser test entegrasyonu — 31 Ekim 2026
+
+- Depoda bulunan test_target_parser.c CMake/CTest hattına bağlandı.
+- Test; mevcut beş target descriptor'ını parse eder ve backend destek durumunu ayrı kontrol eder.
+- Test ayrıca eksik dosya, unknown section/key, duplicate key, aşırı uzun identifier/satır, eksik zorunlu alan ve bilinmeyen architecture/SIMD profilini reddetmeyi sınar.
+- CTest tanımındaki test sayısı 9'dan 10'a çıktı.
+- **Durum:** Kod ve CTest tanımı branch'e işlendi. Yeni 10 testlik matrisin Windows, Ubuntu ve macOS CI sonucu bekleniyor; bu rapor yeni testin geçtiğini iddia etmez.
