@@ -64,6 +64,18 @@ add_library(occ_compilation STATIC
 target_include_directories(occ_compilation PUBLIC "${C_SOURCE_DIR}/core")
 target_link_libraries(occ_compilation PUBLIC occ_diagnostics)
 
+# OIR DIAGNOSTICS payload codec bridges the stable container to job-owned records.
+add_library(occ_oir_diagnostics STATIC
+    "${C_SOURCE_DIR}/oir/oir_diagnostics.c"
+)
+target_include_directories(occ_oir_diagnostics PUBLIC
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+)
+target_link_libraries(occ_oir_diagnostics PUBLIC occ_oir occ_diagnostics)
+set_target_properties(occ_oir_diagnostics PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+
 
 
 # Frontend token enum <-> stable OIR token ID adapter. Kept separate from the
@@ -289,6 +301,16 @@ if(BUILD_TESTING)
         target_compile_options(test_compilation PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME compilation_context_state_and_output_gate COMMAND test_compilation)
+
+    add_executable(test_oir_diagnostics "${C_SOURCE_DIR}/tests/test_oir_diagnostics.c")
+    target_link_libraries(test_oir_diagnostics PRIVATE occ_oir_diagnostics)
+    if(MSVC)
+        target_compile_options(test_oir_diagnostics PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_diagnostics PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_diagnostics_payload_roundtrip_and_validation
+        COMMAND test_oir_diagnostics)
 
     add_executable(test_diagnostics "${C_SOURCE_DIR}/tests/test_diagnostics.c")
     target_link_libraries(test_diagnostics PRIVATE occ_diagnostics)
