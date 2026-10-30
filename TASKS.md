@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 13/13 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 13/13 geçti.
+> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 14/14 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 14/14 geçti.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
