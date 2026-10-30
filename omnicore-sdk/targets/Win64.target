@@ -1,6 +1,7 @@
 [target_info]
 spec_version = 1.0
 identifier = "Win64"
+os = "windows"
 author = "NexusFlow Team"
 
 [cpu_arch]
