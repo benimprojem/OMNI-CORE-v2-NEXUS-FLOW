@@ -1,56 +1,66 @@
-# OmniCore SDK — Görev Listesi
-Okunabilir klasörler
-targets/ 	target dosyaları
-docs/   	spec dosyaları
-bin/    	derlenen dosyalar
-lib/		derlenen kütüphane dosyaları
-stdlib/ 	nexus flow kütüphane dosyaları
-dpslib/     bağımlılık kütüphaneleri
-src/    	Kaynak dosyalar
-myprojem/  	örnek proje klasörü
-test/ 		test dosyaları
-logs/
-lang/
-package/	Derleme için gerekli olabilecek dosyalar paketler
-inc/  		Genel Ayar, info dosyaları 
+# OmniCore SDK — Güncel Görevler
 
-Okunamaz klasörler
-temp/	eski kaynak ve spec dosyaları
-nexus docs/ eski dokümanlar
+**Ana uygulama dili:** C  
+**C++:** Korunan referans uygulaması  
+**Güncel plan:** docs/ROADMAP.md  
+**Durum raporu:** docs/PROJECT_STATUS.md
 
+> Görevler yalnızca kod yazıldığı için tamamlandı sayılmaz. Build ve test kanıtı gereklidir. Eski yüzde tamamlanma iddiaları bu listede kullanılmamaktadır.
 
-## Dökümantasyon ve Bütünlük
-**Durum: Tüm dosyalara uygulanacak. Herhangi bir değişiklik ve ekleme olduğunda güncellenecek.**
-- [x] `implementation_plan.md`: Token kapsama matrisi oluşturuldu.
-- [ ] `nfsyntax.md`: Dilin tüm özelliklerini içeren teknik kılavuz.
-- [ ] Kaynak kod dosyalarının başına kapsamlı modül açıklamaları ekle.
+## P0 — Temel güvenilirlik
 
-## Modül 0: Omni Core Compiler occ.exe (`src/occ/`)
-**Durum: %80 (Tamamlandı)**
-- [x] `-t` parametresi ile hedefin (target) belirlenmesi (`-t win64`).
-- [x] Hedef dosyasının `targets/` klasöründe aranması (örn. `win64.target`).
-- [x] Eğer target bulunamazsa hata üretip `targets/` içeriğini listeleyerek kullanıcıdan seçim istemesi.
-- [x] `-t` belirtilmemişse yerel sistemin varsayılan hedef (local system target) olarak belirlenmesi.
-- [x] Hedef dosyasındaki bilgilerin (veya direktiflerin) OIR sistemine işlenip/iletilip parser'a (DLL'e) aktarılması. (OIR header/targetId olarak).
-- [ ] Çoklu derleme kuralları ve [ occ.exe -nexus ] komutu ile nexus.nxr dosyasından okunarak derleme.
-- [ ] occ.ocf dosyasını okuma, bağlılıklar ve derleme için gerekli metadata bilgileri.
+- [ ] C kaynaklarının temiz checkout üzerinde derlenmesini sağla.
+- [ ] Parser, semantic ve codegen için ayrı build hedefleri oluştur.
+- [ ] Config okuyucuyu bölüm/satır sırasından bağımsız hale getir.
+- [ ] CLI argüman ayrıştırmasını kaynak dosyası ve seçenek sırasına dayanıklı yap.
+- [ ] Path işlemlerindeki NULL pointer karşılaştırmasını kaldır.
+- [ ] Parser/codegen hata durumlarını OCC çıkış koduna aktar.
+- [ ] Otomatik lexer/parser/semantic test iskeletini kur.
+- [ ] AST ve semantic bellek sahipliği/free kurallarını doğrula.
 
+## P0 — Dil ve semantik
 
-## Modül 1: Parser DLL (`src/parser/`)
-**Durum: %100 (Kapasitif Doğrulama)**
-- [x] Lexer: Tüm 180+ token ve niyet operatörleri (The 15 Keys) kapsandı.
-- [x] Parser: 1112+ satırlık tam kapasite (Loop variants, group, nt:, rules/on).
-- [x] OIR Writer: v2 Binary Spec (0x01-0xB2 opcodes) tamamlandı.
-- [x] **DOKÜMANTASYON:** Tüm C++ dosyaları (Lexer, Parser, OIRWriter) fonksiyon bazlı dökümante edildi.
+- [ ] Token envanterini dil spesifikasyonuyla karşılaştır.
+- [ ] The 15 Keys operatörlerinin token öncelik ve çakışma testlerini ekle.
+- [ ] AST düğüm sözleşmesini ve source location bilgisini sabitle.
+- [ ] Scope, type promotion, ownership ve control-flow kurallarını testlerle doğrula.
+- [ ] Hata ve warning API'sini ortaklaştır.
 
-## Modül 2: Semantik Analizör (`src/analyzer/`)
-**Durum: %90 (Kapasitif Doğrulama)**
-- [x] `analyzer.dll` entegrasyonu ve OIRReader restorasyonu.
-- [x] **Gelişmiş Semantik:** Tüm OIR opcodeları için switch-case ve doğrulama mantığı.
-- [x] **Implicit Handlers:** (h1), (v2) gibi yapıların otomatik tanınması.
-- [x] **DOKÜMANTASYON:** Analyzer.cpp/hpp, SymbolTable ve TypeSystem dökümante edildi.
-- [ ] Uyarı mesajları gösterilmiyor, düzeltilmeli.
+## P0 — Ara temsil
 
-(Diğer modüller plan aşamasında)
+- [ ] AST serialization ile OIR kavramlarını/API'lerini ayır.
+- [ ] Kanonik OIR v1 sözleşmesini tasarla.
+- [ ] C OIR writer/reader geliştir.
+- [ ] Bozuk/truncated/uyumsuz OIR dosyaları için güvenlik testleri ekle.
+- [ ] C++ OIR2 ile özellik/format karşılaştırma tablosu oluştur.
 
-asm kodlarında öncelik arm. daha sonra testler için windows ortamında 80-86 x64 kodlama.. bu iki asm kodlama eksiksiz olmalıdır. Diğerleri daha sonra eklenebilir bunun için gerekli todoo bırakılacak.
+## P1 — Backend ve optimizasyon
+
+- [ ] Target dosyası ile gerçek backend desteğini ayır.
+- [ ] ARM64 backend kapsamını ve ABI sözleşmesini belirle.
+- [ ] Windows x86-64 backend kapsamını ve ABI testlerini belirle.
+- [ ] Optimizer pass altyapısını kur.
+- [ ] Her optimizer pass için davranış eşdeğerliği testleri ekle.
+
+## P2 — SDK ve araçlar
+
+- [ ] occ.ocf yapılandırma gramerini tanımla.
+- [ ] .nxr build akışını tasarla ve uygula.
+- [ ] stdlib/dpslib bağımlılık çözümlemesini doğrula.
+- [ ] Tekrarlanabilir paketleme ve kurulum akışı oluştur.
+- [ ] CI build/test hattı ekle.
+
+## P2/P3 — IDE ve özel donanım
+
+- [ ] OCE IDE'yi kararlı compiler API'sine bağla.
+- [ ] Debugger ve OIR/source-map inceleyicisi geliştir.
+- [ ] Runtime/threading özelliklerini test et.
+- [ ] NEXSUS ISA kesinleştiğinde özel backend ekle.
+
+## Klasör yapısı
+
+Hedef yapı docs/PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build betikleri ve testler yeni yollarda doğrulanmadan yapılmayacaktır.
+
+## Sonraki tek iş
+
+Faz 0: C hattının tekrarlanabilir build sürecini oluşturmak. Ardından config/CLI/path ve hata kodu sorunlarını düzeltmek.
