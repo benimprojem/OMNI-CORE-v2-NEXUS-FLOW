@@ -10,6 +10,8 @@
 ## P0 — Temel güvenilirlik
 
 - [ ] C kaynaklarının temiz checkout üzerinde derlenmesini sağla.
+- [ ] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
+- [ ] C OCC için Windows build hedefi ve Linux/macOS build hedefleri oluştur.
 - [ ] Parser, semantic ve codegen için ayrı build hedefleri oluştur.
 - [ ] Config okuyucuyu bölüm/satır sırasından bağımsız hale getir.
 - [ ] CLI argüman ayrıştırmasını kaynak dosyası ve seçenek sırasına dayanıklı yap.
@@ -46,6 +48,9 @@
 - [ ] x86-64 ve AArch64 için gerçek backend kapsamını ayrı ayrı belirle.
 - [ ] CPU model/feature seçimini backend capability kontrolüne bağla.
 - [ ] Target dosyası ile gerçek backend desteğini ayır.
+- [ ] Windows DLL, Linux .so ve macOS .dylib codegen yükleme/bağlama stratejisini belirle.
+- [ ] Codegen yüklenemediğinde derlemeyi başarılı göstermeyen hata davranışını uygula.
+- [ ] Target listeleme ve target dosyası çözümlemesini platformdan bağımsız hale getir.
 - [ ] Optimizer pass altyapısını kur.
 - [ ] Her optimizer pass için davranış eşdeğerliği testleri ekle.
 
