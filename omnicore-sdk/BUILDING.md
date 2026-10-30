@@ -92,7 +92,7 @@ under `src/` and the existing `build_occ.bat`, `parser_build.bat`, and
 
 The current CTest suite contains ten checks:
 
-1. Reject truncated, invalid and oversized AST streams; smoke-round-trip every AST node tag; verify AST_EXTERN_DECL and all AST_LITERAL payload fields; round-trip AST_UNPACK/AST_NEXUS_HALT and a 700-node sibling list; verify parser_save_ir reports an invalid output path.
+1. Reject truncated, invalid and oversized AST streams; round-trip every AST node tag and every serialized field using byte-equality; verify AST_EXTERN_DECL and AST_LITERAL regressions, AST_UNPACK/AST_NEXUS_HALT, a 700-node sibling list, and parser_save_ir failure propagation.
 2. Validate all five current target descriptors, reject malformed/duplicate/unknown/oversized fields, and distinguish valid target descriptions from backend support.
 3. OCC help output.
 4. Reject an unknown CLI option.
