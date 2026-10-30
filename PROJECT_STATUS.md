@@ -328,3 +328,20 @@ TOKEN_STREAM payload şeması belgelendi ancak codec henüz yazılmadı. Lexer t
 - GitHub Actions run 41143848197: Windows, Ubuntu ve macOS CMake build/CTest **16/16** başarılı; Ubuntu ASan/UBSan ve Valgrind işleri de başarılı.
 
 Bu adapter yalnızca enum kimlik eşlemesini sağlar. Lexer'ın tüm 160 token türünü gerçekten ürettiği anlamına gelmez; emission audit ve token stream serialization hâlâ açık.
+
+
+## Lexer token coverage ve source span metadata — 31 Ekim 2026
+
+İlk envanter karşılaştırmasında lexer.h içindeki 160 token enum değerinden 13'ünün lexer.c içinde hiçbir eşlemesi olmadığı bulundu. Mevcut enum adlarına göre eksikler tamamlandı:
+- Anahtar kelimeler: asm (uzunluk koşulu hatalıydı), fastexec, break, echo, send, receive.
+- Tip adları: f32, f64, bool, bit, byte, hex, void, any.
+- is_err kontrolündeki length==5 iken 6 byte memcmp yapan hatalı dal kaldırıldı; doğru length==6 kontrolü korundu.
+
+Token metadata:
+- Token artık source_offset ve source_length alanlarını lexeme/message pointer ve length alanlarından ayrı taşır.
+- ParserContext lexer token başlangıç byte offset, line ve column bilgilerini tutar.
+- Token konumu tarama bitişinden geriye hesaplanmak yerine başlangıçta yakalanır.
+- String içindeki newline iki kez sayılmaktan çıkarıldı.
+- test_lexer.c yeni keyword/type eşleşmelerini ve çok satırlı string sonrası source offset/line/column değerlerini kontrol ediyor.
+
+İlk doğrulama: macOS build/CTest başarılı; Windows, Ubuntu, ASan/UBSan ve Valgrind işleri run 41144498647 içinde sürüyordu. Tam CI sonucu henüz bekleniyor.
