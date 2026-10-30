@@ -27,6 +27,7 @@ file(MAKE_DIRECTORY "${C_RUNTIME_DIR}")
 file(COPY "${C_SOURCE_DIR}/occ.ocf" DESTINATION "${C_RUNTIME_DIR}")
 file(COPY "${C_SOURCE_DIR}/lang" DESTINATION "${C_RUNTIME_DIR}")
 file(COPY "${C_SOURCE_DIR}/tests" DESTINATION "${C_RUNTIME_DIR}")
+configure_file("${C_SOURCE_DIR}/tests/test1.nxf" "${C_RUNTIME_DIR}/tests/test1_alt.nxf" COPYONLY)
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/targets" DESTINATION "${CMAKE_BINARY_DIR}")
 
 # The C frontend is the canonical compiler frontend.
@@ -134,6 +135,27 @@ if(BUILD_TESTING)
         COMMAND occ tests/does_not_exist.nxf
     )
     set_tests_properties(occ_rejects_missing_source PROPERTIES
+        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+        WILL_FAIL TRUE
+    )
+
+    add_test(NAME occ_accepts_target_before_source
+        COMMAND occ --target BareMetal64 tests/test1_alt.nxf
+    )
+    set_tests_properties(occ_accepts_target_before_source PROPERTIES
+        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+    )
+
+    add_test(NAME occ_rejects_missing_target_value COMMAND occ --target)
+    set_tests_properties(occ_rejects_missing_target_value PROPERTIES
+        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+        WILL_FAIL TRUE
+    )
+
+    add_test(NAME occ_rejects_multiple_sources
+        COMMAND occ tests/test1.nxf tests/test1_alt.nxf
+    )
+    set_tests_properties(occ_rejects_multiple_sources PROPERTIES
         WORKING_DIRECTORY "${C_RUNTIME_DIR}"
         WILL_FAIL TRUE
     )
