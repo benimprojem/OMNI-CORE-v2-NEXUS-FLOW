@@ -15,13 +15,15 @@
 
 typedef enum {
     ABI_NONE = 0,
-    ABI_WIN64,      // Windows x64 (RCX, RDX, R8, R9)
-    ABI_SYSV,       // System V / Linux x64 (RDI, RSI, RDX, RCX, R8, R9)
-    ABI_BAREMETAL   // Custom / Minimal
+    ABI_WIN64,
+    ABI_SYSV,
+    ABI_BAREMETAL,
+    ABI_ILP32,
+    ABI_AAPCS64
 } TargetABI;
 
 typedef enum {
-    FEAT_NONE = 0,
+    FEAT_NONE  = 0,
     FEAT_MMX   = 1 << 0,
     FEAT_SSE   = 1 << 1,
     FEAT_SSE2  = 1 << 2,
@@ -29,7 +31,8 @@ typedef enum {
     FEAT_SSE4  = 1 << 4,
     FEAT_AVX   = 1 << 5,
     FEAT_AVX2  = 1 << 6,
-    FEAT_AVX512= 1 << 7
+    FEAT_AVX512= 1 << 7,
+    FEAT_NEON  = 1 << 8
 } TargetFeatures;
 
 typedef enum {
@@ -51,25 +54,24 @@ typedef struct {
 } Peripheral;
 
 typedef struct {
-    char arch[32];   // x86_64, arm32, risc-v
-    char os[32];     // windows, linux, none (baremetal)
-    char format[32]; // elf, pe, bin
+    char identifier[64];
+    char arch[32];
+    char os[32];
+    char format[32];
+    char endian[16];
+    char abi_name[32];
+    unsigned int bits;
     TargetABI abi;
-    unsigned int features; // Bitmask of TargetFeatures
+    unsigned int features;
     unsigned long long base_addr;
     unsigned long long stack_size;
-    
-    // Hardware Abstraction (ULTRA)
+
     MemoryRegion regions[16];
     int region_count;
     Peripheral ports[64];
     int port_count;
 } TargetConfig;
 
-// Codegen Giriş Noktası
-// ir_path: .oir dosyası yolu
-// target_path: .target dosyası yolu
-// out_path: Çıktı (asm/bin) dosyası yolu
 CODEGEN_API int codegen_run(const char* ir_path, const char* target_path, const char* out_path);
 
-#endif // OCC_CODEGEN_H
+#endif
