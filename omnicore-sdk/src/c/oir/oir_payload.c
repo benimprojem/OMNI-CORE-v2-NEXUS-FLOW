@@ -108,10 +108,10 @@ OirStatus oir_source_unit_open(
         return OIR_STATUS_INVALID_HEADER;
     }
 
-    expected_length = (uint64_t)OIR_SOURCE_UNIT_HEADER_SIZE +
-        (uint64_t)path_length + source_length;
-    if (expected_length != (uint64_t)payload_length ||
-        source_length > (uint64_t)SIZE_MAX) {
+    if (path_length > payload_length - OIR_SOURCE_UNIT_HEADER_SIZE ||
+        source_length > (uint64_t)SIZE_MAX ||
+        source_length != (uint64_t)(payload_length -
+            OIR_SOURCE_UNIT_HEADER_SIZE - (size_t)path_length)) {
         return OIR_STATUS_LENGTH_MISMATCH;
     }
 
@@ -145,11 +145,11 @@ OirStatus oir_source_unit_write(
         (!source && source_length != 0)) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
-    if (source_id != 0 || source_length > (uint64_t)SIZE_MAX) {
-        return OIR_STATUS_INVALID_HEADER;
-    }
-    if ((uint64_t)path_length + source_length >
-        (uint64_t)(SIZE_MAX - OIR_SOURCE_UNIT_HEADER_SIZE)) {
+    if (source_id != 0) return OIR_STATUS_INVALID_HEADER;
+    if (source_length > (uint64_t)SIZE_MAX ||
+        (size_t)path_length > SIZE_MAX - OIR_SOURCE_UNIT_HEADER_SIZE ||
+        (size_t)source_length >
+            SIZE_MAX - OIR_SOURCE_UNIT_HEADER_SIZE - (size_t)path_length) {
         return OIR_STATUS_OVERFLOW;
     }
     total = OIR_SOURCE_UNIT_HEADER_SIZE + (size_t)path_length + (size_t)source_length;
