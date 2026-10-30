@@ -345,3 +345,5 @@ Token metadata:
 - test_lexer.c yeni keyword/type eşleşmelerini ve çok satırlı string sonrası source offset/line/column değerlerini kontrol ediyor.
 
 Doğrulama: GitHub Actions run 41144498647 tamamlandı. Windows, Ubuntu ve macOS build/CTest **16/16** başarılı; Ubuntu ASan/UBSan ve Valgrind de **16/16** başarılı.
+
+Kapanmayan block comment için de TOKEN_ERROR/source span testi eklendi. Sonraki GitHub Actions run 41144698187 ile Windows, Ubuntu ve macOS build/CTest **16/16**, Ubuntu ASan/UBSan ve Valgrind **16/16** başarılı.
