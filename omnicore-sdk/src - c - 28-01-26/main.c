@@ -19,27 +19,35 @@ typedef int (*CodegenRunFn)(const char*, const char*, const char*);
 // Basit Config Okuyucu
 static void get_config_language(char* out_lang, size_t size) {
     // Varsayılan: İngilizce
-    strncpy(out_lang, "en", size);
-    
+    if (!out_lang || size == 0) return;
+    strncpy(out_lang, "en", size - 1);
+    out_lang[size - 1] = '\0';
+
     FILE* f = fopen("occ.ocf", "r");
-    if (!f) return; // Dosya yoksa varsayılanı kullan
+    if (!f) return;
 
     char line[256];
     while (fgets(line, sizeof(line), f)) {
-        // language = "tr" satırını ara
-        char* key = strstr(line, "language");
-        if (key) {
-            char* val = strchr(key, '"');
-            if (val) {
-                val++; // İlk tırnağı geç
-                char* end = strchr(val, '"');
-                if (end) {
-                    *end = '\0';
-                    strncpy(out_lang, val, size);
-                    break;
-                }
-            }
-        }else {break;}
+        char* p = line;
+        while (*p == ' ' || *p == '\t') p++;
+        if (strncmp(p, "language", 8) != 0) continue;
+
+        p += 8;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p != '=') continue;
+        p++;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p != '"') continue;
+
+        p++;
+        char* end = strchr(p, '"');
+        if (!end) continue;
+
+        size_t len = (size_t)(end - p);
+        if (len >= size) len = size - 1;
+        memcpy(out_lang, p, len);
+        out_lang[len] = '\0';
+        break;
     }
     fclose(f);
 }
@@ -79,33 +87,42 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Flag kontrolü ve target parsing
-    const char* target_name = "x86_64_baremetal"; // Default short name
+    // CLI argümanlarını sıradan bağımsız ayrıştır.
+    const char* target_name = "x86_64_baremetal";
+    const char* source_file = NULL;
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            printf("%s\n", msg_get(MSG_USAGE));
+            printf("%s\\n", msg_get(MSG_USAGE));
             list_targets();
             return 0;
-        }
-        if (strcmp(argv[i], "--target") == 0) {
-            if (i + 1 < argc && argv[i+1][0] != '-') {
-                target_name = argv[++i];
-            } else if (i + 1 < argc && strcmp(argv[i+1], "-h") == 0) {
-                list_targets();
-                return 0;
+        } else if (strcmp(argv[i], "--target") == 0) {
+            if (i + 1 >= argc || argv[i + 1][0] == '-') {
+                fprintf(stderr, "Hata: --target bir hedef adı gerektirir.\\n");
+                return 1;
             }
+            target_name = argv[++i];
+        } else if (argv[i][0] == '-') {
+            fprintf(stderr, "Hata: Bilinmeyen seçenek: %s\\n", argv[i]);
+            return 1;
+        } else if (!source_file) {
+            source_file = argv[i];
+        } else {
+            fprintf(stderr, "Hata: Birden fazla kaynak dosyası belirtildi: %s\\n", argv[i]);
+            return 1;
         }
+    }
+
+    if (!source_file) {
+        printf("%s\\n", msg_get(MSG_USAGE));
+        list_targets();
+        return 1;
     }
 
     // Target path oluştur (kısa isimden tam yol)
     char target_path[256];
     snprintf(target_path, sizeof(target_path), "../targets/%s.target", target_name);
 
-    const char* source_file = argv[1];
-    if (source_file[0] == '-') {
-        printf("Hata: Gecersiz kaynak dosyasi veya flag: %s\n", source_file);
-        return 1;
-    }
     printf(msg_get(MSG_OCC_PROCESSING), source_file);
 
     ParserContext* ctx = parser_init(source_file);
