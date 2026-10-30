@@ -116,6 +116,21 @@ else()
 endif()
 
 if(BUILD_TESTING)
+    # A second executable copy proves that config and language assets are
+    # resolved beside the executable and that language is read after sections.
+    set(C_LOCALE_TEST_DIR "${CMAKE_BINARY_DIR}/locale-tr")
+    file(MAKE_DIRECTORY "${C_LOCALE_TEST_DIR}")
+    file(WRITE "${C_LOCALE_TEST_DIR}/occ.ocf"
+        "[package]\n[package.metadata]\nlanguage = \"tr\"\n"
+    )
+    file(COPY "${C_SOURCE_DIR}/lang" DESTINATION "${C_LOCALE_TEST_DIR}")
+    add_custom_command(TARGET occ POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:occ>"
+            "${C_LOCALE_TEST_DIR}/occ${CMAKE_EXECUTABLE_SUFFIX}"
+        VERBATIM
+    )
+
     add_executable(test_ast_deserialize
         "${C_SOURCE_DIR}/tests/test_ast_deserialize.c"
     )
@@ -131,7 +146,7 @@ if(BUILD_TESTING)
 
     add_test(NAME occ_rejects_unknown_option COMMAND occ --not-an-option)
     set_tests_properties(occ_rejects_unknown_option PROPERTIES
-        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         WILL_FAIL TRUE
     )
 
@@ -139,7 +154,7 @@ if(BUILD_TESTING)
         COMMAND occ "${C_RUNTIME_DIR}/tests/does_not_exist.nxf"
     )
     set_tests_properties(occ_rejects_missing_source PROPERTIES
-        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         WILL_FAIL TRUE
     )
 
@@ -147,12 +162,12 @@ if(BUILD_TESTING)
         COMMAND occ --target BareMetal64 "${C_RUNTIME_DIR}/tests/test1_alt.nxf"
     )
     set_tests_properties(occ_accepts_target_before_source PROPERTIES
-        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
 
     add_test(NAME occ_rejects_missing_target_value COMMAND occ --target)
     set_tests_properties(occ_rejects_missing_target_value PROPERTIES
-        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         WILL_FAIL TRUE
     )
 
@@ -160,7 +175,7 @@ if(BUILD_TESTING)
         COMMAND occ "${C_RUNTIME_DIR}/tests/test1.nxf" "${C_RUNTIME_DIR}/tests/test1_alt.nxf"
     )
     set_tests_properties(occ_rejects_multiple_sources PROPERTIES
-        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         WILL_FAIL TRUE
     )
 
@@ -170,6 +185,16 @@ if(BUILD_TESTING)
         COMMAND occ "${C_RUNTIME_DIR}/tests/test1.nxf" --target BareMetal64
     )
     set_tests_properties(occ_compiles_basic_source PROPERTIES
-        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+
+    add_test(NAME occ_uses_configured_language
+        COMMAND "${C_LOCALE_TEST_DIR}/occ${CMAKE_EXECUTABLE_SUFFIX}"
+            "${C_SOURCE_DIR}/tests/test_undefined_variable.nxf"
+    )
+    set_tests_properties(occ_uses_configured_language PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        WILL_FAIL TRUE
+        PASS_REGULAR_EXPRESSION "Tanımsız değişken"
     )
 endif()
