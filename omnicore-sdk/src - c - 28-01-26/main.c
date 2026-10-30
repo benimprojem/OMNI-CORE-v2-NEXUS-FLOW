@@ -292,52 +292,52 @@ int main(int argc, char **argv) {
             } else {
                 printf("IR kaydedildi: %s\n", ir_path);
 
-            /* Load the platform-specific codegen module beside the executable. */
-            char codegen_path[OCC_PATH_BUFFER];
-#if defined(_WIN32)
-            const char* codegen_filename = "codegen.dll";
-#elif defined(__APPLE__)
-            const char* codegen_filename = "libcodegen.dylib";
-#else
-            const char* codegen_filename = "libcodegen.so";
-#endif
-            if (!path_join(codegen_path, sizeof(codegen_path), executable_dir, codegen_filename)) {
-                fprintf(stderr, "Hata: Codegen modul yolu olusturulamadi.\n");
-                exit_code = 1;
-            }
-
-#if defined(_WIN32)
-            HMODULE hCodegen = exit_code == 0 ? LoadLibraryA(codegen_path) : NULL;
-            CodegenRunFn run = hCodegen
-                ? (CodegenRunFn)GetProcAddress(hCodegen, "codegen_run")
-                : NULL;
-#else
-            void* hCodegen = exit_code == 0 ? dlopen(codegen_path, RTLD_NOW | RTLD_LOCAL) : NULL;
-            CodegenRunFn run = hCodegen
-                ? (CodegenRunFn)dlsym(hCodegen, "codegen_run")
-                : NULL;
-#endif
-
-            if (!hCodegen) {
-                fprintf(stderr, "Hata: Codegen modulu yuklenemedi.\n");
-                exit_code = 1;
-            } else if (!run) {
-                fprintf(stderr, "Hata: codegen_run sembolu bulunamadi.\n");
-                exit_code = 1;
-            } else {
-                char asm_path[520];
-                snprintf(asm_path, sizeof(asm_path), "%s.s", base_name);
-                if (run(ir_path, target_path, asm_path) != 0) {
-                    fprintf(stderr, "Hata: Codegen islemi basarisiz oldu.\n");
+                /* Load the platform-specific codegen module beside the executable. */
+                char codegen_path[OCC_PATH_BUFFER];
+    #if defined(_WIN32)
+                const char* codegen_filename = "codegen.dll";
+    #elif defined(__APPLE__)
+                const char* codegen_filename = "libcodegen.dylib";
+    #else
+                const char* codegen_filename = "libcodegen.so";
+    #endif
+                if (!path_join(codegen_path, sizeof(codegen_path), executable_dir, codegen_filename)) {
+                    fprintf(stderr, "Hata: Codegen modul yolu olusturulamadi.\n");
                     exit_code = 1;
                 }
-            }
 
-#if defined(_WIN32)
-            if (hCodegen) FreeLibrary(hCodegen);
-#else
-            if (hCodegen) dlclose(hCodegen);
-#endif
+    #if defined(_WIN32)
+                HMODULE hCodegen = exit_code == 0 ? LoadLibraryA(codegen_path) : NULL;
+                CodegenRunFn run = hCodegen
+                    ? (CodegenRunFn)GetProcAddress(hCodegen, "codegen_run")
+                    : NULL;
+    #else
+                void* hCodegen = exit_code == 0 ? dlopen(codegen_path, RTLD_NOW | RTLD_LOCAL) : NULL;
+                CodegenRunFn run = hCodegen
+                    ? (CodegenRunFn)dlsym(hCodegen, "codegen_run")
+                    : NULL;
+    #endif
+
+                if (!hCodegen) {
+                    fprintf(stderr, "Hata: Codegen modulu yuklenemedi.\n");
+                    exit_code = 1;
+                } else if (!run) {
+                    fprintf(stderr, "Hata: codegen_run sembolu bulunamadi.\n");
+                    exit_code = 1;
+                } else {
+                    char asm_path[520];
+                    snprintf(asm_path, sizeof(asm_path), "%s.s", base_name);
+                    if (run(ir_path, target_path, asm_path) != 0) {
+                        fprintf(stderr, "Hata: Codegen islemi basarisiz oldu.\n");
+                        exit_code = 1;
+                    }
+                }
+
+    #if defined(_WIN32)
+                if (hCodegen) FreeLibrary(hCodegen);
+    #else
+                if (hCodegen) dlclose(hCodegen);
+    #endif
             }
         } else {
             exit_code = 1;
