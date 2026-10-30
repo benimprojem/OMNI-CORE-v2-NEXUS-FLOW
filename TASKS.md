@@ -117,6 +117,7 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 - [ ] Sürümlenmiş C module ABI'sini tanımla: descriptor, stage ID, ABI version, artifact tür/sürüm, process/result, diagnostics ve ownership.
 - [x] İlk job-owned diagnostic collector ve strict output gate C API'sini oluştur; severity count, source span ve owned text storage testlerini ekle.
 - [ ] Collector'ı ParserContext/SemanticContext ve OIR DIAGNOSTICS section'larına bağla.
+- [x] İlk per-job CompilationContext: job ID, copied options, stop-after stage, lifecycle state ve job-owned diagnostics; strict output gate testleri.
 - [ ] Hata/uyarı biriktirme ve mümkün olan aşamalarda devam etme davranışını uygula.
 - [ ] Artifact geçerlilik durumlarını tanımla: valid / partial / invalid / none.
 - [ ] Varsayılan strict output gate: error veya warning varsa final artifact yayımlama.
