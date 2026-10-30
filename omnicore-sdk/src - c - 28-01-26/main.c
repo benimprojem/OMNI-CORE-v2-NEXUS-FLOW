@@ -286,8 +286,11 @@ int main(int argc, char **argv) {
 
             char ir_path[520];
             snprintf(ir_path, sizeof(ir_path), "%s.oir", base_name);
-            parser_save_ir(ctx, ir_path);
-            printf("IR kaydedildi: %s\n", ir_path);
+            if (!parser_save_ir(ctx, ir_path)) {
+                fprintf(stderr, "Hata: IR dosyasi kaydedilemedi: %s\n", ir_path);
+                exit_code = 1;
+            } else {
+                printf("IR kaydedildi: %s\n", ir_path);
 
             /* Load the platform-specific codegen module beside the executable. */
             char codegen_path[OCC_PATH_BUFFER];
@@ -335,6 +338,7 @@ int main(int argc, char **argv) {
 #else
             if (hCodegen) dlclose(hCodegen);
 #endif
+            }
         } else {
             exit_code = 1;
         }
