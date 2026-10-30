@@ -94,6 +94,7 @@ target_include_directories(occ_frontend PUBLIC
 )
 
 target_compile_definitions(occ_frontend PUBLIC OCC_STATIC)
+target_link_libraries(occ_frontend PUBLIC occ_diagnostics)
 
 # strdup is POSIX rather than ISO C11. Expose its declaration on POSIX
 # toolchains and map it to the Microsoft CRT spelling on MSVC.
