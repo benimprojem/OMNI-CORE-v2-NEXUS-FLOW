@@ -102,6 +102,27 @@ int main(void) {
     CHECK(!occ_diagnostics_get(&collector, 999, &view),
         "out-of-range diagnostic index should be rejected");
 
+    {
+        char invalid_text[] = { 'a', '\0', 'b' };
+        input.code = 9004;
+        input.severity = OCC_DIAG_ERROR;
+        input.message = invalid_text;
+        input.message_length = sizeof(invalid_text);
+        CHECK(!occ_diagnostics_add(&collector, &input),
+            "embedded NUL in diagnostic text should be rejected");
+    }
+
+    {
+        OccDiagnosticCollector failed;
+        occ_diagnostics_init(&failed);
+        failed.allocation_failed = 1;
+        CHECK(occ_diagnostics_blocks_output(&failed),
+            "collector allocation failure must block final output");
+        occ_diagnostics_destroy(&failed);
+    }
+    CHECK(occ_diagnostics_blocks_output(NULL),
+        "missing diagnostic collector must fail closed");
+
     occ_diagnostics_destroy(&collector);
     CHECK(occ_diagnostics_count(&collector) == 0,
         "destroy should reset collector");
