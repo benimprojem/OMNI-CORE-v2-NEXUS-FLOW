@@ -1940,13 +1940,23 @@ void parser_destroy(ParserContext* ctx) {
     }
 }
 
-void parser_save_ir(ParserContext* ctx, const char* path) {
-    if (!ctx || !ctx->ast_root) return;
-    FILE* f = fopen(path, "wb");
-    if (!f) {
-        printf("Error: Could not open IR file for writing: %s\n", path);
-        return;
+int parser_save_ir(ParserContext* ctx, const char* path) {
+    if (!ctx || !ctx->ast_root || !path || !*path) return 0;
+
+    FILE* file = fopen(path, "wb");
+    if (!file) {
+        fprintf(stderr, "Error: Could not open IR file for writing: %s\n", path);
+        return 0;
     }
-    ast_serialize((ASTNode*)ctx->ast_root, f);
-    fclose(f);
+
+    int ok = ast_serialize((ASTNode*)ctx->ast_root, file);
+    if (fclose(file) != 0) ok = 0;
+
+    if (!ok) {
+        (void)remove(path);
+        fprintf(stderr, "Error: IR serialization failed: %s\n", path);
+        return 0;
+    }
+
+    return 1;
 }
