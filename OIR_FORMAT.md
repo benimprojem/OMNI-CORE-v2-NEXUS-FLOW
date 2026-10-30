@@ -64,7 +64,72 @@ The logical header contains:
 | Section count | Number of typed sections |
 | Total byte length | Bounds-checking and truncation detection |
 
-The exact byte offsets and numeric IDs will be frozen in a separate binary layout appendix after review. This document intentionally defines the contract before locking offsets.
+### Frozen v1.0 byte layout (initial implementation)
+
+All offsets below are byte offsets from the beginning of the container. All multibyte integers are unsigned little-endian. There is no implicit alignment or padding.
+
+**Fixed header: 44 bytes**
+
+| Offset | Width | Field | v1.0 rule |
+|---:|---:|---|---|
+| 0 | 4 | Magic | ASCII `OIR1` |
+| 4 | 2 | Container major | `1` |
+| 6 | 2 | Container minor | `0` |
+| 8 | 4 | Header size | `44` for v1.0 writer; readers may skip a larger extension header |
+| 12 | 4 | Artifact kind | Stable ID from table below |
+| 16 | 2 | Payload schema major | Must be non-zero |
+| 18 | 2 | Payload schema minor | `0` initially |
+| 20 | 4 | Producer stage ID | `0` means external/unspecified producer |
+| 24 | 1 | Artifact validity | ID from validity table below |
+| 25 | 1 | Header flags | Must be zero in v1.0 |
+| 26 | 2 | Section count | Must be at least one |
+| 28 | 8 | Total container length | Exact serialized byte count |
+| 36 | 8 | Job ID | Opaque unsigned job identifier; zero means unspecified |
+
+**Section header: 16 bytes**
+
+| Offset (relative to section start) | Width | Field |
+|---:|---:|---|
+| 0 | 2 | Section type |
+| 2 | 2 | Section version (must be non-zero) |
+| 4 | 4 | Section flags |
+| 8 | 8 | Section payload length in bytes |
+
+Section payload bytes follow immediately. The next section starts immediately after the declared payload length. No padding is inserted. Exactly one section of type `PAYLOAD` is required. Container readers must validate the complete section chain and reject trailing bytes.
+
+**Initial stable IDs**
+
+| Artifact kind ID | Kind |
+|---:|---|
+| 1 | SOURCE_UNIT |
+| 2 | TOKEN_STREAM |
+| 3 | AST |
+| 4 | SEMANTIC_AST |
+| 5 | OIR_MODULE |
+| 6 | TARGET_IR |
+| 7 | ASSEMBLY |
+| 8 | OBJECT |
+| 9 | LINK_INPUT |
+
+| Validity ID | State |
+|---:|---|
+| 1 | VALID |
+| 2 | PARTIAL |
+| 3 | INVALID |
+| 4 | NONE |
+
+| Section type ID | Section |
+|---:|---|
+| 1 | PAYLOAD |
+| 2 | SOURCE_MAP |
+| 3 | DIAGNOSTICS |
+| 4 | DEPENDENCIES |
+| 5 | METADATA |
+| 6 | CHECKSUM (reserved; checksum algorithm/coverage not yet standardized) |
+
+Section flag bit 0 means REQUIRED. Unknown optional section types may be skipped using their length. Unknown required section types are rejected. Unknown section flag bits and non-zero header flags are rejected by v1.0 readers. Container major must equal 1; minor versions greater than 0 are rejected until compatibility behavior is explicitly implemented.
+
+The C implementation is in `omnicore-sdk/src/c/oir/`. It provides a bounded in-memory writer, a validating read-only view and section access. It does not yet define payload schemas or filesystem checkpoint helpers.
 
 ## 4. Section model
 
