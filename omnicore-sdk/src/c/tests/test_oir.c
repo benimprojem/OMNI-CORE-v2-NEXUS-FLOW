@@ -137,6 +137,14 @@ int main(void) {
             "writer should reject unknown required section");
     }
 
+    {
+        OirArtifactHeader no_artifact = header;
+        no_artifact.validity = OIR_VALIDITY_NONE;
+        CHECK(oir_artifact_write(buffer, sizeof(buffer), &no_artifact,
+            sections, 2, &written) == OIR_STATUS_INVALID_HEADER,
+            "NONE is a pipeline result and cannot label a serialized artifact");
+    }
+
     CHECK(oir_artifact_write(buffer, 8, &header, sections, 2, &written)
         == OIR_STATUS_BUFFER_TOO_SMALL, "writer should detect small output buffer");
 
