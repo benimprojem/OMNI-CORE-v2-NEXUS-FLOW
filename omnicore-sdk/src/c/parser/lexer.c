@@ -39,8 +39,10 @@ static Token make_token(ParserContext* ctx, OmniTokenType type, const char* star
     token.type = type;
     token.start = start;
     token.length = length;
-    token.line = ctx->current_line;
-    token.col = ctx->current_col - length;
+    token.line = ctx->token_start_line;
+    token.col = ctx->token_start_col;
+    token.source_offset = ctx->token_start_offset;
+    token.source_length = (size_t)length;
     return token;
 }
 
