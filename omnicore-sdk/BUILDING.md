@@ -135,8 +135,8 @@ this additional job on Ubuntu.
 
 ## Verification status
 
-GitHub Actions workflow run 41145426190 is validating the per-job context:
-Ubuntu and macOS CMake build/CTest passed all eighteen checks; Ubuntu
-ASan/UBSan and Valgrind also passed. Windows build/test was still running at
-the time of this update. This verifies clean-checkout CI paths; it does not
-claim a separate local build on the user's machine.
+GitHub Actions workflow run 41145426190 completed successfully:
+CMake configure, build and all eighteen CTest checks passed on Windows, Ubuntu
+and macOS. Ubuntu GCC ASan/UBSan and Valgrind memcheck also passed all eighteen
+tests. This verifies the committed clean-checkout CI path; it does not claim
+a separate local build on the user's machine.
