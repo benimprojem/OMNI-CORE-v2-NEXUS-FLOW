@@ -8,10 +8,10 @@ OmniCore SDK, NexusFlow kaynak kodunu analiz etmek ve hedef platformlara taşın
 
 Bu depo henüz tamamlanmış, çoklu hedef destekli bir derleyici değildir. Lexer, parser, AST, semantik analiz ve sınırlı codegen parçaları vardır. Modüllerin var olması, tüm dil özelliklerinin doğru işlendiğini veya üretim kalitesinde olduğunu kanıtlamaz.
 
-- [Proje durumu](docs/PROJECT_STATUS.md)
-- [Geliştirme yol haritası](docs/ROADMAP.md)
-- [Mimari kararlar](docs/ARCHITECTURE_DECISIONS.md)
-- [Hedef klasör yapısı](docs/PROPOSED_LAYOUT.md)
+- [Proje durumu](../PROJECT_STATUS.md)
+- [Geliştirme yol haritası](../ROADMAP.md)
+- [Mimari kararlar](../ARCHITECTURE_DECISIONS.md)
+- [Hedef klasör yapısı](../PROPOSED_LAYOUT.md)
 
 ## Mevcut kaynaklar
 
@@ -23,6 +23,10 @@ Bu depo henüz tamamlanmış, çoklu hedef destekli bir derleyici değildir. Lex
 | stdlib/, dpslib/ | Standart ve bağımlılık kütüphaneleri | Korunacak |
 | test/ ve C tarafındaki tests/ | Test girdileri ve çıktıları | Tek test düzenine kademeli taşınacak |
 | bin/, lib/ | Derleme çıktıları | Kaynak koddan ayrılacak; doğrulama öncesi silinmeyecek |
+
+## Platform ve target yaklaşımı
+
+OmniCore Windows, Linux ve macOS üzerinde çalışmayı; x86-64 ve AArch64 gibi işlemci mimarilerini hedeflemeyi amaçlar. Kullanıcı genel CPU mimarisini seçebilir, desteklenen ek CPU özelliklerini belirtebilir veya belirli bir CPU modeli seçebilir. Target verilmezse host OS + host architecture varsayılan olur. Host ve target farklı olduğunda cross-compilation uygulanır. Target tanımı gerçek backend desteğinin kanıtı değildir.
 
 ## Hedef derleyici akışı
 
@@ -37,7 +41,7 @@ NexusFlow source
     -> executable or library
 ~~~
 
-Bu akış hedef mimaridir; tüm adımların bugün uygulanmış olduğu iddia edilmez. OIR sözleşmesi, optimizer, ARM64 backend, x86-64 backend ve linker entegrasyonu tamamlanması gereken işlerdir.
+Bu akış hedef mimaridir; tüm adımların bugün uygulanmış olduğu iddia edilmez. OIR sözleşmesi, optimizer, Windows/Linux/macOS için x86-64 ve AArch64 backend'leri ve linker entegrasyonu tamamlanması gereken işlerdir.
 
 ## Geliştirme ilkeleri
 
