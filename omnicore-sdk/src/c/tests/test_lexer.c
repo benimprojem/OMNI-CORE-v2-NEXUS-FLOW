@@ -80,5 +80,32 @@ int main(void) {
         free(multi_ctx.source_buffer);
     }
 
+    {
+        const char* unterminated = "/* comment without terminator";
+        ParserContext comment_ctx;
+        memset(&comment_ctx, 0, sizeof(comment_ctx));
+        comment_ctx.source_len = strlen(unterminated);
+        comment_ctx.source_buffer = (char*)malloc(comment_ctx.source_len + 1u);
+        if (!comment_ctx.source_buffer) return 1;
+        memcpy(comment_ctx.source_buffer, unterminated, comment_ctx.source_len + 1u);
+        comment_ctx.current_line = 1;
+        comment_ctx.current_col = 1;
+
+        Token error = lexer_next_token(&comment_ctx);
+        if (error.type != TOKEN_ERROR || error.line != 1 || error.col != 1 ||
+            error.source_offset != 0u ||
+            error.source_length != strlen(unterminated)) {
+            fprintf(stderr, "Unterminated block comment was not reported with its source span.\n");
+            free(comment_ctx.source_buffer);
+            return 1;
+        }
+        if (lexer_next_token(&comment_ctx).type != TOKEN_EOF) {
+            fprintf(stderr, "Lexer did not reach EOF after unterminated comment diagnostic.\n");
+            free(comment_ctx.source_buffer);
+            return 1;
+        }
+        free(comment_ctx.source_buffer);
+    }
+
     return 0;
 }
