@@ -83,7 +83,7 @@ under `src/` and the existing `build_occ.bat`, `parser_build.bat`, and
 
 The current CTest suite contains ten checks:
 
-1. Reject truncated, invalid and oversized AST streams; round-trip AST_UNPACK/AST_NEXUS_HALT and a 700-node sibling list.
+1. Reject truncated, invalid and oversized AST streams; round-trip AST_EXTERN_DECL, AST_UNPACK/AST_NEXUS_HALT and a 700-node sibling list.
 2. Validate all five current target descriptors, reject malformed/duplicate/unknown/oversized fields, and distinguish valid target descriptions from backend support.
 3. OCC help output.
 4. Reject an unknown CLI option.
