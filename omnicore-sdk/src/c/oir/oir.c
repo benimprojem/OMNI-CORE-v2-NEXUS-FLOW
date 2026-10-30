@@ -43,7 +43,8 @@ static int is_known_section(uint16_t type) {
 }
 
 static int is_valid_validity(uint8_t validity) {
-    return validity >= OIR_VALIDITY_VALID && validity <= OIR_VALIDITY_NONE;
+    /* A serialized artifact must contain a payload; NONE is a pipeline result, not an artifact state. */
+    return validity >= OIR_VALIDITY_VALID && validity <= OIR_VALIDITY_INVALID;
 }
 
 OirStatus oir_artifact_open(
