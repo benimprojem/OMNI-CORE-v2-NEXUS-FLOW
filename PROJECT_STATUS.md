@@ -123,4 +123,17 @@ Bu nedenle target parser'ı güvenli ve doğrulayıcı hale getirilmeden mevcut 
 
 **Kaynak seçimi:** C frontend için `ast.c`, `lexer.c`, `parser.c`, `semantic.c` derlenir. `parser/main.c` ikinci bir `main()` tanımladığı için ana OCC hedefinden özellikle çıkarılmıştır. C++ `src/` ve eski C++ build betikleri korunmuştur.
 
-**Doğrulama durumu:** Build tanımları ve CI workflow dosyası eklendi; bu rapor hazırlanırken hiçbir Windows/Linux/macOS build sonucu henüz doğrulanmış değildir. CI sonucu görülmeden P0 build görevleri tamamlandı olarak işaretlenmeyecektir. Ayrıca CMake ilk sürümünün runtime dosyaları için `build/bin` çalışma dizinini varsaydığı unutulmamalıdır.
+**Doğrulama durumu:** GitHub Actions temiz checkout matrisi Windows, Ubuntu ve macOS üzerinde başarılı tamamlandı. Her platformda CMake configure, C derlemesi ve CTest aşamaları geçti. Testler: `occ_help`, bilinmeyen CLI seçeneğini reddetme ve `tests/test1.nxf` dosyasını lexer→parser→semantic→AST serialization/deserialization→shared codegen yolundan geçirme. Her platformda 3/3 test başarılıdır. Bu, ilk build hattını doğrular; dilin tüm özelliklerinin doğrulandığı anlamına gelmez. CMake ilk sürümü runtime dosyaları için `build/bin` çalışma dizinini varsayar.
+
+
+## CI build sonrası kalan derleyici uyarıları
+
+İlk üç platformlu test hattı başarılı olsa da uyarılar temizlenmiş değildir:
+
+- `ast.c` içindeki AST deserializer bazı `fread()` sonuçlarını kontrol etmiyor.
+- `parser.c` kaynak dosyasını okurken `fseek/ftell/fread` dönüşlerini ve dosya boyutu hatalarını yeterince doğrulamıyor.
+- `parser.c` içinde kullanılmayan benzerlik fonksiyonu bulunuyor.
+- İlk CI loglarında lexer'daki kaçış karakteri yorum satırı uyarı veriyordu; yorum satırı düzeltildi.
+- Linux derlemesinde output path tamponu uyarıları görüldü; tamponlar büyütüldü. Son CI koşusunda tekrar doğrulama yapıldı.
+
+**Öncelik:** AST deserializer ve kaynak dosyası okuyucusunun truncated/bozuk girdide güvenli hata vermesi. Bu iş tamamlanmadan OIR/AST dosyalarının güvenilmeyen girdiler olarak güvenli biçimde işlendiği varsayılmamalıdır.
