@@ -137,3 +137,19 @@ The current API:
 - Rejects invalid severity/code, malformed source spans and embedded NUL in message text.
 
 The collector is currently a standalone C utility library and is not yet wired into ParserContext, SemanticContext, OIR DIAGNOSTICS sections or the OCC pipeline. It is job-owned by design, but this first version is not internally synchronized; the orchestrator must serialize writes to one collector or add a synchronization wrapper before same-job concurrent reporting.
+
+
+## 11. Initial compilation context implementation
+
+The first per-job context is implemented in:
+- `omnicore-sdk/src/c/core/compilation.h`
+- `omnicore-sdk/src/c/core/compilation.c`
+
+It owns:
+- Job ID and lifecycle state (`CREATED`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`).
+- A copied target name, optimization level, option flags and stop-after stage ID.
+- Its own `OccDiagnosticCollector`.
+
+Source diagnostics do not force a transition to FAILED: a running job may complete all eligible stages while diagnostics accumulate. Final publication is a separate decision, allowed only for a COMPLETED job whose diagnostic collector passes the strict gate. Failed/cancelled jobs cannot publish.
+
+This is the initial context skeleton. Source manager, artifact registry, module invocation context, cancellation propagation and checkpoint metadata remain to be added. It is not yet the frozen cross-DLL ABI.
