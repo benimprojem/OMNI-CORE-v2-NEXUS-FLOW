@@ -22,6 +22,7 @@ endforeach()
 file(MAKE_DIRECTORY "${C_RUNTIME_DIR}")
 file(COPY "${C_SOURCE_DIR}/occ.ocf" DESTINATION "${C_RUNTIME_DIR}")
 file(COPY "${C_SOURCE_DIR}/lang" DESTINATION "${C_RUNTIME_DIR}")
+file(COPY "${C_SOURCE_DIR}/tests" DESTINATION "${C_RUNTIME_DIR}")
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/targets" DESTINATION "${CMAKE_BINARY_DIR}")
 
 # The C frontend is the canonical compiler frontend.
@@ -116,5 +117,14 @@ if(BUILD_TESTING)
     set_tests_properties(occ_rejects_unknown_option PROPERTIES
         WORKING_DIRECTORY "${C_RUNTIME_DIR}"
         WILL_FAIL TRUE
+    )
+
+    # Exercises the complete C path: lexer, parser, semantic analysis,
+    # AST serialization/deserialization, shared-library loading and codegen.
+    add_test(NAME occ_compiles_basic_source
+        COMMAND occ tests/test1.nxf --target BareMetal64
+    )
+    set_tests_properties(occ_compiles_basic_source PROPERTIES
+        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
     )
 endif()
