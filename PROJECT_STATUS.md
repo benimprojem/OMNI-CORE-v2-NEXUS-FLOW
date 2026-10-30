@@ -360,3 +360,16 @@ Kapanmayan block comment için de TOKEN_ERROR/source span testi eklendi. Sonraki
 - `test_diagnostics.c` CTest'e bağlandı. Windows, Ubuntu ve macOS build/CTest **17/17** başarılı; Ubuntu ASan/UBSan ve Valgrind de **17/17** başarılı.
 
 Bu collector henüz ParserContext/SemanticContext'e bağlanmadı ve OIR DIAGNOSTICS section codec'i yok. İlk sürüm aynı collector'a eşzamanlı çoklu thread yazımını desteklemez; aynı job içindeki paralel raporlama için orchestrator serialization veya mutex wrapper gerekir.
+
+
+## Per-job CompilationContext — 31 Ekim 2026
+
+- `omnicore-sdk/src/c/core/compilation.h/.c`: her derleme işi için bağımsız context lifecycle eklendi.
+- Context job ID, copied target name, optimization level, option flags, stop-after stage ID ve kendi diagnostic collector'ını tutuyor.
+- State geçişleri CREATED → RUNNING → COMPLETED / FAILED / CANCELLED olarak kontrol ediliyor.
+- Source diagnostic birikmesi RUNNING durumunu FAILED yapmıyor; pipeline aşamaları tamamlanabiliyor.
+- Final output yalnızca COMPLETED state ve strict diagnostic gate birlikte izin verirse yayımlanabilir.
+- Failed/cancelled job final output üretemez.
+- `test_compilation.c` CTest'e bağlandı; test yeni job state ve output gate davranışlarını doğruluyor.
+
+Bu ilk context iskeletidir. Source manager, artifact registry, module invocation view, cancellation propagation ve checkpoint metadata henüz eklenmedi. Ortak DLL ABI'si olarak freeze edilmedi.
