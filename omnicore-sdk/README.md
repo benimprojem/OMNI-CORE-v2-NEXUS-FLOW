@@ -13,6 +13,7 @@ Bu depo henüz tamamlanmış, çoklu hedef destekli bir derleyici değildir. Lex
 - [Mimari kararlar](../ARCHITECTURE_DECISIONS.md)
 - [Hedef klasör yapısı](../PROPOSED_LAYOUT.md)
 - [Target modeli](../TARGET_MODEL.md)
+- [C derleyicisi build ve test talimatları](BUILDING.md)
 
 ## Mevcut kaynaklar
 
