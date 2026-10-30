@@ -23,6 +23,66 @@ static int rejects_bytes(const void* bytes, size_t length) {
     return 0;
 }
 
+static char* duplicate_text(const char* text) {
+    size_t length = strlen(text);
+    char* copy = (char*)malloc(length + 1u);
+    if (!copy) return NULL;
+    memcpy(copy, text, length + 1u);
+    return copy;
+}
+
+static int roundtrips_extern_decl(void) {
+    ASTFuncDecl* original = (ASTFuncDecl*)ast_create(AST_EXTERN_DECL);
+    if (!original) return 1;
+
+    original->name = duplicate_text("external_api");
+    original->return_type = duplicate_text("i32");
+    original->is_extern = 1;
+    original->is_public = 1;
+    original->is_exported = 0;
+    original->params = ast_create(AST_IDENTIFIER);
+    original->body = ast_create(AST_BLOCK);
+
+    if (!original->name || !original->return_type ||
+        !original->params || !original->body) {
+        ast_destroy((ASTNode*)original);
+        return 1;
+    }
+
+    ((ASTIdentifier*)original->params)->name = duplicate_text("argument");
+    if (!((ASTIdentifier*)original->params)->name) {
+        ast_destroy((ASTNode*)original);
+        return 1;
+    }
+
+    FILE* stream = tmpfile();
+    if (!stream) {
+        ast_destroy((ASTNode*)original);
+        return 1;
+    }
+
+    ast_serialize((ASTNode*)original, stream);
+    rewind(stream);
+    ASTFuncDecl* decoded = (ASTFuncDecl*)ast_deserialize(stream);
+    fclose(stream);
+
+    int valid = decoded &&
+        decoded->base.type == AST_EXTERN_DECL &&
+        decoded->name && strcmp(decoded->name, "external_api") == 0 &&
+        decoded->return_type && strcmp(decoded->return_type, "i32") == 0 &&
+        decoded->is_extern == 1 &&
+        decoded->is_public == 1 &&
+        decoded->is_exported == 0 &&
+        decoded->params && decoded->params->type == AST_IDENTIFIER &&
+        ((ASTIdentifier*)decoded->params)->name &&
+        strcmp(((ASTIdentifier*)decoded->params)->name, "argument") == 0 &&
+        decoded->body && decoded->body->type == AST_BLOCK;
+
+    ast_destroy((ASTNode*)decoded);
+    ast_destroy((ASTNode*)original);
+    return valid ? 0 : 1;
+}
+
 static int roundtrips_special_nodes(void) {
     ASTProgram* program = (ASTProgram*)ast_create(AST_PROGRAM);
     ASTUnpack* unpack = (ASTUnpack*)ast_create(AST_UNPACK);
@@ -130,6 +190,7 @@ static int roundtrips_large_sibling_list(void) {
 }
 
 int main(void) {
+    if (roundtrips_extern_decl() != 0) return 7;
     if (roundtrips_special_nodes() != 0) return 4;
     if (roundtrips_large_sibling_list() != 0) return 5;
 
