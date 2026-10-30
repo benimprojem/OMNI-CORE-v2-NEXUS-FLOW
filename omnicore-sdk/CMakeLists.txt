@@ -38,6 +38,18 @@ target_include_directories(occ_frontend PUBLIC
 
 target_compile_definitions(occ_frontend PUBLIC OCC_STATIC)
 
+# strdup is POSIX rather than ISO C11. Expose its declaration on POSIX
+# toolchains and map it to the Microsoft CRT spelling on MSVC.
+if(MSVC)
+    target_compile_definitions(occ_frontend PRIVATE
+        _CRT_SECURE_NO_WARNINGS
+        _CRT_NONSTDC_NO_DEPRECATE
+        strdup=_strdup
+    )
+else()
+    target_compile_definitions(occ_frontend PRIVATE _POSIX_C_SOURCE=200809L)
+endif()
+
 # Code generation remains a separately loadable module.
 # Output name is codegen.dll on Windows, libcodegen.so on Linux,
 # and libcodegen.dylib on macOS.
