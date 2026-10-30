@@ -1,0 +1,33 @@
+name: C Compiler Build
+
+on:
+  push:
+    branches:
+      - main
+      - refactor/c-core-roadmap
+  pull_request:
+
+jobs:
+  build:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure C build
+        run: cmake -S omnicore-sdk -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build C compiler
+        run: cmake --build build --config Release --parallel
+
+      - name: Run C tests
+        run: ctest --test-dir build -C Release --output-on-failure
