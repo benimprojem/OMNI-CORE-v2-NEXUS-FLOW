@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> CMake/CI altyapısı mevcut. Son koşuda Windows, Ubuntu ve macOS'ta 10/10 CTest başarılı. AST tag ve field-level round-trip kapsamı genişletildi; sanitizer doğrulaması sırada.
+> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 10/10 CTest başarılı; Ubuntu GCC ASan/UBSan koşusu da leak detection açıkken 10/10 geçti. Valgrind doğrulaması sırada.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
@@ -34,10 +34,11 @@
 - [x] Truncated header, geçersiz node, bozuk string, özel node round-trip ve 700 sibling testlerini ekle.
 - [x] Kaynak dosyası okuyucusunda fseek/ftell/fread sonuçlarını doğrula.
 - [x] AST türlerinin tüm serialized alanları için field-level round-trip fixture matrisi ekle; her türün serialize → deserialize çıktısı byte-equality ile karşılaştırılıyor (Windows/Ubuntu/macOS CI 10/10).
-- [ ] ASan/UBSan/Valgrind test çalıştırma altyapısı ekle.
+- [x] GCC ASan/UBSan seçeneği ve Ubuntu CI işi ekle; semantic scope içindeki type_name sızıntısı bulundu ve giderildi, sanitizer altında 10/10 test geçti.
+- [ ] Valgrind test çalıştırma altyapısı ve CI doğrulaması ekle.
 - [x] AST serializer yazma hatalarını API dönüş değeriyle raporla; parser_save_ir serialization ve fclose hatalarını kontrol etsin, OCC kayıt başarısızsa codegen'e geçmesin.
 
-> İlk güvenlik katmanı üç platformda CI ile doğrulandı; tam AST kapsamı ve sanitizer doğrulaması henüz tamamlanmadı.
+ > AST field-level round-trip matrisi Windows/Ubuntu/macOS'ta; ASan/UBSan ise Ubuntu'da doğrulandı. Valgrind ve daha geniş semantik bellek testleri açık.
 
 ## P0 — Dil ve semantik
 
@@ -104,4 +105,4 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 
 ## Sonraki tek iş
 
-Valgrind çalıştırma seçeneği ve CI doğrulaması ekle; ASan/UBSan altında bulunan semantic scope slot sızıntısının düzeltildiğini ve 10/10 testin geçtiğini koru.
+Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam genişletmesi semantic allocation-failure ve scope/ownership testleri olsun.
