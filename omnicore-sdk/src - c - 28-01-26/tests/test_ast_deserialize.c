@@ -101,8 +101,10 @@ static int roundtrips_special_nodes(void) {
         return 1;
     }
 
+    unpack_value->type = TOKEN_NUMBER;
     unpack_value->lit_type = 0;
     unpack_value->int_value = 123;
+    halt_value->type = TOKEN_NUMBER;
     halt_value->lit_type = 0;
     halt_value->int_value = 456;
 
@@ -135,9 +137,11 @@ static int roundtrips_special_nodes(void) {
     ASTHalt* decoded_halt = (ASTHalt*)decoded->declarations->next;
     int valid = decoded_unpack->expr &&
         decoded_unpack->expr->type == AST_LITERAL &&
+        ((ASTLiteral*)decoded_unpack->expr)->type == TOKEN_NUMBER &&
         ((ASTLiteral*)decoded_unpack->expr)->int_value == 123 &&
         decoded_halt->expr &&
         decoded_halt->expr->type == AST_LITERAL &&
+        ((ASTLiteral*)decoded_halt->expr)->type == TOKEN_NUMBER &&
         ((ASTLiteral*)decoded_halt->expr)->int_value == 456;
 
     ast_destroy((ASTNode*)decoded);
