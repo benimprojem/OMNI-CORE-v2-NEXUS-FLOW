@@ -286,7 +286,7 @@ Token lexer_next_token(ParserContext* ctx) {
     // --- Karakterler ---
     if (c == '\'') {
         if (peek(ctx) == '\\') {
-            advance(ctx); // \ 
+            advance(ctx); // Escape character.
             advance(ctx); // n, t, r vs.
         } else {
             advance(ctx); // Normal karakter
