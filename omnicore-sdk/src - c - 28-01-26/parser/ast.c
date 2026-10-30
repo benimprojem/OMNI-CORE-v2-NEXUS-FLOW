@@ -934,24 +934,9 @@ void ast_serialize(ASTNode* root, FILE* out) {
     ast_serialize_recursive(root, out);
 }
 
-static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
-    int type_val;
-    if (!ast_read_exact(reader, &type_val, sizeof(type_val))) return NULL;
-    if (type_val == -1) return NULL;
+static ASTNode* ast_deserialize_recursive(ASTReader* reader);
 
-    if (type_val < AST_PROGRAM || type_val > AST_ZONE_LOCK) {
-        reader->failed = 1;
-        return NULL;
-    }
-    if (reader->node_count >= AST_MAX_NODE_COUNT ||
-        reader->depth >= AST_MAX_RECURSION_DEPTH) {
-        reader->failed = 1;
-        return NULL;
-    }
-
-    reader->node_count++;
-    reader->depth++;
-
+static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
     ASTNodeType type = (ASTNodeType)type_val;
     ASTNode* node = ast_create(type);
     if (!node) {
@@ -1203,16 +1188,48 @@ static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
 
     if (reader->failed) goto fail;
 
-    node->next = ast_deserialize_recursive(reader);
-    if (reader->failed) goto fail;
-
-    reader->depth--;
     return node;
 
 fail:
     ast_destroy(node);
-    reader->depth--;
     return NULL;
+}
+
+static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
+    ASTNode* head = NULL;
+    ASTNode** tail = &head;
+
+    for (;;) {
+        int type_val = -1;
+        if (!ast_read_exact(reader, &type_val, sizeof(type_val))) {
+            ast_destroy(head);
+            return NULL;
+        }
+
+        if (type_val == -1) return head;
+
+        if (type_val < AST_PROGRAM || type_val > AST_ZONE_LOCK ||
+            reader->node_count >= AST_MAX_NODE_COUNT ||
+            reader->depth >= AST_MAX_RECURSION_DEPTH) {
+            reader->failed = 1;
+            ast_destroy(head);
+            return NULL;
+        }
+
+        reader->node_count++;
+        reader->depth++;
+        ASTNode* node = ast_deserialize_one(reader, type_val);
+        reader->depth--;
+
+        if (reader->failed || !node) {
+            ast_destroy(node);
+            ast_destroy(head);
+            return NULL;
+        }
+
+        *tail = node;
+        tail = &node->next;
+    }
 }
 
 ASTNode* ast_deserialize(FILE* in) {
