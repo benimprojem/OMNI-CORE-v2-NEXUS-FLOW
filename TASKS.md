@@ -151,3 +151,17 @@ PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned 
 3. SOURCE_UNIT / TOKEN_STREAM ve AST payload adaptörleri.
 4. Lexer, parser ve semantic aşamalarının OIR artifact alıp üretmesi.
 5. Ortak module ABI ve stage DLL/SO/dylib ayrımı.
+
+
+## OIR v1 container — ilk C uygulaması eklendi
+
+- [x] İlk v1.0 container byte layout'u belirlendi: 44-byte header, 16-byte section header, little-endian, length-delimited.
+- [x] Artifact kind, validity ve section type başlangıç numeric ID'leri sabitlendi.
+- [x] `omnicore-sdk/src/c/oir/oir.h` ve `oir.c`: bounded in-memory writer, validating reader ve section view API.
+- [x] `test_oir.c`: round-trip, little-endian alan, truncated input, bad magic, total-length mismatch, oversized section, unknown required section, missing payload ve küçük output buffer testleri.
+- [x] CMake'e `occ_oir` static utility target'ı ve OIR CTest kaydı eklendi.
+- [ ] GitHub CI sonucu doğrula.
+- [ ] Fuzz/property testleri ve header-extension uyumluluk testlerini ekle.
+- [ ] SOURCE_UNIT ve TOKEN_STREAM payload schema'larını tanımla.
+
+> Not: `occ_oir` şu an container yardımcı kütüphanesidir; compiler stage DLL'leri henüz OIR artifact tüketip üretmiyor. Stage ABI ve payload schema entegrasyonu sonraki adımlardır.
