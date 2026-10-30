@@ -72,7 +72,7 @@ static void skip_whitespace(ParserContext* ctx) {
                 break;
             case '/':
                 if (peek_next(ctx, 1) == '*') {
-                    advance(ctx); // /
+                    advance(ctx); // Escape character.
                     advance(ctx); // *
                     while (peek(ctx) != '\0') {
                         if (peek(ctx) == '*' && peek_next(ctx, 1) == '/') {
