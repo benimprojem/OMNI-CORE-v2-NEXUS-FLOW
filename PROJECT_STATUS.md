@@ -373,3 +373,5 @@ Bu collector henüz ParserContext/SemanticContext'e bağlanmadı ve OIR DIAGNOST
 - `test_compilation.c` CTest'e bağlandı; test yeni job state ve output gate davranışlarını doğruluyor.
 
 Bu ilk context iskeletidir. Source manager, artifact registry, module invocation view, cancellation propagation ve checkpoint metadata henüz eklenmedi. Ortak DLL ABI'si olarak freeze edilmedi.
+
+Doğrulama: GitHub Actions run 41145426190 ile Windows, Ubuntu ve macOS build/CTest **18/18** başarılı; Ubuntu ASan/UBSan ve Valgrind **18/18** başarılı.
