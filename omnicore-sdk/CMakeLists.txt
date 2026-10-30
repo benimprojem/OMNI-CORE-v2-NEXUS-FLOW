@@ -57,6 +57,13 @@ add_library(occ_diagnostics STATIC
 )
 target_include_directories(occ_diagnostics PUBLIC "${C_SOURCE_DIR}/core")
 
+add_library(occ_compilation STATIC
+    "${C_SOURCE_DIR}/core/compilation.c"
+)
+target_include_directories(occ_compilation PUBLIC "${C_SOURCE_DIR}/core")
+target_link_libraries(occ_compilation PUBLIC occ_diagnostics)
+
+
 
 # Frontend token enum <-> stable OIR token ID adapter. Kept separate from the
 # container library so the canonical OIR layer does not depend on parser types.
@@ -147,6 +154,7 @@ target_link_libraries(occ PRIVATE occ_frontend ${CMAKE_DL_LIBS})
 if(MSVC)
     target_compile_options(occ_oir PRIVATE /W4)
     target_compile_options(occ_diagnostics PRIVATE /W4)
+    target_compile_options(occ_compilation PRIVATE /W4)
     target_compile_options(occ_oir_lexer_adapter PRIVATE /W4)
     target_compile_options(occ_frontend PRIVATE /W4)
     target_compile_options(occ_codegen PRIVATE /W4)
@@ -154,6 +162,7 @@ if(MSVC)
 else()
     target_compile_options(occ_oir PRIVATE -Wall -Wextra)
     target_compile_options(occ_diagnostics PRIVATE -Wall -Wextra)
+    target_compile_options(occ_compilation PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_lexer_adapter PRIVATE -Wall -Wextra)
     target_compile_options(occ_frontend PRIVATE -Wall -Wextra)
     target_compile_options(occ_codegen PRIVATE -Wall -Wextra)
@@ -269,6 +278,15 @@ if(BUILD_TESTING)
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         PASS_REGULAR_EXPRESSION "Tanımsız değişken"
     )
+
+    add_executable(test_compilation "${C_SOURCE_DIR}/tests/test_compilation.c")
+    target_link_libraries(test_compilation PRIVATE occ_compilation)
+    if(MSVC)
+        target_compile_options(test_compilation PRIVATE /W4)
+    else()
+        target_compile_options(test_compilation PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME compilation_context_state_and_output_gate COMMAND test_compilation)
 
     add_executable(test_diagnostics "${C_SOURCE_DIR}/tests/test_diagnostics.c")
     target_link_libraries(test_diagnostics PRIVATE occ_diagnostics)
