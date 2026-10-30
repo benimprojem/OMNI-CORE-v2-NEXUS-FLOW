@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 10/10 CTest başarılı; Ubuntu GCC ASan/UBSan koşusu da leak detection açıkken 10/10 geçti. Valgrind doğrulaması sırada.
+> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 10/10 CTest başarılı; Ubuntu GCC ASan/UBSan koşusu da leak detection açıkken 10/10 geçti. Valgrind CI da tamamlandı; 10/10 test definite/indirect leak kontrolüyle geçti.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
@@ -35,10 +35,10 @@
 - [x] Kaynak dosyası okuyucusunda fseek/ftell/fread sonuçlarını doğrula.
 - [x] AST türlerinin tüm serialized alanları için field-level round-trip fixture matrisi ekle; her türün serialize → deserialize çıktısı byte-equality ile karşılaştırılıyor (Windows/Ubuntu/macOS CI 10/10).
 - [x] GCC ASan/UBSan seçeneği ve Ubuntu CI işi ekle; semantic scope içindeki type_name sızıntısı bulundu ve giderildi, sanitizer altında 10/10 test geçti.
-- [ ] Valgrind test çalıştırma altyapısı ve CI doğrulaması ekle.
+- [x] Valgrind Linux CI işi ekle; 10/10 test definite/indirect leak kontrolüyle geçti.
 - [x] AST serializer yazma hatalarını API dönüş değeriyle raporla; parser_save_ir serialization ve fclose hatalarını kontrol etsin, OCC kayıt başarısızsa codegen'e geçmesin.
 
- > AST field-level round-trip matrisi Windows/Ubuntu/macOS'ta; ASan/UBSan ise Ubuntu'da doğrulandı. Valgrind ve daha geniş semantik bellek testleri açık.
+  > AST field-level round-trip matrisi Windows/Ubuntu/macOS'ta; ASan/UBSan ve Valgrind Ubuntu'da doğrulandı. Daha geniş semantic allocation-failure ve ownership testleri açık.
 
 ## P0 — Dil ve semantik
 
