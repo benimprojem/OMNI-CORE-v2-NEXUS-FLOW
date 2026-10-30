@@ -1,0 +1,4 @@
+f:main() {
+    v:known = 1;
+    v:result = missing_value;
+}
