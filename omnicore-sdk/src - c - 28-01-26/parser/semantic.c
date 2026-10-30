@@ -17,10 +17,10 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
 
 // --- Similarity Matching (ULTRA) ---
 static int levenshtein(const char* s1, const char* s2) {
-    int len1 = strlen(s1), len2 = strlen(s2);
+    size_t input_len1 = strlen(s1), input_len2 = strlen(s2);
+    int len1 = (int)(input_len1 > 127u ? 127u : input_len1);
+    int len2 = (int)(input_len2 > 127u ? 127u : input_len2);
     int matrix[128][128];
-    if (len1 > 127) len1 = 127;
-    if (len2 > 127) len2 = 127;
     for (int i = 0; i <= len1; i++) matrix[i][0] = i;
     for (int j = 0; j <= len2; j++) matrix[0][j] = j;
     for (int i = 1; i <= len1; i++) {
@@ -42,8 +42,9 @@ static Slot* find_best_suggestion(SemanticContext* ctx, const char* name, int* o
     int best_score = 0;
     while (current) {
         int dist = levenshtein(name, current->name);
-        int max_len = strlen(name) > strlen(current->name) ? strlen(name) : strlen(current->name);
-        int score = (int)((1.0 - (double)dist / (max_len ? max_len : 1)) * 100);
+        size_t max_len = strlen(name) > strlen(current->name) ? strlen(name) : strlen(current->name);
+        double denominator = max_len ? (double)max_len : 1.0;
+        int score = (int)((1.0 - (double)dist / denominator) * 100);
         if (score > best_score) {
             best_score = score;
             best_slot = current;
