@@ -89,7 +89,7 @@ not part of this C build.
 
 ## Current CTest coverage
 
-The current CTest suite contains fourteen checks:
+The current CTest suite contains fifteen checks:
 
 1. Reject truncated, invalid and oversized AST streams; round-trip every AST node tag and every serialized field using byte-equality; verify AST_EXTERN_DECL and AST_LITERAL regressions, AST_UNPACK/AST_NEXUS_HALT, a 700-node sibling list, and parser_save_ir failure propagation.
 2. Validate all five current target descriptors, reject malformed/duplicate/unknown/oversized fields, and distinguish valid target descriptions from backend support.
@@ -105,6 +105,7 @@ The current CTest suite contains fourteen checks:
 12. Parse a valid source and reject invalid syntax; verify a partial AST remains owned by the parser context for cleanup.
 13. Run semantic analysis on a valid source and a source with an undefined identifier; verify the expected diagnostic code.
 14. Serialize and read an OIR v1 container; verify round-trip fields and reject truncated streams, bad magic, inconsistent total/section lengths, unknown required sections, missing payloads, invalid no-artifact state and undersized output buffers.
+15. Encode and decode SOURCE_UNIT schema 1.0; verify path/source byte round-trip, exact lengths, valid UTF-8 and rejection of malformed UTF-8, embedded NUL, truncation, unsupported source ID and undersized buffers.
 
 ## Sanitizer build (GCC/Clang)
 
@@ -131,8 +132,8 @@ this additional job on Ubuntu.
 
 ## Verification status
 
-GitHub Actions workflow run 41143050717 completed successfully:
-CMake configure, build and all fourteen CTest checks passed on Windows, Ubuntu
+GitHub Actions workflow run 41143616273 completed successfully:
+CMake configure, build and all fifteen CTest checks passed on Windows, Ubuntu
 and macOS. The Ubuntu GCC ASan/UBSan job and Ubuntu Valgrind memcheck job also
-passed all fourteen tests. This verifies the committed clean-checkout CI path;
+passed all fifteen tests. This verifies the committed clean-checkout CI path;
 it does not claim a separate local build on the user's machine.
