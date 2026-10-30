@@ -46,6 +46,7 @@ file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/targets" DESTINATION "${CMAKE_BINARY_DIR}
 # It is linked by stage modules and tools; it does not expose host struct layouts.
 add_library(occ_oir STATIC
     "${C_SOURCE_DIR}/oir/oir.c"
+    "${C_SOURCE_DIR}/oir/oir_payload.c"
 )
 target_include_directories(occ_oir PUBLIC "${C_SOURCE_DIR}/oir")
 
@@ -246,6 +247,16 @@ if(BUILD_TESTING)
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         PASS_REGULAR_EXPRESSION "Tanımsız değişken"
     )
+
+    add_executable(test_oir_source_unit "${C_SOURCE_DIR}/tests/test_oir_source_unit.c")
+    target_link_libraries(test_oir_source_unit PRIVATE occ_oir)
+    if(MSVC)
+        target_compile_options(test_oir_source_unit PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_source_unit PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_source_unit_payload_roundtrip_and_validation
+        COMMAND test_oir_source_unit)
 
     add_executable(test_oir "${C_SOURCE_DIR}/tests/test_oir.c")
     target_link_libraries(test_oir PRIVATE occ_oir)
