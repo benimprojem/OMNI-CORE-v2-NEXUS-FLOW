@@ -166,3 +166,12 @@ As of this design:
 - There is no implemented general checkpoint/stop-after interface or multi-job scheduler yet.
 
 These are known gaps to be addressed incrementally. This document records the intended architecture; it does not claim implementation or test completion.
+
+
+## 11. Standard artifact handoff
+
+All stage-to-stage handoff uses the common OIR container described in [OIR_FORMAT.md](OIR_FORMAT.md). Each artifact declares its payload kind and schema version (for example `TOKEN_STREAM`, `AST`, `SEMANTIC_AST`, `OIR_MODULE`, `ASSEMBLY`, or `OBJECT`). The same artifact may be passed in memory through an opaque ABI handle or serialized as a `.oir` checkpoint.
+
+The file extension is not the type system: a stage must inspect and validate the OIR header and payload schema before consuming an artifact. It must reject unsupported versions, wrong artifact kinds, corrupt lengths and invalid state. A partial artifact is accepted only by stages that explicitly declare partial-input support.
+
+The existing native-layout AST serializer is retained as a legacy/internal format until an OIR AST payload reader/writer replaces it. It is not a cross-platform module interchange format.
