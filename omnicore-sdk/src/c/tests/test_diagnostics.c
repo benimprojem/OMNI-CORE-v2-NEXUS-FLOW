@@ -67,7 +67,7 @@ int main(void) {
     input.message_length = strlen(input.message);
     CHECK(occ_diagnostics_add(&collector, &input),
         "collector should accept a location-free note");
-    CHECK(!occ_diagnostics_blocks_output(&collector) == 0,
+    CHECK(occ_diagnostics_blocks_output(&collector),
         "existing error should continue blocking output");
     CHECK(occ_diagnostics_count_severity(&collector, OCC_DIAG_NOTE) == 1,
         "note count should increment");
