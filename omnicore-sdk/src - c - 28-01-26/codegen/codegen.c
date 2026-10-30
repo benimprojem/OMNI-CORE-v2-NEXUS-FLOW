@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "target_parser.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,75 +93,6 @@ static void codegen_node(ASTNode* node, FILE *out, TargetConfig* config) {
     }
 }
 
-// Basit .target dosyası parser'ı
-static void parse_target(const char* path, TargetConfig* config) {
-    // Varsayılanlar
-    strcpy(config->arch, "x86_64");
-    strcpy(config->os, "none");
-    strcpy(config->format, "bin");
-    config->base_addr = 0;
-    config->stack_size = 4096;
-    config->region_count = 0;
-    config->port_count = 0;
-    config->abi = ABI_NONE;
-    config->features = FEAT_NONE;
-
-    if (!path) return;
-    FILE* f = fopen(path, "r");
-    if (!f) return;
-
-    char line[256];
-    while (fgets(line, sizeof(line), f)) {
-        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') continue;
-        
-        char key[64], val[128];
-        if (sscanf(line, "%63[^:]: %127[^\r\n]", key, val) == 2) {
-            if (strcmp(key, "arch") == 0) strcpy(config->arch, val);
-            else if (strcmp(key, "os") == 0) strcpy(config->os, val);
-            else if (strcmp(key, "format") == 0) strcpy(config->format, val);
-            else if (strcmp(key, "base") == 0) config->base_addr = strtoull(val, NULL, 0);
-            else if (strcmp(key, "stack") == 0) config->stack_size = strtoull(val, NULL, 0);
-            else if (strcmp(key, "abi") == 0) {
-                if (strcmp(val, "win64") == 0) config->abi = ABI_WIN64;
-                else if (strcmp(val, "sysv") == 0) config->abi = ABI_SYSV;
-                else if (strcmp(val, "baremetal") == 0) config->abi = ABI_BAREMETAL;
-            }
-            else if (strcmp(key, "features") == 0) {
-                char* token = strtok(val, ",");
-                while (token) {
-                    if (strcmp(token, "mmx") == 0) config->features |= FEAT_MMX;
-                    else if (strcmp(token, "sse") == 0) config->features |= FEAT_SSE;
-                    else if (strcmp(token, "sse2") == 0) config->features |= FEAT_SSE2;
-                    else if (strcmp(token, "sse3") == 0) config->features |= FEAT_SSE3;
-                    else if (strcmp(token, "sse4") == 0) config->features |= FEAT_SSE4;
-                    else if (strcmp(token, "avx") == 0) config->features |= FEAT_AVX;
-                    else if (strcmp(token, "avx2") == 0) config->features |= FEAT_AVX2;
-                    else if (strcmp(token, "avx512") == 0) config->features |= FEAT_AVX512;
-                    token = strtok(NULL, ",");
-                }
-            }
-            else if (strcmp(key, "memory") == 0) {
-                if (config->region_count < 16) {
-                    MemoryRegion* r = &config->regions[config->region_count++];
-                    char type_str[16];
-                    if (sscanf(val, "%31s %15s %llx %llx", r->name, type_str, &r->start, &r->size) >= 4) {
-                        if (strcmp(type_str, "flash") == 0) r->type = MEM_FLASH;
-                        else if (strcmp(type_str, "ram") == 0) r->type = MEM_RAM;
-                        else if (strcmp(type_str, "io") == 0) r->type = MEM_IO;
-                    }
-                }
-            }
-            else if (strcmp(key, "port") == 0) {
-                if (config->port_count < 64) {
-                    Peripheral* p = &config->ports[config->port_count++];
-                    sscanf(val, "%31s %llx", p->name, &p->address);
-                }
-            }
-        }
-    }
-    fclose(f);
-}
-
 int codegen_run(const char* ir_path, const char* target_path, const char* out_path) {
     printf("[CODEGEN] Baslatiliyor: %s -> %s\n", ir_path, out_path);
 
@@ -178,10 +110,21 @@ int codegen_run(const char* ir_path, const char* target_path, const char* out_pa
         return 1;
     }
 
-    // 2. Target Konfigürasyonu Oku
+    // 2. Parse and validate the target descriptor before emitting any code.
     TargetConfig config;
-    parse_target(target_path, &config);
-    printf("[CODEGEN] Hedef: %s (%s, %s)\n", config.arch, config.os, config.format);
+    char target_error[256];
+    if (!target_config_load(target_path, &config, target_error, sizeof(target_error))) {
+        fprintf(stderr, "[CODEGEN] Target descriptor error: %s\n", target_error);
+        ast_destroy(root);
+        return 1;
+    }
+    if (!target_backend_check(&config, target_error, sizeof(target_error))) {
+        fprintf(stderr, "[CODEGEN] Unsupported target: %s\n", target_error);
+        ast_destroy(root);
+        return 1;
+    }
+    printf("[CODEGEN] Hedef: %s (%s/%u, %s, %s)\n",
+        config.identifier, config.arch, config.bits, config.os, config.format);
 
     // 3. Kod Üretimi (Başlangıç Şablonu)
     FILE* out_f = fopen(out_path, "w");
@@ -192,7 +135,7 @@ int codegen_run(const char* ir_path, const char* target_path, const char* out_pa
     }
 
     fprintf(out_f, "; OmniCore v2 Backend Output\n");
-    fprintf(out_f, "; Target: %s, OS: %s, Format: %s\n", config.arch, config.os, config.format);
+    fprintf(out_f, "; Target: %s (%s/%u), OS: %s, Format: %s\n", config.identifier, config.arch, config.bits, config.os, config.format);
     fprintf(out_f, "; Base Address: 0x%llX\n\n", config.base_addr);
     
     // Basit Nasm şablonu
