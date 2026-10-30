@@ -16,7 +16,7 @@
 
 ## Bölüm 2. TANIMLAYICILAR VE TİPLEME SİSTEMİ**
 
-###  2.1 Identifiers (Niyet Belirleyiciler)**
+###  2.1 Tanımlama Önekleri (Identifiers)**
 ---
 | Önek | Adı | Açıklama |
 | --- | --- | --- |
@@ -203,7 +203,7 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 | **11** | `(e){}`| **Error Block** | Saptırılan hatanın işlendiği son durak. |
 | **12** | `?;`  | **Halt (Son)** | Akış biter, yerel masalar imha edilir. |
 | **13** | `!!`  | **Panic** | Kritik durdurma. |
-| **14** | `@`   | **Intent** | Derleyiciye niyet bildirimi. |
+| **14** | `@`   | **Intent** | Gelecekteki AI yardımcısı için amaç/hedef bildirimi; tek başına derleyici talimatı değildir. Ayrıntılar: [Intent System Specification v0.1](../../INTENT_SPEC.md). |
 | **15** | `!!=` | **Directive** | .target sistemi ve derleyici talimatları. |
 
 ---
