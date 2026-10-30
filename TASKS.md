@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 10/10 CTest başarılı; Ubuntu GCC ASan/UBSan koşusu da leak detection açıkken 10/10 geçti. Valgrind CI da tamamlandı; 10/10 test definite/indirect leak kontrolüyle geçti.
+> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 13/13 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 13/13 geçti.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
@@ -19,7 +19,7 @@
 - [x] CLI argüman ayrıştırmasını kaynak dosyası ve seçenek sırasına dayanıklı yap (hedef öncesi/sonrası, eksik hedef, bilinmeyen seçenek ve birden fazla kaynak testleri).
 - [x] Path işlemlerindeki NULL pointer karşılaştırmasını kaldır; runtime config/lang/target/codegen yollarını executable konumundan çöz ve farklı CWD'den test et.
 - [x] Parser/semantic/codegen hata durumlarını OCC çıkış koduna aktar (kod yolu mevcut; codegen yükleme hatası için ayrı failure-injection testi bekliyor).
-- [ ] Otomatik lexer/parser/semantic test iskeletini kur.
+- [x] Lexer, parser ve semantic için ayrı CTest programları ekle; token/konum, geçerli-geçersiz syntax, partial AST cleanup, geçerli program ve undefined symbol testlerini üç platformda doğrula (13/13).
 - [ ] AST ve semantic bellek sahipliği/free kurallarını doğrula.
 
 ## P0 — AST ve kaynak girdisi güvenliği
