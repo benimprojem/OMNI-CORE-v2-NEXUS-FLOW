@@ -106,3 +106,25 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 ## Sonraki tek iş
 
 Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam genişletmesi semantic allocation-failure ve scope/ownership testleri olsun.
+
+
+## P0 — Modüler derleyici pipeline (mimari kabul edildi, uygulama bekliyor)
+
+- [ ] Her derleme aşaması için bağımsız shared library hedefi oluştur (Windows DLL / Linux SO / macOS dylib).
+- [ ] Sürümlenmiş C module ABI'sini tanımla: descriptor, stage ID, ABI version, artifact tür/sürüm, process/result, diagnostics ve ownership.
+- [ ] Derleme başına bağımsız context ve ortak diagnostic sink oluştur.
+- [ ] Hata/uyarı biriktirme ve mümkün olan aşamalarda devam etme davranışını uygula.
+- [ ] Artifact geçerlilik durumlarını tanımla: valid / partial / invalid / none.
+- [ ] Varsayılan strict output gate: error veya warning varsa final artifact yayımlama.
+- [ ] `--stop-after <stage>` ve checkpoint artifact yazımını ekle.
+- [ ] Codegen modülünü ortak ABI'ye geçir.
+- [ ] Lexer, parser ve semantic analyzer'ı ayrı DLL/SO/dylib modüllerine ayır.
+- [ ] Bağımsız derleme işlerini paralel çalıştır; modül thread-safety/reentrancy sözleşmesini test et.
+- [ ] Kuyruk/back-pressure, job cancellation ve final output atomic publish testlerini ekle.
+- [ ] IR, optimizer pass, target validation, backend, assembler ve linker aşamalarını ayrı modüllere böl.
+
+> Mimari karar ve tasarım belgesi eklendi. Bu görevler henüz kodlandı veya CI ile doğrulandı olarak işaretlenmemiştir.
+
+## Sonraki tek iş
+
+Önce ortak diagnostic modeli ve compilation context sözleşmesini tasarla; bu iki yapı diğer tüm modüllerin ABI'sinin temelini oluşturacak.
