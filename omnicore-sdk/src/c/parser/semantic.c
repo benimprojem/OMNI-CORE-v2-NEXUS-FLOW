@@ -16,6 +16,12 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
 }
 
 // --- Similarity Matching (ULTRA) ---
+void semantic_attach_diagnostics(SemanticContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id) {
+    if (!ctx) return;
+    ctx->diagnostics = collector;
+    ctx->diagnostic_stage_id = stage_id ? stage_id : OCC_STAGE_SEMANTIC;
+}
+
 static int levenshtein(const char* s1, const char* s2) {
     size_t input_len1 = strlen(s1), input_len2 = strlen(s2);
     int len1 = (int)(input_len1 > 127u ? 127u : input_len1);
@@ -56,6 +62,25 @@ static Slot* find_best_suggestion(SemanticContext* ctx, const char* name, int* o
 }
 
 static void report_issue(SemanticContext* ctx, ASTNode* node, ErrorCode code, const char* msg, const char* suggestion, const char* hint, int similarity, int is_warning) {
+    if (ctx->diagnostics) {
+        OccDiagnosticInput input = {0};
+        input.code = (uint32_t)code;
+        input.message_id = (uint32_t)code;
+        input.stage_id = ctx->diagnostic_stage_id ? ctx->diagnostic_stage_id : OCC_STAGE_SEMANTIC;
+        input.severity = is_warning ? OCC_DIAG_WARNING : OCC_DIAG_ERROR;
+        if (node) {
+            input.span.start_line = node->line > 0 ? (uint32_t)node->line : 0u;
+            input.span.start_column = node->col > 0 ? (uint32_t)node->col : 0u;
+            input.span.end_line = input.span.start_line;
+            input.span.end_column = input.span.start_column;
+            input.span.has_location = (uint8_t)(node->line > 0 && node->col > 0);
+        }
+        input.message = msg ? msg : "";
+        input.message_length = strlen(input.message);
+        input.hint = hint ? hint : suggestion;
+        input.hint_length = input.hint ? strlen(input.hint) : 0u;
+        (void)occ_diagnostics_add(ctx->diagnostics, &input);
+    }
     Error* err = (Error*)malloc(sizeof(Error));
     err->code = code;
     err->filename = strdup(ctx->filename ? ctx->filename : "<unknown>");
