@@ -194,7 +194,6 @@ if(BUILD_TESTING)
     )
     set_tests_properties(occ_uses_configured_language PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-        WILL_FAIL TRUE
         PASS_REGULAR_EXPRESSION "Tanımsız değişken"
     )
 endif()
