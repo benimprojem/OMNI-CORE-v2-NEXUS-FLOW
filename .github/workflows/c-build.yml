@@ -31,3 +31,22 @@ jobs:
 
       - name: Run C tests
         run: ctest --test-dir build -C Release --output-on-failure
+
+  sanitize:
+    name: ASan/UBSan (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure sanitized C build
+        run: cmake -S omnicore-sdk -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DOCC_ENABLE_SANITIZERS=ON
+
+      - name: Build sanitized C compiler
+        run: cmake --build build-sanitized --config Debug --parallel
+
+      - name: Run tests with ASan/UBSan
+        run: ctest --test-dir build-sanitized -C Debug --output-on-failure
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
