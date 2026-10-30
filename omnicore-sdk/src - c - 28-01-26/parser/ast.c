@@ -941,7 +941,6 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
     ASTNode* node = ast_create(type);
     if (!node) {
         reader->failed = 1;
-        reader->depth--;
         return NULL;
     }
 
