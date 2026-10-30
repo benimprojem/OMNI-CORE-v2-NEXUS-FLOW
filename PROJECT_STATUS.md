@@ -269,3 +269,18 @@ Son tam doğrulanan kod ağacı commit 9bc6e20be9b8fa48d358f961d927f77992b8aa3d 
 - CI commit b231af5a0476d0c4aee6728361ab5725a1b5edbd üzerinde Windows, Ubuntu ve macOS build/test başarılı; CTest **13/13** geçti. Ubuntu ASan/UBSan ve Valgrind işleri de **13/13** geçti.
 
 Bu testler temel regresyon iskeletidir; lexer token envanterinin tamamını, tüm parser grammar dallarını veya semantic ownership kurallarının tamamını kapsadığı anlamına gelmez.
+
+
+## OIR ortak artifact formatı — 31 Ekim 2026
+
+Kullanıcının onayıyla derleme aşamaları arasında ortak veri taşıma standardı olarak OIR yönü belirlendi. [OIR_FORMAT.md](OIR_FORMAT.md) taslağı eklendi.
+
+- Her modül bir OIR artifact alacak ve tanımlı kind/schema version ile yeni bir OIR artifact üretecek.
+- Aynı artifact, pipeline içinde opaque in-memory handle olarak aktarılabilecek; checkpoint istendiğinde aynı container biçimi `.oir` dosyasına yazılacak.
+- Container ile payload ayrıldı: SOURCE_UNIT, TOKEN_STREAM, AST, SEMANTIC_AST, OIR_MODULE, TARGET_IR, ASSEMBLY ve OBJECT ayrı payload türleri olacak.
+- Container fixed-width little-endian alanlar, length-delimited sections ve host pointer/struct bağımsız serileştirme hedefliyor.
+- Mevcut C AST serializer native int/enum gösterimi yazdığı ve artifact kind/schema metadata taşımadığı için OIR v1 olarak kabul edilmedi. Eski C++ OIR2 de ayrı legacy format olarak kalıyor.
+- Canonical OIR_MODULE opcode/type/memory/ownership/SSA semantiği henüz tasarlanmadı.
+- OIR v1 header offset'leri, numeric IDs ve payload field layout henüz freeze edilmedi. Bu belge tasarım taslağıdır; henüz kodlanmış veya CI ile doğrulanmış bir format değildir.
+
+**Sıradaki teknik adım:** OIR container'ın kesin binary layout'unu ve C reader/writer API'sini belirlemek; ardından malformed/truncated/oversized artifact testlerini eklemek.
