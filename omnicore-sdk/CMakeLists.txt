@@ -12,6 +12,18 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+option(OCC_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+if(OCC_ENABLE_SANITIZERS)
+    if(MSVC)
+        message(FATAL_ERROR "OCC_ENABLE_SANITIZERS currently requires GCC or Clang.")
+    elseif(NOT CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+        message(FATAL_ERROR "OCC_ENABLE_SANITIZERS is unsupported by this C compiler.")
+    endif()
+
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 set(C_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src - c - 28-01-26")
 set(C_PARSER_DIR "${C_SOURCE_DIR}/parser")
 set(C_CODEGEN_DIR "${C_SOURCE_DIR}/codegen")
