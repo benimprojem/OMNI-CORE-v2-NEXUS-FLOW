@@ -116,7 +116,8 @@ Section payload bytes follow immediately. The next section starts immediately af
 | 1 | VALID |
 | 2 | PARTIAL |
 | 3 | INVALID |
-| 4 | NONE |
+
+`NONE` is a pipeline execution result meaning no artifact was produced; it is not a serializable artifact validity. A serialized OIR container always has exactly one primary payload and therefore may be VALID, PARTIAL or INVALID.
 
 | Section type ID | Section |
 |---:|---|
