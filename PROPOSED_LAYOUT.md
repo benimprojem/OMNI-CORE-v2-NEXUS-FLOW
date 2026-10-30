@@ -75,8 +75,8 @@ Bu modül ayrımı henüz uygulanmadı. Mevcut src/c/parser/ içinde lexer, pars
 - [x] C++ kaynakları silinmeden arşiv konumuna taşındı.
 - [x] Eski derleme ürünleri kaynak klasörlerinden ayrıldı.
 - [x] Aynı belge kopyaları içerik SHA değerleriyle tespit edilip arşivlendi.
-- [ ] Windows, Linux ve macOS temiz checkout build/test doğrulaması tamamlanmalı.
-- [ ] Valgrind CI işi düzeltilip doğrulanmalı.
+- [x] Windows, Linux ve macOS temiz checkout build/test doğrulandı; üçünde de 10/10 CTest geçti.
+- [x] Valgrind CI işi definite/indirect leak denetimiyle doğrulandı; 10/10 test geçti.
 - [ ] C modüllerinin ayrı klasörlere bölünmesi sonraki aşamada yapılmalı.
 
 ## Target descriptor alanları
