@@ -22,6 +22,19 @@
 - [ ] Otomatik lexer/parser/semantic test iskeletini kur.
 - [ ] AST ve semantic bellek sahipliği/free kurallarını doğrula.
 
+## P0 — AST ve kaynak girdisi güvenliği
+
+- [x] AST deserializer tüm alan okumalarında tam okuma kontrolü yapsın ve hatayı üst seviyeye taşısın.
+- [x] Geçersiz node türlerini, negatif/aşırı string uzunluklarını, aşırı node sayısını ve aşırı iç içe derinliği reddet.
+- [x] Sibling node listelerini iteratif oku; normal uzun statement listeleri derinlik sınırına takılmasın.
+- [x] AST_UNPACK ve AST_NEXUS_HALT serialization/deserialization bellek düzenlerini düzelt.
+- [x] Truncated header, geçersiz node, bozuk string, özel node round-trip ve 700 sibling testlerini ekle.
+- [x] Kaynak dosyası okuyucusunda fseek/ftell/fread sonuçlarını doğrula.
+- [ ] AST türlerinin tamamı için round-trip matrisi ve ASan/UBSan/Valgrind testleri ekle.
+- [ ] AST serializer yazma işlemlerinin fwrite hata durumlarını API üzerinden raporla.
+
+> İlk güvenlik katmanı üç platformda CI ile doğrulandı; tam AST kapsamı ve sanitizer doğrulaması henüz tamamlanmadı.
+
 ## P0 — Dil ve semantik
 
 - [ ] Token envanterini dil spesifikasyonuyla karşılaştır.
