@@ -137,7 +137,11 @@ if(BUILD_TESTING)
     )
     target_include_directories(test_ast_deserialize PRIVATE "${C_PARSER_DIR}")
     target_link_libraries(test_ast_deserialize PRIVATE occ_frontend)
-    add_test(NAME ast_rejects_malformed_streams COMMAND test_ast_deserialize)
+    set(AST_INVALID_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/missing_ast_write_dir")
+    file(REMOVE_RECURSE "${AST_INVALID_OUTPUT_DIR}")
+    add_test(NAME ast_rejects_malformed_streams
+        COMMAND test_ast_deserialize "${AST_INVALID_OUTPUT_DIR}/output.oir"
+    )
 
     # Validate known target descriptors and reject malformed or unsupported profiles.
     add_executable(test_target_parser
