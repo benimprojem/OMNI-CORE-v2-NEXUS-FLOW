@@ -134,8 +134,8 @@ this additional job on Ubuntu.
 
 ## Verification status
 
-GitHub Actions workflow run 41145065669 is validating the diagnostic collector:
-Ubuntu and macOS CMake build/CTest passed all seventeen checks, and Ubuntu
-ASan/UBSan and Valgrind jobs passed. Windows build/test was still running at
-the time of this update. This verifies clean-checkout CI paths; it does not
-claim a separate local build on the user's machine.
+GitHub Actions workflow run 41145065669 completed successfully:
+CMake configure, build and all seventeen CTest checks passed on Windows, Ubuntu
+and macOS. Ubuntu GCC ASan/UBSan and Valgrind memcheck also passed all seventeen
+tests. This verifies the committed clean-checkout CI path; it does not claim
+a separate local build on the user's machine.
