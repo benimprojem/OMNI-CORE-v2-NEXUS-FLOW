@@ -1,6 +1,7 @@
 [target_info]
 spec_version = 1.0
 identifier = "RV32IMC"
+os = "none"
 author = "NexusFlow Team"
 
 [cpu_arch]
