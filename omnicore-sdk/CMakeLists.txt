@@ -56,6 +56,7 @@ add_library(occ_diagnostics STATIC
     "${C_SOURCE_DIR}/core/diagnostics.c"
 )
 target_include_directories(occ_diagnostics PUBLIC "${C_SOURCE_DIR}/core")
+set_target_properties(occ_diagnostics PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(occ_compilation STATIC
     "${C_SOURCE_DIR}/core/compilation.c"
