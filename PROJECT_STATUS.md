@@ -19,7 +19,7 @@ Konum: omnicore-sdk/src/c/
 - parser/: AST, lexer, parser ve semantic modülleri.
 - codegen/: Codegen giriş noktası ve target yapılandırması.
 - lang/: Dil mesaj dosyaları.
-- tests/: NexusFlow örnekleri ve bazı OIR/assembly çıktıları.
+- tests/: CTest tarafından kullanılan .nxf girdileri ve C test programları.
 - Eski DLL, EXE ve statik kütüphane çıktıları temp/build-artifacts/ altında arşivlendi.
 
 **Değerlendirme:** C tarafında anlamlı bir frontend ve codegen iskeleti var. Dosyaların varlığı, tüm özelliklerin çalıştığını kanıtlamıyor. Otomatik çalışan bir build/test hattı bu incelemede doğrulanmadı.
@@ -31,9 +31,11 @@ Konum: temp/legacy-cpp/src/ (C++); omnicore-sdk/src/oce/ (IDE/editor)
 - parser/: Lexer, NexusParser, OIR writer ve generator.
 - analyzer/: Analyzer, OIR reader, symbol table ve type system.
 - occ/: OCC ana programı.
-- oce/: IDE/editor bileşenleri.
+
 
 **Değerlendirme:** Referans alınabilecek tasarım parçaları var. Ancak bu hat ana geliştirme hattı olmayacak. OIR writer/reader güvenlik ve veri bütünlüğü kontrolleri, ayrıca modül sınırları denetlenmeli.
+
+IDE/editor kaynağı ayrı tutulmuştur: omnicore-sdk/src/oce/.
 
 ### Diğer SDK bileşenleri
 
@@ -239,3 +241,15 @@ Doğrulama:
 - Valgrind henüz CI'ya eklenmedi.
 
 Bu sonuç yalnızca mevcut 10 testin kapsamındaki yolların sanitizer altında temiz olduğunu gösterir; tüm semantik program şekillerinde bellek hatası bulunmadığını kanıtlamaz.
+
+
+## Repository klasör düzenlemesi — 31 Ekim 2026
+
+- Etkin C derleyici kaynakları omnicore-sdk/src/c/ altına taşındı; CMake C_SOURCE_DIR bu yolu kullanacak şekilde güncellendi.
+- Eski C++ parser/analyzer/OCC kaynakları silinmeden temp/legacy-cpp/src/ altına taşındı; eski build betikleri temp/legacy-cpp/scripts/ altında tutuluyor.
+- Eski DLL/EXE/static library/object/IR/assembly ürünleri temp/build-artifacts/ altında korundu; aktif CMake build bunları kullanmıyor.
+- Eski bağımsız .nx test girdileri temp/legacy-tests/ altına alındı. CMake'in kullandığı test girdileri src/c/tests/ içinde kaldı.
+- Byte-for-byte aynı olduğu doğrulanan belge kopyaları temp/duplicate-docs/ altında arşivlendi. Farklı içerikli benzer belgeler yerinde bırakıldı.
+- omnicore-sdk/src/oce/ IDE/editor projesi bağımsız bileşen olduğu için taşınmadı.
+
+Doğrulama: Yeni yol ile Ubuntu build ve CTest geçti; Ubuntu ASan/UBSan işi de başarılı. Windows/macOS ve Valgrind sonuçları henüz tamamlanmayı bekliyor.
