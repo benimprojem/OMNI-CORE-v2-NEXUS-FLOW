@@ -89,7 +89,7 @@ not part of this C build.
 
 ## Current CTest coverage
 
-The current CTest suite contains ten checks:
+The current CTest suite contains thirteen checks:
 
 1. Reject truncated, invalid and oversized AST streams; round-trip every AST node tag and every serialized field using byte-equality; verify AST_EXTERN_DECL and AST_LITERAL regressions, AST_UNPACK/AST_NEXUS_HALT, a 700-node sibling list, and parser_save_ir failure propagation.
 2. Validate all five current target descriptors, reject malformed/duplicate/unknown/oversized fields, and distinguish valid target descriptions from backend support.
@@ -101,6 +101,9 @@ The current CTest suite contains ten checks:
 8. Reject multiple source paths.
 9. Compile `tests/test1.nxf` through the C frontend, semantic analysis, AST serialization/deserialization and shared code generator.
 10. Copy OCC to a separate runtime folder with a Turkish config whose language key appears after section headers; verify the Turkish undefined-variable diagnostic is loaded.
+11. Tokenize declaration prefixes, literals and core Nexus Flow operators; verify token positions across lines.
+12. Parse a valid source and reject invalid syntax; verify a partial AST remains owned by the parser context for cleanup.
+13. Run semantic analysis on a valid source and a source with an undefined identifier; verify the expected diagnostic code.
 
 ## Sanitizer build (GCC/Clang)
 
