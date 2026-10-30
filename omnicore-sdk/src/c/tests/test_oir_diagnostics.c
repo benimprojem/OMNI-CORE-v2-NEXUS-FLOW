@@ -94,10 +94,10 @@ int main(void) {
     }
     {
         uint8_t saved = buffer[OIR_DIAGNOSTICS_HEADER_SIZE + 12];
-        buffer[12 + 12] = 99;
+        buffer[OIR_DIAGNOSTICS_HEADER_SIZE + 12] = 99;
         CHECK(oir_diagnostics_payload_open(buffer, capacity, &payload_view) ==
             OIR_STATUS_INVALID_SECTION, "reject invalid severity");
-        buffer[12 + 12] = saved;
+        buffer[OIR_DIAGNOSTICS_HEADER_SIZE + 12] = saved;
     }
     {
         uint8_t saved[4];
