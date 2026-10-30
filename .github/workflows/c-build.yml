@@ -50,3 +50,28 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+  valgrind:
+    name: Valgrind (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
+
+      - name: Configure Valgrind build
+        run: >
+          cmake -S omnicore-sdk -B build-valgrind
+          -DCMAKE_BUILD_TYPE=Debug
+          -DMEMORYCHECK_COMMAND=/usr/bin/valgrind
+          "-DMEMORYCHECK_COMMAND_OPTIONS=--leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --track-origins=yes --error-exitcode=99"
+
+      - name: Build C compiler
+        run: cmake --build build-valgrind --config Debug --parallel
+
+      - name: Run CTest under Valgrind
+        run: ctest --test-dir build-valgrind -T memcheck --output-on-failure
