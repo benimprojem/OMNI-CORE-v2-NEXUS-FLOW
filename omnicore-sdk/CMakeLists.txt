@@ -24,7 +24,7 @@ if(OCC_ENABLE_SANITIZERS)
     add_link_options(-fsanitize=address,undefined)
 endif()
 
-set(C_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src - c - 28-01-26")
+set(C_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/c")
 set(C_PARSER_DIR "${C_SOURCE_DIR}/parser")
 set(C_CODEGEN_DIR "${C_SOURCE_DIR}/codegen")
 set(C_RUNTIME_DIR "${CMAKE_BINARY_DIR}/bin")

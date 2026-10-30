@@ -80,13 +80,12 @@ The C frontend library contains:
 - `parser/parser.c`
 - `parser/semantic.c`
 
-The C OCC entry point is `main.c`. The old `parser/main.c` is deliberately
-excluded because it defines a second `main()` and represents an earlier
-standalone parser test entry point.
+The C OCC entry point is `main.c`. The old `parser/main.c` is preserved at `../../temp/legacy-c/obsolete-parser-main.c`;
+it defines a second `main()` and is deliberately excluded from the active build.
 
-The C code generator is built as a separate shared library. The C++ sources
-under `src/` and the existing `build_occ.bat`, `parser_build.bat`, and
-`analyzer_build.bat` scripts are not part of this C build.
+The C code generator is built as a separate shared library. The C++ compiler sources are preserved under `../../temp/legacy-cpp/src/`;
+their legacy build scripts are under `../../temp/legacy-cpp/scripts/` and are
+not part of this C build.
 
 ## Current CTest coverage
 

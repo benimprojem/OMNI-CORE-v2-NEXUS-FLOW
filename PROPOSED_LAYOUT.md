@@ -1,6 +1,6 @@
 # OmniCore SDK — Önerilen Klasör Yapısı
 
-Bu yapı hedef düzendir. İlk aşamada kaynak dosyaları topluca taşınmayacaktır; mevcut batch dosyaları, DLL yükleme yolları, config dosyaları ve testler bugünkü dizinlere bağlı olabilir. Her taşıma, build/test güncellemesiyle birlikte yapılacaktır.
+Bu belge hedef düzeni tanımlar. 31 Ekim 2026 tarihinde ilk güvenli fiziksel düzenleme yapıldı: etkin C kaynağı `omnicore-sdk/src/c/` altına taşındı, eski C++ kodu `temp/legacy-cpp/` altına alındı ve CMake kaynak yolu aynı değişiklikte güncellendi. Modül bazlı C alt dizinlerine ayrıştırma henüz yapılmadı.
 
 ## Hedef yapı
 

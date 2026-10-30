@@ -13,20 +13,20 @@ C ana kaynak olacaktır. C++ kaynakları korunacak ve referans olarak incelenece
 
 ### C uygulaması
 
-Konum: src - c - 28-01-26/
+Konum: omnicore-sdk/src/c/
 
 - main.c: CLI/derleyici orkestrasyonu.
 - parser/: AST, lexer, parser ve semantic modülleri.
 - codegen/: Codegen giriş noktası ve target yapılandırması.
 - lang/: Dil mesaj dosyaları.
 - tests/: NexusFlow örnekleri ve bazı OIR/assembly çıktıları.
-- Aynı dizinde DLL, EXE ve statik kütüphane gibi derleme ürünleri de bulunuyor.
+- Eski DLL, EXE ve statik kütüphane çıktıları temp/build-artifacts/ altında arşivlendi.
 
 **Değerlendirme:** C tarafında anlamlı bir frontend ve codegen iskeleti var. Dosyaların varlığı, tüm özelliklerin çalıştığını kanıtlamıyor. Otomatik çalışan bir build/test hattı bu incelemede doğrulanmadı.
 
 ### C++ uygulaması
 
-Konum: src/
+Konum: temp/legacy-cpp/src/ (C++); omnicore-sdk/src/oce/ (IDE/editor)
 
 - parser/: Lexer, NexusParser, OIR writer ve generator.
 - analyzer/: Analyzer, OIR reader, symbol table ve type system.
@@ -124,7 +124,7 @@ C derleyicisinin Windows, Linux ve macOS host sistemlerinde derlenmesi ve temel 
 - `.github/workflows/c-build.yml`: Windows, Ubuntu ve macOS üzerinde derleme/CTest matrisi.
 - C OCC'nin codegen yükleyicisi Windows, Linux ve macOS için ayrı dinamik kütüphane adlarını kullanacak şekilde düzenlendi. Modül yükleme hatası artık sessizce yalnızca IR üretip başarılı çıkmamalı.
 
-**Kaynak seçimi:** C frontend için `ast.c`, `lexer.c`, `parser.c`, `semantic.c` derlenir. `parser/main.c` ikinci bir `main()` tanımladığı için ana OCC hedefinden özellikle çıkarılmıştır. C++ `src/` ve eski C++ build betikleri korunmuştur.
+**Kaynak seçimi:** C frontend için `ast.c`, `lexer.c`, `parser.c`, `semantic.c` derlenir. `parser/main.c` ikinci bir `main()` tanımladığı için ana OCC hedefinden özellikle çıkarılmıştır. C++ kaynakları `temp/legacy-cpp/src/` altında; eski C++ build betikleri `temp/legacy-cpp/scripts/` altında korunmuştur.
 
 **Doğrulama durumu:** GitHub Actions temiz checkout matrisi Windows, Ubuntu ve macOS üzerinde başarılı tamamlandı. Her platformda CMake configure, C derlemesi ve CTest aşamaları geçti. Son doğrulanan koşuda her platformda **9/9 test başarılıdır**:
 

@@ -2,7 +2,7 @@
 
 OmniCore SDK, NexusFlow kaynak kodunu analiz etmek ve hedef platformlara taşınabilir çıktılar üretmek için geliştirilen araç zinciridir.
 
-**Aktif karar:** C uygulaması ana kaynak ve birincil geliştirme hattıdır. C++ uygulaması silinmeyecek; karşılaştırma ve kontrollü özellik aktarımı için korunacaktır.
+**Aktif karar:** C uygulaması ana kaynak ve birincil geliştirme hattıdır. C++ uygulaması silinmeyecek; `../temp/legacy-cpp/` altında karşılaştırma ve kontrollü özellik aktarımı için korunacaktır.
 
 ## Durum ve yön
 
@@ -19,12 +19,12 @@ Bu depo henüz tamamlanmış, çoklu hedef destekli bir derleyici değildir. Lex
 
 | Yol | Rol | Karar |
 |---|---|---|
-| src - c - 28-01-26/ | C lexer/parser/AST/semantic/codegen | Ana uygulama adayı; kontrollü taşınma öncesi mevcut yol korunuyor |
-| src/ | C++ parser/OIR/analyzer ve OCE | Referans ve karşılaştırma; yeni ana geliştirme hattı değil |
+| src/c/ | C lexer/parser/AST/semantic/codegen | Etkin ve kanonik uygulama kaynağı |
+| ../temp/legacy-cpp/src/ | Korunan C++ parser/OIR/analyzer | Referans ve karşılaştırma; yeni ana geliştirme hattı değil |
 | targets/ | Hedef tanımları | Korunacak; gerçek codegen desteği ayrıca doğrulanacak |
 | stdlib/, dpslib/ | Standart ve bağımlılık kütüphaneleri | Korunacak |
-| test/ ve C tarafındaki tests/ | Test girdileri ve çıktıları | Tek test düzenine kademeli taşınacak |
-| bin/, lib/ | Derleme çıktıları | Kaynak koddan ayrılacak; doğrulama öncesi silinmeyecek |
+| src/c/tests/ | Etkin CTest girdileri ve test programları | CMake tarafından kullanılıyor |
+| ../temp/build-artifacts/ | Önceden izlenen derleme çıktıları | Kaynaklardan ayrıldı; silinmedi |
 
 ## Platform ve target yaklaşımı
 
