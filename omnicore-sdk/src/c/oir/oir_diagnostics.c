@@ -196,6 +196,7 @@ OirStatus oir_diagnostics_payload_write(
     if (out_written) *out_written = 0;
     if (!output || !collector || !out_written) return OIR_STATUS_INVALID_ARGUMENT;
     if (collector->allocation_failed ||
+        (collector->count && !collector->records) ||
         collector->count > UINT32_MAX ||
         collector->text_length > UINT32_MAX ||
         (collector->text_length && !collector->text_arena)) {
@@ -228,12 +229,18 @@ OirStatus oir_diagnostics_payload_write(
             r->hint_offset, r->hint_length)) {
             return OIR_STATUS_INVALID_SECTION;
         }
+        if (r->span.has_location > 1u) return OIR_STATUS_INVALID_SECTION;
         if (r->span.has_location) {
             if (r->span.end_offset < r->span.start_offset ||
                 r->span.start_line == 0 || r->span.start_column == 0 ||
                 r->span.end_line == 0 || r->span.end_column == 0) {
                 return OIR_STATUS_INVALID_SECTION;
             }
+        } else if (r->span.source_id != 0 || r->span.start_offset != 0 ||
+            r->span.end_offset != 0 || r->span.start_line != 0 ||
+            r->span.start_column != 0 || r->span.end_line != 0 ||
+            r->span.end_column != 0) {
+            return OIR_STATUS_INVALID_SECTION;
         }
     }
 
