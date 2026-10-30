@@ -196,10 +196,7 @@ static OmniTokenType identifier_type(const char* start, int length) {
             if (length == 3 && memcmp(start, "inb", 3) == 0) return TOKEN_KW_INB;
             if (length == 3 && memcmp(start, "irq", 3) == 0) return TOKEN_KW_IRQ;
             if (length == 4 && memcmp(start, "intr", 4) == 0) return TOKEN_KW_INTR;
-            if (length == 5) {
-                if (memcmp(start, "is_ok", 5) == 0) return TOKEN_KW_IS_OK;
-                if (memcmp(start, "is_err", 6) == 0) return TOKEN_KW_IS_ERR; // Length 6 check below
-            }
+            if (length == 5 && memcmp(start, "is_ok", 5) == 0) return TOKEN_KW_IS_OK;
             if (length == 6 && memcmp(start, "is_err", 6) == 0) return TOKEN_KW_IS_ERR;
             if (length == 7 && memcmp(start, "is_some", 7) == 0) return TOKEN_KW_IS_SOME;
             if (length == 7 && memcmp(start, "is_none", 7) == 0) return TOKEN_KW_IS_NONE;
