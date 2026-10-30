@@ -13,17 +13,19 @@ int occ_compilation_init(
     if (!context) return 0;
     memset(context, 0, sizeof(*context));
 
-    if (options && options->target_name) {
-        target_length = strlen(options->target_name);
-        if (target_length == 0 || target_length > OCC_COMPILATION_TARGET_MAX) {
-            return 0;
-        }
-        context->target_name = (char*)malloc(target_length + 1u);
-        if (!context->target_name) return 0;
-        memcpy(context->target_name, options->target_name, target_length + 1u);
+    if (options) {
         context->stop_after_stage_id = options->stop_after_stage_id;
         context->flags = options->flags;
         context->optimization_level = options->optimization_level;
+        if (options->target_name) {
+            target_length = strlen(options->target_name);
+            if (target_length == 0 || target_length > OCC_COMPILATION_TARGET_MAX) {
+                return 0;
+            }
+            context->target_name = (char*)malloc(target_length + 1u);
+            if (!context->target_name) return 0;
+            memcpy(context->target_name, options->target_name, target_length + 1u);
+        }
     }
 
     context->job_id = job_id;
