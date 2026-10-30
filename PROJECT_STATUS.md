@@ -51,7 +51,7 @@ Konum: src/
 2. **C path işlemi:** main.c içinde slash ve backslash işaretçileri NULL olabilecek durumdayken doğrudan karşılaştırılıyor. NULL işaretçileri arasında ilişkisel karşılaştırma tanımlı değildir.
 3. **C CLI:** Kaynak dosyası doğrudan argv[1] kabul ediliyor; seçeneklerin farklı sıralanması güvenli biçimde ele alınmıyor.
 4. **C codegen:** Target yapılandırması okunsa da çıktı üretiminde x86-64/NASM varsayımları var. Target dosyası bulunması ARM64 desteğini kanıtlamaz.
-5. **C hata kodları:** Bazı alt işlem hataları üst seviyeye taşınmıyor; başarısız codegen durumunda süreç yine başarılı çıkış kodu döndürebilir.
+5. **C hata kodları:** Parser ve semantic hataları üst seviyeye taşınıyor; codegen modülünün yüklenememesi veya codegen çağrısının başarısız olması artık OCC çıkış kodunu başarısız yapacak şekilde düzenlendi. Bu davranış build/test ile doğrulanmayı bekliyor.
 6. **C++ OIR:** C++ OIR2 reader/writer formatı, C AST serialization ile aynı değil. Reader'ın header/offset/length doğrulaması ve string sonlandırması ayrıca denetlenmeli.
 7. **Build düzeni:** Build betikleri farklı kaynak yolları ve farklı uygulama hatları varsayıyor. Temiz checkout build'i henüz doğrulanmadı.
 8. **Görev listesi:** C++ modülleri için yazılmış yüzde tamamlanma iddiaları test kanıtı ile desteklenmiyor. Bundan sonra yüzdeler yerine kanıt temelli durum kullanılmalı.
@@ -94,9 +94,9 @@ Target modeli için ayrı [TARGET_MODEL.md](TARGET_MODEL.md) sözleşmesi oluşt
 1. `main.c` varsayılan olarak `x86_64_baremetal` seçiyor; host OS/architecture tespiti henüz yok.
 2. Target yolu `../targets/%s.target` şeklinde sabit göreli yol ile kuruluyor.
 3. `list_targets()` yalnızca Windows üzerinde dosya listeliyor.
-4. Codegen DLL yüklemesi `_WIN32` bloğunda. Linux/macOS için dinamik kütüphane yükleme yolu henüz yok.
-5. Windows'ta `codegen.dll` bulunamadığında yalnızca uyarı yazılıyor ve derleme süreci başarısız sayılmayabiliyor. Bu davranış gerçek bir codegen çıktısı üretilmediği halde başarılı derleme izlenimi verebilir; düzeltilmelidir.
-6. `parser_build.bat` dosyası MinGW `g++` ile C++ `OIR_Generator.cpp` derliyor; C ana uygulamasının build sistemi değildir.
+4. Codegen yüklemesi artık Windows'ta `LoadLibrary`, Linux'ta `dlopen` + `.so`, macOS'ta `dlopen` + `.dylib` yolunu kullanıyor. Bu yollar CMake çıktısının bulunduğu çalışma dizinine bağlıdır; bağımsız runtime path çözümlemesi daha sonra yapılacaktır.
+5. Codegen modülü bulunamadığında veya `codegen_run` sembolü yüklenemediğinde OCC artık hata kodu döndürecek şekilde düzenlendi.
+6. `parser_build.bat` dosyası MinGW `g++` ile C++ `OIR_Generator.cpp` derliyor; C ana uygulamasının build sistemi değildir. Yeni `CMakeLists.txt` C hattını bundan ayrı tanımlar.
 
 Bu bulgular nedeniyle çoklu işletim sistemi desteği şu an mimari hedeftir, mevcut ve doğrulanmış özellik değildir.
 
@@ -109,3 +109,18 @@ Bu bulgular nedeniyle çoklu işletim sistemi desteği şu an mimari hedeftir, m
 - Codegen çıktısı target'ın `arch/os/format` alanlarına bakmaksızın x86-64 NASM şablonuna dayanıyor.
 
 Bu nedenle target parser'ı güvenli ve doğrulayıcı hale getirilmeden mevcut .target dosyaları için genişletilmiş bir şema uygulanmamalıdır.
+
+
+## C build altyapısı — 30 Ekim 2026
+
+Çalışma dalına C uygulaması için ilk tekrarlanabilir build altyapısı eklendi:
+
+- `omnicore-sdk/CMakeLists.txt`: C11 projesi; frontend static library, codegen shared library ve OCC executable hedeflerini ayrı tanımlar.
+- `omnicore-sdk/build_c.bat` ve `build_c.sh`: Windows ve Unix benzeri sistemler için CMake build/test sarmalayıcıları.
+- `omnicore-sdk/BUILDING.md`: gereksinimler, komutlar, çıktı yolları ve C/C++ hatlarının ayrımı.
+- `.github/workflows/c-build.yml`: Windows, Ubuntu ve macOS üzerinde derleme/CTest matrisi.
+- C OCC'nin codegen yükleyicisi Windows, Linux ve macOS için ayrı dinamik kütüphane adlarını kullanacak şekilde düzenlendi. Modül yükleme hatası artık sessizce yalnızca IR üretip başarılı çıkmamalı.
+
+**Kaynak seçimi:** C frontend için `ast.c`, `lexer.c`, `parser.c`, `semantic.c` derlenir. `parser/main.c` ikinci bir `main()` tanımladığı için ana OCC hedefinden özellikle çıkarılmıştır. C++ `src/` ve eski C++ build betikleri korunmuştur.
+
+**Doğrulama durumu:** Build tanımları ve CI workflow dosyası eklendi; bu rapor hazırlanırken hiçbir Windows/Linux/macOS build sonucu henüz doğrulanmış değildir. CI sonucu görülmeden P0 build görevleri tamamlandı olarak işaretlenmeyecektir. Ayrıca CMake ilk sürümünün runtime dosyaları için `build/bin` çalışma dizinini varsaydığı unutulmamalıdır.
