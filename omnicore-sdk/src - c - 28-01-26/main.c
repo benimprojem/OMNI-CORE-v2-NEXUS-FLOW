@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
     char lang[16];
     get_config_language(lang, sizeof(lang));
     char lang_path[256];
-    snprintf(lang_path, sizeof(lang_path), "../inc/messages_%s.conf", lang);
+    snprintf(lang_path, sizeof(lang_path), "lang/messages_%s.conf", lang);
     msg_init(lang_path);
 
     if (argc < 2) {
