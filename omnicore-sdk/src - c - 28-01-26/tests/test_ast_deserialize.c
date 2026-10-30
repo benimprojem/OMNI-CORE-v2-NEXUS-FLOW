@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 static int rejects_bytes(const void* bytes, size_t length) {
     FILE* stream = tmpfile();
