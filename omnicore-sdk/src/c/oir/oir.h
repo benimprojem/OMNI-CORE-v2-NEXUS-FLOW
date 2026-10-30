@@ -35,6 +35,7 @@ typedef enum OirArtifactValidity {
     OIR_VALIDITY_VALID = 1,
     OIR_VALIDITY_PARTIAL = 2,
     OIR_VALIDITY_INVALID = 3,
+    /* Pipeline result only: a serialized container must always carry a payload. */
     OIR_VALIDITY_NONE = 4
 } OirArtifactValidity;
 
