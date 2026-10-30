@@ -36,6 +36,10 @@
 
 ## P1 — Backend ve optimizasyon
 
+- [ ] Mevcut .target dosyalarını envanterle ve TARGET_MODEL.md sözleşmesiyle karşılaştır.
+- [ ] Host OS/architecture tespiti ve host-default target çözümleyicisi tasarla.
+- [ ] Windows/Linux/macOS target profillerini mevcut dosya formatına geriye uyumlu biçimde eşle.
+
 - [ ] Target descriptor şemasını OS/arch/ABI/format/CPU feature alanlarına ayır.
 - [ ] Host OS + host architecture varsayılan hedef çözümlemesini ekle.
 - [ ] Windows, Linux ve macOS hedef matrisi ve ABI farklarını belgeleyip test et.
