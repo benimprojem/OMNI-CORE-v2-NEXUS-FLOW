@@ -114,6 +114,14 @@ cmake --build build-sanitized --config Debug --parallel
 ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 ctest --test-dir build-sanitized -C Debug --output-on-failure
 ```
 
+Valgrind can be used on Linux after installing it:
+
+```sh
+cmake -S omnicore-sdk -B build-valgrind -DCMAKE_BUILD_TYPE=Debug -DMEMORYCHECK_COMMAND=/usr/bin/valgrind "-DMEMORYCHECK_COMMAND_OPTIONS=--leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --track-origins=yes --error-exitcode=99"
+cmake --build build-valgrind --config Debug --parallel
+ctest --test-dir build-valgrind -T memcheck --output-on-failure
+```
+
 The option currently supports GCC and Clang toolchains; MSVC is intentionally
 rejected rather than silently ignoring sanitizer flags. GitHub Actions runs
 this additional job on Ubuntu.
