@@ -249,6 +249,10 @@ static OmniTokenType identifier_type(const char* start, int length) {
 Token lexer_next_token(ParserContext* ctx) {
     skip_whitespace(ctx);
 
+    ctx->token_start_offset = ctx->pos;
+    ctx->token_start_line = ctx->current_line;
+    ctx->token_start_col = ctx->current_col;
+
     if (ctx->pos >= ctx->source_len) return make_token(ctx, TOKEN_EOF, "EOF", 0);
 
     const char* start = &ctx->source_buffer[ctx->pos];
