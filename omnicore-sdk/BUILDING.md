@@ -79,13 +79,16 @@ under `src/` and the existing `build_occ.bat`, `parser_build.bat`, and
 
 ## Current CTest coverage
 
-The current CTest suite contains five checks:
+The current CTest suite contains eight checks:
 
 1. Reject truncated, invalid and oversized AST streams; round-trip AST_UNPACK/AST_NEXUS_HALT and a 700-node sibling list.
 2. OCC help output.
 3. Reject an unknown CLI option.
 4. Reject a missing source file.
-5. Compile `tests/test1.nxf` through the C frontend, semantic analysis, AST serialization/deserialization and shared code generator.
+5. Accept `--target` before the source path.
+6. Reject `--target` without a value.
+7. Reject multiple source paths.
+8. Compile `tests/test1.nxf` through the C frontend, semantic analysis, AST serialization/deserialization and shared code generator.
 
 ## Verification status
 
