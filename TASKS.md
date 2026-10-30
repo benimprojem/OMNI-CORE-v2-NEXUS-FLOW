@@ -28,6 +28,16 @@
 - [ ] Scope, type promotion, ownership ve control-flow kurallarını testlerle doğrula.
 - [ ] Hata ve warning API'sini ortaklaştır.
 
+### Intent sistemi
+
+- [x] `@` işaretinin AI destekli amaç/hedef bildirimi olarak `!!=` directive mekanizmasından ayrılması.
+- [x] Intent v0.1 tasarım ilkelerinin belgelenmesi.
+- [ ] `@` için nihai gramer ve kapsam kurallarını belirle.
+- [ ] AST'de intent metadata temsilini tasarla.
+- [ ] Kanonik OIR'da intent metadata'sının sürümlenebilir biçimini belirle.
+- [ ] AI olmadan derleme ve intent metadata round-trip testlerini ekle.
+- [ ] AI önerileri için onay, doğrulama ve diagnostic akışını tasarla.
+
 ## P0 — Ara temsil
 
 - [ ] AST serialization ile OIR kavramlarını/API'lerini ayır.
