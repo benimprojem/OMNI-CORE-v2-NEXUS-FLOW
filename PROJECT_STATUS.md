@@ -85,3 +85,17 @@ Bu raporun ardından C ana programında aşağıdaki değişiklikler kodlandı:
 ## Hedef platform kararı
 
 NEXSUS işlemcisi mevcut bir bağımlılık veya ön koşul değildir. Derleyici genel amaçlıdır. Planlanan platform ailesi Windows, Linux ve macOS; işlemci mimarileri ise ilk etapta x86-64 ve AArch64 olarak ele alınacaktır. Her OS/architecture kombinasyonu ABI, object format, assembler/linker ve testleriyle ayrı doğrulanacaktır. CPU model/feature seçimi target descriptor üzerinden yapılabilir; gerçek destek backend capability testleriyle belgelenecektir.
+
+
+## Target modeli açısından ek bulgular
+
+Target modeli için ayrı [TARGET_MODEL.md](TARGET_MODEL.md) sözleşmesi oluşturuldu. Mevcut C kodu bu hedefle henüz aynı noktada değil:
+
+1. `main.c` varsayılan olarak `x86_64_baremetal` seçiyor; host OS/architecture tespiti henüz yok.
+2. Target yolu `../targets/%s.target` şeklinde sabit göreli yol ile kuruluyor.
+3. `list_targets()` yalnızca Windows üzerinde dosya listeliyor.
+4. Codegen DLL yüklemesi `_WIN32` bloğunda. Linux/macOS için dinamik kütüphane yükleme yolu henüz yok.
+5. Windows'ta `codegen.dll` bulunamadığında yalnızca uyarı yazılıyor ve derleme süreci başarısız sayılmayabiliyor. Bu davranış gerçek bir codegen çıktısı üretilmediği halde başarılı derleme izlenimi verebilir; düzeltilmelidir.
+6. `parser_build.bat` dosyası MinGW `g++` ile C++ `OIR_Generator.cpp` derliyor; C ana uygulamasının build sistemi değildir.
+
+Bu bulgular nedeniyle çoklu işletim sistemi desteği şu an mimari hedeftir, mevcut ve doğrulanmış özellik değildir.
