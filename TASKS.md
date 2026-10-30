@@ -29,6 +29,8 @@
 - [x] Sibling node listelerini iteratif oku; normal uzun statement listeleri derinlik sınırına takılmasın.
 - [x] AST_UNPACK ve AST_NEXUS_HALT serialization/deserialization bellek düzenlerini düzelt.
 - [x] AST_EXTERN_DECL için AST_FUNC_DECL ile ortak serialization/deserialization ve destroy dallarını ekle; alanların kaybolmasını önleyen round-trip regresyon testi ekle (üç platform CI: 10/10).
+- [x] AST enum'undaki tüm düğüm etiketleri için allocation/type/line/col/next smoke round-trip testi ekle.
+- [x] AST_LITERAL içindeki token type alanının serialization/deserialization dışında kaldığını düzelt; type, lit_type, int, float ve string payload alanlarını test et.
 - [x] Truncated header, geçersiz node, bozuk string, özel node round-trip ve 700 sibling testlerini ekle.
 - [x] Kaynak dosyası okuyucusunda fseek/ftell/fread sonuçlarını doğrula.
 - [ ] AST türlerinin tamamı için round-trip matrisi ve ASan/UBSan/Valgrind testleri ekle.
@@ -101,4 +103,4 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 
 ## Sonraki tek iş
 
-AST düğüm türlerinin tamamı için round-trip test matrisini oluştur. Özellikle AST türü → allocation size → serialize → deserialize → destroy eşleşmesini her tür için doğrula.
+AST düğüm türlerinin tamamı için alan düzeyinde round-trip test matrisini tamamla. Etiket smoke testi tüm enum değerlerini kapsıyor; her düğüm ailesinin tüm alanları henüz tek tek doğrulanmadı.
