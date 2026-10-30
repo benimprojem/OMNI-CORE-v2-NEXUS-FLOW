@@ -66,3 +66,17 @@ Konum: src/
 ## Öncelikli sonuç
 
 İlk iş yeni özellik eklemek değil; C hattını tekrarlanabilir biçimde derlemek, temel testleri otomatikleştirmek ve CLI/config/path sorunlarını kapatmaktır. Bundan sonra AST/semantic güvenilirliği ve kanonik OIR'a geçilecektir.
+
+
+## Çalışma dalındaki ilk düzeltmeler
+
+Bu raporun ardından C ana programında aşağıdaki değişiklikler kodlandı:
+
+- Config içindeki language anahtarını ilk satırda eşleşme yok diye okumayı bırakma davranışı düzeltildi.
+- Config dil tamponuna güvenli sonlandırma eklendi.
+- Dil mesaj dosyası yolu, C uygulamasının kendi lang/ dizinine yönlendirildi.
+- CLI kaynak dosyası ve --target seçeneklerini farklı sıralarda kabul edecek şekilde düzenlendi; bilinmeyen seçenekler ve birden fazla kaynak dosyası reddediliyor.
+- Windows ve POSIX yol ayırıcıları NULL pointer karşılaştırması yapmadan ele alınıyor.
+- Parser, semantic ve codegen başarısızlıklarının süreç çıkış koduna taşınması eklendi.
+
+**Doğrulama durumu:** Bu değişiklikler çalışma dalına işlendi; henüz derleme veya otomatik test çalıştırılmadı. Bu nedenle durumları "Kodlandı / Test bekliyor" olarak değerlendirilmelidir. Build/test geçmeden tamamlandı sayılmayacaklar.
