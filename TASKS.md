@@ -103,4 +103,4 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 
 ## Sonraki tek iş
 
-AST düğüm türlerinin tamamı için alan düzeyinde round-trip test matrisini tamamla. Etiket smoke testi tüm enum değerlerini kapsıyor; her düğüm ailesinin tüm alanları henüz tek tek doğrulanmadı. Sonraki adımda sanitizer çalıştırma altyapısını da ekle.
+- [x] Tüm AST tag'leri için allocation/type/line/column/next smoke testi ve her düğüm ailesinin serileştirilen alanlarını kapsayan field-level round-trip fixture matrisi ekle; stream byte-equality ile doğrula.
