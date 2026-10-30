@@ -281,7 +281,7 @@ Kullanıcının onayıyla derleme aşamaları arasında ortak veri taşıma stan
 - Container fixed-width little-endian alanlar, length-delimited sections ve host pointer/struct bağımsız serileştirme hedefliyor.
 - Mevcut C AST serializer native int/enum gösterimi yazdığı ve artifact kind/schema metadata taşımadığı için OIR v1 olarak kabul edilmedi. Eski C++ OIR2 de ayrı legacy format olarak kalıyor.
 - Canonical OIR_MODULE opcode/type/memory/ownership/SSA semantiği henüz tasarlanmadı.
-- OIR v1 header offset'leri, numeric IDs ve payload field layout henüz freeze edilmedi. Bu belge tasarım taslağıdır; henüz kodlanmış veya CI ile doğrulanmış bir format değildir.
+- OIR v1.0 container header offset'leri ve başlangıç numeric ID'leri tanımlandı; container reader/writer C kodu eklendi. Payload schema field layout'ları henüz tasarlanmadı.
 
 **Sıradaki teknik adım:** OIR container'ın kesin binary layout'unu ve C reader/writer API'sini belirlemek; ardından malformed/truncated/oversized artifact testlerini eklemek.
 
@@ -294,4 +294,4 @@ Kullanıcının onayıyla derleme aşamaları arasında ortak veri taşıma stan
 - `omnicore-sdk/CMakeLists.txt`: `occ_oir` utility library and `oir_container_roundtrip_and_validation` CTest target.
 - `OIR_FORMAT.md`: initial byte offsets and stable IDs documented.
 
-Current scope is deliberately limited to the container. Payload schemas (SOURCE_UNIT/TOKEN_STREAM/AST/SEMANTIC_AST/OIR_MODULE), filesystem checkpoint helpers, stage ABI and stage DLL integration are not implemented yet. The new CTest has been added but its CI result must be checked before claiming it passes.
+Current scope is deliberately limited to the container. Payload schemas (SOURCE_UNIT/TOKEN_STREAM/AST/SEMANTIC_AST/OIR_MODULE), filesystem checkpoint helpers, stage ABI and stage DLL integration are not implemented yet. GitHub Actions run 41143050717: Ubuntu and macOS build/CTest passed **14/14**; Ubuntu ASan/UBSan passed. Windows build/test and Ubuntu Valgrind were still in progress at the time of this update.
