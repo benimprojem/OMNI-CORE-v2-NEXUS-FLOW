@@ -122,5 +122,6 @@ this additional job on Ubuntu.
 
 The latest GitHub Actions matrix completed successfully on Windows, Ubuntu and
 macOS. CMake configure, C build and all ten CTest checks passed on each runner.
-This verifies the committed clean-checkout CI path; it does not claim that a
-separate local build has been run on the user's machine.
+The separate Ubuntu GCC ASan/UBSan job also passed all ten tests with leak
+detection enabled. This verifies the committed clean-checkout CI path; it does
+not claim that a separate local build has been run on the user's machine.
