@@ -33,6 +33,442 @@ static char* duplicate_text(const char* text) {
     return copy;
 }
 
+static int assign_text(char** destination, const char* text) {
+    *destination = duplicate_text(text);
+    return *destination != NULL;
+}
+
+static ASTNode* make_identifier_fixture(const char* name) {
+    ASTIdentifier* node = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    if (!node) return NULL;
+    if (!assign_text(&node->name, name)) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    return (ASTNode*)node;
+}
+
+static ASTNode* make_literal_fixture(void) {
+    ASTLiteral* node = (ASTLiteral*)ast_create(AST_LITERAL);
+    if (!node) return NULL;
+    node->type = TOKEN_NUMBER;
+    node->lit_type = 1;
+    node->int_value = 321;
+    node->float_value = 321.75;
+    if (!assign_text(&node->string_value, "321.75")) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    return (ASTNode*)node;
+}
+
+static ASTNode* make_variable_fixture(void) {
+    ASTVarDecl* node = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    if (!node) return NULL;
+    if (!assign_text(&node->name, "fixture_variable") ||
+        !assign_text(&node->type_name, "i64")) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    node->is_const = 1;
+    node->is_hard_typed = 1;
+    node->is_public = 1;
+    node->is_exported = 1;
+    node->initializer = make_literal_fixture();
+    node->inline_type = make_identifier_fixture("FixtureType");
+    if (!node->initializer || !node->inline_type) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    return (ASTNode*)node;
+}
+
+static ASTNode* make_function_fixture(ASTNodeType type) {
+    ASTFuncDecl* node = (ASTFuncDecl*)ast_create(type);
+    if (!node) return NULL;
+    if (!assign_text(&node->name, "fixture_function") ||
+        !assign_text(&node->return_type, "i32")) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    node->is_extern = type == AST_EXTERN_DECL;
+    node->is_public = 1;
+    node->is_exported = 1;
+    node->params = make_identifier_fixture("fixture_argument");
+    node->body = ast_create(AST_BLOCK);
+    if (!node->params || !node->body) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    ((ASTBlock*)node->body)->statements = make_identifier_fixture("function_statement");
+    if (!((ASTBlock*)node->body)->statements) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    return (ASTNode*)node;
+}
+
+static ASTNode* make_enum_variant_fixture(void) {
+    ASTEnumVariant* node = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    if (!node) return NULL;
+    if (!assign_text(&node->name, "FixtureVariant")) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    node->data = make_identifier_fixture("variant_payload");
+    if (!node->data) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    return (ASTNode*)node;
+}
+
+static int populate_ast_fixture(ASTNode* node) {
+    if (!node) return 0;
+    node->line = 37;
+    node->col = 19;
+
+    switch (node->type) {
+        case AST_PROGRAM:
+        case AST_BLOCK:
+        case AST_ASM_BLOCK:
+            ((ASTBlock*)node)->statements = make_identifier_fixture("block_statement");
+            return ((ASTBlock*)node)->statements != NULL;
+
+        case AST_VAR_DECL: {
+            ASTNode* fixture = make_variable_fixture();
+            if (!fixture) return 0;
+            ASTVarDecl* source = (ASTVarDecl*)fixture;
+            ASTVarDecl* destination = (ASTVarDecl*)node;
+            destination->name = source->name; source->name = NULL;
+            destination->type_name = source->type_name; source->type_name = NULL;
+            destination->is_const = source->is_const;
+            destination->is_hard_typed = source->is_hard_typed;
+            destination->is_public = source->is_public;
+            destination->is_exported = source->is_exported;
+            destination->initializer = source->initializer; source->initializer = NULL;
+            destination->inline_type = source->inline_type; source->inline_type = NULL;
+            ast_destroy(fixture);
+            return 1;
+        }
+
+        case AST_FUNC_DECL:
+        case AST_EXTERN_DECL: {
+            ASTNode* fixture = make_function_fixture(node->type);
+            if (!fixture) return 0;
+            ASTFuncDecl* source = (ASTFuncDecl*)fixture;
+            ASTFuncDecl* destination = (ASTFuncDecl*)node;
+            destination->name = source->name; source->name = NULL;
+            destination->return_type = source->return_type; source->return_type = NULL;
+            destination->is_extern = source->is_extern;
+            destination->is_public = source->is_public;
+            destination->is_exported = source->is_exported;
+            destination->params = source->params; source->params = NULL;
+            destination->body = source->body; source->body = NULL;
+            ast_destroy(fixture);
+            return 1;
+        }
+
+        case AST_STRUCT_DECL:
+        case AST_UNION_DECL: {
+            ASTStructDecl* value = (ASTStructDecl*)node;
+            if (!assign_text(&value->name, "FixtureAggregate")) return 0;
+            value->is_packed = 1;
+            value->is_union = node->type == AST_UNION_DECL;
+            value->is_public = 1;
+            value->is_exported = 1;
+            value->fields = make_variable_fixture();
+            return value->fields != NULL;
+        }
+
+        case AST_LITERAL: {
+            ASTLiteral* value = (ASTLiteral*)node;
+            value->type = TOKEN_NUMBER;
+            value->lit_type = 2;
+            value->int_value = 654;
+            value->float_value = 654.125;
+            return assign_text(&value->string_value, "654.125");
+        }
+
+        case AST_IDENTIFIER:
+            return assign_text(&((ASTIdentifier*)node)->name, "fixture_identifier");
+
+        case AST_BINARY_EXPR:
+        case AST_ASSIGNMENT:
+        case AST_INDEX_ACCESS: {
+            ASTBinaryExpr* value = (ASTBinaryExpr*)node;
+            value->op = TOKEN_PLUS;
+            value->left = make_identifier_fixture("left_operand");
+            value->right = make_identifier_fixture("right_operand");
+            return value->left && value->right;
+        }
+
+        case AST_NEXUS_FLOW:
+        case AST_NEXUS_PIPE: {
+            ASTNexusFlow* value = (ASTNexusFlow*)node;
+            value->op = TOKEN_PLUS;
+            value->left = make_identifier_fixture("flow_left");
+            value->right = make_identifier_fixture("flow_right");
+            value->retry_count = 3;
+            value->retry_delay = 75;
+            value->catch_block = make_identifier_fixture("flow_catch");
+            return value->left && value->right && value->catch_block;
+        }
+
+        case AST_UNARY_EXPR:
+        case AST_RETURN:
+        case AST_POSTFIX_EXPR:
+        case AST_CAST: {
+            ASTUnaryExpr* value = (ASTUnaryExpr*)node;
+            value->op = TOKEN_MINUS;
+            value->operand = make_identifier_fixture("unary_operand");
+            return value->operand != NULL;
+        }
+
+        case AST_TUPLE:
+            ((ASTTuple*)node)->elements = make_identifier_fixture("tuple_element");
+            return ((ASTTuple*)node)->elements != NULL;
+
+        case AST_FUNC_CALL:
+        case AST_SPAWN:
+        case AST_ECHO:
+        case AST_SEND:
+        case AST_RECEIVE:
+        case AST_DONE:
+        case AST_AREA:
+        case AST_ZONE:
+        case AST_ADDR:
+        case AST_LEN:
+        case AST_PEEK:
+        case AST_POKE:
+        case AST_INB:
+        case AST_OUTB:
+        case AST_IRQ:
+        case AST_INTR:
+        case AST_REG:
+        case AST_PRNT:
+        case AST_PRMT:
+        case AST_WRITE:
+        case AST_FWRITE:
+        case AST_TYPEOF:
+        case AST_SIZEOF:
+        case AST_IS_OK:
+        case AST_IS_ERR:
+        case AST_IS_SOME:
+        case AST_IS_NONE:
+        case AST_IS_NULL:
+        case AST_EXIT:
+        case AST_SWAP:
+        case AST_DATE:
+        case AST_DATENOW:
+        case AST_TIME:
+        case AST_CLOCK:
+        case AST_FREE:
+        case AST_ZONE_SYNC:
+        case AST_ZONE_VIEW:
+        case AST_ZONE_LOCK: {
+            ASTCall* value = (ASTCall*)node;
+            value->callee = make_identifier_fixture("call_target");
+            value->args = make_identifier_fixture("call_argument");
+            return value->callee && value->args;
+        }
+
+        case AST_MEMBER_ACCESS: {
+            ASTMemberAccess* value = (ASTMemberAccess*)node;
+            if (!assign_text(&value->member_name, "fixture_member")) return 0;
+            value->object = make_identifier_fixture("fixture_object");
+            return value->object != NULL;
+        }
+
+        case AST_IF: {
+            ASTIf* value = (ASTIf*)node;
+            value->condition = make_identifier_fixture("if_condition");
+            value->then_branch = make_identifier_fixture("then_branch");
+            value->else_branch = make_identifier_fixture("else_branch");
+            return value->condition && value->then_branch && value->else_branch;
+        }
+
+        case AST_LOOP: {
+            ASTLoop* value = (ASTLoop*)node;
+            value->loop_type = 3;
+            value->init = make_identifier_fixture("loop_init");
+            value->condition = make_identifier_fixture("loop_condition");
+            value->increment = make_identifier_fixture("loop_increment");
+            value->body = make_identifier_fixture("loop_body");
+            value->collection = make_identifier_fixture("loop_collection");
+            value->variable = make_identifier_fixture("loop_variable");
+            return value->init && value->condition && value->increment &&
+                value->body && value->collection && value->variable;
+        }
+
+        case AST_GROUP_DECL: {
+            ASTGroupDecl* value = (ASTGroupDecl*)node;
+            if (!assign_text(&value->name, "FixtureGroup")) return 0;
+            value->is_public = 1;
+            value->is_exported = 1;
+            value->members = make_variable_fixture();
+            return value->members != NULL;
+        }
+
+        case AST_METHOD: {
+            ASTMethod* value = (ASTMethod*)node;
+            if (!assign_text(&value->public_name, "fixture_method")) return 0;
+            value->implementation = make_function_fixture(AST_FUNC_DECL);
+            return value->implementation != NULL;
+        }
+
+        case AST_USE: {
+            ASTUse* value = (ASTUse*)node;
+            return assign_text(&value->module_name, "fixture_module") &&
+                assign_text(&value->alias, "fm");
+        }
+
+        case AST_DEFER:
+            ((ASTDefer*)node)->body = make_identifier_fixture("defer_body");
+            return ((ASTDefer*)node)->body != NULL;
+
+        case AST_THREAD_BLOCK: {
+            ASTThreadBlock* value = (ASTThreadBlock*)node;
+            if (!assign_text(&value->name, "fixture_thread")) return 0;
+            value->body = make_identifier_fixture("thread_body");
+            value->mode = make_identifier_fixture("thread_mode");
+            value->timeout = make_identifier_fixture("thread_timeout");
+            return value->body && value->mode && value->timeout;
+        }
+
+        case AST_ENUM_DECL: {
+            ASTEnumDecl* value = (ASTEnumDecl*)node;
+            if (!assign_text(&value->name, "FixtureEnum")) return 0;
+            value->variants = make_enum_variant_fixture();
+            return value->variants != NULL;
+        }
+
+        case AST_ENUM_VARIANT: {
+            ASTEnumVariant* value = (ASTEnumVariant*)node;
+            if (!assign_text(&value->name, "FixtureVariant")) return 0;
+            value->data = make_identifier_fixture("variant_data");
+            return value->data != NULL;
+        }
+
+        case AST_NEWTYPE_DECL: {
+            ASTNewTypeDecl* value = (ASTNewTypeDecl*)node;
+            return assign_text(&value->name, "FixtureId") &&
+                assign_text(&value->target_type, "u64");
+        }
+
+        case AST_NEXUS_CAPTURE:
+        case AST_LISTEN: {
+            ASTNexusCapture* value = (ASTNexusCapture*)node;
+            if (!assign_text(&value->handler_name, "fixture_handler")) return 0;
+            value->expr = make_identifier_fixture("capture_expression");
+            return value->expr != NULL;
+        }
+
+        case AST_NEXUS_LABEL: {
+            ASTNexusLabel* value = (ASTNexusLabel*)node;
+            if (!assign_text(&value->label_name, "fixture_label")) return 0;
+            value->statement = make_identifier_fixture("label_statement");
+            return value->statement != NULL;
+        }
+
+        case AST_NEXUS_JUMP:
+            return assign_text(&((ASTNexusJump*)node)->label_name, "fixture_jump");
+
+        case AST_NEXUS_HALT:
+            ((ASTHalt*)node)->expr = make_identifier_fixture("halt_expression");
+            return ((ASTHalt*)node)->expr != NULL;
+
+        case AST_NEXUS_INTENT: {
+            ASTIntent* value = (ASTIntent*)node;
+            if (!assign_text(&value->intent_name, "fixture_intent")) return 0;
+            value->target = make_identifier_fixture("intent_target");
+            return value->target != NULL;
+        }
+
+        case AST_AI_LOGIC:
+            return assign_text(&((ASTAiLogic*)node)->query, "inspect this code");
+
+        case AST_UNPACK:
+            ((ASTUnpack*)node)->expr = make_identifier_fixture("unpack_expression");
+            return ((ASTUnpack*)node)->expr != NULL;
+
+        case AST_PANIC:
+            return assign_text(&((ASTPanic*)node)->message, "fixture panic");
+
+        case AST_BREAK:
+        case AST_CONTINUE:
+            return 1;
+    }
+
+    return 0;
+}
+
+static int streams_equal(FILE* left, FILE* right) {
+    unsigned char left_buffer[512];
+    unsigned char right_buffer[512];
+
+    rewind(left);
+    rewind(right);
+    for (;;) {
+        size_t left_count = fread(left_buffer, 1, sizeof(left_buffer), left);
+        size_t right_count = fread(right_buffer, 1, sizeof(right_buffer), right);
+        if (left_count != right_count ||
+            memcmp(left_buffer, right_buffer, left_count) != 0) return 0;
+        if (left_count < sizeof(left_buffer)) {
+            return feof(left) && feof(right);
+        }
+    }
+}
+
+static int roundtrips_populated_ast_types(void) {
+    for (int raw_type = AST_PROGRAM; raw_type <= AST_ZONE_LOCK; ++raw_type) {
+        ASTNode* original = ast_create((ASTNodeType)raw_type);
+        if (!original) return 1;
+        if (!populate_ast_fixture(original)) {
+            fprintf(stderr, "Could not populate AST fixture for tag %d.\n", raw_type);
+            ast_destroy(original);
+            return 1;
+        }
+
+        FILE* first = tmpfile();
+        FILE* second = tmpfile();
+        if (!first || !second) {
+            if (first) fclose(first);
+            if (second) fclose(second);
+            ast_destroy(original);
+            return 1;
+        }
+
+        if (!ast_serialize(original, first)) {
+            fclose(first);
+            fclose(second);
+            ast_destroy(original);
+            return 1;
+        }
+        rewind(first);
+        ASTNode* decoded = ast_deserialize(first);
+        if (!decoded || !ast_serialize(decoded, second)) {
+            fclose(first);
+            fclose(second);
+            ast_destroy(decoded);
+            ast_destroy(original);
+            fprintf(stderr, "AST serialize/deserialize failed for tag %d.\n", raw_type);
+            return 1;
+        }
+
+        int valid = streams_equal(first, second);
+        fclose(first);
+        fclose(second);
+        ast_destroy(decoded);
+        ast_destroy(original);
+        if (!valid) {
+            fprintf(stderr, "AST field round-trip mismatch for tag %d.\n", raw_type);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int roundtrips_all_node_type_tags(void) {
     for (int raw_type = AST_PROGRAM; raw_type <= AST_ZONE_LOCK; ++raw_type) {
         ASTNode* original = ast_create((ASTNodeType)raw_type);
@@ -278,6 +714,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Usage: test_ast_deserialize <invalid-output-path>\n");
         return 9;
     }
+    if (roundtrips_populated_ast_types() != 0) return 11;
     if (roundtrips_all_node_type_tags() != 0) return 8;
     if (roundtrips_extern_decl() != 0) return 7;
     if (roundtrips_special_nodes() != 0) return 4;
