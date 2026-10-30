@@ -56,9 +56,11 @@ runtime's relative target lookup.
 - Linux: `build/bin/occ` and `build/bin/libcodegen.so`
 - macOS: `build/bin/occ` and `build/bin/libcodegen.dylib`
 
-Run OCC with `build/bin` as the working directory for this initial build
-layout. Runtime path resolution will be made independent of the working
-directory in a later reliability task.
+OCC now resolves `occ.ocf`, language files, target descriptors and the
+code-generation shared library relative to the executable location. It can
+therefore be launched from a different working directory. Source input and
+generated `.oir` / `.s` output paths remain based on the source path supplied
+by the caller.
 
 ## Source selection
 
