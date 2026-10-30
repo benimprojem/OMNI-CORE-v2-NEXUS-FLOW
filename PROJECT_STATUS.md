@@ -318,3 +318,13 @@ Bu bölüm payload şema taslağıdır; SOURCE_UNIT/TOKEN_STREAM encode/decode k
 - GitHub Actions run 41143616273: Windows, Ubuntu ve macOS build/CTest **15/15** başarılı; Ubuntu ASan/UBSan ve Valgrind **15/15** başarılı.
 
 TOKEN_STREAM payload şeması belgelendi ancak codec henüz yazılmadı. Lexer token'larının source byte offset ve diagnostic ID bilgisi taşıması gerektiği için önce lexer token metadata uyarlaması ve 160 token enum değerinin OIR stable ID eşlemesi yapılacak.
+
+
+## OIR token ID adapter — 31 Ekim 2026
+
+- `oir_token_map.h/.c`: C frontend OmniTokenType ile OIR registry 1.0 arasına açık, sembolik forward/reverse mapping eklendi. OIR ID'leri C enum numeric değerleriyle aynı kabul edilmiyor.
+- `test_oir_token_map.c`: 160 token türünün tamamı için OIR ID → C enum → OIR ID round-trip; geçersiz enum, geçersiz ID ve NULL output pointer reddi.
+- CMake'de adapter, container library'den ayrı `occ_oir_lexer_adapter` static hedefi olarak tutuldu. Böylece temel OIR container/parser tiplerine bağımlı değil.
+- GitHub Actions run 41143848197: Windows, Ubuntu ve macOS CMake build/CTest **16/16** başarılı; Ubuntu ASan/UBSan ve Valgrind işleri de başarılı.
+
+Bu adapter yalnızca enum kimlik eşlemesini sağlar. Lexer'ın tüm 160 token türünü gerçekten ürettiği anlamına gelmez; emission audit ve token stream serialization hâlâ açık.
