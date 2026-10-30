@@ -99,3 +99,13 @@ Target modeli için ayrı [TARGET_MODEL.md](TARGET_MODEL.md) sözleşmesi oluşt
 6. `parser_build.bat` dosyası MinGW `g++` ile C++ `OIR_Generator.cpp` derliyor; C ana uygulamasının build sistemi değildir.
 
 Bu bulgular nedeniyle çoklu işletim sistemi desteği şu an mimari hedeftir, mevcut ve doğrulanmış özellik değildir.
+
+
+## Codegen target parser riskleri
+
+- `parse_target()` target dosyası açılamadığında hata döndürmek yerine varsayılan değerlerle devam ediyor. Yanlış/olmayan target dosyası geçerliymiş gibi işlenebilir.
+- Target alanları `strcpy()` ile sabit boyutlu tamponlara kopyalanıyor; uzun veya bozuk alanlar tampon taşmasına yol açabilir.
+- Bilinmeyen feature adları ve bazı geçersiz alan değerleri açık hata üretmeden atlanabiliyor.
+- Codegen çıktısı target'ın `arch/os/format` alanlarına bakmaksızın x86-64 NASM şablonuna dayanıyor.
+
+Bu nedenle target parser'ı güvenli ve doğrulayıcı hale getirilmeden mevcut .target dosyaları için genişletilmiş bir şema uygulanmamalıdır.
