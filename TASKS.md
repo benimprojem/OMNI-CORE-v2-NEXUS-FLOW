@@ -17,7 +17,7 @@
 - [x] Parser, semantic ve codegen için ayrı build hedefleri oluştur.
 - [ ] Config okuyucuyu bölüm/satır sırasından bağımsız hale getir.
 - [x] CLI argüman ayrıştırmasını kaynak dosyası ve seçenek sırasına dayanıklı yap (hedef öncesi/sonrası, eksik hedef, bilinmeyen seçenek ve birden fazla kaynak testleri).
-- [ ] Path işlemlerindeki NULL pointer karşılaştırmasını kaldır.
+- [x] Path işlemlerindeki NULL pointer karşılaştırmasını kaldır; runtime config/lang/target/codegen yollarını executable konumundan çöz ve farklı CWD'den test et.
 - [ ] Parser/codegen hata durumlarını OCC çıkış koduna aktar.
 - [ ] Otomatik lexer/parser/semantic test iskeletini kur.
 - [ ] AST ve semantic bellek sahipliği/free kurallarını doğrula.
