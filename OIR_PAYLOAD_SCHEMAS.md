@@ -1,6 +1,6 @@
 # OIR v1 Initial Payload Schemas
 
-**Status:** Proposed schema contract for SOURCE_UNIT and TOKEN_STREAM  
+**Status:** Initial schema contract for SOURCE_UNIT, TOKEN_STREAM and DIAGNOSTICS  
 **Related:** OIR_FORMAT.md, OIR_TOKEN_REGISTRY.md
 
 This document defines payload bytes carried inside the OIR container's required PAYLOAD section. All integer fields are unsigned little-endian unless explicitly stated. Payloads are byte-packed with no implicit alignment or padding. The OIR container header carries the payload schema major/minor version.
@@ -96,8 +96,62 @@ Before enabling TOKEN_STREAM serialization:
 ## 5. Implementation order
 
 1. [x] Add a stable C enum-to-OIR token ID mapping by symbolic token name (160-token round-trip test).
-2. Add SOURCE_UNIT payload encode/decode and exact-length tests.
+2. [x] Add SOURCE_UNIT payload encode/decode and exact-length tests.
 3. Extend lexer token metadata with source byte offsets and diagnostic references.
 4. Add TOKEN_STREAM payload encode/decode and span-validation tests.
-5. Add lexer-to-OIR and OIR-to-parser adapters.
-6. Only then split lexer and parser into separate shared libraries using the common module ABI.
+5. [x] Add DIAGNOSTICS payload encode/decode and malformed-input validation tests.
+6. Add lexer-to-OIR and OIR-to-parser adapters.
+7. Only then split lexer and parser into separate shared libraries using the common module ABI.
+
+
+## 6. DIAGNOSTICS — schema 1.0
+
+Producer: any compiler stage / compilation orchestrator  
+Consumer: CLI, IDE, pipeline runner, artifact inspector
+
+A DIAGNOSTICS section serializes the job-owned diagnostic collector. Text is stored once in a trailing string table; record offsets are relative to that table. All integers are unsigned little-endian. Records are byte-packed with no implicit alignment.
+
+### Payload header — 16 bytes
+
+| Offset | Width | Field | Rule |
+|---:|---:|---|---|
+| 0 | 4 | Record count | Number of diagnostic records |
+| 4 | 4 | Record size | Must equal 68 in schema 1.0 |
+| 8 | 4 | String table length | Exact number of bytes following the records |
+| 12 | 4 | Flags | Must be zero in schema 1.0 |
+
+### Diagnostic record — 68 bytes
+
+| Offset | Width | Field | Rule |
+|---:|---:|---|---|
+| 0 | 4 | Diagnostic code | Non-zero stable numeric code |
+| 4 | 4 | Stage ID | Stable producer stage identifier |
+| 8 | 4 | Message ID | Localization/message registry ID |
+| 12 | 1 | Severity | 1 NOTE, 2 WARNING, 3 ERROR, 4 FATAL |
+| 13 | 1 | Span flags | Bit 0 indicates a source location; all other bits zero |
+| 14 | 2 | Reserved | Must be zero |
+| 16 | 4 | Source ID | Source unit identity; zero in single-source frontend |
+| 20 | 8 | Start byte offset | Zero-based byte offset |
+| 28 | 8 | End byte offset | Exclusive end offset |
+| 36 | 4 | Start line | 1-based line |
+| 40 | 4 | Start column | 1-based column |
+| 44 | 4 | End line | 1-based line |
+| 48 | 4 | End column | 1-based column |
+| 52 | 4 | Message offset | Offset into string table |
+| 56 | 4 | Message length | UTF-8 byte count, excluding terminator |
+| 60 | 4 | Hint offset | Offset into string table; UINT32_MAX means absent |
+| 64 | 4 | Hint length | UTF-8 byte count, excluding terminator |
+
+Each present message or hint is followed by exactly one NUL byte in the string table. The terminator is not included in its length. Embedded NUL bytes are invalid. A message must be present and non-empty; a hint may be absent. Message and hint offsets must resolve wholly inside the string table.
+
+If span flag bit 0 is clear, every source/span field must be zero. If it is set, line/column values must be non-zero and end byte offset must not precede start byte offset. This initial schema supports one contiguous primary source span; related locations and fix-it edits are reserved for a future schema.
+
+The payload length must equal 16 + (record_count × 68) + string_table_length exactly. Record count multiplication, offsets and lengths must be checked before pointer arithmetic. Unknown severity values, non-zero reserved/flag bits, invalid strings and out-of-range spans are rejected.
+
+Implementation:
+- `omnicore-sdk/src/c/oir/oir_diagnostics.h`
+- `omnicore-sdk/src/c/oir/oir_diagnostics.c`
+- CTest: `oir_diagnostics_payload_roundtrip_and_validation`
+
+The codec exposes zero-copy read views over a validated payload and serializes a job-owned `OccDiagnosticCollector`. The caller retains ownership of the payload buffer. The initial frontend bridge records line/column only; byte offsets and end spans will become populated when source-span metadata is propagated through AST nodes and parser recovery.
+
