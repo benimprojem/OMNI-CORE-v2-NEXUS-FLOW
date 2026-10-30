@@ -275,7 +275,7 @@ static int parser_save_ir_rejects_invalid_path(const char* path) {
 
 int main(int argc, char** argv) {
     if (argc != 2) {
-        fprintf(stderr, "Usage: test_ast_deserialize <invalid-output-path>\\n");
+        fprintf(stderr, "Usage: test_ast_deserialize <invalid-output-path>\n");
         return 9;
     }
     if (roundtrips_all_node_type_tags() != 0) return 8;
