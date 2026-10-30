@@ -195,7 +195,7 @@ AST tür envanteri ve round-trip testleri genişletildi:
 - AST_EXTERN_DECL alan testi ve özel AST_UNPACK/AST_NEXUS_HALT testleri korunuyor.
 - Son doğrulanan kod koşusu (commit 8ea13a90526a7bd9fa80580c9c8aae0f1c4480b9) Windows, Ubuntu ve macOS üzerinde başarılı; üç platformda CMake build ve 10/10 CTest geçti.
 
-**Kapsam sınırı:** Tüm AST tag değerlerinin smoke round-trip edilmesi, her düğüm ailesindeki tüm alanların doğrulandığı anlamına gelmez. Alan düzeyindeki tam matris hâlâ açık. AST stream biçimi de sürümlenmiş bir genel OIR formatı değildir; bu sürümde AST_LITERAL alan dizilimi değiştiğinden eski dahili .oir dosyaları yeniden üretilmelidir.
+**Kapsam sınırı:** Tüm düğüm ailelerinin serileştirilen alanları için field-level fixture matrisi artık eklendi. Sanitizer altında bellek yönetimi ve derinlik/sınır davranışları ayrıca doğrulanacak. AST stream biçimi sürümlenmiş bir genel OIR formatı değildir; AST_LITERAL alan dizilimi değiştiğinden eski dahili .oir dosyaları yeniden üretilmelidir.
 
 
 ## AST yazma hatası ve OCC hata akışı — 31 Ekim 2026
@@ -209,3 +209,14 @@ AST tür envanteri ve round-trip testleri genişletildi:
 Son kod doğrulaması commit 377e98486507b1156ac7307c8e6b5b59be32b2fe üzerinde tamamlandı: Windows, Ubuntu ve macOS build başarılı; her platformda CTest 10/10 geçti.
 
 **Kalan sınır:** Her fwrite hatasını platformlar arasında zorlayarak test etmek henüz yapılmadı. Mevcut test, parser_save_ir dosya açma başarısızlığının ve API dönüş değerinin doğru iletilmesini doğruluyor; fclose hata yolu kodda kontrol ediliyor ancak özel bir arıza enjeksiyon testi yok.
+
+
+## AST field-level round-trip matrisi — 31 Ekim 2026
+
+- AST enum aralığındaki her tag için ayrı fixture oluşturuluyor.
+- Her düğüm ailesinde serializer'ın yazdığı bütün alanlar anlamlı, sıfır olmayan veya metin içeren değerlerle dolduruluyor.
+- Orijinal AST serialize ediliyor, deserialize ediliyor, tekrar serialize ediliyor; iki byte stream birebir karşılaştırılıyor.
+- Böylece AST tag'lerinin yanı sıra alan sırası, scalar alanlar, string alanlar, child node bağlantıları ve nullable alanların stream düzeni de kontrol ediliyor.
+- Son doğrulanan commit fcc53eff7ce8fa539361c03a81466c9821fda907 üzerinde Windows, Ubuntu ve macOS build/test başarılı; CTest her platformda 10/10 geçti.
+
+**Kalan:** ASan/UBSan/Valgrind altında ownership, cleanup, derin ağaç ve hata durumları test edilmedi. Field-level round-trip kapsamı bu sanitizer doğrulamasının yerine geçmez.
