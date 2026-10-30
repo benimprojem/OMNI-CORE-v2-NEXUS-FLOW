@@ -65,3 +65,18 @@ Bu belge uygulama kararlarını ve henüz karara bağlanmamış tasarım konular
 - Windows, Linux ve macOS aynı CPU mimarisini paylaşsa bile ABI, object format, sistem çağrıları ve linker farkları nedeniyle ayrı platform target profilleridir.
 - Target descriptor bir yapılandırma/veri sözleşmesidir; gerçek backend desteği test edilmeden ilan edilemez.
 - Desteklenmeyen target/feature kombinasyonları sessizce en yakın hedefe düşürülmez; anlaşılır hata ile reddedilir.
+
+
+## ADR-007 — Aşama başına yüklenebilir derleyici modülleri ve boru hattı
+
+- **Durum:** Kabul edildi; uygulama aşamalı olarak yapılacak.
+- **Karar:** Her derleme aşaması kendi bağımsız, platforma uygun shared library modülü olacaktır: Windows DLL, Linux SO, macOS dylib. OCC executable bu modülleri yükleyen, aşamaları yöneten ve ara çıktıları aktaran orkestratördür.
+- **Aşama sınırı:** Lexer, parser, semantic analyzer, IR lowering/validation, optimizer pass'leri, target/capability doğrulama, backend/codegen, assembler ve linker/packager birbirinden ayrılacaktır.
+- **ABI:** Modüller sürümlenmiş C ABI ile haberleşir. Modül kimliği, ABI sürümü, girdi/çıktı artifact türleri, yetenekler, işlem girişi, sonuç, diagnostic aktarımı ve bellek sahipliği sözleşmesi tanımlanacaktır.
+- **Durum izolasyonu:** Her derleme işi bağımsız context ve diagnostic koleksiyonu taşır. Modül-global mutable derleme durumu kullanılmaz; paralel kullanım ancak modül reentrant/thread-safe olarak ilan edilmişse yapılır.
+- **Devam politikası:** Kaynak hataları ve uyarıları mümkün olduğunca toplanır; güvenli olduğu sürece sonraki tanı aşamaları çalışır. Kısmi artifact, geçerlilik durumu belirtilerek üretilebilir. Bozuk artifact güvenliymiş gibi sonraki aşamaya verilemez.
+- **Çıktı kapısı:** Varsayılan katı politikada hata veya uyarı varsa final çıktı yayımlanmaz. Ara çıktılar ve toplu diagnostic raporu üretilebilir. Uyarıları kabul ederek final çıktı üretmek ileride açık kullanıcı seçeneği olarak tasarlanabilir.
+- **Checkpoint:** Kullanıcı herhangi bir tamamlanmış aşamadan sonra durdurup o aşamanın artifact'ini alabilir. Checkpoint final program çıktısı değildir; format, sürüm, diagnostic ve geçerlilik bilgisini taşır.
+- **Çoklu derleme:** Modüller tekrar kullanılabilir; derleme işleri bağımsız context'lerle paralel/kuyruklu boru hattında çalışabilir. Back-pressure ve iş bazında iptal desteklenecektir.
+- **Gerekçe:** Hata ayıklamayı, modül testini, aşamalar arası değişiklikleri, paralel derlemeyi ve IDE entegrasyonunu kolaylaştırmak.
+- **Detay:** Modül ABI'si, artifact sözleşmesi, diagnostic modeli ve geçiş sırası [COMPILER_PIPELINE.md](COMPILER_PIPELINE.md) içinde tanımlanmıştır.
