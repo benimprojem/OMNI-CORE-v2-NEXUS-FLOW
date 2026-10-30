@@ -284,3 +284,14 @@ Kullanıcının onayıyla derleme aşamaları arasında ortak veri taşıma stan
 - OIR v1 header offset'leri, numeric IDs ve payload field layout henüz freeze edilmedi. Bu belge tasarım taslağıdır; henüz kodlanmış veya CI ile doğrulanmış bir format değildir.
 
 **Sıradaki teknik adım:** OIR container'ın kesin binary layout'unu ve C reader/writer API'sini belirlemek; ardından malformed/truncated/oversized artifact testlerini eklemek.
+
+
+## OIR v1 container implementation — 31 October 2026
+
+İlk OIR container C uygulaması eklendi:
+- `omnicore-sdk/src/c/oir/oir.h` / `oir.c`: 44-byte fixed header, 16-byte section headers, little-endian field encoding, length-delimited sections, in-memory writer, validating reader and read-only section views.
+- `omnicore-sdk/src/c/tests/test_oir.c`: writer/reader round-trip and malformed input checks.
+- `omnicore-sdk/CMakeLists.txt`: `occ_oir` utility library and `oir_container_roundtrip_and_validation` CTest target.
+- `OIR_FORMAT.md`: initial byte offsets and stable IDs documented.
+
+Current scope is deliberately limited to the container. Payload schemas (SOURCE_UNIT/TOKEN_STREAM/AST/SEMANTIC_AST/OIR_MODULE), filesystem checkpoint helpers, stage ABI and stage DLL integration are not implemented yet. The new CTest has been added but its CI result must be checked before claiming it passes.
