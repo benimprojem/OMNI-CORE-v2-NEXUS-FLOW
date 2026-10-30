@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> İlk CMake build altyapısı tamamlandı. GitHub Actions üzerinde Windows, Ubuntu ve macOS'ta 9/9 test başarılı; son koşuda derleyici uyarısı yok. AST/IR formatının tüm türleri ve sanitizer kapsamı hâlâ genişletilecek.
+> CMake/CI altyapısı mevcut. Son koşuda Windows, Ubuntu ve macOS'ta 10/10 CTest başarılı. AST tag ve field-level round-trip kapsamı genişletildi; sanitizer doğrulaması sırada.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
@@ -33,8 +33,9 @@
 - [x] AST_LITERAL içindeki token type alanının serialization/deserialization dışında kaldığını düzelt; type, lit_type, int, float ve string payload alanlarını test et.
 - [x] Truncated header, geçersiz node, bozuk string, özel node round-trip ve 700 sibling testlerini ekle.
 - [x] Kaynak dosyası okuyucusunda fseek/ftell/fread sonuçlarını doğrula.
-- [ ] AST türlerinin tamamı için round-trip matrisi ve ASan/UBSan/Valgrind testleri ekle.
-- [ ] AST serializer yazma işlemlerinin fwrite hata durumlarını API üzerinden raporla.
+- [x] AST türlerinin tüm serialized alanları için field-level round-trip fixture matrisi ekle; her türün serialize → deserialize çıktısı byte-equality ile karşılaştırılıyor (Windows/Ubuntu/macOS CI 10/10).
+- [ ] ASan/UBSan/Valgrind test çalıştırma altyapısı ekle.
+- [x] AST serializer yazma hatalarını API dönüş değeriyle raporla; parser_save_ir serialization ve fclose hatalarını kontrol etsin, OCC kayıt başarısızsa codegen'e geçmesin.
 
 > İlk güvenlik katmanı üç platformda CI ile doğrulandı; tam AST kapsamı ve sanitizer doğrulaması henüz tamamlanmadı.
 
@@ -76,8 +77,8 @@
 - [x] Target parser'da bounded string parsing ve alan uzunluğu doğrulaması uygula.
 - [x] Eksik target dosyası, bilinmeyen alan ve bilinmeyen feature için açık hata üret.
 - [x] Target parser testlerini Windows/Ubuntu/macOS CI üzerinde doğrula (geçerli beş descriptor, eksik dosya, uzun satır/alan, eksik alan, duplicate key, unknown key/section, invalid arch/feature; 10/10 CTest).
-- [ ] Windows DLL, Linux .so ve macOS .dylib codegen yükleme/bağlama stratejisini belirle.
-- [ ] Codegen yüklenemediğinde derlemeyi başarılı göstermeyen hata davranışını uygula.
+- [x] Windows DLL, Linux .so ve macOS .dylib codegen yükleme/bağlama yollarını uygula (üç platform CI build/test).
+- [x] Codegen modülü yüklenemediğinde veya IR kaydı başarısız olduğunda derlemeyi başarılı göstermeyen hata davranışını uygula.
 - [ ] Target listeleme ve target dosyası çözümlemesini platformdan bağımsız hale getir.
 - [ ] Optimizer pass altyapısını kur.
 - [ ] Her optimizer pass için davranış eşdeğerliği testleri ekle.
@@ -103,4 +104,4 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 
 ## Sonraki tek iş
 
-- [x] Tüm AST tag'leri için allocation/type/line/column/next smoke testi ve her düğüm ailesinin serileştirilen alanlarını kapsayan field-level round-trip fixture matrisi ekle; stream byte-equality ile doğrula.
+ASan/UBSan çalıştırma seçeneği ve CI test işi ekle. Windows build'i etkilenmeden Linux üzerinde sanitizer doğrulaması yap.
