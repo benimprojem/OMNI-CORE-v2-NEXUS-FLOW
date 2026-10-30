@@ -147,7 +147,7 @@ Proje şu an **prototip / entegrasyon aşamasında**. Yüzde tamamlanma yerine m
 
 ## Sıradaki işler
 
-1. ASan/UBSan/Valgrind çalıştırma altyapısı ekle ve AST bellek yönetimini sanitizer altında doğrula.
+1. Valgrind çalıştırma altyapısı ekle; GCC ASan/UBSan CI artık 10/10 testle başarılı. İlk sanitizer koşusunda bulunan semantic scope slot type_name sızıntısı ortak destroy_slot() ile giderildi.
 2. Lexer/parser/semantic için ayrı, küçük ve izole test kümeleri kur.
 3. C AST serialization ile C++ OIR2'yi karşılaştırıp kanonik OIR v1 sözleşmesine hazırlan.
 
