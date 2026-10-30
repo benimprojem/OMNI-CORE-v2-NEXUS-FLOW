@@ -18,6 +18,7 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [Nexus Flow spec inceleme raporu](SPEC_AUDIT.md)
 - [Intent System — Tasarım Notu](INTENT_SPEC.md)
 - [Modüler derleyici pipeline mimarisi](COMPILER_PIPELINE.md)
+- [OIR v1 ortak artifact formatı](OIR_FORMAT.md)
 - [Diagnostic ve compilation context sözleşmesi](DIAGNOSTICS_AND_CONTEXT.md)
 - [Mevcut pipeline geçiş denetimi](PIPELINE_MIGRATION_AUDIT.md)
 
