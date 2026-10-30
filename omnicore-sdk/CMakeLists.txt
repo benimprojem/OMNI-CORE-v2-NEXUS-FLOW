@@ -126,6 +126,7 @@ if(BUILD_TESTING)
     add_test(NAME occ_help COMMAND occ --help)
     set_tests_properties(occ_help PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        PASS_REGULAR_EXPRESSION "BareMetal64[.]target"
     )
 
     add_test(NAME occ_rejects_unknown_option COMMAND occ --not-an-option)
