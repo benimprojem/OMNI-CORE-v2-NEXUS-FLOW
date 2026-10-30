@@ -131,11 +131,8 @@ this additional job on Ubuntu.
 
 ## Verification status
 
-The latest completed CI evidence for the OIR container change (workflow run
-41143050717) shows CMake configure, build and all fourteen CTest checks passing
-on Ubuntu and macOS. The Ubuntu GCC ASan/UBSan job also passed. At the time of
-this update, the Windows build/test and Ubuntu Valgrind jobs were still running;
-their results are not claimed here. The immediately preceding 13-test matrix
-had completed successfully on Windows, Ubuntu and macOS, with ASan/UBSan and
-Valgrind also passing 13/13. This verifies clean-checkout CI paths; it does not
-claim a separate local build on the user's machine.
+GitHub Actions workflow run 41143050717 completed successfully:
+CMake configure, build and all fourteen CTest checks passed on Windows, Ubuntu
+and macOS. The Ubuntu GCC ASan/UBSan job and Ubuntu Valgrind memcheck job also
+passed all fourteen tests. This verifies the committed clean-checkout CI path;
+it does not claim a separate local build on the user's machine.
