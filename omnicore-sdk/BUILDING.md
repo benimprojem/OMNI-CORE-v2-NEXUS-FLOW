@@ -96,7 +96,7 @@ The current CTest suite contains ten checks:
 
 ## Verification status
 
-The build definitions and wrappers are committed, but they must not be
-considered verified until the build and CTest commands have been run on the
-corresponding host toolchain. This repository inspection environment does not
-execute the user's local Windows/Linux/macOS build.
+The latest GitHub Actions matrix completed successfully on Windows, Ubuntu and
+macOS. CMake configure, C build and all ten CTest checks passed on each runner.
+This verifies the committed clean-checkout CI path; it does not claim that a
+separate local build has been run on the user's machine.
