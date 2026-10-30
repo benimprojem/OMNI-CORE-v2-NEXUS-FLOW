@@ -33,6 +33,55 @@ static char* duplicate_text(const char* text) {
     return copy;
 }
 
+static int roundtrips_all_node_type_tags(void) {
+    for (int raw_type = AST_PROGRAM; raw_type <= AST_ZONE_LOCK; ++raw_type) {
+        ASTNode* original = ast_create((ASTNodeType)raw_type);
+        if (!original) return 1;
+
+        original->line = 100 + raw_type;
+        original->col = 200 + raw_type;
+        ASTIdentifier* sibling = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+        if (!sibling) {
+            ast_destroy(original);
+            return 1;
+        }
+        sibling->name = duplicate_text("sibling-node");
+        if (!sibling->name) {
+            ast_destroy((ASTNode*)sibling);
+            ast_destroy(original);
+            return 1;
+        }
+        original->next = (ASTNode*)sibling;
+
+        FILE* stream = tmpfile();
+        if (!stream) {
+            ast_destroy(original);
+            return 1;
+        }
+        ast_serialize(original, stream);
+        rewind(stream);
+        ASTNode* decoded = ast_deserialize(stream);
+        fclose(stream);
+
+        int valid = decoded &&
+            decoded->type == (ASTNodeType)raw_type &&
+            decoded->line == 100 + raw_type &&
+            decoded->col == 200 + raw_type &&
+            decoded->next &&
+            decoded->next->type == AST_IDENTIFIER &&
+            ((ASTIdentifier*)decoded->next)->name &&
+            strcmp(((ASTIdentifier*)decoded->next)->name, "sibling-node") == 0;
+
+        ast_destroy(decoded);
+        ast_destroy(original);
+        if (!valid) {
+            fprintf(stderr, "AST node type round-trip failed for tag %d.\n", raw_type);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int roundtrips_extern_decl(void) {
     ASTFuncDecl* original = (ASTFuncDecl*)ast_create(AST_EXTERN_DECL);
     if (!original) return 1;
@@ -196,6 +245,7 @@ static int roundtrips_large_sibling_list(void) {
 }
 
 int main(void) {
+    if (roundtrips_all_node_type_tags() != 0) return 8;
     if (roundtrips_extern_decl() != 0) return 7;
     if (roundtrips_special_nodes() != 0) return 4;
     if (roundtrips_large_sibling_list() != 0) return 5;
