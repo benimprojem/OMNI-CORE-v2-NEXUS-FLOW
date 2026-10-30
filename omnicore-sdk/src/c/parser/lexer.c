@@ -160,7 +160,7 @@ static OmniTokenType identifier_type(const char* start, int length) {
         case 'g': return check_keyword(start, length, "group", TOKEN_KW_GROUP);
         case 'n': return check_keyword(start, length, "no", TOKEN_KW_NO);
         case 'a': 
-            if (length > 3 && memcmp(start, "asm", 3) == 0) {
+            if (length >= 3 && memcmp(start, "asm", 3) == 0) {
                 if (length == 3) return TOKEN_KW_ASM;
                 if (length == 7 && memcmp(start, "asmcall", 7) == 0) return TOKEN_KW_ASMCALL;
                 if (length == 6 && memcmp(start, "asmjmp", 6) == 0) return TOKEN_KW_ASMJMP;
