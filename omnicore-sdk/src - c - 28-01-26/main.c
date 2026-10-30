@@ -135,26 +135,25 @@ int main(int argc, char **argv) {
     printf("[DEBUG] parser_init succeeded, running parser...\n");
 
     if (parser_run(ctx) == 0 && ctx->ast_root != NULL) {
-        printf("%s\n", msg_get(MSG_OCC_SUCCESS_SEMANTIC));
-        
+        printf("%s\\n", msg_get(MSG_OCC_SUCCESS_SEMANTIC));
+
         SemanticContext sem_ctx;
         semantic_init(&sem_ctx, source_file, lang_path);
         semantic_check(&sem_ctx, (ASTNode*)ctx->ast_root);
-        
+
         if (sem_ctx.error_count == 0) {
-            // Dosya uzantısını temizle ve base name oluştur
             char base_name[256];
-            strncpy(base_name, source_file, sizeof(base_name));
-            base_name[sizeof(base_name)-1] = '\0';
-            
+            strncpy(base_name, source_file, sizeof(base_name) - 1);
+            base_name[sizeof(base_name) - 1] = '\0';
+
             char *dot = strrchr(base_name, '.');
             char *slash = strrchr(base_name, '/');
-            char *backslash = strrchr(base_name, '\\');
+            char *backslash = strrchr(base_name, '\\\\');
             char *last_sep = slash;
             if (backslash && (!last_sep || backslash > last_sep)) {
                 last_sep = backslash;
             }
-            
+
             if (dot && (!last_sep || dot > last_sep)) {
                 *dot = '\0';
             }
@@ -162,37 +161,41 @@ int main(int argc, char **argv) {
             char ir_path[256];
             snprintf(ir_path, sizeof(ir_path), "%s.oir", base_name);
             parser_save_ir(ctx, ir_path);
-            printf("IR kaydedildi: %s\n", ir_path);
+            printf("IR kaydedildi: %s\\n", ir_path);
 
-            #ifdef _WIN32
-            HMODULE hCodegen = LoadLibrary("codegen.dll");
+#ifdef _WIN32
+            HMODULE hCodegen = LoadLibraryA("codegen.dll");
             if (hCodegen) {
                 CodegenRunFn run = (CodegenRunFn)GetProcAddress(hCodegen, "codegen_run");
                 if (run) {
                     char asm_path[256];
                     snprintf(asm_path, sizeof(asm_path), "%s.s", base_name);
-                    // Kullanıcı tarafından belirtilen veya varsayılan target kullan
                     if (run(ir_path, target_path, asm_path) != 0) {
                         fprintf(stderr, "Hata: Codegen işlemi başarısız oldu.\\n");
                         exit_code = 1;
                     }
                 } else {
-                    printf("Hata: codegen_run sembolü bulunamadı.\n");
+                    fprintf(stderr, "Hata: codegen_run sembolü bulunamadı.\\n");
+                    exit_code = 1;
                 }
                 FreeLibrary(hCodegen);
             } else {
-                printf("Uyarı: codegen.dll bulunamadı, sadece IR üretildi.\n");
+                // Codegen henüz yoksa parser ve IR çıktısı kullanılabilir.
+                fprintf(stderr, "Uyarı: codegen.dll bulunamadı; yalnızca IR üretildi.\\n");
             }
-            #endif
+#endif
+        } else {
+            exit_code = 1;
         }
 
         semantic_print_errors(&sem_ctx);
         semantic_destroy(&sem_ctx);
     } else {
-        printf("%s\n", msg_get(MSG_OCC_FAIL_PARSER));
+        printf("%s\\n", msg_get(MSG_OCC_FAIL_PARSER));
+        exit_code = 1;
     }
-    
+
     parser_print_errors(ctx);
     parser_destroy(ctx);
-    return 0;
+    return exit_code;
 }
