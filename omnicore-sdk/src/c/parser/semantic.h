@@ -45,6 +45,9 @@ typedef struct {
 } SemanticContext;
 
 OCC_API void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path);
+OCC_API void semantic_attach_diagnostics(
+    SemanticContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id
+);
 OCC_API void semantic_check(SemanticContext* ctx, ASTNode* node);
 OCC_API void semantic_print_errors(SemanticContext* ctx);
 OCC_API void semantic_destroy(SemanticContext* ctx);
