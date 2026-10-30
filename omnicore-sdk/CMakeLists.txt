@@ -42,6 +42,13 @@ file(COPY "${C_SOURCE_DIR}/tests" DESTINATION "${C_RUNTIME_DIR}")
 configure_file("${C_SOURCE_DIR}/tests/test1.nxf" "${C_RUNTIME_DIR}/tests/test1_alt.nxf" COPYONLY)
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/targets" DESTINATION "${CMAKE_BINARY_DIR}")
 
+# OIR is the shared, platform-independent artifact container implementation.
+# It is linked by stage modules and tools; it does not expose host struct layouts.
+add_library(occ_oir STATIC
+    "${C_SOURCE_DIR}/oir/oir.c"
+)
+target_include_directories(occ_oir PUBLIC "${C_SOURCE_DIR}/oir")
+
 # The C frontend is the canonical compiler frontend.
 # parser/main.c is intentionally excluded: it is an obsolete standalone entry point.
 add_library(occ_frontend STATIC
@@ -119,10 +126,12 @@ endif()
 target_link_libraries(occ PRIVATE occ_frontend ${CMAKE_DL_LIBS})
 
 if(MSVC)
+    target_compile_options(occ_oir PRIVATE /W4)
     target_compile_options(occ_frontend PRIVATE /W4)
     target_compile_options(occ_codegen PRIVATE /W4)
     target_compile_options(occ PRIVATE /W4)
 else()
+    target_compile_options(occ_oir PRIVATE -Wall -Wextra)
     target_compile_options(occ_frontend PRIVATE -Wall -Wextra)
     target_compile_options(occ_codegen PRIVATE -Wall -Wextra)
     target_compile_options(occ PRIVATE -Wall -Wextra)
@@ -237,6 +246,15 @@ if(BUILD_TESTING)
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         PASS_REGULAR_EXPRESSION "Tanımsız değişken"
     )
+
+    add_executable(test_oir "${C_SOURCE_DIR}/tests/test_oir.c")
+    target_link_libraries(test_oir PRIVATE occ_oir)
+    if(MSVC)
+        target_compile_options(test_oir PRIVATE /W4)
+    else()
+        target_compile_options(test_oir PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_container_roundtrip_and_validation COMMAND test_oir)
 
     add_executable(test_lexer "${C_SOURCE_DIR}/tests/test_lexer.c")
     target_include_directories(test_lexer PRIVATE "${C_PARSER_DIR}")
