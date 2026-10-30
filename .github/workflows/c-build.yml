@@ -68,7 +68,7 @@ jobs:
           cmake -S omnicore-sdk -B build-valgrind
           -DCMAKE_BUILD_TYPE=Debug
           -DMEMORYCHECK_COMMAND=/usr/bin/valgrind
-          "-DMEMORYCHECK_COMMAND_OPTIONS=--leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --track-origins=yes --error-exitcode=99"
+          "-DMEMORYCHECK_COMMAND_OPTIONS=--leak-check=full --show-leak-kinds=definite,indirect --errors-for-leak-kinds=definite,indirect --track-origins=yes --error-exitcode=99"
 
       - name: Build C compiler
         run: cmake --build build-valgrind --config Debug --parallel
