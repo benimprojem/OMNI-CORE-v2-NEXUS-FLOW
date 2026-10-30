@@ -298,7 +298,6 @@ Token lexer_next_token(ParserContext* ctx) {
     // --- Stringler ---
     if (c == '"') {
         while (peek(ctx) != '"' && peek(ctx) != '\0') {
-            if (peek(ctx) == '\n') ctx->current_line++;
             advance(ctx);
         }
         if (peek(ctx) == '\0') return error_token(ctx, msg_get(MSG_UNTERMINATED_STRING));
