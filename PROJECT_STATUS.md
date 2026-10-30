@@ -252,4 +252,9 @@ Bu sonuç yalnızca mevcut 10 testin kapsamındaki yolların sanitizer altında 
 - Byte-for-byte aynı olduğu doğrulanan belge kopyaları temp/duplicate-docs/ altında arşivlendi. Farklı içerikli benzer belgeler yerinde bırakıldı.
 - omnicore-sdk/src/oce/ IDE/editor projesi bağımsız bileşen olduğu için taşınmadı.
 
-Doğrulama: Yeni yol ile Ubuntu build ve CTest geçti; Ubuntu ASan/UBSan işi de başarılı. Windows/macOS ve Valgrind sonuçları henüz tamamlanmayı bekliyor.
+Doğrulama: Yeni yol ile Ubuntu build ve CTest geçti; Ubuntu ASan/UBSan işi de başarılı. Windows, Ubuntu ve macOS build/CTest matrisinin tamamı geçti; Ubuntu ASan/UBSan ve Valgrind işleri de başarılı.
+
+
+## Klasör düzenlemesi sonrası CI doğrulaması
+
+Son tam doğrulanan kod ağacı commit 9bc6e20be9b8fa48d358f961d927f77992b8aa3d üzerinde: Windows, Ubuntu ve macOS build/CTest işleri başarılı ve her platformda 10/10 test geçti. Ubuntu GCC ASan/UBSan işi 10/10 geçti; Valgrind memcheck işi de 10/10 geçti. Valgrind yalnızca definite/indirect leak türlerini hata kabul edecek şekilde yapılandırıldı. Ardından gelen 7d84739aef8c8577e4686b6ad47d80a164798923 commitinde yalnızca tarihsel plan belgesi arşive taşındı ve yönlendirme bağlantıları güncellendi; derleme kaynakları değişmedi.
