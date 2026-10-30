@@ -631,20 +631,43 @@ void ast_destroy(ASTNode* root) {
     ast_destroy_recursive(root);
 }
 
-static void write_string(FILE* out, const char* s) {
-    if (!s) {
-        int len = -1;
-        fwrite(&len, sizeof(int), 1, out);
-        return;
-    }
-    int len = (int)strlen(s);
-    fwrite(&len, sizeof(int), 1, out);
-    fwrite(s, 1, len, out);
-}
-
 #define AST_MAX_STRING_LENGTH (16u * 1024u * 1024u)
 #define AST_MAX_NODE_COUNT 1000000u
 #define AST_MAX_RECURSION_DEPTH 512u
+
+typedef struct {
+    FILE* stream;
+    int failed;
+} ASTWriter;
+
+static void ast_write_exact(ASTWriter* writer, const void* source, size_t size) {
+    if (!writer || writer->failed) return;
+    if (!writer->stream || (size > 0 && !source)) {
+        writer->failed = 1;
+        return;
+    }
+    if (size > 0 && fwrite(source, 1, size, writer->stream) != size) {
+        writer->failed = 1;
+    }
+}
+
+static void write_string(ASTWriter* writer, const char* text) {
+    if (!text) {
+        int length = -1;
+        ast_write_exact(writer, &length, sizeof(length));
+        return;
+    }
+
+    size_t text_length = strlen(text);
+    if (text_length > AST_MAX_STRING_LENGTH) {
+        if (writer) writer->failed = 1;
+        return;
+    }
+
+    int length = (int)text_length;
+    ast_write_exact(writer, &length, sizeof(length));
+    ast_write_exact(writer, text, text_length);
+}
 
 typedef struct {
     FILE* stream;
@@ -689,64 +712,65 @@ static char* read_string(ASTReader* reader) {
     return value;
 }
 
-static void ast_serialize_recursive(ASTNode* node, FILE* out) {
+static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
+    if (!writer || writer->failed) return;
     if (!node) {
         int marker = -1;
-        fwrite(&marker, sizeof(int), 1, out);
+        ast_write_exact(writer, &marker, sizeof(marker));
         return;
     }
 
-    fwrite(&node->type, sizeof(ASTNodeType), 1, out);
-    fwrite(&node->line, sizeof(int), 1, out);
-    fwrite(&node->col, sizeof(int), 1, out);
+    ast_write_exact(writer, &node->type, sizeof(node->type));
+    ast_write_exact(writer, &node->line, sizeof(node->line));
+    ast_write_exact(writer, &node->col, sizeof(node->col));
 
     switch(node->type) {
         case AST_VAR_DECL: {
             ASTVarDecl* d = (ASTVarDecl*)node;
-            write_string(out, d->name);
-            write_string(out, d->type_name);
-            fwrite(&d->is_const, sizeof(int), 1, out);
-            fwrite(&d->is_hard_typed, sizeof(int), 1, out);
-            fwrite(&d->is_public, sizeof(int), 1, out);
-            fwrite(&d->is_exported, sizeof(int), 1, out);
-            ast_serialize_recursive(d->initializer, out);
-            ast_serialize_recursive(d->inline_type, out);
+            write_string(writer, d->name);
+            write_string(writer, d->type_name);
+            ast_write_exact(writer, &d->is_const, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_write_exact(writer, &d->is_hard_typed, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_write_exact(writer, &d->is_public, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_write_exact(writer, &d->is_exported, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_serialize_recursive(d->initializer, writer);
+            ast_serialize_recursive(d->inline_type, writer);
             break;
         }
         case AST_FUNC_DECL:
         case AST_EXTERN_DECL: {
             ASTFuncDecl* f = (ASTFuncDecl*)node;
-            write_string(out, f->name);
-            write_string(out, f->return_type);
-            fwrite(&f->is_extern, sizeof(int), 1, out);
-            fwrite(&f->is_public, sizeof(int), 1, out);
-            fwrite(&f->is_exported, sizeof(int), 1, out);
-            ast_serialize_recursive(f->params, out);
-            ast_serialize_recursive(f->body, out);
+            write_string(writer, f->name);
+            write_string(writer, f->return_type);
+            ast_write_exact(writer, &f->is_extern, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_write_exact(writer, &f->is_public, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_write_exact(writer, &f->is_exported, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_serialize_recursive(f->params, writer);
+            ast_serialize_recursive(f->body, writer);
             break;
         }
         case AST_STRUCT_DECL:
         case AST_UNION_DECL: {
             ASTStructDecl* s = (ASTStructDecl*)node;
-            write_string(out, s->name);
-            fwrite(&s->is_packed, sizeof(int), 1, out);
-            fwrite(&s->is_union, sizeof(int), 1, out);
-            fwrite(&s->is_public, sizeof(int), 1, out);
-            fwrite(&s->is_exported, sizeof(int), 1, out);
-            ast_serialize_recursive(s->fields, out);
+            write_string(writer, s->name);
+            ast_write_exact(writer, &s->is_packed, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_write_exact(writer, &s->is_union, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_write_exact(writer, &s->is_public, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_write_exact(writer, &s->is_exported, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_serialize_recursive(s->fields, writer);
             break;
         }
         case AST_LITERAL: {
             ASTLiteral* l = (ASTLiteral*)node;
-            fwrite(&l->type, sizeof(OmniTokenType), 1, out);
-            fwrite(&l->lit_type, sizeof(int), 1, out);
-            fwrite(&l->int_value, sizeof(long long), 1, out);
-            fwrite(&l->float_value, sizeof(double), 1, out);
-            write_string(out, l->string_value);
+            ast_write_exact(writer, &l->type, (size_t)(sizeof(OmniTokenType)) * (size_t)(1));
+            ast_write_exact(writer, &l->lit_type, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_write_exact(writer, &l->int_value, (size_t)(sizeof(long long)) * (size_t)(1));
+            ast_write_exact(writer, &l->float_value, (size_t)(sizeof(double)) * (size_t)(1));
+            write_string(writer, l->string_value);
             break;
         }
         case AST_IDENTIFIER: {
-            write_string(out, ((ASTIdentifier*)node)->name);
+            write_string(writer, ((ASTIdentifier*)node)->name);
             break;
         }
         case AST_BINARY_EXPR:
@@ -755,14 +779,14 @@ static void ast_serialize_recursive(ASTNode* node, FILE* out) {
         case AST_NEXUS_FLOW:
         case AST_NEXUS_PIPE: {
             ASTBinaryExpr* b = (ASTBinaryExpr*)node;
-            fwrite(&b->op, sizeof(OmniTokenType), 1, out);
-            ast_serialize_recursive(b->left, out);
-            ast_serialize_recursive(b->right, out);
+            ast_write_exact(writer, &b->op, (size_t)(sizeof(OmniTokenType)) * (size_t)(1));
+            ast_serialize_recursive(b->left, writer);
+            ast_serialize_recursive(b->right, writer);
             if (node->type == AST_NEXUS_FLOW || node->type == AST_NEXUS_PIPE) {
                  ASTNexusFlow* f = (ASTNexusFlow*)node;
-                 fwrite(&f->retry_count, sizeof(int), 1, out);
-                 fwrite(&f->retry_delay, sizeof(int), 1, out);
-                 ast_serialize_recursive(f->catch_block, out);
+                 ast_write_exact(writer, &f->retry_count, (size_t)(sizeof(int)) * (size_t)(1));
+                 ast_write_exact(writer, &f->retry_delay, (size_t)(sizeof(int)) * (size_t)(1));
+                 ast_serialize_recursive(f->catch_block, writer);
             }
             break;
         }
@@ -771,22 +795,22 @@ static void ast_serialize_recursive(ASTNode* node, FILE* out) {
         case AST_POSTFIX_EXPR:
         case AST_CAST: {
             ASTUnaryExpr* u = (ASTUnaryExpr*)node;
-            fwrite(&u->op, sizeof(OmniTokenType), 1, out);
-            ast_serialize_recursive(u->operand, out);
+            ast_write_exact(writer, &u->op, (size_t)(sizeof(OmniTokenType)) * (size_t)(1));
+            ast_serialize_recursive(u->operand, writer);
             break;
         }
         case AST_UNPACK: {
-            ast_serialize_recursive(((ASTUnpack*)node)->expr, out);
+            ast_serialize_recursive(((ASTUnpack*)node)->expr, writer);
             break;
         }
         case AST_NEXUS_HALT: {
-            ast_serialize_recursive(((ASTHalt*)node)->expr, out);
+            ast_serialize_recursive(((ASTHalt*)node)->expr, writer);
             break;
         }
         case AST_BLOCK:
         case AST_PROGRAM:
         case AST_ASM_BLOCK: {
-            ast_serialize_recursive(((ASTBlock*)node)->statements, out);
+            ast_serialize_recursive(((ASTBlock*)node)->statements, writer);
             break;
         }
         case AST_FUNC_CALL:
@@ -828,128 +852,132 @@ static void ast_serialize_recursive(ASTNode* node, FILE* out) {
         case AST_RECEIVE:
         case AST_DONE: {
             ASTCall* c = (ASTCall*)node;
-            ast_serialize_recursive(c->callee, out);
-            ast_serialize_recursive(c->args, out);
+            ast_serialize_recursive(c->callee, writer);
+            ast_serialize_recursive(c->args, writer);
             break;
         }
         case AST_IF: {
             ASTIf* i = (ASTIf*)node;
-            ast_serialize_recursive(i->condition, out);
-            ast_serialize_recursive(i->then_branch, out);
-            ast_serialize_recursive(i->else_branch, out);
+            ast_serialize_recursive(i->condition, writer);
+            ast_serialize_recursive(i->then_branch, writer);
+            ast_serialize_recursive(i->else_branch, writer);
             break;
         }
         case AST_LOOP: {
             ASTLoop* l = (ASTLoop*)node;
-            fwrite(&l->loop_type, sizeof(int), 1, out);
-            ast_serialize_recursive(l->init, out);
-            ast_serialize_recursive(l->condition, out);
-            ast_serialize_recursive(l->increment, out);
-            ast_serialize_recursive(l->body, out);
-            ast_serialize_recursive(l->collection, out);
-            ast_serialize_recursive(l->variable, out);
+            ast_write_exact(writer, &l->loop_type, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_serialize_recursive(l->init, writer);
+            ast_serialize_recursive(l->condition, writer);
+            ast_serialize_recursive(l->increment, writer);
+            ast_serialize_recursive(l->body, writer);
+            ast_serialize_recursive(l->collection, writer);
+            ast_serialize_recursive(l->variable, writer);
             break;
         }
         case AST_GROUP_DECL: {
             ASTGroupDecl* g = (ASTGroupDecl*)node;
-            write_string(out, g->name);
-            fwrite(&g->is_public, sizeof(int), 1, out);
-            fwrite(&g->is_exported, sizeof(int), 1, out);
-            ast_serialize_recursive(g->members, out);
+            write_string(writer, g->name);
+            ast_write_exact(writer, &g->is_public, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_write_exact(writer, &g->is_exported, (size_t)(sizeof(int)) * (size_t)(1));
+            ast_serialize_recursive(g->members, writer);
             break;
         }
         case AST_METHOD: {
             ASTMethod* m = (ASTMethod*)node;
-            write_string(out, m->public_name);
-            ast_serialize_recursive(m->implementation, out);
+            write_string(writer, m->public_name);
+            ast_serialize_recursive(m->implementation, writer);
             break;
         }
         case AST_USE: {
             ASTUse* u = (ASTUse*)node;
-            write_string(out, u->module_name);
-            write_string(out, u->alias);
+            write_string(writer, u->module_name);
+            write_string(writer, u->alias);
             break;
         }
         case AST_DEFER: {
-            ast_serialize_recursive(((ASTDefer*)node)->body, out);
+            ast_serialize_recursive(((ASTDefer*)node)->body, writer);
             break;
         }
         case AST_THREAD_BLOCK: {
             ASTThreadBlock* t = (ASTThreadBlock*)node;
-            write_string(out, t->name);
-            ast_serialize_recursive(t->body, out);
-            ast_serialize_recursive(t->mode, out);
-            ast_serialize_recursive(t->timeout, out);
+            write_string(writer, t->name);
+            ast_serialize_recursive(t->body, writer);
+            ast_serialize_recursive(t->mode, writer);
+            ast_serialize_recursive(t->timeout, writer);
             break;
         }
         case AST_MEMBER_ACCESS: {
             ASTMemberAccess* m = (ASTMemberAccess*)node;
-            write_string(out, m->member_name);
-            ast_serialize_recursive(m->object, out);
+            write_string(writer, m->member_name);
+            ast_serialize_recursive(m->object, writer);
             break;
         }
         case AST_TUPLE: {
-            ast_serialize_recursive(((ASTTuple*)node)->elements, out);
+            ast_serialize_recursive(((ASTTuple*)node)->elements, writer);
             break;
         }
         case AST_ENUM_DECL: {
             ASTEnumDecl* e = (ASTEnumDecl*)node;
-            write_string(out, e->name);
-            ast_serialize_recursive(e->variants, out);
+            write_string(writer, e->name);
+            ast_serialize_recursive(e->variants, writer);
             break;
         }
         case AST_ENUM_VARIANT: {
             ASTEnumVariant* v = (ASTEnumVariant*)node;
-            write_string(out, v->name);
-            ast_serialize_recursive(v->data, out);
+            write_string(writer, v->name);
+            ast_serialize_recursive(v->data, writer);
             break;
         }
         case AST_NEWTYPE_DECL: {
             ASTNewTypeDecl* nt = (ASTNewTypeDecl*)node;
-            write_string(out, nt->name);
-            write_string(out, nt->target_type);
+            write_string(writer, nt->name);
+            write_string(writer, nt->target_type);
             break;
         }
         case AST_NEXUS_CAPTURE:
         case AST_LISTEN: {
             ASTNexusCapture* c = (ASTNexusCapture*)node;
-            write_string(out, c->handler_name);
-            ast_serialize_recursive(c->expr, out);
+            write_string(writer, c->handler_name);
+            ast_serialize_recursive(c->expr, writer);
             break;
         }
         case AST_NEXUS_LABEL: {
             ASTNexusLabel* l = (ASTNexusLabel*)node;
-            write_string(out, l->label_name);
-            ast_serialize_recursive(l->statement, out);
+            write_string(writer, l->label_name);
+            ast_serialize_recursive(l->statement, writer);
             break;
         }
         case AST_NEXUS_JUMP: {
-            write_string(out, ((ASTNexusJump*)node)->label_name);
+            write_string(writer, ((ASTNexusJump*)node)->label_name);
             break;
         }
         case AST_NEXUS_INTENT: {
             ASTIntent* i = (ASTIntent*)node;
-            write_string(out, i->intent_name);
-            ast_serialize_recursive(i->target, out);
+            write_string(writer, i->intent_name);
+            ast_serialize_recursive(i->target, writer);
             break;
         }
         case AST_AI_LOGIC: {
-            write_string(out, ((ASTAiLogic*)node)->query);
+            write_string(writer, ((ASTAiLogic*)node)->query);
             break;
         }
         case AST_PANIC: {
-            write_string(out, ((ASTPanic*)node)->message);
+            write_string(writer, ((ASTPanic*)node)->message);
             break;
         }
         default: break;
     }
 
-    ast_serialize_recursive(node->next, out);
+    if (!writer->failed) ast_serialize_recursive(node->next, writer);
 }
 
-void ast_serialize(ASTNode* root, FILE* out) {
-    if (!out) return;
-    ast_serialize_recursive(root, out);
+int ast_serialize(ASTNode* root, FILE* out) {
+    if (!out) return 0;
+
+    ASTWriter writer = { out, 0 };
+    ast_serialize_recursive(root, &writer);
+    if (ferror(out)) writer.failed = 1;
+    return writer.failed ? 0 : 1;
 }
 
 static ASTNode* ast_deserialize_recursive(ASTReader* reader);
