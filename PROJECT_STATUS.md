@@ -123,17 +123,36 @@ Bu nedenle target parser'ı güvenli ve doğrulayıcı hale getirilmeden mevcut 
 
 **Kaynak seçimi:** C frontend için `ast.c`, `lexer.c`, `parser.c`, `semantic.c` derlenir. `parser/main.c` ikinci bir `main()` tanımladığı için ana OCC hedefinden özellikle çıkarılmıştır. C++ `src/` ve eski C++ build betikleri korunmuştur.
 
-**Doğrulama durumu:** GitHub Actions temiz checkout matrisi Windows, Ubuntu ve macOS üzerinde başarılı tamamlandı. Her platformda CMake configure, C derlemesi ve CTest aşamaları geçti. Testler: `occ_help`, bilinmeyen CLI seçeneğini reddetme ve `tests/test1.nxf` dosyasını lexer→parser→semantic→AST serialization/deserialization→shared codegen yolundan geçirme. Her platformda 3/3 test başarılıdır. Bu, ilk build hattını doğrular; dilin tüm özelliklerinin doğrulandığı anlamına gelmez. CMake ilk sürümü runtime dosyaları için `build/bin` çalışma dizinini varsayar.
+**Doğrulama durumu:** GitHub Actions temiz checkout matrisi Windows, Ubuntu ve macOS üzerinde başarılı tamamlandı. Her platformda CMake configure, C derlemesi ve CTest aşamaları geçti. Son doğrulanan koşuda her platformda 5/5 test başarılıdır:
+
+1. Bozuk/truncated AST akışlarını reddetme; AST_UNPACK ve AST_NEXUS_HALT round-trip; 700 sibling node listesi.
+2. OCC help çıktısı.
+3. Bilinmeyen CLI seçeneğini reddetme.
+4. Eksik kaynak dosyasını reddetme.
+5. `tests/test1.nxf` dosyasını lexer→parser→semantic→AST serialization/deserialization→shared codegen yolundan geçirme.
+
+Son doğrulanan CI koşusunda üç platformda da derleyici uyarısı kalmadı. Bu testler ilk güvenilirlik katmanını doğrular; dilin tüm özelliklerinin veya tüm AST düğüm türlerinin doğrulandığı anlamına gelmez. CMake ilk sürümü runtime dosyaları için `build/bin` çalışma dizinini varsayar.
 
 
-## CI build sonrası kalan derleyici uyarıları
+## AST ve kaynak dosyası okuma güvenliği — ilk katman
 
-İlk üç platformlu test hattı başarılı olsa da uyarılar temizlenmiş değildir:
+- AST deserializer tüm sabit boyutlu alan okumalarında tam okuma kontrolü yapacak şekilde düzenlendi.
+- Node türü, string uzunluğu, toplam node sayısı ve iç içe AST derinliği sınırlandırıldı.
+- Sibling node listeleri iteratif okunuyor; uzun düz listeler iç içe derinlik sınırını tüketmiyor.
+- AST_UNPACK ve AST_NEXUS_HALT için yanlış struct yerleşimi kullanımı düzeltildi.
+- Deserialize işlemi sonunda beklenmeyen trailing byte varsa dosya reddediliyor.
+- Kaynak dosyası okuyucusunda fseek, ftell ve fread sonuçları kontrol ediliyor.
+- Bozuk AST, geçersiz node türü, negatif/aşırı string uzunluğu, özel node round-trip ve uzun sibling listesi testleri eklendi.
 
-- `ast.c` içindeki AST deserializer bazı `fread()` sonuçlarını kontrol etmiyor.
-- `parser.c` kaynak dosyasını okurken `fseek/ftell/fread` dönüşlerini ve dosya boyutu hatalarını yeterince doğrulamıyor.
-- `parser.c` içinde kullanılmayan benzerlik fonksiyonu bulunuyor.
-- İlk CI loglarında lexer'daki kaçış karakteri yorum satırı uyarı veriyordu; yorum satırı düzeltildi.
-- Linux derlemesinde output path tamponu uyarıları görüldü; tamponlar büyütüldü. Son CI koşusunda tekrar doğrulama yapıldı.
+**Kalan işler:** AST düğüm türlerinin tamamı için round-trip test matrisi; AST serializer yazma tarafında fwrite hata raporlaması; ASan/UBSan/Valgrind ile bellek güvenliği doğrulaması.
 
-**Öncelik:** AST deserializer ve kaynak dosyası okuyucusunun truncated/bozuk girdide güvenli hata vermesi. Bu iş tamamlanmadan OIR/AST dosyalarının güvenilmeyen girdiler olarak güvenli biçimde işlendiği varsayılmamalıdır.
+
+## Hâlâ açık target/codegen riskleri
+
+- `parse_target()` target dosyası açılamadığında hata döndürmek yerine varsayılanlarla devam ediyor.
+- Target alanları hâlâ sabit tamponlara `strcpy()` ile kopyalanıyor; uzun/bozuk alanlar için sınır kontrolü yok.
+- Mevcut `.target` dosyalarının INI benzeri alanları ile C codegen parser'ın beklediği `key: value` biçimi uyuşmuyor.
+- Codegen hâlâ target alanlarından bağımsız x86-64 NASM şablonu üretiyor.
+- Default target adı ve target dosyası çözümlemesi henüz host/target modeline bağlanmadı.
+
+Bu yüzden Windows/Linux/macOS üzerinde C uygulamasının derlenmesi doğrulanmış olsa da, bu durum bütün platformlar veya mimariler için doğru makine kodu üretildiği anlamına gelmez.
