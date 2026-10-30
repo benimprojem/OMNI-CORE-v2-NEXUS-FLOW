@@ -959,10 +959,10 @@ static ASTNode* parse_var_decl(Parser* p) {
                  decl->inline_type = (ASTNode*)sdecl;
              }
         } else if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) || p->current.type == TOKEN_IDENTIFIER) {
-             Token t = p->current;
-             decl->type_name = malloc(t.length + 1);
-             memcpy(decl->type_name, t.start, t.length);
-             decl->type_name[t.length] = '\0';
+             Token type_token = p->current;
+             decl->type_name = malloc(type_token.length + 1);
+             memcpy(decl->type_name, type_token.start, type_token.length);
+             decl->type_name[type_token.length] = '\0';
              advance(p);
         } else {
              error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
@@ -1153,10 +1153,10 @@ static ASTNode* parse_struct_decl(Parser* p, int is_packed, char* name) {
                  memcpy(decl->name, t.start + 7, t.length - 7);
                  decl->name[t.length - 7] = '\0';
              } else if (match(p, TOKEN_IDENTIFIER)) {
-                 Token t = p->previous;
-                 decl->name = malloc(t.length + 1);
-                 memcpy(decl->name, t.start, t.length);
-                 decl->name[t.length] = '\0';
+                 Token identifier_token = p->previous;
+                 decl->name = malloc(identifier_token.length + 1);
+                 memcpy(decl->name, identifier_token.start, identifier_token.length);
+                 decl->name[identifier_token.length] = '\0';
              } else {
                  error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
              }
@@ -1199,10 +1199,10 @@ static ASTNode* parse_union_decl(Parser* p, char* name) {
                  memcpy(decl->name, t.start + 6, t.length - 6);
                  decl->name[t.length - 6] = '\0';
              } else if (match(p, TOKEN_IDENTIFIER)) {
-                 Token t = p->previous;
-                 decl->name = malloc(t.length + 1);
-                 memcpy(decl->name, t.start, t.length);
-                 decl->name[t.length] = '\0';
+                 Token identifier_token = p->previous;
+                 decl->name = malloc(identifier_token.length + 1);
+                 memcpy(decl->name, identifier_token.start, identifier_token.length);
+                 decl->name[identifier_token.length] = '\0';
              } else {
                  error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
              }
@@ -1240,10 +1240,10 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
                  memcpy(decl->name, t.start + 5, t.length - 5);
                  decl->name[t.length - 5] = '\0';
              } else if (match(p, TOKEN_IDENTIFIER)) {
-                 Token t = p->previous;
-                 decl->name = malloc(t.length + 1);
-                 memcpy(decl->name, t.start, t.length);
-                 decl->name[t.length] = '\0';
+                 Token identifier_token = p->previous;
+                 decl->name = malloc(identifier_token.length + 1);
+                 memcpy(decl->name, identifier_token.start, identifier_token.length);
+                 decl->name[identifier_token.length] = '\0';
              } else {
                  error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
              }
