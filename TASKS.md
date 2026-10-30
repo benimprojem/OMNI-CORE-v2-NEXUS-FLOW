@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> İlk CMake build altyapısı tamamlandı. GitHub Actions üzerinde üç işletim sisteminde derleme ve üç smoke/integration testi başarılıdır. Build uyarıları ve bozuk/truncated IR güvenliği sonraki güvenilirlik işidir.
+> İlk CMake build altyapısı tamamlandı. GitHub Actions üzerinde Windows, Ubuntu ve macOS'ta 8/8 test başarılı; son koşuda derleyici uyarısı yok. AST/IR formatının tüm türleri ve sanitizer kapsamı hâlâ genişletilecek.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
