@@ -127,4 +127,4 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 
 ## Sonraki tek iş
 
-Önce ortak diagnostic modeli ve compilation context sözleşmesini tasarla; bu iki yapı diğer tüm modüllerin ABI'sinin temelini oluşturacak.
+PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned diagnostic collector ve compilation context için C API taslağını çıkar; ardından lexer/parser/semantic'i bu ortak sink'e adapte et.
