@@ -13,12 +13,14 @@ Bu belge uygulama kararlarını ve henüz karara bağlanmamış tasarım konular
 
 ## ADR-002 — Tek ve açık ara temsil sözleşmesi
 
-- **Durum:** Tasarım kararı gerekli
-- C tarafındaki parser_save_ir() AST serileştirmesi ile C++ tarafındaki OIR2 ikili biçimi aynı format değildir.
-- Bunlardan birini sessizce diğerinin yerine kullanmak yasaktır.
-- Kanonik OIR; sürüm, byte order, alan genişlikleri, offset sınırları, string encoding, opcode/payload modeli, source map, target metadata ve hata davranışını tanımlamalıdır.
-- OIR okuyucu/yazıcısı malformed, truncated, uyumsuz sürümlü ve taşma oluşturan girdileri güvenli biçimde reddetmelidir.
-- İlk sürümde hedef mimariye özel register ve assembly ayrıntıları OIR içine gömülmemelidir.
+- **Durum:** OIR v1 container yönü önerildi; binary layout ve payload semantiği henüz freeze edilmedi.
+- C tarafındaki parser_save_ir() AST serileştirmesi ile C++ tarafındaki OIR2 ikili biçimi aynı format değildir. Hiçbiri doğrudan kanonik format ilan edilmeyecektir.
+- Tüm compiler-stage handoff tek bir sürümlenmiş OIR container üzerinden yapılacaktır. Container, payload kind/schema version alanlarıyla SOURCE_UNIT, TOKEN_STREAM, AST, SEMANTIC_AST, OIR_MODULE, TARGET_IR, ASSEMBLY ve OBJECT gibi farklı aşama çıktılarını taşıyabilir.
+- OIR container aynı zamanda in-memory opaque artifact handle sözleşmesinin kalıcı/checkpoint byte representation'ıdır.
+- Container alanları fixed-width, little-endian, length-delimited ve pointer/host-struct bağımsız olacaktır.
+- Malformed, truncated, uyumsuz sürümlü, aşırı büyük veya tutarsız artifact güvenli biçimde reddedilmelidir.
+- Canonical OIR_MODULE semantiği (type system, opcodes, memory/ownership model, SSA policy) ayrı tasarlanacaktır; hedef mimariye özel register/assembly ayrıntıları canonical OIR içine gömülmeyecektir.
+- Ayrıntılar: [OIR_FORMAT.md](OIR_FORMAT.md).
 
 ## ADR-003 — Taşınabilir frontend ve çoklu platform hedefleri
 
@@ -46,7 +48,7 @@ Bu belge uygulama kararlarını ve henüz karara bağlanmamış tasarım konular
 
 ## Açık kararlar
 
-1. Kanonik OIR'ın ilk sürümü ve ABI'si.
+1. OIR v1 binary layout'unun freeze edilmesi ve canonical OIR_MODULE semantiğinin tasarlanması.
 2. AST düğüm türleri ve tip/ownership bilgisinin hangi aşamada ekleneceği.
 3. NexusFlow tip yükseltme ve dönüşüm kurallarının kesin tablosu.
 4. Handler/masa yaşam süresi ve move/copy/borrow benzeri kuralların kesin semantiği.
@@ -80,3 +82,14 @@ Bu belge uygulama kararlarını ve henüz karara bağlanmamış tasarım konular
 - **Çoklu derleme:** Modüller tekrar kullanılabilir; derleme işleri bağımsız context'lerle paralel/kuyruklu boru hattında çalışabilir. Back-pressure ve iş bazında iptal desteklenecektir.
 - **Gerekçe:** Hata ayıklamayı, modül testini, aşamalar arası değişiklikleri, paralel derlemeyi ve IDE entegrasyonunu kolaylaştırmak.
 - **Detay:** Modül ABI'si, artifact sözleşmesi, diagnostic modeli ve geçiş sırası [COMPILER_PIPELINE.md](COMPILER_PIPELINE.md) içinde tanımlanmıştır.
+
+
+## ADR-008 — OIR ortak artifact taşıma standardı
+
+- **Durum:** Tasarım yönü kabul edildi; v1 binary layout henüz freeze edilmedi.
+- **Karar:** Her derleme modülü, bir OIR artifact alır ve tanımlı artifact kind/schema version ile yeni bir OIR artifact üretir. Artifact, modüller arasında bellek içinde opaque handle olarak aktarılabilir; diske yazıldığında aynı OIR container serileştirmesi kullanılır.
+- **Gerekçe:** Bir aşamanın çıktısının doğrudan sonraki aşamanın girdisi olması; modüllerin birbirlerinin özel C struct'larına, allocator'larına veya pointer'larına bağımlı kalmaması.
+- **Container/payload ayrımı:** OIR container ortak başlık, metadata ve length-delimited section yapısını sağlar. Token stream, AST, semantic AST, canonical OIR, assembly ve object gibi payload'lar kendi tip ve schema sürümleriyle tanımlanır.
+- **Geçerlilik:** Artifact envelope, payload kind/version ve validity durumu downstream çağrısından önce doğrulanır. PARTIAL yalnızca bunu kabul ettiğini bildiren modüle verilir.
+- **Eski formatlar:** Mevcut C native-layout AST stream ve eski C++ OIR2 birbirinden farklı legacy biçimlerdir; OIR v1 olarak yorumlanamazlar.
+- **Detay:** [OIR_FORMAT.md](OIR_FORMAT.md).
