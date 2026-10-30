@@ -62,6 +62,15 @@ therefore be launched from a different working directory. Source input and
 generated `.oir` / `.s` output paths remain based on the source path supplied
 by the caller.
 
+## Intermediate file note
+
+The current C compiler writes an internal AST serialization stream to files with
+the `.oir` extension so the separately loaded code generator can read it.
+This is not yet the canonical, stable OIR format described in the roadmap, and
+it is not compatible with the C++ OIR2 format. The AST stream layout is still
+being validated; regenerate previously saved `.oir` files when changing
+compiler revisions rather than treating them as a stable interchange format.
+
 ## Source selection
 
 The C frontend library contains:
@@ -83,7 +92,7 @@ under `src/` and the existing `build_occ.bat`, `parser_build.bat`, and
 
 The current CTest suite contains ten checks:
 
-1. Reject truncated, invalid and oversized AST streams; round-trip AST_EXTERN_DECL, AST_UNPACK/AST_NEXUS_HALT and a 700-node sibling list.
+1. Reject truncated, invalid and oversized AST streams; smoke-round-trip every AST node tag; verify AST_EXTERN_DECL and all AST_LITERAL payload fields; round-trip AST_UNPACK/AST_NEXUS_HALT and a 700-node sibling list.
 2. Validate all five current target descriptors, reject malformed/duplicate/unknown/oversized fields, and distinguish valid target descriptions from backend support.
 3. OCC help output.
 4. Reject an unknown CLI option.
