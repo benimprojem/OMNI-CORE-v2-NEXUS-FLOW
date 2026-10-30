@@ -89,7 +89,7 @@ not part of this C build.
 
 ## Current CTest coverage
 
-The current CTest suite contains thirteen checks:
+The current CTest suite contains fourteen checks:
 
 1. Reject truncated, invalid and oversized AST streams; round-trip every AST node tag and every serialized field using byte-equality; verify AST_EXTERN_DECL and AST_LITERAL regressions, AST_UNPACK/AST_NEXUS_HALT, a 700-node sibling list, and parser_save_ir failure propagation.
 2. Validate all five current target descriptors, reject malformed/duplicate/unknown/oversized fields, and distinguish valid target descriptions from backend support.
@@ -104,6 +104,7 @@ The current CTest suite contains thirteen checks:
 11. Tokenize declaration prefixes, literals and core Nexus Flow operators; verify token positions across lines.
 12. Parse a valid source and reject invalid syntax; verify a partial AST remains owned by the parser context for cleanup.
 13. Run semantic analysis on a valid source and a source with an undefined identifier; verify the expected diagnostic code.
+14. Serialize and read an OIR v1 container; verify round-trip fields and reject truncated streams, bad magic, inconsistent total/section lengths, unknown required sections, missing payloads, invalid no-artifact state and undersized output buffers.
 
 ## Sanitizer build (GCC/Clang)
 
@@ -130,8 +131,11 @@ this additional job on Ubuntu.
 
 ## Verification status
 
-The latest GitHub Actions matrix completed successfully on Windows, Ubuntu and
-macOS. CMake configure, C build and all ten CTest checks passed on each runner.
-The separate Ubuntu GCC ASan/UBSan job also passed all ten tests with leak
-detection enabled. This verifies the committed clean-checkout CI path; it does
-not claim that a separate local build has been run on the user's machine.
+The latest completed CI evidence for the OIR container change (workflow run
+41143050717) shows CMake configure, build and all fourteen CTest checks passing
+on Ubuntu and macOS. The Ubuntu GCC ASan/UBSan job also passed. At the time of
+this update, the Windows build/test and Ubuntu Valgrind jobs were still running;
+their results are not claimed here. The immediately preceding 13-test matrix
+had completed successfully on Windows, Ubuntu and macOS, with ASan/UBSan and
+Valgrind also passing 13/13. This verifies clean-checkout CI paths; it does not
+claim a separate local build on the user's machine.
