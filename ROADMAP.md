@@ -9,7 +9,7 @@ NexusFlow'u Windows, Linux ve macOS üzerinde çalıştırabilen; bu sistemler i
 
 ## Şu an neredeyiz?
 
-- **C hattı:** C11 tabanlı frontend (lexer/parser/AST/semantic), OCC CLI ve ayrı yüklenebilir codegen modülü mevcut. AST deserializer güvenlik kontrolleri, tüm AST tag'leri için smoke round-trip ve AST_EXTERN_DECL/AST_LITERAL regresyonları eklendi; tüm AST alanlarının round-trip matrisi henüz tamamlanmadı.
+- **C hattı:** C11 tabanlı frontend (lexer/parser/AST/semantic), OCC CLI ve ayrı yüklenebilir codegen modülü mevcut. AST deserializer güvenlik kontrolleri, tüm AST tag'leri ve her düğüm ailesinin serialized alanları için byte-equality round-trip matrisi, AST_EXTERN_DECL/AST_LITERAL regresyonları ve yazma hata yayılımı eklendi. Sanitizer doğrulaması sırada.
 - **C++ hattı:** Lexer/parser, OIR writer, analyzer ve OCE/IDE kaynakları korunuyor; ana geliştirme hattı değil.
 - **Ortak sözleşme:** C AST serialization ile C++ OIR2 birbirinden farklı. Kanonik, sürümlenmiş OIR sözleşmesi henüz yok.
 - **Build/test:** CMake tabanlı C build'i, Windows/Linux/macOS CI matrisi ve CTest hattı mevcut. Son CI koşusunda Windows, Ubuntu ve macOS üzerinde 10/10 CTest başarılı; target parser doğrulaması da bu kapsama dahil.
@@ -147,10 +147,9 @@ Proje şu an **prototip / entegrasyon aşamasında**. Yüzde tamamlanma yerine m
 
 ## Sıradaki işler
 
-1. Her AST düğüm ailesinin tüm alanları için round-trip test matrisi tamamla; şu an tüm tag'ler smoke-test ediliyor, AST_EXTERN_DECL ve AST_LITERAL için alan testleri var.
-2. ASan/UBSan/Valgrind çalıştırma altyapısı ekle; AST alan düzeyindeki round-trip matrisini genişlet.
-3. Lexer/parser/semantic için ayrı, küçük ve izole test kümeleri kur.
-4. C AST serialization ile C++ OIR2'yi karşılaştırıp kanonik OIR v1 sözleşmesine hazırlan.
+1. ASan/UBSan/Valgrind çalıştırma altyapısı ekle ve AST bellek yönetimini sanitizer altında doğrula.
+2. Lexer/parser/semantic için ayrı, küçük ve izole test kümeleri kur.
+3. C AST serialization ile C++ OIR2'yi karşılaştırıp kanonik OIR v1 sözleşmesine hazırlan.
 
 ## İlerleme raporu formatı
 
