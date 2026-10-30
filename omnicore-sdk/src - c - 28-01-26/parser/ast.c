@@ -158,7 +158,8 @@ static void ast_print_recursive(ASTNode* node, int level) {
                 }
                 break;
             }
-            case AST_FUNC_DECL: {
+            case AST_FUNC_DECL:
+        case AST_EXTERN_DECL: {
                 ASTFuncDecl* func = (ASTFuncDecl*)node;
                 printf("FUNC_DECL: %s", func->name);
                 if (func->return_type) printf(" > %s", func->return_type);
@@ -400,7 +401,8 @@ static void ast_destroy_recursive(ASTNode* node) {
             if (d->inline_type) ast_destroy_recursive(d->inline_type);
             break;
         }
-        case AST_FUNC_DECL: {
+        case AST_FUNC_DECL:
+        case AST_EXTERN_DECL: {
             ASTFuncDecl* f = (ASTFuncDecl*)node;
             if (f->name) free(f->name);
             if (f->return_type) free(f->return_type);
@@ -711,7 +713,8 @@ static void ast_serialize_recursive(ASTNode* node, FILE* out) {
             ast_serialize_recursive(d->inline_type, out);
             break;
         }
-        case AST_FUNC_DECL: {
+        case AST_FUNC_DECL:
+        case AST_EXTERN_DECL: {
             ASTFuncDecl* f = (ASTFuncDecl*)node;
             write_string(out, f->name);
             write_string(out, f->return_type);
@@ -976,7 +979,8 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             d->inline_type = ast_deserialize_recursive(reader);
             break;
         }
-        case AST_FUNC_DECL: {
+        case AST_FUNC_DECL:
+        case AST_EXTERN_DECL: {
             ASTFuncDecl* f = (ASTFuncDecl*)node;
             f->name = read_string(reader);
             f->return_type = read_string(reader);
