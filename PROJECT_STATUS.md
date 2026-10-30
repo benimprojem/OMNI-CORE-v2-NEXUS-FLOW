@@ -91,14 +91,14 @@ NEXSUS işlemcisi mevcut bir bağımlılık veya ön koşul değildir. Derleyici
 
 Target modeli için ayrı [TARGET_MODEL.md](TARGET_MODEL.md) sözleşmesi oluşturuldu. Mevcut C kodu bu hedefle henüz aynı noktada değil:
 
-1. `main.c` varsayılan olarak `x86_64_baremetal` seçiyor; host OS/architecture tespiti henüz yok.
-2. Target yolu `../targets/%s.target` şeklinde sabit göreli yol ile kuruluyor.
-3. `list_targets()` yalnızca Windows üzerinde dosya listeliyor.
-4. Codegen yüklemesi artık Windows'ta `LoadLibrary`, Linux'ta `dlopen` + `.so`, macOS'ta `dlopen` + `.dylib` yolunu kullanıyor. Bu yollar CMake çıktısının bulunduğu çalışma dizinine bağlıdır; bağımsız runtime path çözümlemesi daha sonra yapılacaktır.
-5. Codegen modülü bulunamadığında veya `codegen_run` sembolü yüklenemediğinde OCC artık hata kodu döndürecek şekilde düzenlendi.
+1. **Default target adı uyuşmazlığı:** `main.c` varsayılan olarak `x86_64_baremetal` seçiyor; depodaki descriptor adı `BareMetal64.target`. Host OS/architecture tespiti de henüz yok.
+2. **Target yolu — ilk katman çözüldü:** Target dizini artık executable konumundan `../targets` olarak kuruluyor; ancak default target adı ve descriptor parser şeması uyumsuzluğu sürüyor.
+3. **Target listesi — ilk katman çözüldü:** `list_targets()` Windows FindFirstFile ve POSIX opendir/readdir yollarını destekliyor.
+4. **Codegen yüklemesi — ilk katman çözüldü:** Windows `LoadLibrary`, Linux/macOS `dlopen` kullanıyor; shared library executable yanından mutlak yol ile yükleniyor.
+5. **Codegen hata kodu:** Modül veya `codegen_run` sembolü bulunamadığında ve codegen hata döndürdüğünde OCC başarısız çıkış kodu üretir. Başarı yolu test edildi; failure injection testi henüz yok.
 6. `parser_build.bat` dosyası MinGW `g++` ile C++ `OIR_Generator.cpp` derliyor; C ana uygulamasının build sistemi değildir. Yeni `CMakeLists.txt` C hattını bundan ayrı tanımlar.
 
-Bu bulgular nedeniyle çoklu işletim sistemi desteği şu an mimari hedeftir, mevcut ve doğrulanmış özellik değildir.
+C derleyicisinin Windows, Linux ve macOS host sistemlerinde derlenmesi ve temel compile yolu CI ile doğrulanmıştır. Bu, codegen'in her target OS/architecture için doğru makine kodu ürettiği anlamına gelmez.
 
 
 ## Codegen target parser riskleri
