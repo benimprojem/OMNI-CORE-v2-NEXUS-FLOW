@@ -59,7 +59,7 @@ static Token error_token(ParserContext* ctx, const char* message) {
 }
 
 // Boşlukları ve Yorumları Atla
-static void skip_whitespace(ParserContext* ctx) {
+static int skip_whitespace(ParserContext* ctx) {
     for (;;) {
         char c = peek(ctx);
         switch (c) {
@@ -76,22 +76,33 @@ static void skip_whitespace(ParserContext* ctx) {
                 break;
             case '/':
                 if (peek_next(ctx, 1) == '*') {
-                    advance(ctx); // Escape character.
-                    advance(ctx); // *
+                    size_t comment_start = ctx->pos;
+                    int comment_line = ctx->current_line;
+                    int comment_col = ctx->current_col;
+                    int closed = 0;
+                    advance(ctx);
+                    advance(ctx);
                     while (peek(ctx) != '\0') {
                         if (peek(ctx) == '*' && peek_next(ctx, 1) == '/') {
                             advance(ctx);
                             advance(ctx);
+                            closed = 1;
                             break;
                         }
                         advance(ctx);
                     }
+                    if (!closed) {
+                        ctx->token_start_offset = comment_start;
+                        ctx->token_start_line = comment_line;
+                        ctx->token_start_col = comment_col;
+                        return 0;
+                    }
                 } else {
-                    return;
+                    return 1;
                 }
                 break;
             default:
-                return;
+                return 1;
         }
     }
 }
@@ -247,7 +258,9 @@ static OmniTokenType identifier_type(const char* start, int length) {
 }
 
 Token lexer_next_token(ParserContext* ctx) {
-    skip_whitespace(ctx);
+    if (!skip_whitespace(ctx)) {
+        return error_token(ctx, "Unterminated block comment");
+    }
 
     ctx->token_start_offset = ctx->pos;
     ctx->token_start_line = ctx->current_line;
