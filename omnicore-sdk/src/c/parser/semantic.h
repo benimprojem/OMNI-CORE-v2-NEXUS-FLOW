@@ -42,6 +42,9 @@ typedef struct {
     int current_depth;
     const char* current_func_return_type;
     Language lang;
+    /* Optional job-owned collector shared with the parser stage. */
+    OccDiagnosticCollector* diagnostics;
+    uint32_t diagnostic_stage_id;
 } SemanticContext;
 
 OCC_API void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path);
