@@ -100,6 +100,9 @@ target_include_directories(occ PRIVATE
 )
 
 target_compile_definitions(occ PRIVATE OCC_STATIC)
+if(NOT MSVC)
+    target_compile_definitions(occ PRIVATE _POSIX_C_SOURCE=200809L)
+endif()
 target_link_libraries(occ PRIVATE occ_frontend ${CMAKE_DL_LIBS})
 
 if(MSVC)
@@ -122,7 +125,7 @@ if(BUILD_TESTING)
 
     add_test(NAME occ_help COMMAND occ --help)
     set_tests_properties(occ_help PROPERTIES
-        WORKING_DIRECTORY "${C_RUNTIME_DIR}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
 
     add_test(NAME occ_rejects_unknown_option COMMAND occ --not-an-option)
@@ -132,7 +135,7 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME occ_rejects_missing_source
-        COMMAND occ tests/does_not_exist.nxf
+        COMMAND occ "${C_RUNTIME_DIR}/tests/does_not_exist.nxf"
     )
     set_tests_properties(occ_rejects_missing_source PROPERTIES
         WORKING_DIRECTORY "${C_RUNTIME_DIR}"
@@ -140,7 +143,7 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME occ_accepts_target_before_source
-        COMMAND occ --target BareMetal64 tests/test1_alt.nxf
+        COMMAND occ --target BareMetal64 "${C_RUNTIME_DIR}/tests/test1_alt.nxf"
     )
     set_tests_properties(occ_accepts_target_before_source PROPERTIES
         WORKING_DIRECTORY "${C_RUNTIME_DIR}"
@@ -153,7 +156,7 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME occ_rejects_multiple_sources
-        COMMAND occ tests/test1.nxf tests/test1_alt.nxf
+        COMMAND occ "${C_RUNTIME_DIR}/tests/test1.nxf" "${C_RUNTIME_DIR}/tests/test1_alt.nxf"
     )
     set_tests_properties(occ_rejects_multiple_sources PROPERTIES
         WORKING_DIRECTORY "${C_RUNTIME_DIR}"
@@ -163,7 +166,7 @@ if(BUILD_TESTING)
     # Exercises the complete C path: lexer, parser, semantic analysis,
     # AST serialization/deserialization, shared-library loading and codegen.
     add_test(NAME occ_compiles_basic_source
-        COMMAND occ tests/test1.nxf --target BareMetal64
+        COMMAND occ "${C_RUNTIME_DIR}/tests/test1.nxf" --target BareMetal64
     )
     set_tests_properties(occ_compiles_basic_source PROPERTIES
         WORKING_DIRECTORY "${C_RUNTIME_DIR}"
