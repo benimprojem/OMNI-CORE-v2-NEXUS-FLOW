@@ -196,3 +196,16 @@ AST tür envanteri ve round-trip testleri genişletildi:
 - Son doğrulanan kod koşusu (commit 8ea13a90526a7bd9fa80580c9c8aae0f1c4480b9) Windows, Ubuntu ve macOS üzerinde başarılı; üç platformda CMake build ve 10/10 CTest geçti.
 
 **Kapsam sınırı:** Tüm AST tag değerlerinin smoke round-trip edilmesi, her düğüm ailesindeki tüm alanların doğrulandığı anlamına gelmez. Alan düzeyindeki tam matris hâlâ açık. AST stream biçimi de sürümlenmiş bir genel OIR formatı değildir; bu sürümde AST_LITERAL alan dizilimi değiştiğinden eski dahili .oir dosyaları yeniden üretilmelidir.
+
+
+## AST yazma hatası ve OCC hata akışı — 31 Ekim 2026
+
+- ast_serialize() artık başarı/başarısızlık durumunu int olarak döndürüyor. ASTWriter, tüm scalar ve string yazımlarını ortak ast_write_exact() üzerinden izliyor; ilk fwrite hatasında akış başarısız duruma geçiyor.
+- String writer, deserializer ile aynı 16 MiB üst sınırını uyguluyor.
+- parser_save_ir() artık int döndürüyor; ast_serialize() sonucunu ve fclose() sonucunu kontrol ediyor. Başarısız kayıt durumunda kısmi çıktı dosyasını kaldırmayı deniyor.
+- OCC main akışı parser_save_ir() başarısızsa "IR kaydedildi" mesajını yazmıyor ve codegen modülünü çalıştırmıyor.
+- AST test programına var olmayan parent dizinine IR yazma denemesi eklendi; hata durumunun çağırana iletildiği doğrulanıyor.
+
+Son kod doğrulaması commit 377e98486507b1156ac7307c8e6b5b59be32b2fe üzerinde tamamlandı: Windows, Ubuntu ve macOS build başarılı; her platformda CTest 10/10 geçti.
+
+**Kalan sınır:** Her fwrite hatasını platformlar arasında zorlayarak test etmek henüz yapılmadı. Mevcut test, parser_save_ir dosya açma başarısızlığının ve API dönüş değerinin doğru iletilmesini doğruluyor; fclose hata yolu kodda kontrol ediliyor ancak özel bir arıza enjeksiyon testi yok.
