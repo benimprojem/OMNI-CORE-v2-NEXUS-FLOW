@@ -28,15 +28,13 @@
 - [ ] Scope, type promotion, ownership ve control-flow kurallarını testlerle doğrula.
 - [ ] Hata ve warning API'sini ortaklaştır.
 
-### Intent sistemi
+## Intent sistemi — ertelendi
 
-- [x] `@` işaretinin AI destekli amaç/hedef bildirimi olarak `!!=` directive mekanizmasından ayrılması.
-- [x] Intent v0.1 tasarım ilkelerinin belgelenmesi.
-- [ ] `@` için nihai gramer ve kapsam kurallarını belirle.
-- [ ] AST'de intent metadata temsilini tasarla.
-- [ ] Kanonik OIR'da intent metadata'sının sürümlenebilir biçimini belirle.
-- [ ] AI olmadan derleme ve intent metadata round-trip testlerini ekle.
-- [ ] AI önerileri için onay, doğrulama ve diagnostic akışını tasarla.
+- [x] Yalnızca kavramsal ayrımı kaydet: `!!=` açık derleyici talimatı, `@` gelecekteki AI katmanına niyet bildirimi.
+- [ ] AI katmanı tasarlanmaya başlandığında Intent sistemini uçtan uca yeniden ele al: gramer, veri modeli, bağlam, AST/OIR, AI etkileşimi ve doğrulama.
+- [ ] AI katmanı bulunmadan `@` için varsayımsal parser davranışı veya sabit intent kategorileri geliştirme.
+
+> Bu başlık şimdilik aktif geliştirme sırasına alınmamıştır. Ayrıntılı tasarım, AI bileşeninin gerçek gereksinimleri ortaya çıktığında yapılacaktır.
 
 ## P0 — Ara temsil
 
@@ -51,7 +49,6 @@
 - [ ] Mevcut .target dosyalarını envanterle ve TARGET_MODEL.md sözleşmesiyle karşılaştır.
 - [ ] Host OS/architecture tespiti ve host-default target çözümleyicisi tasarla.
 - [ ] Windows/Linux/macOS target profillerini mevcut dosya formatına geriye uyumlu biçimde eşle.
-
 - [ ] Target descriptor şemasını OS/arch/ABI/format/CPU feature alanlarına ayır.
 - [ ] Host OS + host architecture varsayılan hedef çözümlemesini ekle.
 - [ ] Windows, Linux ve macOS hedef matrisi ve ABI farklarını belgeleyip test et.
