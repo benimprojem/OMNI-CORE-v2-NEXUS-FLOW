@@ -237,4 +237,27 @@ if(BUILD_TESTING)
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         PASS_REGULAR_EXPRESSION "Tanımsız değişken"
     )
+
+    add_executable(test_lexer "${C_SOURCE_DIR}/tests/test_lexer.c")
+    target_include_directories(test_lexer PRIVATE "${C_PARSER_DIR}")
+    target_link_libraries(test_lexer PRIVATE occ_frontend)
+    add_test(NAME lexer_tokenizes_core_and_flow_tokens COMMAND test_lexer)
+
+    add_executable(test_parser "${C_SOURCE_DIR}/tests/test_parser.c")
+    target_include_directories(test_parser PRIVATE "${C_PARSER_DIR}")
+    target_link_libraries(test_parser PRIVATE occ_frontend)
+    add_test(NAME parser_accepts_and_rejects_sources
+        COMMAND test_parser
+            "${C_SOURCE_DIR}/tests/test1.nxf"
+            "${CMAKE_CURRENT_BINARY_DIR}/invalid_parser_input.nxf"
+    )
+
+    add_executable(test_semantic "${C_SOURCE_DIR}/tests/test_semantic.c")
+    target_include_directories(test_semantic PRIVATE "${C_PARSER_DIR}")
+    target_link_libraries(test_semantic PRIVATE occ_frontend)
+    add_test(NAME semantic_checks_valid_and_undefined_symbols
+        COMMAND test_semantic
+            "${C_SOURCE_DIR}/tests/test1.nxf"
+            "${C_SOURCE_DIR}/tests/test_undefined_variable.nxf"
+    )
 endif()
