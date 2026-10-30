@@ -95,7 +95,7 @@ Before enabling TOKEN_STREAM serialization:
 
 ## 5. Implementation order
 
-1. Add a stable C enum-to-OIR token ID mapping by symbolic token name.
+1. [x] Add a stable C enum-to-OIR token ID mapping by symbolic token name (160-token round-trip test).
 2. Add SOURCE_UNIT payload encode/decode and exact-length tests.
 3. Extend lexer token metadata with source byte offsets and diagnostic references.
 4. Add TOKEN_STREAM payload encode/decode and span-validation tests.
