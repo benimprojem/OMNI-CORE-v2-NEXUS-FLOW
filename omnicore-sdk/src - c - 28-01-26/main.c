@@ -74,6 +74,7 @@ static void list_targets() {
 }
 
 int main(int argc, char **argv) {
+    int exit_code = 0;
     // Config'den dili oku ve mesajları yükle
     char lang[16];
     get_config_language(lang, sizeof(lang));
@@ -154,7 +155,7 @@ int main(int argc, char **argv) {
                 last_sep = backslash;
             }
             
-            if (dot && dot > last_sep) {
+            if (dot && (!last_sep || dot > last_sep)) {
                 *dot = '\0';
             }
 
@@ -171,7 +172,10 @@ int main(int argc, char **argv) {
                     char asm_path[256];
                     snprintf(asm_path, sizeof(asm_path), "%s.s", base_name);
                     // Kullanıcı tarafından belirtilen veya varsayılan target kullan
-                    run(ir_path, target_path, asm_path);
+                    if (run(ir_path, target_path, asm_path) != 0) {
+                        fprintf(stderr, "Hata: Codegen işlemi başarısız oldu.\\n");
+                        exit_code = 1;
+                    }
                 } else {
                     printf("Hata: codegen_run sembolü bulunamadı.\n");
                 }
