@@ -148,7 +148,7 @@ Proje şu an **prototip / entegrasyon aşamasında**. Yüzde tamamlanma yerine m
 ## Sıradaki işler
 
 1. Her AST düğüm ailesinin tüm alanları için round-trip test matrisi tamamla; şu an tüm tag'ler smoke-test ediliyor, AST_EXTERN_DECL ve AST_LITERAL için alan testleri var.
-2. AST serializer yazma hatalarını API üzerinden raporla; ASan/UBSan/Valgrind kapsamını ekle.
+2. ASan/UBSan/Valgrind çalıştırma altyapısı ekle; AST alan düzeyindeki round-trip matrisini genişlet.
 3. Lexer/parser/semantic için ayrı, küçük ve izole test kümeleri kur.
 4. C AST serialization ile C++ OIR2'yi karşılaştırıp kanonik OIR v1 sözleşmesine hazırlan.
 
