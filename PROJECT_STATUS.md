@@ -258,3 +258,14 @@ Doğrulama: Yeni yol ile Ubuntu build ve CTest geçti; Ubuntu ASan/UBSan işi de
 ## Klasör düzenlemesi sonrası CI doğrulaması
 
 Son tam doğrulanan kod ağacı commit 9bc6e20be9b8fa48d358f961d927f77992b8aa3d üzerinde: Windows, Ubuntu ve macOS build/CTest işleri başarılı ve her platformda 10/10 test geçti. Ubuntu GCC ASan/UBSan işi 10/10 geçti; Valgrind memcheck işi de 10/10 geçti. Valgrind yalnızca definite/indirect leak türlerini hata kabul edecek şekilde yapılandırıldı. Ardından gelen 7d84739aef8c8577e4686b6ad47d80a164798923 commitinde yalnızca tarihsel plan belgesi arşive taşındı ve yönlendirme bağlantıları güncellendi; derleme kaynakları değişmedi.
+
+
+## Lexer / Parser / Semantic test ayrımı — 31 Ekim 2026
+
+- test_lexer.c: declaration prefix, numeric literal, Nexus Flow operator token'ları ve satır/sütun konumu için izole test.
+- test_parser.c: geçerli kaynak kabulü, bozuk syntax reddi ve parse hatasında partial AST'nin parser context tarafından sahiplenilip temizlenmesi.
+- test_semantic.c: geçerli program ve undefined identifier semantik tanı testi.
+- parser_run() artık AST kökünü parse başında context'e bağlar; syntax hatasıyla erken dönüldüğünde parser_destroy() partial tree'yi temizleyebilir.
+- CI commit b231af5a0476d0c4aee6728361ab5725a1b5edbd üzerinde Windows, Ubuntu ve macOS build/test başarılı; CTest **13/13** geçti. Ubuntu ASan/UBSan ve Valgrind işleri de **13/13** geçti.
+
+Bu testler temel regresyon iskeletidir; lexer token envanterinin tamamını, tüm parser grammar dallarını veya semantic ownership kurallarının tamamını kapsadığı anlamına gelmez.
