@@ -119,3 +119,21 @@ Before exporting this as a stable module ABI, tests and review must settle:
 - Whether diagnostic ordering is source-order, stage-order, or stable insertion order.
 
 Until then, these are logical contract definitions, not a frozen binary ABI.
+
+
+## 10. Initial C implementation status
+
+The first job-owned collector implementation is in:
+- `omnicore-sdk/src/c/core/diagnostics.h`
+- `omnicore-sdk/src/c/core/diagnostics.c`
+
+The current API:
+- Stores structured records in a dynamically grown per-collector array.
+- Copies message and optional hint text into collector-owned storage; caller string pointers are never retained.
+- Preserves diagnostic code, stage ID, message ID, severity and optional source span.
+- Counts diagnostics by severity.
+- Uses a strict output gate: WARNING, ERROR or FATAL blocks final output; NOTE alone does not.
+- Fails closed if collector allocation fails or the collector is missing.
+- Rejects invalid severity/code, malformed source spans and embedded NUL in message text.
+
+The collector is currently a standalone C utility library and is not yet wired into ParserContext, SemanticContext, OIR DIAGNOSTICS sections or the OCC pipeline. It is job-owned by design, but this first version is not internally synchronized; the orchestrator must serialize writes to one collector or add a synchronization wrapper before same-job concurrent reporting.
