@@ -344,4 +344,4 @@ Token metadata:
 - String içindeki newline iki kez sayılmaktan çıkarıldı.
 - test_lexer.c yeni keyword/type eşleşmelerini ve çok satırlı string sonrası source offset/line/column değerlerini kontrol ediyor.
 
-İlk doğrulama: macOS build/CTest başarılı; Windows, Ubuntu, ASan/UBSan ve Valgrind işleri run 41144498647 içinde sürüyordu. Tam CI sonucu henüz bekleniyor.
+Doğrulama: GitHub Actions run 41144498647 tamamlandı. Windows, Ubuntu ve macOS build/CTest **16/16** başarılı; Ubuntu ASan/UBSan ve Valgrind de **16/16** başarılı.
