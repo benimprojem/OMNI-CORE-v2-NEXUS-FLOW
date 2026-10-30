@@ -48,7 +48,18 @@ add_library(occ_oir STATIC
     "${C_SOURCE_DIR}/oir/oir.c"
     "${C_SOURCE_DIR}/oir/oir_payload.c"
 )
+
 target_include_directories(occ_oir PUBLIC "${C_SOURCE_DIR}/oir")
+
+# Frontend token enum <-> stable OIR token ID adapter. Kept separate from the
+# container library so the canonical OIR layer does not depend on parser types.
+add_library(occ_oir_lexer_adapter STATIC
+    "${C_SOURCE_DIR}/oir/oir_token_map.c"
+)
+target_include_directories(occ_oir_lexer_adapter PUBLIC
+    "${C_SOURCE_DIR}/oir"
+    "${C_PARSER_DIR}"
+)
 
 # The C frontend is the canonical compiler frontend.
 # parser/main.c is intentionally excluded: it is an obsolete standalone entry point.
@@ -128,11 +139,13 @@ target_link_libraries(occ PRIVATE occ_frontend ${CMAKE_DL_LIBS})
 
 if(MSVC)
     target_compile_options(occ_oir PRIVATE /W4)
+    target_compile_options(occ_oir_lexer_adapter PRIVATE /W4)
     target_compile_options(occ_frontend PRIVATE /W4)
     target_compile_options(occ_codegen PRIVATE /W4)
     target_compile_options(occ PRIVATE /W4)
 else()
     target_compile_options(occ_oir PRIVATE -Wall -Wextra)
+    target_compile_options(occ_oir_lexer_adapter PRIVATE -Wall -Wextra)
     target_compile_options(occ_frontend PRIVATE -Wall -Wextra)
     target_compile_options(occ_codegen PRIVATE -Wall -Wextra)
     target_compile_options(occ PRIVATE -Wall -Wextra)
@@ -247,6 +260,15 @@ if(BUILD_TESTING)
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         PASS_REGULAR_EXPRESSION "Tanımsız değişken"
     )
+
+    add_executable(test_oir_token_map "${C_SOURCE_DIR}/tests/test_oir_token_map.c")
+    target_link_libraries(test_oir_token_map PRIVATE occ_oir_lexer_adapter)
+    if(MSVC)
+        target_compile_options(test_oir_token_map PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_token_map PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_token_registry_mapping_roundtrip COMMAND test_oir_token_map)
 
     add_executable(test_oir_source_unit "${C_SOURCE_DIR}/tests/test_oir_source_unit.c")
     target_link_libraries(test_oir_source_unit PRIVATE occ_oir)
