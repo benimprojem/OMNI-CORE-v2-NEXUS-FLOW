@@ -357,6 +357,6 @@ Kapanmayan block comment için de TOKEN_ERROR/source span testi eklendi. Sonraki
 - Severity sayımları ve strict output gate eklendi: NOTE tek başına final çıktıyı engellemez; WARNING/ERROR/FATAL engeller.
 - Allocation failure veya collector yokluğu fail-closed davranışıyla final output'u engelliyor.
 - Embedded NUL, geçersiz severity/code ve hatalı source span reddediliyor.
-- `test_diagnostics.c` CTest'e bağlandı. Ubuntu ve macOS testleri **17/17** başarılı; Ubuntu ASan/UBSan ve Valgrind işleri başarılı. Windows build/test henüz tamamlanmayı bekliyor.
+- `test_diagnostics.c` CTest'e bağlandı. Windows, Ubuntu ve macOS build/CTest **17/17** başarılı; Ubuntu ASan/UBSan ve Valgrind de **17/17** başarılı.
 
 Bu collector henüz ParserContext/SemanticContext'e bağlanmadı ve OIR DIAGNOSTICS section codec'i yok. İlk sürüm aynı collector'a eşzamanlı çoklu thread yazımını desteklemez; aynı job içindeki paralel raporlama için orchestrator serialization veya mutex wrapper gerekir.
