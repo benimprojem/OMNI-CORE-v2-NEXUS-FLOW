@@ -153,9 +153,21 @@ static int roundtrips_special_nodes(void) {
     unpack_value->type = TOKEN_NUMBER;
     unpack_value->lit_type = 0;
     unpack_value->int_value = 123;
+    unpack_value->float_value = 123.5;
+    unpack_value->string_value = duplicate_text("123");
     halt_value->type = TOKEN_NUMBER;
     halt_value->lit_type = 0;
     halt_value->int_value = 456;
+    halt_value->float_value = 456.5;
+    halt_value->string_value = duplicate_text("456");
+    if (!unpack_value->string_value || !halt_value->string_value) {
+        ast_destroy((ASTNode*)program);
+        ast_destroy((ASTNode*)unpack);
+        ast_destroy((ASTNode*)halt);
+        ast_destroy((ASTNode*)unpack_value);
+        ast_destroy((ASTNode*)halt_value);
+        return 1;
+    }
 
     unpack->expr = (ASTNode*)unpack_value;
     halt->expr = (ASTNode*)halt_value;
@@ -188,10 +200,16 @@ static int roundtrips_special_nodes(void) {
         decoded_unpack->expr->type == AST_LITERAL &&
         ((ASTLiteral*)decoded_unpack->expr)->type == TOKEN_NUMBER &&
         ((ASTLiteral*)decoded_unpack->expr)->int_value == 123 &&
+        ((ASTLiteral*)decoded_unpack->expr)->float_value == 123.5 &&
+        ((ASTLiteral*)decoded_unpack->expr)->string_value &&
+        strcmp(((ASTLiteral*)decoded_unpack->expr)->string_value, "123") == 0 &&
         decoded_halt->expr &&
         decoded_halt->expr->type == AST_LITERAL &&
         ((ASTLiteral*)decoded_halt->expr)->type == TOKEN_NUMBER &&
-        ((ASTLiteral*)decoded_halt->expr)->int_value == 456;
+        ((ASTLiteral*)decoded_halt->expr)->int_value == 456 &&
+        ((ASTLiteral*)decoded_halt->expr)->float_value == 456.5 &&
+        ((ASTLiteral*)decoded_halt->expr)->string_value &&
+        strcmp(((ASTLiteral*)decoded_halt->expr)->string_value, "456") == 0;
 
     ast_destroy((ASTNode*)decoded);
     ast_destroy((ASTNode*)program);
