@@ -1,3 +1,6 @@
+> [!NOTE]
+> **Tarihsel plan / ana plan değildir.** Bu dosya C++ uygulama hattı esas alınarak hazırlanmış eski bir taslaktır. OmniCore için güncel karar C'nin ana kaynak olmasıdır. Güncel durum ve uygulanacak sıra için [ROADMAP.md](docs/ROADMAP.md), [PROJECT_STATUS.md](docs/PROJECT_STATUS.md) ve [ARCHITECTURE_DECISIONS.md](docs/ARCHITECTURE_DECISIONS.md) belgelerini esas alın. Bu dosyadaki modül yüzdeleri ve OIR varsayımları güncel doğrulama kanıtı sayılmaz.
+
 # OmniCore SDK — Kodlama Planı & Mimari Analiz
 
 ## 1. Proje Genel Bakış
