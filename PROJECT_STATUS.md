@@ -183,3 +183,16 @@ AST tür envanterinde AST_EXTERN_DECL için bir lifecycle uyumsuzluğu bulundu: 
 - Her üç platformda CMake build başarılı; CTest **10/10** geçti. AST_EXTERN_DECL round-trip testi mevcut AST test programının içine dahil edildi.
 
 **Kapsam sınırı:** Bu düzeltme tüm AST düğüm türlerinin eksiksiz test edildiği anlamına gelmez. Tam round-trip matrisi, serializer yazma hatalarının API üzerinden raporlanması ve sanitizer testleri hâlâ açık işlerdir.
+
+
+## AST tag ve literal payload kontrolleri — 31 Ekim 2026
+
+AST tür envanteri ve round-trip testleri genişletildi:
+
+- AST enum'undaki tüm tag değerleri için allocation, node type, line/column ve sibling bağlantısını kapsayan smoke round-trip testi eklendi.
+- AST_LITERAL yapısındaki token type alanının serializer/deserializer tarafından yazılıp okunmadığı tespit edildi. Semantic analiz bu alanı kullandığı için kayıp anlamlıydı.
+- AST_LITERAL serializer/deserializer artık token type alanını da saklıyor. Regresyon testi token type, lit_type, int_value, float_value ve string_value alanlarını kontrol ediyor.
+- AST_EXTERN_DECL alan testi ve özel AST_UNPACK/AST_NEXUS_HALT testleri korunuyor.
+- Son doğrulanan kod koşusu (commit 8ea13a90526a7bd9fa80580c9c8aae0f1c4480b9) Windows, Ubuntu ve macOS üzerinde başarılı; üç platformda CMake build ve 10/10 CTest geçti.
+
+**Kapsam sınırı:** Tüm AST tag değerlerinin smoke round-trip edilmesi, her düğüm ailesindeki tüm alanların doğrulandığı anlamına gelmez. Alan düzeyindeki tam matris hâlâ açık. AST stream biçimi de sürümlenmiş bir genel OIR formatı değildir; bu sürümde AST_LITERAL alan dizilimi değiştiğinden eski dahili .oir dosyaları yeniden üretilmelidir.
