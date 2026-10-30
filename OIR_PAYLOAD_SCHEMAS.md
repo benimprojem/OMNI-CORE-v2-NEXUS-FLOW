@@ -89,7 +89,7 @@ The current Token struct now exposes source_offset and source_length separately 
 Before enabling TOKEN_STREAM serialization:
 1. Add explicit source offset and token flags/diagnostic association to the lexer result contract, or introduce a serialization adapter that can safely distinguish source-backed tokens from diagnostic tokens.
 2. [x] Capture token start line/column/byte offset and fix/test multiline string line tracking.
-3. Ensure unterminated block comments produce a diagnostic rather than being silently consumed to EOF.
+3. [x] Ensure unterminated block comments produce a diagnostic with a source span rather than being silently consumed to EOF.
 4. Audit all 160 token enum entries against actual lexer emission paths; registry presence alone is not evidence of implementation.
 5. Test that every serialized source span resolves to the exact original source bytes.
 
