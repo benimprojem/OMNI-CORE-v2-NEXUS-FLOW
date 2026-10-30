@@ -128,3 +128,26 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 ## Sonraki tek iş
 
 PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned diagnostic collector ve compilation context için C API taslağını çıkar; ardından lexer/parser/semantic'i bu ortak sink'e adapte et.
+
+
+## P0 — OIR ortak artifact standardı (tasarım taslağı eklendi)
+
+- [ ] OIR v1 container binary layout'unu (magic, header byte offsets, numeric IDs, flags, section header) freeze et.
+- [ ] Container reader/writer C API'sini ve opaque artifact handle ownership kurallarını tanımla.
+- [ ] Header/section length overflow, truncation, invalid kind/version, unknown required section/flag ve checksum testlerini ekle.
+- [ ] SOURCE_UNIT ve TOKEN_STREAM payload şemalarını tanımla.
+- [ ] AST payload şemasını tanımla ve parser checkpoint'lerini OIR v1'e geçir.
+- [ ] DIAGNOSTICS ve SOURCE_MAP section'larını uygula.
+- [ ] SEMANTIC_AST payload şemasını tanımla.
+- [ ] Canonical OIR_MODULE için type system, opcode registry, control-flow, memory/ownership ve SSA kararlarını ayrı spec'te ver.
+- [ ] C++ OIR2 ve mevcut C AST stream için gerekirse açık legacy import/migration aracı tasarla; eski dosyaları OIR v1 gibi okumaya çalışma.
+
+> OIR_FORMAT.md şu an mimari taslaktır. Binary offsets, stable IDs ve payload field layout henüz freeze edilmedi.
+
+## Güncel uygulama sırası
+
+1. OIR container binary layout ve C reader/writer API.
+2. Job-owned diagnostic collector ve CompilationContext.
+3. SOURCE_UNIT / TOKEN_STREAM ve AST payload adaptörleri.
+4. Lexer, parser ve semantic aşamalarının OIR artifact alıp üretmesi.
+5. Ortak module ABI ve stage DLL/SO/dylib ayrımı.
