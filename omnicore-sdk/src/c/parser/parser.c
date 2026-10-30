@@ -116,6 +116,8 @@ ParserContext* parser_init(const char* filename) {
     ctx->error_count = 0;
     ctx->error_head = NULL;
     ctx->error_tail = NULL;
+    ctx->diagnostics = NULL;
+    ctx->diagnostic_stage_id = OCC_STAGE_PARSER;
     
     return ctx;
 }
@@ -1865,6 +1867,24 @@ int parser_run(ParserContext* ctx) {
 
 // --- Levenshtein Similarity Helper (ULTRA) ---
 static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int col, const char* message, const char* suggestion, const char* hint, int similarity, int is_warning) {
+    if (ctx->diagnostics) {
+        OccDiagnosticInput input = {0};
+        input.code = (uint32_t)code;
+        input.message_id = (uint32_t)code;
+        input.stage_id = code == ERR_LEXER_ERROR ? OCC_STAGE_LEXER :
+            (ctx->diagnostic_stage_id ? ctx->diagnostic_stage_id : OCC_STAGE_PARSER);
+        input.severity = is_warning ? OCC_DIAG_WARNING : OCC_DIAG_ERROR;
+        input.span.start_line = line > 0 ? (uint32_t)line : 0u;
+        input.span.start_column = col > 0 ? (uint32_t)col : 0u;
+        input.span.end_line = input.span.start_line;
+        input.span.end_column = input.span.start_column;
+        input.span.has_location = (uint8_t)(line > 0 && col > 0);
+        input.message = message ? message : "";
+        input.message_length = strlen(input.message);
+        input.hint = hint ? hint : suggestion;
+        input.hint_length = input.hint ? strlen(input.hint) : 0u;
+        (void)occ_diagnostics_add(ctx->diagnostics, &input);
+    }
     Error* err = (Error*)malloc(sizeof(Error));
     err->code = code;
     err->filename = strdup(ctx->filename ? ctx->filename : "<unknown>");
@@ -1888,6 +1908,12 @@ static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int c
 }
 
 // Eski fonksiyonu yönlendir
+void parser_attach_diagnostics(ParserContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id) {
+    if (!ctx) return;
+    ctx->diagnostics = collector;
+    ctx->diagnostic_stage_id = stage_id ? stage_id : OCC_STAGE_PARSER;
+}
+
 static void parser_add_error(ParserContext* ctx, ErrorCode code, int line, int col, const char* message) {
     parser_add_issue(ctx, code, line, col, message, NULL, NULL, 0, 0);
 }
