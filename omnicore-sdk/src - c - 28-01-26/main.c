@@ -93,28 +93,28 @@ int main(int argc, char **argv) {
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            printf("%s\\n", msg_get(MSG_USAGE));
+            printf("%s\n", msg_get(MSG_USAGE));
             list_targets();
             return 0;
         } else if (strcmp(argv[i], "--target") == 0) {
             if (i + 1 >= argc || argv[i + 1][0] == '-') {
-                fprintf(stderr, "Hata: --target bir hedef adı gerektirir.\\n");
+                fprintf(stderr, "Hata: --target bir hedef adı gerektirir.\n");
                 return 1;
             }
             target_name = argv[++i];
         } else if (argv[i][0] == '-') {
-            fprintf(stderr, "Hata: Bilinmeyen seçenek: %s\\n", argv[i]);
+            fprintf(stderr, "Hata: Bilinmeyen seçenek: %s\n", argv[i]);
             return 1;
         } else if (!source_file) {
             source_file = argv[i];
         } else {
-            fprintf(stderr, "Hata: Birden fazla kaynak dosyası belirtildi: %s\\n", argv[i]);
+            fprintf(stderr, "Hata: Birden fazla kaynak dosyası belirtildi: %s\n", argv[i]);
             return 1;
         }
     }
 
     if (!source_file) {
-        printf("%s\\n", msg_get(MSG_USAGE));
+        printf("%s\n", msg_get(MSG_USAGE));
         list_targets();
         return 1;
     }
