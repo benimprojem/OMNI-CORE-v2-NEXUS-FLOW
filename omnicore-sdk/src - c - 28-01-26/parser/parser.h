@@ -126,7 +126,7 @@ OCC_API ParserContext* parser_init(const char* filename);
 OCC_API int parser_run(ParserContext* ctx);
 OCC_API void parser_destroy(ParserContext* ctx);
 OCC_API void parser_print_errors(ParserContext* ctx);
-OCC_API void parser_save_ir(ParserContext* ctx, const char* path);
+OCC_API int parser_save_ir(ParserContext* ctx, const char* path);
 
 // Message System
 OCC_API void msg_init(const char* lang_file_path);
