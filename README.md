@@ -15,6 +15,7 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [Mimari kararlar](ARCHITECTURE_DECISIONS.md)
 - [Önerilen klasör yapısı](PROPOSED_LAYOUT.md)
 - [Target modeli ve seçim kuralları](TARGET_MODEL.md)
+- [Nexus Flow spec inceleme raporu](SPEC_AUDIT.md)
 
 **Uygulama kararı:** C ana kaynak, C++ ise korunmuş referans uygulamasıdır. OmniCore; Windows, Linux ve macOS için, seçilebilir CPU mimarisi ve isteğe bağlı CPU yetenekleriyle hedef üretmeyi amaçlar. Açık hedef seçilmezse host OS + host architecture varsayılan alınır. Gerçek platform desteği ilgili backend ve testlerle doğrulanır.
 
