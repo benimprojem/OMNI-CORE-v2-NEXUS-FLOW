@@ -295,3 +295,15 @@ Kullanıcının onayıyla derleme aşamaları arasında ortak veri taşıma stan
 - `OIR_FORMAT.md`: initial byte offsets and stable IDs documented.
 
 Current scope is deliberately limited to the container. Payload schemas (SOURCE_UNIT/TOKEN_STREAM/AST/SEMANTIC_AST/OIR_MODULE), filesystem checkpoint helpers, stage ABI and stage DLL integration are not implemented yet. GitHub Actions run 41143050717 completed successfully: Windows, Ubuntu and macOS build/CTest passed **14/14**; Ubuntu ASan/UBSan and Valgrind also passed **14/14**.
+
+
+## OIR SOURCE_UNIT / TOKEN_STREAM schema taslağı — 31 Ekim 2026
+
+- `OIR_TOKEN_REGISTRY.md`: Mevcut C lexer enum'unda 160 token türü bulundu. OIR için 1–160 arası ayrı ve kalıcı token ID listesi oluşturuldu. OIR ID'leri C enum ordinal değerlerine bağlanmayacak; adaptör sembolik eşleme yapacak.
+- `OIR_PAYLOAD_SCHEMAS.md`: SOURCE_UNIT schema 1.0 ve TOKEN_STREAM schema 1.0 için ilk payload düzeni yazıldı.
+- SOURCE_UNIT, kaynak baytlarını UTF-8/path metadata ile orijinal byte dizisi olarak saklar.
+- TOKEN_STREAM, lexeme metnini çoğaltmak yerine SOURCE_UNIT içindeki byte offset/length alanlarına referans verir. Token kaydı 32 byte; token ID, diagnostic reference, source span ve line/column alanları içerir.
+- Mevcut C Token struct henüz source byte offset veya diagnostic ID taşımıyor. Lexer error token'ı source buffer yerine mesaj metnine işaret edebildiği için pointer subtraction ile offset üretmek güvenli değil.
+- Lexer'da multiline string line tracking, unterminated block comment davranışı ve enum tokenlarının gerçek emission coverage'ı OIR token adaptöründen önce denetlenmeli.
+
+Bu bölüm payload şema taslağıdır; SOURCE_UNIT/TOKEN_STREAM encode/decode kodu henüz yazılmadı.
