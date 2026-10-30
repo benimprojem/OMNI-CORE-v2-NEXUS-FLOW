@@ -83,8 +83,55 @@ static int roundtrips_special_nodes(void) {
     return valid ? 0 : 1;
 }
 
+static int roundtrips_large_sibling_list(void) {
+    enum { NODE_COUNT = 700 };
+    ASTProgram* program = (ASTProgram*)ast_create(AST_PROGRAM);
+    if (!program) return 1;
+
+    ASTNode* head = NULL;
+    ASTNode* tail = NULL;
+    for (int i = 0; i < NODE_COUNT; ++i) {
+        ASTNode* node = ast_create(AST_BREAK);
+        if (!node) {
+            ast_destroy(head);
+            ast_destroy((ASTNode*)program);
+            return 1;
+        }
+        if (!head) head = node;
+        else tail->next = node;
+        tail = node;
+    }
+    program->declarations = head;
+
+    FILE* stream = tmpfile();
+    if (!stream) {
+        ast_destroy((ASTNode*)program);
+        return 1;
+    }
+
+    ast_serialize((ASTNode*)program, stream);
+    rewind(stream);
+    ASTProgram* decoded = (ASTProgram*)ast_deserialize(stream);
+    fclose(stream);
+
+    size_t count = 0;
+    if (decoded) {
+        ASTNode* node = decoded->declarations;
+        while (node && count <= NODE_COUNT) {
+            count++;
+            node = node->next;
+        }
+    }
+
+    int valid = decoded && count == NODE_COUNT;
+    ast_destroy((ASTNode*)decoded);
+    ast_destroy((ASTNode*)program);
+    return valid ? 0 : 1;
+}
+
 int main(void) {
     if (roundtrips_special_nodes() != 0) return 4;
+    if (roundtrips_large_sibling_list() != 0) return 5;
 
     struct {
         ASTNodeType type;
@@ -114,6 +161,17 @@ int main(void) {
 
     if (rejects_bytes(&invalid_string, sizeof(invalid_string)) != 0) {
         return 3;
+    }
+
+    struct {
+        ASTNodeType type;
+        int line;
+        int col;
+        int oversized_string_length;
+    } oversized_string = { AST_IDENTIFIER, 1, 1, (16 * 1024 * 1024) + 1 };
+
+    if (rejects_bytes(&oversized_string, sizeof(oversized_string)) != 0) {
+        return 6;
     }
 
     return 0;
