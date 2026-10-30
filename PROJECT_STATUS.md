@@ -294,4 +294,4 @@ Kullanıcının onayıyla derleme aşamaları arasında ortak veri taşıma stan
 - `omnicore-sdk/CMakeLists.txt`: `occ_oir` utility library and `oir_container_roundtrip_and_validation` CTest target.
 - `OIR_FORMAT.md`: initial byte offsets and stable IDs documented.
 
-Current scope is deliberately limited to the container. Payload schemas (SOURCE_UNIT/TOKEN_STREAM/AST/SEMANTIC_AST/OIR_MODULE), filesystem checkpoint helpers, stage ABI and stage DLL integration are not implemented yet. GitHub Actions run 41143050717: Ubuntu and macOS build/CTest passed **14/14**; Ubuntu ASan/UBSan passed. Windows build/test and Ubuntu Valgrind were still in progress at the time of this update.
+Current scope is deliberately limited to the container. Payload schemas (SOURCE_UNIT/TOKEN_STREAM/AST/SEMANTIC_AST/OIR_MODULE), filesystem checkpoint helpers, stage ABI and stage DLL integration are not implemented yet. GitHub Actions run 41143050717 completed successfully: Windows, Ubuntu and macOS build/CTest passed **14/14**; Ubuntu ASan/UBSan and Valgrind also passed **14/14**.
