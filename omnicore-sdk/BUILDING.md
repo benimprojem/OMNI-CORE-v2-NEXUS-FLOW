@@ -103,6 +103,21 @@ The current CTest suite contains ten checks:
 9. Compile `tests/test1.nxf` through the C frontend, semantic analysis, AST serialization/deserialization and shared code generator.
 10. Copy OCC to a separate runtime folder with a Turkish config whose language key appears after section headers; verify the Turkish undefined-variable diagnostic is loaded.
 
+## Sanitizer build (GCC/Clang)
+
+AddressSanitizer and UndefinedBehaviorSanitizer can be enabled without changing
+the normal build:
+
+```sh
+cmake -S omnicore-sdk -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DOCC_ENABLE_SANITIZERS=ON
+cmake --build build-sanitized --config Debug --parallel
+ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 ctest --test-dir build-sanitized -C Debug --output-on-failure
+```
+
+The option currently supports GCC and Clang toolchains; MSVC is intentionally
+rejected rather than silently ignoring sanitizer flags. GitHub Actions runs
+this additional job on Ubuntu.
+
 ## Verification status
 
 The latest GitHub Actions matrix completed successfully on Windows, Ubuntu and
