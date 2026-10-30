@@ -98,8 +98,8 @@ Before enabling TOKEN_STREAM serialization:
 1. [x] Add a stable C enum-to-OIR token ID mapping by symbolic token name (160-token round-trip test).
 2. [x] Add SOURCE_UNIT payload encode/decode and exact-length tests.
 3. Extend lexer token metadata with source byte offsets and diagnostic references.
-4. Add TOKEN_STREAM payload encode/decode and span-validation tests.
-5. [x] Add DIAGNOSTICS payload encode/decode and malformed-input validation tests.
+4. [x] Add DIAGNOSTICS payload encode/decode and malformed-input validation tests.
+5. Add TOKEN_STREAM payload encode/decode and span-validation tests.
 6. Add lexer-to-OIR and OIR-to-parser adapters.
 7. Only then split lexer and parser into separate shared libraries using the common module ABI.
 
