@@ -13,8 +13,11 @@
 
 #ifdef _WIN32
 #include <windows.h>
-typedef int (*CodegenRunFn)(const char*, const char*, const char*);
+#else
+#include <dlfcn.h>
 #endif
+
+typedef int (*CodegenRunFn)(const char*, const char*, const char*);
 
 // Basit Config Okuyucu
 static void get_config_language(char* out_lang, size_t size) {
