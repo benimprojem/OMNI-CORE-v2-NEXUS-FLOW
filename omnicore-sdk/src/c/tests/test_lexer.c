@@ -38,14 +38,47 @@ int main(void) {
             free(ctx.source_buffer);
             return 1;
         }
-        if (i == 4 && (token.line != 2 || token.col != 1)) {
-            fprintf(stderr, "Intent token has incorrect source position: %d:%d\n",
-                token.line, token.col);
+        if (i == 4 && (token.line != 2 || token.col != 1 ||
+            token.source_offset != 10u || token.source_length != 1u)) {
+            fprintf(stderr, "Intent token has incorrect source span: %d:%d offset=%zu length=%zu\n",
+                token.line, token.col, token.source_offset, token.source_length);
             free(ctx.source_buffer);
             return 1;
         }
     }
 
     free(ctx.source_buffer);
+
+    {
+        const char* multiline = "\"first\nsecond\" name";
+        ParserContext multi_ctx;
+        memset(&multi_ctx, 0, sizeof(multi_ctx));
+        multi_ctx.source_len = strlen(multiline);
+        multi_ctx.source_buffer = (char*)malloc(multi_ctx.source_len + 1u);
+        if (!multi_ctx.source_buffer) return 1;
+        memcpy(multi_ctx.source_buffer, multiline, multi_ctx.source_len + 1u);
+        multi_ctx.current_line = 1;
+        multi_ctx.current_col = 1;
+
+        Token string_token = lexer_next_token(&multi_ctx);
+        if (string_token.type != TOKEN_STRING || string_token.line != 1 ||
+            string_token.col != 1 || string_token.source_offset != 0u ||
+            string_token.source_length != 14u) {
+            fprintf(stderr, "Multiline string source span/location is incorrect.\n");
+            free(multi_ctx.source_buffer);
+            return 1;
+        }
+
+        Token identifier = lexer_next_token(&multi_ctx);
+        if (identifier.type != TOKEN_IDENTIFIER || identifier.line != 2 ||
+            identifier.col != 9 || identifier.source_offset != 15u) {
+            fprintf(stderr, "Token after multiline string has incorrect location: %d:%d offset=%zu\n",
+                identifier.line, identifier.col, identifier.source_offset);
+            free(multi_ctx.source_buffer);
+            return 1;
+        }
+        free(multi_ctx.source_buffer);
+    }
+
     return 0;
 }
