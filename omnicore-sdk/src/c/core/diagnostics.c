@@ -59,6 +59,7 @@ int occ_diagnostics_add(
     size_t message_length;
     size_t hint_length;
     size_t required_text;
+    size_t extra_text;
     OccDiagnosticRecord record;
 
     if (!collector || !input) return 0;
@@ -109,19 +110,19 @@ int occ_diagnostics_add(
 
     record.message_offset = (uint32_t)collector->text_length;
     record.message_length = (uint32_t)message_length;
-    if (message_length) {
-        memcpy(collector->text_arena + collector->text_length,
-            input->message, message_length);
-    }
+    memcpy(collector->text_arena + collector->text_length,
+        input->message, message_length);
     collector->text_length += message_length;
+    collector->text_arena[collector->text_length++] = '\0';
 
     record.hint_offset = (uint32_t)collector->text_length;
     record.hint_length = (uint32_t)hint_length;
     if (hint_length) {
         memcpy(collector->text_arena + collector->text_length,
             input->hint, hint_length);
+        collector->text_length += hint_length;
+        collector->text_arena[collector->text_length++] = '\0';
     }
-    collector->text_length += hint_length;
 
     collector->records[collector->count++] = record;
     collector->severity_counts[input->severity]++;
@@ -160,6 +161,7 @@ int occ_diagnostics_get(
 
 int occ_diagnostics_blocks_output(const OccDiagnosticCollector* collector) {
     if (!collector) return 0;
+    if (collector->allocation_failed) return 1;
     return collector->severity_counts[OCC_DIAG_WARNING] != 0 ||
         collector->severity_counts[OCC_DIAG_ERROR] != 0 ||
         collector->severity_counts[OCC_DIAG_FATAL] != 0;
