@@ -90,6 +90,38 @@ int main(void) {
     }
 
     {
+        uint8_t damaged[256];
+        memcpy(damaged, buffer, written);
+        /* First section payload length begins at header + section-header + 8. */
+        memset(damaged + OIR_HEADER_SIZE + 8, 0xff, 8);
+        CHECK(oir_artifact_open(damaged, written, &view) ==
+            OIR_STATUS_INVALID_SECTION, "oversized section length should be rejected");
+    }
+
+    {
+        uint8_t damaged[256];
+        memcpy(damaged, buffer, written);
+        /* Second section begins after the first section header and payload. */
+        damaged[OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + sizeof(payload)] = 99;
+        damaged[OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + sizeof(payload) + 1] = 0;
+        damaged[OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + sizeof(payload) + 4] =
+            (uint8_t)OIR_SECTION_FLAG_REQUIRED;
+        CHECK(oir_artifact_open(damaged, written, &view) ==
+            OIR_STATUS_UNKNOWN_REQUIRED_SECTION,
+            "unknown required section should be rejected");
+    }
+
+    {
+        uint8_t damaged[256];
+        memcpy(damaged, buffer, written);
+        damaged[OIR_HEADER_SIZE] = 99;
+        damaged[OIR_HEADER_SIZE + 1] = 0;
+        damaged[OIR_HEADER_SIZE + 4] = 0;
+        CHECK(oir_artifact_open(damaged, written, &view) ==
+            OIR_STATUS_MISSING_PAYLOAD, "missing primary payload should be rejected");
+    }
+
+    {
         OirSectionInput only_metadata = sections[1];
         CHECK(oir_artifact_write(buffer, sizeof(buffer), &header,
             &only_metadata, 1, &written) == OIR_STATUS_MISSING_PAYLOAD,
