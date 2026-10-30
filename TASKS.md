@@ -163,6 +163,7 @@ PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned 
 - [x] CMake'e `occ_oir` static utility target'ı ve OIR CTest kaydı eklendi.
 - [x] Ubuntu/macOS CMake+CTest 14/14 ve Ubuntu ASan/UBSan doğrulandı. [ ] Windows build/test ve Valgrind sonuçları bekleniyor.
 - [ ] Fuzz/property testleri ve header-extension uyumluluk testlerini ekle.
+- [x] 160 frontend token türü için sembolik OIR ID mapping ve round-trip testi ekle.
 - [x] SOURCE_UNIT payload codec CTest: Windows/Ubuntu/macOS 15/15; Ubuntu ASan/UBSan ve Valgrind 15/15.
 - [x] SOURCE_UNIT ve TOKEN_STREAM payload schema 1.0 taslağı; 160 token türü için OIR_TOKEN_REGISTRY.md stable ID listesi.
 
