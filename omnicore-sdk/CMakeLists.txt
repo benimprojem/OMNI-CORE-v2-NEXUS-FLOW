@@ -139,6 +139,30 @@ if(BUILD_TESTING)
     target_link_libraries(test_ast_deserialize PRIVATE occ_frontend)
     add_test(NAME ast_rejects_malformed_streams COMMAND test_ast_deserialize)
 
+    # Validate known target descriptors and reject malformed or unsupported profiles.
+    add_executable(test_target_parser
+        "${C_CODEGEN_DIR}/target_parser.c"
+        "${C_SOURCE_DIR}/tests/test_target_parser.c"
+    )
+    target_include_directories(test_target_parser PRIVATE
+        "${C_PARSER_DIR}"
+        "${C_CODEGEN_DIR}"
+    )
+    if(MSVC)
+        target_compile_options(test_target_parser PRIVATE /W4)
+    else()
+        target_compile_options(test_target_parser PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME target_parser_validates_descriptors
+        COMMAND test_target_parser
+            "${CMAKE_CURRENT_SOURCE_DIR}/targets/BareMetal64.target"
+            "${CMAKE_CURRENT_SOURCE_DIR}/targets/Linux64.target"
+            "${CMAKE_CURRENT_SOURCE_DIR}/targets/Win64.target"
+            "${CMAKE_CURRENT_SOURCE_DIR}/targets/macOS_AArch64.target"
+            "${CMAKE_CURRENT_SOURCE_DIR}/targets/RV32IMC.target"
+            "${CMAKE_CURRENT_BINARY_DIR}/target_parser_case.target"
+    )
+
     add_test(NAME occ_help COMMAND occ --help)
     set_tests_properties(occ_help PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
