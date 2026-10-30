@@ -162,7 +162,14 @@ static OmniTokenType identifier_type(const char* start, int length) {
             break;
         case 'g': return check_keyword(start, length, "group", TOKEN_KW_GROUP);
         case 'n': return check_keyword(start, length, "no", TOKEN_KW_NO);
-        case 'a': 
+        case 'b':
+            if (length == 5 && memcmp(start, "break", 5) == 0) return TOKEN_KW_BREAK;
+            if (length == 4 && memcmp(start, "bool", 4) == 0) return TOKEN_TYPE_BOOL;
+            if (length == 3 && memcmp(start, "bit", 3) == 0) return TOKEN_TYPE_BIT;
+            if (length == 4 && memcmp(start, "byte", 4) == 0) return TOKEN_TYPE_BYTE;
+            break;
+        case 'a':
+            if (length == 3 && memcmp(start, "any", 3) == 0) return TOKEN_TYPE_ANY;
             if (length >= 3 && memcmp(start, "asm", 3) == 0) {
                 if (length == 3) return TOKEN_KW_ASM;
                 if (length == 7 && memcmp(start, "asmcall", 7) == 0) return TOKEN_KW_ASMCALL;
@@ -214,10 +221,19 @@ static OmniTokenType identifier_type(const char* start, int length) {
         case 'f':
             if (length == 6 && memcmp(start, "fwrite", 6) == 0) return TOKEN_KW_FWRITE;
             if (length == 4 && memcmp(start, "free", 4) == 0) return TOKEN_KW_FREE;
+            if (length == 8 && memcmp(start, "fastexec", 8) == 0) return TOKEN_KW_FASTEXEC;
+            if (length == 3 && memcmp(start, "f32", 3) == 0) return TOKEN_TYPE_F32;
+            if (length == 3 && memcmp(start, "f64", 3) == 0) return TOKEN_TYPE_F64;
             break;
         case 't':
             if (length == 6 && memcmp(start, "typeof", 6) == 0) return TOKEN_KW_TYPEOF;
             if (length == 4 && memcmp(start, "time", 4) == 0) return TOKEN_KW_TIME;
+            break;
+        case 'h':
+            if (length == 3 && memcmp(start, "hex", 3) == 0) return TOKEN_TYPE_HEX;
+            break;
+        case 'v':
+            if (length == 4 && memcmp(start, "void", 4) == 0) return TOKEN_TYPE_VOID;
             break;
         case 'z':
             if (length == 4 && memcmp(start, "zone", 4) == 0) return TOKEN_KW_ZONE;
