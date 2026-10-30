@@ -13,6 +13,8 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->error_tail = NULL;
     ctx->current_depth = 0;
     ctx->current_func_return_type = NULL;
+    ctx->diagnostics = NULL;
+    ctx->diagnostic_stage_id = OCC_STAGE_SEMANTIC;
 }
 
 // --- Similarity Matching (ULTRA) ---
