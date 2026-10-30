@@ -5,6 +5,7 @@
 #include "lexer.h"
 
 void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path) {
+    (void)lang_file_path; /* Reserved for the shared diagnostics localization API. */
     ctx->head = NULL;
     ctx->filename = filename;
     ctx->error_count = 0;
