@@ -9,10 +9,12 @@
 
 ## P0 — Temel güvenilirlik
 
-- [ ] C kaynaklarının temiz checkout üzerinde derlenmesini sağla.
-- [ ] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
-- [ ] C OCC için Windows build hedefi ve Linux/macOS build hedefleri oluştur.
-- [ ] Parser, semantic ve codegen için ayrı build hedefleri oluştur.
+> İlk CMake build altyapısı tamamlandı. GitHub Actions üzerinde üç işletim sisteminde derleme ve üç smoke/integration testi başarılıdır. Build uyarıları ve bozuk/truncated IR güvenliği sonraki güvenilirlik işidir.
+
+- [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
+- [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
+- [x] C OCC için Windows build hedefi ve Linux/macOS build hedefleri oluştur.
+- [x] Parser, semantic ve codegen için ayrı build hedefleri oluştur.
 - [ ] Config okuyucuyu bölüm/satır sırasından bağımsız hale getir.
 - [ ] CLI argüman ayrıştırmasını kaynak dosyası ve seçenek sırasına dayanıklı yap.
 - [ ] Path işlemlerindeki NULL pointer karşılaştırmasını kaldır.
@@ -70,7 +72,7 @@
 - [ ] .nxr build akışını tasarla ve uygula.
 - [ ] stdlib/dpslib bağımlılık çözümlemesini doğrula.
 - [ ] Tekrarlanabilir paketleme ve kurulum akışı oluştur.
-- [ ] CI build/test hattı ekle.
+- [x] CI build/test hattı ekle (Windows, Ubuntu, macOS matrisi).
 
 ## P2/P3 — IDE ve isteğe bağlı özel işlemci
 
