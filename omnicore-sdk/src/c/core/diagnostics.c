@@ -69,7 +69,10 @@ int occ_diagnostics_add(
         input->severity > OCC_DIAG_FATAL ||
         (!input->message && input->message_length != 0) ||
         (!input->hint && input->hint_length != 0) ||
-        input->message_length == 0) {
+        input->message_length == 0 ||
+        memchr(input->message, '\0', input->message_length) != NULL ||
+        (input->hint_length &&
+            memchr(input->hint, '\0', input->hint_length) != NULL)) {
         return 0;
     }
 
@@ -170,7 +173,7 @@ int occ_diagnostics_get(
 }
 
 int occ_diagnostics_blocks_output(const OccDiagnosticCollector* collector) {
-    if (!collector) return 0;
+    if (!collector) return 1;
     if (collector->allocation_failed) return 1;
     return collector->severity_counts[OCC_DIAG_WARNING] != 0 ||
         collector->severity_counts[OCC_DIAG_ERROR] != 0 ||
