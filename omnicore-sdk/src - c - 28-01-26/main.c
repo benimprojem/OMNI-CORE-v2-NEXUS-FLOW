@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
     }
 
     // CLI argümanlarını sıradan bağımsız ayrıştır.
-    const char* target_name = "x86_64_baremetal";
+    const char* target_name = "BareMetal64";
     const char* source_file = NULL;
 
     for (int i = 1; i < argc; i++) {
