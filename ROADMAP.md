@@ -177,3 +177,36 @@ Derleme hedefi tek bir "CPU adı" değildir. En az şu bileşenlerden oluşur:
 Hedef verilmezse host OS + host architecture algılanır. Kullanıcı genel mimari hedefi seçip CPU özelliklerini ayrıca belirtebilir. Belirli CPU modeli seçimi, uyumlu feature kümesini ve backend'in gerçekten desteklediği komutları sınırlandırır. Bir target dosyasının bulunması tek başına codegen desteği anlamına gelmez.
 
 **Not:** Derleyicinin üzerinde çalıştığı host ile üretilen programın target'ı farklı olabilir. Varsayılan host hedefi yalnızca kullanıcı target belirtmediğinde kullanılır; açık target seçimi host varsayımını geçersiz kılar.
+
+
+## Yeni mimari yön — modüler pipeline
+
+**Karar:** Her derleme aşaması bağımsız bir shared library modülü olacak; OCC yalnızca pipeline orkestrasyonu, modül yükleme, artifact aktarımı ve raporlama görevlerini üstlenecek. Ayrıntılı sözleşme: [COMPILER_PIPELINE.md](COMPILER_PIPELINE.md).
+
+### Aşamalar
+1. Lexer
+2. Parser
+3. Semantic analyzer
+4. IR lowering ve OIR validation
+5. Bağımsız optimizer pass modülleri
+6. Target çözümleme ve backend capability doğrulama
+7. Backend/codegen
+8. Assembler
+9. Linker/packager
+
+### Geliştirme sırası
+- [ ] Ortak diagnostic modeli ve derleme başına context.
+- [ ] Artifact türü/sürümü/geçerlilik/ownership sözleşmesi.
+- [ ] Sürümlenmiş C module ABI ve platform bağımsız DLL/SO/dylib loader.
+- [ ] Mevcut codegen modülünü ortak ABI'ye taşı.
+- [ ] Lexer, parser ve semantic analyzer'ı ayrı shared library'lere ayır.
+- [ ] Pipeline orkestratörü, stop-after ve checkpoint çıktıları.
+- [ ] Hata toparlama, kısmi artifact ve final-output gate.
+- [ ] Çoklu derleme işi, kuyruk/back-pressure ve paralellik izolasyonu.
+- [ ] IR/optimizer/target/assembler/linker modüllerini ayır.
+
+### Diagnostic / çıktı kuralı
+Hatalar ve uyarılar aşama çalışmasını mümkün olduğunca durdurmaz; bağımsız kontroller sürdürülür ve rapor en sonda toplu sunulur. Varsayılan katı çıktı kapısı, en az bir hata veya uyarı varsa final artifact yayımlamaz. İstenen ara çıktılar diagnostic ve geçerlilik metadata'sıyla alınabilir. Modül yükleme/ABI/çalışma zamanı gibi altyapı arızalarında güvenli biçimde çalışamayacak bağımlı aşamalar atlanır.
+
+### Durum sınırı
+Bu mimari kabul edilmiştir ve belgelendirilmiştir; henüz uygulanmış değildir. Mevcut C hattında yalnızca codegen ayrı shared library'dir; lexer/parser/semantic birleşik frontend yapısındadır. Genel stop-after/checkpoint ve multi-job scheduler henüz yoktur.
