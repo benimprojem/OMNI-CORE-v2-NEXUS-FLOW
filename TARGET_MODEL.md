@@ -65,3 +65,34 @@ C OCC girişinde şu anda `x86_64_baremetal` varsayılanı ve Windows DLL yükle
 4. Target resolver ve CLI seçenekleri.
 5. Backend capability matrisi.
 6. Platform başına build/test ve cross-compile doğrulaması.
+
+
+## 8. Mevcut `.target` dosyalarının disk biçimi
+
+Mevcut descriptor dosyaları TOML'un tam uygulaması olarak değil, aşağıdaki dar INI/TOML benzeri alt küme olarak ele alınacaktır:
+
+- Bölüm başlıkları: `[target_info]`, `[cpu_arch]`, `[instruction_set]`, `[memory_model]`, `[abi_convention]`, `[output_format]`, `[nexus_primitives]`.
+- Atamalar: `key = value`.
+- String değerler çift tırnaklıdır; sayılar decimal/hex olabilir; bazı bellek boyutları `K/M` son eki kullanır.
+- `#` satır içi ve tam satır yorumları desteklenir.
+- Liste alanları `[...]` biçimindedir.
+- Parser satır, anahtar, değer ve string uzunluklarını sınırlandırmalı; eksik, yinelenen veya bilinmeyen zorunlu alanları açık hata olarak raporlamalıdır.
+- Descriptor varlığı backend desteği anlamına gelmez. Parser descriptor'ı okuyabilir; backend capability kontrolü target'ı desteklenmiyorsa codegen'i durdurmalıdır.
+
+### Kimlik ve OS alanı
+
+`[target_info]` bölümünde `identifier` ve `os` alanları bulunmalıdır. `os` değerleri `none`, `windows`, `linux`, `macos` gibi açık isimlerdir. Beş mevcut descriptor'a bu alan eklendi:
+
+| Descriptor | OS | Mimari | Durum |
+|---|---|---|---|
+| `BareMetal64.target` | `none` | x86_64 | Mevcut C codegen için ilk test hedefi |
+| `Linux64.target` | `linux` | x86_64 | Descriptor var; Linux backend doğrulanmış değil |
+| `Win64.target` | `windows` | x86_64 | Descriptor var; Windows ABI codegen doğrulanmış değil |
+| `macOS_AArch64.target` | `macos` | aarch64 | Descriptor var; AArch64 backend yok |
+| `RV32IMC.target` | `none` | riscv32 | Descriptor var; RISC-V backend yok |
+
+`custom_dsp_v1.target` dosyası `...` placeholder'ları içerdiği için tamamlanmış bir descriptor değildir; parser testlerinde geçersiz/incomplete örnek olarak kullanılmalıdır.
+
+### Mevcut parser farkı
+
+C codegen içindeki eski `parse_target()` hâlâ `key: value` satırları bekliyor; mevcut dosyalar ise bölüm + `key = value` biçiminde. Eski parser dosya açılamadığında da varsayılan target değerleriyle devam ediyor. Bu uyumsuzluk çözülene kadar C codegen'in mevcut descriptor dosyalarını gerçekten okuduğu varsayılmamalıdır.
