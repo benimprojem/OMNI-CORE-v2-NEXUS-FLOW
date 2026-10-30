@@ -111,7 +111,12 @@ typedef struct {
     size_t pos;
     int current_line;
     int current_col;
-    
+
+    /* Per-token start position captured by the lexer after whitespace skipping. */
+    size_t token_start_offset;
+    int token_start_line;
+    int token_start_col;
+
     // Slot (Masa) Haritası - Semantic Analiz için
     void* ast_root; // (ASTNode*) tipinde, void* olarak tutuyoruz
     // void* slot_map; 
