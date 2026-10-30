@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
         semantic_check(&sem_ctx, (ASTNode*)ctx->ast_root);
 
         if (sem_ctx.error_count == 0) {
-            char base_name[256];
+            char base_name[512];
             strncpy(base_name, source_file, sizeof(base_name) - 1);
             base_name[sizeof(base_name) - 1] = '\0';
 
@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
                 *dot = '\0';
             }
 
-            char ir_path[256];
+            char ir_path[520];
             snprintf(ir_path, sizeof(ir_path), "%s.oir", base_name);
             parser_save_ir(ctx, ir_path);
             printf("IR kaydedildi: %s\n", ir_path);
@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "Hata: codegen_run sembolu bulunamadi.\n");
                 exit_code = 1;
             } else {
-                char asm_path[256];
+                char asm_path[520];
                 snprintf(asm_path, sizeof(asm_path), "%s.s", base_name);
                 if (run(ir_path, target_path, asm_path) != 0) {
                     fprintf(stderr, "Hata: Codegen islemi basarisiz oldu.\n");
