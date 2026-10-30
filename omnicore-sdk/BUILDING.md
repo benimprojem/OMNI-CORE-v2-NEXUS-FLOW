@@ -89,7 +89,7 @@ not part of this C build.
 
 ## Current CTest coverage
 
-The current CTest suite contains sixteen checks:
+The current CTest suite contains seventeen checks:
 
 1. Reject truncated, invalid and oversized AST streams; round-trip every AST node tag and every serialized field using byte-equality; verify AST_EXTERN_DECL and AST_LITERAL regressions, AST_UNPACK/AST_NEXUS_HALT, a 700-node sibling list, and parser_save_ir failure propagation.
 2. Validate all five current target descriptors, reject malformed/duplicate/unknown/oversized fields, and distinguish valid target descriptions from backend support.
@@ -107,6 +107,7 @@ The current CTest suite contains sixteen checks:
 14. Serialize and read an OIR v1 container; verify round-trip fields and reject truncated streams, bad magic, inconsistent total/section lengths, unknown required sections, missing payloads, invalid no-artifact state and undersized output buffers.
 15. Encode and decode SOURCE_UNIT schema 1.0; verify path/source byte round-trip, exact lengths, valid UTF-8 and rejection of malformed UTF-8, embedded NUL, truncation, unsupported source ID and undersized buffers.
 16. Verify all 160 frontend token kinds map bidirectionally to stable OIR token IDs; reject unknown enum values, unknown IDs and null output pointers.
+17. Collect job-owned diagnostics with owned message/hint storage; verify severity counts, source spans, NOTE-only non-blocking behavior, strict warning/error output gate and fail-closed invalid/allocation states.
 
 ## Sanitizer build (GCC/Clang)
 
@@ -133,8 +134,8 @@ this additional job on Ubuntu.
 
 ## Verification status
 
-GitHub Actions workflow run 41144698187 completed successfully:
-CMake configure, build and all sixteen CTest checks passed on Windows, Ubuntu
-and macOS. The Ubuntu GCC ASan/UBSan job and Ubuntu Valgrind memcheck job also
-passed. This verifies the committed clean-checkout CI path; it does not claim
-a separate local build on the user's machine.
+GitHub Actions workflow run 41145065669 is validating the diagnostic collector:
+Ubuntu and macOS CMake build/CTest passed all seventeen checks, and Ubuntu
+ASan/UBSan and Valgrind jobs passed. Windows build/test was still running at
+the time of this update. This verifies clean-checkout CI paths; it does not
+claim a separate local build on the user's machine.
