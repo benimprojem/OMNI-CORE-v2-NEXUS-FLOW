@@ -12,6 +12,7 @@ Bu depo henüz tamamlanmış, çoklu hedef destekli bir derleyici değildir. Lex
 - [Geliştirme yol haritası](../ROADMAP.md)
 - [Mimari kararlar](../ARCHITECTURE_DECISIONS.md)
 - [Hedef klasör yapısı](../PROPOSED_LAYOUT.md)
+- [Target modeli](../TARGET_MODEL.md)
 
 ## Mevcut kaynaklar
 
