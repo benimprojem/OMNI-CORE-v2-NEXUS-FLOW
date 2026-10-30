@@ -18,7 +18,7 @@
 - [x] Config okuyucuyu bölüm/satır sırasından bağımsız hale getir (bölüm başlıklarından sonra gelen `language = "tr"` ayarıyla tanı testi).
 - [x] CLI argüman ayrıştırmasını kaynak dosyası ve seçenek sırasına dayanıklı yap (hedef öncesi/sonrası, eksik hedef, bilinmeyen seçenek ve birden fazla kaynak testleri).
 - [x] Path işlemlerindeki NULL pointer karşılaştırmasını kaldır; runtime config/lang/target/codegen yollarını executable konumundan çöz ve farklı CWD'den test et.
-- [ ] Parser/codegen hata durumlarını OCC çıkış koduna aktar.
+- [x] Parser/semantic/codegen hata durumlarını OCC çıkış koduna aktar (kod yolu mevcut; codegen yükleme hatası için ayrı failure-injection testi bekliyor).
 - [ ] Otomatik lexer/parser/semantic test iskeletini kur.
 - [ ] AST ve semantic bellek sahipliği/free kurallarını doğrula.
 
@@ -70,9 +70,9 @@
 - [ ] x86-64 ve AArch64 için gerçek backend kapsamını ayrı ayrı belirle.
 - [ ] CPU model/feature seçimini backend capability kontrolüne bağla.
 - [ ] Target dosyası ile gerçek backend desteğini ayır.
-- [ ] Target parser'da bounded string parsing ve alan uzunluğu doğrulaması uygula.
-- [ ] Eksik target dosyası, bilinmeyen alan ve bilinmeyen feature için açık hata üret.
-- [ ] Target parser testleri: truncated, uzun alan, eksik alan, duplicate key ve invalid enum.
+- [x] Target parser'da bounded string parsing ve alan uzunluğu doğrulaması uygula.
+- [x] Eksik target dosyası, bilinmeyen alan ve bilinmeyen feature için açık hata üret.
+- [ ] Target parser testlerini CI üzerinde doğrula (geçerli beş descriptor, eksik dosya, uzun satır/alan, eksik alan, duplicate key, unknown key/section, invalid arch/feature).
 - [ ] Windows DLL, Linux .so ve macOS .dylib codegen yükleme/bağlama stratejisini belirle.
 - [ ] Codegen yüklenemediğinde derlemeyi başarılı göstermeyen hata davranışını uygula.
 - [ ] Target listeleme ve target dosyası çözümlemesini platformdan bağımsız hale getir.
@@ -100,4 +100,4 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 
 ## Sonraki tek iş
 
-Faz 0: C hattının tekrarlanabilir build sürecini oluşturmak. Ardından config/CLI/path ve hata kodu sorunlarını düzeltmek.
+Yeni eklenen target parser testini Windows, Ubuntu ve macOS CI üzerinde doğrula. Ardından AST düğüm türlerinin tamamı için round-trip test matrisine geç.
