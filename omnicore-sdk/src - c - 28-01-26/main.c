@@ -132,7 +132,10 @@ int main(int argc, char **argv) {
             char *dot = strrchr(base_name, '.');
             char *slash = strrchr(base_name, '/');
             char *backslash = strrchr(base_name, '\\');
-            char *last_sep = slash > backslash ? slash : backslash;
+            char *last_sep = slash;
+            if (backslash && (!last_sep || backslash > last_sep)) {
+                last_sep = backslash;
+            }
             
             if (dot && dot > last_sep) {
                 *dot = '\0';
