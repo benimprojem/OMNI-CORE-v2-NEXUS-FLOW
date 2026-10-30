@@ -51,8 +51,10 @@ static Token error_token(ParserContext* ctx, const char* message) {
     token.type = TOKEN_ERROR;
     token.start = message;
     token.length = (int)strlen(message);
-    token.line = ctx->current_line;
-    token.col = ctx->current_col;
+    token.line = ctx->token_start_line;
+    token.col = ctx->token_start_col;
+    token.source_offset = ctx->token_start_offset;
+    token.source_length = ctx->pos - ctx->token_start_offset;
     return token;
 }
 
