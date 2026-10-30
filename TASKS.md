@@ -45,6 +45,7 @@
 - [ ] Token envanterini dil spesifikasyonuyla karşılaştır.
 - [x] Enum'da tanımlı fakat lexer'da eşlemesi olmayan 13 token/primitive type'ı tanı (asm, fastexec, break, echo/send/receive, f32/f64, bool/bit/byte/hex/void/any); is_err yanlış uzunluk karşılaştırmasını düzelt.
 - [x] Token başlangıç byte offset/line/column ve source span length alanlarını ekle; multiline string line sayımını düzelt ve test et.
+- [x] Kapanmayan block comment'i TOKEN_ERROR olarak source span ile bildir; lexer'ın ardından EOF'a ulaşmasını test et.
 - [ ] The 15 Keys operatörlerinin token öncelik ve çakışma testlerini ekle.
 - [ ] AST düğüm sözleşmesini ve source location bilgisini sabitle.
 - [ ] Scope, type promotion, ownership ve control-flow kurallarını testlerle doğrula.
