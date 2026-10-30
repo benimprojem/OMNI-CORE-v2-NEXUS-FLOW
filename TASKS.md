@@ -48,6 +48,9 @@
 - [ ] x86-64 ve AArch64 için gerçek backend kapsamını ayrı ayrı belirle.
 - [ ] CPU model/feature seçimini backend capability kontrolüne bağla.
 - [ ] Target dosyası ile gerçek backend desteğini ayır.
+- [ ] Target parser'da bounded string parsing ve alan uzunluğu doğrulaması uygula.
+- [ ] Eksik target dosyası, bilinmeyen alan ve bilinmeyen feature için açık hata üret.
+- [ ] Target parser testleri: truncated, uzun alan, eksik alan, duplicate key ve invalid enum.
 - [ ] Windows DLL, Linux .so ve macOS .dylib codegen yükleme/bağlama stratejisini belirle.
 - [ ] Codegen yüklenemediğinde derlemeyi başarılı göstermeyen hata davranışını uygula.
 - [ ] Target listeleme ve target dosyası çözümlemesini platformdan bağımsız hale getir.
