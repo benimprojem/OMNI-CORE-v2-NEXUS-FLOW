@@ -12,7 +12,7 @@ NexusFlow'u Windows, Linux ve macOS üzerinde çalıştırabilen; bu sistemler i
 - **C hattı:** C11 tabanlı frontend (lexer/parser/AST/semantic), OCC CLI ve ayrı yüklenebilir codegen modülü mevcut. Dil kapsamının tamamı henüz uygulanmış/doğrulanmış değil.
 - **C++ hattı:** Lexer/parser, OIR writer, analyzer ve OCE/IDE kaynakları korunuyor; ana geliştirme hattı değil.
 - **Ortak sözleşme:** C AST serialization ile C++ OIR2 birbirinden farklı. Kanonik, sürümlenmiş OIR sözleşmesi henüz yok.
-- **Build/test:** CMake tabanlı C build'i, Windows/Linux/macOS CI matrisi ve CTest hattı mevcut. Önceki CI koşusunda 9/9 test geçti; target parser doğrulama testi sonradan eklendi ve yeni CI sonucu bekleniyor.
+- **Build/test:** CMake tabanlı C build'i, Windows/Linux/macOS CI matrisi ve CTest hattı mevcut. Son CI koşusunda Windows, Ubuntu ve macOS üzerinde 10/10 CTest başarılı; target parser doğrulaması da bu kapsama dahil.
 - **Backend:** Target descriptor parser mevcut tanımları doğrulayabiliyor; gerçek C backend şu an yalnızca x86-64/64-bit/little-endian/bare-metal/raw profili destekliyor. Diğer tanımların okunabilmesi codegen desteği anlamına gelmiyor.
 - **Dil doğruluğu:** Dokümanlardaki tüm özelliklerin C uygulamasında desteklendiğini gösteren kapsamlı test matrisi henüz yok.
 
@@ -41,7 +41,7 @@ Proje şu an **prototip / entegrasyon aşamasında**. Yüzde tamamlanma yerine m
 - [x] CMake'in Debug/Release yapılandırmalarını desteklemesi; mevcut sarmalayıcıların Release build kullanması.
 - [x] Windows ve Unix build sarmalayıcılarında alt işlem hata kodlarını kontrol et.
 - [ ] Kaynak, test girdisi, test çıktısı ve binary dosyalarını fiziksel olarak ayır.
-- [x] Temiz checkout build/test akışını Windows, Ubuntu ve macOS CI üzerinde doğrula (önceki koşu 9/9; yeni target parser testi için tekrar doğrulama bekleniyor).
+- [x] Temiz checkout build/test akışını Windows, Ubuntu ve macOS CI üzerinde doğrula (10/10 CTest başarılı).
 - [ ] Build ve derleyici sürümünü tanı çıktısına ekle.
 
 **Çıkış ölçütü:** Temiz checkout'tan tekrarlanabilir build; hata durumunda sıfır olmayan çıkış kodu.
@@ -147,11 +147,10 @@ Proje şu an **prototip / entegrasyon aşamasında**. Yüzde tamamlanma yerine m
 
 ## Sıradaki işler
 
-1. Yeni target parser testinin Windows/Linux/macOS CI sonucunu doğrula.
-2. AST düğüm türlerinin tamamı için round-trip test matrisi oluştur.
-3. AST serializer yazma hatalarını API üzerinden raporla; ASan/UBSan/Valgrind kapsamını ekle.
-4. Lexer/parser/semantic için ayrı, küçük ve izole test kümeleri kur.
-5. C AST serialization ile C++ OIR2'yi karşılaştırıp kanonik OIR v1 sözleşmesine hazırlan.
+1. AST düğüm türlerinin tamamı için round-trip test matrisi oluştur; AST_EXTERN_DECL için bulunan eksiklik giderildi ve üç platformda doğrulandı.
+2. AST serializer yazma hatalarını API üzerinden raporla; ASan/UBSan/Valgrind kapsamını ekle.
+3. Lexer/parser/semantic için ayrı, küçük ve izole test kümeleri kur.
+4. C AST serialization ile C++ OIR2'yi karşılaştırıp kanonik OIR v1 sözleşmesine hazırlan.
 
 ## İlerleme raporu formatı
 
