@@ -262,11 +262,27 @@ static int roundtrips_large_sibling_list(void) {
     return valid ? 0 : 1;
 }
 
-int main(void) {
+static int parser_save_ir_rejects_invalid_path(const char* path) {
+    ParserContext context;
+    memset(&context, 0, sizeof(context));
+    context.ast_root = ast_create(AST_PROGRAM);
+    if (!context.ast_root) return 0;
+
+    int saved = parser_save_ir(&context, path);
+    ast_destroy((ASTNode*)context.ast_root);
+    return saved == 0;
+}
+
+int main(int argc, char** argv) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: test_ast_deserialize <invalid-output-path>\\n");
+        return 9;
+    }
     if (roundtrips_all_node_type_tags() != 0) return 8;
     if (roundtrips_extern_decl() != 0) return 7;
     if (roundtrips_special_nodes() != 0) return 4;
     if (roundtrips_large_sibling_list() != 0) return 5;
+    if (!parser_save_ir_rejects_invalid_path(argv[1])) return 10;
 
     struct {
         ASTNodeType type;
