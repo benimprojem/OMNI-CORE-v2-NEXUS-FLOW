@@ -1825,8 +1825,10 @@ int parser_run(ParserContext* ctx) {
     advance(&parser); // İlk tokeni yükle
 
     ASTProgram* program = (ASTProgram*)ast_create(AST_PROGRAM);
+    if (!program) return 1;
     program->base.line = 1;
     program->base.col = 1;
+    ctx->ast_root = (void*)program; /* Keep partial trees owned by the context on parse failure. */
     ASTNode* current_stmt = NULL;
 
     while (!match(&parser, TOKEN_EOF)) {
