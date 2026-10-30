@@ -211,8 +211,10 @@ OirStatus oir_artifact_write(
             return OIR_STATUS_UNKNOWN_REQUIRED_SECTION;
         }
 
-        if (sections[i].length > (uint64_t)SIZE_MAX ||
-            (size_t)sections[i].length > SIZE_MAX - total - OIR_SECTION_HEADER_SIZE) {
+        if (total > SIZE_MAX - OIR_SECTION_HEADER_SIZE ||
+            sections[i].length > (uint64_t)SIZE_MAX ||
+            (size_t)sections[i].length >
+                SIZE_MAX - total - OIR_SECTION_HEADER_SIZE) {
             return OIR_STATUS_OVERFLOW;
         }
         total += OIR_SECTION_HEADER_SIZE + (size_t)sections[i].length;
