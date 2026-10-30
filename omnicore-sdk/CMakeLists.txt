@@ -67,6 +67,7 @@ endif()
 # and libcodegen.dylib on macOS.
 add_library(occ_codegen SHARED
     "${C_CODEGEN_DIR}/codegen.c"
+    "${C_CODEGEN_DIR}/target_parser.c"
 )
 
 set_target_properties(occ_codegen PROPERTIES
