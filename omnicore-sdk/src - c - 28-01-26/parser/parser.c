@@ -1862,36 +1862,6 @@ int parser_run(ParserContext* ctx) {
 }
 
 // --- Levenshtein Similarity Helper (ULTRA) ---
-static int levenshtein(const char* s1, const char* s2) {
-    int len1 = strlen(s1), len2 = strlen(s2);
-    int matrix[256][256]; // Basit statik matrix (Küçük isimler için yeterli)
-    
-    if (len1 > 255) len1 = 255;
-    if (len2 > 255) len2 = 255;
-
-    for (int i = 0; i <= len1; i++) matrix[i][0] = i;
-    for (int j = 0; j <= len2; j++) matrix[0][j] = j;
-
-    for (int i = 1; i <= len1; i++) {
-        for (int j = 1; j <= len2; j++) {
-            int cost = (s1[i - 1] == s2[j - 1]) ? 0 : 1;
-            int a = matrix[i - 1][j] + 1;
-            int b = matrix[i][j - 1] + 1;
-            int c = matrix[i - 1][j - 1] + cost;
-            if (a < b) matrix[i][j] = (a < c) ? a : c;
-            else matrix[i][j] = (b < c) ? b : c;
-        }
-    }
-    return matrix[len1][len2];
-}
-
-static int get_similarity(const char* s1, const char* s2) {
-    int dist = levenshtein(s1, s2);
-    int max_len = strlen(s1) > strlen(s2) ? strlen(s1) : strlen(s2);
-    if (max_len == 0) return 100;
-    return (int)((1.0 - (double)dist / max_len) * 100);
-}
-
 static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int col, const char* message, const char* suggestion, const char* hint, int similarity, int is_warning) {
     Error* err = (Error*)malloc(sizeof(Error));
     err->code = code;
