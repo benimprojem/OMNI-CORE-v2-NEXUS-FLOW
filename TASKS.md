@@ -104,4 +104,4 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 
 ## Sonraki tek iş
 
-ASan/UBSan çalıştırma seçeneği ve CI test işi ekle. Windows build'i etkilenmeden Linux üzerinde sanitizer doğrulaması yap.
+Valgrind çalıştırma seçeneği ve CI doğrulaması ekle; ASan/UBSan altında bulunan semantic scope slot sızıntısının düzeltildiğini ve 10/10 testin geçtiğini koru.
