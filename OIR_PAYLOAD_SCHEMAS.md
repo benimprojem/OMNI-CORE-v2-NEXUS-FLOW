@@ -84,11 +84,11 @@ The first implementation can use a single source unit per compilation job. Multi
 
 ## 4. Important current-lexer compatibility work
 
-The current Token struct contains a pointer to lexeme text plus length/line/column; it does not yet expose a stable byte offset or diagnostic ID. In particular, lexer error tokens currently point at message text rather than the source buffer. An adapter must not calculate offsets by subtracting those unrelated pointers.
+The current Token struct now exposes source_offset and source_length separately from its lexeme/message pointer and length. Lexer error tokens still point at message text in Token.start, but carry the consumed source span in the new source fields. A diagnostic ID is not yet assigned; the shared diagnostic collector will supply that association.
 
 Before enabling TOKEN_STREAM serialization:
 1. Add explicit source offset and token flags/diagnostic association to the lexer result contract, or introduce a serialization adapter that can safely distinguish source-backed tokens from diagnostic tokens.
-2. Fix and test line/column tracking for multiline literals.
+2. [x] Capture token start line/column/byte offset and fix/test multiline string line tracking.
 3. Ensure unterminated block comments produce a diagnostic rather than being silently consumed to EOF.
 4. Audit all 160 token enum entries against actual lexer emission paths; registry presence alone is not evidence of implementation.
 5. Test that every serialized source span resolves to the exact original source bytes.
