@@ -45,27 +45,27 @@ Konum: src/
 - docs/: Çok sayıda dil/derleyici tasarım belgesi.
 - impl_plan.md ve kodlama_plani.md aynı içerik ve aynı blob SHA değerine sahip mükerrer plan dosyalarıdır.
 
-## Statik incelemede görülen somut riskler
+## İlk statik incelemeden kalan riskler ve güncel durum
 
-1. **C config okuma:** get_config_language() içinde eşleşmeyen ilk satırda döngüden çıkılıyor. occ.ocf dosyası [package] ile başladığı için language alanına ulaşılmayabilir.
-2. **C path işlemi:** main.c içinde slash ve backslash işaretçileri NULL olabilecek durumdayken doğrudan karşılaştırılıyor. NULL işaretçileri arasında ilişkisel karşılaştırma tanımlı değildir.
-3. **C CLI:** Kaynak dosyası doğrudan argv[1] kabul ediliyor; seçeneklerin farklı sıralanması güvenli biçimde ele alınmıyor.
-4. **C codegen:** Target yapılandırması okunsa da çıktı üretiminde x86-64/NASM varsayımları var. Target dosyası bulunması ARM64 desteğini kanıtlamaz.
-5. **C hata kodları:** Parser ve semantic hataları üst seviyeye taşınıyor; codegen modülünün yüklenememesi veya codegen çağrısının başarısız olması artık OCC çıkış kodunu başarısız yapacak şekilde düzenlendi. Bu davranış build/test ile doğrulanmayı bekliyor.
-6. **C++ OIR:** C++ OIR2 reader/writer formatı, C AST serialization ile aynı değil. Reader'ın header/offset/length doğrulaması ve string sonlandırması ayrıca denetlenmeli.
-7. **Build düzeni:** Build betikleri farklı kaynak yolları ve farklı uygulama hatları varsayıyor. Temiz checkout build'i henüz doğrulanmadı.
-8. **Görev listesi:** C++ modülleri için yazılmış yüzde tamamlanma iddiaları test kanıtı ile desteklenmiyor. Bundan sonra yüzdeler yerine kanıt temelli durum kullanılmalı.
+1. **C config okuma — ilk katman çözüldü:** `get_config_language()` artık config dosyasının tüm satırlarını tarıyor. Config dosyası da executable konumundan bulunuyor.
+2. **C path işlemi — ilk katman çözüldü:** NULL slash/backslash karşılaştırması kaldırıldı. Runtime asset yolları executable konumuna göre kuruluyor.
+3. **C CLI — ilk katman çözüldü:** Kaynak ve `--target` sıralaması serbest; bilinmeyen seçenek, eksik target değeri ve birden fazla kaynak reddediliyor. CI testleriyle doğrulandı.
+4. **C codegen — açık:** Çıktı üretimi hâlâ x86-64/NASM varsayımlarına dayanıyor. Target dosyasının varlığı ARM64 desteğini kanıtlamaz.
+5. **C hata kodları — kısmen doğrulandı:** Normal compile yolu ve CLI hata yolları test edildi. Codegen modülünün yüklenememesi/bozuk sembol gibi hata enjeksiyon testleri henüz yok.
+6. **C++ OIR — açık:** C++ OIR2 reader/writer formatı C AST serialization ile aynı değil. Reader'ın header/offset/length doğrulaması ve string sonlandırması ayrıca denetlenmeli.
+7. **Build düzeni — ilk katman çözüldü:** CMake build, Windows/Ubuntu/macOS CI matrisi ve sekiz CTest kontrolü mevcut.
+8. **Görev listesi:** İlerleme yüzdeleri yerine test veya kod kanıtı olan tamamlanma durumu kullanılmaya devam edilecek.
 
 ## Bu raporun kapsamı dışı
 
-- Hiçbir C veya C++ binary'si burada çalıştırılmadı.
-- Derleyici çıktılarının semantik doğruluğu ölçülmedi.
-- Bellek sızıntısı iddiaları ASan/Valgrind veya eşdeğer testler çalıştırılmadan kesinleştirilmedi.
-- ISA, ABI ve OIR v1 tasarımı nihai hale getirilmedi.
+- Assistant çalışma ortamında yerel binary çalıştırılmadı; build ve testler GitHub Actions runner'larında yürütüldü.
+- Derleyici çıktılarının semantik doğruluğu tüm dil özellikleri için ölçülmedi.
+- ASan/UBSan/Valgrind bellek doğrulaması henüz yapılmadı.
+- ISA, ABI ve kanonik OIR v1 tasarımı nihai hale getirilmedi.
 
 ## Öncelikli sonuç
 
-İlk iş yeni özellik eklemek değil; C hattını tekrarlanabilir biçimde derlemek, temel testleri otomatikleştirmek ve CLI/config/path sorunlarını kapatmaktır. Bundan sonra AST/semantic güvenilirliği ve kanonik OIR'a geçilecektir.
+İlk build, temel AST girdi güvenliği ve CLI/path katmanı artık üç platformda CI ile doğrulanıyor. Sonraki adımlar: runtime yol davranışının test kapsamını genişletmek, target descriptor parser'ını mevcut dosya biçimiyle uyumlu ve güvenli hale getirmek, ardından AST/OIR formatını sürümleme ve doğrulama kurallarıyla ele almak.
 
 
 ## Çalışma dalındaki ilk düzeltmeler
@@ -79,7 +79,7 @@ Bu raporun ardından C ana programında aşağıdaki değişiklikler kodlandı:
 - Windows ve POSIX yol ayırıcıları NULL pointer karşılaştırması yapmadan ele alınıyor.
 - Parser, semantic ve codegen başarısızlıklarının süreç çıkış koduna taşınması eklendi.
 
-**Doğrulama durumu:** Bu değişiklikler çalışma dalına işlendi; henüz derleme veya otomatik test çalıştırılmadı. Bu nedenle durumları "Kodlandı / Test bekliyor" olarak değerlendirilmelidir. Build/test geçmeden tamamlandı sayılmayacaklar.
+**Doğrulama durumu:** Bu ilk düzeltmeler CMake/CTest hattına alındı. CLI seçenek sıralaması ve hata durumları üç platformda CI ile doğrulandı. Runtime asset yollarının executable konumuna taşınması da sekiz testlik son CI koşusunda Windows, Ubuntu ve macOS üzerinde başarılı oldu.
 
 
 ## Hedef platform kararı
@@ -134,7 +134,7 @@ Bu nedenle target parser'ı güvenli ve doğrulayıcı hale getirilmeden mevcut 
 7. Birden fazla kaynak dosyasını reddetme.
 8. `tests/test1.nxf` dosyasını lexer→parser→semantic→AST serialization/deserialization→shared codegen yolundan geçirme.
 
-Son doğrulanan CI koşusunda üç platformda da derleyici uyarısı kalmadı. Bu testler ilk güvenilirlik katmanını doğrular; dilin tüm özelliklerinin veya tüm AST düğüm türlerinin doğrulandığı anlamına gelmez. CMake ilk sürümü runtime dosyaları için `build/bin` çalışma dizinini varsayar.
+Son doğrulanan CI koşusunda üç platformda da derleyici uyarısı kalmadı. Bu testler ilk güvenilirlik katmanını doğrular; dilin tüm özelliklerinin veya tüm AST düğüm türlerinin doğrulandığı anlamına gelmez. Runtime config, language, target ve codegen dosyaları executable konumundan çözülür; son CI testleri farklı çalışma dizininden başlatmayı doğrular.
 
 
 ## AST ve kaynak dosyası okuma güvenliği — ilk katman
