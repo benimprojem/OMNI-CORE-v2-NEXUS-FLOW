@@ -132,9 +132,9 @@ PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned 
 
 ## P0 — OIR ortak artifact standardı (tasarım taslağı eklendi)
 
-- [ ] OIR v1 container binary layout'unu (magic, header byte offsets, numeric IDs, flags, section header) freeze et.
-- [ ] Container reader/writer C API'sini ve opaque artifact handle ownership kurallarını tanımla.
-- [ ] Header/section length overflow, truncation, invalid kind/version, unknown required section/flag ve checksum testlerini ekle.
+- [x] OIR v1.0 container binary layout'unu (magic, header byte offsets, numeric IDs, flags, section header) tanımla.
+- [x] Container in-memory reader/writer C API'sini tanımla (opaque module ABI/ownership entegrasyonu sonraki iş).
+- [x] Header/section bounds, truncation, bad magic, total-length mismatch, unknown required section, missing payload ve small-buffer testlerini ekle. [ ] Checksum algoritması ve fuzz/property testleri açık.
 - [ ] SOURCE_UNIT ve TOKEN_STREAM payload şemalarını tanımla.
 - [ ] AST payload şemasını tanımla ve parser checkpoint'lerini OIR v1'e geçir.
 - [ ] DIAGNOSTICS ve SOURCE_MAP section'larını uygula.
@@ -142,7 +142,7 @@ PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned 
 - [ ] Canonical OIR_MODULE için type system, opcode registry, control-flow, memory/ownership ve SSA kararlarını ayrı spec'te ver.
 - [ ] C++ OIR2 ve mevcut C AST stream için gerekirse açık legacy import/migration aracı tasarla; eski dosyaları OIR v1 gibi okumaya çalışma.
 
-> OIR_FORMAT.md şu an mimari taslaktır. Binary offsets, stable IDs ve payload field layout henüz freeze edilmedi.
+ > OIR_FORMAT.md'de container v1.0 byte layout ve başlangıç numeric ID'leri sabitlendi. Payload schema field layout'ları henüz tasarlanmadı.
 
 ## Güncel uygulama sırası
 
@@ -160,7 +160,7 @@ PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned 
 - [x] `omnicore-sdk/src/c/oir/oir.h` ve `oir.c`: bounded in-memory writer, validating reader ve section view API.
 - [x] `test_oir.c`: round-trip, little-endian alan, truncated input, bad magic, total-length mismatch, oversized section, unknown required section, missing payload ve küçük output buffer testleri.
 - [x] CMake'e `occ_oir` static utility target'ı ve OIR CTest kaydı eklendi.
-- [ ] GitHub CI sonucu doğrula.
+- [x] Ubuntu/macOS CMake+CTest 14/14 ve Ubuntu ASan/UBSan doğrulandı. [ ] Windows build/test ve Valgrind sonuçları bekleniyor.
 - [ ] Fuzz/property testleri ve header-extension uyumluluk testlerini ekle.
 - [ ] SOURCE_UNIT ve TOKEN_STREAM payload schema'larını tanımla.
 
