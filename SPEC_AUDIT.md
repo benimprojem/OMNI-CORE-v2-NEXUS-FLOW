@@ -32,7 +32,7 @@ Spec belgeleri önemli tasarım fikirlerini içeriyor; ancak bazı kavramlar yal
 7. Hedef bağımlılığı: CPU/OS/backend desteklemiyorsa davranış nedir?
 8. Semantik sınır: niyet bildirimi programın doğruluğunu değiştirebilir mi, yoksa yalnızca performans/yerleşim gibi doğruluğu etkilemeyen tercihleri mi ifade eder?
 
-**Güncel karar (2026-10-30):** `@`, gelecekteki AI yardımcısına amaç/hedef bildiren metadata işaretidir; `!!=` ise açık ve daha katı derleyici talimatları için kalır. Intent tek başına yürütme emri değildir ve program semantiğini değiştiremez. Bu ayrım ve v0.1 ilkeleri [Intent System Specification](INTENT_SPEC.md) belgesinde tanımlanmıştır. `syntax.md` Bölüm 2.1 başlığı “Tanımlama Önekleri” olarak düzeltilmiş, `@` açıklaması güncellenmiştir. Nihai gramer, kapsam, intent türleri ve AST/OIR gösterimi hâlâ açık karardır.
+**Güncel karar (2026-10-30):** Yalnızca kavramsal ayrım kaydedilmiştir: `!!=` açık ve daha katı derleyici talimatları için, `@` ise gelecekteki AI katmanına programcının niyetini/isteğini iletmek için ayrılmıştır. AI bileşeni henüz bulunmadığından Intent'in grameri, veri modeli, kapsamı, kategorileri ve AST/OIR temsili bilinçli olarak ertelenmiştir. Bu konu AI katmanının tasarım zamanı geldiğinde uçtan uca yeniden ele alınacaktır. Geçici not: [Intent System — Tasarım Notu](INTENT_SPEC.md). `syntax.md` Bölüm 2.1 başlığı “Tanımlama Önekleri” olarak düzeltilmiş, `@` açıklaması güncellenmiştir.
 
 ## 3. Operatör semantiği — kritik tutarsızlıklar
 
