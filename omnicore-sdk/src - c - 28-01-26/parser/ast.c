@@ -738,6 +738,7 @@ static void ast_serialize_recursive(ASTNode* node, FILE* out) {
         }
         case AST_LITERAL: {
             ASTLiteral* l = (ASTLiteral*)node;
+            fwrite(&l->type, sizeof(OmniTokenType), 1, out);
             fwrite(&l->lit_type, sizeof(int), 1, out);
             fwrite(&l->int_value, sizeof(long long), 1, out);
             fwrite(&l->float_value, sizeof(double), 1, out);
@@ -1004,6 +1005,7 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
         }
         case AST_LITERAL: {
             ASTLiteral* l = (ASTLiteral*)node;
+            if (!ast_read_exact(reader, &l->type, sizeof(OmniTokenType))) goto fail;
             if (!ast_read_exact(reader, &l->lit_type, sizeof(int))) goto fail;
             if (!ast_read_exact(reader, &l->int_value, sizeof(long long))) goto fail;
             if (!ast_read_exact(reader, &l->float_value, sizeof(double))) goto fail;
