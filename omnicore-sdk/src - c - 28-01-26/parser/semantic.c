@@ -107,17 +107,43 @@ static Slot* add_slot(SemanticContext* ctx, const char* name, SlotKind kind, int
     return s;
 }
 
+static void destroy_slot(Slot* slot) {
+    if (!slot) return;
+
+    free(slot->name);
+    free(slot->type_name);
+
+    if (slot->param_types) {
+        for (int i = 0; i < slot->param_count; ++i) {
+            free(slot->param_types[i]);
+        }
+        free(slot->param_types);
+    }
+
+    FieldInfo* field = slot->fields;
+    while (field) {
+        FieldInfo* next = field->next;
+        free(field->name);
+        free(field->type_name);
+        free(field);
+        field = next;
+    }
+
+    free(slot);
+}
+
 static void enter_scope(SemanticContext* ctx) {
     ctx->current_depth++;
 }
 
 static void exit_scope(SemanticContext* ctx) {
+    if (!ctx) return;
+
     Slot* current = ctx->head;
     while (current && current->depth == ctx->current_depth) {
-        Slot* temp = current;
-        current = current->next;
-        free(temp->name);
-        free(temp);
+        Slot* next = current->next;
+        destroy_slot(current);
+        current = next;
     }
     ctx->head = current;
     ctx->current_depth--;
@@ -850,22 +876,16 @@ void semantic_print_errors(SemanticContext* ctx) {
 }
 
 void semantic_destroy(SemanticContext* ctx) {
+    if (!ctx) return;
+
     Slot* current = ctx->head;
     while (current) {
         Slot* next = current->next;
-        free(current->name);
-        if (current->type_name) free(current->type_name);
-        if (current->param_types) {
-            for(int i=0; i<current->param_count; i++) free(current->param_types[i]);
-            free(current->param_types);
-        }
-        if (current->fields) {
-            FieldInfo* f = current->fields;
-            while(f) { FieldInfo* n = f->next; free(f->name); if(f->type_name) free(f->type_name); free(f); f = n; }
-        }
-        free(current);
+        destroy_slot(current);
         current = next;
     }
+    ctx->head = NULL;
+
     Error* err = ctx->error_head;
     while (err) {
         Error* next = err->next;
@@ -876,4 +896,6 @@ void semantic_destroy(SemanticContext* ctx) {
         free(err);
         err = next;
     }
+    ctx->error_head = NULL;
+    ctx->error_tail = NULL;
 }
