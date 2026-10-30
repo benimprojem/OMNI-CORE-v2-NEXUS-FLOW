@@ -128,6 +128,7 @@ static OmniTokenType identifier_type(const char* start, int length) {
         case 'r': 
             if (length == 3 && memcmp(start, "ret", 3) == 0) return TOKEN_KW_RET;
             if (length == 3 && memcmp(start, "reg", 3) == 0) return TOKEN_KW_REG;
+            if (length == 7 && memcmp(start, "receive", 7) == 0) return TOKEN_KW_RECEIVE;
             break;
         case 's': 
             if (length > 1 && start[1] == 't') {
@@ -137,6 +138,7 @@ static OmniTokenType identifier_type(const char* start, int length) {
             if (length == 5 && memcmp(start, "spawn", 5) == 0) return TOKEN_KW_SPAWN;
             if (length == 6 && memcmp(start, "sizeof", 6) == 0) return TOKEN_KW_SIZEOF;
             if (length == 4 && memcmp(start, "swap", 4) == 0) return TOKEN_KW_SWAP;
+            if (length == 4 && memcmp(start, "send", 4) == 0) return TOKEN_KW_SEND;
             break;
         case 'c':
             if (length == 4 && memcmp(start, "char", 4) == 0) return TOKEN_TYPE_CHAR;
@@ -148,6 +150,7 @@ static OmniTokenType identifier_type(const char* start, int length) {
             if (length == 4 && memcmp(start, "enum", 4) == 0) return TOKEN_KW_ENUM;
             if (length == 4 && memcmp(start, "exit", 4) == 0) return TOKEN_KW_EXIT;
             if (length == 3 && memcmp(start, "exp", 3) == 0) return TOKEN_KW_EXP;
+            if (length == 4 && memcmp(start, "echo", 4) == 0) return TOKEN_KW_ECHO;
             break;
         case 'u': 
             if (length > 1 && start[1] == 'n') return check_keyword(start, length, "union", TOKEN_KW_UNION);
