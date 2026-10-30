@@ -80,7 +80,7 @@ The C frontend library contains:
 - `parser/parser.c`
 - `parser/semantic.c`
 
-The C OCC entry point is `main.c`. The old `parser/main.c` is preserved at `../../temp/legacy-c/obsolete-parser-main.c`;
+The C OCC entry point is `main.c`. The old `parser/main.c` is preserved at `../temp/legacy-c/obsolete-parser-main.c`;
 it defines a second `main()` and is deliberately excluded from the active build.
 
 The C code generator is built as a separate shared library. The C++ compiler sources are preserved under `../../temp/legacy-cpp/src/`;
