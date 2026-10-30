@@ -28,6 +28,7 @@
 - [x] Geçersiz node türlerini, negatif/aşırı string uzunluklarını, aşırı node sayısını ve aşırı iç içe derinliği reddet.
 - [x] Sibling node listelerini iteratif oku; normal uzun statement listeleri derinlik sınırına takılmasın.
 - [x] AST_UNPACK ve AST_NEXUS_HALT serialization/deserialization bellek düzenlerini düzelt.
+- [x] AST_EXTERN_DECL için AST_FUNC_DECL ile ortak serialization/deserialization ve destroy dallarını ekle; alanların kaybolmasını önleyen round-trip regresyon testi ekle (üç platform CI: 10/10).
 - [x] Truncated header, geçersiz node, bozuk string, özel node round-trip ve 700 sibling testlerini ekle.
 - [x] Kaynak dosyası okuyucusunda fseek/ftell/fread sonuçlarını doğrula.
 - [ ] AST türlerinin tamamı için round-trip matrisi ve ASan/UBSan/Valgrind testleri ekle.
@@ -72,7 +73,7 @@
 - [ ] Target dosyası ile gerçek backend desteğini ayır.
 - [x] Target parser'da bounded string parsing ve alan uzunluğu doğrulaması uygula.
 - [x] Eksik target dosyası, bilinmeyen alan ve bilinmeyen feature için açık hata üret.
-- [ ] Target parser testlerini CI üzerinde doğrula (geçerli beş descriptor, eksik dosya, uzun satır/alan, eksik alan, duplicate key, unknown key/section, invalid arch/feature).
+- [x] Target parser testlerini Windows/Ubuntu/macOS CI üzerinde doğrula (geçerli beş descriptor, eksik dosya, uzun satır/alan, eksik alan, duplicate key, unknown key/section, invalid arch/feature; 10/10 CTest).
 - [ ] Windows DLL, Linux .so ve macOS .dylib codegen yükleme/bağlama stratejisini belirle.
 - [ ] Codegen yüklenemediğinde derlemeyi başarılı göstermeyen hata davranışını uygula.
 - [ ] Target listeleme ve target dosyası çözümlemesini platformdan bağımsız hale getir.
@@ -100,4 +101,4 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 
 ## Sonraki tek iş
 
-Yeni eklenen target parser testini Windows, Ubuntu ve macOS CI üzerinde doğrula. Ardından AST düğüm türlerinin tamamı için round-trip test matrisine geç.
+AST düğüm türlerinin tamamı için round-trip test matrisini oluştur. Özellikle AST türü → allocation size → serialize → deserialize → destroy eşleşmesini her tür için doğrula.
