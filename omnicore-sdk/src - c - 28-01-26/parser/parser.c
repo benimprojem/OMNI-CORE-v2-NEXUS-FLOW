@@ -50,21 +50,51 @@ const char* msg_get(int id) {
 
 // Dosyayı belleğe okuyan yardımcı fonksiyon
 static char* read_file_content(const char* filename, size_t* out_len) {
+    if (out_len) *out_len = 0;
+    if (!filename) return NULL;
+
     FILE* f = fopen(filename, "rb");
     if (!f) return NULL;
 
-    fseek(f, 0, SEEK_END);
-    long length = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    char* buffer = malloc(length + 1);
-    if (buffer) {
-        fread(buffer, 1, length, f);
-        buffer[length] = '\0';
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f);
+        return NULL;
     }
-    
-    if (out_len) *out_len = length;
+
+    long file_length = ftell(f);
+    if (file_length < 0 || fseek(f, 0, SEEK_SET) != 0) {
+        fclose(f);
+        return NULL;
+    }
+
+    size_t length = (size_t)file_length;
+    if (length == (size_t)-1) {
+        fclose(f);
+        return NULL;
+    }
+
+    char* buffer = (char*)malloc(length + 1u);
+    if (!buffer) {
+        fclose(f);
+        return NULL;
+    }
+
+    if (length > 0 && fread(buffer, 1, length, f) != length) {
+        free(buffer);
+        fclose(f);
+        return NULL;
+    }
+
+    if (ferror(f)) {
+        free(buffer);
+        fclose(f);
+        return NULL;
+    }
+
+    buffer[length] = '\0';
     fclose(f);
+
+    if (out_len) *out_len = length;
     return buffer;
 }
 
