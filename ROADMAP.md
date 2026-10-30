@@ -9,12 +9,12 @@ NexusFlow'u Windows, Linux ve macOS üzerinde çalıştırabilen; bu sistemler i
 
 ## Şu an neredeyiz?
 
-- **C hattı:** Lexer, parser, AST, semantik analiz ve sınırlı NASM/x86-64 odaklı codegen kaynakları mevcut.
-- **C++ hattı:** Lexer/parser, OIR writer, analyzer ve OCE/IDE kaynakları mevcut.
-- **Ortak sözleşme:** İki hattın kullandığı tek, doğrulanmış OIR sözleşmesi henüz yok.
-- **Build/test:** Kaynak yolları, betikler, DLL yükleme yolları ve test dosyaları tek, tekrarlanabilir bir akışta birleşmiş değil.
-- **Backend:** C codegen target yapılandırması okusa da çıktı tarafında x86-64/NASM varsayımları bulunuyor; çoklu target desteği tamamlanmış değil.
-- **Dil doğruluğu:** Dokümanlardaki tüm özelliklerin C uygulamasında desteklendiğini gösteren kapsamlı test matrisi yok.
+- **C hattı:** C11 tabanlı frontend (lexer/parser/AST/semantic), OCC CLI ve ayrı yüklenebilir codegen modülü mevcut. Dil kapsamının tamamı henüz uygulanmış/doğrulanmış değil.
+- **C++ hattı:** Lexer/parser, OIR writer, analyzer ve OCE/IDE kaynakları korunuyor; ana geliştirme hattı değil.
+- **Ortak sözleşme:** C AST serialization ile C++ OIR2 birbirinden farklı. Kanonik, sürümlenmiş OIR sözleşmesi henüz yok.
+- **Build/test:** CMake tabanlı C build'i, Windows/Linux/macOS CI matrisi ve CTest hattı mevcut. Önceki CI koşusunda 9/9 test geçti; target parser doğrulama testi sonradan eklendi ve yeni CI sonucu bekleniyor.
+- **Backend:** Target descriptor parser mevcut tanımları doğrulayabiliyor; gerçek C backend şu an yalnızca x86-64/64-bit/little-endian/bare-metal/raw profili destekliyor. Diğer tanımların okunabilmesi codegen desteği anlamına gelmiyor.
+- **Dil doğruluğu:** Dokümanlardaki tüm özelliklerin C uygulamasında desteklendiğini gösteren kapsamlı test matrisi henüz yok.
 
 Proje şu an **prototip / entegrasyon aşamasında**. Yüzde tamamlanma yerine modül bazlı doğrulama kullanılacak.
 
@@ -36,13 +36,13 @@ Proje şu an **prototip / entegrasyon aşamasında**. Yüzde tamamlanma yerine m
 
 **Öncelik:** P0
 
-- [ ] C kaynak dosyalarının bağımlılıklarını ve include yollarını çıkar.
-- [ ] Parser, semantic ve codegen için ayrı build komutları oluştur.
-- [ ] Debug ve release build profilleri ekle.
-- [ ] Build betiklerinde alt işlem çıkış kodlarını kontrol et.
-- [ ] Kaynak, test girdisi, test çıktısı ve binary dosyalarını ayır.
-- [ ] Temiz checkout üzerinden build doğrulaması yap.
-- [ ] Build sürümü/derleyici sürümünü logla.
+- [ ] C kaynak dosyalarının tam bağımlılık ve include envanterini çıkar.
+- [x] CMake içinde frontend statik kütüphanesi, codegen shared library ve OCC executable hedeflerini ayır.
+- [x] CMake'in Debug/Release yapılandırmalarını desteklemesi; mevcut sarmalayıcıların Release build kullanması.
+- [x] Windows ve Unix build sarmalayıcılarında alt işlem hata kodlarını kontrol et.
+- [ ] Kaynak, test girdisi, test çıktısı ve binary dosyalarını fiziksel olarak ayır.
+- [x] Temiz checkout build/test akışını Windows, Ubuntu ve macOS CI üzerinde doğrula (önceki koşu 9/9; yeni target parser testi için tekrar doğrulama bekleniyor).
+- [ ] Build ve derleyici sürümünü tanı çıktısına ekle.
 
 **Çıkış ölçütü:** Temiz checkout'tan tekrarlanabilir build; hata durumunda sıfır olmayan çıkış kodu.
 
@@ -145,13 +145,13 @@ Proje şu an **prototip / entegrasyon aşamasında**. Yüzde tamamlanma yerine m
 - [ ] Özel işlemci hedefi tanımlanırsa target descriptor ve backend eklentisi.
 - [ ] FPGA/simulator test yolu, yalnızca somut bir işlemci hedefi olduğunda.
 
-## İlk uygulanacak işler
+## Sıradaki işler
 
-1. C build komutlarını temiz checkout üzerinde çalıştırılabilir hale getir.
-2. C main.c içindeki config okuma, path ve hata kodu sorunlarını düzelt.
-3. Parser ve codegen için küçük otomatik testler kur.
-4. C AST/semantic bellek sahipliğini denetle.
-5. OIR v1 tasarımını mevcut AST serialization ve C++ OIR2 ile karşılaştırarak hazırla.
+1. Yeni target parser testinin Windows/Linux/macOS CI sonucunu doğrula.
+2. AST düğüm türlerinin tamamı için round-trip test matrisi oluştur.
+3. AST serializer yazma hatalarını API üzerinden raporla; ASan/UBSan/Valgrind kapsamını ekle.
+4. Lexer/parser/semantic için ayrı, küçük ve izole test kümeleri kur.
+5. C AST serialization ile C++ OIR2'yi karşılaştırıp kanonik OIR v1 sözleşmesine hazırlan.
 
 ## İlerleme raporu formatı
 
