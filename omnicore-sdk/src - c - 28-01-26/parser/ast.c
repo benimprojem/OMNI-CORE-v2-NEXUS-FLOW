@@ -652,6 +652,7 @@ static void ast_write_exact(ASTWriter* writer, const void* source, size_t size) 
 }
 
 static void write_string(ASTWriter* writer, const char* text) {
+    if (!writer || writer->failed) return;
     if (!text) {
         int length = -1;
         ast_write_exact(writer, &length, sizeof(length));
