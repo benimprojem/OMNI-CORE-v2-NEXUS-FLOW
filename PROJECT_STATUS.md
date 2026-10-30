@@ -307,3 +307,14 @@ Current scope is deliberately limited to the container. Payload schemas (SOURCE_
 - Lexer'da multiline string line tracking, unterminated block comment davranışı ve enum tokenlarının gerçek emission coverage'ı OIR token adaptöründen önce denetlenmeli.
 
 Bu bölüm payload şema taslağıdır; SOURCE_UNIT/TOKEN_STREAM encode/decode kodu henüz yazılmadı.
+
+
+## SOURCE_UNIT payload codec — 31 Ekim 2026
+
+- `omnicore-sdk/src/c/oir/oir_payload.h/.c`: SOURCE_UNIT schema 1.0 için in-memory writer ve zero-copy validated view eklendi.
+- Payload 24-byte header, UTF-8 path metadata ve orijinal kaynak byte dizisinden oluşuyor.
+- Kaynak ve path için strict UTF-8 doğrulaması; embedded NUL, overlong/invalid encoding, yanlış source ID, kesilmiş payload, tutarsız uzunluk ve küçük buffer reddi eklendi.
+- `test_oir_source_unit.c` CTest'e bağlandı; OIR container testine ek olarak toplam test sayısı 15 oldu.
+- GitHub Actions run 41143616273: Windows, Ubuntu ve macOS build/CTest **15/15** başarılı; Ubuntu ASan/UBSan ve Valgrind **15/15** başarılı.
+
+TOKEN_STREAM payload şeması belgelendi ancak codec henüz yazılmadı. Lexer token'larının source byte offset ve diagnostic ID bilgisi taşıması gerektiği için önce lexer token metadata uyarlaması ve 160 token enum değerinin OIR stable ID eşlemesi yapılacak.
