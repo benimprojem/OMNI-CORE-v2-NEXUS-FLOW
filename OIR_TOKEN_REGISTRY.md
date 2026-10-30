@@ -178,4 +178,4 @@ Rules:
 | 159 | `TOKEN_LBRACKET` |
 | 160 | `TOKEN_RBRACKET` |
 
-Source inventory: `omnicore-sdk/src/c/parser/lexer.h`. The mapping adapter and full lexer emission audit remain implementation tasks.
+Source inventory: `omnicore-sdk/src/c/parser/lexer.h`. The symbolic mapping adapter is implemented in omnicore-sdk/src/c/oir/oir_token_map.c and is tested in test_oir_token_map.c. The full lexer emission audit remains open.
