@@ -8,6 +8,13 @@
 extern "C" {
 #endif
 
+/* Stable stage identifiers shared by the frontend and future stage modules. */
+typedef enum OccDiagnosticStage {
+    OCC_STAGE_LEXER = 1,
+    OCC_STAGE_PARSER = 2,
+    OCC_STAGE_SEMANTIC = 3
+} OccDiagnosticStage;
+
 typedef enum OccDiagnosticSeverity {
     OCC_DIAG_NOTE = 1,
     OCC_DIAG_WARNING = 2,
