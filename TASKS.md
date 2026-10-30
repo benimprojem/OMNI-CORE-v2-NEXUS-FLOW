@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 15/15 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 15/15 geçti.
+> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 16/16 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 16/16 geçti.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
@@ -163,7 +163,7 @@ PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned 
 - [x] CMake'e `occ_oir` static utility target'ı ve OIR CTest kaydı eklendi.
 - [x] Ubuntu/macOS CMake+CTest 14/14 ve Ubuntu ASan/UBSan doğrulandı. [ ] Windows build/test ve Valgrind sonuçları bekleniyor.
 - [ ] Fuzz/property testleri ve header-extension uyumluluk testlerini ekle.
-- [x] 160 frontend token türü için sembolik OIR ID mapping ve round-trip testi ekle.
+- [x] 160 frontend token türü için sembolik OIR ID mapping ve round-trip testi ekle (Windows/Ubuntu/macOS 16/16; Ubuntu ASan/UBSan ve Valgrind başarılı).
 - [x] SOURCE_UNIT payload codec CTest: Windows/Ubuntu/macOS 15/15; Ubuntu ASan/UBSan ve Valgrind 15/15.
 - [x] SOURCE_UNIT ve TOKEN_STREAM payload schema 1.0 taslağı; 160 token türü için OIR_TOKEN_REGISTRY.md stable ID listesi.
 
