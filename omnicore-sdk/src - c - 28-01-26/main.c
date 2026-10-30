@@ -163,26 +163,43 @@ int main(int argc, char **argv) {
             parser_save_ir(ctx, ir_path);
             printf("IR kaydedildi: %s\n", ir_path);
 
-#ifdef _WIN32
+            /* Load the platform-specific codegen module built by CMake. */
+#if defined(_WIN32)
             HMODULE hCodegen = LoadLibraryA("codegen.dll");
-            if (hCodegen) {
-                CodegenRunFn run = (CodegenRunFn)GetProcAddress(hCodegen, "codegen_run");
-                if (run) {
-                    char asm_path[256];
-                    snprintf(asm_path, sizeof(asm_path), "%s.s", base_name);
-                    if (run(ir_path, target_path, asm_path) != 0) {
-                        fprintf(stderr, "Hata: Codegen işlemi başarısız oldu.\n");
-                        exit_code = 1;
-                    }
-                } else {
-                    fprintf(stderr, "Hata: codegen_run sembolü bulunamadı.\n");
+            CodegenRunFn run = hCodegen
+                ? (CodegenRunFn)GetProcAddress(hCodegen, "codegen_run")
+                : NULL;
+#elif defined(__APPLE__)
+            void* hCodegen = dlopen("./libcodegen.dylib", RTLD_NOW | RTLD_LOCAL);
+            CodegenRunFn run = hCodegen
+                ? (CodegenRunFn)dlsym(hCodegen, "codegen_run")
+                : NULL;
+#else
+            void* hCodegen = dlopen("./libcodegen.so", RTLD_NOW | RTLD_LOCAL);
+            CodegenRunFn run = hCodegen
+                ? (CodegenRunFn)dlsym(hCodegen, "codegen_run")
+                : NULL;
+#endif
+
+            if (!hCodegen) {
+                fprintf(stderr, "Hata: Codegen modulu yuklenemedi.\n");
+                exit_code = 1;
+            } else if (!run) {
+                fprintf(stderr, "Hata: codegen_run sembolu bulunamadi.\n");
+                exit_code = 1;
+            } else {
+                char asm_path[256];
+                snprintf(asm_path, sizeof(asm_path), "%s.s", base_name);
+                if (run(ir_path, target_path, asm_path) != 0) {
+                    fprintf(stderr, "Hata: Codegen islemi basarisiz oldu.\n");
                     exit_code = 1;
                 }
-                FreeLibrary(hCodegen);
-            } else {
-                // Codegen henüz yoksa parser ve IR çıktısı kullanılabilir.
-                fprintf(stderr, "Uyarı: codegen.dll bulunamadı; yalnızca IR üretildi.\n");
             }
+
+#if defined(_WIN32)
+            if (hCodegen) FreeLibrary(hCodegen);
+#else
+            if (hCodegen) dlclose(hCodegen);
 #endif
         } else {
             exit_code = 1;
