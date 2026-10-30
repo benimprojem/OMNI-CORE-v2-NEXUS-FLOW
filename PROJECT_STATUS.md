@@ -220,3 +220,22 @@ Son kod doğrulaması commit 377e98486507b1156ac7307c8e6b5b59be32b2fe üzerinde 
 - Son doğrulanan commit fcc53eff7ce8fa539361c03a81466c9821fda907 üzerinde Windows, Ubuntu ve macOS build/test başarılı; CTest her platformda 10/10 geçti.
 
 **Kalan:** ASan/UBSan/Valgrind altında ownership, cleanup, derin ağaç ve hata durumları test edilmedi. Field-level round-trip kapsamı bu sanitizer doğrulamasının yerine geçmez.
+
+
+## ASan/UBSan sonucu ve semantic scope leak düzeltmesi — 31 Ekim 2026
+
+İlk sanitizer koşusu, normal CI'da görünmeyen iki adet 5 byte'lık sızıntı gösterdi. İki allocation da semantic.c içindeki add_slot() fonksiyonunda ayrılan Slot.type_name alanından geliyordu. exit_scope() yalnızca Slot.name ve Slot nesnesini serbest bırakıyor, type_name ve olası diğer Slot alt kaynaklarını bırakıyordu.
+
+Düzeltme:
+- Slot kaynaklarının tamamını temizleyen ortak destroy_slot() fonksiyonu eklendi.
+- exit_scope() artık scope dışına çıkan her Slot için destroy_slot() kullanıyor.
+- semantic_destroy() aynı ortak temizleme yolunu kullanıyor; param_types ve FieldInfo listeleri de tek noktadan serbest bırakılıyor.
+- Null context kontrolü ve temizleme sonrası head/error listelerinin sıfırlanması eklendi.
+
+Doğrulama:
+- Son sanitizer koşusu commit 2815e6f847eb048db90f21428497fec4202fb99d üzerinde başarılı.
+- Ubuntu GCC ASan + UBSan, LeakSanitizer açıkken CTest **10/10** geçti; önceki iki leak raporu tekrarlanmadı.
+- Aynı commitin normal Windows, Ubuntu ve macOS build/test matrisi de başarılı.
+- Valgrind henüz CI'ya eklenmedi.
+
+Bu sonuç yalnızca mevcut 10 testin kapsamındaki yolların sanitizer altında temiz olduğunu gösterir; tüm semantik program şekillerinde bellek hatası bulunmadığını kanıtlamaz.
