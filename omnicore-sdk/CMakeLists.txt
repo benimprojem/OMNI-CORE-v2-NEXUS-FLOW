@@ -13,6 +13,12 @@ set(C_PARSER_DIR "${C_SOURCE_DIR}/parser")
 set(C_CODEGEN_DIR "${C_SOURCE_DIR}/codegen")
 set(C_RUNTIME_DIR "${CMAKE_BINARY_DIR}/bin")
 
+# Keep all generators (including Visual Studio multi-config) on one runtime path.
+foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${config} "${C_RUNTIME_DIR}")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${config} "${C_RUNTIME_DIR}")
+endforeach()
+
 file(MAKE_DIRECTORY "${C_RUNTIME_DIR}")
 file(COPY "${C_SOURCE_DIR}/occ.ocf" DESTINATION "${C_RUNTIME_DIR}")
 file(COPY "${C_SOURCE_DIR}/lang" DESTINATION "${C_RUNTIME_DIR}")
