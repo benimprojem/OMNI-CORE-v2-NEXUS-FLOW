@@ -463,11 +463,19 @@ static void ast_destroy_recursive(ASTNode* node) {
         case AST_UNARY_EXPR:
         case AST_RETURN:
         case AST_POSTFIX_EXPR:
-        case AST_CAST:
-        case AST_UNPACK:
-        case AST_NEXUS_HALT: {
+        case AST_CAST: {
             ASTUnaryExpr* u = (ASTUnaryExpr*)node;
             if (u->operand) ast_destroy_recursive(u->operand);
+            break;
+        }
+        case AST_UNPACK: {
+            ASTUnpack* u = (ASTUnpack*)node;
+            if (u->expr) ast_destroy_recursive(u->expr);
+            break;
+        }
+        case AST_NEXUS_HALT: {
+            ASTHalt* h = (ASTHalt*)node;
+            if (h->expr) ast_destroy_recursive(h->expr);
             break;
         }
         case AST_LITERAL: {
@@ -757,12 +765,18 @@ static void ast_serialize_recursive(ASTNode* node, FILE* out) {
         case AST_UNARY_EXPR:
         case AST_RETURN:
         case AST_POSTFIX_EXPR:
-        case AST_CAST:
-        case AST_UNPACK:
-        case AST_NEXUS_HALT: {
+        case AST_CAST: {
             ASTUnaryExpr* u = (ASTUnaryExpr*)node;
             fwrite(&u->op, sizeof(OmniTokenType), 1, out);
             ast_serialize_recursive(u->operand, out);
+            break;
+        }
+        case AST_UNPACK: {
+            ast_serialize_recursive(((ASTUnpack*)node)->expr, out);
+            break;
+        }
+        case AST_NEXUS_HALT: {
+            ast_serialize_recursive(((ASTHalt*)node)->expr, out);
             break;
         }
         case AST_BLOCK:
@@ -1016,12 +1030,18 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
         case AST_UNARY_EXPR:
         case AST_RETURN:
         case AST_POSTFIX_EXPR:
-        case AST_CAST:
-        case AST_UNPACK:
-        case AST_NEXUS_HALT: {
+        case AST_CAST: {
             ASTUnaryExpr* u = (ASTUnaryExpr*)node;
             if (!ast_read_exact(reader, &u->op, sizeof(OmniTokenType))) goto fail;
             u->operand = ast_deserialize_recursive(reader);
+            break;
+        }
+        case AST_UNPACK: {
+            ((ASTUnpack*)node)->expr = ast_deserialize_recursive(reader);
+            break;
+        }
+        case AST_NEXUS_HALT: {
+            ((ASTHalt*)node)->expr = ast_deserialize_recursive(reader);
             break;
         }
         case AST_BLOCK:
