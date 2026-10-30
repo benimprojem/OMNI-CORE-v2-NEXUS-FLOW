@@ -112,6 +112,13 @@ else()
 endif()
 
 if(BUILD_TESTING)
+    add_executable(test_ast_deserialize
+        "${C_SOURCE_DIR}/tests/test_ast_deserialize.c"
+    )
+    target_include_directories(test_ast_deserialize PRIVATE "${C_PARSER_DIR}")
+    target_link_libraries(test_ast_deserialize PRIVATE occ_frontend)
+    add_test(NAME ast_rejects_malformed_streams COMMAND test_ast_deserialize)
+
     add_test(NAME occ_help COMMAND occ --help)
     set_tests_properties(occ_help PROPERTIES
         WORKING_DIRECTORY "${C_RUNTIME_DIR}"
