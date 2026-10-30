@@ -4,6 +4,21 @@
 **Compiler:** OCC (Omni Core Compiler)
 **Language:** Nexus Flow
 
+
+## OmniCore SDK — Geliştirme Takibi
+
+Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök belgelerde tutulur:
+
+- [Proje durumu](PROJECT_STATUS.md)
+- [Geliştirme yol haritası](ROADMAP.md)
+- [Güncel görevler](TASKS.md)
+- [Mimari kararlar](ARCHITECTURE_DECISIONS.md)
+- [Önerilen klasör yapısı](PROPOSED_LAYOUT.md)
+
+**Uygulama kararı:** C ana kaynak, C++ ise korunmuş referans uygulamasıdır. OmniCore; Windows, Linux ve macOS için, seçilebilir CPU mimarisi ve isteğe bağlı CPU yetenekleriyle hedef üretmeyi amaçlar. Açık hedef seçilmezse host OS + host architecture varsayılan alınır. Gerçek platform desteği ilgili backend ve testlerle doğrulanır.
+
+---
+
 ## Burada Bir dilin ve o dile ait bir Derleyicinin tam tasarım planları bulunmaktadadır. Umarım bu bilgiler kendi dil ve derleyicilerini tasarlayan kişiler için öğretici ve bilgilendirici olur. Eğer buradaki bilgiler içerisinde herhangi bir öneriniz veya eleştiriniz var ise paylaşmaktan çekinmeyin.
 ---
 
