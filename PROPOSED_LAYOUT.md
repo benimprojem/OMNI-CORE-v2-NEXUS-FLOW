@@ -1,89 +1,95 @@
-# OmniCore SDK — Önerilen Klasör Yapısı
+# OmniCore SDK — Klasör Yapısı ve Taşıma Planı
 
-Bu belge hedef düzeni tanımlar. 31 Ekim 2026 tarihinde ilk güvenli fiziksel düzenleme yapıldı: etkin C kaynağı `omnicore-sdk/src/c/` altına taşındı, eski C++ kodu `temp/legacy-cpp/` altına alındı ve CMake kaynak yolu aynı değişiklikte güncellendi. Modül bazlı C alt dizinlerine ayrıştırma henüz yapılmadı.
+31 Ekim 2026 tarihinde ilk fiziksel düzenleme yapıldı. Bu belge mevcut gerçek konumu ve sonraki hedef düzeni birbirinden ayırır.
 
-## Hedef yapı
+## Şu anki yapı
 
-~~~text
+```text
+repository/
+├── temp/
+│   ├── legacy-cpp/
+│   │   ├── src/                 # Korunan eski C++ parser/analyzer/OCC
+│   │   └── scripts/             # Eski C++ build betikleri
+│   ├── legacy-c/                # Kullanılmayan eski standalone C entry point
+│   ├── legacy-tests/            # CMake dışındaki eski .nx test girdileri
+│   ├── legacy-docs/             # Eski komut notları ve tarihsel belgeler
+│   ├── build-artifacts/         # Eski EXE/DLL/A/OBJ/OIR/ASM ürünleri
+│   └── duplicate-docs/          # Byte-for-byte aynı fazladan belge kopyaları
+└── omnicore-sdk/
+    ├── src/
+    │   ├── c/                   # Etkin ve kanonik C derleyici kaynakları
+    │   │   ├── main.c
+    │   │   ├── parser/
+    │   │   ├── codegen/
+    │   │   ├── lang/
+    │   │   └── tests/
+    │   └── oce/                 # Ayrı IDE/editor projesi
+    ├── targets/
+    ├── stdlib/
+    ├── dpslib/
+    ├── docs/
+    ├── CMakeLists.txt
+    ├── build_c.bat
+    └── build_c.sh
+```
+
+CMake etkin kaynak kökü olarak omnicore-sdk/src/c/ kullanır. C++ kaynakları ve geçmiş derleme ürünleri silinmedi; yalnızca aktif derleme yolundan ayrıldı.
+
+## Sonraki hedef düzen
+
+```text
 omnicore-sdk/
-├── README.md
-├── occ.ocf
-├── occ.nxr
-├── build/
-│   ├── scripts/
-│   └── cmake/
 ├── src/
 │   ├── c/
-│   │   ├── occ/          # CLI ve derleme orkestrasyonu
-│   │   ├── lexer/        # Tokenizer
-│   │   ├── parser/       # Parser ve AST üretimi
-│   │   ├── semantic/     # Scope, type, ownership ve diagnostics
-│   │   ├── ir/           # Kanonik OIR reader/writer
-│   │   ├── optimizer/    # OIR pass'ları
-│   │   ├── codegen/      # Ortak backend altyapısı
-│   │   └── support/      # Config, path, logging, diagnostics
-│   ├── cpp-reference/    # Korunan C++ referans uygulaması
-│   └── oce/              # IDE/editor (ayrı ürün sınırı)
-├── include/
-│   └── omnicore/         # Dışarı açılan kararlı C API başlıkları
+│   │   ├── occ/                 # CLI ve derleme orkestrasyonu
+│   │   ├── lexer/               # Lexer
+│   │   ├── parser/              # Parser ve AST
+│   │   ├── semantic/            # Scope, type, ownership, diagnostics
+│   │   ├── ir/                  # Kanonik OIR reader/writer
+│   │   ├── optimizer/           # OIR pass'ları
+│   │   ├── codegen/             # Backend altyapısı
+│   │   └── support/             # Config, path, logging
+│   └── oce/                     # IDE/editor; compiler'dan ayrı
 ├── targets/
-│   ├── windows/
-│   │   ├── x86_64/
-│   │   └── aarch64/
-│   ├── linux/
-│   │   ├── x86_64/
-│   │   └── aarch64/
-│   └── macos/
-│       ├── x86_64/
-│       └── aarch64/
 ├── stdlib/
 ├── dpslib/
-├── tests/
-│   ├── lexer/
-│   ├── parser/
-│   ├── semantic/
-│   ├── ir/
-│   ├── codegen/
-│   └── integration/
-├── examples/
+├── tests/                       # İleride modül bazlı test ayrımı
 ├── docs/
-├── tools/
-│   └── scripts/
-├── bin/                  # Üretilmiş araçlar; kaynak değil
-└── lib/                  # Üretilmiş kütüphaneler; kaynak değil
-~~~
+└── tools/
+```
 
-## Taşıma kuralları
+Bu modül ayrımı henüz uygulanmadı. Mevcut src/c/parser/ içinde lexer, parser, AST ve semantic dosyaları birlikte duruyor; bunları ayırmak include ilişkileri ve CMake hedefleri ayrıca düzenlenerek yapılacak.
 
-1. Mevcut src - c - 28-01-26/ önce arşiv/başlangıç kaynağı olarak korunur.
-2. C kaynakları yeni src/c/ yapısına taşınırken include yolları ve build scriptleri aynı commit içinde güncellenir.
-3. C++ kaynakları silinmez; src/cpp-reference/ konumuna ancak bağımlılıkları ve IDE kaynakları ayrıştırıldıktan sonra taşınır.
-4. oce/ IDE dosyaları compiler frontend ile karıştırılmaz.
-5. Binary dosyalar kaynak dizinlerinde tutulmaz. Ancak hangi kaynakla üretildiği bilinmeyen mevcut binary'ler doğrulama tamamlanana kadar silinmez.
-6. Test girdileri, beklenen çıktılar ve gerçek derleme çıktıları farklı dizinlerde tutulur.
-7. Eski yol için geçici uyumluluk notu bırakılır; tüm tüketiciler güncellenmeden eski klasör kaldırılmaz.
+## Taşıma ilkeleri
 
-## İlk fiziksel taşıma öncesi kontrol listesi
+1. C tek kanonik derleyici uygulamasıdır.
+2. C++ referans kaynakları temp/legacy-cpp/ altında korunur; silinmez.
+3. temp/build-artifacts/ içindeki dosyalar geçmiş çıktılardır; aktif build tarafından yüklenmez.
+4. IDE/editor src/oce/ compiler frontend ile karıştırılmaz.
+5. Yalnızca byte-for-byte aynı belgelerin fazladan kopyaları arşivlenir. İçeriği farklı belgeler sırf adları benziyor diye birleştirilmez.
+6. Her sonraki taşıma aynı değişiklikte CMake/build betikleri, runtime yolları ve testlerle birlikte güncellenir.
 
-- [ ] Tüm include ilişkileri çıkarıldı.
-- [ ] DLL/EXE yükleme yolları çalışma dizininden bağımsız hale getirildi.
-- [ ] Build betikleri yeni yollarla çalışıyor.
-- [ ] Test dosyaları yeni konumda çalışıyor.
-- [ ] Temiz checkout build ve test geçti.
-- [ ] Eski yolun kaldırılması/arsivlenmesi için ayrı commit hazırlandı.
+## Doğrulama kontrol listesi
 
+- [x] C kaynak kökü src/c/ konumuna taşındı ve CMake yolu güncellendi.
+- [x] C++ kaynakları silinmeden arşiv konumuna taşındı.
+- [x] Eski derleme ürünleri kaynak klasörlerinden ayrıldı.
+- [x] Aynı belge kopyaları içerik SHA değerleriyle tespit edilip arşivlendi.
+- [ ] Windows, Linux ve macOS temiz checkout build/test doğrulaması tamamlanmalı.
+- [ ] Valgrind CI işi düzeltilip doğrulanmalı.
+- [ ] C modüllerinin ayrı klasörlere bölünmesi sonraki aşamada yapılmalı.
 
 ## Target descriptor alanları
 
-Hedef dosyaları aşağıdaki kavramları birbirine karıştırmadan tarif etmelidir:
+Hedef tanımları aşağıdaki kavramları birbirine karıştırmamalıdır:
 
-- `os`: windows, linux, macos
-- `arch`: x86_64, aarch64 vb.
-- `abi`: platform ABI / calling convention
-- `format`: PE/COFF, ELF, Mach-O
-- `cpu_model`: isteğe bağlı model/seri
-- `features`: isteğe bağlı SIMD/ISA özellikleri
-- `assembler`, `linker`: kullanılacak araçlar ve seçenekleri
-- `backend`: bu kombinasyon için gerçek codegen uygulaması
+- os: windows, linux, macos
+- arch: x86_64, aarch64 vb.
+- abi: platform ABI / calling convention
+- format: PE/COFF, ELF, Mach-O
+- cpu_model: isteğe bağlı CPU modeli
+- features: isteğe bağlı SIMD/ISA yetenekleri
+- assembler, linker: kullanılacak araçlar ve seçenekleri
+- backend: bu kombinasyon için gerçek codegen uygulaması
 
-Bu ağaç hedef düzen önerisidir; mevcut target dosyalarının bugün bu alanların tamamını içerdiği anlamına gelmez. Önce mevcut target dosyalarının şeması çıkarılacak, sonra geriye uyumlu geçiş tasarlanacaktır.
+Target descriptor'ın bulunması, ilgili backend'in uygulandığı veya test edildiği anlamına gelmez.
