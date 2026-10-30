@@ -109,7 +109,6 @@ OirStatus oir_source_unit_open(
     }
 
     if (path_length > payload_length - OIR_SOURCE_UNIT_HEADER_SIZE ||
-        source_length > (uint64_t)SIZE_MAX ||
         source_length != (uint64_t)(payload_length -
             OIR_SOURCE_UNIT_HEADER_SIZE - (size_t)path_length)) {
         return OIR_STATUS_LENGTH_MISMATCH;
@@ -146,8 +145,10 @@ OirStatus oir_source_unit_write(
         return OIR_STATUS_INVALID_ARGUMENT;
     }
     if (source_id != 0) return OIR_STATUS_INVALID_HEADER;
-    if (source_length > (uint64_t)SIZE_MAX ||
-        (size_t)path_length > SIZE_MAX - OIR_SOURCE_UNIT_HEADER_SIZE ||
+#if SIZE_MAX < UINT64_MAX
+    if (source_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+#endif
+    if ((size_t)path_length > SIZE_MAX - OIR_SOURCE_UNIT_HEADER_SIZE ||
         (size_t)source_length >
             SIZE_MAX - OIR_SOURCE_UNIT_HEADER_SIZE - (size_t)path_length) {
         return OIR_STATUS_OVERFLOW;
