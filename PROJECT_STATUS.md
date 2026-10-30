@@ -111,7 +111,7 @@ C derleyicisinin Windows, Linux ve macOS host sistemlerinde derlenmesi ve temel 
 - target_backend_check() descriptor'ın parse edilebilmesini gerçek backend desteğinden ayırıyor.
 - Codegen hâlâ x86-64 NASM şablonu üretir; ancak desteklenmeyen OS/ABI/format/mimari kombinasyonlarını backend kontrolü reddetmelidir.
 
-**Kalan doğrulama:** Parser test dosyası depoda bulunuyordu ancak CMake/CTest'e bağlı değildi. 31 Ekim'de test kendi bozuk fixture'larını üretecek şekilde genişletildi ve CTest'e eklendi. Yeni testin üç platformlu CI sonucu henüz alınmadı.
+**Kalan doğrulama:** Parser test dosyası depoda bulunuyordu ancak CMake/CTest'e bağlı değildi. 31 Ekim'de test kendi bozuk fixture'larını üretecek şekilde genişletildi ve CTest'e eklendi. Yeni test Windows, Ubuntu ve macOS üzerinde geçti; her platformda 10/10 CTest başarılı.
 
 
 ## C build altyapısı — 30 Ekim 2026
@@ -171,3 +171,15 @@ Windows/Linux/macOS üzerinde C uygulamasının derlenmesi, bu işletim sistemle
 - Test ayrıca eksik dosya, unknown section/key, duplicate key, aşırı uzun identifier/satır, eksik zorunlu alan ve bilinmeyen architecture/SIMD profilini reddetmeyi sınar.
 - CTest tanımındaki test sayısı 9'dan 10'a çıktı.
 - **Durum:** Kod ve CTest tanımı branch'e işlendi. Yeni 10 testlik matrisin Windows, Ubuntu ve macOS CI sonucu bekleniyor; bu rapor yeni testin geçtiğini iddia etmez.
+
+
+## AST_EXTERN_DECL round-trip düzeltmesi — 31 Ekim 2026
+
+AST tür envanterinde AST_EXTERN_DECL için bir lifecycle uyumsuzluğu bulundu: düğüm boyutu ASTFuncDecl olarak ayrılıyordu ancak yazdırma, destroy, serialize ve deserialize switch dalları bu türü AST_FUNC_DECL ile aynı gruba almıyordu. Bu durum AST_EXTERN_DECL alanlarının serileştirmede kaybolmasına ve ayrılmış alanların temizlenmemesine yol açabilirdi.
+
+- Dört AST lifecycle switch'ine AST_EXTERN_DECL eşlemesi eklendi.
+- AST_EXTERN_DECL adı, dönüş tipi, flags, parametre ve body alanlarını kontrol eden round-trip regresyon testi eklendi.
+- GitHub Actions son koşusu (commit 897a29fa57eb70aeb48af045d04dcea35a6087b2) Windows, Ubuntu ve macOS üzerinde başarılı tamamlandı.
+- Her üç platformda CMake build başarılı; CTest **10/10** geçti. AST_EXTERN_DECL round-trip testi mevcut AST test programının içine dahil edildi.
+
+**Kapsam sınırı:** Bu düzeltme tüm AST düğüm türlerinin eksiksiz test edildiği anlamına gelmez. Tam round-trip matrisi, serializer yazma hatalarının API üzerinden raporlanması ve sanitizer testleri hâlâ açık işlerdir.
