@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 14/14 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 14/14 geçti.
+> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 15/15 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 15/15 geçti.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
@@ -136,6 +136,7 @@ PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned 
 - [x] Container in-memory reader/writer C API'sini tanımla (opaque module ABI/ownership entegrasyonu sonraki iş).
 - [x] Header/section bounds, truncation, bad magic, total-length mismatch, unknown required section, missing payload ve small-buffer testlerini ekle. [ ] Checksum algoritması ve fuzz/property testleri açık.
 - [x] SOURCE_UNIT ve TOKEN_STREAM payload şemalarının ilk 1.0 taslağını tanımla (OIR_PAYLOAD_SCHEMAS.md).
+- [x] SOURCE_UNIT schema 1.0 C codec ve round-trip/UTF-8/length güvenlik testlerini ekle.
 - [ ] AST payload şemasını tanımla ve parser checkpoint'lerini OIR v1'e geçir.
 - [ ] DIAGNOSTICS ve SOURCE_MAP section'larını uygula.
 - [ ] SEMANTIC_AST payload şemasını tanımla.
@@ -162,6 +163,7 @@ PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned 
 - [x] CMake'e `occ_oir` static utility target'ı ve OIR CTest kaydı eklendi.
 - [x] Ubuntu/macOS CMake+CTest 14/14 ve Ubuntu ASan/UBSan doğrulandı. [ ] Windows build/test ve Valgrind sonuçları bekleniyor.
 - [ ] Fuzz/property testleri ve header-extension uyumluluk testlerini ekle.
+- [x] SOURCE_UNIT payload codec CTest: Windows/Ubuntu/macOS 15/15; Ubuntu ASan/UBSan ve Valgrind 15/15.
 - [x] SOURCE_UNIT ve TOKEN_STREAM payload schema 1.0 taslağı; 160 token türü için OIR_TOKEN_REGISTRY.md stable ID listesi.
 
 > Not: `occ_oir` şu an container yardımcı kütüphanesidir; compiler stage DLL'leri henüz OIR artifact tüketip üretmiyor. Stage ABI ve payload schema entegrasyonu sonraki adımlardır.
