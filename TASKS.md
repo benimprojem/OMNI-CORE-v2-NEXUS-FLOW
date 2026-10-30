@@ -15,7 +15,7 @@
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
 - [x] C OCC için Windows build hedefi ve Linux/macOS build hedefleri oluştur.
 - [x] Parser, semantic ve codegen için ayrı build hedefleri oluştur.
-- [x] Config okuyucuyu bölüm/satır sırasından bağımsız hale getir (bölüm başlıklarından sonra gelen \`language = "tr"\` ayarıyla tanı testi).
+- [x] Config okuyucuyu bölüm/satır sırasından bağımsız hale getir (bölüm başlıklarından sonra gelen `language = "tr"` ayarıyla tanı testi).
 - [x] CLI argüman ayrıştırmasını kaynak dosyası ve seçenek sırasına dayanıklı yap (hedef öncesi/sonrası, eksik hedef, bilinmeyen seçenek ve birden fazla kaynak testleri).
 - [x] Path işlemlerindeki NULL pointer karşılaştırmasını kaldır; runtime config/lang/target/codegen yollarını executable konumundan çöz ve farklı CWD'den test et.
 - [ ] Parser/codegen hata durumlarını OCC çıkış koduna aktar.
