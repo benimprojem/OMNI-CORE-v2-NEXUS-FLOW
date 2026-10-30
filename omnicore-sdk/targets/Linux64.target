@@ -1,6 +1,7 @@
 [target_info]
 spec_version = 1.0
 identifier = "Linux64"
+os = "linux"
 author = "NexusFlow Team"
 
 [cpu_arch]
