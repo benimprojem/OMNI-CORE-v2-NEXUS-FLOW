@@ -140,7 +140,20 @@ Each DLL stage must independently validate its input artifact and enforce the li
 
 Stage-local limits must return a structured status/diagnostic. They must not terminate the process, overflow counters, silently truncate data or free memory owned by another stage.
 
-### 5.3 OIR validation
+### 5.3 DLL boundary ownership
+
+The module ABI uses borrowed input and output pointers during `process()`:
+- the host owns input artifact buffers and keeps them immutable for the invocation;
+- the stage may read inputs and write only to the supplied output buffer while the call is active;
+- a stage must not retain input, output, diagnostic-sink or host-context pointers after returning;
+- diagnostic strings are consumed synchronously by the host callback, which copies them into the host-owned collector;
+- the loader allocates the returned artifact buffer in the host runtime; the caller frees it with the matching host-side `free()`;
+- the loaded DLL owns its static descriptor and module-name storage, which remain valid only until `occ_module_loader_close()`;
+- the host must not close/unload a module while any invocation is active, and must stop using descriptor pointers after close.
+
+These rules avoid cross-runtime allocator mismatches and dangling pointers when a DLL is unloaded. They are ABI contracts; they do not make a malicious in-process DLL sandbox-safe.
+
+### 5.4 OIR validation
 
 The current stage boundary checks also enforce the declared payload schema: Lexer accepts SOURCE_UNIT schema 1.0; Parser accepts SOURCE_UNIT schema 1.0 and TOKEN_STREAM schema 1.0, and requires the token artifact producer to be the Lexer stage. A valid outer OIR container alone is not sufficient.
 
