@@ -128,6 +128,13 @@ int main(void) {
     assert(oir_ast_node_table_open(payload,written,&view)==OIR_STATUS_OK);
     assert(oir_ast_field_schema_validate(&view)==OIR_STATUS_INVALID_SECTION);
 
+    child_len = emit_field(fields+root_len,1,OIR_AST_VALUE_NODE_REF,0);
+    records[1].field_data_length=(uint32_t)child_len;
+    assert(oir_ast_node_table_write(payload,sizeof(payload),records,2,1,fields,
+        (uint32_t)(root_len+child_len),NULL,0,&written)==OIR_STATUS_OK);
+    assert(oir_ast_node_table_open(payload,written,&view)==OIR_STATUS_OK);
+    assert(oir_ast_field_schema_validate(&view)==OIR_STATUS_INVALID_SECTION);
+
     child_len = emit_field(fields+root_len,2,OIR_AST_VALUE_NULL,0);
     records[1].field_data_length=(uint32_t)child_len;
     assert(oir_ast_node_table_write(payload,sizeof(payload),records,2,1,fields,
