@@ -44,7 +44,7 @@ static int test_cast_and_panic_ast(void) {
     ASTPanic* panic;
     int ok = 0;
     if (!ctx) return 0;
-    if (parser_run(ctx) != 0 || ctx->error_count != 0 || !ctx->ast_root) goto done;
+    if (parser_run(ctx) != PARSER_STATUS_OK || parser_get_status(ctx) != PARSER_STATUS_OK || ctx->error_count != 0 || !ctx->ast_root) goto done;
     program = (ASTProgram*)ctx->ast_root;
     function = (ASTFuncDecl*)program->declarations;
     if (!function || function->base.type != AST_FUNC_DECL) goto done;
@@ -149,8 +149,9 @@ static int test_rejects_invalid_aggregate_members(void) {
             (const uint8_t*)sources[i], strlen(sources[i]));
         int rejected;
         if (!ctx) return 0;
-        rejected = parser_run(ctx) != 0 && ctx->error_count > 0 &&
-            ctx->ast_root != NULL;
+        rejected = parser_run(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+            parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+            ctx->error_count > 0 && ctx->ast_root != NULL;
         parser_destroy(ctx);
         if (!rejected) return 0;
     }
