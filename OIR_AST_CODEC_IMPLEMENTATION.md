@@ -232,3 +232,15 @@ Caller supplies the node pointer array and graph-validation scratch arrays. The 
 Tests round-trip all 80 node kinds and their source positions, selected scalar/string/token values, and a nested Nexus Flow with left/right/catch children. Malformed graph ownership and out-of-range literal tags are rejected before touching node storage; insufficient node storage returns BUFFER_TOO_SMALL.
 
 CTest target: `oir_ast_frontend_reader_all_kinds_validate_before_materialize`. Final CI run 41159725328 passed on Windows, Ubuntu and macOS; Ubuntu ASan/UBSan and Valgrind passed. Ubuntu CTest 29/29. The reader build is warning-free in its Ubuntu compiler log.
+
+
+## 14. Real parser AST canonical round-trip integration test
+
+File:
+- `omnicore-sdk/src/c/tests/test_parser_ast_oir_roundtrip.c`
+
+This integration test parses the real `tests/test1.nxf` fixture through the existing frontend parser, encodes the produced AST, materializes a second AST through the OIR reader, then encodes that materialized AST again. The two OIR payloads must be byte-for-byte identical.
+
+The test sizes the pointer index dynamically, uses caller-owned scratch for the writer/reader, and destroys the materialized AST through the normal `ast_destroy()` path. This checks the combined parser → AST index → OIR writer → validating reader → frontend AST → OIR writer path, rather than only synthetic node fixtures.
+
+CTest target: `parser_ast_oir_ast_roundtrip_canonical_bytes`. Run 41159889179: Ubuntu CTest 30/30 and ASan/UBSan/Valgrind passed; macOS passed. Windows is still running.
