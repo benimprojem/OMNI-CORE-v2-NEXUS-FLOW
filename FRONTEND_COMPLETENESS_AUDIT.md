@@ -203,3 +203,23 @@ Doğrulama:
 - Sonraki küçük semantik hedef-tür doğrulama değişikliği ayrı commit `c2c2ee6b3f44d5efeab53d4d0c8d0f6a208df1de` olarak CI'ya gönderildi; sonucu ayrıca doğrulanmalı.
 
 Not: Bu değişiklikler legacy AST codec ve OIR AST payload sözleşmesini etkilediğinden, eski AST dump dosyaları ile sürüm uyumluluğu ayrıca ele alınmalıdır. Bu codec kalıcı OIR modül formatı yerine geçmez; OIR format sürümleme/uyumluluk sözleşmesi bağımsız olarak korunmalıdır.
+
+
+## 6.8 Parser context ve lookahead güvenliği
+
+**Durum: İlk güvenlik düzeltmeleri uygulandı; allocation-failure denetimi devam ediyor.**
+
+- `parser_init_source()` ve `parser_init()` artık tek bir ortak context initializer kullanıyor.
+- Her iki başlatma yolu da `file_handle`, kaynak konumu, token başlangıç konumu, AST kökü, hata listesi, diagnostic collector ve token-stream alanlarını deterministik biçimde sıfırlıyor.
+- Dosya başlatıcısı artık `filename == NULL` durumunu güvenli biçimde reddediyor; kaynak belleği ayrıldıktan sonra context tahsisi başarısız olursa kaynak belleği serbest bırakılıyor.
+- `parser_run()`, NULL/eksik kaynak bağlamını ve aynı context üzerinde ikinci kez çalıştırılmayı reddediyor. Parser'ın `current` ve `previous` token alanları ilk `advance()` öncesinde başlatılıyor.
+- `peek_token()` ve `peek_token_ahead()` ortak, geri-alımlı lookahead uygulamasına taşındı. `n <= 0` için deterministik EOF tokenı dönüyor; kaynak konumu ve token-stream indeksi dahil lexer durumu geri yükleniyor.
+- Parser diagnostic Error-list tahsisleri başarısız olduğunda NULL üzerinden yazma yerine temiz şekilde bırakılıyor. Diagnostic collector'a ekleme yolu bundan bağımsız kalıyor.
+- Test: boş kaynakla context oluşturma ve `parser_run()` çağırmadan context'i yok etme; eksik filename reddi; mevcut parser testleri.
+
+**Açık işler / bulgular:**
+
+- Parser içinde çok sayıda `ast_create()`, `malloc()` ve `strdup()` çağrısı hâlâ doğrudan NULL kontrolü olmadan kullanılıyor. Bunlar parser genelinde tutarlı OOM hata yayılımına dönüştürülmeli.
+- Lexer'da string escape işleme, karakter literalinin tek Unicode scalar/byte tanımı, sayısal literal kapsamı ve UTF-8 karakterlerinin `ctype` fonksiyonlarına güvenli aktarımı ayrıca ele alınmalı.
+- `peek_next()` ve lexer ilerletme sınırları için uç durum testleri eklenecek.
+- Bu commitlerdeki CI sonuçları tamamlanmadan tüm platformlar için başarılı kabul edilmeyecek.
