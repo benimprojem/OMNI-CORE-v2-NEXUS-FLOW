@@ -265,7 +265,7 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 | **9** | `<<`  | **Zone Write** | Veriyi atomik olarak paylaşımlı belleğe yazar. |
 | **10** | `>>`  | **Flow Feed** | Veriyi atomik olarak akışa besler. |
 | **11** | `(e){}`| **Error Block** | Saptırılan hatanın işlendiği son durak. |
-| **12** | `?;`  | **Halt (Son)** | Akış biter, yerel masalar imha edilir. |
+| **12** | `?;` / `}?;` | **Halt** | `?;` tek kaynağı/masayı kapatır; blok sonundaki `}?;` blokta kalan kaynakları topluca kapatır. |
 | **13** | `!!`  | **Panic** | Kritik durdurma. |
 | **14** | `@`   | **Intent** | Derleyiciye niyet bildirimi. |
 | **15** | `!!=` | **Directive** | .target sistemi ve derleyici talimatları. |
@@ -284,12 +284,59 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 ### 4.1.1 `(h)` Masa (Handler) Yaşam Döngüsü
 
 * **Scope:** `(h)` sadece tanımlandığı blokta geçerlidir. Başka bloklardan doğrudan erişilemez.
-* **Ömür (Lifetime):** Blok sonunda `}?;` ile otomatik olarak serbest bırakılır.
+* **Ömür (Lifetime):** `?;` herhangi bir uygun noktada belirtilen tek kaynak/masayı kapatır. `}?;` blok kapanışına eklenir ve o blokta açılmış, hâlâ o bloğa ait tüm açık kaynakları topluca kapatır.
 * **Transfer:** Başka bloğa taşımak için `_>` kullanılır. Taşındığında orijinal masa **silinir**.
 * **Güvenlik Etkisi:**
 
   * Ömrü garanti altındadır → dangling pointer riskini minimize eder.
   * Başka bloklar `(h)`'yi okuyamaz → izinsiz erişim yok.
+
+
+---
+
+### 4.1.2 Halt: Tekil Kaynak ve Blok Kapsamlı Temizlik
+
+Halt iki ayrı operatör değildir; aynı `?;` işleminin hedef kapsamı farklıdır:
+
+- **Tekil Halt — `resource ?;`:** Herhangi bir uygun statement noktasında kullanılabilir. İlgili kaynak/masa kapatılır veya temizlenir. Örnekler: açık dosyayı kapatmak, geçici tabloyu temizlemek, yüklenmiş DLL'yi kaldırmak.
+- **Blok Halt — `}?;`:** Bir bloğun kapanışına eklenir. O blok içinde açılmış ve hâlâ o bloğun sahipliğinde bulunan tüm açık kaynakları tek tek kapatma gerektirmeden topluca sonlandırır.
+
+Örnekler:
+
+```nexus
+(file) <- file.open("data.bin", r);
+file.read(file);
+file ?;                 # Yalnızca bu dosya kaynağını kapat.
+
+(table) <- table.create();
+table.insert(table, row);
+table ?;                # Yalnızca bu tabloyu temizle.
+
+(lib) <- dll.load("optimizer.dll");
+Optimizer.run(lib);
+lib ?;                  # Yüklenen DLL kaynağını kaldır.
+```
+
+Blok kapsamlı kapatma:
+
+```nexus
+{
+    (input)  <- file.open("input.bin", r);
+    (output) <- file.open("output.bin", w);
+    (socket) <- net.connect(endpoint);
+    process(input, output, socket);
+}?; # Blokta kalan üç kaynağın tamamını kapat.
+```
+
+**Sahiplik sınırları:**
+- Blok Halt yalnızca o blokta oluşturulmuş ve hâlâ o bloğa ait kaynakları kapatır.
+- `_>` ile başka kapsama taşınmış kaynak artık eski bloğun temizleme listesinde değildir.
+- Dış kapsamdan ödünç alınmış kaynak, açık bir sahiplik devri olmadan iç blok tarafından kapatılamaz.
+- Tekil Halt sonrası kaynak/handler geçersiz duruma geçer; sonraki kullanım semantik hata olmalıdır.
+- Temizleme deterministik olmalı; her kaynak en fazla bir kez sonlandırılmalıdır.
+- Kaynak kapatma hatalarının cleanup sırası ve hata birleştirme davranışı runtime sözleşmesinde ayrıca tanımlanmalıdır.
+
+Bu bölüm hedeflenen dil semantiğidir. Mevcut C Parser yalnızca `AST_NEXUS_HALT` düğümünü tanıyor; tekil kaynak hedefini ve `}?;` blok kapsamını henüz ayrı AST/semantic/OIR bilgisi olarak temsil etmiyor. Bu nedenle örnekler tam uygulanmış compiler özelliği değildir.
 
 ---
 
@@ -323,7 +370,7 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 (in, out) -> {
     v:data <- file.read(in);
     file.write(out, data);
-}?; # Akış biter, masalar imha edilir.
+}?; # Bu blokta kalan in/out kaynaklarını topluca kapat.
 
 ```
 
