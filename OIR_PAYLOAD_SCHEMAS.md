@@ -57,7 +57,7 @@ The header is followed by exactly token_count fixed-size records. Schema 1.0 req
 |---:|---:|---|---|
 | 0 | 2 | OIR token ID | Stable ID from OIR_TOKEN_REGISTRY.md |
 | 2 | 2 | Token flags | Must be zero in schema 1.0 |
-| 4 | 4 | Diagnostic ID | Zero unless this is an error token linked to a diagnostic |
+| 4 | 4 | Diagnostic ID | Zero normally; otherwise 1-based index in the associated DIAGNOSTICS payload |
 | 8 | 8 | Source byte offset | Zero-based offset into SOURCE_UNIT; UINT64_MAX means no source span |
 | 16 | 4 | Lexeme byte length | Length of the source slice; zero for EOF and non-source error tokens |
 | 20 | 4 | Line | 1-based source line |
@@ -101,7 +101,7 @@ The TOKEN_STREAM codec is implemented in `omnicore-sdk/src/c/oir/oir_token_strea
 2. [x] Add SOURCE_UNIT payload encode/decode and exact-length tests.
 3. [x] Extend lexer token metadata with source byte offsets and diagnostic references.
 4. [x] Add DIAGNOSTICS payload encode/decode and malformed-input validation tests.
-5. Add TOKEN_STREAM payload encode/decode and span-validation tests.
+5. [x] Add TOKEN_STREAM payload encode/decode and span-validation tests.
 6. Add lexer-to-OIR and OIR-to-parser adapters.
 7. Only then split lexer and parser into separate shared libraries using the common module ABI.
 
