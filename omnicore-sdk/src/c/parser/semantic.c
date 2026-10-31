@@ -641,7 +641,10 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_REDEFINED), capture->handler_name); // Handler için de REDEFINED kullanabiliriz veya yeni kod
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                add_slot(ctx, capture->handler_name, SLOT_VAR, 0, NULL, node, 1, 0); // Handler'lar genelde mutable'dır
+                Slot* handler_slot = add_slot(
+                    ctx, capture->handler_name, SLOT_VAR, 0, NULL, node, 1, 0);
+                semantic_record_annotation(
+                    ctx, node, handler_slot, NULL, SEMANTIC_RESULT_VALUE_LVALUE);
                 printf("%s: %s\n", msg_get(MSG_SEMANTIC_HANDLER), capture->handler_name);
             }
             if (capture->expr) semantic_check(ctx, capture->expr);
@@ -1009,8 +1012,13 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 snprintf(buf, sizeof(buf), "Type '%s' already defined.", nt->name);
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                Slot* newtype_slot = add_slot(ctx, nt->name, SLOT_NEWTYPE, 1, nt->target_type, node, 0, 0);
-                semantic_define_named_type(ctx, newtype_slot, nt->name, nt->target_type);
+                Slot* newtype_slot = add_slot(
+                    ctx, nt->name, SLOT_NEWTYPE, 1, nt->target_type, node, 0, 0);
+                semantic_define_named_type(
+                    ctx, newtype_slot, nt->name, nt->target_type);
+                semantic_record_annotation(
+                    ctx, node, newtype_slot, nt->name,
+                    SEMANTIC_RESULT_VALUE_LVALUE);
                 printf("[SEMANTIC] Registered NEWTYPE: %s -> %s\n", nt->name, nt->target_type);
             }
             break;
@@ -1094,7 +1102,10 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 snprintf(buf, sizeof(buf), "Label '%s' already defined.", lbl->label_name);
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                add_slot(ctx, lbl->label_name, SLOT_LABEL, 1, NULL, node, 0, 0);
+                Slot* label_slot = add_slot(
+                    ctx, lbl->label_name, SLOT_LABEL, 1, NULL, node, 0, 0);
+                semantic_record_annotation(
+                    ctx, node, label_slot, NULL, SEMANTIC_RESULT_VALUE_LVALUE);
                 printf("[SEMANTIC] Label defined: %s\n", lbl->label_name);
             }
             if (lbl->statement) semantic_check(ctx, lbl->statement);
@@ -1139,7 +1150,10 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             ASTNexusCapture* listen = (ASTNexusCapture*)node;
             // Listen bloğu içinde 'global_listener' slotu veya benzeri bir kapsam açılabilir
             enter_scope(ctx, node);
-            add_slot(ctx, listen->handler_name, SLOT_VAR, 1, "any", node, 1, 0);
+            Slot* listen_slot = add_slot(
+                ctx, listen->handler_name, SLOT_VAR, 1, "any", node, 1, 0);
+            semantic_record_annotation(
+                ctx, node, listen_slot, "any", SEMANTIC_RESULT_VALUE_LVALUE);
             if (listen->expr) semantic_check(ctx, listen->expr);
             exit_scope(ctx);
             break;
