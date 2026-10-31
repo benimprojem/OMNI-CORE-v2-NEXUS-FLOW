@@ -515,7 +515,8 @@ static int test_parser_allocation_failure_injection(void) {
         result = parser_run(ctx);
         status = parser_get_status(ctx);
         if (status == PARSER_STATUS_OUT_OF_MEMORY &&
-            result == PARSER_STATUS_OUT_OF_MEMORY) {
+            result == PARSER_STATUS_OUT_OF_MEMORY &&
+            ctx->test_allocation_count == fail_at) {
             ++oom_count;
         } else if (status == PARSER_STATUS_OK && result == PARSER_STATUS_OK &&
                    ctx->test_allocation_count < fail_at) {
