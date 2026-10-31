@@ -171,7 +171,7 @@ Registry: [OIR_AST_NODE_REGISTRY.md](OIR_AST_NODE_REGISTRY.md)
 Producer: parser stage  
 Consumers: semantic analysis, AST inspector, later lowering stages
 
-The AST payload is a node table plus typed field data. It is not a dump of C structs, pointers, enum ordinals or allocator memory. Node kinds use the stable IDs in OIR_AST_NODE_REGISTRY.md; operator and literal token kinds use OIR_TOKEN_REGISTRY.md.
+The AST payload is a node table plus typed field data. One AST artifact represents one SOURCE_UNIT; source identity is inherited from the associated source/artifact metadata. It is not a dump of C structs, pointers, enum ordinals or allocator memory. Node kinds use the stable IDs in OIR_AST_NODE_REGISTRY.md; operator and literal token kinds use OIR_TOKEN_REGISTRY.md.
 
 ### Payload header — 32 bytes
 
@@ -235,13 +235,16 @@ Strings are stored once in the trailing string table as raw UTF-8 bytes without 
 - Root node ID is 1 and its kind is AST_PROGRAM.
 - Every NODE_REF is zero or a valid node ID. Every next_node_id is zero or a valid node ID.
 - The node graph is a tree with sibling chains: no cycles, no node referenced by multiple owning fields, and every record is reachable from the root.
+- Node records' field-data ranges must be in bounds, non-overlapping and packed to cover the complete field-data area exactly. Each node's TLV stream must consume its declared field length exactly.
+- String references must remain within the string table. Multiple fields may reference the same immutable string bytes.
 - Canonical node numbering is deterministic depth-first traversal: visit node fields in ascending field-ID order, then its next sibling.
-- Field TLVs are ordered by ascending field ID. A field may appear at most once per node.
+- Field TLVs are ordered by ascending non-zero field ID. A field may appear at most once per node.
+- BOOL is exactly 0 or 1; NULL has zero value bytes; fixed-width value types must have their exact specified lengths. Unknown flag bits and malformed value lengths are rejected.
 - Every field defined as part of that node kind's schema must be present. Nullable child/string fields use NODE_REF(0) or NULL rather than being omitted.
 - Unknown fields are accepted only when their optional flag is set. Unknown required fields, unknown node kinds, unknown value types, duplicate fields and invalid fixed-width lengths are rejected.
 - Token-valued fields must reference a known ID in OIR_TOKEN_REGISTRY.md.
 - Maximum nesting depth is 512. Maximum node count is 1,000,000. Maximum individual string length is 16 MiB, matching the current C AST reader's safety ceiling.
-- The current C AST records only line/column start locations. End spans and source byte offsets are not invented; they can be added in a compatible extension after AST source-span propagation. AST_LITERAL lit_type currently uses 0=integer, 1=float, 2=string, 3=char, 4=bool; AST_LOOP.loop_type currently uses 0=infinite, 1=while, 2=for, 3=foreach. These are wire-level U32/I32 values whose semantic enumerations are explicitly documented, not copied C enum representations.
+- Line and column are either both zero (unknown/synthetic) or both non-zero (1-based). The current C AST records only line/column start locations. End spans and source byte offsets are not invented; they can be added in a compatible extension after AST source-span propagation. AST_LITERAL lit_type currently uses 0=integer, 1=float, 2=string, 3=char, 4=bool; AST_LOOP.loop_type currently uses 0=infinite, 1=while, 2=for, 3=foreach. These are wire-level U32/I32 values whose semantic enumerations are explicitly documented, not copied C enum representations.
 
 ### Current node field mapping
 
