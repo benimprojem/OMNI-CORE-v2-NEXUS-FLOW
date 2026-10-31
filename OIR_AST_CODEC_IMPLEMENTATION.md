@@ -125,3 +125,22 @@ The first node-table slice now implements:
 - Writer validates its logical input before writing and does not allocate internally. Input buffers must not overlap output storage.
 
 CTest target: `oir_ast_node_table_roundtrip_and_validation`. Cross-platform CI verification is pending.
+
+
+## 9. Implemented foundation: single-owner AST graph validator
+
+Files:
+- `omnicore-sdk/src/c/oir/oir_ast_graph.h`
+- `omnicore-sdk/src/c/oir/oir_ast_graph.c`
+- `omnicore-sdk/src/c/tests/test_oir_ast_graph.c`
+
+The graph pass consumes a validated node-table view and caller-provided scratch arrays; it performs no allocation. It:
+- Counts incoming edges from every NODE_REF field and each node's next_node_id.
+- Requires root node 1 to have zero incoming owning edges and every other node to have exactly one.
+- Traverses from the root, rejecting repeated visits, invalid depth and unreachable/orphan records.
+- Enforces the schema maximum depth of 512.
+- Tests a valid child+sibling tree, a duplicate-owner/cyclic sibling case, an unreachable self-cycle and a 513-node child chain.
+
+CTest target: `oir_ast_graph_single_owner_reachability_and_depth`. Cross-platform CI verification is pending.
+
+This is a structural graph check, not yet the complete AST semantic validator. It does not enforce per-node required fields, optional unknown-field policy, field value types beyond TLV primitive validity, or frontend C struct-specific scalar constraints.
