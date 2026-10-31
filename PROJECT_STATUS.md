@@ -543,3 +543,12 @@ Denetimde netleşen noktalar:
 - Ubuntu CTest 29/29, ASan/UBSan and Valgrind all passed.
 - Reader compiler log is warning-free after removing the unused helper and clarifying child-link control flow.
 - The AST payload can now be encoded and materialized into frontend AST nodes with validation-before-allocation and direct failure cleanup. Parser checkpoint integration remains a separate next stage.
+
+
+## Real parser AST → OIR → AST → OIR round-trip — 31 Ekim 2026
+
+- `test_parser_ast_oir_roundtrip.c` gerçek `test1.nxf` dosyasını mevcut parser ile parse ediyor; AST'yi OIR'a yazıyor, reader ile yeni AST oluşturuyor ve tekrar OIR'a yazıyor.
+- İlk ve ikinci OIR payload byte-for-byte karşılaştırılıyor; canonical ID sırası, source positions, scalar/token/string değerleri ve pointer bağlantıları tek entegrasyon zincirinde sınanıyor.
+- Test CTest: `parser_ast_oir_ast_roundtrip_canonical_bytes`.
+- **Run 41159889179:** Ubuntu CTest 30/30, ASan/UBSan ve Valgrind başarılı; macOS build/test başarılı. Windows build/test henüz devam ediyor.
+- **Sıradaki aşama:** Windows sonucu tamamlanınca parser checkpoint handoff tasarımı ve malformed AST payload fuzz/property test matrisi.
