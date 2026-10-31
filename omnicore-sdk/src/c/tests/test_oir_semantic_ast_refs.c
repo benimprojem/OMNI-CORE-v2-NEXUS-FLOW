@@ -14,6 +14,11 @@
     } \
 } while (0)
 
+static void write_u16(uint8_t* p, uint16_t value) {
+    p[0] = (uint8_t)(value & 0xffu);
+    p[1] = (uint8_t)((value >> 8) & 0xffu);
+}
+
 static void write_u32(uint8_t* p, uint32_t value) {
     p[0] = (uint8_t)(value & 0xffu);
     p[1] = (uint8_t)((value >> 8) & 0xffu);
