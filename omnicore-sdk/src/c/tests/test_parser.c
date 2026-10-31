@@ -141,7 +141,7 @@ static int test_rejects_invalid_aggregate_members(void) {
     static const char* sources[] = {
         "f:main() { struct:Broken { ; } }",
         "f:main() { enum:Broken { ; } }",
-        "f:main() { group:Broken { ; } }"
+        "f:main() { group Broken { ; } }"
     };
     size_t i;
     for (i = 0; i < sizeof(sources) / sizeof(sources[0]); ++i) {
