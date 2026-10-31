@@ -35,7 +35,8 @@ void semantic_attach_node_id_resolver(
     if (!ctx) return;
     ctx->node_id_resolver = resolver;
     ctx->node_id_context = user_context;
-    ctx->result_enabled = (uint8_t)(resolver != NULL);
+    ctx->result_enabled = (uint8_t)(
+        resolver != NULL && ctx->result_status == SEMANTIC_RESULT_OK);
     ctx->current_scope_id = 1u;
 }
 
@@ -45,6 +46,10 @@ SemanticResultStatus semantic_finalize_result(
     if (!ctx) return SEMANTIC_RESULT_INVALID_ARGUMENT;
     if (!ctx->result_enabled) return SEMANTIC_RESULT_INVALID_ARGUMENT;
     if (ctx->result_status != SEMANTIC_RESULT_OK) return ctx->result_status;
+    if (ctx->error_count != 0) {
+        ctx->result_status = SEMANTIC_RESULT_INVALID_DATA;
+        return ctx->result_status;
+    }
     ctx->result_status = semantic_result_finalize(&ctx->result, ast_node_count);
     return ctx->result_status;
 }
@@ -196,7 +201,9 @@ static uint32_t semantic_type_id(
     Slot* declared_type = NULL;
     SemanticResultStatus status;
 
-    if (!ctx || !ctx->result_enabled || !type_name || !*type_name) return 0u;
+    if (!ctx || !ctx->result_enabled ||
+        ctx->result_status != SEMANTIC_RESULT_OK ||
+        !type_name || !*type_name) return 0u;
     if (*name == '!') {
         flags |= SEMANTIC_RESULT_TYPE_FLAG_HARD;
         ++name;
@@ -325,7 +332,8 @@ static void semantic_record_annotation(
     uint32_t type_id;
     SemanticResultStatus status;
 
-    if (!ctx || !ctx->result_enabled || !node) return;
+    if (!ctx || !ctx->result_enabled ||
+        ctx->result_status != SEMANTIC_RESULT_OK || !node) return;
     node_id = semantic_node_id(ctx, node);
     type_id = slot ? slot->type_id : semantic_type_id(ctx, type_name);
     if (node_id == 0u || ctx->current_scope_id == 0u) {
