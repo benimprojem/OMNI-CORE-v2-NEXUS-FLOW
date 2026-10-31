@@ -14,7 +14,7 @@ static int write_invalid_source(const char* path) {
 }
 
 static int write_invalid_lexical_source(const char* path) {
-    static const char source[] = "v:x = §;\n";
+    static const char source[] = "v:x = \\xC2\\xA7;\\n";
     FILE* file = fopen(path, "wb");
     if (!file) return 0;
     int ok = fwrite(source, 1, sizeof(source) - 1u, file) == sizeof(source) - 1u;
