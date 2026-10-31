@@ -2074,14 +2074,24 @@ static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int c
         input.hint_length = input.hint ? strlen(input.hint) : 0u;
         (void)occ_diagnostics_add(ctx->diagnostics, &input);
     }
-    Error* err = (Error*)malloc(sizeof(Error));
+    Error* err = (Error*)calloc(1u, sizeof(*err));
+    if (!err) return;
     err->code = code;
     err->filename = strdup(ctx->filename ? ctx->filename : "<unknown>");
-    err->line = line;
-    err->col = col;
-    err->message = strdup(message);
+    err->message = strdup(message ? message : "");
     err->suggestion = suggestion ? strdup(suggestion) : NULL;
     err->hint = hint ? strdup(hint) : NULL;
+    if (!err->filename || !err->message ||
+        (suggestion && !err->suggestion) || (hint && !err->hint)) {
+        free(err->filename);
+        free(err->message);
+        free(err->suggestion);
+        free(err->hint);
+        free(err);
+        return;
+    }
+    err->line = line;
+    err->col = col;
     err->similarity = similarity;
     err->is_warning = is_warning;
     err->next = NULL;
