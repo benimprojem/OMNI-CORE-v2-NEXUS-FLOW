@@ -67,6 +67,11 @@ typedef struct OccDiagnosticView {
     const char* hint;
 } OccDiagnosticView;
 
+/* Job-level diagnostic resource policy; byte counts include NUL terminators. */
+#define OCC_DIAGNOSTICS_MAX_COUNT 65536u
+#define OCC_DIAGNOSTICS_MAX_TEXT_BYTES (16u * 1024u * 1024u)
+#define OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES (1024u * 1024u)
+
 typedef struct OccDiagnosticCollector {
     OccDiagnosticRecord* records;
     size_t count;
@@ -76,6 +81,7 @@ typedef struct OccDiagnosticCollector {
     size_t text_capacity;
     size_t severity_counts[5];
     int allocation_failed;
+    int limit_exceeded;
 } OccDiagnosticCollector;
 
 void occ_diagnostics_init(OccDiagnosticCollector* collector);
