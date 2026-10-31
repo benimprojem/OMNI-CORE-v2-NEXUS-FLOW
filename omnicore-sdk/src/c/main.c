@@ -712,7 +712,6 @@ int main(int argc, char **argv) {
             exit_code = 1;
         }
 
-        semantic_destroy(&sem_ctx);
     } else {
         printf("%s\n", msg_get(MSG_OCC_FAIL_PARSER));
         exit_code = 1;
