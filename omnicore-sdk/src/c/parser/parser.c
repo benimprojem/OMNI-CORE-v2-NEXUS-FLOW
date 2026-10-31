@@ -2721,6 +2721,14 @@ int parser_attach_token_stream(
             (token->type != TOKEN_EOF && token->source_length == 0u)) {
             return 0;
         }
+        if (token->type != TOKEN_EOF && token->type != TOKEN_ERROR) {
+            if ((size_t)token->length != token->source_length ||
+                memcmp(token->start,
+                    ctx->source_buffer + token->source_offset,
+                    token->source_length) != 0) {
+                return 0;
+            }
+        }
         token_end = token->source_offset + token->source_length;
         previous_end = token_end;
     }
