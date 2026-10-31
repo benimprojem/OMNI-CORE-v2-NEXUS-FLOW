@@ -1,0 +1,122 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+#include "parser.h"
+#include "ast.h"
+#include "oir_ast_frontend_writer.h"
+#include "oir_ast_frontend_reader.h"
+
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static OirStatus encode_ast(ASTNode* root,uint8_t** out_payload,size_t* out_length) {
+    size_t index_capacity=1024u;
+    OirAstPointerIndexEntry* index=NULL;
+    OirAstNodeRecord* records=NULL;
+    uint8_t* fields=NULL;
+    uint8_t* strings=NULL;
+    uint8_t* payload=NULL;
+    uint32_t node_count=0u;
+    size_t written=0u;
+    OirAstFrontendRequirements req;
+    OirStatus status;
+
+    *out_payload=NULL; *out_length=0u;
+    for(;;) {
+        free(index);
+        index=(OirAstPointerIndexEntry*)calloc(index_capacity,sizeof(*index));
+        if(!index) { status=OIR_STATUS_OUT_OF_MEMORY; goto done; }
+        status=oir_ast_frontend_index_build(root,index,index_capacity,&node_count);
+        if(status!=OIR_STATUS_BUFFER_TOO_SMALL) break;
+        if(index_capacity>=2097152u) goto done;
+        index_capacity*=2u;
+    }
+    if(status!=OIR_STATUS_OK) goto done;
+    status=oir_ast_frontend_measure(root,index,index_capacity,node_count,&req);
+    if(status!=OIR_STATUS_OK) goto done;
+
+    records=(OirAstNodeRecord*)calloc(node_count,sizeof(*records));
+    fields=req.field_data_length?(uint8_t*)malloc(req.field_data_length):NULL;
+    strings=req.string_table_length?(uint8_t*)malloc(req.string_table_length):NULL;
+    payload=(uint8_t*)malloc(req.payload_size);
+    if(!records || (req.field_data_length && !fields) ||
+        (req.string_table_length && !strings) || !payload) {
+        status=OIR_STATUS_OUT_OF_MEMORY; goto done;
+    }
+    status=oir_ast_frontend_write_payload(root,index,index_capacity,node_count,
+        records,node_count,fields,req.field_data_length,strings,req.string_table_length,
+        payload,req.payload_size,&written,&req);
+    if(status!=OIR_STATUS_OK) goto done;
+    if(written!=req.payload_size) { status=OIR_STATUS_LENGTH_MISMATCH; goto done; }
+    *out_payload=payload; *out_length=written; payload=NULL;
+
+done:
+    free(index); free(records); free(fields); free(strings); free(payload);
+    return status;
+}
+
+int main(int argc,char** argv) {
+    ParserContext* parser;
+    uint8_t* first_payload=NULL;
+    uint8_t* second_payload=NULL;
+    size_t first_length=0u,second_length=0u;
+    ASTNode* decoded_root=NULL;
+    ASTNode** node_storage=NULL;
+    uint32_t* incoming=NULL;
+    uint8_t* visited=NULL;
+    OirAstGraphStackEntry* stack=NULL;
+    OirStatus status;
+    int result=1;
+    OirAstNodeTableView view;
+
+    if(argc!=2) return 2;
+    parser=parser_init(argv[1]);
+    if(!parser) return 1;
+    if(parser_run(parser)!=0 || !parser->ast_root ||
+        ((ASTNode*)parser->ast_root)->type!=AST_PROGRAM) {
+        fprintf(stderr,"Could not parse AST round-trip fixture.\n");
+        goto cleanup;
+    }
+
+    status=encode_ast((ASTNode*)parser->ast_root,&first_payload,&first_length);
+    if(status!=OIR_STATUS_OK) {
+        fprintf(stderr,"Frontend AST writer failed: %s\n",oir_status_string(status));
+        goto cleanup;
+    }
+    status=oir_ast_node_table_open(first_payload,first_length,&view);
+    if(status!=OIR_STATUS_OK) goto cleanup;
+
+    node_storage=(ASTNode**)calloc(view.node_count,sizeof(*node_storage));
+    incoming=(uint32_t*)calloc(view.node_count,sizeof(*incoming));
+    visited=(uint8_t*)calloc(view.node_count,sizeof(*visited));
+    stack=(OirAstGraphStackEntry*)calloc(view.node_count,sizeof(*stack));
+    if(!node_storage || !incoming || !visited || !stack) goto cleanup;
+
+    status=oir_ast_frontend_read_payload(first_payload,first_length,node_storage,
+        view.node_count,incoming,view.node_count,visited,view.node_count,
+        stack,view.node_count,&decoded_root);
+    if(status!=OIR_STATUS_OK || !decoded_root) {
+        fprintf(stderr,"OIR AST reader failed: %s\n",oir_status_string(status));
+        goto cleanup;
+    }
+
+    status=encode_ast(decoded_root,&second_payload,&second_length);
+    if(status!=OIR_STATUS_OK) {
+        fprintf(stderr,"Re-encoding materialized AST failed: %s\n",oir_status_string(status));
+        goto cleanup;
+    }
+    if(first_length!=second_length || memcmp(first_payload,second_payload,first_length)!=0) {
+        fprintf(stderr,"AST → OIR → AST → OIR was not byte-for-byte canonical.\n");
+        goto cleanup;
+    }
+
+    result=0;
+cleanup:
+    if(decoded_root) ast_destroy(decoded_root);
+    free(node_storage); free(incoming); free(visited); free(stack);
+    free(first_payload); free(second_payload);
+    parser_destroy(parser);
+    return result;
+}
