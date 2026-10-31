@@ -152,7 +152,10 @@ static OirStatus read_record(
             out_entry->span.start_line == 0 ||
             out_entry->span.start_column == 0 ||
             out_entry->span.end_line == 0 ||
-            out_entry->span.end_column == 0) {
+            out_entry->span.end_column == 0 ||
+            out_entry->span.end_line < out_entry->span.start_line ||
+            (out_entry->span.end_line == out_entry->span.start_line &&
+             out_entry->span.end_column < out_entry->span.start_column)) {
             return OIR_STATUS_INVALID_SECTION;
         }
     } else if (out_entry->span.source_id != 0 ||
@@ -276,7 +279,10 @@ OirStatus oir_diagnostics_payload_write(
         if (r->span.has_location) {
             if (r->span.end_offset < r->span.start_offset ||
                 r->span.start_line == 0 || r->span.start_column == 0 ||
-                r->span.end_line == 0 || r->span.end_column == 0) {
+                r->span.end_line == 0 || r->span.end_column == 0 ||
+                r->span.end_line < r->span.start_line ||
+                (r->span.end_line == r->span.start_line &&
+                 r->span.end_column < r->span.start_column)) {
                 return OIR_STATUS_INVALID_SECTION;
             }
         } else if (r->span.source_id != 0 || r->span.start_offset != 0 ||
