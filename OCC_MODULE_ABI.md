@@ -199,7 +199,7 @@ The loader is implemented, but main.c has not yet switched from its legacy stati
 
 ## 12. OCC host pipeline integration — first parser DLL handoff
 
-The OCC CLI now performs a real in-memory OIR handoff through the parser shared module. The host still owns the lexer at this stage:
+The OCC CLI performs a real in-memory OIR handoff through the lexer and parser shared modules:
 
 - Source file bytes and path are serialized as a `SOURCE_UNIT` artifact.
 - Frontend tokens are converted to stable OIR token IDs and byte spans, then serialized as `TOKEN_STREAM`.
@@ -211,7 +211,7 @@ On parser failure, the callback has already copied stage diagnostics into the jo
 
 CI run 41174447616 passed: Windows, Ubuntu and macOS build/test; CTest 39/39; Ubuntu ASan/UBSan and Valgrind. The localized executable copy also receives the parser shared library beside it.
 
-This is intentionally a partial pipeline migration. Lexer remains statically hosted, semantic analysis remains in-process, and codegen still uses its legacy `codegen_run` entry point rather than `OccStageModuleV1`. The semantic AST OIR schema and module are not implemented yet. The ABI remains Draft v1 and is not frozen.
+This is intentionally a partial pipeline migration. Semantic analysis was initially in-process and has since been extracted into a separate stage module (see section 14); CLI handoff to that module remains pending. Codegen still uses its legacy `codegen_run` entry point rather than `OccStageModuleV1`. The ABI remains Draft v1 and is not frozen.
 
 
 ## 13. Independent lexer stage module
@@ -228,4 +228,23 @@ The OCC CLI now loads both lexer and parser modules through the host loader. The
 
 CTest `real_lexer_stage_source_to_token_stream_module` verifies a real DLL invocation, token/diagnostic references, exact source span, diagnostic callback and output-buffer retry. CI run 41174917131 passed on Windows, Ubuntu and macOS; CTest 40/40; Ubuntu ASan/UBSan and Valgrind passed.
 
-Semantic analysis and codegen are not yet independent modules under this ABI. ABI v1 remains draft and is not frozen.
+The semantic stage module is now implemented and tested separately (section 14). The OCC CLI still needs to invoke it after the parser handoff. Codegen is not yet migrated to this ABI. ABI v1 remains draft and is not frozen.
+
+
+## 14. Independent semantic analysis stage module
+
+`omnicore-sdk/src/c/module/semantic_stage_module.c` is built as `occ_semantic_stage` and exports the common `occ_get_stage_module_v1` entry point.
+
+Input/output contract:
+- Exactly one complete, valid `OIR_KIND_AST` artifact is accepted.
+- The input OIR envelope, AST payload schema, node table, graph and field schema are validated before semantic analysis.
+- The module materializes an invocation-local frontend AST, builds the same canonical preorder node-ID index used by the AST writer, and attaches a resolver to the semantic analyzer.
+- Semantic analysis writes only to an invocation-owned `SemanticResult`; no AST pointer, `Slot`, `SemanticContext` or allocator state crosses the module boundary.
+- On success, the module writes one complete `OIR_KIND_SEMANTIC_AST` artifact, preserving the exact input AST payload and the original job ID.
+- The required output size is calculated before writing. An undersized caller buffer returns `NEED_OUTPUT_BUFFER`, zero committed bytes and the required capacity. The host loader retries the immutable input without retaining module state.
+- Semantic diagnostics are synchronously copied through the host-owned diagnostic sink. A semantic error publishes no valid output artifact.
+- The descriptor declares deterministic execution and diagnostic reporting, but does not declare reentrancy or statelessness; the host must serialize calls to the same module instance.
+
+CTest `real_semantic_stage_ast_to_semantic_ast_module` loads the actual shared library through `occ_module_loader`, creates a valid AST OIR fixture, exercises output-buffer retry, and independently opens and validates the resulting SEMANTIC_AST cross-table references and symbol/scope tables.
+
+CI run 41183063260 passed on Windows, macOS and Ubuntu; Ubuntu CTest 46/46, ASan/UBSan and Valgrind passed. The module is built and independently tested, but OCC's main CLI has not yet switched its semantic step from the in-process path to this DLL. ABI v1 remains draft and is not frozen.
