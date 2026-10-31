@@ -878,6 +878,21 @@ if(BUILD_TESTING)
     add_test(NAME oir_semantic_ast_scope_codec_roundtrip_and_validation
         COMMAND test_oir_semantic_ast)
 
+    add_executable(test_oir_semantic_ast_refs
+        "${C_SOURCE_DIR}/tests/test_oir_semantic_ast_refs.c"
+    )
+    target_link_libraries(test_oir_semantic_ast_refs PRIVATE
+        occ_oir_semantic_ast
+        occ_oir_ast_node_table
+    )
+    if(MSVC)
+        target_compile_options(test_oir_semantic_ast_refs PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_semantic_ast_refs PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_semantic_ast_cross_table_reference_validation
+        COMMAND test_oir_semantic_ast_refs)
+
     add_executable(test_lexer "${C_SOURCE_DIR}/tests/test_lexer.c")
     target_include_directories(test_lexer PRIVATE "${C_PARSER_DIR}")
     target_link_libraries(test_lexer PRIVATE occ_frontend)
