@@ -22,6 +22,35 @@ int main(void) {
         5u * OIR_TOKEN_STREAM_RECORD_SIZE;
     size_t written = 0;
 
+    {
+        Token frontend = {0};
+        OirTokenStreamInput converted;
+        frontend.type = TOKEN_ERROR;
+        frontend.start = "invalid byte";
+        frontend.length = 12;
+        frontend.line = 1;
+        frontend.col = 4;
+        frontend.source_offset = 3;
+        frontend.source_length = 1;
+        frontend.diagnostic_id = 1;
+        CHECK(oir_token_stream_input_from_lexer_token(&frontend, &converted) ==
+            OIR_STATUS_OK, "convert frontend lexer error token");
+        CHECK(converted.token_id == oir_token_id_from_omni(TOKEN_ERROR) &&
+            converted.diagnostic_id == 1 && converted.source_offset == 3 &&
+            converted.lexeme_length == 1,
+            "preserve lexer error span and diagnostic reference");
+
+        frontend.type = TOKEN_IDENTIFIER;
+        frontend.length = 1;
+        frontend.source_offset = 0;
+        frontend.source_length = 1;
+        frontend.diagnostic_id = 0;
+        CHECK(oir_token_stream_input_from_lexer_token(&frontend, &converted) ==
+            OIR_STATUS_OK && converted.token_id ==
+                oir_token_id_from_omni(TOKEN_IDENTIFIER),
+            "convert ordinary frontend token");
+    }
+
     memset(tokens, 0, sizeof(tokens));
     tokens[0].token_id = oir_token_id_from_omni(TOKEN_IDENTIFIER);
     tokens[0].source_offset = 0;
