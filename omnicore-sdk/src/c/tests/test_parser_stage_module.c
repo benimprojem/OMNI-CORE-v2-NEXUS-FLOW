@@ -120,6 +120,22 @@ int main(int argc,char** argv) {
     CHECK(output==NULL && output_capacity==0u);
     token_artifact[16]=(uint8_t)OIR_TOKEN_STREAM_SCHEMA_MAJOR;
 
+    /* A token artifact not produced by the lexer must be rejected. */
+    token_artifact[20]=(uint8_t)OCC_STAGE_PARSER;
+    CHECK(occ_module_loader_invoke(&loaded,inputs,2u,42u,&collector,
+        64u,16u*1024u*1024u,&output,&output_capacity)==
+        OCC_MODULE_LOADER_INVOKE_FAILED);
+    CHECK(output==NULL && output_capacity==0u);
+    token_artifact[20]=(uint8_t)OCC_STAGE_LEXER;
+
+    /* The parser independently validates the source-unit schema too. */
+    source_artifact[16]=(uint8_t)(OIR_SOURCE_UNIT_SCHEMA_MAJOR+1u);
+    CHECK(occ_module_loader_invoke(&loaded,inputs,2u,42u,&collector,
+        64u,16u*1024u*1024u,&output,&output_capacity)==
+        OCC_MODULE_LOADER_INVOKE_FAILED);
+    CHECK(output==NULL && output_capacity==0u);
+    source_artifact[16]=(uint8_t)OIR_SOURCE_UNIT_SCHEMA_MAJOR;
+
     /* Invalid source must report exact token coordinates and publish no AST. */
     {
         static const uint8_t bad_source[]="v:x = ;\n";
