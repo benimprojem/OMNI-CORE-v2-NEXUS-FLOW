@@ -1,4 +1,5 @@
 #include "oir_semantic_ast_artifact.h"
+#include "diagnostics.h"
 
 #include <string.h>
 
@@ -44,6 +45,7 @@ OirStatus oir_semantic_ast_artifact_open(
             OIR_SEMANTIC_AST_SCHEMA_MAJOR ||
         result.envelope.header.payload_schema_minor !=
             OIR_SEMANTIC_AST_SCHEMA_MINOR ||
+        result.envelope.header.producer_stage_id != OCC_STAGE_SEMANTIC ||
         result.envelope.header.validity != OIR_VALIDITY_VALID) {
         return OIR_STATUS_INVALID_HEADER;
     }
