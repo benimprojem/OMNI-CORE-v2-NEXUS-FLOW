@@ -57,7 +57,7 @@ Her kombinasyon için assembler, linker, system library, entry point, calling co
 
 ## 6. Mevcut uygulama farkı
 
-C OCC girişinde şu anda `x86_64_baremetal` varsayılanı ve Windows DLL yükleme yolu bulunuyor. Bu mevcut prototip davranışıdır; bu belgede tanımlanan host-default ve üç işletim sistemi hedef modeli henüz uygulanmış değildir. Build ve target çözümleme çalışmaları bu farkı kapatacaktır.
+C OCC CLI artık açık `--target` seçimini korur; seçim yapılmadığında derleyici host'u için tanımlı hedef adını seçer (şu an Windows x86-64 → `Win64`, Linux x86-64 → `Linux64`, macOS AArch64 → `macOS_AArch64`). Diğer host kombinasyonlarında sessizce BareMetal veya başka bir hedefe düşmek yerine açık `--target` ister. Bu ilk host eşlemesidir; proje/build yapılandırmasından target seçimi ve eksik host descriptor'ları henüz tamamlanmamıştır. Target descriptor'ın normalize OIR girdisi olarak aşamalara aktarımı da henüz uygulanmamıştır.
 
 ## 7. Uygulama sırası
 
