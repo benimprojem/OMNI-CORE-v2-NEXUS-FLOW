@@ -559,3 +559,10 @@ Denetimde netleşen noktalar:
 - Run 41159889179 tamamlandı: Windows, Ubuntu ve macOS build/test başarılı.
 - Ubuntu CTest 30/30; ASan/UBSan ve Valgrind başarılı.
 - Gerçek parser fixture'ı üzerinden AST → OIR → AST → OIR byte-for-byte canonical eşitliği doğrulandı.
+
+
+## AST codec mutation-sweep CI confirmation — 31 Ekim 2026
+
+- Run 41160054930 passed on Windows, Ubuntu and macOS; Ubuntu CTest 30/30, ASan/UBSan and Valgrind passed.
+- The real parser AST integration test now flips one bit at every byte of the emitted payload and submits each variant to the reader. Valid variants are materialized and destroyed; rejected variants must leave the output root NULL.
+- This is a deterministic mutation sweep, not a coverage-guided fuzzing campaign. Parser checkpoint artifact handoff and fuzz/property tooling remain future work.
