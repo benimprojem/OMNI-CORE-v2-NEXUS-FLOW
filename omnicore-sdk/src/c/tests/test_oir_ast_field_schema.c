@@ -52,7 +52,8 @@ static uint8_t type_for(uint16_t k, uint16_t f) {
         case 13: return f==1?OIR_AST_VALUE_TOKEN_ID:(f==2?OIR_AST_VALUE_U32:(f==3?OIR_AST_VALUE_I64:(f==4?OIR_AST_VALUE_F64:OIR_AST_VALUE_NULL)));
         case 14: case 34: case 37: case 39: return OIR_AST_VALUE_NULL;
         case 15: case 18: case 21: return f==1?OIR_AST_VALUE_TOKEN_ID:OIR_AST_VALUE_NODE_REF;
-        case 16: case 17: case 22: case 26: return f==1?OIR_AST_VALUE_TOKEN_ID:OIR_AST_VALUE_NODE_REF;
+        case 16: case 17: case 26: return f==1?OIR_AST_VALUE_TOKEN_ID:OIR_AST_VALUE_NODE_REF;
+        case 22: return OIR_AST_VALUE_NODE_REF;
         case 19: case 40: case 42: case 43: case 44: case 45: case 46: case 47:
         case 48: case 49: case 50: case 51: case 52: case 53: case 54: case 55:
         case 56: case 57: case 58: case 59: case 60: case 61: case 62: case 63:
