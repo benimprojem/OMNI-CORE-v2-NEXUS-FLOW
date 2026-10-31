@@ -436,3 +436,17 @@ Doğrulama: GitHub Actions run 41145426190 ile Windows, Ubuntu ve macOS build/CT
 - CMake'e bağımsız `occ_oir_ast_map` static utility hedefi ve `oir_ast_node_registry_mapping_roundtrip` CTest kaydı eklendi.
 - **Durum:** Kaynak ve testler branch'e işlendi. GitHub Actions build/test, ASan/UBSan ve Valgrind koşuları başlatıldı; henüz sonuç alınmadı. Bu nedenle adapter şu aşamada kodlandı, CI ile doğrulanması bekleniyor.
 - **Kapsam sınırı:** Bu yalnızca node-kind kimlik katmanıdır; AST field TLV writer/reader, graph validation, round-trip payload codec ve parser checkpoint migration henüz uygulanmadı.
+
+
+## OIR AST codec implementation contract — 31 Ekim 2026
+
+AST payload schema 1.0 ve frontend AST yapıları birlikte incelendi. Codec uygulamasından önce bellek sahipliği ve graph kuralları ayrı bir sözleşmede toplandı: [OIR_AST_CODEC_IMPLEMENTATION.md](OIR_AST_CODEC_IMPLEMENTATION.md).
+
+Denetimde netleşen noktalar:
+- `ASTNode.next` kardeş zinciri bağlantısıdır; node-specific TLV alanı değildir.
+- Mevcut AST cleanup kodu child ve sibling bağlantılarını sahip olunan ağaç olarak temizler. Bu nedenle OIR reader, pointer bağlantılarını kurmadan önce cycle, duplicate-owner, orphan ve depth kontrollerini tamamlamalıdır.
+- Reader önce tüm payload'ı doğrulamalı, sonra node/string allocation yapmalı, en son no-fail linking pass ile pointer'ları bağlamalıdır. Kısmen bağlanmış graf üzerinde mevcut `ast_destroy()` çağrılmamalıdır.
+- Token/operator alanları stable OIR token map üzerinden çevrilmeli; C enum değerleri doğrudan yazılmamalıdır.
+- Shared C struct kullanan farklı AST türleri OIR'de ayrı node kind olarak kalır.
+
+**CI doğrulaması:** AST node map commit'i 41155747645; TASKS güncellemesi 41155765694; PROJECT_STATUS güncellemesi 41155769032 çalışmaları başarılı tamamlandı. Sonraki adım hâlâ bounded AST payload writer/reader ve graph/reference validation kodudur. Codec tamamlanmadan parser checkpoint migration veya stage DLL ABI freeze yapılmayacaktır.
