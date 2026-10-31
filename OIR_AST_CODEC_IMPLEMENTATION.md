@@ -84,3 +84,24 @@ Do not call `ast_destroy()` on a partially linked or unvalidated graph: its recu
 7. Windows, Ubuntu and macOS CTest; Ubuntu ASan/UBSan and Valgrind.
 
 Parser checkpoint migration is allowed only after the codec and malformed-input matrix pass in CI.
+
+
+## 7. Implemented foundation: bounded TLV primitives
+
+Files:
+- `omnicore-sdk/src/c/oir/oir_ast_tlv.h`
+- `omnicore-sdk/src/c/oir/oir_ast_tlv.c`
+- `omnicore-sdk/src/c/tests/test_oir_ast_tlv.c`
+
+The first implementation slice provides:
+- Caller-owned bounded writer; no hidden allocation.
+- Fixed 8-byte TLV headers and little-endian field ID/value length encoding.
+- Strictly ascending, non-zero field IDs; duplicate and out-of-order fields are rejected.
+- Known value types 0–9 with exact fixed-width validation.
+- Canonical BOOL values (0/1), explicit NULL distinct from empty STRING_REF, and stable token ID range validation (1–160).
+- Reader returns zero-copy field views and rejects truncated headers/values, unknown types, invalid flags, invalid widths and malformed ordering.
+- Writer failure leaves its cursor and prior bytes unchanged for capacity/order/type failures.
+
+This layer intentionally does not yet validate STRING_REF offsets against the AST string table, NODE_REF IDs against the node table, per-node required-field schemas, or graph ownership. Those checks belong to the AST payload/node-table validator.
+
+CTest target: `oir_ast_tlv_primitives_roundtrip_and_validation`. Cross-platform CI and sanitizer results are pending.
