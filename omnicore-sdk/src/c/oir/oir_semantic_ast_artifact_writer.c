@@ -319,29 +319,53 @@ OirStatus oir_semantic_ast_artifact_write(
     status = oir_semantic_scopes_write(
         scope_section, scope_section_size, scope_records,
         semantic_result->scope_count, &written);
-    if (status != OIR_STATUS_OK || written != scope_section_size) goto cleanup;
+    if (status != OIR_STATUS_OK) goto cleanup;
+    if (written != scope_section_size) {
+        status = OIR_STATUS_INVALID_SECTION;
+        goto cleanup;
+    }
     status = oir_semantic_types_write(
         type_section, type_section_size, type_records,
         semantic_result->type_count, type_strings, type_string_length, &written);
-    if (status != OIR_STATUS_OK || written != type_section_size) goto cleanup;
+    if (status != OIR_STATUS_OK) goto cleanup;
+    if (written != type_section_size) {
+        status = OIR_STATUS_INVALID_SECTION;
+        goto cleanup;
+    }
     status = oir_semantic_symbols_write(
         symbol_section, symbol_section_size, symbol_records,
         semantic_result->symbol_count, symbol_strings, symbol_string_length, &written);
-    if (status != OIR_STATUS_OK || written != symbol_section_size) goto cleanup;
+    if (status != OIR_STATUS_OK) goto cleanup;
+    if (written != symbol_section_size) {
+        status = OIR_STATUS_INVALID_SECTION;
+        goto cleanup;
+    }
     status = oir_semantic_annotations_write(
         annotation_section, annotation_section_size, annotation_records,
         semantic_result->annotation_count, &written);
-    if (status != OIR_STATUS_OK || written != annotation_section_size) goto cleanup;
+    if (status != OIR_STATUS_OK) goto cleanup;
+    if (written != annotation_section_size) {
+        status = OIR_STATUS_INVALID_SECTION;
+        goto cleanup;
+    }
     status = oir_semantic_relations_write(
         relation_section, relation_section_size, relation_records,
         semantic_result->relation_count, relation_strings, relation_string_length,
         &written);
-    if (status != OIR_STATUS_OK || written != relation_section_size) goto cleanup;
+    if (status != OIR_STATUS_OK) goto cleanup;
+    if (written != relation_section_size) {
+        status = OIR_STATUS_INVALID_SECTION;
+        goto cleanup;
+    }
     if (conversion_section_size) {
         status = oir_semantic_conversions_write(
             conversion_section, conversion_section_size, conversion_records,
             semantic_result->conversion_count, &written);
-        if (status != OIR_STATUS_OK || written != conversion_section_size) goto cleanup;
+        if (status != OIR_STATUS_OK) goto cleanup;
+    if (written != conversion_section_size) {
+        status = OIR_STATUS_INVALID_SECTION;
+        goto cleanup;
+    }
     }
 
     section_count = conversion_section_size ? 7u : 6u;
@@ -423,7 +447,11 @@ OirStatus oir_semantic_ast_artifact_write(
     }
     status = oir_artifact_write(
         artifact_scratch, total_size, &header, sections, section_count, &written);
-    if (status != OIR_STATUS_OK || written != total_size) goto cleanup;
+    if (status != OIR_STATUS_OK) goto cleanup;
+    if (written != total_size) {
+        status = OIR_STATUS_LENGTH_MISMATCH;
+        goto cleanup;
+    }
 
     incoming_counts = (uint32_t*)calloc(ast_view.node_count, sizeof(*incoming_counts));
     visited = (uint8_t*)calloc(ast_view.node_count, sizeof(*visited));
