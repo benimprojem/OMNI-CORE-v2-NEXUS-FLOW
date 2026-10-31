@@ -30,7 +30,7 @@ static OirStatus find_payload(
     return found ? OIR_STATUS_OK : OIR_STATUS_MISSING_PAYLOAD;
 }
 
-static void report_diagnostics(
+static int report_diagnostics(
     const OccModuleInvocationV1* invocation,
     const OccDiagnosticCollector* collector
 ) {
@@ -38,7 +38,7 @@ static void report_diagnostics(
     for (i = 0u; i < occ_diagnostics_count(collector); ++i) {
         OccDiagnosticView view;
         OccModuleDiagnosticV1 diagnostic;
-        if (!occ_diagnostics_get(collector, i, &view) || !view.record) return;
+        if (!occ_diagnostics_get(collector, i, &view) || !view.record) return 0;
         memset(&diagnostic, 0, sizeof(diagnostic));
         diagnostic.struct_size = (uint32_t)sizeof(diagnostic);
         diagnostic.code = view.record->code;
@@ -50,8 +50,9 @@ static void report_diagnostics(
         diagnostic.hint = view.hint;
         diagnostic.hint_length = view.record->hint_length;
         if (!invocation->diagnostic_sink.report(
-            invocation->diagnostic_sink.user_context, &diagnostic)) return;
+            invocation->diagnostic_sink.user_context, &diagnostic)) return 0;
     }
+    return 1;
 }
 
 static uint32_t OCC_MODULE_CALL lexer_stage_process(
@@ -76,7 +77,6 @@ static uint32_t OCC_MODULE_CALL lexer_stage_process(
     uint32_t section_count = 1u;
     OirStatus status;
     uint32_t module_status = OCC_MODULE_STATUS_FAILED;
-    size_t i;
 
     occ_diagnostics_init(&diagnostics);
     result->bytes_written = 0u;
@@ -224,9 +224,9 @@ static uint32_t OCC_MODULE_CALL lexer_stage_process(
     }
 
     /* Report only after capacity is sufficient, so a retry cannot duplicate diagnostics. */
-    report_diagnostics(invocation, &diagnostics);
     if (diagnostics.count != 0u &&
-        invocation->diagnostic_sink.report == NULL) {
+        (!invocation->diagnostic_sink.report ||
+         !report_diagnostics(invocation, &diagnostics))) {
         result->failure_code = 7108u;
         goto cleanup;
     }
