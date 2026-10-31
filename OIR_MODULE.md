@@ -9,6 +9,8 @@
 
 ## 1. Purpose and boundary
 
+Canonical OIR_MODULE is target-neutral. Physical registers, target stack offsets, concrete ABI register assignments and object-format details belong to target-aware backend stages. The selected target descriptor is a separate validated compilation input as defined in [TARGET_PIPELINE_CONTRACT.md](TARGET_PIPELINE_CONTRACT.md); it must not be silently inferred from the host inside the OIR payload.
+
 `OIR_MODULE` is the first lowered, machine-independent representation of a program. It is not a serialized parser tree and it is not target assembly. Its purpose is to express executable operations, typed values, functions and control flow in a form that can be validated and passed between independent compiler DLLs.
 
 The intended handoff is:
