@@ -162,7 +162,13 @@ typedef struct SemanticResult {
     uint32_t conversion_capacity;
 
     uint8_t finalized;
+    /* Per-instance deterministic allocator fault injection; test-only API. */
+    uint32_t test_allocation_fail_at;
+    uint32_t test_allocation_attempts;
 } SemanticResult;
+
+void semantic_result_test_fail_allocation_at(SemanticResult* result, uint32_t allocation_index);
+uint32_t semantic_result_test_get_allocation_attempts(const SemanticResult* result);
 
 SemanticResultStatus semantic_result_init(SemanticResult* result);
 void semantic_result_destroy(SemanticResult* result);
