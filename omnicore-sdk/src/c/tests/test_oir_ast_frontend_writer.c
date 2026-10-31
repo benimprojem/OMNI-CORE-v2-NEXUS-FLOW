@@ -112,6 +112,8 @@ int main(void) {
     assert(written==0u);
     assert(output[0]==0xa5u);
     assert(((const uint8_t*)records)[0]==0xa5u);
+    assert(field_data[0]==0xa5u);
+    assert(strings[0]==0xa5u);
 
     assert(oir_ast_frontend_write_payload((ASTNode*)&root,index,INDEX_CAPACITY,node_count,
         records,MAX_NODES,field_data,FIELD_CAPACITY,strings,STRING_CAPACITY,
@@ -150,6 +152,72 @@ int main(void) {
     nodes[12].literal.type=TOKEN_STRING;
     nodes[13].identifier.name="\xc0\xaf";
     assert(oir_ast_frontend_measure((ASTNode*)&root,index,INDEX_CAPACITY,node_count,&req)==OIR_STATUS_INVALID_SECTION);
+
+
+    /* A sparse child-field node must serialize exact IDs; empty string != NULL. */
+    {
+        ASTProgram nested_root;
+        ASTNexusFlow nested_flow;
+        ASTIdentifier lhs, rhs, catch_node;
+        OirAstNodeRecord flow_record, lhs_record;
+        OirAstTlvReader reader;
+        OirAstTlvField field;
+        int has_field=0;
+        memset(&nested_root,0,sizeof(nested_root));
+        memset(&nested_flow,0,sizeof(nested_flow));
+        memset(&lhs,0,sizeof(lhs));
+        memset(&rhs,0,sizeof(rhs));
+        memset(&catch_node,0,sizeof(catch_node));
+        nested_root.base.type=AST_PROGRAM;
+        nested_flow.base.type=AST_NEXUS_FLOW;
+        nested_flow.op=TOKEN_PIPE;
+        nested_flow.retry_count=2;
+        nested_flow.retry_delay=50;
+        lhs.base.type=AST_IDENTIFIER; lhs.name="";
+        rhs.base.type=AST_IDENTIFIER; rhs.name="rhs";
+        catch_node.base.type=AST_IDENTIFIER; catch_node.name="catch";
+        nested_root.declarations=(ASTNode*)&nested_flow;
+        nested_flow.left=(ASTNode*)&lhs;
+        nested_flow.right=(ASTNode*)&rhs;
+        nested_flow.catch_block=(ASTNode*)&catch_node;
+
+        assert(oir_ast_frontend_index_build((ASTNode*)&nested_root,index,INDEX_CAPACITY,&node_count)==OIR_STATUS_OK);
+        assert(node_count==5u);
+        assert(oir_ast_frontend_measure((ASTNode*)&nested_root,index,INDEX_CAPACITY,node_count,&req)==OIR_STATUS_OK);
+        assert(oir_ast_frontend_write_payload((ASTNode*)&nested_root,index,INDEX_CAPACITY,node_count,
+            records,MAX_NODES,field_data,FIELD_CAPACITY,strings,STRING_CAPACITY,
+            output,OUTPUT_CAPACITY,&written,&req)==OIR_STATUS_OK);
+        assert(oir_ast_node_table_open(output,written,&view)==OIR_STATUS_OK);
+        assert(oir_ast_field_schema_validate(&view)==OIR_STATUS_OK);
+        assert(oir_ast_graph_validate(&view,incoming,MAX_NODES,visited,MAX_NODES,
+            stack,MAX_NODES)==OIR_STATUS_OK);
+
+        assert(oir_ast_node_table_get(&view,1u,&flow_record)==OIR_STATUS_OK);
+        oir_ast_tlv_reader_init(&reader,view.field_data+flow_record.field_data_offset,
+            flow_record.field_data_length);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
+        assert(field.field_id==1u && field.value_type==OIR_AST_VALUE_TOKEN_ID);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
+        assert(field.field_id==2u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==3u);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
+        assert(field.field_id==3u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==4u);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
+        assert(field.field_id==4u && field.value_type==OIR_AST_VALUE_I32 && field.value[0]==2u);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
+        assert(field.field_id==5u && field.value_type==OIR_AST_VALUE_I32 && field.value[0]==50u);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
+        assert(field.field_id==6u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==5u);
+
+        assert(oir_ast_node_table_get(&view,2u,&lhs_record)==OIR_STATUS_OK);
+        oir_ast_tlv_reader_init(&reader,view.field_data+lhs_record.field_data_offset,
+            lhs_record.field_data_length);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
+        assert(field.field_id==1u && field.value_type==OIR_AST_VALUE_STRING_REF);
+        assert(field.value_length==8u);
+        assert(field.value[0]==0u && field.value[1]==0u && field.value[2]==0u &&
+            field.value[3]==0u && field.value[4]==0u && field.value[5]==0u &&
+            field.value[6]==0u && field.value[7]==0u);
+    }
 
     puts("OIR AST frontend writer tests passed.");
     return 0;
