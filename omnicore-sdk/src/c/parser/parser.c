@@ -957,23 +957,28 @@ static ASTNode* parse_expression(Parser* p) {
     return parse_assignment(p);
 }
 
-static void parse_struct_body(Parser* p, ASTStructDecl* decl) {
+static int parse_struct_body(Parser* p, ASTStructDecl* decl) {
     consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
-    
     ASTNode* head = NULL;
     ASTNode* tail = NULL;
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
         if (match(p, TOKEN_PRE_VAR)) {
             ASTNode* field = parse_var_decl(p);
-            if (!head) head = field; else tail->next = field;
+            if (!field) {
+                ast_destroy(head);
+                return 0;
+            }
+            if (!head) head = field;
+            else tail->next = field;
             tail = field;
-            if (match(p, TOKEN_COMMA)) {} // Opsiyonel virgül
+            if (match(p, TOKEN_COMMA)) {}
         } else {
-            advance(p); // Hata durumunda ilerle
+            advance(p);
         }
     }
     decl->fields = head;
     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
+    return 1;
 }
 
 // Variable Declaration: v:name = expr;
