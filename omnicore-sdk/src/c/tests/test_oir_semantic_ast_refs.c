@@ -157,6 +157,29 @@ int main(void) {
         &annotations_view, &relations_view, NULL,
         owner_scope_by_node, 11u) == OIR_STATUS_OK);
 
+    /* Explicit implicit-symbol flag permits the registered identifier declaration node. */
+    {
+        uint8_t implicit_ast_payload[sizeof(ast_payload)];
+        uint8_t implicit_symbol_bytes[sizeof(symbol_bytes)];
+        OirAstNodeTableView implicit_ast;
+        OirSemanticSymbolsView implicit_symbols_view;
+        memcpy(implicit_ast_payload, ast_payload, ast_written);
+        write_u32(implicit_ast_payload + OIR_AST_PAYLOAD_HEADER_SIZE +
+            2u * OIR_AST_NODE_RECORD_SIZE + 4u, 14u);
+        CHECK(oir_ast_node_table_open(
+            implicit_ast_payload, ast_written, &implicit_ast) == OIR_STATUS_OK);
+
+        memcpy(implicit_symbol_bytes, symbol_bytes, symbol_written);
+        write_u16(implicit_symbol_bytes + OIR_SEMANTIC_SYMBOLS_HEADER_SIZE + 6u,
+            OIR_SEMANTIC_SYMBOL_FLAG_IMPLICIT);
+        CHECK(oir_semantic_symbols_open(implicit_symbol_bytes, symbol_written,
+            &implicit_symbols_view) == OIR_STATUS_OK);
+        CHECK(oir_semantic_ast_validate_references(
+            &implicit_ast, &scopes_view, &types_view, &implicit_symbols_view,
+            &annotations_view, &relations_view, &conversions_view,
+            owner_scope_by_node, 11u) == OIR_STATUS_OK);
+    }
+
     /* Duplicate scope owner nodes are rejected. */
     {
         uint8_t bad[sizeof(scope_bytes)];
