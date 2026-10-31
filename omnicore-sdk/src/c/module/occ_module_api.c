@@ -1,5 +1,8 @@
 #include "occ_module_api.h"
 
+#include <limits.h>
+#include <string.h>
+
 static int valid_artifact_kind(uint32_t kind) {
     return kind >= OIR_KIND_SOURCE_UNIT && kind <= OIR_KIND_LINK_INPUT;
 }
@@ -8,7 +11,8 @@ static int valid_artifact_kind(uint32_t kind) {
     (uint64_t)OCC_MODULE_CAP_REENTRANT | \
     (uint64_t)OCC_MODULE_CAP_DETERMINISTIC | \
     (uint64_t)OCC_MODULE_CAP_SUPPORTS_PARTIAL_INPUT | \
-    (uint64_t)OCC_MODULE_CAP_STATELESS )
+    (uint64_t)OCC_MODULE_CAP_STATELESS | \\
+    (uint64_t)OCC_MODULE_CAP_DIAGNOSTIC_REPORTING )
 
 
 static int valid_descriptor_fields(const OccStageDescriptorV1* d) {
@@ -33,6 +37,65 @@ static int valid_descriptor_fields(const OccStageDescriptorV1* d) {
     return 1;
 }
 
+static uint32_t OCC_MODULE_CALL host_report_diagnostic(
+    void* user_context,
+    const OccModuleDiagnosticV1* diagnostic
+) {
+    OccModuleDiagnosticHostContextV1* context =
+        (OccModuleDiagnosticHostContextV1*)user_context;
+    OccDiagnosticInput input;
+    size_t message_length, hint_length;
+
+    if(!context || context->struct_size < sizeof(*context) ||
+        !context->collector || context->stage_id == 0u ||
+        !diagnostic || diagnostic->struct_size < sizeof(*diagnostic) ||
+        diagnostic->flags != 0u ||
+        diagnostic->reserved[0] != 0u ||
+        diagnostic->reserved[1] != 0u ||
+        diagnostic->reserved[2] != 0u ||
+        diagnostic->message_length > (uint64_t)SIZE_MAX ||
+        diagnostic->hint_length > (uint64_t)SIZE_MAX ||
+        (!diagnostic->message && diagnostic->message_length != 0u) ||
+        (!diagnostic->hint && diagnostic->hint_length != 0u)) {
+        return 0u;
+    }
+    message_length = (size_t)diagnostic->message_length;
+    hint_length = (size_t)diagnostic->hint_length;
+    memset(&input, 0, sizeof(input));
+    input.code = diagnostic->code;
+    /* The host supplies stage identity; a module cannot spoof another stage. */
+    input.stage_id = context->stage_id;
+    input.message_id = diagnostic->message_id;
+    if(diagnostic->severity > UINT8_MAX) return 0u;
+    input.severity = (uint8_t)diagnostic->severity;
+    input.span = diagnostic->span;
+    input.message = diagnostic->message;
+    input.message_length = message_length;
+    input.hint = diagnostic->hint;
+    input.hint_length = hint_length;
+    return occ_diagnostics_add(context->collector, &input) ? 1u : 0u;
+}
+
+uint32_t occ_module_diagnostic_sink_init_v1(
+    OccModuleDiagnosticSinkV1* sink,
+    OccModuleDiagnosticHostContextV1* context,
+    OccDiagnosticCollector* collector,
+    uint32_t stage_id
+) {
+    if(!sink || !context || !collector || stage_id == 0u) {
+        return OCC_MODULE_STATUS_INVALID_INVOCATION;
+    }
+    memset(context, 0, sizeof(*context));
+    context->struct_size = (uint32_t)sizeof(*context);
+    context->stage_id = stage_id;
+    context->collector = collector;
+    memset(sink, 0, sizeof(*sink));
+    sink->struct_size = (uint32_t)sizeof(*sink);
+    sink->user_context = context;
+    sink->report = host_report_diagnostic;
+    return OCC_MODULE_STATUS_OK;
+}
+
 uint32_t occ_module_validate_descriptor_v1(const OccStageModuleV1* module) {
     if(!module || module->struct_size < sizeof(*module) ||
         module->reserved!=0u || !module->process ||
@@ -40,6 +103,25 @@ uint32_t occ_module_validate_descriptor_v1(const OccStageModuleV1* module) {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
     return OCC_MODULE_STATUS_OK;
+}
+
+
+static int valid_diagnostic_sink(
+    const OccStageDescriptorV1* descriptor,
+    const OccModuleDiagnosticSinkV1* sink
+) {
+    uint32_t i;
+    if(!descriptor || !sink) return 0;
+    if((descriptor->capability_flags & OCC_MODULE_CAP_DIAGNOSTIC_REPORTING) == 0u) {
+        if(sink->struct_size != 0u || sink->flags != 0u ||
+            sink->user_context != NULL || sink->report != NULL) return 0;
+        for(i=0u;i<4u;i++) if(sink->reserved[i] != 0u) return 0;
+        return 1;
+    }
+    if(sink->struct_size < sizeof(*sink) || sink->flags != 0u ||
+        !sink->user_context || !sink->report) return 0;
+    for(i=0u;i<4u;i++) if(sink->reserved[i] != 0u) return 0;
+    return 1;
 }
 
 uint32_t occ_module_validate_invocation_v1(
@@ -56,7 +138,7 @@ uint32_t occ_module_validate_invocation_v1(
         invocation->input_count>descriptor->max_input_count ||
         (invocation->input_count && !invocation->inputs) ||
         (invocation->output_capacity && !invocation->output_buffer) ||
-        invocation->flags!=0u) {
+        invocation->flags!=0u ||\n        !valid_diagnostic_sink(descriptor, &invocation->diagnostic_sink)) {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
 #if SIZE_MAX < UINT64_MAX
