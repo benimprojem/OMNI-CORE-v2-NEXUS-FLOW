@@ -207,3 +207,21 @@ The first implementation step is therefore a durable, caller-owned semantic resu
 - Implementing optimizer behavior.
 - Defining the final linker or its security policy.
 - Claiming complete type inference, numeric promotion, ownership or control-flow analysis.
+
+
+## 14. Persistent Semantic Result Model implementation checkpoint
+
+The first standalone model now exists in `src/c/semantic/semantic_result.h` and `semantic_result.c`. It is invocation-owned and stores no AST pointers:
+
+- Root scope ID 1 is created at initialization; child scopes retain their parent/depth/owner node IDs after lexical exit.
+- Scope, type and symbol IDs are stable 1-based insertion IDs.
+- Types are interned by kind, flags, name and references; hard-qualified and unqualified types remain distinct.
+- Symbols retain declaration node, scope, type and language flags. The current single-name-namespace rule rejects duplicate names in the same scope while allowing nested shadowing.
+- Annotations are maintained in ascending AST node order.
+- Relations and conversions are inserted in canonical order; finalization verifies contiguous ordinals, references and lexical symbol visibility, then fills each symbol's 1-based relation slice.
+- Forward completion is supported by creating a symbol with type ID zero and assigning its type later.
+- Finalized results are immutable; each compiler invocation owns and destroys its own result.
+
+The model currently has its own focused tests for nested scopes, shadowing, type interning, hard-type distinction, forward completion, function parameters, struct fields, enum variants/payloads, annotation ordering, relation slices, sibling-scope invisibility and invalid ordinal gaps.
+
+**Not integrated yet:** the existing `semantic.c` checker still uses its transient `Slot*` list. The next step is to connect scope entry/exit and symbol declaration to this model, supply the stable AST node-ID resolver from the semantic stage, then add per-node resolution/type annotations. The old checker behavior remains the compatibility baseline during that integration. Numeric promotion and NEXSUS Flow conversion semantics remain separate language work.
