@@ -87,6 +87,19 @@ add_library(occ_compilation STATIC
 target_include_directories(occ_compilation PUBLIC "${C_SOURCE_DIR}/core")
 target_link_libraries(occ_compilation PUBLIC occ_diagnostics)
 
+# OCC host-owned persistence for invalid source + diagnostic checkpoints.
+add_library(occ_failure_store STATIC
+    "${C_SOURCE_DIR}/core/failure_store.c"
+)
+target_include_directories(occ_failure_store PUBLIC
+    "${C_SOURCE_DIR}/core"
+    "${C_SOURCE_DIR}/oir"
+)
+target_link_libraries(occ_failure_store PUBLIC
+    occ_oir_failure_artifact
+    occ_compilation
+)
+
 # OIR DIAGNOSTICS payload codec bridges the stable container to job-owned records.
 add_library(occ_oir_diagnostics STATIC
     "${C_SOURCE_DIR}/oir/oir_diagnostics.c"
@@ -320,7 +333,12 @@ target_compile_definitions(occ PRIVATE OCC_STATIC)
 if(NOT MSVC)
     target_compile_definitions(occ PRIVATE _POSIX_C_SOURCE=200809L)
 endif()
-target_link_libraries(occ PRIVATE occ_frontend ${CMAKE_DL_LIBS})
+target_link_libraries(occ PRIVATE
+    occ_frontend
+    occ_compilation
+    occ_failure_store
+    ${CMAKE_DL_LIBS}
+)
 
 if(MSVC)
     target_compile_options(occ_module_abi PRIVATE /W4)
