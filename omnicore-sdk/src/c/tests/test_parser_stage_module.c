@@ -144,7 +144,7 @@ int main(int argc,char** argv) {
 
     /* Invalid source must report exact token coordinates and publish no AST. */
     {
-        static const uint8_t bad_source[]="v:x = ;\\n";
+        static const uint8_t bad_source[]="v:x = ;\n";
         static const uint8_t bad_path[]="invalid-parser-stage-test.nxf";
         uint8_t bad_source_payload[256],bad_source_artifact[512];
         uint8_t bad_token_payload[OIR_TOKEN_STREAM_HEADER_SIZE+32u*OIR_TOKEN_STREAM_RECORD_SIZE];
