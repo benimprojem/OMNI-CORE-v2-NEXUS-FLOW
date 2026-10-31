@@ -752,7 +752,7 @@ SemanticResultStatus semantic_result_finalize(
 
     for (i = 0u; i < result->relation_count; ++i) {
         SemanticResultRelation* relation = &result->relations[i];
-        const SemanticResultSymbol* owner;
+        SemanticResultSymbol* owner;
         if (relation->owner_symbol_id == 0u ||
             relation->owner_symbol_id > result->symbol_count ||
             !valid_relation_kind(relation->kind) ||
