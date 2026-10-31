@@ -105,6 +105,8 @@ Recovery boundaries and synchronization tokens are stage-specific and will be te
 - Checkpoint metadata records artifact kind/version, stage ID, validity, job ID and diagnostic counts.
 - Final output is written to a temporary destination and atomically published only when all required stages complete and the strict diagnostic gate passes.
 - On failure, an existing final output must not be overwritten by a partial file.
+- A failed source-stage checkpoint may be serialized as an OIR `SOURCE_UNIT` artifact with `OIR_VALIDITY_INVALID` and a required `DIAGNOSTICS` section. It preserves the original path/source bytes and structured findings together; it is a diagnostic bundle, not a valid downstream stage input.
+- The failure-bundle codec is implemented. OCC's host-side policy for choosing an error-artifact path and writing the bundle to disk is still pending; a stage DLL must not choose arbitrary filesystem paths.
 - The runner reports all collected diagnostics once the job reaches a terminal state.
 
 ## 9. ABI freeze checklist
@@ -136,7 +138,7 @@ The current API:
 - Fails closed if collector allocation fails or the collector is missing.
 - Rejects invalid severity/code, malformed source spans and embedded NUL in message text.
 
-The collector is now linked into the C frontend and can be attached to both `ParserContext` and `SemanticContext`. Parser/lexer and semantic findings are mirrored into the job-owned collector while the legacy linked `Error` lists remain available for the current CLI and existing tests. Stable stage identifiers are defined for lexer, parser and semantic analysis. The initial bridge records line/column locations only; byte offsets, end spans and related locations remain pending. The OIR `DIAGNOSTICS` schema 1.0 codec is now implemented as a separate adapter library with zero-copy validated reads and malformed-input tests. The collector is not internally synchronized, so the orchestrator must serialize writes to one collector before same-job concurrent reporting.
+The collector is linked into the C frontend and can be attached to both `ParserContext` and `SemanticContext`. Parser/lexer and semantic findings are mirrored into the job-owned collector while the legacy linked `Error` lists remain available for the current CLI and existing tests. Stable stage identifiers are defined for lexer, parser and semantic analysis. Token-based parser findings now preserve a zero-based, half-open byte range (`start_offset`, `end_offset`) and 1-based start/end line and byte-column coordinates. End positions are exclusive, matching the byte-range convention; columns count UTF-8 bytes because the current lexer advances by source byte. A regression test places the same invalid construct on a second line and checks its exact offset and line/column, preventing a repeated code fragment elsewhere in the file from being misidentified. The current SOURCE_UNIT schema still assigns source ID 0; multi-source identity allocation/mapping remains open. The OIR `DIAGNOSTICS` schema 1.0 codec provides zero-copy validated reads and malformed-input tests. The collector is not internally synchronized, so the orchestrator must serialize writes to one collector before same-job concurrent reporting.
 
 
 ## 11. Initial compilation context implementation
