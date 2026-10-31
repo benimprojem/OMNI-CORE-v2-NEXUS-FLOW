@@ -31,8 +31,15 @@ typedef struct Slot {
     char** param_types;   // Fonksiyon parametre tipleri
     FieldInfo* fields;    // Struct alanları veya Enum varyantları
     int is_packed;        // Struct packed durumu
+    uint32_t symbol_id;
+    uint32_t scope_id;
+    uint32_t type_id;
     struct Slot* next;
 } Slot;
+
+typedef uint32_t (*SemanticNodeIdResolver)(
+    void* user_context, const ASTNode* node
+);
 
 typedef struct {
     Slot* head;
@@ -59,6 +66,12 @@ typedef struct {
 OCC_API void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path);
 OCC_API void semantic_attach_diagnostics(
     SemanticContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id
+);
+OCC_API void semantic_attach_node_id_resolver(
+    SemanticContext* ctx, SemanticNodeIdResolver resolver, void* user_context
+);
+OCC_API SemanticResultStatus semantic_finalize_result(
+    SemanticContext* ctx, uint32_t ast_node_count
 );
 OCC_API void semantic_check(SemanticContext* ctx, ASTNode* node);
 OCC_API void semantic_print_errors(SemanticContext* ctx);
