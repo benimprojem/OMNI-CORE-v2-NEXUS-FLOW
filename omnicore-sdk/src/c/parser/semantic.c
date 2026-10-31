@@ -921,9 +921,13 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             } else {
                 Slot* s = add_slot(ctx, edecl->name, SLOT_ENUM, 1, NULL, node, 0, 0);
                 semantic_define_named_type(ctx, s, edecl->name, NULL);
-                
+                semantic_record_annotation(
+                    ctx, node, s, edecl->name, SEMANTIC_RESULT_VALUE_LVALUE);
+
                 ASTNode* var_node = edecl->variants;
                 FieldInfo* last_var = NULL;
+                uint32_t variant_ordinal = 0u;
+                uint32_t payload_field_ordinal = 0u;
                 while (var_node) {
                     ASTEnumVariant* v = (ASTEnumVariant*)var_node;
 
@@ -951,8 +955,35 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                             if (fdecl->inline_type) {
                                 semantic_check(ctx, fdecl->inline_type);
                             }
+                            if (ctx->result_enabled && s && s->symbol_id != 0u) {
+                                SemanticResultStatus relation_status =
+                                    semantic_result_add_relation(
+                                        &ctx->result,
+                                        s->symbol_id,
+                                        SEMANTIC_RESULT_RELATION_ENUM_PAYLOAD_FIELD,
+                                        payload_field_ordinal++,
+                                        0u,
+                                        semantic_node_id(ctx, field_node),
+                                        fdecl->name,
+                                        semantic_type_id(ctx, fdecl->type_name));
+                                semantic_set_result_error(ctx, relation_status);
+                            }
                             field_node = field_node->next;
                         }
+                    }
+
+                    if (ctx->result_enabled && s && s->symbol_id != 0u) {
+                        SemanticResultStatus relation_status =
+                            semantic_result_add_relation(
+                                &ctx->result,
+                                s->symbol_id,
+                                SEMANTIC_RESULT_RELATION_ENUM_VARIANT,
+                                variant_ordinal++,
+                                0u,
+                                semantic_node_id(var_node),
+                                v->name,
+                                s->type_id);
+                        semantic_set_result_error(ctx, relation_status);
                     }
 
                     FieldInfo* f = (FieldInfo*)malloc(sizeof(FieldInfo));
