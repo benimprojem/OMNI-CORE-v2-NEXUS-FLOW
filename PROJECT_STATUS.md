@@ -509,3 +509,16 @@ Denetimde netleşen noktalar:
 - Run 41158241944 tüm işleri başarıyla tamamladı: Windows, Ubuntu, macOS, Ubuntu ASan/UBSan ve Valgrind.
 - Ubuntu CTest 27/27 geçti.
 - Sonraki writer katmanı pointer index'i kullanarak node record'larını, TLV alanlarını ve string table referanslarını üretmeli; caller-owned buffer ve preflight sözleşmesi korunmalı.
+
+
+## Frontend AST → OIR bounded writer — 31 Ekim 2026
+
+- `oir_ast_frontend_writer.h/.c` eklendi. `oir_ast_frontend_measure()` tam payload boyutunu ve scratch gereksinimlerini yazmadan hesaplıyor; `oir_ast_frontend_write_payload()` caller-owned record/field/string/output buffers ile payload üretiyor.
+- Index traversal ile aynı child-field iterator kullanılıyor. Node kayıtları canonical 1-based ID sırasıyla; TLV alanları artan field ID ile; strings packed UTF-8 table içinde yazılıyor.
+- Token/operator değerleri stable OIR token map üzerinden dönüştürülüyor. F64, I64, I32, U32, BOOL, NODE_REF, STRING_REF ve NULL wire encoding açık little-endian.
+- NULL string ve empty string ayrımı korunuyor. Boolean, enum range, token ID, UTF-8, source span, pointer/ref ve boyut limitleri preflight aşamasında denetleniyor.
+- Capacity failure testinde records, field buffer, string buffer ve final output sentinel değerleri değişmeden kalıyor.
+- Writer test fixture'ı 80 node kind'in tümünü serialize edip payload'ı yeniden açıyor; field schema ve graph validator'dan geçiriyor. Literal TOKEN_STRING stable ID/U32 lit_type, sparse Nexus Flow child refs, empty string, invalid bool/token/UTF-8 kontrolleri var.
+- CMake target: `occ_oir_ast_frontend_writer`; CTest: `oir_ast_frontend_writer_all_kinds_and_payload_roundtrip`.
+- **CI run 41158918126:** Windows, Ubuntu, macOS build/test başarılı; Ubuntu CTest 28/28, ASan/UBSan ve Valgrind başarılı.
+- **Sıradaki adım:** OIR payload reader/materializer. Önce tüm payload ve graph/schema doğrulaması; sonra tüm AST node ve string allocation'ları disconnected halde; en son no-fail linking pass. Kısmi graph üzerinde `ast_destroy()` çağrılmayacak.
