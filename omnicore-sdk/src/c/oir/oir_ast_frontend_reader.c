@@ -255,13 +255,13 @@ static OirStatus populate_scalar_fields(
                 if(field.field_id==1u) status=allocate_string(view,&field,&((ASTIdentifier*)node)->name);
                 break;
             case AST_BINARY_EXPR: case AST_ASSIGNMENT: case AST_INDEX_ACCESS:
-            case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN: case AST_CAST:
+            case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN:
             case AST_NEXUS_PIPE: case AST_NEXUS_FLOW: {
                 if(field.field_id==1u) {
                     OmniTokenType token;
                     if(!oir_token_id_to_omni(get_u16(field.value),&token)) return OIR_STATUS_INVALID_SECTION;
                     if(node->type==AST_UNARY_EXPR || node->type==AST_POSTFIX_EXPR ||
-                        node->type==AST_RETURN || node->type==AST_CAST) {
+                        node->type==AST_RETURN) {
                         ((ASTUnaryExpr*)node)->op=token;
                     } else ((ASTBinaryExpr*)node)->op=token;
                 } else if((node->type==AST_NEXUS_PIPE || node->type==AST_NEXUS_FLOW) &&
@@ -275,6 +275,8 @@ static OirStatus populate_scalar_fields(
             }
             case AST_MEMBER_ACCESS:
                 if(field.field_id==1u) status=allocate_string(view,&field,&((ASTMemberAccess*)node)->member_name);
+                break;
+            case AST_CAST:
                 break;
             case AST_LOOP:
                 if(field.field_id==1u && !get_i32(field.value,&((ASTLoop*)node)->loop_type)) {
@@ -343,8 +345,15 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
             ASTBinaryExpr* n=(ASTBinaryExpr*)node;
             if(field_id==2u)n->left=child; else if(field_id==3u)n->right=child; else return 0; break;
         }
-        case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN: case AST_CAST:
+        case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN:
             if(field_id==2u)((ASTUnaryExpr*)node)->operand=child; else return 0; break;
+        case AST_CAST: {
+            ASTCast* n=(ASTCast*)node;
+            if(field_id==1u)n->value=child;
+            else if(field_id==2u)n->target_type=child;
+            else return 0;
+            break;
+        }
         case AST_FUNC_CALL: case AST_SPAWN: case AST_ECHO: case AST_SEND:
         case AST_RECEIVE: case AST_DONE: case AST_AREA: case AST_ZONE: case AST_ADDR:
         case AST_LEN: case AST_PEEK: case AST_POKE: case AST_INB: case AST_OUTB:
