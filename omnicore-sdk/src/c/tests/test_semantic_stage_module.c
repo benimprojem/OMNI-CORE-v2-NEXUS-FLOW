@@ -56,6 +56,16 @@ int main(int argc,char** argv) {
     CHECK(loaded.module->descriptor.stage_id==OCC_STAGE_SEMANTIC);
     CHECK(loaded.module->descriptor.output_artifact_kind==OIR_KIND_SEMANTIC_AST);
     input.bytes=ast_artifact; input.length=artifact_len; input.flags=0u; input.reserved=0u;
+    /* The semantic DLL must reject AST artifacts not produced by Parser. */
+    ast_artifact[20] ^= 0x01u;
+    CHECK(occ_module_loader_invoke(&loaded,&input,1u,77u,&diagnostics,
+        64u,semantic_cap,&semantic_artifact,&semantic_len)!=OCC_MODULE_LOADER_OK);
+    ast_artifact[20] ^= 0x01u;
+    /* The semantic DLL must reject unsupported AST payload schema versions. */
+    ast_artifact[16] ^= 0x01u;
+    CHECK(occ_module_loader_invoke(&loaded,&input,1u,77u,&diagnostics,
+        64u,semantic_cap,&semantic_artifact,&semantic_len)!=OCC_MODULE_LOADER_OK);
+    ast_artifact[16] ^= 0x01u;
     CHECK(occ_module_loader_invoke(&loaded,&input,1u,77u,&diagnostics,
         64u,semantic_cap,&semantic_artifact,&semantic_len)==OCC_MODULE_LOADER_OK);
     CHECK(semantic_artifact!=NULL&&semantic_len>OIR_HEADER_SIZE);
