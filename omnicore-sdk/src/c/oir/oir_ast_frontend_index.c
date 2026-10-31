@@ -201,16 +201,14 @@ static ASTNode* child_at(const ASTNode* node, uint16_t field_id) {
 static uint16_t child_field_count(ASTNodeType type) {
     switch (type) {
         case AST_PROGRAM: case AST_BLOCK: case AST_ASM_BLOCK:
-        case AST_STRUCT_DECL: case AST_UNION_DECL: case AST_ENUM_DECL:
-        case AST_ENUM_VARIANT: case AST_GROUP_DECL: case AST_METHOD:
-        case AST_MEMBER_ACCESS: case AST_TUPLE: case AST_NEXUS_CAPTURE:
-        case AST_LISTEN: case AST_NEXUS_LABEL: case AST_NEXUS_HALT:
-        case AST_NEXUS_INTENT: case AST_UNPACK: case AST_DEFER:
-            return (type == AST_STRUCT_DECL || type == AST_UNION_DECL ||
-                type == AST_GROUP_DECL) ? 6u :
-                ((type == AST_ENUM_DECL || type == AST_ENUM_VARIANT ||
-                  type == AST_METHOD || type == AST_MEMBER_ACCESS ||
-                  type == AST_NEXUS_LABEL) ? 2u : 1u);
+        case AST_TUPLE: case AST_NEXUS_HALT: case AST_UNPACK: case AST_DEFER:
+            return 1u;
+        case AST_STRUCT_DECL: case AST_UNION_DECL: return 6u;
+        case AST_GROUP_DECL: return 4u;
+        case AST_ENUM_DECL: case AST_ENUM_VARIANT: case AST_METHOD:
+        case AST_MEMBER_ACCESS: case AST_NEXUS_CAPTURE: case AST_LISTEN:
+        case AST_NEXUS_LABEL: case AST_NEXUS_INTENT:
+            return 2u;
         case AST_VAR_DECL: return 8u;
         case AST_FUNC_DECL: case AST_EXTERN_DECL: return 7u;
         case AST_BINARY_EXPR: case AST_ASSIGNMENT: case AST_INDEX_ACCESS:
@@ -255,6 +253,7 @@ static OirStatus visit_node(
         ((node->line == 0) != (node->col == 0))) return OIR_STATUS_INVALID_SECTION;
     kind = oir_ast_node_id_from_frontend(node->type);
     if (kind == 0u) return OIR_STATUS_INVALID_SECTION;
+    if (context->count >= context->capacity / 2u) return OIR_STATUS_BUFFER_TOO_SMALL;
     status = insert_node(context->entries, context->capacity, node, context->count + 1u);
     if (status != OIR_STATUS_OK) return status;
     ++context->count;
@@ -282,8 +281,9 @@ OirStatus oir_ast_frontend_index_build(
     if (!root || !entries || !out_node_count ||
         entry_capacity == 0u ||
         (entry_capacity & (entry_capacity - 1u)) != 0u ||
-        root->type != AST_PROGRAM ||
-        entry_capacity < 2u) {
+        root->type != AST_PROGRAM || root->next != NULL ||
+        entry_capacity < 2u ||
+        entry_capacity > SIZE_MAX / sizeof(*entries)) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
     memset(entries, 0, entry_capacity * sizeof(*entries));
