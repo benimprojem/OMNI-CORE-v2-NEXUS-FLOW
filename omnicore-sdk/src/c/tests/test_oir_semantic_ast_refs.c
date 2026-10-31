@@ -175,7 +175,7 @@ int main(void) {
             implicit_ast_payload, ast_written, &implicit_ast) == OIR_STATUS_OK);
 
         memcpy(implicit_symbol_bytes, symbol_bytes, symbol_written);
-        write_u16(implicit_symbol_bytes + OIR_SEMANTIC_SYMBOLS_HEADER_SIZE + 6u,
+        write_u16(implicit_symbol_bytes + OIR_SEMANTIC_SYMBOLS_HEADER_SIZE + 14u,
             OIR_SEMANTIC_SYMBOL_FLAG_IMPLICIT);
         CHECK(oir_semantic_symbols_open(implicit_symbol_bytes, symbol_written,
             &implicit_symbols_view) == OIR_STATUS_OK);
