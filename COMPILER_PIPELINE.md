@@ -160,7 +160,7 @@ Each step requires unit tests, module load/unload tests, ABI compatibility tests
 As of this design:
 - OCC currently performs orchestration in `main.c`.
 - Lexer, parser and semantic code are not yet independent DLLs.
-- The current CMake frontend is a combined library.
+- The current CMake frontend is a combined library. The AST payload codec and OIR artifact adapter are separate static utility targets, but they do not yet constitute an independently loadable parser-stage DLL/SO/dylib.
 - Codegen is the only currently separate shared module in the C pipeline.
 - Existing parser/semantic control flow still has early-stop behavior and does not yet implement the complete diagnostic-accumulation policy.
 - There is no implemented general checkpoint/stop-after interface or multi-job scheduler yet.
@@ -174,4 +174,4 @@ All stage-to-stage handoff uses the common OIR container described in [OIR_FORMA
 
 The file extension is not the type system: a stage must inspect and validate the OIR header and payload schema before consuming an artifact. It must reject unsupported versions, wrong artifact kinds, corrupt lengths and invalid state. A partial artifact is accepted only by stages that explicitly declare partial-input support.
 
-The existing native-layout AST serializer is retained as a legacy/internal format until an OIR AST payload reader/writer replaces it. It is not a cross-platform module interchange format.
+A schema-1.0 OIR AST payload writer/reader now exists and is tested across Windows, Linux and macOS, including real parser → OIR AST artifact → frontend AST round-trips. The older native-layout AST serializer exposed by the parser remains legacy/internal and is not a cross-platform module interchange format. The OCC CLI's stop-after-parser checkpoint command and the independent parser DLL stage entry point are still pending.
