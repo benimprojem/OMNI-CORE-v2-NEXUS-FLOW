@@ -527,7 +527,7 @@ int main(void) {
 
         memcpy(relation_bad, relation_bytes, relation_written);
         write_u32(relation_bad + records +
-            2u * OIR_SEMANTIC_RELATION_RECORD_SIZE, 1u);
+            2u * OIR_SEMANTIC_RELATION_RECORD_SIZE, 0u);
         assert(oir_semantic_relations_open(relation_bad, relation_written,
             &relation_view) == OIR_STATUS_INVALID_SECTION);
 
