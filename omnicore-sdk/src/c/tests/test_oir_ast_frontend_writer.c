@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "oir_ast_frontend_writer.h"
+#include "oir_ast_field_schema.h"
 #include "oir_ast_graph.h"
 
 #include <assert.h>
