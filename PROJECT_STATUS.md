@@ -472,4 +472,4 @@ Denetimde netleşen noktalar:
 - `test_oir_ast_graph.c`: geçerli child+sibling ağacı, duplicate-owner/cyclic sibling, erişilemeyen self-cycle/orphan ve 513 seviyeli child zinciri senaryolarını kapsıyor.
 - CMake hedefi `occ_oir_ast_graph`; CTest `oir_ast_graph_single_owner_reachability_and_depth`.
 - **Kalan AST codec işleri:** node-kind başına required field/type schema validation, bilinmeyen optional field politikası, frontend AST writer/reader ve gerçek AST round-trip fixture'ları. DLL ABI ve parser checkpoint migration beklemede.
-- **CI:** Graph katmanı yeni eklendi; ilgili Windows/macOS/Linux, ASan/UBSan ve Valgrind koşuları bekleniyor.
+- **CI doğrulaması:** CMake entegrasyonu run 41157040260; Windows, Ubuntu, macOS, ASan/UBSan ve Valgrind işleri başarılı tamamlandı.
