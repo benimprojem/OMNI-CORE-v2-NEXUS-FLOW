@@ -827,6 +827,10 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
             return (ASTNode*)cast;
         }
         cast->value = parse_expression(p);
+        if (!cast->value) {
+            ast_destroy((ASTNode*)cast);
+            return NULL;
+        }
         consume(p, TOKEN_COMMA, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_COMMA_ROLLING);
         if (p->current.type == TOKEN_IDENTIFIER ||
             (p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY)) {
@@ -1803,17 +1807,18 @@ static ASTNode* parse_block(Parser* p) {
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
         Token statement_start = p->current;
         ASTNode* stmt = parse_statement(p);
+        if (p->ctx->status == PARSER_STATUS_OUT_OF_MEMORY) {
+            ast_destroy(stmt);
+            ast_destroy(head);
+            ast_destroy((ASTNode*)block);
+            --p->nesting_depth;
+            return NULL;
+        }
         if (stmt) {
             if (!head) head = stmt;
             else tail->next = stmt;
             tail = stmt;
         } else {
-            if (p->ctx->status == PARSER_STATUS_OUT_OF_MEMORY) {
-                ast_destroy(head);
-                ast_destroy((ASTNode*)block);
-                --p->nesting_depth;
-                return NULL;
-            }
             /* A failed statement must make progress before synchronization. */
             if (p->current.type == statement_start.type &&
                 p->current.source_offset == statement_start.source_offset &&
@@ -2550,6 +2555,10 @@ int parser_run(ParserContext* ctx) {
     while (!match(&parser, TOKEN_EOF)) {
         Token statement_start = parser.current;
         ASTNode* stmt = parse_statement(&parser);
+        if (ctx->status == PARSER_STATUS_OUT_OF_MEMORY) {
+            ast_destroy(stmt);
+            return (int)ctx->status;
+        }
         if (stmt) {
             // AST'ye ekle (Bağlı liste mantığı)
             if (program->declarations == NULL) {
