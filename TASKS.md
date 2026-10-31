@@ -200,5 +200,12 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 - [x] Host-side descriptor/invocation validation: ABI versions, struct sizes, artifact kind masks, required inputs, OIR validity, job ID and partial-input capability.
 - [x] Test-only pass-through shared library and dynamic load/process/unload test; output-buffer retry and artifact validation (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [ ] Build the real parser-stage DLL/SO/dylib: consume SOURCE_UNIT + TOKEN_STREAM OIR artifacts, reconstruct tokens against source bytes, run parser in memory, and emit OIR_KIND_AST artifact.
-- [ ] Review stage IDs/module IDs and stage-specific diagnostics contract; only then freeze ABI 1.0.
+- [x] Add stage-module diagnostic callback to the draft ABI; verify code, message, hint, source ID, line/column and byte spans reach the OCC-owned collector. ABI freeze still waits for the real parser-stage adapter.
 
+
+
+## Sonraki tek iş — gerçek Parser stage modülü
+
+- [ ] Parser DLL/SO/dylib: SOURCE_UNIT + TOKEN_STREAM OIR girdilerini doğrula, tokenları kaynak baytlarıyla eşleştir, in-memory parser çalıştır, AST OIR üret.
+- [ ] Parser modülünün tanılarını invocation diagnostic sink üzerinden raporla; hata halinde geçerli AST artifact üretme.
+- [ ] Gerçek dinamik modül testinde diagnostic callback, exact source span ve OCC failure checkpoint bütünleşmesini doğrula.
