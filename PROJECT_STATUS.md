@@ -426,3 +426,13 @@ Doğrulama: GitHub Actions run 41145426190 ile Windows, Ubuntu ve macOS build/CT
 - Mevcut ast_serialize()/ast_deserialize() native C stream'inin OIR AST formatı olmadığı ve otomatik yeniden yorumlanmaması gerektiği açıkça belirtildi.
 
 **Durum:** AST payload tasarım sözleşmesi ve stable node/field registry taslak olarak hazır. AST codec, parser checkpoint migration ve AST source byte-span propagation henüz uygulanmadı.
+
+
+## AST → OIR stable node ID adapter — 31 Ekim 2026
+
+- `omnicore-sdk/src/c/oir/oir_ast_map.h/.c` eklendi. Frontend `ASTNodeType` ile OIR registry'deki 1–80 arası sabit node-kind ID'leri açık tablo üzerinden eşleniyor; C enum ordinal'i wire ID olarak kullanılmıyor.
+- `oir_ast_node_id_from_frontend()` ve `oir_ast_node_id_to_frontend()` API'leri eklendi. Geçersiz tag/ID ve null çıktı pointer'ı reddediliyor.
+- `test_oir_ast_map.c` tüm 80 ID'nin iki yönlü birebir eşleşmesini, ID aralığını ve geçersiz değerleri kontrol ediyor.
+- CMake'e bağımsız `occ_oir_ast_map` static utility hedefi ve `oir_ast_node_registry_mapping_roundtrip` CTest kaydı eklendi.
+- **Durum:** Kaynak ve testler branch'e işlendi. GitHub Actions build/test, ASan/UBSan ve Valgrind koşuları başlatıldı; henüz sonuç alınmadı. Bu nedenle adapter şu aşamada kodlandı, CI ile doğrulanması bekleniyor.
+- **Kapsam sınırı:** Bu yalnızca node-kind kimlik katmanıdır; AST field TLV writer/reader, graph validation, round-trip payload codec ve parser checkpoint migration henüz uygulanmadı.
