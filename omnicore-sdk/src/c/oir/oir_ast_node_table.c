@@ -84,10 +84,10 @@ static OirStatus validate_host_records(
     uint32_t expected_offset = 0;
     uint32_t i;
     if (!records || count == 0u || count > OIR_AST_NODE_COUNT_MAX ||
-        root != 1u || records[0].node_kind_id != 1u ||
-        (!fields && fields_length) || (!strings && strings_length)) {
+        root != 1u || (!fields && fields_length) || (!strings && strings_length)) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
+    if (records[0].node_kind_id != 1u) return OIR_STATUS_INVALID_SECTION;
     for (i = 0; i < count; ++i) {
         const OirAstNodeRecord* r = &records[i];
         if (r->node_id != i + 1u || r->node_kind_id == 0u ||
@@ -97,8 +97,8 @@ static OirStatus validate_host_records(
             r->field_data_length > fields_length - expected_offset) {
             return OIR_STATUS_INVALID_SECTION;
         }
-        if (validate_node_fields(fields + expected_offset, r->field_data_length,
-                strings, strings_length, count) != OIR_STATUS_OK) {
+        if (validate_node_fields(fields ? fields + expected_offset : NULL,
+                r->field_data_length, strings, strings_length, count) != OIR_STATUS_OK) {
             return OIR_STATUS_INVALID_SECTION;
         }
         expected_offset += r->field_data_length;
@@ -212,7 +212,6 @@ OirStatus oir_ast_node_table_write(
 ) {
     size_t total, records_bytes;
     uint32_t i;
-    OirAstNodeTableView check;
     OirStatus status;
     if (out_written) *out_written = 0;
     if (!output || !out_written || !records ||
