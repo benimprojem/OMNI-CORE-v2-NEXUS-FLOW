@@ -448,6 +448,140 @@ int main(void) {
             annotation_view.record_count == 0u);
     }
 
-    puts("OIR SEMANTIC_AST scope/type/symbol/annotation codec tests passed.");
+
+    {
+        const uint8_t relation_names[] = {
+            'x', 'y', 'f', 'i', 'e', 'l', 'd'
+        };
+        const OirSemanticRelation relations[] = {
+            { 1u, OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER, 0u,
+                0u, 0u, 10u, 0u, 1u, 1u },
+            { 1u, OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER, 0u,
+                1u, 0u, 11u, 1u, 1u, 1u },
+            { 2u, OIR_SEMANTIC_RELATION_AGGREGATE_FIELD, 0u,
+                0u, 3u, 20u, 2u, 5u, 2u }
+        };
+        uint8_t relation_bytes[OIR_SEMANTIC_RELATIONS_HEADER_SIZE +
+            3u * OIR_SEMANTIC_RELATION_RECORD_SIZE + sizeof(relation_names)];
+        uint8_t relation_second[sizeof(relation_bytes)];
+        uint8_t relation_bad[sizeof(relation_bytes)];
+        uint8_t empty_relations[OIR_SEMANTIC_RELATIONS_HEADER_SIZE];
+        size_t relation_written = 0u;
+        size_t relation_second_written = 0u;
+        size_t empty_relation_written = 0u;
+        size_t records = OIR_SEMANTIC_RELATIONS_HEADER_SIZE;
+        OirSemanticRelationsView relation_view;
+        OirSemanticRelation decoded_relation;
+        const uint8_t* decoded_relation_name = NULL;
+
+        assert(oir_semantic_relations_write(relation_bytes,
+            sizeof(relation_bytes), relations, 3u, relation_names,
+            (uint32_t)sizeof(relation_names), &relation_written) == OIR_STATUS_OK);
+        assert(relation_written == sizeof(relation_bytes));
+        assert(oir_semantic_relations_open(relation_bytes, relation_written,
+            &relation_view) == OIR_STATUS_OK);
+        assert(relation_view.record_count == 3u);
+        assert(oir_semantic_relations_get(&relation_view, 1u,
+            &decoded_relation, &decoded_relation_name) == OIR_STATUS_OK);
+        assert(decoded_relation.owner_symbol_id == 1u &&
+            decoded_relation.kind == OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER &&
+            decoded_relation.ordinal == 1u &&
+            decoded_relation.related_node_id == 11u &&
+            decoded_relation_name && memcmp(decoded_relation_name, "y", 1u) == 0);
+        assert(oir_semantic_relations_get(&relation_view, 2u,
+            &decoded_relation, &decoded_relation_name) == OIR_STATUS_OK);
+        assert(decoded_relation.owner_symbol_id == 2u &&
+            decoded_relation.kind == OIR_SEMANTIC_RELATION_AGGREGATE_FIELD &&
+            decoded_relation.related_symbol_id == 3u &&
+            decoded_relation.type_id == 2u &&
+            decoded_relation_name && memcmp(decoded_relation_name, "field", 5u) == 0);
+
+        assert(oir_semantic_relations_write(relation_second,
+            sizeof(relation_second), relations, 3u, relation_names,
+            (uint32_t)sizeof(relation_names), &relation_second_written) ==
+            OIR_STATUS_OK);
+        assert(relation_second_written == relation_written &&
+            memcmp(relation_bytes, relation_second, relation_written) == 0);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        write_u32(relation_bad + 4u, 40u);
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        write_u32(relation_bad, UINT32_MAX);
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        write_u32(relation_bad + records + OIR_SEMANTIC_RELATION_RECORD_SIZE + 8u,
+            0u);
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        write_u32(relation_bad + records + OIR_SEMANTIC_RELATION_RECORD_SIZE + 8u,
+            2u);
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        write_u32(relation_bad + records +
+            2u * OIR_SEMANTIC_RELATION_RECORD_SIZE, 1u);
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        relation_bad[records + 4u] = 0xffu;
+        relation_bad[records + 5u] = 0u;
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        relation_bad[records + 6u] = 1u;
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        write_u32(relation_bad + records, 0u);
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        write_u32(relation_bad + records + 16u, 0u);
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        write_u32(relation_bad + records + 20u, UINT32_MAX);
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(relation_bad, relation_bytes, relation_written);
+        relation_bad[records + 3u * OIR_SEMANTIC_RELATION_RECORD_SIZE] = 0xc0u;
+        assert(oir_semantic_relations_open(relation_bad, relation_written,
+            &relation_view) == OIR_STATUS_INVALID_SECTION);
+
+        assert(oir_semantic_relations_open(relation_bytes,
+            relation_written - 1u, &relation_view) ==
+            OIR_STATUS_LENGTH_MISMATCH);
+
+        memset(relation_second, 0xa5, sizeof(relation_second));
+        assert(oir_semantic_relations_write(relation_second,
+            sizeof(relation_second) - 1u, relations, 3u, relation_names,
+            (uint32_t)sizeof(relation_names), &relation_second_written) ==
+            OIR_STATUS_BUFFER_TOO_SMALL);
+        assert(relation_second_written == 0u && relation_second[0] == 0xa5u);
+
+        assert(oir_semantic_relations_write(empty_relations,
+            sizeof(empty_relations), NULL, 0u, NULL, 0u,
+            &empty_relation_written) == OIR_STATUS_OK);
+        assert(empty_relation_written == sizeof(empty_relations));
+        assert(oir_semantic_relations_open(empty_relations,
+            empty_relation_written, &relation_view) == OIR_STATUS_OK &&
+            relation_view.record_count == 0u);
+    }
+
+    puts("OIR SEMANTIC_AST scope/type/symbol/annotation/relation codec tests passed.");
     return 0;
 }
