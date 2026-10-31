@@ -704,6 +704,28 @@ static int roundtrips_large_sibling_list(void) {
     return valid ? 0 : 1;
 }
 
+static int destroys_very_large_sibling_list(void) {
+    enum { NODE_COUNT = 32768 };
+    ASTNode* head = NULL;
+    ASTNode* tail = NULL;
+    int i;
+
+    for (i = 0; i < NODE_COUNT; ++i) {
+        ASTNode* node = ast_create(AST_BREAK);
+        if (!node) {
+            ast_destroy(head);
+            return 0;
+        }
+        if (!head) head = node;
+        else tail->next = node;
+        tail = node;
+    }
+
+    /* Must not recurse once per sibling while releasing a flat AST list. */
+    ast_destroy(head);
+    return 1;
+}
+
 static int parser_save_ir_rejects_invalid_path(const char* path) {
     ParserContext context;
     memset(&context, 0, sizeof(context));
@@ -725,6 +747,7 @@ int main(int argc, char** argv) {
     if (roundtrips_extern_decl() != 0) return 7;
     if (roundtrips_special_nodes() != 0) return 4;
     if (roundtrips_large_sibling_list() != 0) return 5;
+    if (!destroys_very_large_sibling_list()) return 12;
     if (!parser_save_ir_rejects_invalid_path(argv[1])) return 10;
 
     struct {
