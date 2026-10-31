@@ -52,7 +52,9 @@ OirStatus oir_ast_node_table_get(
     OirAstNodeRecord* out_record
 );
 
-/* Encode a complete AST payload into caller-owned storage. */
+/* Encode a complete AST payload into caller-owned storage.
+ * Input record/field/string buffers must not overlap output.
+ */
 OirStatus oir_ast_node_table_write(
     uint8_t* output,
     size_t capacity,
