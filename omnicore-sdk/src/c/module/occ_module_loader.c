@@ -202,6 +202,7 @@ uint32_t occ_module_loader_invoke(
             uint8_t* resized;
             if (result.bytes_written != 0u ||
                 result.output_validity != OIR_VALIDITY_NONE ||
+                result.failure_code != 0u ||
                 requested <= (uint64_t)capacity ||
                 requested > (uint64_t)max_output_capacity ||
                 requested > (uint64_t)SIZE_MAX) {
@@ -234,6 +235,8 @@ uint32_t occ_module_loader_invoke(
         }
 
         if (result.bytes_written == 0u ||
+            result.required_output_capacity != 0u ||
+            result.failure_code != 0u ||
             result.bytes_written > (uint64_t)capacity ||
             result.bytes_written > (uint64_t)SIZE_MAX ||
             (status == OCC_MODULE_STATUS_OK &&
@@ -247,6 +250,7 @@ uint32_t occ_module_loader_invoke(
             OirArtifactView view;
             if (oir_artifact_open(output, (size_t)result.bytes_written, &view) != OIR_STATUS_OK ||
                 view.header.artifact_kind != loaded->module->descriptor.output_artifact_kind ||
+                view.header.producer_stage_id != loaded->module->descriptor.stage_id ||
                 view.header.job_id != job_id ||
                 view.header.validity != result.output_validity) {
                 free(output);
