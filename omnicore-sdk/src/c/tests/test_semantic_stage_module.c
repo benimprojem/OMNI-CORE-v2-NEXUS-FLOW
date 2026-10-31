@@ -163,20 +163,36 @@ int main(int argc,char** argv) {
 #if defined(_WIN32)
             threads[i] = CreateThread(NULL, 0u, semantic_worker_run,
                 &workers[i], 0u, NULL);
-            CHECK(threads[i] != NULL);
+            if (threads[i] == NULL) {
+                uint32_t j;
+                for (j = 0u; j < created; ++j) {
+                    (void)WaitForSingleObject(threads[j], INFINITE);
+                    CloseHandle(threads[j]);
+                }
+                goto cleanup;
+            }
 #else
-            CHECK(pthread_create(&threads[i], NULL, semantic_worker_run,
-                &workers[i]) == 0);
+            if (pthread_create(&threads[i], NULL, semantic_worker_run,
+                &workers[i]) != 0) {
+                uint32_t j;
+                for (j = 0u; j < created; ++j)
+                    (void)pthread_join(threads[j], NULL);
+                goto cleanup;
+            }
 #endif
             ++created;
         }
 #if defined(_WIN32)
-        CHECK(WaitForMultipleObjects(SEMANTIC_CONCURRENT_CALLS, threads,
-            TRUE, INFINITE) == WAIT_OBJECT_0);
+        if (WaitForMultipleObjects(SEMANTIC_CONCURRENT_CALLS, threads,
+            TRUE, INFINITE) != WAIT_OBJECT_0) {
+            for (i = 0u; i < created; ++i)
+                (void)WaitForSingleObject(threads[i], INFINITE);
+        }
         for (i = 0u; i < created; ++i) CloseHandle(threads[i]);
 #else
-        for (i = 0u; i < created; ++i)
-            CHECK(pthread_join(threads[i], NULL) == 0);
+        for (i = 0u; i < created; ++i) {
+            if (pthread_join(threads[i], NULL) != 0) goto cleanup;
+        }
 #endif
         for (i = 0u; i < SEMANTIC_CONCURRENT_CALLS; ++i)
             CHECK(workers[i].succeeded);
