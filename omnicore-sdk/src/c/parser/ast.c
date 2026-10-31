@@ -187,6 +187,13 @@ static void ast_print_recursive(ASTNode* node, int level) {
                 ast_print_recursive(unary->operand, level + 1);
                 break;
             }
+            case AST_CAST: {
+                ASTCast* cast = (ASTCast*)node;
+                printf("CAST\n");
+                ast_print_recursive(cast->value, level + 1);
+                ast_print_recursive(cast->target_type, level + 1);
+                break;
+            }
             case AST_POSTFIX_EXPR: {
                 ASTUnaryExpr* post = (ASTUnaryExpr*)node;
                 printf("POSTFIX_OP: %s\n", token_type_to_string(post->op));
