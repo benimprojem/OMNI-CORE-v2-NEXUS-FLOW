@@ -39,6 +39,7 @@ typedef int (*CodegenRunFn)(const char*, const char*, const char*);
 
 #define OCC_TOKEN_OUTPUT_MAX (64u * 1024u * 1024u)
 #define OCC_AST_OUTPUT_MAX (256u * 1024u * 1024u)
+#define OCC_SEMANTIC_OUTPUT_MAX (256u * 1024u * 1024u)
 
 static int path_join(char* out, size_t out_size, const char* base, const char* relative);
 static void occ_add_host_diagnostic(
@@ -78,17 +79,18 @@ static int occ_build_and_run_parser_module(
 ) {
     ParserContext* source_context = NULL;
     uint8_t *source_payload = NULL, *source_artifact = NULL;
-    uint8_t *token_artifact = NULL, *ast_artifact = NULL;
+    uint8_t *token_artifact = NULL, *ast_artifact = NULL, *semantic_artifact = NULL;
     size_t source_payload_length = 0u, source_artifact_length = 0u;
-    size_t token_artifact_length = 0u, ast_artifact_length = 0u;
+    size_t token_artifact_length = 0u, ast_artifact_length = 0u, semantic_artifact_length = 0u;
     size_t source_payload_capacity = 0u, path_length;
     OirArtifactHeader header;
     OirSectionInput section;
     OccModuleArtifactInputV1 module_inputs[2];
-    OccLoadedStageModule lexer_loaded, parser_loaded;
+    OccLoadedStageModule lexer_loaded, parser_loaded, semantic_loaded;
     char lexer_module_path[OCC_PATH_BUFFER], parser_module_path[OCC_PATH_BUFFER];
-    char lexer_error[512], parser_error[512];
-    const char *lexer_filename, *parser_filename;
+    char semantic_module_path[OCC_PATH_BUFFER];
+    char lexer_error[512], parser_error[512], semantic_error[512];
+    const char *lexer_filename, *parser_filename, *semantic_filename;
     OirArtifactView ast_view;
     OirSectionView ast_payload_section;
     OirAstNodeTableView ast_table;
@@ -104,6 +106,7 @@ static int occ_build_and_run_parser_module(
     if (out_context) *out_context = NULL;
     memset(&lexer_loaded, 0, sizeof(lexer_loaded));
     memset(&parser_loaded, 0, sizeof(parser_loaded));
+    memset(&semantic_loaded, 0, sizeof(semantic_loaded));
     if (!source_path || !executable_dir || !job || !out_context) return 0;
 
     source_context = parser_init(source_path);
@@ -164,17 +167,22 @@ static int occ_build_and_run_parser_module(
 #if defined(_WIN32)
     lexer_filename = "occ_lexer_stage.dll";
     parser_filename = "occ_parser_stage.dll";
+    semantic_filename = "occ_semantic_stage.dll";
 #elif defined(__APPLE__)
     lexer_filename = "libocc_lexer_stage.dylib";
     parser_filename = "libocc_parser_stage.dylib";
+    semantic_filename = "libocc_semantic_stage.dylib";
 #else
     lexer_filename = "libocc_lexer_stage.so";
     parser_filename = "libocc_parser_stage.so";
+    semantic_filename = "libocc_semantic_stage.so";
 #endif
     if (!path_join(lexer_module_path, sizeof(lexer_module_path),
         executable_dir, lexer_filename) ||
         !path_join(parser_module_path, sizeof(parser_module_path),
-        executable_dir, parser_filename)) {
+        executable_dir, parser_filename) ||
+        !path_join(semantic_module_path, sizeof(semantic_module_path),
+        executable_dir, semantic_filename)) {
         occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6005u,
             "A frontend stage module path could not be constructed.");
         goto cleanup;
@@ -219,6 +227,27 @@ static int occ_build_and_run_parser_module(
         }
         goto cleanup;
     }
+
+    /* Semantic analysis is a separate DLL stage: AST OIR -> SEMANTIC_AST OIR. */
+    if (occ_module_loader_open(&semantic_loaded, semantic_module_path,
+        semantic_error, sizeof(semantic_error)) != OCC_MODULE_LOADER_OK) {
+        occ_add_host_diagnostic(job, OCC_STAGE_SEMANTIC, 6012u,
+            semantic_error[0] ? semantic_error : "The semantic stage module could not be loaded.");
+        goto cleanup;
+    }
+    memset(module_inputs, 0, sizeof(module_inputs));
+    module_inputs[0].bytes = ast_artifact;
+    module_inputs[0].length = ast_artifact_length;
+    if (occ_module_loader_invoke(&semantic_loaded, module_inputs, 1u, job->job_id,
+        &job->diagnostics, 4096u, OCC_SEMANTIC_OUTPUT_MAX,
+        &semantic_artifact, &semantic_artifact_length) != OCC_MODULE_LOADER_OK) {
+        if (occ_diagnostics_count(&job->diagnostics) == 0u) {
+            occ_add_host_diagnostic(job, OCC_STAGE_SEMANTIC, 6013u,
+                "The semantic stage module failed to produce SEMANTIC_AST OIR.");
+        }
+        goto cleanup;
+    }
+    occ_module_loader_close(&semantic_loaded);
 
     if (oir_artifact_open(ast_artifact, ast_artifact_length, &ast_view) != OIR_STATUS_OK ||
         ast_view.header.artifact_kind != OIR_KIND_AST ||
@@ -273,8 +302,10 @@ cleanup:
     free(incoming_counts);
     free(visited);
     free(graph_stack);
+    free(semantic_artifact);
     free(ast_artifact);
     free(token_artifact);
+    occ_module_loader_close(&semantic_loaded);
     occ_module_loader_close(&parser_loaded);
     occ_module_loader_close(&lexer_loaded);
     free(source_payload);
@@ -596,13 +627,8 @@ int main(int argc, char **argv) {
     if (exit_code == 0 && ctx && ctx->ast_root != NULL) {
         printf("%s\n", msg_get(MSG_OCC_SUCCESS_SEMANTIC));
 
-        SemanticContext sem_ctx;
-        semantic_init(&sem_ctx, source_file, lang_path);
-        semantic_attach_diagnostics(&sem_ctx, &job.diagnostics, OCC_STAGE_SEMANTIC);
-        semantic_check(&sem_ctx, (ASTNode*)ctx->ast_root);
-
-        if (sem_ctx.error_count == 0 &&
-            !occ_diagnostics_blocks_output(&job.diagnostics)) {
+        /* Semantic validation has already completed in occ_semantic_stage. */
+        if (!occ_diagnostics_blocks_output(&job.diagnostics)) {
             char base_name[512];
             strncpy(base_name, source_file, sizeof(base_name) - 1);
             base_name[sizeof(base_name) - 1] = '\0';
