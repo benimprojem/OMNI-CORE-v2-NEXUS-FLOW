@@ -221,19 +221,29 @@ target_include_directories(occ_oir_ast_field_schema PUBLIC "${C_SOURCE_DIR}/oir"
 target_link_libraries(occ_oir_ast_field_schema PUBLIC occ_oir_ast_node_table)
 set_target_properties(occ_oir_ast_field_schema PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Durable semantic records are independent of transient frontend Slot allocations.
+add_library(occ_semantic_result STATIC
+    "${C_SOURCE_DIR}/semantic/semantic_result.c"
+)
+target_include_directories(occ_semantic_result PUBLIC "${C_SOURCE_DIR}/semantic")
+set_target_properties(occ_semantic_result PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # Full SEMANTIC_AST artifact gate: envelope, AST graph/schema and semantic references.
 add_library(occ_oir_semantic_ast_artifact STATIC
     "${C_SOURCE_DIR}/oir/oir_semantic_ast_artifact.c"
+    "${C_SOURCE_DIR}/oir/oir_semantic_ast_artifact_writer.c"
 )
 target_include_directories(occ_oir_semantic_ast_artifact PUBLIC
     "${C_SOURCE_DIR}/oir"
     "${C_SOURCE_DIR}/core"
+    "${C_SOURCE_DIR}/semantic"
 )
 target_link_libraries(occ_oir_semantic_ast_artifact PUBLIC
     occ_oir_semantic_ast
     occ_oir_ast_graph
     occ_oir_ast_field_schema
     occ_oir
+    occ_semantic_result
 )
 set_target_properties(occ_oir_semantic_ast_artifact PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -263,13 +273,6 @@ target_link_libraries(occ_oir_ast_frontend_writer PUBLIC
     occ_oir_lexer_adapter
 )
 set_target_properties(occ_oir_ast_frontend_writer PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-# Durable semantic records are independent of transient frontend Slot allocations.
-add_library(occ_semantic_result STATIC
-    "${C_SOURCE_DIR}/semantic/semantic_result.c"
-)
-target_include_directories(occ_semantic_result PUBLIC "${C_SOURCE_DIR}/semantic")
-set_target_properties(occ_semantic_result PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # The C frontend is the canonical compiler frontend.
 # parser/main.c is intentionally excluded: it is an obsolete standalone entry point.
