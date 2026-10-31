@@ -111,6 +111,14 @@ target_include_directories(occ_oir_ast_map PUBLIC
 )
 set_target_properties(occ_oir_ast_map PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# AST field TLV primitives are independent of frontend structs and graph traversal.
+add_library(occ_oir_ast_tlv STATIC
+    "${C_SOURCE_DIR}/oir/oir_ast_tlv.c"
+)
+target_include_directories(occ_oir_ast_tlv PUBLIC "${C_SOURCE_DIR}/oir")
+target_link_libraries(occ_oir_ast_tlv PUBLIC occ_oir)
+set_target_properties(occ_oir_ast_tlv PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # The C frontend is the canonical compiler frontend.
 # parser/main.c is intentionally excluded: it is an obsolete standalone entry point.
 add_library(occ_frontend STATIC
@@ -195,6 +203,7 @@ if(MSVC)
     target_compile_options(occ_oir_lexer_adapter PRIVATE /W4)
     target_compile_options(occ_oir_token_stream PRIVATE /W4)
     target_compile_options(occ_oir_ast_map PRIVATE /W4)
+    target_compile_options(occ_oir_ast_tlv PRIVATE /W4)
     target_compile_options(occ_frontend PRIVATE /W4)
     target_compile_options(occ_codegen PRIVATE /W4)
     target_compile_options(occ PRIVATE /W4)
@@ -205,6 +214,7 @@ else()
     target_compile_options(occ_oir_lexer_adapter PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_token_stream PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_ast_map PRIVATE -Wall -Wextra)
+    target_compile_options(occ_oir_ast_tlv PRIVATE -Wall -Wextra)
     target_compile_options(occ_frontend PRIVATE -Wall -Wextra)
     target_compile_options(occ_codegen PRIVATE -Wall -Wextra)
     target_compile_options(occ PRIVATE -Wall -Wextra)
@@ -366,6 +376,15 @@ if(BUILD_TESTING)
         target_compile_options(test_oir_ast_map PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME oir_ast_node_registry_mapping_roundtrip COMMAND test_oir_ast_map)
+
+    add_executable(test_oir_ast_tlv "${C_SOURCE_DIR}/tests/test_oir_ast_tlv.c")
+    target_link_libraries(test_oir_ast_tlv PRIVATE occ_oir_ast_tlv)
+    if(MSVC)
+        target_compile_options(test_oir_ast_tlv PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_ast_tlv PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_ast_tlv_primitives_roundtrip_and_validation COMMAND test_oir_ast_tlv)
 
     add_executable(test_oir_token_map "${C_SOURCE_DIR}/tests/test_oir_token_map.c")
     target_link_libraries(test_oir_token_map PRIVATE occ_oir_lexer_adapter)
