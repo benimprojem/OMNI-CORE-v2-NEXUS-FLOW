@@ -28,6 +28,7 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [OIR AST node ve field ID registry](OIR_AST_NODE_REGISTRY.md)
 - [Diagnostic ve compilation context sözleşmesi](DIAGNOSTICS_AND_CONTEXT.md)
 - [Mevcut pipeline geçiş denetimi](PIPELINE_MIGRATION_AUDIT.md)
+- [Derleyici kaynak ve kapasite sınırları](COMPILER_RESOURCE_LIMITS.md)
 
 **Uygulama kararı:** C ana kaynak, C++ ise korunmuş referans uygulamasıdır. OmniCore; Windows, Linux ve macOS için, seçilebilir CPU mimarisi ve isteğe bağlı CPU yetenekleriyle hedef üretmeyi amaçlar. Açık hedef seçilmezse host OS + host architecture varsayılan alınır. Gerçek platform desteği ilgili backend ve testlerle doğrulanır.
 
