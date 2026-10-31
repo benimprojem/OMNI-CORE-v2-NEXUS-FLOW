@@ -95,6 +95,9 @@ Before enabling TOKEN_STREAM serialization:
 
 The TOKEN_STREAM codec is implemented in `omnicore-sdk/src/c/oir/oir_token_stream.h/.c`. It validates the 16-byte header, 32-byte records, registry IDs, source identity and bounds, non-overlapping source spans, terminal EOF, and error-token diagnostic references. Its reader returns zero-copy record views; the frontend adapter converts `Token` values without serializing pointers or message strings.
 
+
+The parser now exposes a borrowed pre-tokenized input attachment. The OIR adapter reconstructs frontend Token records from validated stream records and source/diagnostic views; parser_run() can consume that array without calling the lexer. The caller owns the Token array and source/diagnostic buffers, which must remain alive through parser_run(). This is an internal handoff API, not the frozen cross-DLL ABI.
+
 ## 5. Implementation order
 
 1. [x] Add a stable C enum-to-OIR token ID mapping by symbolic token name (160-token round-trip test).
@@ -102,7 +105,7 @@ The TOKEN_STREAM codec is implemented in `omnicore-sdk/src/c/oir/oir_token_strea
 3. [x] Extend lexer token metadata with source byte offsets and diagnostic references.
 4. [x] Add DIAGNOSTICS payload encode/decode and malformed-input validation tests.
 5. [x] Add TOKEN_STREAM payload encode/decode and span-validation tests.
-6. Add lexer-to-OIR and OIR-to-parser adapters.
+6. [x] Add lexer-to-OIR and OIR-to-parser adapters.
 7. Only then split lexer and parser into separate shared libraries using the common module ABI.
 
 
