@@ -359,6 +359,35 @@ set_target_properties(occ_parser_stage PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
+# Independent semantic DLL: AST OIR -> SEMANTIC_AST OIR.
+add_library(occ_semantic_stage SHARED
+    "${C_SOURCE_DIR}/module/semantic_stage_module.c"
+)
+target_compile_definitions(occ_semantic_stage PRIVATE OCC_BUILD_MODULE)
+target_include_directories(occ_semantic_stage PRIVATE
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+    "${C_SOURCE_DIR}/semantic"
+    "${C_PARSER_DIR}"
+)
+target_link_libraries(occ_semantic_stage PRIVATE
+    occ_module_abi
+    occ_frontend
+    occ_oir
+    occ_oir_ast_artifact
+    occ_oir_ast_node_table
+    occ_oir_ast_frontend_reader
+    occ_oir_ast_frontend_index
+    occ_oir_semantic_ast_artifact
+)
+set_target_properties(occ_semantic_stage PROPERTIES
+    OUTPUT_NAME "occ_semantic_stage"
+    RUNTIME_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
+    LIBRARY_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
+    POSITION_INDEPENDENT_CODE ON
+)
+
 # Independent lexer DLL: SOURCE_UNIT -> TOKEN_STREAM (+ optional DIAGNOSTICS).
 add_library(occ_lexer_stage SHARED
     "${C_SOURCE_DIR}/module/lexer_stage_module.c"
@@ -451,7 +480,7 @@ target_link_libraries(occ PRIVATE
     occ_oir_ast_node_table
     ${CMAKE_DL_LIBS}
 )
-add_dependencies(occ occ_parser_stage occ_lexer_stage)
+add_dependencies(occ occ_parser_stage occ_lexer_stage occ_semantic_stage)
 
 if(MSVC)
     target_compile_options(occ_module_abi PRIVATE /W4)
@@ -519,6 +548,12 @@ if(BUILD_TESTING)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:occ_lexer_stage>"
             "${C_LOCALE_TEST_DIR}/$<TARGET_FILE_NAME:occ_lexer_stage>"
+        VERBATIM
+    )
+    add_custom_command(TARGET occ POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:occ_semantic_stage>"
+            "${C_LOCALE_TEST_DIR}/$<TARGET_FILE_NAME:occ_semantic_stage>"
         VERBATIM
     )
 
