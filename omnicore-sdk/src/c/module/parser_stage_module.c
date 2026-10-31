@@ -101,6 +101,10 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
     } else if(status!=OIR_STATUS_MISSING_PAYLOAD) {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
+#if SIZE_MAX < UINT64_MAX
+    if(source.source_length>(uint64_t)SIZE_MAX) return OCC_MODULE_STATUS_INVALID_INVOCATION;
+#endif
+    if((uint64_t)source.path_length>=(uint64_t)SIZE_MAX) return OCC_MODULE_STATUS_INVALID_INVOCATION;
     if(oir_token_stream_open(token_section.data,(size_t)token_section.length,
         source.source_id,source.source_length,diag_count,&tokens_view)!=OIR_STATUS_OK) {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
