@@ -90,7 +90,7 @@ No allocator callback is part of v1.0. This deliberately avoids cross-CRT alloca
 
 1. Assign and document stable module IDs.
 2. Confirm parser invocation inputs against SOURCE_UNIT, TOKEN_STREAM and DIAGNOSTICS artifact wrappers.
-3. Define stage-specific diagnostic behavior and whether diagnostics are embedded in the output artifact or returned as a companion artifact.
+3. [x] Define the stage-to-host diagnostic callback contract; output/companion artifact placement remains a separate policy decision.
 4. Add a sample parser-stage shared library using this header.
 5. Add dynamic load/unload tests on Windows, Linux and macOS.
 6. Add ABI prefix-size, wrong-major, too-small-output and concurrent-invocation tests.
@@ -122,3 +122,22 @@ Implemented:
 The test module is deliberately a pass-through ABI fixture, not the real parser stage. The parser now has an in-memory source initialization API, and the OIR AST artifact adapter is ready, but the actual parser-stage shared library that consumes SOURCE_UNIT + TOKEN_STREAM and emits AST is still pending.
 
 The ABI remains **Draft v1.0, not frozen**. Module IDs are test values until a central registry is assigned. Dynamic-loader CI run 41161737825 passed on Windows, Ubuntu and macOS; Ubuntu CTest 34/34, ASan/UBSan and Valgrind passed.
+
+
+## 9. Module-to-host diagnostic channel (draft)
+
+Modules that advertise `OCC_MODULE_CAP_DIAGNOSTIC_REPORTING` receive an invocation-scoped `OccModuleDiagnosticSinkV1`. They report each diagnostic synchronously through its callback. The diagnostic carries a stable code/message ID, severity, source ID, half-open byte span, start/end line and column, and length-delimited message/hint text.
+
+Ownership and trust rules:
+
+- The sink and callback context are created and owned by OCC for one invocation; modules must not retain either pointer after `process` returns or call it asynchronously.
+- Message and hint pointers are borrowed only for the duration of the callback. OCC copies their bytes into the job-owned diagnostic collector before returning.
+- The stage ID is taken from the host-created callback context, not from module data. A module cannot attribute a diagnostic to another compiler stage.
+- The source span and diagnostic code are module-provided and validated by the common collector.
+- The callback returns nonzero only when the diagnostic was accepted and copied. Allocation failure or invalid fields return zero.
+- A module that does not advertise the capability must receive an all-zero sink. A module that advertises it must receive a structurally valid sink.
+- No module chooses a filesystem path or owns the collector allocation. OCC remains responsible for checkpoint persistence.
+
+The public ABI uses fixed-width 64-bit text lengths. The host bridge checks conversion to `size_t`, reserved fields, flags and pointer/length consistency before forwarding to `occ_diagnostics_add()`. The callback is synchronous and does not transfer memory ownership.
+
+CTest coverage: the ABI contract test reports a parser-stage error with source ID, byte range `[15,16)`, line 2, columns 7–8, message and hint; it verifies that the host collector owns the copied text and assigns the stage ID. Malformed reserved fields and sink flags are rejected.
