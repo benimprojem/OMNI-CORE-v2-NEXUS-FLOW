@@ -584,3 +584,12 @@ Denetimde netleşen noktalar:
 - Run 41160379544 passed on Windows, Ubuntu and macOS.
 - Ubuntu CTest 31/31; ASan/UBSan and Valgrind passed.
 - The AST payload can now be wrapped as a standard `OIR_KIND_AST` artifact with parser producer stage, schema version, validity and job ID metadata.
+
+
+## Real parser OIR AST artifact handoff — 31 Ekim 2026
+
+- Parser integration testi artık AST payload'ını OIR_KIND_AST container içine sarıyor; producer stage PARSER, schema 1.0 ve job ID metadata'sını doğruluyor.
+- Container reader ile AST yeniden oluşturuluyor; tekrar OIR payload yazıldığında ilk parser payload'ı ile byte-for-byte eşit olması şart.
+- Test, tam OIR container'ın her baytında tek-bit mutation sweep yapıyor. Kabul edilen varyantlar materialize edilip ast_destroy() ile serbest bırakılıyor; reddedilen varyantlar NULL root döndürmek zorunda.
+- **Final CI run 41160565137:** Windows, Ubuntu, macOS başarılı; Ubuntu CTest 31/31, ASan/UBSan ve Valgrind başarılı.
+- **Durum:** AST schema/payload codec ve OIR container handoff doğrulandı. Parser checkpoint API'sinin stage ABI içine alınması ve DLL/SO ayrımı henüz yapılmadı.
