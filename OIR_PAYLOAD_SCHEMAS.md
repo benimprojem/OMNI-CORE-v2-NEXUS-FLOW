@@ -160,3 +160,91 @@ Implementation:
 
 The codec exposes zero-copy read views over a validated payload and serializes a job-owned `OccDiagnosticCollector`. The caller retains ownership of the payload buffer. The initial frontend bridge records line/column only; byte offsets and end spans will become populated when source-span metadata is propagated through AST nodes and parser recovery.
 
+
+
+## 7. AST — schema 1.0 draft
+
+Registry: [OIR_AST_NODE_REGISTRY.md](OIR_AST_NODE_REGISTRY.md)  
+Producer: parser stage  
+Consumers: semantic analysis, AST inspector, later lowering stages
+
+The AST payload is a node table plus typed field data. It is not a dump of C structs, pointers, enum ordinals or allocator memory. Node kinds use the stable IDs in OIR_AST_NODE_REGISTRY.md; operator and literal token kinds use OIR_TOKEN_REGISTRY.md.
+
+### Payload header — 32 bytes
+
+| Offset | Width | Field | Rule |
+|---:|---:|---|---|
+| 0 | 4 | Node count | 1–1,000,000 |
+| 4 | 4 | Root node ID | Must reference AST_PROGRAM; canonical writer assigns ID 1 |
+| 8 | 4 | Node record size | Must equal 32 |
+| 12 | 4 | Node records bytes | Must equal node_count × 32 |
+| 16 | 4 | Field data bytes | Exact size of the following TLV field area |
+| 20 | 4 | String table bytes | Exact size of the trailing UTF-8 string area |
+| 24 | 4 | Flags | Must be zero in schema 1.0 |
+| 28 | 4 | Reserved | Must be zero |
+
+The total payload length must equal 32 + node_records_bytes + field_data_bytes + string_table_bytes exactly. Each byte count and offset is bounded to the schema's 32-bit section fields and checked before pointer arithmetic.
+
+### Node record — 32 bytes
+
+| Offset | Width | Field | Rule |
+|---:|---:|---|---|
+| 0 | 4 | Node ID | Unique, contiguous 1-based ID |
+| 4 | 2 | Node kind ID | Stable OIR_AST_NODE_REGISTRY.md ID |
+| 6 | 2 | Node flags | Must be zero in schema 1.0 |
+| 8 | 4 | Start line | 1-based; zero means unavailable/synthetic |
+| 12 | 4 | Start column | 1-based; zero means unavailable/synthetic |
+| 16 | 4 | Next node ID | ASTNode.next sibling; zero means none |
+| 20 | 4 | Field data offset | Relative to the field-data area |
+| 24 | 4 | Field data length | Exact byte length of this node's TLV fields |
+| 28 | 4 | Reserved | Must be zero |
+
+### Field TLV — 8-byte header plus value
+
+| Offset | Width | Field | Rule |
+|---:|---:|---|---|
+| 0 | 2 | Field ID | Scoped to the node kind; defined by OIR_AST_NODE_REGISTRY.md |
+| 2 | 1 | Value type | One of the stable value-type IDs below |
+| 3 | 1 | Field flags | Bit 0 = optional; all other bits zero |
+| 4 | 4 | Value length | Exact byte count after this header |
+| 8 | N | Value | Encoded according to value type |
+
+Value types:
+
+| ID | Type | Width / meaning |
+|---:|---|---|
+| 0 | NULL | Zero bytes; distinct from an empty string |
+| 1 | BOOL | 1 byte, exactly 0 or 1 |
+| 2 | U32 | 4-byte unsigned little-endian |
+| 3 | I32 | 4-byte signed two's-complement little-endian |
+| 4 | U64 | 8-byte unsigned little-endian |
+| 5 | I64 | 8-byte signed two's-complement little-endian |
+| 6 | F64 | IEEE-754 binary64 bit pattern, little-endian |
+| 7 | TOKEN_ID | 2-byte OIR token registry ID |
+| 8 | STRING_REF | 8 bytes: string-table offset u32 + byte length u32 |
+| 9 | NODE_REF | 4-byte node ID; zero means null |
+
+Strings are stored once in the trailing string table as raw UTF-8 bytes without NUL terminators. STRING_REF length is authoritative. Embedded NUL and invalid UTF-8 are rejected. NULL and STRING_REF(offset, length 0) remain distinct.
+
+### Tree and reference invariants
+
+- Node IDs are contiguous from 1 through node_count; each node record appears exactly once.
+- Root node ID is 1 and its kind is AST_PROGRAM.
+- Every NODE_REF is zero or a valid node ID. Every next_node_id is zero or a valid node ID.
+- The node graph is a tree with sibling chains: no cycles, no node referenced by multiple owning fields, and every record is reachable from the root.
+- Canonical node numbering is deterministic depth-first traversal: visit node fields in ascending field-ID order, then its next sibling.
+- Field TLVs are ordered by ascending field ID. A field may appear at most once per node.
+- Every field defined as part of that node kind's schema must be present. Nullable child/string fields use NODE_REF(0) or NULL rather than being omitted.
+- Unknown fields are accepted only when their optional flag is set. Unknown required fields, unknown node kinds, unknown value types, duplicate fields and invalid fixed-width lengths are rejected.
+- Token-valued fields must reference a known ID in OIR_TOKEN_REGISTRY.md.
+- Maximum nesting depth is 512. Maximum node count is 1,000,000. Maximum individual string length is 16 MiB, matching the current C AST reader's safety ceiling.
+- The current C AST records only line/column start locations. End spans and source byte offsets are not invented; they can be added in a compatible extension after AST source-span propagation.
+
+### Current node field mapping
+
+The full stable node-kind and field-ID mapping is maintained in [OIR_AST_NODE_REGISTRY.md](OIR_AST_NODE_REGISTRY.md). It covers all 80 current C AST node kinds, including the shared C layouts that remain distinct OIR node kinds (for example AST_FUNC_DECL versus AST_EXTERN_DECL and AST_NEXUS_FLOW versus AST_NEXUS_PIPE).
+
+### Migration boundary
+
+The existing ast_serialize()/ast_deserialize() stream is a legacy native C format: it writes native enum/int/long-long/double representations and recursive node layout. It is not OIR AST schema 1.0 and must not be relabeled or interpreted as one. The future OIR AST codec must have its own bounded reader/writer and round-trip tests; parser checkpoint migration happens only after that codec is implemented and validated.
+
