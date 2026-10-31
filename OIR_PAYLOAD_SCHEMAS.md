@@ -254,3 +254,8 @@ The full stable node-kind and field-ID mapping is maintained in [OIR_AST_NODE_RE
 
 The existing ast_serialize()/ast_deserialize() stream is a legacy native C format: it writes native enum/int/long-long/double representations and recursive node layout. It is not OIR AST schema 1.0 and must not be relabeled or interpreted as one. The future OIR AST codec must have its own bounded reader/writer and round-trip tests; parser checkpoint migration happens only after that codec is implemented and validated.
 
+
+
+## Semantic AST payload (draft)
+
+The semantic handoff is specified separately in [OIR_SEMANTIC_AST.md](OIR_SEMANTIC_AST.md). It preserves the AST schema 1.0 payload unchanged and adds versioned OIR sections for scopes, types, symbols, ordered relations and per-node annotations. Conversion/promotion records are optional until the NEXSUS Flow type-promotion rules are fully specified and tested. The schema is a design draft; no codec or semantic DLL is claimed yet.
