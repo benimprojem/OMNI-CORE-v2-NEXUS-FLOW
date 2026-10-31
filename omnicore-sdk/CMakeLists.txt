@@ -692,6 +692,7 @@ if(BUILD_TESTING)
         occ_oir
         occ_oir_token_stream
         occ_module_abi
+        occ_module_loader
         ${CMAKE_DL_LIBS}
     )
     if(MSVC)
