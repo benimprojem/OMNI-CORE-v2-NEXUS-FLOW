@@ -493,6 +493,10 @@ static int test_parser_allocation_failure_injection(void) {
         " v:first = a + b;"
         " { v:inner = combine(first, 7); }"
         " v:pair = (first, b);"
+        " struct: Point { v:x!i32, v:y!i32 }"
+        " nt:id = u64;"
+        " enum:State { Idle, Running(pid!u32), Error(code!u16) }"
+        " union:Register32 { v:full!u32, v:parts!u16 }"
         " v:casted = cast(1, i32);"
         " panic(\"boom\");"
         " ?? \"inspect\";"
@@ -513,7 +517,8 @@ static int test_parser_allocation_failure_injection(void) {
         if (status == PARSER_STATUS_OUT_OF_MEMORY &&
             result == PARSER_STATUS_OUT_OF_MEMORY) {
             ++oom_count;
-        } else if (status == PARSER_STATUS_OK && result == PARSER_STATUS_OK) {
+        } else if (status == PARSER_STATUS_OK && result == PARSER_STATUS_OK &&
+                   ctx->test_allocation_count < fail_at) {
             reached_success = 1;
             parser_destroy(ctx);
             break;
