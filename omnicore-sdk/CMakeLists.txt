@@ -378,6 +378,21 @@ if(BUILD_TESTING)
     target_link_libraries(test_lexer PRIVATE occ_frontend)
     add_test(NAME lexer_tokenizes_core_and_flow_tokens COMMAND test_lexer)
 
+    add_executable(test_parser_oir_handoff
+        "${C_SOURCE_DIR}/tests/test_parser_oir_handoff.c"
+    )
+    target_link_libraries(test_parser_oir_handoff PRIVATE
+        occ_frontend
+        occ_oir_token_stream
+    )
+    if(MSVC)
+        target_compile_options(test_parser_oir_handoff PRIVATE /W4)
+    else()
+        target_compile_options(test_parser_oir_handoff PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME parser_consumes_oir_token_stream
+        COMMAND test_parser_oir_handoff "${C_SOURCE_DIR}/tests/test1.nxf")
+
     add_executable(test_parser "${C_SOURCE_DIR}/tests/test_parser.c")
     target_include_directories(test_parser PRIVATE "${C_PARSER_DIR}")
     target_link_libraries(test_parser PRIVATE occ_frontend)
