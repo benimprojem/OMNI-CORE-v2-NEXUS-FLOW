@@ -147,7 +147,18 @@ static void error_at(Parser* p, Token* token, ErrorCode code, const char* messag
         snprintf(full_msg, sizeof(full_msg), msg_get(MSG_AT_TOKEN), token->length, token->start, message);
     }
 
-    parser_add_error(p->ctx, code, token->line, token->col, full_msg);
+    {
+        size_t diagnostic_count_before = p->ctx->diagnostics
+            ? occ_diagnostics_count(p->ctx->diagnostics) : 0u;
+        parser_add_error(p->ctx, code, token->line, token->col, full_msg);
+        if (token->type == TOKEN_ERROR && p->ctx->diagnostics) {
+            size_t diagnostic_count_after = occ_diagnostics_count(p->ctx->diagnostics);
+            if (diagnostic_count_after > diagnostic_count_before &&
+                diagnostic_count_before < UINT32_MAX) {
+                token->diagnostic_id = (uint32_t)(diagnostic_count_before + 1u);
+            }
+        }
+    }
     p->had_error = 1;
 }
 
