@@ -1398,10 +1398,15 @@ static OirStatus semantic_ast_node_kind(
 
 static int semantic_symbol_declaration_kind_matches(
     uint16_t symbol_kind,
+    uint16_t symbol_flags,
     uint16_t node_kind
 ) {
     switch (symbol_kind) {
         case OIR_SEMANTIC_SYMBOL_VARIABLE:
+            if ((symbol_flags & OIR_SEMANTIC_SYMBOL_FLAG_IMPLICIT) != 0u) {
+                return node_kind == 14u || node_kind == 25u ||
+                    node_kind == 30u || node_kind == 41u;
+            }
             return node_kind == 3u; /* AST_VAR_DECL */
         case OIR_SEMANTIC_SYMBOL_FUNCTION:
             return node_kind == 4u || node_kind == 11u || node_kind == 12u;
@@ -1588,7 +1593,7 @@ OirStatus oir_semantic_ast_validate_references(
             semantic_ast_node_kind(ast, symbol.declaration_node_id,
                 &declaration_kind) != OIR_STATUS_OK ||
             !semantic_symbol_declaration_kind_matches(
-                symbol.kind, declaration_kind)) {
+                symbol.kind, symbol.flags, declaration_kind)) {
             return OIR_STATUS_INVALID_SECTION;
         }
 
