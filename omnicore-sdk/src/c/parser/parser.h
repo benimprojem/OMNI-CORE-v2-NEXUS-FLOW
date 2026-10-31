@@ -140,6 +140,8 @@ typedef struct {
 } ParserContext;
 
 OCC_API ParserContext* parser_init(const char* filename);
+/* Create a parser context from caller-provided UTF-8 source bytes. The context copies the source. */
+OCC_API ParserContext* parser_init_source(const char* filename, const uint8_t* source, size_t source_len);
 OCC_API void parser_attach_diagnostics(
     ParserContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id
 );
