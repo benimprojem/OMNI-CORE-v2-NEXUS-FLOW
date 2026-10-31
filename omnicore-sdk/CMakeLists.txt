@@ -203,6 +203,7 @@ target_include_directories(occ_oir_ast_frontend_reader PUBLIC
 target_link_libraries(occ_oir_ast_frontend_reader PUBLIC
     occ_frontend
     occ_oir_ast_map
+    occ_oir_ast_frontend_index
     occ_oir_ast_node_table
     occ_oir_ast_graph
     occ_oir_ast_field_schema
