@@ -55,7 +55,10 @@ static void semantic_stage_init_messages(void) {
 #endif
     if (!separator) return;
     *separator = '\0';
-    if (snprintf(config_path, sizeof(config_path), "%s/occ.ocf", module_path) < 0) return;
+    {
+        int n = snprintf(config_path, sizeof(config_path), "%s/occ.ocf", module_path);
+        if (n < 0 || (size_t)n >= sizeof(config_path)) return;
+    }
     config = fopen(config_path, "r");
     if (config) {
         while (fgets(line, sizeof(line), config)) {
@@ -71,15 +74,30 @@ static void semantic_stage_init_messages(void) {
             end = strchr(p, '"');
             if (!end) continue;
             *end = '\0';
-            if (p[0] && strlen(p) < sizeof(language)) strcpy(language, p);
+            if (p[0] && strlen(p) < sizeof(language)) {
+                size_t j; int valid = 1;
+                for (j = 0u; p[j] != '\\0'; ++j) {
+                    if (!((p[j] >= 'a' && p[j] <= 'z') ||
+                          (p[j] >= 'A' && p[j] <= 'Z') ||
+                          (p[j] >= '0' && p[j] <= '9') ||
+                          p[j] == '_' || p[j] == '-')) {
+                        valid = 0; break;
+                    }
+                }
+                if (valid) strcpy(language, p);
+            }
             break;
         }
         fclose(config);
     }
-    if (snprintf(language_relative, sizeof(language_relative),
-        "lang/messages_%s.conf", language) < 0) return;
-    if (snprintf(message_path, sizeof(message_path), "%s/%s",
-        module_path, language_relative) < 0) return;
+    {
+        int n = snprintf(language_relative, sizeof(language_relative),
+            "lang/messages_%s.conf", language);
+        if (n < 0 || (size_t)n >= sizeof(language_relative)) return;
+        n = snprintf(message_path, sizeof(message_path), "%s/%s",
+            module_path, language_relative);
+        if (n < 0 || (size_t)n >= sizeof(message_path)) return;
+    }
     msg_init(message_path);
 }
 
