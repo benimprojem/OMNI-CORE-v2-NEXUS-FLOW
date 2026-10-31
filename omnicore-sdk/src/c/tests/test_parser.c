@@ -93,6 +93,33 @@ static int test_parser_rejects_excessive_expression_nesting(void) {
     return ok;
 }
 
+static int test_parser_rejects_excessive_operator_chain(void) {
+    enum { OPERATORS = 100 };
+    char source[OPERATORS * 2 + 32];
+    size_t offset = 0u;
+    ParserContext* ctx;
+    int result;
+    int ok;
+
+    memcpy(source + offset, "v:x = 1", 7u);
+    offset += 7u;
+    for (int i = 0; i < OPERATORS; ++i) {
+        source[offset++] = '+';
+        source[offset++] = '1';
+    }
+    source[offset++] = ';';
+
+    ctx = parser_init_source("deep-operator-chain.nxf",
+        (const uint8_t*)source, offset);
+    if (!ctx) return 0;
+    result = parser_run(ctx);
+    ok = result == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+        ctx->ast_root != NULL && ctx->error_count > 0;
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_parser_context_initialization(void) {
     static const uint8_t empty_source[] = "";
     ParserContext* memory = parser_init_source("empty.nxf", empty_source, 0u);
@@ -429,6 +456,10 @@ static int test_parser_allocation_failure_injection(void) {
 int main(int argc, char** argv) {
     if (!test_parser_rejects_excessive_expression_nesting()) {
         fprintf(stderr, "Parser did not safely reject excessive expression nesting.\\n");
+        return 1;
+    }
+    if (!test_parser_rejects_excessive_operator_chain()) {
+        fprintf(stderr, "Parser did not safely reject an excessive operator chain.\\n");
         return 1;
     }
     if (!test_parser_context_initialization()) {
