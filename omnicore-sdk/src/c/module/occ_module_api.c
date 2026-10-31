@@ -1,8 +1,15 @@
 #include "occ_module_api.h"
 
 static int valid_artifact_kind(uint32_t kind) {
-    return kind > 0u && kind < 64u;
+    return kind >= OIR_KIND_SOURCE_UNIT && kind <= OIR_KIND_LINK_INPUT;
 }
+
+#define OCC_MODULE_CAPABILITY_MASK_V1 ( \
+    (uint64_t)OCC_MODULE_CAP_REENTRANT | \
+    (uint64_t)OCC_MODULE_CAP_DETERMINISTIC | \
+    (uint64_t)OCC_MODULE_CAP_SUPPORTS_PARTIAL_INPUT | \
+    (uint64_t)OCC_MODULE_CAP_STATELESS )
+
 
 static int valid_descriptor_fields(const OccStageDescriptorV1* d) {
     const uint64_t known_capabilities =
