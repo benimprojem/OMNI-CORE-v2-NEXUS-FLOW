@@ -15,7 +15,7 @@ int main(void) {
     uint8_t payload[] = { 0x10, 0x20, 0x30, 0x40 };
     uint8_t metadata[] = { 't', 'e', 's', 't' };
     OirArtifactHeader header;
-    OirSectionInput sections[2];
+    OirSectionInput sections[3];
     OirArtifactView view;
     OirSectionView section;
     size_t written = 0;
@@ -40,10 +40,15 @@ int main(void) {
     sections[1].flags = 0;
     sections[1].data = metadata;
     sections[1].length = sizeof(metadata);
+    sections[2].type = OIR_SECTION_SEMANTIC_SCOPES;
+    sections[2].version = 1;
+    sections[2].flags = OIR_SECTION_FLAG_REQUIRED;
+    sections[2].data = metadata;
+    sections[2].length = sizeof(metadata);
 
-    CHECK(oir_artifact_write(buffer, sizeof(buffer), &header, sections, 2, &written)
+    CHECK(oir_artifact_write(buffer, sizeof(buffer), &header, sections, 3, &written)
         == OIR_STATUS_OK, "writer should serialize valid artifact");
-    CHECK(written == OIR_HEADER_SIZE + 2 * OIR_SECTION_HEADER_SIZE +
+    CHECK(written == OIR_HEADER_SIZE + 3 * OIR_SECTION_HEADER_SIZE +
         sizeof(payload) + sizeof(metadata), "serialized size should match");
     CHECK(buffer[0] == 'O' && buffer[1] == 'I' &&
         buffer[2] == 'R' && buffer[3] == '1', "magic should be OIR1");
@@ -54,7 +59,7 @@ int main(void) {
     CHECK(view.header.artifact_kind == OIR_KIND_TOKEN_STREAM,
         "artifact kind should round-trip");
     CHECK(view.header.job_id == header.job_id, "job id should round-trip");
-    CHECK(view.section_count == 2, "section count should round-trip");
+    CHECK(view.section_count == 3, "section count should round-trip");
 
     CHECK(oir_artifact_get_section(&view, 0, &section) == OIR_STATUS_OK,
         "first section should be readable");
@@ -69,6 +74,14 @@ int main(void) {
         section.length == sizeof(metadata) &&
         memcmp(section.data, metadata, sizeof(metadata)) == 0,
         "metadata bytes should round-trip");
+
+    CHECK(oir_artifact_get_section(&view, 2, &section) == OIR_STATUS_OK,
+        "semantic section should be readable");
+    CHECK(section.type == OIR_SECTION_SEMANTIC_SCOPES &&
+        section.flags == OIR_SECTION_FLAG_REQUIRED &&
+        section.length == sizeof(metadata) &&
+        memcmp(section.data, metadata, sizeof(metadata)) == 0,
+        "registered semantic section should round-trip");
 
     CHECK(oir_artifact_open(buffer, written - 1, &view) != OIR_STATUS_OK,
         "truncated container should be rejected");
@@ -145,7 +158,7 @@ int main(void) {
             "NONE is a pipeline result and cannot label a serialized artifact");
     }
 
-    CHECK(oir_artifact_write(buffer, 8, &header, sections, 2, &written)
+    CHECK(oir_artifact_write(buffer, 8, &header, sections, 3, &written)
         == OIR_STATUS_BUFFER_TOO_SMALL, "writer should detect small output buffer");
 
     puts("OIR container tests passed.");
