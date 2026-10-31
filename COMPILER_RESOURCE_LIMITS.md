@@ -29,6 +29,14 @@ A representation limit is not a recommended operating size. For example, a 32-bi
 | AST codec node count | 1,000,000 nodes | Hard implementation limit | `ast.c`, `AST_MAX_NODE_COUNT` |
 | AST codec recursion depth | 512 levels | Hard implementation limit | `ast.c`, `AST_MAX_RECURSION_DEPTH` |
 | AST codec string field | 16 MiB | Hard implementation limit | `ast.c`, `AST_MAX_STRING_LENGTH` |
+| Semantic scopes | At most 1,000,000 records; maximum nesting depth 512 | Hard implementation limit | `semantic_result.h`, `oir_semantic_ast.h` |
+| Semantic types | At most 1,000,000 records | Hard implementation limit | `semantic_result.h`, `oir_semantic_ast.h` |
+| Semantic symbols | At most 1,000,000 records | Hard implementation limit | `semantic_result.h`, `oir_semantic_ast.h` |
+| Semantic annotations | At most 1,000,000 records | Hard implementation limit | `semantic_result.h`, `oir_semantic_ast.h` |
+| Semantic relations | At most 1,000,000 records | Hard implementation limit | `oir_semantic_ast.h` |
+| Semantic conversions | At most 1,000,000 records | Hard implementation limit | `oir_semantic_ast.h` |
+| Semantic name string tables | At most 16 MiB per TYPES, SYMBOLS or RELATIONS table | Hard implementation limit | `oir_semantic_ast.h` |
+
 | Lexer token length | At most `INT_MAX` bytes | Representation / checked implementation limit | `Token.length` is `int`; lexer rejects an oversized token |
 | OIR token lexeme length | At most `UINT32_MAX` bytes in the wire record | Representation limit | `OirTokenStreamInput.lexeme_length` |
 | Lexer stage token count | At most 1,000,000 records, including EOF | Hard implementation limit | `lexer_stage_module.c`, `LEXER_STAGE_TOKEN_LIMIT` |
@@ -71,6 +79,12 @@ The token-record payload size is therefore:
 `16 + (32 × token_count)` bytes
 
 This formula excludes the enclosing OIR artifact header, section directory, source payload and diagnostics payload. The serializer checks arithmetic overflow and caller-provided output capacity. The 32-bit count is a format ceiling, not a practical target. The current Lexer DLL and Parser DLL apply a much stricter limit of 1,000,000 token records per compilation, including the EOF record. The Parser DLL checks this independently before allocating its token array, because stage input is an artifact boundary and must not be trusted solely because the Lexer normally emits it.
+
+## 2.4 Semantic result and artifact limits
+
+The Semantic DLL's durable result model has independent one-million-record ceilings for scopes, types, symbols, annotations, relations and conversions. Scope depth is capped at 512. The OIR semantic artifact uses separate UTF-8 name tables for TYPES, SYMBOLS and RELATIONS; each table is capped at 16 MiB, so this is not one shared 16 MiB budget for all semantic names.
+
+These are per-table representation/implementation limits, not a promise that a compilation containing all six tables at their maximums is practical. The Semantic DLL still depends on available memory for its in-memory model, AST materialization, index, and artifact scratch buffers.
 
 ## 3. Source file size and line count
 
