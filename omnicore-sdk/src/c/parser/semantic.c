@@ -1075,7 +1075,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         // Implicit: loop(i, ...) -> v:i = 0
                         ASTIdentifier* id = (ASTIdentifier*)loop->init;
                         if (!find_slot(ctx, id->name)) {
-                            add_slot(ctx, id->name, SLOT_VAR, 0, "i32", (ASTNode*)id, 1, 0);
+                            add_slot(ctx, id->name, SLOT_VAR, 0, "i32", (ASTNode*)id, 1, 0, 0, 0u);
                             printf("[SEMANTIC] Implicit loop counter: %s\n", id->name);
                         }
                         semantic_check(ctx, loop->init);
@@ -1086,7 +1086,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                             ASTIdentifier* id = (ASTIdentifier*)assign->left;
                             if (!find_slot(ctx, id->name)) {
                                 const char* type = get_expr_type(ctx, assign->right);
-                                add_slot(ctx, id->name, SLOT_VAR, 0, type ? type : "i32", (ASTNode*)id, 1, 0);
+                                add_slot(ctx, id->name, SLOT_VAR, 0, type ? type : "i32", (ASTNode*)id, 1, 0, 0, 0u);
                                 printf("[SEMANTIC] Implicit loop variable: %s\n", id->name);
                             }
                         }
