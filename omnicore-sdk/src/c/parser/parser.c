@@ -688,28 +688,49 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
     call->base.line = p->previous.line;
     call->base.col = p->previous.col;
     call->args = NULL;
+    call->callee = NULL;
 
-    // reg.r(...) case logic
+    /* reg.r(...) form: build the member identifier with checked ownership. */
     if (type == AST_REG && match(p, TOKEN_DOT)) {
         if (match(p, TOKEN_IDENTIFIER)) {
+            Token member = p->previous;
             ASTIdentifier* id = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
-            id->name = malloc(p->previous.length + 1);
-            memcpy(id->name, p->previous.start, p->previous.length);
-            id->name[p->previous.length] = '\0';
+            if (!id) {
+                ast_destroy((ASTNode*)call);
+                return NULL;
+            }
+            id->name = (char*)malloc((size_t)member.length + 1u);
+            if (!id->name) {
+                ast_destroy((ASTNode*)id);
+                ast_destroy((ASTNode*)call);
+                return NULL;
+            }
+            memcpy(id->name, member.start, (size_t)member.length);
+            id->name[member.length] = '\0';
+            id->base.line = member.line;
+            id->base.col = member.col;
             call->callee = (ASTNode*)id;
+        } else {
+            error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                msg_get(ERR_PARSER_EXPECTED_EXPRESSION));
+            ast_destroy((ASTNode*)call);
+            return NULL;
         }
     }
 
     if (match(p, TOKEN_LPAREN)) {
         if (p->current.type != TOKEN_RPAREN) {
-            ASTNode* head = NULL;
             ASTNode* tail = NULL;
             do {
                 ASTNode* arg = parse_expression(p);
-                if (!head) head = arg; else tail->next = arg;
+                if (!arg) {
+                    ast_destroy((ASTNode*)call);
+                    return NULL;
+                }
+                if (!call->args) call->args = arg;
+                else tail->next = arg;
                 tail = arg;
             } while (match(p, TOKEN_COMMA));
-            call->args = head;
         }
         consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ARGS);
     }
@@ -999,6 +1020,11 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         
         if (op == TOKEN_PIPE || op == TOKEN_LSHIFT || op == TOKEN_RSHIFT || op == TOKEN_RELOCATE) {
             ASTNexusFlow* pipe = (ASTNexusFlow*)ast_create(AST_NEXUS_PIPE);
+            if (!pipe) {
+                ast_destroy(expr);
+                ast_destroy(right);
+                return NULL;
+            }
             pipe->base.line = p->previous.line;
             pipe->base.col = p->previous.col;
             pipe->op = op;
@@ -1007,6 +1033,11 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             expr = (ASTNode*)pipe;
         } else {
             ASTNexusFlow* flow = (ASTNexusFlow*)ast_create(AST_NEXUS_FLOW);
+            if (!flow) {
+                ast_destroy(expr);
+                ast_destroy(right);
+                return NULL;
+            }
             flow->base.line = p->previous.line;
             flow->base.col = p->previous.col;
             flow->op = op;
@@ -1020,11 +1051,15 @@ static ASTNode* parse_nexus_flow(Parser* p) {
 
     if (match(p, TOKEN_UNPACK)) {
         ASTUnpack* unpack = (ASTUnpack*)ast_create(AST_UNPACK);
+        if (!unpack) {
+            ast_destroy(expr);
+            return NULL;
+        }
         unpack->base.line = p->previous.line;
         unpack->base.col = p->previous.col;
         unpack->expr = expr;
         expr = (ASTNode*)unpack;
-        return parse_nexus_flow(p); 
+        return parse_nexus_flow(p);
     }
 
     if (match(p, TOKEN_ERR_HANDLER)) {
