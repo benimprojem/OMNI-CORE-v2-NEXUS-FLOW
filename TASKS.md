@@ -264,3 +264,15 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 - [ ] Integrate Semantic DLL in OCC and pass SEMANTIC_AST downstream; keep AST materialization only as a temporary legacy Codegen bridge.
 - [ ] Migrate Codegen to the common stage ABI and remove the legacy `codegen_run` handoff after the new consumer is verified.
 
+
+
+## P3 — Native NEXSUS linker and OCL — future architecture requirement
+
+- [ ] Define OCL as a first-class NEXSUS Flow tool/language component when the toolchain design reaches the linker phase.
+- [ ] Implement a project-owned native linker; the platform C linker may be used only as a temporary development/test bridge and must not be a final runtime/build dependency.
+- [ ] Specify the linker input/object format, symbol resolution, relocation model, section/layout rules and target ABI independently of the host C linker.
+- [ ] Define a linker security specification before implementation: validate all object/module inputs; enforce bounds and overflow checks; constrain symbol visibility and resolution; validate relocation targets and memory-region permissions; verify module/object identity and integrity; reject malformed or policy-violating inputs; produce deterministic, auditable link results.
+- [ ] Add adversarial malformed-object, relocation-boundary, duplicate/ambiguous-symbol, permission-escalation and tampered-input tests.
+- [ ] Remove the temporary C-linker bridge only after the native linker passes the full target and security test matrix.
+
+This is a planned end-state requirement, not part of the current Semantic DLL milestone.
