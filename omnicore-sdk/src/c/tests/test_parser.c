@@ -66,7 +66,31 @@ done:
     return ok;
 }
 
+static int test_parser_context_initialization(void) {
+    static const uint8_t empty_source[] = "";
+    ParserContext* memory = parser_init_source("empty.nxf", empty_source, 0u);
+    ParserContext* missing = parser_init(NULL);
+    int ok = memory != NULL && missing == NULL;
+    if (memory) {
+        ok = ok && memory->source_buffer != NULL &&
+            memory->source_len == 0u && memory->pos == 0u &&
+            memory->current_line == 1 && memory->current_col == 1 &&
+            memory->token_start_offset == 0u &&
+            memory->token_start_line == 1 && memory->token_start_col == 1 &&
+            memory->ast_root == NULL && memory->error_count == 0 &&
+            memory->error_head == NULL && memory->error_tail == NULL &&
+            memory->file_handle == NULL && memory->token_stream == NULL &&
+            memory->token_stream_count == 0u && memory->token_stream_index == 0u;
+        parser_destroy(memory); /* Destroying a context before parser_run is valid. */
+    }
+    return ok;
+}
+
 int main(int argc, char** argv) {
+    if (!test_parser_context_initialization()) {
+        fprintf(stderr, "Parser context initialization/early destruction test failed.\\n");
+        return 1;
+    }
     if (!test_cast_and_panic_ast()) {
         fprintf(stderr, "CAST/PANIC AST payload test failed.\n");
         return 1;
