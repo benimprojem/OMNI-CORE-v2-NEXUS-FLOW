@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define CHECK(condition, message) do { \
     if (!(condition)) { \
@@ -143,6 +144,87 @@ int main(void) {
     }
     CHECK(occ_diagnostics_blocks_output(NULL),
         "missing diagnostic collector must fail closed");
+
+
+    {
+        OccDiagnosticCollector bounded;
+        size_t i;
+        occ_diagnostics_init(&bounded);
+        memset(&input, 0, sizeof(input));
+        input.code = 9006;
+        input.stage_id = OCC_STAGE_PARSER;
+        input.severity = OCC_DIAG_ERROR;
+        input.message = "x";
+        input.message_length = 1u;
+        for (i = 0u; i < OCC_DIAGNOSTICS_MAX_COUNT; ++i) {
+            CHECK(occ_diagnostics_add(&bounded, &input),
+                "collector should accept exactly the diagnostic count limit");
+        }
+        CHECK(occ_diagnostics_count(&bounded) == OCC_DIAGNOSTICS_MAX_COUNT,
+            "exact diagnostic count limit should be retained");
+        CHECK(!occ_diagnostics_add(&bounded, &input) &&
+            occ_diagnostics_limit_exceeded(&bounded),
+            "one diagnostic beyond the count limit should report limit exhaustion");
+        CHECK(occ_diagnostics_blocks_output(&bounded),
+            "diagnostic count exhaustion must block final output");
+        occ_diagnostics_destroy(&bounded);
+    }
+
+    {
+        OccDiagnosticCollector bounded;
+        char* message = (char*)malloc((size_t)OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES + 2u);
+        CHECK(message != NULL, "message-boundary test allocation should succeed");
+        memset(message, 'm', (size_t)OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES + 1u);
+        message[OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES + 1u] = '\\0';
+        occ_diagnostics_init(&bounded);
+        memset(&input, 0, sizeof(input));
+        input.code = 9007;
+        input.stage_id = OCC_STAGE_PARSER;
+        input.severity = OCC_DIAG_ERROR;
+        input.message = message;
+        input.message_length = OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES;
+        CHECK(occ_diagnostics_add(&bounded, &input),
+            "message exactly at the per-message byte limit should be accepted");
+        occ_diagnostics_destroy(&bounded);
+
+        occ_diagnostics_init(&bounded);
+        input.message_length = (size_t)OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES + 1u;
+        CHECK(!occ_diagnostics_add(&bounded, &input) &&
+            occ_diagnostics_limit_exceeded(&bounded),
+            "message one byte beyond the per-message limit should report limit exhaustion");
+        occ_diagnostics_destroy(&bounded);
+        free(message);
+    }
+
+    {
+        OccDiagnosticCollector bounded;
+        const size_t message_length = (size_t)OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES - 1u;
+        char* message = (char*)malloc(message_length + 1u);
+        size_t i;
+        CHECK(message != NULL, "total-text-budget test allocation should succeed");
+        memset(message, 't', message_length);
+        message[message_length] = '\\0';
+        occ_diagnostics_init(&bounded);
+        memset(&input, 0, sizeof(input));
+        input.code = 9008;
+        input.stage_id = OCC_STAGE_PARSER;
+        input.severity = OCC_DIAG_ERROR;
+        input.message = message;
+        input.message_length = message_length;
+        for (i = 0u; i < 16u; ++i) {
+            CHECK(occ_diagnostics_add(&bounded, &input),
+                "collector should accept text up to the exact aggregate byte limit");
+        }
+        CHECK(bounded.text_length == OCC_DIAGNOSTICS_MAX_TEXT_BYTES,
+            "aggregate diagnostic text should equal the exact 16 MiB budget");
+        input.message = "x";
+        input.message_length = 1u;
+        CHECK(!occ_diagnostics_add(&bounded, &input) &&
+            occ_diagnostics_limit_exceeded(&bounded),
+            "one more diagnostic byte should exceed the aggregate text budget");
+        occ_diagnostics_destroy(&bounded);
+        free(message);
+    }
 
     occ_diagnostics_destroy(&collector);
     CHECK(occ_diagnostics_count(&collector) == 0,
