@@ -315,6 +315,51 @@ done:
     return ok;
 }
 
+static int test_parser_preserves_lexer_errors_during_recovery(void) {
+    static const char source[] =
+        "f:main() { v:broken = ; # v:good = 3; }";
+    ParserContext* ctx = parser_init_source(
+        "parser-recovery-lexer-error.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    OccDiagnosticCollector diagnostics;
+    OccDiagnosticView diagnostic;
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* statement;
+    int found_good = 0;
+    int found_lexer_error = 0;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    occ_diagnostics_init(&diagnostics);
+    parser_attach_diagnostics(ctx, &diagnostics, OCC_STAGE_PARSER);
+    if (parser_run(ctx) != PARSER_STATUS_SYNTAX_ERROR || !ctx->ast_root) goto done;
+
+    if (occ_diagnostics_get(&diagnostics, 0, &diagnostic) &&
+        diagnostic.record->stage_id == OCC_STAGE_LEXER) {
+        found_lexer_error = 1;
+    }
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK) goto done;
+    body = (ASTBlock*)function->body;
+    for (statement = body->statements; statement; statement = statement->next) {
+        if (statement->type == AST_VAR_DECL) {
+            ASTVarDecl* variable = (ASTVarDecl*)statement;
+            if (variable->name && strcmp(variable->name, "good") == 0 &&
+                variable->initializer && variable->initializer->type == AST_LITERAL) {
+                found_good = 1;
+            }
+        }
+    }
+    ok = found_lexer_error && found_good;
+
+done:
+    parser_destroy(ctx);
+    occ_diagnostics_destroy(&diagnostics);
+    return ok;
+}
+
 static int test_parser_allocation_failure_injection(void) {
     static const char source[] =
         "f:main() { v:first = 11; v:second = first + 7; ret; }";
@@ -373,6 +418,10 @@ int main(int argc, char** argv) {
     }
     if (!test_parser_malformed_function_recovery()) {
         fprintf(stderr, "Parser did not recover after a malformed function declaration.\\n");
+        return 1;
+    }
+    if (!test_parser_preserves_lexer_errors_during_recovery()) {
+        fprintf(stderr, "Lexer diagnostics were lost during parser panic-mode recovery.\\n");
         return 1;
     }
     if (!test_parser_allocation_failure_injection()) {
