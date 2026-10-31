@@ -112,6 +112,37 @@ int main(int argc,char** argv) {
         goto cleanup;
     }
 
+    /* Deterministic one-bit mutation sweep over every payload byte. A mutation
+     * may remain valid (for example a UTF-8 character change); successful
+     * materializations are destroyed, while failures must leave root NULL. */
+    ast_destroy(decoded_root);
+    decoded_root=NULL;
+    {
+        size_t accepted=0u,rejected=0u,offset;
+        for(offset=0u;offset<first_length;offset++) {
+            first_payload[offset]^=0x01u;
+            status=oir_ast_frontend_read_payload(first_payload,first_length,node_storage,
+                view.node_count,incoming,view.node_count,visited,view.node_count,
+                stack,view.node_count,&decoded_root);
+            if(status==OIR_STATUS_OK) {
+                assert(decoded_root!=NULL);
+                ast_destroy(decoded_root);
+                decoded_root=NULL;
+                ++accepted;
+            } else {
+                assert(decoded_root==NULL);
+                if(status==OIR_STATUS_OUT_OF_MEMORY) {
+                    first_payload[offset]^=0x01u;
+                    goto cleanup;
+                }
+                ++rejected;
+            }
+            first_payload[offset]^=0x01u;
+        }
+        assert(accepted>0u);
+        assert(rejected>0u);
+    }
+
     result=0;
 cleanup:
     if(decoded_root) ast_destroy(decoded_root);
