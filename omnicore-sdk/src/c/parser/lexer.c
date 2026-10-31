@@ -170,14 +170,16 @@ static int skip_whitespace(ParserContext* ctx) {
 }
 
 // Tanımlayıcı veya Anahtar Kelime Kontrolü
-static OmniTokenType check_keyword(const char* start, int length, const char* rest, OmniTokenType type) {
-    if (length >= 0 && (size_t)length == strlen(rest) && memcmp(start, rest, (size_t)length) == 0) {
+static OmniTokenType check_keyword(
+    const char* start, size_t length, const char* rest, OmniTokenType type
+) {
+    if (length == strlen(rest) && memcmp(start, rest, length) == 0) {
         return type;
     }
     return TOKEN_IDENTIFIER;
 }
 
-static OmniTokenType identifier_type(const char* start, int length) {
+static OmniTokenType identifier_type(const char* start, size_t length) {
     /* These literals already have dedicated parser/AST support. Keep them
        ahead of the general keyword dispatch so they cannot become identifiers. */
     if (length == 4 && memcmp(start, "true", 4) == 0) return TOKEN_TRUE;
@@ -371,7 +373,7 @@ Token lexer_next_token(ParserContext* ctx) {
             advance(ctx); // .
             while (isdigit((unsigned char)peek(ctx))) advance(ctx);
         }
-        int length = (int)(&ctx->source_buffer[ctx->pos] - start);
+        size_t length = (size_t)(&ctx->source_buffer[ctx->pos] - start);
         return make_token(ctx, TOKEN_NUMBER, start, length);
     }
 
@@ -388,7 +390,7 @@ Token lexer_next_token(ParserContext* ctx) {
         }
         if (peek(ctx) == '\0') return error_token(ctx, "Unterminated string literal");
         advance(ctx); // Kapanış tırnağı
-        int length = (int)(&ctx->source_buffer[ctx->pos] - start);
+        size_t length = (size_t)(&ctx->source_buffer[ctx->pos] - start);
         return make_token(ctx, TOKEN_STRING, start, length);
     }
 
@@ -405,7 +407,7 @@ Token lexer_next_token(ParserContext* ctx) {
 
         if (peek(ctx) == '\'') {
             advance(ctx); // Kapanış tırnağı
-            int length = (int)(&ctx->source_buffer[ctx->pos] - start);
+            size_t length = (size_t)(&ctx->source_buffer[ctx->pos] - start);
             return make_token(ctx, TOKEN_CHAR, start, length);
         }
         return error_token(ctx, "Unterminated character literal");
