@@ -529,6 +529,16 @@ if(BUILD_TESTING)
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
 
+    set(OCC_INVALID_PARSER_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/occ_invalid_parser_stage.nxf")
+    file(WRITE "${OCC_INVALID_PARSER_SOURCE}" "v:x = ;\\n")
+    add_test(NAME occ_parser_dll_failure_checkpoint_preserves_source
+        COMMAND ${CMAKE_COMMAND}
+            "-DOCC_EXE=$<TARGET_FILE:occ>"
+            "-DSOURCE_FILE=${OCC_INVALID_PARSER_SOURCE}"
+            "-DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/occ_parser_checkpoint_test"
+            -P "${C_SOURCE_DIR}/tests/verify_occ_parser_checkpoint.cmake"
+    )
+
     add_test(NAME occ_uses_configured_language
         COMMAND "${C_LOCALE_TEST_DIR}/occ${CMAKE_EXECUTABLE_SUFFIX}"
             "${C_SOURCE_DIR}/tests/test_undefined_variable.nxf"
