@@ -1,6 +1,6 @@
 # OIR_MODULE — Lowered Intermediate Representation
 
-**Status:** Design draft; schema and opcode registry are not frozen  
+**Status:** Design draft; initial opcode registry 1.0 implemented, payload schema and verifier remain open  
 **Artifact kind:** `OIR_KIND_MODULE` (stable kind ID 5)  
 **Producer:** IR lowering stage  
 **Input:** one validated `OIR_KIND_SEMANTIC_AST` artifact  
@@ -131,7 +131,7 @@ An instruction record should contain:
 
 Operand records must encode operand kind explicitly. A value operand references a value ID; a block operand references a block ID; a function operand references a function ID; an immediate operand carries a schema-defined fixed-width or string-table value. No operand may be interpreted by guessing from an integer's numeric range.
 
-Opcode definitions must specify arity, operand kinds, result behavior, type constraints, side effects, memory effects, trap behavior and terminator status. Unknown required opcodes are rejected. Optional extension opcodes may only be skipped when the instruction is explicitly marked as non-semantic metadata; executable unknown opcodes must never be silently ignored.
+The initial opcode IDs and structural descriptors are implemented in [OIR_OPCODE_REGISTRY.md](OIR_OPCODE_REGISTRY.md) and `oir_module_opcode.h/.c`. The registry defines arity, operand kinds, result presence and coarse effect/terminator flags. The module verifier must additionally enforce type constraints, SSA rules, function signatures, memory metadata and control-flow validity. Unknown executable opcodes are rejected; they must never be silently ignored.
 
 The first opcode registry should cover the minimum needed to lower the currently supported language subset: constants, typed arithmetic, comparisons, casts/conversions, local reads/writes, calls, returns, branches, conditional branches and explicit memory operations. Intrinsics and concurrency operations must receive explicit semantics before being emitted.
 
@@ -217,7 +217,7 @@ Pass order is orchestrator policy. Every pass output is revalidated. A pass that
 The design sequence is:
 
 1. Finalize a minimal language subset and representative source fixtures.
-2. Define the opcode registry and operation semantics for that subset.
+2. [x] Assign the initial scalar/control-flow opcode IDs and implement structural registry lookup; complete type/effect semantics in the verifier.
 3. Specify and implement dominance, loop-carried values and predecessor-edge verification for the selected block-parameter SSA model.
 4. Define canonical type records and the complete NEXSUS Flow numeric-promotion/conversion lattice, including forced-width behavior and unresolved mixed-type cases.
 5. Define function, block, instruction, operand and source-map wire layouts.
