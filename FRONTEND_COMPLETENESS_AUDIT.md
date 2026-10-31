@@ -334,3 +334,25 @@ Bu değişiklikler NEXSUS Flow gramerine yeni bir operatör veya üretim kuralı
 
 - Struct/union/enum/group ve method parser'larında allocation ve child ownership kontrolleri.
 - Parser OOM'unu fatal durum olarak ayırma ve tahsis hata enjeksiyonu testleri.
+
+
+## 6.16 HALT tekil ve blok kapsamlı kaynak temizliği sözleşmesi
+
+**Durum: Kullanıcı tarafından semantik ayrım netleştirildi; dokümantasyon güncellendi, compiler desteği henüz yok.**
+
+- `resource ?;`: herhangi bir uygun statement noktasında belirli bir kaynak/handler'ı kapatır veya temizler. Örnek kaynak sınıfları: açık dosya, tablo/collection handle, yüklenmiş DLL.
+- `}?;`: hemen önceki bloğun sonunda, o blokta açılmış ve hâlâ o bloğun sahipliğinde kalan tüm açık kaynakları topluca kapatır.
+- Blok dışına `_>` ile taşınan kaynak eski bloğun cleanup kümesinden çıkar. İç blok, dış kapsamdan ödünç alınmış kaynağı açık sahiplik devri olmadan kapatamaz.
+- Kapatılan kaynak geçersiz olur; sonraki kullanım semantic error olmalıdır. Cleanup deterministik ve en fazla bir kez çalışmalıdır.
+- Cleanup hatalarının sıralaması ve hata birleştirme davranışı runtime sözleşmesinde ayrıca tanımlanmalıdır.
+
+**Mevcut uygulama açığı:**
+
+- Lexer `?;` tokenını tanıyor ve Parser bunu isteğe bağlı expression içeren `AST_NEXUS_HALT` olarak oluşturuyor.
+- `ASTHalt` şu an kaynak hedefini ayrı bir alan olarak taşımıyor.
+- `ASTBlock` üzerinde blok sonu cleanup işareti veya cleanup kümesi bulunmuyor.
+- Semantic analizde kaynak sahipliği/cleanup listesi ve use-after-halt denetimi henüz yok.
+- Bu nedenle `resource ?;` ve `}?;` örnekleri dokümante edilmiş hedef sözleşmedir; uygulandı olarak işaretlenmemelidir.
+- Sonraki tasarım adımı AST/semantic/OIR temsilini belirlemek; mevcut `AST_NEXUS_HALT` ve OIR AST codec şemasını sessizce değiştirmemek. OIR AST payload sürümlemesi incelenmelidir.
+
+Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı güncellendi.
