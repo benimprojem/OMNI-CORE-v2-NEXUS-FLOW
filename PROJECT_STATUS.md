@@ -375,3 +375,18 @@ Bu collector henüz ParserContext/SemanticContext'e bağlanmadı ve OIR DIAGNOST
 Bu ilk context iskeletidir. Source manager, artifact registry, module invocation view, cancellation propagation ve checkpoint metadata henüz eklenmedi. Ortak DLL ABI'si olarak freeze edilmedi.
 
 Doğrulama: GitHub Actions run 41145426190 ile Windows, Ubuntu ve macOS build/CTest **18/18** başarılı; Ubuntu ASan/UBSan ve Valgrind **18/18** başarılı.
+
+
+## Ortak diagnostics entegrasyonu ve OIR DIAGNOSTICS codec — 31 Ekim 2026
+
+- `OccDiagnosticStage` ile lexer, parser ve semantic için sabit stage ID değerleri tanımlandı.
+- `ParserContext` ve `SemanticContext` artık isteğe bağlı job-owned `OccDiagnosticCollector` bağlantısı kabul ediyor. Mevcut linked `Error` listeleri korunurken tanılar ortak collector'a da kopyalanıyor.
+- Parser/lexer ve semantic hata aktarımı için CTest kontrolleri eklendi. Bu ilk adaptör line/column bilgisini taşır; byte offset/end span henüz AST/diagnostic çağrılarına kadar yayılmıyor.
+- ASan derlemesinde statik diagnostics kütüphanesinin shared codegen modülüne bağlanması için `POSITION_INDEPENDENT_CODE` etkinleştirildi.
+- `omnicore-sdk/src/c/oir/oir_diagnostics.h/.c`: OIR DIAGNOSTICS schema 1.0 için 16-byte header, 68-byte kayıtlar, UTF-8 string-table referansları, little-endian writer ve validated zero-copy reader eklendi.
+- Geçersiz record size/severity/message offset, truncated payload ve küçük output buffer testleri eklendi. Yeni test toplam CTest sayısını 19'a çıkardı.
+- `OIR_PAYLOAD_SCHEMAS.md` DIAGNOSTICS schema 1.0 alan tablosu ve validation kurallarıyla güncellendi.
+
+**Doğrulama:** GitHub Actions run 41147629609 tamamlandı. Windows, Ubuntu ve macOS build/CTest **19/19** başarılı; Ubuntu ASan/UBSan ve Valgrind işleri de başarılı. Çalışma dalı `refactor/c-core-roadmap`; merge/PR yapılmadı.
+
+**Sıradaki adım:** TOKEN_STREAM schema 1.0 codec'i; ardından lexer-to-OIR ve OIR-to-parser adapter'ları. DLL/SO modül ayrımı, ortak ABI ve gerçek pipeline runner bundan sonra gelecek.
