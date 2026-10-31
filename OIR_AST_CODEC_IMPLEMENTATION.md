@@ -144,3 +144,20 @@ The graph pass consumes a validated node-table view and caller-provided scratch 
 CTest target: `oir_ast_graph_single_owner_reachability_and_depth`. Cross-platform CI verification is pending.
 
 This is a structural graph check, not yet the complete AST semantic validator. It does not enforce per-node required fields, optional unknown-field policy, field value types beyond TLV primitive validity, or frontend C struct-specific scalar constraints.
+
+
+## 10. Implemented foundation: per-node field schema validation
+
+Files:
+- `omnicore-sdk/src/c/oir/oir_ast_field_schema.h`
+- `omnicore-sdk/src/c/oir/oir_ast_field_schema.c`
+- `omnicore-sdk/src/c/tests/test_oir_ast_field_schema.c`
+
+The validator checks every node against the v1 registry:
+- Every registered node kind (1–80) has an explicit required-field count and field wire-type mapping.
+- Required fields must be present in ascending order; missing or duplicate/out-of-order known fields are rejected.
+- Known fields must use their registered wire type. NULL is accepted only for fields declared as nullable strings.
+- Unknown fields are accepted only when the TLV OPTIONAL flag is set; unknown required fields are rejected.
+- The test constructs schema-valid records for all 80 node kinds and checks missing fields, wrong known-field types, unknown required fields and unknown optional fields.
+
+CTest target: `oir_ast_field_schema_all_node_kinds_and_compatibility`. Cross-platform CI verification is pending.
