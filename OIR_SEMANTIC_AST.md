@@ -1,0 +1,201 @@
+# OIR SEMANTIC_AST — Draft schema 1.0
+
+**Status:** Design draft; not frozen  
+**Artifact kind:** `OIR_KIND_SEMANTIC_AST` (reserved stable kind ID 4)  
+**Producer stage:** `OCC_STAGE_SEMANTIC`  
+**Input:** one validated `OIR_KIND_AST` artifact  
+**Output:** one `OIR_KIND_SEMANTIC_AST` artifact
+
+This document defines the semantic handoff contract. It deliberately separates the wire format from the current C implementation's `SemanticContext`, `Slot`, `FieldInfo`, pointer values and enum layouts.
+
+## 1. Design goals
+
+1. Preserve the parser's AST node IDs and AST payload byte-for-byte.
+2. Make symbol resolution, scopes and inferred/declared types explicit data, not transient linked-list state.
+3. Let Codegen consume the semantic artifact without depending on the Semantic DLL's allocator, AST pointers or private structs.
+4. Keep deterministic output for identical input and compiler options.
+5. Validate all counts, ranges, references and strings before exposing a view or allocating frontend objects.
+6. Allow compatible future additions without changing existing field meanings.
+7. Keep diagnostics invocation-scoped and host-owned through the existing module diagnostic sink.
+
+The semantic stage must not rewrite or renumber AST nodes. A semantic annotation references the stable 1-based node ID from AST schema 1.0.
+
+## 2. Container composition
+
+The outer container remains OIR v1.0:
+
+- Header artifact kind: `OIR_KIND_SEMANTIC_AST`.
+- Payload schema: major 1, minor 0 for this draft.
+- Producer stage: semantic.
+- Job ID: exactly the input AST job ID.
+- Validity: `VALID` only when the stage has no output-blocking diagnostics. `PARTIAL` is reserved until recovery semantics are implemented and tested. No artifact is published on a failed invocation.
+
+Sections:
+
+| Section | Required | Content |
+|---|---:|---|
+| `OIR_SECTION_PAYLOAD` | yes | The exact AST schema 1.0 node-table payload copied from the input AST artifact. |
+| `OIR_SECTION_SEMANTIC_SCOPES` | yes | Scope table, including root scope. |
+| `OIR_SECTION_SEMANTIC_TYPES` | yes | Canonical type table referenced by symbols and annotations. |
+| `OIR_SECTION_SEMANTIC_SYMBOLS` | yes | Declared symbols and their stable IDs. |
+| `OIR_SECTION_SEMANTIC_ANNOTATIONS` | yes | Per-node scope, symbol and type resolution results. |
+| `OIR_SECTION_SEMANTIC_RELATIONS` | yes | Ordered function parameter, aggregate field and enum-variant relationships. |
+| `OIR_SECTION_SEMANTIC_CONVERSIONS` | optional | Explicit conversion/promotion decisions. Empty/absent means no conversion was inserted or recorded; it does not imply that promotion rules are complete. |
+| `OIR_SECTION_DIAGNOSTICS` | optional | Serialized semantic diagnostics for checkpoint/replay inspection. The host callback remains authoritative for the live job collector. |
+
+The semantic section IDs are proposed additions after the currently assigned OIR section IDs 1–6. They must be added to the central registry before codec implementation. A reader rejects unknown required sections and may skip unknown optional sections.
+
+The AST payload is embedded as the payload section, not as a nested OIR container. This lets the existing AST node-table reader consume the exact payload slice and avoids duplicating the 44-byte OIR header.
+
+## 3. Wire encoding rules
+
+- All integers are unsigned or signed fixed-width values explicitly named by the field; little-endian.
+- No native C struct, pointer, `size_t`, C enum, padding or host ABI layout is serialized.
+- Each section has a schema version in its OIR section header.
+- Tables begin with a fixed-width schema header containing record count and record width (or bounded record byte length for variable records).
+- Variable strings are UTF-8 byte spans with explicit 32-bit offset and length into a section-local string table. No NUL terminator is required; embedded NUL and invalid UTF-8 are rejected.
+- IDs are 1-based. Zero is the only null/not-present reference where the field permits it.
+- IDs are deterministic for a given AST and options: scopes are assigned in deterministic traversal order; symbols in declaration order within traversal; types in first-use order after canonicalization; annotations in AST node-ID order.
+- Counts and byte ranges are bounded by the containing section. Arithmetic overflow, overlapping record ranges, duplicate IDs, dangling references and non-canonical ordering are rejected.
+- Unknown record flags are rejected unless a future schema explicitly defines an optional extension mechanism.
+
+Exact byte offsets and record widths will be frozen only with the first codec implementation and round-trip/malformed-input tests. This draft is a semantic contract, not permission to dump C structs.
+
+## 4. Scope records
+
+Each scope record describes one lexical scope.
+
+| Field | Wire type | Meaning |
+|---|---|---|
+| scope_id | u32 | Stable nonzero ID. |
+| parent_scope_id | u32 | Parent ID; zero only for the root scope. |
+| depth | u32 | Lexical depth; root is zero. |
+| flags | u32 | Reserved; zero in schema 1.0. |
+| owner_node_id | u32 | AST node that creates/owns the scope; zero for root. |
+
+Invariants:
+- Exactly one root scope exists; it has ID 1, parent 0 and depth 0.
+- Every non-root parent exists and has depth exactly one less.
+- Every non-root scope has a valid owner node ID.
+- The scope graph is a tree with no cycles or duplicate ownership.
+- Scope records remain after leaving a scope; symbol visibility/lifetime is represented by scope ownership, not by retaining the current implementation's popped `Slot*` list.
+
+## 5. Type records
+
+Type records make the current string-based type system transportable without exposing C pointers.
+
+| Field | Wire type | Meaning |
+|---|---|---|
+| type_id | u32 | Stable nonzero ID. |
+| kind | u16 | Primitive, user-defined, function, aggregate, tuple, inferred/unknown or reserved future kind. |
+| flags | u16 | Type qualifiers; schema 1.0 defines const/hard-type only where applicable. |
+| name_offset | u32 | Offset into type string table. |
+| name_length | u32 | UTF-8 byte length. |
+| referenced_symbol_id | u32 | User-defined type declaration; zero for built-ins. |
+| base_type_id | u32 | Newtype/alias base type; zero when not applicable. |
+
+The initial type-name registry must explicitly list all accepted primitive names. User-defined types reference their symbol record; the string name is retained for diagnostics and tooling, not used as the only identity. Type IDs must not depend on process addresses or hash-table iteration order.
+
+## 6. Symbol records
+
+Each declared name gets a stable symbol ID independent of its current `Slot*` address.
+
+| Field | Wire type | Meaning |
+|---|---|---|
+| symbol_id | u32 | Stable nonzero ID. |
+| scope_id | u32 | Declaring scope. |
+| declaration_node_id | u32 | AST declaration node. |
+| kind | u16 | Variable, function, struct, union, enum, newtype, label or future registered kind. |
+| flags | u16 | Const, public, exported, packed and hard-typed flags as defined by the registry. |
+| name_offset | u32 | Name offset in symbol string table. |
+| name_length | u32 | Name byte length. |
+| type_id | u32 | Declared/return/target type; zero when unresolved or not applicable. |
+| first_relation | u32 | 1-based range start in RELATIONS, zero when no relations. |
+| relation_count | u32 | Number of ordered related entries. |
+
+A symbol is unique within the language-defined namespace of its scope and kind rules. The schema does not assume that all symbol kinds share one namespace; namespace rules must be made explicit by semantic tests before freeze.
+
+## 7. Ordered relations
+
+Relations retain information currently stored in `Slot.param_types` and `FieldInfo`.
+
+Each relation contains:
+- owner_symbol_id;
+- relation_kind (function parameter, aggregate field, enum variant, enum payload field, or registered future relation);
+- ordinal (zero-based within the owner);
+- related_symbol_id (zero when the related item is represented only by AST);
+- related_node_id (the parameter/field/variant AST node);
+- name/type references where required.
+
+The pair (owner_symbol_id, relation_kind, ordinal) is unique. Parameter order is preserved exactly. Aggregate and enum member order is preserved exactly. Every relation node reference must point to a node of the expected AST kind.
+
+## 8. Node annotations
+
+One annotation record may exist for any AST node; nodes with no semantic information may omit an annotation.
+
+| Field | Wire type | Meaning |
+|---|---|---|
+| node_id | u32 | Existing AST node ID; unique and ascending. |
+| scope_id | u32 | Scope in which the node is evaluated/declared. |
+| resolved_symbol_id | u32 | Resolved identifier/callee/declaration symbol, or zero. |
+| resolved_type_id | u32 | Resolved expression/declaration type, or zero if unknown/not yet inferred. |
+| value_category | u16 | Unspecified, lvalue, rvalue, function designator or registered future category. |
+| flags | u16 | Semantic state flags; zero until individually specified. |
+
+A resolved symbol must be visible from the annotated node's scope under the language's lookup rules. A resolved type must exist in the type table. The annotation node ID must exist in the embedded AST payload.
+
+## 9. Conversion records and NEXSUS Flow promotion
+
+Conversions are separate from the original AST. The semantic stage must not silently rewrite literal text or AST node kinds to express a conversion.
+
+A conversion record is keyed by node ID and operand ordinal and includes:
+- node_id;
+- operand_ordinal (0 for left/first, 1 for right/second; registered values for call arguments);
+- source_type_id;
+- destination_type_id;
+- conversion_kind (identity, widening, narrowing, signedness, explicit cast, hard-type enforcement, or future registered kind);
+- flags describing whether the conversion is implicit or explicit.
+
+This table is initially optional. The existing C semantic checker currently performs only limited string-equality compatibility checks (ignoring a leading hard-type marker); it does not yet implement a complete numeric promotion lattice. Therefore the first schema/codec must support conversion records without claiming that NEXSUS Flow promotion rules are already implemented. Promotion semantics will be specified and tested as a separate compiler-language task before emitting non-identity conversion records.
+
+## 10. Diagnostics and validity
+
+- Semantic diagnostics use the existing invocation-scoped host sink and are attributed to `OCC_STAGE_SEMANTIC`.
+- The module must not trust source spans from an unvalidated AST. AST schema 1.0 currently preserves line/column start locations only; byte offsets and end spans are not available in all AST nodes. The semantic module must not fabricate them.
+- A failed semantic analysis publishes no SEMANTIC_AST artifact under the default strict output gate.
+- Warnings may be reported, but the host's current strict gate blocks final output on warnings as well. Artifact validity policy must remain consistent with `OccCompilationContext`.
+- Output-buffer retry must not duplicate diagnostic callbacks. The semantic module must either complete analysis into invocation-local scratch and defer callbacks until output capacity is known, or use a host-visible two-phase strategy. It must not retain state between calls.
+
+## 11. Current implementation gaps that affect the module
+
+The current `semantic.c` implementation is a checker, not yet a durable semantic model:
+
+- `SemanticContext` stores a linked list of transient `Slot` records and a numeric scope depth; `exit_scope()` frees scope-local slots.
+- `Slot` has no stable symbol ID, and there is no persistent scope table or per-node annotation table.
+- `get_expr_type()` returns borrowed string names and handles only a subset of expression kinds.
+- Type compatibility currently strips a leading `!` and compares names; no complete promotion/conversion lattice is present.
+- The checker does not annotate AST nodes with resolved symbols or types.
+- AST schema 1.0 carries line/column start positions but not complete byte spans.
+- Some AST kinds intentionally have no semantic checks yet; the schema must not imply those checks are complete.
+
+The first implementation step is therefore a durable, caller-owned semantic result model and tests for scope/symbol/type resolution. The DLL adapter comes after the result model and codec can round-trip independently.
+
+## 12. Required implementation/test order
+
+1. Register semantic section IDs and add this draft to the OIR schema index.
+2. Define C wire structs only as logical API views; encode/decode field-by-field.
+3. Implement bounded readers/writers for scopes, types, symbols, relations and node annotations.
+4. Add round-trip, deterministic-order, malformed-count, overflow, invalid UTF-8, duplicate-ID, dangling-reference, wrong-node-kind and mutation-sweep tests.
+5. Refactor semantic analysis to produce durable scope/symbol/type/annotation results without changing existing language behavior.
+6. Test the result model against current valid/invalid semantic fixtures and add nested-scope, shadowing, forward declaration, function parameter, struct/enum and type-compatibility cases.
+7. Implement `occ_semantic_stage` shared module: exactly one AST input, SEMANTIC_AST output, same job ID, host diagnostic sink, bounded retry and no cross-call state.
+8. Add real DLL/SO/dylib loader tests, then connect OCC: AST OIR → Semantic DLL → SEMANTIC_AST OIR.
+9. Keep the old in-process semantic path only as a temporary compatibility consumer if a downstream component still requires a materialized frontend AST. Remove it after Codegen consumes SEMANTIC_AST directly.
+
+## 13. Non-goals for schema 1.0
+
+- Freezing the common module ABI.
+- Defining SSA or OIR_MODULE instruction semantics.
+- Implementing optimizer behavior.
+- Defining the final linker or its security policy.
+- Claiming complete type inference, numeric promotion, ownership or control-flow analysis.
