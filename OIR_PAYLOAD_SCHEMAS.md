@@ -1,6 +1,6 @@
 # OIR v1 Initial Payload Schemas
 
-**Status:** Initial schema contract for SOURCE_UNIT, TOKEN_STREAM and DIAGNOSTICS  
+**Status:** Initial schema contracts for SOURCE_UNIT, TOKEN_STREAM, DIAGNOSTICS and AST  
 **Related:** OIR_FORMAT.md, OIR_TOKEN_REGISTRY.md
 
 This document defines payload bytes carried inside the OIR container's required PAYLOAD section. All integer fields are unsigned little-endian unless explicitly stated. Payloads are byte-packed with no implicit alignment or padding. The OIR container header carries the payload schema major/minor version.
