@@ -237,7 +237,17 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 - [x] Parser DLL hatasında job diagnostic collector + orijinal kaynak baytları failure checkpoint'e yazılır. CLI CTest, checkpoint dosyasında kaynak baytlarının birebir bulunduğunu doğrular.
 - [x] Lokalize OCC kopyasının yanında parser DLL'nin de deploy edilmesini sağla.
 - [x] **CI run 41174447616:** Windows, Ubuntu ve macOS build/test başarılı; CTest 39/39; Ubuntu ASan/UBSan ve Valgrind başarılı.
-- [ ] Lexer'ı bağımsız DLL stage'e ayır ve OCC'nin statik lexer çağrısını kaldır.
+- [x] Lexer'ı bağımsız DLL stage'e ayır; OCC'nin statik lexer çağrısını kaldır ve SOURCE_UNIT → lexer DLL → TOKEN_STREAM → parser DLL zincirini gerçek CLI'da çalıştır.
 - [ ] Semantic stage için SEMANTIC_AST OIR schema/codec + DLL oluştur; host materialization'ı yalnızca legacy consumer gerekiyorsa kullan.
 - [ ] Codegen'i ortak stage ABI'ye taşı; mevcut codegen_run yüklemesi henüz eski ayrı entry-point sözleşmesidir.
 - [ ] Aynı job diagnostic collector'a erişen çağrılar için synchronized dispatcher/serialization policy ekle.
+
+
+## Independent Lexer stage DLL — 31 Ekim 2026
+
+- [x] `occ_lexer_stage` DLL/SO/dylib: tek SOURCE_UNIT girdisini doğrula, stable token ID + source span içeren TOKEN_STREAM üret.
+- [x] Lexer hatalarını origin stage `OCC_STAGE_LEXER` ile job collector'a ekle; TOKEN_ERROR kaydına 1-based diagnostic ID yaz ve aynı diagnostics tablosunu TOKEN_STREAM artifact'ına ekle.
+- [x] Diagnostic callback yalnızca yeterli output buffer bulunduğunda çağrılır; NEED_OUTPUT_BUFFER retry aynı hataları collector'a iki kez eklemez.
+- [x] Gerçek lexer DLL testinde unterminated string, token span, diagnostic payload, callback ve output-buffer retry doğrulandı.
+- [x] OCC ana CLI statik lexer döngüsünü kaldırdı; lexer DLL TOKEN_STREAM çıktısı doğrudan parser DLL girdisi oldu.
+- [x] **CI run 41174917131:** Windows, Ubuntu ve macOS başarılı; CTest 40/40; Ubuntu ASan/UBSan ve Valgrind başarılı.
