@@ -816,13 +816,19 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     snprintf(buf, sizeof(buf), "Type '%s' already defined.", sdecl->name);
                     report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
                 } else {
-                    Slot* s = add_slot(ctx, sdecl->name, sdecl->is_union ? SLOT_UNION : SLOT_STRUCT, 1, NULL, node, 0, sdecl->is_packed);
-                    s->is_packed = sdecl->is_packed;
+                    Slot* s = add_slot(
+                        ctx, sdecl->name,
+                        sdecl->is_union ? SLOT_UNION : SLOT_STRUCT,
+                        1, NULL, node, 0, sdecl->is_packed);
                     semantic_define_named_type(ctx, s, sdecl->name, NULL);
-                    
+                    semantic_record_annotation(
+                        ctx, node, s, sdecl->name,
+                        SEMANTIC_RESULT_VALUE_LVALUE);
+
                     // Alanları kaydet
                     ASTNode* field_node = sdecl->fields;
                     FieldInfo* last_field = NULL;
+                    uint32_t field_ordinal = 0u;
                     while (field_node) {
                         ASTVarDecl* v = (ASTVarDecl*)field_node;
                         
@@ -845,6 +851,20 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         
                         if (v->inline_type) {
                             semantic_check(ctx, v->inline_type);
+                        }
+
+                        if (ctx->result_enabled && s && s->symbol_id != 0u) {
+                            SemanticResultStatus relation_status =
+                                semantic_result_add_relation(
+                                    &ctx->result,
+                                    s->symbol_id,
+                                    SEMANTIC_RESULT_RELATION_AGGREGATE_FIELD,
+                                    field_ordinal++,
+                                    0u,
+                                    semantic_node_id(ctx, field_node),
+                                    v->name,
+                                    semantic_type_id(ctx, v->type_name));
+                            semantic_set_result_error(ctx, relation_status);
                         }
 
                         FieldInfo* f = (FieldInfo*)malloc(sizeof(FieldInfo));
