@@ -118,8 +118,9 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 - [x] İlk job-owned diagnostic collector ve strict output gate C API'sini oluştur; severity count, source span ve owned text storage testlerini ekle.
 - [x] Collector'ı ParserContext/SemanticContext'e bağla; OIR DIAGNOSTICS schema 1.0 codec'ini ekle ve round-trip/malformed-input testlerini CI'da doğrula.
 - [x] Parser token diagnostics için half-open byte span + başlangıç/bitiş satır ve byte sütunlarını kaydet; tekrarlanan kod parçasının ikinci satırdaki konumunu doğrulayan regresyon testi ekle (Windows/Ubuntu/macOS CI başarılı).
-- [x] Hata checkpoint'i için `OIR_VALIDITY_INVALID` SOURCE_UNIT + DIAGNOSTICS birleşik artifact writer'ı ve round-trip testi ekle (35/35 CTest; Ubuntu/macOS/Windows build-test hattı başarılı).
+- [x] Hata checkpoint'i için `OIR_VALIDITY_INVALID` SOURCE_UNIT + DIAGNOSTICS birleşik artifact writer'ı ve round-trip testi ekle (36/36 CTest; Ubuntu/macOS/Windows build-test hattı başarılı).
 - [x] OCC host failure store: `occ-errors/job-<job_id>.oir` yoluna temp-file + rename ile atomik checkpoint; parser/semantic tanılarını kaynak baytlarıyla birlikte sakla, DLL'lere filesystem yetkisi verme (Windows/Ubuntu/macOS 36/36 CTest; ASan/UBSan ve Valgrind başarılı).
+- [x] OCC host kaynaklı OIR yazma ve Codegen yükleme/sembol/çalıştırma hatalarını ayrı stage ID ve structured diagnostics olarak kaydet; hata artifact'ına dahil et.
 - [x] İlk per-job CompilationContext: job ID, copied options, stop-after stage, lifecycle state ve job-owned diagnostics; strict output gate testleri.
 - [ ] Hata/uyarı biriktirme ve mümkün olan aşamalarda devam etme davranışını uygula.
 - [ ] Artifact geçerlilik durumlarını tanımla: valid / partial / invalid / none.
