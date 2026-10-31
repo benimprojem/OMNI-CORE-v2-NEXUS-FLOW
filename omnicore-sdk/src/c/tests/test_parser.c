@@ -785,5 +785,34 @@ int main(int argc, char** argv) {
         }
     }
 
+
+    {
+        static const uint8_t invalid_source[] = "v:x = ;";
+        OccDiagnosticCollector limited;
+        ParserContext* limited_parser;
+        int limited_result;
+        occ_diagnostics_init(&limited);
+        limited.limit_exceeded = 1;
+        limited_parser = parser_init_source("diagnostic-limit.nxf",
+            invalid_source, sizeof(invalid_source) - 1u);
+        if (!limited_parser) {
+            occ_diagnostics_destroy(&limited);
+            return 1;
+        }
+        parser_attach_diagnostics(limited_parser, &limited, OCC_STAGE_PARSER);
+        limited_result = parser_run(limited_parser);
+        {
+            int limit_ok = limited_result == PARSER_STATUS_DIAGNOSTIC_LIMIT &&
+                parser_get_status(limited_parser) == PARSER_STATUS_DIAGNOSTIC_LIMIT &&
+                occ_diagnostics_count(&limited) == 0u;
+            parser_destroy(limited_parser);
+            occ_diagnostics_destroy(&limited);
+            if (!limit_ok) {
+                fprintf(stderr, "Parser diagnostic budget exhaustion was not reported distinctly.\\n");
+                return 1;
+            }
+        }
+    }
+
     return 0;
 }
