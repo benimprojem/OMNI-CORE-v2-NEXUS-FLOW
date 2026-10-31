@@ -49,14 +49,58 @@ static Token make_token(ParserContext* ctx, OmniTokenType type, const char* star
 
 static Token error_token(ParserContext* ctx, const char* message) {
     Token token;
+    size_t message_length = message ? strlen(message) : 0u;
     token.type = TOKEN_ERROR;
-    token.start = message;
-    token.length = (int)strlen(message);
+    token.start = message ? message : "Lexer error";
+    token.length = message_length > (size_t)INT_MAX ? INT_MAX : (int)message_length;
     token.line = ctx->token_start_line;
     token.col = ctx->token_start_col;
     token.source_offset = ctx->token_start_offset;
     token.source_length = ctx->pos - ctx->token_start_offset;
     token.diagnostic_id = 0;
+
+    /*
+     * Lexer errors become job-owned diagnostics at their origin. The token
+     * carries a stable 1-based reference so downstream stages do not
+     * re-attribute or duplicate the same finding.
+     */
+    if (ctx->diagnostics && message_length != 0u &&
+        occ_diagnostics_count(ctx->diagnostics) < UINT32_MAX) {
+        OccDiagnosticInput input;
+        size_t i;
+        uint32_t line = (uint32_t)(ctx->token_start_line > 0 ? ctx->token_start_line : 1);
+        uint32_t column = (uint32_t)(ctx->token_start_col > 0 ? ctx->token_start_col : 1);
+        size_t end = ctx->pos <= ctx->source_len ? ctx->pos : ctx->source_len;
+        memset(&input, 0, sizeof(input));
+        input.code = ERR_LEXER_ERROR;
+        input.stage_id = ctx->diagnostic_stage_id ? ctx->diagnostic_stage_id : OCC_STAGE_LEXER;
+        input.message_id = ERR_LEXER_ERROR;
+        input.severity = OCC_DIAG_ERROR;
+        input.message = message;
+        input.message_length = message_length;
+        input.span.source_id = 0u;
+        input.span.start_offset = (uint64_t)ctx->token_start_offset;
+        input.span.end_offset = (uint64_t)end;
+        input.span.start_line = line;
+        input.span.start_column = column;
+        input.span.has_location = 1u;
+        for (i = ctx->token_start_offset; i < end; ++i) {
+            if (ctx->source_buffer[i] == '\n') {
+                if (line != UINT32_MAX) ++line;
+                column = 1u;
+            } else if (column != UINT32_MAX) {
+                ++column;
+            }
+        }
+        input.span.end_line = line;
+        input.span.end_column = column;
+        {
+            size_t diagnostic_index = occ_diagnostics_count(ctx->diagnostics);
+            if (occ_diagnostics_add(ctx->diagnostics, &input)) {
+                token.diagnostic_id = (uint32_t)(diagnostic_index + 1u);
+            }
+        }
+    }
     return token;
 }
 
