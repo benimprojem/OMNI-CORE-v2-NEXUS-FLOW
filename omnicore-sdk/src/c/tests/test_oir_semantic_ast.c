@@ -338,6 +338,114 @@ int main(void) {
         assert(symbol_second_written == 0u && symbol_second[0] == 0xa5u);
     }
 
-    puts("OIR SEMANTIC_AST scope/type/symbol codec tests passed.");
+
+    {
+        const OirSemanticAnnotation annotations[] = {
+            { 2u, 1u, 1u, 1u, OIR_SEMANTIC_VALUE_LVALUE, 0u },
+            { 5u, 1u, 0u, 1u, OIR_SEMANTIC_VALUE_RVALUE, 0u }
+        };
+        uint8_t annotation_bytes[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE +
+            2u * OIR_SEMANTIC_ANNOTATION_RECORD_SIZE];
+        uint8_t annotation_second[sizeof(annotation_bytes)];
+        uint8_t annotation_bad[sizeof(annotation_bytes)];
+        uint8_t empty_table[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE];
+        uint8_t empty_types[OIR_SEMANTIC_TYPES_HEADER_SIZE];
+        uint8_t empty_symbols[OIR_SEMANTIC_SYMBOLS_HEADER_SIZE];
+        size_t annotation_written = 0u;
+        size_t annotation_second_written = 0u;
+        size_t empty_written = 0u;
+        OirSemanticAnnotationsView annotation_view;
+        OirSemanticAnnotation decoded_annotation;
+
+        assert(oir_semantic_annotations_write(annotation_bytes,
+            sizeof(annotation_bytes), annotations, 2u,
+            &annotation_written) == OIR_STATUS_OK);
+        assert(annotation_written == sizeof(annotation_bytes));
+        assert(oir_semantic_annotations_open(annotation_bytes,
+            annotation_written, &annotation_view) == OIR_STATUS_OK);
+        assert(annotation_view.record_count == 2u);
+        assert(oir_semantic_annotations_get(&annotation_view, 0u,
+            &decoded_annotation) == OIR_STATUS_OK);
+        assert(decoded_annotation.node_id == 2u &&
+            decoded_annotation.scope_id == 1u &&
+            decoded_annotation.resolved_symbol_id == 1u &&
+            decoded_annotation.resolved_type_id == 1u &&
+            decoded_annotation.value_category == OIR_SEMANTIC_VALUE_LVALUE);
+        assert(oir_semantic_annotations_get(&annotation_view, 1u,
+            &decoded_annotation) == OIR_STATUS_OK);
+        assert(decoded_annotation.node_id == 5u &&
+            decoded_annotation.resolved_symbol_id == 0u &&
+            decoded_annotation.value_category == OIR_SEMANTIC_VALUE_RVALUE);
+
+        assert(oir_semantic_annotations_write(annotation_second,
+            sizeof(annotation_second), annotations, 2u,
+            &annotation_second_written) == OIR_STATUS_OK);
+        assert(annotation_second_written == annotation_written &&
+            memcmp(annotation_bytes, annotation_second, annotation_written) == 0);
+
+        memcpy(annotation_bad, annotation_bytes, annotation_written);
+        write_u32(annotation_bad + 4u, 24u);
+        assert(oir_semantic_annotations_open(annotation_bad,
+            annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(annotation_bad, annotation_bytes, annotation_written);
+        write_u32(annotation_bad, UINT32_MAX);
+        assert(oir_semantic_annotations_open(annotation_bad,
+            annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(annotation_bad, annotation_bytes, annotation_written);
+        write_u32(annotation_bad + OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE +
+            OIR_SEMANTIC_ANNOTATION_RECORD_SIZE, 2u);
+        assert(oir_semantic_annotations_open(annotation_bad,
+            annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(annotation_bad, annotation_bytes, annotation_written);
+        write_u32(annotation_bad + OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE + 4u, 0u);
+        assert(oir_semantic_annotations_open(annotation_bad,
+            annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(annotation_bad, annotation_bytes, annotation_written);
+        annotation_bad[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE + 16u] = 0xffu;
+        annotation_bad[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE + 17u] = 0u;
+        assert(oir_semantic_annotations_open(annotation_bad,
+            annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(annotation_bad, annotation_bytes, annotation_written);
+        annotation_bad[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE + 18u] = 1u;
+        assert(oir_semantic_annotations_open(annotation_bad,
+            annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
+
+        assert(oir_semantic_annotations_open(annotation_bytes,
+            annotation_written - 1u, &annotation_view) ==
+            OIR_STATUS_LENGTH_MISMATCH);
+
+        memset(annotation_second, 0xa5, sizeof(annotation_second));
+        assert(oir_semantic_annotations_write(annotation_second,
+            sizeof(annotation_second) - 1u, annotations, 2u,
+            &annotation_second_written) == OIR_STATUS_BUFFER_TOO_SMALL);
+        assert(annotation_second_written == 0u && annotation_second[0] == 0xa5u);
+
+        /* Empty symbol/type/annotation tables are valid and still have headers. */
+        assert(oir_semantic_types_write(empty_types, sizeof(empty_types),
+            NULL, 0u, NULL, 0u, &empty_written) == OIR_STATUS_OK);
+        assert(empty_written == sizeof(empty_types));
+        assert(oir_semantic_types_open(empty_types, empty_written,
+            &types_view) == OIR_STATUS_OK && types_view.record_count == 0u);
+
+        assert(oir_semantic_symbols_write(empty_symbols, sizeof(empty_symbols),
+            NULL, 0u, NULL, 0u, &empty_written) == OIR_STATUS_OK);
+        assert(empty_written == sizeof(empty_symbols));
+        assert(oir_semantic_symbols_open(empty_symbols, empty_written,
+            &symbols_view) == OIR_STATUS_OK && symbols_view.record_count == 0u);
+
+        assert(oir_semantic_annotations_write(empty_table, sizeof(empty_table),
+            NULL, 0u, &empty_written) == OIR_STATUS_OK);
+        assert(empty_written == sizeof(empty_table));
+        assert(oir_semantic_annotations_open(empty_table, empty_written,
+            &annotation_view) == OIR_STATUS_OK &&
+            annotation_view.record_count == 0u);
+    }
+
+    puts("OIR SEMANTIC_AST scope/type/symbol/annotation codec tests passed.");
     return 0;
 }
