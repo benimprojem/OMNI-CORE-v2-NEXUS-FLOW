@@ -317,7 +317,7 @@ done:
 
 static int test_parser_preserves_lexer_errors_during_recovery(void) {
     static const char source[] =
-        "f:main() { v:broken = ; # v:good = 3; }";
+        "f:main() { v:broken = ; $ v:good = 3; }";
     ParserContext* ctx = parser_init_source(
         "parser-recovery-lexer-error.nxf", (const uint8_t*)source, sizeof(source) - 1u);
     OccDiagnosticCollector diagnostics;
