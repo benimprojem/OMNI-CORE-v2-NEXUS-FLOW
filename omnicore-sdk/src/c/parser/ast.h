@@ -122,6 +122,13 @@ typedef struct {
     ASTNode* operand;
 } ASTUnaryExpr;
 
+/* cast(value, type): value and target type are separate AST children. */
+typedef struct {
+    ASTNode base;
+    ASTNode* value;
+    ASTNode* target_type;
+} ASTCast;
+
 typedef struct {
     ASTNode base;
     OmniTokenType type;     // TOKEN_NUMBER, TOKEN_STRING
