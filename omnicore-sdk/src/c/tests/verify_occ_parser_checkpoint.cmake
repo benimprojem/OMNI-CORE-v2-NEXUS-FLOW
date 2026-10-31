@@ -28,7 +28,7 @@ endif()
 
 list(GET checkpoint_files 0 checkpoint_file)
 file(READ "${checkpoint_file}" checkpoint_hex HEX)
-string(HEX "v:x = ;\n" expected_source_hex)
+file(READ "${SOURCE_FILE}" expected_source_hex HEX)
 string(FIND "${checkpoint_hex}" "${expected_source_hex}" source_offset)
 if(source_offset LESS 0)
     message(FATAL_ERROR "Checkpoint does not preserve the original invalid source bytes")
