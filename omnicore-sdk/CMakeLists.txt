@@ -111,6 +111,8 @@ target_include_directories(occ_oir_diagnostics PUBLIC
 )
 target_link_libraries(occ_oir_diagnostics PUBLIC occ_oir occ_diagnostics)
 set_target_properties(occ_oir_diagnostics PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# The module ABI diagnostic callback forwards into the OCC-owned collector.
+target_link_libraries(occ_module_abi PUBLIC occ_diagnostics)
 
 # Failed-stage checkpoint bundles preserve the original SOURCE_UNIT alongside
 # the exact job diagnostics; their OIR validity is always INVALID.
