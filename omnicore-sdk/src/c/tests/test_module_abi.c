@@ -65,6 +65,10 @@ int main(void) {
     uint8_t source_artifact[64],token_artifact[64],wrong_artifact[64];
     uint8_t partial_artifact[64],output[64];
     size_t source_length,token_length,wrong_length,partial_length;
+    OccDiagnosticCollector collector;
+    OccModuleDiagnosticHostContextV1 host_diag;
+    OccModuleDiagnosticV1 diagnostic;
+    OccDiagnosticView diagnostic_view;
 
     memset(&module,0,sizeof(module));
     module.struct_size=(uint32_t)sizeof(module);
@@ -84,7 +88,8 @@ int main(void) {
     module.descriptor.min_input_count=2u;
     module.descriptor.max_input_count=2u;
     module.descriptor.capability_flags=
-        OCC_MODULE_CAP_REENTRANT | OCC_MODULE_CAP_DETERMINISTIC;
+        OCC_MODULE_CAP_REENTRANT | OCC_MODULE_CAP_DETERMINISTIC |
+        OCC_MODULE_CAP_DIAGNOSTIC_REPORTING;
     module.descriptor.module_name="parser-stage-draft";
     module.process=mock_process;
 
@@ -122,7 +127,10 @@ int main(void) {
     invocation.output_capacity=32u;
     invocation.job_id=17u;
     result.struct_size=(uint32_t)sizeof(result);
-
+    occ_diagnostics_init(&collector);
+    assert(occ_module_diagnostic_sink_init_v1(
+        &invocation.diagnostic_sink,&host_diag,&collector,OCC_STAGE_PARSER)==
+        OCC_MODULE_STATUS_OK);
     assert(occ_module_validate_invocation_v1(&module.descriptor,&invocation,&result)==
         OCC_MODULE_STATUS_OK);
     assert(module.process(&invocation,&result)==OCC_MODULE_STATUS_NEED_OUTPUT_BUFFER);
@@ -132,6 +140,49 @@ int main(void) {
     assert(module.process(&invocation,&result)==OCC_MODULE_STATUS_OK);
     assert(result.bytes_written==64u && result.output_validity==OIR_VALIDITY_VALID);
     assert(output[0]==0x5au && output[63]==0x5au);
+
+    /* DLL diagnostics are copied into OCC storage with host-assigned stage ID. */
+    memset(&diagnostic,0,sizeof(diagnostic));
+    diagnostic.struct_size=(uint32_t)sizeof(diagnostic);
+    diagnostic.code=2301u;
+    diagnostic.message_id=91u;
+    diagnostic.severity=OCC_DIAG_ERROR;
+    diagnostic.span.source_id=7u;
+    diagnostic.span.start_offset=15u;
+    diagnostic.span.end_offset=16u;
+    diagnostic.span.start_line=2u;
+    diagnostic.span.start_column=7u;
+    diagnostic.span.end_line=2u;
+    diagnostic.span.end_column=8u;
+    diagnostic.span.has_location=1u;
+    diagnostic.message="unexpected token";
+    diagnostic.message_length=(uint64_t)strlen(diagnostic.message);
+    diagnostic.hint="expected expression";
+    diagnostic.hint_length=(uint64_t)strlen(diagnostic.hint);
+    assert(invocation.diagnostic_sink.report(
+        invocation.diagnostic_sink.user_context,&diagnostic)==1u);
+    assert(occ_diagnostics_count(&collector)==1u);
+    assert(occ_diagnostics_get(&collector,0u,&diagnostic_view));
+    assert(diagnostic_view.record->code==2301u);
+    assert(diagnostic_view.record->stage_id==OCC_STAGE_PARSER);
+    assert(diagnostic_view.record->message_id==91u);
+    assert(diagnostic_view.record->span.start_offset==15u);
+    assert(diagnostic_view.record->span.end_offset==16u);
+    assert(diagnostic_view.record->span.start_line==2u);
+    assert(diagnostic_view.record->span.start_column==7u);
+    assert(diagnostic_view.record->span.end_line==2u);
+    assert(diagnostic_view.record->span.end_column==8u);
+    assert(strcmp(diagnostic_view.message,"unexpected token")==0);
+    assert(strcmp(diagnostic_view.hint,"expected expression")==0);
+
+    diagnostic.reserved[1]=1u;
+    assert(invocation.diagnostic_sink.report(
+        invocation.diagnostic_sink.user_context,&diagnostic)==0u);
+    diagnostic.reserved[1]=0u;
+    invocation.diagnostic_sink.flags=1u;
+    assert(occ_module_validate_invocation_v1(&module.descriptor,&invocation,&result)==
+        OCC_MODULE_STATUS_INVALID_INVOCATION);
+    invocation.diagnostic_sink.flags=0u;
 
     /* Artifact kind, required input presence and job identity are host-checked. */
     inputs[1].bytes=wrong_artifact; inputs[1].length=wrong_length;
@@ -172,5 +223,6 @@ int main(void) {
     invocation.struct_size=0u;
     assert(module.process(&invocation,&result)==OCC_MODULE_STATUS_INVALID_INVOCATION);
 
+    occ_diagnostics_destroy(&collector);
     return 0;
 }
