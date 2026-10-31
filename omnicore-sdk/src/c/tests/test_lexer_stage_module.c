@@ -93,11 +93,11 @@ int main(int argc, char** argv) {
     assert(oir_token_stream_open(payload_section.data,
         (size_t)payload_section.length, 0u, (uint64_t)(sizeof(source) - 1u),
         diagnostics_view.record_count, &token_view) == OIR_STATUS_OK);
-    assert(token_view.token_count == 2u);
-    assert(oir_token_stream_get(&token_view, 0u, &token_record) == OIR_STATUS_OK);
+    assert(token_view.token_count == 4u);
+    assert(oir_token_stream_get(&token_view, 2u, &token_record) == OIR_STATUS_OK);
     assert(token_record.token_id == 2u);
     assert(token_record.diagnostic_id == 1u);
-    assert(oir_token_stream_get(&token_view, 1u, &token_record) == OIR_STATUS_OK);
+    assert(oir_token_stream_get(&token_view, 3u, &token_record) == OIR_STATUS_OK);
     assert(token_record.token_id == 1u);
 
     {
