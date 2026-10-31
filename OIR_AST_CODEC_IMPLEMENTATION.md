@@ -231,4 +231,4 @@ Caller supplies the node pointer array and graph-validation scratch arrays. The 
 
 Tests round-trip all 80 node kinds and their source positions, selected scalar/string/token values, and a nested Nexus Flow with left/right/catch children. Malformed graph ownership and out-of-range literal tags are rejected before touching node storage; insufficient node storage returns BUFFER_TOO_SMALL.
 
-CTest target: `oir_ast_frontend_reader_all_kinds_validate_before_materialize`. Initial CI run 41159448304 passed on Windows, Ubuntu and macOS; Ubuntu ASan/UBSan and Valgrind passed. Ubuntu CTest 29/29. Follow-up cleanup removes compiler warnings and tightens optional-reference prevalidation; its CI is pending.
+CTest target: `oir_ast_frontend_reader_all_kinds_validate_before_materialize`. Final CI run 41159725328 passed on Windows, Ubuntu and macOS; Ubuntu ASan/UBSan and Valgrind passed. Ubuntu CTest 29/29. The reader build is warning-free in its Ubuntu compiler log.
