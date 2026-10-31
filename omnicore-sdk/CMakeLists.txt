@@ -297,6 +297,7 @@ target_link_libraries(occ_parser_stage PRIVATE
     occ_frontend
     occ_oir
     occ_oir_token_stream
+    occ_oir_diagnostics
     occ_oir_ast_artifact
 )
 set_target_properties(occ_parser_stage PROPERTIES
