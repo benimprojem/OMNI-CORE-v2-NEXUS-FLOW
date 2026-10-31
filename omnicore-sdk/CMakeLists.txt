@@ -530,7 +530,7 @@ if(BUILD_TESTING)
     )
 
     set(OCC_INVALID_PARSER_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/occ_invalid_parser_stage.nxf")
-    file(WRITE "${OCC_INVALID_PARSER_SOURCE}" "v:x = ;\\n")
+    file(WRITE "${OCC_INVALID_PARSER_SOURCE}" "v:x = ;\n")
     add_test(NAME occ_parser_dll_failure_checkpoint_preserves_source
         COMMAND ${CMAKE_COMMAND}
             "-DOCC_EXE=$<TARGET_FILE:occ>"
