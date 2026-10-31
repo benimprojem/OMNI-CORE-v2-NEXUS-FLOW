@@ -627,3 +627,21 @@ OCC callback'i:
 Modüller callback/context/mesaj pointer'larını çağrı sonrasında saklayamaz. Dosya sistemi ve checkpoint sahipliği OCC'de kalır. ABI henüz freeze edilmemiştir.
 
 **CI durumu:** Dynamic DLL callback testi dahil 36/36 CTest Windows, Ubuntu ve macOS üzerinde geçti. Ubuntu ASan/UBSan ve Valgrind işleri de başarılı. Kod doğrulama commit'i: `38b76c0354f35ead30c7bdfc0de1250d4a6bfec5` (run `41166466493`). Ardından gelen dokümantasyon ve durum raporu commit'leri de run `41166537168` üzerinde Windows/Ubuntu/macOS, ASan/UBSan ve Valgrind kontrollerinden geçti.
+
+
+## 31 Ekim 2026 — İlk gerçek Parser stage DLL
+
+`parser_stage_module.c` eklendi ve CMake'de `occ_parser_stage` olarak bağımsız DLL/SO/dylib hedefi oluşturuldu.
+
+- Girdiler: sıralı `SOURCE_UNIT + TOKEN_STREAM` OIR artifact'ları; job kimliği, source ID, kaynak uzunluğu, token span'leri ve varsa lexer DIAGNOSTICS section doğrulanıyor.
+- Parser, kaynak dosyasını açmadan `parser_init_source()` ve OIR'den geri kurulan token dizisiyle çalışıyor.
+- Başarılı derlemede canonical `OIR_KIND_AST` artifact üretiliyor.
+- Çıktı tamponu küçükse tam kapasite `NEED_OUTPUT_BUFFER` ile bildiriliyor; retry aynı immutable girdileri yeniden parse ediyor.
+- Parser tanıları OCC diagnostic sink'e aktarılıyor. Upstream lexer tanıları lexer aşamasında kalıyor.
+- Hata durumunda AST yayınlanmıyor: `OIR_VALIDITY_NONE`, sıfır çıktı baytı ve exact token source span tanısı dönüyor.
+
+Yeni `real_parser_stage_source_token_to_ast_module` testi gerçek shared library'yi dinamik yüklüyor. Geçerli kaynak için AST OIR zarfını doğruluyor; geçersiz `v:x = ;` girdisinde byte span `[6,7)`, satır 1, sütun 7–8 tanısını callback üzerinden kontrol ediyor ve AST çıktısının yayınlanmadığını doğruluyor.
+
+**CI:** Run `41171384514` — Windows, Ubuntu ve macOS başarılı; CTest 37/37; ASan/UBSan ve Valgrind başarılı.
+
+**Sınır:** Parser DLL artık tek başına çalışan bir stage'dir; OCC'nin gerçek modül yükleme/çağırma pipeline'ına bağlanması ve failure checkpoint'in bu DLL hatasıyla uçtan uca doğrulanması sonraki adımdır. ABI taslak kalmaya devam ediyor.
