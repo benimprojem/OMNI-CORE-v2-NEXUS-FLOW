@@ -147,7 +147,7 @@ Frontend AST → OIR writer'ın ilk geçişi: caller-owned pointer hash table il
 - [x] AST payload schema 1.0 taslağını ve 80 node kind / field ID registry'sini tanımla.
 - [x] Frontend AST tag'leri ile sabit OIR node-kind ID'leri arasında bağımsız mapping API'si ve 80/80 bijection testi ekle (Windows/Ubuntu/macOS, ASan/UBSan ve Valgrind CI başarılı).
 - [ ] Bounded AST payload codec, graph/reference validation ve frontend round-trip testlerini tamamla; ardından parser checkpoint'lerini OIR v1'e geçir. Tasarım: OIR_AST_CODEC_IMPLEMENTATION.md.
-- [x] Frontend AST pointer index: canonical preorder, caller-owned open-addressing table, 1-based stable IDs, repeated pointer/depth/root/span checks (CI devam ediyor).
+- [x] Frontend AST pointer index: canonical preorder, caller-owned open-addressing table, 1-based stable IDs, repeated pointer/depth/root/span checks (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] AST payload header/node record bounded writer-reader katmanını ve node/TLV/string reference sınır testlerini ekle (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] AST graph validator: NODE_REF + sibling edge sahiplik sayımı, root reachability, orphan/cycle ve 512 derinlik denetimleri (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] Node-kind field schema validator: 80 node kind için required field/type kontrolü ve unknown optional field uyumluluk testleri (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
