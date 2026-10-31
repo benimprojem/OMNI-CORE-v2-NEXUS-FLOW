@@ -1077,6 +1077,17 @@ if(BUILD_TESTING)
     add_test(NAME persistent_semantic_result_model_scopes_symbols_and_relations
         COMMAND test_semantic_result)
 
+    add_executable(test_semantic_result_oom
+        "${C_SOURCE_DIR}/tests/test_semantic_result_oom.c"
+    )
+    target_link_libraries(test_semantic_result_oom PRIVATE occ_semantic_result)
+    if(MSVC)
+        target_compile_options(test_semantic_result_oom PRIVATE /W4)
+    else()
+        target_compile_options(test_semantic_result_oom PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME persistent_semantic_result_allocation_failure_injection COMMAND test_semantic_result_oom)
+
     add_executable(test_semantic_result_integration
         "${C_SOURCE_DIR}/tests/test_semantic_result_integration.c"
     )
