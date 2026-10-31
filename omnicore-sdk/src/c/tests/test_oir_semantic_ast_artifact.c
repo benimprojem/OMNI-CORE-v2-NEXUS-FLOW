@@ -26,7 +26,6 @@ int main(void) {
     uint8_t relations[OIR_SEMANTIC_RELATIONS_HEADER_SIZE];
     uint8_t conversions[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE];
     uint8_t artifact[2048];
-    uint8_t damaged[2048];
     uint8_t bad_ast[sizeof(ast_payload)];
     uint8_t zero_ref[4] = { 0u, 0u, 0u, 0u };
     OirAstTlvWriter tlv_writer;
