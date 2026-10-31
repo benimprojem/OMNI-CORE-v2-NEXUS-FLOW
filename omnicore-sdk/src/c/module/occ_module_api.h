@@ -139,6 +139,12 @@ typedef struct OccStageDescriptorV1 {
  * it knows the supplied output buffer is sufficient. The host may call the
  * module again with the same inputs after resizing the output buffer.
  */
+/*
+ * Invocation memory is borrowed. A stage may read input artifacts and write
+ * the supplied output buffer only during process(); it must not retain input,
+ * output, diagnostic-sink, or host-context pointers after returning. Any
+ * diagnostic strings are consumed synchronously by the host callback.
+ */
 typedef uint32_t (OCC_MODULE_CALL *OccModuleProcessV1)(
     const OccModuleInvocationV1* invocation,
     OccModuleResultV1* result
