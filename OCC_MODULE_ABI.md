@@ -97,3 +97,14 @@ No allocator callback is part of v1.0. This deliberately avoids cross-CRT alloca
 7. Review the header and this document before declaring ABI 1.0 frozen.
 
 The draft does not yet claim that lexer, parser or semantic analysis are independent shared libraries.
+
+
+## 8. Host-side draft validators
+
+`occ_module_validate_descriptor_v1()` checks the module/descriptor size prefixes, ABI major/minor compatibility, reserved fields, process pointer, nonzero stage ID, output artifact kind, input count range, accepted/required mask consistency and module name. Module ID zero remains legal while the registry is still a draft, as specified above.
+
+`occ_module_validate_invocation_v1()` validates invocation/result prefixes, count and pointer consistency, zero v1 flags/reserved values, and opens every input as a complete OIR container. It derives each input kind from the OIR header, checks the accepted-kind mask, and verifies that every required kind is present. It never trusts a caller-supplied artifact-kind hint.
+
+These are host-side validation helpers, not a dynamic loader and not yet a stage implementation. The module must still validate stage-specific input roles, schemas and validity states, and the host must validate the produced output artifact independently.
+
+CTest: `occ_stage_module_abi_validation_helpers` supplements the original layout/process contract test. The new fixture checks a real OIR AST container as input and rejects incompatible ABI, inconsistent masks, null bytes, nonzero input flags and missing required input.
