@@ -240,3 +240,21 @@ Not: Bu değişiklikler legacy AST codec ve OIR AST payload sözleşmesini etkil
 - Sayısal literal grameri hâlâ yalnızca mevcut ondalık tam sayı ve kesirli biçimi kapsıyor. Hex/binary, üs, ayraç, tür eki ve !32 gibi zorunlu genişlik işaretlerinin lexer grameri spesifikasyonla eşleştirilecek.
 - Unicode identifier desteği, karakter literalinin byte mı Unicode scalar mı olduğu ve escape biçimlerinin tam listesi dil spesifikasyonunda karara bağlanmadan genişletilmeyecek.
 - Lexer token uzunluğu int alanına yazılıyor; çok büyük kaynak/token boyutları için açık üst sınır ve hata davranışı ayrıca tanımlanacak.
+## 6.10 Parser primary-expression allocation safety and README synchronization
+
+**Durum: Birincil literal/identifier üretimi düzeltildi; Parser geneli henüz tamamlanmadı.**
+
+- parse_primary() içindeki number/string/char literal üretimi ortaklaştırıldı; AST düğümü ve literal metni tahsisleri ayrı ayrı kontrol ediliyor.
+- true/false literal'lerinde AST düğümü ve metin tahsisi kontrol ediliyor.
+- Identifier düğümünde AST ve ad metni tahsisi kontrol ediliyor.
+- Her başarısız metin tahsisinde kısmi düğüm ast_destroy() ile temizlenip NULL dönülüyor.
+- README Bölüm 2.3.1'e mevcut literal tarama kuralları ve cast(value, type)/panic("message") biçimleri eklendi. Desteklenmeyen numeric biçimler açıkça taslak/henüz uygulanmadı olarak işaretlendi.
+
+**Kalan kritik işler:**
+
+- parse_primary() içindeki loop/tuple ve intrinsic alt yolları dahil tüm AST tahsisleri kontrol edilmeli.
+- parse_postfix(), ikili operatör katmanları, declaration parser'ları ve statement parser'larında allocation failure kısmi ağaç sızıntısı oluşturmamalı.
+- Parser genelinde OOM durumunu ayrı bir fatal durum olarak izleyip parse döngüsünün hatayı sıradan syntax error gibi ele alması önlenmeli.
+- Mevcut AST codec ve OIR AST payload sözleşmesindeki CAST alan değişikliği için artifact versioning/compatibility kararı hâlâ açık.
+
+Bu değişiklikler NEXSUS Flow gramerine yeni bir operatör veya üretim kuralı eklemiyor; Lexer'ın mevcut string/character tarama davranışını README ile eşitliyor.
