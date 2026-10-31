@@ -444,3 +444,14 @@ Bu bölüm Parser → Semantic sınırını kapsar; IR Lowering'e geçildiği an
 - SemanticResult dışındaki OIR semantic AST codec/artifact serializer tahsislerinin ayrı hata enjeksiyonu ve sınır denetimi.
 - Diagnostic sayısı/job-level diagnostic budget ve downstream Semantic AST artifact consumer sözleşmesi.
 - IR Lowering'e henüz geçilmedi.
+
+
+## 6.21 SEMANTIC_AST artifact writer allocation fault-injection
+
+**Durum: Per-call allocator fault injection eklendi; CI doğrulaması bekleniyor.**
+
+- Artifact writer'ın kayıt tabloları, type/symbol/relation string tabloları, section buffer'ları, nihai scratch artifact ve AST graph/reference doğrulama çalışma alanları tek bir invocation-local allocator kontrolüne bağlandı.
+- Normal üretim API'si değişmeden kaldı; test için ayrı `oir_semantic_ast_artifact_write_test_fail_at()` girişi eklendi. Kontrol global değildir ve eşzamanlı writer çağrıları arasında durum paylaşmaz.
+- Semantic integration testi önce başarılı yazımdaki toplam tahsis sayısını ölçer, ardından her 1-based tahsis indeksini ayrı ayrı başarısız kılar. Her durumda OOM dönmesi, `out_written == 0` olması ve caller output buffer'ının byte-byte değişmeden kalması doğrulanır.
+- Artifact open/reader tarafı zaten caller-owned scratch buffer'larla çalışır; reader kendi heap tahsisini yapmaz. Bu nedenle writer sweep reader allocations değil, writer-owned allocations kapsamındadır.
+- IR Lowering'e geçilmedi.
