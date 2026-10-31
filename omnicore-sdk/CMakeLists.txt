@@ -346,6 +346,7 @@ if(MSVC)
     target_compile_options(occ_oir PRIVATE /W4)
     target_compile_options(occ_diagnostics PRIVATE /W4)
     target_compile_options(occ_compilation PRIVATE /W4)
+    target_compile_options(occ_failure_store PRIVATE /W4)
     target_compile_options(occ_oir_lexer_adapter PRIVATE /W4)
     target_compile_options(occ_oir_token_stream PRIVATE /W4)
     target_compile_options(occ_oir_ast_map PRIVATE /W4)
@@ -521,6 +522,18 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME oir_failure_artifact_preserves_source_and_diagnostics
         COMMAND test_oir_failure_artifact)
+
+    add_executable(test_failure_store
+        "${C_SOURCE_DIR}/tests/test_failure_store.c"
+    )
+    target_link_libraries(test_failure_store PRIVATE occ_failure_store)
+    if(MSVC)
+        target_compile_options(test_failure_store PRIVATE /W4)
+    else()
+        target_compile_options(test_failure_store PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME occ_failure_store_persists_source_and_diagnostics
+        COMMAND test_failure_store)
 
     add_executable(test_diagnostics "${C_SOURCE_DIR}/tests/test_diagnostics.c")
     target_link_libraries(test_diagnostics PRIVATE occ_diagnostics)
