@@ -31,6 +31,9 @@ OirStatus oir_ast_frontend_index_build(
     uint32_t* out_node_count
 );
 
+const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id);
+uint16_t oir_ast_frontend_child_field_count(ASTNodeType type);
+
 uint32_t oir_ast_frontend_index_lookup(
     const OirAstPointerIndexEntry* entries,
     size_t entry_capacity,
