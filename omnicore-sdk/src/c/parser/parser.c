@@ -202,7 +202,19 @@ static void error_at(Parser* p, Token* token, ErrorCode code, const char* messag
     {
         size_t diagnostic_count_before = p->ctx->diagnostics
             ? occ_diagnostics_count(p->ctx->diagnostics) : 0u;
-        parser_add_error(p->ctx, code, token->line, token->col, full_msg);
+        {
+            OccSourceSpan span = {0};
+            span.start_offset = token->source_offset;
+            span.end_offset = token->source_offset + (token->source_length > 0
+                ? (uint64_t)token->source_length : 0u);
+            span.start_line = token->line > 0 ? (uint32_t)token->line : 0u;
+            span.start_column = token->col > 0 ? (uint32_t)token->col : 0u;
+            span.end_line = span.start_line;
+            span.end_column = span.start_column;
+            span.has_location = (uint8_t)(token->line > 0 && token->col > 0);
+            parser_add_issue(p->ctx, code, token->line, token->col,
+                full_msg, NULL, NULL, 0, 0, &span);
+        }
         if (token->type == TOKEN_ERROR && p->ctx->diagnostics) {
             size_t diagnostic_count_after = occ_diagnostics_count(p->ctx->diagnostics);
             if (diagnostic_count_after > diagnostic_count_before &&
@@ -1933,7 +1945,7 @@ int parser_run(ParserContext* ctx) {
 }
 
 // --- Levenshtein Similarity Helper (ULTRA) ---
-static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int col, const char* message, const char* suggestion, const char* hint, int similarity, int is_warning) {
+static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int col, const char* message, const char* suggestion, const char* hint, int similarity, int is_warning, const OccSourceSpan* source_span) {
     if (ctx->diagnostics) {
         OccDiagnosticInput input = {0};
         input.code = (uint32_t)code;
@@ -1941,11 +1953,14 @@ static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int c
         input.stage_id = code == ERR_LEXER_ERROR ? OCC_STAGE_LEXER :
             (ctx->diagnostic_stage_id ? ctx->diagnostic_stage_id : OCC_STAGE_PARSER);
         input.severity = is_warning ? OCC_DIAG_WARNING : OCC_DIAG_ERROR;
-        input.span.start_line = line > 0 ? (uint32_t)line : 0u;
-        input.span.start_column = col > 0 ? (uint32_t)col : 0u;
-        input.span.end_line = input.span.start_line;
-        input.span.end_column = input.span.start_column;
-        input.span.has_location = (uint8_t)(line > 0 && col > 0);
+        if (source_span) input.span = *source_span;
+        input.span.start_line = source_span ? source_span->start_line : (line > 0 ? (uint32_t)line : 0u);
+        input.span.start_column = source_span ? source_span->start_column : (col > 0 ? (uint32_t)col : 0u);
+        if (!source_span) {
+            input.span.end_line = input.span.start_line;
+            input.span.end_column = input.span.start_column;
+            input.span.has_location = (uint8_t)(line > 0 && col > 0);
+        }
         input.message = message ? message : "";
         input.message_length = strlen(input.message);
         input.hint = hint ? hint : suggestion;
@@ -1999,7 +2014,7 @@ int parser_attach_token_stream(
 }
 
 static void parser_add_error(ParserContext* ctx, ErrorCode code, int line, int col, const char* message) {
-    parser_add_issue(ctx, code, line, col, message, NULL, NULL, 0, 0);
+    parser_add_issue(ctx, code, line, col, message, NULL, NULL, 0, 0, NULL);
 }
 
 void parser_print_errors(ParserContext* ctx) {
