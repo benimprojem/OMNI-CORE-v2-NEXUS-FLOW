@@ -171,7 +171,9 @@ static int occ_build_and_run_parser_module(
             goto cleanup;
         }
     }
-    if (token_count == 0u || token_count > UINT32_MAX) goto cleanup;
+    if (token_count == 0u || token_count > UINT32_MAX ||
+        job->diagnostics.count > UINT32_MAX ||
+        job->diagnostics.allocation_failed) goto cleanup;
 
     source_payload_capacity = OIR_SOURCE_UNIT_HEADER_SIZE + path_length +
         source_context->source_len;
@@ -771,7 +773,6 @@ int main(int argc, char **argv) {
             exit_code = 1;
         }
 
-        semantic_print_errors(&sem_ctx);
         semantic_destroy(&sem_ctx);
     } else {
         printf("%s\n", msg_get(MSG_OCC_FAIL_PARSER));
