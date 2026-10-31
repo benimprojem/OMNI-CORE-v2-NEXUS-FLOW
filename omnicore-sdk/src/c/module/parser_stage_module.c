@@ -131,6 +131,22 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
             return OCC_MODULE_STATUS_INVALID_INVOCATION;
         }
         diag_count=diagnostics_view.record_count;
+        {
+            uint32_t diagnostic_index;
+            for(diagnostic_index=0u;
+                diagnostic_index<diagnostics_view.record_count;
+                ++diagnostic_index) {
+                OirDiagnosticEntryView entry;
+                if(oir_diagnostics_payload_get(&diagnostics_view,
+                    diagnostic_index,&entry)!=OIR_STATUS_OK ||
+                   entry.stage_id!=OCC_STAGE_LEXER ||
+                   (entry.span.has_location &&
+                    (entry.span.source_id!=source.source_id ||
+                     entry.span.end_offset>source.source_length))) {
+                    return OCC_MODULE_STATUS_INVALID_INVOCATION;
+                }
+            }
+        }
     } else if(status!=OIR_STATUS_MISSING_PAYLOAD) {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
