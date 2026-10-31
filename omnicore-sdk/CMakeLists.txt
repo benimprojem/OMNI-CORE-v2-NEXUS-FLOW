@@ -61,6 +61,7 @@ target_link_libraries(occ_module_abi PUBLIC occ_oir)
 
 set_target_properties(occ_module_abi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+if(BUILD_TESTING)
 # A tiny pass-through stage proves the shared-library ABI and ownership rules.
 add_library(occ_test_passthrough_module SHARED
     "${C_SOURCE_DIR}/tests/sample_stage_module.c"
@@ -71,6 +72,7 @@ target_link_libraries(occ_test_passthrough_module PRIVATE occ_module_abi)
 set_target_properties(occ_test_passthrough_module PROPERTIES
     OUTPUT_NAME "occ_test_passthrough"
 )
+endif()
 
 # Job-owned diagnostics collector; modules report through a host-owned context.
 add_library(occ_diagnostics STATIC
