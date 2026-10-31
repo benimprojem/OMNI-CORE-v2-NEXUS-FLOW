@@ -1,3 +1,6 @@
+#if !defined(_WIN32)
+#define _GNU_SOURCE
+#endif
 #include "occ_module_api.h"
 #include "semantic.h"
 #include "ast.h"
@@ -5,8 +8,126 @@
 #include "oir_ast_frontend_index.h"
 #include "oir_ast_node_table.h"
 #include "oir_semantic_ast_artifact.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#include <pthread.h>
+#endif
+
+#define SEMANTIC_INDEX_MAX ((size_t)2097152u)
+typedef struct SemanticResolver {
+    const OirAstPointerIndexEntry* entries;
+    size_t capacity;
+} SemanticResolver;
+static const OccStageModuleV1 g_semantic_module;
+
+#if defined(_WIN32)
+static INIT_ONCE g_semantic_messages_once = INIT_ONCE_STATIC_INIT;
+#else
+static pthread_once_t g_semantic_messages_once = PTHREAD_ONCE_INIT;
+#endif
+
+/* The catalog is immutable after one-time initialization and lives until DLL unload. */
+static void semantic_stage_load_messages(void) {
+    char module_path[4096], config_path[4096], language_relative[64], message_path[4096];
+    char language[16] = "en";
+    FILE* config;
+    char line[256];
+    char* separator;
+#if defined(_WIN32)
+    HMODULE module_handle = NULL;
+    DWORD length;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)(uintptr_t)&semantic_stage_load_messages, &module_handle)) return;
+    length = GetModuleFileNameA(module_handle, module_path, (DWORD)sizeof(module_path));
+    if (length == 0u || length >= sizeof(module_path)) return;
+    module_path[length] = '\0';
+#else
+    Dl_info info;
+    if (!dladdr((void*)(uintptr_t)&semantic_stage_load_messages, &info) ||
+        !info.dli_fname || strlen(info.dli_fname) >= sizeof(module_path)) return;
+    strcpy(module_path, info.dli_fname);
+#endif
+    separator = strrchr(module_path, '/');
+#if defined(_WIN32)
+    {
+        char* backslash = strrchr(module_path, '\\');
+        if (backslash && (!separator || backslash > separator)) separator = backslash;
+    }
+#endif
+    if (!separator) return;
+    *separator = '\0';
+    {
+        int n = snprintf(config_path, sizeof(config_path), "%s/occ.ocf", module_path);
+        if (n < 0 || (size_t)n >= sizeof(config_path)) return;
+    }
+    config = fopen(config_path, "r");
+    if (config) {
+        while (fgets(line, sizeof(line), config)) {
+            char* p = line;
+            char* end;
+            while (*p == ' ' || *p == '\t') ++p;
+            if (strncmp(p, "language", 8u) != 0) continue;
+            p += 8u;
+            while (*p == ' ' || *p == '\t') ++p;
+            if (*p++ != '=') continue;
+            while (*p == ' ' || *p == '\t') ++p;
+            if (*p++ != '"') continue;
+            end = strchr(p, '"');
+            if (!end) continue;
+            *end = '\0';
+            if (p[0] && strlen(p) < sizeof(language)) {
+                size_t j; int valid = 1;
+                for (j = 0u; p[j] != '\0'; ++j) {
+                    if (!((p[j] >= 'a' && p[j] <= 'z') ||
+                          (p[j] >= 'A' && p[j] <= 'Z') ||
+                          (p[j] >= '0' && p[j] <= '9') ||
+                          p[j] == '_' || p[j] == '-')) {
+                        valid = 0; break;
+                    }
+                }
+                if (valid) strcpy(language, p);
+            }
+            break;
+        }
+        fclose(config);
+    }
+    {
+        int n = snprintf(language_relative, sizeof(language_relative),
+            "lang/messages_%s.conf", language);
+        if (n < 0 || (size_t)n >= sizeof(language_relative)) return;
+        n = snprintf(message_path, sizeof(message_path), "%s/%s",
+            module_path, language_relative);
+        if (n < 0 || (size_t)n >= sizeof(message_path)) return;
+    }
+    msg_init(message_path);
+}
+
+#if defined(_WIN32)
+static BOOL CALLBACK semantic_stage_messages_once(
+    PINIT_ONCE once, PVOID parameter, PVOID* context
+) {
+    (void)once; (void)parameter; (void)context;
+    semantic_stage_load_messages();
+    return TRUE;
+}
+static void semantic_stage_ensure_messages(void) {
+    (void)InitOnceExecuteOnce(&g_semantic_messages_once,
+        semantic_stage_messages_once, NULL, NULL);
+}
+#else
+static void semantic_stage_messages_once(void) {
+    semantic_stage_load_messages();
+}
+static void semantic_stage_ensure_messages(void) {
+    (void)pthread_once(&g_semantic_messages_once, semantic_stage_messages_once);
+}
+#endif
 
 #define SEMANTIC_INDEX_MAX ((size_t)2097152u)
 typedef struct SemanticResolver {
@@ -87,6 +208,7 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
        oir_ast_node_table_open(payload.data,(size_t)payload.length,&table)!=OIR_STATUS_OK||!table.node_count) {
         out->failure_code=8301u; return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
+    semantic_stage_ensure_messages();
     count=table.node_count;
     storage=(ASTNode**)calloc(count,sizeof(*storage)); incoming=(uint32_t*)calloc(count,sizeof(*incoming));
     visited=(uint8_t*)calloc(count,sizeof(*visited)); stack=(OirAstGraphStackEntry*)calloc(count,sizeof(*stack));
