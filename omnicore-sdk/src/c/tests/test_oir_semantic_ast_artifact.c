@@ -42,6 +42,7 @@ int main(void) {
     uint8_t relations[OIR_SEMANTIC_RELATIONS_HEADER_SIZE];
     uint8_t conversions[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE];
     uint8_t artifact[2048];
+    uint8_t mutated_artifact[2048];
     uint8_t bad_ast[sizeof(ast_payload)];
     uint8_t zero_ref[4] = { 0u, 0u, 0u, 0u };
     OirAstTlvWriter tlv_writer;
@@ -230,6 +231,21 @@ int main(void) {
         CHECK(oir_semantic_ast_artifact_open(artifact, artifact_written, &view,
             incoming, 1u, visited, 1u, stack, 1u, owner_scope, 2u) !=
             OIR_STATUS_OK);
+    }
+
+    /* Sweep every byte of a valid complete artifact under the same bounded reader. */
+    CHECK(oir_artifact_write(artifact, sizeof(artifact), &header,
+        sections, 6u, &artifact_written) == OIR_STATUS_OK);
+    {
+        size_t mutation_index;
+        for (mutation_index = 0u; mutation_index < artifact_written;
+            ++mutation_index) {
+            memcpy(mutated_artifact, artifact, artifact_written);
+            mutated_artifact[mutation_index] ^= 0x80u;
+            (void)oir_semantic_ast_artifact_open(
+                mutated_artifact, artifact_written, &view,
+                incoming, 1u, visited, 1u, stack, 1u, owner_scope, 2u);
+        }
     }
 
     puts("OIR SEMANTIC_AST complete artifact validation tests passed.");
