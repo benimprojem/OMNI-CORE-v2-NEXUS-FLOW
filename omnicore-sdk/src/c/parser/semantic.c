@@ -454,7 +454,8 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             }
             return NULL;
         }
-        case AST_BINARY_EXPR: {
+        case AST_BINARY_EXPR:
+        case AST_ASSIGNMENT: {
             const char* type_name =
                 get_expr_type(ctx, ((ASTBinaryExpr*)node)->left);
             semantic_record_annotation(
@@ -1243,6 +1244,21 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         default:
             break;
+    }
+
+    if (ctx->result_enabled) {
+        switch (node->type) {
+            case AST_LITERAL:
+            case AST_IDENTIFIER:
+            case AST_BINARY_EXPR:
+            case AST_ASSIGNMENT:
+            case AST_UNARY_EXPR:
+            case AST_FUNC_CALL:
+                (void)get_expr_type(ctx, node);
+                break;
+            default:
+                break;
+        }
     }
 
     if (node->next) semantic_check(ctx, node->next);
