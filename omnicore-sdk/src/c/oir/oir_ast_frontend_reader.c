@@ -22,7 +22,10 @@ static int get_i32(const uint8_t* p, int* out) {
     uint32_t bits = get_u32(p);
     int32_t value;
     memcpy(&value,&bits,sizeof(value));
-    if (!out || (int64_t)value < INT_MIN || (int64_t)value > INT_MAX) return 0;
+    if (!out) return 0;
+#if INT_MAX < INT32_MAX || INT_MIN > INT32_MIN
+    if ((int64_t)value < INT_MIN || (int64_t)value > INT_MAX) return 0;
+#endif
     *out=(int)value;
     return 1;
 }
@@ -30,7 +33,7 @@ static int get_i64(const uint8_t* p, long long* out) {
     uint64_t bits = get_u64(p);
     int64_t value;
     memcpy(&value,&bits,sizeof(value));
-    if (!out || (int64_t)value < LLONG_MIN || (int64_t)value > LLONG_MAX) return 0;
+    if (!out) return 0;
     *out=(long long)value;
     return 1;
 }
@@ -493,10 +496,9 @@ OirStatus oir_ast_frontend_read_payload(
                 target_id=get_u32(field.value);
                 if(target_id!=0u &&
                     !set_child_pointer(node_storage[i],field.field_id,node_storage[target_id-1u])) {
-                    /* Unknown optional references are intentionally skipped. */
-                    if((field.flags&OIR_AST_TLV_OPTIONAL)==0u) {
-                        status=OIR_STATUS_INVALID_SECTION; goto fail;
-                    }
+                    /* An unknown optional NODE_REF cannot be materialized safely:
+                     * ignoring it would orphan an allocated node and leak it. */
+                    status=OIR_STATUS_INVALID_SECTION; goto fail;
                 }
             }
         } while(has_field);
