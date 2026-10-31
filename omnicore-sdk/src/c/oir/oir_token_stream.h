@@ -50,6 +50,16 @@ OirStatus oir_token_stream_input_from_lexer_token(
     OirTokenStreamInput* out_input
 );
 
+/* Reconstruct a parser Token from a validated record and its source/diagnostic text. */
+OirStatus oir_token_stream_record_to_lexer_token(
+    const OirTokenStreamRecordView* record,
+    const uint8_t* source,
+    uint64_t source_length,
+    const char* diagnostic_message,
+    uint32_t diagnostic_message_length,
+    Token* out_token
+);
+
 /*
  * Validate schema 1.0 against the associated source length and diagnostic
  * count. The payload remains caller-owned and must outlive the returned view.
