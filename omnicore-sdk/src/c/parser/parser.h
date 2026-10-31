@@ -132,9 +132,6 @@ typedef struct {
     // void* slot_map; 
     
     // Hata Durumu
-    ParserStatus status;
-    size_t test_allocation_count;
-    size_t test_fail_allocation_at;
     int error_count;
     Error* error_head;
     Error* error_tail;
@@ -147,6 +144,11 @@ typedef struct {
     const struct Token* token_stream;
     size_t token_stream_count;
     size_t token_stream_index;
+
+    /* Appended parser status/test fields preserve offsets of the legacy context fields. */
+    ParserStatus status;
+    size_t test_allocation_count;
+    size_t test_fail_allocation_at;
 } ParserContext;
 
 OCC_API ParserContext* parser_init(const char* filename);
