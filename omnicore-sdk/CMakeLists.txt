@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(OmniCoreC VERSION 0.2.0 LANGUAGES C)
 
 include(CTest)
+find_package(Threads REQUIRED)
 
 if(MSVC)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
@@ -380,7 +381,8 @@ target_link_libraries(occ_semantic_stage PRIVATE
     occ_oir_ast_frontend_reader
     occ_oir_ast_frontend_index
     occ_oir_semantic_ast_artifact
-)
+
+    Threads::Threads)
 set_target_properties(occ_semantic_stage PROPERTIES
     OUTPUT_NAME "occ_semantic_stage"
     RUNTIME_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
@@ -839,7 +841,6 @@ if(BUILD_TESTING)
     add_executable(test_semantic_stage_module
         "${C_SOURCE_DIR}/tests/test_semantic_stage_module.c"
     )
-    find_package(Threads REQUIRED)
     target_link_libraries(test_semantic_stage_module PRIVATE
         occ_frontend
         occ_module_loader
