@@ -537,7 +537,12 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                 }
 
-                add_slot(ctx, decl->name, SLOT_VAR, decl->is_const, decl->type_name, node, 0, 0);
+                Slot* declared_slot = add_slot(
+                    ctx, decl->name, SLOT_VAR, decl->is_const,
+                    decl->type_name, node, 0, 0);
+                semantic_record_annotation(
+                    ctx, node, declared_slot, decl->type_name,
+                    SEMANTIC_RESULT_VALUE_LVALUE);
                 printf("%s: %s (%s)\n", msg_get(MSG_SEMANTIC_SLOT), decl->name, decl->is_const ? "CONST" : "MUT");
             }
             
@@ -561,7 +566,8 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_IDENTIFIER: {
             ASTIdentifier* id = (ASTIdentifier*)node;
-            if (!find_slot(ctx, id->name)) {
+            Slot* resolved = find_slot(ctx, id->name);
+            if (!resolved) {
                 int score = 0;
                 Slot* best = find_best_suggestion(ctx, id->name, &score);
                 char buf[256], suggest_buf[256];
@@ -572,6 +578,12 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 } else {
                     report_issue(ctx, node, ERR_SEMANTIC_UNDEFINED, buf, NULL, "Değişken tanımlanmamış. 'v:' ile tanımlamayı deneyin.", 0, 0);
                 }
+            } else {
+                semantic_record_annotation(
+                    ctx, node, resolved, resolved->type_name,
+                    resolved->kind == SLOT_FUNC
+                        ? SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR
+                        : SEMANTIC_RESULT_VALUE_LVALUE);
             }
             break;
         }
