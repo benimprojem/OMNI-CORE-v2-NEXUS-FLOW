@@ -360,7 +360,7 @@ Token lexer_next_token(ParserContext* ctx) {
         while (peek(ctx) != '"' && peek(ctx) != '\0') {
             advance(ctx);
         }
-        if (peek(ctx) == '\0') return error_token(ctx, msg_get(MSG_UNTERMINATED_STRING));
+        if (peek(ctx) == '\0') return error_token(ctx, "Unterminated string literal");
         advance(ctx); // Kapanış tırnağı
         int length = (int)(&ctx->source_buffer[ctx->pos] - start);
         return make_token(ctx, TOKEN_STRING, start, length);
@@ -380,7 +380,7 @@ Token lexer_next_token(ParserContext* ctx) {
             int length = (int)(&ctx->source_buffer[ctx->pos] - start);
             return make_token(ctx, TOKEN_CHAR, start, length);
         }
-        return error_token(ctx, msg_get(MSG_UNTERMINATED_CHAR));
+        return error_token(ctx, "Unterminated character literal");
     }
 
     // --- Operatörler ---
