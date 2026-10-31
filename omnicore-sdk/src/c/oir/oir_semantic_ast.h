@@ -47,7 +47,10 @@ OirStatus oir_semantic_scopes_get(
     OirSemanticScope* out_scope
 );
 
-/* Encode logical scope records into caller-owned storage, field-by-field. */
+/*
+ * Encode logical scope records into caller-owned storage, field-by-field.
+ * The input scope array and output byte buffer must be disjoint.
+ */
 OirStatus oir_semantic_scopes_write(
     uint8_t* output,
     size_t capacity,
