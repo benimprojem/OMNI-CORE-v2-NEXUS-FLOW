@@ -111,6 +111,102 @@ int main(void) {
         &second_written) == OIR_STATUS_BUFFER_TOO_SMALL);
     assert(second_written == 0u && second[0] == 0xa5u);
 
-    puts("OIR SEMANTIC_AST scope codec tests passed.");
+
+    {
+        const uint8_t names[] = { 'i', '3', '2', 'W', 'i', 'd', 'g', 'e', 't' };
+        const OirSemanticType types[] = {
+            { 1u, OIR_SEMANTIC_TYPE_PRIMITIVE, 0u, 0u, 3u, 0u, 0u },
+            { 2u, OIR_SEMANTIC_TYPE_USER_DEFINED, OIR_SEMANTIC_TYPE_FLAG_HARD,
+                3u, 6u, 7u, 1u }
+        };
+        uint8_t type_bytes[OIR_SEMANTIC_TYPES_HEADER_SIZE +
+            2u * OIR_SEMANTIC_TYPE_RECORD_SIZE + sizeof(names)];
+        uint8_t type_second[sizeof(type_bytes)];
+        uint8_t type_bad[sizeof(type_bytes)];
+        size_t type_written = 0u;
+        size_t type_second_written = 0u;
+        OirSemanticTypesView types_view;
+        OirSemanticType decoded_type;
+        const uint8_t* decoded_name = NULL;
+
+        assert(oir_semantic_types_write(type_bytes, sizeof(type_bytes), types, 2u,
+            names, (uint32_t)sizeof(names), &type_written) == OIR_STATUS_OK);
+        assert(type_written == sizeof(type_bytes));
+        assert(oir_semantic_types_open(type_bytes, type_written, &types_view) ==
+            OIR_STATUS_OK);
+        assert(types_view.record_count == 2u);
+        assert(oir_semantic_types_get(&types_view, 0u, &decoded_type,
+            &decoded_name) == OIR_STATUS_OK);
+        assert(decoded_type.type_id == 1u &&
+            decoded_type.kind == OIR_SEMANTIC_TYPE_PRIMITIVE &&
+            decoded_type.name_length == 3u &&
+            decoded_name && memcmp(decoded_name, "i32", 3u) == 0);
+        assert(oir_semantic_types_get(&types_view, 1u, &decoded_type,
+            &decoded_name) == OIR_STATUS_OK);
+        assert(decoded_type.type_id == 2u &&
+            decoded_type.kind == OIR_SEMANTIC_TYPE_USER_DEFINED &&
+            decoded_type.flags == OIR_SEMANTIC_TYPE_FLAG_HARD &&
+            decoded_type.referenced_symbol_id == 7u &&
+            decoded_type.base_type_id == 1u &&
+            decoded_name && memcmp(decoded_name, "Widget", 6u) == 0);
+
+        assert(oir_semantic_types_write(type_second, sizeof(type_second), types, 2u,
+            names, (uint32_t)sizeof(names), &type_second_written) == OIR_STATUS_OK);
+        assert(type_second_written == type_written &&
+            memcmp(type_bytes, type_second, type_written) == 0);
+
+        memcpy(type_bad, type_bytes, type_written);
+        write_u32(type_bad + 4u, 28u);
+        assert(oir_semantic_types_open(type_bad, type_written, &types_view) ==
+            OIR_STATUS_INVALID_SECTION);
+
+        memcpy(type_bad, type_bytes, type_written);
+        write_u32(type_bad, UINT32_MAX);
+        assert(oir_semantic_types_open(type_bad, type_written, &types_view) ==
+            OIR_STATUS_INVALID_SECTION);
+
+        memcpy(type_bad, type_bytes, type_written);
+        write_u32(type_bad + OIR_SEMANTIC_TYPES_HEADER_SIZE +
+            OIR_SEMANTIC_TYPE_RECORD_SIZE, 1u);
+        assert(oir_semantic_types_open(type_bad, type_written, &types_view) ==
+            OIR_STATUS_INVALID_SECTION);
+
+        memcpy(type_bad, type_bytes, type_written);
+        write_u32(type_bad + OIR_SEMANTIC_TYPES_HEADER_SIZE + 8u, UINT32_MAX);
+        assert(oir_semantic_types_open(type_bad, type_written, &types_view) ==
+            OIR_STATUS_INVALID_SECTION);
+
+        memcpy(type_bad, type_bytes, type_written);
+        type_bad[OIR_SEMANTIC_TYPES_HEADER_SIZE +
+            2u * OIR_SEMANTIC_TYPE_RECORD_SIZE] = 0xc0u;
+        assert(oir_semantic_types_open(type_bad, type_written, &types_view) ==
+            OIR_STATUS_INVALID_SECTION);
+
+        memcpy(type_bad, type_bytes, type_written);
+        type_bad[OIR_SEMANTIC_TYPES_HEADER_SIZE + 4u] = 0xffu;
+        type_bad[OIR_SEMANTIC_TYPES_HEADER_SIZE + 5u] = 0u;
+        assert(oir_semantic_types_open(type_bad, type_written, &types_view) ==
+            OIR_STATUS_INVALID_SECTION);
+
+        memcpy(type_bad, type_bytes, type_written);
+        write_u32(type_bad + OIR_SEMANTIC_TYPES_HEADER_SIZE +
+            OIR_SEMANTIC_TYPE_RECORD_SIZE + 16u, 0u);
+        assert(oir_semantic_types_open(type_bad, type_written, &types_view) ==
+            OIR_STATUS_INVALID_SECTION);
+
+        memcpy(type_bad, type_bytes, type_written);
+        write_u32(type_bad + OIR_SEMANTIC_TYPES_HEADER_SIZE +
+            OIR_SEMANTIC_TYPE_RECORD_SIZE + 20u, 2u);
+        assert(oir_semantic_types_open(type_bad, type_written, &types_view) ==
+            OIR_STATUS_INVALID_SECTION);
+
+        memset(type_second, 0xa5, sizeof(type_second));
+        assert(oir_semantic_types_write(type_second, sizeof(type_second) - 1u,
+            types, 2u, names, (uint32_t)sizeof(names), &type_second_written) ==
+            OIR_STATUS_BUFFER_TOO_SMALL);
+        assert(type_second_written == 0u && type_second[0] == 0xa5u);
+    }
+
+    puts("OIR SEMANTIC_AST scope/type codec tests passed.");
     return 0;
 }
