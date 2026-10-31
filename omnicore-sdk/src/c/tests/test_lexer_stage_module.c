@@ -77,6 +77,9 @@ int main(int argc, char** argv) {
     assert(artifact.header.job_id == 77u);
 
     /* The lexer must reject a source artifact with an unknown schema major. */
+    free(output);
+    output = NULL;
+    output_length = 0u;
     source_artifact[16] = (uint8_t)(OIR_SOURCE_UNIT_SCHEMA_MAJOR + 1u);
     assert(occ_module_loader_invoke(&loaded, &input, 1u, 77u,
         &collector, 64u, 4096u, &output, &output_length) ==
