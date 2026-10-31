@@ -626,4 +626,4 @@ OCC callback'i:
 
 Modüller callback/context/mesaj pointer'larını çağrı sonrasında saklayamaz. Dosya sistemi ve checkpoint sahipliği OCC'de kalır. ABI henüz freeze edilmemiştir.
 
-**CI durumu:** Bu özellik için yeni CTest eklendi; çoklu platform ve sanitizer doğrulaması yeni commit üzerinde henüz bekleniyor.
+**CI durumu:** Dynamic DLL callback testi dahil 36/36 CTest Windows, Ubuntu ve macOS üzerinde geçti. Ubuntu ASan/UBSan ve Valgrind işleri de başarılı. Kod doğrulama commit'i: `38b76c0354f35ead30c7bdfc0de1250d4a6bfec5` (run `41166466493`). Ardından gelen dokümantasyon commit'inin CI koşusu ayrıca tamamlanıyor.
