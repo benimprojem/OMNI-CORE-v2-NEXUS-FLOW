@@ -884,6 +884,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         1, NULL, node, 0, sdecl->is_packed, 0,
                         (sdecl->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
                         (sdecl->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
+                    if (!s) break;
                     semantic_define_named_type(ctx, s, sdecl->name, NULL);
                     semantic_record_annotation(
                         ctx, node, s, sdecl->name,
@@ -993,6 +994,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
                 Slot* s = add_slot(ctx, edecl->name, SLOT_ENUM, 1, NULL, node, 0, 0, 0, 0u);
+                if (!s) break;
                 semantic_define_named_type(ctx, s, edecl->name, NULL);
                 semantic_record_annotation(
                     ctx, node, s, edecl->name, SEMANTIC_RESULT_VALUE_UNSPECIFIED);
