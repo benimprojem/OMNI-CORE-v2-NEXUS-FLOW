@@ -225,7 +225,10 @@ set_target_properties(occ_oir_ast_field_schema PROPERTIES POSITION_INDEPENDENT_C
 add_library(occ_oir_semantic_ast_artifact STATIC
     "${C_SOURCE_DIR}/oir/oir_semantic_ast_artifact.c"
 )
-target_include_directories(occ_oir_semantic_ast_artifact PUBLIC "${C_SOURCE_DIR}/oir")
+target_include_directories(occ_oir_semantic_ast_artifact PUBLIC
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+)
 target_link_libraries(occ_oir_semantic_ast_artifact PUBLIC
     occ_oir_semantic_ast
     occ_oir_ast_graph
