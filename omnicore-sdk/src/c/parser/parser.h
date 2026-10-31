@@ -156,5 +156,6 @@ OCC_API int parser_save_ir(ParserContext* ctx, const char* path);
 // Message System
 OCC_API void msg_init(const char* lang_file_path);
 OCC_API const char* msg_get(int id);
+OCC_API void msg_destroy(void);
 
 #endif // OCC_PARSER_H
