@@ -48,6 +48,15 @@ const char* msg_get(int id) {
     return "Unknown Message";
 }
 
+void msg_destroy(void) {
+    int i;
+    for (i = 0; i < MAX_ERROR_CODE; ++i) {
+        free(GLOBAL_MSG_TABLE[i]);
+        GLOBAL_MSG_TABLE[i] = NULL;
+    }
+    msg_table_initialized = 0;
+}
+
 // Dosyayı belleğe okuyan yardımcı fonksiyon
 static char* read_file_content(const char* filename, size_t* out_len) {
     if (out_len) *out_len = 0;
