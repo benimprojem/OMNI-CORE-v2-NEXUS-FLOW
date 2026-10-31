@@ -163,6 +163,39 @@ typedef struct {
     int panic_mode;
 } Parser;
 
+static void parser_mark_oom(Parser* p) {
+    if (p && p->ctx) p->ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
+}
+
+static void* parser_malloc(Parser* p, size_t size) {
+    void* memory = malloc(size ? size : 1u);
+    if (!memory) parser_mark_oom(p);
+    return memory;
+}
+
+static char* parser_strdup(Parser* p, const char* value) {
+    size_t length;
+    char* copy;
+    if (!value) {
+        parser_mark_oom(p);
+        return NULL;
+    }
+    length = strlen(value);
+    if (length == SIZE_MAX) {
+        parser_mark_oom(p);
+        return NULL;
+    }
+    copy = (char*)parser_malloc(p, length + 1u);
+    if (copy) memcpy(copy, value, length + 1u);
+    return copy;
+}
+
+static ASTNode* parser_ast_create(Parser* p, ASTNodeType type) {
+    ASTNode* node = ast_create(type);
+    if (!node) parser_mark_oom(p);
+    return node;
+}
+
 static Token parser_next_token(ParserContext* ctx) {
     if (ctx->token_stream) {
         const Token* tokens = ctx->token_stream;
@@ -358,12 +391,12 @@ static ASTNode* parse_thread_block(Parser* p, char* name);
 static ASTNode* parse_primary(Parser* p) {
     if (match(p, TOKEN_NUMBER) || match(p, TOKEN_STRING) || match(p, TOKEN_CHAR)) {
         Token token = p->previous;
-        ASTLiteral* node = (ASTLiteral*)ast_create(AST_LITERAL);
+        ASTLiteral* node = (ASTLiteral*)parser_ast_create(p, AST_LITERAL);
         if (!node) return NULL;
         node->base.line = token.line;
         node->base.col = token.col;
         node->type = token.type;
-        node->string_value = (char*)malloc((size_t)token.length + 1u);
+        node->string_value = (char*)parser_malloc(p, (size_t)token.length + 1u);
         if (!node->string_value) {
             ast_destroy((ASTNode*)node);
             return NULL;
@@ -375,12 +408,12 @@ static ASTNode* parse_primary(Parser* p) {
 
     if (match(p, TOKEN_TRUE) || match(p, TOKEN_FALSE)) {
         const char* value = p->previous.type == TOKEN_TRUE ? "true" : "false";
-        ASTLiteral* node = (ASTLiteral*)ast_create(AST_LITERAL);
+        ASTLiteral* node = (ASTLiteral*)parser_ast_create(p, AST_LITERAL);
         if (!node) return NULL;
         node->base.line = p->previous.line;
         node->base.col = p->previous.col;
         node->type = p->previous.type;
-        node->string_value = strdup(value);
+        node->string_value = parser_strdup(p, value);
         if (!node->string_value) {
             ast_destroy((ASTNode*)node);
             return NULL;
@@ -389,11 +422,11 @@ static ASTNode* parse_primary(Parser* p) {
     }
 
     if (match(p, TOKEN_IDENTIFIER)) {
-        ASTIdentifier* id_node = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+        ASTIdentifier* id_node = (ASTIdentifier*)parser_ast_create(p, AST_IDENTIFIER);
         if (!id_node) return NULL;
         id_node->base.line = p->previous.line;
         id_node->base.col = p->previous.col;
-        id_node->name = (char*)malloc((size_t)p->previous.length + 1u);
+        id_node->name = (char*)parser_malloc(p, (size_t)p->previous.length + 1u);
         if (!id_node->name) {
             ast_destroy((ASTNode*)id_node);
             return NULL;
@@ -408,7 +441,7 @@ static ASTNode* parse_primary(Parser* p) {
     }
 
     if (match(p, TOKEN_KW_LOOP)) {
-        ASTLoop* loop = (ASTLoop*)ast_create(AST_LOOP);
+        ASTLoop* loop = (ASTLoop*)parser_ast_create(p, AST_LOOP);
         if (!loop) return NULL;
         loop->base.line = p->previous.line;
         loop->base.col = p->previous.col;
@@ -470,7 +503,7 @@ static ASTNode* parse_primary(Parser* p) {
         if (match(p, TOKEN_KW_LOOP)) {
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
             
-            ASTLoop* loop = (ASTLoop*)ast_create(AST_LOOP);
+            ASTLoop* loop = (ASTLoop*)parser_ast_create(p, AST_LOOP);
             if (!loop) return NULL;
             loop->base.line = p->previous.line;
             loop->base.col = p->previous.col;
@@ -495,7 +528,7 @@ static ASTNode* parse_primary(Parser* p) {
 
         /* Tuple Check: (expr, expr, ...) */
         if (p->current.type == TOKEN_COMMA) {
-            ASTTuple* tuple = (ASTTuple*)ast_create(AST_TUPLE);
+            ASTTuple* tuple = (ASTTuple*)parser_ast_create(p, AST_TUPLE);
             ASTNode* tail = expr;
             if (!tuple) {
                 ast_destroy(expr);
@@ -564,7 +597,7 @@ static ASTNode* parse_primary(Parser* p) {
     if (match(p, TOKEN_LBRACE)) {
         // { } Empty tuple check
         if (match(p, TOKEN_RBRACE)) {
-             ASTTuple* tuple = (ASTTuple*)ast_create(AST_TUPLE);
+             ASTTuple* tuple = (ASTTuple*)parser_ast_create(p, AST_TUPLE);
              if (!tuple) return NULL;
              tuple->base.line = p->previous.line;
              tuple->base.col = p->previous.col;
@@ -575,7 +608,7 @@ static ASTNode* parse_primary(Parser* p) {
         ASTNode* expr = parse_expression(p);
         if (!expr) return NULL;
         
-        ASTTuple* tuple = (ASTTuple*)ast_create(AST_TUPLE);
+        ASTTuple* tuple = (ASTTuple*)parser_ast_create(p, AST_TUPLE);
         ASTNode* tail = expr;
         if (!tuple) {
             ast_destroy(expr);
@@ -600,17 +633,17 @@ static ASTNode* parse_primary(Parser* p) {
     }
 
     if (match(p, TOKEN_AI)) {
-        ASTAiLogic* ai = (ASTAiLogic*)ast_create(AST_AI_LOGIC);
+        ASTAiLogic* ai = (ASTAiLogic*)parser_ast_create(p, AST_AI_LOGIC);
         ai->base.line = p->previous.line;
         ai->base.col = p->previous.col;
         if (p->current.type == TOKEN_STRING || p->current.type == TOKEN_IDENTIFIER) {
             Token t = p->current;
-            ai->query = malloc(t.length + 1);
+            ai->query = parser_malloc(p, t.length + 1);
             memcpy(ai->query, t.start, t.length);
             ai->query[t.length] = '\0';
             advance(p);
         } else {
-            ai->query = strdup("auto");
+            ai->query = parser_strdup(p, "auto");
         }
         return (ASTNode*)ai;
     }
@@ -621,7 +654,7 @@ static ASTNode* parse_primary(Parser* p) {
 
 static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
     if (type == AST_CAST) {
-        ASTCast* cast = (ASTCast*)ast_create(AST_CAST);
+        ASTCast* cast = (ASTCast*)parser_ast_create(p, AST_CAST);
         Token type_token;
         ASTIdentifier* target;
         if (!cast) return NULL;
@@ -637,14 +670,14 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
             (p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY)) {
             type_token = p->current;
             advance(p);
-            target = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+            target = (ASTIdentifier*)parser_ast_create(p, AST_IDENTIFIER);
             if (!target) {
                 ast_destroy((ASTNode*)cast);
                 return NULL;
             }
             target->base.line = type_token.line;
             target->base.col = type_token.col;
-            target->name = (char*)malloc((size_t)type_token.length + 1u);
+            target->name = (char*)parser_malloc(p, (size_t)type_token.length + 1u);
             if (!target->name) {
                 free(target);
                 ast_destroy((ASTNode*)cast);
@@ -661,14 +694,14 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
     }
 
     if (type == AST_PANIC) {
-        ASTPanic* panic = (ASTPanic*)ast_create(AST_PANIC);
+        ASTPanic* panic = (ASTPanic*)parser_ast_create(p, AST_PANIC);
         if (!panic) return NULL;
         panic->base.line = p->previous.line;
         panic->base.col = p->previous.col;
         if (match(p, TOKEN_LPAREN)) {
             if (match(p, TOKEN_STRING)) {
                 Token message = p->previous;
-                panic->message = (char*)malloc((size_t)message.length + 1u);
+                panic->message = (char*)parser_malloc(p, (size_t)message.length + 1u);
                 if (!panic->message) {
                     free(panic);
                     return NULL;
@@ -683,7 +716,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
         return (ASTNode*)panic;
     }
 
-    ASTCall* call = (ASTCall*)ast_create(type);
+    ASTCall* call = (ASTCall*)parser_ast_create(p, type);
     if (!call) return NULL;
     call->base.line = p->previous.line;
     call->base.col = p->previous.col;
@@ -694,12 +727,12 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
     if (type == AST_REG && match(p, TOKEN_DOT)) {
         if (match(p, TOKEN_IDENTIFIER)) {
             Token member = p->previous;
-            ASTIdentifier* id = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+            ASTIdentifier* id = (ASTIdentifier*)parser_ast_create(p, AST_IDENTIFIER);
             if (!id) {
                 ast_destroy((ASTNode*)call);
                 return NULL;
             }
-            id->name = (char*)malloc((size_t)member.length + 1u);
+            id->name = (char*)parser_malloc(p, (size_t)member.length + 1u);
             if (!id->name) {
                 ast_destroy((ASTNode*)id);
                 ast_destroy((ASTNode*)call);
@@ -738,7 +771,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
 }
 
 static ASTNode* parse_defer(Parser* p) {
-    ASTDefer* defer = (ASTDefer*)ast_create(AST_DEFER);
+    ASTDefer* defer = (ASTDefer*)parser_ast_create(p, AST_DEFER);
     if (!defer) return NULL;
     defer->base.line = p->previous.line;
     defer->base.col = p->previous.col;
@@ -767,14 +800,14 @@ static ASTNode* parse_use(Parser* p) {
             return NULL;
         }
         module_token = p->previous;
-        use = (ASTUse*)ast_create(AST_USE);
+        use = (ASTUse*)parser_ast_create(p, AST_USE);
         if (!use) {
             ast_destroy((ASTNode*)head);
             return NULL;
         }
         use->base.line = module_token.line;
         use->base.col = module_token.col;
-        use->module_name = (char*)malloc((size_t)module_token.length + 1u);
+        use->module_name = (char*)parser_malloc(p, (size_t)module_token.length + 1u);
         if (!use->module_name) {
             ast_destroy((ASTNode*)use);
             ast_destroy((ASTNode*)head);
@@ -793,7 +826,7 @@ static ASTNode* parse_use(Parser* p) {
                 return NULL;
             }
             alias_token = p->previous;
-            use->alias = (char*)malloc((size_t)alias_token.length + 1u);
+            use->alias = (char*)parser_malloc(p, (size_t)alias_token.length + 1u);
             if (!use->alias) {
                 ast_destroy((ASTNode*)use);
                 ast_destroy((ASTNode*)head);
@@ -813,7 +846,7 @@ static ASTNode* parse_use(Parser* p) {
 }
 
 static ASTNode* parse_thread_block(Parser* p, char* name) {
-    ASTThreadBlock* tb = (ASTThreadBlock*)ast_create(AST_THREAD_BLOCK);
+    ASTThreadBlock* tb = (ASTThreadBlock*)parser_ast_create(p, AST_THREAD_BLOCK);
     if (!tb) {
         free(name);
         return NULL;
@@ -843,7 +876,7 @@ static ASTNode* parse_postfix(Parser* p) {
                 return NULL;
             }
             Token member = p->previous;
-            ASTMemberAccess* node = (ASTMemberAccess*)ast_create(AST_MEMBER_ACCESS);
+            ASTMemberAccess* node = (ASTMemberAccess*)parser_ast_create(p, AST_MEMBER_ACCESS);
             if (!node) {
                 ast_destroy(expr);
                 return NULL;
@@ -851,7 +884,7 @@ static ASTNode* parse_postfix(Parser* p) {
             node->base.line = member.line;
             node->base.col = member.col;
             node->object = expr;
-            node->member_name = (char*)malloc((size_t)member.length + 1u);
+            node->member_name = (char*)parser_malloc(p, (size_t)member.length + 1u);
             if (!node->member_name) {
                 ast_destroy((ASTNode*)node);
                 return NULL;
@@ -860,7 +893,7 @@ static ASTNode* parse_postfix(Parser* p) {
             node->member_name[member.length] = '\0';
             expr = (ASTNode*)node;
         } else if (match(p, TOKEN_LPAREN)) {
-            ASTCall* call = (ASTCall*)ast_create(AST_FUNC_CALL);
+            ASTCall* call = (ASTCall*)parser_ast_create(p, AST_FUNC_CALL);
             if (!call) {
                 ast_destroy(expr);
                 return NULL;
@@ -886,7 +919,7 @@ static ASTNode* parse_postfix(Parser* p) {
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ARGS);
             expr = (ASTNode*)call;
         } else if (match(p, TOKEN_INC) || match(p, TOKEN_DEC)) {
-            ASTUnaryExpr* post = (ASTUnaryExpr*)ast_create(AST_POSTFIX_EXPR);
+            ASTUnaryExpr* post = (ASTUnaryExpr*)parser_ast_create(p, AST_POSTFIX_EXPR);
             if (!post) {
                 ast_destroy(expr);
                 return NULL;
@@ -910,7 +943,7 @@ static ASTNode* parse_unary(Parser* p) {
         ASTNode* operand = parse_unary(p);
         ASTUnaryExpr* unary;
         if (!operand) return NULL;
-        unary = (ASTUnaryExpr*)ast_create(AST_UNARY_EXPR);
+        unary = (ASTUnaryExpr*)parser_ast_create(p, AST_UNARY_EXPR);
         if (!unary) {
             ast_destroy(operand);
             return NULL;
@@ -926,7 +959,7 @@ static ASTNode* parse_unary(Parser* p) {
 
 // Binary expression construction keeps ownership of both operands on every path.
 static ASTNode* parser_make_binary(Parser* p, OmniTokenType op, ASTNode* left, ASTNode* right) {
-    ASTBinaryExpr* binary = (ASTBinaryExpr*)ast_create(AST_BINARY_EXPR);
+    ASTBinaryExpr* binary = (ASTBinaryExpr*)parser_ast_create(p, AST_BINARY_EXPR);
     if (!binary) {
         ast_destroy(left);
         ast_destroy(right);
@@ -1059,7 +1092,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         }
         
         if (op == TOKEN_PIPE || op == TOKEN_LSHIFT || op == TOKEN_RSHIFT || op == TOKEN_RELOCATE) {
-            ASTNexusFlow* pipe = (ASTNexusFlow*)ast_create(AST_NEXUS_PIPE);
+            ASTNexusFlow* pipe = (ASTNexusFlow*)parser_ast_create(p, AST_NEXUS_PIPE);
             if (!pipe) {
                 ast_destroy(expr);
                 ast_destroy(right);
@@ -1072,7 +1105,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             pipe->right = right;
             expr = (ASTNode*)pipe;
         } else {
-            ASTNexusFlow* flow = (ASTNexusFlow*)ast_create(AST_NEXUS_FLOW);
+            ASTNexusFlow* flow = (ASTNexusFlow*)parser_ast_create(p, AST_NEXUS_FLOW);
             if (!flow) {
                 ast_destroy(expr);
                 ast_destroy(right);
@@ -1090,7 +1123,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
     }
 
     if (match(p, TOKEN_UNPACK)) {
-        ASTUnpack* unpack = (ASTUnpack*)ast_create(AST_UNPACK);
+        ASTUnpack* unpack = (ASTUnpack*)parser_ast_create(p, AST_UNPACK);
         if (!unpack) {
             ast_destroy(expr);
             return NULL;
@@ -1125,14 +1158,14 @@ static ASTNode* parse_assignment(Parser* p) {
              return expr;
         }
         
-        ASTNexusCapture* capture = (ASTNexusCapture*)ast_create(AST_NEXUS_CAPTURE);
+        ASTNexusCapture* capture = (ASTNexusCapture*)parser_ast_create(p, AST_NEXUS_CAPTURE);
         if (!capture) {
             ast_destroy(expr);
             return NULL;
         }
         capture->base.line = p->previous.line;
         capture->base.col = p->previous.col;
-        capture->handler_name = strdup(((ASTIdentifier*)expr)->name);
+        capture->handler_name = parser_strdup(p, ((ASTIdentifier*)expr)->name);
         if (!capture->handler_name) {
             ast_destroy((ASTNode*)capture);
             ast_destroy(expr);
@@ -1153,7 +1186,7 @@ static ASTNode* parse_assignment(Parser* p) {
             ast_destroy(expr);
             return NULL;
         }
-        ASTBinaryExpr* assign = (ASTBinaryExpr*)ast_create(AST_ASSIGNMENT);
+        ASTBinaryExpr* assign = (ASTBinaryExpr*)parser_ast_create(p, AST_ASSIGNMENT);
         if (!assign) {
             ast_destroy(expr);
             ast_destroy(right);
@@ -1173,7 +1206,7 @@ static ASTNode* parse_assignment(Parser* p) {
             ast_destroy(expr);
             return NULL;
         }
-        ASTBinaryExpr* assign = (ASTBinaryExpr*)ast_create(AST_ASSIGNMENT);
+        ASTBinaryExpr* assign = (ASTBinaryExpr*)parser_ast_create(p, AST_ASSIGNMENT);
         if (!assign) {
             ast_destroy(expr);
             ast_destroy(right);
@@ -1228,7 +1261,7 @@ static ASTNode* parse_var_decl(Parser* p) {
     // Lexer "v:isim" şeklinde tek token döndürdüğü için ismi ayıklıyoruz
     int prefix_len = (t.type == TOKEN_PRE_VAR || t.type == TOKEN_PRE_CONST) ? 2 : 0;
     
-    ASTVarDecl* decl = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTVarDecl* decl = (ASTVarDecl*)parser_ast_create(p, AST_VAR_DECL);
     if (!decl) return NULL;
     decl->base.line = t.line;
     decl->base.col = t.col;
@@ -1236,7 +1269,7 @@ static ASTNode* parse_var_decl(Parser* p) {
     decl->inline_type = NULL;
     
     if (t.length > prefix_len) {
-        decl->name = (char*)malloc((size_t)(t.length - prefix_len) + 1u);
+        decl->name = (char*)parser_malloc(p, (size_t)(t.length - prefix_len) + 1u);
         if (!decl->name) { ast_destroy((ASTNode*)decl); return NULL; }
         memcpy(decl->name, t.start + prefix_len, (size_t)(t.length - prefix_len)); 
         decl->name[t.length - prefix_len] = '\0';
@@ -1244,7 +1277,7 @@ static ASTNode* parse_var_decl(Parser* p) {
         // Separated: v: name
         if (match(p, TOKEN_IDENTIFIER)) {
             Token id = p->previous;
-            decl->name = (char*)malloc((size_t)id.length + 1u);
+            decl->name = (char*)parser_malloc(p, (size_t)id.length + 1u);
             if (!decl->name) { ast_destroy((ASTNode*)decl); return NULL; }
             memcpy(decl->name, id.start, (size_t)id.length);
             decl->name[id.length] = '\0';
@@ -1260,10 +1293,10 @@ static ASTNode* parse_var_decl(Parser* p) {
         decl->is_hard_typed = 1;
         
         if (match(p, TOKEN_KW_STRUCT)) {
-             decl->type_name = strdup("struct");
+             decl->type_name = parser_strdup(p, "struct");
              if (!decl->type_name) { ast_destroy((ASTNode*)decl); return NULL; }
              if (p->current.type == TOKEN_LBRACE) {
-                 ASTStructDecl* sdecl = (ASTStructDecl*)ast_create(AST_STRUCT_DECL);
+                 ASTStructDecl* sdecl = (ASTStructDecl*)parser_ast_create(p, AST_STRUCT_DECL);
                  if (!sdecl) { ast_destroy((ASTNode*)decl); return NULL; }
                  sdecl->base.line = p->previous.line;
                  sdecl->base.col = p->previous.col;
@@ -1271,10 +1304,10 @@ static ASTNode* parse_var_decl(Parser* p) {
                  decl->inline_type = (ASTNode*)sdecl;
              }
         } else if (match(p, TOKEN_KW_UNION)) {
-             decl->type_name = strdup("union");
+             decl->type_name = parser_strdup(p, "union");
              if (!decl->type_name) { ast_destroy((ASTNode*)decl); return NULL; }
              if (p->current.type == TOKEN_LBRACE) {
-                 ASTStructDecl* sdecl = (ASTStructDecl*)ast_create(AST_UNION_DECL);
+                 ASTStructDecl* sdecl = (ASTStructDecl*)parser_ast_create(p, AST_UNION_DECL);
                  if (!sdecl) { ast_destroy((ASTNode*)decl); return NULL; }
                  sdecl->base.line = p->previous.line;
                  sdecl->base.col = p->previous.col;
@@ -1284,7 +1317,7 @@ static ASTNode* parse_var_decl(Parser* p) {
              }
         } else if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) || p->current.type == TOKEN_IDENTIFIER) {
              Token type_token = p->current;
-             decl->type_name = (char*)malloc((size_t)type_token.length + 1u);
+             decl->type_name = (char*)parser_malloc(p, (size_t)type_token.length + 1u);
              if (!decl->type_name) { ast_destroy((ASTNode*)decl); return NULL; }
              memcpy(decl->type_name, type_token.start, (size_t)type_token.length);
              decl->type_name[type_token.length] = '\0';
@@ -1310,7 +1343,7 @@ static ASTNode* parse_var_decl(Parser* p) {
 }
 
 static ASTNode* parse_return_statement(Parser* p) {
-    ASTUnaryExpr* ret = (ASTUnaryExpr*)ast_create(AST_RETURN);
+    ASTUnaryExpr* ret = (ASTUnaryExpr*)parser_ast_create(p, AST_RETURN);
     if (!ret) return NULL;
     ret->base.line = p->previous.line;
     ret->base.col = p->previous.col;
@@ -1330,7 +1363,7 @@ static ASTNode* parse_return_statement(Parser* p) {
 }
 
 static ASTNode* parse_func_decl(Parser* p) {
-    ASTFuncDecl* func = (ASTFuncDecl*)ast_create(AST_FUNC_DECL);
+    ASTFuncDecl* func = (ASTFuncDecl*)parser_ast_create(p, AST_FUNC_DECL);
     ASTNode* param_tail = NULL;
     if (!func) return NULL;
     func->base.line = p->previous.line;
@@ -1342,7 +1375,7 @@ static ASTNode* parse_func_decl(Parser* p) {
             ast_destroy((ASTNode*)func);
             return NULL;
         }
-        func->name = (char*)malloc((size_t)t.length - 1u);
+        func->name = (char*)parser_malloc(p, (size_t)t.length - 1u);
         if (!func->name) {
             ast_destroy((ASTNode*)func);
             return NULL;
@@ -1351,7 +1384,7 @@ static ASTNode* parse_func_decl(Parser* p) {
         func->name[t.length - 2] = '\0';
     } else if (match(p, TOKEN_IDENTIFIER)) {
         Token t = p->previous;
-        func->name = (char*)malloc((size_t)t.length + 1u);
+        func->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
         if (!func->name) {
             ast_destroy((ASTNode*)func);
             return NULL;
@@ -1374,7 +1407,7 @@ static ASTNode* parse_func_decl(Parser* p) {
                 return NULL;
             }
             param_token = p->previous;
-            param = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+            param = (ASTVarDecl*)parser_ast_create(p, AST_VAR_DECL);
             if (!param) {
                 ast_destroy((ASTNode*)func);
                 return NULL;
@@ -1382,7 +1415,7 @@ static ASTNode* parse_func_decl(Parser* p) {
             param->base.line = param_token.line;
             param->base.col = param_token.col;
             param->is_const = 0;
-            param->name = (char*)malloc((size_t)param_token.length + 1u);
+            param->name = (char*)parser_malloc(p, (size_t)param_token.length + 1u);
             if (!param->name) {
                 ast_destroy((ASTNode*)param);
                 ast_destroy((ASTNode*)func);
@@ -1401,7 +1434,7 @@ static ASTNode* parse_func_decl(Parser* p) {
                 Token type_token = p->current;
                 size_t type_length = (size_t)type_token.length;
                 size_t total_length = type_length + (has_bang ? 1u : 0u);
-                param->type_name = (char*)malloc(total_length + 1u);
+                param->type_name = (char*)parser_malloc(p, total_length + 1u);
                 if (!param->type_name) {
                     ast_destroy((ASTNode*)func);
                     return NULL;
@@ -1427,13 +1460,13 @@ static ASTNode* parse_func_decl(Parser* p) {
             ast_destroy((ASTNode*)func);
             return NULL;
         }
-        block = (ASTBlock*)ast_create(AST_BLOCK);
+        block = (ASTBlock*)parser_ast_create(p, AST_BLOCK);
         if (!block) {
             ast_destroy(expr);
             ast_destroy((ASTNode*)func);
             return NULL;
         }
-        ret = (ASTUnaryExpr*)ast_create(AST_RETURN);
+        ret = (ASTUnaryExpr*)parser_ast_create(p, AST_RETURN);
         if (!ret) {
             ast_destroy(expr);
             ast_destroy((ASTNode*)block);
@@ -1459,7 +1492,7 @@ static ASTNode* parse_func_decl(Parser* p) {
             Token type_token = p->current;
             size_t type_length = (size_t)type_token.length;
             size_t total_length = type_length + (has_bang ? 1u : 0u);
-            func->return_type = (char*)malloc(total_length + 1u);
+            func->return_type = (char*)parser_malloc(p, total_length + 1u);
             if (!func->return_type) {
                 ast_destroy((ASTNode*)func);
                 return NULL;
@@ -1487,7 +1520,7 @@ static ASTNode* parse_func_decl(Parser* p) {
 }
 
 static ASTNode* parse_block(Parser* p) {
-    ASTBlock* block = (ASTBlock*)ast_create(AST_BLOCK);
+    ASTBlock* block = (ASTBlock*)parser_ast_create(p, AST_BLOCK);
     if (!block) return NULL;
     block->base.line = p->current.line; // { karakterinin konumu
     block->base.col = p->current.col;
@@ -1510,7 +1543,7 @@ static ASTNode* parse_block(Parser* p) {
 }
 
 static ASTNode* parse_struct_decl(Parser* p, int is_packed, char* name) {
-    ASTStructDecl* decl = (ASTStructDecl*)ast_create(AST_STRUCT_DECL);
+    ASTStructDecl* decl = (ASTStructDecl*)parser_ast_create(p, AST_STRUCT_DECL);
     if (!decl) { free(name); return NULL; }
     decl->base.line = p->previous.line;
     decl->base.col = p->previous.col;
@@ -1523,18 +1556,18 @@ static ASTNode* parse_struct_decl(Parser* p, int is_packed, char* name) {
             Token t = p->previous;
             if (t.length > 7) {
                 size_t n = (size_t)t.length - 7u;
-                decl->name = (char*)malloc(n + 1u);
+                decl->name = (char*)parser_malloc(p, n + 1u);
                 if (decl->name) { memcpy(decl->name, t.start + 7, n); decl->name[n] = '\0'; }
             } else if (match(p, TOKEN_IDENTIFIER)) {
                 Token id = p->previous;
-                decl->name = (char*)malloc((size_t)id.length + 1u);
+                decl->name = (char*)parser_malloc(p, (size_t)id.length + 1u);
                 if (decl->name) { memcpy(decl->name, id.start, (size_t)id.length); decl->name[id.length] = '\0'; }
             }
         } else {
             if (p->current.type == TOKEN_COLON) advance(p);
             if (match(p, TOKEN_IDENTIFIER)) {
                 Token t = p->previous;
-                decl->name = (char*)malloc((size_t)t.length + 1u);
+                decl->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
                 if (decl->name) { memcpy(decl->name, t.start, (size_t)t.length); decl->name[t.length] = '\0'; }
             }
         }
@@ -1548,7 +1581,7 @@ static ASTNode* parse_struct_decl(Parser* p, int is_packed, char* name) {
 }
 
 static ASTNode* parse_union_decl(Parser* p, char* name) {
-    ASTStructDecl* decl = (ASTStructDecl*)ast_create(AST_UNION_DECL);
+    ASTStructDecl* decl = (ASTStructDecl*)parser_ast_create(p, AST_UNION_DECL);
     if (!decl) { free(name); return NULL; }
     decl->base.line = p->previous.line;
     decl->base.col = p->previous.col;
@@ -1561,18 +1594,18 @@ static ASTNode* parse_union_decl(Parser* p, char* name) {
             Token t = p->previous;
             if (t.length > 6) {
                 size_t n = (size_t)t.length - 6u;
-                decl->name = (char*)malloc(n + 1u);
+                decl->name = (char*)parser_malloc(p, n + 1u);
                 if (decl->name) { memcpy(decl->name, t.start + 6, n); decl->name[n] = '\0'; }
             } else if (match(p, TOKEN_IDENTIFIER)) {
                 Token id = p->previous;
-                decl->name = (char*)malloc((size_t)id.length + 1u);
+                decl->name = (char*)parser_malloc(p, (size_t)id.length + 1u);
                 if (decl->name) { memcpy(decl->name, id.start, (size_t)id.length); decl->name[id.length] = '\0'; }
             }
         } else {
             if (p->current.type == TOKEN_COLON) advance(p);
             if (match(p, TOKEN_IDENTIFIER)) {
                 Token t = p->previous;
-                decl->name = (char*)malloc((size_t)t.length + 1u);
+                decl->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
                 if (decl->name) { memcpy(decl->name, t.start, (size_t)t.length); decl->name[t.length] = '\0'; }
             }
         }
@@ -1586,7 +1619,7 @@ static ASTNode* parse_union_decl(Parser* p, char* name) {
 }
 
 static ASTNode* parse_enum_decl(Parser* p, char* name) {
-    ASTEnumDecl* decl = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    ASTEnumDecl* decl = (ASTEnumDecl*)parser_ast_create(p, AST_ENUM_DECL);
     ASTNode* head = NULL;
     ASTNode* tail = NULL;
     if (!decl) { free(name); return NULL; }
@@ -1598,18 +1631,18 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
             Token t = p->previous;
             if (t.length > 5) {
                 size_t n = (size_t)t.length - 5u;
-                decl->name = (char*)malloc(n + 1u);
+                decl->name = (char*)parser_malloc(p, n + 1u);
                 if (decl->name) { memcpy(decl->name, t.start + 5, n); decl->name[n] = '\0'; }
             } else if (match(p, TOKEN_IDENTIFIER)) {
                 Token id = p->previous;
-                decl->name = (char*)malloc((size_t)id.length + 1u);
+                decl->name = (char*)parser_malloc(p, (size_t)id.length + 1u);
                 if (decl->name) { memcpy(decl->name, id.start, (size_t)id.length); decl->name[id.length] = '\0'; }
             }
         } else {
             if (p->current.type == TOKEN_COLON) advance(p);
             if (match(p, TOKEN_IDENTIFIER)) {
                 Token t = p->previous;
-                decl->name = (char*)malloc((size_t)t.length + 1u);
+                decl->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
                 if (decl->name) { memcpy(decl->name, t.start, (size_t)t.length); decl->name[t.length] = '\0'; }
             }
         }
@@ -1628,9 +1661,9 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
             continue;
         }
         vt = p->previous;
-        var = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+        var = (ASTEnumVariant*)parser_ast_create(p, AST_ENUM_VARIANT);
         if (!var) { ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
-        var->name = (char*)malloc((size_t)vt.length + 1u);
+        var->name = (char*)parser_malloc(p, (size_t)vt.length + 1u);
         if (!var->name) { ast_destroy((ASTNode*)var); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
         memcpy(var->name, vt.start, (size_t)vt.length);
         var->name[vt.length] = '\0';
@@ -1645,16 +1678,16 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
                 Token ft;
                 if (!match(p, TOKEN_IDENTIFIER)) { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expect field name in enum variant."); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                 ft = p->previous;
-                field = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+                field = (ASTVarDecl*)parser_ast_create(p, AST_VAR_DECL);
                 if (!field) { ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                 field->base.line = ft.line; field->base.col = ft.col; field->is_const = 1;
-                field->name = (char*)malloc((size_t)ft.length + 1u);
+                field->name = (char*)parser_malloc(p, (size_t)ft.length + 1u);
                 if (!field->name) { ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                 memcpy(field->name, ft.start, (size_t)ft.length); field->name[ft.length] = '\0';
                 if (!match(p, TOKEN_NOT)) { error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN, msg_get(MSG_EXPECT_TYPE_BANG)); ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                 if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) || p->current.type == TOKEN_IDENTIFIER) {
                     Token tt = p->current;
-                    field->type_name = (char*)malloc((size_t)tt.length + 1u);
+                    field->type_name = (char*)parser_malloc(p, (size_t)tt.length + 1u);
                     if (!field->type_name) { ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                     memcpy(field->type_name, tt.start, (size_t)tt.length); field->type_name[tt.length] = '\0';
                     field->is_hard_typed = 1; advance(p);
@@ -1681,7 +1714,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
         error_at(p, &p->previous, ERR_PARSER_INVALID_VAR, msg_get(ERR_PARSER_INVALID_VAR));
         return NULL;
     }
-    raw = (char*)malloc((size_t)t.length + 1u);
+    raw = (char*)parser_malloc(p, (size_t)t.length + 1u);
     if (!raw) return NULL;
     memcpy(raw, t.start, (size_t)t.length);
     raw[t.length] = '\0';
@@ -1694,7 +1727,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
             (strncmp(name_part, "enum:", 5) == 0 ? 2 : 3);
         size_t prefix = kind == 1 ? 7u : (kind == 2 ? 5u : 6u);
         size_t n = strlen(name_part + prefix);
-        decl_name = (char*)malloc(n + 1u);
+        decl_name = (char*)parser_malloc(p, n + 1u);
         if (!decl_name) { free(raw); return NULL; }
         memcpy(decl_name, name_part + prefix, n + 1u);
         free(raw);
@@ -1723,7 +1756,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                 advance(p);
                 if (prefix > 0u && kt.length > (int)prefix) {
                     size_t n = (size_t)kt.length - prefix;
-                    decl_name = (char*)malloc(n + 1u);
+                    decl_name = (char*)parser_malloc(p, n + 1u);
                     if (!decl_name) return NULL;
                     memcpy(decl_name, kt.start + prefix, n);
                     decl_name[n] = '\0';
@@ -1734,7 +1767,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
             }
             if (p->current.type == TOKEN_LBRACE) {
                 if (kind == 1 || kind == 3) {
-                    ASTStructDecl* aggregate = (ASTStructDecl*)ast_create(kind == 1 ? AST_STRUCT_DECL : AST_UNION_DECL);
+                    ASTStructDecl* aggregate = (ASTStructDecl*)parser_ast_create(p, kind == 1 ? AST_STRUCT_DECL : AST_UNION_DECL);
                     ASTNode* head = NULL;
                     ASTNode* tail = NULL;
                     if (!aggregate) return NULL;
@@ -1766,14 +1799,14 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                         return NULL;
                     }
                     t = p->previous;
-                    aggregate->name = (char*)malloc((size_t)t.length + 1u);
+                    aggregate->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
                     if (!aggregate->name) { ast_destroy((ASTNode*)aggregate); return NULL; }
                     memcpy(aggregate->name, t.start, (size_t)t.length);
                     aggregate->name[t.length] = '\0';
                     consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
                     return (ASTNode*)aggregate;
                 } else {
-                    ASTEnumDecl* aggregate = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+                    ASTEnumDecl* aggregate = (ASTEnumDecl*)parser_ast_create(p, AST_ENUM_DECL);
                     ASTNode* head = NULL;
                     ASTNode* tail = NULL;
                     if (!aggregate) return NULL;
@@ -1781,10 +1814,10 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                     consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
                     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
                         if (match(p, TOKEN_IDENTIFIER)) {
-                            ASTEnumVariant* variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+                            ASTEnumVariant* variant = (ASTEnumVariant*)parser_ast_create(p, AST_ENUM_VARIANT);
                             if (!variant) { ast_destroy(head); ast_destroy((ASTNode*)aggregate); return NULL; }
                             t = p->previous;
-                            variant->name = (char*)malloc((size_t)t.length + 1u);
+                            variant->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
                             if (!variant->name) { ast_destroy((ASTNode*)variant); ast_destroy(head); ast_destroy((ASTNode*)aggregate); return NULL; }
                             memcpy(variant->name, t.start, (size_t)t.length);
                             variant->name[t.length] = '\0';
@@ -1811,7 +1844,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                         return NULL;
                     }
                     t = p->previous;
-                    aggregate->name = (char*)malloc((size_t)t.length + 1u);
+                    aggregate->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
                     if (!aggregate->name) { ast_destroy((ASTNode*)aggregate); return NULL; }
                     memcpy(aggregate->name, t.start, (size_t)t.length);
                     aggregate->name[t.length] = '\0';
@@ -1822,7 +1855,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
             if (p->current.type == TOKEN_COLON) advance(p);
             if (match(p, TOKEN_IDENTIFIER)) {
                 t = p->previous;
-                decl_name = (char*)malloc((size_t)t.length + 1u);
+                decl_name = (char*)parser_malloc(p, (size_t)t.length + 1u);
                 if (!decl_name) return NULL;
                 memcpy(decl_name, t.start, (size_t)t.length);
                 decl_name[t.length] = '\0';
@@ -1839,10 +1872,10 @@ static ASTNode* parse_newtype_decl(Parser* p) {
     }
 
     {
-        ASTNewTypeDecl* decl = (ASTNewTypeDecl*)ast_create(AST_NEWTYPE_DECL);
+        ASTNewTypeDecl* decl = (ASTNewTypeDecl*)parser_ast_create(p, AST_NEWTYPE_DECL);
         size_t name_length = strlen(name_part);
         if (!decl) { free(raw); return NULL; }
-        decl->name = (char*)malloc(name_length + 1u);
+        decl->name = (char*)parser_malloc(p, name_length + 1u);
         if (!decl->name) { free(raw); ast_destroy((ASTNode*)decl); return NULL; }
         memcpy(decl->name, name_part, name_length + 1u);
         free(raw);
@@ -1850,7 +1883,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
         if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
             p->current.type == TOKEN_IDENTIFIER) {
             Token type_token = p->current;
-            decl->target_type = (char*)malloc((size_t)type_token.length + 1u);
+            decl->target_type = (char*)parser_malloc(p, (size_t)type_token.length + 1u);
             if (!decl->target_type) { ast_destroy((ASTNode*)decl); return NULL; }
             memcpy(decl->target_type, type_token.start, (size_t)type_token.length);
             decl->target_type[type_token.length] = '\0';
@@ -1866,14 +1899,14 @@ static ASTNode* parse_newtype_decl(Parser* p) {
 }
 
 static ASTNode* parse_group_decl(Parser* p) {
-    ASTGroupDecl* group = (ASTGroupDecl*)ast_create(AST_GROUP_DECL);
+    ASTGroupDecl* group = (ASTGroupDecl*)parser_ast_create(p, AST_GROUP_DECL);
     ASTNode* head = NULL;
     ASTNode* tail = NULL;
     if (!group) return NULL;
     group->base.line = p->previous.line; group->base.col = p->previous.col;
     if (match(p, TOKEN_IDENTIFIER)) {
         Token t = p->previous;
-        group->name = (char*)malloc((size_t)t.length + 1u);
+        group->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
         if (!group->name) { ast_destroy((ASTNode*)group); return NULL; }
         memcpy(group->name, t.start, (size_t)t.length); group->name[t.length] = '\0';
     }
@@ -1881,11 +1914,11 @@ static ASTNode* parse_group_decl(Parser* p) {
     while (!check(p, TOKEN_RBRACE) && !check(p, TOKEN_EOF)) {
         ASTNode* member = NULL;
         if (p->current.type == TOKEN_IDENTIFIER && peek_token(p).type == TOKEN_FAT_ARROW) {
-            ASTMethod* method = (ASTMethod*)ast_create(AST_METHOD);
+            ASTMethod* method = (ASTMethod*)parser_ast_create(p, AST_METHOD);
             Token mt = p->current;
             if (!method) { ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
             method->base.line = mt.line; method->base.col = mt.col;
-            method->public_name = (char*)malloc((size_t)mt.length + 1u);
+            method->public_name = (char*)parser_malloc(p, (size_t)mt.length + 1u);
             if (!method->public_name) { ast_destroy((ASTNode*)method); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
             memcpy(method->public_name, mt.start, (size_t)mt.length); method->public_name[mt.length] = '\0';
             advance(p); advance(p);
@@ -1929,7 +1962,7 @@ static ASTNode* parse_statement(Parser* p) {
     if (p->panic_mode) p->panic_mode = 0; // Her yeni ifadede hata modunu sıfırla (Basit senkronizasyon)
 
     if (match(p, TOKEN_SEMICOLON)) {
-        ASTBlock* nop = (ASTBlock*)ast_create(AST_BLOCK);
+        ASTBlock* nop = (ASTBlock*)parser_ast_create(p, AST_BLOCK);
         if (!nop) return NULL;
         nop->base.line = p->previous.line;
         nop->base.col = p->previous.col;
@@ -1993,7 +2026,7 @@ static ASTNode* parse_statement(Parser* p) {
                     advance(p); // name
                     advance(p); // )
                     advance(p); // >{
-                    char* name = (char*)malloc((size_t)name_tok.length + 1u);
+                    char* name = (char*)parser_malloc(p, (size_t)name_tok.length + 1u);
                     if (!name) return NULL;
                     memcpy(name, name_tok.start, (size_t)name_tok.length);
                     name[name_tok.length] = '\0';
@@ -2016,11 +2049,11 @@ static ASTNode* parse_statement(Parser* p) {
                 consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
                 consume(p, TOKEN_COLON, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_COLON_VAR);
                 
-                ASTNexusCapture* listen = (ASTNexusCapture*)ast_create(AST_LISTEN);
+                ASTNexusCapture* listen = (ASTNexusCapture*)parser_ast_create(p, AST_LISTEN);
                 if (!listen) return NULL;
                 listen->base.line = p->previous.line;
                 listen->base.col = p->previous.col;
-                listen->handler_name = strdup("global_listener");
+                listen->handler_name = parser_strdup(p, "global_listener");
                 if (!listen->handler_name) {
                     ast_destroy((ASTNode*)listen);
                     return NULL;
@@ -2047,12 +2080,12 @@ static ASTNode* parse_statement(Parser* p) {
         // ?>(label);
         consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC);
         if (match(p, TOKEN_IDENTIFIER)) {
-            ASTNexusJump* jmp = (ASTNexusJump*)ast_create(AST_NEXUS_JUMP);
+            ASTNexusJump* jmp = (ASTNexusJump*)parser_ast_create(p, AST_NEXUS_JUMP);
             Token t = p->previous;
             if (!jmp) return NULL;
             jmp->base.line = t.line;
             jmp->base.col = t.col;
-            jmp->label_name = (char*)malloc((size_t)t.length + 1u);
+            jmp->label_name = (char*)parser_malloc(p, (size_t)t.length + 1u);
             if (!jmp->label_name) {
                 ast_destroy((ASTNode*)jmp);
                 return NULL;
@@ -2067,7 +2100,7 @@ static ASTNode* parse_statement(Parser* p) {
     }
 
     if (match(p, TOKEN_HALT)) {
-        ASTHalt* halt = (ASTHalt*)ast_create(AST_NEXUS_HALT);
+        ASTHalt* halt = (ASTHalt*)parser_ast_create(p, AST_NEXUS_HALT);
         if (!halt) return NULL;
         halt->base.line = p->previous.line;
         halt->base.col = p->previous.col;
@@ -2083,13 +2116,13 @@ static ASTNode* parse_statement(Parser* p) {
     }
 
     if (match(p, TOKEN_INTENT)) {
-        ASTIntent* in = (ASTIntent*)ast_create(AST_NEXUS_INTENT);
+        ASTIntent* in = (ASTIntent*)parser_ast_create(p, AST_NEXUS_INTENT);
         if (!in) return NULL;
         in->base.line = p->previous.line;
         in->base.col = p->previous.col;
         if (match(p, TOKEN_IDENTIFIER)) {
             Token t = p->previous;
-            in->intent_name = (char*)malloc((size_t)t.length + 1u);
+            in->intent_name = (char*)parser_malloc(p, (size_t)t.length + 1u);
             if (!in->intent_name) {
                 ast_destroy((ASTNode*)in);
                 return NULL;
@@ -2110,13 +2143,13 @@ static ASTNode* parse_statement(Parser* p) {
     }
 
     if (match(p, TOKEN_FORCE)) {
-        ASTPanic* panic = (ASTPanic*)ast_create(AST_PANIC);
+        ASTPanic* panic = (ASTPanic*)parser_ast_create(p, AST_PANIC);
         if (!panic) return NULL;
         panic->base.line = p->previous.line;
         panic->base.col = p->previous.col;
         if (match(p, TOKEN_STRING)) {
             Token t = p->previous;
-            panic->message = (char*)malloc((size_t)t.length + 1u);
+            panic->message = (char*)parser_malloc(p, (size_t)t.length + 1u);
             if (!panic->message) {
                 ast_destroy((ASTNode*)panic);
                 return NULL;
@@ -2124,7 +2157,7 @@ static ASTNode* parse_statement(Parser* p) {
             memcpy(panic->message, t.start, (size_t)t.length);
             panic->message[t.length] = '\0';
         } else {
-            panic->message = strdup("Critical Panic");
+            panic->message = parser_strdup(p, "Critical Panic");
             if (!panic->message) {
                 ast_destroy((ASTNode*)panic);
                 return NULL;
@@ -2152,13 +2185,13 @@ static ASTNode* parse_statement(Parser* p) {
         if (target->type == AST_IDENTIFIER) {
             ASTIdentifier* id = (ASTIdentifier*)target;
             size_t length = strlen(id->name);
-            label_name = (char*)malloc(length + 1u);
+            label_name = (char*)parser_malloc(p, length + 1u);
             if (label_name) memcpy(label_name, id->name, length + 1u);
         } else if (target->type == AST_LITERAL) {
             ASTLiteral* lit = (ASTLiteral*)target;
             size_t length = lit->string_value ? strlen(lit->string_value) : 0u;
             if (lit->string_value) {
-                label_name = (char*)malloc(length + 1u);
+                label_name = (char*)parser_malloc(p, length + 1u);
                 if (label_name) memcpy(label_name, lit->string_value, length + 1u);
             }
         } else {
@@ -2170,7 +2203,7 @@ static ASTNode* parse_statement(Parser* p) {
             return NULL;
         }
 
-        ASTNexusLabel* lbl = (ASTNexusLabel*)ast_create(AST_NEXUS_LABEL);
+        ASTNexusLabel* lbl = (ASTNexusLabel*)parser_ast_create(p, AST_NEXUS_LABEL);
         if (!lbl) {
             free(label_name);
             ast_destroy(expr);
@@ -2200,7 +2233,12 @@ static ASTNode* parse_statement(Parser* p) {
 }
 
 int parser_run(ParserContext* ctx) {
-    if (!ctx || !ctx->source_buffer || ctx->ast_root) return 1;
+    if (!ctx) return PARSER_STATUS_INVALID_STATE;
+    if (!ctx->source_buffer || ctx->ast_root) {
+        ctx->status = PARSER_STATUS_INVALID_STATE;
+        return (int)ctx->status;
+    }
+    ctx->status = PARSER_STATUS_OK;
     printf("%s\n", msg_get(MSG_PARSER_START));
 
     Parser parser;
@@ -2213,8 +2251,8 @@ int parser_run(ParserContext* ctx) {
 
     advance(&parser); // İlk tokeni yükle
 
-    ASTProgram* program = (ASTProgram*)ast_create(AST_PROGRAM);
-    if (!program) return 1;
+    ASTProgram* program = (ASTProgram*)parser_ast_create(p, AST_PROGRAM);
+    if (!program) return (int)ctx->status;
     program->base.line = 1;
     program->base.col = 1;
     ctx->ast_root = (void*)program; /* Keep partial trees owned by the context on parse failure. */
@@ -2232,13 +2270,20 @@ int parser_run(ParserContext* ctx) {
                 current_stmt = stmt;
             }
         } else {
+            if (ctx->status == PARSER_STATUS_OUT_OF_MEMORY) return (int)ctx->status;
+            if (!parser.had_error) {
+                ctx->status = PARSER_STATUS_INVALID_STATE;
+                return (int)ctx->status;
+            }
             // Hata durumunda sonsuz döngüyü önlemek için ilerle
             advance(&parser);
         }
     }
 
+    if (ctx->status == PARSER_STATUS_OUT_OF_MEMORY) return (int)ctx->status;
     if (parser.had_error) {
-        return 1;
+        ctx->status = PARSER_STATUS_SYNTAX_ERROR;
+        return (int)ctx->status;
     }
 
     printf("%s\n", msg_get(MSG_PARSER_SUCCESS));
@@ -2249,7 +2294,12 @@ int parser_run(ParserContext* ctx) {
         ast_print((ASTNode*)program);
     }
     
-    return 0;
+    ctx->status = PARSER_STATUS_OK;
+    return (int)ctx->status;
+}
+
+ParserStatus parser_get_status(const ParserContext* ctx) {
+    return ctx ? ctx->status : PARSER_STATUS_INVALID_STATE;
 }
 
 // --- Levenshtein Similarity Helper (ULTRA) ---
@@ -2276,7 +2326,10 @@ static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int c
         (void)occ_diagnostics_add(ctx->diagnostics, &input);
     }
     Error* err = (Error*)calloc(1u, sizeof(*err));
-    if (!err) return;
+    if (!err) {
+        ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
+        return;
+    }
     err->code = code;
     err->filename = strdup(ctx->filename ? ctx->filename : "<unknown>");
     err->message = strdup(message ? message : "");
@@ -2289,6 +2342,7 @@ static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int c
         free(err->suggestion);
         free(err->hint);
         free(err);
+        ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
         return;
     }
     err->line = line;
