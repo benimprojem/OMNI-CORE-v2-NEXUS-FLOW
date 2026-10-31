@@ -133,6 +133,8 @@ typedef struct {
     
     // Hata Durumu
     ParserStatus status;
+    size_t test_allocation_count;
+    size_t test_fail_allocation_at;
     int error_count;
     Error* error_head;
     Error* error_tail;
@@ -158,6 +160,8 @@ OCC_API int parser_attach_token_stream(
 );
 OCC_API int parser_run(ParserContext* ctx);
 OCC_API ParserStatus parser_get_status(const ParserContext* ctx);
+/* Deterministic allocation-failure injection for parser regression tests; 0 disables it. */
+OCC_API void parser_test_fail_allocation_at(ParserContext* ctx, size_t allocation_index);
 OCC_API void parser_destroy(ParserContext* ctx);
 OCC_API void parser_print_errors(ParserContext* ctx);
 OCC_API int parser_save_ir(ParserContext* ctx, const char* path);
