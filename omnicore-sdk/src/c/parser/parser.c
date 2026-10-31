@@ -1273,7 +1273,7 @@ static ASTNode* parse_var_decl(Parser* p) {
                  sdecl->base.line = p->previous.line;
                  sdecl->base.col = p->previous.col;
                  sdecl->is_union = 1;
-                 parse_struct_body(p, sdecl);
+                 if (!parse_struct_body(p, sdecl)) { ast_destroy((ASTNode*)sdecl); ast_destroy((ASTNode*)decl); return NULL; }
                  decl->inline_type = (ASTNode*)sdecl;
              }
         } else if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) || p->current.type == TOKEN_IDENTIFIER) {
