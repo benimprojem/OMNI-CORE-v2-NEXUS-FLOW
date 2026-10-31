@@ -1156,4 +1156,7 @@ void semantic_destroy(SemanticContext* ctx) {
     }
     ctx->error_head = NULL;
     ctx->error_tail = NULL;
+    semantic_result_destroy(&ctx->result);
+    ctx->result_enabled = 0u;
+    ctx->current_scope_id = 0u;
 }
