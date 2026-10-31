@@ -5,6 +5,7 @@
 #include "ast.h"
 #include "oir_ast_frontend_writer.h"
 #include "oir_ast_frontend_reader.h"
+#include "oir_ast_artifact.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -57,12 +58,68 @@ done:
     return status;
 }
 
+
+static OirStatus encode_ast_artifact(
+    ASTNode* root,uint64_t job_id,uint8_t** out_artifact,size_t* out_length
+) {
+    size_t index_capacity=1024u;
+    OirAstPointerIndexEntry* index=NULL;
+    OirAstNodeRecord* records=NULL;
+    uint8_t* fields=NULL;
+    uint8_t* strings=NULL;
+    uint8_t* payload=NULL;
+    uint8_t* artifact=NULL;
+    uint32_t node_count=0u;
+    size_t written=0u,artifact_capacity;
+    OirAstFrontendRequirements req;
+    OirStatus status;
+
+    *out_artifact=NULL; *out_length=0u;
+    for(;;) {
+        free(index);
+        index=(OirAstPointerIndexEntry*)calloc(index_capacity,sizeof(*index));
+        if(!index) { status=OIR_STATUS_OUT_OF_MEMORY; goto done; }
+        status=oir_ast_frontend_index_build(root,index,index_capacity,&node_count);
+        if(status!=OIR_STATUS_BUFFER_TOO_SMALL) break;
+        if(index_capacity>=2097152u) goto done;
+        index_capacity*=2u;
+    }
+    if(status!=OIR_STATUS_OK) goto done;
+    status=oir_ast_frontend_measure(root,index,index_capacity,node_count,&req);
+    if(status!=OIR_STATUS_OK) goto done;
+    if(req.payload_size>SIZE_MAX-OIR_HEADER_SIZE-OIR_SECTION_HEADER_SIZE) {
+        status=OIR_STATUS_OVERFLOW; goto done;
+    }
+    artifact_capacity=OIR_HEADER_SIZE+OIR_SECTION_HEADER_SIZE+req.payload_size;
+    records=(OirAstNodeRecord*)calloc(node_count,sizeof(*records));
+    fields=req.field_data_length?(uint8_t*)malloc(req.field_data_length):NULL;
+    strings=req.string_table_length?(uint8_t*)malloc(req.string_table_length):NULL;
+    payload=(uint8_t*)malloc(req.payload_size);
+    artifact=(uint8_t*)malloc(artifact_capacity);
+    if(!records || (req.field_data_length && !fields) ||
+        (req.string_table_length && !strings) || !payload || !artifact) {
+        status=OIR_STATUS_OUT_OF_MEMORY; goto done;
+    }
+    status=oir_ast_artifact_write_frontend_ast(root,index,index_capacity,node_count,
+        records,node_count,fields,req.field_data_length,strings,req.string_table_length,
+        payload,req.payload_size,artifact,artifact_capacity,job_id,&written,&req);
+    if(status!=OIR_STATUS_OK) goto done;
+    if(written!=artifact_capacity) { status=OIR_STATUS_LENGTH_MISMATCH; goto done; }
+    *out_artifact=artifact; *out_length=written; artifact=NULL;
+
+done:
+    free(index); free(records); free(fields); free(strings); free(payload); free(artifact);
+    return status;
+}
+
 int main(int argc,char** argv) {
     ParserContext* parser;
     uint8_t* first_payload=NULL;
     uint8_t* second_payload=NULL;
-    size_t first_length=0u,second_length=0u;
+    uint8_t* ast_artifact=NULL;
+    size_t first_length=0u,second_length=0u,artifact_length=0u;
     ASTNode* decoded_root=NULL;
+    ASTNode* artifact_root=NULL;
     ASTNode** node_storage=NULL;
     uint32_t* incoming=NULL;
     uint8_t* visited=NULL;
@@ -143,11 +200,62 @@ int main(int argc,char** argv) {
         assert(rejected>0u);
     }
 
+    /* Exercise the same real parser tree through the canonical OIR envelope. */
+    status=encode_ast_artifact((ASTNode*)parser->ast_root,77u,&ast_artifact,&artifact_length);
+    if(status!=OIR_STATUS_OK) {
+        fprintf(stderr,"AST artifact writer failed: %s\\n",oir_status_string(status));
+        goto cleanup;
+    }
+    status=oir_ast_artifact_read_frontend_ast(ast_artifact,artifact_length,node_storage,
+        view.node_count,incoming,view.node_count,visited,view.node_count,
+        stack,view.node_count,&artifact_root);
+    if(status!=OIR_STATUS_OK || !artifact_root) {
+        fprintf(stderr,"AST artifact reader failed: %s\\n",oir_status_string(status));
+        goto cleanup;
+    }
+    free(second_payload); second_payload=NULL; second_length=0u;
+    status=encode_ast(artifact_root,&second_payload,&second_length);
+    if(status!=OIR_STATUS_OK) goto cleanup;
+    if(first_length!=second_length || memcmp(first_payload,second_payload,first_length)!=0) {
+        fprintf(stderr,"Parser AST artifact handoff changed canonical payload bytes.\\n");
+        goto cleanup;
+    }
+    ast_destroy(artifact_root);
+    artifact_root=NULL;
+
+    /* Sweep every byte of the complete OIR container, including its envelope. */
+    {
+        size_t accepted=0u,rejected=0u,offset;
+        for(offset=0u;offset<artifact_length;offset++) {
+            ast_artifact[offset]^=0x01u;
+            status=oir_ast_artifact_read_frontend_ast(ast_artifact,artifact_length,node_storage,
+                view.node_count,incoming,view.node_count,visited,view.node_count,
+                stack,view.node_count,&artifact_root);
+            if(status==OIR_STATUS_OK) {
+                assert(artifact_root!=NULL);
+                ast_destroy(artifact_root);
+                artifact_root=NULL;
+                ++accepted;
+            } else {
+                assert(artifact_root==NULL);
+                if(status==OIR_STATUS_OUT_OF_MEMORY) {
+                    ast_artifact[offset]^=0x01u;
+                    goto cleanup;
+                }
+                ++rejected;
+            }
+            ast_artifact[offset]^=0x01u;
+        }
+        assert(accepted>0u);
+        assert(rejected>0u);
+    }
+
     result=0;
 cleanup:
     if(decoded_root) ast_destroy(decoded_root);
+    if(artifact_root) ast_destroy(artifact_root);
     free(node_storage); free(incoming); free(visited); free(stack);
-    free(first_payload); free(second_payload);
+    free(first_payload); free(second_payload); free(ast_artifact);
     parser_destroy(parser);
     return result;
 }
