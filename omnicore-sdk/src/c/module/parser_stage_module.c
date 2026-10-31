@@ -35,6 +35,33 @@ static OirStatus find_payload(
     return found ? OIR_STATUS_OK : OIR_STATUS_MISSING_PAYLOAD;
 }
 
+static int report_parser_diagnostics(
+    const OccModuleInvocationV1* invocation,
+    const OccDiagnosticCollector* diagnostics
+) {
+    size_t diagnostic_index;
+    for(diagnostic_index=0u;
+        diagnostic_index<occ_diagnostics_count(diagnostics);
+        ++diagnostic_index) {
+        OccDiagnosticView view;
+        OccModuleDiagnosticV1 diagnostic;
+        if(!occ_diagnostics_get(diagnostics,diagnostic_index,&view)) return 0;
+        memset(&diagnostic,0,sizeof(diagnostic));
+        diagnostic.struct_size=(uint32_t)sizeof(diagnostic);
+        diagnostic.code=view.record->code;
+        diagnostic.message_id=view.record->message_id;
+        diagnostic.severity=view.record->severity;
+        diagnostic.span=view.record->span;
+        diagnostic.message=view.message;
+        diagnostic.message_length=view.record->message_length;
+        diagnostic.hint=view.hint;
+        diagnostic.hint_length=view.record->hint_length;
+        if(!invocation->diagnostic_sink.report(
+            invocation->diagnostic_sink.user_context,&diagnostic)) return 0;
+    }
+    return 1;
+}
+
 static uint32_t OCC_MODULE_CALL parser_stage_process(
     const OccModuleInvocationV1* invocation,
     OccModuleResultV1* result
@@ -149,32 +176,13 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
         goto invalid_input;
     {
         int parse_ok=parser_run(parser)==0 && parser->ast_root!=NULL;
-        size_t diagnostic_index;
-        for(diagnostic_index=0u;
-            diagnostic_index<occ_diagnostics_count(&lexer_diagnostics);
-            ++diagnostic_index) {
-            OccDiagnosticView view;
-            OccModuleDiagnosticV1 diagnostic;
-            if(!occ_diagnostics_get(&lexer_diagnostics,diagnostic_index,&view))
-                goto allocation_failure;
-            memset(&diagnostic,0,sizeof(diagnostic));
-            diagnostic.struct_size=(uint32_t)sizeof(diagnostic);
-            diagnostic.code=view.record->code;
-            diagnostic.message_id=view.record->message_id;
-            diagnostic.severity=view.record->severity;
-            diagnostic.span=view.record->span;
-            diagnostic.message=view.message;
-            diagnostic.message_length=view.record->message_length;
-            diagnostic.hint=view.hint;
-            diagnostic.hint_length=view.record->hint_length;
-            if(!invocation->diagnostic_sink.report(
-                invocation->diagnostic_sink.user_context,&diagnostic))
-                goto report_failure;
-        }
         if(occ_diagnostics_count(&lexer_diagnostics)>UINT32_MAX-diag_count)
             goto allocation_failure;
         result->diagnostics_count=diag_count+(uint32_t)occ_diagnostics_count(&lexer_diagnostics);
         if(!parse_ok) {
+            /* A failed parse will not request an output-buffer retry. */
+            if(!report_parser_diagnostics(invocation,&lexer_diagnostics))
+                goto report_failure;
             result->output_validity=OIR_VALIDITY_NONE;
             result->failure_code=2006u;
             goto parse_failure;
@@ -221,6 +229,17 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
         (size_t)invocation->output_capacity,invocation->job_id,
         &artifact_written,&requirements);
     if(status!=OIR_STATUS_OK) goto serialization_failure;
+    /*
+     * Report only after output capacity has been confirmed and the artifact
+     * has been written. NEED_OUTPUT_BUFFER retries must not duplicate reports.
+     */
+    if(!report_parser_diagnostics(invocation,&lexer_diagnostics)) {
+        result->failure_code=6002u;
+        result->bytes_written=0u;
+        result->output_validity=OIR_VALIDITY_NONE;
+        module_status=OCC_MODULE_STATUS_FAILED;
+        goto cleanup;
+    }
     result->bytes_written=(uint64_t)artifact_written;
     result->required_output_capacity=0u;
     result->output_validity=OIR_VALIDITY_VALID;
