@@ -787,16 +787,25 @@ static ASTNode* parse_primary(Parser* p) {
 
     if (match(p, TOKEN_AI)) {
         ASTAiLogic* ai = (ASTAiLogic*)parser_ast_create(p, AST_AI_LOGIC);
+        if (!ai) return NULL;
         ai->base.line = p->previous.line;
         ai->base.col = p->previous.col;
         if (p->current.type == TOKEN_STRING || p->current.type == TOKEN_IDENTIFIER) {
             Token t = p->current;
-            ai->query = parser_malloc(p, t.length + 1);
-            memcpy(ai->query, t.start, t.length);
+            ai->query = parser_malloc(p, (size_t)t.length + 1u);
+            if (!ai->query) {
+                ast_destroy((ASTNode*)ai);
+                return NULL;
+            }
+            memcpy(ai->query, t.start, (size_t)t.length);
             ai->query[t.length] = '\0';
             advance(p);
         } else {
             ai->query = parser_strdup(p, "auto");
+            if (!ai->query) {
+                ast_destroy((ASTNode*)ai);
+                return NULL;
+            }
         }
         return (ASTNode*)ai;
     }
@@ -832,7 +841,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
             target->base.col = type_token.col;
             target->name = (char*)parser_malloc(p, (size_t)type_token.length + 1u);
             if (!target->name) {
-                free(target);
+                ast_destroy((ASTNode*)target);
                 ast_destroy((ASTNode*)cast);
                 return NULL;
             }
@@ -856,7 +865,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
                 Token message = p->previous;
                 panic->message = (char*)parser_malloc(p, (size_t)message.length + 1u);
                 if (!panic->message) {
-                    free(panic);
+                    ast_destroy((ASTNode*)panic);
                     return NULL;
                 }
                 memcpy(panic->message, message.start, (size_t)message.length);
