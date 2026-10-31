@@ -15,8 +15,9 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_UNARY_EXPR:
         case AST_RETURN:
         case AST_POSTFIX_EXPR:
-        case AST_CAST:
             return sizeof(ASTUnaryExpr);
+        case AST_CAST:
+            return sizeof(ASTCast);
             
         case AST_TUPLE: return sizeof(ASTTuple);
 
@@ -464,10 +465,15 @@ static void ast_destroy_recursive(ASTNode* node) {
         }
         case AST_UNARY_EXPR:
         case AST_RETURN:
-        case AST_POSTFIX_EXPR:
-        case AST_CAST: {
+        case AST_POSTFIX_EXPR: {
             ASTUnaryExpr* u = (ASTUnaryExpr*)node;
             if (u->operand) ast_destroy_recursive(u->operand);
+            break;
+        }
+        case AST_CAST: {
+            ASTCast* cast = (ASTCast*)node;
+            if (cast->value) ast_destroy_recursive(cast->value);
+            if (cast->target_type) ast_destroy_recursive(cast->target_type);
             break;
         }
         case AST_UNPACK: {
@@ -793,11 +799,16 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
         }
         case AST_UNARY_EXPR:
         case AST_RETURN:
-        case AST_POSTFIX_EXPR:
-        case AST_CAST: {
+        case AST_POSTFIX_EXPR: {
             ASTUnaryExpr* u = (ASTUnaryExpr*)node;
             ast_write_exact(writer, &u->op, (size_t)(sizeof(OmniTokenType)) * (size_t)(1));
             ast_serialize_recursive(u->operand, writer);
+            break;
+        }
+        case AST_CAST: {
+            ASTCast* cast = (ASTCast*)node;
+            ast_serialize_recursive(cast->value, writer);
+            ast_serialize_recursive(cast->target_type, writer);
             break;
         }
         case AST_UNPACK: {
@@ -1064,11 +1075,17 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
         }
         case AST_UNARY_EXPR:
         case AST_RETURN:
-        case AST_POSTFIX_EXPR:
-        case AST_CAST: {
+        case AST_POSTFIX_EXPR: {
             ASTUnaryExpr* u = (ASTUnaryExpr*)node;
             if (!ast_read_exact(reader, &u->op, sizeof(OmniTokenType))) goto fail;
             u->operand = ast_deserialize_recursive(reader);
+            break;
+        }
+        case AST_CAST: {
+            ASTCast* cast = (ASTCast*)node;
+            cast->value = ast_deserialize_recursive(reader);
+            if (reader->failed) goto fail;
+            cast->target_type = ast_deserialize_recursive(reader);
             break;
         }
         case AST_UNPACK: {
