@@ -133,6 +133,12 @@ typedef struct OccStageDescriptorV1 {
     const char* module_name;
 } OccStageDescriptorV1;
 
+/*
+ * NEED_OUTPUT_BUFFER is a retry, not a completed invocation. A module must
+ * not publish diagnostics or perform externally visible side effects before
+ * it knows the supplied output buffer is sufficient. The host may call the
+ * module again with the same inputs after resizing the output buffer.
+ */
 typedef uint32_t (OCC_MODULE_CALL *OccModuleProcessV1)(
     const OccModuleInvocationV1* invocation,
     OccModuleResultV1* result
