@@ -75,6 +75,20 @@ int main(void) {
         incoming,2u,visited,2u,stack,2u,&decoded_root)==OIR_STATUS_INVALID_HEADER);
     assert(decoded_root==NULL);
 
+    /* A valid AST payload must identify the Parser stage as its producer. */
+    memcpy(bad,artifact,written);
+    bad[20] ^= 0x01u;
+    assert(oir_ast_artifact_read_frontend_ast(bad,written,decoded,2u,
+        incoming,2u,visited,2u,stack,2u,&decoded_root)==OIR_STATUS_INVALID_HEADER);
+    assert(decoded_root==NULL);
+
+    /* Unsupported AST payload schema versions are rejected before decoding. */
+    memcpy(bad,artifact,written);
+    bad[16] ^= 0x01u;
+    assert(oir_ast_artifact_read_frontend_ast(bad,written,decoded,2u,
+        incoming,2u,visited,2u,stack,2u,&decoded_root)==OIR_STATUS_INVALID_HEADER);
+    assert(decoded_root==NULL);
+
     /* Corrupt inner root ownership while leaving the outer OIR envelope valid. */
     memcpy(bad,artifact,written);
     bad[OIR_HEADER_SIZE+OIR_SECTION_HEADER_SIZE+
