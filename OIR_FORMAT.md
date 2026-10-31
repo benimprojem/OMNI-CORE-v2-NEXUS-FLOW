@@ -136,7 +136,7 @@ Section payload bytes follow immediately. The next section starts immediately af
 
 Section flag bit 0 means REQUIRED. Unknown optional section types may be skipped using their length. Unknown required section types are rejected. Unknown section flag bits and non-zero header flags are rejected by v1.0 readers. Container major must equal 1; minor versions greater than 0 are rejected until compatibility behavior is explicitly implemented.
 
-The C implementation is in `omnicore-sdk/src/c/oir/`. It provides a bounded in-memory writer, a validating read-only view and section access. The stable section IDs 7–12 are reserved for SEMANTIC_AST schema 1.0; their payload codecs perform additional schema-specific validation. Filesystem checkpoint helpers are not part of the container layer.
+The C implementation is in `omnicore-sdk/src/c/oir/`. It provides a bounded in-memory writer, a validating read-only view and section access. The stable section IDs 7–12 are registered for SEMANTIC_AST schema 1.0; each section codec performs additional schema-specific validation. Filesystem checkpoint helpers are not part of the container layer.
 
 ## 4. Section model
 
