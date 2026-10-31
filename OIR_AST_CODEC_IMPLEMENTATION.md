@@ -207,3 +207,28 @@ The writer:
 Tests build all 80 node kinds in one AST fixture, write/open the payload, run field-schema and graph validation, inspect stable literal token/U32 encodings, test nested sparse Nexus Flow child references, preserve empty-string references, and reject invalid booleans, tokens and malformed UTF-8.
 
 CTest target: `oir_ast_frontend_writer_all_kinds_and_payload_roundtrip`. CI run 41158918126 passed on Windows, Ubuntu and macOS; Ubuntu ASan/UBSan and Valgrind passed. Ubuntu CTest 28/28.
+
+
+## 13. Implemented foundation: validate-first OIR AST reader/materializer
+
+Files:
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.h`
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`
+- `omnicore-sdk/src/c/tests/test_oir_ast_frontend_reader.c`
+
+Reader phases:
+1. Open and validate the complete AST payload, fixed records, TLV streams, string references and UTF-8.
+2. Validate every node's required field schema and the single-owner graph (root, references, cycles, reachability and depth).
+3. Validate host-representation constraints before allocation: source coordinates fit frontend `int`, token IDs map to current frontend tokens, literal/loop enum ranges are valid, signed values fit host fields and F64 is representable by the host double format.
+4. Allocate every frontend node with `ast_create()`, while all pointers remain disconnected.
+5. Populate scalar values and allocate each owned string separately. NULL remains NULL; empty strings allocate a one-byte NUL string.
+6. In the final linking pass, resolve child NODE_REF IDs and sibling IDs to pointers.
+7. Transfer the root to the caller; normal cleanup uses `ast_destroy()`.
+
+Failure before or during materialization uses a non-recursive cleanup routine that frees each allocated node and its own strings exactly once, without following any child or sibling pointers. The new `OIR_STATUS_OUT_OF_MEMORY` status reports allocation failure.
+
+Caller supplies the node pointer array and graph-validation scratch arrays. The reader allocates frontend nodes and strings, but no hidden graph/index scratch storage. Unknown optional scalar/string fields are skipped. Unknown optional NODE_REF fields are rejected because dropping an owning reference would orphan an allocated node and leak it.
+
+Tests round-trip all 80 node kinds and their source positions, selected scalar/string/token values, and a nested Nexus Flow with left/right/catch children. Malformed graph ownership and out-of-range literal tags are rejected before touching node storage; insufficient node storage returns BUFFER_TOO_SMALL.
+
+CTest target: `oir_ast_frontend_reader_all_kinds_validate_before_materialize`. Initial CI run 41159448304 passed on Windows, Ubuntu and macOS; Ubuntu ASan/UBSan and Valgrind passed. Ubuntu CTest 29/29. Follow-up cleanup removes compiler warnings and tightens optional-reference prevalidation; its CI is pending.
