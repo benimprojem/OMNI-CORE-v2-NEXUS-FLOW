@@ -157,7 +157,7 @@ AST payload schema 1.0 sözleşmesini tasarla; AST serialization alanlarını po
 
 1. OIR container binary layout ve C reader/writer API.
 2. Job-owned diagnostic collector ve CompilationContext.
-3. SOURCE_UNIT / TOKEN_STREAM payload codec'leri ve lexer Token → OIR record adapter'ı.
+3. [x] SOURCE_UNIT / TOKEN_STREAM payload codec'leri ve lexer Token → OIR record adapter'ı.
 4. [x] OIR TOKEN_STREAM → parser token adapter'ı ve gerçek parser handoff.
 5. Ortak module ABI ve stage DLL/SO/dylib ayrımı.
 
