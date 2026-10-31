@@ -52,14 +52,14 @@ The AST payload is embedded as the payload section, not as a nested OIR containe
 - All integers are unsigned or signed fixed-width values explicitly named by the field; little-endian.
 - No native C struct, pointer, `size_t`, C enum, padding or host ABI layout is serialized.
 - Each section has a schema version in its OIR section header.
-- Tables begin with a fixed-width schema header containing record count and record width (or bounded record byte length for variable records).
+- Tables begin with a fixed-width little-endian schema header. The SCOPES section uses an 8-byte header (`record_count u32`, `record_size u32`) followed by fixed-width records. String-bearing tables additionally declare their string-table byte length in their table header. All header and record fields are encoded individually; section versions are carried by the outer OIR section header.
 - Variable strings are UTF-8 byte spans with explicit 32-bit offset and length into a section-local string table. No NUL terminator is required; embedded NUL and invalid UTF-8 are rejected.
 - IDs are 1-based. Zero is the only null/not-present reference where the field permits it.
 - IDs are deterministic for a given AST and options: scopes are assigned in deterministic traversal order; symbols in declaration order within traversal; types in first-use order after canonicalization; annotations in AST node-ID order.
 - Counts and byte ranges are bounded by the containing section. Arithmetic overflow, overlapping record ranges, duplicate IDs, dangling references and non-canonical ordering are rejected.
 - Unknown record flags are rejected unless a future schema explicitly defines an optional extension mechanism.
 
-Exact byte offsets and record widths will be frozen only with the first codec implementation and round-trip/malformed-input tests. This draft is a semantic contract, not permission to dump C structs.
+The first codec slice fixes the SCOPES header at 8 bytes and each scope record at 20 bytes. Other table layouts remain draft until their respective codecs and malformed-input tests are implemented. Logical C structs are API views only; they are never serialized by dumping their memory.
 
 ## 4. Scope records
 
@@ -79,6 +79,10 @@ Invariants:
 - Every non-root scope has a valid owner node ID.
 - The scope graph is a tree with no cycles or duplicate ownership.
 - Scope records remain after leaving a scope; symbol visibility/lifetime is represented by scope ownership, not by retaining the current implementation's popped `Slot*` list.
+
+### Implemented codec slice
+
+`omnicore-sdk/src/c/oir/oir_semantic_ast.h/.c` currently implements the SCOPES section's bounded writer, zero-copy reader view and field-by-field record decoder. It validates the exact payload length, record width, contiguous 1-based IDs, the unique root shape, parent-before-child ordering, depth consistency, zero schema-1.0 flags and the 512-level depth limit. The test `test_oir_semantic_ast.c` covers round-trip, deterministic bytes, truncation, bad record width/count, invalid root/parent/depth/flags and output-buffer failure. Cross-table AST owner-node uniqueness and complete SEMANTIC_AST reference validation remain for the next codec/validator layer.
 
 ## 5. Type records
 
