@@ -30,11 +30,13 @@ set(C_CODEGEN_DIR "${C_SOURCE_DIR}/codegen")
 set(C_RUNTIME_DIR "${CMAKE_BINARY_DIR}/bin")
 
 # Header-only draft contract for independently loaded stage modules.
-add_library(occ_module_abi INTERFACE)
-target_include_directories(occ_module_abi INTERFACE
+add_library(occ_module_abi STATIC "${C_SOURCE_DIR}/module/occ_module_api.c")
+target_include_directories(occ_module_abi PUBLIC
     "${C_SOURCE_DIR}/module"
     "${C_SOURCE_DIR}/oir"
 )
+target_link_libraries(occ_module_abi PUBLIC occ_oir)
+set_target_properties(occ_module_abi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Keep all generators (including Visual Studio multi-config) on one runtime path.
 foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
@@ -292,6 +294,7 @@ endif()
 target_link_libraries(occ PRIVATE occ_frontend ${CMAKE_DL_LIBS})
 
 if(MSVC)
+    target_compile_options(occ_module_abi PRIVATE /W4)
     target_compile_options(occ_oir PRIVATE /W4)
     target_compile_options(occ_diagnostics PRIVATE /W4)
     target_compile_options(occ_compilation PRIVATE /W4)
@@ -310,6 +313,7 @@ if(MSVC)
     target_compile_options(occ_codegen PRIVATE /W4)
     target_compile_options(occ PRIVATE /W4)
 else()
+    target_compile_options(occ_module_abi PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir PRIVATE -Wall -Wextra)
     target_compile_options(occ_diagnostics PRIVATE -Wall -Wextra)
     target_compile_options(occ_compilation PRIVATE -Wall -Wextra)
@@ -563,6 +567,15 @@ if(BUILD_TESTING)
         target_compile_options(test_module_abi PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME draft_stage_module_abi_contract COMMAND test_module_abi)
+
+    add_executable(test_occ_module_api "${C_SOURCE_DIR}/tests/test_occ_module_api.c")
+    target_link_libraries(test_occ_module_api PRIVATE occ_module_abi)
+    if(MSVC)
+        target_compile_options(test_occ_module_api PRIVATE /W4)
+    else()
+        target_compile_options(test_occ_module_api PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME occ_stage_module_abi_validation_helpers COMMAND test_occ_module_api)
 
     add_executable(test_oir_ast_artifact "${C_SOURCE_DIR}/tests/test_oir_ast_artifact.c")
     target_link_libraries(test_oir_ast_artifact PRIVATE occ_oir_ast_artifact)
