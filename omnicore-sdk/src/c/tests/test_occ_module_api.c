@@ -78,6 +78,12 @@ int main(void) {
     module.descriptor.required_input_kind_mask=OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_TOKEN_STREAM);
     assert(occ_module_validate_descriptor_v1(&module)==OCC_MODULE_STATUS_INVALID_INVOCATION);
     module.descriptor.required_input_kind_mask=OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_AST);
+    module.descriptor.capability_flags=UINT64_C(1)<<20;
+    assert(occ_module_validate_descriptor_v1(&module)==OCC_MODULE_STATUS_INVALID_INVOCATION);
+    module.descriptor.capability_flags=0u;
+    module.descriptor.output_artifact_kind=63u;
+    assert(occ_module_validate_descriptor_v1(&module)==OCC_MODULE_STATUS_INVALID_INVOCATION);
+    module.descriptor.output_artifact_kind=OIR_KIND_SEMANTIC_AST;
     input.bytes=NULL;
     assert(occ_module_validate_invocation_v1(&module.descriptor,&invocation,&result)==
         OCC_MODULE_STATUS_INVALID_INVOCATION);
