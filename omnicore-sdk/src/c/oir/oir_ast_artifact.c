@@ -103,6 +103,7 @@ OirStatus oir_ast_artifact_read_frontend_ast(
     if(artifact.header.artifact_kind!=OIR_KIND_AST ||
         artifact.header.payload_schema_major!=1u ||
         artifact.header.payload_schema_minor!=0u ||
+        artifact.header.producer_stage_id!=OCC_STAGE_PARSER ||
         artifact.header.validity!=OIR_VALIDITY_VALID) {
         return OIR_STATUS_INVALID_HEADER;
     }
