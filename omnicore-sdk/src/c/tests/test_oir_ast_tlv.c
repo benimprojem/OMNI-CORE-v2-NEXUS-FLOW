@@ -83,6 +83,7 @@ int main(void) {
         CHECK(oir_ast_tlv_validate(malformed, 9u) == OIR_STATUS_INVALID_SECTION,
             "noncanonical BOOL rejected");
         malformed[2] = OIR_AST_VALUE_TOKEN_ID;
+        put_u32(malformed + 4, 2u);
         put_u16(malformed + 8, 161u);
         CHECK(oir_ast_tlv_validate(malformed, 10u) == OIR_STATUS_INVALID_SECTION,
             "unknown stable token ID rejected");
