@@ -74,7 +74,7 @@ static Token error_token(ParserContext* ctx, const char* message) {
         size_t end = ctx->pos <= ctx->source_len ? ctx->pos : ctx->source_len;
         memset(&input, 0, sizeof(input));
         input.code = ERR_LEXER_ERROR;
-        input.stage_id = ctx->diagnostic_stage_id ? ctx->diagnostic_stage_id : OCC_STAGE_LEXER;
+        input.stage_id = OCC_STAGE_LEXER;
         input.message_id = ERR_LEXER_ERROR;
         input.severity = OCC_DIAG_ERROR;
         input.message = message;
