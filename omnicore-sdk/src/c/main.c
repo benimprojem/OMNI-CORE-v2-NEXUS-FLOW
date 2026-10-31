@@ -27,6 +27,7 @@
 #include <windows.h>
 #else
 #include <dirent.h>
+#include <dlfcn.h>
 #include <unistd.h>
 #endif
 
@@ -320,6 +321,10 @@ oir_failure:
         "The OCC host could not construct or validate a parser OIR artifact.");
     goto cleanup;
 cleanup:
+    if (!success && source_context && out_context && !*out_context) {
+        *out_context = source_context;
+        source_context = NULL;
+    }
     if (ast_root) ast_destroy(ast_root);
     free(node_storage);
     free(incoming_counts);
@@ -762,10 +767,7 @@ int main(int argc, char **argv) {
             ctx ? ctx->source_len : 0u);
     }
 
-    if (ctx) {
-        parser_print_errors(ctx);
-        parser_destroy(ctx);
-    }
+    if (ctx) parser_destroy(ctx);
     occ_compilation_destroy(&job);
     return exit_code;
 }
