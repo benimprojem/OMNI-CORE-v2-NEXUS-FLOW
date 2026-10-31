@@ -23,7 +23,7 @@ int main(void) {
     memset(&header, 0, sizeof(header));
     header.container_major = OIR_CONTAINER_MAJOR;
     header.container_minor = OIR_CONTAINER_MINOR;
-    header.artifact_kind = OIR_KIND_TOKEN_STREAM;
+    header.artifact_kind = OIR_KIND_SEMANTIC_AST;
     header.payload_schema_major = 1;
     header.payload_schema_minor = 0;
     header.producer_stage_id = 1;
@@ -56,7 +56,7 @@ int main(void) {
 
     CHECK(oir_artifact_open(buffer, written, &view) == OIR_STATUS_OK,
         "reader should accept writer output");
-    CHECK(view.header.artifact_kind == OIR_KIND_TOKEN_STREAM,
+    CHECK(view.header.artifact_kind == OIR_KIND_SEMANTIC_AST,
         "artifact kind should round-trip");
     CHECK(view.header.job_id == header.job_id, "job id should round-trip");
     CHECK(view.section_count == 3, "section count should round-trip");
