@@ -127,6 +127,14 @@ target_include_directories(occ_oir_ast_node_table PUBLIC "${C_SOURCE_DIR}/oir")
 target_link_libraries(occ_oir_ast_node_table PUBLIC occ_oir_ast_tlv)
 set_target_properties(occ_oir_ast_node_table PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# AST graph validator checks single-owner edges, reachability, cycles and depth.
+add_library(occ_oir_ast_graph STATIC
+    "${C_SOURCE_DIR}/oir/oir_ast_graph.c"
+)
+target_include_directories(occ_oir_ast_graph PUBLIC "${C_SOURCE_DIR}/oir")
+target_link_libraries(occ_oir_ast_graph PUBLIC occ_oir_ast_node_table)
+set_target_properties(occ_oir_ast_graph PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # The C frontend is the canonical compiler frontend.
 # parser/main.c is intentionally excluded: it is an obsolete standalone entry point.
 add_library(occ_frontend STATIC
@@ -213,6 +221,7 @@ if(MSVC)
     target_compile_options(occ_oir_ast_map PRIVATE /W4)
     target_compile_options(occ_oir_ast_tlv PRIVATE /W4)
     target_compile_options(occ_oir_ast_node_table PRIVATE /W4)
+    target_compile_options(occ_oir_ast_graph PRIVATE /W4)
     target_compile_options(occ_frontend PRIVATE /W4)
     target_compile_options(occ_codegen PRIVATE /W4)
     target_compile_options(occ PRIVATE /W4)
@@ -225,6 +234,7 @@ else()
     target_compile_options(occ_oir_ast_map PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_ast_tlv PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_ast_node_table PRIVATE -Wall -Wextra)
+    target_compile_options(occ_oir_ast_graph PRIVATE -Wall -Wextra)
     target_compile_options(occ_frontend PRIVATE -Wall -Wextra)
     target_compile_options(occ_codegen PRIVATE -Wall -Wextra)
     target_compile_options(occ PRIVATE -Wall -Wextra)
@@ -404,6 +414,15 @@ if(BUILD_TESTING)
         target_compile_options(test_oir_ast_node_table PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME oir_ast_node_table_roundtrip_and_validation COMMAND test_oir_ast_node_table)
+
+    add_executable(test_oir_ast_graph "${C_SOURCE_DIR}/tests/test_oir_ast_graph.c")
+    target_link_libraries(test_oir_ast_graph PRIVATE occ_oir_ast_graph)
+    if(MSVC)
+        target_compile_options(test_oir_ast_graph PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_ast_graph PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_ast_graph_single_owner_reachability_and_depth COMMAND test_oir_ast_graph)
 
     add_executable(test_oir_token_map "${C_SOURCE_DIR}/tests/test_oir_token_map.c")
     target_link_libraries(test_oir_token_map PRIVATE occ_oir_lexer_adapter)
