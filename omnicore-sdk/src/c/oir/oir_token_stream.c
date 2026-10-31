@@ -37,6 +37,25 @@ static void write_u64_le(uint8_t* p, uint64_t value) {
     write_u32_le(p + 4, (uint32_t)(value >> 32));
 }
 
+static OirStatus validate_position(
+    uint32_t line,
+    uint32_t column,
+    uint32_t* previous_line,
+    uint32_t* previous_column
+) {
+    if (!previous_line || !previous_column || line == 0u || column == 0u) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    if (*previous_line != 0u &&
+        (line < *previous_line ||
+         (line == *previous_line && column < *previous_column))) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    *previous_line = line;
+    *previous_column = column;
+    return OIR_STATUS_OK;
+}
+
 static OirStatus validate_record(
     uint16_t token_id,
     uint16_t flags,
@@ -235,6 +254,7 @@ OirStatus oir_token_stream_open(
     uint64_t records_bytes;
     size_t expected_length;
     uint64_t previous_source_end = 0;
+    uint32_t previous_line = 0u, previous_column = 0u;
 
     if (!payload || !out_view) return OIR_STATUS_INVALID_ARGUMENT;
     memset(out_view, 0, sizeof(*out_view));
@@ -270,6 +290,10 @@ OirStatus oir_token_stream_open(
         const uint8_t* p = payload + OIR_TOKEN_STREAM_HEADER_SIZE +
             (size_t)i * OIR_TOKEN_STREAM_RECORD_SIZE;
         OirStatus status = decode_record(p, &record);
+        if (status == OIR_STATUS_OK) {
+            status = validate_position(record.line, record.column,
+                &previous_line, &previous_column);
+        }
         if (status == OIR_STATUS_OK) {
             status = validate_record(record.token_id, record.flags,
                 record.diagnostic_id, record.source_offset,
@@ -313,6 +337,7 @@ OirStatus oir_token_stream_write(
     uint64_t records_bytes;
     size_t total;
     uint64_t previous_source_end = 0;
+    uint32_t previous_line = 0u, previous_column = 0u;
     uint32_t i;
 
     if (out_written) *out_written = 0;
@@ -328,11 +353,15 @@ OirStatus oir_token_stream_write(
 
     for (i = 0; i < token_count; ++i) {
         const OirTokenStreamInput* token = &tokens[i];
-        OirStatus status = validate_record(token->token_id, token->flags,
+        OirStatus status = validate_position(token->line, token->column,
+            &previous_line, &previous_column);
+        if (status == OIR_STATUS_OK) {
+            status = validate_record(token->token_id, token->flags,
             token->diagnostic_id, token->source_offset,
             token->lexeme_length, token->line, token->column,
             source_length, diagnostic_count, i, token_count,
-            &previous_source_end);
+                &previous_source_end);
+        }
         if (status != OIR_STATUS_OK) return status;
     }
 
