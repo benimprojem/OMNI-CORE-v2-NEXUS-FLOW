@@ -182,3 +182,28 @@ It requires an AST_PROGRAM root with no sibling, validates nonnegative paired li
 The test covers deterministic child/sibling numbering, Nexus Flow's sparse child field IDs (2, 3, 6), repeated ownership/cycles, invalid root/sourceloc and the depth boundary. It does not yet encode node records, TLVs or strings; those are the next writer pass.
 
 CTest target: `oir_ast_frontend_index_deterministic_preorder_and_graph_rejection`. CI run 41158241944 passed: Windows, Ubuntu and macOS build/test; Ubuntu ASan/UBSan and Valgrind.
+
+
+## 12. Implemented foundation: bounded frontend AST → OIR payload writer
+
+Files:
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_writer.h`
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_writer.c`
+- `omnicore-sdk/src/c/tests/test_oir_ast_frontend_writer.c`
+
+API:
+- `oir_ast_frontend_measure()`: read-only preflight; returns exact node count, field-data length, string-table length and payload byte size.
+- `oir_ast_frontend_write_payload()`: emits the complete schema-1.0 payload into caller-owned buffers after the full preflight and capacity checks pass.
+
+The writer:
+- Reuses the canonical pointer index and the same exported child-field iterator, avoiding a second independently maintained traversal map.
+- Emits fixed node records in canonical node-ID order, TLV fields in ascending field-ID order, and a packed UTF-8 string table.
+- Encodes frontend token enums through the stable OIR token registry; encodes signed/unsigned integers, F64, booleans and nullable node/string references explicitly in little-endian form.
+- Preserves NULL versus empty string (NULL TLV versus zero-length STRING_REF).
+- Validates bools, literal/loop enum ranges, token IDs, signed integer widths, source spans, bounded UTF-8 strings, node references, node count and depth.
+- Uses caller-provided record, field, string and final payload buffers; no internal allocation.
+- Runs a size/validation pass before writing. A capacity failure leaves every output/scratch buffer untouched. After emission, the complete payload is reopened and checked against the per-node field schema.
+
+Tests build all 80 node kinds in one AST fixture, write/open the payload, run field-schema and graph validation, inspect stable literal token/U32 encodings, test nested sparse Nexus Flow child references, preserve empty-string references, and reject invalid booleans, tokens and malformed UTF-8.
+
+CTest target: `oir_ast_frontend_writer_all_kinds_and_payload_roundtrip`. CI run 41158918126 passed on Windows, Ubuntu and macOS; Ubuntu ASan/UBSan and Valgrind passed. Ubuntu CTest 28/28.
