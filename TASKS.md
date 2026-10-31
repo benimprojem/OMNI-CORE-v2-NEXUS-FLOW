@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 18/18 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 18/18 geçti.
+> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 19/19 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 19/19 geçti.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
@@ -132,7 +132,7 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 
 ## Sonraki tek iş
 
-PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned diagnostic collector ve compilation context için C API taslağını çıkar; ardından lexer/parser/semantic'i bu ortak sink'e adapte et.
+OIR TOKEN_STREAM schema 1.0 için bounded payload writer/reader ve lexer token span doğrulama testlerini uygula; diagnostic ID association kuralını da netleştir.
 
 
 ## P0 — OIR ortak artifact standardı (tasarım taslağı eklendi)
@@ -143,12 +143,13 @@ PIPELINE_MIGRATION_AUDIT.md içindeki ilk kod denetimine göre, önce job-owned 
 - [x] SOURCE_UNIT ve TOKEN_STREAM payload şemalarının ilk 1.0 taslağını tanımla (OIR_PAYLOAD_SCHEMAS.md).
 - [x] SOURCE_UNIT schema 1.0 C codec ve round-trip/UTF-8/length güvenlik testlerini ekle.
 - [ ] AST payload şemasını tanımla ve parser checkpoint'lerini OIR v1'e geçir.
-- [ ] DIAGNOSTICS ve SOURCE_MAP section'larını uygula.
+- [x] DIAGNOSTICS section schema 1.0 payload codec'ini uygula ve malformed-input testlerini ekle.
+- [ ] SOURCE_MAP section payload codec'ini uygula.
 - [ ] SEMANTIC_AST payload şemasını tanımla.
 - [ ] Canonical OIR_MODULE için type system, opcode registry, control-flow, memory/ownership ve SSA kararlarını ayrı spec'te ver.
 - [ ] C++ OIR2 ve mevcut C AST stream için gerekirse açık legacy import/migration aracı tasarla; eski dosyaları OIR v1 gibi okumaya çalışma.
 
- > OIR_FORMAT.md'de container v1.0 byte layout ve başlangıç numeric ID'leri sabitlendi. Payload schema field layout'ları henüz tasarlanmadı.
+ > OIR_FORMAT.md'de container v1.0 byte layout ve başlangıç numeric ID'leri sabitlendi. SOURCE_UNIT ve DIAGNOSTICS payload codec'leri eklendi; TOKEN_STREAM payload codec'i hâlâ bekliyor.
 
 ## Güncel uygulama sırası
 
