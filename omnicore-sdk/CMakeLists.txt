@@ -221,6 +221,19 @@ target_include_directories(occ_oir_ast_field_schema PUBLIC "${C_SOURCE_DIR}/oir"
 target_link_libraries(occ_oir_ast_field_schema PUBLIC occ_oir_ast_node_table)
 set_target_properties(occ_oir_ast_field_schema PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Full SEMANTIC_AST artifact gate: envelope, AST graph/schema and semantic references.
+add_library(occ_oir_semantic_ast_artifact STATIC
+    "${C_SOURCE_DIR}/oir/oir_semantic_ast_artifact.c"
+)
+target_include_directories(occ_oir_semantic_ast_artifact PUBLIC "${C_SOURCE_DIR}/oir")
+target_link_libraries(occ_oir_semantic_ast_artifact PUBLIC
+    occ_oir_semantic_ast
+    occ_oir_ast_graph
+    occ_oir_ast_field_schema
+    occ_oir
+)
+set_target_properties(occ_oir_semantic_ast_artifact PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # Frontend AST pointer index assigns deterministic OIR IDs without allocation.
 add_library(occ_oir_ast_frontend_index STATIC
     "${C_SOURCE_DIR}/oir/oir_ast_frontend_index.c"
@@ -892,6 +905,20 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME oir_semantic_ast_cross_table_reference_validation
         COMMAND test_oir_semantic_ast_refs)
+
+    add_executable(test_oir_semantic_ast_artifact
+        "${C_SOURCE_DIR}/tests/test_oir_semantic_ast_artifact.c"
+    )
+    target_link_libraries(test_oir_semantic_ast_artifact PRIVATE
+        occ_oir_semantic_ast_artifact
+    )
+    if(MSVC)
+        target_compile_options(test_oir_semantic_ast_artifact PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_semantic_ast_artifact PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_semantic_ast_complete_artifact_validation
+        COMMAND test_oir_semantic_ast_artifact)
 
     add_executable(test_lexer "${C_SOURCE_DIR}/tests/test_lexer.c")
     target_include_directories(test_lexer PRIVATE "${C_PARSER_DIR}")
