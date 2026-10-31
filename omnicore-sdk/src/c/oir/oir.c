@@ -39,7 +39,23 @@ static void write_u64_le(uint8_t* p, uint64_t value) {
 }
 
 static int is_known_section(uint16_t type) {
-    return type >= OIR_SECTION_PAYLOAD && type <= OIR_SECTION_CHECKSUM;
+    switch (type) {
+        case OIR_SECTION_PAYLOAD:
+        case OIR_SECTION_SOURCE_MAP:
+        case OIR_SECTION_DIAGNOSTICS:
+        case OIR_SECTION_DEPENDENCIES:
+        case OIR_SECTION_METADATA:
+        case OIR_SECTION_CHECKSUM:
+        case OIR_SECTION_SEMANTIC_SCOPES:
+        case OIR_SECTION_SEMANTIC_TYPES:
+        case OIR_SECTION_SEMANTIC_SYMBOLS:
+        case OIR_SECTION_SEMANTIC_ANNOTATIONS:
+        case OIR_SECTION_SEMANTIC_RELATIONS:
+        case OIR_SECTION_SEMANTIC_CONVERSIONS:
+            return 1;
+        default:
+            return 0;
+    }
 }
 
 static int is_valid_validity(uint8_t validity) {
