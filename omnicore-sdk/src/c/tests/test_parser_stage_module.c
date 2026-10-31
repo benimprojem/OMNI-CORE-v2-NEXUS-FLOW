@@ -120,6 +120,7 @@ int main(int argc,char** argv) {
         OirSectionInput sections[2];
         uint8_t diagnostics_payload[256];
         size_t diagnostics_length=0u;
+        int test_ok=1;
         occ_diagnostics_init(&malformed_diags);
         memset(&malformed_input,0,sizeof(malformed_input));
         malformed_input.code=9901u;
@@ -127,27 +128,39 @@ int main(int argc,char** argv) {
         malformed_input.severity=OCC_DIAG_ERROR;
         malformed_input.message="wrong diagnostic producer";
         malformed_input.message_length=strlen(malformed_input.message);
-        CHECK(occ_diagnostics_add(&malformed_diags,&malformed_input));
-        CHECK(oir_diagnostics_payload_write(diagnostics_payload,
-            sizeof(diagnostics_payload),&malformed_diags,
-            &diagnostics_length)==OIR_STATUS_OK);
-        sections[0]=section;
-        sections[0].data=token_payload;
-        sections[0].length=token_payload_len;
-        sections[1].type=OIR_SECTION_DIAGNOSTICS;
-        sections[1].version=OIR_DIAGNOSTICS_SCHEMA_MAJOR;
-        sections[1].flags=0u;
-        sections[1].data=diagnostics_payload;
-        sections[1].length=diagnostics_length;
-        CHECK(oir_artifact_write(token_artifact,sizeof(token_artifact),
-            &header,sections,2u,&token_artifact_len)==OIR_STATUS_OK);
-        inputs[1].bytes=token_artifact;
-        inputs[1].length=token_artifact_len;
-        CHECK(occ_module_loader_invoke(&loaded,inputs,2u,42u,&collector,
-            64u,16u*1024u*1024u,&output,&output_capacity)==
-            OCC_MODULE_LOADER_INVOKE_FAILED);
-        CHECK(output==NULL && output_capacity==0u);
+        do {
+            if(!occ_diagnostics_add(&malformed_diags,&malformed_input) ||
+               oir_diagnostics_payload_write(diagnostics_payload,
+                   sizeof(diagnostics_payload),&malformed_diags,
+                   &diagnostics_length)!=OIR_STATUS_OK) {
+                test_ok=0;
+                break;
+            }
+            sections[0]=section;
+            sections[0].data=token_payload;
+            sections[0].length=token_payload_len;
+            sections[1].type=OIR_SECTION_DIAGNOSTICS;
+            sections[1].version=OIR_DIAGNOSTICS_SCHEMA_MAJOR;
+            sections[1].flags=0u;
+            sections[1].data=diagnostics_payload;
+            sections[1].length=diagnostics_length;
+            if(oir_artifact_write(token_artifact,sizeof(token_artifact),
+                &header,sections,2u,&token_artifact_len)!=OIR_STATUS_OK) {
+                test_ok=0;
+                break;
+            }
+            inputs[1].bytes=token_artifact;
+            inputs[1].length=token_artifact_len;
+            if(occ_module_loader_invoke(&loaded,inputs,2u,42u,&collector,
+                64u,16u*1024u*1024u,&output,&output_capacity)!=
+                OCC_MODULE_LOADER_INVOKE_FAILED ||
+               output!=NULL || output_capacity!=0u) {
+                test_ok=0;
+                break;
+            }
+        } while(0);
         occ_diagnostics_destroy(&malformed_diags);
+        CHECK(test_ok);
         /* Restore the original token artifact for the following ABI tests. */
         section.data=token_payload;
         section.length=token_payload_len;
