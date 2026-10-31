@@ -132,7 +132,7 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 
 ## Sonraki tek iş
 
-Field schema CI sonuçlarını doğrula; ardından frontend AST → OIR bounded writer için iki geçişli pointer-index / deterministic node ID planını uygula.
+Frontend AST → OIR bounded writer'ı uygula: caller-owned scratch, iki geçişli pointer-index / deterministic DFS node ID, scalar/token/string encoding ve output size preflight.
 
 
 ## P0 — OIR ortak artifact standardı (tasarım taslağı eklendi)
@@ -149,7 +149,7 @@ Field schema CI sonuçlarını doğrula; ardından frontend AST → OIR bounded 
 - [ ] Bounded AST payload codec, graph/reference validation ve frontend round-trip testlerini tamamla; ardından parser checkpoint'lerini OIR v1'e geçir. Tasarım: OIR_AST_CODEC_IMPLEMENTATION.md.
 - [x] AST payload header/node record bounded writer-reader katmanını ve node/TLV/string reference sınır testlerini ekle (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] AST graph validator: NODE_REF + sibling edge sahiplik sayımı, root reachability, orphan/cycle ve 512 derinlik denetimleri (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
-- [x] Node-kind field schema validator: 80 node kind için required field/type kontrolü ve unknown optional field uyumluluk testleri (CI doğrulaması bekleniyor).
+- [x] Node-kind field schema validator: 80 node kind için required field/type kontrolü ve unknown optional field uyumluluk testleri (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] AST TLV primitive writer/reader: bounded buffer, canonical field ordering, value-width ve malformed-input testleri (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] DIAGNOSTICS section schema 1.0 payload codec'ini uygula ve malformed-input testlerini ekle.
 - [ ] SOURCE_MAP section payload codec'ini uygula.
