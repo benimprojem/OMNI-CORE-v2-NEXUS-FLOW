@@ -43,6 +43,7 @@ static Token make_token(ParserContext* ctx, OmniTokenType type, const char* star
     token.col = ctx->token_start_col;
     token.source_offset = ctx->token_start_offset;
     token.source_length = (size_t)length;
+    token.diagnostic_id = 0;
     return token;
 }
 
@@ -55,6 +56,7 @@ static Token error_token(ParserContext* ctx, const char* message) {
     token.col = ctx->token_start_col;
     token.source_offset = ctx->token_start_offset;
     token.source_length = ctx->pos - ctx->token_start_offset;
+    token.diagnostic_id = 0;
     return token;
 }
 
