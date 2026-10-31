@@ -170,3 +170,15 @@ Ek olarak `AST_CAST`, `ASTUnaryExpr` düzeninde tanımlanmış olmasına rağmen
 3. `AST_IF`, üye/index erişimi, tuple ve postfix semantik traversal/kuralları.
 4. Lexer literal grammar'ının dil spec'iyle eşleştirilmesi; escape ve UTF-8 güvenliği.
 5. AST türlerinin her biri için parse → destroy → codec → semantic test matrisi.
+
+
+### 6.6 Kritik AST payload uyuşmazlığı: intrinsic parser
+
+İlave çapraz kontrol, yalnızca semantik katmanla sınırlı olmayan daha yüksek öncelikli bir sorun ortaya çıkardı:
+
+- `parse_intrinsic_call()`, aldığı tür ne olursa olsun `ASTCall*` olarak `ast_create(type)` sonucunu yorumluyor ve `callee/args` alanlarını yazıyor.
+- Ancak `get_node_size()` içinde `AST_CAST`, `ASTUnaryExpr` boyutunda; `AST_PANIC` ise `ASTPanic` boyutunda ayrılıyor.
+- Aynı türler AST destroy/serialize/deserialize kodlarında da sırasıyla unary-expression ve panic-message payload'ları olarak ele alınıyor.
+- Buna karşın Parser, `cast(...)` ve `panic(...)` ifadelerini `parse_intrinsic_call()` üzerinden oluşturuyor. Bu durum en azından bu düğüm türlerinde payload sözleşmesinin katmanlar arasında çeliştiğini; allocation boyutu ve alan yorumlaması açısından bellek taşması/yanlış pointer okuma riski bulunduğunu gösteriyor.
+
+Bu düğümlerin doğru AST biçimi dil sözdizimi ve amaçlanan cast/panic semantiğiyle netleştirilmeden tek bir switch'e eklenerek yamalanmamalı. Öncelik 0 olarak ele alınmalı: tek bir payload şeması seçilmeli ve allocation, parser, destroy, codec, semantic checker ve test fixture'ları aynı şemaya geçirilmelidir.
