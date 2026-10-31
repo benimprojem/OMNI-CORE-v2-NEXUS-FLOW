@@ -181,6 +181,51 @@ static Token parser_next_token(ParserContext* ctx) {
 
 static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int col, const char* message, const char* suggestion, const char* hint, int similarity, int is_warning, const OccSourceSpan* source_span);
 
+/* Token spans use byte offsets and byte-based columns, matching lexer advance(). */
+static void parser_make_token_span(
+    const ParserContext* ctx,
+    const Token* token,
+    OccSourceSpan* span
+) {
+    size_t start;
+    size_t length;
+    size_t i;
+    uint32_t line;
+    uint32_t column;
+
+    if (!span) return;
+    memset(span, 0, sizeof(*span));
+    if (!ctx || !token || token->line <= 0 || token->col <= 0) return;
+
+    start = token->source_offset;
+    if (start > ctx->source_len) return;
+    length = token->source_length;
+    if (length > ctx->source_len - start) {
+        length = ctx->source_len - start;
+    }
+
+    line = (uint32_t)token->line;
+    column = (uint32_t)token->col;
+    for (i = 0; i < length; ++i) {
+        if (ctx->source_buffer[start + i] == '\\n') {
+            if (line == UINT32_MAX) return;
+            ++line;
+            column = 1u;
+        } else {
+            if (column == UINT32_MAX) return;
+            ++column;
+        }
+    }
+
+    span->start_offset = (uint64_t)start;
+    span->end_offset = (uint64_t)(start + length);
+    span->start_line = (uint32_t)token->line;
+    span->start_column = (uint32_t)token->col;
+    span->end_line = line;
+    span->end_column = column;
+    span->has_location = 1u;
+}
+
 static void error_at(Parser* p, Token* token, ErrorCode code, const char* message) {
     if (p->panic_mode) return;
     p->panic_mode = 1;
@@ -203,15 +248,8 @@ static void error_at(Parser* p, Token* token, ErrorCode code, const char* messag
         size_t diagnostic_count_before = p->ctx->diagnostics
             ? occ_diagnostics_count(p->ctx->diagnostics) : 0u;
         {
-            OccSourceSpan span = {0};
-            span.start_offset = token->source_offset;
-            span.end_offset = token->source_offset + (token->source_length > 0
-                ? (uint64_t)token->source_length : 0u);
-            span.start_line = token->line > 0 ? (uint32_t)token->line : 0u;
-            span.start_column = token->col > 0 ? (uint32_t)token->col : 0u;
-            span.end_line = span.start_line;
-            span.end_column = span.start_column;
-            span.has_location = (uint8_t)(token->line > 0 && token->col > 0);
+            OccSourceSpan span;
+            parser_make_token_span(p->ctx, token, &span);
             parser_add_issue(p->ctx, code, token->line, token->col,
                 full_msg, NULL, NULL, 0, 0, &span);
         }
