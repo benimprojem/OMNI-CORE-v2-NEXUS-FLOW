@@ -119,7 +119,7 @@ Implemented:
 - Test-only shared library `occ_test_passthrough_module`: exports `occ_get_stage_module_v1`, validates one AST artifact, and copies it into the caller's output buffer without transferring memory ownership.
 - `test_dynamic_stage_module.c`: loads the shared library with LoadLibrary/GetProcAddress or dlopen/dlsym, checks the descriptor, tests NEED_OUTPUT_BUFFER retry, validates the returned OIR artifact and unloads the library.
 
-The test module is deliberately a pass-through ABI fixture, not the real parser stage. The parser now has an in-memory source initialization API, and the OIR AST artifact adapter is ready, but the actual parser-stage shared library that consumes SOURCE_UNIT + TOKEN_STREAM and emits AST is still pending.
+The test-only pass-through module remains an isolated ABI fixture. The first real parser-stage shared library is documented below.
 
 The ABI remains **Draft v1.0, not frozen**. Module IDs are test values until a central registry is assigned. Dynamic-loader CI run 41161737825 passed on Windows, Ubuntu and macOS; Ubuntu CTest 34/34, ASan/UBSan and Valgrind passed.
 
@@ -142,3 +142,26 @@ Ownership and trust rules:
 The public ABI uses fixed-width 64-bit text lengths. The host bridge checks conversion to `size_t`, reserved fields, flags and pointer/length consistency before forwarding to `occ_diagnostics_add()`. The callback is synchronous and does not transfer memory ownership.
 
 CTest coverage: the ABI contract test reports a parser-stage error with source ID, byte range `[15,16)`, line 2, columns 7–8, message and hint; it verifies that the host collector owns the copied text and assigns the stage ID. The dynamic-loader fixture also invokes the callback from the loaded shared library on the successful output-buffer retry. Malformed reserved fields and sink flags are rejected.
+
+
+## 10. First real parser stage module
+
+`omnicore-sdk/src/c/module/parser_stage_module.c` is the first production-path stage adapter. It exports the standard `occ_get_stage_module_v1` entry point and is built as `occ_parser_stage` (DLL/SO/dylib).
+
+Input contract:
+
+- Exactly two OIR artifacts are required, in this order: `OIR_KIND_SOURCE_UNIT`, then `OIR_KIND_TOKEN_STREAM`.
+- Both artifacts must belong to the same job. Their payloads are validated before parser initialization.
+- TOKEN_STREAM source ID and source length must match SOURCE_UNIT. An optional TOKEN_STREAM DIAGNOSTICS section is validated; token diagnostic IDs resolve into that section.
+- Token lexemes are reconstructed as borrowed spans into the validated SOURCE_UNIT bytes. The parser context copies the source bytes and retains the filename only for the invocation lifetime.
+
+Execution and output:
+
+- The module calls `parser_init_source()` and `parser_attach_token_stream()`; it does not open the original source path.
+- On success it builds the deterministic frontend AST index and writes a canonical `OIR_KIND_AST` artifact with the same job ID.
+- If the caller's output buffer is too small, the module returns `NEED_OUTPUT_BUFFER` and the exact required capacity. The retry reparses the same immutable inputs; it does not retain cross-call state.
+- Parser diagnostics are sent synchronously through the invocation diagnostic sink. Their exact token byte range and line/column are retained. Upstream lexer diagnostics remain attributed to the lexer stage and are not re-attributed by the parser module.
+- On parse failure the module returns `FAILED`, `OIR_VALIDITY_NONE`, and zero output bytes. A partial AST is destroyed and never published as valid AST OIR.
+- The module does not advertise reentrancy or statelessness. OCC must serialize calls to a shared job collector unless a synchronized dispatcher is used.
+
+CTest `real_parser_stage_source_token_to_ast_module` loads the actual shared library, builds both input artifacts, exercises the output-buffer retry and validates the AST OIR envelope. It also sends invalid syntax through the same DLL and verifies the callback's exact source span `[6,7)`, line 1, columns 7–8, and absence of output.
