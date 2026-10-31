@@ -1633,7 +1633,7 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
                 if (!match(p, TOKEN_IDENTIFIER)) { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expect field name in enum variant."); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                 ft = p->previous;
                 field = (ASTVarDecl*)ast_create(AST_VAR_DECL);
-                if (!field) { ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+                if (!field) { ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                 field->base.line = ft.line; field->base.col = ft.col; field->is_const = 1;
                 field->name = (char*)malloc((size_t)ft.length + 1u);
                 if (!field->name) { ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
