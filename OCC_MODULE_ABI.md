@@ -53,7 +53,7 @@ Artifact-kind bit N is `1ULL << N`, where N is the stable OIR artifact kind ID. 
 
 Initial parser-stage descriptor direction:
 - Required: one SOURCE_UNIT and one TOKEN_STREAM.
-- Optional: DIAGNOSTICS.
+- Optional: a DIAGNOSTICS section may be carried inside an input OIR container; it is a section type, not a standalone artifact kind.
 - Output: AST.
 - Partial-input support is not enabled until parser recovery semantics are explicitly tested.
 
