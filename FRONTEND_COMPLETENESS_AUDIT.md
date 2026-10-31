@@ -223,3 +223,20 @@ Not: Bu değişiklikler legacy AST codec ve OIR AST payload sözleşmesini etkil
 - Lexer'da string escape işleme, karakter literalinin tek Unicode scalar/byte tanımı, sayısal literal kapsamı ve UTF-8 karakterlerinin `ctype` fonksiyonlarına güvenli aktarımı ayrıca ele alınmalı.
 - `peek_next()` ve lexer ilerletme sınırları için uç durum testleri eklenecek.
 - Bu commitlerdeki CI sonuçları tamamlanmadan tüm platformlar için başarılı kabul edilmeyecek.
+
+## 6.9 Lexer literal tarama ve sınır güvenliği
+
+**Durum: İlk düzeltmeler uygulandı; sayısal literal ve UTF-8 tanımı açık.**
+
+- Lexer advance() artık kaynak sonundayken konumu artırmıyor. Bu, son karakteri eksik olan literal taramalarının kaynak uzunluğunun ötesine geçmesini engelliyor.
+- peek_next() sınır kontrolü toplama taşmasına dayanmayacak şekilde kalan uzunluk üzerinden yapılıyor.
+- ctype çağrılarında karakterler unsigned char olarak değerlendiriliyor; yüksek bitli UTF-8 baytlarının negatif char nedeniyle tanımsız davranış üretmesi engelleniyor. Bu değişiklik tek başına Unicode identifier desteği anlamına gelmiyor.
+- String taraması kaçış karakterinden sonraki baytı tüketiyor; kaçırılmış çift tırnak string'i erken bitirmiyor.
+- Karakter literalinde kaçış işaretinden sonra EOF gelmesi güvenli hata üretiyor; lexer EOF konumunu aşmıyor.
+- Regresyon testleri: kaçırılmış tırnak içeren string, sonunda kaçış işareti bulunan eksik karakter literal'i, EOF sonrası tekrar token alma.
+
+**Açık işler:**
+
+- Sayısal literal grameri hâlâ yalnızca mevcut ondalık tam sayı ve kesirli biçimi kapsıyor. Hex/binary, üs, ayraç, tür eki ve !32 gibi zorunlu genişlik işaretlerinin lexer grameri spesifikasyonla eşleştirilecek.
+- Unicode identifier desteği, karakter literalinin byte mı Unicode scalar mı olduğu ve escape biçimlerinin tam listesi dil spesifikasyonunda karara bağlanmadan genişletilmeyecek.
+- Lexer token uzunluğu int alanına yazılıyor; çok büyük kaynak/token boyutları için açık üst sınır ve hata davranışı ayrıca tanımlanacak.
