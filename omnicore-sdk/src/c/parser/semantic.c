@@ -265,7 +265,8 @@ static Slot* add_slot(
     s->scope_id = ctx->current_scope_id;
     s->type_id = semantic_type_id(ctx, type_name);
 
-    if (ctx->result_enabled) {
+    if (ctx->result_enabled &&
+        ctx->result_status == SEMANTIC_RESULT_OK) {
         uint32_t declaration_node_id = semantic_node_id(ctx, declaration_node);
         uint16_t result_flags = 0u;
         if (is_const) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_CONST;
@@ -303,7 +304,8 @@ static void semantic_define_named_type(
     uint32_t type_id = 0u;
     SemanticResultStatus status;
 
-    if (!ctx || !slot || !ctx->result_enabled || slot->symbol_id == 0u) return;
+    if (!ctx || !slot || !ctx->result_enabled ||
+        ctx->result_status != SEMANTIC_RESULT_OK || slot->symbol_id == 0u) return;
     status = semantic_result_intern_type(
         &ctx->result,
         SEMANTIC_RESULT_TYPE_USER_DEFINED,
