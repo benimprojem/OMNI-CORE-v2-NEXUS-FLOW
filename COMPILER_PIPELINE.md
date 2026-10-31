@@ -56,7 +56,7 @@ Linker / packaging module
 Final output
 ```
 
-This is the target architecture, not a claim that all listed modules currently exist. The current C implementation has an OCC executable, independently loadable lexer and parser stage modules, a semantic stage module under integration, a combined frontend support library, and a separately loadable legacy codegen library. The migration is incremental; the semantic module is not yet invoked by the CLI pipeline.
+This is the target architecture, not a claim that all listed modules currently exist. The current C implementation has an OCC executable, independently loadable lexer, parser and semantic stage modules, a combined frontend support library, and a separately loadable legacy codegen library. OCC invokes the three frontend stages in sequence and validates the `SEMANTIC_AST` artifact. The migration remains incremental: IR lowering is not implemented, and the current legacy codegen path still consumes the parser AST through the native-layout AST serializer.
 
 A stage can be skipped only when the selected build mode explicitly permits it and the next stage accepts the supplied artifact format. A stage must not silently reinterpret an unrelated artifact as its input.
 
@@ -160,7 +160,9 @@ Each step requires unit tests, module load/unload tests, ABI compatibility tests
 Current implementation boundary (incremental migration):
 - OCC currently performs orchestration in `main.c`.
 - Lexer, parser and semantic analysis are built as independent shared stage modules and invoked through the OCC module loader. The live chain is `SOURCE_UNIT → TOKEN_STREAM → AST → SEMANTIC_AST`.
-- OCC independently validates the semantic output. For the current legacy IR/codegen path, the host still materializes the parser AST; the next migration is to make IR lowering consume `SEMANTIC_AST` directly.
+- OCC independently validates the semantic output. The current CLI then materializes the parser AST and writes the legacy native-layout AST serialization via `parser_save_ir()`; the legacy codegen DLL deserializes that AST and walks AST nodes directly.
+- This legacy `.oir` file is **not** an `OIR_MODULE` artifact and is not the canonical OIR v1 module representation. `OIR_KIND_MODULE` (kind ID 5) is registered, but its payload schema, verifier and lowering stage are not implemented. See [OIR_MODULE.md](OIR_MODULE.md) for the draft contract.
+- The next migration is an independent IR Lowering DLL that consumes `SEMANTIC_AST` and emits a validated `OIR_MODULE`. Only after that handoff and parity tests are established should codegen migrate from AST input to `OIR_MODULE` input.
 - The frontend remains a shared internal support library linked by stage modules. Its C structs and allocator state do not cross the module ABI.
 - Codegen remains a separately loadable legacy shared library and has not yet migrated to `OccStageModuleV1`.
 - General checkpoint/stop-after controls, complete diagnostic accumulation, and multi-job scheduling remain open work.
