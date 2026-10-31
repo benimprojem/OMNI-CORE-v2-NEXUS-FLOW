@@ -113,6 +113,27 @@ int main(void) {
     }
 
     {
+        OccDiagnosticInput invalid_span = input;
+        invalid_span.code = 9005;
+        invalid_span.severity = OCC_DIAG_ERROR;
+        invalid_span.message = "backwards span";
+        invalid_span.message_length = strlen(invalid_span.message);
+        invalid_span.span.has_location = 1u;
+        invalid_span.span.start_offset = 8u;
+        invalid_span.span.end_offset = 9u;
+        invalid_span.span.start_line = 3u;
+        invalid_span.span.start_column = 4u;
+        invalid_span.span.end_line = 2u;
+        invalid_span.span.end_column = 9u;
+        CHECK(!occ_diagnostics_add(&collector, &invalid_span),
+            "backwards diagnostic line range should be rejected");
+        invalid_span.span.end_line = 3u;
+        invalid_span.span.end_column = 3u;
+        CHECK(!occ_diagnostics_add(&collector, &invalid_span),
+            "backwards diagnostic column range should be rejected");
+    }
+
+    {
         OccDiagnosticCollector failed;
         occ_diagnostics_init(&failed);
         failed.allocation_failed = 1;
