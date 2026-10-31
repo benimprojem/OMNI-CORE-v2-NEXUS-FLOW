@@ -598,8 +598,17 @@ Denetimde netleşen noktalar:
 ## Stage module ABI — host validation helpers — 31 Ekim 2026
 
 - `occ_module_api.c` artık descriptor ve invocation doğrulayıcılarını sağlıyor; `occ_module_abi` OIR container validator'a bağlandı.
-- Descriptor kontrolü ABI major/minor, struct_size, reserved alanlar, stage ID, artifact türü, input count aralığı, accepted/required mask tutarlılığı ve module name alanlarını denetliyor. Draft aşamasında module_id=0 (unassigned) geçerli bırakıldı.
+- Descriptor kontrolü ABI major/minor, struct_size, reserved alanlar, stage ID, artifact türü, input count aralığı, accepted/required mask tutarlılığı ve module name alanlarını denetliyor. Module ID 0 geçersiz/unassigned; descriptor doğrulayıcısı sıfır module ID'yi reddediyor. Test modülü geçici 0x7fff0001 ID kullanıyor; üretim registry henüz tanımlanmadı.
 - Invocation kontrolü her input byte span'ini gerçek OIR container olarak açıyor; artifact kind değerini header'dan çıkarıyor. Böylece host tarafından iletilen sahte kind hint'i kullanılmıyor. Accepted ve required kind mask'leri doğrulanıyor.
 - Yeni CTest `occ_stage_module_abi_validation_helpers`: gerçek OIR AST input, uyumsuz ABI major, mask tutarsızlığı, NULL input bytes, nonzero flags ve eksik required input kontrolleri.
-- ABI dokümanı açıkça draft; dynamic loader, gerçek parser stage shared library, module ID registry, stage-specific parser input roles ve output artifact validation henüz sonraki adımlar.
-- CI run henüz sonuçlanmadı; en son CMake target sıralaması düzeltildi ve yeni CI tetiklendi.
+- ABI dokümanı açıkça draft; test amaçlı pass-through shared library dinamik yüklenip çağrılıyor. Gerçek parser stage shared library, module ID registry ve stage-specific parser input roles sonraki adımlar.
+- **CI run 41161737825:** Windows, Ubuntu, macOS başarılı; Ubuntu CTest 34/34, ASan/UBSan ve Valgrind başarılı.
+
+
+## Dynamic shared-stage ABI fixture CI — 31 Ekim 2026
+
+- Test-only `occ_test_passthrough_module` shared library Windows DLL, Linux SO ve macOS dylib olarak derleniyor.
+- Host test gerçek export sembolünü dinamik olarak yüklüyor; descriptor ve input OIR artifact'ını doğruluyor, küçük output buffer ile NEED_OUTPUT_BUFFER alıyor, yeterli buffer ile aynı OIR artifact'ını yazdırıyor ve modülü unload ediyor.
+- Test modülü test amaçlıdır; gerçek parser-stage DLL değildir.
+- **CI run 41161737825:** Windows, Ubuntu ve macOS build/test başarılı; Ubuntu CTest 34/34, ASan/UBSan ve Valgrind başarılı.
+- **ABI durumu:** Draft v1.0, freeze edilmedi. Module ID registry ve gerçek parser stage implementasyonu sonraki işler.
