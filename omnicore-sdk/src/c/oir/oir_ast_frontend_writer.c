@@ -315,7 +315,9 @@ static OirStatus emit_tree(AstEmitContext* c, const ASTNode* node, uint32_t dept
     uint16_t field, field_count, kind;
     OirStatus status;
     if (!node) return OIR_STATUS_OK;
-    if (depth > OIR_AST_NODE_DEPTH_MAX || c->emitted_nodes >= c->node_count) {
+    if (depth > OIR_AST_NODE_DEPTH_MAX || c->emitted_nodes >= c->node_count ||
+        node->line < 0 || node->col < 0 ||
+        ((node->line == 0) != (node->col == 0))) {
         return OIR_STATUS_INVALID_SECTION;
     }
     id = oir_ast_frontend_index_lookup(c->index_entries,c->index_capacity,node);
@@ -326,8 +328,6 @@ static OirStatus emit_tree(AstEmitContext* c, const ASTNode* node, uint32_t dept
 
     if (!c->measure_only) {
         OirAstNodeRecord* record = &c->records[id - 1u];
-        if (node->line < 0 || node->col < 0 ||
-            ((node->line == 0) != (node->col == 0))) return OIR_STATUS_INVALID_SECTION;
         memset(record,0,sizeof(*record));
         record->node_id = id;
         record->node_kind_id = kind;
