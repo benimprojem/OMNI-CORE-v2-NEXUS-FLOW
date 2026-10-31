@@ -86,6 +86,57 @@ static int test_parser_context_initialization(void) {
     return ok;
 }
 
+static int test_aggregate_declaration_ast(void) {
+    static const char source[] =
+        "f:main() {"
+        " struct: Point { v:x!i32, v:y!i32 }"
+        " nt:id = u64;"
+        " enum:State { Idle, Running(pid!u32), Error(code!u16) }"
+        " union:Register32 { v:full!u32, v:parts!u16 }"
+        "}";
+    ParserContext* ctx = parser_init_source(
+        "aggregate-declarations.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* node;
+    int seen_struct = 0, seen_newtype = 0, seen_enum = 0, seen_union = 0;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != 0 || ctx->error_count != 0 || !ctx->ast_root) goto done;
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL) goto done;
+    body = (ASTBlock*)function->body;
+    if (!body || body->base.type != AST_BLOCK) goto done;
+    for (node = body->statements; node; node = node->next) {
+        if (node->type == AST_STRUCT_DECL) {
+            ASTStructDecl* d = (ASTStructDecl*)node;
+            if (!d->name || !d->fields || !d->fields->next) goto done;
+            seen_struct = 1;
+        } else if (node->type == AST_NEWTYPE_DECL) {
+            ASTNewTypeDecl* d = (ASTNewTypeDecl*)node;
+            if (!d->name || !d->target_type) goto done;
+            seen_newtype = 1;
+        } else if (node->type == AST_ENUM_DECL) {
+            ASTEnumDecl* d = (ASTEnumDecl*)node;
+            ASTEnumVariant* v;
+            if (!d->name || !d->variants) goto done;
+            v = (ASTEnumVariant*)d->variants;
+            if (!v->base.next || !((ASTEnumVariant*)v->base.next)->data) goto done;
+            seen_enum = 1;
+        } else if (node->type == AST_UNION_DECL) {
+            ASTStructDecl* d = (ASTStructDecl*)node;
+            if (!d->name || !d->fields) goto done;
+            seen_union = 1;
+        }
+    }
+    ok = seen_struct && seen_newtype && seen_enum && seen_union;
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 int main(int argc, char** argv) {
     if (!test_parser_context_initialization()) {
         fprintf(stderr, "Parser context initialization/early destruction test failed.\\n");
@@ -93,6 +144,10 @@ int main(int argc, char** argv) {
     }
     if (!test_cast_and_panic_ast()) {
         fprintf(stderr, "CAST/PANIC AST payload test failed.\n");
+        return 1;
+    }
+    if (!test_aggregate_declaration_ast()) {
+        fprintf(stderr, "Aggregate declaration AST ownership test failed.\n");
         return 1;
     }
     if (argc != 4) return 2;
