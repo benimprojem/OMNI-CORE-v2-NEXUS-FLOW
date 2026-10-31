@@ -165,6 +165,28 @@ int main(void) {
             OIR_STATUS_INVALID_SECTION);
     }
 
+
+    /* Unconsumed known optional sections may be skipped; required ones may not. */
+    {
+        uint8_t metadata[1] = { 0x5au };
+        OirSectionInput extension_sections[7];
+        memcpy(extension_sections, sections, 6u * sizeof(sections[0]));
+        set_section(&extension_sections[6], OIR_SECTION_METADATA, 1u,
+            OIR_SECTION_FLAG_REQUIRED, metadata, sizeof(metadata));
+        CHECK(oir_artifact_write(artifact, sizeof(artifact), &header,
+            extension_sections, 7u, &artifact_written) == OIR_STATUS_OK);
+        CHECK(oir_semantic_ast_artifact_open(artifact, artifact_written, &view,
+            incoming, 1u, visited, 1u, stack, 1u, owner_scope, 2u) ==
+            OIR_STATUS_UNKNOWN_REQUIRED_SECTION);
+
+        extension_sections[6].flags = 0u;
+        CHECK(oir_artifact_write(artifact, sizeof(artifact), &header,
+            extension_sections, 7u, &artifact_written) == OIR_STATUS_OK);
+        CHECK(oir_semantic_ast_artifact_open(artifact, artifact_written, &view,
+            incoming, 1u, visited, 1u, stack, 1u, owner_scope, 2u) ==
+            OIR_STATUS_OK);
+    }
+
     /* Wrong artifact kind or non-final validity cannot be opened as SEMANTIC_AST. */
     {
         OirArtifactHeader bad_header = header;
