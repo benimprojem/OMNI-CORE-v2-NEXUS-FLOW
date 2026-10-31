@@ -575,6 +575,7 @@ if(BUILD_TESTING)
 
     add_executable(test_dynamic_stage_module "${C_SOURCE_DIR}/tests/test_dynamic_stage_module.c")
     target_link_libraries(test_dynamic_stage_module PRIVATE occ_module_abi ${CMAKE_DL_LIBS})
+    target_include_directories(test_dynamic_stage_module PRIVATE "${C_SOURCE_DIR}/core")
     add_dependencies(test_dynamic_stage_module occ_test_passthrough_module)
     if(MSVC)
         target_compile_options(test_dynamic_stage_module PRIVATE /W4)
