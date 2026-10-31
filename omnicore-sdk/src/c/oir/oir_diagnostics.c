@@ -35,6 +35,48 @@ static void write_u64_le(uint8_t* p, uint64_t value) {
     write_u32_le(p + 4, (uint32_t)(value >> 32));
 }
 
+static int is_valid_utf8_text(const uint8_t* data, size_t length) {
+    size_t i = 0;
+    while (i < length) {
+        uint8_t a = data[i];
+        uint32_t codepoint;
+        size_t extra;
+
+        if (a == 0) return 0;
+        if (a <= 0x7fu) {
+            ++i;
+            continue;
+        } else if (a >= 0xc2u && a <= 0xdfu) {
+            codepoint = (uint32_t)(a & 0x1fu);
+            extra = 1;
+        } else if (a >= 0xe0u && a <= 0xefu) {
+            codepoint = (uint32_t)(a & 0x0fu);
+            extra = 2;
+        } else if (a >= 0xf0u && a <= 0xf4u) {
+            codepoint = (uint32_t)(a & 0x07u);
+            extra = 3;
+        } else {
+            return 0;
+        }
+
+        if (extra > length - i - 1u) return 0;
+        for (size_t j = 1; j <= extra; ++j) {
+            uint8_t b = data[i + j];
+            if ((b & 0xc0u) != 0x80u) return 0;
+            codepoint = (codepoint << 6) | (uint32_t)(b & 0x3fu);
+        }
+        if ((extra == 1 && codepoint < 0x80u) ||
+            (extra == 2 && codepoint < 0x800u) ||
+            (extra == 3 && codepoint < 0x10000u) ||
+            (codepoint >= 0xd800u && codepoint <= 0xdfffu) ||
+            codepoint > 0x10ffffu) {
+            return 0;
+        }
+        i += extra + 1u;
+    }
+    return 1;
+}
+
 static int valid_string(
     const uint8_t* strings,
     uint32_t string_length,
@@ -46,7 +88,8 @@ static int valid_string(
         return 0;
     }
     if (strings[offset + length] != 0) return 0;
-    return memchr(strings + offset, 0, length) == NULL;
+    if (memchr(strings + offset, 0, length) != NULL) return 0;
+    return is_valid_utf8_text(strings + offset, length);
 }
 
 static OirStatus read_record(
