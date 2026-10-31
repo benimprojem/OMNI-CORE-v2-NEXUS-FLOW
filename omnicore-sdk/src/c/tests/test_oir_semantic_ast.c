@@ -123,6 +123,16 @@ int main(void) {
         &second_written) == OIR_STATUS_BUFFER_TOO_SMALL);
     assert(second_written == 0u && second[0] == 0xa5u);
 
+    /* Single-byte mutation sweep: every mutated payload must be safely rejected or opened. */
+    {
+        size_t mutation_index;
+        for (mutation_index = 0u; mutation_index < written; ++mutation_index) {
+            memcpy(damaged, bytes, written);
+            damaged[mutation_index] ^= 0x80u;
+            (void)oir_semantic_scopes_open(damaged, written, &view);
+        }
+    }
+
 
     {
         const uint8_t names[] = { 'i', '3', '2', 'W', 'i', 'd', 'g', 'e', 't' };
@@ -217,6 +227,15 @@ int main(void) {
             types, 2u, names, (uint32_t)sizeof(names), &type_second_written) ==
             OIR_STATUS_BUFFER_TOO_SMALL);
         assert(type_second_written == 0u && type_second[0] == 0xa5u);
+
+        {
+            size_t mutation_index;
+            for (mutation_index = 0u; mutation_index < type_written; ++mutation_index) {
+                memcpy(type_bad, type_bytes, type_written);
+                type_bad[mutation_index] ^= 0x80u;
+                (void)oir_semantic_types_open(type_bad, type_written, &types_view);
+            }
+        }
     }
 
 
@@ -336,6 +355,16 @@ int main(void) {
             (uint32_t)sizeof(symbol_names), &symbol_second_written) ==
             OIR_STATUS_BUFFER_TOO_SMALL);
         assert(symbol_second_written == 0u && symbol_second[0] == 0xa5u);
+
+        {
+            size_t mutation_index;
+            for (mutation_index = 0u; mutation_index < symbol_written; ++mutation_index) {
+                memcpy(symbol_bad, symbol_bytes, symbol_written);
+                symbol_bad[mutation_index] ^= 0x80u;
+                (void)oir_semantic_symbols_open(
+                    symbol_bad, symbol_written, &symbols_view);
+            }
+        }
     }
 
 
@@ -426,6 +455,17 @@ int main(void) {
             sizeof(annotation_second) - 1u, annotations, 2u,
             &annotation_second_written) == OIR_STATUS_BUFFER_TOO_SMALL);
         assert(annotation_second_written == 0u && annotation_second[0] == 0xa5u);
+
+        {
+            size_t mutation_index;
+            for (mutation_index = 0u; mutation_index < annotation_written;
+                ++mutation_index) {
+                memcpy(annotation_bad, annotation_bytes, annotation_written);
+                annotation_bad[mutation_index] ^= 0x80u;
+                (void)oir_semantic_annotations_open(
+                    annotation_bad, annotation_written, &annotation_view);
+            }
+        }
 
         /* Empty symbol/type/annotation tables are valid and still have headers. */
         assert(oir_semantic_types_write(empty_types, sizeof(empty_types),
@@ -573,6 +613,17 @@ int main(void) {
             OIR_STATUS_BUFFER_TOO_SMALL);
         assert(relation_second_written == 0u && relation_second[0] == 0xa5u);
 
+        {
+            size_t mutation_index;
+            for (mutation_index = 0u; mutation_index < relation_written;
+                ++mutation_index) {
+                memcpy(relation_bad, relation_bytes, relation_written);
+                relation_bad[mutation_index] ^= 0x80u;
+                (void)oir_semantic_relations_open(
+                    relation_bad, relation_written, &relation_view);
+            }
+        }
+
         assert(oir_semantic_relations_write(empty_relations,
             sizeof(empty_relations), NULL, 0u, NULL, 0u,
             &empty_relation_written) == OIR_STATUS_OK);
@@ -685,6 +736,17 @@ int main(void) {
             sizeof(conversion_second) - 1u, conversions, 3u,
             &conversion_second_written) == OIR_STATUS_BUFFER_TOO_SMALL);
         assert(conversion_second_written == 0u && conversion_second[0] == 0xa5u);
+
+        {
+            size_t mutation_index;
+            for (mutation_index = 0u; mutation_index < conversion_written;
+                ++mutation_index) {
+                memcpy(conversion_bad, conversion_bytes, conversion_written);
+                conversion_bad[mutation_index] ^= 0x80u;
+                (void)oir_semantic_conversions_open(
+                    conversion_bad, conversion_written, &conversion_view);
+            }
+        }
 
         assert(oir_semantic_conversions_write(empty_conversions,
             sizeof(empty_conversions), NULL, 0u,
