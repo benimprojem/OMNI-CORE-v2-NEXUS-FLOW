@@ -300,3 +300,21 @@ Bu değişiklikler NEXSUS Flow gramerine yeni bir operatör veya üretim kuralı
 - Bu sınıflar doğrudan L1/L2 veya L3/L4 garantisi değildir. L1/L2'nin private/group-shared oluşu ve daha üst cache seviyelerinin paylaşımı hedef topolojisine göre değişir.
 - Bare-metal runtime ile OS adapter aynı dil kontratını uygulamalıdır; OS entegrasyonu dil semantiğini değiştirmemelidir.
 - Fiziksel havuz seçimi, scope, paylaşım, fallback, sahiplik, lifetime ve memory-ordering kararları açık bırakıldı. Bu aşamada yeni syntax veya fiziksel cache garantisi eklenmedi.
+
+
+## 6.14 Defer, use, thread-block ve statement AST sahipliği
+
+**Durum: İlgili parser yollarında ilk tahsis/temizlik kontrolleri uygulandı.**
+
+- `defer` düğümü ve gövdesi kontrol ediliyor; gövde üretilemezse kısmi düğüm temizleniyor.
+- `use` import listesinde modül adı ve alias kopyaları kontrol ediliyor. Listeye eklenmemiş düğüm ve daha önce oluşturulmuş liste, hata halinde ayrı ayrı temizleniyor.
+- Thread-block düğümü tahsis edilemezse çağıranın verdiği isim serbest bırakılıyor; gövde üretilemezse düğüm ve adı temizleniyor.
+- Boş statement, variable/function/struct/group declaration dispatch, listen, jump, halt, intent ve panic yollarında AST tahsis kontrolleri eklendi.
+- Return, block ve variable declaration oluşturma yollarında AST tahsisi, isim/tip kopyası ve initializer/return expression başarısızlıklarında cleanup eklendi.
+- Bu değişiklikler mevcut grameri değiştirmiyor; README'de yeni syntax güncellemesi gerektirmiyor.
+
+**Kalan işler:**
+
+- Function/parameter, struct/union/enum/group body parser'larında kalan doğrudan tahsisler kontrol edilmeli.
+- Statement label oluşturma ve parser genelinde OOM'un syntax error'dan ayrılması tamamlanmalı.
+- Allocation-failure injection ile her tahsis noktasının cleanup yolu doğrulanmalı.
