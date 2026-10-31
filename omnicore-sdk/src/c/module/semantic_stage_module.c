@@ -1,6 +1,3 @@
-#if !defined(_WIN32)
-#define _GNU_SOURCE
-#endif
 #include "occ_module_api.h"
 #include "semantic.h"
 #include "ast.h"
@@ -8,13 +5,7 @@
 #include "oir_ast_frontend_index.h"
 #include "oir_ast_node_table.h"
 #include "oir_semantic_ast_artifact.h"
-#include <stdio.h>
 #include <stdlib.h>
-#if defined(_WIN32)
-#include <windows.h>
-#else
-#include <dlfcn.h>
-#endif
 #include <string.h>
 
 #define SEMANTIC_INDEX_MAX ((size_t)2097152u)
