@@ -23,13 +23,9 @@ typedef struct OirSemanticAstArtifactView {
 } OirSemanticAstArtifactView;
 
 /*
- * Validate a complete SEMANTIC_AST OIR artifact:
- * - envelope kind/schema/validity and required section uniqueness/version;
- * - embedded AST payload, field schema and graph;
- * - all semantic section codecs and cross-table references.
- *
- * All scratch arrays are caller-owned. The returned views borrow artifact_bytes,
- * which must outlive out_view. On failure, out_view is zeroed.
+ * Encode a finalized, invocation-owned semantic result beside the exact AST
+ * payload. The function uses temporary invocation-local storage, validates the
+ * completed artifact before publishing it, and leaves output untouched on failure.
  */
 OirStatus oir_semantic_ast_artifact_write(
     const uint8_t* ast_payload,
@@ -43,6 +39,15 @@ OirStatus oir_semantic_ast_artifact_write(
 
 /*
  * Validate a complete SEMANTIC_AST OIR artifact:
+ * - envelope kind/schema/validity and required section uniqueness/version;
+ * - embedded AST payload, field schema and graph;
+ * - all semantic section codecs and cross-table references.
+ *
+ * All scratch arrays are caller-owned. The returned views borrow artifact_bytes,
+ * which must outlive out_view. On failure, out_view is zeroed.
+ */
+OirStatus oir_semantic_ast_artifact_open(
+    const uint8_t* artifact_bytes,
     size_t artifact_length,
     OirSemanticAstArtifactView* out_view,
     uint32_t* incoming_counts,
