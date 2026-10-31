@@ -355,6 +355,8 @@ int main(void) {
         size_t annotation_second_written = 0u;
         size_t empty_written = 0u;
         OirSemanticAnnotationsView annotation_view;
+        OirSemanticTypesView empty_types_view;
+        OirSemanticSymbolsView empty_symbols_view;
         OirSemanticAnnotation decoded_annotation;
 
         assert(oir_semantic_annotations_write(annotation_bytes,
@@ -430,13 +432,13 @@ int main(void) {
             NULL, 0u, NULL, 0u, &empty_written) == OIR_STATUS_OK);
         assert(empty_written == sizeof(empty_types));
         assert(oir_semantic_types_open(empty_types, empty_written,
-            &types_view) == OIR_STATUS_OK && types_view.record_count == 0u);
+            &empty_types_view) == OIR_STATUS_OK && empty_types_view.record_count == 0u);
 
         assert(oir_semantic_symbols_write(empty_symbols, sizeof(empty_symbols),
             NULL, 0u, NULL, 0u, &empty_written) == OIR_STATUS_OK);
         assert(empty_written == sizeof(empty_symbols));
         assert(oir_semantic_symbols_open(empty_symbols, empty_written,
-            &symbols_view) == OIR_STATUS_OK && symbols_view.record_count == 0u);
+            &empty_symbols_view) == OIR_STATUS_OK && empty_symbols_view.record_count == 0u);
 
         assert(oir_semantic_annotations_write(empty_table, sizeof(empty_table),
             NULL, 0u, &empty_written) == OIR_STATUS_OK);
