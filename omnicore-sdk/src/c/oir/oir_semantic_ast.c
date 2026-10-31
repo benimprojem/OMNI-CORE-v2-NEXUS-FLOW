@@ -912,3 +912,273 @@ OirStatus oir_semantic_annotations_write(
     *out_written = (size_t)total_length;
     return OIR_STATUS_OK;
 }
+
+
+static OirStatus validate_relation_records(
+    const uint8_t* records,
+    uint32_t relation_count,
+    const uint8_t* string_table,
+    uint32_t string_table_length
+) {
+    uint32_t i;
+    uint32_t previous_owner = 0u;
+    uint16_t previous_kind = 0u;
+    uint32_t previous_ordinal = 0u;
+
+    if ((!records && relation_count != 0u) ||
+        relation_count > OIR_SEMANTIC_MAX_RELATION_COUNT ||
+        string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE ||
+        (!string_table && string_table_length != 0u) ||
+        (relation_count == 0u && string_table_length != 0u)) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    for (i = 0u; i < relation_count; ++i) {
+        const uint8_t* record = records +
+            (size_t)i * OIR_SEMANTIC_RELATION_RECORD_SIZE;
+        uint32_t owner = read_u32_le(record);
+        uint16_t kind = (uint16_t)((uint16_t)record[4] |
+            ((uint16_t)record[5] << 8));
+        uint16_t flags = (uint16_t)((uint16_t)record[6] |
+            ((uint16_t)record[7] << 8));
+        uint32_t ordinal = read_u32_le(record + 8);
+        uint32_t related_node_id = read_u32_le(record + 16);
+        uint32_t name_offset = read_u32_le(record + 20);
+        uint32_t name_length = read_u32_le(record + 24);
+
+        if (owner == 0u ||
+            kind < OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER ||
+            kind > OIR_SEMANTIC_RELATION_ENUM_PAYLOAD_FIELD ||
+            flags != 0u || related_node_id == 0u) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+
+        if (name_length == 0u) {
+            if (name_offset != 0u) return OIR_STATUS_INVALID_SECTION;
+        } else if (name_offset > string_table_length ||
+            name_length > string_table_length - name_offset ||
+            !is_valid_utf8_name(string_table + name_offset, name_length)) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+
+        if (i != 0u) {
+            if (owner < previous_owner ||
+                (owner == previous_owner && kind < previous_kind)) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+            if (owner == previous_owner && kind == previous_kind) {
+                if (previous_ordinal == UINT32_MAX ||
+                    ordinal != previous_ordinal + 1u) {
+                    return OIR_STATUS_INVALID_SECTION;
+                }
+            } else if (ordinal != 0u) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+        } else if (ordinal != 0u) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+
+        previous_owner = owner;
+        previous_kind = kind;
+        previous_ordinal = ordinal;
+    }
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_relations_open(
+    const uint8_t* payload,
+    size_t payload_length,
+    OirSemanticRelationsView* out_view
+) {
+    uint32_t count;
+    uint32_t record_size;
+    uint32_t string_length;
+    uint64_t expected_length;
+    OirStatus status;
+
+    if (!payload || !out_view) return OIR_STATUS_INVALID_ARGUMENT;
+    memset(out_view, 0, sizeof(*out_view));
+    if (payload_length < OIR_SEMANTIC_RELATIONS_HEADER_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    count = read_u32_le(payload);
+    record_size = read_u32_le(payload + 4);
+    string_length = read_u32_le(payload + 8);
+    if (record_size != OIR_SEMANTIC_RELATION_RECORD_SIZE ||
+        count > OIR_SEMANTIC_MAX_RELATION_COUNT ||
+        string_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    expected_length = (uint64_t)OIR_SEMANTIC_RELATIONS_HEADER_SIZE +
+        (uint64_t)count * OIR_SEMANTIC_RELATION_RECORD_SIZE + string_length;
+    if (expected_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    if (expected_length != (uint64_t)payload_length) {
+        return OIR_STATUS_LENGTH_MISMATCH;
+    }
+
+    status = validate_relation_records(
+        payload + OIR_SEMANTIC_RELATIONS_HEADER_SIZE, count,
+        payload + OIR_SEMANTIC_RELATIONS_HEADER_SIZE +
+            (size_t)count * OIR_SEMANTIC_RELATION_RECORD_SIZE,
+        string_length);
+    if (status != OIR_STATUS_OK) return status;
+
+    out_view->bytes = payload;
+    out_view->length = payload_length;
+    out_view->record_count = count;
+    out_view->records_offset = OIR_SEMANTIC_RELATIONS_HEADER_SIZE;
+    out_view->strings_offset = OIR_SEMANTIC_RELATIONS_HEADER_SIZE +
+        (size_t)count * OIR_SEMANTIC_RELATION_RECORD_SIZE;
+    out_view->string_table_length = string_length;
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_relations_get(
+    const OirSemanticRelationsView* view,
+    uint32_t index,
+    OirSemanticRelation* out_relation,
+    const uint8_t** out_name
+) {
+    const uint8_t* record;
+    uint64_t expected_length;
+
+    if (!view || !view->bytes || !out_relation) return OIR_STATUS_INVALID_ARGUMENT;
+    if (view->records_offset != OIR_SEMANTIC_RELATIONS_HEADER_SIZE ||
+        view->record_count > OIR_SEMANTIC_MAX_RELATION_COUNT ||
+        view->string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    expected_length = (uint64_t)OIR_SEMANTIC_RELATIONS_HEADER_SIZE +
+        (uint64_t)view->record_count * OIR_SEMANTIC_RELATION_RECORD_SIZE +
+        view->string_table_length;
+    if (expected_length > (uint64_t)SIZE_MAX ||
+        expected_length != (uint64_t)view->length ||
+        view->strings_offset != OIR_SEMANTIC_RELATIONS_HEADER_SIZE +
+            (size_t)view->record_count * OIR_SEMANTIC_RELATION_RECORD_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    if (index >= view->record_count) return OIR_STATUS_INVALID_ARGUMENT;
+
+    record = view->bytes + view->records_offset +
+        (size_t)index * OIR_SEMANTIC_RELATION_RECORD_SIZE;
+    out_relation->owner_symbol_id = read_u32_le(record);
+    out_relation->kind = (uint16_t)((uint16_t)record[4] |
+        ((uint16_t)record[5] << 8));
+    out_relation->flags = (uint16_t)((uint16_t)record[6] |
+        ((uint16_t)record[7] << 8));
+    out_relation->ordinal = read_u32_le(record + 8);
+    out_relation->related_symbol_id = read_u32_le(record + 12);
+    out_relation->related_node_id = read_u32_le(record + 16);
+    out_relation->name_offset = read_u32_le(record + 20);
+    out_relation->name_length = read_u32_le(record + 24);
+    out_relation->type_id = read_u32_le(record + 28);
+    if (out_name) {
+        *out_name = out_relation->name_length
+            ? view->bytes + view->strings_offset + out_relation->name_offset
+            : NULL;
+    }
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_relations_write(
+    uint8_t* output,
+    size_t capacity,
+    const OirSemanticRelation* relations,
+    uint32_t relation_count,
+    const uint8_t* string_table,
+    uint32_t string_table_length,
+    size_t* out_written
+) {
+    uint64_t total_length;
+    uint32_t i;
+    uint32_t previous_owner = 0u;
+    uint16_t previous_kind = 0u;
+    uint32_t previous_ordinal = 0u;
+
+    if (out_written) *out_written = 0u;
+    if (!output || !out_written ||
+        (!relations && relation_count != 0u) ||
+        (!string_table && string_table_length != 0u)) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+    if (relation_count > OIR_SEMANTIC_MAX_RELATION_COUNT ||
+        string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE ||
+        (relation_count == 0u && string_table_length != 0u)) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+
+    for (i = 0u; i < relation_count; ++i) {
+        const OirSemanticRelation* relation = &relations[i];
+        if (relation->owner_symbol_id == 0u ||
+            relation->kind < OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER ||
+            relation->kind > OIR_SEMANTIC_RELATION_ENUM_PAYLOAD_FIELD ||
+            relation->flags != 0u || relation->related_node_id == 0u) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if (relation->name_length == 0u) {
+            if (relation->name_offset != 0u) return OIR_STATUS_INVALID_SECTION;
+        } else if (relation->name_offset > string_table_length ||
+            relation->name_length > string_table_length - relation->name_offset ||
+            !is_valid_utf8_name(string_table + relation->name_offset,
+                relation->name_length)) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+
+        if (i != 0u) {
+            if (relation->owner_symbol_id < previous_owner ||
+                (relation->owner_symbol_id == previous_owner &&
+                    relation->kind < previous_kind)) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+            if (relation->owner_symbol_id == previous_owner &&
+                relation->kind == previous_kind) {
+                if (previous_ordinal == UINT32_MAX ||
+                    relation->ordinal != previous_ordinal + 1u) {
+                    return OIR_STATUS_INVALID_SECTION;
+                }
+            } else if (relation->ordinal != 0u) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+        } else if (relation->ordinal != 0u) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        previous_owner = relation->owner_symbol_id;
+        previous_kind = relation->kind;
+        previous_ordinal = relation->ordinal;
+    }
+
+    total_length = (uint64_t)OIR_SEMANTIC_RELATIONS_HEADER_SIZE +
+        (uint64_t)relation_count * OIR_SEMANTIC_RELATION_RECORD_SIZE +
+        string_table_length;
+    if (total_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    if ((size_t)total_length > capacity) return OIR_STATUS_BUFFER_TOO_SMALL;
+
+    write_u32_le(output, relation_count);
+    write_u32_le(output + 4, OIR_SEMANTIC_RELATION_RECORD_SIZE);
+    write_u32_le(output + 8, string_table_length);
+    for (i = 0u; i < relation_count; ++i) {
+        uint8_t* record = output + OIR_SEMANTIC_RELATIONS_HEADER_SIZE +
+            (size_t)i * OIR_SEMANTIC_RELATION_RECORD_SIZE;
+        write_u32_le(record, relations[i].owner_symbol_id);
+        record[4] = (uint8_t)(relations[i].kind & 0xffu);
+        record[5] = (uint8_t)((relations[i].kind >> 8) & 0xffu);
+        record[6] = (uint8_t)(relations[i].flags & 0xffu);
+        record[7] = (uint8_t)((relations[i].flags >> 8) & 0xffu);
+        write_u32_le(record + 8, relations[i].ordinal);
+        write_u32_le(record + 12, relations[i].related_symbol_id);
+        write_u32_le(record + 16, relations[i].related_node_id);
+        write_u32_le(record + 20, relations[i].name_offset);
+        write_u32_le(record + 24, relations[i].name_length);
+        write_u32_le(record + 28, relations[i].type_id);
+    }
+    if (string_table_length != 0u) {
+        memcpy(output + OIR_SEMANTIC_RELATIONS_HEADER_SIZE +
+            (size_t)relation_count * OIR_SEMANTIC_RELATION_RECORD_SIZE,
+            string_table, string_table_length);
+    }
+
+    *out_written = (size_t)total_length;
+    return OIR_STATUS_OK;
+}
