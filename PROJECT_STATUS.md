@@ -680,3 +680,20 @@ Runtime packaging: parser stage shared library CMake tarafından OCC executable 
 **CI run 41174447616:** Windows, Ubuntu ve macOS build/test başarılı; CTest 39/39. Ubuntu ASan/UBSan ve Valgrind başarılı. Run: https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/41174447616
 
 **Sınırlar / sonraki işler:** Lexer henüz OCC host içinde statik frontend kodudur; ayrı lexer DLL henüz yok. Semantic stage henüz DLL değildir ve semantic AST OIR schema/codec tanımlanmadı. Codegen mevcut `codegen_run` sembolüyle eski ayrı yükleme yolunu kullanıyor; ortak stage ABI'ye henüz taşınmadı. ABI draft kalır.
+
+
+## 31 Ekim 2026 — Lexer da bağımsız DLL stage oldu
+
+`lexer_stage_module.c` ve `occ_lexer_stage` shared target'ı eklendi. Modül tek `OIR_KIND_SOURCE_UNIT` girdisini alır; doğrulanmış source/path içeriğinden lexer context kurar ve stable token ID'leri ile byte offset/length/line/column bilgilerini içeren `OIR_KIND_TOKEN_STREAM` üretir.
+
+Lexer hataları artık lexer aşamasında job-owned diagnostic olarak kaydediliyor. `TOKEN_ERROR` kaydı bu tanıya 1-based diagnostic ID ile bağlanıyor; aynı tanılar TOKEN_STREAM artifact'ındaki DIAGNOSTICS section'ında taşınıyor. Parser stage bu upstream tanıları tekrar üretmiyor veya parser aşamasına yanlış atfetmiyor. Lexer modülü callback'i ancak output kapasitesi yeterli olduğunda çağırıyor; buffer retry sırasında diagnostic duplication oluşmuyor.
+
+OCC `main.c` içindeki statik lexer token döngüsü kaldırıldı. Gerçek CLI zinciri artık:
+
+`SOURCE_UNIT OIR → Lexer DLL → TOKEN_STREAM OIR → Parser DLL → AST OIR → host AST materializer → mevcut Semantic`
+
+Yeni `real_lexer_stage_source_to_token_stream_module` testi gerçek shared library'yi host loader üzerinden açıyor; unterminated string girdisinde TOKEN_ERROR, diagnostic reference, diagnostics payload, exact start span ve callback handoff'unu doğruluyor.
+
+**CI run 41174917131:** Windows, Ubuntu ve macOS build/test başarılı; CTest 40/40; Ubuntu ASan/UBSan ve Valgrind başarılı. Run: https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/41174917131
+
+**Kalan mimari sınır:** Semantic hâlâ OCC içinde çalışan mevcut frontend kodudur; SEMANTIC_AST schema/codec ve semantic DLL sonraki aşamadır. Codegen de ortak OccStageModuleV1 ABI'ye taşınmadı; legacy `codegen_run` giriş noktasını kullanıyor. ABI Draft v1 olarak kalıyor.
