@@ -31,7 +31,10 @@ A representation limit is not a recommended operating size. For example, a 32-bi
 | AST codec string field | 16 MiB | Hard implementation limit | `ast.c`, `AST_MAX_STRING_LENGTH` |
 | Lexer token length | At most `INT_MAX` bytes | Representation / checked implementation limit | `Token.length` is `int`; lexer rejects an oversized token |
 | OIR token lexeme length | At most `UINT32_MAX` bytes in the wire record | Representation limit | `OirTokenStreamInput.lexeme_length` |
-| OIR token count | At most `UINT32_MAX` records | Representation limit | Token-stream header count is `uint32_t` |
+| Lexer stage token count | At most 1,000,000 records, including EOF | Hard implementation limit | `lexer_stage_module.c`, `LEXER_STAGE_TOKEN_LIMIT` |
+| Parser stage token input | At most 1,000,000 records, including EOF | Hard implementation limit | `parser_stage_module.c`, `PARSER_STAGE_MAX_TOKEN_COUNT` |
+| Parser stage AST pointer index | Capacity grows up to 2,097,152 entries | Hard implementation limit | `parser_stage_module.c`, `PARSER_STAGE_MAX_INDEX_CAPACITY` |
+| OIR token count | At most `UINT32_MAX` records in schema representation; frontend stages apply the stricter 1,000,000-record limit | Representation limit plus stage policy | Token-stream header count is `uint32_t` |
 | OIR token record size | 32 bytes, plus 16-byte header | Fixed schema size | `oir_token_stream.h` |
 | Diagnostic message / hint length | Each serialized length is at most `UINT32_MAX` bytes | Representation limit | `diagnostics.c`, OIR diagnostic fields |
 | Diagnostic text arena | Total serialized text is bounded by `UINT32_MAX` bytes | Representation limit | `diagnostics.c` |
@@ -52,7 +55,7 @@ The AST serializer/deserializer enforces:
 - no more than 512 recursive codec levels;
 - no individual serialized string field longer than 16 MiB.
 
-These are codec safety limits. They do not prove that the parser can construct every AST up to the codec's maximum node count, nor that such an AST is affordable on every machine.
+These are the legacy AST codec safety limits in `parser/ast.c`. The artifact-oriented Parser DLL uses a separate frontend pointer index whose capacity grows from 1,024 up to 2,097,152 entries. The stage rejects input that would require capacity beyond that ceiling. These are distinct paths and must not be described as one shared AST-node limit. Neither value proves that every AST at the maximum size is affordable on every machine.
 
 ### 2.3 Token stream sizing
 
@@ -67,7 +70,7 @@ The token-record payload size is therefore:
 
 `16 + (32 × token_count)` bytes
 
-This formula excludes the enclosing OIR artifact header, section directory, source payload and diagnostics payload. The serializer checks arithmetic overflow and caller-provided output capacity. The 32-bit count is a format ceiling, not a practical target.
+This formula excludes the enclosing OIR artifact header, section directory, source payload and diagnostics payload. The serializer checks arithmetic overflow and caller-provided output capacity. The 32-bit count is a format ceiling, not a practical target. The current Lexer DLL and Parser DLL apply a much stricter limit of 1,000,000 token records per compilation, including the EOF record. The Parser DLL checks this independently before allocating its token array, because stage input is an artifact boundary and must not be trusted solely because the Lexer normally emits it.
 
 ## 3. Source file size and line count
 
@@ -100,7 +103,7 @@ The following values must remain explicitly **TBD** until they are supported by 
 | Maximum source file bytes | No product cap | Add configurable host policy and boundary tests |
 | Maximum source lines | No product cap | Decide whether a line-count cap is useful; likely secondary to byte cap |
 | Maximum physical line length | No product cap | Decide policy; test long comments, strings and identifiers separately |
-| Maximum total token count | No practical cap beyond OIR `uint32` representation and memory | Add host-configurable token budget |
+| Maximum total token count | Lexer and Parser stages each enforce 1,000,000 records; no host-configurable budget yet | Promote the stage-local constant into the versioned job policy when that policy is implemented |
 | Maximum AST nodes during parsing | No parser-side global node budget confirmed | Add a parser allocation/node budget before claiming a parser maximum |
 | Maximum declarations / functions / parameters | No product caps specified | Define only if required for predictable resource control |
 | Maximum diagnostics per compilation | No product cap | Add configurable diagnostic budget and a final “further diagnostics suppressed” record |
