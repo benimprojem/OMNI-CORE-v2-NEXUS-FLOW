@@ -427,3 +427,20 @@ Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı günce
 - Semantic artifact içindeki bütün cross-table referanslar doğrulanıyor; ancak sonraki modülün bu referansları tüketme sözleşmesi ayrı bir sonraki aşama denetimidir.
 
 Bu bölüm Parser → Semantic sınırını kapsar; IR Lowering'e geçildiği anlamına gelmez.
+
+
+## 6.20 SemanticResult allocator fault-injection
+
+**Durum: Per-instance allocation fault injection eklendi; CI doğrulaması bekleniyor.**
+
+- Durable SemanticResult tablolarının realloc yolları, type/symbol/relation isim kopyaları ve finalize aşamasındaki scope-owner çalışma alanı tek bir per-instance allocator test kancasına bağlandı.
+- Test kancası global değildir; eşzamanlı SemanticResult örnekleri birbirlerinin sayaçlarını veya hata indekslerini etkilemez.
+- Her tahsis denemesi 1-based sayılır. Seçilen indeks başarısız olduğunda API SEMANTIC_RESULT_OUT_OF_MEMORY döndürür; başarısız ekleme ilgili tablo sayacını/çıktı kimliğini ilerletmez.
+- Yeni test; scope büyümesi, type/symbol/relation string + tablo tahsisleri, annotation/conversion tabloları ve finalize owner-node çalışma alanında hata enjeksiyonunu ve ardından güvenli semantic_result_destroy() çağrısını kapsar.
+- semantic_result_init() kök scope tablosu tahsisi, test kancası init öncesinde kurulamadığı için bu API kapsamına dahil değildir. Başlangıç tahsisinin hata davranışı mevcut init dönüş değeriyle doğrudan doğrulanır; init başarısızsa caller semantic_result_destroy() çağırabilir.
+
+**Açık işler:**
+
+- SemanticResult dışındaki OIR semantic AST codec/artifact serializer tahsislerinin ayrı hata enjeksiyonu ve sınır denetimi.
+- Diagnostic sayısı/job-level diagnostic budget ve downstream Semantic AST artifact consumer sözleşmesi.
+- IR Lowering'e henüz geçilmedi.
