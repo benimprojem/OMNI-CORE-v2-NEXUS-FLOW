@@ -616,7 +616,71 @@ static ASTNode* parse_primary(Parser* p) {
 }
 
 static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
+    if (type == AST_CAST) {
+        ASTCast* cast = (ASTCast*)ast_create(AST_CAST);
+        Token type_token;
+        ASTIdentifier* target;
+        if (!cast) return NULL;
+        cast->base.line = p->previous.line;
+        cast->base.col = p->previous.col;
+        if (!match(p, TOKEN_LPAREN)) {
+            error_at(p, &p->current, ERR_PARSER_EXPECTED_PAREN, msg_get(MSG_EXPECT_LPAREN_FUNC));
+            return (ASTNode*)cast;
+        }
+        cast->value = parse_expression(p);
+        consume(p, TOKEN_COMMA, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_COMMA_ROLLING);
+        if (p->current.type == TOKEN_IDENTIFIER ||
+            (p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY)) {
+            type_token = p->current;
+            advance(p);
+            target = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+            if (!target) {
+                ast_destroy((ASTNode*)cast);
+                return NULL;
+            }
+            target->base.line = type_token.line;
+            target->base.col = type_token.col;
+            target->name = (char*)malloc((size_t)type_token.length + 1u);
+            if (!target->name) {
+                free(target);
+                ast_destroy((ASTNode*)cast);
+                return NULL;
+            }
+            memcpy(target->name, type_token.start, (size_t)type_token.length);
+            target->name[type_token.length] = '\0';
+            cast->target_type = (ASTNode*)target;
+        } else {
+            error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
+        }
+        consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ARGS);
+        return (ASTNode*)cast;
+    }
+
+    if (type == AST_PANIC) {
+        ASTPanic* panic = (ASTPanic*)ast_create(AST_PANIC);
+        if (!panic) return NULL;
+        panic->base.line = p->previous.line;
+        panic->base.col = p->previous.col;
+        if (match(p, TOKEN_LPAREN)) {
+            if (match(p, TOKEN_STRING)) {
+                Token message = p->previous;
+                panic->message = (char*)malloc((size_t)message.length + 1u);
+                if (!panic->message) {
+                    free(panic);
+                    return NULL;
+                }
+                memcpy(panic->message, message.start, (size_t)message.length);
+                panic->message[message.length] = '\0';
+            } else {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(ERR_PARSER_EXPECTED_EXPRESSION));
+            }
+            consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ARGS);
+        }
+        return (ASTNode*)panic;
+    }
+
     ASTCall* call = (ASTCall*)ast_create(type);
+    if (!call) return NULL;
     call->base.line = p->previous.line;
     call->base.col = p->previous.col;
     call->args = NULL;
