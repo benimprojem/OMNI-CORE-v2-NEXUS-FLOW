@@ -145,8 +145,8 @@ AST payload schema 1.0 codec'ini uygula: bounded writer/reader, node graph/refer
 - [x] TOKEN_STREAM schema 1.0 C codec, stable token ID doğrulaması, source-span/EOF kontrolleri ve diagnostic-reference testlerini ekle.
 - [x] Lexer Token → OIR record ve OIR TOKEN_STREAM → parser Token handoff adapter'larını ekle; parser'ın pre-tokenized token array tüketimini uçtan uca test et.
 - [x] AST payload schema 1.0 taslağını ve 80 node kind / field ID registry'sini tanımla.
-- [x] Frontend AST tag'leri ile sabit OIR node-kind ID'leri arasında bağımsız mapping API'si ve 80/80 bijection testi ekle (CI doğrulaması bekleniyor).
-- [ ] Bounded AST payload codec, graph/reference validation ve round-trip testlerini ekle; ardından parser checkpoint'lerini OIR v1'e geçir.
+- [x] Frontend AST tag'leri ile sabit OIR node-kind ID'leri arasında bağımsız mapping API'si ve 80/80 bijection testi ekle (Windows/Ubuntu/macOS, ASan/UBSan ve Valgrind CI başarılı).
+- [ ] Bounded AST payload codec, graph/reference validation ve round-trip testlerini ekle; ardından parser checkpoint'lerini OIR v1'e geçir. Tasarım: OIR_AST_CODEC_IMPLEMENTATION.md.
 - [x] DIAGNOSTICS section schema 1.0 payload codec'ini uygula ve malformed-input testlerini ekle.
 - [ ] SOURCE_MAP section payload codec'ini uygula.
 - [ ] SEMANTIC_AST payload şemasını tanımla.
