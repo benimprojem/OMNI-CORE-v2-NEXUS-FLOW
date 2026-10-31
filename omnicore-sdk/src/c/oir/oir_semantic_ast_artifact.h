@@ -27,6 +27,14 @@ typedef struct OirSemanticAstArtifactView {
  * payload. The function uses temporary invocation-local storage, validates the
  * completed artifact before publishing it, and leaves output untouched on failure.
  */
+/* Deterministic per-call allocator fault injection for writer tests. */
+OirStatus oir_semantic_ast_artifact_write_test_fail_at(
+    const uint8_t* ast_payload, size_t ast_payload_length,
+    const SemanticResult* semantic_result, uint64_t job_id,
+    uint8_t* output, size_t output_capacity, size_t* out_written,
+    uint32_t fail_at, uint32_t* out_attempts
+);
+
 OirStatus oir_semantic_ast_artifact_write(
     const uint8_t* ast_payload,
     size_t ast_payload_length,
