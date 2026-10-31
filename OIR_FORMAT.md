@@ -179,7 +179,7 @@ The canonical OIR module will describe, at minimum:
 - Calling convention and ABI-relevant attributes where applicable.
 - Source mapping and diagnostic attachment.
 
-The opcode set, type system, memory model, ownership semantics and SSA strategy require a dedicated OIR semantic specification. This document does not invent or freeze them.
+The opcode set, type system, memory model, ownership semantics and SSA strategy require a dedicated OIR semantic specification. This document does not invent or freeze them. The current detailed design draft is [OIR_MODULE.md](OIR_MODULE.md); it deliberately leaves the SSA and memory model decisions open.
 
 Optimizer passes consume and produce the same `OIR_MODULE` schema family, with explicit schema/version compatibility and pass metadata. A pass must not silently change program semantics.
 
@@ -261,7 +261,7 @@ Keep the existing serializer as a legacy/internal AST format until a versioned O
 4. Implement AST payload schema and migrate parser checkpoints.
 5. Implement DIAGNOSTICS and SOURCE_MAP sections.
 6. Implement SEMANTIC_AST payload and semantic metadata.
-7. Design the canonical OIR_MODULE semantics and opcode/type registry in a separate specification.
+7. Define the canonical OIR_MODULE contract in [OIR_MODULE.md](OIR_MODULE.md), then finalize its opcode/type registries and verifier after representative lowering cases are selected.
 8. Add stage input/output contract validation to the orchestrator.
 9. Migrate each stage to consume/produce OIR artifacts and add compatibility tests.
 
