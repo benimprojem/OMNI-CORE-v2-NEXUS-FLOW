@@ -18,7 +18,7 @@ The following infrastructure is required before the first production lowering DL
 
 1. A canonical `OIR_MODULE` payload writer and reader.
 2. A module verifier for table bounds, IDs, references, function/block ownership, terminators, opcode signatures and SSA rules.
-3. A stable initial opcode registry with side-effect and type semantics.
+3. An initial structural opcode registry is now implemented (registry 1.0); verifier-level type/effect semantics are still required.
 4. The block-parameter SSA contract, including loop-carried values and predecessor-edge validation.
 5. Semantic annotations sufficient to resolve every lowered identifier, expression type and declaration.
 6. A source-map policy that preserves AST/source provenance without fabricating missing spans.
@@ -154,10 +154,19 @@ Each increment must include:
 
 The legacy AST-walking code generator may remain temporarily available for comparison during migration, but it is not the specification and does not define the new lowerer's behavior.
 
+## Implementation progress
+
+- [x] Initial opcode registry 1.0: stable IDs, names, operand arity/kinds, result-presence rules, and coarse purity/memory/trap/terminator flags. Implemented in `src/c/oir/oir_module_opcode.h/.c` and integrated as the `occ_oir_module_opcode` CMake target.
+- [ ] Canonical `OIR_MODULE` payload schema and bounded reader/writer.
+- [ ] Module verifier for table references, function/block ownership, terminators, type rules and SSA.
+- [ ] IR Lowering DLL and OCC handoff.
+
+The registry is intentionally only the first building block. It does not yet make any source construct lowerable and must not be described as a complete OIR module implementation.
+
 ## 7. Decisions still required
 
 - Block-parameter incoming-value ordering and verifier rules, including loop back-edges.
-- Exact initial opcode IDs and operand schemas.
+- [x] Initial scalar/control-flow opcode IDs and structural operand schemas are assigned in [OIR_OPCODE_REGISTRY.md](OIR_OPCODE_REGISTRY.md).\n- Opcode-specific type constraints, detailed memory effects and full semantic verification rules remain open.
 - Canonical numeric type registry and full NEXSUS Flow conversion lattice.
 - Integer overflow, floating-point rounding and forced-width behavior at operation boundaries.
 - Exact boolean/comparison typing rules.
