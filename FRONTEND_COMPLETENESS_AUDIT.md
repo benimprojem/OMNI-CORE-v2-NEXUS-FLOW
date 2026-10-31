@@ -400,7 +400,7 @@ Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı günce
 
 ## 6.19 Parser → Semantic DLL sınırı ve semantic OOM güvenliği
 
-**Durum: AST provenance kontrolü ve temel semantic allocation cleanup düzeltildi; eşzamanlı çağrı ve fault-injection testleri açık.**
+**Durum: AST provenance kontrolü, temel semantic allocation cleanup ve eşzamanlı çağrı izolasyonu uygulandı; fault-injection testleri açık.**
 
 - Ortak AST artifact okuyucusu yalnızca OIR AST schema 1.0 ve `OCC_STAGE_PARSER` producer kimliğini kabul eder.
 - Semantic DLL, AST payload tablosunu açmadan önce artifact kind, schema 1.0, Parser producer, validity ve invocation job ID eşleşmesini kontrol eder.
@@ -410,12 +410,16 @@ Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı günce
 - Fonksiyon parametre tipi dizisi `calloc` ile sıfırlanır; dizi veya tekil tip kopyası tahsisi başarısızsa OOM işaretlenir ve kısmi dizi güvenli biçimde temizlenebilir.
 - Struct field ve enum variant `FieldInfo` tahsisleri ile ad/tip kopyaları kontrol edilir; kısmi kayıtlar listeye bağlanmadan temizlenir.
 - Semantic analiz sırasında yazılan debug `stdout` kayıtları kaldırıldı. Böylece Semantic DLL'nin `NEED_OUTPUT_BUFFER` retry çağrıları aynı analiz için tekrarlanan konsol yan etkileri üretmez; kullanıcıya dönük tanılar diagnostic sink üzerinden iletilir.
+- Semantic DLL'den `msg_init()`/`msg_destroy()` ve bunların kullandığı kilitsiz global mesaj kataloğu kaldırıldı. Semantic analiz bu kataloğu kullanmadığından gereksiz global durum ve eşzamanlı çağrılarda olası use-after-free/data race yolu ortadan kaldırıldı.
+- Semantic stage modülünde artık çağrılar arasında değiştirilen global durum bulunmuyor; modül tanımlayıcısı salt okunur, AST/semantic context/index/diagnostic collector/output buffer her invocation için yerel veya host tarafından ayrı sağlanıyor.
+- Gerçek Semantic DLL entegrasyon testine aynı yüklenmiş modüle dört eşzamanlı invocation eklendi. Her çağrı kendi output ve diagnostic collector alanını kullanıyor; POSIX ve Windows thread API'leri ile test ediliyor.
+
 - Semantic scopes/types/symbols/annotations/relations/conversions tablolarının her biri için 1.000.000 kayıt sınırı, scope depth 512 ve TYPES/SYMBOLS/RELATIONS string tablolarının her biri için 16 MiB sınırı `COMPILER_RESOURCE_LIMITS.md` içine eklendi.
 
 **Kalan işler:**
 
 - Semantic legacy allocator yolları için deterministik allocation-failure injection testi eklenmeli; şu anki CI normal, ASan/UBSan ve Valgrind kapsamı sunuyor ancak her allocation noktasını zorla başarısız kılmıyor.
-- Semantic DLL içindeki localization/message catalog yaşam döngüsü eşzamanlı `process()` çağrılarında güvenli mi ayrıca incelenmeli. `msg_init`/`msg_destroy` çağrılarının DLL-global durumla etkileşimi henüz thread-safety garantisi olarak belgelenmedi.
+- Semantic DLL eşzamanlılık testi CI üzerinde tüm platformlarda doğrulanmalı; loader sözleşmesi gereği DLL kapatma işlemi aktif invocation kalmadığında yapılmalı.
 - Semantic hata sayacı ve diagnostics sink sınırları, büyük hata kümelerinde job-level diagnostic budget ile birlikte ele alınmalı.
 - Semantic artifact içindeki bütün cross-table referanslar doğrulanıyor; ancak sonraki modülün bu referansları tüketme sözleşmesi ayrı bir sonraki aşama denetimidir.
 
