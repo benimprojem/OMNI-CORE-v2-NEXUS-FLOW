@@ -165,6 +165,7 @@ OCC_API void parser_attach_diagnostics(
 OCC_API int parser_attach_token_stream(
     ParserContext* ctx, const struct Token* tokens, size_t token_count
 );
+/* Parser nesting is bounded at 256; each precedence/postfix chain is bounded at 32 operators. */
 OCC_API int parser_run(ParserContext* ctx);
 OCC_API ParserStatus parser_get_status(const ParserContext* ctx);
 /* Deterministic allocation-failure injection for parser regression tests; 0 disables it. */
