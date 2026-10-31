@@ -1581,102 +1581,78 @@ static ASTNode* parse_union_decl(Parser* p, char* name) {
 
 static ASTNode* parse_enum_decl(Parser* p, char* name) {
     ASTEnumDecl* decl = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    ASTNode* head = NULL;
+    ASTNode* tail = NULL;
+    if (!decl) { free(name); return NULL; }
     decl->base.line = p->previous.line;
-    
-    if (name && name[0] != '\0') {
-        decl->name = name;
-    } else {
-        if (name) free(name);
-
+    if (name && name[0] != '\0') decl->name = name;
+    else {
+        free(name);
         if (p->previous.type == TOKEN_PRE_ENUM) {
-             Token t = p->previous;
-             if (t.length > 5) {
-                 decl->name = malloc(t.length - 5 + 1);
-                 memcpy(decl->name, t.start + 5, t.length - 5);
-                 decl->name[t.length - 5] = '\0';
-             } else if (match(p, TOKEN_IDENTIFIER)) {
-                 Token identifier_token = p->previous;
-                 decl->name = malloc(identifier_token.length + 1);
-                 memcpy(decl->name, identifier_token.start, identifier_token.length);
-                 decl->name[identifier_token.length] = '\0';
-             } else {
-                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
-             }
-        } else {
-            if (p->current.type == TOKEN_COLON) {
-                advance(p);
+            Token t = p->previous;
+            if (t.length > 5) {
+                size_t n = (size_t)t.length - 5u;
+                decl->name = (char*)malloc(n + 1u);
+                if (decl->name) { memcpy(decl->name, t.start + 5, n); decl->name[n] = '\0'; }
+            } else if (match(p, TOKEN_IDENTIFIER)) {
+                Token id = p->previous;
+                decl->name = (char*)malloc((size_t)id.length + 1u);
+                if (decl->name) { memcpy(decl->name, id.start, (size_t)id.length); decl->name[id.length] = '\0'; }
             }
-
+        } else {
+            if (p->current.type == TOKEN_COLON) advance(p);
             if (match(p, TOKEN_IDENTIFIER)) {
                 Token t = p->previous;
-                decl->name = malloc(t.length + 1);
-                memcpy(decl->name, t.start, t.length);
-                decl->name[t.length] = '\0';
+                decl->name = (char*)malloc((size_t)t.length + 1u);
+                if (decl->name) { memcpy(decl->name, t.start, (size_t)t.length); decl->name[t.length] = '\0'; }
             }
         }
     }
-
+    if (!decl->name) { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME)); ast_destroy((ASTNode*)decl); return NULL; }
     consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
-    ASTNode* head = NULL;
-    ASTNode* tail = NULL;
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
-        if (match(p, TOKEN_IDENTIFIER)) {
-            ASTEnumVariant* var = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
-            Token t = p->previous;
-            var->name = malloc(t.length + 1);
-            memcpy(var->name, t.start, t.length);
-            var->name[t.length] = '\0';
+        ASTEnumVariant* var;
+        Token vt;
+        if (!match(p, TOKEN_IDENTIFIER)) { advance(p); continue; }
+        vt = p->previous;
+        var = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+        if (!var) { ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+        var->name = (char*)malloc((size_t)vt.length + 1u);
+        if (!var->name) { ast_destroy((ASTNode*)var); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+        memcpy(var->name, vt.start, (size_t)vt.length);
+        var->name[vt.length] = '\0';
+        if (!head) head = (ASTNode*)var; else tail->next = (ASTNode*)var;
+        tail = (ASTNode*)var;
+        if (match(p, TOKEN_LPAREN)) {
+            ASTNode* data_head = NULL;
+            ASTNode* data_tail = NULL;
             var->data = NULL;
-            
-            // Veri taşıyan enum: Variant(type)
-            if (match(p, TOKEN_LPAREN)) {
-                ASTNode* data_head = NULL;
-                ASTNode* data_tail = NULL;
-
-                if (p->current.type != TOKEN_RPAREN) {
-                    do {
-                        if (match(p, TOKEN_IDENTIFIER)) {
-                            ASTVarDecl* field = (ASTVarDecl*)ast_create(AST_VAR_DECL);
-                            field->base.line = p->previous.line;
-                            field->base.col = p->previous.col;
-                            field->is_const = 1; // Enum fields are conceptually const
-                            
-                            field->name = malloc(p->previous.length + 1);
-                            memcpy(field->name, p->previous.start, p->previous.length);
-                            field->name[p->previous.length] = '\0';
-                            
-                            // Tip: !type
-                            consume(p, TOKEN_NOT, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_TYPE_BANG);
-                            field->is_hard_typed = 1;
-
-                            if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) || p->current.type == TOKEN_IDENTIFIER) {
-                                Token t_type = p->current;
-                                field->type_name = malloc(t_type.length + 1);
-                                memcpy(field->type_name, t_type.start, t_type.length);
-                                field->type_name[t_type.length] = '\0';
-                                advance(p);
-                            } else {
-                                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
-                            }
-
-                            if (!data_head) data_head = (ASTNode*)field;
-                            else data_tail->next = (ASTNode*)field;
-                            data_tail = (ASTNode*)field;
-                        } else {
-                             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expect field name in enum variant.");
-                        }
-                    } while (match(p, TOKEN_COMMA));
-                }
+            if (p->current.type != TOKEN_RPAREN) do {
+                ASTVarDecl* field;
+                Token ft;
+                if (!match(p, TOKEN_IDENTIFIER)) { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expect field name in enum variant."); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+                ft = p->previous;
+                field = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+                if (!field) { ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+                field->base.line = ft.line; field->base.col = ft.col; field->is_const = 1;
+                field->name = (char*)malloc((size_t)ft.length + 1u);
+                if (!field->name) { ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+                memcpy(field->name, ft.start, (size_t)ft.length); field->name[ft.length] = '\0';
+                if (!match(p, TOKEN_NOT)) { error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN, msg_get(MSG_EXPECT_TYPE_BANG)); ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+                if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) || p->current.type == TOKEN_IDENTIFIER) {
+                    Token tt = p->current;
+                    field->type_name = (char*)malloc((size_t)tt.length + 1u);
+                    if (!field->type_name) { ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+                    memcpy(field->type_name, tt.start, (size_t)tt.length); field->type_name[tt.length] = '\0';
+                    field->is_hard_typed = 1; advance(p);
+                } else { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE)); ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+                if (!data_head) data_head = (ASTNode*)field; else data_tail->next = (ASTNode*)field;
+                data_tail = (ASTNode*)field;
                 var->data = data_head;
-                consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
-            }
-
-            if (!head) head = (ASTNode*)var; else tail->next = (ASTNode*)var;
-            tail = (ASTNode*)var;
-            if (match(p, TOKEN_COMMA)) {}
-        } else {
-            advance(p);
+            } while (match(p, TOKEN_COMMA));
+            consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
         }
+        if (match(p, TOKEN_COMMA)) {}
     }
     decl->variants = head;
     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
@@ -1876,76 +1852,52 @@ static ASTNode* parse_newtype_decl(Parser* p) {
 
 static ASTNode* parse_group_decl(Parser* p) {
     ASTGroupDecl* group = (ASTGroupDecl*)ast_create(AST_GROUP_DECL);
-    group->base.line = p->previous.line;
-    group->base.col = p->previous.col;
-
-    if (match(p, TOKEN_IDENTIFIER)) {
-        Token t = p->previous;
-        group->name = malloc(t.length + 1);
-        memcpy(group->name, t.start, t.length);
-        group->name[t.length] = '\0';
-    }
-
-    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
-
     ASTNode* head = NULL;
     ASTNode* tail = NULL;
-
+    if (!group) return NULL;
+    group->base.line = p->previous.line; group->base.col = p->previous.col;
+    if (match(p, TOKEN_IDENTIFIER)) {
+        Token t = p->previous;
+        group->name = (char*)malloc((size_t)t.length + 1u);
+        if (!group->name) { ast_destroy((ASTNode*)group); return NULL; }
+        memcpy(group->name, t.start, (size_t)t.length); group->name[t.length] = '\0';
+    }
+    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
     while (!check(p, TOKEN_RBRACE) && !check(p, TOKEN_EOF)) {
         ASTNode* member = NULL;
-        
-        // Method Mapping: identifier => f:name...
-        if (p->current.type == TOKEN_IDENTIFIER) {
-            Token next = peek_token(p);
-            if (next.type == TOKEN_FAT_ARROW) {
-                ASTMethod* method = (ASTMethod*)ast_create(AST_METHOD);
-                method->base.line = p->current.line;
-                method->base.col = p->current.col;
-                method->public_name = malloc(p->current.length + 1);
-                memcpy(method->public_name, p->current.start, p->current.length);
-                method->public_name[p->current.length] = '\0';
-                advance(p); // identifier
-                advance(p); // =>
-                
-                if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) {
-                    method->implementation = parse_func_decl(p);
-                } else {
-                    error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expected function after '=>'");
-                }
-                member = (ASTNode*)method;
-                // No semicolon after method in some cases, but let's check
-                if (match(p, TOKEN_SEMICOLON)) {} 
-            }
+        if (p->current.type == TOKEN_IDENTIFIER && peek_token(p).type == TOKEN_FAT_ARROW) {
+            ASTMethod* method = (ASTMethod*)ast_create(AST_METHOD);
+            Token mt = p->current;
+            if (!method) { ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+            method->base.line = mt.line; method->base.col = mt.col;
+            method->public_name = (char*)malloc((size_t)mt.length + 1u);
+            if (!method->public_name) { ast_destroy((ASTNode*)method); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+            memcpy(method->public_name, mt.start, (size_t)mt.length); method->public_name[mt.length] = '\0';
+            advance(p); advance(p);
+            if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) {
+                method->implementation = parse_func_decl(p);
+                if (!method->implementation) { ast_destroy((ASTNode*)method); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+            } else { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expected function after '=>'"); ast_destroy((ASTNode*)method); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+            member = (ASTNode*)method;
+            if (match(p, TOKEN_SEMICOLON)) {}
         }
-        
         if (!member) {
-            if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) {
-                member = parse_struct_decl(p, 0, NULL);
-            } else if (match(p, TOKEN_NOT)) {
-                 if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) {
-                     member = parse_struct_decl(p, 1, NULL);
-                 }
-            } else if (match(p, TOKEN_KW_ENUM) || match(p, TOKEN_PRE_ENUM)) {
-                member = parse_enum_decl(p, NULL);
-            } else if (match(p, TOKEN_KW_UNION) || match(p, TOKEN_PRE_UNION)) {
-                member = parse_union_decl(p, NULL);
-            } else if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
+            if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) member = parse_struct_decl(p, 0, NULL);
+            else if (match(p, TOKEN_NOT)) {
+                if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) member = parse_struct_decl(p, 1, NULL);
+                else { error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_TYPE_BANG); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+            } else if (match(p, TOKEN_KW_ENUM) || match(p, TOKEN_PRE_ENUM)) member = parse_enum_decl(p, NULL);
+            else if (match(p, TOKEN_KW_UNION) || match(p, TOKEN_PRE_UNION)) member = parse_union_decl(p, NULL);
+            else if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
                 member = parse_var_decl(p);
-                consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
-            } else if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) {
-                member = parse_func_decl(p);
-            } else {
-                advance(p);
-                continue;
-            }
+                if (member) consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
+            } else if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) member = parse_func_decl(p);
+            else { advance(p); continue; }
         }
-
-        if (member) {
-            if (!head) head = member; else tail->next = member;
-            tail = member;
-        }
+        if (!member) { ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+        if (!head) head = member; else tail->next = member;
+        tail = member;
     }
-
     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
     group->members = head;
     return (ASTNode*)group;
