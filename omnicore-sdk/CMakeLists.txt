@@ -821,6 +821,7 @@ if(BUILD_TESTING)
     target_link_libraries(test_parser_stage_module PRIVATE
         occ_frontend
         occ_oir
+        occ_oir_diagnostics
         occ_oir_token_stream
         occ_module_abi
         occ_module_loader
