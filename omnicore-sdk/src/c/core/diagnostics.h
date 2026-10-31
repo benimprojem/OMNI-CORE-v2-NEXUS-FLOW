@@ -72,6 +72,11 @@ typedef struct OccDiagnosticView {
 #define OCC_DIAGNOSTICS_MAX_TEXT_BYTES (16u * 1024u * 1024u)
 #define OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES (1024u * 1024u)
 
+/* Job-level diagnostic resource policy; byte counts include NUL terminators. */
+#define OCC_DIAGNOSTICS_MAX_COUNT 65536u
+#define OCC_DIAGNOSTICS_MAX_TEXT_BYTES (16u * 1024u * 1024u)
+#define OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES (1024u * 1024u)
+
 typedef struct OccDiagnosticCollector {
     OccDiagnosticRecord* records;
     size_t count;
