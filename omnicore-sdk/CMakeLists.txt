@@ -381,8 +381,8 @@ target_link_libraries(occ_semantic_stage PRIVATE
     occ_oir_ast_frontend_reader
     occ_oir_ast_frontend_index
     occ_oir_semantic_ast_artifact
-
-    Threads::Threads)
+    Threads::Threads
+)
 set_target_properties(occ_semantic_stage PROPERTIES
     OUTPUT_NAME "occ_semantic_stage"
     RUNTIME_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
