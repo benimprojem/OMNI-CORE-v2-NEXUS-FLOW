@@ -158,6 +158,37 @@ static int test_rejects_invalid_aggregate_members(void) {
     return 1;
 }
 
+static int test_parser_allocation_failure_injection(void) {
+    static const char source[] =
+        "f:main() { v:first = 11; v:second = first + 7; ret; }";
+    size_t fail_at;
+    size_t oom_count = 0u;
+    int reached_success = 0;
+    for (fail_at = 1u; fail_at <= 64u; ++fail_at) {
+        ParserContext* ctx = parser_init_source(
+            "parser-oom-injection.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+        int result;
+        ParserStatus status;
+        if (!ctx) return 0;
+        parser_test_fail_allocation_at(ctx, fail_at);
+        result = parser_run(ctx);
+        status = parser_get_status(ctx);
+        if (status == PARSER_STATUS_OUT_OF_MEMORY &&
+            result == PARSER_STATUS_OUT_OF_MEMORY) {
+            ++oom_count;
+        } else if (status == PARSER_STATUS_OK && result == PARSER_STATUS_OK) {
+            reached_success = 1;
+            parser_destroy(ctx);
+            break;
+        } else {
+            parser_destroy(ctx);
+            return 0;
+        }
+        parser_destroy(ctx);
+    }
+    return oom_count > 0u && reached_success;
+}
+
 int main(int argc, char** argv) {
     if (!test_parser_context_initialization()) {
         fprintf(stderr, "Parser context initialization/early destruction test failed.\\n");
@@ -173,6 +204,10 @@ int main(int argc, char** argv) {
     }
     if (!test_rejects_invalid_aggregate_members()) {
         fprintf(stderr, "Invalid aggregate members were silently accepted.\n");
+        return 1;
+    }
+    if (!test_parser_allocation_failure_injection()) {
+        fprintf(stderr, "Parser allocation failure injection did not preserve OOM status/cleanup.\n");
         return 1;
     }
     if (argc != 4) return 2;
