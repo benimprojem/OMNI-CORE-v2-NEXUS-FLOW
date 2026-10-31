@@ -52,6 +52,10 @@ typedef union AstStorage {
 static void put_u32(uint8_t* p,uint32_t v) {
     p[0]=(uint8_t)v;p[1]=(uint8_t)(v>>8);p[2]=(uint8_t)(v>>16);p[3]=(uint8_t)(v>>24);
 }
+static ASTNode* nth_next(ASTNode* node,uint32_t count) {
+    while(node && count--) node=node->next;
+    return node;
+}
 
 static OirStatus encode_fixture(
     ASTNode* root,
@@ -160,9 +164,9 @@ int main(void) {
         ASTNode* first=((ASTProgram*)decoded_root)->declarations;
         ASTVarDecl* var=(ASTVarDecl*)first->next->next;
         ASTFuncDecl* fn=(ASTFuncDecl*)first->next->next->next;
-        ASTLiteral* literal=(ASTLiteral*)first->next->next->next->next->next->next->next->next->next->next->next->next;
-        ASTIdentifier* identifier=(ASTIdentifier*)literal->base.next;
-        ASTLoop* loop=(ASTLoop*)first->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next;
+        ASTLiteral* literal=(ASTLiteral*)nth_next(first,12u);
+        ASTIdentifier* identifier=(ASTIdentifier*)nth_next(first,13u);
+        ASTLoop* loop=(ASTLoop*)nth_next(first,24u);
         assert(strcmp(var->name,"amount")==0 && strcmp(var->type_name,"i64")==0);
         assert(var->is_const==1 && var->is_hard_typed==1 && var->is_public==0 && var->is_exported==1);
         assert(strcmp(fn->name,"calculate")==0 && strcmp(fn->return_type,"f64")==0 && fn->is_public==1);
