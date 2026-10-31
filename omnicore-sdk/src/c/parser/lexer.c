@@ -10,13 +10,15 @@ static char peek(ParserContext* ctx) {
     return ctx->source_buffer[ctx->pos];
 }
 
-static char peek_next(ParserContext* ctx, int offset) {
-    if (ctx->pos + offset >= ctx->source_len) return '\0';
+static char peek_next(ParserContext* ctx, size_t offset) {
+    if (!ctx || !ctx->source_buffer || ctx->pos >= ctx->source_len ||
+        offset >= ctx->source_len - ctx->pos) return '\0';
     return ctx->source_buffer[ctx->pos + offset];
 }
 
 static char advance(ParserContext* ctx) {
     char c = peek(ctx);
+    if (ctx->pos >= ctx->source_len) return '\0';
     ctx->pos++;
     if (c == '\n') {
         ctx->current_line++;
@@ -324,8 +326,8 @@ Token lexer_next_token(ParserContext* ctx) {
     char c = advance(ctx);
 
     // --- Tanımlayıcılar (Identifiers) ---
-    if (isalpha(c) || c == '_') {
-        while (isalnum(peek(ctx)) || peek(ctx) == '_' || peek(ctx) == ':') {
+    if (isalpha((unsigned char)c) || c == '_') {
+        while (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_' || peek(ctx) == ':') {
             // Fix: Only consume ':' if it is followed by an alphanumeric char or '_' (Prefix style)
             if (peek(ctx) == ':') {
                 // Special case for "nt:" to allow "nt: struct"
@@ -350,11 +352,11 @@ Token lexer_next_token(ParserContext* ctx) {
     }
 
     // --- Sayılar ---
-    if (isdigit(c)) {
-        while (isdigit(peek(ctx))) advance(ctx);
-        if (peek(ctx) == '.' && isdigit(peek_next(ctx, 1))) {
+    if (isdigit((unsigned char)c)) {
+        while (isdigit((unsigned char)peek(ctx))) advance(ctx);
+        if (peek(ctx) == '.' && isdigit((unsigned char)peek_next(ctx, 1u))) {
             advance(ctx); // .
-            while (isdigit(peek(ctx))) advance(ctx);
+            while (isdigit((unsigned char)peek(ctx))) advance(ctx);
         }
         int length = (int)(&ctx->source_buffer[ctx->pos] - start);
         return make_token(ctx, TOKEN_NUMBER, start, length);
@@ -363,7 +365,13 @@ Token lexer_next_token(ParserContext* ctx) {
     // --- Stringler ---
     if (c == '"') {
         while (peek(ctx) != '"' && peek(ctx) != '\0') {
-            advance(ctx);
+            if (peek(ctx) == '\\') {
+                advance(ctx);
+                if (peek(ctx) == '\0') break;
+                advance(ctx);
+            } else {
+                advance(ctx);
+            }
         }
         if (peek(ctx) == '\0') return error_token(ctx, "Unterminated string literal");
         advance(ctx); // Kapanış tırnağı
@@ -373,13 +381,15 @@ Token lexer_next_token(ParserContext* ctx) {
 
     // --- Karakterler ---
     if (c == '\'') {
+        if (peek(ctx) == '\0') return error_token(ctx, "Unterminated character literal");
         if (peek(ctx) == '\\') {
             advance(ctx); // Escape character.
-            advance(ctx); // n, t, r vs.
+            if (peek(ctx) == '\0') return error_token(ctx, "Unterminated character literal");
+            advance(ctx); // Escaped character, including an escaped quote.
         } else {
             advance(ctx); // Normal karakter
         }
-        
+
         if (peek(ctx) == '\'') {
             advance(ctx); // Kapanış tırnağı
             int length = (int)(&ctx->source_buffer[ctx->pos] - start);
