@@ -66,6 +66,33 @@ done:
     return ok;
 }
 
+static int test_parser_rejects_excessive_expression_nesting(void) {
+    enum { NESTING = 300 };
+    char source[2 * NESTING + 32];
+    size_t offset = 0u;
+    ParserContext* ctx;
+    int result;
+    int ok;
+
+    memcpy(source + offset, "v:x = ", 6u);
+    offset += 6u;
+    for (int i = 0; i < NESTING; ++i) source[offset++] = '(';
+    source[offset++] = '1';
+    for (int i = 0; i < NESTING; ++i) source[offset++] = ')';
+    source[offset++] = ';';
+
+    ctx = parser_init_source("deep-expression.nxf",
+        (const uint8_t*)source, offset);
+    if (!ctx) return 0;
+
+    result = parser_run(ctx);
+    ok = result == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+        ctx->ast_root != NULL && ctx->error_count > 0;
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_parser_context_initialization(void) {
     static const uint8_t empty_source[] = "";
     ParserContext* memory = parser_init_source("empty.nxf", empty_source, 0u);
@@ -400,6 +427,10 @@ static int test_parser_allocation_failure_injection(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!test_parser_rejects_excessive_expression_nesting()) {
+        fprintf(stderr, "Parser did not safely reject excessive expression nesting.\\n");
+        return 1;
+    }
     if (!test_parser_context_initialization()) {
         fprintf(stderr, "Parser context initialization/early destruction test failed.\\n");
         return 1;
