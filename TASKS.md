@@ -226,3 +226,18 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 - [ ] CI'da yeni loader testlerini Windows/Ubuntu/macOS + ASan/UBSan/Valgrind matrisinde doğrula.
 - [ ] main.c statik parser yolunu host loader + OIR handoff ile değiştir; semantic stage ve failure checkpoint'i gerçek Parser DLL çıktısına bağla.
 - [ ] Modül başına çağrı serileştirmesini ve aynı job collector'a diagnostic callback kilidini OCC dispatcher seviyesinde uygula. Loader şu anda host çağrısı başına callback kurar; collector'ın kendisi thread-safe değildir.
+
+
+## OCC CLI → Parser DLL OIR pipeline — 31 Ekim 2026
+
+- [x] OCC host lexer çıktısını SOURCE_UNIT + TOKEN_STREAM OIR artifact'larına dönüştürür; lexer tanıları TOKEN_STREAM içindeki DIAGNOSTICS section'ında stable diagnostic ID'leriyle taşınır.
+- [x] OCC parser stage DLL'sini executable yanındaki runtime modül dizininden yükler ve host-owned dynamic loader üzerinden çağırır.
+- [x] Parser DLL'nin AST OIR çıktısını host tarafında yeniden doğrula ve AST materializer ile semantic frontend nesnelerine dönüştür.
+- [x] Semantic analiz artık parser DLL'den gelen AST üzerinde çalışır; eski statik parser_run(ctx) ana akıştan kaldırıldı.
+- [x] Parser DLL hatasında job diagnostic collector + orijinal kaynak baytları failure checkpoint'e yazılır. CLI CTest, checkpoint dosyasında kaynak baytlarının birebir bulunduğunu doğrular.
+- [x] Lokalize OCC kopyasının yanında parser DLL'nin de deploy edilmesini sağla.
+- [x] **CI run 41174447616:** Windows, Ubuntu ve macOS build/test başarılı; CTest 39/39; Ubuntu ASan/UBSan ve Valgrind başarılı.
+- [ ] Lexer'ı bağımsız DLL stage'e ayır ve OCC'nin statik lexer çağrısını kaldır.
+- [ ] Semantic stage için SEMANTIC_AST OIR schema/codec + DLL oluştur; host materialization'ı yalnızca legacy consumer gerekiyorsa kullan.
+- [ ] Codegen'i ortak stage ABI'ye taşı; mevcut codegen_run yüklemesi henüz eski ayrı entry-point sözleşmesidir.
+- [ ] Aynı job diagnostic collector'a erişen çağrılar için synchronized dispatcher/serialization policy ekle.
