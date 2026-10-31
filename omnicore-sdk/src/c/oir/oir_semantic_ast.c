@@ -490,3 +490,257 @@ OirStatus oir_semantic_types_write(
     *out_written = (size_t)total_length;
     return OIR_STATUS_OK;
 }
+
+
+static OirStatus validate_symbol_values(
+    uint32_t symbol_id,
+    uint32_t scope_id,
+    uint32_t declaration_node_id,
+    uint16_t kind,
+    uint16_t flags,
+    uint32_t name_offset,
+    uint32_t name_length,
+    uint32_t first_relation,
+    uint32_t relation_count,
+    const uint8_t* string_table,
+    uint32_t string_table_length
+) {
+    uint64_t relation_end;
+
+    if (kind < OIR_SEMANTIC_SYMBOL_VARIABLE ||
+        kind > OIR_SEMANTIC_SYMBOL_LABEL ||
+        (flags & ~(OIR_SEMANTIC_SYMBOL_FLAG_CONST |
+            OIR_SEMANTIC_SYMBOL_FLAG_PUBLIC |
+            OIR_SEMANTIC_SYMBOL_FLAG_EXPORTED |
+            OIR_SEMANTIC_SYMBOL_FLAG_PACKED |
+            OIR_SEMANTIC_SYMBOL_FLAG_HARD)) != 0u ||
+        scope_id == 0u || declaration_node_id == 0u ||
+        name_length == 0u) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    if (name_offset > string_table_length ||
+        name_length > string_table_length - name_offset ||
+        !is_valid_utf8_name(string_table + name_offset, name_length)) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    if (relation_count == 0u) {
+        if (first_relation != 0u) return OIR_STATUS_INVALID_SECTION;
+    } else {
+        if (first_relation == 0u) return OIR_STATUS_INVALID_SECTION;
+        relation_end = (uint64_t)first_relation + relation_count - 1u;
+        if (relation_end > UINT32_MAX) return OIR_STATUS_INVALID_SECTION;
+    }
+
+    (void)symbol_id;
+    return OIR_STATUS_OK;
+}
+
+static OirStatus validate_symbol_records(
+    const uint8_t* records,
+    uint32_t symbol_count,
+    const uint8_t* string_table,
+    uint32_t string_table_length
+) {
+    uint32_t i;
+
+    if (!records || symbol_count == 0u ||
+        symbol_count > OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
+        string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE ||
+        (!string_table && string_table_length != 0u)) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    for (i = 0u; i < symbol_count; ++i) {
+        const uint8_t* record = records + (size_t)i * OIR_SEMANTIC_SYMBOL_RECORD_SIZE;
+        uint16_t kind = (uint16_t)((uint16_t)record[12] |
+            ((uint16_t)record[13] << 8));
+        uint16_t flags = (uint16_t)((uint16_t)record[14] |
+            ((uint16_t)record[15] << 8));
+        OirStatus status;
+
+        if (read_u32_le(record) != i + 1u) return OIR_STATUS_INVALID_SECTION;
+        status = validate_symbol_values(
+            read_u32_le(record),
+            read_u32_le(record + 4),
+            read_u32_le(record + 8),
+            kind,
+            flags,
+            read_u32_le(record + 16),
+            read_u32_le(record + 20),
+            read_u32_le(record + 28),
+            read_u32_le(record + 32),
+            string_table, string_table_length);
+        if (status != OIR_STATUS_OK) return status;
+    }
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_symbols_open(
+    const uint8_t* payload,
+    size_t payload_length,
+    OirSemanticSymbolsView* out_view
+) {
+    uint32_t count;
+    uint32_t record_size;
+    uint32_t string_length;
+    uint64_t expected_length;
+    OirStatus status;
+
+    if (!payload || !out_view) return OIR_STATUS_INVALID_ARGUMENT;
+    memset(out_view, 0, sizeof(*out_view));
+    if (payload_length < OIR_SEMANTIC_SYMBOLS_HEADER_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    count = read_u32_le(payload);
+    record_size = read_u32_le(payload + 4);
+    string_length = read_u32_le(payload + 8);
+    if (record_size != OIR_SEMANTIC_SYMBOL_RECORD_SIZE ||
+        count == 0u || count > OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
+        string_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    expected_length = (uint64_t)OIR_SEMANTIC_SYMBOLS_HEADER_SIZE +
+        (uint64_t)count * OIR_SEMANTIC_SYMBOL_RECORD_SIZE + string_length;
+    if (expected_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    if (expected_length != (uint64_t)payload_length) {
+        return OIR_STATUS_LENGTH_MISMATCH;
+    }
+
+    status = validate_symbol_records(
+        payload + OIR_SEMANTIC_SYMBOLS_HEADER_SIZE, count,
+        payload + OIR_SEMANTIC_SYMBOLS_HEADER_SIZE +
+            (size_t)count * OIR_SEMANTIC_SYMBOL_RECORD_SIZE,
+        string_length);
+    if (status != OIR_STATUS_OK) return status;
+
+    out_view->bytes = payload;
+    out_view->length = payload_length;
+    out_view->record_count = count;
+    out_view->records_offset = OIR_SEMANTIC_SYMBOLS_HEADER_SIZE;
+    out_view->strings_offset = OIR_SEMANTIC_SYMBOLS_HEADER_SIZE +
+        (size_t)count * OIR_SEMANTIC_SYMBOL_RECORD_SIZE;
+    out_view->string_table_length = string_length;
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_symbols_get(
+    const OirSemanticSymbolsView* view,
+    uint32_t index,
+    OirSemanticSymbol* out_symbol,
+    const uint8_t** out_name
+) {
+    const uint8_t* record;
+    uint64_t expected_length;
+
+    if (!view || !view->bytes || !out_symbol) return OIR_STATUS_INVALID_ARGUMENT;
+    if (view->records_offset != OIR_SEMANTIC_SYMBOLS_HEADER_SIZE ||
+        view->record_count == 0u ||
+        view->record_count > OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
+        view->string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    expected_length = (uint64_t)OIR_SEMANTIC_SYMBOLS_HEADER_SIZE +
+        (uint64_t)view->record_count * OIR_SEMANTIC_SYMBOL_RECORD_SIZE +
+        view->string_table_length;
+    if (expected_length > (uint64_t)SIZE_MAX ||
+        expected_length != (uint64_t)view->length ||
+        view->strings_offset != OIR_SEMANTIC_SYMBOLS_HEADER_SIZE +
+            (size_t)view->record_count * OIR_SEMANTIC_SYMBOL_RECORD_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    if (index >= view->record_count) return OIR_STATUS_INVALID_ARGUMENT;
+
+    record = view->bytes + view->records_offset +
+        (size_t)index * OIR_SEMANTIC_SYMBOL_RECORD_SIZE;
+    out_symbol->symbol_id = read_u32_le(record);
+    out_symbol->scope_id = read_u32_le(record + 4);
+    out_symbol->declaration_node_id = read_u32_le(record + 8);
+    out_symbol->kind = (uint16_t)((uint16_t)record[12] |
+        ((uint16_t)record[13] << 8));
+    out_symbol->flags = (uint16_t)((uint16_t)record[14] |
+        ((uint16_t)record[15] << 8));
+    out_symbol->name_offset = read_u32_le(record + 16);
+    out_symbol->name_length = read_u32_le(record + 20);
+    out_symbol->type_id = read_u32_le(record + 24);
+    out_symbol->first_relation = read_u32_le(record + 28);
+    out_symbol->relation_count = read_u32_le(record + 32);
+    if (out_name) {
+        *out_name = view->bytes + view->strings_offset + out_symbol->name_offset;
+    }
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_symbols_write(
+    uint8_t* output,
+    size_t capacity,
+    const OirSemanticSymbol* symbols,
+    uint32_t symbol_count,
+    const uint8_t* string_table,
+    uint32_t string_table_length,
+    size_t* out_written
+) {
+    uint64_t total_length;
+    uint32_t i;
+
+    if (out_written) *out_written = 0u;
+    if (!output || !symbols || !out_written ||
+        (!string_table && string_table_length != 0u)) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+    if (symbol_count == 0u ||
+        symbol_count > OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
+        string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+
+    for (i = 0u; i < symbol_count; ++i) {
+        const OirSemanticSymbol* symbol = &symbols[i];
+        OirStatus status;
+        if (symbol->symbol_id != i + 1u) return OIR_STATUS_INVALID_SECTION;
+        status = validate_symbol_values(
+            symbol->symbol_id, symbol->scope_id,
+            symbol->declaration_node_id, symbol->kind, symbol->flags,
+            symbol->name_offset, symbol->name_length,
+            symbol->first_relation, symbol->relation_count,
+            string_table, string_table_length);
+        if (status != OIR_STATUS_OK) return status;
+    }
+
+    total_length = (uint64_t)OIR_SEMANTIC_SYMBOLS_HEADER_SIZE +
+        (uint64_t)symbol_count * OIR_SEMANTIC_SYMBOL_RECORD_SIZE +
+        string_table_length;
+    if (total_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    if ((size_t)total_length > capacity) return OIR_STATUS_BUFFER_TOO_SMALL;
+
+    write_u32_le(output, symbol_count);
+    write_u32_le(output + 4, OIR_SEMANTIC_SYMBOL_RECORD_SIZE);
+    write_u32_le(output + 8, string_table_length);
+    for (i = 0u; i < symbol_count; ++i) {
+        uint8_t* record = output + OIR_SEMANTIC_SYMBOLS_HEADER_SIZE +
+            (size_t)i * OIR_SEMANTIC_SYMBOL_RECORD_SIZE;
+        write_u32_le(record, symbols[i].symbol_id);
+        write_u32_le(record + 4, symbols[i].scope_id);
+        write_u32_le(record + 8, symbols[i].declaration_node_id);
+        record[12] = (uint8_t)(symbols[i].kind & 0xffu);
+        record[13] = (uint8_t)((symbols[i].kind >> 8) & 0xffu);
+        record[14] = (uint8_t)(symbols[i].flags & 0xffu);
+        record[15] = (uint8_t)((symbols[i].flags >> 8) & 0xffu);
+        write_u32_le(record + 16, symbols[i].name_offset);
+        write_u32_le(record + 20, symbols[i].name_length);
+        write_u32_le(record + 24, symbols[i].type_id);
+        write_u32_le(record + 28, symbols[i].first_relation);
+        write_u32_le(record + 32, symbols[i].relation_count);
+    }
+    if (string_table_length != 0u) {
+        memcpy(output + OIR_SEMANTIC_SYMBOLS_HEADER_SIZE +
+            (size_t)symbol_count * OIR_SEMANTIC_SYMBOL_RECORD_SIZE,
+            string_table, string_table_length);
+    }
+
+    *out_written = (size_t)total_length;
+    return OIR_STATUS_OK;
+}
