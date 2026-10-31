@@ -29,6 +29,8 @@ int main(void) {
     ASTBlock body;
     ASTVarDecl local;
     ASTLiteral literal;
+    ASTVarDecl shadowed;
+    ASTIdentifier shadowed_reference;
 
     OirAstPointerIndexEntry ast_index[32];
     OirAstFrontendRequirements ast_requirements;
@@ -59,6 +61,8 @@ int main(void) {
     memset(&body, 0, sizeof(body));
     memset(&local, 0, sizeof(local));
     memset(&literal, 0, sizeof(literal));
+    memset(&shadowed, 0, sizeof(shadowed));
+    memset(&shadowed_reference, 0, sizeof(shadowed_reference));
     memset(ast_index, 0, sizeof(ast_index));
 
     program.base.type = AST_PROGRAM;
@@ -85,11 +89,12 @@ int main(void) {
     body.base.line = 2;
     body.base.col = 1;
     body.statements = (ASTNode*)&local;
+    local.base.next = (ASTNode*)&shadowed;
 
     local.base.type = AST_VAR_DECL;
     local.base.line = 3;
     local.base.col = 3;
-    local.name = "local";
+    local.name = "input";
     local.type_name = "i32";
     local.is_hard_typed = 1;
     local.initializer = (ASTNode*)&literal;
@@ -100,9 +105,21 @@ int main(void) {
     literal.type = TOKEN_NUMBER;
     literal.string_value = "7";
 
+    shadowed.base.type = AST_VAR_DECL;
+    shadowed.base.line = 4;
+    shadowed.base.col = 3;
+    shadowed.name = "copy";
+    shadowed.type_name = "i32";
+    shadowed.initializer = (ASTNode*)&shadowed_reference;
+
+    shadowed_reference.base.type = AST_IDENTIFIER;
+    shadowed_reference.base.line = 4;
+    shadowed_reference.base.col = 10;
+    shadowed_reference.name = "input";
+
     assert(oir_ast_frontend_index_build(
         (ASTNode*)&program, ast_index, 32u, &ast_node_count) == OIR_STATUS_OK);
-    assert(ast_node_count == 6u);
+    assert(ast_node_count == 8u);
     assert(oir_ast_frontend_measure(
         (ASTNode*)&program, ast_index, 32u, ast_node_count,
         &ast_requirements) == OIR_STATUS_OK);
@@ -144,10 +161,10 @@ int main(void) {
     assert(context.error_count == 0);
     assert(context.result_status == SEMANTIC_RESULT_OK);
     assert(context.result.scope_count == 3u);
-    assert(context.result.symbol_count == 3u);
+    assert(context.result.symbol_count == 4u);
     assert(context.result.type_count == 2u);
     assert(context.result.relation_count == 1u);
-    assert(context.result.annotation_count >= 4u);
+    assert(context.result.annotation_count >= 6u);
 
     assert(semantic_finalize_result(&context, ast_node_count) ==
         SEMANTIC_RESULT_OK);
@@ -166,6 +183,8 @@ int main(void) {
     assert((context.result.symbols[2].flags &
         SEMANTIC_RESULT_SYMBOL_FLAG_HARD) != 0u);
     assert(context.result.symbols[2].type_id == 2u);
+    assert(strcmp(context.result.symbols[2].name, "input") == 0);
+    assert(strcmp(context.result.symbols[3].name, "copy") == 0);
     assert(context.result.symbols[0].relation_count == 1u);
     assert(context.result.relations[0].related_node_id == 3u);
     assert(context.result.relations[0].related_symbol_id == 2u);
@@ -175,7 +194,28 @@ int main(void) {
     assert(semantic_result_find_visible_symbol(
         &context.result, 2u, "input") == 2u);
     assert(semantic_result_find_visible_symbol(
-        &context.result, 3u, "local") == 3u);
+        &context.result, 3u, "input") == 3u);
+    assert(semantic_result_find_visible_symbol(
+        &context.result, 3u, "copy") == 4u);
+
+    /* Identifier lookup in the nested block must bind to the shadowing local. */
+    {
+        uint32_t reference_node_id = resolve_node_id(&resolver,
+            (ASTNode*)&shadowed_reference);
+        uint32_t i;
+        int found_shadow_binding = 0;
+        for (i = 0u; i < context.result.annotation_count; ++i) {
+            const SemanticResultAnnotation* annotation =
+                &context.result.annotations[i];
+            if (annotation->node_id == reference_node_id) {
+                assert(annotation->resolved_symbol_id == 3u);
+                assert(annotation->scope_id == 3u);
+                found_shadow_binding = 1;
+                break;
+            }
+        }
+        assert(found_shadow_binding);
+    }
 
     /* The semantic result is encoded, then re-opened by the full artifact gate. */
     assert(oir_semantic_ast_artifact_write(
@@ -238,7 +278,7 @@ int main(void) {
     assert(artifact_view.ast.node_count == ast_node_count);
     assert(artifact_view.scopes.record_count == 3u);
     assert(artifact_view.types.record_count == 2u);
-    assert(artifact_view.symbols.record_count == 3u);
+    assert(artifact_view.symbols.record_count == 4u);
     assert(artifact_view.annotations.record_count >= 4u);
     assert(artifact_view.relations.record_count == 1u);
     assert(artifact_view.has_conversions == 0u);
