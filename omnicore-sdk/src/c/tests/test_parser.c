@@ -141,9 +141,11 @@ static int test_parser_bounds_recursive_expression_forms(void) {
     char unary_source[DEPTH + 32];
     char assignment_source[DEPTH * 2 + 32];
     char postfix_source[DEPTH * 2 + 32];
+    char block_source[DEPTH * 2 + 32];
     size_t unary_length = 0u;
     size_t assignment_length = 0u;
     size_t postfix_length = 0u;
+    size_t block_length = 0u;
 
     memcpy(unary_source + unary_length, "v:x = ", 6u);
     unary_length += 6u;
@@ -167,12 +169,20 @@ static int test_parser_bounds_recursive_expression_forms(void) {
     }
     postfix_source[postfix_length++] = ';';
 
+    memcpy(block_source + block_length, "f:main() {", 10u);
+    block_length += 10u;
+    for (int i = 0; i < DEPTH; ++i) block_source[block_length++] = '{';
+    block_source[block_length++] = ';';
+    for (int i = 0; i < DEPTH + 1; ++i) block_source[block_length++] = '}';
+
     return parser_source_reports_syntax_error(
             "deep-unary.nxf", unary_source, unary_length) &&
         parser_source_reports_syntax_error(
             "deep-assignment.nxf", assignment_source, assignment_length) &&
         parser_source_reports_syntax_error(
-            "deep-postfix.nxf", postfix_source, postfix_length);
+            "deep-postfix.nxf", postfix_source, postfix_length) &&
+        parser_source_reports_syntax_error(
+            "deep-blocks.nxf", block_source, block_length);
 }
 
 static int test_parser_context_initialization(void) {
