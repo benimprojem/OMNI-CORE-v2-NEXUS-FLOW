@@ -197,7 +197,7 @@ CTest coverage:
 The loader is implemented, but main.c has not yet switched from its legacy statically linked parser path. Full CLI pipeline integration and failure-checkpoint verification remain pending. ABI v1 remains draft and is not frozen.
 
 
-## 12. OCC host pipeline integration — first parser DLL handoff
+## 12. OCC host pipeline integration — lexer, parser and semantic DLL handoff
 
 The OCC CLI performs a real in-memory OIR handoff through the lexer and parser shared modules:
 
@@ -209,9 +209,9 @@ The OCC CLI performs a real in-memory OIR handoff through the lexer and parser s
 
 On parser failure, the callback has already copied stage diagnostics into the job collector. OCC retains the original source context and persists the invalid-source checkpoint. The CLI integration test verifies the failure checkpoint exists and contains the exact bytes read from the fixture source file.
 
-CI run 41174447616 passed: Windows, Ubuntu and macOS build/test; CTest 39/39; Ubuntu ASan/UBSan and Valgrind. The localized executable copy also receives the parser shared library beside it.
+CI run 41183789210 passed: Windows, macOS and Ubuntu build/test; Ubuntu CTest 46/46, ASan/UBSan and Valgrind. The localized executable copy receives all three frontend stage DLLs beside it.
 
-This is intentionally a partial pipeline migration. Semantic analysis was initially in-process and has since been extracted into a separate stage module (see section 14); CLI handoff to that module remains pending. Codegen still uses its legacy `codegen_run` entry point rather than `OccStageModuleV1`. The ABI remains Draft v1 and is not frozen.
+This is intentionally a partial pipeline migration. Lexer, parser and semantic analysis now run as independent DLL stages. OCC validates the SEMANTIC_AST result, while the legacy IR/codegen path still uses the parser AST; downstream IR lowering has not yet migrated to consume SEMANTIC_AST. Codegen still uses its legacy `codegen_run` entry point rather than `OccStageModuleV1`. The ABI remains Draft v1 and is not frozen.
 
 
 ## 13. Independent lexer stage module
@@ -224,7 +224,7 @@ This is intentionally a partial pipeline migration. Semantic analysis was initia
 - The diagnostic callback is invoked only after the caller's output buffer is large enough. A `NEED_OUTPUT_BUFFER` retry therefore cannot duplicate diagnostics in the host collector.
 - The module returns a structurally valid TOKEN_STREAM artifact even when it contains lexer error tokens; downstream parser sees the diagnostic references and does not re-attribute them.
 
-The OCC CLI now loads both lexer and parser modules through the host loader. The in-memory chain is SOURCE_UNIT → lexer DLL → TOKEN_STREAM → parser DLL → AST OIR. The host materializes AST OIR for the still-in-process semantic analyzer.
+The OCC CLI loads lexer, parser and semantic modules through the host loader. The in-memory chain is SOURCE_UNIT → lexer DLL → TOKEN_STREAM → parser DLL → AST OIR → semantic DLL → SEMANTIC_AST OIR. The host still materializes the parser AST for the legacy IR/codegen path.
 
 CTest `real_lexer_stage_source_to_token_stream_module` verifies a real DLL invocation, token/diagnostic references, exact source span, diagnostic callback and output-buffer retry. CI run 41174917131 passed on Windows, Ubuntu and macOS; CTest 40/40; Ubuntu ASan/UBSan and Valgrind passed.
 
@@ -247,4 +247,4 @@ Input/output contract:
 
 CTest `real_semantic_stage_ast_to_semantic_ast_module` loads the actual shared library through `occ_module_loader`, creates a valid AST OIR fixture, exercises output-buffer retry, and independently opens and validates the resulting SEMANTIC_AST cross-table references and symbol/scope tables.
 
-CI run 41183063260 passed on Windows, macOS and Ubuntu; Ubuntu CTest 46/46, ASan/UBSan and Valgrind passed. The module is built and independently tested, but OCC's main CLI has not yet switched its semantic step from the in-process path to this DLL. ABI v1 remains draft and is not frozen.
+CI run 41183789210 passed on Windows, macOS and Ubuntu; Ubuntu CTest 46/46, ASan/UBSan and Valgrind passed. The module is invoked by OCC's main CLI, and its language catalog is loaded beside the DLL and released at the end of each invocation. ABI v1 remains draft and is not frozen.
