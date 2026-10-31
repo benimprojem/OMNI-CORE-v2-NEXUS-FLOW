@@ -114,7 +114,7 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 ## P0 — Modüler derleyici pipeline (mimari kabul edildi, uygulama bekliyor)
 
 - [ ] Her derleme aşaması için bağımsız shared library hedefi oluştur (Windows DLL / Linux SO / macOS dylib).
-- [ ] Sürümlenmiş C module ABI'sini tanımla: descriptor, stage ID, ABI version, artifact tür/sürüm, process/result, diagnostics ve ownership.
+- [x] Draft sürümlenmiş C module ABI'sini tanımla: descriptor, stage ID, ABI version, artifact tür/sürüm, process/result ve ownership; host-side descriptor/invocation validation testlerini ekle. **ABI henüz freeze edilmedi; stage-specific parser adapter ve dynamic loader testleri açık.**
 - [x] İlk job-owned diagnostic collector ve strict output gate C API'sini oluştur; severity count, source span ve owned text storage testlerini ekle.
 - [x] Collector'ı ParserContext/SemanticContext'e bağla; OIR DIAGNOSTICS schema 1.0 codec'ini ekle ve round-trip/malformed-input testlerini CI'da doğrula.
 - [x] İlk per-job CompilationContext: job ID, copied options, stop-after stage, lifecycle state ve job-owned diagnostics; strict output gate testleri.
