@@ -205,7 +205,7 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 
 
 
-## Sonraki tek iş — gerçek Parser stage modülü
+## Gerçek Parser stage modülü — tamamlandı
 
 - [x] Parser DLL/SO/dylib: SOURCE_UNIT + TOKEN_STREAM OIR girdilerini doğrula, tokenları kaynak baytlarıyla eşleştir, in-memory parser çalıştır, AST OIR üret.
 - [x] Parser modülünün tanılarını invocation diagnostic sink üzerinden raporla; hata halinde geçerli AST artifact üretme.
