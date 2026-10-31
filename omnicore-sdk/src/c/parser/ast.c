@@ -740,6 +740,12 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
         return;
     }
 
+    /*
+     * Serialize sibling lists iteratively. Child fields still recurse into
+     * their own lists, but a flat declaration/statement list no longer uses
+     * one C stack frame per node.
+     */
+    while (node && !writer->failed) {
     ast_write_exact(writer, &node->type, sizeof(node->type));
     ast_write_exact(writer, &node->line, sizeof(node->line));
     ast_write_exact(writer, &node->col, sizeof(node->col));
@@ -993,7 +999,13 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
         default: break;
     }
 
-    if (!writer->failed) ast_serialize_recursive(node->next, writer);
+        node = node->next;
+    }
+
+    if (!writer->failed) {
+        int marker = -1;
+        ast_write_exact(writer, &marker, sizeof(marker));
+    }
 }
 
 int ast_serialize(ASTNode* root, FILE* out) {
