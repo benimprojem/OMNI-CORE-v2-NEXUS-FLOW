@@ -14,10 +14,10 @@ uint32_t occ_module_validate_descriptor_v1(const OccStageModuleV1* module) {
     if(d->struct_size < sizeof(*d) ||
         d->abi_major!=OCC_MODULE_ABI_MAJOR ||
         d->abi_minor>OCC_MODULE_ABI_MINOR ||
-        d->module_id==OCC_MODULE_ID_UNASSIGNED ||
         d->stage_id==0u || d->reserved0!=0u || d->reserved1!=0u ||
         !valid_artifact_kind(d->output_artifact_kind) ||
         d->min_input_count>d->max_input_count ||
+        d->accepted_input_kind_mask==0u ||
         (d->required_input_kind_mask & ~d->accepted_input_kind_mask)!=0u ||
         (d->accepted_input_kind_mask & UINT64_C(1))!=0u ||
         !d->module_name || d->module_name[0]=='\\0') {
