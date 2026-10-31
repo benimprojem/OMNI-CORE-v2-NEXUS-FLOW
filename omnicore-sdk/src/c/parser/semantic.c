@@ -409,40 +409,61 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
     switch (node->type) {
         case AST_LITERAL: {
             ASTLiteral* lit = (ASTLiteral*)node;
+            const char* type_name = NULL;
             switch (lit->type) {
-                case TOKEN_NUMBER: {
-                    if (strchr(lit->string_value, '.') || strchr(lit->string_value, 'E') || strchr(lit->string_value, 'e'))
-                        return "f64";
-                    return "i32";
-                }
-                case TOKEN_STRING: return "str";
-                case TOKEN_CHAR: return "char";
+                case TOKEN_NUMBER:
+                    type_name = (strchr(lit->string_value, '.') ||
+                        strchr(lit->string_value, 'E') ||
+                        strchr(lit->string_value, 'e')) ? "f64" : "i32";
+                    break;
+                case TOKEN_STRING: type_name = "str"; break;
+                case TOKEN_CHAR: type_name = "char"; break;
                 case TOKEN_TRUE:
-                case TOKEN_FALSE: return "bool";
-                default: return NULL;
+                case TOKEN_FALSE: type_name = "bool"; break;
+                default: break;
             }
+            semantic_record_annotation(
+                ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
+            return type_name;
         }
         case AST_IDENTIFIER: {
             ASTIdentifier* id = (ASTIdentifier*)node;
-            Slot* s = find_slot(ctx, id->name);
-            return s ? s->type_name : NULL;
+            Slot* slot = find_slot(ctx, id->name);
+            semantic_record_annotation(
+                ctx, node, slot, slot ? slot->type_name : NULL,
+                slot && slot->kind == SLOT_FUNC
+                    ? SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR
+                    : SEMANTIC_RESULT_VALUE_LVALUE);
+            return slot ? slot->type_name : NULL;
         }
         case AST_FUNC_CALL: {
             ASTCall* call = (ASTCall*)node;
-            if (call->callee->type == AST_IDENTIFIER) {
+            if (call->callee && call->callee->type == AST_IDENTIFIER) {
                 ASTIdentifier* id = (ASTIdentifier*)call->callee;
-                Slot* s = find_slot(ctx, id->name);
-                return s ? s->type_name : NULL;
+                Slot* slot = find_slot(ctx, id->name);
+                semantic_record_annotation(
+                    ctx, node, slot, slot ? slot->type_name : NULL,
+                    SEMANTIC_RESULT_VALUE_RVALUE);
+                return slot ? slot->type_name : NULL;
             }
             return NULL;
         }
         case AST_BINARY_EXPR: {
-            return get_expr_type(ctx, ((ASTBinaryExpr*)node)->left);
+            const char* type_name =
+                get_expr_type(ctx, ((ASTBinaryExpr*)node)->left);
+            semantic_record_annotation(
+                ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
+            return type_name;
         }
         case AST_UNARY_EXPR: {
-            return get_expr_type(ctx, ((ASTUnaryExpr*)node)->operand);
+            const char* type_name =
+                get_expr_type(ctx, ((ASTUnaryExpr*)node)->operand);
+            semantic_record_annotation(
+                ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
+            return type_name;
         }
-        default: return NULL;
+        default:
+            return NULL;
     }
 }
 
