@@ -1182,3 +1182,193 @@ OirStatus oir_semantic_relations_write(
     *out_written = (size_t)total_length;
     return OIR_STATUS_OK;
 }
+
+
+static OirStatus validate_conversion_records(
+    const uint8_t* records,
+    uint32_t conversion_count
+) {
+    uint32_t i;
+    uint32_t previous_node_id = 0u;
+    uint32_t previous_operand = 0u;
+
+    if ((!records && conversion_count != 0u) ||
+        conversion_count > OIR_SEMANTIC_MAX_CONVERSION_COUNT) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    for (i = 0u; i < conversion_count; ++i) {
+        const uint8_t* record = records +
+            (size_t)i * OIR_SEMANTIC_CONVERSION_RECORD_SIZE;
+        uint32_t node_id = read_u32_le(record);
+        uint32_t operand_ordinal = read_u32_le(record + 4);
+        uint32_t source_type_id = read_u32_le(record + 8);
+        uint32_t destination_type_id = read_u32_le(record + 12);
+        uint16_t kind = (uint16_t)((uint16_t)record[16] |
+            ((uint16_t)record[17] << 8));
+        uint16_t flags = (uint16_t)((uint16_t)record[18] |
+            ((uint16_t)record[19] << 8));
+
+        if (node_id == 0u || source_type_id == 0u ||
+            destination_type_id == 0u ||
+            kind < OIR_SEMANTIC_CONVERSION_IDENTITY ||
+            kind > OIR_SEMANTIC_CONVERSION_HARD_TYPE ||
+            (flags != OIR_SEMANTIC_CONVERSION_FLAG_IMPLICIT &&
+                flags != OIR_SEMANTIC_CONVERSION_FLAG_EXPLICIT)) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+
+        if (i != 0u &&
+            (node_id < previous_node_id ||
+                (node_id == previous_node_id &&
+                    operand_ordinal <= previous_operand))) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        previous_node_id = node_id;
+        previous_operand = operand_ordinal;
+    }
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_conversions_open(
+    const uint8_t* payload,
+    size_t payload_length,
+    OirSemanticConversionsView* out_view
+) {
+    uint32_t count;
+    uint32_t record_size;
+    uint64_t expected_length;
+    OirStatus status;
+
+    if (!payload || !out_view) return OIR_STATUS_INVALID_ARGUMENT;
+    memset(out_view, 0, sizeof(*out_view));
+    if (payload_length < OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    count = read_u32_le(payload);
+    record_size = read_u32_le(payload + 4);
+    if (record_size != OIR_SEMANTIC_CONVERSION_RECORD_SIZE ||
+        count > OIR_SEMANTIC_MAX_CONVERSION_COUNT) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    expected_length = (uint64_t)OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE +
+        (uint64_t)count * OIR_SEMANTIC_CONVERSION_RECORD_SIZE;
+    if (expected_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    if (expected_length != (uint64_t)payload_length) {
+        return OIR_STATUS_LENGTH_MISMATCH;
+    }
+
+    status = validate_conversion_records(
+        payload + OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE, count);
+    if (status != OIR_STATUS_OK) return status;
+
+    out_view->bytes = payload;
+    out_view->length = payload_length;
+    out_view->record_count = count;
+    out_view->records_offset = OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE;
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_conversions_get(
+    const OirSemanticConversionsView* view,
+    uint32_t index,
+    OirSemanticConversion* out_conversion
+) {
+    const uint8_t* record;
+    uint64_t expected_length;
+
+    if (!view || !view->bytes || !out_conversion) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+    if (view->records_offset != OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE ||
+        view->record_count > OIR_SEMANTIC_MAX_CONVERSION_COUNT) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    expected_length = (uint64_t)OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE +
+        (uint64_t)view->record_count * OIR_SEMANTIC_CONVERSION_RECORD_SIZE;
+    if (expected_length > (uint64_t)SIZE_MAX ||
+        expected_length != (uint64_t)view->length) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    if (index >= view->record_count) return OIR_STATUS_INVALID_ARGUMENT;
+
+    record = view->bytes + view->records_offset +
+        (size_t)index * OIR_SEMANTIC_CONVERSION_RECORD_SIZE;
+    out_conversion->node_id = read_u32_le(record);
+    out_conversion->operand_ordinal = read_u32_le(record + 4);
+    out_conversion->source_type_id = read_u32_le(record + 8);
+    out_conversion->destination_type_id = read_u32_le(record + 12);
+    out_conversion->kind = (uint16_t)((uint16_t)record[16] |
+        ((uint16_t)record[17] << 8));
+    out_conversion->flags = (uint16_t)((uint16_t)record[18] |
+        ((uint16_t)record[19] << 8));
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_conversions_write(
+    uint8_t* output,
+    size_t capacity,
+    const OirSemanticConversion* conversions,
+    uint32_t conversion_count,
+    size_t* out_written
+) {
+    uint64_t total_length;
+    uint32_t i;
+    uint32_t previous_node_id = 0u;
+    uint32_t previous_operand = 0u;
+
+    if (out_written) *out_written = 0u;
+    if (!output || !out_written ||
+        (!conversions && conversion_count != 0u)) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+    if (conversion_count > OIR_SEMANTIC_MAX_CONVERSION_COUNT) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+
+    for (i = 0u; i < conversion_count; ++i) {
+        const OirSemanticConversion* conversion = &conversions[i];
+        if (conversion->node_id == 0u ||
+            conversion->source_type_id == 0u ||
+            conversion->destination_type_id == 0u ||
+            conversion->kind < OIR_SEMANTIC_CONVERSION_IDENTITY ||
+            conversion->kind > OIR_SEMANTIC_CONVERSION_HARD_TYPE ||
+            (conversion->flags != OIR_SEMANTIC_CONVERSION_FLAG_IMPLICIT &&
+                conversion->flags != OIR_SEMANTIC_CONVERSION_FLAG_EXPLICIT)) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if (i != 0u &&
+            (conversion->node_id < previous_node_id ||
+                (conversion->node_id == previous_node_id &&
+                    conversion->operand_ordinal <= previous_operand))) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        previous_node_id = conversion->node_id;
+        previous_operand = conversion->operand_ordinal;
+    }
+
+    total_length = (uint64_t)OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE +
+        (uint64_t)conversion_count * OIR_SEMANTIC_CONVERSION_RECORD_SIZE;
+    if (total_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    if ((size_t)total_length > capacity) return OIR_STATUS_BUFFER_TOO_SMALL;
+
+    write_u32_le(output, conversion_count);
+    write_u32_le(output + 4, OIR_SEMANTIC_CONVERSION_RECORD_SIZE);
+    for (i = 0u; i < conversion_count; ++i) {
+        uint8_t* record = output + OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE +
+            (size_t)i * OIR_SEMANTIC_CONVERSION_RECORD_SIZE;
+        write_u32_le(record, conversions[i].node_id);
+        write_u32_le(record + 4, conversions[i].operand_ordinal);
+        write_u32_le(record + 8, conversions[i].source_type_id);
+        write_u32_le(record + 12, conversions[i].destination_type_id);
+        record[16] = (uint8_t)(conversions[i].kind & 0xffu);
+        record[17] = (uint8_t)((conversions[i].kind >> 8) & 0xffu);
+        record[18] = (uint8_t)(conversions[i].flags & 0xffu);
+        record[19] = (uint8_t)((conversions[i].flags >> 8) & 0xffu);
+    }
+
+    *out_written = (size_t)total_length;
+    return OIR_STATUS_OK;
+}
