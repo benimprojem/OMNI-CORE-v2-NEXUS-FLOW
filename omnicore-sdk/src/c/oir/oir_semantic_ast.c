@@ -391,7 +391,6 @@ OirStatus oir_semantic_types_get(
 
     if (!view || !view->bytes || !out_type) return OIR_STATUS_INVALID_ARGUMENT;
     if (view->records_offset != OIR_SEMANTIC_TYPES_HEADER_SIZE ||
-        view->record_count == 0u ||
         view->record_count > OIR_SEMANTIC_MAX_TYPE_COUNT ||
         view->string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
         return OIR_STATUS_INVALID_SECTION;
@@ -641,7 +640,6 @@ OirStatus oir_semantic_symbols_get(
 
     if (!view || !view->bytes || !out_symbol) return OIR_STATUS_INVALID_ARGUMENT;
     if (view->records_offset != OIR_SEMANTIC_SYMBOLS_HEADER_SIZE ||
-        view->record_count == 0u ||
         view->record_count > OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
         view->string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
         return OIR_STATUS_INVALID_SECTION;
