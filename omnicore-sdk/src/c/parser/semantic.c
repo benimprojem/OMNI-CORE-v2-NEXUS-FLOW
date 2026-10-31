@@ -666,6 +666,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_FUNC_DECL: {
             ASTFuncDecl* func = (ASTFuncDecl*)node;
+            Slot* function_slot = NULL;
             if (func->name) {
                 Slot* existing = find_slot(ctx, func->name);
                 if (existing && existing->depth == ctx->current_depth) {
@@ -673,31 +674,64 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_FUNC_REDEFINED), func->name);
                     report_error(ctx, node, ERR_SEMANTIC_FUNC_REDEFINED, buf);
                 } else {
-                    Slot* s = add_slot(ctx, func->name, SLOT_FUNC, 1, func->return_type, node, 0, 0);
-                    
+                    function_slot = add_slot(
+                        ctx, func->name, SLOT_FUNC, 1, func->return_type,
+                        node, 0, 0);
+
                     // Parametre bilgilerini kaydet
                     int p_count = 0;
                     ASTNode* p = func->params;
                     while(p) { p_count++; p = p->next; }
-                    
-                    s->param_count = p_count;
-                    if (p_count > 0) {
-                        s->param_types = (char**)malloc(sizeof(char*) * p_count);
-                        p = func->params;
-                        int i = 0;
-                        while(p) {
-                            ASTVarDecl* v = (ASTVarDecl*)p;
-                            s->param_types[i++] = v->type_name ? strdup(v->type_name) : NULL;
-                            p = p->next;
+
+                    if (function_slot) {
+                        function_slot->param_count = p_count;
+                        if (p_count > 0) {
+                            function_slot->param_types = (char**)malloc(sizeof(char*) * p_count);
+                            p = func->params;
+                            int i = 0;
+                            while(p) {
+                                ASTVarDecl* v = (ASTVarDecl*)p;
+                                function_slot->param_types[i++] =
+                                    v->type_name ? strdup(v->type_name) : NULL;
+                                p = p->next;
+                            }
                         }
                     }
                 }
             }
-            
+            semantic_record_annotation(
+                ctx, node, function_slot, func->return_type,
+                SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR);
+
             const char* prev_return_type = ctx->current_func_return_type;
             ctx->current_func_return_type = func->return_type;
             enter_scope(ctx, node);
             if (func->params) semantic_check(ctx, func->params);
+
+            if (ctx->result_enabled && function_slot &&
+                function_slot->symbol_id != 0u) {
+                ASTNode* parameter_node = func->params;
+                uint32_t ordinal = 0u;
+                while (parameter_node) {
+                    ASTVarDecl* parameter = (ASTVarDecl*)parameter_node;
+                    Slot* parameter_slot = find_slot(ctx, parameter->name);
+                    uint32_t parameter_node_id =
+                        semantic_node_id(ctx, parameter_node);
+                    SemanticResultStatus status = semantic_result_add_relation(
+                        &ctx->result,
+                        function_slot->symbol_id,
+                        SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
+                        ordinal++,
+                        parameter_slot ? parameter_slot->symbol_id : 0u,
+                        parameter_node_id,
+                        parameter->name,
+                        parameter_slot ? parameter_slot->type_id :
+                            semantic_type_id(ctx, parameter->type_name));
+                    semantic_set_result_error(ctx, status);
+                    parameter_node = parameter_node->next;
+                }
+            }
+
             if (func->body) semantic_check(ctx, func->body);
             exit_scope(ctx);
             ctx->current_func_return_type = prev_return_type;
