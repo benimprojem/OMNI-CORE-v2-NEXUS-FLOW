@@ -120,6 +120,61 @@ static int test_parser_rejects_excessive_operator_chain(void) {
     return ok;
 }
 
+static int parser_source_reports_syntax_error(
+    const char* filename, const char* source, size_t source_length
+) {
+    ParserContext* ctx = parser_init_source(
+        filename, (const uint8_t*)source, source_length);
+    int result;
+    int ok;
+    if (!ctx) return 0;
+    result = parser_run(ctx);
+    ok = result == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+        ctx->ast_root != NULL && ctx->error_count > 0;
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_parser_bounds_recursive_expression_forms(void) {
+    enum { DEPTH = 300 };
+    char unary_source[DEPTH + 32];
+    char assignment_source[DEPTH * 2 + 32];
+    char postfix_source[DEPTH * 2 + 32];
+    size_t unary_length = 0u;
+    size_t assignment_length = 0u;
+    size_t postfix_length = 0u;
+
+    memcpy(unary_source + unary_length, "v:x = ", 6u);
+    unary_length += 6u;
+    for (int i = 0; i < DEPTH; ++i) unary_source[unary_length++] = '!';
+    unary_source[unary_length++] = '1';
+    unary_source[unary_length++] = ';';
+
+    memcpy(assignment_source + assignment_length, "v:x = 1", 7u);
+    assignment_length += 7u;
+    for (int i = 0; i < DEPTH; ++i) {
+        assignment_source[assignment_length++] = '=';
+        assignment_source[assignment_length++] = '1';
+    }
+    assignment_source[assignment_length++] = ';';
+
+    memcpy(postfix_source + postfix_length, "v:x = a", 7u);
+    postfix_length += 7u;
+    for (int i = 0; i < DEPTH; ++i) {
+        postfix_source[postfix_length++] = '.';
+        postfix_source[postfix_length++] = 'b';
+    }
+    postfix_source[postfix_length++] = ';';
+
+    return parser_source_reports_syntax_error(
+            "deep-unary.nxf", unary_source, unary_length) &&
+        parser_source_reports_syntax_error(
+            "deep-assignment.nxf", assignment_source, assignment_length) &&
+        parser_source_reports_syntax_error(
+            "deep-postfix.nxf", postfix_source, postfix_length);
+}
+
 static int test_parser_context_initialization(void) {
     static const uint8_t empty_source[] = "";
     ParserContext* memory = parser_init_source("empty.nxf", empty_source, 0u);
@@ -460,6 +515,10 @@ int main(int argc, char** argv) {
     }
     if (!test_parser_rejects_excessive_operator_chain()) {
         fprintf(stderr, "Parser did not safely reject an excessive operator chain.\\n");
+        return 1;
+    }
+    if (!test_parser_bounds_recursive_expression_forms()) {
+        fprintf(stderr, "Parser did not bound recursive unary/assignment/postfix forms.\\n");
         return 1;
     }
     if (!test_parser_context_initialization()) {
