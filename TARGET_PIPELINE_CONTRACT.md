@@ -75,6 +75,6 @@ Compilation cache keys must include the normalized target descriptor identity/fi
 
 ## 7. Current implementation gap
 
-The current OCC CLI accepts `--target` and otherwise hard-codes `BareMetal64`. The legacy codegen module loads and validates the selected descriptor, but the frontend pipeline does not yet receive a normalized target artifact. Host OS/architecture default resolution, target-aware conditional compilation handoff, target artifact serialization and target fingerprinting remain implementation tasks.
+The current OCC CLI accepts `--target`; when omitted, it now selects a host default for Windows x86-64 (`Win64`), Linux x86-64 (`Linux64`) and macOS AArch64 (`macOS_AArch64`). Other host combinations fail with a request for an explicit target instead of silently falling back to BareMetal64. This initial mapping is not yet project-configurable and does not cover every host architecture. The legacy codegen module loads and validates the selected descriptor, but the frontend pipeline does not yet receive a normalized target artifact. Target-aware conditional compilation handoff, target artifact serialization and target fingerprinting remain implementation tasks.
 
 This document defines the intended contract; it does not claim those integrations are complete.
