@@ -205,7 +205,7 @@ The OCC CLI performs a real in-memory OIR handoff through the lexer and parser s
 - Frontend tokens are converted to stable OIR token IDs and byte spans, then serialized as `TOKEN_STREAM`.
 - Lexer diagnostics, when present, are serialized in the token artifact's optional `DIAGNOSTICS` section. Token error records reference the diagnostic table by stable 1-based IDs.
 - OCC loads `occ_parser_stage` from the executable runtime directory, invokes it through `occ_module_loader_invoke()`, and receives a validated `AST` artifact.
-- The host independently opens the AST artifact, validates the node table, materializes the AST, and passes that host-owned AST to the existing semantic analyzer.
+- The host independently validates the AST artifact, then invokes the semantic DLL with the complete AST OIR artifact. The semantic DLL emits a separately validated SEMANTIC_AST artifact.
 
 On parser failure, the callback has already copied stage diagnostics into the job collector. OCC retains the original source context and persists the invalid-source checkpoint. The CLI integration test verifies the failure checkpoint exists and contains the exact bytes read from the fixture source file.
 
@@ -228,7 +228,7 @@ The OCC CLI now loads both lexer and parser modules through the host loader. The
 
 CTest `real_lexer_stage_source_to_token_stream_module` verifies a real DLL invocation, token/diagnostic references, exact source span, diagnostic callback and output-buffer retry. CI run 41174917131 passed on Windows, Ubuntu and macOS; CTest 40/40; Ubuntu ASan/UBSan and Valgrind passed.
 
-The semantic stage module is now implemented and tested separately (section 14). The OCC CLI still needs to invoke it after the parser handoff. Codegen is not yet migrated to this ABI. ABI v1 remains draft and is not frozen.
+The semantic stage module is now implemented and tested separately (section 14). OCC now invokes the semantic DLL after the parser handoff and independently validates its output. The legacy IR/codegen path still uses the parser AST, so consuming SEMANTIC_AST downstream is the next migration step. Codegen is not yet migrated to this ABI. ABI v1 remains draft and is not frozen.
 
 
 ## 14. Independent semantic analysis stage module
