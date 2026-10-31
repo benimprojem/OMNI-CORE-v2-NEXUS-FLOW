@@ -1326,121 +1326,158 @@ static ASTNode* parse_return_statement(Parser* p) {
 
 static ASTNode* parse_func_decl(Parser* p) {
     ASTFuncDecl* func = (ASTFuncDecl*)ast_create(AST_FUNC_DECL);
+    ASTNode* param_tail = NULL;
+    if (!func) return NULL;
     func->base.line = p->previous.line;
     func->base.col = p->previous.col;
 
     if (p->previous.type == TOKEN_PRE_FUNC) {
-        // f:isim formatı
         Token t = p->previous;
-        func->name = malloc(t.length - 2 + 1);
-        memcpy(func->name, t.start + 2, t.length - 2);
+        if (t.length < 2) {
+            ast_destroy((ASTNode*)func);
+            return NULL;
+        }
+        func->name = (char*)malloc((size_t)t.length - 1u);
+        if (!func->name) {
+            ast_destroy((ASTNode*)func);
+            return NULL;
+        }
+        memcpy(func->name, t.start + 2, (size_t)t.length - 2u);
         func->name[t.length - 2] = '\0';
     } else if (match(p, TOKEN_IDENTIFIER)) {
-        func->name = malloc(p->previous.length + 1);
-        memcpy(func->name, p->previous.start, p->previous.length);
-        func->name[p->previous.length] = '\0';
-    } else {
-        func->name = NULL; // Anonim/Lambda fonksiyon
+        Token t = p->previous;
+        func->name = (char*)malloc((size_t)t.length + 1u);
+        if (!func->name) {
+            ast_destroy((ASTNode*)func);
+            return NULL;
+        }
+        memcpy(func->name, t.start, (size_t)t.length);
+        func->name[t.length] = '\0';
     }
 
     consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC);
-    
-    // Parametreleri parse et
-    ASTNode* param_head = NULL;
-    ASTNode* param_tail = NULL;
 
     if (p->current.type != TOKEN_RPAREN) {
         do {
-            if (match(p, TOKEN_IDENTIFIER)) {
-                ASTVarDecl* param = (ASTVarDecl*)ast_create(AST_VAR_DECL);
-                param->base.line = p->previous.line;
-                param->base.col = p->previous.col;
-                param->is_const = 0;
-                
-                param->name = malloc(p->previous.length + 1);
-                memcpy(param->name, p->previous.start, p->previous.length);
-                param->name[p->previous.length] = '\0';
-                
-                if (param_head == NULL) {
-                    param_head = (ASTNode*)param;
-                    param_tail = (ASTNode*)param;
-                } else {
-                    param_tail->next = (ASTNode*)param;
-                    param_tail = (ASTNode*)param;
-                }
+            ASTVarDecl* param;
+            Token param_token;
+            int has_bang = 0;
+            if (!match(p, TOKEN_IDENTIFIER)) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                    msg_get(MSG_EXPECT_PARAM_NAME));
+                ast_destroy((ASTNode*)func);
+                return NULL;
+            }
+            param_token = p->previous;
+            param = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+            if (!param) {
+                ast_destroy((ASTNode*)func);
+                return NULL;
+            }
+            param->base.line = param_token.line;
+            param->base.col = param_token.col;
+            param->is_const = 0;
+            param->name = (char*)malloc((size_t)param_token.length + 1u);
+            if (!param->name) {
+                ast_destroy((ASTNode*)param);
+                ast_destroy((ASTNode*)func);
+                return NULL;
+            }
+            memcpy(param->name, param_token.start, (size_t)param_token.length);
+            param->name[param_token.length] = '\0';
 
-                // Parametre Tipi: !type veya type
-                int has_bang = 0;
-                if (match(p, TOKEN_NOT)) has_bang = 1;
+            if (!func->params) func->params = (ASTNode*)param;
+            else param_tail->next = (ASTNode*)param;
+            param_tail = (ASTNode*)param;
 
-                if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) || p->current.type == TOKEN_IDENTIFIER) {
-                     Token t = p->current;
-                     int len = t.length + (has_bang ? 1 : 0);
-                     param->type_name = malloc(len + 1);
-                     if (has_bang) {
-                         param->type_name[0] = '!';
-                         memcpy(param->type_name + 1, t.start, t.length);
-                     } else {
-                         memcpy(param->type_name, t.start, t.length);
-                     }
-                     param->type_name[len] = '\0';
-                     param->is_hard_typed = has_bang;
-                     advance(p);
+            if (match(p, TOKEN_NOT)) has_bang = 1;
+            if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
+                p->current.type == TOKEN_IDENTIFIER) {
+                Token type_token = p->current;
+                size_t type_length = (size_t)type_token.length;
+                size_t total_length = type_length + (has_bang ? 1u : 0u);
+                param->type_name = (char*)malloc(total_length + 1u);
+                if (!param->type_name) {
+                    ast_destroy((ASTNode*)func);
+                    return NULL;
                 }
-            } else {
-                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_PARAM_NAME));
+                if (has_bang) param->type_name[0] = '!';
+                memcpy(param->type_name + (has_bang ? 1u : 0u),
+                    type_token.start, type_length);
+                param->type_name[total_length] = '\0';
+                param->is_hard_typed = has_bang;
+                advance(p);
             }
         } while (match(p, TOKEN_COMMA));
     }
-    func->params = param_head;
 
     consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
 
-    // Lambda Gövdesi: > expr
+    /* Lambda body: > expression */
     if (match(p, TOKEN_GT)) {
         ASTNode* expr = parse_expression(p);
-        if (!expr) return NULL;
-        
-        // İfadeyi bir blok ve return içine sarıyoruz
-        ASTBlock* block = (ASTBlock*)ast_create(AST_BLOCK);
+        ASTBlock* block;
+        ASTUnaryExpr* ret;
+        if (!expr) {
+            ast_destroy((ASTNode*)func);
+            return NULL;
+        }
+        block = (ASTBlock*)ast_create(AST_BLOCK);
+        if (!block) {
+            ast_destroy(expr);
+            ast_destroy((ASTNode*)func);
+            return NULL;
+        }
+        ret = (ASTUnaryExpr*)ast_create(AST_RETURN);
+        if (!ret) {
+            ast_destroy(expr);
+            ast_destroy((ASTNode*)block);
+            ast_destroy((ASTNode*)func);
+            return NULL;
+        }
         block->base.line = func->base.line;
         block->base.col = func->base.col;
-        
-        ASTUnaryExpr* ret = (ASTUnaryExpr*)ast_create(AST_RETURN);
         ret->base.line = func->base.line;
         ret->base.col = func->base.col;
         ret->op = TOKEN_KW_RET;
         ret->operand = expr;
-        
         block->statements = (ASTNode*)ret;
         func->body = (ASTNode*)block;
         return (ASTNode*)func;
     }
 
-    // Dönüş Tipi: type (veya !type)
-    int has_bang = 0;
-    if (match(p, TOKEN_NOT)) {
-        has_bang = 1;
-    }
-
-    if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) || p->current.type == TOKEN_IDENTIFIER) {
-         Token t = p->current;
-         int len = t.length + (has_bang ? 1 : 0);
-         func->return_type = malloc(len + 1);
-         if (has_bang) {
-             func->return_type[0] = '!';
-             memcpy(func->return_type + 1, t.start, t.length);
-         } else {
-             memcpy(func->return_type, t.start, t.length);
-         }
-         func->return_type[len] = '\0';
-         advance(p);
-    } else if (has_bang) {
-         error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_TYPE_BANG));
+    {
+        int has_bang = 0;
+        if (match(p, TOKEN_NOT)) has_bang = 1;
+        if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
+            p->current.type == TOKEN_IDENTIFIER) {
+            Token type_token = p->current;
+            size_t type_length = (size_t)type_token.length;
+            size_t total_length = type_length + (has_bang ? 1u : 0u);
+            func->return_type = (char*)malloc(total_length + 1u);
+            if (!func->return_type) {
+                ast_destroy((ASTNode*)func);
+                return NULL;
+            }
+            if (has_bang) func->return_type[0] = '!';
+            memcpy(func->return_type + (has_bang ? 1u : 0u),
+                type_token.start, type_length);
+            func->return_type[total_length] = '\0';
+            advance(p);
+        } else if (has_bang) {
+            error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                msg_get(MSG_EXPECT_TYPE_BANG));
+            ast_destroy((ASTNode*)func);
+            return NULL;
+        }
     }
 
     consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
     func->body = parse_block(p);
+    if (!func->body) {
+        ast_destroy((ASTNode*)func);
+        return NULL;
+    }
     return (ASTNode*)func;
 }
 
