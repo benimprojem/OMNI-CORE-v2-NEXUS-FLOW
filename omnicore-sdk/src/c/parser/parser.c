@@ -1660,194 +1660,184 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
 }
 
 static ASTNode* parse_newtype_decl(Parser* p) {
-    // nt:Name = Type; veya nt:struct:Name
     Token t = p->previous;
-    // nt: prefix'ini atla
-    char* raw = malloc(t.length + 1);
-    memcpy(raw, t.start, t.length);
-    raw[t.length] = '\0';
-    char* name_part = raw + 3; // "nt:"
+    char* raw;
+    char* name_part;
     char* decl_name = NULL;
+    if (t.length < 3) {
+        error_at(p, &p->previous, ERR_PARSER_INVALID_VAR, msg_get(ERR_PARSER_INVALID_VAR));
+        return NULL;
+    }
+    raw = (char*)malloc((size_t)t.length + 1u);
+    if (!raw) return NULL;
+    memcpy(raw, t.start, (size_t)t.length);
+    raw[t.length] = '\0';
+    name_part = raw + 3;
 
-    // 1. Contiguous cases: nt:struct:Name, nt:enum:Name, nt:union:Name
-    if (strncmp(name_part, "struct:", 7) == 0) {
-        decl_name = malloc(strlen(name_part + 7) + 1);
-        strcpy(decl_name, name_part + 7);
+    if (strncmp(name_part, "struct:", 7) == 0 ||
+        strncmp(name_part, "enum:", 5) == 0 ||
+        strncmp(name_part, "union:", 6) == 0) {
+        int kind = strncmp(name_part, "struct:", 7) == 0 ? 1 :
+            (strncmp(name_part, "enum:", 5) == 0 ? 2 : 3);
+        size_t prefix = kind == 1 ? 7u : (kind == 2 ? 5u : 6u);
+        size_t n = strlen(name_part + prefix);
+        decl_name = (char*)malloc(n + 1u);
+        if (!decl_name) { free(raw); return NULL; }
+        memcpy(decl_name, name_part + prefix, n + 1u);
         free(raw);
-        return parse_struct_decl(p, 0, decl_name);
-    }
-    if (strncmp(name_part, "enum:", 5) == 0) {
-        decl_name = malloc(strlen(name_part + 5) + 1);
-        strcpy(decl_name, name_part + 5);
-        free(raw);
-        return parse_enum_decl(p, decl_name);
-    }
-    if (strncmp(name_part, "union:", 6) == 0) {
-        decl_name = malloc(strlen(name_part + 6) + 1);
-        strcpy(decl_name, name_part + 6);
-        free(raw);
+        if (kind == 1) return parse_struct_decl(p, 0, decl_name);
+        if (kind == 2) return parse_enum_decl(p, decl_name);
         return parse_union_decl(p, decl_name);
     }
 
-    // 2. Check for separated keywords or contiguous keyword tokens (nt:struct)
-    int is_struct = (strcmp(name_part, "struct") == 0);
-    int is_enum = (strcmp(name_part, "enum") == 0);
-    int is_union = (strcmp(name_part, "union") == 0);
-    int is_separated = (*name_part == '\0');
-
-    if (is_struct || is_enum || is_union || is_separated) {
-        free(raw);
-        
-        OmniTokenType current_type = p->current.type;
-        int type_kind = 0; // 1: struct, 2: enum, 3: union
-
-        if (is_struct) type_kind = 1;
-        else if (is_enum) type_kind = 2;
-        else if (is_union) type_kind = 3;
-        else if (is_separated) {
-            if (current_type == TOKEN_KW_STRUCT || current_type == TOKEN_PRE_STRUCT) type_kind = 1;
-            else if (current_type == TOKEN_KW_ENUM || current_type == TOKEN_PRE_ENUM) type_kind = 2;
-            else if (current_type == TOKEN_KW_UNION || current_type == TOKEN_PRE_UNION) type_kind = 3;
+    {
+        int kind = strcmp(name_part, "struct") == 0 ? 1 :
+            (strcmp(name_part, "enum") == 0 ? 2 :
+            (strcmp(name_part, "union") == 0 ? 3 : 0));
+        int separated = *name_part == '\0';
+        if (separated) {
+            if (p->current.type == TOKEN_KW_STRUCT || p->current.type == TOKEN_PRE_STRUCT) kind = 1;
+            else if (p->current.type == TOKEN_KW_ENUM || p->current.type == TOKEN_PRE_ENUM) kind = 2;
+            else if (p->current.type == TOKEN_KW_UNION || p->current.type == TOKEN_PRE_UNION) kind = 3;
         }
-
-        if (type_kind > 0) {
-            // If separated, consume the keyword
-            if (is_separated) {
-                Token t_cur = p->current;
-                int prefix_len = 0;
-                if (type_kind == 1 && t_cur.type == TOKEN_PRE_STRUCT) prefix_len = 7;
-                if (type_kind == 2 && t_cur.type == TOKEN_PRE_ENUM) prefix_len = 5;
-                if (type_kind == 3 && t_cur.type == TOKEN_PRE_UNION) prefix_len = 6;
-
-                advance(p); // Consume keyword/prefix
-
-                if (prefix_len > 0 && t_cur.length > prefix_len) {
-                    // Name is attached (e.g. struct:Name)
-                    decl_name = malloc(t_cur.length - prefix_len + 1);
-                    memcpy(decl_name, t_cur.start + prefix_len, t_cur.length - prefix_len);
-                    decl_name[t_cur.length - prefix_len] = '\0';
-                    
-                    if (type_kind == 1) return parse_struct_decl(p, 0, decl_name);
-                    if (type_kind == 2) return parse_enum_decl(p, decl_name);
-                    if (type_kind == 3) return parse_union_decl(p, decl_name);
+        if (kind != 0) {
+            free(raw);
+            raw = NULL;
+            if (separated) {
+                Token kt = p->current;
+                size_t prefix = kt.type == TOKEN_PRE_STRUCT ? 7u :
+                    (kt.type == TOKEN_PRE_ENUM ? 5u : (kt.type == TOKEN_PRE_UNION ? 6u : 0u));
+                advance(p);
+                if (prefix > 0u && kt.length > (int)prefix) {
+                    size_t n = (size_t)kt.length - prefix;
+                    decl_name = (char*)malloc(n + 1u);
+                    if (!decl_name) return NULL;
+                    memcpy(decl_name, kt.start + prefix, n);
+                    decl_name[n] = '\0';
+                    if (kind == 1) return parse_struct_decl(p, 0, decl_name);
+                    if (kind == 2) return parse_enum_decl(p, decl_name);
+                    return parse_union_decl(p, decl_name);
                 }
             }
-
-            // Check for C-style Definition: { ... } Name;
             if (p->current.type == TOKEN_LBRACE) {
-                if (type_kind == 1 || type_kind == 3) {
-                     ASTStructDecl* decl = (ASTStructDecl*)ast_create(type_kind == 1 ? AST_STRUCT_DECL : AST_UNION_DECL);
-                     decl->base.line = p->previous.line;
-                     decl->base.col = p->previous.col;
-                     decl->is_packed = 0;
-                     decl->is_union = (type_kind == 3);
-                     
-                     consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
-                     
-                     ASTNode* head = NULL;
-                     ASTNode* tail = NULL;
-                     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
-                        if (match(p, TOKEN_PRE_VAR)) {
-                            ASTNode* field = parse_var_decl(p);
-                            if (!head) head = field; else tail->next = field;
-                            tail = field;
-                            if (match(p, TOKEN_COMMA)) {} 
-                        } else {
-                            advance(p);
-                        }
-                     }
-                     decl->fields = head;
-                     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
-                     
-                     if (match(p, TOKEN_IDENTIFIER)) {
-                         Token t_id = p->previous;
-                         decl->name = malloc(t_id.length + 1);
-                         memcpy(decl->name, t_id.start, t_id.length);
-                         decl->name[t_id.length] = '\0';
-                     } else {
-                         error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
-                     }
-                     consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
-                     return (ASTNode*)decl;
-                } else {
-                    // Enum definition: nt: enum { ... } Name;
-                    ASTEnumDecl* decl = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
-                    decl->base.line = p->previous.line;
-                    
-                    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+                if (kind == 1 || kind == 3) {
+                    ASTStructDecl* aggregate = (ASTStructDecl*)ast_create(kind == 1 ? AST_STRUCT_DECL : AST_UNION_DECL);
                     ASTNode* head = NULL;
                     ASTNode* tail = NULL;
+                    if (!aggregate) return NULL;
+                    aggregate->base.line = p->previous.line;
+                    aggregate->base.col = p->previous.col;
+                    aggregate->is_packed = 0;
+                    aggregate->is_union = (kind == 3);
+                    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+                    while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
+                        if (match(p, TOKEN_PRE_VAR)) {
+                            ASTNode* field = parse_var_decl(p);
+                            if (!field) { ast_destroy(head); ast_destroy((ASTNode*)aggregate); return NULL; }
+                            if (!head) head = field; else tail->next = field;
+                            tail = field;
+                            if (match(p, TOKEN_COMMA)) {}
+                        } else advance(p);
+                    }
+                    aggregate->fields = head;
+                    consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
+                    if (!match(p, TOKEN_IDENTIFIER)) {
+                        error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
+                        ast_destroy((ASTNode*)aggregate);
+                        return NULL;
+                    }
+                    t = p->previous;
+                    aggregate->name = (char*)malloc((size_t)t.length + 1u);
+                    if (!aggregate->name) { ast_destroy((ASTNode*)aggregate); return NULL; }
+                    memcpy(aggregate->name, t.start, (size_t)t.length);
+                    aggregate->name[t.length] = '\0';
+                    consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
+                    return (ASTNode*)aggregate;
+                } else {
+                    ASTEnumDecl* aggregate = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+                    ASTNode* head = NULL;
+                    ASTNode* tail = NULL;
+                    if (!aggregate) return NULL;
+                    aggregate->base.line = p->previous.line;
+                    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
                     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
                         if (match(p, TOKEN_IDENTIFIER)) {
-                            ASTEnumVariant* var = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
-                            Token t_var = p->previous;
-                            var->name = malloc(t_var.length + 1);
-                            memcpy(var->name, t_var.start, t_var.length);
-                            var->name[t_var.length] = '\0';
-                            var->data = NULL;
-                            
+                            ASTEnumVariant* variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+                            if (!variant) { ast_destroy(head); ast_destroy((ASTNode*)aggregate); return NULL; }
+                            t = p->previous;
+                            variant->name = (char*)malloc((size_t)t.length + 1u);
+                            if (!variant->name) { ast_destroy((ASTNode*)variant); ast_destroy(head); ast_destroy((ASTNode*)aggregate); return NULL; }
+                            memcpy(variant->name, t.start, (size_t)t.length);
+                            variant->name[t.length] = '\0';
                             if (match(p, TOKEN_LPAREN)) {
-                                while(p->current.type != TOKEN_RPAREN && p->current.type != TOKEN_EOF) advance(p);
+                                while (p->current.type != TOKEN_RPAREN && p->current.type != TOKEN_EOF) advance(p);
                                 consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
                             }
-
-                            if (!head) head = (ASTNode*)var; else tail->next = (ASTNode*)var;
-                            tail = (ASTNode*)var;
+                            if (!head) head = (ASTNode*)variant; else tail->next = (ASTNode*)variant;
+                            tail = (ASTNode*)variant;
                             if (match(p, TOKEN_COMMA)) {}
-                        } else {
-                            advance(p);
-                        }
+                        } else advance(p);
                     }
-                    decl->variants = head;
+                    aggregate->variants = head;
                     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
-                    
-                    if (match(p, TOKEN_IDENTIFIER)) {
-                         Token t_id = p->previous;
-                         decl->name = malloc(t_id.length + 1);
-                         memcpy(decl->name, t_id.start, t_id.length);
-                         decl->name[t_id.length] = '\0';
-                    } else {
-                         error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
+                    if (!match(p, TOKEN_IDENTIFIER)) {
+                        error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
+                        ast_destroy((ASTNode*)aggregate);
+                        return NULL;
                     }
+                    t = p->previous;
+                    aggregate->name = (char*)malloc((size_t)t.length + 1u);
+                    if (!aggregate->name) { ast_destroy((ASTNode*)aggregate); return NULL; }
+                    memcpy(aggregate->name, t.start, (size_t)t.length);
+                    aggregate->name[t.length] = '\0';
                     consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
-                    return (ASTNode*)decl;
+                    return (ASTNode*)aggregate;
                 }
-            } else {
-                // Declaration: nt: struct : Name or nt: struct Name
-                if (p->current.type == TOKEN_COLON) {
-                    advance(p);
-                }
-                if (match(p, TOKEN_IDENTIFIER)) {
-                    Token id = p->previous;
-                    decl_name = malloc(id.length + 1);
-                    memcpy(decl_name, id.start, id.length);
-                    decl_name[id.length] = '\0';
-                }
-                
-                if (type_kind == 1) return parse_struct_decl(p, 0, decl_name);
-                if (type_kind == 2) return parse_enum_decl(p, decl_name);
-                if (type_kind == 3) return parse_union_decl(p, decl_name);
             }
+            if (p->current.type == TOKEN_COLON) advance(p);
+            if (match(p, TOKEN_IDENTIFIER)) {
+                t = p->previous;
+                decl_name = (char*)malloc((size_t)t.length + 1u);
+                if (!decl_name) return NULL;
+                memcpy(decl_name, t.start, (size_t)t.length);
+                decl_name[t.length] = '\0';
+            }
+            if (kind == 1) return parse_struct_decl(p, 0, decl_name);
+            if (kind == 2) return parse_enum_decl(p, decl_name);
+            return parse_union_decl(p, decl_name);
+        }
+        if (separated) {
+            free(raw);
+            error_at(p, &p->previous, ERR_PARSER_INVALID_VAR, msg_get(ERR_PARSER_INVALID_VAR));
+            return NULL;
         }
     }
 
-    ASTNewTypeDecl* decl = (ASTNewTypeDecl*)ast_create(AST_NEWTYPE_DECL);
-    decl->name = malloc(strlen(name_part) + 1);
-    strcpy(decl->name, name_part);
-    free(raw);
-
-    consume(p, TOKEN_ASSIGN, ERR_PARSER_UNEXPECTED_TOKEN, MSG_UNEXPECTED_CHAR);
-    // Tip ismini al (Identifier veya primitive type)
-    if (p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) advance(p);
-    else if (p->current.type == TOKEN_IDENTIFIER) advance(p);
-    
-    Token type_tok = p->previous;
-    decl->target_type = malloc(type_tok.length + 1);
-    memcpy(decl->target_type, type_tok.start, type_tok.length);
-    decl->target_type[type_tok.length] = '\0';
-    
-    consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
-    return (ASTNode*)decl;
+    {
+        ASTNewTypeDecl* decl = (ASTNewTypeDecl*)ast_create(AST_NEWTYPE_DECL);
+        size_t name_length = strlen(name_part);
+        if (!decl) { free(raw); return NULL; }
+        decl->name = (char*)malloc(name_length + 1u);
+        if (!decl->name) { free(raw); ast_destroy((ASTNode*)decl); return NULL; }
+        memcpy(decl->name, name_part, name_length + 1u);
+        free(raw);
+        consume(p, TOKEN_ASSIGN, ERR_PARSER_UNEXPECTED_TOKEN, MSG_UNEXPECTED_CHAR);
+        if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
+            p->current.type == TOKEN_IDENTIFIER) {
+            Token type_token = p->current;
+            decl->target_type = (char*)malloc((size_t)type_token.length + 1u);
+            if (!decl->target_type) { ast_destroy((ASTNode*)decl); return NULL; }
+            memcpy(decl->target_type, type_token.start, (size_t)type_token.length);
+            decl->target_type[type_token.length] = '\0';
+            advance(p);
+        } else {
+            error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
+            ast_destroy((ASTNode*)decl);
+            return NULL;
+        }
+        consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
+        return (ASTNode*)decl;
+    }
 }
 
 static ASTNode* parse_group_decl(Parser* p) {
