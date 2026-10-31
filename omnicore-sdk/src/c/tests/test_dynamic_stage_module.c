@@ -119,6 +119,9 @@ int main(int argc,char** argv) {
         invocation.output_buffer=output_bytes;
         invocation.output_capacity=input_length-1u;
         invocation.job_id=99u;
+        assert(occ_module_diagnostic_sink_init_v1(
+            &invocation.diagnostic_sink,&host_diag,&collector,module->descriptor.stage_id)==
+            OCC_MODULE_STATUS_OK);
         memset(&result,0,sizeof(result)); result.struct_size=(uint32_t)sizeof(result);
         assert(module->process(&invocation,&result)==OCC_MODULE_STATUS_NEED_OUTPUT_BUFFER);
         assert(result.bytes_written==0u && result.required_output_capacity==input_length);
@@ -126,6 +129,13 @@ int main(int argc,char** argv) {
         invocation.output_capacity=sizeof(output_bytes);
         assert(module->process(&invocation,&result)==OCC_MODULE_STATUS_OK);
         assert(result.bytes_written==input_length);
+        assert(result.diagnostics_count==1u);
+        assert(occ_diagnostics_count(&collector)==1u);
+        assert(occ_diagnostics_get(&collector,0u,&diagnostic_view));
+        assert(diagnostic_view.record->stage_id==OCC_STAGE_PARSER);
+        assert(diagnostic_view.record->code==9901u);
+        assert(diagnostic_view.record->severity==OCC_DIAG_NOTE);
+        assert(strcmp(diagnostic_view.message,"passthrough stage completed")==0);
         assert(memcmp(input_bytes,output_bytes,input_length)==0);
         assert(oir_artifact_open(output_bytes,(size_t)result.bytes_written,&output_view)==OIR_STATUS_OK);
         assert(output_view.header.artifact_kind==OIR_KIND_AST);
