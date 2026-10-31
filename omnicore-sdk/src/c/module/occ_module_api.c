@@ -19,7 +19,7 @@ uint32_t occ_module_validate_descriptor_v1(const OccStageModuleV1* module) {
         d->accepted_input_kind_mask==0u ||
         (d->required_input_kind_mask & ~d->accepted_input_kind_mask)!=0u ||
         (d->accepted_input_kind_mask & UINT64_C(1))!=0u ||
-        !d->module_name || d->module_name[0]=='\\0') {
+        !d->module_name || d->module_name[0]=='\0') {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
     return OCC_MODULE_STATUS_OK;
