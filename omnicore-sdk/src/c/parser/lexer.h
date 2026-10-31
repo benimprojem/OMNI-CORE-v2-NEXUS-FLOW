@@ -160,6 +160,7 @@ typedef struct {
     int col;
     size_t source_offset; /* Zero-based byte offset in the original source. */
     size_t source_length; /* Source span length; distinct from diagnostic message length. */
+    uint32_t diagnostic_id; /* 1-based index in the job diagnostic collector; zero means none. */
 } Token;
 
 Token lexer_next_token(ParserContext* ctx);
