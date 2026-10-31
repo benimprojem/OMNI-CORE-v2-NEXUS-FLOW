@@ -2,6 +2,7 @@
 #define OCC_SEMANTIC_H
 
 #include "ast.h"
+#include "semantic_result.h"
 
 typedef enum {
     SLOT_VAR,
@@ -45,6 +46,14 @@ typedef struct {
     /* Optional job-owned collector shared with the parser stage. */
     OccDiagnosticCollector* diagnostics;
     uint32_t diagnostic_stage_id;
+
+    /* Durable result is populated only when a stable AST node resolver is attached. */
+    SemanticResult result;
+    SemanticResultStatus result_status;
+    uint32_t current_scope_id;
+    SemanticNodeIdResolver node_id_resolver;
+    void* node_id_context;
+    uint8_t result_enabled;
 } SemanticContext;
 
 OCC_API void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path);
