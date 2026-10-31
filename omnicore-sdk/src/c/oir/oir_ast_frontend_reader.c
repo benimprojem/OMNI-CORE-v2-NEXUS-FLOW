@@ -45,34 +45,6 @@ static int get_f64(const uint8_t* p, double* out) {
     return 1;
 }
 
-static OirStatus find_field(
-    const OirAstNodeTableView* view,
-    const OirAstNodeRecord* record,
-    uint16_t field_id,
-    OirAstTlvField* out_field,
-    int* out_found
-) {
-    OirAstTlvReader reader;
-    OirAstTlvField field;
-    int has_field=0;
-    OirStatus status;
-    *out_found=0;
-    oir_ast_tlv_reader_init(&reader,view->field_data+record->field_data_offset,
-        record->field_data_length);
-    do {
-        status=oir_ast_tlv_reader_next(&reader,&field,&has_field);
-        if(status!=OIR_STATUS_OK) return status;
-        if(!has_field) break;
-        if(field.field_id==field_id) {
-            *out_field=field;
-            *out_found=1;
-            return OIR_STATUS_OK;
-        }
-        if(field.field_id>field_id) break;
-    } while(has_field);
-    return OIR_STATUS_OK;
-}
-
 static OirStatus allocate_string(
     const OirAstNodeTableView* view,
     const OirAstTlvField* field,
@@ -377,12 +349,19 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
         case AST_DATENOW: case AST_TIME: case AST_CLOCK: case AST_FREE:
         case AST_ZONE_SYNC: case AST_ZONE_VIEW: case AST_ZONE_LOCK: {
             ASTCall* n=(ASTCall*)node;
-            if(field_id==1u)n->callee=child; else if(field_id==2u)n->args=child; else return 0; break;
+            if(field_id==1u) n->callee=child;
+            else if(field_id==2u) n->args=child;
+            else return 0;
+            break;
         }
         case AST_MEMBER_ACCESS:
-            if(field_id==2u)((ASTMemberAccess*)node)->object=child; else return 0; break;
+            if(field_id==2u) ((ASTMemberAccess*)node)->object=child;
+            else return 0;
+            break;
         case AST_TUPLE:
-            if(field_id==1u)((ASTTuple*)node)->elements=child; else return 0; break;
+            if(field_id==1u) ((ASTTuple*)node)->elements=child;
+            else return 0;
+            break;
         case AST_IF: {
             ASTIf* n=(ASTIf*)node;
             if(field_id==1u)n->condition=child; else if(field_id==2u)n->then_branch=child;
@@ -398,26 +377,42 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
             } break;
         }
         case AST_NEXUS_CAPTURE: case AST_LISTEN:
-            if(field_id==2u)((ASTNexusCapture*)node)->expr=child; else return 0; break;
+            if(field_id==2u) ((ASTNexusCapture*)node)->expr=child;
+            else return 0;
+            break;
         case AST_NEXUS_PIPE: case AST_NEXUS_FLOW: {
             ASTNexusFlow* n=(ASTNexusFlow*)node;
             if(field_id==2u)n->left=child; else if(field_id==3u)n->right=child;
-            else if(field_id==6u)n->catch_block=child; else return 0; break;
+            else if(field_id==6u) n->catch_block=child;
+            else return 0;
+            break;
         }
         case AST_NEXUS_LABEL:
-            if(field_id==2u)((ASTNexusLabel*)node)->statement=child; else return 0; break;
+            if(field_id==2u) ((ASTNexusLabel*)node)->statement=child;
+            else return 0;
+            break;
         case AST_NEXUS_HALT:
-            if(field_id==1u)((ASTHalt*)node)->expr=child; else return 0; break;
+            if(field_id==1u) ((ASTHalt*)node)->expr=child;
+            else return 0;
+            break;
         case AST_NEXUS_INTENT:
-            if(field_id==2u)((ASTIntent*)node)->target=child; else return 0; break;
+            if(field_id==2u) ((ASTIntent*)node)->target=child;
+            else return 0;
+            break;
         case AST_UNPACK:
-            if(field_id==1u)((ASTUnpack*)node)->expr=child; else return 0; break;
+            if(field_id==1u) ((ASTUnpack*)node)->expr=child;
+            else return 0;
+            break;
         case AST_DEFER:
-            if(field_id==1u)((ASTDefer*)node)->body=child; else return 0; break;
+            if(field_id==1u) ((ASTDefer*)node)->body=child;
+            else return 0;
+            break;
         case AST_THREAD_BLOCK: {
             ASTThreadBlock* n=(ASTThreadBlock*)node;
             if(field_id==2u)n->body=child; else if(field_id==3u)n->mode=child;
-            else if(field_id==4u)n->timeout=child; else return 0; break;
+            else if(field_id==4u) n->timeout=child;
+            else return 0;
+            break;
         }
         default: return 0;
     }
