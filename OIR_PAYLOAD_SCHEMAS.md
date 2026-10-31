@@ -106,7 +106,10 @@ The parser now exposes a borrowed pre-tokenized input attachment. The OIR adapte
 4. [x] Add DIAGNOSTICS payload encode/decode and malformed-input validation tests.
 5. [x] Add TOKEN_STREAM payload encode/decode and span-validation tests.
 6. [x] Add lexer-to-OIR and OIR-to-parser adapters.
-7. Only then split lexer and parser into separate shared libraries using the common module ABI.
+7. [x] Define AST payload schema 1.0 and stable node/field registry.
+8. Implement the bounded AST payload codec, graph/reference validation and round-trip tests; migrate parser checkpoints only after validation.
+9. Define SEMANTIC_AST payload schema and semantic metadata.
+10. Freeze the common stage ABI and split lexer/parser into shared libraries only after payload ownership contracts are tested.
 
 
 ## 6. DIAGNOSTICS — schema 1.0
@@ -238,7 +241,7 @@ Strings are stored once in the trailing string table as raw UTF-8 bytes without 
 - Unknown fields are accepted only when their optional flag is set. Unknown required fields, unknown node kinds, unknown value types, duplicate fields and invalid fixed-width lengths are rejected.
 - Token-valued fields must reference a known ID in OIR_TOKEN_REGISTRY.md.
 - Maximum nesting depth is 512. Maximum node count is 1,000,000. Maximum individual string length is 16 MiB, matching the current C AST reader's safety ceiling.
-- The current C AST records only line/column start locations. End spans and source byte offsets are not invented; they can be added in a compatible extension after AST source-span propagation.
+- The current C AST records only line/column start locations. End spans and source byte offsets are not invented; they can be added in a compatible extension after AST source-span propagation. AST_LITERAL lit_type currently uses 0=integer, 1=float, 2=string, 3=char, 4=bool; AST_LOOP.loop_type currently uses 0=infinite, 1=while, 2=for, 3=foreach. These are wire-level U32/I32 values whose semantic enumerations are explicitly documented, not copied C enum representations.
 
 ### Current node field mapping
 
