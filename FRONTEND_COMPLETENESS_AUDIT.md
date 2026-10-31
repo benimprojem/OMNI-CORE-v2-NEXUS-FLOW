@@ -400,7 +400,7 @@ Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı günce
 
 ## 6.19 Parser → Semantic DLL sınırı ve semantic OOM güvenliği
 
-**Durum: AST provenance kontrolü, temel semantic allocation cleanup ve eşzamanlı çağrı izolasyonu uygulandı; fault-injection testleri açık.**
+**Durum: AST provenance, Semantic DLL eşzamanlı çağrı izolasyonu ve legacy semantic allocator fault-injection testleri tamamlandı. SemanticResult allocator testleri ve diagnostic budget açık.**
 
 - Ortak AST artifact okuyucusu yalnızca OIR AST schema 1.0 ve `OCC_STAGE_PARSER` producer kimliğini kabul eder.
 - Semantic DLL, AST payload tablosunu açmadan önce artifact kind, schema 1.0, Parser producer, validity ve invocation job ID eşleşmesini kontrol eder.
@@ -409,6 +409,9 @@ Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı günce
 - `add_slot()` içinde slot adı ve tip kopyaları kontrol edilir. Struct/enum slot tahsisi başarısız olduğunda ilgili aggregate traversal null slot üzerinden devam etmez.
 - Fonksiyon parametre tipi dizisi `calloc` ile sıfırlanır; dizi veya tekil tip kopyası tahsisi başarısızsa OOM işaretlenir ve kısmi dizi güvenli biçimde temizlenebilir.
 - Struct field ve enum variant `FieldInfo` tahsisleri ile ad/tip kopyaları kontrol edilir; kısmi kayıtlar listeye bağlanmadan temizlenir.
+- Semantic legacy tahsisleri `semantic_allocate`, `semantic_callocate` ve `semantic_duplicate` üzerinden geçirilir. Context başına 1-based allocation-failure injection kancası, her tahsis noktasını deterministik olarak başarısız kılabilir.
+- Yeni `semantic_legacy_allocation_failure_injection` testi; fonksiyon/parametre, değişken, Struct/Enum alanları ve semantic diagnostic yollarını içeren fixture'larda her tahsis indeksini tek tek başarısız kılar. Her durumda OOM durumunun dışarı taşındığı ve `semantic_destroy()` ile kısmi yapıların temizlenebildiği doğrulanır.
+- Fault-injection testi, fonksiyon parametre dizisinin tahsisi başarısız olduğunda sonraki çağrı argüman denetiminin null `param_types` dizisine erişebildiğini ortaya çıkardı. Çağrı denetimi dizi yoksa parametre türü karşılaştırmasını atlayacak şekilde düzeltildi.
 - Semantic analiz sırasında yazılan debug `stdout` kayıtları kaldırıldı. Böylece Semantic DLL'nin `NEED_OUTPUT_BUFFER` retry çağrıları aynı analiz için tekrarlanan konsol yan etkileri üretmez; kullanıcıya dönük tanılar diagnostic sink üzerinden iletilir.
 - Semantic DLL mesaj kataloğu gereklidir; bu nedenle kaldırılmadı. `msg_init()` platformun one-time primitive'i (`InitOnceExecuteOnce` / `pthread_once`) arkasına alındı; katalog yalnızca ilk invocation sırasında yüklenir, sonrasında salt okunur kalır ve invocation sonunda `msg_destroy()` ile serbest bırakılmaz. Böylece `msg_get()` tarafından döndürülen metinler eşzamanlı çağrılarda geçerliliğini korur. Katalog DLL unload edilene kadar yaşar; loader sözleşmesi DLL unload öncesinde aktif invocation olmamasını şart koşar.
 - Semantic stage modülünde değiştirilen global durum yalnızca one-time başlatılan, sonrasında salt okunur mesaj kataloğudur; modül tanımlayıcısı da salt okunurdur. AST/semantic context/index/diagnostic collector/output buffer her invocation için yerel veya host tarafından ayrı sağlanır.
@@ -418,8 +421,8 @@ Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı günce
 
 **Kalan işler:**
 
-- Semantic legacy allocator yolları için deterministik allocation-failure injection testi eklenmeli; şu anki CI normal, ASan/UBSan ve Valgrind kapsamı sunuyor ancak her allocation noktasını zorla başarısız kılmıyor.
-- Semantic DLL eşzamanlılık testi CI üzerinde tüm platformlarda doğrulanmalı; loader sözleşmesi gereği DLL kapatma işlemi aktif invocation kalmadığında yapılmalı.
+- `semantic_result.c` içindeki durable-result allocator yolları için ayrı deterministik fault-injection kapsamı eklenmeli; mevcut injection yalnızca `semantic.c` legacy Slot/Error/FieldInfo tahsislerini kapsar.
+- Semantic DLL eşzamanlı çağrı testi Windows, macOS, Ubuntu, ASan/UBSan ve Valgrind CI işlerinin tamamında doğrulandı. Loader sözleşmesi gereği DLL kapatma işlemi yine aktif invocation kalmadığında yapılmalıdır.
 - Semantic hata sayacı ve diagnostics sink sınırları, büyük hata kümelerinde job-level diagnostic budget ile birlikte ele alınmalı.
 - Semantic artifact içindeki bütün cross-table referanslar doğrulanıyor; ancak sonraki modülün bu referansları tüketme sözleşmesi ayrı bir sonraki aşama denetimidir.
 
