@@ -51,7 +51,7 @@ static int ensure_directory(const char* directory) {
     if (stat(directory, &info) == 0) return OCC_IS_DIRECTORY(info.st_mode);
     if (OCC_MKDIR(directory) == 0) return 1;
     if (errno == EEXIST && stat(directory, &info) == 0) {
-        return S_ISDIR(info.st_mode);
+        return OCC_IS_DIRECTORY(info.st_mode);
     }
     return 0;
 }
