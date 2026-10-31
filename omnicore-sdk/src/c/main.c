@@ -122,6 +122,8 @@ static int occ_build_and_run_parser_module(
             "The source file could not be opened by the lexer host.");
         goto cleanup;
     }
+    /* parser_init() initializes lexer state; the host owns AST attachment later. */
+    source_context->ast_root = NULL;
     parser_attach_diagnostics(source_context, &job->diagnostics, OCC_STAGE_LEXER);
 
     path_length = strlen(source_path);
