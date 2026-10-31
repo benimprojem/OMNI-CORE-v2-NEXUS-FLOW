@@ -994,7 +994,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                                 SEMANTIC_RESULT_RELATION_ENUM_VARIANT,
                                 variant_ordinal++,
                                 0u,
-                                semantic_node_id(var_node),
+                                semantic_node_id(ctx, var_node),
                                 v->name,
                                 s->type_id);
                         semantic_set_result_error(ctx, relation_status);
