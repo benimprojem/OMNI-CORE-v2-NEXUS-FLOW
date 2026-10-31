@@ -533,5 +533,13 @@ Denetimde netleşen noktalar:
 - Bilinmeyen optional scalar/string field'lar atlanabilir; bilinmeyen optional NODE_REF owning edge'i kaybettirip orphan/leak oluşturabileceği için allocation öncesi reddediliyor.
 - Testler 80 node türünün round-trip'ini, source positions, token/scalar/string değerlerini, nested Nexus Flow child pointer'larını, bozuk ownership graph ve invalid literal tag reddini kapsıyor.
 - CMake target: `occ_oir_ast_frontend_reader`; CTest: `oir_ast_frontend_reader_all_kinds_validate_before_materialize`.
-- **İlk CI run 41159448304:** Windows, Ubuntu, macOS başarılı; Ubuntu CTest 29/29, ASan/UBSan ve Valgrind başarılı. Sonraki cleanup commit'leri compiler warning'lerini kaldırdı ve unknown optional NODE_REF prevalidation ekledi; güncel CI doğrulaması bekleniyor.
+- **Final CI run 41159725328:** Windows, Ubuntu, macOS başarılı; Ubuntu CTest 29/29, ASan/UBSan ve Valgrind başarılı. Son cleanup compiler warning'lerini kaldırdı, canonical child-field helper'ını reader'a bağladı ve unknown optional NODE_REF prevalidation ekledi.
 - **Sonraki aşama:** Reader CI tamamlandıktan sonra parser checkpoint OIR handoff ve AST codec malformed-input/fuzz test matrisi.
+
+
+## OIR AST reader CI confirmation — 31 Ekim 2026
+
+- Final reader build run 41159725328 passed on Windows, Ubuntu and macOS.
+- Ubuntu CTest 29/29, ASan/UBSan and Valgrind all passed.
+- Reader compiler log is warning-free after removing the unused helper and clarifying child-link control flow.
+- The AST payload can now be encoded and materialized into frontend AST nodes with validation-before-allocation and direct failure cleanup. Parser checkpoint integration remains a separate next stage.
