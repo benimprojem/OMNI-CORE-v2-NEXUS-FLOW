@@ -115,7 +115,20 @@ OirStatus oir_semantic_scopes_get(
 ) {
     const uint8_t* record;
 
+    uint64_t expected_length;
+
     if (!view || !view->bytes || !out_scope) return OIR_STATUS_INVALID_ARGUMENT;
+    if (view->records_offset != OIR_SEMANTIC_SCOPES_HEADER_SIZE ||
+        view->record_count == 0u ||
+        view->record_count > OIR_SEMANTIC_MAX_SCOPE_COUNT) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    expected_length = (uint64_t)OIR_SEMANTIC_SCOPES_HEADER_SIZE +
+        (uint64_t)view->record_count * OIR_SEMANTIC_SCOPE_RECORD_SIZE;
+    if (expected_length > (uint64_t)SIZE_MAX ||
+        expected_length != (uint64_t)view->length) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
     if (index >= view->record_count) return OIR_STATUS_INVALID_ARGUMENT;
 
     record = view->bytes + view->records_offset +
