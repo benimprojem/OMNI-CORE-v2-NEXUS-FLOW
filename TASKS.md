@@ -132,7 +132,7 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 
 ## Sonraki tek iş
 
-Node-kind field schema validator'ını uygula: registry'deki her düğüm türü için zorunlu alanlar, beklenen wire tipleri ve optional unknown-field kurallarını doğrula; ardından frontend AST → OIR writer'a geç.
+Field schema CI sonuçlarını doğrula; ardından frontend AST → OIR bounded writer için iki geçişli pointer-index / deterministic node ID planını uygula.
 
 
 ## P0 — OIR ortak artifact standardı (tasarım taslağı eklendi)
@@ -146,9 +146,10 @@ Node-kind field schema validator'ını uygula: registry'deki her düğüm türü
 - [x] Lexer Token → OIR record ve OIR TOKEN_STREAM → parser Token handoff adapter'larını ekle; parser'ın pre-tokenized token array tüketimini uçtan uca test et.
 - [x] AST payload schema 1.0 taslağını ve 80 node kind / field ID registry'sini tanımla.
 - [x] Frontend AST tag'leri ile sabit OIR node-kind ID'leri arasında bağımsız mapping API'si ve 80/80 bijection testi ekle (Windows/Ubuntu/macOS, ASan/UBSan ve Valgrind CI başarılı).
-- [ ] Bounded AST payload codec, graph/reference validation ve round-trip testlerini tamamla; ardından parser checkpoint'lerini OIR v1'e geçir. Tasarım: OIR_AST_CODEC_IMPLEMENTATION.md.
+- [ ] Bounded AST payload codec, graph/reference validation ve frontend round-trip testlerini tamamla; ardından parser checkpoint'lerini OIR v1'e geçir. Tasarım: OIR_AST_CODEC_IMPLEMENTATION.md.
 - [x] AST payload header/node record bounded writer-reader katmanını ve node/TLV/string reference sınır testlerini ekle (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] AST graph validator: NODE_REF + sibling edge sahiplik sayımı, root reachability, orphan/cycle ve 512 derinlik denetimleri (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
+- [x] Node-kind field schema validator: 80 node kind için required field/type kontrolü ve unknown optional field uyumluluk testleri (CI doğrulaması bekleniyor).
 - [x] AST TLV primitive writer/reader: bounded buffer, canonical field ordering, value-width ve malformed-input testleri (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] DIAGNOSTICS section schema 1.0 payload codec'ini uygula ve malformed-input testlerini ekle.
 - [ ] SOURCE_MAP section payload codec'ini uygula.
