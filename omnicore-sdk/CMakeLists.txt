@@ -287,10 +287,11 @@ set_target_properties(occ_frontend PROPERTIES
 target_include_directories(occ_frontend PUBLIC
     "${C_SOURCE_DIR}"
     "${C_PARSER_DIR}"
+    "${C_SOURCE_DIR}/semantic"
 )
 
 target_compile_definitions(occ_frontend PUBLIC OCC_STATIC)
-target_link_libraries(occ_frontend PUBLIC occ_diagnostics)
+target_link_libraries(occ_frontend PUBLIC occ_diagnostics occ_semantic_result)
 
 # Validate-first AST materializer. It depends on the canonical frontend allocator
 # only after payload/schema/graph validation has completed.
