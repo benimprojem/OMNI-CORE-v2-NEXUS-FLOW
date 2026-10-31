@@ -369,8 +369,11 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
             break;
         case AST_IF: {
             ASTIf* n=(ASTIf*)node;
-            if(field_id==1u)n->condition=child; else if(field_id==2u)n->then_branch=child;
-            else if(field_id==3u)n->else_branch=child; else return 0; break;
+            if(field_id==1u) n->condition=child;
+            else if(field_id==2u) n->then_branch=child;
+            else if(field_id==3u) n->else_branch=child;
+            else return 0;
+            break;
         }
         case AST_LOOP: {
             ASTLoop* n=(ASTLoop*)node;
