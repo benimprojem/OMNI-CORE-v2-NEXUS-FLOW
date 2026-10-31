@@ -403,3 +403,15 @@ Doğrulama: GitHub Actions run 41145426190 ile Windows, Ubuntu ve macOS build/CT
 - GitHub Actions run 41148385330: Windows, Ubuntu ve macOS build/CTest 20/20 başarılı; Ubuntu ASan/UBSan ve Valgrind işleri de başarılı.
 
 **Sınır:** Bu codec ve Token → OIR dönüşümü mevcut; OIR token kayıtlarını yeniden Token dizisine çevirip parser'a besleyen ikinci yön henüz yok. Parser hâlâ kendi lexer girişini kullanıyor. Sıradaki iş OIR-to-parser handoff adapter'ı.
+
+
+## OIR TOKEN_STREAM → parser handoff — 31 Ekim 2026
+
+- ParserContext artık borrowed pre-tokenized Token dizisi kabul ediyor. parser_run(), bu modda lexer_next_token() çağırmadan token dizisini tüketiyor; lookahead fonksiyonları token-stream index'ini geri alarak mevcut parser davranışını koruyor.
+- Parser API son token'ın EOF olmasını ve daha önce EOF bulunmamasını doğruluyor. Token dizisinin sahipliği çağıranda; parser_run() bitene kadar Token dizisi ve bağlı source/diagnostic metinleri canlı kalmalı.
+- OIR adapter, validated record + SOURCE_UNIT bytes + optional DIAGNOSTICS message görünümünden frontend Token oluşturuyor. Normal tokenlarda Token.start kaynak dilimine; TOKEN_ERROR için diagnostic message'a işaret ediyor. Kaynak span ve diagnostic_id ayrı alanlarda korunuyor.
+- OIR'den gelen diagnostic_id mevcut job collector'da zaten kayıtlıysa parser aynı lexer hatasını ikinci kez eklemiyor.
+- test_parser_oir_handoff.c gerçek test1.nxf dosyasını lexer → TOKEN_STREAM encode → TOKEN_STREAM validate/decode → frontend Token array → parser_run zincirinden geçiriyor.
+- GitHub Actions run 41148803455: Windows, Ubuntu ve macOS build/CTest **21/21** başarılı; Ubuntu ASan/UBSan ve Valgrind işleri de başarılı.
+
+**Sınır:** Bu, testlerle doğrulanmış in-memory stage handoff'tur. OCC'nin ana compile komutu henüz OIR dosyaları üzerinden aşamaları yürütmüyor; DLL/SO/dylib modül ABI'si ve orchestrator hâlâ sonraki işlerdir. Bir sonraki OIR tasarım işi AST payload schema 1.0'dır.
