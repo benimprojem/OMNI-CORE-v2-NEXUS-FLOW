@@ -219,6 +219,125 @@ int main(void) {
         assert(type_second_written == 0u && type_second[0] == 0xa5u);
     }
 
-    puts("OIR SEMANTIC_AST scope/type codec tests passed.");
+
+    {
+        const uint8_t symbol_names[] = {
+            'c', 'o', 'u', 'n', 't', 'e', 'r', 'r', 'u', 'n'
+        };
+        const OirSemanticSymbol symbols[] = {
+            { 1u, 1u, 2u, OIR_SEMANTIC_SYMBOL_VARIABLE,
+                OIR_SEMANTIC_SYMBOL_FLAG_CONST, 0u, 7u, 1u, 0u, 0u },
+            { 2u, 1u, 5u, OIR_SEMANTIC_SYMBOL_FUNCTION,
+                OIR_SEMANTIC_SYMBOL_FLAG_PUBLIC, 7u, 3u, 1u, 1u, 2u }
+        };
+        uint8_t symbol_bytes[OIR_SEMANTIC_SYMBOLS_HEADER_SIZE +
+            2u * OIR_SEMANTIC_SYMBOL_RECORD_SIZE + sizeof(symbol_names)];
+        uint8_t symbol_second[sizeof(symbol_bytes)];
+        uint8_t symbol_bad[sizeof(symbol_bytes)];
+        size_t symbol_written = 0u;
+        size_t symbol_second_written = 0u;
+        OirSemanticSymbolsView symbols_view;
+        OirSemanticSymbol decoded_symbol;
+        const uint8_t* decoded_symbol_name = NULL;
+        size_t records = OIR_SEMANTIC_SYMBOLS_HEADER_SIZE;
+
+        assert(oir_semantic_symbols_write(symbol_bytes, sizeof(symbol_bytes),
+            symbols, 2u, symbol_names, (uint32_t)sizeof(symbol_names),
+            &symbol_written) == OIR_STATUS_OK);
+        assert(symbol_written == sizeof(symbol_bytes));
+        assert(oir_semantic_symbols_open(symbol_bytes, symbol_written,
+            &symbols_view) == OIR_STATUS_OK);
+        assert(symbols_view.record_count == 2u);
+        assert(oir_semantic_symbols_get(&symbols_view, 0u, &decoded_symbol,
+            &decoded_symbol_name) == OIR_STATUS_OK);
+        assert(decoded_symbol.symbol_id == 1u &&
+            decoded_symbol.kind == OIR_SEMANTIC_SYMBOL_VARIABLE &&
+            decoded_symbol.scope_id == 1u &&
+            decoded_symbol.declaration_node_id == 2u &&
+            decoded_symbol.flags == OIR_SEMANTIC_SYMBOL_FLAG_CONST &&
+            decoded_symbol.type_id == 1u &&
+            decoded_symbol_name && memcmp(decoded_symbol_name, "counter", 7u) == 0);
+        assert(oir_semantic_symbols_get(&symbols_view, 1u, &decoded_symbol,
+            &decoded_symbol_name) == OIR_STATUS_OK);
+        assert(decoded_symbol.symbol_id == 2u &&
+            decoded_symbol.kind == OIR_SEMANTIC_SYMBOL_FUNCTION &&
+            decoded_symbol.first_relation == 1u &&
+            decoded_symbol.relation_count == 2u &&
+            decoded_symbol_name && memcmp(decoded_symbol_name, "run", 3u) == 0);
+
+        assert(oir_semantic_symbols_write(symbol_second, sizeof(symbol_second),
+            symbols, 2u, symbol_names, (uint32_t)sizeof(symbol_names),
+            &symbol_second_written) == OIR_STATUS_OK);
+        assert(symbol_second_written == symbol_written &&
+            memcmp(symbol_bytes, symbol_second, symbol_written) == 0);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        write_u32(symbol_bad + 4u, 40u);
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        write_u32(symbol_bad, UINT32_MAX);
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        write_u32(symbol_bad + records + OIR_SEMANTIC_SYMBOL_RECORD_SIZE, 1u);
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        write_u32(symbol_bad + records + 4u, 0u);
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        write_u32(symbol_bad + records + 8u, 0u);
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        symbol_bad[records + 12u] = 0xffu;
+        symbol_bad[records + 13u] = 0u;
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        symbol_bad[records + 14u] = 0x80u;
+        symbol_bad[records + 15u] = 0u;
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        write_u32(symbol_bad + records + 16u, UINT32_MAX);
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        symbol_bad[records + 2u * OIR_SEMANTIC_SYMBOL_RECORD_SIZE] = 0xc0u;
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        write_u32(symbol_bad + records + OIR_SEMANTIC_SYMBOL_RECORD_SIZE +
+            28u, UINT32_MAX);
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(symbol_bad, symbol_bytes, symbol_written);
+        write_u32(symbol_bad + records + OIR_SEMANTIC_SYMBOL_RECORD_SIZE +
+            32u, 0u);
+        assert(oir_semantic_symbols_open(symbol_bad, symbol_written,
+            &symbols_view) == OIR_STATUS_INVALID_SECTION);
+
+        memset(symbol_second, 0xa5, sizeof(symbol_second));
+        assert(oir_semantic_symbols_write(symbol_second,
+            sizeof(symbol_second) - 1u, symbols, 2u, symbol_names,
+            (uint32_t)sizeof(symbol_names), &symbol_second_written) ==
+            OIR_STATUS_BUFFER_TOO_SMALL);
+        assert(symbol_second_written == 0u && symbol_second[0] == 0xa5u);
+    }
+
+    puts("OIR SEMANTIC_AST scope/type/symbol codec tests passed.");
     return 0;
 }
