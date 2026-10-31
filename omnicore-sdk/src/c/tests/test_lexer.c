@@ -108,7 +108,7 @@ int main(void) {
     }
 
     {
-        const char escaped_source[] = "\"a\\\\\"b\" name";
+        const char escaped_source[] = "\"a\\\"b\" name";
         ParserContext escaped_ctx;
         Token string_token, identifier;
         memset(&escaped_ctx, 0, sizeof(escaped_ctx));
@@ -122,7 +122,7 @@ int main(void) {
         identifier = lexer_next_token(&escaped_ctx);
         if (string_token.type != TOKEN_STRING || string_token.source_length != 6u ||
             identifier.type != TOKEN_IDENTIFIER || identifier.source_offset != 7u) {
-            fprintf(stderr, "Escaped quote incorrectly terminated a string literal.\\n");
+            fprintf(stderr, "Escaped quote incorrectly terminated a string literal.\n");
             free(escaped_ctx.source_buffer);
             return 1;
         }
@@ -130,7 +130,7 @@ int main(void) {
     }
 
     {
-        const char trailing_escape[] = "'\\\\";
+        const char trailing_escape[] = "'\\";
         ParserContext char_ctx;
         Token error, eof;
         memset(&char_ctx, 0, sizeof(char_ctx));
@@ -145,7 +145,7 @@ int main(void) {
         if (error.type != TOKEN_ERROR || error.source_offset != 0u ||
             error.source_length != char_ctx.source_len || char_ctx.pos != char_ctx.source_len ||
             eof.type != TOKEN_EOF) {
-            fprintf(stderr, "Trailing character escape advanced beyond EOF.\\n");
+            fprintf(stderr, "Trailing character escape advanced beyond EOF.\n");
             free(char_ctx.source_buffer);
             return 1;
         }
