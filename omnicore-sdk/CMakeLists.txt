@@ -839,6 +839,7 @@ if(BUILD_TESTING)
     add_executable(test_semantic_stage_module
         "${C_SOURCE_DIR}/tests/test_semantic_stage_module.c"
     )
+    find_package(Threads REQUIRED)
     target_link_libraries(test_semantic_stage_module PRIVATE
         occ_frontend
         occ_module_loader
@@ -847,6 +848,7 @@ if(BUILD_TESTING)
         occ_oir_ast_frontend_writer
         occ_oir_semantic_ast_artifact
         occ_diagnostics
+        Threads::Threads
     )
     if(MSVC)
         target_compile_options(test_semantic_stage_module PRIVATE /W4)
