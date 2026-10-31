@@ -163,6 +163,11 @@ static OmniTokenType check_keyword(const char* start, int length, const char* re
 }
 
 static OmniTokenType identifier_type(const char* start, int length) {
+    /* These literals already have dedicated parser/AST support. Keep them
+       ahead of the general keyword dispatch so they cannot become identifiers. */
+    if (length == 4 && memcmp(start, "true", 4) == 0) return TOKEN_TRUE;
+    if (length == 5 && memcmp(start, "false", 5) == 0) return TOKEN_FALSE;
+
     // Prefix Kontrolleri (v:, c:, vb.)
     if (length >= 2 && start[1] == ':') {
         switch (start[0]) {
