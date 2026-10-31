@@ -1010,6 +1010,10 @@ if(BUILD_TESTING)
         occ_oir_semantic_ast_artifact
         occ_oir_ast_frontend_writer
     )
+    target_include_directories(test_semantic_result_integration PRIVATE
+        "${C_SOURCE_DIR}/oir"
+        "${C_PARSER_DIR}"
+    )
     if(MSVC)
         target_compile_options(test_semantic_result_integration PRIVATE /W4)
     else()
