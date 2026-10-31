@@ -450,3 +450,14 @@ Denetimde netleşen noktalar:
 - Shared C struct kullanan farklı AST türleri OIR'de ayrı node kind olarak kalır.
 
 **CI doğrulaması:** AST node map commit'i 41155747645; TASKS güncellemesi 41155765694; PROJECT_STATUS güncellemesi 41155769032 çalışmaları başarılı tamamlandı. Sonraki adım hâlâ bounded AST payload writer/reader ve graph/reference validation kodudur. Codec tamamlanmadan parser checkpoint migration veya stage DLL ABI freeze yapılmayacaktır.
+
+
+## OIR AST TLV + node table foundations — 31 Ekim 2026
+
+- `oir_ast_tlv.h/.c`: bounded TLV writer/reader; little-endian header, canonical field order, fixed-width type checks, canonical BOOL, token ID range and malformed-input tests.
+- `oir_ast_node_table.h/.c`: 32-byte AST payload header and 32-byte node record writer/reader. Record IDs, root kind, node-kind range, flags/reserved fields, source coordinates, sibling IDs and packed field-data slices are checked.
+- Node field TLV streams are validated in place. NODE_REF values are range-checked; STRING_REF offsets/lengths are bounded by the string table and UTF-8/NUL rules.
+- CMake targets: `occ_oir_ast_tlv`, `occ_oir_ast_node_table`; CTest names: `oir_ast_tlv_primitives_roundtrip_and_validation`, `oir_ast_node_table_roundtrip_and_validation`.
+- Node table writer uses caller-owned buffers and validates before emission; no hidden allocation. Reader exposes zero-copy views.
+- **Not yet implemented:** graph ownership/cycle/orphan/depth validation, per-node required/optional field schema enforcement, frontend AST serialization/deserialization, parser checkpoint migration and stage DLL ABI freeze.
+- TLV primitive CI runs 41156342338, 41156339751, 41156324270 and 41156312919 completed successfully. Node-table CI is pending.
