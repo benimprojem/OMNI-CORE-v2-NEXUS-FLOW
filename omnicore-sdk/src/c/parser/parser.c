@@ -345,7 +345,7 @@ static ASTNode* parse_group_decl(Parser* p);
 static ASTNode* parse_postfix(Parser* p);
 static ASTNode* parse_range(Parser* p);
 static ASTNode* parse_equality(Parser* p);
-static void parse_struct_body(Parser* p, ASTStructDecl* decl);
+static int parse_struct_body(Parser* p, ASTStructDecl* decl);
 static ASTNode* parse_comparison(Parser* p);
 static ASTNode* parse_additive(Parser* p);
 static ASTNode* parse_unary(Parser* p);
@@ -1195,23 +1195,22 @@ static ASTNode* parse_expression(Parser* p) {
     return parse_assignment(p);
 }
 
-static void parse_struct_body(Parser* p, ASTStructDecl* decl) {
+static int parse_struct_body(Parser* p, ASTStructDecl* decl) {
     consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
-    
     ASTNode* head = NULL;
     ASTNode* tail = NULL;
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
         if (match(p, TOKEN_PRE_VAR)) {
             ASTNode* field = parse_var_decl(p);
+            if (!field) { ast_destroy(head); return 0; }
             if (!head) head = field; else tail->next = field;
             tail = field;
-            if (match(p, TOKEN_COMMA)) {} // Opsiyonel virgül
-        } else {
-            advance(p); // Hata durumunda ilerle
-        }
+            if (match(p, TOKEN_COMMA)) {}
+        } else advance(p);
     }
     decl->fields = head;
     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
+    return 1;
 }
 
 // Variable Declaration: v:name = expr;
@@ -1506,92 +1505,77 @@ static ASTNode* parse_block(Parser* p) {
 
 static ASTNode* parse_struct_decl(Parser* p, int is_packed, char* name) {
     ASTStructDecl* decl = (ASTStructDecl*)ast_create(AST_STRUCT_DECL);
+    if (!decl) { free(name); return NULL; }
     decl->base.line = p->previous.line;
     decl->base.col = p->previous.col;
     decl->is_packed = is_packed;
     decl->is_union = 0;
-
-    // struct:Name
-    if (name && name[0] != '\0') {
-        decl->name = name;
-    } else {
-        if (name) free(name);
-
+    if (name && name[0] != '\0') decl->name = name;
+    else {
+        free(name);
         if (p->previous.type == TOKEN_PRE_STRUCT) {
-             Token t = p->previous;
-             if (t.length > 7) {
-                 decl->name = malloc(t.length - 7 + 1);
-                 memcpy(decl->name, t.start + 7, t.length - 7);
-                 decl->name[t.length - 7] = '\0';
-             } else if (match(p, TOKEN_IDENTIFIER)) {
-                 Token identifier_token = p->previous;
-                 decl->name = malloc(identifier_token.length + 1);
-                 memcpy(decl->name, identifier_token.start, identifier_token.length);
-                 decl->name[identifier_token.length] = '\0';
-             } else {
-                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
-             }
-        } else {
-            if (p->current.type == TOKEN_COLON) {
-                advance(p);
+            Token t = p->previous;
+            if (t.length > 7) {
+                size_t n = (size_t)t.length - 7u;
+                decl->name = (char*)malloc(n + 1u);
+                if (decl->name) { memcpy(decl->name, t.start + 7, n); decl->name[n] = '\0'; }
+            } else if (match(p, TOKEN_IDENTIFIER)) {
+                Token id = p->previous;
+                decl->name = (char*)malloc((size_t)id.length + 1u);
+                if (decl->name) { memcpy(decl->name, id.start, (size_t)id.length); decl->name[id.length] = '\0'; }
             }
-
+        } else {
+            if (p->current.type == TOKEN_COLON) advance(p);
             if (match(p, TOKEN_IDENTIFIER)) {
                 Token t = p->previous;
-                decl->name = malloc(t.length + 1);
-                memcpy(decl->name, t.start, t.length);
-                decl->name[t.length] = '\0';
-            } else {
-                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
+                decl->name = (char*)malloc((size_t)t.length + 1u);
+                if (decl->name) { memcpy(decl->name, t.start, (size_t)t.length); decl->name[t.length] = '\0'; }
             }
         }
     }
-
-    parse_struct_body(p, decl);
+    if (!decl->name || !parse_struct_body(p, decl)) {
+        if (!decl->name) error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
+        ast_destroy((ASTNode*)decl);
+        return NULL;
+    }
     return (ASTNode*)decl;
 }
 
 static ASTNode* parse_union_decl(Parser* p, char* name) {
     ASTStructDecl* decl = (ASTStructDecl*)ast_create(AST_UNION_DECL);
+    if (!decl) { free(name); return NULL; }
     decl->base.line = p->previous.line;
     decl->base.col = p->previous.col;
     decl->is_packed = 0;
     decl->is_union = 1;
-
-    if (name && name[0] != '\0') {
-        decl->name = name;
-    } else {
-        if (name) free(name);
-
+    if (name && name[0] != '\0') decl->name = name;
+    else {
+        free(name);
         if (p->previous.type == TOKEN_PRE_UNION) {
-             Token t = p->previous;
-             if (t.length > 6) {
-                 decl->name = malloc(t.length - 6 + 1);
-                 memcpy(decl->name, t.start + 6, t.length - 6);
-                 decl->name[t.length - 6] = '\0';
-             } else if (match(p, TOKEN_IDENTIFIER)) {
-                 Token identifier_token = p->previous;
-                 decl->name = malloc(identifier_token.length + 1);
-                 memcpy(decl->name, identifier_token.start, identifier_token.length);
-                 decl->name[identifier_token.length] = '\0';
-             } else {
-                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
-             }
-        } else {
-            if (p->current.type == TOKEN_COLON) {
-                advance(p);
+            Token t = p->previous;
+            if (t.length > 6) {
+                size_t n = (size_t)t.length - 6u;
+                decl->name = (char*)malloc(n + 1u);
+                if (decl->name) { memcpy(decl->name, t.start + 6, n); decl->name[n] = '\0'; }
+            } else if (match(p, TOKEN_IDENTIFIER)) {
+                Token id = p->previous;
+                decl->name = (char*)malloc((size_t)id.length + 1u);
+                if (decl->name) { memcpy(decl->name, id.start, (size_t)id.length); decl->name[id.length] = '\0'; }
             }
-
+        } else {
+            if (p->current.type == TOKEN_COLON) advance(p);
             if (match(p, TOKEN_IDENTIFIER)) {
                 Token t = p->previous;
-                decl->name = malloc(t.length + 1);
-                memcpy(decl->name, t.start, t.length);
-                decl->name[t.length] = '\0';
+                decl->name = (char*)malloc((size_t)t.length + 1u);
+                if (decl->name) { memcpy(decl->name, t.start, (size_t)t.length); decl->name[t.length] = '\0'; }
             }
         }
     }
-
-    parse_struct_body(p, decl);
+    if (!decl->name || !parse_struct_body(p, decl)) {
+        if (!decl->name) error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
+        ast_destroy((ASTNode*)decl);
+        return NULL;
+    }
     return (ASTNode*)decl;
 }
 
