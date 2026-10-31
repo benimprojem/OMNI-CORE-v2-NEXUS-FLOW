@@ -91,13 +91,13 @@ int main(int argc, char** argv) {
         parser_destroy(second_line);
         occ_diagnostics_destroy(&line_diagnostics);
         if (!line_ok) {
-            fprintf(stderr, "Parser diagnostic did not preserve the exact second-line token span.\\n");
+            fprintf(stderr, "Parser diagnostic did not preserve the exact second-line token span.\n");
             return 1;
         }
     }
 
     {
-        char memory_source[] = "v:x = ;\\n";
+        char memory_source[] = "v:x = ;\n";
         OccDiagnosticCollector memory_diagnostics;
         OccDiagnosticView diagnostic;
         ParserContext* memory_parser;
@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
         parser_destroy(memory_parser);
         occ_diagnostics_destroy(&memory_diagnostics);
         if (!memory_ok) {
-            fprintf(stderr, "In-memory parser did not retain source bytes and exact diagnostic location.\\n");
+            fprintf(stderr, "In-memory parser did not retain source bytes and exact diagnostic location.\n");
             return 1;
         }
     }
