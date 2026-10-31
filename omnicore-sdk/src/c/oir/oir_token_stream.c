@@ -1,6 +1,7 @@
 #include "oir_token_stream.h"
 #include "oir_token_map.h"
 
+#include <limits.h>
 #include <string.h>
 
 static uint16_t read_u16_le(const uint8_t* p) {
@@ -139,6 +140,81 @@ OirStatus oir_token_stream_input_from_lexer_token(
     out_input->lexeme_length = (uint32_t)token->source_length;
     out_input->line = (uint32_t)token->line;
     out_input->column = (uint32_t)token->col;
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_token_stream_record_to_lexer_token(
+    const OirTokenStreamRecordView* record,
+    const uint8_t* source,
+    uint64_t source_length,
+    const char* diagnostic_message,
+    uint32_t diagnostic_message_length,
+    Token* out_token
+) {
+    OmniTokenType frontend_token;
+    uint64_t offset;
+
+    if (!record || !out_token) return OIR_STATUS_INVALID_ARGUMENT;
+    memset(out_token, 0, sizeof(*out_token));
+    if (!oir_token_id_to_omni(record->token_id, &frontend_token) ||
+        record->flags != 0 || record->line == 0 || record->column == 0) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+#if SIZE_MAX < UINT64_MAX
+    if (source_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+#endif
+
+    out_token->type = frontend_token;
+    out_token->line = (int)record->line;
+    out_token->col = (int)record->column;
+    out_token->diagnostic_id = record->diagnostic_id;
+
+    if (frontend_token == TOKEN_ERROR) {
+        if (!record->diagnostic_id || !diagnostic_message ||
+            diagnostic_message_length == 0) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if (diagnostic_message_length > INT_MAX) return OIR_STATUS_OVERFLOW;
+        if (record->source_offset == OIR_TOKEN_STREAM_NO_SOURCE_OFFSET) {
+            if (record->lexeme_length != 0) return OIR_STATUS_INVALID_SECTION;
+            out_token->source_offset = 0;
+            out_token->source_length = 0;
+        } else {
+            if (record->source_offset > source_length ||
+                (uint64_t)record->lexeme_length > source_length - record->source_offset ||
+                record->source_offset > SIZE_MAX) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+            out_token->source_offset = (size_t)record->source_offset;
+            out_token->source_length = record->lexeme_length;
+        }
+        out_token->start = diagnostic_message;
+        out_token->length = (int)diagnostic_message_length;
+        return OIR_STATUS_OK;
+    }
+
+    if (record->diagnostic_id != 0 ||
+        record->source_offset == OIR_TOKEN_STREAM_NO_SOURCE_OFFSET ||
+        record->source_offset > source_length ||
+        (uint64_t)record->lexeme_length > source_length - record->source_offset ||
+        record->source_offset > SIZE_MAX ||
+        record->lexeme_length > INT_MAX) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    offset = record->source_offset;
+    if (frontend_token == TOKEN_EOF) {
+        if (record->lexeme_length != 0 || offset != source_length) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        out_token->start = source ? (const char*)(source + (size_t)offset) : "";
+        out_token->length = 0;
+    } else {
+        if (!source || record->lexeme_length == 0) return OIR_STATUS_INVALID_SECTION;
+        out_token->start = (const char*)(source + (size_t)offset);
+        out_token->length = (int)record->lexeme_length;
+    }
+    out_token->source_offset = (size_t)offset;
+    out_token->source_length = record->lexeme_length;
     return OIR_STATUS_OK;
 }
 
