@@ -42,10 +42,10 @@ static int path_format(
 
 static int ensure_directory(const char* directory) {
     struct stat info;
-    if (stat(directory, &info) == 0) return (info.st_mode & S_IFDIR) != 0;
+    if (stat(directory, &info) == 0) return S_ISDIR(info.st_mode);
     if (OCC_MKDIR(directory) == 0) return 1;
     if (errno == EEXIST && stat(directory, &info) == 0) {
-        return (info.st_mode & S_IFDIR) != 0;
+        return S_ISDIR(info.st_mode);
     }
     return 0;
 }
@@ -91,8 +91,10 @@ int occ_failure_store_save(
     if (diagnostics->text_length > SIZE_MAX - diagnostics_capacity) return 0;
     diagnostics_capacity += diagnostics->text_length;
 
-    if (source_capacity > SIZE_MAX - diagnostics_capacity -
-        OIR_HEADER_SIZE - 2u * OIR_SECTION_HEADER_SIZE) return 0;
+    if (diagnostics_capacity >
+        SIZE_MAX - OIR_HEADER_SIZE - 2u * OIR_SECTION_HEADER_SIZE) return 0;
+    if (source_capacity > SIZE_MAX - OIR_HEADER_SIZE -
+        2u * OIR_SECTION_HEADER_SIZE - diagnostics_capacity) return 0;
     artifact_capacity = OIR_HEADER_SIZE + 2u * OIR_SECTION_HEADER_SIZE +
         source_capacity + diagnostics_capacity;
 
