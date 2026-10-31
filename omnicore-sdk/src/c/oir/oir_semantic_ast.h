@@ -16,6 +16,24 @@ extern "C" {
 #define OIR_SEMANTIC_MAX_SCOPE_COUNT 1000000u
 #define OIR_SEMANTIC_MAX_SCOPE_DEPTH 512u
 
+/* TYPES section payload: count, record size, string-table byte length, records, UTF-8 strings. */
+#define OIR_SEMANTIC_TYPES_HEADER_SIZE 12u
+#define OIR_SEMANTIC_TYPE_RECORD_SIZE 24u
+#define OIR_SEMANTIC_MAX_STRING_TABLE_SIZE (16u * 1024u * 1024u)
+
+typedef enum OirSemanticTypeKind {
+    OIR_SEMANTIC_TYPE_PRIMITIVE = 1,
+    OIR_SEMANTIC_TYPE_USER_DEFINED = 2,
+    OIR_SEMANTIC_TYPE_FUNCTION = 3,
+    OIR_SEMANTIC_TYPE_AGGREGATE = 4,
+    OIR_SEMANTIC_TYPE_TUPLE = 5,
+    OIR_SEMANTIC_TYPE_INFERRED = 6,
+    OIR_SEMANTIC_TYPE_UNKNOWN = 7
+} OirSemanticTypeKind;
+
+#define OIR_SEMANTIC_TYPE_FLAG_CONST 0x0001u
+#define OIR_SEMANTIC_TYPE_FLAG_HARD  0x0002u
+
 /* Logical API view only. This structure is never serialized with sizeof/memcpy. */
 typedef struct OirSemanticScope {
     uint32_t scope_id;
@@ -56,6 +74,49 @@ OirStatus oir_semantic_scopes_write(
     size_t capacity,
     const OirSemanticScope* scopes,
     uint32_t scope_count,
+    size_t* out_written
+);
+
+typedef struct OirSemanticType {
+    uint32_t type_id;
+    uint16_t kind;
+    uint16_t flags;
+    uint32_t name_offset;
+    uint32_t name_length;
+    uint32_t referenced_symbol_id;
+    uint32_t base_type_id;
+} OirSemanticType;
+
+typedef struct OirSemanticTypesView {
+    const uint8_t* bytes;
+    size_t length;
+    uint32_t record_count;
+    size_t records_offset;
+    size_t strings_offset;
+    uint32_t string_table_length;
+} OirSemanticTypesView;
+
+OirStatus oir_semantic_types_open(
+    const uint8_t* payload,
+    size_t payload_length,
+    OirSemanticTypesView* out_view
+);
+
+OirStatus oir_semantic_types_get(
+    const OirSemanticTypesView* view,
+    uint32_t index,
+    OirSemanticType* out_type,
+    const uint8_t** out_name
+);
+
+/* Input records/string bytes and output buffer must be disjoint. */
+OirStatus oir_semantic_types_write(
+    uint8_t* output,
+    size_t capacity,
+    const OirSemanticType* types,
+    uint32_t type_count,
+    const uint8_t* string_table,
+    uint32_t string_table_length,
     size_t* out_written
 );
 
