@@ -696,5 +696,31 @@ int main(int argc, char** argv) {
         }
     }
 
+    {
+        static const uint8_t invalid_lexical_source[] = "$";
+        OccDiagnosticCollector failed_diagnostics;
+        ParserContext* failed_lexer;
+        int failed_result;
+        occ_diagnostics_init(&failed_diagnostics);
+        failed_diagnostics.allocation_failed = 1;
+        failed_lexer = parser_init_source("diagnostic-oom.nxf",
+            invalid_lexical_source, sizeof(invalid_lexical_source) - 1u);
+        if (!failed_lexer) {
+            occ_diagnostics_destroy(&failed_diagnostics);
+            return 1;
+        }
+        parser_attach_diagnostics(failed_lexer, &failed_diagnostics, OCC_STAGE_PARSER);
+        failed_result = parser_run(failed_lexer);
+        int failed_ok = failed_result == PARSER_STATUS_OUT_OF_MEMORY &&
+            parser_get_status(failed_lexer) == PARSER_STATUS_OUT_OF_MEMORY &&
+            occ_diagnostics_count(&failed_diagnostics) == 0u;
+        parser_destroy(failed_lexer);
+        occ_diagnostics_destroy(&failed_diagnostics);
+        if (!failed_ok) {
+            fprintf(stderr, "Lexer diagnostic allocation failure was not propagated as OOM.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
