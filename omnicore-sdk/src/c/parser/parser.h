@@ -162,6 +162,7 @@ OCC_API ParserStatus parser_init_source_ex(const char* filename, const uint8_t* 
 OCC_API void parser_attach_diagnostics(
     ParserContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id
 );
+/* Token storage and token text pointers must remain valid through parser_run(); spans are checked against ctx's source copy. */
 OCC_API int parser_attach_token_stream(
     ParserContext* ctx, const struct Token* tokens, size_t token_count
 );
