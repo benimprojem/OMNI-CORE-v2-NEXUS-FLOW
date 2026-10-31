@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "oir_ast_artifact.h"
+#include "diagnostics.h"
 
 #include <assert.h>
 #include <stdio.h>
