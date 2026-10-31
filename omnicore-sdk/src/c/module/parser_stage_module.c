@@ -15,6 +15,7 @@
 static const OccStageModuleV1 g_parser_module;
 
 #define PARSER_STAGE_MAX_INDEX_CAPACITY ((size_t)2097152u)
+#define PARSER_STAGE_MAX_TOKEN_COUNT 1000000u
 
 static OirStatus find_payload(
     const OirArtifactView* artifact, uint16_t type, OirSectionView* out
@@ -106,7 +107,8 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
 #endif
     if((uint64_t)source.path_length>=(uint64_t)SIZE_MAX) return OCC_MODULE_STATUS_INVALID_INVOCATION;
     if(oir_token_stream_open(token_section.data,(size_t)token_section.length,
-        source.source_id,source.source_length,diag_count,&tokens_view)!=OIR_STATUS_OK) {
+        source.source_id,source.source_length,diag_count,&tokens_view)!=OIR_STATUS_OK ||
+       tokens_view.token_count > PARSER_STAGE_MAX_TOKEN_COUNT) {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
 
