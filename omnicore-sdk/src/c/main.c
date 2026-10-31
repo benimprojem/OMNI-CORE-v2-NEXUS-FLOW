@@ -9,7 +9,15 @@
 #include <string.h>
 
 #include "parser/parser.h"
+#include "parser/lexer.h"
 #include "parser/semantic.h"
+#include "module/occ_module_loader.h"
+#include "oir/oir_payload.h"
+#include "oir/oir_token_stream.h"
+#include "oir/oir_diagnostics.h"
+#include "oir/oir_ast_artifact.h"
+#include "oir/oir_ast_node_table.h"
+#include "oir/oir_ast_graph.h"
 #include "core/compilation.h"
 #include "core/failure_store.h"
 
@@ -18,7 +26,6 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include <dlfcn.h>
 #include <dirent.h>
 #include <unistd.h>
 #endif
@@ -31,6 +38,312 @@
 #define OCC_PATH_BUFFER 4096
 
 typedef int (*CodegenRunFn)(const char*, const char*, const char*);
+
+#define OCC_FRONTEND_TOKEN_LIMIT 1000000u
+#define OCC_AST_OUTPUT_MAX (256u * 1024u * 1024u)
+
+
+static int occ_build_and_run_parser_module(
+    const char* source_path,
+    const char* executable_dir,
+    OccCompilationContext* job,
+    ParserContext** out_context
+) {
+    ParserContext* source_context = NULL;
+    Token* tokens = NULL;
+    OirTokenStreamInput* token_inputs = NULL;
+    size_t token_count = 0u, token_capacity = 0u;
+    uint8_t *source_payload = NULL, *source_artifact = NULL;
+    uint8_t *token_payload = NULL, *token_artifact = NULL, *diagnostics_payload = NULL;
+    uint8_t* ast_artifact = NULL;
+    size_t source_payload_length = 0u, source_artifact_length = 0u;
+    size_t token_payload_length = 0u, token_artifact_length = 0u;
+    size_t diagnostics_payload_length = 0u, ast_artifact_length = 0u;
+    size_t source_payload_capacity = 0u, token_payload_capacity = 0u;
+    size_t token_artifact_capacity = 0u, diagnostics_payload_capacity = 0u;
+    size_t path_length;
+    OirArtifactHeader header;
+    OirSectionInput sections[2];
+    uint32_t section_count;
+    OccModuleArtifactInputV1 module_inputs[2];
+    OccLoadedStageModule loaded;
+    char module_path[OCC_PATH_BUFFER];
+    char loader_error[512];
+    const char* module_filename;
+    OirArtifactView ast_view;
+    OirSectionView ast_payload_section;
+    OirAstNodeTableView ast_table;
+    ASTNode** node_storage = NULL;
+    uint32_t* incoming_counts = NULL;
+    uint8_t* visited = NULL;
+    OirAstGraphStackEntry* graph_stack = NULL;
+    ASTNode* ast_root = NULL;
+    OirStatus oir_status;
+    size_t i;
+    int success = 0;
+
+    if (out_context) *out_context = NULL;
+    memset(&loaded, 0, sizeof(loaded));
+    if (!source_path || !executable_dir || !job || !out_context) return 0;
+
+    source_context = parser_init(source_path);
+    if (!source_context) {
+        occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6001u,
+            "The source file could not be opened by the lexer host.");
+        goto cleanup;
+    }
+    parser_attach_diagnostics(source_context, &job->diagnostics, OCC_STAGE_LEXER);
+
+    path_length = strlen(source_path);
+    if (path_length > UINT32_MAX ||
+        source_context->source_len > SIZE_MAX - OIR_SOURCE_UNIT_HEADER_SIZE - path_length) {
+        occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6002u,
+            "The source unit exceeds the supported OIR size.");
+        goto cleanup;
+    }
+
+    token_capacity = 256u;
+    tokens = (Token*)malloc(token_capacity * sizeof(*tokens));
+    token_inputs = (OirTokenStreamInput*)malloc(token_capacity * sizeof(*token_inputs));
+    if (!tokens || !token_inputs) goto allocation_failure;
+
+    for (;;) {
+        Token token = lexer_next_token(source_context);
+        if (token_count == token_capacity) {
+            size_t next_capacity;
+            Token* next_tokens;
+            OirTokenStreamInput* next_inputs;
+            if (token_capacity >= OCC_FRONTEND_TOKEN_LIMIT) {
+                occ_add_host_diagnostic(job, OCC_STAGE_LEXER, 6003u,
+                    "The source exceeds the frontend token limit.");
+                goto cleanup;
+            }
+            next_capacity = token_capacity * 2u;
+            if (next_capacity > OCC_FRONTEND_TOKEN_LIMIT) next_capacity = OCC_FRONTEND_TOKEN_LIMIT;
+            if (next_capacity > SIZE_MAX / sizeof(*tokens) ||
+                next_capacity > SIZE_MAX / sizeof(*token_inputs)) goto allocation_failure;
+            next_tokens = (Token*)realloc(tokens, next_capacity * sizeof(*tokens));
+            if (!next_tokens) goto allocation_failure;
+            tokens = next_tokens;
+            next_inputs = (OirTokenStreamInput*)realloc(token_inputs,
+                next_capacity * sizeof(*token_inputs));
+            if (!next_inputs) goto allocation_failure;
+            token_inputs = next_inputs;
+            token_capacity = next_capacity;
+        }
+        tokens[token_count] = token;
+        oir_status = oir_token_stream_input_from_lexer_token(
+            &tokens[token_count], &token_inputs[token_count]);
+        if (oir_status != OIR_STATUS_OK) {
+            occ_add_host_diagnostic(job, OCC_STAGE_LEXER, 6004u,
+                "A frontend token could not be represented in TOKEN_STREAM OIR.");
+            goto cleanup;
+        }
+        ++token_count;
+        if (token.type == TOKEN_EOF) break;
+        if (token_count >= OCC_FRONTEND_TOKEN_LIMIT) {
+            occ_add_host_diagnostic(job, OCC_STAGE_LEXER, 6003u,
+                "The source exceeds the frontend token limit.");
+            goto cleanup;
+        }
+    }
+    if (token_count == 0u || token_count > UINT32_MAX) goto cleanup;
+
+    source_payload_capacity = OIR_SOURCE_UNIT_HEADER_SIZE + path_length +
+        source_context->source_len;
+    source_payload = (uint8_t*)malloc(source_payload_capacity);
+    if (!source_payload) goto allocation_failure;
+    oir_status = oir_source_unit_write(source_payload, source_payload_capacity,
+        0u, (const uint8_t*)source_path, (uint32_t)path_length,
+        (const uint8_t*)source_context->source_buffer,
+        (uint64_t)source_context->source_len, &source_payload_length);
+    if (oir_status != OIR_STATUS_OK) goto oir_failure;
+
+    source_artifact_length = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE +
+        source_payload_length;
+    source_artifact = (uint8_t*)malloc(source_artifact_length);
+    if (!source_artifact) goto allocation_failure;
+
+    memset(&header, 0, sizeof(header));
+    header.container_major = OIR_CONTAINER_MAJOR;
+    header.container_minor = OIR_CONTAINER_MINOR;
+    header.artifact_kind = OIR_KIND_SOURCE_UNIT;
+    header.payload_schema_major = OIR_SOURCE_UNIT_SCHEMA_MAJOR;
+    header.payload_schema_minor = OIR_SOURCE_UNIT_SCHEMA_MINOR;
+    header.producer_stage_id = OCC_STAGE_OCC_HOST;
+    header.validity = OIR_VALIDITY_VALID;
+    header.job_id = job->job_id;
+    memset(sections, 0, sizeof(sections));
+    sections[0].type = OIR_SECTION_PAYLOAD;
+    sections[0].version = 1u;
+    sections[0].flags = OIR_SECTION_FLAG_REQUIRED;
+    sections[0].data = source_payload;
+    sections[0].length = source_payload_length;
+    oir_status = oir_artifact_write(source_artifact, source_artifact_length,
+        &header, sections, 1u, &source_artifact_length);
+    if (oir_status != OIR_STATUS_OK) goto oir_failure;
+
+    if (token_count > (SIZE_MAX - OIR_TOKEN_STREAM_HEADER_SIZE) /
+        OIR_TOKEN_STREAM_RECORD_SIZE) goto allocation_failure;
+    token_payload_capacity = OIR_TOKEN_STREAM_HEADER_SIZE +
+        token_count * OIR_TOKEN_STREAM_RECORD_SIZE;
+    token_payload = (uint8_t*)malloc(token_payload_capacity);
+    if (!token_payload) goto allocation_failure;
+
+    diagnostics_payload_capacity = OIR_DIAGNOSTICS_HEADER_SIZE;
+    if (job->diagnostics.count >
+        (SIZE_MAX - diagnostics_payload_capacity) / OIR_DIAGNOSTICS_RECORD_SIZE)
+        goto allocation_failure;
+    diagnostics_payload_capacity += job->diagnostics.count * OIR_DIAGNOSTICS_RECORD_SIZE;
+    if (job->diagnostics.text_length > SIZE_MAX - diagnostics_payload_capacity)
+        goto allocation_failure;
+    diagnostics_payload_capacity += job->diagnostics.text_length;
+    if (job->diagnostics.count > 0u) {
+        diagnostics_payload = (uint8_t*)malloc(diagnostics_payload_capacity);
+        if (!diagnostics_payload) goto allocation_failure;
+        oir_status = oir_diagnostics_payload_write(diagnostics_payload,
+            diagnostics_payload_capacity, &job->diagnostics,
+            &diagnostics_payload_length);
+        if (oir_status != OIR_STATUS_OK) goto oir_failure;
+    }
+
+    oir_status = oir_token_stream_write(token_payload, token_payload_capacity,
+        0u, (uint64_t)source_context->source_len,
+        (uint32_t)job->diagnostics.count, token_inputs, (uint32_t)token_count,
+        &token_payload_length);
+    if (oir_status != OIR_STATUS_OK) goto oir_failure;
+
+    token_artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE +
+        token_payload_length;
+    section_count = 1u;
+    if (diagnostics_payload) {
+        if (diagnostics_payload_length > SIZE_MAX - token_artifact_capacity -
+            OIR_SECTION_HEADER_SIZE) goto allocation_failure;
+        token_artifact_capacity += OIR_SECTION_HEADER_SIZE + diagnostics_payload_length;
+        section_count = 2u;
+    }
+    token_artifact = (uint8_t*)malloc(token_artifact_capacity);
+    if (!token_artifact) goto allocation_failure;
+
+    header.artifact_kind = OIR_KIND_TOKEN_STREAM;
+    header.payload_schema_major = OIR_TOKEN_STREAM_SCHEMA_MAJOR;
+    header.payload_schema_minor = OIR_TOKEN_STREAM_SCHEMA_MINOR;
+    header.producer_stage_id = OCC_STAGE_LEXER;
+    sections[0].data = token_payload;
+    sections[0].length = token_payload_length;
+    if (diagnostics_payload) {
+        sections[1].type = OIR_SECTION_DIAGNOSTICS;
+        sections[1].version = 1u;
+        sections[1].flags = 0u;
+        sections[1].data = diagnostics_payload;
+        sections[1].length = diagnostics_payload_length;
+    }
+    oir_status = oir_artifact_write(token_artifact, token_artifact_capacity,
+        &header, sections, section_count, &token_artifact_length);
+    if (oir_status != OIR_STATUS_OK) goto oir_failure;
+
+#if defined(_WIN32)
+    module_filename = "occ_parser_stage.dll";
+#elif defined(__APPLE__)
+    module_filename = "libocc_parser_stage.dylib";
+#else
+    module_filename = "libocc_parser_stage.so";
+#endif
+    if (!path_join(module_path, sizeof(module_path), executable_dir, module_filename)) {
+        occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6005u,
+            "The parser stage module path could not be constructed.");
+        goto cleanup;
+    }
+    if (occ_module_loader_open(&loaded, module_path, loader_error,
+        sizeof(loader_error)) != OCC_MODULE_LOADER_OK) {
+        occ_add_host_diagnostic(job, OCC_STAGE_PARSER, 6006u,
+            loader_error[0] ? loader_error : "The parser stage module could not be loaded.");
+        goto cleanup;
+    }
+
+    memset(module_inputs, 0, sizeof(module_inputs));
+    module_inputs[0].bytes = source_artifact;
+    module_inputs[0].length = source_artifact_length;
+    module_inputs[1].bytes = token_artifact;
+    module_inputs[1].length = token_artifact_length;
+    if (occ_module_loader_invoke(&loaded, module_inputs, 2u, job->job_id,
+        &job->diagnostics, 4096u, OCC_AST_OUTPUT_MAX,
+        &ast_artifact, &ast_artifact_length) != OCC_MODULE_LOADER_OK) {
+        if (occ_diagnostics_count(&job->diagnostics) == 0u) {
+            occ_add_host_diagnostic(job, OCC_STAGE_PARSER, 6007u,
+                "The parser stage module rejected the source or failed to produce AST OIR.");
+        }
+        goto cleanup;
+    }
+
+    if (oir_artifact_open(ast_artifact, ast_artifact_length, &ast_view) != OIR_STATUS_OK ||
+        ast_view.header.artifact_kind != OIR_KIND_AST ||
+        ast_view.header.job_id != job->job_id) goto oir_failure;
+    for (i = 0u; i < ast_view.section_count; ++i) {
+        if (oir_artifact_get_section(&ast_view, (uint32_t)i,
+            &ast_payload_section) != OIR_STATUS_OK) goto oir_failure;
+        if (ast_payload_section.type == OIR_SECTION_PAYLOAD) break;
+    }
+    if (i == ast_view.section_count ||
+        ast_payload_section.length > SIZE_MAX ||
+        oir_ast_node_table_open(ast_payload_section.data,
+            (size_t)ast_payload_section.length, &ast_table) != OIR_STATUS_OK)
+        goto oir_failure;
+
+    node_storage = (ASTNode**)calloc(ast_table.node_count, sizeof(*node_storage));
+    incoming_counts = (uint32_t*)calloc(ast_table.node_count, sizeof(*incoming_counts));
+    visited = (uint8_t*)calloc(ast_table.node_count, sizeof(*visited));
+    graph_stack = (OirAstGraphStackEntry*)calloc(ast_table.node_count, sizeof(*graph_stack));
+    if (!node_storage || !incoming_counts || !visited || !graph_stack)
+        goto allocation_failure;
+
+    oir_status = oir_ast_artifact_read_frontend_ast(ast_artifact, ast_artifact_length,
+        node_storage, ast_table.node_count,
+        incoming_counts, ast_table.node_count,
+        visited, ast_table.node_count,
+        graph_stack, ast_table.node_count, &ast_root);
+    if (oir_status != OIR_STATUS_OK || !ast_root) goto oir_failure;
+
+    source_context->ast_root = ast_root;
+    ast_root = NULL;
+    *out_context = source_context;
+    source_context = NULL;
+    success = 1;
+    goto cleanup;
+
+allocation_failure:
+    occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6008u,
+        "Memory allocation failed while preparing the parser stage handoff.");
+    goto cleanup;
+oir_failure:
+    occ_add_host_diagnostic(job, OCC_STAGE_OIR, 6009u,
+        "The OCC host could not construct or validate a parser OIR artifact.");
+    goto cleanup;
+cleanup:
+    if (ast_root) ast_destroy(ast_root);
+    free(node_storage);
+    free(incoming_counts);
+    free(visited);
+    free(graph_stack);
+    free(ast_artifact);
+    occ_module_loader_close(&loaded);
+    free(source_payload);
+    free(source_artifact);
+    free(token_payload);
+    free(token_artifact);
+    free(diagnostics_payload);
+    free(tokens);
+    free(token_inputs);
+    if (source_context) parser_destroy(source_context);
+    return success;
+}
+
+static void occ_save_failure_checkpoint(
+    OccCompilationContext* job,
+    const char* source_path,
+    const uint8_t* source_bytes,
+    size_t source_length
+);
 
 static int get_executable_dir(char* out_dir, size_t out_size) {
     if (!out_dir || out_size == 0) return 0;
@@ -212,14 +525,15 @@ static void occ_add_host_diagnostic(
 
 static void occ_save_failure_checkpoint(
     OccCompilationContext* job,
-    ParserContext* parser,
-    const char* source_path
+    const char* source_path,
+    const uint8_t* source_bytes,
+    size_t source_length
 ) {
     OccDiagnosticView last;
     uint32_t stage_id = OCC_STAGE_PARSER;
     char artifact_path[4096];
 
-    if (!job || !parser || !source_path ||
+    if (!job || !source_path || (!source_bytes && source_length != 0u) ||
         occ_diagnostics_count(&job->diagnostics) == 0u) return;
 
     if (occ_diagnostics_get(&job->diagnostics,
@@ -230,7 +544,7 @@ static void occ_save_failure_checkpoint(
 
     if (occ_failure_store_save(
         "occ-errors", job->job_id, stage_id, source_path,
-        (const uint8_t*)parser->source_buffer, parser->source_len,
+        source_bytes, source_length,
         &job->diagnostics, artifact_path, sizeof(artifact_path))) {
         fprintf(stderr, "Hata kaydi saklandi: %s\n", artifact_path);
     } else {
@@ -327,18 +641,14 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    ParserContext* ctx = parser_init(source_file);
-    if (!ctx) {
-        printf("%s\n", msg_get(MSG_OCC_FAIL_INIT));
-        printf("[DEBUG] parser_init failed for file: %s\n", source_file);
-        (void)occ_compilation_fail(&job);
-        occ_compilation_destroy(&job);
-        return 1;
+    ParserContext* ctx = NULL;
+    if (!occ_build_and_run_parser_module(source_file, executable_dir, &job, &ctx) ||
+        !ctx || !ctx->ast_root) {
+        printf("%s\n", msg_get(MSG_OCC_FAIL_PARSER));
+        exit_code = 1;
     }
-    parser_attach_diagnostics(ctx, &job.diagnostics, OCC_STAGE_PARSER);
-    printf("[DEBUG] parser_init succeeded, running parser...\n");
 
-    if (parser_run(ctx) == 0 && ctx->ast_root != NULL) {
+    if (exit_code == 0 && ctx && ctx->ast_root != NULL) {
         printf("%s\n", msg_get(MSG_OCC_SUCCESS_SEMANTIC));
 
         SemanticContext sem_ctx;
@@ -447,11 +757,15 @@ int main(int argc, char **argv) {
 
     if (exit_code != 0) {
         (void)occ_compilation_fail(&job);
-        occ_save_failure_checkpoint(&job, ctx, source_file);
+        occ_save_failure_checkpoint(&job, source_file,
+            ctx ? (const uint8_t*)ctx->source_buffer : NULL,
+            ctx ? ctx->source_len : 0u);
     }
 
-    parser_print_errors(ctx);
-    parser_destroy(ctx);
+    if (ctx) {
+        parser_print_errors(ctx);
+        parser_destroy(ctx);
+    }
     occ_compilation_destroy(&job);
     return exit_code;
 }
