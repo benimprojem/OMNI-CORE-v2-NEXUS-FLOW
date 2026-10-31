@@ -47,8 +47,7 @@ int main(void) {
     module.descriptor.stage_id=OCC_STAGE_PARSER;
     module.descriptor.accepted_input_kind_mask=
         OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_SOURCE_UNIT) |
-        OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_TOKEN_STREAM) |
-        OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_DIAGNOSTICS);
+        OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_TOKEN_STREAM);
     module.descriptor.required_input_kind_mask=
         OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_SOURCE_UNIT) |
         OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_TOKEN_STREAM);
