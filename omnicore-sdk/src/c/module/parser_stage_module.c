@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+static const OccStageModuleV1 g_parser_module;
+
 #define PARSER_STAGE_MAX_INDEX_CAPACITY ((size_t)2097152u)
 
 static OirStatus find_payload(
@@ -47,9 +49,6 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
     char* filename=NULL;
     OirAstPointerIndexEntry* index=NULL;
     OirAstNodeRecord* records=NULL;
-    uint32_t* incoming=NULL;
-    uint8_t* visited=NULL;
-    OirAstGraphStackEntry* graph_stack=NULL;
     uint8_t *field_data=NULL,*string_table=NULL,*payload=NULL;
     size_t index_capacity=1024u, payload_capacity=0u, artifact_required=0u;
     size_t field_capacity=0u,string_capacity=0u, artifact_written=0u;
@@ -60,6 +59,8 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
     uint32_t module_status;
     size_t i;
     int diagnostics_found=0;
+
+    occ_diagnostics_init(&lexer_diagnostics);
 
     result->bytes_written=0u;
     result->required_output_capacity=0u;
@@ -111,7 +112,6 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
     if(source.path_length) memcpy(filename,source.path,source.path_length);
     filename[source.path_length]='\0';
 
-    occ_diagnostics_init(&lexer_diagnostics);
     for(i=0u;i<diag_count;i++) {
         OirDiagnosticEntryView entry;
         OccModuleDiagnosticV1 diagnostic;
@@ -162,14 +162,39 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
 
     parser=parser_init_source(filename,source.source,(size_t)source.source_length);
     if(!parser) goto allocation_failure;
-    parser_attach_diagnostics(parser,NULL,OCC_STAGE_PARSER);
+    parser_attach_diagnostics(parser,&lexer_diagnostics,OCC_STAGE_PARSER);
     if(!parser_attach_token_stream(parser,tokens,tokens_view.token_count))
         goto invalid_input;
-    if(parser_run(parser)!=0 || !parser->ast_root) {
+    {
+        int parse_ok=parser_run(parser)==0 && parser->ast_root!=NULL;
+        size_t diagnostic_index;
+        for(diagnostic_index=diag_count;
+            diagnostic_index<occ_diagnostics_count(&lexer_diagnostics);
+            ++diagnostic_index) {
+            OccDiagnosticView view;
+            OccModuleDiagnosticV1 diagnostic;
+            if(!occ_diagnostics_get(&lexer_diagnostics,diagnostic_index,&view))
+                goto allocation_failure;
+            memset(&diagnostic,0,sizeof(diagnostic));
+            diagnostic.struct_size=(uint32_t)sizeof(diagnostic);
+            diagnostic.code=view.record->code;
+            diagnostic.message_id=view.record->message_id;
+            diagnostic.severity=view.record->severity;
+            diagnostic.span=view.record->span;
+            diagnostic.message=view.message;
+            diagnostic.message_length=view.record->message_length;
+            diagnostic.hint=view.hint;
+            diagnostic.hint_length=view.record->hint_length;
+            if(!invocation->diagnostic_sink.report(
+                invocation->diagnostic_sink.user_context,&diagnostic))
+                goto report_failure;
+        }
         result->diagnostics_count=(uint32_t)occ_diagnostics_count(&lexer_diagnostics);
-        result->output_validity=OIR_VALIDITY_NONE;
-        result->failure_code=2006u;
-        goto parse_failure;
+        if(!parse_ok) {
+            result->output_validity=OIR_VALIDITY_NONE;
+            result->failure_code=2006u;
+            goto parse_failure;
+        }
     }
     root=(ASTNode*)parser->ast_root;
 
@@ -200,13 +225,10 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
     }
 
     records=(OirAstNodeRecord*)calloc(node_count,sizeof(*records));
-    incoming=(uint32_t*)calloc(node_count,sizeof(*incoming));
-    visited=(uint8_t*)calloc(node_count,sizeof(*visited));
-    graph_stack=(OirAstGraphStackEntry*)calloc(node_count,sizeof(*graph_stack));
     field_data=field_capacity?(uint8_t*)malloc(field_capacity):NULL;
     string_table=string_capacity?(uint8_t*)malloc(string_capacity):NULL;
     payload=(uint8_t*)malloc(payload_capacity);
-    if(!records || !incoming || !visited || !graph_stack ||
+    if(!records ||
        (field_capacity&&!field_data) || (string_capacity&&!string_table) || !payload)
         goto allocation_failure;
     status=oir_ast_artifact_write_frontend_ast(root,index,index_capacity,node_count,
@@ -247,9 +269,6 @@ cleanup:
     if(tokens) free(tokens);
     if(index) free(index);
     if(records) free(records);
-    if(incoming) free(incoming);
-    if(visited) free(visited);
-    if(graph_stack) free(graph_stack);
     if(field_data) free(field_data);
     if(string_table) free(string_table);
     if(payload) free(payload);
