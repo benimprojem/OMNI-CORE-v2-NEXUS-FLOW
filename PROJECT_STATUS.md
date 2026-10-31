@@ -491,3 +491,14 @@ Denetimde netleşen noktalar:
 - Test, her node kind için registry'ye uygun alan dizisi üretip doğruluyor; eksik zorunlu alan, bilinen alanda yanlış wire type, unknown required field ve unknown optional field davranışını sınanıyor.
 - CI run 41157314066: Windows, Ubuntu ve macOS build/test başarılı; Ubuntu ASan/UBSan ve Valgrind başarılı. Ubuntu CTest 26/26.
 - Sonraki uygulama işi: frontend AST → OIR bounded writer; caller-owned scratch ve deterministik DFS node ID atamasıyla.
+
+
+## Frontend AST pointer index — 31 Ekim 2026
+
+- `oir_ast_frontend_index.h/.c` eklendi: AST_PROGRAM kökünden başlayarak düğüm pointer'larına 1-based deterministik OIR ID atıyor.
+- Traversal sırası registry field ID'leri artan sırada child pointer'ları, ardından aynı derinlikte `next` sibling.
+- Caller-owned, zero-initialized, power-of-two open-addressing table; load factor en fazla 0.5; gizli allocation yok.
+- Repeated pointer (cycle/shared owner), root sibling, unsupported AST tag, geçersiz line/column, 1,000,000 node ve 512 depth sınırları denetleniyor.
+- Nexus Flow sparse child alanları 2, 3, 6 ile test edildi. CTest: `oir_ast_frontend_index_deterministic_preorder_and_graph_rejection`.
+- **CI run 41158241944:** Ubuntu build/test 27/27 ve ASan/UBSan başarılı; Windows/macOS/Valgrind işleri henüz tamamlanmadı.
+- **Sıradaki adım:** Aynı pointer index üzerinden NodeRecord + TLV field emission; string table için caller-owned buffer ve size-query/preflight API.
