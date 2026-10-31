@@ -339,7 +339,9 @@ static void error_at(Parser* p, Token* token, ErrorCode code, const char* messag
     /* Lexical errors must remain visible even while syntax recovery is active. */
     if (p->panic_mode && token->type != TOKEN_ERROR) return;
     p->panic_mode = 1;
-    if (token->type == TOKEN_ERROR && token->diagnostic_id != 0 && p->ctx->diagnostics) {
+    if (token->type == TOKEN_ERROR && token->diagnostic_id != 0 &&
+        p->ctx->diagnostics &&
+        (size_t)token->diagnostic_id <= occ_diagnostics_count(p->ctx->diagnostics)) {
         /* The upstream OIR DIAGNOSTICS payload already owns this finding. */
         p->had_error = 1;
         return;
