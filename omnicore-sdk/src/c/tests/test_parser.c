@@ -13,8 +13,17 @@ static int write_invalid_source(const char* path) {
     return ok;
 }
 
+static int write_invalid_lexical_source(const char* path) {
+    static const char source[] = "v:x = §;\n";
+    FILE* file = fopen(path, "wb");
+    if (!file) return 0;
+    int ok = fwrite(source, 1, sizeof(source) - 1u, file) == sizeof(source) - 1u;
+    if (fclose(file) != 0) ok = 0;
+    return ok;
+}
+
 int main(int argc, char** argv) {
-    if (argc != 3) return 2;
+    if (argc != 4) return 2;
 
     OccDiagnosticCollector diagnostics;
     occ_diagnostics_init(&diagnostics);
@@ -44,6 +53,27 @@ int main(int argc, char** argv) {
     if (!invalid_ok) {
         fprintf(stderr, "Parser did not report invalid syntax or retain its partial AST for cleanup.\n");
         return 1;
+    }
+
+    if (!write_invalid_lexical_source(argv[3])) return 1;
+    {
+        OccDiagnosticCollector lexical_diagnostics;
+        OccDiagnosticView diagnostic;
+        ParserContext* lexical = parser_init(argv[3]);
+        if (!lexical) return 1;
+        occ_diagnostics_init(&lexical_diagnostics);
+        parser_attach_diagnostics(lexical, &lexical_diagnostics, OCC_STAGE_PARSER);
+        (void)parser_run(lexical);
+        int lexical_ok = occ_diagnostics_count(&lexical_diagnostics) > 0 &&
+            occ_diagnostics_get(&lexical_diagnostics, 0, &diagnostic) &&
+            diagnostic.record->stage_id == OCC_STAGE_LEXER &&
+            diagnostic.record->span.has_location;
+        parser_destroy(lexical);
+        occ_diagnostics_destroy(&lexical_diagnostics);
+        if (!lexical_ok) {
+            fprintf(stderr, "Lexer error was not forwarded with its stage and source location.\n");
+            return 1;
+        }
     }
 
     return 0;
