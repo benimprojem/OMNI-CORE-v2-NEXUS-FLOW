@@ -396,3 +396,27 @@ Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı günce
 - `test_aggregate_declaration_ast()` eklendi.
 - Test; struct alan listesi, newtype adı/hedef tipi, enum variant payload alanı ve union alan listesinin AST üzerinde doğru oluştuğunu doğrular.
 - Bu test AST şekli ve parse başarısını kapsar; allocation-failure injection kapsamı değildir.
+
+
+## 6.19 Parser → Semantic DLL sınırı ve semantic OOM güvenliği
+
+**Durum: AST provenance kontrolü ve temel semantic allocation cleanup düzeltildi; eşzamanlı çağrı ve fault-injection testleri açık.**
+
+- Ortak AST artifact okuyucusu yalnızca OIR AST schema 1.0 ve `OCC_STAGE_PARSER` producer kimliğini kabul eder.
+- Semantic DLL, AST payload tablosunu açmadan önce artifact kind, schema 1.0, Parser producer, validity ve invocation job ID eşleşmesini kontrol eder.
+- Ortak okuyucu ve gerçek Semantic DLL entegrasyon testleri yanlış producer kimliğini ve desteklenmeyen schema minor sürümünü reddeder.
+- `report_issue()` içindeki legacy `Error` kaydı, filename/message/suggestion/hint kopyaları ve ana kayıt tahsisleri artık kontrol edilir. Tahsis başarısızlığında null pointer dereference yerine `SEMANTIC_RESULT_OUT_OF_MEMORY` işaretlenir.
+- `add_slot()` içinde slot adı ve tip kopyaları kontrol edilir. Struct/enum slot tahsisi başarısız olduğunda ilgili aggregate traversal null slot üzerinden devam etmez.
+- Fonksiyon parametre tipi dizisi `calloc` ile sıfırlanır; dizi veya tekil tip kopyası tahsisi başarısızsa OOM işaretlenir ve kısmi dizi güvenli biçimde temizlenebilir.
+- Struct field ve enum variant `FieldInfo` tahsisleri ile ad/tip kopyaları kontrol edilir; kısmi kayıtlar listeye bağlanmadan temizlenir.
+- Semantic analiz sırasında yazılan debug `stdout` kayıtları kaldırıldı. Böylece Semantic DLL'nin `NEED_OUTPUT_BUFFER` retry çağrıları aynı analiz için tekrarlanan konsol yan etkileri üretmez; kullanıcıya dönük tanılar diagnostic sink üzerinden iletilir.
+- Semantic scopes/types/symbols/annotations/relations/conversions tablolarının her biri için 1.000.000 kayıt sınırı, scope depth 512 ve TYPES/SYMBOLS/RELATIONS string tablolarının her biri için 16 MiB sınırı `COMPILER_RESOURCE_LIMITS.md` içine eklendi.
+
+**Kalan işler:**
+
+- Semantic legacy allocator yolları için deterministik allocation-failure injection testi eklenmeli; şu anki CI normal, ASan/UBSan ve Valgrind kapsamı sunuyor ancak her allocation noktasını zorla başarısız kılmıyor.
+- Semantic DLL içindeki localization/message catalog yaşam döngüsü eşzamanlı `process()` çağrılarında güvenli mi ayrıca incelenmeli. `msg_init`/`msg_destroy` çağrılarının DLL-global durumla etkileşimi henüz thread-safety garantisi olarak belgelenmedi.
+- Semantic hata sayacı ve diagnostics sink sınırları, büyük hata kümelerinde job-level diagnostic budget ile birlikte ele alınmalı.
+- Semantic artifact içindeki bütün cross-table referanslar doğrulanıyor; ancak sonraki modülün bu referansları tüketme sözleşmesi ayrı bir sonraki aşama denetimidir.
+
+Bu bölüm Parser → Semantic sınırını kapsar; IR Lowering'e geçildiği anlamına gelmez.
