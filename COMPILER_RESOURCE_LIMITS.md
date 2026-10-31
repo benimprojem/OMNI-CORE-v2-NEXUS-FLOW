@@ -142,6 +142,8 @@ Stage-local limits must return a structured status/diagnostic. They must not ter
 
 ### 5.3 OIR validation
 
+The current stage boundary checks also enforce the declared payload schema: Lexer accepts SOURCE_UNIT schema 1.0; Parser accepts SOURCE_UNIT schema 1.0 and TOKEN_STREAM schema 1.0, and requires the token artifact producer to be the Lexer stage. A valid outer OIR container alone is not sufficient.
+
 Every OIR reader must validate:
 - header and schema version;
 - section lengths and section-count arithmetic;
