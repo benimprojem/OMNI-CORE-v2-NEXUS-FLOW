@@ -1321,7 +1321,17 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         unpack->base.col = p->previous.col;
         unpack->expr = expr;
         expr = (ASTNode*)unpack;
-        return parse_nexus_flow(p);
+        if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum parser nesting depth exceeded.");
+            ast_destroy(expr);
+            return NULL;
+        }
+        ++p->nesting_depth;
+        ASTNode* unpacked = parse_nexus_flow(p);
+        --p->nesting_depth;
+        if (!unpacked) ast_destroy(expr);
+        return unpacked;
     }
 
     if (match(p, TOKEN_ERR_HANDLER)) {
