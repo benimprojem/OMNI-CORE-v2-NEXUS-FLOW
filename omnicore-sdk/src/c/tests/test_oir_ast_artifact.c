@@ -84,7 +84,7 @@ int main(void) {
 
     /* Unsupported AST payload schema versions are rejected before decoding. */
     memcpy(bad,artifact,written);
-    bad[16] ^= 0x01u;
+    bad[18] ^= 0x01u;
     assert(oir_ast_artifact_read_frontend_ast(bad,written,decoded,2u,
         incoming,2u,visited,2u,stack,2u,&decoded_root)==OIR_STATUS_INVALID_HEADER);
     assert(decoded_root==NULL);
