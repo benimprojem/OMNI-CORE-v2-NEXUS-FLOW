@@ -109,6 +109,39 @@ static OirStatus decode_record(
     return OIR_STATUS_OK;
 }
 
+OirStatus oir_token_stream_input_from_lexer_token(
+    const Token* token,
+    OirTokenStreamInput* out_input
+) {
+    uint16_t token_id;
+    if (!token || !out_input) return OIR_STATUS_INVALID_ARGUMENT;
+    memset(out_input, 0, sizeof(*out_input));
+
+    token_id = oir_token_id_from_omni(token->type);
+    if (token_id == 0 || token->line <= 0 || token->col <= 0 ||
+        token->source_length > UINT32_MAX) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    if (token->type != TOKEN_ERROR &&
+        (token->length < 0 || token->source_length != (size_t)token->length)) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    if (token->type == TOKEN_ERROR && token->diagnostic_id == 0) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    out_input->token_id = token_id;
+    out_input->diagnostic_id = token->diagnostic_id;
+    out_input->source_offset =
+        token->type == TOKEN_ERROR && token->source_length == 0
+            ? OIR_TOKEN_STREAM_NO_SOURCE_OFFSET
+            : (uint64_t)token->source_offset;
+    out_input->lexeme_length = (uint32_t)token->source_length;
+    out_input->line = (uint32_t)token->line;
+    out_input->column = (uint32_t)token->col;
+    return OIR_STATUS_OK;
+}
+
 OirStatus oir_token_stream_open(
     const uint8_t* payload,
     size_t payload_length,
