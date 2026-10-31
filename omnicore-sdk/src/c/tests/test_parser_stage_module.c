@@ -172,6 +172,9 @@ int main(int argc,char** argv) {
         CHECK(oir_source_unit_write(bad_source_payload,sizeof(bad_source_payload),0u,
             bad_path,(uint32_t)(sizeof(bad_path)-1u),bad_source,
             sizeof(bad_source)-1u,&bad_source_payload_len)==OIR_STATUS_OK);
+        header.artifact_kind=OIR_KIND_SOURCE_UNIT;
+        header.payload_schema_major=OIR_SOURCE_UNIT_SCHEMA_MAJOR;
+        header.payload_schema_minor=OIR_SOURCE_UNIT_SCHEMA_MINOR;
         section.data=bad_source_payload;
         section.length=bad_source_payload_len;
         CHECK(oir_artifact_write(bad_source_artifact,sizeof(bad_source_artifact),
