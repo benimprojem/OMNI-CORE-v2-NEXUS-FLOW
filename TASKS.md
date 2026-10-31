@@ -147,6 +147,7 @@ AST payload schema 1.0 codec'ini uygula: bounded writer/reader, node graph/refer
 - [x] AST payload schema 1.0 taslağını ve 80 node kind / field ID registry'sini tanımla.
 - [x] Frontend AST tag'leri ile sabit OIR node-kind ID'leri arasında bağımsız mapping API'si ve 80/80 bijection testi ekle (Windows/Ubuntu/macOS, ASan/UBSan ve Valgrind CI başarılı).
 - [ ] Bounded AST payload codec, graph/reference validation ve round-trip testlerini ekle; ardından parser checkpoint'lerini OIR v1'e geçir. Tasarım: OIR_AST_CODEC_IMPLEMENTATION.md.
+- [ ] AST TLV primitive writer/reader: bounded buffer, canonical field ordering, value-width ve malformed-input testleri (CI doğrulaması bekleniyor).
 - [x] DIAGNOSTICS section schema 1.0 payload codec'ini uygula ve malformed-input testlerini ekle.
 - [ ] SOURCE_MAP section payload codec'ini uygula.
 - [ ] SEMANTIC_AST payload şemasını tanımla.
