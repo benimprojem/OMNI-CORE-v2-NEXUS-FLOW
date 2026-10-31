@@ -143,6 +143,17 @@ target_include_directories(occ_oir_ast_field_schema PUBLIC "${C_SOURCE_DIR}/oir"
 target_link_libraries(occ_oir_ast_field_schema PUBLIC occ_oir_ast_node_table)
 set_target_properties(occ_oir_ast_field_schema PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Frontend AST pointer index assigns deterministic OIR IDs without allocation.
+add_library(occ_oir_ast_frontend_index STATIC
+    "${C_SOURCE_DIR}/oir/oir_ast_frontend_index.c"
+)
+target_include_directories(occ_oir_ast_frontend_index PUBLIC
+    "${C_SOURCE_DIR}/oir"
+    "${C_PARSER_DIR}"
+)
+target_link_libraries(occ_oir_ast_frontend_index PUBLIC occ_oir_ast_map)
+set_target_properties(occ_oir_ast_frontend_index PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # The C frontend is the canonical compiler frontend.
 # parser/main.c is intentionally excluded: it is an obsolete standalone entry point.
 add_library(occ_frontend STATIC
@@ -231,6 +242,7 @@ if(MSVC)
     target_compile_options(occ_oir_ast_node_table PRIVATE /W4)
     target_compile_options(occ_oir_ast_graph PRIVATE /W4)
     target_compile_options(occ_oir_ast_field_schema PRIVATE /W4)
+    target_compile_options(occ_oir_ast_frontend_index PRIVATE /W4)
     target_compile_options(occ_frontend PRIVATE /W4)
     target_compile_options(occ_codegen PRIVATE /W4)
     target_compile_options(occ PRIVATE /W4)
@@ -245,6 +257,7 @@ else()
     target_compile_options(occ_oir_ast_node_table PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_ast_graph PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_ast_field_schema PRIVATE -Wall -Wextra)
+    target_compile_options(occ_oir_ast_frontend_index PRIVATE -Wall -Wextra)
     target_compile_options(occ_frontend PRIVATE -Wall -Wextra)
     target_compile_options(occ_codegen PRIVATE -Wall -Wextra)
     target_compile_options(occ PRIVATE -Wall -Wextra)
@@ -442,6 +455,16 @@ if(BUILD_TESTING)
         target_compile_options(test_oir_ast_field_schema PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME oir_ast_field_schema_all_node_kinds_and_compatibility COMMAND test_oir_ast_field_schema)
+
+    add_executable(test_oir_ast_frontend_index "${C_SOURCE_DIR}/tests/test_oir_ast_frontend_index.c")
+    target_link_libraries(test_oir_ast_frontend_index PRIVATE occ_oir_ast_frontend_index)
+    if(MSVC)
+        target_compile_options(test_oir_ast_frontend_index PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_ast_frontend_index PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_ast_frontend_index_deterministic_preorder_and_graph_rejection
+        COMMAND test_oir_ast_frontend_index)
 
     add_executable(test_oir_token_map "${C_SOURCE_DIR}/tests/test_oir_token_map.c")
     target_link_libraries(test_oir_token_map PRIVATE occ_oir_lexer_adapter)
