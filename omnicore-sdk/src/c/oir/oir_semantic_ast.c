@@ -1372,3 +1372,323 @@ OirStatus oir_semantic_conversions_write(
     *out_written = (size_t)total_length;
     return OIR_STATUS_OK;
 }
+
+
+static OirStatus semantic_ast_node_kind(
+    const OirAstNodeTableView* ast,
+    uint32_t node_id,
+    uint16_t* out_kind
+) {
+    OirAstNodeRecord record;
+    OirStatus status;
+
+    if (!ast || !out_kind || node_id == 0u || node_id > ast->node_count) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    status = oir_ast_node_table_get(ast, node_id - 1u, &record);
+    if (status != OIR_STATUS_OK || record.node_id != node_id ||
+        record.node_kind_id == 0u ||
+        record.node_kind_id > OIR_AST_NODE_KIND_MAX) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    *out_kind = record.node_kind_id;
+    return OIR_STATUS_OK;
+}
+
+static int semantic_symbol_declaration_kind_matches(
+    uint16_t symbol_kind,
+    uint16_t node_kind
+) {
+    switch (symbol_kind) {
+        case OIR_SEMANTIC_SYMBOL_VARIABLE:
+            return node_kind == 3u; /* AST_VAR_DECL */
+        case OIR_SEMANTIC_SYMBOL_FUNCTION:
+            return node_kind == 4u || node_kind == 11u || node_kind == 12u;
+        case OIR_SEMANTIC_SYMBOL_STRUCT:
+            return node_kind == 5u;
+        case OIR_SEMANTIC_SYMBOL_UNION:
+            return node_kind == 7u;
+        case OIR_SEMANTIC_SYMBOL_ENUM:
+            return node_kind == 6u;
+        case OIR_SEMANTIC_SYMBOL_NEWTYPE:
+            return node_kind == 8u;
+        case OIR_SEMANTIC_SYMBOL_LABEL:
+            return node_kind == 33u; /* AST_NEXUS_LABEL */
+        default:
+            return 0;
+    }
+}
+
+static int semantic_relation_node_kind_matches(
+    uint16_t relation_kind,
+    uint16_t node_kind
+) {
+    switch (relation_kind) {
+        case OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER:
+        case OIR_SEMANTIC_RELATION_AGGREGATE_FIELD:
+        case OIR_SEMANTIC_RELATION_ENUM_PAYLOAD_FIELD:
+            return node_kind == 3u; /* AST_VAR_DECL */
+        case OIR_SEMANTIC_RELATION_ENUM_VARIANT:
+            return node_kind == 9u; /* AST_ENUM_VARIANT */
+        default:
+            return 0;
+    }
+}
+
+static int semantic_relation_owner_kind_matches(
+    uint16_t relation_kind,
+    uint16_t symbol_kind
+) {
+    switch (relation_kind) {
+        case OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER:
+            return symbol_kind == OIR_SEMANTIC_SYMBOL_FUNCTION;
+        case OIR_SEMANTIC_RELATION_AGGREGATE_FIELD:
+            return symbol_kind == OIR_SEMANTIC_SYMBOL_STRUCT ||
+                symbol_kind == OIR_SEMANTIC_SYMBOL_UNION;
+        case OIR_SEMANTIC_RELATION_ENUM_VARIANT:
+        case OIR_SEMANTIC_RELATION_ENUM_PAYLOAD_FIELD:
+            return symbol_kind == OIR_SEMANTIC_SYMBOL_ENUM;
+        default:
+            return 0;
+    }
+}
+
+static int semantic_scope_is_ancestor(
+    const OirSemanticScopesView* scopes,
+    uint32_t ancestor_scope_id,
+    uint32_t descendant_scope_id
+) {
+    uint32_t current = descendant_scope_id;
+
+    while (current != 0u) {
+        OirSemanticScope scope;
+        if (current == ancestor_scope_id) return 1;
+        if (oir_semantic_scopes_get(scopes, current - 1u, &scope) !=
+            OIR_STATUS_OK) {
+            return 0;
+        }
+        current = scope.parent_scope_id;
+    }
+    return 0;
+}
+
+OirStatus oir_semantic_ast_validate_references(
+    const OirAstNodeTableView* ast,
+    const OirSemanticScopesView* scopes_input,
+    const OirSemanticTypesView* types_input,
+    const OirSemanticSymbolsView* symbols_input,
+    const OirSemanticAnnotationsView* annotations_input,
+    const OirSemanticRelationsView* relations_input,
+    const OirSemanticConversionsView* conversions_input,
+    uint32_t* owner_scope_by_node,
+    size_t owner_scope_capacity
+) {
+    OirSemanticScopesView scopes;
+    OirSemanticTypesView types;
+    OirSemanticSymbolsView symbols;
+    OirSemanticAnnotationsView annotations;
+    OirSemanticRelationsView relations;
+    OirSemanticConversionsView conversions;
+    uint32_t i;
+    OirStatus status;
+
+    if (!ast || !ast->node_records || ast->node_count == 0u ||
+        ast->node_count > OIR_AST_NODE_COUNT_MAX ||
+        !scopes_input || !types_input || !symbols_input ||
+        !annotations_input || !relations_input ||
+        !owner_scope_by_node ||
+        owner_scope_capacity < (size_t)ast->node_count + 1u) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+
+    status = oir_semantic_scopes_open(
+        scopes_input->bytes, scopes_input->length, &scopes);
+    if (status != OIR_STATUS_OK) return status;
+    status = oir_semantic_types_open(
+        types_input->bytes, types_input->length, &types);
+    if (status != OIR_STATUS_OK) return status;
+    status = oir_semantic_symbols_open(
+        symbols_input->bytes, symbols_input->length, &symbols);
+    if (status != OIR_STATUS_OK) return status;
+    status = oir_semantic_annotations_open(
+        annotations_input->bytes, annotations_input->length, &annotations);
+    if (status != OIR_STATUS_OK) return status;
+    status = oir_semantic_relations_open(
+        relations_input->bytes, relations_input->length, &relations);
+    if (status != OIR_STATUS_OK) return status;
+
+    if (conversions_input) {
+        status = oir_semantic_conversions_open(
+            conversions_input->bytes, conversions_input->length, &conversions);
+        if (status != OIR_STATUS_OK) return status;
+    } else {
+        memset(&conversions, 0, sizeof(conversions));
+    }
+
+    /* The AST view is supplied by the AST validator; still verify its ID index. */
+    for (i = 0u; i < ast->node_count; ++i) {
+        OirAstNodeRecord node;
+        status = oir_ast_node_table_get(ast, i, &node);
+        if (status != OIR_STATUS_OK || node.node_id != i + 1u ||
+            node.node_kind_id == 0u ||
+            node.node_kind_id > OIR_AST_NODE_KIND_MAX) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+    }
+
+    memset(owner_scope_by_node, 0,
+        ((size_t)ast->node_count + 1u) * sizeof(*owner_scope_by_node));
+    for (i = 0u; i < scopes.record_count; ++i) {
+        OirSemanticScope scope;
+        status = oir_semantic_scopes_get(&scopes, i, &scope);
+        if (status != OIR_STATUS_OK) return status;
+        if (scope.owner_node_id != 0u) {
+            if (scope.owner_node_id > ast->node_count ||
+                owner_scope_by_node[scope.owner_node_id] != 0u) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+            owner_scope_by_node[scope.owner_node_id] = scope.scope_id;
+        }
+    }
+
+    /* Type references must resolve to an existing declaration symbol. */
+    for (i = 0u; i < types.record_count; ++i) {
+        OirSemanticType type;
+        const uint8_t* ignored_name = NULL;
+        status = oir_semantic_types_get(&types, i, &type, &ignored_name);
+        if (status != OIR_STATUS_OK) return status;
+        if (type.base_type_id > types.record_count ||
+            type.referenced_symbol_id > symbols.record_count) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if (type.kind == OIR_SEMANTIC_TYPE_USER_DEFINED) {
+            OirSemanticSymbol referenced;
+            if (oir_semantic_symbols_get(&symbols,
+                    type.referenced_symbol_id - 1u, &referenced, NULL) !=
+                OIR_STATUS_OK ||
+                (referenced.kind != OIR_SEMANTIC_SYMBOL_STRUCT &&
+                    referenced.kind != OIR_SEMANTIC_SYMBOL_UNION &&
+                    referenced.kind != OIR_SEMANTIC_SYMBOL_ENUM &&
+                    referenced.kind != OIR_SEMANTIC_SYMBOL_NEWTYPE)) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+        }
+    }
+
+    /* Every symbol must belong to a known scope and point at its declaration node. */
+    for (i = 0u; i < symbols.record_count; ++i) {
+        OirSemanticSymbol symbol;
+        uint16_t declaration_kind;
+        status = oir_semantic_symbols_get(&symbols, i, &symbol, NULL);
+        if (status != OIR_STATUS_OK) return status;
+        if (symbol.scope_id > scopes.record_count ||
+            symbol.declaration_node_id > ast->node_count ||
+            symbol.type_id > types.record_count ||
+            semantic_ast_node_kind(ast, symbol.declaration_node_id,
+                &declaration_kind) != OIR_STATUS_OK ||
+            !semantic_symbol_declaration_kind_matches(
+                symbol.kind, declaration_kind)) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+
+        if (symbol.relation_count != 0u) {
+            uint64_t end_exclusive = (uint64_t)symbol.first_relation +
+                symbol.relation_count;
+            uint32_t relation_index;
+            if (symbol.first_relation == 0u ||
+                end_exclusive > (uint64_t)relations.record_count + 1u) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+            for (relation_index = symbol.first_relation - 1u;
+                relation_index < (uint32_t)(end_exclusive - 1u);
+                ++relation_index) {
+                OirSemanticRelation relation;
+                status = oir_semantic_relations_get(
+                    &relations, relation_index, &relation, NULL);
+                if (status != OIR_STATUS_OK ||
+                    relation.owner_symbol_id != symbol.symbol_id) {
+                    return OIR_STATUS_INVALID_SECTION;
+                }
+            }
+        }
+    }
+
+    /* Each relation must be inside its owner's declared contiguous slice. */
+    for (i = 0u; i < relations.record_count; ++i) {
+        OirSemanticRelation relation;
+        OirSemanticSymbol owner;
+        uint16_t related_kind;
+        uint64_t relation_index_1based = (uint64_t)i + 1u;
+        status = oir_semantic_relations_get(
+            &relations, i, &relation, NULL);
+        if (status != OIR_STATUS_OK ||
+            relation.owner_symbol_id > symbols.record_count ||
+            relation.related_symbol_id > symbols.record_count ||
+            relation.related_node_id > ast->node_count ||
+            relation.type_id > types.record_count) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        status = oir_semantic_symbols_get(
+            &symbols, relation.owner_symbol_id - 1u, &owner, NULL);
+        if (status != OIR_STATUS_OK ||
+            owner.relation_count == 0u ||
+            relation_index_1based < owner.first_relation ||
+            relation_index_1based >=
+                (uint64_t)owner.first_relation + owner.relation_count ||
+            !semantic_relation_owner_kind_matches(relation.kind, owner.kind) ||
+            semantic_ast_node_kind(ast, relation.related_node_id,
+                &related_kind) != OIR_STATUS_OK ||
+            !semantic_relation_node_kind_matches(relation.kind, related_kind)) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if (relation.related_symbol_id != 0u) {
+            OirSemanticSymbol related;
+            status = oir_semantic_symbols_get(
+                &symbols, relation.related_symbol_id - 1u, &related, NULL);
+            if (status != OIR_STATUS_OK ||
+                related.declaration_node_id != relation.related_node_id) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+        }
+    }
+
+    /* Annotation references must resolve and symbols must be visible in scope. */
+    for (i = 0u; i < annotations.record_count; ++i) {
+        OirSemanticAnnotation annotation;
+        status = oir_semantic_annotations_get(
+            &annotations, i, &annotation);
+        if (status != OIR_STATUS_OK ||
+            annotation.node_id > ast->node_count ||
+            annotation.scope_id > scopes.record_count ||
+            annotation.resolved_symbol_id > symbols.record_count ||
+            annotation.resolved_type_id > types.record_count) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if (annotation.resolved_symbol_id != 0u) {
+            OirSemanticSymbol resolved;
+            status = oir_semantic_symbols_get(
+                &symbols, annotation.resolved_symbol_id - 1u, &resolved, NULL);
+            if (status != OIR_STATUS_OK ||
+                !semantic_scope_is_ancestor(
+                    &scopes, resolved.scope_id, annotation.scope_id)) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+        }
+    }
+
+    if (conversions_input) {
+        for (i = 0u; i < conversions.record_count; ++i) {
+            OirSemanticConversion conversion;
+            status = oir_semantic_conversions_get(
+                &conversions, i, &conversion);
+            if (status != OIR_STATUS_OK ||
+                conversion.node_id > ast->node_count ||
+                conversion.source_type_id > types.record_count ||
+                conversion.destination_type_id > types.record_count) {
+                return OIR_STATUS_INVALID_SECTION;
+            }
+        }
+    }
+
+    return OIR_STATUS_OK;
+}
