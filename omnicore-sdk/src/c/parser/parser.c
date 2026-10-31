@@ -447,6 +447,16 @@ static void parser_synchronize_statement(Parser* p) {
         return;
     }
 
+    /*
+     * A failed declaration may leave the cursor exactly on the next valid
+     * declaration (for example, a missing parameter before the next f:name).
+     * Preserve that boundary instead of consuming the next declaration.
+     */
+    if (parser_is_statement_start(p->current.type)) {
+        p->panic_mode = 0;
+        return;
+    }
+
     advance(p);
     while (p->current.type != TOKEN_EOF &&
            p->current.type != TOKEN_RBRACE &&
