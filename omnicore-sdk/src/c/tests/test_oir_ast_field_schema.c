@@ -16,11 +16,11 @@ static void put_u32(uint8_t* p, uint32_t v) {
 
 static uint16_t count_for_kind(uint16_t k) {
     switch(k) {
-        case 1: case 2: case 29: case 14: case 34: case 35: case 37: case 38: case 39: case 69: return 1;
+        case 1: case 2: case 29: case 14: case 23: case 34: case 35: case 37: case 38: case 39: case 69: return 1;
         case 3: return 8;
         case 4: case 12: return 7;
         case 5: case 7: return 6;
-        case 6: case 8: case 9: case 11: case 19: case 20: case 23:
+        case 6: case 8: case 9: case 11: case 19: case 20:
         case 30: case 33: case 36: case 41: case 71: return 2;
         case 10: return 4;
         case 13: return 5;
