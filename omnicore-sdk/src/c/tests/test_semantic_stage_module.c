@@ -62,10 +62,10 @@ int main(int argc,char** argv) {
         64u,semantic_cap,&semantic_artifact,&semantic_len)!=OCC_MODULE_LOADER_OK);
     ast_artifact[20] ^= 0x01u;
     /* The semantic DLL must reject unsupported AST payload schema versions. */
-    ast_artifact[16] ^= 0x01u;
+    ast_artifact[18] ^= 0x01u;
     CHECK(occ_module_loader_invoke(&loaded,&input,1u,77u,&diagnostics,
         64u,semantic_cap,&semantic_artifact,&semantic_len)!=OCC_MODULE_LOADER_OK);
-    ast_artifact[16] ^= 0x01u;
+    ast_artifact[18] ^= 0x01u;
     CHECK(occ_module_loader_invoke(&loaded,&input,1u,77u,&diagnostics,
         64u,semantic_cap,&semantic_artifact,&semantic_len)==OCC_MODULE_LOADER_OK);
     CHECK(semantic_artifact!=NULL&&semantic_len>OIR_HEADER_SIZE);
