@@ -104,7 +104,12 @@ typedef struct ASTNode {
     ASTNodeType type;
     int line;
     int col;
-    struct ASTNode* next; // Bağlı liste (Statement listesi vb.)
+    /*
+     * Owned sibling chain (statement/parameter/member lists).
+     * AST nodes and child subtrees have unique ownership: do not attach the
+     * same node to more than one parent or sibling chain.
+     */
+    struct ASTNode* next;
 } ASTNode;
 
 // --- İfade Yapıları ---
@@ -340,5 +345,8 @@ OCC_API void ast_print(ASTNode* root);
 OCC_API void ast_destroy(ASTNode* root);
 OCC_API int ast_serialize(ASTNode* root, FILE* out);
 OCC_API ASTNode* ast_deserialize(FILE* in);
+
+/* Destroys root, its complete sibling chain, and all exclusively owned children. */
+OCC_API void ast_destroy(ASTNode* root);
 
 #endif // OCC_AST_H
