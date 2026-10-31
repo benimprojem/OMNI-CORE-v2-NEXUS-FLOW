@@ -39,7 +39,10 @@ uint32_t occ_module_loader_open(
     size_t error_text_capacity
 );
 
-/* Unloads the library and clears the host-owned handle. */
+/*
+ * Unloads the library and clears the host-owned handle. The caller must ensure
+ * no invocation is active and must stop using module/descriptor pointers first.
+ */
 void occ_module_loader_close(OccLoadedStageModule* loaded);
 
 /*
