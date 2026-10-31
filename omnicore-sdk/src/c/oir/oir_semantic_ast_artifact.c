@@ -130,7 +130,10 @@ OirStatus oir_semantic_ast_artifact_open(
                 break;
 
             default:
-                /* Other known optional sections are owned by their respective codecs. */
+                /* This stage may skip optional extensions, never required data it does not consume. */
+                if ((section.flags & OIR_SECTION_FLAG_REQUIRED) != 0u) {
+                    return OIR_STATUS_UNKNOWN_REQUIRED_SECTION;
+                }
                 break;
         }
     }
