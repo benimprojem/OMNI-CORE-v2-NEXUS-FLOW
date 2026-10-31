@@ -38,6 +38,7 @@ int main(int argc,char** argv) {
     int exit_code=1;
 
     if(argc!=2) return 2;
+    memset(&loaded,0,sizeof(loaded));
     occ_diagnostics_init(&collector);
     lexer_context=parser_init_source("parser-stage-test.nxf",
         source_bytes,sizeof(source_bytes)-1u);
