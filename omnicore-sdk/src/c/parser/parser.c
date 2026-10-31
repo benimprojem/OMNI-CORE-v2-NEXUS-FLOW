@@ -1018,11 +1018,18 @@ static ASTNode* parse_thread_block(Parser* p, char* name) {
 }
 
 static ASTNode* parse_postfix(Parser* p) {
+    unsigned int postfix_depth = 0u;
     ASTNode* expr = parse_primary(p);
     if (!expr) return NULL;
 
     for (;;) {
         if (match(p, TOKEN_DOT)) {
+            if (postfix_depth++ >= 32u) {
+                error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                    "Maximum postfix-chain depth exceeded.");
+                ast_destroy(expr);
+                return NULL;
+            }
             if (!match(p, TOKEN_IDENTIFIER)) {
                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(ERR_PARSER_EXPECTED_EXPRESSION));
                 ast_destroy(expr);
@@ -1046,6 +1053,12 @@ static ASTNode* parse_postfix(Parser* p) {
             node->member_name[member.length] = '\0';
             expr = (ASTNode*)node;
         } else if (match(p, TOKEN_LPAREN)) {
+            if (postfix_depth++ >= 32u) {
+                error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                    "Maximum postfix-chain depth exceeded.");
+                ast_destroy(expr);
+                return NULL;
+            }
             ASTCall* call = (ASTCall*)parser_ast_create(p, AST_FUNC_CALL);
             if (!call) {
                 ast_destroy(expr);
@@ -1072,6 +1085,12 @@ static ASTNode* parse_postfix(Parser* p) {
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ARGS);
             expr = (ASTNode*)call;
         } else if (match(p, TOKEN_INC) || match(p, TOKEN_DEC)) {
+            if (postfix_depth++ >= 32u) {
+                error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                    "Maximum postfix-chain depth exceeded.");
+                ast_destroy(expr);
+                return NULL;
+            }
             ASTUnaryExpr* post = (ASTUnaryExpr*)parser_ast_create(p, AST_POSTFIX_EXPR);
             if (!post) {
                 ast_destroy(expr);
