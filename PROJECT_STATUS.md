@@ -575,5 +575,12 @@ Denetimde netleşen noktalar:
 - Writer tüm AST payload ve container capacity'lerini önceden kontrol ediyor; küçük output buffer durumunda payload/output scratch yazılmadan BUFFER_TOO_SMALL dönüyor.
 - Reader OIR envelope metadata ve PAYLOAD section sürümünü kontrol ettikten sonra AST graph/schema materializer'ı çağırıyor.
 - Test: `oir_ast_artifact_container_wrap_validate_and_materialize`; metadata, round-trip, output capacity gate, yanlış artifact kind ve dış envelope geçerli iken bozuk iç graph reddi.
-- **CI run 41160379544:** Ubuntu CTest 31/31, ASan/UBSan ve macOS build/test başarılı; Windows ve Valgrind devam ediyor.
+- **CI run 41160379544:** Windows, Ubuntu, macOS build/test başarılı; Ubuntu CTest 31/31, ASan/UBSan ve Valgrind başarılı.
 - **Sonraki adım:** OIR AST artifact adapter'ını gerçek parser fixture integration testine bağlamak; ardından parser checkpoint artifact handoff API'sini tanımlamak.
+
+
+## OIR AST artifact adapter CI confirmation — 31 Ekim 2026
+
+- Run 41160379544 passed on Windows, Ubuntu and macOS.
+- Ubuntu CTest 31/31; ASan/UBSan and Valgrind passed.
+- The AST payload can now be wrapped as a standard `OIR_KIND_AST` artifact with parser producer stage, schema version, validity and job ID metadata.
