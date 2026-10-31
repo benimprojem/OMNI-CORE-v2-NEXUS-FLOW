@@ -107,6 +107,21 @@ static char* read_file_content(const char* filename, size_t* out_len) {
     return buffer;
 }
 
+static void parser_context_init(
+    ParserContext* ctx, const char* filename, char* owned_source, size_t source_len
+) {
+    memset(ctx, 0, sizeof(*ctx));
+    ctx->filename = filename ? filename : "<memory>";
+    ctx->file_handle = NULL;
+    ctx->source_buffer = owned_source;
+    ctx->source_len = source_len;
+    ctx->current_line = 1;
+    ctx->current_col = 1;
+    ctx->token_start_line = 1;
+    ctx->token_start_col = 1;
+    ctx->diagnostic_stage_id = OCC_STAGE_PARSER;
+}
+
 ParserContext* parser_init_source(const char* filename, const uint8_t* source, size_t source_len) {
     ParserContext* ctx;
     char* copy;
@@ -118,52 +133,23 @@ ParserContext* parser_init_source(const char* filename, const uint8_t* source, s
     if (!copy) { free(ctx); return NULL; }
     if (source_len) memcpy(copy, source, source_len);
     copy[source_len] = '\0';
-    ctx->filename = filename ? filename : "<memory>";
-    ctx->file_handle = NULL;
-    ctx->source_buffer = copy;
-    ctx->source_len = source_len;
-    ctx->pos = 0;
-    ctx->current_line = 1;
-    ctx->current_col = 1;
-    ctx->token_start_offset = 0;
-    ctx->token_start_line = 1;
-    ctx->token_start_col = 1;
-    ctx->ast_root = NULL;
-    ctx->error_count = 0;
-    ctx->error_head = NULL;
-    ctx->error_tail = NULL;
-    ctx->diagnostics = NULL;
-    ctx->diagnostic_stage_id = OCC_STAGE_PARSER;
-    ctx->token_stream = NULL;
-    ctx->token_stream_count = 0;
-    ctx->token_stream_index = 0;
+    parser_context_init(ctx, filename, copy, source_len);
     return ctx;
 }
 
 ParserContext* parser_init(const char* filename) {
-    ParserContext* ctx = (ParserContext*)malloc(sizeof(ParserContext));
-    if (!ctx) return NULL;
-
-    ctx->filename = filename;
-    ctx->source_buffer = read_file_content(filename, &ctx->source_len);
-    
-    if (!ctx->source_buffer) {
-        free(ctx);
+    ParserContext* ctx;
+    char* source;
+    size_t source_len = 0u;
+    if (!filename) return NULL;
+    source = read_file_content(filename, &source_len);
+    if (!source) return NULL;
+    ctx = (ParserContext*)malloc(sizeof(*ctx));
+    if (!ctx) {
+        free(source);
         return NULL;
     }
-
-    ctx->pos = 0;
-    ctx->current_line = 1;
-    ctx->current_col = 1;
-    ctx->error_count = 0;
-    ctx->error_head = NULL;
-    ctx->error_tail = NULL;
-    ctx->diagnostics = NULL;
-    ctx->diagnostic_stage_id = OCC_STAGE_PARSER;
-    ctx->token_stream = NULL;
-    ctx->token_stream_count = 0;
-    ctx->token_stream_index = 0;
-    
+    parser_context_init(ctx, filename, source, source_len);
     return ctx;
 }
 
@@ -300,39 +286,45 @@ static int check(Parser* p, OmniTokenType type) {
     return p->current.type == type;
 }
 
-static Token peek_token(Parser* p) {
-    size_t old_pos = p->ctx->pos;
-    int old_line = p->ctx->current_line;
-    int old_col = p->ctx->current_col;
-    size_t old_token_index = p->ctx->token_stream_index;
-    
-    Token t = parser_next_token(p->ctx);
-    
+static Token parser_peek_n(Parser* p, int n) {
+    Token token;
+    size_t old_pos;
+    size_t old_token_index;
+    int old_line, old_col, old_token_line, old_token_col;
+    size_t old_token_offset;
+    int i;
+
+    memset(&token, 0, sizeof(token));
+    token.type = TOKEN_EOF;
+    token.start = "EOF";
+    if (!p || !p->ctx || n <= 0) return token;
+
+    old_pos = p->ctx->pos;
+    old_line = p->ctx->current_line;
+    old_col = p->ctx->current_col;
+    old_token_offset = p->ctx->token_start_offset;
+    old_token_line = p->ctx->token_start_line;
+    old_token_col = p->ctx->token_start_col;
+    old_token_index = p->ctx->token_stream_index;
+
+    for (i = 0; i < n; ++i) token = parser_next_token(p->ctx);
+
     p->ctx->pos = old_pos;
     p->ctx->current_line = old_line;
     p->ctx->current_col = old_col;
+    p->ctx->token_start_offset = old_token_offset;
+    p->ctx->token_start_line = old_token_line;
+    p->ctx->token_start_col = old_token_col;
     p->ctx->token_stream_index = old_token_index;
-    
-    return t;
+    return token;
+}
+
+static Token peek_token(Parser* p) {
+    return parser_peek_n(p, 1);
 }
 
 static Token peek_token_ahead(Parser* p, int n) {
-    size_t old_pos = p->ctx->pos;
-    int old_line = p->ctx->current_line;
-    int old_col = p->ctx->current_col;
-    size_t old_token_index = p->ctx->token_stream_index;
-    
-    Token t;
-    for (int i = 0; i < n; i++) {
-        t = parser_next_token(p->ctx);
-    }
-    
-    p->ctx->pos = old_pos;
-    p->ctx->current_line = old_line;
-    p->ctx->current_col = old_col;
-    p->ctx->token_stream_index = old_token_index;
-    
-    return t;
+    return parser_peek_n(p, n);
 }
 
 // --- Parsing Logic ---
@@ -2007,13 +1999,17 @@ static ASTNode* parse_statement(Parser* p) {
 }
 
 int parser_run(ParserContext* ctx) {
+    if (!ctx || !ctx->source_buffer || ctx->ast_root) return 1;
     printf("%s\n", msg_get(MSG_PARSER_START));
-    
+
     Parser parser;
+    memset(&parser, 0, sizeof(parser));
     parser.ctx = ctx;
+    parser.current.type = TOKEN_EOF;
+    parser.previous.type = TOKEN_EOF;
     parser.had_error = 0;
     parser.panic_mode = 0;
-    
+
     advance(&parser); // İlk tokeni yükle
 
     ASTProgram* program = (ASTProgram*)ast_create(AST_PROGRAM);
