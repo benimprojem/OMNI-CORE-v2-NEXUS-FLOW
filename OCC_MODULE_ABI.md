@@ -121,4 +121,4 @@ Implemented:
 
 The test module is deliberately a pass-through ABI fixture, not the real parser stage. The parser now has an in-memory source initialization API, and the OIR AST artifact adapter is ready, but the actual parser-stage shared library that consumes SOURCE_UNIT + TOKEN_STREAM and emits AST is still pending.
 
-The ABI remains **Draft v1.0, not frozen**. Module IDs are test values until a central registry is assigned. Dynamic-loader CI is pending.
+The ABI remains **Draft v1.0, not frozen**. Module IDs are test values until a central registry is assigned. Dynamic-loader CI run 41161737825 passed on Windows, Ubuntu and macOS; Ubuntu CTest 34/34, ASan/UBSan and Valgrind passed.
