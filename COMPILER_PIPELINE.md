@@ -160,7 +160,7 @@ Each step requires unit tests, module load/unload tests, ABI compatibility tests
 Current implementation boundary (incremental migration):
 - OCC currently performs orchestration in `main.c`.
 - Lexer and parser are built as independent shared stage modules and are invoked through the OCC module loader.
-- The semantic stage adapter now exists as an independent shared module target. It accepts one valid `AST` OIR artifact and emits `SEMANTIC_AST` OIR; CLI invocation and end-to-end handoff are the next integration step.
+- The semantic stage is built as an independent shared module and is invoked by OCC after the parser DLL. It accepts one valid `AST` OIR artifact and emits a validated `SEMANTIC_AST` OIR artifact. The following IR/codegen path still uses the legacy AST-based flow; migration of downstream stages to consume `SEMANTIC_AST` is still pending.
 - The frontend remains a shared internal support library linked by stage modules. Its C structs and allocator state do not cross the module ABI.
 - Codegen remains a separately loadable legacy shared library and has not yet migrated to `OccStageModuleV1`.
 - General checkpoint/stop-after controls, complete diagnostic accumulation, and multi-job scheduling remain open work.
