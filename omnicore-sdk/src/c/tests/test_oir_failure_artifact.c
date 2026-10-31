@@ -1,6 +1,7 @@
 #include "oir_failure_artifact.h"
 #include "oir_diagnostics.h"
 #include "oir_payload.h"
+#include "oir_diagnostics.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,7 +26,7 @@ int main(void) {
     OirSourceUnitView source_view;
     OirDiagnosticsPayloadView diagnostics_view;
     OirDiagnosticEntryView diagnostic;
-    uint8_t* buffer;
+    uint8_t* buffer = NULL;
     size_t capacity, written = 0;
 
     occ_diagnostics_init(&collector);
