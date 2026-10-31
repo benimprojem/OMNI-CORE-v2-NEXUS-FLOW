@@ -160,4 +160,4 @@ The validator checks every node against the v1 registry:
 - Unknown fields are accepted only when the TLV OPTIONAL flag is set; unknown required fields are rejected.
 - The test constructs schema-valid records for all 80 node kinds and checks missing fields, wrong known-field types, unknown required fields and unknown optional fields.
 
-CTest target: `oir_ast_field_schema_all_node_kinds_and_compatibility`. Cross-platform CI verification is pending.
+CTest target: `oir_ast_field_schema_all_node_kinds_and_compatibility`. CI run 41157314066 passed on Windows, Ubuntu and macOS; ASan/UBSan and Valgrind also passed.
