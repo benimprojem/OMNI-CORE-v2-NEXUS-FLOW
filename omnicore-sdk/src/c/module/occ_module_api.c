@@ -12,11 +12,9 @@ static int valid_artifact_kind(uint32_t kind) {
 
 
 static int valid_descriptor_fields(const OccStageDescriptorV1* d) {
-    const uint64_t known_capabilities =
-        (uint64_t)OCC_MODULE_CAP_REENTRANT |
-        (uint64_t)OCC_MODULE_CAP_DETERMINISTIC |
-        (uint64_t)OCC_MODULE_CAP_SUPPORTS_PARTIAL_INPUT |
-        (uint64_t)OCC_MODULE_CAP_STATELESS;
+    const uint64_t known_capabilities=OCC_MODULE_CAPABILITY_MASK_V1;
+    const uint64_t known_artifact_kinds=
+        (OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_LINK_INPUT+1u)-UINT64_C(2));
     if(!d || d->struct_size < sizeof(*d) ||
         d->abi_major!=OCC_MODULE_ABI_MAJOR ||
         d->abi_minor>OCC_MODULE_ABI_MINOR ||
@@ -27,7 +25,7 @@ static int valid_descriptor_fields(const OccStageDescriptorV1* d) {
         d->min_input_count>d->max_input_count ||
         d->accepted_input_kind_mask==0u ||
         (d->required_input_kind_mask & ~d->accepted_input_kind_mask)!=0u ||
-        (d->accepted_input_kind_mask & UINT64_C(1))!=0u ||
+        (d->accepted_input_kind_mask & ~known_artifact_kinds)!=0u ||
         (d->capability_flags & ~known_capabilities)!=0u ||
         !d->module_name || d->module_name[0]=='\0') {
         return 0;
