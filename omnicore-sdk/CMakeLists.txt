@@ -29,15 +29,6 @@ set(C_PARSER_DIR "${C_SOURCE_DIR}/parser")
 set(C_CODEGEN_DIR "${C_SOURCE_DIR}/codegen")
 set(C_RUNTIME_DIR "${CMAKE_BINARY_DIR}/bin")
 
-# Header-only draft contract for independently loaded stage modules.
-add_library(occ_module_abi STATIC "${C_SOURCE_DIR}/module/occ_module_api.c")
-target_include_directories(occ_module_abi PUBLIC
-    "${C_SOURCE_DIR}/module"
-    "${C_SOURCE_DIR}/oir"
-)
-target_link_libraries(occ_module_abi PUBLIC occ_oir)
-set_target_properties(occ_module_abi PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 # Keep all generators (including Visual Studio multi-config) on one runtime path.
 foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${config} "${C_RUNTIME_DIR}")
@@ -59,6 +50,15 @@ add_library(occ_oir STATIC
 )
 
 target_include_directories(occ_oir PUBLIC "${C_SOURCE_DIR}/oir")
+
+# Host-side validator for the versioned ABI used by independently loaded stages.
+add_library(occ_module_abi STATIC "${C_SOURCE_DIR}/module/occ_module_api.c")
+target_include_directories(occ_module_abi PUBLIC
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+)
+target_link_libraries(occ_module_abi PUBLIC occ_oir)
+set_target_properties(occ_module_abi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Job-owned diagnostics collector; modules report through a host-owned context.
 add_library(occ_diagnostics STATIC
