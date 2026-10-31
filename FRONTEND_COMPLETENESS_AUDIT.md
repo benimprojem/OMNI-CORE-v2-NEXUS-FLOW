@@ -273,3 +273,30 @@ Bu değişiklikler NEXSUS Flow gramerine yeni bir operatör veya üretim kuralı
 - Nexus Flow pipe/flow/unpack, tuple, loop, intrinsic, declaration ve statement AST kurucuları aynı sahiplik modeline taşınmalı.
 - Parser OOM durumunu syntax error'dan ayırmalı; parse döngüsü bellek hatasında ilerlemeye çalışmamalı.
 - Allocation-failure injection altyapısı eklenerek her tahsis noktasında cleanup test edilmeli.
+
+## 6.12 Loop, tuple, intrinsic ve Nexus Flow AST sahipliği
+
+**Durum: İlk OOM/parse-hatası temizliği uygulandı; Parser geneli tamamlanmadı.**
+
+- `loop(...)` AST düğümü tahsisi kontrol ediliyor. Başlangıç/koşul/artış/koleksiyon ifadelerinden biri üretilemezse kısmi loop ağacı temizleniyor.
+- Parantezli tuple ve brace tuple üretiminde ASTTuple tahsisi kontrol ediliyor. Tuple elemanları eklendikçe ağaç sahipliği kaydediliyor; sonraki eleman parse edilemezse tüm tuple temizleniyor.
+- Boş brace tuple için AST tahsisi kontrol ediliyor.
+- Intrinsic çağrılarında ASTCall ve `reg.member` identifier tahsisleri kontrol ediliyor. Argümanlar eklendikçe call düğümünün sahipliğine geçiriliyor; parse hatasında kısmi çağrı temizleniyor.
+- Nexus Flow pipe/flow düğümü veya unpack düğümü tahsis edilemezse operand ağacı temizleniyor.
+- Capture ve assignment düğümlerinde AST tahsisi, isim kopyası ve sağ taraf parse sonucu kontrol ediliyor; başarısızlıkta sahip olunan operandlar temizleniyor.
+
+**Açık işler:**
+
+- `parse_defer`, `parse_use`, `parse_thread_block`, declaration/statement parser'ları ve kalan tüm `ast_create/malloc/strdup` çağrıları denetlenmeli.
+- OOM fatal durumu henüz ParserContext düzeyinde ayrı bir durum değil. Hata yayılımı ve allocation-failure injection testleri tamamlanmadı.
+- Mevcut değişiklikler yeni NEXSUS Flow grameri eklemiyor; README'ye yeni syntax örneği eklenmesini gerektirmiyor.
+
+## 6.13 AREA / ZONE bellek modeli tasarım girdisi
+
+**Durum: Tasarım notu eklendi; dil/semantic/OIR sözleşmesi henüz uygulanmadı.**
+
+- `AREA_ZONE_MEMORY_MODEL.md` belgesi `area` ve `zone` için OS bağımsız mantıksal bellek alanı yaklaşımını tanımlar.
+- `area`, çekirdek veya çekirdek grubu yakınlığını; `zone`, daha geniş paylaşımlı erişim alanını ifade eden mantıksal niyet olarak ele alınır.
+- Bu sınıflar doğrudan L1/L2 veya L3/L4 garantisi değildir. L1/L2'nin private/group-shared oluşu ve daha üst cache seviyelerinin paylaşımı hedef topolojisine göre değişir.
+- Bare-metal runtime ile OS adapter aynı dil kontratını uygulamalıdır; OS entegrasyonu dil semantiğini değiştirmemelidir.
+- Fiziksel havuz seçimi, scope, paylaşım, fallback, sahiplik, lifetime ve memory-ordering kararları açık bırakıldı. Bu aşamada yeni syntax veya fiziksel cache garantisi eklenmedi.
