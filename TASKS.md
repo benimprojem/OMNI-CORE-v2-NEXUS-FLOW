@@ -132,7 +132,7 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 
 ## Sonraki tek iş
 
-AST payload schema 1.0 sözleşmesini tasarla; AST serialization alanlarını pointer/host struct layout bağımlılığı olmadan sabit genişlikli, sürümlü OIR payload'a eşle.
+AST payload schema 1.0 codec'ini uygula: bounded writer/reader, node graph/reference validation ve mevcut 80 AST node kind için round-trip/malformed-input testlerini ekle.
 
 
 ## P0 — OIR ortak artifact standardı (tasarım taslağı eklendi)
