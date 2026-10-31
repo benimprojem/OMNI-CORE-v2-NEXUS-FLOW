@@ -23,6 +23,8 @@ extern "C" {
 #define OIR_SEMANTIC_TYPE_RECORD_SIZE 24u
 #define OIR_SEMANTIC_SYMBOLS_HEADER_SIZE 12u
 #define OIR_SEMANTIC_SYMBOL_RECORD_SIZE 36u
+#define OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE 8u
+#define OIR_SEMANTIC_ANNOTATION_RECORD_SIZE 20u
 #define OIR_SEMANTIC_MAX_STRING_TABLE_SIZE (16u * 1024u * 1024u)
 
 typedef enum OirSemanticTypeKind {
@@ -53,6 +55,13 @@ typedef enum OirSemanticSymbolKind {
 #define OIR_SEMANTIC_SYMBOL_FLAG_EXPORTED 0x0004u
 #define OIR_SEMANTIC_SYMBOL_FLAG_PACKED   0x0008u
 #define OIR_SEMANTIC_SYMBOL_FLAG_HARD     0x0010u
+
+typedef enum OirSemanticValueCategory {
+    OIR_SEMANTIC_VALUE_UNSPECIFIED = 0,
+    OIR_SEMANTIC_VALUE_LVALUE = 1,
+    OIR_SEMANTIC_VALUE_RVALUE = 2,
+    OIR_SEMANTIC_VALUE_FUNCTION_DESIGNATOR = 3
+} OirSemanticValueCategory;
 
 /* Logical API view only. This structure is never serialized with sizeof/memcpy. */
 typedef struct OirSemanticScope {
@@ -183,6 +192,42 @@ OirStatus oir_semantic_symbols_write(
     uint32_t symbol_count,
     const uint8_t* string_table,
     uint32_t string_table_length,
+    size_t* out_written
+);
+
+typedef struct OirSemanticAnnotation {
+    uint32_t node_id;
+    uint32_t scope_id;
+    uint32_t resolved_symbol_id;
+    uint32_t resolved_type_id;
+    uint16_t value_category;
+    uint16_t flags;
+} OirSemanticAnnotation;
+
+typedef struct OirSemanticAnnotationsView {
+    const uint8_t* bytes;
+    size_t length;
+    uint32_t record_count;
+    size_t records_offset;
+} OirSemanticAnnotationsView;
+
+OirStatus oir_semantic_annotations_open(
+    const uint8_t* payload,
+    size_t payload_length,
+    OirSemanticAnnotationsView* out_view
+);
+
+OirStatus oir_semantic_annotations_get(
+    const OirSemanticAnnotationsView* view,
+    uint32_t index,
+    OirSemanticAnnotation* out_annotation
+);
+
+OirStatus oir_semantic_annotations_write(
+    uint8_t* output,
+    size_t capacity,
+    const OirSemanticAnnotation* annotations,
+    uint32_t annotation_count,
     size_t* out_written
 );
 
