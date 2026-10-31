@@ -120,7 +120,7 @@ OirStatus oir_semantic_scopes_get(
     if (!view || !view->bytes || !out_scope) return OIR_STATUS_INVALID_ARGUMENT;
     if (view->records_offset != OIR_SEMANTIC_SCOPES_HEADER_SIZE ||
         view->record_count == 0u ||
-        view->record_count > OIR_SEMANTIC_MAX_TYPE_COUNT) {
+        view->record_count > OIR_SEMANTIC_MAX_SCOPE_COUNT) {
         return OIR_STATUS_INVALID_SECTION;
     }
     expected_length = (uint64_t)OIR_SEMANTIC_SCOPES_HEADER_SIZE +
