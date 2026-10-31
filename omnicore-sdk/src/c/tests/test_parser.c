@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "ast.h"
+#include "lexer.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -718,6 +719,40 @@ int main(int argc, char** argv) {
         occ_diagnostics_destroy(&failed_diagnostics);
         if (!failed_ok) {
             fprintf(stderr, "Lexer diagnostic allocation failure was not propagated as OOM.\\n");
+            return 1;
+        }
+    }
+
+    {
+        static const uint8_t token_source[] = "$";
+        OccDiagnosticCollector token_diagnostics;
+        ParserContext* token_parser = parser_init_source("token-stream.nxf",
+            token_source, sizeof(token_source) - 1u);
+        Token tokens[2];
+        int token_ok;
+        if (!token_parser) return 1;
+        tokens[0] = lexer_next_token(token_parser);
+        tokens[1] = lexer_next_token(token_parser);
+        if (tokens[0].type != TOKEN_ERROR || tokens[1].type != TOKEN_EOF) {
+            parser_destroy(token_parser);
+            return 1;
+        }
+        /* A stale/nonexistent upstream diagnostic index must not hide this error. */
+        tokens[0].diagnostic_id = 1u;
+        occ_diagnostics_init(&token_diagnostics);
+        parser_attach_diagnostics(token_parser, &token_diagnostics, OCC_STAGE_PARSER);
+        if (!parser_attach_token_stream(token_parser, tokens, 2u)) {
+            parser_destroy(token_parser);
+            occ_diagnostics_destroy(&token_diagnostics);
+            return 1;
+        }
+        (void)parser_run(token_parser);
+        token_ok = parser_get_status(token_parser) == PARSER_STATUS_SYNTAX_ERROR &&
+            occ_diagnostics_count(&token_diagnostics) == 1u;
+        parser_destroy(token_parser);
+        occ_diagnostics_destroy(&token_diagnostics);
+        if (!token_ok) {
+            fprintf(stderr, "Invalid token diagnostic reference suppressed a lexer error.\\n");
             return 1;
         }
     }
