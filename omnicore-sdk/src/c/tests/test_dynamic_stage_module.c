@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "occ_module_api.h"
+#include "diagnostics.h"
 
 #include <assert.h>
 #include <stdio.h>
