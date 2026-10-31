@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 19/19 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 19/19 geçti.
+> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 20/20 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 20/20 geçti.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
@@ -132,7 +132,7 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 
 ## Sonraki tek iş
 
-OIR TOKEN_STREAM schema 1.0 için bounded payload writer/reader ve lexer token span doğrulama testlerini uygula; diagnostic ID association kuralını da netleştir.
+OIR TOKEN_STREAM kayıtlarını frontend Token dizisine dönüştüren ve parser'ın bu diziyi doğrudan tüketmesini sağlayan OIR-to-parser adapter'ını uygula.
 
 
 ## P0 — OIR ortak artifact standardı (tasarım taslağı eklendi)
@@ -142,6 +142,7 @@ OIR TOKEN_STREAM schema 1.0 için bounded payload writer/reader ve lexer token s
 - [x] Header/section bounds, truncation, bad magic, total-length mismatch, unknown required section, missing payload ve small-buffer testlerini ekle. [ ] Checksum algoritması ve fuzz/property testleri açık.
 - [x] SOURCE_UNIT ve TOKEN_STREAM payload şemalarının ilk 1.0 taslağını tanımla (OIR_PAYLOAD_SCHEMAS.md).
 - [x] SOURCE_UNIT schema 1.0 C codec ve round-trip/UTF-8/length güvenlik testlerini ekle.
+- [x] TOKEN_STREAM schema 1.0 C codec, stable token ID doğrulaması, source-span/EOF kontrolleri ve diagnostic-reference testlerini ekle.
 - [ ] AST payload şemasını tanımla ve parser checkpoint'lerini OIR v1'e geçir.
 - [x] DIAGNOSTICS section schema 1.0 payload codec'ini uygula ve malformed-input testlerini ekle.
 - [ ] SOURCE_MAP section payload codec'ini uygula.
@@ -149,14 +150,14 @@ OIR TOKEN_STREAM schema 1.0 için bounded payload writer/reader ve lexer token s
 - [ ] Canonical OIR_MODULE için type system, opcode registry, control-flow, memory/ownership ve SSA kararlarını ayrı spec'te ver.
 - [ ] C++ OIR2 ve mevcut C AST stream için gerekirse açık legacy import/migration aracı tasarla; eski dosyaları OIR v1 gibi okumaya çalışma.
 
- > OIR_FORMAT.md'de container v1.0 byte layout ve başlangıç numeric ID'leri sabitlendi. SOURCE_UNIT ve DIAGNOSTICS payload codec'leri eklendi; TOKEN_STREAM payload codec'i hâlâ bekliyor.
+ > OIR_FORMAT.md'de container v1.0 byte layout ve başlangıç numeric ID'leri sabitlendi. SOURCE_UNIT, DIAGNOSTICS ve TOKEN_STREAM payload codec'leri eklendi; lexer Token → OIR record dönüşümü ve diagnostic ID referansı test edildi.
 
 ## Güncel uygulama sırası
 
 1. OIR container binary layout ve C reader/writer API.
 2. Job-owned diagnostic collector ve CompilationContext.
-3. SOURCE_UNIT / TOKEN_STREAM payload encode/decode ve lexer token-ID adapter'ı.
-4. Lexer, parser ve semantic aşamalarının OIR artifact alıp üretmesi.
+3. SOURCE_UNIT / TOKEN_STREAM payload codec'leri ve lexer Token → OIR record adapter'ı.
+4. OIR TOKEN_STREAM → parser token adapter'ı ve gerçek parser handoff.
 5. Ortak module ABI ve stage DLL/SO/dylib ayrımı.
 
 
