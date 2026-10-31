@@ -101,11 +101,11 @@ The draft does not yet claim that lexer, parser or semantic analysis are indepen
 
 ## 8. Host-side draft validators
 
-`occ_module_validate_descriptor_v1()` checks the module/descriptor size prefixes, ABI major/minor compatibility, reserved fields, process pointer, nonzero stage ID, output artifact kind, input count range, accepted/required mask consistency and module name. Module ID zero remains legal while the registry is still a draft, as specified above.
+`occ_module_validate_descriptor_v1()` checks the module/descriptor size prefixes, ABI major/minor compatibility, reserved fields, process pointer, nonzero stage ID, output artifact kind, input count range, accepted/required mask consistency and module name. Module ID zero is reserved as unassigned and is rejected by the descriptor validator; the current parser and fixture modules use nonzero draft IDs.
 
 `occ_module_validate_invocation_v1()` validates invocation/result prefixes, count and pointer consistency, zero v1 flags/reserved values, and opens every input as a complete OIR container. It derives each input kind from the OIR header, checks the accepted-kind mask, and verifies that every required kind is present. It never trusts a caller-supplied artifact-kind hint.
 
-These are host-side validation helpers, not a dynamic loader and not yet a stage implementation. The module must still validate stage-specific input roles, schemas and validity states, and the host must validate the produced output artifact independently.
+These are host-side validation helpers. The host dynamic loader now validates the exported module descriptor at load time, validates each invocation before dispatch, and independently reopens and validates every successful output artifact. The module must still validate stage-specific input roles, schemas and validity states.
 
 CTest: `occ_stage_module_abi_validation_helpers` supplements the original layout/process contract test. The new fixture checks a real OIR AST container as input and rejects incompatible ABI, inconsistent masks, null bytes, nonzero input flags and missing required input.
 
@@ -165,3 +165,33 @@ Execution and output:
 - The module does not advertise reentrancy or statelessness. OCC must serialize calls to a shared job collector unless a synchronized dispatcher is used.
 
 CTest `real_parser_stage_source_token_to_ast_module` loads the actual shared library, builds both input artifacts, exercises the output-buffer retry and validates the AST OIR envelope. It also sends invalid syntax through the same DLL and verifies the callback's exact source span `[6,7)`, line 1, columns 7–8, and absence of output.
+
+
+## 11. OCC host dynamic loader and invocation gate (draft)
+
+The host-side implementation is omnicore-sdk/src/c/module/occ_module_loader.h/.c, built as the static utility target occ_module_loader. It owns the operating-system library handle and retains the module descriptor only while that handle is open.
+
+Load sequence:
+
+1. Open the exact configured library path (LoadLibraryA on Windows; dlopen(RTLD_NOW | RTLD_LOCAL) on POSIX).
+2. Resolve OCC_MODULE_API_SYMBOL (occ_get_stage_module_v1).
+3. Call the entry point and validate the returned module/descriptor before publishing the handle to the caller.
+4. On any failure, close the library and leave the host handle empty.
+
+Invocation sequence:
+
+1. The host supplies immutable OIR input spans, job ID, caller-owned diagnostic collector and bounded output capacity.
+2. The loader initializes the invocation-scoped diagnostic sink when the descriptor advertises diagnostic reporting.
+3. The common ABI validator reopens every input artifact before dispatch.
+4. NEED_OUTPUT_BUFFER is accepted only with zero bytes written, OIR_VALIDITY_NONE, no failure code and a strictly larger requested capacity within the host maximum. The loader reallocates and retries at most twice.
+5. OK and PARTIAL are accepted only with matching validity, nonempty bounded output, zero failure code and no residual capacity request.
+6. The host independently reopens the output OIR and verifies artifact kind, producer stage ID, job ID and validity against the descriptor and result.
+7. Failed calls never return an output pointer. The caller owns and frees successful output bytes.
+
+occ_module_loader_close() unloads the shared library and clears the handle. The caller must not close a module while an invocation is active, and must serialize callbacks targeting the same unsynchronized diagnostic collector. Per-module concurrency policy and the synchronized OCC dispatcher remain open work.
+
+CTest coverage:
+- occ_dynamic_module_loader_invocation_validation_and_unload: pass-through shared library, exact output-buffer retry, diagnostic callback, missing export and missing library.
+- real_parser_stage_source_token_to_ast_module: the real parser DLL is now loaded and invoked through the OCC host loader for both successful AST output and invalid-source diagnostic failure.
+
+The loader is implemented, but main.c has not yet switched from its legacy statically linked parser path. Full CLI pipeline integration and failure-checkpoint verification remain pending. ABI v1 remains draft and is not frozen.
