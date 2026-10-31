@@ -2,7 +2,7 @@
 
 **Status:** Proposed canonical artifact standard; format design is not yet frozen  
 **Purpose:** One interoperable artifact contract for compiler-stage handoff and checkpoints  
-**Related:** [COMPILER_PIPELINE.md](COMPILER_PIPELINE.md), [DIAGNOSTICS_AND_CONTEXT.md](DIAGNOSTICS_AND_CONTEXT.md)
+**Related:** [COMPILER_PIPELINE.md](COMPILER_PIPELINE.md), [DIAGNOSTICS_AND_CONTEXT.md](DIAGNOSTICS_AND_CONTEXT.md), [OIR_SEMANTIC_AST.md](OIR_SEMANTIC_AST.md)
 
 ## 1. Core decision
 
@@ -127,10 +127,16 @@ Section payload bytes follow immediately. The next section starts immediately af
 | 4 | DEPENDENCIES |
 | 5 | METADATA |
 | 6 | CHECKSUM (reserved; checksum algorithm/coverage not yet standardized) |
+| 7 | SEMANTIC_SCOPES |
+| 8 | SEMANTIC_TYPES |
+| 9 | SEMANTIC_SYMBOLS |
+| 10 | SEMANTIC_ANNOTATIONS |
+| 11 | SEMANTIC_RELATIONS |
+| 12 | SEMANTIC_CONVERSIONS (optional in SEMANTIC_AST 1.0) |
 
 Section flag bit 0 means REQUIRED. Unknown optional section types may be skipped using their length. Unknown required section types are rejected. Unknown section flag bits and non-zero header flags are rejected by v1.0 readers. Container major must equal 1; minor versions greater than 0 are rejected until compatibility behavior is explicitly implemented.
 
-The C implementation is in `omnicore-sdk/src/c/oir/`. It provides a bounded in-memory writer, a validating read-only view and section access. It does not yet define payload schemas or filesystem checkpoint helpers.
+The C implementation is in `omnicore-sdk/src/c/oir/`. It provides a bounded in-memory writer, a validating read-only view and section access. The stable section IDs 7–12 are reserved for SEMANTIC_AST schema 1.0; their payload codecs perform additional schema-specific validation. Filesystem checkpoint helpers are not part of the container layer.
 
 ## 4. Section model
 
