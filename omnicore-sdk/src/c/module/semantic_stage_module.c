@@ -142,7 +142,6 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
     SemanticResolver resolver; SemanticContext sem; OccDiagnosticCollector diags;
     int sem_init=0,diag_init=0; OirStatus st; uint32_t rc=OCC_MODULE_STATUS_FAILED;
     memset(&sem,0,sizeof(sem)); memset(&resolver,0,sizeof(resolver));
-    semantic_stage_init_messages();
     out->bytes_written=0u; out->required_output_capacity=0u; out->output_validity=OIR_VALIDITY_NONE;
     out->failure_code=0u; out->diagnostics_count=0u;
     if(occ_module_validate_invocation_v1(&g_semantic_module.descriptor,inv,out)!=OCC_MODULE_STATUS_OK||inv->input_count!=1u)
@@ -153,6 +152,7 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
        oir_ast_node_table_open(payload.data,(size_t)payload.length,&table)!=OIR_STATUS_OK||!table.node_count) {
         out->failure_code=8301u; return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
+    semantic_stage_init_messages();
     count=table.node_count;
     storage=(ASTNode**)calloc(count,sizeof(*storage)); incoming=(uint32_t*)calloc(count,sizeof(*incoming));
     visited=(uint8_t*)calloc(count,sizeof(*visited)); stack=(OirAstGraphStackEntry*)calloc(count,sizeof(*stack));
@@ -200,6 +200,7 @@ done:
         occ_diagnostics_destroy(&diags);
     }
     if(sem_init) semantic_destroy(&sem);
+    msg_destroy();
     if(root) ast_destroy(root);
     free(storage); free(incoming); free(visited); free(stack); free(index);
     return rc;
