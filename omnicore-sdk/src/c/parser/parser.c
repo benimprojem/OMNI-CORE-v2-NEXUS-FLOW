@@ -739,13 +739,16 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
 
 static ASTNode* parse_defer(Parser* p) {
     ASTDefer* defer = (ASTDefer*)ast_create(AST_DEFER);
+    if (!defer) return NULL;
     defer->base.line = p->previous.line;
     defer->base.col = p->previous.col;
-    
-    if (match(p, TOKEN_LBRACE)) {
-        defer->body = parse_block(p);
-    } else {
-        defer->body = parse_statement(p);
+
+    if (match(p, TOKEN_LBRACE)) defer->body = parse_block(p);
+    else defer->body = parse_statement(p);
+
+    if (!defer->body) {
+        ast_destroy((ASTNode*)defer);
+        return NULL;
     }
     return (ASTNode*)defer;
 }
@@ -753,44 +756,78 @@ static ASTNode* parse_defer(Parser* p) {
 static ASTNode* parse_use(Parser* p) {
     ASTUse* head = NULL;
     ASTUse* tail = NULL;
-    
+
     do {
-        consume(p, TOKEN_IDENTIFIER, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_MODULE_NAME);
-        ASTUse* use = (ASTUse*)ast_create(AST_USE);
-        use->base.line = p->previous.line;
-        use->base.col = p->previous.col;
-        use->module_name = malloc(p->previous.length + 1);
-        memcpy(use->module_name, p->previous.start, p->previous.length);
-        use->module_name[p->previous.length] = '\0';
-        use->alias = NULL;
-        
-        if (match(p, TOKEN_KW_AS)) {
-            consume(p, TOKEN_IDENTIFIER, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_ALIAS_NAME);
-            use->alias = malloc(p->previous.length + 1);
-            memcpy(use->alias, p->previous.start, p->previous.length);
-            use->alias[p->previous.length] = '\0';
+        Token module_token;
+        ASTUse* use;
+        if (!match(p, TOKEN_IDENTIFIER)) {
+            error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                msg_get(MSG_EXPECT_MODULE_NAME));
+            ast_destroy((ASTNode*)head);
+            return NULL;
         }
-        
-        if (!head) head = use; else tail->base.next = (ASTNode*)use;
+        module_token = p->previous;
+        use = (ASTUse*)ast_create(AST_USE);
+        if (!use) {
+            ast_destroy((ASTNode*)head);
+            return NULL;
+        }
+        use->base.line = module_token.line;
+        use->base.col = module_token.col;
+        use->module_name = (char*)malloc((size_t)module_token.length + 1u);
+        if (!use->module_name) {
+            ast_destroy((ASTNode*)use);
+            ast_destroy((ASTNode*)head);
+            return NULL;
+        }
+        memcpy(use->module_name, module_token.start, (size_t)module_token.length);
+        use->module_name[module_token.length] = '\0';
+
+        if (match(p, TOKEN_KW_AS)) {
+            Token alias_token;
+            if (!match(p, TOKEN_IDENTIFIER)) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                    msg_get(MSG_EXPECT_ALIAS_NAME));
+                ast_destroy((ASTNode*)use);
+                ast_destroy((ASTNode*)head);
+                return NULL;
+            }
+            alias_token = p->previous;
+            use->alias = (char*)malloc((size_t)alias_token.length + 1u);
+            if (!use->alias) {
+                ast_destroy((ASTNode*)use);
+                ast_destroy((ASTNode*)head);
+                return NULL;
+            }
+            memcpy(use->alias, alias_token.start, (size_t)alias_token.length);
+            use->alias[alias_token.length] = '\0';
+        }
+
+        if (!head) head = use;
+        else tail->base.next = (ASTNode*)use;
         tail = use;
-        
     } while (match(p, TOKEN_COMMA));
-    
+
     consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
     return (ASTNode*)head;
 }
 
 static ASTNode* parse_thread_block(Parser* p, char* name) {
     ASTThreadBlock* tb = (ASTThreadBlock*)ast_create(AST_THREAD_BLOCK);
+    if (!tb) {
+        free(name);
+        return NULL;
+    }
     tb->base.line = p->previous.line;
     tb->base.col = p->previous.col;
     tb->name = name;
-    tb->mode = NULL; // Default
+    tb->mode = NULL;
     tb->timeout = NULL;
-
-    // The >{ was already matched in parse_statement
     tb->body = parse_block(p);
-    
+    if (!tb->body) {
+        ast_destroy((ASTNode*)tb);
+        return NULL;
+    }
     return (ASTNode*)tb;
 }
 
