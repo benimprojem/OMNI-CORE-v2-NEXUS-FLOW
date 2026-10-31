@@ -91,6 +91,13 @@ typedef enum {
     ERR_SEMANTIC_UNKNOWN_TYPE = 3009
 } ErrorCode;
 
+typedef enum {
+    PARSER_STATUS_OK = 0,
+    PARSER_STATUS_SYNTAX_ERROR = 1,
+    PARSER_STATUS_OUT_OF_MEMORY = 2,
+    PARSER_STATUS_INVALID_STATE = 3
+} ParserStatus;
+
 struct Token;
 
 typedef struct Error {
@@ -125,6 +132,7 @@ typedef struct {
     // void* slot_map; 
     
     // Hata Durumu
+    ParserStatus status;
     int error_count;
     Error* error_head;
     Error* error_tail;
@@ -149,6 +157,7 @@ OCC_API int parser_attach_token_stream(
     ParserContext* ctx, const struct Token* tokens, size_t token_count
 );
 OCC_API int parser_run(ParserContext* ctx);
+OCC_API ParserStatus parser_get_status(const ParserContext* ctx);
 OCC_API void parser_destroy(ParserContext* ctx);
 OCC_API void parser_print_errors(ParserContext* ctx);
 OCC_API int parser_save_ir(ParserContext* ctx, const char* path);
