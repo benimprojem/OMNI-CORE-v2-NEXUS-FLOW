@@ -215,6 +215,106 @@ done:
     return ok;
 }
 
+static int test_parser_nested_block_recovery(void) {
+    static const char source[] =
+        "f:main() {"
+        " { v:broken = ; v:inside_good = 4; }"
+        " v:after = 5;"
+        "}";
+    ParserContext* ctx = parser_init_source(
+        "parser-nested-recovery.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* outer;
+    ASTBlock* nested;
+    ASTNode* statement;
+    int found_inside = 0;
+    int found_after = 0;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_SYNTAX_ERROR || !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL ||
+        !function->body || function->body->type != AST_BLOCK) goto done;
+    outer = (ASTBlock*)function->body;
+
+    for (statement = outer->statements; statement; statement = statement->next) {
+        if (statement->type == AST_BLOCK) {
+            ASTNode* inner_statement;
+            nested = (ASTBlock*)statement;
+            for (inner_statement = nested->statements; inner_statement;
+                 inner_statement = inner_statement->next) {
+                if (inner_statement->type == AST_VAR_DECL) {
+                    ASTVarDecl* variable = (ASTVarDecl*)inner_statement;
+                    if (variable->name && strcmp(variable->name, "inside_good") == 0 &&
+                        variable->initializer &&
+                        variable->initializer->type == AST_LITERAL) {
+                        found_inside = 1;
+                    }
+                }
+            }
+        } else if (statement->type == AST_VAR_DECL) {
+            ASTVarDecl* variable = (ASTVarDecl*)statement;
+            if (variable->name && strcmp(variable->name, "after") == 0 &&
+                variable->initializer && variable->initializer->type == AST_LITERAL) {
+                found_after = 1;
+            }
+        }
+    }
+    ok = found_inside && found_after;
+
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_parser_malformed_function_recovery(void) {
+    static const char source[] =
+        "f:broken(, value) { v:discarded = 1; }"
+        "f:good() { v:kept = 2; }";
+    ParserContext* ctx = parser_init_source(
+        "parser-malformed-function-recovery.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTNode* declaration;
+    int found_good = 0;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_SYNTAX_ERROR || !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    for (declaration = program->declarations; declaration;
+         declaration = declaration->next) {
+        if (declaration->type == AST_FUNC_DECL) {
+            ASTFuncDecl* function = (ASTFuncDecl*)declaration;
+            if (function->name && strcmp(function->name, "good") == 0 &&
+                function->body && function->body->type == AST_BLOCK) {
+                ASTNode* statement;
+                for (statement = ((ASTBlock*)function->body)->statements;
+                     statement; statement = statement->next) {
+                    if (statement->type == AST_VAR_DECL) {
+                        ASTVarDecl* variable = (ASTVarDecl*)statement;
+                        if (variable->name && strcmp(variable->name, "kept") == 0 &&
+                            variable->initializer &&
+                            variable->initializer->type == AST_LITERAL) {
+                            found_good = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ok = found_good;
+
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_parser_allocation_failure_injection(void) {
     static const char source[] =
         "f:main() { v:first = 11; v:second = first + 7; ret; }";
@@ -265,6 +365,14 @@ int main(int argc, char** argv) {
     }
     if (!test_parser_panic_mode_recovers_at_statement_boundaries()) {
         fprintf(stderr, "Parser panic-mode recovery did not preserve later valid statements.\n");
+        return 1;
+    }
+    if (!test_parser_nested_block_recovery()) {
+        fprintf(stderr, "Parser did not recover inside a nested block and preserve following statements.\\n");
+        return 1;
+    }
+    if (!test_parser_malformed_function_recovery()) {
+        fprintf(stderr, "Parser did not recover after a malformed function declaration.\\n");
         return 1;
     }
     if (!test_parser_allocation_failure_injection()) {
