@@ -395,12 +395,16 @@ void ast_print(ASTNode* root) {
 }
 
 static void ast_destroy_recursive(ASTNode* node) {
-    if (!node) return;
-    
-    // Önce bağlı listeyi temizle (next)
-    if (node->next) ast_destroy_recursive(node->next);
+    /*
+     * Walk sibling lists iteratively. A flat source file can contain many
+     * declarations; recursively following next would make cleanup consume
+     * one C stack frame per sibling.
+     */
+    while (node) {
+        ASTNode* next = node->next;
+        node->next = NULL;
 
-    switch (node->type) {
+        switch (node->type) {
         case AST_VAR_DECL: {
             ASTVarDecl* d = (ASTVarDecl*)node;
             if (d->name) free(d->name);
@@ -637,7 +641,9 @@ static void ast_destroy_recursive(ASTNode* node) {
         default: break;
     }
     
-    free(node);
+        free(node);
+        node = next;
+    }
 }
 
 void ast_destroy(ASTNode* root) {
