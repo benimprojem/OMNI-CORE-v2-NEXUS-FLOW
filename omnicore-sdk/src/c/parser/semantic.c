@@ -191,6 +191,7 @@ static uint32_t semantic_type_id(
     uint16_t flags = 0u;
     uint16_t kind;
     uint32_t referenced_symbol_id = 0u;
+    uint32_t base_type_id = 0u;
     uint32_t type_id = 0u;
     Slot* declared_type = NULL;
     SemanticResultStatus status;
@@ -213,13 +214,18 @@ static uint32_t semantic_type_id(
                 declared_type->kind == SLOT_NEWTYPE)) {
             kind = SEMANTIC_RESULT_TYPE_USER_DEFINED;
             referenced_symbol_id = declared_type->symbol_id;
+            if (declared_type->type_id != 0u &&
+                declared_type->type_id <= ctx->result.type_count) {
+                base_type_id = ctx->result.types[
+                    declared_type->type_id - 1u].base_type_id;
+            }
         } else {
             kind = SEMANTIC_RESULT_TYPE_UNKNOWN;
         }
     }
 
     status = semantic_result_intern_type(
-        &ctx->result, kind, flags, name, referenced_symbol_id, 0u, &type_id);
+        &ctx->result, kind, flags, name, referenced_symbol_id, base_type_id, &type_id);
     semantic_set_result_error(ctx, status);
     return status == SEMANTIC_RESULT_OK ? type_id : 0u;
 }
