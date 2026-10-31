@@ -146,11 +146,11 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 - [x] Lexer Token → OIR record ve OIR TOKEN_STREAM → parser Token handoff adapter'larını ekle; parser'ın pre-tokenized token array tüketimini uçtan uca test et.
 - [x] AST payload schema 1.0 taslağını ve 80 node kind / field ID registry'sini tanımla.
 - [x] Frontend AST tag'leri ile sabit OIR node-kind ID'leri arasında bağımsız mapping API'si ve 80/80 bijection testi ekle (Windows/Ubuntu/macOS, ASan/UBSan ve Valgrind CI başarılı).
-- [ ] Bounded AST payload codec, graph/reference validation ve frontend round-trip testlerini tamamla; ardından parser checkpoint'lerini OIR v1'e geçir. Tasarım: OIR_AST_CODEC_IMPLEMENTATION.md.
+- [x] Bounded AST payload codec, graph/reference validation ve frontend round-trip testlerini tamamla (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı); parser checkpoint OIR handoff sonraki aşama. Tasarım: OIR_AST_CODEC_IMPLEMENTATION.md.
 - [x] Frontend AST pointer index: canonical preorder, caller-owned open-addressing table, 1-based stable IDs, repeated pointer/depth/root/span checks (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] Frontend AST → OIR bounded writer: exact size preflight, all 80 node kinds, TLV/scalar/token/string emission, caller-owned buffers, schema + graph verification (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] OIR AST → frontend reader/materializer: full validate-before-allocate, disconnected node/string allocation, no-fail pointer-link pass, direct cleanup on failure (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
-- [x] Real parser fixture AST → OIR → AST → OIR canonical byte-for-byte round-trip integration test (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
+- [x] Real parser fixture AST → OIR → AST → OIR canonical byte-for-byte round-trip + her payload byte'ında deterministik tek-bit mutation sweep (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] AST payload header/node record bounded writer-reader katmanını ve node/TLV/string reference sınır testlerini ekle (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] AST graph validator: NODE_REF + sibling edge sahiplik sayımı, root reachability, orphan/cycle ve 512 derinlik denetimleri (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [x] Node-kind field schema validator: 80 node kind için required field/type kontrolü ve unknown optional field uyumluluk testleri (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
