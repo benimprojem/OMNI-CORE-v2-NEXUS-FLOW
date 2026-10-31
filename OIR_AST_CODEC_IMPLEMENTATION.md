@@ -241,6 +241,6 @@ File:
 
 This integration test parses the real `tests/test1.nxf` fixture through the existing frontend parser, encodes the produced AST, materializes a second AST through the OIR reader, then encodes that materialized AST again. The two OIR payloads must be byte-for-byte identical.
 
-The test sizes the pointer index dynamically, uses caller-owned scratch for the writer/reader, and destroys the materialized AST through the normal `ast_destroy()` path. This checks the combined parser → AST index → OIR writer → validating reader → frontend AST → OIR writer path, rather than only synthetic node fixtures.
+The test sizes the pointer index dynamically, uses caller-owned scratch for the writer/reader, and destroys the materialized AST through the normal `ast_destroy()` path. It also flips one bit at every payload byte in turn and submits each mutated payload to the reader; accepted mutations are materialized and destroyed, rejected mutations must leave the output root NULL. This checks the combined parser → AST index → OIR writer → validating reader → frontend AST → OIR writer path, rather than only synthetic node fixtures.
 
 CTest target: `parser_ast_oir_ast_roundtrip_canonical_bytes`. Run 41159889179 passed on Windows, Ubuntu and macOS; Ubuntu CTest 30/30 and ASan/UBSan/Valgrind passed.
