@@ -1261,7 +1261,7 @@ static ASTNode* parse_var_decl(Parser* p) {
                  if (!sdecl) { ast_destroy((ASTNode*)decl); return NULL; }
                  sdecl->base.line = p->previous.line;
                  sdecl->base.col = p->previous.col;
-                 parse_struct_body(p, sdecl);
+                 if (!parse_struct_body(p, sdecl)) { ast_destroy((ASTNode*)sdecl); ast_destroy((ASTNode*)decl); return NULL; }
                  decl->inline_type = (ASTNode*)sdecl;
              }
         } else if (match(p, TOKEN_KW_UNION)) {
