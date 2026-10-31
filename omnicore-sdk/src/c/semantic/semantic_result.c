@@ -244,7 +244,7 @@ SemanticResultStatus semantic_result_add_scope(
     if (parent->depth + 1u != depth) return SEMANTIC_RESULT_INVALID_DATA;
 
     status = reserve_array(
-        (void**)&result->scopes, &result->scope_capacity,
+        result, (void**)&result->scopes, &result->scope_capacity,
         result->scope_count + 1u, sizeof(*result->scopes));
     if (status != SEMANTIC_RESULT_OK) return status;
 
@@ -317,7 +317,7 @@ SemanticResultStatus semantic_result_intern_type(
     }
 
     status = reserve_array(
-        (void**)&result->types, &result->type_capacity,
+        result, (void**)&result->types, &result->type_capacity,
         result->type_count + 1u, sizeof(*result->types));
     if (status != SEMANTIC_RESULT_OK) {
         free(name_copy);
@@ -384,7 +384,7 @@ SemanticResultStatus semantic_result_add_symbol(
     }
 
     status = reserve_array(
-        (void**)&result->symbols, &result->symbol_capacity,
+        result, (void**)&result->symbols, &result->symbol_capacity,
         result->symbol_count + 1u, sizeof(*result->symbols));
     if (status != SEMANTIC_RESULT_OK) {
         free(name_copy);
@@ -492,7 +492,7 @@ SemanticResultStatus semantic_result_set_annotation(
         return SEMANTIC_RESULT_LIMIT_EXCEEDED;
     }
     status = reserve_array(
-        (void**)&result->annotations, &result->annotation_capacity,
+        result, (void**)&result->annotations, &result->annotation_capacity,
         result->annotation_count + 1u, sizeof(*result->annotations));
     if (status != SEMANTIC_RESULT_OK) return status;
 
@@ -569,7 +569,7 @@ SemanticResultStatus semantic_result_add_relation(
     }
 
     status = reserve_array(
-        (void**)&result->relations, &result->relation_capacity,
+        result, (void**)&result->relations, &result->relation_capacity,
         result->relation_count + 1u, sizeof(*result->relations));
     if (status != SEMANTIC_RESULT_OK) {
         free(name_copy);
@@ -628,7 +628,7 @@ SemanticResultStatus semantic_result_add_conversion(
     }
 
     status = reserve_array(
-        (void**)&result->conversions, &result->conversion_capacity,
+        result, (void**)&result->conversions, &result->conversion_capacity,
         result->conversion_count + 1u, sizeof(*result->conversions));
     if (status != SEMANTIC_RESULT_OK) return status;
 
