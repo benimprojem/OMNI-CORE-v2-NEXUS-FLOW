@@ -1,6 +1,7 @@
 #include "oir_ast_frontend_reader.h"
 
 #include "oir_ast_map.h"
+#include "oir_ast_frontend_index.h"
 #include "oir_token_map.h"
 
 #include <limits.h>
