@@ -120,7 +120,7 @@ OirStatus oir_semantic_scopes_get(
     if (!view || !view->bytes || !out_scope) return OIR_STATUS_INVALID_ARGUMENT;
     if (view->records_offset != OIR_SEMANTIC_SCOPES_HEADER_SIZE ||
         view->record_count == 0u ||
-        view->record_count > OIR_SEMANTIC_MAX_SCOPE_COUNT) {
+        view->record_count > OIR_SEMANTIC_MAX_TYPE_COUNT) {
         return OIR_STATUS_INVALID_SECTION;
     }
     expected_length = (uint64_t)OIR_SEMANTIC_SCOPES_HEADER_SIZE +
@@ -301,7 +301,7 @@ static OirStatus validate_type_records(
     uint32_t i;
 
     if (!records || type_count == 0u ||
-        type_count > OIR_SEMANTIC_MAX_SCOPE_COUNT ||
+        type_count > OIR_SEMANTIC_MAX_TYPE_COUNT ||
         string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE ||
         (!string_table && string_table_length != 0u)) {
         return OIR_STATUS_INVALID_SECTION;
@@ -350,7 +350,7 @@ OirStatus oir_semantic_types_open(
     record_size = read_u32_le(payload + 4);
     string_length = read_u32_le(payload + 8);
     if (record_size != OIR_SEMANTIC_TYPE_RECORD_SIZE ||
-        count == 0u || count > OIR_SEMANTIC_MAX_SCOPE_COUNT ||
+        count == 0u || count > OIR_SEMANTIC_MAX_TYPE_COUNT ||
         string_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
         return OIR_STATUS_INVALID_SECTION;
     }
@@ -391,7 +391,7 @@ OirStatus oir_semantic_types_get(
     if (!view || !view->bytes || !out_type) return OIR_STATUS_INVALID_ARGUMENT;
     if (view->records_offset != OIR_SEMANTIC_TYPES_HEADER_SIZE ||
         view->record_count == 0u ||
-        view->record_count > OIR_SEMANTIC_MAX_SCOPE_COUNT ||
+        view->record_count > OIR_SEMANTIC_MAX_TYPE_COUNT ||
         view->string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
         return OIR_STATUS_INVALID_SECTION;
     }
@@ -442,7 +442,7 @@ OirStatus oir_semantic_types_write(
         (!string_table && string_table_length != 0u)) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
-    if (type_count == 0u || type_count > OIR_SEMANTIC_MAX_SCOPE_COUNT ||
+    if (type_count == 0u || type_count > OIR_SEMANTIC_MAX_TYPE_COUNT ||
         string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
