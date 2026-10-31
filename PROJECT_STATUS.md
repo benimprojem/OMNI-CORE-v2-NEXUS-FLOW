@@ -473,3 +473,13 @@ Denetimde netleşen noktalar:
 - CMake hedefi `occ_oir_ast_graph`; CTest `oir_ast_graph_single_owner_reachability_and_depth`.
 - **Kalan AST codec işleri:** node-kind başına required field/type schema validation, bilinmeyen optional field politikası, frontend AST writer/reader ve gerçek AST round-trip fixture'ları. DLL ABI ve parser checkpoint migration beklemede.
 - **CI doğrulaması:** CMake entegrasyonu run 41157040260; Windows, Ubuntu, macOS, ASan/UBSan ve Valgrind işleri başarılı tamamlandı.
+
+
+## OIR AST field schema validator — 31 Ekim 2026
+
+- `oir_ast_field_schema.h/.c` eklendi. Her node kind için registry v1 field count ve wire type kontrolü yapılıyor.
+- 80 node kind'in tümü için test payload'ları üretildi; required field eksikliği, bilinen field için yanlış wire type, unknown required field reddi ve unknown optional field kabulü kontrol ediliyor.
+- Nullable string alanlarında NULL kabul edilir; diğer wire type'lar exact registry türüne uymalıdır.
+- CMake hedefi `occ_oir_ast_field_schema`; CTest `oir_ast_field_schema_all_node_kinds_and_compatibility`.
+- **CI:** Field schema katmanı yeni eklendi; Windows/Ubuntu/macOS, ASan/UBSan ve Valgrind koşuları bekleniyor.
+- **Sıradaki iş:** Frontend AST → OIR bounded writer; önce iki geçişli graph index ve deterministic DFS node ID ataması, sonra TLV/string emission. Reader materialization bundan sonra ele alınacak.
