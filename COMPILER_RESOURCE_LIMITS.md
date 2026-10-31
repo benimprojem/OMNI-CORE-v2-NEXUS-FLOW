@@ -159,6 +159,7 @@ The current stage boundary checks also enforce the declared payload schema: Lexe
 
 Every OIR reader must validate:
 - token source positions are nondecreasing by line and column, as well as by source offset;
+- located diagnostic spans have nondecreasing line/column endpoints and remain inside the associated source unit when consumed by Parser;
 - header and schema version;
 - section lengths and section-count arithmetic;
 - record counts before allocation;
