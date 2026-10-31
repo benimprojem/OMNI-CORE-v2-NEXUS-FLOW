@@ -744,3 +744,170 @@ OirStatus oir_semantic_symbols_write(
     *out_written = (size_t)total_length;
     return OIR_STATUS_OK;
 }
+
+
+static OirStatus validate_annotation_records(
+    const uint8_t* records,
+    uint32_t annotation_count
+) {
+    uint32_t i;
+    uint32_t previous_node_id = 0u;
+
+    if ((!records && annotation_count != 0u) ||
+        annotation_count > OIR_SEMANTIC_MAX_ANNOTATION_COUNT) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    for (i = 0u; i < annotation_count; ++i) {
+        const uint8_t* record =
+            records + (size_t)i * OIR_SEMANTIC_ANNOTATION_RECORD_SIZE;
+        uint32_t node_id = read_u32_le(record);
+        uint32_t scope_id = read_u32_le(record + 4);
+        uint16_t value_category = (uint16_t)((uint16_t)record[16] |
+            ((uint16_t)record[17] << 8));
+        uint16_t flags = (uint16_t)((uint16_t)record[18] |
+            ((uint16_t)record[19] << 8));
+
+        if (node_id == 0u || node_id <= previous_node_id ||
+            scope_id == 0u ||
+            value_category > OIR_SEMANTIC_VALUE_FUNCTION_DESIGNATOR ||
+            flags != 0u) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        previous_node_id = node_id;
+    }
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_annotations_open(
+    const uint8_t* payload,
+    size_t payload_length,
+    OirSemanticAnnotationsView* out_view
+) {
+    uint32_t count;
+    uint32_t record_size;
+    uint64_t expected_length;
+    OirStatus status;
+
+    if (!payload || !out_view) return OIR_STATUS_INVALID_ARGUMENT;
+    memset(out_view, 0, sizeof(*out_view));
+    if (payload_length < OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    count = read_u32_le(payload);
+    record_size = read_u32_le(payload + 4);
+    if (record_size != OIR_SEMANTIC_ANNOTATION_RECORD_SIZE ||
+        count > OIR_SEMANTIC_MAX_ANNOTATION_COUNT) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    expected_length = (uint64_t)OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE +
+        (uint64_t)count * OIR_SEMANTIC_ANNOTATION_RECORD_SIZE;
+    if (expected_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    if (expected_length != (uint64_t)payload_length) {
+        return OIR_STATUS_LENGTH_MISMATCH;
+    }
+
+    status = validate_annotation_records(
+        payload + OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE, count);
+    if (status != OIR_STATUS_OK) return status;
+
+    out_view->bytes = payload;
+    out_view->length = payload_length;
+    out_view->record_count = count;
+    out_view->records_offset = OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE;
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_annotations_get(
+    const OirSemanticAnnotationsView* view,
+    uint32_t index,
+    OirSemanticAnnotation* out_annotation
+) {
+    const uint8_t* record;
+    uint64_t expected_length;
+
+    if (!view || !view->bytes || !out_annotation) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+    if (view->records_offset != OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE ||
+        view->record_count > OIR_SEMANTIC_MAX_ANNOTATION_COUNT) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    expected_length = (uint64_t)OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE +
+        (uint64_t)view->record_count * OIR_SEMANTIC_ANNOTATION_RECORD_SIZE;
+    if (expected_length > (uint64_t)SIZE_MAX ||
+        expected_length != (uint64_t)view->length) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    if (index >= view->record_count) return OIR_STATUS_INVALID_ARGUMENT;
+
+    record = view->bytes + view->records_offset +
+        (size_t)index * OIR_SEMANTIC_ANNOTATION_RECORD_SIZE;
+    out_annotation->node_id = read_u32_le(record);
+    out_annotation->scope_id = read_u32_le(record + 4);
+    out_annotation->resolved_symbol_id = read_u32_le(record + 8);
+    out_annotation->resolved_type_id = read_u32_le(record + 12);
+    out_annotation->value_category = (uint16_t)((uint16_t)record[16] |
+        ((uint16_t)record[17] << 8));
+    out_annotation->flags = (uint16_t)((uint16_t)record[18] |
+        ((uint16_t)record[19] << 8));
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_annotations_write(
+    uint8_t* output,
+    size_t capacity,
+    const OirSemanticAnnotation* annotations,
+    uint32_t annotation_count,
+    size_t* out_written
+) {
+    uint64_t total_length;
+    uint32_t i;
+    uint32_t previous_node_id = 0u;
+
+    if (out_written) *out_written = 0u;
+    if (!output || !out_written ||
+        (!annotations && annotation_count != 0u)) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+    if (annotation_count > OIR_SEMANTIC_MAX_ANNOTATION_COUNT) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+
+    for (i = 0u; i < annotation_count; ++i) {
+        const OirSemanticAnnotation* annotation = &annotations[i];
+        if (annotation->node_id == 0u ||
+            annotation->node_id <= previous_node_id ||
+            annotation->scope_id == 0u ||
+            annotation->value_category > OIR_SEMANTIC_VALUE_FUNCTION_DESIGNATOR ||
+            annotation->flags != 0u) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        previous_node_id = annotation->node_id;
+    }
+
+    total_length = (uint64_t)OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE +
+        (uint64_t)annotation_count * OIR_SEMANTIC_ANNOTATION_RECORD_SIZE;
+    if (total_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    if ((size_t)total_length > capacity) return OIR_STATUS_BUFFER_TOO_SMALL;
+
+    write_u32_le(output, annotation_count);
+    write_u32_le(output + 4, OIR_SEMANTIC_ANNOTATION_RECORD_SIZE);
+    for (i = 0u; i < annotation_count; ++i) {
+        uint8_t* record = output + OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE +
+            (size_t)i * OIR_SEMANTIC_ANNOTATION_RECORD_SIZE;
+        write_u32_le(record, annotations[i].node_id);
+        write_u32_le(record + 4, annotations[i].scope_id);
+        write_u32_le(record + 8, annotations[i].resolved_symbol_id);
+        write_u32_le(record + 12, annotations[i].resolved_type_id);
+        record[16] = (uint8_t)(annotations[i].value_category & 0xffu);
+        record[17] = (uint8_t)((annotations[i].value_category >> 8) & 0xffu);
+        record[18] = (uint8_t)(annotations[i].flags & 0xffu);
+        record[19] = (uint8_t)((annotations[i].flags >> 8) & 0xffu);
+    }
+
+    *out_written = (size_t)total_length;
+    return OIR_STATUS_OK;
+}
