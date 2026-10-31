@@ -1005,7 +1005,11 @@ if(BUILD_TESTING)
     add_executable(test_semantic_result_integration
         "${C_SOURCE_DIR}/tests/test_semantic_result_integration.c"
     )
-    target_link_libraries(test_semantic_result_integration PRIVATE occ_frontend)
+    target_link_libraries(test_semantic_result_integration PRIVATE
+        occ_frontend
+        occ_oir_semantic_ast_artifact
+        occ_oir_ast_frontend_writer
+    )
     if(MSVC)
         target_compile_options(test_semantic_result_integration PRIVATE /W4)
     else()
