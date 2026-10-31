@@ -4,10 +4,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void* allocate_array(uint32_t count, size_t element_size) {
+typedef struct OirWriterAllocationControl { uint32_t fail_at; uint32_t attempts; } OirWriterAllocationControl;
+static int writer_should_fail(OirWriterAllocationControl* control) {
+    if (!control) return 0;
+    if (control->attempts != UINT32_MAX) ++control->attempts;
+    return control->fail_at != 0u && control->attempts == control->fail_at;
+}
+static void* writer_malloc(OirWriterAllocationControl* control, size_t size) {
+    if (writer_should_fail(control)) return NULL;
+    return malloc(size);
+}
+static void* writer_calloc(OirWriterAllocationControl* control, size_t count, size_t size) {
+    if (writer_should_fail(control)) return NULL;
+    return calloc(count, size);
+}
+static void* allocate_array(OirWriterAllocationControl* control, uint32_t count, size_t element_size) {
     if (count == 0u) return NULL;
     if (element_size == 0u || (size_t)count > SIZE_MAX / element_size) return NULL;
-    return malloc((size_t)count * element_size);
+    return writer_malloc(control, (size_t)count * element_size);
 }
 
 static int add_size(size_t* total, size_t amount) {
@@ -56,6 +70,7 @@ static OirStatus append_string(
 }
 
 static OirStatus build_type_strings(
+    OirWriterAllocationControl* control,
     const SemanticResult* result,
     OirSemanticType* records,
     uint8_t** out_table,
@@ -68,7 +83,7 @@ static OirStatus build_type_strings(
         status = count_string_bytes(result->types[i].name, &length);
         if (status != OIR_STATUS_OK) return status;
     }
-    *out_table = length ? (uint8_t*)malloc(length) : NULL;
+    *out_table = length ? (uint8_t*)writer_malloc(control, length) : NULL;
     if (length && !*out_table) return OIR_STATUS_OUT_OF_MEMORY;
 
     for (i = 0u; i < result->type_count; ++i) {
@@ -87,6 +102,7 @@ static OirStatus build_type_strings(
 }
 
 static OirStatus build_symbol_strings(
+    OirWriterAllocationControl* control,
     const SemanticResult* result,
     OirSemanticSymbol* records,
     uint8_t** out_table,
@@ -99,7 +115,7 @@ static OirStatus build_symbol_strings(
         status = count_string_bytes(result->symbols[i].name, &length);
         if (status != OIR_STATUS_OK) return status;
     }
-    *out_table = length ? (uint8_t*)malloc(length) : NULL;
+    *out_table = length ? (uint8_t*)writer_malloc(control, length) : NULL;
     if (length && !*out_table) return OIR_STATUS_OUT_OF_MEMORY;
 
     for (i = 0u; i < result->symbol_count; ++i) {
@@ -121,6 +137,7 @@ static OirStatus build_symbol_strings(
 }
 
 static OirStatus build_relation_strings(
+    OirWriterAllocationControl* control,
     const SemanticResult* result,
     OirSemanticRelation* records,
     uint8_t** out_table,
@@ -133,7 +150,7 @@ static OirStatus build_relation_strings(
         status = count_string_bytes(result->relations[i].name, &length);
         if (status != OIR_STATUS_OK) return status;
     }
-    *out_table = length ? (uint8_t*)malloc(length) : NULL;
+    *out_table = length ? (uint8_t*)writer_malloc(control, length) : NULL;
     if (length && !*out_table) return OIR_STATUS_OUT_OF_MEMORY;
 
     for (i = 0u; i < result->relation_count; ++i) {
@@ -153,7 +170,8 @@ static OirStatus build_relation_strings(
     return used == length ? OIR_STATUS_OK : OIR_STATUS_INVALID_SECTION;
 }
 
-OirStatus oir_semantic_ast_artifact_write(
+static OirStatus semantic_ast_artifact_write_impl(
+    OirWriterAllocationControl* control,
     const uint8_t* ast_payload,
     size_t ast_payload_length,
     const SemanticResult* semantic_result,
@@ -226,17 +244,17 @@ OirStatus oir_semantic_ast_artifact_write(
     }
 
     scope_records = (OirSemanticScope*)allocate_array(
-        semantic_result->scope_count, sizeof(*scope_records));
+        control, semantic_result->scope_count, sizeof(*scope_records));
     type_records = (OirSemanticType*)allocate_array(
-        semantic_result->type_count, sizeof(*type_records));
+        control, semantic_result->type_count, sizeof(*type_records));
     symbol_records = (OirSemanticSymbol*)allocate_array(
-        semantic_result->symbol_count, sizeof(*symbol_records));
+        control, semantic_result->symbol_count, sizeof(*symbol_records));
     annotation_records = (OirSemanticAnnotation*)allocate_array(
-        semantic_result->annotation_count, sizeof(*annotation_records));
+        control, semantic_result->annotation_count, sizeof(*annotation_records));
     relation_records = (OirSemanticRelation*)allocate_array(
-        semantic_result->relation_count, sizeof(*relation_records));
+        control, semantic_result->relation_count, sizeof(*relation_records));
     conversion_records = (OirSemanticConversion*)allocate_array(
-        semantic_result->conversion_count, sizeof(*conversion_records));
+        control, semantic_result->conversion_count, sizeof(*conversion_records));
 
     if (!scope_records ||
         (semantic_result->type_count && !type_records) ||
@@ -256,13 +274,13 @@ OirStatus oir_semantic_ast_artifact_write(
         scope_records[i].owner_node_id = semantic_result->scopes[i].owner_node_id;
     }
     status = build_type_strings(
-        semantic_result, type_records, &type_strings, &type_string_length);
+        control, semantic_result, type_records, &type_strings, &type_string_length);
     if (status != OIR_STATUS_OK) goto cleanup;
     status = build_symbol_strings(
-        semantic_result, symbol_records, &symbol_strings, &symbol_string_length);
+        control, semantic_result, symbol_records, &symbol_strings, &symbol_string_length);
     if (status != OIR_STATUS_OK) goto cleanup;
     status = build_relation_strings(
-        semantic_result, relation_records, &relation_strings, &relation_string_length);
+        control, semantic_result, relation_records, &relation_strings, &relation_string_length);
     if (status != OIR_STATUS_OK) goto cleanup;
 
     for (i = 0u; i < semantic_result->annotation_count; ++i) {
@@ -303,12 +321,12 @@ OirStatus oir_semantic_ast_artifact_write(
                 OIR_SEMANTIC_CONVERSION_RECORD_SIZE;
     }
 
-    scope_section = (uint8_t*)malloc(scope_section_size);
-    type_section = (uint8_t*)malloc(type_section_size);
-    symbol_section = (uint8_t*)malloc(symbol_section_size);
-    annotation_section = (uint8_t*)malloc(annotation_section_size);
-    relation_section = (uint8_t*)malloc(relation_section_size);
-    if (conversion_section_size) conversion_section = (uint8_t*)malloc(conversion_section_size);
+    scope_section = (uint8_t*)writer_malloc(control, scope_section_size);
+    type_section = (uint8_t*)writer_malloc(control, type_section_size);
+    symbol_section = (uint8_t*)writer_malloc(control, symbol_section_size);
+    annotation_section = (uint8_t*)writer_malloc(control, annotation_section_size);
+    relation_section = (uint8_t*)writer_malloc(control, relation_section_size);
+    if (conversion_section_size) conversion_section = (uint8_t*)writer_malloc(control, conversion_section_size);
     if (!scope_section || !type_section || !symbol_section ||
         !annotation_section || !relation_section ||
         (conversion_section_size && !conversion_section)) {
@@ -440,7 +458,7 @@ OirStatus oir_semantic_ast_artifact_write(
     header.validity = OIR_VALIDITY_VALID;
     header.job_id = job_id;
 
-    artifact_scratch = (uint8_t*)malloc(total_size);
+    artifact_scratch = (uint8_t*)writer_malloc(control, total_size);
     if (!artifact_scratch) {
         status = OIR_STATUS_OUT_OF_MEMORY;
         goto cleanup;
@@ -453,12 +471,11 @@ OirStatus oir_semantic_ast_artifact_write(
         goto cleanup;
     }
 
-    incoming_counts = (uint32_t*)calloc(ast_view.node_count, sizeof(*incoming_counts));
-    visited = (uint8_t*)calloc(ast_view.node_count, sizeof(*visited));
+    incoming_counts = (uint32_t*)writer_calloc(control, ast_view.node_count, sizeof(*incoming_counts));
+    visited = (uint8_t*)writer_calloc(control, ast_view.node_count, sizeof(*visited));
     graph_stack = (OirAstGraphStackEntry*)allocate_array(
-        ast_view.node_count, sizeof(*graph_stack));
-    owner_scope_by_node = (uint32_t*)calloc(
-        (size_t)ast_view.node_count + 1u, sizeof(*owner_scope_by_node));
+        control, ast_view.node_count, sizeof(*graph_stack));
+    owner_scope_by_node = (uint32_t*)writer_calloc(control, (size_t)ast_view.node_count + 1u, sizeof(*owner_scope_by_node));
     if (!incoming_counts || !visited || !graph_stack || !owner_scope_by_node) {
         status = OIR_STATUS_OUT_OF_MEMORY;
         goto cleanup;
@@ -497,5 +514,30 @@ cleanup:
     free(visited);
     free(graph_stack);
     free(owner_scope_by_node);
+    return status;
+}
+
+OirStatus oir_semantic_ast_artifact_write(
+    const uint8_t* ast_payload, size_t ast_payload_length,
+    const SemanticResult* semantic_result, uint64_t job_id,
+    uint8_t* output, size_t output_capacity, size_t* out_written
+) {
+    return semantic_ast_artifact_write_impl(NULL, ast_payload, ast_payload_length,
+        semantic_result, job_id, output, output_capacity, out_written);
+}
+OirStatus oir_semantic_ast_artifact_write_test_fail_at(
+    const uint8_t* ast_payload, size_t ast_payload_length,
+    const SemanticResult* semantic_result, uint64_t job_id,
+    uint8_t* output, size_t output_capacity, size_t* out_written,
+    uint32_t fail_at, uint32_t* out_attempts
+) {
+    OirWriterAllocationControl control;
+    OirStatus status;
+    control.fail_at = fail_at;
+    control.attempts = 0u;
+    status = semantic_ast_artifact_write_impl(&control, ast_payload,
+        ast_payload_length, semantic_result, job_id, output, output_capacity,
+        out_written);
+    if (out_attempts) *out_attempts = control.attempts;
     return status;
 }
