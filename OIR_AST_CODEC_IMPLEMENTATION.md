@@ -244,3 +244,25 @@ This integration test parses the real `tests/test1.nxf` fixture through the exis
 The test sizes the pointer index dynamically, uses caller-owned scratch for the writer/reader, and destroys the materialized AST through the normal `ast_destroy()` path. It also flips one bit at every payload byte in turn and submits each mutated payload to the reader; accepted mutations are materialized and destroyed, rejected mutations must leave the output root NULL. This checks the combined parser → AST index → OIR writer → validating reader → frontend AST → OIR writer path, rather than only synthetic node fixtures.
 
 CTest target: `parser_ast_oir_ast_roundtrip_canonical_bytes`. Run 41159889179 passed on Windows, Ubuntu and macOS; Ubuntu CTest 30/30 and ASan/UBSan/Valgrind passed.
+
+
+## 15. Implemented foundation: AST payload inside the canonical OIR container
+
+Files:
+- `omnicore-sdk/src/c/oir/oir_ast_artifact.h`
+- `omnicore-sdk/src/c/oir/oir_ast_artifact.c`
+- `omnicore-sdk/src/c/tests/test_oir_ast_artifact.c`
+
+`oir_ast_artifact_write_frontend_ast()` wraps the schema-1.0 AST payload in the standard OIR envelope:
+- Artifact kind: `OIR_KIND_AST`
+- Payload schema: 1.0
+- Producer stage: `OCC_STAGE_PARSER`
+- Validity: `OIR_VALIDITY_VALID`
+- Required section: `OIR_SECTION_PAYLOAD`, section version 1
+- Caller-supplied job ID
+
+The wrapper preflights the full container size and all scratch capacities before invoking the payload writer. `oir_ast_artifact_read_frontend_ast()` validates the OIR envelope and AST metadata before delegating to the validate-first AST materializer.
+
+The test checks header metadata, payload wrapping/materialization, too-small output atomicity, wrong artifact-kind rejection and an invalid inner AST ownership graph while the outer container remains structurally valid.
+
+CTest target: `oir_ast_artifact_container_wrap_validate_and_materialize`. CI run 41160379544: Ubuntu CTest 31/31, ASan/UBSan and macOS passed; Windows and Valgrind are still running.
