@@ -175,7 +175,8 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 2. Job-owned diagnostic collector ve CompilationContext.
 3. [x] SOURCE_UNIT / TOKEN_STREAM payload codec'leri ve lexer Token → OIR record adapter'ı.
 4. [x] OIR TOKEN_STREAM → parser token adapter'ı ve gerçek parser handoff.
-5. Ortak module ABI ve stage DLL/SO/dylib ayrımı.
+5. [x] Ortak module ABI, gerçek Parser DLL/SO/dylib ve host-owned dynamic loader.
+6. OCC ana derleme akışını SOURCE_UNIT → TOKEN_STREAM → Parser DLL → AST OIR handoff'una bağla; semantic/checkpoint entegrasyonunu uçtan uca doğrula.
 
 
 ## OIR v1 container — ilk C uygulaması eklendi
@@ -212,3 +213,16 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 
 
 - [x] Real parser stage DLL end-to-end test: valid SOURCE_UNIT + TOKEN_STREAM -> AST artifact; NEED_OUTPUT_BUFFER retry; invalid syntax -> diagnostic sink and zero published AST output (Windows/Ubuntu/macOS, ASan/UBSan and Valgrind CI).
+
+
+## OCC Dynamic Stage Loader — 31 Ekim 2026
+
+- [x] Host-owned occ_module_loader bileşeni: Windows LoadLibrary/GetProcAddress veya POSIX dlopen/dlsym ile tam modül yolunu yükle.
+- [x] Export sembolünü çöz, ABI v1 descriptor'ını doğrula; yükleme hatası, eksik sembol ve geçersiz descriptor durumlarını ayrı status kodlarıyla döndür.
+- [x] Ortak invocation köprüsü: host diagnostic sink kur, OIR girdilerini ABI validator'dan geçir, NEED_OUTPUT_BUFFER yanıtında modülün istediği kesin kapasiteyle retry et.
+- [x] Başarılı çıktıyı host tarafında tekrar OIR olarak aç; artifact kind, producer stage, job ID ve validity alanlarını descriptor/result ile karşılaştır. Başarısız modül çağrısında çıktı pointer'ı yayımlama.
+- [x] Pass-through fixture testi: load/invoke/retry/callback/unload; eksik export ve bulunamayan dosya testleri.
+- [x] Gerçek Parser DLL testi artık doğrudan process() çağırmak yerine OCC host loader üzerinden geçerli ve hatalı kaynakları çalıştırıyor; exact diagnostic span ve başarısızlıkta sıfır çıktı doğrulanıyor.
+- [ ] CI'da yeni loader testlerini Windows/Ubuntu/macOS + ASan/UBSan/Valgrind matrisinde doğrula.
+- [ ] main.c statik parser yolunu host loader + OIR handoff ile değiştir; semantic stage ve failure checkpoint'i gerçek Parser DLL çıktısına bağla.
+- [ ] Modül başına çağrı serileştirmesini ve aynı job collector'a diagnostic callback kilidini OCC dispatcher seviyesinde uygula. Loader şu anda host çağrısı başına callback kurar; collector'ın kendisi thread-safe değildir.
