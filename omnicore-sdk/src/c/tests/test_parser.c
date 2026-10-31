@@ -96,6 +96,33 @@ int main(int argc, char** argv) {
         }
     }
 
+    {
+        char memory_source[] = "v:x = ;\\n";
+        OccDiagnosticCollector memory_diagnostics;
+        OccDiagnosticView diagnostic;
+        ParserContext* memory_parser;
+        int memory_ok;
+        occ_diagnostics_init(&memory_diagnostics);
+        memory_parser = parser_init_source("memory-test.nxf",
+            (const uint8_t*)memory_source, sizeof(memory_source) - 1u);
+        if (!memory_parser) return 1;
+        memory_source[6] = '1'; /* The parser must retain its own source copy. */
+        parser_attach_diagnostics(memory_parser, &memory_diagnostics, OCC_STAGE_PARSER);
+        (void)parser_run(memory_parser);
+        memory_ok = occ_diagnostics_get(&memory_diagnostics, 0, &diagnostic) &&
+            diagnostic.record->span.has_location &&
+            diagnostic.record->span.start_offset == 6u &&
+            diagnostic.record->span.end_offset == 7u &&
+            diagnostic.record->span.start_line == 1u &&
+            diagnostic.record->span.start_column == 7u;
+        parser_destroy(memory_parser);
+        occ_diagnostics_destroy(&memory_diagnostics);
+        if (!memory_ok) {
+            fprintf(stderr, "In-memory parser did not retain source bytes and exact diagnostic location.\\n");
+            return 1;
+        }
+    }
+
     if (!write_invalid_lexical_source(argv[3])) return 1;
     {
         OccDiagnosticCollector lexical_diagnostics;
