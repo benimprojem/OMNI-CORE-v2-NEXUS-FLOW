@@ -137,6 +137,26 @@ done:
     return ok;
 }
 
+static int test_rejects_invalid_aggregate_members(void) {
+    static const char* sources[] = {
+        "f:main() { struct:Broken { ; } }",
+        "f:main() { enum:Broken { ; } }",
+        "f:main() { group:Broken { ; } }"
+    };
+    size_t i;
+    for (i = 0; i < sizeof(sources) / sizeof(sources[0]); ++i) {
+        ParserContext* ctx = parser_init_source("invalid-aggregate-member.nxf",
+            (const uint8_t*)sources[i], strlen(sources[i]));
+        int rejected;
+        if (!ctx) return 0;
+        rejected = parser_run(ctx) != 0 && ctx->error_count > 0 &&
+            ctx->ast_root != NULL;
+        parser_destroy(ctx);
+        if (!rejected) return 0;
+    }
+    return 1;
+}
+
 int main(int argc, char** argv) {
     if (!test_parser_context_initialization()) {
         fprintf(stderr, "Parser context initialization/early destruction test failed.\\n");
@@ -148,6 +168,10 @@ int main(int argc, char** argv) {
     }
     if (!test_aggregate_declaration_ast()) {
         fprintf(stderr, "Aggregate declaration AST ownership test failed.\n");
+        return 1;
+    }
+    if (!test_rejects_invalid_aggregate_members()) {
+        fprintf(stderr, "Invalid aggregate members were silently accepted.\n");
         return 1;
     }
     if (argc != 4) return 2;
