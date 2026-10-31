@@ -13,6 +13,7 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [Geliştirme yol haritası](ROADMAP.md)
 - [Güncel görevler](TASKS.md)
 - [Mimari kararlar](ARCHITECTURE_DECISIONS.md)
+- [AREA / ZONE mantıksal bellek modeli](AREA_ZONE_MEMORY_MODEL.md)
 - [Önerilen klasör yapısı](PROPOSED_LAYOUT.md)
 - [Target modeli ve seçim kuralları](TARGET_MODEL.md)
 - [Nexus Flow spec inceleme raporu](SPEC_AUDIT.md)
@@ -38,7 +39,17 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 ## Bölüm 1. TASARIM FELSEFESİ: MİNİMALİZM VE AKIŞ
 
 1.  **Handler-Oriented (Masa):** Değişkenler sadece veri değil, birer "istasyon" (Handler) olarak görülür. `(h)` boşsa veri akar, doluysa kilitlenir.
-2.  **Deterministik Bellek:** `area` ve `zone` ile bellek fiziksel olarak yönetilir. Sahiplik (Ownership) her zaman son bloktadır.
+2.  **Deterministik Bellek:** `area` ve `zone`, OS bağımsız mantıksal bellek alanlarını ifade eder. Fiziksel bellek/cache eşlemesi hedef topolojisine bırakılır; sahiplik (Ownership) ayrıca tanımlanır.
+
+### 1.1 `area` ve `zone` bellek alanları
+
+- `area`: çekirdeğe veya çekirdek grubuna yakın/yerel bellek alanı niyeti.
+- `zone`: birden fazla çekirdeğin erişebildiği daha geniş paylaşım alanı niyeti.
+- Bunlar doğrudan L1/L2 ve L3/L4 garantisi değildir. Cache paylaşım topolojisi işlemciye göre değiştiğinden fiziksel eşleme target/runtime katmanında yapılır.
+- Bare-metal/OS bağımsız hedeflerde özel runtime; OS üzerinde çalışan hedeflerde OS adapter aynı dil kontratını uygular.
+- Hangi fiziksel havuzdan tahsis yapılacağını seçen yerleşim politikası henüz tasarım aşamasındadır; mevcut sözdizimine yeni bir ayar eklenmiş değildir.
+
+Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](AREA_ZONE_MEMORY_MODEL.md).
 
 ---
 
