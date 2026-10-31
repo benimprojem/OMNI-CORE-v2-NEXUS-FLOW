@@ -112,6 +112,31 @@ f:topla(a, b) {return a + b }
 v:sonuc = topla(a:10, b:20);
 ```
 	 
+### 2.3.1 Literal ve Intrinsic Sözdizimi (Parser desteği)
+
+**Uygulanan literal kuralları:**
+
+- Sayısal literal: şu an ondalık tam sayı ve ondalık kesir biçimleri desteklenir (ör. `12`, `3.14`).
+- String literal çift tırnakla yazılır: `"metin"`.
+- Karakter literal tek tırnakla yazılır: `'A'`.
+- String içinde ters eğik çizgi (`\\`) kendisinden sonraki karakterin kapanış tırnağı olarak yorumlanmasını engeller. Örneğin `"a\\\"b"` tek bir string tokenıdır.
+- Karakter literalinde ters eğik çizgi, sonraki karakteri kaçışlı karakter olarak tüketir. Eksik literal veya EOF ile biten kaçış Lexer hatasıdır.
+- Lexer şu aşamada literal içeriğini ham yazımıyla AST'ye aktarır; kaçış dizilerinin çalışma zamanı değerine dönüştürülmesi bu sözdizimi kuralından ayrı bir aşamadır.
+
+**Intrinsic biçimleri:**
+
+```nxf
+v:converted = cast(value, i32);
+panic("critical failure");
+```
+
+- `cast(value, type)`: İlk argüman ifade, ikinci argüman tür adıdır. Tür adı primitive tür tokenı veya tanımlayıcı olabilir.
+- `panic("message")`: Mevcut Parser uygulamasında mesaj string literalidir. Değişken veya genel ifade mesajı henüz desteklenmiş kabul edilmez.
+
+**Henüz tamamlanmamış sayısal biçimler:** Hex/binary literal, üs gösterimi, sayısal ayraçlar, tür ekleri ve zorunlu genişlik işaretlerinin tam grameri ayrı bir spesifikasyon ve test setiyle netleştirilecektir. README'deki eski `10E3` ve `10^^15` örnekleri tasarım örneğidir; mevcut Lexer desteği olarak yorumlanmamalıdır.
+
+---
+
 * Diziler (Arrays)
 ```
 v:sayi[]; # Dinamik array Tanımlama
