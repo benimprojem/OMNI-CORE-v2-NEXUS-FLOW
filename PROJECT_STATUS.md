@@ -612,3 +612,18 @@ Denetimde netleşen noktalar:
 - Test modülü test amaçlıdır; gerçek parser-stage DLL değildir.
 - **CI run 41161737825:** Windows, Ubuntu ve macOS build/test başarılı; Ubuntu CTest 34/34, ASan/UBSan ve Valgrind başarılı.
 - **ABI durumu:** Draft v1.0, freeze edilmedi. Module ID registry ve gerçek parser stage implementasyonu sonraki işler.
+
+
+## 31 Ekim 2026 — DLL tanı kanalı
+
+Çalışma dalında Draft v1 ABI'ye invocation-scoped `OccModuleDiagnosticSinkV1` eklendi. Tanı raporlama yeteneğini descriptor'da `OCC_MODULE_CAP_DIAGNOSTIC_REPORTING` ile ilan eden modüller, kod/severity/message ID, kaynak kimliği, byte span, başlangıç-bitiş satır/sütun ve length-delimited message/hint alanlarını callback ile OCC'ye iletebilir.
+
+OCC callback'i:
+- stage ID değerini modülün gönderdiği veriden değil, host invocation bağlamından alır;
+- message/hint metnini callback dönmeden önce job-owned collector'a kopyalar;
+- pointer/length tutarlılığını, sabit alanları, flag ve reserved alanlarını denetler;
+- kabul edilmeyen tanı veya allocation failure durumunda modüle başarısız dönüş verir.
+
+Modüller callback/context/mesaj pointer'larını çağrı sonrasında saklayamaz. Dosya sistemi ve checkpoint sahipliği OCC'de kalır. ABI henüz freeze edilmemiştir.
+
+**CI durumu:** Bu özellik için yeni CTest eklendi; çoklu platform ve sanitizer doğrulaması yeni commit üzerinde henüz bekleniyor.
