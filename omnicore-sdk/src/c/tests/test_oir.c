@@ -49,7 +49,7 @@ int main(void) {
     CHECK(oir_artifact_write(buffer, sizeof(buffer), &header, sections, 3, &written)
         == OIR_STATUS_OK, "writer should serialize valid artifact");
     CHECK(written == OIR_HEADER_SIZE + 3 * OIR_SECTION_HEADER_SIZE +
-        sizeof(payload) + sizeof(metadata), "serialized size should match");
+        sizeof(payload) + 2u * sizeof(metadata), "serialized size should match");
     CHECK(buffer[0] == 'O' && buffer[1] == 'I' &&
         buffer[2] == 'R' && buffer[3] == '1', "magic should be OIR1");
     CHECK(buffer[28] == (uint8_t)(written & 0xffu), "total length is little-endian");
