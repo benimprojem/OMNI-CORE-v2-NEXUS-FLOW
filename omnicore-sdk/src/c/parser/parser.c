@@ -2251,7 +2251,7 @@ int parser_run(ParserContext* ctx) {
 
     advance(&parser); // İlk tokeni yükle
 
-    ASTProgram* program = (ASTProgram*)parser_ast_create(p, AST_PROGRAM);
+    ASTProgram* program = (ASTProgram*)parser_ast_create(&parser, AST_PROGRAM);
     if (!program) return (int)ctx->status;
     program->base.line = 1;
     program->base.col = 1;
