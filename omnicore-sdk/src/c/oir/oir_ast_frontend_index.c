@@ -55,7 +55,7 @@ uint32_t oir_ast_frontend_index_lookup(
     return 0u;
 }
 
-static ASTNode* child_at(const ASTNode* node, uint16_t field_id) {
+const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id) {
     switch (node->type) {
         case AST_PROGRAM:
             return field_id == 1u ? ((const ASTProgram*)node)->declarations : NULL;
@@ -198,7 +198,7 @@ static ASTNode* child_at(const ASTNode* node, uint16_t field_id) {
     }
 }
 
-static uint16_t child_field_count(ASTNodeType type) {
+uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
     switch (type) {
         case AST_PROGRAM: case AST_BLOCK: case AST_ASM_BLOCK:
         case AST_TUPLE: case AST_NEXUS_HALT: case AST_UNPACK: case AST_DEFER:
@@ -258,9 +258,9 @@ static OirStatus visit_node(
     if (status != OIR_STATUS_OK) return status;
     ++context->count;
 
-    field_count = child_field_count(node->type);
+    field_count = oir_ast_frontend_child_field_count(node->type);
     for (field = 1u; field <= field_count; ++field) {
-        ASTNode* child = child_at(node, field);
+        const ASTNode* child = oir_ast_frontend_child_at(node, field);
         if (child) {
             status = visit_node(context, child, depth + 1u);
             if (status != OIR_STATUS_OK) return status;
