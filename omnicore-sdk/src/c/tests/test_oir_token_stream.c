@@ -89,6 +89,20 @@ int main(void) {
         "write valid token stream");
     CHECK(oir_token_stream_open(buffer, written, 0, 8, 0, &view) == OIR_STATUS_OK,
         "open valid token stream");
+
+    /* A malformed serialized stream must not bypass coordinate ordering. */
+    buffer[OIR_TOKEN_STREAM_HEADER_SIZE + 2u * OIR_TOKEN_STREAM_RECORD_SIZE + 24u] = 2u;
+    buffer[OIR_TOKEN_STREAM_HEADER_SIZE + 2u * OIR_TOKEN_STREAM_RECORD_SIZE + 25u] = 0u;
+    buffer[OIR_TOKEN_STREAM_HEADER_SIZE + 2u * OIR_TOKEN_STREAM_RECORD_SIZE + 26u] = 0u;
+    buffer[OIR_TOKEN_STREAM_HEADER_SIZE + 2u * OIR_TOKEN_STREAM_RECORD_SIZE + 27u] = 0u;
+    CHECK(oir_token_stream_open(buffer, written, 0, 8, 0, &view) ==
+        OIR_STATUS_INVALID_SECTION,
+        "reject serialized token coordinates that move backwards");
+    CHECK(oir_token_stream_write(buffer, capacity, 0, 8, 0,
+        tokens, 5, &written) == OIR_STATUS_OK,
+        "restore valid token stream after malformed input");
+    CHECK(oir_token_stream_open(buffer, written, 0, 8, 0, &view) == OIR_STATUS_OK,
+        "reopen restored token stream");
     CHECK(view.token_count == 5 && view.source_id == 0,
         "token stream header should round-trip");
 
@@ -127,6 +141,11 @@ int main(void) {
         CHECK(oir_token_stream_write(buffer, capacity, 0, 8, 0,
             bad, 5, &written) == OIR_STATUS_INVALID_SECTION,
             "reject unknown token ID");
+        memcpy(bad, tokens, sizeof(tokens));
+        bad[2].column = 2u;
+        CHECK(oir_token_stream_write(buffer, capacity, 0, 8, 0,
+            bad, 5, &written) == OIR_STATUS_INVALID_SECTION,
+            "reject token coordinates that move backwards");
         memcpy(bad, tokens, sizeof(tokens));
         bad[4].token_id = oir_token_id_from_omni(TOKEN_SEMICOLON);
         CHECK(oir_token_stream_write(buffer, capacity, 0, 8, 0,
