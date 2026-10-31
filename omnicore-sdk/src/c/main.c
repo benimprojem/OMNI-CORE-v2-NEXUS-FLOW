@@ -43,6 +43,14 @@ typedef int (*CodegenRunFn)(const char*, const char*, const char*);
 #define OCC_FRONTEND_TOKEN_LIMIT 1000000u
 #define OCC_AST_OUTPUT_MAX (256u * 1024u * 1024u)
 
+static int path_join(char* out, size_t out_size, const char* base, const char* relative);
+static void occ_add_host_diagnostic(
+    OccCompilationContext* job,
+    uint32_t stage_id,
+    uint32_t code,
+    const char* message
+);
+
 
 static void occ_print_job_diagnostics(const OccDiagnosticCollector* diagnostics) {
     size_t i;
