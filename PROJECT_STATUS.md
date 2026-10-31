@@ -660,3 +660,23 @@ occ_module_loader.h/.c eklendi. OCC artık tek bir platform soyutlaması üzerin
 - Gerçek parser DLL entegrasyon testi artık aynı host loader üzerinden valid ve invalid girdileri çalıştırıyor. Hatalı kaynakta diagnostic span [6,7), satır 1, sütun 7–8 korunuyor ve çıktı buffer'ı dışarı verilmiyor.
 
 Doğrulama durumu: Kod ve CTest kayıtları eklendi; bu commit dizisi için yeni CI sonucu henüz teyit edilmedi. Beklenen CTest sayısı 38. main.c hâlâ eski statik parser akışını kullanıyor; bir sonraki aşama host loader'ı gerçek OCC CLI/pipeline'a bağlamak ve failure checkpoint'i DLL kaynaklı parser hatasıyla uçtan uca test etmek. ABI draft olarak kalıyor.
+
+
+## 31 Ekim 2026 — OCC ana akışında gerçek Parser DLL handoff'u
+
+OCC `main.c` artık eski `parser_run(ctx)` statik çağrısını ana derleme yolunda kullanmıyor. Yeni akış:
+
+1. OCC kaynak dosyasını açar ve host-owned lexer ile tokenları üretir.
+2. Kaynak baytları ve path, `OIR_KIND_SOURCE_UNIT` schema 1.0 artifact'ına yazılır.
+3. Tokenlar stable token ID ve byte span bilgileriyle `OIR_KIND_TOKEN_STREAM` artifact'ına yazılır. Lexer tanıları varsa aynı artifact'a DIAGNOSTICS section'ı eklenir; tokenların diagnostic ID referansları korunur.
+4. OCC `occ_parser_stage` DLL/SO/dylib modülünü executable yanındaki runtime dizininden yükler ve host loader ile çağırır.
+5. Parser DLL'nin AST OIR çıktısı host tarafından yeniden açılır, node table doğrulanır ve AST materializer ile host belleğine alınır.
+6. Mevcut semantic analiz, DLL'den gelen bu AST üzerinde çalışır. Legacy OIR/Codegen geçişi henüz kaldırılmadı.
+
+Failure path: parser stage hata verdiğinde callback tanıları job collector'a kopyalanır. OCC aynı job'ın orijinal source byte'larını `occ-errors/job-<id>.oir` failure checkpoint'ine kaydeder. Yeni CTest, CLI'yi geçersiz kaynakla çalıştırır, checkpoint dosyasının oluştuğunu ve fixture source byte dizisinin birebir korunduğunu doğrular.
+
+Runtime packaging: parser stage shared library CMake tarafından OCC executable ile aynı runtime output dizinine yerleştirilir. `locale-tr` test kopyasına da DLL/SO/dylib ayrıca kopyalanır.
+
+**CI run 41174447616:** Windows, Ubuntu ve macOS build/test başarılı; CTest 39/39. Ubuntu ASan/UBSan ve Valgrind başarılı. Run: https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/41174447616
+
+**Sınırlar / sonraki işler:** Lexer henüz OCC host içinde statik frontend kodudur; ayrı lexer DLL henüz yok. Semantic stage henüz DLL değildir ve semantic AST OIR schema/codec tanımlanmadı. Codegen mevcut `codegen_run` sembolüyle eski ayrı yükleme yolunu kullanıyor; ortak stage ABI'ye henüz taşınmadı. ABI draft kalır.
