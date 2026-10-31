@@ -166,6 +166,55 @@ static int test_rejects_invalid_aggregate_members(void) {
     return 1;
 }
 
+static int test_parser_panic_mode_recovers_at_statement_boundaries(void) {
+    static const char source[] =
+        "f:main() {"
+        " v:first = ;"
+        " v:second = ;"
+        " v:good = 3;"
+        "}";
+    ParserContext* ctx = parser_init_source(
+        "parser-panic-recovery.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    OccDiagnosticCollector diagnostics;
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* statement;
+    size_t diagnostic_count;
+    int found_good = 0;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    occ_diagnostics_init(&diagnostics);
+    parser_attach_diagnostics(ctx, &diagnostics, OCC_STAGE_PARSER);
+    if (parser_run(ctx) != PARSER_STATUS_SYNTAX_ERROR || !ctx->ast_root) goto done;
+
+    diagnostic_count = occ_diagnostics_count(&diagnostics);
+    if (diagnostic_count < 2u) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL) goto done;
+    body = (ASTBlock*)function->body;
+    if (!body || body->base.type != AST_BLOCK) goto done;
+
+    for (statement = body->statements; statement; statement = statement->next) {
+        if (statement->type == AST_VAR_DECL) {
+            ASTVarDecl* variable = (ASTVarDecl*)statement;
+            if (variable->name && strcmp(variable->name, "good") == 0 &&
+                variable->initializer && variable->initializer->type == AST_LITERAL) {
+                found_good = 1;
+            }
+        }
+    }
+    ok = found_good;
+
+done:
+    parser_destroy(ctx);
+    occ_diagnostics_destroy(&diagnostics);
+    return ok;
+}
+
 static int test_parser_allocation_failure_injection(void) {
     static const char source[] =
         "f:main() { v:first = 11; v:second = first + 7; ret; }";
@@ -212,6 +261,10 @@ int main(int argc, char** argv) {
     }
     if (!test_rejects_invalid_aggregate_members()) {
         fprintf(stderr, "Invalid aggregate members were silently accepted.\n");
+        return 1;
+    }
+    if (!test_parser_panic_mode_recovers_at_statement_boundaries()) {
+        fprintf(stderr, "Parser panic-mode recovery did not preserve later valid statements.\n");
         return 1;
     }
     if (!test_parser_allocation_failure_injection()) {
