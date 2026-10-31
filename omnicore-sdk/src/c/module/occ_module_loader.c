@@ -222,7 +222,8 @@ uint32_t occ_module_loader_invoke(
             continue;
         }
 
-        if (status != OCC_MODULE_STATUS_OK) {
+        if (status != OCC_MODULE_STATUS_OK &&
+            status != OCC_MODULE_STATUS_PARTIAL) {
             if (result.bytes_written != 0u ||
                 result.output_validity != OIR_VALIDITY_NONE) {
                 free(output);
@@ -235,7 +236,9 @@ uint32_t occ_module_loader_invoke(
         if (result.bytes_written == 0u ||
             result.bytes_written > (uint64_t)capacity ||
             result.bytes_written > (uint64_t)SIZE_MAX ||
-            (result.output_validity != OIR_VALIDITY_VALID &&
+            (status == OCC_MODULE_STATUS_OK &&
+             result.output_validity != OIR_VALIDITY_VALID) ||
+            (status == OCC_MODULE_STATUS_PARTIAL &&
              result.output_validity != OIR_VALIDITY_PARTIAL)) {
             free(output);
             return OCC_MODULE_LOADER_INVALID_OUTPUT;
