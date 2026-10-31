@@ -697,3 +697,8 @@ Yeni `real_lexer_stage_source_to_token_stream_module` testi gerçek shared libra
 **CI run 41174917131:** Windows, Ubuntu ve macOS build/test başarılı; CTest 40/40; Ubuntu ASan/UBSan ve Valgrind başarılı. Run: https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/41174917131
 
 **Kalan mimari sınır:** Semantic hâlâ OCC içinde çalışan mevcut frontend kodudur; SEMANTIC_AST schema/codec ve semantic DLL sonraki aşamadır. Codegen de ortak OccStageModuleV1 ABI'ye taşınmadı; legacy `codegen_run` giriş noktasını kullanıyor. ABI Draft v1 olarak kalıyor.
+
+
+## 31 Ekim 2026 — Semantic OIR tasarım başlangıcı
+
+Current semantic analysis is still an in-process checker. Inspection confirmed that `SemanticContext` retains transient `Slot` linked-list entries and scope depth; `exit_scope()` frees local symbols, and the checker does not produce stable symbol IDs or per-node resolved-type annotations. The new `OIR_SEMANTIC_AST.md` draft defines an unchanged embedded AST payload plus versioned scope/type/symbol/relation/annotation sections. Numeric conversion records are reserved but explicitly deferred until the NEXSUS Flow promotion lattice is specified and tested. No semantic codec or DLL is claimed in this update.
