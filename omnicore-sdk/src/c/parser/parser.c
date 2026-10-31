@@ -2184,37 +2184,52 @@ static ASTNode* parse_statement(Parser* p) {
     if (match(p, TOKEN_NEXUS_LABEL)) {
         char* label_name = NULL;
         
-        // Unwrap tuple if single element (defensive)
+        /* Unwrap at most one single-element tuple; multi-element tuples stay invalid labels. */
         ASTNode* target = expr;
-        while (target->type == AST_TUPLE) {
+        if (target->type == AST_TUPLE) {
             ASTTuple* tuple = (ASTTuple*)target;
-            if (tuple->elements && !tuple->elements->next) {
-                target = tuple->elements;
-            }
+            if (tuple->elements && !tuple->elements->next) target = tuple->elements;
         }
 
         if (target->type == AST_IDENTIFIER) {
             ASTIdentifier* id = (ASTIdentifier*)target;
-            label_name = malloc(strlen(id->name) + 1);
-            strcpy(label_name, id->name);
+            size_t length = strlen(id->name);
+            label_name = (char*)malloc(length + 1u);
+            if (label_name) memcpy(label_name, id->name, length + 1u);
         } else if (target->type == AST_LITERAL) {
             ASTLiteral* lit = (ASTLiteral*)target;
-            label_name = malloc(strlen(lit->string_value) + 1);
-            strcpy(label_name, lit->string_value);
+            size_t length = lit->string_value ? strlen(lit->string_value) : 0u;
+            if (lit->string_value) {
+                label_name = (char*)malloc(length + 1u);
+                if (label_name) memcpy(label_name, lit->string_value, length + 1u);
+            }
         } else {
-             error_at(p, &p->previous, ERR_PARSER_INVALID_VAR, msg_get(MSG_INVALID_CAPTURE));
-             return expr;
+            error_at(p, &p->previous, ERR_PARSER_INVALID_VAR, msg_get(MSG_INVALID_CAPTURE));
+            return expr;
         }
+        if (!label_name) {
+            ast_destroy(expr);
+            return NULL;
+        }
+
         ASTNexusLabel* lbl = (ASTNexusLabel*)ast_create(AST_NEXUS_LABEL);
+        if (!lbl) {
+            free(label_name);
+            ast_destroy(expr);
+            return NULL;
+        }
         lbl->base.line = expr->line;
         lbl->base.col = expr->col;
         lbl->label_name = label_name;
-        
+        ast_destroy(expr); /* The expression only supplies the label name. */
+
         if (match(p, TOKEN_LBRACE)) lbl->statement = parse_block(p);
-        else if (p->current.type != TOKEN_EOF && p->current.type != TOKEN_RBRACE) {
-             lbl->statement = parse_statement(p);
-        } else {
-             lbl->statement = NULL;
+        else if (p->current.type != TOKEN_EOF && p->current.type != TOKEN_RBRACE)
+            lbl->statement = parse_statement(p);
+        if (p->current.type != TOKEN_EOF && p->current.type != TOKEN_RBRACE &&
+            !lbl->statement) {
+            ast_destroy((ASTNode*)lbl);
+            return NULL;
         }
         return (ASTNode*)lbl;
     }
