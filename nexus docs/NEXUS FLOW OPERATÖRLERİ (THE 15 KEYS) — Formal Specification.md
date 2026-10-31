@@ -22,7 +22,7 @@
 | **9**   | `<<`      | Zone Write        | Veriyi atomik olarak paylaşımlı belleğe yazar.                                             |
 | **10**  | `>>`      | Flow Feed         | Veriyi atomik olarak akışa besler (pipeline ready).                                        |
 | **11**  | `(e){}`   | Error Block       | Hata durumunda devreye giren blok; saptırılan hatayı işler.                                |
-| **12**  | `?;` / `}?;` | Halt | `resource ?;` tek belirtilen kaynağı kapatır; `}?;` kapanan bloğun sahipliğinde kalan tüm açık kaynakları topluca kapatır. |
+| **12**  | `?;` / `}?;` | Halt | `(resource)?;` tek belirtilen kaynağı kapatır; `}?;` kapanan bloğun sahipliğinde kalan tüm açık kaynakları topluca kapatır. |
 | **13**  | `!!`      | Panic             | Kritik hata; tüm akışı durdurur ve runtime uyarısı verir.                                  |
 | **14**  | `@`       | Intent            | Derleyiciye veya runtime’a işlem niyetini bildirir (optimization hints).                   |
 | **15**  | `!!=`     | Directive         | .target sistemi ve derleyici talimatlarını verir.                                          |
@@ -99,10 +99,10 @@ Kural:
 
 Halt tek bir mekanizmadır; kapsamı yazıldığı biçimden anlaşılır:
 
-- `resource ?;`: Tekil kaynak/masa kapatma. Herhangi bir uygun statement noktasında kullanılabilir.
+- `(resource)?;`: Tekil kaynak/masa kapatma. Herhangi bir uygun statement noktasında kullanılabilir.
 - `}?;`: Hemen önceki bloğun sonunda blok kapsamlı kapatma. Blok içinde açılmış ve hâlâ o bloğun sahipliğinde bulunan tüm açık kaynaklar kapatılır.
 
-Tekil örnekler: `file ?;` açık dosyayı kapatır, `table ?;` tablo kaynağını temizler, `lib ?;` yüklenmiş DLL'yi kaldırır. Bu işlemler kaynak API sözleşmesine bağlıdır; `?;` keyfi bir bellek adresine uygulanamaz.
+Tekil örnekler: `(file)?;` açık dosyayı kapatır, `(table)?;` tablo kaynağını temizler, `(Optimizer)?;` yüklenmiş DLL'yi kaldırır. Bu işlemler kaynak API sözleşmesine bağlıdır; `?;` keyfi bir bellek adresine uygulanamaz.
 
 Blok kapsamlı temizleme yalnızca bloğun sahip olduğu kaynakları kapsar. `_>` ile dışarı taşınmış kaynak eski bloktan çıkar; dış kapsamdan ödünç alınmış kaynak açıkça sahiplenilmedikçe iç blok tarafından kapatılamaz. Her kaynak en fazla bir kez kapatılır; kapatıldıktan sonra yeniden kullanım semantik hatadır.
 
@@ -114,7 +114,7 @@ Blok kapsamlı temizleme yalnızca bloğun sahip olduğu kaynakları kapsar. `_>
 }?; # İki açık dosyayı blok sonunda topluca kapat.
 ```
 
-Bu doküman hedeflenen dil sözleşmesini açıklar. Mevcut Parser/AST/semantic/OIR hattında `resource ?;` hedefi ve `}?;` blok kapsamı henüz ayrı temsil edilmediğinden uygulama durumu ayrıca izlenmelidir.
+Bu doküman hedeflenen dil sözleşmesini açıklar. Mevcut Parser/AST/semantic/OIR hattında `(resource)?;` hedefi ve `}?;` blok kapsamı henüz ayrı temsil edilmediğinden uygulama durumu ayrıca izlenmelidir.
 
 ---
 
@@ -125,7 +125,7 @@ Bu doküman hedeflenen dil sözleşmesini açıklar. Mevcut Parser/AST/semantic/
 3. **Hata Akışı:** `?->` veya `!!` operatörleri hata durumunda çalışır.
 4. **Fallback Mekanizması:** `?=>` ile hata saptırıcı veya `null` veriler için alternatif veri enjekte edilebilir.
 5. **Atomik Bellek:** `<<` ve `>>` operatörleri ile veriler **thread-safe** ve **atomic** olarak yazılır.
-6. **Kaynak Sonlandırma:** `resource ?;` tek kaynağı kapatır; `}?;` blokta kalan tüm sahipli kaynakları kapatır. `!!` kritik hata/panic mekanizmasıdır; Halt ile aynı şey değildir.
+6. **Kaynak Sonlandırma:** `(resource)?;` tek kaynağı kapatır; `}?;` blokta kalan tüm sahipli kaynakları kapatır. `!!` kritik hata/panic mekanizmasıdır; Halt ile aynı şey değildir.
 7. **Compiler Hints:** `@` ve `!!=` operatörleri derleyici ve runtime optimizasyonları için kullanılır.
 
 ---
