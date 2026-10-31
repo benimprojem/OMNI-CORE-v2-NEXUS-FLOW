@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <limits.h>
 #include "lexer.h"
 
 void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path) {
@@ -129,17 +130,36 @@ static void report_issue(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
         input.hint_length = input.hint ? strlen(input.hint) : 0u;
         (void)occ_diagnostics_add(ctx->diagnostics, &input);
     }
-    Error* err = (Error*)malloc(sizeof(Error));
+    Error* err = (Error*)calloc(1u, sizeof(Error));
+    if (!err) {
+        if (ctx->result_status == SEMANTIC_RESULT_OK)
+            ctx->result_status = SEMANTIC_RESULT_OUT_OF_MEMORY;
+        if (ctx->error_count < INT_MAX) ++ctx->error_count;
+        return;
+    }
+
     err->code = code;
     err->filename = strdup(ctx->filename ? ctx->filename : "<unknown>");
-    err->line = node->line;
-    err->col = node->col;
-    err->message = strdup(msg);
+    err->line = node ? node->line : 0;
+    err->col = node ? node->col : 0;
+    err->message = strdup(msg ? msg : "");
     err->suggestion = suggestion ? strdup(suggestion) : NULL;
     err->hint = hint ? strdup(hint) : NULL;
     err->similarity = similarity;
     err->is_warning = is_warning;
-    err->next = NULL;
+
+    if (!err->filename || !err->message ||
+        (suggestion && !err->suggestion) || (hint && !err->hint)) {
+        free(err->filename);
+        free(err->message);
+        free(err->suggestion);
+        free(err->hint);
+        free(err);
+        if (ctx->result_status == SEMANTIC_RESULT_OK)
+            ctx->result_status = SEMANTIC_RESULT_OUT_OF_MEMORY;
+        if (ctx->error_count < INT_MAX) ++ctx->error_count;
+        return;
+    }
 
     if (ctx->error_tail) {
         ctx->error_tail->next = err;
@@ -148,7 +168,7 @@ static void report_issue(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
         ctx->error_head = err;
         ctx->error_tail = err;
     }
-    ctx->error_count++;
+    if (ctx->error_count < INT_MAX) ++ctx->error_count;
 }
 
 static void report_error(SemanticContext* ctx, ASTNode* node, ErrorCode code, const char* msg) {
