@@ -134,6 +134,8 @@ static OirStatus read_record(
         out_entry->severity > OCC_DIAG_FATAL ||
         span_flags > 1u || reserved != 0 ||
         out_entry->message_length == 0 ||
+        out_entry->message_length > OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES ||
+        out_entry->hint_length > OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES ||
         !valid_string(strings, view->string_table_length,
             message_offset, out_entry->message_length)) {
         return OIR_STATUS_INVALID_SECTION;
@@ -191,7 +193,9 @@ OirStatus oir_diagnostics_payload_open(
     record_size = read_u32_le(payload + 4);
     string_length = read_u32_le(payload + 8);
     flags = read_u32_le(payload + 12);
-    if (record_size != OIR_DIAGNOSTICS_RECORD_SIZE || flags != 0) {
+    if (record_size != OIR_DIAGNOSTICS_RECORD_SIZE || flags != 0 ||
+        count > OCC_DIAGNOSTICS_MAX_COUNT ||
+        string_length > OCC_DIAGNOSTICS_MAX_TEXT_BYTES) {
         return OIR_STATUS_INVALID_HEADER;
     }
     if ((size_t)count >
@@ -241,7 +245,9 @@ OirStatus oir_diagnostics_payload_write(
 
     if (out_written) *out_written = 0;
     if (!output || !collector || !out_written) return OIR_STATUS_INVALID_ARGUMENT;
-    if (collector->allocation_failed ||
+    if (collector->allocation_failed || collector->limit_exceeded ||
+        collector->count > OCC_DIAGNOSTICS_MAX_COUNT ||
+        collector->text_length > OCC_DIAGNOSTICS_MAX_TEXT_BYTES ||
         (collector->count && !collector->records) ||
         collector->count > UINT32_MAX ||
         collector->text_length > UINT32_MAX ||
