@@ -37,11 +37,23 @@ int main(void) {
     assert(view.record_count == 3u);
 
     assert(oir_semantic_scopes_get(&view, 0u, &decoded) == OIR_STATUS_OK);
-    assert(memcmp(&decoded, &scopes[0], sizeof(decoded)) == 0);
+    assert(decoded.scope_id == scopes[0].scope_id &&
+        decoded.parent_scope_id == scopes[0].parent_scope_id &&
+        decoded.depth == scopes[0].depth &&
+        decoded.flags == scopes[0].flags &&
+        decoded.owner_node_id == scopes[0].owner_node_id);
     assert(oir_semantic_scopes_get(&view, 1u, &decoded) == OIR_STATUS_OK);
-    assert(memcmp(&decoded, &scopes[1], sizeof(decoded)) == 0);
+    assert(decoded.scope_id == scopes[1].scope_id &&
+        decoded.parent_scope_id == scopes[1].parent_scope_id &&
+        decoded.depth == scopes[1].depth &&
+        decoded.flags == scopes[1].flags &&
+        decoded.owner_node_id == scopes[1].owner_node_id);
     assert(oir_semantic_scopes_get(&view, 2u, &decoded) == OIR_STATUS_OK);
-    assert(memcmp(&decoded, &scopes[2], sizeof(decoded)) == 0);
+    assert(decoded.scope_id == scopes[2].scope_id &&
+        decoded.parent_scope_id == scopes[2].parent_scope_id &&
+        decoded.depth == scopes[2].depth &&
+        decoded.flags == scopes[2].flags &&
+        decoded.owner_node_id == scopes[2].owner_node_id);
     assert(oir_semantic_scopes_get(&view, 3u, &decoded) ==
         OIR_STATUS_INVALID_ARGUMENT);
 
