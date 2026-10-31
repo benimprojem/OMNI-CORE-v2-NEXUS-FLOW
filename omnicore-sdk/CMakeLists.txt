@@ -314,6 +314,8 @@ target_link_libraries(occ_parser_stage PRIVATE
 )
 set_target_properties(occ_parser_stage PROPERTIES
     OUTPUT_NAME "occ_parser_stage"
+    RUNTIME_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
+    LIBRARY_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
     POSITION_INDEPENDENT_CODE ON
 )
 
@@ -376,6 +378,12 @@ target_link_libraries(occ PRIVATE
     occ_frontend
     occ_compilation
     occ_failure_store
+    occ_module_loader
+    occ_oir
+    occ_oir_token_stream
+    occ_oir_diagnostics
+    occ_oir_ast_artifact
+    occ_oir_ast_node_table
     ${CMAKE_DL_LIBS}
 )
 
