@@ -182,3 +182,24 @@ Ek olarak `AST_CAST`, `ASTUnaryExpr` düzeninde tanımlanmış olmasına rağmen
 - Buna karşın Parser, `cast(...)` ve `panic(...)` ifadelerini `parse_intrinsic_call()` üzerinden oluşturuyor. Bu durum en azından bu düğüm türlerinde payload sözleşmesinin katmanlar arasında çeliştiğini; allocation boyutu ve alan yorumlaması açısından bellek taşması/yanlış pointer okuma riski bulunduğunu gösteriyor.
 
 Bu düğümlerin doğru AST biçimi dil sözdizimi ve amaçlanan cast/panic semantiğiyle netleştirilmeden tek bir switch'e eklenerek yamalanmamalı. Öncelik 0 olarak ele alınmalı: tek bir payload şeması seçilmeli ve allocation, parser, destroy, codec, semantic checker ve test fixture'ları aynı şemaya geçirilmelidir.
+
+
+### 6.7 CAST/PANIC payload düzeltmesi
+
+İlk kaynak bulgusu kod düzeyinde ele alındı ve AST/OIR sınırına kadar tamamlandı:
+
+- `AST_CAST` artık kendi `ASTCast` payload'ına sahip: `value` ve `target_type` ayrı çocuk düğümlerdir. Dil referansındaki `cast(value, type)` biçimi böylece AST'de iki ayrı anlamlı alanla temsil edilir.
+- Parser artık `cast()` ifadesini `ASTCall` veya `ASTUnaryExpr` gibi yorumlamıyor; hedef türü identifier düğümü olarak kuruyor.
+- Semantik katman dönüşümün değer ifadesini denetliyor ve hedef tür adının tanımlı olup olmadığını doğruluyor.
+- AST allocation, printer, destroy, serialize ve deserialize yolları yeni payload ile eşitlendi.
+- OIR frontend writer, reader, field schema ve deterministic index artık CAST değer/hedef çocuklarını iki node reference olarak işliyor.
+- `panic(message)` artık `ASTPanic` payload'ı ile oluşturuluyor; `ASTCall` alanları küçük `ASTPanic` belleğine yazılmıyor.
+- Parser testine `cast(1, i32)` ve `panic("boom")` için AST payload doğrulaması eklendi. AST codec fixture'ı da CAST için yeni şemaya uyarlandı.
+
+Doğrulama:
+- `ast_rejects_malformed_streams` testindeki ilk regresyon, eski ASTUnaryExpr fixture'ının yeni ASTCast payload'ına göre güncellenmesiyle giderildi.
+- OIR field-schema testinin eski CAST token alanı beklentisi de yeni iki çocuk referansı sözleşmesine göre güncellendi.
+- Commit `d74168fedb6e3883ffa64ce398439283a2caea1c` için Windows, macOS, Ubuntu, ASan/UBSan ve Valgrind kontrollerinin tamamı başarılı oldu.
+- Sonraki küçük semantik hedef-tür doğrulama değişikliği ayrı commit `c2c2ee6b3f44d5efeab53d4d0c8d0f6a208df1de` olarak CI'ya gönderildi; sonucu ayrıca doğrulanmalı.
+
+Not: Bu değişiklikler legacy AST codec ve OIR AST payload sözleşmesini etkilediğinden, eski AST dump dosyaları ile sürüm uyumluluğu ayrıca ele alınmalıdır. Bu codec kalıcı OIR modül formatı yerine geçmez; OIR format sürümleme/uyumluluk sözleşmesi bağımsız olarak korunmalıdır.
