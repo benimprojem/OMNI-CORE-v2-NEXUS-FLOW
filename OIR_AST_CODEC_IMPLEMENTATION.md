@@ -161,3 +161,24 @@ The validator checks every node against the v1 registry:
 - The test constructs schema-valid records for all 80 node kinds and checks missing fields, wrong known-field types, unknown required fields and unknown optional fields.
 
 CTest target: `oir_ast_field_schema_all_node_kinds_and_compatibility`. CI run 41157314066 passed on Windows, Ubuntu and macOS; ASan/UBSan and Valgrind also passed.
+
+
+## 11. Implemented foundation: frontend AST pointer index
+
+Files:
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_index.h`
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`
+- `omnicore-sdk/src/c/tests/test_oir_ast_frontend_index.c`
+
+The index pass is read-only and uses a caller-owned, zero-initialized, power-of-two open-addressed pointer table. It has no allocator dependency and rejects load factors above 0.5.
+
+Canonical traversal:
+1. Assign the current node's 1-based ID.
+2. Visit node-specific child pointers in ascending registry field-ID order.
+3. Visit the current node's `next` sibling at the same graph depth.
+
+It requires an AST_PROGRAM root with no sibling, validates nonnegative paired line/column values, maps node tags through the stable 1–80 registry, and rejects repeated pointers (cycles or multiple owners), unsupported node tags, over 1,000,000 nodes and depth over 512. Lookup returns zero for an absent pointer.
+
+The test covers deterministic child/sibling numbering, Nexus Flow's sparse child field IDs (2, 3, 6), repeated ownership/cycles, invalid root/sourceloc and the depth boundary. It does not yet encode node records, TLVs or strings; those are the next writer pass.
+
+CTest target: `oir_ast_frontend_index_deterministic_preorder_and_graph_rejection`. CI run 41158241944 is in progress; Ubuntu build/test and ASan/UBSan have passed.
