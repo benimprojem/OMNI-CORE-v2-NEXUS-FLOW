@@ -191,6 +191,25 @@ target_include_directories(occ_frontend PUBLIC
 target_compile_definitions(occ_frontend PUBLIC OCC_STATIC)
 target_link_libraries(occ_frontend PUBLIC occ_diagnostics)
 
+# Validate-first AST materializer. It depends on the canonical frontend allocator
+# only after payload/schema/graph validation has completed.
+add_library(occ_oir_ast_frontend_reader STATIC
+    "${C_SOURCE_DIR}/oir/oir_ast_frontend_reader.c"
+)
+target_include_directories(occ_oir_ast_frontend_reader PUBLIC
+    "${C_SOURCE_DIR}/oir"
+    "${C_PARSER_DIR}"
+)
+target_link_libraries(occ_oir_ast_frontend_reader PUBLIC
+    occ_frontend
+    occ_oir_ast_map
+    occ_oir_ast_node_table
+    occ_oir_ast_graph
+    occ_oir_ast_field_schema
+    occ_oir_lexer_adapter
+)
+set_target_properties(occ_oir_ast_frontend_reader PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # strdup is POSIX rather than ISO C11. Expose its declaration on POSIX
 # toolchains and map it to the Microsoft CRT spelling on MSVC.
 if(MSVC)
@@ -260,6 +279,7 @@ if(MSVC)
     target_compile_options(occ_oir_ast_field_schema PRIVATE /W4)
     target_compile_options(occ_oir_ast_frontend_index PRIVATE /W4)
     target_compile_options(occ_oir_ast_frontend_writer PRIVATE /W4)
+    target_compile_options(occ_oir_ast_frontend_reader PRIVATE /W4)
     target_compile_options(occ_frontend PRIVATE /W4)
     target_compile_options(occ_codegen PRIVATE /W4)
     target_compile_options(occ PRIVATE /W4)
@@ -276,6 +296,7 @@ else()
     target_compile_options(occ_oir_ast_field_schema PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_ast_frontend_index PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_ast_frontend_writer PRIVATE -Wall -Wextra)
+    target_compile_options(occ_oir_ast_frontend_reader PRIVATE -Wall -Wextra)
     target_compile_options(occ_frontend PRIVATE -Wall -Wextra)
     target_compile_options(occ_codegen PRIVATE -Wall -Wextra)
     target_compile_options(occ PRIVATE -Wall -Wextra)
@@ -493,6 +514,19 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME oir_ast_frontend_writer_all_kinds_and_payload_roundtrip
         COMMAND test_oir_ast_frontend_writer)
+
+    add_executable(test_oir_ast_frontend_reader "${C_SOURCE_DIR}/tests/test_oir_ast_frontend_reader.c")
+    target_link_libraries(test_oir_ast_frontend_reader PRIVATE
+        occ_oir_ast_frontend_reader
+        occ_oir_ast_frontend_writer
+    )
+    if(MSVC)
+        target_compile_options(test_oir_ast_frontend_reader PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_ast_frontend_reader PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_ast_frontend_reader_all_kinds_validate_before_materialize
+        COMMAND test_oir_ast_frontend_reader)
 
     add_executable(test_oir_token_map "${C_SOURCE_DIR}/tests/test_oir_token_map.c")
     target_link_libraries(test_oir_token_map PRIVATE occ_oir_lexer_adapter)
