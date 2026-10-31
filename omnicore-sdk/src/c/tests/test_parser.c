@@ -729,6 +729,7 @@ int main(int argc, char** argv) {
         ParserContext* token_parser = parser_init_source("token-stream.nxf",
             token_source, sizeof(token_source) - 1u);
         Token tokens[2];
+        Token invalid_tokens[2];
         int token_ok;
         if (!token_parser) return 1;
         tokens[0] = lexer_next_token(token_parser);
@@ -739,8 +740,17 @@ int main(int argc, char** argv) {
         }
         /* A stale/nonexistent upstream diagnostic index must not hide this error. */
         tokens[0].diagnostic_id = 1u;
+        invalid_tokens[0] = tokens[0];
+        invalid_tokens[1] = tokens[1];
+        invalid_tokens[0].source_offset = (size_t)-1;
         occ_diagnostics_init(&token_diagnostics);
         parser_attach_diagnostics(token_parser, &token_diagnostics, OCC_STAGE_PARSER);
+        if (parser_attach_token_stream(token_parser, invalid_tokens, 2u)) {
+            parser_destroy(token_parser);
+            occ_diagnostics_destroy(&token_diagnostics);
+            fprintf(stderr, "Malformed token source span was accepted.\\n");
+            return 1;
+        }
         if (!parser_attach_token_stream(token_parser, tokens, 2u)) {
             parser_destroy(token_parser);
             occ_diagnostics_destroy(&token_diagnostics);
