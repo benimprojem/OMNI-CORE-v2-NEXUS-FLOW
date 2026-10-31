@@ -45,6 +45,9 @@ int main(void) {
     uint8_t semantic_artifact[8192];
     uint8_t repeated_artifact[8192];
     size_t semantic_artifact_written = 0u;
+    size_t injected_written = 0u;
+    uint32_t writer_allocation_count = 0u;
+    uint32_t fail_index;
     size_t repeated_artifact_written = 0u;
     OirSemanticAstArtifactView artifact_view;
     uint32_t* incoming_counts = NULL;
@@ -223,6 +226,27 @@ int main(void) {
             }
         }
         assert(found_shadow_binding);
+    }
+
+    /* Fail each writer-owned allocation in turn; output must remain unpublished. */
+    memset(semantic_artifact, 0xa5, sizeof(semantic_artifact));
+    assert(oir_semantic_ast_artifact_write_test_fail_at(
+        ast_payload, ast_payload_written, &context.result, 42u,
+        semantic_artifact, sizeof(semantic_artifact), &injected_written,
+        UINT32_MAX, &writer_allocation_count) == OIR_STATUS_OK);
+    assert(injected_written != 0u && writer_allocation_count > 0u);
+    for (fail_index = 1u; fail_index <= writer_allocation_count; ++fail_index) {
+        size_t j;
+        memset(semantic_artifact, 0xa5, sizeof(semantic_artifact));
+        injected_written = 123u;
+        assert(oir_semantic_ast_artifact_write_test_fail_at(
+            ast_payload, ast_payload_written, &context.result, 42u,
+            semantic_artifact, sizeof(semantic_artifact), &injected_written,
+            fail_index, NULL) == OIR_STATUS_OUT_OF_MEMORY);
+        assert(injected_written == 0u);
+        for (j = 0u; j < sizeof(semantic_artifact); ++j) {
+            assert(semantic_artifact[j] == 0xa5u);
+        }
     }
 
     /* The semantic result is encoded, then re-opened by the full artifact gate. */
