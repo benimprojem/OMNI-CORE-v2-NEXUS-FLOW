@@ -80,6 +80,28 @@ int main(void) {
         entry.hint == NULL && strcmp(entry.message, "recoverable parser warning") == 0,
         "location-free diagnostic and absent hint should round-trip");
 
+    {
+        uint32_t saved_end_line = collector.records[0].span.end_line;
+        collector.records[0].span.end_line = 2u;
+        CHECK(oir_diagnostics_payload_write(buffer, capacity, &collector, &written) ==
+            OIR_STATUS_INVALID_SECTION,
+            "writer must reject a diagnostic span whose end line moves backwards");
+        collector.records[0].span.end_line = saved_end_line;
+    }
+    {
+        size_t end_line_offset = OIR_DIAGNOSTICS_HEADER_SIZE + 44u;
+        uint8_t saved[4];
+        memcpy(saved, buffer + end_line_offset, sizeof(saved));
+        buffer[end_line_offset] = 2u;
+        buffer[end_line_offset + 1u] = 0u;
+        buffer[end_line_offset + 2u] = 0u;
+        buffer[end_line_offset + 3u] = 0u;
+        CHECK(oir_diagnostics_payload_open(buffer, capacity, &payload_view) ==
+            OIR_STATUS_INVALID_SECTION,
+            "reader must reject a serialized diagnostic span whose end line moves backwards");
+        memcpy(buffer + end_line_offset, saved, sizeof(saved));
+    }
+
     CHECK(oir_diagnostics_payload_write(buffer, capacity - 1u, &collector, &written) ==
         OIR_STATUS_BUFFER_TOO_SMALL, "reject undersized output buffer");
     CHECK(oir_diagnostics_payload_open(buffer, capacity - 1u, &payload_view) ==
