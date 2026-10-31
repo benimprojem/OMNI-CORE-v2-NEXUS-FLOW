@@ -749,48 +749,63 @@ static ASTNode* parse_thread_block(Parser* p, char* name) {
 static ASTNode* parse_postfix(Parser* p) {
     ASTNode* expr = parse_primary(p);
     if (!expr) return NULL;
-    
+
     for (;;) {
         if (match(p, TOKEN_DOT)) {
-            // Üye Erişimi: expr.member
-            if (match(p, TOKEN_IDENTIFIER)) {
-                ASTMemberAccess* node = (ASTMemberAccess*)ast_create(AST_MEMBER_ACCESS);
-                node->base.line = p->previous.line;
-                node->base.col = p->previous.col;
-                node->object = expr;
-                
-                Token t = p->previous;
-                node->member_name = malloc(t.length + 1);
-                memcpy(node->member_name, t.start, t.length);
-                node->member_name[t.length] = '\0';
-                
-                expr = (ASTNode*)node;
-            } else {
+            if (!match(p, TOKEN_IDENTIFIER)) {
                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(ERR_PARSER_EXPECTED_EXPRESSION));
+                ast_destroy(expr);
+                return NULL;
             }
+            Token member = p->previous;
+            ASTMemberAccess* node = (ASTMemberAccess*)ast_create(AST_MEMBER_ACCESS);
+            if (!node) {
+                ast_destroy(expr);
+                return NULL;
+            }
+            node->base.line = member.line;
+            node->base.col = member.col;
+            node->object = expr;
+            node->member_name = (char*)malloc((size_t)member.length + 1u);
+            if (!node->member_name) {
+                ast_destroy((ASTNode*)node);
+                return NULL;
+            }
+            memcpy(node->member_name, member.start, (size_t)member.length);
+            node->member_name[member.length] = '\0';
+            expr = (ASTNode*)node;
         } else if (match(p, TOKEN_LPAREN)) {
-            // Fonksiyon Çağrısı: expr(...)
             ASTCall* call = (ASTCall*)ast_create(AST_FUNC_CALL);
+            if (!call) {
+                ast_destroy(expr);
+                return NULL;
+            }
             call->base.line = p->previous.line;
             call->base.col = p->previous.col;
             call->callee = expr;
             call->args = NULL;
 
             if (p->current.type != TOKEN_RPAREN) {
-                ASTNode* head = NULL;
                 ASTNode* tail = NULL;
                 do {
                     ASTNode* arg = parse_expression(p);
-                    if (!head) head = arg; else tail->next = arg;
+                    if (!arg) {
+                        ast_destroy((ASTNode*)call);
+                        return NULL;
+                    }
+                    if (!call->args) call->args = arg;
+                    else tail->next = arg;
                     tail = arg;
                 } while (match(p, TOKEN_COMMA));
-                call->args = head;
             }
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ARGS);
             expr = (ASTNode*)call;
         } else if (match(p, TOKEN_INC) || match(p, TOKEN_DEC)) {
-            // Postfix Artırma/Azaltma: expr++, expr--
             ASTUnaryExpr* post = (ASTUnaryExpr*)ast_create(AST_POSTFIX_EXPR);
+            if (!post) {
+                ast_destroy(expr);
+                return NULL;
+            }
             post->base.line = p->previous.line;
             post->base.col = p->previous.col;
             post->op = p->previous.type;
@@ -804,23 +819,17 @@ static ASTNode* parse_postfix(Parser* p) {
 }
 
 static ASTNode* parse_unary(Parser* p) {
-    // Prefix ++ ve --
-    if (match(p, TOKEN_INC) || match(p, TOKEN_DEC)) {
+    if (match(p, TOKEN_INC) || match(p, TOKEN_DEC) ||
+        match(p, TOKEN_NOT) || match(p, TOKEN_MINUS) || match(p, TOKEN_BIT_NOT)) {
         OmniTokenType op = p->previous.type;
         ASTNode* operand = parse_unary(p);
+        ASTUnaryExpr* unary;
         if (!operand) return NULL;
-        ASTUnaryExpr* unary = (ASTUnaryExpr*)ast_create(AST_UNARY_EXPR);
-        unary->base.line = p->previous.line;
-        unary->base.col = p->previous.col;
-        unary->op = op;
-        unary->operand = operand;
-        return (ASTNode*)unary;
-    }
-    if (match(p, TOKEN_NOT) || match(p, TOKEN_MINUS) || match(p, TOKEN_BIT_NOT)) {
-        OmniTokenType op = p->previous.type;
-        ASTNode* operand = parse_unary(p);
-        if (!operand) return NULL;
-        ASTUnaryExpr* unary = (ASTUnaryExpr*)ast_create(AST_UNARY_EXPR);
+        unary = (ASTUnaryExpr*)ast_create(AST_UNARY_EXPR);
+        if (!unary) {
+            ast_destroy(operand);
+            return NULL;
+        }
         unary->base.line = p->previous.line;
         unary->base.col = p->previous.col;
         unary->op = op;
