@@ -321,6 +321,31 @@ set_target_properties(occ_parser_stage PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
+# Independent lexer DLL: SOURCE_UNIT -> TOKEN_STREAM (+ optional DIAGNOSTICS).
+add_library(occ_lexer_stage SHARED
+    "${C_SOURCE_DIR}/module/lexer_stage_module.c"
+)
+target_compile_definitions(occ_lexer_stage PRIVATE OCC_BUILD_MODULE)
+target_include_directories(occ_lexer_stage PRIVATE
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+    "${C_PARSER_DIR}"
+)
+target_link_libraries(occ_lexer_stage PRIVATE
+    occ_module_abi
+    occ_frontend
+    occ_oir
+    occ_oir_token_stream
+    occ_oir_diagnostics
+)
+set_target_properties(occ_lexer_stage PROPERTIES
+    OUTPUT_NAME "occ_lexer_stage"
+    RUNTIME_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
+    LIBRARY_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
+    POSITION_INDEPENDENT_CODE ON
+)
+
 
 # strdup is POSIX rather than ISO C11. Expose its declaration on POSIX
 # toolchains and map it to the Microsoft CRT spelling on MSVC.
@@ -388,7 +413,7 @@ target_link_libraries(occ PRIVATE
     occ_oir_ast_node_table
     ${CMAKE_DL_LIBS}
 )
-add_dependencies(occ occ_parser_stage)
+add_dependencies(occ occ_parser_stage occ_lexer_stage)
 
 if(MSVC)
     target_compile_options(occ_module_abi PRIVATE /W4)
@@ -450,6 +475,12 @@ if(BUILD_TESTING)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:occ_parser_stage>"
             "${C_LOCALE_TEST_DIR}/$<TARGET_FILE_NAME:occ_parser_stage>"
+        VERBATIM
+    )
+    add_custom_command(TARGET occ POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:occ_lexer_stage>"
+            "${C_LOCALE_TEST_DIR}/$<TARGET_FILE_NAME:occ_lexer_stage>"
         VERBATIM
     )
 
@@ -730,6 +761,26 @@ if(BUILD_TESTING)
     add_dependencies(test_parser_stage_module occ_parser_stage)
     add_test(NAME real_parser_stage_source_token_to_ast_module
         COMMAND test_parser_stage_module "$<TARGET_FILE:occ_parser_stage>")
+
+    add_executable(test_lexer_stage_module
+        "${C_SOURCE_DIR}/tests/test_lexer_stage_module.c"
+    )
+    target_link_libraries(test_lexer_stage_module PRIVATE
+        occ_module_loader
+        occ_oir
+        occ_oir_token_stream
+        occ_oir_diagnostics
+    )
+    add_dependencies(test_lexer_stage_module occ_lexer_stage)
+    if(MSVC)
+        target_compile_options(test_lexer_stage_module PRIVATE /W4)
+        target_compile_options(occ_lexer_stage PRIVATE /W4)
+    else()
+        target_compile_options(test_lexer_stage_module PRIVATE -Wall -Wextra)
+        target_compile_options(occ_lexer_stage PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME real_lexer_stage_source_to_token_stream_module
+        COMMAND test_lexer_stage_module "$<TARGET_FILE:occ_lexer_stage>")
 
     add_executable(test_occ_module_loader
         "${C_SOURCE_DIR}/tests/test_occ_module_loader.c"
