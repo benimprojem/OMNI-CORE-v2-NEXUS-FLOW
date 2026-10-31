@@ -43,7 +43,7 @@ Sections:
 | `OIR_SECTION_SEMANTIC_CONVERSIONS` | optional | Explicit conversion/promotion decisions. Empty/absent means no conversion was inserted or recorded; it does not imply that promotion rules are complete. |
 | `OIR_SECTION_DIAGNOSTICS` | optional | Serialized semantic diagnostics for checkpoint/replay inspection. The host callback remains authoritative for the live job collector. |
 
-The semantic section IDs are proposed additions after the currently assigned OIR section IDs 1–6. They must be added to the central registry before codec implementation. A reader rejects unknown required sections and may skip unknown optional sections.
+The semantic section IDs are registered additions after the previously assigned OIR section IDs 1–6: SCOPES=7, TYPES=8, SYMBOLS=9, ANNOTATIONS=10, RELATIONS=11 and CONVERSIONS=12. A reader rejects unknown required sections and may skip unknown optional sections.
 
 The AST payload is embedded as the payload section, not as a nested OIR container. This lets the existing AST node-table reader consume the exact payload slice and avoids duplicating the 44-byte OIR header.
 
