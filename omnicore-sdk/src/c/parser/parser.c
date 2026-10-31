@@ -179,7 +179,7 @@ static Token parser_next_token(ParserContext* ctx) {
     return lexer_next_token(ctx);
 }
 
-static void parser_add_error(ParserContext* ctx, ErrorCode code, int line, int col, const char* message);
+static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int col, const char* message, const char* suggestion, const char* hint, int similarity, int is_warning, const OccSourceSpan* source_span);
 
 static void error_at(Parser* p, Token* token, ErrorCode code, const char* message) {
     if (p->panic_mode) return;
@@ -2011,10 +2011,6 @@ int parser_attach_token_stream(
     ctx->token_stream_count = token_count;
     ctx->token_stream_index = 0;
     return 1;
-}
-
-static void parser_add_error(ParserContext* ctx, ErrorCode code, int line, int col, const char* message) {
-    parser_add_issue(ctx, code, line, col, message, NULL, NULL, 0, 0, NULL);
 }
 
 void parser_print_errors(ParserContext* ctx) {
