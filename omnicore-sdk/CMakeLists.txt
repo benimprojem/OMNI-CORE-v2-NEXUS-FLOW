@@ -388,6 +388,7 @@ target_link_libraries(occ PRIVATE
     occ_oir_ast_node_table
     ${CMAKE_DL_LIBS}
 )
+add_dependencies(occ occ_parser_stage)
 
 if(MSVC)
     target_compile_options(occ_module_abi PRIVATE /W4)
@@ -443,6 +444,12 @@ if(BUILD_TESTING)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:occ>"
             "${C_LOCALE_TEST_DIR}/occ${CMAKE_EXECUTABLE_SUFFIX}"
+        VERBATIM
+    )
+    add_custom_command(TARGET occ POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:occ_parser_stage>"
+            "${C_LOCALE_TEST_DIR}/$<TARGET_FILE_NAME:occ_parser_stage>"
         VERBATIM
     )
 
