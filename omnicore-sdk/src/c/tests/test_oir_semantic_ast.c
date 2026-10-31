@@ -637,12 +637,13 @@ int main(void) {
 
         memcpy(conversion_bad, conversion_bytes, conversion_written);
         write_u32(conversion_bad + OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE +
-            OIR_SEMANTIC_CONVERSION_RECORD_SIZE, 4u);
+            OIR_SEMANTIC_CONVERSION_RECORD_SIZE, 3u);
         assert(oir_semantic_conversions_open(conversion_bad,
             conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
 
         memcpy(conversion_bad, conversion_bytes, conversion_written);
-        write_u32(conversion_bad + OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE, 3u);
+        write_u32(conversion_bad + OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE +
+            OIR_SEMANTIC_CONVERSION_RECORD_SIZE + 4u, 0u);
         assert(oir_semantic_conversions_open(conversion_bad,
             conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
 
