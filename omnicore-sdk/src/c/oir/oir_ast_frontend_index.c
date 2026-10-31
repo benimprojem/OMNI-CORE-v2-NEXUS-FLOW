@@ -97,8 +97,13 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
         case AST_UNARY_EXPR:
         case AST_POSTFIX_EXPR:
         case AST_RETURN:
-        case AST_CAST:
             return field_id == 2u ? ((const ASTUnaryExpr*)node)->operand : NULL;
+        case AST_CAST: {
+            const ASTCast* cast = (const ASTCast*)node;
+            if (field_id == 1u) return cast->value;
+            if (field_id == 2u) return cast->target_type;
+            return NULL;
+        }
         case AST_FUNC_CALL:
         case AST_SPAWN:
         case AST_ECHO:
