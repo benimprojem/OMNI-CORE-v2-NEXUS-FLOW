@@ -266,6 +266,23 @@ static const OccStageModuleV1 g_semantic_module={
      (uint64_t)OCC_MODULE_CAP_DETERMINISTIC|(uint64_t)OCC_MODULE_CAP_DIAGNOSTIC_REPORTING,
      "nexsus-semantic"},semantic_process
 };
+/*
+ * The host must stop all invocations before unloading a module. At that point
+ * the immutable message catalog can be released without racing msg_get().
+ */
+#if defined(_WIN32)
+BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
+    (void)instance; (void)reserved;
+    if (reason == DLL_PROCESS_DETACH) msg_destroy();
+    return TRUE;
+}
+#else
+__attribute__((destructor))
+static void semantic_stage_unload_messages(void) {
+    msg_destroy();
+}
+#endif
+
 OCC_MODULE_EXPORT const OccStageModuleV1* OCC_MODULE_CALL occ_get_stage_module_v1(void) {
     return &g_semantic_module;
 }
