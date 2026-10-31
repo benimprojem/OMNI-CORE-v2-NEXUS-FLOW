@@ -21,6 +21,7 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [OIR v1 ortak artifact formatı](OIR_FORMAT.md)
 - [OIR_MODULE — SSA tabanlı ara temsil taslağı](OIR_MODULE.md)
 - [OIR_LOWERING_PLAN — IR Lowering aşamalı uygulama planı](OIR_LOWERING_PLAN.md)
+- [FRONTEND_COMPLETENESS_AUDIT — Lexer, Parser, AST ve Semantic tamlık denetimi](FRONTEND_COMPLETENESS_AUDIT.md)
 - [OIR SOURCE_UNIT, TOKEN_STREAM ve DIAGNOSTICS payload şemaları](OIR_PAYLOAD_SCHEMAS.md)
 - [OIR token ID registry](OIR_TOKEN_REGISTRY.md)
 - [OIR AST node ve field ID registry](OIR_AST_NODE_REGISTRY.md)
