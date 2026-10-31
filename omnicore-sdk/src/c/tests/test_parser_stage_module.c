@@ -141,6 +141,74 @@ int main(int argc,char** argv) {
     CHECK(output_view.header.artifact_kind==OIR_KIND_AST);
     CHECK(output_view.header.validity==OIR_VALIDITY_VALID);
     CHECK(output_view.header.job_id==42u);
+
+    /* Invalid source must report exact token coordinates and publish no AST. */
+    {
+        static const uint8_t bad_source[]="v:x = ;\\n";
+        static const uint8_t bad_path[]="invalid-parser-stage-test.nxf";
+        uint8_t bad_source_payload[256],bad_source_artifact[512];
+        uint8_t bad_token_payload[OIR_TOKEN_STREAM_HEADER_SIZE+32u*OIR_TOKEN_STREAM_RECORD_SIZE];
+        uint8_t bad_token_artifact[OIR_TOKEN_STREAM_HEADER_SIZE+32u*OIR_TOKEN_STREAM_RECORD_SIZE+128u];
+        OirTokenStreamInput bad_inputs[32];
+        Token bad_tokens[32];
+        size_t bad_count=0,bad_source_payload_len=0,bad_source_artifact_len=0;
+        size_t bad_token_payload_len=0,bad_token_artifact_len=0;
+        OccDiagnosticView diagnostic_view;
+        OirArtifactView rejected_view;
+        if(lexer_context) { parser_destroy(lexer_context); lexer_context=NULL; }
+        lexer_context=parser_init_source("invalid-parser-stage-test.nxf",
+            bad_source,sizeof(bad_source)-1u);
+        CHECK(lexer_context!=NULL);
+        for(;;) {
+            Token token=lexer_next_token(lexer_context);
+            CHECK(bad_count<32u);
+            bad_tokens[bad_count]=token;
+            CHECK(oir_token_stream_input_from_lexer_token(
+                &bad_tokens[bad_count],&bad_inputs[bad_count])==OIR_STATUS_OK);
+            ++bad_count;
+            if(token.type==TOKEN_EOF) break;
+            CHECK(token.type!=TOKEN_ERROR);
+        }
+        CHECK(oir_source_unit_write(bad_source_payload,sizeof(bad_source_payload),0u,
+            bad_path,(uint32_t)(sizeof(bad_path)-1u),bad_source,
+            sizeof(bad_source)-1u,&bad_source_payload_len)==OIR_STATUS_OK);
+        section.data=bad_source_payload;
+        section.length=bad_source_payload_len;
+        CHECK(oir_artifact_write(bad_source_artifact,sizeof(bad_source_artifact),
+            &header,&section,1u,&bad_source_artifact_len)==OIR_STATUS_OK);
+        CHECK(oir_token_stream_write(bad_token_payload,sizeof(bad_token_payload),
+            0u,sizeof(bad_source)-1u,0u,bad_inputs,(uint32_t)bad_count,
+            &bad_token_payload_len)==OIR_STATUS_OK);
+        header.artifact_kind=OIR_KIND_TOKEN_STREAM;
+        header.payload_schema_major=OIR_TOKEN_STREAM_SCHEMA_MAJOR;
+        header.payload_schema_minor=OIR_TOKEN_STREAM_SCHEMA_MINOR;
+        section.data=bad_token_payload;
+        section.length=bad_token_payload_len;
+        CHECK(oir_artifact_write(bad_token_artifact,sizeof(bad_token_artifact),
+            &header,&section,1u,&bad_token_artifact_len)==OIR_STATUS_OK);
+        inputs[0].bytes=bad_source_artifact;
+        inputs[0].length=bad_source_artifact_len;
+        inputs[1].bytes=bad_token_artifact;
+        inputs[1].length=bad_token_artifact_len;
+        invocation.output_buffer=NULL;
+        invocation.output_capacity=0u;
+        memset(&result,0,sizeof(result));
+        result.struct_size=(uint32_t)sizeof(result);
+        CHECK(module->process(&invocation,&result)==OCC_MODULE_STATUS_FAILED);
+        CHECK(result.output_validity==OIR_VALIDITY_NONE);
+        CHECK(result.bytes_written==0u);
+        CHECK(result.diagnostics_count==1u);
+        CHECK(occ_diagnostics_count(&collector)==1u);
+        CHECK(occ_diagnostics_get(&collector,0u,&diagnostic_view));
+        CHECK(diagnostic_view.record->stage_id==OCC_STAGE_PARSER);
+        CHECK(diagnostic_view.record->span.start_offset==6u);
+        CHECK(diagnostic_view.record->span.end_offset==7u);
+        CHECK(diagnostic_view.record->span.start_line==1u);
+        CHECK(diagnostic_view.record->span.start_column==7u);
+        CHECK(diagnostic_view.record->span.end_line==1u);
+        CHECK(diagnostic_view.record->span.end_column==8u);
+        CHECK(oir_artifact_open(output,(size_t)result.bytes_written,&rejected_view)!=OIR_STATUS_OK);
+    }
     exit_code=0;
     puts("Real parser stage shared-module test passed.");
 
