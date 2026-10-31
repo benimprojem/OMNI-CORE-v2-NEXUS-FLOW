@@ -5,7 +5,14 @@
 #include "oir_ast_frontend_index.h"
 #include "oir_ast_node_table.h"
 #include "oir_semantic_ast_artifact.h"
+#include <stdio.h>
 #include <stdlib.h>
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#define _GNU_SOURCE
+#include <dlfcn.h>
+#endif
 #include <string.h>
 
 #define SEMANTIC_INDEX_MAX ((size_t)2097152u)
@@ -14,6 +21,66 @@ typedef struct SemanticResolver {
     size_t capacity;
 } SemanticResolver;
 static const OccStageModuleV1 g_semantic_module;
+
+/* Each DLL owns its message catalog; resolve it beside the loaded module. */
+static void semantic_stage_init_messages(void) {
+    char module_path[4096], base_dir[4096], config_path[4096];
+    char language[16] = "en", language_relative[64], message_path[4096];
+    FILE* config;
+    char line[256];
+    char* separator;
+#if defined(_WIN32)
+    HMODULE module_handle = NULL;
+    DWORD length;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)(uintptr_t)&semantic_stage_init_messages, &module_handle)) return;
+    length = GetModuleFileNameA(module_handle, module_path, (DWORD)sizeof(module_path));
+    if (length == 0u || length >= sizeof(module_path)) return;
+    module_path[length] = '\\0';
+#else
+    Dl_info info;
+    if (!dladdr((void*)(uintptr_t)&semantic_stage_init_messages, &info) ||
+        !info.dli_fname) return;
+    if (strlen(info.dli_fname) >= sizeof(module_path)) return;
+    strcpy(module_path, info.dli_fname);
+#endif
+    separator = strrchr(module_path, '/');
+#if defined(_WIN32)
+    {
+        char* backslash = strrchr(module_path, '\\\\');
+        if (backslash && (!separator || backslash > separator)) separator = backslash;
+    }
+#endif
+    if (!separator) return;
+    *separator = '\\0';
+    if (snprintf(config_path, sizeof(config_path), "%s/occ.ocf", module_path) < 0) return;
+    config = fopen(config_path, "r");
+    if (config) {
+        while (fgets(line, sizeof(line), config)) {
+            char* p = line;
+            char* end;
+            while (*p == ' ' || *p == '\\t') ++p;
+            if (strncmp(p, "language", 8u) != 0) continue;
+            p += 8u;
+            while (*p == ' ' || *p == '\\t') ++p;
+            if (*p++ != '=') continue;
+            while (*p == ' ' || *p == '\\t') ++p;
+            if (*p++ != '"') continue;
+            end = strchr(p, '"');
+            if (!end) continue;
+            *end = '\\0';
+            if (p[0] && strlen(p) < sizeof(language)) strcpy(language, p);
+            break;
+        }
+        fclose(config);
+    }
+    if (snprintf(language_relative, sizeof(language_relative),
+        "lang/messages_%s.conf", language) < 0) return;
+    if (snprintf(message_path, sizeof(message_path), "%s/%s",
+        module_path, language_relative) < 0) return;
+    msg_init(message_path);
+}
 
 static OirStatus find_payload(const OirArtifactView* artifact, uint16_t type,
                               OirSectionView* out) {
@@ -74,6 +141,7 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
     SemanticResolver resolver; SemanticContext sem; OccDiagnosticCollector diags;
     int sem_init=0,diag_init=0; OirStatus st; uint32_t rc=OCC_MODULE_STATUS_FAILED;
     memset(&sem,0,sizeof(sem)); memset(&resolver,0,sizeof(resolver));
+    semantic_stage_init_messages();
     out->bytes_written=0u; out->required_output_capacity=0u; out->output_validity=OIR_VALIDITY_NONE;
     out->failure_code=0u; out->diagnostics_count=0u;
     if(occ_module_validate_invocation_v1(&g_semantic_module.descriptor,inv,out)!=OCC_MODULE_STATUS_OK||inv->input_count!=1u)
