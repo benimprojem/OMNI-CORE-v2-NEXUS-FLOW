@@ -51,6 +51,14 @@ add_library(occ_oir STATIC
 
 target_include_directories(occ_oir PUBLIC "${C_SOURCE_DIR}/oir")
 
+# SEMANTIC_AST section codecs use caller-owned records and bounded zero-copy views.
+add_library(occ_oir_semantic_ast STATIC
+    "${C_SOURCE_DIR}/oir/oir_semantic_ast.c"
+)
+target_include_directories(occ_oir_semantic_ast PUBLIC "${C_SOURCE_DIR}/oir")
+target_link_libraries(occ_oir_semantic_ast PUBLIC occ_oir)
+set_target_properties(occ_oir_semantic_ast PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # Host-side validator for the versioned ABI used by independently loaded stages.
 add_library(occ_module_abi STATIC "${C_SOURCE_DIR}/module/occ_module_api.c")
 target_include_directories(occ_module_abi PUBLIC
@@ -854,6 +862,18 @@ if(BUILD_TESTING)
         target_compile_options(test_oir PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME oir_container_roundtrip_and_validation COMMAND test_oir)
+
+    add_executable(test_oir_semantic_ast
+        "${C_SOURCE_DIR}/tests/test_oir_semantic_ast.c"
+    )
+    target_link_libraries(test_oir_semantic_ast PRIVATE occ_oir_semantic_ast)
+    if(MSVC)
+        target_compile_options(test_oir_semantic_ast PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_semantic_ast PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_semantic_ast_scope_codec_roundtrip_and_validation
+        COMMAND test_oir_semantic_ast)
 
     add_executable(test_lexer "${C_SOURCE_DIR}/tests/test_lexer.c")
     target_include_directories(test_lexer PRIVATE "${C_PARSER_DIR}")
