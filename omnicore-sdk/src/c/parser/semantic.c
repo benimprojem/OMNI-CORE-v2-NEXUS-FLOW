@@ -510,7 +510,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                 }
 
-                add_slot(ctx, decl->name, SLOT_VAR, decl->is_const, decl->type_name);
+                add_slot(ctx, decl->name, SLOT_VAR, decl->is_const, decl->type_name, node, 0, 0);
                 printf("%s: %s (%s)\n", msg_get(MSG_SEMANTIC_SLOT), decl->name, decl->is_const ? "CONST" : "MUT");
             }
             
@@ -602,7 +602,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_REDEFINED), capture->handler_name); // Handler için de REDEFINED kullanabiliriz veya yeni kod
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                add_slot(ctx, capture->handler_name, SLOT_VAR, 0, NULL); // Handler'lar genelde mutable'dır
+                add_slot(ctx, capture->handler_name, SLOT_VAR, 0, NULL, node, 1, 0); // Handler'lar genelde mutable'dır
                 printf("%s: %s\n", msg_get(MSG_SEMANTIC_HANDLER), capture->handler_name);
             }
             if (capture->expr) semantic_check(ctx, capture->expr);
@@ -634,7 +634,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_FUNC_REDEFINED), func->name);
                     report_error(ctx, node, ERR_SEMANTIC_FUNC_REDEFINED, buf);
                 } else {
-                    Slot* s = add_slot(ctx, func->name, SLOT_FUNC, 1, func->return_type);
+                    Slot* s = add_slot(ctx, func->name, SLOT_FUNC, 1, func->return_type, node, 0, 0);
                     
                     // Parametre bilgilerini kaydet
                     int p_count = 0;
@@ -657,7 +657,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             
             const char* prev_return_type = ctx->current_func_return_type;
             ctx->current_func_return_type = func->return_type;
-            enter_scope(ctx);
+            enter_scope(ctx, node);
             if (func->params) semantic_check(ctx, func->params);
             if (func->body) semantic_check(ctx, func->body);
             exit_scope(ctx);
@@ -743,8 +743,9 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     snprintf(buf, sizeof(buf), "Type '%s' already defined.", sdecl->name);
                     report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
                 } else {
-                    Slot* s = add_slot(ctx, sdecl->name, sdecl->is_union ? SLOT_UNION : SLOT_STRUCT, 1, NULL);
+                    Slot* s = add_slot(ctx, sdecl->name, sdecl->is_union ? SLOT_UNION : SLOT_STRUCT, 1, NULL, node, 0, sdecl->is_packed);
                     s->is_packed = sdecl->is_packed;
+                    semantic_define_named_type(ctx, s, sdecl->name, NULL);
                     
                     // Alanları kaydet
                     ASTNode* field_node = sdecl->fields;
@@ -825,7 +826,8 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 snprintf(buf, sizeof(buf), "Type '%s' already defined.", edecl->name);
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                Slot* s = add_slot(ctx, edecl->name, SLOT_ENUM, 1, NULL);
+                Slot* s = add_slot(ctx, edecl->name, SLOT_ENUM, 1, NULL, node, 0, 0);
+                semantic_define_named_type(ctx, s, edecl->name, NULL);
                 
                 ASTNode* var_node = edecl->variants;
                 FieldInfo* last_var = NULL;
@@ -883,7 +885,8 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 snprintf(buf, sizeof(buf), "Type '%s' already defined.", nt->name);
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                add_slot(ctx, nt->name, SLOT_NEWTYPE, 1, nt->target_type);
+                Slot* newtype_slot = add_slot(ctx, nt->name, SLOT_NEWTYPE, 1, nt->target_type, node, 0, 0);
+                semantic_define_named_type(ctx, newtype_slot, nt->name, nt->target_type);
                 printf("[SEMANTIC] Registered NEWTYPE: %s -> %s\n", nt->name, nt->target_type);
             }
             break;
@@ -902,7 +905,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         // Implicit declaration: v:name
                         ASTIdentifier* id = (ASTIdentifier*)loop->variable;
                         if (!find_slot(ctx, id->name)) {
-                            add_slot(ctx, id->name, SLOT_VAR, 0, "any");
+                            add_slot(ctx, id->name, SLOT_VAR, 0, "any", (ASTNode*)id, 1, 0);
                             printf("[SEMANTIC] Implicit loop variable: %s\n", id->name);
                         }
                         semantic_check(ctx, loop->variable);
@@ -918,7 +921,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         // Implicit: loop(i, ...) -> v:i = 0
                         ASTIdentifier* id = (ASTIdentifier*)loop->init;
                         if (!find_slot(ctx, id->name)) {
-                            add_slot(ctx, id->name, SLOT_VAR, 0, "i32");
+                            add_slot(ctx, id->name, SLOT_VAR, 0, "i32", (ASTNode*)id, 1, 0);
                             printf("[SEMANTIC] Implicit loop counter: %s\n", id->name);
                         }
                         semantic_check(ctx, loop->init);
@@ -929,7 +932,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                             ASTIdentifier* id = (ASTIdentifier*)assign->left;
                             if (!find_slot(ctx, id->name)) {
                                 const char* type = get_expr_type(ctx, assign->right);
-                                add_slot(ctx, id->name, SLOT_VAR, 0, type ? type : "i32");
+                                add_slot(ctx, id->name, SLOT_VAR, 0, type ? type : "i32", (ASTNode*)id, 1, 0);
                                 printf("[SEMANTIC] Implicit loop variable: %s\n", id->name);
                             }
                         }
@@ -945,7 +948,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         ASTBinaryExpr* bin = (ASTBinaryExpr*)loop->condition;
                         if (bin->op == TOKEN_RANGE) {
                              if (!find_slot(ctx, "it")) {
-                                add_slot(ctx, "it", SLOT_VAR, 0, "i32");
+                                add_slot(ctx, "it", SLOT_VAR, 0, "i32", node, 1, 0);
                                 printf("[SEMANTIC] Implicit range variable: it\n");
                             }
                         }
@@ -967,7 +970,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 snprintf(buf, sizeof(buf), "Label '%s' already defined.", lbl->label_name);
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                add_slot(ctx, lbl->label_name, SLOT_LABEL, 1, NULL);
+                add_slot(ctx, lbl->label_name, SLOT_LABEL, 1, NULL, node, 0, 0);
                 printf("[SEMANTIC] Label defined: %s\n", lbl->label_name);
             }
             if (lbl->statement) semantic_check(ctx, lbl->statement);
@@ -1012,7 +1015,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             ASTNexusCapture* listen = (ASTNexusCapture*)node;
             // Listen bloğu içinde 'global_listener' slotu veya benzeri bir kapsam açılabilir
             enter_scope(ctx);
-            add_slot(ctx, listen->handler_name, SLOT_VAR, 1, "any");
+            add_slot(ctx, listen->handler_name, SLOT_VAR, 1, "any", node, 1, 0);
             if (listen->expr) semantic_check(ctx, listen->expr);
             exit_scope(ctx);
             break;
