@@ -58,7 +58,19 @@ target_include_directories(occ_module_abi PUBLIC
     "${C_SOURCE_DIR}/oir"
 )
 target_link_libraries(occ_module_abi PUBLIC occ_oir)
+
 set_target_properties(occ_module_abi PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# A tiny pass-through stage proves the shared-library ABI and ownership rules.
+add_library(occ_test_passthrough_module SHARED
+    "${C_SOURCE_DIR}/tests/sample_stage_module.c"
+)
+target_compile_definitions(occ_test_passthrough_module PRIVATE OCC_BUILD_MODULE)
+target_include_directories(occ_test_passthrough_module PRIVATE "${C_SOURCE_DIR}/core")
+target_link_libraries(occ_test_passthrough_module PRIVATE occ_module_abi)
+set_target_properties(occ_test_passthrough_module PROPERTIES
+    OUTPUT_NAME "occ_test_passthrough"
+)
 
 # Job-owned diagnostics collector; modules report through a host-owned context.
 add_library(occ_diagnostics STATIC
@@ -558,6 +570,19 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME oir_ast_frontend_reader_all_kinds_validate_before_materialize
         COMMAND test_oir_ast_frontend_reader)
+
+    add_executable(test_dynamic_stage_module "${C_SOURCE_DIR}/tests/test_dynamic_stage_module.c")
+    target_link_libraries(test_dynamic_stage_module PRIVATE occ_module_abi ${CMAKE_DL_LIBS})
+    add_dependencies(test_dynamic_stage_module occ_test_passthrough_module)
+    if(MSVC)
+        target_compile_options(test_dynamic_stage_module PRIVATE /W4)
+        target_compile_options(occ_test_passthrough_module PRIVATE /W4)
+    else()
+        target_compile_options(test_dynamic_stage_module PRIVATE -Wall -Wextra)
+        target_compile_options(occ_test_passthrough_module PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME dynamic_stage_module_load_process_unload
+        COMMAND test_dynamic_stage_module "$<TARGET_FILE:occ_test_passthrough_module>")
 
     add_executable(test_module_abi "${C_SOURCE_DIR}/tests/test_module_abi.c")
     target_link_libraries(test_module_abi PRIVATE occ_module_abi occ_diagnostics)
