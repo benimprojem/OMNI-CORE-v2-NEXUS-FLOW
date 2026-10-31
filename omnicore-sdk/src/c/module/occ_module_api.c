@@ -138,7 +138,8 @@ uint32_t occ_module_validate_invocation_v1(
         invocation->input_count>descriptor->max_input_count ||
         (invocation->input_count && !invocation->inputs) ||
         (invocation->output_capacity && !invocation->output_buffer) ||
-        invocation->flags!=0u ||\n        !valid_diagnostic_sink(descriptor, &invocation->diagnostic_sink)) {
+        invocation->flags!=0u ||
+        !valid_diagnostic_sink(descriptor, &invocation->diagnostic_sink)) {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
 #if SIZE_MAX < UINT64_MAX
