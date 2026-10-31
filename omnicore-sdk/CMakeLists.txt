@@ -211,6 +211,23 @@ target_link_libraries(occ_oir_ast_frontend_reader PUBLIC
 )
 set_target_properties(occ_oir_ast_frontend_reader PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# OIR container adapter for parser-produced AST checkpoints.
+add_library(occ_oir_ast_artifact STATIC
+    "${C_SOURCE_DIR}/oir/oir_ast_artifact.c"
+)
+target_include_directories(occ_oir_ast_artifact PUBLIC
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+    "${C_PARSER_DIR}"
+)
+target_link_libraries(occ_oir_ast_artifact PUBLIC
+    occ_oir
+    occ_diagnostics
+    occ_oir_ast_frontend_writer
+    occ_oir_ast_frontend_reader
+)
+set_target_properties(occ_oir_ast_artifact PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # strdup is POSIX rather than ISO C11. Expose its declaration on POSIX
 # toolchains and map it to the Microsoft CRT spelling on MSVC.
 if(MSVC)
@@ -281,6 +298,7 @@ if(MSVC)
     target_compile_options(occ_oir_ast_frontend_index PRIVATE /W4)
     target_compile_options(occ_oir_ast_frontend_writer PRIVATE /W4)
     target_compile_options(occ_oir_ast_frontend_reader PRIVATE /W4)
+    target_compile_options(occ_oir_ast_artifact PRIVATE /W4)
     target_compile_options(occ_frontend PRIVATE /W4)
     target_compile_options(occ_codegen PRIVATE /W4)
     target_compile_options(occ PRIVATE /W4)
@@ -298,6 +316,7 @@ else()
     target_compile_options(occ_oir_ast_frontend_index PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_ast_frontend_writer PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_ast_frontend_reader PRIVATE -Wall -Wextra)
+    target_compile_options(occ_oir_ast_artifact PRIVATE -Wall -Wextra)
     target_compile_options(occ_frontend PRIVATE -Wall -Wextra)
     target_compile_options(occ_codegen PRIVATE -Wall -Wextra)
     target_compile_options(occ PRIVATE -Wall -Wextra)
@@ -528,6 +547,16 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME oir_ast_frontend_reader_all_kinds_validate_before_materialize
         COMMAND test_oir_ast_frontend_reader)
+
+    add_executable(test_oir_ast_artifact "${C_SOURCE_DIR}/tests/test_oir_ast_artifact.c")
+    target_link_libraries(test_oir_ast_artifact PRIVATE occ_oir_ast_artifact)
+    if(MSVC)
+        target_compile_options(test_oir_ast_artifact PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_ast_artifact PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_ast_artifact_container_wrap_validate_and_materialize
+        COMMAND test_oir_ast_artifact)
 
     add_executable(test_oir_token_map "${C_SOURCE_DIR}/tests/test_oir_token_map.c")
     target_link_libraries(test_oir_token_map PRIVATE occ_oir_lexer_adapter)
