@@ -566,3 +566,14 @@ Denetimde netleşen noktalar:
 - Run 41160054930 passed on Windows, Ubuntu and macOS; Ubuntu CTest 30/30, ASan/UBSan and Valgrind passed.
 - The real parser AST integration test now flips one bit at every byte of the emitted payload and submits each variant to the reader. Valid variants are materialized and destroyed; rejected variants must leave the output root NULL.
 - This is a deterministic mutation sweep, not a coverage-guided fuzzing campaign. Parser checkpoint artifact handoff and fuzz/property tooling remain future work.
+
+
+## AST payload → canonical OIR artifact adapter — 31 Ekim 2026
+
+- `oir_ast_artifact.h/.c` eklendi. AST schema 1.0 payload, OIR container header ve required PAYLOAD section içine sarılıyor.
+- Header metadata: artifact kind AST, schema 1.0, producer stage PARSER, validity VALID ve caller-supplied job ID.
+- Writer tüm AST payload ve container capacity'lerini önceden kontrol ediyor; küçük output buffer durumunda payload/output scratch yazılmadan BUFFER_TOO_SMALL dönüyor.
+- Reader OIR envelope metadata ve PAYLOAD section sürümünü kontrol ettikten sonra AST graph/schema materializer'ı çağırıyor.
+- Test: `oir_ast_artifact_container_wrap_validate_and_materialize`; metadata, round-trip, output capacity gate, yanlış artifact kind ve dış envelope geçerli iken bozuk iç graph reddi.
+- **CI run 41160379544:** Ubuntu CTest 31/31, ASan/UBSan ve macOS build/test başarılı; Windows ve Valgrind devam ediyor.
+- **Sonraki adım:** OIR AST artifact adapter'ını gerçek parser fixture integration testine bağlamak; ardından parser checkpoint artifact handoff API'sini tanımlamak.
