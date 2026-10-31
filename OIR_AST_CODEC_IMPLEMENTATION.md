@@ -181,4 +181,4 @@ It requires an AST_PROGRAM root with no sibling, validates nonnegative paired li
 
 The test covers deterministic child/sibling numbering, Nexus Flow's sparse child field IDs (2, 3, 6), repeated ownership/cycles, invalid root/sourceloc and the depth boundary. It does not yet encode node records, TLVs or strings; those are the next writer pass.
 
-CTest target: `oir_ast_frontend_index_deterministic_preorder_and_graph_rejection`. CI run 41158241944 is in progress; Ubuntu build/test and ASan/UBSan have passed.
+CTest target: `oir_ast_frontend_index_deterministic_preorder_and_graph_rejection`. CI run 41158241944 passed: Windows, Ubuntu and macOS build/test; Ubuntu ASan/UBSan and Valgrind.
