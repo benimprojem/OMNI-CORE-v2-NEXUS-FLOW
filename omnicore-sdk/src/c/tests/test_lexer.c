@@ -152,5 +152,33 @@ int main(void) {
         free(char_ctx.source_buffer);
     }
 
+    {
+        const char embedded_nul[] = { 'x', '\0', 'y' };
+        ParserContext nul_ctx;
+        Token before_nul, nul_error, after_nul, eof;
+        memset(&nul_ctx, 0, sizeof(nul_ctx));
+        nul_ctx.source_len = sizeof(embedded_nul);
+        nul_ctx.source_buffer = (char*)malloc(sizeof(embedded_nul) + 1u);
+        if (!nul_ctx.source_buffer) return 1;
+        memcpy(nul_ctx.source_buffer, embedded_nul, sizeof(embedded_nul));
+        nul_ctx.source_buffer[sizeof(embedded_nul)] = '\0';
+        nul_ctx.current_line = 1;
+        nul_ctx.current_col = 1;
+        before_nul = lexer_next_token(&nul_ctx);
+        nul_error = lexer_next_token(&nul_ctx);
+        after_nul = lexer_next_token(&nul_ctx);
+        eof = lexer_next_token(&nul_ctx);
+        if (before_nul.type != TOKEN_IDENTIFIER ||
+            nul_error.type != TOKEN_ERROR || nul_error.source_offset != 1u ||
+            nul_error.source_length != 1u ||
+            after_nul.type != TOKEN_IDENTIFIER || after_nul.source_offset != 2u ||
+            eof.type != TOKEN_EOF) {
+            fprintf(stderr, "Embedded NUL silently truncated or corrupted the source stream.\\n");
+            free(nul_ctx.source_buffer);
+            return 1;
+        }
+        free(nul_ctx.source_buffer);
+    }
+
     return 0;
 }
