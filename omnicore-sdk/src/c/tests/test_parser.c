@@ -335,9 +335,17 @@ static int test_parser_preserves_lexer_errors_during_recovery(void) {
     parser_attach_diagnostics(ctx, &diagnostics, OCC_STAGE_PARSER);
     if (parser_run(ctx) != PARSER_STATUS_SYNTAX_ERROR || !ctx->ast_root) goto done;
 
-    if (occ_diagnostics_get(&diagnostics, 0, &diagnostic) &&
-        diagnostic.record->stage_id == OCC_STAGE_LEXER) {
-        found_lexer_error = 1;
+    {
+        size_t diagnostic_index;
+        for (diagnostic_index = 0u;
+             diagnostic_index < occ_diagnostics_count(&diagnostics);
+             ++diagnostic_index) {
+            if (occ_diagnostics_get(&diagnostics, diagnostic_index, &diagnostic) &&
+                diagnostic.record->stage_id == OCC_STAGE_LEXER) {
+                found_lexer_error = 1;
+                break;
+            }
+        }
     }
     program = (ASTProgram*)ctx->ast_root;
     function = (ASTFuncDecl*)program->declarations;
