@@ -850,7 +850,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     semantic_define_named_type(ctx, s, sdecl->name, NULL);
                     semantic_record_annotation(
                         ctx, node, s, sdecl->name,
-                        SEMANTIC_RESULT_VALUE_LVALUE);
+                        SEMANTIC_RESULT_VALUE_UNSPECIFIED);
 
                     // Alanları kaydet
                     ASTNode* field_node = sdecl->fields;
@@ -949,7 +949,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 Slot* s = add_slot(ctx, edecl->name, SLOT_ENUM, 1, NULL, node, 0, 0, 0, 0u);
                 semantic_define_named_type(ctx, s, edecl->name, NULL);
                 semantic_record_annotation(
-                    ctx, node, s, edecl->name, SEMANTIC_RESULT_VALUE_LVALUE);
+                    ctx, node, s, edecl->name, SEMANTIC_RESULT_VALUE_UNSPECIFIED);
 
                 ASTNode* var_node = edecl->variants;
                 FieldInfo* last_var = NULL;
@@ -1042,7 +1042,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     ctx, newtype_slot, nt->name, nt->target_type);
                 semantic_record_annotation(
                     ctx, node, newtype_slot, nt->name,
-                    SEMANTIC_RESULT_VALUE_LVALUE);
+                    SEMANTIC_RESULT_VALUE_UNSPECIFIED);
                 printf("[SEMANTIC] Registered NEWTYPE: %s -> %s\n", nt->name, nt->target_type);
             }
             break;
@@ -1129,7 +1129,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 Slot* label_slot = add_slot(
                     ctx, lbl->label_name, SLOT_LABEL, 1, NULL, node, 0, 0, 0, 0u);
                 semantic_record_annotation(
-                    ctx, node, label_slot, NULL, SEMANTIC_RESULT_VALUE_LVALUE);
+                    ctx, node, label_slot, NULL, SEMANTIC_RESULT_VALUE_UNSPECIFIED);
                 printf("[SEMANTIC] Label defined: %s\n", lbl->label_name);
             }
             if (lbl->statement) semantic_check(ctx, lbl->statement);
