@@ -179,7 +179,7 @@ The canonical OIR module will describe, at minimum:
 - Calling convention and ABI-relevant attributes where applicable.
 - Source mapping and diagnostic attachment.
 
-The opcode set, canonical type system, memory model and ownership semantics require dedicated OIR semantic specifications. The SSA direction is established: `OIR_MODULE` uses SSA as its canonical value model. The exact merge encoding (phi instructions or block parameters), opcode registry and detailed memory/effect rules remain open. See [OIR_MODULE.md](OIR_MODULE.md) for the current design contract.
+The opcode set, canonical type system, memory model and ownership semantics require dedicated OIR semantic specifications. The SSA direction is established: `OIR_MODULE` uses SSA as its canonical value model. The canonical merge encoding is block parameters with predecessor-associated incoming values; there is no canonical phi opcode. The opcode registry and detailed memory/effect rules remain open. See [OIR_MODULE.md](OIR_MODULE.md) for the current design contract.
 
 Optimizer passes consume and produce the same `OIR_MODULE` schema family, with explicit schema/version compatibility and pass metadata. A pass must not silently change program semantics.
 
