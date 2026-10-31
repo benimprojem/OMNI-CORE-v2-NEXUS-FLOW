@@ -340,7 +340,7 @@ Bu değişiklikler NEXSUS Flow gramerine yeni bir operatör veya üretim kuralı
 
 **Durum: Kullanıcı tarafından semantik ayrım netleştirildi; dokümantasyon güncellendi, compiler desteği henüz yok.**
 
-- `resource ?;`: herhangi bir uygun statement noktasında belirli bir kaynak/handler'ı kapatır veya temizler. Örnek kaynak sınıfları: açık dosya, tablo/collection handle, yüklenmiş DLL.
+- `(resource)?;`: herhangi bir uygun statement noktasında belirli bir kaynak/handler'ı kapatır veya temizler. Örnek kaynak sınıfları: açık dosya, tablo/collection handle, yüklenmiş DLL.
 - `}?;`: hemen önceki bloğun sonunda, o blokta açılmış ve hâlâ o bloğun sahipliğinde kalan tüm açık kaynakları topluca kapatır.
 - Blok dışına `_>` ile taşınan kaynak eski bloğun cleanup kümesinden çıkar. İç blok, dış kapsamdan ödünç alınmış kaynağı açık sahiplik devri olmadan kapatamaz.
 - Kapatılan kaynak geçersiz olur; sonraki kullanım semantic error olmalıdır. Cleanup deterministik ve en fazla bir kez çalışmalıdır.
@@ -348,7 +348,7 @@ Bu değişiklikler NEXSUS Flow gramerine yeni bir operatör veya üretim kuralı
 
 **Mevcut uygulama açığı:**
 
-- Lexer `?;` tokenını tanıyor ve Parser bunu isteğe bağlı expression içeren `AST_NEXUS_HALT` olarak oluşturuyor.
+- Lexer `?;` tokenını tanıyor ve Parser bunu isteğe bağlı expression içeren `AST_NEXUS_HALT` olarak oluşturuyor. Ancak `(resource)?;` biçiminde kaynak ifadesiyle ilişkilendirme ve `}?;` biçiminde blok sonu ilişkilendirmesi henüz parse edilmiyor.
 - `ASTHalt` şu an kaynak hedefini ayrı bir alan olarak taşımıyor.
 - `ASTBlock` üzerinde blok sonu cleanup işareti veya cleanup kümesi bulunmuyor.
 - Semantic analizde kaynak sahipliği/cleanup listesi ve use-after-halt denetimi henüz yok.
