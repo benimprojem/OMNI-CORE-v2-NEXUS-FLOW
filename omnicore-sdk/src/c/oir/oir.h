@@ -60,7 +60,8 @@ typedef enum OirStatus {
     OIR_STATUS_DUPLICATE_PAYLOAD,
     OIR_STATUS_UNKNOWN_REQUIRED_SECTION,
     OIR_STATUS_LENGTH_MISMATCH,
-    OIR_STATUS_OVERFLOW
+    OIR_STATUS_OVERFLOW,
+    OIR_STATUS_OUT_OF_MEMORY
 } OirStatus;
 
 /* Logical host-side header. It is encoded field-by-field, never dumped as a C struct. */
