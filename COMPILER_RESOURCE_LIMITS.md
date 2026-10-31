@@ -86,6 +86,9 @@ The Semantic DLL's durable result model has independent one-million-record ceili
 
 These are per-table representation/implementation limits, not a promise that a compilation containing all six tables at their maximums is practical. The Semantic DLL still depends on available memory for its in-memory model, AST materialization, index, and artifact scratch buffers.
 
+The Parser-to-Semantic boundary accepts only a valid AST artifact with payload schema **1.0**, producer stage **Parser**, and the same job ID as the invocation. A matching artifact kind alone is not sufficient provenance. The shared AST artifact reader and Semantic DLL both enforce the producer/schema contract before AST materialization or semantic analysis.
+
+
 ## 3. Source file size and line count
 
 ### 3.1 No fixed source line-count limit is currently specified
