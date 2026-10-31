@@ -13,6 +13,15 @@ static int write_invalid_source(const char* path) {
     return ok;
 }
 
+static int write_invalid_second_line_source(const char* path) {
+    static const char source[] = "v:x = 1;\nv:x = ;\n";
+    FILE* file = fopen(path, "wb");
+    if (!file) return 0;
+    int ok = fwrite(source, 1, sizeof(source) - 1u, file) == sizeof(source) - 1u;
+    if (fclose(file) != 0) ok = 0;
+    return ok;
+}
+
 static int write_invalid_lexical_source(const char* path) {
     static const char source[] = "v:x = \xC2\xA7;\n";
     FILE* file = fopen(path, "wb");
@@ -58,6 +67,33 @@ int main(int argc, char** argv) {
     if (!invalid_ok) {
         fprintf(stderr, "Parser did not report invalid syntax or retain its partial AST for cleanup.\n");
         return 1;
+    }
+
+    {
+        OccDiagnosticCollector line_diagnostics;
+        OccDiagnosticView diagnostic;
+        ParserContext* second_line;
+        int line_ok;
+        occ_diagnostics_init(&line_diagnostics);
+        if (!write_invalid_second_line_source(argv[2])) return 1;
+        second_line = parser_init(argv[2]);
+        if (!second_line) return 1;
+        parser_attach_diagnostics(second_line, &line_diagnostics, OCC_STAGE_PARSER);
+        (void)parser_run(second_line);
+        line_ok = occ_diagnostics_get(&line_diagnostics, 0, &diagnostic) &&
+            diagnostic.record->span.has_location &&
+            diagnostic.record->span.start_offset == 15u &&
+            diagnostic.record->span.end_offset == 16u &&
+            diagnostic.record->span.start_line == 2u &&
+            diagnostic.record->span.start_column == 7u &&
+            diagnostic.record->span.end_line == 2u &&
+            diagnostic.record->span.end_column == 8u;
+        parser_destroy(second_line);
+        occ_diagnostics_destroy(&line_diagnostics);
+        if (!line_ok) {
+            fprintf(stderr, "Parser diagnostic did not preserve the exact second-line token span.\\n");
+            return 1;
+        }
     }
 
     if (!write_invalid_lexical_source(argv[3])) return 1;
