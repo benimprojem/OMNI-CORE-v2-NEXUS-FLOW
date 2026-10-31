@@ -217,12 +217,18 @@ static int populate_ast_fixture(ASTNode* node) {
 
         case AST_UNARY_EXPR:
         case AST_RETURN:
-        case AST_POSTFIX_EXPR:
-        case AST_CAST: {
+        case AST_POSTFIX_EXPR: {
             ASTUnaryExpr* value = (ASTUnaryExpr*)node;
             value->op = TOKEN_MINUS;
             value->operand = make_identifier_fixture("unary_operand");
             return value->operand != NULL;
+        }
+
+        case AST_CAST: {
+            ASTCast* value = (ASTCast*)node;
+            value->value = make_literal_fixture();
+            value->target_type = make_identifier_fixture("i32");
+            return value->value != NULL && value->target_type != NULL;
         }
 
         case AST_TUPLE:
