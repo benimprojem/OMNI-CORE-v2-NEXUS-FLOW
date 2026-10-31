@@ -461,3 +461,15 @@ Denetimde netleşen noktalar:
 - Node table writer uses caller-owned buffers and validates before emission; no hidden allocation. Reader exposes zero-copy views.
 - **Not yet implemented:** graph ownership/cycle/orphan/depth validation, per-node required/optional field schema enforcement, frontend AST serialization/deserialization, parser checkpoint migration and stage DLL ABI freeze.
 - TLV primitive CI runs 41156342338, 41156339751, 41156324270 and 41156312919 completed successfully. Node-table CI is pending.
+
+
+## OIR AST graph validation — 31 Ekim 2026
+
+- `oir_ast_graph.h/.c` eklendi. Doğrulanmış node-table view üzerinde NODE_REF ve next_node_id kenarlarının incoming-owner sayısını çıkarıyor.
+- Root ID 1 için sıfır incoming edge, her diğer node için tam bir incoming edge şartı uygulanıyor.
+- Caller-provided incoming-count, visited ve DFS stack dizileri kullanılıyor; validator içinde bellek allocation yok.
+- Root'tan erişilebilirlik, tekrar ziyaret/cycle reddi ve 512 maksimum derinlik denetleniyor.
+- `test_oir_ast_graph.c`: geçerli child+sibling ağacı, duplicate-owner/cyclic sibling, erişilemeyen self-cycle/orphan ve 513 seviyeli child zinciri senaryolarını kapsıyor.
+- CMake hedefi `occ_oir_ast_graph`; CTest `oir_ast_graph_single_owner_reachability_and_depth`.
+- **Kalan AST codec işleri:** node-kind başına required field/type schema validation, bilinmeyen optional field politikası, frontend AST writer/reader ve gerçek AST round-trip fixture'ları. DLL ABI ve parser checkpoint migration beklemede.
+- **CI:** Graph katmanı yeni eklendi; ilgili Windows/macOS/Linux, ASan/UBSan ve Valgrind koşuları bekleniyor.
