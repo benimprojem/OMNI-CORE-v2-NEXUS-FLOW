@@ -998,4 +998,16 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME persistent_semantic_result_model_scopes_symbols_and_relations
         COMMAND test_semantic_result)
+
+    add_executable(test_semantic_result_integration
+        "${C_SOURCE_DIR}/tests/test_semantic_result_integration.c"
+    )
+    target_link_libraries(test_semantic_result_integration PRIVATE occ_frontend)
+    if(MSVC)
+        target_compile_options(test_semantic_result_integration PRIVATE /W4)
+    else()
+        target_compile_options(test_semantic_result_integration PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME semantic_checker_persistent_result_integration
+        COMMAND test_semantic_result_integration)
 endif()
