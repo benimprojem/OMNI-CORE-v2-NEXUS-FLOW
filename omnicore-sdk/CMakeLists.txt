@@ -50,8 +50,6 @@ add_library(occ_oir STATIC
 )
 
 target_include_directories(occ_oir PUBLIC "${C_SOURCE_DIR}/oir")
-target_link_libraries(occ_module_abi PUBLIC occ_oir)
-set_target_properties(occ_module_abi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Host-side validator for the versioned ABI used by independently loaded stages.
 add_library(occ_module_abi STATIC "${C_SOURCE_DIR}/module/occ_module_api.c")
