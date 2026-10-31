@@ -583,7 +583,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 semantic_record_annotation(
                     ctx, node, declared_slot, decl->type_name,
                     SEMANTIC_RESULT_VALUE_LVALUE);
-                printf("%s: %s (%s)\n", msg_get(MSG_SEMANTIC_SLOT), decl->name, decl->is_const ? "CONST" : "MUT");
             }
             
             if (decl->inline_type) {
@@ -685,7 +684,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     ctx, capture->handler_name, SLOT_VAR, 0, NULL, node, 1, 0, 0, 0u);
                 semantic_record_annotation(
                     ctx, node, handler_slot, NULL, SEMANTIC_RESULT_VALUE_LVALUE);
-                printf("%s: %s\n", msg_get(MSG_SEMANTIC_HANDLER), capture->handler_name);
             }
             if (capture->expr) semantic_check(ctx, capture->expr);
             break;
@@ -925,7 +923,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         
                         field_node = field_node->next;
                     }
-                    printf("[SEMANTIC] Registered %s: %s\n", sdecl->is_union ? "UNION" : "STRUCT", sdecl->name);
                 }
             } else {
                 // Anonymous struct (inline) - Just check fields
@@ -1044,7 +1041,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     
                     var_node = var_node->next;
                 }
-                printf("[SEMANTIC] Registered ENUM: %s\n", edecl->name);
             }
             break;
         }
@@ -1063,7 +1059,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 semantic_record_annotation(
                     ctx, node, newtype_slot, nt->name,
                     SEMANTIC_RESULT_VALUE_UNSPECIFIED);
-                printf("[SEMANTIC] Registered NEWTYPE: %s -> %s\n", nt->name, nt->target_type);
             }
             break;
         }
@@ -1082,7 +1077,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         ASTIdentifier* id = (ASTIdentifier*)loop->variable;
                         if (!find_slot(ctx, id->name)) {
                             add_slot(ctx, id->name, SLOT_VAR, 0, "any", (ASTNode*)id, 1, 0, 0, 0u);
-                            printf("[SEMANTIC] Implicit loop variable: %s\n", id->name);
                         }
                         semantic_check(ctx, loop->variable);
                     }
@@ -1098,7 +1092,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         ASTIdentifier* id = (ASTIdentifier*)loop->init;
                         if (!find_slot(ctx, id->name)) {
                             add_slot(ctx, id->name, SLOT_VAR, 0, "i32", (ASTNode*)id, 1, 0, 0, 0u);
-                            printf("[SEMANTIC] Implicit loop counter: %s\n", id->name);
                         }
                         semantic_check(ctx, loop->init);
                     } else if (loop->init->type == AST_ASSIGNMENT) {
@@ -1109,7 +1102,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                             if (!find_slot(ctx, id->name)) {
                                 const char* type = get_expr_type(ctx, assign->right);
                                 add_slot(ctx, id->name, SLOT_VAR, 0, type ? type : "i32", (ASTNode*)id, 1, 0, 0, 0u);
-                                printf("[SEMANTIC] Implicit loop variable: %s\n", id->name);
                             }
                         }
                         semantic_check(ctx, loop->init);
@@ -1125,7 +1117,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         if (bin->op == TOKEN_RANGE) {
                              if (!find_slot(ctx, "it")) {
                                 add_slot(ctx, "it", SLOT_VAR, 0, "i32", node, 1, 0, 0, 0u);
-                                printf("[SEMANTIC] Implicit range variable: it\n");
                             }
                         }
                     }
@@ -1150,7 +1141,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     ctx, lbl->label_name, SLOT_LABEL, 1, NULL, node, 0, 0, 0, 0u);
                 semantic_record_annotation(
                     ctx, node, label_slot, NULL, SEMANTIC_RESULT_VALUE_UNSPECIFIED);
-                printf("[SEMANTIC] Label defined: %s\n", lbl->label_name);
             }
             if (lbl->statement) semantic_check(ctx, lbl->statement);
             break;
@@ -1159,7 +1149,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_NEXUS_JUMP: {
             ASTNexusJump* jmp = (ASTNexusJump*)node;
             // İleriye dönük atlamalar (forward jump) olabileceği için burada kesin varlık kontrolü yapmıyoruz
-            printf("[SEMANTIC] Jump to label: %s\n", jmp->label_name);
             break;
         }
 
@@ -1247,7 +1236,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             enter_scope(ctx, node);
             if (g->members) semantic_check(ctx, g->members);
             exit_scope(ctx);
-            printf("[SEMANTIC] Analyzed GROUP: %s\n", g->name);
             break;
         }
 
