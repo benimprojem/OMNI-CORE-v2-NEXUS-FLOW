@@ -15,6 +15,11 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->current_func_return_type = NULL;
     ctx->diagnostics = NULL;
     ctx->diagnostic_stage_id = OCC_STAGE_SEMANTIC;
+    ctx->current_scope_id = 1u;
+    ctx->node_id_resolver = NULL;
+    ctx->node_id_context = NULL;
+    ctx->result_enabled = 0u;
+    ctx->result_status = semantic_result_init(&ctx->result);
 }
 
 // --- Similarity Matching (ULTRA) ---
@@ -22,6 +27,42 @@ void semantic_attach_diagnostics(SemanticContext* ctx, OccDiagnosticCollector* c
     if (!ctx) return;
     ctx->diagnostics = collector;
     ctx->diagnostic_stage_id = stage_id ? stage_id : OCC_STAGE_SEMANTIC;
+}
+
+void semantic_attach_node_id_resolver(
+    SemanticContext* ctx, SemanticNodeIdResolver resolver, void* user_context
+) {
+    if (!ctx) return;
+    ctx->node_id_resolver = resolver;
+    ctx->node_id_context = user_context;
+    ctx->result_enabled = (uint8_t)(resolver != NULL);
+    ctx->current_scope_id = 1u;
+}
+
+SemanticResultStatus semantic_finalize_result(
+    SemanticContext* ctx, uint32_t ast_node_count
+) {
+    if (!ctx) return SEMANTIC_RESULT_INVALID_ARGUMENT;
+    if (!ctx->result_enabled) return SEMANTIC_RESULT_INVALID_ARGUMENT;
+    if (ctx->result_status != SEMANTIC_RESULT_OK) return ctx->result_status;
+    ctx->result_status = semantic_result_finalize(&ctx->result, ast_node_count);
+    return ctx->result_status;
+}
+
+static void semantic_set_result_error(
+    SemanticContext* ctx, SemanticResultStatus status
+) {
+    if (ctx && ctx->result_status == SEMANTIC_RESULT_OK &&
+        status != SEMANTIC_RESULT_OK) {
+        ctx->result_status = status;
+    }
+}
+
+static uint32_t semantic_node_id(
+    const SemanticContext* ctx, const ASTNode* node
+) {
+    if (!ctx || !ctx->result_enabled || !ctx->node_id_resolver || !node) return 0u;
+    return ctx->node_id_resolver(ctx->node_id_context, node);
 }
 
 static int levenshtein(const char* s1, const char* s2) {
@@ -118,9 +159,88 @@ static Slot* find_slot(SemanticContext* ctx, const char* name) {
     return NULL;
 }
 
-static Slot* add_slot(SemanticContext* ctx, const char* name, SlotKind kind, int is_const, const char* type_name) {
+static int is_primitive_type_for_result(const char* name) {
+    static const char* const names[] = {
+        "i32", "u8", "str", "bool", "f64", "i64", "u64", "u32",
+        "u16", "i16", "i8", "f32", "char", "byte", "void", "any"
+    };
+    size_t i;
+    for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
+        if (strcmp(name, names[i]) == 0) return 1;
+    }
+    return 0;
+}
+
+static uint16_t semantic_result_symbol_kind(SlotKind kind) {
+    switch (kind) {
+        case SLOT_VAR: return SEMANTIC_RESULT_SYMBOL_VARIABLE;
+        case SLOT_FUNC: return SEMANTIC_RESULT_SYMBOL_FUNCTION;
+        case SLOT_STRUCT: return SEMANTIC_RESULT_SYMBOL_STRUCT;
+        case SLOT_UNION: return SEMANTIC_RESULT_SYMBOL_UNION;
+        case SLOT_ENUM: return SEMANTIC_RESULT_SYMBOL_ENUM;
+        case SLOT_NEWTYPE: return SEMANTIC_RESULT_SYMBOL_NEWTYPE;
+        case SLOT_LABEL: return SEMANTIC_RESULT_SYMBOL_LABEL;
+        default: return 0u;
+    }
+}
+
+static uint32_t semantic_type_id(
+    SemanticContext* ctx, const char* type_name
+) {
+    const char* name = type_name;
+    uint16_t flags = 0u;
+    uint16_t kind;
+    uint32_t referenced_symbol_id = 0u;
+    uint32_t type_id = 0u;
+    Slot* declared_type = NULL;
+    SemanticResultStatus status;
+
+    if (!ctx || !ctx->result_enabled || !type_name || !*type_name) return 0u;
+    if (*name == '!') {
+        flags |= SEMANTIC_RESULT_TYPE_FLAG_HARD;
+        ++name;
+    }
+    if (!*name) return 0u;
+
+    if (is_primitive_type_for_result(name)) {
+        kind = SEMANTIC_RESULT_TYPE_PRIMITIVE;
+    } else {
+        declared_type = find_slot(ctx, name);
+        if (declared_type && declared_type->symbol_id != 0u &&
+            (declared_type->kind == SLOT_STRUCT ||
+                declared_type->kind == SLOT_UNION ||
+                declared_type->kind == SLOT_ENUM ||
+                declared_type->kind == SLOT_NEWTYPE)) {
+            kind = SEMANTIC_RESULT_TYPE_USER_DEFINED;
+            referenced_symbol_id = declared_type->symbol_id;
+        } else {
+            kind = SEMANTIC_RESULT_TYPE_UNKNOWN;
+        }
+    }
+
+    status = semantic_result_intern_type(
+        &ctx->result, kind, flags, name, referenced_symbol_id, 0u, &type_id);
+    semantic_set_result_error(ctx, status);
+    return status == SEMANTIC_RESULT_OK ? type_id : 0u;
+}
+
+static Slot* add_slot(
+    SemanticContext* ctx,
+    const char* name,
+    SlotKind kind,
+    int is_const,
+    const char* type_name,
+    ASTNode* declaration_node,
+    int is_implicit,
+    int is_packed
+) {
     Slot* s = (Slot*)malloc(sizeof(Slot));
-    s->name = strdup(name);
+    if (!s) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return NULL;
+    }
+    memset(s, 0, sizeof(*s));
+    s->name = strdup(name ? name : "");
     s->kind = kind;
     s->is_const = is_const;
     s->depth = ctx->current_depth;
@@ -128,10 +248,93 @@ static Slot* add_slot(SemanticContext* ctx, const char* name, SlotKind kind, int
     s->param_count = 0;
     s->param_types = NULL;
     s->fields = NULL;
-    s->is_packed = 0;
+    s->is_packed = is_packed;
+    s->scope_id = ctx->current_scope_id;
+    s->type_id = semantic_type_id(ctx, type_name);
+
+    if (ctx->result_enabled) {
+        uint32_t declaration_node_id = semantic_node_id(ctx, declaration_node);
+        uint16_t result_flags = 0u;
+        if (is_const) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_CONST;
+        if (is_packed) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_PACKED;
+        if (is_implicit) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_IMPLICIT;
+        if (type_name && type_name[0] == '!') {
+            result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_HARD;
+        }
+        if (declaration_node_id == 0u || ctx->current_scope_id == 0u) {
+            semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+        } else {
+            SemanticResultStatus status = semantic_result_add_symbol(
+                &ctx->result,
+                ctx->current_scope_id,
+                declaration_node_id,
+                semantic_result_symbol_kind(kind),
+                result_flags,
+                name,
+                s->type_id,
+                &s->symbol_id);
+            semantic_set_result_error(ctx, status);
+        }
+    }
+
     s->next = ctx->head;
     ctx->head = s;
     return s;
+}
+
+static void semantic_define_named_type(
+    SemanticContext* ctx, Slot* slot, const char* type_name,
+    const char* base_type_name
+) {
+    uint32_t base_type_id = semantic_type_id(ctx, base_type_name);
+    uint32_t type_id = 0u;
+    SemanticResultStatus status;
+
+    if (!ctx || !slot || !ctx->result_enabled || slot->symbol_id == 0u) return;
+    status = semantic_result_intern_type(
+        &ctx->result,
+        SEMANTIC_RESULT_TYPE_USER_DEFINED,
+        0u,
+        type_name,
+        slot->symbol_id,
+        base_type_id,
+        &type_id);
+    semantic_set_result_error(ctx, status);
+    if (status == SEMANTIC_RESULT_OK) {
+        status = semantic_result_set_symbol_type(
+            &ctx->result, slot->symbol_id, type_id);
+        semantic_set_result_error(ctx, status);
+        if (status == SEMANTIC_RESULT_OK) slot->type_id = type_id;
+    }
+}
+
+static void semantic_record_annotation(
+    SemanticContext* ctx,
+    ASTNode* node,
+    Slot* slot,
+    const char* type_name,
+    uint16_t value_category
+) {
+    uint32_t node_id;
+    uint32_t type_id;
+    SemanticResultStatus status;
+
+    if (!ctx || !ctx->result_enabled || !node) return;
+    node_id = semantic_node_id(ctx, node);
+    type_id = slot ? slot->type_id : semantic_type_id(ctx, type_name);
+    if (node_id == 0u || ctx->current_scope_id == 0u) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+        return;
+    }
+    status = semantic_result_set_annotation(
+        &ctx->result,
+        node_id,
+        ctx->current_scope_id,
+        slot ? slot->symbol_id : 0u,
+        type_id,
+        value_category,
+        0u);
+    semantic_set_result_error(ctx, status);
 }
 
 static void destroy_slot(Slot* slot) {
@@ -159,7 +362,25 @@ static void destroy_slot(Slot* slot) {
     free(slot);
 }
 
-static void enter_scope(SemanticContext* ctx) {
+static void enter_scope(SemanticContext* ctx, ASTNode* owner_node) {
+    if (ctx->result_enabled && ctx->result_status == SEMANTIC_RESULT_OK) {
+        uint32_t owner_node_id = semantic_node_id(ctx, owner_node);
+        uint32_t new_scope_id = 0u;
+        SemanticResultStatus status;
+        if (owner_node_id == 0u || ctx->current_scope_id == 0u) {
+            semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+        } else {
+            status = semantic_result_add_scope(
+                &ctx->result,
+                ctx->current_scope_id,
+                (uint32_t)(ctx->current_depth + 1),
+                0u,
+                owner_node_id,
+                &new_scope_id);
+            semantic_set_result_error(ctx, status);
+            if (status == SEMANTIC_RESULT_OK) ctx->current_scope_id = new_scope_id;
+        }
+    }
     ctx->current_depth++;
 }
 
@@ -173,6 +394,13 @@ static void exit_scope(SemanticContext* ctx) {
         current = next;
     }
     ctx->head = current;
+    if (ctx->result_enabled && ctx->current_scope_id > 1u) {
+        const SemanticResultScope* scope =
+            &ctx->result.scopes[ctx->current_scope_id - 1u];
+        if (scope->depth == (uint32_t)ctx->current_depth) {
+            ctx->current_scope_id = scope->parent_scope_id;
+        }
+    }
     ctx->current_depth--;
 }
 
