@@ -2693,12 +2693,27 @@ int parser_attach_token_stream(
     ParserContext* ctx, const struct Token* tokens, size_t token_count
 ) {
     size_t i;
+    size_t previous_end = 0u;
     if (!ctx || !tokens || token_count == 0 ||
+        !ctx->source_buffer ||
         tokens[token_count - 1u].type != TOKEN_EOF) {
         return 0;
     }
-    for (i = 0; i + 1u < token_count; ++i) {
-        if (tokens[i].type == TOKEN_EOF) return 0;
+    for (i = 0u; i < token_count; ++i) {
+        const Token* token = &tokens[i];
+        size_t token_end;
+        if ((unsigned int)token->type > (unsigned int)TOKEN_RBRACKET ||
+            !token->start || token->length < 0 ||
+            token->line <= 0 || token->col <= 0 ||
+            token->source_offset > ctx->source_len ||
+            token->source_length > ctx->source_len - token->source_offset ||
+            token->source_offset < previous_end ||
+            (token->type == TOKEN_EOF && i + 1u != token_count) ||
+            (token->type != TOKEN_EOF && token->source_length == 0u)) {
+            return 0;
+        }
+        token_end = token->source_offset + token->source_length;
+        previous_end = token_end;
     }
     ctx->token_stream = tokens;
     ctx->token_stream_count = token_count;
