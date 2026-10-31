@@ -375,3 +375,17 @@ Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı günce
 - Struct/enum/group için pozitif ve negatif parser testleri genişletilmeli.
 - Parser genel OOM durumu ve allocation-failure injection testleri henüz yok.
 - Bu değişiklikler mevcut grammar'ı değiştirmiyor; README'de syntax güncellemesi gerekmiyor.
+
+
+## 6.18 Newtype ve anonymous aggregate parser tahsis güvenliği
+
+**Durum: İlk kontrol/cleanup düzeltmeleri uygulandı; semantik ve grammar kapsamı ayrıca doğrulanmalı.**
+
+- `nt:` token kopyası ve isim parçaları için tahsis kontrolleri eklendi; raw buffer her çıkış yolunda serbest bırakılıyor.
+- Bitişik ve ayrık struct/enum/union newtype biçimlerinde ad kopyası kontrol ediliyor.
+- C tarzı anonymous struct/union gövdesinde field parse başarısızlığı önceki field listesini ve aggregate düğümünü temizliyor.
+- C tarzı enum tanımında aggregate/variant/ad tahsisleri kontrol ediliyor; kısmi variant listesi hata durumunda temizleniyor.
+- Newtype alias düğümü, adı ve hedef tip kopyası kontrol ediliyor; hedef tip bulunamazsa kısmi düğüm temizleniyor.
+- Bu değişiklikler yeni syntax eklemiyor; mevcut biçimlerin hata yollarını güvenli hale getirmeyi hedefliyor. README grammar değişikliği gerekmiyor.
+
+**Kalan işler:** tüm declaration yollarının pozitif/negatif testleri, OOM'un ayrı fatal duruma dönüştürülmesi ve allocation-failure injection.
