@@ -95,7 +95,7 @@ The value table represents the typed entities used by operations:
 - Operation results.
 - Constants and constant aggregates.
 - Explicitly modelled addresses/references when required by an operation.
-- Block parameters or merge values if a later control-flow model adopts them.
+- Block parameters with predecessor-associated incoming values.
 
 Each value has a stable local ID, a type-table reference, a value-kind tag and a defining relation (parameter, instruction result, constant, or other registered origin). Values are not physical machine registers.
 
@@ -193,7 +193,7 @@ The exact SSA merge representation remains open:
 
 The selected form must define dominance, use-before-definition, loop back-edge handling, edge-specific incoming values and verifier behavior. SSA values have one definition; mutable source variables are lowered into new SSA values and explicit memory operations only when their semantics require addressable storage. Physical target registers remain a later register-allocation concern.
 
-The older OIR description of a DAG is interpreted as a restriction on ordinary, non-loop-carried instruction dependencies—not as a requirement that the whole program or its control-flow graph be acyclic. The control-flow graph (CFG) may contain cycles for loops, and functions may be recursive. Loop-carried values are represented explicitly at SSA merge points (using the eventual phi or block-parameter form); those back-edge relationships are not mistaken for ordinary acyclic expression dependencies. Within a basic block, the schedulable instruction-dependency graph must be acyclic. This distinction preserves dependency ordering without making loops impossible.
+The older OIR description of a DAG is interpreted as a restriction on ordinary, non-loop-carried instruction dependencies—not as a requirement that the whole program or its control-flow graph be acyclic. The control-flow graph (CFG) may contain cycles for loops, and functions may be recursive. Loop-carried values are represented explicitly as block parameters with incoming values supplied by the loop's preheader and back-edge; those back-edge relationships are not mistaken for ordinary acyclic expression dependencies. Within a basic block, the schedulable instruction-dependency graph must be acyclic. This distinction preserves dependency ordering without making loops impossible.
 
 ## 7. Calling convention and ABI policy
 
@@ -218,7 +218,7 @@ The design sequence is:
 
 1. Finalize a minimal language subset and representative source fixtures.
 2. Define the opcode registry and operation semantics for that subset.
-3. Select the SSA merge representation (phi instructions or block parameters) and specify dominance, loop-carried values and back-edge verification.
+3. Specify and implement dominance, loop-carried values and predecessor-edge verification for the selected block-parameter SSA model.
 4. Define canonical type records and the complete NEXSUS Flow numeric-promotion/conversion lattice, including forced-width behavior and unresolved mixed-type cases.
 5. Define function, block, instruction, operand and source-map wire layouts.
 6. Implement a standalone module writer/reader and verifier with malformed-input, overflow, cross-reference and deterministic round-trip tests.
