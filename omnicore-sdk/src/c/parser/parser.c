@@ -2323,7 +2323,10 @@ static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int c
         input.message_length = strlen(input.message);
         input.hint = hint ? hint : suggestion;
         input.hint_length = input.hint ? strlen(input.hint) : 0u;
-        (void)occ_diagnostics_add(ctx->diagnostics, &input);
+        if (!occ_diagnostics_add(ctx->diagnostics, &input)) {
+            ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
+            return;
+        }
     }
     Error* err = (Error*)calloc(1u, sizeof(*err));
     if (!err) {
