@@ -18,7 +18,7 @@
 
 #define CHECK(condition, message) do { \
     if (!(condition)) { \
-        fprintf(stderr, "FAIL: %s (line %d)\\n", message, __LINE__); \
+        fprintf(stderr, "FAIL: %s (line %d)\n", message, __LINE__); \
         free(bytes); \
         occ_diagnostics_destroy(&collector); \
         return 1; \
@@ -28,7 +28,7 @@
 int main(void) {
     static const char directory[] = "occ-failure-store-test";
     static const char source_path[] = "samples/repeated.nxf";
-    static const uint8_t source[] = "v:x = 1;\\nv:x = ;\\n";
+    static const uint8_t source[] = "v:x = 1;\nv:x = ;\n";
     OccDiagnosticCollector collector;
     OccDiagnosticInput input = {0};
     OccArtifactView artifact;
