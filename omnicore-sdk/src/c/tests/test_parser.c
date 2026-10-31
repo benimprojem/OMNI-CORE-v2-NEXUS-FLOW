@@ -31,7 +31,46 @@ static int write_invalid_lexical_source(const char* path) {
     return ok;
 }
 
+static int test_cast_and_panic_ast(void) {
+    static const char source[] =
+        "f:main() { v:x = cast(1, i32); panic(\"boom\"); }";
+    ParserContext* ctx = parser_init_source(
+        "cast-panic-test.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTVarDecl* variable;
+    ASTCast* cast;
+    ASTPanic* panic;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != 0 || ctx->error_count != 0 || !ctx->ast_root) goto done;
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL) goto done;
+    body = (ASTBlock*)function->body;
+    if (!body || body->base.type != AST_BLOCK) goto done;
+    variable = (ASTVarDecl*)body->statements;
+    if (!variable || variable->base.type != AST_VAR_DECL ||
+        !variable->initializer || variable->initializer->type != AST_CAST) goto done;
+    cast = (ASTCast*)variable->initializer;
+    if (!cast->value || cast->value->type != AST_LITERAL ||
+        !cast->target_type || cast->target_type->type != AST_IDENTIFIER ||
+        strcmp(((ASTIdentifier*)cast->target_type)->name, "i32") != 0) goto done;
+    panic = (ASTPanic*)variable->base.next;
+    if (!panic || panic->base.type != AST_PANIC ||
+        !panic->message || strcmp(panic->message, "\"boom\"") != 0) goto done;
+    ok = 1;
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 int main(int argc, char** argv) {
+    if (!test_cast_and_panic_ast()) {
+        fprintf(stderr, "CAST/PANIC AST payload test failed.\n");
+        return 1;
+    }
     if (argc != 4) return 2;
 
     OccDiagnosticCollector diagnostics;
