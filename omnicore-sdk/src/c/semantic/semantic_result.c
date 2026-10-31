@@ -376,7 +376,7 @@ SemanticResultStatus semantic_result_add_symbol(
         return SEMANTIC_RESULT_LIMIT_EXCEEDED;
     }
 
-    name_copy = copy_name(name);
+    name_copy = copy_name(result, name);
     if (!name_copy) {
         return valid_utf8(name)
             ? SEMANTIC_RESULT_OUT_OF_MEMORY
@@ -531,7 +531,7 @@ SemanticResultStatus semantic_result_add_relation(
     }
 
     if (name) {
-        name_copy = copy_name(name);
+        name_copy = copy_name(result, name);
         if (!name_copy) {
             return valid_utf8(name)
                 ? SEMANTIC_RESULT_OUT_OF_MEMORY
