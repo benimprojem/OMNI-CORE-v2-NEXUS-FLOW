@@ -180,6 +180,7 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
 #define REF(id, value) do { s = emit_node_ref(c, &last, (id), (const ASTNode*)(value)); if (s != OIR_STATUS_OK) return s; } while (0)
 #define BOOL(id, value) do { s = emit_bool(c, &last, (id), (value)); if (s != OIR_STATUS_OK) return s; } while (0)
 #define I32(id, value) do { s = emit_i32(c, &last, (id), (int64_t)(value)); if (s != OIR_STATUS_OK) return s; } while (0)
+#define U32(id, value) do { s = emit_u32(c, &last, (id), (uint32_t)(value)); if (s != OIR_STATUS_OK) return s; } while (0)
 #define TOKEN(id, value) do { s = emit_token(c, &last, (id), (value)); if (s != OIR_STATUS_OK) return s; } while (0)
     switch (node->type) {
         case AST_PROGRAM: REF(1, ((const ASTProgram*)node)->declarations); break;
@@ -225,7 +226,7 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
         case AST_LITERAL: {
             const ASTLiteral* n = (const ASTLiteral*)node;
             if (n->lit_type < 0 || n->lit_type > 4) return OIR_STATUS_INVALID_SECTION;
-            TOKEN(1,n->type); I32(2,n->lit_type);
+            TOKEN(1,n->type); U32(2,n->lit_type);
             s = emit_i64(c,&last,3,(int64_t)n->int_value); if (s != OIR_STATUS_OK) return s;
             s = emit_f64(c,&last,4,n->float_value); if (s != OIR_STATUS_OK) return s;
             STR(5,n->string_value); break;
@@ -305,13 +306,13 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
 #undef REF
 #undef BOOL
 #undef I32
+#undef U32
     return s;
 }
 
 static OirStatus emit_tree(AstEmitContext* c, const ASTNode* node, uint32_t depth) {
     uint32_t id;
     uint16_t field, field_count, kind;
-    OirAstNodeRecord* record;
     OirStatus status;
     if (!node) return OIR_STATUS_OK;
     if (depth > OIR_AST_NODE_DEPTH_MAX || c->emitted_nodes >= c->node_count) {
@@ -324,7 +325,9 @@ static OirStatus emit_tree(AstEmitContext* c, const ASTNode* node, uint32_t dept
     ++c->emitted_nodes;
 
     if (!c->measure_only) {
-        record = &c->records[id - 1u];
+        OirAstNodeRecord* record = &c->records[id - 1u];
+        if (node->line < 0 || node->col < 0 ||
+            ((node->line == 0) != (node->col == 0))) return OIR_STATUS_INVALID_SECTION;
         memset(record,0,sizeof(*record));
         record->node_id = id;
         record->node_kind_id = kind;
@@ -332,6 +335,7 @@ static OirStatus emit_tree(AstEmitContext* c, const ASTNode* node, uint32_t dept
         record->start_column = (uint32_t)node->col;
         record->next_node_id = node->next ?
             oir_ast_frontend_index_lookup(c->index_entries,c->index_capacity,node->next) : 0u;
+        if (node->next && record->next_node_id == 0u) return OIR_STATUS_INVALID_SECTION;
         record->field_data_offset = (uint32_t)c->field_used;
     }
     {
@@ -424,6 +428,7 @@ OirStatus oir_ast_frontend_write_payload(
     OirStatus status;
     OirAstNodeTableView view;
     if(out_written) *out_written=0u;
+    if(out_requirements) memset(out_requirements,0,sizeof(*out_requirements));
     if(!out_written || !records || !output) return OIR_STATUS_INVALID_ARGUMENT;
     status=run_measure(root,index_entries,index_capacity,node_count,&req);
     if(status!=OIR_STATUS_OK) return status;
