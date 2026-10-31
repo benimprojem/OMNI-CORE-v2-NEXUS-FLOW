@@ -188,3 +188,13 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 - [x] SOURCE_UNIT ve TOKEN_STREAM payload schema 1.0 taslağı; 160 token türü için OIR_TOKEN_REGISTRY.md stable ID listesi.
 
 > Not: `occ_oir` şu an container yardımcı kütüphanesidir; compiler stage DLL'leri henüz OIR artifact tüketip üretmiyor. Stage ABI ve payload schema entegrasyonu sonraki adımlardır.
+
+
+## Stage Module ABI / DLL boundary — Draft (not frozen)
+
+- [x] Fixed-width versioned C ABI header: descriptor, OIR input spans, caller-owned output buffer, status/result, capabilities and export symbol.
+- [x] Host-side descriptor/invocation validation: ABI versions, struct sizes, artifact kind masks, required inputs, OIR validity, job ID and partial-input capability.
+- [x] Test-only pass-through shared library and dynamic load/process/unload test; output-buffer retry and artifact validation.
+- [ ] Build the real parser-stage DLL/SO/dylib: consume SOURCE_UNIT + TOKEN_STREAM OIR artifacts, reconstruct tokens against source bytes, run parser in memory, and emit OIR_KIND_AST artifact.
+- [ ] Review stage IDs/module IDs and stage-specific diagnostics contract; only then freeze ABI 1.0.
+
