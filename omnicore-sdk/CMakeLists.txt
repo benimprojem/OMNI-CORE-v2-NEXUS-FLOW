@@ -87,6 +87,18 @@ target_include_directories(occ_oir_lexer_adapter PUBLIC
     "${C_SOURCE_DIR}/oir"
     "${C_PARSER_DIR}"
 )
+set_target_properties(occ_oir_lexer_adapter PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# TOKEN_STREAM codec validates stable token IDs, source spans and diagnostic references.
+add_library(occ_oir_token_stream STATIC
+    "${C_SOURCE_DIR}/oir/oir_token_stream.c"
+)
+target_include_directories(occ_oir_token_stream PUBLIC
+    "${C_SOURCE_DIR}/oir"
+    "${C_PARSER_DIR}"
+)
+target_link_libraries(occ_oir_token_stream PUBLIC occ_oir_lexer_adapter)
+set_target_properties(occ_oir_token_stream PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # The C frontend is the canonical compiler frontend.
 # parser/main.c is intentionally excluded: it is an obsolete standalone entry point.
@@ -170,6 +182,7 @@ if(MSVC)
     target_compile_options(occ_diagnostics PRIVATE /W4)
     target_compile_options(occ_compilation PRIVATE /W4)
     target_compile_options(occ_oir_lexer_adapter PRIVATE /W4)
+    target_compile_options(occ_oir_token_stream PRIVATE /W4)
     target_compile_options(occ_frontend PRIVATE /W4)
     target_compile_options(occ_codegen PRIVATE /W4)
     target_compile_options(occ PRIVATE /W4)
@@ -178,6 +191,7 @@ else()
     target_compile_options(occ_diagnostics PRIVATE -Wall -Wextra)
     target_compile_options(occ_compilation PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_lexer_adapter PRIVATE -Wall -Wextra)
+    target_compile_options(occ_oir_token_stream PRIVATE -Wall -Wextra)
     target_compile_options(occ_frontend PRIVATE -Wall -Wextra)
     target_compile_options(occ_codegen PRIVATE -Wall -Wextra)
     target_compile_options(occ PRIVATE -Wall -Wextra)
@@ -320,6 +334,16 @@ if(BUILD_TESTING)
         target_compile_options(test_diagnostics PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME diagnostic_collector_and_strict_output_gate COMMAND test_diagnostics)
+
+    add_executable(test_oir_token_stream "${C_SOURCE_DIR}/tests/test_oir_token_stream.c")
+    target_link_libraries(test_oir_token_stream PRIVATE occ_oir_token_stream)
+    if(MSVC)
+        target_compile_options(test_oir_token_stream PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_token_stream PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_token_stream_payload_roundtrip_and_validation
+        COMMAND test_oir_token_stream)
 
     add_executable(test_oir_token_map "${C_SOURCE_DIR}/tests/test_oir_token_map.c")
     target_link_libraries(test_oir_token_map PRIVATE occ_oir_lexer_adapter)
