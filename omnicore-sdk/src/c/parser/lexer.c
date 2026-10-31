@@ -340,7 +340,7 @@ Token lexer_next_token(ParserContext* ctx) {
                     // Allow consuming ':'
                 } else {
                     char next = peek_next(ctx, 1);
-                    if (!(isalnum(next) || next == '_')) {
+                    if (!(isalnum((unsigned char)next) || next == '_')) {
                         break; 
                     }
                 }
