@@ -9,7 +9,7 @@
 
 ## P0 — Temel güvenilirlik
 
-> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 20/20 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 20/20 geçti.
+> CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 21/21 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 21/21 geçti.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
 - [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
@@ -132,7 +132,7 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 
 ## Sonraki tek iş
 
-OIR TOKEN_STREAM kayıtlarını frontend Token dizisine dönüştüren ve parser'ın bu diziyi doğrudan tüketmesini sağlayan OIR-to-parser adapter'ını uygula.
+AST payload schema 1.0 sözleşmesini tasarla; AST serialization alanlarını pointer/host struct layout bağımlılığı olmadan sabit genişlikli, sürümlü OIR payload'a eşle.
 
 
 ## P0 — OIR ortak artifact standardı (tasarım taslağı eklendi)
@@ -143,6 +143,7 @@ OIR TOKEN_STREAM kayıtlarını frontend Token dizisine dönüştüren ve parser
 - [x] SOURCE_UNIT ve TOKEN_STREAM payload şemalarının ilk 1.0 taslağını tanımla (OIR_PAYLOAD_SCHEMAS.md).
 - [x] SOURCE_UNIT schema 1.0 C codec ve round-trip/UTF-8/length güvenlik testlerini ekle.
 - [x] TOKEN_STREAM schema 1.0 C codec, stable token ID doğrulaması, source-span/EOF kontrolleri ve diagnostic-reference testlerini ekle.
+- [x] Lexer Token → OIR record ve OIR TOKEN_STREAM → parser Token handoff adapter'larını ekle; parser'ın pre-tokenized token array tüketimini uçtan uca test et.
 - [ ] AST payload şemasını tanımla ve parser checkpoint'lerini OIR v1'e geçir.
 - [x] DIAGNOSTICS section schema 1.0 payload codec'ini uygula ve malformed-input testlerini ekle.
 - [ ] SOURCE_MAP section payload codec'ini uygula.
@@ -157,7 +158,7 @@ OIR TOKEN_STREAM kayıtlarını frontend Token dizisine dönüştüren ve parser
 1. OIR container binary layout ve C reader/writer API.
 2. Job-owned diagnostic collector ve CompilationContext.
 3. SOURCE_UNIT / TOKEN_STREAM payload codec'leri ve lexer Token → OIR record adapter'ı.
-4. OIR TOKEN_STREAM → parser token adapter'ı ve gerçek parser handoff.
+4. [x] OIR TOKEN_STREAM → parser token adapter'ı ve gerçek parser handoff.
 5. Ortak module ABI ve stage DLL/SO/dylib ayrımı.
 
 
