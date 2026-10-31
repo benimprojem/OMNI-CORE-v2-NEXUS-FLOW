@@ -385,6 +385,7 @@ if(BUILD_TESTING)
         COMMAND test_parser
             "${C_SOURCE_DIR}/tests/test1.nxf"
             "${CMAKE_CURRENT_BINARY_DIR}/invalid_parser_input.nxf"
+            "${CMAKE_CURRENT_BINARY_DIR}/invalid_lexer_input.nxf"
     )
 
     add_executable(test_semantic "${C_SOURCE_DIR}/tests/test_semantic.c")
