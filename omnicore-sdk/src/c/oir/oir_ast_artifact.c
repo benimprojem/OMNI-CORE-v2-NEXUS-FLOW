@@ -117,7 +117,9 @@ OirStatus oir_ast_artifact_read_frontend_ast(
             if((section.flags&OIR_SECTION_FLAG_REQUIRED)==0u) {
                 return OIR_STATUS_INVALID_SECTION;
             }
-            if(section.length>SIZE_MAX) return OIR_STATUS_OVERFLOW;
+#if SIZE_MAX < UINT64_MAX
+            if(section.length>(uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+#endif
             return oir_ast_frontend_read_payload(section.data,(size_t)section.length,
                 node_storage,node_capacity,incoming_counts,incoming_capacity,
                 visited,visited_capacity,graph_stack,graph_stack_capacity,out_root);
