@@ -61,6 +61,10 @@ typedef struct {
     SemanticNodeIdResolver node_id_resolver;
     void* node_id_context;
     uint8_t result_enabled;
+
+    /* Deterministic allocation-failure injection for semantic tests; zero disables. */
+    uint32_t test_allocation_fail_at;
+    uint32_t test_allocation_attempts;
 } SemanticContext;
 
 OCC_API void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path);
@@ -76,5 +80,12 @@ OCC_API SemanticResultStatus semantic_finalize_result(
 OCC_API void semantic_check(SemanticContext* ctx, ASTNode* node);
 OCC_API void semantic_print_errors(SemanticContext* ctx);
 OCC_API void semantic_destroy(SemanticContext* ctx);
+OCC_API void semantic_test_fail_allocation_at(
+    SemanticContext* ctx, uint32_t allocation_index
+);
+OCC_API uint32_t semantic_test_get_allocation_attempts(
+    const SemanticContext* ctx
+);
+
 
 #endif // OCC_SEMANTIC_H
