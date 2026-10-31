@@ -50,6 +50,7 @@ int main(void) {
     function.base.col = 1;
     function.name = "sum";
     function.return_type = "i32";
+    function.is_public = 1;
     function.params = (ASTNode*)&parameter;
     function.body = (ASTNode*)&body;
 
@@ -69,6 +70,7 @@ int main(void) {
     local.base.col = 3;
     local.name = "local";
     local.type_name = "i32";
+    local.is_hard_typed = 1;
     local.initializer = (ASTNode*)&literal;
 
     literal.base.type = AST_LITERAL;
@@ -98,7 +100,7 @@ int main(void) {
     assert(context.result_status == SEMANTIC_RESULT_OK);
     assert(context.result.scope_count == 3u);
     assert(context.result.symbol_count == 3u);
-    assert(context.result.type_count == 1u);
+    assert(context.result.type_count == 2u);
     assert(context.result.relation_count == 1u);
     assert(context.result.annotation_count >= 4u);
 
@@ -113,6 +115,11 @@ int main(void) {
 
     assert(context.result.symbols[0].name &&
         strcmp(context.result.symbols[0].name, "sum") == 0);
+    assert((context.result.symbols[0].flags &
+        SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC) != 0u);
+    assert((context.result.symbols[2].flags &
+        SEMANTIC_RESULT_SYMBOL_FLAG_HARD) != 0u);
+    assert(context.result.symbols[2].type_id == 2u);
     assert(context.result.symbols[0].relation_count == 1u);
     assert(context.result.relations[0].related_node_id == 3u);
     assert(context.result.relations[0].related_symbol_id == 2u);
