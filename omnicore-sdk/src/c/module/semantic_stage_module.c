@@ -165,7 +165,10 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
     if(occ_module_validate_invocation_v1(&g_semantic_module.descriptor,inv,out)!=OCC_MODULE_STATUS_OK||inv->input_count!=1u)
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     if(oir_artifact_open(inv->inputs[0].bytes,(size_t)inv->inputs[0].length,&artifact)!=OIR_STATUS_OK||
-       artifact.header.artifact_kind!=OIR_KIND_AST||artifact.header.validity!=OIR_VALIDITY_VALID||
+       artifact.header.artifact_kind!=OIR_KIND_AST||
+       artifact.header.payload_schema_major!=1u||artifact.header.payload_schema_minor!=0u||
+       artifact.header.producer_stage_id!=OCC_STAGE_PARSER||
+       artifact.header.validity!=OIR_VALIDITY_VALID||
        artifact.header.job_id!=inv->job_id||find_payload(&artifact,OIR_SECTION_PAYLOAD,&payload)!=OIR_STATUS_OK||
        oir_ast_node_table_open(payload.data,(size_t)payload.length,&table)!=OIR_STATUS_OK||!table.node_count) {
         out->failure_code=8301u; return OCC_MODULE_STATUS_INVALID_INVOCATION;
