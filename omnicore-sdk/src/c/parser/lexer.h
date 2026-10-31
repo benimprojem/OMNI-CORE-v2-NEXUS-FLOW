@@ -152,7 +152,7 @@ typedef enum {
 
 } OmniTokenType;
 
-typedef struct {
+typedef struct Token {
     OmniTokenType type;
     const char* start; // Kaynak koddaki başlangıç adresi (pointer)
     int length;
