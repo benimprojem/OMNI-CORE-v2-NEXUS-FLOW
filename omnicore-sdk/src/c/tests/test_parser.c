@@ -493,6 +493,9 @@ static int test_parser_allocation_failure_injection(void) {
         " v:first = a + b;"
         " { v:inner = combine(first, 7); }"
         " v:pair = (first, b);"
+        " v:casted = cast(1, i32);"
+        " panic(\"boom\");"
+        " ?? \"inspect\";"
         " ret;"
         "}";
     size_t fail_at;
