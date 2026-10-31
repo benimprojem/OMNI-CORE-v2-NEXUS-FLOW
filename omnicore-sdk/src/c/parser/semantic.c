@@ -555,7 +555,9 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
                 Slot* declared_slot = add_slot(
                     ctx, decl->name, SLOT_VAR, decl->is_const,
-                    decl->type_name, node, 0, 0);
+                    decl->type_name, node, 0, 0, decl->is_hard_typed,
+                    (decl->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
+                    (decl->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
                 semantic_record_annotation(
                     ctx, node, declared_slot, decl->type_name,
                     SEMANTIC_RESULT_VALUE_LVALUE);
@@ -658,7 +660,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
                 Slot* handler_slot = add_slot(
-                    ctx, capture->handler_name, SLOT_VAR, 0, NULL, node, 1, 0);
+                    ctx, capture->handler_name, SLOT_VAR, 0, NULL, node, 1, 0, 0, 0u);
                 semantic_record_annotation(
                     ctx, node, handler_slot, NULL, SEMANTIC_RESULT_VALUE_LVALUE);
                 printf("%s: %s\n", msg_get(MSG_SEMANTIC_HANDLER), capture->handler_name);
@@ -695,7 +697,9 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 } else {
                     function_slot = add_slot(
                         ctx, func->name, SLOT_FUNC, 1, func->return_type,
-                        node, 0, 0);
+                        node, 0, 0, 0,
+                        (func->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
+                        (func->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
 
                     // Parametre bilgilerini kaydet
                     int p_count = 0;
@@ -745,7 +749,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         parameter_node_id,
                         parameter->name,
                         parameter_slot ? parameter_slot->type_id :
-                            semantic_type_id(ctx, parameter->type_name));
+                            semantic_type_id(ctx, parameter->type_name, parameter->is_hard_typed));
                     semantic_set_result_error(ctx, status);
                     parameter_node = parameter_node->next;
                 }
@@ -838,7 +842,9 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     Slot* s = add_slot(
                         ctx, sdecl->name,
                         sdecl->is_union ? SLOT_UNION : SLOT_STRUCT,
-                        1, NULL, node, 0, sdecl->is_packed);
+                        1, NULL, node, 0, sdecl->is_packed, 0,
+                        (sdecl->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
+                        (sdecl->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
                     semantic_define_named_type(ctx, s, sdecl->name, NULL);
                     semantic_record_annotation(
                         ctx, node, s, sdecl->name,
@@ -938,7 +944,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 snprintf(buf, sizeof(buf), "Type '%s' already defined.", edecl->name);
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                Slot* s = add_slot(ctx, edecl->name, SLOT_ENUM, 1, NULL, node, 0, 0);
+                Slot* s = add_slot(ctx, edecl->name, SLOT_ENUM, 1, NULL, node, 0, 0, 0, 0u);
                 semantic_define_named_type(ctx, s, edecl->name, NULL);
                 semantic_record_annotation(
                     ctx, node, s, edecl->name, SEMANTIC_RESULT_VALUE_LVALUE);
@@ -1029,7 +1035,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
                 Slot* newtype_slot = add_slot(
-                    ctx, nt->name, SLOT_NEWTYPE, 1, nt->target_type, node, 0, 0);
+                    ctx, nt->name, SLOT_NEWTYPE, 1, nt->target_type, node, 0, 0, 0, 0u);
                 semantic_define_named_type(
                     ctx, newtype_slot, nt->name, nt->target_type);
                 semantic_record_annotation(
@@ -1053,7 +1059,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         // Implicit declaration: v:name
                         ASTIdentifier* id = (ASTIdentifier*)loop->variable;
                         if (!find_slot(ctx, id->name)) {
-                            add_slot(ctx, id->name, SLOT_VAR, 0, "any", (ASTNode*)id, 1, 0);
+                            add_slot(ctx, id->name, SLOT_VAR, 0, "any", (ASTNode*)id, 1, 0, 0, 0u);
                             printf("[SEMANTIC] Implicit loop variable: %s\n", id->name);
                         }
                         semantic_check(ctx, loop->variable);
@@ -1096,7 +1102,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         ASTBinaryExpr* bin = (ASTBinaryExpr*)loop->condition;
                         if (bin->op == TOKEN_RANGE) {
                              if (!find_slot(ctx, "it")) {
-                                add_slot(ctx, "it", SLOT_VAR, 0, "i32", node, 1, 0);
+                                add_slot(ctx, "it", SLOT_VAR, 0, "i32", node, 1, 0, 0, 0u);
                                 printf("[SEMANTIC] Implicit range variable: it\n");
                             }
                         }
@@ -1119,7 +1125,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
                 Slot* label_slot = add_slot(
-                    ctx, lbl->label_name, SLOT_LABEL, 1, NULL, node, 0, 0);
+                    ctx, lbl->label_name, SLOT_LABEL, 1, NULL, node, 0, 0, 0, 0u);
                 semantic_record_annotation(
                     ctx, node, label_slot, NULL, SEMANTIC_RESULT_VALUE_LVALUE);
                 printf("[SEMANTIC] Label defined: %s\n", lbl->label_name);
@@ -1167,7 +1173,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             // Listen bloğu içinde 'global_listener' slotu veya benzeri bir kapsam açılabilir
             enter_scope(ctx, node);
             Slot* listen_slot = add_slot(
-                ctx, listen->handler_name, SLOT_VAR, 1, "any", node, 1, 0);
+                ctx, listen->handler_name, SLOT_VAR, 1, "any", node, 1, 0, 0, 0u);
             semantic_record_annotation(
                 ctx, node, listen_slot, "any", SEMANTIC_RESULT_VALUE_LVALUE);
             if (listen->expr) semantic_check(ctx, listen->expr);
