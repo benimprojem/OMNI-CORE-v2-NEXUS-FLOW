@@ -61,6 +61,18 @@ target_link_libraries(occ_module_abi PUBLIC occ_oir)
 
 set_target_properties(occ_module_abi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# OCC-owned cross-platform loader and invocation gate for independently built stages.
+add_library(occ_module_loader STATIC
+    "${C_SOURCE_DIR}/module/occ_module_loader.c"
+)
+target_include_directories(occ_module_loader PUBLIC
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+)
+target_link_libraries(occ_module_loader PUBLIC occ_module_abi ${CMAKE_DL_LIBS})
+set_target_properties(occ_module_loader PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 if(BUILD_TESTING)
 # A tiny pass-through stage proves the shared-library ABI and ownership rules.
 add_library(occ_test_passthrough_module SHARED
@@ -690,6 +702,23 @@ if(BUILD_TESTING)
     add_dependencies(test_parser_stage_module occ_parser_stage)
     add_test(NAME real_parser_stage_source_token_to_ast_module
         COMMAND test_parser_stage_module "$<TARGET_FILE:occ_parser_stage>")
+
+    add_executable(test_occ_module_loader
+        "${C_SOURCE_DIR}/tests/test_occ_module_loader.c"
+    )
+    target_link_libraries(test_occ_module_loader PRIVATE occ_module_loader)
+    add_dependencies(test_occ_module_loader occ_test_passthrough_module occ_codegen)
+    if(MSVC)
+        target_compile_options(test_occ_module_loader PRIVATE /W4)
+        target_compile_options(occ_module_loader PRIVATE /W4)
+    else()
+        target_compile_options(test_occ_module_loader PRIVATE -Wall -Wextra)
+        target_compile_options(occ_module_loader PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME occ_dynamic_module_loader_invocation_validation_and_unload
+        COMMAND test_occ_module_loader
+            "$<TARGET_FILE:occ_test_passthrough_module>"
+            "$<TARGET_FILE:occ_codegen>")
 
     add_executable(test_module_abi "${C_SOURCE_DIR}/tests/test_module_abi.c")
     target_link_libraries(test_module_abi PRIVATE occ_module_abi occ_diagnostics)
