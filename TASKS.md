@@ -251,3 +251,16 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 - [x] Gerçek lexer DLL testinde unterminated string, token span, diagnostic payload, callback ve output-buffer retry doğrulandı.
 - [x] OCC ana CLI statik lexer döngüsünü kaldırdı; lexer DLL TOKEN_STREAM çıktısı doğrudan parser DLL girdisi oldu.
 - [x] **CI run 41174917131:** Windows, Ubuntu ve macOS başarılı; CTest 40/40; Ubuntu ASan/UBSan ve Valgrind başarılı.
+
+
+## P0 — SEMANTIC_AST OIR and Semantic stage — 31 Ekim 2026
+
+- [x] Inspect current semantic checker and document the boundary between transient `SemanticContext/Slot` state and a durable semantic result model.
+- [x] Draft `OIR_SEMANTIC_AST.md`: preserve AST node IDs/payload; define scope, type, symbol, relation and node-annotation tables; reserve explicit conversion records without claiming numeric promotion is implemented.
+- [ ] Register semantic OIR section IDs and freeze the bounded wire record layout after codec tests.
+- [ ] Implement SEMANTIC_AST section codecs and round-trip/malformed-input/mutation tests.
+- [ ] Refactor semantic analysis to emit durable scope/symbol/type/annotation results; preserve current language behavior while adding nested-scope and resolution tests.
+- [ ] Implement `occ_semantic_stage` DLL/SO/dylib using `OccStageModuleV1`, AST input and SEMANTIC_AST output.
+- [ ] Integrate Semantic DLL in OCC and pass SEMANTIC_AST downstream; keep AST materialization only as a temporary legacy Codegen bridge.
+- [ ] Migrate Codegen to the common stage ABI and remove the legacy `codegen_run` handoff after the new consumer is verified.
+
