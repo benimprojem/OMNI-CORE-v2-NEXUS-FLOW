@@ -577,6 +577,22 @@ if(BUILD_TESTING)
     add_test(NAME parser_consumes_oir_token_stream
         COMMAND test_parser_oir_handoff "${C_SOURCE_DIR}/tests/test1.nxf")
 
+    add_executable(test_parser_ast_oir_roundtrip
+        "${C_SOURCE_DIR}/tests/test_parser_ast_oir_roundtrip.c"
+    )
+    target_link_libraries(test_parser_ast_oir_roundtrip PRIVATE
+        occ_frontend
+        occ_oir_ast_frontend_writer
+        occ_oir_ast_frontend_reader
+    )
+    if(MSVC)
+        target_compile_options(test_parser_ast_oir_roundtrip PRIVATE /W4)
+    else()
+        target_compile_options(test_parser_ast_oir_roundtrip PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME parser_ast_oir_ast_roundtrip_canonical_bytes
+        COMMAND test_parser_ast_oir_roundtrip "${C_SOURCE_DIR}/tests/test1.nxf")
+
     add_executable(test_parser "${C_SOURCE_DIR}/tests/test_parser.c")
     target_include_directories(test_parser PRIVATE "${C_PARSER_DIR}")
     target_link_libraries(test_parser PRIVATE occ_frontend)
