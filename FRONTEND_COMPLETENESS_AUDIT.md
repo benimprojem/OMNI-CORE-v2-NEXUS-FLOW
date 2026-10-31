@@ -116,3 +116,57 @@ The audit is complete only when:
 - The feature matrix is maintained as code evolves.
 
 No claim of full language or frontend completeness may be made until these criteria are met.
+
+
+## 6. İlk kaynak incelemesinden doğrulanan bulgular
+
+Bu bölüm kaynak kodunun doğrudan incelenmesiyle doğrulanan mevcut durumdur. Henüz dil spesifikasyonu gerektiren davranışlar için varsayım yapılmamıştır.
+
+### 6.1 Lexer
+
+- `TOKEN_TRUE` ve `TOKEN_FALSE` türleri ile Parser'ın boolean literal AST üretimi mevcut; ancak Lexer'ın `identifier_type()` fonksiyonu bu iki anahtar kelimeyi tanımıyordu. **Düzeltildi:** `true` ve `false` artık ayrılmış token olarak tanınıyor; `test_lexer.c` kapsamına eklendi.
+- Sayı tarayıcısı şu anda yalnızca ondalık rakam dizisi ve ardından isteğe bağlı basit `.digits` biçimini tüketiyor. Hexadecimal, üs gösterimi, ayırıcılar ve tip suffix/forced-width biçimleri için tarama desteği bu kod yolunda görünmüyor. Kabul edilecek tam sayı sözdizimi `syntax.md` ve numeric spec ile eşleştirilerek kararlaştırılmalı.
+- String tarayıcısı kapanış tırnağını ararken escape durumunu izlemiyor. `\\"` gibi kaçışlı tırnakların davranışı hatalı olabilir. Escape sözleşmesi belirlenerek düzeltilecek.
+- `ctype` fonksiyonlarına `char` doğrudan geçiriliyor. UTF-8 baytları signed-char platformlarında negatif olabileceğinden `isalpha/isalnum/isdigit` çağrıları için güvenli unsigned-char dönüşümü veya ASCII odaklı tarayıcı gerekli.
+- `TOKEN_TRUE/FALSE` dışındaki bazı token enum üyelerinin Lexer tarafından üretildiği ve Parser tarafından tüketildiği eşleşme henüz otomatik olarak doğrulanmadı.
+
+### 6.2 Parser ve context yaşam döngüsü
+
+- `parser_init_source()` tüm context alanlarını başlatıyor; dosya tabanlı `parser_init()` ise `ast_root`, `file_handle` ve token başlangıç alanlarının tamamını başlatmıyor. Normal `parser_run()` akışında AST kökü atansa da AST allocation başarısızlığı gibi erken dönüş yollarında `parser_destroy()` başlatılmamış `ast_root` değerini kullanabilir. İki initializer tek bir ortak başlatma yordamına taşınmalı.
+- `parser_attach_token_stream()` sıfır uzunluklu ve EOF ile sonlanmayan akışları reddediyor; bu koruma doğru.
+- `peek_token_ahead()` içinde `n <= 0` çağrısı yapılırsa yerel `Token t` başlatılmadan döndürülür. Çağrı noktaları incelenmeli; fonksiyon ya pozitif mesafe şartını doğrulamalı ya da güvenli bir varsayılan sağlamalı.
+- Parser'daki AST üretimlerinde `ast_create()` başarısızlığının her yerde kontrol edildiği henüz doğrulanmadı.
+
+### 6.3 AST ve eski AST codec
+
+- AST enum'undaki 80 düğüm türünden 78'i allocation, destroy, serialize ve deserialize switch'lerinde açıkça ele alınıyor. Kalan `AST_BREAK` ve `AST_CONTINUE` payload taşımayan temel düğümler; bu iki düğümün yalnızca temel alanlarla taşınması beklenen davranış olarak ayrıca test edilmeli.
+- Eski `ast_serialize()` akışı native C enum/int/long long/double temsillerini doğrudan dosyaya yazıyor. Bu nedenle platformlar ve ABI'ler arasında taşınabilir, sürümlenmiş OIR formatı değildir; yalnızca geçiş dönemi AST codec'i olarak görülmeli.
+- AST codec round-trip kapsamı her AST türü için ayrı fixture ile ölçülmeli; yalnızca birkaç örnek programın başarılı round-trip yapması tam kapsama kanıtı sayılmamalı.
+
+### 6.4 Semantik AST kapsaması
+
+`semantic_check()` switch'inde 80 AST türünün 69'u için açık case mevcut. Açık case bulunmayan türler:
+
+- `AST_ENUM_VARIANT`
+- `AST_EXTERN_DECL`
+- `AST_POSTFIX_EXPR`
+- `AST_MEMBER_ACCESS`
+- `AST_INDEX_ACCESS`
+- `AST_TUPLE`
+- `AST_IF`
+- `AST_BREAK`
+- `AST_CONTINUE`
+- `AST_ASM_BLOCK`
+- `AST_ZONE`
+
+Bu listede özellikle `AST_IF`, `AST_MEMBER_ACCESS`, `AST_INDEX_ACCESS`, `AST_TUPLE` ve `AST_POSTFIX_EXPR` için default dalının alt ifadeleri semantik denetimden geçirmemesi riski var. Her türün semantik davranışı ayrı ayrı tanımlanmalı; salt recursive traversal da tek başına yeterli sayılmamalı.
+
+Ek olarak `AST_CAST`, `ASTUnaryExpr` düzeninde tanımlanmış olmasına rağmen semantik switch'inde `ASTCall` kullanan intrinsic grubu içine alınmış. Bu, farklı AST payload düzenlerinin aynı cast altında yorumlanması anlamına geliyor ve olası yanlış alan okuması riski taşıyor. Cast için kendi AST payload'ına uygun ayrı semantik dal oluşturulmalı.
+
+### 6.5 Sonraki düzeltme sırası
+
+1. Parser context başlatma ve lookahead sınır güvenliği.
+2. `AST_CAST` semantik payload uyuşmazlığının düzeltilmesi.
+3. `AST_IF`, üye/index erişimi, tuple ve postfix semantik traversal/kuralları.
+4. Lexer literal grammar'ının dil spec'iyle eşleştirilmesi; escape ve UTF-8 güvenliği.
+5. AST türlerinin her biri için parse → destroy → codec → semantic test matrisi.
