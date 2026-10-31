@@ -115,6 +115,7 @@ OirStatus oir_ast_node_table_open(
 ) {
     uint32_t count, root, record_size, records_bytes, fields_bytes, strings_bytes;
     size_t expected, records_offset, fields_offset, strings_offset;
+    uint64_t expected64;
     uint32_t i, expected_field_offset = 0;
     if (!payload || !out_view) return OIR_STATUS_INVALID_ARGUMENT;
     memset(out_view, 0, sizeof(*out_view));
@@ -131,13 +132,10 @@ OirStatus oir_ast_node_table_open(
         (uint64_t)count * OIR_AST_NODE_RECORD_SIZE != records_bytes) {
         return OIR_STATUS_INVALID_HEADER;
     }
-    if ((size_t)records_bytes > SIZE_MAX - OIR_AST_PAYLOAD_HEADER_SIZE ||
-        (size_t)fields_bytes > SIZE_MAX - OIR_AST_PAYLOAD_HEADER_SIZE - records_bytes ||
-        (size_t)strings_bytes > SIZE_MAX - OIR_AST_PAYLOAD_HEADER_SIZE - records_bytes - fields_bytes) {
-        return OIR_STATUS_OVERFLOW;
-    }
-    expected = OIR_AST_PAYLOAD_HEADER_SIZE + (size_t)records_bytes +
-        (size_t)fields_bytes + (size_t)strings_bytes;
+    expected64 = (uint64_t)OIR_AST_PAYLOAD_HEADER_SIZE + records_bytes +
+        fields_bytes + strings_bytes;
+    if (expected64 > SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    expected = (size_t)expected64;
     if (expected != payload_length) return OIR_STATUS_LENGTH_MISMATCH;
     records_offset = OIR_AST_PAYLOAD_HEADER_SIZE;
     fields_offset = records_offset + records_bytes;
@@ -211,6 +209,7 @@ OirStatus oir_ast_node_table_write(
     size_t* out_written
 ) {
     size_t total, records_bytes;
+    uint64_t total64;
     uint32_t i;
     OirStatus status;
     if (out_written) *out_written = 0;
@@ -220,13 +219,10 @@ OirStatus oir_ast_node_table_write(
     }
     if (node_count == 0u || node_count > OIR_AST_NODE_COUNT_MAX) return OIR_STATUS_INVALID_ARGUMENT;
     records_bytes = (size_t)node_count * OIR_AST_NODE_RECORD_SIZE;
-    if (records_bytes > SIZE_MAX - OIR_AST_PAYLOAD_HEADER_SIZE ||
-        (size_t)field_data_length > SIZE_MAX - OIR_AST_PAYLOAD_HEADER_SIZE - records_bytes ||
-        (size_t)string_table_length > SIZE_MAX - OIR_AST_PAYLOAD_HEADER_SIZE - records_bytes - field_data_length) {
-        return OIR_STATUS_OVERFLOW;
-    }
-    total = OIR_AST_PAYLOAD_HEADER_SIZE + records_bytes +
-        (size_t)field_data_length + (size_t)string_table_length;
+    total64 = (uint64_t)OIR_AST_PAYLOAD_HEADER_SIZE + records_bytes +
+        field_data_length + string_table_length;
+    if (total64 > SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    total = (size_t)total64;
     if (total > capacity) return OIR_STATUS_BUFFER_TOO_SMALL;
     status = validate_host_records(records, node_count, root_node_id,
         field_data, field_data_length, string_table, string_table_length);
