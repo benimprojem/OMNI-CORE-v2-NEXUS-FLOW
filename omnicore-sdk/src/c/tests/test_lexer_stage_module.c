@@ -76,6 +76,14 @@ int main(int argc, char** argv) {
     assert(artifact.header.validity == OIR_VALIDITY_VALID);
     assert(artifact.header.job_id == 77u);
 
+    /* The lexer must reject a source artifact with an unknown schema major. */
+    source_artifact[16] = (uint8_t)(OIR_SOURCE_UNIT_SCHEMA_MAJOR + 1u);
+    assert(occ_module_loader_invoke(&loaded, &input, 1u, 77u,
+        &collector, 64u, 4096u, &output, &output_length) ==
+        OCC_MODULE_LOADER_INVOKE_FAILED);
+    assert(output == NULL && output_length == 0u);
+    source_artifact[16] = (uint8_t)OIR_SOURCE_UNIT_SCHEMA_MAJOR;
+
     assert(oir_artifact_get_section(&artifact, 0u, &payload_section) == OIR_STATUS_OK);
     assert(oir_artifact_get_section(&artifact, 1u, &diagnostics_section) == OIR_STATUS_OK);
     assert(diagnostics_section.type == OIR_SECTION_DIAGNOSTICS);
