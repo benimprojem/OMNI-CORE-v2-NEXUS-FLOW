@@ -116,7 +116,7 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 - [ ] Her derleme aşaması için bağımsız shared library hedefi oluştur (Windows DLL / Linux SO / macOS dylib).
 - [ ] Sürümlenmiş C module ABI'sini tanımla: descriptor, stage ID, ABI version, artifact tür/sürüm, process/result, diagnostics ve ownership.
 - [x] İlk job-owned diagnostic collector ve strict output gate C API'sini oluştur; severity count, source span ve owned text storage testlerini ekle.
-- [ ] Collector'ı ParserContext/SemanticContext ve OIR DIAGNOSTICS section'larına bağla.
+- [x] Collector'ı ParserContext/SemanticContext'e bağla; OIR DIAGNOSTICS schema 1.0 codec'ini ekle ve round-trip/malformed-input testlerini CI'da doğrula.
 - [x] İlk per-job CompilationContext: job ID, copied options, stop-after stage, lifecycle state ve job-owned diagnostics; strict output gate testleri.
 - [ ] Hata/uyarı biriktirme ve mümkün olan aşamalarda devam etme davranışını uygula.
 - [ ] Artifact geçerlilik durumlarını tanımla: valid / partial / invalid / none.
