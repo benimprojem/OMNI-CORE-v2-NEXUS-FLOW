@@ -337,7 +337,8 @@ SemanticResultStatus semantic_result_add_symbol(
             SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC |
             SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED |
             SEMANTIC_RESULT_SYMBOL_FLAG_PACKED |
-            SEMANTIC_RESULT_SYMBOL_FLAG_HARD)) != 0u ||
+            SEMANTIC_RESULT_SYMBOL_FLAG_HARD |
+            SEMANTIC_RESULT_SYMBOL_FLAG_IMPLICIT)) != 0u ||
         !name || !*name || !valid_utf8(name) || type_id > result->type_count) {
         return SEMANTIC_RESULT_INVALID_DATA;
     }
