@@ -529,6 +529,33 @@ static void occ_save_failure_checkpoint(
     }
 }
 
+/* Resolve the default target from the compiler host, never from a hard-coded
+ * cross-target fallback. Unsupported host combinations require an explicit
+ * --target selection. */
+static const char* occ_host_default_target(void) {
+#if defined(_WIN32)
+#  if defined(_M_X64) || defined(__x86_64__)
+    return "Win64";
+#  else
+    return NULL;
+#  endif
+#elif defined(__APPLE__)
+#  if defined(__aarch64__) || defined(__arm64__)
+    return "macOS_AArch64";
+#  else
+    return NULL;
+#  endif
+#elif defined(__linux__)
+#  if defined(__x86_64__)
+    return "Linux64";
+#  else
+    return NULL;
+#  endif
+#else
+    return NULL;
+#endif
+}
+
 int main(int argc, char **argv) {
     int exit_code = 0;
     /* Resolve runtime assets from the executable location, not the caller's CWD. */
@@ -562,7 +589,7 @@ int main(int argc, char **argv) {
     }
 
     // CLI argümanlarını sıradan bağımsız ayrıştır.
-    const char* target_name = "BareMetal64";
+    const char* target_name = NULL;
     const char* source_file = NULL;
 
     for (int i = 1; i < argc; i++) {
@@ -591,6 +618,18 @@ int main(int argc, char **argv) {
         printf("%s\n", msg_get(MSG_USAGE));
         list_targets(target_dir);
         return 1;
+    }
+
+    if (!target_name) {
+        target_name = occ_host_default_target();
+        if (!target_name) {
+            fprintf(stderr,
+                "Hata: Bu host OS/mimari icin varsayilan target tanimli degil. "
+                "Lutfen --target ile bir hedef belirtin.\n");
+            list_targets(target_dir);
+            return 1;
+        }
+        printf("[OCC] Varsayilan host target secildi: %s\n", target_name);
     }
 
     // Target descriptor path is anchored to the executable's runtime layout.
