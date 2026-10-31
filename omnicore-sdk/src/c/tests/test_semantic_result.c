@@ -111,6 +111,10 @@ int main(void) {
 
     assert(semantic_result_finalize(&result, 13u) == SEMANTIC_RESULT_OK);
     assert(result.finalized == 1u);
+    /* Finalization is idempotent and must preserve canonical relation slices. */
+    assert(semantic_result_finalize(&result, 13u) == SEMANTIC_RESULT_OK);
+    assert(result.symbols[symbol_function - 1u].first_relation == 1u &&
+        result.symbols[symbol_function - 1u].relation_count == 2u);
 
     /* Relation ranges are now stable 1-based slices in the relation table. */
     assert(result.symbols[symbol_function - 1u].first_relation == 1u &&
@@ -178,6 +182,22 @@ int main(void) {
             SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER, 2u, 0u, 4u,
             "b", 0u) == SEMANTIC_RESULT_OK);
         assert(semantic_result_finalize(&bad, 4u) ==
+            SEMANTIC_RESULT_INVALID_DATA);
+        semantic_result_destroy(&bad);
+    }
+
+    /* User-defined types cannot resolve to ordinary variable symbols. */
+    {
+        SemanticResult bad;
+        uint32_t variable = 0u, invalid_type = 0u;
+        assert(semantic_result_init(&bad) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_symbol(&bad, 1u, 2u,
+            SEMANTIC_RESULT_SYMBOL_VARIABLE, 0u, "not_a_type", 0u,
+            &variable) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_intern_type(&bad,
+            SEMANTIC_RESULT_TYPE_USER_DEFINED, 0u, "not_a_type",
+            variable, 0u, &invalid_type) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_finalize(&bad, 2u) ==
             SEMANTIC_RESULT_INVALID_DATA);
         semantic_result_destroy(&bad);
     }
