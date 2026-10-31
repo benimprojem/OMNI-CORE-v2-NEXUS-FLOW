@@ -139,6 +139,11 @@ static OirStatus validate_scalar_ranges(const OirAstNodeTableView* view) {
             status=oir_ast_tlv_reader_next(&reader,&field,&has_field);
             if(status!=OIR_STATUS_OK) return status;
             if(!has_field) break;
+            if(field.value_type==OIR_AST_VALUE_NODE_REF &&
+                field.field_id > oir_ast_frontend_child_field_count(frontend_type)) {
+                /* Unknown optional references cannot be dropped: they own nodes. */
+                return OIR_STATUS_INVALID_SECTION;
+            }
             if(field.value_type==OIR_AST_VALUE_TOKEN_ID) {
                 OmniTokenType token;
                 if(!oir_token_id_to_omni(get_u16(field.value),&token)) {
