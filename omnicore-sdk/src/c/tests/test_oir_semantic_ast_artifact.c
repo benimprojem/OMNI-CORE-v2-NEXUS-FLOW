@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "oir_semantic_ast_artifact.h"
+#include "diagnostics.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -89,6 +90,7 @@ int main(void) {
     header.artifact_kind = OIR_KIND_SEMANTIC_AST;
     header.payload_schema_major = OIR_SEMANTIC_AST_SCHEMA_MAJOR;
     header.payload_schema_minor = OIR_SEMANTIC_AST_SCHEMA_MINOR;
+    header.producer_stage_id = OCC_STAGE_SEMANTIC;
     header.validity = OIR_VALIDITY_VALID;
     header.job_id = 42u;
 
