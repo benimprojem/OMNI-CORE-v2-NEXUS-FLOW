@@ -137,7 +137,8 @@ Ownership and trust rules:
 - The callback returns nonzero only when the diagnostic was accepted and copied. Allocation failure or invalid fields return zero.
 - A module that does not advertise the capability must receive an all-zero sink. A module that advertises it must receive a structurally valid sink.
 - No module chooses a filesystem path or owns the collector allocation. OCC remains responsible for checkpoint persistence.
+- The diagnostic collector is job-owned and is not internally synchronized. Until a synchronized host dispatcher is added, OCC must serialize callbacks that target the same collector, even when the module itself declares REENTRANT.
 
 The public ABI uses fixed-width 64-bit text lengths. The host bridge checks conversion to `size_t`, reserved fields, flags and pointer/length consistency before forwarding to `occ_diagnostics_add()`. The callback is synchronous and does not transfer memory ownership.
 
-CTest coverage: the ABI contract test reports a parser-stage error with source ID, byte range `[15,16)`, line 2, columns 7–8, message and hint; it verifies that the host collector owns the copied text and assigns the stage ID. Malformed reserved fields and sink flags are rejected.
+CTest coverage: the ABI contract test reports a parser-stage error with source ID, byte range `[15,16)`, line 2, columns 7–8, message and hint; it verifies that the host collector owns the copied text and assigns the stage ID. The dynamic-loader fixture also invokes the callback from the loaded shared library on the successful output-buffer retry. Malformed reserved fields and sink flags are rejected.
