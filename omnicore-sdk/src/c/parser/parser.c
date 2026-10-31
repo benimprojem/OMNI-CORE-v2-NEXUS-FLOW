@@ -397,6 +397,67 @@ static int check(Parser* p, OmniTokenType type) {
     return p->current.type == type;
 }
 
+/*
+ * Panic-mode recovery: discard the damaged statement, but preserve the next
+ * statement boundary and the enclosing block delimiter for the caller.
+ */
+static int parser_is_statement_start(OmniTokenType type) {
+    switch (type) {
+        case TOKEN_PRE_VAR:
+        case TOKEN_PRE_CONST:
+        case TOKEN_PRE_FUNC:
+        case TOKEN_KW_FN:
+        case TOKEN_KW_RET:
+        case TOKEN_KW_USE:
+        case TOKEN_KW_DEFER:
+        case TOKEN_KW_STRUCT:
+        case TOKEN_PRE_STRUCT:
+        case TOKEN_KW_ENUM:
+        case TOKEN_PRE_ENUM:
+        case TOKEN_KW_UNION:
+        case TOKEN_PRE_UNION:
+        case TOKEN_KW_GROUP:
+        case TOKEN_PRE_NEWTYPE:
+        case TOKEN_LBRACE:
+        case TOKEN_KW_LOOP:
+        case TOKEN_KW_BREAK:
+        case TOKEN_KW_CONTINUE:
+        case TOKEN_HALT:
+        case TOKEN_INTENT:
+        case TOKEN_FORCE:
+        case TOKEN_JUMP:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+static void parser_synchronize_statement(Parser* p) {
+    if (!p || !p->ctx) return;
+
+    /* Consume at least one token unless already positioned at a safe boundary. */
+    if (p->current.type == TOKEN_SEMICOLON) {
+        advance(p);
+        p->panic_mode = 0;
+        return;
+    }
+    if (p->current.type == TOKEN_RBRACE || p->current.type == TOKEN_EOF) {
+        p->panic_mode = 0;
+        return;
+    }
+
+    advance(p);
+    while (p->current.type != TOKEN_EOF &&
+           p->current.type != TOKEN_RBRACE &&
+           p->current.type != TOKEN_SEMICOLON) {
+        if (parser_is_statement_start(p->current.type)) break;
+        advance(p);
+    }
+
+    if (p->current.type == TOKEN_SEMICOLON) advance(p);
+    p->panic_mode = 0;
+}
+
 static Token parser_peek_n(Parser* p, int n) {
     Token token;
     size_t old_pos;
@@ -1612,7 +1673,12 @@ static ASTNode* parse_block(Parser* p) {
             else tail->next = stmt;
             tail = stmt;
         } else {
-            advance(p);
+            if (p->ctx->status == PARSER_STATUS_OUT_OF_MEMORY) {
+                ast_destroy(head);
+                ast_destroy((ASTNode*)block);
+                return NULL;
+            }
+            parser_synchronize_statement(p);
         }
     }
     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
@@ -2353,8 +2419,8 @@ int parser_run(ParserContext* ctx) {
                 ctx->status = PARSER_STATUS_INVALID_STATE;
                 return (int)ctx->status;
             }
-            // Hata durumunda sonsuz döngüyü önlemek için ilerle
-            advance(&parser);
+            // Recover at the next statement boundary without discarding it.
+            parser_synchronize_statement(&parser);
         }
     }
 
