@@ -45,9 +45,14 @@ int main(int argc, char** argv) {
     if (!invalid) return 1;
     parser_attach_diagnostics(invalid, &diagnostics, OCC_STAGE_PARSER);
     int invalid_result = parser_run(invalid);
+    OccDiagnosticView parser_diagnostic;
     int invalid_ok = invalid_result != 0 && invalid->error_count > 0 &&
         invalid->ast_root != NULL && occ_diagnostics_count(&diagnostics) > 0 &&
-        occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) > 0;
+        occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) > 0 &&
+        occ_diagnostics_get(&diagnostics, 0, &parser_diagnostic) &&
+        parser_diagnostic.record->span.has_location &&
+        parser_diagnostic.record->span.start_offset == 6u &&
+        parser_diagnostic.record->span.end_offset == 7u;
     parser_destroy(invalid);
     occ_diagnostics_destroy(&diagnostics);
     if (!invalid_ok) {
