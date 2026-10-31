@@ -101,6 +101,9 @@ static Token error_token(ParserContext* ctx, const char* message) {
             size_t diagnostic_index = occ_diagnostics_count(ctx->diagnostics);
             if (occ_diagnostics_add(ctx->diagnostics, &input)) {
                 token.diagnostic_id = (uint32_t)(diagnostic_index + 1u);
+            } else {
+                /* A lexical finding must never disappear silently on collector failure. */
+                ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
             }
         }
     }
