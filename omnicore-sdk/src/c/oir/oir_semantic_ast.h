@@ -26,6 +26,9 @@ extern "C" {
 #define OIR_SEMANTIC_SYMBOL_RECORD_SIZE 36u
 #define OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE 8u
 #define OIR_SEMANTIC_ANNOTATION_RECORD_SIZE 20u
+#define OIR_SEMANTIC_RELATIONS_HEADER_SIZE 12u
+#define OIR_SEMANTIC_RELATION_RECORD_SIZE 32u
+#define OIR_SEMANTIC_MAX_RELATION_COUNT 1000000u
 #define OIR_SEMANTIC_MAX_STRING_TABLE_SIZE (16u * 1024u * 1024u)
 
 typedef enum OirSemanticTypeKind {
@@ -56,6 +59,13 @@ typedef enum OirSemanticSymbolKind {
 #define OIR_SEMANTIC_SYMBOL_FLAG_EXPORTED 0x0004u
 #define OIR_SEMANTIC_SYMBOL_FLAG_PACKED   0x0008u
 #define OIR_SEMANTIC_SYMBOL_FLAG_HARD     0x0010u
+
+typedef enum OirSemanticRelationKind {
+    OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER = 1,
+    OIR_SEMANTIC_RELATION_AGGREGATE_FIELD = 2,
+    OIR_SEMANTIC_RELATION_ENUM_VARIANT = 3,
+    OIR_SEMANTIC_RELATION_ENUM_PAYLOAD_FIELD = 4
+} OirSemanticRelationKind;
 
 typedef enum OirSemanticValueCategory {
     OIR_SEMANTIC_VALUE_UNSPECIFIED = 0,
@@ -229,6 +239,51 @@ OirStatus oir_semantic_annotations_write(
     size_t capacity,
     const OirSemanticAnnotation* annotations,
     uint32_t annotation_count,
+    size_t* out_written
+);
+
+typedef struct OirSemanticRelation {
+    uint32_t owner_symbol_id;
+    uint16_t kind;
+    uint16_t flags;
+    uint32_t ordinal;
+    uint32_t related_symbol_id;
+    uint32_t related_node_id;
+    uint32_t name_offset;
+    uint32_t name_length;
+    uint32_t type_id;
+} OirSemanticRelation;
+
+typedef struct OirSemanticRelationsView {
+    const uint8_t* bytes;
+    size_t length;
+    uint32_t record_count;
+    size_t records_offset;
+    size_t strings_offset;
+    uint32_t string_table_length;
+} OirSemanticRelationsView;
+
+OirStatus oir_semantic_relations_open(
+    const uint8_t* payload,
+    size_t payload_length,
+    OirSemanticRelationsView* out_view
+);
+
+OirStatus oir_semantic_relations_get(
+    const OirSemanticRelationsView* view,
+    uint32_t index,
+    OirSemanticRelation* out_relation,
+    const uint8_t** out_name
+);
+
+/* Input records/string bytes and output buffer must be disjoint. */
+OirStatus oir_semantic_relations_write(
+    uint8_t* output,
+    size_t capacity,
+    const OirSemanticRelation* relations,
+    uint32_t relation_count,
+    const uint8_t* string_table,
+    uint32_t string_table_length,
     size_t* out_written
 );
 
