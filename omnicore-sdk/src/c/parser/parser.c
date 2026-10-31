@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define PARSER_MAX_NESTING_DEPTH 256u
+
 // --- Message System ---
 #define MAX_ERROR_CODE 4000
 static char* GLOBAL_MSG_TABLE[MAX_ERROR_CODE];
@@ -209,6 +211,7 @@ typedef struct {
     Token previous;
     int had_error;
     int panic_mode;
+    unsigned int nesting_depth;
 } Parser;
 
 static void parser_mark_oom(Parser* p) {
@@ -1374,8 +1377,17 @@ static ASTNode* parse_assignment(Parser* p) {
 }
 
 static ASTNode* parse_expression(Parser* p) {
+    ASTNode* expression;
+    if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Maximum parser nesting depth exceeded.");
+        return NULL;
+    }
+    ++p->nesting_depth;
     // İfade hiyerarşisi: Assignment/Capture -> Nexus Flow -> Additive ...
-    return parse_assignment(p);
+    expression = parse_assignment(p);
+    --p->nesting_depth;
+    return expression;
 }
 
 static int parse_struct_body(Parser* p, ASTStructDecl* decl) {
@@ -1670,8 +1682,18 @@ static ASTNode* parse_func_decl(Parser* p) {
 }
 
 static ASTNode* parse_block(Parser* p) {
-    ASTBlock* block = (ASTBlock*)parser_ast_create(p, AST_BLOCK);
-    if (!block) return NULL;
+    ASTBlock* block;
+    if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Maximum parser nesting depth exceeded.");
+        return NULL;
+    }
+    ++p->nesting_depth;
+    block = (ASTBlock*)parser_ast_create(p, AST_BLOCK);
+    if (!block) {
+        --p->nesting_depth;
+        return NULL;
+    }
     block->base.line = p->current.line; // { karakterinin konumu
     block->base.col = p->current.col;
     ASTNode* head = NULL;
@@ -1687,6 +1709,7 @@ static ASTNode* parse_block(Parser* p) {
             if (p->ctx->status == PARSER_STATUS_OUT_OF_MEMORY) {
                 ast_destroy(head);
                 ast_destroy((ASTNode*)block);
+                --p->nesting_depth;
                 return NULL;
             }
             parser_synchronize_statement(p);
@@ -1694,6 +1717,7 @@ static ASTNode* parse_block(Parser* p) {
     }
     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
     block->statements = head;
+    --p->nesting_depth;
     return (ASTNode*)block;
 }
 
