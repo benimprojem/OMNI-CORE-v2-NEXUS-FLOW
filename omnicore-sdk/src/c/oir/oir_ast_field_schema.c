@@ -8,7 +8,7 @@ static uint16_t required_field_count(uint16_t kind) {
         case 3: return 8u;
         case 4: case 12: return 7u;
         case 5: case 7: return 6u;
-        case 6: case 8: case 9: case 11: case 19:
+        case 6: case 8: case 9: case 11: case 19: case 33:
         case 30: case 36: case 41: case 71:
             return (kind == 19) ? 2u :
                 ((kind == 30 || kind == 36 || kind == 41) ? 2u :
