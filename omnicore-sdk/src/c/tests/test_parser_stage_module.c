@@ -77,6 +77,7 @@ int main(int argc,char** argv) {
         sizeof(source_bytes)-1u,0u,token_inputs,(uint32_t)token_count,
         &token_payload_len)==OIR_STATUS_OK);
     header.artifact_kind=OIR_KIND_TOKEN_STREAM;
+    header.producer_stage_id=OCC_STAGE_LEXER;
     header.payload_schema_major=OIR_TOKEN_STREAM_SCHEMA_MAJOR;
     header.payload_schema_minor=OIR_TOKEN_STREAM_SCHEMA_MINOR;
     section.data=token_payload;
@@ -106,6 +107,18 @@ int main(int argc,char** argv) {
     free(output);
     output=NULL;
     output_capacity=0u;
+
+    free(output);
+    output=NULL;
+    output_capacity=0u;
+
+    /* A token artifact with an unknown schema major must be rejected. */
+    token_artifact[16]=(uint8_t)(OIR_TOKEN_STREAM_SCHEMA_MAJOR+1u);
+    CHECK(occ_module_loader_invoke(&loaded,inputs,2u,42u,&collector,
+        64u,16u*1024u*1024u,&output,&output_capacity)==
+        OCC_MODULE_LOADER_INVOKE_FAILED);
+    CHECK(output==NULL && output_capacity==0u);
+    token_artifact[16]=(uint8_t)OIR_TOKEN_STREAM_SCHEMA_MAJOR;
 
     /* Invalid source must report exact token coordinates and publish no AST. */
     {
