@@ -190,7 +190,7 @@ static uint16_t semantic_result_symbol_kind(SlotKind kind) {
 }
 
 static uint32_t semantic_type_id(
-    SemanticContext* ctx, const char* type_name
+    SemanticContext* ctx, const char* type_name, int force_hard
 ) {
     const char* name = type_name;
     uint16_t flags = 0u;
@@ -208,6 +208,7 @@ static uint32_t semantic_type_id(
         flags |= SEMANTIC_RESULT_TYPE_FLAG_HARD;
         ++name;
     }
+    if (force_hard) flags |= SEMANTIC_RESULT_TYPE_FLAG_HARD;
     if (!*name) return 0u;
 
     if (is_primitive_type_for_result(name)) {
@@ -245,7 +246,9 @@ static Slot* add_slot(
     const char* type_name,
     ASTNode* declaration_node,
     int is_implicit,
-    int is_packed
+    int is_packed,
+    int is_hard,
+    uint16_t extra_symbol_flags
 ) {
     Slot* s = (Slot*)malloc(sizeof(Slot));
     if (!s) {
@@ -263,7 +266,7 @@ static Slot* add_slot(
     s->fields = NULL;
     s->is_packed = is_packed;
     s->scope_id = ctx->current_scope_id;
-    s->type_id = semantic_type_id(ctx, type_name);
+    s->type_id = semantic_type_id(ctx, type_name, is_hard);
 
     if (ctx->result_enabled &&
         ctx->result_status == SEMANTIC_RESULT_OK) {
@@ -272,6 +275,8 @@ static Slot* add_slot(
         if (is_const) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_CONST;
         if (is_packed) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_PACKED;
         if (is_implicit) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_IMPLICIT;
+        if (is_hard) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_HARD;
+        result_flags |= extra_symbol_flags;
         if (type_name && type_name[0] == '!') {
             result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_HARD;
         }
@@ -300,7 +305,7 @@ static void semantic_define_named_type(
     SemanticContext* ctx, Slot* slot, const char* type_name,
     const char* base_type_name
 ) {
-    uint32_t base_type_id = semantic_type_id(ctx, base_type_name);
+    uint32_t base_type_id = semantic_type_id(ctx, base_type_name, 0);
     uint32_t type_id = 0u;
     SemanticResultStatus status;
 
@@ -337,7 +342,7 @@ static void semantic_record_annotation(
     if (!ctx || !ctx->result_enabled ||
         ctx->result_status != SEMANTIC_RESULT_OK || !node) return;
     node_id = semantic_node_id(ctx, node);
-    type_id = slot ? slot->type_id : semantic_type_id(ctx, type_name);
+    type_id = slot ? slot->type_id : semantic_type_id(ctx, type_name, 0);
     if (node_id == 0u || ctx->current_scope_id == 0u) {
         semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
         return;
@@ -877,7 +882,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                                     0u,
                                     semantic_node_id(ctx, field_node),
                                     v->name,
-                                    semantic_type_id(ctx, v->type_name));
+                                    semantic_type_id(ctx, v->type_name, v->is_hard_typed));
                             semantic_set_result_error(ctx, relation_status);
                         }
 
@@ -979,7 +984,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                                         0u,
                                         semantic_node_id(ctx, field_node),
                                         fdecl->name,
-                                        semantic_type_id(ctx, fdecl->type_name));
+                                        semantic_type_id(ctx, fdecl->type_name, fdecl->is_hard_typed));
                                 semantic_set_result_error(ctx, relation_status);
                             }
                             field_node = field_node->next;
