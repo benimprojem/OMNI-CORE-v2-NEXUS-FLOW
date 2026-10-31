@@ -298,7 +298,7 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 
 Halt iki ayrı operatör değildir; aynı `?;` işleminin hedef kapsamı farklıdır:
 
-- **Tekil Halt — `resource ?;`:** Herhangi bir uygun statement noktasında kullanılabilir. İlgili kaynak/masa kapatılır veya temizlenir. Örnekler: açık dosyayı kapatmak, geçici tabloyu temizlemek, yüklenmiş DLL'yi kaldırmak.
+- **Tekil Halt — `(resource)?;`:** Herhangi bir uygun statement noktasında kullanılabilir. İlgili kaynak/masa kapatılır veya temizlenir. Örnekler: açık dosyayı kapatmak, geçici tabloyu temizlemek, yüklenmiş DLL'yi kaldırmak.
 - **Blok Halt — `}?;`:** Bir bloğun kapanışına eklenir. O blok içinde açılmış ve hâlâ o bloğun sahipliğinde bulunan tüm açık kaynakları tek tek kapatma gerektirmeden topluca sonlandırır.
 
 Örnekler:
@@ -306,15 +306,15 @@ Halt iki ayrı operatör değildir; aynı `?;` işleminin hedef kapsamı farklı
 ```nexus
 (file) <- file.open("data.bin", r);
 file.read(file);
-file ?;                 # Yalnızca bu dosya kaynağını kapat.
+(file)?;                 # Yalnızca bu dosya kaynağını kapat.
 
 (table) <- table.create();
 table.insert(table, row);
-table ?;                # Yalnızca bu tabloyu temizle.
+(table)?;                # Yalnızca bu tabloyu temizle.
 
-(lib) <- dll.load("optimizer.dll");
-Optimizer.run(lib);
-lib ?;                  # Yüklenen DLL kaynağını kaldır.
+(Optimizer) <- dll.load("optimizer.dll");
+Optimizer.run(Optimizer);
+(Optimizer)?;                  # Yüklenen DLL kaynağını kaldır.
 ```
 
 Blok kapsamlı kapatma:
