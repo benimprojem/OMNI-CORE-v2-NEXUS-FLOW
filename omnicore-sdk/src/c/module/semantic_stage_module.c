@@ -195,7 +195,11 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
     semantic_attach_node_id_resolver(&sem,resolve_node,&resolver);
     semantic_check(&sem,root);
     out->diagnostics_count=(uint32_t)occ_diagnostics_count(&diags);
-    if(sem.error_count||diags.allocation_failed) {
+    if(sem.result_status==SEMANTIC_RESULT_OUT_OF_MEMORY||diags.allocation_failed) {
+        if(!send_diagnostics(inv,&diags)) { out->failure_code=8305u; goto done; }
+        out->failure_code=8311u; rc=OCC_MODULE_STATUS_FAILED; goto done;
+    }
+    if(sem.error_count) {
         if(!send_diagnostics(inv,&diags)) { out->failure_code=8305u; goto done; }
         out->failure_code=8306u; rc=OCC_MODULE_STATUS_FAILED; goto done;
     }
