@@ -5,7 +5,29 @@
 
 #define SEMANTIC_RESULT_MAX_NAME_BYTES (16u * 1024u * 1024u)
 
+static int should_fail_allocation(SemanticResult* result) {
+    if (!result) return 0;
+    if (result->test_allocation_attempts != UINT32_MAX) ++result->test_allocation_attempts;
+    return result->test_allocation_fail_at != 0u && result->test_allocation_attempts == result->test_allocation_fail_at;
+}
+static void* result_reallocate(SemanticResult* result, void* pointer, size_t size) {
+    if (should_fail_allocation(result)) return NULL;
+    return realloc(pointer, size);
+}
+static void* result_allocate(SemanticResult* result, size_t size) {
+    if (should_fail_allocation(result)) return NULL;
+    return malloc(size);
+}
+void semantic_result_test_fail_allocation_at(SemanticResult* result, uint32_t allocation_index) {
+    if (!result) return;
+    result->test_allocation_fail_at = allocation_index;
+    result->test_allocation_attempts = 0u;
+}
+uint32_t semantic_result_test_get_allocation_attempts(const SemanticResult* result) {
+    return result ? result->test_allocation_attempts : 0u;
+}
 static SemanticResultStatus reserve_array(
+    SemanticResult* result,
     void** array,
     uint32_t* capacity,
     uint32_t required,
@@ -34,7 +56,7 @@ static SemanticResultStatus reserve_array(
         return SEMANTIC_RESULT_LIMIT_EXCEEDED;
     }
 
-    next = realloc(*array, (size_t)next_capacity * element_size);
+    next = result_reallocate(result, *array, (size_t)next_capacity * element_size);
     if (!next) return SEMANTIC_RESULT_OUT_OF_MEMORY;
     *array = next;
     *capacity = next_capacity;
@@ -92,14 +114,14 @@ static int valid_utf8(const char* text) {
     return 1;
 }
 
-static char* copy_name(const char* name) {
+static char* copy_name(SemanticResult* result, const char* name) {
     size_t length;
     char* copy;
 
     if (!name) return NULL;
     length = strlen(name);
     if (length > SEMANTIC_RESULT_MAX_NAME_BYTES || !valid_utf8(name)) return NULL;
-    copy = (char*)malloc(length + 1u);
+    copy = (char*)result_allocate(result, length + 1u);
     if (!copy) return NULL;
     memcpy(copy, name, length + 1u);
     return copy;
@@ -169,7 +191,7 @@ SemanticResultStatus semantic_result_init(SemanticResult* result) {
     if (!result) return SEMANTIC_RESULT_INVALID_ARGUMENT;
     memset(result, 0, sizeof(*result));
     status = reserve_array(
-        (void**)&result->scopes, &result->scope_capacity, 1u,
+        result, (void**)&result->scopes, &result->scope_capacity, 1u,
         sizeof(*result->scopes));
     if (status != SEMANTIC_RESULT_OK) return status;
 
@@ -286,7 +308,7 @@ SemanticResultStatus semantic_result_intern_type(
         return SEMANTIC_RESULT_LIMIT_EXCEEDED;
     }
     if (name) {
-        name_copy = copy_name(name);
+        name_copy = copy_name(result, name);
         if (!name_copy) {
             return valid_utf8(name)
                 ? SEMANTIC_RESULT_OUT_OF_MEMORY
@@ -643,8 +665,8 @@ SemanticResultStatus semantic_result_finalize(
     }
 
     if (result->scope_count > 1u) {
-        owner_nodes = (uint32_t*)malloc(
-            (size_t)(result->scope_count - 1u) * sizeof(*owner_nodes));
+        owner_nodes = (uint32_t*)result_allocate(
+            result, (size_t)(result->scope_count - 1u) * sizeof(*owner_nodes));
         if (!owner_nodes) return SEMANTIC_RESULT_OUT_OF_MEMORY;
     }
 
