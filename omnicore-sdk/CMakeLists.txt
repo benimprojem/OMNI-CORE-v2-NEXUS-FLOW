@@ -613,6 +613,7 @@ if(BUILD_TESTING)
         occ_frontend
         occ_oir_ast_frontend_writer
         occ_oir_ast_frontend_reader
+        occ_oir_ast_artifact
     )
     if(MSVC)
         target_compile_options(test_parser_ast_oir_roundtrip PRIVATE /W4)
