@@ -500,5 +500,12 @@ Denetimde netleşen noktalar:
 - Caller-owned, zero-initialized, power-of-two open-addressing table; load factor en fazla 0.5; gizli allocation yok.
 - Repeated pointer (cycle/shared owner), root sibling, unsupported AST tag, geçersiz line/column, 1,000,000 node ve 512 depth sınırları denetleniyor.
 - Nexus Flow sparse child alanları 2, 3, 6 ile test edildi. CTest: `oir_ast_frontend_index_deterministic_preorder_and_graph_rejection`.
-- **CI run 41158241944:** Ubuntu build/test 27/27 ve ASan/UBSan başarılı; Windows/macOS/Valgrind işleri henüz tamamlanmadı.
+- **CI run 41158241944:** Windows, Ubuntu ve macOS build/test başarılı; Ubuntu CTest 27/27, ASan/UBSan ve Valgrind başarılı.
 - **Sıradaki adım:** Aynı pointer index üzerinden NodeRecord + TLV field emission; string table için caller-owned buffer ve size-query/preflight API.
+
+
+## Frontend AST pointer index CI confirmation — 31 Ekim 2026
+
+- Run 41158241944 tüm işleri başarıyla tamamladı: Windows, Ubuntu, macOS, Ubuntu ASan/UBSan ve Valgrind.
+- Ubuntu CTest 27/27 geçti.
+- Sonraki writer katmanı pointer index'i kullanarak node record'larını, TLV alanlarını ve string table referanslarını üretmeli; caller-owned buffer ve preflight sözleşmesi korunmalı.
