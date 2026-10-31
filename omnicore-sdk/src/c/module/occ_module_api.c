@@ -53,8 +53,10 @@ static uint32_t OCC_MODULE_CALL host_report_diagnostic(
         diagnostic->reserved[0] != 0u ||
         diagnostic->reserved[1] != 0u ||
         diagnostic->reserved[2] != 0u ||
+#if SIZE_MAX < UINT64_MAX
         diagnostic->message_length > (uint64_t)SIZE_MAX ||
         diagnostic->hint_length > (uint64_t)SIZE_MAX ||
+#endif
         (!diagnostic->message && diagnostic->message_length != 0u) ||
         (!diagnostic->hint && diagnostic->hint_length != 0u)) {
         return 0u;
