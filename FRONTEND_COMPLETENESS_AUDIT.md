@@ -258,3 +258,18 @@ Not: Bu değişiklikler legacy AST codec ve OIR AST payload sözleşmesini etkil
 - Mevcut AST codec ve OIR AST payload sözleşmesindeki CAST alan değişikliği için artifact versioning/compatibility kararı hâlâ açık.
 
 Bu değişiklikler NEXSUS Flow gramerine yeni bir operatör veya üretim kuralı eklemiyor; Lexer'ın mevcut string/character tarama davranışını README ile eşitliyor.
+## 6.11 Postfix, unary ve binary expression AST sahipliği
+
+**Durum: İfade ağacının önemli bir bölümü OOM ve parse-hatası temizliği açısından güçlendirildi.**
+
+- Postfix member access, call ve ++/-- düğümlerinde AST tahsisi kontrol ediliyor; başarısızlıkta daha önce oluşturulmuş ifade ağacı temizleniyor.
+- Call argümanları ASTCall içine eklendikçe sahiplik kaydediliyor. Sonraki argüman parse edilemezse callee ve önceki argümanlar birlikte yok ediliyor.
+- Prefix unary operatörlerde düğüm tahsisi başarısızsa operand ağacı temizleniyor.
+- Çarpma/bölme, toplama/çıkarma, karşılaştırma, eşitlik ve range düğümleri ortak parser_make_binary() kurucusuna taşındı. İki operandın sahipliği kurucuya devrediliyor; düğüm tahsisi başarısızsa ikisi de temizleniyor.
+- Sağ operand parse edilemediğinde daha önce oluşturulmuş sol operand artık terk edilmiyor.
+
+**Kalan işler:**
+
+- Nexus Flow pipe/flow/unpack, tuple, loop, intrinsic, declaration ve statement AST kurucuları aynı sahiplik modeline taşınmalı.
+- Parser OOM durumunu syntax error'dan ayırmalı; parse döngüsü bellek hatasında ilerlemeye çalışmamalı.
+- Allocation-failure injection altyapısı eklenerek her tahsis noktasında cleanup test edilmeli.
