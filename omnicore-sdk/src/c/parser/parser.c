@@ -342,9 +342,18 @@ static void error_at(Parser* p, Token* token, ErrorCode code, const char* messag
     if (token->type == TOKEN_ERROR && token->diagnostic_id != 0 &&
         p->ctx->diagnostics &&
         (size_t)token->diagnostic_id <= occ_diagnostics_count(p->ctx->diagnostics)) {
-        /* The upstream OIR DIAGNOSTICS payload already owns this finding. */
-        p->had_error = 1;
-        return;
+        OccDiagnosticView upstream;
+        if (occ_diagnostics_get(p->ctx->diagnostics,
+                (size_t)token->diagnostic_id - 1u, &upstream) &&
+            upstream.record->stage_id == OCC_STAGE_LEXER &&
+            upstream.record->span.has_location &&
+            upstream.record->span.start_offset == (uint64_t)token->source_offset &&
+            upstream.record->span.end_offset ==
+                (uint64_t)(token->source_offset + token->source_length)) {
+            /* The upstream lexer diagnostic owns this exact token finding. */
+            p->had_error = 1;
+            return;
+        }
     }
     
     char full_msg[256];
