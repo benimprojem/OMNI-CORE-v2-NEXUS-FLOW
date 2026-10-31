@@ -300,10 +300,11 @@ static OirStatus validate_type_records(
 ) {
     uint32_t i;
 
-    if (!records || type_count == 0u ||
+    if ((!records && type_count != 0u) ||
         type_count > OIR_SEMANTIC_MAX_TYPE_COUNT ||
         string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE ||
-        (!string_table && string_table_length != 0u)) {
+        (!string_table && string_table_length != 0u) ||
+        (type_count == 0u && string_table_length != 0u)) {
         return OIR_STATUS_INVALID_SECTION;
     }
 
@@ -350,7 +351,7 @@ OirStatus oir_semantic_types_open(
     record_size = read_u32_le(payload + 4);
     string_length = read_u32_le(payload + 8);
     if (record_size != OIR_SEMANTIC_TYPE_RECORD_SIZE ||
-        count == 0u || count > OIR_SEMANTIC_MAX_TYPE_COUNT ||
+        count > OIR_SEMANTIC_MAX_TYPE_COUNT ||
         string_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
         return OIR_STATUS_INVALID_SECTION;
     }
@@ -438,12 +439,13 @@ OirStatus oir_semantic_types_write(
     uint32_t i;
 
     if (out_written) *out_written = 0u;
-    if (!output || !types || !out_written ||
+    if (!output || !out_written || (!types && type_count != 0u) ||
         (!string_table && string_table_length != 0u)) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
-    if (type_count == 0u || type_count > OIR_SEMANTIC_MAX_TYPE_COUNT ||
-        string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
+    if (type_count > OIR_SEMANTIC_MAX_TYPE_COUNT ||
+        string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE ||
+        (type_count == 0u && string_table_length != 0u)) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
 
@@ -545,10 +547,11 @@ static OirStatus validate_symbol_records(
 ) {
     uint32_t i;
 
-    if (!records || symbol_count == 0u ||
+    if ((!records && symbol_count != 0u) ||
         symbol_count > OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
         string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE ||
-        (!string_table && string_table_length != 0u)) {
+        (!string_table && string_table_length != 0u) ||
+        (symbol_count == 0u && string_table_length != 0u)) {
         return OIR_STATUS_INVALID_SECTION;
     }
 
@@ -598,7 +601,7 @@ OirStatus oir_semantic_symbols_open(
     record_size = read_u32_le(payload + 4);
     string_length = read_u32_le(payload + 8);
     if (record_size != OIR_SEMANTIC_SYMBOL_RECORD_SIZE ||
-        count == 0u || count > OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
+        count > OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
         string_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
         return OIR_STATUS_INVALID_SECTION;
     }
@@ -687,13 +690,13 @@ OirStatus oir_semantic_symbols_write(
     uint32_t i;
 
     if (out_written) *out_written = 0u;
-    if (!output || !symbols || !out_written ||
+    if (!output || !out_written || (!symbols && symbol_count != 0u) ||
         (!string_table && string_table_length != 0u)) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
-    if (symbol_count == 0u ||
-        symbol_count > OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
-        string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
+    if (symbol_count > OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
+        string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE ||
+        (symbol_count == 0u && string_table_length != 0u)) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
 
