@@ -4,6 +4,7 @@
 #include "oir_semantic_ast.h"
 #include "oir_ast_graph.h"
 #include "oir_ast_field_schema.h"
+#include "semantic_result.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,8 +31,18 @@ typedef struct OirSemanticAstArtifactView {
  * All scratch arrays are caller-owned. The returned views borrow artifact_bytes,
  * which must outlive out_view. On failure, out_view is zeroed.
  */
-OirStatus oir_semantic_ast_artifact_open(
-    const uint8_t* artifact_bytes,
+OirStatus oir_semantic_ast_artifact_write(
+    const uint8_t* ast_payload,
+    size_t ast_payload_length,
+    const SemanticResult* semantic_result,
+    uint64_t job_id,
+    uint8_t* output,
+    size_t output_capacity,
+    size_t* out_written
+);
+
+/*
+ * Validate a complete SEMANTIC_AST OIR artifact:
     size_t artifact_length,
     OirSemanticAstArtifactView* out_view,
     uint32_t* incoming_counts,
