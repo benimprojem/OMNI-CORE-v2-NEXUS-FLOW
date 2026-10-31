@@ -550,5 +550,12 @@ Denetimde netleşen noktalar:
 - `test_parser_ast_oir_roundtrip.c` gerçek `test1.nxf` dosyasını mevcut parser ile parse ediyor; AST'yi OIR'a yazıyor, reader ile yeni AST oluşturuyor ve tekrar OIR'a yazıyor.
 - İlk ve ikinci OIR payload byte-for-byte karşılaştırılıyor; canonical ID sırası, source positions, scalar/token/string değerleri ve pointer bağlantıları tek entegrasyon zincirinde sınanıyor.
 - Test CTest: `parser_ast_oir_ast_roundtrip_canonical_bytes`.
-- **Run 41159889179:** Ubuntu CTest 30/30, ASan/UBSan ve Valgrind başarılı; macOS build/test başarılı. Windows build/test henüz devam ediyor.
+- **Run 41159889179:** Windows, Ubuntu ve macOS build/test başarılı; Ubuntu CTest 30/30, ASan/UBSan ve Valgrind başarılı.
 - **Sıradaki aşama:** Windows sonucu tamamlanınca parser checkpoint handoff tasarımı ve malformed AST payload fuzz/property test matrisi.
+
+
+## Parser AST round-trip CI confirmation — 31 Ekim 2026
+
+- Run 41159889179 tamamlandı: Windows, Ubuntu ve macOS build/test başarılı.
+- Ubuntu CTest 30/30; ASan/UBSan ve Valgrind başarılı.
+- Gerçek parser fixture'ı üzerinden AST → OIR → AST → OIR byte-for-byte canonical eşitliği doğrulandı.
