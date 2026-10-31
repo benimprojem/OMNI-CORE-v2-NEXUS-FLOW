@@ -12,7 +12,10 @@ extern "C" {
 typedef enum OccDiagnosticStage {
     OCC_STAGE_LEXER = 1,
     OCC_STAGE_PARSER = 2,
-    OCC_STAGE_SEMANTIC = 3
+    OCC_STAGE_SEMANTIC = 3,
+    OCC_STAGE_OIR = 4,
+    OCC_STAGE_CODEGEN = 5,
+    OCC_STAGE_OCC_HOST = 6
 } OccDiagnosticStage;
 
 typedef enum OccDiagnosticSeverity {
