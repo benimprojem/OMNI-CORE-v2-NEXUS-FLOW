@@ -667,7 +667,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_BLOCK: {
             ASTBlock* block = (ASTBlock*)node;
-            enter_scope(ctx);
+            enter_scope(ctx, node);
             semantic_check(ctx, block->statements);
             exit_scope(ctx);
             break;
@@ -894,7 +894,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         
         case AST_LOOP: {
             ASTLoop* loop = (ASTLoop*)node;
-            enter_scope(ctx);
+            enter_scope(ctx, node);
 
             // 1. Init / Variable Handling
             if (loop->loop_type == 3) { // Foreach: loop(var <-- collection)
@@ -1014,7 +1014,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_LISTEN: {
             ASTNexusCapture* listen = (ASTNexusCapture*)node;
             // Listen bloğu içinde 'global_listener' slotu veya benzeri bir kapsam açılabilir
-            enter_scope(ctx);
+            enter_scope(ctx, node);
             add_slot(ctx, listen->handler_name, SLOT_VAR, 1, "any", node, 1, 0);
             if (listen->expr) semantic_check(ctx, listen->expr);
             exit_scope(ctx);
@@ -1043,7 +1043,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_GROUP_DECL: {
             ASTGroupDecl* g = (ASTGroupDecl*)node;
-            enter_scope(ctx);
+            enter_scope(ctx, node);
             if (g->members) semantic_check(ctx, g->members);
             exit_scope(ctx);
             printf("[SEMANTIC] Analyzed GROUP: %s\n", g->name);
@@ -1097,7 +1097,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_THREAD_BLOCK: {
             ASTThreadBlock* tb = (ASTThreadBlock*)node;
-            enter_scope(ctx);
+            enter_scope(ctx, node);
             semantic_check(ctx, tb->body);
             exit_scope(ctx);
             break;
