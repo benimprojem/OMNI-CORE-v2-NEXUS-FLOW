@@ -56,6 +56,7 @@ static OirStatus validate_record(
         flags != 0 || line == 0 || column == 0 || !previous_source_end) {
         return OIR_STATUS_INVALID_SECTION;
     }
+    (void)frontend_token;
 
     if (token_id == 1u) { /* TOKEN_EOF */
         if (index + 1u != token_count || lexeme_length != 0 ||
@@ -67,7 +68,7 @@ static OirStatus validate_record(
         return OIR_STATUS_OK;
     }
 
-    if (index + 1u == token_count) return OIR_STATUS_MISSING_PAYLOAD;
+    if (index + 1u == token_count) return OIR_STATUS_INVALID_SECTION;
 
     if (token_id == 2u) { /* TOKEN_ERROR */
         if (diagnostic_id == 0 || diagnostic_id > diagnostic_count) {
