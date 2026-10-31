@@ -1,3 +1,6 @@
+#if !defined(_WIN32)
+#define _GNU_SOURCE
+#endif
 #include "occ_module_api.h"
 #include "semantic.h"
 #include "ast.h"
@@ -10,7 +13,6 @@
 #if defined(_WIN32)
 #include <windows.h>
 #else
-#define _GNU_SOURCE
 #include <dlfcn.h>
 #endif
 #include <string.h>
