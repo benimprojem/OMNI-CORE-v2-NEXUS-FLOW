@@ -21,10 +21,10 @@ static char advance(ParserContext* ctx) {
     if (ctx->pos >= ctx->source_len) return '\0';
     ctx->pos++;
     if (c == '\n') {
-        ctx->current_line++;
+        if (ctx->current_line < INT_MAX) ++ctx->current_line;
         ctx->current_col = 1;
-    } else {
-        ctx->current_col++;
+    } else if (ctx->current_col < INT_MAX) {
+        ++ctx->current_col;
     }
     return c;
 }
@@ -37,15 +37,22 @@ static bool match(ParserContext* ctx, char expected) {
     return false;
 }
 
-static Token make_token(ParserContext* ctx, OmniTokenType type, const char* start, int length) {
+static Token error_token(ParserContext* ctx, const char* message);
+
+static Token make_token(
+    ParserContext* ctx, OmniTokenType type, const char* start, size_t length
+) {
     Token token;
+    if (length > (size_t)INT_MAX) {
+        return error_token(ctx, "Token exceeds maximum supported length");
+    }
     token.type = type;
     token.start = start;
-    token.length = length;
+    token.length = (int)length;
     token.line = ctx->token_start_line;
     token.col = ctx->token_start_col;
     token.source_offset = ctx->token_start_offset;
-    token.source_length = (size_t)length;
+    token.source_length = length;
     token.diagnostic_id = 0;
     return token;
 }
@@ -337,7 +344,7 @@ Token lexer_next_token(ParserContext* ctx) {
             // Fix: Only consume ':' if it is followed by an alphanumeric char or '_' (Prefix style)
             if (peek(ctx) == ':') {
                 // Special case for "nt:" to allow "nt: struct"
-                int len = (int)(&ctx->source_buffer[ctx->pos] - start);
+                size_t len = (size_t)(&ctx->source_buffer[ctx->pos] - start);
                 if (len == 2 && start[0] == 'n' && start[1] == 't') {
                     // Allow consuming ':' for nt: prefix even if followed by space
                 } 
@@ -353,7 +360,7 @@ Token lexer_next_token(ParserContext* ctx) {
             }
             advance(ctx);
         }
-        int length = (int)(&ctx->source_buffer[ctx->pos] - start);
+        size_t length = (size_t)(&ctx->source_buffer[ctx->pos] - start);
         return make_token(ctx, identifier_type(start, length), start, length);
     }
 
