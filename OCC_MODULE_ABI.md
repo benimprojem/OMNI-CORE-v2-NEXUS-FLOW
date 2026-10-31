@@ -195,3 +195,20 @@ CTest coverage:
 - real_parser_stage_source_token_to_ast_module: the real parser DLL is now loaded and invoked through the OCC host loader for both successful AST output and invalid-source diagnostic failure.
 
 The loader is implemented, but main.c has not yet switched from its legacy statically linked parser path. Full CLI pipeline integration and failure-checkpoint verification remain pending. ABI v1 remains draft and is not frozen.
+
+
+## 12. OCC host pipeline integration — first parser DLL handoff
+
+The OCC CLI now performs a real in-memory OIR handoff through the parser shared module. The host still owns the lexer at this stage:
+
+- Source file bytes and path are serialized as a `SOURCE_UNIT` artifact.
+- Frontend tokens are converted to stable OIR token IDs and byte spans, then serialized as `TOKEN_STREAM`.
+- Lexer diagnostics, when present, are serialized in the token artifact's optional `DIAGNOSTICS` section. Token error records reference the diagnostic table by stable 1-based IDs.
+- OCC loads `occ_parser_stage` from the executable runtime directory, invokes it through `occ_module_loader_invoke()`, and receives a validated `AST` artifact.
+- The host independently opens the AST artifact, validates the node table, materializes the AST, and passes that host-owned AST to the existing semantic analyzer.
+
+On parser failure, the callback has already copied stage diagnostics into the job collector. OCC retains the original source context and persists the invalid-source checkpoint. The CLI integration test verifies the failure checkpoint exists and contains the exact bytes read from the fixture source file.
+
+CI run 41174447616 passed: Windows, Ubuntu and macOS build/test; CTest 39/39; Ubuntu ASan/UBSan and Valgrind. The localized executable copy also receives the parser shared library beside it.
+
+This is intentionally a partial pipeline migration. Lexer remains statically hosted, semantic analysis remains in-process, and codegen still uses its legacy `codegen_run` entry point rather than `OccStageModuleV1`. The semantic AST OIR schema and module are not implemented yet. The ABI remains Draft v1 and is not frozen.
