@@ -1169,7 +1169,19 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_CAST: {
             ASTCast* cast = (ASTCast*)node;
             if (cast->value) semantic_check(ctx, cast->value);
-            /* target_type is a type name, not a value expression. */
+            /* The target is a type designator, not a runtime value expression. */
+            if (cast->target_type && cast->target_type->type == AST_IDENTIFIER) {
+                const char* target_name = ((ASTIdentifier*)cast->target_type)->name;
+                if (target_name && !is_type_defined(ctx, target_name)) {
+                    char message[256];
+                    snprintf(message, sizeof(message),
+                        msg_get(ERR_SEMANTIC_UNKNOWN_TYPE), target_name);
+                    report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
+                }
+            } else {
+                report_error(ctx, node, ERR_PARSER_EXPECTED_EXPRESSION,
+                    "cast() requires a type name as its second argument.");
+            }
             break;
         }
 
