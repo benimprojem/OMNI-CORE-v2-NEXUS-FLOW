@@ -455,3 +455,11 @@ Bu bölüm Parser → Semantic sınırını kapsar; IR Lowering'e geçildiği an
 - Semantic integration testi önce başarılı yazımdaki toplam tahsis sayısını ölçer, ardından her 1-based tahsis indeksini ayrı ayrı başarısız kılar. Her durumda OOM dönmesi, `out_written == 0` olması ve caller output buffer'ının byte-byte değişmeden kalması doğrulanır.
 - Artifact open/reader tarafı zaten caller-owned scratch buffer'larla çalışır; reader kendi heap tahsisini yapmaz. Bu nedenle writer sweep reader allocations değil, writer-owned allocations kapsamındadır.
 - IR Lowering'e geçilmedi.
+
+
+## 6.22 Semantic stage output and downstream consumer boundary
+
+- Added `SEMANTIC_AST_CONSUMER_CONTRACT.md` defining producer/schema/job identity, required and optional sections, full validation gate, borrowed-view lifetime, caller-owned scratch capacities, and publication/retry rules.
+- Hardened `semantic_stage_module.c` output-size preflight against OIR record-count and string-table ceilings and missing backing arrays before computing required capacity.
+- Successful semantic-stage invocations now publish collected diagnostics only after the artifact is written. This preserves retry idempotence for `NEED_OUTPUT_BUFFER` and prevents future non-error diagnostics from being silently omitted. If the host callback rejects a diagnostic, the result is marked failed and the artifact is not published (`bytes_written=0`, validity NONE).
+- IR Lowering and linker implementation remain out of scope.
