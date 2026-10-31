@@ -1792,6 +1792,7 @@ static ASTNode* parse_block(Parser* p) {
     ASTNode* tail = NULL;
 
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
+        Token statement_start = p->current;
         ASTNode* stmt = parse_statement(p);
         if (stmt) {
             if (!head) head = stmt;
@@ -1803,6 +1804,14 @@ static ASTNode* parse_block(Parser* p) {
                 ast_destroy((ASTNode*)block);
                 --p->nesting_depth;
                 return NULL;
+            }
+            /* A failed statement must make progress before synchronization. */
+            if (p->current.type == statement_start.type &&
+                p->current.source_offset == statement_start.source_offset &&
+                p->current.line == statement_start.line &&
+                p->current.col == statement_start.col &&
+                p->current.type != TOKEN_EOF) {
+                advance(p);
             }
             parser_synchronize_statement(p);
         }
@@ -2530,6 +2539,7 @@ int parser_run(ParserContext* ctx) {
     ASTNode* current_stmt = NULL;
 
     while (!match(&parser, TOKEN_EOF)) {
+        Token statement_start = parser.current;
         ASTNode* stmt = parse_statement(&parser);
         if (stmt) {
             // AST'ye ekle (Bağlı liste mantığı)
@@ -2546,7 +2556,14 @@ int parser_run(ParserContext* ctx) {
                 ctx->status = PARSER_STATUS_INVALID_STATE;
                 return (int)ctx->status;
             }
-            // Recover at the next statement boundary without discarding it.
+            // Recover at the next statement boundary without stalling on an unchanged token.
+            if (parser.current.type == statement_start.type &&
+                parser.current.source_offset == statement_start.source_offset &&
+                parser.current.line == statement_start.line &&
+                parser.current.col == statement_start.col &&
+                parser.current.type != TOKEN_EOF) {
+                advance(&parser);
+            }
             parser_synchronize_statement(&parser);
         }
     }
