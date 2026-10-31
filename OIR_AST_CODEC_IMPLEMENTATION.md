@@ -266,3 +266,14 @@ The wrapper preflights the full container size and all scratch capacities before
 The test checks header metadata, payload wrapping/materialization, too-small output atomicity, wrong artifact-kind rejection and an invalid inner AST ownership graph while the outer container remains structurally valid.
 
 CTest target: `oir_ast_artifact_container_wrap_validate_and_materialize`. CI run 41160379544 passed on Windows, Ubuntu and macOS; Ubuntu CTest 31/31, ASan/UBSan and Valgrind passed.
+
+
+## 16. Real parser → OIR AST artifact → frontend AST integration
+
+The existing `test_parser_ast_oir_roundtrip.c` now exercises both the raw AST payload API and the canonical OIR artifact adapter using the real `tests/test1.nxf` parser fixture.
+
+The parser-produced AST is wrapped as an `OIR_KIND_AST` container with parser stage ID and job ID, materialized through `oir_ast_artifact_read_frontend_ast()`, and re-encoded. Its inner AST payload must match the original parser payload byte-for-byte.
+
+The test also performs a deterministic one-bit mutation sweep over every byte of the complete OIR container. Valid variants are materialized and destroyed; rejected variants must return a NULL root. This covers both envelope validation and the inner AST reader on one real parser artifact.
+
+Final CI run 41160565137 passed on Windows, Ubuntu and macOS; Ubuntu CTest 31/31, ASan/UBSan and Valgrind passed.
