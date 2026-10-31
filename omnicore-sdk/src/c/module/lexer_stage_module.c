@@ -94,6 +94,8 @@ static uint32_t OCC_MODULE_CALL lexer_stage_process(
     if (oir_artifact_open(invocation->inputs[0].bytes,
         (size_t)invocation->inputs[0].length, &source_artifact) != OIR_STATUS_OK ||
         source_artifact.header.artifact_kind != OIR_KIND_SOURCE_UNIT ||
+        source_artifact.header.payload_schema_major != OIR_SOURCE_UNIT_SCHEMA_MAJOR ||
+        source_artifact.header.payload_schema_minor != OIR_SOURCE_UNIT_SCHEMA_MINOR ||
         source_artifact.header.job_id != invocation->job_id ||
         find_payload(&source_artifact, OIR_SECTION_PAYLOAD, &source_section) != OIR_STATUS_OK ||
         oir_source_unit_open(source_section.data, (size_t)source_section.length,
