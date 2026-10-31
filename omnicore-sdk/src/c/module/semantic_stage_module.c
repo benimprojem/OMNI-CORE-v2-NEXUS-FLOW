@@ -24,83 +24,6 @@ typedef struct SemanticResolver {
 } SemanticResolver;
 static const OccStageModuleV1 g_semantic_module;
 
-/* Each DLL owns its message catalog; resolve it beside the loaded module. */
-static void semantic_stage_init_messages(void) {
-    char module_path[4096], config_path[4096], language_relative[64], message_path[4096];
-    char language[16] = "en";
-    FILE* config;
-    char line[256];
-    char* separator;
-#if defined(_WIN32)
-    HMODULE module_handle = NULL;
-    DWORD length;
-    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCSTR)(uintptr_t)&semantic_stage_init_messages, &module_handle)) return;
-    length = GetModuleFileNameA(module_handle, module_path, (DWORD)sizeof(module_path));
-    if (length == 0u || length >= sizeof(module_path)) return;
-    module_path[length] = '\0';
-#else
-    Dl_info info;
-    if (!dladdr((void*)(uintptr_t)&semantic_stage_init_messages, &info) ||
-        !info.dli_fname || strlen(info.dli_fname) >= sizeof(module_path)) return;
-    strcpy(module_path, info.dli_fname);
-#endif
-    separator = strrchr(module_path, '/');
-#if defined(_WIN32)
-    {
-        char* backslash = strrchr(module_path, '\\');
-        if (backslash && (!separator || backslash > separator)) separator = backslash;
-    }
-#endif
-    if (!separator) return;
-    *separator = '\0';
-    {
-        int n = snprintf(config_path, sizeof(config_path), "%s/occ.ocf", module_path);
-        if (n < 0 || (size_t)n >= sizeof(config_path)) return;
-    }
-    config = fopen(config_path, "r");
-    if (config) {
-        while (fgets(line, sizeof(line), config)) {
-            char* p = line;
-            char* end;
-            while (*p == ' ' || *p == '\t') ++p;
-            if (strncmp(p, "language", 8u) != 0) continue;
-            p += 8u;
-            while (*p == ' ' || *p == '\t') ++p;
-            if (*p++ != '=') continue;
-            while (*p == ' ' || *p == '\t') ++p;
-            if (*p++ != '"') continue;
-            end = strchr(p, '"');
-            if (!end) continue;
-            *end = '\0';
-            if (p[0] && strlen(p) < sizeof(language)) {
-                size_t j; int valid = 1;
-                for (j = 0u; p[j] != '\0'; ++j) {
-                    if (!((p[j] >= 'a' && p[j] <= 'z') ||
-                          (p[j] >= 'A' && p[j] <= 'Z') ||
-                          (p[j] >= '0' && p[j] <= '9') ||
-                          p[j] == '_' || p[j] == '-')) {
-                        valid = 0; break;
-                    }
-                }
-                if (valid) strcpy(language, p);
-            }
-            break;
-        }
-        fclose(config);
-    }
-    {
-        int n = snprintf(language_relative, sizeof(language_relative),
-            "lang/messages_%s.conf", language);
-        if (n < 0 || (size_t)n >= sizeof(language_relative)) return;
-        n = snprintf(message_path, sizeof(message_path), "%s/%s",
-            module_path, language_relative);
-        if (n < 0 || (size_t)n >= sizeof(message_path)) return;
-    }
-    msg_init(message_path);
-}
-
 static OirStatus find_payload(const OirArtifactView* artifact, uint16_t type,
                               OirSectionView* out) {
     uint32_t i; int found=0;
@@ -173,7 +96,6 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
        oir_ast_node_table_open(payload.data,(size_t)payload.length,&table)!=OIR_STATUS_OK||!table.node_count) {
         out->failure_code=8301u; return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
-    semantic_stage_init_messages();
     count=table.node_count;
     storage=(ASTNode**)calloc(count,sizeof(*storage)); incoming=(uint32_t*)calloc(count,sizeof(*incoming));
     visited=(uint8_t*)calloc(count,sizeof(*visited)); stack=(OirAstGraphStackEntry*)calloc(count,sizeof(*stack));
@@ -225,7 +147,6 @@ done:
         occ_diagnostics_destroy(&diags);
     }
     if(sem_init) semantic_destroy(&sem);
-    msg_destroy();
     if(root) ast_destroy(root);
     free(storage); free(incoming); free(visited); free(stack); free(index);
     return rc;
