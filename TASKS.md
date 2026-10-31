@@ -194,7 +194,7 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 
 - [x] Fixed-width versioned C ABI header: descriptor, OIR input spans, caller-owned output buffer, status/result, capabilities and export symbol.
 - [x] Host-side descriptor/invocation validation: ABI versions, struct sizes, artifact kind masks, required inputs, OIR validity, job ID and partial-input capability.
-- [x] Test-only pass-through shared library and dynamic load/process/unload test; output-buffer retry and artifact validation.
+- [x] Test-only pass-through shared library and dynamic load/process/unload test; output-buffer retry and artifact validation (Windows/Ubuntu/macOS + ASan/UBSan/Valgrind CI başarılı).
 - [ ] Build the real parser-stage DLL/SO/dylib: consume SOURCE_UNIT + TOKEN_STREAM OIR artifacts, reconstruct tokens against source bytes, run parser in memory, and emit OIR_KIND_AST artifact.
 - [ ] Review stage IDs/module IDs and stage-specific diagnostics contract; only then freeze ABI 1.0.
 
