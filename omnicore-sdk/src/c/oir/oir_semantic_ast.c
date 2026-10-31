@@ -201,3 +201,292 @@ OirStatus oir_semantic_scopes_write(
     status = OIR_STATUS_OK;
     return status;
 }
+
+
+static int is_valid_utf8_name(const uint8_t* bytes, uint32_t length) {
+    uint32_t i = 0u;
+
+    if (!bytes && length != 0u) return 0;
+    while (i < length) {
+        uint8_t c = bytes[i];
+        uint32_t remaining;
+        uint32_t codepoint;
+
+        if (c == 0u) return 0;
+        if (c <= 0x7fu) {
+            ++i;
+            continue;
+        }
+        if (c >= 0xc2u && c <= 0xdfu) {
+            remaining = 1u;
+            codepoint = (uint32_t)(c & 0x1fu);
+        } else if (c >= 0xe0u && c <= 0xefu) {
+            remaining = 2u;
+            codepoint = (uint32_t)(c & 0x0fu);
+        } else if (c >= 0xf0u && c <= 0xf4u) {
+            remaining = 3u;
+            codepoint = (uint32_t)(c & 0x07u);
+        } else {
+            return 0;
+        }
+
+        if (remaining > length - i - 1u) return 0;
+        while (remaining != 0u) {
+            uint8_t next = bytes[++i];
+            if ((next & 0xc0u) != 0x80u) return 0;
+            codepoint = (codepoint << 6) | (uint32_t)(next & 0x3fu);
+            --remaining;
+        }
+
+        /* Reject overlong encodings, UTF-16 surrogates and values above U+10FFFF. */
+        if (codepoint < 0x80u ||
+            (codepoint < 0x800u && c >= 0xe0u) ||
+            (codepoint < 0x10000u && c >= 0xf0u) ||
+            (codepoint >= 0xd800u && codepoint <= 0xdfffu) ||
+            codepoint > 0x10ffffu) {
+            return 0;
+        }
+        ++i;
+    }
+    return 1;
+}
+
+static OirStatus validate_type_values(
+    uint32_t type_id,
+    uint16_t kind,
+    uint16_t flags,
+    uint32_t name_offset,
+    uint32_t name_length,
+    uint32_t referenced_symbol_id,
+    uint32_t base_type_id,
+    const uint8_t* string_table,
+    uint32_t string_table_length
+) {
+    if (kind < OIR_SEMANTIC_TYPE_PRIMITIVE ||
+        kind > OIR_SEMANTIC_TYPE_UNKNOWN ||
+        (flags & ~(OIR_SEMANTIC_TYPE_FLAG_CONST |
+            OIR_SEMANTIC_TYPE_FLAG_HARD)) != 0u) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    if (name_length == 0u) {
+        if (name_offset != 0u) return OIR_STATUS_INVALID_SECTION;
+    } else {
+        if (name_offset > string_table_length ||
+            name_length > string_table_length - name_offset ||
+            !is_valid_utf8_name(string_table + name_offset, name_length)) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+    }
+
+    if (kind == OIR_SEMANTIC_TYPE_USER_DEFINED) {
+        if (referenced_symbol_id == 0u) return OIR_STATUS_INVALID_SECTION;
+    } else if (referenced_symbol_id != 0u) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    /* Canonical first-use ordering keeps the type-reference graph acyclic. */
+    if (base_type_id != 0u && base_type_id >= type_id) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    return OIR_STATUS_OK;
+}
+
+static OirStatus validate_type_records(
+    const uint8_t* records,
+    uint32_t type_count,
+    const uint8_t* string_table,
+    uint32_t string_table_length
+) {
+    uint32_t i;
+
+    if (!records || type_count == 0u ||
+        type_count > OIR_SEMANTIC_MAX_SCOPE_COUNT ||
+        string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE ||
+        (!string_table && string_table_length != 0u)) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    for (i = 0u; i < type_count; ++i) {
+        const uint8_t* record = records + (size_t)i * OIR_SEMANTIC_TYPE_RECORD_SIZE;
+        uint32_t type_id = read_u32_le(record);
+        uint16_t kind = (uint16_t)((uint16_t)record[4] |
+            ((uint16_t)record[5] << 8));
+        uint16_t flags = (uint16_t)((uint16_t)record[6] |
+            ((uint16_t)record[7] << 8));
+        OirStatus status;
+
+        if (type_id != i + 1u) return OIR_STATUS_INVALID_SECTION;
+        status = validate_type_values(
+            type_id, kind, flags,
+            read_u32_le(record + 8),
+            read_u32_le(record + 12),
+            read_u32_le(record + 16),
+            read_u32_le(record + 20),
+            string_table, string_table_length);
+        if (status != OIR_STATUS_OK) return status;
+    }
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_types_open(
+    const uint8_t* payload,
+    size_t payload_length,
+    OirSemanticTypesView* out_view
+) {
+    uint32_t count;
+    uint32_t record_size;
+    uint32_t string_length;
+    uint64_t expected_length;
+    OirStatus status;
+
+    if (!payload || !out_view) return OIR_STATUS_INVALID_ARGUMENT;
+    memset(out_view, 0, sizeof(*out_view));
+    if (payload_length < OIR_SEMANTIC_TYPES_HEADER_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    count = read_u32_le(payload);
+    record_size = read_u32_le(payload + 4);
+    string_length = read_u32_le(payload + 8);
+    if (record_size != OIR_SEMANTIC_TYPE_RECORD_SIZE ||
+        count == 0u || count > OIR_SEMANTIC_MAX_SCOPE_COUNT ||
+        string_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    expected_length = (uint64_t)OIR_SEMANTIC_TYPES_HEADER_SIZE +
+        (uint64_t)count * OIR_SEMANTIC_TYPE_RECORD_SIZE + string_length;
+    if (expected_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    if (expected_length != (uint64_t)payload_length) {
+        return OIR_STATUS_LENGTH_MISMATCH;
+    }
+
+    status = validate_type_records(
+        payload + OIR_SEMANTIC_TYPES_HEADER_SIZE, count,
+        payload + OIR_SEMANTIC_TYPES_HEADER_SIZE +
+            (size_t)count * OIR_SEMANTIC_TYPE_RECORD_SIZE,
+        string_length);
+    if (status != OIR_STATUS_OK) return status;
+
+    out_view->bytes = payload;
+    out_view->length = payload_length;
+    out_view->record_count = count;
+    out_view->records_offset = OIR_SEMANTIC_TYPES_HEADER_SIZE;
+    out_view->strings_offset = OIR_SEMANTIC_TYPES_HEADER_SIZE +
+        (size_t)count * OIR_SEMANTIC_TYPE_RECORD_SIZE;
+    out_view->string_table_length = string_length;
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_types_get(
+    const OirSemanticTypesView* view,
+    uint32_t index,
+    OirSemanticType* out_type,
+    const uint8_t** out_name
+) {
+    const uint8_t* record;
+    uint64_t expected_length;
+
+    if (!view || !view->bytes || !out_type) return OIR_STATUS_INVALID_ARGUMENT;
+    if (view->records_offset != OIR_SEMANTIC_TYPES_HEADER_SIZE ||
+        view->record_count == 0u ||
+        view->record_count > OIR_SEMANTIC_MAX_SCOPE_COUNT ||
+        view->string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    expected_length = (uint64_t)OIR_SEMANTIC_TYPES_HEADER_SIZE +
+        (uint64_t)view->record_count * OIR_SEMANTIC_TYPE_RECORD_SIZE +
+        view->string_table_length;
+    if (expected_length > (uint64_t)SIZE_MAX ||
+        expected_length != (uint64_t)view->length ||
+        view->strings_offset != OIR_SEMANTIC_TYPES_HEADER_SIZE +
+            (size_t)view->record_count * OIR_SEMANTIC_TYPE_RECORD_SIZE) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+    if (index >= view->record_count) return OIR_STATUS_INVALID_ARGUMENT;
+
+    record = view->bytes + view->records_offset +
+        (size_t)index * OIR_SEMANTIC_TYPE_RECORD_SIZE;
+    out_type->type_id = read_u32_le(record);
+    out_type->kind = (uint16_t)((uint16_t)record[4] |
+        ((uint16_t)record[5] << 8));
+    out_type->flags = (uint16_t)((uint16_t)record[6] |
+        ((uint16_t)record[7] << 8));
+    out_type->name_offset = read_u32_le(record + 8);
+    out_type->name_length = read_u32_le(record + 12);
+    out_type->referenced_symbol_id = read_u32_le(record + 16);
+    out_type->base_type_id = read_u32_le(record + 20);
+    if (out_name) {
+        *out_name = out_type->name_length
+            ? view->bytes + view->strings_offset + out_type->name_offset
+            : NULL;
+    }
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_types_write(
+    uint8_t* output,
+    size_t capacity,
+    const OirSemanticType* types,
+    uint32_t type_count,
+    const uint8_t* string_table,
+    uint32_t string_table_length,
+    size_t* out_written
+) {
+    uint64_t total_length;
+    uint32_t i;
+
+    if (out_written) *out_written = 0u;
+    if (!output || !types || !out_written ||
+        (!string_table && string_table_length != 0u)) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+    if (type_count == 0u || type_count > OIR_SEMANTIC_MAX_SCOPE_COUNT ||
+        string_table_length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+
+    for (i = 0u; i < type_count; ++i) {
+        const OirSemanticType* type = &types[i];
+        OirStatus status;
+        if (type->type_id != i + 1u) return OIR_STATUS_INVALID_SECTION;
+        status = validate_type_values(
+            type->type_id, type->kind, type->flags,
+            type->name_offset, type->name_length,
+            type->referenced_symbol_id, type->base_type_id,
+            string_table, string_table_length);
+        if (status != OIR_STATUS_OK) return status;
+    }
+
+    total_length = (uint64_t)OIR_SEMANTIC_TYPES_HEADER_SIZE +
+        (uint64_t)type_count * OIR_SEMANTIC_TYPE_RECORD_SIZE +
+        string_table_length;
+    if (total_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+    if ((size_t)total_length > capacity) return OIR_STATUS_BUFFER_TOO_SMALL;
+
+    write_u32_le(output, type_count);
+    write_u32_le(output + 4, OIR_SEMANTIC_TYPE_RECORD_SIZE);
+    write_u32_le(output + 8, string_table_length);
+    for (i = 0u; i < type_count; ++i) {
+        uint8_t* record = output + OIR_SEMANTIC_TYPES_HEADER_SIZE +
+            (size_t)i * OIR_SEMANTIC_TYPE_RECORD_SIZE;
+        write_u32_le(record, types[i].type_id);
+        record[4] = (uint8_t)(types[i].kind & 0xffu);
+        record[5] = (uint8_t)((types[i].kind >> 8) & 0xffu);
+        record[6] = (uint8_t)(types[i].flags & 0xffu);
+        record[7] = (uint8_t)((types[i].flags >> 8) & 0xffu);
+        write_u32_le(record + 8, types[i].name_offset);
+        write_u32_le(record + 12, types[i].name_length);
+        write_u32_le(record + 16, types[i].referenced_symbol_id);
+        write_u32_le(record + 20, types[i].base_type_id);
+    }
+    if (string_table_length != 0u) {
+        memcpy(output + OIR_SEMANTIC_TYPES_HEADER_SIZE +
+            (size_t)type_count * OIR_SEMANTIC_TYPE_RECORD_SIZE,
+            string_table, string_table_length);
+    }
+
+    *out_written = (size_t)total_length;
+    return OIR_STATUS_OK;
+}
