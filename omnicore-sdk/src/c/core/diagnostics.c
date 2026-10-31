@@ -79,7 +79,10 @@ int occ_diagnostics_add(
     if (input->span.has_location) {
         if (input->span.end_offset < input->span.start_offset ||
             input->span.start_line == 0 || input->span.start_column == 0 ||
-            input->span.end_line == 0 || input->span.end_column == 0) {
+            input->span.end_line == 0 || input->span.end_column == 0 ||
+            input->span.end_line < input->span.start_line ||
+            (input->span.end_line == input->span.start_line &&
+                input->span.end_column < input->span.start_column)) {
             return 0;
         }
     }
