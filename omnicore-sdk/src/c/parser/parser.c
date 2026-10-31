@@ -1016,7 +1016,10 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         }
 
         ASTNode* right = parse_range(p);
-        if (!right) return NULL;
+        if (!right) {
+            ast_destroy(expr);
+            return NULL;
+        }
         
         if (op == TOKEN_PIPE || op == TOKEN_LSHIFT || op == TOKEN_RSHIFT || op == TOKEN_RELOCATE) {
             ASTNexusFlow* pipe = (ASTNexusFlow*)ast_create(AST_NEXUS_PIPE);
@@ -1086,18 +1089,39 @@ static ASTNode* parse_assignment(Parser* p) {
         }
         
         ASTNexusCapture* capture = (ASTNexusCapture*)ast_create(AST_NEXUS_CAPTURE);
+        if (!capture) {
+            ast_destroy(expr);
+            return NULL;
+        }
         capture->base.line = p->previous.line;
         capture->base.col = p->previous.col;
-        // ASTIdentifier ismini kopyalıyoruz
         capture->handler_name = strdup(((ASTIdentifier*)expr)->name);
-        capture->expr = parse_assignment(p); // Sağ taraf tekrar assignment olabilir
+        if (!capture->handler_name) {
+            ast_destroy((ASTNode*)capture);
+            ast_destroy(expr);
+            return NULL;
+        }
+        capture->expr = parse_assignment(p);
+        ast_destroy(expr);
+        if (!capture->expr) {
+            ast_destroy((ASTNode*)capture);
+            return NULL;
+        }
         return (ASTNode*)capture;
     }
 
     if (match(p, TOKEN_ASSIGN)) {
         ASTNode* right = parse_assignment(p);
-        if (!right) return NULL;
+        if (!right) {
+            ast_destroy(expr);
+            return NULL;
+        }
         ASTBinaryExpr* assign = (ASTBinaryExpr*)ast_create(AST_ASSIGNMENT);
+        if (!assign) {
+            ast_destroy(expr);
+            ast_destroy(right);
+            return NULL;
+        }
         assign->base.line = p->previous.line;
         assign->base.col = p->previous.col;
         assign->op = TOKEN_ASSIGN;
@@ -1108,8 +1132,16 @@ static ASTNode* parse_assignment(Parser* p) {
 
     if (match(p, TOKEN_FORCE_ASSIGN)) {
         ASTNode* right = parse_assignment(p);
-        if (!right) return NULL;
+        if (!right) {
+            ast_destroy(expr);
+            return NULL;
+        }
         ASTBinaryExpr* assign = (ASTBinaryExpr*)ast_create(AST_ASSIGNMENT);
+        if (!assign) {
+            ast_destroy(expr);
+            ast_destroy(right);
+            return NULL;
+        }
         assign->base.line = p->previous.line;
         assign->base.col = p->previous.col;
         assign->op = TOKEN_FORCE_ASSIGN;
