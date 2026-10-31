@@ -91,6 +91,8 @@ typedef enum {
     ERR_SEMANTIC_UNKNOWN_TYPE = 3009
 } ErrorCode;
 
+struct Token;
+
 typedef struct Error {
     ErrorCode code;
     char* filename;
@@ -130,11 +132,19 @@ typedef struct {
     /* Optional job-owned collector; legacy Error list remains the CLI view. */
     OccDiagnosticCollector* diagnostics;
     uint32_t diagnostic_stage_id;
+
+    /* Optional borrowed pre-tokenized stream; it must outlive parser_run(). */
+    const struct Token* token_stream;
+    size_t token_stream_count;
+    size_t token_stream_index;
 } ParserContext;
 
 OCC_API ParserContext* parser_init(const char* filename);
 OCC_API void parser_attach_diagnostics(
     ParserContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id
+);
+OCC_API int parser_attach_token_stream(
+    ParserContext* ctx, const struct Token* tokens, size_t token_count
 );
 OCC_API int parser_run(ParserContext* ctx);
 OCC_API void parser_destroy(ParserContext* ctx);
