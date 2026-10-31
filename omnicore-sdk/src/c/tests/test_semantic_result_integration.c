@@ -188,6 +188,29 @@ int main(void) {
         &semantic_artifact_written) == OIR_STATUS_OK);
     assert(semantic_artifact_written != 0u);
 
+    /* A short output buffer must not publish or partially modify an artifact. */
+    {
+        size_t short_written = 123u;
+        memset(semantic_artifact, 0xa5, sizeof(semantic_artifact));
+        assert(oir_semantic_ast_artifact_write(
+            ast_payload,
+            ast_payload_written,
+            &context.result,
+            42u,
+            semantic_artifact,
+            semantic_artifact_written - 1u,
+            &short_written) == OIR_STATUS_BUFFER_TOO_SMALL);
+        assert(short_written == 0u && semantic_artifact[0] == 0xa5u);
+    }
+    assert(oir_semantic_ast_artifact_write(
+        ast_payload,
+        ast_payload_written,
+        &context.result,
+        42u,
+        semantic_artifact,
+        sizeof(semantic_artifact),
+        &semantic_artifact_written) == OIR_STATUS_OK);
+
     incoming_counts = (uint32_t*)calloc(ast_node_count, sizeof(*incoming_counts));
     visited = (uint8_t*)calloc(ast_node_count, sizeof(*visited));
     graph_stack = (OirAstGraphStackEntry*)calloc(
