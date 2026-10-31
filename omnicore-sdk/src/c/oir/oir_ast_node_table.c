@@ -134,7 +134,9 @@ OirStatus oir_ast_node_table_open(
     }
     expected64 = (uint64_t)OIR_AST_PAYLOAD_HEADER_SIZE + records_bytes +
         fields_bytes + strings_bytes;
-    if (expected64 > SIZE_MAX) return OIR_STATUS_OVERFLOW;
+#if SIZE_MAX < UINT64_MAX
+    if (expected64 > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+#endif
     expected = (size_t)expected64;
     if (expected != payload_length) return OIR_STATUS_LENGTH_MISMATCH;
     records_offset = OIR_AST_PAYLOAD_HEADER_SIZE;
@@ -221,7 +223,9 @@ OirStatus oir_ast_node_table_write(
     records_bytes = (size_t)node_count * OIR_AST_NODE_RECORD_SIZE;
     total64 = (uint64_t)OIR_AST_PAYLOAD_HEADER_SIZE + records_bytes +
         field_data_length + string_table_length;
-    if (total64 > SIZE_MAX) return OIR_STATUS_OVERFLOW;
+#if SIZE_MAX < UINT64_MAX
+    if (total64 > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+#endif
     total = (size_t)total64;
     if (total > capacity) return OIR_STATUS_BUFFER_TOO_SMALL;
     status = validate_host_records(records, node_count, root_node_id,
