@@ -388,7 +388,9 @@ static OirStatus run_measure(
     payload_size=(uint64_t)OIR_AST_PAYLOAD_HEADER_SIZE+
         (uint64_t)node_count*OIR_AST_NODE_RECORD_SIZE+
         (uint64_t)c.field_used+(uint64_t)c.string_used;
-    if(payload_size>SIZE_MAX) return OIR_STATUS_OVERFLOW;
+#if SIZE_MAX < UINT64_MAX
+    if(payload_size>(uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
+#endif
     req->node_count=node_count;
     req->field_data_length=(uint32_t)c.field_used;
     req->string_table_length=(uint32_t)c.string_used;
