@@ -172,14 +172,14 @@ A container must have exactly one primary payload section for its declared artif
 The canonical OIR module will describe, at minimum:
 - Module identity, imports and exports.
 - Functions and basic blocks.
-- Typed values and SSA/value references (final SSA policy remains to be designed).
+- Typed SSA values and explicit value references.
 - Operations/opcodes and explicit operands.
 - Control-flow edges and terminators.
 - Memory access, ownership/lifetime and side-effect semantics.
 - Calling convention and ABI-relevant attributes where applicable.
 - Source mapping and diagnostic attachment.
 
-The opcode set, type system, memory model, ownership semantics and SSA strategy require a dedicated OIR semantic specification. This document does not invent or freeze them. The current detailed design draft is [OIR_MODULE.md](OIR_MODULE.md); it deliberately leaves the SSA and memory model decisions open.
+The opcode set, canonical type system, memory model and ownership semantics require dedicated OIR semantic specifications. The SSA direction is established: `OIR_MODULE` uses SSA as its canonical value model. The exact merge encoding (phi instructions or block parameters), opcode registry and detailed memory/effect rules remain open. See [OIR_MODULE.md](OIR_MODULE.md) for the current design contract.
 
 Optimizer passes consume and produce the same `OIR_MODULE` schema family, with explicit schema/version compatibility and pass metadata. A pass must not silently change program semantics.
 
