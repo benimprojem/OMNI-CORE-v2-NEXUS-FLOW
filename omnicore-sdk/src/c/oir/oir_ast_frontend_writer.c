@@ -236,9 +236,13 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
             const ASTBinaryExpr* n = (const ASTBinaryExpr*)node;
             TOKEN(1,n->op); REF(2,n->left); REF(3,n->right); break;
         }
-        case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN: case AST_CAST: {
+        case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN: {
             const ASTUnaryExpr* n = (const ASTUnaryExpr*)node;
             TOKEN(1,n->op); REF(2,n->operand); break;
+        }
+        case AST_CAST: {
+            const ASTCast* n = (const ASTCast*)node;
+            REF(1,n->value); REF(2,n->target_type); break;
         }
         case AST_FUNC_CALL: case AST_SPAWN: case AST_ECHO: case AST_SEND:
         case AST_RECEIVE: case AST_DONE: case AST_AREA: case AST_ZONE:
