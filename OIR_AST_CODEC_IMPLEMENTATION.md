@@ -243,4 +243,4 @@ This integration test parses the real `tests/test1.nxf` fixture through the exis
 
 The test sizes the pointer index dynamically, uses caller-owned scratch for the writer/reader, and destroys the materialized AST through the normal `ast_destroy()` path. This checks the combined parser → AST index → OIR writer → validating reader → frontend AST → OIR writer path, rather than only synthetic node fixtures.
 
-CTest target: `parser_ast_oir_ast_roundtrip_canonical_bytes`. Run 41159889179: Ubuntu CTest 30/30 and ASan/UBSan/Valgrind passed; macOS passed. Windows is still running.
+CTest target: `parser_ast_oir_ast_roundtrip_canonical_bytes`. Run 41159889179 passed on Windows, Ubuntu and macOS; Ubuntu CTest 30/30 and ASan/UBSan/Valgrind passed.
