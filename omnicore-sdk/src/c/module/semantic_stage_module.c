@@ -24,8 +24,8 @@ static const OccStageModuleV1 g_semantic_module;
 
 /* Each DLL owns its message catalog; resolve it beside the loaded module. */
 static void semantic_stage_init_messages(void) {
-    char module_path[4096], base_dir[4096], config_path[4096];
-    char language[16] = "en", language_relative[64], message_path[4096];
+    char module_path[4096], config_path[4096], language_relative[64], message_path[4096];
+    char language[16] = "en";
     FILE* config;
     char line[256];
     char* separator;
@@ -37,39 +37,38 @@ static void semantic_stage_init_messages(void) {
         (LPCSTR)(uintptr_t)&semantic_stage_init_messages, &module_handle)) return;
     length = GetModuleFileNameA(module_handle, module_path, (DWORD)sizeof(module_path));
     if (length == 0u || length >= sizeof(module_path)) return;
-    module_path[length] = '\\0';
+    module_path[length] = '\0';
 #else
     Dl_info info;
     if (!dladdr((void*)(uintptr_t)&semantic_stage_init_messages, &info) ||
-        !info.dli_fname) return;
-    if (strlen(info.dli_fname) >= sizeof(module_path)) return;
+        !info.dli_fname || strlen(info.dli_fname) >= sizeof(module_path)) return;
     strcpy(module_path, info.dli_fname);
 #endif
     separator = strrchr(module_path, '/');
 #if defined(_WIN32)
     {
-        char* backslash = strrchr(module_path, '\\\\');
+        char* backslash = strrchr(module_path, '\\');
         if (backslash && (!separator || backslash > separator)) separator = backslash;
     }
 #endif
     if (!separator) return;
-    *separator = '\\0';
+    *separator = '\0';
     if (snprintf(config_path, sizeof(config_path), "%s/occ.ocf", module_path) < 0) return;
     config = fopen(config_path, "r");
     if (config) {
         while (fgets(line, sizeof(line), config)) {
             char* p = line;
             char* end;
-            while (*p == ' ' || *p == '\\t') ++p;
+            while (*p == ' ' || *p == '\t') ++p;
             if (strncmp(p, "language", 8u) != 0) continue;
             p += 8u;
-            while (*p == ' ' || *p == '\\t') ++p;
+            while (*p == ' ' || *p == '\t') ++p;
             if (*p++ != '=') continue;
-            while (*p == ' ' || *p == '\\t') ++p;
+            while (*p == ' ' || *p == '\t') ++p;
             if (*p++ != '"') continue;
             end = strchr(p, '"');
             if (!end) continue;
-            *end = '\\0';
+            *end = '\0';
             if (p[0] && strlen(p) < sizeof(language)) strcpy(language, p);
             break;
         }
