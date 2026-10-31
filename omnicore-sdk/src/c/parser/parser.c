@@ -98,6 +98,39 @@ static char* read_file_content(const char* filename, size_t* out_len) {
     return buffer;
 }
 
+ParserContext* parser_init_source(const char* filename, const uint8_t* source, size_t source_len) {
+    ParserContext* ctx;
+    char* copy;
+    if ((!source && source_len != 0u) || source_len == SIZE_MAX) return NULL;
+    if (source && memchr(source, '\0', source_len) != NULL) return NULL;
+    ctx = (ParserContext*)malloc(sizeof(*ctx));
+    if (!ctx) return NULL;
+    copy = (char*)malloc(source_len + 1u);
+    if (!copy) { free(ctx); return NULL; }
+    if (source_len) memcpy(copy, source, source_len);
+    copy[source_len] = '\0';
+    ctx->filename = filename ? filename : "<memory>";
+    ctx->file_handle = NULL;
+    ctx->source_buffer = copy;
+    ctx->source_len = source_len;
+    ctx->pos = 0;
+    ctx->current_line = 1;
+    ctx->current_col = 1;
+    ctx->token_start_offset = 0;
+    ctx->token_start_line = 1;
+    ctx->token_start_col = 1;
+    ctx->ast_root = NULL;
+    ctx->error_count = 0;
+    ctx->error_head = NULL;
+    ctx->error_tail = NULL;
+    ctx->diagnostics = NULL;
+    ctx->diagnostic_stage_id = OCC_STAGE_PARSER;
+    ctx->token_stream = NULL;
+    ctx->token_stream_count = 0;
+    ctx->token_stream_index = 0;
+    return ctx;
+}
+
 ParserContext* parser_init(const char* filename) {
     ParserContext* ctx = (ParserContext*)malloc(sizeof(ParserContext));
     if (!ctx) return NULL;
