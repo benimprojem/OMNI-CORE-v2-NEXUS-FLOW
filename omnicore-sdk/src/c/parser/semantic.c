@@ -1166,6 +1166,13 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             break;
         }
 
+        case AST_CAST: {
+            ASTCast* cast = (ASTCast*)node;
+            if (cast->value) semantic_check(ctx, cast->value);
+            /* target_type is a type name, not a value expression. */
+            break;
+        }
+
         case AST_PANIC: {
             break;
         }
@@ -1230,7 +1237,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_IS_NONE:
         case AST_IS_NULL:
         case AST_EXIT:
-        case AST_CAST:
         case AST_SWAP:
         case AST_INTR:
         case AST_FREE:
