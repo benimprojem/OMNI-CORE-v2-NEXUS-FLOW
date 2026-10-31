@@ -671,6 +671,25 @@ if(BUILD_TESTING)
     add_test(NAME dynamic_stage_module_load_process_unload
         COMMAND test_dynamic_stage_module "$<TARGET_FILE:occ_test_passthrough_module>")
 
+    add_executable(test_parser_stage_module
+        "${C_SOURCE_DIR}/tests/test_parser_stage_module.c"
+    )
+    target_link_libraries(test_parser_stage_module PRIVATE
+        occ_frontend
+        occ_oir
+        occ_oir_token_stream
+        occ_module_abi
+        ${CMAKE_DL_LIBS}
+    )
+    if(MSVC)
+        target_compile_options(test_parser_stage_module PRIVATE /W4)
+    else()
+        target_compile_options(test_parser_stage_module PRIVATE -Wall -Wextra)
+    endif()
+    add_dependencies(test_parser_stage_module occ_parser_stage)
+    add_test(NAME real_parser_stage_source_token_to_ast_module
+        COMMAND test_parser_stage_module "$<TARGET_FILE:occ_parser_stage>")
+
     add_executable(test_module_abi "${C_SOURCE_DIR}/tests/test_module_abi.c")
     target_link_libraries(test_module_abi PRIVATE occ_module_abi occ_diagnostics)
     if(MSVC)
