@@ -2,6 +2,7 @@
 #define OMNICORE_OIR_SEMANTIC_AST_H
 
 #include "oir.h"
+#include "oir_ast_node_table.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -336,6 +337,24 @@ OirStatus oir_semantic_conversions_write(
     const OirSemanticConversion* conversions,
     uint32_t conversion_count,
     size_t* out_written
+);
+
+/*
+ * Validate references across already-opened semantic tables and a validated AST
+ * node-table view. owner_scope_by_node is caller-owned scratch with at least
+ * ast->node_count + 1 entries; it is cleared and used by this call.
+ * conversions may be NULL when the optional CONVERSIONS section is absent.
+ */
+OirStatus oir_semantic_ast_validate_references(
+    const OirAstNodeTableView* ast,
+    const OirSemanticScopesView* scopes,
+    const OirSemanticTypesView* types,
+    const OirSemanticSymbolsView* symbols,
+    const OirSemanticAnnotationsView* annotations,
+    const OirSemanticRelationsView* relations,
+    const OirSemanticConversionsView* conversions,
+    uint32_t* owner_scope_by_node,
+    size_t owner_scope_capacity
 );
 
 #ifdef __cplusplus
