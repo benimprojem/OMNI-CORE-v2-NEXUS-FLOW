@@ -96,7 +96,7 @@ The OIR diagnostic payload reader validates the same record-count, per-field and
 
 The parser reports diagnostic-budget exhaustion as `PARSER_STATUS_DIAGNOSTIC_LIMIT`; it must not misreport this condition as `PARSER_STATUS_OUT_OF_MEMORY`. Allocation failure remains a separate status.
 
-## 2.4 Semantic result and artifact limits
+## 2.5 Semantic result and artifact limits
 
 The Semantic DLL's durable result model has independent one-million-record ceilings for scopes, types, symbols, annotations, relations and conversions. Scope depth is capped at 512. The OIR semantic artifact uses separate UTF-8 name tables for TYPES, SYMBOLS and RELATIONS; each table is capped at 16 MiB, so this is not one shared 16 MiB budget for all semantic names.
 
