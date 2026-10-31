@@ -44,6 +44,27 @@ typedef int (*CodegenRunFn)(const char*, const char*, const char*);
 #define OCC_AST_OUTPUT_MAX (256u * 1024u * 1024u)
 
 
+static void occ_print_job_diagnostics(const OccDiagnosticCollector* diagnostics) {
+    size_t i;
+    if (!diagnostics) return;
+    for (i = 0u; i < occ_diagnostics_count(diagnostics); ++i) {
+        OccDiagnosticView view;
+        if (!occ_diagnostics_get(diagnostics, i, &view) || !view.record) continue;
+        fprintf(stderr, "[OCC stage=%u code=%u] %s",
+            view.record->stage_id, view.record->code,
+            view.message ? view.message : "Diagnostic");
+        if (view.record->span.has_location) {
+            fprintf(stderr, " (line %u, column %u; bytes %llu-%llu)",
+                view.record->span.start_line,
+                view.record->span.start_column,
+                (unsigned long long)view.record->span.start_offset,
+                (unsigned long long)view.record->span.end_offset);
+        }
+        fputc('\n', stderr);
+        if (view.hint && view.hint[0]) fprintf(stderr, "  hint: %s\n", view.hint);
+    }
+}
+
 static int occ_build_and_run_parser_module(
     const char* source_path,
     const char* executable_dir,
@@ -97,7 +118,9 @@ static int occ_build_and_run_parser_module(
 
     path_length = strlen(source_path);
     if (path_length > UINT32_MAX ||
-        source_context->source_len > SIZE_MAX - OIR_SOURCE_UNIT_HEADER_SIZE - path_length) {
+        path_length > SIZE_MAX - OIR_SOURCE_UNIT_HEADER_SIZE ||
+        source_context->source_len >
+            SIZE_MAX - OIR_SOURCE_UNIT_HEADER_SIZE - path_length) {
         occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6002u,
             "The source unit exceeds the supported OIR size.");
         goto cleanup;
@@ -160,6 +183,8 @@ static int occ_build_and_run_parser_module(
         (uint64_t)source_context->source_len, &source_payload_length);
     if (oir_status != OIR_STATUS_OK) goto oir_failure;
 
+    if (source_payload_length >
+        SIZE_MAX - OIR_HEADER_SIZE - OIR_SECTION_HEADER_SIZE) goto allocation_failure;
     source_artifact_length = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE +
         source_payload_length;
     source_artifact = (uint8_t*)malloc(source_artifact_length);
@@ -761,6 +786,7 @@ int main(int argc, char **argv) {
     }
 
     if (exit_code != 0) {
+        occ_print_job_diagnostics(&job.diagnostics);
         (void)occ_compilation_fail(&job);
         occ_save_failure_checkpoint(&job, source_file,
             ctx ? (const uint8_t*)ctx->source_buffer : NULL,
