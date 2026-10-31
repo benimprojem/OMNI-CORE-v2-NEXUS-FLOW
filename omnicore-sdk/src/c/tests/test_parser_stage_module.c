@@ -1,4 +1,4 @@
-#include "occ_module_api.h"
+#include "occ_module_loader.h"
 #include "parser.h"
 #include "lexer.h"
 #include "oir_payload.h"
@@ -8,19 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_WIN32)
-#include <windows.h>
-#define MODULE_HANDLE HMODULE
-#define module_open(path) LoadLibraryA(path)
-#define module_symbol(handle,name) GetProcAddress(handle,name)
-#define module_close(handle) FreeLibrary(handle)
-#else
-#include <dlfcn.h>
-#define MODULE_HANDLE void*
-#define module_open(path) dlopen(path,RTLD_NOW|RTLD_LOCAL)
-#define module_symbol(handle,name) dlsym(handle,name)
-#define module_close(handle) dlclose(handle)
-#endif
 
 #define CHECK(x) do { if(!(x)) { \
     fprintf(stderr,"FAIL line %d: %s\n",__LINE__,#x); goto cleanup; \
@@ -43,15 +30,11 @@ int main(int argc,char** argv) {
     OirArtifactHeader header;
     OirSectionInput section;
     OccModuleArtifactInputV1 inputs[2];
-    OccModuleInvocationV1 invocation;
-    OccModuleResultV1 result;
     OccDiagnosticCollector collector;
-    OccModuleDiagnosticHostContextV1 host_context;
-    OccModuleDiagnosticSinkV1 sink;
+    OccLoadedStageModule loaded;
     const OccStageModuleV1* module=NULL;
-    OccGetStageModuleV1Fn get_module=NULL;
     OirArtifactView output_view;
-    MODULE_HANDLE handle=NULL;
+    char loader_error[512];
     int exit_code=1;
 
     if(argc!=2) return 2;
@@ -100,47 +83,28 @@ int main(int argc,char** argv) {
     CHECK(oir_artifact_write(token_artifact,sizeof(token_artifact),
         &header,&section,1u,&token_artifact_len)==OIR_STATUS_OK);
 
-    handle=module_open(argv[1]);
-    CHECK(handle!=NULL);
-    get_module=(OccGetStageModuleV1Fn)module_symbol(handle,OCC_MODULE_API_SYMBOL);
-    CHECK(get_module!=NULL);
-    module=get_module();
-    CHECK(occ_module_validate_descriptor_v1(module)==OCC_MODULE_STATUS_OK);
+    memset(&loaded,0,sizeof(loaded));
+    CHECK(occ_module_loader_open(&loaded,argv[1],loader_error,
+        sizeof(loader_error))==OCC_MODULE_LOADER_OK);
+    module=loaded.module;
+    CHECK(module!=NULL);
     CHECK(module->descriptor.stage_id==OCC_STAGE_PARSER);
     CHECK(module->descriptor.output_artifact_kind==OIR_KIND_AST);
 
     memset(inputs,0,sizeof(inputs));
     inputs[0].bytes=source_artifact; inputs[0].length=source_artifact_len;
     inputs[1].bytes=token_artifact; inputs[1].length=token_artifact_len;
-    memset(&invocation,0,sizeof(invocation));
-    invocation.struct_size=(uint32_t)sizeof(invocation);
-    invocation.input_count=2u;
-    invocation.inputs=inputs;
-    invocation.job_id=42u;
-    CHECK(occ_module_diagnostic_sink_init_v1(&sink,&host_context,&collector,
-        OCC_STAGE_PARSER)==OCC_MODULE_STATUS_OK);
-    invocation.diagnostic_sink=sink;
-
-    memset(&result,0,sizeof(result));
-    result.struct_size=(uint32_t)sizeof(result);
-    CHECK(module->process(&invocation,&result)==OCC_MODULE_STATUS_NEED_OUTPUT_BUFFER);
-    CHECK(result.required_output_capacity>OIR_HEADER_SIZE);
-    output_capacity=(size_t)result.required_output_capacity;
-    output=(uint8_t*)malloc(output_capacity);
-    CHECK(output!=NULL);
-    invocation.output_buffer=output;
-    invocation.output_capacity=output_capacity;
-    memset(&result,0,sizeof(result));
-    result.struct_size=(uint32_t)sizeof(result);
-    CHECK(module->process(&invocation,&result)==OCC_MODULE_STATUS_OK);
-    CHECK(result.output_validity==OIR_VALIDITY_VALID);
-    CHECK(result.bytes_written<=output_capacity);
-    CHECK(result.diagnostics_count==0u);
+    CHECK(occ_module_loader_invoke(&loaded,inputs,2u,42u,&collector,
+        64u,16u*1024u*1024u,&output,&output_capacity)==OCC_MODULE_LOADER_OK);
+    CHECK(output!=NULL && output_capacity>OIR_HEADER_SIZE);
     CHECK(occ_diagnostics_count(&collector)==0u);
-    CHECK(oir_artifact_open(output,(size_t)result.bytes_written,&output_view)==OIR_STATUS_OK);
+    CHECK(oir_artifact_open(output,output_capacity,&output_view)==OIR_STATUS_OK);
     CHECK(output_view.header.artifact_kind==OIR_KIND_AST);
     CHECK(output_view.header.validity==OIR_VALIDITY_VALID);
     CHECK(output_view.header.job_id==42u);
+    free(output);
+    output=NULL;
+    output_capacity=0u;
 
     /* Invalid source must report exact token coordinates and publish no AST. */
     {
@@ -154,7 +118,6 @@ int main(int argc,char** argv) {
         size_t bad_count=0,bad_source_payload_len=0,bad_source_artifact_len=0;
         size_t bad_token_payload_len=0,bad_token_artifact_len=0;
         OccDiagnosticView diagnostic_view;
-        OirArtifactView rejected_view;
         if(lexer_context) { parser_destroy(lexer_context); lexer_context=NULL; }
         lexer_context=parser_init_source("invalid-parser-stage-test.nxf",
             bad_source,sizeof(bad_source)-1u);
@@ -193,14 +156,10 @@ int main(int argc,char** argv) {
         inputs[0].length=bad_source_artifact_len;
         inputs[1].bytes=bad_token_artifact;
         inputs[1].length=bad_token_artifact_len;
-        invocation.output_buffer=NULL;
-        invocation.output_capacity=0u;
-        memset(&result,0,sizeof(result));
-        result.struct_size=(uint32_t)sizeof(result);
-        CHECK(module->process(&invocation,&result)==OCC_MODULE_STATUS_FAILED);
-        CHECK(result.output_validity==OIR_VALIDITY_NONE);
-        CHECK(result.bytes_written==0u);
-        CHECK(result.diagnostics_count==1u);
+        CHECK(occ_module_loader_invoke(&loaded,inputs,2u,42u,&collector,
+            64u,16u*1024u*1024u,&output,&output_capacity)==
+            OCC_MODULE_LOADER_INVOKE_FAILED);
+        CHECK(output==NULL && output_capacity==0u);
         CHECK(occ_diagnostics_count(&collector)==1u);
         CHECK(occ_diagnostics_get(&collector,0u,&diagnostic_view));
         CHECK(diagnostic_view.record->stage_id==OCC_STAGE_PARSER);
@@ -210,14 +169,13 @@ int main(int argc,char** argv) {
         CHECK(diagnostic_view.record->span.start_column==7u);
         CHECK(diagnostic_view.record->span.end_line==1u);
         CHECK(diagnostic_view.record->span.end_column==8u);
-        CHECK(oir_artifact_open(output,(size_t)result.bytes_written,&rejected_view)!=OIR_STATUS_OK);
     }
     exit_code=0;
     puts("Real parser stage shared-module test passed.");
 
 cleanup:
     free(output);
-    if(handle) module_close(handle);
+    occ_module_loader_close(&loaded);
     if(lexer_context) parser_destroy(lexer_context);
     occ_diagnostics_destroy(&collector);
     return exit_code;
