@@ -218,7 +218,7 @@ OirStatus oir_ast_node_table_write(
         (!field_data && field_data_length) || (!string_table && string_table_length)) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
-    if ((size_t)node_count > SIZE_MAX / OIR_AST_NODE_RECORD_SIZE) return OIR_STATUS_OVERFLOW;
+    if (node_count == 0u || node_count > OIR_AST_NODE_COUNT_MAX) return OIR_STATUS_INVALID_ARGUMENT;
     records_bytes = (size_t)node_count * OIR_AST_NODE_RECORD_SIZE;
     if (records_bytes > SIZE_MAX - OIR_AST_PAYLOAD_HEADER_SIZE ||
         (size_t)field_data_length > SIZE_MAX - OIR_AST_PAYLOAD_HEADER_SIZE - records_bytes ||
