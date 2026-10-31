@@ -57,53 +57,68 @@ void msg_destroy(void) {
     msg_table_initialized = 0;
 }
 
-// Dosyayı belleğe okuyan yardımcı fonksiyon
-static char* read_file_content(const char* filename, size_t* out_len) {
-    if (out_len) *out_len = 0;
-    if (!filename) return NULL;
+// Dosyayı belleğe okuyan yardımcı fonksiyon.
+static char* read_file_content(
+    const char* filename, size_t* out_len, ParserStatus* out_status
+) {
+    FILE* f;
+    long file_length;
+    size_t length;
+    char* buffer;
 
-    FILE* f = fopen(filename, "rb");
-    if (!f) return NULL;
+    if (out_len) *out_len = 0u;
+    if (out_status) *out_status = PARSER_STATUS_INVALID_ARGUMENT;
+    if (!filename || !*filename || !out_status) return NULL;
+
+    f = fopen(filename, "rb");
+    if (!f) {
+        *out_status = PARSER_STATUS_IO_ERROR;
+        return NULL;
+    }
 
     if (fseek(f, 0, SEEK_END) != 0) {
-        fclose(f);
+        (void)fclose(f);
+        *out_status = PARSER_STATUS_IO_ERROR;
         return NULL;
     }
 
-    long file_length = ftell(f);
+    file_length = ftell(f);
     if (file_length < 0 || fseek(f, 0, SEEK_SET) != 0) {
-        fclose(f);
+        (void)fclose(f);
+        *out_status = PARSER_STATUS_IO_ERROR;
         return NULL;
     }
 
-    size_t length = (size_t)file_length;
-    if (length == (size_t)-1) {
-        fclose(f);
+    if ((uintmax_t)file_length >= (uintmax_t)SIZE_MAX) {
+        (void)fclose(f);
+        *out_status = PARSER_STATUS_INVALID_ARGUMENT;
         return NULL;
     }
 
-    char* buffer = (char*)malloc(length + 1u);
+    length = (size_t)file_length;
+    buffer = (char*)malloc(length + 1u);
     if (!buffer) {
-        fclose(f);
+        (void)fclose(f);
+        *out_status = PARSER_STATUS_OUT_OF_MEMORY;
         return NULL;
     }
 
-    if (length > 0 && fread(buffer, 1, length, f) != length) {
+    if ((length > 0u && fread(buffer, 1u, length, f) != length) || ferror(f)) {
         free(buffer);
-        fclose(f);
+        (void)fclose(f);
+        *out_status = PARSER_STATUS_IO_ERROR;
         return NULL;
     }
 
-    if (ferror(f)) {
+    if (fclose(f) != 0) {
         free(buffer);
-        fclose(f);
+        *out_status = PARSER_STATUS_IO_ERROR;
         return NULL;
     }
 
     buffer[length] = '\0';
-    fclose(f);
-
     if (out_len) *out_len = length;
+    *out_status = PARSER_STATUS_OK;
     return buffer;
 }
 
@@ -122,34 +137,67 @@ static void parser_context_init(
     ctx->diagnostic_stage_id = OCC_STAGE_PARSER;
 }
 
-ParserContext* parser_init_source(const char* filename, const uint8_t* source, size_t source_len) {
+ParserStatus parser_init_source_ex(
+    const char* filename, const uint8_t* source, size_t source_len, ParserContext** out_ctx
+) {
     ParserContext* ctx;
     char* copy;
-    if ((!source && source_len != 0u) || source_len == SIZE_MAX) return NULL;
-    if (source && memchr(source, '\0', source_len) != NULL) return NULL;
+
+    if (!out_ctx) return PARSER_STATUS_INVALID_ARGUMENT;
+    *out_ctx = NULL;
+    if ((!source && source_len != 0u) || source_len == SIZE_MAX ||
+        (source && memchr(source, '\0', source_len) != NULL)) {
+        return PARSER_STATUS_INVALID_ARGUMENT;
+    }
+
     ctx = (ParserContext*)malloc(sizeof(*ctx));
-    if (!ctx) return NULL;
+    if (!ctx) return PARSER_STATUS_OUT_OF_MEMORY;
     copy = (char*)malloc(source_len + 1u);
-    if (!copy) { free(ctx); return NULL; }
+    if (!copy) {
+        free(ctx);
+        return PARSER_STATUS_OUT_OF_MEMORY;
+    }
     if (source_len) memcpy(copy, source, source_len);
     copy[source_len] = '\0';
     parser_context_init(ctx, filename, copy, source_len);
+    *out_ctx = ctx;
+    return PARSER_STATUS_OK;
+}
+
+ParserContext* parser_init_source(const char* filename, const uint8_t* source, size_t source_len) {
+    ParserContext* ctx = NULL;
+    if (parser_init_source_ex(filename, source, source_len, &ctx) != PARSER_STATUS_OK) {
+        return NULL;
+    }
     return ctx;
 }
 
-ParserContext* parser_init(const char* filename) {
+ParserStatus parser_init_ex(const char* filename, ParserContext** out_ctx) {
     ParserContext* ctx;
     char* source;
     size_t source_len = 0u;
-    if (!filename) return NULL;
-    source = read_file_content(filename, &source_len);
-    if (!source) return NULL;
+    ParserStatus status = PARSER_STATUS_INVALID_ARGUMENT;
+
+    if (!out_ctx) return PARSER_STATUS_INVALID_ARGUMENT;
+    *out_ctx = NULL;
+    if (!filename || !*filename) return PARSER_STATUS_INVALID_ARGUMENT;
+
+    source = read_file_content(filename, &source_len, &status);
+    if (!source) return status;
+
     ctx = (ParserContext*)malloc(sizeof(*ctx));
     if (!ctx) {
         free(source);
-        return NULL;
+        return PARSER_STATUS_OUT_OF_MEMORY;
     }
     parser_context_init(ctx, filename, source, source_len);
+    *out_ctx = ctx;
+    return PARSER_STATUS_OK;
+}
+
+ParserContext* parser_init(const char* filename) {
+    ParserContext* ctx = NULL;
+    if (parser_init_ex(filename, &ctx) != PARSER_STATUS_OK) return NULL;
     return ctx;
 }
 
