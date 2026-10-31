@@ -659,7 +659,7 @@ static int roundtrips_special_nodes(void) {
 }
 
 static int roundtrips_large_sibling_list(void) {
-    enum { NODE_COUNT = 700 };
+    enum { NODE_COUNT = 32768 };
     ASTProgram* program = (ASTProgram*)ast_create(AST_PROGRAM);
     if (!program) return 1;
 
