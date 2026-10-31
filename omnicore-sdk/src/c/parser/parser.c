@@ -1093,7 +1093,15 @@ static ASTNode* parse_unary(Parser* p) {
     if (match(p, TOKEN_INC) || match(p, TOKEN_DEC) ||
         match(p, TOKEN_NOT) || match(p, TOKEN_MINUS) || match(p, TOKEN_BIT_NOT)) {
         OmniTokenType op = p->previous.type;
-        ASTNode* operand = parse_unary(p);
+        ASTNode* operand;
+        if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum parser nesting depth exceeded.");
+            return NULL;
+        }
+        ++p->nesting_depth;
+        operand = parse_unary(p);
+        --p->nesting_depth;
         ASTUnaryExpr* unary;
         if (!operand) return NULL;
         unary = (ASTUnaryExpr*)parser_ast_create(p, AST_UNARY_EXPR);
@@ -1127,10 +1135,17 @@ static ASTNode* parser_make_binary(Parser* p, OmniTokenType op, ASTNode* left, A
 }
 
 static ASTNode* parse_term(Parser* p) {
+    unsigned int chain_depth = 0u;
     ASTNode* left = parse_unary(p);
     if (!left) return NULL;
     while (match(p, TOKEN_STAR) || match(p, TOKEN_SLASH)) {
         OmniTokenType op = p->previous.type;
+        if (chain_depth++ >= 32u) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum expression operator-chain depth exceeded.");
+            ast_destroy(left);
+            return NULL;
+        }
         ASTNode* right = parse_unary(p);
         if (!right) {
             ast_destroy(left);
@@ -1143,11 +1158,18 @@ static ASTNode* parse_term(Parser* p) {
 }
 
 static ASTNode* parse_comparison(Parser* p) {
+    unsigned int chain_depth = 0u;
     ASTNode* left = parse_additive(p);
     if (!left) return NULL;
     while (match(p, TOKEN_GT) || match(p, TOKEN_GTE) ||
            match(p, TOKEN_LT) || match(p, TOKEN_LTE)) {
         OmniTokenType op = p->previous.type;
+        if (chain_depth++ >= 32u) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum expression operator-chain depth exceeded.");
+            ast_destroy(left);
+            return NULL;
+        }
         ASTNode* right = parse_additive(p);
         if (!right) {
             ast_destroy(left);
@@ -1160,11 +1182,18 @@ static ASTNode* parse_comparison(Parser* p) {
 }
 
 static ASTNode* parse_equality(Parser* p) {
+    unsigned int chain_depth = 0u;
     ASTNode* left = parse_comparison(p);
     if (!left) return NULL;
     while (match(p, TOKEN_EQ) || match(p, TOKEN_NEQ) ||
            match(p, TOKEN_STRICT_EQ) || match(p, TOKEN_FORCE_EQ)) {
         OmniTokenType op = p->previous.type;
+        if (chain_depth++ >= 32u) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum expression operator-chain depth exceeded.");
+            ast_destroy(left);
+            return NULL;
+        }
         ASTNode* right = parse_comparison(p);
         if (!right) {
             ast_destroy(left);
@@ -1177,10 +1206,17 @@ static ASTNode* parse_equality(Parser* p) {
 }
 
 static ASTNode* parse_additive(Parser* p) {
+    unsigned int chain_depth = 0u;
     ASTNode* left = parse_term(p);
     if (!left) return NULL;
     while (match(p, TOKEN_PLUS) || match(p, TOKEN_MINUS)) {
         OmniTokenType op = p->previous.type;
+        if (chain_depth++ >= 32u) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum expression operator-chain depth exceeded.");
+            ast_destroy(left);
+            return NULL;
+        }
         ASTNode* right = parse_term(p);
         if (!right) {
             ast_destroy(left);
@@ -1324,7 +1360,16 @@ static ASTNode* parse_assignment(Parser* p) {
             ast_destroy(expr);
             return NULL;
         }
+        if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum parser nesting depth exceeded.");
+            ast_destroy((ASTNode*)capture);
+            ast_destroy(expr);
+            return NULL;
+        }
+        ++p->nesting_depth;
         capture->expr = parse_assignment(p);
+        --p->nesting_depth;
         ast_destroy(expr);
         if (!capture->expr) {
             ast_destroy((ASTNode*)capture);
@@ -1334,7 +1379,16 @@ static ASTNode* parse_assignment(Parser* p) {
     }
 
     if (match(p, TOKEN_ASSIGN)) {
-        ASTNode* right = parse_assignment(p);
+        ASTNode* right;
+        if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum parser nesting depth exceeded.");
+            ast_destroy(expr);
+            return NULL;
+        }
+        ++p->nesting_depth;
+        right = parse_assignment(p);
+        --p->nesting_depth;
         if (!right) {
             ast_destroy(expr);
             return NULL;
@@ -1354,7 +1408,16 @@ static ASTNode* parse_assignment(Parser* p) {
     }
 
     if (match(p, TOKEN_FORCE_ASSIGN)) {
-        ASTNode* right = parse_assignment(p);
+        ASTNode* right;
+        if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum parser nesting depth exceeded.");
+            ast_destroy(expr);
+            return NULL;
+        }
+        ++p->nesting_depth;
+        right = parse_assignment(p);
+        --p->nesting_depth;
         if (!right) {
             ast_destroy(expr);
             return NULL;
