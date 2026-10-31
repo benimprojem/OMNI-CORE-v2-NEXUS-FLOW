@@ -726,6 +726,35 @@ static int destroys_very_large_sibling_list(void) {
     return 1;
 }
 
+static int rejects_excessive_serialization_depth(void) {
+    enum { NESTING = 600 };
+    ASTNode* root = ast_create(AST_UNARY_EXPR);
+    ASTNode* current = root;
+    FILE* stream;
+    int serialized;
+
+    if (!root) return 0;
+    for (int i = 1; i < NESTING; ++i) {
+        ASTNode* child = ast_create(AST_UNARY_EXPR);
+        if (!child) {
+            ast_destroy(root);
+            return 0;
+        }
+        ((ASTUnaryExpr*)current)->operand = child;
+        current = child;
+    }
+
+    stream = tmpfile();
+    if (!stream) {
+        ast_destroy(root);
+        return 0;
+    }
+    serialized = ast_serialize(root, stream);
+    fclose(stream);
+    ast_destroy(root);
+    return serialized == 0;
+}
+
 static int parser_save_ir_rejects_invalid_path(const char* path) {
     ParserContext context;
     memset(&context, 0, sizeof(context));
@@ -748,6 +777,7 @@ int main(int argc, char** argv) {
     if (roundtrips_special_nodes() != 0) return 4;
     if (roundtrips_large_sibling_list() != 0) return 5;
     if (!destroys_very_large_sibling_list()) return 12;
+    if (!rejects_excessive_serialization_depth()) return 13;
     if (!parser_save_ir_rejects_invalid_path(argv[1])) return 10;
 
     struct {
