@@ -52,14 +52,14 @@ The AST payload is embedded as the payload section, not as a nested OIR containe
 - All integers are unsigned or signed fixed-width values explicitly named by the field; little-endian.
 - No native C struct, pointer, `size_t`, C enum, padding or host ABI layout is serialized.
 - Each section has a schema version in its OIR section header.
-- Tables begin with a fixed-width little-endian schema header. The SCOPES section uses an 8-byte header (`record_count u32`, `record_size u32`) followed by fixed-width records. String-bearing tables additionally declare their string-table byte length in their table header. All header and record fields are encoded individually; section versions are carried by the outer OIR section header.
+- Tables begin with a fixed-width little-endian schema header. The SCOPES section uses an 8-byte header (`record_count u32`, `record_size u32`) followed by fixed-width records. String-bearing tables additionally declare their string-table byte length in their table header. TYPES uses a 12-byte header (`record_count u32`, `record_size u32`, `string_table_length u32`) followed by 24-byte records and the exact UTF-8 string table. All header and record fields are encoded individually; section versions are carried by the outer OIR section header.
 - Variable strings are UTF-8 byte spans with explicit 32-bit offset and length into a section-local string table. No NUL terminator is required; embedded NUL and invalid UTF-8 are rejected.
 - IDs are 1-based. Zero is the only null/not-present reference where the field permits it.
 - IDs are deterministic for a given AST and options: scopes are assigned in deterministic traversal order; symbols in declaration order within traversal; types in first-use order after canonicalization; annotations in AST node-ID order.
 - Counts and byte ranges are bounded by the containing section. Arithmetic overflow, overlapping record ranges, duplicate IDs, dangling references and non-canonical ordering are rejected.
 - Unknown record flags are rejected unless a future schema explicitly defines an optional extension mechanism.
 
-The first codec slice fixes the SCOPES header at 8 bytes and each scope record at 20 bytes. Other table layouts remain draft until their respective codecs and malformed-input tests are implemented. Logical C structs are API views only; they are never serialized by dumping their memory.
+The implemented codec slices fix SCOPES at an 8-byte header plus 20-byte records, and TYPES at a 12-byte header plus 24-byte records and a trailing string table. Other table layouts remain draft until their respective codecs and malformed-input tests are implemented. Logical C structs are API views only; they are never serialized by dumping their memory.
 
 ## 4. Scope records
 
@@ -82,7 +82,7 @@ Invariants:
 
 ### Implemented codec slice
 
-`omnicore-sdk/src/c/oir/oir_semantic_ast.h/.c` currently implements the SCOPES section's bounded writer, zero-copy reader view and field-by-field record decoder. It validates the exact payload length, record width, contiguous 1-based IDs, the unique root shape, parent-before-child ordering, depth consistency, zero schema-1.0 flags and the 512-level depth limit. The test `test_oir_semantic_ast.c` covers round-trip, deterministic bytes, truncation, bad record width/count, invalid root/parent/depth/flags and output-buffer failure. Cross-table AST owner-node uniqueness and complete SEMANTIC_AST reference validation remain for the next codec/validator layer.
+`omnicore-sdk/src/c/oir/oir_semantic_ast.h/.c` currently implements the SCOPES section's bounded writer, zero-copy reader view and field-by-field record decoder. It validates the exact payload length, record width, contiguous 1-based IDs, the unique root shape, parent-before-child ordering, depth consistency, zero schema-1.0 flags and the 512-level depth limit. The test `test_oir_semantic_ast.c` covers round-trip, deterministic bytes, truncation, bad record width/count, invalid root/parent/depth/flags and output-buffer failure. Cross-table AST owner-node uniqueness and complete SEMANTIC_AST reference validation remain for the next codec/validator layer. The TYPES codec now provides field-by-field encoding/decoding, bounded 16 MiB string-table validation, UTF-8 checks, canonical IDs, registered kind/flag validation and earlier-type reference checks. The same test covers round-trip, deterministic bytes, malformed record widths/counts, duplicate IDs, invalid string offsets/UTF-8, invalid kinds, missing user-type symbol references, cyclic base references and output-buffer failure.
 
 ## 5. Type records
 
@@ -99,6 +99,8 @@ Type records make the current string-based type system transportable without exp
 | base_type_id | u32 | Newtype/alias base type; zero when not applicable. |
 
 The initial type-name registry must explicitly list all accepted primitive names. User-defined types reference their symbol record; the string name is retained for diagnostics and tooling, not used as the only identity. Type IDs must not depend on process addresses or hash-table iteration order.
+
+Schema 1.0 type-kind IDs are: 1 primitive, 2 user-defined, 3 function, 4 aggregate, 5 tuple, 6 inferred and 7 unknown. Type flag bit 0 is const and bit 1 is hard-type; all other bits are rejected. The TYPES codec requires contiguous 1-based IDs, non-empty names to resolve to valid UTF-8 without embedded NUL, user-defined types to carry a nonzero referenced symbol ID, non-user-defined types to carry zero there, and base-type references to point to an earlier type ID.
 
 ## 6. Symbol records
 
