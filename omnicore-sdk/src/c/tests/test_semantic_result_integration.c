@@ -43,7 +43,9 @@ int main(void) {
     ResolverContext resolver;
 
     uint8_t semantic_artifact[8192];
+    uint8_t repeated_artifact[8192];
     size_t semantic_artifact_written = 0u;
+    size_t repeated_artifact_written = 0u;
     OirSemanticAstArtifactView artifact_view;
     uint32_t* incoming_counts = NULL;
     uint8_t* visited = NULL;
@@ -257,6 +259,22 @@ int main(void) {
         sizeof(semantic_artifact),
         &semantic_artifact_written) == OIR_STATUS_OK);
 
+    /* Same finalized input and job ID must produce byte-identical OIR. */
+    assert(oir_semantic_ast_artifact_write(
+        ast_payload,
+        ast_payload_written,
+        &context.result,
+        42u,
+        repeated_artifact,
+        sizeof(repeated_artifact),
+        &repeated_artifact_written) == OIR_STATUS_OK);
+    assert(repeated_artifact_written == semantic_artifact_written);
+    assert(memcmp(repeated_artifact, semantic_artifact,
+        semantic_artifact_written) == 0);
+
+    /* A downstream consumer must not depend on the producer's live model. */
+    semantic_destroy(&context);
+
     incoming_counts = (uint32_t*)calloc(ast_node_count, sizeof(*incoming_counts));
     visited = (uint8_t*)calloc(ast_node_count, sizeof(*visited));
     graph_stack = (OirAstGraphStackEntry*)calloc(
@@ -300,7 +318,6 @@ int main(void) {
     assert(decoded_function.name_length == 3u);
     assert(memcmp(decoded_function_name, "sum", 3u) == 0);
 
-    semantic_destroy(&context);
     free(ast_records);
     free(ast_fields);
     free(ast_strings);
