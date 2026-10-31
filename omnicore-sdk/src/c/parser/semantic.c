@@ -898,7 +898,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     // Tip Kontrolü
                     arg = call->args;
                     int i = 0;
-                    while(arg && i < s->param_count) {
+                    while(arg && s->param_types && i < s->param_count) {
                         const char* arg_type = get_expr_type(ctx, arg);
                         const char* expected = s->param_types[i];
                         if (arg_type && expected && !are_types_compatible(expected, arg_type)) {
