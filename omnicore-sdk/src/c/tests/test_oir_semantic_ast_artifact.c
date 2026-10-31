@@ -14,6 +14,21 @@
     } \
 } while (0)
 
+static void set_section(
+    OirSectionInput* section,
+    uint16_t type,
+    uint16_t version,
+    uint32_t flags,
+    const uint8_t* data,
+    size_t length
+) {
+    section->type = type;
+    section->version = version;
+    section->flags = flags;
+    section->data = data;
+    section->length = length;
+}
+
 int main(void) {
     uint8_t tlv_bytes[16];
     uint8_t ast_payload[OIR_AST_PAYLOAD_HEADER_SIZE +
@@ -77,34 +92,20 @@ int main(void) {
     header.validity = OIR_VALIDITY_VALID;
     header.job_id = 42u;
 
-    sections[0] = (OirSectionInput){
-        OIR_SECTION_PAYLOAD, 1u, OIR_SECTION_FLAG_REQUIRED,
-        ast_payload, ast_written
-    };
-    sections[1] = (OirSectionInput){
-        OIR_SECTION_SEMANTIC_SCOPES, 1u, OIR_SECTION_FLAG_REQUIRED,
-        scopes, scope_written
-    };
-    sections[2] = (OirSectionInput){
-        OIR_SECTION_SEMANTIC_TYPES, 1u, OIR_SECTION_FLAG_REQUIRED,
-        types, type_written
-    };
-    sections[3] = (OirSectionInput){
-        OIR_SECTION_SEMANTIC_SYMBOLS, 1u, OIR_SECTION_FLAG_REQUIRED,
-        symbols, symbol_written
-    };
-    sections[4] = (OirSectionInput){
-        OIR_SECTION_SEMANTIC_ANNOTATIONS, 1u, OIR_SECTION_FLAG_REQUIRED,
-        annotations, annotation_written
-    };
-    sections[5] = (OirSectionInput){
-        OIR_SECTION_SEMANTIC_RELATIONS, 1u, OIR_SECTION_FLAG_REQUIRED,
-        relations, relation_written
-    };
-    sections[6] = (OirSectionInput){
-        OIR_SECTION_SEMANTIC_CONVERSIONS, 1u, 0u,
-        conversions, conversion_written
-    };
+    set_section(&sections[0], OIR_SECTION_PAYLOAD, 1u,
+        OIR_SECTION_FLAG_REQUIRED, ast_payload, ast_written);
+    set_section(&sections[1], OIR_SECTION_SEMANTIC_SCOPES, 1u,
+        OIR_SECTION_FLAG_REQUIRED, scopes, scope_written);
+    set_section(&sections[2], OIR_SECTION_SEMANTIC_TYPES, 1u,
+        OIR_SECTION_FLAG_REQUIRED, types, type_written);
+    set_section(&sections[3], OIR_SECTION_SEMANTIC_SYMBOLS, 1u,
+        OIR_SECTION_FLAG_REQUIRED, symbols, symbol_written);
+    set_section(&sections[4], OIR_SECTION_SEMANTIC_ANNOTATIONS, 1u,
+        OIR_SECTION_FLAG_REQUIRED, annotations, annotation_written);
+    set_section(&sections[5], OIR_SECTION_SEMANTIC_RELATIONS, 1u,
+        OIR_SECTION_FLAG_REQUIRED, relations, relation_written);
+    set_section(&sections[6], OIR_SECTION_SEMANTIC_CONVERSIONS, 1u,
+        0u, conversions, conversion_written);
 
     CHECK(oir_artifact_write(artifact, sizeof(artifact), &header,
         sections, 6u, &artifact_written) == OIR_STATUS_OK);
