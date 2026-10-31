@@ -835,6 +835,27 @@ if(BUILD_TESTING)
     add_test(NAME real_parser_stage_source_token_to_ast_module
         COMMAND test_parser_stage_module "$<TARGET_FILE:occ_parser_stage>")
 
+    add_executable(test_semantic_stage_module
+        "${C_SOURCE_DIR}/tests/test_semantic_stage_module.c"
+    )
+    target_link_libraries(test_semantic_stage_module PRIVATE
+        occ_frontend
+        occ_module_loader
+        occ_oir
+        occ_oir_ast_artifact
+        occ_oir_ast_frontend_writer
+        occ_oir_semantic_ast_artifact
+        occ_diagnostics
+    )
+    if(MSVC)
+        target_compile_options(test_semantic_stage_module PRIVATE /W4)
+    else()
+        target_compile_options(test_semantic_stage_module PRIVATE -Wall -Wextra)
+    endif()
+    add_dependencies(test_semantic_stage_module occ_semantic_stage)
+    add_test(NAME real_semantic_stage_ast_to_semantic_ast_module
+        COMMAND test_semantic_stage_module "$<TARGET_FILE:occ_semantic_stage>")
+
     add_executable(test_lexer_stage_module
         "${C_SOURCE_DIR}/tests/test_lexer_stage_module.c"
     )
