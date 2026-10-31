@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     assert(diagnostic_entry.span.start_offset == 6u);
     assert(diagnostic_entry.span.start_line == 1u);
     assert(diagnostic_entry.span.start_column == 7u);
-    assert(strcmp(diagnostic_entry.message, "Unknown Message") != 0);
+    assert(strcmp(diagnostic_entry.message, "Unterminated string literal") == 0);
 
     assert(oir_token_stream_open(payload_section.data,
         (size_t)payload_section.length, 0u, (uint64_t)(sizeof(source) - 1u),
