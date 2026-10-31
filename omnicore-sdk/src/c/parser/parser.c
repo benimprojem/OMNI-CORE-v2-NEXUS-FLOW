@@ -118,6 +118,9 @@ ParserContext* parser_init(const char* filename) {
     ctx->error_tail = NULL;
     ctx->diagnostics = NULL;
     ctx->diagnostic_stage_id = OCC_STAGE_PARSER;
+    ctx->token_stream = NULL;
+    ctx->token_stream_count = 0;
+    ctx->token_stream_index = 0;
     
     return ctx;
 }
@@ -132,11 +135,27 @@ typedef struct {
     int panic_mode;
 } Parser;
 
+static Token parser_next_token(ParserContext* ctx) {
+    if (ctx->token_stream) {
+        const Token* tokens = ctx->token_stream;
+        if (ctx->token_stream_index < ctx->token_stream_count) {
+            return tokens[ctx->token_stream_index++];
+        }
+        return tokens[ctx->token_stream_count - 1u];
+    }
+    return lexer_next_token(ctx);
+}
+
 static void parser_add_error(ParserContext* ctx, ErrorCode code, int line, int col, const char* message);
 
 static void error_at(Parser* p, Token* token, ErrorCode code, const char* message) {
     if (p->panic_mode) return;
     p->panic_mode = 1;
+    if (token->type == TOKEN_ERROR && token->diagnostic_id != 0 && p->ctx->diagnostics) {
+        /* The upstream OIR DIAGNOSTICS payload already owns this finding. */
+        p->had_error = 1;
+        return;
+    }
     
     char full_msg[256];
     if (token->type == TOKEN_EOF) {
@@ -165,7 +184,7 @@ static void error_at(Parser* p, Token* token, ErrorCode code, const char* messag
 static void advance(Parser* p) {
     p->previous = p->current;
     for (;;) {
-        p->current = lexer_next_token(p->ctx);
+        p->current = parser_next_token(p->ctx);
         if (p->current.type != TOKEN_ERROR) break;
         error_at(p, &p->current, ERR_LEXER_ERROR, p->current.start);
     }
@@ -193,12 +212,14 @@ static Token peek_token(Parser* p) {
     size_t old_pos = p->ctx->pos;
     int old_line = p->ctx->current_line;
     int old_col = p->ctx->current_col;
+    size_t old_token_index = p->ctx->token_stream_index;
     
-    Token t = lexer_next_token(p->ctx);
+    Token t = parser_next_token(p->ctx);
     
     p->ctx->pos = old_pos;
     p->ctx->current_line = old_line;
     p->ctx->current_col = old_col;
+    p->ctx->token_stream_index = old_token_index;
     
     return t;
 }
@@ -207,15 +228,17 @@ static Token peek_token_ahead(Parser* p, int n) {
     size_t old_pos = p->ctx->pos;
     int old_line = p->ctx->current_line;
     int old_col = p->ctx->current_col;
+    size_t old_token_index = p->ctx->token_stream_index;
     
     Token t;
     for (int i = 0; i < n; i++) {
-        t = lexer_next_token(p->ctx);
+        t = parser_next_token(p->ctx);
     }
     
     p->ctx->pos = old_pos;
     p->ctx->current_line = old_line;
     p->ctx->current_col = old_col;
+    p->ctx->token_stream_index = old_token_index;
     
     return t;
 }
@@ -1923,6 +1946,23 @@ void parser_attach_diagnostics(ParserContext* ctx, OccDiagnosticCollector* colle
     if (!ctx) return;
     ctx->diagnostics = collector;
     ctx->diagnostic_stage_id = stage_id ? stage_id : OCC_STAGE_PARSER;
+}
+
+int parser_attach_token_stream(
+    ParserContext* ctx, const struct Token* tokens, size_t token_count
+) {
+    size_t i;
+    if (!ctx || !tokens || token_count == 0 ||
+        tokens[token_count - 1u].type != TOKEN_EOF) {
+        return 0;
+    }
+    for (i = 0; i + 1u < token_count; ++i) {
+        if (tokens[i].type == TOKEN_EOF) return 0;
+    }
+    ctx->token_stream = tokens;
+    ctx->token_stream_count = token_count;
+    ctx->token_stream_index = 0;
+    return 1;
 }
 
 static void parser_add_error(ParserContext* ctx, ErrorCode code, int line, int col, const char* message) {
