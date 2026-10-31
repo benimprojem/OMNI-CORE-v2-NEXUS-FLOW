@@ -95,7 +95,9 @@ typedef enum {
     PARSER_STATUS_OK = 0,
     PARSER_STATUS_SYNTAX_ERROR = 1,
     PARSER_STATUS_OUT_OF_MEMORY = 2,
-    PARSER_STATUS_INVALID_STATE = 3
+    PARSER_STATUS_INVALID_STATE = 3,
+    PARSER_STATUS_INVALID_ARGUMENT = 4,
+    PARSER_STATUS_IO_ERROR = 5
 } ParserStatus;
 
 struct Token;
@@ -152,8 +154,11 @@ typedef struct {
 } ParserContext;
 
 OCC_API ParserContext* parser_init(const char* filename);
+/* Status-returning constructors; out_ctx is set to NULL before any work begins. */
+OCC_API ParserStatus parser_init_ex(const char* filename, ParserContext** out_ctx);
 /* Create a parser context from caller-provided UTF-8 source bytes. The context copies the source. */
 OCC_API ParserContext* parser_init_source(const char* filename, const uint8_t* source, size_t source_len);
+OCC_API ParserStatus parser_init_source_ex(const char* filename, const uint8_t* source, size_t source_len, ParserContext** out_ctx);
 OCC_API void parser_attach_diagnostics(
     ParserContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id
 );
