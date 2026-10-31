@@ -218,6 +218,11 @@ static void parser_mark_oom(Parser* p) {
     if (p && p->ctx) p->ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
 }
 
+static int parser_status_is_terminal(ParserStatus status) {
+    return status == PARSER_STATUS_OUT_OF_MEMORY ||
+        status == PARSER_STATUS_DIAGNOSTIC_LIMIT;
+}
+
 static int parser_should_fail_allocation(ParserContext* ctx) {
     if (!ctx) return 0;
     if (ctx->test_allocation_count < SIZE_MAX) ++ctx->test_allocation_count;
@@ -391,7 +396,7 @@ static void advance(Parser* p) {
         p->current = parser_next_token(p->ctx);
         if (p->current.type != TOKEN_ERROR) break;
         error_at(p, &p->current, ERR_LEXER_ERROR, p->current.start);
-        if (p->ctx->status == PARSER_STATUS_OUT_OF_MEMORY) break;
+        if (p->parser_status_is_terminal(ctx->status)) break;
     }
 }
 
@@ -1819,7 +1824,7 @@ static ASTNode* parse_block(Parser* p) {
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
         Token statement_start = p->current;
         ASTNode* stmt = parse_statement(p);
-        if (p->ctx->status == PARSER_STATUS_OUT_OF_MEMORY) {
+        if (p->parser_status_is_terminal(ctx->status)) {
             ast_destroy(stmt);
             ast_destroy(head);
             ast_destroy((ASTNode*)block);
@@ -2556,7 +2561,7 @@ int parser_run(ParserContext* ctx) {
     parser.panic_mode = 0;
 
     advance(&parser); // İlk tokeni yükle
-    if (ctx->status == PARSER_STATUS_OUT_OF_MEMORY) {
+    if (parser_status_is_terminal(ctx->status)) {
         return (int)ctx->status;
     }
 
@@ -2570,7 +2575,7 @@ int parser_run(ParserContext* ctx) {
     while (!match(&parser, TOKEN_EOF)) {
         Token statement_start = parser.current;
         ASTNode* stmt = parse_statement(&parser);
-        if (ctx->status == PARSER_STATUS_OUT_OF_MEMORY) {
+        if (parser_status_is_terminal(ctx->status)) {
             ast_destroy(stmt);
             return (int)ctx->status;
         }
@@ -2584,7 +2589,7 @@ int parser_run(ParserContext* ctx) {
                 current_stmt = stmt;
             }
         } else {
-            if (ctx->status == PARSER_STATUS_OUT_OF_MEMORY) return (int)ctx->status;
+            if (parser_status_is_terminal(ctx->status)) return (int)ctx->status;
             if (!parser.had_error) {
                 ctx->status = PARSER_STATUS_INVALID_STATE;
                 return (int)ctx->status;
@@ -2601,7 +2606,7 @@ int parser_run(ParserContext* ctx) {
         }
     }
 
-    if (ctx->status == PARSER_STATUS_OUT_OF_MEMORY) return (int)ctx->status;
+    if (parser_status_is_terminal(ctx->status)) return (int)ctx->status;
     if (parser.had_error) {
         ctx->status = PARSER_STATUS_SYNTAX_ERROR;
         return (int)ctx->status;
@@ -2651,7 +2656,9 @@ static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int c
         input.hint = hint ? hint : suggestion;
         input.hint_length = input.hint ? strlen(input.hint) : 0u;
         if (!occ_diagnostics_add(ctx->diagnostics, &input)) {
-            ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
+            ctx->status = occ_diagnostics_limit_exceeded(ctx->diagnostics)
+                ? PARSER_STATUS_DIAGNOSTIC_LIMIT
+                : PARSER_STATUS_OUT_OF_MEMORY;
             return;
         }
     }
