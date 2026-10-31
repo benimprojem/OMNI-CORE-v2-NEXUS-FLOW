@@ -136,7 +136,7 @@ A host policy must be checked before expensive allocations whenever possible. De
 
 ### 5.2 Stage-local guards
 
-Each DLL stage must independently validate its input artifact and enforce the limits relevant to its own work. A stage must not trust a count, length, offset or depth merely because an earlier stage produced it.
+Each DLL stage must independently validate its input artifact and enforce the limits relevant to its own work. A `NEED_OUTPUT_BUFFER` result is a retry request: the host may invoke the same stage again with identical inputs. The stage must defer diagnostic publication and other externally visible side effects until output capacity is sufficient, so retries do not duplicate effects. The Parser DLL now follows this rule by reporting parser diagnostics only after the AST artifact has been written; parse failures report once because they do not request a buffer retry. A stage must not trust a count, length, offset or depth merely because an earlier stage produced it.
 
 Stage-local limits must return a structured status/diagnostic. They must not terminate the process, overflow counters, silently truncate data or free memory owned by another stage.
 
