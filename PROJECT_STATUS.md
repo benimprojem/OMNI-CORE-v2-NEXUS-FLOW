@@ -481,5 +481,13 @@ Denetimde netleşen noktalar:
 - 80 node kind'in tümü için test payload'ları üretildi; required field eksikliği, bilinen field için yanlış wire type, unknown required field reddi ve unknown optional field kabulü kontrol ediliyor.
 - Nullable string alanlarında NULL kabul edilir; diğer wire type'lar exact registry türüne uymalıdır.
 - CMake hedefi `occ_oir_ast_field_schema`; CTest `oir_ast_field_schema_all_node_kinds_and_compatibility`.
-- **CI:** Field schema katmanı yeni eklendi; Windows/Ubuntu/macOS, ASan/UBSan ve Valgrind koşuları bekleniyor.
+- **CI doğrulaması:** Run 41157314066; Windows, Ubuntu, macOS, ASan/UBSan ve Valgrind işleri başarılı tamamlandı. Ubuntu CTest 26/26 geçti.
 - **Sıradaki iş:** Frontend AST → OIR bounded writer; önce iki geçişli graph index ve deterministic DFS node ID ataması, sonra TLV/string emission. Reader materialization bundan sonra ele alınacak.
+
+
+## OIR AST field schema CI confirmation — 31 Ekim 2026
+
+- 80 node kind için field schema validator testleri düzeltildi ve aktif assertions ile çalıştırıldı.
+- Test, her node kind için registry'ye uygun alan dizisi üretip doğruluyor; eksik zorunlu alan, bilinen alanda yanlış wire type, unknown required field ve unknown optional field davranışını sınanıyor.
+- CI run 41157314066: Windows, Ubuntu ve macOS build/test başarılı; Ubuntu ASan/UBSan ve Valgrind başarılı. Ubuntu CTest 26/26.
+- Sonraki uygulama işi: frontend AST → OIR bounded writer; caller-owned scratch ve deterministik DFS node ID atamasıyla.
