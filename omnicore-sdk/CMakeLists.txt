@@ -52,6 +52,14 @@ add_library(occ_oir STATIC
 
 target_include_directories(occ_oir PUBLIC "${C_SOURCE_DIR}/oir")
 
+# Stable OIR_MODULE opcode registry. This metadata is shared by lowering,
+# module verification and downstream optimizer/backend stages.
+add_library(occ_oir_module_opcode STATIC
+    "${C_SOURCE_DIR}/oir/oir_module_opcode.c"
+)
+target_include_directories(occ_oir_module_opcode PUBLIC "${C_SOURCE_DIR}/oir")
+set_target_properties(occ_oir_module_opcode PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # SEMANTIC_AST section codecs use caller-owned records and bounded zero-copy views.
 add_library(occ_oir_semantic_ast STATIC
     "${C_SOURCE_DIR}/oir/oir_semantic_ast.c"
@@ -487,6 +495,7 @@ add_dependencies(occ occ_parser_stage occ_lexer_stage occ_semantic_stage)
 if(MSVC)
     target_compile_options(occ_module_abi PRIVATE /W4)
     target_compile_options(occ_oir PRIVATE /W4)
+    target_compile_options(occ_oir_module_opcode PRIVATE /W4)
     target_compile_options(occ_diagnostics PRIVATE /W4)
     target_compile_options(occ_compilation PRIVATE /W4)
     target_compile_options(occ_failure_store PRIVATE /W4)
@@ -507,6 +516,7 @@ if(MSVC)
 else()
     target_compile_options(occ_module_abi PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir PRIVATE -Wall -Wextra)
+    target_compile_options(occ_oir_module_opcode PRIVATE -Wall -Wextra)
     target_compile_options(occ_diagnostics PRIVATE -Wall -Wextra)
     target_compile_options(occ_compilation PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_lexer_adapter PRIVATE -Wall -Wextra)
