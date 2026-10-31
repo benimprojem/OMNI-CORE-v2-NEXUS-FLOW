@@ -158,6 +158,12 @@ int main(void) {
     semantic_attach_node_id_resolver(&context, resolve_node_id, &resolver);
     semantic_check(&context, (ASTNode*)&program);
 
+    /* Function parameters and block locals are transient; the root function remains. */
+    assert(context.current_depth == 0);
+    assert(context.current_scope_id == 1u);
+    assert(context.head != NULL && strcmp(context.head->name, "sum") == 0);
+    assert(context.head->next == NULL);
+
     assert(context.error_count == 0);
     assert(context.result_status == SEMANTIC_RESULT_OK);
     assert(context.result.scope_count == 3u);
