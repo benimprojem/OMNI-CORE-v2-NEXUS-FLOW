@@ -264,6 +264,13 @@ target_link_libraries(occ_oir_ast_frontend_writer PUBLIC
 )
 set_target_properties(occ_oir_ast_frontend_writer PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Durable semantic records are independent of transient frontend Slot allocations.
+add_library(occ_semantic_result STATIC
+    "${C_SOURCE_DIR}/semantic/semantic_result.c"
+)
+target_include_directories(occ_semantic_result PUBLIC "${C_SOURCE_DIR}/semantic")
+set_target_properties(occ_semantic_result PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # The C frontend is the canonical compiler frontend.
 # parser/main.c is intentionally excluded: it is an obsolete standalone entry point.
 add_library(occ_frontend STATIC
@@ -978,4 +985,16 @@ if(BUILD_TESTING)
             "${C_SOURCE_DIR}/tests/test1.nxf"
             "${C_SOURCE_DIR}/tests/test_undefined_variable.nxf"
     )
+
+    add_executable(test_semantic_result
+        "${C_SOURCE_DIR}/tests/test_semantic_result.c"
+    )
+    target_link_libraries(test_semantic_result PRIVATE occ_semantic_result)
+    if(MSVC)
+        target_compile_options(test_semantic_result PRIVATE /W4)
+    else()
+        target_compile_options(test_semantic_result PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME persistent_semantic_result_model_scopes_symbols_and_relations
+        COMMAND test_semantic_result)
 endif()
