@@ -1206,7 +1206,13 @@ static int parse_struct_body(Parser* p, ASTStructDecl* decl) {
             if (!head) head = field; else tail->next = field;
             tail = field;
             if (match(p, TOKEN_COMMA)) {}
-        } else advance(p);
+        } else {
+            if (p->current.type != TOKEN_ERROR) {
+                error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                    msg_get(ERR_PARSER_UNEXPECTED_TOKEN));
+            }
+            advance(p);
+        }
     }
     decl->fields = head;
     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
@@ -1613,7 +1619,14 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
         ASTEnumVariant* var;
         Token vt;
-        if (!match(p, TOKEN_IDENTIFIER)) { advance(p); continue; }
+        if (!match(p, TOKEN_IDENTIFIER)) {
+            if (p->current.type != TOKEN_ERROR) {
+                error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                    msg_get(ERR_PARSER_UNEXPECTED_TOKEN));
+            }
+            advance(p);
+            continue;
+        }
         vt = p->previous;
         var = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
         if (!var) { ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
@@ -1737,7 +1750,13 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                             if (!head) head = field; else tail->next = field;
                             tail = field;
                             if (match(p, TOKEN_COMMA)) {}
-                        } else advance(p);
+                        } else {
+                            if (p->current.type != TOKEN_ERROR) {
+                                error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                                    msg_get(ERR_PARSER_UNEXPECTED_TOKEN));
+                            }
+                            advance(p);
+                        }
                     }
                     aggregate->fields = head;
                     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
@@ -1776,7 +1795,13 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                             if (!head) head = (ASTNode*)variant; else tail->next = (ASTNode*)variant;
                             tail = (ASTNode*)variant;
                             if (match(p, TOKEN_COMMA)) {}
-                        } else advance(p);
+                        } else {
+                            if (p->current.type != TOKEN_ERROR) {
+                                error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                                    msg_get(ERR_PARSER_UNEXPECTED_TOKEN));
+                            }
+                            advance(p);
+                        }
                     }
                     aggregate->variants = head;
                     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
@@ -1882,7 +1907,14 @@ static ASTNode* parse_group_decl(Parser* p) {
                 member = parse_var_decl(p);
                 if (member) consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
             } else if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) member = parse_func_decl(p);
-            else { advance(p); continue; }
+            else {
+                if (p->current.type != TOKEN_ERROR) {
+                    error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                        msg_get(ERR_PARSER_UNEXPECTED_TOKEN));
+                }
+                advance(p);
+                continue;
+            }
         }
         if (!member) { ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
         if (!head) head = member; else tail->next = member;
