@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "../oir/oir.h"
+#include "../core/diagnostics.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,7 +48,8 @@ typedef enum OccModuleCapabilityV1 {
     OCC_MODULE_CAP_REENTRANT = UINT64_C(1) << 0,
     OCC_MODULE_CAP_DETERMINISTIC = UINT64_C(1) << 1,
     OCC_MODULE_CAP_SUPPORTS_PARTIAL_INPUT = UINT64_C(1) << 2,
-    OCC_MODULE_CAP_STATELESS = UINT64_C(1) << 3
+    OCC_MODULE_CAP_STATELESS = UINT64_C(1) << 3,
+    OCC_MODULE_CAP_DIAGNOSTIC_REPORTING = UINT64_C(1) << 4
 } OccModuleCapabilityV1;
 
 typedef struct OccModuleArtifactInputV1 {
@@ -57,6 +59,40 @@ typedef struct OccModuleArtifactInputV1 {
     uint32_t reserved;
 } OccModuleArtifactInputV1;
 
+typedef struct OccModuleDiagnosticV1 {
+    uint32_t struct_size;
+    uint32_t code;
+    uint32_t message_id;
+    uint32_t severity;
+    OccSourceSpan span;
+    const char* message;
+    uint64_t message_length;
+    const char* hint;
+    uint64_t hint_length;
+    uint32_t flags;
+    uint32_t reserved[3];
+} OccModuleDiagnosticV1;
+
+typedef uint32_t (OCC_MODULE_CALL *OccModuleReportDiagnosticV1)(
+    void* user_context,
+    const OccModuleDiagnosticV1* diagnostic
+);
+
+typedef struct OccModuleDiagnosticSinkV1 {
+    uint32_t struct_size;
+    uint32_t flags;
+    void* user_context;
+    OccModuleReportDiagnosticV1 report;
+    uint32_t reserved[4];
+} OccModuleDiagnosticSinkV1;
+
+/* Host-owned bridge context; valid only while the module invocation is active. */
+typedef struct OccModuleDiagnosticHostContextV1 {
+    uint32_t struct_size;
+    uint32_t stage_id;
+    OccDiagnosticCollector* collector;
+} OccModuleDiagnosticHostContextV1;
+
 typedef struct OccModuleInvocationV1 {
     uint32_t struct_size;
     uint32_t input_count;
@@ -65,6 +101,7 @@ typedef struct OccModuleInvocationV1 {
     uint64_t output_capacity;
     uint64_t job_id;
     uint64_t flags;
+    OccModuleDiagnosticSinkV1 diagnostic_sink;
 } OccModuleInvocationV1;
 
 typedef struct OccModuleResultV1 {
@@ -115,6 +152,14 @@ occ_get_stage_module_v1(void);
 
 /* Host-side validation helpers. Inputs are complete OIR container bytes. */
 uint32_t occ_module_validate_descriptor_v1(const OccStageModuleV1* module);
+
+/* Installs an OCC-owned callback. Module strings are copied synchronously. */
+uint32_t occ_module_diagnostic_sink_init_v1(
+    OccModuleDiagnosticSinkV1* sink,
+    OccModuleDiagnosticHostContextV1* context,
+    OccDiagnosticCollector* collector,
+    uint32_t stage_id
+);
 uint32_t occ_module_validate_invocation_v1(
     const OccStageDescriptorV1* descriptor,
     const OccModuleInvocationV1* invocation,
