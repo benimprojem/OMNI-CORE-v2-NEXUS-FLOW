@@ -342,7 +342,6 @@ typedef struct {
 // Fonksiyonlar
 OCC_API ASTNode* ast_create(ASTNodeType type);
 OCC_API void ast_print(ASTNode* root);
-OCC_API void ast_destroy(ASTNode* root);
 OCC_API int ast_serialize(ASTNode* root, FILE* out);
 OCC_API ASTNode* ast_deserialize(FILE* in);
 
