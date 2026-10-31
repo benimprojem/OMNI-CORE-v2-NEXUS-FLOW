@@ -318,3 +318,19 @@ Bu değişiklikler NEXSUS Flow gramerine yeni bir operatör veya üretim kuralı
 - Function/parameter, struct/union/enum/group body parser'larında kalan doğrudan tahsisler kontrol edilmeli.
 - Statement label oluşturma ve parser genelinde OOM'un syntax error'dan ayrılması tamamlanmalı.
 - Allocation-failure injection ile her tahsis noktasının cleanup yolu doğrulanmalı.
+
+
+## 6.15 Function, parameter ve statement-label AST sahipliği
+
+**Durum: İlk düzeltmeler uygulandı; diğer declaration türleri ayrıca denetlenecek.**
+
+- Function ve parameter AST tahsisleri kontrol ediliyor. Parametre listesi fonksiyon düğümüne eklendikçe sahiplik fonksiyonda tutuluyor; sonraki parametre veya type-name tahsisi başarısızsa tüm liste tek kökten temizleniyor.
+- Fonksiyon adı, parametre adı, parametre tipi ve dönüş tipi kopyaları kontrol ediliyor.
+- Lambda biçimindeki `> expression` gövdesinde expression, block ve return düğümlerinin her hata yolundaki sahipliği açık hale getirildi.
+- Normal fonksiyon gövdesi üretilemezse kısmi fonksiyon ağacı temizleniyor.
+- Statement label üretiminde tek elemanlı tuple açma işlemi artık sonsuz döngüye girmiyor. Label adı kopyalandıktan sonra yalnızca kaynak olarak kullanılan ifade ağacı temizleniyor; label düğümü veya ad kopyası tahsis edilemezse sahiplik temizleniyor.
+
+**Kalan işler:**
+
+- Struct/union/enum/group ve method parser'larında allocation ve child ownership kontrolleri.
+- Parser OOM'unu fatal durum olarak ayırma ve tahsis hata enjeksiyonu testleri.
