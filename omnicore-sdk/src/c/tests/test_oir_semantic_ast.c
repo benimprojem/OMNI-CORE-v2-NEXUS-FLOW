@@ -71,6 +71,20 @@ int main(void) {
     assert(oir_semantic_scopes_open(damaged, written, &view) ==
         OIR_STATUS_INVALID_SECTION);
 
+    /* Duplicate/noncanonical IDs are rejected. */
+    memcpy(damaged, bytes, written);
+    write_u32(damaged + OIR_SEMANTIC_SCOPES_HEADER_SIZE +
+        OIR_SEMANTIC_SCOPE_RECORD_SIZE, 1u);
+    assert(oir_semantic_scopes_open(damaged, written, &view) ==
+        OIR_STATUS_INVALID_SECTION);
+
+    /* A non-root scope must have an owning AST node. */
+    memcpy(damaged, bytes, written);
+    write_u32(damaged + OIR_SEMANTIC_SCOPES_HEADER_SIZE +
+        OIR_SEMANTIC_SCOPE_RECORD_SIZE + 16u, 0u);
+    assert(oir_semantic_scopes_open(damaged, written, &view) ==
+        OIR_STATUS_INVALID_SECTION);
+
     /* Parent must precede child; this also rules out cycles. */
     memcpy(damaged, bytes, written);
     write_u32(damaged + OIR_SEMANTIC_SCOPES_HEADER_SIZE +
