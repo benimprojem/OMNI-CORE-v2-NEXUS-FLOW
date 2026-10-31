@@ -389,3 +389,10 @@ Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı günce
 - Bu değişiklikler yeni syntax eklemiyor; mevcut biçimlerin hata yollarını güvenli hale getirmeyi hedefliyor. README grammar değişikliği gerekmiyor.
 
 **Kalan işler:** tüm declaration yollarının pozitif/negatif testleri, OOM'un ayrı fatal duruma dönüştürülmesi ve allocation-failure injection.
+
+
+### 6.17.1 Aggregate regression testi
+
+- `test_aggregate_declaration_ast()` eklendi.
+- Test; struct alan listesi, newtype adı/hedef tipi, enum variant payload alanı ve union alan listesinin AST üzerinde doğru oluştuğunu doğrular.
+- Bu test AST şekli ve parse başarısını kapsar; allocation-failure injection kapsamı değildir.
