@@ -108,6 +108,15 @@ int main(void) {
         memcpy(buffer + OIR_DIAGNOSTICS_HEADER_SIZE + 52, saved, sizeof(saved));
     }
 
+    {
+        size_t strings_offset = capacity - collector.text_length;
+        uint8_t saved = buffer[strings_offset];
+        buffer[strings_offset] = 0xff;
+        CHECK(oir_diagnostics_payload_open(buffer, capacity, &payload_view) ==
+            OIR_STATUS_INVALID_SECTION, "reject invalid UTF-8 diagnostic text");
+        buffer[strings_offset] = saved;
+    }
+
     free(buffer);
     occ_diagnostics_destroy(&collector);
     puts("OIR diagnostics payload tests passed.");
