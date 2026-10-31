@@ -273,6 +273,7 @@ const char* oir_status_string(OirStatus status) {
         case OIR_STATUS_UNKNOWN_REQUIRED_SECTION: return "unknown required section";
         case OIR_STATUS_LENGTH_MISMATCH: return "OIR length mismatch";
         case OIR_STATUS_OVERFLOW: return "OIR size overflow";
+        case OIR_STATUS_OUT_OF_MEMORY: return "out of memory";
         default: return "unknown OIR status";
     }
 }
