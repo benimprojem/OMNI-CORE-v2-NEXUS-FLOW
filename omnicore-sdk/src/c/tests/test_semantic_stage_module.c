@@ -8,6 +8,54 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
+
+#define SEMANTIC_CONCURRENT_CALLS 4u
+#define SEMANTIC_TEST_OUTPUT_CAPACITY (16u * 1024u * 1024u)
+
+typedef struct SemanticWorker {
+    const OccLoadedStageModule* loaded;
+    const uint8_t* ast_bytes;
+    size_t ast_length;
+    int succeeded;
+} SemanticWorker;
+
+#if defined(_WIN32)
+static DWORD WINAPI semantic_worker_run(LPVOID argument)
+#else
+static void* semantic_worker_run(void* argument)
+#endif
+{
+    SemanticWorker* worker = (SemanticWorker*)argument;
+    OccModuleArtifactInputV1 input;
+    OccDiagnosticCollector diagnostics;
+    uint8_t* output = NULL;
+    size_t output_length = 0u;
+    uint32_t status;
+
+    input.bytes = worker->ast_bytes;
+    input.length = worker->ast_length;
+    input.flags = 0u;
+    input.reserved = 0u;
+    occ_diagnostics_init(&diagnostics);
+    status = occ_module_loader_invoke(worker->loaded, &input, 1u, 77u,
+        &diagnostics, 64u, SEMANTIC_TEST_OUTPUT_CAPACITY,
+        &output, &output_length);
+    worker->succeeded = (status == OCC_MODULE_LOADER_OK &&
+        output != NULL && output_length > OIR_HEADER_SIZE &&
+        occ_diagnostics_count(&diagnostics) == 0u);
+    free(output);
+    occ_diagnostics_destroy(&diagnostics);
+#if defined(_WIN32)
+    return 0;
+#else
+    return NULL;
+#endif
+}
 
 #define CHECK(x) do { if(!(x)) { fprintf(stderr,"FAIL line %d: %s\n",__LINE__,#x); goto cleanup; } } while(0)
 
@@ -94,6 +142,44 @@ int main(int argc,char** argv) {
             owner_scope,(size_t)ast.node_count+1u)==OIR_STATUS_OK);
         CHECK(view.scopes.record_count>=2u);
         CHECK(view.symbols.record_count>=3u);
+    }
+    /* Concurrent invocations share only the immutable module descriptor and AST input. */
+    {
+        SemanticWorker workers[SEMANTIC_CONCURRENT_CALLS];
+#if defined(_WIN32)
+        HANDLE threads[SEMANTIC_CONCURRENT_CALLS];
+#else
+        pthread_t threads[SEMANTIC_CONCURRENT_CALLS];
+#endif
+        uint32_t i, created = 0u;
+        memset(workers, 0, sizeof(workers));
+#if defined(_WIN32)
+        memset(threads, 0, sizeof(threads));
+#endif
+        for (i = 0u; i < SEMANTIC_CONCURRENT_CALLS; ++i) {
+            workers[i].loaded = &loaded;
+            workers[i].ast_bytes = ast_artifact;
+            workers[i].ast_length = artifact_len;
+#if defined(_WIN32)
+            threads[i] = CreateThread(NULL, 0u, semantic_worker_run,
+                &workers[i], 0u, NULL);
+            CHECK(threads[i] != NULL);
+#else
+            CHECK(pthread_create(&threads[i], NULL, semantic_worker_run,
+                &workers[i]) == 0);
+#endif
+            ++created;
+        }
+#if defined(_WIN32)
+        CHECK(WaitForMultipleObjects(SEMANTIC_CONCURRENT_CALLS, threads,
+            TRUE, INFINITE) == WAIT_OBJECT_0);
+        for (i = 0u; i < created; ++i) CloseHandle(threads[i]);
+#else
+        for (i = 0u; i < created; ++i)
+            CHECK(pthread_join(threads[i], NULL) == 0);
+#endif
+        for (i = 0u; i < SEMANTIC_CONCURRENT_CALLS; ++i)
+            CHECK(workers[i].succeeded);
     }
     exit_code=0; puts("Real semantic stage shared-module test passed.");
 
