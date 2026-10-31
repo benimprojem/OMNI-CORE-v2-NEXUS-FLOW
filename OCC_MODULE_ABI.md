@@ -212,3 +212,20 @@ On parser failure, the callback has already copied stage diagnostics into the jo
 CI run 41174447616 passed: Windows, Ubuntu and macOS build/test; CTest 39/39; Ubuntu ASan/UBSan and Valgrind. The localized executable copy also receives the parser shared library beside it.
 
 This is intentionally a partial pipeline migration. Lexer remains statically hosted, semantic analysis remains in-process, and codegen still uses its legacy `codegen_run` entry point rather than `OccStageModuleV1`. The semantic AST OIR schema and module are not implemented yet. The ABI remains Draft v1 and is not frozen.
+
+
+## 13. Independent lexer stage module
+
+`omnicore-sdk/src/c/module/lexer_stage_module.c` is the first stage before the parser that is built and invoked as a separate shared library. Its descriptor accepts exactly one `OIR_KIND_SOURCE_UNIT` artifact and emits `OIR_KIND_TOKEN_STREAM`.
+
+- The module validates the source OIR envelope and SOURCE_UNIT schema before creating a memory-backed lexer context.
+- It emits stable token registry IDs, source byte offsets/lengths and line/column values. TOKEN_EOF is included.
+- Lexer-origin errors are recorded at `OCC_STAGE_LEXER`; each TOKEN_ERROR references its diagnostic through a 1-based ID, and the same records are serialized in an optional DIAGNOSTICS section.
+- The diagnostic callback is invoked only after the caller's output buffer is large enough. A `NEED_OUTPUT_BUFFER` retry therefore cannot duplicate diagnostics in the host collector.
+- The module returns a structurally valid TOKEN_STREAM artifact even when it contains lexer error tokens; downstream parser sees the diagnostic references and does not re-attribute them.
+
+The OCC CLI now loads both lexer and parser modules through the host loader. The in-memory chain is SOURCE_UNIT → lexer DLL → TOKEN_STREAM → parser DLL → AST OIR. The host materializes AST OIR for the still-in-process semantic analyzer.
+
+CTest `real_lexer_stage_source_to_token_stream_module` verifies a real DLL invocation, token/diagnostic references, exact source span, diagnostic callback and output-buffer retry. CI run 41174917131 passed on Windows, Ubuntu and macOS; CTest 40/40; Ubuntu ASan/UBSan and Valgrind passed.
+
+Semantic analysis and codegen are not yet independent modules under this ABI. ABI v1 remains draft and is not frozen.
