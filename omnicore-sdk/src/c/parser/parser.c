@@ -839,21 +839,34 @@ static ASTNode* parse_unary(Parser* p) {
     return parse_postfix(p);
 }
 
-// Binary Expressions (Basit öncelik yönetimi: Çarpma/Bölme -> Toplama/Çıkarma)
+// Binary expression construction keeps ownership of both operands on every path.
+static ASTNode* parser_make_binary(Parser* p, OmniTokenType op, ASTNode* left, ASTNode* right) {
+    ASTBinaryExpr* binary = (ASTBinaryExpr*)ast_create(AST_BINARY_EXPR);
+    if (!binary) {
+        ast_destroy(left);
+        ast_destroy(right);
+        return NULL;
+    }
+    binary->base.line = p->previous.line;
+    binary->base.col = p->previous.col;
+    binary->left = left;
+    binary->right = right;
+    binary->op = op;
+    return (ASTNode*)binary;
+}
+
 static ASTNode* parse_term(Parser* p) {
     ASTNode* left = parse_unary(p);
     if (!left) return NULL;
     while (match(p, TOKEN_STAR) || match(p, TOKEN_SLASH)) {
         OmniTokenType op = p->previous.type;
         ASTNode* right = parse_unary(p);
-        if (!right) return NULL;
-        ASTBinaryExpr* binary = (ASTBinaryExpr*)ast_create(AST_BINARY_EXPR);
-        binary->base.line = p->previous.line; // Operatörün satırı
-        binary->base.col = p->previous.col;
-        binary->left = left;
-        binary->right = right;
-        binary->op = op;
-        left = (ASTNode*)binary;
+        if (!right) {
+            ast_destroy(left);
+            return NULL;
+        }
+        left = parser_make_binary(p, op, left, right);
+        if (!left) return NULL;
     }
     return left;
 }
@@ -861,18 +874,16 @@ static ASTNode* parse_term(Parser* p) {
 static ASTNode* parse_comparison(Parser* p) {
     ASTNode* left = parse_additive(p);
     if (!left) return NULL;
-    while (match(p, TOKEN_GT) || match(p, TOKEN_GTE) || 
+    while (match(p, TOKEN_GT) || match(p, TOKEN_GTE) ||
            match(p, TOKEN_LT) || match(p, TOKEN_LTE)) {
         OmniTokenType op = p->previous.type;
         ASTNode* right = parse_additive(p);
-        if (!right) return NULL;
-        ASTBinaryExpr* binary = (ASTBinaryExpr*)ast_create(AST_BINARY_EXPR);
-        binary->base.line = p->previous.line;
-        binary->base.col = p->previous.col;
-        binary->left = left;
-        binary->right = right;
-        binary->op = op;
-        left = (ASTNode*)binary;
+        if (!right) {
+            ast_destroy(left);
+            return NULL;
+        }
+        left = parser_make_binary(p, op, left, right);
+        if (!left) return NULL;
     }
     return left;
 }
@@ -880,18 +891,16 @@ static ASTNode* parse_comparison(Parser* p) {
 static ASTNode* parse_equality(Parser* p) {
     ASTNode* left = parse_comparison(p);
     if (!left) return NULL;
-    while (match(p, TOKEN_EQ) || match(p, TOKEN_NEQ) || 
+    while (match(p, TOKEN_EQ) || match(p, TOKEN_NEQ) ||
            match(p, TOKEN_STRICT_EQ) || match(p, TOKEN_FORCE_EQ)) {
         OmniTokenType op = p->previous.type;
         ASTNode* right = parse_comparison(p);
-        if (!right) return NULL;
-        ASTBinaryExpr* binary = (ASTBinaryExpr*)ast_create(AST_BINARY_EXPR);
-        binary->base.line = p->previous.line;
-        binary->base.col = p->previous.col;
-        binary->left = left;
-        binary->right = right;
-        binary->op = op;
-        left = (ASTNode*)binary;
+        if (!right) {
+            ast_destroy(left);
+            return NULL;
+        }
+        left = parser_make_binary(p, op, left, right);
+        if (!left) return NULL;
     }
     return left;
 }
@@ -902,14 +911,12 @@ static ASTNode* parse_additive(Parser* p) {
     while (match(p, TOKEN_PLUS) || match(p, TOKEN_MINUS)) {
         OmniTokenType op = p->previous.type;
         ASTNode* right = parse_term(p);
-        if (!right) return NULL;
-        ASTBinaryExpr* binary = (ASTBinaryExpr*)ast_create(AST_BINARY_EXPR);
-        binary->base.line = p->previous.line;
-        binary->base.col = p->previous.col;
-        binary->left = left;
-        binary->right = right;
-        binary->op = op;
-        left = (ASTNode*)binary;
+        if (!right) {
+            ast_destroy(left);
+            return NULL;
+        }
+        left = parser_make_binary(p, op, left, right);
+        if (!left) return NULL;
     }
     return left;
 }
@@ -917,17 +924,13 @@ static ASTNode* parse_additive(Parser* p) {
 static ASTNode* parse_range(Parser* p) {
     ASTNode* expr = parse_equality(p);
     if (!expr) return NULL;
-
     if (match(p, TOKEN_RANGE)) {
         ASTNode* right = parse_equality(p);
-        if (!right) return NULL;
-        ASTBinaryExpr* range = (ASTBinaryExpr*)ast_create(AST_BINARY_EXPR);
-        range->base.line = p->previous.line;
-        range->base.col = p->previous.col;
-        range->op = TOKEN_RANGE;
-        range->left = expr;
-        range->right = right;
-        return (ASTNode*)range;
+        if (!right) {
+            ast_destroy(expr);
+            return NULL;
+        }
+        return parser_make_binary(p, TOKEN_RANGE, expr, right);
     }
     return expr;
 }
