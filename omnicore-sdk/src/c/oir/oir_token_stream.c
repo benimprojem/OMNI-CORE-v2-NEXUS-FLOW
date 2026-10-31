@@ -157,12 +157,17 @@ OirStatus oir_token_stream_record_to_lexer_token(
     if (!record || !out_token) return OIR_STATUS_INVALID_ARGUMENT;
     memset(out_token, 0, sizeof(*out_token));
     if (!oir_token_id_to_omni(record->token_id, &frontend_token) ||
-        record->flags != 0 || record->line == 0 || record->column == 0) {
+        record->flags != 0 || record->line == 0 || record->column == 0 ||
+        record->line > INT_MAX || record->column > INT_MAX) {
         return OIR_STATUS_INVALID_SECTION;
     }
 #if SIZE_MAX < UINT64_MAX
     if (source_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
 #endif
+
+    if (source_length != 0 && !source && frontend_token != TOKEN_ERROR) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
 
     out_token->type = frontend_token;
     out_token->line = (int)record->line;
