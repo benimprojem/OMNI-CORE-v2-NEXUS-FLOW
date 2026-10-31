@@ -1913,6 +1913,7 @@ static ASTNode* parse_statement(Parser* p) {
 
     if (match(p, TOKEN_SEMICOLON)) {
         ASTBlock* nop = (ASTBlock*)ast_create(AST_BLOCK);
+        if (!nop) return NULL;
         nop->base.line = p->previous.line;
         nop->base.col = p->previous.col;
         nop->statements = NULL;
@@ -1931,6 +1932,7 @@ static ASTNode* parse_statement(Parser* p) {
 
     if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
         ASTVarDecl* decl = (ASTVarDecl*)parse_var_decl(p);
+        if (!decl) return NULL;
         decl->is_public = is_pub;
         decl->is_exported = is_exp;
         consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
@@ -1939,6 +1941,7 @@ static ASTNode* parse_statement(Parser* p) {
     
     if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) {
         ASTFuncDecl* decl = (ASTFuncDecl*)parse_func_decl(p);
+        if (!decl) return NULL;
         decl->is_public = is_pub;
         decl->is_exported = is_exp;
         return (ASTNode*)decl;
@@ -1946,6 +1949,7 @@ static ASTNode* parse_statement(Parser* p) {
 
     if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) {
         ASTStructDecl* decl = (ASTStructDecl*)parse_struct_decl(p, 0, NULL);
+        if (!decl) return NULL;
         decl->is_public = is_pub;
         decl->is_exported = is_exp;
         return (ASTNode*)decl;
@@ -1953,6 +1957,7 @@ static ASTNode* parse_statement(Parser* p) {
 
     if (match(p, TOKEN_KW_GROUP)) {
         ASTGroupDecl* decl = (ASTGroupDecl*)parse_group_decl(p);
+        if (!decl) return NULL;
         decl->is_public = is_pub;
         decl->is_exported = is_exp;
         return (ASTNode*)decl;
@@ -1971,8 +1976,9 @@ static ASTNode* parse_statement(Parser* p) {
                     advance(p); // name
                     advance(p); // )
                     advance(p); // >{
-                    char* name = malloc(name_tok.length + 1);
-                    memcpy(name, name_tok.start, name_tok.length);
+                    char* name = (char*)malloc((size_t)name_tok.length + 1u);
+                    if (!name) return NULL;
+                    memcpy(name, name_tok.start, (size_t)name_tok.length);
                     name[name_tok.length] = '\0';
                     return parse_thread_block(p, name);
                 }
@@ -1994,13 +2000,20 @@ static ASTNode* parse_statement(Parser* p) {
                 consume(p, TOKEN_COLON, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_COLON_VAR);
                 
                 ASTNexusCapture* listen = (ASTNexusCapture*)ast_create(AST_LISTEN);
+                if (!listen) return NULL;
                 listen->base.line = p->previous.line;
                 listen->base.col = p->previous.col;
                 listen->handler_name = strdup("global_listener");
-                
+                if (!listen->handler_name) {
+                    ast_destroy((ASTNode*)listen);
+                    return NULL;
+                }
                 if (match(p, TOKEN_LBRACE)) listen->expr = parse_block(p);
                 else listen->expr = parse_statement(p);
-                
+                if (!listen->expr) {
+                    ast_destroy((ASTNode*)listen);
+                    return NULL;
+                }
                 return (ASTNode*)listen;
             }
         }
@@ -2018,11 +2031,16 @@ static ASTNode* parse_statement(Parser* p) {
         consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC);
         if (match(p, TOKEN_IDENTIFIER)) {
             ASTNexusJump* jmp = (ASTNexusJump*)ast_create(AST_NEXUS_JUMP);
-            jmp->base.line = p->previous.line;
-            jmp->base.col = p->previous.col;
             Token t = p->previous;
-            jmp->label_name = malloc(t.length + 1);
-            memcpy(jmp->label_name, t.start, t.length);
+            if (!jmp) return NULL;
+            jmp->base.line = t.line;
+            jmp->base.col = t.col;
+            jmp->label_name = (char*)malloc((size_t)t.length + 1u);
+            if (!jmp->label_name) {
+                ast_destroy((ASTNode*)jmp);
+                return NULL;
+            }
+            memcpy(jmp->label_name, t.start, (size_t)t.length);
             jmp->label_name[t.length] = '\0';
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
             consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_EXPR);
@@ -2033,10 +2051,15 @@ static ASTNode* parse_statement(Parser* p) {
 
     if (match(p, TOKEN_HALT)) {
         ASTHalt* halt = (ASTHalt*)ast_create(AST_NEXUS_HALT);
+        if (!halt) return NULL;
         halt->base.line = p->previous.line;
         halt->base.col = p->previous.col;
         if (!match(p, TOKEN_SEMICOLON)) {
             halt->expr = parse_expression(p);
+            if (!halt->expr) {
+                ast_destroy((ASTNode*)halt);
+                return NULL;
+            }
             consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_EXPR);
         }
         return (ASTNode*)halt;
@@ -2044,16 +2067,25 @@ static ASTNode* parse_statement(Parser* p) {
 
     if (match(p, TOKEN_INTENT)) {
         ASTIntent* in = (ASTIntent*)ast_create(AST_NEXUS_INTENT);
+        if (!in) return NULL;
         in->base.line = p->previous.line;
         in->base.col = p->previous.col;
         if (match(p, TOKEN_IDENTIFIER)) {
             Token t = p->previous;
-            in->intent_name = malloc(t.length + 1);
-            memcpy(in->intent_name, t.start, t.length);
+            in->intent_name = (char*)malloc((size_t)t.length + 1u);
+            if (!in->intent_name) {
+                ast_destroy((ASTNode*)in);
+                return NULL;
+            }
+            memcpy(in->intent_name, t.start, (size_t)t.length);
             in->intent_name[t.length] = '\0';
         }
         if (match(p, TOKEN_LPAREN)) {
             in->target = parse_expression(p);
+            if (!in->target) {
+                ast_destroy((ASTNode*)in);
+                return NULL;
+            }
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
         }
         if (match(p, TOKEN_SEMICOLON)) {} // Opsiyonel ;
@@ -2062,15 +2094,24 @@ static ASTNode* parse_statement(Parser* p) {
 
     if (match(p, TOKEN_FORCE)) {
         ASTPanic* panic = (ASTPanic*)ast_create(AST_PANIC);
+        if (!panic) return NULL;
         panic->base.line = p->previous.line;
         panic->base.col = p->previous.col;
         if (match(p, TOKEN_STRING)) {
             Token t = p->previous;
-            panic->message = malloc(t.length + 1);
-            memcpy(panic->message, t.start, t.length);
+            panic->message = (char*)malloc((size_t)t.length + 1u);
+            if (!panic->message) {
+                ast_destroy((ASTNode*)panic);
+                return NULL;
+            }
+            memcpy(panic->message, t.start, (size_t)t.length);
             panic->message[t.length] = '\0';
         } else {
             panic->message = strdup("Critical Panic");
+            if (!panic->message) {
+                ast_destroy((ASTNode*)panic);
+                return NULL;
+            }
         }
         consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_EXPR);
         return (ASTNode*)panic;
