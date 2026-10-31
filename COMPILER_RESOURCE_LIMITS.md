@@ -44,8 +44,10 @@ A representation limit is not a recommended operating size. For example, a 32-bi
 | Parser stage AST pointer index | Capacity grows up to 2,097,152 entries | Hard implementation limit | `parser_stage_module.c`, `PARSER_STAGE_MAX_INDEX_CAPACITY` |
 | OIR token count | At most `UINT32_MAX` records in schema representation; frontend stages apply the stricter 1,000,000-record limit | Representation limit plus stage policy | Token-stream header count is `uint32_t` |
 | OIR token record size | 32 bytes, plus 16-byte header | Fixed schema size | `oir_token_stream.h` |
-| Diagnostic message / hint length | Each serialized length is at most `UINT32_MAX` bytes | Representation limit | `diagnostics.c`, OIR diagnostic fields |
-| Diagnostic text arena | Total serialized text is bounded by `UINT32_MAX` bytes | Representation limit | `diagnostics.c` |
+| Diagnostic record count | At most 65,536 records per collector/job | Hard implementation limit | `diagnostics.h`, `OCC_DIAGNOSTICS_MAX_COUNT` |
+| Diagnostic message length | At most 1 MiB per message and independently per hint; NUL terminators are excluded from this per-field limit | Hard implementation limit | `diagnostics.h`, `OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES` |
+| Diagnostic text arena | At most 16 MiB total for all copied messages, hints and their NUL terminators | Hard implementation limit | `diagnostics.h`, `OCC_DIAGNOSTICS_MAX_TEXT_BYTES` |
+| Diagnostic OIR payload | Reader and writer enforce the same 65,536-record, 1 MiB per-field and 16 MiB aggregate-text limits | Hard implementation limit | `oir_diagnostics.c`, shared diagnostic limits |
 | Source offsets | `size_t` in parser tokens; `uint64` in OIR token records | Representation limit | Parser and OIR token-stream structures |
 | Source line / column | Lexer counters saturate at `INT_MAX`; OIR fields are `uint32` | Representation / checked behavior | `lexer.c`, token schema |
 | Parser source input | Source is copied into a NUL-terminated allocation; embedded NUL bytes are rejected by the source constructor | API contract | `parser_init_source_ex()` |
@@ -79,6 +81,20 @@ The token-record payload size is therefore:
 `16 + (32 × token_count)` bytes
 
 This formula excludes the enclosing OIR artifact header, section directory, source payload and diagnostics payload. The serializer checks arithmetic overflow and caller-provided output capacity. The 32-bit count is a format ceiling, not a practical target. The current Lexer DLL and Parser DLL apply a much stricter limit of 1,000,000 token records per compilation, including the EOF record. The Parser DLL checks this independently before allocating its token array, because stage input is an artifact boundary and must not be trusted solely because the Lexer normally emits it.
+
+## 2.4 Diagnostic collector and OIR payload limits
+
+The diagnostic collector enforces three independent hard limits:
+
+- no more than **65,536 diagnostic records**;
+- no message or hint longer than **1 MiB**;
+- no more than **16 MiB** of aggregate copied message and hint text.
+
+The aggregate text budget includes one NUL terminator after every message and every non-empty hint. The per-message/per-hint limit counts the supplied text bytes and excludes its terminating NUL. Therefore, sixteen messages of 1 MiB minus one byte each consume exactly 16 MiB including their NUL terminators. A subsequent non-empty message exceeds the aggregate budget.
+
+The OIR diagnostic payload reader validates the same record-count, per-field and aggregate-string limits before accepting the payload. The writer rejects a collector already marked with either allocation failure or limit exhaustion. These are hard implementation limits, not host-configurable job-policy values.
+
+The parser reports diagnostic-budget exhaustion as `PARSER_STATUS_DIAGNOSTIC_LIMIT`; it must not misreport this condition as `PARSER_STATUS_OUT_OF_MEMORY`. Allocation failure remains a separate status.
 
 ## 2.4 Semantic result and artifact limits
 
@@ -123,8 +139,7 @@ The following values must remain explicitly **TBD** until they are supported by 
 | Maximum total token count | Lexer and Parser stages each enforce 1,000,000 records; no host-configurable budget yet | Promote the stage-local constant into the versioned job policy when that policy is implemented |
 | Maximum AST nodes during parsing | No parser-side global node budget confirmed | Add a parser allocation/node budget before claiming a parser maximum |
 | Maximum declarations / functions / parameters | No product caps specified | Define only if required for predictable resource control |
-| Maximum diagnostics per compilation | No product cap | Add configurable diagnostic budget and a final “further diagnostics suppressed” record |
-| Maximum total diagnostic bytes | Wire-format ceiling exists; practical policy absent | Add configurable per-job text budget |
+| Configurable diagnostic budget | Current hard implementation limits are 65,536 records, 1 MiB per message/hint and 16 MiB aggregate text; no host-configurable override exists yet | Promote the fixed limits into a versioned job policy only when the host policy is implemented |
 | Maximum OIR artifact size | No single global artifact cap established | Define per-artifact and per-section limits in OIR contract |
 | Maximum compilation memory | No job-wide accounting | Introduce per-job budget and allocation accounting |
 | Maximum compilation time | No cancellation/deadline contract established | Add host cancellation/deadline support |
