@@ -31,20 +31,49 @@ static uint32_t OCC_MODULE_CALL mock_process(
     return OCC_MODULE_STATUS_OK;
 }
 
+static size_t write_test_artifact(
+    uint32_t kind,uint8_t validity,uint64_t job_id,uint8_t* output,size_t capacity
+) {
+    static const uint8_t payload_byte=0x7bu;
+    OirArtifactHeader header;
+    OirSectionInput section;
+    size_t written=0u;
+    memset(&header,0,sizeof(header));
+    header.container_major=OIR_CONTAINER_MAJOR;
+    header.container_minor=OIR_CONTAINER_MINOR;
+    header.artifact_kind=kind;
+    header.payload_schema_major=1u;
+    header.payload_schema_minor=0u;
+    header.producer_stage_id=OCC_STAGE_LEXER;
+    header.validity=validity;
+    header.job_id=job_id;
+    memset(&section,0,sizeof(section));
+    section.type=OIR_SECTION_PAYLOAD;
+    section.version=1u;
+    section.flags=OIR_SECTION_FLAG_REQUIRED;
+    section.data=&payload_byte;
+    section.length=1u;
+    assert(oir_artifact_write(output,capacity,&header,&section,1u,&written)==OIR_STATUS_OK);
+    return written;
+}
+
 int main(void) {
     OccStageModuleV1 module;
     OccModuleInvocationV1 invocation;
     OccModuleResultV1 result;
     OccModuleArtifactInputV1 inputs[2];
-    uint8_t output[64];
+    uint8_t source_artifact[64],token_artifact[64],wrong_artifact[64];
+    uint8_t partial_artifact[64],output[64];
+    size_t source_length,token_length,wrong_length,partial_length;
 
     memset(&module,0,sizeof(module));
     module.struct_size=(uint32_t)sizeof(module);
     module.descriptor.struct_size=(uint32_t)sizeof(module.descriptor);
     module.descriptor.abi_major=OCC_MODULE_ABI_MAJOR;
     module.descriptor.abi_minor=OCC_MODULE_ABI_MINOR;
-    module.descriptor.module_id=OCC_MODULE_ID_UNASSIGNED;
+    module.descriptor.module_id=1u;
     module.descriptor.stage_id=OCC_STAGE_PARSER;
+    module.descriptor.module_version_major=1u;
     module.descriptor.accepted_input_kind_mask=
         OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_SOURCE_UNIT) |
         OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_TOKEN_STREAM);
@@ -53,7 +82,7 @@ int main(void) {
         OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_TOKEN_STREAM);
     module.descriptor.output_artifact_kind=OIR_KIND_AST;
     module.descriptor.min_input_count=2u;
-    module.descriptor.max_input_count=3u;
+    module.descriptor.max_input_count=2u;
     module.descriptor.capability_flags=
         OCC_MODULE_CAP_REENTRANT | OCC_MODULE_CAP_DETERMINISTIC;
     module.descriptor.module_name="parser-stage-draft";
@@ -61,7 +90,7 @@ int main(void) {
 
     assert(module.struct_size>=sizeof(OccStageModuleV1));
     assert(module.descriptor.struct_size>=sizeof(OccStageDescriptorV1));
-    assert(module.descriptor.abi_major==1u && module.descriptor.abi_minor==0u);
+    assert(module.descriptor.abi_major==OCC_MODULE_ABI_MAJOR);
     assert(module.descriptor.stage_id==OCC_STAGE_PARSER);
     assert((module.descriptor.required_input_kind_mask &
         ~module.descriptor.accepted_input_kind_mask)==0u);
@@ -70,8 +99,20 @@ int main(void) {
     assert(sizeof(((OccModuleArtifactInputV1*)0)->length)==8u);
     assert(offsetof(OccModuleInvocationV1,output_capacity)>
         offsetof(OccModuleInvocationV1,output_buffer));
+    assert(occ_module_validate_descriptor_v1(&module)==OCC_MODULE_STATUS_OK);
+
+    source_length=write_test_artifact(OIR_KIND_SOURCE_UNIT,OIR_VALIDITY_VALID,17u,
+        source_artifact,sizeof(source_artifact));
+    token_length=write_test_artifact(OIR_KIND_TOKEN_STREAM,OIR_VALIDITY_VALID,17u,
+        token_artifact,sizeof(token_artifact));
+    wrong_length=write_test_artifact(OIR_KIND_AST,OIR_VALIDITY_VALID,17u,
+        wrong_artifact,sizeof(wrong_artifact));
+    partial_length=write_test_artifact(OIR_KIND_SOURCE_UNIT,OIR_VALIDITY_PARTIAL,17u,
+        partial_artifact,sizeof(partial_artifact));
 
     memset(inputs,0,sizeof(inputs));
+    inputs[0].bytes=source_artifact; inputs[0].length=source_length;
+    inputs[1].bytes=token_artifact; inputs[1].length=token_length;
     memset(&invocation,0,sizeof(invocation));
     memset(&result,0,sizeof(result));
     invocation.struct_size=(uint32_t)sizeof(invocation);
@@ -82,15 +123,52 @@ int main(void) {
     invocation.job_id=17u;
     result.struct_size=(uint32_t)sizeof(result);
 
+    assert(occ_module_validate_invocation_v1(&module.descriptor,&invocation,&result)==
+        OCC_MODULE_STATUS_OK);
     assert(module.process(&invocation,&result)==OCC_MODULE_STATUS_NEED_OUTPUT_BUFFER);
     assert(result.bytes_written==0u && result.required_output_capacity==64u);
 
     invocation.output_capacity=sizeof(output);
     assert(module.process(&invocation,&result)==OCC_MODULE_STATUS_OK);
-    assert(result.bytes_written==64u);
-    assert(result.output_validity==OIR_VALIDITY_VALID);
+    assert(result.bytes_written==64u && result.output_validity==OIR_VALIDITY_VALID);
     assert(output[0]==0x5au && output[63]==0x5au);
 
+    /* Artifact kind, required input presence and job identity are host-checked. */
+    inputs[1].bytes=wrong_artifact; inputs[1].length=wrong_length;
+    assert(occ_module_validate_invocation_v1(&module.descriptor,&invocation,&result)==
+        OCC_MODULE_STATUS_INVALID_INVOCATION);
+    inputs[1].bytes=token_artifact; inputs[1].length=token_length;
+    invocation.input_count=1u;
+    assert(occ_module_validate_invocation_v1(&module.descriptor,&invocation,&result)==
+        OCC_MODULE_STATUS_INVALID_INVOCATION);
+    invocation.input_count=2u;
+    inputs[1].bytes=wrong_artifact; inputs[1].length=wrong_length;
+    inputs[1].bytes=token_artifact; inputs[1].length=token_length;
+
+    token_length=write_test_artifact(OIR_KIND_TOKEN_STREAM,OIR_VALIDITY_VALID,18u,
+        token_artifact,sizeof(token_artifact));
+    inputs[1].length=token_length;
+    assert(occ_module_validate_invocation_v1(&module.descriptor,&invocation,&result)==
+        OCC_MODULE_STATUS_INVALID_INVOCATION);
+    token_length=write_test_artifact(OIR_KIND_TOKEN_STREAM,OIR_VALIDITY_VALID,17u,
+        token_artifact,sizeof(token_artifact));
+    inputs[1].length=token_length;
+
+    inputs[0].bytes=partial_artifact; inputs[0].length=partial_length;
+    assert(occ_module_validate_invocation_v1(&module.descriptor,&invocation,&result)==
+        OCC_MODULE_STATUS_INVALID_INVOCATION);
+    module.descriptor.capability_flags|=OCC_MODULE_CAP_SUPPORTS_PARTIAL_INPUT;
+    assert(occ_module_validate_invocation_v1(&module.descriptor,&invocation,&result)==
+        OCC_MODULE_STATUS_OK);
+    inputs[0].bytes=source_artifact; inputs[0].length=source_length;
+
+    module.descriptor.module_id=OCC_MODULE_ID_UNASSIGNED;
+    assert(occ_module_validate_descriptor_v1(&module)==OCC_MODULE_STATUS_INVALID_INVOCATION);
+    module.descriptor.module_id=1u;
+    invocation.flags=1u;
+    assert(occ_module_validate_invocation_v1(&module.descriptor,&invocation,&result)==
+        OCC_MODULE_STATUS_INVALID_INVOCATION);
+    invocation.flags=0u;
     invocation.struct_size=0u;
     assert(module.process(&invocation,&result)==OCC_MODULE_STATUS_INVALID_INVOCATION);
 
