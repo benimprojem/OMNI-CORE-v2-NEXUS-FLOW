@@ -108,3 +108,17 @@ The draft does not yet claim that lexer, parser or semantic analysis are indepen
 These are host-side validation helpers, not a dynamic loader and not yet a stage implementation. The module must still validate stage-specific input roles, schemas and validity states, and the host must validate the produced output artifact independently.
 
 CTest: `occ_stage_module_abi_validation_helpers` supplements the original layout/process contract test. The new fixture checks a real OIR AST container as input and rejects incompatible ABI, inconsistent masks, null bytes, nonzero input flags and missing required input.
+
+
+## 8. Draft implementation status
+
+Implemented:
+- `occ_module_api.h`: fixed-width, versioned C structs, module descriptor, borrowed OIR input spans, caller-owned output buffer, status/result contract and export macro.
+- `occ_module_api.c`: host-side descriptor and invocation validation. It checks ABI version/struct sizes, module/stage IDs, known artifact-kind masks, required-versus-accepted masks, capability bits, input count, each complete OIR container, validity/partial-input policy and job-ID consistency.
+- `test_module_abi.c` and `test_occ_module_api.c`: descriptor, input kind, required inputs, job identity, partial input, reserved flags and output-buffer retry behavior.
+- Test-only shared library `occ_test_passthrough_module`: exports `occ_get_stage_module_v1`, validates one AST artifact, and copies it into the caller's output buffer without transferring memory ownership.
+- `test_dynamic_stage_module.c`: loads the shared library with LoadLibrary/GetProcAddress or dlopen/dlsym, checks the descriptor, tests NEED_OUTPUT_BUFFER retry, validates the returned OIR artifact and unloads the library.
+
+The test module is deliberately a pass-through ABI fixture, not the real parser stage. The parser now has an in-memory source initialization API, and the OIR AST artifact adapter is ready, but the actual parser-stage shared library that consumes SOURCE_UNIT + TOKEN_STREAM and emits AST is still pending.
+
+The ABI remains **Draft v1.0, not frozen**. Module IDs are test values until a central registry is assigned. Dynamic-loader CI is pending.
