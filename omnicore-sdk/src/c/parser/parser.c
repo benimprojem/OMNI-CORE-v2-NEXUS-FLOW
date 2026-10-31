@@ -1875,7 +1875,7 @@ static ASTNode* parse_group_decl(Parser* p) {
             if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) member = parse_struct_decl(p, 0, NULL);
             else if (match(p, TOKEN_NOT)) {
                 if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) member = parse_struct_decl(p, 1, NULL);
-                else { error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_TYPE_BANG); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+                else { error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN, msg_get(MSG_EXPECT_TYPE_BANG)); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
             } else if (match(p, TOKEN_KW_ENUM) || match(p, TOKEN_PRE_ENUM)) member = parse_enum_decl(p, NULL);
             else if (match(p, TOKEN_KW_UNION) || match(p, TOKEN_PRE_UNION)) member = parse_union_decl(p, NULL);
             else if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
