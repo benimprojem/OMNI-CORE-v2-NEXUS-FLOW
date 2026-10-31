@@ -14,6 +14,7 @@ extern "C" {
 #define OIR_SEMANTIC_SCOPES_HEADER_SIZE 8u
 #define OIR_SEMANTIC_SCOPE_RECORD_SIZE 20u
 #define OIR_SEMANTIC_MAX_SCOPE_COUNT 1000000u
+#define OIR_SEMANTIC_MAX_TYPE_COUNT 1000000u
 #define OIR_SEMANTIC_MAX_SCOPE_DEPTH 512u
 
 /* TYPES section payload: count, record size, string-table byte length, records, UTF-8 strings. */
