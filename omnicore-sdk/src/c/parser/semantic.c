@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
+#include <stdint.h>
 #include "lexer.h"
 
 void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path) {
@@ -21,6 +22,8 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->node_id_context = NULL;
     ctx->result_enabled = 0u;
     ctx->result_status = semantic_result_init(&ctx->result);
+    ctx->test_allocation_fail_at = 0u;
+    ctx->test_allocation_attempts = 0u;
 }
 
 // --- Similarity Matching (ULTRA) ---
@@ -53,6 +56,50 @@ SemanticResultStatus semantic_finalize_result(
     }
     ctx->result_status = semantic_result_finalize(&ctx->result, ast_node_count);
     return ctx->result_status;
+}
+
+static int semantic_should_fail_allocation(SemanticContext* ctx) {
+    if (!ctx || ctx->test_allocation_fail_at == 0u) return 0;
+    if (ctx->test_allocation_attempts < UINT32_MAX)
+        ++ctx->test_allocation_attempts;
+    return ctx->test_allocation_attempts == ctx->test_allocation_fail_at;
+}
+
+static void* semantic_allocate(SemanticContext* ctx, size_t size) {
+    if (semantic_should_fail_allocation(ctx)) return NULL;
+    return malloc(size);
+}
+
+static void* semantic_callocate(
+    SemanticContext* ctx, size_t count, size_t size
+) {
+    if (semantic_should_fail_allocation(ctx)) return NULL;
+    return calloc(count, size);
+}
+
+static char* semantic_duplicate(SemanticContext* ctx, const char* value) {
+    size_t length;
+    char* copy;
+    if (!value) value = "";
+    length = strlen(value);
+    if (length == SIZE_MAX) return NULL;
+    copy = (char*)semantic_allocate(ctx, length + 1u);
+    if (copy) memcpy(copy, value, length + 1u);
+    return copy;
+}
+
+void semantic_test_fail_allocation_at(
+    SemanticContext* ctx, uint32_t allocation_index
+) {
+    if (!ctx) return;
+    ctx->test_allocation_fail_at = allocation_index;
+    ctx->test_allocation_attempts = 0u;
+}
+
+uint32_t semantic_test_get_allocation_attempts(
+    const SemanticContext* ctx
+) {
+    return ctx ? ctx->test_allocation_attempts : 0u;
 }
 
 static void semantic_set_result_error(
@@ -130,7 +177,7 @@ static void report_issue(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
         input.hint_length = input.hint ? strlen(input.hint) : 0u;
         (void)occ_diagnostics_add(ctx->diagnostics, &input);
     }
-    Error* err = (Error*)calloc(1u, sizeof(Error));
+    Error* err = (Error*)semantic_callocate(ctx, 1u, sizeof(Error));
     if (!err) {
         if (ctx->result_status == SEMANTIC_RESULT_OK)
             ctx->result_status = SEMANTIC_RESULT_OUT_OF_MEMORY;
@@ -139,12 +186,12 @@ static void report_issue(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
     }
 
     err->code = code;
-    err->filename = strdup(ctx->filename ? ctx->filename : "<unknown>");
+    err->filename = semantic_duplicate(ctx, ctx->filename ? ctx->filename : "<unknown>");
     err->line = node ? node->line : 0;
     err->col = node ? node->col : 0;
-    err->message = strdup(msg ? msg : "");
-    err->suggestion = suggestion ? strdup(suggestion) : NULL;
-    err->hint = hint ? strdup(hint) : NULL;
+    err->message = semantic_duplicate(ctx, msg ? msg : "");
+    err->suggestion = suggestion ? semantic_duplicate(ctx, suggestion) : NULL;
+    err->hint = hint ? semantic_duplicate(ctx, hint) : NULL;
     err->similarity = similarity;
     err->is_warning = is_warning;
 
@@ -270,14 +317,14 @@ static Slot* add_slot(
     int is_hard,
     uint16_t extra_symbol_flags
 ) {
-    Slot* s = (Slot*)malloc(sizeof(Slot));
+    Slot* s = (Slot*)semantic_allocate(ctx, sizeof(Slot));
     if (!s) {
         semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
         return NULL;
     }
     memset(s, 0, sizeof(*s));
-    s->name = strdup(name ? name : "");
-    s->type_name = type_name ? strdup(type_name) : NULL;
+    s->name = semantic_duplicate(ctx, name ? name : "");
+    s->type_name = type_name ? semantic_duplicate(ctx, type_name) : NULL;
     if (!s->name || (type_name && !s->type_name)) {
         free(s->name);
         free(s->type_name);
@@ -737,7 +784,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         function_slot->param_count = p_count;
                         if (p_count > 0) {
                             function_slot->param_types =
-                                (char**)calloc((size_t)p_count, sizeof(char*));
+                                (char**)semantic_callocate(ctx, (size_t)p_count, sizeof(char*));
                             if (!function_slot->param_types) {
                                 semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                             } else {
@@ -746,7 +793,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                                 while(p) {
                                     ASTVarDecl* v = (ASTVarDecl*)p;
                                     if (v->type_name) {
-                                        function_slot->param_types[i] = strdup(v->type_name);
+                                        function_slot->param_types[i] = semantic_duplicate(ctx, v->type_name);
                                         if (!function_slot->param_types[i]) {
                                             semantic_set_result_error(
                                                 ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
@@ -932,13 +979,13 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                             semantic_set_result_error(ctx, relation_status);
                         }
 
-                        FieldInfo* f = (FieldInfo*)calloc(1u, sizeof(FieldInfo));
+                        FieldInfo* f = (FieldInfo*)semantic_callocate(ctx, 1u, sizeof(FieldInfo));
                         if (!f) {
                             semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                             break;
                         }
-                        f->name = strdup(v->name ? v->name : "");
-                        f->type_name = v->type_name ? strdup(v->type_name) : NULL;
+                        f->name = semantic_duplicate(ctx, v->name ? v->name : "");
+                        f->type_name = v->type_name ? semantic_duplicate(ctx, v->type_name) : NULL;
                         if (!f->name || (v->type_name && !f->type_name)) {
                             free(f->name);
                             free(f->type_name);
@@ -1061,12 +1108,12 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         semantic_set_result_error(ctx, relation_status);
                     }
 
-                    FieldInfo* f = (FieldInfo*)calloc(1u, sizeof(FieldInfo));
+                    FieldInfo* f = (FieldInfo*)semantic_callocate(ctx, 1u, sizeof(FieldInfo));
                     if (!f) {
                         semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                         break;
                     }
-                    f->name = strdup(v->name ? v->name : "");
+                    f->name = semantic_duplicate(ctx, v->name ? v->name : "");
                     if (!f->name) {
                         free(f);
                         semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
