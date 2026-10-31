@@ -409,6 +409,7 @@ static ASTNode* parse_primary(Parser* p) {
 
     if (match(p, TOKEN_KW_LOOP)) {
         ASTLoop* loop = (ASTLoop*)ast_create(AST_LOOP);
+        if (!loop) return NULL;
         loop->base.line = p->previous.line;
         loop->base.col = p->previous.col;
         loop->loop_type = 0;
@@ -417,26 +418,42 @@ static ASTNode* parse_primary(Parser* p) {
 
         // Argümanları parse et
         ASTNode* first = NULL;
-        if (match(p, TOKEN_PRE_VAR)) { // v:
+        if (match(p, TOKEN_PRE_VAR)) {
             first = parse_var_decl(p);
-        } else if (match(p, TOKEN_PRE_CONST)) { // c:
+        } else if (match(p, TOKEN_PRE_CONST)) {
             first = parse_var_decl(p);
         } else {
             first = parse_expression(p);
         }
+        if (!first) {
+            ast_destroy((ASTNode*)loop);
+            return NULL;
+        }
 
-        if (match(p, TOKEN_ITERATE)) { // <--
-            loop->loop_type = 3; // Foreach
+        if (match(p, TOKEN_ITERATE)) {
+            loop->loop_type = 3;
             loop->variable = first;
             loop->collection = parse_expression(p);
+            if (!loop->collection) {
+                ast_destroy((ASTNode*)loop);
+                return NULL;
+            }
         } else if (match(p, TOKEN_COMMA)) {
-            loop->loop_type = 2; // For
+            loop->loop_type = 2;
             loop->init = first;
             loop->condition = parse_expression(p);
+            if (!loop->condition) {
+                ast_destroy((ASTNode*)loop);
+                return NULL;
+            }
             consume(p, TOKEN_COMMA, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_COMMA_ROLLING);
             loop->increment = parse_expression(p);
+            if (!loop->increment) {
+                ast_destroy((ASTNode*)loop);
+                return NULL;
+            }
         } else {
-            loop->loop_type = 1; // While
+            loop->loop_type = 1;
             loop->condition = first;
         }
         consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
@@ -454,6 +471,7 @@ static ASTNode* parse_primary(Parser* p) {
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
             
             ASTLoop* loop = (ASTLoop*)ast_create(AST_LOOP);
+            if (!loop) return NULL;
             loop->base.line = p->previous.line;
             loop->base.col = p->previous.col;
             loop->loop_type = 0; // Infinite default
@@ -473,31 +491,35 @@ static ASTNode* parse_primary(Parser* p) {
         }
 
         ASTNode* expr = parse_expression(p);
-        
-        // Tuple Check: (expr, expr, ...)
+        if (!expr) return NULL;
+
+        /* Tuple Check: (expr, expr, ...) */
         if (p->current.type == TOKEN_COMMA) {
             ASTTuple* tuple = (ASTTuple*)ast_create(AST_TUPLE);
+            ASTNode* tail = expr;
+            if (!tuple) {
+                ast_destroy(expr);
+                return NULL;
+            }
             tuple->base.line = expr->line;
             tuple->base.col = expr->col;
-            
-            ASTNode* head = expr;
-            ASTNode* tail = expr;
-            
+            tuple->elements = expr;
+
             while (match(p, TOKEN_COMMA)) {
                 ASTNode* next_elem = parse_expression(p);
-                if (next_elem) {
-                    tail->next = next_elem;
-                    tail = next_elem;
+                if (!next_elem) {
+                    ast_destroy((ASTNode*)tuple);
+                    return NULL;
                 }
+                tail->next = next_elem;
+                tail = next_elem;
             }
-            tuple->elements = head;
-            
+
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
             return (ASTNode*)tuple;
         }
 
         consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
-        
         return expr;
     }
 
@@ -543,6 +565,7 @@ static ASTNode* parse_primary(Parser* p) {
         // { } Empty tuple check
         if (match(p, TOKEN_RBRACE)) {
              ASTTuple* tuple = (ASTTuple*)ast_create(AST_TUPLE);
+             if (!tuple) return NULL;
              tuple->base.line = p->previous.line;
              tuple->base.col = p->previous.col;
              tuple->elements = NULL;
@@ -553,20 +576,24 @@ static ASTNode* parse_primary(Parser* p) {
         if (!expr) return NULL;
         
         ASTTuple* tuple = (ASTTuple*)ast_create(AST_TUPLE);
+        ASTNode* tail = expr;
+        if (!tuple) {
+            ast_destroy(expr);
+            return NULL;
+        }
         tuple->base.line = expr->line;
         tuple->base.col = expr->col;
-        
-        ASTNode* head = expr;
-        ASTNode* tail = expr;
-        
+        tuple->elements = expr;
+
         while (match(p, TOKEN_COMMA)) {
             ASTNode* next_elem = parse_expression(p);
-            if (next_elem) {
-                tail->next = next_elem;
-                tail = next_elem;
+            if (!next_elem) {
+                ast_destroy((ASTNode*)tuple);
+                return NULL;
             }
+            tail->next = next_elem;
+            tail = next_elem;
         }
-        tuple->elements = head;
         
         consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
         return (ASTNode*)tuple;
