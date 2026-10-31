@@ -10,6 +10,10 @@
 
 #include "parser/parser.h"
 #include "parser/semantic.h"
+#include "core/compilation.h"
+#include "core/failure_store.h"
+
+#include <time.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -175,6 +179,49 @@ static void list_targets(const char* target_dir) {
     printf("-------------------------------------------\n\n");
 }
 
+
+static uint64_t occ_make_job_id(void) {
+    struct timespec now;
+    static uint32_t sequence = 0u;
+    uint64_t value;
+    if (timespec_get(&now, TIME_UTC) == TIME_UTC && now.tv_sec >= 0) {
+        value = (uint64_t)now.tv_sec * UINT64_C(1000000000) +
+            (uint64_t)now.tv_nsec;
+    } else {
+        value = (uint64_t)time(NULL) * UINT64_C(1000000);
+    }
+    return value + (uint64_t)(++sequence);
+}
+
+static void occ_save_failure_checkpoint(
+    OccCompilationContext* job,
+    ParserContext* parser,
+    const char* source_path
+) {
+    OccDiagnosticView last;
+    uint32_t stage_id = OCC_STAGE_PARSER;
+    char artifact_path[4096];
+
+    if (!job || !parser || !source_path ||
+        occ_diagnostics_count(&job->diagnostics) == 0u) return;
+
+    if (occ_diagnostics_get(&job->diagnostics,
+        occ_diagnostics_count(&job->diagnostics) - 1u, &last) &&
+        last.record && last.record->stage_id != 0u) {
+        stage_id = last.record->stage_id;
+    }
+
+    if (occ_failure_store_save(
+        "occ-errors", job->job_id, stage_id, source_path,
+        (const uint8_t*)parser->source_buffer, parser->source_len,
+        &job->diagnostics, artifact_path, sizeof(artifact_path))) {
+        fprintf(stderr, "Hata kaydi saklandi: %s\n", artifact_path);
+    } else {
+        fprintf(stderr, "Hata: OIR hata kaydi yazilamadi (job=%llu).\n",
+            (unsigned long long)job->job_id);
+    }
+}
+
 int main(int argc, char **argv) {
     int exit_code = 0;
     /* Resolve runtime assets from the executable location, not the caller's CWD. */
@@ -252,12 +299,26 @@ int main(int argc, char **argv) {
 
     printf(msg_get(MSG_OCC_PROCESSING), source_file);
 
+    OccCompilationOptions compilation_options = {0};
+    OccCompilationContext job;
+    uint64_t job_id = occ_make_job_id();
+    compilation_options.target_name = target_name;
+    if (!occ_compilation_init(&job, job_id, &compilation_options) ||
+        !occ_compilation_begin(&job)) {
+        fprintf(stderr, "Hata: Derleme isi baslatilamadi.\n");
+        occ_compilation_destroy(&job);
+        return 1;
+    }
+
     ParserContext* ctx = parser_init(source_file);
     if (!ctx) {
         printf("%s\n", msg_get(MSG_OCC_FAIL_INIT));
         printf("[DEBUG] parser_init failed for file: %s\n", source_file);
+        (void)occ_compilation_fail(&job);
+        occ_compilation_destroy(&job);
         return 1;
     }
+    parser_attach_diagnostics(ctx, &job.diagnostics, OCC_STAGE_PARSER);
     printf("[DEBUG] parser_init succeeded, running parser...\n");
 
     if (parser_run(ctx) == 0 && ctx->ast_root != NULL) {
@@ -265,9 +326,11 @@ int main(int argc, char **argv) {
 
         SemanticContext sem_ctx;
         semantic_init(&sem_ctx, source_file, lang_path);
+        semantic_attach_diagnostics(&sem_ctx, &job.diagnostics, OCC_STAGE_SEMANTIC);
         semantic_check(&sem_ctx, (ASTNode*)ctx->ast_root);
 
-        if (sem_ctx.error_count == 0) {
+        if (sem_ctx.error_count == 0 &&
+            !occ_diagnostics_blocks_output(&job.diagnostics)) {
             char base_name[512];
             strncpy(base_name, source_file, sizeof(base_name) - 1);
             base_name[sizeof(base_name) - 1] = '\0';
@@ -350,7 +413,20 @@ int main(int argc, char **argv) {
         exit_code = 1;
     }
 
+    if (exit_code == 0) {
+        if (!occ_compilation_complete(&job) ||
+            !occ_compilation_can_publish_output(&job)) {
+            exit_code = 1;
+        }
+    }
+
+    if (exit_code != 0) {
+        (void)occ_compilation_fail(&job);
+        occ_save_failure_checkpoint(&job, ctx, source_file);
+    }
+
     parser_print_errors(ctx);
     parser_destroy(ctx);
+    occ_compilation_destroy(&job);
     return exit_code;
 }
