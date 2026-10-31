@@ -37,7 +37,7 @@ The current legacy path is not this pipeline yet. `parser_save_ir()` calls `ast_
 4. **Stable identities.** Functions, blocks, values, instructions and local tables use artifact-local 1-based IDs. Zero is reserved for null/absent where the field permits it.
 5. **Determinism.** Identical semantic input and lowering options produce byte-identical logical tables and deterministic ordering.
 6. **Bounded decoding.** Counts, offsets, string spans, table ranges, nesting and cross-references are validated before allocation or exposure.
-7. **Optimization-neutral base.** The initial schema must not force SSA, a stack-machine model, a register-machine model or a particular memory ownership strategy.
+7. **SSA canonical model.** OIR values use SSA form. The schema remains neutral about physical registers, stack-machine versus register-machine implementation, and target-specific memory placement.
 8. **Target independence.** Target register names, physical addresses, instruction encodings and ABI register assignments do not belong in the generic module.
 9. **Provenance.** Lowered operations retain source-node identity and optional source-span mapping so diagnostics and debug information remain traceable.
 10. **Versioned evolution.** Published IDs are never silently renumbered or reused. New optional records must be safely skippable; semantic changes require a schema-major change.
@@ -193,7 +193,7 @@ The exact SSA merge representation remains open:
 
 The selected form must define dominance, use-before-definition, loop back-edge handling, edge-specific incoming values and verifier behavior. SSA values have one definition; mutable source variables are lowered into new SSA values and explicit memory operations only when their semantics require addressable storage. Physical target registers remain a later register-allocation concern.
 
-The source specifications also describe OIR as a DAG while the language supports loops and recursion. A conventional control-flow graph for loops necessarily contains cycles. Until clarified, this document does not impose an acyclic control-flow graph: data-dependency subgraphs may be DAGs, while control-flow edges must be able to represent loop back-edges. The exact meaning of the older OIR DAG requirement is recorded as an open architecture question.
+The older OIR description of a DAG is interpreted as a restriction on ordinary, non-loop-carried instruction dependencies—not as a requirement that the whole program or its control-flow graph be acyclic. The control-flow graph (CFG) may contain cycles for loops, and functions may be recursive. Loop-carried values are represented explicitly at SSA merge points (using the eventual phi or block-parameter form); those back-edge relationships are not mistaken for ordinary acyclic expression dependencies. Within a basic block, the schedulable instruction-dependency graph must be acyclic. This distinction preserves dependency ordering without making loops impossible.
 
 ## 7. Calling convention and ABI policy
 
@@ -218,7 +218,7 @@ The design sequence is:
 
 1. Finalize a minimal language subset and representative source fixtures.
 2. Define the opcode registry and operation semantics for that subset.
-3. Select the SSA merge representation (phi instructions or block parameters) and specify loop back-edge verification.
+3. Select the SSA merge representation (phi instructions or block parameters) and specify dominance, loop-carried values and back-edge verification.
 4. Define canonical type records and the complete NEXSUS Flow numeric-promotion/conversion lattice, including forced-width behavior and unresolved mixed-type cases.
 5. Define function, block, instruction, operand and source-map wire layouts.
 6. Implement a standalone module writer/reader and verifier with malformed-input, overflow, cross-reference and deterministic round-trip tests.
