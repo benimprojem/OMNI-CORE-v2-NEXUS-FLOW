@@ -193,6 +193,23 @@ static uint64_t occ_make_job_id(void) {
     return value + (uint64_t)(++sequence);
 }
 
+static void occ_add_host_diagnostic(
+    OccCompilationContext* job,
+    uint32_t stage_id,
+    uint32_t code,
+    const char* message
+) {
+    OccDiagnosticInput input = {0};
+    if (!job || !message) return;
+    input.code = code;
+    input.stage_id = stage_id;
+    input.message_id = code;
+    input.severity = OCC_DIAG_ERROR;
+    input.message = message;
+    input.message_length = strlen(message);
+    (void)occ_diagnostics_add(&job->diagnostics, &input);
+}
+
 static void occ_save_failure_checkpoint(
     OccCompilationContext* job,
     ParserContext* parser,
@@ -351,6 +368,8 @@ int main(int argc, char **argv) {
             snprintf(ir_path, sizeof(ir_path), "%s.oir", base_name);
             if (!parser_save_ir(ctx, ir_path)) {
                 fprintf(stderr, "Hata: IR dosyasi kaydedilemedi: %s\n", ir_path);
+                occ_add_host_diagnostic(&job, OCC_STAGE_OIR, 4001u,
+                    "Failed to write the OIR intermediate artifact.");
                 exit_code = 1;
             } else {
                 printf("IR kaydedildi: %s\n", ir_path);
@@ -383,15 +402,21 @@ int main(int argc, char **argv) {
 
                 if (!hCodegen) {
                     fprintf(stderr, "Hata: Codegen modulu yuklenemedi.\n");
+                    occ_add_host_diagnostic(&job, OCC_STAGE_CODEGEN, 5001u,
+                        "The code generation module could not be loaded.");
                     exit_code = 1;
                 } else if (!run) {
                     fprintf(stderr, "Hata: codegen_run sembolu bulunamadi.\n");
+                    occ_add_host_diagnostic(&job, OCC_STAGE_CODEGEN, 5002u,
+                        "The codegen_run entry point is missing.");
                     exit_code = 1;
                 } else {
                     char asm_path[520];
                     snprintf(asm_path, sizeof(asm_path), "%s.s", base_name);
                     if (run(ir_path, target_path, asm_path) != 0) {
                         fprintf(stderr, "Hata: Codegen islemi basarisiz oldu.\n");
+                        occ_add_host_diagnostic(&job, OCC_STAGE_CODEGEN, 5003u,
+                            "The code generation stage returned failure.");
                         exit_code = 1;
                     }
                 }
