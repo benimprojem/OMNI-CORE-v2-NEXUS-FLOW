@@ -249,3 +249,8 @@ Whenever a limit changes:
 - record whether the change is backward-compatible for OIR artifacts.
 
 This document is an inventory of the current implementation plus a roadmap for a coherent resource-budget contract. It does not authorize changing language semantics solely to fit an arbitrary source-line count.
+
+
+## 8. SEMANTIC_AST consumer boundary
+
+The downstream DLL contract for `OIR_KIND_SEMANTIC_AST` is specified in [`SEMANTIC_AST_CONSUMER_CONTRACT.md`](SEMANTIC_AST_CONSUMER_CONTRACT.md). The artifact reader is allocation-free and requires caller-owned graph/reference scratch arrays; returned views borrow the immutable artifact bytes. Consumers must validate the full envelope, AST graph/schema and semantic cross-table references before use.
