@@ -31,7 +31,8 @@ extern "C" {
 #endif
 
 /* Artifact-kind bit N corresponds to stable OIR artifact kind ID N. */
-#define OCC_MODULE_ARTIFACT_KIND_MASK(kind_id) (UINT64_C(1) << (kind_id))
+#define OCC_MODULE_ARTIFACT_KIND_MASK(kind_id) \
+    (((kind_id) > 0u && (kind_id) < 64u) ? (UINT64_C(1) << (kind_id)) : UINT64_C(0))
 
 typedef enum OccModuleStatusV1 {
     OCC_MODULE_STATUS_OK = 0,
@@ -111,6 +112,14 @@ typedef struct OccStageModuleV1 {
 typedef const OccStageModuleV1* (OCC_MODULE_CALL *OccGetStageModuleV1Fn)(void);
 OCC_MODULE_EXPORT const OccStageModuleV1* OCC_MODULE_CALL
 occ_get_stage_module_v1(void);
+
+/* Host-side validation helpers. Inputs are complete OIR container bytes. */
+uint32_t occ_module_validate_descriptor_v1(const OccStageModuleV1* module);
+uint32_t occ_module_validate_invocation_v1(
+    const OccStageDescriptorV1* descriptor,
+    const OccModuleInvocationV1* invocation,
+    OccModuleResultV1* result
+);
 
 #ifdef __cplusplus
 }
