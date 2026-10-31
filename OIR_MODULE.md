@@ -1,0 +1,237 @@
+# OIR_MODULE — Lowered Intermediate Representation
+
+**Status:** Design draft; schema and opcode registry are not frozen  
+**Artifact kind:** `OIR_KIND_MODULE` (stable kind ID 5)  
+**Producer:** IR lowering stage  
+**Input:** one validated `OIR_KIND_SEMANTIC_AST` artifact  
+**Output:** one `OIR_KIND_MODULE` artifact  
+**Related:** [OIR_FORMAT.md](OIR_FORMAT.md), [OIR_SEMANTIC_AST.md](OIR_SEMANTIC_AST.md), [COMPILER_PIPELINE.md](COMPILER_PIPELINE.md)
+
+## 1. Purpose and boundary
+
+`OIR_MODULE` is the first lowered, machine-independent representation of a program. It is not a serialized parser tree and it is not target assembly. Its purpose is to express executable operations, typed values, functions and control flow in a form that can be validated and passed between independent compiler DLLs.
+
+The intended handoff is:
+
+```text
+AST
+  -> Semantic DLL
+SEMANTIC_AST
+  -> IR Lowering DLL
+OIR_MODULE
+  -> OIR Validator
+validated OIR_MODULE
+  -> Optimizer DLLs (zero or more)
+OIR_MODULE
+  -> Target Lowering / Backend
+TARGET_IR or ASSEMBLY
+```
+
+The current legacy path is not this pipeline yet. `parser_save_ir()` calls `ast_serialize()`; the legacy codegen DLL calls `ast_deserialize()` and walks parser AST nodes directly. That serializer is an internal native-layout format, not an `OIR_MODULE`. OCC currently produces and validates `SEMANTIC_AST`, but the existing legacy codegen path still uses the parser AST. Do not describe the new lowering stage as implemented until it consumes the semantic artifact and emits a validated module artifact.
+
+## 2. Design principles
+
+1. **Artifact-only boundary.** No AST pointers, semantic context, Slot objects, allocator state or compiler-private C structs cross the DLL boundary.
+2. **Explicit typing.** Every value-producing operation has a declared result type. Operand compatibility is checked by the verifier, not guessed by codegen.
+3. **Explicit control flow.** Blocks end in a terminator; branches and successors are represented as IDs, not inferred from instruction order.
+4. **Stable identities.** Functions, blocks, values, instructions and local tables use artifact-local 1-based IDs. Zero is reserved for null/absent where the field permits it.
+5. **Determinism.** Identical semantic input and lowering options produce byte-identical logical tables and deterministic ordering.
+6. **Bounded decoding.** Counts, offsets, string spans, table ranges, nesting and cross-references are validated before allocation or exposure.
+7. **Optimization-neutral base.** The initial schema must not force SSA, a stack-machine model, a register-machine model or a particular memory ownership strategy.
+8. **Target independence.** Target register names, physical addresses, instruction encodings and ABI register assignments do not belong in the generic module.
+9. **Provenance.** Lowered operations retain source-node identity and optional source-span mapping so diagnostics and debug information remain traceable.
+10. **Versioned evolution.** Published IDs are never silently renumbered or reused. New optional records must be safely skippable; semantic changes require a schema-major change.
+
+## 3. Logical module model
+
+The following tables define the logical model. They are a design contract, not a frozen byte layout. The exact record widths, offset-table layout and string-table encoding will be specified after the verifier model and representative programs are tested.
+
+### 3.1 Module header and identity
+
+The payload identifies:
+- Module schema version and feature flags.
+- Module flags (library/executable fragment, partial/debug-capable state as later defined).
+- Entry-point function ID, or zero when no entry point is declared.
+- Counts and bounded ranges for all tables.
+- Optional compilation-unit identity and dependency fingerprints.
+
+The outer OIR header remains authoritative for artifact kind, producer stage, job ID and validity. Payload fields must not duplicate those values with conflicting meanings.
+
+### 3.2 Functions
+
+Each function record should contain:
+- Stable function ID.
+- Name/string-table reference.
+- Function flags (declaration, definition, external/imported, exported, intrinsic, etc.; numeric registry to be defined).
+- Function type/signature reference.
+- Calling-convention ID and ABI attribute set.
+- First/count ranges for its basic blocks and parameters, or explicit table references.
+- Entry block ID for a definition; zero for a declaration.
+- Optional semantic symbol ID as provenance only.
+
+A function declaration has no body blocks. A function definition has exactly one entry block and a valid block graph. Duplicate definitions and invalid import/export combinations are verifier errors.
+
+### 3.3 Basic blocks and control flow
+
+Each block record should contain:
+- Stable block ID and owning function ID.
+- Instruction range or explicit ordered instruction references.
+- Exactly one terminator reference.
+- Optional block flags and source provenance.
+
+Terminators are represented as explicit operations with typed successor operands. Initial control-flow classes to support include:
+- Unconditional branch.
+- Conditional branch.
+- Multi-way selection/switch.
+- Return (with optional value).
+- Unreachable/trap.
+
+Every successor must identify a block in the same function unless a future, separately specified control-flow construct explicitly permits otherwise. A block must have exactly one terminator, and no ordinary instruction may appear after it. Reachability is a verifier analysis; unreachable blocks are not automatically invalid unless a later policy says so.
+
+### 3.4 Values and types
+
+The value table represents the typed entities used by operations:
+- Function parameters.
+- Operation results.
+- Constants and constant aggregates.
+- Explicitly modelled addresses/references when required by an operation.
+- Block parameters or merge values if a later control-flow model adopts them.
+
+Each value has a stable local ID, a type-table reference, a value-kind tag and a defining relation (parameter, instruction result, constant, or other registered origin). Values are not physical machine registers.
+
+The module owns a self-contained canonical type table. Semantic type IDs and symbol IDs may be retained as provenance links, but must not be treated as live pointers or unresolved references into a separately loaded `SEMANTIC_AST` buffer. Lowering resolves semantic types into module type records before the semantic input is released.
+
+The type system must be able to represent at least:
+- Integer and floating-point scalar widths.
+- Boolean and character types.
+- Pointer/reference/address-space distinctions where the language requires them.
+- Arrays, vectors, tuples and aggregate/record layouts.
+- Function signatures.
+- Enumerations and tagged/untagged aggregate forms.
+- Opaque or target-neutral intrinsic types when needed.
+
+The exact type tags, layout rules, numeric promotion semantics and floating-point behavior are defined in separate registries/specifications. This document does not freeze them.
+
+### 3.5 Operations and operands
+
+An instruction record should contain:
+- Stable instruction ID.
+- Owning block ID.
+- Opcode ID from a separately versioned stable opcode registry.
+- Result value ID, or zero for no-result operations.
+- Operand range or explicit operand references.
+- Operation flags and optional metadata references.
+- Source AST node ID and optional source-map reference.
+
+Operand records must encode operand kind explicitly. A value operand references a value ID; a block operand references a block ID; a function operand references a function ID; an immediate operand carries a schema-defined fixed-width or string-table value. No operand may be interpreted by guessing from an integer's numeric range.
+
+Opcode definitions must specify arity, operand kinds, result behavior, type constraints, side effects, memory effects, trap behavior and terminator status. Unknown required opcodes are rejected. Optional extension opcodes may only be skipped when the instruction is explicitly marked as non-semantic metadata; executable unknown opcodes must never be silently ignored.
+
+The first opcode registry should cover the minimum needed to lower the currently supported language subset: constants, typed arithmetic, comparisons, casts/conversions, local reads/writes, calls, returns, branches, conditional branches and explicit memory operations. Intrinsics and concurrency operations must receive explicit semantics before being emitted.
+
+### 3.6 Memory and effects
+
+The base schema must distinguish values from memory locations and must not silently assume that every local is an SSA value. It should allow explicit memory operations and metadata for:
+- Load and store.
+- Allocation/deallocation or lifetime boundaries.
+- Volatile/atomic access where specified.
+- Address spaces and alignment.
+- Read/write/unknown side-effect classification.
+- Calls with declared effect summaries.
+
+The initial memory model, aliasing rules, ownership/lifetime model and concurrency ordering are still open design items. A lowering pass must not invent stronger guarantees than the language semantics provide.
+
+### 3.7 Source mapping and debug provenance
+
+Every instruction may reference its originating AST node ID from the input semantic artifact. Source locations should be carried through the standard OIR `SOURCE_MAP` section or an explicitly versioned module-local mapping. Source offsets remain byte offsets into the exact associated source unit. A module must not fabricate line/column positions when the source map is absent.
+
+Semantic symbol/type IDs retained for diagnostics are provenance only. They are not substitutes for the module's own function/value/type tables.
+
+## 4. IDs, ordering and reference rules
+
+- IDs are 1-based within their table; zero means absent only where documented.
+- IDs are unique within a table and stable for the lifetime of one artifact.
+- IDs are not promised to remain numerically identical after an optimizer rewrites the module; provenance/source identity must survive transformations where possible.
+- All cross-table references must resolve and must point to the expected record kind.
+- Table ranges use checked arithmetic; overlapping ranges are rejected unless the specific table contract explicitly allows shared slices.
+- Functions, blocks, values, instructions and strings have deterministic canonical ordering.
+- String references are byte offsets/lengths into a UTF-8 string table; no implicit NUL terminators.
+- No native C struct dump, pointer, host-sized `size_t`, compiler enum ordinal or implicit padding is permitted on disk.
+
+## 5. Validation layers
+
+The OIR container reader validates the common envelope. The module payload verifier must additionally validate:
+
+1. Payload schema version, flags and exact declared length.
+2. Table counts, record sizes, offset ranges and string-table boundaries.
+3. Unique IDs and all cross-table references.
+4. Function ownership, entry blocks and declaration/definition rules.
+5. Instruction ownership and ordering within blocks.
+6. Exactly one terminator per defined block and valid successor edges.
+7. Opcode existence, arity, operand kinds and result rules.
+8. Type references and opcode-specific type constraints.
+9. Function-call signatures and calling-convention compatibility.
+10. Source-node references against the preserved semantic/AST provenance map when available.
+11. Feature flags and required extensions supported by the consumer.
+
+Validation must complete before a consumer exposes the module to optimization or code generation. A malformed module is rejected; the verifier must not repair it silently.
+
+## 6. SSA and lowering policy — intentionally unresolved
+
+The first schema revision will preserve the ability to support multiple value-flow models. It does **not** yet mandate:
+- Strict SSA with one definition per value.
+- Block arguments / block parameters.
+- Phi-like merge instructions.
+- Mutable virtual registers.
+- Stack-slot-based locals.
+
+The verifier can initially enforce unique value IDs and valid definitions without imposing global single-assignment semantics. A later design decision must choose the canonical form before optimizer contracts are frozen. If SSA is selected, dominance, use-before-definition, phi/block-argument predecessor correspondence and loop back-edge rules must be specified and tested.
+
+## 7. Calling convention and ABI policy
+
+Calling convention is explicit metadata, not inferred from the host running the compiler. The module records a stable calling-convention identifier and generic function attributes. Target-specific lowering maps these to a target ABI descriptor.
+
+The generic schema must not hard-code x86-64 registers, Windows shadow space, SysV register order, stack offsets or NEXSUS hardware registers. Those belong to target-specific lowering/backend contracts. The initial registry must include a well-defined language-internal convention and explicit external ABI identities only when their semantics are documented.
+
+## 8. Optimizer contract
+
+An optimizer consumes a validated `OIR_MODULE` and produces another validated `OIR_MODULE`. It declares:
+- Accepted schema major/minor and required feature flags.
+- Whether it preserves source mappings and debug metadata.
+- Whether it may add/remove/reorder functions, blocks, values and instructions.
+- Which semantic properties it preserves.
+- Whether it requires SSA, a particular memory model or other optional features.
+
+Pass order is orchestrator policy. Every pass output is revalidated. A pass that cannot preserve a required section must reject the input or explicitly report the dropped optional metadata; it must not silently erase required provenance.
+
+## 9. Versioning and implementation sequence
+
+The design sequence is:
+
+1. Finalize a minimal language subset and representative source fixtures.
+2. Define the opcode registry and operation semantics for that subset.
+3. Decide the initial value-flow model (SSA, block parameters or mutable virtual values).
+4. Define canonical type records and conversion/promotion representation, reusing NEXSUS Flow's documented numeric-promotion rules once those rules are specified and tested.
+5. Define function, block, instruction, operand and source-map wire layouts.
+6. Implement a standalone module writer/reader and verifier with malformed-input, overflow, cross-reference and deterministic round-trip tests.
+7. Implement IR lowering as its own shared stage module: `SEMANTIC_AST -> OIR_MODULE`.
+8. Switch OCC to pass the semantic artifact directly to lowering; remove the legacy AST serialization handoff only after parity tests pass.
+9. Migrate codegen to consume validated `OIR_MODULE`; keep the AST-walking codegen only as a temporary compatibility path.
+10. Add optimizer DLLs after the module verifier and opcode semantics are stable.
+
+No schema is considered frozen merely because a first implementation or test fixture exists.
+
+## 10. Current implementation status
+
+| Component | Status |
+|---|---|
+| OIR container kind ID 5 (`OIR_KIND_MODULE`) | Registered |
+| Generic OIR container reader/writer | Implemented |
+| Canonical OIR_MODULE payload layout | Not implemented; this document is a draft |
+| OIR_MODULE opcode/type registries | Not frozen |
+| Module payload verifier | Not implemented |
+| IR lowering DLL | Not implemented |
+| OCC semantic-artifact-to-lowering handoff | Not implemented |
+| Legacy AST serializer and AST-walking codegen | Existing compatibility path |
+
+The legacy codegen currently emits a small NASM-like text subset directly from AST nodes. It is not yet a general backend and must not be treated as proof that the module IR is implemented.
