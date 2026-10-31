@@ -167,8 +167,33 @@ static void parser_mark_oom(Parser* p) {
     if (p && p->ctx) p->ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
 }
 
+static int parser_should_fail_allocation(ParserContext* ctx) {
+    if (!ctx) return 0;
+    if (ctx->test_allocation_count < SIZE_MAX) ++ctx->test_allocation_count;
+    return ctx->test_fail_allocation_at != 0u &&
+        ctx->test_allocation_count == ctx->test_fail_allocation_at;
+}
+
+static void* parser_context_malloc(ParserContext* ctx, size_t size, int clear) {
+    void* memory;
+    if (parser_should_fail_allocation(ctx)) return NULL;
+    memory = clear ? calloc(1u, size ? size : 1u) : malloc(size ? size : 1u);
+    return memory;
+}
+
+static char* parser_context_strdup(ParserContext* ctx, const char* value) {
+    size_t length;
+    char* copy;
+    if (!value) return NULL;
+    length = strlen(value);
+    if (length == SIZE_MAX) return NULL;
+    copy = (char*)parser_context_malloc(ctx, length + 1u, 0);
+    if (copy) memcpy(copy, value, length + 1u);
+    return copy;
+}
+
 static void* parser_malloc(Parser* p, size_t size) {
-    void* memory = malloc(size ? size : 1u);
+    void* memory = parser_context_malloc(p ? p->ctx : NULL, size, 0);
     if (!memory) parser_mark_oom(p);
     return memory;
 }
@@ -191,7 +216,12 @@ static char* parser_strdup(Parser* p, const char* value) {
 }
 
 static ASTNode* parser_ast_create(Parser* p, ASTNodeType type) {
-    ASTNode* node = ast_create(type);
+    ASTNode* node;
+    if (parser_should_fail_allocation(p ? p->ctx : NULL)) {
+        parser_mark_oom(p);
+        return NULL;
+    }
+    node = ast_create(type);
     if (!node) parser_mark_oom(p);
     return node;
 }
@@ -2302,6 +2332,12 @@ ParserStatus parser_get_status(const ParserContext* ctx) {
     return ctx ? ctx->status : PARSER_STATUS_INVALID_STATE;
 }
 
+void parser_test_fail_allocation_at(ParserContext* ctx, size_t allocation_index) {
+    if (!ctx) return;
+    ctx->test_allocation_count = 0u;
+    ctx->test_fail_allocation_at = allocation_index;
+}
+
 // --- Levenshtein Similarity Helper (ULTRA) ---
 static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int col, const char* message, const char* suggestion, const char* hint, int similarity, int is_warning, const OccSourceSpan* source_span) {
     if (ctx->diagnostics) {
@@ -2328,16 +2364,16 @@ static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int c
             return;
         }
     }
-    Error* err = (Error*)calloc(1u, sizeof(*err));
+    Error* err = (Error*)parser_context_malloc(ctx, sizeof(*err), 1);
     if (!err) {
         ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
         return;
     }
     err->code = code;
-    err->filename = strdup(ctx->filename ? ctx->filename : "<unknown>");
-    err->message = strdup(message ? message : "");
-    err->suggestion = suggestion ? strdup(suggestion) : NULL;
-    err->hint = hint ? strdup(hint) : NULL;
+    err->filename = parser_context_strdup(ctx, ctx->filename ? ctx->filename : "<unknown>");
+    err->message = parser_context_strdup(ctx, message ? message : "");
+    err->suggestion = suggestion ? parser_context_strdup(ctx, suggestion) : NULL;
+    err->hint = hint ? parser_context_strdup(ctx, hint) : NULL;
     if (!err->filename || !err->message ||
         (suggestion && !err->suggestion) || (hint && !err->hint)) {
         free(err->filename);
