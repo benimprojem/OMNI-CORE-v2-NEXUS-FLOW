@@ -20,6 +20,7 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [Modüler derleyici pipeline mimarisi](COMPILER_PIPELINE.md)
 - [OIR v1 ortak artifact formatı](OIR_FORMAT.md)
 - [OIR_MODULE — SSA tabanlı ara temsil taslağı](OIR_MODULE.md)
+- [OIR_LOWERING_PLAN — IR Lowering aşamalı uygulama planı](OIR_LOWERING_PLAN.md)
 - [OIR SOURCE_UNIT, TOKEN_STREAM ve DIAGNOSTICS payload şemaları](OIR_PAYLOAD_SCHEMAS.md)
 - [OIR token ID registry](OIR_TOKEN_REGISTRY.md)
 - [OIR AST node ve field ID registry](OIR_AST_NODE_REGISTRY.md)
