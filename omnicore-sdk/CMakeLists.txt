@@ -281,6 +281,30 @@ target_link_libraries(occ_oir_ast_artifact PUBLIC
 )
 set_target_properties(occ_oir_ast_artifact PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# First real stage DLL: SOURCE_UNIT + TOKEN_STREAM -> AST OIR.
+add_library(occ_parser_stage SHARED
+    "${C_SOURCE_DIR}/module/parser_stage_module.c"
+)
+target_compile_definitions(occ_parser_stage PRIVATE OCC_BUILD_MODULE)
+target_include_directories(occ_parser_stage PRIVATE
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+    "${C_PARSER_DIR}"
+)
+target_link_libraries(occ_parser_stage PRIVATE
+    occ_module_abi
+    occ_frontend
+    occ_oir
+    occ_oir_token_stream
+    occ_oir_ast_artifact
+)
+set_target_properties(occ_parser_stage PROPERTIES
+    OUTPUT_NAME "occ_parser_stage"
+    POSITION_INDEPENDENT_CODE ON
+)
+
+
 # strdup is POSIX rather than ISO C11. Expose its declaration on POSIX
 # toolchains and map it to the Microsoft CRT spelling on MSVC.
 if(MSVC)
