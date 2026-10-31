@@ -593,3 +593,13 @@ Denetimde netleşen noktalar:
 - Test, tam OIR container'ın her baytında tek-bit mutation sweep yapıyor. Kabul edilen varyantlar materialize edilip ast_destroy() ile serbest bırakılıyor; reddedilen varyantlar NULL root döndürmek zorunda.
 - **Final CI run 41160565137:** Windows, Ubuntu, macOS başarılı; Ubuntu CTest 31/31, ASan/UBSan ve Valgrind başarılı.
 - **Durum:** AST schema/payload codec ve OIR container handoff doğrulandı. Parser checkpoint API'sinin stage ABI içine alınması ve DLL/SO ayrımı henüz yapılmadı.
+
+
+## Stage module ABI — host validation helpers — 31 Ekim 2026
+
+- `occ_module_api.c` artık descriptor ve invocation doğrulayıcılarını sağlıyor; `occ_module_abi` OIR container validator'a bağlandı.
+- Descriptor kontrolü ABI major/minor, struct_size, reserved alanlar, stage ID, artifact türü, input count aralığı, accepted/required mask tutarlılığı ve module name alanlarını denetliyor. Draft aşamasında module_id=0 (unassigned) geçerli bırakıldı.
+- Invocation kontrolü her input byte span'ini gerçek OIR container olarak açıyor; artifact kind değerini header'dan çıkarıyor. Böylece host tarafından iletilen sahte kind hint'i kullanılmıyor. Accepted ve required kind mask'leri doğrulanıyor.
+- Yeni CTest `occ_stage_module_abi_validation_helpers`: gerçek OIR AST input, uyumsuz ABI major, mask tutarsızlığı, NULL input bytes, nonzero flags ve eksik required input kontrolleri.
+- ABI dokümanı açıkça draft; dynamic loader, gerçek parser stage shared library, module ID registry, stage-specific parser input roles ve output artifact validation henüz sonraki adımlar.
+- CI run henüz sonuçlanmadı; en son CMake target sıralaması düzeltildi ve yeni CI tetiklendi.
