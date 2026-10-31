@@ -76,7 +76,7 @@ static void semantic_stage_init_messages(void) {
             *end = '\0';
             if (p[0] && strlen(p) < sizeof(language)) {
                 size_t j; int valid = 1;
-                for (j = 0u; p[j] != '\\0'; ++j) {
+                for (j = 0u; p[j] != '\0'; ++j) {
                     if (!((p[j] >= 'a' && p[j] <= 'z') ||
                           (p[j] >= 'A' && p[j] <= 'Z') ||
                           (p[j] >= '0' && p[j] <= '9') ||
