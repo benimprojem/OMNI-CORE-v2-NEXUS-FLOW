@@ -19,7 +19,7 @@ The following infrastructure is required before the first production lowering DL
 1. A canonical `OIR_MODULE` payload writer and reader.
 2. A module verifier for table bounds, IDs, references, function/block ownership, terminators, opcode signatures and SSA rules.
 3. A stable initial opcode registry with side-effect and type semantics.
-4. A documented SSA merge representation, including loop-carried values and predecessor-edge validation.
+4. The block-parameter SSA contract, including loop-carried values and predecessor-edge validation.
 5. Semantic annotations sufficient to resolve every lowered identifier, expression type and declaration.
 6. A source-map policy that preserves AST/source provenance without fabricating missing spans.
 7. Deterministic lowering tests: same semantic artifact + same options = same logical module bytes.
@@ -70,7 +70,7 @@ Required OIR capabilities:
 
 - Basic blocks and explicit conditional/unconditional branches.
 - Explicit CFG successor edges and terminators.
-- SSA merge values for variables assigned along multiple incoming paths.
+- Block parameters with one incoming value per predecessor edge for variables assigned along multiple incoming paths.
 - Loop back-edges and loop-carried values.
 - Dominance and predecessor-aware merge verification.
 
@@ -156,7 +156,7 @@ The legacy AST-walking code generator may remain temporarily available for compa
 
 ## 7. Decisions still required
 
-- SSA merge encoding: phi instructions or block parameters.
+- Block-parameter incoming-value ordering and verifier rules, including loop back-edges.
 - Exact initial opcode IDs and operand schemas.
 - Canonical numeric type registry and full NEXSUS Flow conversion lattice.
 - Integer overflow, floating-point rounding and forced-width behavior at operation boundaries.
