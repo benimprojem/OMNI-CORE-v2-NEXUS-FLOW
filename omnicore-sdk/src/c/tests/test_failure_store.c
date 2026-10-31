@@ -31,7 +31,7 @@ int main(void) {
     static const uint8_t source[] = "v:x = 1;\nv:x = ;\n";
     OccDiagnosticCollector collector;
     OccDiagnosticInput input = {0};
-    OccArtifactView artifact;
+    OirArtifactView artifact;
     OirSectionView payload;
     OirSectionView diagnostic_section;
     OirSourceUnitView source_view;
