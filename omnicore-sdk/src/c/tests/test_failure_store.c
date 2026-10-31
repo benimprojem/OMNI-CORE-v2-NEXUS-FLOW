@@ -42,6 +42,10 @@ int main(void) {
     uint8_t* bytes = NULL;
     long file_size;
 
+    (void)remove("occ-failure-store-test/job-987654321.oir");
+    (void)remove("occ-failure-store-test/job-987654321.oir.tmp");
+    (void)TEST_RMDIR(directory);
+
     occ_diagnostics_init(&collector);
     input.code = 2001u;
     input.stage_id = OCC_STAGE_PARSER;
@@ -63,8 +67,12 @@ int main(void) {
         output_path, sizeof(output_path)), "save OIR failure artifact");
     CHECK(strstr(output_path, "job-987654321.oir") != NULL,
         "output path should use job ID");
+    CHECK(!occ_failure_store_save(directory, 987654321u, OCC_STAGE_PARSER,
+        source_path, source, sizeof(source) - 1u, &collector,
+        output_path, sizeof(output_path)),
+        "existing job artifact must not be overwritten");
 
-    file = fopen(output_path, "rb");
+    file = fopen("occ-failure-store-test/job-987654321.oir", "rb");
     CHECK(file != NULL, "open persisted artifact");
     CHECK(fseek(file, 0, SEEK_END) == 0, "seek artifact end");
     file_size = ftell(file);
