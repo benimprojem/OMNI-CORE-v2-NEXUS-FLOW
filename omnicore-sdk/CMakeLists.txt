@@ -29,6 +29,13 @@ set(C_PARSER_DIR "${C_SOURCE_DIR}/parser")
 set(C_CODEGEN_DIR "${C_SOURCE_DIR}/codegen")
 set(C_RUNTIME_DIR "${CMAKE_BINARY_DIR}/bin")
 
+# Header-only draft contract for independently loaded stage modules.
+add_library(occ_module_abi INTERFACE)
+target_include_directories(occ_module_abi INTERFACE
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+)
+
 # Keep all generators (including Visual Studio multi-config) on one runtime path.
 foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${config} "${C_RUNTIME_DIR}")
@@ -547,6 +554,15 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME oir_ast_frontend_reader_all_kinds_validate_before_materialize
         COMMAND test_oir_ast_frontend_reader)
+
+    add_executable(test_module_abi "${C_SOURCE_DIR}/tests/test_module_abi.c")
+    target_link_libraries(test_module_abi PRIVATE occ_module_abi occ_diagnostics)
+    if(MSVC)
+        target_compile_options(test_module_abi PRIVATE /W4)
+    else()
+        target_compile_options(test_module_abi PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME draft_stage_module_abi_contract COMMAND test_module_abi)
 
     add_executable(test_oir_ast_artifact "${C_SOURCE_DIR}/tests/test_oir_ast_artifact.c")
     target_link_libraries(test_oir_ast_artifact PRIVATE occ_oir_ast_artifact)
