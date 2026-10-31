@@ -356,3 +356,22 @@ Bu değişiklikler NEXSUS Flow gramerine yeni bir operatör veya üretim kuralı
 - Sonraki tasarım adımı AST/semantic/OIR temsilini belirlemek; mevcut `AST_NEXUS_HALT` ve OIR AST codec şemasını sessizce değiştirmemek. OIR AST payload sürümlemesi incelenmelidir.
 
 Bu semantik açıklaması README ve operatör formal spec ile eşzamanlı güncellendi.
+
+
+## 6.17 Aggregate ve group declaration parser sahipliği
+
+**Durum: İlk tahsis kontrolleri ve kısmi ağaç temizliği uygulandı; newtype yolu hâlâ açık.**
+
+- Struct/union declaration düğümü ve ad kopyaları kontrol ediliyor; tahsis başarısızlığında çağıranın aktardığı ad da serbest bırakılıyor.
+- Struct/union alan listesinde her field parse edildikten sonra sahiplik listeye geçiriliyor. Bir field üretilemezse daha önce oluşturulmuş alanlar temizleniyor ve başarısızlık çağırana iletiliyor.
+- Inline struct/union tiplerinde gövde parse hatası dış variable declaration'a yayılıyor; iki kısmi AST düğümü de temizleniyor.
+- Enum adı, variant düğümü, variant adı, payload field adı ve payload tipi tahsisleri kontrol ediliyor. Variant listeye erken bağlandığından hata temizliği tek kökten yapılabiliyor.
+- Group adı, method düğümü, public method adı ve implementation fonksiyonu kontrol ediliyor. Üye üretimi başarısızsa daha önce eklenen group üyeleri de temizleniyor.
+- Enum payload listesinde hata yolunda aynı child ağacının iki kez serbest bırakılmasını önlemek için sahiplik tek kökte tutuluyor.
+
+**Kalan işler:**
+
+- `parse_newtype_decl` içindeki raw/name/type ve anonymous aggregate yollarında çok sayıda kontrolsüz tahsis var.
+- Struct/enum/group için pozitif ve negatif parser testleri genişletilmeli.
+- Parser genel OOM durumu ve allocation-failure injection testleri henüz yok.
+- Bu değişiklikler mevcut grammar'ı değiştirmiyor; README'de syntax güncellemesi gerekmiyor.
