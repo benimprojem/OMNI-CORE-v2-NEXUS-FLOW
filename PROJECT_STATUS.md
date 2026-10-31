@@ -415,3 +415,14 @@ Doğrulama: GitHub Actions run 41145426190 ile Windows, Ubuntu ve macOS build/CT
 - GitHub Actions run 41148803455: Windows, Ubuntu ve macOS build/CTest **21/21** başarılı; Ubuntu ASan/UBSan ve Valgrind işleri de başarılı.
 
 **Sınır:** Bu, testlerle doğrulanmış in-memory stage handoff'tur. OCC'nin ana compile komutu henüz OIR dosyaları üzerinden aşamaları yürütmüyor; DLL/SO/dylib modül ABI'si ve orchestrator hâlâ sonraki işlerdir. Bir sonraki OIR tasarım işi AST payload schema 1.0'dır.
+
+
+## OIR AST payload schema 1.0 — tasarım taslağı, 31 Ekim 2026
+
+- Mevcut C AST envanteri 80 node kind olarak çıkarıldı; OIR için C enum ordinal'lerinden bağımsız 1–80 stable ID registry taslağı OIR_AST_NODE_REGISTRY.md dosyasına yazıldı.
+- Her node kind için field ID ve wire value type eşlemesi tanımlandı. Shared C struct kullanan farklı node türleri (ör. AST_FUNC_DECL / AST_EXTERN_DECL) OIR'de ayrı node-kind ID olarak kalıyor.
+- OIR_PAYLOAD_SCHEMAS.md içine 32-byte payload header, 32-byte node record ve typed TLV field düzeni eklendi. Strings ayrı UTF-8 string table referansları; child pointers stable node IDs; operator/literal token kinds OIR_TOKEN_REGISTRY IDs.
+- Null ve empty string ayrımı, optional TLV compatibility, little-endian fixed-width scalars, exact length checks, deterministic node numbering, acyclic single-owner tree invariants ve 1,000,000 node / 512 depth / 16 MiB string limitleri tanımlandı.
+- Mevcut ast_serialize()/ast_deserialize() native C stream'inin OIR AST formatı olmadığı ve otomatik yeniden yorumlanmaması gerektiği açıkça belirtildi.
+
+**Durum:** AST payload tasarım sözleşmesi ve stable node/field registry taslak olarak hazır. AST codec, parser checkpoint migration ve AST source byte-span propagation henüz uygulanmadı.
