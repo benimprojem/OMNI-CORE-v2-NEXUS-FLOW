@@ -67,9 +67,12 @@ static Token error_token(ParserContext* ctx, const char* message) {
      * carries a stable 1-based reference so downstream stages do not
      * re-attribute or duplicate the same finding.
      */
-    if (ctx->diagnostics && message_length != 0u &&
-        occ_diagnostics_count(ctx->diagnostics) < UINT32_MAX) {
+    if (ctx->diagnostics && message_length != 0u) {
         OccDiagnosticInput input;
+        if (occ_diagnostics_count(ctx->diagnostics) >= UINT32_MAX) {
+            ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
+            return token;
+        }
         size_t i;
         uint32_t line = (uint32_t)(ctx->token_start_line > 0 ? ctx->token_start_line : 1);
         uint32_t column = (uint32_t)(ctx->token_start_col > 0 ? ctx->token_start_col : 1);
