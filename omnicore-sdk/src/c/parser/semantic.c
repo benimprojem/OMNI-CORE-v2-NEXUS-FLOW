@@ -277,10 +277,17 @@ static Slot* add_slot(
     }
     memset(s, 0, sizeof(*s));
     s->name = strdup(name ? name : "");
+    s->type_name = type_name ? strdup(type_name) : NULL;
+    if (!s->name || (type_name && !s->type_name)) {
+        free(s->name);
+        free(s->type_name);
+        free(s);
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return NULL;
+    }
     s->kind = kind;
     s->is_const = is_const;
     s->depth = ctx->current_depth;
-    s->type_name = type_name ? strdup(type_name) : NULL;
     s->param_count = 0;
     s->param_types = NULL;
     s->fields = NULL;
@@ -729,14 +736,26 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     if (function_slot) {
                         function_slot->param_count = p_count;
                         if (p_count > 0) {
-                            function_slot->param_types = (char**)malloc(sizeof(char*) * p_count);
-                            p = func->params;
-                            int i = 0;
-                            while(p) {
-                                ASTVarDecl* v = (ASTVarDecl*)p;
-                                function_slot->param_types[i++] =
-                                    v->type_name ? strdup(v->type_name) : NULL;
-                                p = p->next;
+                            function_slot->param_types =
+                                (char**)calloc((size_t)p_count, sizeof(char*));
+                            if (!function_slot->param_types) {
+                                semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                            } else {
+                                p = func->params;
+                                int i = 0;
+                                while(p) {
+                                    ASTVarDecl* v = (ASTVarDecl*)p;
+                                    if (v->type_name) {
+                                        function_slot->param_types[i] = strdup(v->type_name);
+                                        if (!function_slot->param_types[i]) {
+                                            semantic_set_result_error(
+                                                ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                                            break;
+                                        }
+                                    }
+                                    ++i;
+                                    p = p->next;
+                                }
                             }
                         }
                     }
@@ -912,10 +931,20 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                             semantic_set_result_error(ctx, relation_status);
                         }
 
-                        FieldInfo* f = (FieldInfo*)malloc(sizeof(FieldInfo));
-                        f->name = strdup(v->name);
+                        FieldInfo* f = (FieldInfo*)calloc(1u, sizeof(FieldInfo));
+                        if (!f) {
+                            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                            break;
+                        }
+                        f->name = strdup(v->name ? v->name : "");
                         f->type_name = v->type_name ? strdup(v->type_name) : NULL;
-                        f->next = NULL;
+                        if (!f->name || (v->type_name && !f->type_name)) {
+                            free(f->name);
+                            free(f->type_name);
+                            free(f);
+                            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                            break;
+                        }
                         
                         if (last_field) last_field->next = f;
                         else s->fields = f;
@@ -1030,10 +1059,17 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         semantic_set_result_error(ctx, relation_status);
                     }
 
-                    FieldInfo* f = (FieldInfo*)malloc(sizeof(FieldInfo));
-                    f->name = strdup(v->name);
-                    f->type_name = NULL; // Variant data type could be stored here if needed
-                    f->next = NULL;
+                    FieldInfo* f = (FieldInfo*)calloc(1u, sizeof(FieldInfo));
+                    if (!f) {
+                        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                        break;
+                    }
+                    f->name = strdup(v->name ? v->name : "");
+                    if (!f->name) {
+                        free(f);
+                        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                        break;
+                    }
 
                     if (last_var) last_var->next = f;
                     else s->fields = f; // Reusing fields for variants
