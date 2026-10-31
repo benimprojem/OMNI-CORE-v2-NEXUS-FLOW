@@ -272,7 +272,9 @@ static Slot* add_slot(
         ctx->result_status == SEMANTIC_RESULT_OK) {
         uint32_t declaration_node_id = semantic_node_id(ctx, declaration_node);
         uint16_t result_flags = 0u;
-        if (is_const) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_CONST;
+        if (is_const && kind == SLOT_VAR) {
+            result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_CONST;
+        }
         if (is_packed) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_PACKED;
         if (is_implicit) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_IMPLICIT;
         if (is_hard) result_flags |= SEMANTIC_RESULT_SYMBOL_FLAG_HARD;
