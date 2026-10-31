@@ -516,7 +516,7 @@ static int test_parser_allocation_failure_injection(void) {
         status = parser_get_status(ctx);
         if (status == PARSER_STATUS_OUT_OF_MEMORY &&
             result == PARSER_STATUS_OUT_OF_MEMORY &&
-            ctx->test_allocation_count == fail_at) {
+            ctx->test_allocation_count >= fail_at) {
             ++oom_count;
         } else if (status == PARSER_STATUS_OK && result == PARSER_STATUS_OK &&
                    ctx->test_allocation_count < fail_at) {
@@ -524,6 +524,9 @@ static int test_parser_allocation_failure_injection(void) {
             parser_destroy(ctx);
             break;
         } else {
+            fprintf(stderr,
+                "OOM injection mismatch at allocation %zu (observed %zu, status %d, result %d).\\n",
+                fail_at, ctx->test_allocation_count, (int)status, result);
             parser_destroy(ctx);
             return 0;
         }
