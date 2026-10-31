@@ -49,6 +49,7 @@ int main(void) {
     module.descriptor.abi_minor=OCC_MODULE_ABI_MINOR;
     module.descriptor.module_id=1u;
     module.descriptor.stage_id=1u;
+    module.descriptor.module_version_major=1u;
     module.descriptor.accepted_input_kind_mask=OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_AST);
     module.descriptor.required_input_kind_mask=OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_AST);
     module.descriptor.output_artifact_kind=OIR_KIND_SEMANTIC_AST;
