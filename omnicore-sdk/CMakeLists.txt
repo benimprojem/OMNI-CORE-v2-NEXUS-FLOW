@@ -98,6 +98,21 @@ target_include_directories(occ_oir_diagnostics PUBLIC
 target_link_libraries(occ_oir_diagnostics PUBLIC occ_oir occ_diagnostics)
 set_target_properties(occ_oir_diagnostics PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Failed-stage checkpoint bundles preserve the original SOURCE_UNIT alongside
+# the exact job diagnostics; their OIR validity is always INVALID.
+add_library(occ_oir_failure_artifact STATIC
+    "${C_SOURCE_DIR}/oir/oir_failure_artifact.c"
+)
+target_include_directories(occ_oir_failure_artifact PUBLIC
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+)
+target_link_libraries(occ_oir_failure_artifact PUBLIC
+    occ_oir
+    occ_oir_diagnostics
+)
+set_target_properties(occ_oir_failure_artifact PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 
 
 
@@ -475,6 +490,18 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME oir_diagnostics_payload_roundtrip_and_validation
         COMMAND test_oir_diagnostics)
+
+    add_executable(test_oir_failure_artifact
+        "${C_SOURCE_DIR}/tests/test_oir_failure_artifact.c"
+    )
+    target_link_libraries(test_oir_failure_artifact PRIVATE occ_oir_failure_artifact)
+    if(MSVC)
+        target_compile_options(test_oir_failure_artifact PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_failure_artifact PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_failure_artifact_preserves_source_and_diagnostics
+        COMMAND test_oir_failure_artifact)
 
     add_executable(test_diagnostics "${C_SOURCE_DIR}/tests/test_diagnostics.c")
     target_link_libraries(test_diagnostics PRIVATE occ_diagnostics)
