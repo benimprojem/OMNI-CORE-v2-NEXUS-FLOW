@@ -1,6 +1,6 @@
 # OmniCore Compiler Pipeline
 
-**Status:** Accepted architecture direction; implementation pending  
+**Status:** Accepted architecture direction; staged migration in progress  
 **Main implementation language:** C  
 **Module model:** One independently loadable shared library per compiler stage
 
@@ -56,13 +56,13 @@ Linker / packaging module
 Final output
 ```
 
-This is the target architecture, not a claim that all listed modules currently exist. The current C implementation has an OCC executable, a combined frontend library and a separately loadable codegen library. The migration to one shared module per stage is pending.
+This is the target architecture, not a claim that all listed modules currently exist. The current C implementation has an OCC executable, independently loadable lexer and parser stage modules, a semantic stage module under integration, a combined frontend support library, and a separately loadable legacy codegen library. The migration is incremental; the semantic module is not yet invoked by the CLI pipeline.
 
 A stage can be skipped only when the selected build mode explicitly permits it and the next stage accepts the supplied artifact format. A stage must not silently reinterpret an unrelated artifact as its input.
 
 ## 3. Module contract
 
-Every module must expose a versioned C ABI. The exact exported symbol names and struct layout will be specified in a separate ABI document before implementation.
+Every module exposes the versioned C ABI documented in [OCC_MODULE_ABI.md](OCC_MODULE_ABI.md). The ABI remains Draft v1 and is not frozen.
 
 The contract must provide, at minimum:
 
@@ -157,15 +157,15 @@ Each step requires unit tests, module load/unload tests, ABI compatibility tests
 
 ## 10. Current implementation boundary
 
-As of this design:
+Current implementation boundary (incremental migration):
 - OCC currently performs orchestration in `main.c`.
-- Lexer, parser and semantic code are not yet independent DLLs.
-- The current CMake frontend is a combined library. The AST payload codec and OIR artifact adapter are separate static utility targets, but they do not yet constitute an independently loadable parser-stage DLL/SO/dylib.
-- Codegen is the only currently separate shared module in the C pipeline.
-- Existing parser/semantic control flow still has early-stop behavior and does not yet implement the complete diagnostic-accumulation policy.
-- There is no implemented general checkpoint/stop-after interface or multi-job scheduler yet.
+- Lexer and parser are built as independent shared stage modules and are invoked through the OCC module loader.
+- The semantic stage adapter now exists as an independent shared module target. It accepts one valid `AST` OIR artifact and emits `SEMANTIC_AST` OIR; CLI invocation and end-to-end handoff are the next integration step.
+- The frontend remains a shared internal support library linked by stage modules. Its C structs and allocator state do not cross the module ABI.
+- Codegen remains a separately loadable legacy shared library and has not yet migrated to `OccStageModuleV1`.
+- General checkpoint/stop-after controls, complete diagnostic accumulation, and multi-job scheduling remain open work.
 
-These are known gaps to be addressed incrementally. This document records the intended architecture; it does not claim implementation or test completion.
+This is a staged migration. A built module target is not considered pipeline-integrated until the OCC host loads, invokes, validates and tests its artifact handoff.
 
 
 ## 11. Standard artifact handoff
@@ -175,3 +175,17 @@ All stage-to-stage handoff uses the common OIR container described in [OIR_FORMA
 The file extension is not the type system: a stage must inspect and validate the OIR header and payload schema before consuming an artifact. It must reject unsupported versions, wrong artifact kinds, corrupt lengths and invalid state. A partial artifact is accepted only by stages that explicitly declare partial-input support.
 
 A schema-1.0 OIR AST payload writer/reader now exists and is tested across Windows, Linux and macOS, including real parser → OIR AST artifact → frontend AST round-trips. The older native-layout AST serializer exposed by the parser remains legacy/internal and is not a cross-platform module interchange format. The OCC CLI's stop-after-parser checkpoint command and the independent parser DLL stage entry point are still pending.
+
+
+## 12. Project-owned linker and optional OCL security policy
+
+The final link/package stage will be implemented by the project. The system C linker may be used as a temporary development/test aid, but it is not the final linker and is not a required runtime dependency of the finished toolchain.
+
+The OCL security layer is **optional and user-controlled**, not an always-on compiler restriction:
+- Security disabled: the normal OCL/link/package flow runs without applying the optional security policy layer.
+- Security enabled: the selected security checks and restrictions are applied according to the user's chosen policy/profile.
+- The selected mode and policy must be explicit in build configuration and reproducible in build metadata.
+- A module must not silently enable, weaken or override the user's selected security mode.
+- The exact policy set, configuration syntax, trust model and enforcement points remain to be designed; this statement records the opt-in requirement, not a claim that security enforcement is implemented.
+
+The project-owned linker and optional security layer are separate design responsibilities. The security layer must not become an unavoidable hidden dependency of ordinary builds.
