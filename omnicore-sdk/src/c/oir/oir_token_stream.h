@@ -2,6 +2,7 @@
 #define OMNICORE_OIR_TOKEN_STREAM_H
 
 #include "oir.h"
+#include "lexer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,6 +43,12 @@ typedef struct OirTokenStreamRecordView {
     uint32_t line;
     uint32_t column;
 } OirTokenStreamRecordView;
+
+/* Convert one frontend token into its stable OIR record input. */
+OirStatus oir_token_stream_input_from_lexer_token(
+    const Token* token,
+    OirTokenStreamInput* out_input
+);
 
 /*
  * Validate schema 1.0 against the associated source length and diagnostic
