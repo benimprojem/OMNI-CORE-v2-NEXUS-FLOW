@@ -4,6 +4,8 @@
 
 ## 1. Host ve target
 
+Derleme boyunca target seçimi ve aktarımı için bağlayıcı uygulama sözleşmesi [TARGET_PIPELINE_CONTRACT.md](TARGET_PIPELINE_CONTRACT.md) belgesindedir. Bu sözleşmeye göre seçilen/varsayılan descriptor, hedefe duyarlı aşamaların doğrulanmış girdisidir; genel OIR ise target-neutral kalır.
+
 - **Host:** OCC derleyicisinin çalıştığı makine ve işletim sistemi.
 - **Target:** Derlenen programın çalışacağı makine/işletim sistemi.
 - Host ile target aynı olmak zorunda değildir. Farklı olduklarında cross-compilation yapılır.
