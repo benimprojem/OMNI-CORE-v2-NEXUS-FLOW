@@ -390,3 +390,16 @@ Doğrulama: GitHub Actions run 41145426190 ile Windows, Ubuntu ve macOS build/CT
 **Doğrulama:** GitHub Actions run 41147629609 tamamlandı. Windows, Ubuntu ve macOS build/CTest **19/19** başarılı; Ubuntu ASan/UBSan ve Valgrind işleri de başarılı. Çalışma dalı `refactor/c-core-roadmap`; merge/PR yapılmadı.
 
 **Sıradaki adım:** TOKEN_STREAM schema 1.0 codec'i; ardından lexer-to-OIR ve OIR-to-parser adapter'ları. DLL/SO modül ayrımı, ortak ABI ve gerçek pipeline runner bundan sonra gelecek.
+
+
+## OIR TOKEN_STREAM codec ve lexer diagnostic association — 31 Ekim 2026
+
+- Token yapısına diagnostic_id alanı eklendi. ParserContext ortak diagnostic collector'a bağlıyken lexer error token'ı raporlandığında 1-based collector kayıt indeksi token üzerinde saklanıyor.
+- oir_token_stream.h/.c: TOKEN_STREAM schema 1.0 için bounded writer, validating zero-copy reader ve record getter eklendi.
+- Codec; registry'de olmayan token ID'lerini, sıfır/bozuk line-column değerlerini, source ID uyuşmazlığını, source dışına taşan veya çakışan span'leri, terminal EOF eksikliğini ve diagnostic kaydı olmayan TOKEN_ERROR girdilerini reddediyor.
+- Frontend Token → OIR record adapter'ı; normal token lexeme span'lerini ve hata token'ının mesaj pointer'ından ayrı kaynak span/diagnostic ID alanlarını dönüştürüyor.
+- Parser testine geçersiz UTF-8 byte fixture'ı eklendi; lexer kaynaklı tanının ortak collector'da OCC_STAGE_LEXER ve source location ile bulunduğu doğrulanıyor.
+- test_oir_token_stream.c round-trip, source identity, truncation, small buffer, reserved bytes, unknown token ID, overlapping spans, terminal EOF ve diagnostic ID kontrollerini kapsıyor.
+- GitHub Actions run 41148385330: Windows, Ubuntu ve macOS build/CTest 20/20 başarılı; Ubuntu ASan/UBSan ve Valgrind işleri de başarılı.
+
+**Sınır:** Bu codec ve Token → OIR dönüşümü mevcut; OIR token kayıtlarını yeniden Token dizisine çevirip parser'a besleyen ikinci yön henüz yok. Parser hâlâ kendi lexer girişini kullanıyor. Sıradaki iş OIR-to-parser handoff adapter'ı.
