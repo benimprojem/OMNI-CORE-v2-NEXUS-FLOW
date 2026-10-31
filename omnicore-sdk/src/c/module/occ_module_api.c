@@ -11,7 +11,7 @@ static int valid_artifact_kind(uint32_t kind) {
     (uint64_t)OCC_MODULE_CAP_REENTRANT | \
     (uint64_t)OCC_MODULE_CAP_DETERMINISTIC | \
     (uint64_t)OCC_MODULE_CAP_SUPPORTS_PARTIAL_INPUT | \
-    (uint64_t)OCC_MODULE_CAP_STATELESS | \\
+    (uint64_t)OCC_MODULE_CAP_STATELESS | \
     (uint64_t)OCC_MODULE_CAP_DIAGNOSTIC_REPORTING )
 
 
