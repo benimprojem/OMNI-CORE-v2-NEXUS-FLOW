@@ -274,7 +274,7 @@ done:
 static int test_parser_malformed_function_recovery(void) {
     static const char source[] =
         "f:broken(, value) { v:discarded = 1; }"
-        "f:good() { v:kept = 2; }";
+        "f:missing( f:good() { v:kept = 2; }";
     ParserContext* ctx = parser_init_source(
         "parser-malformed-function-recovery.nxf",
         (const uint8_t*)source, sizeof(source) - 1u);
