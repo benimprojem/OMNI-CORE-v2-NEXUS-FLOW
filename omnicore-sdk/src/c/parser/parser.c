@@ -356,65 +356,50 @@ static ASTNode* parse_thread_block(Parser* p, char* name);
 
 // Primary: Literals, Identifiers, Grouping
 static ASTNode* parse_primary(Parser* p) {
-    if (match(p, TOKEN_NUMBER)) {
+    if (match(p, TOKEN_NUMBER) || match(p, TOKEN_STRING) || match(p, TOKEN_CHAR)) {
+        Token token = p->previous;
         ASTLiteral* node = (ASTLiteral*)ast_create(AST_LITERAL);
-        node->base.line = p->previous.line;
-        node->base.col = p->previous.col;
-        node->type = TOKEN_NUMBER;
-        node->string_value = malloc(p->previous.length + 1);
-        memcpy(node->string_value, p->previous.start, p->previous.length);
-        node->string_value[p->previous.length] = '\0';
-        return (ASTNode*)node;
-    }
-    
-    if (match(p, TOKEN_STRING)) {
-        ASTLiteral* node = (ASTLiteral*)ast_create(AST_LITERAL);
-        node->base.line = p->previous.line;
-        node->base.col = p->previous.col;
-        node->type = TOKEN_STRING;
-        node->string_value = malloc(p->previous.length + 1);
-        memcpy(node->string_value, p->previous.start, p->previous.length);
-        node->string_value[p->previous.length] = '\0';
+        if (!node) return NULL;
+        node->base.line = token.line;
+        node->base.col = token.col;
+        node->type = token.type;
+        node->string_value = (char*)malloc((size_t)token.length + 1u);
+        if (!node->string_value) {
+            ast_destroy((ASTNode*)node);
+            return NULL;
+        }
+        memcpy(node->string_value, token.start, (size_t)token.length);
+        node->string_value[token.length] = '\0';
         return (ASTNode*)node;
     }
 
-    if (match(p, TOKEN_CHAR)) {
+    if (match(p, TOKEN_TRUE) || match(p, TOKEN_FALSE)) {
+        const char* value = p->previous.type == TOKEN_TRUE ? "true" : "false";
         ASTLiteral* node = (ASTLiteral*)ast_create(AST_LITERAL);
+        if (!node) return NULL;
         node->base.line = p->previous.line;
         node->base.col = p->previous.col;
-        node->type = TOKEN_CHAR;
-        node->string_value = malloc(p->previous.length + 1);
-        memcpy(node->string_value, p->previous.start, p->previous.length);
-        node->string_value[p->previous.length] = '\0';
-        return (ASTNode*)node;
-    }
-
-    if (match(p, TOKEN_TRUE)) {
-        ASTLiteral* node = (ASTLiteral*)ast_create(AST_LITERAL);
-        node->base.line = p->previous.line;
-        node->base.col = p->previous.col;
-        node->type = TOKEN_TRUE;
-        node->string_value = strdup("true");
-        return (ASTNode*)node;
-    }
-
-    if (match(p, TOKEN_FALSE)) {
-        ASTLiteral* node = (ASTLiteral*)ast_create(AST_LITERAL);
-        node->base.line = p->previous.line;
-        node->base.col = p->previous.col;
-        node->type = TOKEN_FALSE;
-        node->string_value = strdup("false");
+        node->type = p->previous.type;
+        node->string_value = strdup(value);
+        if (!node->string_value) {
+            ast_destroy((ASTNode*)node);
+            return NULL;
+        }
         return (ASTNode*)node;
     }
 
     if (match(p, TOKEN_IDENTIFIER)) {
         ASTIdentifier* id_node = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+        if (!id_node) return NULL;
         id_node->base.line = p->previous.line;
         id_node->base.col = p->previous.col;
-        id_node->name = malloc(p->previous.length + 1);
-        memcpy(id_node->name, p->previous.start, p->previous.length);
+        id_node->name = (char*)malloc((size_t)p->previous.length + 1u);
+        if (!id_node->name) {
+            ast_destroy((ASTNode*)id_node);
+            return NULL;
+        }
+        memcpy(id_node->name, p->previous.start, (size_t)p->previous.length);
         id_node->name[p->previous.length] = '\0';
-
         return (ASTNode*)id_node;
     }
 
