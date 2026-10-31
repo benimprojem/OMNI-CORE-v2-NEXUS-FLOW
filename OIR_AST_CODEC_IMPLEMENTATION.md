@@ -105,3 +105,23 @@ The first implementation slice provides:
 This layer intentionally does not yet validate STRING_REF offsets against the AST string table, NODE_REF IDs against the node table, per-node required-field schemas, or graph ownership. Those checks belong to the AST payload/node-table validator.
 
 CTest target: `oir_ast_tlv_primitives_roundtrip_and_validation`. Cross-platform CI and sanitizer results are pending.
+
+
+## 8. Implemented foundation: bounded AST node table
+
+Files:
+- `omnicore-sdk/src/c/oir/oir_ast_node_table.h`
+- `omnicore-sdk/src/c/oir/oir_ast_node_table.c`
+- `omnicore-sdk/src/c/tests/test_oir_ast_node_table.c`
+
+The first node-table slice now implements:
+- 32-byte AST payload header and 32-byte fixed node records, encoded field-by-field in little-endian form.
+- Caller-owned bounded payload writer and zero-copy validated reader.
+- Exact payload-size, record-size, reserved/flags, contiguous 1-based node ID, root ID/kind, node-kind range and line/column pair checks.
+- Field-data slices must be ordered, non-overlapping, in-bounds and cover the complete field-data area exactly.
+- Every node TLV stream is validated through the bounded TLV reader.
+- NODE_REF values must be zero or within the node table; STRING_REF ranges must fit the string table, obey the 16 MiB per-string ceiling and contain valid UTF-8 without embedded NUL.
+- Node sibling references are range-checked. This layer does not yet prove unique ownership, acyclicity, root reachability or maximum graph depth; those belong to the dedicated graph validator.
+- Writer validates its logical input before writing and does not allocate internally. Input buffers must not overlap output storage.
+
+CTest target: `oir_ast_node_table_roundtrip_and_validation`. Cross-platform CI verification is pending.
