@@ -265,4 +265,4 @@ The wrapper preflights the full container size and all scratch capacities before
 
 The test checks header metadata, payload wrapping/materialization, too-small output atomicity, wrong artifact-kind rejection and an invalid inner AST ownership graph while the outer container remains structurally valid.
 
-CTest target: `oir_ast_artifact_container_wrap_validate_and_materialize`. CI run 41160379544: Ubuntu CTest 31/31, ASan/UBSan and macOS passed; Windows and Valgrind are still running.
+CTest target: `oir_ast_artifact_container_wrap_validate_and_materialize`. CI run 41160379544 passed on Windows, Ubuntu and macOS; Ubuntu CTest 31/31, ASan/UBSan and Valgrind passed.
