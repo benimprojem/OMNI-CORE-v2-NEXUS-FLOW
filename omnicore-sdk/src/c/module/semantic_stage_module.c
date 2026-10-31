@@ -129,13 +129,6 @@ static void semantic_stage_ensure_messages(void) {
 }
 #endif
 
-#define SEMANTIC_INDEX_MAX ((size_t)2097152u)
-typedef struct SemanticResolver {
-    const OirAstPointerIndexEntry* entries;
-    size_t capacity;
-} SemanticResolver;
-static const OccStageModuleV1 g_semantic_module;
-
 static OirStatus find_payload(const OirArtifactView* artifact, uint16_t type,
                               OirSectionView* out) {
     uint32_t i; int found=0;
