@@ -147,12 +147,29 @@ static int add_size(size_t* n,size_t v) {
     if(v>SIZE_MAX-*n) return 0; *n+=v; return 1;
 }
 static int add_name(size_t* n,const char* s) {
-    return (!s||!*s)?1:add_size(n,strlen(s));
+    size_t length;
+    if (!s || !*s) return 1;
+    length = strlen(s);
+    if (length > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE ||
+        *n > OIR_SEMANTIC_MAX_STRING_TABLE_SIZE - length) return 0;
+    *n += length;
+    return 1;
 }
 /* Keep this calculation synchronized with the canonical artifact writer. */
 static int required_size(const uint8_t* ast,size_t ast_len,const SemanticResult* m,size_t* out) {
     size_t n=OIR_HEADER_SIZE,ts=0u,ss=0u,rs=0u; uint32_t i,sections;
-    if(!ast||!m||!out||!m->finalized||!m->scope_count) return 0;
+    if(!ast||!m||!out||!m->finalized||!m->scope_count ||
+       m->scope_count>OIR_SEMANTIC_MAX_SCOPE_COUNT ||
+       m->type_count>OIR_SEMANTIC_MAX_TYPE_COUNT ||
+       m->symbol_count>OIR_SEMANTIC_MAX_SYMBOL_COUNT ||
+       m->annotation_count>OIR_SEMANTIC_MAX_ANNOTATION_COUNT ||
+       m->relation_count>OIR_SEMANTIC_MAX_RELATION_COUNT ||
+       m->conversion_count>OIR_SEMANTIC_MAX_CONVERSION_COUNT ||
+       !m->scopes || (m->type_count&&!m->types) ||
+       (m->symbol_count&&!m->symbols) ||
+       (m->annotation_count&&!m->annotations) ||
+       (m->relation_count&&!m->relations) ||
+       (m->conversion_count&&!m->conversions)) return 0;
     for(i=0;i<m->type_count;i++) if(!add_name(&ts,m->types[i].name)) return 0;
     for(i=0;i<m->symbol_count;i++) if(!add_name(&ss,m->symbols[i].name)) return 0;
     for(i=0;i<m->relation_count;i++) if(!add_name(&rs,m->relations[i].name)) return 0;
@@ -241,6 +258,17 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
     st=oir_semantic_ast_artifact_write(payload.data,(size_t)payload.length,&sem.result,
         inv->job_id,inv->output_buffer,(size_t)inv->output_capacity,&written);
     if(st!=OIR_STATUS_OK||written!=required) { out->failure_code=8310u; goto done; }
+    /*
+     * Publish diagnostics only after the artifact has been written. A
+     * NEED_OUTPUT_BUFFER retry must not duplicate externally visible reports.
+     */
+    if(!send_diagnostics(inv,&diags)) {
+        out->failure_code=8305u;
+        out->bytes_written=0u;
+        out->output_validity=OIR_VALIDITY_NONE;
+        rc=OCC_MODULE_STATUS_FAILED;
+        goto done;
+    }
     out->bytes_written=(uint64_t)written; out->required_output_capacity=0u;
     out->output_validity=OIR_VALIDITY_VALID; out->diagnostics_count=(uint32_t)occ_diagnostics_count(&diags);
     rc=OCC_MODULE_STATUS_OK; goto done;
