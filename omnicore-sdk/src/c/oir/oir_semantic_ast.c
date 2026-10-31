@@ -514,7 +514,8 @@ static OirStatus validate_symbol_values(
             OIR_SEMANTIC_SYMBOL_FLAG_PUBLIC |
             OIR_SEMANTIC_SYMBOL_FLAG_EXPORTED |
             OIR_SEMANTIC_SYMBOL_FLAG_PACKED |
-            OIR_SEMANTIC_SYMBOL_FLAG_HARD)) != 0u ||
+            OIR_SEMANTIC_SYMBOL_FLAG_HARD |
+            OIR_SEMANTIC_SYMBOL_FLAG_IMPLICIT)) != 0u ||
         scope_id == 0u || declaration_node_id == 0u ||
         name_length == 0u) {
         return OIR_STATUS_INVALID_SECTION;
