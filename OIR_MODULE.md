@@ -110,7 +110,13 @@ The type system must be able to represent at least:
 - Enumerations and tagged/untagged aggregate forms.
 - Opaque or target-neutral intrinsic types when needed.
 
-The exact type tags, layout rules, numeric promotion semantics and floating-point behavior are defined in separate registries/specifications. This document does not freeze them.
+**NEXSUS Flow numeric-width behavior already established by the language design:**
+- In automatic-width mode, an arithmetic result keeps the current operand/result width when representable; it promotes to the next supported width only when the result does not fit.
+- Example: an FP16 × FP16 operation remains FP16 when its result is representable in FP16; otherwise the result is represented at the next supported width (for example FP32).
+- A forced-width marker such as `!32` blocks automatic width promotion. It fixes the selected representation width; it does not promise that an out-of-range result cannot overflow.
+- Automatic promotion may continue to a wider supported type (for example f32 to f64) when required by the result and the applicable type rules.
+
+The complete promotion lattice is **not yet frozen**. Mixed signed/unsigned integer rules, mixed integer/floating-point rules, literal typing, intermediate precision versus stored result width, overflow behavior in forced mode, and the exact supported-width ordering still require a dedicated NEXSUS Flow type specification. The OIR type registry must encode the resolved conversion explicitly rather than silently imposing C's usual arithmetic conversions.
 
 ### 3.5 Operations and operands
 
@@ -176,16 +182,18 @@ The OIR container reader validates the common envelope. The module payload verif
 
 Validation must complete before a consumer exposes the module to optimization or code generation. A malformed module is rejected; the verifier must not repair it silently.
 
-## 6. SSA and lowering policy — intentionally unresolved
+## 6. SSA and lowering policy
 
-The first schema revision will preserve the ability to support multiple value-flow models. It does **not** yet mandate:
-- Strict SSA with one definition per value.
-- Block arguments / block parameters.
-- Phi-like merge instructions.
-- Mutable virtual registers.
-- Stack-slot-based locals.
+The NEXSUS Flow compiler architecture documents explicitly define Omni-IR as SSA-based. Therefore, **SSA is the intended canonical value model for OIR_MODULE**, rather than an undecided optional mode.
 
-The verifier can initially enforce unique value IDs and valid definitions without imposing global single-assignment semantics. A later design decision must choose the canonical form before optimizer contracts are frozen. If SSA is selected, dominance, use-before-definition, phi/block-argument predecessor correspondence and loop back-edge rules must be specified and tested.
+The exact SSA merge representation remains open:
+- Conventional `phi` instructions.
+- Block parameters with predecessor-associated incoming values.
+- Another explicitly specified equivalent form.
+
+The selected form must define dominance, use-before-definition, loop back-edge handling, edge-specific incoming values and verifier behavior. SSA values have one definition; mutable source variables are lowered into new SSA values and explicit memory operations only when their semantics require addressable storage. Physical target registers remain a later register-allocation concern.
+
+The source specifications also describe OIR as a DAG while the language supports loops and recursion. A conventional control-flow graph for loops necessarily contains cycles. Until clarified, this document does not impose an acyclic control-flow graph: data-dependency subgraphs may be DAGs, while control-flow edges must be able to represent loop back-edges. The exact meaning of the older OIR DAG requirement is recorded as an open architecture question.
 
 ## 7. Calling convention and ABI policy
 
@@ -210,8 +218,8 @@ The design sequence is:
 
 1. Finalize a minimal language subset and representative source fixtures.
 2. Define the opcode registry and operation semantics for that subset.
-3. Decide the initial value-flow model (SSA, block parameters or mutable virtual values).
-4. Define canonical type records and conversion/promotion representation, reusing NEXSUS Flow's documented numeric-promotion rules once those rules are specified and tested.
+3. Select the SSA merge representation (phi instructions or block parameters) and specify loop back-edge verification.
+4. Define canonical type records and the complete NEXSUS Flow numeric-promotion/conversion lattice, including forced-width behavior and unresolved mixed-type cases.
 5. Define function, block, instruction, operand and source-map wire layouts.
 6. Implement a standalone module writer/reader and verifier with malformed-input, overflow, cross-reference and deterministic round-trip tests.
 7. Implement IR lowering as its own shared stage module: `SEMANTIC_AST -> OIR_MODULE`.
@@ -228,6 +236,8 @@ No schema is considered frozen merely because a first implementation or test fix
 | OIR container kind ID 5 (`OIR_KIND_MODULE`) | Registered |
 | Generic OIR container reader/writer | Implemented |
 | Canonical OIR_MODULE payload layout | Not implemented; this document is a draft |
+| SSA value model | Required by NEXSUS Flow design; merge encoding open |
+| NEXSUS Flow numeric width promotion | Partial language rule established; full conversion lattice open |
 | OIR_MODULE opcode/type registries | Not frozen |
 | Module payload verifier | Not implemented |
 | IR lowering DLL | Not implemented |
