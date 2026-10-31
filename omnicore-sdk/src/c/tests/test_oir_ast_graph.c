@@ -1,5 +1,8 @@
 #include "oir_ast_graph.h"
 
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
