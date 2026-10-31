@@ -656,6 +656,7 @@ void ast_destroy(ASTNode* root) {
 
 typedef struct {
     FILE* stream;
+    size_t depth;
     int failed;
 } ASTWriter;
 
@@ -745,6 +746,12 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
      * their own lists, but a flat declaration/statement list no longer uses
      * one C stack frame per node.
      */
+    if (writer->depth >= AST_MAX_RECURSION_DEPTH) {
+        writer->failed = 1;
+        return;
+    }
+    ++writer->depth;
+
     while (node && !writer->failed) {
     ast_write_exact(writer, &node->type, sizeof(node->type));
     ast_write_exact(writer, &node->line, sizeof(node->line));
@@ -1006,12 +1013,13 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
         int marker = -1;
         ast_write_exact(writer, &marker, sizeof(marker));
     }
+    --writer->depth;
 }
 
 int ast_serialize(ASTNode* root, FILE* out) {
     if (!out) return 0;
 
-    ASTWriter writer = { out, 0 };
+    ASTWriter writer = { out, 0u, 0 };
     ast_serialize_recursive(root, &writer);
     if (ferror(out)) writer.failed = 1;
     return writer.failed ? 0 : 1;
