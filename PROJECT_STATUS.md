@@ -645,3 +645,18 @@ Yeni `real_parser_stage_source_token_to_ast_module` testi gerçek shared library
 **CI:** Run `41171384514` — Windows, Ubuntu ve macOS başarılı; CTest 37/37; ASan/UBSan ve Valgrind başarılı.
 
 **Sınır:** Parser DLL artık tek başına çalışan bir stage'dir; OCC'nin gerçek modül yükleme/çağırma pipeline'ına bağlanması ve failure checkpoint'in bu DLL hatasıyla uçtan uca doğrulanması sonraki adımdır. ABI taslak kalmaya devam ediyor.
+
+
+## 31 Ekim 2026 — OCC host-owned Dynamic Stage Loader
+
+occ_module_loader.h/.c eklendi. OCC artık tek bir platform soyutlaması üzerinden stage DLL/SO/dylib yükleyebiliyor:
+
+- Windows: LoadLibraryA, GetProcAddress, FreeLibrary.
+- POSIX: dlopen(RTLD_NOW | RTLD_LOCAL), dlsym, dlclose.
+- Modül açılırken occ_get_stage_module_v1 çözülüyor ve descriptor ABI validator ile kontrol ediliyor. Eksik dosya, eksik export ve hatalı descriptor ayrı loader status'ları.
+- occ_module_loader_invoke() OIR girdilerini çağrı öncesi doğrular, invocation-scoped diagnostic sink'i host tarafında kurar ve NEED_OUTPUT_BUFFER durumunda istenen kesin kapasiteye göre bounded retry uygular.
+- Dönen OIR artifact host tarafından yeniden açılır; output kind, producer stage ID, job ID, validity ve result metadata eşleşmeden çağrı başarılı sayılmaz. Failed çağrılarda kısmi/şüpheli çıktı dışarı verilmez.
+- Pass-through modül testi load/invoke/retry/callback/unload akışını; eksik sembol ve olmayan dosya durumlarını kapsıyor.
+- Gerçek parser DLL entegrasyon testi artık aynı host loader üzerinden valid ve invalid girdileri çalıştırıyor. Hatalı kaynakta diagnostic span [6,7), satır 1, sütun 7–8 korunuyor ve çıktı buffer'ı dışarı verilmiyor.
+
+Doğrulama durumu: Kod ve CTest kayıtları eklendi; bu commit dizisi için yeni CI sonucu henüz teyit edilmedi. Beklenen CTest sayısı 38. main.c hâlâ eski statik parser akışını kullanıyor; bir sonraki aşama host loader'ı gerçek OCC CLI/pipeline'a bağlamak ve failure checkpoint'i DLL kaynaklı parser hatasıyla uçtan uca test etmek. ABI draft olarak kalıyor.
