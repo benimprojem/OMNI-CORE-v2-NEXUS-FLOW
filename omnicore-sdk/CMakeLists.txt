@@ -202,6 +202,9 @@ target_include_directories(occ_oir_ast_node_table PUBLIC "${C_SOURCE_DIR}/oir")
 target_link_libraries(occ_oir_ast_node_table PUBLIC occ_oir_ast_tlv)
 set_target_properties(occ_oir_ast_node_table PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Cross-table SEMANTIC_AST validation resolves node kinds through the AST table view.
+target_link_libraries(occ_oir_semantic_ast PUBLIC occ_oir_ast_node_table)
+
 # AST graph validator checks single-owner edges, reachability, cycles and depth.
 add_library(occ_oir_ast_graph STATIC
     "${C_SOURCE_DIR}/oir/oir_ast_graph.c"
