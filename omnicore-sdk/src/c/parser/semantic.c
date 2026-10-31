@@ -1179,7 +1179,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
                 }
             } else {
-                report_error(ctx, node, ERR_PARSER_EXPECTED_EXPRESSION,
+                report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE,
                     "cast() requires a type name as its second argument.");
             }
             break;
