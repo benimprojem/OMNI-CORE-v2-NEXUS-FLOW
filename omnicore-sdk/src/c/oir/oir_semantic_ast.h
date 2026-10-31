@@ -29,6 +29,9 @@ extern "C" {
 #define OIR_SEMANTIC_RELATIONS_HEADER_SIZE 12u
 #define OIR_SEMANTIC_RELATION_RECORD_SIZE 32u
 #define OIR_SEMANTIC_MAX_RELATION_COUNT 1000000u
+#define OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE 8u
+#define OIR_SEMANTIC_CONVERSION_RECORD_SIZE 20u
+#define OIR_SEMANTIC_MAX_CONVERSION_COUNT 1000000u
 #define OIR_SEMANTIC_MAX_STRING_TABLE_SIZE (16u * 1024u * 1024u)
 
 typedef enum OirSemanticTypeKind {
@@ -59,6 +62,18 @@ typedef enum OirSemanticSymbolKind {
 #define OIR_SEMANTIC_SYMBOL_FLAG_EXPORTED 0x0004u
 #define OIR_SEMANTIC_SYMBOL_FLAG_PACKED   0x0008u
 #define OIR_SEMANTIC_SYMBOL_FLAG_HARD     0x0010u
+
+typedef enum OirSemanticConversionKind {
+    OIR_SEMANTIC_CONVERSION_IDENTITY = 1,
+    OIR_SEMANTIC_CONVERSION_WIDENING = 2,
+    OIR_SEMANTIC_CONVERSION_NARROWING = 3,
+    OIR_SEMANTIC_CONVERSION_SIGNEDNESS = 4,
+    OIR_SEMANTIC_CONVERSION_EXPLICIT_CAST = 5,
+    OIR_SEMANTIC_CONVERSION_HARD_TYPE = 6
+} OirSemanticConversionKind;
+
+#define OIR_SEMANTIC_CONVERSION_FLAG_IMPLICIT 0x0001u
+#define OIR_SEMANTIC_CONVERSION_FLAG_EXPLICIT 0x0002u
 
 typedef enum OirSemanticRelationKind {
     OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER = 1,
@@ -284,6 +299,42 @@ OirStatus oir_semantic_relations_write(
     uint32_t relation_count,
     const uint8_t* string_table,
     uint32_t string_table_length,
+    size_t* out_written
+);
+
+typedef struct OirSemanticConversion {
+    uint32_t node_id;
+    uint32_t operand_ordinal;
+    uint32_t source_type_id;
+    uint32_t destination_type_id;
+    uint16_t kind;
+    uint16_t flags;
+} OirSemanticConversion;
+
+typedef struct OirSemanticConversionsView {
+    const uint8_t* bytes;
+    size_t length;
+    uint32_t record_count;
+    size_t records_offset;
+} OirSemanticConversionsView;
+
+OirStatus oir_semantic_conversions_open(
+    const uint8_t* payload,
+    size_t payload_length,
+    OirSemanticConversionsView* out_view
+);
+
+OirStatus oir_semantic_conversions_get(
+    const OirSemanticConversionsView* view,
+    uint32_t index,
+    OirSemanticConversion* out_conversion
+);
+
+OirStatus oir_semantic_conversions_write(
+    uint8_t* output,
+    size_t capacity,
+    const OirSemanticConversion* conversions,
+    uint32_t conversion_count,
     size_t* out_written
 );
 
