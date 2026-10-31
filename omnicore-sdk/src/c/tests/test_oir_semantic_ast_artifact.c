@@ -200,6 +200,14 @@ int main(void) {
             OIR_STATUS_INVALID_HEADER);
 
         bad_header = header;
+        bad_header.producer_stage_id = OCC_STAGE_PARSER;
+        CHECK(oir_artifact_write(artifact, sizeof(artifact), &bad_header,
+            sections, 6u, &artifact_written) == OIR_STATUS_OK);
+        CHECK(oir_semantic_ast_artifact_open(artifact, artifact_written, &view,
+            incoming, 1u, visited, 1u, stack, 1u, owner_scope, 2u) ==
+            OIR_STATUS_INVALID_HEADER);
+
+        bad_header = header;
         bad_header.validity = OIR_VALIDITY_PARTIAL;
         CHECK(oir_artifact_write(artifact, sizeof(artifact), &bad_header,
             sections, 6u, &artifact_written) == OIR_STATUS_OK);
