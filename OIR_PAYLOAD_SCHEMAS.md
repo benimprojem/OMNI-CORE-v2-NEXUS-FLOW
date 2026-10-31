@@ -84,7 +84,7 @@ The first implementation can use a single source unit per compilation job. Multi
 
 ## 4. Important current-lexer compatibility work
 
-The current Token struct now exposes source_offset and source_length separately from its lexeme/message pointer and length. Lexer error tokens still point at message text in Token.start, but carry the consumed source span in the new source fields. A diagnostic ID is not yet assigned; the shared diagnostic collector will supply that association.
+The current Token struct exposes source_offset and source_length separately from its lexeme/message pointer and length, plus diagnostic_id. Lexer error tokens still point at message text in Token.start, but carry the consumed source span in the new source fields. When ParserContext is attached to a job-owned collector, parser error reporting assigns lexer error tokens the 1-based diagnostic record index; zero means no associated diagnostic. The TOKEN_STREAM adapter converts frontend Token values to stable OIR IDs and validates the associated diagnostic count.
 
 Before enabling TOKEN_STREAM serialization:
 1. Add explicit source offset and token flags/diagnostic association to the lexer result contract, or introduce a serialization adapter that can safely distinguish source-backed tokens from diagnostic tokens.
@@ -93,11 +93,13 @@ Before enabling TOKEN_STREAM serialization:
 4. Audit all 160 token enum entries against actual lexer emission paths; registry presence alone is not evidence of implementation.
 5. Test that every serialized source span resolves to the exact original source bytes.
 
+The TOKEN_STREAM codec is implemented in `omnicore-sdk/src/c/oir/oir_token_stream.h/.c`. It validates the 16-byte header, 32-byte records, registry IDs, source identity and bounds, non-overlapping source spans, terminal EOF, and error-token diagnostic references. Its reader returns zero-copy record views; the frontend adapter converts `Token` values without serializing pointers or message strings.
+
 ## 5. Implementation order
 
 1. [x] Add a stable C enum-to-OIR token ID mapping by symbolic token name (160-token round-trip test).
 2. [x] Add SOURCE_UNIT payload encode/decode and exact-length tests.
-3. Extend lexer token metadata with source byte offsets and diagnostic references.
+3. [x] Extend lexer token metadata with source byte offsets and diagnostic references.
 4. [x] Add DIAGNOSTICS payload encode/decode and malformed-input validation tests.
 5. Add TOKEN_STREAM payload encode/decode and span-validation tests.
 6. Add lexer-to-OIR and OIR-to-parser adapters.
