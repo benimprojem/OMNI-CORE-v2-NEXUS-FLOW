@@ -70,7 +70,14 @@ static int test_parser_context_initialization(void) {
     static const uint8_t empty_source[] = "";
     ParserContext* memory = parser_init_source("empty.nxf", empty_source, 0u);
     ParserContext* missing = parser_init(NULL);
-    int ok = memory != NULL && missing == NULL;
+    ParserContext* status_ctx = (ParserContext*)1;
+    ParserStatus invalid_status = parser_init_source_ex("bad.nxf", NULL, 1u, &status_ctx);
+    ParserStatus io_status = parser_init_ex("__omni_core_missing_parser_input__.nxf", &status_ctx);
+    ParserStatus argument_status = parser_init_ex(NULL, &status_ctx);
+    int ok = memory != NULL && missing == NULL &&
+        invalid_status == PARSER_STATUS_INVALID_ARGUMENT && status_ctx == NULL &&
+        io_status == PARSER_STATUS_IO_ERROR && status_ctx == NULL &&
+        argument_status == PARSER_STATUS_INVALID_ARGUMENT && status_ctx == NULL;
     if (memory) {
         ok = ok && memory->source_buffer != NULL &&
             memory->source_len == 0u && memory->pos == 0u &&
@@ -80,7 +87,8 @@ static int test_parser_context_initialization(void) {
             memory->ast_root == NULL && memory->error_count == 0 &&
             memory->error_head == NULL && memory->error_tail == NULL &&
             memory->file_handle == NULL && memory->token_stream == NULL &&
-            memory->token_stream_count == 0u && memory->token_stream_index == 0u;
+            memory->token_stream_count == 0u && memory->token_stream_index == 0u &&
+            memory->status == PARSER_STATUS_OK;
         parser_destroy(memory); /* Destroying a context before parser_run is valid. */
     }
     return ok;
