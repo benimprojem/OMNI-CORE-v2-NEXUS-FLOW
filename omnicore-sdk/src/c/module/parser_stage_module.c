@@ -112,35 +112,6 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
     if(source.path_length) memcpy(filename,source.path,source.path_length);
     filename[source.path_length]='\0';
 
-    for(i=0u;i<diag_count;i++) {
-        OirDiagnosticEntryView entry;
-        OccModuleDiagnosticV1 diagnostic;
-        if(oir_diagnostics_payload_get(&diagnostics_view,(uint32_t)i,&entry)!=OIR_STATUS_OK)
-            goto invalid_input;
-        memset(&diagnostic,0,sizeof(diagnostic));
-        diagnostic.struct_size=(uint32_t)sizeof(diagnostic);
-        diagnostic.code=entry.code;
-        diagnostic.message_id=entry.message_id;
-        diagnostic.severity=entry.severity;
-        diagnostic.span=entry.span;
-        diagnostic.message=entry.message;
-        diagnostic.message_length=entry.message_length;
-        diagnostic.hint=entry.hint;
-        diagnostic.hint_length=entry.hint_length;
-        if(!invocation->diagnostic_sink.report(
-            invocation->diagnostic_sink.user_context,&diagnostic)) goto report_failure;
-        {
-            OccDiagnosticInput input;
-            memset(&input,0,sizeof(input));
-            input.code=entry.code; input.stage_id=OCC_STAGE_LEXER;
-            input.message_id=entry.message_id; input.severity=entry.severity;
-            input.span=entry.span; input.message=entry.message;
-            input.message_length=entry.message_length;
-            input.hint=entry.hint; input.hint_length=entry.hint_length;
-            if(!occ_diagnostics_add(&lexer_diagnostics,&input)) goto allocation_failure;
-        }
-    }
-
     for(i=0u;i<tokens_view.token_count;i++) {
         OirTokenStreamRecordView record;
         const char* message=NULL;
@@ -168,7 +139,7 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
     {
         int parse_ok=parser_run(parser)==0 && parser->ast_root!=NULL;
         size_t diagnostic_index;
-        for(diagnostic_index=diag_count;
+        for(diagnostic_index=0u;
             diagnostic_index<occ_diagnostics_count(&lexer_diagnostics);
             ++diagnostic_index) {
             OccDiagnosticView view;
@@ -189,7 +160,9 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
                 invocation->diagnostic_sink.user_context,&diagnostic))
                 goto report_failure;
         }
-        result->diagnostics_count=(uint32_t)occ_diagnostics_count(&lexer_diagnostics);
+        if(occ_diagnostics_count(&lexer_diagnostics)>UINT32_MAX-diag_count)
+            goto allocation_failure;
+        result->diagnostics_count=diag_count+(uint32_t)occ_diagnostics_count(&lexer_diagnostics);
         if(!parse_ok) {
             result->output_validity=OIR_VALIDITY_NONE;
             result->failure_code=2006u;
@@ -241,7 +214,7 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
     result->required_output_capacity=0u;
     result->output_validity=OIR_VALIDITY_VALID;
     result->failure_code=0u;
-    result->diagnostics_count=(uint32_t)occ_diagnostics_count(&lexer_diagnostics);
+    result->diagnostics_count=diag_count+(uint32_t)occ_diagnostics_count(&lexer_diagnostics);
     module_status=OCC_MODULE_STATUS_OK;
     goto cleanup;
 
