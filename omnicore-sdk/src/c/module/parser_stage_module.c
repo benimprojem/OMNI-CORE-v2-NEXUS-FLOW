@@ -82,7 +82,12 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
        token_artifact.header.artifact_kind!=OIR_KIND_TOKEN_STREAM) {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
-    if(source_artifact.header.job_id!=token_artifact.header.job_id ||
+    if(source_artifact.header.payload_schema_major!=OIR_SOURCE_UNIT_SCHEMA_MAJOR ||
+       source_artifact.header.payload_schema_minor!=OIR_SOURCE_UNIT_SCHEMA_MINOR ||
+       token_artifact.header.payload_schema_major!=OIR_TOKEN_STREAM_SCHEMA_MAJOR ||
+       token_artifact.header.payload_schema_minor!=OIR_TOKEN_STREAM_SCHEMA_MINOR ||
+       token_artifact.header.producer_stage_id!=OCC_STAGE_LEXER ||
+       source_artifact.header.job_id!=token_artifact.header.job_id ||
        source_artifact.header.job_id!=invocation->job_id) {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     }
