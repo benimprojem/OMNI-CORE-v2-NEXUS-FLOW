@@ -18,9 +18,11 @@
 #ifdef _WIN32
 #include <direct.h>
 #define OCC_MKDIR(path) _mkdir(path)
+#define OCC_IS_DIRECTORY(mode) (((mode) & _S_IFMT) == _S_IFDIR)
 #else
 #include <unistd.h>
 #define OCC_MKDIR(path) mkdir(path, 0777)
+#define OCC_IS_DIRECTORY(mode) S_ISDIR(mode)
 #endif
 
 static int path_format(
@@ -46,7 +48,7 @@ static int path_format(
 
 static int ensure_directory(const char* directory) {
     struct stat info;
-    if (stat(directory, &info) == 0) return S_ISDIR(info.st_mode);
+    if (stat(directory, &info) == 0) return OCC_IS_DIRECTORY(info.st_mode);
     if (OCC_MKDIR(directory) == 0) return 1;
     if (errno == EEXIST && stat(directory, &info) == 0) {
         return S_ISDIR(info.st_mode);
