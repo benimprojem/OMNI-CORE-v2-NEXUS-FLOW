@@ -767,5 +767,23 @@ int main(int argc, char** argv) {
         }
     }
 
+    {
+        static const uint8_t source_text[] = "x";
+        ParserContext* text_parser = parser_init_source("token-text.nxf",
+            source_text, sizeof(source_text) - 1u);
+        Token tokens[2];
+        int rejected;
+        if (!text_parser) return 1;
+        tokens[0] = lexer_next_token(text_parser);
+        tokens[1] = lexer_next_token(text_parser);
+        tokens[0].start = "y";
+        rejected = !parser_attach_token_stream(text_parser, tokens, 2u);
+        parser_destroy(text_parser);
+        if (!rejected) {
+            fprintf(stderr, "Token text that differs from its source span was accepted.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
