@@ -136,7 +136,7 @@ The current API:
 - Fails closed if collector allocation fails or the collector is missing.
 - Rejects invalid severity/code, malformed source spans and embedded NUL in message text.
 
-The collector is now linked into the C frontend and can be attached to both `ParserContext` and `SemanticContext`. Parser/lexer and semantic findings are mirrored into the job-owned collector while the legacy linked `Error` lists remain available for the current CLI and existing tests. Stable stage identifiers are defined for lexer, parser and semantic analysis. The initial bridge records line/column locations only; byte offsets, end spans, related locations and the OIR `DIAGNOSTICS` section codec remain pending. The collector is not internally synchronized, so the orchestrator must serialize writes to one collector before same-job concurrent reporting.
+The collector is now linked into the C frontend and can be attached to both `ParserContext` and `SemanticContext`. Parser/lexer and semantic findings are mirrored into the job-owned collector while the legacy linked `Error` lists remain available for the current CLI and existing tests. Stable stage identifiers are defined for lexer, parser and semantic analysis. The initial bridge records line/column locations only; byte offsets, end spans and related locations remain pending. The OIR `DIAGNOSTICS` schema 1.0 codec is now implemented as a separate adapter library with zero-copy validated reads and malformed-input tests. The collector is not internally synchronized, so the orchestrator must serialize writes to one collector before same-job concurrent reporting.
 
 
 ## 11. Initial compilation context implementation
