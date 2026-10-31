@@ -1050,6 +1050,21 @@ if(BUILD_TESTING)
             "${C_SOURCE_DIR}/tests/test_undefined_variable.nxf"
     )
 
+    add_executable(test_semantic_oom "${C_SOURCE_DIR}/tests/test_semantic_oom.c")
+    target_include_directories(test_semantic_oom PRIVATE "${C_PARSER_DIR}")
+    target_link_libraries(test_semantic_oom PRIVATE occ_frontend)
+    if(MSVC)
+        target_compile_options(test_semantic_oom PRIVATE /W4)
+    else()
+        target_compile_options(test_semantic_oom PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME semantic_legacy_allocation_failure_injection
+        COMMAND test_semantic_oom
+            "${C_SOURCE_DIR}/tests/test1.nxf"
+            "${C_SOURCE_DIR}/tests/test3.nxf"
+            "${C_SOURCE_DIR}/tests/test_undefined_variable.nxf"
+    )
+
     add_executable(test_semantic_result
         "${C_SOURCE_DIR}/tests/test_semantic_result.c"
     )
