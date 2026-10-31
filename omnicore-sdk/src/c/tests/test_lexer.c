@@ -107,5 +107,50 @@ int main(void) {
         free(comment_ctx.source_buffer);
     }
 
+    {
+        const char escaped_source[] = "\"a\\\\\"b\" name";
+        ParserContext escaped_ctx;
+        Token string_token, identifier;
+        memset(&escaped_ctx, 0, sizeof(escaped_ctx));
+        escaped_ctx.source_len = sizeof(escaped_source) - 1u;
+        escaped_ctx.source_buffer = (char*)malloc(sizeof(escaped_source));
+        if (!escaped_ctx.source_buffer) return 1;
+        memcpy(escaped_ctx.source_buffer, escaped_source, sizeof(escaped_source));
+        escaped_ctx.current_line = 1;
+        escaped_ctx.current_col = 1;
+        string_token = lexer_next_token(&escaped_ctx);
+        identifier = lexer_next_token(&escaped_ctx);
+        if (string_token.type != TOKEN_STRING || string_token.source_length != 6u ||
+            identifier.type != TOKEN_IDENTIFIER || identifier.source_offset != 7u) {
+            fprintf(stderr, "Escaped quote incorrectly terminated a string literal.\\n");
+            free(escaped_ctx.source_buffer);
+            return 1;
+        }
+        free(escaped_ctx.source_buffer);
+    }
+
+    {
+        const char trailing_escape[] = "'\\\\";
+        ParserContext char_ctx;
+        Token error, eof;
+        memset(&char_ctx, 0, sizeof(char_ctx));
+        char_ctx.source_len = sizeof(trailing_escape) - 1u;
+        char_ctx.source_buffer = (char*)malloc(sizeof(trailing_escape));
+        if (!char_ctx.source_buffer) return 1;
+        memcpy(char_ctx.source_buffer, trailing_escape, sizeof(trailing_escape));
+        char_ctx.current_line = 1;
+        char_ctx.current_col = 1;
+        error = lexer_next_token(&char_ctx);
+        eof = lexer_next_token(&char_ctx);
+        if (error.type != TOKEN_ERROR || error.source_offset != 0u ||
+            error.source_length != char_ctx.source_len || char_ctx.pos != char_ctx.source_len ||
+            eof.type != TOKEN_EOF) {
+            fprintf(stderr, "Trailing character escape advanced beyond EOF.\\n");
+            free(char_ctx.source_buffer);
+            return 1;
+        }
+        free(char_ctx.source_buffer);
+    }
+
     return 0;
 }
