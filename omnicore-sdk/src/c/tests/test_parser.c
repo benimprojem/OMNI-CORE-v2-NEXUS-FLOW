@@ -489,11 +489,16 @@ done:
 
 static int test_parser_allocation_failure_injection(void) {
     static const char source[] =
-        "f:main() { v:first = 11; v:second = first + 7; ret; }";
+        "f:main(a!i32, b!i64) {"
+        " v:first = a + b;"
+        " { v:inner = combine(first, 7); }"
+        " v:pair = (first, b);"
+        " ret;"
+        "}";
     size_t fail_at;
     size_t oom_count = 0u;
     int reached_success = 0;
-    for (fail_at = 1u; fail_at <= 64u; ++fail_at) {
+    for (fail_at = 1u; fail_at <= 256u; ++fail_at) {
         ParserContext* ctx = parser_init_source(
             "parser-oom-injection.nxf", (const uint8_t*)source, sizeof(source) - 1u);
         int result;
