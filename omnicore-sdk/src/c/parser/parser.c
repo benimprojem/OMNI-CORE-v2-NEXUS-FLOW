@@ -207,7 +207,7 @@ static void parser_make_token_span(
     line = (uint32_t)token->line;
     column = (uint32_t)token->col;
     for (i = 0; i < length; ++i) {
-        if (ctx->source_buffer[start + i] == '\\n') {
+        if (ctx->source_buffer[start + i] == '\n') {
             if (line == UINT32_MAX) return;
             ++line;
             column = 1u;
