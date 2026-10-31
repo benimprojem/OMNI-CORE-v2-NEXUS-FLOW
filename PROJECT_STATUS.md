@@ -522,3 +522,16 @@ Denetimde netleşen noktalar:
 - CMake target: `occ_oir_ast_frontend_writer`; CTest: `oir_ast_frontend_writer_all_kinds_and_payload_roundtrip`.
 - **CI run 41158918126:** Windows, Ubuntu, macOS build/test başarılı; Ubuntu CTest 28/28, ASan/UBSan ve Valgrind başarılı.
 - **Sıradaki adım:** OIR payload reader/materializer. Önce tüm payload ve graph/schema doğrulaması; sonra tüm AST node ve string allocation'ları disconnected halde; en son no-fail linking pass. Kısmi graph üzerinde `ast_destroy()` çağrılmayacak.
+
+
+## OIR AST → frontend reader/materializer — 31 Ekim 2026
+
+- `oir_ast_frontend_reader.h/.c` eklendi. Reader önce payload, node table, TLV, UTF-8/string refs, field schema, graph ownership ve frontend scalar temsil sınırlarını doğruluyor.
+- Bütün frontend node'ları `ast_create()` ile disconnected halde allocate ediliyor; scalar alanlar ve bağımsız owned strings dolduruluyor. En son pass child pointer'ları ve `next` kardeş bağlantılarını kuruyor.
+- Başarısız allocation/decode/link durumunda cleanup recursive değil: her node'un kendi string alanları ve node belleği ayrı ayrı serbest bırakılıyor. Kısmi graph üzerinde `ast_destroy()` çağrılmıyor.
+- `OIR_STATUS_OUT_OF_MEMORY` durumu eklendi.
+- Bilinmeyen optional scalar/string field'lar atlanabilir; bilinmeyen optional NODE_REF owning edge'i kaybettirip orphan/leak oluşturabileceği için allocation öncesi reddediliyor.
+- Testler 80 node türünün round-trip'ini, source positions, token/scalar/string değerlerini, nested Nexus Flow child pointer'larını, bozuk ownership graph ve invalid literal tag reddini kapsıyor.
+- CMake target: `occ_oir_ast_frontend_reader`; CTest: `oir_ast_frontend_reader_all_kinds_validate_before_materialize`.
+- **İlk CI run 41159448304:** Windows, Ubuntu, macOS başarılı; Ubuntu CTest 29/29, ASan/UBSan ve Valgrind başarılı. Sonraki cleanup commit'leri compiler warning'lerini kaldırdı ve unknown optional NODE_REF prevalidation ekledi; güncel CI doğrulaması bekleniyor.
+- **Sonraki aşama:** Reader CI tamamlandıktan sonra parser checkpoint OIR handoff ve AST codec malformed-input/fuzz test matrisi.
