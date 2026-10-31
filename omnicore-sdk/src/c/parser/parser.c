@@ -380,6 +380,7 @@ static void advance(Parser* p) {
         p->current = parser_next_token(p->ctx);
         if (p->current.type != TOKEN_ERROR) break;
         error_at(p, &p->current, ERR_LEXER_ERROR, p->current.start);
+        if (p->ctx->status == PARSER_STATUS_OUT_OF_MEMORY) break;
     }
 }
 
@@ -2544,6 +2545,9 @@ int parser_run(ParserContext* ctx) {
     parser.panic_mode = 0;
 
     advance(&parser); // İlk tokeni yükle
+    if (ctx->status == PARSER_STATUS_OUT_OF_MEMORY) {
+        return (int)ctx->status;
+    }
 
     ASTProgram* program = (ASTProgram*)parser_ast_create(&parser, AST_PROGRAM);
     if (!program) return (int)ctx->status;
