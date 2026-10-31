@@ -9,12 +9,9 @@
 #include <string.h>
 
 #include "parser/parser.h"
-#include "parser/lexer.h"
 #include "parser/semantic.h"
 #include "module/occ_module_loader.h"
 #include "oir/oir_payload.h"
-#include "oir/oir_token_stream.h"
-#include "oir/oir_diagnostics.h"
 #include "oir/oir_ast_artifact.h"
 #include "oir/oir_ast_node_table.h"
 #include "oir/oir_ast_graph.h"
@@ -40,7 +37,7 @@
 
 typedef int (*CodegenRunFn)(const char*, const char*, const char*);
 
-#define OCC_FRONTEND_TOKEN_LIMIT 1000000u
+#define OCC_TOKEN_OUTPUT_MAX (64u * 1024u * 1024u)
 #define OCC_AST_OUTPUT_MAX (256u * 1024u * 1024u)
 
 static int path_join(char* out, size_t out_size, const char* base, const char* relative);
@@ -80,26 +77,18 @@ static int occ_build_and_run_parser_module(
     ParserContext** out_context
 ) {
     ParserContext* source_context = NULL;
-    Token* tokens = NULL;
-    OirTokenStreamInput* token_inputs = NULL;
-    size_t token_count = 0u, token_capacity = 0u;
     uint8_t *source_payload = NULL, *source_artifact = NULL;
-    uint8_t *token_payload = NULL, *token_artifact = NULL, *diagnostics_payload = NULL;
-    uint8_t* ast_artifact = NULL;
+    uint8_t *token_artifact = NULL, *ast_artifact = NULL;
     size_t source_payload_length = 0u, source_artifact_length = 0u;
-    size_t token_payload_length = 0u, token_artifact_length = 0u;
-    size_t diagnostics_payload_length = 0u, ast_artifact_length = 0u;
-    size_t source_payload_capacity = 0u, token_payload_capacity = 0u;
-    size_t token_artifact_capacity = 0u, diagnostics_payload_capacity = 0u;
-    size_t path_length;
+    size_t token_artifact_length = 0u, ast_artifact_length = 0u;
+    size_t source_payload_capacity = 0u, path_length;
     OirArtifactHeader header;
-    OirSectionInput sections[2];
-    uint32_t section_count;
+    OirSectionInput section;
     OccModuleArtifactInputV1 module_inputs[2];
-    OccLoadedStageModule loaded;
-    char module_path[OCC_PATH_BUFFER];
-    char loader_error[512];
-    const char* module_filename;
+    OccLoadedStageModule lexer_loaded, parser_loaded;
+    char lexer_module_path[OCC_PATH_BUFFER], parser_module_path[OCC_PATH_BUFFER];
+    char lexer_error[512], parser_error[512];
+    const char *lexer_filename, *parser_filename;
     OirArtifactView ast_view;
     OirSectionView ast_payload_section;
     OirAstNodeTableView ast_table;
@@ -113,18 +102,18 @@ static int occ_build_and_run_parser_module(
     int success = 0;
 
     if (out_context) *out_context = NULL;
-    memset(&loaded, 0, sizeof(loaded));
+    memset(&lexer_loaded, 0, sizeof(lexer_loaded));
+    memset(&parser_loaded, 0, sizeof(parser_loaded));
     if (!source_path || !executable_dir || !job || !out_context) return 0;
 
     source_context = parser_init(source_path);
     if (!source_context) {
         occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6001u,
-            "The source file could not be opened by the lexer host.");
+            "The source file could not be opened by the OCC host.");
         goto cleanup;
     }
-    /* parser_init() initializes lexer state; the host owns AST attachment later. */
+    /* The host owns this context only for source bytes and later AST attachment. */
     source_context->ast_root = NULL;
-    parser_attach_diagnostics(source_context, &job->diagnostics, OCC_STAGE_LEXER);
 
     path_length = strlen(source_path);
     if (path_length > UINT32_MAX ||
@@ -135,55 +124,6 @@ static int occ_build_and_run_parser_module(
             "The source unit exceeds the supported OIR size.");
         goto cleanup;
     }
-
-    token_capacity = 256u;
-    tokens = (Token*)malloc(token_capacity * sizeof(*tokens));
-    token_inputs = (OirTokenStreamInput*)malloc(token_capacity * sizeof(*token_inputs));
-    if (!tokens || !token_inputs) goto allocation_failure;
-
-    for (;;) {
-        Token token = lexer_next_token(source_context);
-        if (token_count == token_capacity) {
-            size_t next_capacity;
-            Token* next_tokens;
-            OirTokenStreamInput* next_inputs;
-            if (token_capacity >= OCC_FRONTEND_TOKEN_LIMIT) {
-                occ_add_host_diagnostic(job, OCC_STAGE_LEXER, 6003u,
-                    "The source exceeds the frontend token limit.");
-                goto cleanup;
-            }
-            next_capacity = token_capacity * 2u;
-            if (next_capacity > OCC_FRONTEND_TOKEN_LIMIT) next_capacity = OCC_FRONTEND_TOKEN_LIMIT;
-            if (next_capacity > SIZE_MAX / sizeof(*tokens) ||
-                next_capacity > SIZE_MAX / sizeof(*token_inputs)) goto allocation_failure;
-            next_tokens = (Token*)realloc(tokens, next_capacity * sizeof(*tokens));
-            if (!next_tokens) goto allocation_failure;
-            tokens = next_tokens;
-            next_inputs = (OirTokenStreamInput*)realloc(token_inputs,
-                next_capacity * sizeof(*token_inputs));
-            if (!next_inputs) goto allocation_failure;
-            token_inputs = next_inputs;
-            token_capacity = next_capacity;
-        }
-        tokens[token_count] = token;
-        oir_status = oir_token_stream_input_from_lexer_token(
-            &tokens[token_count], &token_inputs[token_count]);
-        if (oir_status != OIR_STATUS_OK) {
-            occ_add_host_diagnostic(job, OCC_STAGE_LEXER, 6004u,
-                "A frontend token could not be represented in TOKEN_STREAM OIR.");
-            goto cleanup;
-        }
-        ++token_count;
-        if (token.type == TOKEN_EOF) break;
-        if (token_count >= OCC_FRONTEND_TOKEN_LIMIT) {
-            occ_add_host_diagnostic(job, OCC_STAGE_LEXER, 6003u,
-                "The source exceeds the frontend token limit.");
-            goto cleanup;
-        }
-    }
-    if (token_count == 0u || token_count > UINT32_MAX ||
-        job->diagnostics.count > UINT32_MAX ||
-        job->diagnostics.allocation_failed) goto cleanup;
 
     source_payload_capacity = OIR_SOURCE_UNIT_HEADER_SIZE + path_length +
         source_context->source_len;
@@ -211,104 +151,70 @@ static int occ_build_and_run_parser_module(
     header.producer_stage_id = OCC_STAGE_OCC_HOST;
     header.validity = OIR_VALIDITY_VALID;
     header.job_id = job->job_id;
-    memset(sections, 0, sizeof(sections));
-    sections[0].type = OIR_SECTION_PAYLOAD;
-    sections[0].version = 1u;
-    sections[0].flags = OIR_SECTION_FLAG_REQUIRED;
-    sections[0].data = source_payload;
-    sections[0].length = source_payload_length;
+    memset(&section, 0, sizeof(section));
+    section.type = OIR_SECTION_PAYLOAD;
+    section.version = 1u;
+    section.flags = OIR_SECTION_FLAG_REQUIRED;
+    section.data = source_payload;
+    section.length = source_payload_length;
     oir_status = oir_artifact_write(source_artifact, source_artifact_length,
-        &header, sections, 1u, &source_artifact_length);
-    if (oir_status != OIR_STATUS_OK) goto oir_failure;
-
-    if (token_count > (SIZE_MAX - OIR_TOKEN_STREAM_HEADER_SIZE) /
-        OIR_TOKEN_STREAM_RECORD_SIZE) goto allocation_failure;
-    token_payload_capacity = OIR_TOKEN_STREAM_HEADER_SIZE +
-        token_count * OIR_TOKEN_STREAM_RECORD_SIZE;
-    token_payload = (uint8_t*)malloc(token_payload_capacity);
-    if (!token_payload) goto allocation_failure;
-
-    diagnostics_payload_capacity = OIR_DIAGNOSTICS_HEADER_SIZE;
-    if (job->diagnostics.count >
-        (SIZE_MAX - diagnostics_payload_capacity) / OIR_DIAGNOSTICS_RECORD_SIZE)
-        goto allocation_failure;
-    diagnostics_payload_capacity += job->diagnostics.count * OIR_DIAGNOSTICS_RECORD_SIZE;
-    if (job->diagnostics.text_length > SIZE_MAX - diagnostics_payload_capacity)
-        goto allocation_failure;
-    diagnostics_payload_capacity += job->diagnostics.text_length;
-    if (job->diagnostics.count > 0u) {
-        diagnostics_payload = (uint8_t*)malloc(diagnostics_payload_capacity);
-        if (!diagnostics_payload) goto allocation_failure;
-        oir_status = oir_diagnostics_payload_write(diagnostics_payload,
-            diagnostics_payload_capacity, &job->diagnostics,
-            &diagnostics_payload_length);
-        if (oir_status != OIR_STATUS_OK) goto oir_failure;
-    }
-
-    oir_status = oir_token_stream_write(token_payload, token_payload_capacity,
-        0u, (uint64_t)source_context->source_len,
-        (uint32_t)job->diagnostics.count, token_inputs, (uint32_t)token_count,
-        &token_payload_length);
-    if (oir_status != OIR_STATUS_OK) goto oir_failure;
-
-    token_artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE +
-        token_payload_length;
-    section_count = 1u;
-    if (diagnostics_payload) {
-        if (diagnostics_payload_length > SIZE_MAX - token_artifact_capacity -
-            OIR_SECTION_HEADER_SIZE) goto allocation_failure;
-        token_artifact_capacity += OIR_SECTION_HEADER_SIZE + diagnostics_payload_length;
-        section_count = 2u;
-    }
-    token_artifact = (uint8_t*)malloc(token_artifact_capacity);
-    if (!token_artifact) goto allocation_failure;
-
-    header.artifact_kind = OIR_KIND_TOKEN_STREAM;
-    header.payload_schema_major = OIR_TOKEN_STREAM_SCHEMA_MAJOR;
-    header.payload_schema_minor = OIR_TOKEN_STREAM_SCHEMA_MINOR;
-    header.producer_stage_id = OCC_STAGE_LEXER;
-    sections[0].data = token_payload;
-    sections[0].length = token_payload_length;
-    if (diagnostics_payload) {
-        sections[1].type = OIR_SECTION_DIAGNOSTICS;
-        sections[1].version = 1u;
-        sections[1].flags = 0u;
-        sections[1].data = diagnostics_payload;
-        sections[1].length = diagnostics_payload_length;
-    }
-    oir_status = oir_artifact_write(token_artifact, token_artifact_capacity,
-        &header, sections, section_count, &token_artifact_length);
+        &header, &section, 1u, &source_artifact_length);
     if (oir_status != OIR_STATUS_OK) goto oir_failure;
 
 #if defined(_WIN32)
-    module_filename = "occ_parser_stage.dll";
+    lexer_filename = "occ_lexer_stage.dll";
+    parser_filename = "occ_parser_stage.dll";
 #elif defined(__APPLE__)
-    module_filename = "libocc_parser_stage.dylib";
+    lexer_filename = "libocc_lexer_stage.dylib";
+    parser_filename = "libocc_parser_stage.dylib";
 #else
-    module_filename = "libocc_parser_stage.so";
+    lexer_filename = "libocc_lexer_stage.so";
+    parser_filename = "libocc_parser_stage.so";
 #endif
-    if (!path_join(module_path, sizeof(module_path), executable_dir, module_filename)) {
+    if (!path_join(lexer_module_path, sizeof(lexer_module_path),
+        executable_dir, lexer_filename) ||
+        !path_join(parser_module_path, sizeof(parser_module_path),
+        executable_dir, parser_filename)) {
         occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6005u,
-            "The parser stage module path could not be constructed.");
+            "A frontend stage module path could not be constructed.");
         goto cleanup;
     }
-    if (occ_module_loader_open(&loaded, module_path, loader_error,
-        sizeof(loader_error)) != OCC_MODULE_LOADER_OK) {
-        occ_add_host_diagnostic(job, OCC_STAGE_PARSER, 6006u,
-            loader_error[0] ? loader_error : "The parser stage module could not be loaded.");
+
+    if (occ_module_loader_open(&lexer_loaded, lexer_module_path,
+        lexer_error, sizeof(lexer_error)) != OCC_MODULE_LOADER_OK) {
+        occ_add_host_diagnostic(job, OCC_STAGE_LEXER, 6006u,
+            lexer_error[0] ? lexer_error : "The lexer stage module could not be loaded.");
         goto cleanup;
     }
 
     memset(module_inputs, 0, sizeof(module_inputs));
     module_inputs[0].bytes = source_artifact;
     module_inputs[0].length = source_artifact_length;
+    if (occ_module_loader_invoke(&lexer_loaded, module_inputs, 1u, job->job_id,
+        &job->diagnostics, 256u, OCC_TOKEN_OUTPUT_MAX,
+        &token_artifact, &token_artifact_length) != OCC_MODULE_LOADER_OK) {
+        if (occ_diagnostics_count(&job->diagnostics) == 0u) {
+            occ_add_host_diagnostic(job, OCC_STAGE_LEXER, 6007u,
+                "The lexer stage module failed to produce TOKEN_STREAM OIR.");
+        }
+        goto cleanup;
+    }
+    occ_module_loader_close(&lexer_loaded);
+
+    if (occ_module_loader_open(&parser_loaded, parser_module_path,
+        parser_error, sizeof(parser_error)) != OCC_MODULE_LOADER_OK) {
+        occ_add_host_diagnostic(job, OCC_STAGE_PARSER, 6008u,
+            parser_error[0] ? parser_error : "The parser stage module could not be loaded.");
+        goto cleanup;
+    }
+
     module_inputs[1].bytes = token_artifact;
     module_inputs[1].length = token_artifact_length;
-    if (occ_module_loader_invoke(&loaded, module_inputs, 2u, job->job_id,
+    if (occ_module_loader_invoke(&parser_loaded, module_inputs, 2u, job->job_id,
         &job->diagnostics, 4096u, OCC_AST_OUTPUT_MAX,
         &ast_artifact, &ast_artifact_length) != OCC_MODULE_LOADER_OK) {
         if (occ_diagnostics_count(&job->diagnostics) == 0u) {
-            occ_add_host_diagnostic(job, OCC_STAGE_PARSER, 6007u,
+            occ_add_host_diagnostic(job, OCC_STAGE_PARSER, 6009u,
                 "The parser stage module rejected the source or failed to produce AST OIR.");
         }
         goto cleanup;
@@ -350,12 +256,12 @@ static int occ_build_and_run_parser_module(
     goto cleanup;
 
 allocation_failure:
-    occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6008u,
-        "Memory allocation failed while preparing the parser stage handoff.");
+    occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6010u,
+        "Memory allocation failed while preparing the frontend stage handoff.");
     goto cleanup;
 oir_failure:
-    occ_add_host_diagnostic(job, OCC_STAGE_OIR, 6009u,
-        "The OCC host could not construct or validate a parser OIR artifact.");
+    occ_add_host_diagnostic(job, OCC_STAGE_OIR, 6011u,
+        "The OCC host could not construct or validate a frontend OIR artifact.");
     goto cleanup;
 cleanup:
     if (!success && source_context && out_context && !*out_context) {
@@ -368,14 +274,11 @@ cleanup:
     free(visited);
     free(graph_stack);
     free(ast_artifact);
-    occ_module_loader_close(&loaded);
+    free(token_artifact);
+    occ_module_loader_close(&parser_loaded);
+    occ_module_loader_close(&lexer_loaded);
     free(source_payload);
     free(source_artifact);
-    free(token_payload);
-    free(token_artifact);
-    free(diagnostics_payload);
-    free(tokens);
-    free(token_inputs);
     if (source_context) parser_destroy(source_context);
     return success;
 }
