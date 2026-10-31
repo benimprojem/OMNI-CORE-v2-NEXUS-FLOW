@@ -582,6 +582,118 @@ int main(void) {
             relation_view.record_count == 0u);
     }
 
-    puts("OIR SEMANTIC_AST scope/type/symbol/annotation/relation codec tests passed.");
+
+    {
+        const OirSemanticConversion conversions[] = {
+            { 4u, 0u, 1u, 2u, OIR_SEMANTIC_CONVERSION_WIDENING,
+                OIR_SEMANTIC_CONVERSION_FLAG_IMPLICIT },
+            { 4u, 1u, 2u, 3u, OIR_SEMANTIC_CONVERSION_NARROWING,
+                OIR_SEMANTIC_CONVERSION_FLAG_EXPLICIT },
+            { 7u, 0u, 1u, 1u, OIR_SEMANTIC_CONVERSION_IDENTITY,
+                OIR_SEMANTIC_CONVERSION_FLAG_IMPLICIT }
+        };
+        uint8_t conversion_bytes[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE +
+            3u * OIR_SEMANTIC_CONVERSION_RECORD_SIZE];
+        uint8_t conversion_second[sizeof(conversion_bytes)];
+        uint8_t conversion_bad[sizeof(conversion_bytes)];
+        uint8_t empty_conversions[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE];
+        size_t conversion_written = 0u;
+        size_t conversion_second_written = 0u;
+        size_t empty_conversion_written = 0u;
+        OirSemanticConversionsView conversion_view;
+        OirSemanticConversion decoded_conversion;
+
+        assert(oir_semantic_conversions_write(conversion_bytes,
+            sizeof(conversion_bytes), conversions, 3u,
+            &conversion_written) == OIR_STATUS_OK);
+        assert(conversion_written == sizeof(conversion_bytes));
+        assert(oir_semantic_conversions_open(conversion_bytes,
+            conversion_written, &conversion_view) == OIR_STATUS_OK);
+        assert(conversion_view.record_count == 3u);
+        assert(oir_semantic_conversions_get(&conversion_view, 1u,
+            &decoded_conversion) == OIR_STATUS_OK);
+        assert(decoded_conversion.node_id == 4u &&
+            decoded_conversion.operand_ordinal == 1u &&
+            decoded_conversion.source_type_id == 2u &&
+            decoded_conversion.destination_type_id == 3u &&
+            decoded_conversion.kind == OIR_SEMANTIC_CONVERSION_NARROWING &&
+            decoded_conversion.flags == OIR_SEMANTIC_CONVERSION_FLAG_EXPLICIT);
+
+        assert(oir_semantic_conversions_write(conversion_second,
+            sizeof(conversion_second), conversions, 3u,
+            &conversion_second_written) == OIR_STATUS_OK);
+        assert(conversion_second_written == conversion_written &&
+            memcmp(conversion_bytes, conversion_second, conversion_written) == 0);
+
+        memcpy(conversion_bad, conversion_bytes, conversion_written);
+        write_u32(conversion_bad + 4u, 24u);
+        assert(oir_semantic_conversions_open(conversion_bad,
+            conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(conversion_bad, conversion_bytes, conversion_written);
+        write_u32(conversion_bad, UINT32_MAX);
+        assert(oir_semantic_conversions_open(conversion_bad,
+            conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(conversion_bad, conversion_bytes, conversion_written);
+        write_u32(conversion_bad + OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE +
+            OIR_SEMANTIC_CONVERSION_RECORD_SIZE, 4u);
+        assert(oir_semantic_conversions_open(conversion_bad,
+            conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(conversion_bad, conversion_bytes, conversion_written);
+        write_u32(conversion_bad + OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE, 3u);
+        assert(oir_semantic_conversions_open(conversion_bad,
+            conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(conversion_bad, conversion_bytes, conversion_written);
+        write_u32(conversion_bad + OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE + 8u, 0u);
+        assert(oir_semantic_conversions_open(conversion_bad,
+            conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(conversion_bad, conversion_bytes, conversion_written);
+        conversion_bad[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE + 16u] = 0xffu;
+        conversion_bad[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE + 17u] = 0u;
+        assert(oir_semantic_conversions_open(conversion_bad,
+            conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(conversion_bad, conversion_bytes, conversion_written);
+        conversion_bad[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE + 18u] = 0u;
+        conversion_bad[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE + 19u] = 0u;
+        assert(oir_semantic_conversions_open(conversion_bad,
+            conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(conversion_bad, conversion_bytes, conversion_written);
+        conversion_bad[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE + 18u] = 3u;
+        conversion_bad[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE + 19u] = 0u;
+        assert(oir_semantic_conversions_open(conversion_bad,
+            conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
+
+        memcpy(conversion_bad, conversion_bytes, conversion_written);
+        write_u32(conversion_bad + OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE +
+            2u * OIR_SEMANTIC_CONVERSION_RECORD_SIZE, 3u);
+        assert(oir_semantic_conversions_open(conversion_bad,
+            conversion_written, &conversion_view) == OIR_STATUS_INVALID_SECTION);
+
+        assert(oir_semantic_conversions_open(conversion_bytes,
+            conversion_written - 1u, &conversion_view) ==
+            OIR_STATUS_LENGTH_MISMATCH);
+
+        memset(conversion_second, 0xa5, sizeof(conversion_second));
+        assert(oir_semantic_conversions_write(conversion_second,
+            sizeof(conversion_second) - 1u, conversions, 3u,
+            &conversion_second_written) == OIR_STATUS_BUFFER_TOO_SMALL);
+        assert(conversion_second_written == 0u && conversion_second[0] == 0xa5u);
+
+        assert(oir_semantic_conversions_write(empty_conversions,
+            sizeof(empty_conversions), NULL, 0u,
+            &empty_conversion_written) == OIR_STATUS_OK);
+        assert(empty_conversion_written == sizeof(empty_conversions));
+        assert(oir_semantic_conversions_open(empty_conversions,
+            empty_conversion_written, &conversion_view) == OIR_STATUS_OK &&
+            conversion_view.record_count == 0u);
+    }
+
+    puts("OIR SEMANTIC_AST all table codec tests passed.");
     return 0;
 }
