@@ -908,6 +908,11 @@ rules ModeSelection(n) {
 
 f:checkMode(n) {
     apply rules(ModeSelection(n));
+
+    on ModeSelection.Positive {
+        echo("Positive handler");
+    }
+
     echo("Normal continuation");
 }
 \`\`\`
