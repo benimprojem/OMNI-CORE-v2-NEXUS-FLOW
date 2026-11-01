@@ -409,6 +409,9 @@ G:  (a == b) ? process(a) : process(b);
 
 ```
 
+
+**Önemli kontrol akışı kuralı:** `jump(label)` aynı basic block içinde bir konuma atlamakla sınırlı değildir. Hedef etiket, fonksiyon içindeki başka bir basic block'un giriş noktası olabilir. Jump, bulunduğu block'u sonlandırır ve kontrolü hedef block'a aktarır; aradaki kaynak satırları yürütülmez. Hedef block kaynak kodda ileri veya geri konumda bulunabilir. Bu nedenle `jump`, fonksiyon içindeki farklı kontrol akışı bölgelerine doğrudan geçiş yapmak için kullanılan genel etiketli aktarım komutudur. Fonksiyon kapsamı ve lexical-scope güvenliği ayrıca denetlenir.
+
 ### 5.3.1 NEXUSFLOW: SELECT ve SCAN
 
 NexusFlow'da `select` ve `scan` benzer şekilde dallanma oluşturur; ancak aynı işi yapmazlar:
