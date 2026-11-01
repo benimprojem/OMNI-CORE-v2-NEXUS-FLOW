@@ -1594,8 +1594,8 @@ LoopHeader
 
 ### Negatif testler
 
-- **MR-OIR-008-N1:** Loop kapsamı dışındaki bir `on` handler içinde `break` kullanılması kabul edilir.
-- **MR-OIR-008-N2:** Loop kapsamı dışındaki bir `on` handler içinde `continue` kullanılması kabul edilir.
+- **MR-OIR-008-N1:** Loop kapsamı dışındaki bir `on` handler içinde `break` kullanılması reddedilir.
+- **MR-OIR-008-N2:** Loop kapsamı dışındaki bir `on` handler içinde `continue` kullanılması reddedilir.
 - **MR-OIR-008-N3:** `continue` kenarının loop exit bloğuna bağlanması.
 - **MR-OIR-008-N4:** `break` kenarının loop latch bloğuna bağlanması.
 - **MR-OIR-008-N5:** `continue` terminator'ından sonra iteration tail'e sahte kenar oluşturulması.
