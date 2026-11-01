@@ -351,6 +351,7 @@ OirStatus oir_lower_semantic_ast_return(
     ExprState st;
     OirModuleInput m;
     OirStatus s;
+    fprintf(stderr,"lowerer entry\\n");
     if (written) *written=0u;
     if (!a || !w || !output || !written || !w->types || !w->functions ||
         !w->blocks || !w->values || !w->instructions || !w->operands || !w->strings)
@@ -362,6 +363,7 @@ OirStatus oir_lower_semantic_ast_return(
         (s=ref(&a->ast,root.node_id,1u,&decl))!=OIR_STATUS_OK || !decl ||
         (s=node(&a->ast,decl,&fn))!=OIR_STATUS_OK || fn.node_kind_id!=N_FUNCTION || fn.next_node_id)
         return OIR_STATUS_INVALID_SECTION;
+    fprintf(stderr,"root/function ok\\n");
     if ((s=field(&a->ast,fn.node_id,3u,OIR_AST_VALUE_BOOL,&f))!=OIR_STATUS_OK || f.value[0])
         return OIR_STATUS_INVALID_SECTION;
     if ((s=ref(&a->ast,fn.node_id,6u,&decl))!=OIR_STATUS_OK || decl)
@@ -375,6 +377,7 @@ OirStatus oir_lower_semantic_ast_return(
         (s=ref(&a->ast,body_id,1u,&statement_id))!=OIR_STATUS_OK || !statement_id ||
         (s=node(&a->ast,statement_id,&statement))!=OIR_STATUS_OK)
         return OIR_STATUS_INVALID_SECTION;
+    fprintf(stderr,"body/statement ok\\n");
     {
         uint32_t lo=0u, hi=a->annotations.record_count;
         while (lo<hi) {
@@ -388,6 +391,7 @@ OirStatus oir_lower_semantic_ast_return(
             oir_semantic_annotations_get(&a->annotations,lo,&fa)!=OIR_STATUS_OK ||
             fa.node_id!=fn.node_id || !fa.resolved_type_id) return OIR_STATUS_INVALID_SECTION;
     }
+    fprintf(stderr,"function annotation ok typeid=%u\\n",(unsigned)fa.resolved_type_id);
     {
         uint32_t i;
         int found=0;
@@ -399,10 +403,12 @@ OirStatus oir_lower_semantic_ast_return(
         }
         if (!found || !type_name) return OIR_STATUS_INVALID_SECTION;
     }
+    fprintf(stderr,"semantic type lookup ok type=%.*s\\n",(int)ft.name_length,type_name);
     type_len=declared_len;
     if (declared[0]=='!') { hard=1; type_off=1u; --type_len; }
     if (type_len!=ft.name_length || memcmp(declared+type_off,type_name,type_len) ||
         hard!=((ft.flags&OIR_SEMANTIC_TYPE_FLAG_HARD)!=0u)) return OIR_STATUS_INVALID_SECTION;
+    fprintf(stderr,"declared type check ok\\n");
     memset(w->types,0,2u*sizeof(w->types[0]));
     if ((s=oir_type_map_primitive(&ft,type_name,ft.name_length,1u,&w->types[0]))!=OIR_STATUS_OK)
         return s;
