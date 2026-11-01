@@ -153,6 +153,11 @@ typedef struct OccTargetProfile {
     char os[OCC_TARGET_NAME_SIZE];
     char runtime[OCC_TARGET_NAME_SIZE];
     char package_format[OCC_TARGET_NAME_SIZE];
+    char abi[OCC_TARGET_NAME_SIZE];
+    char binary_format[OCC_TARGET_NAME_SIZE];
+    char entry_point[OCC_TARGET_NAME_SIZE];
+    uint32_t stack_alignment_bytes;
+    uint32_t page_size_bytes;
     OccTargetDevice devices[OCC_TARGET_MAX_DEVICES];
     uint32_t device_count;
     OccTargetMemory memories[OCC_TARGET_MAX_MEMORIES];
