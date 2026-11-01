@@ -2722,7 +2722,7 @@ Bu test, NEXUS Flow Syntax Reference'taki `(h)` yaşam döngüsü ve `}?;` blok 
 6. Cleanup bir kez yürütülür. Scope terk edildikten sonra eski activation'a ait kaynaklar yeniden kullanılmaz.
 7. `_>` ile sahipliği aktarılmış kaynak, eski scope'un cleanup işleminde tekrar serbest bırakılmaz.
 8. `break`, `continue`, `return` ve `jump` farklı kontrol terminator'ları olmaya devam eder; ancak bir kontrol aktarımı lexical scope'u terk ediyorsa ilgili scope-exit cleanup gereksinimi ayrıca uygulanır.
-9. `?;` Halt davranışıdır; JUMP cleanup terminator'ı değildir. `}?;` blok kaynak temizliğiyle ilişkilidir.
+9. Yalın `?;` Halt davranışıdır; bir kaynak/masa/DLL hedefine uygulanmış biçimi hedefi serbest bırakır. Hedefli kaynak bırakma işlemi JUMP cleanup terminator'ı değildir. `}?;` blok kaynak temizliğiyle ilişkilidir.
 10. Cleanup'ın hata vermesi, cleanup içinden kontrol aktarımı ve kesin runtime ABI davranışları ayrı bir alt sözleşme olarak açık bırakılır; bunlar için sessiz varsayım yapılamaz.
 
 ### 12.25.2 Test A — Aynı scope içinde geri dönüş, kaynak korunur
