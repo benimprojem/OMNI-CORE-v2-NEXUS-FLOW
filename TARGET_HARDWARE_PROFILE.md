@@ -1,6 +1,6 @@
 # Hardware Target Profile — Device Topology and Machine Binding
 
-**Status:** v2 normalized model and initial bounded OS/CPU parser implemented; backend integration remains incomplete  
+**Status:** v2 normalized model and bounded OS/CPU parser implemented; OCC host validates matching v2 profiles before invoking the legacy codegen path  
 **Schema direction:** Target descriptor v2  
 **Related:** [TARGET_MODEL.md](TARGET_MODEL.md), [TARGET_PIPELINE_CONTRACT.md](TARGET_PIPELINE_CONTRACT.md)
 
@@ -215,11 +215,12 @@ Other device kinds stay in the schema from the beginning so future programmable 
 - [x] Bounded initial v2 text parser for one platform + one CPU record, with strict keys, duplicate-key/section/list-token rejection, bounded lines, schema major/minor checks, explicit exact-machine rejection and validator handoff.
 - [x] Focused CTest regression target covering all four initial family descriptors (Win64, Linux64, macOS AArch64 and BareMetal64), explicit schema minor, duplicate/empty list tokens, repeated sections, exact-machine rejection, unsupported schema minor, numeric overflow, malformed quoted strings and unsupported CPU kinds.
 - [x] Initial OS/BareMetal v2 descriptor files for Windows, Linux, macOS AArch64 and BareMetal.
+- [x] OCC host loads and structurally validates a matching `.target2` profile before compilation; legacy `.target` remains the current codegen input.
 - [ ] Canonical serializer and repeated device/memory/interconnect tables.
 - [ ] Target OIR artifact writer/reader and module handoff.
 - [ ] Backend/device capability registry, heterogeneous lowering and runtime machine binding.
 
-The C data model and initial parser are an implementation foundation only. The parser supports family profiles with one CPU/platform record; it does not yet parse heterogeneous device, memory or interconnect tables, and it cannot load exact-machine profiles. The validator does not establish backend support or physical machine identity. CTest coverage is registered for all four initial family descriptors and malformed-input cases, but the tests have not yet been built or executed.
+The C data model and initial parser are an implementation foundation only. The parser supports family profiles with one CPU/platform record; it does not yet parse heterogeneous device, memory or interconnect tables, and it cannot load exact-machine profiles. The OCC host now validates a matching v2 profile before compilation, but the existing codegen DLL still receives the legacy `.target` descriptor. Backend capability enforcement and Target OIR handoff are not yet connected. The validator does not establish physical machine identity. CTest coverage is registered for all four initial family descriptors and malformed-input cases, but the tests have not yet been built or executed.
 
 ## 11. Implementation order
 
