@@ -572,6 +572,17 @@ static int test_function_parameter_type_separator_forms(void) {
 
 done:
     parser_destroy(ctx);
+    if (ok) {
+        static const char invalid_source[] = "f:bad(a f32) { ret 1; }";
+        ParserContext* invalid = parser_init_source(
+            "function-parameter-missing-separator.nxf",
+            (const uint8_t*)invalid_source, sizeof(invalid_source) - 1u);
+        if (!invalid) return 0;
+        ok = parser_run(invalid) == PARSER_STATUS_SYNTAX_ERROR &&
+            parser_get_status(invalid) == PARSER_STATUS_SYNTAX_ERROR &&
+            invalid->error_count > 0;
+        parser_destroy(invalid);
+    }
     return ok;
 }
 
