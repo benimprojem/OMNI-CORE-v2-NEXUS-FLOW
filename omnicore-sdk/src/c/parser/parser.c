@@ -2369,6 +2369,17 @@ static ASTNode* parse_statement(Parser* p) {
     if (match(p, TOKEN_KW_USE)) return parse_use(p);
     if (match(p, TOKEN_KW_DEFER)) return parse_defer(p);
     if (match(p, TOKEN_KW_RET)) return parse_return_statement(p);
+    if (match(p, TOKEN_KW_BREAK) || match(p, TOKEN_KW_CONTINUE)) {
+        Token keyword = p->previous;
+        ASTNodeType type = keyword.type == TOKEN_KW_BREAK ? AST_BREAK : AST_CONTINUE;
+        ASTNode* control = parser_ast_create(p, type);
+        if (!control) return NULL;
+        control->line = keyword.line;
+        control->col = keyword.col;
+        consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON,
+            MSG_EXPECT_SEMICOLON_EXPR);
+        return control;
+    }
 
     if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
         ASTVarDecl* decl = (ASTVarDecl*)parse_var_decl(p);
