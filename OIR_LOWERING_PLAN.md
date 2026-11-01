@@ -1,6 +1,6 @@
 # OIR Lowering — staged implementation plan
 
-**Status:** Implementation in progress; first tested executable slice lowers one semantically typed scalar-literal return  
+**Status:** Implementation in progress; scalar literal and recursive arithmetic return lowering are implemented, with parser-to-semantic-to-OIR integration coverage added (build/test execution still pending)  
 **Input:** validated `OIR_KIND_SEMANTIC_AST`  
 **Output:** validated `OIR_KIND_MODULE`  
 **Module:** independent IR Lowering DLL/SO/dylib, invoked by OCC  
@@ -10,7 +10,7 @@
 
 This plan defines a safe route from the current semantic artifact to canonical OIR. It does not treat the existing AST-walking code generator as a design constraint. The lowering stage will consume only the validated semantic artifact and produce a target-independent SSA module.
 
-The first implementation is deliberately small and verifiable. The initial executable slice accepts one non-extern, parameterless function containing exactly one return of an annotated integer, floating-point or boolean literal. Every other shape is rejected; unsupported AST nodes are never silently skipped, approximated or emitted as no-ops.
+The first implementation is deliberately small and verifiable. The current executable slice accepts one non-extern, parameterless function containing exactly one return of an annotated integer, floating-point or boolean literal, or a recursively nested arithmetic expression built from supported numeric literals. The supported binary operators are +, -, *, / and integer %. Every other shape is rejected; unsupported AST nodes are never silently skipped, approximated or emitted as no-ops.
 
 ## 2. Preconditions before executable lowering
 
@@ -147,7 +147,7 @@ The first lowerer implementation is intentionally narrower than the full scalar-
 - Exactly one non-extern function definition in the program.
 - No parameters and no local declarations.
 - Exactly one return statement in its body.
-- The returned expression may be one supported scalar literal, or a recursively supported arithmetic expression whose operands are supported scalar literals.
+- The returned expression may be one supported scalar literal, or a recursively supported arithmetic expression whose leaves are supported scalar literals. Supported operators are +, -, *, / and integer %; exponentiation is not yet lowered.
 - Return type and expression type must be established by the semantic artifact and must map to a currently registered OIR primitive type.
 - The function body must contain no additional executable statement; comments or source trivia are not AST statements and are not represented here.
 
@@ -155,9 +155,15 @@ This slice is a bring-up target for the artifact-to-module path, not a claim tha
 
 The AST schema preserves the declared return-type spelling, while the semantic tables preserve canonical type records. Lowering must cross-check both sources; it must not infer a canonical type solely from the spelling. The initial implementation must also reject a semantic type whose primitive width/signedness mapping is not explicitly registered. This avoids accidentally treating the C frontend's current type spelling rules as the final NEXSUS Flow numeric contract.
 
-## 3.2 Arithmetic semantic gate
+## 3.2 Arithmetic semantic gate and current lowering
 
-The semantic checker now performs a deliberately conservative check for arithmetic binary expressions: both operands must resolve to the same primitive numeric type. The current check does not implement the full NEXSUS Flow numeric promotion/conversion lattice, and it does not authorize implicit widening or narrowing. Lowering must continue to require validated annotations and reject any type combination not explicitly represented in the semantic artifact. The OIR arithmetic pass remains pending.
+The semantic checker performs a deliberately conservative check for arithmetic binary expressions: both operands must resolve to the same primitive numeric type. The current check does not implement the full NEXSUS Flow numeric promotion/conversion lattice, and it does not authorize implicit widening or narrowing.
+
+The expression lowerer recursively walks the validated AST expression tree in left-to-right postorder, preserving parser-established precedence and associativity. Each literal emits a typed constant and each supported binary operation emits a new SSA value. The return terminator consumes the final SSA value. AST token IDs are read using their 16-bit wire width and stable OIR token registry IDs.
+
+Current supported operators: `+`, `-`, `*`, `/`, and integer `%`. Exponentiation (`**` / `TOKEN_POWER`) is deliberately rejected because no OIR opcode has been assigned to it. Floating-point remainder is also rejected. The lowerer accepts only one parameterless, non-extern function with one return expression and literal leaves; identifiers, calls, variables, multiple statements and control flow remain unsupported.
+
+The legacy literal-only API remains available as a compatibility entry point. The new `oir_lower_semantic_ast_return()` API handles both literal and arithmetic return expressions. Integration tests now include `ret 10 + 20 * 3;` and assert the generated SSA references and `mul`-before-`add` order. These tests have been registered but have not yet been executed in a local build or CI run.
 
 ## 4. Fail-closed lowering behavior
 
