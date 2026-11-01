@@ -21,7 +21,7 @@ OirStatus oir_module_open(const uint8_t*p,size_t n,OirModuleView*v){
  v->block_count=z[2];v->blocks=q;q+=(size_t)z[2]*16;v->value_count=z[3];v->values=q;q+=(size_t)z[3]*16;
  v->instruction_count=z[4];v->instructions=q;q+=(size_t)z[4]*24;v->operand_count=z[5];v->operands=q;q+=(size_t)z[5]*16;
  v->strings=q;v->strings_length=z[6];if(z[6]&&!utf8(q,z[6]))return OIR_STATUS_INVALID_SECTION;
- for(i=0;i<z[0];i++){const uint8_t*x=v->types+i*8;if(g32(x)!=i+1||g16(x+4)<1||g16(x+4)>3||!g16(x+6))return OIR_STATUS_INVALID_SECTION;}
+ for(i=0;i<z[0];i++){const uint8_t*x=v->types+i*8;if(g32(x)!=i+1||g16(x+4)<1||g16(x+4)>4||((g16(x+4)==4)?(g16(x+6)!=0):(!g16(x+6))))return OIR_STATUS_INVALID_SECTION;}
  for(i=0;i<z[1];i++){const uint8_t*x=v->functions+i*20;uint32_t a=g32(x+4),b=g32(x+8);if(g32(x)!=i+1||!b||!range(a,b,z[6])||!utf8(v->strings+a,b)||!g32(x+12)||g32(x+12)>z[0]||!g32(x+16)||g32(x+16)>z[2])return OIR_STATUS_INVALID_SECTION;}
  for(i=0;i<z[2];i++){const uint8_t*x=v->blocks+i*16;if(g32(x)!=i+1||!g32(x+4)||g32(x+4)>z[1]||!range(g32(x+8),g32(x+12),z[4]))return OIR_STATUS_INVALID_SECTION;}
  for(i=0;i<z[3];i++){const uint8_t*x=v->values+i*16;if(g32(x)!=i+1||!g32(x+4)||g32(x+4)>z[0]||g32(x+8)>z[4]||g32(x+12))return OIR_STATUS_INVALID_SECTION;}
