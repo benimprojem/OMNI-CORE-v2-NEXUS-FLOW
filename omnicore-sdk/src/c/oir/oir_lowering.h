@@ -34,6 +34,19 @@ typedef struct OirLoweringWorkspace {
     uint32_t string_capacity;
 } OirLoweringWorkspace;
 
+/*
+ * Extended scalar return lowering: supports integer/float/bool literals and
+ * recursively nested +, -, *, /, % expressions. Unsupported AST nodes,
+ * operators and type combinations fail closed.
+ */
+OirStatus oir_lower_semantic_ast_return(
+    const OirSemanticAstArtifactView* artifact,
+    OirLoweringWorkspace* workspace,
+    uint8_t* output,
+    size_t output_capacity,
+    size_t* out_written
+);
+
 OirStatus oir_lower_semantic_ast_literal_return(
     const OirSemanticAstArtifactView* artifact,
     OirLoweringWorkspace* workspace,
