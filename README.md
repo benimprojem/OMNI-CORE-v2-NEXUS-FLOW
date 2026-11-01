@@ -98,6 +98,7 @@ Recent design work includes:
 - Normative Multi-Rule OIR test MR-OIR-007: verify repeated application of the same RuleSet with independent arguments, trigger SSA state, and per-application handler dispatch.
 - Normative Multi-Rule OIR test MR-OIR-008: verify that `break` and `continue` inside handlers bind to the handler's lexical loop scope, with correct loop-latch/exit edges and no false fallthrough.
 - Normative Multi-Rule OIR test MR-OIR-009: verify function-scoped label resolution for `jump(label)` inside handlers, correct JUMP targets, and rejection of invalid scope transitions.
+- Normative Multi-Rule OIR test MR-OIR-010: verify forward and backward `jump(label)` transfers, cyclic CFG edges, conditional cycle exits, and SSA/block-parameter consistency.
 - Separation of source-language syntax documentation from compiler project documentation.
 
 ### Open design contracts
