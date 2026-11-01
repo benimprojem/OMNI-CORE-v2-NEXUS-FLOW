@@ -8,9 +8,10 @@ int main(void) {
     const OirModuleType types[] = {
         { 1u, OIR_MODULE_TYPE_INTEGER, 32u, OIR_MODULE_TYPE_FLAG_SIGNED },
         { 2u, OIR_MODULE_TYPE_INTEGER, 32u, 0u },
-        { 3u, OIR_MODULE_TYPE_FUNCTION, 0u, 0u }
+        { 3u, OIR_MODULE_TYPE_FLOAT, 32u, 0u },
+        { 4u, OIR_MODULE_TYPE_FUNCTION, 0u, 0u }
     };
-    const OirModuleFunction functions[] = { { 1u, 0u, 3u, 3u, 1u } };
+    const OirModuleFunction functions[] = { { 1u, 0u, 3u, 4u, 1u } };
     const OirModuleBlock blocks[] = { { 1u, 1u, 0u, 2u } };
     const OirModuleValue values[] = { { 1u, 1u, 1u, 0u } };
     const OirModuleInstruction instructions[] = {
@@ -25,7 +26,7 @@ int main(void) {
     size_t written = 0;
 
     memset(&input, 0, sizeof(input));
-    input.types = types; input.type_count = 3u;
+    input.types = types; input.type_count = 4u;
     input.functions = functions; input.function_count = 1u;
     input.blocks = blocks; input.block_count = 1u;
     input.values = values; input.value_count = 1u;
@@ -35,14 +36,16 @@ int main(void) {
 
     assert(oir_module_write(payload, sizeof(payload), &input, &written) == OIR_STATUS_OK);
     assert(oir_module_open(payload, written, &view) == OIR_STATUS_OK);
-    assert(view.type_count == 3u && view.function_count == 1u);
+    assert(view.type_count == 4u && view.function_count == 1u);
     {
-        OirModuleType signed_type, unsigned_type;
+        OirModuleType signed_type, unsigned_type, float_type;
         assert(oir_module_get_type(&view, 0u, &signed_type) == OIR_STATUS_OK);
         assert(oir_module_get_type(&view, 1u, &unsigned_type) == OIR_STATUS_OK);
+        assert(oir_module_get_type(&view, 2u, &float_type) == OIR_STATUS_OK);
         assert(signed_type.bit_width == 32u && unsigned_type.bit_width == 32u);
         assert(signed_type.flags == OIR_MODULE_TYPE_FLAG_SIGNED);
         assert(unsigned_type.flags == 0u);
+        assert(float_type.kind == OIR_MODULE_TYPE_FLOAT && float_type.flags == 0u);
     }
     assert(view.block_count == 1u && view.value_count == 1u);
     assert(view.instruction_count == 2u && view.operand_count == 1u);
@@ -54,11 +57,11 @@ int main(void) {
     assert(oir_module_open(payload, written, &view) == OIR_STATUS_INVALID_SECTION);
     payload[45] = 0u;
     /* Signedness flags are only valid on integer types. */
-    payload[56] = 0x01u;
+    payload[68] = 0x01u;
     assert(oir_module_open(payload, written, &view) == OIR_STATUS_INVALID_SECTION);
-    payload[56] = 0u;
+    payload[68] = 0u;
     /* Corrupt an instruction opcode; structural validation must reject it. */
-    payload[112 + 8] = 0xffu;
+    payload[144] = 0xffu;
     assert(oir_module_open(payload, written, &view) == OIR_STATUS_INVALID_SECTION);
     return 0;
 }
