@@ -726,3 +726,162 @@ Negatif varyantlar:
 - **MR-OIR-002-N5:** Bir handler normal tamamlandığı halde sonraki handler kontrolüne CFG kenarı bulunmuyor.
 
 Test girdisi `n = 4` için beklenen çıktı sırası kesin olarak `Even handler`, `Positive handler`, `Normal flow` şeklindedir.
+
+### 12.7 MR-OIR-003 — Handler içinden terminator ile çıkış
+
+**Amaç:** Bir \`on\` handler içindeki \`return\` işleminin mevcut fonksiyonun kontrol akışını sonlandırdığını; sonraki handler'lara, \`always\` / \`default\` aşamalarına veya normal devam bloğuna sahte CFG kenarı oluşturulmadığını doğrulamak.
+
+Bu senaryo iki alt durum içerir. İlkinde normal handler dönüşü, ikincisinde \`always\` doğrudan bloğunun dönüşü sınanır.
+
+#### Durum A — İlk normal handler \`return\` çalıştırır
+
+Kaynak test:
+
+\`\`\`nexus
+rules NumberModes(n) {
+    n > 0 -> Positive;
+    n % 2 == 0 -> Even;
+    always {
+        echo("Always must not run");
+    }
+}
+
+f:checkNumber(n) {
+    apply rules(NumberModes(n));
+
+    on NumberModes.Even {
+        return true;
+    }
+
+    on NumberModes.Positive {
+        echo("Positive handler must not run");
+    }
+
+    echo("Normal flow must not run");
+    return false;
+}
+\`\`\`
+
+Test girdisi: \`n = 4\`.
+
+İki normal trigger da eşleşir. Trigger koşullarının ikisi de değerlendirildikten sonra handler kaynak sırasına göre dispatch edilir. İlk handler olan \`Even\`, \`return true;\` çalıştırır.
+
+Beklenen yürütme:
+1. \`Positive\` ve \`Even\` koşulları birer kez değerlendirilir.
+2. \`Even\` handler'ı çalışır ve fonksiyondan \`true\` döner.
+3. \`Positive\` handler'ı çalışmaz.
+4. \`always\` bloğu çalışmaz.
+5. \`Normal flow must not run\` çıktısı üretilmez.
+
+Beklenen sonuç: Fonksiyonun dönüş değeri \`true\`; gözlemlenebilir tek handler etkisi dönüş işlemidir.
+
+#### Durum B — Always bloğu \`return\` çalıştırır, default atlanır
+
+Kaynak test:
+
+\`\`\`nexus
+rules NoNumberModes(n) {
+    n > 0 -> Positive;
+    n % 2 == 0 -> Even;
+
+    always {
+        return true;
+    }
+
+    default {
+        echo("Default must not run");
+    }
+}
+
+f:checkNoNumberMode(n) {
+    apply rules(NoNumberModes(n));
+
+    echo("Normal flow must not run");
+    return false;
+}
+\`\`\`
+
+Test girdisi: \`n = -1\`.
+
+Hiçbir normal trigger eşleşmez. Bu nedenle normal handler aşamasında çalıştırılacak handler yoktur. \`always\` doğrudan bloğu çalışır ve fonksiyondan döner. \`default\` aşamasına ve fonksiyonun normal devamına ulaşılmaz.
+
+Beklenen sonuç: Fonksiyonun dönüş değeri \`true\`; \`Default must not run\` ve \`Normal flow must not run\` çıktıları oluşmaz.
+
+Bu alt durum, \`default\` aşamasının normal trigger eşleşmesi olmadığı halde \`always\` terminator'ı nedeniyle atlandığını ayrıca doğrular.
+
+### 12.8 MR-OIR-003 CFG ve Verifier kontrolleri
+
+**Durum A için beklenen soyut CFG:**
+
+\`\`\`text
+TriggerEval_Positive -> matched_positive
+TriggerEval_Even     -> matched_even
+       |
+       v
+HandlerDispatchEntry
+       |
+       v
+BRANCH matched_even
+  true  -> Handler_Even -> RETURN true
+  false ----------------> Handler_Positive_Check
+                              |
+                              v
+                       BRANCH matched_positive
+                         true  -> Handler_Positive
+                                  -> AlwaysStage
+                         false ----------------> AlwaysStage
+
+RETURN true:
+  no successor
+\`\`\`
+
+\`Handler_Even\` bloğundaki \`RETURN\` terminator'ı, \`Handler_Positive_Check\`, \`AlwaysStage\` veya \`ApplyContinue\` bloklarına çıkış kenarı taşıyamaz. Diğer handler'a giden false/normal dispatch yolu yalnızca \`matched_even = false\` kolundan devam eder.
+
+**Durum B için beklenen soyut CFG:**
+
+\`\`\`text
+TriggerEval_Positive -> matched_positive
+TriggerEval_Even     -> matched_even
+       |
+       v
+HandlerDispatchEntry
+       |
+       v
+AlwaysStage
+       |
+       v
+AlwaysDirectBlock
+       |
+       v
+RETURN true
+
+DefaultStage:
+  reachable only from a live normal exit of AlwaysStage
+  not reachable from RETURN true
+
+ApplyContinue:
+  not reachable from RETURN true
+\`\`\`
+
+Verifier ve OIR test altyapısı aşağıdakileri doğrulamalıdır:
+
+1. Durum A'da bütün normal trigger koşulları handler dispatch başlamadan önce değerlendirilir.
+2. \`Handler_Even\` içindeki \`RETURN\` gerçek fonksiyon dönüş terminator'ıdır; RuleSet'e özel bir devam sinyali değildir.
+3. \`RETURN\` bloğunun successor listesi boştur.
+4. \`RETURN\` bloğundan sonraki handler kontrolüne, \`AlwaysStage\` veya \`ApplyContinue\` bloğuna kenar bulunmaz.
+5. Durum A'da \`matched_even = true\` girdisiyle yalnızca Even handler yolu yürütülür.
+6. Durum B'de normal trigger eşleşmesi olmadığı doğrulanır ve \`AlwaysDirectBlock\` çalıştırılır.
+7. Durum B'deki \`RETURN\`, \`DefaultStage\` ve \`ApplyContinue\` bloklarına ulaşmayı engeller.
+8. Her iki durumda da dönüş tipi ve dönüş değeri fonksiyonun diğer dönüş yollarıyla Analyzer tarafından tutarlı bulunmalıdır.
+
+Negatif OIR varyantları reddedilmelidir:
+
+- **MR-OIR-003-N1:** \`RETURN\` terminator'ından sonraki handler'a kenar çıkması.
+- **MR-OIR-003-N2:** Handler dönüşünden \`AlwaysStage\` bloğuna kenar çıkması.
+- **MR-OIR-003-N3:** Handler dönüşünden \`ApplyContinue\` bloğuna kenar çıkması.
+- **MR-OIR-003-N4:** Durum B'de \`always\` dönüşünden \`DefaultStage\` bloğuna kenar çıkması.
+- **MR-OIR-003-N5:** \`RETURN\` terminator'ının successor kabul etmesi veya normal \`JUMP\` gibi ele alınması.
+- **MR-OIR-003-N6:** Bir handler dönüşünün yalnızca handler'ı sonlandırıp çevre fonksiyonu sürdürdüğünün varsayılması.
+
+Not: Bu test, handler ve doğrudan always bloğunun fonksiyon gövdesine inline/lower edilmiş kontrol akışı olduğunu esas alır. Handler'lar veya özel bloklar ayrı runtime fonksiyonlarına dönüştürülürse, bu dönüş davranışını koruyan çağrı/çıkış ABI'si ayrıca tanımlanmalıdır; mevcut test böyle bir ABI'yi varsaymaz.
+
