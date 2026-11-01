@@ -2899,7 +2899,7 @@ Loop-body scope'unda kayıt edilen defer, ancestor scope'a JUMP ile çıkılırk
 - **MR-OIR-017-N8:** Nested defer kaydının kabul edilmesi.
 - **MR-OIR-017-N9:** Optimizer'ın defer kayıt sırasını veya activation bağını kaybetmesi.
 - **MR-OIR-017-N10:** Bir scope activation'ının defer kayıtlarının başka activation'a taşınması.
-- **MR-OIR-017-N11:** Cleanup/defer hata politikası tanımsızken sahte başarılı continuation üretilmesi.
+- **MR-OIR-017-N11:** Cleanup hata sonucu oluştuğu halde normal continuation kenarının üretilmesi; bu durum MR-OIR-020 ile ayrıntılı test edilir.
 
 ### 12.26.8 Sonraki testlere devredilen alt sözleşmeler
 
@@ -2978,9 +2978,9 @@ Beklenen:
 - **MR-OIR-018-N6:** Optimizer'ın tekrar erişilen defer kaydını tek kayda indirgemesi.
 - **MR-OIR-018-N7:** Bir iterasyonun defer kaydının sonraki iterasyon activation'ına taşınması.
 
-### 12.27.5 Açık alt sözleşme
+### 12.27.5 Sonraki sözleşmeye bağlantı
 
-Defer gövdesinin dış değişkenleri kayıt anındaki değerle mi (value capture), yoksa scope çıkışındaki güncel değerle mi (reference/live binding) gözlemlediği ayrıca kararlaştırılacaktır. OIR bu kararı verilmeden varsayamaz.
+Defer değişkenlerinin live-binding modeli MR-OIR-019'da kesinleştirilmiştir. Bu bölüm yalnızca dinamik kayıt ve loop activation sınırlarını test eder.
 
 ## 12.28 MR-OIR-019 — Defer değişken yakalama ve kaynak sahipliği
 
