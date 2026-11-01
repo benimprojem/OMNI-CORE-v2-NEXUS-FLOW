@@ -191,14 +191,14 @@ The CPU record must describe at least:
 - Core/topology counts and relevant execution capabilities.
 - CPU feature flags such as atomics, hardware floating point, vector support and privilege levels.
 
-OS/BareMetal platform records additionally define ABI, object/executable format, entry point, memory/stack conventions and runtime services. BareMetal must not be treated as an OS: it is an OS-less platform/runtime profile with its own boot and entry contract.
+OS/BareMetal platform records additionally define `os`, `abi`, `binary_format`, `entry_point`, `stack_alignment_bytes` and optional `page_size_bytes`, alongside runtime services. `os = "none"` represents the OS-less BareMetal path; it is not an operating-system name. BareMetal must not be treated as an OS: it is an OS-less platform/runtime profile with its own boot and entry contract.
 
 Other device kinds stay in the schema from the beginning so future programmable chips (especially FPGA) do not require a schema redesign. Their parser, backend and code-generation support are deferred.
 
 ## 9. Implementation progress
 
 - [x] Initial normalized v2 C data model added under `omnicore-sdk/src/c/target/target_profile.h`.
-- [x] Structural validator added in `target_profile.c` for schema version, bounded table counts, device/resource identity uniqueness, memory ownership references and interconnect endpoints.
+- [x] Structural validator added in `target_profile.c` for schema version, bounded table counts, device/resource identity uniqueness, memory ownership references, interconnect endpoints, CPU capability requirements and platform ABI/alignment fields.
 - [x] The profile model is integrated as the `occ_target_profile` CMake static library.
 - [ ] Bounded v2 text parser and canonical serializer.
 - [ ] Target OIR artifact writer/reader and module handoff.
