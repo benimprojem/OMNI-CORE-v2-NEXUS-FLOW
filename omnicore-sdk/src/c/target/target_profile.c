@@ -92,13 +92,34 @@ OccTargetProfileStatus occ_target_profile_validate(
             (device->kind > OCC_TARGET_DEVICE_STORAGE_CONTROLLER &&
              device->kind != OCC_TARGET_DEVICE_OTHER) ||
             !valid_id(device->architecture, sizeof(device->architecture)) ||
-            device->capability_count > OCC_TARGET_MAX_DEVICE_CAPABILITIES) {
+            device->capability_count > OCC_TARGET_MAX_DEVICE_CAPABILITIES ||
+            device->isa_extension_count > OCC_TARGET_MAX_ISA_EXTENSIONS) {
             set_error(error_message, error_message_size, "Target device record is invalid.");
             return OCC_TARGET_PROFILE_INVALID_DEVICE;
         }
         if (duplicate_device_id(profile, i)) {
             set_error(error_message, error_message_size, "Target profile contains duplicate device IDs.");
             return OCC_TARGET_PROFILE_DUPLICATE_ID;
+        }
+        if (device->kind == OCC_TARGET_DEVICE_CPU) {
+            if ((device->word_size_bits != 16u && device->word_size_bits != 32u &&
+                 device->word_size_bits != 64u && device->word_size_bits != 128u) ||
+                (device->address_size_bits != 16u && device->address_size_bits != 32u &&
+                 device->address_size_bits != 64u && device->address_size_bits != 128u) ||
+                device->endian < OCC_TARGET_ENDIAN_LITTLE ||
+                device->endian > OCC_TARGET_ENDIAN_BIG ||
+                device->general_register_count == 0u ||
+                (device->vector_register_count > 0u && device->vector_width_bits == 0u)) {
+                set_error(error_message, error_message_size,
+                    "CPU device is missing valid word/address width, endianness or register capabilities.");
+                return OCC_TARGET_PROFILE_INVALID_DEVICE;
+            }
+        }
+        for (j = 0u; j < device->isa_extension_count; ++j) {
+            if (!valid_id(device->isa_extensions[j], sizeof(device->isa_extensions[j]))) {
+                set_error(error_message, error_message_size, "CPU device contains an invalid ISA extension name.");
+                return OCC_TARGET_PROFILE_INVALID_DEVICE;
+            }
         }
         for (j = 0u; j < device->capability_count; ++j) {
             if (!valid_id(device->capabilities[j], sizeof(device->capabilities[j]))) {
