@@ -423,7 +423,7 @@ G:  (a == b) ? process(a) : process(b);
 - `jump` aynı lexical scope içinde başka bir basic block'a gidiyorsa scope hâlâ aktiftir. Daha sonra aynı scope içindeki önceki bir etikete geri dönmek de mümkündür; bu durumda scope'a ait masalar ve kaynaklar erken temizlenmez.
 - `jump` bir veya daha fazla lexical scope'tan çıkıyorsa, terk edilen scope'ların yaşam süresi sona erer. Bu scope'lara ait otomatik kaynak temizliği, normal scope çıkışıyla aynı şekilde çalıştırılmalıdır.
 - Daha sonra terk edilmiş bir scope'un içindeki etikete yeniden girilerek eski kaynak aktivasyonunun sürdürülmesine izin verilmez. Yeni bir scope aktivasyonu ancak normal scope giriş yoluyla oluşturulabilir.
-- `}?;`blok kapsamındaki masaların/kaynakların toplu kapatılması için kullanılır. `?;` ise Halt/sonlandırma davranışıdır; `jump` için genel bir cleanup komutu yerine geçmez.
+- `}?;` blok kapsamındaki masaların/kaynakların toplu kapatılması için kullanılır. `?;` ise Halt/sonlandırma davranışıdır; `jump` için genel bir cleanup komutu yerine geçmez.
 - Kaynağın `_>` ile başka bir scope'a taşınması halinde sahiplik transferi kuralları geçerlidir; eski scope aynı kaynağı ikinci kez serbest bırakamaz.
 
 Bu kuralların OIR karşılığı ve negatif/pozitif testleri, Multi-Rule OIR test **MR-OIR-016** içinde tanımlanır.
