@@ -213,13 +213,13 @@ Other device kinds stay in the schema from the beginning so future programmable 
 - [x] Structural validator added in `target_profile.c` for schema version, bounded table counts, device/resource identity uniqueness, memory ownership references, interconnect endpoints, CPU capability requirements and platform ABI/alignment fields.
 - [x] The profile model is integrated as the `occ_target_profile` CMake static library.
 - [x] Bounded initial v2 text parser for one platform + one CPU record, with strict keys, duplicate-key/section/list-token rejection, bounded lines, schema major/minor checks, explicit exact-machine rejection and validator handoff.
-- [x] Focused CTest regression target covering a real family descriptor, explicit schema minor, duplicate/empty list tokens, repeated sections, exact-machine rejection and unsupported schema minor.
+- [x] Focused CTest regression target covering all four initial family descriptors (Win64, Linux64, macOS AArch64 and BareMetal64), explicit schema minor, duplicate/empty list tokens, repeated sections, exact-machine rejection, unsupported schema minor, numeric overflow, malformed quoted strings and unsupported CPU kinds.
 - [x] Initial OS/BareMetal v2 descriptor files for Windows, Linux, macOS AArch64 and BareMetal.
 - [ ] Canonical serializer and repeated device/memory/interconnect tables.
 - [ ] Target OIR artifact writer/reader and module handoff.
 - [ ] Backend/device capability registry, heterogeneous lowering and runtime machine binding.
 
-The C data model and initial parser are an implementation foundation only. The parser supports family profiles with one CPU/platform record; it does not yet parse heterogeneous device, memory or interconnect tables, and it cannot load exact-machine profiles. The validator does not establish backend support or physical machine identity. Build/CI has not been run for this change.
+The C data model and initial parser are an implementation foundation only. The parser supports family profiles with one CPU/platform record; it does not yet parse heterogeneous device, memory or interconnect tables, and it cannot load exact-machine profiles. The validator does not establish backend support or physical machine identity. CTest coverage is registered for all four initial family descriptors and malformed-input cases, but the tests have not yet been built or executed.
 
 ## 11. Implementation order
 
