@@ -695,6 +695,18 @@ if(BUILD_TESTING)
         COMMAND test_target_profile
             "${CMAKE_CURRENT_SOURCE_DIR}/targets/v2/Win64.target2"
             "${CMAKE_CURRENT_BINARY_DIR}/target_profile_parser_test.target2")
+    add_test(NAME target_profile_parser_linux64
+        COMMAND test_target_profile
+            "${CMAKE_CURRENT_SOURCE_DIR}/targets/v2/Linux64.target2"
+            "${CMAKE_CURRENT_BINARY_DIR}/target_profile_parser_linux64.target2")
+    add_test(NAME target_profile_parser_macos_aarch64
+        COMMAND test_target_profile
+            "${CMAKE_CURRENT_SOURCE_DIR}/targets/v2/macOS_AArch64.target2"
+            "${CMAKE_CURRENT_BINARY_DIR}/target_profile_parser_macos.target2")
+    add_test(NAME target_profile_parser_baremetal64
+        COMMAND test_target_profile
+            "${CMAKE_CURRENT_SOURCE_DIR}/targets/v2/BareMetal64.target2"
+            "${CMAKE_CURRENT_BINARY_DIR}/target_profile_parser_baremetal.target2")
 
     add_executable(test_compilation "${C_SOURCE_DIR}/tests/test_compilation.c")
     target_link_libraries(test_compilation PRIVATE occ_compilation)
