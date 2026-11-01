@@ -9,8 +9,10 @@
 #define AST_LITERAL 13u
 #define AST_RETURN 26u
 
-#define TOKEN_TRUE 7u
-#define TOKEN_FALSE 8u
+#define TOKEN_NUMBER 3u
+#define TOKEN_TRUE 6u
+#define TOKEN_FALSE 7u
+#define TOKEN_KW_RET 8u
 
 static uint32_t rd32(const uint8_t* p) {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
@@ -164,7 +166,7 @@ OirStatus oir_lower_semantic_ast_literal_return(
         statement.next_node_id != 0u) return OIR_STATUS_INVALID_SECTION;
     status = get_field(&artifact->ast, statement.node_id, 1u,
         OIR_AST_VALUE_TOKEN_ID, &field);
-    if (status != OIR_STATUS_OK || rd32(field.value) != 9u)
+    if (status != OIR_STATUS_OK || rd32(field.value) != TOKEN_KW_RET)
         return OIR_STATUS_INVALID_SECTION;
     status = get_node_ref(&artifact->ast, statement.node_id, 2u, &declaration_id);
     if (status != OIR_STATUS_OK || declaration_id == 0u) return OIR_STATUS_INVALID_SECTION;
@@ -178,27 +180,43 @@ OirStatus oir_lower_semantic_ast_literal_return(
     status = get_field(&artifact->ast, literal.node_id, 2u, OIR_AST_VALUE_U32, &field);
     if (status != OIR_STATUS_OK) return status;
     literal_kind = rd32(field.value);
-    if ((literal_kind == 0u || literal_kind == 1u) && token_id != 4u)
+    if ((literal_kind == 0u || literal_kind == 1u) && token_id != TOKEN_NUMBER)
         return OIR_STATUS_INVALID_SECTION;
 
-    status = find_annotation(&artifact->annotations, literal.node_id, &annotation);
-    if (status != OIR_STATUS_OK) return status;
-    semantic_type_id = annotation.resolved_type_id;
-    status = find_semantic_type(&artifact->types, semantic_type_id,
-        &semantic_type, &semantic_name);
-    if (status != OIR_STATUS_OK || !semantic_name) return OIR_STATUS_INVALID_SECTION;
     {
-        uint32_t type_offset = 0u;
-        uint32_t type_length = declared_type_length;
+        OirSemanticAnnotation function_annotation;
+        OirSemanticType literal_type;
+        const uint8_t* literal_type_name = NULL;
+        uint32_t declared_offset = 0u;
+        uint32_t declared_length = declared_type_length;
         int declared_hard = 0;
-        if (type_length > 0u && declared_type[0] == '!') {
+
+        /* The function annotation carries the declared return type's hard flag.
+         * The literal annotation describes its natural expression type. */
+        status = find_annotation(&artifact->annotations, function.node_id,
+            &function_annotation);
+        if (status != OIR_STATUS_OK) return status;
+        semantic_type_id = function_annotation.resolved_type_id;
+        status = find_semantic_type(&artifact->types, semantic_type_id,
+            &semantic_type, &semantic_name);
+        if (status != OIR_STATUS_OK || !semantic_name) return OIR_STATUS_INVALID_SECTION;
+
+        status = find_annotation(&artifact->annotations, literal.node_id, &annotation);
+        if (status != OIR_STATUS_OK) return status;
+        status = find_semantic_type(&artifact->types, annotation.resolved_type_id,
+            &literal_type, &literal_type_name);
+        if (status != OIR_STATUS_OK || !literal_type_name) return OIR_STATUS_INVALID_SECTION;
+
+        if (declared_length > 0u && declared_type[0] == '!') {
             declared_hard = 1;
-            type_offset = 1u;
-            --type_length;
+            declared_offset = 1u;
+            --declared_length;
         }
-        if (type_length != semantic_type.name_length ||
-            memcmp(declared_type + type_offset, semantic_name, type_length) != 0 ||
-            declared_hard != ((semantic_type.flags & OIR_SEMANTIC_TYPE_FLAG_HARD) != 0u))
+        if (declared_length != semantic_type.name_length ||
+            memcmp(declared_type + declared_offset, semantic_name, declared_length) != 0 ||
+            declared_hard != ((semantic_type.flags & OIR_SEMANTIC_TYPE_FLAG_HARD) != 0u) ||
+            literal_type.name_length != semantic_type.name_length ||
+            memcmp(literal_type_name, semantic_name, semantic_type.name_length) != 0)
             return OIR_STATUS_INVALID_SECTION;
     }
     status = oir_type_map_primitive(&semantic_type, semantic_name,
