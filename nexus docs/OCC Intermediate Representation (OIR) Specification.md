@@ -857,3 +857,21 @@ Kaynak ownership kuralları:
 7. Defer kayıt sırası ve activation bağı, ownership state ile birlikte CFG edge/merge noktalarında korunur.
 
 Bu sözleşme yeni capture-list sözdizimi veya value-capture opcode'u tanımlamaz. Nihai frame layout ve opcode encoding OIR binary format sözleşmesine aittir.
+
+### 12.12 Defer/cleanup hata ve panic yönetimi (MR-OIR-020)
+
+OIR cleanup zinciri best-effort ve tamamlama garantilidir: tek bir defer veya resource release hatası kalan cleanup adımlarını atlayamaz.
+
+- Scope kapanışında defer kayıtları LIFO yürütülür; her kayıt sonucu ayrı değerlendirilir.
+- Defer kayıtları tamamlandıktan sonra sahip olunan kaynaklar ters edinim sırasıyla cleanup edilir.
+- Bir cleanup hatası CleanupErrorSet'e eklenir; sonraki defer/resource cleanup adımları sürdürülür.
+- Resource release çağrısından önce ownership durumu RELEASE_ATTEMPTED yapılır. Başarı RELEASED, hata RELEASE_FAILED durumuna geçirir. İki durumda da aynı unwind içinde tekrar release denenmez.
+- Önceden hata/panic/explicit halt varsa bu sonuç birincil kalır; cleanup hataları ikincil tanı olarak eklenir.
+- Normal çıkışta cleanup hatası varsa normal return/branch iptal edilir ve CleanupFailure dış scope'lara yayılır.
+- İç scope cleanup tamamlandıktan sonra dış scope cleanup başlatılır; hata dış scope'ların cleanup'ını durdurmaz.
+- !! panic ve ?; explicit halt aktif scope'ları unwind eder; panic/sonlandırma kararı cleanup hatalarıyla değiştirilemez.
+- Cleanup hatası bulunmayan normal çıkış, istenen CFG hedefine devam eder.
+
+Defer gövdesinde non-local terminator, ?;, }?;, nested defer veya yeni sahip olunan kaynak edinimi yasaktır. Hata üreten çağrılar mevcut ?-> ile yerel olarak ele alınabilir; ele alınmadan defer dışına çıkan hata cleanup hatası olur. Analyzer dolaylı çağrılardaki etkileri doğrulayamadığında çağrıyı reddeder.
+
+Bu sözleşme OIR'nin en azından defer kayıt yığını, scope activation kimliği, ownership state, cleanup hata biriktiricisi ve pending outcome bilgisini temsil etmesini gerektirir. Bunlar soyut semantik alanlardır; binary field/opcode isimleri format sözleşmesinde belirlenir.
