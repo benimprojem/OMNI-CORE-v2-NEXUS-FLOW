@@ -7,7 +7,8 @@
 extern "C" {
 #endif
 
-/* Loads the bounded initial v2 text format: [target_info] and one [cpu] section. */
+/* Loads the bounded initial v2 text format: [target_info] and one [cpu] section.
+ * Heterogeneous device/resource tables and exact-machine binding are deferred. */
 int occ_target_profile_load(
     const char* path,
     OccTargetProfile* profile,
