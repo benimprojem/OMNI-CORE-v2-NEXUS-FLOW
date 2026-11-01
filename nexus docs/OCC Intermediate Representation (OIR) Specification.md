@@ -737,3 +737,22 @@ Kurallar:
 7. Aynı source-target block çifti arasında birden fazla edge bulunmasına izin verilip verilmeyeceği ve edge kimliklerinin serileştirilmesi OIR format sürümünde açıkça tanımlanmalıdır.
 
 Bu bölüm, MR-OIR-013 testinin temel OIR sözleşmesidir. Buradaki gösterim soyuttur; nihai opcode ve dosya formatı kararı değildir.
+
+
+
+### 12.6 Karmaşık CFG bileşimi ve çoklu giriş ölçeklenebilirliği
+
+Bir fonksiyon CFG'si; koşullu branch, çok seçenekli branch, loop, ileri/geri JUMP, ortak hedefte merge ve merge sonrasında yeniden dallanma yapılarının bileşiminden oluşabilir.
+
+Kurallar:
+1. `if / elsif / els`, `select`, `loop` ve `jump(label)` kaynak yapıları OIR'de aynı fonksiyon CFG'sinin block/edge yapıları olarak temsil edilir.
+2. Her basic block tek bir terminator ile biter. Terminator'ın türü ve tanımladığı successor edge sayısı birbiriyle uyumlu olmalıdır.
+3. Bir block için predecessor sayısına, fonksiyonun block/edge sayısına veya toplam jump sayısına keyfî sabit bir dil limiti konulmaz.
+4. Her incoming edge kendi hedef block parameter argümanlarını taşır. Çoklu giriş merge semantiği MR-OIR-013'te tanımlanmıştır.
+5. Merge sonrasında branch ve loop oluşturulması serbesttir; CFG'nin tek bir merge seviyesine veya yalnızca tek dallanma katmanına sahip olduğu varsayılamaz.
+6. Builder, Verifier ve Optimizer değişken sayıda block/edge/predecessor desteklemelidir. İç veri yapıları güvenli büyüyebilmeli veya kapasite sınırını açıkça raporlamalıdır.
+7. OIR formatındaki integer alanları, adres alanı ve uygulama kaynakları pratik sınır oluşturabilir. Bunlar açık format/uygulama limitleridir; kaynak dil için keyfî semantik limit olarak sunulamaz.
+8. Kapasite veya kaynak sınırına ulaşıldığında işlem atomik biçimde başarısız olmalı; kısmi, sessizce kırpılmış veya tutarsız CFG dışarı verilmemelidir.
+9. Her CFG dönüşümünden sonra terminator, edge, predecessor/successor, block parameter, SSA ve metadata ilişkileri birlikte güncellenip doğrulanmalıdır.
+
+Bu sözleşme, OIR'nin yalnızca basit if/else grafikleri değil, birden fazla birleşme ve yeniden dallanma içeren karmaşık fonksiyon akışlarını da temsil edebilmesini zorunlu kılar.
