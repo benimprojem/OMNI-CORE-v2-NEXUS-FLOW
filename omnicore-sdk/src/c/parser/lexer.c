@@ -232,6 +232,8 @@ static OmniTokenType identifier_type(const char* start, size_t length) {
             break;
         case 'e': 
             if (length == 4 && memcmp(start, "enum", 4) == 0) return TOKEN_KW_ENUM;
+            if (length == 3 && memcmp(start, "els", 3) == 0) return TOKEN_KW_ELS;
+            if (length == 5 && memcmp(start, "elsif", 5) == 0) return TOKEN_KW_ELSIF;
             if (length == 4 && memcmp(start, "exit", 4) == 0) return TOKEN_KW_EXIT;
             if (length == 3 && memcmp(start, "exp", 3) == 0) return TOKEN_KW_EXP;
             if (length == 4 && memcmp(start, "echo", 4) == 0) return TOKEN_KW_ECHO;
@@ -283,6 +285,7 @@ static OmniTokenType identifier_type(const char* start, size_t length) {
             if (length == 3 && memcmp(start, "pup", 3) == 0) return TOKEN_KW_PUP;
             break;
         case 'i':
+            if (length == 2 && start[1] == 'f') return TOKEN_KW_IF;
             if (length == 2 && start[1] == '8') return TOKEN_TYPE_I8;
             if (length == 3 && start[1] == '1' && start[2] == '6') return TOKEN_TYPE_I16;
             if (length == 3 && start[1] == '3' && start[2] == '2') return TOKEN_TYPE_I32;
@@ -565,6 +568,9 @@ const char* token_type_to_string(OmniTokenType type) {
         case TOKEN_UNPACK: return "UNPACK (...>)";
         case TOKEN_RELOCATE: return "RELOCATE (_>)";
         case TOKEN_KW_FN: return "FN (f:)";
+        case TOKEN_KW_IF: return "IF";
+        case TOKEN_KW_ELSIF: return "ELSIF";
+        case TOKEN_KW_ELS: return "ELS";
         case TOKEN_PLUS: return "+";
         case TOKEN_MINUS: return "-";
         case TOKEN_STAR: return "*";
