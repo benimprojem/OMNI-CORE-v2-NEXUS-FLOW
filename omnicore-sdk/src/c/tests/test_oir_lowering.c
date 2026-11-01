@@ -133,6 +133,10 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
     if (arithmetic == 0) {
         OirModuleInstruction constant;
         OirModuleOperand immediate;
+        if (oir_module_get_operand(&module,0u,&immediate)==OIR_STATUS_OK)
+            fprintf(stderr,"literal result opcode=%u immediate=%llu count=%u\\n",
+                (unsigned)module.instruction_count,(unsigned long long)immediate.immediate,
+                (unsigned)module.operand_count);
         if (module.instruction_count != 2u || module.operand_count != 2u ||
             module.value_count != 1u ||
             oir_module_get_instruction(&module, 0u, &constant) != OIR_STATUS_OK ||
