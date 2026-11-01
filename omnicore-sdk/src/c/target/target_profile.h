@@ -15,6 +15,8 @@ extern "C" {
 #define OCC_TARGET_MAX_MEMORIES 64u
 #define OCC_TARGET_MAX_INTERCONNECTS 64u
 #define OCC_TARGET_MAX_DEVICE_CAPABILITIES 24u
+#define OCC_TARGET_MAX_ISA_EXTENSIONS 32u
+#define OCC_TARGET_ISA_EXTENSION_SIZE 32u
 #define OCC_TARGET_ID_SIZE 32u
 #define OCC_TARGET_NAME_SIZE 64u
 #define OCC_TARGET_ARCH_SIZE 64u
@@ -36,6 +38,29 @@ typedef enum OccTargetDeviceKind {
     OCC_TARGET_DEVICE_STORAGE_CONTROLLER = 8,
     OCC_TARGET_DEVICE_OTHER = 255
 } OccTargetDeviceKind;
+
+typedef enum OccTargetEndian {
+    OCC_TARGET_ENDIAN_UNSPECIFIED = 0,
+    OCC_TARGET_ENDIAN_LITTLE = 1,
+    OCC_TARGET_ENDIAN_BIG = 2
+} OccTargetEndian;
+
+typedef enum OccTargetCpuFeatureFlags {
+    OCC_TARGET_CPU_FEATURE_ATOMICS = 1u << 0,
+    OCC_TARGET_CPU_FEATURE_UNALIGNED_ACCESS = 1u << 1,
+    OCC_TARGET_CPU_FEATURE_HARDWARE_FLOAT = 1u << 2,
+    OCC_TARGET_CPU_FEATURE_HARDWARE_DIVIDE = 1u << 3,
+    OCC_TARGET_CPU_FEATURE_PRIVILEGE_LEVELS = 1u << 4,
+    OCC_TARGET_CPU_FEATURE_VECTOR = 1u << 5
+} OccTargetCpuFeatureFlags;
+
+typedef enum OccTargetFpFormatFlags {
+    OCC_TARGET_FP_FORMAT_FP16 = 1u << 0,
+    OCC_TARGET_FP_FORMAT_BF16 = 1u << 1,
+    OCC_TARGET_FP_FORMAT_FP32 = 1u << 2,
+    OCC_TARGET_FP_FORMAT_FP64 = 1u << 3,
+    OCC_TARGET_FP_FORMAT_FP128 = 1u << 4
+} OccTargetFpFormatFlags;
 
 typedef enum OccTargetMemoryKind {
     OCC_TARGET_MEMORY_RAM = 1,
@@ -67,6 +92,19 @@ typedef struct OccTargetDevice {
     uint64_t local_memory_bytes;
     uint64_t cache_bytes;
     uint64_t vram_bytes;
+    /* CPU-specific fields; must be populated when kind == OCC_TARGET_DEVICE_CPU. */
+    uint32_t word_size_bits;
+    uint32_t address_size_bits;
+    OccTargetEndian endian;
+    uint32_t general_register_count;
+    uint32_t vector_register_count;
+    uint32_t predicate_register_count;
+    uint32_t vector_width_bits;
+    uint32_t atomic_width_mask; /* Bit N denotes support for N-bit atomics; defined widths are documented. */
+    uint32_t fp_format_mask; /* OccTargetFpFormatFlags bitmask. */
+    uint32_t cpu_feature_flags; /* OccTargetCpuFeatureFlags bitmask. */
+    char isa_extensions[OCC_TARGET_MAX_ISA_EXTENSIONS][OCC_TARGET_ISA_EXTENSION_SIZE];
+    uint32_t isa_extension_count;
     char capabilities[OCC_TARGET_MAX_DEVICE_CAPABILITIES][OCC_TARGET_NAME_SIZE];
     uint32_t capability_count;
 } OccTargetDevice;
