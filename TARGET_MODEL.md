@@ -2,15 +2,17 @@
 
 **Durum:** Mimari sözleşme taslağı; mevcut C uygulamasına bütünüyle uygulanmış değildir.
 
+> Önemli: Target yalnızca OS/CPU hedefi değildir. Heterojen işlemci ve aygıt topolojisi ile tek fiziksel makineye bağlama modeli için [TARGET_HARDWARE_PROFILE.md](TARGET_HARDWARE_PROFILE.md) esas alınmalıdır. Bu belge, mevcut v1 parser davranışını ve geçiş durumunu açıklar.
+
 ## 1. Host ve target
 
-Derleme boyunca target seçimi ve aktarımı için bağlayıcı uygulama sözleşmesi [TARGET_PIPELINE_CONTRACT.md](TARGET_PIPELINE_CONTRACT.md) belgesindedir. Bu sözleşmeye göre seçilen/varsayılan descriptor, hedefe duyarlı aşamaların doğrulanmış girdisidir; genel OIR ise target-neutral kalır.
+Derleme boyunca target seçimi ve aktarımı için [TARGET_PIPELINE_CONTRACT.md](TARGET_PIPELINE_CONTRACT.md), tam donanım topolojisi ve exact-machine modeli için [TARGET_HARDWARE_PROFILE.md](TARGET_HARDWARE_PROFILE.md) geçerlidir.
 
 - **Host:** OCC derleyicisinin çalıştığı makine ve işletim sistemi.
-- **Target:** Derlenen programın çalışacağı makine/işletim sistemi.
-- Host ile target aynı olmak zorunda değildir. Farklı olduklarında cross-compilation yapılır.
-- Kullanıcı target belirtmezse host OS + host architecture varsayılan alınır.
-- Kullanıcı target belirtirse host varsayılanı kullanılmaz; açık seçim geçerlidir.
+- **Target:** Derlenen programın çalışacağı donanım konfigürasyonu ve onun üzerinde çalışan OS/runtime.
+- Target bir CPU mimarisinden ibaret değildir; CPU, GPU, NPU, FAPU, bellek, interconnect ve çevre birimlerini kapsayabilir.
+- Host varsayılanı yalnızca genel/family profile derlemelerinde kolaylık sağlar. Exact-machine profili açıkça seçilmeli veya proje yapılandırmasında tanımlanmalıdır.
+- Host ile target aynı olmak zorunda değildir. Exact-machine cross-compilation da mümkündür; derleyicinin host'u hedef donanım tanımının yerine geçmez.
 
 ## 2. Target bileşenleri
 
