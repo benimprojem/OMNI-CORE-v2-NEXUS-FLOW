@@ -23,6 +23,7 @@ int main(void) {
     OirAstNodeTableView view;
     OirAstNodeRecord decoded;
     OirAstTlvField decoded_field;
+    const uint8_t* decoded_string = NULL;
     OirStatus status;
 
     memset(records, 0, sizeof(records));
@@ -46,6 +47,9 @@ int main(void) {
     assert(oir_ast_node_table_get(&view, 1, &decoded) == OIR_STATUS_OK);
     assert(decoded.node_id == 2 && decoded.node_kind_id == 14);
     assert(view.string_table_length == 2 && memcmp(view.string_table, "hi", 2) == 0);
+    assert(oir_ast_node_table_get_string(&view, 0, 2, &decoded_string) == OIR_STATUS_OK);
+    assert(memcmp(decoded_string, "hi", 2) == 0);
+    assert(oir_ast_node_table_get_string(&view, 1, 2, &decoded_string) == OIR_STATUS_INVALID_ARGUMENT);
     assert(oir_ast_node_table_get_field(&view, 0, 1, &decoded_field) == OIR_STATUS_OK);
     assert(decoded_field.value_type == OIR_AST_VALUE_NODE_REF);
     assert(decoded_field.value_length == 4 && decoded_field.value[0] == 2);
