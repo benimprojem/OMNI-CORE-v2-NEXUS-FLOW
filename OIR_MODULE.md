@@ -264,9 +264,9 @@ No schema is considered frozen merely because a first implementation or test fix
 | SEMANTIC_AST primitive-to-OIR type mapper | Initial scalar allowlist implemented; unsupported types rejected |
 | SSA value model | Required by NEXSUS Flow design; merge encoding open |
 | NEXSUS Flow numeric width promotion | Partial language rule established; full conversion lattice open |
-| OIR_MODULE opcode/type registries | Not frozen |
+| OIR_MODULE opcode registry 1.0 / primitive type mapping | Initial registries implemented; complete semantic type rules pending |
 | Module payload verifier | Not implemented |
-| Initial SEMANTIC_AST literal-return lowering pass | Implemented as a caller-workspace C pass; only one typed scalar literal return is supported |
+| Initial SEMANTIC_AST scalar-return lowering pass | Implemented as a caller-workspace C pass; typed literals and literal-only `+`, `-`, `*`, `/` expressions supported |
 | IR lowering DLL | Not implemented |
 | OCC semantic-artifact-to-lowering handoff | Not implemented |
 | Legacy AST serializer and AST-walking codegen | Existing compatibility path |
@@ -275,6 +275,6 @@ The legacy codegen currently emits a small NASM-like text subset directly from A
 
 ### Initial lowering slice
 
-`oir_lower_semantic_ast_literal_return()` consumes a validated `OirSemanticAstArtifactView` and emits an `OIR_MODULE` **payload** (not a complete OIR container artifact). The current accepted shape is exactly one non-extern, parameterless function with one block and one return of an annotated `i*`, `u*`, `f32`, `f64` or `bool` literal. It cross-checks the function's declared return spelling against the canonical semantic type record, maps that primitive through the explicit allowlist, and writes typed constant-immediate and return instructions.
+`oir_lower_semantic_ast_return()` consumes a validated `OirSemanticAstArtifactView` and emits an `OIR_MODULE` **payload** (not a complete OIR container artifact). The current accepted shape is exactly one non-extern, parameterless function with one block and one return expression. The expression may be an annotated `i*`, `u*`, `f32`, `f64` or `bool` literal, or a literal-only tree using the active parser's `+`, `-`, `*` and `/` operators. The lowerer cross-checks the function's declared return spelling against the canonical semantic type record, maps that primitive through the explicit allowlist, traverses the expression tree in postorder, and emits typed constants, arithmetic SSA values and a return instruction. The older `oir_lower_semantic_ast_literal_return()` entry point remains as a compatibility wrapper.
 
 The pass uses caller-owned arrays and buffers. It rejects extra declarations/statements, parameters, missing annotations, non-primitive/unregistered types and unsupported literal categories. Arithmetic, identifiers, local variables, conversion records, source maps, module-level verification, OIR envelope publication, DLL loading and OCC orchestration are not yet implemented. The focused test is `test_oir_lowering.c`; it validates the generated payload with `oir_module_open()`, checks the integer immediate round trip, and also drives a real source file through Parser, semantic analysis, SEMANTIC_AST artifact validation and lowering. The integration case verifies that a declared hard return type such as `!i32` is taken from the function's semantic annotation while the returned literal retains its natural `i32` annotation.
