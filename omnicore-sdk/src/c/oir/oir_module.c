@@ -1,5 +1,6 @@
 #include "oir_module.h"
 #include <string.h>
+#include <stdio.h>
 static uint16_t g16(const uint8_t*p){return (uint16_t)(p[0]|((uint16_t)p[1]<<8));}
 static uint32_t g32(const uint8_t*p){return (uint32_t)p[0]|((uint32_t)p[1]<<8)|((uint32_t)p[2]<<16)|((uint32_t)p[3]<<24);}
 static uint64_t g64(const uint8_t*p){return (uint64_t)g32(p)|((uint64_t)g32(p+4)<<32);}
