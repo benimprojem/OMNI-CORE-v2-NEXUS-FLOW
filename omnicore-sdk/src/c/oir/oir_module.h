@@ -12,7 +12,9 @@ extern "C" {
 #define OIR_MODULE_STRING_BYTES_MAX 16777216u
 typedef enum OirModuleTypeKind { OIR_MODULE_TYPE_INTEGER = 1, OIR_MODULE_TYPE_FLOAT = 2, OIR_MODULE_TYPE_BOOLEAN = 3, OIR_MODULE_TYPE_FUNCTION = 4 } OirModuleTypeKind;
 #define OIR_MODULE_TYPE_FLAG_SIGNED 0x00000001u
-#define OIR_MODULE_TYPE_KNOWN_FLAGS OIR_MODULE_TYPE_FLAG_SIGNED
+#define OIR_MODULE_TYPE_FLAG_HARD   0x00000002u
+#define OIR_MODULE_TYPE_FLAG_CONST  0x00000004u
+#define OIR_MODULE_TYPE_KNOWN_FLAGS (OIR_MODULE_TYPE_FLAG_SIGNED | OIR_MODULE_TYPE_FLAG_HARD | OIR_MODULE_TYPE_FLAG_CONST)
 typedef struct OirModuleType { uint32_t id; uint16_t kind, bit_width; uint32_t flags; } OirModuleType;
 typedef struct OirModuleFunction { uint32_t id,name_offset,name_length,function_type_id,entry_block_id; } OirModuleFunction;
 typedef struct OirModuleBlock { uint32_t id,function_id,first_instruction,instruction_count; } OirModuleBlock;
