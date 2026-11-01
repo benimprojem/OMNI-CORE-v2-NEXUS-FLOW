@@ -36,6 +36,7 @@ int main(void) {
 
     assert(oir_module_write(payload, sizeof(payload), &input, &written) == OIR_STATUS_OK);
     assert(oir_module_open(payload, written, &view) == OIR_STATUS_OK);
+    assert(payload[0] == OIR_MODULE_SCHEMA_MAJOR && payload[2] == OIR_MODULE_SCHEMA_MINOR);
     assert(view.type_count == 4u && view.function_count == 1u);
     {
         OirModuleType signed_type, unsigned_type, float_type;
