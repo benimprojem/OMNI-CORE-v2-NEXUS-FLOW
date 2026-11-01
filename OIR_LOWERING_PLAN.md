@@ -16,7 +16,7 @@ The first implementation must be deliberately small and verifiable. A construct 
 
 The following infrastructure is required before the first production lowering DLL is integrated:
 
-1. A canonical `OIR_MODULE` payload writer and reader. Initial schema 1.0 codec is implemented; see [OIR_MODULE.md](OIR_MODULE.md).
+1. A canonical `OIR_MODULE` payload writer and reader. Schema 1.1 codec, including explicit integer signedness, is implemented; see [OIR_MODULE.md](OIR_MODULE.md).
 2. A module verifier for table bounds, IDs, references, function/block ownership, terminators, opcode signatures and SSA rules.
 3. An initial structural opcode registry is now implemented (registry 1.0); verifier-level type/effect semantics are still required.
 4. The block-parameter SSA contract, including loop-carried values and predecessor-edge validation.
