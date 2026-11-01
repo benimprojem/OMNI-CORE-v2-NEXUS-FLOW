@@ -796,3 +796,30 @@ Kurallar:
 10. Optimizer JUMP edge'lerini veya block'ları dönüştürürken scope ancestry, cleanup listeleri, sahiplik durumu ve kaynak/debug metadata ilişkilerini korumalıdır.
 
 Bu sözleşme, CFG'de geri dönüş yolu bulunmasını tek başına cleanup'ı iptal eden bir ölçüt saymaz. Aynı canlı lexical scope'a geri dönülebiliyorsa kaynak korunur; scope gerçekten terk ediliyorsa cleanup yapılır.
+
+
+### 12.9 Defer kayıtları ve scope-exit yürütme
+
+OIR, her lexical scope aktivasyonu için defer kayıtlarını ve yürütülme sırasını temsil edebilmelidir. Kesin opcode ve binary alan adları henüz sabitlenmiş değildir.
+
+1. Defer kaydı runtime control-flow noktasında etkinleşir; Builder kayıt noktasını ve ait olduğu lexical scope activation'ını korur.
+2. Her scope activation kendi defer kayıt dizisine sahiptir. Farklı loop iterasyonları veya yeniden girilen scope activation'ları kayıtları paylaşamaz.
+3. Scope içindeki normal block geçişi ve aynı-scope JUMP defer yürütme noktası değildir.
+4. Scope'tan normal çıkış, BREAK, CONTINUE, RETURN veya ancestor-scope JUMP, terk edilen scope'un aktif defer kayıtlarını çalıştırır.
+5. Birden çok kayıt LIFO sırasıyla yürütülür.
+6. Defer gövdeleri, aynı scope activation'ının otomatik kaynak/masa cleanup adımlarından önce yürütülür.
+7. İç içe scope'lar terk edilirken önce en içteki scope'un defer kayıtları LIFO sırasıyla, ardından o scope'un otomatik cleanup'ı yürütülür; sonra dış scope kapanışına geçilir.
+8. Defer gövdeleri non-local terminator üretemez; nested defer bu sürümde reddedilir.
+9. Optimizer defer kayıtlarının etkinleşme noktasını, LIFO sırasını, scope activation bağını ve cleanup sırasını korumalıdır.
+10. Defer gövdesindeki hata/panic ve cleanup hatası politikası açık alt sözleşmedir; Builder sahte normal continuation üretemez.
+
+Kavramsal scope-exit sırası:
+
+```text
+defer kayıtlarını LIFO sırayla yürüt
+scope'a ait otomatik kaynak/masa cleanup işlemlerini yürüt
+scope activation'ını kapat
+hedef CFG block'una devam et (varsa)
+```
+
+Bu bir OIR opcode dizisi değil, semantik sözleşmedir.
