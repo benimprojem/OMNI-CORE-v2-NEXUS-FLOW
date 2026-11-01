@@ -132,9 +132,15 @@ public:
 
         // Symbol table: parse only within [symbolOffset, codeOffset).
         f.seekg(symbolOffset, std::ios::beg);
-        while (static_cast<uint32_t>(f.tellg()) < codeOffset) {
+        while (true) {
             const std::streamoff recordStart = f.tellg();
-            if (recordStart < 0 || static_cast<uint64_t>(recordStart) + 13 > codeOffset) {
+            if (recordStart < 0) {
+                fail("A0008", "OIR symbol table konumu okunamadi.");
+                return false;
+            }
+            if (recordStart == static_cast<std::streamoff>(codeOffset)) break;
+            if (recordStart > static_cast<std::streamoff>(codeOffset) ||
+                static_cast<uint64_t>(recordStart) + 13 > codeOffset) {
                 fail("A0008", "OIR symbol kaydi kesilmis.");
                 return false;
             }
@@ -173,7 +179,9 @@ public:
             parsedSymbols.push_back(std::move(symbol));
         }
 
-        if (static_cast<uint32_t>(f.tellg()) != codeOffset) {
+        const std::streamoff symbolTableEnd = f.tellg();
+        if (symbolTableEnd < 0 ||
+            symbolTableEnd != static_cast<std::streamoff>(codeOffset)) {
             fail("A0008", "OIR symbol table code offset ile tam olarak sonlanmiyor.");
             return false;
         }
