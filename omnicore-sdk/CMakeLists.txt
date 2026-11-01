@@ -278,7 +278,10 @@ target_link_libraries(occ_oir_semantic_ast_artifact PUBLIC
 set_target_properties(occ_oir_semantic_ast_artifact PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # First bounded SEMANTIC_AST -> OIR_MODULE scalar lowering pass.
-add_library(occ_oir_lowering STATIC "${C_SOURCE_DIR}/oir/oir_lowering.c")
+add_library(occ_oir_lowering STATIC
+    "${C_SOURCE_DIR}/oir/oir_lowering.c"
+    "${C_SOURCE_DIR}/oir/oir_lowering_expr.c"
+)
 target_include_directories(occ_oir_lowering PUBLIC "${C_SOURCE_DIR}/oir")
 target_link_libraries(occ_oir_lowering PUBLIC
     occ_oir_semantic_ast_artifact
