@@ -158,7 +158,7 @@ The legacy AST-walking code generator may remain temporarily available for compa
 
 - [x] Initial opcode registry 1.0: stable IDs, names, operand arity/kinds, result-presence rules, and coarse purity/memory/trap/terminator flags. Implemented in `src/c/oir/oir_module_opcode.h/.c` and integrated as the `occ_oir_module_opcode` CMake target.
 - [x] Initial `OIR_MODULE` payload codec 1.0: fixed-width little-endian records, bounded reader/writer, UTF-8 and basic cross-reference checks, opcode-shape validation, and zero-copy table views. Implemented in `src/c/oir/oir_module.h/.c` and integrated as `occ_oir_module`.
-- [x] AST node-local TLV field lookup: `oir_ast_node_table_get_field()` lets lowering inspect validated node fields without duplicating TLV parsing.
+- [x] AST node-local TLV field lookup and string-span access: `oir_ast_node_table_get_field()` and `oir_ast_node_table_get_string()` let lowering inspect validated node fields and resolve string references without duplicating TLV parsing.
 - [ ] Module verifier for function/block ownership, complete instruction coverage, terminators, type rules and SSA.
 - [ ] Semantic AST reader + scalar IR lowering pass.
 - [ ] Independent IR Lowering DLL and OCC handoff.
