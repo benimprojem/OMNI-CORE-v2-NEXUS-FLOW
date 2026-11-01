@@ -116,25 +116,39 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             module_bytes, sizeof(module_bytes), &module_length) != OIR_STATUS_OK ||
         oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
         goto cleanup;
-    if (module.type_count != 2u || module.function_count != 1u ||
-        module.instruction_count != 2u || module.operand_count != 2u)
-        goto cleanup;
+    if (module.type_count != 2u || module.function_count != 1u) goto cleanup;
     {
         OirModuleType return_type;
         if (oir_module_get_type(&module, 0u, &return_type) != OIR_STATUS_OK ||
             return_type.kind != OIR_MODULE_TYPE_INTEGER ||
-            (return_type.flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u)
-            goto cleanup;
+            (return_type.flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u) goto cleanup;
     }
-    {
+    if (!arithmetic) {
         OirModuleInstruction constant;
         OirModuleOperand immediate;
-        if (oir_module_get_instruction(&module, 0u, &constant) != OIR_STATUS_OK ||
+        if (module.instruction_count != 2u || module.operand_count != 2u ||
+            module.value_count != 1u ||
+            oir_module_get_instruction(&module, 0u, &constant) != OIR_STATUS_OK ||
             constant.opcode_id != OIR_OP_CONST_INT ||
             oir_module_get_operand(&module, 0u, &immediate) != OIR_STATUS_OK ||
             immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE ||
-            immediate.immediate != 42u)
-            goto cleanup;
+            immediate.immediate != 42u) goto cleanup;
+    } else {
+        OirModuleInstruction mul, add, ret;
+        OirModuleOperand left, right;
+        if (module.instruction_count != 6u || module.operand_count != 8u ||
+            module.value_count != 5u ||
+            oir_module_get_instruction(&module, 3u, &mul) != OIR_STATUS_OK ||
+            oir_module_get_instruction(&module, 4u, &add) != OIR_STATUS_OK ||
+            oir_module_get_instruction(&module, 5u, &ret) != OIR_STATUS_OK ||
+            mul.opcode_id != OIR_OP_MUL || add.opcode_id != OIR_OP_ADD ||
+            ret.opcode_id != OIR_OP_RETURN ||
+            oir_module_get_operand(&module, mul.first_operand, &left) != OIR_STATUS_OK ||
+            oir_module_get_operand(&module, mul.first_operand + 1u, &right) != OIR_STATUS_OK ||
+            left.reference_id != 2u || right.reference_id != 3u ||
+            oir_module_get_operand(&module, add.first_operand, &left) != OIR_STATUS_OK ||
+            oir_module_get_operand(&module, add.first_operand + 1u, &right) != OIR_STATUS_OK ||
+            left.reference_id != 1u || right.reference_id != 4u) goto cleanup;
     }
     ok = 1;
 
