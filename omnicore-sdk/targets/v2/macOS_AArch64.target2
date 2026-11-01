@@ -1,0 +1,32 @@
+[target_info]
+schema_major = 2
+profile_id = "macOS_AArch64"
+profile_kind = "family"
+os = "macos"
+runtime = "darwin"
+package_format = "macho"
+abi = "aapcs64"
+binary_format = "macho"
+entry_point = "_main"
+stack_alignment_bytes = 16
+page_size_bytes = 16384
+
+[cpu]
+id = "cpu0"
+kind = "cpu"
+vendor = "generic"
+model = "aarch64-compatible"
+architecture = "aarch64"
+isa_profile = "armv8-a+neon"
+core_count = 0
+word_size_bits = 64
+address_size_bits = 64
+endian = "little"
+general_register_count = 31
+vector_register_count = 32
+predicate_register_count = 0
+vector_width_bits = 128
+atomic_widths = 8,16,32,64
+fp_formats = fp16,fp32,fp64
+features = atomics,unaligned_access,hardware_float,hardware_divide,privilege_levels,vector
+isa_extensions = armv8-a,neon
