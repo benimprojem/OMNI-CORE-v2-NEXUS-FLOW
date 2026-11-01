@@ -756,3 +756,5 @@ Kurallar:
 9. Her CFG dönüşümünden sonra terminator, edge, predecessor/successor, block parameter, SSA ve metadata ilişkileri birlikte güncellenip doğrulanmalıdır.
 
 Bu sözleşme, OIR'nin yalnızca basit if/else grafikleri değil, birden fazla birleşme ve yeniden dallanma içeren karmaşık fonksiyon akışlarını da temsil edebilmesini zorunlu kılar.
+
+Bu sözleşme, Multi-Rule formal specification içindeki **MR-OIR-014** karmaşık kontrol akışı ve çoklu giriş ölçeklenebilirlik testinin OIR tarafındaki karşılığıdır.
