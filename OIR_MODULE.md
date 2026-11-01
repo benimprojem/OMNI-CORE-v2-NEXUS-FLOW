@@ -59,7 +59,7 @@ The implemented payload schema is version 1.1 and contains a 36-byte little-endi
 | Instruction | 24 bytes | ID, block ID, opcode, result value ID, operand range |
 | Operand | 16 bytes | kind, referenced ID, 64-bit immediate |
 
-Initial type kinds are integer, float, boolean and function. Type flags define `OIR_MODULE_TYPE_FLAG_SIGNED` (integer only; unset means unsigned), `OIR_MODULE_TYPE_FLAG_HARD` (forced-width/hard type) and `OIR_MODULE_TYPE_FLAG_CONST` (const qualification). Non-integer types reject the signed flag; hard/const qualifiers are representation-independent. Function types are currently identity placeholders; parameter and return signature tables are a later extension. Table IDs are 1-based and must appear in canonical sequential order. The codec validates schema version, bounded counts, total payload length, UTF-8 strings, table ranges, basic cross-table IDs and opcode operand/result shape before exposing a zero-copy view. The writer serializes fields individually in little-endian order and validates its output through the reader.
+Initial type kinds are integer, float, boolean and function. Type flags define `OIR_MODULE_TYPE_FLAG_SIGNED` (integer only; unset means unsigned), `OIR_MODULE_TYPE_FLAG_HARD` (forced-width/hard type) and `OIR_MODULE_TYPE_FLAG_CONST` (const qualification). Non-integer types reject the signed flag; hard/const qualifiers are representation-independent. The first semantic primitive mapper is implemented in `oir_type_map.h/.c`: it maps `i8/i16/i32/i64`, `u8/u16/u32/u64`, `f32/f64` and `bool`, preserving hard/const flags. `str`, `char`, `byte`, `void` and `any` are deliberately rejected until their OIR representations are specified. Function types are currently identity placeholders; parameter and return signature tables are a later extension. Table IDs are 1-based and must appear in canonical sequential order. The codec validates schema version, bounded counts, total payload length, UTF-8 strings, table ranges, basic cross-table IDs and opcode operand/result shape before exposing a zero-copy view. The writer serializes fields individually in little-endian order and validates its output through the reader.
 
 The 1.1 codec validates the integer signedness flag and rejects signedness on non-integer kinds; hard/const qualifiers are preserved independently of scalar kind. It does not yet validate function/block ownership consistency, complete instruction-range coverage, type compatibility, SSA dominance, predecessor edges or function signatures. Those checks belong to the subsequent verifier increment; the codec must not claim them.
 
@@ -258,7 +258,7 @@ No schema is considered frozen merely because a first implementation or test fix
 |---|---|
 | OIR container kind ID 5 (`OIR_KIND_MODULE`) | Registered |
 | Generic OIR container reader/writer | Implemented |
-| OIR_MODULE payload codec 1.1 (type flags incl. integer signedness) | Implemented; full verifier pending |
+| OIR_MODULE payload codec 1.1 (signed, hard and const type flags) | Implemented; full verifier pending |\n| SEMANTIC_AST primitive-to-OIR type mapper | Initial scalar allowlist implemented; unsupported types rejected |
 | SSA value model | Required by NEXSUS Flow design; merge encoding open |
 | NEXSUS Flow numeric width promotion | Partial language rule established; full conversion lattice open |
 | OIR_MODULE opcode/type registries | Not frozen |
