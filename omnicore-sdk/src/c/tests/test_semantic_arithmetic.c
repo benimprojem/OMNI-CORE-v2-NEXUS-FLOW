@@ -39,11 +39,14 @@ int main(void) {
         "f:main() !i32 { ret 10 + 2.5; }";
     static const char non_numeric_operands[] =
         "f:main() !bool { ret true - false; }";
+    static const char floating_remainder[] =
+        "f:main() !f64 { ret 10.0 % 3.0; }";
 
     if (!check_source(integer_expression, 0)) return 1;
     if (!check_source(float_expression, 0)) return 1;
     if (!check_source(mismatched_operands, 1)) return 1;
     if (!check_source(non_numeric_operands, 1)) return 1;
+    if (!check_source(floating_remainder, 1)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
