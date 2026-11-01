@@ -36,7 +36,7 @@ typedef struct OirLoweringWorkspace {
 
 /*
  * Extended scalar return lowering: supports integer/float/bool literals and
- * recursively nested +, -, *, /, % expressions. Unsupported AST nodes,
+ * recursively nested +, -, *, / expressions. Unsupported AST nodes,
  * operators and type combinations fail closed.
  */
 OirStatus oir_lower_semantic_ast_return(
