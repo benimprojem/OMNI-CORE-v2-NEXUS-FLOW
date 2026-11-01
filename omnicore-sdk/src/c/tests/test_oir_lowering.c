@@ -152,7 +152,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             oir_module_get_operand(&module, add.first_operand, &left) != OIR_STATUS_OK ||
             oir_module_get_operand(&module, add.first_operand + 1u, &right) != OIR_STATUS_OK ||
             left.reference_id != 1u || right.reference_id != 4u) goto cleanup;
-    } else {
+    } else if (arithmetic == 2) {
         OirModuleInstruction constant, ret;
         OirModuleOperand immediate, returned;
         if (module.instruction_count != 2u || module.operand_count != 2u ||
@@ -164,6 +164,23 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate != 42u ||
             oir_module_get_operand(&module, ret.first_operand, &returned) != OIR_STATUS_OK ||
             returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 1u)
+            goto cleanup;
+    } else {
+        OirModuleInstruction add, ret;
+        OirModuleOperand left, right, returned, immediate;
+        if (module.instruction_count != 4u || module.operand_count != 5u ||
+            module.value_count != 3u ||
+            oir_module_get_instruction(&module, 2u, &add) != OIR_STATUS_OK ||
+            oir_module_get_instruction(&module, 3u, &ret) != OIR_STATUS_OK ||
+            add.opcode_id != OIR_OP_ADD || ret.opcode_id != OIR_OP_RETURN ||
+            oir_module_get_operand(&module, 1u, &immediate) != OIR_STATUS_OK ||
+            immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate != 2u ||
+            oir_module_get_operand(&module, add.first_operand, &left) != OIR_STATUS_OK ||
+            oir_module_get_operand(&module, add.first_operand + 1u, &right) != OIR_STATUS_OK ||
+            left.kind != OIR_OPERAND_VALUE || left.reference_id != 1u ||
+            right.kind != OIR_OPERAND_VALUE || right.reference_id != 2u ||
+            oir_module_get_operand(&module, ret.first_operand, &returned) != OIR_STATUS_OK ||
+            returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 3u)
             goto cleanup;
     }
     ok = 1;
@@ -296,9 +313,12 @@ int main(void) {
         static const uint8_t literal_source[] = "f:main() !i32 { ret 42; }";
         static const uint8_t arithmetic_source[] = "f:main() !i32 { ret 10 + 20 * 3; }";
         static const uint8_t local_source[] = "f:main() !i32 { v:x!i32 = 42; ret x; }";
+        static const uint8_t assignment_source[] =
+            "f:main() !i32 { v:x!i32 = 40; x = x + 2; ret x; }";
         assert(test_real_frontend_to_module(literal_source, sizeof(literal_source)-1u, 0));
         assert(test_real_frontend_to_module(arithmetic_source, sizeof(arithmetic_source)-1u, 1));
         assert(test_real_frontend_to_module(local_source, sizeof(local_source)-1u, 2));
+        assert(test_real_frontend_to_module(assignment_source, sizeof(assignment_source)-1u, 3));
     }
     return 0;
 }
