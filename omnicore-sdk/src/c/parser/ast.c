@@ -142,6 +142,19 @@ static void ast_print_recursive(ASTNode* node, int level) {
                 printf("[BLOCK]\n");
                 ast_print_recursive(((ASTBlock*)node)->statements, level + 1);
                 break;
+            case AST_IF: {
+                ASTIf* conditional = (ASTIf*)node;
+                printf("[IF]\n");
+                print_indent(level + 1); printf("[CONDITION]\n");
+                ast_print_recursive(conditional->condition, level + 2);
+                print_indent(level + 1); printf("[THEN]\n");
+                ast_print_recursive(conditional->then_branch, level + 2);
+                if (conditional->else_branch) {
+                    print_indent(level + 1); printf("[ELSE / ELSIF]\n");
+                    ast_print_recursive(conditional->else_branch, level + 2);
+                }
+                break;
+            }
             case AST_VAR_DECL: {
                 ASTVarDecl* decl = (ASTVarDecl*)node;
                 printf("VAR_DECL: %s (%s)", decl->name, decl->is_const ? "CONST" : "MUT");
