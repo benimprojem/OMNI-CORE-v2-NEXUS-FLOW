@@ -13,8 +13,9 @@ extern "C" {
  * one non-extern, parameterless function; one block; one return of a
  * semantically annotated integer, float or bool literal.
  *
- * All arrays and output storage are caller-owned. The artifact view must have
- * been produced by oir_semantic_ast_artifact_open() and remain alive.
+ * All arrays and output storage are caller-owned. AST, TYPES and ANNOTATIONS
+ * views must be validated and remain alive; production callers should obtain
+ * the complete view through oir_semantic_ast_artifact_open().
  */
 typedef struct OirLoweringWorkspace {
     OirModuleType* types;
