@@ -1737,3 +1737,149 @@ Syntax Reference içinde `label?>` biçimi de belgelenmiştir; ancak mevcut kıs
 - **OIR Builder:** Etiket hedefinin basic block'a bağlanması ve handler jump'ının ilgili apply noktasına lowering edilmesi.
 - **OIR Verifier:** JUMP terminator hedefi, predecessor/successor tutarlılığı ve terminator sonrası sahte kenarların reddedilmesi.
 
+
+
+## 12.19 MR-OIR-010 — İleri / geri yönlü jump ve döngüsel CFG
+
+**Amaç:** `jump(label)` komutunun kaynak kod sırasına bağlı olmayan, fonksiyon içindeki etiketli basic block'lar arasında koşulsuz kontrol aktarımı olduğunu doğrulamak. Test; ileri atlama, geri atlama, birden fazla etiket arasında yön değiştirme, koşullu geri dönüş ve oluşan CFG döngüsünü kapsar.
+
+### Kesinleştirilen kurallar
+
+1. `jump(label)`, hedef etiket aynı fonksiyonun etiket tablosunda çözüldüğü sürece, kaynak kodda daha ileride veya daha önce tanımlanmış bir etikete gidebilir.
+2. İleri ve geri yön, kaynak dosyadaki metinsel sıraya göre belirlenir; bu ayrım komutun semantiğini değiştirmez.
+3. Her `jump(label)` OIR'de hedef basic block'a giden tek hedefli bir `JUMP` terminator'ıdır. Terminator sonrasında aynı kaynak yolunda doğal fallthrough kenarı bulunmaz.
+4. Geri atlama CFG'de çevrim oluşturabilir. Bu çevrim bir `loop` sözdizimi olmak zorunda değildir; Analyzer ve Verifier bunu geçerli bir kontrol akışı çevrimi olarak ele almalıdır.
+5. Bir çevrimin sonlanması gerekiyorsa koşullu kontrol veya başka bir kontrol akışı yolu çevrimden çıkışı sağlamalıdır. Koşulsuz geri atlama kendi başına sonlanma garantisi vermez.
+6. Etiket hedefleri kaynak kod sırasına göre değil, fonksiyon kapsamındaki etiket sembol tablosuna göre çözülür. Aynı fonksiyon içindeki benzersizlik, fonksiyon dışına çıkmama ve lexical scope güvenliği MR-OIR-009 kuralları olarak geçerliliğini korur.
+7. Handler içindeki `jump(label)` de aynı fonksiyon etiket tablosunu kullanır. Handler'ın `apply rules` noktasına lowering edilmesi, ileri/geri hedef çözümlemesini değiştirmez.
+8. `jump`, `break`, `continue` veya `return` ile eş anlamlı değildir. Hedef etikete transfer eder; hedefin bir döngü çıkışı veya döngü başı olması komutun türünü değiştirmez.
+
+### Kaynak test
+
+Etiketlerin kaynak sırası özellikle atlama yönlerinin ikisini de oluşturacak biçimde düzenlenmiştir:
+
+```nexus
+rules RouteBack(value) {
+    value == 1 -> StartRoute;
+}
+
+f:testBidirectionalJump(value) {
+    v:i = 0;
+
+    apply rules(RouteBack(value));
+
+    on RouteBack.StartRoute {
+        jump(label1);
+    }
+
+    jump(label3);
+
+    label2:>
+    i = i + 1;
+    (i < 3) ? jump(label1);
+    jump(label3);
+
+    label1:>
+    i = i + 1;
+    jump(label2);
+
+    label3:>
+    echo(i);
+}
+```
+
+Kaynak sırası `label2` → `label1` → `label3` şeklindedir. Buna rağmen akışta hem ileri hem geri yönlü atlamalar bulunur.
+
+### Beklenen yürütme
+
+**Durum A — value = 1**
+
+1. `StartRoute` trigger'ı eşleşir.
+2. Handler, `label1` hedefine atlar.
+3. `label1` içindeki `jump(label2)`, kaynak kodda daha önce bulunan etikete geri döner.
+4. `label2` içindeki koşul doğru olduğu sürece `jump(label1)` ile ileri yönde tekrar geçiş yapılır.
+5. Koşul yanlış olduğunda `jump(label3)` ile çevrimden çıkılır.
+
+Beklenen çıktı:
+
+```text
+4
+```
+
+**Durum B — value = 0**
+
+1. Trigger eşleşmez; handler çalışmaz.
+2. Normal akıştaki `jump(label3)` yürütülür.
+3. Ara etiket blokları atlanır.
+
+Beklenen çıktı:
+
+```text
+0
+```
+
+### Beklenen soyut CFG
+
+```text
+ApplyEntry
+  -> BarrierStage
+  -> TriggerEvaluation
+  -> HandlerDispatch
+       matched_StartRoute
+         -> StartRoute_Handler
+         -> JUMP label1
+       no_match
+         -> ApplyContinue
+         -> JUMP label3
+
+label2:
+  -> Increment_i
+  -> BRANCH (i < 3)
+       true  -> JUMP label1
+       false -> JUMP label3
+
+label1:
+  -> Increment_i
+  -> JUMP label2
+
+label3:
+  -> Echo_i
+  -> FunctionContinuation
+```
+
+CFG'de `label1 -> label2 -> label1` çevrimi vardır. `label2` koşulunun false kolu `label3` çıkışına ulaşır. `no_match` yolu da doğrudan `label3` hedefine gider. Kaynak kodda etiketlerin sıralanışı bu CFG bağlantılarını sınırlamaz.
+
+### Analyzer ve Verifier kontrolleri
+
+1. İleri ve geri hedefler aynı fonksiyonun etiket tablosunda çözülmelidir.
+2. Etiket çözümlemesi kaynak sırasına göre yalnızca ileri arama yapmamalıdır; fonksiyon etiket tablosu tüm etiketleri kapsamalıdır.
+3. Her koşulsuz `jump(label)` tek hedefli `JUMP` terminator'ına dönüşmelidir.
+4. `JUMP` terminator'ından kaynak kodun bir sonraki satırına sahte fallthrough kenarı oluşturulmamalıdır.
+5. Geri atlama nedeniyle oluşan CFG çevrimi geçerli predecessor/successor ilişkileriyle temsil edilmelidir.
+6. Döngüsel CFG üzerinde SSA değerleri, ilgili block parameter / merge değerleriyle doğru taşınmalıdır; eski iterasyona ait SSA değeri yanlışlıkla yeniden kullanılmamalıdır.
+7. Koşullu kontrolün true ve false yolları ayrı CFG kenarlarına bağlanmalıdır. False kolu sonraki kaynak statement'ından devam eder.
+8. Handler'dan yapılan atlama da aynı hedef basic block'a bağlanmalı; handler dispatch kuyruğuna veya `ApplyContinue` bloğuna sahte kenar oluşturmamalıdır.
+9. Etiketin bulunamaması, yinelenmesi, başka fonksiyona ait olması veya yasaklı daha derin lexical scope'a girmesi MR-OIR-009 kapsamında reddedilmelidir.
+10. Verifier, CFG'nin kaynak satır sırasına göre monoton ilerlemesini şart koşmamalıdır. İleri ve geri kenarlar geçerlidir; geçerlilik terminator, hedef, kapsam ve SSA kurallarıyla belirlenir.
+
+### Negatif testler
+
+- **MR-OIR-010-N1:** Analyzer'ın yalnızca ileri yöndeki etiketleri çözümleyip daha önce tanımlanmış hedefi reddetmesi.
+- **MR-OIR-010-N2:** Geri yönlü `JUMP` kenarının yanlış basic block'a bağlanması.
+- **MR-OIR-010-N3:** `JUMP` terminator'ından kaynak kodun sonraki satırına fallthrough kenarı eklenmesi.
+- **MR-OIR-010-N4:** Geri atlamayla oluşan CFG çevriminin Verifier tarafından yalnızca çevrim içerdiği için reddedilmesi.
+- **MR-OIR-010-N5:** Döngüsel CFG'de block parameter / SSA merge değerinin eksik veya yanlış bağlanması.
+- **MR-OIR-010-N6:** Koşullu kontrolün false kolunun kaybolması veya yanlışlıkla hedef etikete bağlanması.
+- **MR-OIR-010-N7:** Handler içindeki ileri/geri `jump` hedefinin handler'ın kaynak fonksiyon kapsamı yerine yapay handler kapsamından çözülmesi.
+- **MR-OIR-010-N8:** Handler'daki `JUMP` sonrasında sonraki handler'a veya `ApplyContinue` bloğuna sahte kenar oluşturulması.
+- **MR-OIR-010-N9:** `jump` komutunun geri hedefe gittiği için otomatik olarak `continue` veya `break` sayılması.
+- **MR-OIR-010-N10:** Koşulsuz geri atlamanın kendiliğinden sonlanacağı varsayılması veya Verifier'ın sonlanma garantisi üretmesi.
+
+### Test sınıflandırması
+
+- **Frontend/Parser:** Etiket bildirimleri, `jump(label)` ve koşullu kontrol içindeki jump ifadesinin AST'de korunması.
+- **Analyzer:** Fonksiyon çapında etiket tablosu, ileri/geri hedef çözümlemesi ve lexical scope denetimi.
+- **OIR Builder:** Kaynak sırasından bağımsız basic block bağlantıları, koşullu kenarlar ve geri atlamalar.
+- **OIR Verifier:** CFG çevrimleri, predecessor/successor tutarlılığı, terminator kuralları ve SSA/block parameter doğrulaması.
+
+Bu test, etiketli atlamanın ileri/geri yönlü olabileceğini ve CFG'nin çevrim içerebileceğini sabitler. Çevrim analizi, dominator hesaplaması, loop recognition ve optimizasyonların ayrıntıları ilgili OIR/Optimizer spesifikasyonlarında ayrıca ele alınacaktır.
