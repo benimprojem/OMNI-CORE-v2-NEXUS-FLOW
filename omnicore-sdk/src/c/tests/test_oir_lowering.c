@@ -1,3 +1,6 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include "oir_lowering.h"
 #include "oir_ast_tlv.h"
 #include "parser.h"
@@ -60,6 +63,7 @@ static int test_real_frontend_to_module(void) {
     size_t module_length = 0u;
     OirModuleView module;
     int ok = 0;
+    int semantic_initialized = 0;
 
     memset(&semantic, 0, sizeof(semantic));
     memset(&workspace, 0, sizeof(workspace));
@@ -86,6 +90,7 @@ static int test_real_frontend_to_module(void) {
     resolver.entries = index;
     resolver.capacity = 64u;
     semantic_init(&semantic, "real-lowering.nxf", NULL);
+    semantic_initialized = 1;
     semantic_attach_node_id_resolver(&semantic, test_resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
     if (semantic.error_count != 0 ||
@@ -96,8 +101,6 @@ static int test_real_frontend_to_module(void) {
             &semantic.result, 1u, semantic_artifact,
             sizeof(semantic_artifact), &semantic_length) != OIR_STATUS_OK)
         goto cleanup;
-    semantic_destroy(&semantic);
-
     if (oir_semantic_ast_artifact_open(semantic_artifact, semantic_length,
             &artifact, incoming, 64u, visited, 64u, graph_stack, 64u,
             owner_scope, 65u) != OIR_STATUS_OK)
@@ -132,8 +135,7 @@ static int test_real_frontend_to_module(void) {
     ok = 1;
 
 cleanup:
-    if (semantic.result.finalized || semantic.result_status != SEMANTIC_RESULT_OK ||
-        semantic.head != NULL) semantic_destroy(&semantic);
+    if (semantic_initialized) semantic_destroy(&semantic);
     if (parser) parser_destroy(parser);
     return ok;
 }
