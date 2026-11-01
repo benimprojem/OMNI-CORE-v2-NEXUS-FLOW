@@ -93,6 +93,7 @@ Recent design work includes:
 - Normative Multi-Rule OIR test MR-OIR-002: evaluate all trigger conditions once, retain SSA match results, and dispatch every matched handler in handler source order.
 - Normative Multi-Rule OIR test MR-OIR-003: verify that `return` inside a handler or `always` block terminates the enclosing function path and cannot fall through to later handlers, `default`, or normal continuation.
 - Normative Multi-Rule OIR test MR-OIR-004: verify normal handler → `always` → conditional `default` ordering for both matched-trigger and no-match paths.
+- Normative Multi-Rule OIR test MR-OIR-005: verify named `always` / `default` trigger emission, dedicated handler stages, name resolution, and matched/no-match dispatch order.
 - Separation of source-language syntax documentation from compiler project documentation.
 
 ### Open design contracts
