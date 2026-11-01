@@ -142,3 +142,35 @@ Feature-specific specifications may contain more detailed or newer decisions tha
 This repository contains evolving design documents and implementation work. A documented architecture or pseudocode example does not by itself mean the corresponding compiler module is implemented or production-ready.
 
 The project status should be updated here as modules become executable, tests are added, and specifications are finalized. Language-level syntax changes belong in the [NEXUS Flow Syntax Reference](NEXUS-FLOW-SYNTAX-REFERENCE.md) and the relevant feature specification.
+
+
+## Documentation ownership and planned layout
+
+Documentation is divided into two separate domains. Their content must not be mixed during future folder cleanup.
+
+### Root-level `/docs/` — language and compiler engineering
+
+This directory is reserved for design and implementation specifications, including:
+
+- NEXUS Flow language semantics and formal syntax specifications.
+- OIR format, verification rules, CFG/SSA and optimization contracts.
+- OCC compiler architecture and modular DLL pipeline.
+- Frontend, Analyzer, OIR Builder/Writer/Reader, optimization and code-generation design.
+- Custom OCC linker, binary formats, security validation and compiler construction notes.
+- Normative compiler tests and engineering decision records.
+
+### `/omnicore-sdk/docs/` — OCC/SDK usage documentation
+
+This directory is reserved for users and SDK integrators, including:
+
+- Installation, setup, environment and project configuration.
+- How to invoke OCC, command syntax, arguments, flags and build workflows.
+- SDK directory structure, libraries, targets and integration instructions.
+- Supported language/compiler features and practical limits.
+- Error and warning codes, diagnostics, recovery guidance and troubleshooting.
+- OCC behavior, safe usage, input/output artifacts and examples.
+- API and tool usage references intended for application developers.
+
+### Migration policy
+
+The current repository still contains historical and mixed-purpose documentation under `nexus docs/` and `omnicore-sdk/docs/`. This section defines the intended ownership only; it does not claim that the migration has already happened. During the later reorganization, each document must be reviewed, assigned to one domain, moved without losing history or links, and cross-linked where the user guide needs to explain a compiler-defined behavior. Avoid maintaining duplicate normative specifications in the SDK guide.
