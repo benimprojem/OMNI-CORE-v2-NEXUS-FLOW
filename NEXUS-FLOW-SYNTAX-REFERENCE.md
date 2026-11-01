@@ -1288,7 +1288,7 @@ f:main() {
 6. Scope aktivasyonu sona erdiğinde o aktivasyona ait defer kayıtları tüketilir. Yeni ve geçerli bir scope aktivasyonu yeni kayıt listesi oluşturur.
 7. Defer gövdesi, kendisini kaydeden scope'un dışına `jump`, `return`, `break` veya `continue` ile kontrol aktaramaz.
 8. Bu sürümde defer gövdesi içinde yeni defer kaydı oluşturulması desteklenmez; Analyzer bunu reddeder.
-9. Defer gövdesinin hata/panic üretmesi halinde diğer defer kayıtlarının yürütülme politikası ayrı hata sözleşmesidir; tanımlanmamış davranış normal başarı gibi kabul edilemez.
+9. Defer gövdesindeki hata/panic ve otomatik cleanup hatalarının tamamlanma, biriktirme ve unwind politikası MR-OIR-020'de tanımlanır; cleanup hatası normal başarı gibi kabul edilemez.
 
 Bu kuralların OIR karşılığı ve testleri MR-OIR-017 içinde tanımlanır.
 
