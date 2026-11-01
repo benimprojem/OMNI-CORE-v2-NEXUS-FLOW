@@ -164,7 +164,7 @@ The OIR instruction set consists of operations for task management, synchronizat
 
 ## 6. IR Graph
 
-The OIR program is represented as a **directed acyclic graph (DAG)**, where nodes are OIR instructions and edges represent the **execution or data dependency** between them. This structure enables:
+The scheduler/task dependency view in this section is represented as a **directed acyclic graph (DAG)**, where nodes are runtime task operations and edges represent execution or data dependencies. This DAG is not the canonical per-function control-flow representation used by the OCC compiler. Function control flow is represented by a control-flow graph (CFG) with basic blocks and explicit terminators; CFG cycles created by `loop` or `jump(label)` are valid when their edges and SSA/block-parameter relationships pass verification. The scheduler dependency DAG and function CFG are distinct graph models.
 
 * Deterministic execution
 * Precise scheduling
@@ -216,7 +216,7 @@ spawn(t1) ──> worker_func ──> done(t1)
 
 ### 6.5 Graph Properties
 
-* DAG: No cycles; prevents deadlocks at the IR level.
+* DAG: The scheduler/task dependency graph in this section is acyclic. This restriction does not apply to function CFGs, which may contain valid cycles.
 * Deterministic: Execution of consumer nodes follows priority order.
 * Target-agnostic: Graph semantics do not depend on OS or Bare-metal backend.
 * Scalable: Supports `max_slots` > 256 using word-adaptive pages and multi-layer ready maps.
