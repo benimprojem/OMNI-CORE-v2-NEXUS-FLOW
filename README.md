@@ -116,9 +116,9 @@ loop(i, i < 100, i++) -> {
 }
 
 f:hassas_toplam(a:!f64, b!f64)!f64 {return a + b }
-# Parametrelerde tür ayıracı ':' isteğe bağlıdır:
-# a:f32  ve a!f32 biçimleri geçerlidir.
-# a:!f32 de aynı zorlanmış türü ifade eder.
+# Normal tür bildirimi ':' kullanır: a:f32.
+# Hard tür bildirimi a!f32 veya a:!f32 biçiminde yazılabilir.
+# Yani ':' yalnızca hard tür bildiriminde atlanabilir.
 # '!' türü hard-lock yapar; değişken adının parçası değildir.
 # Burada, içeri giren her veri f64'e zorlanır.
 
