@@ -28,6 +28,14 @@ endif()
 set(C_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/c")
 set(C_PARSER_DIR "${C_SOURCE_DIR}/parser")
 set(C_CODEGEN_DIR "${C_SOURCE_DIR}/codegen")
+set(C_TARGET_DIR "${C_SOURCE_DIR}/target")
+
+# Normalized v2 target profile: heterogeneous devices, memories and interconnects.
+add_library(occ_target_profile STATIC
+    "${C_TARGET_DIR}/target_profile.c"
+)
+target_include_directories(occ_target_profile PUBLIC "${C_TARGET_DIR}")
+set_target_properties(occ_target_profile PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set(C_RUNTIME_DIR "${CMAKE_BINARY_DIR}/bin")
 
 # Keep all generators (including Visual Studio multi-config) on one runtime path.
@@ -496,6 +504,7 @@ if(MSVC)
     target_compile_options(occ_module_abi PRIVATE /W4)
     target_compile_options(occ_oir PRIVATE /W4)
     target_compile_options(occ_oir_module_opcode PRIVATE /W4)
+    target_compile_options(occ_target_profile PRIVATE /W4)
     target_compile_options(occ_diagnostics PRIVATE /W4)
     target_compile_options(occ_compilation PRIVATE /W4)
     target_compile_options(occ_failure_store PRIVATE /W4)
@@ -517,6 +526,7 @@ else()
     target_compile_options(occ_module_abi PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_module_opcode PRIVATE -Wall -Wextra)
+    target_compile_options(occ_target_profile PRIVATE -Wall -Wextra)
     target_compile_options(occ_diagnostics PRIVATE -Wall -Wextra)
     target_compile_options(occ_compilation PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_lexer_adapter PRIVATE -Wall -Wextra)
