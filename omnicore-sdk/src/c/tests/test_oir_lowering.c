@@ -276,6 +276,11 @@ int main(void) {
         assert(oir_module_get_function(&module,0u,&fn)==OIR_STATUS_OK);
         assert(fn.name_length==4u && memcmp(module.strings+fn.name_offset,"main",4u)==0);
     }
-    assert(test_real_frontend_to_module());
+    {
+        static const uint8_t literal_source[] = "f:main() !i32 { ret 42; }";
+        static const uint8_t arithmetic_source[] = "f:main() !i32 { ret 10 + 20 * 3; }";
+        assert(test_real_frontend_to_module(literal_source, sizeof(literal_source)-1u, 0));
+        assert(test_real_frontend_to_module(arithmetic_source, sizeof(arithmetic_source)-1u, 1));
+    }
     return 0;
 }
