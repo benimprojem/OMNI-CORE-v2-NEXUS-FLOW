@@ -4,11 +4,15 @@ This directory is for OCC users and SDK integrators. It explains how to install,
 
 | Section | Contents |
 |---|---|
+| [Getting started](getting-started/README.md) | Installation and first-project guidance |
 | [Commands](commands/) | OCC CLI usage and build workflow |
 | [Configuration](configuration/) | Project layout and target setup |
 | [API references](api/) | Core API, standard library, OS bridge and primordial core |
-| [Examples](examples/) | Practical SDK examples |
-| [Troubleshooting](troubleshooting/) | Setup/build diagnostics and recovery |
+| [Examples](examples/README.md) | Practical SDK examples |
+| [Errors](errors/README.md) | Error codes and diagnostic handling |
+| [Warnings](warnings/README.md) | Warning codes and non-fatal diagnostics |
+| [Limits](limits/README.md) | Supported limits and implementation constraints |
+| [Troubleshooting](troubleshooting/README.md) | Setup/build diagnostics and recovery |
 
 Normative language semantics, OIR rules, compiler architecture, ABI contracts and security rules are maintained in the repository's [engineering documentation](../../docs/README.md). This SDK guide links to those documents rather than keeping divergent copies.
 
