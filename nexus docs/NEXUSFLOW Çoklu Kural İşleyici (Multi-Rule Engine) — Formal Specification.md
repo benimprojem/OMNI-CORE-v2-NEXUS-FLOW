@@ -2704,3 +2704,125 @@ Bu test, jump hedeflerini aynı etkin lexical loop gövdesi içindeki merge nokt
 - **Optimizer:** Nested loop ve çoklu merge üzerinde güvenli dönüşüm.
 
 Bu test, `break`, `continue` ve `jump(label)` semantikleri birbirinden ayrılmış haldeyken iç içe kontrol yapılarının birlikte çalışmasını normatif olarak sabitler.
+
+
+## 12.25 MR-OIR-016 — Jump scope-exit cleanup ve geri dönüşte kaynakların korunması
+
+**Amaç:** `jump(label)` komutunun basic block aktarımı ile lexical scope'tan çıkışı birbirinden ayırdığını; aynı canlı scope içinde geri dönüş mümkün olduğunda kaynakların korunmasını, scope terk edildiğinde ise otomatik cleanup uygulanmasını doğrulamak.
+
+### 12.25.1 Temel semantik
+
+Bu test, NEXUS Flow Syntax Reference'taki `(h)` yaşam döngüsü ve `}?;` blok temizliği ile OIR §12.8 sözleşmesini birlikte sınar.
+
+1. Basic block değişimi lexical scope çıkışı değildir. Aynı scope içindeki jump, o scope'a ait kaynakların yaşamını sona erdirmez.
+2. Aynı lexical scope içindeki ileri/geri jump geçerlidir. Kontrol daha sonra aynı scope içindeki önceki bir label'a dönebilir; scope activation ve kaynak durumu korunur.
+3. Kaynak scope'un ancestor'ına jump yapılırsa arada kalan scope'lar terk edilir ve bunların otomatik cleanup işlemleri çalıştırılır.
+4. Terk edilen scope'un içindeki label'a sonradan doğrudan jump yapılamaz. Böyle bir transfer daha derin scope'a giriş olacağından Analyzer hatasıdır.
+5. Kardeş scope'a doğrudan jump da geçersizdir; hedef scope'un normal giriş/başlatma adımları atlanmış olur.
+6. Cleanup bir kez yürütülür. Scope terk edildikten sonra eski activation'a ait kaynaklar yeniden kullanılmaz.
+7. `_>` ile sahipliği aktarılmış kaynak, eski scope'un cleanup işleminde tekrar serbest bırakılmaz.
+8. `break`, `continue`, `return` ve `jump` farklı kontrol terminator'ları olmaya devam eder; ancak bir kontrol aktarımı lexical scope'u terk ediyorsa ilgili scope-exit cleanup gereksinimi ayrıca uygulanır.
+9. `?;` Halt davranışıdır; JUMP cleanup terminator'ı değildir. `}?;` blok kaynak temizliğiyle ilişkilidir.
+10. Cleanup'ın hata vermesi, cleanup içinden kontrol aktarımı ve kesin runtime ABI davranışları ayrı bir alt sözleşme olarak açık bırakılır; bunlar için sessiz varsayım yapılamaz.
+
+### 12.25.2 Test A — Aynı scope içinde geri dönüş, kaynak korunur
+
+Kaynak test:
+
+```nexus
+f:testJumpWithinScope()!i32 {
+    v:i = 0;
+
+    retry:>
+    v = v + 1;
+    (v < 3) ? jump(retry);
+
+    return v;
+}
+```
+
+Beklenen davranış:
+- `retry` ve ona geri dönen jump aynı lexical scope içindedir.
+- Scope kapanmamıştır; scope kaynakları için erken cleanup üretilmez.
+- CFG çevrimi geçerlidir ve normal `return` ile sonlanır.
+
+### 12.25.3 Test B — İç scope'tan dış scope'a jump, cleanup gerekir
+
+```nexus
+f:testJumpLeavesScope()!i32 {
+    loop(i, i < 3, i++) {
+        (h) <- file.open("session.dat", r);
+        jump(afterLoop);
+    }
+
+    afterLoop:>
+    return 0;
+}
+```
+
+Beklenen davranış:
+- `jump(afterLoop)` loop gövdesinin lexical scope'unu terk eder.
+- Loop gövdesine ait otomatik kaynak cleanup, `afterLoop` hedefine ulaşılmadan önce yürütülür.
+- `afterLoop` eski loop-body activation'ının dışındadır; eski `(h)` handle'ı burada canlı kabul edilmez.
+- Bu örnekte loop'un normal latch/continue yolu JUMP yoluna eklenmez.
+
+### 12.25.4 Test C — Terk edilmiş scope'a geri giriş reddedilir
+
+```nexus
+f:testReenterExitedScope()!i32 {
+    loop(i, i < 2, i++) {
+        inner:>
+        jump(outside);
+    }
+
+    outside:>
+    jump(inner);
+}
+```
+
+Beklenen davranış:
+- İlk jump loop-body scope'undan dışarı çıkar ve scope cleanup gerektirir.
+- `outside` noktasından `inner` hedefine jump, terk edilmiş/daha derin lexical scope'a giriş olacağından Analyzer hatasıdır.
+- Eski scope activation'ı ve kaynakları yeniden canlandırılmaz.
+
+### 12.25.5 Test D — Kardeş scope'a atlama reddedilir
+
+İki ayrı lexical block'un birbirine doğrudan jump ile bağlanması, hedef block'un normal scope giriş adımlarını atlayabileceğinden Analyzer tarafından reddedilir. Kardeş scope'a geçiş, ortak ancestor üzerinden normal CFG akışıyla yapılmalıdır.
+
+### 12.25.6 Verifier ve Optimizer kontrolleri
+
+1. Her block'un lexical scope ancestry bilgisi tutarlı olmalıdır.
+2. JUMP hedefinin scope'u kaynak scope ile aynı veya ancestor olmalıdır.
+3. Aynı scope içi jump'ta cleanup listesi yanlışlıkla çalıştırılmamalıdır.
+4. Scope dışına jump'ta terk edilen her scope'un cleanup'ı doğru sırada ve tam bir kez çalışmalıdır.
+5. Cleanup sonrasında eski scope activation'ına ait handle/masa kullanımına izin verilmemelidir.
+6. `_>` ile taşınmış kaynak için çift cleanup üretilmemelidir.
+7. CFG dönüşümü, scope ancestry ve cleanup edge bilgilerini korumalıdır.
+8. Cleanup gerektiren JUMP yolunda cleanup atlanması veya cleanup'ın iki kez çalıştırılması verifier hatası olmalıdır.
+9. Cleanup hata davranışı henüz tanımlı değilse Builder/Verifier bu davranışı sessizce normal akış olarak varsaymamalıdır.
+10. OIR'nin kesin cleanup opcode ve metadata encoding'i bu testle sabitlenmiş sayılmaz.
+
+### 12.25.7 Negatif testler
+
+- **MR-OIR-016-N1:** Aynı scope içindeki geri jump nedeniyle gereksiz cleanup yapılması.
+- **MR-OIR-016-N2:** Scope dışına jump yapılırken otomatik cleanup'ın atlanması.
+- **MR-OIR-016-N3:** Aynı scope cleanup'ının iki kez yürütülmesi.
+- **MR-OIR-016-N4:** Terk edilmiş daha derin scope'a doğrudan jump ile yeniden girilmesi.
+- **MR-OIR-016-N5:** Kardeş lexical scope'a doğrudan jump ile girilmesi.
+- **MR-OIR-016-N6:** `_>` ile taşınmış kaynağın eski scope'ta tekrar serbest bırakılması.
+- **MR-OIR-016-N7:** İç içe scope cleanup sırasının dıştan içe uygulanması.
+- **MR-OIR-016-N8:** Cleanup sonrasında eski scope activation'ına ait handle'ın kullanılması.
+- **MR-OIR-016-N9:** Optimizer'ın JUMP dönüşümünde scope ancestry/cleanup metadata'sını kaybetmesi.
+- **MR-OIR-016-N10:** Cleanup gerektiren JUMP edge'inin cleanup aşamasını atlayarak doğrudan hedefe bağlanması.
+- **MR-OIR-016-N11:** Aynı scope içi geri dönüşte kaynak activation'ının yanlışlıkla yeniden oluşturulması.
+- **MR-OIR-016-N12:** Cleanup hata/terminator davranışının tanımlanmamış olmasına rağmen sahte normal continuation üretilmesi.
+
+### 12.25.8 Açık alt sözleşmeler
+
+- Cleanup işlemi hata verdiğinde diğer cleanup işlemlerinin devam edip etmeyeceği ve hataların nasıl biriktirileceği.
+- Cleanup gövdesinin `jump`, `return`, `break`, `continue` veya panic üretmesine izin verilip verilmeyeceği.
+- `defer` sözdiziminin bu cleanup mekanizmasıyla ilişkisi ve kesin çalışma sırası.
+- Kaynak türüne özel cleanup sırası istisnaları.
+- Cleanup opcode/record biçimi ve runtime ABI.
+
+Bu açık noktalar, temel kuralı değiştirmez: canlı scope korunur; terk edilen scope temizlenir; terk edilmiş scope'a doğrudan geri giriş yapılamaz.
