@@ -14,6 +14,7 @@
 #define OIR_TOKEN_FALSE 8u
 #define OIR_TOKEN_KW_RET 9u
 
+static uint16_t rd16(const uint8_t* p) { return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8)); }
 static uint32_t rd32(const uint8_t* p) {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
         ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
@@ -31,6 +32,14 @@ static OirStatus get_field(
     status = oir_ast_node_table_get_field(ast, node_id - 1u, field_id, out);
     if (status != OIR_STATUS_OK) return OIR_STATUS_INVALID_SECTION;
     return out->value_type == expected_type ? OIR_STATUS_OK : OIR_STATUS_INVALID_SECTION;
+}
+
+static OirStatus get_token_id(const OirAstNodeTableView* ast, uint32_t node_id, uint16_t field_id, uint16_t* out) {
+    OirAstTlvField field;
+    OirStatus status = get_field(ast, node_id, field_id, OIR_AST_VALUE_TOKEN_ID, &field);
+    if (status != OIR_STATUS_OK || field.value_length != 2u || !out) return OIR_STATUS_INVALID_SECTION;
+    *out = rd16(field.value);
+    return OIR_STATUS_OK;
 }
 
 static OirStatus get_node(
@@ -116,7 +125,8 @@ OirStatus oir_lower_semantic_ast_literal_return(
     const uint8_t *function_name = NULL, *declared_type = NULL, *semantic_name = NULL;
     uint32_t function_name_length = 0u, declared_type_length = 0u;
     uint32_t declaration_id = 0u, body_id = 0u, expression_id = 0u;
-    uint32_t semantic_type_id = 0u, token_id = 0u, literal_kind = 0u;
+    uint32_t semantic_type_id = 0u, literal_kind = 0u;
+    uint16_t token_id = 0u;
     uint64_t immediate = 0u;
     OirStatus status;
 
@@ -164,9 +174,8 @@ OirStatus oir_lower_semantic_ast_literal_return(
     status = get_node(&artifact->ast, expression_id, &statement);
     if (status != OIR_STATUS_OK || statement.node_kind_id != AST_RETURN ||
         statement.next_node_id != 0u) return OIR_STATUS_INVALID_SECTION;
-    status = get_field(&artifact->ast, statement.node_id, 1u,
-        OIR_AST_VALUE_TOKEN_ID, &field);
-    if (status != OIR_STATUS_OK || rd32(field.value) != OIR_TOKEN_KW_RET)
+    status = get_token_id(&artifact->ast, statement.node_id, 1u, &token_id);
+    if (status != OIR_STATUS_OK || token_id != OIR_TOKEN_KW_RET)
         return OIR_STATUS_INVALID_SECTION;
     status = get_node_ref(&artifact->ast, statement.node_id, 2u, &declaration_id);
     if (status != OIR_STATUS_OK || declaration_id == 0u) return OIR_STATUS_INVALID_SECTION;
@@ -174,9 +183,8 @@ OirStatus oir_lower_semantic_ast_literal_return(
     if (status != OIR_STATUS_OK || literal.node_kind_id != AST_LITERAL)
         return OIR_STATUS_INVALID_SECTION;
 
-    status = get_field(&artifact->ast, literal.node_id, 1u, OIR_AST_VALUE_TOKEN_ID, &field);
+    status = get_token_id(&artifact->ast, literal.node_id, 1u, &token_id);
     if (status != OIR_STATUS_OK) return status;
-    token_id = rd32(field.value);
     status = get_field(&artifact->ast, literal.node_id, 2u, OIR_AST_VALUE_U32, &field);
     if (status != OIR_STATUS_OK) return status;
     literal_kind = rd32(field.value);
