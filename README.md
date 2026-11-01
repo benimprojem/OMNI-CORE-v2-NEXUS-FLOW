@@ -337,6 +337,18 @@ Koşulun sonucuna göre tek bir kontrol veya işlem seçilir. Bu yapı ternary k
 - Her iki kolda da normal ifadeler, bloklar veya kontrol aktarımı bulunabilir.
 - `break` ve `continue` yalnızca geçerli bir loop kapsamı içindeyken kullanılabilir.
 - Bu operatör, Bölüm 3'teki veri/işlem akışı için kullanılan `->` operatöründen ayrıdır.
+- Tek satırlı kollar bir statement olmalı ve `;` ile biter. Blok kolları `{ ... }` ile biter.
+- Koşul parantezli yazılır; böylece `?` işareti Rolling (`?(n,ms)`) ve Halt (`?;`) kullanımlarından parser tarafından ayırt edilir.
+- Lexer, `?->`, `?=>` ve `?;` gibi mevcut çok karakterli operatörleri tek token olarak önce tanır. Koşullu kontrolün `?` token'ı yalnızca tamamlanmış `(koşul)` sonrasında parser tarafından kabul edilir.
+
+Dilbilgisi:
+
+```text
+ConditionalControl := "(" Expression ")" "?" ControlArm [ ":" ControlArm ]
+ControlArm         := Statement | Block
+```
+
+Bu yapı statement seviyesinde kontrol seçimidir; kendi başına ternary değer üretmez.
 
 Örnekler:
 
