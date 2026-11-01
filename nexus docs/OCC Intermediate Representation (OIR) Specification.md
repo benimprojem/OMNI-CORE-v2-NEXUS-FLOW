@@ -823,3 +823,16 @@ hedef CFG block'una devam et (varsa)
 ```
 
 Bu bir OIR opcode dizisi değil, semantik sözleşmedir.
+
+
+### 12.10 Defer'in dinamik kaydı ve loop-body activation
+
+Defer ifadesine yürütme sırasında her ulaşıldığında, o anda etkin olan lexical scope activation'ına yeni bir kayıt eklenir. Aynı kaynak satırına tekrar ulaşılması önceki kaydı sessizce değiştirmez.
+
+1. Her dinamik defer erişimi ayrı kayıt oluşturur.
+2. Aynı scope activation'ında birden fazla kayıt oluşursa hepsi LIFO sırasıyla yürütülür.
+3. Loop body bir block scope ise her iterasyon yeni body activation'ı oluşturur; iterasyon sonunda o activation'ın defer kayıtları ve otomatik kaynak cleanup'ı çalışır.
+4. Aynı activation içinde backward JUMP ile defer ifadesine yeniden ulaşılırsa yeni kayıt eklenir; daha önceki kayıtlar korunur.
+5. OIR kayıt kimliği, kayıt sırası ve scope activation ilişkisini korumalıdır.
+6. Deferred body'nin hangi değişken değerlerini hangi anda gözlemlediği (referans/capture modeli) ayrı sözleşmedir; bu bölüm onu sabitlemez.
+
