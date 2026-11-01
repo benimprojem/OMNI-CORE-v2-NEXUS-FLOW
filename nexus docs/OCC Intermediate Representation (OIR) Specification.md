@@ -758,3 +758,21 @@ Kurallar:
 Bu sözleşme, OIR'nin yalnızca basit if/else grafikleri değil, birden fazla birleşme ve yeniden dallanma içeren karmaşık fonksiyon akışlarını da temsil edebilmesini zorunlu kılar.
 
 Bu sözleşme, Multi-Rule formal specification içindeki **MR-OIR-014** karmaşık kontrol akışı ve çoklu giriş ölçeklenebilirlik testinin OIR tarafındaki karşılığıdır.
+
+
+
+### 12.7 Nested loop context, SELECT merge ve jump ayrımı
+
+Bir fonksiyon birden fazla iç içe loop içerebilir. Her loop'un header, body, latch/continue ve exit ilişkileri diğer loop'lardan ayrı tutulmalıdır.
+
+Kurallar:
+1. `break` en yakın kapsayan loop'un exit hedefine bağlanır.
+2. `continue` en yakın kapsayan loop'un devam/latch akışına bağlanır. Loop biçiminin increment adımı varsa continue semantiği bu adımı korur.
+3. `jump(label)` loop-context çözümlemesiyle değil, fonksiyon label tablosu ve lexical-scope güvenliğiyle çözülür; break/continue ile eşdeğer değildir.
+4. `select` branch'leri normal CFG block'larıdır. Bir branch içindeki unconditional JUMP, o branch block'unu sonlandırır ve hedef block'a edge üretir.
+5. İç içe loop'lar iç içe CFG döngüleri oluşturabilir; loop analizleri her loop'un kendi header/latch/exit ve backedge ilişkisini korumalıdır.
+6. Bir select'in birden fazla branch'i aynı hedefe jump ediyorsa her giriş edge'i ve edge-specific block parameter argümanları korunmalıdır.
+7. Optimizer loop unroll/rotation, jump threading veya block merge sırasında loop context, terminator, edge, predecessor/successor, SSA ve debug/source metadata ilişkilerini birlikte güncellemelidir.
+8. Jump ile etkin loop lexical scope'larının dışına çıkılması halinde resource cleanup/implicit close davranışı ayrı kaynak dil sözleşmesiyle tanımlanmalıdır; OIR bu davranışı varsayımla üretmemelidir.
+
+Bu kurallar MR-OIR-015'in OIR tarafındaki karşılığıdır. Loop-context alanlarının kesin binary encoding'i ve nihai OIR opcode isimleri henüz sabitlenmemiştir.
