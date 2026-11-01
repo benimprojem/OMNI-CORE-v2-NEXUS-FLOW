@@ -101,12 +101,6 @@ The SDK currently contains separate Windows batch scripts for the OCC executable
 
 These are component-level build entry points, not a declaration that a complete, unified end-to-end compiler build is available. Check each script and the implementation-status documents before relying on a particular stage.
 
-## Clone activity
-
-GitHub exposes clone traffic to repository maintainers through **Insights → Traffic**; it is not a public live counter that can be read reliably by a README badge. For that reason, this repository does not display a fabricated or stale live-clone badge.
-
-The latest cumulative figure reported by the repository owner was **approximately 4,800 clones**. This is an owner-reported snapshot, not a verified public GitHub metric and **not** the clone increment for the most recent 48 hours. Dated traffic snapshots are tracked separately in [repository activity](docs/project/repository-activity.md).
-
 ## License
 
 The repository includes the custom **NexusFlow Alt Yapı ve Derleyici Lisansı (N-AAL)**. Read [LICENSE](LICENSE) before copying, modifying, redistributing or using any part of the project. Do not assume that public visibility means unrestricted commercial-use permission.
