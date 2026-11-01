@@ -1,6 +1,6 @@
 # Hardware Target Profile — Device Topology and Machine Binding
 
-**Status:** Design contract; not yet implemented by the current C target parser  
+**Status:** v2 normalized model and initial bounded OS/CPU parser implemented; backend integration remains incomplete  
 **Schema direction:** Target descriptor v2  
 **Related:** [TARGET_MODEL.md](TARGET_MODEL.md), [TARGET_PIPELINE_CONTRACT.md](TARGET_PIPELINE_CONTRACT.md)
 
@@ -179,7 +179,19 @@ Do not extend the existing fixed `TargetConfig` by adding a handful of GPU field
 
 The normalized profile should be serialized into a dedicated versioned Target OIR artifact passed as a separate stage input. It must not be mixed into the target-neutral `OIR_MODULE` program representation.
 
-## 8. Initial implementation scope
+## 8. Initial v2 text format and parser
+
+The first parser is intentionally a constrained INI-style format, not a general TOML implementation. It currently accepts exactly one `[target_info]` section and one `[cpu]` section. Unknown sections/keys, duplicate keys, overlong lines, invalid scalar values, unsupported enum tokens and missing required fields are rejected. The parser fills a zero-initialized `OccTargetProfile` and runs the structural validator before returning success.
+
+- Parser API: `occ_target_profile_load()` in `omnicore-sdk/src/c/target/target_profile_parser.h`.
+- CPU extension, atomic-width, floating-point-format and feature lists are comma-separated unquoted tokens.
+- Initial profile files live under `omnicore-sdk/targets/v2/` with the `.target2` suffix.
+- The v1 `.target` parser remains unchanged and available during migration.
+- This initial format has no repeated device/memory/interconnect tables yet. Those are deliberately deferred until the CPU + platform path is established.
+
+The four initial v2 descriptors are `BareMetal64`, `Linux64`, `Win64` and `macOS_AArch64`. Their `core_count = 0` and generic vendor/model labels mean “unspecified family baseline”, not a claim about a particular physical CPU. ISA profiles are capability declarations for the target family and must be matched to the actual machine or explicitly overridden; they are not automatic host detection.
+
+## 9. Initial implementation scope
 
 The first usable Target v2 milestone is **OS + BareMetal + CPU capability resolution**. The initial platform set is Windows x86-64, Linux x86-64, macOS AArch64 and BareMetal x86-64 (with the existing RV32 descriptor retained as a future backend target, not a promised codegen target).
 
@@ -195,25 +207,26 @@ OS/BareMetal platform records additionally define `os`, `abi`, `binary_format`, 
 
 Other device kinds stay in the schema from the beginning so future programmable chips (especially FPGA) do not require a schema redesign. Their parser, backend and code-generation support are deferred.
 
-## 9. Implementation progress
+## 10. Implementation progress
 
 - [x] Initial normalized v2 C data model added under `omnicore-sdk/src/c/target/target_profile.h`.
 - [x] Structural validator added in `target_profile.c` for schema version, bounded table counts, device/resource identity uniqueness, memory ownership references, interconnect endpoints, CPU capability requirements and platform ABI/alignment fields.
 - [x] The profile model is integrated as the `occ_target_profile` CMake static library.
-- [ ] Bounded v2 text parser and canonical serializer.
+- [x] Bounded initial v2 text parser for one platform + one CPU record, with strict keys, duplicate rejection, bounded lines and validator handoff.
+- [x] Initial OS/BareMetal v2 descriptor files for Windows, Linux, macOS AArch64 and BareMetal.
+- [ ] Canonical serializer and repeated device/memory/interconnect tables.
 - [ ] Target OIR artifact writer/reader and module handoff.
 - [ ] Backend/device capability registry, heterogeneous lowering and runtime machine binding.
 
 The C data model is an initial implementation foundation only. No v2 descriptor file is parsed yet, and the validator does not establish backend support or physical machine identity. Build/CI has not been run for this change.
 
-## 10. Implementation order
+## 11. Implementation order
 
-1. Finalize the CPU capability record and the OS/BareMetal platform contract.
-2. Implement bounded parsing and validation for the initial OS/BareMetal + CPU subset.
-3. Resolve the existing Windows/Linux/macOS/BareMetal descriptors into normalized Target v2 profiles.
-4. Add Target OIR artifact writer/reader and pass it through the module ABI.
-5. Add CPU backend capability checks and platform-specific code-generation gates.
+1. Extend the parser to repeated device/memory/interconnect tables and add canonical serialization.
+2. Add Target OIR artifact writer/reader and pass it through the module ABI.
+3. Resolve v2 profiles into the compiler pipeline while preserving v1 compatibility.
+4. Add CPU backend capability checks and platform-specific code-generation gates.
 6. Extend parsing/backend support to GPU, NPU, FAPU, DSP and programmable devices such as FPGA.
 7. Add heterogeneous lowering, multi-device packaging and signed machine-binding runtime.
 
-No v2 parser, multi-device backend or machine-lock runtime is claimed to exist until implemented.
+The initial v2 parser exists, but it only handles one CPU and platform record. Repeated heterogeneous device tables, Target OIR handoff, multi-device backend and machine-lock runtime are not yet implemented.
