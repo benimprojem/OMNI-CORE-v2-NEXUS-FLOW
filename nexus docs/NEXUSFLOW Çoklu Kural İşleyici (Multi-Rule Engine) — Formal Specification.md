@@ -3275,3 +3275,234 @@ Defer içindeki hata üreten çağrı kendi ?-> bloğunda başarıyla ele alın�
 MR-OIR-020 başarılı sayılması için tüm cleanup eylemlerinin tek hata yüzünden atlanmadığı, ownership kaydının tek sefer tüketildiği, birincil hata önceliğinin korunduğu, normal continuation'ın yalnızca temizleme başarılıysa sürdüğü ve OIR round-trip/optimizer'ın bu davranışı koruduğu gösterilmelidir.
 
 Bu kararla defer/cleanup hata ve panic politikası normatif olarak sabitlenmiştir. Runtime opcode ve binary encoding seçimi semantik belirsizlik değildir; OIR format/ABI uygulama sözleşmesinde bu davranışı koruyacak biçimde kodlanacaktır.
+
+## 12.30 MR-OIR-021 — Defer/cleanup OIR kayıtları, CFG lowering ve doğrulama
+
+**Amaç:** MR-OIR-017–020'de kesinleştirilen defer davranışını OCC'nin OIR Builder, Writer, Reader, Verifier ve Optimizer modüllerine doğrudan uygulanabilir tek bir veri ve kontrol akışı modeline dönüştürmek.
+
+### 12.30.1 OIR sürüm ve özellik sözleşmesi
+
+Defer/cleanup kayıtlarını içeren OIR artifact'ı **OIR 1.1** sürümünde yazılır.
+
+- OIR 1.0, defer/cleanup kaydı içermeyen eski artifact'lar için okunabilir kalır.
+- OIR 1.0 artifact'ında defer/cleanup özelliği veya bu özelliğe ait kayıt bulunursa Verifier artifact'ı reddeder.
+- OIR 1.1, defer/cleanup kayıtlarının tamamını ve bu bölümdeki zorunlu metadata'yı taşır.
+- Reader desteklemediği zorunlu feature veya record türünü atlayamaz; açık UnsupportedFeature/UnsupportedVersion hatası üretir.
+- Writer, bir fonksiyonda defer bulunuyorsa tüm artifact sürümünü 1.1 olarak yazar.
+- OIR 1.1 içinde defer bulunmayan fonksiyonlar da bulunabilir.
+- Sürüm yükseltme, eski artifact'ı sessizce yeniden yorumlamak anlamına gelmez. Dönüşüm gerekiyorsa ayrı ve doğrulanan bir OIR migration adımı kullanılır.
+
+### 12.30.2 Kanonik OIR kayıtları
+
+OIR 1.1 defer modeli aşağıdaki kayıtları kullanır. İsimler bu sözleşmede kanonik alan/opcode adlarıdır; Writer'ın binary byte encoding'i aynı semantiği korumak zorundadır.
+
+**ScopeActivation**
+
+| Alan | Tür | Anlam |
+|---|---|---|
+| `activation_id` | u64 | Çalışma anında benzersiz activation kimliği |
+| `parent_activation_id` | u64? | İç içe scope için ebeveyn activation |
+| `function_id` | u32 | Ait olduğu fonksiyon |
+| `lexical_scope_id` | u32 | Kaynak lexical scope kimliği |
+| `state` | enum | OPEN, CLEANING_DEFERS, CLEANING_RESOURCES, CLOSED |
+| `defer_head` | record_ref? | En son eklenmiş aktif defer kaydı |
+| `resource_head` | record_ref? | En son edinilmiş sahip olunan kaynak kaydı |
+| `pending_outcome` | OutcomeRef | Normal dönüş, hata, panic veya explicit halt sonucu |
+| `cleanup_error_head` | error_ref? | Bu activation için biriktirilen ilk cleanup hatası |
+
+**DeferRecord**
+
+| Alan | Tür | Anlam |
+|---|---|---|
+| `record_id` | u64 | Dinamik kayıt kimliği |
+| `activation_id` | u64 | Kaydın ait olduğu scope activation |
+| `sequence_no` | u64 | Activation içindeki monotonik kayıt sırası |
+| `body_id` | u32 | Defer gövdesinin statik OIR entry kimliği |
+| `environment_ref` | TargetPtr | Live-binding lexical environment/frame referansı |
+| `previous_record` | record_ref? | Önceki defer kaydı |
+| `state` | enum | REGISTERED, RUNNING, COMPLETED, FAILED |
+| `error_slot` | error_ref | Bu kaydın cleanup sonucu/hata yuvası |
+
+**OwnedResourceRecord**
+
+| Alan | Tür | Anlam |
+|---|---|---|
+| `resource_id` | u64 | Kaynak sahiplik kaydı kimliği |
+| `activation_id` | u64 | Kaynağın sahibi olan activation |
+| `sequence_no` | u64 | Activation içindeki edinim sırası |
+| `resource_handle` | TargetPtr | Kaynak handle'ı |
+| `owner_symbol_id` | u32 | Analyzer sembol tablosundaki güncel owner |
+| `state` | enum | OWNED, RELEASE_ATTEMPTED, RELEASED, RELEASE_FAILED, TRANSFERRED |
+| `previous_record` | record_ref? | Önceki kaynak kaydı |
+| `error_slot` | error_ref | Release hata yuvası |
+
+**CleanupErrorRecord**
+
+| Alan | Tür | Anlam |
+|---|---|---|
+| `error_id` | u64 | Hata kaydı kimliği |
+| `activation_id` | u64 | Hatanın oluştuğu activation |
+| `sequence_no` | u64 | Cleanup sırasında oluşma sırası |
+| `origin_kind` | enum | DEFER, RESOURCE_RELEASE, DEFER_PANIC, CAPACITY |
+| `origin_id` | u64 | Defer/resource kayıt kimliği |
+| `source_location` | SourceLocation | Kaynak dosya/satır/sütun |
+| `error_code` | u32 | Stabil hata kodu |
+| `payload_ref` | TargetPtr? | İsteğe bağlı hata ayrıntısı |
+
+**PendingOutcome**
+
+Tek bir tagged record'dur:
+
+- NORMAL: hedef CFG block kimliği ve varsa dönüş değeri referansı.
+- ERROR: birincil hata referansı.
+- PANIC: birincil panic payload referansı.
+- EXPLICIT_HALT: sonlandırma nedeni ve tanı hedefi.
+
+Bir activation aynı anda yalnızca bir PendingOutcome taşır. Cleanup hataları bu sonucu değiştirmez; MR-OIR-020 öncelik kurallarıyla eklenir.
+
+### 12.30.3 Kanonik OIR işlemleri
+
+| İşlem | İşlev |
+|---|---|
+| `SCOPE_ENTER` | Yeni ScopeActivation oluşturur ve parent bağlantısını kurar |
+| `DEFER_PUSH` | DeferRecord'u etkin activation'ın defer_head başına ekler |
+| `RESOURCE_OWN` | Yeni OwnedResourceRecord oluşturur |
+| `OWNERSHIP_TRANSFER` | Kaydı eski owner'dan çıkarıp yeni activation/owner'a taşır |
+| `SCOPE_UNWIND` | PendingOutcome ve devam hedefiyle cleanup başlatır |
+| `DEFER_POP` | En son kayıtlı defer kaydını stack'ten alır |
+| `DEFER_INVOKE` | Defer body'yi kayıtlı live environment ile yürütür |
+| `RESOURCE_RELEASE_NEXT` | En son edinilmiş ve hâlâ OWNED kaynağı seçer |
+| `RESOURCE_RELEASE` | Kaynağı tek denemelik release durum makinesiyle bırakır |
+| `CLEANUP_ERROR_APPEND` | Cleanup hatasını ilgili error slot/listesine ekler |
+| `SCOPE_CLOSE` | Defers ve kaynaklar tamamlandıktan sonra activation'ı CLOSED yapar |
+| `OUTCOME_RESUME` | MR-OIR-020 önceliğine göre normal hedefe, dış unwind'a veya sonlandırmaya devam eder |
+
+Bu işlemler semantik OIR işlemleridir. Code Generator bunları hedef ABI/runtime çağrılarına veya inline kontrol akışına indirebilir; semantik işlemi yok sayamaz.
+
+### 12.30.4 CFG lowering algoritması
+
+OIR Builder, lexical scope'tan çıkan her kontrol akışını cleanup girişine yönlendirir. Bu kapsamda RETURN, BREAK, CONTINUE, ancestor-scope JUMP, hata çıkışı, panic ve explicit halt bulunur.
+
+1. Kaynak kontrol akışı işlemi bir PendingOutcome üretir.
+2. Çıkılan en iç ScopeActivation için SCOPE_UNWIND başlatılır.
+3. Activation CLEANING_DEFERS durumuna geçer.
+4. DEFER_POP son kayıtlı defer'i alır. Kayıt RUNNING olur ve DEFER_INVOKE ile çalıştırılır.
+5. Defer normal biterse COMPLETED; hata/panic üretirse FAILED olur ve hata kaydedilir. Her iki durumda da sonraki defer kaydına geçilir.
+6. Defer stack boşalınca activation CLEANING_RESOURCES durumuna geçer.
+7. RESOURCE_RELEASE_NEXT, en son edinilmiş OWNED kaydı seçer. Kayıt önce RELEASE_ATTEMPTED olur; release sonucu RELEASED veya RELEASE_FAILED durumuna geçer.
+8. OWNED kayıt kalmayınca SCOPE_CLOSE activation'ı CLOSED yapar.
+9. OUTCOME_RESUME pending sonucu değerlendirir. Dış lexical scope da terk edilecekse onun cleanup girişine geçilir; değilse MR-OIR-020'deki hata önceliği uygulanarak hedefe devam edilir.
+
+Aynı lexical scope için aynı dinamik activation üzerinde birden fazla exit edge, aynı cleanup girişini paylaşabilir. Her giriş kendi PendingOutcome ve continuation değerini taşır; farklı çıkışların dönüş değeri veya hedefi birbirine karışamaz.
+
+Defer gövdesi ayrı OIR subgraph olarak saklanır. DEFER_INVOKE, bu subgraph'a kayıtlı environment_ref ile girer ve yalnızca normal tamamlanma veya cleanup hata sonucu ile cleanup dispatcher'a döner. Defer gövdesi dış CFG'ye doğrudan terminator kenarı üretemez.
+
+### 12.30.5 Dinamik kayıt ve bellek yönetimi
+
+OIR 1.1 runtime modeli genel heap allocation kullanmaz.
+
+- Her thread/task için target tarafından önceden ayrılmış bir CleanupArena bulunur.
+- ScopeActivation, DeferRecord, OwnedResourceRecord ve cleanup error slotları bu arena içinden alınır.
+- Arena kayıtları sabit boyutlu segmentlerden oluşur; segment içindeki kayıtlar indeks/referans ile bağlanır.
+- DeferRecord her dinamik DEFER_PUSH'ta yeni bir slot alır. Aynı body_id veya kaynak satırı önceki kaydı değiştiremez.
+- Kayıtlar activation kapanınca LIFO cleanup tamamlandıktan sonra arena free-list'ine geri verilir.
+- Arena kapasitesi target konfigürasyonunda belirtilir; dilin anlamsal defer sayısı için sabit bir üst sınır tanımlanmaz.
+- Arena yetersizse DEFER_PUSH atomik olarak başarısız olur: yarım kayıt veya eksik stack bağlantısı bırakılmaz. DEFER_CAPACITY hata sonucu oluşturulur ve o ana kadar geçerli biçimde kaydedilmiş cleanup işlemleri çalıştırılır.
+- Cleanup hata slotları kayıtlarla birlikte önceden ayrıldığı için cleanup sırasında hata listesi büyütmek amacıyla heap allocation gerekmez.
+- Arena kapasitesi veya segment sayısı hiçbir zaman sessiz truncation ile uygulanamaz; kapasite hatası açık ve deterministik olmalıdır.
+
+### 12.30.6 OIR Writer / Reader sözleşmesi
+
+**Writer**
+- OIR 1.1 header ve zorunlu feature bilgisini yazar.
+- ScopeActivation, defer body, DeferRecord, OwnedResourceRecord, source mapping ve hata slotu referanslarını kararlı kimliklerle serileştirir.
+- Pointer değerlerini doğrudan süreç adresi olarak diske yazmaz; environment_ref ve resource referansları artifact içi relocation/handle tabloları üzerinden temsil edilir.
+- Record listelerini sequence_no ve kayıt kimliğine göre deterministik sırada yazar.
+- Her referansın hedef kaydını ve her body_id'nin geçerli subgraph'ını doğrulamadan başarılı artifact üretmez.
+
+**Reader**
+- Header sürümünü ve zorunlu feature setini ilk aşamada kontrol eder.
+- Tüm record tablolarını referans çözümlemeden önce okur; ileri referanslar desteklenir.
+- Referansları ikinci geçişte çözer; bulunmayan veya yanlış türde hedefe giden referansları reddeder.
+- Dosyadan okunan pointer benzeri alanları çalışma zamanı adresi olarak kabul etmez; yalnızca doğrulanmış artifact handle/relocation kaydı üretir.
+- OIR 1.0 dosyasında defer kayıtları, OIR 1.1 dosyasında ise eksik zorunlu defer alanları varsa dosyayı reddeder.
+- Okuma ve yazma round-trip testi aynı mantıksal record graph, sequence ve CFG'yi üretmelidir.
+
+### 12.30.7 Verifier zorunlu kontrolleri
+
+Verifier aşağıdaki kontrollerin tamamını yapar:
+
+1. Her activation_id benzersiz ve geçerli bir function_id/lexical_scope_id ile ilişkilidir.
+2. Parent activation aynı fonksiyona aittir ve lexical parent zincirinde geçerlidir.
+3. Her DeferRecord tam olarak bir etkin activation'a aittir; sequence_no aynı activation içinde benzersiz ve artandır.
+4. Her body_id geçerli defer subgraph entry'sidir; subgraph'ın dönüşü yalnızca cleanup dispatcher'a yapılır.
+5. environment_ref, kayıtlı activation'ın yaşayan lexical environment'ına işaret eder.
+6. DeferRecord previous_record zinciri döngüsüzdür ve defer_head'den erişilen kayıt sayısı record tablosuyla tutarlıdır.
+7. OwnedResourceRecord tek bir güncel owner'a sahiptir; TRANSFERRED kayıt eski owner cleanup zincirinde kalamaz.
+8. Resource release state geçişleri OWNED → RELEASE_ATTEMPTED → RELEASED/RELEASE_FAILED dışında olamaz.
+9. Her scope exit edge gerekli SCOPE_UNWIND zincirinden geçer; cleanup atlayan doğrudan RETURN/BREAK/CONTINUE/JUMP edge'i reddedilir.
+10. Defer temizliği kaynak temizliğinden önce; kaynak temizliği ters edinim sırasında gerçekleşir.
+11. Cleanup dispatcher bütün defer ve resource kayıtlarını tüketmeden SCOPE_CLOSE'a ulaşamaz.
+12. PendingOutcome ve continuation block referansları geçerlidir; block parameter ve SSA edge argümanları tip/arity bakımından eşleşir.
+13. Cleanup error slotları kayıt kimlikleriyle eşleşir; iki farklı kayıt aynı hata slotunu sahiplenemez.
+14. Cleanup subgraph'larında yasaklanan non-local terminator, nested defer, yeni owned resource edinimi ve tekrar scope cleanup bulunamaz.
+15. OIR sürümü, feature alanı ve kayıt türleri birbiriyle tutarlıdır.
+
+### 12.30.8 Optimizer koruma kuralları
+
+- Optimizer cleanup dispatcher'ı, defer stack sırasını, activation kimliklerini ve pending outcome ilişkisini korur.
+- Defer body_id, environment_ref veya source mapping yalnızca bütün referanslar atomik biçimde güncellenebiliyorsa yeniden eşlenebilir.
+- Defer gövdesinin gözlemlediği değişken store/load işlemleri MR-OIR-019 live-binding kurallarına tabidir.
+- Ownership transfer ve release state geçişleri dead-code veya common-subexpression optimizasyonuyla silinemez.
+- Cleanup hata yolu normal başarı yoluna birleştirilemez.
+- Cleanup blokları ancak aynı activation, aynı pending outcome türü, aynı cleanup state ve aynı continuation sözleşmesi kanıtlanırsa birleştirilebilir.
+- Cleanup zincirindeki kayıt sırası değiştirilemez.
+- Defer bulunmayan ve cleanup etkisi taşımayan fonksiyonlarda normal CFG optimizasyonları uygulanabilir.
+
+### 12.30.9 Pozitif ve negatif testler
+
+**Test A — Tek defer kaydı**
+
+Bir scope'a tek defer kaydedilir. OIR'de tek DeferRecord, geçerli body_id ve activation bağlantısı bulunur. Scope exit, defer subgraph'ına girer ve ardından resource cleanup aşamasına geçer.
+
+**Test B — Aynı activation'da dinamik çoklu kayıt**
+
+Aynı defer satırına backward JUMP ile üç kez ulaşılır. Üç ayrı record_id ve artan sequence_no oluşur. Çalışma sırası üçüncü, ikinci, birinci kayıttır.
+
+**Test C — Çoklu exit edge paylaşımı**
+
+Aynı scope RETURN ve BREAK ile terk edilebilir. Cleanup subgraph ortak kullanılabilir; fakat PendingOutcome ve continuation birbirinden ayrı kalır. Her iki çıkış da aynı cleanup sırasını uygular.
+
+**Test D — İç içe activation**
+
+İç scope'tan dış scope'a çıkışta önce iç activation tamamen kapanır, sonra dış activation cleanup edilir. Parent/child kimlikleri ve resource ownership korunur.
+
+**Test E — OIR round-trip**
+
+OIR Writer 1.1 defer/ownership/cleanup kayıtlarını yazar. Reader yeniden okur. Mantıksal record graph, sequence_no, body/environment bağlantıları ve CFG eşit kalır.
+
+**Test F — Arena kapasitesi**
+
+CleanupArena doluyken yeni DEFER_PUSH denenir. Yeni kayıt oluşmaz; DEFER_CAPACITY hatası üretilir. Önceden kaydedilmiş defer ve kaynak cleanup işlemleri eksiksiz yürütülür.
+
+Negatif testler:
+
+- **MR-OIR-021-N1:** OIR 1.0 artifact'ında defer kaydının kabul edilmesi.
+- **MR-OIR-021-N2:** OIR 1.1'de zorunlu feature/record alanının eksik olmasına rağmen Reader'ın devam etmesi.
+- **MR-OIR-021-N3:** Geçersiz body_id veya environment_ref.
+- **MR-OIR-021-N4:** Başka fonksiyonun veya kapanmış activation'ın environment_ref'inin kullanılması.
+- **MR-OIR-021-N5:** Aynı activation'da yinelenen record_id/sequence_no.
+- **MR-OIR-021-N6:** Defer stack previous_record zincirinde kopukluk veya döngü.
+- **MR-OIR-021-N7:** Cleanup öncesi doğrudan RETURN/BREAK/CONTINUE/JUMP kenarı.
+- **MR-OIR-021-N8:** Defer cleanup tamamlanmadan resource cleanup veya SCOPE_CLOSE yapılması.
+- **MR-OIR-021-N9:** Resource ownership'in iki owner'a birden atanması.
+- **MR-OIR-021-N10:** RELEASE_ATTEMPTED sonrasında ikinci release geçişi.
+- **MR-OIR-021-N11:** Cleanup error slotlarının farklı kayıtlarca paylaşılması.
+- **MR-OIR-021-N12:** Arena kapasite hatasında yarım DeferRecord veya kopuk stack oluşması.
+- **MR-OIR-021-N13:** Optimizer'ın defer kayıt sırasını değiştirmesi veya cleanup hata yolunu silmesi.
+- **MR-OIR-021-N14:** Writer/Reader round-trip sırasında record referanslarının veya source mapping'in kaybolması.
+- **MR-OIR-021-N15:** Farklı PendingOutcome/continuation taşıyan cleanup girişlerinin yanlış birleştirilmesi.
+
+MR-OIR-021 tamamlanma koşulu: Builder'ın her scope exit'i cleanup zincirine yönlendirmesi; Writer/Reader'ın OIR 1.1 kayıtlarını kayıpsız taşıması; Verifier'ın tüm activation, ownership, CFG ve sürüm invariants'larını reddetme testleriyle doğrulaması; Optimizer'ın cleanup semantiğini koruması; arena kapasite hatasının yarım kayıt oluşturmadan yönetilmesidir.
+
+Bu bölümle defer/cleanup'ın veri modeli, CFG lowering'i, kayıt belleği, sürüm uyumluluğu, Reader/Writer ve Verifier sözleşmesi kesinleştirilmiştir.
