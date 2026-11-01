@@ -2242,3 +2242,148 @@ Destination reached
 - **OIR Verifier:** Her dönüşümden sonra CFG, terminator, label, block parameter, SSA ve dominance doğrulaması.
 
 Bu test, cross-block jump'ı temel dil/IR davranışı olarak sabitler. Jump threading ve block merging'in pass sırası, label alias metadata biçimi ve debug bilgi formatı ayrı uygulama sözleşmelerinde kesinleştirilecektir.
+
+
+
+## 12.22 MR-OIR-013 — Çoklu kaynaktan ortak hedefe atlama ve merge doğrulaması
+
+### 12.22.1 Amaç
+
+Birden fazla ayrı basic block'un aynı hedef basic block'a `jump(label)` ile aktarım yapmasını ve hedef block'un farklı predecessor'lardan gelen değerleri doğru birleştirmesini doğrulamak.
+
+Bu senaryoda ortak hedefe birden fazla giriş bulunur. Her giriş kendi kontrol akışı kenarıdır; hedefe ulaşan değerler de hangi predecessor kenarından gelindiğine göre korunmalıdır. Bu davranış yalnızca optimizer kolaylığı değildir; kaynak programın kontrol akışı ve veri semantiğinin parçasıdır.
+
+### 12.22.2 Kaynak dil testi
+
+Aşağıdaki örnek NEXUS Flow kaynak sözdizimini kullanır. Koşullu jump gerçekleşmezse akış bir sonraki koşula, sonrasında da varsayılan yola ilerler:
+
+```nexus
+f:testMultiEntry(flag)!i32 {
+    v:i = 0;
+
+    (flag == 1) ? jump(pathA);
+    (flag == 2) ? jump(pathB);
+    jump(pathC);
+
+    pathA:>
+    v = 10;
+    jump(join);
+
+    pathB:>
+    v = 20;
+    jump(join);
+
+    pathC:>
+    v = 30;
+    jump(join);
+
+    join:>
+    echo(v);
+    return 0;
+}
+```
+
+Beklenen davranış:
+- `flag == 1` ise `pathA` üzerinden ortak hedefe gidilir ve 10 değeri gözlemlenir.
+- `flag == 2` ise `pathB` üzerinden ortak hedefe gidilir ve 20 değeri gözlemlenir.
+- Diğer durumlarda `pathC` üzerinden ortak hedefe gidilir ve 30 değeri gözlemlenir.
+- Her çalıştırmada yalnızca seçilen yolun atamaları yürütülür.
+- `join` block'u üç ayrı predecessor'dan giriş alır.
+
+Not: Örnek, mevcut kaynak sözdizimindeki koşullu statement biçimini kullanır. OIR'deki block parameter/SSA gösterimi kaynak dilde yeni bir sözdizimi önermez.
+
+### 12.22.3 OIR ve veri birleştirme beklentisi
+
+OIR Builder, üç kaynak yolunu tek bir ortak hedefe bağlayan üç ayrı CFG kenarı üretmelidir. Kavramsal gösterim:
+
+```oir
+block pathA:
+    v_a = CONST 10
+    JUMP join(v_a)
+
+block pathB:
+    v_b = CONST 20
+    JUMP join(v_b)
+
+block pathC:
+    v_c = CONST 30
+    JUMP join(v_c)
+
+block join(v_join):
+    ECHO v_join
+    RETURN 0
+```
+
+Bu gösterim normatif opcode veya nihai OIR dosya formatı değildir; edge-specific değer aktarımını anlatan soyut örnektir.
+
+Kurallar:
+1. Her predecessor kendi kenar argümanını sağlamalıdır.
+2. Hedef block parameter'ı, kontrolün geldiği predecessor'ın karşılık gelen argüman değerini almalıdır.
+3. Bir predecessor'ın değeri başka predecessor'ın değeriyle karıştırılamaz veya ortak, koşulsuz bir sabit gibi ele alınamaz.
+4. Hedef block'un birden fazla predecessor'ı varsa OIR, her giriş yolunun değer ilişkisini açık ve doğrulanabilir biçimde temsil etmelidir.
+5. SSA kullanılıyorsa merge değeri phi/block-parameter benzeri bir mekanizmayla temsil edilir; kesin serileştirme biçimi OIR format sürümünde sabitlenecektir.
+6. Kaynak değişkenin birden fazla yolda atanması, OIR Builder'ın kaynak dilin atama ve kapsam semantiğini korumasını gerektirir. Bu test, kaynak dile yeni bir phi sözdizimi eklemez.
+
+### 12.22.4 Çoklu girişli CFG doğrulamaları
+
+Verifier en az aşağıdakileri doğrulamalıdır:
+- Her predecessor/successor ilişkisi karşılıklı tutarlıdır.
+- Her kenarın hedef block parametre sayısı ve tipleriyle uyumlu argümanları vardır.
+- Merge girişleri gerçek predecessor kenarlarıyla bire bir ilişkilidir.
+- Her incoming SSA değeri, ilgili kenar üzerinde geçerli ve kullanılabilir olmalıdır.
+- Dominance ve backedge kuralları, MR-OIR-010/011'de tanımlanan genel CFG kurallarıyla birlikte uygulanır.
+- Aynı hedefe birden fazla jump gelmesi, hedef block'un tek girişli varsayılmasına neden olamaz.
+- Aynı source-target çifti için birden fazla mantıksal edge oluşabiliyorsa edge kimliği/argüman eşlemesi kaybolmamalıdır; CFG'nin edge modelinin bu ayrımı destekleyip desteklemediği OIR format tasarımında açıkça belirtilmelidir.
+
+### 12.22.5 Optimizer güvenliği
+
+Optimizer:
+- Ortak hedefe gelen farklı girişlerin değerlerini korumalıdır.
+- Jump threading veya block merging sırasında her incoming edge'in argümanlarını doğru yeni hedefe taşımalıdır.
+- İki predecessor'ı birleştirirken farklı değerleri tek bir değere indirgeyemez; bunu ancak eşdeğerlik kanıtı varsa yapabilir.
+- Bir predecessor'ı kaldırırsa hedef block'un predecessor listesi ve merge girişlerini aynı dönüşüm içinde güncellemelidir.
+- Bir edge'i yönlendirirse ilgili edge argümanlarını, label eşlemesini, debug/source metadata'yı ve dominance/SSA analizlerini güncellemelidir.
+- CFG değiştiren pass sonrasında OIR Verifier ve gerekli CFG/SSA analizleri yeniden çalıştırılmalıdır.
+
+### 12.22.6 Test varyantları
+
+**Test A — Üç farklı predecessor, tek ortak hedef**
+
+Yukarıdaki kaynak örneği kullanılır. Beklenen değerler sırasıyla 10, 20 ve 30'dur.
+
+**Test B — İki seviyeli merge**
+
+İlk iki yol `joinA` hedefinde birleşir; daha sonra bu sonuç üçüncü yolla `joinB` hedefinde birleşir. Her iki merge noktasında da predecessor'a bağlı değer korunmalıdır.
+
+**Test C — Ortak hedefe koşullu ve koşulsuz giriş**
+
+Bir yol koşullu jump, diğer yol koşullu jump'ın false fallthrough devamından gelen koşulsuz jump ile hedefe ulaşır. Builder, örtük fallthrough'u doğru basic block/edge biçimine dönüştürmelidir.
+
+**Test D — Merge sonrası kullanım**
+
+Ortak hedefte birleşen değer, daha sonraki bir hesaplamada kullanılır. OIR, hedefte doğru incoming değerin kullanılmasını ve definition/use zincirinin korunmasını sağlamalıdır.
+
+### 12.22.7 Negatif testler
+
+- **MR-OIR-013-N1:** Bir predecessor'ın gerekli block parameter argümanını üretmemesi.
+- **MR-OIR-013-N2:** Edge argüman sayısının hedef block parameter sayısıyla uyuşmaması.
+- **MR-OIR-013-N3:** Edge argüman tipinin hedef parameter tipiyle uyuşmaması.
+- **MR-OIR-013-N4:** Tüm predecessor'lar için tek bir incoming değerin kopyalanıp farklı yol değerlerinin kaybedilmesi.
+- **MR-OIR-013-N5:** Merge girişinin gerçek predecessor edge ile eşleştirilmemesi.
+- **MR-OIR-013-N6:** Predecessor listesi güncellenirken successor listesi veya tersi yönde eski ilişkinin bırakılması.
+- **MR-OIR-013-N7:** Jump threading sırasında edge argümanlarının yeni hedefe taşınmaması.
+- **MR-OIR-013-N8:** Block kaldırma/birleştirme sırasında merge girişlerinden birinin silinmesi veya yanlış predecessor'a bağlanması.
+- **MR-OIR-013-N9:** Dominance/SSA doğrulamasının backedge veya çoklu girişli hedefi tek girişli varsayması.
+- **MR-OIR-013-N10:** Eşdeğerlik kanıtı olmadan farklı incoming değerlerin tek değere indirgenmesi.
+- **MR-OIR-013-N11:** Kaynak dilin lexical-scope initialization güvenliğini ihlal eden bir girişin kabul edilmesi.
+- **MR-OIR-013-N12:** CFG dönüşümünden sonra eski predecessor, edge-argument veya SSA analiz sonuçlarının kullanılması.
+
+### 12.22.8 Test sınıflandırması
+
+- **Frontend/Analyzer:** Koşullu jump ve label çözümlemesi.
+- **OIR Builder:** Çoklu predecessor kenarları ve edge-specific değer aktarımı.
+- **OIR Verifier:** CFG kenar tutarlılığı, block parameter arity/type ve SSA geçerliliği.
+- **CFG/SSA Analysis:** Dominance, merge ve backedge ilişkileri.
+- **Optimizer:** Jump threading, block merging ve predecessor/merge güncellemeleri.
+
+Bu test, tek bir basic block'un birden fazla farklı kaynaktan giriş alabileceğini ve bu girişlerin değerlerinin birbirinden bağımsız korunması gerektiğini sabitler. Nihai block-parameter serileştirme biçimi ve edge kimliği politikası, OIR format sürümünün ilgili sözleşmesinde kesinleştirilecektir.
