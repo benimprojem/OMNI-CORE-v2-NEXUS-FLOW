@@ -334,6 +334,36 @@ f:send_packets() {
 
 ### 5.2 - 6: Dallanma (If / Elsif / Els)
 
+`if / elsif / els` açık dallanma yapısıdır. Koşul ve alternatif dallar doğrudan yazılır:
+
+```nxf
+if (a == b) {
+    process();
+} els {
+    fallback();
+}
+```
+
+Statement seviyesinde koşullu eylem kısaltması da vardır:
+
+```nxf
+(a == b) -> break;
+(a != b) -> continue;
+```
+
+Bu biçim, koşul parantez içindeyken ve `->` sonrasında Parser'ın tanıdığı statement-only bir eylem başladığında koşullu kontrol akışı olarak ayrıştırılır. AST'de tek kollu koşullu dal olarak temsil edilir. Bu, yeni bir Nexus Flow veri operatörü değildir ve `if` yapısının yerini almaz.
+
+Normal Nexus Flow pipe ifadeleri değişmeden kalır:
+
+```nxf
+source -> target;
+source -> process();
+```
+
+Bu ifadeler veri/işlem aktarımıdır. `-> { ... }` de pipe bloğu olarak kalır. Fonksiyon çağrısını koşula bağlamak için açık `if (condition) { process(); }` biçimi kullanılmalıdır; böylece pipe ile belirsizlik oluşmaz.
+
+
+
 ```
 # Standart Karşılaştırma
 A:  if(a == b){ ... }
