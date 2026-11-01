@@ -1,5 +1,12 @@
 #include "oir_lowering.h"
 #include "oir_ast_tlv.h"
+#include "parser.h"
+#include "ast.h"
+#include "semantic.h"
+#include "oir_ast_frontend_writer.h"
+#include "oir_ast_frontend_index.h"
+#include "oir_semantic_ast_artifact.h"
+#include "oir_ast_graph.h"
 
 #include <assert.h>
 #include <string.h>
@@ -13,6 +20,122 @@ static void put64(uint8_t* p, uint64_t v) {
 static void write_field(OirAstTlvWriter* w, uint16_t id, uint8_t type,
     const uint8_t* bytes, uint32_t length) {
     assert(oir_ast_tlv_write(w,id,type,0u,bytes,length)==OIR_STATUS_OK);
+}
+
+typedef struct TestResolver {
+    const OirAstPointerIndexEntry* entries;
+    size_t capacity;
+} TestResolver;
+
+static uint32_t test_resolve_node_id(void* user_context, const ASTNode* node) {
+    const TestResolver* resolver = (const TestResolver*)user_context;
+    return oir_ast_frontend_index_lookup(resolver->entries, resolver->capacity, node);
+}
+
+static int test_real_frontend_to_module(void) {
+    static const uint8_t source[] = "f:main() !i32 { ret 42; }";
+    ParserContext* parser = NULL;
+    SemanticContext semantic;
+    OirAstPointerIndexEntry index[64];
+    OirAstNodeRecord records[64];
+    uint8_t fields[4096], strings[1024], ast_payload[8192];
+    size_t ast_length = 0u;
+    uint32_t node_count = 0u;
+    OirAstFrontendRequirements requirements;
+    TestResolver resolver;
+    uint8_t semantic_artifact[32768];
+    size_t semantic_length = 0u;
+    OirSemanticAstArtifactView artifact;
+    uint32_t incoming[64], owner_scope[65];
+    uint8_t visited[64];
+    OirAstGraphStackEntry graph_stack[64];
+    OirLoweringWorkspace workspace;
+    OirModuleType module_types[2];
+    OirModuleFunction functions[1];
+    OirModuleBlock blocks[1];
+    OirModuleValue values[1];
+    OirModuleInstruction instructions[2];
+    OirModuleOperand operands[2];
+    uint8_t module_strings[32], module_bytes[2048];
+    size_t module_length = 0u;
+    OirModuleView module;
+    int ok = 0;
+
+    memset(&semantic, 0, sizeof(semantic));
+    memset(&workspace, 0, sizeof(workspace));
+    memset(&artifact, 0, sizeof(artifact));
+    parser = parser_init_source("real-lowering.nxf", source, sizeof(source) - 1u);
+    if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
+        parser_get_status(parser) != PARSER_STATUS_OK || !parser->ast_root)
+        goto cleanup;
+
+    if (oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
+            index, 64u, &node_count) != OIR_STATUS_OK ||
+        oir_ast_frontend_measure((ASTNode*)parser->ast_root,
+            index, 64u, node_count, &requirements) != OIR_STATUS_OK ||
+        requirements.field_data_length > sizeof(fields) ||
+        requirements.string_table_length > sizeof(strings) ||
+        requirements.payload_size > sizeof(ast_payload))
+        goto cleanup;
+    if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
+            index, 64u, node_count, records, 64u,
+            fields, sizeof(fields), strings, sizeof(strings),
+            ast_payload, sizeof(ast_payload), &ast_length, &requirements) != OIR_STATUS_OK)
+        goto cleanup;
+
+    resolver.entries = index;
+    resolver.capacity = 64u;
+    semantic_init(&semantic, "real-lowering.nxf", NULL);
+    semantic_attach_node_id_resolver(&semantic, test_resolve_node_id, &resolver);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    if (semantic.error_count != 0 ||
+        semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK ||
+        semantic.result.finalized != 1u)
+        goto cleanup;
+    if (oir_semantic_ast_artifact_write(ast_payload, ast_length,
+            &semantic.result, 1u, semantic_artifact,
+            sizeof(semantic_artifact), &semantic_length) != OIR_STATUS_OK)
+        goto cleanup;
+    semantic_destroy(&semantic);
+
+    if (oir_semantic_ast_artifact_open(semantic_artifact, semantic_length,
+            &artifact, incoming, 64u, visited, 64u, graph_stack, 64u,
+            owner_scope, 65u) != OIR_STATUS_OK)
+        goto cleanup;
+
+    workspace.types = module_types; workspace.type_capacity = 2u;
+    workspace.functions = functions; workspace.function_capacity = 1u;
+    workspace.blocks = blocks; workspace.block_capacity = 1u;
+    workspace.values = values; workspace.value_capacity = 1u;
+    workspace.instructions = instructions; workspace.instruction_capacity = 2u;
+    workspace.operands = operands; workspace.operand_capacity = 2u;
+    workspace.strings = module_strings; workspace.string_capacity = sizeof(module_strings);
+    if (oir_lower_semantic_ast_literal_return(&artifact, &workspace,
+            module_bytes, sizeof(module_bytes), &module_length) != OIR_STATUS_OK ||
+        oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
+        goto cleanup;
+    if (module.type_count != 2u || module.function_count != 1u ||
+        module.instruction_count != 2u || module.operand_count != 2u ||
+        module.types[0].kind != OIR_MODULE_TYPE_INTEGER ||
+        (module.types[0].flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u)
+        goto cleanup;
+    {
+        OirModuleInstruction constant;
+        OirModuleOperand immediate;
+        if (oir_module_get_instruction(&module, 0u, &constant) != OIR_STATUS_OK ||
+            constant.opcode_id != OIR_OP_CONST_INT ||
+            oir_module_get_operand(&module, 0u, &immediate) != OIR_STATUS_OK ||
+            immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE ||
+            immediate.immediate != 42u)
+            goto cleanup;
+    }
+    ok = 1;
+
+cleanup:
+    if (semantic.result.finalized || semantic.result_status != SEMANTIC_RESULT_OK ||
+        semantic.head != NULL) semantic_destroy(&semantic);
+    if (parser) parser_destroy(parser);
+    return ok;
 }
 
 int main(void) {
@@ -68,13 +191,13 @@ int main(void) {
 
     nodes[3].field_data_offset=(uint32_t)fields_used;
     oir_ast_tlv_writer_init(&writer,fields+fields_used,sizeof(fields)-fields_used);
-    put32(tmp,9u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,4u);
+    put32(tmp,8u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,4u);
     put32(tmp,5u); write_field(&writer,2u,OIR_AST_VALUE_NODE_REF,tmp,4u);
     nodes[3].field_data_length=(uint32_t)writer.used; fields_used+=writer.used;
 
     nodes[4].field_data_offset=(uint32_t)fields_used;
     oir_ast_tlv_writer_init(&writer,fields+fields_used,sizeof(fields)-fields_used);
-    put32(tmp,4u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,4u);
+    put32(tmp,3u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,4u);
     put32(tmp,0u); write_field(&writer,2u,OIR_AST_VALUE_U32,tmp,4u);
     put64(tmp,42u); write_field(&writer,3u,OIR_AST_VALUE_I64,tmp,8u);
     nodes[4].field_data_length=(uint32_t)writer.used; fields_used+=writer.used;
@@ -129,5 +252,6 @@ int main(void) {
         assert(oir_module_get_function(&module,0u,&fn)==OIR_STATUS_OK);
         assert(fn.name_length==4u && memcmp(module.strings+fn.name_offset,"main",4u)==0);
     }
+    assert(test_real_frontend_to_module());
     return 0;
 }
