@@ -458,6 +458,15 @@ E:  (a == b) -> continue;
 
 ```
 
+**Sözdizimi ayrımı:**
+
+- `if / elsif / els` açık dallanma yapısıdır; koşul ve dallar doğrudan belirtilir.
+- `(koşul) -> break;`, `(koşul) -> continue;` ve benzeri biçimler koşullu eylem kısaltmasıdır. Koşul parantez içinde olmalı; `->` sonrasında Parser'ın tanıdığı, ifade/pipeline sağ tarafıyla karışmayan bir statement başlangıcı gelmelidir.
+- Bu biçim yeni bir Nexus Flow veri operatörü değildir. Parser bunu tek kollu koşullu kontrol akışı olarak AST'ye aktarır.
+- Normal Nexus Flow `->` pipe davranışı korunur: `source -> target;` veya `source -> process();` bir akış/pipeline ifadesidir. `-> { ... }` de akış bloğu olarak kalır.
+- Bir fonksiyon çağrısını koşula bağlamak için açık `if (koşul) { process(); }` biçimi kullanılır; böylece çağrı/pipeline belirsizliği oluşmaz.
+
+
 
 
 ### 5.3  14-15: `label:>` `label?>` `jump(label)` Etiketli atlama.
