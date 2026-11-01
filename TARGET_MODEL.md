@@ -61,14 +61,14 @@ Her kombinasyon için assembler, linker, system library, entry point, calling co
 
 C OCC CLI artık açık `--target` seçimini korur; seçim yapılmadığında derleyici host'u için tanımlı hedef adını seçer (şu an Windows x86-64 → `Win64`, Linux x86-64 → `Linux64`, macOS AArch64 → `macOS_AArch64`). Diğer host kombinasyonlarında sessizce BareMetal veya başka bir hedefe düşmek yerine açık `--target` ister. Bu ilk host eşlemesidir; proje/build yapılandırmasından target seçimi ve eksik host descriptor'ları henüz tamamlanmamıştır. Target descriptor'ın normalize OIR girdisi olarak aşamalara aktarımı da henüz uygulanmamıştır.
 
-## 7. Uygulama sırası
+## 7. Öncelikli uygulama sırası
 
-1. Mevcut `.target` dosyalarının envanteri ve alan sözlüğü.
-2. Target parser için sınır/format doğrulaması.
-3. Host OS/architecture tespiti.
-4. Target resolver ve CLI seçenekleri.
-5. Backend capability matrisi.
-6. Platform başına build/test ve cross-compile doğrulaması.
+1. Target v2 genel veri modeli korunur; cihaz türleri GPU/NPU/FAPU/DSP/FPGA dahil genişletilebilir kalır.
+2. İlk parser ve resolver kapsamı OS + BareMetal profilleri ile CPU yetenekleridir.
+3. CPU ISA/uzantıları, word/address width, endian, register-file özellikleri, atomikler, SIMD/vector ve FP formatları normalize edilir.
+4. İlk platform hedefleri Windows x86-64, Linux x86-64, macOS AArch64 ve BareMetal x86-64'tür.
+5. CPU/backend yetenek kontrolü ve Target OIR aktarımı tamamlanır.
+6. GPU/NPU/FAPU/DSP/FPGA ve diğer programlanabilir çiplerin operasyonel desteği sonraki aşamalara bırakılır.
 
 
 ## 8. Mevcut `.target` dosyalarının disk biçimi
