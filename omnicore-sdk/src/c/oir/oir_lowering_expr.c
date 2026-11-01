@@ -4,8 +4,10 @@
 
 #define N_PROGRAM 1u
 #define N_BLOCK 2u
+#define N_VAR_DECL 3u
 #define N_FUNCTION 4u
 #define N_LITERAL 13u
+#define N_IDENTIFIER 14u
 #define N_BINARY 15u
 #define N_RETURN 26u
 #define T_NUMBER 4u
@@ -59,8 +61,8 @@ static OirStatus string_ref(const OirAstNodeTableView* a, uint32_t id, uint16_t 
     *length = u32(f.value + 4);
     return oir_ast_node_table_get_string(a, u32(f.value), *length, bytes);
 }
-static OirStatus annotation_type(const OirSemanticAstArtifactView* a, uint32_t node_id,
-    OirSemanticType* out, const uint8_t** name) {
+static OirStatus annotation_get(const OirSemanticAstArtifactView* a,
+    uint32_t node_id, OirSemanticAnnotation* out) {
     uint32_t lo = 0u, hi = a->annotations.record_count;
     while (lo < hi) {
         uint32_t mid = lo + (hi - lo) / 2u;
@@ -70,22 +72,25 @@ static OirStatus annotation_type(const OirSemanticAstArtifactView* a, uint32_t n
         if (x.node_id < node_id) lo = mid + 1u;
         else hi = mid;
     }
-    if (lo >= a->annotations.record_count) return OIR_STATUS_INVALID_SECTION;
-    {
-        OirSemanticAnnotation x;
-        uint32_t i;
-        OirStatus s = oir_semantic_annotations_get(&a->annotations, lo, &x);
-        if (s != OIR_STATUS_OK || x.node_id != node_id || !x.resolved_type_id)
-            return OIR_STATUS_INVALID_SECTION;
-        for (i = 0u; i < a->types.record_count; ++i) {
-            OirSemanticType t;
-            const uint8_t* n = NULL;
-            s = oir_semantic_types_get(&a->types, i, &t, &n);
-            if (s != OIR_STATUS_OK) return s;
-            if (t.type_id == x.resolved_type_id) {
-                *out = t; *name = n;
-                return OIR_STATUS_OK;
-            }
+    if (lo >= a->annotations.record_count ||
+        oir_semantic_annotations_get(&a->annotations, lo, out) != OIR_STATUS_OK ||
+        out->node_id != node_id) return OIR_STATUS_INVALID_SECTION;
+    return OIR_STATUS_OK;
+}
+static OirStatus annotation_type(const OirSemanticAstArtifactView* a, uint32_t node_id,
+    OirSemanticType* out, const uint8_t** name) {
+    OirSemanticAnnotation x;
+    uint32_t i;
+    OirStatus s = annotation_get(a, node_id, &x);
+    if (s != OIR_STATUS_OK || !x.resolved_type_id) return OIR_STATUS_INVALID_SECTION;
+    for (i = 0u; i < a->types.record_count; ++i) {
+        OirSemanticType t;
+        const uint8_t* n = NULL;
+        s = oir_semantic_types_get(&a->types, i, &t, &n);
+        if (s != OIR_STATUS_OK) return s;
+        if (t.type_id == x.resolved_type_id) {
+            *out = t; *name = n;
+            return OIR_STATUS_OK;
         }
     }
     return OIR_STATUS_INVALID_SECTION;
@@ -97,6 +102,7 @@ typedef struct ExprState {
     const uint8_t* type_name;
     uint32_t type_length;
     uint32_t values, instructions, operands;
+    uint32_t local_count;
 } ExprState;
 
 static OirStatus check_type(ExprState* st, uint32_t id) {
@@ -121,6 +127,38 @@ static OirStatus alloc_inst(ExprState* st, uint32_t operands,
     return OIR_STATUS_OK;
 }
 static OirStatus lower_expr(ExprState*, uint32_t, uint32_t*, uint32_t);
+
+static OirStatus lower_identifier(ExprState* st, uint32_t node_id, uint32_t* out) {
+    OirSemanticAnnotation a;
+    uint32_t i;
+    OirStatus s = annotation_get(st->artifact, node_id, &a);
+    if (s != OIR_STATUS_OK || !a.resolved_symbol_id ||
+        (s = check_type(st, node_id)) != OIR_STATUS_OK)
+        return OIR_STATUS_INVALID_SECTION;
+    for (i = 0u; i < st->local_count; ++i) {
+        if (st->ws->locals[i].symbol_id == a.resolved_symbol_id) {
+            *out = st->ws->locals[i].value_id;
+            return OIR_STATUS_OK;
+        }
+    }
+    return OIR_STATUS_INVALID_SECTION;
+}
+
+static OirStatus symbol_matches_declaration(const OirSemanticAstArtifactView* a,
+    uint32_t symbol_id, uint32_t declaration_node_id, uint32_t type_id) {
+    uint32_t i;
+    for (i = 0u; i < a->symbols.record_count; ++i) {
+        OirSemanticSymbol symbol;
+        OirStatus s = oir_semantic_symbols_get(&a->symbols, i, &symbol, NULL);
+        if (s != OIR_STATUS_OK) return s;
+        if (symbol.symbol_id == symbol_id) {
+            return symbol.kind == OIR_SEMANTIC_SYMBOL_VARIABLE &&
+                symbol.declaration_node_id == declaration_node_id &&
+                symbol.type_id == type_id ? OIR_STATUS_OK : OIR_STATUS_INVALID_SECTION;
+        }
+    }
+    return OIR_STATUS_INVALID_SECTION;
+}
 
 static OirStatus lower_literal(ExprState* st, const OirAstNodeRecord* n, uint32_t* out) {
     OirAstTlvField f;
@@ -224,6 +262,7 @@ static OirStatus lower_expr(ExprState* st, uint32_t id, uint32_t* out, uint32_t 
     if ((s = node(&st->artifact->ast, id, &n)) != OIR_STATUS_OK || n.next_node_id)
         return OIR_STATUS_INVALID_SECTION;
     if (n.node_kind_id == N_LITERAL) return lower_literal(st, &n, out);
+    if (n.node_kind_id == N_IDENTIFIER) return lower_identifier(st, id, out);
     if (n.node_kind_id == N_BINARY) return lower_binary(st, &n, out, depth);
     return OIR_STATUS_INVALID_SECTION;
 }
@@ -231,12 +270,13 @@ static OirStatus lower_expr(ExprState* st, uint32_t id, uint32_t* out, uint32_t 
 OirStatus oir_lower_semantic_ast_return(
     const OirSemanticAstArtifactView* a, OirLoweringWorkspace* w,
     uint8_t* output, size_t capacity, size_t* written) {
-    OirAstNodeRecord root, fn, body, ret;
+    OirAstNodeRecord root, fn, body, statement, ret;
     OirAstTlvField f;
     OirSemanticAnnotation fa;
     OirSemanticType ft;
     const uint8_t *fname=NULL, *declared=NULL, *type_name=NULL;
-    uint32_t fname_len=0u, declared_len=0u, decl=0u, body_id=0u, ret_id=0u, expr_id=0u;
+    uint32_t fname_len=0u, declared_len=0u, decl=0u, body_id=0u;
+    uint32_t statement_id=0u, ret_id=0u, expr_id=0u;
     uint32_t type_off=0u, type_len, value_id=0u, ret_iid, ret_first;
     uint16_t ret_tok;
     int hard=0;
@@ -264,10 +304,8 @@ OirStatus oir_lower_semantic_ast_return(
         !declared_len) return OIR_STATUS_INVALID_SECTION;
     if ((s=ref(&a->ast,fn.node_id,7u,&body_id))!=OIR_STATUS_OK || !body_id ||
         (s=node(&a->ast,body_id,&body))!=OIR_STATUS_OK || body.node_kind_id!=N_BLOCK ||
-        (s=ref(&a->ast,body_id,1u,&ret_id))!=OIR_STATUS_OK || !ret_id ||
-        (s=node(&a->ast,ret_id,&ret))!=OIR_STATUS_OK || ret.node_kind_id!=N_RETURN || ret.next_node_id ||
-        (s=token(&a->ast,ret_id,1u,&ret_tok))!=OIR_STATUS_OK || ret_tok!=T_RET ||
-        (s=ref(&a->ast,ret_id,2u,&expr_id))!=OIR_STATUS_OK || !expr_id)
+        (s=ref(&a->ast,body_id,1u,&statement_id))!=OIR_STATUS_OK || !statement_id ||
+        (s=node(&a->ast,statement_id,&statement))!=OIR_STATUS_OK)
         return OIR_STATUS_INVALID_SECTION;
     {
         uint32_t lo=0u, hi=a->annotations.record_count;
@@ -303,6 +341,39 @@ OirStatus oir_lower_semantic_ast_return(
     w->types[1].id=2u; w->types[1].kind=OIR_MODULE_TYPE_FUNCTION;
     memset(&st,0,sizeof(st));
     st.artifact=a; st.ws=w; st.type_name=type_name; st.type_length=ft.name_length;
+
+    /* Initialized scalar locals are promoted directly to SSA values. */
+    while (statement.node_kind_id == N_VAR_DECL) {
+        OirAstTlvField name_field;
+        OirSemanticAnnotation declaration_annotation;
+        uint32_t initializer_id=0u, local_value_id=0u;
+        if (!w->locals || st.local_count >= w->local_capacity ||
+            (s=field(&a->ast,statement.node_id,1u,OIR_AST_VALUE_STRING_REF,&name_field))!=OIR_STATUS_OK ||
+            (s=ref(&a->ast,statement.node_id,7u,&initializer_id))!=OIR_STATUS_OK ||
+            !initializer_id ||
+            (s=annotation_get(a,statement.node_id,&declaration_annotation))!=OIR_STATUS_OK ||
+            !declaration_annotation.resolved_symbol_id ||
+            !declaration_annotation.resolved_type_id ||
+            (s=check_type(&st,statement.node_id))!=OIR_STATUS_OK ||
+            (s=symbol_matches_declaration(a,declaration_annotation.resolved_symbol_id,
+                statement.node_id,declaration_annotation.resolved_type_id))!=OIR_STATUS_OK)
+            return OIR_STATUS_INVALID_SECTION;
+        if ((s=lower_expr(&st,initializer_id,&local_value_id,0u))!=OIR_STATUS_OK)
+            return s;
+        w->locals[st.local_count].symbol_id=declaration_annotation.resolved_symbol_id;
+        w->locals[st.local_count].value_id=local_value_id;
+        ++st.local_count;
+        if (!statement.next_node_id) return OIR_STATUS_INVALID_SECTION;
+        statement_id=statement.next_node_id;
+        if ((s=node(&a->ast,statement_id,&statement))!=OIR_STATUS_OK)
+            return OIR_STATUS_INVALID_SECTION;
+    }
+    if (statement.node_kind_id!=N_RETURN || statement.next_node_id)
+        return OIR_STATUS_INVALID_SECTION;
+    ret=statement; ret_id=statement.node_id;
+    if ((s=token(&a->ast,ret_id,1u,&ret_tok))!=OIR_STATUS_OK || ret_tok!=T_RET ||
+        (s=ref(&a->ast,ret_id,2u,&expr_id))!=OIR_STATUS_OK || !expr_id)
+        return OIR_STATUS_INVALID_SECTION;
     if ((s=lower_expr(&st,expr_id,&value_id,0u))!=OIR_STATUS_OK) return s;
     if ((s=alloc_inst(&st,1u,&ret_iid,&ret_first))!=OIR_STATUS_OK) return s;
     memset(&w->instructions[ret_iid-1u],0,sizeof(w->instructions[0]));
