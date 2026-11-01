@@ -101,7 +101,8 @@ Recent design work includes:
 - Normative Multi-Rule OIR test MR-OIR-010: verify forward and backward `jump(label)` transfers, cyclic CFG edges, conditional cycle exits, and SSA/block-parameter consistency.
 - Normative Multi-Rule OIR test MR-OIR-011: verify dominator analysis, natural-loop versus irreducible-cycle classification, and safe CFG optimization constraints.
 - Normative Multi-Rule OIR test MR-OIR-012: verify cross-basic-block `jump(label)` as a first-class transfer and safe jump threading, constant-branch simplification, unreachable-block cleanup, and dead-instruction elimination.
-| MR-OIR-013 | Multi-predecessor common target, edge-specific block parameters, merge/SSA correctness, and optimizer preservation. |
+- Normative Multi-Rule OIR test MR-OIR-013: verify multi-predecessor common targets, edge-specific block parameters, merge/SSA correctness, and optimizer preservation.
+- Normative Multi-Rule OIR test MR-OIR-014: verify composition of if/elsif/els, select, loop and cross-block jumps; repeated merge-and-branch patterns; and no arbitrary fixed jump/predecessor count limit.
 - Separation of source-language syntax documentation from compiler project documentation.
 
 ### Open design contracts
