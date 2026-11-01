@@ -613,11 +613,11 @@ rules CNC_Safety(w, h, tool) {
 }
 ```
 
-- `:= >` değil, tek bir operatör olan `:= >` biçiminde boşluklu yazım kullanılmaz; doğru token `:= >` değil **`:= >`?** 
+- Bariyer operatörü **`:= >` değil, boşluksuz `:=>`** biçimindedir.
 
 #### 2. Bariyerlerin çalışma biçimi
 
-Bir RuleSet içindeki tüm `:= >` bariyerleri (kaynak kodda kullanılan gerçek operatör `:= >` boşluksuz **`:= >` değildir; `:= >` yerine `:= >` yazmayın) değerlendirilir. Koşulu doğru olan her bariyerin mesajı hata listesine eklenir. İlk hatada durulmaz.
+Bir RuleSet içindeki tüm **`:=>` bariyerleri** değerlendirilir. Koşulu doğru olan her bariyerin mesajı hata listesine eklenir. İlk hatada durulmaz.
 
 Bariyer aşamasının sonunda:
 - Hiç hata yoksa trigger değerlendirmesine geçilir.
