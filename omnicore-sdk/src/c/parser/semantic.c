@@ -983,14 +983,22 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 }
             }
             if (conditional->then_branch) {
-                enter_scope(ctx, conditional->then_branch);
-                semantic_check(ctx, conditional->then_branch);
-                exit_scope(ctx);
+                if (conditional->then_branch->type == AST_BLOCK) {
+                    semantic_check(ctx, conditional->then_branch);
+                } else {
+                    enter_scope(ctx, conditional->then_branch);
+                    semantic_check(ctx, conditional->then_branch);
+                    exit_scope(ctx);
+                }
             }
             if (conditional->else_branch) {
-                enter_scope(ctx, conditional->else_branch);
-                semantic_check(ctx, conditional->else_branch);
-                exit_scope(ctx);
+                if (conditional->else_branch->type == AST_BLOCK) {
+                    semantic_check(ctx, conditional->else_branch);
+                } else {
+                    enter_scope(ctx, conditional->else_branch);
+                    semantic_check(ctx, conditional->else_branch);
+                    exit_scope(ctx);
+                }
             }
             break;
         }
