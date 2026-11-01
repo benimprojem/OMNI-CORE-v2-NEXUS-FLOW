@@ -52,6 +52,14 @@ OirStatus oir_ast_node_table_get(
     OirAstNodeRecord* out_record
 );
 
+/* Resolve a validated AST string-table byte span without copying or NUL assumptions. */
+OirStatus oir_ast_node_table_get_string(
+    const OirAstNodeTableView* view,
+    uint32_t offset,
+    uint32_t length,
+    const uint8_t** out_bytes
+);
+
 /* Find one node-local TLV field by its stable field ID. Returns INVALID_ARGUMENT when absent. */
 OirStatus oir_ast_node_table_get_field(
     const OirAstNodeTableView* view,
