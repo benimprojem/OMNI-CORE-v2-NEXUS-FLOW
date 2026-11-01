@@ -1722,6 +1722,12 @@ static ASTNode* parse_func_decl(Parser* p) {
             if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
                 p->current.type == TOKEN_IDENTIFIER) {
                 Token type_token = p->current;
+                if (!has_colon && !has_bang) {
+                    error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                        msg_get(MSG_EXPECT_TYPE_BANG));
+                    ast_destroy((ASTNode*)func);
+                    return NULL;
+                }
                 size_t type_length = (size_t)type_token.length;
                 size_t total_length = type_length + (has_bang ? 1u : 0u);
                 param->type_name = (char*)parser_malloc(p, total_length + 1u);
