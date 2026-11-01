@@ -763,7 +763,12 @@ if(BUILD_TESTING)
     add_test(NAME oir_semantic_primitive_type_mapping COMMAND test_oir_type_map)
 
     add_executable(test_oir_lowering "${C_SOURCE_DIR}/tests/test_oir_lowering.c")
-    target_link_libraries(test_oir_lowering PRIVATE occ_oir_lowering)
+    target_link_libraries(test_oir_lowering PRIVATE
+        occ_oir_lowering
+        occ_frontend
+        occ_oir_ast_frontend_writer
+        occ_oir_semantic_ast_artifact
+    )
     if(MSVC)
         target_compile_options(occ_oir_lowering PRIVATE /W4)
         target_compile_options(test_oir_lowering PRIVATE /W4)
