@@ -513,3 +513,121 @@ OIR Builder'ın uygulama başına üretmesi gereken CFG aşamaları:
 8. Canlı başarılı yolların ApplyContinue bloğunda birleştirilmesi.
 
 Bu lowering, mevcut OIR terminator modelindeki `BRANCH`, `JUMP` ve `RETURN` ile; hata çıkışı için ayrıca tanımlanacak hata terminator sınıfıyla ifade edilir. Her handler ve koşul bloğunun SSA tanımları/kullanımları normal dominance ve block-parameter doğrulamasına tabidir.
+
+
+---
+
+## 12. Normatif OIR Test Senaryoları
+
+Bu bölümdeki testler, Multi-Rule Analyzer ve OIR Builder/Verifier davranışını doğrulamak için hazırlanmıştır. OIR işlem adları soyut tasarım adlarıdır; nihai opcode adları olarak kabul edilmez.
+
+### 12.1 MR-OIR-001 — Birden fazla bariyer hatasının toplanması
+
+**Amaç:** İlk bariyer hatasının sonraki bariyerlerin değerlendirilmesini durdurmadığını ve hata varken trigger aşamasına geçilmediğini doğrulamak.
+
+Kaynak test:
+
+```nexus
+rules ValidateDimensions(w, h, d) {
+    w <= 0 :=> "Genişlik sıfır veya negatif olamaz";
+    h <= 0 :=> "Yükseklik sıfır veya negatif olamaz";
+    d <= 0 :=> "Derinlik sıfır veya negatif olamaz";
+
+    w != h -> DifferentWidth;
+    h != d -> DifferentHeight;
+}
+
+f:checkDimensions(w, h, d) {
+    apply rules(ValidateDimensions(w, h, d));
+
+    on ValidateDimensions.DifferentWidth {
+        echo("Genişlik farklı");
+    }
+
+    on ValidateDimensions.DifferentHeight {
+        echo("Yükseklik farklı");
+    }
+
+    echo("Normal fonksiyon akışı");
+}
+```
+
+Test girdisi:
+
+```text
+w = -1
+h = -2
+d = -3
+```
+
+Beklenen bariyer sonuçları:
+
+| Bariyer | Koşul | Beklenen |
+|---|---|---|
+| B0 | `w <= 0` | Hata kaydı eklenir |
+| B1 | `h <= 0` | Hata kaydı eklenir |
+| B2 | `d <= 0` | Hata kaydı eklenir |
+
+Beklenen hata listesi tam olarak üç kayıttan oluşur. Kayıt sırası RuleSet kaynak sırasıdır: B0, B1, B2. Her kayıtta RuleSet kimliği, bariyer kimliği/sırası, kaynak konumu ve mesaj bulunur.
+
+Trigger koşulları bu test girdisinde doğru olmasına rağmen değerlendirme aşamasına ulaşılmaz. Dolayısıyla:
+- `DifferentWidth` ve `DifferentHeight` handler'ları çalışmaz.
+- `Normal fonksiyon akışı` çıktısı üretilmez.
+- Başarılı `ApplyContinue` bloğuna kenar oluşturulmaz.
+- Bütün hata kayıtları tek bir başarısız RuleSet çıkışından raporlanır.
+
+Beklenen soyut CFG:
+
+```text
+ApplyEntry
+  -> ErrorListCreate
+  -> B0_Check
+       true  -> B0_Append -> B1_Check
+       false -------------> B1_Check
+  -> B1_Check
+       true  -> B1_Append -> B2_Check
+       false -------------> B2_Check
+  -> B2_Check
+       true  -> B2_Append -> BarrierComplete
+       false -------------> BarrierComplete
+  -> ErrorListIsEmpty
+       false -> ReportAllErrors -> RuleSetFailureExit
+       true  -> TriggerEvaluationEntry
+```
+
+Bu girdide `ErrorListIsEmpty` sonucu false olmalıdır. Trigger değerlendirme ve handler blokları CFG'de başarılı kola ait olabilir; fakat bu test çalışmasında erişilebilir olmamalıdır.
+
+### 12.2 MR-OIR-001 Verifier kontrolleri
+
+Verifier veya OIR test altyapısı aşağıdakileri doğrulamalıdır:
+
+1. Üç bariyer kontrol bloğunun da CFG'de bulunması.
+2. B0'ın true ve false yollarının B1'e ulaşması.
+3. B1'in true ve false yollarının B2'ye ulaşması.
+4. B2'nin true ve false yollarının toplu hata kontrolüne ulaşması.
+5. Her true bariyer kolunda yalnızca kendi hata kaydının eklenmesi.
+6. Hata raporlama bloğunun bütün bariyer kontrollerinden sonra gelmesi.
+7. Hata çıkışından trigger değerlendirme bloğuna veya normal devam bloğuna kenar bulunmaması.
+8. Hata listesinin boş olmadığı test girdisinde tam üç tanı kaydı üretilmesi ve kaynak sırasının korunması.
+9. Trigger handler gövdelerinin hata yolundan erişilebilir olmaması.
+10. `RuleSetFailureExit` yolunun normal `RETURN` veya `ApplyContinue` ile karıştırılmaması.
+
+### 12.3 Negatif OIR testleri
+
+Aşağıdaki bozuk CFG varyantları reddedilmelidir:
+
+- **MR-OIR-001-N1:** B0 true kolu doğrudan `RuleSetFailureExit` bloğuna gidiyor ve B1/B2 atlanıyor.
+- **MR-OIR-001-N2:** B1 true kolu B2'yi atlayarak hata raporlamaya gidiyor.
+- **MR-OIR-001-N3:** Hata raporlamadan sonra trigger değerlendirmesine kenar bulunuyor.
+- **MR-OIR-001-N4:** Bariyer hatası yolundan `ApplyContinue` bloğuna kenar bulunuyor.
+- **MR-OIR-001-N5:** Hata kaydı yanlış bariyer kimliği veya yanlış RuleSet kimliği taşıyor.
+- **MR-OIR-001-N6:** Hata kayıtlarının kaynak sırası kararsız veya testte beklenenden farklı.
+
+### 12.4 Test sınıflandırması
+
+- **Frontend/Analyzer testi:** Kaynak örneğinin parse edilmesi, RuleSet/trigger/handler isim çözümlemesi ve koşul tiplerinin doğrulanması.
+- **OIR Builder testi:** Bariyer başına koşul dalları, hata kayıtları ve toplu hata çıkışının oluşturulması.
+- **OIR Verifier testi:** CFG kenarları, terminator'lar, blok parametreleri ve SSA doğrulaması.
+- **OIR yürütme/simülasyon testi:** `(-1, -2, -3)` girdisiyle üç hata kaydının oluşması ve trigger/normal akışın çalışmaması.
+
+Bir testin başarıyla derlenmesi, tek başına runtime davranışının doğrulandığı anlamına gelmez. Her test katmanı kendi sonucunu ayrı raporlamalıdır.
