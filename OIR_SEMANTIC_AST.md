@@ -176,6 +176,8 @@ This table is initially optional. The existing C semantic checker currently perf
 
 ## 11. Current implementation gaps that affect the module
 
+The bullets below describe the original gap analysis. The implementation checkpoint in Section 14 supersedes any item explicitly marked completed there; do not read this section as a current status snapshot.
+
 The current `semantic.c` implementation is a checker, not yet a durable semantic model:
 
 - `SemanticContext` stores a linked list of transient `Slot` records and a numeric scope depth; `exit_scope()` frees scope-local slots.
@@ -189,6 +191,8 @@ The current `semantic.c` implementation is a checker, not yet a durable semantic
 The first implementation step is therefore a durable, caller-owned semantic result model and tests for scope/symbol/type resolution. The DLL adapter comes after the result model and codec can round-trip independently.
 
 ## 12. Required implementation/test order
+
+The sequence below is the original plan. Completed items are recorded in Section 14 and the live [TASKS.md](TASKS.md) checklist.
 
 1. Register semantic section IDs and add this draft to the OIR schema index.
 2. Define C wire structs only as logical API views; encode/decode field-by-field.
@@ -230,4 +234,4 @@ The model currently has its own focused tests for nested scopes, shadowing, type
 
 `test_semantic_result_integration.c` now exercises the full in-process path: canonical AST pointer index → AST payload writer → semantic checker with node-ID resolver → persistent result finalization → SEMANTIC_AST artifact writer → full artifact reader. It verifies scope ownership, symbol IDs, parameter relation, public/hard flags, section counts, producer/job IDs and exact AST payload preservation. It also writes the same finalized semantic input twice with the same job ID and requires byte-for-byte identical artifacts. The test then destroys the producer-side `SemanticContext` before reopening and validating the artifact, demonstrating that the serialized handoff does not depend on the producer's live semantic model or allocator state.
 
-**Still pending:** the production semantic-stage DLL must own this sequence and receive the AST OIR input through the module ABI. The old `Slot*` list remains the checker's runtime lookup structure for now. Conversion records are not emitted, and numeric promotion/NEXSUS Flow conversion semantics remain separate language work.
+**Production Semantic DLL checkpoint:** `src/c/module/semantic_stage_module.c` now owns this sequence as `occ_semantic_stage` (DLL/SO/dylib). It accepts AST OIR through `OccStageModuleV1`, validates and materializes the AST inside the module, runs the checker with the stable node-ID resolver, finalizes the durable result, writes and reopens the SEMANTIC_AST artifact, and reports diagnostics through the host sink. Output-buffer retry does not duplicate callbacks. The real module test verifies producer/schema rejection, artifact kind/validity/job ID, complete semantic-artifact validation and four concurrent invocations. OCC's CLI now runs Lexer DLL → Parser DLL → Semantic DLL. The host still materializes the original AST only as a temporary bridge for the legacy Codegen entry point; Codegen does not yet consume SEMANTIC_AST directly. The old `Slot*` list remains the checker's runtime lookup structure. Conversion records are not emitted, and numeric promotion/NEXSUS Flow conversion semantics remain separate language work.
