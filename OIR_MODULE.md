@@ -55,6 +55,8 @@ The implemented payload schema is version 1.1 and contains a 36-byte little-endi
 | Type | 12 bytes | ID, kind, bit width, type flags |
 | Function | 20 bytes | ID, name offset/length, function-type ID, entry-block ID |
 | Block | 16 bytes | ID, owner function ID, first instruction, instruction count |
+
+`first instruction` is a zero-based offset into the instruction table (not an instruction ID); `instruction count` bounds the contiguous range. The block, function and instruction identity fields themselves remain 1-based.
 | Value | 16 bytes | ID, type ID, defining instruction ID, flags |
 | Instruction | 24 bytes | ID, block ID, opcode, result value ID, operand range |
 | Operand | 16 bytes | kind, referenced ID, 64-bit immediate |
