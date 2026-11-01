@@ -270,7 +270,7 @@ static OirStatus lower_expr(ExprState* st, uint32_t id, uint32_t* out, uint32_t 
 OirStatus oir_lower_semantic_ast_return(
     const OirSemanticAstArtifactView* a, OirLoweringWorkspace* w,
     uint8_t* output, size_t capacity, size_t* written) {
-    OirAstNodeRecord root, fn, body, statement, ret;
+    OirAstNodeRecord root, fn, body, statement;
     OirAstTlvField f;
     OirSemanticAnnotation fa;
     OirSemanticType ft;
@@ -344,11 +344,9 @@ OirStatus oir_lower_semantic_ast_return(
 
     /* Initialized scalar locals are promoted directly to SSA values. */
     while (statement.node_kind_id == N_VAR_DECL) {
-        OirAstTlvField name_field;
         OirSemanticAnnotation declaration_annotation;
         uint32_t initializer_id=0u, local_value_id=0u;
         if (!w->locals || st.local_count >= w->local_capacity ||
-            (s=field(&a->ast,statement.node_id,1u,OIR_AST_VALUE_STRING_REF,&name_field))!=OIR_STATUS_OK ||
             (s=ref(&a->ast,statement.node_id,7u,&initializer_id))!=OIR_STATUS_OK ||
             !initializer_id ||
             (s=annotation_get(a,statement.node_id,&declaration_annotation))!=OIR_STATUS_OK ||
@@ -370,7 +368,7 @@ OirStatus oir_lower_semantic_ast_return(
     }
     if (statement.node_kind_id!=N_RETURN || statement.next_node_id)
         return OIR_STATUS_INVALID_SECTION;
-    ret=statement; ret_id=statement.node_id;
+    ret_id=statement.node_id;
     if ((s=token(&a->ast,ret_id,1u,&ret_tok))!=OIR_STATUS_OK || ret_tok!=T_RET ||
         (s=ref(&a->ast,ret_id,2u,&expr_id))!=OIR_STATUS_OK || !expr_id)
         return OIR_STATUS_INVALID_SECTION;
