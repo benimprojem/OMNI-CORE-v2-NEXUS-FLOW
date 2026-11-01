@@ -2,6 +2,7 @@
 #include "oir_type_map.h"
 
 #include <string.h>
+#include <stdio.h>
 
 #define AST_PROGRAM 1u
 #define AST_BLOCK 2u
@@ -309,5 +310,7 @@ OirStatus oir_lower_semantic_ast_literal_return(
     module.instructions = ws->instructions; module.instruction_count = 2u;
     module.operands = ws->operands; module.operand_count = 2u;
     module.strings = ws->strings; module.strings_length = function_name_length;
-    return oir_module_write(output, output_capacity, &module, out_written);
+    status=oir_module_write(output, output_capacity, &module, out_written);
+    if(status!=OIR_STATUS_OK) fprintf(stderr,"legacy module write status=%d\\n",(int)status);
+    return status;
 }
