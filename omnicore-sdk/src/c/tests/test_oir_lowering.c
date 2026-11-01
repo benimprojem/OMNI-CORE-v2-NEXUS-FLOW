@@ -73,7 +73,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
     parser = parser_init_source("real-lowering.nxf", source, source_length);
     if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
         parser_get_status(parser) != PARSER_STATUS_OK || !parser->ast_root)
-        goto cleanup;
+        do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
 
     if (oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
             index, 64u, &node_count) != OIR_STATUS_OK ||
@@ -82,12 +82,12 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
         requirements.field_data_length > sizeof(fields) ||
         requirements.string_table_length > sizeof(strings) ||
         requirements.payload_size > sizeof(ast_payload))
-        goto cleanup;
+        do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
     if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
             index, 64u, node_count, records, 64u,
             fields, sizeof(fields), strings, sizeof(strings),
             ast_payload, sizeof(ast_payload), &ast_length, &requirements) != OIR_STATUS_OK)
-        goto cleanup;
+        do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
 
     resolver.entries = index;
     resolver.capacity = 64u;
@@ -98,15 +98,15 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
     if (semantic.error_count != 0 ||
         semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK ||
         semantic.result.finalized != 1u)
-        goto cleanup;
+        do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
     if (oir_semantic_ast_artifact_write(ast_payload, ast_length,
             &semantic.result, 1u, semantic_artifact,
             sizeof(semantic_artifact), &semantic_length) != OIR_STATUS_OK)
-        goto cleanup;
+        do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
     if (oir_semantic_ast_artifact_open(semantic_artifact, semantic_length,
             &artifact, incoming, 64u, visited, 64u, graph_stack, 64u,
             owner_scope, 65u) != OIR_STATUS_OK)
-        goto cleanup;
+        do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
 
     workspace.types = module_types; workspace.type_capacity = 2u;
     workspace.functions = functions; workspace.function_capacity = 1u;
@@ -119,16 +119,16 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
     {
         OirStatus lower_status=oir_lower_semantic_ast_return(&artifact,&workspace,
             module_bytes,sizeof(module_bytes),&module_length);
-        if(lower_status!=OIR_STATUS_OK) { fprintf(stderr,"frontend generic lower status=%d\\n",(int)lower_status); goto cleanup; }
+        if(lower_status!=OIR_STATUS_OK) { fprintf(stderr,"frontend generic lower status=%d\\n",(int)lower_status); do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0); }
         lower_status=oir_module_open(module_bytes,module_length,&module);
-        if(lower_status!=OIR_STATUS_OK) { fprintf(stderr,"frontend module open status=%d\\n",(int)lower_status); goto cleanup; }
+        if(lower_status!=OIR_STATUS_OK) { fprintf(stderr,"frontend module open status=%d\\n",(int)lower_status); do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0); }
     }
-    if (module.type_count != 2u || module.function_count != 1u) goto cleanup;
+    if (module.type_count != 2u || module.function_count != 1u) do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
     {
         OirModuleType return_type;
         if (oir_module_get_type(&module, 0u, &return_type) != OIR_STATUS_OK ||
             return_type.kind != OIR_MODULE_TYPE_INTEGER ||
-            (return_type.flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u) goto cleanup;
+            (return_type.flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u) do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
     }
     if (arithmetic == 0) {
         OirModuleInstruction constant;
@@ -139,7 +139,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             constant.opcode_id != OIR_OP_CONST_INT ||
             oir_module_get_operand(&module, 0u, &immediate) != OIR_STATUS_OK ||
             immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE ||
-            immediate.immediate != 42u) goto cleanup;
+            immediate.immediate != 42u) do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
     } else if (arithmetic == 1) {
         OirModuleInstruction mul, add, ret;
         OirModuleOperand left, right;
@@ -155,7 +155,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             left.reference_id != 2u || right.reference_id != 3u ||
             oir_module_get_operand(&module, add.first_operand, &left) != OIR_STATUS_OK ||
             oir_module_get_operand(&module, add.first_operand + 1u, &right) != OIR_STATUS_OK ||
-            left.reference_id != 1u || right.reference_id != 4u) goto cleanup;
+            left.reference_id != 1u || right.reference_id != 4u) do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
     } else if (arithmetic == 2) {
         OirModuleInstruction constant, ret;
         OirModuleOperand immediate, returned;
@@ -168,7 +168,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate != 42u ||
             oir_module_get_operand(&module, ret.first_operand, &returned) != OIR_STATUS_OK ||
             returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 1u)
-            goto cleanup;
+            do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
     } else {
         OirModuleInstruction add, ret;
         OirModuleOperand left, right, returned, immediate;
@@ -185,7 +185,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             right.kind != OIR_OPERAND_VALUE || right.reference_id != 2u ||
             oir_module_get_operand(&module, ret.first_operand, &returned) != OIR_STATUS_OK ||
             returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 3u)
-            goto cleanup;
+            do { fprintf(stderr,"frontend fixture failed at line %d\\n",__LINE__); goto cleanup; } while (0);
     }
     ok = 1;
 
