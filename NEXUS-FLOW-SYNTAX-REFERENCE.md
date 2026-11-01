@@ -1274,6 +1274,24 @@ f:main() {
 - `swap(a,b)`: İki değişkeni yerdeğiştir. xor ile değiştir.
 - `defer { block }`: İçinde bulunduğu kapsam kapanırken çalışacak temizlik kodunu mühürler.
 
+
+
+#### defer — lexical scope kapanış eylemi
+
+`defer { block }`, bulunduğu lexical scope için bir kapanış eylemi kaydeder. Sözdizimi zaten mevcuttur; bu bölüm davranışını netleştirir.
+
+1. Defer kaydı, yürütme sırasında defer ifadesine ulaşıldığında etkinleşir.
+2. Kayıt, bulunduğu lexical scope aktivasyonuna aittir. Aynı scope içindeki basic block geçişleri ve geri jump kayıtları silmez.
+3. Scope normal akışla veya `break`, `continue`, `return` ya da scope dışına çıkan `jump(label)` nedeniyle terk edildiğinde kayıtlı defer blokları çalıştırılır.
+4. Aynı scope aktivasyonunda birden fazla defer kaydedilmişse son kaydedilen ilk çalışır (LIFO).
+5. Defer blokları, aynı scope'a ait otomatik `}?;` kaynak/masa temizliğinden önce çalışır. Böylece defer gövdesi, otomatik serbest bırakma başlamadan önce hâlâ sahip olunan kaynakları kullanabilir.
+6. Scope aktivasyonu sona erdiğinde o aktivasyona ait defer kayıtları tüketilir. Yeni ve geçerli bir scope aktivasyonu yeni kayıt listesi oluşturur.
+7. Defer gövdesi, kendisini kaydeden scope'un dışına `jump`, `return`, `break` veya `continue` ile kontrol aktaramaz.
+8. Bu sürümde defer gövdesi içinde yeni defer kaydı oluşturulması desteklenmez; Analyzer bunu reddeder.
+9. Defer gövdesinin hata/panic üretmesi halinde diğer defer kayıtlarının yürütülme politikası ayrı hata sözleşmesidir; tanımlanmamış davranış normal başarı gibi kabul edilemez.
+
+Bu kuralların OIR karşılığı ve testleri MR-OIR-017 içinde tanımlanır.
+
 ### 14.4 Donanım ve Düşük Seviye (Kernel Ready)
 - `peek(addr)` / `poke(addr, val)`: Doğrudan bellek manipülasyonu.
 - `inb(port)` / `outb(port, val)`: I/O Port iletişimi.
