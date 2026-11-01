@@ -1,6 +1,6 @@
 # OIR Lowering — staged implementation plan
 
-**Status:** Planning draft; language coverage is not frozen  
+**Status:** Implementation in progress; codec foundation and AST field access are implemented, executable lowering coverage is not yet enabled  
 **Input:** validated `OIR_KIND_SEMANTIC_AST`  
 **Output:** validated `OIR_KIND_MODULE`  
 **Module:** independent IR Lowering DLL/SO/dylib, invoked by OCC  
@@ -16,7 +16,7 @@ The first implementation must be deliberately small and verifiable. A construct 
 
 The following infrastructure is required before the first production lowering DLL is integrated:
 
-1. A canonical `OIR_MODULE` payload writer and reader.
+1. A canonical `OIR_MODULE` payload writer and reader. Initial schema 1.0 codec is implemented; see [OIR_MODULE.md](OIR_MODULE.md).
 2. A module verifier for table bounds, IDs, references, function/block ownership, terminators, opcode signatures and SSA rules.
 3. An initial structural opcode registry is now implemented (registry 1.0); verifier-level type/effect semantics are still required.
 4. The block-parameter SSA contract, including loop-carried values and predecessor-edge validation.
@@ -157,11 +157,13 @@ The legacy AST-walking code generator may remain temporarily available for compa
 ## Implementation progress
 
 - [x] Initial opcode registry 1.0: stable IDs, names, operand arity/kinds, result-presence rules, and coarse purity/memory/trap/terminator flags. Implemented in `src/c/oir/oir_module_opcode.h/.c` and integrated as the `occ_oir_module_opcode` CMake target.
-- [ ] Canonical `OIR_MODULE` payload schema and bounded reader/writer.
-- [ ] Module verifier for table references, function/block ownership, terminators, type rules and SSA.
-- [ ] IR Lowering DLL and OCC handoff.
+- [x] Initial `OIR_MODULE` payload codec 1.0: fixed-width little-endian records, bounded reader/writer, UTF-8 and basic cross-reference checks, opcode-shape validation, and zero-copy table views. Implemented in `src/c/oir/oir_module.h/.c` and integrated as `occ_oir_module`.
+- [x] AST node-local TLV field lookup: `oir_ast_node_table_get_field()` lets lowering inspect validated node fields without duplicating TLV parsing.
+- [ ] Module verifier for function/block ownership, complete instruction coverage, terminators, type rules and SSA.
+- [ ] Semantic AST reader + scalar IR lowering pass.
+- [ ] Independent IR Lowering DLL and OCC handoff.
 
-The registry is intentionally only the first building block. It does not yet make any source construct lowerable and must not be described as a complete OIR module implementation.
+The codec and AST field accessor are infrastructure only. No source construct is yet claimed as successfully lowerable; executable lowering remains fail-closed until the first supported subset and its tests are implemented.
 
 ## 7. Decisions still required
 
