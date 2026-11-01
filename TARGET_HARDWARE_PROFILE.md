@@ -181,7 +181,7 @@ The normalized profile should be serialized into a dedicated versioned Target OI
 
 ## 8. Initial v2 text format and parser
 
-The first parser is intentionally a constrained INI-style format, not a general TOML implementation. It currently accepts exactly one `[target_info]` section and one `[cpu]` section. Unknown sections/keys, duplicate keys, overlong lines, invalid scalar values, unsupported enum tokens and missing required fields are rejected. The parser fills a zero-initialized `OccTargetProfile` and runs the structural validator before returning success.
+The first parser is intentionally a constrained INI-style format, not a general TOML implementation. It currently accepts exactly one `[target_info]` section and one `[cpu]` section. Unknown sections/keys, duplicate keys, overlong lines, overlong compound keys, invalid scalar values, empty or duplicate CSV tokens, unsupported enum tokens and missing required fields are rejected. Both `schema_major` and optional `schema_minor` are parsed and checked. This initial parser explicitly rejects `profile_kind = "exact_machine"`; exact-machine loading remains unavailable until machine-binding fields are part of the text format. The parser fills a zero-initialized `OccTargetProfile` and runs the structural validator before returning success.
 
 - Parser API: `occ_target_profile_load()` in `omnicore-sdk/src/c/target/target_profile_parser.h`.
 - CPU extension, atomic-width, floating-point-format and feature lists are comma-separated unquoted tokens.
@@ -212,13 +212,13 @@ Other device kinds stay in the schema from the beginning so future programmable 
 - [x] Initial normalized v2 C data model added under `omnicore-sdk/src/c/target/target_profile.h`.
 - [x] Structural validator added in `target_profile.c` for schema version, bounded table counts, device/resource identity uniqueness, memory ownership references, interconnect endpoints, CPU capability requirements and platform ABI/alignment fields.
 - [x] The profile model is integrated as the `occ_target_profile` CMake static library.
-- [x] Bounded initial v2 text parser for one platform + one CPU record, with strict keys, duplicate rejection, bounded lines and validator handoff.
+- [x] Bounded initial v2 text parser for one platform + one CPU record, with strict keys, duplicate-key and duplicate-list-token rejection, bounded lines, schema major/minor checks, explicit exact-machine rejection and validator handoff.
 - [x] Initial OS/BareMetal v2 descriptor files for Windows, Linux, macOS AArch64 and BareMetal.
 - [ ] Canonical serializer and repeated device/memory/interconnect tables.
 - [ ] Target OIR artifact writer/reader and module handoff.
 - [ ] Backend/device capability registry, heterogeneous lowering and runtime machine binding.
 
-The C data model is an initial implementation foundation only. No v2 descriptor file is parsed yet, and the validator does not establish backend support or physical machine identity. Build/CI has not been run for this change.
+The C data model and initial parser are an implementation foundation only. The parser supports family profiles with one CPU/platform record; it does not yet parse heterogeneous device, memory or interconnect tables, and it cannot load exact-machine profiles. The validator does not establish backend support or physical machine identity. Build/CI has not been run for this change.
 
 ## 11. Implementation order
 
