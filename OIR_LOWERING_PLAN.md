@@ -1,6 +1,6 @@
 # OIR Lowering — staged implementation plan
 
-**Status:** Implementation in progress; scalar literal, recursive arithmetic and initialized local-variable read lowering to SSA values are implemented, with parser-to-semantic-to-OIR integration coverage added (build/test execution still pending)  
+**Status:** Implementation in progress; scalar literals, recursive arithmetic, initialized local-variable reads and straight-line assignment SSA versioning are implemented, with parser-to-semantic-to-OIR integration coverage added (build/test execution still pending)  
 **Input:** validated `OIR_KIND_SEMANTIC_AST`  
 **Output:** validated `OIR_KIND_MODULE`  
 **Module:** independent IR Lowering DLL/SO/dylib, invoked by OCC  
@@ -152,7 +152,7 @@ The first lowerer implementation is intentionally narrower than the full scalar-
 - Return type and expression type must be established by the semantic artifact and must map to a currently registered OIR primitive type.
 - The function body must contain no additional executable statement; comments or source trivia are not AST statements and are not represented here.
 
-This slice is a bring-up target for the artifact-to-module path, not a claim that variables, identifiers, parameters, calls, comparisons, control flow, or the complete numeric promotion rules are supported. The lowerer must reject multiple functions, parameters, declarations, unknown literal categories, unsupported operators, missing type annotations, unresolved type names, and any extra body statement.
+This slice is a bring-up target for the artifact-to-module path, not a claim that parameters, calls, comparisons, control flow, or the complete numeric promotion rules are supported. The lowerer must reject multiple functions, parameters, declarations, unknown literal categories, unsupported operators, missing type annotations, unresolved type names, and any extra body statement.
 
 The AST schema preserves the declared return-type spelling, while the semantic tables preserve canonical type records. Lowering must cross-check both sources; it must not infer a canonical type solely from the spelling. The initial implementation must also reject a semantic type whose primitive width/signedness mapping is not explicitly registered. This avoids accidentally treating the C frontend's current type spelling rules as the final NEXSUS Flow numeric contract.
 
