@@ -548,8 +548,17 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
         }
         case AST_BINARY_EXPR:
         case AST_ASSIGNMENT: {
-            const char* type_name =
-                get_expr_type(ctx, ((ASTBinaryExpr*)node)->left);
+            ASTBinaryExpr* binary = (ASTBinaryExpr*)node;
+            const char* type_name;
+            if (node->type == AST_BINARY_EXPR &&
+                (binary->op == TOKEN_EQ || binary->op == TOKEN_NEQ ||
+                 binary->op == TOKEN_GT || binary->op == TOKEN_LT ||
+                 binary->op == TOKEN_GTE || binary->op == TOKEN_LTE ||
+                 binary->op == TOKEN_AND || binary->op == TOKEN_OR)) {
+                type_name = "bool";
+            } else {
+                type_name = get_expr_type(ctx, binary->left);
+            }
             semantic_record_annotation(
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
             return type_name;
@@ -806,6 +815,29 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                             "Arithmetic operators require matching numeric operands; remainder requires integer operands.");
                     }
+                }
+            }
+
+            if (bin->op == TOKEN_EQ || bin->op == TOKEN_NEQ ||
+                bin->op == TOKEN_GT || bin->op == TOKEN_LT ||
+                bin->op == TOKEN_GTE || bin->op == TOKEN_LTE) {
+                const char* left_type = get_expr_type(ctx, bin->left);
+                const char* right_type = get_expr_type(ctx, bin->right);
+                if (left_type && right_type &&
+                    !are_types_compatible(left_type, right_type)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Comparison operands must have compatible types.");
+                } else if ((bin->op == TOKEN_GT || bin->op == TOKEN_LT ||
+                            bin->op == TOKEN_GTE || bin->op == TOKEN_LTE) &&
+                           left_type && !is_numeric_primitive_type(left_type)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Ordered comparisons require numeric operands.");
+                }
+            } else if (bin->op == TOKEN_AND || bin->op == TOKEN_OR) {
+                if (!semantic_is_boolean_condition(ctx, bin->left) ||
+                    !semantic_is_boolean_condition(ctx, bin->right)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Logical operators require bool operands.");
                 }
             }
 
