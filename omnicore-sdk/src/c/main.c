@@ -657,7 +657,7 @@ int main(int argc, char **argv) {
         (size_t)target2_name_length >= sizeof(target2_filename) ||
         !path_join(target2_dir, sizeof(target2_dir), target_dir, "v2") ||
         !path_join(target2_path, sizeof(target2_path), target2_dir, target2_filename)) {
-        fprintf(stderr, "Hata: Target v2 dosyasi yolu olusturulamadi.\\n");
+        fprintf(stderr, "Hata: Target v2 dosyasi yolu olusturulamadi.\n");
         return 1;
     }
     {
@@ -666,15 +666,15 @@ int main(int argc, char **argv) {
             fclose(target2_probe);
             if (!occ_target_profile_load(target2_path, &target_profile,
                 target_error, sizeof(target_error))) {
-                fprintf(stderr, "Hata: Target v2 profili dogrulanamadi: %s\\n",
+                fprintf(stderr, "Hata: Target v2 profili dogrulanamadi: %s\n",
                     target_error[0] ? target_error : target2_path);
                 return 1;
             }
-            printf("[OCC] Target v2 dogrulandi: %s | OS=%s | ABI=%s | CPU=%s\\n",
+            printf("[OCC] Target v2 dogrulandi: %s | OS=%s | ABI=%s | CPU=%s\n",
                 target_profile.profile_id, target_profile.os, target_profile.abi,
                 target_profile.devices[0].architecture);
         } else {
-            printf("[OCC] Target v2 profili yok; legacy Target yolu kullanilacak: %s\\n",
+            printf("[OCC] Target v2 profili yok; legacy Target yolu kullanilacak: %s\n",
                 target_name);
         }
     }
