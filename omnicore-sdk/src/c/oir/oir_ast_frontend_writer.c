@@ -236,12 +236,12 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
                 if (strchr(n->string_value, '.') || strchr(n->string_value, 'e') ||
                     strchr(n->string_value, 'E')) {
                     float_value = strtod(n->string_value, &end);
-                    if (errno == ERANGE || end == n->string_value || *end != '\\0')
+                    if (errno == ERANGE || end == n->string_value || *end != '\0')
                         return OIR_STATUS_INVALID_SECTION;
                     literal_kind = 1;
                 } else {
                     long long parsed = strtoll(n->string_value, &end, 10);
-                    if (errno == ERANGE || end == n->string_value || *end != '\\0')
+                    if (errno == ERANGE || end == n->string_value || *end != '\0')
                         return OIR_STATUS_INVALID_SECTION;
                     integer_value = (int64_t)parsed;
                     literal_kind = 0;
