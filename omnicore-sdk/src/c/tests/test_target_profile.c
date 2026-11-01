@@ -62,6 +62,9 @@ int main(int argc, char** argv) {
     char duplicate_section[2048];
     char exact_machine[2048];
     char unsupported_minor[2048];
+    char numeric_overflow[2048];
+    char malformed_string[2048];
+    char unsupported_cpu_kind[2048];
 
     if (argc != 3) {
         fprintf(stderr, "Usage: test_target_profile <known-good-profile> <temp-file>\n");
@@ -123,6 +126,33 @@ int main(int argc, char** argv) {
         (void)strcpy(p, "schema_minor = 1\n");
     }
     if (!expect_rejected(argv[2], unsupported_minor)) return 1;
+
+    (void)snprintf(numeric_overflow, sizeof(numeric_overflow), "%s",
+        valid_descriptor);
+    {
+        char* p = strstr(numeric_overflow, "stack_alignment_bytes = 16");
+        if (!p) return 1;
+        (void)strcpy(p, "stack_alignment_bytes = 4294967296\\n");
+    }
+    if (!expect_rejected(argv[2], numeric_overflow)) return 1;
+
+    (void)snprintf(malformed_string, sizeof(malformed_string), "%s",
+        valid_descriptor);
+    {
+        char* p = strstr(malformed_string, "profile_id = \\"Test64\\"");
+        if (!p) return 1;
+        (void)strcpy(p, "profile_id = \\"Test64\\" trailing\\n");
+    }
+    if (!expect_rejected(argv[2], malformed_string)) return 1;
+
+    (void)snprintf(unsupported_cpu_kind, sizeof(unsupported_cpu_kind), "%s",
+        valid_descriptor);
+    {
+        char* p = strstr(unsupported_cpu_kind, "kind = \\"cpu\\"");
+        if (!p) return 1;
+        (void)strcpy(p, "kind = \\"gpu\\"\\n");
+    }
+    if (!expect_rejected(argv[2], unsupported_cpu_kind)) return 1;
 
     (void)remove(argv[2]);
     puts("Target profile parser checks passed.");
