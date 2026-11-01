@@ -104,6 +104,7 @@ Recent design work includes:
 - Normative Multi-Rule OIR test MR-OIR-013: verify multi-predecessor common targets, edge-specific block parameters, merge/SSA correctness, and optimizer preservation.
 - Normative Multi-Rule OIR test MR-OIR-014: verify composition of if/elsif/els, select, loop and cross-block jumps; repeated merge-and-branch patterns; and no arbitrary fixed jump/predecessor count limit.
 - Normative Multi-Rule OIR test MR-OIR-015: verify nested loops, select-branch jumps, nearest-loop break/continue binding, nested loop CFG/SSA merges, and optimizer preservation.
+- Normative Multi-Rule OIR test MR-OIR-016: verify lexical-scope-aware jump cleanup, resource preservation for same-scope backward transfers, and rejection of re-entry into exited scopes.
 - Separation of source-language syntax documentation from compiler project documentation.
 
 ### Open design contracts
