@@ -414,6 +414,20 @@ G:  (a == b) ? process(a) : process(b);
 
 **Çoklu giriş ve ölçeklenebilirlik:** Aynı hedef label'a fonksiyon içindeki birden fazla farklı block'tan `jump(label)` ile ulaşılabilir. Bir hedefin predecessor sayısı veya fonksiyon içindeki toplam jump sayısı için dil seviyesinde keyfî sabit bir sınır tanımlanmaz. Gerçek sınırlar OIR formatının temsil kapasitesi, kullanılabilir bellek ve uygulama güvenlik limitleridir; bunlara ulaşıldığında derleme açık hata vermeli, atlama/kenarları sessizce kaybetmemelidir. Her basic block tek bir terminator ile sona erer; birden fazla çıkış gerekiyorsa ilgili koşullu veya çok seçenekli kontrol yapısı ayrı CFG kenarları üretir.
 
+
+#### Jump ve lexical scope kaynak ömrü
+
+`jump(label)` bir basic block'tan diğerine kontrol aktarır; basic block değişimi tek başına kaynak ömrünü bitirmez. Kaynak ömrü lexical scope'a bağlıdır.
+
+- Hedef label, kaynak noktanın içinde bulunduğu lexical scope ile aynı scope'ta veya onun bir üst scope'unda olmalıdır. Daha derin bir scope'a ya da kaynak scope ile kardeş olan başka bir scope'a atlayarak o scope'un giriş/başlatma adımlarını atlamak geçersizdir.
+- `jump` aynı lexical scope içinde başka bir basic block'a gidiyorsa scope hâlâ aktiftir. Daha sonra aynı scope içindeki önceki bir etikete geri dönmek de mümkündür; bu durumda scope'a ait masalar ve kaynaklar erken temizlenmez.
+- `jump` bir veya daha fazla lexical scope'tan çıkıyorsa, terk edilen scope'ların yaşam süresi sona erer. Bu scope'lara ait otomatik kaynak temizliği, normal scope çıkışıyla aynı şekilde çalıştırılmalıdır.
+- Daha sonra terk edilmiş bir scope'un içindeki etikete yeniden girilerek eski kaynak aktivasyonunun sürdürülmesine izin verilmez. Yeni bir scope aktivasyonu ancak normal scope giriş yoluyla oluşturulabilir.
+- ` }?; `blok kapsamındaki masaların/kaynakların toplu kapatılması için kullanılır. `?;` ise Halt/sonlandırma davranışıdır; `jump` için genel bir cleanup komutu yerine geçmez.
+- Kaynağın `_>` ile başka bir scope'a taşınması halinde sahiplik transferi kuralları geçerlidir; eski scope aynı kaynağı ikinci kez serbest bırakamaz.
+
+Bu kuralların OIR karşılığı ve negatif/pozitif testleri, Multi-Rule OIR test **MR-OIR-016** içinde tanımlanır.
+
 ### 5.3.1 NEXUSFLOW: SELECT ve SCAN
 
 NexusFlow'da `select` ve `scan` benzer şekilde dallanma oluşturur; ancak aynı işi yapmazlar:
