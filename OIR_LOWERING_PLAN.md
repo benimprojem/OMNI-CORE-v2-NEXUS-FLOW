@@ -76,6 +76,17 @@ Required OIR capabilities:
 
 This increment depends on semantic analysis reliably recording scopes, declarations, identifier resolutions and condition types inside all control-flow branches. The current checker enters scopes for blocks and loops, but its durable annotations are not yet comprehensive for control-flow nodes. This must be closed before enabling the corresponding lowering.
 
+### Control-flow frontend gate (review 2026-11-01)
+
+The control-flow lowering increment is intentionally blocked until the language/frontend contract is resolved:
+
+- The stable AST registry defines `AST_IF` (node kind 24) with `condition`, `then_branch` and `else_branch` references, and the AST frontend writer serializes those fields.
+- The active parser does not currently construct `AST_IF`. Its statement parser has no dedicated if/else branch; `TOKEN_IF_FLOW` (`=?>`) is parsed by `parse_nexus_flow()` into `AST_NEXUS_FLOW`, whose payload is an operator plus left/right expressions and an optional catch block.
+- The language README describes `?->` as error redirection/catch and `?=>` as fallback data injection. These are not interchangeable with a conventional conditional branch.
+- Semantic analysis currently visits the two `AST_NEXUS_FLOW` operands and optional catch block, but does not establish a branch CFG or branch-specific value merge.
+
+Therefore, do not reinterpret `AST_NEXUS_FLOW` as `if/else`, and do not emit `cond.branch` from it without a language-defined condition/branch contract. First settle the intended source syntax and semantics, then align lexer/parser, AST registry/writer, semantic scopes/annotations, and tests. Only after that should the OIR CFG and block-parameter merge model be implemented.
+
 ### Increment 3 — aggregates and addressable data
 
 Candidate constructs:
