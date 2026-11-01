@@ -57,6 +57,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
     OirModuleFunction functions[1];
     OirModuleBlock blocks[1];
     OirModuleValue values[16];
+    OirLoweringLocal locals[8];
     OirModuleInstruction instructions[32];
     OirModuleOperand operands[64];
     uint8_t module_strings[64], module_bytes[4096];
@@ -110,6 +111,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
     workspace.functions = functions; workspace.function_capacity = 1u;
     workspace.blocks = blocks; workspace.block_capacity = 1u;
     workspace.values = values; workspace.value_capacity = 16u;
+    workspace.locals = locals; workspace.local_capacity = 8u;
     workspace.instructions = instructions; workspace.instruction_capacity = 32u;
     workspace.operands = operands; workspace.operand_capacity = 64u;
     workspace.strings = module_strings; workspace.string_capacity = sizeof(module_strings);
@@ -124,7 +126,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             return_type.kind != OIR_MODULE_TYPE_INTEGER ||
             (return_type.flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u) goto cleanup;
     }
-    if (!arithmetic) {
+    if (arithmetic == 0) {
         OirModuleInstruction constant;
         OirModuleOperand immediate;
         if (module.instruction_count != 2u || module.operand_count != 2u ||
@@ -134,7 +136,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             oir_module_get_operand(&module, 0u, &immediate) != OIR_STATUS_OK ||
             immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE ||
             immediate.immediate != 42u) goto cleanup;
-    } else {
+    } else if (arithmetic == 1) {
         OirModuleInstruction mul, add, ret;
         OirModuleOperand left, right;
         if (module.instruction_count != 6u || module.operand_count != 8u ||
@@ -150,6 +152,19 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             oir_module_get_operand(&module, add.first_operand, &left) != OIR_STATUS_OK ||
             oir_module_get_operand(&module, add.first_operand + 1u, &right) != OIR_STATUS_OK ||
             left.reference_id != 1u || right.reference_id != 4u) goto cleanup;
+    } else {
+        OirModuleInstruction constant, ret;
+        OirModuleOperand immediate, returned;
+        if (module.instruction_count != 2u || module.operand_count != 2u ||
+            module.value_count != 1u ||
+            oir_module_get_instruction(&module, 0u, &constant) != OIR_STATUS_OK ||
+            oir_module_get_instruction(&module, 1u, &ret) != OIR_STATUS_OK ||
+            constant.opcode_id != OIR_OP_CONST_INT || ret.opcode_id != OIR_OP_RETURN ||
+            oir_module_get_operand(&module, constant.first_operand, &immediate) != OIR_STATUS_OK ||
+            immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate != 42u ||
+            oir_module_get_operand(&module, ret.first_operand, &returned) != OIR_STATUS_OK ||
+            returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 1u)
+            goto cleanup;
     }
     ok = 1;
 
@@ -280,8 +295,10 @@ int main(void) {
     {
         static const uint8_t literal_source[] = "f:main() !i32 { ret 42; }";
         static const uint8_t arithmetic_source[] = "f:main() !i32 { ret 10 + 20 * 3; }";
+        static const uint8_t local_source[] = "f:main() !i32 { v:x!i32 = 42; ret x; }";
         assert(test_real_frontend_to_module(literal_source, sizeof(literal_source)-1u, 0));
         assert(test_real_frontend_to_module(arithmetic_source, sizeof(arithmetic_source)-1u, 1));
+        assert(test_real_frontend_to_module(local_source, sizeof(local_source)-1u, 2));
     }
     return 0;
 }
