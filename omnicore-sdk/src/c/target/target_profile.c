@@ -22,6 +22,14 @@ static int device_index(const OccTargetProfile* profile, const char* id) {
     return -1;
 }
 
+static int memory_index(const OccTargetProfile* profile, const char* id) {
+    uint32_t i;
+    for (i = 0u; i < profile->memory_count; ++i) {
+        if (strcmp(profile->memories[i].id, id) == 0) return (int)i;
+    }
+    return -1;
+}
+
 static int duplicate_device_id(const OccTargetProfile* profile, uint32_t at) {
     uint32_t i;
     for (i = 0u; i < at; ++i) {
@@ -69,7 +77,8 @@ OccTargetProfileStatus occ_target_profile_validate(
         set_error(error_message, error_message_size, "Target profile identity or profile kind is invalid.");
         return OCC_TARGET_PROFILE_INVALID_ID;
     }
-    if (profile->device_count > OCC_TARGET_MAX_DEVICES ||
+    if (profile->device_count == 0u ||
+        profile->device_count > OCC_TARGET_MAX_DEVICES ||
         profile->memory_count > OCC_TARGET_MAX_MEMORIES ||
         profile->interconnect_count > OCC_TARGET_MAX_INTERCONNECTS) {
         set_error(error_message, error_message_size, "Target profile table count exceeds its configured limit.");
@@ -113,7 +122,8 @@ OccTargetProfileStatus occ_target_profile_validate(
             return OCC_TARGET_PROFILE_DUPLICATE_ID;
         }
         if (memory->owner_device_id[0] &&
-            device_index(profile, memory->owner_device_id) < 0) {
+            (!valid_id(memory->owner_device_id, sizeof(memory->owner_device_id)) ||
+             device_index(profile, memory->owner_device_id) < 0)) {
             set_error(error_message, error_message_size, "Target memory references an unknown owner device.");
             return OCC_TARGET_PROFILE_DANGLING_REFERENCE;
         }
@@ -126,12 +136,15 @@ OccTargetProfileStatus occ_target_profile_validate(
             !valid_id(link->to_device_id, sizeof(link->to_device_id)) ||
             !valid_id(link->protocol, sizeof(link->protocol)) ||
             strcmp(link->from_device_id, link->to_device_id) == 0 ||
-            link->width_bits == 0u || link->lane_count == 0u) {
+            link->width_bits == 0u || link->lane_count == 0u ||
+            link->bidirectional > 1u || link->coherent > 1u ||
+            link->dma_capable > 1u) {
             set_error(error_message, error_message_size, "Target interconnect record is invalid.");
             return OCC_TARGET_PROFILE_INVALID_INTERCONNECT;
         }
         if (duplicate_link_id(profile, i) ||
             device_index(profile, link->id) >= 0 ||
+            memory_index(profile, link->id) >= 0 ||
             device_index(profile, link->from_device_id) < 0 ||
             device_index(profile, link->to_device_id) < 0) {
             set_error(error_message, error_message_size, "Target interconnect has a duplicate ID or dangling device reference.");
