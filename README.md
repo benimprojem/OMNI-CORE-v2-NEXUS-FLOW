@@ -100,6 +100,7 @@ Recent design work includes:
 - Normative Multi-Rule OIR test MR-OIR-009: verify function-scoped label resolution for `jump(label)` inside handlers, correct JUMP targets, and rejection of invalid scope transitions.
 - Normative Multi-Rule OIR test MR-OIR-010: verify forward and backward `jump(label)` transfers, cyclic CFG edges, conditional cycle exits, and SSA/block-parameter consistency.
 - Normative Multi-Rule OIR test MR-OIR-011: verify dominator analysis, natural-loop versus irreducible-cycle classification, and safe CFG optimization constraints.
+- Normative Multi-Rule OIR test MR-OIR-012: verify cross-basic-block `jump(label)` as a first-class transfer and safe jump threading, constant-branch simplification, unreachable-block cleanup, and dead-instruction elimination.
 - Separation of source-language syntax documentation from compiler project documentation.
 
 ### Open design contracts
