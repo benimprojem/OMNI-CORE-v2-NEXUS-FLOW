@@ -17,24 +17,25 @@ Kural motoru, hem **sıralı hem de bağımsız kurallar** ile çalışabilir. F
 
 ```nexus
 rules <RuleName>(param1, param2, ...) {
-    # 1. BARRIER RULES: Koşul sağlanırsa fonksiyon durur ve hata mesajı verir
     [koşul] :=> "Hata Mesajı";
+    [koşul] -> TriggerName;
 
-    # 2. TRIGGER RULES: Koşul sağlanırsa aksiyon tetiklenir
-    [koşul] -> [TriggerName];
+    # İsteğe bağlı:
+    always -> LogMetrics;
+    default -> StandardMode;
 
-    # 3. ÖZEL DURUMLAR / DEFAULT:
-    always -> [Aksiyon];   # Her durumda çalışır
-    default -> [Aksiyon];  # Hiçbir koşula girmezse çalışır
+    # Doğrudan aksiyon için blok biçimi:
+    always { writeMetrics(); }
+    default { applyStandardMode(); }
 }
 ```
 
-* **`:=>`** → Barrier (durdurucu) kural, koşul sağlanırsa **fonksiyonun çalışması durur** ve mesaj döner.
-* **`->`** → Tetikleyici kural, koşul sağlanırsa ilgili aksiyon/trigger devreye girer.
-* **`always`** → Her durumda çalışır, opsiyonel.
-* **`default`** → Hiçbir koşul eşleşmezse devreye girer, opsiyonel.
-
----
+- **`:=>`**: Bariyer. Doğru olan tüm bariyerlerin mesajları toplanır; aşama sonunda hata varsa fonksiyon durdurulur.
+- **`->`**: Trigger üretir. Eşleşen normal trigger'ların tamamı kaydedilir.
+- **`always -> Name;`**: Her başarılı uygulamada isimli trigger üretir.
+- **`default -> Name;`**: Hiçbir normal trigger eşleşmediğinde isimli trigger üretir.
+- **`always { ... }` / `default { ... }`**: İlgili durumda doğrudan aksiyon bloğu çalıştırır.
+- `always` ve `default` isteğe bağlıdır.
 
 ## 3. Kural Setleri ve Fonksiyon Enjeksiyonu
 
@@ -85,40 +86,41 @@ tool == "Diamond" -> HighSpeed;
 ```nexus
 always -> LogMetrics;
 default -> StandardSettings;
+
+always {
+    writeMetrics();
+}
+
+default {
+    applyStandardSettings();
+}
 ```
 
-* `always` → her durumda çalışır.
-* `default` → hiçbir trigger koşulu çalışmazsa devreye girer.
+Ok operatörlü biçimde sağ taraf bir trigger adıdır. `always -> LogMetrics;` her başarılı RuleSet uygulamasında; `default -> StandardSettings;` hiçbir normal trigger eşleşmediğinde ilgili trigger'ı üretir. Bu trigger'lar `on RuleName.TriggerName { ... }` ile yakalanabilir.
 
----
+Blok biçimleri ise trigger üretmez; içlerindeki aksiyonları doğrudan yürütür. Her iki anahtar da opsiyoneldir.
 
 ## 5. Multi-Rule Execution Flow
 
-1. Fonksiyon başlar.
-2. `apply rules(<RuleSet>)` çağrılır.
-3. Barrier kurallar (:=>) önce değerlendirilir.
-
-   * Eğer bir barrier koşulu sağlanırsa, fonksiyon durur ve mesaj döner.
-4. Trigger kurallar (->) değerlendirilir.
-
-   * Koşul sağlanırsa trigger kaydedilir.
-5. Fonksiyon normal akışa devam eder.
-6. `on <RuleName>.<Trigger>` blokları tetiklenir.
-7. Varsa `always` trigger'ı veya bloğu çalıştırılır; normal trigger eşleşmemişse `default` trigger'ı veya bloğu çalıştırılır.
-
----
+1. Fonksiyon başlar ve `apply rules(<RuleSet>)` çağrılır.
+2. RuleSet içindeki bütün bariyer koşulları değerlendirilir; doğru olanların hata mesajları toplanır.
+3. Hata listesi boş değilse tüm mesajlar raporlanır ve fonksiyon yolu sonlandırılır.
+4. Hata yoksa bütün normal trigger koşulları değerlendirilir; eşleşenlerin tamamı kaydedilir.
+5. Eşleşen normal trigger'ların `on` handler'ları kaynak sırasına göre çalıştırılır.
+6. Varsa `always` trigger/handler'ı veya doğrudan aksiyon bloğu çalıştırılır.
+7. Hiçbir normal trigger eşleşmediyse varsa `default` trigger/handler'ı veya doğrudan aksiyon bloğu çalıştırılır.
+8. `apply rules` tamamlanır ve fonksiyonun normal akışı sürer.
 
 ## 6. Örnek: Asal Sayı Kontrolü (PrimeBorders)
 
 ```nexus
 rules PrimeBorders(n) {
-    n < 2  :=> "Sınır İhlali: 2'den küçük asallık olmaz"; 
+    n < 2 :=> "Sınır İhlali: 2'den küçük asallık olmaz";
     n == 2 -> Success;
     n == 3 -> Success;
-    
-    ( (n + 1) % 6 == 0 || (n - 1) % 6 == 0 ) :=> "Asal Değil: Tünel Dışı";
 
-    default -> Success;
+    # 2 ve 3 dışındaki sayılar 6k-1 veya 6k+1 biçiminde olmalıdır.
+    (n > 3 && n % 6 != 1 && n % 6 != 5) :=> "Asal Değil: 6k ± 1 koşulu sağlanmıyor";
 }
 
 f:isPrime(n) {
@@ -126,22 +128,22 @@ f:isPrime(n) {
 
     on PrimeBorders.Success { return true; }
 
-    i = 5;
+    v:i = 5;
     loop (i * i <= n) {
-        (n % i == 0 || n % (i + 2) == 0) -> { return false; }
+        (n % i == 0 || n % (i + 2) == 0) ? return false;
         i = i + 6;
     }
 
-    always -> return true;
+    return true;
 }
 
 isPrime(17); # Çalıştırma örneği
 ```
 
-* Barrier kurallar ile 2’den küçük sayılar engellenir.
-* 6n ± 1 kuralı ile tünel dışı sayılar önceden filtrelenir.
-* Trigger → Success → true döner.
-* Döngü ile kalan sayılar taranır ve sonuç döndürülür.
+- Bariyerler, 2'den küçük değerleri ve 6k ± 1 koşulunu sağlamayan adayları engeller.
+- 2 ve 3 için `Success` trigger'ı üretilir; handler doğrudan `true` döndürür.
+- Diğer adaylar normal asal kontrolü döngüsüne devam eder.
+- Bu örnekte `always` ve `default` kullanılmaz; ikisi de zorunlu değildir.
 
 ---
 
