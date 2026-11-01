@@ -14,6 +14,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->error_head = NULL;
     ctx->error_tail = NULL;
     ctx->current_depth = 0;
+    ctx->loop_depth = 0u;
     ctx->current_func_return_type = NULL;
     ctx->diagnostics = NULL;
     ctx->diagnostic_stage_id = OCC_STAGE_SEMANTIC;
@@ -631,6 +632,41 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     return 0;
 }
 
+static int semantic_is_boolean_condition(SemanticContext* ctx, ASTNode* node) {
+    if (!node) return 0;
+    if (node->type == AST_LITERAL) {
+        ASTLiteral* literal = (ASTLiteral*)node;
+        return literal->type == TOKEN_TRUE || literal->type == TOKEN_FALSE;
+    }
+    if (node->type == AST_IDENTIFIER) {
+        const char* type_name = get_expr_type(ctx, node);
+        return type_name && strcmp(type_name[0] == '!' ? type_name + 1 : type_name,
+            "bool") == 0;
+    }
+    if (node->type == AST_UNARY_EXPR) {
+        ASTUnaryExpr* unary = (ASTUnaryExpr*)node;
+        return unary->op == TOKEN_NOT &&
+            semantic_is_boolean_condition(ctx, unary->operand);
+    }
+    if (node->type == AST_BINARY_EXPR) {
+        ASTBinaryExpr* binary = (ASTBinaryExpr*)node;
+        switch (binary->op) {
+            case TOKEN_EQ:
+            case TOKEN_NEQ:
+            case TOKEN_GT:
+            case TOKEN_LT:
+            case TOKEN_GTE:
+            case TOKEN_LTE:
+            case TOKEN_AND:
+            case TOKEN_OR:
+                return 1;
+            default:
+                return 0;
+        }
+    }
+    return 0;
+}
+
 void semantic_check(SemanticContext* ctx, ASTNode* node) {
     if (!node) return;
 
@@ -934,6 +970,38 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             ctx->current_func_return_type = prev_return_type;
             break;
         }
+
+        case AST_IF: {
+            ASTIf* conditional = (ASTIf*)node;
+            if (conditional->condition) {
+                semantic_check(ctx, conditional->condition);
+                if (!semantic_is_boolean_condition(ctx, conditional->condition)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "if/elsif condition must have bool type.");
+                }
+            }
+            if (conditional->then_branch) {
+                enter_scope(ctx, conditional->then_branch);
+                semantic_check(ctx, conditional->then_branch);
+                exit_scope(ctx);
+            }
+            if (conditional->else_branch) {
+                enter_scope(ctx, conditional->else_branch);
+                semantic_check(ctx, conditional->else_branch);
+                exit_scope(ctx);
+            }
+            break;
+        }
+
+        case AST_BREAK:
+        case AST_CONTINUE:
+            if (ctx->loop_depth == 0u) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    node->type == AST_BREAK
+                        ? "break may only be used inside a loop."
+                        : "continue may only be used inside a loop.");
+            }
+            break;
 
         case AST_BLOCK: {
             ASTBlock* block = (ASTBlock*)node;
@@ -1239,6 +1307,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_LOOP: {
             ASTLoop* loop = (ASTLoop*)node;
             enter_scope(ctx, node);
+            ++ctx->loop_depth;
 
             // 1. Init / Variable Handling
             if (loop->loop_type == 3) { // Foreach: loop(var <-- collection)
@@ -1299,6 +1368,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             }
 
             if (loop->body) semantic_check(ctx, loop->body);
+            if (ctx->loop_depth > 0u) --ctx->loop_depth;
             exit_scope(ctx);
             break;
         }
