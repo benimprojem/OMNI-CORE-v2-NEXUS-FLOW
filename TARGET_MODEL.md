@@ -100,3 +100,8 @@ Mevcut descriptor dosyaları TOML'un tam uygulaması olarak değil, aşağıdaki
 ### Mevcut parser farkı
 
 C codegen içindeki eski `parse_target()` hâlâ `key: value` satırları bekliyor; mevcut dosyalar ise bölüm + `key = value` biçiminde. Eski parser dosya açılamadığında da varsayılan target değerleriyle devam ediyor. Bu uyumsuzluk çözülene kadar C codegen'in mevcut descriptor dosyalarını gerçekten okuduğu varsayılmamalıdır.
+
+
+## Version boundary
+
+The current compiler continues to use the v1 `.target` descriptors and the existing legacy target parser/backend checks. The v2 `.target2` descriptors, normalized C model and bounded parser are preparatory only; they are not loaded by the active compilation path. Do not require v2 fields or parser support for current OS/BareMetal compilation.
