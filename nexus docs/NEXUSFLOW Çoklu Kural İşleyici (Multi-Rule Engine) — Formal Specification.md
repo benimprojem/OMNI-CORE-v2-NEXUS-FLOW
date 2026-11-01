@@ -259,8 +259,15 @@ AST_TRIGGER {
     SourceOrder
 }
 
-AST_ALWAYS  { Action, SourceOrder }
-AST_DEFAULT { Action, SourceOrder }
+AST_ALWAYS  { RuleAction, SourceOrder }
+AST_DEFAULT { RuleAction, SourceOrder }
+
+AST_RULE_ACTION {
+    Kind: TRIGGER | DIRECT_BLOCK
+    TriggerName?
+    Body?
+    SourceOrder
+}
 
 AST_APPLY_RULES {
     RuleSetReference
