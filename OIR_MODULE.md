@@ -1,6 +1,6 @@
 # OIR_MODULE — Lowered Intermediate Representation
 
-**Status:** Opcode registry 1.0 and initial OIR_MODULE payload codec 1.0 implemented; semantic lowering and full verifier remain pending  
+**Status:** Opcode registry 1.0 and initial OIR_MODULE payload codec 1.1 implemented; semantic lowering and full verifier remain pending  
 **Artifact kind:** `OIR_KIND_MODULE` (stable kind ID 5)  
 **Producer:** IR lowering stage  
 **Input:** one validated `OIR_KIND_SEMANTIC_AST` artifact  
@@ -48,20 +48,20 @@ The current legacy path is not this pipeline yet. `parser_save_ir()` calls `ast_
 
 The first codec increment uses a deliberately small, fixed-width table model. It is a foundation for scalar functions, not the final language-wide IR.
 
-The implemented payload schema is version 1.0 and contains a 36-byte little-endian header followed by contiguous tables in this order: types, functions, blocks, values, instructions, operands and UTF-8 strings. Each table count is bounded; the string table is capped at 16 MiB.
+The implemented payload schema is version 1.1 and contains a 36-byte little-endian header followed by contiguous tables in this order: types, functions, blocks, values, instructions, operands and UTF-8 strings. Each table count is bounded; the string table is capped at 16 MiB.
 
 | Table | Record size | Initial fields |
 |---|---:|---|
-| Type | 8 bytes | ID, kind, bit width |
+| Type | 12 bytes | ID, kind, bit width, type flags |
 | Function | 20 bytes | ID, name offset/length, function-type ID, entry-block ID |
 | Block | 16 bytes | ID, owner function ID, first instruction, instruction count |
 | Value | 16 bytes | ID, type ID, defining instruction ID, flags |
 | Instruction | 24 bytes | ID, block ID, opcode, result value ID, operand range |
 | Operand | 16 bytes | kind, referenced ID, 64-bit immediate |
 
-Initial type kinds are integer, float, boolean and function. Function types are currently identity placeholders; parameter and return signature tables are a later extension. Table IDs are 1-based and must appear in canonical sequential order. The codec validates schema version, bounded counts, total payload length, UTF-8 strings, table ranges, basic cross-table IDs and opcode operand/result shape before exposing a zero-copy view. The writer serializes fields individually in little-endian order and validates its output through the reader.
+Initial type kinds are integer, float, boolean and function. Integer type flags currently define `OIR_MODULE_TYPE_FLAG_SIGNED`; an unset signed flag means unsigned. Non-integer types reject this flag. Function types are currently identity placeholders; parameter and return signature tables are a later extension. Table IDs are 1-based and must appear in canonical sequential order. The codec validates schema version, bounded counts, total payload length, UTF-8 strings, table ranges, basic cross-table IDs and opcode operand/result shape before exposing a zero-copy view. The writer serializes fields individually in little-endian order and validates its output through the reader.
 
-The codec does not yet validate function/block ownership consistency, complete instruction-range coverage, type compatibility, SSA dominance, predecessor edges or function signatures. Those checks belong to the subsequent verifier increment; the codec must not claim them.
+The 1.1 codec validates the integer signedness flag and rejects type flags on non-integer kinds. It does not yet validate function/block ownership consistency, complete instruction-range coverage, type compatibility, SSA dominance, predecessor edges or function signatures. Those checks belong to the subsequent verifier increment; the codec must not claim them.
 
 Aggregate types, full function signatures, block parameters, debug/source maps, memory metadata, entry-point metadata and NEXSUS Flow-specific operations remain later extensions.
 
@@ -258,7 +258,7 @@ No schema is considered frozen merely because a first implementation or test fix
 |---|---|
 | OIR container kind ID 5 (`OIR_KIND_MODULE`) | Registered |
 | Generic OIR container reader/writer | Implemented |
-| Canonical OIR_MODULE payload layout | Not implemented; this document is a draft |
+| OIR_MODULE payload codec 1.1 (type flags incl. integer signedness) | Implemented; full verifier pending |
 | SSA value model | Required by NEXSUS Flow design; merge encoding open |
 | NEXSUS Flow numeric width promotion | Partial language rule established; full conversion lattice open |
 | OIR_MODULE opcode/type registries | Not frozen |
