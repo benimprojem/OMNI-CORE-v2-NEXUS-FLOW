@@ -779,7 +779,7 @@ if(BUILD_TESTING)
         target_compile_options(occ_oir_lowering PRIVATE -Wall -Wextra)
         target_compile_options(test_oir_lowering PRIVATE -Wall -Wextra)
     endif()
-    add_test(NAME semantic_ast_literal_return_lowering COMMAND test_oir_lowering)
+    add_test(NAME semantic_ast_scalar_return_lowering COMMAND test_oir_lowering)
 
     add_executable(test_oir_diagnostics "${C_SOURCE_DIR}/tests/test_oir_diagnostics.c")
     target_link_libraries(test_oir_diagnostics PRIVATE occ_oir_diagnostics)
