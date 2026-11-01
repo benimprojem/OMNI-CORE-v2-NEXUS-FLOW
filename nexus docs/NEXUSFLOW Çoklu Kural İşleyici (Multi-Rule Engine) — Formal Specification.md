@@ -1036,3 +1036,176 @@ Negatif OIR varyantları reddedilmelidir:
 
 Bu test, doğrudan blok biçimlerinin aşama sırasını doğrular. İsimli özel trigger biçimlerinin (\`always -> Name;\`, \`default -> Name;\`) handler eşlemesi ve dispatch ayrıntıları bu testin kapsamı dışındadır.
 
+### 12.11 MR-OIR-005 — İsimli always/default trigger dispatch
+
+**Amaç:** `always -> Name;` ve `default -> Name;` biçimlerinin özel aşamalara ait isimli trigger ürettiğini; bu trigger'ların `on RuleSet.Name` handler'larına doğru aşamada bağlandığını ve normal trigger handler kuyruğuna karıştırılmadığını doğrulamak.
+
+Bu test, §11.5 ve §11.7'de tanımlanan özel dispatch modelini kapsar. Özel trigger isimleri derleme zamanında çözülür. Runtime'da trigger adı metin olarak aranmaz.
+
+Kaynak test:
+
+```nexus
+rules ModeSelection(n) {
+    n > 0 -> Positive;
+    always -> LogMetrics;
+    default -> StandardMode;
+}
+
+f:checkMode(n) {
+    apply rules(ModeSelection(n));
+
+    on ModeSelection.Positive {
+        echo("Positive handler");
+    }
+
+    on ModeSelection.LogMetrics {
+        echo("Always handler");
+    }
+
+    on ModeSelection.StandardMode {
+        echo("Default handler");
+    }
+
+    echo("Normal continuation");
+}
+```
+
+#### Durum A — Normal trigger eşleşir
+
+Test girdisi: `n = 5`.
+
+Beklenen değerlendirme ve yürütme sırası:
+
+1. Normal `Positive` koşulu bir kez değerlendirilir ve eşleşir.
+2. Normal handler aşamasında `Positive handler` çalışır.
+3. Normal handler aşaması tamamlandıktan sonra `always` özel aşaması `LogMetrics` trigger'ını üretir ve `Always handler` çalışır.
+4. Normal trigger eşleştiği için `default` özel trigger'ı `StandardMode` üretilmez; `Default handler` çalışmaz.
+5. RuleSet başarılı biçimde tamamlanır ve normal fonksiyon akışı sürer.
+
+Beklenen çıktı:
+
+```text
+Positive handler
+Always handler
+Normal continuation
+```
+
+#### Durum B — Hiçbir normal trigger eşleşmez
+
+Test girdisi: `n = -5`.
+
+Beklenen değerlendirme ve yürütme sırası:
+
+1. Normal `Positive` koşulu bir kez değerlendirilir ve eşleşmez.
+2. Normal handler aşaması boş geçilir.
+3. `always` özel aşaması `LogMetrics` trigger'ını üretir ve `Always handler` çalışır.
+4. Hiçbir normal trigger eşleşmediği için `default` özel aşaması `StandardMode` trigger'ını üretir ve `Default handler` çalışır.
+5. RuleSet başarılı biçimde tamamlanır ve normal fonksiyon akışı sürer.
+
+Beklenen çıktı:
+
+```text
+Always handler
+Default handler
+Normal continuation
+```
+
+### 12.12 MR-OIR-005 CFG ve Verifier kontrolleri
+
+**Durum A için beklenen soyut CFG:**
+
+```text
+TriggerEval_Positive -> matched_positive
+       |
+       v
+NormalHandlerStage
+       |
+       +-- matched_positive --> PositiveHandler
+       |                           |
+       +-- not matched ------------+
+                                   |
+                                   v
+                             AlwaysStage
+                                   |
+                                   v
+                         EmitSpecialTrigger(LogMetrics)
+                                   |
+                                   v
+                           LogMetricsHandler
+                                   |
+                                   v
+                         DefaultEligibilityCheck
+                                   |
+                  normal_match=true
+                                   |
+                                   v
+                             ApplyContinue
+
+StandardModeHandler:
+  unreachable for this input
+```
+
+**Durum B için beklenen soyut CFG:**
+
+```text
+TriggerEval_Positive -> matched_positive = false
+       |
+       v
+NormalHandlerStage (no handler selected)
+       |
+       v
+AlwaysStage
+       |
+       v
+EmitSpecialTrigger(LogMetrics)
+       |
+       v
+LogMetricsHandler
+       |
+       v
+DefaultEligibilityCheck
+       |
+  normal_match=false
+       |
+       v
+EmitSpecialTrigger(StandardMode)
+       |
+       v
+StandardModeHandler
+       |
+       v
+ApplyContinue
+```
+
+Verifier ve yürütme altyapısı aşağıdakileri doğrulamalıdır:
+
+1. Bütün normal trigger koşulları, normal handler dispatch başlamadan önce bir kez değerlendirilir.
+2. Normal handler'lar, eşleşme durumuna göre kaynak sırasıyla çalışır.
+3. `always` özel trigger'ı her başarılı RuleSet uygulamasında tam bir kez üretilir.
+4. `always` handler'ı normal handler aşamasından sonra ve default uygunluk kontrolünden önce çalışır.
+5. `default` özel trigger'ı yalnızca hiçbir normal trigger eşleşmediğinde üretilir.
+6. `default` handler'ı, varsa `always` handler'ından sonra çalışır.
+7. Durum A'da `StandardMode` trigger'ı ve handler'ı yürütülmez.
+8. Durum B'de `LogMetrics` ve ardından `StandardMode` handler'ları tam birer kez çalışır.
+9. Özel trigger'ların kimlikleri Analyzer tarafından çözülmüş sabit kimliklerdir; OIR'de string karşılaştırması veya runtime isim araması bulunmaz.
+10. Özel handler'lar normal handler dispatch listesine eklenmez; ayrı `AlwaysStage` ve `DefaultStage` üzerinden çağrılır.
+11. Her handler'ın normal çıkışı bir sonraki doğru özel aşamaya veya `ApplyContinue` bloğuna bağlanır.
+12. Bir handler terminator ile çıkarsa sonraki handler/aşama için o yoldan CFG kenarı oluşturulmaz.
+
+Analyzer ve Verifier negatif testleri:
+
+- **MR-OIR-005-N1:** `always` handler'ının normal handler aşamasında çalıştırılması.
+- **MR-OIR-005-N2:** Normal trigger eşleştiği halde `default` trigger'ının üretilmesi.
+- **MR-OIR-005-N3:** Hiçbir normal trigger eşleşmediği halde `default` trigger'ının üretilmemesi.
+- **MR-OIR-005-N4:** `default` handler'ının `always` handler'ından önce çalıştırılması.
+- **MR-OIR-005-N5:** `always` özel trigger'ının başarılı uygulamada hiç üretilmemesi veya birden fazla üretilmesi.
+- **MR-OIR-005-N6:** `default` özel trigger'ının aynı uygulamada birden fazla üretilmesi.
+- **MR-OIR-005-N7:** Özel trigger handler'ının yanlış RuleSet/trigger kimliğine bağlanması.
+- **MR-OIR-005-N8:** `always` veya `default` trigger adının normal trigger adıyla çakışmasına Analyzer'ın izin vermesi.
+- **MR-OIR-005-N9:** Aynı özel trigger için birden fazla `on` handler tanımının kabul edilmesi.
+- **MR-OIR-005-N10:** Özel trigger adının runtime string aramasıyla çözülmesi.
+- **MR-OIR-005-N11:** `always` handler'ındaki terminator sonrasında `default` aşamasına veya `ApplyContinue` bloğuna sahte CFG kenarı bulunması.
+- **MR-OIR-005-N12:** `default` handler'ındaki terminator sonrasında `ApplyContinue` bloğuna sahte CFG kenarı bulunması.
+
+Bu test, isimli `always` / `default` biçimlerinin handler dispatch ve CFG sırasını kapsar. Doğrudan blok biçimlerinin terminator davranışı MR-OIR-003 ve aşama sırası MR-OIR-004 kapsamındadır.
+
