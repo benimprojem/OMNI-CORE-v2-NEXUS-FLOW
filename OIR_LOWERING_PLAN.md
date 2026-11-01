@@ -1,6 +1,6 @@
 # OIR Lowering — staged implementation plan
 
-**Status:** Implementation in progress; codec foundation and AST field access are implemented, executable lowering coverage is not yet enabled  
+**Status:** Implementation in progress; first tested executable slice lowers one semantically typed scalar-literal return  
 **Input:** validated `OIR_KIND_SEMANTIC_AST`  
 **Output:** validated `OIR_KIND_MODULE`  
 **Module:** independent IR Lowering DLL/SO/dylib, invoked by OCC  
@@ -10,7 +10,7 @@
 
 This plan defines a safe route from the current semantic artifact to canonical OIR. It does not treat the existing AST-walking code generator as a design constraint. The lowering stage will consume only the validated semantic artifact and produce a target-independent SSA module.
 
-The first implementation must be deliberately small and verifiable. A construct is either lowered with fully defined semantics or rejected with a structured diagnostic. Unsupported AST nodes must never be silently skipped, approximated or emitted as no-ops.
+The first implementation is deliberately small and verifiable. The initial executable slice accepts one non-extern, parameterless function containing exactly one return of an annotated integer, floating-point or boolean literal. Every other shape is rejected; unsupported AST nodes are never silently skipped, approximated or emitted as no-ops.
 
 ## 2. Preconditions before executable lowering
 
@@ -203,10 +203,11 @@ The legacy AST-walking code generator may remain temporarily available for compa
 - [ ] Module verifier for function/block ownership, complete instruction coverage, terminators, type rules and SSA.
 - [x] Validated Semantic AST artifact reader: `oir_semantic_ast_artifact_open()` opens the envelope, checks required section versions, validates AST field schema/graph and cross-table semantic references.
 - [x] Constant opcode immediate contract: integer, IEEE-754 binary64 and boolean constants carry typed immediate operands.\n- [x] Initial semantic primitive-to-OIR type mapping for i8/i16/i32/i64, u8/u16/u32/u64, f32/f64 and bool, preserving hard/const qualifiers; unsupported primitive representations are rejected.
-- [ ] Scalar IR lowering pass consuming the validated artifact view.
+- [x] Initial scalar IR lowering pass: one parameterless function with one typed integer/float/bool literal return; caller-owned workspace; validated OIR_MODULE writer round-trip.
+- [ ] Recursive arithmetic expression lowering and broader scalar function coverage.
 - [ ] Independent IR Lowering DLL and OCC handoff.
 
-The codec, AST accessors and complete Semantic AST artifact reader are infrastructure only. No source construct is yet claimed as successfully lowerable; executable lowering remains fail-closed until the first supported subset and its tests are implemented.
+The initial literal-return subset is now executable through `oir_lower_semantic_ast_literal_return()` in `src/c/oir/oir_lowering.c`. Its test builds a minimal AST/type/annotation fixture and checks the emitted OIR_MODULE, including the typed immediate value. This is not yet the production DLL or OCC handoff. Arithmetic expressions, parameters, locals, identifiers, conversions, source maps and the module verifier remain pending.
 
 ## 7. Decisions still required
 
