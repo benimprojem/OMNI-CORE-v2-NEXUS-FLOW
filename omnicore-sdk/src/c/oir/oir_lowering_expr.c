@@ -407,10 +407,12 @@ OirStatus oir_lower_semantic_ast_return(
     if ((s=oir_type_map_primitive(&ft,type_name,ft.name_length,1u,&w->types[0]))!=OIR_STATUS_OK)
         return s;
     w->types[1].id=2u; w->types[1].kind=OIR_MODULE_TYPE_FUNCTION;
+    fprintf(stderr,"lowerer reached st init\\n");
     memset(&st,0,sizeof(st));
     st.artifact=a; st.ws=w; st.type_name=type_name; st.type_length=ft.name_length;
 
     /* Straight-line scalar locals are promoted to SSA values; reassignment creates a new version. */
+    fprintf(stderr,"first statement kind=%u next=%u\\n",(unsigned)statement.node_kind_id,(unsigned)statement.next_node_id);
     while (statement.node_kind_id == N_VAR_DECL ||
            statement.node_kind_id == N_ASSIGNMENT) {
         if (statement.node_kind_id == N_ASSIGNMENT) {
@@ -444,9 +446,11 @@ OirStatus oir_lower_semantic_ast_return(
         if ((s=node(&a->ast,statement_id,&statement))!=OIR_STATUS_OK)
             return OIR_STATUS_INVALID_SECTION;
     }
+    fprintf(stderr,"after locals kind=%u next=%u\\n",(unsigned)statement.node_kind_id,(unsigned)statement.next_node_id);
     if (statement.node_kind_id!=N_RETURN || statement.next_node_id)
         return OIR_STATUS_INVALID_SECTION;
     ret_id=statement.node_id;
+    fprintf(stderr,"return id=%u\\n",(unsigned)ret_id);
     if ((s=token(&a->ast,ret_id,1u,&ret_tok))!=OIR_STATUS_OK || ret_tok!=T_RET ||
         (s=ref(&a->ast,ret_id,2u,&expr_id))!=OIR_STATUS_OK || !expr_id)
         return OIR_STATUS_INVALID_SECTION;
