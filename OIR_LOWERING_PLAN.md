@@ -216,6 +216,7 @@ The legacy AST-walking code generator may remain temporarily available for compa
 - [x] Initial scalar IR lowering pass: one parameterless function with one typed integer/float/bool literal return; caller-owned workspace; validated OIR_MODULE writer round-trip.
 - [x] Real frontend-to-lowering integration test: Lexer/Parser AST -> semantic analysis -> validated SEMANTIC_AST artifact -> OIR_MODULE payload. Stable OIR token IDs are used at the artifact boundary, and hard return qualifiers are checked against the function's semantic type annotation.
 - [x] Semantic arithmetic operand validation: arithmetic binary expressions now require matching primitive numeric operand types; mixed types and nonnumeric operands are rejected before lowering. Covered by `test_semantic_arithmetic`.
+- [x] Initializer-based local type inference in semantic results: an untyped variable initialized from a typed expression now receives a canonical type ID, and its declaration annotation is emitted after inference. `test_semantic_result_integration` covers inference from a resolved identifier. This is semantic groundwork only; local-variable OIR lowering is not enabled yet.
 - [ ] Recursive arithmetic expression lowering and broader scalar function coverage.
 - [ ] Independent IR Lowering DLL and OCC handoff.
 
