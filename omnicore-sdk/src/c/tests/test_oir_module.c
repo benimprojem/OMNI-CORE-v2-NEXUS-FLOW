@@ -49,7 +49,16 @@ int main(void) {
     assert(oir_module_get_instruction(&view, 1u, &decoded) == OIR_STATUS_OK);
     assert(decoded.opcode_id == OIR_OP_RETURN && decoded.operand_count == 1u);
 
-    payload[104] = 0xffu;
+    /* Unknown type flags are rejected rather than silently reinterpreted. */
+    payload[45] = 0x80u;
+    assert(oir_module_open(payload, written, &view) == OIR_STATUS_INVALID_SECTION);
+    payload[45] = 0u;
+    /* Signedness flags are only valid on integer types. */
+    payload[56] = 0x01u;
+    assert(oir_module_open(payload, written, &view) == OIR_STATUS_INVALID_SECTION);
+    payload[56] = 0u;
+    /* Corrupt an instruction opcode; structural validation must reject it. */
+    payload[112 + 8] = 0xffu;
     assert(oir_module_open(payload, written, &view) == OIR_STATUS_INVALID_SECTION);
     return 0;
 }
