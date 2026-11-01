@@ -1500,3 +1500,117 @@ Analyzer ve Verifier negatif testleri:
 
 Bu test, aynı RuleSet'in bir fonksiyon içinde tekrar uygulanmasını kapsar. Farklı fonksiyonlarda ortak RuleSet tanımının paylaşılması ve ayrı fonksiyonlardaki handler kapsamları bu testin konusu değildir.
 
+## 12.17 MR-OIR-008 — Handler içindeki break / continue ve loop kapsamı
+
+**Amaç:** Bir `on` handler içindeki `break` ve `continue` ifadelerinin gerçek NEXUS Flow `loop` kapsamına bağlandığını; handler'ın `apply rules` noktasında çalıştırılmasının yeni veya yapay bir döngü kapsamı oluşturmadığını doğrulamak.
+
+### Kesinleştirilen kapsam kuralı
+
+1. `break` ve `continue`, kaynak kodda bulundukları noktayı sözdizimsel olarak kapsayan en yakın `loop` yapısına bağlanır.
+2. `on` handler gövdesi, `apply rules` noktasında CFG'ye yerleştirilse bile lexical loop kapsamını handler'ın kaynak kod konumundan alır.
+3. Handler bir `loop` gövdesinin içindeyse `break` / `continue` o döngüye bağlanır.
+4. Handler herhangi bir `loop` kapsamının dışındaysa, ilgili `apply rules` çağrısı başka bir yerde döngü içinde olsa bile handler'daki `break` / `continue` geçersizdir.
+5. İç içe döngülerde hedef, handler'ın kaynak konumunu kapsayan en içteki `loop` yapısıdır. Dış döngüye doğrudan atlamak için bu iki kontrol ifadesi kullanılmaz.
+6. Handler içindeki `break` veya `continue` gerçek bir terminator akışı üretir. Sonlandırılmış handler yolundan sonraki handler'a, `always` / `default` aşamasına, sonraki `apply rules` çağrısına veya normal devam bloğuna sahte kenar eklenemez.
+
+Bu kural, NEXUS Flow Syntax Reference içindeki “`break` ve `continue` yalnızca geçerli bir loop kapsamı içindeyken kullanılabilir” şartıyla aynıdır. Multi-Rule Engine bu kapsam kuralını değiştirmez.
+
+### Kaynak test
+
+```nexus
+rules LoopControl(value) {
+    value == 1 -> SkipIteration;
+    value == 2 -> StopLoop;
+}
+
+f:testLoopControl() {
+    v:i = 0;
+
+    loop(i, i < 3, i++) {
+        apply rules(LoopControl(i));
+
+        on LoopControl.SkipIteration {
+            continue;
+        }
+
+        on LoopControl.StopLoop {
+            break;
+        }
+
+        echo("Normal iteration tail");
+    }
+
+    echo("After loop");
+}
+```
+
+### Beklenen yürütme
+
+| Döngü değeri | Eşleşen trigger | Handler davranışı | Sonuç |
+|---:|---|---|---|
+| 0 | Yok | Handler çalışmaz | Döngü sonu çıktısı çalışır, sonra artış |
+| 1 | `SkipIteration` | `continue` | Normal iteration tail atlanır; loop'un sonraki iterasyonuna geçilir |
+| 2 | `StopLoop` | `break` | Döngü sonu çıktısı atlanır; döngüden çıkılır |
+
+Beklenen çıktı:
+
+```text
+Normal iteration tail
+After loop
+```
+
+`continue`, `loop(i, condition, increment)` yapısında döngünün sonraki iterasyonuna geçiş semantiğini izler; `break` ise döngü çıkış bloğuna gider. Bu kontrol aktarımı RuleSet uygulamasının normal devamı değildir.
+
+### Beklenen soyut CFG
+
+```text
+LoopHeader
+  -> LoopBody
+       -> Apply_LoopControl
+            -> BarrierStage
+            -> TriggerEvaluation
+            -> HandlerDispatch
+                 -> matched_skip -> ContinueTerminator -> LoopLatch
+                 -> matched_stop -> BreakTerminator -> LoopExit
+                 -> no_match     -> ApplyContinue
+       -> IterationTail
+       -> LoopLatch
+  -> LoopExit
+       -> AfterLoop
+```
+
+Şema, yalnızca canlı yolları gösterir. `ContinueTerminator` ve `BreakTerminator` yolları `IterationTail` veya `ApplyContinue` üzerinden devam etmez. Gerçek OIR'de terminator isimleri nihai opcode kararı değildir; bunlar CFG hedeflerini açıklayan tasarım etiketleridir.
+
+### Verifier kontrolleri
+
+1. Handler'ın kaynak konumunda geçerli bir lexical loop kapsamı bulunmalıdır.
+2. `continue` kenarı aynı kapsamın loop latch / devam kontrol noktasına bağlanmalıdır.
+3. `break` kenarı aynı kapsamın loop exit bloğuna bağlanmalıdır.
+4. Handler içindeki terminator sonrasında aynı uygulamanın sonraki handler'larına kenar bulunmamalıdır.
+5. `continue` yolundan iteration tail veya `ApplyContinue` bloğuna sahte kenar bulunmamalıdır.
+6. `break` yolundan iteration tail, loop latch veya `ApplyContinue` bloğuna sahte kenar bulunmamalıdır.
+7. Terminator olmayan handler yolları, sonraki handler dispatch aşamasına normal şekilde bağlanabilmelidir.
+8. Döngüden çıkış sonrası kod yalnızca `break` çıkışından veya döngünün normal bitiş koşulundan erişilebilir olmalıdır.
+
+### Negatif testler
+
+- **MR-OIR-008-N1:** Loop kapsamı dışındaki bir `on` handler içinde `break` kullanılması kabul edilir.
+- **MR-OIR-008-N2:** Loop kapsamı dışındaki bir `on` handler içinde `continue` kullanılması kabul edilir.
+- **MR-OIR-008-N3:** `continue` kenarının loop exit bloğuna bağlanması.
+- **MR-OIR-008-N4:** `break` kenarının loop latch bloğuna bağlanması.
+- **MR-OIR-008-N5:** `continue` terminator'ından sonra iteration tail'e sahte kenar oluşturulması.
+- **MR-OIR-008-N6:** `break` terminator'ından sonra sonraki handler'a sahte kenar oluşturulması.
+- **MR-OIR-008-N7:** Handler'daki terminator sonrasında `always` veya `default` aşamasına sahte kenar oluşturulması.
+- **MR-OIR-008-N8:** Handler'ın lexical loop kapsamı yerine yalnızca `apply rules` çağrısının bulunduğu başka bir loop'un hedeflenmesi.
+- **MR-OIR-008-N9:** İç içe loop içinde handler'ın en yakın lexical loop yerine dış loop'a bağlanması.
+- **MR-OIR-008-N10:** `break` / `continue` yolunun normal `RETURN` veya RuleSet bariyer hata çıkışıyla karıştırılması.
+
+### Test sınıflandırması
+
+- **Frontend/Parser:** `on` gövdesindeki kontrol ifadelerinin AST'de korunması.
+- **Analyzer:** Handler kaynak konumundaki lexical loop kapsamının çözülmesi; kapsam yoksa hata verilmesi.
+- **OIR Builder:** Doğru loop latch / exit hedeflerinin handler terminator'larına bağlanması.
+- **OIR Verifier:** Terminator hedeflerinin ve erişilebilirlik kenarlarının doğrulanması.
+
+Bu test, handler'ın lexical loop kapsamını ve temel `break` / `continue` hedeflerini sabitler. Farklı kontrol ifadelerinin (örneğin etiketli `jump(label)`) handler içindeki kapsam davranışı ayrı test konusu olarak kalır.
+
