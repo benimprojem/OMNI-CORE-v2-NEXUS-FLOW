@@ -1209,3 +1209,158 @@ Analyzer ve Verifier negatif testleri:
 
 Bu test, isimli `always` / `default` biçimlerinin handler dispatch ve CFG sırasını kapsar. Doğrudan blok biçimlerinin terminator davranışı MR-OIR-003 ve aşama sırası MR-OIR-004 kapsamındadır.
 
+### 12.13 MR-OIR-006 — Birden fazla apply rules çağrısının sıralı yürütülmesi
+
+**Amaç:** Aynı fonksiyon içindeki birden fazla `apply rules` çağrısının kaynak sırasına göre ve birbirinden bağımsız uygulama kapsamlarında yürütüldüğünü; önceki çağrının bariyer hatasının sonraki RuleSet çağrılarını ve normal fonksiyon akışını engellediğini doğrulamak.
+
+Kaynak test:
+
+```nexus
+rules InputCheck(n) {
+    n >= 0 :=> "Input must be non-negative";
+    n > 0 -> Positive;
+}
+
+rules QuotaCheck(q) {
+    q <= 100 :=> "Quota limit exceeded";
+    q >= 80 -> NearLimit;
+}
+
+rules FinalCheck(enabled) {
+    enabled == true -> Enabled;
+}
+
+f:runChecks(n, q, enabled) {
+    apply rules(InputCheck(n));
+    apply rules(QuotaCheck(q));
+    apply rules(FinalCheck(enabled));
+
+    on InputCheck.Positive {
+        echo("Input accepted");
+    }
+
+    on QuotaCheck.NearLimit {
+        echo("Quota near limit");
+    }
+
+    on FinalCheck.Enabled {
+        echo("Final feature enabled");
+    }
+
+    echo("Normal continuation");
+}
+```
+
+#### Durum A — İkinci RuleSet bariyer hatası üretir
+
+Test girdisi: `n = 5`, `q = 120`, `enabled = true`.
+
+Beklenen yürütme:
+
+1. İlk `apply rules(InputCheck(n))` kendi hata biriktiricisini oluşturur; bariyer koşulu hatasızdır.
+2. `InputCheck.Positive` koşulu değerlendirilir ve eşleşir; ilgili handler çalışarak `Input accepted` çıktısını üretir.
+3. İkinci `apply rules(QuotaCheck(q))` yeni ve bağımsız bir hata biriktiricisi oluşturur.
+4. `QuotaCheck` bariyeri doğru olur; hata kaydı eklenir. Bariyer aşaması tamamlanınca hata raporlanır ve fonksiyonun normal CFG yolu sonlandırılır.
+5. Üçüncü `apply rules(FinalCheck(enabled))` çağrısına ulaşılmaz; `FinalCheck.Enabled` koşulu değerlendirilmez ve handler çalışmaz.
+6. `Normal continuation` çıktısı üretilmez.
+
+Beklenen gözlemlenebilir çıktı:
+
+```text
+Input accepted
+Quota limit exceeded
+```
+
+İkinci RuleSet başarısız olduğunda ilk RuleSet'in daha önce tamamlanmış etkileri geri alınmaz. Bu test bir transaction/rollback mekanizması tanımlamaz.
+
+#### Durum B — Bütün RuleSet çağrıları başarılıdır
+
+Test girdisi: `n = 5`, `q = 90`, `enabled = true`.
+
+Beklenen yürütme:
+
+1. `InputCheck` bariyer ve trigger aşamalarını tamamlar; `InputCheck.Positive` handler'ı çalışır.
+2. `QuotaCheck` kendi hata biriktiricisiyle değerlendirilir; bariyer hatası yoktur ve `NearLimit` handler'ı çalışır.
+3. `FinalCheck` kendi uygulama kapsamıyla değerlendirilir; `Enabled` handler'ı çalışır.
+4. Üç çağrı da başarılı tamamlandığı için fonksiyon normal akışına geçer.
+
+Beklenen çıktı:
+
+```text
+Input accepted
+Quota near limit
+Final feature enabled
+Normal continuation
+```
+
+### 12.14 MR-OIR-006 CFG ve Verifier kontrolleri
+
+**Durum A için beklenen soyut CFG:**
+
+```text
+Apply_InputCheck
+  -> InputCheck_ErrorListCreate
+  -> InputCheck_Barriers
+  -> InputCheck_TriggerEval
+  -> InputCheck_HandlerStage
+  -> Apply_QuotaCheck
+       -> QuotaCheck_ErrorListCreate
+       -> QuotaCheck_Barriers
+       -> QuotaCheck_ErrorListIsEmpty
+            true  -> QuotaCheck_TriggerEval
+            false -> ReportQuotaErrors
+                     -> RuleSetFailureExit
+
+Apply_FinalCheck:
+  unreachable after QuotaCheck failure
+
+NormalContinuation:
+  unreachable after QuotaCheck failure
+```
+
+**Durum B için beklenen soyut CFG:**
+
+```text
+Apply_InputCheck
+  -> InputCheck_Barriers
+  -> InputCheck_TriggerEval
+  -> InputCheck_HandlerStage
+  -> Apply_QuotaCheck
+       -> QuotaCheck_Barriers
+       -> QuotaCheck_TriggerEval
+       -> QuotaCheck_HandlerStage
+       -> Apply_FinalCheck
+            -> FinalCheck_Barriers
+            -> FinalCheck_TriggerEval
+            -> FinalCheck_HandlerStage
+            -> ApplyContinue
+```
+
+Verifier ve yürütme altyapısı aşağıdakileri doğrulamalıdır:
+
+1. Her `apply rules` çağrısı kendi uygulama kimliğine, parametre bağlamına, hata biriktiricisine ve normal trigger eşleşme sonuçlarına sahiptir.
+2. Çağrı argümanları ilgili `apply rules` noktasında değerlendirilir; sonraki çağrıların argümanları önceki çağrıdan bağımsızdır.
+3. RuleSet çağrıları fonksiyon kaynak sırasına göre CFG'ye yerleştirilir.
+4. Başarılı bir çağrının canlı çıkışı yalnızca bir sonraki `apply rules` çağrısına veya son çağrıysa normal devam bloğuna bağlanır.
+5. Bir çağrının bariyer hatası yalnızca o çağrının bariyerlerinin tamamı değerlendirildikten sonra raporlanır.
+6. Başarısız çağrının trigger koşulları ve handler'ları çalıştırılmaz.
+7. Başarısız çağrıdan sonra gelen `apply rules` çağrıları erişilemez olmalıdır.
+8. Önceki başarılı çağrının handler etkileri, sonraki çağrının başarısızlığı nedeniyle OIR kontrol akışında geriye dönük silinmez veya yeniden yürütülmez.
+9. Her RuleSet'in hata listesi ve trigger SSA değerleri başka bir RuleSet'in değerleriyle karıştırılmaz.
+10. Bütün çağrılar başarılıysa son çağrının canlı çıkışı normal devam bloğuna ulaşır.
+
+Analyzer, OIR Builder ve Verifier negatif testleri:
+
+- **MR-OIR-006-N1:** Kaynakta ikinci sırada olan RuleSet'in ilk sırada yürütülmesi.
+- **MR-OIR-006-N2:** Bir RuleSet'in hata biriktiricisinin sonraki RuleSet tarafından yeniden kullanılması.
+- **MR-OIR-006-N3:** İlk RuleSet'in trigger eşleşme SSA değerinin sonraki RuleSet'e sızması.
+- **MR-OIR-006-N4:** Başarısız RuleSet'in kendi trigger koşullarının değerlendirilmesi.
+- **MR-OIR-006-N5:** Başarısız RuleSet'in kendi handler'larından birinin çalıştırılması.
+- **MR-OIR-006-N6:** Bariyer hatası sonrasında sonraki `apply rules` çağrısına CFG kenarı bulunması.
+- **MR-OIR-006-N7:** Bariyer hatası sonrasında fonksiyon normal devam bloğuna CFG kenarı bulunması.
+- **MR-OIR-006-N8:** Bir RuleSet'in bariyer hatasının, önceki başarılı RuleSet'in tamamlanmış handler'ını yeniden yürütmesi veya geriye dönük iptal etmesi.
+- **MR-OIR-006-N9:** RuleSet parametrelerinin yanlış çağrı noktasından veya başka bir RuleSet'in parametre bağlamından alınması.
+- **MR-OIR-006-N10:** Bütün RuleSet çağrıları başarılı olduğu halde son çağrıdan normal devam bloğuna canlı CFG yolu bulunmaması.
+
+Bu test, çağrıların sıralı kontrol akışını ve uygulama kapsamlarının ayrılığını tanımlar. RuleSet'ler arası transaction, rollback veya hata kurtarma davranışı bu testin kapsamında değildir; ayrıca tasarlanmadıkça böyle bir davranış varsayılmaz.
+
