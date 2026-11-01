@@ -635,9 +635,72 @@ done:
     return ok;
 }
 
+static int test_conditional_action_arrow_disambiguation(void) {
+    static const char source[] =
+        "f:main() {"
+        " (a == b) -> break;"
+        " ((c != d)) -> continue;"
+        " (e == f) -> ret 1;"
+        " a == b -> target;"
+        "}";
+    ParserContext* ctx = parser_init_source(
+        "conditional-action-arrow.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTIf* break_action;
+    ASTIf* continue_action;
+    ASTIf* return_action;
+    ASTNexusFlow* ordinary_pipe;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        parser_get_status(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK) goto done;
+    body = (ASTBlock*)function->body;
+
+    break_action = (ASTIf*)body->statements;
+    if (!break_action || break_action->base.type != AST_IF ||
+        !break_action->condition || !break_action->then_branch ||
+        break_action->then_branch->type != AST_BREAK ||
+        break_action->else_branch != NULL) goto done;
+
+    continue_action = (ASTIf*)break_action->base.next;
+    if (!continue_action || continue_action->base.type != AST_IF ||
+        !continue_action->condition || !continue_action->then_branch ||
+        continue_action->then_branch->type != AST_CONTINUE ||
+        continue_action->else_branch != NULL) goto done;
+
+    return_action = (ASTIf*)continue_action->base.next;
+    if (!return_action || return_action->base.type != AST_IF ||
+        !return_action->condition || !return_action->then_branch ||
+        return_action->then_branch->type != AST_RETURN ||
+        return_action->else_branch != NULL) goto done;
+
+    ordinary_pipe = (ASTNexusFlow*)return_action->base.next;
+    if (!ordinary_pipe || ordinary_pipe->base.type != AST_NEXUS_PIPE ||
+        ordinary_pipe->op != TOKEN_PIPE || !ordinary_pipe->left ||
+        !ordinary_pipe->right || ordinary_pipe->right->type != AST_IDENTIFIER) goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 int main(int argc, char** argv) {
     if (!test_structured_if_elsif_els_ast()) {
         fprintf(stderr, "Structured if/elsif/els parser test failed.\\n");
+        return 1;
+    }
+    if (!test_conditional_action_arrow_disambiguation()) {
+        fprintf(stderr, "Conditional action arrow was confused with a Nexus pipe.\\n");
         return 1;
     }
     if (!test_parser_rejects_excessive_expression_nesting()) {
