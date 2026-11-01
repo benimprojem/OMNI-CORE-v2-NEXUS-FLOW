@@ -203,6 +203,46 @@ OirStatus oir_ast_node_table_get(
     return OIR_STATUS_OK;
 }
 
+
+OirStatus oir_ast_node_table_get_field(
+    const OirAstNodeTableView* view,
+    uint32_t node_index,
+    uint16_t field_id,
+    OirAstTlvField* out_field
+) {
+    OirAstNodeRecord record;
+    OirAstTlvReader reader;
+    OirAstTlvField field;
+    int has_field = 0;
+    OirStatus status;
+
+    if (!view || !out_field || field_id == 0u ||
+        !view->node_records || !view->field_data) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+    status = oir_ast_node_table_get(view, node_index, &record);
+    if (status != OIR_STATUS_OK) return status;
+    if (record.field_data_offset > view->field_data_length ||
+        record.field_data_length > view->field_data_length - record.field_data_offset) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    oir_ast_tlv_reader_init(&reader,
+        view->field_data + record.field_data_offset, record.field_data_length);
+    do {
+        status = oir_ast_tlv_reader_next(&reader, &field, &has_field);
+        if (status != OIR_STATUS_OK) return status;
+        if (has_field && field.field_id == field_id) {
+            *out_field = field;
+            return OIR_STATUS_OK;
+        }
+        if (has_field && field.field_id > field_id) break;
+    } while (has_field);
+
+    memset(out_field, 0, sizeof(*out_field));
+    return OIR_STATUS_INVALID_ARGUMENT;
+}
+
 OirStatus oir_ast_node_table_write(
     uint8_t* output, size_t capacity, const OirAstNodeRecord* records,
     uint32_t node_count, uint32_t root_node_id,
