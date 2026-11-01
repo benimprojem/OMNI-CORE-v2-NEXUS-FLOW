@@ -67,7 +67,7 @@ Aggregate types, full function signatures, block parameters, debug/source maps, 
 
 ## 3. Logical module model
 
-The following tables define the logical model. They are a design contract, not a frozen byte layout. The exact record widths, offset-table layout and string-table encoding will be specified after the verifier model and representative programs are tested.
+The following sections describe the logical meaning and intended evolution of the tables. The byte-level v1.0 layout is defined in Section 3; later fields must use a versioned extension rather than changing these record widths in place.
 
 ### 3.1 Module header and identity
 
