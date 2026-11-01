@@ -202,7 +202,8 @@ The legacy AST-walking code generator may remain temporarily available for compa
 - [x] AST node-local TLV field lookup and string-span access: `oir_ast_node_table_get_field()` and `oir_ast_node_table_get_string()` let lowering inspect validated node fields and resolve string references without duplicating TLV parsing.
 - [ ] Module verifier for function/block ownership, complete instruction coverage, terminators, type rules and SSA.
 - [x] Validated Semantic AST artifact reader: `oir_semantic_ast_artifact_open()` opens the envelope, checks required section versions, validates AST field schema/graph and cross-table semantic references.
-- [x] Initial semantic primitive-to-OIR type mapping for i8/i16/i32/i64, u8/u16/u32/u64, f32/f64 and bool, preserving hard/const qualifiers; unsupported primitive representations are rejected.\n- [ ] Scalar IR lowering pass consuming the validated artifact view.
+- [x] Initial semantic primitive-to-OIR type mapping for i8/i16/i32/i64, u8/u16/u32/u64, f32/f64 and bool, preserving hard/const qualifiers; unsupported primitive representations are rejected.
+- [ ] Scalar IR lowering pass consuming the validated artifact view.
 - [ ] Independent IR Lowering DLL and OCC handoff.
 
 The codec, AST accessors and complete Semantic AST artifact reader are infrastructure only. No source construct is yet claimed as successfully lowerable; executable lowering remains fail-closed until the first supported subset and its tests are implemented.
