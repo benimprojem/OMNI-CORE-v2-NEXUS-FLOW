@@ -1293,6 +1293,7 @@ f:main() {
 Bu kuralların OIR karşılığı ve testleri MR-OIR-017 içinde tanımlanır.
 
 Defer değişkenleri kayıt anında kopyalamaz. Defer gövdesi çalıştırıldığında, kendisini kaydeden scope activation'ındaki değişkenlerin güncel değerlerini görür; gövde içindeki yazmalar aynı değişkenleri günceller. Defer, kaynaklar için ayrı sahiplik veya handle kopyası oluşturmaz. `->_` ile devredilmiş kaynak eski değişken üzerinden kullanılamaz; sahiplik ve otomatik cleanup tek bir ownership kaydı üzerinden izlenir. Defer tarafından kullanılan değişkenler, defer tamamlanana kadar geçerli tutulur. Ayrıntılı OIR ve test sözleşmesi MR-OIR-019'dadır.
+Cleanup hata politikası da sabittir: bir defer veya otomatik kaynak temizliği hata verse bile aynı scope'taki kalan defer'ler ve kaynak cleanup işlemleri tamamlanır. Defer'ler LIFO, otomatik kaynaklar ters edinim sırasıyla temizlenir. Normal çıkışta cleanup hatası normal dönüşü engeller ve hata akışına aktarılır; önceden oluşmuş hata veya panic birincil kalır, cleanup hataları ikincil tanı olarak eklenir. !! ve ?; aktif scope'ları cleanup ederek sonlanır. Defer gövdesinde non-local kontrol aktarımı, ?;, }?;, nested defer ve yeni sahip olunan kaynak edinimi yasaktır. Ayrıntılı kurallar MR-OIR-020'dedir.
 
 
 ### 14.4 Donanım ve Düşük Seviye (Kernel Ready)
