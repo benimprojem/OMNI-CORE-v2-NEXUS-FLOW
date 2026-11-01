@@ -175,11 +175,27 @@ The numeric values above are illustrative and do not define actual NEXSUS hardwa
 
 The current C parser accepts a narrow version-1 descriptor with fixed CPU-oriented fields. It does not yet model heterogeneous device arrays, topology links, GPU/NPU/FAPU capabilities, nested memory resources or machine binding.
 
-Do not extend the existing fixed `TargetConfig` by adding a handful of GPU fields. The v2 parser should produce a bounded normalized profile with device/resource/link tables, explicit counts and validated references. Use stable IDs, bounded strings and explicit maximum counts. Keep the v1 reader available during migration; reject unknown required v2 fields and unsupported schema versions.
+Do not extend the existing fixed `TargetConfig` by adding a handful of GPU fields. The v2 parser should produce a bounded normalized profile with device/resource/link tables, explicit counts and validated references. The initial implementation scope is deliberately narrower: parse the OS/BareMetal platform fields and a complete CPU capability record first. GPU, NPU, FAPU, DSP, FPGA and other device records remain representable in the v2 model but are not required to be operational in this first parser milestone. Use stable IDs, bounded strings and explicit maximum counts. Keep the v1 reader available during migration; reject unknown required v2 fields and unsupported schema versions.
 
 The normalized profile should be serialized into a dedicated versioned Target OIR artifact passed as a separate stage input. It must not be mixed into the target-neutral `OIR_MODULE` program representation.
 
-## 8. Implementation progress
+## 8. Initial implementation scope
+
+The first usable Target v2 milestone is **OS + BareMetal + CPU capability resolution**. The initial platform set is Windows x86-64, Linux x86-64, macOS AArch64 and BareMetal x86-64 (with the existing RV32 descriptor retained as a future backend target, not a promised codegen target).
+
+The CPU record must describe at least:
+- ISA architecture/profile and explicit extension set.
+- Word width, address width and endianness.
+- General, vector and predicate register-file counts; vector width where applicable.
+- Atomic operation widths and floating-point formats.
+- Core/topology counts and relevant execution capabilities.
+- CPU feature flags such as atomics, hardware floating point, vector support and privilege levels.
+
+OS/BareMetal platform records additionally define ABI, object/executable format, entry point, memory/stack conventions and runtime services. BareMetal must not be treated as an OS: it is an OS-less platform/runtime profile with its own boot and entry contract.
+
+Other device kinds stay in the schema from the beginning so future programmable chips (especially FPGA) do not require a schema redesign. Their parser, backend and code-generation support are deferred.
+
+## 9. Implementation progress
 
 - [x] Initial normalized v2 C data model added under `omnicore-sdk/src/c/target/target_profile.h`.
 - [x] Structural validator added in `target_profile.c` for schema version, bounded table counts, device/resource identity uniqueness, memory ownership references and interconnect endpoints.
@@ -190,14 +206,14 @@ The normalized profile should be serialized into a dedicated versioned Target OI
 
 The C data model is an initial implementation foundation only. No v2 descriptor file is parsed yet, and the validator does not establish backend support or physical machine identity. Build/CI has not been run for this change.
 
-## 9. Implementation order
+## 10. Implementation order
 
-1. Define v2 schema vocabulary and limits (device kinds, fields, counts, string and payload budgets).
-2. Introduce normalized profile/device/memory/link data structures independent of the legacy `TargetConfig`.
-3. Implement bounded v2 parsing and structural/reference validation.
+1. Finalize the CPU capability record and the OS/BareMetal platform contract.
+2. Implement bounded parsing and validation for the initial OS/BareMetal + CPU subset.
+3. Resolve the existing Windows/Linux/macOS/BareMetal descriptors into normalized Target v2 profiles.
 4. Add Target OIR artifact writer/reader and pass it through the module ABI.
-5. Add capability registry per backend/device kind.
-6. Add heterogeneous lowering and multi-device package output.
-7. Add signed manifest and trusted runtime machine-binding enforcement.
+5. Add CPU backend capability checks and platform-specific code-generation gates.
+6. Extend parsing/backend support to GPU, NPU, FAPU, DSP and programmable devices such as FPGA.
+7. Add heterogeneous lowering, multi-device packaging and signed machine-binding runtime.
 
 No v2 parser, multi-device backend or machine-lock runtime is claimed to exist until implemented.
