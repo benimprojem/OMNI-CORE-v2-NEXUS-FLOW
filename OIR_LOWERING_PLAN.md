@@ -241,6 +241,9 @@ The legacy AST-walking code generator may remain temporarily available for compa
 - [x] Initial scalar IR lowering pass: one parameterless function with one typed integer/float/bool literal return; caller-owned workspace; validated OIR_MODULE writer round-trip.
 - [x] Real frontend-to-lowering integration test: Lexer/Parser AST -> semantic analysis -> validated SEMANTIC_AST artifact -> OIR_MODULE payload. Stable OIR token IDs are used at the artifact boundary, and hard return qualifiers are checked against the function's semantic type annotation.
 - [x] Semantic arithmetic operand validation: arithmetic binary expressions now require matching primitive numeric operand types; mixed types and nonnumeric operands are rejected before lowering. Covered by `test_semantic_arithmetic`.
+- [x] Initial structured conditional semantics: `if / elsif / els` branches are checked with branch-local scopes; conditions accept boolean literals, boolean expressions and comparison expressions, while non-boolean conditions are rejected. Comparison expressions are annotated as `bool`; comparison operands must be compatible, and ordered comparisons currently require numeric operands.
+- [x] Initial loop-control semantics: `break` and `continue` are parsed as dedicated AST statements and rejected outside loop bodies. Function bodies reset inherited loop context so nested functions cannot break or continue an enclosing function's loop.
+- [ ] Control-flow semantic completion: logical short-circuit operators are not yet part of the active expression parser; branch definite-assignment/merge analysis and loop control-flow annotations remain pending.
 - [x] Initializer-based local type inference in semantic results: an untyped variable initialized from a typed expression now receives a canonical type ID, and its declaration annotation is emitted after inference. `test_semantic_result_integration` covers inference from a resolved identifier. This is semantic groundwork only; local-variable OIR lowering is not enabled yet.
 - [x] Initial local-variable OIR lowering: initialized scalar declarations are matched to their semantic variable symbols, their initializer expressions are lowered, and later identifier reads resolve through a caller-owned `symbol_id → SSA value_id` table. The end-to-end case is `v:x!i32 = 42; ret x;`. This is SSA promotion for straight-line locals, not memory `load/store` lowering.
 - [x] Straight-line local reassignment SSA versioning: a simple `=` assignment to an existing mutable local lowers the right-hand side against the previous mapping and then updates the symbol's current SSA value. The integration fixture `v:x!i32 = 40; x = x + 2; ret x;` checks the new value reference. Forced assignment, const reassignment, compound assignment, non-local lvalues and control-flow merges are not enabled.
@@ -256,7 +259,7 @@ The initial literal-return subset is now exercised in two ways through `oir_lowe
 - Opcode-specific type constraints, detailed memory effects and full semantic verification rules remain open.
 - Canonical numeric type registry and full NEXSUS Flow conversion lattice.
 - Integer overflow, floating-point rounding and forced-width behavior at operation boundaries.
-- Exact boolean/comparison typing rules.
+- [x] Initial v1 boolean/comparison typing: conditions require `bool`; comparison results are `bool`; equality requires compatible operands and ordered comparisons currently require numeric operands. Full conversion and user-defined comparison rules remain open.
 - Function return-type representation in semantic annotations.
 - Memory and ownership operations required by the first NEXSUS Flow subset.
 
