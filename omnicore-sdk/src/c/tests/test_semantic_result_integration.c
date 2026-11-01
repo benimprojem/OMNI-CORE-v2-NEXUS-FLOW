@@ -114,7 +114,7 @@ int main(void) {
     shadowed.base.line = 4;
     shadowed.base.col = 3;
     shadowed.name = "copy";
-    shadowed.type_name = "i32";
+    shadowed.type_name = NULL;
     shadowed.initializer = (ASTNode*)&shadowed_reference;
 
     shadowed_reference.base.type = AST_IDENTIFIER;
@@ -196,6 +196,8 @@ int main(void) {
     assert(context.result.symbols[2].type_id == 2u);
     assert(strcmp(context.result.symbols[2].name, "input") == 0);
     assert(strcmp(context.result.symbols[3].name, "copy") == 0);
+    /* An untyped local initialized from an identifier inherits its resolved type. */
+    assert(context.result.symbols[3].type_id == 1u);
     assert(context.result.symbols[0].relation_count == 1u);
     assert(context.result.relations[0].related_node_id == 3u);
     assert(context.result.relations[0].related_symbol_id == 2u);
@@ -208,6 +210,24 @@ int main(void) {
         &context.result, 3u, "input") == 3u);
     assert(semantic_result_find_visible_symbol(
         &context.result, 3u, "copy") == 4u);
+
+    /* The inferred declaration annotation must carry its canonical type and symbol. */
+    {
+        uint32_t declaration_node_id = resolve_node_id(&resolver, (ASTNode*)&shadowed);
+        uint32_t i;
+        int found_inferred_declaration = 0;
+        for (i = 0u; i < context.result.annotation_count; ++i) {
+            const SemanticResultAnnotation* annotation = &context.result.annotations[i];
+            if (annotation->node_id == declaration_node_id) {
+                assert(annotation->resolved_symbol_id == 4u);
+                assert(annotation->resolved_type_id == 1u);
+                assert(annotation->value_category == SEMANTIC_RESULT_VALUE_LVALUE);
+                found_inferred_declaration = 1;
+                break;
+            }
+        }
+        assert(found_inferred_declaration);
+    }
 
     /* Identifier lookup in the nested block must bind to the shadowing local. */
     {
