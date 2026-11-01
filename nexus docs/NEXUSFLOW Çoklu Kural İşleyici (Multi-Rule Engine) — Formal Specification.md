@@ -2901,15 +2901,12 @@ Loop-body scope'unda kayıt edilen defer, ancestor scope'a JUMP ile çıkılırk
 - **MR-OIR-017-N10:** Bir scope activation'ının defer kayıtlarının başka activation'a taşınması.
 - **MR-OIR-017-N11:** Cleanup/defer hata politikası tanımsızken sahte başarılı continuation üretilmesi.
 
-### 12.26.8 Açık alt sözleşmeler
+### 12.26.8 Sonraki testlere devredilen alt sözleşmeler
 
-- Loop içinde defer ifadesine tekrar ulaşıldığında kayıt tekilliği.
-- Defer gövdesi hata/panic üretirse kalan defer kayıtlarının yürütülüp yürütülmeyeceği ve hata biriktirme.
-- Defer gövdesi içinde kaynak edinimi ve sahiplik.
-- Defer gövdesi içinde `?;` veya `}?;` kullanımına izin verilip verilmeyeceği.
-- Runtime ABI ve OIR cleanup opcode/record encoding'i.
-
-Bu açık noktalar kesinleşmeden Builder veya Optimizer davranış uyduramaz.
+- Dinamik kayıt tekilliği ve loop activation sınırları MR-OIR-018'de kesinleştirilir.
+- Defer değişkenlerinin canlı bağlanması ve kaynak sahipliği MR-OIR-019'da kesinleştirilir.
+- Defer/cleanup hata, panic, ?;, }?; ve kaynak edinim politikası MR-OIR-020'de kesinleştirilir.
+- Runtime opcode ve binary record encoding, semantik karar değil OIR format/ABI uygulama sözleşmesidir.
 
 
 ## 12.27 MR-OIR-018 — Dinamik defer kaydı ve loop activation sınırları
@@ -3105,3 +3102,176 @@ MR-OIR-019 başarılı sayılması için:
 - OIR round-trip ve optimizer testleri defer gövdesinin activation, değişken bağı ve güncel değer ilişkisini korumalıdır.
 
 Bu kararla value capture/reference capture ayrımı açık konu olmaktan çıkarılmıştır: **NEXUS Flow defer modeli live binding'dir.**
+
+## 12.29 MR-OIR-020 — Defer/cleanup hata ve panic yönetimi
+
+**Amaç:** Defer veya otomatik kaynak temizliği sırasında hata oluştuğunda kalan cleanup işlemlerinin atlanmamasını; normal çıkış, hata çıkışı, panic ve açık sonlandırma davranışlarının deterministik olmasını sağlamak.
+
+### 12.29.1 Kesin karar: cleanup zinciri best-effort ve tamamlama garantili
+
+Bir scope kapanırken başlatılan cleanup zinciri, tek bir defer veya kaynak cleanup hatası nedeniyle durdurulmaz.
+
+1. Scope'un aktif defer kayıtları LIFO sırasıyla çalıştırılır.
+2. Bir defer normal tamamlanırsa sıradaki kayda geçilir.
+3. Bir defer hata üretirse hata CleanupErrorSet'e eklenir ve sıradaki defer yine çalıştırılır.
+4. Bütün defer kayıtları tükendikten sonra scope'un otomatik kaynak cleanup aşaması başlar.
+5. Otomatik cleanup'ta bir kaynak serbest bırakma hatası oluşursa hata kaydedilir ve sonraki kaynak için cleanup sürdürülür.
+6. Scope cleanup aşamalarının tamamı bitmeden scope activation kapatılmış sayılmaz.
+7. Cleanup zinciri tamamlandığında hata kümesi boşsa istenen kontrol akışı hedefine devam edilir; hata kümesi doluysa normal hedefe geçilmez ve cleanup failure yolu izlenir.
+
+Bu davranış best-effort'tür: her cleanup eylemi denenir; bir eylemin başarılı olacağı garanti edilmez. Ancak tek bir eylemin başarısızlığı diğer cleanup eylemlerini engelleyemez.
+
+### 12.29.2 Hata önceliği ve biriktirme
+
+Cleanup sonucu, cleanup başlamadan önceki kontrol akışı sonucuna göre belirlenir:
+
+| Cleanup öncesi durum | Cleanup sırasında hata | Nihai davranış |
+|---|---|---|
+| Normal scope/function çıkışı | Yok | Normal hedefe devam |
+| Normal scope/function çıkışı | Bir veya daha fazla | Normal devam iptal edilir; CleanupFailure üretilir |
+| Zaten hata nedeniyle çıkış | Bir veya daha fazla | İlk hata birincil kalır; cleanup hataları ikincil olarak eklenir |
+| Panic ( !! ) nedeniyle çıkış | Bir veya daha fazla | İlk panic birincil kalır; cleanup hataları panic kaydına eklenir |
+| Açık sonlandırma ( ?; ) | Bir veya daha fazla | Sonlandırma kararı korunur; cleanup hataları sonlandırma tanı kaydına eklenir |
+
+Kurallar:
+
+- Cleanup sırasında oluşan ilk hata, normal çıkışta birincil CleanupFailure olur.
+- Sonraki cleanup hataları aynı hata kümesine oluşma sırasıyla eklenir.
+- Önceden birincil hata veya panic varsa cleanup hataları onu değiştiremez; yalnızca ikincil tanı olarak eklenir.
+- Hata kayıtları kaynak konumu, scope activation kimliği, defer/resource kimliği ve hata türünü taşır.
+- Cleanup hatası bir return değerini başarılı dönüşe çeviremez. Return değeri cleanup öncesinde güvenli geçici konuma alınır; cleanup başarısızsa normal return tamamlanmaz ve hata sonucu çağırana taşınır.
+- İç scope cleanup hatası oluşursa o scope'un cleanup'ı tamamlanır; ardından hata dış scope'lara yayılır ve dış scope'ların defer/cleanup işlemleri de tamamlanır.
+- Çağıran taraf, fonksiyonun diğer hata sonuçlarında olduğu gibi mevcut hata akış mekanizmasıyla sonucu ele alabilir; bu özellik için yeni bir kaynak sözdizimi veya yeni bir operatör eklenmez.
+
+### 12.29.3 Kaynak cleanup'ında tek deneme ve ownership ledger
+
+Otomatik kaynak cleanup her sahip olunan kaynak için en fazla bir kez serbest bırakma girişiminde bulunur.
+
+1. Cleanup çağrısından önce kaynak ownership kaydı RELEASE_ATTEMPTED durumuna geçirilir.
+2. Serbest bırakma başarılı olursa kayıt RELEASED olur.
+3. Serbest bırakma hata verirse kayıt RELEASE_FAILED olur; aynı scope cleanup zincirinde otomatik olarak tekrar denenmez.
+4. Defer gövdesi kaynağı açıkça serbest bırakmışsa ownership kaydı önceden tüketilmiş olur ve otomatik cleanup kaynağı atlar.
+5. Ownership transfer edilmiş kaynak eski sahibin cleanup listesinde serbest bırakılmaz; yalnızca güncel sahibin cleanup listesi sorumludur.
+6. Aynı fiziksel kaynağa birden fazla sahiplik kaydı oluşturulması Analyzer/Verifier tarafından reddedilir.
+7. Cleanup hatası kaynak sahipliğini tekrar kullanılabilir hâle getirmez. Başarısız release girişiminden sonra handle geçersiz/consumed kabul edilir; ikinci release veya eski handle üzerinden erişim yasaktır.
+
+Otomatik cleanup sırası, scope içindeki kaynak edinim sırasının tersidir (LIFO). Böylece kaynaklar, en son edinilenden ilk edinilene doğru kapatılır. Defer kayıtları her zaman otomatik kaynak cleanup'ından önce çalışır.
+
+### 12.29.4 Panic, hata ve açık sonlandırma sırasında unwind
+
+**Panic ( !! )**
+
+- Panic, aktif lexical scope'ların unwind edilmesini başlatır.
+- Her scope için önce defer kayıtları LIFO, ardından otomatik kaynak cleanup çalışır.
+- Cleanup hataları ilk panic'i bastırmaz veya normal hata sonucuna dönüştürmez.
+- Tüm aktif scope cleanup işlemleri tamamlandıktan sonra panic sonlandırması sürer.
+
+**Açık sonlandırma ( ?; )**
+
+- ?; fonksiyonun/akışın normal devamını sonlandırır; aktif scope'ların defer ve otomatik cleanup işlemleri yine yürütülür.
+- Cleanup hataları sonlandırmayı iptal etmez; sonlandırma tanı kaydına eklenir.
+- ?; bir normal return veya çağırana dönen CleanupFailure değildir.
+
+**Normal hata akışı ( ?-> )**
+
+- Normal yürütmede bir hata ?-> ile yakalanmışsa ilgili hata bloğu kendi tanımlı akışında çalışır.
+- Defer/cleanup içindeki bir işlem kendi yerel hata yönlendirmesiyle hatayı tamamen ele alırsa cleanup hatası kaydedilmez.
+- Hata yönlendirilmeden defer gövdesinden dışarı çıkarsa cleanup hatası olarak biriktirilir.
+- Cleanup failure, mevcut fonksiyon hata sonucuyla çağırana aktarılır; çağıran bunu mevcut ?-> akışıyla ele alabilir.
+
+### 12.29.5 Defer gövdesinin izin verilen işlemleri
+
+Cleanup zincirinin sonlu ve analiz edilebilir kalması için defer gövdesi:
+
+- Normal ifadeler, fonksiyon çağrıları, değişken okumaları/yazmaları ve mevcut kaynakları kullanma/serbest bırakma işlemleri içerebilir.
+- Hata üretebilen işlemler için mevcut yerel ?-> hata yönlendirmesini kullanabilir.
+- return, break, continue, jump(label), ?; veya scope dışına kontrol aktaran başka bir terminator içeremez.
+- }?; ile kendi veya dış scope'un cleanup zincirini elle başlatamaz.
+- Yeni defer kaydı oluşturamaz.
+- Yeni sahip olunan kaynak edinemez. Cleanup sırasında yeni sahiplik oluşturmak yerine mevcut kaynaklar tüketilmeli veya serbest bırakılmalıdır.
+- Bu yasakları dolaylı fonksiyon çağrısı üzerinden ihlal edemez. Analyzer çağrılan fonksiyonun etkilerini doğrulayamıyorsa çağrıyı defer gövdesinde reddeder.
+
+Böylece cleanup sırasında cleanup listesine yeni kayıt eklenmesi, sonsuz cleanup döngüsü veya scope'un ikinci kez kapatılması mümkün olmaz.
+
+### 12.29.6 Kesin scope kapanış algoritması
+
+Aşağıdaki şema semantik algoritmadır; opcode isimleri değildir.
+
+~~~text
+CloseScope(scope, pendingOutcome):
+    while scope.deferStack is not empty:
+        record = pop_LIFO(scope.deferStack)
+        result = execute(record.body)
+        if result is cleanup_error:
+            append_cleanup_error(result)
+
+    for resource in scope.ownedResources in reverse_acquisition_order:
+        if resource.state == OWNED:
+            resource.state = RELEASE_ATTEMPTED
+            result = release(resource)
+            if result is success:
+                resource.state = RELEASED
+            else:
+                resource.state = RELEASE_FAILED
+                append_cleanup_error(result)
+
+    mark scope activation CLOSED
+
+    if pendingOutcome is PANIC or EXPLICIT_HALT:
+        attach cleanup errors to pendingOutcome
+        continue unwind/termination
+    else if pendingOutcome is ERROR:
+        attach cleanup errors to pendingOutcome
+        continue outer-scope unwind
+    else if cleanup errors exist:
+        create CleanupFailure
+        continue outer-scope unwind
+    else:
+        continue requested control-flow target
+~~~
+
+İç içe scope'larda algoritma en iç scope'tan dış scope'a doğru tekrarlanır. Bir scope'un cleanup'ı tamamlanmadan dış scope cleanup'ı başlatılmaz.
+
+### 12.29.7 Negatif testler
+
+- **MR-OIR-020-N1:** İlk defer hatasında sonraki defer kayıtlarının atlanması.
+- **MR-OIR-020-N2:** Defer hatası nedeniyle otomatik kaynak cleanup'ın hiç başlatılmaması.
+- **MR-OIR-020-N3:** İlk kaynak release hatasında sonraki kaynakların bırakılmaması.
+- **MR-OIR-020-N4:** Başarısız release işleminin aynı unwind sırasında ikinci kez denenmesi.
+- **MR-OIR-020-N5:** Defer tarafından release edilmiş kaynağın otomatik cleanup'ta tekrar bırakılması.
+- **MR-OIR-020-N6:** Cleanup hatasının daha önce oluşmuş asıl hata veya panic'i ezmesi.
+- **MR-OIR-020-N7:** Cleanup hatasına rağmen normal return/branch hedefinin başarılıymış gibi yürütülmesi.
+- **MR-OIR-020-N8:** İç scope cleanup hatasında dış scope defer kayıtlarının atlanması.
+- **MR-OIR-020-N9:** !! panic sırasında aktif defer/cleanup zincirinin atlanması.
+- **MR-OIR-020-N10:** ?; sonlandırmasının aktif scope cleanup'ını atlaması.
+- **MR-OIR-020-N11:** Defer gövdesinden return, break, continue, jump veya ?; ile çıkılması.
+- **MR-OIR-020-N12:** Defer gövdesinin }?; ile cleanup zincirini yeniden başlatması.
+- **MR-OIR-020-N13:** Defer gövdesinin yeni defer kaydı veya sahip olunan kaynak edinmesi.
+- **MR-OIR-020-N14:** Cleanup hata kayıtlarının deterministik oluşma sırasının bozulması.
+- **MR-OIR-020-N15:** Optimizer'ın cleanup hata yolunu, ownership state geçişini veya unwind sırasını kaldırması/değiştirmesi.
+
+### 12.29.8 Pozitif testler ve tamamlanma koşulları
+
+**Test A — Bir defer hata verir, diğerleri yine çalışır**
+
+Bir scope'a sırasıyla D1, D2, D3 kaydedilir. Kapanışta D3 hata verir; D2 ve D1 yine çalışır. Otomatik kaynak cleanup bundan sonra başlar. Hata listesi D3'ün hatasını içerir ve normal devam engellenir.
+
+**Test B — Bir kaynak release hatası verir**
+
+Üç kaynak R1, R2, R3 edinilmiştir. Cleanup sırası R3, R2, R1'dir. R3 release hatası verse bile R2 ve R1 denenir. R3 ikinci kez denenmez.
+
+**Test C — Panic sırasında cleanup**
+
+Bir defer gövdesi !! ile panic oluşturur. Kalan defer kayıtları ve tüm aktif scope kaynak cleanup işlemleri tamamlanır. İlk panic birincil sonuç olarak korunur; cleanup hataları ikincil tanı olur.
+
+**Test D — İç scope hatası ve dış scope cleanup**
+
+İç scope defer'i hata verir. İç scope'un kalan defer ve kaynak cleanup işlemleri tamamlanır; ardından dış scope'un defer ve kaynak cleanup işlemleri de tamamlanır. Normal hedefe devam edilmez.
+
+**Test E — Yerel hata yönlendirmesi**
+
+Defer içindeki hata üreten çağrı kendi ?-> bloğunda başarıyla ele alınır. Bu hata CleanupErrorSet'e eklenmez ve sonraki defer kayıtları normal sırayla yürür.
+
+MR-OIR-020 başarılı sayılması için tüm cleanup eylemlerinin tek hata yüzünden atlanmadığı, ownership kaydının tek sefer tüketildiği, birincil hata önceliğinin korunduğu, normal continuation'ın yalnızca temizleme başarılıysa sürdüğü ve OIR round-trip/optimizer'ın bu davranışı koruduğu gösterilmelidir.
+
+Bu kararla defer/cleanup hata ve panic politikası normatif olarak sabitlenmiştir. Runtime opcode ve binary encoding seçimi semantik belirsizlik değildir; OIR format/ABI uygulama sözleşmesinde bu davranışı koruyacak biçimde kodlanacaktır.
