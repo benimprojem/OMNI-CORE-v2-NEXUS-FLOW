@@ -572,6 +572,27 @@ static int are_types_compatible(const char* type1, const char* type2) {
     return strcmp(t1, t2) == 0;
 }
 
+static int is_numeric_primitive_type(const char* type_name) {
+    static const char* const names[] = {
+        "i8", "i16", "i32", "i64",
+        "u8", "u16", "u32", "u64",
+        "f32", "f64"
+    };
+    size_t i;
+    if (!type_name) return 0;
+    if (type_name[0] == '!') ++type_name;
+    for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
+        if (strcmp(type_name, names[i]) == 0) return 1;
+    }
+    return 0;
+}
+
+static int is_arithmetic_binary_operator(OmniTokenType op) {
+    return op == TOKEN_PLUS || op == TOKEN_MINUS ||
+        op == TOKEN_STAR || op == TOKEN_SLASH ||
+        op == TOKEN_PERCENT || op == TOKEN_POWER;
+}
+
 static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
     if (type_name[0] == '!') type_name++; // Skip hard-type prefix
@@ -683,19 +704,39 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_BINARY_EXPR: {
             ASTBinaryExpr* bin = (ASTBinaryExpr*)node;
-            
-            // Sıfıra Bölme Kontrolü (Literal 0 için)
-            if (bin->op == TOKEN_SLASH || bin->op == TOKEN_PERCENT) {
-                if (bin->right->type == AST_LITERAL) {
-                    ASTLiteral* lit = (ASTLiteral*)bin->right;
-                    if (lit->type == TOKEN_NUMBER && strcmp(lit->string_value, "0") == 0) {
-                        report_error(ctx, node, ERR_SEMANTIC_DIV_ZERO, msg_get(ERR_SEMANTIC_DIV_ZERO));
+
+            semantic_check(ctx, bin->left);
+            semantic_check(ctx, bin->right);
+
+            if (is_arithmetic_binary_operator(bin->op)) {
+                const char* left_type = get_expr_type(ctx, bin->left);
+                const char* right_type = get_expr_type(ctx, bin->right);
+
+                if (left_type && right_type) {
+                    if (!are_types_compatible(left_type, right_type)) {
+                        char message[256];
+                        snprintf(message, sizeof(message),
+                            msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
+                            left_type, right_type);
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    } else if (!is_numeric_primitive_type(left_type) ||
+                               !is_numeric_primitive_type(right_type)) {
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Arithmetic operators require matching numeric primitive operands.");
                     }
                 }
             }
-            
-            semantic_check(ctx, bin->left);
-            semantic_check(ctx, bin->right);
+
+            /* Literal-zero check is intentionally guarded against malformed ASTs. */
+            if ((bin->op == TOKEN_SLASH || bin->op == TOKEN_PERCENT) &&
+                bin->right && bin->right->type == AST_LITERAL) {
+                ASTLiteral* lit = (ASTLiteral*)bin->right;
+                if (lit->type == TOKEN_NUMBER && lit->string_value &&
+                    strcmp(lit->string_value, "0") == 0) {
+                    report_error(ctx, node, ERR_SEMANTIC_DIV_ZERO,
+                        msg_get(ERR_SEMANTIC_DIV_ZERO));
+                }
+            }
             break;
         }
 
