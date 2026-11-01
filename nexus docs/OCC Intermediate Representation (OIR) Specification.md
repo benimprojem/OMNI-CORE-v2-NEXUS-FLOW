@@ -836,3 +836,24 @@ Defer ifadesine yürütme sırasında her ulaşıldığında, o anda etkin olan 
 5. OIR kayıt kimliği, kayıt sırası ve scope activation ilişkisini korumalıdır.
 6. Deferred body'nin hangi değişken değerlerini hangi anda gözlemlediği (referans/capture modeli) ayrı sözleşmedir; bu bölüm onu sabitlemez.
 
+### 12.11 Defer değişken bağları ve ownership doğrulaması (MR-OIR-019)
+
+Defer gövdesi value snapshot kullanmaz; kendisini kaydeden scope activation'ının lexical değişken ortamına canlı bağlanır.
+
+- DeferRecord, gövde kimliği, activation kimliği ve dinamik kayıt sırasını taşır; dış değişkenlerin kopyalarını taşımaz.
+- Builder, defer gövdesinin okuyup yazabileceği yerel değişkenlerin activation sonuna kadar geçerli olmasını sağlar.
+- SSA değerleri, defer yürütme noktasına güncel değerleri taşıyacak use/merge/block-parameter bağlantılarıyla ulaşır.
+- Optimizer, defer tarafından gözlemlenebilecek son store'u silemez, eski değerle değiştiremez veya değişken slotunu activation kapanmadan yeniden kullanamaz.
+- Defer gövdesi çalıştığında değişkenin o andaki değeri okunur; yazmalar aynı lexical değişkene uygulanır.
+
+Kaynak ownership kuralları:
+
+1. Defer yeni bir resource owner, handle kopyası veya retain oluşturmaz.
+2. `->_` transferi ownership'i kaynak değişkenden hedef değişkene taşır; eski değişken taşınmış kaynağın sahibi değildir.
+3. Defer'in eski değişken üzerinden taşınmış kaynağa erişimi Analyzer tarafından reddedilir.
+4. Sahip olunan kaynak, release veya ownership transfer olmadan üzerine yazılamaz.
+5. Defer içindeki resource kullanımı tüm çıkış yollarında başlatılmış ve geçerli ownership gerektirir.
+6. Defer tarafından açıkça release edilen kaynak ownership ledger'da tüketilmiş işaretlenir; otomatik scope cleanup aynı kaynağı tekrar release edemez.
+7. Defer kayıt sırası ve activation bağı, ownership state ile birlikte CFG edge/merge noktalarında korunur.
+
+Bu sözleşme yeni capture-list sözdizimi veya value-capture opcode'u tanımlamaz. Nihai frame layout ve opcode encoding OIR binary format sözleşmesine aittir.
