@@ -118,10 +118,15 @@ static int test_real_frontend_to_module(void) {
         oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
         goto cleanup;
     if (module.type_count != 2u || module.function_count != 1u ||
-        module.instruction_count != 2u || module.operand_count != 2u ||
-        module.types[0].kind != OIR_MODULE_TYPE_INTEGER ||
-        (module.types[0].flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u)
+        module.instruction_count != 2u || module.operand_count != 2u)
         goto cleanup;
+    {
+        OirModuleType return_type;
+        if (oir_module_get_type(&module, 0u, &return_type) != OIR_STATUS_OK ||
+            return_type.kind != OIR_MODULE_TYPE_INTEGER ||
+            (return_type.flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u)
+            goto cleanup;
+    }
     {
         OirModuleInstruction constant;
         OirModuleOperand immediate;
