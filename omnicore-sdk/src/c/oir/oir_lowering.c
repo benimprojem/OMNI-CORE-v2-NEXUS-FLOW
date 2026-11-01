@@ -9,10 +9,10 @@
 #define AST_LITERAL 13u
 #define AST_RETURN 26u
 
-#define OIR_TOKEN_NUMBER 4u
-#define OIR_TOKEN_TRUE 7u
-#define OIR_TOKEN_FALSE 8u
-#define OIR_TOKEN_KW_RET 9u
+#define OIR_OIR_TOKEN_NUMBER 4u
+#define OIR_OIR_TOKEN_TRUE 7u
+#define OIR_OIR_TOKEN_FALSE 8u
+#define OIR_OIR_TOKEN_KW_RET 9u
 
 static uint32_t rd32(const uint8_t* p) {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
@@ -166,7 +166,7 @@ OirStatus oir_lower_semantic_ast_literal_return(
         statement.next_node_id != 0u) return OIR_STATUS_INVALID_SECTION;
     status = get_field(&artifact->ast, statement.node_id, 1u,
         OIR_AST_VALUE_TOKEN_ID, &field);
-    if (status != OIR_STATUS_OK || rd32(field.value) != TOKEN_KW_RET)
+    if (status != OIR_STATUS_OK || rd32(field.value) != OIR_TOKEN_KW_RET)
         return OIR_STATUS_INVALID_SECTION;
     status = get_node_ref(&artifact->ast, statement.node_id, 2u, &declaration_id);
     if (status != OIR_STATUS_OK || declaration_id == 0u) return OIR_STATUS_INVALID_SECTION;
@@ -180,7 +180,7 @@ OirStatus oir_lower_semantic_ast_literal_return(
     status = get_field(&artifact->ast, literal.node_id, 2u, OIR_AST_VALUE_U32, &field);
     if (status != OIR_STATUS_OK) return status;
     literal_kind = rd32(field.value);
-    if ((literal_kind == 0u || literal_kind == 1u) && token_id != TOKEN_NUMBER)
+    if ((literal_kind == 0u || literal_kind == 1u) && token_id != OIR_TOKEN_NUMBER)
         return OIR_STATUS_INVALID_SECTION;
 
     {
@@ -236,9 +236,9 @@ OirStatus oir_lower_semantic_ast_literal_return(
         ws->instructions[0].opcode_id = OIR_OP_CONST_FLOAT;
         ws->operands[0].kind = OIR_OPERAND_FLOAT_IMMEDIATE;
     } else if (literal_kind == 4u && ws->types[0].kind == OIR_MODULE_TYPE_BOOLEAN) {
-        if (token_id != TOKEN_TRUE && token_id != TOKEN_FALSE)
+        if (token_id != OIR_TOKEN_TRUE && token_id != OIR_TOKEN_FALSE)
             return OIR_STATUS_INVALID_SECTION;
-        immediate = token_id == TOKEN_TRUE ? 1u : 0u;
+        immediate = token_id == OIR_TOKEN_TRUE ? 1u : 0u;
         ws->instructions[0].opcode_id = OIR_OP_CONST_BOOL;
         ws->operands[0].kind = OIR_OPERAND_INTEGER_IMMEDIATE;
     } else {
