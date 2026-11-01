@@ -659,3 +659,51 @@ Bu IR artık **derlenebilir ve doğrudan runtime’a uygulanabilir** seviyede.
 * Bare-metal’de `!listen` + WFI + soft context switch çalışır
 
 ---
+
+
+## 12. Function CFG — Basic block ve cross-block JUMP semantiği
+
+Bu bölüm, §6'daki scheduler/task dependency DAG modelinden ayrıdır. Fonksiyonların yürütme akışı **Control-Flow Graph (CFG)** ile gösterilir.
+
+### 12.1 Basic block
+
+- Basic block, tek girişli bir instruction dizisidir.
+- Her basic block en fazla bir terminator ile biter; geçerli tamamlanmış OIR block'u tam olarak bir terminator içermelidir.
+- Terminator örnekleri: `JUMP`, `BRANCH`, `RETURN` ve ayrı hata/çıkış sözleşmelerinde tanımlanan diğer terminal transferler.
+- Bir label, OIR Builder tarafından bir basic block girişine bağlanır. Bir label'a atlama, hedef block'un girişine transferdir.
+- Farklı label'lar gerektiğinde farklı basic block'lar başlatır. Kaynak satır sırası, CFG kenarlarının yönünü belirlemez.
+
+### 12.2 JUMP terminator
+
+Soyut biçim:
+
+```oir
+block source:
+    JUMP target
+```
+
+Semantik:
+1. `JUMP`, source block'un terminator'ıdır.
+2. Kontrol, target basic block'un girişine aktarılır.
+3. Source block'tan target dışında doğal fallthrough successor üretilmez.
+4. Target aynı fonksiyonun geçerli block tablosunda bulunmalıdır.
+5. Target'ın kaynak kodda source'tan önce veya sonra bulunması fark yaratmaz.
+6. Target block farklı bir kontrol akışı bölgesinde olabilir; kaynak dilin fonksiyon ve lexical-scope güvenlik kuralları geçerlidir.
+7. Target block parameter alıyorsa jump kenarı gerekli argümanları taşımalıdır. Argüman sayısı ve tipleri hedef block imzasıyla eşleşmelidir.
+
+### 12.3 CFG kenar tutarlılığı
+
+Her `JUMP source -> target` için:
+- target, source'un successor kümesinde bulunmalıdır.
+- source, target'ın predecessor kümesinde bulunmalıdır.
+- Terminator ve edge argümanları aynı hedefi göstermelidir.
+- CFG dönüşümünden sonra bu ilişkiler tekrar doğrulanmalıdır.
+
+### 12.4 İleri/geri ve cross-block aktarım
+
+- İleri jump: Kaynak metinde daha sonra tanımlanmış block'a transfer.
+- Geri jump: Kaynak metinde daha önce tanımlanmış block'a transfer; CFG çevrimi oluşturabilir.
+- Cross-block jump: Kaynak ve hedef ayrı basic block'lardır. Bu, `jump(label)` komutunun temel kullanım biçimidir.
+- Jump threading, block merging ve unreachable block elimination gibi optimizer dönüşümleri label hedeflerini, edge argümanlarını ve SSA ilişkilerini korumalıdır.
+
+**Önemli:** Fonksiyon CFG'si DAG olmak zorunda değildir. Scheduler/task dependency DAG kuralı fonksiyon CFG'sine uygulanmaz.
