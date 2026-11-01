@@ -9,12 +9,12 @@
 #define TYPE OIR_OPERAND_TYPE
 
 static const OirOpcodeDescriptor g_opcodes[] = {
-    { OIR_OP_CONST_INT, "const.int", 0u, 0u, OIR_OPCODE_RESULT_REQUIRED, 0u,
-      OIR_OPCODE_FLAG_PURE, { 0u, 0u, 0u }, 0u },
-    { OIR_OP_CONST_FLOAT, "const.float", 0u, 0u, OIR_OPCODE_RESULT_REQUIRED, 0u,
-      OIR_OPCODE_FLAG_PURE, { 0u, 0u, 0u }, 0u },
-    { OIR_OP_CONST_BOOL, "const.bool", 0u, 0u, OIR_OPCODE_RESULT_REQUIRED, 0u,
-      OIR_OPCODE_FLAG_PURE, { 0u, 0u, 0u }, 0u },
+    { OIR_OP_CONST_INT, "const.int", 1u, 1u, OIR_OPCODE_RESULT_REQUIRED, 0u,
+      OIR_OPCODE_FLAG_PURE, { OIR_OPERAND_INTEGER_IMMEDIATE, 0u, 0u }, 0u },
+    { OIR_OP_CONST_FLOAT, "const.float", 1u, 1u, OIR_OPCODE_RESULT_REQUIRED, 0u,
+      OIR_OPCODE_FLAG_PURE, { OIR_OPERAND_FLOAT_IMMEDIATE, 0u, 0u }, 0u },
+    { OIR_OP_CONST_BOOL, "const.bool", 1u, 1u, OIR_OPCODE_RESULT_REQUIRED, 0u,
+      OIR_OPCODE_FLAG_PURE, { OIR_OPERAND_INTEGER_IMMEDIATE, 0u, 0u }, 0u },
 
     { OIR_OP_ADD, "add", 2u, 2u, OIR_OPCODE_RESULT_REQUIRED, 0u,
       OIR_OPCODE_FLAG_PURE, { VALUE, VALUE, 0u }, 0u },
