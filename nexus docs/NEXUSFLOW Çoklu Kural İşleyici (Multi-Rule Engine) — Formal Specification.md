@@ -2910,3 +2910,77 @@ Loop-body scope'unda kayıt edilen defer, ancestor scope'a JUMP ile çıkılırk
 - Runtime ABI ve OIR cleanup opcode/record encoding'i.
 
 Bu açık noktalar kesinleşmeden Builder veya Optimizer davranış uyduramaz.
+
+
+## 12.27 MR-OIR-018 — Dinamik defer kaydı ve loop activation sınırları
+
+**Amaç:** Defer ifadesine her dinamik erişimin ayrı kayıt oluşturmasını, loop body scope'unun iterasyon başına yeni activation olmasını ve aynı activation içindeki tekrar erişimlerin LIFO sırasını doğrulamak.
+
+### 12.27.1 Normatif kurallar
+
+1. Yürütme defer ifadesine her ulaştığında mevcut scope activation'ına yeni bir kayıt eklenir.
+2. Aynı defer kaynak satırına bir activation içinde birden fazla kez ulaşılırsa her erişim ayrı kayıttır.
+3. Bir activation'daki tüm kayıtlar LIFO sırasıyla çalışır.
+4. Loop body bir lexical block scope ise her iterasyon yeni activation oluşturur; o iterasyonun defer kayıtları iterasyon scope'u kapanırken çalışır.
+5. Aynı-scope backward JUMP scope activation'ını kapatmadığı için kayıtları çalıştırmaz; defer ifadesine yeniden ulaşılması yeni kayıt ekler.
+6. Defer gövdesinin değişkenleri hangi değerlerle gözlemlediği (capture by value/reference) bu testin kapsamı dışındadır ve ayrıca tanımlanacaktır.
+
+### 12.27.2 Test A — Aynı activation içinde tekrar kayıt
+
+```nexus
+f:testRepeatedDeferRegistration()!i32 {
+    v:i = 0;
+
+    again:>
+    defer {
+        echo("deferred");
+    }
+
+    v = v + 1;
+    (v < 3) ? jump(again);
+
+    return v;
+}
+```
+
+Beklenen:
+- `again` aynı lexical scope içindedir; backward jump scope activation'ını kapatmaz.
+- Defer ifadesine üç dinamik erişim üç ayrı kayıt oluşturur.
+- Fonksiyon scope'u kapanırken üç kayıt ters kayıt sırasıyla yürütülür.
+- Jump kaynak satırlarının ardından gelen normal akışı atlar; her erişim için kayıt sayısı doğru tutulur.
+
+### 12.27.3 Test B — Her loop iterasyonunda yeni body activation
+
+```nexus
+f:testDeferPerIteration()!i32 {
+    loop(i, i < 3, i++) {
+        defer {
+            echo("iteration-exit");
+        }
+
+        echo("iteration-work");
+    }
+
+    return 0;
+}
+```
+
+Beklenen:
+- Her iterasyon yeni loop-body scope activation'ı oluşturur.
+- Her iterasyonda defer bir kez kaydedilir.
+- Her iterasyon sonunda o iterasyonun defer'i çalışır; kayıtlar sonraki iterasyona taşınmaz.
+- Loop tamamlandığında önceki iterasyonlara ait bekleyen defer kaydı kalmaz.
+
+### 12.27.4 Negatif testler
+
+- **MR-OIR-018-N1:** Aynı activation içindeki ikinci dinamik defer erişiminin önceki kaydı ezmesi.
+- **MR-OIR-018-N2:** Aynı-scope backward JUMP'ın scope activation'ını yanlışlıkla kapatması.
+- **MR-OIR-018-N3:** Loop iterasyonlarının defer kayıtlarının tek activation'da birleştirilmesi.
+- **MR-OIR-018-N4:** Loop-body scope kapanışında o iterasyonun defer kaydının atlanması.
+- **MR-OIR-018-N5:** LIFO sırasının dinamik kayıt sırasından farklı yürütülmesi.
+- **MR-OIR-018-N6:** Optimizer'ın tekrar erişilen defer kaydını tek kayda indirgemesi.
+- **MR-OIR-018-N7:** Bir iterasyonun defer kaydının sonraki iterasyon activation'ına taşınması.
+
+### 12.27.5 Açık alt sözleşme
+
+Defer gövdesinin dış değişkenleri kayıt anındaki değerle mi (value capture), yoksa scope çıkışındaki güncel değerle mi (reference/live binding) gözlemlediği ayrıca kararlaştırılacaktır. OIR bu kararı verilmeden varsayamaz.
