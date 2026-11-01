@@ -230,9 +230,8 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
             int literal_kind = n->lit_type;
             int64_t integer_value = (int64_t)n->int_value;
             double float_value = n->float_value;
-            if (n->type == TOKEN_NUMBER) {
+            if (n->type == TOKEN_NUMBER && n->string_value && n->string_value[0]) {
                 char* end = NULL;
-                if (!n->string_value || !n->string_value[0]) return OIR_STATUS_INVALID_SECTION;
                 errno = 0;
                 if (strchr(n->string_value, '.') || strchr(n->string_value, 'e') ||
                     strchr(n->string_value, 'E')) {
