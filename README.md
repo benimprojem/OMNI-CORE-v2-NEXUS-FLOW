@@ -115,8 +115,12 @@ loop(i, i < 100, i++) -> {
     # 'sonuc' burada 'float' olur, bir sonraki adımda gerekirse 'int'e evrilir.
 }
 
-f:hassas_toplam(a:!f64, b:!f64)!f64 {return a + b }
-# Burada, içeri giren her veriyi f64'e zorlar.
+f:hassas_toplam(a:!f64, b!f64)!f64 {return a + b }
+# Parametrelerde tür ayıracı ':' isteğe bağlıdır:
+# a:f32  ve a!f32 biçimleri geçerlidir.
+# a:!f32 de aynı zorlanmış türü ifade eder.
+# '!' türü hard-lock yapar; değişken adının parçası değildir.
+# Burada, içeri giren her veri f64'e zorlanır.
 
 f:topla(a, b) {return a + b }
 # Kullanım: topla(5, 10) veya topla(a:5, b:10)
