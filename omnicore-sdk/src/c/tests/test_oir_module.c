@@ -17,7 +17,7 @@ int main(void) {
     const OirModuleValue values[] = { { 1u, 1u, 1u, 0u } };
     const OirModuleInstruction instructions[] = {
         { 1u, 1u, OIR_OP_CONST_INT, 0u, 1u, 0u, 1u },
-        { 2u, 1u, OIR_OP_RETURN, 0u, 0u, 0u, 1u }
+        { 2u, 1u, OIR_OP_RETURN, 0u, 0u, 1u, 1u }
     };
     const OirModuleOperand operands[] = {
         { OIR_OPERAND_INTEGER_IMMEDIATE, 0u, 42u },
