@@ -1,6 +1,6 @@
 # OIR_MODULE — Lowered Intermediate Representation
 
-**Status:** Opcode registry 1.0 and initial OIR_MODULE payload codec 1.1 implemented; semantic lowering and full verifier remain pending  
+**Status:** Opcode registry 1.0 and OIR_MODULE payload codec 1.1 implemented; an initial literal-return lowering pass exists, while the production stage and full verifier remain pending  
 **Artifact kind:** `OIR_KIND_MODULE` (stable kind ID 5)  
 **Producer:** IR lowering stage  
 **Input:** one validated `OIR_KIND_SEMANTIC_AST` artifact  
@@ -264,8 +264,15 @@ No schema is considered frozen merely because a first implementation or test fix
 | NEXSUS Flow numeric width promotion | Partial language rule established; full conversion lattice open |
 | OIR_MODULE opcode/type registries | Not frozen |
 | Module payload verifier | Not implemented |
+| Initial SEMANTIC_AST literal-return lowering pass | Implemented as a caller-workspace C pass; only one typed scalar literal return is supported |
 | IR lowering DLL | Not implemented |
 | OCC semantic-artifact-to-lowering handoff | Not implemented |
 | Legacy AST serializer and AST-walking codegen | Existing compatibility path |
 
 The legacy codegen currently emits a small NASM-like text subset directly from AST nodes. It is not yet a general backend and must not be treated as proof that the module IR is implemented.
+
+### Initial lowering slice
+
+`oir_lower_semantic_ast_literal_return()` consumes a validated `OirSemanticAstArtifactView` and emits an `OIR_MODULE` **payload** (not a complete OIR container artifact). The current accepted shape is exactly one non-extern, parameterless function with one block and one return of an annotated `i*`, `u*`, `f32`, `f64` or `bool` literal. It cross-checks the function's declared return spelling against the canonical semantic type record, maps that primitive through the explicit allowlist, and writes typed constant-immediate and return instructions.
+
+The pass uses caller-owned arrays and buffers. It rejects extra declarations/statements, parameters, missing annotations, non-primitive/unregistered types and unsupported literal categories. Arithmetic, identifiers, local variables, conversion records, source maps, module-level verification, OIR envelope publication, DLL loading and OCC orchestration are not yet implemented. The focused test is `test_oir_lowering.c`; it validates the generated payload with `oir_module_open()` and checks the integer immediate round trip.
