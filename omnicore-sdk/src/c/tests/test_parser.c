@@ -536,6 +536,45 @@ static int test_parser_allocation_failure_injection(void) {
     return oom_count > 0u && reached_success;
 }
 
+static int test_function_parameter_type_separator_forms(void) {
+    static const char source[] =
+        "f:forms(a:f32, b!f32, c:!f32) { ret 1; }";
+    ParserContext* ctx = parser_init_source(
+        "function-parameter-type-forms.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTVarDecl* a;
+    ASTVarDecl* b;
+    ASTVarDecl* c;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        parser_get_status(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL ||
+        !function->params || function->params->type != AST_VAR_DECL) goto done;
+    a = (ASTVarDecl*)function->params;
+    b = (ASTVarDecl*)a->base.next;
+    c = b ? (ASTVarDecl*)b->base.next : NULL;
+    if (!b || !c || c->base.next ||
+        strcmp(a->name, "a") != 0 || strcmp(a->type_name, "f32") != 0 ||
+        a->is_hard_typed ||
+        strcmp(b->name, "b") != 0 || strcmp(b->type_name, "!f32") != 0 ||
+        !b->is_hard_typed ||
+        strcmp(c->name, "c") != 0 || strcmp(c->type_name, "!f32") != 0 ||
+        !c->is_hard_typed) goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 int main(int argc, char** argv) {
     if (!test_parser_rejects_excessive_expression_nesting()) {
         fprintf(stderr, "Parser did not safely reject excessive expression nesting.\\n");
@@ -551,6 +590,10 @@ int main(int argc, char** argv) {
     }
     if (!test_parser_context_initialization()) {
         fprintf(stderr, "Parser context initialization/early destruction test failed.\\n");
+        return 1;
+    }
+    if (!test_function_parameter_type_separator_forms()) {
+        fprintf(stderr, "Function parameter type separator forms were not parsed consistently.\\n");
         return 1;
     }
     if (!test_cast_and_panic_ast()) {
