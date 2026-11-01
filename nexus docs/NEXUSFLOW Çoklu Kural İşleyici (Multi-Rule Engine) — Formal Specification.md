@@ -1614,3 +1614,126 @@ LoopHeader
 
 Bu test, handler'ın lexical loop kapsamını ve temel `break` / `continue` hedeflerini sabitler. Farklı kontrol ifadelerinin (örneğin etiketli `jump(label)`) handler içindeki kapsam davranışı ayrı test konusu olarak kalır.
 
+## 12.18 MR-OIR-009 — Handler içindeki jump(label) ve etiket kapsamı
+
+**Amaç:** Bir `on` handler içindeki etiketli atlamanın, aynı fonksiyonun etiket tablosundaki hedefe bağlandığını; handler'ın `apply rules` noktasına lowering edilmesinin hedef çözümlemesini değiştirmediğini doğrulamak.
+
+### Kesinleştirilen temel kurallar
+
+1. `label:>` ile tanımlanan etiket, onu içeren fonksiyonun etiket kapsamına kaydedilir.
+2. `jump(label)` hedefi aynı fonksiyonun etiket tablosunda çözülür. Başka bir fonksiyonun etiketi hedeflenemez.
+3. Aynı fonksiyon içinde yinelenen etiket adı Analyzer hatasıdır.
+4. Handler içindeki `jump(label)`, handler'ın kaynak kod konumundaki fonksiyon etiket kapsamını kullanır. Handler'ın OIR'de `apply rules` noktasına yerleştirilmesi bu çözümlemeyi değiştirmez.
+5. Koşulsuz `jump(label)` kontrol aktarımıdır: hedef bloğa gider ve handler'ın mevcut yolu sonlanır. Bu yoldan sonraki handler, `always`, `default` veya normal devam bloğuna otomatik kenar eklenmez.
+6. Bu testte atlama hedefi, kaynak konumdan erişilebilir bir kontrol akışına dışarı doğru veya aynı kapsam seviyesinde geçiş yapar. Daha derin bir lexical scope içine atlayarak o kapsamın giriş/başlatma adımlarını atlamak bu test tarafından desteklenmez; bu tür hedefler Analyzer tarafından reddedilmelidir.
+7. Etiketin bulunamaması, fonksiyon dışı etikete başvurulması veya kapsam dışına atlama, Analyzer hatasıdır.
+
+### Kaynak test
+
+```nexus
+rules RouteControl(value) {
+    value == 1 -> SkipToFinish;
+}
+
+f:testLabelJump(value) {
+    apply rules(RouteControl(value));
+
+    on RouteControl.SkipToFinish {
+        jump(finish);
+    }
+
+    echo("Normal continuation");
+
+    finish:>
+    echo("Finish label reached");
+}
+```
+
+### Beklenen yürütme
+
+**Durum A — value = 1**
+
+- `SkipToFinish` eşleşir.
+- Handler çalışır ve `jump(finish)` yürütülür.
+- `Normal continuation` atlanır.
+- Akış `finish:>` etiketinden devam eder.
+
+Beklenen çıktı:
+
+```text
+Finish label reached
+```
+
+**Durum B — value = 0**
+
+- Normal trigger eşleşmez.
+- Handler çalışmaz.
+- `apply rules` normal tamamlanır.
+- Normal devam satırı çalışır ve ardından etiketli kod doğal akışla yürütülür.
+
+Beklenen çıktı:
+
+```text
+Normal continuation
+Finish label reached
+```
+
+### Beklenen soyut CFG
+
+```text
+ApplyEntry
+  -> BarrierStage
+  -> TriggerEvaluation
+  -> HandlerDispatch
+       matched_SkipToFinish
+         -> SkipToFinish_Handler
+         -> JUMP finish
+       no_match
+         -> ApplyContinue
+         -> NormalContinuation
+         -> finish
+
+finish:
+  -> FinishLabelBody
+  -> FunctionContinuation
+```
+
+Bu şemada `JUMP finish` terminator'ından `NormalContinuation` bloğuna kenar bulunmaz. `no_match` yolu ise normal fonksiyon akışını korur. Hedef etiket tek bir CFG basic block girişine bağlanmalıdır.
+
+### Analyzer ve Verifier kontrolleri
+
+1. Her `label:>` tanımı fonksiyonun etiket sembol tablosuna eklenmelidir.
+2. Aynı fonksiyonda yinelenen etiket adı reddedilmelidir.
+3. `jump(label)` hedefi aynı fonksiyonda çözülmelidir.
+4. Tanımsız veya başka fonksiyona ait etiket hedefi reddedilmelidir.
+5. Handler'ın kaynak kodunda çözülen hedef, lowering sonrasında aynı hedef basic block'a bağlanmalıdır.
+6. `JUMP` terminator'ının tek CFG hedefi etiket bloğu olmalıdır.
+7. `JUMP` sonrasında handler dispatch kuyruğuna veya `ApplyContinue` bloğuna sahte kenar bulunmamalıdır.
+8. Etiket hedef bloğunun predecessor listesi gerçek atlama ve doğal fallthrough kenarlarıyla tutarlı olmalıdır.
+9. Atlamanın hedefi daha derin bir lexical scope içine giriyorsa ve scope giriş adımlarını atlıyorsa Analyzer bunu reddetmelidir.
+10. Etiketli atlama, `RETURN`, `break`, `continue` ve RuleSet hata çıkışıyla aynı terminator türü olarak modellenmemelidir.
+
+### Negatif testler
+
+- **MR-OIR-009-N1:** Tanımlanmamış etikete `jump(label)` yapılması kabul edilir.
+- **MR-OIR-009-N2:** Başka fonksiyonda tanımlı etikete atlama kabul edilir.
+- **MR-OIR-009-N3:** Aynı fonksiyon içinde aynı etiket adının iki kez tanımlanması kabul edilir.
+- **MR-OIR-009-N4:** Handler'daki `jump(label)` hedefinin, lowering sırasında yanlışlıkla handler'ın hemen sonrasındaki bloğa çevrilmesi.
+- **MR-OIR-009-N5:** `JUMP` terminator'ından sonraki handler'a sahte CFG kenarı oluşturulması.
+- **MR-OIR-009-N6:** `JUMP` terminator'ından `ApplyContinue` bloğuna sahte CFG kenarı oluşturulması.
+- **MR-OIR-009-N7:** `JUMP` hedefinin aynı fonksiyon içindeki etiket yerine başka fonksiyonun basic block'una bağlanması.
+- **MR-OIR-009-N8:** Etiketli atlamanın daha derin bir lexical scope'a girerek scope giriş/başlatma adımlarını atlaması.
+- **MR-OIR-009-N9:** Etiket bloğunun predecessor listesi ile gerçek CFG kenarlarının uyuşmaması.
+- **MR-OIR-009-N10:** `JUMP` işleminin normal fallthrough üreten bir ifade gibi modellenmesi.
+
+### Açık bırakılan sözdizimi: label?>
+
+Syntax Reference içinde `label?>` biçimi de belgelenmiştir; ancak mevcut kısa açıklama, koşulun nasıl yazıldığını ve koşul sağlanmadığında akışın tam olarak nereye gittiğini tek başına kesinleştirmeye yetmemektedir. Bu nedenle MR-OIR-009 yalnızca açıkça örneklenmiş `jump(label)` biçiminin kontrol akışını doğrular. `label?>` için ayrı bir parser/semantik kararı verilmeden OIR lowering kuralı varsayılmayacaktır.
+
+### Test sınıflandırması
+
+- **Frontend/Parser:** `label:>` ve `jump(label)` AST düğümlerinin oluşturulması.
+- **Analyzer:** Fonksiyon etiket tablosu, benzersizlik, hedef çözümleme ve scope geçişi doğrulaması.
+- **OIR Builder:** Etiket hedefinin basic block'a bağlanması ve handler jump'ının ilgili apply noktasına lowering edilmesi.
+- **OIR Verifier:** JUMP terminator hedefi, predecessor/successor tutarlılığı ve terminator sonrası sahte kenarların reddedilmesi.
+
