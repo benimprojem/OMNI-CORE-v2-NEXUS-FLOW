@@ -16,7 +16,6 @@
 #define T_MINUS 97u
 #define T_STAR 98u
 #define T_SLASH 99u
-#define T_PERCENT 100u
 
 static uint16_t u16(const uint8_t* p) {
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
@@ -184,9 +183,6 @@ static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
         case T_MINUS: opcode = OIR_OP_SUB; break;
         case T_STAR: opcode = OIR_OP_MUL; break;
         case T_SLASH: opcode = OIR_OP_DIV; break;
-        case T_PERCENT:
-            if (ty->kind != OIR_MODULE_TYPE_INTEGER) return OIR_STATUS_INVALID_SECTION;
-            opcode = OIR_OP_REM; break;
         default: return OIR_STATUS_INVALID_SECTION;
     }
     if (ty->kind != OIR_MODULE_TYPE_INTEGER && ty->kind != OIR_MODULE_TYPE_FLOAT)
