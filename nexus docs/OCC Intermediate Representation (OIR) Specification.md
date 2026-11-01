@@ -791,7 +791,7 @@ Kurallar:
 5. Bir JUMP cleanup gerektiren scope'tan çıkıyorsa cleanup tam bir kez yürütülmelidir. Hedefe ulaştıktan sonra aynı eski scope activation'ına geri girilemez; daha derin scope'a doğrudan jump zaten geçersizdir.
 6. İç içe birden fazla scope terk ediliyorsa cleanup, iç scope'tan dış scope'a doğru yürütülür. Aynı scope içindeki kaynakların cleanup sırası için kaynak edinim sırasına ters (LIFO) yaklaşımı temel kural olarak kullanılır; kaynak türüne özel istisnalar ayrıca tanımlanmalıdır.
 7. `_>` ile sahipliği devredilmiş kaynak, kaynak scope'un cleanup listesinde artık sahip olunan kaynak olarak tutulmamalıdır. Sahiplik transferi kaynak temizliğinin iki kez yapılmasına neden olmamalıdır.
-8. `}?;` blok kapsamındaki toplu kaynak/masa temizliğiyle ilişkilidir. `?;` Halt/sonlandırma davranışıdır; OIR'de JUMP scope-exit cleanup yerine kullanılamaz.
+8. `}?;` blok kapsamındaki toplu kaynak/masa temizliğiyle ilişkilidir. Yalın `?;` Halt/sonlandırma davranışıdır; bir kaynak/masa/DLL hedefine uygulanmış biçimi hedefi serbest bırakır. Bu hedefli kaynak bırakma işlemi, OIR'de JUMP scope-exit cleanup yerine kullanılamaz.
 9. Cleanup işlemlerinin kesin OIR opcode/record biçimi, cleanup hatasının raporlanması ve cleanup sırasında yeni kontrol aktarımına izin verilip verilmeyeceği bu testte kesin binary ABI kararı olarak sabitlenmez. Builder ve Verifier bu konuları tanımlanmamış davranışa bırakmamalı; desteklenmeyen cleanup akışını açık hata olarak raporlamalıdır.
 10. Optimizer JUMP edge'lerini veya block'ları dönüştürürken scope ancestry, cleanup listeleri, sahiplik durumu ve kaynak/debug metadata ilişkilerini korumalıdır.
 
