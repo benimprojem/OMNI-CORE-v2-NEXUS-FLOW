@@ -586,7 +586,60 @@ done:
     return ok;
 }
 
+static int test_structured_if_elsif_els_ast(void) {
+    static const char source[] =
+        "f:main() {"
+        " if (a == b) { v:first = 1; }"
+        " elsif (a >= 1) v:second = 2;"
+        " els { v:third = 3; }"
+        " if (a != b) v:fourth = 4;"
+        " els v:fifth = 5;"
+        "}";
+    ParserContext* ctx = parser_init_source(
+        "structured-if.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTIf* first;
+    ASTIf* second;
+    ASTIf* simple;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        parser_get_status(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK) goto done;
+    body = (ASTBlock*)function->body;
+    first = (ASTIf*)body->statements;
+    if (!first || first->base.type != AST_IF || !first->condition ||
+        !first->then_branch || !first->else_branch ||
+        first->then_branch->type != AST_BLOCK) goto done;
+    second = (ASTIf*)first->else_branch;
+    if (second->base.type != AST_IF || !second->condition ||
+        !second->then_branch || !second->else_branch ||
+        second->then_branch->type == AST_BLOCK ||
+        second->else_branch->type != AST_BLOCK) goto done;
+    simple = (ASTIf*)first->base.next;
+    if (!simple || simple->base.type != AST_IF ||
+        !simple->then_branch || !simple->else_branch ||
+        simple->then_branch->type == AST_BLOCK ||
+        simple->else_branch->type == AST_BLOCK) goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 int main(int argc, char** argv) {
+    if (!test_structured_if_elsif_els_ast()) {
+        fprintf(stderr, "Structured if/elsif/els parser test failed.\\n");
+        return 1;
+    }
     if (!test_parser_rejects_excessive_expression_nesting()) {
         fprintf(stderr, "Parser did not safely reject excessive expression nesting.\\n");
         return 1;
