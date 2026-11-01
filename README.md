@@ -7,7 +7,7 @@
 
 OMNI-CORE Compiler is the compiler project for NEXUS Flow. This repository records the language design, compiler architecture, intermediate representations, validation rules, module boundaries, and implementation roadmap.
 
-> **Documentation split:** This README describes the compiler project. The language's syntax and semantics live in the separate [NEXUS Flow — Syntax Reference Guide](NEXUS-FLOW-SYNTAX-REFERENCE.md).
+> **Documentation split:** This README describes the compiler project. The language's syntax and semantics live in the separate [NEXUS Flow — Syntax Reference Guide](docs/language/syntax-reference.md).
 
 ---
 
@@ -124,13 +124,20 @@ The following items remain explicit design work; they should not be treated as i
 
 ## 4. Repository documentation
 
-| Document | Purpose |
-|---|---|
-| [NEXUS Flow — Syntax Reference Guide](NEXUS-FLOW-SYNTAX-REFERENCE.md) | Main language reference: identifiers, types, operators, flow model, control structures, functions, data structures, modules, macros, and core functions. |
-| [NEXUS Flow Scan / Select Specification](nexus%20docs/NexusFlow%20Scan%20Select%20Syntax%20Spec.md) | Detailed `select` and `scan` syntax, analysis, and lowering notes. |
-| [Multi-Rule Engine — Formal Specification](nexus%20docs/NEXUSFLOW%20%C3%87oklu%20Kural%20%C4%B0%C5%9Fleyici%20(Multi-Rule%20Engine)%20%E2%80%94%20Formal%20Specification.md) | Normative Multi-Rule semantics, AST/Analyzer requirements, and OIR control-flow design. |
+The repository separates normative language/compiler engineering documents from OCC/SDK usage guides.
 
-Feature-specific specifications may contain more detailed or newer decisions than the broad language guide. When a feature has a dedicated formal specification, use it together with the Syntax Reference rather than relying on a short overview alone.
+| Area | Entry point |
+|---|---|
+| Language specifications | [docs/language](docs/language/README.md) |
+| OIR and control-flow contracts | [docs/oir](docs/oir/README.md) |
+| Compiler architecture and implementation | [docs/compiler](docs/compiler/README.md) |
+| Runtime and concurrency | [docs/runtime](docs/runtime/README.md) |
+| ABI and target design | [docs/abi](docs/abi/README.md) · [docs/compiler/targets](docs/compiler/targets/) |
+| Security and ownership | [docs/security](docs/security/README.md) |
+| SDK user documentation | [OCC / SDK documentation](omnicore-sdk/docs/README.md) |
+| Project status | [Project status](docs/project/status.md) |
+
+Normative language and compiler rules live under `/docs/`. SDK documentation explains how to use OCC and its libraries; it links to normative specifications instead of maintaining duplicate copies.
 
 ## 5. Development principles
 
@@ -145,36 +152,13 @@ Feature-specific specifications may contain more detailed or newer decisions tha
 
 This repository contains evolving design documents and implementation work. A documented architecture or pseudocode example does not by itself mean the corresponding compiler module is implemented or production-ready.
 
-The project status should be updated here as modules become executable, tests are added, and specifications are finalized. Language-level syntax changes belong in the [NEXUS Flow Syntax Reference](NEXUS-FLOW-SYNTAX-REFERENCE.md) and the relevant feature specification.
+The project status should be updated here as modules become executable, tests are added, and specifications are finalized. Language-level syntax changes belong in the [NEXUS Flow Syntax Reference](docs/language/syntax-reference.md) and the relevant feature specification.
 
 
-## Documentation ownership and planned layout
+## Documentation structure
 
-Documentation is divided into two separate domains. Their content must not be mixed during future folder cleanup.
+- `/docs/`: canonical NEXUS Flow language specifications, OIR contracts, compiler architecture, optimizer, runtime, ABI, target design, security, research and engineering records.
+- `/omnicore-sdk/docs/`: user-facing OCC/SDK installation, CLI/build workflows, configuration, API/stdlib references, practical examples and troubleshooting.
+- `/docs/archive/legacy/`: superseded or historical drafts retained for traceability. These files are not the current normative source unless explicitly identified as historical context.
 
-### Root-level `/docs/` — language and compiler engineering
-
-This directory is reserved for design and implementation specifications, including:
-
-- NEXUS Flow language semantics and formal syntax specifications.
-- OIR format, verification rules, CFG/SSA and optimization contracts.
-- OCC compiler architecture and modular DLL pipeline.
-- Frontend, Analyzer, OIR Builder/Writer/Reader, optimization and code-generation design.
-- Custom OCC linker, binary formats, security validation and compiler construction notes.
-- Normative compiler tests and engineering decision records.
-
-### `/omnicore-sdk/docs/` — OCC/SDK usage documentation
-
-This directory is reserved for users and SDK integrators, including:
-
-- Installation, setup, environment and project configuration.
-- How to invoke OCC, command syntax, arguments, flags and build workflows.
-- SDK directory structure, libraries, targets and integration instructions.
-- Supported language/compiler features and practical limits.
-- Error and warning codes, diagnostics, recovery guidance and troubleshooting.
-- OCC behavior, safe usage, input/output artifacts and examples.
-- API and tool usage references intended for application developers.
-
-### Migration policy
-
-The current repository still contains historical and mixed-purpose documentation under `nexus docs/` and `omnicore-sdk/docs/`. This section defines the intended ownership only; it does not claim that the migration has already happened. During the later reorganization, each document must be reviewed, assigned to one domain, moved without losing history or links, and cross-linked where the user guide needs to explain a compiler-defined behavior. Avoid maintaining duplicate normative specifications in the SDK guide.
+The migration preserves file contents and blob identity. Identical duplicate copies were consolidated; distinct older revisions were retained in the legacy archive. Source code, build outputs, target definitions and SDK implementation directories were not broadly rearranged in this documentation pass.
