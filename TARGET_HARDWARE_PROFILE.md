@@ -179,7 +179,18 @@ Do not extend the existing fixed `TargetConfig` by adding a handful of GPU field
 
 The normalized profile should be serialized into a dedicated versioned Target OIR artifact passed as a separate stage input. It must not be mixed into the target-neutral `OIR_MODULE` program representation.
 
-## 8. Implementation order
+## 8. Implementation progress
+
+- [x] Initial normalized v2 C data model added under `omnicore-sdk/src/c/target/target_profile.h`.
+- [x] Structural validator added in `target_profile.c` for schema version, bounded table counts, device/resource identity uniqueness, memory ownership references and interconnect endpoints.
+- [x] The profile model is integrated as the `occ_target_profile` CMake static library.
+- [ ] Bounded v2 text parser and canonical serializer.
+- [ ] Target OIR artifact writer/reader and module handoff.
+- [ ] Backend/device capability registry, heterogeneous lowering and runtime machine binding.
+
+The C data model is an initial implementation foundation only. No v2 descriptor file is parsed yet, and the validator does not establish backend support or physical machine identity. Build/CI has not been run for this change.
+
+## 9. Implementation order
 
 1. Define v2 schema vocabulary and limits (device kinds, fields, counts, string and payload budgets).
 2. Introduce normalized profile/device/memory/link data structures independent of the legacy `TargetConfig`.
