@@ -2826,3 +2826,87 @@ Beklenen davranış:
 - Cleanup opcode/record biçimi ve runtime ABI.
 
 Bu açık noktalar, temel kuralı değiştirmez: canlı scope korunur; terk edilen scope temizlenir; terk edilmiş scope'a doğrudan geri giriş yapılamaz.
+
+
+## 12.26 MR-OIR-017 — Defer kayıt yaşam döngüsü ve scope-exit sırası
+
+**Amaç:** Mevcut `defer { block }` sözdiziminin kayıt anını, scope aktivasyonuna bağlı ömrünü, LIFO sırasını ve MR-OIR-016 cleanup mekanizmasıyla ilişkisini doğrulamak.
+
+### 12.26.1 Normatif kurallar
+
+1. Defer, yürütme sırasında defer ifadesine ulaşıldığında kaydedilir.
+2. Kayıt, bulunduğu lexical scope activation'ına aittir.
+3. Aynı scope içindeki basic block geçişi veya backward JUMP defer'i çalıştırmaz.
+4. Scope'tan normal çıkış, BREAK, CONTINUE, RETURN veya ancestor-scope JUMP defer kayıtlarını çalıştırır.
+5. Aynı scope'taki birden fazla defer LIFO sırasıyla çalışır.
+6. Defer gövdeleri otomatik `}?;` kaynak/masa cleanup'ından önce çalışır.
+7. İç içe scope'lar terk edilirken her scope kendi defer kayıtlarını ve otomatik cleanup'ını tamamlar; sonra üst scope kapanır.
+8. Defer gövdesinden non-local kontrol aktarımı ve nested defer kaydı bu sürümde geçersizdir.
+9. Defer gövdesi hata/panic üretirse diğer defer'lerin yürütülme politikası açık hata sözleşmesidir.
+10. Defer kayıtları ve scope activation metadata'sı OIR optimizasyonlarında korunmalıdır.
+
+### 12.26.2 Test A — Kayıt noktasına ulaşılmayan yol
+
+Bir kontrol yolu defer ifadesine ulaşmadan scope'u terk ederse o yol için defer kaydı oluşturulmuş gibi cleanup üretilemez. Builder, yalnızca kaynak kodda defer ifadesinin bulunmasına bakarak her çıkışa defer ekleyemez.
+
+### 12.26.3 Test B — Aynı scope içi backward jump
+
+Aynı lexical scope içindeki backward JUMP defer'i erken çalıştırmaz. Defer kaydı scope activation'ında canlı kalır.
+
+Açık nokta: Defer ifadesi aynı scope içindeki loop gövdesinde birden fazla dinamik erişime uğrarsa her erişimde kayıt mı eklenir, yoksa scope activation başına tek kayıt mı tutulur? Bu karar verilene kadar loop içi tekrar kayıt testi taslak olarak kalır; Builder davranış tahmin edemez.
+
+### 12.26.4 Test C — LIFO ve otomatik cleanup sırası
+
+```nexus
+f:testDeferLifo()!i32 {
+    (h) <- file.open("defer-test.txt", r);
+
+    defer {
+        echo("first-registered");
+    }
+
+    defer {
+        echo("second-registered");
+    }
+
+    return 0;
+}
+```
+
+Beklenen:
+- İkinci kayıt birinci çalışır.
+- İlk kayıt ikinci çalışır.
+- Defer gövdeleri tamamlandıktan sonra scope'a ait otomatik kaynak/masa cleanup uygulanır.
+- Gerçek handle tipi ve gözlemlenebilir test çıktısı uygulama testinde doğrulanır.
+
+### 12.26.5 Test D — Scope dışına jump
+
+Loop-body scope'unda kayıt edilen defer, ancestor scope'a JUMP ile çıkılırken çalıştırılır. Önce defer kayıtları LIFO sırayla, ardından otomatik scope cleanup yürütülür; hedef block'a bundan sonra geçilir.
+
+### 12.26.6 Test E — İç içe scope
+
+İç scope'tan dış scope'a çıkışta önce iç scope defer kayıtları, sonra iç scope otomatik cleanup; ardından dış scope defer kayıtları ve dış scope otomatik cleanup yürütülür.
+
+### 12.26.7 Negatif testler
+
+- **MR-OIR-017-N1:** Defer ifadesine yürütme sırasında ulaşılmadan kayıt oluşturulması.
+- **MR-OIR-017-N2:** Aynı-scope JUMP'ta defer'in erken çalıştırılması.
+- **MR-OIR-017-N3:** LIFO yerine FIFO yürütme.
+- **MR-OIR-017-N4:** Otomatik kaynak cleanup'ın defer gövdesinden önce çalışması.
+- **MR-OIR-017-N5:** Scope dışına JUMP'ta defer'in atlanması.
+- **MR-OIR-017-N6:** İç scope kapanmadan dış scope defer'inin çalıştırılması.
+- **MR-OIR-017-N7:** Defer gövdesinden non-local JUMP/RETURN/BREAK/CONTINUE.
+- **MR-OIR-017-N8:** Nested defer kaydının kabul edilmesi.
+- **MR-OIR-017-N9:** Optimizer'ın defer kayıt sırasını veya activation bağını kaybetmesi.
+- **MR-OIR-017-N10:** Bir scope activation'ının defer kayıtlarının başka activation'a taşınması.
+- **MR-OIR-017-N11:** Cleanup/defer hata politikası tanımsızken sahte başarılı continuation üretilmesi.
+
+### 12.26.8 Açık alt sözleşmeler
+
+- Loop içinde defer ifadesine tekrar ulaşıldığında kayıt tekilliği.
+- Defer gövdesi hata/panic üretirse kalan defer kayıtlarının yürütülüp yürütülmeyeceği ve hata biriktirme.
+- Defer gövdesi içinde kaynak edinimi ve sahiplik.
+- Defer gövdesi içinde `?;` veya `}?;` kullanımına izin verilip verilmeyeceği.
+- Runtime ABI ve OIR cleanup opcode/record encoding'i.
+
+Bu açık noktalar kesinleşmeden Builder veya Optimizer davranış uyduramaz.
