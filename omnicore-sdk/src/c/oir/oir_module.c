@@ -12,7 +12,7 @@ OirStatus oir_module_open(const uint8_t*p,size_t n,OirModuleView*v){
  uint32_t z[7],i,j;uint64_t need=36;const uint8_t*q;
  if(!p||!v)return OIR_STATUS_INVALID_ARGUMENT;memset(v,0,sizeof(*v));
  if(n<36)return OIR_STATUS_INVALID_HEADER;
- if(g16(p)!=1||g16(p+2)!=1||g32(p+4)!=0)return OIR_STATUS_UNSUPPORTED_VERSION;
+ if(g16(p)!=OIR_MODULE_SCHEMA_MAJOR||g16(p+2)!=OIR_MODULE_SCHEMA_MINOR||g32(p+4)!=0)return OIR_STATUS_UNSUPPORTED_VERSION;
  for(i=0;i<7;i++){z[i]=g32(p+8+4*i);if(z[i]>OIR_MODULE_TABLE_COUNT_MAX&&i<6)return OIR_STATUS_INVALID_HEADER;}
  if(z[6]>OIR_MODULE_STRING_BYTES_MAX)return OIR_STATUS_INVALID_HEADER;
  need+=(uint64_t)z[0]*12+(uint64_t)z[1]*20+(uint64_t)z[2]*16+(uint64_t)z[3]*16+(uint64_t)z[4]*24+(uint64_t)z[5]*16+z[6];
@@ -49,7 +49,7 @@ OirStatus oir_module_write(uint8_t*out,size_t cap,const OirModuleInput*in,size_t
  if((in->type_count&&!in->types)||(in->function_count&&!in->functions)||(in->block_count&&!in->blocks)||(in->value_count&&!in->values)||(in->instruction_count&&!in->instructions)||(in->operand_count&&!in->operands)||(in->strings_length&&!in->strings))return OIR_STATUS_INVALID_ARGUMENT;
  total+=(uint64_t)in->type_count*12+(uint64_t)in->function_count*20+(uint64_t)in->block_count*16+(uint64_t)in->value_count*16+(uint64_t)in->instruction_count*24+(uint64_t)in->operand_count*16+in->strings_length;
  if(total>cap)return OIR_STATUS_BUFFER_TOO_SMALL;
- p16(out,1);p16(out+2,0);p32(out+4,0);p32(out+8,in->type_count);p32(out+12,in->function_count);p32(out+16,in->block_count);p32(out+20,in->value_count);p32(out+24,in->instruction_count);p32(out+28,in->operand_count);p32(out+32,in->strings_length);at=36;
+ p16(out,OIR_MODULE_SCHEMA_MAJOR);p16(out+2,OIR_MODULE_SCHEMA_MINOR);p32(out+4,0);p32(out+8,in->type_count);p32(out+12,in->function_count);p32(out+16,in->block_count);p32(out+20,in->value_count);p32(out+24,in->instruction_count);p32(out+28,in->operand_count);p32(out+32,in->strings_length);at=36;
  for(i=0;i<in->type_count;i++){p32(out+at,in->types[i].id);p16(out+at+4,in->types[i].kind);p16(out+at+6,in->types[i].bit_width);p32(out+at+8,in->types[i].flags);at+=12;}
  for(i=0;i<in->function_count;i++){const OirModuleFunction*x=in->functions+i;p32(out+at,x->id);p32(out+at+4,x->name_offset);p32(out+at+8,x->name_length);p32(out+at+12,x->function_type_id);p32(out+at+16,x->entry_block_id);at+=20;}
  for(i=0;i<in->block_count;i++){const OirModuleBlock*x=in->blocks+i;p32(out+at,x->id);p32(out+at+4,x->function_id);p32(out+at+8,x->first_instruction);p32(out+at+12,x->instruction_count);at+=16;}
