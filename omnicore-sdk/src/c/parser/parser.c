@@ -534,6 +534,7 @@ static Token peek_token_ahead(Parser* p, int n) {
 
 static ASTNode* parse_expression(Parser* p);
 static ASTNode* parse_statement(Parser* p);
+static ASTNode* parse_if_statement(Parser* p);
 static ASTNode* parse_block(Parser* p);
 static ASTNode* parse_assignment(Parser* p);
 static ASTNode* parse_func_decl(Parser* p);
@@ -2286,6 +2287,57 @@ static ASTNode* parse_group_decl(Parser* p) {
     return (ASTNode*)group;
 }
 
+static ASTNode* parse_if_branch(Parser* p) {
+    if (match(p, TOKEN_LBRACE)) return parse_block(p);
+    return parse_statement(p);
+}
+
+static ASTNode* parse_if_statement(Parser* p) {
+    ASTIf* node;
+    Token keyword = p->current;
+
+    if (!match(p, TOKEN_KW_IF) && !match(p, TOKEN_KW_ELSIF)) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Expected 'if' or 'elsif'.");
+        return NULL;
+    }
+
+    node = (ASTIf*)parser_ast_create(p, AST_IF);
+    if (!node) return NULL;
+    node->base.line = keyword.line;
+    node->base.col = keyword.col;
+
+    if (!consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC)) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    node->condition = parse_expression(p);
+    if (!node->condition ||
+        !consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR)) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+
+    node->then_branch = parse_if_branch(p);
+    if (!node->then_branch) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+
+    if (match(p, TOKEN_KW_ELSIF)) {
+        node->else_branch = parse_if_statement(p);
+    } else if (match(p, TOKEN_KW_ELS)) {
+        node->else_branch = parse_if_branch(p);
+    }
+
+    if ((p->previous.type == TOKEN_KW_ELSIF ||
+         p->previous.type == TOKEN_KW_ELS) && !node->else_branch) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    return (ASTNode*)node;
+}
+
 static ASTNode* parse_statement(Parser* p) {
     if (p->panic_mode) p->panic_mode = 0; // Her yeni ifadede hata modunu sıfırla (Basit senkronizasyon)
 
@@ -2304,6 +2356,12 @@ static ASTNode* parse_statement(Parser* p) {
     if (match(p, TOKEN_KW_EXP)) is_exp = 1;
     if (match(p, TOKEN_KW_PUP)) is_pub = 1;
 
+    if (match(p, TOKEN_KW_IF)) {
+        /* The keyword has been consumed; parse the shared conditional body. */
+        --p->ctx->token_stream_index;
+        p->current = parser_next_token(p->ctx);
+        return parse_if_statement(p);
+    }
     if (match(p, TOKEN_KW_USE)) return parse_use(p);
     if (match(p, TOKEN_KW_DEFER)) return parse_defer(p);
     if (match(p, TOKEN_KW_RET)) return parse_return_statement(p);
