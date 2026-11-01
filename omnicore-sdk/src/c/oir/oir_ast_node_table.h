@@ -52,6 +52,14 @@ OirStatus oir_ast_node_table_get(
     OirAstNodeRecord* out_record
 );
 
+/* Find one node-local TLV field by its stable field ID. Returns INVALID_ARGUMENT when absent. */
+OirStatus oir_ast_node_table_get_field(
+    const OirAstNodeTableView* view,
+    uint32_t node_index,
+    uint16_t field_id,
+    OirAstTlvField* out_field
+);
+
 /* Encode a complete AST payload into caller-owned storage.
  * Input record/field/string buffers must not overlap output.
  */
