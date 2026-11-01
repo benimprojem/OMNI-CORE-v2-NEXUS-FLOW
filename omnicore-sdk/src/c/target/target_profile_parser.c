@@ -183,7 +183,7 @@ int occ_target_profile_load(const char* path, OccTargetProfile* profile,
     char seen[TARGET_V2_SEEN_MAX][TARGET_V2_SEEN_SIZE];
     size_t seen_count=0u;
     unsigned long line_no=0u;
-    uint32_t required_target=0u, required_cpu=0u;
+    uint32_t required_target=0u, required_cpu=0u, sections_seen=0u;
     int ok=1;
 
     enum { T_SCHEMA=1u<<0,T_ID=1u<<1,T_KIND=1u<<2,T_OS=1u<<3,T_RUNTIME=1u<<4,
@@ -218,7 +218,14 @@ int occ_target_profile_load(const char* path, OccTargetProfile* profile,
             char* close=strchr(text,']');
             if (!close || close[1]!='\0') { fail(error,error_size,"Invalid section at line %lu.",line_no); ok=0; break; }
             *close='\0';
-            if (strcmp(text+1,"target_info") && strcmp(text+1,"cpu")) { fail(error,error_size,"Unknown section at line %lu.",line_no); ok=0; break; }
+            uint32_t section_bit;
+            if (!strcmp(text+1,"target_info")) section_bit=1u;
+            else if (!strcmp(text+1,"cpu")) section_bit=2u;
+            else { fail(error,error_size,"Unknown section at line %lu.",line_no); ok=0; break; }
+            if (sections_seen & section_bit) {
+                fail(error,error_size,"Duplicate section at line %lu.",line_no); ok=0; break;
+            }
+            sections_seen |= section_bit;
             strcpy(section,text+1);
             continue;
         }
@@ -288,7 +295,8 @@ int occ_target_profile_load(const char* path, OccTargetProfile* profile,
     }
     if(ferror(file)) { fail(error,error_size,"Error reading Target v2 file."); ok=0; }
     fclose(file);
-    if(ok && required_target != (T_SCHEMA|T_ID|T_KIND|T_OS|T_RUNTIME|T_PACKAGE|T_ABI|T_BINARY|T_ENTRY|T_STACK)) {
+    if(ok && (required_target & (T_SCHEMA|T_ID|T_KIND|T_OS|T_RUNTIME|T_PACKAGE|T_ABI|T_BINARY|T_ENTRY|T_STACK)) !=
+       (T_SCHEMA|T_ID|T_KIND|T_OS|T_RUNTIME|T_PACKAGE|T_ABI|T_BINARY|T_ENTRY|T_STACK)) {
         fail(error,error_size,"Target v2 descriptor is missing required target_info fields."); ok=0;
     }
     if(ok && required_cpu != (C_ID|C_KIND|C_ARCH|C_ISA|C_WORD|C_ADDR|C_ENDIAN|C_GPR|C_ATOMIC|C_FP|C_FLAGS|C_EXT)) {
