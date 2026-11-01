@@ -54,6 +54,14 @@ typedef enum OccTargetCpuFeatureFlags {
     OCC_TARGET_CPU_FEATURE_VECTOR = 1u << 5
 } OccTargetCpuFeatureFlags;
 
+typedef enum OccTargetAtomicWidthFlags {
+    OCC_TARGET_ATOMIC_WIDTH_8 = 1u << 0,
+    OCC_TARGET_ATOMIC_WIDTH_16 = 1u << 1,
+    OCC_TARGET_ATOMIC_WIDTH_32 = 1u << 2,
+    OCC_TARGET_ATOMIC_WIDTH_64 = 1u << 3,
+    OCC_TARGET_ATOMIC_WIDTH_128 = 1u << 4
+} OccTargetAtomicWidthFlags;
+
 typedef enum OccTargetFpFormatFlags {
     OCC_TARGET_FP_FORMAT_FP16 = 1u << 0,
     OCC_TARGET_FP_FORMAT_BF16 = 1u << 1,
@@ -100,7 +108,7 @@ typedef struct OccTargetDevice {
     uint32_t vector_register_count;
     uint32_t predicate_register_count;
     uint32_t vector_width_bits;
-    uint32_t atomic_width_mask; /* Bit N denotes support for N-bit atomics; defined widths are documented. */
+    uint32_t atomic_width_mask; /* OccTargetAtomicWidthFlags bitmask. */
     uint32_t fp_format_mask; /* OccTargetFpFormatFlags bitmask. */
     uint32_t cpu_feature_flags; /* OccTargetCpuFeatureFlags bitmask. */
     char isa_extensions[OCC_TARGET_MAX_ISA_EXTENSIONS][OCC_TARGET_ISA_EXTENSION_SIZE];
