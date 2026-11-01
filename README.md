@@ -613,7 +613,7 @@ rules CNC_Safety(w, h, tool) {
 }
 ```
 
-- Bariyer operatörü **`:= >` değil, boşluksuz `:=>`** biçimindedir.
+- Bariyer operatörü **`:=>`** biçimindedir.
 
 #### 2. Bariyerlerin çalışma biçimi
 
