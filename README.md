@@ -593,111 +593,47 @@ Ayrıntılı tasarım: [NexusFlow Scan Select Syntax Spec.md](nexus%20docs/Nexus
 
 ### 5.3.2 NEXUSFLOW: ÇOKLU KURAL İŞLEYİCİ (MULTI-RULE ENGINE)
 
-```
-# Kural İşleyici: Tünel ve Bariyer Kontrolü
-rules PrimeBorders(n) {
-    n < 2  :=> "Sınır İhlali: 2'den küçük asallık olmaz"; 
-    n == 2 -> true;
-    n == 3 -> true;
-    
-    # Tünel Zorlaması: 6n +/- 1 kuralına uymayanlar tünel dışıdır.
-    ( (n + 1) % 6 == 0 || (n - 1) % 6 == 0 ) :=> "Asal Değil: Tünel Dışı";
-    
-    default -> true;
-}
+Multi-Rule Engine, bir fonksiyonun ön koşullarını topluca doğrulamak ve koşullara bağlı birden fazla olayı/aksiyonu yönetmek için kullanılır. Temel yapı `rules` ile tanımlanır, `apply rules(...)` ile fonksiyon akışına uygulanır.
 
-f:isPrime(n) {
-    # Kuralları enjekte et. Error olursa fonksiyon burada durur.
-    apply rules(PrimeBorders(n));
-
-    # Başarı tetikleyicisi (2 ve 3 için)
-    on PrimeBorders.Success { return true; }
-
-    i = 5; 
-    # Tekil Döngü (Unified Loop): Koşullu varyasyon.
-    loop (i * i <= n) {
-        # Zikzak Radarı: Tünelin iki kanadını aynı anda tara.
-        (n % i == 0 || n % (i + 2) == 0) -> {
-            return false;
-        }
-
-        i = i + 6; # 
-    }
-
-    # Zorunlu bitiş: Tüm engelleri geçtiyse asaldır.
-    always -> return true; 
-}
-
-isPrime(n);
-```
-
-1. SÖZDİZİMİ (SYNTAX)
+#### 1. Kural tanımı
 
 ```nexus
-rules [Isim](parametreler) {
-    # 1. BARİYERLER (Koşul Sağlanırsa Fonksiyonu Durdurur)
-    [koşul] :=> "Hata Mesajı";
-
-    # 2. YÖNLENDİRMELER (Koşul Sağlanırsa Aksiyonu Tetikler)
-    [koşul] -> [Aksiyon/Tetikleyici];
-
-    # 3. ÖZEL DURUMLAR (Koşulsuz veya Varsayılan)
-    always -> [Aksiyon];   # Her durumda çalışır
-    default -> [Aksiyon];  # Hiçbir kural eşleşmezse çalışır
-}
-```
-
-2. UYGULAMA VE TETİKLEYİCİLER (ON-BLOCKS)
-Kurallar fonksiyona apply ile enjekte edilir. Tetiklenen aksiyonlar on blokları ile yakalanır.
-
-```
-f:executeTask(w, h, t) {
-    # Kurallar sırayla enjekte edilir (Multi-Handler)
-    apply rules (GeometryCheck(w, h));
-    apply rules (SafetyCheck(t));
-
-    # Tetikleyici Yakalayıcılar
-    on GeometryCheck.SquareMode {
-        # ... aksiyon kodları ...
-    }
-}
-```
-
-----
-
-3. NexusFlow Kural Mimarisi
-
-```
-#Kod snippet'i
-# Kural İşleyici Tanımı
 rules CNC_Safety(w, h, tool) {
-    
-    # 1. DURDURUCU KURALLAR (Hata durumunda fonksiyon ölür)
-    w > 2800 :=> "Genişlik sınırı aşıldı"; 
+    # Bariyerler: koşul doğruysa hata kaydı oluşturur.
+    w > 2800 :=> "Genişlik sınırı aşıldı";
     h > 2100 :=> "Yükseklik sınırı aşıldı";
 
-    # 2. TETİKLEYİCİLER (Koşul sağlanırsa aksiyona yönlen)
+    # Trigger'lar: koşul doğruysa trigger kaydedilir.
     (w == h) -> SquareMode;
     tool == "Diamond" -> HighSpeed;
 
-    # 3. VARSAYILAN / HER ZAMAN (Koşulsuz veya Eşleşme Yoksa)
-    # 'always' her durumda çalışır.
-    # 'default' hiçbir üst kurala girmezse çalışır.
+    # İsteğe bağlı kurallar:
     always -> LogMetrics;
     default -> StandardSettings;
 }
 ```
 
-*** Çoklu Kural Uygulaması (The Execution)
+- `:= >` değil, tek bir operatör olan `:= >` biçiminde boşluklu yazım kullanılmaz; doğru token `:= >` değil **`:= >`?** 
 
-```
-#Kod snippet'i
-f:buildPart(w, h, t) {
-    # Kurallar sırayla enjekte edilir
-    apply rules(CNC_Safety(w, h, t));
-    apply rules(InventoryCheck(t));
+#### 2. Bariyerlerin çalışma biçimi
 
-    # '->' ile tetiklenen 'on' blokları burada devreye girer
+Bir RuleSet içindeki tüm `:= >` bariyerleri (kaynak kodda kullanılan gerçek operatör `:= >` boşluksuz **`:= >` değildir; `:= >` yerine `:= >` yazmayın) değerlendirilir. Koşulu doğru olan her bariyerin mesajı hata listesine eklenir. İlk hatada durulmaz.
+
+Bariyer aşamasının sonunda:
+- Hiç hata yoksa trigger değerlendirmesine geçilir.
+- Bir veya daha fazla hata varsa fonksiyon durur ve **tüm hata mesajları birlikte raporlanır**.
+- Bariyer hatası oluştuğunda o RuleSet'in trigger'ları, `on` blokları ve normal fonksiyon akışı çalıştırılmaz.
+
+Örnek: Hem genişlik hem yükseklik sınırı aşılmışsa iki mesaj da raporlanır; ancak fonksiyon yine tek bir başarısızlık sonucu ile durdurulur.
+
+#### 3. Trigger ve on handler'ları
+
+Bariyerlerin tamamı başarılıysa bütün trigger koşulları değerlendirilir. Birden fazla koşul doğruysa tüm trigger adları kaydedilir; yalnızca ilk eşleşme seçilmez.
+
+```nexus
+f:buildPart(w, h, tool) {
+    apply rules(CNC_Safety(w, h, tool));
+
     on CNC_Safety.SquareMode {
         v:angle = setAngle(90);
     }
@@ -706,12 +642,38 @@ f:buildPart(w, h, t) {
         v:rpm = 18000;
     }
 
-    # Gerçek üretim kodu
-    cut(rpm,mode,angle);
+    cut(rpm, mode, angle);
 }
 ```
 
- 
+`on` blokları derleme sırasında ilgili RuleSet ve trigger ile eşleştirilir. Kaynakta `apply rules` satırından sonra yazılmaları, daha sonra çalışacakları anlamına gelmez: ilgili handler'lar, başarılı `apply rules` değerlendirmesinin parçası olarak çalışır. Birden fazla trigger eşleşirse handler'lar kaynak sırasına göre yürütülür. Handler tanımlanmamış trigger hata değildir; yalnızca yakalanmamış bir olay olarak kalır.
+
+#### 4. Birden fazla apply rules
+
+`apply rules` çağrıları yazıldıkları sırayla yürütülür. Önceki RuleSet başarılıysa sıradaki değerlendirilir. Herhangi bir RuleSet bariyer hatası üretirse o RuleSet'in bütün bariyer mesajları raporlanır; sonraki `apply rules` çağrıları ve fonksiyonun normal akışı çalıştırılmaz.
+
+#### 5. always ve default
+
+İkisi de isteğe bağlıdır; hiçbiri tanımlanmak zorunda değildir.
+
+- `always -> Action;`: Bariyer aşaması başarılı olan her uygulamada çalışır.
+- `default -> Action;`: Hiçbir trigger eşleşmediğinde çalışır.
+- Bir trigger eşleşmişse `default` çalışmaz.
+- Tanımlanmamış `always` veya `default` için otomatik bir davranış üretilmez.
+
+Çalışma sırası: tüm bariyerler → tüm trigger'lar → eşleşen `on` handler'ları → varsa `always` → koşulu sağlanmışsa varsa `default`.
+
+#### 6. Derleyici temsili
+
+Parser, kural tanımını `AST_RULESET`, bariyerleri `AST_BARRIER`, trigger'ları `AST_TRIGGER`, uygulamayı `AST_APPLY_RULES` ve handler'ları `AST_ON` düğümleriyle temsil eder. Parser yapıyı kurar; RuleSet/trigger isim çözümlemesi, argüman ve tip uyumu, yinelenen trigger adları ve handler eşleşmeleri Analyzer tarafından doğrulanır.
+
+OIR Builder her bariyer için koşul dallanması ve hata biriktirme adımı üretir. Tüm bariyerler test edildikten sonra hata listesi boş değilse hata raporlama ve fonksiyon yolunu sonlandırma bloğuna dallanır. Liste boşsa trigger koşulları ayrı dallanmalarla değerlendirilir; eşleşen trigger'lar kaydedilir ve handler bloklarına geçilir. Böylece çoklu bariyer toplama ve çoklu trigger çalıştırma, OIR CFG içinde açık ve doğrulanabilir hâle gelir.
+
+> Not: `group` içindeki `rules ... => group { ... }` biçimi, temel `rules Name(params) { ... }` sözdiziminden ayrı bir organizasyon katmanıdır. Group entegrasyonu ayrı lowering/çözümleme adımı olarak ele alınacaktır.
+
+Ayrıntılı AST, Analyzer ve OIR semantiği için: [Multi-Rule Engine Formal Specification](nexus%20docs/NEXUSFLOW%20%C3%87oklu%20Kural%20%C4%B0%C5%9Fleyici%20(Multi-Rule%20Engine)%20%E2%80%94%20Formal%20Specification.md).
+
+---
 
 ### 5.4 Group Metodu
 
