@@ -89,6 +89,7 @@ Recent design work includes:
 - NEXUS Flow `select` and `scan` behavior and their CFG lowering.
 - Multi-Rule Engine barrier aggregation, trigger collection, handler ordering, and optional `always` / `default` behavior.
 - Multi-Rule OIR control-flow lowering, including error accumulation, SSA trigger results, handler dispatch, and separate failure/continuation paths.
+- Normative Multi-Rule OIR test MR-OIR-001: aggregate all barrier failures, preserve source order, and prove that trigger/handler/normal flow is unreachable after failure.
 - Separation of source-language syntax documentation from compiler project documentation.
 
 ### Open design contracts
