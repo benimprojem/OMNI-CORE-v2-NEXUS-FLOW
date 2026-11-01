@@ -204,6 +204,22 @@ OirStatus oir_ast_node_table_get(
 }
 
 
+
+OirStatus oir_ast_node_table_get_string(
+    const OirAstNodeTableView* view,
+    uint32_t offset,
+    uint32_t length,
+    const uint8_t** out_bytes
+) {
+    if (!view || !out_bytes || !view->string_table ||
+        offset > view->string_table_length ||
+        length > view->string_table_length - offset) {
+        return OIR_STATUS_INVALID_ARGUMENT;
+    }
+    *out_bytes = view->string_table + offset;
+    return OIR_STATUS_OK;
+}
+
 OirStatus oir_ast_node_table_get_field(
     const OirAstNodeTableView* view,
     uint32_t node_index,
