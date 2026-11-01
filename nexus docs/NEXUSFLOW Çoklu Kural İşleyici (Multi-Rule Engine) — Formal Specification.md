@@ -2984,3 +2984,124 @@ Beklenen:
 ### 12.27.5 Açık alt sözleşme
 
 Defer gövdesinin dış değişkenleri kayıt anındaki değerle mi (value capture), yoksa scope çıkışındaki güncel değerle mi (reference/live binding) gözlemlediği ayrıca kararlaştırılacaktır. OIR bu kararı verilmeden varsayamaz.
+
+## 12.28 MR-OIR-019 — Defer değişken yakalama ve kaynak sahipliği
+
+**Amaç:** Defer gövdesinin değişkenleri hangi anda gözlemlediğini tek ve deterministik bir kurala bağlamak; kaynak sahipliği aktarımıyla çakışma, çift serbest bırakma ve geçersiz kaynak erişimini önlemek.
+
+### 12.28.1 Kesin karar: canlı bağlama (live binding)
+
+Bu sürümde `defer { ... }` **value capture yapmaz**. Defer gövdesi, kaydedildiği lexical scope activation'ındaki değişkenlerin aynı bağlarına erişir ve çalıştırıldığı anda bu değişkenlerin güncel değerlerini okur.
+
+1. Defer kaydı oluşturulurken gövde içindeki değişkenlerin değerleri kopyalanmaz.
+2. Defer gövdesindeki değişken okumaları, defer çalıştırıldığı andaki güncel değişken değerini görür.
+3. Defer gövdesindeki yazmalar aynı lexical değişken bağını günceller; ayrı bir kopyayı değiştirmez.
+4. Defer gövdesi yalnızca kaydedildiği noktada görünür olan ve ilgili scope activation'ı boyunca yaşayan lexical değişkenlere erişebilir.
+5. Defer çalıştırılana kadar bu değişken bağları geçerli kalmalıdır. OIR Builder ve Optimizer, defer tarafından gözlemlenebilecek son değerleri korumalıdır.
+6. Bu dil sürümünde defer için açık capture listesi veya value-capture sözdizimi yoktur; yeni bir capture sözdizimi eklenmez.
+
+Dolayısıyla kayıt zamanı ile yürütme zamanı arasında değişken güncellenmişse defer gövdesi eski snapshot'ı değil, güncel değeri görür.
+
+### 12.28.2 OIR ve çalışma zamanı temsili
+
+Defer kaydı şu bilgileri taşır:
+
+- Defer gövdesinin statik kimliği/entry noktası.
+- Kaydın ait olduğu scope activation kimliği.
+- Activation içindeki dinamik kayıt sırası.
+
+Kayıt, dış değişkenlerin değer kopyalarını veya her değişken için ayrı capture buffer'ını taşımaz. Defer gövdesi, kendisini kaydeden activation'ın değişken ortamına (lexical frame/environment) bağlanır.
+
+- Builder, defer tarafından sonradan okunabilecek veya yazılabilecek yerel değişkenleri defer çalışması tamamlanana kadar canlı tutmalıdır.
+- SSA tabanlı OIR'de güncel değerler, defer çıkış bloğuna doğru SSA use/merge/block-parameter bağlantılarıyla taşınmalıdır.
+- Defer gövdesi için gerekli değişkeni erken stack-slot reuse, register reuse veya dead-store/dead-value optimizasyonuyla yok etmek yasaktır.
+- Optimizer, defer'in gözlemlediği son değeri değiştirecek şekilde store/load sırasını yeniden düzenleyemez.
+- Defer gövdesi normal tamamlandığında activation içindeki sonraki LIFO kaydına geçilir.
+
+Bu maddeler semantik sözleşmedir; nihai opcode isimleri, frame layout ve runtime ABI ayrı OIR format sözleşmesinde tanımlanır.
+
+### 12.28.3 Kaynak sahipliği ve `->_` aktarımı
+
+Defer, kaynak için ikinci bir sahip, kopya handle veya örtük retain oluşturmaz. Kaynak sahipliği değişkenin mevcut ownership durumunda kalır.
+
+1. Defer gövdesi kaynak değişkenini kullandığında, yürütme anındaki ownership durumu esas alınır.
+2. Kaynak sahipliği `->_` ile başka bir değişkene aktarılırsa sahiplik kaynak değişkenden çıkar ve hedef değişkene geçer.
+3. Defer gövdesi aktarım sonrasında eski kaynak değişken üzerinden taşınmış kaynağı kullanamaz veya serbest bırakamaz.
+4. Defer gövdesi hedef değişkeni lexical görünürlük ve scope-lifetime kuralları içinde kullanabilir; hedef değişken o anda kaynağın geçerli sahibi olmalıdır.
+5. Sahip olunan bir kaynak, önce serbest bırakılmadan veya sahipliği aktarılmadan başka bir kaynakla üzerine yazılamaz.
+6. Defer gövdesinin her olası çıkış yolunda kullandığı kaynak değişkeni başlatılmış ve geçerli sahip olmalıdır. Path-sensitive ownership analizi bu koşulu kanıtlayamıyorsa Analyzer derlemeyi reddeder.
+7. Defer gövdesi bir kaynağı açıkça serbest bırakırsa ownership ledger bu durumu kaydeder; scope'un otomatik cleanup aşaması aynı kaynağı ikinci kez serbest bırakamaz.
+8. Defer kaydı kendi başına otomatik kaynak cleanup'ının yerine geçmez ve kaynak sahipliğini scope dışına taşımaz.
+
+Bu modelde defer'in hangi handle'ı kullanacağı kayıt anındaki snapshot'a göre değil, yürütme anındaki değişken bağının güncel ownership durumuna göre belirlenir.
+
+### 12.28.4 Kesin örnek davranışları
+
+**Test A — Skaler değişkenin güncel değerini görme**
+
+```nexus
+f:testDeferLiveBinding() {
+    value:i = 10;
+
+    defer {
+        observe(value);
+    }
+
+    value = 25;
+}
+```
+
+Beklenen: `observe` çağrısı scope kapanışında `25` değerini görür; `10` değerinin snapshot'ı alınmaz.
+
+**Test B — Defer gövdesinin değişkeni güncellemesi**
+
+```nexus
+f:testDeferWritesBack() {
+    state:i = 1;
+
+    defer {
+        state = state + 4;
+    }
+
+    state = 3;
+}
+```
+
+Beklenen: defer çalıştığında `state` değeri `3)'tür ve aynı lexical değişken `7)'ye güncellenir. Defer'e özel ikinci bir değişken oluşmaz.
+
+**Test C — Kaynak sahipliği aktarımı**
+
+Bu test, OIR ownership fixture'ı olarak değerlendirilir; aşağıdaki adlar açıklayıcı sembollerdir, yeni kaynak sözdizimi tanımlamaz:
+
+- `resourceA` başlangıçta tek sahibi olan kaynak değişkenidir.
+- Defer gövdesi `resourceA)'yı kullanacak şekilde kaydedilir.
+- Daha sonra `resourceA ->_ resourceB` sahiplik aktarımı gerçekleşir.
+- Scope kapanışında defer, `resourceA)'nın eski handle'ını kullanamaz. Ownership ledger, kaynağın `resourceB)'ye geçtiğini gösterir.
+- Defer gövdesi taşınmış kaynağa eski değişken üzerinden erişmeye çalışıyorsa Analyzer hata verir.
+- Kaynak yalnızca `resourceB)'nin sahipliğinde cleanup edilir; çift serbest bırakma oluşmaz.
+
+### 12.28.5 Negatif testler
+
+- **MR-OIR-019-N1:** Defer gövdesinin değişkeni kayıt anındaki eski snapshot değeriyle okuması.
+- **MR-OIR-019-N2:** Defer gövdesi değişken yazmasının ayrı bir capture kopyasına gitmesi.
+- **MR-OIR-019-N3:** Defer tarafından kullanılacak lexical değişkenin scope kapanmadan önce stack/register reuse ile geçersiz kılınması.
+- **MR-OIR-019-N4:** `->_` ile aktarılmış kaynağın eski değişken üzerinden defer içinde kullanılması.
+- **MR-OIR-019-N5:** Sahip olunan kaynağın release/transfer olmadan üzerine yazılması.
+- **MR-OIR-019-N6:** Defer'in açıkça serbest bıraktığı kaynağın otomatik cleanup tarafından ikinci kez serbest bırakılması.
+- **MR-OIR-019-N7:** Kontrol akışının bazı çıkışlarında kaynak sahipliği kanıtlanamadığı halde defer erişiminin kabul edilmesi.
+- **MR-OIR-019-N8:** Optimizer'ın defer gövdesinin gözlemlediği güncel değeri eski değerle değiştirmesi.
+- **MR-OIR-019-N9:** Defer kaydının değişken ortamını yanlış scope activation'ına bağlaması.
+- **MR-OIR-019-N10:** Defer için tanımlanmamış value-capture/capture-list davranışı üretilmesi.
+
+### 12.28.6 Doğrulama ve tamamlanma koşulları
+
+MR-OIR-019 başarılı sayılması için:
+
+- Scalar read/write testleri live-binding davranışını göstermeli.
+- Defer'in kullandığı değişkenler activation sonuna kadar geçerli kalmalı.
+- Ownership transfer sonrası eski sahibin kullanımı reddedilmeli.
+- Defer release ile otomatik cleanup aynı ownership kaydını iki kez tüketmemeli.
+- CFG merge noktalarında ownership durumu tüm predecessor yollarında doğrulanmalı.
+- OIR round-trip ve optimizer testleri defer gövdesinin activation, değişken bağı ve güncel değer ilişkisini korumalıdır.
+
+Bu kararla value capture/reference capture ayrımı açık konu olmaktan çıkarılmıştır: **NEXUS Flow defer modeli live binding'dir.**
