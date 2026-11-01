@@ -114,6 +114,47 @@ Candidate constructs include spawn/listen/send/receive, thread blocks, interrupt
 
 These require explicit concurrency, memory-ordering, privilege and target-capability contracts. They are not part of the initial scalar/control-flow lowering subset.
 
+## 3.1 AST 1.0 field contract for the first scalar slice
+
+The AST frontend writer and field-schema validator establish these stable field IDs. Lowering reads them through `oir_ast_node_table_get_field()`; it must not depend on frontend C structs or enum ordinals.
+
+| Node kind | Field ID | Meaning | Wire type |
+|---|---:|---|---|
+| `AST_PROGRAM` (1) | 1 | Declaration-list head | node ref |
+| `AST_FUNC_DECL` (4) | 1 | Function name | string ref |
+| `AST_FUNC_DECL` (4) | 2 | Declared return-type spelling | string ref |
+| `AST_FUNC_DECL` (4) | 3–5 | extern / public / exported flags | bool |
+| `AST_FUNC_DECL` (4) | 6 | Parameter-list head | node ref |
+| `AST_FUNC_DECL` (4) | 7 | Function body | node ref |
+| `AST_BLOCK` (2) | 1 | Statement-list head | node ref |
+| `AST_RETURN` (26) | 1 | Return token ID | token ID |
+| `AST_RETURN` (26) | 2 | Returned expression | node ref |
+| `AST_LITERAL` (13) | 1 | Literal token ID | token ID |
+| `AST_LITERAL` (13) | 2 | Literal category (0 integer, 1 float, 2 string, 3 char, 4 bool) | u32 |
+| `AST_LITERAL` (13) | 3 | Integer payload | i64 |
+| `AST_LITERAL` (13) | 4 | Floating payload | f64 |
+| `AST_LITERAL` (13) | 5 | Original literal text | string ref |
+| `AST_BINARY_EXPR` (15) | 1 | Operator token ID | token ID |
+| `AST_BINARY_EXPR` (15) | 2–3 | Left / right expression | node ref |
+| `AST_IDENTIFIER` (14) | 1 | Identifier spelling | string ref |
+
+Node references use 1-based AST node IDs; zero denotes an absent optional child. String references are byte offset + byte length into the AST UTF-8 string table. Token IDs are the stable IDs from `OIR_TOKEN_REGISTRY.md`, not `OmniTokenType` values.
+
+### First executable slice boundary
+
+The first lowerer implementation is intentionally narrower than the full scalar-core candidate list:
+
+- Exactly one non-extern function definition in the program.
+- No parameters and no local declarations.
+- Exactly one return statement in its body.
+- The returned expression may be one supported scalar literal, or a recursively supported arithmetic expression whose operands are supported scalar literals.
+- Return type and expression type must be established by the semantic artifact and must map to a currently registered OIR primitive type.
+- The function body must contain no additional executable statement; comments or source trivia are not AST statements and are not represented here.
+
+This slice is a bring-up target for the artifact-to-module path, not a claim that variables, identifiers, parameters, calls, comparisons, control flow, or the complete numeric promotion rules are supported. The lowerer must reject multiple functions, parameters, declarations, unknown literal categories, unsupported operators, missing type annotations, unresolved type names, and any extra body statement.
+
+The AST schema preserves the declared return-type spelling, while the semantic tables preserve canonical type records. Lowering must cross-check both sources; it must not infer a canonical type solely from the spelling. The initial implementation must also reject a semantic type whose primitive width/signedness mapping is not explicitly registered. This avoids accidentally treating the C frontend's current type spelling rules as the final NEXSUS Flow numeric contract.
+
 ## 4. Fail-closed lowering behavior
 
 For every AST node in the input semantic artifact, the lowerer must do exactly one of the following:
@@ -169,7 +210,8 @@ The codec, AST accessors and complete Semantic AST artifact reader are infrastru
 ## 7. Decisions still required
 
 - Block-parameter incoming-value ordering and verifier rules, including loop back-edges.
-- [x] Initial scalar/control-flow opcode IDs and structural operand schemas are assigned in [OIR_OPCODE_REGISTRY.md](OIR_OPCODE_REGISTRY.md).\n- Opcode-specific type constraints, detailed memory effects and full semantic verification rules remain open.
+- [x] Initial scalar/control-flow opcode IDs and structural operand schemas are assigned in [OIR_OPCODE_REGISTRY.md](OIR_OPCODE_REGISTRY.md).
+- Opcode-specific type constraints, detailed memory effects and full semantic verification rules remain open.
 - Canonical numeric type registry and full NEXSUS Flow conversion lattice.
 - Integer overflow, floating-point rounding and forced-width behavior at operation boundaries.
 - Exact boolean/comparison typing rules.
