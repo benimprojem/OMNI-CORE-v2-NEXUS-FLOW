@@ -1,6 +1,6 @@
 # Hardware Target Profile — Device Topology and Machine Binding
 
-**Status:** v2 normalized model and bounded OS/CPU parser implemented; OCC host validates matching v2 profiles before invoking the legacy codegen path  
+**Status:** Preparatory v2 model/parser foundation; not connected to the active compiler path  
 **Schema direction:** Target descriptor v2  
 **Related:** [TARGET_MODEL.md](TARGET_MODEL.md), [TARGET_PIPELINE_CONTRACT.md](TARGET_PIPELINE_CONTRACT.md)
 
@@ -232,3 +232,8 @@ The C data model and initial parser are an implementation foundation only. The p
 7. Add heterogeneous lowering, multi-device packaging and signed machine-binding runtime.
 
 The initial v2 parser exists, but it only handles one CPU and platform record. Repeated heterogeneous device tables, Target OIR handoff, multi-device backend and machine-lock runtime are not yet implemented.
+
+
+## Active compiler version
+
+The active compiler path remains v1 (`.target`). This document describes the future v2 extension model only. Its parser and descriptors are not required for current builds and must not block v1 OS/BareMetal work.
