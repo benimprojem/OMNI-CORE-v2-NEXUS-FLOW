@@ -204,10 +204,11 @@ The legacy AST-walking code generator may remain temporarily available for compa
 - [x] Validated Semantic AST artifact reader: `oir_semantic_ast_artifact_open()` opens the envelope, checks required section versions, validates AST field schema/graph and cross-table semantic references.
 - [x] Constant opcode immediate contract: integer, IEEE-754 binary64 and boolean constants carry typed immediate operands.\n- [x] Initial semantic primitive-to-OIR type mapping for i8/i16/i32/i64, u8/u16/u32/u64, f32/f64 and bool, preserving hard/const qualifiers; unsupported primitive representations are rejected.
 - [x] Initial scalar IR lowering pass: one parameterless function with one typed integer/float/bool literal return; caller-owned workspace; validated OIR_MODULE writer round-trip.
+- [x] Real frontend-to-lowering integration test: Lexer/Parser AST -> semantic analysis -> validated SEMANTIC_AST artifact -> OIR_MODULE payload. Stable OIR token IDs are used at the artifact boundary, and hard return qualifiers are checked against the function's semantic type annotation.
 - [ ] Recursive arithmetic expression lowering and broader scalar function coverage.
 - [ ] Independent IR Lowering DLL and OCC handoff.
 
-The initial literal-return subset is now executable through `oir_lower_semantic_ast_literal_return()` in `src/c/oir/oir_lowering.c`. Its test builds a minimal AST/type/annotation fixture and checks the emitted OIR_MODULE, including the typed immediate value. This is not yet the production DLL or OCC handoff. Arithmetic expressions, parameters, locals, identifiers, conversions, source maps and the module verifier remain pending.
+The initial literal-return subset is now exercised in two ways through `oir_lower_semantic_ast_literal_return()` in `src/c/oir/oir_lowering.c`: a focused codec fixture and a real frontend integration path that parses source, builds the AST OIR payload, runs semantic analysis, writes and re-opens a validated SEMANTIC_AST artifact, then lowers it and checks the resulting OIR_MODULE. The integration fixture also checks a forced `!i32` return declaration against the literal's natural `i32` annotation. This is not yet the production DLL or OCC handoff. Arithmetic expressions, parameters, locals, identifiers, conversions, source maps and the module verifier remain pending.
 
 ## 7. Decisions still required
 
