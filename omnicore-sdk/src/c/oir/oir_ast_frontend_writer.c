@@ -3,8 +3,10 @@
 #include "oir_ast_field_schema.h"
 #include "oir_token_map.h"
 
+#include <errno.h>
 #include <float.h>
 #include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct AstEmitContext {
@@ -225,10 +227,37 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
         }
         case AST_LITERAL: {
             const ASTLiteral* n = (const ASTLiteral*)node;
-            if (n->lit_type < 0 || n->lit_type > 4) return OIR_STATUS_INVALID_SECTION;
-            TOKEN(1,n->type); U32(2,n->lit_type);
-            s = emit_i64(c,&last,3,(int64_t)n->int_value); if (s != OIR_STATUS_OK) return s;
-            s = emit_f64(c,&last,4,n->float_value); if (s != OIR_STATUS_OK) return s;
+            int literal_kind = n->lit_type;
+            int64_t integer_value = (int64_t)n->int_value;
+            double float_value = n->float_value;
+            if (n->type == TOKEN_NUMBER) {
+                char* end = NULL;
+                if (!n->string_value || !n->string_value[0]) return OIR_STATUS_INVALID_SECTION;
+                errno = 0;
+                if (strchr(n->string_value, '.') || strchr(n->string_value, 'e') ||
+                    strchr(n->string_value, 'E')) {
+                    float_value = strtod(n->string_value, &end);
+                    if (errno == ERANGE || end == n->string_value || *end != '\\0')
+                        return OIR_STATUS_INVALID_SECTION;
+                    literal_kind = 1;
+                } else {
+                    long long parsed = strtoll(n->string_value, &end, 10);
+                    if (errno == ERANGE || end == n->string_value || *end != '\\0')
+                        return OIR_STATUS_INVALID_SECTION;
+                    integer_value = (int64_t)parsed;
+                    literal_kind = 0;
+                }
+            } else if (n->type == TOKEN_STRING) {
+                literal_kind = 2;
+            } else if (n->type == TOKEN_CHAR) {
+                literal_kind = 3;
+            } else if (n->type == TOKEN_TRUE || n->type == TOKEN_FALSE) {
+                literal_kind = 4;
+            }
+            if (literal_kind < 0 || literal_kind > 4) return OIR_STATUS_INVALID_SECTION;
+            TOKEN(1,n->type); U32(2,literal_kind);
+            s = emit_i64(c,&last,3,integer_value); if (s != OIR_STATUS_OK) return s;
+            s = emit_f64(c,&last,4,float_value); if (s != OIR_STATUS_OK) return s;
             STR(5,n->string_value); break;
         }
         case AST_IDENTIFIER: STR(1,((const ASTIdentifier*)node)->name); break;
