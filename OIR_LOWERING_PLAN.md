@@ -10,7 +10,7 @@
 
 This plan defines a safe route from the current semantic artifact to canonical OIR. It does not treat the existing AST-walking code generator as a design constraint. The lowering stage will consume only the validated semantic artifact and produce a target-independent SSA module.
 
-The first implementation is deliberately small and verifiable. The current executable slice accepts one non-extern, parameterless function with zero or more initialized scalar local declarations followed by exactly one return. Local initializers and the return expression may contain annotated integer, floating-point or boolean literals, supported arithmetic expressions, and reads of previously declared locals. Local variables are promoted directly to SSA values; this slice does not yet emit memory loads/stores for locals. The supported binary operators are +, -, *, /. Every other shape is rejected; unsupported AST nodes are never silently skipped, approximated or emitted as no-ops.
+The first implementation is deliberately small and verifiable. The current executable slice accepts one non-extern, parameterless function with a straight-line sequence of initialized scalar local declarations and simple assignments to previously declared mutable locals, followed by exactly one return. Local initializers, assignment right-hand sides and the return expression may contain annotated integer, floating-point or boolean literals, supported arithmetic expressions, and reads of previously declared locals. Local variables are promoted directly to SSA values; each simple reassignment creates a new SSA value and updates the symbol-to-value mapping. This slice does not yet emit memory loads/stores for locals. The supported binary operators are +, -, *, /. Every other shape is rejected; unsupported AST nodes are never silently skipped, approximated or emitted as no-ops.
 
 ## 2. Preconditions before executable lowering
 
@@ -145,9 +145,10 @@ Node references use 1-based AST node IDs; zero denotes an absent optional child.
 The first lowerer implementation is intentionally narrower than the full scalar-core candidate list:
 
 - Exactly one non-extern function definition in the program.
-- No parameters and no local declarations.
-- Exactly one return statement in its body.
-- The returned expression may be one supported scalar literal, or a recursively supported arithmetic expression whose leaves are supported scalar literals. Supported operators are +, -, *, /; exponentiation is not yet lowered.
+- No parameters.
+- Zero or more initialized scalar local declarations and simple `=` assignments to earlier mutable local variables, followed by exactly one return statement.
+- Local initializers, assignment right-hand sides and the returned expression may be supported scalar literals, recursively supported arithmetic expressions, or reads of earlier local variables. Supported operators are +, -, *, /; exponentiation is not yet lowered.
+- Assignment targets must be resolved local variable identifiers already present in the SSA local table. Compound/forced assignment and non-identifier lvalues are rejected.
 - Return type and expression type must be established by the semantic artifact and must map to a currently registered OIR primitive type.
 - The function body must contain no additional executable statement; comments or source trivia are not AST statements and are not represented here.
 
@@ -161,7 +162,7 @@ The semantic checker performs a deliberately conservative check for arithmetic b
 
 The expression lowerer recursively walks the validated AST expression tree in left-to-right postorder, preserving parser-established precedence and associativity. Each literal emits a typed constant and each supported binary operation emits a new SSA value. The return terminator consumes the final SSA value. AST token IDs are read using their 16-bit wire width and stable OIR token registry IDs.
 
-Current supported operators: `+`, `-`, `*` and `/`. The active parser grammar does not currently expose remainder or exponentiation in this expression path, so neither is claimed as supported. The lowerer accepts only one parameterless, non-extern function with one return expression and literal leaves; identifiers, calls, variables, multiple statements and control flow remain unsupported.
+Current supported operators: `+`, `-`, `*` and `/`. The active parser grammar does not currently expose remainder or exponentiation in this expression path, so neither is claimed as supported. The lowerer accepts only one parameterless, non-extern function with one return expression and literal leaves; calls, parameters, compound/forced assignment, non-local lvalues, multiple functions and control flow remain unsupported.
 
 The legacy literal-only API remains available as a compatibility entry point. The new `oir_lower_semantic_ast_return()` API handles both literal and arithmetic return expressions. Integration tests now include `ret 10 + 20 * 3;` and assert the generated SSA references and `mul`-before-`add` order. These tests have been registered but have not yet been executed in a local build or CI run.
 
@@ -217,7 +218,8 @@ The legacy AST-walking code generator may remain temporarily available for compa
 - [x] Real frontend-to-lowering integration test: Lexer/Parser AST -> semantic analysis -> validated SEMANTIC_AST artifact -> OIR_MODULE payload. Stable OIR token IDs are used at the artifact boundary, and hard return qualifiers are checked against the function's semantic type annotation.
 - [x] Semantic arithmetic operand validation: arithmetic binary expressions now require matching primitive numeric operand types; mixed types and nonnumeric operands are rejected before lowering. Covered by `test_semantic_arithmetic`.
 - [x] Initializer-based local type inference in semantic results: an untyped variable initialized from a typed expression now receives a canonical type ID, and its declaration annotation is emitted after inference. `test_semantic_result_integration` covers inference from a resolved identifier. This is semantic groundwork only; local-variable OIR lowering is not enabled yet.
-- [x] Initial local-variable OIR lowering: initialized scalar declarations are matched to their semantic variable symbols, their initializer expressions are lowered, and later identifier reads resolve through a caller-owned `symbol_id → SSA value_id` table. The initial end-to-end case is `v:x!i32 = 42; ret x;`. This is SSA promotion for straight-line locals, not memory `load/store` lowering; reassignment and control-flow merges remain unsupported.
+- [x] Initial local-variable OIR lowering: initialized scalar declarations are matched to their semantic variable symbols, their initializer expressions are lowered, and later identifier reads resolve through a caller-owned `symbol_id → SSA value_id` table. The end-to-end case is `v:x!i32 = 42; ret x;`. This is SSA promotion for straight-line locals, not memory `load/store` lowering.
+- [x] Straight-line local reassignment SSA versioning: a simple `=` assignment to an existing mutable local lowers the right-hand side against the previous mapping and then updates the symbol's current SSA value. The integration fixture `v:x!i32 = 40; x = x + 2; ret x;` checks the new value reference. Forced assignment, const reassignment, compound assignment, non-local lvalues and control-flow merges are not enabled.
 - [ ] Recursive arithmetic expression lowering and broader scalar function coverage.
 - [ ] Independent IR Lowering DLL and OCC handoff.
 
