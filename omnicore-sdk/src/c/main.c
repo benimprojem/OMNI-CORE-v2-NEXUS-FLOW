@@ -17,6 +17,7 @@
 #include "oir/oir_ast_graph.h"
 #include "core/compilation.h"
 #include "core/failure_store.h"
+#include "target/target_profile_parser.h"
 
 #include <time.h>
 
@@ -642,6 +643,32 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Hata: Target dosyasi yolu olusturulamadi.\n");
         return 1;
     }
+
+    /* Validate Target v2 before compilation. The legacy descriptor remains
+     * the current codegen input until Target OIR/backend migration is complete. */
+    char target2_filename[512];
+    char target2_dir[OCC_PATH_BUFFER];
+    char target2_path[OCC_PATH_BUFFER];
+    OccTargetProfile target_profile;
+    char target_error[512];
+    int target2_name_length = snprintf(target2_filename, sizeof(target2_filename),
+        "%s.target2", target_name);
+    if (target2_name_length < 0 ||
+        (size_t)target2_name_length >= sizeof(target2_filename) ||
+        !path_join(target2_dir, sizeof(target2_dir), target_dir, "v2") ||
+        !path_join(target2_path, sizeof(target2_path), target2_dir, target2_filename)) {
+        fprintf(stderr, "Hata: Target v2 dosyasi yolu olusturulamadi.\\n");
+        return 1;
+    }
+    if (!occ_target_profile_load(target2_path, &target_profile,
+        target_error, sizeof(target_error))) {
+        fprintf(stderr, "Hata: Target v2 profili dogrulanamadi: %s\\n",
+            target_error[0] ? target_error : target2_path);
+        return 1;
+    }
+    printf("[OCC] Target v2 dogrulandi: %s | OS=%s | ABI=%s | CPU=%s\\n",
+        target_profile.profile_id, target_profile.os, target_profile.abi,
+        target_profile.devices[0].architecture);
 
     printf(msg_get(MSG_OCC_PROCESSING), source_file);
 
