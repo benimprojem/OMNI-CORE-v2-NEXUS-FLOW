@@ -160,10 +160,11 @@ The legacy AST-walking code generator may remain temporarily available for compa
 - [x] Initial `OIR_MODULE` payload codec 1.0: fixed-width little-endian records, bounded reader/writer, UTF-8 and basic cross-reference checks, opcode-shape validation, and zero-copy table views. Implemented in `src/c/oir/oir_module.h/.c` and integrated as `occ_oir_module`.
 - [x] AST node-local TLV field lookup and string-span access: `oir_ast_node_table_get_field()` and `oir_ast_node_table_get_string()` let lowering inspect validated node fields and resolve string references without duplicating TLV parsing.
 - [ ] Module verifier for function/block ownership, complete instruction coverage, terminators, type rules and SSA.
-- [ ] Semantic AST reader + scalar IR lowering pass.
+- [x] Validated Semantic AST artifact reader: `oir_semantic_ast_artifact_open()` opens the envelope, checks required section versions, validates AST field schema/graph and cross-table semantic references.
+- [ ] Scalar IR lowering pass consuming the validated artifact view.
 - [ ] Independent IR Lowering DLL and OCC handoff.
 
-The codec and AST field accessor are infrastructure only. No source construct is yet claimed as successfully lowerable; executable lowering remains fail-closed until the first supported subset and its tests are implemented.
+The codec, AST accessors and complete Semantic AST artifact reader are infrastructure only. No source construct is yet claimed as successfully lowerable; executable lowering remains fail-closed until the first supported subset and its tests are implemented.
 
 ## 7. Decisions still required
 
