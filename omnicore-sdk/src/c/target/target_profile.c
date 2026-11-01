@@ -22,14 +22,6 @@ static int device_index(const OccTargetProfile* profile, const char* id) {
     return -1;
 }
 
-static int memory_index(const OccTargetProfile* profile, const char* id) {
-    uint32_t i;
-    for (i = 0u; i < profile->memory_count; ++i) {
-        if (strcmp(profile->memories[i].id, id) == 0) return (int)i;
-    }
-    return -1;
-}
-
 static int duplicate_device_id(const OccTargetProfile* profile, uint32_t at) {
     uint32_t i;
     for (i = 0u; i < at; ++i) {
@@ -139,6 +131,7 @@ OccTargetProfileStatus occ_target_profile_validate(
             return OCC_TARGET_PROFILE_INVALID_INTERCONNECT;
         }
         if (duplicate_link_id(profile, i) ||
+            device_index(profile, link->id) >= 0 ||
             device_index(profile, link->from_device_id) < 0 ||
             device_index(profile, link->to_device_id) < 0) {
             set_error(error_message, error_message_size, "Target interconnect has a duplicate ID or dangling device reference.");
