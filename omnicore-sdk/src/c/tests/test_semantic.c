@@ -3,6 +3,7 @@
 #include "semantic.h"
 
 #include <stdio.h>
+#include <string.h>
 
 static int check_file(const char* path, int expect_error, ErrorCode expected_code) {
     ParserContext* parser = parser_init(path);
