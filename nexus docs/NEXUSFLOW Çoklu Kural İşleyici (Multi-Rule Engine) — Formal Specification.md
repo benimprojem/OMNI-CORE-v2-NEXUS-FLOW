@@ -885,3 +885,149 @@ Negatif OIR varyantları reddedilmelidir:
 
 Not: Bu test, handler ve doğrudan always bloğunun fonksiyon gövdesine inline/lower edilmiş kontrol akışı olduğunu esas alır. Handler'lar veya özel bloklar ayrı runtime fonksiyonlarına dönüştürülürse, bu dönüş davranışını koruyan çağrı/çıkış ABI'si ayrıca tanımlanmalıdır; mevcut test böyle bir ABI'yi varsaymaz.
 
+### 12.9 MR-OIR-004 — Always ve default aşama sırası
+
+**Amaç:** Normal handler'ların \`always\` aşamasından önce çalıştığını; \`always\` aşamasının her başarılı RuleSet uygulamasında yürütüldüğünü; \`default\` aşamasının ise yalnızca hiçbir normal trigger eşleşmediğinde ve \`always\` aşaması canlı bir yolla tamamlandığında çalıştığını doğrulamak.
+
+Bu test iki girdiyle aynı RuleSet'i çalıştırır. Kaynak biçiminde doğrudan bloklar kullanılır; isimli \`always -> Name\` / \`default -> Name\` trigger biçimleri ayrı bir testte doğrulanacaktır.
+
+Kaynak test:
+
+\`\`\`nexus
+rules ModeSelection(n) {
+    n > 0 -> Positive;
+
+    always {
+        echo("Always");
+    }
+
+    default {
+        echo("Default");
+    }
+}
+
+f:checkMode(n) {
+    apply rules(ModeSelection(n));
+    echo("Normal continuation");
+}
+\`\`\`
+
+#### Durum A — Normal trigger eşleşir
+
+Test girdisi: \`n = 5\`.
+
+Beklenen sıra:
+
+1. \`Positive\` trigger koşulu değerlendirilir ve eşleşir.
+2. \`on ModeSelection.Positive\` handler'ı varsa normal handler aşamasında çalışır.
+3. \`always\` doğrudan bloğu çalışır ve \`Always\` çıktısını üretir.
+4. Normal trigger eşleştiği için \`default\` bloğu çalışmaz.
+5. RuleSet tamamlanır ve fonksiyon normal akışına devam eder.
+
+Bu durum için kaynak testte handler bulunmadığından trigger eşleşmesi kaydedilir ancak handler çıktısı oluşmaz. Beklenen çıktı sırası:
+
+\`\`\`text
+Always
+Normal continuation
+\`\`\`
+
+#### Durum B — Hiçbir normal trigger eşleşmez
+
+Test girdisi: \`n = -5\`.
+
+Beklenen sıra:
+
+1. \`Positive\` trigger koşulu değerlendirilir ve eşleşmez.
+2. Normal handler aşaması boş geçilir.
+3. \`always\` doğrudan bloğu çalışır ve \`Always\` çıktısını üretir.
+4. Hiçbir normal trigger eşleşmediği için \`default\` doğrudan bloğu çalışır ve \`Default\` çıktısını üretir.
+5. RuleSet tamamlanır ve fonksiyon normal akışına devam eder.
+
+Beklenen çıktı sırası:
+
+\`\`\`text
+Always
+Default
+Normal continuation
+\`\`\`
+
+### 12.10 MR-OIR-004 CFG ve Verifier kontrolleri
+
+**Durum A için beklenen soyut CFG:**
+
+\`\`\`text
+TriggerEval_Positive -> matched_positive
+       |
+       v
+HandlerDispatchEntry
+       |
+       v
+AlwaysStage
+       |
+       v
+AlwaysDirectBlock
+       |
+       v
+DefaultEligibilityCheck
+       |
+       +-- normal_trigger_matched == true --> ApplyContinue
+       |
+       +-- normal_trigger_matched == false -> DefaultDirectBlock
+                                                |
+                                                v
+                                           ApplyContinue
+\`\`\`
+
+**Durum B için beklenen soyut CFG:**
+
+\`\`\`text
+TriggerEval_Positive -> matched_positive = false
+       |
+       v
+HandlerDispatchEntry
+       |
+       v
+AlwaysStage
+       |
+       v
+AlwaysDirectBlock
+       |
+       v
+DefaultEligibilityCheck
+       |
+       +-- normal_trigger_matched == true --> ApplyContinue
+       |
+       +-- normal_trigger_matched == false -> DefaultDirectBlock
+                                                |
+                                                v
+                                           ApplyContinue
+\`\`\`
+
+Durum A'da eligibility koşulu true, Durum B'de false olmalıdır. CFG iki yolu da temsil edebilir; yürütme testi verilen girdiye göre doğru yolu izlemelidir.
+
+Verifier ve yürütme altyapısı aşağıdakileri doğrulamalıdır:
+
+1. Normal trigger koşullarının tamamı \`always\` aşamasından önce değerlendirilmiş olmalıdır.
+2. Normal handler'lar varsa hepsi \`always\` aşamasından önce, kaynak sırasıyla yürütülmelidir.
+3. \`always\` doğrudan bloğu, bariyer aşaması başarılı olan her iki test girdisinde de tam bir kez çalışmalıdır.
+4. Default uygunluk kontrolü, normal trigger koşullarının SSA sonuçlarından türetilmelidir; koşullar yeniden değerlendirilmemelidir.
+5. Durum A'da en az bir normal trigger eşleştiği için \`DefaultDirectBlock\` yürütülmemelidir.
+6. Durum B'de hiçbir normal trigger eşleşmediği için \`DefaultDirectBlock\`, \`always\` bloğundan sonra tam bir kez çalışmalıdır.
+7. Her iki durumda da canlı RuleSet yolları \`ApplyContinue\` bloğuna ulaşmalıdır.
+8. \`always\` bloğunun normal çıkışı \`DefaultEligibilityCheck\` aşamasına bağlanmalıdır.
+9. \`default\` bloğunun normal çıkışı \`ApplyContinue\` bloğuna bağlanmalıdır.
+10. \`always\` bloğundan veya \`default\` bloğundan bir terminator ile çıkılmışsa, o yoldan sonraki aşamaya kenar oluşturulmamalıdır.
+
+Negatif OIR varyantları reddedilmelidir:
+
+- **MR-OIR-004-N1:** \`always\` bloğunun normal handler'lardan önce yürütülmesi.
+- **MR-OIR-004-N2:** Normal trigger eşleşmesine rağmen \`default\` bloğunun yürütülmesi.
+- **MR-OIR-004-N3:** Hiçbir normal trigger eşleşmediği halde \`default\` bloğunun atlanması.
+- **MR-OIR-004-N4:** \`default\` bloğunun \`always\` bloğundan önce yürütülmesi.
+- **MR-OIR-004-N5:** \`always\` veya \`default\` bloğunun birden fazla kez yürütülmesi.
+- **MR-OIR-004-N6:** Default uygunluk kontrolünün trigger koşullarını yeniden değerlendirmesi.
+- **MR-OIR-004-N7:** \`always\` bloğundaki terminator sonrasında \`default\` veya \`ApplyContinue\` bloğuna kenar bulunması.
+- **MR-OIR-004-N8:** \`default\` bloğundaki terminator sonrasında \`ApplyContinue\` bloğuna kenar bulunması.
+
+Bu test, doğrudan blok biçimlerinin aşama sırasını doğrular. İsimli özel trigger biçimlerinin (\`always -> Name;\`, \`default -> Name;\`) handler eşlemesi ve dispatch ayrıntıları bu testin kapsamı dışındadır.
+
