@@ -370,3 +370,146 @@ default {
 ```
 
 Bu ayrım, trigger bildirimi ile doğrudan aksiyon yürütülmesini birbirinden ayırır ve `on` handler modelini tutarlı kılar.
+
+
+---
+
+## 11. Multi-Rule OIR Control-Flow Tasarımı
+
+Bu bölüm, §9.7'deki kavramsal lowering şemasını gerçek CFG yapısına yaklaştırır. Buradaki işlem adları OIR tasarım seviyesindedir; nihai opcode adları ve runtime ABI henüz sabitlenmemiştir.
+
+### 11.1 ApplyRules kapsamı
+
+Her `apply rules(RuleSet(args))` çağrısı ayrı bir RuleSet uygulama kapsamı oluşturur:
+
+- Parametreler çağrı noktasında değerlendirilir ve RuleSet parametrelerine bağlanır.
+- Hata biriktiricisi ve normal trigger eşleşme durumu bu uygulamaya özeldir.
+- RuleSet'in bariyerleri ve trigger koşulları tanımlı kaynak sırasıyla değerlendirilir.
+- Başarısız uygulama, sonraki `apply rules` çağrılarına ve normal fonksiyon akışına geçemez.
+- Başarılı uygulama, handler ve isteğe bağlı always/default aşamalarını tamamladıktan sonra çağrı noktasındaki devam bloğuna bağlanır.
+
+RuleSet gövdesi bilinen bir derleme zamanı tanımı olduğundan, temel biçimde `apply rules` dinamik bir isim araması değildir. OIR Builder, RuleSet yapısını çağrı noktasında CFG bloklarına açar. Ortak kod üretimi daha sonra ayrı fonksiyonlara çıkarma optimizasyonu olarak değerlendirilebilir.
+
+### 11.2 Barrier CFG ve hata biriktirme
+
+Her uygulama için bir hata biriktiricisi başlatılır. Her bariyer kendi koşulunu değerlendirir:
+
+```text
+ApplyEntry
+  -> ErrorListCreate
+  -> BarrierCheck_0
+       true  -> ErrorAppend_0 -> BarrierCheck_1
+       false ----------------> BarrierCheck_1
+  -> ...
+  -> BarrierCheck_N
+       true  -> ErrorAppend_N -> BarrierComplete
+       false ----------------> BarrierComplete
+  -> ErrorListIsEmpty
+       true  -> TriggerEvaluationEntry
+       false -> ReportAllErrors -> RuleSetFailureExit
+```
+
+- `ErrorAppend`, bariyer kimliği, RuleSet kimliği, kaynak konumu ve hata mesajını içeren bir tanı kaydı ekler.
+- Hata mesajı ifadesi yalnızca ilgili bariyer koşulu doğruysa değerlendirilir.
+- Hiçbir bariyer, diğer bariyerlerin değerlendirilmesini kısa devre yapamaz.
+- `RuleSetFailureExit`, normal fonksiyon dönüşü değildir; fonksiyonun normal CFG yolunu sonlandıran hata çıkışıdır.
+
+`ErrorListCreate`, `ErrorAppend`, `ErrorListIsEmpty` ve `ReportAllErrors` şimdilik soyut OIR işlemleridir. Bunların runtime çağrısı, sabit boyutlu kayıt alanı veya başka bir temsil kullanacağı henüz belirlenmemiştir.
+
+### 11.3 Normal trigger değerlendirme ve kayıt
+
+Bariyerler hatasız tamamlandıktan sonra normal trigger koşulları değerlendirilir. Her trigger için koşul sonucu ayrı bir SSA boolean değeri olarak tutulabilir:
+
+```text
+TriggerEval_0 -> matched_0
+TriggerEval_1 -> matched_1
+...
+TriggerEval_N -> matched_N
+```
+
+- Bütün koşullar değerlendirilmeden hiçbir normal `on` handler çalıştırılmaz.
+- Her koşul yalnızca bir kez değerlendirilir; handler aşamasında koşul yeniden hesaplanmaz.
+- Trigger kimlikleri derleme zamanında çözülür. OIR içinde trigger adlarını metin olarak karşılaştırmak gerekmez.
+- Trigger eşleşme kümesi, statik olarak bilinen trigger kimlikleri ve SSA boolean değerleriyle temsil edilebilir. Dinamik liste/bitset ancak uygulama gerektirirse seçilir.
+- Handler tanımlanmamış bir trigger da eşleşmiş olarak kaydedilir; dışarıya nasıl sunulacağına ilişkin runtime arayüzü ayrıca tanımlanacaktır.
+
+### 11.4 Handler CFG
+
+Normal trigger koşullarının tamamı değerlendirildikten sonra, ilgili RuleSet'e bağlı `on` handler'ları kaynak kod sırasına göre işlenir:
+
+```text
+HandlerDispatchEntry
+  -> if matched_A then Handler_A else NextHandler
+  -> if matched_B then Handler_B else NextHandler
+  -> ...
+  -> AlwaysStage
+```
+
+Her handler için:
+
+- Koşul, ilgili trigger'ın daha önce hesaplanmış SSA boolean değeridir.
+- Eşleşme yoksa handler atlanır.
+- Eşleşme varsa handler gövdesi çalıştırılır.
+- Handler normal şekilde biterse sonraki handler'a geçilir.
+- Handler `return`, `break`, `continue` veya başka bir sonlandırıcı kontrol akışı üretirse CFG kuralları uygulanır; sonlandırılmış yoldan sonraki handler'a sahte bir kenar oluşturulmaz.
+- Handler'lar arasında canlı yollar gerekiyorsa merge/continuation blokları kullanılır.
+
+Parser, `on` bloklarını `apply rules` satırından sonra görebilir. Bu nedenle Analyzer, fonksiyon kapsamındaki handler bildirimlerini önce RuleSet/trigger çiftlerine bağlamalı; OIR Builder ise eşleşen gövdeleri ilgili `apply rules` noktasına yerleştirmelidir.
+
+### 11.5 Always ve Default aşamaları
+
+Normal handler aşaması tamamlandıktan sonra `always` aşaması gelir. Ardından, **hiçbir normal trigger eşleşmemişse**, `default` aşaması değerlendirilir.
+
+| Kaynak biçimi | OIR davranışı |
+|---|---|
+| `always -> Name;` | Always aşamasında Name trigger'ını eşleşmiş olarak kaydet; varsa `on RuleSet.Name` handler'ını çalıştır. |
+| `always { ... }` | Always aşamasında doğrudan blok gövdesini çalıştır. |
+| `default -> Name;` | Normal trigger eşleşmesi yoksa Default aşamasında Name trigger'ını kaydet; varsa handler'ını çalıştır. |
+| `default { ... }` | Normal trigger eşleşmesi yoksa Default aşamasında doğrudan blok gövdesini çalıştır. |
+
+`always` ve `default` ok biçimleri de normal trigger'lar gibi metin adıyla runtime araması yapmaz; Analyzer tarafından sabit trigger kimliğine bağlanır. Bu özel aşamaların handler'ları normal handler kuyruğuna karıştırılmaz: `always` normal handler'lardan sonra, `default` ise `always` aşamasından sonra çalışır.
+
+### 11.6 Devam ve hata çıkışları
+
+Başarılı bir RuleSet uygulamasının bütün canlı yolları `ApplyContinue` bloğuna bağlanır. Bu blok, kaynak fonksiyondaki `apply rules` satırından sonraki normal CFG bloğudur.
+
+Bariyer hatası yolu ise `ApplyContinue` bloğuna bağlanmaz. Hatalar raporlandıktan sonra normal fonksiyon akışı sonlandırılır. Hata çıkışının kesin ABI karşılığı (exception, error result, runtime trap veya platforma özgü hata aktarımı) bu spesifikasyonda henüz seçilmemiştir. Bu karar verilene kadar OIR'de ayrı bir `RuleSetFailureExit` terminator/çıkış sınıfı olarak modellenir; normal `RETURN` ile karıştırılmaz.
+
+### 11.7 Analyzer ve AST ayrıntısı
+
+`always` ve `default` düğümleri yalnızca genel bir `Action` alanına indirgenmemelidir. AST, ok biçimi ile doğrudan blok biçimini ayırt etmelidir:
+
+```text
+AST_RULE_ACTION {
+    Kind: TRIGGER | DIRECT_BLOCK
+    TriggerName? 
+    Body?
+    SourceOrder
+}
+
+AST_ALWAYS  { RuleAction }
+AST_DEFAULT { RuleAction }
+```
+
+Analyzer şu ek doğrulamaları yapar:
+
+- `always -> Name` ve `default -> Name` biçimindeki adlar, ilgili RuleSet kapsamındaki trigger kimliklerine dahil edilir.
+- Bu isimler normal trigger adlarıyla çakışamaz.
+- `always` veya `default` için ok biçimi ve blok biçimi birlikte kullanılamaz.
+- Her özel anahtar en fazla bir kez tanımlanabilir.
+- Özel trigger için yazılmış `on RuleSet.Name` handler'ı da aynı tekil handler ve tip/kapsam kontrollerine tabidir.
+
+### 11.8 Lowering özeti
+
+OIR Builder'ın uygulama başına üretmesi gereken CFG aşamaları:
+
+1. Parametre bağlama ve hata biriktiricisi oluşturma.
+2. Bütün bariyer koşulları ve koşullu hata kayıtları.
+3. Tek bir toplu hata kontrolü ve ayrı başarısızlık çıkışı.
+4. Bütün normal trigger koşullarının bir kez değerlendirilmesi.
+5. Normal handler'ların kaynak sırasıyla koşullu yürütülmesi.
+6. İsteğe bağlı always trigger/handler veya doğrudan always bloğu.
+7. Normal trigger eşleşmesi yoksa isteğe bağlı default trigger/handler veya doğrudan default bloğu.
+8. Canlı başarılı yolların ApplyContinue bloğunda birleştirilmesi.
+
+Bu lowering, mevcut OIR terminator modelindeki `BRANCH`, `JUMP` ve `RETURN` ile; hata çıkışı için ayrıca tanımlanacak hata terminator sınıfıyla ifade edilir. Her handler ve koşul bloğunun SSA tanımları/kullanımları normal dominance ve block-parameter doğrulamasına tabidir.
