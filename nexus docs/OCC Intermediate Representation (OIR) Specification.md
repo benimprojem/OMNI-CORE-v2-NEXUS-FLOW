@@ -875,3 +875,35 @@ OIR cleanup zinciri best-effort ve tamamlama garantilidir: tek bir defer veya re
 Defer gövdesinde non-local terminator, ?;, }?;, nested defer veya yeni sahip olunan kaynak edinimi yasaktır. Hata üreten çağrılar mevcut ?-> ile yerel olarak ele alınabilir; ele alınmadan defer dışına çıkan hata cleanup hatası olur. Analyzer dolaylı çağrılardaki etkileri doğrulayamadığında çağrıyı reddeder.
 
 Bu sözleşme OIR'nin en azından defer kayıt yığını, scope activation kimliği, ownership state, cleanup hata biriktiricisi ve pending outcome bilgisini temsil etmesini gerektirir. Bunlar soyut semantik alanlardır; binary field/opcode isimleri format sözleşmesinde belirlenir.
+
+### 12.13 Defer/cleanup OIR kayıt modeli ve CFG lowering (MR-OIR-021)
+
+OIR 1.1 defer/cleanup içeren artifact'lar için zorunlu formattır. OIR 1.0, defer/cleanup kaydı içermeyen legacy artifact'lar için okunabilir kalır. OIR 1.0 içinde defer kaydı veya defer feature flag'i bulunursa Reader/Verifier reddeder. OIR 1.1 içinde zorunlu kayıt/alan eksikse Reader/Verifier reddeder; bilinmeyen zorunlu feature sessizce atlanamaz.
+
+Kanonik kayıtlar:
+
+- **ScopeActivation:** activation_id, parent_activation_id, function_id, lexical_scope_id, state, defer_head, resource_head, pending_outcome, cleanup_error_head.
+- **DeferRecord:** record_id, activation_id, sequence_no, body_id, environment_ref, previous_record, state, error_slot.
+- **OwnedResourceRecord:** resource_id, activation_id, sequence_no, resource_handle, owner_symbol_id, state, previous_record, error_slot.
+- **CleanupErrorRecord:** error_id, activation_id, sequence_no, origin_kind, origin_id, source_location, error_code, payload_ref.
+- **PendingOutcome:** NORMAL(target/value), ERROR(error), PANIC(payload) veya EXPLICIT_HALT(reason/diagnostic target).
+
+Kanonik semantik işlemler: SCOPE_ENTER, DEFER_PUSH, RESOURCE_OWN, OWNERSHIP_TRANSFER, SCOPE_UNWIND, DEFER_POP, DEFER_INVOKE, RESOURCE_RELEASE_NEXT, RESOURCE_RELEASE, CLEANUP_ERROR_APPEND, SCOPE_CLOSE ve OUTCOME_RESUME.
+
+CFG lowering kuralları:
+
+1. RETURN, BREAK, CONTINUE, ancestor-scope JUMP, hata, panic ve explicit halt dahil scope terk eden tüm kenarlar SCOPE_UNWIND üzerinden geçer.
+2. Activation önce CLEANING_DEFERS olur; defer kayıtları sequence_no azalan sırada pop edilip çalıştırılır.
+3. Defer normal tamamlanırsa COMPLETED, hata/panic üretirse FAILED olur; her iki durumda da sıradaki kayıt çalıştırılır.
+4. Defer stack boşalınca CLEANING_RESOURCES aşamasına geçilir. Owned resource kayıtları ters edinim sırasıyla bırakılır.
+5. Her kaynak release öncesinde RELEASE_ATTEMPTED olur; sonuç RELEASED veya RELEASE_FAILED olur. Aynı unwind'da tekrar denenmez.
+6. Tüm kayıtlar tüketilince SCOPE_CLOSE ve ardından OUTCOME_RESUME çalışır. Dış scope terk ediliyorsa önce dış activation cleanup edilir.
+7. Paylaşılan cleanup CFG'si farklı PendingOutcome veya continuation değerlerini karıştıramaz.
+
+Dinamik kayıtlar genel heap yerine thread başına önceden ayrılmış sabit kapasiteli CleanupArena içinde tutulur. Arena segmentlidir ve kayıtlar indeks/referansla bağlanır. Kapasite target konfigürasyonundan gelir; dilin semantik defer sayısına sabit üst sınır koymaz. Kapasite dolarsa DEFER_PUSH atomik olarak başarısız olur, yarım kayıt bırakmaz, DEFER_CAPACITY üretir ve daha önce geçerli kaydedilmiş cleanup işlemleri çalışır. Cleanup error slotları kayıtlarla birlikte ayrıldığından cleanup sırasında hata biriktirmek için heap gerekmez.
+
+Writer OIR 1.1 header/feature alanlarını, record tablolarını, relocation/handle referanslarını, source mapping'i ve kararlı sequence değerlerini yazar. Süreç adresleri artifact'a ham pointer olarak yazılmaz. Reader önce tabloları okur, ikinci geçişte referansları çözer ve eksik/yanlış türde referansları reddeder. Round-trip mantıksal record graph, sıra ve CFG'yi korur.
+
+Verifier; activation parent zinciri, benzersiz kimlikler, sequence sırası, body/environment geçerliliği, defer stack zinciri, tekil resource owner, ownership state geçişleri, cleanup bypass bulunmaması, defer-before-resource sırası, error slot sahipliği, PendingOutcome/CFG argüman uyumu, sürüm/feature uyumu ve yasak defer terminator/etkilerini kontrol eder.
+
+Optimizer cleanup sırasını, activation ve ownership bağlarını, hata yollarını, PendingOutcome ve source mapping'i korur. Cleanup blokları yalnızca activation, pending outcome türü, cleanup state ve continuation sözleşmesi aynıysa birleştirilebilir. Farklı exit outcome'ları aynı cleanup kodunu paylaşsa bile outcome değerleri ayrı kalır.
