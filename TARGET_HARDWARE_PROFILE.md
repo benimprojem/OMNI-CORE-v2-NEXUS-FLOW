@@ -212,7 +212,8 @@ Other device kinds stay in the schema from the beginning so future programmable 
 - [x] Initial normalized v2 C data model added under `omnicore-sdk/src/c/target/target_profile.h`.
 - [x] Structural validator added in `target_profile.c` for schema version, bounded table counts, device/resource identity uniqueness, memory ownership references, interconnect endpoints, CPU capability requirements and platform ABI/alignment fields.
 - [x] The profile model is integrated as the `occ_target_profile` CMake static library.
-- [x] Bounded initial v2 text parser for one platform + one CPU record, with strict keys, duplicate-key and duplicate-list-token rejection, bounded lines, schema major/minor checks, explicit exact-machine rejection and validator handoff.
+- [x] Bounded initial v2 text parser for one platform + one CPU record, with strict keys, duplicate-key/section/list-token rejection, bounded lines, schema major/minor checks, explicit exact-machine rejection and validator handoff.
+- [x] Focused CTest regression target covering a real family descriptor, explicit schema minor, duplicate/empty list tokens, repeated sections, exact-machine rejection and unsupported schema minor.
 - [x] Initial OS/BareMetal v2 descriptor files for Windows, Linux, macOS AArch64 and BareMetal.
 - [ ] Canonical serializer and repeated device/memory/interconnect tables.
 - [ ] Target OIR artifact writer/reader and module handoff.
