@@ -631,3 +631,91 @@ Aşağıdaki bozuk CFG varyantları reddedilmelidir:
 - **OIR yürütme/simülasyon testi:** `(-1, -2, -3)` girdisiyle üç hata kaydının oluşması ve trigger/normal akışın çalışmaması.
 
 Bir testin başarıyla derlenmesi, tek başına runtime davranışının doğrulandığı anlamına gelmez. Her test katmanı kendi sonucunu ayrı raporlamalıdır.
+
+
+### 12.5 MR-OIR-002 — Birden fazla trigger eşleşmesi ve handler sırası
+
+**Amaç:** Birden fazla trigger koşulu doğru olduğunda bütün trigger'ların kaydedildiğini; handler'ların ise trigger tanım sırasına göre değil, fonksiyon içindeki `on` bloklarının kaynak sırasına göre çalıştığını doğrulamak.
+
+Kaynak test:
+
+```nexus
+rules NumberModes(n) {
+    n > 0 -> Positive;
+    n % 2 == 0 -> Even;
+}
+
+f:checkNumber(n) {
+    apply rules(NumberModes(n));
+
+    on NumberModes.Even {
+        echo("Even handler");
+    }
+
+    on NumberModes.Positive {
+        echo("Positive handler");
+    }
+
+    echo("Normal flow");
+}
+```
+
+Test girdisi: `n = 4`.
+
+Beklenen değerlendirme:
+
+| Sıra | Trigger | Koşul | Sonuç |
+|---|---|---|---|
+| 1 | Positive | `n > 0` | true |
+| 2 | Even | `n % 2 == 0` | true |
+
+İki trigger da eşleşme kümesine eklenir. Her koşul yalnızca bir kez değerlendirilir. Bütün trigger koşulları tamamlanmadan handler yürütmesi başlamaz.
+
+Beklenen handler sırası, fonksiyondaki `on` bloklarının kaynak sırasıdır:
+
+1. `Even handler`
+2. `Positive handler`
+3. `Normal flow`
+
+Bu test özellikle trigger tanım sırası ile handler kaynak sırasının farklı seçilmesiyle hazırlanmıştır. Böylece iki sıranın yanlışlıkla birbirine bağlanması yakalanır.
+
+Beklenen soyut OIR:
+
+```text
+TriggerEval_Positive -> matched_positive
+TriggerEval_Even     -> matched_even
+       |
+       v
+HandlerDispatchEntry
+       |
+       v
+BRANCH matched_even
+  true  -> Handler_Even -> Handler_Positive_Check
+  false ----------------> Handler_Positive_Check
+                              |
+                              v
+                       BRANCH matched_positive
+                         true  -> Handler_Positive -> NormalFlow
+                         false --------------------> NormalFlow
+```
+
+### 12.6 MR-OIR-002 Verifier ve yürütme kontrolleri
+
+1. Her trigger koşulu için bir değerlendirme sonucu üretilmeli ve SSA değeri tanımlanmalıdır.
+2. İki trigger koşulu da değerlendirilmeden ilk handler bloğuna erişilmemelidir.
+3. Handler dispatch, ilgili trigger'ın daha önce hesaplanmış SSA boolean değerini kullanmalıdır.
+4. Handler koşulu için trigger ifadesi tekrar hesaplanmamalıdır.
+5. Handler bloklarının sırası kaynak koddaki `on` sırasıyla aynı olmalıdır.
+6. Handler'ın canlı normal çıkışı sıradaki handler kontrolüne bağlanmalıdır.
+7. İki trigger da eşleştiğinde iki handler da tam bir kez çalışmalıdır.
+8. Her iki handler tamamlandıktan sonra normal fonksiyon akışı sürmelidir.
+
+Negatif varyantlar:
+
+- **MR-OIR-002-N1:** İlk handler, bütün trigger koşulları değerlendirilmeden çalıştırılıyor.
+- **MR-OIR-002-N2:** Handler dispatch, SSA sonucunu kullanmak yerine trigger koşulunu yeniden değerlendiriyor.
+- **MR-OIR-002-N3:** Handler'lar kaynak sırasının tersine veya trigger tanım sırasına göre çalıştırılıyor.
+- **MR-OIR-002-N4:** Aynı eşleşmiş trigger handler'ı iki kez çalıştırılıyor.
+- **MR-OIR-002-N5:** Bir handler normal tamamlandığı halde sonraki handler kontrolüne CFG kenarı bulunmuyor.
+
+Test girdisi `n = 4` için beklenen çıktı sırası kesin olarak `Even handler`, `Positive handler`, `Normal flow` şeklindedir.
