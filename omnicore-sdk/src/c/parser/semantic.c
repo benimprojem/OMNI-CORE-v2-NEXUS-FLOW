@@ -633,15 +633,11 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
 }
 
 static int semantic_is_boolean_condition(SemanticContext* ctx, ASTNode* node) {
+    const char* type_name;
     if (!node) return 0;
     if (node->type == AST_LITERAL) {
         ASTLiteral* literal = (ASTLiteral*)node;
         return literal->type == TOKEN_TRUE || literal->type == TOKEN_FALSE;
-    }
-    if (node->type == AST_IDENTIFIER) {
-        const char* type_name = get_expr_type(ctx, node);
-        return type_name && strcmp(type_name[0] == '!' ? type_name + 1 : type_name,
-            "bool") == 0;
     }
     if (node->type == AST_UNARY_EXPR) {
         ASTUnaryExpr* unary = (ASTUnaryExpr*)node;
@@ -650,6 +646,10 @@ static int semantic_is_boolean_condition(SemanticContext* ctx, ASTNode* node) {
     }
     if (node->type == AST_BINARY_EXPR) {
         ASTBinaryExpr* binary = (ASTBinaryExpr*)node;
+        if (binary->op == TOKEN_AND || binary->op == TOKEN_OR) {
+            return semantic_is_boolean_condition(ctx, binary->left) &&
+                semantic_is_boolean_condition(ctx, binary->right);
+        }
         switch (binary->op) {
             case TOKEN_EQ:
             case TOKEN_NEQ:
@@ -657,14 +657,13 @@ static int semantic_is_boolean_condition(SemanticContext* ctx, ASTNode* node) {
             case TOKEN_LT:
             case TOKEN_GTE:
             case TOKEN_LTE:
-            case TOKEN_AND:
-            case TOKEN_OR:
                 return 1;
             default:
                 return 0;
         }
     }
-    return 0;
+    type_name = get_expr_type(ctx, node);
+    return type_name && strcmp(type_name[0] == '!' ? type_name + 1 : type_name, "bool") == 0;
 }
 
 void semantic_check(SemanticContext* ctx, ASTNode* node) {
@@ -937,6 +936,8 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR);
 
             const char* prev_return_type = ctx->current_func_return_type;
+            unsigned int prev_loop_depth = ctx->loop_depth;
+            ctx->loop_depth = 0u;
             ctx->current_func_return_type = func->return_type;
             enter_scope(ctx, node);
             if (func->params) semantic_check(ctx, func->params);
@@ -968,6 +969,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             if (func->body) semantic_check(ctx, func->body);
             exit_scope(ctx);
             ctx->current_func_return_type = prev_return_type;
+            ctx->loop_depth = prev_loop_depth;
             break;
         }
 
