@@ -35,8 +35,7 @@ static uint32_t test_resolve_node_id(void* user_context, const ASTNode* node) {
     return oir_ast_frontend_index_lookup(resolver->entries, resolver->capacity, node);
 }
 
-static int test_real_frontend_to_module(void) {
-    static const uint8_t source[] = "f:main() !i32 { ret 42; }";
+static int test_real_frontend_to_module(const uint8_t* source, size_t source_length, int arithmetic) {
     ParserContext* parser = NULL;
     SemanticContext semantic;
     OirAstPointerIndexEntry index[64];
@@ -56,10 +55,10 @@ static int test_real_frontend_to_module(void) {
     OirModuleType module_types[2];
     OirModuleFunction functions[1];
     OirModuleBlock blocks[1];
-    OirModuleValue values[1];
-    OirModuleInstruction instructions[2];
-    OirModuleOperand operands[2];
-    uint8_t module_strings[32], module_bytes[2048];
+    OirModuleValue values[16];
+    OirModuleInstruction instructions[32];
+    OirModuleOperand operands[64];
+    uint8_t module_strings[64], module_bytes[4096];
     size_t module_length = 0u;
     OirModuleView module;
     int ok = 0;
@@ -68,7 +67,7 @@ static int test_real_frontend_to_module(void) {
     memset(&semantic, 0, sizeof(semantic));
     memset(&workspace, 0, sizeof(workspace));
     memset(&artifact, 0, sizeof(artifact));
-    parser = parser_init_source("real-lowering.nxf", source, sizeof(source) - 1u);
+    parser = parser_init_source("real-lowering.nxf", source, source_length);
     if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
         parser_get_status(parser) != PARSER_STATUS_OK || !parser->ast_root)
         goto cleanup;
@@ -109,11 +108,11 @@ static int test_real_frontend_to_module(void) {
     workspace.types = module_types; workspace.type_capacity = 2u;
     workspace.functions = functions; workspace.function_capacity = 1u;
     workspace.blocks = blocks; workspace.block_capacity = 1u;
-    workspace.values = values; workspace.value_capacity = 1u;
-    workspace.instructions = instructions; workspace.instruction_capacity = 2u;
-    workspace.operands = operands; workspace.operand_capacity = 2u;
+    workspace.values = values; workspace.value_capacity = 16u;
+    workspace.instructions = instructions; workspace.instruction_capacity = 32u;
+    workspace.operands = operands; workspace.operand_capacity = 64u;
     workspace.strings = module_strings; workspace.string_capacity = sizeof(module_strings);
-    if (oir_lower_semantic_ast_literal_return(&artifact, &workspace,
+    if (oir_lower_semantic_ast_return(&artifact, &workspace,
             module_bytes, sizeof(module_bytes), &module_length) != OIR_STATUS_OK ||
         oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
         goto cleanup;
