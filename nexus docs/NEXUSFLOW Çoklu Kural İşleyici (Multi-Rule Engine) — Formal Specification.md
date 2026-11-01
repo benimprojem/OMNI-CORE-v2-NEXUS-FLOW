@@ -2258,7 +2258,7 @@ Bu senaryoda ortak hedefe birden fazla giriş bulunur. Her giriş kendi kontrol 
 Aşağıdaki örnek NEXUS Flow kaynak sözdizimini kullanır. Koşullu jump gerçekleşmezse akış bir sonraki koşula, sonrasında da varsayılan yola ilerler:
 
 ```nexus
-f:testMultiEntry(flag)!i32 {
+f:testMultiEntry(flag:i32)!i32 {
     v:i = 0;
 
     (flag == 1) ? jump(pathA);
