@@ -811,7 +811,7 @@ OIR, her lexical scope aktivasyonu için defer kayıtlarını ve yürütülme s�
 7. İç içe scope'lar terk edilirken önce en içteki scope'un defer kayıtları LIFO sırasıyla, ardından o scope'un otomatik cleanup'ı yürütülür; sonra dış scope kapanışına geçilir.
 8. Defer gövdeleri non-local terminator üretemez; nested defer bu sürümde reddedilir.
 9. Optimizer defer kayıtlarının etkinleşme noktasını, LIFO sırasını, scope activation bağını ve cleanup sırasını korumalıdır.
-10. Defer gövdesindeki hata/panic ve cleanup hatası politikası açık alt sözleşmedir; Builder sahte normal continuation üretemez.
+10. Defer gövdesindeki hata/panic ve cleanup hata politikası MR-OIR-020'de tanımlıdır; Builder ve Optimizer bu sözleşmeye uygun unwind CFG'si üretir.
 
 Kavramsal scope-exit sırası:
 
@@ -834,7 +834,7 @@ Defer ifadesine yürütme sırasında her ulaşıldığında, o anda etkin olan 
 3. Loop body bir block scope ise her iterasyon yeni body activation'ı oluşturur; iterasyon sonunda o activation'ın defer kayıtları ve otomatik kaynak cleanup'ı çalışır.
 4. Aynı activation içinde backward JUMP ile defer ifadesine yeniden ulaşılırsa yeni kayıt eklenir; daha önceki kayıtlar korunur.
 5. OIR kayıt kimliği, kayıt sırası ve scope activation ilişkisini korumalıdır.
-6. Deferred body'nin hangi değişken değerlerini hangi anda gözlemlediği (referans/capture modeli) ayrı sözleşmedir; bu bölüm onu sabitlemez.
+6. Defer değişkenlerinin live-binding modeli MR-OIR-019'da tanımlanmıştır; bu bölüm dinamik kayıt ve activation sınırlarını tanımlar.
 
 ### 12.11 Defer değişken bağları ve ownership doğrulaması (MR-OIR-019)
 
