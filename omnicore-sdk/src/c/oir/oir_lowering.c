@@ -9,10 +9,10 @@
 #define AST_LITERAL 13u
 #define AST_RETURN 26u
 
-#define TOKEN_NUMBER 3u
-#define TOKEN_TRUE 6u
-#define TOKEN_FALSE 7u
-#define TOKEN_KW_RET 8u
+#define OIR_TOKEN_NUMBER 4u
+#define OIR_OIR_TOKEN_TRUE 7u
+#define OIR_OIR_TOKEN_FALSE 8u
+#define OIR_OIR_TOKEN_KW_RET 9u
 
 static uint32_t rd32(const uint8_t* p) {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
