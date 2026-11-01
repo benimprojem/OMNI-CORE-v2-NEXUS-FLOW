@@ -155,6 +155,10 @@ This slice is a bring-up target for the artifact-to-module path, not a claim tha
 
 The AST schema preserves the declared return-type spelling, while the semantic tables preserve canonical type records. Lowering must cross-check both sources; it must not infer a canonical type solely from the spelling. The initial implementation must also reject a semantic type whose primitive width/signedness mapping is not explicitly registered. This avoids accidentally treating the C frontend's current type spelling rules as the final NEXSUS Flow numeric contract.
 
+## 3.2 Arithmetic semantic gate
+
+The semantic checker now performs a deliberately conservative check for arithmetic binary expressions: both operands must resolve to the same primitive numeric type. The current check does not implement the full NEXSUS Flow numeric promotion/conversion lattice, and it does not authorize implicit widening or narrowing. Lowering must continue to require validated annotations and reject any type combination not explicitly represented in the semantic artifact. The OIR arithmetic pass remains pending.
+
 ## 4. Fail-closed lowering behavior
 
 For every AST node in the input semantic artifact, the lowerer must do exactly one of the following:
@@ -205,6 +209,7 @@ The legacy AST-walking code generator may remain temporarily available for compa
 - [x] Constant opcode immediate contract: integer, IEEE-754 binary64 and boolean constants carry typed immediate operands.\n- [x] Initial semantic primitive-to-OIR type mapping for i8/i16/i32/i64, u8/u16/u32/u64, f32/f64 and bool, preserving hard/const qualifiers; unsupported primitive representations are rejected.
 - [x] Initial scalar IR lowering pass: one parameterless function with one typed integer/float/bool literal return; caller-owned workspace; validated OIR_MODULE writer round-trip.
 - [x] Real frontend-to-lowering integration test: Lexer/Parser AST -> semantic analysis -> validated SEMANTIC_AST artifact -> OIR_MODULE payload. Stable OIR token IDs are used at the artifact boundary, and hard return qualifiers are checked against the function's semantic type annotation.
+- [x] Semantic arithmetic operand validation: arithmetic binary expressions now require matching primitive numeric operand types; mixed types and nonnumeric operands are rejected before lowering. Covered by `test_semantic_arithmetic`.
 - [ ] Recursive arithmetic expression lowering and broader scalar function coverage.
 - [ ] Independent IR Lowering DLL and OCC handoff.
 
