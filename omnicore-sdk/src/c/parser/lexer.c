@@ -343,22 +343,17 @@ Token lexer_next_token(ParserContext* ctx) {
     // --- Tanımlayıcılar (Identifiers) ---
     if (isalpha((unsigned char)c) || c == '_') {
         while (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_' || peek(ctx) == ':') {
-            // Fix: Only consume ':' if it is followed by an alphanumeric char or '_' (Prefix style)
             if (peek(ctx) == ':') {
-                // Special case for "nt:" to allow "nt: struct"
                 size_t len = (size_t)(&ctx->source_buffer[ctx->pos] - start);
-                if (len == 2 && start[0] == 'n' && start[1] == 't') {
-                    // Allow consuming ':' for nt: prefix even if followed by space
-                } 
-                // Allow single char prefixes (v:, c:, f:, etc.) followed by space
-                else if (len == 1 && strchr("vcmrtof", start[0])) {
-                    // Allow consuming ':'
-                } else {
-                    char next = peek_next(ctx, 1);
-                    if (!(isalnum((unsigned char)next) || next == '_')) {
-                        break; 
-                    }
-                }
+                int is_prefix =
+                    (len == 1u && strchr("vcmrtof", start[0]) != NULL) ||
+                    (len == 2u && start[0] == 'n' && start[1] == 't') ||
+                    (len == 3u && memcmp(start, "exf", 3u) == 0) ||
+                    (len == 4u && memcmp(start, "enum", 4u) == 0) ||
+                    (len == 5u && memcmp(start, "union", 5u) == 0) ||
+                    (len == 6u && memcmp(start, "struct", 6u) == 0);
+                /* Colons in ordinary identifiers separate grammar fields, e.g. a:f32. */
+                if (!is_prefix) break;
             }
             advance(ctx);
         }
