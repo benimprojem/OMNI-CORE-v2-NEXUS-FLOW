@@ -12,6 +12,7 @@
 #include "oir_ast_graph.h"
 
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
 static void put16(uint8_t* p, uint16_t v) { p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8); }
@@ -115,10 +116,13 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
     workspace.instructions = instructions; workspace.instruction_capacity = 32u;
     workspace.operands = operands; workspace.operand_capacity = 64u;
     workspace.strings = module_strings; workspace.string_capacity = sizeof(module_strings);
-    if (oir_lower_semantic_ast_return(&artifact, &workspace,
-            module_bytes, sizeof(module_bytes), &module_length) != OIR_STATUS_OK ||
-        oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
-        goto cleanup;
+    {
+        OirStatus lower_status=oir_lower_semantic_ast_return(&artifact,&workspace,
+            module_bytes,sizeof(module_bytes),&module_length);
+        if(lower_status!=OIR_STATUS_OK) { fprintf(stderr,"frontend generic lower status=%d\\n",(int)lower_status); goto cleanup; }
+        lower_status=oir_module_open(module_bytes,module_length,&module);
+        if(lower_status!=OIR_STATUS_OK) { fprintf(stderr,"frontend module open status=%d\\n",(int)lower_status); goto cleanup; }
+    }
     if (module.type_count != 2u || module.function_count != 1u) goto cleanup;
     {
         OirModuleType return_type;
