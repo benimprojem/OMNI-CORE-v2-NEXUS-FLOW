@@ -1,6 +1,7 @@
 #include "oir_lowering.h"
 #include "oir_type_map.h"
 #include <string.h>
+#include <stdio.h>
 
 #define N_PROGRAM 1u
 #define N_BLOCK 2u
@@ -449,8 +450,8 @@ OirStatus oir_lower_semantic_ast_return(
     if ((s=token(&a->ast,ret_id,1u,&ret_tok))!=OIR_STATUS_OK || ret_tok!=T_RET ||
         (s=ref(&a->ast,ret_id,2u,&expr_id))!=OIR_STATUS_OK || !expr_id)
         return OIR_STATUS_INVALID_SECTION;
-    if ((s=lower_expr(&st,expr_id,&value_id,0u))!=OIR_STATUS_OK) return s;
-    if ((s=alloc_inst(&st,1u,&ret_iid,&ret_first))!=OIR_STATUS_OK) return s;
+    if ((s=lower_expr(&st,expr_id,&value_id,0u))!=OIR_STATUS_OK) { fprintf(stderr,"lower_expr failed %d\\n",(int)s); return s; }
+    if ((s=alloc_inst(&st,1u,&ret_iid,&ret_first))!=OIR_STATUS_OK) { fprintf(stderr,"alloc_inst failed %d\\n",(int)s); return s; }
     memset(&w->instructions[ret_iid-1u],0,sizeof(w->instructions[0]));
     w->instructions[ret_iid-1u].id=ret_iid;
     w->instructions[ret_iid-1u].block_id=1u;
@@ -472,5 +473,5 @@ OirStatus oir_lower_semantic_ast_return(
     m.instructions=w->instructions; m.instruction_count=st.instructions;
     m.operands=w->operands; m.operand_count=st.operands;
     m.strings=w->strings; m.strings_length=fname_len;
-    return oir_module_write(output,capacity,&m,written);
+    s=oir_module_write(output,capacity,&m,written); if(s!=OIR_STATUS_OK) fprintf(stderr,"module_write failed %d\\n",(int)s); return s;
 }
