@@ -1364,3 +1364,139 @@ Analyzer, OIR Builder ve Verifier negatif testleri:
 
 Bu test, çağrıların sıralı kontrol akışını ve uygulama kapsamlarının ayrılığını tanımlar. RuleSet'ler arası transaction, rollback veya hata kurtarma davranışı bu testin kapsamında değildir; ayrıca tasarlanmadıkça böyle bir davranış varsayılmaz.
 
+### 12.15 MR-OIR-007 — Aynı RuleSet'in farklı parametrelerle tekrar uygulanması
+
+**Amaç:** Aynı fonksiyon içinde aynı RuleSet'e yapılan birden fazla `apply rules` çağrısının her birinin kendi argüman değerleri, trigger eşleşme sonuçları ve handler dispatch kapsamıyla çalıştığını doğrulamak. Bir `on RuleSet.Trigger` handler tanımı, aynı fonksiyon kapsamındaki ilgili RuleSet uygulamalarının her biri için kullanılabilir; ancak handler'ın çalışıp çalışmayacağı her uygulamanın kendi trigger sonucuna bağlıdır.
+
+Kaynak test:
+
+```nexus
+rules ThresholdMode(value) {
+    value >= 10 -> High;
+    value < 10 -> Low;
+}
+
+f:checkTwoValues(first, second) {
+    apply rules(ThresholdMode(first));
+    apply rules(ThresholdMode(second));
+
+    on ThresholdMode.Low {
+        echo("Low handler");
+    }
+
+    on ThresholdMode.High {
+        echo("High handler");
+    }
+
+    echo("Normal continuation");
+}
+```
+
+#### Durum A — İki çağrıda farklı trigger eşleşir
+
+Test girdisi: `first = 15`, `second = 4`.
+
+Beklenen yürütme:
+
+1. İlk çağrı `ThresholdMode(first)`, `first` argümanını kendi çağrı noktasında değerlendirir.
+2. İlk uygulamanın `High` koşulu doğru, `Low` koşulu yanlış olur.
+3. İlk uygulama için yalnızca `High` handler'ı çalışır.
+4. İkinci çağrı `ThresholdMode(second)), `second` argümanını kendi çağrı noktasında değerlendirir.
+5. İkinci uygulamanın `High` koşulu yanlış, `Low` koşulu doğru olur.
+6. İkinci uygulama için yalnızca `Low` handler'ı çalışır.
+7. Her iki uygulama başarılı tamamlandığından fonksiyon normal akışına devam eder.
+
+Handler tanımlarının kaynak sırası `Low` sonra `High` olmasına rağmen ilk çağrının `High` handler'ı, ikinci çağrının `Low` handler'ı kendi uygulama noktasında yürütülür. Handler kaynak sırası yalnızca aynı uygulamada birden fazla handler eşleştiğinde aralarındaki sırayı belirler.
+
+Beklenen çıktı:
+
+```text
+High handler
+Low handler
+Normal continuation
+```
+
+#### Durum B — Aynı trigger iki ayrı çağrıda da eşleşir
+
+Test girdisi: `first = 12`, `second = 20`.
+
+Beklenen çıktı:
+
+```text
+High handler
+High handler
+Normal continuation
+```
+
+Bu durum, aynı trigger kimliğinin iki farklı uygulamada eşleşmesinin tek bir global eşleşmeye indirgenmediğini ve handler'ın her uygulama için ayrı yürütüldüğünü doğrular.
+
+#### Durum C — İlk çağrıda eşleşen trigger, ikinci çağrıda eşleşmez
+
+Test girdisi: `first = 18`, `second = 2`.
+
+Beklenen çıktı:
+
+```text
+High handler
+Low handler
+Normal continuation
+```
+
+Bu durum, ilk çağrının `High` eşleşme bilgisinin ikinci çağrıya sızmadığını; ikinci çağrının kendi `Low` sonucunu kullandığını doğrular.
+
+### 12.16 MR-OIR-007 CFG ve Verifier kontrolleri
+
+**Durum A için beklenen soyut CFG:**
+
+```text
+Apply_ThresholdMode_0(first)
+  -> BindArgs_0
+  -> Eval_High_0 -> matched_high_0
+  -> Eval_Low_0  -> matched_low_0
+  -> HandlerDispatch_0
+       -> matched_high_0 ? HighHandler : NextHandler
+       -> matched_low_0  ? LowHandler  : Apply_ThresholdMode_1
+
+Apply_ThresholdMode_1(second)
+  -> BindArgs_1
+  -> Eval_High_1 -> matched_high_1
+  -> Eval_Low_1  -> matched_low_1
+  -> HandlerDispatch_1
+       -> matched_high_1 ? HighHandler : NextHandler
+       -> matched_low_1  ? LowHandler  : ApplyContinue
+
+ApplyContinue
+```
+
+CFG şeması, handler gövdelerinin ilgili uygulama noktasına inline/lower edildiğini gösterir. Aynı kaynak handler gövdesi iki farklı dispatch noktasında kullanılabilir; bu, iki uygulamanın aynı SSA değerlerini veya aynı runtime eşleşme durumunu paylaştığı anlamına gelmez.
+
+Verifier ve yürütme altyapısı aşağıdakileri doğrulamalıdır:
+
+1. Her `apply rules` çağrısı ayrı bir uygulama kimliği ve argüman bağlama kapsamı alır.
+2. İlk çağrının argüman SSA değeri ikinci çağrının parametresi olarak kullanılamaz; her çağrı kendi argümanını bağlar.
+3. Her çağrının normal trigger koşulları kendi argüman bağlamıyla ve yalnızca bir kez değerlendirilir.
+4. Her çağrının trigger eşleşme SSA değerleri diğer çağrının değerlerinden ayrıdır.
+5. Aynı `on RuleSet.Trigger` handler tanımı, ilgili her çağrı noktasında o çağrının eşleşme sonucuna göre dispatch edilir.
+6. Bir çağrıda eşleşmeyen trigger, başka bir çağrıda eşleşti diye o çağrının handler'ını çalıştıramaz.
+7. Aynı trigger iki uygulamada da eşleşirse handler her iki uygulamada birer kez çalışır; uygulamalar arasında global deduplication yapılmaz.
+8. Her uygulamanın handler dispatch'i, sonraki `apply rules` çağrısından önce tamamlanır.
+9. Son uygulamanın canlı çıkışı fonksiyonun normal devam bloğuna ulaşır.
+10. Handler kaynak sırası, tek bir uygulamadaki eşleşmiş handler'lar için korunur; farklı uygulamaların sırası ise `apply rules` kaynak sırasıdır.
+11. Bir uygulama bariyer hatasıyla sonlanırsa o uygulamanın trigger/handler aşamaları ve sonraki uygulamalar erişilemez olur; bu davranış MR-OIR-006 ile tutarlıdır.
+12. Handler gövdesi bir terminator ile sonlanırsa o uygulamanın sonraki handler'larına veya sonraki `apply rules` çağrısına sahte CFG kenarı oluşturulmaz.
+
+Analyzer ve Verifier negatif testleri:
+
+- **MR-OIR-007-N1:** İkinci uygulamanın argüman bağlamında ilk uygulamanın parametre SSA değerinin kullanılması.
+- **MR-OIR-007-N2:** İki uygulamanın trigger eşleşme SSA değerlerinin aynı kimlik/değer alanını paylaşması.
+- **MR-OIR-007-N3:** İlk uygulamada eşleşen trigger'ın ikinci uygulamada da otomatik eşleşmiş sayılması.
+- **MR-OIR-007-N4:** İki uygulamada da eşleşen aynı trigger handler'ının yalnızca bir kez çalıştırılması.
+- **MR-OIR-007-N5:** İkinci uygulamanın handler dispatch'inin ilk uygulama tamamlanmadan yürütülmesi.
+- **MR-OIR-007-N6:** Handler tanımının yalnızca ilk `apply rules` çağrısına bağlanıp sonraki uyumlu çağrılarda göz ardı edilmesi.
+- **MR-OIR-007-N7:** Handler tanımının aynı uygulama içinde birden fazla kez dispatch edilmesi.
+- **MR-OIR-007-N8:** Farklı uygulamaların sıralı yürütülmesi yerine trigger türüne göre gruplanması.
+- **MR-OIR-007-N9:** İlk uygulamadaki handler terminator'ından sonra ikinci `apply rules` çağrısına sahte CFG kenarı oluşturulması.
+- **MR-OIR-007-N10:** Her iki uygulama başarılı olduğu halde son uygulamadan normal devam bloğuna canlı CFG yolu bulunmaması.
+
+Bu test, aynı RuleSet'in bir fonksiyon içinde tekrar uygulanmasını kapsar. Farklı fonksiyonlarda ortak RuleSet tanımının paylaşılması ve ayrı fonksiyonlardaki handler kapsamları bu testin konusu değildir.
+
