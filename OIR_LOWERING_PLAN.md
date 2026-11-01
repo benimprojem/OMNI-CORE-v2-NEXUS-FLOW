@@ -78,14 +78,27 @@ This increment depends on semantic analysis reliably recording scopes, declarati
 
 ### Control-flow frontend gate (review 2026-11-01)
 
-The control-flow lowering increment is intentionally blocked until the language/frontend contract is resolved:
+The language has three distinct constructs; they must remain separate in parsing, semantics and lowering.
 
-- The stable AST registry defines `AST_IF` (node kind 24) with `condition`, `then_branch` and `else_branch` references, and the AST frontend writer serializes those fields.
-- The active parser does not currently construct `AST_IF`. Its statement parser has no dedicated if/else branch; `TOKEN_IF_FLOW` (`=?>`) is parsed by `parse_nexus_flow()` into `AST_NEXUS_FLOW`, whose payload is an operator plus left/right expressions and an optional catch block.
-- The language README describes `?->` as error redirection/catch and `?=>` as fallback data injection. These are not interchangeable with a conventional conditional branch.
-- Semantic analysis currently visits the two `AST_NEXUS_FLOW` operands and optional catch block, but does not establish a branch CFG or branch-specific value merge.
+1. **Structured conditional:** README section 5.2 defines `if (condition) { ... }`, `elsif(condition) { ... }`, and `els { ... }`, including single-statement branches. This is represented by the existing `AST_IF` node with `condition`, `then_branch` and `else_branch` references. It is not a NEXUS Flow operator.
+2. **Conditional action shorthand:** README examples `(a == b) -> break;` and `(a == b) -> continue;` mean: evaluate the condition, and execute the right-hand action only when true. The same pattern is also used with a block/action in the README's rule examples. This is a conditional-action form, not a pipeline carrying the comparison result.
+3. **NEXUS Flow:** `=?>`, `?->`, `?=>`, `!->`, capture, relocation and stream operators retain their separately documented error/data-flow meanings. They must not be reinterpreted as structured `if/else`.
 
-Therefore, do not reinterpret `AST_NEXUS_FLOW` as `if/else`, and do not emit `cond.branch` from it without a language-defined condition/branch contract. First settle the intended source syntax and semantics, then align lexer/parser, AST registry/writer, semantic scopes/annotations, and tests. Only after that should the OIR CFG and block-parameter merge model be implemented.
+Current frontend gap confirmed by source inspection:
+
+- `AST_IF` and its AST writer fields already exist, but the active lexer does not currently classify `if`, `elsif` or `els` as dedicated keywords and the active parser has no structured-if production.
+- `break` and `continue` have lexer tokens, but the active parser/semantic-to-OIR path still needs explicit handling for the conditional-action form.
+- `(condition) -> action` currently reaches the generic `AST_NEXUS_PIPE` path. That is not sufficient to express conditional execution and must be corrected without changing ordinary `->` pipeline behavior.
+- Semantic analysis must validate the condition as boolean, preserve branch scopes, and establish loop context for `break`/`continue`.
+- OIR must lower structured conditionals to explicit CFG blocks and conditional branches. Values assigned on multiple incoming paths will use OIR block parameters, with predecessor-aware validation; do not assume LLVM `phi` semantics without defining the OIR contract.
+
+Implementation order:
+1. Add lexer/parser support for README's structured `if/elsif/els` forms and AST regression tests.
+2. Add a distinct AST representation for conditional-action shorthand (or a rigorously distinguished AST form); keep ordinary pipeline nodes unchanged.
+3. Add semantic validation for boolean conditions, branch scopes and loop-only actions.
+4. Define/verify OIR block parameters and CFG edges, then implement lowering and merge tests.
+
+No control-flow construct should be advertised as supported by the OIR lowerer until its full parser-to-semantic-to-OIR path is covered by tests.
 
 ### Increment 3 — aggregates and addressable data
 
