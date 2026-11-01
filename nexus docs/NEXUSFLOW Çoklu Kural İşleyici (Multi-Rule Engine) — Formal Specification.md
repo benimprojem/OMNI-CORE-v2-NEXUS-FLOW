@@ -1883,3 +1883,173 @@ CFG'de `label1 -> label2 -> label1` çevrimi vardır. `label2` koşulunun false 
 - **OIR Verifier:** CFG çevrimleri, predecessor/successor tutarlılığı, terminator kuralları ve SSA/block parameter doğrulaması.
 
 Bu test, etiketli atlamanın ileri/geri yönlü olabileceğini ve CFG'nin çevrim içerebileceğini sabitler. Çevrim analizi, dominator hesaplaması, loop recognition ve optimizasyonların ayrıntıları ilgili OIR/Optimizer spesifikasyonlarında ayrıca ele alınacaktır.
+
+
+## 12.20 MR-OIR-011 — Dominator analizi, doğal döngü ve güvenli CFG optimizasyonu
+
+**Amaç:** MR-OIR-010 ile kabul edilen ileri/geri yönlü etiketli atlamaların oluşturduğu CFG üzerinde dominator ilişkilerinin doğru hesaplanmasını; doğal döngülerin yalnızca gerçek dominance koşuluyla tanınmasını ve optimizer'ın döngüleri kanıt olmadan yeniden yazmamasını doğrulamak.
+
+Bu test, optimizer'ın gerçek bir uygulamasının yazıldığı anlamına gelmez. OIR Builder, Verifier ve ilerideki Optimization DLL için normatif analiz sözleşmesini tanımlar.
+
+### 12.20.1 CFG ve dominator kuralları
+
+1. Dominator analizi her fonksiyonun giriş basic block'undan başlar. Bir block, girişten o block'a ulaşan **bütün** yollar üzerinden geçmek zorundaysa giriş ve ilgili ara block'lar tarafından dominate edilir.
+2. Giriş block'u yalnızca kendisini dominate eder; diğer erişilebilir block'ların dominator kümeleri sabit noktaya ulaşılana kadar iteratif hesaplanır.
+3. Erişilebilir giriş dışı block için temel denklem:
+   `Dom(B) = {B} ∪ intersection(Dom(P))`
+   Burada `P`, B'nin erişilebilir predecessor block'larıdır.
+4. Dominator kümeleri CFG'deki gerçek predecessor kenarlarından hesaplanır. Kaynak kod satır sırası, etiketlerin metinsel konumu veya block ID sırası dominance ölçütü değildir.
+5. Geri atlama, hedef block kaynak block'u dominate ediyorsa **natural-loop backedge** olarak sınıflandırılabilir. Yalnızca kaynak dosyada daha önceki bir etikete gitmesi, kenarı tek başına natural-loop backedge yapmaz.
+6. Natural loop'un header'ı backedge hedefidir. Loop body, header ve backedge kaynağından predecessor yönünde header'a kadar geri yürünerek belirlenir.
+7. Bir strongly connected component (SCC) çevrim içerdiği halde tek bir block diğer çevrim block'larını dominate etmiyorsa, bu SCC otomatik olarak tek header'lı natural loop sayılmaz. Böyle bir yapı irreducible CFG olabilir.
+8. Girişten erişilemeyen block'lar dominator ağacına dahil edilmez. Bunlar açıkça unreachable olarak sınıflandırılır; erişilemeyen block için sahte dominator ilişkisi üretilmez. Unreachable block'ların kaldırılıp kaldırılmayacağı ayrı dead-code/side-effect politikasıdır.
+9. Dominator ve SCC analizleri farklı soruları cevaplar: dominance tüm giriş yollarındaki zorunlu geçişi; SCC ise karşılıklı erişilebilir çevrimli block kümelerini gösterir. Birinin sonucu diğerinin yerine kullanılamaz.
+10. CFG'de çevrim bulunması tek başına hata değildir ve optimizer'a çevrimi kaldırma, sonsuz döngüyü sonlandırma veya atlamaları yeniden sıralama yetkisi vermez.
+
+### 12.20.2 Kaynak test — Natural loop
+
+```nexus
+rules RouteLoop(value) {
+    value == 1 -> StartLoop;
+}
+
+f:testNaturalLoop(value) {
+    v:i = 0;
+
+    apply rules(RouteLoop(value));
+
+    on RouteLoop.StartLoop {
+        jump(header);
+    }
+
+    jump(exit);
+
+    header:>
+    i = i + 1;
+    (i < 3) ? jump(body);
+    jump(exit);
+
+    body:>
+    jump(header);
+
+    exit:>
+    echo(i);
+}
+```
+
+Bu örnekte:
+- Trigger eşleşirse handler `header` block'una gider.
+- `header`, koşul doğru oldukça `body` block'una geçer.
+- `body`, `jump(header)` ile geri döner.
+- `header` koşulu false olduğunda `exit` block'una gidilir.
+- Trigger eşleşmezse ilk normal akıştaki `jump(exit)` çalışır.
+
+**Durum A — value = 1**
+
+Beklenen çıktı:
+
+```text
+3
+```
+
+**Durum B — value = 0**
+
+Beklenen çıktı:
+
+```text
+0
+```
+
+### 12.20.3 Beklenen CFG ve dominance sonucu
+
+```text
+FunctionEntry
+  -> ApplyEntry
+  -> TriggerDispatch
+       matched -> StartLoop_Handler -> JUMP header
+       no_match -> JUMP exit
+
+header:
+  -> Increment_i
+  -> BRANCH (i < 3)
+       true  -> JUMP body
+       false -> JUMP exit
+
+body:
+  -> JUMP header
+
+exit:
+  -> Echo_i
+  -> FunctionReturn
+```
+
+Erişilebilir block'lar için beklenen temel ilişkiler:
+
+| Block | Dominator ilişkisi |
+|---|---|
+| `FunctionEntry` | Yalnızca kendisi |
+| `ApplyEntry` | `FunctionEntry` ve kendisi |
+| `TriggerDispatch` | `FunctionEntry`, `ApplyEntry`, kendisi |
+| `StartLoop_Handler` | Önceki zorunlu giriş/dispatch block'ları ve kendisi |
+| `header` | Handler yolundan geldiği için `StartLoop_Handler` ve önceki zorunlu block'lar |
+| `body` | `header` tarafından dominate edilir |
+| `exit` | `TriggerDispatch` tarafından dominate edilir; `header` tarafından dominate edilmez |
+
+**Natural loop sonucu:**
+- Backedge: `body -> header`
+- Header: `header`
+- Loop body: `{header, body}`
+- `header`, `body` block'unu dominate eder.
+- `header`, `exit` block'unu dominate etmez; çünkü no-match yolu doğrudan `exit` hedefine gider.
+
+### 12.20.4 Irreducible CFG varyantı
+
+Verifier/Optimizer test altyapısı, yukarıdaki CFG'nin ayrı bir yapısal varyantını da üretmelidir: `TriggerDispatch` block'undan `body` block'una ek bir erişilebilir giriş kenarı eklenir.
+
+Bu varyantta:
+- `header` block'una handler ve `body` üzerinden ulaşılır.
+- `body` block'una hem `header` hem de `TriggerDispatch` üzerinden ulaşılır.
+- `header`, `body` block'unu dominate etmez.
+- `body`, `header` block'unu dominate etmez.
+- İki block arasında çevrim/SCC bulunur; ancak `body -> header` kenarı dominance koşulunu sağlamadığı için natural-loop backedge olarak sınıflandırılamaz.
+- Optimizer bu SCC'yi tek header'lı natural loop varsayarak loop-invariant code motion veya loop rotation uygulayamaz.
+
+Bu varyant, kaynak diline yeni bir kontrol sözdizimi eklemez; CFG analizinin yapısal test girdisidir.
+
+### 12.20.5 Optimizer güvenlik sözleşmesi
+
+1. Dominator ağacı, yalnızca Verifier tarafından doğrulanmış CFG'den üretilmelidir.
+2. Bir block'ta tanımlanan SSA değeri, yalnızca tanım block'u kullanıldığı block'u dominate ediyorsa doğrudan kullanılabilir. Kenarlar arası değer aktarımı block parameter / merge kurallarına uymalıdır.
+3. Loop-invariant code motion yalnızca natural loop ve bağımlılık kanıtı varsa uygulanabilir.
+4. Bellek yazımı, I/O, atomik işlem, hata üretme veya başka gözlemlenebilir yan etkiler içeren işlemler, etkilerinin güvenli taşınabildiği kanıtlanmadan döngü dışına çıkarılamaz.
+5. Trap/hata oluşturabilecek işlemler, yürütülme sıklığı veya erişilebilirliği değişecek biçimde kanıt olmadan taşınamaz.
+6. Bir `JUMP` terminator'ı, hedefi ve kenar argümanları korunmadan kaldırılıp doğal fallthrough'a dönüştürülemez.
+7. Bir SCC'nin varlığı, döngünün sonlanacağına dair kanıt değildir. Optimizer sonlanma garantisi varsayamaz.
+8. Constant branch sadeleştirmesi yalnızca koşulun derleme zamanı sabitliği kanıtlandığında yapılabilir; canlı ve ölü kenarlar buna göre güncellenmeli, predecessor listeleri ve block parameter argümanları yeniden doğrulanmalıdır.
+9. Unreachable block temizliği, erişilebilirlik hesabı ve yan etki/diagnostic/debug metadata politikası birlikte değerlendirilerek ayrı bir dönüşüm olarak yapılmalıdır.
+10. Her CFG dönüşümünden sonra predecessor/successor listeleri, terminator hedefleri, dominance ve SSA/block parameter doğrulaması yeniden çalıştırılmalıdır.
+
+### 12.20.6 Verifier ve Optimizer negatif testleri
+
+- **MR-OIR-011-N1:** Dominator hesabının yalnızca kaynak kod sırasına göre yapılması.
+- **MR-OIR-011-N2:** `header` block'unun `exit` block'unu dominate ediyor sayılması; no-match giriş yolunun göz ardı edilmesi.
+- **MR-OIR-011-N3:** `header` block'unun `body` block'unu dominate etmediği irreducible varyantta `body -> header` kenarının natural-loop backedge sayılması.
+- **MR-OIR-011-N4:** Her SCC'nin otomatik olarak tek header'lı natural loop kabul edilmesi.
+- **MR-OIR-011-N5:** Girişten erişilemeyen block'ların dominator ağacına rastgele/varsayılan ilişkilerle eklenmesi.
+- **MR-OIR-011-N6:** SSA tanımının kullanıldığı block'u dominate etmediği halde değerin doğrudan kullanılması.
+- **MR-OIR-011-N7:** Loop-invariant code motion sırasında bellek yazımı/I/O/atomik işlem gibi yan etkilerin güvenli kanıt olmadan taşınması.
+- **MR-OIR-011-N8:** Potansiyel trap/hata üreten işlemin yürütülme davranışının kanıtsız değiştirilmesi.
+- **MR-OIR-011-N9:** Geri atlamanın yalnızca geriye yönlü olduğu için kaldırılması veya fallthrough'a çevrilmesi.
+- **MR-OIR-011-N10:** CFG dönüşümünden sonra predecessor/successor veya block parameter argümanlarının güncellenmemesi.
+- **MR-OIR-011-N11:** Koşulsuz çevrimin sonlanacağı varsayılarak sonsuz döngünün kaldırılması.
+- **MR-OIR-011-N12:** Constant branch dönüşümünden sonra artık erişilemeyen kenarın dominance/SSA analizinde canlı bırakılması.
+
+### 12.20.7 Test sınıflandırması
+
+- **Analyzer:** Kaynak etiketleri ve fonksiyon kapsamı; MR-OIR-009/010 kuralları.
+- **OIR Builder:** Basic block ve gerçek kontrol kenarlarının üretilmesi.
+- **OIR Verifier:** Girişten erişilebilirlik, predecessor/successor, block parameter ve SSA doğrulaması.
+- **CFG Analysis:** Dominator kümeleri, immediate dominator, SCC ve natural-loop backedge sınıflandırması.
+- **Optimizer:** Yalnızca kanıtlanmış dönüşümlerin uygulanması; dönüşüm sonrası CFG/SSA doğrulaması.
+
+Bu test, dominance ve natural-loop tanımını sabitler. Dominator algoritmasının performans seçimi (iteratif çözüm, Lengauer–Tarjan veya başka yöntem), optimizer pass sırası ve ayrıntılı alias/memory-effect modeli ileride ayrı tasarım kararları olarak ele alınacaktır.
