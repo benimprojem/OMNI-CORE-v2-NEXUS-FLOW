@@ -1684,6 +1684,7 @@ static ASTNode* parse_func_decl(Parser* p) {
             ASTVarDecl* param;
             Token param_token;
             int has_bang = 0;
+            int has_colon = 0;
             if (!match(p, TOKEN_IDENTIFIER)) {
                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
                     msg_get(MSG_EXPECT_PARAM_NAME));
@@ -1716,7 +1717,7 @@ static ASTNode* parse_func_decl(Parser* p) {
              * Parameter type separator is optional. Both a:f32 and a!f32
              * are accepted; a:!f32 is the explicit hard-typed spelling.
              */
-            (void)match(p, TOKEN_COLON);
+            has_colon = match(p, TOKEN_COLON);
             if (match(p, TOKEN_NOT)) has_bang = 1;
             if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
                 p->current.type == TOKEN_IDENTIFIER) {
@@ -1734,6 +1735,11 @@ static ASTNode* parse_func_decl(Parser* p) {
                 param->type_name[total_length] = '\0';
                 param->is_hard_typed = has_bang;
                 advance(p);
+            } else if (has_colon || has_bang) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                    msg_get(MSG_EXPECT_TYPE_BANG));
+                ast_destroy((ASTNode*)func);
+                return NULL;
             }
         } while (match(p, TOKEN_COMMA));
     }
