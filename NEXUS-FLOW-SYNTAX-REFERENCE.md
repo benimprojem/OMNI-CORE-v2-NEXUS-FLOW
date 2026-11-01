@@ -1292,6 +1292,9 @@ f:main() {
 
 Bu kuralların OIR karşılığı ve testleri MR-OIR-017 içinde tanımlanır.
 
+Defer değişkenleri kayıt anında kopyalamaz. Defer gövdesi çalıştırıldığında, kendisini kaydeden scope activation'ındaki değişkenlerin güncel değerlerini görür; gövde içindeki yazmalar aynı değişkenleri günceller. Defer, kaynaklar için ayrı sahiplik veya handle kopyası oluşturmaz. `->_` ile devredilmiş kaynak eski değişken üzerinden kullanılamaz; sahiplik ve otomatik cleanup tek bir ownership kaydı üzerinden izlenir. Defer tarafından kullanılan değişkenler, defer tamamlanana kadar geçerli tutulur. Ayrıntılı OIR ve test sözleşmesi MR-OIR-019'dadır.
+
+
 ### 14.4 Donanım ve Düşük Seviye (Kernel Ready)
 - `peek(addr)` / `poke(addr, val)`: Doğrudan bellek manipülasyonu.
 - `inb(port)` / `outb(port, val)`: I/O Port iletişimi.
