@@ -1685,9 +1685,6 @@ static ASTNode* parse_func_decl(Parser* p) {
             Token param_token;
             int has_bang = 0;
             int has_colon = 0;
-            fprintf(stderr,"parameter loop token=%d text=%.*s col=%d\\n",
-                (int)p->current.type,(int)p->current.length,
-                p->current.start?p->current.start:"",p->current.col);
             if (!match(p, TOKEN_IDENTIFIER)) {
                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
                     msg_get(MSG_EXPECT_PARAM_NAME));
