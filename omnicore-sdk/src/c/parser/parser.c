@@ -1712,6 +1712,11 @@ static ASTNode* parse_func_decl(Parser* p) {
             else param_tail->next = (ASTNode*)param;
             param_tail = (ASTNode*)param;
 
+            /*
+             * Parameter type separator is optional. Both a:f32 and a!f32
+             * are accepted; a:!f32 is the explicit hard-typed spelling.
+             */
+            (void)match(p, TOKEN_COLON);
             if (match(p, TOKEN_NOT)) has_bang = 1;
             if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
                 p->current.type == TOKEN_IDENTIFIER) {
