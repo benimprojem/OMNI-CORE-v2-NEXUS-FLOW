@@ -429,6 +429,7 @@ static int parser_is_statement_start(OmniTokenType type) {
         case TOKEN_PRE_FUNC:
         case TOKEN_KW_FN:
         case TOKEN_KW_RET:
+        case TOKEN_KW_IF:
         case TOKEN_KW_USE:
         case TOKEN_KW_DEFER:
         case TOKEN_KW_STRUCT:
@@ -2296,27 +2297,36 @@ static ASTNode* parse_if_statement(Parser* p) {
     ASTIf* node;
     Token keyword = p->current;
 
-    if (!match(p, TOKEN_KW_IF) && !match(p, TOKEN_KW_ELSIF)) {
+    if (p->current.type != TOKEN_KW_IF &&
+        p->current.type != TOKEN_KW_ELSIF) {
         error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
             "Expected 'if' or 'elsif'.");
         return NULL;
     }
+    advance(p);
 
     node = (ASTIf*)parser_ast_create(p, AST_IF);
     if (!node) return NULL;
     node->base.line = keyword.line;
     node->base.col = keyword.col;
 
-    if (!consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC)) {
+    if (!check(p, TOKEN_LPAREN)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_PAREN,
+            msg_get(MSG_EXPECT_LPAREN_FUNC));
         ast_destroy((ASTNode*)node);
         return NULL;
     }
+    advance(p);
     node->condition = parse_expression(p);
-    if (!node->condition ||
-        !consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR)) {
+    if (!node->condition || !check(p, TOKEN_RPAREN)) {
+        if (node->condition) {
+            error_at(p, &p->current, ERR_PARSER_EXPECTED_PAREN,
+                msg_get(MSG_EXPECT_RPAREN_EXPR));
+        }
         ast_destroy((ASTNode*)node);
         return NULL;
     }
+    advance(p);
 
     node->then_branch = parse_if_branch(p);
     if (!node->then_branch) {
@@ -2324,14 +2334,13 @@ static ASTNode* parse_if_statement(Parser* p) {
         return NULL;
     }
 
-    if (match(p, TOKEN_KW_ELSIF)) {
+    if (check(p, TOKEN_KW_ELSIF)) {
         node->else_branch = parse_if_statement(p);
     } else if (match(p, TOKEN_KW_ELS)) {
         node->else_branch = parse_if_branch(p);
     }
-
-    if ((p->previous.type == TOKEN_KW_ELSIF ||
-         p->previous.type == TOKEN_KW_ELS) && !node->else_branch) {
+    if ((check(p, TOKEN_KW_ELSIF) || check(p, TOKEN_KW_ELS)) &&
+        !node->else_branch) {
         ast_destroy((ASTNode*)node);
         return NULL;
     }
@@ -2356,12 +2365,7 @@ static ASTNode* parse_statement(Parser* p) {
     if (match(p, TOKEN_KW_EXP)) is_exp = 1;
     if (match(p, TOKEN_KW_PUP)) is_pub = 1;
 
-    if (match(p, TOKEN_KW_IF)) {
-        /* The keyword has been consumed; parse the shared conditional body. */
-        --p->ctx->token_stream_index;
-        p->current = parser_next_token(p->ctx);
-        return parse_if_statement(p);
-    }
+    if (check(p, TOKEN_KW_IF)) return parse_if_statement(p);
     if (match(p, TOKEN_KW_USE)) return parse_use(p);
     if (match(p, TOKEN_KW_DEFER)) return parse_defer(p);
     if (match(p, TOKEN_KW_RET)) return parse_return_statement(p);
