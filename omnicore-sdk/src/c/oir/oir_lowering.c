@@ -109,7 +109,7 @@ OirStatus oir_lower_semantic_ast_literal_return(
     size_t output_capacity,
     size_t* out_written
 ) {
-    OirAstNodeRecord record, program, function, body, statement, literal;
+    OirAstNodeRecord program, function, body, statement, literal;
     OirAstTlvField field;
     OirSemanticAnnotation annotation;
     OirSemanticType semantic_type;
