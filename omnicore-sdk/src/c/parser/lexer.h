@@ -17,6 +17,9 @@ typedef enum {
 
     // --- Omni Core v2 Anahtar Kelimeler ---
     TOKEN_KW_RET,       // ret
+    TOKEN_KW_IF,        // if
+    TOKEN_KW_ELSIF,     // elsif
+    TOKEN_KW_ELS,       // els
     TOKEN_KW_STRUCT,    // struct
     TOKEN_KW_ENUM,      // enum
     TOKEN_KW_UNION,     // union
