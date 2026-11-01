@@ -1,6 +1,6 @@
 # Target Pipeline Contract
 
-**Status:** Architecture contract; runtime integration is staged  
+**Status:** Long-term architecture contract; current compiler uses the v1 target path  
 **Related:** [TARGET_MODEL.md](TARGET_MODEL.md), [OIR_MODULE.md](OIR_MODULE.md), [OIR_LOWERING_PLAN.md](OIR_LOWERING_PLAN.md)
 
 ## 1. Core rule
@@ -40,7 +40,7 @@ If target-aware conditional compilation removes or selects source branches, that
 
 ## 4. Normalized target artifact
 
-The OCC host loads the `.target` text file through the target parser and produces a versioned, bounded target descriptor artifact for module handoff.
+The intended future OCC host loads the `.target` text file through the target parser and produces a versioned, bounded target descriptor artifact for module handoff. This normalized artifact is not yet part of the active v1 runtime.
 
 The artifact must contain normalized values rather than a raw file path or pointers into parser memory. It must preserve at least:
 
@@ -78,3 +78,8 @@ Compilation cache keys must include the normalized target descriptor identity/fi
 The current OCC CLI accepts `--target`; when omitted, it now selects a host default for Windows x86-64 (`Win64`), Linux x86-64 (`Linux64`) and macOS AArch64 (`macOS_AArch64`). Other host combinations fail with a request for an explicit target instead of silently falling back to BareMetal64. This initial mapping is not yet project-configurable and does not cover every host architecture. The legacy codegen module loads and validates the selected descriptor, but the frontend pipeline does not yet receive a normalized target artifact. Target-aware conditional compilation handoff, target artifact serialization and target fingerprinting remain implementation tasks.
 
 This document defines the intended contract; it does not claim those integrations are complete.
+
+
+## Active implementation boundary
+
+Current builds use v1 `.target` descriptors and the legacy parser/backend checks. The v2 normalized model is preparatory documentation and code structure only; it is intentionally disconnected from the active compilation path until the compiler's core OIR pipeline is further along.
