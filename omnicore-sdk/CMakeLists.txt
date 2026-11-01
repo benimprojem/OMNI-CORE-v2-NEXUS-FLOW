@@ -69,6 +69,12 @@ add_library(occ_oir_module_opcode STATIC
 target_include_directories(occ_oir_module_opcode PUBLIC "${C_SOURCE_DIR}/oir")
 set_target_properties(occ_oir_module_opcode PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# OIR_MODULE payload codec: fixed-width wire records shared by compiler stages.
+add_library(occ_oir_module STATIC "${C_SOURCE_DIR}/oir/oir_module.c")
+target_include_directories(occ_oir_module PUBLIC "${C_SOURCE_DIR}/oir")
+target_link_libraries(occ_oir_module PUBLIC occ_oir_module_opcode)
+set_target_properties(occ_oir_module PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # SEMANTIC_AST section codecs use caller-owned records and bounded zero-copy views.
 add_library(occ_oir_semantic_ast STATIC
     "${C_SOURCE_DIR}/oir/oir_semantic_ast.c"
@@ -505,6 +511,7 @@ if(MSVC)
     target_compile_options(occ_module_abi PRIVATE /W4)
     target_compile_options(occ_oir PRIVATE /W4)
     target_compile_options(occ_oir_module_opcode PRIVATE /W4)
+    target_compile_options(occ_oir_module PRIVATE /W4)
     target_compile_options(occ_target_profile PRIVATE /W4)
     target_compile_options(occ_diagnostics PRIVATE /W4)
     target_compile_options(occ_compilation PRIVATE /W4)
@@ -527,6 +534,7 @@ else()
     target_compile_options(occ_module_abi PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir PRIVATE -Wall -Wextra)
     target_compile_options(occ_oir_module_opcode PRIVATE -Wall -Wextra)
+    target_compile_options(occ_oir_module PRIVATE -Wall -Wextra)
     target_compile_options(occ_target_profile PRIVATE -Wall -Wextra)
     target_compile_options(occ_diagnostics PRIVATE -Wall -Wextra)
     target_compile_options(occ_compilation PRIVATE -Wall -Wextra)
