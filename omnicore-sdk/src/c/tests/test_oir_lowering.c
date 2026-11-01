@@ -147,7 +147,7 @@ int main(void) {
     OirAstTlvWriter writer;
     size_t fields_used=0u, ast_length=0u, types_length=0u, annotations_length=0u, module_length=0u;
     OirSemanticType semantic_type;
-    OirSemanticAnnotation annotation;
+    OirSemanticAnnotation annotations[2];
     OirSemanticAstArtifactView artifact;
     OirLoweringWorkspace workspace;
     OirModuleType module_types[2];
@@ -212,11 +212,15 @@ int main(void) {
         type_name,sizeof(type_name),&types_length)==OIR_STATUS_OK);
     assert(oir_semantic_types_open(types_payload,types_length,&types_view)==OIR_STATUS_OK);
 
-    memset(&annotation,0,sizeof(annotation));
-    annotation.node_id=5u; annotation.scope_id=1u;
-    annotation.resolved_type_id=1u; annotation.value_category=OIR_SEMANTIC_VALUE_RVALUE;
+    memset(annotations,0,sizeof(annotations));
+    annotations[0].node_id=2u; annotations[0].scope_id=1u;
+    annotations[0].resolved_type_id=1u;
+    annotations[0].value_category=OIR_SEMANTIC_VALUE_FUNCTION_DESIGNATOR;
+    annotations[1].node_id=5u; annotations[1].scope_id=1u;
+    annotations[1].resolved_type_id=1u;
+    annotations[1].value_category=OIR_SEMANTIC_VALUE_RVALUE;
     assert(oir_semantic_annotations_write(annotations_payload,sizeof(annotations_payload),
-        &annotation,1u,&annotations_length)==OIR_STATUS_OK);
+        annotations,2u,&annotations_length)==OIR_STATUS_OK);
     assert(oir_semantic_annotations_open(annotations_payload,annotations_length,
         &annotations_view)==OIR_STATUS_OK);
 
