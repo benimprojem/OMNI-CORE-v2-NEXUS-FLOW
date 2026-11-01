@@ -109,6 +109,7 @@ Recent design work includes:
 - Normative Multi-Rule OIR test MR-OIR-018: verify dynamic defer registrations, per-iteration loop-body activations, and LIFO cleanup.
 - Normative Multi-Rule OIR test MR-OIR-019: verify live-binding semantics for deferred variable reads/writes, activation-bound variable lifetime, ownership transfer validation, and exactly-once resource cleanup.
 - Normative Multi-Rule OIR test MR-OIR-020: verify best-effort defer/cleanup completion, deterministic error aggregation, panic/halt unwinding, and exactly-once resource release.
+- Normative Multi-Rule OIR test MR-OIR-021: verify OIR 1.1 defer records, scope activation/cleanup CFG lowering, fixed cleanup-arena capacity handling, Writer/Reader round-trip, and Verifier/Optimizer invariants.
 - Separation of source-language syntax documentation from compiler project documentation.
 
 ### Open design contracts
