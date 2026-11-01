@@ -2053,3 +2053,192 @@ Bu varyant, kaynak diline yeni bir kontrol sözdizimi eklemez; CFG analizinin ya
 - **Optimizer:** Yalnızca kanıtlanmış dönüşümlerin uygulanması; dönüşüm sonrası CFG/SSA doğrulaması.
 
 Bu test, dominance ve natural-loop tanımını sabitler. Dominator algoritmasının performans seçimi (iteratif çözüm, Lengauer–Tarjan veya başka yöntem), optimizer pass sırası ve ayrıntılı alias/memory-effect modeli ileride ayrı tasarım kararları olarak ele alınacaktır.
+
+
+## 12.21 MR-OIR-012 — Cross-block jump ve güvenli CFG sadeleştirmeleri
+
+**Amaç:** `jump(label)` komutunun temel kullanımının bir basic block'tan çıkıp aynı fonksiyon içindeki başka bir basic block'a kontrol aktarmak olduğunu doğrulamak. Ardından optimizer'ın jump chaining/threading, sabit koşullu branch sadeleştirmesi, erişilemeyen block temizliği ve dead instruction elimination dönüşümlerini CFG semantiğini bozmadan uygulamasını test etmek.
+
+Bu testte `jump` aynı basic block içinde kalmaya zorlanmaz. Hedef etiket farklı bir basic block'un girişidir. Kaynak ve hedef block'lar fonksiyon içinde farklı noktalarda olabilir; ileri/geri yön ve aradaki block sayısı semantiği değiştirmez.
+
+### 12.21.1 Normatif cross-block jump kuralları
+
+1. `jump(label)`, bulunduğu basic block'u sonlandıran koşulsuz kontrol aktarımıdır.
+2. Hedef `label:>`, aynı fonksiyonun etiket tablosunda çözülen bir basic block girişini belirtir. Hedefin ayrı bir basic block olması normal ve temel kullanım biçimidir.
+3. OIR Builder, `jump(label)` için kaynak block'tan hedef block'a açık bir CFG kenarı üretir. Kaynak block'un terminator'ı `JUMP target` olur.
+4. `JUMP` terminator'ından kaynak block'un sonraki kaynak satırına veya metinsel olarak sıradaki block'a fallthrough kenarı üretilmez.
+5. Etiketler, fonksiyon içindeki kontrol akışının giriş noktalarıdır. Analyzer etiket hedeflerini fonksiyon kapsamındaki sembol tablosundan çözer.
+6. Bir block'un tek predecessor'ı olması veya başka block'larla birleştirilebilir görünmesi, o block'a atlayan etiketlerin çözümlemesini ortadan kaldırmaz. Optimizasyon, tüm girişleri ve etiket referanslarını güncellemelidir.
+7. Jump threading/chaining, yalnızca aradaki block'un kontrol aktarımını güvenle temsil ettiği ve gerekli block argümanları/etiket eşlemeleri korunabildiği durumda yapılabilir.
+8. Bir block kaldırılır veya birleştirilirse ona yönelen bütün CFG kenarları, jump hedefleri, block parameter argümanları, debug/source metadata ve sembolik label eşlemeleri tutarlı biçimde güncellenmelidir.
+9. Dönüşüm sonrası CFG'de her block'un tek terminator'ı bulunmalı; terminator sonrası sahte instruction veya fallthrough kalmamalıdır.
+10. Cross-block transfer, `break`, `continue` veya `return` olarak yeniden yorumlanamaz.
+
+### 12.21.2 Kaynak test A — Çok bloklu jump zinciri
+
+```nexus
+f:testJumpChain() {
+    jump(route1);
+
+    route1:>
+    jump(route2);
+
+    route2:>
+    jump(destination);
+
+    destination:>
+    echo("Reached destination");
+}
+```
+
+Beklenen çıktı:
+
+```text
+Reached destination
+```
+
+Optimizer öncesi CFG:
+
+```text
+Entry -> route1 -> route2 -> destination -> Return
+```
+
+Jump threading sonrası izin verilen CFG:
+
+```text
+Entry ----------------------> destination -> Return
+```
+
+`route1` ve `route2` yalnızca koşulsuz jump zincirinden ibaretse ve tüm hedef/metadata eşlemeleri güvenle güncellenebiliyorsa zincir kısaltılabilir. Debug bilgisi veya başka label referansı korunması gerekiyorsa block fiziksel olarak silinmeyebilir; alias/redirect eşlemesi tutulabilir.
+
+### 12.21.3 Kaynak test B — Ayrı block'lara koşullu transfer
+
+```nexus
+f:testCrossBlockBranch(flag) {
+    v:i = 0;
+
+    (flag == 1) ? jump(selected);
+    jump(alternative);
+
+    selected:>
+    v = 10;
+    jump(join);
+
+    alternative:>
+    v = 20;
+    jump(join);
+
+    join:>
+    echo(v);
+}
+```
+
+Beklenen davranış:
+- `flag == 1` ise `selected` block'una transfer edilir.
+- Koşul false ise `jump(alternative)` çalışır.
+- İki ayrı block da `join` block'una cross-block jump yapar.
+- `join` içindeki `v`, OIR block parameter/SSA merge mekanizmasıyla taşınır.
+
+Beklenen çıktı:
+- `flag = 1` → `10`
+- `flag = 0` → `20`
+
+Optimizer iki ayrı yolu tek yolmuş gibi birleştiremez; iki farklı koşullu yol ve iki farklı değer korunmalıdır.
+
+### 12.21.4 Kaynak test C — Sabit koşul ve erişilemeyen block
+
+```nexus
+f:testConstantJump() {
+    v:i = 0;
+
+    (1 == 1) ? jump(chosen);
+    jump(notChosen);
+
+    notChosen:>
+    v = 99;
+    jump(exit);
+
+    chosen:>
+    v = 7;
+    jump(exit);
+
+    exit:>
+    echo(v);
+}
+```
+
+Beklenen çıktı:
+
+```text
+7
+```
+
+Derleme zamanı sabit katlama `1 == 1` ifadesinin true olduğunu kanıtlarsa:
+- Koşullu branch yalnızca `chosen` hedefine indirgenebilir.
+- `notChosen` block'u girişten erişilemez hale gelir.
+- Erişilemeyen block ve artık kullanılmayan kenarlar kaldırılabilir.
+- `exit` block'unun SSA/block parameter girişleri yeniden doğrulanır.
+
+Bu dönüşüm yalnızca koşulun compile-time sabit olduğu kanıtlandığında yapılabilir. Genel bir runtime koşulu sabitmiş gibi varsayılamaz.
+
+### 12.21.5 Kaynak test D — Jump sonrasındaki kodun erişilemezliği
+
+```nexus
+f:testDeadAfterJump() {
+    jump(destination);
+
+    echo("Must not execute");
+
+    destination:>
+    echo("Destination reached");
+}
+```
+
+Beklenen çıktı:
+
+```text
+Destination reached
+```
+
+`jump(destination)` terminator'ından sonra aynı block içinde normal yürütme devam etmez. `echo("Must not execute")` yürütülebilir CFG yolunda bulunamaz. Frontend/Analyzer'ın bu kaynak bölümünü sözdizimi ve tip kuralları bakımından denetlemesi, optimizer'ın ise erişilemeyen instruction'ı yürütülebilir koddan çıkarması ayrı sorumluluklardır.
+
+### 12.21.6 CFG ve dönüşüm sonrası doğrulama
+
+1. Her `jump(label)` kaynak block'un terminator'ı olmalıdır.
+2. Her jump kenarının hedefi tam olarak bir geçerli basic block olmalıdır.
+3. Kaynak block successor listesinde hedef block; hedef block predecessor listesinde kaynak block bulunmalıdır.
+4. Jump terminator'ı sonrası source-order fallthrough bulunmamalıdır.
+5. Jump threading sırasında hedefe giden bütün predecessor'lar güncellenmelidir.
+6. Hedef block'un block parameter'ları varsa yeni kenarın argümanları hedef imzasıyla eşleşmelidir.
+7. Block birleştirme sırasında SSA tanımları, kullanım noktaları ve dominance yeniden doğrulanmalıdır.
+8. Sabit branch sadeleştirmesi sonrası ölü kenar kaldırılmalı; predecessor listeleri ve block parameter girişleri güncellenmelidir.
+9. Erişilemeyen block temizliği fonksiyon girişinden CFG erişilebilirliği hesaplandıktan sonra yapılmalıdır.
+10. Bir block'un kaldırılması, başka bir jump hedefinin çözümsüz kalmasına yol açmamalıdır. Gerekirse label alias/redirect tablosu güncellenmelidir.
+11. Side effect, trap, volatile veya atomik semantiğe sahip instruction'lar yalnızca CFG erişilemezliği veya ilgili etki kuralları kanıtlandığında kaldırılabilir.
+12. Her dönüşüm sonrasında CFG Verifier; terminator, kenar, block parameter, SSA ve dominance kontrollerini yeniden çalıştırmalıdır.
+
+### 12.21.7 Negatif testler
+
+- **MR-OIR-012-N1:** `jump(label)` hedefinin aynı basic block içinde olması zorunlu tutulması.
+- **MR-OIR-012-N2:** Farklı basic block'a giden jump'ın yalnızca metinsel sıradaki block'a bağlanması.
+- **MR-OIR-012-N3:** `JUMP` terminator'ından sonra kaynak satırına fallthrough kenarı bırakılması.
+- **MR-OIR-012-N4:** Jump chain threading sırasında hedef block'un block parameter argümanlarının kaybolması.
+- **MR-OIR-012-N5:** Block kaldırıldığı halde o block'a yönelen label referanslarının güncellenmemesi.
+- **MR-OIR-012-N6:** Sabit olmadığı halde runtime branch koşulunun sabit kabul edilmesi.
+- **MR-OIR-012-N7:** Sabit branch sadeleştirmesinden sonra predecessor/successor ve SSA merge girişlerinin güncellenmemesi.
+- **MR-OIR-012-N8:** Erişilemeyen block temizliğinin yan etkili veya trap üreten erişilebilir instruction'ları yanlışlıkla kaldırması.
+- **MR-OIR-012-N9:** Jump sonrasındaki erişilemez instruction'ların yürütme yoluna yeniden eklenmesi.
+- **MR-OIR-012-N10:** Jump threading'in ileri/geri yönlü hedefleri farklı kurallarla ele alması.
+- **MR-OIR-012-N11:** Birleştirilen block'ların debug/source konumlarının ve label alias eşlemelerinin kaybolması.
+- **MR-OIR-012-N12:** CFG dönüşümü sonrası Verifier'ın yeniden çalıştırılmaması veya eski CFG analiz sonuçlarının geçerli kabul edilmesi.
+
+### 12.21.8 Test sınıflandırması
+
+- **Frontend/Parser:** `jump(label)` ve koşullu jump sözdiziminin AST'ye aktarılması.
+- **Analyzer:** Fonksiyon kapsamındaki label çözümlemesi ve hedef block kimliği.
+- **OIR Builder:** Kaynak block'tan hedef basic block'a explicit CFG kenarı ve JUMP terminator üretimi.
+- **CFG Analysis:** Erişilebilirlik, predecessor/successor ve block bağlantıları.
+- **Optimizer:** Jump threading, sabit branch sadeleştirmesi, unreachable block ve dead instruction temizliği.
+- **OIR Verifier:** Her dönüşümden sonra CFG, terminator, label, block parameter, SSA ve dominance doğrulaması.
+
+Bu test, cross-block jump'ı temel dil/IR davranışı olarak sabitler. Jump threading ve block merging'in pass sırası, label alias metadata biçimi ve debug bilgi formatı ayrı uygulama sözleşmelerinde kesinleştirilecektir.
