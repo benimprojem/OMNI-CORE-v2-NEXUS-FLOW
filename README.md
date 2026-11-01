@@ -407,33 +407,189 @@ G:  (a == b) ? process(a) : process(b);
 
 ```
 
-### 5.3.1 NEXUSFLOW: Select, scan (alternatif switch )
-Ayrıntılar: NexusFlow Scan Select Syntax Spec.md
-- Örnekler
+### 5.3.1 NEXUSFLOW: SELECT ve SCAN
 
-```
-nt:enum: LoopType {
-    Range(start, end)
-    For(i, start, end)
-    Foreach(list)
-    While(cond)
-}
+NexusFlow'da `select` ve `scan` benzer şekilde dallanma oluşturur; ancak aynı işi yapmazlar:
 
+- `select(expr)`: Bir ifadenin değerini seçeneklerle karşılaştırır. İlk eşleşen branch çalışır.
+- `scan expr`: Bir enum, sealed type veya struct değerinin yapısını/pattern'ini inceler. Eşleşen varyantın taşıdığı alanları değişkenlere bağlayabilir.
+- İkisi de **statement** yapısıdır; kendi başlarına değer üretmezler.
+- Her iki yapıda da branch gövdeleri normal NexusFlow ifadeleri, bloklar veya başka kontrol yapıları içerebilir.
+
+#### A) SELECT — Değere göre seçim
+
+`select`, subject ifadesini değerlendirir ve sonucu branch pattern'leriyle karşılaştırır. Eşleşen ilk branch çalıştırılır; sonraki branch'lere devam edilmez.
+
+Desteklenen branch biçimleri:
+
+| Pattern | Anlamı |
+| --- | --- |
+| `value -> { ... }` | Tek bir değerle eşleşir. |
+| `value1 | value2 -> { ... }` | Verilen değerlerden herhangi biriyle eşleşir. Tek branch'tir. |
+| `start..end -> { ... }` | Belirtilen aralıkla eşleşir. |
+| `default -> { ... }` | Hiçbir önceki branch eşleşmediyse çalışır. |
+
+Örnek:
+
+```nexus
 select(choice) {
-
-    1 -> {
-        scan loopType {
-            Range(s,e) -> loop(s..e){ doStep(it); }
-            For(i,s,e) -> loop(i,s<e,i++){ doStep(i); }
-            Foreach(lst) -> loop(v:item in lst){ doStep(item); }
-            While(c) -> loop(c){ doStep(it); }
-        }
+    1 | 2 -> {
+        echo("Bir veya iki");
     }
 
-    default -> { echo("Invalid choice"); }
+    3..5 -> {
+        echo("Üç ile beş arası");
+    }
+
+    default -> {
+        echo("Diğer değer");
+    }
+}
+```
+
+Bu örnekte:
+
+1. `choice` değerlendirilir.
+2. Değer 1 veya 2 ise ilk branch çalışır.
+3. İlk branch eşleşmez ve değer 3 ile 5 arasındaysa ikinci branch çalışır.
+4. Hiçbiri eşleşmezse `default` çalışır.
+
+`1 | 2` iki ayrı branch anlamına gelmez; aynı gövdeye yönlenen çoklu değer pattern'idir. `default` isteğe bağlıdır. Yazılmamışsa eşleşme bulunmayan durumda bu `select` için ek bir branch çalışmaz.
+
+#### B) SCAN — Tür ve yapı pattern eşleştirmesi
+
+`scan`, subject değerinin türünü/varyantını inceler. Enum ve sealed type varyantları eşleştirilebilir; pattern içindeki parametreler yerel değişkenlere bağlanabilir. Struct pattern'leri de aynı pattern mekanizmasının kapsamındadır.
+
+Temel pattern biçimleri:
+
+| Pattern | Anlamı |
+| --- | --- |
+| `TypeName -> { ... }` | Parametre taşımayan varyant/tür eşleştirmesi. |
+| `TypeName(a,b) -> { ... }` | Varyantın alanlarını `a`, `b` değişkenlerine bağlar. |
+| `TypeName(a,b) when cond -> { ... }` | Tür/pattern eşleşmesine ek koşul uygular. |
+| `else -> { ... }` | Hiçbir pattern eşleşmediğinde varsayılan kol. |
+
+Örnek enum ve kullanım:
+
+```nexus
+nt:enum: Task {
+    IO(file!str)
+    Compute(a!i32, b!i32)
+    Network(url!str)
+    Cleanup
 }
 
+v:current_task!Task = Compute(10, 20)
+
+scan current_task {
+    IO(f) -> {
+        echo("Dosya: {f}");
+    }
+
+    Compute(a,b) when a>0 && b>0 -> {
+        v:result = a + b
+        echo("Compute sonucu: {result}");
+    }
+
+    Network(url) -> {
+        echo("Adres: {url}");
+    }
+
+    Cleanup -> {
+        echo("Temizlik işlemi");
+    }
+
+    else -> {
+        echo("Bilinmeyen görev");
+    }
+}
 ```
+
+**Pattern binding kapsamı:** `IO(f)` eşleştiğinde `f`, yalnızca ilgili branch gövdesinde kullanılabilir. `Compute(a,b)` için de `a` ve `b) aynı şekilde yalnızca o branch'e aittir. Bu isimler dış kapsama taşınmaz ve başka branch'lerin binding'leriyle çakışmaz.
+
+**Guard (`when`):** Önce varyant/pattern eşleşmesi yapılır; ardından `when` koşulu değerlendirilir. Guard doğruysa gövde çalışır. Guard yanlışsa o pattern kolu seçilmez ve tarama sonraki uygun pattern'lerle devam eder. Guard ifadesinin türü `bool` olmalıdır.
+
+#### C) SELECT içinde SCAN kullanımı
+
+İki yapı iç içe kullanılabilir. Dıştaki `select` genel işlem yolunu, içteki `scan` ise seçilen yolun içindeki tür/varyantı belirler.
+
+```nexus
+select(choice) {
+    1 | 2 -> scan current_task {
+        IO(f) -> {
+            echo("Dosya işlemi: {f}");
+        }
+
+        Compute(a,b) when a>0 && b>0 -> {
+            v:result = a + b
+            echo("Compute sonucu: {result}");
+        }
+
+        Network(url) -> {
+            echo("Ağ işlemi: {url}");
+        }
+
+        Cleanup -> {
+            echo("Temizlik işlemi");
+        }
+
+        else -> echo("Bilinmeyen görev")
+    }
+
+    3..5 -> {
+        echo("Fast path branch");
+    }
+
+    default -> {
+        echo("Geçersiz seçim");
+    }
+}
+```
+
+Burada dıştaki `select` yalnızca `choice` değerine bakar. Değer 1 veya 2 olduğunda ilgili branch içindeki `scan` çalışır. `scan` ise `current_task` değerinin hangi varyant olduğunu bulur.
+
+#### D) SCAN ve diziler
+
+`scan` subject'i bir dizi olduğunda dizi elemanları üzerinde pattern taraması yapılabilir. Her eleman, ilgili pattern'lerle eşleştirilir. Bu kullanım, tek bir enum değerini taramaktan farklı olarak sequence/iterator akışı gerektirir.
+
+```nexus
+v:loop_tasks!Task[] = [Compute(1,2), IO("a.txt"), Cleanup]
+
+scan loop_tasks {
+    Compute(a,b) -> loop(i, 0..2) {
+        echo("Compute loop: {i}, değerler: {a}+{b}");
+    }
+
+    IO(f) -> {
+        echo("Dosya okundu: {f}");
+    }?;
+
+    Cleanup -> echo("Temizlik yapılıyor")
+
+    else -> echo("Bilinmeyen görev")
+}
+```
+
+Dizi kullanımında pattern binding'leri ilgili elemanın eşleşmesi sırasında oluşturulur. Derleyici bu modu OIR'de iterator ve loop kontrol akışıyla temsil eder.
+
+**Açık semantik notu:** Dizi taramasında `else` kolunun her eşleşmeyen eleman için mi çalışacağı, yoksa tüm dizi taramasında hiçbir eşleşme bulunmadığında bir kez mi çalışacağı ayrıca kesinleştirilecektir. Bu davranış netleşmeden derleyiciye varsayılan bir yorum yüklenmemelidir.
+
+#### E) Derleyici ve OIR davranışı
+
+Parser, `select` ve `scan` için ayrı AST düğümleri üretir. Analyzer pattern türlerini, binding sayısını/türlerini, guard koşullarını, tekrar eden pattern'leri ve enum/sealed type kapsamını doğrular.
+
+OIR aşamasında:
+
+- `select` sabit ve uygun tamsayı pattern'lerinde jump table'a dönüştürülebilir.
+- Aralıklar veya jump table için uygun olmayan pattern'ler karşılaştırma/dallanma zinciriyle işlenebilir.
+- `scan` önce tür/varyant etiketini kontrol eder; yalnızca eşleşme doğrulandıktan sonra payload alanlarını çıkarır.
+- `when` guard'ı pattern eşleşmesinden sonra ayrı bir koşullu dallanma olarak uygulanır.
+- Her branch normal tamamlandığında ortak çıkış bloğuna bağlanır. `return`, `break` veya `continue` ile sonlanan branch'ler kendi kontrol aktarımını korur.
+- Hedef işlemci jump table desteklemiyorsa Codegen aynı davranışı karşılaştırma ve dallanma komutlarıyla üretir.
+
+Özetle: `select` **değer seçer**, `scan` ise **yapı/varyant eşleştirir**. İkisi statement tabanlıdır ve birbirlerinin yerine kullanılmak zorunda değildir.
+
+Ayrıntılı tasarım: [NexusFlow Scan Select Syntax Spec.md](nexus%20docs/NexusFlow%20Scan%20Select%20Syntax%20Spec.md)
 
 ### 5.3.2 NEXUSFLOW: ÇOKLU KURAL İŞLEYİCİ (MULTI-RULE ENGINE)
 
