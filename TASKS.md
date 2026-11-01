@@ -224,8 +224,8 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 - [x] Başarılı çıktıyı host tarafında tekrar OIR olarak aç; artifact kind, producer stage, job ID ve validity alanlarını descriptor/result ile karşılaştır. Başarısız modül çağrısında çıktı pointer'ı yayımlama.
 - [x] Pass-through fixture testi: load/invoke/retry/callback/unload; eksik export ve bulunamayan dosya testleri.
 - [x] Gerçek Parser DLL testi artık doğrudan process() çağırmak yerine OCC host loader üzerinden geçerli ve hatalı kaynakları çalıştırıyor; exact diagnostic span ve başarısızlıkta sıfır çıktı doğrulanıyor.
-- [ ] CI'da yeni loader testlerini Windows/Ubuntu/macOS + ASan/UBSan/Valgrind matrisinde doğrula.
-- [ ] main.c statik parser yolunu host loader + OIR handoff ile değiştir; semantic stage ve failure checkpoint'i gerçek Parser DLL çıktısına bağla.
+- [x] CI'da loader ve gerçek Semantic DLL testlerini Windows/Ubuntu/macOS + ASan/UBSan/Valgrind matrisinde doğrula (CI run `41325592201` ve sonraki `41364158463` başarılı).
+- [x] `main.c` ana akışını host loader + OIR handoff'a taşı; Lexer → Parser → Semantic DLL zincirini gerçek CLI'da çalıştır ve hata checkpoint'ini kaynak girdisine bağla. AST materialization yalnızca henüz ortak stage ABI'ye taşınmamış legacy Codegen köprüsü için tutuluyor.
 - [ ] Modül başına çağrı serileştirmesini ve aynı job collector'a diagnostic callback kilidini OCC dispatcher seviyesinde uygula. Loader şu anda host çağrısı başına callback kurar; collector'ın kendisi thread-safe değildir.
 
 
@@ -239,7 +239,7 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 - [x] Lokalize OCC kopyasının yanında parser DLL'nin de deploy edilmesini sağla.
 - [x] **CI run 41174447616:** Windows, Ubuntu ve macOS build/test başarılı; CTest 39/39; Ubuntu ASan/UBSan ve Valgrind başarılı.
 - [x] Lexer'ı bağımsız DLL stage'e ayır; OCC'nin statik lexer çağrısını kaldır ve SOURCE_UNIT → lexer DLL → TOKEN_STREAM → parser DLL zincirini gerçek CLI'da çalıştır.
-- [ ] Semantic stage için SEMANTIC_AST OIR schema/codec + DLL oluştur; host materialization'ı yalnızca legacy consumer gerekiyorsa kullan.
+- [x] SEMANTIC_AST schema/codec, artifact validator/writer ve `occ_semantic_stage` DLL/SO/dylib oluştur; OCC CLI'da AST OIR → Semantic DLL → SEMANTIC_AST OIR zincirini çalıştır. Host AST materialization yalnızca legacy Codegen köprüsüdür; Codegen'in SEMANTIC_AST tüketmesi ayrı açık görevdir.
 - [ ] Codegen'i ortak stage ABI'ye taşı; mevcut codegen_run yüklemesi henüz eski ayrı entry-point sözleşmesidir.
 - [ ] Aynı job diagnostic collector'a erişen çağrılar için synchronized dispatcher/serialization policy ekle.
 
