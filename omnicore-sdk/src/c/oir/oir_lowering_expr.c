@@ -1,7 +1,6 @@
 #include "oir_lowering.h"
 #include "oir_type_map.h"
 #include <string.h>
-#include <stdio.h>
 
 #define N_PROGRAM 1u
 #define N_BLOCK 2u
@@ -351,7 +350,6 @@ OirStatus oir_lower_semantic_ast_return(
     ExprState st;
     OirModuleInput m;
     OirStatus s;
-    fprintf(stderr,"lowerer entry\\n");
     if (written) *written=0u;
     if (!a || !w || !output || !written || !w->types || !w->functions ||
         !w->blocks || !w->values || !w->instructions || !w->operands || !w->strings)
@@ -363,7 +361,6 @@ OirStatus oir_lower_semantic_ast_return(
         (s=ref(&a->ast,root.node_id,1u,&decl))!=OIR_STATUS_OK || !decl ||
         (s=node(&a->ast,decl,&fn))!=OIR_STATUS_OK || fn.node_kind_id!=N_FUNCTION || fn.next_node_id)
         return OIR_STATUS_INVALID_SECTION;
-    fprintf(stderr,"root/function ok\\n");
     if ((s=field(&a->ast,fn.node_id,3u,OIR_AST_VALUE_BOOL,&f))!=OIR_STATUS_OK || f.value[0])
         return OIR_STATUS_INVALID_SECTION;
     if ((s=ref(&a->ast,fn.node_id,6u,&decl))!=OIR_STATUS_OK || decl)
@@ -377,7 +374,6 @@ OirStatus oir_lower_semantic_ast_return(
         (s=ref(&a->ast,body_id,1u,&statement_id))!=OIR_STATUS_OK || !statement_id ||
         (s=node(&a->ast,statement_id,&statement))!=OIR_STATUS_OK)
         return OIR_STATUS_INVALID_SECTION;
-    fprintf(stderr,"body/statement ok\\n");
     {
         uint32_t lo=0u, hi=a->annotations.record_count;
         while (lo<hi) {
@@ -391,7 +387,6 @@ OirStatus oir_lower_semantic_ast_return(
             oir_semantic_annotations_get(&a->annotations,lo,&fa)!=OIR_STATUS_OK ||
             fa.node_id!=fn.node_id || !fa.resolved_type_id) return OIR_STATUS_INVALID_SECTION;
     }
-    fprintf(stderr,"function annotation ok typeid=%u\\n",(unsigned)fa.resolved_type_id);
     {
         uint32_t i;
         int found=0;
@@ -403,22 +398,18 @@ OirStatus oir_lower_semantic_ast_return(
         }
         if (!found || !type_name) return OIR_STATUS_INVALID_SECTION;
     }
-    fprintf(stderr,"semantic type lookup ok type=%.*s\\n",(int)ft.name_length,type_name);
     type_len=declared_len;
     if (declared[0]=='!') { hard=1; type_off=1u; --type_len; }
     if (type_len!=ft.name_length || memcmp(declared+type_off,type_name,type_len) ||
         hard!=((ft.flags&OIR_SEMANTIC_TYPE_FLAG_HARD)!=0u)) return OIR_STATUS_INVALID_SECTION;
-    fprintf(stderr,"declared type check ok\\n");
     memset(w->types,0,2u*sizeof(w->types[0]));
     if ((s=oir_type_map_primitive(&ft,type_name,ft.name_length,1u,&w->types[0]))!=OIR_STATUS_OK)
         return s;
     w->types[1].id=2u; w->types[1].kind=OIR_MODULE_TYPE_FUNCTION;
-    fprintf(stderr,"lowerer reached st init\\n");
     memset(&st,0,sizeof(st));
     st.artifact=a; st.ws=w; st.type_name=type_name; st.type_length=ft.name_length;
 
     /* Straight-line scalar locals are promoted to SSA values; reassignment creates a new version. */
-    fprintf(stderr,"first statement kind=%u next=%u\\n",(unsigned)statement.node_kind_id,(unsigned)statement.next_node_id);
     while (statement.node_kind_id == N_VAR_DECL ||
            statement.node_kind_id == N_ASSIGNMENT) {
         if (statement.node_kind_id == N_ASSIGNMENT) {
@@ -452,16 +443,14 @@ OirStatus oir_lower_semantic_ast_return(
         if ((s=node(&a->ast,statement_id,&statement))!=OIR_STATUS_OK)
             return OIR_STATUS_INVALID_SECTION;
     }
-    fprintf(stderr,"after locals kind=%u next=%u\\n",(unsigned)statement.node_kind_id,(unsigned)statement.next_node_id);
     if (statement.node_kind_id!=N_RETURN || statement.next_node_id)
         return OIR_STATUS_INVALID_SECTION;
     ret_id=statement.node_id;
-    fprintf(stderr,"return id=%u\\n",(unsigned)ret_id);
     if ((s=token(&a->ast,ret_id,1u,&ret_tok))!=OIR_STATUS_OK || ret_tok!=T_RET ||
         (s=ref(&a->ast,ret_id,2u,&expr_id))!=OIR_STATUS_OK || !expr_id)
         return OIR_STATUS_INVALID_SECTION;
-    if ((s=lower_expr(&st,expr_id,&value_id,0u))!=OIR_STATUS_OK) { fprintf(stderr,"lower_expr failed %d\\n",(int)s); return s; }
-    if ((s=alloc_inst(&st,1u,&ret_iid,&ret_first))!=OIR_STATUS_OK) { fprintf(stderr,"alloc_inst failed %d\\n",(int)s); return s; }
+    if ((s=lower_expr(&st,expr_id,&value_id,0u))!=OIR_STATUS_OK) return s;
+    if ((s=alloc_inst(&st,1u,&ret_iid,&ret_first))!=OIR_STATUS_OK) return s;
     memset(&w->instructions[ret_iid-1u],0,sizeof(w->instructions[0]));
     w->instructions[ret_iid-1u].id=ret_iid;
     w->instructions[ret_iid-1u].block_id=1u;
@@ -476,12 +465,12 @@ OirStatus oir_lower_semantic_ast_return(
     w->functions[0].name_length=fname_len; w->functions[0].function_type_id=2u;
     w->functions[0].entry_block_id=1u;
     w->blocks[0].id=1u; w->blocks[0].function_id=1u;
-    w->blocks[0].first_instruction=1u; w->blocks[0].instruction_count=st.instructions;
+    w->blocks[0].first_instruction=0u; w->blocks[0].instruction_count=st.instructions;
     memset(&m,0,sizeof(m));
     m.types=w->types; m.type_count=2u; m.functions=w->functions; m.function_count=1u;
     m.blocks=w->blocks; m.block_count=1u; m.values=w->values; m.value_count=st.values;
     m.instructions=w->instructions; m.instruction_count=st.instructions;
     m.operands=w->operands; m.operand_count=st.operands;
     m.strings=w->strings; m.strings_length=fname_len;
-    s=oir_module_write(output,capacity,&m,written); if(s!=OIR_STATUS_OK) fprintf(stderr,"module_write failed %d\\n",(int)s); return s;
+    return oir_module_write(output,capacity,&m,written);
 }
