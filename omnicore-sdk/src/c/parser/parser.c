@@ -1714,8 +1714,8 @@ static ASTNode* parse_func_decl(Parser* p) {
             param_tail = (ASTNode*)param;
 
             /*
-             * Parameter type separator is optional. Both a:f32 and a!f32
-             * are accepted; a:!f32 is the explicit hard-typed spelling.
+             * ':' separates a name from an ordinary type. For hard types,
+             * both a!f32 and a:!f32 are accepted.
              */
             has_colon = match(p, TOKEN_COLON);
             if (match(p, TOKEN_NOT)) has_bang = 1;
