@@ -550,9 +550,16 @@ static int test_function_parameter_type_separator_forms(void) {
     int ok = 0;
 
     if (!ctx) return 0;
-    if (parser_run(ctx) != PARSER_STATUS_OK ||
-        parser_get_status(ctx) != PARSER_STATUS_OK ||
-        ctx->error_count != 0 || !ctx->ast_root) goto done;
+    {
+        int parse_result=parser_run(ctx);
+        if (parse_result != PARSER_STATUS_OK ||
+            parser_get_status(ctx) != PARSER_STATUS_OK ||
+            ctx->error_count != 0 || !ctx->ast_root) {
+            fprintf(stderr,"parameter syntax parse result=%d status=%d errors=%d\\n",
+                parse_result,(int)parser_get_status(ctx),ctx->error_count);
+            goto done;
+        }
+    }
 
     program = (ASTProgram*)ctx->ast_root;
     function = (ASTFuncDecl*)program->declarations;
@@ -567,7 +574,13 @@ static int test_function_parameter_type_separator_forms(void) {
         strcmp(b->name, "b") != 0 || strcmp(b->type_name, "!f32") != 0 ||
         !b->is_hard_typed ||
         strcmp(c->name, "c") != 0 || strcmp(c->type_name, "!f32") != 0 ||
-        !c->is_hard_typed) goto done;
+        !c->is_hard_typed) {
+        fprintf(stderr,"parameter AST mismatch a=%s:%s hard=%d b=%s:%s hard=%d c=%s:%s hard=%d\\n",
+            a&&a->name?a->name:"(null)",a&&a->type_name?a->type_name:"(null)",a?a->is_hard_typed:-1,
+            b&&b->name?b->name:"(null)",b&&b->type_name?b->type_name:"(null)",b?b->is_hard_typed:-1,
+            c&&c->name?c->name:"(null)",c&&c->type_name?c->type_name:"(null)",c?c->is_hard_typed:-1);
+        goto done;
+    }
     ok = 1;
 
 done:
