@@ -2387,3 +2387,155 @@ Ortak hedefte birleşen değer, daha sonraki bir hesaplamada kullanılır. OIR, 
 - **Optimizer:** Jump threading, block merging ve predecessor/merge güncellemeleri.
 
 Bu test, tek bir basic block'un birden fazla farklı kaynaktan giriş alabileceğini ve bu girişlerin değerlerinin birbirinden bağımsız korunması gerektiğini sabitler. Nihai block-parameter serileştirme biçimi ve edge kimliği politikası, OIR format sürümünün ilgili sözleşmesinde kesinleştirilecektir.
+
+
+
+## 12.23 MR-OIR-014 — Karmaşık kontrol akışı grafiği ve sınırsız çoklu giriş
+
+### 12.23.1 Amaç
+
+Bu test, temel NEXUS Flow kontrol yapılarının ve doğrudan `jump(label)` aktarımının birlikte kullanılarak karmaşık, çok dallı ve döngülü bir fonksiyon CFG'si oluşturabilmesini doğrular.
+
+Kapsam:
+- `if / elsif / els` ile koşullu dallanma,
+- `select` ile çok seçenekli dallanma,
+- `loop` ile döngü ve geri kenar,
+- `jump(label)` ile açık etiketli, ileri/geri ve cross-block aktarım,
+- Birden fazla yolun ortak hedefte birleşmesi,
+- Birleşen akışın yeniden dallanması,
+- Birden fazla merge noktasının ve döngünün aynı fonksiyonda bulunması.
+
+Bu yapılar kaynak dilde ayrı ayrı anlamlarını korur; OIR seviyesinde aynı fonksiyon CFG'sinin block ve edge'leri olarak temsil edilir.
+
+### 12.23.2 Kaynak dil karmaşık akış testi
+
+```nexus
+f:complexFlow(mode:i32, choice:i32)!i32 {
+    result:i = 0;
+
+    if (mode == 0) {
+        result = 10;
+    } elsif (mode == 1) {
+        result = 20;
+    } els {
+        result = 30;
+    }
+
+    select(choice) {
+        1 -> {
+            result = result + 1;
+            jump(shared);
+        }
+
+        2 | 3 -> {
+            result = result + 2;
+            jump(shared);
+        }
+
+        4..8 -> {
+            result = result + 3;
+            jump(shared);
+        }
+
+        default -> {
+            result = result + 4;
+            jump(shared);
+        }
+    }
+
+    shared:>
+    loop(i, i < 3, i++) -> {
+        result = result + i;
+    }
+
+    (result > 20) ? jump(highPath);
+    jump(lowPath);
+
+    highPath:>
+    result = result + 100;
+    jump(finalJoin);
+
+    lowPath:>
+    result = result - 100;
+    jump(finalJoin);
+
+    finalJoin:>
+    return result;
+}
+```
+
+Beklenen CFG davranışı:
+1. İlk koşullu yapı üç farklı değer üretim yolunu tek devam akışında birleştirir.
+2. `select` dört olası branch üretir ve her branch `shared` hedefine ayrı bir jump ile ulaşır.
+3. `shared` noktasında çoklu giriş vardır; branch'e özgü güncel `result` değeri korunur.
+4. `loop` kendi koşul, body, latch ve exit akışını CFG içinde oluşturur.
+5. Döngüden sonra koşullu jump ve koşulsuz jump, akışı `highPath` veya `lowPath` bloklarına ayırır.
+6. Her iki yol `finalJoin` noktasında yeniden birleşir.
+
+Örnek, kontrol yapılarının tek bir fonksiyon içinde bileşim oluşturmasını gösterir. OIR'deki block parameter/SSA mekanizması iç temsildir; kaynak dilde yeni bir merge sözdizimi oluşturmaz.
+
+### 12.23.3 Çoklu jump için limit politikası
+
+**Dil veya CFG semantiği düzeyinde sabit bir jump, predecessor, successor ya da ortak hedef giriş sayısı sınırı tanımlanmayacaktır.**
+
+Normatif kurallar:
+1. Bir fonksiyonda ihtiyaç duyulan sayıda `jump(label)` ifadesi bulunabilir; derleyici bunu keyfî bir sabit sayıyla sınırlandıramaz.
+2. Bir basic block, farklı kaynak block'lardan keyfî sayıda geçerli predecessor alabilir. MR-OIR-013'teki edge-specific merge kuralları tüm bu girişler için geçerlidir.
+3. Bir fonksiyon CFG'sinde toplam block ve edge sayısı için dil seviyesinde küçük/sabit bir üst sınır konulmaz.
+4. Bir basic block yine tek bir terminator ile sona erer. Bu kural, aynı block içinde birden fazla terminator bulunabileceği anlamına gelmez. Birden fazla çıkış, conditional/select/switch benzeri terminator yapısının ayrı successor edge'leriyle temsil edilir.
+5. Uygulama; dinamik boyutlandırma, güvenli kapasite büyütme ve taşma kontrolleri kullanmalıdır. Sabit boyutlu iç tablo seçilirse kapasite dolduğunda sessiz kesme veya hatalı CFG üretme yerine açık kaynak/derleme-kaynak sınırı hatası verilmelidir.
+6. OIR dosya formatındaki sayısal alan genişliği, adreslenebilir bellek, host kaynakları ve güvenlik limitleri pratik/temsilî sınır oluşturabilir. Bunlar dilin keyfî semantik limiti değildir; format ve uygulama sözleşmesinde açıkça belirtilmelidir.
+7. Kaynak veya güvenlik limitine ulaşıldığında işlem kontrollü biçimde reddedilir; edge, label, predecessor veya block kaybıyla kısmi/bozuk OIR üretilmez.
+
+### 12.23.4 CFG ve merge doğrulamaları
+
+Verifier:
+- `if / elsif / els`, `select`, `loop` ve `jump` kaynaklı tüm block/edge ilişkilerini doğrulamalıdır.
+- Her block'un geçerli tek terminator'ı olduğunu ve terminator successor'larının CFG ile eşleştiğini doğrulamalıdır.
+- Çoklu predecessor'lı hedeflerde her edge'in kendi block parameter/SSA argümanlarını taşıdığını doğrulamalıdır.
+- Merge sonrası yeniden dallanmayı ve sonraki merge noktalarını desteklemelidir.
+- Loop backedge'lerini ve loop exit edge'lerini normal CFG doğrulamasına dahil etmelidir.
+- Kaynak sıra numarasını dominance veya predecessor sırası olarak varsaymamalıdır.
+- CFG'nin reducible veya irreducible olabileceğini kabul etmeli; yalnızca döngü içerdiği için grafiği reddetmemelidir.
+- Kaynak dilin fonksiyon kapsamı ve lexical-scope initialization güvenliğini her jump hedefinde uygulamalıdır.
+
+### 12.23.5 Optimizer güvenliği
+
+Optimizer aşağıdaki dönüşümlerde CFG semantiğini korumalıdır:
+- Birden fazla merge ve branch noktasını sadeleştirme,
+- Güvenli jump threading,
+- Sabit koşullu branch ve select kolu sadeleştirmesi,
+- Döngü giriş/çıkış kenarlarının korunması,
+- Erişilemeyen block ve kullanılmayan değer temizliği,
+- Block merging ve predecessor yeniden yönlendirme.
+
+Her dönüşüm; terminator'ları, tüm successor/predecessor edge'lerini, edge-specific block parameter argümanlarını, SSA merge kayıtlarını, label eşlemelerini ve debug/source metadata'yı birlikte güncellemelidir. Gerekli CFG/SSA analizleri yenilenmeli ve OIR Verifier tekrar çalıştırılmalıdır.
+
+### 12.23.6 Negatif testler
+
+- **MR-OIR-014-N1:** `if / elsif / els` dallarından birinin merge noktasına yanlış bağlanması.
+- **MR-OIR-014-N2:** `select` içinde ilk eşleşen branch kuralının ihlal edilmesi veya birden fazla branch'in çalıştırılması.
+- **MR-OIR-014-N3:** `select` branch'lerinden birinin ortak hedefe edge üretmemesi.
+- **MR-OIR-014-N4:** Ortak hedefte predecessor'a özgü `result` değerinin kaybolması.
+- **MR-OIR-014-N5:** Loop body, latch, backedge veya exit edge'lerinden birinin eksik/yanlış oluşturulması.
+- **MR-OIR-014-N6:** Loop içindeki bir değer tanımının dominance/SSA kurallarına aykırı kullanılması.
+- **MR-OIR-014-N7:** Merge sonrasında yeniden dallanmanın predecessor/edge bağlantılarının bozulması.
+- **MR-OIR-014-N8:** `finalJoin` noktasındaki iki girişin yanlış SSA değerleriyle eşleştirilmesi.
+- **MR-OIR-014-N9:** Optimizer'ın farklı incoming değerleri eşdeğerlik kanıtı olmadan tek değere indirmesi.
+- **MR-OIR-014-N10:** Jump veya predecessor sayısına keyfî sabit limit uygulanıp geçerli grafiğin reddedilmesi.
+- **MR-OIR-014-N11:** İç kapasite dolduğunda edge/label kaybedilerek bozuk OIR üretilmesi.
+- **MR-OIR-014-N12:** CFG değişikliğinden sonra eski dominance, predecessor veya SSA analizinin kullanılması.
+- **MR-OIR-014-N13:** Tek basic block'a birden fazla terminator yazılmasına izin verilmesi.
+- **MR-OIR-014-N14:** Kaynak sıra düzeninin CFG bağlantısı veya kontrol akışı sırası sanılması.
+- **MR-OIR-014-N15:** Lexical-scope initialization güvenliğini ihlal eden jump hedefinin kabul edilmesi.
+
+### 12.23.7 Test sınıflandırması
+
+- **Frontend/Parser:** İç içe ve ardışık kontrol yapılarının AST'ye doğru aktarılması.
+- **Analyzer:** Label, fonksiyon kapsamı ve lexical-scope kontrolleri.
+- **OIR Builder:** Çok dallı CFG, merge, loop backedge ve cross-block jump üretimi.
+- **OIR Verifier:** Terminator, edge, predecessor/successor, block parameter ve SSA doğrulaması.
+- **CFG/SSA Analysis:** Dominance, loop, reducibility ve merge analizi.
+- **Optimizer:** Karmaşık CFG üzerinde güvenli sadeleştirme ve metadata koruması.
+
+Bu test, NEXUS Flow kontrol yapılarının birbirleriyle bileşiminden karmaşık CFG oluşturulabilmesini ve çoklu jump için keyfî sabit sayı sınırı bulunmamasını normatif tasarım kararı olarak sabitler. Gerçek kaynak/format sınırları uygulama sözleşmesinde açıkça raporlanacaktır.
