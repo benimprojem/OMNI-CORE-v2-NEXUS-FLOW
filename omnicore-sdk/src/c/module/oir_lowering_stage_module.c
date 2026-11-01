@@ -134,11 +134,10 @@ static uint32_t OCC_MODULE_CALL oir_lowering_process(
         visited, node_count,
         graph_stack, node_count,
         owner_scope, node_count + 1u);
-    if (status != OIR_STATUS_OK) return_invalid:
-        {
-            module_status = OCC_MODULE_STATUS_INVALID_INVOCATION;
-            goto cleanup;
-        }
+    if (status != OIR_STATUS_OK) {
+        module_status = OCC_MODULE_STATUS_INVALID_INVOCATION;
+        goto cleanup;
+    }
 
     values_capacity = node_count;
     if (values_capacity > OIR_MODULE_TABLE_COUNT_MAX)
