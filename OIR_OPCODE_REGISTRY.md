@@ -27,9 +27,9 @@ The registry currently validates structural shape only. It does not replace modu
 
 | ID | Symbol | Name | Operands | Result | Flags |
 |---:|---|---|---|---|---|
-| 1 | `OIR_OP_CONST_INT` | `const.int` | 0 | Required | Pure |
-| 2 | `OIR_OP_CONST_FLOAT` | `const.float` | 0 | Required | Pure |
-| 3 | `OIR_OP_CONST_BOOL` | `const.bool` | 0 | Required | Pure |
+| 1 | `OIR_OP_CONST_INT` | `const.int` | integer immediate | Required | Pure |
+| 2 | `OIR_OP_CONST_FLOAT` | `const.float` | float immediate (IEEE-754 binary64 bits) | Required | Pure |
+| 3 | `OIR_OP_CONST_BOOL` | `const.bool` | integer immediate (0 or 1) | Required | Pure |
 | 16 | `OIR_OP_ADD` | `add` | value, value | Required | Pure |
 | 17 | `OIR_OP_SUB` | `sub` | value, value | Required | Pure |
 | 18 | `OIR_OP_MUL` | `mul` | value, value | Required | Pure |
@@ -50,7 +50,7 @@ The comparison family uses consecutive IDs: 32 equality, 33 inequality, 34 less-
 
 ## Semantics and deliberate boundaries
 
-- Constant payloads are stored by the value/constant record, not as native C values embedded in the instruction. The constant opcode creates the typed SSA result.
+- Constant opcodes carry exactly one explicitly typed immediate operand. Integer immediates use the 64-bit two's-complement bit pattern; floating immediates use IEEE-754 binary64 bits; boolean immediates are integer 0 or 1. The result value's module type defines the interpreted scalar width. No native C struct or host-endian floating representation is serialized.
 - Arithmetic opcode IDs are type-neutral. The module verifier must enforce the supported integer/floating type combinations and result type; the registry does not silently apply C arithmetic conversions.
 - `cast` names an explicit conversion to a module-local type. It must not be used to invent an implicit conversion absent from the semantic artifact.
 - `call` names a function in operand zero. Remaining operands are argument values in declared parameter order. Its result is absent only for a void-returning function.
