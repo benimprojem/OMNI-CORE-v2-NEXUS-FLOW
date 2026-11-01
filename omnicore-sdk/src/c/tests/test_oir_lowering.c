@@ -193,13 +193,13 @@ int main(void) {
 
     nodes[3].field_data_offset=(uint32_t)fields_used;
     oir_ast_tlv_writer_init(&writer,fields+fields_used,sizeof(fields)-fields_used);
-    put32(tmp,8u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,4u);
+    put32(tmp,9u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,4u);
     put32(tmp,5u); write_field(&writer,2u,OIR_AST_VALUE_NODE_REF,tmp,4u);
     nodes[3].field_data_length=(uint32_t)writer.used; fields_used+=writer.used;
 
     nodes[4].field_data_offset=(uint32_t)fields_used;
     oir_ast_tlv_writer_init(&writer,fields+fields_used,sizeof(fields)-fields_used);
-    put32(tmp,3u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,4u);
+    put32(tmp,4u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,4u);
     put32(tmp,0u); write_field(&writer,2u,OIR_AST_VALUE_U32,tmp,4u);
     put64(tmp,42u); write_field(&writer,3u,OIR_AST_VALUE_I64,tmp,8u);
     nodes[4].field_data_length=(uint32_t)writer.used; fields_used+=writer.used;
