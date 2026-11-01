@@ -593,42 +593,39 @@ Ayrıntılı tasarım: [NexusFlow Scan Select Syntax Spec.md](nexus%20docs/Nexus
 
 ### 5.3.2 NEXUSFLOW: ÇOKLU KURAL İŞLEYİCİ (MULTI-RULE ENGINE)
 
-Multi-Rule Engine, bir fonksiyonun ön koşullarını topluca doğrulamak ve koşullara bağlı birden fazla olayı/aksiyonu yönetmek için kullanılır. Temel yapı `rules` ile tanımlanır, `apply rules(...)` ile fonksiyon akışına uygulanır.
+Multi-Rule Engine, fonksiyonun ön koşullarını topluca doğrular ve koşullara bağlı trigger'ları/aksiyonları yönetir. Kural kümeleri `rules` ile tanımlanır ve `apply rules(...)` ile fonksiyon akışına uygulanır.
 
 #### 1. Kural tanımı
 
 ```nexus
 rules CNC_Safety(w, h, tool) {
-    # Bariyerler: koşul doğruysa hata kaydı oluşturur.
+    # Bariyerler: tümü test edilir, hatalar birlikte raporlanır.
     w > 2800 :=> "Genişlik sınırı aşıldı";
     h > 2100 :=> "Yükseklik sınırı aşıldı";
 
-    # Trigger'lar: koşul doğruysa trigger kaydedilir.
+    # Normal trigger kuralları: eşleşenlerin tamamı kaydedilir.
     (w == h) -> SquareMode;
     tool == "Diamond" -> HighSpeed;
 
-    # İsteğe bağlı kurallar:
+    # İsteğe bağlı özel kurallar:
     always -> LogMetrics;
     default -> StandardSettings;
 }
 ```
 
-- Bariyer operatörü **`:=>`** biçimindedir.
+#### 2. Bariyerlerin toplu değerlendirilmesi
 
-#### 2. Bariyerlerin çalışma biçimi
+Bir RuleSet içindeki bütün `:=>` bariyerleri değerlendirilir. Koşulu doğru olan her bariyerin mesajı hata listesine eklenir. İlk hatada durulmaz.
 
-Bir RuleSet içindeki tüm **`:=>` bariyerleri** değerlendirilir. Koşulu doğru olan her bariyerin mesajı hata listesine eklenir. İlk hatada durulmaz.
-
-Bariyer aşamasının sonunda:
 - Hiç hata yoksa trigger değerlendirmesine geçilir.
-- Bir veya daha fazla hata varsa fonksiyon durur ve **tüm hata mesajları birlikte raporlanır**.
-- Bariyer hatası oluştuğunda o RuleSet'in trigger'ları, `on` blokları ve normal fonksiyon akışı çalıştırılmaz.
+- Bir veya daha fazla hata varsa fonksiyon durur ve tüm hata mesajları birlikte raporlanır.
+- Bariyer hatası oluştuğunda o RuleSet'in trigger'ları, `on` handler'ları ve normal fonksiyon akışı çalıştırılmaz.
 
-Örnek: Hem genişlik hem yükseklik sınırı aşılmışsa iki mesaj da raporlanır; ancak fonksiyon yine tek bir başarısızlık sonucu ile durdurulur.
+Örneğin hem genişlik hem yükseklik sınırı aşılmışsa iki mesaj da raporlanır; fonksiyon tek bir başarısızlık sonucu ile durdurulur.
 
 #### 3. Trigger ve on handler'ları
 
-Bariyerlerin tamamı başarılıysa bütün trigger koşulları değerlendirilir. Birden fazla koşul doğruysa tüm trigger adları kaydedilir; yalnızca ilk eşleşme seçilmez.
+Bariyerlerin tamamı başarılıysa bütün normal trigger koşulları değerlendirilir. Birden fazla koşul doğruysa tüm trigger adları kaydedilir; yalnızca ilk eşleşme seçilmez.
 
 ```nexus
 f:buildPart(w, h, tool) {
@@ -646,32 +643,46 @@ f:buildPart(w, h, tool) {
 }
 ```
 
-`on` blokları derleme sırasında ilgili RuleSet ve trigger ile eşleştirilir. Kaynakta `apply rules` satırından sonra yazılmaları, daha sonra çalışacakları anlamına gelmez: ilgili handler'lar, başarılı `apply rules` değerlendirmesinin parçası olarak çalışır. Birden fazla trigger eşleşirse handler'lar kaynak sırasına göre yürütülür. Handler tanımlanmamış trigger hata değildir; yalnızca yakalanmamış bir olay olarak kalır.
+`on` blokları derleme sırasında ilgili RuleSet/trigger çiftiyle eşleştirilir. İlgili handler'lar, başarılı `apply rules` değerlendirmesinin parçası olarak çalışır. Birden fazla trigger eşleşirse handler'lar kaynak sırasına göre yürütülür. Handler tanımlanmamış trigger hata değildir; yakalanmamış olay olarak kalır.
 
 #### 4. Birden fazla apply rules
 
-`apply rules` çağrıları yazıldıkları sırayla yürütülür. Önceki RuleSet başarılıysa sıradaki değerlendirilir. Herhangi bir RuleSet bariyer hatası üretirse o RuleSet'in bütün bariyer mesajları raporlanır; sonraki `apply rules` çağrıları ve fonksiyonun normal akışı çalıştırılmaz.
+`apply rules` çağrıları kaynak kod sırasıyla yürütülür. Önceki RuleSet başarılıysa sıradaki değerlendirilir. Herhangi bir RuleSet bariyer hatası üretirse o RuleSet'in bütün bariyer mesajları raporlanır; sonraki `apply rules` çağrıları ve fonksiyonun normal akışı çalıştırılmaz.
 
-#### 5. always ve default
+#### 5. always ve default (isteğe bağlı)
 
-İkisi de isteğe bağlıdır; hiçbiri tanımlanmak zorunda değildir.
+İkisi de zorunlu değildir. Ok operatörlü biçimde sağ taraf bir **trigger adıdır**:
 
-- `always -> Action;`: Bariyer aşaması başarılı olan her uygulamada çalışır.
-- `default -> Action;`: Hiçbir trigger eşleşmediğinde çalışır.
-- Bir trigger eşleşmişse `default` çalışmaz.
-- Tanımlanmamış `always` veya `default` için otomatik bir davranış üretilmez.
+```nexus
+always -> LogMetrics;
+default -> Success;
+```
 
-Çalışma sırası: tüm bariyerler → tüm trigger'lar → eşleşen `on` handler'ları → varsa `always` → koşulu sağlanmışsa varsa `default`.
+- `always -> LogMetrics;`: Bariyer aşaması başarılı olan her uygulamada `LogMetrics` trigger'ını üretir.
+- `default -> Success;`: Hiçbir normal trigger eşleşmediğinde `Success` trigger'ını üretir. Bu trigger, `on RuleName.Success { ... }` ile yakalanabilir.
+- Doğrudan aksiyon çalıştırmak için blok biçimi kullanılır:
+
+```nexus
+always {
+    writeMetrics();
+}
+
+default {
+    applyStandardSettings();
+}
+```
+
+Blok biçiminde aksiyon doğrudan yürütülür. `always` ve `default` tanımları yoksa otomatik bir işlem oluşmaz.
 
 #### 6. Derleyici temsili
 
-Parser, kural tanımını `AST_RULESET`, bariyerleri `AST_BARRIER`, trigger'ları `AST_TRIGGER`, uygulamayı `AST_APPLY_RULES` ve handler'ları `AST_ON` düğümleriyle temsil eder. Parser yapıyı kurar; RuleSet/trigger isim çözümlemesi, argüman ve tip uyumu, yinelenen trigger adları ve handler eşleşmeleri Analyzer tarafından doğrulanır.
+Parser; `AST_RULESET`, `AST_BARRIER`, `AST_TRIGGER`, `AST_APPLY_RULES` ve `AST_ON` düğümlerini oluşturur. Analyzer isim çözümlemesi, argüman/tip uyumu, yinelenen trigger adları ve handler eşleşmelerini doğrular.
 
-OIR Builder her bariyer için koşul dallanması ve hata biriktirme adımı üretir. Tüm bariyerler test edildikten sonra hata listesi boş değilse hata raporlama ve fonksiyon yolunu sonlandırma bloğuna dallanır. Liste boşsa trigger koşulları ayrı dallanmalarla değerlendirilir; eşleşen trigger'lar kaydedilir ve handler bloklarına geçilir. Böylece çoklu bariyer toplama ve çoklu trigger çalıştırma, OIR CFG içinde açık ve doğrulanabilir hâle gelir.
+OIR Builder her bariyer için koşul dallanması ve hata biriktirme adımı üretir. Tüm bariyerler test edildikten sonra hata listesi boş değilse hata raporlama ve fonksiyon yolunu sonlandırma bloğuna dallanır. Liste boşsa bütün normal trigger koşulları değerlendirilir; eşleşen trigger'lar ve handler'ları işlenir. Ardından varsa `always`, normal trigger eşleşmemişse varsa `default` davranışı uygulanır.
 
-> Not: `group` içindeki `rules ... => group { ... }` biçimi, temel `rules Name(params) { ... }` sözdiziminden ayrı bir organizasyon katmanıdır. Group entegrasyonu ayrı lowering/çözümleme adımı olarak ele alınacaktır.
+> Not: `group` içindeki `rules ... => group { ... }` biçimi temel `rules Name(params) { ... }` sözdiziminden ayrı bir organizasyon katmanıdır; ayrı lowering/çözümleme adımı olarak ele alınacaktır.
 
-Ayrıntılı AST, Analyzer ve OIR semantiği için: [Multi-Rule Engine Formal Specification](nexus%20docs/NEXUSFLOW%20%C3%87oklu%20Kural%20%C4%B0%C5%9Fleyici%20(Multi-Rule%20Engine)%20%E2%80%94%20Formal%20Specification.md).
+Ayrıntılı AST, Analyzer ve OIR semantiği: [Multi-Rule Engine Formal Specification](nexus%20docs/NEXUSFLOW%20%C3%87oklu%20Kural%20%C4%B0%C5%9Fleyici%20(Multi-Rule%20Engine)%20%E2%80%94%20Formal%20Specification.md).
 
 ---
 
