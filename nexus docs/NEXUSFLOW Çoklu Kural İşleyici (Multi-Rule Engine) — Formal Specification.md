@@ -2539,3 +2539,168 @@ Her dönüşüm; terminator'ları, tüm successor/predecessor edge'lerini, edge-
 - **Optimizer:** Karmaşık CFG üzerinde güvenli sadeleştirme ve metadata koruması.
 
 Bu test, NEXUS Flow kontrol yapılarının birbirleriyle bileşiminden karmaşık CFG oluşturulabilmesini ve çoklu jump için keyfî sabit sayı sınırı bulunmamasını normatif tasarım kararı olarak sabitler. Gerçek kaynak/format sınırları uygulama sözleşmesinde açıkça raporlanacaktır.
+
+
+
+## 12.24 MR-OIR-015 — İç içe döngüler, SELECT ve etiketli aktarım bileşimi
+
+### 12.24.1 Amaç
+
+Bu test, bir fonksiyon içinde iç içe `loop` yapılarının, döngü içindeki `select` dallarının, koşullu kontrollerin ve `jump(label)` aktarımının birlikte doğru CFG oluşturmasını doğrular.
+
+Test özellikle şu ayrımları korur:
+- `break`, en yakın kapsayan `loop` yapısından çıkar.
+- `continue`, en yakın kapsayan `loop` yapısının sonraki iterasyon noktasına geçer.
+- `jump(label)`, hedef etikete genel kontrol aktarımıdır; kendi başına `break` veya `continue` değildir.
+- Bir `select` kolundan yapılan jump, seçilen kolun devamını sonlandırır ve hedef block'a gider.
+- İç ve dış döngülerin giriş, body, latch ve exit block'ları birbirine karıştırılmaz.
+
+### 12.24.2 Kaynak dil testi
+
+Aşağıdaki örnek, Syntax Reference içindeki `loop(variable, condition, increment)`, `select(subject)`, `if / els`, `break`, `continue` ve `jump(label)` biçimlerini kullanır:
+
+```nexus
+f:testNestedControl(outerLimit:i32, innerLimit:i32)!i32 {
+    total:i = 0;
+    outer:i = 0;
+
+    loop(outer, outer < outerLimit, outer++) {
+        inner:i = 0;
+
+        loop(inner, inner < innerLimit, inner++) {
+            select(inner) {
+                0 -> {
+                    total = total + 1;
+                    jump(innerMerge);
+                }
+
+                1 | 2 -> {
+                    total = total + 2;
+                    jump(innerMerge);
+                }
+
+                3..5 -> {
+                    total = total + 3;
+                    jump(innerMerge);
+                }
+
+                default -> {
+                    total = total + 4;
+                    jump(innerMerge);
+                }
+            }
+
+            innerMerge:>
+            if (total > 100) {
+                break;
+            }
+
+            (inner == 2) ? continue;
+            total = total + inner;
+        }
+
+        select(outer) {
+            0 -> {
+                total = total + 10;
+                jump(outerMerge);
+            }
+
+            1 -> {
+                total = total + 20;
+                jump(outerMerge);
+            }
+
+            default -> {
+                total = total + 30;
+                jump(outerMerge);
+            }
+        }
+
+        outerMerge:>
+        if (outer == 1) {
+            continue;
+        }
+
+        total = total + outer;
+    }
+
+    return total;
+}
+```
+
+### 12.24.3 Beklenen kontrol akışı
+
+1. Dış `loop` her iterasyonda iç döngünün başlangıç durumunu kurar.
+2. İç `loop` kendi koşul, body, latch ve exit akışına sahiptir.
+3. İç `select` ilk eşleşen branch'i çalıştırır. Her branch kendi değer güncellemesini yapar ve `innerMerge` hedefine ayrı bir jump edge üretir.
+4. `innerMerge` noktasında tüm branch değerleri predecessor/edge ilişkisine göre birleştirilir.
+5. `break`, `innerMerge` sonrasında iç döngüden çıkar; dış döngüyü sonlandırmaz.
+6. `continue`, `inner == 2` olduğunda iç döngünün sonraki iterasyonuna geçer; loop increment semantiği korunur.
+7. İç döngü tamamlandığında dış döngü içindeki ikinci `select` çalışır. Üç branch `outerMerge` hedefine ayrı jump edge'leri üretir.
+8. `outerMerge` noktasındaki `continue`, en yakın kapsayan dış döngüye aittir; dış döngünün sonraki iterasyonuna geçer.
+9. `total` değişkeninin bütün merge noktalarındaki değer akışı korunur.
+
+### 12.24.4 Loop kimliği ve terminator bağlamı
+
+OIR Builder ve Verifier, her loop için benzersiz bir iç loop kimliği veya eşdeğer açık loop-context ilişkisi tutmalıdır. Bu kimlik, nihai OIR alan adı olarak şimdiden sabitlenmiş değildir; gereksinim semantiktir.
+
+- `break` hedefi, kaynak konumundaki en yakın kapsayan loop'un exit block'udur.
+- `continue` hedefi, en yakın kapsayan loop'un devam/latch akışıdır. Üç bileşenli loop biçiminde increment adımı atlanmamalıdır; kontrol, tanımlı iterasyon devam noktasına gitmelidir.
+- İç içe loop'taki `break` veya `continue`, dış loop'un hedeflerine bağlanamaz.
+- `jump(label)` çözümlemesi loop-context aramasıyla yapılmaz; fonksiyonun label tablosu ve mevcut function/lexical-scope güvenlik kuralları kullanılır.
+- `jump` bir block terminator'ıdır. Jump'tan sonra aynı block'taki kaynak komutlar yürütülmez.
+- Loop içindeki bir select branch'inden yapılan jump, branch'in kalanını ve select'in normal devam yolunu atlar; hedef block'a doğrudan geçer.
+
+### 12.24.5 Çoklu merge ve SSA beklentisi
+
+- `innerMerge` birden fazla select branch'inden giriş alır.
+- `outerMerge` de birden fazla select branch'inden giriş alır.
+- `total` için her incoming edge doğru güncel değeri taşımalıdır.
+- İç döngüde üretilen değerler, iç loop backedge ve exit yollarında SSA/block parameter kurallarına göre taşınmalıdır.
+- İç loop exit'inden sonra dış döngü gövdesindeki kullanım, iç döngünün doğru çıkış değerini almalıdır.
+- Dış loop backedge'i, dış loop'un sonraki iterasyonundaki değerleri doğru birleştirmelidir.
+- Birden fazla merge noktasının bulunması, predecessor/edge sayısına veya merge derinliğine sabit bir dil sınırı getirmez.
+
+### 12.24.6 Optimizer güvenliği
+
+Optimizer:
+- İç ve dış loop'un ayrı loop kimliklerini, header/latch/exit ilişkilerini korumalıdır.
+- `break` ve `continue` terminator/edge hedeflerini loop-context bilgisiyle tutarlı biçimde korumalıdır.
+- `jump` edge'lerini break/continue edge'leriyle birleştirmemelidir.
+- Select branch'lerinden gelen edge-specific değerleri doğru merge noktasında tutmalıdır.
+- Loop rotation, unroll, jump threading veya block merging yaparsa nested loop ilişkilerini ve tüm SSA/edge argümanlarını güncellemelidir.
+- Dönüşüm sonrası loop, dominance, predecessor/successor ve SSA analizlerini yenilemeli; OIR Verifier'ı tekrar çalıştırmalıdır.
+- Sırf iç içe veya çok sayıda edge içerdiği için geçerli CFG'yi reddetmemeli veya sessizce sadeleştirmemelidir.
+
+### 12.24.7 Negatif testler
+
+- **MR-OIR-015-N1:** İç loop `break` hedefinin dış loop exit block'una bağlanması.
+- **MR-OIR-015-N2:** İç loop `continue` hedefinin dış loop latch/continue block'una bağlanması.
+- **MR-OIR-015-N3:** Üç bileşenli loop'ta continue akışının increment adımını yanlışlıkla atlaması.
+- **MR-OIR-015-N4:** Select içinde ilk eşleşen branch yerine birden fazla branch'in yürütülmesi.
+- **MR-OIR-015-N5:** Select branch'indeki jump sonrasındaki komutların aynı akışta yürütülmesi.
+- **MR-OIR-015-N6:** `innerMerge` predecessor edge'lerinden birinin eksik veya yanlış olması.
+- **MR-OIR-015-N7:** `outerMerge` predecessor edge'lerinden birinin eksik veya yanlış olması.
+- **MR-OIR-015-N8:** İç döngüden dış döngü gövdesine çıkışta `total` SSA değerinin kaybolması.
+- **MR-OIR-015-N9:** İç ve dış loop backedge'lerinin birbirine karıştırılması.
+- **MR-OIR-015-N10:** `jump(label)` komutunun yanlışlıkla break/continue olarak sınıflandırılması.
+- **MR-OIR-015-N11:** Optimizer'ın nested loop header/latch/exit ilişkisini bozması.
+- **MR-OIR-015-N12:** Loop unroll veya block merge sonrasında edge-specific merge argümanlarının kaybolması.
+- **MR-OIR-015-N13:** Kaynak label çözümlemesinin loop-context ile karıştırılması.
+- **MR-OIR-015-N14:** Geçerli çoklu merge yapısının sabit predecessor/merge derinliği limiti nedeniyle reddedilmesi.
+- **MR-OIR-015-N15:** CFG dönüşümünden sonra eski loop, dominance veya SSA analizinin kullanılması.
+
+### 12.24.8 Kapsam dışı / açık tasarım noktası
+
+Bu test, jump hedeflerini aynı etkin lexical loop gövdesi içindeki merge noktalarında tutarak loop'tan çıkış davranışını `break` ile karıştırmaz. Bir `jump(label)` komutunun etkin loop kapsamlarının dışına aktarım yaptığı durumda kaynak kapsamından çıkış, otomatik kaynak temizliği ve açık kaynak/handle kapatma davranışları ayrı bir semantik sözleşme olarak netleştirilecektir. Bu konu, genel jump'ın yapay biçimde sınırlandırıldığı anlamına gelmez; henüz açıkça tanımlanmamış cleanup davranışının varsayılmaması anlamına gelir.
+
+### 12.24.9 Test sınıflandırması
+
+- **Frontend/Parser:** İç içe loop/select/if yapılarının AST'ye doğru aktarılması.
+- **Analyzer:** Loop lexical context, label çözümleme ve scope kontrolleri.
+- **OIR Builder:** Nested loop CFG, select branch'leri, jump edge'leri ve merge üretimi.
+- **OIR Verifier:** Loop hedefleri, terminator, CFG edge ve SSA/block parameter doğrulaması.
+- **CFG/Loop Analysis:** İç/dış loop header, latch, exit, backedge ve dominance ilişkileri.
+- **Optimizer:** Nested loop ve çoklu merge üzerinde güvenli dönüşüm.
+
+Bu test, `break`, `continue` ve `jump(label)` semantikleri birbirinden ayrılmış haldeyken iç içe kontrol yapılarının birlikte çalışmasını normatif olarak sabitler.
