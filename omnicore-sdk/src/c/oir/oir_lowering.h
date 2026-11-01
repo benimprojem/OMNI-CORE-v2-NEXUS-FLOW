@@ -11,7 +11,7 @@ extern "C" {
 /*
  * First deliberately narrow lowering slice:
  * one non-extern, parameterless function; one block; one return of a
- * semantically annotated integer, float or bool literal.
+ * semantically annotated scalar literal or a supported literal-only arithmetic tree.
  *
  * All arrays and output storage are caller-owned. AST, TYPES and ANNOTATIONS
  * views must be validated and remain alive; production callers should obtain
