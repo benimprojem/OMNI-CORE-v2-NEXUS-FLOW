@@ -1,6 +1,6 @@
 # OIR_MODULE — Lowered Intermediate Representation
 
-**Status:** Design draft; initial opcode registry 1.0 implemented, payload schema and verifier remain open  
+**Status:** Initial opcode registry 1.0 implemented; minimal module payload v1 contract is being frozen before codec/verifier implementation  
 **Artifact kind:** `OIR_KIND_MODULE` (stable kind ID 5)  
 **Producer:** IR lowering stage  
 **Input:** one validated `OIR_KIND_SEMANTIC_AST` artifact  
@@ -43,6 +43,26 @@ The current legacy path is not this pipeline yet. `parser_save_ir()` calls `ast_
 8. **Target independence.** Target register names, physical addresses, instruction encodings and ABI register assignments do not belong in the generic module.
 9. **Provenance.** Lowered operations retain source-node identity and optional source-span mapping so diagnostics and debug information remain traceable.
 10. **Versioned evolution.** Published IDs are never silently renumbered or reused. New optional records must be safely skippable; semantic changes require a schema-major change.
+
+## 3. Minimal payload v1 implementation boundary
+
+The first codec increment will use a deliberately small, fixed-width table model. It is a foundation for scalar functions, not the final language-wide IR.
+
+The initial payload schema is version 1.0 and contains:
+
+- A fixed header with schema version, feature flags, entry function ID and bounded table counts.
+- A module-local type table for the initial scalar integer, floating-point and boolean types.
+- Function records with stable IDs, name references, function type references and entry block IDs.
+- Basic-block records with stable IDs, owning function IDs and instruction ranges.
+- Value records with stable IDs, type references and defining-kind metadata.
+- Instruction records with stable IDs, block IDs, opcode IDs, optional result value IDs and operand ranges.
+- Explicit operand records carrying the operand kind and referenced ID or immediate payload.
+
+All table IDs are 1-based; zero is reserved for absent optional references. The payload reader must validate schema version, count limits, multiplication/offset overflow, table ranges, string references and basic cross-table IDs before exposing views. Opcode shape validation is applied to every instruction. Full type compatibility, SSA dominance, predecessor-edge and function-signature verification are a later verifier increment; the codec must not claim those checks.
+
+The initial codec will reject unknown required feature flags and unsupported record kinds. Optional extensions require an explicit feature bit and versioned evolution. Native C struct layout is never written directly: fields are encoded in a specified byte order and fixed widths.
+
+This minimal schema is the implementation target for the first codec increment. Aggregate types, block parameters, debug/source maps, memory metadata and NEXSUS Flow-specific operations remain later extensions.
 
 ## 3. Logical module model
 
