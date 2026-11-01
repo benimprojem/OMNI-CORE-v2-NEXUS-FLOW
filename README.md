@@ -107,6 +107,7 @@ Recent design work includes:
 - Normative Multi-Rule OIR test MR-OIR-016: verify lexical-scope-aware jump cleanup, resource preservation for same-scope backward transfers, and rejection of re-entry into exited scopes.
 - Normative Multi-Rule OIR test MR-OIR-017: verify defer registration, scope-activation lifetime, LIFO execution, and ordering before automatic resource cleanup.
 - Normative Multi-Rule OIR test MR-OIR-018: verify dynamic defer registrations, per-iteration loop-body activations, and LIFO cleanup.
+- Normative Multi-Rule OIR test MR-OIR-019: verify live-binding semantics for deferred variable reads/writes, activation-bound variable lifetime, ownership transfer validation, and exactly-once resource cleanup.
 - Separation of source-language syntax documentation from compiler project documentation.
 
 ### Open design contracts
