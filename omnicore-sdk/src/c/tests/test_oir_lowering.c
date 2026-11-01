@@ -165,7 +165,7 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             oir_module_get_operand(&module, ret.first_operand, &returned) != OIR_STATUS_OK ||
             returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 1u)
             goto cleanup;
-    } else {
+    } else if (arithmetic == 3) {
         OirModuleInstruction add, ret;
         OirModuleOperand left, right, returned, immediate;
         if (module.instruction_count != 4u || module.operand_count != 5u ||
@@ -181,6 +181,44 @@ static int test_real_frontend_to_module(const uint8_t* source, size_t source_len
             right.kind != OIR_OPERAND_VALUE || right.reference_id != 2u ||
             oir_module_get_operand(&module, ret.first_operand, &returned) != OIR_STATUS_OK ||
             returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 3u)
+            goto cleanup;
+    } else {
+        OirModuleInstruction add, mul, sub, ret;
+        OirModuleOperand left, right, returned, immediate;
+        if (module.instruction_count != 9u || module.operand_count != 12u ||
+            module.value_count != 8u ||
+            oir_module_get_instruction(&module, 3u, &add) != OIR_STATUS_OK ||
+            oir_module_get_instruction(&module, 5u, &mul) != OIR_STATUS_OK ||
+            oir_module_get_instruction(&module, 7u, &sub) != OIR_STATUS_OK ||
+            oir_module_get_instruction(&module, 8u, &ret) != OIR_STATUS_OK ||
+            add.opcode_id != OIR_OP_ADD || mul.opcode_id != OIR_OP_MUL ||
+            sub.opcode_id != OIR_OP_SUB || ret.opcode_id != OIR_OP_RETURN)
+            goto cleanup;
+        if (oir_module_get_operand(&module,add.first_operand,&left)!=OIR_STATUS_OK ||
+            oir_module_get_operand(&module,add.first_operand+1u,&right)!=OIR_STATUS_OK ||
+            left.kind!=OIR_OPERAND_VALUE || left.reference_id!=1u ||
+            right.kind!=OIR_OPERAND_VALUE || right.reference_id!=3u ||
+            oir_module_get_operand(&module,mul.first_operand,&left)!=OIR_STATUS_OK ||
+            oir_module_get_operand(&module,mul.first_operand+1u,&right)!=OIR_STATUS_OK ||
+            left.kind!=OIR_OPERAND_VALUE || left.reference_id!=4u ||
+            right.kind!=OIR_OPERAND_VALUE || right.reference_id!=5u ||
+            oir_module_get_operand(&module,sub.first_operand,&left)!=OIR_STATUS_OK ||
+            oir_module_get_operand(&module,sub.first_operand+1u,&right)!=OIR_STATUS_OK ||
+            left.kind!=OIR_OPERAND_VALUE || left.reference_id!=6u ||
+            right.kind!=OIR_OPERAND_VALUE || right.reference_id!=7u ||
+            oir_module_get_operand(&module,ret.first_operand,&returned)!=OIR_STATUS_OK ||
+            returned.kind!=OIR_OPERAND_VALUE || returned.reference_id!=8u)
+            goto cleanup;
+        if (oir_module_get_operand(&module,0u,&immediate)!=OIR_STATUS_OK ||
+            immediate.kind!=OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate!=5u ||
+            oir_module_get_operand(&module,1u,&immediate)!=OIR_STATUS_OK ||
+            immediate.kind!=OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate!=2u ||
+            oir_module_get_operand(&module,2u,&immediate)!=OIR_STATUS_OK ||
+            immediate.kind!=OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate!=1u ||
+            oir_module_get_operand(&module,5u,&immediate)!=OIR_STATUS_OK ||
+            immediate.kind!=OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate!=2u ||
+            oir_module_get_operand(&module,8u,&immediate)!=OIR_STATUS_OK ||
+            immediate.kind!=OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate!=3u)
             goto cleanup;
     }
     ok = 1;
@@ -315,10 +353,14 @@ int main(void) {
         static const uint8_t local_source[] = "f:main() !i32 { v:x!i32 = 42; ret x; }";
         static const uint8_t assignment_source[] =
             "f:main() !i32 { v:x!i32 = 40; x = x + 2; ret x; }";
+        static const uint8_t multi_assignment_source[] =
+            "f:main() !i32 { v:x!i32 = 5; v:y!i32 = 2; "
+            "x = x + 1; y = x * 2; x = y - 3; ret x; }";
         assert(test_real_frontend_to_module(literal_source, sizeof(literal_source)-1u, 0));
         assert(test_real_frontend_to_module(arithmetic_source, sizeof(arithmetic_source)-1u, 1));
         assert(test_real_frontend_to_module(local_source, sizeof(local_source)-1u, 2));
         assert(test_real_frontend_to_module(assignment_source, sizeof(assignment_source)-1u, 3));
+        assert(test_real_frontend_to_module(multi_assignment_source, sizeof(multi_assignment_source)-1u, 4));
     }
     return 0;
 }
