@@ -358,6 +358,26 @@ OirStatus oir_semantic_ast_validate_references(
     size_t owner_scope_capacity
 );
 
+
+/* Complete validated view of one SEMANTIC_AST artifact. All byte storage remains caller-owned. */
+typedef struct OirSemanticAstArtifactView {
+    OirArtifactView artifact;
+    OirAstNodeTableView ast;
+    OirSemanticScopesView scopes;
+    OirSemanticTypesView types;
+    OirSemanticSymbolsView symbols;
+    OirSemanticAnnotationsView annotations;
+    OirSemanticRelationsView relations;
+    OirSemanticConversionsView conversions;
+    uint8_t has_conversions;
+} OirSemanticAstArtifactView;
+
+OirStatus oir_semantic_ast_artifact_open(
+    const uint8_t* bytes,
+    size_t length,
+    OirSemanticAstArtifactView* out_view
+);
+
 #ifdef __cplusplus
 }
 #endif
