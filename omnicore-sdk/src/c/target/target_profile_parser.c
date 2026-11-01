@@ -39,15 +39,35 @@ static void remove_comment(char* s) {
 static int read_string(const char* src, char* dst, size_t cap) {
     size_t n;
     const char* end;
+    const char* tail;
     if (!src || !dst || cap == 0u || src[0] != '"') return 0;
-    end = strrchr(src + 1, '"');
+    end = strchr(src + 1, '"');
     if (!end) return 0;
-    if (*trim_ws((char*)end + 1) != '\0') return 0;
+    tail = end + 1;
+    while (*tail && isspace((unsigned char)*tail)) ++tail;
+    if (*tail != '\0') return 0;
     n = (size_t)(end - src - 1);
     if (n == 0u || n >= cap) return 0;
     memcpy(dst, src + 1, n);
     dst[n] = '\0';
     return 1;
+}
+
+/* Strict CSV reader: rejects empty fields and duplicate tokens. */
+static int next_csv_token(char** cursor, char** token) {
+    char* start;
+    char* comma;
+    if (!cursor || !*cursor || !token || **cursor == '\0') return 0;
+    start = *cursor;
+    comma = strchr(start, ',');
+    if (comma) {
+        *comma = '\0';
+        *cursor = comma + 1;
+    } else {
+        *cursor = NULL;
+    }
+    *token = trim_ws(start);
+    return **token != '\0';
 }
 
 static int read_u32(const char* src, uint32_t* out) {
@@ -65,20 +85,23 @@ static int read_u32(const char* src, uint32_t* out) {
 static int read_list(const char* src, char items[][OCC_TARGET_ISA_EXTENSION_SIZE],
                      uint32_t* count, uint32_t max_items) {
     char buffer[TARGET_V2_LINE_SIZE];
-    char* token;
+    char* cursor;
     if (!src || strlen(src) >= sizeof(buffer)) return 0;
     strcpy(buffer, src);
+    cursor = buffer;
     *count = 0u;
-    token = strtok(buffer, ",");
-    while (token) {
-        char* item = trim_ws(token);
-        size_t n = strlen(item);
-        if (n >= OCC_TARGET_ISA_EXTENSION_SIZE || n == 0u || *count >= max_items) return 0;
+    while (cursor) {
+        char* item;
+        size_t n;
+        uint32_t i;
+        if (!next_csv_token(&cursor, &item)) return 0;
+        n = strlen(item);
+        if (n >= OCC_TARGET_ISA_EXTENSION_SIZE || *count >= max_items) return 0;
+        for (i = 0u; i < *count; ++i) if (!strcmp(items[i], item)) return 0;
         strcpy(items[*count], item);
         ++*count;
-        token = strtok(NULL, ",");
     }
-    return 1;
+    return *count != 0u;
 }
 
 static int parse_device_kind(const char* s, OccTargetDeviceKind* kind) {
@@ -93,52 +116,64 @@ static int parse_device_kind(const char* s, OccTargetDeviceKind* kind) {
 }
 
 static int add_atomic_widths(const char* s, uint32_t* mask) {
-    char copy[TARGET_V2_LINE_SIZE], *p;
-    if (strlen(s) >= sizeof(copy)) return 0;
-    strcpy(copy,s); *mask=0u;
-    for (p=strtok(copy,","); p; p=strtok(NULL,",")) {
-        p=trim_ws(p);
-        if (!strcmp(p,"8")) *mask|=OCC_TARGET_ATOMIC_WIDTH_8;
-        else if (!strcmp(p,"16")) *mask|=OCC_TARGET_ATOMIC_WIDTH_16;
-        else if (!strcmp(p,"32")) *mask|=OCC_TARGET_ATOMIC_WIDTH_32;
-        else if (!strcmp(p,"64")) *mask|=OCC_TARGET_ATOMIC_WIDTH_64;
-        else if (!strcmp(p,"128")) *mask|=OCC_TARGET_ATOMIC_WIDTH_128;
+    char copy[TARGET_V2_LINE_SIZE], *cursor;
+    if (!s || strlen(s) >= sizeof(copy)) return 0;
+    strcpy(copy, s); *mask = 0u; cursor = copy;
+    while (cursor) {
+        char* p;
+        uint32_t bit;
+        if (!next_csv_token(&cursor, &p)) return 0;
+        if (!strcmp(p, "8")) bit = OCC_TARGET_ATOMIC_WIDTH_8;
+        else if (!strcmp(p, "16")) bit = OCC_TARGET_ATOMIC_WIDTH_16;
+        else if (!strcmp(p, "32")) bit = OCC_TARGET_ATOMIC_WIDTH_32;
+        else if (!strcmp(p, "64")) bit = OCC_TARGET_ATOMIC_WIDTH_64;
+        else if (!strcmp(p, "128")) bit = OCC_TARGET_ATOMIC_WIDTH_128;
         else return 0;
+        if (*mask & bit) return 0;
+        *mask |= bit;
     }
-    return 1;
+    return *mask != 0u;
 }
 
 static int add_fp_formats(const char* s, uint32_t* mask) {
-    char copy[TARGET_V2_LINE_SIZE], *p;
-    if (strlen(s) >= sizeof(copy)) return 0;
-    strcpy(copy,s); *mask=0u;
-    for (p=strtok(copy,","); p; p=strtok(NULL,",")) {
-        p=trim_ws(p);
-        if (!strcmp(p,"fp16")) *mask|=OCC_TARGET_FP_FORMAT_FP16;
-        else if (!strcmp(p,"bf16")) *mask|=OCC_TARGET_FP_FORMAT_BF16;
-        else if (!strcmp(p,"fp32")) *mask|=OCC_TARGET_FP_FORMAT_FP32;
-        else if (!strcmp(p,"fp64")) *mask|=OCC_TARGET_FP_FORMAT_FP64;
-        else if (!strcmp(p,"fp128")) *mask|=OCC_TARGET_FP_FORMAT_FP128;
+    char copy[TARGET_V2_LINE_SIZE], *cursor;
+    if (!s || strlen(s) >= sizeof(copy)) return 0;
+    strcpy(copy, s); *mask = 0u; cursor = copy;
+    while (cursor) {
+        char* p;
+        uint32_t bit;
+        if (!next_csv_token(&cursor, &p)) return 0;
+        if (!strcmp(p, "fp16")) bit = OCC_TARGET_FP_FORMAT_FP16;
+        else if (!strcmp(p, "bf16")) bit = OCC_TARGET_FP_FORMAT_BF16;
+        else if (!strcmp(p, "fp32")) bit = OCC_TARGET_FP_FORMAT_FP32;
+        else if (!strcmp(p, "fp64")) bit = OCC_TARGET_FP_FORMAT_FP64;
+        else if (!strcmp(p, "fp128")) bit = OCC_TARGET_FP_FORMAT_FP128;
         else return 0;
+        if (*mask & bit) return 0;
+        *mask |= bit;
     }
-    return 1;
+    return *mask != 0u;
 }
 
 static int add_cpu_flags(const char* s, uint32_t* flags) {
-    char copy[TARGET_V2_LINE_SIZE], *p;
-    if (strlen(s) >= sizeof(copy)) return 0;
-    strcpy(copy,s); *flags=0u;
-    for (p=strtok(copy,","); p; p=strtok(NULL,",")) {
-        p=trim_ws(p);
-        if (!strcmp(p,"atomics")) *flags|=OCC_TARGET_CPU_FEATURE_ATOMICS;
-        else if (!strcmp(p,"unaligned_access")) *flags|=OCC_TARGET_CPU_FEATURE_UNALIGNED_ACCESS;
-        else if (!strcmp(p,"hardware_float")) *flags|=OCC_TARGET_CPU_FEATURE_HARDWARE_FLOAT;
-        else if (!strcmp(p,"hardware_divide")) *flags|=OCC_TARGET_CPU_FEATURE_HARDWARE_DIVIDE;
-        else if (!strcmp(p,"privilege_levels")) *flags|=OCC_TARGET_CPU_FEATURE_PRIVILEGE_LEVELS;
-        else if (!strcmp(p,"vector")) *flags|=OCC_TARGET_CPU_FEATURE_VECTOR;
+    char copy[TARGET_V2_LINE_SIZE], *cursor;
+    if (!s || strlen(s) >= sizeof(copy)) return 0;
+    strcpy(copy, s); *flags = 0u; cursor = copy;
+    while (cursor) {
+        char* p;
+        uint32_t bit;
+        if (!next_csv_token(&cursor, &p)) return 0;
+        if (!strcmp(p, "atomics")) bit = OCC_TARGET_CPU_FEATURE_ATOMICS;
+        else if (!strcmp(p, "unaligned_access")) bit = OCC_TARGET_CPU_FEATURE_UNALIGNED_ACCESS;
+        else if (!strcmp(p, "hardware_float")) bit = OCC_TARGET_CPU_FEATURE_HARDWARE_FLOAT;
+        else if (!strcmp(p, "hardware_divide")) bit = OCC_TARGET_CPU_FEATURE_HARDWARE_DIVIDE;
+        else if (!strcmp(p, "privilege_levels")) bit = OCC_TARGET_CPU_FEATURE_PRIVILEGE_LEVELS;
+        else if (!strcmp(p, "vector")) bit = OCC_TARGET_CPU_FEATURE_VECTOR;
         else return 0;
+        if (*flags & bit) return 0;
+        *flags |= bit;
     }
-    return 1;
+    return *flags != 0u;
 }
 
 int occ_target_profile_load(const char* path, OccTargetProfile* profile,
@@ -152,7 +187,7 @@ int occ_target_profile_load(const char* path, OccTargetProfile* profile,
     int ok=1;
 
     enum { T_SCHEMA=1u<<0,T_ID=1u<<1,T_KIND=1u<<2,T_OS=1u<<3,T_RUNTIME=1u<<4,
-           T_PACKAGE=1u<<5,T_ABI=1u<<6,T_BINARY=1u<<7,T_ENTRY=1u<<8,T_STACK=1u<<9,
+           T_PACKAGE=1u<<5,T_ABI=1u<<6,T_BINARY=1u<<7,T_ENTRY=1u<<8,T_STACK=1u<<9,T_SCHEMA_MINOR=1u<<10,
            C_ID=1u<<0,C_KIND=1u<<1,C_ARCH=1u<<2,C_ISA=1u<<3,C_WORD=1u<<4,
            C_ADDR=1u<<5,C_ENDIAN=1u<<6,C_GPR=1u<<7,C_ATOMIC=1u<<8,C_FP=1u<<9,
            C_FLAGS=1u<<10,C_EXT=1u<<11 };
@@ -194,7 +229,14 @@ int occ_target_profile_load(const char* path, OccTargetProfile* profile,
             char* key=trim_ws(text);
             char* value=trim_ws(eq+1);
             size_t i;
-            if (!*key || !*value || snprintf(path_key,sizeof(path_key),"%s.%s",section,key)<0) { ok=0; break; }
+            {
+                int key_len;
+                if (!*key || !*value) { fail(error,error_size,"Empty key/value at line %lu.",line_no); ok=0; break; }
+                key_len = snprintf(path_key,sizeof(path_key),"%s.%s",section,key);
+                if (key_len < 0 || (size_t)key_len >= sizeof(path_key)) {
+                    fail(error,error_size,"Target key is too long at line %lu.",line_no); ok=0; break;
+                }
+            }
             for(i=0;i<seen_count;i++) if(!strcmp(seen[i],path_key)) { fail(error,error_size,"Duplicate key %s at line %lu.",path_key,line_no); ok=0; break; }
             if(!ok) break;
             if(seen_count>=TARGET_V2_SEEN_MAX) { fail(error,error_size,"Too many Target keys."); ok=0; break; }
@@ -204,6 +246,7 @@ int occ_target_profile_load(const char* path, OccTargetProfile* profile,
                 char value_string[OCC_TARGET_NAME_SIZE];
                 uint32_t number;
                 if(!strcmp(key,"schema_major")) { if(!read_u32(value,&profile->schema_major)) ok=0; else required_target|=T_SCHEMA; }
+                else if(!strcmp(key,"schema_minor")) { if(!read_u32(value,&profile->schema_minor)) ok=0; else required_target|=T_SCHEMA_MINOR; }
                 else if(!strcmp(key,"profile_id")) { if(!read_string(value,profile->profile_id,sizeof(profile->profile_id))) ok=0; else required_target|=T_ID; }
                 else if(!strcmp(key,"profile_kind")) { if(!read_string(value,value_string,sizeof(value_string))) ok=0; else if(!strcmp(value_string,"family")) profile->profile_kind=OCC_TARGET_PROFILE_FAMILY; else if(!strcmp(value_string,"exact_machine")) profile->profile_kind=OCC_TARGET_PROFILE_EXACT_MACHINE; else ok=0; required_target|=T_KIND; }
                 else if(!strcmp(key,"os")) { if(!read_string(value,profile->os,sizeof(profile->os))) ok=0; else required_target|=T_OS; }
@@ -251,8 +294,15 @@ int occ_target_profile_load(const char* path, OccTargetProfile* profile,
     if(ok && required_cpu != (C_ID|C_KIND|C_ARCH|C_ISA|C_WORD|C_ADDR|C_ENDIAN|C_GPR|C_ATOMIC|C_FP|C_FLAGS|C_EXT)) {
         fail(error,error_size,"Target v2 descriptor is missing required CPU capability fields."); ok=0;
     }
+    if(ok && profile->profile_kind == OCC_TARGET_PROFILE_EXACT_MACHINE) {
+        fail(error,error_size,"The initial Target v2 parser supports family profiles only; exact_machine requires machine_binding fields.");
+        ok=0;
+    }
     if(ok) {
-        if(profile->schema_major != OCC_TARGET_PROFILE_SCHEMA_MAJOR) { fail(error,error_size,"Unsupported Target schema major version."); ok=0; }
+        if(profile->schema_major != OCC_TARGET_PROFILE_SCHEMA_MAJOR ||
+           profile->schema_minor > OCC_TARGET_PROFILE_SCHEMA_MINOR) {
+            fail(error,error_size,"Unsupported Target schema version."); ok=0;
+        }
         else if(occ_target_profile_validate(profile,error,error_size)!=OCC_TARGET_PROFILE_OK) ok=0;
     }
     return ok;
