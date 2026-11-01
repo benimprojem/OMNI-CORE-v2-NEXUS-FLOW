@@ -497,6 +497,7 @@ target_link_libraries(occ PRIVATE
     occ_oir_diagnostics
     occ_oir_ast_artifact
     occ_oir_ast_node_table
+    occ_target_profile
     ${CMAKE_DL_LIBS}
 )
 add_dependencies(occ occ_parser_stage occ_lexer_stage occ_semantic_stage)
