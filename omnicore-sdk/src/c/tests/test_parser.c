@@ -555,8 +555,13 @@ static int test_function_parameter_type_separator_forms(void) {
         if (parse_result != PARSER_STATUS_OK ||
             parser_get_status(ctx) != PARSER_STATUS_OK ||
             ctx->error_count != 0 || !ctx->ast_root) {
+            Error* error_item;
             fprintf(stderr,"parameter syntax parse result=%d status=%d errors=%d\\n",
                 parse_result,(int)parser_get_status(ctx),ctx->error_count);
+            for(error_item=ctx->error_head;error_item;error_item=error_item->next)
+                fprintf(stderr,"parser error code=%d line=%d col=%d message=%s\\n",
+                    (int)error_item->code,error_item->line,error_item->col,
+                    error_item->message?error_item->message:"(null)");
             goto done;
         }
     }
