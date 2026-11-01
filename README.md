@@ -286,7 +286,10 @@ loop(a < b){ ....  a++;}
 loop(a < b, a++){ .... }
 
 # Loop (infinity)
-loop{....  (a == EOF)-> break;}
+loop{
+    process();
+    (a == EOF) ? break;
+}
 
 # Rolling Loop (Zaman Ayarlı) Hata saptırma.. Hata saptırmak yerine bir etiketede atlayabilir. ?(5, 500ms)->(newhttp);
 # Aşağıdaki kod http.open() başarılı olursa kontrol sola akar. 
@@ -324,6 +327,35 @@ f:send_packets() {
 
 ### 5.2 - 6: Dallanma (If / Elsif / Els)
 
+#### Koşullu Kontrol Operatörü `? :`
+
+Koşulun sonucuna göre tek bir kontrol veya işlem seçilir. Bu yapı ternary kontrol mantığıyla çalışır; değer döndürmek zorunda değildir.
+
+- `(koşul) ? işlem;` — koşul doğruysa işlem çalışır. Yanlışsa normal akış devam eder.
+- `(koşul) ? işlem_A : işlem_B;` — doğruysa A, yanlışsa B çalışır.
+- `:` ve alternatif kol zorunlu değildir.
+- Her iki kolda da normal ifadeler, bloklar veya kontrol aktarımı bulunabilir.
+- `break` ve `continue` yalnızca geçerli bir loop kapsamı içindeyken kullanılabilir.
+- Bu operatör, Bölüm 3'teki veri/işlem akışı için kullanılan `->` operatöründen ayrıdır.
+
+Örnekler:
+
+```nexus
+(a == EOF) ? break;
+(a == 5) ? break : continue;
+
+(a > 10) ? process(a);
+(a > 10) ? process(a) : process(b);
+
+(a == 0) ? {
+    echo("zero");
+} : {
+    echo("non-zero");
+}
+```
+
+Koşullu kontrol, OIR aşamasında iki yönlü CFG dallanmasına dönüştürülür. Alternatif kol yoksa FALSE yolu doğrudan devam block'una bağlanır. Operatörün kendisi bir değer üretmez; seçilen kolun sonucu normal ifade/statement kurallarına tabidir.
+
 ```
 # Standart Karşılaştırma
 A:  if(a == b){ ... }
@@ -336,9 +368,13 @@ B:  if (a == b){ ... }
 C:  if (a == b) status = 1; 
     els status = -1;
     
-D:  (a == b) -> break;
+D:  (a == b) ? break;
 
-E:  (a == b) -> continue;
+E:  (a == b) ? break : continue;
+
+F:  (a == b) ? process(a);
+
+G:  (a == b) ? process(a) : process(b);
 
 ```
 
