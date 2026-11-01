@@ -258,7 +258,8 @@ No schema is considered frozen merely because a first implementation or test fix
 |---|---|
 | OIR container kind ID 5 (`OIR_KIND_MODULE`) | Registered |
 | Generic OIR container reader/writer | Implemented |
-| OIR_MODULE payload codec 1.1 (signed, hard and const type flags) | Implemented; full verifier pending |\n| SEMANTIC_AST primitive-to-OIR type mapper | Initial scalar allowlist implemented; unsupported types rejected |
+| OIR_MODULE payload codec 1.1 (signed, hard and const type flags) | Implemented; full verifier pending |
+| SEMANTIC_AST primitive-to-OIR type mapper | Initial scalar allowlist implemented; unsupported types rejected |
 | SSA value model | Required by NEXSUS Flow design; merge encoding open |
 | NEXSUS Flow numeric width promotion | Partial language rule established; full conversion lattice open |
 | OIR_MODULE opcode/type registries | Not frozen |
