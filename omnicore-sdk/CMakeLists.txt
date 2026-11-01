@@ -33,6 +33,7 @@ set(C_TARGET_DIR "${C_SOURCE_DIR}/target")
 # Normalized v2 target profile: heterogeneous devices, memories and interconnects.
 add_library(occ_target_profile STATIC
     "${C_TARGET_DIR}/target_profile.c"
+    "${C_TARGET_DIR}/target_profile_parser.c"
 )
 target_include_directories(occ_target_profile PUBLIC "${C_TARGET_DIR}")
 set_target_properties(occ_target_profile PROPERTIES POSITION_INDEPENDENT_CODE ON)
