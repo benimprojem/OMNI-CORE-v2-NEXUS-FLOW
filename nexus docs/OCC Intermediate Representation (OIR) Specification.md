@@ -776,3 +776,23 @@ Kurallar:
 8. Jump ile etkin loop lexical scope'larının dışına çıkılması halinde resource cleanup/implicit close davranışı ayrı kaynak dil sözleşmesiyle tanımlanmalıdır; OIR bu davranışı varsayımla üretmemelidir.
 
 Bu kurallar MR-OIR-015'in OIR tarafındaki karşılığıdır. Loop-context alanlarının kesin binary encoding'i ve nihai OIR opcode isimleri henüz sabitlenmemiştir.
+
+
+### 12.8 Jump scope-exit cleanup ve canlı scope aktivasyonu
+
+Bu bölüm, kaynak dilde tanımlanan lexical-scope kaynak ömrünün OIR sözleşmesidir. Cleanup kararı yalnızca CFG'de hedef block'tan kaynak block'a bir yol bulunup bulunmadığına göre verilmez; lexical scope kimliği ve scope ancestry esas alınır.
+
+Kurallar:
+
+1. Her basic block, kaynakta bulunduğu lexical scope kimliğini veya eşdeğer scope ancestry bilgisini taşımalıdır. Bu bilginin OIR'de hangi kesin alan adı/encoding ile saklanacağı format kararıdır.
+2. `JUMP` hedefi kaynak block'un scope'u ile aynı scope'ta veya kaynak scope'un bir ancestor'ında olmalıdır. Daha derin scope'a veya kardeş scope'a atlayarak scope giriş/başlatma adımlarını atlamak geçersizdir.
+3. Kaynak ve hedef aynı lexical scope içindeyse jump yalnızca basic block değişimidir. Scope activation ve ona bağlı canlı kaynaklar korunur. Aynı scope içindeki ileri/geri jump döngü oluşturabilir; kaynakların ömrü scope sonuna kadar devam eder.
+4. Hedef bir ancestor scope içindeyse kaynak ile hedef arasındaki terk edilen scope'lar kapanır. Bu scope'lara bağlı otomatik cleanup işlemleri, normal lexical-scope çıkışında olduğu gibi JUMP yoluna eklenmelidir.
+5. Bir JUMP cleanup gerektiren scope'tan çıkıyorsa cleanup tam bir kez yürütülmelidir. Hedefe ulaştıktan sonra aynı eski scope activation'ına geri girilemez; daha derin scope'a doğrudan jump zaten geçersizdir.
+6. İç içe birden fazla scope terk ediliyorsa cleanup, iç scope'tan dış scope'a doğru yürütülür. Aynı scope içindeki kaynakların cleanup sırası için kaynak edinim sırasına ters (LIFO) yaklaşımı temel kural olarak kullanılır; kaynak türüne özel istisnalar ayrıca tanımlanmalıdır.
+7. `_>` ile sahipliği devredilmiş kaynak, kaynak scope'un cleanup listesinde artık sahip olunan kaynak olarak tutulmamalıdır. Sahiplik transferi kaynak temizliğinin iki kez yapılmasına neden olmamalıdır.
+8. `}?;` blok kapsamındaki toplu kaynak/masa temizliğiyle ilişkilidir. `?;` Halt/sonlandırma davranışıdır; OIR'de JUMP scope-exit cleanup yerine kullanılamaz.
+9. Cleanup işlemlerinin kesin OIR opcode/record biçimi, cleanup hatasının raporlanması ve cleanup sırasında yeni kontrol aktarımına izin verilip verilmeyeceği bu testte kesin binary ABI kararı olarak sabitlenmez. Builder ve Verifier bu konuları tanımlanmamış davranışa bırakmamalı; desteklenmeyen cleanup akışını açık hata olarak raporlamalıdır.
+10. Optimizer JUMP edge'lerini veya block'ları dönüştürürken scope ancestry, cleanup listeleri, sahiplik durumu ve kaynak/debug metadata ilişkilerini korumalıdır.
+
+Bu sözleşme, CFG'de geri dönüş yolu bulunmasını tek başına cleanup'ı iptal eden bir ölçüt saymaz. Aynı canlı lexical scope'a geri dönülebiliyorsa kaynak korunur; scope gerçekten terk ediliyorsa cleanup yapılır.
