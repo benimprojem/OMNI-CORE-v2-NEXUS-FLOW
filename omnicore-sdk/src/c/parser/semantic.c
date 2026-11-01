@@ -593,6 +593,19 @@ static int is_arithmetic_binary_operator(OmniTokenType op) {
         op == TOKEN_PERCENT || op == TOKEN_POWER;
 }
 
+static int is_integer_primitive_type(const char* type_name) {
+    static const char* const names[] = {
+        "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64"
+    };
+    size_t i;
+    if (!type_name) return 0;
+    if (type_name[0] == '!') ++type_name;
+    for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
+        if (strcmp(type_name, names[i]) == 0) return 1;
+    }
+    return 0;
+}
+
 static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
     if (type_name[0] == '!') type_name++; // Skip hard-type prefix
@@ -720,9 +733,11 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                             left_type, right_type);
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                     } else if (!is_numeric_primitive_type(left_type) ||
-                               !is_numeric_primitive_type(right_type)) {
+                               !is_numeric_primitive_type(right_type) ||
+                               (bin->op == TOKEN_PERCENT &&
+                                !is_integer_primitive_type(left_type))) {
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Arithmetic operators require matching numeric primitive operands.");
+                            "Arithmetic operators require matching numeric operands; remainder requires integer operands.");
                     }
                 }
             }
