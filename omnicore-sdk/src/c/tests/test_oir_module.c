@@ -1,6 +1,5 @@
 #include "oir_module.h"
 #include <assert.h>
-#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -38,7 +37,7 @@ int main(void) {
     input.operands = operands; input.operand_count = 2u;
     input.strings = name; input.strings_length = sizeof(name);
 
-    { OirStatus write_status=oir_module_write(payload,sizeof(payload),&input,&written); if(write_status!=OIR_STATUS_OK) fprintf(stderr,"module test write status=%d\\n",(int)write_status); assert(write_status==OIR_STATUS_OK); }
+    assert(oir_module_write(payload, sizeof(payload), &input, &written) == OIR_STATUS_OK);
     assert(oir_module_open(payload, written, &view) == OIR_STATUS_OK);
     assert(payload[0] == OIR_MODULE_SCHEMA_MAJOR && payload[2] == OIR_MODULE_SCHEMA_MINOR);
     assert(view.type_count == 4u && view.function_count == 1u);
