@@ -277,6 +277,17 @@ target_link_libraries(occ_oir_semantic_ast_artifact PUBLIC
 )
 set_target_properties(occ_oir_semantic_ast_artifact PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# First bounded SEMANTIC_AST -> OIR_MODULE scalar lowering pass.
+add_library(occ_oir_lowering STATIC "${C_SOURCE_DIR}/oir/oir_lowering.c")
+target_include_directories(occ_oir_lowering PUBLIC "${C_SOURCE_DIR}/oir")
+target_link_libraries(occ_oir_lowering PUBLIC
+    occ_oir_semantic_ast_artifact
+    occ_oir_type_map
+    occ_oir_module
+)
+set_target_properties(occ_oir_lowering PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+
 # Frontend AST pointer index assigns deterministic OIR IDs without allocation.
 add_library(occ_oir_ast_frontend_index STATIC
     "${C_SOURCE_DIR}/oir/oir_ast_frontend_index.c"
@@ -750,6 +761,17 @@ if(BUILD_TESTING)
         target_compile_options(test_oir_type_map PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME oir_semantic_primitive_type_mapping COMMAND test_oir_type_map)
+
+    add_executable(test_oir_lowering "${C_SOURCE_DIR}/tests/test_oir_lowering.c")
+    target_link_libraries(test_oir_lowering PRIVATE occ_oir_lowering)
+    if(MSVC)
+        target_compile_options(occ_oir_lowering PRIVATE /W4)
+        target_compile_options(test_oir_lowering PRIVATE /W4)
+    else()
+        target_compile_options(occ_oir_lowering PRIVATE -Wall -Wextra)
+        target_compile_options(test_oir_lowering PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME semantic_ast_literal_return_lowering COMMAND test_oir_lowering)
 
     add_executable(test_oir_diagnostics "${C_SOURCE_DIR}/tests/test_oir_diagnostics.c")
     target_link_libraries(test_oir_diagnostics PRIVATE occ_oir_diagnostics)
