@@ -668,25 +668,53 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     decl->type_name, node, 0, 0, decl->is_hard_typed,
                     (decl->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
                     (decl->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
-                semantic_record_annotation(
-                    ctx, node, declared_slot, decl->type_name,
-                    SEMANTIC_RESULT_VALUE_LVALUE);
-            }
-            
-            if (decl->inline_type) {
-                semantic_check(ctx, decl->inline_type);
-            }
 
-            if (decl->initializer) {
-                semantic_check(ctx, decl->initializer);
-                if (decl->type_name) {
-                    const char* init_type = get_expr_type(ctx, decl->initializer);
-                    if (init_type && !are_types_compatible(decl->type_name, init_type)) {
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH), decl->type_name, init_type);
-                        report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf, NULL, "İlgili veri tipini kontrol edin.", 0, 0);
+                if (decl->inline_type) {
+                    semantic_check(ctx, decl->inline_type);
+                }
+
+                if (decl->initializer) {
+                    const char* init_type;
+                    semantic_check(ctx, decl->initializer);
+                    init_type = get_expr_type(ctx, decl->initializer);
+                    if (decl->type_name) {
+                        if (init_type && !are_types_compatible(decl->type_name, init_type)) {
+                            char buf[256];
+                            snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
+                                decl->type_name, init_type);
+                            report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf,
+                                NULL, "İlgili veri tipini kontrol edin.", 0, 0);
+                        }
+                    } else if (declared_slot && init_type && *init_type) {
+                        char* inferred_name = semantic_duplicate(ctx, init_type);
+                        uint32_t inferred_type_id = semantic_type_id(ctx, init_type, 0);
+                        if (!inferred_name) {
+                            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                        } else if (ctx->result_enabled &&
+                            ctx->result_status == SEMANTIC_RESULT_OK &&
+                            declared_slot->symbol_id != 0u && inferred_type_id != 0u) {
+                            SemanticResultStatus infer_status =
+                                semantic_result_set_symbol_type(
+                                    &ctx->result, declared_slot->symbol_id,
+                                    inferred_type_id);
+                            semantic_set_result_error(ctx, infer_status);
+                            if (infer_status != SEMANTIC_RESULT_OK) {
+                                free(inferred_name);
+                                inferred_name = NULL;
+                            }
+                        }
+                        if (inferred_name) {
+                            free(declared_slot->type_name);
+                            declared_slot->type_name = inferred_name;
+                            declared_slot->type_id = inferred_type_id;
+                        }
                     }
                 }
+
+                semantic_record_annotation(
+                    ctx, node, declared_slot,
+                    declared_slot ? declared_slot->type_name : decl->type_name,
+                    SEMANTIC_RESULT_VALUE_LVALUE);
             }
             break;
         }
