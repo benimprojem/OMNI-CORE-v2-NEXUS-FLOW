@@ -707,3 +707,33 @@ Her `JUMP source -> target` için:
 - Jump threading, block merging ve unreachable block elimination gibi optimizer dönüşümleri label hedeflerini, edge argümanlarını ve SSA ilişkilerini korumalıdır.
 
 **Önemli:** Fonksiyon CFG'si DAG olmak zorunda değildir. Scheduler/task dependency DAG kuralı fonksiyon CFG'sine uygulanmaz.
+
+
+
+### 12.5 Çoklu predecessor ve edge-specific block parameter aktarımı
+
+Bir basic block birden fazla predecessor tarafından hedeflenebilir. Bu durumda her giriş kenarı, hedef block'un ihtiyaç duyduğu block parameter değerlerini kendi üzerinden taşımalıdır.
+
+Kavramsal örnek:
+
+```oir
+block left:
+    JUMP join(value_left)
+
+block right:
+    JUMP join(value_right)
+
+block join(value):
+    USE value
+```
+
+Kurallar:
+1. Her predecessor kenarı, hedef block parameter listesiyle uyumlu argüman sayısı ve tipleri taşımalıdır.
+2. Hedefteki parameter, o çalıştırmada kontrolün geldiği kenarın argüman değerini alır.
+3. Farklı predecessor'lardan gelen değerler, eşdeğer oldukları kanıtlanmadıkça tek bir değer olarak birleştirilemez.
+4. Merge/phi eşlemesi gerçek CFG edge'lerine bağlıdır; yalnızca kaynak satır sırasına veya predecessor listesi sırasına güvenilemez.
+5. CFG dönüşümleri predecessor/successor listelerini, edge argümanlarını, block parameter/SSA merge kayıtlarını ve ilgili metadata'yı birlikte güncellemelidir.
+6. Bir block'un tek predecessor'ı olduğu varsayılamaz. Verifier ve optimizer çoklu girişli block'ları desteklemelidir.
+7. Aynı source-target block çifti arasında birden fazla edge bulunmasına izin verilip verilmeyeceği ve edge kimliklerinin serileştirilmesi OIR format sürümünde açıkça tanımlanmalıdır.
+
+Bu bölüm, MR-OIR-013 testinin temel OIR sözleşmesidir. Buradaki gösterim soyuttur; nihai opcode ve dosya formatı kararı değildir.
