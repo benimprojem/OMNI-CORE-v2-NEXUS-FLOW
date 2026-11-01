@@ -96,6 +96,7 @@ Recent design work includes:
 - Normative Multi-Rule OIR test MR-OIR-005: verify named `always` / `default` trigger emission, dedicated handler stages, name resolution, and matched/no-match dispatch order.
 - Normative Multi-Rule OIR test MR-OIR-006: verify sequential `apply rules` execution, per-application state isolation, and failure short-circuiting of later RuleSets.
 - Normative Multi-Rule OIR test MR-OIR-007: verify repeated application of the same RuleSet with independent arguments, trigger SSA state, and per-application handler dispatch.
+- Normative Multi-Rule OIR test MR-OIR-008: verify that `break` and `continue` inside handlers bind to the handler's lexical loop scope, with correct loop-latch/exit edges and no false fallthrough.
 - Separation of source-language syntax documentation from compiler project documentation.
 
 ### Open design contracts
