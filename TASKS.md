@@ -48,6 +48,7 @@
 - [x] Kapanmayan block comment'i TOKEN_ERROR olarak source span ile bildir; lexer'ın ardından EOF'a ulaşmasını test et.
 - [ ] The 15 Keys operatörlerinin token öncelik ve çakışma testlerini ekle.
 - [ ] AST düğüm sözleşmesini ve source location bilgisini sabitle.
+- [x] Statement-level conditional action shorthand: `(condition) -> break;` / `continue;` ve diğer açık statement başlangıçları koşullu kontrol akışı olarak ayrıştırılır; `source -> target/process()` ve `-> { ... }` Nexus Flow pipe olarak kalır. Parser AST ve semantic loop-context testleri eklendi; CI run `41364158463` Windows/Ubuntu/macOS + ASan/UBSan + Valgrind başarılı.
 - [ ] Scope, type promotion, ownership ve control-flow kurallarını testlerle doğrula.
 - [ ] Hata ve warning API'sini ortaklaştır.
 
