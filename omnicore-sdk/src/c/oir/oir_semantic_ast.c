@@ -1698,3 +1698,97 @@ OirStatus oir_semantic_ast_validate_references(
 
     return OIR_STATUS_OK;
 }
+
+static OirStatus semantic_find_section(
+    const OirArtifactView* artifact,
+    uint16_t section_type,
+    OirSectionView* out_section,
+    int* out_found
+) {
+    uint32_t i;
+    if (!artifact || !out_section || !out_found) return OIR_STATUS_INVALID_ARGUMENT;
+    memset(out_section, 0, sizeof(*out_section));
+    *out_found = 0;
+    for (i = 0u; i < artifact->section_count; ++i) {
+        OirSectionView section;
+        OirStatus status = oir_artifact_get_section(artifact, i, &section);
+        if (status != OIR_STATUS_OK) return status;
+        if (section.type == section_type) {
+            if (*out_found) return OIR_STATUS_INVALID_SECTION;
+            *out_section = section;
+            *out_found = 1;
+        }
+    }
+    return OIR_STATUS_OK;
+}
+
+OirStatus oir_semantic_ast_artifact_open(
+    const uint8_t* bytes,
+    size_t length,
+    OirSemanticAstArtifactView* out_view
+) {
+    OirSectionView sections[7];
+    const uint16_t types[7] = {
+        OIR_SECTION_PAYLOAD,
+        OIR_SECTION_SEMANTIC_SCOPES,
+        OIR_SECTION_SEMANTIC_TYPES,
+        OIR_SECTION_SEMANTIC_SYMBOLS,
+        OIR_SECTION_SEMANTIC_ANNOTATIONS,
+        OIR_SECTION_SEMANTIC_RELATIONS,
+        OIR_SECTION_SEMANTIC_CONVERSIONS
+    };
+    int found[7] = {0,0,0,0,0,0,0};
+    OirStatus status;
+    uint32_t i;
+
+    if (!bytes || !out_view) return OIR_STATUS_INVALID_ARGUMENT;
+    memset(out_view, 0, sizeof(*out_view));
+    status = oir_artifact_open(bytes, length, &out_view->artifact);
+    if (status != OIR_STATUS_OK) return status;
+    if (out_view->artifact.header.artifact_kind != OIR_KIND_SEMANTIC_AST ||
+        out_view->artifact.header.payload_schema_major != OIR_SEMANTIC_AST_SCHEMA_MAJOR ||
+        out_view->artifact.header.payload_schema_minor > OIR_SEMANTIC_AST_SCHEMA_MINOR ||
+        out_view->artifact.header.validity != OIR_VALIDITY_VALID) {
+        return OIR_STATUS_INVALID_HEADER;
+    }
+
+    for (i = 0u; i < 7u; ++i) {
+        status = semantic_find_section(&out_view->artifact, types[i],
+            &sections[i], &found[i]);
+        if (status != OIR_STATUS_OK) return status;
+        if (!found[i] && i != 6u) return OIR_STATUS_INVALID_SECTION;
+        if (found[i] && sections[i].length > (uint64_t)SIZE_MAX) {
+            return OIR_STATUS_OVERFLOW;
+        }
+        if (found[i] && sections[i].version != 1u) {
+            return OIR_STATUS_UNSUPPORTED_VERSION;
+        }
+    }
+
+    status = oir_ast_node_table_open(sections[0].data,
+        (size_t)sections[0].length, &out_view->ast);
+    if (status != OIR_STATUS_OK) return status;
+    status = oir_semantic_scopes_open(sections[1].data,
+        (size_t)sections[1].length, &out_view->scopes);
+    if (status != OIR_STATUS_OK) return status;
+    status = oir_semantic_types_open(sections[2].data,
+        (size_t)sections[2].length, &out_view->types);
+    if (status != OIR_STATUS_OK) return status;
+    status = oir_semantic_symbols_open(sections[3].data,
+        (size_t)sections[3].length, &out_view->symbols);
+    if (status != OIR_STATUS_OK) return status;
+    status = oir_semantic_annotations_open(sections[4].data,
+        (size_t)sections[4].length, &out_view->annotations);
+    if (status != OIR_STATUS_OK) return status;
+    status = oir_semantic_relations_open(sections[5].data,
+        (size_t)sections[5].length, &out_view->relations);
+    if (status != OIR_STATUS_OK) return status;
+    if (found[6]) {
+        status = oir_semantic_conversions_open(sections[6].data,
+            (size_t)sections[6].length, &out_view->conversions);
+        if (status != OIR_STATUS_OK) return status;
+        out_view->has_conversions = 1u;
+    }
+    return OIR_STATUS_OK;
+}
+
