@@ -1,0 +1,32 @@
+[target_info]
+schema_major = 2
+profile_id = "BareMetal64"
+profile_kind = "family"
+os = "none"
+runtime = "baremetal"
+package_format = "raw"
+abi = "baremetal"
+binary_format = "raw"
+entry_point = "_kernel_main"
+stack_alignment_bytes = 16
+page_size_bytes = 4096
+
+[cpu]
+id = "cpu0"
+kind = "cpu"
+vendor = "generic"
+model = "x86_64-compatible"
+architecture = "x86_64"
+isa_profile = "x86-64+sse4.2"
+core_count = 0
+word_size_bits = 64
+address_size_bits = 64
+endian = "little"
+general_register_count = 16
+vector_register_count = 16
+predicate_register_count = 0
+vector_width_bits = 128
+atomic_widths = 8,16,32,64
+fp_formats = fp32,fp64
+features = atomics,hardware_float,hardware_divide,privilege_levels,vector
+isa_extensions = sse,sse2,sse3,ssse3,sse4.1,sse4.2
