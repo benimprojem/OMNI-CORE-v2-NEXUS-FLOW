@@ -20,6 +20,7 @@
 #include <vector>
 #include <fstream>
 #include <cstdint>
+#include <limits>
 #include <cstring>
 #include <iostream>
 #include <iomanip>
@@ -148,101 +149,184 @@ struct OIRInstruction {
 };
 
 class OIRWriter {
+    static constexpr uint32_t HEADER_SIZE = 48;
+    static constexpr uint32_t INSTRUCTION_SIZE = 16;
+    static constexpr uint16_t MAX_SYMBOL_NAME = 1024;
+
     std::string target;
-    int         mode;
+    int mode;
     std::string outPath;
-    
-    std::vector<OIRSymbol>      symTable;
+
+    std::vector<OIRSymbol> symTable;
     std::vector<OIRInstruction> codeStream;
-    ErrorList&                  errors;
+    ErrorList& errors;
 
 public:
     OIRWriter(const std::string& tid, ErrorList& errs, bool debug, const std::string& path)
         : target(tid), mode(debug ? 1 : 0), outPath(path), errors(errs) {}
 
     // Temporary compatibility constructor
-    OIRWriter(ErrorList& errs) : target("Win64"), mode(0), outPath("output.oir"), errors(errs) {}
+    OIRWriter(ErrorList& errs)
+        : target("Win64"), mode(0), outPath("output.oir"), errors(errs) {}
 
-    void setTarget(const std::string& t) { target = t; }
-    void setDebug(bool d) { mode = d ? 1 : 0; }
+    void setTarget(const std::string& value) { target = value; }
+    void setDebug(bool value) { mode = value ? 1 : 0; }
 
-    uint32_t addSymbol(const std::string& name, uint8_t prefix = 0x01, uint16_t flags = 0x00) {
-        for (const auto& s : symTable) if (s.name == name) return s.id;
-        uint32_t id = (uint32_t)symTable.size() + 1;
-        symTable.push_back({ id, prefix, 0, flags, name });
+    uint32_t addSymbol(const std::string& name, uint8_t prefix = SymPrefix::VAR,
+                       uint16_t flags = SymFlags::NONE) {
+        for (const auto& symbol : symTable) {
+            if (symbol.name == name) return symbol.id;
+        }
+        if (symTable.size() >= std::numeric_limits<uint32_t>::max()) {
+            errors.error("P0001", "OIR symbol tablosu ID kapasitesini asti.");
+            return 0;
+        }
+        const uint32_t id = static_cast<uint32_t>(symTable.size()) + 1;
+        symTable.push_back({id, prefix, 0, flags, name});
         return id;
     }
 
-    void emit(uint8_t op, const std::string& raw = "", uint32_t sid = 0, int l = 0, int c = 0) {
-        codeStream.push_back({ op, 0, sid, 0, (uint32_t)l, (uint16_t)c, raw });
+    void emit(uint8_t op, const std::string& raw = "", uint32_t sid = 0,
+              int line = 0, int col = 0) {
+        appendInstruction(op, 0, sid, 0, raw, line, col);
     }
 
-    void emitWithOperand(uint8_t op, uint32_t operand, uint32_t sid = 0, const std::string& raw = "", int l = 0, int c = 0) {
-        codeStream.push_back({ op, 0, sid, operand, (uint32_t)l, (uint16_t)c, raw });
+    void emitWithOperand(uint8_t op, uint32_t operand, uint32_t sid = 0,
+                         const std::string& raw = "", int line = 0, int col = 0) {
+        appendInstruction(op, 0, sid, operand, raw, line, col);
     }
 
     bool save(const std::string& path = "") {
-        std::string finalPath = path.empty() ? outPath : path;
+        const std::string finalPath = path.empty() ? outPath : path;
         if (errors.hasErrors()) return false;
-        std::ofstream fs(finalPath, std::ios::binary);
-        if (!fs) return false;
-        
-        // ---- PASS 1: Sembol tablosu boyutunu hesapla ----
-        uint32_t symTableSize = 0;
-        for (const auto& s : symTable) {
-            symTableSize += 4 + 1 + 4 + 2 + 2 + (uint32_t)s.name.size(); // id+prefix+typeId+flags+len+name
+        if (finalPath.empty()) {
+            errors.error("P0002", "OIR cikti yolu bos olamaz.");
+            return false;
+        }
+        if (mode < 0 || mode > 1 || target.size() > 31 ||
+            target.find('\0') != std::string::npos) {
+            errors.error("P0003", "OIR header target veya mode alani gecersiz.");
+            return false;
         }
 
-        // ---- HEADER (48 byte) ----
-        // [0..3]   Magic: "OIR2"
-        // [4..5]   Version: 0x0002
-        // [6..7]   Mode
-        // [8..39]  Target (32 byte)
-        // [40..43] symTableOffset (= 48, right after header)
-        // [44..47] codeOffset     (= 48 + symTableSize)
-        char magic[4] = {'O', 'I', 'R', '2'}; fs.write(magic, 4);
-        uint16_t v = 2;          fs.write((char*)&v, 2);
-        uint16_t m = (uint16_t)mode; fs.write((char*)&m, 2);
-        char tBuf[32]; std::memset(tBuf, 0, 32);
-        std::strncpy(tBuf, target.c_str(), 31); fs.write(tBuf, 32);
-        
-        uint32_t symOff  = 48;
-        uint32_t codeOff = 48 + symTableSize;
-        fs.write((char*)&symOff,  4);
-        fs.write((char*)&codeOff, 4);
-
-        // ---- SYMBOL TABLE ----
-        for (const auto& s : symTable) {
-            fs.write((char*)&s.id,     4);
-            fs.write((char*)&s.prefix, 1);
-            fs.write((char*)&s.typeId, 4);
-            fs.write((char*)&s.flags,  2);
-            uint16_t len = (uint16_t)s.name.size();
-            fs.write((char*)&len, 2);
-            fs.write(s.name.c_str(), len);
+        uint64_t symbolTableSize = 0;
+        for (const auto& symbol : symTable) {
+            if (symbol.id == 0 || symbol.name.size() > MAX_SYMBOL_NAME ||
+                symbol.name.find('\0') != std::string::npos ||
+                symbol.prefix < SymPrefix::VAR || symbol.prefix > SymPrefix::EXTERN) {
+                errors.error("P0004", "OIR symbol kaydi formata uygun degil: " + symbol.name);
+                return false;
+            }
+            symbolTableSize += 13u + static_cast<uint64_t>(symbol.name.size());
+            if (symbolTableSize > std::numeric_limits<uint32_t>::max() - HEADER_SIZE) {
+                errors.error("P0005", "OIR symbol tablosu 32-bit offset kapasitesini asti.");
+                return false;
+            }
         }
 
-        // ---- CODE STREAM ----
-        for (const auto& i : codeStream) {
-            fs.write((char*)&i.op,       1);
-            fs.write((char*)&i.typeId,   1);
-            fs.write((char*)&i.symbolId, 4);
-            fs.write((char*)&i.operandId,4);
-            fs.write((char*)&i.line,     4);
-            fs.write((char*)&i.col,      2);
+        const uint64_t codeOffset64 = HEADER_SIZE + symbolTableSize;
+        const uint64_t instructionBytes =
+            static_cast<uint64_t>(codeStream.size()) * INSTRUCTION_SIZE;
+        if (instructionBytes > std::numeric_limits<uint32_t>::max() - codeOffset64) {
+            errors.error("P0006", "OIR instruction stream 32-bit dosya offset kapasitesini asti.");
+            return false;
         }
-        fs.close();
+
+        std::ofstream file(finalPath, std::ios::binary | std::ios::trunc);
+        if (!file) {
+            errors.error("P0007", "OIR cikti dosyasi olusturulamadi: " + finalPath);
+            return false;
+        }
+
+        const char magic[4] = {'O', 'I', 'R', '2'};
+        char targetBuffer[32] = {};
+        std::memcpy(targetBuffer, target.data(), target.size());
+
+        file.write(magic, sizeof(magic));
+        writeU16(file, 0x0002);
+        writeU16(file, static_cast<uint16_t>(mode));
+        file.write(targetBuffer, sizeof(targetBuffer));
+        writeU32(file, HEADER_SIZE);
+        writeU32(file, static_cast<uint32_t>(codeOffset64));
+
+        for (const auto& symbol : symTable) {
+            writeU32(file, symbol.id);
+            file.put(static_cast<char>(symbol.prefix));
+            writeU32(file, symbol.typeId);
+            writeU16(file, symbol.flags);
+            writeU16(file, static_cast<uint16_t>(symbol.name.size()));
+            if (!symbol.name.empty()) {
+                file.write(symbol.name.data(),
+                           static_cast<std::streamsize>(symbol.name.size()));
+            }
+        }
+
+        for (const auto& instruction : codeStream) {
+            file.put(static_cast<char>(instruction.op));
+            file.put(static_cast<char>(instruction.typeId));
+            writeU32(file, instruction.symbolId);
+            writeU32(file, instruction.operandId);
+            writeU32(file, instruction.line);
+            writeU16(file, instruction.col);
+        }
+
+        file.flush();
+        const bool writeOk = file.good();
+        file.close();
+        if (!writeOk || file.fail()) {
+            errors.error("P0008", "OIR dosyasina yazma islemi tamamlanamadi: " + finalPath);
+            return false;
+        }
+
         if (mode == 1) dump();
         return true;
     }
 
     void dump() {
         std::cout << "\n--- OIR TRACE LOG ---\n";
-        for (const auto& i : codeStream) {
-            std::cout << "  L" << i.line << ":" << i.col << " OP:" << std::hex << (int)i.op << std::dec 
-                      << "  SID:" << i.symbolId << "  RAW: " << i.rawData << "\n";
+        for (const auto& instruction : codeStream) {
+            std::cout << "  L" << instruction.line << ":" << instruction.col
+                      << " OP:" << std::hex << static_cast<int>(instruction.op)
+                      << std::dec << " SID:" << instruction.symbolId
+                      << " RAW: " << instruction.rawData << "\n";
         }
     }
-};
 
+private:
+    void appendInstruction(uint8_t op, uint8_t typeId, uint32_t symbolId,
+                           uint32_t operandId, const std::string& raw,
+                           int line, int col) {
+        if (line < 0 || col < 0 || col > std::numeric_limits<uint16_t>::max()) {
+            errors.error("P0009", "OIR source konumu gecersiz.");
+            return;
+        }
+        OIRInstruction instruction{};
+        instruction.op = op;
+        instruction.typeId = typeId;
+        instruction.symbolId = symbolId;
+        instruction.operandId = operandId;
+        instruction.line = static_cast<uint32_t>(line);
+        instruction.col = static_cast<uint16_t>(col);
+        instruction.rawData = raw;
+        codeStream.push_back(std::move(instruction));
+    }
+
+    static void writeU16(std::ofstream& stream, uint16_t value) {
+        const char bytes[2] = {
+            static_cast<char>(value & 0xFF),
+            static_cast<char>((value >> 8) & 0xFF)
+        };
+        stream.write(bytes, sizeof(bytes));
+    }
+
+    static void writeU32(std::ofstream& stream, uint32_t value) {
+        const char bytes[4] = {
+            static_cast<char>(value & 0xFF),
+            static_cast<char>((value >> 8) & 0xFF),
+            static_cast<char>((value >> 16) & 0xFF),
+            static_cast<char>((value >> 24) & 0xFF)
+        };
+        stream.write(bytes, sizeof(bytes));
+    }
+};
 #endif
