@@ -132,25 +132,25 @@ int main(int argc, char** argv) {
     {
         char* p = strstr(numeric_overflow, "stack_alignment_bytes = 16");
         if (!p) return 1;
-        (void)strcpy(p, "stack_alignment_bytes = 4294967296\\n");
+        (void)strcpy(p, "stack_alignment_bytes = 4294967296\n");
     }
     if (!expect_rejected(argv[2], numeric_overflow)) return 1;
 
     (void)snprintf(malformed_string, sizeof(malformed_string), "%s",
         valid_descriptor);
     {
-        char* p = strstr(malformed_string, "profile_id = \\"Test64\\"");
+        char* p = strstr(malformed_string, "profile_id = \"Test64\"");
         if (!p) return 1;
-        (void)strcpy(p, "profile_id = \\"Test64\\" trailing\\n");
+        (void)strcpy(p, "profile_id = \"Test64\" trailing\n");
     }
     if (!expect_rejected(argv[2], malformed_string)) return 1;
 
     (void)snprintf(unsupported_cpu_kind, sizeof(unsupported_cpu_kind), "%s",
         valid_descriptor);
     {
-        char* p = strstr(unsupported_cpu_kind, "kind = \\"cpu\\"");
+        char* p = strstr(unsupported_cpu_kind, "kind = \"cpu\"");
         if (!p) return 1;
-        (void)strcpy(p, "kind = \\"gpu\\"\\n");
+        (void)strcpy(p, "kind = \"gpu\"\n");
     }
     if (!expect_rejected(argv[2], unsupported_cpu_kind)) return 1;
 
