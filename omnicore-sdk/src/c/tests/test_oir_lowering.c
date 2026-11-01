@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <string.h>
 
+static void put16(uint8_t* p, uint16_t v) { p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8); }
 static void put32(uint8_t* p, uint32_t v) {
     p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8); p[2]=(uint8_t)(v>>16); p[3]=(uint8_t)(v>>24);
 }
@@ -211,13 +212,13 @@ int main(void) {
 
     nodes[3].field_data_offset=(uint32_t)fields_used;
     oir_ast_tlv_writer_init(&writer,fields+fields_used,sizeof(fields)-fields_used);
-    put32(tmp,9u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,4u);
+    put16(tmp,9u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,2u);
     put32(tmp,5u); write_field(&writer,2u,OIR_AST_VALUE_NODE_REF,tmp,4u);
     nodes[3].field_data_length=(uint32_t)writer.used; fields_used+=writer.used;
 
     nodes[4].field_data_offset=(uint32_t)fields_used;
     oir_ast_tlv_writer_init(&writer,fields+fields_used,sizeof(fields)-fields_used);
-    put32(tmp,4u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,4u);
+    put16(tmp,4u); write_field(&writer,1u,OIR_AST_VALUE_TOKEN_ID,tmp,2u);
     put32(tmp,0u); write_field(&writer,2u,OIR_AST_VALUE_U32,tmp,4u);
     put64(tmp,42u); write_field(&writer,3u,OIR_AST_VALUE_I64,tmp,8u);
     nodes[4].field_data_length=(uint32_t)writer.used; fields_used+=writer.used;
