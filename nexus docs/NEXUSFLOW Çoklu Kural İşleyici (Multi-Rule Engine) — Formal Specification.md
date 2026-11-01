@@ -1715,9 +1715,9 @@ Bu şemada `JUMP finish` terminator'ından `NormalContinuation` bloğuna kenar b
 
 ### Negatif testler
 
-- **MR-OIR-009-N1:** Tanımlanmamış etikete `jump(label)` yapılması kabul edilir.
-- **MR-OIR-009-N2:** Başka fonksiyonda tanımlı etikete atlama kabul edilir.
-- **MR-OIR-009-N3:** Aynı fonksiyon içinde aynı etiket adının iki kez tanımlanması kabul edilir.
+- **MR-OIR-009-N1:** Tanımlanmamış etikete `jump(label)` yapılması reddedilir.
+- **MR-OIR-009-N2:** Başka fonksiyonda tanımlı etikete atlama reddedilir.
+- **MR-OIR-009-N3:** Aynı fonksiyon içinde aynı etiket adının iki kez tanımlanması reddedilir.
 - **MR-OIR-009-N4:** Handler'daki `jump(label)` hedefinin, lowering sırasında yanlışlıkla handler'ın hemen sonrasındaki bloğa çevrilmesi.
 - **MR-OIR-009-N5:** `JUMP` terminator'ından sonraki handler'a sahte CFG kenarı oluşturulması.
 - **MR-OIR-009-N6:** `JUMP` terminator'ından `ApplyContinue` bloğuna sahte CFG kenarı oluşturulması.
