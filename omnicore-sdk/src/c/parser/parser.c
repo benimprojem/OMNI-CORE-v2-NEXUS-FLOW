@@ -396,7 +396,7 @@ static void advance(Parser* p) {
         p->current = parser_next_token(p->ctx);
         if (p->current.type != TOKEN_ERROR) break;
         error_at(p, &p->current, ERR_LEXER_ERROR, p->current.start);
-        if (p->parser_status_is_terminal(ctx->status)) break;
+        if (parser_status_is_terminal(p->ctx->status)) break;
     }
 }
 
@@ -1841,7 +1841,7 @@ static ASTNode* parse_block(Parser* p) {
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
         Token statement_start = p->current;
         ASTNode* stmt = parse_statement(p);
-        if (p->parser_status_is_terminal(ctx->status)) {
+        if (parser_status_is_terminal(p->ctx->status)) {
             ast_destroy(stmt);
             ast_destroy(head);
             ast_destroy((ASTNode*)block);
