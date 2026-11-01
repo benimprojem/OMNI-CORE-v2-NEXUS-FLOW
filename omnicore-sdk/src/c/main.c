@@ -644,8 +644,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    /* Validate Target v2 before compilation. The legacy descriptor remains
-     * the current codegen input until Target OIR/backend migration is complete. */
+    /* Validate Target v2 when a matching v2 descriptor exists.
+     * Legacy targets remain usable through the existing codegen path. */
     char target2_filename[512];
     char target2_dir[OCC_PATH_BUFFER];
     char target2_path[OCC_PATH_BUFFER];
@@ -660,15 +660,24 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Hata: Target v2 dosyasi yolu olusturulamadi.\\n");
         return 1;
     }
-    if (!occ_target_profile_load(target2_path, &target_profile,
-        target_error, sizeof(target_error))) {
-        fprintf(stderr, "Hata: Target v2 profili dogrulanamadi: %s\\n",
-            target_error[0] ? target_error : target2_path);
-        return 1;
+    {
+        FILE* target2_probe = fopen(target2_path, "r");
+        if (target2_probe) {
+            fclose(target2_probe);
+            if (!occ_target_profile_load(target2_path, &target_profile,
+                target_error, sizeof(target_error))) {
+                fprintf(stderr, "Hata: Target v2 profili dogrulanamadi: %s\\n",
+                    target_error[0] ? target_error : target2_path);
+                return 1;
+            }
+            printf("[OCC] Target v2 dogrulandi: %s | OS=%s | ABI=%s | CPU=%s\\n",
+                target_profile.profile_id, target_profile.os, target_profile.abi,
+                target_profile.devices[0].architecture);
+        } else {
+            printf("[OCC] Target v2 profili yok; legacy Target yolu kullanilacak: %s\\n",
+                target_name);
+        }
     }
-    printf("[OCC] Target v2 dogrulandi: %s | OS=%s | ABI=%s | CPU=%s\\n",
-        target_profile.profile_id, target_profile.os, target_profile.abi,
-        target_profile.devices[0].architecture);
 
     printf(msg_get(MSG_OCC_PROCESSING), source_file);
 
