@@ -187,9 +187,20 @@ OirStatus oir_lower_semantic_ast_literal_return(
     status = find_semantic_type(&artifact->types, semantic_type_id,
         &semantic_type, &semantic_name);
     if (status != OIR_STATUS_OK || !semantic_name) return OIR_STATUS_INVALID_SECTION;
-    if (declared_type_length != semantic_type.name_length ||
-        memcmp(declared_type, semantic_name, declared_type_length) != 0)
-        return OIR_STATUS_INVALID_SECTION;
+    {
+        uint32_t type_offset = 0u;
+        uint32_t type_length = declared_type_length;
+        int declared_hard = 0;
+        if (type_length > 0u && declared_type[0] == '!') {
+            declared_hard = 1;
+            type_offset = 1u;
+            --type_length;
+        }
+        if (type_length != semantic_type.name_length ||
+            memcmp(declared_type + type_offset, semantic_name, type_length) != 0 ||
+            declared_hard != ((semantic_type.flags & OIR_SEMANTIC_TYPE_FLAG_HARD) != 0u))
+            return OIR_STATUS_INVALID_SECTION;
+    }
     status = oir_type_map_primitive(&semantic_type, semantic_name,
         semantic_type.name_length, 1u, &ws->types[0]);
     if (status != OIR_STATUS_OK) return status;
