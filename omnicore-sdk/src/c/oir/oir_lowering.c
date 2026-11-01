@@ -162,6 +162,10 @@ OirStatus oir_lower_semantic_ast_literal_return(
     status = get_node(&artifact->ast, expression_id, &statement);
     if (status != OIR_STATUS_OK || statement.node_kind_id != AST_RETURN ||
         statement.next_node_id != 0u) return OIR_STATUS_INVALID_SECTION;
+    status = get_field(&artifact->ast, statement.node_id, 1u,
+        OIR_AST_VALUE_TOKEN_ID, &field);
+    if (status != OIR_STATUS_OK || rd32(field.value) != 9u)
+        return OIR_STATUS_INVALID_SECTION;
     status = get_node_ref(&artifact->ast, statement.node_id, 2u, &declaration_id);
     if (status != OIR_STATUS_OK || declaration_id == 0u) return OIR_STATUS_INVALID_SECTION;
     status = get_node(&artifact->ast, declaration_id, &literal);
@@ -174,6 +178,8 @@ OirStatus oir_lower_semantic_ast_literal_return(
     status = get_field(&artifact->ast, literal.node_id, 2u, OIR_AST_VALUE_U32, &field);
     if (status != OIR_STATUS_OK) return status;
     literal_kind = rd32(field.value);
+    if ((literal_kind == 0u || literal_kind == 1u) && token_id != 4u)
+        return OIR_STATUS_INVALID_SECTION;
 
     status = find_annotation(&artifact->annotations, literal.node_id, &annotation);
     if (status != OIR_STATUS_OK) return status;
