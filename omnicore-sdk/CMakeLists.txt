@@ -684,6 +684,18 @@ if(BUILD_TESTING)
         PASS_REGULAR_EXPRESSION "Tanımsız değişken"
     )
 
+    add_executable(test_target_profile "${C_SOURCE_DIR}/tests/test_target_profile.c")
+    target_link_libraries(test_target_profile PRIVATE occ_target_profile)
+    if(MSVC)
+        target_compile_options(test_target_profile PRIVATE /W4)
+    else()
+        target_compile_options(test_target_profile PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME target_profile_parser_schema_and_rejection_rules
+        COMMAND test_target_profile
+            "${CMAKE_CURRENT_SOURCE_DIR}/targets/v2/Win64.target2"
+            "${CMAKE_CURRENT_BINARY_DIR}/target_profile_parser_test.target2")
+
     add_executable(test_compilation "${C_SOURCE_DIR}/tests/test_compilation.c")
     target_link_libraries(test_compilation PRIVATE occ_compilation)
     if(MSVC)
