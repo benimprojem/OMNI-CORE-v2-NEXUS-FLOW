@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "oir_lowering.h"
+#include "occ_module_loader.h"
 #include "oir_ast_tlv.h"
 #include "parser.h"
 #include "ast.h"
@@ -36,7 +37,91 @@ static uint32_t test_resolve_node_id(void* user_context, const ASTNode* node) {
     return oir_ast_frontend_index_lookup(resolver->entries, resolver->capacity, node);
 }
 
-static int test_real_frontend_to_module(const uint8_t* source, size_t source_length, int arithmetic) {
+static int test_lowering_stage_module(
+    const OccLoadedStageModule* loaded,
+    const uint8_t* semantic_bytes,
+    size_t semantic_length
+) {
+    OccModuleArtifactInputV1 input;
+    OccDiagnosticCollector diagnostics;
+    uint8_t* output = NULL;
+    size_t output_length = 0u;
+    OirArtifactView envelope;
+    OirSectionView payload;
+    OirModuleView module;
+    OirModuleFunction function;
+    uint32_t i;
+    int found_payload = 0;
+    int ok = 0;
+
+    if (!loaded || !semantic_bytes || semantic_length == 0u) return 0;
+    memset(&input, 0, sizeof(input));
+    input.bytes = semantic_bytes;
+    input.length = (uint64_t)semantic_length;
+    occ_diagnostics_init(&diagnostics);
+
+    /* 64 bytes intentionally forces the loader's NEED_OUTPUT_BUFFER retry path. */
+    if (occ_module_loader_invoke(loaded, &input, 1u, 1u, &diagnostics,
+            64u, 16u * 1024u * 1024u, &output, &output_length) !=
+            OCC_MODULE_LOADER_OK ||
+        !output || occ_diagnostics_count(&diagnostics) != 0u ||
+        oir_artifact_open(output, output_length, &envelope) != OIR_STATUS_OK ||
+        envelope.header.artifact_kind != OIR_KIND_MODULE ||
+        envelope.header.payload_schema_major != OIR_MODULE_SCHEMA_MAJOR ||
+        envelope.header.payload_schema_minor != OIR_MODULE_SCHEMA_MINOR ||
+        envelope.header.producer_stage_id != OCC_STAGE_OIR_LOWERING ||
+        envelope.header.validity != OIR_VALIDITY_VALID ||
+        envelope.header.job_id != 1u) goto cleanup;
+
+    for (i = 0u; i < envelope.section_count; ++i) {
+        OirSectionView section;
+        if (oir_artifact_get_section(&envelope, i, &section) != OIR_STATUS_OK)
+            goto cleanup;
+        if (section.type == OIR_SECTION_PAYLOAD) {
+            if (found_payload) goto cleanup;
+            payload = section;
+            found_payload = 1;
+        }
+    }
+    if (!found_payload ||
+        oir_module_open(payload.data, (size_t)payload.length, &module) != OIR_STATUS_OK ||
+        module.type_count != 2u || module.function_count != 1u ||
+        module.block_count != 1u || module.instruction_count < 2u ||
+        module.value_count == 0u ||
+        oir_module_get_function(&module, 0u, &function) != OIR_STATUS_OK ||
+        function.id != 1u || function.entry_block_id != 1u) goto cleanup;
+    if (!test_lowering_stage_module(stage_module, semantic_artifact, semantic_length)) goto cleanup;
+    ok = 1;
+
+cleanup:
+    free(output);
+    occ_diagnostics_destroy(&diagnostics);
+    return ok;
+}
+
+static int test_lowering_stage_rejects_bad_input(
+    const OccLoadedStageModule* loaded
+) {
+    static const uint8_t invalid_bytes[] = { 'N', 'O', 'T', 'O', 'I', 'R' };
+    OccModuleArtifactInputV1 input;
+    OccDiagnosticCollector diagnostics;
+    uint8_t* output = NULL;
+    size_t output_length = 0u;
+    uint32_t status;
+
+    memset(&input, 0, sizeof(input));
+    input.bytes = invalid_bytes;
+    input.length = sizeof(invalid_bytes);
+    occ_diagnostics_init(&diagnostics);
+    status = occ_module_loader_invoke(loaded, &input, 1u, 1u, &diagnostics,
+        64u, 16u * 1024u * 1024u, &output, &output_length);
+    free(output);
+    occ_diagnostics_destroy(&diagnostics);
+    return status == OCC_MODULE_LOADER_INVOKE_FAILED &&
+        output == NULL && output_length == 0u;
+}
+
+static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module, const uint8_t* source, size_t source_length, int arithmetic) {
     ParserContext* parser = NULL;
     SemanticContext semantic;
     OirAstPointerIndexEntry index[64];
@@ -229,7 +314,16 @@ cleanup:
     return ok;
 }
 
-int main(void) {
+int main(int argc, char** argv) {
+    OccLoadedStageModule stage_module;
+    char loader_error[512];
+    memset(&stage_module, 0, sizeof(stage_module));
+    if (argc != 2) return 2;
+    if (occ_module_loader_open(&stage_module, argv[1], loader_error,
+            sizeof(loader_error)) != OCC_MODULE_LOADER_OK) {
+        fprintf(stderr, "Could not load OIR lowering stage: %s\\n", loader_error);
+        return 1;
+    }
     uint8_t fields[256], ast_payload[1024], types_payload[128], annotations_payload[64];
     uint8_t module_bytes[1024], strings[] = {'m','a','i','n','i','3','2'};
     uint8_t type_name[] = {'i','3','2'};
@@ -356,11 +450,13 @@ int main(void) {
         static const uint8_t multi_assignment_source[] =
             "f:main() !i32 { v:x!i32 = 5; v:y!i32 = 2; "
             "x = x + 1; y = x * 2; x = y - 3; ret x; }";
-        assert(test_real_frontend_to_module(literal_source, sizeof(literal_source)-1u, 0));
-        assert(test_real_frontend_to_module(arithmetic_source, sizeof(arithmetic_source)-1u, 1));
-        assert(test_real_frontend_to_module(local_source, sizeof(local_source)-1u, 2));
-        assert(test_real_frontend_to_module(assignment_source, sizeof(assignment_source)-1u, 3));
-        assert(test_real_frontend_to_module(multi_assignment_source, sizeof(multi_assignment_source)-1u, 4));
+        assert(test_real_frontend_to_module(&stage_module, literal_source, sizeof(literal_source)-1u, 0));
+        assert(test_real_frontend_to_module(&stage_module, arithmetic_source, sizeof(arithmetic_source)-1u, 1));
+        assert(test_real_frontend_to_module(&stage_module, local_source, sizeof(local_source)-1u, 2));
+        assert(test_real_frontend_to_module(&stage_module, assignment_source, sizeof(assignment_source)-1u, 3));
+        assert(test_real_frontend_to_module(&stage_module, multi_assignment_source, sizeof(multi_assignment_source)-1u, 4));
     }
+    assert(test_lowering_stage_rejects_bad_input(&stage_module));
+    occ_module_loader_close(&stage_module);
     return 0;
 }
