@@ -106,6 +106,7 @@ Recent design work includes:
 - Normative Multi-Rule OIR test MR-OIR-015: verify nested loops, select-branch jumps, nearest-loop break/continue binding, nested loop CFG/SSA merges, and optimizer preservation.
 - Normative Multi-Rule OIR test MR-OIR-016: verify lexical-scope-aware jump cleanup, resource preservation for same-scope backward transfers, and rejection of re-entry into exited scopes.
 - Normative Multi-Rule OIR test MR-OIR-017: verify defer registration, scope-activation lifetime, LIFO execution, and ordering before automatic resource cleanup.
+- Normative Multi-Rule OIR test MR-OIR-018: verify dynamic defer registrations, per-iteration loop-body activations, and LIFO cleanup.
 - Separation of source-language syntax documentation from compiler project documentation.
 
 ### Open design contracts
