@@ -12,6 +12,7 @@
 #include "oir_ast_graph.h"
 
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
 static void put16(uint8_t* p, uint16_t v) { p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8); }
@@ -290,8 +291,13 @@ int main(void) {
     workspace.operands=operands; workspace.operand_capacity=2u;
     workspace.strings=module_strings; workspace.string_capacity=sizeof(module_strings);
 
-    assert(oir_lower_semantic_ast_literal_return(&artifact,&workspace,module_bytes,
-        sizeof(module_bytes),&module_length)==OIR_STATUS_OK);
+    {
+        OirStatus lower_status=oir_lower_semantic_ast_literal_return(&artifact,&workspace,
+            module_bytes,sizeof(module_bytes),&module_length);
+        if (lower_status!=OIR_STATUS_OK)
+            fprintf(stderr,"manual OIR lowering status: %d\\n",(int)lower_status);
+        assert(lower_status==OIR_STATUS_OK);
+    }
     assert(oir_module_open(module_bytes,module_length,&module)==OIR_STATUS_OK);
     assert(module.type_count==2u && module.function_count==1u);
     assert(module.block_count==1u && module.value_count==1u);
