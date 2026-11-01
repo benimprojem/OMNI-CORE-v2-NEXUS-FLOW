@@ -15,10 +15,13 @@ int main(void) {
     const OirModuleBlock blocks[] = { { 1u, 1u, 0u, 2u } };
     const OirModuleValue values[] = { { 1u, 1u, 1u, 0u } };
     const OirModuleInstruction instructions[] = {
-        { 1u, 1u, OIR_OP_CONST_INT, 0u, 1u, 0u, 0u },
+        { 1u, 1u, OIR_OP_CONST_INT, 0u, 1u, 0u, 1u },
         { 2u, 1u, OIR_OP_RETURN, 0u, 0u, 0u, 1u }
     };
-    const OirModuleOperand operands[] = { { OIR_OPERAND_VALUE, 1u, 0u } };
+    const OirModuleOperand operands[] = {
+        { OIR_OPERAND_INTEGER_IMMEDIATE, 0u, 42u },
+        { OIR_OPERAND_VALUE, 1u, 0u }
+    };
     OirModuleInput input;
     OirModuleView view;
     OirModuleInstruction decoded;
@@ -31,7 +34,7 @@ int main(void) {
     input.blocks = blocks; input.block_count = 1u;
     input.values = values; input.value_count = 1u;
     input.instructions = instructions; input.instruction_count = 2u;
-    input.operands = operands; input.operand_count = 1u;
+    input.operands = operands; input.operand_count = 2u;
     input.strings = name; input.strings_length = sizeof(name);
 
     assert(oir_module_write(payload, sizeof(payload), &input, &written) == OIR_STATUS_OK);
@@ -49,9 +52,18 @@ int main(void) {
         assert(float_type.kind == OIR_MODULE_TYPE_FLOAT && float_type.flags == 0u);
     }
     assert(view.block_count == 1u && view.value_count == 1u);
-    assert(view.instruction_count == 2u && view.operand_count == 1u);
+    assert(view.instruction_count == 2u && view.operand_count == 2u);
     assert(oir_module_get_instruction(&view, 1u, &decoded) == OIR_STATUS_OK);
     assert(decoded.opcode_id == OIR_OP_RETURN && decoded.operand_count == 1u);
+    {
+        OirModuleInstruction constant;
+        OirModuleOperand immediate;
+        assert(oir_module_get_instruction(&view, 0u, &constant) == OIR_STATUS_OK);
+        assert(constant.opcode_id == OIR_OP_CONST_INT && constant.operand_count == 1u);
+        assert(oir_module_get_operand(&view, 0u, &immediate) == OIR_STATUS_OK);
+        assert(immediate.kind == OIR_OPERAND_INTEGER_IMMEDIATE);
+        assert(immediate.immediate == 42u);
+    }
 
     /* Unknown type flags are rejected rather than silently reinterpreted. */
     payload[45] = 0x80u;
