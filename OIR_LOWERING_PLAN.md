@@ -76,29 +76,23 @@ Required OIR capabilities:
 
 This increment depends on semantic analysis reliably recording scopes, declarations, identifier resolutions and condition types inside all control-flow branches. The current checker enters scopes for blocks and loops, but its durable annotations are not yet comprehensive for control-flow nodes. This must be closed before enabling the corresponding lowering.
 
-### Control-flow frontend gate (review 2026-11-01)
+### Control-flow frontend gate (updated 2026-11-02)
 
-The language has three distinct constructs; they must remain separate in parsing, semantics and lowering.
+The active C frontend now distinguishes three forms without merging their source-language meanings:
 
-1. **Structured conditional:** README section 5.2 defines `if (condition) { ... }`, `elsif(condition) { ... }`, and `els { ... }`, including single-statement branches. This is represented by the existing `AST_IF` node with `condition`, `then_branch` and `else_branch` references. It is not a NEXUS Flow operator.
-2. **Conditional action shorthand:** README examples `(a == b) -> break;` and `(a == b) -> continue;` mean: evaluate the condition, and execute the right-hand action only when true. The same pattern is also used with a block/action in the README's rule examples. This is a conditional-action form, not a pipeline carrying the comparison result.
-3. **NEXUS Flow:** `=?>`, `?->`, `?=>`, `!->`, capture, relocation and stream operators retain their separately documented error/data-flow meanings. They must not be reinterpreted as structured `if/else`.
+1. **Structured conditional:** `if (condition) { ... }`, `elsif(condition) { ... }` and `els { ... }` are explicit branching statements. They use the existing `AST_IF` node with condition/then/else references. Lexer, parser and semantic validation are implemented and covered by tests.
+2. **Conditional action shorthand:** `(condition) -> break;`, `(condition) -> continue;` and other unambiguous statement-only right-hand actions are parsed as conditional control flow. The parser recognizes a parenthesized condition followed by `TOKEN_PIPE` and a statement-start token that cannot be an expression pipe target. It normalizes this one-arm branch to `AST_IF`; the source syntax remains distinct from the `if` keyword.
+3. **Nexus Flow pipe:** ordinary expression transfers such as `source -> target;` and `source -> process();` remain `AST_NEXUS_PIPE`. A pipe block `source -> { ... }` is not reclassified as a conditional action. Rule-set trigger syntax is parsed in its own rule context.
 
-Current frontend gap confirmed by source inspection:
+Parser regression tests verify `break`, `continue`, `ret` conditional actions and ensure an ordinary `a == b -> target` expression remains an `AST_NEXUS_PIPE`. Semantic tests verify that conditional `break`/`continue` are accepted inside loops and rejected outside loops. CI run `41364158463` passed on Windows, Ubuntu and macOS, including Ubuntu ASan/UBSan and Valgrind jobs.
 
-- `AST_IF` and its AST writer fields already exist, but the active lexer does not currently classify `if`, `elsif` or `els` as dedicated keywords and the active parser has no structured-if production.
-- `break` and `continue` have lexer tokens, but the active parser/semantic-to-OIR path still needs explicit handling for the conditional-action form.
-- `(condition) -> action` currently reaches the generic `AST_NEXUS_PIPE` path. That is not sufficient to express conditional execution and must be corrected without changing ordinary `->` pipeline behavior.
-- Semantic analysis must validate the condition as boolean, preserve branch scopes, and establish loop context for `break`/`continue`.
-- OIR must lower structured conditionals to explicit CFG blocks and conditional branches. Values assigned on multiple incoming paths will use OIR block parameters, with predecessor-aware validation; do not assume LLVM `phi` semantics without defining the OIR contract.
+**Remaining control-flow gap:** the current OIR lowerer does not yet lower `AST_IF`, loops, conditional branches or loop-control statements into CFG blocks. Semantic annotations/merge information for all control-flow nodes, short-circuit logical operators, block parameters and predecessor-aware verification remain prerequisites. No control-flow construct is advertised as supported by the OIR lowerer until the full parser → semantic artifact → CFG lowering path is tested.
 
 Implementation order:
-1. Add lexer/parser support for README's structured `if/elsif/els` forms and AST regression tests.
-2. Add a distinct AST representation for conditional-action shorthand (or a rigorously distinguished AST form); keep ordinary pipeline nodes unchanged.
-3. Add semantic validation for boolean conditions, branch scopes and loop-only actions.
-4. Define/verify OIR block parameters and CFG edges, then implement lowering and merge tests.
-
-No control-flow construct should be advertised as supported by the OIR lowerer until its full parser-to-semantic-to-OIR path is covered by tests.
+1. Complete semantic annotations and definite-assignment/merge rules for branches and loops.
+2. Freeze OIR basic-block, terminator, successor-edge and block-parameter contracts.
+3. Implement CFG lowering and predecessor-aware merge tests.
+4. Add verifier mutation tests for malformed edges, missing terminators, invalid block parameters and loop back-edges.
 
 ### Increment 3 — aggregates and addressable data
 
@@ -184,11 +178,11 @@ The AST schema preserves the declared return-type spelling, while the semantic t
 
 The semantic checker performs a deliberately conservative check for arithmetic binary expressions: both operands must resolve to the same primitive numeric type. The current check does not implement the full NEXSUS Flow numeric promotion/conversion lattice, and it does not authorize implicit widening or narrowing.
 
-The expression lowerer recursively walks the validated AST expression tree in left-to-right postorder, preserving parser-established precedence and associativity. Each literal emits a typed constant and each supported binary operation emits a new SSA value. The return terminator consumes the final SSA value. AST token IDs are read using their 16-bit wire width and stable OIR token registry IDs.
+The expression lowerer recursively walks the validated AST expression tree in left-to-right postorder, preserving parser-established precedence and associativity. Each literal emits a typed constant; identifier reads resolve through the current local SSA mapping; each supported binary operation emits a new SSA value. Initialized local declarations and simple reassignment update the symbol-to-value mapping. The return terminator consumes the final SSA value. AST token IDs are read using their 16-bit wire width and stable OIR token registry IDs.
 
-Current supported operators: `+`, `-`, `*` and `/`. The active parser grammar does not currently expose remainder or exponentiation in this expression path, so neither is claimed as supported. The lowerer accepts only one parameterless, non-extern function with one return expression and literal leaves; calls, parameters, compound/forced assignment, non-local lvalues, multiple functions and control flow remain unsupported.
+Current supported operators: `+`, `-`, `*` and `/`. The first executable slice accepts exactly one parameterless, non-extern function, zero or more initialized scalar locals, simple `=` reassignment to earlier mutable locals, and one final return. Calls, parameters, compound/forced assignment, non-local lvalues, multiple functions and control flow remain unsupported.
 
-The legacy literal-only API remains available as a compatibility entry point. The new `oir_lower_semantic_ast_return()` API handles both literal and arithmetic return expressions. Integration tests now include `ret 10 + 20 * 3;` and assert the generated SSA references and `mul`-before-`add` order. These tests have been registered but have not yet been executed in a local build or CI run.
+The legacy literal-only API remains available as a compatibility entry point. The `oir_lower_semantic_ast_return()` API handles literals, recursive arithmetic, initialized scalar locals, identifier reads and straight-line reassignment. Integration tests include `ret 10 + 20 * 3;`, `v:x!i32 = 40; x = x + 2; ret x;`, and assert SSA references plus multiplication-before-addition order. CI run `41325592201` passed on Windows/Ubuntu/macOS and Ubuntu ASan/UBSan/Valgrind. The implementation is still a static library/test path, not an independent lowering DLL or OCC stage handoff.
 
 ## 4. Fail-closed lowering behavior
 
