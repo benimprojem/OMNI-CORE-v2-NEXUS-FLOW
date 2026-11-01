@@ -72,10 +72,21 @@ OccTargetProfileStatus occ_target_profile_validate(
         return OCC_TARGET_PROFILE_UNSUPPORTED_SCHEMA;
     }
     if (!valid_id(profile->profile_id, sizeof(profile->profile_id)) ||
+        !valid_id(profile->os, sizeof(profile->os)) ||
+        !valid_id(profile->abi, sizeof(profile->abi)) ||
+        !valid_id(profile->binary_format, sizeof(profile->binary_format)) ||
+        !valid_id(profile->entry_point, sizeof(profile->entry_point)) ||
         (profile->profile_kind != OCC_TARGET_PROFILE_FAMILY &&
          profile->profile_kind != OCC_TARGET_PROFILE_EXACT_MACHINE)) {
         set_error(error_message, error_message_size, "Target profile identity or profile kind is invalid.");
         return OCC_TARGET_PROFILE_INVALID_ID;
+    }
+    if (profile->stack_alignment_bytes == 0u ||
+        (profile->page_size_bytes != 0u &&
+         (profile->page_size_bytes & (profile->page_size_bytes - 1u)) != 0u)) {
+        set_error(error_message, error_message_size,
+            "Target platform stack alignment or page size is invalid.");
+        return OCC_TARGET_PROFILE_INVALID_ARGUMENT;
     }
     if (profile->device_count == 0u ||
         profile->device_count > OCC_TARGET_MAX_DEVICES ||
