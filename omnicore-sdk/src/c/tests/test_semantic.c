@@ -74,9 +74,14 @@ static int check_control_flow_semantics(void) {
         "v:y!i32 = 2; els v:z!i32 = 3; }";
     const char* invalid_condition = "f:main() { if (1) v:x!i32 = 1; }";
     const char* invalid_break = "f:main() { break; continue; }";
+    const char* valid_loop = "f:main() { loop (true) { break; continue; } }";
+    const char* nested_function_break =
+        "f:main() { loop (true) { f:nested() { break; } break; } }";
     return check_source(valid_if, 0) &&
         check_source(invalid_condition, 1) &&
-        check_source(invalid_break, 2);
+        check_source(invalid_break, 2) &&
+        check_source(valid_loop, 0) &&
+        check_source(nested_function_break, 1);
 }
 
 int main(int argc, char** argv) {
