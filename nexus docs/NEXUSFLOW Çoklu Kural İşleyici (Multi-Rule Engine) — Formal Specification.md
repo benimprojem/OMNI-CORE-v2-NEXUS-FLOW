@@ -104,7 +104,7 @@ default -> StandardSettings;
    * Koşul sağlanırsa trigger kaydedilir.
 5. Fonksiyon normal akışa devam eder.
 6. `on <RuleName>.<Trigger>` blokları tetiklenir.
-7. `always` ve `default` opsiyonları çalıştırılır.
+7. Varsa `always` trigger'ı veya bloğu çalıştırılır; normal trigger eşleşmemişse `default` trigger'ı veya bloğu çalıştırılır.
 
 ---
 
@@ -285,7 +285,7 @@ Analyzer en az şu kontrolleri yapar:
 - Aynı RuleSet içinde trigger adları benzersiz olmalı.
 - `on` referansı var olan RuleSet ve trigger adına bağlanmalı.
 - Aynı RuleSet/trigger için birden fazla handler olmamalı.
-- `always` ve `default` en fazla birer kez bulunmalı.
+- `always` ve `default` en fazla birer kez bulunmalı; ok biçimi ve blok biçimi aynı anahtar altında birlikte kullanılamaz.
 
 OIR'de RuleSet uygulaması normal kontrol akışına açık bloklar olarak indirilir. Temel şema:
 
@@ -309,10 +309,18 @@ ApplyRules(RuleSet, Arguments):
         execute handler
 
     if always exists:
-        execute always action
+        if always is trigger form:
+            emit always.trigger_name
+            execute its matched handler if present
+        else:
+            execute always.body
 
-    if triggers is empty and default exists:
-        execute default action
+    if normal_triggers is empty and default exists:
+        if default is trigger form:
+            emit default.trigger_name
+            execute its matched handler if present
+        else:
+            execute default.body
 
     continue
 ```
@@ -322,3 +330,41 @@ Bu şema semantik akışı gösterir; gerçek OIR'de döngüsel pseudo-code değ
 ### 9.8 Group entegrasyonu
 
 Bu dokümandaki `rules Name(params) { ... }` sözdizimi temel RuleSet biçimidir. `group` içindeki `rules Safety => group { ... }` biçimi ayrı bir üst seviye organizasyon sözdizimidir. İkisi aynı AST düğümüymüş gibi ele alınmaz; Group çözümlemesi, temel RuleSet'lere bağlanan ayrı bir frontend/lowering adımı olarak tanımlanmalıdır. Group biçiminin tam grameri ayrıca netleştirilmeden temel RuleSet gramerine karıştırılmamalıdır.
+
+
+## 10. Default Trigger Kararı
+
+`default -> TriggerName;` bir doğrudan fonksiyon çağrısı veya serbest metin aksiyonu değildir; RuleSet'e ait bir trigger üretir. Bu trigger, `on RuleSet.TriggerName { ... }` ile yakalanabilir. Örneğin:
+
+```nexus
+rules PrimeBorders(n) {
+    n < 2 :=> "2'den küçük sayı asal olamaz";
+    n == 2 -> Success;
+    n == 3 -> Success;
+    default -> ContinueCheck;
+}
+
+f:isPrime(n) {
+    apply rules(PrimeBorders(n));
+
+    on PrimeBorders.Success {
+        return true;
+    }
+
+    on PrimeBorders.ContinueCheck {
+        # Normal asal kontrolüne devam edilir.
+    }
+
+    # Devam eden normal fonksiyon akışı...
+}
+```
+
+Doğrudan bir fallback işlemi isteniyorsa trigger adı yerine blok biçimi kullanılır:
+
+```nexus
+default {
+    applyStandardSettings();
+}
+```
+
+Bu ayrım, trigger bildirimi ile doğrudan aksiyon yürütülmesini birbirinden ayırır ve `on` handler modelini tutarlı kılar.
