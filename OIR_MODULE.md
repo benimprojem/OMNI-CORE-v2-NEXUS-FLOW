@@ -1,6 +1,6 @@
 # OIR_MODULE — Lowered Intermediate Representation
 
-**Status:** Initial opcode registry 1.0 implemented; minimal module payload v1 contract is being frozen before codec/verifier implementation  
+**Status:** Opcode registry 1.0 and initial OIR_MODULE payload codec 1.0 implemented; semantic lowering and full verifier remain pending  
 **Artifact kind:** `OIR_KIND_MODULE` (stable kind ID 5)  
 **Producer:** IR lowering stage  
 **Input:** one validated `OIR_KIND_SEMANTIC_AST` artifact  
@@ -46,23 +46,24 @@ The current legacy path is not this pipeline yet. `parser_save_ir()` calls `ast_
 
 ## 3. Minimal payload v1 implementation boundary
 
-The first codec increment will use a deliberately small, fixed-width table model. It is a foundation for scalar functions, not the final language-wide IR.
+The first codec increment uses a deliberately small, fixed-width table model. It is a foundation for scalar functions, not the final language-wide IR.
 
-The initial payload schema is version 1.0 and contains:
+The implemented payload schema is version 1.0 and contains a 36-byte little-endian header followed by contiguous tables in this order: types, functions, blocks, values, instructions, operands and UTF-8 strings. Each table count is bounded; the string table is capped at 16 MiB.
 
-- A fixed header with schema version, feature flags, entry function ID and bounded table counts.
-- A module-local type table for the initial scalar integer, floating-point and boolean types.
-- Function records with stable IDs, name references, function type references and entry block IDs.
-- Basic-block records with stable IDs, owning function IDs and instruction ranges.
-- Value records with stable IDs, type references and defining-kind metadata.
-- Instruction records with stable IDs, block IDs, opcode IDs, optional result value IDs and operand ranges.
-- Explicit operand records carrying the operand kind and referenced ID or immediate payload.
+| Table | Record size | Initial fields |
+|---|---:|---|
+| Type | 8 bytes | ID, kind, bit width |
+| Function | 20 bytes | ID, name offset/length, function-type ID, entry-block ID |
+| Block | 16 bytes | ID, owner function ID, first instruction, instruction count |
+| Value | 16 bytes | ID, type ID, defining instruction ID, flags |
+| Instruction | 24 bytes | ID, block ID, opcode, result value ID, operand range |
+| Operand | 16 bytes | kind, referenced ID, 64-bit immediate |
 
-All table IDs are 1-based; zero is reserved for absent optional references. The payload reader must validate schema version, count limits, multiplication/offset overflow, table ranges, string references and basic cross-table IDs before exposing views. Opcode shape validation is applied to every instruction. Full type compatibility, SSA dominance, predecessor-edge and function-signature verification are a later verifier increment; the codec must not claim those checks.
+Initial type kinds are integer, float, boolean and function. Function types are currently identity placeholders; parameter and return signature tables are a later extension. Table IDs are 1-based and must appear in canonical sequential order. The codec validates schema version, bounded counts, total payload length, UTF-8 strings, table ranges, basic cross-table IDs and opcode operand/result shape before exposing a zero-copy view. The writer serializes fields individually in little-endian order and validates its output through the reader.
 
-The initial codec will reject unknown required feature flags and unsupported record kinds. Optional extensions require an explicit feature bit and versioned evolution. Native C struct layout is never written directly: fields are encoded in a specified byte order and fixed widths.
+The codec does not yet validate function/block ownership consistency, complete instruction-range coverage, type compatibility, SSA dominance, predecessor edges or function signatures. Those checks belong to the subsequent verifier increment; the codec must not claim them.
 
-This minimal schema is the implementation target for the first codec increment. Aggregate types, block parameters, debug/source maps, memory metadata and NEXSUS Flow-specific operations remain later extensions.
+Aggregate types, full function signatures, block parameters, debug/source maps, memory metadata, entry-point metadata and NEXSUS Flow-specific operations remain later extensions.
 
 ## 3. Logical module model
 
