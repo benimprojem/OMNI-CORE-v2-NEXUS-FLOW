@@ -1156,6 +1156,19 @@ if(BUILD_TESTING)
             "${C_SOURCE_DIR}/tests/test_undefined_variable.nxf"
     )
 
+    add_executable(test_semantic_arithmetic
+        "${C_SOURCE_DIR}/tests/test_semantic_arithmetic.c"
+    )
+    target_include_directories(test_semantic_arithmetic PRIVATE "${C_PARSER_DIR}")
+    target_link_libraries(test_semantic_arithmetic PRIVATE occ_frontend)
+    if(MSVC)
+        target_compile_options(test_semantic_arithmetic PRIVATE /W4)
+    else()
+        target_compile_options(test_semantic_arithmetic PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME semantic_arithmetic_operand_type_validation
+        COMMAND test_semantic_arithmetic)
+
     add_executable(test_semantic_oom "${C_SOURCE_DIR}/tests/test_semantic_oom.c")
     target_include_directories(test_semantic_oom PRIVATE "${C_PARSER_DIR}")
     target_link_libraries(test_semantic_oom PRIVATE occ_frontend)
