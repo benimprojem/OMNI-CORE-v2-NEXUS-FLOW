@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <limits>
 #include <utility>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <iomanip>
@@ -276,6 +277,7 @@ public:
         file.close();
         if (!writeOk || file.fail()) {
             errors.error("P0008", "OIR dosyasina yazma islemi tamamlanamadi: " + finalPath);
+            std::remove(finalPath.c_str());
             return false;
         }
 
