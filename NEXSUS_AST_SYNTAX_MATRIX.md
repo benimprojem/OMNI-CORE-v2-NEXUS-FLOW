@@ -103,3 +103,30 @@ Every AST enum tag must be covered in all columns below. Shared payload is accep
 - `omnicore-sdk/src/c/parser/ast.c`: allocation, print, destroy, serialization (50 KB).
 - `FRONTEND_COMPLETENESS_AUDIT.md`: layer-by-layer completion criteria.
 - `OIR_AST_NODE_REGISTRY.md`: stable OIR node IDs; append-only rule.
+
+
+## Parser source trace — confirmed coverage (2026-11-02)
+
+The parser source was inspected by grammar entry points and AST construction sites. This narrows several initial hypotheses:
+
+| Syntax | Parser evidence | AST encoding | Status after source trace |
+|---|---|---|---|
+| `if / elsif / els` | `parse_if_statement()` recursively parses `elsif` | `AST_IF.else_branch` contains nested `AST_IF` or final else branch | Parser representation exists; semantic/roundtrip chain tests still required |
+| Conditional action `(cond) -> break/continue/...` | `parse_conditional_action()`, gated by `parser_looks_like_conditional_action()` | `AST_IF` with condition and then branch | Explicit separate node is not necessary if this canonical encoding is documented/tested; parser ambiguity tests remain |
+| Unified `loop` forms | `parse_primary()` contains loop construction; `ASTLoop.loop_type` currently 0..3 | `AST_LOOP` fields init/condition/increment/collection/variable/body | Partial: range/foreach/while/for/infinite parser paths exist, but README's rolling/timed loop form and `unroll` need distinct syntax/metadata audit |
+| `select / scan` | No corresponding parse function or statement branch found in parser entry-point inventory | No AST tag | **Not implemented in C parser/model** |
+| Multi-rule `rules ...` | No rules parser or statement branch found | No AST tag | **Not implemented in C parser/model** |
+| `apply rules(...)` | No apply-rules grammar branch found | No AST tag | **Not implemented in C parser/model** |
+| `on Rule.Event { ... }` | No on-block grammar branch found | No AST tag | **Not implemented in C parser/model** |
+| Lambda `f:(a,b)>expr` / anonymous `f:(a,b){...}` | `parse_func_decl()` handles declarations; no function-expression/lambda production found | No lambda node | **Not implemented as expression in C parser/model** |
+| Relocate `_>` | No dedicated relocate parse production found in parser entry points | No relocate node/tag | **Not implemented as a distinct AST operation**; token/lexer may exist but AST contract absent |
+| Intrinsics | `parse_intrinsic_call()` plus keyword dispatch in `parse_primary()` | Mostly shared `ASTCall`; `AST_CAST` is dedicated | Present in parser; intrinsic signature/effect registry still required |
+| Index/postfix/binary | `parse_postfix()`, `parse_unary()`, precedence functions, `parser_make_binary()` | Index shares `ASTBinaryExpr`; postfix/unary share `ASTUnaryExpr` | Shared layouts intentional-looking but must be field-verified in codec/semantic code |
+
+### Important structural finding
+
+`ASTNodeType` currently lacks dedicated kinds for select, scan, ruleset/rule, apply-rules, on-block, lambda/function-expression and relocate. These are README language constructs, not speculative additions. Their grammar and semantic design must be completed before Codegen. Conditional action, in contrast, already has a parser path and can remain an `AST_IF` canonical form unless the language contract requires preserving source form.
+
+### Scope boundary
+
+This source trace proves parser/model presence or absence only. It does **not** claim semantic, AST wire codec, artifact or OIR lowering completion. Those layers remain separately gated in the matrix.
