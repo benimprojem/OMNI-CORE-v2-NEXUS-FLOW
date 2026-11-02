@@ -338,9 +338,11 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Preserve unreachable blocks without treating them as reachable dominators; disallow cross-block SSA uses that cannot be proven to dominate.
 - [x] Republish the original OIR sections with producer stage `OCC_STAGE_OIR_VERIFY`; no silent repair or mutation.
 - [x] Insert the verifier into the OCC host pipeline between OIR Lowering and Codegen; persist the verified module artifact and require verifier-produced input at Codegen.
-- [x] Add direct DLL tests for a valid module and a malformed use-before-definition SSA module; keep assertions active in Release CI.
+- [x] Add direct DLL tests for a valid module, same-block use-before-definition rejection, a valid cross-block dominating definition and a diamond-CFG non-dominating SSA rejection; keep assertions active in Release CI.
+- [x] Add CFG dominator coverage: predecessor definition accepted only when its block dominates the use block.
 - [ ] Extend verifier checks when function signatures, block parameters/phi nodes, memory metadata and source maps enter the OIR schema.
-- [ ] Add negative fixtures for invalid CFG ownership, missing terminators, non-dominating cross-block values and duplicate definitions.
+- [ ] Add negative fixtures for invalid CFG ownership, missing terminators and duplicate definitions.
+- [x] **CI run 41375777590:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan and Valgrind passed.
 
 **Current verifier resource bounds:** 8,192 blocks/module; 1,000,000 function, instruction and value records; OIR string table remains capped at 16 MiB. These are implementation/resource limits, not NEXSUS Flow language limits.
 
