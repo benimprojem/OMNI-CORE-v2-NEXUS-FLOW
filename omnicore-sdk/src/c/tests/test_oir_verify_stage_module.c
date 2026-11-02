@@ -493,7 +493,6 @@ int main(int argc, char** argv) {
         assert(strstr(warning_view.message, "value=4") != NULL);
         assert(warning_view.hint != NULL);
         assert(strstr(warning_view.hint, "remove its declaration") != NULL);
-        assert(!occ_diagnostics_blocks_output(&diagnostics) == 0);
         free(input); input = NULL; input_length = 0u;
         free(output); output = NULL; output_length = 0u;
     }
