@@ -39,6 +39,7 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_ARRAY_LITERAL: return sizeof(ASTArrayLiteral);
         case AST_ARRAY_TYPE: return sizeof(ASTArrayType);
         case AST_ARRAY_DIMENSION: return sizeof(ASTArrayDimension);
+        case AST_INDEX_ACCESS: return sizeof(ASTIndexAccess);
 
         case AST_LITERAL:     return sizeof(ASTLiteral);
         case AST_IDENTIFIER:  return sizeof(ASTIdentifier);
