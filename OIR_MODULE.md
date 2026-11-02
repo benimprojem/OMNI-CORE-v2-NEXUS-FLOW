@@ -29,7 +29,7 @@ verified OIR_MODULE
 TARGET_IR or ASSEMBLY
 ```
 
-The new lowering stage now exists as an independent shared module: it consumes `SEMANTIC_AST` and emits an OIR container carrying an `OIR_MODULE` 1.1 payload. Its current scalar subset is tested through the host module loader. However, `main.c` does not yet invoke this stage. The current CLI still uses `parser_save_ir()` / `ast_serialize()` and the legacy Codegen DLL's `ast_deserialize()` path. That native-layout AST serializer is an internal compatibility format, not an `OIR_MODULE`. The stage is therefore implemented and independently tested, but the complete OCC lowering handoff is not yet integrated.
+The new lowering stage exists as an independent shared module: it consumes `SEMANTIC_AST` and emits an OIR container carrying an `OIR_MODULE` 1.1 payload. The OCC CLI now invokes it after Semantic DLL, passes its output through the independent OIR Verifier DLL, and gives only the verifier-produced artifact to the new Codegen DLL. `parser_save_ir()` / `ast_serialize()` remains only as a temporary compatibility path for the legacy AST-based `codegen_run` bridge; that native-layout AST serializer is not an `OIR_MODULE`. The new stage chain is integrated, while parity between the new and legacy Codegen outputs is still pending.
 
 ## 2. Design principles
 
@@ -94,7 +94,7 @@ Each function record should contain:
 - Entry block ID for a definition; zero for a declaration.
 - Optional semantic symbol ID as provenance only.
 
-A function declaration has no body blocks. A function definition has exactly one entry block and a valid block graph. Duplicate definitions and invalid import/export combinations are verifier errors.
+A function declaration has no body blocks. The current OIR_MODULE 1.1 wire record does not yet encode declaration/definition flags or zero-entry declarations; the implemented verifier therefore accepts only function definitions with an entry block. External declarations and full signature tables require a later schema extension.
 
 ### 3.3 Basic blocks and control flow
 
@@ -261,12 +261,12 @@ Pass order is orchestrator policy. Every pass output is revalidated. A pass that
 The design sequence is:
 
 1. Finalize a minimal language subset and representative source fixtures.
-2. [x] Assign the initial scalar/control-flow opcode IDs and implement structural registry lookup; complete type/effect semantics in the verifier.
+2. [x] Assign the initial scalar/control-flow opcode IDs and implement structural registry lookup plus the first scalar type, CFG and SSA verifier rules.\n   [ ] Complete function signatures, memory/effect semantics and the remaining opcode-specific type rules.
 3. Specify and implement dominance, loop-carried values and predecessor-edge verification for the selected block-parameter SSA model.
 4. Define canonical type records and the complete NEXSUS Flow numeric-promotion/conversion lattice, including forced-width behavior and unresolved mixed-type cases.
 5. Define function, block, instruction, operand and source-map wire layouts.
-6. Implement a standalone module writer/reader and verifier with malformed-input, overflow, cross-reference and deterministic round-trip tests.
-7. [x] Implement IR lowering as its own shared stage module: `SEMANTIC_AST -> OIR_MODULE` (independent module test passes; not yet invoked by OCC CLI).
+6. [x] Implement the standalone module writer/reader and independent verifier stage; malformed SSA, CFG dominance and cross-reference cases have direct stage tests.\n   [ ] Expand negative tests for every schema and opcode family.
+7. [x] Implement and integrate IR lowering as its own shared stage module: `SEMANTIC_AST -> OIR_MODULE -> OIR Verifier -> Codegen`.
 8. Switch OCC to pass the semantic artifact directly to lowering; remove the legacy AST serialization handoff only after parity tests pass.
 9. Migrate codegen to consume validated `OIR_MODULE`; keep the AST-walking codegen only as a temporary compatibility path.
 10. Add optimizer DLLs after the module verifier and opcode semantics are stable.
@@ -287,7 +287,7 @@ No schema is considered frozen merely because a first implementation or test fix
 | OIR_MODULE opcode registry 1.0 / primitive type mapping | Initial registries implemented; complete semantic type rules pending |
 | Module payload verifier | Implemented for the documented 1.0 subset; function signatures/memory semantics remain deferred |
 | Initial SEMANTIC_AST scalar lowering pass | Implemented as a caller-workspace C pass; typed literals, arithmetic, initialized locals, identifier reads and straight-line reassignment supported |
-| IR lowering DLL | Implemented and tested independently; OCC CLI handoff pending |
+| IR lowering DLL | Implemented, tested and integrated in OCC CLI before OIR Verifier |
 | OCC semantic-artifact-to-lowering handoff | Not implemented |
 | Legacy AST serializer and AST-walking codegen | Existing compatibility path |
 
