@@ -384,3 +384,5 @@ The file/path inventory below is complete for the snapshot. The function catalog
 - 2026-11-02: Opcode type-overflow diagnostic 8625 now explicitly explains that dependent validation passes were skipped; its remediation remains specific to the omitted constant/arithmetic type contracts.
 
 - 2026-11-02: Extended `validate_instruction_type_contract()` to NEG, CMP_EQ/NE/LT/LE/GT/GE and CAST; the aggregation preflight and main instruction pass share the same rules. Added malformed-contract regression fixtures (variants 15–17) and documented the bounded scope. LOAD/STORE and CALL remain deferred pending pointer/memory and signature models.
+
+- 2026-11-02: Added `AST_OIR_COMPLETION_PLAN.md` as the explicit AST/semantic/lowering/OIR checklist and Codegen gate. `ROADMAP.md` and `TASKS.md` now prioritize AST contracts, semantic completeness, lowering coverage and full OIR verification before backend expansion.
