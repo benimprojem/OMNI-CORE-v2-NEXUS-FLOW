@@ -98,6 +98,18 @@ static int check_array_literal_semantics(void) {
     return check_source(valid,0) && check_source(mixed,1);
 }
 
+static int check_array_type_semantics(void) {
+    const char* valid =
+        "f:consume(a![], b!i32[], c:i32[4]) {}"
+        "f:main() { v:dynamic[]; v:fixed[5]!i32 = [1,2,3,4,5];"
+        " v:matrix[2][2]!f32 = [[1.0,2.0],[3.0,4.0]]; }";
+    const char* zero_extent = "f:main() { v:invalid[0]!i32; }";
+    const char* fractional_extent = "f:main() { v:invalid[1.5]!i32; }";
+    return check_source(valid,0) &&
+        check_source(zero_extent,1) &&
+        check_source(fractional_extent,1);
+}
+
 static int check_extended_ast_semantics(void) {
     const char* valid =
         "f:main() {"
@@ -140,6 +152,10 @@ static int check_extended_ast_semantics(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!check_array_type_semantics()) {
+        fprintf(stderr, "Array type semantic checks failed.\n");
+        return 1;
+    }
     if (!check_array_literal_semantics()) {
         fprintf(stderr, "Array literal semantic checks failed.\n");
         return 1;
