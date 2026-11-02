@@ -458,7 +458,29 @@ set_target_properties(occ_oir_lowering_stage PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-# Independent Codegen DLL: OIR_MODULE -> OIR_ASSEMBLY (x86-64 NASM bare-metal).
+# Independent OIR verifier DLL: validates OIR_MODULE structure, types, CFG and SSA.
+add_library(occ_oir_verify_stage SHARED
+    "${C_SOURCE_DIR}/module/oir_verify_stage_module.c"
+)
+target_compile_definitions(occ_oir_verify_stage PRIVATE OCC_BUILD_MODULE)
+target_include_directories(occ_oir_verify_stage PRIVATE
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+)
+target_link_libraries(occ_oir_verify_stage PRIVATE
+    occ_module_abi
+    occ_oir
+    occ_oir_module
+)
+set_target_properties(occ_oir_verify_stage PROPERTIES
+    OUTPUT_NAME "occ_oir_verify_stage"
+    RUNTIME_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
+    LIBRARY_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
+    POSITION_INDEPENDENT_CODE ON
+)
+
+# Independent Codegen DLL: verified OIR_MODULE -> OIR_ASSEMBLY (x86-64 NASM bare-metal).
 add_library(occ_codegen_stage SHARED
     "${C_SOURCE_DIR}/module/codegen_stage_module.c"
 )
@@ -983,6 +1005,33 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME oir_ast_frontend_reader_all_kinds_validate_before_materialize
         COMMAND test_oir_ast_frontend_reader)
+
+    add_executable(test_oir_verify_stage_module
+        "${C_SOURCE_DIR}/tests/test_oir_verify_stage_module.c"
+    )
+    target_link_libraries(test_oir_verify_stage_module PRIVATE
+        occ_module_loader
+        occ_oir
+        occ_oir_module
+        occ_diagnostics
+        ${CMAKE_DL_LIBS}
+    )
+    target_include_directories(test_oir_verify_stage_module PRIVATE
+        "${C_SOURCE_DIR}/module"
+        "${C_SOURCE_DIR}/oir"
+        "${C_SOURCE_DIR}/core"
+    )
+    add_dependencies(test_oir_verify_stage_module occ_oir_verify_stage)
+    if(MSVC)
+        target_compile_options(test_oir_verify_stage_module PRIVATE /W4)
+        target_compile_options(occ_oir_verify_stage PRIVATE /W4)
+    else()
+        target_compile_options(test_oir_verify_stage_module PRIVATE -Wall -Wextra)
+        target_compile_options(occ_oir_verify_stage PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME independent_oir_module_verifier_stage
+        COMMAND test_oir_verify_stage_module "$<TARGET_FILE:occ_oir_verify_stage>"
+    )
 
     add_executable(test_codegen_stage_module "${C_SOURCE_DIR}/tests/test_codegen_stage_module.c")
     target_link_libraries(test_codegen_stage_module PRIVATE
