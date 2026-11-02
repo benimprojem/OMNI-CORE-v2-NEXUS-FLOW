@@ -2771,13 +2771,15 @@ static ASTNode* parse_statement(Parser* p) {
         (peek_token(p).type==TOKEN_IDENTIFIER || peek_token(p).type==TOKEN_LBRACKET)) {
         return parse_ruleset(p);
     }
-    if (p->current.type==TOKEN_IDENTIFIER && parser_identifier_is(&p->current,"apply") &&
-        parser_identifier_is(&peek_token(p),"rules") && peek_token_ahead(p,2).type==TOKEN_LPAREN) {
-        return parse_apply_rules(p);
-    }
-    if (p->current.type==TOKEN_IDENTIFIER && parser_identifier_is(&p->current,"on") &&
-        peek_token(p).type==TOKEN_IDENTIFIER && peek_token_ahead(p,2).type==TOKEN_DOT) {
-        return parse_on_block(p);
+    if (p->current.type==TOKEN_IDENTIFIER) {
+        Token look1=peek_token(p);
+        Token look2=peek_token_ahead(p,2);
+        if (parser_identifier_is(&p->current,"apply") &&
+            parser_identifier_is(&look1,"rules") && look2.type==TOKEN_LPAREN)
+            return parse_apply_rules(p);
+        if (parser_identifier_is(&p->current,"on") &&
+            look1.type==TOKEN_IDENTIFIER && look2.type==TOKEN_DOT)
+            return parse_on_block(p);
     }
     if (p->current.type==TOKEN_IDENTIFIER && parser_identifier_is(&p->current,"unroll") &&
         peek_token(p).type==TOKEN_LPAREN) {
