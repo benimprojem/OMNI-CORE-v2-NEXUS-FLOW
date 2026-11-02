@@ -413,3 +413,10 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [ ] Add function-level indexing for test source files and public header/API declaration indexing.
 - [ ] Update `CODEBASE_INDEX.md` and its snapshot commit after every source-file/function addition, removal or rename.
 - [ ] Before every implementation task, inspect this index and the actual source/callers; prefer extending existing functions over creating duplicates.
+
+
+## OIR Verifier opcode-shape reuse — 2 Kasım 2026
+
+- [x] Reuse existing `oir_opcode_validate_shape()` from the shared opcode registry instead of duplicating operand count/kind and result-presence checks in the verifier.
+- [x] Add a verifier regression fixture with an otherwise-unused third operand on a two-operand ADD instruction; the shared registry shape contract must reject it.
+- [ ] Run and record the verifier test and full CI results for this change.
