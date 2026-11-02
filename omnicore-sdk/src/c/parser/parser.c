@@ -7,6 +7,8 @@
 
 #define PARSER_MAX_NESTING_DEPTH 256u
 
+static int parser_identifier_is(const Token* token, const char* text);
+
 // --- Message System ---
 #define MAX_ERROR_CODE 4000
 static char* GLOBAL_MSG_TABLE[MAX_ERROR_CODE];
