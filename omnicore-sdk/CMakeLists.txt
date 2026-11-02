@@ -796,6 +796,8 @@ if(BUILD_TESTING)
         occ_frontend
         occ_oir_ast_frontend_writer
         occ_oir_semantic_ast_artifact
+        occ_module_loader
+        occ_oir
     )
     if(MSVC)
         target_compile_options(occ_oir_lowering PRIVATE /W4)
@@ -804,7 +806,9 @@ if(BUILD_TESTING)
         target_compile_options(occ_oir_lowering PRIVATE -Wall -Wextra)
         target_compile_options(test_oir_lowering PRIVATE -Wall -Wextra)
     endif()
-    add_test(NAME semantic_ast_local_ssa_lowering COMMAND test_oir_lowering)
+    add_dependencies(test_oir_lowering occ_oir_lowering_stage)
+    add_test(NAME semantic_ast_local_ssa_lowering
+        COMMAND test_oir_lowering "$<TARGET_FILE:occ_oir_lowering_stage>")
 
     add_executable(test_oir_diagnostics "${C_SOURCE_DIR}/tests/test_oir_diagnostics.c")
     target_link_libraries(test_oir_diagnostics PRIVATE occ_oir_diagnostics)
