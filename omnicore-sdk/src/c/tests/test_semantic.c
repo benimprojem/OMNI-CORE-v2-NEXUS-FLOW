@@ -130,6 +130,10 @@ static int check_array_type_semantics(void) {
         "f:take(values:i32[4]) {} f:main() { v:wrong[5]!i32; take(wrong); }";
     const char* call_rank_mismatch =
         "f:take(values:i32[2][2]) {} f:main() { v:wrong[4]!i32; take(wrong); }";
+    const char* call_literal_valid =
+        "f:take(values:i32[2]) {} f:main() { take([1,2]); }";
+    const char* call_literal_element_mismatch =
+        "f:take(values:i32[1]) {} f:main() { take([1.5]); }";
     return check_source(valid_params,0) &&
         check_source(valid_matrix_param,0) &&
         check_source(valid,0) &&
@@ -143,7 +147,9 @@ static int check_array_type_semantics(void) {
         check_source(wrong_element,2) &&
         check_source(call_element_mismatch,1) &&
         check_source(call_extent_mismatch,1) &&
-        check_source(call_rank_mismatch,1);
+        check_source(call_rank_mismatch,1) &&
+        check_source(call_literal_valid,0) &&
+        check_source(call_literal_element_mismatch,1);
 }
 
 static int check_extended_ast_semantics(void) {
