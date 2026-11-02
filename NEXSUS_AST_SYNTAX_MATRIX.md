@@ -246,3 +246,17 @@ Recommended canonical field order for the proposed nodes (field IDs are OIR sche
 | `AST_PATTERN_CONSTRUCTOR` | constructor name | ordered bindings | — |
 
 The bridge must preserve arm order and pattern-binding order. The default flag is scalar metadata, not a child reference. These field assignments remain provisional until checked against the OIR node-kind and field-kind registries in `oir_ast_map.h` / `oir_ast_map.c`.
+
+
+**OIR field-model correction from registry inspection:** `oir_ast_map.h` currently fixes the registry at 80 stable OIR node kinds, and `oir_ast_map.c` maps AST tags to explicit stable IDs (it does not cast enum ordinals). The child-field counts in `oir_ast_frontend_index.c` count child references only; scalar flags and strings are encoded by the writer's scalar/string field records and must not be assigned child-field IDs. Therefore the provisional table above is refined as follows:
+
+| Node | Child field 1 | Child field 2 | Scalar/string metadata |
+|---|---|---|---|
+| `AST_SELECT` | selector | ordered arms | — |
+| `AST_SELECT_ARM` | pattern | body | `is_default` integer flag |
+| `AST_SCAN` | subject | ordered arms | — |
+| `AST_SCAN_ARM` | pattern | body | — |
+| `AST_PATTERN_BINDING` | — | — | binding name string |
+| `AST_PATTERN_CONSTRUCTOR` | ordered bindings | — | constructor name string |
+
+The six new OIR node kinds must be appended to the stable registry with IDs 81–86 (in the agreed canonical order) and `OIR_AST_NODE_KIND_COUNT` increased accordingly. Existing IDs 1–80 must remain byte-for-byte stable. This is a format-level schema change and requires updating the published OIR AST registry and its compatibility/round-trip tests in the same implementation series.
