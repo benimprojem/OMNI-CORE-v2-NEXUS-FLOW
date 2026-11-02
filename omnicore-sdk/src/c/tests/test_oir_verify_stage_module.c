@@ -297,9 +297,9 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     } else if (variant == 12) {
         size_t values_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u;
-        /* Value 1 has an unknown type; value 2 has no defining instruction. */
+        /* Both values incorrectly use the function type as a runtime value type. */
         test_put_u32(module_bytes + values_offset + 4u, 3u);
-        test_put_u32(module_bytes + values_offset + 16u + 8u, 0u);
+        test_put_u32(module_bytes + values_offset + 16u + 4u, 3u);
     }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
