@@ -393,7 +393,7 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 - 2026-11-02: AST implementation audit pins the required complete-node integration points to `ast.h`, five `ast.c` switches (size/print/destroy/serialize/deserialize), `parser.c`, lexer token dispatch and `tests/test_parser.c`. Matrix now defines the implementation sequence: select/scan → rules → lambda → relocate → loop parity; no AST-only partial node additions.
 
-- 2026-11-02: `NEXSUS_AST_SYNTAX_MATRIX.md` now defines the concrete select/scan AST payloads, contextual parser recognition (preserving identifier compatibility), constructor/binding pattern representation, arm-local binding rules, duplicate-default validation and pointer-free codec contract. This is a design contract only; parser and AST implementation are still pending.
+- 2026-11-02: `NEXSUS_AST_SYNTAX_MATRIX.md` now defines the concrete select/scan AST payloads, contextual parser recognition (preserving identifier compatibility), constructor/binding pattern representation, arm-local binding rules, duplicate-default validation and pointer-free codec contract. The parser, AST codec and OIR bridge are implemented; semantic exhaustiveness and lowering remain pending.
 
 
 ## AST / OIR select-scan implementation snapshot — 2 Kasım 2026
@@ -405,7 +405,7 @@ Changed production files and responsibilities:
 - `omnicore-sdk/src/c/parser/ast.h`: `AST_SELECT`, `AST_SELECT_ARM`, `AST_SCAN`, `AST_SCAN_ARM`, `AST_PATTERN_BINDING`, `AST_PATTERN_CONSTRUCTOR` payloads.
 - `omnicore-sdk/src/c/parser/ast.c`: `get_node_size()`, `ast_print_recursive()`, `ast_destroy_recursive()`, `ast_serialize_recursive()`, `ast_deserialize_one()` now cover all six node kinds.
 - `omnicore-sdk/src/c/parser/parser.c`: `parser_identifier_is()`, `parse_pattern()`, `parse_select_scan()`; contextual statement dispatch preserves ordinary identifiers named `select` and `scan` outside this construct position.
-- `omnicore-sdk/src/c/oir/oir_ast_map.h` / `oir_ast_map.c`: stable registry size 86 and appended mappings 81–86.
+- `omnicore-sdk/src/c/oir/oir_ast_map.h` / `oir_ast_map.c`: stable registry size 97 and appended mappings 81–97.
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`: child-field mapping and counts for select/scan/pattern nodes.
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_writer.c`: OIR scalar/string/reference emission for the six nodes.
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`: disconnected string cleanup, scalar restoration and child ownership linking.
@@ -416,7 +416,7 @@ Changed production files and responsibilities:
 
 The implementation is committed to `refactor/c-core-roadmap`; full CI has not yet been confirmed. Semantic pattern scopes, exhaustiveness and lowering are not claimed complete. The repository-wide C source count remains unchanged; this snapshot is an update to existing files.
 
-- `omnicore-sdk/src/c/oir/oir_ast_node_table.h`: `OIR_AST_NODE_KIND_MAX` is 96; IDs 1–80 remain stable, select/scan/pattern IDs are 81–86, and rules/apply/on/lambda/relocate/unroll IDs are 87–96.
+- `omnicore-sdk/src/c/oir/oir_ast_node_table.h`: `OIR_AST_NODE_KIND_MAX` is 97; IDs 1–80 remain stable, select/scan/pattern IDs are 81–86, and rules/apply/on/lambda/relocate/unroll IDs are 87–96; array literal is 97.
 - Fixture storage in `test_oir_ast_frontend_writer.c` and `test_oir_ast_frontend_reader.c` includes the new AST payload layouts.
 - **Validation:** CI run `41451812569` passed Windows, Ubuntu and macOS build/test, Ubuntu ASan/UBSan and Valgrind.
 
@@ -437,3 +437,10 @@ The pre-Codegen AST syntax gap set now has parser/AST/OIR representation for sel
 - `omnicore-sdk/src/c/tests/test_semantic_result_integration.c`: resolver-backed scope visibility for select pattern bindings, lambda parameters and ruleset parameters.
 - `omnicore-sdk/src/c/tests/test_oir_ast_frontend_writer.c` / `test_oir_ast_frontend_reader.c`: all-kind payload writer/reader fixtures include the new payload layouts.
 - **Validation:** CI run `41462178481` passed Windows, Ubuntu and macOS build/test plus Ubuntu ASan/UBSan and Valgrind.
+
+## Array literal AST / OIR snapshot — 2 Kasım 2026
+- `AST_ARRAY_LITERAL` is appended as frontend node kind 97; existing AST enum IDs remain unchanged.
+- `parse_primary()` parses empty, comma-separated and nested bracket literals into an ordered owned element chain.
+- `ast.c` covers allocation, print, destroy and binary codec for the array node; parser tests cover nested matrix and empty arrays plus binary round-trip.
+- OIR stable node ID 97 is registered. Frontend index, writer, reader and field schema preserve the ordered element chain; reader test verifies two ordered children.
+- Remaining data-model gaps: array type declarators (`T[]`, `T[n]`), multidimensional declared dimensions, map type syntax/operations, and Vec2/3/4 semantic dimension/SIMD validation.
