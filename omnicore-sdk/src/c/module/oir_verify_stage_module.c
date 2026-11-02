@@ -8,6 +8,7 @@
 #define OIR_VERIFY_MAX_BLOCKS 8192u
 #define OIR_VERIFY_MAX_RECORDS 1000000u
 #define OIR_VERIFY_MAX_UNUSED_WARNINGS 32u
+#define OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS 32u
 
 /* Stable OIR Verifier diagnostic codes. Keep these independent of the OCC ABI. */
 enum {
@@ -27,7 +28,8 @@ enum {
     OIR_VERIFY_DIAG_SSA_USE = 8620u,
     OIR_VERIFY_WARN_UNUSED_VALUE = 8621u,
     OIR_VERIFY_NOTE_UNUSED_VALUE_LIMIT = 8622u,
-    OIR_VERIFY_DIAG_TYPE_ERROR_LIMIT = 8623u
+    OIR_VERIFY_DIAG_TYPE_ERROR_LIMIT = 8623u,
+    OIR_VERIFY_DIAG_SSA_DEFINITION_ERROR_LIMIT = 8624u
 };
 
 typedef struct OirVerifyFailure {
@@ -175,6 +177,41 @@ static int validate_structure(const OirModuleView* m,
     }
 
     return 1;
+}
+
+/* SSA value records can be checked independently once type records are valid.
+   Collect bounded record-local errors before building definition lookup tables. */
+static uint32_t validate_ssa_value_records(const OirModuleView* m,
+    OirVerifyFailure* failures, uint32_t capacity, uint32_t* omitted) {
+    uint32_t i, count = 0u;
+    if (omitted) *omitted = 0u;
+    for (i = 0u; i < m->value_count; ++i) {
+        OirModuleValue value;
+        OirModuleType value_type;
+        OirModuleInstruction definition;
+        int valid = oir_module_get_value(m, i, &value) == OIR_STATUS_OK;
+        if (valid) {
+            valid = value.id == i + 1u &&
+                value.defining_instruction_id != 0u &&
+                value.defining_instruction_id <= m->instruction_count &&
+                get_type(m, value.type_id, &value_type) &&
+                value_type.kind != OIR_MODULE_TYPE_FUNCTION &&
+                oir_module_get_instruction(m,
+                    value.defining_instruction_id - 1u, &definition) == OIR_STATUS_OK &&
+                definition.result_value_id == value.id;
+        }
+        if (!valid) {
+            if (count < capacity) {
+                memset(&failures[count], 0, sizeof(failures[count]));
+                failures[count].code = OIR_VERIFY_DIAG_SSA_DEFINITION;
+                failures[count].value_id = i + 1u;
+                ++count;
+            } else if (omitted && *omitted != UINT32_MAX) {
+                ++(*omitted);
+            }
+        }
+    }
+    return count;
 }
 
 /* Pass 2: validate the SSA value table and build definition lookup tables. */
@@ -601,6 +638,7 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
         case OIR_VERIFY_DIAG_PAYLOAD_DECODE: message = "OIR_MODULE payload is malformed or violates the registered opcode wire contract."; remediation = "Regenerate the OIR payload with the canonical OIR writer and check its schema version, section layout and each opcode's registered operand encoding."; break;
         case OIR_VERIFY_DIAG_TYPE_RECORD: message = "OIR type record is invalid."; remediation = "Check the referenced type record's kind and bit width; use only schema-supported integer, float, boolean or function type forms."; break;
         case OIR_VERIFY_DIAG_TYPE_ERROR_LIMIT: message = "Additional invalid OIR type records were omitted from diagnostics."; remediation = "Fix the reported type records, then rerun verification to reveal any remaining invalid entries."; break;
+        case OIR_VERIFY_DIAG_SSA_DEFINITION_ERROR_LIMIT: message = "Additional invalid OIR SSA value definitions were omitted from diagnostics."; remediation = "Fix the reported SSA value records, then rerun verification to reveal any remaining invalid entries."; break;
         case OIR_VERIFY_DIAG_BLOCK_OWNERSHIP: message = "OIR block ownership or instruction range is invalid."; remediation = "Assign each block to an existing function and ensure its non-empty instruction range stays within the instruction table."; break;
         case OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE: message = "OIR instruction coverage is incomplete, overlapping or inconsistent."; remediation = "Make block instruction ranges cover every instruction exactly once, without overlap, and ensure each instruction's block_id matches its owning block."; break;
         case OIR_VERIFY_DIAG_FUNCTION_ENTRY: message = "OIR function entry block or function type is invalid."; remediation = "Give the function a valid function-type record and an entry_block_id that names a block owned by that same function."; break;
@@ -790,6 +828,32 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                         (void)report_verify_error(invocation, result,
                             OIR_VERIFY_DIAG_TYPE_ERROR_LIMIT,
                             "Additional invalid OIR type records were omitted.", &overflow_failure);
+                    }
+                    return OCC_MODULE_STATUS_FAILED;
+                }
+            }
+            {
+                OirVerifyFailure ssa_failures[OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS];
+                uint32_t omitted_ssa_errors = 0u;
+                uint32_t ssa_error_count = validate_ssa_value_records(&module,
+                    ssa_failures, OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS,
+                    &omitted_ssa_errors);
+                uint32_t ssa_error_index;
+                if (ssa_error_count != 0u || omitted_ssa_errors != 0u) {
+                    for (ssa_error_index = 0u; ssa_error_index < ssa_error_count;
+                        ++ssa_error_index)
+                        (void)report_verify_error(invocation, result,
+                            OIR_VERIFY_DIAG_SSA_DEFINITION,
+                            "OIR SSA value definition is invalid.",
+                            &ssa_failures[ssa_error_index]);
+                    if (omitted_ssa_errors != 0u) {
+                        OirVerifyFailure overflow_failure;
+                        memset(&overflow_failure, 0, sizeof(overflow_failure));
+                        overflow_failure.value_id = omitted_ssa_errors;
+                        (void)report_verify_error(invocation, result,
+                            OIR_VERIFY_DIAG_SSA_DEFINITION_ERROR_LIMIT,
+                            "Additional invalid SSA value definitions were omitted.",
+                            &overflow_failure);
                     }
                     return OCC_MODULE_STATUS_FAILED;
                 }
