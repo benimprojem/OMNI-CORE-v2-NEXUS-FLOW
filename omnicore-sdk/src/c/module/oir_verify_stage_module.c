@@ -97,6 +97,16 @@ static int validate_instruction_type_contract(const OirModuleView* m, const OirM
         }
         case OIR_OP_ADD: case OIR_OP_SUB: case OIR_OP_MUL: case OIR_OP_DIV: case OIR_OP_REM:
             return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && type_is_numeric(&rt) && get_value_operand(m, ins, 0u, &a) && get_value_operand(m, ins, 1u, &b) && a.type_id == result.type_id && b.type_id == result.type_id && (ins->opcode_id != OIR_OP_REM || rt.kind == OIR_MODULE_TYPE_INTEGER);
+        case OIR_OP_NEG:
+            return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && type_is_numeric(&rt) && get_value_operand(m, ins, 0u, &a) && a.type_id == result.type_id;
+        case OIR_OP_CMP_EQ: case OIR_OP_CMP_NE: case OIR_OP_CMP_LT:
+        case OIR_OP_CMP_LE: case OIR_OP_CMP_GT: case OIR_OP_CMP_GE:
+            return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && rt.kind == OIR_MODULE_TYPE_BOOLEAN && get_value_operand(m, ins, 0u, &a) && get_value_operand(m, ins, 1u, &b) && a.type_id == b.type_id;
+        case OIR_OP_CAST: {
+            OirModuleOperand target_type;
+            OirModuleType cast_type;
+            return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && rt.kind != OIR_MODULE_TYPE_FUNCTION && get_value_operand(m, ins, 0u, &a) && get_operand(m, ins, 1u, &target_type) && target_type.kind == OIR_OPERAND_TYPE && target_type.reference_id == result.type_id && get_type(m, target_type.reference_id, &cast_type) && cast_type.kind != OIR_MODULE_TYPE_FUNCTION;
+        }
         default: return 1;
     }
 }
@@ -357,26 +367,10 @@ static int validate_instructions(const OirModuleView* m,
             case OIR_OP_CONST_INT: case OIR_OP_CONST_FLOAT:
             case OIR_OP_CONST_BOOL: case OIR_OP_ADD: case OIR_OP_SUB:
             case OIR_OP_MUL: case OIR_OP_DIV: case OIR_OP_REM:
+            case OIR_OP_NEG: case OIR_OP_CMP_EQ: case OIR_OP_CMP_NE:
+            case OIR_OP_CMP_LT: case OIR_OP_CMP_LE: case OIR_OP_CMP_GT:
+            case OIR_OP_CMP_GE: case OIR_OP_CAST:
                 break;
-            case OIR_OP_NEG:
-                if (!ins.result_value_id || !type_is_numeric(&rt) ||
-                    !get_value_operand(m, &ins, 0u, &a) ||
-                    a.type_id != result.type_id) return 0;
-                break;
-            case OIR_OP_CMP_EQ: case OIR_OP_CMP_NE: case OIR_OP_CMP_LT:
-            case OIR_OP_CMP_LE: case OIR_OP_CMP_GT: case OIR_OP_CMP_GE:
-                if (!ins.result_value_id || rt.kind != OIR_MODULE_TYPE_BOOLEAN ||
-                    !get_value_operand(m, &ins, 0u, &a) ||
-                    !get_value_operand(m, &ins, 1u, &b) || a.type_id != b.type_id) return 0;
-                break;
-            case OIR_OP_CAST: {
-                OirModuleOperand target_type;
-                if (!ins.result_value_id || !get_value_operand(m, &ins, 0u, &a) ||
-                    !get_operand(m, &ins, 1u, &target_type) ||
-                    target_type.kind != OIR_OPERAND_TYPE ||
-                    target_type.reference_id != result.type_id) return 0;
-                break;
-            }
             case OIR_OP_CALL: {
                 OirModuleOperand callee;
                 if (!get_operand(m, &ins, 0u, &callee) ||
