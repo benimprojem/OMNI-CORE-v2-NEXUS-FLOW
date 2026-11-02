@@ -29,7 +29,18 @@ verified OIR_MODULE
 TARGET_IR or ASSEMBLY
 ```
 
-The new lowering stage exists as an independent shared module: it consumes `SEMANTIC_AST` and emits an OIR container carrying an `OIR_MODULE` 1.1 payload. The OCC CLI now invokes it after Semantic DLL, passes its output through the independent OIR Verifier DLL, and gives only the verifier-produced artifact to the new Codegen DLL. `parser_save_ir()` / `ast_serialize()` remains only as a temporary compatibility path for the legacy AST-based `codegen_run` bridge; that native-layout AST serializer is not an `OIR_MODULE`. The new stage chain is integrated, while parity between the new and legacy Codegen outputs is still pending.
+The new lowering stage exists as an independent shared module: it consumes `SEMANTIC_AST` and emits an OIR container carrying an `OIR_MODULE` 1.1 payload. The OCC CLI invokes it after Semantic DLL, passes its output through the independent OIR Verifier DLL, and gives only the verifier-produced artifact to the new Codegen DLL. The tested source subset now includes nested `if` / `elsif` / `els` return branches, lowered into explicit multi-block CFG. `parser_save_ir()` / `ast_serialize()` remains only as a temporary compatibility path for the legacy AST-based `codegen_run` bridge; that native-layout AST serializer is not an `OIR_MODULE`. The new stage chain is integrated, while parity between the new and legacy Codegen outputs is still pending.
+
+## Current lowering support
+
+The current lowering stage supports a bounded single-function scalar subset:
+
+- Integer, floating-point and boolean scalar values supported by the current primitive type map
+- Scalar constants, arithmetic, comparisons and initialized local variables
+- Straight-line local reassignment, promoted to new SSA values
+- Nested `if` / `elsif` / `els` control flow when each branch terminates in a supported scalar return; conditions become explicit comparison values and CFG edges
+
+The following remain unsupported and fail closed: general loop lowering, multi-statement branch bodies, values merged after control-flow joins (block parameters/phi nodes), function calls, multiple functions, full source maps and the complete language type-promotion lattice. These are separate schema/lowering milestones; the verifier must not infer or invent missing semantics.
 
 ## 2. Design principles
 
