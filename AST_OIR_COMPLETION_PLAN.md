@@ -19,6 +19,12 @@
 
 ## Öncelikli açık işler
 
+### A0. AST field ownership baseline
+- [x] Add `AST_NODE_FIELD_OWNERSHIP.md`: AST family/struct map, child and string ownership expectations, sibling-chain invariant and cross-component checklist.
+- [ ] Generate a machine-checked per-tag coverage report from AST enum, allocation/destroy/print/codec, OIR schema and parser switches; inventory document is baseline, not proof of exhaustive parity.
+- [ ] Add byte start/end spans and end line/column consistently to all nodes/artifacts (schema/version impact review required).
+- [ ] Stress parser error/OOM cleanup and shared-child rejection for every owned node family.
+
 ### A. AST sözleşmesi ve kapsam
 - [ ] `ASTNodeType` envanterini parser üretimi, serializer/deserializer, destroy, printer ve field schema ile karşılaştır.
 - [ ] Her node için child field, list/sibling, ownership ve nullability tablosu oluştur.
