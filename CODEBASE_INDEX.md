@@ -444,3 +444,5 @@ The pre-Codegen AST syntax gap set now has parser/AST/OIR representation for sel
 - `ast.c` covers allocation, print, destroy and binary codec for the array node; parser tests cover nested matrix and empty arrays plus binary round-trip.
 - OIR stable node ID 97 is registered. Frontend index, writer, reader and field schema preserve the ordered element chain; reader test verifies two ordered children.
 - Remaining data-model gaps: array type declarators (`T[]`, `T[n]`), multidimensional declared dimensions, map type syntax/operations, and Vec2/3/4 semantic dimension/SIMD validation.
+
+- `omnicore-sdk/src/c/parser/semantic.c`: array literals are checked for homogeneous immediate element types and receive the generic aggregate type `array`; precise element/dimension types and explicit array declarations are still pending.
