@@ -124,6 +124,7 @@ static int test_select_scan_oir_roundtrip(void) {
         " v:callback_block = f:(x) { ret x; };"
         " unroll(3) -> loop(item in data) { v:copy = item; }"
         " v:moved = source _> target;"
+        " v:retry = source?(5, 500ms)->target;"
         "}";
     ParserContext* parser=parser_init_source("pattern-oir.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
