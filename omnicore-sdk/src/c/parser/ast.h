@@ -95,7 +95,15 @@ typedef enum {
     AST_FREE,
     AST_ZONE_SYNC,
     AST_ZONE_VIEW,
-    AST_ZONE_LOCK
+    AST_ZONE_LOCK,
+
+    /* Pattern matching / structured selection (append-only AST IDs). */
+    AST_SELECT,
+    AST_SELECT_ARM,
+    AST_SCAN,
+    AST_SCAN_ARM,
+    AST_PATTERN_BINDING,
+    AST_PATTERN_CONSTRUCTOR
 
 } ASTNodeType;
 
@@ -164,6 +172,14 @@ typedef struct {
     ASTNode base;
     ASTNode* elements;  // Eleman listesi
 } ASTTuple;
+
+/* Pattern nodes preserve matching semantics; constructor patterns are not calls. */
+typedef struct { ASTNode base; char* name; } ASTPatternBinding;
+typedef struct { ASTNode base; char* name; ASTNode* bindings; } ASTPatternConstructor;
+typedef struct { ASTNode base; ASTNode* selector; ASTNode* arms; } ASTSelect;
+typedef struct { ASTNode base; ASTNode* pattern; ASTNode* body; int is_default; } ASTSelectArm;
+typedef struct { ASTNode base; ASTNode* subject; ASTNode* arms; } ASTScan;
+typedef struct { ASTNode base; ASTNode* pattern; ASTNode* body; } ASTScanArm;
 
 // --- Bildirim Yapıları ---
 
