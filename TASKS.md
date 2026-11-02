@@ -455,6 +455,7 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Aggregate up to 32 independent malformed SSA value records with stable diagnostic code 8614 and exact value IDs.
 - [x] Report any omitted SSA definition errors with diagnostic code 8624 and a bounded count.
 - [x] Skip dependent structural, instruction, CFG, terminator, dominance and SSA-use validation when SSA value records are invalid.
-- [x] Keep the later instruction-to-value reverse-consistency scan fail-fast; it depends on the full instruction table and is not included in this aggregation increment.
+- [x] After SSA value records pass, aggregate independent instruction-to-value reverse-link failures (diagnostic 8614) with instruction/value context; cap at 32 and report overflow with 8624.
 - [x] Add a regression fixture with two independently malformed SSA value records; assert both IDs are reported and no output artifact is emitted.
-- [ ] Extend aggregation to instruction-level checks only after identifying safe independent record boundaries.
+- [x] Add an instruction-level reverse-link preflight after the SSA value table succeeds; aggregate independent mismatches and skip dependent passes.
+- [ ] Extend aggregation to opcode semantic/type checks only after their per-instruction prerequisites and side effects can be isolated safely.
