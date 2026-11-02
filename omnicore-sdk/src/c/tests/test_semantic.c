@@ -108,10 +108,10 @@ static int check_array_literal_semantics(void) {
 
 static int check_array_type_semantics(void) {
     const char* valid_params = "f:consume(a![], b!i32[], third:i32[5]) {}";
-    const char* valid_matrix_param = "f:consume_matrix(m:f64[2][2]) {}";
+    const char* valid_matrix_param = "f:consume_matrix(matrix_data:f64[2][2]) {}";
     const char* valid =
         "f:consume(a![], b!i32[], third:i32[5]) {}"
-        "f:consume_matrix(m:f64[2][2]) {}"
+        "f:consume_matrix(matrix_data:f64[2][2]) {}"
         "f:main() { v:dynamic[]; v:fixed[5]!i32 = [1,2,3,4,5];"
         " v:matrix[2][2]!f64 = [[1.0,2.0],[3.0,4.0]];"
         " v:computed[2+3]!i32 = [1,2,3,4,5];"
