@@ -62,11 +62,11 @@
 
 ## P0 — Ara temsil
 
-- [ ] AST serialization ile OIR kavramlarını/API'lerini ayır.
-- [ ] Kanonik OIR v1 sözleşmesini tasarla.
-- [ ] C OIR writer/reader geliştir.
-- [ ] Bozuk/truncated/uyumsuz OIR dosyaları için güvenlik testleri ekle.
-- [ ] C++ OIR2 ile özellik/format karşılaştırma tablosu oluştur.
+- [x] AST serialization ile OIR container/payload kavramlarını ve API'lerini ayır.
+- [x] Kanonik OIR v1 container sözleşmesini ve ilk payload schema'larını tanımla.
+- [x] C OIR writer/reader geliştir ve CTest'e bağla.
+- [x] Bozuk/truncated/uyumsuz OIR dosyaları için temel güvenlik testlerini ekle.
+- [ ] C++ OIR2 ile özellik/format karşılaştırma tablosu oluştur; C++ hattı yalnızca tarihsel referans olarak tutulur.
 
 ## P1 — Backend ve optimizasyon
 
@@ -109,7 +109,7 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 
 ## Sonraki tek iş
 
-Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam genişletmesi semantic allocation-failure ve scope/ownership testleri olsun.
+OCC CLI'ye bağımsız OIR Lowering DLL handoff'unu ekle: Semantic DLL'nin SEMANTIC_AST çıktısını `occ_oir_lowering_stage` modülüne ver, OIR_MODULE çıktısını doğrula ve Codegen geçişi tamamlanana kadar mevcut AST köprüsünü koru.
 
 
 ## P0 — Modüler derleyici pipeline (mimari kabul edildi, uygulama bekliyor)
@@ -137,7 +137,7 @@ Valgrind çalıştırma seçeneği ve CI doğrulaması ekle. Sonraki kapsam geni
 
 ## Sonraki tek iş
 
-Validated OIR AST payload → frontend AST reader/materializer: validate-before-allocate, disconnected node/string allocation, then no-fail pointer-link pass; failure cleanup must not call ast_destroy() on a partial graph.
+OCC CLI → OIR Lowering DLL → OIR_MODULE handoff'unu entegre et. Lowerer DLL bağımsız olarak build/test edildi; henüz `main.c` pipeline'ında çağrılmıyor. Codegen OIR_MODULE tüketene kadar legacy AST materialization köprüsü korunacak.
 
 
 ## P0 — OIR ortak artifact standardı (tasarım taslağı eklendi)
@@ -214,6 +214,7 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 
 
 - [x] Real parser stage DLL end-to-end test: valid SOURCE_UNIT + TOKEN_STREAM -> AST artifact; NEED_OUTPUT_BUFFER retry; invalid syntax -> diagnostic sink and zero published AST output (Windows/Ubuntu/macOS, ASan/UBSan and Valgrind CI).
+- [x] Validated OIR AST payload → frontend AST reader/materializer: validate-before-allocate, disconnected node/string allocation, no-fail pointer-link pass and independent failure cleanup (not `ast_destroy()` on a partial graph); real reader tests are included in the cross-platform CTest matrix.
 
 
 ## OCC Dynamic Stage Loader — 31 Ekim 2026
@@ -258,14 +259,25 @@ Validated OIR AST payload → frontend AST reader/materializer: validate-before-
 
 - [x] Inspect current semantic checker and document the boundary between transient `SemanticContext/Slot` state and a durable semantic result model.
 - [x] Draft `OIR_SEMANTIC_AST.md`: preserve AST node IDs/payload; define scope, type, symbol, relation and node-annotation tables; reserve explicit conversion records without claiming numeric promotion is implemented.
-- [ ] Register semantic OIR section IDs and freeze the bounded wire record layout after codec tests.
-- [ ] Implement SEMANTIC_AST section codecs and round-trip/malformed-input/mutation tests.
-- [ ] Refactor semantic analysis to emit durable scope/symbol/type/annotation results; preserve current language behavior while adding nested-scope and resolution tests.
-- [ ] Implement `occ_semantic_stage` DLL/SO/dylib using `OccStageModuleV1`, AST input and SEMANTIC_AST output.
-- [ ] Integrate Semantic DLL in OCC and pass SEMANTIC_AST downstream; keep AST materialization only as a temporary legacy Codegen bridge.
-- [ ] Migrate Codegen to the common stage ABI and remove the legacy `codegen_run` handoff after the new consumer is verified.
+- [x] Register semantic OIR section IDs and freeze the bounded wire record layout after codec/validator tests.
+- [x] Implement SEMANTIC_AST section codecs and round-trip/malformed-input tests.
+- [x] Refactor the initial semantic result model to emit scope/symbol/type/annotation/relation records; broader language rules and conversion records remain separate work.
+- [x] Implement `occ_semantic_stage` DLL/SO/dylib using `OccStageModuleV1`, AST input and SEMANTIC_AST output.
+- [x] Integrate Semantic DLL in OCC and validate its SEMANTIC_AST output; retain host AST materialization only as a temporary legacy Codegen bridge.
+- [ ] Pass SEMANTIC_AST through the new IR Lowering DLL in the OCC CLI; migrate Codegen to consume OIR_MODULE and remove the legacy `codegen_run` handoff after parity tests.
 
 
+
+## Independent OIR Lowering stage DLL — 2 Kasım 2026
+
+- [x] `occ_oir_lowering_stage` DLL/SO/dylib: accepts one validated SEMANTIC_AST artifact and emits a complete OIR container carrying OIR_MODULE 1.1.
+- [x] Stage-specific input validation: artifact kind/schema, producer stage, validity and job ID; semantic AST graph and cross-table validation before lowering.
+- [x] Per-invocation workspace ownership; no AST or semantic pointers cross the module ABI. Current stage resource cap: 65,536 AST nodes.
+- [x] Deterministic/reentrant/stateless descriptor and stable stage/module IDs (`OCC_STAGE_OIR_LOWERING=7`, module ID `0x00010004`).
+- [x] Dynamic module-loader test covers all supported scalar fixtures, exact output-buffer retry from a 64-byte initial buffer, OIR_MODULE envelope/payload validation and malformed-input rejection.
+- [x] **CI run 41365084763:** Windows, Ubuntu and macOS build/test successful; Ubuntu ASan/UBSan and Valgrind successful.
+- [ ] Add the lowering DLL to the OCC CLI stage graph after Semantic DLL; validate and checkpoint OIR_MODULE output.
+- [ ] Migrate Codegen to the common stage ABI and make it consume OIR_MODULE; remove the temporary host AST materialization bridge only after parity tests.
 
 ## P3 — Native NEXSUS linker and OCL — future architecture requirement
 
