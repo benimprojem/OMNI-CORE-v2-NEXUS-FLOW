@@ -7,6 +7,7 @@
 
 #define OIR_VERIFY_MAX_BLOCKS 8192u
 #define OIR_VERIFY_MAX_RECORDS 1000000u
+#define OIR_VERIFY_MAX_UNUSED_WARNINGS 32u
 
 /* Stable OIR Verifier diagnostic codes. Keep these independent of the OCC ABI. */
 enum {
@@ -24,7 +25,8 @@ enum {
     OIR_VERIFY_DIAG_TERMINATOR = 8618u,
     OIR_VERIFY_DIAG_DOMINANCE = 8619u,
     OIR_VERIFY_DIAG_SSA_USE = 8620u,
-    OIR_VERIFY_WARN_UNUSED_VALUE = 8621u
+    OIR_VERIFY_WARN_UNUSED_VALUE = 8621u,
+    OIR_VERIFY_NOTE_UNUSED_VALUE_LIMIT = 8622u
 };
 
 typedef struct OirVerifyFailure {
@@ -642,7 +644,7 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
 static int report_unused_value_warnings(
     const OccModuleInvocationV1* invocation, OccModuleResultV1* result,
     const OirModuleView* module, const uint32_t* use_count) {
-    uint32_t i;
+    uint32_t i, emitted = 0u, omitted = 0u;
     if (!invocation || !result || !module || !use_count ||
         !invocation->diagnostic_sink.report) return 0;
     for (i = 0u; i < module->value_count; ++i) {
@@ -652,6 +654,10 @@ static int report_unused_value_warnings(
         char hint[256];
         int message_length, hint_length;
         if (use_count[i + 1u] != 0u) continue;
+        if (emitted >= OIR_VERIFY_MAX_UNUSED_WARNINGS) {
+            omitted++;
+            continue;
+        }
         if (oir_module_get_value(module, i, &value) != OIR_STATUS_OK) return 0;
         message_length = snprintf(message, sizeof(message),
             "OIR SSA value is defined but never used. [value=%u]", value.id);
@@ -668,6 +674,25 @@ static int report_unused_value_warnings(
         diagnostic.message_length = (uint64_t)message_length;
         diagnostic.hint = hint;
         diagnostic.hint_length = (uint64_t)hint_length;
+        if (!invocation->diagnostic_sink.report(
+                invocation->diagnostic_sink.user_context, &diagnostic)) return 0;
+        result->diagnostics_count++;
+        emitted++;
+    }
+    if (omitted != 0u) {
+        OccModuleDiagnosticV1 diagnostic;
+        char message[160];
+        int message_length = snprintf(message, sizeof(message),
+            "OIR Verifier omitted %u additional unused-value warnings (limit %u).",
+            omitted, OIR_VERIFY_MAX_UNUSED_WARNINGS);
+        if (message_length < 0 || (size_t)message_length >= sizeof(message)) return 0;
+        memset(&diagnostic, 0, sizeof(diagnostic));
+        diagnostic.struct_size = (uint32_t)sizeof(diagnostic);
+        diagnostic.code = OIR_VERIFY_NOTE_UNUSED_VALUE_LIMIT;
+        diagnostic.message_id = OIR_VERIFY_NOTE_UNUSED_VALUE_LIMIT;
+        diagnostic.severity = OCC_DIAG_NOTE;
+        diagnostic.message = message;
+        diagnostic.message_length = (uint64_t)message_length;
         if (!invocation->diagnostic_sink.report(
                 invocation->diagnostic_sink.user_context, &diagnostic)) return 0;
         result->diagnostics_count++;
