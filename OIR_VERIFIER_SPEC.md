@@ -179,6 +179,7 @@ Implemented and tested:
 - OIR_MODULE 1.1 envelope and payload validation
 - Function/block ownership and entry-block validation
 - Complete non-overlapping instruction-range validation
+- Dependency-ordered internal validation passes: structural records, SSA definition records, opcode/type plus CFG-edge checks, terminators, dominance/reachability and SSA uses
 - Terminator, same-function CFG edge, opcode-shape and implemented scalar type checks
 - Unique SSA definitions, same-block use order and cross-block dominance
 - No silent repair or mutation; verifier-produced artifact required by Codegen
