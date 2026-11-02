@@ -174,6 +174,21 @@ The file/path inventory below is complete for the snapshot. The function catalog
 ### `omnicore-sdk/src/c/oir/oir_semantic_ast_artifact_writer.c`
 
 `writer_should_fail()`, `add_size()`, `count_string_bytes()`, `append_string()`, `build_type_strings()`, `build_symbol_strings()`, `build_relation_strings()`, `semantic_ast_artifact_write_impl()`, `oir_semantic_ast_artifact_write()`, `oir_semantic_ast_artifact_write_test_fail_at()`
+### `omnicore-sdk/src/c/oir/oir_token_map.c`
+
+`oir_token_id_from_omni()`, `oir_token_id_to_omni()`
+
+### `omnicore-sdk/src/c/oir/oir_token_stream.c`
+
+`read_u16_le()`, `read_u32_le()`, `read_u64_le()`, `write_u16_le()`, `write_u32_le()`, `write_u64_le()`, `validate_position()`, `validate_record()`, `decode_record()`, `oir_token_stream_input_from_lexer_token()`, `oir_token_stream_record_to_lexer_token()`, `oir_token_stream_open()`, `oir_token_stream_get()`, `oir_token_stream_write()`
+
+### `omnicore-sdk/src/c/oir/oir_type_map.c`
+
+`oir_type_map_primitive()`
+
+### `omnicore-sdk/src/c/parser/ast.c`
+
+`get_node_size()`, `print_indent()`, `ast_print_recursive()`, `ast_print()`, `ast_destroy_recursive()`, `ast_destroy()`, `ast_write_exact()`, `write_string()`, `ast_read_exact()`, `ast_serialize_recursive()`, `ast_serialize()`
 ## Complete C/header file inventory
 
 ### `omnicore-sdk/src/c/codegen/`
