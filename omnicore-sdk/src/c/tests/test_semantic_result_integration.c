@@ -133,6 +133,9 @@ static int test_extended_semantic_scopes(void) {
         semantic_result_find_visible_symbol(&semantic.result,1u,"x")==0u &&
         semantic_result_find_visible_symbol(&semantic.result,ruleset_scope,"n")!=0u &&
         semantic_result_find_visible_symbol(&semantic.result,1u,"n")==0u;
+    if(!ok) fprintf(stderr,"Array result flags: fixed=%d matrix=%d dynamic=%d typed_dynamic=%d scopes=%u/%u/%u\\n",
+        saw_fixed_array_type,saw_matrix_array_type,saw_untyped_dynamic_array,
+        saw_typed_dynamic_array,select_scope,lambda_scope,ruleset_scope);
     semantic_destroy(&semantic);
 done:
     parser_destroy(parser);
@@ -141,7 +144,7 @@ done:
 
 int main(void) {
     if(!test_extended_semantic_scopes()) {
-        fprintf(stderr,"Extended AST semantic scope/result integration failed: fixed=%d matrix=%d dynamic=%d typed_dynamic=%d select=%u lambda=%u ruleset=%u constructor=%d\\n",saw_fixed_array_type,saw_matrix_array_type,saw_untyped_dynamic_array,saw_typed_dynamic_array,select_scope,lambda_scope,ruleset_scope,constructor->bindings!=NULL);
+        fprintf(stderr,"Extended AST semantic scope/result integration failed.\\n");
         return 1;
     }
     ASTProgram program;
