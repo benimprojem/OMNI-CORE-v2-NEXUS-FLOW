@@ -87,11 +87,16 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
         case AST_METHOD:
             return field_id == 2u ? ((const ASTMethod*)node)->implementation : NULL;
         case AST_BINARY_EXPR:
-        case AST_ASSIGNMENT:
-        case AST_INDEX_ACCESS: {
+        case AST_ASSIGNMENT: {
             const ASTBinaryExpr* n = (const ASTBinaryExpr*)node;
             if (field_id == 2u) return n->left;
             if (field_id == 3u) return n->right;
+            return NULL;
+        }
+        case AST_INDEX_ACCESS: {
+            const ASTIndexAccess* n = (const ASTIndexAccess*)node;
+            if (field_id == 1u) return n->target;
+            if (field_id == 2u) return n->index;
             return NULL;
         }
         case AST_UNARY_EXPR:
