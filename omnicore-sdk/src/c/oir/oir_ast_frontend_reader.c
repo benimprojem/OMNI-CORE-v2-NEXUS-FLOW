@@ -92,6 +92,8 @@ static void free_disconnected_node(ASTNode* node) {
         case AST_METHOD: free(((ASTMethod*)node)->public_name); break;
         case AST_LITERAL: free(((ASTLiteral*)node)->string_value); break;
         case AST_IDENTIFIER: free(((ASTIdentifier*)node)->name); break;
+        case AST_PATTERN_BINDING: free(((ASTPatternBinding*)node)->name); break;
+        case AST_PATTERN_CONSTRUCTOR: free(((ASTPatternConstructor*)node)->name); break;
         case AST_MEMBER_ACCESS: free(((ASTMemberAccess*)node)->member_name); break;
         case AST_NEXUS_CAPTURE: case AST_LISTEN:
             free(((ASTNexusCapture*)node)->handler_name); break;
@@ -254,6 +256,15 @@ static OirStatus populate_scalar_fields(
             case AST_IDENTIFIER:
                 if(field.field_id==1u) status=allocate_string(view,&field,&((ASTIdentifier*)node)->name);
                 break;
+            case AST_PATTERN_BINDING:
+                if(field.field_id==1u) status=allocate_string(view,&field,&((ASTPatternBinding*)node)->name);
+                break;
+            case AST_PATTERN_CONSTRUCTOR:
+                if(field.field_id==1u) status=allocate_string(view,&field,&((ASTPatternConstructor*)node)->name);
+                break;
+            case AST_SELECT_ARM:
+                if(field.field_id==3u) ((ASTSelectArm*)node)->is_default=(int)field.value[0];
+                break;
             case AST_BINARY_EXPR: case AST_ASSIGNMENT: case AST_INDEX_ACCESS:
             case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN:
             case AST_NEXUS_PIPE: case AST_NEXUS_FLOW: {
@@ -377,6 +388,12 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
             if(field_id==1u) ((ASTTuple*)node)->elements=child;
             else return 0;
             break;
+        case AST_SELECT: { ASTSelect* n=(ASTSelect*)node; if(field_id==1u)n->selector=child; else if(field_id==2u)n->arms=child; else return 0; break; }
+        case AST_SELECT_ARM: { ASTSelectArm* n=(ASTSelectArm*)node; if(field_id==1u)n->pattern=child; else if(field_id==2u)n->body=child; else return 0; break; }
+        case AST_SCAN: { ASTScan* n=(ASTScan*)node; if(field_id==1u)n->subject=child; else if(field_id==2u)n->arms=child; else return 0; break; }
+        case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; if(field_id==1u)n->pattern=child; else if(field_id==2u)n->body=child; else return 0; break; }
+        case AST_PATTERN_CONSTRUCTOR:
+            if(field_id==2u)((ASTPatternConstructor*)node)->bindings=child; else return 0; break;
         case AST_IF: {
             ASTIf* n=(ASTIf*)node;
             if(field_id==1u) n->condition=child;
