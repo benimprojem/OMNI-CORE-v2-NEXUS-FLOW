@@ -106,7 +106,8 @@ static const OirAstNodeMapEntry node_map[OIR_AST_NODE_KIND_COUNT] = {
     { AST_ON_BLOCK, 93u },
     { AST_LAMBDA, 94u },
     { AST_RELOCATE, 95u },
-    { AST_UNROLL, 96u }
+    { AST_UNROLL, 96u },
+    { AST_ARRAY_LITERAL, 97u }
 };
 
 uint16_t oir_ast_node_id_from_frontend(ASTNodeType type) {
