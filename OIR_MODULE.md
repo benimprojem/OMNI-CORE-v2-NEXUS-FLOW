@@ -261,11 +261,13 @@ Pass order is orchestrator policy. Every pass output is revalidated. A pass that
 The design sequence is:
 
 1. Finalize a minimal language subset and representative source fixtures.
-2. [x] Assign the initial scalar/control-flow opcode IDs and implement structural registry lookup plus the first scalar type, CFG and SSA verifier rules.\n   [ ] Complete function signatures, memory/effect semantics and the remaining opcode-specific type rules.
+2. [x] Assign the initial scalar/control-flow opcode IDs and implement structural registry lookup plus the first scalar type, CFG and SSA verifier rules.
+   [ ] Complete function signatures, memory/effect semantics and the remaining opcode-specific type rules.
 3. Specify and implement dominance, loop-carried values and predecessor-edge verification for the selected block-parameter SSA model.
 4. Define canonical type records and the complete NEXSUS Flow numeric-promotion/conversion lattice, including forced-width behavior and unresolved mixed-type cases.
 5. Define function, block, instruction, operand and source-map wire layouts.
-6. [x] Implement the standalone module writer/reader and independent verifier stage; malformed SSA, CFG dominance and cross-reference cases have direct stage tests.\n   [ ] Expand negative tests for every schema and opcode family.
+6. [x] Implement the standalone module writer/reader and independent verifier stage; malformed SSA, CFG dominance and cross-reference cases have direct stage tests.
+   [ ] Expand negative tests for every schema and opcode family.
 7. [x] Implement and integrate IR lowering as its own shared stage module: `SEMANTIC_AST -> OIR_MODULE -> OIR Verifier -> Codegen`.
 8. Switch OCC to pass the semantic artifact directly to lowering; remove the legacy AST serialization handoff only after parity tests pass.
 9. Migrate codegen to consume validated `OIR_MODULE`; keep the AST-walking codegen only as a temporary compatibility path.
