@@ -21,8 +21,32 @@ int main(void) {
     uint8_t* buffer = NULL;
     size_t capacity, written = 0;
     OirStatus status;
+    OccDiagnosticCollector warning_only;
+    OccDiagnosticInput warning_input;
 
     occ_diagnostics_init(&collector);
+    occ_diagnostics_init(&warning_only);
+    memset(&warning_input, 0, sizeof(warning_input));
+    warning_input.code = 9002u;
+    warning_input.stage_id = OCC_STAGE_OIR_VERIFY;
+    warning_input.message_id = 9002u;
+    warning_input.severity = OCC_DIAG_WARNING;
+    warning_input.message = "unused value";
+    warning_input.message_length = strlen(warning_input.message);
+    CHECK(occ_diagnostics_add(&warning_only, &warning_input),
+        "add warning-only diagnostic");
+    CHECK(!occ_diagnostics_blocks_output(&warning_only),
+        "warnings alone must not block valid output");
+    warning_input.severity = OCC_DIAG_ERROR;
+    warning_input.code = 9003u;
+    warning_input.message_id = 9003u;
+    warning_input.message = "invalid OIR";
+    warning_input.message_length = strlen(warning_input.message);
+    CHECK(occ_diagnostics_add(&warning_only, &warning_input),
+        "add blocking error diagnostic");
+    CHECK(occ_diagnostics_blocks_output(&warning_only),
+        "errors must block output");
+    occ_diagnostics_destroy(&warning_only);
     memset(&input, 0, sizeof(input));
     input.code = 3001;
     input.stage_id = OCC_STAGE_SEMANTIC;
