@@ -208,7 +208,7 @@ Implemented and tested:
 - Current input producer gate accepts lowering-stage artifacts only; optimizer-stage producer support is pending
 - Stable verifier diagnostic codes 8607–8620 and numeric function/block/instruction/value/type context are implemented; representative exact-code regression cases are covered
 
-Recorded CI runs: `41375777590` and `41382501057` (59/59 CTest in the recorded Ubuntu run); `41387462122` validates the six-pass decomposition across Windows, Ubuntu and macOS, with Ubuntu ASan/UBSan and Valgrind successful; `41389527526` validates the diagnostic-code regression suite across all three platforms and passes Ubuntu ASan/UBSan plus Valgrind; `41389854136` validates multi-section payload preservation and input immutability across all three platforms and passes Ubuntu ASan/UBSan plus Valgrind.
+Recorded CI runs: `41375777590` and `41382501057` (59/59 CTest in the recorded Ubuntu run); `41387462122` validates the six-pass decomposition across Windows, Ubuntu and macOS, with Ubuntu ASan/UBSan and Valgrind successful; `41389527526` validates the diagnostic-code regression suite across all three platforms and passes Ubuntu ASan/UBSan plus Valgrind; `41389854136` validates multi-section payload preservation and input immutability across all three platforms and passes Ubuntu ASan/UBSan plus Valgrind; `41390062454` validates exact diagnostics for type records, instruction coverage and opcode/result type mismatches across all three platforms, with Ubuntu ASan/UBSan and Valgrind successful.
 
 Not yet implemented because the corresponding OIR schema features are not yet available:
 
