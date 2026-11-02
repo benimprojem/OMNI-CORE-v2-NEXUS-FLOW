@@ -977,6 +977,41 @@ done:
     return ok;
 }
 
+static int test_array_index_access_ast(void) {
+    static const char source[] =
+        "f:main() { v:items[4]!i32; v:x = items[1+2]; items[0] = x; }";
+    ParserContext* ctx=parser_init_source("array-index.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTNode* statement;
+    ASTNode* decoded=NULL;
+    FILE* stream;
+    int ok=0;
+    if(!ctx) return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) goto done;
+    statement=((ASTBlock*)((ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations)->body)->statements;
+    statement=statement?statement->next:NULL;
+    if(!statement || statement->type!=AST_VAR_DECL ||
+       !((ASTVarDecl*)statement)->initializer ||
+       ((ASTVarDecl*)statement)->initializer->type!=AST_INDEX_ACCESS) goto done;
+    {
+        ASTIndexAccess* index=(ASTIndexAccess*)((ASTVarDecl*)statement)->initializer;
+        if(index->target->type!=AST_IDENTIFIER || index->index->type!=AST_BINARY_EXPR) goto done;
+    }
+    statement=statement->next;
+    if(!statement || statement->type!=AST_ASSIGNMENT ||
+       ((ASTBinaryExpr*)statement)->left->type!=AST_INDEX_ACCESS) goto done;
+    stream=tmpfile();
+    if(!stream) goto done;
+    if(ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
+        decoded=ast_deserialize(stream);
+    fclose(stream);
+    ok=decoded && decoded->type==AST_PROGRAM;
+    if(decoded) ast_destroy(decoded);
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_retry_metadata_rejects_overflow(void) {
     static const char source[] =
         "v:x = source?(999999999999999999999,1ms)->target;";
@@ -986,6 +1021,7 @@ static int test_retry_metadata_rejects_overflow(void) {
 
 int main(int argc, char** argv) {
     if (!test_array_type_declarators()) { fprintf(stderr, "Array type declarator parser/codec test failed.\n"); return 1; }
+    if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
     if (!test_array_literal_ast()) { fprintf(stderr, "Array literal parser/codec test failed.\n"); return 1; }
     if (!test_retry_metadata_rejects_overflow()) {
         fprintf(stderr, "Rolling retry count overflow was not rejected.\\n");
