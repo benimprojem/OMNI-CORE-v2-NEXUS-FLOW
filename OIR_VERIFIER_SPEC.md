@@ -136,7 +136,27 @@ The verifier must enforce only semantics represented by the active OIR schema an
 
 Source/IR validity failures are reported as diagnostics through the shared OCC diagnostic sink. They are distinct from infrastructure failures such as allocation failure, invalid invocation, incompatible ABI or internal verifier failure.
 
-**Current diagnostic limitation:** the current implementation reports a coarse generic diagnostic for most payload validation failures (for example, code `8603`). It does not yet consistently identify the failing function, block, instruction or SSA value. Fine-grained validation codes and location context are the next verifier-engine increment.
+**Diagnostic code ranges (stable within the OIR Verifier):**
+
+| Code | Meaning |
+|---:|---|
+| 8601–8606 | Artifact envelope, section, output-size and serialization failures |
+| 8607 | Module resource limit or size arithmetic bound |
+| 8608 | Verifier workspace allocation failure |
+| 8609 | Malformed OIR payload / registered opcode wire-shape rejection |
+| 8610 | Type record |
+| 8611 | Block ownership or block instruction-range metadata |
+| 8612 | Instruction coverage, overlap or instruction/block identity |
+| 8613 | Function type or entry-block ownership |
+| 8614 | SSA definition record |
+| 8615 | Opcode operand shape / result contract (defensive verifier check; the OIR codec also checks this contract) |
+| 8616 | Opcode operand/result type or implemented opcode semantics |
+| 8617 | CFG edge and cross-function target ownership |
+| 8618 | Missing or misplaced block terminator |
+| 8619 | Reachability / dominance analysis |
+| 8620 | SSA use ordering, undefined use or non-dominating definition |
+
+Validation diagnostics include numeric function, block, instruction, value and type identifiers in the message when the failing record makes them available. These are message context fields; the common OCC ABI remains unchanged. Infrastructure failures remain distinct from invalid-source/IR diagnostics.
 
 Diagnostics should include, where available:
 
