@@ -162,11 +162,8 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     memset(&module, 0, sizeof(module));
     parser = parser_init_source("real-lowering.nxf", source, source_length);
     if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
-        parser_get_status(parser) != PARSER_STATUS_OK || !parser->ast_root) {
-        fprintf(stderr, "parser failed for arithmetic fixture %d (status=%d)\\n",
-            arithmetic, parser ? (int)parser_get_status(parser) : -1);
+        parser_get_status(parser) != PARSER_STATUS_OK || !parser->ast_root)
         goto cleanup;
-    }
 
     if (oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
             index, 64u, &node_count) != OIR_STATUS_OK ||
@@ -190,11 +187,8 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
     if (semantic.error_count != 0 ||
         semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK ||
-        semantic.result.finalized != 1u) {
-        fprintf(stderr, "semantic failed for arithmetic fixture %d (errors=%d)\\n",
-            arithmetic, semantic.error_count);
+        semantic.result.finalized != 1u)
         goto cleanup;
-    }
     if (oir_semantic_ast_artifact_write(ast_payload, ast_length,
             &semantic.result, 1u, semantic_artifact,
             sizeof(semantic_artifact), &semantic_length) != OIR_STATUS_OK)
@@ -212,18 +206,11 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     workspace.instructions = instructions; workspace.instruction_capacity = 32u;
     workspace.operands = operands; workspace.operand_capacity = 64u;
     workspace.strings = module_strings; workspace.string_capacity = sizeof(module_strings);
-    {
-        OirStatus lower_status = oir_lower_semantic_ast_return(&artifact, &workspace,
-            module_bytes, sizeof(module_bytes), &module_length);
-        if (lower_status != OIR_STATUS_OK) {
-            fprintf(stderr, "lowerer status=%d for arithmetic fixture %d (nodes=%u)\\n",
-                (int)lower_status, arithmetic, node_count);
-            goto cleanup;
-        }
-    }
-    if (oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
+    if (oir_lower_semantic_ast_return(&artifact, &workspace,
+            module_bytes, sizeof(module_bytes), &module_length) != OIR_STATUS_OK ||
+        oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
         goto cleanup;
-    if (module.type_count != (arithmetic == 5 ? 3u : 2u) ||
+    if (module.type_count != ((arithmetic == 5 || arithmetic == 6) ? 3u : 2u) ||
         module.function_count != 1u) goto cleanup;
     {
         OirModuleType return_type;
@@ -314,11 +301,8 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     } else if (arithmetic == 6) {
         /* if/elsif/els lowers to a nested, five-block CFG. */
         if (module.block_count != 5u || module.instruction_count != 8u ||
-            module.operand_count != 14u || module.value_count != 3u) {
-            fprintf(stderr, "elsif counts: blocks=%u instructions=%u operands=%u values=%u\\n",
-                module.block_count, module.instruction_count, module.operand_count, module.value_count);
+            module.operand_count != 14u || module.value_count != 3u)
             goto cleanup;
-        }
     } else {
         OirModuleInstruction add, mul, sub, ret;
         OirModuleOperand left, right, returned, immediate;
