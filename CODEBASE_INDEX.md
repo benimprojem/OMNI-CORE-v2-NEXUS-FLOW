@@ -2,7 +2,7 @@
 
 **Repository:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Branch:** `refactor/c-core-roadmap`  
-**Snapshot commit:** `3bc13bdcea9a5f37902b1aee2f186842ff1a186a`  
+**Snapshot commit:** `3c3103878d614b34f2abc0d147c8a63d400db49c`  
 **Scope:** `omnicore-sdk/src/c/`  
 **Snapshot inventory:** 126 C/header files (91 C implementation files and 35 headers).  
 **Purpose:** prevent duplicate files/functions, make existing implementation discoverable before adding or changing code.
@@ -381,3 +381,4 @@ The file/path inventory below is complete for the snapshot. The function catalog
 - 2026-11-02: OIR Verifier adds bounded instruction-result reverse-link aggregation (diagnostic 8614; overflow 8624), with a duplicate-result CALL regression fixture and a diagnostic message covering both value-record and instruction-link inconsistencies whose wire shape is valid at codec level. The check runs only after the SSA value table passes and skips dependent structural/instruction/CFG/terminator/dominance/use validation on failure.
 
 - 2026-11-02: OIR Verifier extracts a shared local type-contract helper for constant/arithmetic opcodes and aggregates up to 32 independent type failures (8616); omitted failures use 8625. A two-instruction regression fixture confirms both errors are reported before dependent passes. The main instruction pass reuses the same helper; no duplicate type-rule implementation was introduced.
+- 2026-11-02: Opcode type-overflow diagnostic 8625 now explicitly explains that dependent validation passes were skipped; its remediation remains specific to the omitted constant/arithmetic type contracts.
