@@ -1275,6 +1275,12 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             ((ASTTuple*)node)->elements = ast_deserialize_recursive(reader);
             break;
         }
+        case AST_SELECT: { ASTSelect* n=(ASTSelect*)node; n->selector=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->arms=ast_deserialize_recursive(reader); break; }
+        case AST_SELECT_ARM: { ASTSelectArm* n=(ASTSelectArm*)node; n->pattern=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->body=ast_deserialize_recursive(reader); if(reader->failed)goto fail; if(!ast_read_exact(reader,&n->is_default,sizeof(int)))goto fail; break; }
+        case AST_SCAN: { ASTScan* n=(ASTScan*)node; n->subject=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->arms=ast_deserialize_recursive(reader); break; }
+        case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; n->pattern=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->body=ast_deserialize_recursive(reader); break; }
+        case AST_PATTERN_BINDING: ((ASTPatternBinding*)node)->name=read_string(reader); break;
+        case AST_PATTERN_CONSTRUCTOR: { ASTPatternConstructor* n=(ASTPatternConstructor*)node; n->name=read_string(reader); n->bindings=ast_deserialize_recursive(reader); break; }
         case AST_ENUM_DECL: {
             ASTEnumDecl* e = (ASTEnumDecl*)node;
             e->name = read_string(reader);
