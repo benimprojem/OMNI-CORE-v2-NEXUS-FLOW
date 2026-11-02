@@ -270,6 +270,27 @@ static int validate_instructions(const OirModuleView* m,
     return 1;
 }
 
+/* Pass 4: enforce exactly one final terminator in every basic block. */
+static int validate_terminators(const OirModuleView* m) {
+    uint32_t i, j;
+
+    /* A block has exactly one final terminator; no instruction may follow it. */
+    for (i = 1u; i <= m->block_count; ++i) {
+        OirModuleBlock b;
+        OirModuleInstruction last;
+        if (oir_module_get_block(m, i - 1u, &b) != OIR_STATUS_OK ||
+            oir_module_get_instruction(m, b.first_instruction + b.instruction_count - 1u,
+                &last) != OIR_STATUS_OK || !has_terminator(&last)) return 0;
+        for (j = 0u; j + 1u < b.instruction_count; ++j) {
+            OirModuleInstruction ins;
+            if (oir_module_get_instruction(m, b.first_instruction + j, &ins) != OIR_STATUS_OK ||
+                has_terminator(&ins)) return 0;
+        }
+    }
+
+    return 1;
+}
+
 static int validate_module(const OirModuleView* m) {
     uint32_t *block_function = NULL;
     uint32_t *definition_instruction = NULL, *definition_block = NULL;
@@ -309,19 +330,7 @@ static int validate_module(const OirModuleView* m) {
 
     if (!validate_instructions(m, block_function, pred, words)) goto done;
 
-    /* A block has exactly one final terminator; no instruction may follow it. */
-    for (i = 1u; i <= m->block_count; ++i) {
-        OirModuleBlock b;
-        OirModuleInstruction last;
-        if (oir_module_get_block(m, i - 1u, &b) != OIR_STATUS_OK ||
-            oir_module_get_instruction(m, b.first_instruction + b.instruction_count - 1u,
-                &last) != OIR_STATUS_OK || !has_terminator(&last)) goto done;
-        for (j = 0u; j + 1u < b.instruction_count; ++j) {
-            OirModuleInstruction ins;
-            if (oir_module_get_instruction(m, b.first_instruction + j, &ins) != OIR_STATUS_OK ||
-                has_terminator(&ins)) goto done;
-        }
-    }
+    if (!validate_terminators(m)) goto done;
 
     /* Per-function reachability and iterative dominators for SSA use validation. */
     for (f = 0u; f < m->function_count; ++f) {
