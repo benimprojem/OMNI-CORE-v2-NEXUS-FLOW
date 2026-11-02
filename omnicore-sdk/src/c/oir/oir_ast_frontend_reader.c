@@ -370,9 +370,13 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
             if(field_id==4u)((ASTGroupDecl*)node)->members=child; else return 0; break;
         case AST_METHOD:
             if(field_id==2u)((ASTMethod*)node)->implementation=child; else return 0; break;
-        case AST_BINARY_EXPR: case AST_ASSIGNMENT: case AST_INDEX_ACCESS: {
+        case AST_BINARY_EXPR: case AST_ASSIGNMENT: {
             ASTBinaryExpr* n=(ASTBinaryExpr*)node;
             if(field_id==2u)n->left=child; else if(field_id==3u)n->right=child; else return 0; break;
+        }
+        case AST_INDEX_ACCESS: {
+            ASTIndexAccess* n=(ASTIndexAccess*)node;
+            if(field_id==1u)n->target=child; else if(field_id==2u)n->index=child; else return 0; break;
         }
         case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN:
             if(field_id==2u)((ASTUnaryExpr*)node)->operand=child; else return 0; break;
