@@ -214,6 +214,36 @@ static uint32_t validate_ssa_value_records(const OirModuleView* m,
     return count;
 }
 
+/* Once every SSA value record is valid, independently verify the reverse
+   instruction -> value links. A value may have one defining instruction only;
+   duplicate result references are instruction-local failures and can be bounded. */
+static uint32_t validate_instruction_result_records(const OirModuleView* m,
+    OirVerifyFailure* failures, uint32_t capacity, uint32_t* omitted) {
+    uint32_t i, count = 0u;
+    if (omitted) *omitted = 0u;
+    for (i = 0u; i < m->instruction_count; ++i) {
+        OirModuleInstruction instruction;
+        OirModuleValue value;
+        int valid = oir_module_get_instruction(m, i, &instruction) == OIR_STATUS_OK;
+        if (valid && instruction.result_value_id != 0u) {
+            valid = get_value(m, instruction.result_value_id, &value) &&
+                value.defining_instruction_id == instruction.id;
+            if (!valid) {
+                if (count < capacity) {
+                    memset(&failures[count], 0, sizeof(failures[count]));
+                    failures[count].code = OIR_VERIFY_DIAG_SSA_DEFINITION;
+                    failures[count].instruction_id = i + 1u;
+                    failures[count].value_id = instruction.result_value_id;
+                    ++count;
+                } else if (omitted && *omitted != UINT32_MAX) {
+                    ++(*omitted);
+                }
+            }
+        }
+    }
+    return count;
+}
+
 /* Pass 2: validate the SSA value table and build definition lookup tables. */
 static int validate_ssa_definitions(const OirModuleView* m,
     uint32_t* definition_instruction, uint32_t* definition_block,
@@ -853,6 +883,34 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                         (void)report_verify_error(invocation, result,
                             OIR_VERIFY_DIAG_SSA_DEFINITION_ERROR_LIMIT,
                             "Additional invalid SSA value definitions were omitted.",
+                            &overflow_failure);
+                    }
+                    return OCC_MODULE_STATUS_FAILED;
+                }
+            }
+            {
+                OirVerifyFailure instruction_failures[OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS];
+                uint32_t omitted_instruction_errors = 0u;
+                uint32_t instruction_error_count = validate_instruction_result_records(
+                    &module, instruction_failures,
+                    OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS,
+                    &omitted_instruction_errors);
+                uint32_t instruction_error_index;
+                if (instruction_error_count != 0u || omitted_instruction_errors != 0u) {
+                    for (instruction_error_index = 0u;
+                        instruction_error_index < instruction_error_count;
+                        ++instruction_error_index)
+                        (void)report_verify_error(invocation, result,
+                            OIR_VERIFY_DIAG_SSA_DEFINITION,
+                            "OIR instruction result has no matching SSA definition record.",
+                            &instruction_failures[instruction_error_index]);
+                    if (omitted_instruction_errors != 0u) {
+                        OirVerifyFailure overflow_failure;
+                        memset(&overflow_failure, 0, sizeof(overflow_failure));
+                        overflow_failure.value_id = omitted_instruction_errors;
+                        (void)report_verify_error(invocation, result,
+                            OIR_VERIFY_DIAG_SSA_DEFINITION_ERROR_LIMIT,
+                            "Additional inconsistent instruction result links were omitted.",
                             &overflow_failure);
                     }
                     return OCC_MODULE_STATUS_FAILED;
