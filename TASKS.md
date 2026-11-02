@@ -109,10 +109,10 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 
 ## Sonraki tek iş
 
-OCC CLI'ye bağımsız OIR Lowering DLL handoff'unu ekle: Semantic DLL'nin SEMANTIC_AST çıktısını `occ_oir_lowering_stage` modülüne ver, OIR_MODULE çıktısını doğrula ve Codegen geçişi tamamlanana kadar mevcut AST köprüsünü koru.
+OCC CLI'de OIR Lowering ve ilk Codegen DLL aşamalarını entegre et. Şu anki açık iş: yeni OIR_MODULE→OIR_ASSEMBLY çıktısını legacy Codegen çıktısıyla karşılaştırmak, backend kapsamını genişletmek ve legacy köprüyü parity sonrasında kaldırmak.
 
 
-## P0 — Modüler derleyici pipeline (mimari kabul edildi, uygulama bekliyor)
+## P0 — Modüler derleyici pipeline (uygulama devam ediyor)
 
 - [ ] Her derleme aşaması için bağımsız shared library hedefi oluştur (Windows DLL / Linux SO / macOS dylib).
 - [x] Draft sürümlenmiş C module ABI'sini tanımla: descriptor, stage ID, ABI version, artifact tür/sürüm, process/result ve ownership; host-side descriptor/invocation validation testlerini ekle. **ABI henüz freeze edilmedi; stage-specific parser adapter ve dynamic loader testleri açık.**
@@ -127,8 +127,8 @@ OCC CLI'ye bağımsız OIR Lowering DLL handoff'unu ekle: Semantic DLL'nin SEMAN
 - [ ] Artifact geçerlilik durumlarını tanımla: valid / partial / invalid / none.
 - [ ] Varsayılan strict output gate: error veya warning varsa final artifact yayımlama.
 - [ ] `--stop-after <stage>` ve checkpoint artifact yazımını ekle.
-- [ ] Codegen modülünü ortak ABI'ye geçir.
-- [ ] Lexer, parser ve semantic analyzer'ı ayrı DLL/SO/dylib modüllerine ayır.
+- [x] OIR_MODULE tüketen ilk target-specific Codegen DLL'ini ortak `OccStageModuleV1` ABI'siyle ekle (OIR_ASSEMBLY 1.0 üretir; eski `codegen_run` henüz korunur).\n- [ ] Legacy `codegen_run` ve host AST materialization köprüsünü parity testleri tamamlanmadan kaldırma; parity tamamlandığında kaldır.
+- [x] Lexer, parser ve semantic analyzer'ı ayrı DLL/SO/dylib modüllerine ayır.
 - [ ] Bağımsız derleme işlerini paralel çalıştır; modül thread-safety/reentrancy sözleşmesini test et.
 - [ ] Kuyruk/back-pressure, job cancellation ve final output atomic publish testlerini ekle.
 - [ ] IR, optimizer pass, target validation, backend, assembler ve linker aşamalarını ayrı modüllere böl.
@@ -241,7 +241,7 @@ OCC CLI → OIR Lowering DLL → OIR_MODULE handoff'unu entegre et. Lowerer DLL 
 - [x] **CI run 41174447616:** Windows, Ubuntu ve macOS build/test başarılı; CTest 39/39; Ubuntu ASan/UBSan ve Valgrind başarılı.
 - [x] Lexer'ı bağımsız DLL stage'e ayır; OCC'nin statik lexer çağrısını kaldır ve SOURCE_UNIT → lexer DLL → TOKEN_STREAM → parser DLL zincirini gerçek CLI'da çalıştır.
 - [x] SEMANTIC_AST schema/codec, artifact validator/writer ve `occ_semantic_stage` DLL/SO/dylib oluştur; OCC CLI'da AST OIR → Semantic DLL → SEMANTIC_AST OIR zincirini çalıştır. Host AST materialization yalnızca legacy Codegen köprüsüdür; Codegen'in SEMANTIC_AST tüketmesi ayrı açık görevdir.
-- [ ] Codegen'i ortak stage ABI'ye taşı; mevcut codegen_run yüklemesi henüz eski ayrı entry-point sözleşmesidir.
+- [x] OIR_MODULE→OIR_ASSEMBLY üreten yeni Codegen stage'i ortak ABI'ye taşı; legacy `codegen_run` ayrı entry-point olarak parity süresince korunuyor.\n- [ ] Eski `codegen_run` el sıkışmasını kaldır ve final assembly çıktısını yeni stage'e geçir; önce parity testleri tamamlanmalı.
 - [ ] Aynı job diagnostic collector'a erişen çağrılar için synchronized dispatcher/serialization policy ekle.
 
 
@@ -265,7 +265,7 @@ OCC CLI → OIR Lowering DLL → OIR_MODULE handoff'unu entegre et. Lowerer DLL 
 - [x] Implement `occ_semantic_stage` DLL/SO/dylib using `OccStageModuleV1`, AST input and SEMANTIC_AST output.
 - [x] Integrate Semantic DLL in OCC and validate its SEMANTIC_AST output; retain host AST materialization only as a temporary legacy Codegen bridge.
 - [x] Pass SEMANTIC_AST through the new IR Lowering DLL in the OCC CLI; host validates and checkpoints the OIR_MODULE output (CI run 41366127592).
-- [ ] Migrate Codegen to consume OIR_MODULE through the common stage ABI and remove the legacy `codegen_run` handoff only after output-parity tests.
+- [x] Add a target-specific Codegen DLL using the common `OccStageModuleV1` ABI; consume OIR_MODULE 1.1 and emit OIR_ASSEMBLY 1.0.\n- [ ] Compare new and legacy assembly behavior on the supported fixture set; remove the legacy `codegen_run` handoff only after parity tests.
 
 
 
@@ -307,3 +307,17 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 **Current lowering scope:** the first lowering implementation supports a bounded scalar subset (integer/float/bool returns, straight-line arithmetic and initialized local values/assignments). Unsupported AST constructs still fail closed in this stage. The CLI integration fixture is intentionally inside this implemented subset; broader parser/semantic fixtures remain covered by their own tests.
 
 **Next compiler task:** migrate Codegen to the common `OccStageModuleV1` ABI and make it consume validated OIR_MODULE. Keep the legacy AST bridge until parity tests cover the existing supported source set.
+
+
+## Independent OIR Codegen stage DLL — 2 Kasım 2026
+
+- [x] Add `occ_codegen_stage` DLL/SO/dylib with stable module ID `0x00010005` and `OCC_STAGE_CODEGEN`.
+- [x] Consume one validated OIR_MODULE 1.1 artifact; validate producer stage, validity, job identity, unique payload, module structure and the first backend's SSA/use-def subset.
+- [x] Emit OIR_ASSEMBLY schema 1.0 with a bounded two-pass NASM text writer; NEED_OUTPUT_BUFFER retry does not publish partial output or diagnostics.
+- [x] Initial x86-64 BareMetal backend supports one function/basic block, i32/i64/bool constants, integer arithmetic and return; unsupported types/opcodes/CFG shapes fail closed.
+- [x] OCC validates the selected legacy target profile, loads the Codegen stage DLL, validates OIR_ASSEMBLY and persists `.assembly.oir` plus `.stage.s`.
+- [x] Preserve the legacy `codegen_run` path and its `.s` output; parity is **not** yet claimed.
+- [x] Add direct dynamic-stage tests and end-to-end CLI artifact tests.
+- [x] **CI run 41367164418:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **58/58**; Ubuntu ASan/UBSan and Valgrind passed.
+
+**Next Codegen work:** add floating-point lowering, multiple functions/blocks, branches and calls incrementally; define a target descriptor artifact/selection contract for backend modules; compare behavior against the legacy output; only then make OIR_ASSEMBLY the final Codegen output and remove the AST bridge.
