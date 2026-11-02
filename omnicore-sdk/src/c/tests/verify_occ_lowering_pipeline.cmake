@@ -52,6 +52,11 @@ if(NOT module_magic STREQUAL "4f495231")
     message(FATAL_ERROR
         "OIR_MODULE artifact has an invalid OIR container signature: ${module_magic}")
 endif()
+file(READ "${module_artifact}" module_producer_stage OFFSET 16 LIMIT 4 HEX)
+if(NOT module_producer_stage STREQUAL "08000000")
+    message(FATAL_ERROR
+        "OIR_MODULE artifact was not passed through the OIR Verifier stage (producer=${module_producer_stage})")
+endif()
 
 file(GLOB temporary_artifacts "${module_artifact}.tmp.*")
 list(LENGTH temporary_artifacts temporary_count)
