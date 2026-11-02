@@ -109,7 +109,7 @@ static int validate_structure(const OirModuleView* m,
     /* Establish unique block ownership and exact, non-overlapping instruction ranges. */
     for (i = 0u; i < m->block_count; ++i) {
         OirModuleBlock block;
-        if (failure) { failure->code = OIR_VERIFY_DIAG_BLOCK_OWNERSHIP; failure->block_id = i + 1u; }
+        if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_BLOCK_OWNERSHIP; failure->block_id = i + 1u; }
         if (oir_module_get_block(m, i, &block) != OIR_STATUS_OK ||
             block.id != i + 1u || block.function_id == 0u ||
             block.function_id > m->function_count || block.instruction_count == 0u ||
@@ -121,7 +121,7 @@ static int validate_structure(const OirModuleView* m,
         for (j = 0u; j < block.instruction_count; ++j) {
             uint32_t index = block.first_instruction + j;
             OirModuleInstruction ins;
-            if (failure) { failure->code = OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE; failure->instruction_id = index + 1u; }
+            if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE; failure->instruction_id = index + 1u; failure->block_id = block.id; failure->function_id = block.function_id; }
             if (covered[index] ||
                 oir_module_get_instruction(m, index, &ins) != OIR_STATUS_OK ||
                 ins.id != index + 1u || ins.block_id != block.id) return 0;
@@ -130,7 +130,7 @@ static int validate_structure(const OirModuleView* m,
     }
     for (i = 1u; i <= m->instruction_count; ++i) {
         if (!covered[i - 1u]) {
-            if (failure) { failure->code = OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE; failure->instruction_id = i; }
+            if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE; failure->instruction_id = i; }
             return 0;
         }
     }
@@ -138,7 +138,7 @@ static int validate_structure(const OirModuleView* m,
     /* Functions must have a valid function type and an entry block they own. */
     for (f = 0u; f < m->function_count; ++f) {
         OirModuleFunction fn;
-        if (failure) { failure->code = OIR_VERIFY_DIAG_FUNCTION_ENTRY; failure->function_id = f + 1u; }
+        if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_FUNCTION_ENTRY; failure->function_id = f + 1u; }
         OirModuleType ft;
         int owns_block = 0;
         if (oir_module_get_function(m, f, &fn) != OIR_STATUS_OK ||
@@ -164,7 +164,7 @@ static int validate_ssa_definitions(const OirModuleView* m,
     /* Every value has exactly one matching definition record. */
     for (i = 0u; i < m->value_count; ++i) {
         OirModuleValue v;
-        if (failure) { failure->code = OIR_VERIFY_DIAG_SSA_DEFINITION; failure->value_id = i + 1u; }
+        if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_SSA_DEFINITION; failure->value_id = i + 1u; }
         OirModuleType value_type;
         OirModuleInstruction def;
         if (oir_module_get_value(m, i, &v) != OIR_STATUS_OK ||
@@ -200,7 +200,7 @@ static int validate_instructions(const OirModuleView* m,
     /* Validate opcode-specific types and collect CFG predecessor edges. */
     for (i = 0u; i < m->instruction_count; ++i) {
         OirModuleInstruction ins;
-        if (failure) { failure->code = OIR_VERIFY_DIAG_OPCODE_TYPE; failure->instruction_id = i + 1u; }
+        if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_OPCODE_TYPE; failure->instruction_id = i + 1u; }
         OirModuleValue a, b, result;
         OirModuleType at, bt, rt;
         uint32_t target_a, target_b;
@@ -322,7 +322,7 @@ static int validate_terminators(const OirModuleView* m, OirVerifyFailure* failur
     /* A block has exactly one final terminator; no instruction may follow it. */
     for (i = 1u; i <= m->block_count; ++i) {
         OirModuleBlock b;
-        if (failure) { failure->code = OIR_VERIFY_DIAG_TERMINATOR; failure->block_id = i; }
+        if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_TERMINATOR; failure->block_id = i; }
         OirModuleInstruction last;
         if (oir_module_get_block(m, i - 1u, &b) != OIR_STATUS_OK ||
             oir_module_get_instruction(m, b.first_instruction + b.instruction_count - 1u,
@@ -350,7 +350,7 @@ static int validate_dominance(const OirModuleView* m,
         OirModuleFunction fn;
         uint32_t head = 0u, tail = 0u, b;
         int changed = 1;
-        if (failure) { failure->code = OIR_VERIFY_DIAG_DOMINANCE; failure->function_id = f + 1u; }
+        if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_DOMINANCE; failure->function_id = f + 1u; }
         if (oir_module_get_function(m, f, &fn) != OIR_STATUS_OK) return 0;
         memset(reachable, 0, (size_t)m->block_count + 1u);
         queue[tail++] = fn.entry_block_id;
@@ -440,7 +440,7 @@ static int validate_ssa_uses(const OirModuleView* m,
        definitions must dominate the use block. */
     for (i = 0u; i < m->instruction_count; ++i) {
         OirModuleInstruction ins;
-        if (failure) { failure->code = OIR_VERIFY_DIAG_SSA_USE; failure->instruction_id = i + 1u; }
+        if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_SSA_USE; failure->instruction_id = i + 1u; }
         if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK) return 0;
         if (failure) failure->block_id = ins.block_id;
         for (j = 0u; j < ins.operand_count; ++j) {
@@ -561,6 +561,23 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
     OccModuleDiagnosticV1 d;
     char contextual_message[384];
     const char* reported_message = message;
+    switch (code) {
+        case OIR_VERIFY_DIAG_MODULE_LIMIT: message = "OIR module exceeds verifier resource limits."; break;
+        case OIR_VERIFY_DIAG_INTERNAL_WORKSPACE: message = "OIR Verifier could not allocate its validation workspace."; break;
+        case OIR_VERIFY_DIAG_TYPE_RECORD: message = "OIR type record is invalid."; break;
+        case OIR_VERIFY_DIAG_BLOCK_OWNERSHIP: message = "OIR block ownership or instruction range is invalid."; break;
+        case OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE: message = "OIR instruction coverage is incomplete, overlapping or inconsistent."; break;
+        case OIR_VERIFY_DIAG_FUNCTION_ENTRY: message = "OIR function entry block or function type is invalid."; break;
+        case OIR_VERIFY_DIAG_SSA_DEFINITION: message = "OIR SSA value definition is missing, duplicated or inconsistent."; break;
+        case OIR_VERIFY_DIAG_OPCODE_SHAPE: message = "OIR opcode operand shape or result contract is invalid."; break;
+        case OIR_VERIFY_DIAG_OPCODE_TYPE: message = "OIR opcode operand or result type is invalid."; break;
+        case OIR_VERIFY_DIAG_CFG_EDGE: message = "OIR control-flow edge is invalid or crosses function ownership."; break;
+        case OIR_VERIFY_DIAG_TERMINATOR: message = "OIR basic block has a missing or misplaced terminator."; break;
+        case OIR_VERIFY_DIAG_DOMINANCE: message = "OIR control-flow dominance analysis failed."; break;
+        case OIR_VERIFY_DIAG_SSA_USE: message = "OIR SSA use is undefined, precedes its definition or is not dominated."; break;
+        default: break;
+    }
+    reported_message = message;
     if (failure && (failure->function_id || failure->block_id ||
         failure->instruction_id || failure->value_id || failure->type_id)) {
         (void)snprintf(contextual_message, sizeof(contextual_message),
@@ -592,6 +609,7 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
     OirVerifyFailure failure;
     uint32_t rc = OCC_MODULE_STATUS_FAILED;
 
+    memset(&failure, 0, sizeof(failure));
     result->bytes_written = 0u; result->required_output_capacity = 0u;
     result->output_validity = OIR_VALIDITY_NONE; result->failure_code = 0u;
     result->diagnostics_count = 0u;
@@ -621,9 +639,13 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                 "OIR Verifier could not read an artifact section.", NULL);
         if (section.type == OIR_SECTION_PAYLOAD) {
             if (++payload_count != 1u || section.version != 1u ||
-                section.length > (uint64_t)SIZE_MAX ||
-                oir_module_open(section.data, (size_t)section.length, &module) != OIR_STATUS_OK ||
-                !validate_module(&module, &failure))
+                section.length > (uint64_t)SIZE_MAX)
+                return report_verify_error(invocation, result, 8603u,
+                    "OIR_MODULE payload section metadata is invalid.", NULL);
+            if (oir_module_open(section.data, (size_t)section.length, &module) != OIR_STATUS_OK)
+                return report_verify_error(invocation, result, 8603u,
+                    "OIR_MODULE payload could not be decoded.", NULL);
+            if (!validate_module(&module, &failure))
                 return report_verify_error(invocation, result,
                     failure.code ? failure.code : 8603u,
                     "OIR_MODULE validation failed.", &failure);
