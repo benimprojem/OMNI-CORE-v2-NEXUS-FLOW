@@ -883,6 +883,9 @@ static int test_array_literal_ast(void) {
         }
     }
     if(!matrix || !empty) fprintf(stderr,"array AST flags matrix=%d empty=%d\\n",matrix,empty);
+    if(matrix && empty) ok=parser_source_reports_syntax_error(
+        "array-missing-close.nxf", "f:main() { v:a = [1, 2; }",
+        sizeof("f:main() { v:a = [1, 2; }")-1u) ? 0 : ok;
     if(matrix && empty) {
         FILE* stream=tmpfile();
         ASTNode* decoded=NULL;
