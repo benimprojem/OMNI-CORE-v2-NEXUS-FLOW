@@ -109,7 +109,7 @@ Hedef yapı PROPOSED_LAYOUT.md içinde tanımlıdır. Fiziksel taşıma, build b
 
 ## Sonraki tek iş
 
-OCC CLI'de OIR Lowering ve ilk Codegen DLL aşamalarını entegre et. Şu anki açık iş: yeni OIR_MODULE→OIR_ASSEMBLY çıktısını legacy Codegen çıktısıyla karşılaştırmak, backend kapsamını genişletmek ve legacy köprüyü parity sonrasında kaldırmak.
+OCC CLI'de OIR Lowering → OIR Verifier → Codegen DLL hattı entegre edildi. Açık işler: OIR/Codegen kapsamını genişletmek, yeni assembly çıktısını legacy Codegen ile karşılaştırmak ve parity tamamlanınca legacy köprüyü kaldırmak.
 
 
 ## P0 — Modüler derleyici pipeline (uygulama devam ediyor)
@@ -137,7 +137,7 @@ OCC CLI'de OIR Lowering ve ilk Codegen DLL aşamalarını entegre et. Şu anki a
 
 ## Sonraki tek iş
 
-OCC CLI → OIR Lowering DLL → OIR_MODULE handoff'unu entegre et. Lowerer DLL bağımsız olarak build/test edildi; henüz `main.c` pipeline'ında çağrılmıyor. Codegen OIR_MODULE tüketene kadar legacy AST materialization köprüsü korunacak.
+OCC CLI'de Semantic → OIR Lowering → OIR Verifier → Codegen stage zinciri çalışıyor. Legacy AST materialization köprüsü yalnızca eski `codegen_run` parity yolu için korunuyor.
 
 
 ## P0 — OIR ortak artifact standardı (tasarım taslağı eklendi)
@@ -278,7 +278,7 @@ OCC CLI → OIR Lowering DLL → OIR_MODULE handoff'unu entegre et. Lowerer DLL 
 - [x] Dynamic module-loader test covers all supported scalar fixtures, exact output-buffer retry from a 64-byte initial buffer, OIR_MODULE envelope/payload validation and malformed-input rejection.
 - [x] **CI run 41365084763:** Windows, Ubuntu and macOS build/test successful; Ubuntu ASan/UBSan and Valgrind successful.
 - [x] Add the lowering DLL to the OCC CLI stage graph after Semantic DLL; validate the descriptor, artifact header, job/stage identity and OIR_MODULE payload, then persist `.module.oir` via a same-directory temporary file and rename. **CI run 41366127592:** Windows/Ubuntu/macOS build and test successful; Ubuntu ASan/UBSan and Valgrind successful; Ubuntu CTest 57/57.
-- [ ] Migrate Codegen to the common stage ABI and make it consume OIR_MODULE; remove the temporary host AST materialization bridge only after parity tests.
+- [x] Migrate the new Codegen path to the common stage ABI and verified OIR_MODULE input; keep the temporary host AST materialization bridge until output parity is established.
 
 ## P3 — Native NEXSUS linker and OCL — future architecture requirement
 
@@ -301,12 +301,12 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] The validated artifact is persisted as `<source-basename>.module.oir` using a same-directory temporary file and platform-appropriate replacement.
 - [x] CMake makes the lowering shared library a build dependency of OCC and links the OIR_MODULE reader into the host.
 - [x] A CLI integration fixture exercises the supported scalar lowering subset and checks the persisted OIR signature and artifact size.
-- [x] The legacy AST materialization and `codegen_run` path remain active; no premature Codegen migration is claimed.
+- [x] The legacy AST materialization and `codegen_run` path remain active as a compatibility/parity bridge; the new Codegen DLL is invoked after the OIR Verifier stage.
 - [x] **CI run 41366127592:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed; Ubuntu CTest **57/57**.
 
 **Current lowering scope:** the first lowering implementation supports a bounded scalar subset (integer/float/bool returns, straight-line arithmetic and initialized local values/assignments). Unsupported AST constructs still fail closed in this stage. The CLI integration fixture is intentionally inside this implemented subset; broader parser/semantic fixtures remain covered by their own tests.
 
-**Next compiler task:** migrate Codegen to the common `OccStageModuleV1` ABI and make it consume validated OIR_MODULE. Keep the legacy AST bridge until parity tests cover the existing supported source set.
+**Next compiler task:** expand the scalar OIR lowerer and verifier fixtures; then compare new and legacy assembly outputs. Keep the legacy AST bridge until parity tests cover the existing supported source set.
 
 
 ## Independent OIR Codegen stage DLL — 2 Kasım 2026
