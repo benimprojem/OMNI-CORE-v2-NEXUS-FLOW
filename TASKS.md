@@ -408,6 +408,7 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Keep prerequisite failures from triggering unsafe dependent passes; diagnostics now include a hint identifying downstream passes skipped after the failed prerequisite.
 - [x] Add code-specific, advisory `Suggested fix:` guidance to the existing diagnostic hint field without changing the common OCC ABI; retain skipped-pass information in the same hint.
 - [x] Emit warning 8621 for defined-but-unused SSA values after all validity passes succeed; include the value ID and a removal/dead-computation suggestion.
+- [x] Bound individual unused-value warnings to 32 per module and emit note 8622 with the omitted count to prevent diagnostic floods.
 - [x] Preserve the existing strict compilation warning gate: Verifier warnings retain warning severity and do not fail the Verifier stage, but may suppress final compilation output publication under the current strict policy.
 - [ ] Extend fail-fast reporting to collect multiple independent safe-to-check validation failures without running passes whose prerequisites failed.
 - [x] Add regression assertions for exact diagnostic codes and available ID context: SSA use, cross-function CFG edge, function entry ownership, SSA definition, terminator, malformed opcode payload, type record, overlapping instruction coverage and opcode/result type mismatch.
