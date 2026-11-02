@@ -189,3 +189,33 @@ Implementation files are under `omnicore-sdk/src/c/parser/`:
 ## AST schema decision (proposed, pending implementation)
 
 Append new node IDs only; do not alter IDs 1–80. Proposed family: `AST_LAMBDA`, `AST_SELECT`, `AST_SELECT_ARM`, `AST_SCAN`, `AST_SCAN_ARM`, `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT`, `AST_APPLY_RULES`, `AST_ON_BLOCK`, `AST_RELOCATE`, and `AST_UNROLL`. These names are a design proposal, not yet added to `ast.h`; exact enum/payload/codecs/tests should be implemented as one coherent patch after grammar and ownership rules are agreed.
+
+
+### Select/scan concrete representation (implementation contract)
+
+To avoid consuming otherwise legal identifiers as reserved words, the C parser will recognize `select` and `scan` contextually at statement position only when the identifier is immediately followed by `(`. The lexer token stream remains backward-compatible; ordinary identifiers named `select` or `scan` remain usable in other contexts.
+
+Canonical AST payloads:
+
+- `AST_SELECT`: `selector` expression and ordered `arms` sibling list.
+- `AST_SELECT_ARM`: `pattern` expression/pattern node, `body` statement/block, and an explicit `is_default` flag. Default is represented as an arm (not a magic identifier); at most one default arm is valid.
+- `AST_SCAN`: `subject` expression and ordered `arms` sibling list.
+- `AST_SCAN_ARM`: `pattern` node and `body`; pattern bindings are represented by pattern nodes and later introduced into an arm-local semantic scope.
+
+Pattern nodes are not equivalent to calls. A constructor pattern such as `Range(s,e)` must preserve constructor name and ordered binding children without resolving `Range` as a function. The first implementation will add `AST_PATTERN_BINDING` and `AST_PATTERN_CONSTRUCTOR`; literal and wildcard patterns reuse literal/identifier forms only where their semantics are unambiguous.
+
+Parser grammar:
+```text
+select "(" expression ")" "{" select_arm* "}"
+select_arm := "default" "->" statement
+            | pattern "->" statement
+scan "(" expression ")" "{" scan_arm* "}"
+scan_arm := pattern "->" statement
+pattern := identifier
+         | identifier "(" binding ("," binding)* ")"
+         | literal
+```
+
+Validation rules: reject duplicate defaults; reject empty constructor patterns; preserve arm order; require a body after each arrow; reject malformed/missing closing delimiters with parser diagnostics and recovery at the next arm boundary. Semantic analysis will check exhaustiveness only when the subject has a closed enum/union type; otherwise default remains optional and unmatched behavior is defined by the select/scan language contract. Pattern-bound names are arm-local and cannot leak into sibling arms.
+
+Wire format: each node serializes only explicit scalar flags and owned child subtrees; no raw pointers, `size_t`, or compiler-private struct layout is written. New node IDs append after the current maximum and are never inserted among existing IDs. All four construct nodes plus pattern nodes must be registered in allocation-size, print, destroy, serialize and deserialize switches before parser construction is enabled.
