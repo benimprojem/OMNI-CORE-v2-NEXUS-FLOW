@@ -35,8 +35,8 @@ int main(void) {
     warning_input.message_length = strlen(warning_input.message);
     CHECK(occ_diagnostics_add(&warning_only, &warning_input),
         "add warning-only diagnostic");
-    CHECK(!occ_diagnostics_blocks_output(&warning_only),
-        "warnings alone must not block valid output");
+    CHECK(occ_diagnostics_blocks_output(&warning_only),
+        "the current compilation policy applies a strict warning gate");
     warning_input.severity = OCC_DIAG_ERROR;
     warning_input.code = 9003u;
     warning_input.message_id = 9003u;
