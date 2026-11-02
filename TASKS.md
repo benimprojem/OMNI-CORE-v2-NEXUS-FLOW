@@ -323,3 +323,22 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] **CI run 41367815321:** f32/f64 Codegen tests passed; Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **58/58**; Ubuntu ASan/UBSan and Valgrind passed.
 
 **Next Codegen work:** expand multi-function/multi-block CFG, branches and calls incrementally; define a target descriptor artifact/selection contract for backend modules; compare behavior against the legacy output; only then make OIR_ASSEMBLY the final Codegen output and remove the AST bridge. F32/F64 constants, SSE arithmetic and RAX bit-pattern returns are covered by the direct Codegen stage test.
+
+
+## Independent OIR Verifier stage — 2 Kasım 2026
+
+- [x] Add `occ_oir_verify_stage` as an independent shared module using `OccStageModuleV1` (module ID `0x00010006`, stage ID `OCC_STAGE_OIR_VERIFY`).
+- [x] Validate OIR_MODULE 1.1 envelope, producer stage, validity, job identity and exactly one payload.
+- [x] Validate function/block ownership, entry blocks, complete non-overlapping instruction ranges and instruction ownership.
+- [x] Validate terminators, same-function CFG edges, opcode shape and implemented scalar type constraints.
+- [x] Validate one definition per SSA value, same-block use order and cross-block dominance.
+- [x] Preserve unreachable blocks without treating them as reachable dominators; disallow cross-block SSA uses that cannot be proven to dominate.
+- [x] Republish the original OIR sections with producer stage `OCC_STAGE_OIR_VERIFY`; no silent repair or mutation.
+- [x] Insert the verifier into the OCC host pipeline between OIR Lowering and Codegen; persist the verified module artifact and require verifier-produced input at Codegen.
+- [x] Add direct DLL tests for a valid module and a malformed use-before-definition SSA module; keep assertions active in Release CI.
+- [ ] Extend verifier checks when function signatures, block parameters/phi nodes, memory metadata and source maps enter the OIR schema.
+- [ ] Add negative fixtures for invalid CFG ownership, missing terminators, non-dominating cross-block values and duplicate definitions.
+
+**Current verifier resource bounds:** 8,192 blocks/module; 1,000,000 function, instruction and value records; OIR string table remains capped at 16 MiB. These are implementation/resource limits, not NEXSUS Flow language limits.
+
+**Next compiler task:** verify the end-to-end CI result for this stage, then expand the lowerer beyond the current one-function/one-block scalar subset. Codegen remains target-specific and its output parity with the legacy AST bridge is still pending.
