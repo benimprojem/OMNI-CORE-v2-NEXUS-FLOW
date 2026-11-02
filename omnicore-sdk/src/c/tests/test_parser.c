@@ -788,7 +788,7 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
     int rules=0, apply=0, on_block=0, lambda=0, unroll=0, relocate=0;
     int ok=0;
     if(!ctx)return 0;
-    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) { fprintf(stderr,"feature parser status=%d errors=%d\\n",(int)parser_get_status(ctx),ctx->error_count); goto done; }
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) { Error* e; fprintf(stderr,"feature parser status=%d errors=%d\\n",(int)parser_get_status(ctx),ctx->error_count); for(e=ctx->error_head;e;e=e->next) fprintf(stderr,"  %d:%d %s\\n",e->line,e->col,e->message?e->message:""); goto done; }
     function=(ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if(!function || function->base.type!=AST_FUNC_DECL ||
        !function->body || function->body->type!=AST_BLOCK)goto done;
