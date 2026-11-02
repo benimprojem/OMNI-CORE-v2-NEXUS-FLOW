@@ -84,6 +84,7 @@ static size_t get_node_size(ASTNodeType type) {
             return sizeof(ASTCall);
             
         case AST_MEMBER_ACCESS: return sizeof(ASTMemberAccess);
+        case AST_INDEX_ACCESS: return sizeof(ASTIndexAccess);
 
         // --- Bildirimler ---
         case AST_VAR_DECL:    return sizeof(ASTVarDecl);
@@ -260,6 +261,13 @@ static void ast_print_recursive(ASTNode* node, int level) {
                 ASTMemberAccess* mem = (ASTMemberAccess*)node;
                 printf("MEMBER_ACCESS: .%s\n", mem->member_name);
                 ast_print_recursive(mem->object, level + 1);
+                break;
+            }
+            case AST_INDEX_ACCESS: {
+                ASTIndexAccess* index = (ASTIndexAccess*)node;
+                printf("INDEX_ACCESS\n");
+                ast_print_recursive(index->target, level + 1);
+                ast_print_recursive(index->index, level + 1);
                 break;
             }
             case AST_TUPLE: {
@@ -639,6 +647,12 @@ static void ast_destroy_recursive(ASTNode* node) {
             ASTMemberAccess* m = (ASTMemberAccess*)node;
             if (m->object) ast_destroy_recursive(m->object);
             if (m->member_name) free(m->member_name);
+            break;
+        }
+        case AST_INDEX_ACCESS: {
+            ASTIndexAccess* index = (ASTIndexAccess*)node;
+            if (index->target) ast_destroy_recursive(index->target);
+            if (index->index) ast_destroy_recursive(index->index);
             break;
         }
         case AST_TUPLE: {
@@ -1035,6 +1049,12 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             ast_serialize_recursive(m->object, writer);
             break;
         }
+        case AST_INDEX_ACCESS: {
+            ASTIndexAccess* index = (ASTIndexAccess*)node;
+            ast_serialize_recursive(index->target, writer);
+            ast_serialize_recursive(index->index, writer);
+            break;
+        }
         case AST_TUPLE: {
             ast_serialize_recursive(((ASTTuple*)node)->elements, writer);
             break;
@@ -1336,6 +1356,13 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             ASTMemberAccess* m = (ASTMemberAccess*)node;
             m->member_name = read_string(reader);
             m->object = ast_deserialize_recursive(reader);
+            break;
+        }
+        case AST_INDEX_ACCESS: {
+            ASTIndexAccess* index = (ASTIndexAccess*)node;
+            index->target = ast_deserialize_recursive(reader);
+            if (reader->failed) goto fail;
+            index->index = ast_deserialize_recursive(reader);
             break;
         }
         case AST_TUPLE: {
