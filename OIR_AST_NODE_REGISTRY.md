@@ -1,13 +1,13 @@
 # OIR AST Node Registry v1
 
 **Status:** Initial stable-ID registry proposal for AST payload schema 1.0  
-**Source inventory:** 97 node kinds in the current C frontend ASTNodeType enum  
+**Source inventory:** 99 node kinds in the current C frontend ASTNodeType enum  
 **Rule:** OIR IDs are explicit wire identifiers. They are not C enum ordinals, sizeof values, or compiler pointers.
 
 ## Registry rules
 
-- IDs 1–97 are assigned to the current node-kind inventory below.
-- New node kinds append after 96; published IDs are never renumbered or reused.
+- IDs 1–99 are assigned to the current node-kind inventory below.
+- New node kinds append after 99; published IDs are never renumbered or reused.
 - A removed node kind remains reserved.
 - Unknown required node kinds are rejected.
 - Each node kind has a field-ID namespace local to that kind. Existing field IDs are never reused.
