@@ -261,3 +261,8 @@ The scalar lowering slice is exercised through both the static lowering API and 
 - Memory and ownership operations required by the first NEXSUS Flow subset.
 
 These decisions must be made explicitly before the corresponding feature is implemented. Do not copy C semantics by default.
+
+
+## Array indexing follow-up
+
+AST indexing is implemented as `AST_INDEX_ACCESS`; semantic analysis requires an array-valued target and an integer index and records the indexed expression as an lvalue. OIR lowering does **not** yet emit indexed memory operations. Before enabling it, define the bounds policy (runtime trap vs. proven-safe/elided check), row-major multidimensional offset calculation, index evaluation order, and canonical typed load/store representation. Until these are specified and verified, indexed reads/writes remain outside the executable lowering subset.
