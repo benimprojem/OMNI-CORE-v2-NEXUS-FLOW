@@ -348,7 +348,7 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 | Area | Existing responsibility / reuse target |
 |---|---|
-| `core/` | Compilation lifecycle, diagnostics and failure storage |
+| `core/` | Compilation lifecycle, diagnostics and failure storage; `occ_diagnostics_blocks_output()` treats warnings as non-blocking while errors/fatal diagnostics block output |
 | `module/` | Shared stage ABI, loader and stage adapters for Lexer, Parser, Semantic, OIR Lowering, OIR Verifier and Codegen |
 | `oir/` | OIR artifact/container, payloads, semantic AST records, maps, lowering, opcode registry and diagnostics |
 | `parser/` | Lexer, parser/AST and semantic analysis |
@@ -359,7 +359,7 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 ## Verifier-specific reuse map
 
-- `module/oir_verify_stage_module.c`: `OirVerifyFailure` carries stable verifier diagnostic code plus available function/block/instruction/value/type IDs; `validate_module()` coordinates six validation passes; `report_verify_error()` maps codes to stable messages and code-specific `Suggested fix:` guidance through the existing diagnostic hint field, while preserving skipped-pass hints and the shared OCC ABI. Refactor this implementation; do not create a second verifier module.
+- `module/oir_verify_stage_module.c`: `OirVerifyFailure` carries stable verifier diagnostic code plus available function/block/instruction/value/type IDs; `validate_module()` coordinates six validation passes; `report_verify_error()` maps codes to stable messages and code-specific `Suggested fix:` guidance through the existing diagnostic hint field, while preserving skipped-pass hints and the shared OCC ABI. `validate_ssa_uses()` also builds a use-count table; `report_unused_value_warnings()` emits advisory warning 8621 for unused SSA values only after all validity passes succeed. Refactor this implementation; do not create a second verifier module.
 - `oir/oir_module.c` + `oir/oir_module.h`: canonical OIR_MODULE reader/writer and accessors. Reuse its accessors rather than reimplementing payload decoding.
 - `oir/oir_module_opcode.c` + `oir/oir_module_opcode.h`: opcode registry and `oir_opcode_validate_shape()` for operand count/kinds and result-presence rules. The verifier reuses this helper before opcode-specific semantic/type checks; extend the registry/contract rather than duplicating opcode tables.
 - `module/occ_module_api.h` + `module/occ_module_api.c`: common stage ABI and diagnostics; do not add a verifier-only ABI.
