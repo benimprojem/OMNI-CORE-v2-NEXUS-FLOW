@@ -417,7 +417,6 @@ static int validate_module(const OirModuleView* m) {
     uint32_t *queue = NULL;
     uint64_t *pred = NULL, *dom = NULL;
     size_t words, matrix_words;
-    uint32_t i, j, f;
     int ok = 0;
 
     if (!m || m->function_count == 0u || m->block_count == 0u ||
