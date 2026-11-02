@@ -194,13 +194,19 @@ static int populate_ast_fixture(ASTNode* node) {
             return assign_text(&((ASTIdentifier*)node)->name, "fixture_identifier");
 
         case AST_BINARY_EXPR:
-        case AST_ASSIGNMENT:
-        case AST_INDEX_ACCESS: {
+        case AST_ASSIGNMENT: {
             ASTBinaryExpr* value = (ASTBinaryExpr*)node;
             value->op = TOKEN_PLUS;
             value->left = make_identifier_fixture("left_operand");
             value->right = make_identifier_fixture("right_operand");
             return value->left && value->right;
+        }
+
+        case AST_INDEX_ACCESS: {
+            ASTIndexAccess* value = (ASTIndexAccess*)node;
+            value->target = make_identifier_fixture("index_target");
+            value->index = make_literal_fixture();
+            return value->target && value->index;
         }
 
         case AST_NEXUS_FLOW:
