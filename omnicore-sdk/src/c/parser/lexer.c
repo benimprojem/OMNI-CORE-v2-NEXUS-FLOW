@@ -343,6 +343,12 @@ Token lexer_next_token(ParserContext* ctx) {
     const char* start = &ctx->source_buffer[ctx->pos];
     char c = advance(ctx);
 
+    /* `_>` must win over the generic underscore-prefixed identifier path. */
+    if (c == '_' && peek(ctx) == '>') {
+        advance(ctx);
+        return make_token(ctx, TOKEN_RELOCATE, start, 2);
+    }
+
     // --- Tanımlayıcılar (Identifiers) ---
     if (isalpha((unsigned char)c) || c == '_') {
         while (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_' || peek(ctx) == ':') {
