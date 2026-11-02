@@ -337,6 +337,16 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
         case AST_SCAN_ARM: { const ASTScanArm* n=(const ASTScanArm*)node; REF(1,n->pattern); REF(2,n->body); break; }
         case AST_PATTERN_BINDING: STR(1,((const ASTPatternBinding*)node)->name); break;
         case AST_PATTERN_CONSTRUCTOR: { const ASTPatternConstructor* n=(const ASTPatternConstructor*)node; STR(1,n->name); REF(2,n->bindings); break; }
+        case AST_RULESET_DECL: { const ASTRulesetDecl* n=(const ASTRulesetDecl*)node; STR(1,n->name); REF(2,n->params); REF(3,n->rules); break; }
+        case AST_RULE_BARRIER: { const ASTRuleBarrier* n=(const ASTRuleBarrier*)node; REF(1,n->condition); REF(2,n->message); break; }
+        case AST_RULE_TRIGGER: { const ASTRuleTrigger* n=(const ASTRuleTrigger*)node; REF(1,n->condition); REF(2,n->action); break; }
+        case AST_RULE_ALWAYS: REF(1,((const ASTRuleAlways*)node)->action); break;
+        case AST_RULE_DEFAULT: REF(1,((const ASTRuleDefault*)node)->action); break;
+        case AST_APPLY_RULES: { const ASTApplyRules* n=(const ASTApplyRules*)node; STR(1,n->ruleset_name); REF(2,n->args); break; }
+        case AST_ON_BLOCK: { const ASTOnBlock* n=(const ASTOnBlock*)node; STR(1,n->ruleset_name); STR(2,n->event_name); REF(3,n->body); break; }
+        case AST_LAMBDA: { const ASTLambda* n=(const ASTLambda*)node; REF(1,n->params); REF(2,n->body); BOOL(3,n->body_is_expression); break; }
+        case AST_RELOCATE: { const ASTRelocate* n=(const ASTRelocate*)node; REF(1,n->source); REF(2,n->target); break; }
+        case AST_UNROLL: { const ASTUnroll* n=(const ASTUnroll*)node; REF(1,n->count); REF(2,n->loop); break; }
         case AST_BREAK: case AST_CONTINUE: break;
         default: return OIR_STATUS_INVALID_SECTION;
     }
