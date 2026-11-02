@@ -396,6 +396,8 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 ## OIR Verifier structural pass decomposition — next increment
 
 - [ ] Split the current monolithic `validate_module()` into dependency-ordered internal validation passes without changing accepted OIR semantics.
+- [x] Extract the first structural pass as `validate_structure()`: validate primitive type records, block ownership, exact instruction coverage and function-entry ownership before dependent validation.
+- [ ] Extract SSA definition-record validation, opcode/type validation, CFG/terminator validation and dominance/SSA-use validation as subsequent dependency-ordered passes.
 - [ ] Add stable, specific diagnostic codes for module limits, type records, block/function ownership, instruction coverage, value definitions, opcode shape/type, CFG edges, terminators, dominance and SSA uses.
 - [ ] Include function/block/instruction/value identifiers in diagnostic context where available; keep the shared OCC ABI unchanged.
 - [ ] Keep prerequisite failures from triggering unsafe dependent passes; report skipped passes distinctly from successful passes.
