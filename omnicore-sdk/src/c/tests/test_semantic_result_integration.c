@@ -22,7 +22,109 @@ static uint32_t resolve_node_id(void* user_context, const ASTNode* node) {
         resolver->entries, resolver->capacity, node);
 }
 
+static uint32_t find_scope_owner(const SemanticResult* result,uint32_t owner_node_id) {
+    uint32_t i;
+    for(i=0u;i<result->scope_count;i++)
+        if(result->scopes[i].owner_node_id==owner_node_id)return i+1u;
+    return 0u;
+}
+
+static ASTVarDecl* find_local(ASTNode* statements,const char* name) {
+    ASTNode* current;
+    for(current=statements;current;current=current->next) {
+        if(current->type==AST_VAR_DECL) {
+            ASTVarDecl* variable=(ASTVarDecl*)current;
+            if(variable->name && strcmp(variable->name,name)==0)return variable;
+        }
+    }
+    return NULL;
+}
+
+static int test_extended_semantic_scopes(void) {
+    static const char source[] =
+        "f:main() {"
+        " v:choice = 1;"
+        " select(choice) { Range(s,e) -> { v:seen = s; } default -> { } }"
+        " scan(choice) { Range(a,b) -> { v:seen2 = b; } }"
+        " rules PrimeBorders(n) { n < 2 :=> \"out of range\"; n == 2 -> Success; always -> true; default -> false; }"
+        " apply rules(PrimeBorders(2));"
+        " on PrimeBorders.Success { v:handled = true; }"
+        " v:callback = f:(x) > x;"
+        " v:callback_block = f:(y) { ret y; };"
+        " v:data = 1;"
+        " unroll(3) -> loop(item in data) { v:copy = item; }"
+        " v:src!i32 = 1; v:dst!i32 = 2; v:moved = src _> dst;"
+        "}";
+    ParserContext* parser=parser_init_source(
+        "extended-semantic-scopes.nxf",(const uint8_t*)source,sizeof(source)-1u);
+    OirAstPointerIndexEntry index[1024];
+    ResolverContext resolver;
+    SemanticContext semantic;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTSelect* select_node;
+    ASTSelectArm* select_arm;
+    ASTPatternConstructor* constructor;
+    ASTLambda* lambda;
+    ASTVarDecl* callback;
+    ASTRulesetDecl* ruleset=NULL;
+    ASTNode* statement;
+    uint32_t node_count=0u,select_scope,lambda_scope,ruleset_scope;
+    int ok=0;
+    if(!parser)return 0;
+    if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count || !parser->ast_root)goto done;
+    memset(index,0,sizeof(index));
+    if(oir_ast_frontend_index_build((ASTNode*)parser->ast_root,index,1024u,&node_count)!=OIR_STATUS_OK)goto done;
+    resolver.entries=index;resolver.capacity=1024u;
+    function=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    if(!function || !function->body || function->body->type!=AST_BLOCK)goto done;
+    body=(ASTBlock*)function->body;
+    select_node=(ASTSelect*)body->statements->next;
+    if(!select_node || select_node->base.type!=AST_SELECT || !select_node->arms)goto done;
+    select_arm=(ASTSelectArm*)select_node->arms;
+    if(!select_arm->pattern || select_arm->pattern->type!=AST_PATTERN_CONSTRUCTOR)goto done;
+    constructor=(ASTPatternConstructor*)select_arm->pattern;
+    callback=find_local(body->statements,"callback");
+    if(!callback || !callback->initializer || callback->initializer->type!=AST_LAMBDA)goto done;
+    lambda=(ASTLambda*)callback->initializer;
+    for(statement=body->statements;statement;statement=statement->next)
+        if(statement->type==AST_RULESET_DECL)ruleset=(ASTRulesetDecl*)statement;
+    if(!ruleset)goto done;
+
+    semantic_init(&semantic,"extended-semantic-scopes.nxf",NULL);
+    semantic_attach_node_id_resolver(&semantic,resolve_node_id,&resolver);
+    semantic_check(&semantic,(ASTNode*)parser->ast_root);
+    if(semantic.error_count!=0 || semantic.result_status!=SEMANTIC_RESULT_OK ||
+       semantic.current_scope_id!=1u || semantic.current_depth!=0) {
+        semantic_destroy(&semantic);
+        goto done;
+    }
+    if(semantic_finalize_result(&semantic,node_count)!=SEMANTIC_RESULT_OK) {
+        semantic_destroy(&semantic);
+        goto done;
+    }
+    select_scope=find_scope_owner(&semantic.result,resolve_node_id(&resolver,(ASTNode*)select_arm));
+    lambda_scope=find_scope_owner(&semantic.result,resolve_node_id(&resolver,(ASTNode*)lambda));
+    ruleset_scope=find_scope_owner(&semantic.result,resolve_node_id(&resolver,(ASTNode*)ruleset));
+    ok=select_scope!=0u && lambda_scope!=0u && ruleset_scope!=0u &&
+        constructor->bindings!=NULL &&
+        semantic_result_find_visible_symbol(&semantic.result,select_scope,"s")!=0u &&
+        semantic_result_find_visible_symbol(&semantic.result,1u,"s")==0u &&
+        semantic_result_find_visible_symbol(&semantic.result,lambda_scope,"x")!=0u &&
+        semantic_result_find_visible_symbol(&semantic.result,1u,"x")==0u &&
+        semantic_result_find_visible_symbol(&semantic.result,ruleset_scope,"n")!=0u &&
+        semantic_result_find_visible_symbol(&semantic.result,1u,"n")==0u;
+    semantic_destroy(&semantic);
+done:
+    parser_destroy(parser);
+    return ok;
+}
+
 int main(void) {
+    if(!test_extended_semantic_scopes()) {
+        fprintf(stderr,"Extended AST semantic scope/result integration failed.\\n");
+        return 1;
+    }
     ASTProgram program;
     ASTFuncDecl function;
     ASTVarDecl parameter;
