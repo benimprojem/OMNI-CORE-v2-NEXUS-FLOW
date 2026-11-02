@@ -259,3 +259,34 @@ The existing ast_serialize()/ast_deserialize() stream is a legacy native C forma
 ## Semantic AST payload (draft)
 
 The semantic handoff is specified separately in [OIR_SEMANTIC_AST.md](OIR_SEMANTIC_AST.md). It preserves the AST schema 1.0 payload unchanged and adds versioned OIR sections for scopes, types, symbols, ordered relations and per-node annotations. Conversion/promotion records are optional until the NEXSUS Flow type-promotion rules are fully specified and tested. The schema is a design draft; no codec or semantic DLL is claimed yet.
+
+
+## OIR_ASSEMBLY — schema 1.0
+
+Producer: target-specific Codegen stage  
+Consumer: assembler or a later object-generation stage
+
+The required PAYLOAD section contains raw NASM assembly source bytes. The payload is UTF-8/ASCII text without a terminating NUL. Schema 1.0 currently restricts emitted text to printable ASCII plus LF, CR and TAB. Embedded NUL, non-text control bytes and invalid text are rejected by the OCC host.
+
+The OIR container header must identify:
+
+- Artifact kind: `OIR_KIND_ASSEMBLY`
+- Payload schema: `1.0`
+- Producer stage: `OCC_STAGE_CODEGEN`
+- Validity: `OIR_VALIDITY_VALID`
+- Job ID: the originating compilation job
+
+The payload is source text, **not** an object file, executable image or linkable binary. It must not be loaded or executed directly. The assembler is a later stage and is not part of this schema.
+
+### Initial backend profile and supported subset
+
+The first producer is the x86-64 NASM bare-metal Codegen module. Its host validates the selected target profile before invoking this backend. The initial implementation supports one function and one basic block with:
+
+- `i32`, `i64` and `bool` scalar values
+- Integer/boolean constants
+- Integer `ADD`, `SUB`, `MUL`, `DIV`, `REM` and `NEG`
+- A final scalar `RETURN`
+
+The first backend uses bounded stack slots for SSA values and emits the `_kernel_main` entry stub for the current BareMetal64 profile. Floating-point values, multi-function modules, multi-block control flow, branches, calls, memory operations, casts and unsupported opcodes are rejected. These are implementation limits of the first backend, not language-level limits.
+
+The host persists the complete artifact as `<source-basename>.assembly.oir` and extracts the validated text to `<source-basename>.stage.s`. The legacy `codegen_run` path still produces the existing `.s` output while parity is evaluated. The two outputs are separate; parity is not yet established.
