@@ -136,6 +136,25 @@ The file/path inventory below is complete for the snapshot. The function catalog
 ### `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`
 
 `pointer_hash()`, `insert_node()`, `oir_ast_frontend_index_lookup()`, `oir_ast_frontend_child_field_count()`, `visit_node()`, `oir_ast_frontend_index_build()`
+### `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`
+
+`get_u16()`, `get_u32()`, `get_u64()`, `get_i32()`, `get_i64()`, `get_f64()`, `allocate_string()`, `free_disconnected_node()`, `cleanup_disconnected()`, `validate_scalar_ranges()`, `populate_scalar_fields()`, `set_child_pointer()`, `oir_ast_frontend_read_payload()`
+
+### `omnicore-sdk/src/c/oir/oir_ast_frontend_writer.c`
+
+`put_u16()`, `put_u32()`, `put_u64()`, `valid_utf8()`, `bounded_string_length()`, `append_tlv()`, `emit_null()`, `emit_bool()`, `emit_u32()`, `emit_i32()`, `emit_i64()`, `emit_f64()`, `emit_token()`, `emit_node_ref()`, `emit_string()`, `emit_node_fields()`, `emit_tree()`, `run_measure()`, `oir_ast_frontend_measure()`, `oir_ast_frontend_write_payload()`
+
+### `omnicore-sdk/src/c/oir/oir_ast_graph.c`
+
+`read_u32_le()`, `add_incoming()`, `oir_ast_graph_validate()`
+
+### `omnicore-sdk/src/c/oir/oir_ast_map.c`
+
+`oir_ast_node_id_from_frontend()`, `oir_ast_node_id_to_frontend()`
+
+### `omnicore-sdk/src/c/oir/oir_ast_node_table.c`
+
+`read_u16_le()`, `read_u32_le()`, `write_u16_le()`, `write_u32_le()`, `valid_utf8()`, `validate_node_fields()`, `validate_host_records()`, `oir_ast_node_table_open()`, `oir_ast_node_table_get()`, `oir_ast_node_table_get_string()`, `oir_ast_node_table_get_field()`, `oir_ast_node_table_write()`
 ## Complete C/header file inventory
 
 ### `omnicore-sdk/src/c/codegen/`
