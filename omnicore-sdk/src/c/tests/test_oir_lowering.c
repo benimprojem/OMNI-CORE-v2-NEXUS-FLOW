@@ -90,7 +90,6 @@ static int test_lowering_stage_module(
         module.value_count == 0u ||
         oir_module_get_function(&module, 0u, &function) != OIR_STATUS_OK ||
         function.id != 1u || function.entry_block_id != 1u) goto cleanup;
-    if (!test_lowering_stage_module(stage_module, semantic_artifact, semantic_length)) goto cleanup;
     ok = 1;
 
 cleanup:
@@ -306,6 +305,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             immediate.kind!=OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate!=3u)
             goto cleanup;
     }
+    if (!test_lowering_stage_module(stage_module, semantic_artifact, semantic_length)) goto cleanup;
     ok = 1;
 
 cleanup:
