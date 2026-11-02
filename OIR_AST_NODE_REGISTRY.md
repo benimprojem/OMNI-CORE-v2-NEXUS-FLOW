@@ -1,13 +1,13 @@
 # OIR AST Node Registry v1
 
 **Status:** Initial stable-ID registry proposal for AST payload schema 1.0  
-**Source inventory:** 80 node kinds in the current C frontend ASTNodeType enum  
+**Source inventory:** 86 node kinds in the current C frontend ASTNodeType enum  
 **Rule:** OIR IDs are explicit wire identifiers. They are not C enum ordinals, sizeof values, or compiler pointers.
 
 ## Registry rules
 
-- IDs 1–80 are assigned to the current node-kind inventory below.
-- New node kinds append after 80; published IDs are never renumbered or reused.
+- IDs 1–86 are assigned to the current node-kind inventory below.
+- New node kinds append after 86; published IDs are never renumbered or reused.
 - A removed node kind remains reserved.
 - Unknown required node kinds are rejected.
 - Each node kind has a field-ID namespace local to that kind. Existing field IDs are never reused.
@@ -98,6 +98,12 @@
 | 78 | `AST_ZONE_SYNC` | Current C enum member; OIR ID is fixed independently of its C ordinal |
 | 79 | `AST_ZONE_VIEW` | Current C enum member; OIR ID is fixed independently of its C ordinal |
 | 80 | `AST_ZONE_LOCK` | Current C enum member; OIR ID is fixed independently of its C ordinal |
+| 81 | `AST_SELECT` | Selector expression and ordered select arms |
+| 82 | `AST_SELECT_ARM` | Pattern, body and explicit default flag |
+| 83 | `AST_SCAN` | Scan subject and ordered scan arms |
+| 84 | `AST_SCAN_ARM` | Pattern and body |
+| 85 | `AST_PATTERN_BINDING` | Arm-local pattern binding name |
+| 86 | `AST_PATTERN_CONSTRUCTOR` | Constructor name and ordered binding list |
 
 ## Field IDs and value types
 
@@ -171,6 +177,14 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_USE | 1 | module_name | STRING_REF / NULL |
 | AST_USE | 2 | alias | STRING_REF / NULL |
 | AST_BREAK, AST_CONTINUE | — | No node-specific fields | — |
+| AST_SELECT | 1–2 | selector, ordered arms | NODE_REF |
+| AST_SELECT_ARM | 1–2 | pattern, body | NODE_REF |
+| AST_SELECT_ARM | 3 | is_default | BOOL |
+| AST_SCAN | 1–2 | subject, ordered arms | NODE_REF |
+| AST_SCAN_ARM | 1–2 | pattern, body | NODE_REF |
+| AST_PATTERN_BINDING | 1 | name | STRING_REF / NULL |
+| AST_PATTERN_CONSTRUCTOR | 1 | name | STRING_REF / NULL |
+| AST_PATTERN_CONSTRUCTOR | 2 | ordered bindings | NODE_REF |
 
 The intrinsic call-kind set is:
 AST_SPAWN, AST_ECHO, AST_SEND, AST_RECEIVE, AST_DONE, AST_AREA, AST_ZONE, AST_ADDR, AST_LEN, AST_PEEK, AST_POKE, AST_INB, AST_OUTB, AST_IRQ, AST_INTR, AST_REG, AST_PRNT, AST_PRMT, AST_WRITE, AST_FWRITE, AST_TYPEOF, AST_SIZEOF, AST_IS_OK, AST_IS_ERR, AST_IS_SOME, AST_IS_NONE, AST_IS_NULL, AST_EXIT, AST_SWAP, AST_DATE, AST_DATENOW, AST_TIME, AST_CLOCK, AST_FREE, AST_ZONE_SYNC, AST_ZONE_VIEW and AST_ZONE_LOCK.
