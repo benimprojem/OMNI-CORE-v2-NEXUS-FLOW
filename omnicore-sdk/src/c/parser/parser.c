@@ -2577,6 +2577,175 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
     return root;
 }
 
+static ASTNode* parse_simple_parameter_list(Parser* p) {
+    ASTNode* head=NULL; ASTNode* tail=NULL;
+    if(check(p,TOKEN_RPAREN)) return NULL;
+    do {
+        Token t=p->current;
+        ASTVarDecl* param;
+        if(!check(p,TOKEN_IDENTIFIER)) {
+            error_at(p,&p->current,ERR_PARSER_EXPECTED_EXPRESSION,msg_get(MSG_EXPECT_PARAM_NAME));
+            ast_destroy(head); return NULL;
+        }
+        advance(p);
+        param=(ASTVarDecl*)parser_ast_create(p,AST_VAR_DECL);
+        if(!param){ast_destroy(head);return NULL;}
+        param->base.line=t.line; param->base.col=t.col;
+        param->name=(char*)parser_malloc(p,(size_t)t.length+1u);
+        if(!param->name){ast_destroy((ASTNode*)param);ast_destroy(head);return NULL;}
+        memcpy(param->name,t.start,(size_t)t.length); param->name[t.length]='\\0';
+        if(!head)head=(ASTNode*)param;else tail->next=(ASTNode*)param;
+        tail=(ASTNode*)param;
+    } while(match(p,TOKEN_COMMA));
+    return head;
+}
+
+static ASTNode* parse_ruleset(Parser* p) {
+    Token keyword=p->current, name_token;
+    ASTRulesetDecl* node;
+    ASTNode* rules=NULL; ASTNode* tail=NULL;
+    int seen_default=0;
+    advance(p);
+    if(match(p,TOKEN_LBRACKET)) {
+        if(!match(p,TOKEN_IDENTIFIER)){error_at(p,&p->current,ERR_PARSER_EXPECTED_EXPRESSION,"Expected ruleset name.");return NULL;}
+        name_token=p->previous;
+        consume(p,TOKEN_RBRACKET,ERR_PARSER_EXPECTED_BRACE,MSG_EXPECT_RBRACE_BLOCK);
+    } else if(match(p,TOKEN_IDENTIFIER)) name_token=p->previous;
+    else {error_at(p,&p->current,ERR_PARSER_EXPECTED_EXPRESSION,"Expected ruleset name.");return NULL;}
+    node=(ASTRulesetDecl*)parser_ast_create(p,AST_RULESET_DECL);
+    if(!node)return NULL;
+    node->base.line=keyword.line; node->base.col=keyword.col;
+    node->name=(char*)parser_malloc(p,(size_t)name_token.length+1u);
+    if(!node->name){ast_destroy((ASTNode*)node);return NULL;}
+    memcpy(node->name,name_token.start,(size_t)name_token.length);node->name[name_token.length]='\\0';
+    if(!check(p,TOKEN_LPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_LPAREN_FUNC));ast_destroy((ASTNode*)node);return NULL;}
+    advance(p); node->params=parse_simple_parameter_list(p);
+    if(!check(p,TOKEN_RPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_RPAREN_PARAMS));ast_destroy((ASTNode*)node);return NULL;}
+    advance(p);
+    if(!check(p,TOKEN_LBRACE)){error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,msg_get(MSG_EXPECT_LBRACE_FUNC));ast_destroy((ASTNode*)node);return NULL;}
+    advance(p);
+    while(p->current.type!=TOKEN_RBRACE && p->current.type!=TOKEN_EOF) {
+        ASTNode* rule=NULL;
+        if(parser_identifier_is(&p->current,"always") || parser_identifier_is(&p->current,"default")) {
+            int is_always=parser_identifier_is(&p->current,"always");
+            Token special=p->current; ASTNode* action;
+            advance(p);
+            if(!match(p,TOKEN_PIPE)){error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected '->' after rule keyword.");ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+            action=parse_statement(p);
+            if(!action){ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+            if(!is_always && seen_default++){error_at(p,&special,ERR_PARSER_UNEXPECTED_TOKEN,"Only one default rule is allowed.");ast_destroy(action);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+            if(is_always){ASTRuleAlways* n=(ASTRuleAlways*)parser_ast_create(p,AST_RULE_ALWAYS);if(!n){ast_destroy(action);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}n->base.line=special.line;n->base.col=special.col;n->action=action;rule=(ASTNode*)n;}
+            else {ASTRuleDefault* n=(ASTRuleDefault*)parser_ast_create(p,AST_RULE_DEFAULT);if(!n){ast_destroy(action);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}n->base.line=special.line;n->base.col=special.col;n->action=action;rule=(ASTNode*)n;}
+        } else {
+            ASTNode* condition=parse_range(p);
+            if(!condition){ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+            if(match(p,TOKEN_COLON)) {
+                if(!match(p,TOKEN_ASSIGN) || !match(p,TOKEN_GT)){error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected ':=>' barrier operator.");ast_destroy(condition);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+                ASTNode* message=parse_statement(p);
+                ASTRuleBarrier* n;
+                if(!message){ast_destroy(condition);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+                n=(ASTRuleBarrier*)parser_ast_create(p,AST_RULE_BARRIER);
+                if(!n){ast_destroy(condition);ast_destroy(message);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+                n->base.line=condition->line;n->base.col=condition->col;n->condition=condition;n->message=message;rule=(ASTNode*)n;
+            } else if(match(p,TOKEN_PIPE)) {
+                ASTNode* action=parse_statement(p);
+                ASTRuleTrigger* n;
+                if(!action){ast_destroy(condition);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+                n=(ASTRuleTrigger*)parser_ast_create(p,AST_RULE_TRIGGER);
+                if(!n){ast_destroy(condition);ast_destroy(action);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+                n->base.line=condition->line;n->base.col=condition->col;n->condition=condition;n->action=action;rule=(ASTNode*)n;
+            } else {
+                error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected ':=>' or '->' in ruleset.");
+                ast_destroy(condition);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;
+            }
+        }
+        if(!rules)rules=rule;else tail->next=rule;tail=rule;
+    }
+    if(!check(p,TOKEN_RBRACE)){error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,msg_get(MSG_EXPECT_RBRACE_BLOCK));ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+    advance(p); node->rules=rules; return (ASTNode*)node;
+}
+
+static ASTNode* parse_apply_rules(Parser* p) {
+    Token keyword=p->current,name;
+    ASTApplyRules* node;
+    ASTNode* args=NULL; ASTNode* tail=NULL;
+    advance(p); advance(p); /* apply rules */
+    if(!check(p,TOKEN_LPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_LPAREN_FUNC));return NULL;}
+    advance(p);
+    if(!match(p,TOKEN_IDENTIFIER)){error_at(p,&p->current,ERR_PARSER_EXPECTED_EXPRESSION,"Expected ruleset name.");return NULL;}
+    name=p->previous;
+    if(!check(p,TOKEN_LPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_LPAREN_FUNC));return NULL;}
+    advance(p);
+    if(!check(p,TOKEN_RPAREN)) {
+        do { ASTNode* arg=parse_expression(p); if(!arg){ast_destroy(args);return NULL;} if(!args)args=arg;else tail->next=arg;tail=arg; } while(match(p,TOKEN_COMMA));
+    }
+    if(!check(p,TOKEN_RPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_RPAREN_ARGS));ast_destroy(args);return NULL;}
+    advance(p);
+    if(!check(p,TOKEN_RPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_RPAREN_ARGS));ast_destroy(args);return NULL;}
+    advance(p);
+    node=(ASTApplyRules*)parser_ast_create(p,AST_APPLY_RULES);
+    if(!node){ast_destroy(args);return NULL;}
+    node->base.line=keyword.line;node->base.col=keyword.col;
+    node->ruleset_name=(char*)parser_malloc(p,(size_t)name.length+1u);
+    if(!node->ruleset_name){ast_destroy((ASTNode*)node);ast_destroy(args);return NULL;}
+    memcpy(node->ruleset_name,name.start,(size_t)name.length);node->ruleset_name[name.length]='\\0';
+    node->args=args; (void)match(p,TOKEN_SEMICOLON); return (ASTNode*)node;
+}
+
+static ASTNode* parse_on_block(Parser* p) {
+    Token keyword=p->current, ruleset, event;
+    ASTOnBlock* node;
+    advance(p);
+    if(!match(p,TOKEN_IDENTIFIER)){error_at(p,&p->current,ERR_PARSER_EXPECTED_EXPRESSION,"Expected ruleset name after on.");return NULL;}
+    ruleset=p->previous;
+    if(!match(p,TOKEN_DOT) || !match(p,TOKEN_IDENTIFIER)){error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected Ruleset.Event after on.");return NULL;}
+    event=p->previous;
+    if(!check(p,TOKEN_LBRACE)){error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,msg_get(MSG_EXPECT_LBRACE_FUNC));return NULL;}
+    advance(p);
+    node=(ASTOnBlock*)parser_ast_create(p,AST_ON_BLOCK);if(!node)return NULL;
+    node->base.line=keyword.line;node->base.col=keyword.col;
+    node->ruleset_name=(char*)parser_malloc(p,(size_t)ruleset.length+1u);
+    node->event_name=(char*)parser_malloc(p,(size_t)event.length+1u);
+    if(!node->ruleset_name || !node->event_name){ast_destroy((ASTNode*)node);return NULL;}
+    memcpy(node->ruleset_name,ruleset.start,(size_t)ruleset.length);node->ruleset_name[ruleset.length]='\\0';
+    memcpy(node->event_name,event.start,(size_t)event.length);node->event_name[event.length]='\\0';
+    node->body=parse_block(p);
+    if(!node->body){ast_destroy((ASTNode*)node);return NULL;}
+    return (ASTNode*)node;
+}
+
+static ASTNode* parse_unroll(Parser* p) {
+    Token keyword=p->current; ASTNode* count; ASTNode* loop; ASTUnroll* node;
+    advance(p); advance(p); /* unroll ( */
+    count=parse_expression(p);
+    if(!count || !check(p,TOKEN_RPAREN)){if(count)ast_destroy(count);error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_RPAREN_EXPR));return NULL;}
+    advance(p);
+    if(!match(p,TOKEN_PIPE)){error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected '->' after unroll count.");ast_destroy(count);return NULL;}
+    loop=parse_expression(p);
+    if(!loop){ast_destroy(count);return NULL;}
+    if(loop->type!=AST_LOOP){error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"unroll target must be a loop.");ast_destroy(count);ast_destroy(loop);return NULL;}
+    node=(ASTUnroll*)parser_ast_create(p,AST_UNROLL);
+    if(!node){ast_destroy(count);ast_destroy(loop);return NULL;}
+    node->base.line=keyword.line;node->base.col=keyword.col;node->count=count;node->loop=loop;
+    return (ASTNode*)node;
+}
+
+static ASTNode* parse_lambda(Parser* p) {
+    Token keyword=p->previous; ASTLambda* node;
+    if(!check(p,TOKEN_LPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_LPAREN_FUNC));return NULL;}
+    advance(p);
+    node=(ASTLambda*)parser_ast_create(p,AST_LAMBDA);if(!node)return NULL;
+    node->base.line=keyword.line;node->base.col=keyword.col;
+    node->params=parse_simple_parameter_list(p);
+    if(!check(p,TOKEN_RPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_RPAREN_PARAMS));ast_destroy((ASTNode*)node);return NULL;}
+    advance(p);
+    if(match(p,TOKEN_GT)){node->body=parse_expression(p);node->body_is_expression=1;}
+    else if(check(p,TOKEN_LBRACE)){advance(p);node->body=parse_block(p);node->body_is_expression=0;}
+    else {error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected '>' expression or block after lambda parameters.");ast_destroy((ASTNode*)node);return NULL;}
+    if(!node->body){ast_destroy((ASTNode*)node);return NULL;}
+    return (ASTNode*)node;
+}
+
 static ASTNode* parse_statement(Parser* p) {
     if (p->panic_mode) p->panic_mode = 0; // Her yeni ifadede hata modunu sıfırla (Basit senkronizasyon)
 
