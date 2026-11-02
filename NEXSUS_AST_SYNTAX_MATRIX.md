@@ -232,7 +232,7 @@ Affected files and responsibilities:
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`: reader must allocate the correct AST payload size, restore owned strings/scalars, and attach every child field with ownership checks.
 - Existing AST binary codec in `parser/ast.c` remains a separate compatibility surface; OIR bridge support does not replace its print/destroy/serialize/deserialize integration.
 
-Implementation status (2 Kasım 2026): the six node kinds are appended to `ast.h`; all five `ast.c` lifecycle/codec switches and contextual parser grammar are updated; OIR IDs 81–86, child index, writer, reader and field schema are registered. Parser/AST binary tests and OIR payload round-trip tests are added. Full CI has not yet been run, so release readiness remains pending.
+Implementation status (2 Kasım 2026): the six node kinds are appended to `ast.h`; all five `ast.c` lifecycle/codec switches and contextual parser grammar are updated; OIR IDs 81–86, child index, writer, reader and field schema are registered. Parser/AST binary tests and OIR payload round-trip tests are added. **CI passed:** run 41451812569 — Windows, Ubuntu and macOS build/test; Ubuntu ASan/UBSan and Valgrind.
 
 Recommended canonical field order for the proposed nodes (field IDs are OIR schema IDs, not C struct offsets):
 
@@ -264,4 +264,4 @@ The six new OIR node kinds must be appended to the stable registry with IDs 81�
 
 ### Implementation note — 2 Kasım 2026
 
-`select` and `scan` are now implemented in the C frontend and OIR AST bridge. Recognition is contextual (identifier followed by `(` at statement position); `Range(s,e)` is represented by a constructor-pattern node, not a function call. Default arms have an explicit boolean flag. The C parser tests cover successful AST construction, duplicate defaults, empty constructor patterns and binary AST round-trip; the OIR round-trip test covers the new AST payloads. Semantic arm-local symbol introduction, type-aware exhaustiveness, and lowering are still separate pre-Codegen tasks. Cross-platform CI is pending.
+`select` and `scan` are now implemented in the C frontend and OIR AST bridge. Recognition is contextual (identifier followed by `(` at statement position); `Range(s,e)` is represented by a constructor-pattern node, not a function call. Default arms have an explicit boolean flag. The C parser tests cover successful AST construction, duplicate defaults, empty constructor patterns and binary AST round-trip; the OIR round-trip test covers the new AST payloads. Semantic arm-local symbol introduction, type-aware exhaustiveness, and lowering are still separate pre-Codegen tasks. Cross-platform CI passed (run 41451812569: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind).
