@@ -79,6 +79,8 @@ static void* semantic_callocate(
     return calloc(count, size);
 }
 
+static char indexed_element_type_buffer[64];
+
 static char* semantic_duplicate(SemanticContext* ctx, const char* value) {
     size_t length;
     char* copy;
@@ -774,22 +776,18 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             ASTIndexAccess* access = (ASTIndexAccess*)node;
             const char* target_type = get_expr_type(ctx, access->target);
             const char* element_type = "any";
-            char* owned_element_type = NULL;
             if (target_type && strncmp(target_type, "array|", 6u) == 0) {
                 const char* begin = target_type + 6u;
                 const char* end = strchr(begin, '[');
                 size_t length = end ? (size_t)(end - begin) : strlen(begin);
                 if (length > 0u && length < 64u) {
-                    owned_element_type = (char*)malloc(length + 1u);
-                    if (owned_element_type) {
-                        memcpy(owned_element_type, begin, length);
-                        owned_element_type[length] = '\0';
-                        element_type = semantic_duplicate(ctx, owned_element_type);
-                        if (!element_type) element_type = "any";
+                    if (length < sizeof(indexed_element_type_buffer)) {
+                        memcpy(indexed_element_type_buffer, begin, length);
+                        indexed_element_type_buffer[length] = '\0';
+                        element_type = indexed_element_type_buffer;
                     }
                 }
             }
-            free(owned_element_type);
             return element_type;
         }
         case AST_ARRAY_LITERAL: {
