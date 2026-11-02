@@ -11,6 +11,7 @@
 
 static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_ssa) {
     static const uint8_t strings[] = "main";
+    static const uint8_t metadata[] = "verifier-payload-preservation";
     OirModuleType types[2];
     OirModuleFunction functions[1];
     OirModuleBlock blocks[1];
@@ -19,7 +20,7 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     OirModuleOperand operands[5];
     OirModuleInput input;
     OirArtifactHeader header;
-    OirSectionInput section;
+    OirSectionInput sections[2];
     uint8_t module_bytes[2048];
     uint8_t* artifact;
     size_t module_length = 0u, artifact_capacity;
@@ -72,7 +73,8 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     assert(oir_module_write(module_bytes, sizeof(module_bytes), &input,
         &module_length) == OIR_STATUS_OK);
 
-    artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
+    artifact_capacity = OIR_HEADER_SIZE + 2u * OIR_SECTION_HEADER_SIZE +
+        module_length + sizeof(metadata) - 1u;
     artifact = (uint8_t*)malloc(artifact_capacity);
     if (!artifact) return 0;
     memset(&header, 0, sizeof(header));
@@ -84,12 +86,14 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     header.producer_stage_id = OCC_STAGE_OIR_LOWERING;
     header.validity = OIR_VALIDITY_VALID;
     header.job_id = 501u;
-    memset(&section, 0, sizeof(section));
-    section.type = OIR_SECTION_PAYLOAD; section.version = 1u;
-    section.flags = OIR_SECTION_FLAG_REQUIRED;
-    section.data = module_bytes; section.length = module_length;
+    memset(sections, 0, sizeof(sections));
+    sections[0].type = OIR_SECTION_PAYLOAD; sections[0].version = 1u;
+    sections[0].flags = OIR_SECTION_FLAG_REQUIRED;
+    sections[0].data = module_bytes; sections[0].length = module_length;
+    sections[1].type = OIR_SECTION_METADATA; sections[1].version = 1u;
+    sections[1].data = metadata; sections[1].length = sizeof(metadata) - 1u;
     assert(oir_artifact_write(artifact, artifact_capacity, &header,
-        &section, 1u, out_length) == OIR_STATUS_OK);
+        sections, 2u, out_length) == OIR_STATUS_OK);
     *out = artifact;
     return 1;
 }
@@ -306,7 +310,9 @@ int main(int argc, char** argv) {
     OccDiagnosticCollector diagnostics;
     uint8_t *input = NULL, *output = NULL;
     size_t input_length = 0u, output_length = 0u;
-    OirArtifactView artifact;
+    OirArtifactView artifact, input_artifact;
+    OirSectionView input_section, output_section;
+    uint8_t* input_snapshot = NULL;
     char error[256];
 
     assert(argc == 2);
@@ -318,6 +324,9 @@ int main(int argc, char** argv) {
     assert(loaded.module->descriptor.output_artifact_kind == OIR_KIND_MODULE);
 
     assert(build_module_artifact(&input, &input_length, 0));
+    input_snapshot = (uint8_t*)malloc(input_length);
+    assert(input_snapshot != NULL);
+    memcpy(input_snapshot, input, input_length);
     {
         OccModuleArtifactInputV1 stage_input;
         memset(&stage_input, 0, sizeof(stage_input));
@@ -326,7 +335,21 @@ int main(int argc, char** argv) {
             &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
             OCC_MODULE_LOADER_OK);
     }
+    assert(oir_artifact_open(input, input_length, &input_artifact) == OIR_STATUS_OK);
     assert(oir_artifact_open(output, output_length, &artifact) == OIR_STATUS_OK);
+    assert(input_artifact.section_count == artifact.section_count);
+    for (uint32_t section_index = 0u; section_index < input_artifact.section_count; ++section_index) {
+        assert(oir_artifact_get_section(&input_artifact, section_index, &input_section) == OIR_STATUS_OK);
+        assert(oir_artifact_get_section(&artifact, section_index, &output_section) == OIR_STATUS_OK);
+        assert(input_section.type == output_section.type);
+        assert(input_section.version == output_section.version);
+        assert(input_section.flags == output_section.flags);
+        assert(input_section.length == output_section.length);
+        assert(memcmp(input_section.data, output_section.data,
+            (size_t)input_section.length) == 0);
+    }
+    assert(memcmp(input, input_snapshot, input_length) == 0);
+    free(input_snapshot); input_snapshot = NULL;
     assert(artifact.header.artifact_kind == OIR_KIND_MODULE);
     assert(artifact.header.payload_schema_major == OIR_MODULE_SCHEMA_MAJOR);
     assert(artifact.header.payload_schema_minor == OIR_MODULE_SCHEMA_MINOR);
@@ -404,6 +427,7 @@ int main(int argc, char** argv) {
         }
     }
 
+    free(input_snapshot);
     free(input);
     occ_module_loader_close(&loaded);
     occ_diagnostics_destroy(&diagnostics);
