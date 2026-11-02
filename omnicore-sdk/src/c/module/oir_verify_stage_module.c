@@ -647,6 +647,8 @@ static int report_unused_value_warnings(
         !invocation->diagnostic_sink.report) return 0;
     for (i = 0u; i < module->value_count; ++i) {
         OirModuleValue value;
+        (void)fprintf(stderr, "OIR_UNUSED_DEBUG value=%u uses=%u count=%u\\n",
+            i + 1u, use_count[i + 1u], module->value_count);
         OccModuleDiagnosticV1 diagnostic;
         char message[192];
         char hint[256];
