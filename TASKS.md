@@ -314,10 +314,10 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Add `occ_codegen_stage` DLL/SO/dylib with stable module ID `0x00010005` and `OCC_STAGE_CODEGEN`.
 - [x] Consume one validated OIR_MODULE 1.1 artifact; validate producer stage, validity, job identity, unique payload, module structure and the first backend's SSA/use-def subset.
 - [x] Emit OIR_ASSEMBLY schema 1.0 with a bounded two-pass NASM text writer; NEED_OUTPUT_BUFFER retry does not publish partial output or diagnostics.
-- [x] Initial x86-64 BareMetal backend supports one function/basic block, i32/i64/bool constants, integer arithmetic and return; unsupported types/opcodes/CFG shapes fail closed.
+- [x] Initial x86-64 BareMetal backend supports one function/basic block, i32/i64/f32/f64/bool constants, integer arithmetic, SSE scalar float arithmetic and scalar return; unsupported opcodes/CFG shapes fail closed.
 - [x] OCC validates the selected legacy target profile, loads the Codegen stage DLL, validates OIR_ASSEMBLY and persists `.assembly.oir` plus `.stage.s`.
 - [x] Preserve the legacy `codegen_run` path and its `.s` output; parity is **not** yet claimed.
 - [x] Add direct dynamic-stage tests and end-to-end CLI artifact tests.
 - [x] **CI run 41367164418:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **58/58**; Ubuntu ASan/UBSan and Valgrind passed.
 
-**Next Codegen work:** add floating-point lowering, multiple functions/blocks, branches and calls incrementally; define a target descriptor artifact/selection contract for backend modules; compare behavior against the legacy output; only then make OIR_ASSEMBLY the final Codegen output and remove the AST bridge.
+**Next Codegen work:** expand multi-function/multi-block CFG, branches and calls incrementally; define a target descriptor artifact/selection contract for backend modules; compare behavior against the legacy output; only then make OIR_ASSEMBLY the final Codegen output and remove the AST bridge. F32/F64 constants, SSE arithmetic and RAX bit-pattern returns are covered by the direct Codegen stage test.
