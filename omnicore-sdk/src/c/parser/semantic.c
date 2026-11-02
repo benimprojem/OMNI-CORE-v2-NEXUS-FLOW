@@ -309,25 +309,100 @@ static uint32_t semantic_type_id(
     return status == SEMANTIC_RESULT_OK ? type_id : 0u;
 }
 
+static int semantic_eval_integer_constant(
+    const ASTNode* expression, int64_t* value_out
+) {
+    if (!expression || !value_out) return 0;
+    if (expression->type == AST_LITERAL) {
+        const ASTLiteral* literal = (const ASTLiteral*)expression;
+        const char* cursor;
+        char* end = NULL;
+        long long value;
+        if (literal->type != TOKEN_NUMBER || !literal->string_value ||
+            !literal->string_value[0]) return 0;
+        for (cursor = literal->string_value; *cursor; ++cursor) {
+            if (*cursor < '0' || *cursor > '9') return 0;
+        }
+        errno = 0;
+        value = strtoll(literal->string_value, &end, 10);
+        if (errno == ERANGE || !end || *end != '\0') return 0;
+        *value_out = (int64_t)value;
+        return 1;
+    }
+    if (expression->type == AST_UNARY_EXPR) {
+        const ASTUnaryExpr* unary = (const ASTUnaryExpr*)expression;
+        int64_t operand;
+        if (!semantic_eval_integer_constant(unary->operand, &operand))
+            return 0;
+        if (unary->op == TOKEN_PLUS) {
+            *value_out = operand;
+            return 1;
+        }
+        if (unary->op == TOKEN_MINUS) {
+            if (operand == INT64_MIN) return 0;
+            *value_out = -operand;
+            return 1;
+        }
+        return 0;
+    }
+    if (expression->type == AST_BINARY_EXPR) {
+        const ASTBinaryExpr* binary = (const ASTBinaryExpr*)expression;
+        int64_t left;
+        int64_t right;
+        if (!semantic_eval_integer_constant(binary->left, &left) ||
+            !semantic_eval_integer_constant(binary->right, &right))
+            return 0;
+        switch (binary->op) {
+            case TOKEN_PLUS:
+                if ((right > 0 && left > INT64_MAX - right) ||
+                    (right < 0 && left < INT64_MIN - right)) return 0;
+                *value_out = left + right;
+                return 1;
+            case TOKEN_MINUS:
+                if ((right < 0 && left > INT64_MAX + right) ||
+                    (right > 0 && left < INT64_MIN + right)) return 0;
+                *value_out = left - right;
+                return 1;
+            case TOKEN_STAR:
+                if (left == 0 || right == 0) {
+                    *value_out = 0;
+                    return 1;
+                }
+                if ((left == -1 && right == INT64_MIN) ||
+                    (right == -1 && left == INT64_MIN)) return 0;
+                if (left > 0) {
+                    if ((right > 0 && left > INT64_MAX / right) ||
+                        (right < 0 && right < INT64_MIN / left)) return 0;
+                } else {
+                    if ((right > 0 && left < INT64_MIN / right) ||
+                        (right < 0 && left < INT64_MAX / right)) return 0;
+                }
+                *value_out = left * right;
+                return 1;
+            case TOKEN_SLASH:
+                if (right == 0 || (left == INT64_MIN && right == -1))
+                    return 0;
+                *value_out = left / right;
+                return 1;
+            case TOKEN_PERCENT:
+                if (right == 0 || (left == INT64_MIN && right == -1))
+                    return 0;
+                *value_out = left % right;
+                return 1;
+            default:
+                return 0;
+        }
+    }
+    return 0;
+}
+
 static int semantic_array_dimension_value(
     const ASTNode* expression, uint64_t* value_out
 ) {
-    const ASTLiteral* literal;
-    const char* cursor;
-    char* end = NULL;
-    unsigned long long value;
-    if (!expression || expression->type != AST_LITERAL || !value_out)
-        return 0;
-    literal = (const ASTLiteral*)expression;
-    if (literal->type != TOKEN_NUMBER || !literal->string_value ||
-        !literal->string_value[0]) return 0;
-    for (cursor = literal->string_value; *cursor; ++cursor) {
-        if (*cursor < '0' || *cursor > '9') return 0;
-    }
-    errno = 0;
-    value = strtoull(literal->string_value, &end, 10);
-    if (errno == ERANGE || !end || *end != '\0' || value == 0u)
-        return 0;
+    int64_t value;
+    if (!value_out ||
+        !semantic_eval_integer_constant(expression, &value) ||
+        value <= 0) return 0;
     *value_out = (uint64_t)value;
     return 1;
 }
