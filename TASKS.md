@@ -485,10 +485,11 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 
 ## AST / OIR pre-Codegen completion — select/scan implementation gate
 
-- [ ] Append six dedicated AST node kinds for select, scan, arms, binding patterns and constructor patterns without changing existing AST enum IDs.
-- [ ] Extend all five AST lifecycle/codec switches: allocation size, printer, destructor, binary serializer and binary deserializer.
-- [ ] Extend the stable OIR AST registry from 80 to 86 node kinds; append OIR IDs 81–86 and preserve IDs 1–80 exactly.
-- [ ] Extend OIR frontend child-field index, writer and reader with matching ordered child references and explicit scalar/string fields.
-- [ ] Implement contextual statement parsing for `select(...)` and `scan(...)`, including literal, binding and constructor patterns, default uniqueness, body parsing and recovery.
-- [ ] Add parser, AST binary round-trip, OIR AST round-trip, malformed-input, ownership and allocation-failure tests for the new node family.
-- [ ] Update the published OIR AST registry/schema and compatibility fixtures; do not mark select/scan complete until all parser and OIR paths pass.
+- [x] Append six dedicated AST node kinds for select, scan, arms, binding patterns and constructor patterns without changing existing AST enum IDs.
+- [x] Extend all five AST lifecycle/codec switches: allocation size, printer, destructor, binary serializer and binary deserializer.
+- [x] Extend the stable OIR AST registry from 80 to 86 node kinds; append OIR IDs 81–86 and preserve IDs 1–80 exactly.
+- [x] Extend OIR frontend child-field index, writer and reader with matching ordered child references and explicit scalar/string fields.
+- [x] Implement contextual statement parsing for `select(...)` and `scan(...)`, including literal, binding and constructor patterns, default uniqueness and body parsing.
+- [x] Add parser and AST binary round-trip tests, malformed duplicate-default/empty-constructor tests, and OIR AST payload round-trip coverage.
+- [x] Update the published OIR AST registry/schema and registry boundary/field-schema fixtures.
+- [ ] Run the full cross-platform C test suite and sanitizer/Valgrind jobs; only mark the feature release-ready after CI passes.
