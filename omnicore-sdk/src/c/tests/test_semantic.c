@@ -101,10 +101,14 @@ static int check_array_literal_semantics(void) {
 
 static int check_array_type_semantics(void) {
     const char* valid =
-        "f:consume(a![], b!i32[], third:i32[4]) {}"
+        "f:consume(a![], b!i32[], third:i32[5]) {}"
+        "f:consume_matrix(m:f64[2][2]) {}"
+        "f:take_pair(values:i32[2]) {}"
         "f:main() { v:dynamic[]; v:fixed[5]!i32 = [1,2,3,4,5];"
         " v:matrix[2][2]!f64 = [[1.0,2.0],[3.0,4.0]];"
-        " v:computed[2+3]!i32 = [1,2,3,4,5]; }";
+        " v:computed[2+3]!i32 = [1,2,3,4,5];"
+        " consume(dynamic,fixed,computed); consume_matrix(matrix);"
+        " take_pair([1,2]); }";
     const char* zero_extent = "f:main() { v:invalid[0]!i32; }";
     const char* fractional_extent = "f:main() { v:invalid[1.5]!i32; }";
     const char* zero_expression = "f:main() { v:invalid[3-3]!i32; }";
@@ -113,6 +117,14 @@ static int check_array_type_semantics(void) {
     const char* negative_extent = "f:main() { v:invalid[-1]!i32; }";
     const char* wrong_shape = "f:main() { v:fixed[3]!i32 = [1,2]; }";
     const char* wrong_element = "f:main() { v:fixed[2]!i32 = [1.5,2.5]; }";
+    const char* call_element_mismatch =
+        "f:take(values:i32[4]) {} f:main() { v:wrong[4]!f32; take(wrong); }";
+    const char* call_extent_mismatch =
+        "f:take(values:i32[4]) {} f:main() { v:wrong[5]!i32; take(wrong); }";
+    const char* call_rank_mismatch =
+        "f:take(values:i32[2][2]) {} f:main() { v:wrong[4]!i32; take(wrong); }";
+    const char* call_literal_element_mismatch =
+        "f:take(values:i32[1]) {} f:main() { take([1.5]); }";
     return check_source(valid,0) &&
         check_source(zero_extent,1) &&
         check_source(fractional_extent,1) &&
@@ -121,7 +133,11 @@ static int check_array_type_semantics(void) {
         check_source(overflow_extent,1) &&
         check_source(negative_extent,1) &&
         check_source(wrong_shape,1) &&
-        check_source(wrong_element,2);
+        check_source(wrong_element,2) &&
+        check_source(call_element_mismatch,1) &&
+        check_source(call_extent_mismatch,1) &&
+        check_source(call_rank_mismatch,1) &&
+        check_source(call_literal_element_mismatch,1);
 }
 
 static int check_extended_ast_semantics(void) {
