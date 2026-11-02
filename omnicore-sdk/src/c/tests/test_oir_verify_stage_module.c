@@ -316,6 +316,16 @@ static void assert_last_diagnostic_code(const OccDiagnosticCollector* diagnostic
     if (expected_context) assert(strstr(view.message, expected_context) != NULL);
 }
 
+static void assert_last_diagnostic_hint(const OccDiagnosticCollector* diagnostics,
+    const char* expected_hint) {
+    OccDiagnosticView view;
+    size_t count = occ_diagnostics_count(diagnostics);
+    assert(count > 0u);
+    assert(occ_diagnostics_get(diagnostics, count - 1u, &view));
+    assert(view.hint != NULL);
+    assert(strstr(view.hint, expected_hint) != NULL);
+}
+
 int main(int argc, char** argv) {
     OccLoadedStageModule loaded;
     OccDiagnosticCollector diagnostics;
@@ -438,6 +448,8 @@ int main(int argc, char** argv) {
                 OCC_MODULE_LOADER_INVOKE_FAILED);
             assert(output == NULL && output_length == 0u);
             assert_last_diagnostic_code(&diagnostics, expected_codes[variant], expected_contexts[variant]);
+            if (variant == 3) assert_last_diagnostic_hint(&diagnostics, "passes were skipped");
+            if (variant == 9) assert_last_diagnostic_hint(&diagnostics, "Dominance and SSA-use passes were skipped");
             free(input); input = NULL; input_length = 0u;
         }
     }
