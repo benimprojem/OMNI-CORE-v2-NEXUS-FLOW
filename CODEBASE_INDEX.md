@@ -2,7 +2,7 @@
 
 **Repository:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Branch:** `refactor/c-core-roadmap`  
-**Snapshot commit:** `f705f11ac6fab274bc04bbb59b754dfc5df96747`  
+**Snapshot commit:** `3974773fadd2e8c7a211dc455320081976d1ea7e`  
 **Scope:** `omnicore-sdk/src/c/`  
 **Snapshot inventory:** 126 C/header files (91 C implementation files and 35 headers).  
 **Purpose:** prevent duplicate files/functions, make existing implementation discoverable before adding or changing code.
@@ -13,13 +13,13 @@ Before creating a source file or function, search this index and the current bra
 
 ## Inventory completeness
 
-The file/path inventory below is complete for the snapshot. The function catalogue now covers all non-test production `.c` implementation files in this snapshot. The `tests/` directory is fully listed by filename, but per-test function names are pending. Header declarations are listed by filename and should be indexed separately as public API declarations. The first-pass extractor is mechanical: review macro-related or unusual declarations against source before relying on a symbol as a stable API. The OIR Verifier source now calls the existing `oir_opcode_validate_shape()` registry helper; this function is not reimplemented inside the verifier.
+The file/path inventory below is complete for the snapshot. The function catalogue now covers all non-test production `.c` implementation files in this snapshot. The `tests/` directory is fully listed by filename, but per-test function names are pending. Header declarations are listed by filename and should be indexed separately as public API declarations. The first-pass extractor is mechanical: review macro-related or unusual declarations against source before relying on a symbol as a stable API. The OIR Verifier source now calls the existing `oir_opcode_validate_shape()` registry helper; this function is not reimplemented inside the verifier. Its first dependency-ordered pass is now extracted as `validate_structure()`, which validates primitive type records, block ownership, instruction coverage and function entry ownership before later passes run.
 
 ## Verified function catalogue
 
 ### `omnicore-sdk/src/c/module/oir_verify_stage_module.c`
 
-`get_type()`, `get_value()`, `get_operand()`, `get_value_operand()`, `get_block_operand()`, `type_is_numeric()`, `bit_get()`, `bit_set()`, `has_terminator()`, `validate_module()`, `find_sections()`, `report_verify_error()`, `oir_verify_process()`, `occ_get_stage_module_v1()`
+`get_type()`, `get_value()`, `get_operand()`, `get_value_operand()`, `get_block_operand()`, `type_is_numeric()`, `bit_get()`, `bit_set()`, `has_terminator()`, `validate_structure()`, `validate_module()`, `find_sections()`, `report_verify_error()`, `oir_verify_process()`, `occ_get_stage_module_v1()`
 
 ### `omnicore-sdk/src/c/module/oir_lowering_stage_module.c`
 
