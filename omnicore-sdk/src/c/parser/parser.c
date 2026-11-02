@@ -719,6 +719,27 @@ static ASTNode* parse_primary(Parser* p) {
         return (ASTNode*)loop;
     }
 
+    if (match(p, TOKEN_LBRACKET)) {
+        Token open=p->previous;
+        ASTArrayLiteral* array=(ASTArrayLiteral*)parser_ast_create(p,AST_ARRAY_LITERAL);
+        ASTNode* head=NULL; ASTNode* tail=NULL;
+        if(!array)return NULL;
+        array->base.line=open.line; array->base.col=open.col;
+        if(!check(p,TOKEN_RBRACKET)) {
+            do {
+                ASTNode* element=parse_expression(p);
+                if(!element){ast_destroy((ASTNode*)array);ast_destroy(head);return NULL;}
+                if(!head)head=element;else tail->next=element;
+                tail=element;
+            } while(match(p,TOKEN_COMMA) && !check(p,TOKEN_RBRACKET));
+        }
+        if(!consume(p,TOKEN_RBRACKET,ERR_PARSER_EXPECTED_BRACKET,"Expected ']' after array elements.")) {
+            ast_destroy((ASTNode*)array);ast_destroy(head);return NULL;
+        }
+        array->elements=head;
+        return (ASTNode*)array;
+    }
+
     if (match(p, TOKEN_LPAREN)) {
         // (loop) Kontrolü
         if (match(p, TOKEN_KW_LOOP)) {
