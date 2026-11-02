@@ -114,7 +114,9 @@ typedef enum {
     AST_LAMBDA,
     AST_RELOCATE,
     AST_UNROLL,
-    AST_ARRAY_LITERAL
+    AST_ARRAY_LITERAL,
+    AST_ARRAY_TYPE,
+    AST_ARRAY_DIMENSION
 
 } ASTNodeType;
 
@@ -202,6 +204,12 @@ typedef struct { ASTNode base; ASTNode* params; ASTNode* body; int body_is_expre
 typedef struct { ASTNode base; ASTNode* source; ASTNode* target; } ASTRelocate;
 typedef struct { ASTNode base; ASTNode* count; ASTNode* loop; } ASTUnroll;
 typedef struct { ASTNode base; ASTNode* elements; } ASTArrayLiteral;
+/* Array type declarator: dimensions are ordered AST_ARRAY_DIMENSION siblings.
+ * A NULL dimension length means a dynamic/unspecified dimension. The element
+ * type is carried by the owning ASTVarDecl.type_name (NULL means inferred).
+ */
+typedef struct { ASTNode base; ASTNode* dimensions; } ASTArrayType;
+typedef struct { ASTNode base; ASTNode* length; } ASTArrayDimension;
 
 // --- Bildirim Yapıları ---
 
@@ -214,7 +222,7 @@ typedef struct {
     int is_public;      // pup
     int is_exported;    // exp
     ASTNode* initializer;
-    ASTNode* inline_type; // For v:x!struct { ... }
+    ASTNode* inline_type; // Inline aggregate or structured type payload (e.g. AST_ARRAY_TYPE)
 } ASTVarDecl;
 
 typedef struct {
