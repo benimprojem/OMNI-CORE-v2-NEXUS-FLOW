@@ -219,6 +219,10 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         operands[9].kind = OIR_OPERAND_VALUE; operands[9].reference_id = 3u;
         operands[10].kind = OIR_OPERAND_VALUE; operands[10].reference_id = 4u;
     }
+    if (variant == 10) {
+        /* Return value 1 instead of ADD result 2; value 2 is now unused. */
+        operands[4].reference_id = 1u;
+    }
 
     if (variant == 2) {
         /* The branch is structurally valid, but its target belongs to function 2. */
