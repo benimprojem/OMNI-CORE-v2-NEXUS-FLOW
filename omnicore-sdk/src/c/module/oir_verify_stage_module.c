@@ -26,7 +26,8 @@ enum {
     OIR_VERIFY_DIAG_DOMINANCE = 8619u,
     OIR_VERIFY_DIAG_SSA_USE = 8620u,
     OIR_VERIFY_WARN_UNUSED_VALUE = 8621u,
-    OIR_VERIFY_NOTE_UNUSED_VALUE_LIMIT = 8622u
+    OIR_VERIFY_NOTE_UNUSED_VALUE_LIMIT = 8622u,
+    OIR_VERIFY_NOTE_TYPE_ERROR_LIMIT = 8623u
 };
 
 typedef struct OirVerifyFailure {
@@ -87,28 +88,45 @@ static int has_terminator(const OirModuleInstruction* ins) {
     return d && (d->flags & OIR_OPCODE_FLAG_TERMINATOR) != 0u;
 }
 
-/* Pass 1: validate module records and establish block/function ownership.
-   This pass must complete before any instruction-dependent validation. */
+/* Type records are independent: report every malformed entry before
+   skipping all passes that consume the type table. */
+#define OIR_VERIFY_MAX_TYPE_ERRORS 32u
+static uint32_t validate_type_records(const OirModuleView* m,
+    OirVerifyFailure* failures, uint32_t capacity, uint32_t* omitted) {
+    uint32_t i, count = 0u;
+    if (omitted) *omitted = 0u;
+    for (i = 0u; i < m->type_count; ++i) {
+        OirModuleType t;
+        int valid = oir_module_get_type(m, i, &t) == OIR_STATUS_OK;
+        if (valid) {
+            if (t.kind == OIR_MODULE_TYPE_INTEGER)
+                valid = t.bit_width == 8u || t.bit_width == 16u ||
+                    t.bit_width == 32u || t.bit_width == 64u;
+            else if (t.kind == OIR_MODULE_TYPE_FLOAT)
+                valid = t.bit_width == 32u || t.bit_width == 64u;
+            else if (t.kind == OIR_MODULE_TYPE_BOOLEAN)
+                valid = t.bit_width == 1u;
+            else valid = t.kind == OIR_MODULE_TYPE_FUNCTION;
+        }
+        if (!valid) {
+            if (count < capacity) {
+                memset(&failures[count], 0, sizeof(failures[count]));
+                failures[count].code = OIR_VERIFY_DIAG_TYPE_RECORD;
+                failures[count].type_id = i + 1u;
+                ++count;
+            } else if (omitted && *omitted != UINT32_MAX) {
+                ++(*omitted);
+            }
+        }
+    }
+    return count;
+}
+
+/* Pass 1: validate block/function ownership and instruction coverage.
+   Type records have already passed their independent prerequisite pass. */
 static int validate_structure(const OirModuleView* m,
     uint32_t* block_function, uint8_t* covered, OirVerifyFailure* failure) {
     uint32_t i, j, f;
-
-    /* Primitive type widths must match the published OIR type map. */
-    for (i = 0u; i < m->type_count; ++i) {
-        OirModuleType t;
-        if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_TYPE_RECORD; failure->type_id = i + 1u; }
-        if (oir_module_get_type(m, i, &t) != OIR_STATUS_OK) return 0;
-        if (t.kind == OIR_MODULE_TYPE_INTEGER) {
-            if (t.bit_width != 8u && t.bit_width != 16u &&
-                t.bit_width != 32u && t.bit_width != 64u) return 0;
-        } else if (t.kind == OIR_MODULE_TYPE_FLOAT) {
-            if (t.bit_width != 32u && t.bit_width != 64u) return 0;
-        } else if (t.kind == OIR_MODULE_TYPE_BOOLEAN) {
-            if (t.bit_width != 1u) return 0;
-        } else if (t.kind != OIR_MODULE_TYPE_FUNCTION) {
-            return 0;
-        }
-    }
 
     /* Establish unique block ownership and exact, non-overlapping instruction ranges. */
     for (i = 0u; i < m->block_count; ++i) {
@@ -582,6 +600,7 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
         case OIR_VERIFY_DIAG_INTERNAL_WORKSPACE: message = "OIR Verifier could not allocate its validation workspace."; remediation = "Retry with a smaller module or free memory; if reproducible on a small valid module, report it as a verifier allocation defect."; break;
         case OIR_VERIFY_DIAG_PAYLOAD_DECODE: message = "OIR_MODULE payload is malformed or violates the registered opcode wire contract."; remediation = "Regenerate the OIR payload with the canonical OIR writer and check its schema version, section layout and each opcode's registered operand encoding."; break;
         case OIR_VERIFY_DIAG_TYPE_RECORD: message = "OIR type record is invalid."; remediation = "Check the referenced type record's kind and bit width; use only schema-supported integer, float, boolean or function type forms."; break;
+        case OIR_VERIFY_NOTE_TYPE_ERROR_LIMIT: message = "Additional invalid OIR type records were omitted from diagnostics."; remediation = "Fix the reported type records, then rerun verification to reveal any remaining invalid entries."; break;
         case OIR_VERIFY_DIAG_BLOCK_OWNERSHIP: message = "OIR block ownership or instruction range is invalid."; remediation = "Assign each block to an existing function and ensure its non-empty instruction range stays within the instruction table."; break;
         case OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE: message = "OIR instruction coverage is incomplete, overlapping or inconsistent."; remediation = "Make block instruction ranges cover every instruction exactly once, without overlap, and ensure each instruction's block_id matches its owning block."; break;
         case OIR_VERIFY_DIAG_FUNCTION_ENTRY: message = "OIR function entry block or function type is invalid."; remediation = "Give the function a valid function-type record and an entry_block_id that names a block owned by that same function."; break;
@@ -629,15 +648,16 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
             failure->instruction_id, failure->value_id, failure->type_id);
         reported_message = contextual_message;
     }
-    result->failure_code = code;
+    if (result->diagnostics_count == 0u) result->failure_code = code;
     if (!invocation->diagnostic_sink.report) return OCC_MODULE_STATUS_FAILED;
     memset(&d, 0, sizeof(d));
     d.struct_size = (uint32_t)sizeof(d);
     d.code = code; d.message_id = code; d.severity = OCC_DIAG_ERROR;
     d.message = reported_message; d.message_length = strlen(reported_message);
     d.hint = hint; d.hint_length = hint ? strlen(hint) : 0u;
-    if (invocation->diagnostic_sink.report(invocation->diagnostic_sink.user_context, &d))
-        result->diagnostics_count = 1u;
+    if (invocation->diagnostic_sink.report(invocation->diagnostic_sink.user_context, &d) &&
+        result->diagnostics_count != UINT32_MAX)
+        result->diagnostics_count++;
     return OCC_MODULE_STATUS_FAILED;
 }
 
@@ -751,6 +771,29 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
             if (oir_module_open(section.data, (size_t)section.length, &module) != OIR_STATUS_OK)
                 return report_verify_error(invocation, result, OIR_VERIFY_DIAG_PAYLOAD_DECODE,
                     "OIR_MODULE payload could not be decoded.", NULL);
+            {
+                OirVerifyFailure type_failures[OIR_VERIFY_MAX_TYPE_ERRORS];
+                uint32_t omitted_type_errors = 0u;
+                uint32_t type_error_count = validate_type_records(&module,
+                    type_failures, OIR_VERIFY_MAX_TYPE_ERRORS, &omitted_type_errors);
+                uint32_t type_error_index;
+                if (type_error_count != 0u || omitted_type_errors != 0u) {
+                    for (type_error_index = 0u; type_error_index < type_error_count;
+                        ++type_error_index)
+                        (void)report_verify_error(invocation, result,
+                            OIR_VERIFY_DIAG_TYPE_RECORD, "OIR type record is invalid.",
+                            &type_failures[type_error_index]);
+                    if (omitted_type_errors != 0u) {
+                        OirVerifyFailure overflow_failure;
+                        memset(&overflow_failure, 0, sizeof(overflow_failure));
+                        overflow_failure.type_id = omitted_type_errors;
+                        (void)report_verify_error(invocation, result,
+                            OIR_VERIFY_NOTE_TYPE_ERROR_LIMIT,
+                            "Additional invalid OIR type records were omitted.", &overflow_failure);
+                    }
+                    return OCC_MODULE_STATUS_FAILED;
+                }
+            }
             if (!validate_module(&module, &failure, &unused_value_counts))
                 return report_verify_error(invocation, result,
                     failure.code ? failure.code : 8603u,
