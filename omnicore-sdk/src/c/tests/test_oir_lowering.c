@@ -284,19 +284,26 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
         OirModuleInstruction compare, branch;
         OirModuleOperand target_true, target_false;
         OirModuleFunction function;
-        if (module.block_count != 3u || module.instruction_count != 7u ||
-            module.operand_count != 10u || module.value_count != 4u ||
-            oir_module_get_instruction(&module, 2u, &compare) != OIR_STATUS_OK ||
+        if (oir_module_get_instruction(&module, 2u, &compare) != OIR_STATUS_OK ||
             oir_module_get_instruction(&module, 3u, &branch) != OIR_STATUS_OK ||
-            compare.opcode_id != OIR_OP_CMP_LT ||
-            branch.opcode_id != OIR_OP_COND_BRANCH ||
             oir_module_get_operand(&module, branch.first_operand + 1u, &target_true) != OIR_STATUS_OK ||
             oir_module_get_operand(&module, branch.first_operand + 2u, &target_false) != OIR_STATUS_OK ||
+            oir_module_get_function(&module, 0u, &function) != OIR_STATUS_OK)
+            goto cleanup;
+        if (module.block_count != 3u || module.instruction_count != 7u ||
+            module.operand_count != 10u || module.value_count != 4u ||
+            compare.opcode_id != OIR_OP_CMP_LT ||
+            branch.opcode_id != OIR_OP_COND_BRANCH ||
             target_true.kind != OIR_OPERAND_BLOCK || target_true.reference_id != 2u ||
             target_false.kind != OIR_OPERAND_BLOCK || target_false.reference_id != 3u ||
-            oir_module_get_function(&module, 0u, &function) != OIR_STATUS_OK ||
-            function.function_type_id != 3u)
+            function.function_type_id != 3u) {
+            fprintf(stderr, "if fixture: blocks=%u ins=%u operands=%u values=%u cmp=%u branch=%u true=%u/%u false=%u/%u fn_type=%u\\n",
+                module.block_count, module.instruction_count, module.operand_count,
+                module.value_count, compare.opcode_id, branch.opcode_id,
+                target_true.kind, target_true.reference_id,
+                target_false.kind, target_false.reference_id, function.function_type_id);
             goto cleanup;
+        }
     } else {
         OirModuleInstruction add, mul, sub, ret;
         OirModuleOperand left, right, returned, immediate;
@@ -336,7 +343,11 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             immediate.kind!=OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate!=3u)
             goto cleanup;
     }
-    if (!test_lowering_stage_module(stage_module, semantic_artifact, semantic_length)) goto cleanup;
+    debug_stage = 8;
+    if (!test_lowering_stage_module(stage_module, semantic_artifact, semantic_length)) {
+        fprintf(stderr, "if fixture: direct lowerer passed but stage DLL invocation failed\\n");
+        goto cleanup;
+    }
     ok = 1;
 
 cleanup:
