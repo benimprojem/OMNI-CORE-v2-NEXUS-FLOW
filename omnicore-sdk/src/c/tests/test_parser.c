@@ -780,13 +780,14 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
         " v:callback_block = f:(x) { ret x; };"
         " unroll(3) -> loop(item in data) { v:copy = item; }"
         " v:moved = source _> target;"
+        " v:retry = source?(5, 500ms)->target;"
         "}";
     ParserContext* ctx=parser_init_source(
         "rules-lambda-relocate-unroll.nxf",(const uint8_t*)source,sizeof(source)-1u);
     ASTFuncDecl* function;
     ASTBlock* body;
     ASTNode* node;
-    int rules=0, apply=0, on_block=0, lambda=0, lambda_block=0, unroll=0, relocate=0;
+    int rules=0, apply=0, on_block=0, lambda=0, lambda_block=0, unroll=0, relocate=0, rolling=0;
     int ok=0;
     if(!ctx)return 0;
     if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) { Error* e; fprintf(stderr,"feature parser status=%d errors=%d\\n",(int)parser_get_status(ctx),ctx->error_count); for(e=ctx->error_head;e;e=e->next) fprintf(stderr,"  %d:%d %s\\n",e->line,e->col,e->message?e->message:""); goto done; }
@@ -821,14 +822,15 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
             if(v->name && strcmp(v->name,"callback")==0 && v->initializer && v->initializer->type==AST_LAMBDA && ((ASTLambda*)v->initializer)->body_is_expression==1)lambda=1;
             if(v->name && strcmp(v->name,"callback_block")==0 && v->initializer && v->initializer->type==AST_LAMBDA && ((ASTLambda*)v->initializer)->body_is_expression==0)lambda_block=1;
             if(v->name && strcmp(v->name,"moved")==0 && v->initializer && v->initializer->type==AST_RELOCATE)relocate=1;
+            if(v->name && strcmp(v->name,"retry")==0 && v->initializer && v->initializer->type==AST_NEXUS_FLOW) { ASTNexusFlow* f=(ASTNexusFlow*)v->initializer; if(f->retry_count==5 && f->retry_delay==500)rolling=1; }
         } else if(node->type==AST_UNROLL) {
             ASTUnroll* u=(ASTUnroll*)node;
             if(!u->count || !u->loop || u->loop->type!=AST_LOOP)goto done;
             unroll=1;
         }
     }
-    ok=rules && apply && on_block && lambda && lambda_block && unroll && relocate;
-    if(!ok)fprintf(stderr,"feature AST flags rules=%d apply=%d on=%d lambda=%d lambda_block=%d unroll=%d relocate=%d\\n",rules,apply,on_block,lambda,lambda_block,unroll,relocate);
+    ok=rules && apply && on_block && lambda && lambda_block && unroll && relocate && rolling;
+    if(!ok)fprintf(stderr,"feature AST flags rules=%d apply=%d on=%d lambda=%d lambda_block=%d unroll=%d relocate=%d rolling=%d\\n",rules,apply,on_block,lambda,lambda_block,unroll,relocate,rolling);
     if(ok) {
         FILE* stream=tmpfile();
         ASTNode* decoded=NULL;
