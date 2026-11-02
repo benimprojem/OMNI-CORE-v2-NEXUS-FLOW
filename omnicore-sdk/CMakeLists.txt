@@ -697,7 +697,7 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME occ_accepts_target_before_source
-        COMMAND occ --target BareMetal64 "${C_RUNTIME_DIR}/tests/test1_alt.nxf"
+        COMMAND occ --target BareMetal64 "${C_RUNTIME_DIR}/tests/test_oir_lowering_cli.nxf"
     )
     set_tests_properties(occ_accepts_target_before_source PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
@@ -719,7 +719,7 @@ if(BUILD_TESTING)
 
     # Exercises the complete C path and keeps the legacy Codegen bridge active.
     add_test(NAME occ_compiles_basic_source
-        COMMAND occ "${C_RUNTIME_DIR}/tests/test1.nxf" --target BareMetal64
+        COMMAND occ "${C_RUNTIME_DIR}/tests/test_oir_lowering_cli.nxf" --target BareMetal64
     )
     set_tests_properties(occ_compiles_basic_source PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
@@ -730,7 +730,7 @@ if(BUILD_TESTING)
     add_test(NAME occ_cli_persists_validated_oir_module
         COMMAND ${CMAKE_COMMAND}
             "-DOCC_EXE=$<TARGET_FILE:occ>"
-            "-DSOURCE_FILE=${C_SOURCE_DIR}/tests/test1.nxf"
+            "-DSOURCE_FILE=${C_SOURCE_DIR}/tests/test_oir_lowering_cli.nxf"
             "-DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/occ_lowering_pipeline_test"
             -P "${C_SOURCE_DIR}/tests/verify_occ_lowering_pipeline.cmake"
     )
