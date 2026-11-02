@@ -102,8 +102,21 @@ static int immediate_operand(
     return 1;
 }
 
+static int float_immediate_operand(
+    const OirModuleView* module,
+    const OirModuleInstruction* instruction,
+    uint32_t operand_index,
+    OirModuleOperand* out_operand
+) {
+    if (operand_index >= instruction->operand_count ||
+        oir_module_get_operand(module,
+            instruction->first_operand + operand_index, out_operand) != OIR_STATUS_OK ||
+        out_operand->kind != OIR_OPERAND_FLOAT_IMMEDIATE) return 0;
+    return 1;
+}
+
 /* The first backend slice is deliberately limited to one straight-line
- * x86-64 bare-metal function with i32/i64/bool scalar operations. */
+ * x86-64 bare-metal function with i32/i64/f32/f64/bool scalar operations. */
 static int verify_codegen_module(
     const OirModuleView* module,
     OirModuleFunction* out_function,
@@ -141,6 +154,8 @@ static int verify_codegen_module(
     if (!valid_assembler_identifier(*out_name, out_function->name_length)) return 0;
 
     if (out_return_type->kind == OIR_MODULE_TYPE_INTEGER) {
+        if (out_return_type->bit_width != 32u && out_return_type->bit_width != 64u) return 0;
+    } else if (out_return_type->kind == OIR_MODULE_TYPE_FLOAT) {
         if (out_return_type->bit_width != 32u && out_return_type->bit_width != 64u) return 0;
     } else if (out_return_type->kind != OIR_MODULE_TYPE_BOOLEAN) {
         return 0;
@@ -192,6 +207,13 @@ static int verify_codegen_module(
                     (result_type.bit_width == 32u && immediate.immediate > UINT32_MAX))
                     goto cleanup;
                 break;
+            case OIR_OP_CONST_FLOAT:
+                if (instruction.operand_count != 1u ||
+                    result_type.kind != OIR_MODULE_TYPE_FLOAT ||
+                    (result_type.bit_width != 32u && result_type.bit_width != 64u) ||
+                    !float_immediate_operand(module, &instruction, 0u, &immediate))
+                    goto cleanup;
+                break;
             case OIR_OP_CONST_BOOL:
                 if (instruction.operand_count != 1u ||
                     result_type.kind != OIR_MODULE_TYPE_BOOLEAN ||
@@ -204,8 +226,11 @@ static int verify_codegen_module(
             case OIR_OP_DIV:
             case OIR_OP_REM:
                 if (instruction.operand_count != 2u ||
-                    result_type.kind != OIR_MODULE_TYPE_INTEGER ||
+                    (result_type.kind != OIR_MODULE_TYPE_INTEGER &&
+                     result_type.kind != OIR_MODULE_TYPE_FLOAT) ||
                     (result_type.bit_width != 32u && result_type.bit_width != 64u) ||
+                    (result_type.kind == OIR_MODULE_TYPE_FLOAT &&
+                     instruction.opcode_id == OIR_OP_REM) ||
                     !value_operand(module, &instruction, 0u, &a) ||
                     !value_operand(module, &instruction, 1u, &b) ||
                     a.type_id != result_value.type_id || b.type_id != result_value.type_id)
@@ -213,7 +238,8 @@ static int verify_codegen_module(
                 break;
             case OIR_OP_NEG:
                 if (instruction.operand_count != 1u ||
-                    result_type.kind != OIR_MODULE_TYPE_INTEGER ||
+                    (result_type.kind != OIR_MODULE_TYPE_INTEGER &&
+                     result_type.kind != OIR_MODULE_TYPE_FLOAT) ||
                     (result_type.bit_width != 32u && result_type.bit_width != 64u) ||
                     !value_operand(module, &instruction, 0u, &a) ||
                     a.type_id != result_value.type_id) goto cleanup;
@@ -255,9 +281,25 @@ static int emit_instruction(
     int is_64;
 
     if (instruction->opcode_id == OIR_OP_RETURN) {
-        if (!value_operand(module, instruction, 0u, &a)) return 0;
-        if (!get_type(module, a.type_id, &type)) return 0;
+        if (!value_operand(module, instruction, 0u, &a) ||
+            !get_type(module, a.type_id, &type)) return 0;
         offset = value_offset(a.id);
+        if (type.kind == OIR_MODULE_TYPE_FLOAT) {
+            if (type.bit_width == 32u) {
+                return asm_emit(writer,
+                    "    movss xmm0, dword [rbp - %u]\n"
+                    "    movd eax, xmm0\n"
+                    "    mov rsp, rbp\n"
+                    "    pop rbp\n"
+                    "    ret\n", offset);
+            }
+            return asm_emit(writer,
+                "    movsd xmm0, qword [rbp - %u]\n"
+                "    movq rax, xmm0\n"
+                "    mov rsp, rbp\n"
+                "    pop rbp\n"
+                "    ret\n", offset);
+        }
         if (type.kind == OIR_MODULE_TYPE_BOOLEAN || type.bit_width == 32u) {
             return asm_emit(writer,
                 "    mov eax, dword [rbp - %u]\n"
@@ -278,6 +320,22 @@ static int emit_instruction(
     is_64 = type.bit_width == 64u;
 
     switch (instruction->opcode_id) {
+        case OIR_OP_CONST_FLOAT:
+            if (!float_immediate_operand(module, instruction, 0u, &immediate)) return 0;
+            if (type.bit_width == 32u) {
+                return asm_emit(writer,
+                    "    mov rax, 0x%016llX\n"
+                    "    movq xmm0, rax\n"
+                    "    cvtsd2ss xmm0, xmm0\n"
+                    "    movss dword [rbp - %u], xmm0\n",
+                    (unsigned long long)immediate.immediate, offset);
+            }
+            return asm_emit(writer,
+                "    mov rax, 0x%016llX\n"
+                "    movq xmm0, rax\n"
+                "    movsd qword [rbp - %u], xmm0\n",
+                (unsigned long long)immediate.immediate, offset);
+
         case OIR_OP_CONST_INT:
         case OIR_OP_CONST_BOOL:
             if (!immediate_operand(module, instruction, 0u, &immediate)) return 0;
@@ -299,6 +357,38 @@ static int emit_instruction(
         case OIR_OP_REM:
             if (!value_operand(module, instruction, 0u, &a) ||
                 !value_operand(module, instruction, 1u, &b)) return 0;
+            if (type.kind == OIR_MODULE_TYPE_FLOAT) {
+                const char* op32 = NULL;
+                const char* op64 = NULL;
+                if (instruction->opcode_id == OIR_OP_ADD) {
+                    op32 = "    addss xmm0, xmm1\n"; op64 = "    addsd xmm0, xmm1\n";
+                } else if (instruction->opcode_id == OIR_OP_SUB) {
+                    op32 = "    subss xmm0, xmm1\n"; op64 = "    subsd xmm0, xmm1\n";
+                } else if (instruction->opcode_id == OIR_OP_MUL) {
+                    op32 = "    mulss xmm0, xmm1\n"; op64 = "    mulsd xmm0, xmm1\n";
+                } else if (instruction->opcode_id == OIR_OP_DIV) {
+                    op32 = "    divss xmm0, xmm1\n"; op64 = "    divsd xmm0, xmm1\n";
+                } else {
+                    return 0;
+                }
+                if (type.bit_width == 32u) {
+                    if (!asm_emit(writer,
+                        "    movss xmm0, dword [rbp - %u]\n"
+                        "    movss xmm1, dword [rbp - %u]\n",
+                        value_offset(a.id), value_offset(b.id)) ||
+                        !asm_emit(writer, "%s", op32)) return 0;
+                    return asm_emit(writer,
+                        "    movss dword [rbp - %u], xmm0\n", offset);
+                }
+                if (!asm_emit(writer,
+                    "    movsd xmm0, qword [rbp - %u]\n"
+                    "    movsd xmm1, qword [rbp - %u]\n",
+                    value_offset(a.id), value_offset(b.id)) ||
+                    !asm_emit(writer, "%s", op64)) return 0;
+                return asm_emit(writer,
+                    "    movsd qword [rbp - %u], xmm0\n", offset);
+            }
+
             if (is_64) {
                 if (!asm_emit(writer,
                     "    mov rax, qword [rbp - %u]\n"
@@ -339,6 +429,24 @@ static int emit_instruction(
 
         case OIR_OP_NEG:
             if (!value_operand(module, instruction, 0u, &a)) return 0;
+            if (type.kind == OIR_MODULE_TYPE_FLOAT) {
+                if (type.bit_width == 32u) {
+                    if (!asm_emit(writer,
+                        "    movss xmm0, dword [rbp - %u]\n"
+                        "    mov eax, 0x80000000\n"
+                        "    movd xmm1, eax\n"
+                        "    xorps xmm0, xmm1\n", value_offset(a.id))) return 0;
+                    return asm_emit(writer,
+                        "    movss dword [rbp - %u], xmm0\n", offset);
+                }
+                if (!asm_emit(writer,
+                    "    movsd xmm0, qword [rbp - %u]\n"
+                    "    mov rax, 0x8000000000000000\n"
+                    "    movq xmm1, rax\n"
+                    "    xorpd xmm0, xmm1\n", value_offset(a.id))) return 0;
+                return asm_emit(writer,
+                    "    movsd qword [rbp - %u], xmm0\n", offset);
+            }
             if (is_64) {
                 if (!asm_emit(writer, "    mov rax, qword [rbp - %u]\n    neg rax\n", value_offset(a.id))) return 0;
                 return asm_emit(writer, "    mov qword [rbp - %u], rax\n", offset);
