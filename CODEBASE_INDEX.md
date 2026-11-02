@@ -359,11 +359,11 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 ## Verifier-specific reuse map
 
-- `module/oir_verify_stage_module.c`: current `validate_module()`, OIR access helpers, CFG/dominance checks, stage processing and stage export. Refactor this implementation; do not create a second verifier module.
+- `module/oir_verify_stage_module.c`: `OirVerifyFailure` carries stable verifier diagnostic code plus available function/block/instruction/value/type IDs; `validate_module()` coordinates six validation passes; `report_verify_error()` maps codes to stable messages without changing the shared OCC ABI. Refactor this implementation; do not create a second verifier module.
 - `oir/oir_module.c` + `oir/oir_module.h`: canonical OIR_MODULE reader/writer and accessors. Reuse its accessors rather than reimplementing payload decoding.
 - `oir/oir_module_opcode.c` + `oir/oir_module_opcode.h`: opcode registry and `oir_opcode_validate_shape()` for operand count/kinds and result-presence rules. The verifier reuses this helper before opcode-specific semantic/type checks; extend the registry/contract rather than duplicating opcode tables.
 - `module/occ_module_api.h` + `module/occ_module_api.c`: common stage ABI and diagnostics; do not add a verifier-only ABI.
-- `tests/test_oir_verify_stage_module.c`: existing verifier fixtures and tests; extend these before introducing a parallel test harness.
+- `tests/test_oir_verify_stage_module.c`: existing verifier fixtures and tests, including exact diagnostic-code assertions for SSA use, CFG edge, function entry, SSA definition, terminator and malformed payload; extend these before introducing a parallel test harness.
 - `TASKS.md` and `OIR_VERIFIER_SPEC.md`: implementation backlog and behavioral contract.
 
 ## Pending indexing
