@@ -181,6 +181,13 @@ f:listele(a![]) { ... }
 # Tip zorlama
 f:liste(a!i32[], ...){ ... }
 
+# Çok boyutlu parametre ve imza uyumluluğu
+f:matrisAl(veri:f64[2][2]) { ... }
+
+# Çağrı sırasında eleman türü, boyut sayısı ve sabit boyutlar denetlenir.
+# Parametredeki [] ilgili boyutta herhangi bir uzunluğu kabul eder.
+# Örneğin i32[] parametresi i32[5] dizisini kabul eder; i32[4] kabul etmez.
+
 ```
 
 * Haritalar (Maps / Dictionaries) `map<key, val>` Anahtar-Değer (Key-Value) çiftlerini tutar.
