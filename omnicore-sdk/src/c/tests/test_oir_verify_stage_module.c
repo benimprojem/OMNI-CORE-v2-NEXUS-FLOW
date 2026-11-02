@@ -53,8 +53,8 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
 
     memset(operands, 0, sizeof(operands));
     operands[0].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[0].immediate = 7u;
-    operands[1].kind = OIR_OPERAND_VALUE; operands[1].reference_id = invalid_ssa ? 2u : 1u;
-    operands[2].kind = OIR_OPERAND_VALUE; operands[2].reference_id = invalid_ssa ? 1u : 2u;
+    operands[1].kind = OIR_OPERAND_VALUE; operands[1].reference_id = 1u;
+    operands[2].kind = OIR_OPERAND_VALUE; operands[2].reference_id = invalid_ssa ? 2u : 1u;
     operands[3].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[3].immediate = 9u;
     operands[4].kind = OIR_OPERAND_VALUE; operands[4].reference_id = 3u;
 
