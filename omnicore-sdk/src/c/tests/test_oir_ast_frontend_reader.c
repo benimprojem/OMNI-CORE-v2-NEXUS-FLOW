@@ -227,6 +227,37 @@ int main(void) {
         put_u32(output+literal_value_offset,2u);
     }
 
+    /* Verify array literals preserve their ordered child chain. */
+    {
+        ASTProgram array_root;
+        ASTArrayLiteral array;
+        ASTIdentifier first,second;
+        ASTNode* array_decoded=NULL;
+        ASTArrayLiteral* decoded_array;
+        ASTNode* decoded_first;
+        memset(&array_root,0,sizeof(array_root));
+        memset(&array,0,sizeof(array));
+        memset(&first,0,sizeof(first));
+        memset(&second,0,sizeof(second));
+        array_root.base.type=AST_PROGRAM;
+        array.base.type=AST_ARRAY_LITERAL;
+        first.base.type=AST_IDENTIFIER; first.name="one";
+        second.base.type=AST_IDENTIFIER; second.name="two";
+        array_root.declarations=(ASTNode*)&array;
+        array.elements=(ASTNode*)&first;
+        first.base.next=(ASTNode*)&second;
+        assert(encode_fixture((ASTNode*)&array_root,index,records,fields,strings,output,
+            &count,&written,&req)==OIR_STATUS_OK);
+        assert(oir_ast_frontend_read_payload(output,written,decoded,MAX_NODES,
+            incoming,MAX_NODES,visited,MAX_NODES,stack,MAX_NODES,&array_decoded)==OIR_STATUS_OK);
+        decoded_array=(ASTArrayLiteral*)((ASTProgram*)array_decoded)->declarations;
+        assert(decoded_array && decoded_array->base.type==AST_ARRAY_LITERAL);
+        decoded_first=decoded_array->elements;
+        assert(decoded_first && strcmp(((ASTIdentifier*)decoded_first)->name,"one")==0);
+        assert(decoded_first->next && strcmp(((ASTIdentifier*)decoded_first->next)->name,"two")==0);
+        ast_destroy(array_decoded);
+    }
+
     /* Verify a nested ownership graph is materialized into real child pointers. */
     {
         ASTProgram nested_root;
