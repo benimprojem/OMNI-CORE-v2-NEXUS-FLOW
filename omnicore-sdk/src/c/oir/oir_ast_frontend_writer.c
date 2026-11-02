@@ -331,6 +331,12 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
             const ASTUse* n = (const ASTUse*)node;
             STR(1,n->module_name); STR(2,n->alias); break;
         }
+        case AST_SELECT: { const ASTSelect* n=(const ASTSelect*)node; REF(1,n->selector); REF(2,n->arms); break; }
+        case AST_SELECT_ARM: { const ASTSelectArm* n=(const ASTSelectArm*)node; REF(1,n->pattern); REF(2,n->body); BOOL(3,n->is_default); break; }
+        case AST_SCAN: { const ASTScan* n=(const ASTScan*)node; REF(1,n->subject); REF(2,n->arms); break; }
+        case AST_SCAN_ARM: { const ASTScanArm* n=(const ASTScanArm*)node; REF(1,n->pattern); REF(2,n->body); break; }
+        case AST_PATTERN_BINDING: STR(1,((const ASTPatternBinding*)node)->name); break;
+        case AST_PATTERN_CONSTRUCTOR: { const ASTPatternConstructor* n=(const ASTPatternConstructor*)node; STR(1,n->name); REF(2,n->bindings); break; }
         case AST_BREAK: case AST_CONTINUE: break;
         default: return OIR_STATUS_INVALID_SECTION;
     }
