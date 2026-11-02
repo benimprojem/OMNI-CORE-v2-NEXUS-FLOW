@@ -359,4 +359,15 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Add a three-block conditional CFG fixture and assert both branch labels and the conditional jump sequence.
 - [x] **CI run 41376095890:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan and Valgrind passed.
 
-**Next Codegen increment:** add CMP_EQ/NE/LT/LE/GT/GE lowering so source-level conditions can produce boolean SSA values, then connect those operations to multi-block lowering.
+**Next Codegen increment:** add calls and multi-function module support, define the target descriptor/backend-selection contract, then extend the lowerer to emit comparisons and multi-block CFG from source-level control flow. Preserve legacy Codegen until parity is demonstrated.
+
+
+## Comparison Codegen — 2 Kasım 2026
+
+- [x] Add signed and unsigned integer CMP_EQ/NE/LT/LE/GT/GE lowering.
+- [x] Add f32/f64 comparisons using UCOMISS/UCOMISD.
+- [x] Preserve IEEE unordered behavior: NaN is false for ordered relations/equality and true for inequality.
+- [x] Add boolean EQ/NE support; ordered boolean comparisons fail closed.
+- [x] Feed a signed integer CMP_LT result into a three-block conditional CFG test.
+- [x] Feed an f64 CMP_LT result into a three-block conditional CFG test; assert unordered-flag filtering instructions.
+- [x] **CI run 41376451054:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan passed. Valgrind is still running.
