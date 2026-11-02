@@ -564,22 +564,27 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
     char contextual_message[384];
     const char* reported_message = message;
     const char* hint = NULL;
+    const char* remediation = NULL;
+    char contextual_hint[768];
     switch (code) {
-        case OIR_VERIFY_DIAG_MODULE_LIMIT: message = "OIR module exceeds verifier resource limits."; break;
-        case OIR_VERIFY_DIAG_INTERNAL_WORKSPACE: message = "OIR Verifier could not allocate its validation workspace."; break;
-        case OIR_VERIFY_DIAG_PAYLOAD_DECODE: message = "OIR_MODULE payload is malformed or violates the registered opcode wire contract."; break;
-        case OIR_VERIFY_DIAG_TYPE_RECORD: message = "OIR type record is invalid."; break;
-        case OIR_VERIFY_DIAG_BLOCK_OWNERSHIP: message = "OIR block ownership or instruction range is invalid."; break;
-        case OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE: message = "OIR instruction coverage is incomplete, overlapping or inconsistent."; break;
-        case OIR_VERIFY_DIAG_FUNCTION_ENTRY: message = "OIR function entry block or function type is invalid."; break;
-        case OIR_VERIFY_DIAG_SSA_DEFINITION: message = "OIR SSA value definition is missing, duplicated or inconsistent."; break;
-        case OIR_VERIFY_DIAG_OPCODE_SHAPE: message = "OIR opcode operand shape or result contract is invalid."; break;
-        case OIR_VERIFY_DIAG_OPCODE_TYPE: message = "OIR opcode operand or result type is invalid."; break;
-        case OIR_VERIFY_DIAG_CFG_EDGE: message = "OIR control-flow edge is invalid or crosses function ownership."; break;
-        case OIR_VERIFY_DIAG_TERMINATOR: message = "OIR basic block has a missing or misplaced terminator."; break;
-        case OIR_VERIFY_DIAG_DOMINANCE: message = "OIR control-flow dominance analysis failed."; break;
-        case OIR_VERIFY_DIAG_SSA_USE: message = "OIR SSA use is undefined, precedes its definition or is not dominated."; break;
-        default: break;
+        case OIR_VERIFY_DIAG_MODULE_LIMIT: message = "OIR module exceeds verifier resource limits."; remediation = "Reduce the module's block, function, instruction or value counts; also check section/string-table sizes and size arithmetic."; break;
+        case OIR_VERIFY_DIAG_INTERNAL_WORKSPACE: message = "OIR Verifier could not allocate its validation workspace."; remediation = "Retry with a smaller module or free memory; if reproducible on a small valid module, report it as a verifier allocation defect."; break;
+        case OIR_VERIFY_DIAG_PAYLOAD_DECODE: message = "OIR_MODULE payload is malformed or violates the registered opcode wire contract."; remediation = "Regenerate the OIR payload with the canonical OIR writer and check its schema version, section layout and each opcode's registered operand encoding."; break;
+        case OIR_VERIFY_DIAG_TYPE_RECORD: message = "OIR type record is invalid."; remediation = "Check the referenced type record's kind and bit width; use only schema-supported integer, float, boolean or function type forms."; break;
+        case OIR_VERIFY_DIAG_BLOCK_OWNERSHIP: message = "OIR block ownership or instruction range is invalid."; remediation = "Assign each block to an existing function and ensure its non-empty instruction range stays within the instruction table."; break;
+        case OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE: message = "OIR instruction coverage is incomplete, overlapping or inconsistent."; remediation = "Make block instruction ranges cover every instruction exactly once, without overlap, and ensure each instruction's block_id matches its owning block."; break;
+        case OIR_VERIFY_DIAG_FUNCTION_ENTRY: message = "OIR function entry block or function type is invalid."; remediation = "Give the function a valid function-type record and an entry_block_id that names a block owned by that same function."; break;
+        case OIR_VERIFY_DIAG_SSA_DEFINITION: message = "OIR SSA value definition is missing, duplicated or inconsistent."; remediation = "Ensure every SSA value has one valid defining instruction, that the instruction's result_value_id points back to it, and that its type is valid."; break;
+        case OIR_VERIFY_DIAG_OPCODE_SHAPE: message = "OIR opcode operand shape or result contract is invalid."; remediation = "Compare the opcode's operand count, operand kinds and result-presence flag with its registered opcode descriptor."; break;
+        case OIR_VERIFY_DIAG_OPCODE_TYPE: message = "OIR opcode operand or result type is invalid."; remediation = "Make operand and result types satisfy the opcode contract; for arithmetic, use matching numeric types, and use boolean values for branch conditions."; break;
+        case OIR_VERIFY_DIAG_CFG_EDGE: message = "OIR control-flow edge is invalid or crosses function ownership."; remediation = "Check that each branch target exists, is a block in the same function, and that conditional branches use a boolean condition."; break;
+        case OIR_VERIFY_DIAG_TERMINATOR: message = "OIR basic block has a missing or misplaced terminator."; remediation = "End every basic block with exactly one terminator and move any ordinary instruction before it."; break;
+        case OIR_VERIFY_DIAG_DOMINANCE: message = "OIR control-flow dominance analysis failed."; remediation = "Check entry-block reachability and predecessor/branch relationships; ensure the CFG is consistent before relying on dominance."; break;
+        case OIR_VERIFY_DIAG_SSA_USE: message = "OIR SSA use is undefined, precedes its definition or is not dominated."; remediation = "Define the value before its use in the same block, or move its definition to a block that dominates every use; values from sibling branches need an explicit merge once supported."; break;
+        default:
+            if (code >= 8601u && code <= 8606u)
+                remediation = "Check the OIR container header, artifact kind, schema version, required sections, section bounds and job/producer metadata.";
+            break;
     }
     if (code >= 8601u && code <= OIR_VERIFY_DIAG_PAYLOAD_DECODE) {
         hint = "OIR validation passes were skipped because the artifact envelope or payload could not be safely opened.";
@@ -593,6 +598,16 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
         hint = "Dominance and SSA-use passes were skipped because terminator validation failed.";
     } else if (code == OIR_VERIFY_DIAG_DOMINANCE) {
         hint = "SSA-use validation was skipped because dominance analysis failed.";
+    }
+    if (remediation) {
+        if (hint) {
+            (void)snprintf(contextual_hint, sizeof(contextual_hint),
+                "%s Suggested fix: %s", hint, remediation);
+        } else {
+            (void)snprintf(contextual_hint, sizeof(contextual_hint),
+                "Suggested fix: %s", remediation);
+        }
+        hint = contextual_hint;
     }
     reported_message = message;
     if (failure && (failure->function_id || failure->block_id ||
