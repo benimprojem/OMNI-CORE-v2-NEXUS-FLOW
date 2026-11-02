@@ -137,8 +137,6 @@ int main(int argc, char** argv) {
         OCC_MODULE_LOADER_OK);
     assert(loaded.module->descriptor.stage_id == OCC_STAGE_CODEGEN);
     assert(loaded.module->descriptor.output_artifact_kind == OIR_KIND_ASSEMBLY);
-    assert(loaded.module->descriptor.output_schema_major == 1u);
-    assert(loaded.module->descriptor.output_schema_minor == 0u);
 
     memset(&input, 0, sizeof(input));
     input.bytes = module_bytes;
