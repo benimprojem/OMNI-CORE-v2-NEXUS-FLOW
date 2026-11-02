@@ -2,13 +2,13 @@
 
 **Status:** Initial stable ID registry, derived from the current C frontend token inventory  
 **Registry version:** 1  
-**Current inventory:** 160 token kinds
+**Current inventory:** 163 token kinds
 
 OIR token IDs are an interchange-level namespace. They are **not** the numeric values of the C `OmniTokenType` enum. Producers and consumers must map by symbolic token identity. C enum insertion/reordering must never renumber these IDs.
 
 Rules:
 - IDs are unsigned 16-bit integers.
-- IDs 1–160 are assigned below and are permanently reserved for these meanings.
+- IDs 1–163 are assigned below and are permanently reserved for these meanings.
 - Removed token meanings remain reserved; do not reuse IDs.
 - New token kinds receive new IDs at the end of the registry.
 - A payload containing an unknown token ID is rejected unless a future schema version explicitly defines safe extension behavior.
@@ -177,5 +177,8 @@ Rules:
 | 158 | `TOKEN_RBRACE` |
 | 159 | `TOKEN_LBRACKET` |
 | 160 | `TOKEN_RBRACKET` |
+| 161 | `TOKEN_KW_IF` |
+| 162 | `TOKEN_KW_ELS` |
+| 163 | `TOKEN_KW_ELSIF` |
 
 Source inventory: `omnicore-sdk/src/c/parser/lexer.h`. The symbolic mapping adapter is implemented in omnicore-sdk/src/c/oir/oir_token_map.c and is tested in test_oir_token_map.c. The full lexer emission audit remains open.
