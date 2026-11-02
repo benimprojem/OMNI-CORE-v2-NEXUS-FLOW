@@ -386,3 +386,5 @@ The file/path inventory below is complete for the snapshot. The function catalog
 - 2026-11-02: Extended `validate_instruction_type_contract()` to NEG, CMP_EQ/NE/LT/LE/GT/GE and CAST; the aggregation preflight and main instruction pass share the same rules. Added malformed-contract regression fixtures (variants 15–17) and documented the bounded scope. LOAD/STORE and CALL remain deferred pending pointer/memory and signature models.
 
 - 2026-11-02: Added `AST_OIR_COMPLETION_PLAN.md` as the explicit AST/semantic/lowering/OIR checklist and Codegen gate. `ROADMAP.md` and `TASKS.md` now prioritize AST contracts, semantic completeness, lowering coverage and full OIR verification before backend expansion.
+
+- 2026-11-02: Added `NEXSUS_AST_SYNTAX_MATRIX.md`, comparing README-defined syntax against current AST tags/payloads and identifying model gaps (lambda/anonymous function, conditional action, select/scan, ruleset/apply/on, loop normalization, aggregate forms and relocate tracing). This is an initial source-backed matrix; parser/codec/semantic implementation coverage remains to be audited and tested.
