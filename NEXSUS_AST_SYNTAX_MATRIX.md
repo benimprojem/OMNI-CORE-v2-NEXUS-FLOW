@@ -17,7 +17,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Function `f:name(...)` | `AST_FUNC_DECL` | Present | Audit parameter nodes, named args, return type and body |
 | Extern function `exf:name(...)` | `AST_EXTERN_DECL` / `ASTFuncDecl` | Present/shared payload | Verify parser, codec, semantic signature |
 | Lambda `f:(a,b)>expr` / block lambda `f:(a,b){...}` | `AST_LAMBDA` | Parser/AST/OIR implemented; expression/block bodies, parameter scopes and semantic-result scope visibility tested | Function-type model, capture rules, return inference and lowering remain open |
-| Anonymous function `f:(a,b){...}` | No dedicated anonymous-function tag | **Missing model** | Decide shared lambda/function-expression payload or distinct node |
+| Anonymous function `f:(a,b){...}` | `AST_LAMBDA` shared with expression lambda | Parser/AST/OIR and block-body codec implemented | Function-type representation, captures and return inference remain open |
 | Struct / packed struct | `AST_STRUCT_DECL` | Present | Confirm packed syntax and field type representation |
 | Enum + variants/data | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | Present | Validate payload variants and discriminants |
 | Union | `AST_UNION_DECL` / `ASTStructDecl` | Present/shared | Confirm union field layout/type rules |
@@ -114,18 +114,18 @@ The parser source was inspected by grammar entry points and AST construction sit
 | `if / elsif / els` | `parse_if_statement()` recursively parses `elsif` | `AST_IF.else_branch` contains nested `AST_IF` or final else branch | Parser representation exists; semantic/roundtrip chain tests still required |
 | Conditional action `(cond) -> break/continue/...` | `parse_conditional_action()`, gated by `parser_looks_like_conditional_action()` | `AST_IF` with condition and then branch | Explicit separate node is not necessary if this canonical encoding is documented/tested; parser ambiguity tests remain |
 | Unified `loop` + rolling retry | `parse_primary()` builds loop kinds; `parse_unroll()` builds compile-time directive; `parse_nexus_flow()` handles `?(count, delay ms)->` | `AST_LOOP`, `AST_UNROLL`, `AST_NEXUS_FLOW.retry_count/retry_delay` | Foreach `in`, unroll and `ms` retry delay are parser/AST/OIR represented; runtime retry behavior, bounds and lowering remain open |
-| `select / scan` | Contextual `parse_select_scan()` at statement position; `parse_pattern()` handles literal, binding and constructor patterns | `AST_SELECT`, `AST_SELECT_ARM`, `AST_SCAN`, `AST_SCAN_ARM`, `AST_PATTERN_BINDING`, `AST_PATTERN_CONSTRUCTOR` | **Parser, AST codec and OIR frontend bridge implemented; CI pending** |
-| Multi-rule `rules ...` | No rules parser or statement branch found | No AST tag | **Not implemented in C parser/model** |
-| `apply rules(...)` | No apply-rules grammar branch found | No AST tag | **Not implemented in C parser/model** |
-| `on Rule.Event { ... }` | No on-block grammar branch found | No AST tag | **Not implemented in C parser/model** |
-| Lambda `f:(a,b)>expr` / anonymous `f:(a,b){...}` | `parse_func_decl()` handles declarations; no function-expression/lambda production found | No lambda node | **Not implemented as expression in C parser/model** |
-| Relocate `_>` | No dedicated relocate parse production found in parser entry points | No relocate node/tag | **Not implemented as a distinct AST operation**; token/lexer may exist but AST contract absent |
+| `select / scan` | Contextual `parse_select_scan()` at statement position; `parse_pattern()` handles literal, binding and constructor patterns | `AST_SELECT`, `AST_SELECT_ARM`, `AST_SCAN`, `AST_SCAN_ARM`, `AST_PATTERN_BINDING`, `AST_PATTERN_CONSTRUCTOR` | Parser, AST codec, OIR bridge and arm-local semantic scopes implemented; exhaustiveness remains open |
+| Multi-rule `rules ...` | `parse_ruleset()` plus explicit ruleset/barrier/trigger/always/default nodes | `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT` | Parser/AST/OIR and baseline semantic rule checks implemented; execution effects remain open |
+| `apply rules(...)` | `parse_apply_rules()` and ruleset signature lookup | `AST_APPLY_RULES` | Parser/AST/OIR and semantic argument count/type checks implemented; injected effect semantics remain open |
+| `on Rule.Event { ... }` | `parse_on_block()` and ruleset trigger-event registry | `AST_ON_BLOCK` | Parser/AST/OIR and semantic ruleset/event validation implemented; active-apply context and dispatch lowering remain open |
+| Lambda `f:(a,b)>expr` / anonymous `f:(a,b){...}` | `parse_lambda()` from anonymous `f:(` prefix | `AST_LAMBDA` | Expression/block parser, codec, OIR and parameter scopes implemented; function types/captures remain open |
+| Relocate `_>` | Lexer handles `_>` before identifiers; `parse_nexus_flow()` constructs dedicated move node | `AST_RELOCATE` | Parser/AST/OIR and source/destination type compatibility implemented; move invalidation remains open |
 | Intrinsics | `parse_intrinsic_call()` plus keyword dispatch in `parse_primary()` | Mostly shared `ASTCall`; `AST_CAST` is dedicated | Present in parser; intrinsic signature/effect registry still required |
 | Index/postfix/binary | `parse_postfix()`, `parse_unary()`, precedence functions, `parser_make_binary()` | Index shares `ASTBinaryExpr`; postfix/unary share `ASTUnaryExpr` | Shared layouts intentional-looking but must be field-verified in codec/semantic code |
 
 ### Important structural finding
 
-`ASTNodeType` now includes dedicated select/scan and pattern kinds. It still lacks ruleset/rule, apply-rules, on-block, lambda/function-expression and relocate nodes. These are README language constructs, not speculative additions. Their grammar and semantic design must be completed before Codegen. Conditional action, in contrast, already has a parser path and can remain an `AST_IF` canonical form unless the language contract requires preserving source form.
+`ASTNodeType` now includes dedicated select/scan/pattern and rules/apply/on/lambda/relocate/unroll kinds. Parser, AST codec and OIR bridge coverage exists for these syntax forms; baseline semantic scopes, rule signatures/events and type checks are also present. Exhaustiveness, full ownership/effect semantics and lowering remain pre-Codegen gates. Conditional action remains an `AST_IF` canonical form.
 
 ### Scope boundary
 
@@ -134,13 +134,13 @@ This source trace proves parser/model presence or absence only. It does **not** 
 
 ## README examples → minimum AST grammar contracts
 
-This is the minimum structure required by the language examples (not a claim that the parser already implements it).
+This section records the minimum structure required by the language examples and the implementation contracts now in place.
 
 ### Select / scan
 
 - `select(expr) { arm* default? }`: selector expression plus ordered arm list; each arm has pattern/label and body; default is explicit and unique.
 - `scan(expr) { pattern -> body; ... }`: scan input plus ordered pattern arms; patterns can be enum variants/constructor patterns (e.g. `Range(s,e)`) and bind variables.
-- Pattern matching must bind `s,e,i,list,cond` into an arm-local scope; AST cannot encode these only as ordinary call expressions without semantic pattern metadata.
+- Pattern matching binds constructor arguments into arm-local semantic scopes; duplicate bindings in one arm are rejected. Closed-enum constructor resolution and exhaustiveness are still pending.
 
 ### Multi-rule engine
 
@@ -166,7 +166,7 @@ This is the minimum structure required by the language examples (not a claim tha
 
 - Preserve existing four loop shapes only where syntax maps clearly: infinite, condition, init+condition+increment, foreach/range.
 - Rolling `?(count, delay ms)->target` is parsed into `AST_NEXUS_FLOW.retry_count/retry_delay`; `ms` is consumed explicitly and numeric overflow is rejected. Runtime retry scheduling/semantics remain to be defined and lowered.
-- `unroll(count) -> loop(...)`: compile-time directive/loop transform, not a runtime intrinsic call; define AST representation and constant-bound validation.
+- `unroll(count) -> loop(...)`: represented by `AST_UNROLL`; semantic analysis currently accepts only a non-negative integer literal. Constant-expression evaluation and actual compile-time expansion remain pending.
 
 ## C implementation audit (source-verified)
 
@@ -202,7 +202,7 @@ Canonical AST payloads:
 - `AST_SCAN`: `subject` expression and ordered `arms` sibling list.
 - `AST_SCAN_ARM`: `pattern` node and `body`; pattern bindings are represented by pattern nodes and later introduced into an arm-local semantic scope.
 
-Pattern nodes are not equivalent to calls. A constructor pattern such as `Range(s,e)` must preserve constructor name and ordered binding children without resolving `Range` as a function. The first implementation will add `AST_PATTERN_BINDING` and `AST_PATTERN_CONSTRUCTOR`; literal and wildcard patterns reuse literal/identifier forms only where their semantics are unambiguous.
+Pattern nodes are not equivalent to calls. A constructor pattern such as `Range(s,e)` preserves constructor name and ordered binding children without resolving `Range` as a function. `AST_PATTERN_BINDING` and `AST_PATTERN_CONSTRUCTOR` are implemented; literal patterns use literal nodes, while identifier bindings are introduced into arm-local semantic scopes.
 
 Parser grammar:
 ```text
@@ -216,25 +216,25 @@ pattern := identifier
          | literal
 ```
 
-Validation rules: reject duplicate defaults; reject empty constructor patterns; preserve arm order; require a body after each arrow; reject malformed/missing closing delimiters with parser diagnostics and recovery at the next arm boundary. Semantic analysis will check exhaustiveness only when the subject has a closed enum/union type; otherwise default remains optional and unmatched behavior is defined by the select/scan language contract. Pattern-bound names are arm-local and cannot leak into sibling arms.
+Validation rules: duplicate defaults and empty constructor patterns are rejected; arm order is preserved; bodies and delimiters are required with parser recovery. Semantic analysis creates arm-local pattern scopes and rejects duplicate bindings. Type-aware closed-enum exhaustiveness and unmatched behavior remain open.
 
-Wire format: each node serializes only explicit scalar flags and owned child subtrees; no raw pointers, `size_t`, or compiler-private struct layout is written. New node IDs append after the current maximum and are never inserted among existing IDs. All four construct nodes plus pattern nodes must be registered in allocation-size, print, destroy, serialize and deserialize switches before parser construction is enabled.
+Wire format: each node serializes only explicit scalar flags and owned child subtrees; no raw pointers, `size_t`, or compiler-private struct layout is written. New node IDs append after the current maximum and are never inserted among existing IDs. All new nodes are registered in allocation-size, print, destroy, serialize and deserialize switches.
 
 
-### OIR frontend AST bridge — required integration (source-verified, 2 Kasım 2026)
+### OIR frontend AST bridge — implemented integration (source-verified, 2 Kasım 2026)
 
-The select/scan AST extension must also be registered in the canonical AST-to-OIR frontend bridge. The current bridge is a closed set of explicit node/field mappings; adding AST tags without these mappings causes indexing/materialization failure or silently omits child relationships.
+All AST syntax extensions are registered in the canonical AST-to-OIR frontend bridge. The bridge is a closed set of explicit node/field mappings; every new tag has a matching index, writer, reader and field schema.
 
 Affected files and responsibilities:
 
-- `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`: `oir_ast_frontend_child_at()` defines the canonical child-field mapping, and `oir_ast_frontend_child_field_count()` defines each node's field count. New select/scan nodes and pattern nodes need stable, ordered field IDs here.
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`: `oir_ast_frontend_child_at()` defines the canonical child-field mapping, and `oir_ast_frontend_child_field_count()` defines each node's field count. Select/scan, rule, lambda, relocate and unroll nodes now have stable, ordered field IDs here.
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_writer.c`: node-specific scalar/string fields and child references must be emitted using the same field IDs.
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`: reader must allocate the correct AST payload size, restore owned strings/scalars, and attach every child field with ownership checks.
 - Existing AST binary codec in `parser/ast.c` remains a separate compatibility surface; OIR bridge support does not replace its print/destroy/serialize/deserialize integration.
 
 Implementation status (2 Kasım 2026): select/scan, rules/apply/on, lambda, relocate and unroll node families are appended to `ast.h`; all five `ast.c` lifecycle/codec switches and parser productions are updated. OIR IDs 81–96, child index, writer, reader and field schema are registered. Parser AST shape tests and all-kind OIR payload tests are present. **CI passed:** run 41462178481 — Windows, Ubuntu and macOS build/test; Ubuntu ASan/UBSan and Valgrind. Semantic baseline tests also cover pattern scope isolation, ruleset argument/event validation, lambda scopes and relocate type compatibility. Rolling retry `ms` parsing and overflow regression are being validated in the subsequent run.
 
-Recommended canonical field order for the proposed nodes (field IDs are OIR schema IDs, not C struct offsets):
+Canonical select/scan field order (field IDs are OIR schema IDs, not C struct offsets):
 
 | Node | Field 1 | Field 2 | Field 3 |
 |---|---|---|---|
