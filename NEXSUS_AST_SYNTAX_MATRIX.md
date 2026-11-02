@@ -16,7 +16,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Mutable / constant declaration `v:`, `c:` | `AST_VAR_DECL` | Present | Verify type/hard/public/export/inline type fields |
 | Function `f:name(...)` | `AST_FUNC_DECL` | Present | Audit parameter nodes, named args, return type and body |
 | Extern function `exf:name(...)` | `AST_EXTERN_DECL` / `ASTFuncDecl` | Present/shared payload | Verify parser, codec, semantic signature |
-| Lambda `f:(a,b)>expr` / block lambda `f:(a,b){...}` | `AST_LAMBDA` | Parser + AST codec + OIR bridge implemented; expression and block forms tested | Function-type model, capture rules, semantic typing and lowering remain open |
+| Lambda `f:(a,b)>expr` / block lambda `f:(a,b){...}` | `AST_LAMBDA` | Parser/AST/OIR implemented; expression/block bodies, parameter scopes and semantic-result scope visibility tested | Function-type model, capture rules, return inference and lowering remain open |
 | Anonymous function `f:(a,b){...}` | No dedicated anonymous-function tag | **Missing model** | Decide shared lambda/function-expression payload or distinct node |
 | Struct / packed struct | `AST_STRUCT_DECL` | Present | Confirm packed syntax and field type representation |
 | Enum + variants/data | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | Present | Validate payload variants and discriminants |
@@ -36,14 +36,14 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | `if / elsif / els` | `AST_IF` condition/then/else | Partial | Verify elsif chain shape and nesting semantics |
 | Conditional action `(cond) -> break/continue/...` | `AST_IF` canonical form | Parser path exists and is disambiguated from Flow pipe | Complete semantic loop-context and round-trip coverage; no separate node required unless source-form preservation becomes a language requirement |
 | Labels `label:>`, jump `label?>` | `AST_NEXUS_LABEL`, `AST_NEXUS_JUMP` | Present | Resolve label IDs and validate scope/control-flow |
-| `select` | `AST_SELECT` + ordered `AST_SELECT_ARM`; literal, binding and constructor patterns | Parser + AST codec + OIR bridge implemented; cross-platform CI passed | Semantic pattern binding/exhaustiveness and lowering remain gated |
-| `scan` | `AST_SCAN` + ordered `AST_SCAN_ARM`; binding and constructor pattern nodes | Parser + AST codec + OIR bridge implemented; cross-platform CI passed | Semantic pattern binding and scan execution/lowering remain gated |
-| Multi-rule engine / ruleset | `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT` | Parser + AST codec + OIR bridge implemented; barrier/trigger/always/default AST shapes tested | Rule ordering, apply-scope binding, termination/effect semantics and lowering remain open |
-| Rule application | `AST_APPLY_RULES` | Parser + AST codec + OIR bridge implemented; syntax and argument payload tested | Resolve ruleset symbols/arguments and model injected effects in semantic AST |
-| `on` blocks | `AST_ON_BLOCK` | Parser + AST codec + OIR bridge implemented; qualified event and body tested | Validate handler against active apply context and lower trigger dispatch |
+| `select` | `AST_SELECT` + ordered `AST_SELECT_ARM`; literal, binding and constructor patterns | Parser/AST/OIR implemented; semantic arm-local bindings and duplicate-binding checks implemented | Closed-enum constructor resolution, exhaustiveness and lowering remain gated |
+| `scan` | `AST_SCAN` + ordered `AST_SCAN_ARM`; binding and constructor pattern nodes | Parser/AST/OIR implemented; semantic arm-local bindings and duplicate-binding checks implemented | Subject-aware pattern validation and scan execution/lowering remain gated |
+| Multi-rule engine / ruleset | `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT` | Parser/AST/OIR implemented; semantic ruleset symbols/signatures, boolean conditions, string barriers and trigger event registration implemented | Rule ordering/termination/effect execution and lowering remain open |
+| Rule application | `AST_APPLY_RULES` | Parser/AST/OIR implemented; semantic ruleset lookup and argument count/type checks implemented | Validate active apply context and model injected effects in semantic AST/lowering |
+| `on` blocks | `AST_ON_BLOCK` | Parser/AST/OIR implemented; semantic ruleset and trigger-event name validation implemented | Validate active apply context and lower trigger dispatch |
 | Handler capture `(h)<-expr` | `AST_NEXUS_CAPTURE` | Present | Ownership, occupancy, move semantics annotations |
 | Flow / pipe `->, >>, <<` | `AST_NEXUS_FLOW`, `AST_NEXUS_PIPE` | Present/shared | Separate operator semantics, preserve retry/catch payload |
-| Relocate `_>` | `AST_RELOCATE` | Lexer recognizes `_>` before identifier scanning; parser, AST codec and OIR bridge implemented; parser shape tested | Semantic move/invalidation and destination initialization rules; explicit lowering effect |
+| Relocate `_>` | `AST_RELOCATE` | Lexer/parser/AST/OIR implemented; semantic source/destination type compatibility check implemented | Source invalidation, destination ownership initialization and explicit lowering effect remain open |
 | Unpack `...>` | `AST_UNPACK` | Present | Verify target/value and ownership behavior |
 | Halt `?;`, block `} ?;` | `AST_NEXUS_HALT` | Present | Confirm single-resource vs block cleanup semantics |
 | Intent `@` | `AST_NEXUS_INTENT` | Declared / deferred | Do not invent behavior until Intent design is active |
@@ -232,7 +232,7 @@ Affected files and responsibilities:
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`: reader must allocate the correct AST payload size, restore owned strings/scalars, and attach every child field with ownership checks.
 - Existing AST binary codec in `parser/ast.c` remains a separate compatibility surface; OIR bridge support does not replace its print/destroy/serialize/deserialize integration.
 
-Implementation status (2 Kasım 2026): select/scan, rules/apply/on, lambda, relocate and unroll node families are appended to `ast.h`; all five `ast.c` lifecycle/codec switches and parser productions are updated. OIR IDs 81–96, child index, writer, reader and field schema are registered. Parser AST shape tests and all-kind OIR payload tests are present. **CI passed:** run 41459659779 — Windows, Ubuntu and macOS build/test; Ubuntu ASan/UBSan and Valgrind. Rolling retry `ms` parsing and overflow regression are being validated in the subsequent run.
+Implementation status (2 Kasım 2026): select/scan, rules/apply/on, lambda, relocate and unroll node families are appended to `ast.h`; all five `ast.c` lifecycle/codec switches and parser productions are updated. OIR IDs 81–96, child index, writer, reader and field schema are registered. Parser AST shape tests and all-kind OIR payload tests are present. **CI passed:** run 41462178481 — Windows, Ubuntu and macOS build/test; Ubuntu ASan/UBSan and Valgrind. Semantic baseline tests also cover pattern scope isolation, ruleset argument/event validation, lambda scopes and relocate type compatibility. Rolling retry `ms` parsing and overflow regression are being validated in the subsequent run.
 
 Recommended canonical field order for the proposed nodes (field IDs are OIR schema IDs, not C struct offsets):
 
