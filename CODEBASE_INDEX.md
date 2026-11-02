@@ -416,6 +416,21 @@ Changed production files and responsibilities:
 
 The implementation is committed to `refactor/c-core-roadmap`; full CI has not yet been confirmed. Semantic pattern scopes, exhaustiveness and lowering are not claimed complete. The repository-wide C source count remains unchanged; this snapshot is an update to existing files.
 
-- `omnicore-sdk/src/c/oir/oir_ast_node_table.h`: `OIR_AST_NODE_KIND_MAX` is 86; IDs 1–80 remain stable and new pattern/select/scan IDs are 81–86.
+- `omnicore-sdk/src/c/oir/oir_ast_node_table.h`: `OIR_AST_NODE_KIND_MAX` is 96; IDs 1–80 remain stable, select/scan/pattern IDs are 81–86, and rules/apply/on/lambda/relocate/unroll IDs are 87–96.
 - Fixture storage in `test_oir_ast_frontend_writer.c` and `test_oir_ast_frontend_reader.c` includes the new AST payload layouts.
 - **Validation:** CI run `41451812569` passed Windows, Ubuntu and macOS build/test, Ubuntu ASan/UBSan and Valgrind.
+
+## AST syntax implementation snapshot — 2 Kasım 2026
+
+The pre-Codegen AST syntax gap set now has parser/AST/OIR representation for select/scan, ruleset and rule kinds, apply-rules, on-block, expression/block lambdas, relocate and unroll. This is **frontend representation completion only**; semantic typing/scopes/effects and lowering remain open.
+
+- `omnicore-sdk/src/c/parser/ast.h`: append-only AST kinds 81–96; payloads for `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT`, `AST_APPLY_RULES`, `AST_ON_BLOCK`, `AST_LAMBDA`, `AST_RELOCATE`, `AST_UNROLL`.
+- `omnicore-sdk/src/c/parser/ast.c`: allocation size, printer, destroy, binary serializer and deserializer cases for all new kinds.
+- `omnicore-sdk/src/c/parser/parser.c`: contextual rules/apply/on/unroll statement dispatch; ruleset grammar; expression/block lambda parsing; dedicated relocate construction; foreach `in` support without reserving `in` globally.
+- `omnicore-sdk/src/c/parser/lexer.c`: recognize `_>` before generic underscore-prefixed identifier scanning.
+- `omnicore-sdk/src/c/oir/oir_ast_map.c`: OIR IDs 87–96 appended; IDs 1–86 unchanged.
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`, `oir_ast_frontend_writer.c`, `oir_ast_frontend_reader.c`, `oir_ast_field_schema.c`: child fields, scalar/string metadata and materialization registered for all ten new node kinds.
+- `OIR_AST_NODE_REGISTRY.md`: stable node registry and field schema extended through ID 96.
+- `omnicore-sdk/src/c/tests/test_parser.c`: parser shape coverage for barrier/trigger/always/default, apply, on, expression/block lambda, foreach-in, unroll and relocate; AST binary codec round-trip.
+- `omnicore-sdk/src/c/tests/test_oir_ast_frontend_writer.c` / `test_oir_ast_frontend_reader.c`: all-kind payload writer/reader fixtures include the new payload layouts.
+- **Validation:** CI run `41458078191` passed Windows, Ubuntu and macOS build/test plus Ubuntu ASan/UBSan and Valgrind.
