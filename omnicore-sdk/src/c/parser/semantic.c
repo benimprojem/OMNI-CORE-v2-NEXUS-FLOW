@@ -531,6 +531,7 @@ static Slot* add_slot(
         return NULL;
     }
     s->kind = kind;
+    s->declaration_node = declaration_node;
     s->is_const = is_const;
     s->depth = ctx->current_depth;
     s->param_count = 0;
@@ -1804,10 +1805,33 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     while(arg && s->param_types && i < s->param_count) {
                         const char* arg_type = get_expr_type(ctx, arg);
                         const char* expected = s->param_types[i];
-                        if (arg_type && expected && !are_types_compatible(expected, arg_type)) {
+                        ASTVarDecl* parameter = NULL;
+                        if (s->declaration_node &&
+                            s->declaration_node->type == AST_FUNC_DECL) {
+                            ASTNode* parameter_node =
+                                ((ASTFuncDecl*)s->declaration_node)->params;
+                            int parameter_index = 0;
+                            while (parameter_node && parameter_index < i) {
+                                parameter_node = parameter_node->next;
+                                ++parameter_index;
+                            }
+                            if (parameter_node &&
+                                parameter_node->type == AST_VAR_DECL) {
+                                parameter = (ASTVarDecl*)parameter_node;
+                            }
+                        }
+                        if (arg_type && expected &&
+                            !are_types_compatible(expected, arg_type)) {
                             char buf[256];
                             snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_ARG_TYPE), i+1, expected, arg_type);
                             report_error(ctx, arg, ERR_SEMANTIC_ARG_TYPE, buf);
+                        } else if (parameter && parameter->inline_type &&
+                            parameter->inline_type->type == AST_ARRAY_TYPE &&
+                            arg->type == AST_ARRAY_LITERAL) {
+                            semantic_validate_array_initializer(
+                                ctx, arg,
+                                ((ASTArrayType*)parameter->inline_type)->dimensions,
+                                parameter->type_name);
                         }
                         arg = arg->next;
                         i++;
