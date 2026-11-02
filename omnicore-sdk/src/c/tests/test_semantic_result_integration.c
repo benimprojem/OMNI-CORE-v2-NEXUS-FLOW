@@ -54,7 +54,10 @@ static int test_extended_semantic_scopes(void) {
         " v:data = 1;"
         " unroll(3) -> loop(item in data) { v:copy = item; }"
         " v:src!i32 = 1; v:dst!i32 = 2; v:moved = src _> dst;"
-        "}";
+        " v:fixed[3]!i32 = [1,2,3];"
+        " v:matrix[2][2]!f32 = [[1.0,2.0],[3.0,4.0]];"
+        "}"
+        "f:array_params(a![], b!i32[]) {}";
     ParserContext* parser=parser_init_source(
         "extended-semantic-scopes.nxf",(const uint8_t*)source,sizeof(source)-1u);
     OirAstPointerIndexEntry index[1024];
@@ -71,6 +74,9 @@ static int test_extended_semantic_scopes(void) {
     ASTNode* statement;
     uint32_t node_count=0u,select_scope,lambda_scope,ruleset_scope;
     int ok=0;
+    int saw_fixed_array_type=0,saw_matrix_array_type=0;
+    int saw_untyped_dynamic_array=0,saw_typed_dynamic_array=0;
+    uint32_t type_index;
     if(!parser)return 0;
     if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count || !parser->ast_root)goto done;
     memset(index,0,sizeof(index));
@@ -103,10 +109,23 @@ static int test_extended_semantic_scopes(void) {
         semantic_destroy(&semantic);
         goto done;
     }
+    for(type_index=0u;type_index<semantic.result.type_count;type_index++) {
+        const SemanticResultType* type=&semantic.result.types[type_index];
+        if(type->name && strcmp(type->name,"array[3]")==0 && type->base_type_id!=0u)
+            saw_fixed_array_type=1;
+        if(type->name && strcmp(type->name,"array[2][2]")==0 && type->base_type_id!=0u)
+            saw_matrix_array_type=1;
+        if(type->name && strcmp(type->name,"array[]")==0 && type->base_type_id==0u)
+            saw_untyped_dynamic_array=1;
+        if(type->name && strcmp(type->name,"array[]")==0 && type->base_type_id!=0u)
+            saw_typed_dynamic_array=1;
+    }
     select_scope=find_scope_owner(&semantic.result,resolve_node_id(&resolver,(ASTNode*)select_arm));
     lambda_scope=find_scope_owner(&semantic.result,resolve_node_id(&resolver,(ASTNode*)lambda));
     ruleset_scope=find_scope_owner(&semantic.result,resolve_node_id(&resolver,(ASTNode*)ruleset));
     ok=select_scope!=0u && lambda_scope!=0u && ruleset_scope!=0u &&
+        saw_fixed_array_type && saw_matrix_array_type &&
+        saw_untyped_dynamic_array && saw_typed_dynamic_array &&
         constructor->bindings!=NULL &&
         semantic_result_find_visible_symbol(&semantic.result,select_scope,"s")!=0u &&
         semantic_result_find_visible_symbol(&semantic.result,1u,"s")==0u &&
