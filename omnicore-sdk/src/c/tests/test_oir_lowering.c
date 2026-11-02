@@ -206,9 +206,16 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     workspace.instructions = instructions; workspace.instruction_capacity = 32u;
     workspace.operands = operands; workspace.operand_capacity = 64u;
     workspace.strings = module_strings; workspace.string_capacity = sizeof(module_strings);
-    if (oir_lower_semantic_ast_return(&artifact, &workspace,
-            module_bytes, sizeof(module_bytes), &module_length) != OIR_STATUS_OK ||
-        oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
+    {
+        OirStatus lower_status = oir_lower_semantic_ast_return(&artifact, &workspace,
+            module_bytes, sizeof(module_bytes), &module_length);
+        if (lower_status != OIR_STATUS_OK) {
+            fprintf(stderr, "lowerer status=%d for arithmetic fixture %d (nodes=%u)\\n",
+                (int)lower_status, arithmetic, node_count);
+            goto cleanup;
+        }
+    }
+    if (oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
         goto cleanup;
     if (module.type_count != (arithmetic == 5 ? 3u : 2u) ||
         module.function_count != 1u) goto cleanup;
