@@ -16,6 +16,7 @@
 #include "oir/oir_ast_node_table.h"
 #include "oir/oir_ast_graph.h"
 #include "oir/oir_module.h"
+#include "target_parser.h"
 #include "core/compilation.h"
 #include "core/failure_store.h"
 
@@ -42,6 +43,7 @@ typedef int (*CodegenRunFn)(const char*, const char*, const char*);
 #define OCC_AST_OUTPUT_MAX (256u * 1024u * 1024u)
 #define OCC_SEMANTIC_OUTPUT_MAX (256u * 1024u * 1024u)
 #define OCC_MODULE_OUTPUT_MAX (256u * 1024u * 1024u)
+#define OCC_ASSEMBLY_OUTPUT_MAX (64u * 1024u * 1024u)
 
 static int path_join(char* out, size_t out_size, const char* base, const char* relative);
 static void occ_add_host_diagnostic(
@@ -157,6 +159,159 @@ static int occ_write_artifact_file(
     }
 #endif
     return 1;
+}
+
+static int occ_validate_assembly_artifact(
+    const uint8_t* bytes,
+    size_t length,
+    uint64_t job_id,
+    OirSectionView* out_payload
+) {
+    OirArtifactView artifact;
+    OirSectionView payload;
+    uint32_t i;
+    int found_payload = 0;
+    if (!bytes || length == 0u || !out_payload ||
+        oir_artifact_open(bytes, length, &artifact) != OIR_STATUS_OK ||
+        artifact.header.artifact_kind != OIR_KIND_ASSEMBLY ||
+        artifact.header.payload_schema_major != 1u ||
+        artifact.header.payload_schema_minor != 0u ||
+        artifact.header.producer_stage_id != OCC_STAGE_CODEGEN ||
+        artifact.header.validity != OIR_VALIDITY_VALID ||
+        artifact.header.job_id != job_id) return 0;
+
+    memset(&payload, 0, sizeof(payload));
+    for (i = 0u; i < artifact.section_count; ++i) {
+        OirSectionView section;
+        uint64_t j;
+        if (oir_artifact_get_section(&artifact, i, &section) != OIR_STATUS_OK)
+            return 0;
+        if (section.type != OIR_SECTION_PAYLOAD) continue;
+        if (found_payload || section.version != 1u ||
+            section.length == 0u || section.length > (uint64_t)SIZE_MAX ||
+            !section.data) return 0;
+        for (j = 0u; j < section.length; ++j) {
+            uint8_t ch = section.data[j];
+            if (ch == 0u || (ch < 0x20u && ch != '\n' && ch != '\r' && ch != '\t') ||
+                ch > 0x7eu) return 0;
+        }
+        payload = section;
+        found_payload = 1;
+    }
+    if (!found_payload) return 0;
+    *out_payload = payload;
+    return 1;
+}
+
+static int occ_run_codegen_stage(
+    const char* executable_dir,
+    const char* target_path,
+    const char* base_name,
+    const uint8_t* module_artifact,
+    size_t module_artifact_length,
+    OccCompilationContext* job
+) {
+    OccLoadedStageModule loaded;
+    OccModuleArtifactInputV1 input;
+    OirSectionView assembly_payload;
+    TargetConfig target_config;
+    uint8_t* assembly_artifact = NULL;
+    size_t assembly_artifact_length = 0u;
+    char module_path[OCC_PATH_BUFFER], module_error[512];
+    char target_error[512];
+    char artifact_path[640], assembly_path[640];
+    const char* filename;
+    int artifact_path_length, assembly_path_length;
+    int ok = 0;
+
+    memset(&loaded, 0, sizeof(loaded));
+    if (!executable_dir || !target_path || !base_name || !module_artifact ||
+        module_artifact_length == 0u || !job) return 0;
+
+    if (!target_config_load(target_path, &target_config,
+        target_error, sizeof(target_error)) ||
+        !target_backend_check(&target_config, target_error, sizeof(target_error))) {
+        occ_add_host_diagnostic(job, OCC_STAGE_CODEGEN, 5020u,
+            target_error[0] ? target_error : "The selected target is not supported by the current backend.");
+        return 0;
+    }
+
+#if defined(_WIN32)
+    filename = "occ_codegen_stage.dll";
+#elif defined(__APPLE__)
+    filename = "libocc_codegen_stage.dylib";
+#else
+    filename = "libocc_codegen_stage.so";
+#endif
+    if (!path_join(module_path, sizeof(module_path), executable_dir, filename)) {
+        occ_add_host_diagnostic(job, OCC_STAGE_CODEGEN, 5021u,
+            "The Codegen stage module path could not be constructed.");
+        return 0;
+    }
+    if (occ_module_loader_open(&loaded, module_path,
+        module_error, sizeof(module_error)) != OCC_MODULE_LOADER_OK) {
+        occ_add_host_diagnostic(job, OCC_STAGE_CODEGEN, 5022u,
+            module_error[0] ? module_error : "The Codegen stage module could not be loaded.");
+        goto cleanup;
+    }
+    if (!loaded.module ||
+        loaded.module->descriptor.stage_id != OCC_STAGE_CODEGEN ||
+        loaded.module->descriptor.output_artifact_kind != OIR_KIND_ASSEMBLY ||
+        loaded.module->descriptor.output_schema_major != 1u ||
+        loaded.module->descriptor.output_schema_minor != 0u) {
+        occ_add_host_diagnostic(job, OCC_STAGE_CODEGEN, 5023u,
+            "The loaded Codegen module does not match the OIR_ASSEMBLY 1.0 stage contract.");
+        goto cleanup;
+    }
+
+    memset(&input, 0, sizeof(input));
+    input.bytes = module_artifact;
+    input.length = (uint64_t)module_artifact_length;
+    if (occ_module_loader_invoke(&loaded, &input, 1u, job->job_id,
+        &job->diagnostics, 4096u, OCC_ASSEMBLY_OUTPUT_MAX,
+        &assembly_artifact, &assembly_artifact_length) != OCC_MODULE_LOADER_OK) {
+        if (occ_diagnostics_count(&job->diagnostics) == 0u) {
+            occ_add_host_diagnostic(job, OCC_STAGE_CODEGEN, 5024u,
+                "The Codegen stage failed to produce OIR_ASSEMBLY.");
+        }
+        goto cleanup;
+    }
+    if (!occ_validate_assembly_artifact(assembly_artifact,
+        assembly_artifact_length, job->job_id, &assembly_payload)) {
+        occ_add_host_diagnostic(job, OCC_STAGE_CODEGEN, 5025u,
+            "The Codegen output failed OIR_ASSEMBLY envelope or text validation.");
+        goto cleanup;
+    }
+
+    artifact_path_length = snprintf(artifact_path, sizeof(artifact_path),
+        "%s.assembly.oir", base_name);
+    assembly_path_length = snprintf(assembly_path, sizeof(assembly_path),
+        "%s.stage.s", base_name);
+    if (artifact_path_length < 0 ||
+        (size_t)artifact_path_length >= sizeof(artifact_path) ||
+        assembly_path_length < 0 ||
+        (size_t)assembly_path_length >= sizeof(assembly_path)) {
+        occ_add_host_diagnostic(job, OCC_STAGE_CODEGEN, 5026u,
+            "The Codegen output path exceeds the supported path buffer.");
+        goto cleanup;
+    }
+    if (!occ_write_artifact_file(artifact_path, assembly_artifact,
+            assembly_artifact_length, job->job_id) ||
+        !occ_write_artifact_file(assembly_path, assembly_payload.data,
+            (size_t)assembly_payload.length, job->job_id)) {
+        occ_add_host_diagnostic(job, OCC_STAGE_CODEGEN, 5027u,
+            "The validated OIR_ASSEMBLY artifact or assembly text could not be persisted.");
+        goto cleanup;
+    }
+
+    printf("OIR_ASSEMBLY kaydedildi: %s\n", artifact_path);
+    printf("Codegen stage assembly kaydedildi: %s\n", assembly_path);
+    ok = 1;
+
+cleanup:
+    free(assembly_artifact);
+    occ_module_loader_close(&loaded);
+    return ok;
 }
 
 static int occ_build_and_run_parser_module(
@@ -852,6 +1007,9 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "Hata: OIR_MODULE artifact kaydedilemedi: %s\n", module_path);
                 occ_add_host_diagnostic(&job, OCC_STAGE_OIR_LOWERING, 6019u,
                     "The validated OIR_MODULE artifact could not be persisted.");
+                exit_code = 1;
+            } else if (!occ_run_codegen_stage(executable_dir, target_path,
+                base_name, module_artifact, module_artifact_length, &job)) {
                 exit_code = 1;
             } else {
                 printf("IR kaydedildi: %s\n", ir_path);
