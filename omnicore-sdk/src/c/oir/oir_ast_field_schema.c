@@ -31,6 +31,9 @@ static uint16_t required_field_count(uint16_t kind) {
         case 80:
             return 2u;
         case 70: return 4u;
+        case 81: case 83: case 84: case 86: return 2u;
+        case 82: return 3u;
+        case 85: return 1u;
         default: return UINT16_MAX;
     }
 }
