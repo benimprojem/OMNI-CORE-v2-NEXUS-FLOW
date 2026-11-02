@@ -115,35 +115,47 @@ static int float_immediate_operand(
     return 1;
 }
 
-/* The first backend slice is deliberately limited to one straight-line
- * x86-64 bare-metal function with i32/i64/f32/f64/bool scalar operations. */
+static int block_operand(
+    const OirModuleView* module,
+    const OirModuleInstruction* instruction,
+    uint32_t operand_index,
+    uint32_t* out_block_id
+) {
+    OirModuleOperand operand;
+    if (!out_block_id || operand_index >= instruction->operand_count ||
+        oir_module_get_operand(module,
+            instruction->first_operand + operand_index, &operand) != OIR_STATUS_OK ||
+        operand.kind != OIR_OPERAND_BLOCK || operand.reference_id == 0u ||
+        operand.reference_id > module->block_count) return 0;
+    *out_block_id = operand.reference_id;
+    return 1;
+}
+
+/* Initial backend profile: one x86-64 bare-metal function with scalar values
+ * and a multi-block CFG using unconditional/conditional branches. */
 static int verify_codegen_module(
     const OirModuleView* module,
     OirModuleFunction* out_function,
     OirModuleType* out_return_type,
     const uint8_t** out_name
 ) {
-    OirModuleBlock block;
     OirModuleType function_type;
     uint8_t* defined = NULL;
     uint32_t i;
     int valid = 0;
 
     if (!module || !out_function || !out_return_type || !out_name ||
-        module->function_count != 1u || module->block_count != 1u ||
-        module->instruction_count < 2u ||
+        module->function_count != 1u || module->block_count == 0u ||
+        module->block_count > 8192u || module->instruction_count < 2u ||
         module->value_count == 0u || module->value_count > CODEGEN_MAX_VALUES ||
         module->type_count < 2u) return 0;
 
     if (oir_module_get_function(module, 0u, out_function) != OIR_STATUS_OK ||
-        out_function->id != 1u || out_function->entry_block_id != 1u ||
+        out_function->id != 1u || out_function->entry_block_id == 0u ||
+        out_function->entry_block_id > module->block_count ||
         !get_type(module, out_function->function_type_id, &function_type) ||
         function_type.kind != OIR_MODULE_TYPE_FUNCTION ||
         !get_type(module, 1u, out_return_type) ||
-        oir_module_get_block(module, 0u, &block) != OIR_STATUS_OK ||
-        block.id != 1u || block.function_id != 1u ||
-        block.first_instruction != 0u ||
-        block.instruction_count != module->instruction_count ||
         out_function->name_length == 0u ||
         out_function->name_offset > module->strings_length ||
         out_function->name_length > module->strings_length - out_function->name_offset) {
@@ -152,6 +164,16 @@ static int verify_codegen_module(
 
     *out_name = module->strings + out_function->name_offset;
     if (!valid_assembler_identifier(*out_name, out_function->name_length)) return 0;
+
+    for (i = 0u; i < module->block_count; ++i) {
+        OirModuleBlock block;
+        if (oir_module_get_block(module, i, &block) != OIR_STATUS_OK ||
+            block.id != i + 1u || block.function_id != 1u ||
+            block.instruction_count == 0u ||
+            block.first_instruction > module->instruction_count ||
+            block.instruction_count > module->instruction_count - block.first_instruction)
+            return 0;
+    }
 
     if (out_return_type->kind == OIR_MODULE_TYPE_INTEGER) {
         if (out_return_type->bit_width != 32u && out_return_type->bit_width != 64u) return 0;
@@ -173,7 +195,8 @@ static int verify_codegen_module(
         uint32_t j;
 
         if (oir_module_get_instruction(module, i, &instruction) != OIR_STATUS_OK ||
-            instruction.id != i + 1u || instruction.block_id != 1u) goto cleanup;
+            instruction.id != i + 1u || instruction.block_id == 0u ||
+            instruction.block_id > module->block_count) goto cleanup;
 
         if (instruction.result_value_id != 0u) {
             if (!get_value(module, instruction.result_value_id, &result_value) ||
@@ -192,9 +215,7 @@ static int verify_codegen_module(
                 goto cleanup;
             if (operand.kind == OIR_OPERAND_VALUE) {
                 OirModuleValue used;
-                if (!get_value(module, operand.reference_id, &used) ||
-                    !defined[operand.reference_id] ||
-                    used.defining_instruction_id >= instruction.id) goto cleanup;
+                if (!get_value(module, operand.reference_id, &used)) goto cleanup;
             }
         }
 
@@ -246,9 +267,24 @@ static int verify_codegen_module(
                 break;
             case OIR_OP_RETURN:
                 if (instruction.result_value_id != 0u || instruction.operand_count != 1u ||
-                    i + 1u != module->instruction_count ||
                     !value_operand(module, &instruction, 0u, &a) ||
                     a.type_id != out_return_type->id) goto cleanup;
+                break;
+            case OIR_OP_BRANCH:
+                if (instruction.result_value_id != 0u || instruction.operand_count != 1u ||
+                    !block_operand(module, &instruction, 0u, &j)) goto cleanup;
+                break;
+            case OIR_OP_COND_BRANCH:
+                if (instruction.result_value_id != 0u || instruction.operand_count != 3u ||
+                    !value_operand(module, &instruction, 0u, &a) ||
+                    !get_type(module, a.type_id, &result_type) ||
+                    result_type.kind != OIR_MODULE_TYPE_BOOLEAN ||
+                    !block_operand(module, &instruction, 1u, &j) ||
+                    !block_operand(module, &instruction, 2u, &j)) goto cleanup;
+                break;
+            case OIR_OP_UNREACHABLE:
+                if (instruction.result_value_id != 0u || instruction.operand_count != 0u)
+                    goto cleanup;
                 break;
             default:
                 goto cleanup;
@@ -279,6 +315,30 @@ static int emit_instruction(
     OirModuleOperand immediate;
     uint32_t offset;
     int is_64;
+
+    if (instruction->opcode_id == OIR_OP_BRANCH) {
+        uint32_t target;
+        if (!block_operand(module, instruction, 0u, &target)) return 0;
+        return asm_emit(writer, "    jmp .Lbb_%u\n", target);
+    }
+    if (instruction->opcode_id == OIR_OP_COND_BRANCH) {
+        OirModuleValue condition;
+        OirModuleType condition_type;
+        uint32_t if_true, if_false;
+        if (!value_operand(module, instruction, 0u, &condition) ||
+            !get_type(module, condition.type_id, &condition_type) ||
+            condition_type.kind != OIR_MODULE_TYPE_BOOLEAN ||
+            !block_operand(module, instruction, 1u, &if_true) ||
+            !block_operand(module, instruction, 2u, &if_false)) return 0;
+        return asm_emit(writer,
+            "    mov eax, dword [rbp - %u]\n"
+            "    test eax, eax\n"
+            "    jne .Lbb_%u\n"
+            "    jmp .Lbb_%u\n",
+            value_offset(condition.id), if_true, if_false);
+    }
+    if (instruction->opcode_id == OIR_OP_UNREACHABLE)
+        return asm_emit(writer, "    ud2\n");
 
     if (instruction->opcode_id == OIR_OP_RETURN) {
         if (!value_operand(module, instruction, 0u, &a) ||
@@ -483,17 +543,25 @@ static int emit_module_assembly(
         "%.*s:\n"
         "    push rbp\n"
         "    mov rbp, rsp\n"
-        "    sub rsp, %u\n",
+        "    sub rsp, %u\n"
+        "    jmp .Lbb_%u\n",
         (int)function->name_length, (const char*)function_name,
         (int)function->name_length, (const char*)function_name,
         (int)function->name_length, (const char*)function_name,
-        frame_size)) return 0;
+        frame_size, function->entry_block_id)) return 0;
 
     (void)return_type;
-    for (i = 0u; i < module->instruction_count; ++i) {
-        OirModuleInstruction instruction;
-        if (oir_module_get_instruction(module, i, &instruction) != OIR_STATUS_OK ||
-            !emit_instruction(writer, module, &instruction)) return 0;
+    for (i = 0u; i < module->block_count; ++i) {
+        OirModuleBlock block;
+        uint32_t j;
+        if (oir_module_get_block(module, i, &block) != OIR_STATUS_OK ||
+            !asm_emit(writer, ".Lbb_%u:\n", block.id)) return 0;
+        for (j = 0u; j < block.instruction_count; ++j) {
+            OirModuleInstruction instruction;
+            if (oir_module_get_instruction(module,
+                block.first_instruction + j, &instruction) != OIR_STATUS_OK ||
+                !emit_instruction(writer, module, &instruction)) return 0;
+        }
     }
     return 1;
 }
