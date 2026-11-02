@@ -382,3 +382,5 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 - 2026-11-02: OIR Verifier extracts a shared local type-contract helper for constant/arithmetic opcodes and aggregates up to 32 independent type failures (8616); omitted failures use 8625. A two-instruction regression fixture confirms both errors are reported before dependent passes. The main instruction pass reuses the same helper; no duplicate type-rule implementation was introduced.
 - 2026-11-02: Opcode type-overflow diagnostic 8625 now explicitly explains that dependent validation passes were skipped; its remediation remains specific to the omitted constant/arithmetic type contracts.
+
+- 2026-11-02: Extended `validate_instruction_type_contract()` to NEG, CMP_EQ/NE/LT/LE/GT/GE and CAST; the aggregation preflight and main instruction pass share the same rules. Added malformed-contract regression fixtures (variants 15–17) and documented the bounded scope. LOAD/STORE and CALL remain deferred pending pointer/memory and signature models.
