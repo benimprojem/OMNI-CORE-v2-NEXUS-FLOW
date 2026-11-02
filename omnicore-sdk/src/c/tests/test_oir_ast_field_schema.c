@@ -40,7 +40,8 @@ static uint16_t count_for_kind(uint16_t k) {
         case 82: return 3;
         case 85: return 1;
         case 87: case 93: return 3;
-        case 88: case 89: case 92: case 94: case 95: case 96: return 2;
+        case 88: case 89: case 92: case 95: case 96: return 2;
+        case 94: return 3;
         case 90: case 91: return 1;
         default: return 0xffffu;
     }
