@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
+#include <errno.h>
 #include <stdint.h>
 #include "lexer.h"
 
@@ -308,6 +309,29 @@ static uint32_t semantic_type_id(
     return status == SEMANTIC_RESULT_OK ? type_id : 0u;
 }
 
+static int semantic_array_dimension_value(
+    const ASTNode* expression, uint64_t* value_out
+) {
+    const ASTLiteral* literal;
+    const char* cursor;
+    char* end = NULL;
+    unsigned long long value;
+    if (!expression || expression->type != AST_LITERAL || !value_out)
+        return 0;
+    literal = (const ASTLiteral*)expression;
+    if (literal->type != TOKEN_NUMBER || !literal->string_value ||
+        !literal->string_value[0]) return 0;
+    for (cursor = literal->string_value; *cursor; ++cursor) {
+        if (*cursor < '0' || *cursor > '9') return 0;
+    }
+    errno = 0;
+    value = strtoull(literal->string_value, &end, 10);
+    if (errno == ERANGE || !end || *end != '\0' || value == 0u)
+        return 0;
+    *value_out = (uint64_t)value;
+    return 1;
+}
+
 static uint32_t semantic_declared_type_id(
     SemanticContext* ctx, const ASTVarDecl* declaration
 ) {
@@ -341,15 +365,14 @@ static uint32_t semantic_declared_type_id(
         int written;
         if (!dim->length) {
             written = snprintf(shape + used, sizeof(shape) - used, "[]");
-        } else if (dim->length->type == AST_LITERAL &&
-            ((const ASTLiteral*)dim->length)->type == TOKEN_NUMBER &&
-            ((const ASTLiteral*)dim->length)->int_value > 0 &&
-            ((const ASTLiteral*)dim->length)->string_value &&
-            !strchr(((const ASTLiteral*)dim->length)->string_value, '.') &&
-            !strchr(((const ASTLiteral*)dim->length)->string_value, 'e') &&
-            !strchr(((const ASTLiteral*)dim->length)->string_value, 'E')) {
-            written = snprintf(shape + used, sizeof(shape) - used, "[%lld]",
-                ((const ASTLiteral*)dim->length)->int_value);
+        } else {
+            uint64_t dimension_value = 0u;
+            if (semantic_array_dimension_value(dim->length, &dimension_value)) {
+                written = snprintf(shape + used, sizeof(shape) - used, "[%llu]",
+                    (unsigned long long)dimension_value);
+            } else {
+                written = snprintf(shape + used, sizeof(shape) - used, "[?]");
+            }
         } else {
             written = snprintf(shape + used, sizeof(shape) - used, "[?]");
         }
@@ -925,10 +948,10 @@ static void semantic_validate_array_initializer(
         ++count;
     if (dimension->type == AST_ARRAY_DIMENSION &&
         ((const ASTArrayDimension*)dimension)->length) {
+        uint64_t expected_length = 0u;
         const ASTNode* length_node = ((const ASTArrayDimension*)dimension)->length;
-        if (length_node->type == AST_LITERAL &&
-            ((const ASTLiteral*)length_node)->int_value > 0 &&
-            (uint64_t)count != (uint64_t)((const ASTLiteral*)length_node)->int_value) {
+        if (semantic_array_dimension_value(length_node, &expected_length) &&
+            (uint64_t)count != expected_length) {
             report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
                 "Array initializer length does not match its fixed dimension.");
         }
@@ -1080,14 +1103,10 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_ARRAY_DIMENSION: {
             ASTArrayDimension* dimension=(ASTArrayDimension*)node;
             if (dimension->length) {
+                uint64_t dimension_value = 0u;
                 semantic_check(ctx,dimension->length);
-                if (dimension->length->type!=AST_LITERAL ||
-                    ((ASTLiteral*)dimension->length)->type!=TOKEN_NUMBER ||
-                    ((ASTLiteral*)dimension->length)->int_value<=0 ||
-                    !((ASTLiteral*)dimension->length)->string_value ||
-                    strchr(((ASTLiteral*)dimension->length)->string_value,'.') ||
-                    strchr(((ASTLiteral*)dimension->length)->string_value,'e') ||
-                    strchr(((ASTLiteral*)dimension->length)->string_value,'E')) {
+                if (!semantic_array_dimension_value(
+                    dimension->length, &dimension_value)) {
                     report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                         "Fixed array dimensions must be positive integer literals; use [] for dynamic dimensions.");
                 }
