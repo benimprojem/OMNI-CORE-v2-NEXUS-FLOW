@@ -490,6 +490,8 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Parse empty, nested and comma-separated array literals; preserve element order.
 - [x] Append OIR AST node ID 97 and register field schema, frontend index, writer and reader.
 - [x] Add parser binary-codec and OIR reader ordered-element round-trip regressions.
+- [x] Add baseline semantic checks: homogeneous literal elements accepted; mixed immediate element types rejected.
+- [ ] Preserve exact nested element type and array dimensions in semantic result instead of generic `array`.
 - [ ] Add structured array type syntax for dynamic `T[]`, fixed `T[n]` and multidimensional `T[m][n]` declarations and parameters.
 - [ ] Define map key/value type and ownership semantics; implement indexing and relocation/move effects consistently.
 - [ ] Validate `Vec2`, `Vec3`, `Vec4` dimensionality and SIMD operation rules in semantic analysis.
