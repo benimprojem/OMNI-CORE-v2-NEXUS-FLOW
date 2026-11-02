@@ -90,7 +90,13 @@ static const OirAstNodeMapEntry node_map[OIR_AST_NODE_KIND_COUNT] = {
     { AST_FREE, 77u },
     { AST_ZONE_SYNC, 78u },
     { AST_ZONE_VIEW, 79u },
-    { AST_ZONE_LOCK, 80u }
+    { AST_ZONE_LOCK, 80u },
+    { AST_SELECT, 81u },
+    { AST_SELECT_ARM, 82u },
+    { AST_SCAN, 83u },
+    { AST_SCAN_ARM, 84u },
+    { AST_PATTERN_BINDING, 85u },
+    { AST_PATTERN_CONSTRUCTOR, 86u }
 };
 
 uint16_t oir_ast_node_id_from_frontend(ASTNodeType type) {
