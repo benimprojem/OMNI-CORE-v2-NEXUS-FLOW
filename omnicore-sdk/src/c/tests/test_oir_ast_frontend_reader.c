@@ -23,6 +23,16 @@ typedef union AstStorage {
     ASTSelectArm select_arm;
     ASTScan scan_node;
     ASTScanArm scan_arm;
+    ASTRulesetDecl ruleset_decl;
+    ASTRuleBarrier rule_barrier;
+    ASTRuleTrigger rule_trigger;
+    ASTRuleAlways rule_always;
+    ASTRuleDefault rule_default;
+    ASTApplyRules apply_rules;
+    ASTOnBlock on_block;
+    ASTLambda lambda_node;
+    ASTRelocate relocate_node;
+    ASTUnroll unroll_node;
     ASTVarDecl var_decl;
     ASTFuncDecl func_decl;
     ASTStructDecl struct_decl;
