@@ -740,6 +740,53 @@ static void semantic_register_rule_signature(
     }
 }
 
+static void semantic_register_rule_events(
+    SemanticContext* ctx, Slot* slot, ASTNode* rules
+) {
+    ASTNode* rule;
+    FieldInfo* tail;
+    if(!slot)return;
+    tail=slot->fields;
+    while(tail && tail->next)tail=tail->next;
+    for(rule=rules;rule;rule=rule->next) {
+        ASTNode* action=NULL;
+        FieldInfo* field;
+        if(rule->type==AST_RULE_TRIGGER)
+            action=((ASTRuleTrigger*)rule)->action;
+        if(!action || action->type!=AST_IDENTIFIER)continue;
+        {
+            const char* name=((ASTIdentifier*)action)->name;
+            FieldInfo* existing;
+            int duplicate=0;
+            for(existing=slot->fields;existing;existing=existing->next)
+                if(existing->name && name && strcmp(existing->name,name)==0)
+                    duplicate=1;
+            if(duplicate)continue;
+            field=(FieldInfo*)semantic_callocate(ctx,1u,sizeof(*field));
+            if(!field) {
+                semantic_set_result_error(ctx,SEMANTIC_RESULT_OUT_OF_MEMORY);
+                return;
+            }
+            field->name=semantic_duplicate(ctx,name);
+            if(!field->name) {
+                free(field);
+                semantic_set_result_error(ctx,SEMANTIC_RESULT_OUT_OF_MEMORY);
+                return;
+            }
+            if(tail)tail->next=field;else slot->fields=field;
+            tail=field;
+        }
+    }
+}
+
+static int semantic_rule_has_event(const Slot* slot, const char* event_name) {
+    const FieldInfo* field;
+    if(!slot || !event_name)return 0;
+    for(field=slot->fields;field;field=field->next)
+        if(field->name && strcmp(field->name,event_name)==0)return 1;
+    return 0;
+}
+
 static void semantic_check_rule_arguments(
     SemanticContext* ctx, ASTNode* node, const char* name,
     ASTNode* args, Slot* slot
@@ -1055,6 +1102,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             } else {
                 slot=add_slot(ctx,ruleset->name,SLOT_FUNC,1,NULL,node,0,0,0,0u);
                 semantic_register_rule_signature(ctx,slot,ruleset->params);
+                semantic_register_rule_events(ctx,slot,ruleset->rules);
             }
             enter_scope(ctx,node);
             semantic_check(ctx,ruleset->params);
@@ -1114,9 +1162,16 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_ON_BLOCK: {
             ASTOnBlock* handler=(ASTOnBlock*)node;
-            if(!find_slot(ctx,handler->ruleset_name?handler->ruleset_name:"")) {
+            Slot* ruleset=find_slot(ctx,handler->ruleset_name?handler->ruleset_name:"");
+            if(!ruleset || ruleset->kind!=SLOT_FUNC) {
                 char message[256];
                 snprintf(message,sizeof(message),"Unknown ruleset '%s' in on-block.",
+                    handler->ruleset_name?handler->ruleset_name:"");
+                report_error(ctx,node,ERR_SEMANTIC_UNDEFINED,message);
+            } else if(!semantic_rule_has_event(ruleset,handler->event_name)) {
+                char message[256];
+                snprintf(message,sizeof(message),"Unknown event '%s' for ruleset '%s'.",
+                    handler->event_name?handler->event_name:"",
                     handler->ruleset_name?handler->ruleset_name:"");
                 report_error(ctx,node,ERR_SEMANTIC_UNDEFINED,message);
             }
@@ -1128,10 +1183,13 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_LAMBDA: {
             ASTLambda* lambda=(ASTLambda*)node;
+            const char* enclosing_return_type=ctx->current_func_return_type;
+            ctx->current_func_return_type=NULL;
             enter_scope(ctx,node);
             semantic_check(ctx,lambda->params);
             semantic_check(ctx,lambda->body);
             exit_scope(ctx);
+            ctx->current_func_return_type=enclosing_return_type;
             semantic_record_annotation(ctx,node,NULL,"any",
                 SEMANTIC_RESULT_VALUE_RVALUE);
             break;
