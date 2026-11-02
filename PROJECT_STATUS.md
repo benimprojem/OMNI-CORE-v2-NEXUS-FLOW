@@ -758,3 +758,6 @@ Doğrudan stage testi OIR_MODULE girdisinden assembly üretimini, output-buffer 
 
 
 **Float Codegen doğrulaması:** doğrudan Codegen DLL testi artık f64 için `MULSD/ADDSD` ve RAX bit-pattern dönüşünü; f32 için `CVTSD2SS/MULSS/ADDSS` ve `MOVD EAX,XMM0` dönüşünü doğrular. F32/F64 desteği yalnızca bu ilk straight-line backend alt kümesi içindir.
+
+
+**Float test CI — run 41367815321:** f32/f64 direct Codegen stage tests passed. Windows, Ubuntu and macOS build/test jobs passed; Ubuntu CTest **58/58**, ASan/UBSan and Valgrind passed.
