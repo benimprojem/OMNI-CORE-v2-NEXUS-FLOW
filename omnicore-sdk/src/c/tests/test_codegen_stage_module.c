@@ -425,10 +425,12 @@ static int build_float_compare_module_artifact(uint8_t** out_bytes, size_t* out_
     instructions[7].first_operand = 10u; instructions[7].operand_count = 1u;
 
     memset(operands, 0, sizeof(operands));
-    for (i = 0u; i < 4u; ++i) {
+    for (i = 0u; i < 2u; ++i) {
         operands[i].kind = OIR_OPERAND_FLOAT_IMMEDIATE;
         operands[i].immediate = bits[i];
     }
+    operands[2].kind = OIR_OPERAND_VALUE; operands[2].reference_id = 1u;
+    operands[3].kind = OIR_OPERAND_VALUE; operands[3].reference_id = 2u;
     operands[4].kind = OIR_OPERAND_VALUE; operands[4].reference_id = 3u;
     operands[5].kind = OIR_OPERAND_BLOCK; operands[5].reference_id = 2u;
     operands[6].kind = OIR_OPERAND_BLOCK; operands[6].reference_id = 3u;
