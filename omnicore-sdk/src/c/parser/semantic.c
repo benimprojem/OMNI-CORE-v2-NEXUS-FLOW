@@ -1325,13 +1325,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 get_expr_type(ctx,node),SEMANTIC_RESULT_VALUE_LVALUE);
             break;
         }
-        case AST_INDEX_ACCESS: {
-            ASTIndexAccess* access=(ASTIndexAccess*)node;
-            semantic_check(ctx,access->target);
-            semantic_check(ctx,access->index);
-            break;
-        }
-
         case AST_ARRAY_TYPE:
             semantic_check(ctx,((ASTArrayType*)node)->dimensions);
             break;
