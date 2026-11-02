@@ -903,7 +903,7 @@ done:
 
 static int test_array_type_declarators(void) {
     static const char source[] =
-        "f:consume(a![], b!i32[], c:i32[4]) {}"
+        "f:consume(a![], b!i32[], third:i32[4]) {}"
         "f:main() { v:dynamic[]; v:fixed[5]!i32; v:matrix[3][3]!f32; }";
     ParserContext* ctx=parser_init_source("array-types.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
