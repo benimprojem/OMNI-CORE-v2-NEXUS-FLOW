@@ -394,6 +394,8 @@ int main(int argc, char** argv) {
     assert(output == NULL);
     assert(occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) >= 1u);
     assert_last_diagnostic_code(&diagnostics, 8620u, "value=2");
+    assert_last_diagnostic_hint(&diagnostics, "Suggested fix:");
+    assert_last_diagnostic_hint(&diagnostics, "Define the value before its use");
     free(input); input = NULL; input_length = 0u; output = NULL; output_length = 0u;
 
     /* A definition in a predecessor block must dominate its downstream use. */
@@ -448,8 +450,16 @@ int main(int argc, char** argv) {
                 OCC_MODULE_LOADER_INVOKE_FAILED);
             assert(output == NULL && output_length == 0u);
             assert_last_diagnostic_code(&diagnostics, expected_codes[variant], expected_contexts[variant]);
-            if (variant == 3) assert_last_diagnostic_hint(&diagnostics, "passes were skipped");
-            if (variant == 9) assert_last_diagnostic_hint(&diagnostics, "dominance and SSA-use passes were skipped");
+            if (variant == 3) {
+                assert_last_diagnostic_hint(&diagnostics, "passes were skipped");
+                assert_last_diagnostic_hint(&diagnostics, "entry_block_id");
+            }
+            if (variant == 6)
+                assert_last_diagnostic_hint(&diagnostics, "canonical OIR writer");
+            if (variant == 9) {
+                assert_last_diagnostic_hint(&diagnostics, "dominance and SSA-use passes were skipped");
+                assert_last_diagnostic_hint(&diagnostics, "matching numeric types");
+            }
             free(input); input = NULL; input_length = 0u;
         }
     }
