@@ -1321,6 +1321,16 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
         case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; n->pattern=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->body=ast_deserialize_recursive(reader); break; }
         case AST_PATTERN_BINDING: ((ASTPatternBinding*)node)->name=read_string(reader); break;
         case AST_PATTERN_CONSTRUCTOR: { ASTPatternConstructor* n=(ASTPatternConstructor*)node; n->name=read_string(reader); n->bindings=ast_deserialize_recursive(reader); break; }
+        case AST_RULESET_DECL: { ASTRulesetDecl* n=(ASTRulesetDecl*)node; n->name=read_string(reader); n->params=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->rules=ast_deserialize_recursive(reader); break; }
+        case AST_RULE_BARRIER: { ASTRuleBarrier* n=(ASTRuleBarrier*)node; n->condition=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->message=ast_deserialize_recursive(reader); break; }
+        case AST_RULE_TRIGGER: { ASTRuleTrigger* n=(ASTRuleTrigger*)node; n->condition=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->action=ast_deserialize_recursive(reader); break; }
+        case AST_RULE_ALWAYS: ((ASTRuleAlways*)node)->action=ast_deserialize_recursive(reader); break;
+        case AST_RULE_DEFAULT: ((ASTRuleDefault*)node)->action=ast_deserialize_recursive(reader); break;
+        case AST_APPLY_RULES: { ASTApplyRules* n=(ASTApplyRules*)node; n->ruleset_name=read_string(reader); n->args=ast_deserialize_recursive(reader); break; }
+        case AST_ON_BLOCK: { ASTOnBlock* n=(ASTOnBlock*)node; n->ruleset_name=read_string(reader); n->event_name=read_string(reader); n->body=ast_deserialize_recursive(reader); break; }
+        case AST_LAMBDA: { ASTLambda* n=(ASTLambda*)node; n->params=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->body=ast_deserialize_recursive(reader); if(reader->failed)goto fail; if(!ast_read_exact(reader,&n->body_is_expression,sizeof(int)))goto fail; break; }
+        case AST_RELOCATE: { ASTRelocate* n=(ASTRelocate*)node; n->source=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->target=ast_deserialize_recursive(reader); break; }
+        case AST_UNROLL: { ASTUnroll* n=(ASTUnroll*)node; n->count=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->loop=ast_deserialize_recursive(reader); break; }
         case AST_ENUM_DECL: {
             ASTEnumDecl* e = (ASTEnumDecl*)node;
             e->name = read_string(reader);
@@ -1395,7 +1405,7 @@ static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
 
         if (type_val == -1) return head;
 
-        if (type_val < AST_PROGRAM || type_val > AST_PATTERN_CONSTRUCTOR ||
+        if (type_val < AST_PROGRAM || type_val > AST_UNROLL ||
             reader->node_count >= AST_MAX_NODE_COUNT ||
             reader->depth >= AST_MAX_RECURSION_DEPTH) {
             reader->failed = 1;
