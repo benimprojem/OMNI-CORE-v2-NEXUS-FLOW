@@ -631,6 +631,16 @@ static void ast_destroy_recursive(ASTNode* node) {
         case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; if(n->pattern)ast_destroy_recursive(n->pattern); if(n->body)ast_destroy_recursive(n->body); break; }
         case AST_PATTERN_BINDING: free(((ASTPatternBinding*)node)->name); break;
         case AST_PATTERN_CONSTRUCTOR: { ASTPatternConstructor* n=(ASTPatternConstructor*)node; free(n->name); if(n->bindings)ast_destroy_recursive(n->bindings); break; }
+        case AST_RULESET_DECL: { ASTRulesetDecl* n=(ASTRulesetDecl*)node; free(n->name); if(n->params)ast_destroy_recursive(n->params); if(n->rules)ast_destroy_recursive(n->rules); break; }
+        case AST_RULE_BARRIER: { ASTRuleBarrier* n=(ASTRuleBarrier*)node; if(n->condition)ast_destroy_recursive(n->condition); if(n->message)ast_destroy_recursive(n->message); break; }
+        case AST_RULE_TRIGGER: { ASTRuleTrigger* n=(ASTRuleTrigger*)node; if(n->condition)ast_destroy_recursive(n->condition); if(n->action)ast_destroy_recursive(n->action); break; }
+        case AST_RULE_ALWAYS: if(((ASTRuleAlways*)node)->action)ast_destroy_recursive(((ASTRuleAlways*)node)->action); break;
+        case AST_RULE_DEFAULT: if(((ASTRuleDefault*)node)->action)ast_destroy_recursive(((ASTRuleDefault*)node)->action); break;
+        case AST_APPLY_RULES: { ASTApplyRules* n=(ASTApplyRules*)node; free(n->ruleset_name); if(n->args)ast_destroy_recursive(n->args); break; }
+        case AST_ON_BLOCK: { ASTOnBlock* n=(ASTOnBlock*)node; free(n->ruleset_name); free(n->event_name); if(n->body)ast_destroy_recursive(n->body); break; }
+        case AST_LAMBDA: { ASTLambda* n=(ASTLambda*)node; if(n->params)ast_destroy_recursive(n->params); if(n->body)ast_destroy_recursive(n->body); break; }
+        case AST_RELOCATE: { ASTRelocate* n=(ASTRelocate*)node; if(n->source)ast_destroy_recursive(n->source); if(n->target)ast_destroy_recursive(n->target); break; }
+        case AST_UNROLL: { ASTUnroll* n=(ASTUnroll*)node; if(n->count)ast_destroy_recursive(n->count); if(n->loop)ast_destroy_recursive(n->loop); break; }
         case AST_BLOCK:
         case AST_PROGRAM:
         case AST_ASM_BLOCK: {
