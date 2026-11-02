@@ -459,3 +459,11 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Add a regression fixture with two independently malformed SSA value records; assert both IDs are reported and no output artifact is emitted.
 - [x] Add an instruction-level reverse-link preflight after the SSA value table succeeds; aggregate independent mismatches and skip dependent passes.
 - [ ] Extend aggregation to opcode semantic/type checks only after their per-instruction prerequisites and side effects can be isolated safely.
+
+## OIR Verifier — bounded local opcode type diagnostics
+
+- [x] Extract one shared per-instruction type-contract helper for constant and arithmetic opcodes; both preflight and the main instruction pass use the same implementation.
+- [x] Aggregate up to 32 independent constant/arithmetic type-contract failures with diagnostic 8616 and instruction context.
+- [x] Report omitted local type-contract failures with diagnostic 8625; skip dependent structural/opcode/CFG/terminator/dominance/use passes when the preflight fails.
+- [x] Add a regression fixture containing two independently invalid instruction type contracts while keeping the type and SSA tables valid.
+- [ ] Extend safe aggregation to additional opcode families only after their reference and CFG dependencies are explicitly classified.
