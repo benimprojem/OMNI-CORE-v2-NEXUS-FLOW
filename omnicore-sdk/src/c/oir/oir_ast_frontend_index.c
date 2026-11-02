@@ -248,11 +248,12 @@ uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
         case AST_LOOP: return 7u;
         case AST_NEXUS_PIPE: case AST_NEXUS_FLOW: return 6u;
         case AST_THREAD_BLOCK: return 4u;
-        case AST_SELECT: case AST_SCAN: case AST_SELECT_ARM: case AST_SCAN_ARM: case AST_PATTERN_CONSTRUCTOR: return 2u;
+        case AST_SELECT: case AST_SCAN: case AST_SCAN_ARM: case AST_PATTERN_CONSTRUCTOR: return 2u;
+        case AST_SELECT_ARM: case AST_LAMBDA: return 3u;
         case AST_PATTERN_BINDING: return 0u;
         case AST_RULESET_DECL: case AST_ON_BLOCK: return 3u;
         case AST_RULE_BARRIER: case AST_RULE_TRIGGER: case AST_APPLY_RULES:
-        case AST_LAMBDA: case AST_RELOCATE: case AST_UNROLL: return 2u;
+        case AST_RELOCATE: case AST_UNROLL: return 2u;
         case AST_RULE_ALWAYS: case AST_RULE_DEFAULT: return 1u;
         default: return 0u;
     }
