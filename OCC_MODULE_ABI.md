@@ -248,3 +248,23 @@ Input/output contract:
 CTest `real_semantic_stage_ast_to_semantic_ast_module` loads the actual shared library through `occ_module_loader`, creates a valid AST OIR fixture, exercises output-buffer retry, and independently opens and validates the resulting SEMANTIC_AST cross-table references and symbol/scope tables.
 
 CI run 41183789210 passed on Windows, macOS and Ubuntu; Ubuntu CTest 46/46, ASan/UBSan and Valgrind passed. The module is invoked by OCC's main CLI, and its language catalog is loaded beside the DLL and released at the end of each invocation. ABI v1 remains draft and is not frozen.
+
+
+## 15. Independent OIR lowering stage module
+
+`omnicore-sdk/src/c/module/oir_lowering_stage_module.c` is built as `occ_oir_lowering_stage` (Windows DLL / Linux SO / macOS dylib).
+
+Descriptor draft:
+- Module ID: `0x00010004`.
+- Stage ID: `OCC_STAGE_OIR_LOWERING = 7`.
+- Input: exactly one valid `OIR_KIND_SEMANTIC_AST` artifact using the current SEMANTIC_AST schema.
+- Output: `OIR_KIND_MODULE` with the OIR_MODULE 1.1 payload.
+- Capabilities: reentrant, deterministic, stateless and diagnostic reporting.
+
+Before lowering, the module validates the OIR envelope, artifact kind/schema, Semantic producer stage, validity, job ID, AST node table, semantic AST graph and cross-table references. It allocates all scratch/workspace memory per invocation; no frontend AST pointer, semantic pointer or allocator-owned object crosses the ABI. The current stage-specific AST input limit is 65,536 nodes; exceeding it fails explicitly with a diagnostic.
+
+The module writes the OIR_MODULE payload into a temporary per-call buffer, wraps it in the standard OIR artifact container, and publishes it only after the caller's output capacity is sufficient. A too-small buffer returns `NEED_OUTPUT_BUFFER` with the exact complete artifact size and zero published bytes; the host loader retries. The stage does not retain mutable state between invocations.
+
+CTest `semantic_ast_local_ssa_lowering` now loads the real DLL through `occ_module_loader`, forces the output-buffer retry from a 64-byte initial buffer, validates the OIR_MODULE envelope and payload for the supported scalar fixtures, and verifies malformed input is rejected. CI run `41365084763` passed on Windows, Ubuntu and macOS; Ubuntu ASan/UBSan and Valgrind passed.
+
+**Integration boundary:** the module is independently built and tested, but `main.c` does not yet invoke it. OCC still materializes the parser AST for the legacy Codegen entry point. The next task is the host-side SEMANTIC_AST → lowering DLL → OIR_MODULE handoff; Codegen migration follows separately.
