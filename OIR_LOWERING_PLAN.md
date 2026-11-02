@@ -266,3 +266,16 @@ These decisions must be made explicitly before the corresponding feature is impl
 ## Array indexing follow-up
 
 AST indexing is implemented as `AST_INDEX_ACCESS`; semantic analysis requires an array-valued target and an integer index and records the indexed expression as an lvalue. OIR lowering does **not** yet emit indexed memory operations. Before enabling it, define the bounds policy (runtime trap vs. proven-safe/elided check), row-major multidimensional offset calculation, index evaluation order, and canonical typed load/store representation. Until these are specified and verified, indexed reads/writes remain outside the executable lowering subset.
+
+### Array indexing lowering contract (design decision)
+
+The first executable indexed-memory slice uses **checked indexing by default**; the frontend does not silently assume an index is in range.
+
+- **Bounds:** every dimension is checked before memory access. A statically known constant index/extent pair may be diagnosed at compile time; dynamic indexes retain a runtime check. Out-of-range access traps and cannot continue with a wrapped address. Bounds-check elision is a later optimization and requires a verifier-recognized proof.
+- **Evaluation:** evaluate the base expression once, then each index expression exactly once, from left to right. Reuse those SSA values for checks and address calculation; never duplicate side effects.
+- **Layout:** multidimensional arrays use row-major layout. For dimensions d0,...,dn-1, linear element index = i0*(d1*...*dn-1) + i1*(d2*...*dn-1) + ... + in-1. Every multiply/add in offset construction is overflow-checked. Byte offset is linear index × element size, also checked.
+- **Memory:** indexed read is an explicit typed LOAD; indexed assignment is an explicit typed STORE. The resulting element type comes from the semantic array element type. No implicit pointer arithmetic or unchecked load/store is permitted.
+- **OIR prerequisite:** the current registry has generic LOAD/STORE but no canonical typed address-offset or bounds-check opcode. Before lowering implementation, append stable opcodes for checked bounds and address offset (tentative IDs 100 and 101; confirm unused IDs in code first), specify operand/result schemas and trap/memory effects, and add verifier rules. This document decision does not assign wire IDs by itself.
+- **Partial indexing:** matrix[i] yields a subarray view/address with remaining rank; matrix[i][j] checks each dimension independently. A view's lifetime/ownership representation is still unresolved, so initial lowering may support only full-rank indexing until that representation is explicit.
+
+This contract is shared by OIR lowering, OIR verifier, and future Codegen; target-specific instruction selection must not weaken its safety semantics.
