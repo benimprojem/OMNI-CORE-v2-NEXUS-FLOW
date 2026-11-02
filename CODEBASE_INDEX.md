@@ -427,10 +427,10 @@ The pre-Codegen AST syntax gap set now has parser/AST/OIR representation for sel
 - `omnicore-sdk/src/c/parser/ast.h`: append-only AST kinds 81–96; payloads for `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT`, `AST_APPLY_RULES`, `AST_ON_BLOCK`, `AST_LAMBDA`, `AST_RELOCATE`, `AST_UNROLL`.
 - `omnicore-sdk/src/c/parser/ast.c`: allocation size, printer, destroy, binary serializer and deserializer cases for all new kinds.
 - `omnicore-sdk/src/c/parser/parser.c`: contextual rules/apply/on/unroll statement dispatch; ruleset grammar; expression/block lambda parsing; dedicated relocate construction; foreach `in` support without reserving `in` globally.
-- `omnicore-sdk/src/c/parser/lexer.c`: recognize `_>` before generic underscore-prefixed identifier scanning.
+- `omnicore-sdk/src/c/parser/lexer.c`: recognize `_>` before generic underscore-prefixed identifier scanning; preserve `?(count, delay ms)->target` retry metadata in `AST_NEXUS_FLOW`, consume optional `ms`, and reject overflow.
 - `omnicore-sdk/src/c/oir/oir_ast_map.c`: OIR IDs 87–96 appended; IDs 1–86 unchanged.
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`, `oir_ast_frontend_writer.c`, `oir_ast_frontend_reader.c`, `oir_ast_field_schema.c`: child fields, scalar/string metadata and materialization registered for all ten new node kinds.
 - `OIR_AST_NODE_REGISTRY.md`: stable node registry and field schema extended through ID 96.
 - `omnicore-sdk/src/c/tests/test_parser.c`: parser shape coverage for barrier/trigger/always/default, apply, on, expression/block lambda, foreach-in, unroll and relocate; AST binary codec round-trip.
 - `omnicore-sdk/src/c/tests/test_oir_ast_frontend_writer.c` / `test_oir_ast_frontend_reader.c`: all-kind payload writer/reader fixtures include the new payload layouts.
-- **Validation:** CI run `41458078191` passed Windows, Ubuntu and macOS build/test plus Ubuntu ASan/UBSan and Valgrind.
+- **Validation:** CI run `41459659779` passed Windows, Ubuntu and macOS build/test plus Ubuntu ASan/UBSan and Valgrind.
