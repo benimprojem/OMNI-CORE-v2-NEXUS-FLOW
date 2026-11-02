@@ -40,6 +40,16 @@
 - [ ] Add full semantic AST artifact decode assertions and function-call argument shape compatibility.
 - [ ] Define executable array layout/indexing/allocation lowering; until then unsupported lowering must fail closed.
 
+### A2. Array index access — AST/semantic complete, OIR design bounded
+- [x] Append dedicated `AST_INDEX_ACCESS` node with separate target/index child ownership; keep existing AST tag IDs stable.
+- [x] Parse postfix `target[index]` and support chained syntax structurally.
+- [x] Update AST allocation, printer, destroy, serialization and deserialization paths; add codec fixture using the dedicated node shape.
+- [x] Semantic check: target must be array, index must be integer; index expression is annotated as an lvalue and element type is propagated.
+- [x] Add valid/invalid parser-semantic fixtures and diagnostic assertions.
+- [x] Decide checked bounds, left-to-right single evaluation, row-major offset and checked overflow in `OIR_LOWERING_PLAN.md`.
+- [ ] Register checked-bounds/address-offset OIR instructions and verifier contracts before lowering indexed reads/writes.
+- [ ] Implement full-rank index lowering to typed `LOAD`/`STORE`; keep partial-rank views disabled until ownership/lifetime is modeled.
+
 ### B. Semantic tamamlanması
 - [ ] Token/dil spec ile semantic kurallarının tam matrisi.
 - [ ] Scope açma/kapama, shadowing, duplicate declaration, visibility/export ve label kapsamı.
