@@ -733,9 +733,8 @@ static ASTNode* parse_primary(Parser* p) {
                 tail=element;
             } while(match(p,TOKEN_COMMA) && !check(p,TOKEN_RBRACKET));
         }
-        if(!consume(p,TOKEN_RBRACKET,ERR_PARSER_EXPECTED_BRACKET,"Expected ']' after array elements.")) {
-            ast_destroy((ASTNode*)array);ast_destroy(head);return NULL;
-        }
+        consume(p,TOKEN_RBRACKET,ERR_PARSER_EXPECTED_BRACKET,"Expected ']' after array elements.");
+        if(p->current.type==TOKEN_ERROR) { ast_destroy((ASTNode*)array);ast_destroy(head);return NULL; }
         array->elements=head;
         return (ASTNode*)array;
     }
