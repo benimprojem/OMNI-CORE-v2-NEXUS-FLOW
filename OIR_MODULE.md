@@ -1,6 +1,6 @@
 # OIR_MODULE — Lowered Intermediate Representation
 
-**Status:** Opcode registry 1.0 and OIR_MODULE payload codec 1.1 implemented; scalar literal and recursive arithmetic return lowering are implemented, while the production stage and full verifier remain pending  
+**Status:** Opcode registry 1.0, OIR_MODULE payload codec 1.1 and independent scalar IR-lowering DLL implemented; recursive arithmetic, initialized scalar locals and straight-line reassignment are covered. Full module verifier and OCC CLI handoff remain pending.  
 **Artifact kind:** `OIR_KIND_MODULE` (stable kind ID 5)  
 **Producer:** IR lowering stage  
 **Input:** one validated `OIR_KIND_SEMANTIC_AST` artifact  
@@ -29,7 +29,7 @@ OIR_MODULE
 TARGET_IR or ASSEMBLY
 ```
 
-The current legacy path is not this pipeline yet. `parser_save_ir()` calls `ast_serialize()`; the legacy codegen DLL calls `ast_deserialize()` and walks parser AST nodes directly. That serializer is an internal native-layout format, not an `OIR_MODULE`. OCC currently produces and validates `SEMANTIC_AST`, but the existing legacy codegen path still uses the parser AST. Do not describe the new lowering stage as implemented until it consumes the semantic artifact and emits a validated module artifact.
+The new lowering stage now exists as an independent shared module: it consumes `SEMANTIC_AST` and emits an OIR container carrying an `OIR_MODULE` 1.1 payload. Its current scalar subset is tested through the host module loader. However, `main.c` does not yet invoke this stage. The current CLI still uses `parser_save_ir()` / `ast_serialize()` and the legacy Codegen DLL's `ast_deserialize()` path. That native-layout AST serializer is an internal compatibility format, not an `OIR_MODULE`. The stage is therefore implemented and independently tested, but the complete OCC lowering handoff is not yet integrated.
 
 ## 2. Design principles
 
@@ -158,7 +158,7 @@ Operand records must encode operand kind explicitly. A value operand references 
 
 The initial opcode IDs and structural descriptors are implemented in [OIR_OPCODE_REGISTRY.md](OIR_OPCODE_REGISTRY.md) and `oir_module_opcode.h/.c`. The registry defines arity, operand kinds, result presence and coarse effect/terminator flags. The module verifier must additionally enforce type constraints, SSA rules, function signatures, memory metadata and control-flow validity. Unknown executable opcodes are rejected; they must never be silently ignored.
 
-The current scalar lowerer emits typed integer/float/bool constants and recursively lowers literal-only arithmetic return expressions for `+`, `-`, `*` and `/`. Binary nodes are traversed according to the validated AST, so the parser's precedence/associativity is preserved; each operation produces a new SSA value. This is an initial implementation slice, not complete numeric semantics: implicit promotion, mixed-width conversions, variables, identifiers, calls and control flow remain outside the supported subset. The parser-to-semantic-to-OIR integration test includes `ret 10 + 20 * 3;` and checks that `mul` is emitted before `add`. Test execution is still pending.
+The current scalar lowerer emits typed integer/float/bool constants and recursively lowers `+`, `-`, `*` and `/` expressions. It also supports initialized scalar locals, local identifier reads and straight-line reassignment through a caller-owned symbol-to-SSA-value mapping. Binary nodes are traversed according to the validated AST, so parser precedence/associativity is preserved; each operation produces a new SSA value. The first executable slice is exactly one parameterless, non-extern function with initialized scalar locals, simple reassignment and one final return. This is not complete numeric semantics: implicit promotion, mixed-width conversions, parameters, calls, multiple functions and control flow remain outside the supported subset. Tests cover `ret 10 + 20 * 3;`, `v:x!i32 = 40; x = x + 2; ret x;` and multiple SSA versions.
 
 The first opcode registry should cover the minimum needed to lower the currently supported language subset: constants, typed arithmetic, comparisons, casts/conversions, local reads/writes, calls, returns, branches, conditional branches and explicit memory operations. Intrinsics and concurrency operations must receive explicit semantics before being emitted.
 
@@ -249,7 +249,7 @@ The design sequence is:
 4. Define canonical type records and the complete NEXSUS Flow numeric-promotion/conversion lattice, including forced-width behavior and unresolved mixed-type cases.
 5. Define function, block, instruction, operand and source-map wire layouts.
 6. Implement a standalone module writer/reader and verifier with malformed-input, overflow, cross-reference and deterministic round-trip tests.
-7. Implement IR lowering as its own shared stage module: `SEMANTIC_AST -> OIR_MODULE`.
+7. [x] Implement IR lowering as its own shared stage module: `SEMANTIC_AST -> OIR_MODULE` (independent module test passes; not yet invoked by OCC CLI).
 8. Switch OCC to pass the semantic artifact directly to lowering; remove the legacy AST serialization handoff only after parity tests pass.
 9. Migrate codegen to consume validated `OIR_MODULE`; keep the AST-walking codegen only as a temporary compatibility path.
 10. Add optimizer DLLs after the module verifier and opcode semantics are stable.
@@ -268,8 +268,8 @@ No schema is considered frozen merely because a first implementation or test fix
 | NEXSUS Flow numeric width promotion | Partial language rule established; full conversion lattice open |
 | OIR_MODULE opcode registry 1.0 / primitive type mapping | Initial registries implemented; complete semantic type rules pending |
 | Module payload verifier | Not implemented |
-| Initial SEMANTIC_AST scalar-return lowering pass | Implemented as a caller-workspace C pass; typed literals and literal-only `+`, `-`, `*`, `/` expressions supported |
-| IR lowering DLL | Not implemented |
+| Initial SEMANTIC_AST scalar lowering pass | Implemented as a caller-workspace C pass; typed literals, arithmetic, initialized locals, identifier reads and straight-line reassignment supported |
+| IR lowering DLL | Implemented and tested independently; OCC CLI handoff pending |
 | OCC semantic-artifact-to-lowering handoff | Not implemented |
 | Legacy AST serializer and AST-walking codegen | Existing compatibility path |
 
@@ -277,6 +277,6 @@ The legacy codegen currently emits a small NASM-like text subset directly from A
 
 ### Initial lowering slice
 
-`oir_lower_semantic_ast_return()` consumes a validated `OirSemanticAstArtifactView` and emits an `OIR_MODULE` **payload** (not a complete OIR container artifact). The current accepted shape is exactly one non-extern, parameterless function with one block and one return expression. The expression may be an annotated `i*`, `u*`, `f32`, `f64` or `bool` literal, or a literal-only tree using the active parser's `+`, `-`, `*` and `/` operators. The lowerer cross-checks the function's declared return spelling against the canonical semantic type record, maps that primitive through the explicit allowlist, traverses the expression tree in postorder, and emits typed constants, arithmetic SSA values and a return instruction. The older `oir_lower_semantic_ast_literal_return()` entry point remains available for callers restricted to literal returns.
+`oir_lower_semantic_ast_return()` consumes a validated `OirSemanticAstArtifactView` and emits an `OIR_MODULE` payload. The independent `occ_oir_lowering_stage` wraps that payload in a complete OIR artifact container. The current accepted shape is exactly one non-extern, parameterless function with one block, initialized scalar locals, simple reassignment to earlier mutable locals and one final return. Expressions may contain annotated `i*`, `u*`, `f32`, `f64` or `bool` literals, local identifier reads and the active parser's `+`, `-`, `*` and `/` operators. The lowerer cross-checks the function's declared return spelling against the canonical semantic type record, maps supported primitives through the explicit allowlist, traverses expression trees in postorder and emits typed constants, arithmetic SSA values and a return instruction. The older `oir_lower_semantic_ast_literal_return()` entry point remains available for literal-only callers.
 
-The pass uses caller-owned arrays and buffers. It rejects extra declarations/statements, parameters, missing annotations, non-primitive/unregistered types and unsupported literal categories. Arithmetic, identifiers, local variables, conversion records, source maps, module-level verification, OIR envelope publication, DLL loading and OCC orchestration are not yet implemented. The focused test is `test_oir_lowering.c`; it validates the generated payload with `oir_module_open()`, checks the integer immediate round trip, and also drives a real source file through Parser, semantic analysis, SEMANTIC_AST artifact validation and lowering. The integration case verifies that a declared hard return type such as `!i32` is taken from the function's semantic annotation while the returned literal retains its natural `i32` annotation.
+The pass uses caller-owned arrays and buffers. It rejects extra functions, parameters, unsupported statements, missing annotations, non-primitive/unregistered types and unsupported literal categories. The module stage validates the semantic artifact and graph before lowering, allocates per-invocation workspaces, enforces a 65,536 AST-node stage limit and publishes only a structurally valid OIR_MODULE artifact after output capacity is sufficient. The `test_oir_lowering.c` test loads the real shared module through `occ_module_loader`, exercises the 64-byte output-buffer retry, validates the OIR envelope and module payload, and verifies malformed input rejection. CI run `41365084763` passed on Windows, Ubuntu and macOS, including Ubuntu ASan/UBSan and Valgrind. The full module verifier, source maps, conversions, parameters, calls, multiple functions, control-flow lowering and OCC CLI invocation remain pending.
