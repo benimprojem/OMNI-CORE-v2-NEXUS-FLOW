@@ -93,3 +93,15 @@ Bu belge uygulama kararlarını ve henüz karara bağlanmamış tasarım konular
 - **Geçerlilik:** Artifact envelope, payload kind/version ve validity durumu downstream çağrısından önce doğrulanır. PARTIAL yalnızca bunu kabul ettiğini bildiren modüle verilir.
 - **Eski formatlar:** Mevcut C native-layout AST stream ve eski C++ OIR2 birbirinden farklı legacy biçimlerdir; OIR v1 olarak yorumlanamazlar.
 - **Detay:** [OIR_FORMAT.md](OIR_FORMAT.md).
+
+
+## ADR-009 — Independent OIR Verifier and optional optimization profiles
+
+- **Durum:** Kabul edildi; ilk Verifier stage uygulandı, optimizer CLI/profile entegrasyonu planlandı.
+- **Verifier:** OIR Lowering sonrasında ve Codegen öncesinde bağımsız doğrulama zorunludur. Optimizer çalışırsa ürettiği OIR, Codegen'e geçmeden önce aynı bağımsız Verifier tarafından yeniden doğrulanır.
+- **ABI:** Verifier ayrı bir shared stage modülüdür ancak özel bir public ABI oluşturmaz. Ortak `OccStageModuleV1` sözleşmesini ve OCC diagnostic sink'ini kullanır.
+- **Değişmezlik:** Verifier OIR'ı onarmaz veya değiştirmez; doğrulanmış artifact'i verifier producer kimliğiyle yeniden yayımlar.
+- **Optimizer varsayılanı:** OCC komut satırında optimizasyon seviyesi belirtilmezse Optimizer aşaması atlanır. `--o0` zorunlu veya gerekli değildir.
+- **Optimizer profilleri:** `--o1` temel, `--o2` standart, `--o3` ileri, `--o4` agresif optimizasyon profilidir. Tek derlemede yalnızca bir seviye seçilebilir.
+- **Güvenlik kapısı:** Geçersiz OIR Optimizer veya Codegen'e verilemez. Her optimizer çıktısı yeniden doğrulanır.
+- **Detay:** [OIR_VERIFIER_SPEC.md](OIR_VERIFIER_SPEC.md) ve [COMPILER_PIPELINE.md](COMPILER_PIPELINE.md).
