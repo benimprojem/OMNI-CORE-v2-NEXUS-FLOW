@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 static const OccStageModuleV1 g_oir_lowering_module;
+#define OIR_LOWERING_STAGE_MAX_AST_NODES 65536u
 
 static OirStatus find_payload(
     const OirArtifactView* artifact, uint16_t type, OirSectionView* out
@@ -92,6 +93,7 @@ static uint32_t OCC_MODULE_CALL oir_lowering_process(
             &g_oir_lowering_module.descriptor, invocation, result) !=
             OCC_MODULE_STATUS_OK ||
         invocation->input_count != 1u ||
+        !invocation->inputs || !invocation->inputs[0].bytes ||
         invocation->inputs[0].length > (uint64_t)SIZE_MAX ||
         invocation->output_capacity > (uint64_t)SIZE_MAX) {
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
@@ -118,7 +120,11 @@ static uint32_t OCC_MODULE_CALL oir_lowering_process(
     }
 
     node_count = (size_t)ast_table.node_count;
-    if (node_count == SIZE_MAX) return OCC_MODULE_STATUS_INVALID_INVOCATION;
+    if (node_count > OIR_LOWERING_STAGE_MAX_AST_NODES) {
+        (void)report_lowering_error(invocation, result, 8403u,
+            "The semantic AST exceeds the current OIR lowering stage node limit.");
+        return OCC_MODULE_STATUS_FAILED;
+    }
 
     incoming = (uint32_t*)calloc(node_count, sizeof(*incoming));
     visited = (uint8_t*)calloc(node_count, sizeof(*visited));
@@ -245,6 +251,7 @@ static uint32_t OCC_MODULE_CALL oir_lowering_process(
         (size_t)invocation->output_capacity,
         &output_header, &output_section, 1u, &artifact_written);
     if (status != OIR_STATUS_OK || artifact_written != artifact_required) {
+        result->required_output_capacity = 0u;
         module_status = OCC_MODULE_STATUS_FAILED;
         (void)report_lowering_error(invocation, result, 8406u,
             "OIR_MODULE artifact serialization failed.");
