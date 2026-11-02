@@ -156,9 +156,9 @@ static uint32_t OCC_MODULE_CALL oir_lowering_process(
     string_capacity = ast_table.string_table_length;
     if (string_capacity == 0u) string_capacity = 1u;
 
-    workspace.type_capacity = 2u;
+    workspace.type_capacity = 3u;
     workspace.function_capacity = 1u;
-    workspace.block_capacity = 1u;
+    workspace.block_capacity = (uint32_t)node_count;
     workspace.value_capacity = (uint32_t)values_capacity;
     workspace.instruction_capacity = (uint32_t)instruction_capacity;
     workspace.operand_capacity = (uint32_t)operand_capacity;
