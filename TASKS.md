@@ -264,7 +264,8 @@ OCC CLI → OIR Lowering DLL → OIR_MODULE handoff'unu entegre et. Lowerer DLL 
 - [x] Refactor the initial semantic result model to emit scope/symbol/type/annotation/relation records; broader language rules and conversion records remain separate work.
 - [x] Implement `occ_semantic_stage` DLL/SO/dylib using `OccStageModuleV1`, AST input and SEMANTIC_AST output.
 - [x] Integrate Semantic DLL in OCC and validate its SEMANTIC_AST output; retain host AST materialization only as a temporary legacy Codegen bridge.
-- [ ] Pass SEMANTIC_AST through the new IR Lowering DLL in the OCC CLI; migrate Codegen to consume OIR_MODULE and remove the legacy `codegen_run` handoff after parity tests.
+- [x] Pass SEMANTIC_AST through the new IR Lowering DLL in the OCC CLI; host validates and checkpoints the OIR_MODULE output (CI run 41366127592).
+- [ ] Migrate Codegen to consume OIR_MODULE through the common stage ABI and remove the legacy `codegen_run` handoff only after output-parity tests.
 
 
 
@@ -276,7 +277,7 @@ OCC CLI → OIR Lowering DLL → OIR_MODULE handoff'unu entegre et. Lowerer DLL 
 - [x] Deterministic/reentrant/stateless descriptor and stable stage/module IDs (`OCC_STAGE_OIR_LOWERING=7`, module ID `0x00010004`).
 - [x] Dynamic module-loader test covers all supported scalar fixtures, exact output-buffer retry from a 64-byte initial buffer, OIR_MODULE envelope/payload validation and malformed-input rejection.
 - [x] **CI run 41365084763:** Windows, Ubuntu and macOS build/test successful; Ubuntu ASan/UBSan and Valgrind successful.
-- [ ] Add the lowering DLL to the OCC CLI stage graph after Semantic DLL; validate and checkpoint OIR_MODULE output.
+- [x] Add the lowering DLL to the OCC CLI stage graph after Semantic DLL; validate the descriptor, artifact header, job/stage identity and OIR_MODULE payload, then persist `.module.oir` via a same-directory temporary file and rename. **CI run 41366127592:** Windows/Ubuntu/macOS build and test successful; Ubuntu ASan/UBSan and Valgrind successful; Ubuntu CTest 57/57.
 - [ ] Migrate Codegen to the common stage ABI and make it consume OIR_MODULE; remove the temporary host AST materialization bridge only after parity tests.
 
 ## P3 — Native NEXSUS linker and OCL — future architecture requirement
@@ -289,3 +290,20 @@ OCC CLI → OIR Lowering DLL → OIR_MODULE handoff'unu entegre et. Lowerer DLL 
 - [ ] Remove the temporary C-linker bridge only after the native linker passes the full target and security test matrix.
 
 This is a planned end-state requirement, not part of the current Semantic DLL milestone.
+
+
+## OCC CLI integration of OIR Lowering — 2 Kasım 2026
+
+- [x] OCC resolves the platform-specific `occ_oir_lowering_stage` DLL/SO/dylib beside the executable.
+- [x] The host checks the loaded descriptor's stage ID and output artifact kind before invocation.
+- [x] The validated `SEMANTIC_AST` artifact is passed with the current job ID and the job-owned diagnostic collector.
+- [x] The host validates OIR container kind, OIR_MODULE schema 1.1, producer stage, validity, job ID, unique payload section and the OIR_MODULE payload codec before accepting output.
+- [x] The validated artifact is persisted as `<source-basename>.module.oir` using a same-directory temporary file and platform-appropriate replacement.
+- [x] CMake makes the lowering shared library a build dependency of OCC and links the OIR_MODULE reader into the host.
+- [x] A CLI integration fixture exercises the supported scalar lowering subset and checks the persisted OIR signature and artifact size.
+- [x] The legacy AST materialization and `codegen_run` path remain active; no premature Codegen migration is claimed.
+- [x] **CI run 41366127592:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed; Ubuntu CTest **57/57**.
+
+**Current lowering scope:** the first lowering implementation supports a bounded scalar subset (integer/float/bool returns, straight-line arithmetic and initialized local values/assignments). Unsupported AST constructs still fail closed in this stage. The CLI integration fixture is intentionally inside this implemented subset; broader parser/semantic fixtures remain covered by their own tests.
+
+**Next compiler task:** migrate Codegen to the common `OccStageModuleV1` ABI and make it consume validated OIR_MODULE. Keep the legacy AST bridge until parity tests cover the existing supported source set.
