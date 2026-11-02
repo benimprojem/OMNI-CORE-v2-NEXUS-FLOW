@@ -315,6 +315,13 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         test_put_u32(module_bytes + operands_offset + 1u * 16u,
             OIR_OPERAND_FUNCTION);
         test_put_u32(module_bytes + operands_offset + 1u * 16u + 4u, 1u);
+    } else if (variant == 14) {
+        size_t values_offset = 36u + 3u * 12u + 20u +
+            (size_t)block_count * 16u;
+        /* Both type records remain valid, but two instructions violate their
+           own opcode-local result/operand type contracts. */
+        test_put_u32(module_bytes + values_offset + 4u, 2u);
+        test_put_u32(module_bytes + values_offset + 16u + 4u, 2u);
     }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
@@ -573,6 +580,32 @@ int main(int argc, char** argv) {
         assert(strstr(duplicate_result.message, "value=1") != NULL);
         assert(duplicate_result.hint != NULL &&
             strstr(duplicate_result.hint, "Opcode, CFG") != NULL);
+        free(input); input = NULL; input_length = 0u;
+    }
+
+    /* Record-local constant/arithmetic type failures aggregate independently. */
+    {
+        OccModuleArtifactInputV1 stage_input;
+        OccDiagnosticView first_type_error, second_type_error;
+        size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
+        assert(build_cfg_module_artifact(&input, &input_length, 14));
+        memset(&stage_input, 0, sizeof(stage_input));
+        stage_input.bytes = input; stage_input.length = input_length;
+        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 516u,
+            &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
+            OCC_MODULE_LOADER_INVOKE_FAILED);
+        assert(output == NULL && output_length == 0u);
+        assert(occ_diagnostics_count(&diagnostics) == diagnostics_before + 2u);
+        assert(occ_diagnostics_get(&diagnostics, diagnostics_before,
+            &first_type_error));
+        assert(occ_diagnostics_get(&diagnostics, diagnostics_before + 1u,
+            &second_type_error));
+        assert(first_type_error.record->code == 8616u);
+        assert(second_type_error.record->code == 8616u);
+        assert(strstr(first_type_error.message, "instruction=1") != NULL);
+        assert(strstr(second_type_error.message, "instruction=3") != NULL);
+        assert(first_type_error.hint != NULL &&
+            strstr(first_type_error.hint, "passes were skipped") != NULL);
         free(input); input = NULL; input_length = 0u;
     }
 
