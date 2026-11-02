@@ -388,3 +388,5 @@ The file/path inventory below is complete for the snapshot. The function catalog
 - 2026-11-02: Added `AST_OIR_COMPLETION_PLAN.md` as the explicit AST/semantic/lowering/OIR checklist and Codegen gate. `ROADMAP.md` and `TASKS.md` now prioritize AST contracts, semantic completeness, lowering coverage and full OIR verification before backend expansion.
 
 - 2026-11-02: Added `NEXSUS_AST_SYNTAX_MATRIX.md`, comparing README-defined syntax against current AST tags/payloads and identifying model gaps (lambda/anonymous function, conditional action, select/scan, ruleset/apply/on, loop normalization, aggregate forms and relocate tracing). This is an initial source-backed matrix; parser/codec/semantic implementation coverage remains to be audited and tested.
+
+- 2026-11-02: Parser grammar trace added to `NEXSUS_AST_SYNTAX_MATRIX.md`: `if/elsif/els` and conditional action are represented by AST_IF; C parser lacks select/scan, rules/apply/on, lambda/function-expression and dedicated relocate support. Unified loop has partial legacy payload (0..3) and rolling/unroll parity remains open. `TASKS.md` tracks these concrete gaps.
