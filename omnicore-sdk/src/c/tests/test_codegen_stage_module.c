@@ -98,7 +98,7 @@ static int build_module_artifact(uint8_t** out_bytes, size_t* out_length) {
     header.artifact_kind = OIR_KIND_MODULE;
     header.payload_schema_major = OIR_MODULE_SCHEMA_MAJOR;
     header.payload_schema_minor = OIR_MODULE_SCHEMA_MINOR;
-    header.producer_stage_id = OCC_STAGE_OIR_LOWERING;
+    header.producer_stage_id = OCC_STAGE_OIR_VERIFY;
     header.validity = OIR_VALIDITY_VALID;
     header.job_id = 77u;
 
@@ -225,7 +225,7 @@ static int build_float_module_artifact(
     header.artifact_kind = OIR_KIND_MODULE;
     header.payload_schema_major = OIR_MODULE_SCHEMA_MAJOR;
     header.payload_schema_minor = OIR_MODULE_SCHEMA_MINOR;
-    header.producer_stage_id = OCC_STAGE_OIR_LOWERING;
+    header.producer_stage_id = OCC_STAGE_OIR_VERIFY;
     header.validity = OIR_VALIDITY_VALID;
     header.job_id = job_id;
 
