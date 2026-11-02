@@ -56,7 +56,7 @@ Linker / packaging module
 Final output
 ```
 
-This is the target architecture, not a claim that all listed modules currently exist. The current C implementation has an OCC executable, independently loadable lexer, parser and semantic stage modules, a combined frontend support library, and a separately loadable legacy codegen library. OCC invokes the three frontend stages in sequence and validates the `SEMANTIC_AST` artifact. The migration remains incremental: IR lowering is not implemented, and the current legacy codegen path still consumes the parser AST through the native-layout AST serializer.
+This is the target architecture, not a claim that all listed modules currently exist. The current C implementation has independently loadable lexer, parser and semantic stage modules plus the new independent `occ_oir_lowering_stage` module. OCC invokes Lexer → Parser → Semantic and validates the `SEMANTIC_AST` artifact. The lowering DLL accepts that artifact and emits a validated `OIR_MODULE` container; its dynamic-module tests pass on Windows, Ubuntu and macOS, including Ubuntu ASan/UBSan and Valgrind. The lowerer is not yet called by the OCC CLI. The current legacy Codegen path still consumes the parser AST through the native-layout AST serializer.
 
 A stage can be skipped only when the selected build mode explicitly permits it and the next stage accepts the supplied artifact format. A stage must not silently reinterpret an unrelated artifact as its input.
 
@@ -162,7 +162,7 @@ Current implementation boundary (incremental migration):
 - Lexer, parser and semantic analysis are built as independent shared stage modules and invoked through the OCC module loader. The live chain is `SOURCE_UNIT → TOKEN_STREAM → AST → SEMANTIC_AST`.
 - OCC independently validates the semantic output. The current CLI then materializes the parser AST and writes the legacy native-layout AST serialization via `parser_save_ir()`; the legacy codegen DLL deserializes that AST and walks AST nodes directly.
 - This legacy `.oir` file is **not** an `OIR_MODULE` artifact and is not the canonical OIR v1 module representation. `OIR_KIND_MODULE` (kind ID 5) is registered, but its payload schema, verifier and lowering stage are not implemented. See [OIR_MODULE.md](OIR_MODULE.md) for the draft contract.
-- The next migration is an independent IR Lowering DLL that consumes `SEMANTIC_AST` and emits a validated `OIR_MODULE`. Only after that handoff and parity tests are established should codegen migrate from AST input to `OIR_MODULE` input.
+- The next migration is to add the tested IR Lowering DLL to the OCC CLI stage graph, passing `SEMANTIC_AST` and validating/checkpointing `OIR_MODULE`. Only after that handoff and parity tests are established should Codegen migrate from AST input to `OIR_MODULE` input.
 - The frontend remains a shared internal support library linked by stage modules. Its C structs and allocator state do not cross the module ABI.
 - Codegen remains a separately loadable legacy shared library and has not yet migrated to `OccStageModuleV1`.
 - General checkpoint/stop-after controls, complete diagnostic accumulation, and multi-job scheduling remain open work.
@@ -176,7 +176,7 @@ All stage-to-stage handoff uses the common OIR container described in [OIR_FORMA
 
 The file extension is not the type system: a stage must inspect and validate the OIR header and payload schema before consuming an artifact. It must reject unsupported versions, wrong artifact kinds, corrupt lengths and invalid state. A partial artifact is accepted only by stages that explicitly declare partial-input support.
 
-A schema-1.0 OIR AST payload writer/reader now exists and is tested across Windows, Linux and macOS, including real parser → OIR AST artifact → frontend AST round-trips. The older native-layout AST serializer exposed by the parser remains legacy/internal and is not a cross-platform module interchange format. The OCC CLI's stop-after-parser checkpoint command and the independent parser DLL stage entry point are still pending.
+A schema-1.0 OIR AST payload writer/reader and validate-before-allocate frontend materializer are tested across Windows, Linux and macOS, including real parser → OIR AST artifact → frontend AST round-trips. The parser DLL stage is integrated into the OCC CLI through the host loader. The older native-layout AST serializer remains a temporary legacy Codegen bridge, not a cross-platform module interchange format. The user-facing `--stop-after` checkpoint command remains pending.
 
 
 ## 12. Project-owned linker and optional OCL security policy
