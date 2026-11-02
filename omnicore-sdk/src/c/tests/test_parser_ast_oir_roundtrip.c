@@ -114,7 +114,17 @@ done:
 
 static int test_select_scan_oir_roundtrip(void) {
     static const char source[] =
-        "f:main() { select(x) { default -> { } } scan(x) { Range(s,e) -> { } } }";
+        "f:main() {"
+        " select(x) { default -> { } }"
+        " scan(x) { Range(s,e) -> { } }"
+        " rules PrimeBorders(n) { n < 2 :=> \"out of range\"; n == 2 -> true; always -> true; default -> false; }"
+        " apply rules(PrimeBorders(5));"
+        " on PrimeBorders.Success { ret true; }"
+        " v:callback = f:(x) > x;"
+        " v:callback_block = f:(x) { ret x; };"
+        " unroll(3) -> loop(item in data) { v:copy = item; }"
+        " v:moved = source _> target;"
+        "}";
     ParserContext* parser=parser_init_source("pattern-oir.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     uint8_t *first=NULL,*second=NULL;
@@ -151,7 +161,7 @@ done:
 }
 
 int main(int argc,char** argv) {
-    if(!test_select_scan_oir_roundtrip()) { fprintf(stderr,"Select/scan OIR AST round-trip failed.\\n"); return 1; }
+    if(!test_select_scan_oir_roundtrip()) { fprintf(stderr,"Extended AST OIR round-trip failed.\\n"); return 1; }
     ParserContext* parser;
     uint8_t* first_payload=NULL;
     uint8_t* second_payload=NULL;
