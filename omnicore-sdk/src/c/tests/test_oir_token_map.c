@@ -19,6 +19,13 @@ int main(void) {
         ++count;
     }
 
+    if (oir_token_id_from_omni(TOKEN_KW_IF) != 161u ||
+        oir_token_id_from_omni(TOKEN_KW_ELS) != 162u ||
+        oir_token_id_from_omni(TOKEN_KW_ELSIF) != 163u) {
+        fprintf(stderr, "if/els/elsif token IDs are not stable\n");
+        return 1;
+    }
+
     if (oir_token_id_from_omni((OmniTokenType)-1) != 0 ||
         oir_token_id_from_omni((OmniTokenType)65535) != 0) {
         fprintf(stderr, "Unknown frontend token enum must map to zero\n");
