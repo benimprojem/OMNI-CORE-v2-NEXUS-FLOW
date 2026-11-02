@@ -55,7 +55,7 @@ static int test_extended_semantic_scopes(void) {
         " unroll(3) -> loop(item in data) { v:copy = item; }"
         " v:src!i32 = 1; v:dst!i32 = 2; v:moved = src _> dst;"
         " v:fixed[3]!i32 = [1,2,3];"
-        " v:matrix[2][2]!f32 = [[1.0,2.0],[3.0,4.0]];"
+        " v:matrix[2][2]!f64 = [[1.0,2.0],[3.0,4.0]];"
         "}"
         "f:array_params(a![], b!i32[]) {}";
     ParserContext* parser=parser_init_source(
