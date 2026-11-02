@@ -68,7 +68,9 @@ Exactly one OIR container carrying:
 - Artifact kind: `OIR_KIND_MODULE` (stable kind ID 5)
 - Payload schema: OIR_MODULE 1.1 for the currently implemented verifier
 - Validity: `VALID`
-- A valid producer stage and matching compilation job identity
+- Matching compilation job identity
+
+**Current implementation restriction:** the verifier currently accepts only `OCC_STAGE_OIR_LOWERING` as the producer stage. When the Optimizer is integrated, this input gate must be extended to accept only explicitly registered OIR-producing stages, including the Optimizer stage. It must not accept arbitrary producer IDs.
 
 The verifier independently validates the envelope and payload. A host-provided artifact-kind hint is not a substitute for reading the artifact.
 
@@ -134,6 +136,8 @@ The verifier must enforce only semantics represented by the active OIR schema an
 
 Source/IR validity failures are reported as diagnostics through the shared OCC diagnostic sink. They are distinct from infrastructure failures such as allocation failure, invalid invocation, incompatible ABI or internal verifier failure.
 
+**Current diagnostic limitation:** the current implementation reports a coarse generic diagnostic for most payload validation failures (for example, code `8603`). It does not yet consistently identify the failing function, block, instruction or SSA value. Fine-grained validation codes and location context are the next verifier-engine increment.
+
 Diagnostics should include, where available:
 
 - Stable diagnostic code and severity
@@ -180,6 +184,8 @@ Implemented and tested:
 - No silent repair or mutation; verifier-produced artifact required by Codegen
 - Negative tests for cross-function CFG edges, incorrect entry ownership, missing terminators, duplicate SSA definitions, use-before-definition and non-dominating definitions
 - Windows, Ubuntu and macOS CI; Ubuntu ASan/UBSan and Valgrind
+- Current input producer gate accepts lowering-stage artifacts only; optimizer-stage producer support is pending
+- Current payload-failure diagnostics are coarse-grained; per-check codes and OIR location context are pending
 
 Recorded CI runs: `41375777590` and `41382501057` (59/59 CTest in the recorded Ubuntu run).
 
@@ -227,7 +233,7 @@ Optimization must preserve observable program behavior. The OIR Verifier runs af
 - Windows, Linux and macOS builds
 - ASan/UBSan and Valgrind where available
 - OCC pipeline test proving invalid OIR cannot reach Optimizer or Codegen
-- Optimizer integration test proving post-pass verification is mandatory
+- Optimizer integration test proving post-pass verification is mandatory and accepts only the registered Optimizer producer stage
 
 ## 12. Evolution rule
 
