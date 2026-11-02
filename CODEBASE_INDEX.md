@@ -13,7 +13,7 @@ Before creating a source file or function, search this index and the current bra
 
 ## Inventory completeness
 
-The file/path inventory below is complete for the snapshot. The function catalogue is a verified first-pass catalogue for the core files listed in the next section; it is not yet a complete symbol extraction for every C file. Remaining C files are explicitly marked as pending function indexing rather than being presented as empty. Header declarations should be indexed separately as public API declarations.
+The file/path inventory below is complete for the snapshot. The function catalogue now covers all non-test production `.c` implementation files in this snapshot. The `tests/` directory is fully listed by filename, but per-test function names are pending. Header declarations are listed by filename and should be indexed separately as public API declarations. The first-pass extractor is mechanical: review macro-related or unusual declarations against source before relying on a symbol as a stable API.
 
 ## Verified function catalogue
 
@@ -368,74 +368,10 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 ## Pending indexing
 
-The following files already exist and must be inspected before any replacement or parallel implementation, but their complete function-level catalogues are pending:
-- `omnicore-sdk/src/c/codegen/target_parser.c`
-- `omnicore-sdk/src/c/core/failure_store.c`
-- `omnicore-sdk/src/c/main.c`
-- `omnicore-sdk/src/c/oir/oir_ast_field_schema.c`
-- `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`
-- `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`
-- `omnicore-sdk/src/c/oir/oir_ast_frontend_writer.c`
-- `omnicore-sdk/src/c/oir/oir_ast_graph.c`
-- `omnicore-sdk/src/c/oir/oir_ast_map.c`
-- `omnicore-sdk/src/c/oir/oir_ast_node_table.c`
-- `omnicore-sdk/src/c/oir/oir_ast_tlv.c`
-- `omnicore-sdk/src/c/oir/oir_failure_artifact.c`
-- `omnicore-sdk/src/c/oir/oir_lowering_expr.c`
-- `omnicore-sdk/src/c/oir/oir_semantic_ast_artifact.c`
-- `omnicore-sdk/src/c/oir/oir_semantic_ast_artifact_writer.c`
-- `omnicore-sdk/src/c/oir/oir_token_map.c`
-- `omnicore-sdk/src/c/oir/oir_token_stream.c`
-- `omnicore-sdk/src/c/oir/oir_type_map.c`
-- `omnicore-sdk/src/c/parser/ast.c`
-- `omnicore-sdk/src/c/tests/sample_stage_module.c`
-- `omnicore-sdk/src/c/tests/test_ast_deserialize.c`
-- `omnicore-sdk/src/c/tests/test_codegen_stage_module.c`
-- `omnicore-sdk/src/c/tests/test_compilation.c`
-- `omnicore-sdk/src/c/tests/test_diagnostics.c`
-- `omnicore-sdk/src/c/tests/test_dynamic_stage_module.c`
-- `omnicore-sdk/src/c/tests/test_failure_store.c`
-- `omnicore-sdk/src/c/tests/test_lexer.c`
-- `omnicore-sdk/src/c/tests/test_lexer_stage_module.c`
-- `omnicore-sdk/src/c/tests/test_module_abi.c`
-- `omnicore-sdk/src/c/tests/test_occ_module_api.c`
-- `omnicore-sdk/src/c/tests/test_occ_module_loader.c`
-- `omnicore-sdk/src/c/tests/test_oir.c`
-- `omnicore-sdk/src/c/tests/test_oir_ast_artifact.c`
-- `omnicore-sdk/src/c/tests/test_oir_ast_field_schema.c`
-- `omnicore-sdk/src/c/tests/test_oir_ast_frontend_index.c`
-- `omnicore-sdk/src/c/tests/test_oir_ast_frontend_reader.c`
-- `omnicore-sdk/src/c/tests/test_oir_ast_frontend_writer.c`
-- `omnicore-sdk/src/c/tests/test_oir_ast_graph.c`
-- `omnicore-sdk/src/c/tests/test_oir_ast_map.c`
-- `omnicore-sdk/src/c/tests/test_oir_ast_node_table.c`
-- `omnicore-sdk/src/c/tests/test_oir_ast_tlv.c`
-- `omnicore-sdk/src/c/tests/test_oir_diagnostics.c`
-- `omnicore-sdk/src/c/tests/test_oir_failure_artifact.c`
-- `omnicore-sdk/src/c/tests/test_oir_lowering.c`
-- `omnicore-sdk/src/c/tests/test_oir_module.c`
-- `omnicore-sdk/src/c/tests/test_oir_semantic_ast.c`
-- `omnicore-sdk/src/c/tests/test_oir_semantic_ast_artifact.c`
-- `omnicore-sdk/src/c/tests/test_oir_semantic_ast_refs.c`
-- `omnicore-sdk/src/c/tests/test_oir_source_unit.c`
-- `omnicore-sdk/src/c/tests/test_oir_token_map.c`
-- `omnicore-sdk/src/c/tests/test_oir_token_stream.c`
-- `omnicore-sdk/src/c/tests/test_oir_type_map.c`
-- `omnicore-sdk/src/c/tests/test_oir_verify_stage_module.c`
-- `omnicore-sdk/src/c/tests/test_parser.c`
-- `omnicore-sdk/src/c/tests/test_parser_ast_oir_roundtrip.c`
-- `omnicore-sdk/src/c/tests/test_parser_oir_handoff.c`
-- `omnicore-sdk/src/c/tests/test_parser_stage_module.c`
-- `omnicore-sdk/src/c/tests/test_semantic.c`
-- `omnicore-sdk/src/c/tests/test_semantic_arithmetic.c`
-- `omnicore-sdk/src/c/tests/test_semantic_oom.c`
-- `omnicore-sdk/src/c/tests/test_semantic_result.c`
-- `omnicore-sdk/src/c/tests/test_semantic_result_integration.c`
-- `omnicore-sdk/src/c/tests/test_semantic_result_oom.c`
-- `omnicore-sdk/src/c/tests/test_semantic_stage_module.c`
-- `omnicore-sdk/src/c/tests/test_target_parser.c`
-- `omnicore-sdk/src/c/tests/test_target_profile.c`
+- Function-level inventory for the files under `omnicore-sdk/src/c/tests/`.
+- Public function declarations and types exported by all `.h` files.
+- Non-C sources outside `omnicore-sdk/src/c/` (for example, build scripts and other language components) if they become relevant to an implementation task.
 
 ## Change log
 
-- 2026-11-02: Initial source-tree snapshot and first-pass function catalogue added. File list covers all C/header files under `omnicore-sdk/src/c/`; function-level extraction covers the core modules listed above.
+- 2026-11-02: Initial source-tree snapshot and first-pass function catalogue added. File list covers all 126 C/header files under `omnicore-sdk/src/c/`; function-level extraction covers all non-test production C implementation files.
