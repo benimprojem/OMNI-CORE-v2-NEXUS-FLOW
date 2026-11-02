@@ -1,6 +1,6 @@
 # OIR_MODULE — Lowered Intermediate Representation
 
-**Status:** Opcode registry 1.0, OIR_MODULE payload codec 1.1 and independent scalar IR-lowering DLL implemented; recursive arithmetic, initialized scalar locals and straight-line reassignment are covered. Full module verifier and OCC CLI handoff remain pending.  
+**Status:** Opcode registry 1.0, OIR_MODULE payload codec 1.1, independent scalar IR-lowering DLL and independent OIR Verifier DLL are implemented. OCC runs the verifier after lowering and before Codegen. The lowerer currently emits a narrow scalar subset; function signatures, source maps, conversions, calls, multi-function lowering and general control-flow lowering remain future work.  
 **Artifact kind:** `OIR_KIND_MODULE` (stable kind ID 5)  
 **Producer:** IR lowering stage  
 **Input:** one validated `OIR_KIND_SEMANTIC_AST` artifact  
@@ -21,10 +21,10 @@ AST
 SEMANTIC_AST
   -> IR Lowering DLL
 OIR_MODULE
-  -> OIR Validator
-validated OIR_MODULE
+  -> OIR Verifier DLL
+verified OIR_MODULE
   -> Optimizer DLLs (zero or more)
-OIR_MODULE
+verified OIR_MODULE
   -> Target Lowering / Backend
 TARGET_IR or ASSEMBLY
 ```
@@ -63,7 +63,7 @@ The implemented payload schema is version 1.1 and contains a 36-byte little-endi
 
 Initial type kinds are integer, float, boolean and function. Type flags define `OIR_MODULE_TYPE_FLAG_SIGNED` (integer only; unset means unsigned), `OIR_MODULE_TYPE_FLAG_HARD` (forced-width/hard type) and `OIR_MODULE_TYPE_FLAG_CONST` (const qualification). Non-integer types reject the signed flag; hard/const qualifiers are representation-independent. The first semantic primitive mapper is implemented in `oir_type_map.h/.c`: it maps `i8/i16/i32/i64`, `u8/u16/u32/u64`, `f32/f64` and `bool`, preserving hard/const flags. `str`, `char`, `byte`, `void` and `any` are deliberately rejected until their OIR representations are specified. Function types are currently identity placeholders; parameter and return signature tables are a later extension. Table IDs are 1-based and must appear in canonical sequential order. The codec validates schema version, bounded counts, total payload length, UTF-8 strings, table ranges, basic cross-table IDs and opcode operand/result shape before exposing a zero-copy view. The writer serializes fields individually in little-endian order and validates its output through the reader.
 
-The 1.1 codec validates the integer signedness flag and rejects signedness on non-integer kinds; hard/const qualifiers are preserved independently of scalar kind. It does not yet validate function/block ownership consistency, complete instruction-range coverage, type compatibility, SSA dominance, predecessor edges or function signatures. Those checks belong to the subsequent verifier increment; the codec must not claim them.
+The 1.1 codec validates the integer signedness flag and rejects signedness on non-integer kinds; hard/const qualifiers are preserved independently of scalar kind. It deliberately remains a bounded wire decoder: function/block ownership consistency, complete instruction-range coverage, type compatibility, SSA dominance and predecessor edges are checked by the independent OIR Verifier DLL, not by the codec. Function signatures remain incomplete because the current function-type records are identity placeholders.
 
 Aggregate types, full function signatures, block parameters, debug/source maps, memory metadata, entry-point metadata and NEXSUS Flow-specific operations remain later extensions.
 
@@ -156,7 +156,7 @@ An instruction record should contain:
 
 Operand records must encode operand kind explicitly. A value operand references a value ID; a block operand references a block ID; a function operand references a function ID; an immediate operand carries a schema-defined fixed-width or string-table value. No operand may be interpreted by guessing from an integer's numeric range.
 
-The initial opcode IDs and structural descriptors are implemented in [OIR_OPCODE_REGISTRY.md](OIR_OPCODE_REGISTRY.md) and `oir_module_opcode.h/.c`. The registry defines arity, operand kinds, result presence and coarse effect/terminator flags. The module verifier must additionally enforce type constraints, SSA rules, function signatures, memory metadata and control-flow validity. Unknown executable opcodes are rejected; they must never be silently ignored.
+The initial opcode IDs and structural descriptors are implemented in [OIR_OPCODE_REGISTRY.md](OIR_OPCODE_REGISTRY.md) and `oir_module_opcode.h/.c`. The registry defines arity, operand kinds, result presence and coarse effect/terminator flags. The independent verifier additionally enforces the implemented type constraints, SSA rules and control-flow validity. Function-call signatures and full memory metadata remain deferred because the current schema does not yet encode those contracts. Unknown executable opcodes are rejected; they must never be silently ignored.
 
 The current scalar lowerer emits typed integer/float/bool constants and recursively lowers `+`, `-`, `*` and `/` expressions. It also supports initialized scalar locals, local identifier reads and straight-line reassignment through a caller-owned symbol-to-SSA-value mapping. Binary nodes are traversed according to the validated AST, so parser precedence/associativity is preserved; each operation produces a new SSA value. The first executable slice is exactly one parameterless, non-extern function with initialized scalar locals, simple reassignment and one final return. This is not complete numeric semantics: implicit promotion, mixed-width conversions, parameters, calls, multiple functions and control flow remain outside the supported subset. Tests cover `ret 10 + 20 * 3;`, `v:x!i32 = 40; x = x + 2; ret x;` and multiple SSA versions.
 
@@ -193,7 +193,7 @@ Semantic symbol/type IDs retained for diagnostics are provenance only. They are 
 
 ## 5. Validation layers
 
-The OIR container reader validates the common envelope. The module payload verifier must additionally validate:
+The OIR container reader validates the common envelope. The independent `occ_oir_verify_stage` DLL validates the following module-level invariants before the artifact can be passed to Codegen or a future optimizer:
 
 1. Payload schema version, flags and exact declared length.
 2. Table counts, record sizes, offset ranges and string-table boundaries.
@@ -203,11 +203,28 @@ The OIR container reader validates the common envelope. The module payload verif
 6. Exactly one terminator per defined block and valid successor edges.
 7. Opcode existence, arity, operand kinds and result rules.
 8. Type references and opcode-specific type constraints.
-9. Function-call signatures and calling-convention compatibility.
+9. Function references and call operand shape; full parameter/return signature matching is deferred until function signature tables exist.
 10. Source-node references against the preserved semantic/AST provenance map when available.
 11. Feature flags and required extensions supported by the consumer.
 
 Validation must complete before a consumer exposes the module to optimization or code generation. A malformed module is rejected; the verifier must not repair it silently.
+
+### Implemented verifier stage 1.0
+
+The independent shared module is `occ_oir_verify_stage` (stable module ID `0x00010006`, diagnostic stage ID `OCC_STAGE_OIR_VERIFY`). It accepts exactly one valid OIR_MODULE 1.1 artifact produced by OIR Lowering, validates it, and republishes the same module sections with producer stage `OCC_STAGE_OIR_VERIFY`. It does not rewrite or repair the payload. The OCC host invokes it immediately after lowering; Codegen now rejects OIR_MODULE artifacts whose producer is not the verifier stage.
+
+The implemented checks are:
+
+- Unique, valid function/block ownership; every function entry block belongs to that function.
+- Non-overlapping block instruction ranges that cover the instruction table exactly; instruction block IDs match their containing block.
+- Every block ends in exactly one terminator; no instruction follows a terminator.
+- Branch targets remain within the owning function.
+- Opcode IDs, operand shape, result presence and the implemented opcode-specific type constraints.
+- Every SSA value has one matching defining instruction; same-block uses follow their definition, and cross-block definitions dominate their uses.
+- Reachable CFG blocks are analyzed with iterative dominators. Unreachable blocks are not rejected solely for being unreachable; their SSA uses are restricted to definitions in the same block because they cannot establish cross-block dominance.
+- The verifier rejects unsupported schema versions, invalid producer/job identity, duplicate/missing payloads, and malformed or inconsistent artifacts.
+
+The first implementation bounds the dominator analysis to **8,192 blocks per module** and the function/instruction/value tables to **1,000,000 records** each. The OIR_MODULE codec separately caps its string table at **16 MiB**. These are explicit implementation/resource limits, not source-language limits. Full function signatures, parameter typing, block parameters/phi nodes, complete memory semantics, source-map cross-checking and advanced effect validation remain future schema/verifier increments.
 
 ## 6. SSA and lowering policy
 
@@ -262,12 +279,13 @@ No schema is considered frozen merely because a first implementation or test fix
 |---|---|
 | OIR container kind ID 5 (`OIR_KIND_MODULE`) | Registered |
 | Generic OIR container reader/writer | Implemented |
-| OIR_MODULE payload codec 1.1 (signed, hard and const type flags) | Implemented; full verifier pending |
+| OIR_MODULE payload codec 1.1 (signed, hard and const type flags) | Implemented |
+| Independent OIR Verifier stage 1.0 (CFG, type subset and SSA dominance) | Implemented; OCC host handoff active |
 | SEMANTIC_AST primitive-to-OIR type mapper | Initial scalar allowlist implemented; unsupported types rejected |
 | SSA value model | Required by NEXSUS Flow design; merge encoding open |
 | NEXSUS Flow numeric width promotion | Partial language rule established; full conversion lattice open |
 | OIR_MODULE opcode registry 1.0 / primitive type mapping | Initial registries implemented; complete semantic type rules pending |
-| Module payload verifier | Not implemented |
+| Module payload verifier | Implemented for the documented 1.0 subset; function signatures/memory semantics remain deferred |
 | Initial SEMANTIC_AST scalar lowering pass | Implemented as a caller-workspace C pass; typed literals, arithmetic, initialized locals, identifier reads and straight-line reassignment supported |
 | IR lowering DLL | Implemented and tested independently; OCC CLI handoff pending |
 | OCC semantic-artifact-to-lowering handoff | Not implemented |
@@ -279,4 +297,4 @@ The legacy codegen currently emits a small NASM-like text subset directly from A
 
 `oir_lower_semantic_ast_return()` consumes a validated `OirSemanticAstArtifactView` and emits an `OIR_MODULE` payload. The independent `occ_oir_lowering_stage` wraps that payload in a complete OIR artifact container. The current accepted shape is exactly one non-extern, parameterless function with one block, initialized scalar locals, simple reassignment to earlier mutable locals and one final return. Expressions may contain annotated `i*`, `u*`, `f32`, `f64` or `bool` literals, local identifier reads and the active parser's `+`, `-`, `*` and `/` operators. The lowerer cross-checks the function's declared return spelling against the canonical semantic type record, maps supported primitives through the explicit allowlist, traverses expression trees in postorder and emits typed constants, arithmetic SSA values and a return instruction. The older `oir_lower_semantic_ast_literal_return()` entry point remains available for literal-only callers.
 
-The pass uses caller-owned arrays and buffers. It rejects extra functions, parameters, unsupported statements, missing annotations, non-primitive/unregistered types and unsupported literal categories. The module stage validates the semantic artifact and graph before lowering, allocates per-invocation workspaces, enforces a 65,536 AST-node stage limit and publishes only a structurally valid OIR_MODULE artifact after output capacity is sufficient. The `test_oir_lowering.c` test loads the real shared module through `occ_module_loader`, exercises the 64-byte output-buffer retry, validates the OIR envelope and module payload, and verifies malformed input rejection. CI run `41365084763` passed on Windows, Ubuntu and macOS, including Ubuntu ASan/UBSan and Valgrind. The full module verifier, source maps, conversions, parameters, calls, multiple functions, control-flow lowering and OCC CLI invocation remain pending.
+The pass uses caller-owned arrays and buffers. It rejects extra functions, parameters, unsupported statements, missing annotations, non-primitive/unregistered types and unsupported literal categories. The module stage validates the semantic artifact and graph before lowering, allocates per-invocation workspaces, enforces a 65,536 AST-node stage limit and publishes only a structurally valid OIR_MODULE artifact after output capacity is sufficient. The `test_oir_lowering.c` test loads the real shared module through `occ_module_loader`, exercises the 64-byte output-buffer retry, validates the OIR envelope and module payload, and verifies malformed input rejection. CI run `41365084763` passed on Windows, Ubuntu and macOS, including Ubuntu ASan/UBSan and Valgrind. The independent verifier and its OCC host handoff are now implemented. Source maps, conversions, parameters, calls, multiple functions and general control-flow lowering remain pending.
