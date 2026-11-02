@@ -883,15 +883,15 @@ static int test_array_literal_ast(void) {
         }
     }
     if(!matrix || !empty) fprintf(stderr,"array AST flags matrix=%d empty=%d\\n",matrix,empty);
-    if(matrix && empty) ok=parser_source_reports_syntax_error(
-        "array-missing-close.nxf", "f:main() { v:a = [1, 2; }",
-        sizeof("f:main() { v:a = [1, 2; }")-1u) ? 0 : ok;
     if(matrix && empty) {
         FILE* stream=tmpfile();
         ASTNode* decoded=NULL;
         if(stream && ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
             decoded=ast_deserialize(stream);
         ok=decoded && decoded->type==AST_PROGRAM;
+        ok=ok && parser_source_reports_syntax_error(
+            "array-missing-close.nxf", "f:main() { v:a = [1, 2; }",
+            sizeof("f:main() { v:a = [1, 2; }")-1u);
         if(!ok) fprintf(stderr,"array AST binary roundtrip failed decoded=%p\\n",(void*)decoded);
         if(decoded)ast_destroy(decoded);
         if(stream)fclose(stream);
