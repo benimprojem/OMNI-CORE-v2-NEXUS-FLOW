@@ -492,4 +492,4 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Implement contextual statement parsing for `select(...)` and `scan(...)`, including literal, binding and constructor patterns, default uniqueness and body parsing.
 - [x] Add parser and AST binary round-trip tests, malformed duplicate-default/empty-constructor tests, and OIR AST payload round-trip coverage.
 - [x] Update the published OIR AST registry/schema and registry boundary/field-schema fixtures.
-- [ ] Run the full cross-platform C test suite and sanitizer/Valgrind jobs; only mark the feature release-ready after CI passes.
+- [x] **CI run 41451812569:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed.
