@@ -944,7 +944,6 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_ARRAY_LITERAL:
             semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
-            (void)get_expr_type(ctx,node);
             break;
 
         case AST_IDENTIFIER: {
