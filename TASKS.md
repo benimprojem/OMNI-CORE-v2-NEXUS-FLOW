@@ -410,6 +410,7 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Add regression assertions for exact diagnostic codes and available ID context: SSA use, cross-function CFG edge, function entry ownership, SSA definition, terminator, malformed opcode payload, type record, overlapping instruction coverage and opcode/result type mismatch.
 - [x] **CI run 41389527526:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed.
 - [x] **CI run 41390062454:** expanded diagnostic assertions for type records, overlapping instruction coverage and opcode/result type mismatch passed on Windows, Ubuntu and macOS; Ubuntu ASan/UBSan and Valgrind passed.
+- [x] **CI run 41390126322:** clean test-source revision passed Windows, Ubuntu and macOS build/test, Ubuntu ASan/UBSan and Valgrind.
 - [x] Add a valid-artifact test with payload and metadata sections; prove every section payload is preserved byte-for-byte and the input buffer is not mutated.
 - [x] **CI run 41389854136:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed.
 - [ ] When Optimizer is integrated, allow only registered OIR-producing stage IDs (Lowering and Optimizer) as verifier input producers; reject arbitrary producer IDs.
