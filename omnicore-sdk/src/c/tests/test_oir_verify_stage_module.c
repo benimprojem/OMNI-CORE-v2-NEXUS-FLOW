@@ -266,11 +266,22 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
             (size_t)block_count * 16u + (size_t)value_count * 16u;
         size_t operands_offset = instructions_offset +
             (size_t)instruction_count * 24u;
-        /* ADD has exactly two operands. Add a third, otherwise-unused
-           immediate operand to prove the shared opcode shape check rejects it. */
+        /* The codec's shared opcode registry rejects this malformed wire shape. */
         test_put_u32(module_bytes + instructions_offset + 2u * 24u + 20u, 3u);
         test_put_u32(module_bytes + operands_offset + 4u * 16u,
             OIR_OPERAND_INTEGER_IMMEDIATE);
+    } else if (variant == 7) {
+        /* A nonzero but unsupported integer width passes the wire codec. */
+        test_put_u32(module_bytes + 36u + 6u, 24u);
+    } else if (variant == 8) {
+        size_t blocks_offset = 36u + 3u * 12u + 20u;
+        /* Block 2 overlaps block 1's final instruction range. */
+        test_put_u32(module_bytes + blocks_offset + 16u + 8u, 1u);
+    } else if (variant == 9) {
+        size_t values_offset = 36u + 3u * 12u + 20u +
+            (size_t)block_count * 16u;
+        /* ADD's result is boolean rather than a numeric type. */
+        test_put_u32(module_bytes + values_offset + 16u + 4u, 2u);
     }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
@@ -405,14 +416,18 @@ int main(int argc, char** argv) {
     assert_last_diagnostic_code(&diagnostics, 8620u, "value=2");
     free(input); input = NULL; input_length = 0u;
 
-    /* Reject malformed CFG ownership, missing terminators, duplicate SSA definitions,
-       and malformed opcode wire-shape payloads. */
+    /* Reject malformed CFG ownership, function entries, SSA definitions, terminators,
+       opcode wire shapes, type records, overlapping block ranges and opcode types. */
     {
         static const uint32_t expected_codes[] = {
-            0u, 0u, 8617u, 8613u, 8614u, 8618u, 8609u
+            0u, 0u, 8617u, 8613u, 8614u, 8618u, 8609u, 8610u, 8612u, 8616u
+        };
+        static const char* expected_contexts[] = {
+            NULL, NULL, "block=1", "function=2", "value=1",
+            "block=1", NULL, "type=1", "instruction=2", "instruction=3"
         };
         int variant;
-        for (variant = 2; variant <= 6; ++variant) {
+        for (variant = 2; variant <= 9; ++variant) {
             OccModuleArtifactInputV1 stage_input;
             assert(build_cfg_module_artifact(&input, &input_length, variant));
             memset(&stage_input, 0, sizeof(stage_input));
@@ -422,7 +437,7 @@ int main(int argc, char** argv) {
                 1024u * 1024u, &output, &output_length) ==
                 OCC_MODULE_LOADER_INVOKE_FAILED);
             assert(output == NULL && output_length == 0u);
-            assert_last_diagnostic_code(&diagnostics, expected_codes[variant], NULL);
+            assert_last_diagnostic_code(&diagnostics, expected_codes[variant], expected_contexts[variant]);
             free(input); input = NULL; input_length = 0u;
         }
     }
