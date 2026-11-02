@@ -857,7 +857,13 @@ static int test_array_literal_ast(void) {
     ASTNode* node;
     int matrix=0,empty=0,ok=0;
     if(!ctx)return 0;
-    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root)goto done;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) {
+        Error* error;
+        fprintf(stderr,"array literal parser status=%d errors=%d\\n",(int)parser_get_status(ctx),ctx->error_count);
+        for(error=ctx->error_head;error;error=error->next)
+            fprintf(stderr,"  %d:%d %s\\n",error->line,error->col,error->message?error->message:"");
+        goto done;
+    }
     function=(ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if(!function || !function->body || function->body->type!=AST_BLOCK)goto done;
     body=(ASTBlock*)function->body;
