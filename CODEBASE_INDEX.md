@@ -2,7 +2,7 @@
 
 **Repository:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Branch:** `refactor/c-core-roadmap`  
-**Snapshot commit:** `1c4692aa80be57adff7aac4db5022846a98f175d`  
+**Snapshot commit:** `b61d658f64c5ce5a23a005bd50940e58265be542`  
 **Scope:** `omnicore-sdk/src/c/`  
 **Snapshot inventory:** 126 C/header files (91 C implementation files and 35 headers).  
 **Purpose:** prevent duplicate files/functions, make existing implementation discoverable before adding or changing code.
@@ -359,7 +359,7 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 ## Verifier-specific reuse map
 
-- `module/oir_verify_stage_module.c`: `OirVerifyFailure` carries stable verifier diagnostic code plus available function/block/instruction/value/type IDs; `validate_module()` coordinates six validation passes; `report_verify_error()` maps codes to stable messages without changing the shared OCC ABI. Refactor this implementation; do not create a second verifier module.
+- `module/oir_verify_stage_module.c`: `OirVerifyFailure` carries stable verifier diagnostic code plus available function/block/instruction/value/type IDs; `validate_module()` coordinates six validation passes; `report_verify_error()` maps codes to stable messages and code-specific `Suggested fix:` guidance through the existing diagnostic hint field, while preserving skipped-pass hints and the shared OCC ABI. Refactor this implementation; do not create a second verifier module.
 - `oir/oir_module.c` + `oir/oir_module.h`: canonical OIR_MODULE reader/writer and accessors. Reuse its accessors rather than reimplementing payload decoding.
 - `oir/oir_module_opcode.c` + `oir/oir_module_opcode.h`: opcode registry and `oir_opcode_validate_shape()` for operand count/kinds and result-presence rules. The verifier reuses this helper before opcode-specific semantic/type checks; extend the registry/contract rather than duplicating opcode tables.
 - `module/occ_module_api.h` + `module/occ_module_api.c`: common stage ABI and diagnostics; do not add a verifier-only ABI.
