@@ -300,8 +300,8 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
         }
     } else if (arithmetic == 6) {
         /* if/elsif/els lowers to a nested, five-block CFG. */
-        if (module.block_count != 5u || module.instruction_count != 8u ||
-            module.operand_count != 14u || module.value_count != 3u)
+        if (module.block_count != 5u || module.instruction_count != 12u ||
+            module.operand_count != 18u || module.value_count != 7u)
             goto cleanup;
     } else {
         OirModuleInstruction add, mul, sub, ret;
