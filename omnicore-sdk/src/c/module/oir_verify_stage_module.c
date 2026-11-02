@@ -47,16 +47,13 @@ static int bit_get(const uint64_t* bits, uint32_t id) {
 static void bit_set(uint64_t* bits, uint32_t id) {
     bits[id >> 6] |= UINT64_C(1) << (id & 63u);
 }
-static void bit_clear(uint64_t* bits, uint32_t id) {
-    bits[id >> 6] &= ~(UINT64_C(1) << (id & 63u));
-}
 static int has_terminator(const OirModuleInstruction* ins) {
     const OirOpcodeDescriptor* d = oir_opcode_lookup(ins->opcode_id);
     return d && (d->flags & OIR_OPCODE_FLAG_TERMINATOR) != 0u;
 }
 
 static int validate_module(const OirModuleView* m) {
-    uint32_t *block_function = NULL, *instruction_block = NULL;
+    uint32_t *block_function = NULL;
     uint32_t *definition_instruction = NULL, *definition_block = NULL;
     uint8_t *covered = NULL, *reachable = NULL;
     uint32_t *queue = NULL;
@@ -77,7 +74,6 @@ static int validate_module(const OirModuleView* m) {
     if (matrix_words > SIZE_MAX / sizeof(uint64_t)) return 0;
 
     block_function = (uint32_t*)calloc((size_t)m->block_count + 1u, sizeof(uint32_t));
-    instruction_block = (uint32_t*)calloc((size_t)m->instruction_count + 1u, sizeof(uint32_t));
     definition_instruction = (uint32_t*)calloc((size_t)m->value_count + 1u, sizeof(uint32_t));
     definition_block = (uint32_t*)calloc((size_t)m->value_count + 1u, sizeof(uint32_t));
     covered = (uint8_t*)calloc((size_t)m->instruction_count + 1u, 1u);
@@ -104,7 +100,6 @@ static int validate_module(const OirModuleView* m) {
                 oir_module_get_instruction(m, index, &ins) != OIR_STATUS_OK ||
                 ins.id != index + 1u || ins.block_id != b.id) goto done;
             covered[index] = 1u;
-            instruction_block[ins.id] = b.id;
         }
     }
     for (i = 1u; i <= m->instruction_count; ++i) if (!covered[i - 1u]) goto done;
@@ -288,9 +283,15 @@ static int validate_module(const OirModuleView* m) {
         for (b = 1u; b <= m->block_count; ++b) {
             uint64_t* row = dom + (size_t)b * words;
             if (block_function[b] != fn.id) continue;
-            if (!reachable[b]) goto done;
-            for (j = 1u; j <= m->block_count; ++j)
-                if (block_function[j] == fn.id) bit_set(row, j);
+            if (reachable[b]) {
+                for (j = 1u; j <= m->block_count; ++j)
+                    if (block_function[j] == fn.id && reachable[j]) bit_set(row, j);
+            } else {
+                /* Unreachable blocks remain independently verifiable. They
+                   cannot dominate another block or consume external SSA defs. */
+                memset(row, 0, words * sizeof(uint64_t));
+                bit_set(row, b);
+            }
             if (b == fn.entry_block_id) {
                 memset(row, 0, words * sizeof(uint64_t));
                 bit_set(row, b);
@@ -303,13 +304,13 @@ static int validate_module(const OirModuleView* m) {
                 uint64_t* pred_row;
                 uint64_t* temp;
                 int have_pred = 0;
-                if (block_function[b] != fn.id || b == fn.entry_block_id) continue;
+                if (block_function[b] != fn.id || b == fn.entry_block_id || !reachable[b]) continue;
                 temp = (uint64_t*)malloc(words * sizeof(uint64_t));
                 if (!temp) goto done;
                 for (j = 0u; j < words; ++j) temp[j] = UINT64_MAX;
                 pred_row = pred + (size_t)b * words;
                 for (j = 1u; j <= m->block_count; ++j) {
-                    if (bit_get(pred_row, j)) {
+                    if (bit_get(pred_row, j) && reachable[j]) {
                         uint32_t k;
                         uint64_t* pdom = dom + (size_t)j * words;
                         for (k = 0u; k < words; ++k) temp[k] &= pdom[k];
@@ -353,7 +354,7 @@ static int validate_module(const OirModuleView* m) {
 
     ok = 1;
 done:
-    free(block_function); free(instruction_block);
+    free(block_function);
     free(definition_instruction); free(definition_block);
     free(covered); free(reachable); free(queue); free(pred); free(dom);
     return ok;
