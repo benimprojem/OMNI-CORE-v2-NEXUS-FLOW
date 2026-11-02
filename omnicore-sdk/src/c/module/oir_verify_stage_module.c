@@ -91,6 +91,7 @@ static int validate_structure(const OirModuleView* m,
     /* Primitive type widths must match the published OIR type map. */
     for (i = 0u; i < m->type_count; ++i) {
         OirModuleType t;
+        if (failure) { failure->code = OIR_VERIFY_DIAG_TYPE_RECORD; failure->value_id = i + 1u; }
         if (oir_module_get_type(m, i, &t) != OIR_STATUS_OK) return 0;
         if (t.kind == OIR_MODULE_TYPE_INTEGER) {
             if (t.bit_width != 8u && t.bit_width != 16u &&
@@ -107,6 +108,7 @@ static int validate_structure(const OirModuleView* m,
     /* Establish unique block ownership and exact, non-overlapping instruction ranges. */
     for (i = 0u; i < m->block_count; ++i) {
         OirModuleBlock block;
+        if (failure) { failure->code = OIR_VERIFY_DIAG_BLOCK_OWNERSHIP; failure->block_id = i + 1u; }
         if (oir_module_get_block(m, i, &block) != OIR_STATUS_OK ||
             block.id != i + 1u || block.function_id == 0u ||
             block.function_id > m->function_count || block.instruction_count == 0u ||
@@ -118,18 +120,25 @@ static int validate_structure(const OirModuleView* m,
         for (j = 0u; j < block.instruction_count; ++j) {
             uint32_t index = block.first_instruction + j;
             OirModuleInstruction ins;
+            if (failure) { failure->code = OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE; failure->instruction_id = index + 1u; }
             if (covered[index] ||
                 oir_module_get_instruction(m, index, &ins) != OIR_STATUS_OK ||
                 ins.id != index + 1u || ins.block_id != block.id) return 0;
             covered[index] = 1u;
         }
     }
-    for (i = 1u; i <= m->instruction_count; ++i)
-        if (!covered[i - 1u]) return 0;
+    for (i = 1u; i <= m->instruction_count; ++i) {
+        if (!covered[i - 1u]) {
+            if (failure) { failure->code = OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE; failure->instruction_id = i; }
+            return 0;
+        }
+    }
 
     /* Functions must have a valid function type and an entry block they own. */
     for (f = 0u; f < m->function_count; ++f) {
         OirModuleFunction fn;
+        if (failure) { failure->code = OIR_VERIFY_DIAG_DOMINANCE; failure->function_id = f + 1u; failure->block_id = 0u; }
+        if (failure) { failure->code = OIR_VERIFY_DIAG_FUNCTION_ENTRY; failure->function_id = f + 1u; }
         OirModuleType ft;
         int owns_block = 0;
         if (oir_module_get_function(m, f, &fn) != OIR_STATUS_OK ||
@@ -154,6 +163,7 @@ static int validate_ssa_definitions(const OirModuleView* m,
     /* Every value has exactly one matching definition record. */
     for (i = 0u; i < m->value_count; ++i) {
         OirModuleValue v;
+        if (failure) { failure->code = OIR_VERIFY_DIAG_SSA_DEFINITION; failure->value_id = i + 1u; }
         OirModuleType value_type;
         OirModuleInstruction def;
         if (oir_module_get_value(m, i, &v) != OIR_STATUS_OK ||
@@ -189,6 +199,7 @@ static int validate_instructions(const OirModuleView* m,
     /* Validate opcode-specific types and collect CFG predecessor edges. */
     for (i = 0u; i < m->instruction_count; ++i) {
         OirModuleInstruction ins;
+        if (failure) { failure->code = OIR_VERIFY_DIAG_OPCODE_TYPE; failure->instruction_id = i + 1u; }
         OirModuleValue a, b, result;
         OirModuleType at, bt, rt;
         uint32_t target_a, target_b;
@@ -203,8 +214,10 @@ static int validate_instructions(const OirModuleView* m,
             if (!get_operand(m, &ins, j, &operand)) return 0;
             operand_kinds[j] = operand.kind;
         }
+        if (failure) failure->code = OIR_VERIFY_DIAG_OPCODE_SHAPE;
         if (!oir_opcode_validate_shape(ins.opcode_id, operand_kinds,
             ins.operand_count, ins.result_value_id != 0u)) return 0;
+        if (failure) failure->code = OIR_VERIFY_DIAG_OPCODE_TYPE;
         if (ins.result_value_id && (!get_value(m, ins.result_value_id, &result) ||
             !get_type(m, result.type_id, &rt))) return 0;
         if (!ins.result_value_id) memset(&rt, 0, sizeof(rt));
@@ -271,11 +284,13 @@ static int validate_instructions(const OirModuleView* m,
                     !get_value_operand(m, &ins, 1u, &b)) return 0;
                 break;
             case OIR_OP_BRANCH:
+                if (failure) failure->code = OIR_VERIFY_DIAG_CFG_EDGE;
                 if (ins.result_value_id || !get_block_operand(m, &ins, 0u, &target_a) ||
                     block_function[target_a] != block_function[ins.block_id]) return 0;
                 bit_set(pred + (size_t)target_a * words, ins.block_id);
                 break;
             case OIR_OP_COND_BRANCH:
+                if (failure) failure->code = OIR_VERIFY_DIAG_CFG_EDGE;
                 if (ins.result_value_id || !get_value_operand(m, &ins, 0u, &a) ||
                     !get_type(m, a.type_id, &at) || at.kind != OIR_MODULE_TYPE_BOOLEAN ||
                     !get_block_operand(m, &ins, 1u, &target_a) ||
@@ -305,10 +320,12 @@ static int validate_terminators(const OirModuleView* m, OirVerifyFailure* failur
     /* A block has exactly one final terminator; no instruction may follow it. */
     for (i = 1u; i <= m->block_count; ++i) {
         OirModuleBlock b;
+        if (failure) { failure->code = OIR_VERIFY_DIAG_TERMINATOR; failure->block_id = i; }
         OirModuleInstruction last;
         if (oir_module_get_block(m, i - 1u, &b) != OIR_STATUS_OK ||
             oir_module_get_instruction(m, b.first_instruction + b.instruction_count - 1u,
                 &last) != OIR_STATUS_OK || !has_terminator(&last)) return 0;
+        if (failure) failure->instruction_id = last.id;
         for (j = 0u; j + 1u < b.instruction_count; ++j) {
             OirModuleInstruction ins;
             if (oir_module_get_instruction(m, b.first_instruction + j, &ins) != OIR_STATUS_OK ||
@@ -416,13 +433,16 @@ static int validate_ssa_uses(const OirModuleView* m,
        definitions must dominate the use block. */
     for (i = 0u; i < m->instruction_count; ++i) {
         OirModuleInstruction ins;
+        if (failure) { failure->code = OIR_VERIFY_DIAG_SSA_USE; failure->instruction_id = i + 1u; }
         if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK) return 0;
+        if (failure) failure->block_id = ins.block_id;
         for (j = 0u; j < ins.operand_count; ++j) {
             OirModuleOperand op;
             if (!get_operand(m, &ins, j, &op)) return 0;
             if (op.kind == OIR_OPERAND_VALUE) {
                 OirModuleValue v;
                 uint32_t def_id, def_block;
+                if (failure) failure->value_id = op.reference_id;
                 if (!get_value(m, op.reference_id, &v)) return 0;
                 def_id = definition_instruction[v.id];
                 def_block = definition_block[v.id];
