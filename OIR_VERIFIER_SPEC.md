@@ -203,7 +203,7 @@ Implemented and tested:
 - Terminator, same-function CFG edge, opcode-shape and implemented scalar type checks
 - Unique SSA definitions, same-block use order and cross-block dominance
 - No silent repair or mutation; regression test proves input-buffer immutability and byte-for-byte preservation of payload plus metadata section data; verifier-produced artifact required by Codegen
-- Advisory unused-SSA-value warnings are emitted only after all validity passes succeed; warning severity does not invalidate the OIR artifact or suppress output
+- Advisory unused-SSA-value warnings are emitted only after all validity passes succeed; the Verifier still writes a valid OIR artifact, while the existing strict compilation warning gate may suppress final publication
 - Negative tests for cross-function CFG edges, incorrect entry ownership, missing terminators, duplicate SSA definitions, use-before-definition and non-dominating definitions
 - Windows, Ubuntu and macOS CI; Ubuntu ASan/UBSan and Valgrind
 - Current input producer gate accepts lowering-stage artifacts only; optimizer-stage producer support is pending
@@ -222,7 +222,7 @@ Not yet implemented because the corresponding OIR schema features are not yet av
 
 ## 9.1 Diagnostic severity and advisory warnings
 
-The common OCC diagnostic collector distinguishes notes, warnings, errors and fatal diagnostics. Warnings are advisory: they are retained and surfaced to the caller but do not by themselves block valid output. Errors and fatal diagnostics block output. Collector allocation failure or diagnostic-limit exhaustion remains a host-side failure and also blocks output.
+The common OCC diagnostic collector distinguishes notes, warnings, errors and fatal diagnostics. Warnings are advisory diagnostics, not errors: they are retained and surfaced to the caller with warning severity. The current compilation policy applies a strict warning gate, so any warning can suppress final output publication even though the stage itself may successfully produce a valid intermediate artifact. Errors and fatal diagnostics also block output. Collector allocation failure or diagnostic-limit exhaustion remains a host-side failure and blocks output.
 
 The Verifier currently emits warning `8621` when an SSA value has a valid definition but no uses. The message identifies the SSA value ID; the hint recommends removing the corresponding source declaration when the value represents an unused source variable, or removing the dead computation. Because OIR currently has no reliable source-variable name mapping in this pass, the diagnostic deliberately says “SSA value” rather than guessing a source identifier. This warning runs only after structural, definition, opcode/type, CFG, terminator, dominance and SSA-use validation succeeds. It never changes the artifact.
 
