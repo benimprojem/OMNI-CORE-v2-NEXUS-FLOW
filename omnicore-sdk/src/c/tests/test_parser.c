@@ -882,12 +882,14 @@ static int test_array_literal_ast(void) {
                !((ASTArrayLiteral*)v->initializer)->elements) empty=1;
         }
     }
+    if(!matrix || !empty) fprintf(stderr,"array AST flags matrix=%d empty=%d\\n",matrix,empty);
     if(matrix && empty) {
         FILE* stream=tmpfile();
         ASTNode* decoded=NULL;
         if(stream && ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
             decoded=ast_deserialize(stream);
         ok=decoded && decoded->type==AST_PROGRAM;
+        if(!ok) fprintf(stderr,"array AST binary roundtrip failed decoded=%p\\n",(void*)decoded);
         if(decoded)ast_destroy(decoded);
         if(stream)fclose(stream);
     }
