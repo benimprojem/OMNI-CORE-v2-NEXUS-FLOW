@@ -151,6 +151,11 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
             return field_id == 2u ? ((const ASTMemberAccess*)node)->object : NULL;
         case AST_TUPLE:
             return field_id == 1u ? ((const ASTTuple*)node)->elements : NULL;
+        case AST_SELECT: { const ASTSelect* n=(const ASTSelect*)node; return field_id==1u?n->selector:(field_id==2u?n->arms:NULL); }
+        case AST_SELECT_ARM: { const ASTSelectArm* n=(const ASTSelectArm*)node; return field_id==1u?n->pattern:(field_id==2u?n->body:NULL); }
+        case AST_SCAN: { const ASTScan* n=(const ASTScan*)node; return field_id==1u?n->subject:(field_id==2u?n->arms:NULL); }
+        case AST_SCAN_ARM: { const ASTScanArm* n=(const ASTScanArm*)node; return field_id==1u?n->pattern:(field_id==2u?n->body:NULL); }
+        case AST_PATTERN_CONSTRUCTOR: return field_id==2u?((const ASTPatternConstructor*)node)->bindings:NULL;
         case AST_IF: {
             const ASTIf* n = (const ASTIf*)node;
             if (field_id == 1u) return n->condition;
