@@ -373,8 +373,6 @@ static uint32_t semantic_declared_type_id(
             } else {
                 written = snprintf(shape + used, sizeof(shape) - used, "[?]");
             }
-        } else {
-            written = snprintf(shape + used, sizeof(shape) - used, "[?]");
         }
         if (written < 0 || (size_t)written >= sizeof(shape) - used)
             return 0u;
