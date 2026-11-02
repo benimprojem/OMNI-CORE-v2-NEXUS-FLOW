@@ -962,18 +962,18 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             ASTVarDecl* decl = (ASTVarDecl*)node;
             Slot* declared_slot = NULL;
             Slot* existing = find_slot(ctx, decl->name);
+            int is_array = (decl->inline_type &&
+                decl->inline_type->type == AST_ARRAY_TYPE);
+            int is_inline = (decl->inline_type != NULL && !is_array);
+            int valid_type = 0;
+            const char* element_type = decl->type_name;
+            if (element_type && element_type[0] == '!') ++element_type;
             if (existing && existing->depth == ctx->current_depth) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_REDEFINED), decl->name);
                 report_issue(ctx, node, ERR_SEMANTIC_REDEFINED, buf, NULL,
                     "Bu ismi daha önce kullandınız.", 0, 0);
             } else {
-                int is_array = (decl->inline_type &&
-                    decl->inline_type->type == AST_ARRAY_TYPE);
-                int is_inline = (decl->inline_type != NULL && !is_array);
-                int valid_type = 0;
-                const char* element_type = decl->type_name;
-                if (element_type && element_type[0] == '!') ++element_type;
                 if (element_type && *element_type) {
                     if (is_type_defined(ctx, element_type)) valid_type = 1;
                     else if (is_inline &&
