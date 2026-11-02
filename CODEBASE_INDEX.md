@@ -117,6 +117,25 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 `read_u16_le()`, `read_u32_le()`, `read_u64_le()`, `write_u16_le()`, `write_u32_le()`, `write_u64_le()`, `is_valid_utf8_text()`, `valid_string()`, `read_record()`, `oir_diagnostics_payload_open()`, `oir_diagnostics_payload_get()`, `oir_diagnostics_payload_write()`
 
+### `omnicore-sdk/src/c/codegen/target_parser.c`
+
+`set_error()`, `strip_comment()`, `parse_string()`, `parse_unsigned()`, `parse_boolean()`, `validate_array()`, `known_section()`, `known_key()`, `parse_abi()`, `parse_simd()`, `parse_spec_version()`, `target_config_load()`, `strcmp()`, `strcmp()`, `strcmp()`, `target_backend_check()`
+
+### `omnicore-sdk/src/c/core/failure_store.c`
+
+`path_format()`, `ensure_directory()`, `occ_failure_store_save()`
+
+### `omnicore-sdk/src/c/main.c`
+
+`occ_print_job_diagnostics()`, `occ_validate_module_artifact()`, `occ_write_artifact_file()`, `occ_validate_assembly_artifact()`, `occ_run_codegen_stage()`, `occ_build_and_run_parser_module()`, `get_executable_dir()`, `path_join()`, `get_config_language()`, `list_targets()`, `occ_make_job_id()`, `occ_add_host_diagnostic()`, `occ_save_failure_checkpoint()`, `main()`
+
+### `omnicore-sdk/src/c/oir/oir_ast_field_schema.c`
+
+`required_field_count()`, `expected_type()`, `is_nullable_string()`, `oir_ast_field_schema_validate()`
+
+### `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`
+
+`pointer_hash()`, `insert_node()`, `oir_ast_frontend_index_lookup()`, `oir_ast_frontend_child_field_count()`, `visit_node()`, `oir_ast_frontend_index_build()`
 ## Complete C/header file inventory
 
 ### `omnicore-sdk/src/c/codegen/`
