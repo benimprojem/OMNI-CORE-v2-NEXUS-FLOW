@@ -115,6 +115,8 @@
 | 95 | `AST_RELOCATE` | Source and destination/context expressions |
 | 96 | `AST_UNROLL` | Compile-time count and loop subtree |
 | 97 | `AST_ARRAY_LITERAL` | Appended aggregate literal node; ordered elements are field 1 |
+| 98 | `AST_ARRAY_TYPE` | Array type wrapper; ordered dimensions are field 1 |
+| 99 | `AST_ARRAY_DIMENSION` | One dimension; optional length expression is field 1 (null means dynamic) |
 
 ## Field IDs and value types
 
@@ -129,6 +131,8 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_VAR_DECL | 3–6 | is_const, is_hard_typed, is_public, is_exported | BOOL |
 | AST_VAR_DECL | 7 | initializer | NODE_REF |
 | AST_VAR_DECL | 8 | inline_type | NODE_REF |
+| AST_ARRAY_TYPE | 1 | dimensions | NODE_REF |
+| AST_ARRAY_DIMENSION | 1 | length expression | NODE_REF / NULL |
 | AST_FUNC_DECL, AST_EXTERN_DECL | 1 | name | STRING_REF / NULL |
 | AST_FUNC_DECL, AST_EXTERN_DECL | 2 | return_type | STRING_REF / NULL |
 | AST_FUNC_DECL, AST_EXTERN_DECL | 3–5 | is_extern, is_public, is_exported | BOOL |
