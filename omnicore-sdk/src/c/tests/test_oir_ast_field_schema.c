@@ -24,7 +24,8 @@ static uint16_t count_for_kind(uint16_t k) {
         case 30: case 33: case 36: case 41: case 71: return 2;
         case 10: return 4;
         case 13: return 5;
-        case 15: case 18: case 21: return 3;
+        case 15: case 18: return 3;
+        case 21: case 98: case 99: return 2;
         case 16: case 17: case 22: case 26: case 24: return 2 + (k == 24);
         case 25: return 7;
         case 27: case 28: return 0;
@@ -59,7 +60,8 @@ static uint8_t type_for(uint16_t k, uint16_t f) {
         case 10: if(f==1)return OIR_AST_VALUE_NULL; if(f<=3)return OIR_AST_VALUE_BOOL; return OIR_AST_VALUE_NODE_REF;
         case 13: return f==1?OIR_AST_VALUE_TOKEN_ID:(f==2?OIR_AST_VALUE_U32:(f==3?OIR_AST_VALUE_I64:(f==4?OIR_AST_VALUE_F64:OIR_AST_VALUE_NULL)));
         case 14: case 34: case 37: case 39: return OIR_AST_VALUE_NULL;
-        case 15: case 18: case 21: return f==1?OIR_AST_VALUE_TOKEN_ID:OIR_AST_VALUE_NODE_REF;
+        case 15: case 18: return f==1?OIR_AST_VALUE_TOKEN_ID:OIR_AST_VALUE_NODE_REF;
+        case 21: case 98: case 99: return OIR_AST_VALUE_NODE_REF;
         case 16: case 17: case 26: return f==1?OIR_AST_VALUE_TOKEN_ID:OIR_AST_VALUE_NODE_REF;
         case 22: return OIR_AST_VALUE_NODE_REF;
         case 19: case 40: case 42: case 43: case 44: case 45: case 46: case 47:
@@ -107,7 +109,7 @@ int main(void) {
     uint16_t kind, n, f;
     uint8_t type;
 
-    for (kind = 1; kind <= 97; ++kind) {
+    for (kind = 1; kind <= 99; ++kind) {
         root_len = emit_field(fields, 1, OIR_AST_VALUE_NODE_REF, 0);
         child_len = 0;
         n = count_for_kind(kind);
