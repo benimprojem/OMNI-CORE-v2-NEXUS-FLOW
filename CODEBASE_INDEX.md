@@ -2,7 +2,7 @@
 
 **Repository:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Branch:** `refactor/c-core-roadmap`  
-**Snapshot commit:** `9df45c9727395e9910fb6f9579ae0a28fbdc4939`  
+**Snapshot commit:** `f705f11ac6fab274bc04bbb59b754dfc5df96747`  
 **Scope:** `omnicore-sdk/src/c/`  
 **Snapshot inventory:** 126 C/header files (91 C implementation files and 35 headers).  
 **Purpose:** prevent duplicate files/functions, make existing implementation discoverable before adding or changing code.
@@ -13,7 +13,7 @@ Before creating a source file or function, search this index and the current bra
 
 ## Inventory completeness
 
-The file/path inventory below is complete for the snapshot. The function catalogue now covers all non-test production `.c` implementation files in this snapshot. The `tests/` directory is fully listed by filename, but per-test function names are pending. Header declarations are listed by filename and should be indexed separately as public API declarations. The first-pass extractor is mechanical: review macro-related or unusual declarations against source before relying on a symbol as a stable API.
+The file/path inventory below is complete for the snapshot. The function catalogue now covers all non-test production `.c` implementation files in this snapshot. The `tests/` directory is fully listed by filename, but per-test function names are pending. Header declarations are listed by filename and should be indexed separately as public API declarations. The first-pass extractor is mechanical: review macro-related or unusual declarations against source before relying on a symbol as a stable API. The OIR Verifier source now calls the existing `oir_opcode_validate_shape()` registry helper; this function is not reimplemented inside the verifier.
 
 ## Verified function catalogue
 
@@ -361,7 +361,7 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 - `module/oir_verify_stage_module.c`: current `validate_module()`, OIR access helpers, CFG/dominance checks, stage processing and stage export. Refactor this implementation; do not create a second verifier module.
 - `oir/oir_module.c` + `oir/oir_module.h`: canonical OIR_MODULE reader/writer and accessors. Reuse its accessors rather than reimplementing payload decoding.
-- `oir/oir_module_opcode.c` + `oir/oir_module_opcode.h`: opcode registry and shape validation. Extend the registry/contract rather than duplicating opcode tables.
+- `oir/oir_module_opcode.c` + `oir/oir_module_opcode.h`: opcode registry and `oir_opcode_validate_shape()` for operand count/kinds and result-presence rules. The verifier reuses this helper before opcode-specific semantic/type checks; extend the registry/contract rather than duplicating opcode tables.
 - `module/occ_module_api.h` + `module/occ_module_api.c`: common stage ABI and diagnostics; do not add a verifier-only ABI.
 - `tests/test_oir_verify_stage_module.c`: existing verifier fixtures and tests; extend these before introducing a parallel test harness.
 - `TASKS.md` and `OIR_VERIFIER_SPEC.md`: implementation backlog and behavioral contract.
@@ -375,3 +375,4 @@ The file/path inventory below is complete for the snapshot. The function catalog
 ## Change log
 
 - 2026-11-02: Initial source-tree snapshot and first-pass function catalogue added. File list covers all 126 C/header files under `omnicore-sdk/src/c/`; function-level extraction covers all 25 non-test production C implementation files. Test implementation function names and header API declarations remain pending.
+- 2026-11-02: Verifier now reuses the existing opcode shape validator; a malformed extra-operand regression case was added. No new source function or file was introduced.
