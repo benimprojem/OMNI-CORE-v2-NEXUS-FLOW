@@ -140,9 +140,9 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     uint8_t visited[64];
     OirAstGraphStackEntry graph_stack[64];
     OirLoweringWorkspace workspace;
-    OirModuleType module_types[2];
+    OirModuleType module_types[3];
     OirModuleFunction functions[1];
-    OirModuleBlock blocks[1];
+    OirModuleBlock blocks[16];
     OirModuleValue values[16];
     OirLoweringLocal locals[8];
     OirModuleInstruction instructions[32];
@@ -194,9 +194,9 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             owner_scope, 65u) != OIR_STATUS_OK)
         goto cleanup;
 
-    workspace.types = module_types; workspace.type_capacity = 2u;
+    workspace.types = module_types; workspace.type_capacity = 3u;
     workspace.functions = functions; workspace.function_capacity = 1u;
-    workspace.blocks = blocks; workspace.block_capacity = 1u;
+    workspace.blocks = blocks; workspace.block_capacity = 16u;
     workspace.values = values; workspace.value_capacity = 16u;
     workspace.locals = locals; workspace.local_capacity = 8u;
     workspace.instructions = instructions; workspace.instruction_capacity = 32u;
