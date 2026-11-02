@@ -257,6 +257,16 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         size_t instructions_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u + (size_t)value_count * 16u;
         test_put_u32(module_bytes + instructions_offset + 2u * 24u + 12u, 1u);
+    } else if (variant == 6) {
+        size_t instructions_offset = 36u + 3u * 12u + 20u +
+            (size_t)block_count * 16u + (size_t)value_count * 16u;
+        size_t operands_offset = instructions_offset +
+            (size_t)instruction_count * 24u;
+        /* ADD has exactly two operands. Add a third, otherwise-unused
+           immediate operand to prove the shared opcode shape check rejects it. */
+        test_put_u32(module_bytes + instructions_offset + 2u * 24u + 20u, 3u);
+        test_put_u32(module_bytes + operands_offset + 4u * 16u,
+            OIR_OPERAND_INTEGER_IMMEDIATE);
     }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
@@ -360,10 +370,11 @@ int main(int argc, char** argv) {
     assert(occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) >= 2u);
     free(input); input = NULL; input_length = 0u;
 
-    /* Reject malformed CFG ownership, missing terminators and duplicate SSA definitions. */
+    /* Reject malformed CFG ownership, missing terminators, duplicate SSA definitions,
+       and opcode operand-shape violations. */
     {
         int variant;
-        for (variant = 2; variant <= 5; ++variant) {
+        for (variant = 2; variant <= 6; ++variant) {
             OccModuleArtifactInputV1 stage_input;
             assert(build_cfg_module_artifact(&input, &input_length, variant));
             memset(&stage_input, 0, sizeof(stage_input));
