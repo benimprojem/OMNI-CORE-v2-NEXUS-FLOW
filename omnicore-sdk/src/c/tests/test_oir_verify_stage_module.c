@@ -117,10 +117,10 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     OirSectionInput section;
     uint8_t module_bytes[4096];
     uint8_t* artifact;
-    uint32_t block_count = (variant == 5 || variant == 13) ? 1u : (diamond ? 4u : 2u);
-    uint32_t value_count = variant == 13 ? 1u : (variant == 5 ? 2u : (diamond ? 4u : 2u));
-    uint32_t instruction_count = variant == 13 ? 3u : (variant == 5 ? 2u : (diamond ? 8u : 4u));
-    uint32_t operand_count = variant == 13 ? 3u : (variant == 5 ? 2u : (diamond ? 11u : 5u));
+    uint32_t block_count = variant == 5 ? 1u : (diamond ? 4u : 2u);
+    uint32_t value_count = variant == 5 ? 2u : (diamond ? 4u : 2u);
+    uint32_t instruction_count = variant == 5 ? 2u : (diamond ? 8u : 4u);
+    uint32_t operand_count = variant == 5 ? 2u : (diamond ? 11u : 5u);
     size_t module_length = 0u, artifact_capacity;
 
     memset(types, 0, sizeof(types));
@@ -249,27 +249,6 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         /* Return value 1 instead of ADD result 2; value 2 is now unused. */
         operands[4].reference_id = 1u;
     }
-    if (variant == 13) {
-        /* Two instructions claim the same SSA result; only instruction 1 defines it. */
-        blocks[0].id = 1u; blocks[0].function_id = 1u;
-        blocks[0].first_instruction = 0u; blocks[0].instruction_count = 3u;
-        values[0].id = 1u; values[0].type_id = 1u;
-        values[0].defining_instruction_id = 1u;
-        instructions[0].id = 1u; instructions[0].block_id = 1u;
-        instructions[0].opcode_id = OIR_OP_CONST_INT;
-        instructions[0].result_value_id = 1u;
-        instructions[0].first_operand = 0u; instructions[0].operand_count = 1u;
-        instructions[1].id = 2u; instructions[1].block_id = 1u;
-        instructions[1].opcode_id = OIR_OP_CONST_INT;
-        instructions[1].result_value_id = 1u;
-        instructions[1].first_operand = 1u; instructions[1].operand_count = 1u;
-        instructions[2].id = 3u; instructions[2].block_id = 1u;
-        instructions[2].opcode_id = OIR_OP_RETURN;
-        instructions[2].first_operand = 2u; instructions[2].operand_count = 1u;
-        operands[0].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[0].immediate = 7u;
-        operands[1].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[1].immediate = 9u;
-        operands[2].kind = OIR_OPERAND_VALUE; operands[2].reference_id = 1u;
-    }
 
     memset(&input, 0, sizeof(input));
     input.types = types; input.type_count = 3u;
@@ -321,6 +300,21 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         /* Both values incorrectly use the function type as a runtime value type. */
         test_put_u32(module_bytes + values_offset + 4u, 3u);
         test_put_u32(module_bytes + values_offset + 16u + 4u, 3u);
+    } else if (variant == 13) {
+        size_t instructions_offset = 36u + 3u * 12u + 20u +
+            (size_t)block_count * 16u + (size_t)value_count * 16u;
+        size_t operands_offset = instructions_offset +
+            (size_t)instruction_count * 24u;
+        /* Convert instruction 2's valid branch into a result-producing CALL.
+           It reuses value 1, whose unique definition remains instruction 1. */
+        module_bytes[instructions_offset + 1u * 24u + 8u] =
+            (uint8_t)(OIR_OP_CALL & 0xffu);
+        module_bytes[instructions_offset + 1u * 24u + 9u] =
+            (uint8_t)(OIR_OP_CALL >> 8);
+        test_put_u32(module_bytes + instructions_offset + 1u * 24u + 12u, 1u);
+        test_put_u32(module_bytes + operands_offset + 1u * 16u,
+            OIR_OPERAND_FUNCTION);
+        test_put_u32(module_bytes + operands_offset + 1u * 16u + 4u, 1u);
     }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
