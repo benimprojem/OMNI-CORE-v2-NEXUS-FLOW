@@ -744,7 +744,7 @@ Yeni stage'in giriş doğrulamaları:
 - Tekil PAYLOAD section ve `oir_module_open()` yapısal kontrolü
 - İlk backend için tek function/basic block, tanımlı SSA değerleri, instruction sırası ve operand türleri
 
-İlk backend kapsamı bilinçli olarak sınırlıdır: x86-64 NASM BareMetal hedefi, tek fonksiyon ve çoklu basic block CFG; `i32` / `i64` / `f32` / `f64` / `bool`; sabitler; integer ADD/SUB/MUL/DIV/REM/NEG; SSE scalar float ADD/SUB/MUL/DIV/NEG; BRANCH, boolean COND_BRANCH, UNREACHABLE ve her blokta scalar RETURN. F32 sabitleri OIR_MODULE'de binary64 olarak taşındığı için backend `CVTSD2SS` ile f32'ye yuvarlar. BareMetal64 profilinde scalar dönüş register'ı RAX olduğundan f32/f64 dönüşleri IEEE bit deseni olarak RAX'e aktarılır. CMP opcode'ları, multi-function, call, memory, cast, float REM ve desteklenmeyen opcode'lar henüz reddedilir. Bu sınırlar dilin genel sınırı değil, ilk backend dilimidir.
+İlk backend kapsamı bilinçli olarak sınırlıdır: x86-64 NASM BareMetal hedefi, tek fonksiyon ve çoklu basic block CFG; `i32` / `i64` / `f32` / `f64` / `bool`; sabitler; integer ADD/SUB/MUL/DIV/REM/NEG; SSE scalar float ADD/SUB/MUL/DIV/NEG; BRANCH, boolean COND_BRANCH, UNREACHABLE ve her blokta scalar RETURN. F32 sabitleri OIR_MODULE'de binary64 olarak taşındığı için backend `CVTSD2SS` ile f32'ye yuvarlar. BareMetal64 profilinde scalar dönüş register'ı RAX olduğundan f32/f64 dönüşleri IEEE bit deseni olarak RAX'e aktarılır. Multi-function, call, memory, cast, float REM ve desteklenmeyen opcode'lar henüz reddedilir. Integer CMP_EQ/NE/LT/LE/GT/GE signedness bayrağına göre; f32/f64 CMP işlemleri UCOMISS/UCOMISD ve NaN unordered bayraklarını gözeten SETcc dizileriyle üretilir. Boolean yalnızca EQ/NE için karşılaştırılır. Bu sınırlar dilin genel sınırı değil, ilk backend dilimidir.
 
 OIR_ASSEMBLY payload'u NUL terminatörsüz ASCII NASM metnidir; object file veya çalıştırılabilir dosya değildir. Host artifact'ı `<basename>.assembly.oir`, metni `<basename>.stage.s` olarak kaydeder. Mevcut `codegen_run` modülü ise eski AST köprüsünden çalışmaya devam eder ve `<basename>.s` üretir. Yeni ve eski çıktılar henüz parity açısından eşdeğer kabul edilmemiştir.
 
@@ -796,3 +796,10 @@ Yeni Codegen DLL'i artık tek fonksiyon içinde birden fazla basic block işleye
 Doğrudan DLL testi üç bloklu conditional CFG artifact'ını Codegen'e verir ve iki hedef etiketi, `test eax,eax`, `jne` ve `jmp` çıktısını doğrular.
 
 **CI run 41376095890:** Windows, Ubuntu ve macOS build/test başarılı; Ubuntu CTest **59/59**; ASan/UBSan ve Valgrind başarılı.
+
+
+## 2 Kasım 2026 — Scalar comparison Codegen
+
+Codegen artık signed/unsigned integer karşılaştırmalarını, f32/f64 karşılaştırmalarını ve boolean EQ/NE işlemlerini boolean SSA sonucu olarak üretir. Integer koşullarında signedness flag uygun SETcc seçimini belirler. Float koşullarında UCOMISS/UCOMISD sonrasında parity flag'leri kullanılarak NaN/unordered durumları IEEE davranışına göre filtrelenir: ordered ilişkiler/equality NaN için false, inequality true olur.
+
+Testler integer CMP_LT ve f64 CMP_LT sonuçlarını ayrı CFG dallarına bağlar. **CI run 41376451054:** Windows, Ubuntu ve macOS build/test başarılı; Ubuntu CTest **59/59**; ASan/UBSan başarılı. Valgrind henüz tamamlanmadı.
