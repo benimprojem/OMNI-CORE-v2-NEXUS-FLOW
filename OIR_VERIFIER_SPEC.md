@@ -206,7 +206,7 @@ Implemented and tested:
 - Negative tests for cross-function CFG edges, incorrect entry ownership, missing terminators, duplicate SSA definitions, use-before-definition and non-dominating definitions
 - Windows, Ubuntu and macOS CI; Ubuntu ASan/UBSan and Valgrind
 - Current input producer gate accepts lowering-stage artifacts only; optimizer-stage producer support is pending
-- Current payload-failure diagnostics are coarse-grained; per-check codes and OIR location context are pending
+- Stable verifier diagnostic codes 8607–8620 and numeric function/block/instruction/value/type context are implemented; representative exact-code regression cases are covered
 
 Recorded CI runs: `41375777590` and `41382501057` (59/59 CTest in the recorded Ubuntu run); `41387462122` validates the six-pass decomposition across Windows, Ubuntu and macOS, with Ubuntu ASan/UBSan and Valgrind successful.
 
@@ -249,7 +249,7 @@ Optimization must preserve observable program behavior. The OIR Verifier runs af
 - Diamond-CFG non-dominating use rejection
 - Type mismatch and invalid condition rejection
 - Resource-bound and overflow cases
-- Deterministic diagnostics
+- Deterministic diagnostics and exact verifier error codes/context for representative malformed OIR cases
 - Input immutability / output payload preservation
 - Windows, Linux and macOS builds
 - ASan/UBSan and Valgrind where available
