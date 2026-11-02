@@ -1127,7 +1127,41 @@ static ASTNode* parse_postfix(Parser* p) {
     if (!expr) return NULL;
 
     for (;;) {
-        if (match(p, TOKEN_DOT)) {
+        if (match(p, TOKEN_LBRACKET)) {
+            Token open = p->previous;
+            ASTIndexAccess* access;
+            ASTNode* index_expr;
+            if (postfix_depth++ >= 32u) {
+                error_at(p, &open, ERR_PARSER_UNEXPECTED_TOKEN,
+                    "Maximum postfix-chain depth exceeded.");
+                ast_destroy(expr);
+                return NULL;
+            }
+            index_expr = parse_expression(p);
+            if (!index_expr) {
+                ast_destroy(expr);
+                return NULL;
+            }
+            if (p->current.type != TOKEN_RBRACKET) {
+                error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                    "Expected ']' after index expression.");
+                ast_destroy(expr);
+                ast_destroy(index_expr);
+                return NULL;
+            }
+            advance(p);
+            access = (ASTIndexAccess*)parser_ast_create(p, AST_INDEX_ACCESS);
+            if (!access) {
+                ast_destroy(expr);
+                ast_destroy(index_expr);
+                return NULL;
+            }
+            access->base.line = open.line;
+            access->base.col = open.col;
+            access->target = expr;
+            access->index = index_expr;
+            expr = (ASTNode*)access;
+        } else if (match(p, TOKEN_DOT)) {
             if (postfix_depth++ >= 32u) {
                 error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
                     "Maximum postfix-chain depth exceeded.");
