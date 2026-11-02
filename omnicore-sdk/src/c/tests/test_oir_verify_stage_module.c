@@ -287,8 +287,8 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
             (size_t)block_count * 16u + (size_t)value_count * 16u;
         size_t operands_offset = instructions_offset +
             (size_t)instruction_count * 24u;
-        /* Return value 1 instead of ADD result 4; value 4 is now unused. */
-        test_put_u32(module_bytes + operands_offset + 10u * 16u + 4u, 1u);
+        /* Return value 1 instead of ADD result 2; value 2 is now unused. */
+        test_put_u32(module_bytes + operands_offset + 4u * 16u + 4u, 1u);
     }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
@@ -490,7 +490,7 @@ int main(int argc, char** argv) {
             occ_diagnostics_count(&diagnostics) - 1u, &warning_view));
         assert(warning_view.record->code == 8621u);
         assert(warning_view.record->severity == OCC_DIAG_WARNING);
-        assert(strstr(warning_view.message, "value=4") != NULL);
+        assert(strstr(warning_view.message, "value=2") != NULL);
         assert(warning_view.hint != NULL);
         assert(strstr(warning_view.hint, "remove its declaration") != NULL);
         free(input); input = NULL; input_length = 0u;
