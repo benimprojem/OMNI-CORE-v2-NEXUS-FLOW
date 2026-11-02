@@ -86,4 +86,4 @@ foreach(required_text IN ITEMS "global _kernel_main" "call main" "imul eax, ebx"
     endif()
 endforeach()
 
-message(STATUS "OCC CLI persisted validated OIR_MODULE and OIR_ASSEMBLY artifacts; legacy Codegen remains available for parity")
+message(STATUS "OCC CLI persisted OIR_MODULE and OIR_ASSEMBLY; legacy Codegen output is retained for future parity checks")
