@@ -101,9 +101,9 @@ static void test_put_u32(uint8_t* p, uint32_t v) {
 
 static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int variant) {
     int diamond = variant == 1;
-    static const uint8_t strings[] = "main";
+    static const uint8_t strings[] = "mainother";
     OirModuleType types[3];
-    OirModuleFunction functions[1];
+    OirModuleFunction functions[2];
     OirModuleBlock blocks[4];
     OirModuleValue values[4];
     OirModuleInstruction instructions[8];
@@ -129,6 +129,11 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     memset(functions, 0, sizeof(functions));
     functions[0].id = 1u; functions[0].name_length = 4u;
     functions[0].function_type_id = 3u; functions[0].entry_block_id = 1u;
+    if (variant == 2 || variant == 3) {
+        functions[1].id = 2u; functions[1].name_offset = 4u;
+        functions[1].name_length = 5u; functions[1].function_type_id = 3u;
+        functions[1].entry_block_id = 2u;
+    }
 
     memset(blocks, 0, sizeof(blocks));
     memset(values, 0, sizeof(values));
@@ -211,7 +216,13 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         operands[10].kind = OIR_OPERAND_VALUE; operands[10].reference_id = 4u;
     }
 
-    if (variant == 5) {
+    if (variant == 2) {
+        /* The branch is structurally valid, but its target belongs to function 2. */
+        blocks[1].function_id = 2u;
+    } else if (variant == 3) {
+        /* Function 2 names block 2 as its entry, but block 2 belongs to function 1. */
+        blocks[1].function_id = 1u;
+    } else if (variant == 5) {
         /* A structurally decodable block with no terminator must be rejected. */
         blocks[0].id = 1u; blocks[0].function_id = 1u;
         blocks[0].first_instruction = 0u; blocks[0].instruction_count = 2u;
@@ -229,26 +240,20 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
 
     memset(&input, 0, sizeof(input));
     input.types = types; input.type_count = 3u;
-    input.functions = functions; input.function_count = 1u;
+    input.functions = functions; input.function_count =
+        (variant == 2 || variant == 3) ? 2u : 1u;
     input.blocks = blocks; input.block_count = block_count;
     input.values = values; input.value_count = value_count;
     input.instructions = instructions; input.instruction_count = instruction_count;
     input.operands = operands; input.operand_count = operand_count;
-    input.strings = strings; input.strings_length = 4u;
+    input.strings = strings; input.strings_length =
+        (variant == 2 || variant == 3) ? 9u : 4u;
     assert(oir_module_write(module_bytes, sizeof(module_bytes), &input,
         &module_length) == OIR_STATUS_OK);
 
     /* Patch only after the codec writer has emitted a valid wire payload.
        These malformed semantic relationships belong to the independent verifier. */
-    if (variant == 2) {
-        size_t operands_offset = 36u + 3u * 12u + 20u +
-            (size_t)block_count * 16u + (size_t)value_count * 16u +
-            (size_t)instruction_count * 24u;
-        test_put_u32(module_bytes + operands_offset + 16u + 4u, 99u);
-    } else if (variant == 3) {
-        size_t blocks_offset = 36u + 3u * 12u + 20u;
-        test_put_u32(module_bytes + blocks_offset + 16u + 4u, 2u);
-    } else if (variant == 4) {
+    if (variant == 4) {
         size_t instructions_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u + (size_t)value_count * 16u;
         test_put_u32(module_bytes + instructions_offset + 2u * 24u + 12u, 1u);
