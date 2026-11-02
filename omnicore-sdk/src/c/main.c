@@ -43,6 +43,7 @@ typedef int (*CodegenRunFn)(const char*, const char*, const char*);
 #define OCC_AST_OUTPUT_MAX (256u * 1024u * 1024u)
 #define OCC_SEMANTIC_OUTPUT_MAX (256u * 1024u * 1024u)
 #define OCC_MODULE_OUTPUT_MAX (256u * 1024u * 1024u)
+#define OCC_VERIFIER_OUTPUT_MAX (256u * 1024u * 1024u)
 #define OCC_ASSEMBLY_OUTPUT_MAX (64u * 1024u * 1024u)
 
 static int path_join(char* out, size_t out_size, const char* base, const char* relative);
@@ -75,10 +76,11 @@ static void occ_print_job_diagnostics(const OccDiagnosticCollector* diagnostics)
     }
 }
 
-static int occ_validate_lowering_artifact(
+static int occ_validate_module_artifact(
     const uint8_t* bytes,
     size_t length,
-    uint64_t job_id
+    uint64_t job_id,
+    uint32_t producer_stage_id
 ) {
     OirArtifactView artifact;
     OirSectionView payload;
@@ -91,7 +93,7 @@ static int occ_validate_lowering_artifact(
         artifact.header.artifact_kind != OIR_KIND_MODULE ||
         artifact.header.payload_schema_major != OIR_MODULE_SCHEMA_MAJOR ||
         artifact.header.payload_schema_minor != OIR_MODULE_SCHEMA_MINOR ||
-        artifact.header.producer_stage_id != OCC_STAGE_OIR_LOWERING ||
+        artifact.header.producer_stage_id != producer_stage_id ||
         artifact.header.validity != OIR_VALIDITY_VALID ||
         artifact.header.job_id != job_id) {
         return 0;
@@ -323,19 +325,22 @@ static int occ_build_and_run_parser_module(
     ParserContext* source_context = NULL;
     uint8_t *source_payload = NULL, *source_artifact = NULL;
     uint8_t *token_artifact = NULL, *ast_artifact = NULL, *semantic_artifact = NULL;
-    uint8_t *lowered_artifact = NULL;
+    uint8_t *lowered_artifact = NULL, *verified_artifact = NULL;
     size_t source_payload_length = 0u, source_artifact_length = 0u;
     size_t token_artifact_length = 0u, ast_artifact_length = 0u, semantic_artifact_length = 0u;
-    size_t lowered_artifact_length = 0u;
+    size_t lowered_artifact_length = 0u, verified_artifact_length = 0u;
     size_t source_payload_capacity = 0u, path_length;
     OirArtifactHeader header;
     OirSectionInput section;
     OccModuleArtifactInputV1 module_inputs[2];
-    OccLoadedStageModule lexer_loaded, parser_loaded, semantic_loaded, lowering_loaded;
+    OccLoadedStageModule lexer_loaded, parser_loaded, semantic_loaded, lowering_loaded, verifier_loaded;
     char lexer_module_path[OCC_PATH_BUFFER], parser_module_path[OCC_PATH_BUFFER];
     char semantic_module_path[OCC_PATH_BUFFER], lowering_module_path[OCC_PATH_BUFFER];
+    char verifier_module_path[OCC_PATH_BUFFER];
     char lexer_error[512], parser_error[512], semantic_error[512], lowering_error[512];
+    char verifier_error[512];
     const char *lexer_filename, *parser_filename, *semantic_filename, *lowering_filename;
+    const char *verifier_filename;
     OirArtifactView ast_view;
     OirSectionView ast_payload_section;
     OirAstNodeTableView ast_table;
@@ -353,6 +358,7 @@ static int occ_build_and_run_parser_module(
     memset(&parser_loaded, 0, sizeof(parser_loaded));
     memset(&semantic_loaded, 0, sizeof(semantic_loaded));
     memset(&lowering_loaded, 0, sizeof(lowering_loaded));
+    memset(&verifier_loaded, 0, sizeof(verifier_loaded));
     if (out_module_artifact) *out_module_artifact = NULL;
     if (out_module_artifact_length) *out_module_artifact_length = 0u;
     if (!source_path || !executable_dir || !job || !out_context ||
@@ -418,16 +424,19 @@ static int occ_build_and_run_parser_module(
     parser_filename = "occ_parser_stage.dll";
     semantic_filename = "occ_semantic_stage.dll";
     lowering_filename = "occ_oir_lowering_stage.dll";
+    verifier_filename = "occ_oir_verify_stage.dll";
 #elif defined(__APPLE__)
     lexer_filename = "libocc_lexer_stage.dylib";
     parser_filename = "libocc_parser_stage.dylib";
     semantic_filename = "libocc_semantic_stage.dylib";
     lowering_filename = "libocc_oir_lowering_stage.dylib";
+    verifier_filename = "libocc_oir_verify_stage.dylib";
 #else
     lexer_filename = "libocc_lexer_stage.so";
     parser_filename = "libocc_parser_stage.so";
     semantic_filename = "libocc_semantic_stage.so";
     lowering_filename = "libocc_oir_lowering_stage.so";
+    verifier_filename = "libocc_oir_verify_stage.so";
 #endif
     if (!path_join(lexer_module_path, sizeof(lexer_module_path),
         executable_dir, lexer_filename) ||
@@ -436,7 +445,9 @@ static int occ_build_and_run_parser_module(
         !path_join(semantic_module_path, sizeof(semantic_module_path),
         executable_dir, semantic_filename) ||
         !path_join(lowering_module_path, sizeof(lowering_module_path),
-        executable_dir, lowering_filename)) {
+        executable_dir, lowering_filename) ||
+        !path_join(verifier_module_path, sizeof(verifier_module_path),
+        executable_dir, verifier_filename)) {
         occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6005u,
             "A compiler stage module path could not be constructed.");
         goto cleanup;
@@ -531,13 +542,51 @@ static int occ_build_and_run_parser_module(
         goto cleanup;
     }
 
-    if (!occ_validate_lowering_artifact(
-        lowered_artifact, lowered_artifact_length, job->job_id)) {
+    if (!occ_validate_module_artifact(
+        lowered_artifact, lowered_artifact_length, job->job_id, OCC_STAGE_OIR_LOWERING)) {
         occ_add_host_diagnostic(job, OCC_STAGE_OIR_LOWERING, 6017u,
             "The OIR lowering output failed host-side artifact or payload validation.");
         goto cleanup;
     }
     occ_module_loader_close(&lowering_loaded);
+
+    /* The independent verifier is a mandatory gate between lowering and
+       every downstream optimizer/backend consumer. */
+    if (occ_module_loader_open(&verifier_loaded, verifier_module_path,
+        verifier_error, sizeof(verifier_error)) != OCC_MODULE_LOADER_OK) {
+        occ_add_host_diagnostic(job, OCC_STAGE_OIR_VERIFY, 6020u,
+            verifier_error[0] ? verifier_error : "The OIR verifier stage module could not be loaded.");
+        goto cleanup;
+    }
+    if (!verifier_loaded.module ||
+        verifier_loaded.module->descriptor.stage_id != OCC_STAGE_OIR_VERIFY ||
+        verifier_loaded.module->descriptor.output_artifact_kind != OIR_KIND_MODULE) {
+        occ_add_host_diagnostic(job, OCC_STAGE_OIR_VERIFY, 6021u,
+            "The loaded verifier module does not match the verified OIR_MODULE stage contract.");
+        goto cleanup;
+    }
+    memset(module_inputs, 0, sizeof(module_inputs));
+    module_inputs[0].bytes = lowered_artifact;
+    module_inputs[0].length = lowered_artifact_length;
+    if (occ_module_loader_invoke(&verifier_loaded, module_inputs, 1u,
+        job->job_id, &job->diagnostics, 4096u, OCC_VERIFIER_OUTPUT_MAX,
+        &verified_artifact, &verified_artifact_length) != OCC_MODULE_LOADER_OK) {
+        if (occ_diagnostics_count(&job->diagnostics) == 0u) {
+            occ_add_host_diagnostic(job, OCC_STAGE_OIR_VERIFY, 6022u,
+                "The OIR verifier rejected the lowered module.");
+        }
+        goto cleanup;
+    }
+    if (!occ_validate_module_artifact(
+        verified_artifact, verified_artifact_length, job->job_id, OCC_STAGE_OIR_VERIFY)) {
+        occ_add_host_diagnostic(job, OCC_STAGE_OIR_VERIFY, 6023u,
+            "The verifier output failed host-side verified OIR_MODULE validation.");
+        goto cleanup;
+    }
+    occ_module_loader_close(&verifier_loaded);
+    free(lowered_artifact);
+    lowered_artifact = NULL;
+    lowered_artifact_length = 0u;
 
     if (oir_artifact_open(ast_artifact, ast_artifact_length, &ast_view) != OIR_STATUS_OK ||
         ast_view.header.artifact_kind != OIR_KIND_AST ||
@@ -571,10 +620,10 @@ static int occ_build_and_run_parser_module(
     ast_root = NULL;
     *out_context = source_context;
     source_context = NULL;
-    *out_module_artifact = lowered_artifact;
-    *out_module_artifact_length = lowered_artifact_length;
-    lowered_artifact = NULL;
-    lowered_artifact_length = 0u;
+    *out_module_artifact = verified_artifact;
+    *out_module_artifact_length = verified_artifact_length;
+    verified_artifact = NULL;
+    verified_artifact_length = 0u;
     success = 1;
     goto cleanup;
 
@@ -597,10 +646,12 @@ cleanup:
     free(visited);
     free(graph_stack);
     free(lowered_artifact);
+    free(verified_artifact);
     free(semantic_artifact);
     free(ast_artifact);
     free(token_artifact);
     occ_module_loader_close(&lowering_loaded);
+    occ_module_loader_close(&verifier_loaded);
     occ_module_loader_close(&semantic_loaded);
     occ_module_loader_close(&parser_loaded);
     occ_module_loader_close(&lexer_loaded);
