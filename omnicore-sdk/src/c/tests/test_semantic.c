@@ -134,6 +134,10 @@ static int check_array_type_semantics(void) {
         "f:take(values:i32[2]) {} f:main() { take([1,2]); }";
     const char* call_literal_element_mismatch =
         "f:take(values:i32[1]) {} f:main() { take([1.5]); }";
+    const char* valid_index =
+        "f:main() { v:items[4]!i32; v:x = items[1+2]; items[0] = x; }";
+    const char* invalid_index_target = "f:main() { v:x!i32 = 2; v:y = x[0]; }";
+    const char* invalid_index_type = "f:main() { v:x!i32 = 2; v:y = x[1.5]; }";
     return check_source(valid_params,0) &&
         check_source(valid_matrix_param,0) &&
         check_source(valid,0) &&
@@ -149,7 +153,10 @@ static int check_array_type_semantics(void) {
         check_source(call_extent_mismatch,1) &&
         check_source(call_rank_mismatch,1) &&
         check_source(call_literal_valid,0) &&
-        check_source(call_literal_element_mismatch,1);
+        check_source(call_literal_element_mismatch,1) &&
+        check_source(valid_index,0) &&
+        check_source(invalid_index_target,1) &&
+        check_source(invalid_index_type,1);
 }
 
 static int check_extended_ast_semantics(void) {
