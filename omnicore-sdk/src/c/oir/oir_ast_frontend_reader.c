@@ -283,7 +283,7 @@ static OirStatus populate_scalar_fields(
             case AST_SELECT_ARM:
                 if(field.field_id==3u) ((ASTSelectArm*)node)->is_default=(int)field.value[0];
                 break;
-            case AST_BINARY_EXPR: case AST_ASSIGNMENT: case AST_INDEX_ACCESS:
+            case AST_BINARY_EXPR: case AST_ASSIGNMENT:
             case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN:
             case AST_NEXUS_PIPE: case AST_NEXUS_FLOW: {
                 if(field.field_id==1u) {
