@@ -15,7 +15,8 @@ typedef enum OccDiagnosticStage {
     OCC_STAGE_OIR = 4,
     OCC_STAGE_CODEGEN = 5,
     OCC_STAGE_OCC_HOST = 6,
-    OCC_STAGE_OIR_LOWERING = 7
+    OCC_STAGE_OIR_LOWERING = 7,
+    OCC_STAGE_OIR_VERIFY = 8
 } OccDiagnosticStage;
 
 typedef enum OccDiagnosticSeverity {
