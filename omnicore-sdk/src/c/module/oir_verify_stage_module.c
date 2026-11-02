@@ -12,6 +12,7 @@
 enum {
     OIR_VERIFY_DIAG_MODULE_LIMIT = 8607u,
     OIR_VERIFY_DIAG_INTERNAL_WORKSPACE = 8608u,
+    OIR_VERIFY_DIAG_PAYLOAD_DECODE = 8609u,
     OIR_VERIFY_DIAG_TYPE_RECORD = 8610u,
     OIR_VERIFY_DIAG_BLOCK_OWNERSHIP = 8611u,
     OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE = 8612u,
@@ -565,6 +566,7 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
     switch (code) {
         case OIR_VERIFY_DIAG_MODULE_LIMIT: message = "OIR module exceeds verifier resource limits."; break;
         case OIR_VERIFY_DIAG_INTERNAL_WORKSPACE: message = "OIR Verifier could not allocate its validation workspace."; break;
+        case OIR_VERIFY_DIAG_PAYLOAD_DECODE: message = "OIR_MODULE payload is malformed or violates the registered opcode wire contract."; break;
         case OIR_VERIFY_DIAG_TYPE_RECORD: message = "OIR type record is invalid."; break;
         case OIR_VERIFY_DIAG_BLOCK_OWNERSHIP: message = "OIR block ownership or instruction range is invalid."; break;
         case OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE: message = "OIR instruction coverage is incomplete, overlapping or inconsistent."; break;
@@ -644,7 +646,7 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                 return report_verify_error(invocation, result, 8603u,
                     "OIR_MODULE payload section metadata is invalid.", NULL);
             if (oir_module_open(section.data, (size_t)section.length, &module) != OIR_STATUS_OK)
-                return report_verify_error(invocation, result, 8603u,
+                return report_verify_error(invocation, result, OIR_VERIFY_DIAG_PAYLOAD_DECODE,
                     "OIR_MODULE payload could not be decoded.", NULL);
             if (!validate_module(&module, &failure))
                 return report_verify_error(invocation, result,
