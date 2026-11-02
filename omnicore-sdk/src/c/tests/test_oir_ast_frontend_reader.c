@@ -17,6 +17,12 @@ typedef union AstStorage {
     ASTCall call;
     ASTMemberAccess member;
     ASTTuple tuple;
+    ASTPatternBinding pattern_binding;
+    ASTPatternConstructor pattern_constructor;
+    ASTSelect select_node;
+    ASTSelectArm select_arm;
+    ASTScan scan_node;
+    ASTScanArm scan_arm;
     ASTVarDecl var_decl;
     ASTFuncDecl func_decl;
     ASTStructDecl struct_decl;
