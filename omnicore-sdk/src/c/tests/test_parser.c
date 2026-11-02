@@ -847,6 +847,49 @@ done:
     return ok;
 }
 
+static int test_array_literal_ast(void) {
+    static const char source[] =
+        "f:main() { v:matrix = [[1, 2], [3, 4]]; v:empty = []; }";
+    ParserContext* ctx=parser_init_source("array-literal.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* node;
+    int matrix=0,empty=0,ok=0;
+    if(!ctx)return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root)goto done;
+    function=(ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    if(!function || !function->body || function->body->type!=AST_BLOCK)goto done;
+    body=(ASTBlock*)function->body;
+    for(node=body->statements;node;node=node->next) {
+        if(node->type==AST_VAR_DECL) {
+            ASTVarDecl* v=(ASTVarDecl*)node;
+            if(v->name && strcmp(v->name,"matrix")==0 &&
+               v->initializer && v->initializer->type==AST_ARRAY_LITERAL) {
+                ASTNode* row=((ASTArrayLiteral*)v->initializer)->elements;
+                if(row && row->type==AST_ARRAY_LITERAL &&
+                   ((ASTArrayLiteral*)row)->elements &&
+                   ((ASTArrayLiteral*)row)->elements->next) matrix=1;
+            }
+            if(v->name && strcmp(v->name,"empty")==0 &&
+               v->initializer && v->initializer->type==AST_ARRAY_LITERAL &&
+               !((ASTArrayLiteral*)v->initializer)->elements) empty=1;
+        }
+    }
+    if(matrix && empty) {
+        FILE* stream=tmpfile();
+        ASTNode* decoded=NULL;
+        if(stream && ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
+            decoded=ast_deserialize(stream);
+        ok=decoded && decoded->type==AST_PROGRAM;
+        if(decoded)ast_destroy(decoded);
+        if(stream)fclose(stream);
+    }
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_retry_metadata_rejects_overflow(void) {
     static const char source[] =
         "v:x = source?(999999999999999999999,1ms)->target;";
@@ -855,6 +898,7 @@ static int test_retry_metadata_rejects_overflow(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!test_array_literal_ast()) { fprintf(stderr, "Array literal parser/codec test failed.\n"); return 1; }
     if (!test_retry_metadata_rejects_overflow()) {
         fprintf(stderr, "Rolling retry count overflow was not rejected.\\n");
         return 1;
