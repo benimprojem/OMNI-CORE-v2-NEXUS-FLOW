@@ -481,3 +481,14 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Extend the shared local type-contract helper and bounded preflight to NEG, CMP_EQ/NE/LT/LE/GT/GE and CAST; main instruction validation reuses the same rules.
 - [x] Add focused NEG/CMP/CAST malformed-contract regression fixtures and assert stable 8616 instruction context.
 - [ ] Extend safe aggregation to LOAD/STORE and CALL only after memory/pointer and function-signature prerequisites are explicitly modeled.
+
+
+## AST / OIR pre-Codegen completion — select/scan implementation gate
+
+- [ ] Append six dedicated AST node kinds for select, scan, arms, binding patterns and constructor patterns without changing existing AST enum IDs.
+- [ ] Extend all five AST lifecycle/codec switches: allocation size, printer, destructor, binary serializer and binary deserializer.
+- [ ] Extend the stable OIR AST registry from 80 to 86 node kinds; append OIR IDs 81–86 and preserve IDs 1–80 exactly.
+- [ ] Extend OIR frontend child-field index, writer and reader with matching ordered child references and explicit scalar/string fields.
+- [ ] Implement contextual statement parsing for `select(...)` and `scan(...)`, including literal, binding and constructor patterns, default uniqueness, body parsing and recovery.
+- [ ] Add parser, AST binary round-trip, OIR AST round-trip, malformed-input, ownership and allocation-failure tests for the new node family.
+- [ ] Update the published OIR AST registry/schema and compatibility fixtures; do not mark select/scan complete until all parser and OIR paths pass.
