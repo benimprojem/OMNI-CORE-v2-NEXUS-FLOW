@@ -341,12 +341,13 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Add direct DLL tests for a valid module, same-block use-before-definition rejection, a valid cross-block dominating definition and a diamond-CFG non-dominating SSA rejection; keep assertions active in Release CI.
 - [x] Add CFG dominator coverage: predecessor definition accepted only when its block dominates the use block.
 - [ ] Extend verifier checks when function signatures, block parameters/phi nodes, memory metadata and source maps enter the OIR schema.
-- [ ] Add negative fixtures for invalid CFG ownership, missing terminators and duplicate definitions.
+- [x] Add negative fixtures for cross-function CFG edges, mismatched function-entry ownership, missing block terminators and duplicate SSA definitions.
 - [x] **CI run 41375777590:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan and Valgrind passed.
 
+- [x] **CI run 41382501057:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan and Valgrind passed.
 **Current verifier resource bounds:** 8,192 blocks/module; 1,000,000 function, instruction and value records; OIR string table remains capped at 16 MiB. These are implementation/resource limits, not NEXSUS Flow language limits.
 
-**Next compiler task:** verify the end-to-end CI result for this stage, then expand the lowerer beyond the current one-function/one-block scalar subset. Codegen remains target-specific and its output parity with the legacy AST bridge is still pending.
+**Next compiler task:** extend source-level OIR lowering to structured loop CFG and multi-statement branches, with explicit SSA merge/phi rules before allowing values to flow out of branches. Keep Codegen's calls/multi-function work and legacy parity as separate milestones.
 
 
 ## Multi-block CFG Codegen — 2 Kasım 2026
