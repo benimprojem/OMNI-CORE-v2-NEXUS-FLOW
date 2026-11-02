@@ -105,9 +105,13 @@ static int check_array_type_semantics(void) {
         " v:matrix[2][2]!f32 = [[1.0,2.0],[3.0,4.0]]; }";
     const char* zero_extent = "f:main() { v:invalid[0]!i32; }";
     const char* fractional_extent = "f:main() { v:invalid[1.5]!i32; }";
+    const char* wrong_shape = "f:main() { v:fixed[3]!i32 = [1,2]; }";
+    const char* wrong_element = "f:main() { v:fixed[2]!i32 = [1.5,2.5]; }";
     return check_source(valid,0) &&
         check_source(zero_extent,1) &&
-        check_source(fractional_extent,1);
+        check_source(fractional_extent,1) &&
+        check_source(wrong_shape,1) &&
+        check_source(wrong_element,2);
 }
 
 static int check_extended_ast_semantics(void) {
