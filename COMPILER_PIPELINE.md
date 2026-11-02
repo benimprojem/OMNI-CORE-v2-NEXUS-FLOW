@@ -191,3 +191,50 @@ The OCL security layer is **optional and user-controlled**, not an always-on com
 - The exact policy set, configuration syntax, trust model and enforcement points remain to be designed; this statement records the opt-in requirement, not a claim that security enforcement is implemented.
 
 The project-owned linker and optional security layer are separate design responsibilities. The security layer must not become an unavoidable hidden dependency of ordinary builds.
+
+
+## 13. OIR verification and optional optimization profiles
+
+The current OCC CLI stage graph for the canonical OIR path is:
+
+```text
+Lexer -> Parser -> Semantic -> OIR Lowering -> OIR Verifier
+                                                    |
+                       no optimization option -----+----> Codegen
+                                                    |
+                       --o1 / --o2 / --o3 / --o4 --+----> OIR Optimizer
+                                                                  |
+                                                                  v
+                                                             OIR Verifier
+                                                                  |
+                                                                  v
+                                                                Codegen
+```
+
+The first OIR verification is mandatory. If no optimization option is supplied, OCC skips the Optimizer and proceeds with the verifier-produced OIR artifact. If an optimizer profile is selected, the optimizer-produced artifact must pass the independent OIR Verifier before Codegen.
+
+OCC optimization options:
+
+| Option | Meaning |
+|---|---|
+| no option | Skip optimization (default) |
+| `--o1` | Basic optimization |
+| `--o2` | Standard optimization |
+| `--o3` | Advanced optimization |
+| `--o4` | Aggressive optimization |
+
+There is no required `--o0` option. Only one optimization level may be specified; repeated/conflicting levels are CLI errors. These profile semantics are accepted design policy; CLI implementation and profile/pass tests remain tracked work.
+
+### Independent OIR Verifier module
+
+The verifier is implemented as `occ_oir_verify_stage` (module ID `0x00010006`, stage ID `OCC_STAGE_OIR_VERIFY`) using the shared `OccStageModuleV1` ABI. It does not define a verifier-specific public ABI. Input/output buffers remain host-owned under the common stage contract; diagnostics use the invocation-scoped OCC diagnostic sink.
+
+The verifier validates OIR_MODULE 1.1 envelope/payload, ownership, instruction ranges, terminators, same-function CFG edges, opcode shape, implemented scalar type constraints, unique SSA definitions, use order and cross-block dominance. It republishes the original OIR sections without repair or mutation. Codegen requires verifier-produced input.
+
+Current resource limits are implementation bounds, not language limits: 8,192 blocks; 1,000,000 function, instruction and value records; 16 MiB string table. Function signatures, block parameters, memory/effect metadata and source-map checks remain pending their OIR schema definitions.
+
+See [OIR_VERIFIER_SPEC.md](OIR_VERIFIER_SPEC.md) for the complete verifier contract and tests.
+
+### Current implementation boundary correction
+
+The current canonical OIR CLI path is already integrated through `SEMANTIC_AST -> OIR_MODULE -> OIR Verifier -> Codegen`. The independent lowering, verifier and new Codegen modules are loaded through the OCC host loader. The earlier statements in Sections 2 and 10 saying that lowering is not called by the CLI or that Codegen still consumes only the legacy AST path are historical migration notes and are superseded by the dated implementation records in `PROJECT_STATUS.md`, `TASKS.md` and `OIR_MODULE.md`. The legacy AST/`codegen_run` path remains only as a temporary parity bridge; parity is not yet claimed.
