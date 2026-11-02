@@ -173,13 +173,6 @@ typedef struct {
     ASTNode* elements;  // Eleman listesi
 } ASTTuple;
 
-typedef struct { ASTNode base; char* name; } ASTPatternBinding;
-typedef struct { ASTNode base; char* name; ASTNode* bindings; } ASTPatternConstructor;
-typedef struct { ASTNode base; ASTNode* selector; ASTNode* arms; } ASTSelect;
-typedef struct { ASTNode base; ASTNode* pattern; ASTNode* body; int is_default; } ASTSelectArm;
-typedef struct { ASTNode base; ASTNode* subject; ASTNode* arms; } ASTScan;
-typedef struct { ASTNode base; ASTNode* pattern; ASTNode* body; } ASTScanArm;
-
 /* Pattern nodes preserve matching semantics; constructor patterns are not calls. */
 typedef struct { ASTNode base; char* name; } ASTPatternBinding;
 typedef struct { ASTNode base; char* name; ASTNode* bindings; } ASTPatternConstructor;
