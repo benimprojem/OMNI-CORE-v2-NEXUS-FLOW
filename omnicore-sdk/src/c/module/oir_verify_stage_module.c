@@ -23,7 +23,8 @@ enum {
     OIR_VERIFY_DIAG_CFG_EDGE = 8617u,
     OIR_VERIFY_DIAG_TERMINATOR = 8618u,
     OIR_VERIFY_DIAG_DOMINANCE = 8619u,
-    OIR_VERIFY_DIAG_SSA_USE = 8620u
+    OIR_VERIFY_DIAG_SSA_USE = 8620u,
+    OIR_VERIFY_WARN_UNUSED_VALUE = 8621u
 };
 
 typedef struct OirVerifyFailure {
@@ -435,7 +436,7 @@ static int validate_dominance(const OirModuleView* m,
 static int validate_ssa_uses(const OirModuleView* m,
     const uint32_t* block_function, const uint32_t* definition_instruction,
     const uint32_t* definition_block, const uint64_t* dom, size_t words,
-    OirVerifyFailure* failure) {
+    uint32_t* use_count, OirVerifyFailure* failure) {
     uint32_t i, j;
 
     /* Validate every SSA use: local definitions precede uses; external-block
@@ -461,6 +462,8 @@ static int validate_ssa_uses(const OirModuleView* m,
                 if (def_block != ins.block_id &&
                     !bit_get(dom + (size_t)ins.block_id * words, def_block)) return 0;
                 if (def_block == ins.block_id && def_id >= ins.id) return 0;
+                if (use_count[op.reference_id] == UINT32_MAX) return 0;
+                use_count[op.reference_id]++;
             }
         }
     }
@@ -468,9 +471,11 @@ static int validate_ssa_uses(const OirModuleView* m,
     return 1;
 }
 
-static int validate_module(const OirModuleView* m, OirVerifyFailure* failure) {
+static int validate_module(const OirModuleView* m, OirVerifyFailure* failure,
+    uint32_t** out_use_count) {
     uint32_t *block_function = NULL;
     uint32_t *definition_instruction = NULL, *definition_block = NULL;
+    uint32_t *use_count = NULL;
     uint8_t *covered = NULL, *reachable = NULL;
     uint32_t *queue = NULL;
     uint64_t *pred = NULL, *dom = NULL;
@@ -478,7 +483,8 @@ static int validate_module(const OirModuleView* m, OirVerifyFailure* failure) {
     int ok = 0;
 
     if (failure) memset(failure, 0, sizeof(*failure));
-    if (!m || m->function_count == 0u || m->block_count == 0u ||
+    if (out_use_count) *out_use_count = NULL;
+    if (!out_use_count || !m || m->function_count == 0u || m->block_count == 0u ||
         m->instruction_count == 0u || m->block_count > OIR_VERIFY_MAX_BLOCKS ||
         m->function_count > OIR_VERIFY_MAX_RECORDS ||
         m->instruction_count > OIR_VERIFY_MAX_RECORDS ||
@@ -501,13 +507,14 @@ static int validate_module(const OirModuleView* m, OirVerifyFailure* failure) {
     block_function = (uint32_t*)calloc((size_t)m->block_count + 1u, sizeof(uint32_t));
     definition_instruction = (uint32_t*)calloc((size_t)m->value_count + 1u, sizeof(uint32_t));
     definition_block = (uint32_t*)calloc((size_t)m->value_count + 1u, sizeof(uint32_t));
+    use_count = (uint32_t*)calloc((size_t)m->value_count + 1u, sizeof(uint32_t));
     covered = (uint8_t*)calloc((size_t)m->instruction_count + 1u, 1u);
     reachable = (uint8_t*)calloc((size_t)m->block_count + 1u, 1u);
     queue = (uint32_t*)calloc((size_t)m->block_count + 1u, sizeof(uint32_t));
     pred = (uint64_t*)calloc(matrix_words, sizeof(uint64_t));
     dom = (uint64_t*)calloc(matrix_words, sizeof(uint64_t));
     if (!block_function || !definition_instruction ||
-        !definition_block || !covered || !reachable || !queue || !pred || !dom) {
+        !definition_block || !use_count || !covered || !reachable || !queue || !pred || !dom) {
         if (failure) failure->code = OIR_VERIFY_DIAG_INTERNAL_WORKSPACE;
         goto done;
     }
@@ -522,13 +529,15 @@ static int validate_module(const OirModuleView* m, OirVerifyFailure* failure) {
     if (!validate_terminators(m, failure)) goto done;
 
     if (!validate_dominance(m, block_function, pred, dom, reachable, queue, words, failure) ||
-        !validate_ssa_uses(m, block_function, definition_instruction, definition_block, dom, words, failure))
+        !validate_ssa_uses(m, block_function, definition_instruction, definition_block, dom, words, use_count, failure))
         goto done;
 
     ok = 1;
+    *out_use_count = use_count;
+    use_count = NULL;
 done:
     free(block_function);
-    free(definition_instruction); free(definition_block);
+    free(definition_instruction); free(definition_block); free(use_count);
     free(covered); free(reachable); free(queue); free(pred); free(dom);
     return ok;
 }
@@ -630,6 +639,42 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
     return OCC_MODULE_STATUS_FAILED;
 }
 
+static int report_unused_value_warnings(
+    const OccModuleInvocationV1* invocation, OccModuleResultV1* result,
+    const OirModuleView* module, const uint32_t* use_count) {
+    uint32_t i;
+    if (!invocation || !result || !module || !use_count ||
+        !invocation->diagnostic_sink.report) return 0;
+    for (i = 0u; i < module->value_count; ++i) {
+        OirModuleValue value;
+        OccModuleDiagnosticV1 diagnostic;
+        char message[192];
+        char hint[256];
+        int message_length, hint_length;
+        if (use_count[i + 1u] != 0u) continue;
+        if (oir_module_get_value(module, i, &value) != OIR_STATUS_OK) return 0;
+        message_length = snprintf(message, sizeof(message),
+            "OIR SSA value is defined but never used. [value=%u]", value.id);
+        hint_length = snprintf(hint, sizeof(hint),
+            "Warning only; output remains valid. If this value represents an unused source variable, remove its declaration; otherwise remove the dead computation or keep it if a later pass will consume it.");
+        if (message_length < 0 || (size_t)message_length >= sizeof(message) ||
+            hint_length < 0 || (size_t)hint_length >= sizeof(hint)) return 0;
+        memset(&diagnostic, 0, sizeof(diagnostic));
+        diagnostic.struct_size = (uint32_t)sizeof(diagnostic);
+        diagnostic.code = OIR_VERIFY_WARN_UNUSED_VALUE;
+        diagnostic.message_id = OIR_VERIFY_WARN_UNUSED_VALUE;
+        diagnostic.severity = OCC_DIAG_WARNING;
+        diagnostic.message = message;
+        diagnostic.message_length = (uint64_t)message_length;
+        diagnostic.hint = hint;
+        diagnostic.hint_length = (uint64_t)hint_length;
+        if (!invocation->diagnostic_sink.report(
+                invocation->diagnostic_sink.user_context, &diagnostic)) return 0;
+        result->diagnostics_count++;
+    }
+    return 1;
+}
+
 static uint32_t OCC_MODULE_CALL oir_verify_process(
     const OccModuleInvocationV1* invocation, OccModuleResultV1* result) {
     OirArtifactView input;
@@ -639,6 +684,7 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
     OirStatus status;
     size_t required = OIR_HEADER_SIZE, written = 0u;
     uint32_t i, payload_count = 0u;
+    uint32_t* unused_value_counts = NULL;
     OirVerifyFailure failure;
     uint32_t rc = OCC_MODULE_STATUS_FAILED;
 
@@ -678,10 +724,17 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
             if (oir_module_open(section.data, (size_t)section.length, &module) != OIR_STATUS_OK)
                 return report_verify_error(invocation, result, OIR_VERIFY_DIAG_PAYLOAD_DECODE,
                     "OIR_MODULE payload could not be decoded.", NULL);
-            if (!validate_module(&module, &failure))
+            if (!validate_module(&module, &failure, &unused_value_counts))
                 return report_verify_error(invocation, result,
                     failure.code ? failure.code : 8603u,
                     "OIR_MODULE validation failed.", &failure);
+            if (!report_unused_value_warnings(invocation, result,
+                    &module, unused_value_counts)) {
+                free(unused_value_counts);
+                return OCC_MODULE_STATUS_FAILED;
+            }
+            free(unused_value_counts);
+            unused_value_counts = NULL;
         }
     }
     if (payload_count != 1u || !find_sections(&input, &sections))
