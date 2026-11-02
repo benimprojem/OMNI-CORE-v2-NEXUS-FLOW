@@ -282,6 +282,13 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
             (size_t)block_count * 16u;
         /* ADD's result is boolean rather than a numeric type. */
         test_put_u32(module_bytes + values_offset + 16u + 4u, 2u);
+    } else if (variant == 10) {
+        size_t instructions_offset = 36u + 3u * 12u + 20u +
+            (size_t)block_count * 16u + (size_t)value_count * 16u;
+        size_t operands_offset = instructions_offset +
+            (size_t)instruction_count * 24u;
+        /* Return value 1 instead of ADD result 4; value 4 is now unused. */
+        test_put_u32(module_bytes + operands_offset + 10u * 16u + 4u, 1u);
     }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
@@ -462,6 +469,33 @@ int main(int argc, char** argv) {
             }
             free(input); input = NULL; input_length = 0u;
         }
+    }
+
+    /* An unused SSA result is advisory: warn, but still emit valid OIR. */
+    {
+        OccModuleArtifactInputV1 stage_input;
+        OccDiagnosticView warning_view;
+        size_t before_warnings = occ_diagnostics_count_severity(
+            &diagnostics, OCC_DIAG_WARNING);
+        assert(build_cfg_module_artifact(&input, &input_length, 10));
+        memset(&stage_input, 0, sizeof(stage_input));
+        stage_input.bytes = input; stage_input.length = input_length;
+        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 512u,
+            &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
+            OCC_MODULE_LOADER_OK);
+        assert(output != NULL && output_length != 0u);
+        assert(occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_WARNING) ==
+            before_warnings + 1u);
+        assert(occ_diagnostics_get(&diagnostics,
+            occ_diagnostics_count(&diagnostics) - 1u, &warning_view));
+        assert(warning_view.record->code == 8621u);
+        assert(warning_view.record->severity == OCC_DIAG_WARNING);
+        assert(strstr(warning_view.message, "value=4") != NULL);
+        assert(warning_view.hint != NULL);
+        assert(strstr(warning_view.hint, "remove its declaration") != NULL);
+        assert(!occ_diagnostics_blocks_output(&diagnostics) == 0);
+        free(input); input = NULL; input_length = 0u;
+        free(output); output = NULL; output_length = 0u;
     }
 
     free(input_snapshot);
