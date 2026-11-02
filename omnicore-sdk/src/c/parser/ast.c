@@ -1370,3 +1370,4 @@ ASTNode* ast_deserialize(FILE* in) {
 
     return root;
 }
+/* AST extension integration follows the append-only node registry. */
