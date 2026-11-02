@@ -155,6 +155,25 @@ The file/path inventory below is complete for the snapshot. The function catalog
 ### `omnicore-sdk/src/c/oir/oir_ast_node_table.c`
 
 `read_u16_le()`, `read_u32_le()`, `write_u16_le()`, `write_u32_le()`, `valid_utf8()`, `validate_node_fields()`, `validate_host_records()`, `oir_ast_node_table_open()`, `oir_ast_node_table_get()`, `oir_ast_node_table_get_string()`, `oir_ast_node_table_get_field()`, `oir_ast_node_table_write()`
+### `omnicore-sdk/src/c/oir/oir_ast_tlv.c`
+
+`read_u16_le()`, `read_u32_le()`, `write_u16_le()`, `write_u32_le()`, `value_length_is_valid()`, `oir_ast_tlv_writer_init()`, `oir_ast_tlv_write()`, `oir_ast_tlv_reader_init()`, `oir_ast_tlv_reader_next()`, `oir_ast_tlv_validate()`
+
+### `omnicore-sdk/src/c/oir/oir_failure_artifact.c`
+
+`oir_failure_artifact_write()`
+
+### `omnicore-sdk/src/c/oir/oir_lowering_expr.c`
+
+`u16()`, `u32()`, `u64()`, `node()`, `field()`, `ref()`, `token()`, `string_ref()`, `annotation_get()`, `annotation_type()`, `check_type()`, `ensure_bool_type()`, `begin_block()`, `finish_block()`, `alloc_inst()`, `lower_identifier()`, `symbol_matches_declaration()`, `lower_assignment_statement()`, `lower_literal()`, `lower_binary()`, `lower_expr()`, `lower_return_current_block()`, `lower_if_tree()`, `lower_branch()`, `oir_lower_semantic_ast_return()`
+
+### `omnicore-sdk/src/c/oir/oir_semantic_ast_artifact.c`
+
+`oir_semantic_ast_artifact_open()`
+
+### `omnicore-sdk/src/c/oir/oir_semantic_ast_artifact_writer.c`
+
+`writer_should_fail()`, `add_size()`, `count_string_bytes()`, `append_string()`, `build_type_strings()`, `build_symbol_strings()`, `build_relation_strings()`, `semantic_ast_artifact_write_impl()`, `oir_semantic_ast_artifact_write()`, `oir_semantic_ast_artifact_write_test_fail_at()`
 ## Complete C/header file inventory
 
 ### `omnicore-sdk/src/c/codegen/`
