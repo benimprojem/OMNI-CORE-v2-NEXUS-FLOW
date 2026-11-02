@@ -158,6 +158,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     memset(&semantic, 0, sizeof(semantic));
     memset(&workspace, 0, sizeof(workspace));
     memset(&artifact, 0, sizeof(artifact));
+    memset(&module, 0, sizeof(module));
     debug_stage = 1;
     parser = parser_init_source("real-lowering.nxf", source, source_length);
     if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
@@ -340,7 +341,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
 
 cleanup:
     if (!ok && arithmetic == 5) {
-        fprintf(stderr, "if/else lowering debug stage=%d errors=%u types=%u blocks=%u values=%u instructions=%u operands=%u\\n",
+        fprintf(stderr, "if/else lowering debug stage=%d errors=%d types=%u blocks=%u values=%u instructions=%u operands=%u\\n",
             debug_stage, semantic.error_count, module.type_count, module.block_count,
             module.value_count, module.instruction_count, module.operand_count);
     }
