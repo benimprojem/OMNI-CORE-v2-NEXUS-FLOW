@@ -605,6 +605,12 @@ static void ast_destroy_recursive(ASTNode* node) {
             if (t->elements) ast_destroy_recursive(t->elements);
             break;
         }
+        case AST_SELECT: { ASTSelect* n=(ASTSelect*)node; if(n->selector)ast_destroy_recursive(n->selector); if(n->arms)ast_destroy_recursive(n->arms); break; }
+        case AST_SELECT_ARM: { ASTSelectArm* n=(ASTSelectArm*)node; if(n->pattern)ast_destroy_recursive(n->pattern); if(n->body)ast_destroy_recursive(n->body); break; }
+        case AST_SCAN: { ASTScan* n=(ASTScan*)node; if(n->subject)ast_destroy_recursive(n->subject); if(n->arms)ast_destroy_recursive(n->arms); break; }
+        case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; if(n->pattern)ast_destroy_recursive(n->pattern); if(n->body)ast_destroy_recursive(n->body); break; }
+        case AST_PATTERN_BINDING: free(((ASTPatternBinding*)node)->name); break;
+        case AST_PATTERN_CONSTRUCTOR: { ASTPatternConstructor* n=(ASTPatternConstructor*)node; free(n->name); if(n->bindings)ast_destroy_recursive(n->bindings); break; }
         case AST_BLOCK:
         case AST_PROGRAM:
         case AST_ASM_BLOCK: {
