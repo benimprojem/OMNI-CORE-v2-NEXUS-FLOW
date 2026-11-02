@@ -174,8 +174,16 @@ static int validate_module(const OirModuleView* m) {
         const OirOpcodeDescriptor* desc;
         if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK ||
             ins.block_id == 0u || ins.block_id > m->block_count) goto done;
+        uint32_t operand_kinds[255];
         desc = oir_opcode_lookup(ins.opcode_id);
-        if (!desc) goto done;
+        if (!desc || ins.operand_count > 255u) goto done;
+        for (j = 0u; j < ins.operand_count; ++j) {
+            OirModuleOperand operand;
+            if (!get_operand(m, &ins, j, &operand)) goto done;
+            operand_kinds[j] = operand.kind;
+        }
+        if (!oir_opcode_validate_shape(ins.opcode_id, operand_kinds,
+            ins.operand_count, ins.result_value_id != 0u)) goto done;
         if (ins.result_value_id && (!get_value(m, ins.result_value_id, &result) ||
             !get_type(m, result.type_id, &rt))) goto done;
         if (!ins.result_value_id) memset(&rt, 0, sizeof(rt));
