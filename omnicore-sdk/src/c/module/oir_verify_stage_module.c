@@ -29,7 +29,8 @@ enum {
     OIR_VERIFY_WARN_UNUSED_VALUE = 8621u,
     OIR_VERIFY_NOTE_UNUSED_VALUE_LIMIT = 8622u,
     OIR_VERIFY_DIAG_TYPE_ERROR_LIMIT = 8623u,
-    OIR_VERIFY_DIAG_SSA_DEFINITION_ERROR_LIMIT = 8624u
+    OIR_VERIFY_DIAG_SSA_DEFINITION_ERROR_LIMIT = 8624u,
+    OIR_VERIFY_DIAG_OPCODE_TYPE_ERROR_LIMIT = 8625u
 };
 
 typedef struct OirVerifyFailure {
@@ -687,6 +688,7 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
         case OIR_VERIFY_DIAG_TYPE_RECORD: message = "OIR type record is invalid."; remediation = "Check the referenced type record's kind and bit width; use only schema-supported integer, float, boolean or function type forms."; break;
         case OIR_VERIFY_DIAG_TYPE_ERROR_LIMIT: message = "Additional invalid OIR type records were omitted from diagnostics."; remediation = "Fix the reported type records, then rerun verification to reveal any remaining invalid entries."; break;
         case OIR_VERIFY_DIAG_SSA_DEFINITION_ERROR_LIMIT: message = "Additional inconsistent OIR SSA definition relationships were omitted from diagnostics."; remediation = "Fix the reported SSA value records and instruction result links, then rerun verification to reveal any remaining invalid relationships."; break;
+        case OIR_VERIFY_DIAG_OPCODE_TYPE_ERROR_LIMIT: message = "Additional invalid record-local opcode type contracts were omitted from diagnostics."; remediation = "Fix the reported constant and arithmetic result/operand type contracts, then rerun verification to reveal any remaining invalid instructions."; break;
         case OIR_VERIFY_DIAG_BLOCK_OWNERSHIP: message = "OIR block ownership or instruction range is invalid."; remediation = "Assign each block to an existing function and ensure its non-empty instruction range stays within the instruction table."; break;
         case OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE: message = "OIR instruction coverage is incomplete, overlapping or inconsistent."; remediation = "Make block instruction ranges cover every instruction exactly once, without overlap, and ensure each instruction's block_id matches its owning block."; break;
         case OIR_VERIFY_DIAG_FUNCTION_ENTRY: message = "OIR function entry block or function type is invalid."; remediation = "Give the function a valid function-type record and an entry_block_id that names a block owned by that same function."; break;
@@ -929,6 +931,34 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                         (void)report_verify_error(invocation, result,
                             OIR_VERIFY_DIAG_SSA_DEFINITION_ERROR_LIMIT,
                             "Additional inconsistent instruction result links were omitted.",
+                            &overflow_failure);
+                    }
+                    return OCC_MODULE_STATUS_FAILED;
+                }
+            }
+            {
+                OirVerifyFailure type_failures[OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS];
+                uint32_t omitted_instruction_type_errors = 0u;
+                uint32_t instruction_type_error_count = validate_instruction_type_records(
+                    &module, type_failures, OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS,
+                    &omitted_instruction_type_errors);
+                uint32_t type_error_index;
+                if (instruction_type_error_count != 0u ||
+                    omitted_instruction_type_errors != 0u) {
+                    for (type_error_index = 0u;
+                        type_error_index < instruction_type_error_count;
+                        ++type_error_index)
+                        (void)report_verify_error(invocation, result,
+                            OIR_VERIFY_DIAG_OPCODE_TYPE,
+                            "OIR instruction has an invalid local type contract.",
+                            &type_failures[type_error_index]);
+                    if (omitted_instruction_type_errors != 0u) {
+                        OirVerifyFailure overflow_failure;
+                        memset(&overflow_failure, 0, sizeof(overflow_failure));
+                        overflow_failure.instruction_id = omitted_instruction_type_errors;
+                        (void)report_verify_error(invocation, result,
+                            OIR_VERIFY_DIAG_OPCODE_TYPE_ERROR_LIMIT,
+                            "Additional invalid instruction type contracts were omitted.",
                             &overflow_failure);
                     }
                     return OCC_MODULE_STATUS_FAILED;
