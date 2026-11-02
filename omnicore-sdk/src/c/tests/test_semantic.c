@@ -100,7 +100,7 @@ static int check_array_literal_semantics(void) {
 
 static int check_array_type_semantics(void) {
     const char* valid =
-        "f:consume(a![], b!i32[], c:i32[4]) {}"
+        "f:consume(a![], b!i32[], third:i32[4]) {}"
         "f:main() { v:dynamic[]; v:fixed[5]!i32 = [1,2,3,4,5];"
         " v:matrix[2][2]!f32 = [[1.0,2.0],[3.0,4.0]]; }";
     const char* zero_extent = "f:main() { v:invalid[0]!i32; }";
