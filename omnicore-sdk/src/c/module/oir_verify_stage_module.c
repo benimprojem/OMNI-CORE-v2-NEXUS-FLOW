@@ -291,6 +291,125 @@ static int validate_terminators(const OirModuleView* m) {
     return 1;
 }
 
+/* Pass 5: compute reachability and dominators for each function. */
+static int validate_dominance(const OirModuleView* m,
+    const uint32_t* block_function, const uint64_t* pred, uint64_t* dom,
+    uint8_t* reachable, uint32_t* queue, size_t words) {
+    uint32_t f, j;
+
+    /* Per-function reachability and iterative dominators for SSA use validation. */
+    for (f = 0u; f < m->function_count; ++f) {
+        OirModuleFunction fn;
+        uint32_t head = 0u, tail = 0u, b;
+        int changed = 1;
+        if (oir_module_get_function(m, f, &fn) != OIR_STATUS_OK) return 0;
+        memset(reachable, 0, (size_t)m->block_count + 1u);
+        queue[tail++] = fn.entry_block_id;
+        reachable[fn.entry_block_id] = 1u;
+        while (head < tail) {
+            uint32_t current = queue[head++];
+            OirModuleBlock cb;
+            OirModuleInstruction term;
+            uint32_t targets[2], count = 0u, k;
+            if (oir_module_get_block(m, current - 1u, &cb) != OIR_STATUS_OK ||
+                oir_module_get_instruction(m,
+                    cb.first_instruction + cb.instruction_count - 1u, &term) != OIR_STATUS_OK) return 0;
+            if (term.opcode_id == OIR_OP_BRANCH) {
+                if (!get_block_operand(m, &term, 0u, &targets[count++])) return 0;
+            } else if (term.opcode_id == OIR_OP_COND_BRANCH) {
+                if (!get_block_operand(m, &term, 1u, &targets[count++]) ||
+                    !get_block_operand(m, &term, 2u, &targets[count++])) return 0;
+            }
+            for (k = 0u; k < count; ++k) {
+                uint32_t t = targets[k];
+                if (block_function[t] != fn.id) return 0;
+                if (!reachable[t]) { reachable[t] = 1u; queue[tail++] = t; }
+            }
+        }
+        for (b = 1u; b <= m->block_count; ++b) {
+            uint64_t* row = dom + (size_t)b * words;
+            if (block_function[b] != fn.id) continue;
+            if (reachable[b]) {
+                for (j = 1u; j <= m->block_count; ++j)
+                    if (block_function[j] == fn.id && reachable[j]) bit_set(row, j);
+            } else {
+                /* Unreachable blocks remain independently verifiable. They
+                   cannot dominate another block or consume external SSA defs. */
+                memset(row, 0, words * sizeof(uint64_t));
+                bit_set(row, b);
+            }
+            if (b == fn.entry_block_id) {
+                memset(row, 0, words * sizeof(uint64_t));
+                bit_set(row, b);
+            }
+        }
+        while (changed) {
+            changed = 0;
+            for (b = 1u; b <= m->block_count; ++b) {
+                uint64_t* row = dom + (size_t)b * words;
+                uint64_t* pred_row;
+                uint64_t* temp;
+                int have_pred = 0;
+                if (block_function[b] != fn.id || b == fn.entry_block_id || !reachable[b]) continue;
+                temp = (uint64_t*)malloc(words * sizeof(uint64_t));
+                if (!temp) return 0;
+                for (j = 0u; j < words; ++j) temp[j] = UINT64_MAX;
+                pred_row = pred + (size_t)b * words;
+                for (j = 1u; j <= m->block_count; ++j) {
+                    if (bit_get(pred_row, j) && reachable[j]) {
+                        uint32_t k;
+                        uint64_t* pdom = dom + (size_t)j * words;
+                        for (k = 0u; k < words; ++k) temp[k] &= pdom[k];
+                        have_pred = 1;
+                    }
+                }
+                if (!have_pred) { free(temp); return 0; }
+                bit_set(temp, b);
+                if (memcmp(row, temp, words * sizeof(uint64_t)) != 0) {
+                    memcpy(row, temp, words * sizeof(uint64_t));
+                    changed = 1;
+                }
+                free(temp);
+            }
+        }
+    }
+
+    return 1;
+}
+
+/* Pass 6: validate local SSA order and cross-block dominance for every use. */
+static int validate_ssa_uses(const OirModuleView* m,
+    const uint32_t* definition_instruction, const uint32_t* definition_block,
+    const uint64_t* dom, size_t words) {
+    uint32_t i, j;
+
+    /* Validate every SSA use: local definitions precede uses; external-block
+       definitions must dominate the use block. */
+    for (i = 0u; i < m->instruction_count; ++i) {
+        OirModuleInstruction ins;
+        if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK) return 0;
+        for (j = 0u; j < ins.operand_count; ++j) {
+            OirModuleOperand op;
+            if (!get_operand(m, &ins, j, &op)) return 0;
+            if (op.kind == OIR_OPERAND_VALUE) {
+                OirModuleValue v;
+                uint32_t def_id, def_block;
+                if (!get_value(m, op.reference_id, &v)) return 0;
+                def_id = definition_instruction[v.id];
+                def_block = definition_block[v.id];
+                if (def_id == 0u || def_id >= ins.id) {
+                    if (def_block == ins.block_id || def_id == 0u) return 0;
+                }
+                if (def_block != ins.block_id &&
+                    !bit_get(dom + (size_t)ins.block_id * words, def_block)) return 0;
+                if (def_block == ins.block_id && def_id >= ins.id) return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+
 static int validate_module(const OirModuleView* m) {
     uint32_t *block_function = NULL;
     uint32_t *definition_instruction = NULL, *definition_block = NULL;
@@ -332,106 +451,9 @@ static int validate_module(const OirModuleView* m) {
 
     if (!validate_terminators(m)) goto done;
 
-    /* Per-function reachability and iterative dominators for SSA use validation. */
-    for (f = 0u; f < m->function_count; ++f) {
-        OirModuleFunction fn;
-        uint32_t head = 0u, tail = 0u, b;
-        int changed = 1;
-        if (oir_module_get_function(m, f, &fn) != OIR_STATUS_OK) goto done;
-        memset(reachable, 0, (size_t)m->block_count + 1u);
-        queue[tail++] = fn.entry_block_id;
-        reachable[fn.entry_block_id] = 1u;
-        while (head < tail) {
-            uint32_t current = queue[head++];
-            OirModuleBlock cb;
-            OirModuleInstruction term;
-            uint32_t targets[2], count = 0u, k;
-            if (oir_module_get_block(m, current - 1u, &cb) != OIR_STATUS_OK ||
-                oir_module_get_instruction(m,
-                    cb.first_instruction + cb.instruction_count - 1u, &term) != OIR_STATUS_OK) goto done;
-            if (term.opcode_id == OIR_OP_BRANCH) {
-                if (!get_block_operand(m, &term, 0u, &targets[count++])) goto done;
-            } else if (term.opcode_id == OIR_OP_COND_BRANCH) {
-                if (!get_block_operand(m, &term, 1u, &targets[count++]) ||
-                    !get_block_operand(m, &term, 2u, &targets[count++])) goto done;
-            }
-            for (k = 0u; k < count; ++k) {
-                uint32_t t = targets[k];
-                if (block_function[t] != fn.id) goto done;
-                if (!reachable[t]) { reachable[t] = 1u; queue[tail++] = t; }
-            }
-        }
-        for (b = 1u; b <= m->block_count; ++b) {
-            uint64_t* row = dom + (size_t)b * words;
-            if (block_function[b] != fn.id) continue;
-            if (reachable[b]) {
-                for (j = 1u; j <= m->block_count; ++j)
-                    if (block_function[j] == fn.id && reachable[j]) bit_set(row, j);
-            } else {
-                /* Unreachable blocks remain independently verifiable. They
-                   cannot dominate another block or consume external SSA defs. */
-                memset(row, 0, words * sizeof(uint64_t));
-                bit_set(row, b);
-            }
-            if (b == fn.entry_block_id) {
-                memset(row, 0, words * sizeof(uint64_t));
-                bit_set(row, b);
-            }
-        }
-        while (changed) {
-            changed = 0;
-            for (b = 1u; b <= m->block_count; ++b) {
-                uint64_t* row = dom + (size_t)b * words;
-                uint64_t* pred_row;
-                uint64_t* temp;
-                int have_pred = 0;
-                if (block_function[b] != fn.id || b == fn.entry_block_id || !reachable[b]) continue;
-                temp = (uint64_t*)malloc(words * sizeof(uint64_t));
-                if (!temp) goto done;
-                for (j = 0u; j < words; ++j) temp[j] = UINT64_MAX;
-                pred_row = pred + (size_t)b * words;
-                for (j = 1u; j <= m->block_count; ++j) {
-                    if (bit_get(pred_row, j) && reachable[j]) {
-                        uint32_t k;
-                        uint64_t* pdom = dom + (size_t)j * words;
-                        for (k = 0u; k < words; ++k) temp[k] &= pdom[k];
-                        have_pred = 1;
-                    }
-                }
-                if (!have_pred) { free(temp); goto done; }
-                bit_set(temp, b);
-                if (memcmp(row, temp, words * sizeof(uint64_t)) != 0) {
-                    memcpy(row, temp, words * sizeof(uint64_t));
-                    changed = 1;
-                }
-                free(temp);
-            }
-        }
-    }
-
-    /* Validate every SSA use: local definitions precede uses; external-block
-       definitions must dominate the use block. */
-    for (i = 0u; i < m->instruction_count; ++i) {
-        OirModuleInstruction ins;
-        if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK) goto done;
-        for (j = 0u; j < ins.operand_count; ++j) {
-            OirModuleOperand op;
-            if (!get_operand(m, &ins, j, &op)) goto done;
-            if (op.kind == OIR_OPERAND_VALUE) {
-                OirModuleValue v;
-                uint32_t def_id, def_block;
-                if (!get_value(m, op.reference_id, &v)) goto done;
-                def_id = definition_instruction[v.id];
-                def_block = definition_block[v.id];
-                if (def_id == 0u || def_id >= ins.id) {
-                    if (def_block == ins.block_id || def_id == 0u) goto done;
-                }
-                if (def_block != ins.block_id &&
-                    !bit_get(dom + (size_t)ins.block_id * words, def_block)) goto done;
-                if (def_block == ins.block_id && def_id >= ins.id) goto done;
-            }
-        }
-    }
+    if (!validate_dominance(m, block_function, pred, dom, reachable, queue, words) ||
+        !validate_ssa_uses(m, definition_instruction, definition_block, dom, words))
+        goto done;
 
     ok = 1;
 done:
