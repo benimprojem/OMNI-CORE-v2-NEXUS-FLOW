@@ -289,6 +289,7 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
             STR(1,n->member_name); REF(2,n->object); break;
         }
         case AST_TUPLE: REF(1,((const ASTTuple*)node)->elements); break;
+        case AST_ARRAY_LITERAL: REF(1,((const ASTArrayLiteral*)node)->elements); break;
         case AST_IF: {
             const ASTIf* n = (const ASTIf*)node;
             REF(1,n->condition); REF(2,n->then_branch); REF(3,n->else_branch); break;
