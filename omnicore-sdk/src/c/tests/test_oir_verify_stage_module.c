@@ -298,7 +298,7 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         size_t values_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u;
         /* Value 1 has an unknown type; value 2 has no defining instruction. */
-        test_put_u32(module_bytes + values_offset + 4u, 99u);
+        test_put_u32(module_bytes + values_offset + 4u, 3u);
         test_put_u32(module_bytes + values_offset + 16u + 8u, 0u);
     }
 
