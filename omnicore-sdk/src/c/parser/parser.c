@@ -1749,6 +1749,13 @@ static ASTNode* parse_var_decl(Parser* p) {
 
     // Tip Tanımı: !Type
     if (match(p, TOKEN_NOT)) {
+        if (decl->inline_type &&
+            (p->current.type == TOKEN_KW_STRUCT || p->current.type == TOKEN_KW_UNION)) {
+            error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Inline struct/union definitions cannot be combined with an array declarator; declare the aggregate type separately.");
+            ast_destroy((ASTNode*)decl);
+            return NULL;
+        }
         decl->is_hard_typed = 1;
         
         if (match(p, TOKEN_KW_STRUCT)) {
