@@ -202,13 +202,13 @@ Implemented and tested:
 - Dependency-ordered internal validation passes: structural records, SSA definition records, opcode/type plus CFG-edge checks, terminators, dominance/reachability and SSA uses
 - Terminator, same-function CFG edge, opcode-shape and implemented scalar type checks
 - Unique SSA definitions, same-block use order and cross-block dominance
-- No silent repair or mutation; verifier-produced artifact required by Codegen
+- No silent repair or mutation; regression test proves input-buffer immutability and byte-for-byte preservation of payload plus metadata section data; verifier-produced artifact required by Codegen
 - Negative tests for cross-function CFG edges, incorrect entry ownership, missing terminators, duplicate SSA definitions, use-before-definition and non-dominating definitions
 - Windows, Ubuntu and macOS CI; Ubuntu ASan/UBSan and Valgrind
 - Current input producer gate accepts lowering-stage artifacts only; optimizer-stage producer support is pending
 - Stable verifier diagnostic codes 8607–8620 and numeric function/block/instruction/value/type context are implemented; representative exact-code regression cases are covered
 
-Recorded CI runs: `41375777590` and `41382501057` (59/59 CTest in the recorded Ubuntu run); `41387462122` validates the six-pass decomposition across Windows, Ubuntu and macOS, with Ubuntu ASan/UBSan and Valgrind successful; `41389527526` validates the diagnostic-code regression suite across all three platforms and passes Ubuntu ASan/UBSan plus Valgrind.
+Recorded CI runs: `41375777590` and `41382501057` (59/59 CTest in the recorded Ubuntu run); `41387462122` validates the six-pass decomposition across Windows, Ubuntu and macOS, with Ubuntu ASan/UBSan and Valgrind successful; `41389527526` validates the diagnostic-code regression suite across all three platforms and passes Ubuntu ASan/UBSan plus Valgrind; `41389854136` validates multi-section payload preservation and input immutability across all three platforms and passes Ubuntu ASan/UBSan plus Valgrind.
 
 Not yet implemented because the corresponding OIR schema features are not yet available:
 
