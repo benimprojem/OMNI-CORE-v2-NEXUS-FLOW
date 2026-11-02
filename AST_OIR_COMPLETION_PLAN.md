@@ -35,8 +35,9 @@
 - [x] Add parser, AST codec and OIR frontend round-trip fixtures.
 - [ ] Confirm the full Windows/Linux/macOS CI matrix is green after the latest parser diagnostic and registry-test fixes.
 - [ ] Extend fixed dimensions from integer literals to validated compile-time constant expressions.
-- [ ] Validate array literal leaf element types against declared element types and check shape compatibility.
-- [ ] Add end-to-end semantic artifact assertions for array shape/base-type records.
+- [x] Validate array literal leaf element types against declared element types and check fixed shape/rank compatibility.
+- [x] Add semantic-result integration assertions for array shape/base-type records.
+- [ ] Add full semantic AST artifact decode assertions and function-call argument shape compatibility.
 - [ ] Define executable array layout/indexing/allocation lowering; until then unsupported lowering must fail closed.
 
 ### B. Semantic tamamlanması
