@@ -268,7 +268,7 @@ static void ast_print_recursive(ASTNode* node, int level) {
             }
             case AST_ARRAY_LITERAL: {
                 ASTArrayLiteral* array = (ASTArrayLiteral*)node;
-                printf("ARRAY_LITERAL\\n");
+                printf("ARRAY_LITERAL\n");
                 ast_print_recursive(array->elements, level + 1);
                 break;
             }
