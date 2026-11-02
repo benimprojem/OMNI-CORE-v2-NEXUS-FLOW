@@ -141,7 +141,7 @@ done:
 
 int main(void) {
     if(!test_extended_semantic_scopes()) {
-        fprintf(stderr,"Extended AST semantic scope/result integration failed.\\n");
+        fprintf(stderr,"Extended AST semantic scope/result integration failed: fixed=%d matrix=%d dynamic=%d typed_dynamic=%d select=%u lambda=%u ruleset=%u constructor=%d\\n",saw_fixed_array_type,saw_matrix_array_type,saw_untyped_dynamic_array,saw_typed_dynamic_array,select_scope,lambda_scope,ruleset_scope,constructor->bindings!=NULL);
         return 1;
     }
     ASTProgram program;
