@@ -116,10 +116,19 @@ static int check_extended_ast_semantics(void) {
         "f:main() { apply rules(Missing(1)); }";
     const char* unknown_handler =
         "f:main() { on Missing.Success { } }";
+    const char* unknown_event =
+        "f:main() { rules R() { true -> Success; } on R.Missing { } }";
+    const char* duplicate_pattern =
+        "f:main() { v:choice = 1; select(choice) { Range(s,s) -> { } } }";
+    const char* relocate_type_mismatch =
+        "f:main() { v:src!i32 = 1; v:dst!str = \"x\"; v:moved = src _> dst; }";
     return check_source(valid,0) &&
         check_source(leaked_pattern,1) &&
         check_source(unknown_apply,1) &&
-        check_source(unknown_handler,1);
+        check_source(unknown_handler,1) &&
+        check_source(unknown_event,1) &&
+        check_source(duplicate_pattern,1) &&
+        check_source(relocate_type_mismatch,1);
 }
 
 int main(int argc, char** argv) {
