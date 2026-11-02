@@ -770,8 +770,27 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
             return type_name;
         }
-        case AST_INDEX_ACCESS:
-            return "any";
+        case AST_INDEX_ACCESS: {
+            ASTIndexAccess* access = (ASTIndexAccess*)node;
+            const char* target_type = get_expr_type(ctx, access->target);
+            const char* element_type = "any";
+            char* owned_element_type = NULL;
+            if (target_type && strncmp(target_type, "array|", 6u) == 0) {
+                const char* begin = target_type + 6u;
+                const char* end = strchr(begin, '[');
+                size_t length = end ? (size_t)(end - begin) : strlen(begin);
+                if (length > 0u && length < 64u) {
+                    owned_element_type = (char*)malloc(length + 1u);
+                    if (owned_element_type) {
+                        memcpy(owned_element_type, begin, length);
+                        owned_element_type[length] = '\0';
+                        element_type = owned_element_type;
+                    }
+                }
+            }
+            free(owned_element_type);
+            return element_type;
+        }
         case AST_ARRAY_LITERAL: {
             ASTNode* element=((ASTArrayLiteral*)node)->elements;
             const char* element_type=NULL;
