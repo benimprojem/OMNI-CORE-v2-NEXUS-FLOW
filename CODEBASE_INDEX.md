@@ -348,7 +348,7 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 | Area | Existing responsibility / reuse target |
 |---|---|
-| `core/` | Compilation lifecycle, diagnostics and failure storage; `occ_diagnostics_blocks_output()` treats warnings as non-blocking while errors/fatal diagnostics block output |
+| `core/` | Compilation lifecycle, diagnostics and failure storage; `occ_diagnostics_blocks_output()` preserves the current strict warning gate (warnings/errors/fatal diagnostics block final publication) |
 | `module/` | Shared stage ABI, loader and stage adapters for Lexer, Parser, Semantic, OIR Lowering, OIR Verifier and Codegen |
 | `oir/` | OIR artifact/container, payloads, semantic AST records, maps, lowering, opcode registry and diagnostics |
 | `parser/` | Lexer, parser/AST and semantic analysis |
