@@ -264,6 +264,7 @@ The semantic handoff is specified separately in [OIR_SEMANTIC_AST.md](OIR_SEMANT
 ## OIR_ASSEMBLY — schema 1.0
 
 Producer: target-specific Codegen stage  
+Required input: OIR_MODULE 1.1 with producer stage `OCC_STAGE_OIR_VERIFY`  
 Consumer: assembler or a later object-generation stage
 
 The required PAYLOAD section contains raw NASM assembly source bytes. The payload is UTF-8/ASCII text without a terminating NUL. Schema 1.0 currently restricts emitted text to printable ASCII plus LF, CR and TAB. Embedded NUL, non-text control bytes and invalid text are rejected by the OCC host.
