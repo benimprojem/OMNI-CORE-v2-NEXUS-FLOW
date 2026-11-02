@@ -115,7 +115,7 @@ static int check_array_type_semantics(void) {
         check_source(zero_extent,1) &&
         check_source(fractional_extent,1) &&
         check_source(zero_expression,1) &&
-        check_source(division_by_zero,1) &&
+        check_source(division_by_zero,2) &&
         check_source(wrong_shape,1) &&
         check_source(wrong_element,2);
 }
