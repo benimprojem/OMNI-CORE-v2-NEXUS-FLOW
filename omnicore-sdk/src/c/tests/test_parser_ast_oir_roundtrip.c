@@ -112,7 +112,46 @@ done:
     return status;
 }
 
+static int test_select_scan_oir_roundtrip(void) {
+    static const char source[] =
+        "f:main() { select(x) { default -> { } } scan(x) { Range(s,e) -> { } } }";
+    ParserContext* parser=parser_init_source("pattern-oir.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    uint8_t *first=NULL,*second=NULL;
+    size_t first_len=0u,second_len=0u;
+    ASTNode **storage=NULL,*decoded=NULL;
+    uint32_t *incoming=NULL;
+    uint8_t *visited=NULL;
+    OirAstGraphStackEntry *stack=NULL;
+    OirAstNodeTableView view;
+    OirStatus status;
+    int ok=0;
+    if(!parser)return 0;
+    if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count ||
+        !parser->ast_root)goto done;
+    status=encode_ast((ASTNode*)parser->ast_root,&first,&first_len);
+    if(status!=OIR_STATUS_OK || oir_ast_node_table_open(first,first_len,&view)!=OIR_STATUS_OK)goto done;
+    storage=(ASTNode**)calloc(view.node_count,sizeof(*storage));
+    incoming=(uint32_t*)calloc(view.node_count,sizeof(*incoming));
+    visited=(uint8_t*)calloc(view.node_count,sizeof(*visited));
+    stack=(OirAstGraphStackEntry*)calloc(view.node_count,sizeof(*stack));
+    if(!storage || !incoming || !visited || !stack)goto done;
+    status=oir_ast_frontend_read_payload(first,first_len,storage,view.node_count,
+        incoming,view.node_count,visited,view.node_count,stack,view.node_count,&decoded);
+    if(status!=OIR_STATUS_OK || !decoded)goto done;
+    status=encode_ast(decoded,&second,&second_len);
+    if(status!=OIR_STATUS_OK || first_len!=second_len ||
+        memcmp(first,second,first_len)!=0)goto done;
+    ok=1;
+done:
+    if(decoded)ast_destroy(decoded);
+    free(first); free(second); free(storage); free(incoming); free(visited); free(stack);
+    parser_destroy(parser);
+    return ok;
+}
+
 int main(int argc,char** argv) {
+    if(!test_select_scan_oir_roundtrip()) { fprintf(stderr,"Select/scan OIR AST round-trip failed.\\n"); return 1; }
     ParserContext* parser;
     uint8_t* first_payload=NULL;
     uint8_t* second_payload=NULL;
