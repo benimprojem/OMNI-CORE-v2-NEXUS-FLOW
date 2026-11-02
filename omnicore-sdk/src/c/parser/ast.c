@@ -83,7 +83,7 @@ static size_t get_node_size(ASTNodeType type) {
             return sizeof(ASTCall);
             
         case AST_MEMBER_ACCESS: return sizeof(ASTMemberAccess);
-        case AST_INDEX_ACCESS: return sizeof(ASTIndexAccess);
+
 
         // --- Bildirimler ---
         case AST_VAR_DECL:    return sizeof(ASTVarDecl);
