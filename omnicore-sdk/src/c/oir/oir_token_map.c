@@ -162,6 +162,9 @@ uint16_t oir_token_id_from_omni(OmniTokenType token) {
         case TOKEN_RBRACE: return 158u;
         case TOKEN_LBRACKET: return 159u;
         case TOKEN_RBRACKET: return 160u;
+        case TOKEN_KW_IF: return 161u;
+        case TOKEN_KW_ELS: return 162u;
+        case TOKEN_KW_ELSIF: return 163u;
         default: return 0;
     }
 }
@@ -329,6 +332,9 @@ int oir_token_id_to_omni(uint16_t token_id, OmniTokenType* out_token) {
         case 158: *out_token = TOKEN_RBRACE; return 1;
         case 159: *out_token = TOKEN_LBRACKET; return 1;
         case 160: *out_token = TOKEN_RBRACKET; return 1;
+        case 161: *out_token = TOKEN_KW_IF; return 1;
+        case 162: *out_token = TOKEN_KW_ELS; return 1;
+        case 163: *out_token = TOKEN_KW_ELSIF; return 1;
         default: return 0;
     }
 }
