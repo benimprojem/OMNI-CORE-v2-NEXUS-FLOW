@@ -188,7 +188,7 @@ Implemented and tested:
 - Current input producer gate accepts lowering-stage artifacts only; optimizer-stage producer support is pending
 - Current payload-failure diagnostics are coarse-grained; per-check codes and OIR location context are pending
 
-Recorded CI runs: `41375777590` and `41382501057` (59/59 CTest in the recorded Ubuntu run).
+Recorded CI runs: `41375777590` and `41382501057` (59/59 CTest in the recorded Ubuntu run); `41387462122` validates the six-pass decomposition across Windows, Ubuntu and macOS, with Ubuntu ASan/UBSan and Valgrind successful.
 
 Not yet implemented because the corresponding OIR schema features are not yet available:
 
