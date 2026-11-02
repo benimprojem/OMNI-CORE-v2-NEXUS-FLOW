@@ -777,7 +777,7 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
         " apply rules(PrimeBorders(5));"
         " on PrimeBorders.Success { ret true; }"
         " v:callback = f:(x) > x;"
-        " unroll(3) -> loop(item in data) { echo(item); }"
+        " unroll(3) -> loop(item in data) { v:copy = item; }"
         " v:moved = source _> target;"
         "}";
     ParserContext* ctx=parser_init_source(
