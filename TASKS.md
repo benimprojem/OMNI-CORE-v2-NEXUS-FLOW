@@ -407,6 +407,7 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Include function/block/instruction/value/type identifiers in diagnostic message context where available; keep the shared OCC ABI unchanged.
 - [ ] Keep prerequisite failures from triggering unsafe dependent passes; report skipped passes distinctly from successful passes.
 - [x] Add regression assertions for exact diagnostic codes and available ID context: SSA use, cross-function CFG edge, function entry ownership, SSA definition, terminator and malformed opcode payload.
+- [x] **CI run 41389527526:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed.
 - [ ] Add a valid-artifact test proving the verifier preserves every input section payload byte-for-byte and does not mutate the input buffer.
 - [ ] When Optimizer is integrated, allow only registered OIR-producing stage IDs (Lowering and Optimizer) as verifier input producers; reject arbitrary producer IDs.
 
