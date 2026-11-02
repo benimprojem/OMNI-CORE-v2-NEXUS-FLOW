@@ -765,7 +765,77 @@ done:
     return 1;
 }
 
+static int test_rules_lambda_relocate_unroll_ast(void) {
+    static const char source[] =
+        "f:main() {"
+        " rules PrimeBorders(n) {"
+        "  n < 2 :=> \"out of range\";"
+        "  n == 2 -> true;"
+        "  always -> true;"
+        "  default -> false;"
+        " }"
+        " apply rules(PrimeBorders(5));"
+        " on PrimeBorders.Success { return true; }"
+        " v:callback = f:(x) > x;"
+        " unroll(3) -> loop(item in data) { echo(item); }"
+        " v:moved = source _> target;"
+        "}";
+    ParserContext* ctx=parser_init_source(
+        "rules-lambda-relocate-unroll.nxf",(const uint8_t*)source,sizeof(source)-1u);
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* node;
+    int rules=0, apply=0, on_block=0, lambda=0, unroll=0, relocate=0;
+    int ok=0;
+    if(!ctx)return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root)goto done;
+    function=(ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    if(!function || function->base.type!=AST_FUNC_DECL ||
+       !function->body || function->body->type!=AST_BLOCK)goto done;
+    body=(ASTBlock*)function->body;
+    for(node=body->statements;node;node=node->next) {
+        if(node->type==AST_RULESET_DECL) {
+            ASTRulesetDecl* r=(ASTRulesetDecl*)node;
+            ASTNode* rule=r->rules;
+            int barriers=0,triggers=0,always=0,defaults=0;
+            if(!r->name || strcmp(r->name,"PrimeBorders")!=0 || !r->params)goto done;
+            for(;rule;rule=rule->next) {
+                if(rule->type==AST_RULE_BARRIER)barriers++;
+                else if(rule->type==AST_RULE_TRIGGER)triggers++;
+                else if(rule->type==AST_RULE_ALWAYS)always++;
+                else if(rule->type==AST_RULE_DEFAULT)defaults++;
+            }
+            if(barriers!=1 || triggers!=1 || always!=1 || defaults!=1)goto done;
+            rules=1;
+        } else if(node->type==AST_APPLY_RULES) {
+            ASTApplyRules* a=(ASTApplyRules*)node;
+            if(!a->ruleset_name || strcmp(a->ruleset_name,"PrimeBorders")!=0 || !a->args)goto done;
+            apply=1;
+        } else if(node->type==AST_ON_BLOCK) {
+            ASTOnBlock* o=(ASTOnBlock*)node;
+            if(!o->ruleset_name || !o->event_name || strcmp(o->event_name,"Success")!=0 || !o->body)goto done;
+            on_block=1;
+        } else if(node->type==AST_VAR_DECL) {
+            ASTVarDecl* v=(ASTVarDecl*)node;
+            if(v->name && strcmp(v->name,"callback")==0 && v->initializer && v->initializer->type==AST_LAMBDA)lambda=1;
+            if(v->name && strcmp(v->name,"moved")==0 && v->initializer && v->initializer->type==AST_RELOCATE)relocate=1;
+        } else if(node->type==AST_UNROLL) {
+            ASTUnroll* u=(ASTUnroll*)node;
+            if(!u->count || !u->loop || u->loop->type!=AST_LOOP)goto done;
+            unroll=1;
+        }
+    }
+    ok=rules && apply && on_block && lambda && unroll && relocate;
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 int main(int argc, char** argv) {
+    if (!test_rules_lambda_relocate_unroll_ast()) {
+        fprintf(stderr, "Rules/lambda/relocate/unroll AST parser test failed.\\n");
+        return 1;
+    }
     if (!test_select_scan_ast()) { fprintf(stderr, "select/scan AST parser and codec test failed.\\n"); return 1; }
     if (!test_structured_if_elsif_els_ast()) {
         fprintf(stderr, "Structured if/elsif/els parser test failed.\\n");
