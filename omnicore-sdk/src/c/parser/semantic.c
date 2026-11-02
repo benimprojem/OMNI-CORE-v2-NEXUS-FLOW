@@ -906,6 +906,50 @@ static void semantic_check_rule_arguments(
     }
 }
 
+static void semantic_validate_array_initializer(
+    SemanticContext* ctx,
+    ASTNode* initializer,
+    const ASTNode* dimension,
+    const char* element_type
+) {
+    ASTNode* item;
+    size_t count = 0u;
+    if (!ctx || !dimension) return;
+    if (!initializer || initializer->type != AST_ARRAY_LITERAL) {
+        report_error(ctx, initializer ? initializer : (ASTNode*)dimension,
+            ERR_SEMANTIC_TYPE_MISMATCH,
+            "Array initializer nesting does not match the declared dimensions.");
+        return;
+    }
+    for (item = ((ASTArrayLiteral*)initializer)->elements; item; item = item->next)
+        ++count;
+    if (dimension->type == AST_ARRAY_DIMENSION &&
+        ((const ASTArrayDimension*)dimension)->length) {
+        const ASTNode* length_node = ((const ASTArrayDimension*)dimension)->length;
+        if (length_node->type == AST_LITERAL &&
+            ((const ASTLiteral*)length_node)->int_value > 0 &&
+            (uint64_t)count != (uint64_t)((const ASTLiteral*)length_node)->int_value) {
+            report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Array initializer length does not match its fixed dimension.");
+        }
+    }
+    for (item = ((ASTArrayLiteral*)initializer)->elements; item; item = item->next) {
+        if (dimension->next) {
+            semantic_validate_array_initializer(ctx, item, dimension->next,
+                element_type);
+        } else if (item->type == AST_ARRAY_LITERAL) {
+            report_error(ctx, item, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Array initializer has more dimensions than declared.");
+        } else if (element_type) {
+            const char* actual_type = get_expr_type(ctx, item);
+            if (actual_type && !are_types_compatible(element_type, actual_type)) {
+                report_error(ctx, item, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Array initializer element does not match the declared element type.");
+            }
+        }
+    }
+}
+
 void semantic_check(SemanticContext* ctx, ASTNode* node) {
     if (!node) return;
 
@@ -970,6 +1014,13 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 const char* init_type;
                 semantic_check(ctx, decl->initializer);
                 init_type = get_expr_type(ctx, decl->initializer);
+                if (is_array && decl->initializer &&
+                    decl->initializer->type == AST_ARRAY_LITERAL) {
+                    const ASTNode* dimensions =
+                        ((ASTArrayType*)decl->inline_type)->dimensions;
+                    semantic_validate_array_initializer(ctx, decl->initializer,
+                        dimensions, element_type && *element_type ? element_type : NULL);
+                }
                 if (decl->inline_type &&
                     decl->inline_type->type == AST_ARRAY_TYPE) {
                     if (init_type && strcmp(init_type, "array") != 0) {
