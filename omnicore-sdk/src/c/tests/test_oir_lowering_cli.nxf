@@ -1,0 +1,4 @@
+# OCC CLI integration fixture: current scalar OIR lowering subset.
+f:main() !i32 {
+    ret 10 + 20 * 3;
+}
