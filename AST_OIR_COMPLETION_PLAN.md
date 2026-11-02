@@ -26,6 +26,19 @@
 - [ ] AST destroy ve parser hata/OOM yollarında tek sahiplik kurallarını doğrula.
 - [ ] Parser recovery ve kısmi AST cleanup testlerini tamamla.
 
+### A1. Array type declarators — implementation added, verification in progress
+- [x] Append stable AST nodes `AST_ARRAY_TYPE` and `AST_ARRAY_DIMENSION` without changing existing node IDs.
+- [x] Represent ordered dimensions as child nodes; a null length means dynamic/unspecified extent.
+- [x] Parse declaration suffixes (`v:name[n][m]!T`) and parameter forms (`a![]`, `a!T[]`, `a:T[n]`).
+- [x] Extend AST create/print/destroy/binary codec and OIR frontend map/schema/writer/reader/graph traversal.
+- [x] Add semantic fixed-dimension validation and aggregate array type records with element base type and shape name.
+- [x] Add parser, AST codec and OIR frontend round-trip fixtures.
+- [ ] Confirm the full Windows/Linux/macOS CI matrix is green after the latest parser diagnostic and registry-test fixes.
+- [ ] Extend fixed dimensions from integer literals to validated compile-time constant expressions.
+- [ ] Validate array literal leaf element types against declared element types and check shape compatibility.
+- [ ] Add end-to-end semantic artifact assertions for array shape/base-type records.
+- [ ] Define executable array layout/indexing/allocation lowering; until then unsupported lowering must fail closed.
+
 ### B. Semantic tamamlanması
 - [ ] Token/dil spec ile semantic kurallarının tam matrisi.
 - [ ] Scope açma/kapama, shadowing, duplicate declaration, visibility/export ve label kapsamı.
