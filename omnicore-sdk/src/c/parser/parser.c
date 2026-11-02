@@ -1692,7 +1692,7 @@ static int parse_array_type_suffix(Parser* p, ASTVarDecl* decl) {
                 return 0;
             }
         }
-        consume(p, TOKEN_RBRACKET, ERR_PARSER_EXPECTED_BRACKET,
+        consume(p, TOKEN_RBRACKET, ERR_PARSER_UNEXPECTED_TOKEN,
             "Expected ']' after array dimension.");
         if (p->previous.type != TOKEN_RBRACKET) {
             ast_destroy((ASTNode*)dimension);
