@@ -156,6 +156,16 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
         case AST_SCAN: { const ASTScan* n=(const ASTScan*)node; return field_id==1u?n->subject:(field_id==2u?n->arms:NULL); }
         case AST_SCAN_ARM: { const ASTScanArm* n=(const ASTScanArm*)node; return field_id==1u?n->pattern:(field_id==2u?n->body:NULL); }
         case AST_PATTERN_CONSTRUCTOR: return field_id==2u?((const ASTPatternConstructor*)node)->bindings:NULL;
+        case AST_RULESET_DECL: { const ASTRulesetDecl* n=(const ASTRulesetDecl*)node; return field_id==2u?n->params:(field_id==3u?n->rules:NULL); }
+        case AST_RULE_BARRIER: { const ASTRuleBarrier* n=(const ASTRuleBarrier*)node; return field_id==1u?n->condition:(field_id==2u?n->message:NULL); }
+        case AST_RULE_TRIGGER: { const ASTRuleTrigger* n=(const ASTRuleTrigger*)node; return field_id==1u?n->condition:(field_id==2u?n->action:NULL); }
+        case AST_RULE_ALWAYS: return field_id==1u?((const ASTRuleAlways*)node)->action:NULL;
+        case AST_RULE_DEFAULT: return field_id==1u?((const ASTRuleDefault*)node)->action:NULL;
+        case AST_APPLY_RULES: return field_id==2u?((const ASTApplyRules*)node)->args:NULL;
+        case AST_ON_BLOCK: return field_id==3u?((const ASTOnBlock*)node)->body:NULL;
+        case AST_LAMBDA: { const ASTLambda* n=(const ASTLambda*)node; return field_id==1u?n->params:(field_id==2u?n->body:NULL); }
+        case AST_RELOCATE: { const ASTRelocate* n=(const ASTRelocate*)node; return field_id==1u?n->source:(field_id==2u?n->target:NULL); }
+        case AST_UNROLL: { const ASTUnroll* n=(const ASTUnroll*)node; return field_id==1u?n->count:(field_id==2u?n->loop:NULL); }
         case AST_IF: {
             const ASTIf* n = (const ASTIf*)node;
             if (field_id == 1u) return n->condition;
@@ -240,6 +250,10 @@ uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
         case AST_THREAD_BLOCK: return 4u;
         case AST_SELECT: case AST_SCAN: case AST_SELECT_ARM: case AST_SCAN_ARM: case AST_PATTERN_CONSTRUCTOR: return 2u;
         case AST_PATTERN_BINDING: return 0u;
+        case AST_RULESET_DECL: case AST_ON_BLOCK: return 3u;
+        case AST_RULE_BARRIER: case AST_RULE_TRIGGER: case AST_APPLY_RULES:
+        case AST_LAMBDA: case AST_RELOCATE: case AST_UNROLL: return 2u;
+        case AST_RULE_ALWAYS: case AST_RULE_DEFAULT: return 1u;
         default: return 0u;
     }
 }
