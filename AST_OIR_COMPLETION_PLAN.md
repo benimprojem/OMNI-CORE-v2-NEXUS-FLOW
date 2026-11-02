@@ -1,0 +1,70 @@
+# AST / OIR tamamlanma planı — Codegen ön koşulu
+
+**Durum:** Aktif plan  
+**Kural:** AST, semantic AST ve OIR eksikleri kapanmadan Codegen kapsamı genişletilmeyecek. Mevcut Codegen yalnızca pipeline testleri ve dar prototip doğrulaması için kullanılabilir.
+
+## Katmanlar ve mevcut bileşenler
+
+| Katman | Mevcut bileşen | Tamamlanma ölçütü |
+|---|---|---|
+| Kaynak → AST | `parser/lexer.c`, `parser/parser.c`, `parser/ast.c` | Dil token/syntax envanteri ile AST tag/field sözleşmesi birebir eşleşir; pozitif/negatif parse testleri |
+| AST güvenliği | AST serializer/deserializer, `ast_destroy` | Her node alanı round-trip; partial tree cleanup; ownership ve OOM testleri |
+| AST sözleşmesi | `parser/ast.h`, AST field schema/TLV | Her node'un zorunlu/opsiyonel child ve sibling ilişkileri, source span ve ownership tanımı |
+| Semantic | `parser/semantic.c`, `semantic_result.c` | Scope, symbol, type, conversion, control-flow ve ownership kuralları testli; hata halinde sonuç üretimi engellenir |
+| Semantic AST artifact | `oir_semantic_ast_artifact.*`, `oir_semantic_ast.*` | AST graph + scope/type/symbol/annotation/relation/conversion tabloları karşılıklı tutarlı ve doğrulanmış |
+| AST → OIR | `oir_lowering.*`, `oir_lowering_expr.c` | AST node/opcode coverage matrisi; desteklenmeyen yapı açıkça fail-closed; tüm desteklenen örneklerde round-trip/semantic test |
+| OIR contract | `oir_module.*`, opcode registry, artifact codec | Canonical schema, operand/result/side-effect/control-flow kuralları ve sürüm politikası sabit |
+| OIR Verifier | `oir_verify_stage_module.c` | Her OIR record/opcode invariantı ve çapraz referans doğrulanır; güvenli bağımsız hata aggregation testleri |
+| Pipeline | Parser → Semantic → AST artifact → Lowering → Verifier → Optimizer → Verifier → Codegen | Hatalı ara ürün hiçbir sonraki aşamaya ulaşmaz; producer/consumer ve artifact immutability testleri |
+
+## Öncelikli açık işler
+
+### A. AST sözleşmesi ve kapsam
+- [ ] `ASTNodeType` envanterini parser üretimi, serializer/deserializer, destroy, printer ve field schema ile karşılaştır.
+- [ ] Her node için child field, list/sibling, ownership ve nullability tablosu oluştur.
+- [ ] AST source span: byte offset + length ve line/column alanlarının tüm node'larda tutarlı taşınmasını sabitle.
+- [ ] AST destroy ve parser hata/OOM yollarında tek sahiplik kurallarını doğrula.
+- [ ] Parser recovery ve kısmi AST cleanup testlerini tamamla.
+
+### B. Semantic tamamlanması
+- [ ] Token/dil spec ile semantic kurallarının tam matrisi.
+- [ ] Scope açma/kapama, shadowing, duplicate declaration, visibility/export ve label kapsamı.
+- [ ] Primitive/user/aggregate/function/tuple type çözümleme; recursive/forward declaration politikası.
+- [ ] Numeric promotion, implicit/explicit conversion ve hard type kuralları.
+- [ ] Function signature, argument/return uyumu; extern ve method/group kuralları.
+- [ ] Struct/union/enum/newtype alan ve varyant ilişkileri.
+- [ ] Handler/area/zone/ownership/transfer kuralları.
+- [ ] Return/break/continue, unreachable code ve CFG ön koşulları.
+- [ ] SemanticResult bütün referanslarının AST node ve scope tablolarına bağlanması.
+
+### C. Lowering ve OIR
+- [ ] AST tag → lowering desteği tablosu: supported / partial / intentionally unsupported.
+- [ ] Semantic annotation/type/symbol bilgisi lowering'de eksiksiz kullanılır.
+- [ ] Function parameters, calls, locals, assignment, memory, aggregate, cast ve control flow lowering kapsamı.
+- [ ] NexusFlow özel AST node'ları için lowering/side-effect/control-flow sözleşmesi.
+- [ ] OIR opcode registry: shape, types, effects, terminator, memory behavior, call signature ilişkisi.
+- [ ] Source map/debug metadata politikası.
+- [ ] OIR verifier opcode ve tablo invariantları için tam test matrisi.
+
+### D. Codegen giriş kapısı
+Codegen genişletmesi şu koşulların tümü sağlanmadan başlamaz:
+- [ ] AST node coverage ve ownership testleri tamamlandı.
+- [ ] Semantic feature matrix testleri tamamlandı.
+- [ ] Lowering coverage ve fail-closed testleri tamamlandı.
+- [ ] OIR schema ve opcode semantics onaylandı.
+- [ ] Verifier tüm OIR invariantlarını kapsıyor.
+- [ ] End-to-end testte invalid AST/semantic/OIR Codegen'e ulaşamıyor.
+- [ ] Her desteklenen küçük program için OIR → Codegen çıktısı ve davranış testi mevcut.
+
+## Çalışma sırası
+
+1. AST node/field/ownership envanteri.
+2. AST serializer/deserializer/destroy/parser tutarlılığı.
+3. Semantic type/scope/function/ownership/control-flow eksikleri.
+4. AST → semantic artifact referans bütünlüğü.
+5. Lowering kapsamı ve OIR sözleşmesi.
+6. Verifier tamlığı ve test matrisi.
+7. Pipeline gate testleri.
+8. Codegen backend kapsamı.
+
+**Not:** Bir özellik henüz desteklenmiyorsa sessizce yanlış OIR üretmek yerine lowering/semantic aşamasında açık ve konumlu hata vermelidir.
