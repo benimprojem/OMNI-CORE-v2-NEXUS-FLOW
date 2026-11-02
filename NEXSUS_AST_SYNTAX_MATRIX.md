@@ -31,7 +31,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Call / member / index | `AST_FUNC_CALL`, `AST_MEMBER_ACCESS`, `AST_INDEX_ACCESS` | Present | Call target, named args, lvalue and bounds contracts |
 | Cast `cast(value,type)` | `AST_CAST` | Present | Type resolution and conversion record |
 | Tuple | `AST_TUPLE` | Present | Tuple typing/destructuring contract |
-| Array / map / vector forms | No dedicated AST tags apparent | **Representation unclear** | Decide explicit aggregate/type nodes vs generic syntax; inventory parser |
+| Array literal `[a, b, ...]` (including nested/empty arrays) | `AST_ARRAY_LITERAL` with ordered element chain | Parser/AST codec and OIR kind 97 implemented; nested and empty literal tests added | Array type declarators (`T[]`, `T[n]`), map type/signature and vector typing remain open |
 | Unified `loop` (range/count/foreach/conditional/infinite) + `unroll` | `AST_LOOP`, `AST_UNROLL`; rolling retry is represented by `AST_NEXUS_FLOW.retry_count/retry_delay` | Parser/AST/OIR forms implemented; foreach `in`, `unroll(count)->loop`, and `?(count, delay ms)->target` are parsed with bounded integer validation | Runtime retry semantics, constant-bound validation and canonical loop normalization/lowering remain open |
 | `if / elsif / els` | `AST_IF` condition/then/else | Partial | Verify elsif chain shape and nesting semantics |
 | Conditional action `(cond) -> break/continue/...` | `AST_IF` canonical form | Parser path exists and is disambiguated from Flow pipe | Complete semantic loop-context and round-trip coverage; no separate node required unless source-form preservation becomes a language requirement |
@@ -59,14 +59,13 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 
 ## Confirmed model-level gaps to address
 
-1. **Lambda and anonymous function expression:** no dedicated AST tag/payload currently declared.
-2. **Conditional action:** no explicit condition/true-arm/optional-false-arm node.
-3. **Select and scan:** implemented in C AST/parser and AST→OIR bridge; semantic binding/exhaustiveness and lowering remain pending.
-4. **Multi-rule engine:** no Ruleset/Barrier/Trigger/Always/Default node family.
-5. **Rule application and on-block:** no `AST_APPLY_RULES` or `AST_ON`.
-6. **Loop normalization:** AST currently has legacy `loop_type = Infinite/While/For/Foreach`; NEXSUS syntax decision is unified `loop`, so parser and payload contract need alignment.
-7. **Aggregate/type syntax:** arrays/maps/vectors need explicit parser representation and semantic typing decision; current AST enum has no dedicated aggregate/type nodes.
-8. **Relocate `_>`:** must be traced from token to parser representation and semantic ownership effect.
+1. **Array type declarators:** array literals now have an explicit AST node, but `T[]`, `T[n]`, multidimensional declarators and function parameter array types still need a structured type representation.
+2. **Map types and values:** `map key,value` type syntax and key/value ownership operations need an explicit semantic/type contract; no map literal syntax is specified in README.
+3. **Vector typing:** `Vec2/Vec3/Vec4` currently rely on array-shaped literals; dimensionality and SIMD type rules must be checked semantically.
+4. **Loop normalization:** legacy `loop_type = Infinite/While/For/Foreach` remains the frontend payload; canonical lowering and runtime semantics are still open.
+5. **Conditional action:** parser canonicalizes it to `AST_IF`; loop-context semantic checks and source-form round-trip remain open.
+6. **Ownership/effects:** relocate invalidation, handler capture, unpack, defer and halt cleanup need complete semantic effect records and lowering.
+7. **Intent/AI logic:** declared/deferred; do not invent semantics before their specs are activated.
 
 ## AST node payload/codec audit (all current enum tags)
 
