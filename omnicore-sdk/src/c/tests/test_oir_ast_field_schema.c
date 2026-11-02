@@ -25,7 +25,8 @@ static uint16_t count_for_kind(uint16_t k) {
         case 10: return 4;
         case 13: return 5;
         case 15: case 18: return 3;
-        case 21: case 98: case 99: return 2;
+        case 21: return 2;
+        case 98: case 99: return 1;
         case 16: case 17: case 22: case 26: case 24: return 2 + (k == 24);
         case 25: return 7;
         case 27: case 28: return 0;
