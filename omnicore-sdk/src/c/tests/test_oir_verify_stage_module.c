@@ -291,6 +291,16 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     return 1;
 }
 
+static void assert_last_diagnostic_code(const OccDiagnosticCollector* diagnostics,
+    uint32_t expected_code, const char* expected_context) {
+    OccDiagnosticView view;
+    size_t count = occ_diagnostics_count(diagnostics);
+    assert(count > 0u);
+    assert(occ_diagnostics_get(diagnostics, count - 1u, &view));
+    assert(view.record->code == expected_code);
+    if (expected_context) assert(strstr(view.message, expected_context) != NULL);
+}
+
 int main(int argc, char** argv) {
     OccLoadedStageModule loaded;
     OccDiagnosticCollector diagnostics;
@@ -339,6 +349,7 @@ int main(int argc, char** argv) {
     }
     assert(output == NULL);
     assert(occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) >= 1u);
+    assert_last_diagnostic_code(&diagnostics, 8620u, "value=2");
     free(input); input = NULL; input_length = 0u; output = NULL; output_length = 0u;
 
     /* A definition in a predecessor block must dominate its downstream use. */
@@ -368,6 +379,7 @@ int main(int argc, char** argv) {
     }
     assert(output == NULL);
     assert(occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) >= 2u);
+    assert_last_diagnostic_code(&diagnostics, 8620u, "value=2");
     free(input); input = NULL; input_length = 0u;
 
     /* Reject malformed CFG ownership, missing terminators, duplicate SSA definitions,
@@ -379,11 +391,15 @@ int main(int argc, char** argv) {
             assert(build_cfg_module_artifact(&input, &input_length, variant));
             memset(&stage_input, 0, sizeof(stage_input));
             stage_input.bytes = input; stage_input.length = input_length;
+            static const uint32_t expected_codes[] = {
+                0u, 0u, 8617u, 8613u, 8614u, 8618u, 8615u
+            };
             assert(occ_module_loader_invoke(&loaded, &stage_input, 1u,
                 502u + (uint32_t)variant, &diagnostics, 256u,
                 1024u * 1024u, &output, &output_length) ==
                 OCC_MODULE_LOADER_INVOKE_FAILED);
             assert(output == NULL && output_length == 0u);
+            assert_last_diagnostic_code(&diagnostics, expected_codes[variant], NULL);
             free(input); input = NULL; input_length = 0u;
         }
     }
