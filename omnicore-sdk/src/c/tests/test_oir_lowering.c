@@ -155,19 +155,16 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     OirModuleView module;
     int ok = 0;
     int semantic_initialized = 0;
-    int debug_stage = 0;
 
     memset(&semantic, 0, sizeof(semantic));
     memset(&workspace, 0, sizeof(workspace));
     memset(&artifact, 0, sizeof(artifact));
     memset(&module, 0, sizeof(module));
-    debug_stage = 1;
     parser = parser_init_source("real-lowering.nxf", source, source_length);
     if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
         parser_get_status(parser) != PARSER_STATUS_OK || !parser->ast_root)
         goto cleanup;
 
-    debug_stage = 2;
     if (oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
             index, 64u, &node_count) != OIR_STATUS_OK ||
         oir_ast_frontend_measure((ASTNode*)parser->ast_root,
@@ -182,7 +179,6 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             ast_payload, sizeof(ast_payload), &ast_length, &requirements) != OIR_STATUS_OK)
         goto cleanup;
 
-    debug_stage = 3;
     resolver.entries = index;
     resolver.capacity = 64u;
     semantic_init(&semantic, "real-lowering.nxf", NULL);
@@ -193,7 +189,6 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
         semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK ||
         semantic.result.finalized != 1u)
         goto cleanup;
-    debug_stage = 4;
     if (oir_semantic_ast_artifact_write(ast_payload, ast_length,
             &semantic.result, 1u, semantic_artifact,
             sizeof(semantic_artifact), &semantic_length) != OIR_STATUS_OK)
@@ -203,7 +198,6 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             owner_scope, 65u) != OIR_STATUS_OK)
         goto cleanup;
 
-    debug_stage = 5;
     workspace.types = module_types; workspace.type_capacity = 3u;
     workspace.functions = functions; workspace.function_capacity = 1u;
     workspace.blocks = blocks; workspace.block_capacity = 16u;
@@ -216,7 +210,6 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             module_bytes, sizeof(module_bytes), &module_length) != OIR_STATUS_OK ||
         oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
         goto cleanup;
-    debug_stage = 6;
     if (module.type_count != (arithmetic == 5 ? 3u : 2u) ||
         module.function_count != 1u) goto cleanup;
     {
@@ -225,7 +218,6 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             return_type.kind != OIR_MODULE_TYPE_INTEGER ||
             (return_type.flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u) goto cleanup;
     }
-    debug_stage = 7;
     if (arithmetic == 0) {
         OirModuleInstruction constant;
         OirModuleOperand immediate;
@@ -345,7 +337,6 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             immediate.kind!=OIR_OPERAND_INTEGER_IMMEDIATE || immediate.immediate!=3u)
             goto cleanup;
     }
-    debug_stage = 8;
     if (!test_lowering_stage_module(stage_module, semantic_artifact, semantic_length,
             module.type_count, module.block_count)) {
         fprintf(stderr, "if fixture: direct lowerer passed but stage DLL invocation failed\\n");
@@ -354,11 +345,6 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     ok = 1;
 
 cleanup:
-    if (!ok && arithmetic == 5) {
-        fprintf(stderr, "if/else lowering debug stage=%d errors=%d types=%u blocks=%u values=%u instructions=%u operands=%u\\n",
-            debug_stage, semantic.error_count, module.type_count, module.block_count,
-            module.value_count, module.instruction_count, module.operand_count);
-    }
     if (semantic_initialized) semantic_destroy(&semantic);
     if (parser) parser_destroy(parser);
     return ok;
