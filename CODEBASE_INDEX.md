@@ -329,7 +329,7 @@ The file/path inventory below is complete for the snapshot. The function catalog
 - `test_oir_token_map.c` — function catalogue pending
 - `test_oir_token_stream.c` — function catalogue pending
 - `test_oir_type_map.c` — function catalogue pending
-- `test_oir_verify_stage_module.c` — function catalogue pending
+- `test_oir_verify_stage_module.c` — `build_module_artifact()`, `test_put_u32()`, `build_cfg_module_artifact()`, `assert_last_diagnostic_code()`, `main()`
 - `test_parser.c` — function catalogue pending
 - `test_parser_ast_oir_roundtrip.c` — function catalogue pending
 - `test_parser_oir_handoff.c` — function catalogue pending
