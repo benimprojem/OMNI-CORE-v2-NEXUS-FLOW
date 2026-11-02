@@ -116,8 +116,7 @@ typedef enum {
     AST_UNROLL,
     AST_ARRAY_LITERAL,
     AST_ARRAY_TYPE,
-    AST_ARRAY_DIMENSION,
-    AST_INDEX_ACCESS
+    AST_ARRAY_DIMENSION
 } ASTNodeType;
 
 // Temel Düğüm
