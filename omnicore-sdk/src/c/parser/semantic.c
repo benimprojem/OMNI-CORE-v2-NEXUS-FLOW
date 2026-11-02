@@ -407,6 +407,49 @@ static int semantic_array_dimension_value(
     return 1;
 }
 
+static int semantic_format_array_signature(
+    const ASTVarDecl* declaration, char* output, size_t output_size
+) {
+    const ASTArrayType* array_type;
+    const ASTNode* dimension;
+    size_t used = 0u;
+    int written;
+    const char* element_type;
+    if (!declaration || !output || output_size == 0u ||
+        !declaration->inline_type ||
+        declaration->inline_type->type != AST_ARRAY_TYPE) return 0;
+    element_type = declaration->type_name ? declaration->type_name : "*";
+    if (element_type[0] == '!') ++element_type;
+    written = snprintf(output, output_size, "array|%s", element_type);
+    if (written < 0 || (size_t)written >= output_size) return 0;
+    used = (size_t)written;
+    array_type = (const ASTArrayType*)declaration->inline_type;
+    for (dimension = array_type->dimensions; dimension;
+         dimension = dimension->next) {
+        const ASTArrayDimension* dim = (const ASTArrayDimension*)dimension;
+        uint64_t extent = 0u;
+        if (dim->length &&
+            semantic_array_dimension_value(dim->length, &extent)) {
+            written = snprintf(output + used, output_size - used,
+                "[%llu]", (unsigned long long)extent);
+        } else if (!dim->length) {
+            written = snprintf(output + used, output_size - used, "[]");
+        } else {
+            written = snprintf(output + used, output_size - used, "[?]");
+        }
+        if (written < 0 || (size_t)written >= output_size - used)
+            return 0;
+        used += (size_t)written;
+    }
+    return 1;
+}
+
+static int semantic_is_array_type_name(const char* type_name) {
+    return type_name &&
+        (strcmp(type_name, "array") == 0 ||
+         strncmp(type_name, "array|", 6u) == 0);
+}
+
 static uint32_t semantic_declared_type_id(
     SemanticContext* ctx, const ASTVarDecl* declaration
 ) {
@@ -759,11 +802,65 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
     }
 }
 
+static int semantic_array_signatures_compatible(
+    const char* expected, const char* actual
+) {
+    const char* expected_dim;
+    const char* actual_dim;
+    const char* expected_element;
+    const char* actual_element;
+    size_t expected_element_length;
+    size_t actual_element_length;
+    if (!expected || !actual ||
+        strncmp(expected, "array|", 6u) != 0 ||
+        strncmp(actual, "array|", 6u) != 0) return 0;
+    expected_element = expected + 6u;
+    actual_element = actual + 6u;
+    expected_dim = strchr(expected_element, '[');
+    actual_dim = strchr(actual_element, '[');
+    expected_element_length = expected_dim
+        ? (size_t)(expected_dim - expected_element) : strlen(expected_element);
+    actual_element_length = actual_dim
+        ? (size_t)(actual_dim - actual_element) : strlen(actual_element);
+    if (expected_element_length != 1u || expected_element[0] != '*') {
+        if (expected_element_length != actual_element_length ||
+            memcmp(expected_element, actual_element,
+                expected_element_length) != 0) return 0;
+    }
+    while (expected_dim && actual_dim) {
+        const char* expected_end = strchr(expected_dim, ']');
+        const char* actual_end = strchr(actual_dim, ']');
+        size_t expected_length;
+        size_t actual_length;
+        if (!expected_end || !actual_end) return 0;
+        expected_length = (size_t)(expected_end - expected_dim + 1);
+        actual_length = (size_t)(actual_end - actual_dim + 1);
+        /* An unspecified expected extent accepts any actual extent. */
+        if (expected_length != 2u || expected_dim[1] != ']') {
+            if (expected_length != actual_length ||
+                memcmp(expected_dim, actual_dim, expected_length) != 0)
+                return 0;
+        }
+        expected_dim = expected_end[1] ? expected_end + 1 : NULL;
+        actual_dim = actual_end[1] ? actual_end + 1 : NULL;
+        if (expected_dim && *expected_dim != '[') return 0;
+        if (actual_dim && *actual_dim != '[') return 0;
+    }
+    return expected_dim == NULL && actual_dim == NULL;
+}
+
 static int are_types_compatible(const char* type1, const char* type2) {
+    const char* t1;
+    const char* t2;
     if (!type1 || !type2) return 0;
-    const char* t1 = (type1[0] == '!') ? type1 + 1 : type1;
-    const char* t2 = (type2[0] == '!') ? type2 + 1 : type2;
-    return strcmp(t1, t2) == 0;
+    t1 = (type1[0] == '!') ? type1 + 1 : type1;
+    t2 = (type2[0] == '!') ? type2 + 1 : type2;
+    if (strcmp(t1, t2) == 0) return 1;
+    if (strcmp(t1, "array") == 0 &&
+        semantic_is_array_type_name(t2)) return 1;
+    if (strcmp(t2, "array") == 0 &&
+        semantic_is_array_type_name(t1)) return 1;
+    return semantic_array_signatures_compatible(t1, t2);
 }
 
 static int is_numeric_primitive_type(const char* type_name) {
@@ -804,8 +901,8 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
     if (type_name[0] == '!') type_name++; // Skip hard-type prefix
 
-    // Generic array aggregate (element compatibility is checked at the literal).
-    if (strcmp(type_name, "array") == 0) return 1;
+    // Generic and structurally typed array aggregates.
+    if (semantic_is_array_type_name(type_name)) return 1;
 
     // Primitives
     if (strcmp(type_name, "i32") == 0 || strcmp(type_name, "u8") == 0 ||
@@ -1084,11 +1181,21 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                 }
 
-                declared_slot = add_slot(
-                    ctx, decl->name, SLOT_VAR, decl->is_const,
-                    is_array ? "array" : decl->type_name, node, 0, 0, decl->is_hard_typed,
-                    (decl->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
-                    (decl->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
+                {
+                    char array_signature[256];
+                    const char* declared_type = decl->type_name;
+                    if (is_array && semantic_format_array_signature(
+                        decl, array_signature, sizeof(array_signature))) {
+                        declared_type = array_signature;
+                    } else if (is_array) {
+                        declared_type = "array";
+                    }
+                    declared_slot = add_slot(
+                        ctx, decl->name, SLOT_VAR, decl->is_const,
+                        declared_type, node, 0, 0, decl->is_hard_typed,
+                        (decl->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
+                        (decl->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
+                }
             }
 
             if (decl->inline_type) semantic_check(ctx, decl->inline_type);
@@ -1119,7 +1226,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 }
                 if (decl->inline_type &&
                     decl->inline_type->type == AST_ARRAY_TYPE) {
-                    if (init_type && strcmp(init_type, "array") != 0) {
+                    if (init_type && !semantic_is_array_type_name(init_type)) {
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                             "Array declarators require an array initializer.");
                     }
@@ -1531,9 +1638,22 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                                     ASTVarDecl* v = (ASTVarDecl*)p;
                                     if (v->type_name || (v->inline_type &&
                                         v->inline_type->type == AST_ARRAY_TYPE)) {
-                                        function_slot->param_types[i] = semantic_duplicate(ctx,
-                                            (v->inline_type && v->inline_type->type == AST_ARRAY_TYPE)
-                                                ? "array" : v->type_name);
+                                        if (v->inline_type &&
+                                            v->inline_type->type == AST_ARRAY_TYPE) {
+                                            char array_signature[256];
+                                            if (!semantic_format_array_signature(
+                                                v, array_signature,
+                                                sizeof(array_signature))) {
+                                                semantic_set_result_error(
+                                                    ctx, SEMANTIC_RESULT_INVALID_DATA);
+                                                break;
+                                            }
+                                            function_slot->param_types[i] =
+                                                semantic_duplicate(ctx, array_signature);
+                                        } else {
+                                            function_slot->param_types[i] =
+                                                semantic_duplicate(ctx, v->type_name);
+                                        }
                                         if (!function_slot->param_types[i]) {
                                             semantic_set_result_error(
                                                 ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
