@@ -298,6 +298,11 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
                 target_false.kind, target_false.reference_id, function.function_type_id);
             goto cleanup;
         }
+    } else if (arithmetic == 6) {
+        /* if/elsif/els lowers to a nested, five-block CFG. */
+        if (module.block_count != 5u || module.instruction_count != 8u ||
+            module.operand_count != 14u || module.value_count != 3u)
+            goto cleanup;
     } else {
         OirModuleInstruction add, mul, sub, ret;
         OirModuleOperand left, right, returned, immediate;
@@ -489,12 +494,16 @@ int main(int argc, char** argv) {
         static const uint8_t if_else_source[] =
             "f:main() !i32 { v:x!i32 = 42; "
             "if (x < 50) { ret x; } els { ret 0; } }";
+        static const uint8_t if_elsif_else_source[] =
+            "f:main() !i32 { v:x!i32 = 42; "
+            "if (x < 0) { ret 0; } elsif (x > 50) { ret 1; } els { ret x; } }";
         assert(test_real_frontend_to_module(&stage_module, literal_source, sizeof(literal_source)-1u, 0));
         assert(test_real_frontend_to_module(&stage_module, arithmetic_source, sizeof(arithmetic_source)-1u, 1));
         assert(test_real_frontend_to_module(&stage_module, local_source, sizeof(local_source)-1u, 2));
         assert(test_real_frontend_to_module(&stage_module, assignment_source, sizeof(assignment_source)-1u, 3));
         assert(test_real_frontend_to_module(&stage_module, multi_assignment_source, sizeof(multi_assignment_source)-1u, 4));
         assert(test_real_frontend_to_module(&stage_module, if_else_source, sizeof(if_else_source)-1u, 5));
+        assert(test_real_frontend_to_module(&stage_module, if_elsif_else_source, sizeof(if_elsif_else_source)-1u, 6));
     }
     assert(test_lowering_stage_rejects_bad_input(&stage_module));
     occ_module_loader_close(&stage_module);
