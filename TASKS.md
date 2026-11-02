@@ -372,3 +372,22 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Feed a signed integer CMP_LT result into a three-block conditional CFG test.
 - [x] Feed an f64 CMP_LT result into a three-block conditional CFG test; assert unordered-flag filtering instructions.
 - [x] **CI run 41376451054:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan and Valgrind passed.
+
+
+## OCC optimizer profile policy — 2 Kasım 2026
+
+- [x] Decide that optimization is skipped when no optimization option is supplied; no explicit `--o0` is required.
+- [x] Define `--o1` as basic, `--o2` as standard, `--o3` as advanced and `--o4` as aggressive optimization profiles.
+- [x] Decide that only one optimization level may be selected per compilation; repeated/conflicting levels are rejected.
+- [x] Require independent OIR verification after every optimizer-produced artifact and before Codegen.
+- [ ] Implement OCC parsing and validation for `--o1` through `--o4`.
+- [ ] Define the exact pass set and ordering for each profile; keep transformations behavior-preserving.
+- [ ] Add tests proving the default skips Optimizer, each profile selects the intended passes, conflicting flags fail, and invalid optimized OIR cannot reach Codegen.
+
+## OIR Verifier specification synchronization — 2 Kasım 2026
+
+- [x] Add the dedicated `OIR_VERIFIER_SPEC.md` and link it from OIR_MODULE and compiler pipeline documentation.
+- [x] Record that the verifier uses the common `OccStageModuleV1` ABI, not a separate verifier-specific ABI.
+- [x] Record current implementation coverage, resource bounds, immutable artifact behavior and deferred schema-dependent checks.
+- [x] Correct the pipeline's current-state description: OCC already runs OIR Lowering → OIR Verifier → Codegen; legacy AST Codegen remains only as a parity bridge.
+- [ ] Extend verifier validation when function signatures, block parameters, memory/effect metadata and source maps are added to OIR_MODULE.
