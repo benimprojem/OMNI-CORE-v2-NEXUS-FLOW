@@ -847,7 +847,18 @@ done:
     return ok;
 }
 
+static int test_retry_metadata_rejects_overflow(void) {
+    static const char source[] =
+        "v:x = source?(999999999999999999999,1ms)->target;";
+    return parser_source_reports_syntax_error(
+        "retry-overflow.nxf",source,sizeof(source)-1u);
+}
+
 int main(int argc, char** argv) {
+    if (!test_retry_metadata_rejects_overflow()) {
+        fprintf(stderr, "Rolling retry count overflow was not rejected.\\n");
+        return 1;
+    }
     if (!test_rules_lambda_relocate_unroll_ast()) {
         fprintf(stderr, "Rules/lambda/relocate/unroll AST parser test failed.\\n");
         return 1;
