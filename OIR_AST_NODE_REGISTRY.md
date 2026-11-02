@@ -130,9 +130,9 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_VAR_DECL | 2 | type_name | STRING_REF / NULL |
 | AST_VAR_DECL | 3–6 | is_const, is_hard_typed, is_public, is_exported | BOOL |
 | AST_VAR_DECL | 7 | initializer | NODE_REF |
-| AST_VAR_DECL | 8 | inline_type | NODE_REF |
+| AST_VAR_DECL | 8 | inline_type / structured type payload (`AST_ARRAY_TYPE` or inline aggregate) | NODE_REF |
 | AST_ARRAY_TYPE | 1 | dimensions | NODE_REF |
-| AST_ARRAY_DIMENSION | 1 | length expression | NODE_REF / NULL |
+| AST_ARRAY_DIMENSION | 1 | length expression (node ID 0 means dynamic extent) | NODE_REF |
 | AST_FUNC_DECL, AST_EXTERN_DECL | 1 | name | STRING_REF / NULL |
 | AST_FUNC_DECL, AST_EXTERN_DECL | 2 | return_type | STRING_REF / NULL |
 | AST_FUNC_DECL, AST_EXTERN_DECL | 3–5 | is_extern, is_public, is_exported | BOOL |
