@@ -574,6 +574,7 @@ static ASTNode* parse_expression(Parser* p);
 static ASTNode* parse_statement(Parser* p);
 static ASTNode* parse_if_statement(Parser* p);
 static ASTNode* parse_block(Parser* p);
+static ASTNode* parse_select_scan(Parser* p, int is_scan);
 static ASTNode* parse_assignment(Parser* p);
 static ASTNode* parse_func_decl(Parser* p);
 static ASTNode* parse_nexus_flow(Parser* p);
@@ -2421,6 +2422,161 @@ static ASTNode* parse_if_statement(Parser* p) {
     return (ASTNode*)node;
 }
 
+static int parser_identifier_is(const Token* token, const char* word) {
+    size_t n;
+    if (!token || !word || token->type != TOKEN_IDENTIFIER) return 0;
+    n = strlen(word);
+    return token->length == n && memcmp(token->start, word, n) == 0;
+}
+
+static ASTNode* parse_pattern(Parser* p) {
+    Token token = p->current;
+    if (token.type == TOKEN_IDENTIFIER) {
+        ASTNode* pattern;
+        advance(p);
+        if (match(p, TOKEN_LPAREN)) {
+            ASTPatternConstructor* ctor = (ASTPatternConstructor*)parser_ast_create(p, AST_PATTERN_CONSTRUCTOR);
+            ASTNode* head = NULL;
+            ASTNode* tail = NULL;
+            if (!ctor) return NULL;
+            ctor->base.line = token.line; ctor->base.col = token.col;
+            ctor->name = (char*)parser_malloc(p, (size_t)token.length + 1u);
+            if (!ctor->name) { ast_destroy((ASTNode*)ctor); return NULL; }
+            memcpy(ctor->name, token.start, (size_t)token.length);
+            ctor->name[token.length] = '\0';
+            if (check(p, TOKEN_RPAREN)) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                    "Constructor patterns require at least one binding.");
+                ast_destroy((ASTNode*)ctor);
+                return NULL;
+            }
+            do {
+                Token binding_token = p->current;
+                ASTPatternBinding* binding;
+                if (!check(p, TOKEN_IDENTIFIER)) {
+                    error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                        "Expected a pattern binding name.");
+                    ast_destroy((ASTNode*)ctor); ast_destroy(head); return NULL;
+                }
+                advance(p);
+                binding = (ASTPatternBinding*)parser_ast_create(p, AST_PATTERN_BINDING);
+                if (!binding) { ast_destroy((ASTNode*)ctor); ast_destroy(head); return NULL; }
+                binding->base.line = binding_token.line; binding->base.col = binding_token.col;
+                binding->name = (char*)parser_malloc(p, (size_t)binding_token.length + 1u);
+                if (!binding->name) { ast_destroy((ASTNode*)binding); ast_destroy((ASTNode*)ctor); ast_destroy(head); return NULL; }
+                memcpy(binding->name, binding_token.start, (size_t)binding_token.length);
+                binding->name[binding_token.length] = '\0';
+                if (!head) head = (ASTNode*)binding; else tail->next = (ASTNode*)binding;
+                tail = (ASTNode*)binding;
+            } while (match(p, TOKEN_COMMA));
+            if (!check(p, TOKEN_RPAREN)) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_PAREN,
+                    msg_get(MSG_EXPECT_RPAREN_EXPR));
+                ast_destroy((ASTNode*)ctor); ast_destroy(head); return NULL;
+            }
+            advance(p);
+            ctor->bindings = head;
+            return (ASTNode*)ctor;
+        }
+        pattern = parser_ast_create(p, AST_PATTERN_BINDING);
+        if (!pattern) return NULL;
+        ((ASTPatternBinding*)pattern)->base.line = token.line;
+        ((ASTPatternBinding*)pattern)->base.col = token.col;
+        ((ASTPatternBinding*)pattern)->name = (char*)parser_malloc(p, (size_t)token.length + 1u);
+        if (!((ASTPatternBinding*)pattern)->name) { ast_destroy(pattern); return NULL; }
+        memcpy(((ASTPatternBinding*)pattern)->name, token.start, (size_t)token.length);
+        ((ASTPatternBinding*)pattern)->name[token.length] = '\0';
+        return pattern;
+    }
+    if (token.type == TOKEN_NUMBER || token.type == TOKEN_STRING ||
+        token.type == TOKEN_CHAR || token.type == TOKEN_TRUE || token.type == TOKEN_FALSE) {
+        return parse_primary(p);
+    }
+    error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+        "Expected a literal, binding, or constructor pattern.");
+    return NULL;
+}
+
+static ASTNode* parse_select_scan(Parser* p, int is_scan) {
+    Token keyword = p->current;
+    ASTNode* root = NULL;
+    ASTNode* arms = NULL;
+    ASTNode* tail = NULL;
+    int seen_default = 0;
+    advance(p); /* contextual identifier: select / scan */
+    if (!check(p, TOKEN_LPAREN)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_PAREN, msg_get(MSG_EXPECT_LPAREN_FUNC));
+        return NULL;
+    }
+    advance(p);
+    if (is_scan) {
+        ASTScan* n=(ASTScan*)parser_ast_create(p,AST_SCAN);
+        if(!n)return NULL;
+        n->base.line=keyword.line; n->base.col=keyword.col; root=(ASTNode*)n;
+        n->subject=parse_expression(p);
+        if(!n->subject){ast_destroy(root);return NULL;}
+    } else {
+        ASTSelect* n=(ASTSelect*)parser_ast_create(p,AST_SELECT);
+        if(!n)return NULL;
+        n->base.line=keyword.line; n->base.col=keyword.col; root=(ASTNode*)n;
+        n->selector=parse_expression(p);
+        if(!n->selector){ast_destroy(root);return NULL;}
+    }
+    if (!check(p,TOKEN_RPAREN)) {
+        error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_RPAREN_EXPR));
+        ast_destroy(root); return NULL;
+    }
+    advance(p);
+    if (!check(p,TOKEN_LBRACE)) {
+        error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,msg_get(MSG_EXPECT_LBRACE_FUNC));
+        ast_destroy(root); return NULL;
+    }
+    advance(p);
+    while (p->current.type!=TOKEN_RBRACE && p->current.type!=TOKEN_EOF) {
+        ASTNode* arm=NULL;
+        ASTNode* pattern=NULL;
+        ASTNode* body=NULL;
+        int is_default=0;
+        if (!is_scan && parser_identifier_is(&p->current,"default")) {
+            is_default=1; advance(p);
+            if(seen_default) {
+                error_at(p,&p->previous,ERR_PARSER_UNEXPECTED_TOKEN,"select may contain only one default arm.");
+                ast_destroy(root); ast_destroy(arms); return NULL;
+            }
+            seen_default=1;
+        } else {
+            pattern=parse_pattern(p);
+            if(!pattern){ast_destroy(root);ast_destroy(arms);return NULL;}
+        }
+        if(!check(p,TOKEN_PIPE)) {
+            error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected '->' after the pattern.");
+            ast_destroy(pattern); ast_destroy(root); ast_destroy(arms); return NULL;
+        }
+        advance(p);
+        if(check(p,TOKEN_LBRACE)){advance(p);body=parse_block(p);}
+        else body=parse_statement(p);
+        if(!body){ast_destroy(pattern);ast_destroy(root);ast_destroy(arms);return NULL;}
+        if(is_scan) {
+            ASTScanArm* n=(ASTScanArm*)parser_ast_create(p,AST_SCAN_ARM);
+            if(!n){ast_destroy(pattern);ast_destroy(body);ast_destroy(root);ast_destroy(arms);return NULL;}
+            n->base.line=keyword.line; n->base.col=keyword.col; n->pattern=pattern; n->body=body; arm=(ASTNode*)n;
+        } else {
+            ASTSelectArm* n=(ASTSelectArm*)parser_ast_create(p,AST_SELECT_ARM);
+            if(!n){ast_destroy(pattern);ast_destroy(body);ast_destroy(root);ast_destroy(arms);return NULL;}
+            n->base.line=keyword.line; n->base.col=keyword.col; n->pattern=pattern; n->body=body; n->is_default=is_default; arm=(ASTNode*)n;
+        }
+        if(!arms)arms=arm;else tail->next=arm;tail=arm;
+        if(check(p,TOKEN_COMMA)||check(p,TOKEN_SEMICOLON))advance(p);
+    }
+    if(!check(p,TOKEN_RBRACE)) {
+        error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,msg_get(MSG_EXPECT_RBRACE_BLOCK));
+        ast_destroy(root); ast_destroy(arms); return NULL;
+    }
+    advance(p);
+    if(is_scan)((ASTScan*)root)->arms=arms;else ((ASTSelect*)root)->arms=arms;
+    return root;
+}
+
 static ASTNode* parse_statement(Parser* p) {
     if (p->panic_mode) p->panic_mode = 0; // Her yeni ifadede hata modunu sıfırla (Basit senkronizasyon)
 
@@ -2439,6 +2595,11 @@ static ASTNode* parse_statement(Parser* p) {
     if (match(p, TOKEN_KW_EXP)) is_exp = 1;
     if (match(p, TOKEN_KW_PUP)) is_pub = 1;
 
+    if (p->current.type==TOKEN_IDENTIFIER &&
+        (parser_identifier_is(&p->current,"select") || parser_identifier_is(&p->current,"scan")) &&
+        peek_token(p).type==TOKEN_LPAREN) {
+        return parse_select_scan(p, parser_identifier_is(&p->current,"scan"));
+    }
     if (check(p, TOKEN_KW_IF)) return parse_if_statement(p);
     if (match(p, TOKEN_KW_USE)) return parse_use(p);
     if (match(p, TOKEN_KW_DEFER)) return parse_defer(p);
