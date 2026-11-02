@@ -79,6 +79,44 @@ static int type_is_numeric(const OirModuleType* t) {
         return t->bit_width == 32u || t->bit_width == 64u;
     return 0;
 }
+/* Shared local type contracts for constant and arithmetic instructions.
+   This subset is record-local once the type and SSA value tables are valid. */
+static int validate_instruction_type_contract(const OirModuleView* m, const OirModuleInstruction* ins) {
+    OirModuleValue result, a, b;
+    OirModuleType rt;
+    if (!m || !ins) return 0;
+    switch (ins->opcode_id) {
+        case OIR_OP_CONST_INT:
+            return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && rt.kind == OIR_MODULE_TYPE_INTEGER;
+        case OIR_OP_CONST_FLOAT:
+            return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && rt.kind == OIR_MODULE_TYPE_FLOAT;
+        case OIR_OP_CONST_BOOL: {
+            OirModuleOperand immediate;
+            return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && rt.kind == OIR_MODULE_TYPE_BOOLEAN && ins->operand_count == 1u && get_operand(m, ins, 0u, &immediate) && immediate.kind == OIR_OPERAND_INTEGER_IMMEDIATE && immediate.immediate <= 1u;
+        }
+        case OIR_OP_ADD: case OIR_OP_SUB: case OIR_OP_MUL: case OIR_OP_DIV: case OIR_OP_REM:
+            return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && type_is_numeric(&rt) && get_value_operand(m, ins, 0u, &a) && get_value_operand(m, ins, 1u, &b) && a.type_id == result.type_id && b.type_id == result.type_id && (ins->opcode_id != OIR_OP_REM || rt.kind == OIR_MODULE_TYPE_INTEGER);
+        default: return 1;
+    }
+}
+
+static uint32_t validate_instruction_type_records(const OirModuleView* m, OirVerifyFailure* failures, uint32_t capacity, uint32_t* omitted) {
+    uint32_t i, count = 0u;
+    if (omitted) *omitted = 0u;
+    for (i = 0u; i < m->instruction_count; ++i) {
+        OirModuleInstruction ins;
+        if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK || !validate_instruction_type_contract(m, &ins)) {
+            if (count < capacity) {
+                memset(&failures[count], 0, sizeof(failures[count]));
+                failures[count].code = OIR_VERIFY_DIAG_OPCODE_TYPE;
+                failures[count].instruction_id = i + 1u;
+                if (oir_module_get_instruction(m, i, &ins) == OIR_STATUS_OK) failures[count].block_id = ins.block_id;
+                ++count;
+            } else if (omitted && *omitted != UINT32_MAX) ++(*omitted);
+        }
+    }
+    return count;
+}
 static int bit_get(const uint64_t* bits, uint32_t id) {
     return (int)((bits[id >> 6] >> (id & 63u)) & UINT64_C(1));
 }
@@ -309,35 +347,15 @@ static int validate_instructions(const OirModuleView* m,
         if (!oir_opcode_validate_shape(ins.opcode_id, operand_kinds,
             ins.operand_count, ins.result_value_id != 0u)) return 0;
         if (failure) failure->code = OIR_VERIFY_DIAG_OPCODE_TYPE;
+        if (!validate_instruction_type_contract(m, &ins)) return 0;
         if (ins.result_value_id && (!get_value(m, ins.result_value_id, &result) ||
             !get_type(m, result.type_id, &rt))) return 0;
         if (!ins.result_value_id) memset(&rt, 0, sizeof(rt));
 
         switch (ins.opcode_id) {
-            case OIR_OP_CONST_INT:
-                if (!ins.result_value_id || ins.operand_count != 1u ||
-                    rt.kind != OIR_MODULE_TYPE_INTEGER) return 0;
-                break;
-            case OIR_OP_CONST_FLOAT:
-                if (!ins.result_value_id || ins.operand_count != 1u ||
-                    rt.kind != OIR_MODULE_TYPE_FLOAT) return 0;
-                break;
-            case OIR_OP_CONST_BOOL: {
-                OirModuleOperand immediate;
-                if (!ins.result_value_id || ins.operand_count != 1u ||
-                    rt.kind != OIR_MODULE_TYPE_BOOLEAN ||
-                    !get_operand(m, &ins, 0u, &immediate) ||
-                    immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE ||
-                    immediate.immediate > 1u) return 0;
-                break;
-            }
-            case OIR_OP_ADD: case OIR_OP_SUB: case OIR_OP_MUL: case OIR_OP_DIV:
-            case OIR_OP_REM:
-                if (!ins.result_value_id || !type_is_numeric(&rt) ||
-                    !get_value_operand(m, &ins, 0u, &a) ||
-                    !get_value_operand(m, &ins, 1u, &b) ||
-                    a.type_id != result.type_id || b.type_id != result.type_id ||
-                    (ins.opcode_id == OIR_OP_REM && rt.kind != OIR_MODULE_TYPE_INTEGER)) return 0;
+            case OIR_OP_CONST_INT: case OIR_OP_CONST_FLOAT:
+            case OIR_OP_CONST_BOOL: case OIR_OP_ADD: case OIR_OP_SUB:
+            case OIR_OP_MUL: case OIR_OP_DIV: case OIR_OP_REM:
                 break;
             case OIR_OP_NEG:
                 if (!ins.result_value_id || !type_is_numeric(&rt) ||
