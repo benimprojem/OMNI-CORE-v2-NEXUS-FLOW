@@ -15,6 +15,7 @@
 #include "oir/oir_ast_artifact.h"
 #include "oir/oir_ast_node_table.h"
 #include "oir/oir_ast_graph.h"
+#include "oir/oir_module.h"
 #include "core/compilation.h"
 #include "core/failure_store.h"
 
@@ -40,6 +41,7 @@ typedef int (*CodegenRunFn)(const char*, const char*, const char*);
 #define OCC_TOKEN_OUTPUT_MAX (64u * 1024u * 1024u)
 #define OCC_AST_OUTPUT_MAX (256u * 1024u * 1024u)
 #define OCC_SEMANTIC_OUTPUT_MAX (256u * 1024u * 1024u)
+#define OCC_MODULE_OUTPUT_MAX (256u * 1024u * 1024u)
 
 static int path_join(char* out, size_t out_size, const char* base, const char* relative);
 static void occ_add_host_diagnostic(
@@ -71,26 +73,116 @@ static void occ_print_job_diagnostics(const OccDiagnosticCollector* diagnostics)
     }
 }
 
+static int occ_validate_lowering_artifact(
+    const uint8_t* bytes,
+    size_t length,
+    uint64_t job_id
+) {
+    OirArtifactView artifact;
+    OirSectionView payload;
+    OirModuleView module;
+    uint32_t i;
+    int found_payload = 0;
+
+    if (!bytes || length == 0u ||
+        oir_artifact_open(bytes, length, &artifact) != OIR_STATUS_OK ||
+        artifact.header.artifact_kind != OIR_KIND_MODULE ||
+        artifact.header.payload_schema_major != OIR_MODULE_SCHEMA_MAJOR ||
+        artifact.header.payload_schema_minor != OIR_MODULE_SCHEMA_MINOR ||
+        artifact.header.producer_stage_id != OCC_STAGE_OIR_LOWERING ||
+        artifact.header.validity != OIR_VALIDITY_VALID ||
+        artifact.header.job_id != job_id) {
+        return 0;
+    }
+
+    memset(&payload, 0, sizeof(payload));
+    for (i = 0u; i < artifact.section_count; ++i) {
+        OirSectionView section;
+        if (oir_artifact_get_section(&artifact, i, &section) != OIR_STATUS_OK)
+            return 0;
+        if (section.type == OIR_SECTION_PAYLOAD) {
+            if (found_payload || section.version != 1u ||
+                section.length > (uint64_t)SIZE_MAX) {
+                return 0;
+            }
+            payload = section;
+            found_payload = 1;
+        }
+    }
+
+    if (!found_payload || !payload.data || payload.length == 0u)
+        return 0;
+    return oir_module_open(payload.data, (size_t)payload.length, &module) ==
+        OIR_STATUS_OK;
+}
+
+/* Persist a fully validated stage artifact through a same-directory temporary
+ * file. The final path is never exposed with partially written contents. */
+static int occ_write_artifact_file(
+    const char* path,
+    const uint8_t* bytes,
+    size_t length,
+    uint64_t job_id
+) {
+    char temporary_path[OCC_PATH_BUFFER + 64u];
+    FILE* file;
+    int written;
+    int failed = 0;
+
+    if (!path || !bytes || length == 0u) return 0;
+    written = snprintf(temporary_path, sizeof(temporary_path),
+        "%s.tmp.%llu", path, (unsigned long long)job_id);
+    if (written < 0 || (size_t)written >= sizeof(temporary_path)) return 0;
+
+    file = fopen(temporary_path, "wb");
+    if (!file) return 0;
+    if (fwrite(bytes, 1u, length, file) != length) failed = 1;
+    if (!failed && fflush(file) != 0) failed = 1;
+    if (fclose(file) != 0) failed = 1;
+    if (failed) {
+        (void)remove(temporary_path);
+        return 0;
+    }
+
+#if defined(_WIN32)
+    if (!MoveFileExA(temporary_path, path,
+        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        (void)remove(temporary_path);
+        return 0;
+    }
+#else
+    if (rename(temporary_path, path) != 0) {
+        (void)remove(temporary_path);
+        return 0;
+    }
+#endif
+    return 1;
+}
+
 static int occ_build_and_run_parser_module(
     const char* source_path,
     const char* executable_dir,
     OccCompilationContext* job,
-    ParserContext** out_context
+    ParserContext** out_context,
+    uint8_t** out_module_artifact,
+    size_t* out_module_artifact_length
 ) {
     ParserContext* source_context = NULL;
     uint8_t *source_payload = NULL, *source_artifact = NULL;
     uint8_t *token_artifact = NULL, *ast_artifact = NULL, *semantic_artifact = NULL;
+    uint8_t *lowered_artifact = NULL;
     size_t source_payload_length = 0u, source_artifact_length = 0u;
     size_t token_artifact_length = 0u, ast_artifact_length = 0u, semantic_artifact_length = 0u;
+    size_t lowered_artifact_length = 0u;
     size_t source_payload_capacity = 0u, path_length;
     OirArtifactHeader header;
     OirSectionInput section;
     OccModuleArtifactInputV1 module_inputs[2];
-    OccLoadedStageModule lexer_loaded, parser_loaded, semantic_loaded;
+    OccLoadedStageModule lexer_loaded, parser_loaded, semantic_loaded, lowering_loaded;
     char lexer_module_path[OCC_PATH_BUFFER], parser_module_path[OCC_PATH_BUFFER];
-    char semantic_module_path[OCC_PATH_BUFFER];
-    char lexer_error[512], parser_error[512], semantic_error[512];
-    const char *lexer_filename, *parser_filename, *semantic_filename;
+    char semantic_module_path[OCC_PATH_BUFFER], lowering_module_path[OCC_PATH_BUFFER];
+    char lexer_error[512], parser_error[512], semantic_error[512], lowering_error[512];
+    const char *lexer_filename, *parser_filename, *semantic_filename, *lowering_filename;
     OirArtifactView ast_view;
     OirSectionView ast_payload_section;
     OirAstNodeTableView ast_table;
@@ -107,7 +199,11 @@ static int occ_build_and_run_parser_module(
     memset(&lexer_loaded, 0, sizeof(lexer_loaded));
     memset(&parser_loaded, 0, sizeof(parser_loaded));
     memset(&semantic_loaded, 0, sizeof(semantic_loaded));
-    if (!source_path || !executable_dir || !job || !out_context) return 0;
+    memset(&lowering_loaded, 0, sizeof(lowering_loaded));
+    if (out_module_artifact) *out_module_artifact = NULL;
+    if (out_module_artifact_length) *out_module_artifact_length = 0u;
+    if (!source_path || !executable_dir || !job || !out_context ||
+        !out_module_artifact || !out_module_artifact_length) return 0;
 
     source_context = parser_init(source_path);
     if (!source_context) {
@@ -168,23 +264,28 @@ static int occ_build_and_run_parser_module(
     lexer_filename = "occ_lexer_stage.dll";
     parser_filename = "occ_parser_stage.dll";
     semantic_filename = "occ_semantic_stage.dll";
+    lowering_filename = "occ_oir_lowering_stage.dll";
 #elif defined(__APPLE__)
     lexer_filename = "libocc_lexer_stage.dylib";
     parser_filename = "libocc_parser_stage.dylib";
     semantic_filename = "libocc_semantic_stage.dylib";
+    lowering_filename = "libocc_oir_lowering_stage.dylib";
 #else
     lexer_filename = "libocc_lexer_stage.so";
     parser_filename = "libocc_parser_stage.so";
     semantic_filename = "libocc_semantic_stage.so";
+    lowering_filename = "libocc_oir_lowering_stage.so";
 #endif
     if (!path_join(lexer_module_path, sizeof(lexer_module_path),
         executable_dir, lexer_filename) ||
         !path_join(parser_module_path, sizeof(parser_module_path),
         executable_dir, parser_filename) ||
         !path_join(semantic_module_path, sizeof(semantic_module_path),
-        executable_dir, semantic_filename)) {
+        executable_dir, semantic_filename) ||
+        !path_join(lowering_module_path, sizeof(lowering_module_path),
+        executable_dir, lowering_filename)) {
         occ_add_host_diagnostic(job, OCC_STAGE_OCC_HOST, 6005u,
-            "A frontend stage module path could not be constructed.");
+            "A compiler stage module path could not be constructed.");
         goto cleanup;
     }
 
@@ -249,6 +350,42 @@ static int occ_build_and_run_parser_module(
     }
     occ_module_loader_close(&semantic_loaded);
 
+    /* Lowering is now a first-class DLL stage: SEMANTIC_AST -> OIR_MODULE. */
+    if (occ_module_loader_open(&lowering_loaded, lowering_module_path,
+        lowering_error, sizeof(lowering_error)) != OCC_MODULE_LOADER_OK) {
+        occ_add_host_diagnostic(job, OCC_STAGE_OIR_LOWERING, 6014u,
+            lowering_error[0] ? lowering_error : "The OIR lowering stage module could not be loaded.");
+        goto cleanup;
+    }
+    if (!lowering_loaded.module ||
+        lowering_loaded.module->descriptor.stage_id != OCC_STAGE_OIR_LOWERING ||
+        lowering_loaded.module->descriptor.output_artifact_kind != OIR_KIND_MODULE) {
+        occ_add_host_diagnostic(job, OCC_STAGE_OIR_LOWERING, 6015u,
+            "The loaded lowering module does not match the required stage contract.");
+        goto cleanup;
+    }
+
+    memset(module_inputs, 0, sizeof(module_inputs));
+    module_inputs[0].bytes = semantic_artifact;
+    module_inputs[0].length = semantic_artifact_length;
+    if (occ_module_loader_invoke(&lowering_loaded, module_inputs, 1u,
+        job->job_id, &job->diagnostics, 4096u, OCC_MODULE_OUTPUT_MAX,
+        &lowered_artifact, &lowered_artifact_length) != OCC_MODULE_LOADER_OK) {
+        if (occ_diagnostics_count(&job->diagnostics) == 0u) {
+            occ_add_host_diagnostic(job, OCC_STAGE_OIR_LOWERING, 6016u,
+                "The OIR lowering stage failed to produce OIR_MODULE.");
+        }
+        goto cleanup;
+    }
+
+    if (!occ_validate_lowering_artifact(
+        lowered_artifact, lowered_artifact_length, job->job_id)) {
+        occ_add_host_diagnostic(job, OCC_STAGE_OIR_LOWERING, 6017u,
+            "The OIR lowering output failed host-side artifact or payload validation.");
+        goto cleanup;
+    }
+    occ_module_loader_close(&lowering_loaded);
+
     if (oir_artifact_open(ast_artifact, ast_artifact_length, &ast_view) != OIR_STATUS_OK ||
         ast_view.header.artifact_kind != OIR_KIND_AST ||
         ast_view.header.job_id != job->job_id) goto oir_failure;
@@ -281,6 +418,10 @@ static int occ_build_and_run_parser_module(
     ast_root = NULL;
     *out_context = source_context;
     source_context = NULL;
+    *out_module_artifact = lowered_artifact;
+    *out_module_artifact_length = lowered_artifact_length;
+    lowered_artifact = NULL;
+    lowered_artifact_length = 0u;
     success = 1;
     goto cleanup;
 
@@ -302,9 +443,11 @@ cleanup:
     free(incoming_counts);
     free(visited);
     free(graph_stack);
+    free(lowered_artifact);
     free(semantic_artifact);
     free(ast_artifact);
     free(token_artifact);
+    occ_module_loader_close(&lowering_loaded);
     occ_module_loader_close(&semantic_loaded);
     occ_module_loader_close(&parser_loaded);
     occ_module_loader_close(&lexer_loaded);
@@ -657,8 +800,11 @@ int main(int argc, char **argv) {
     }
 
     ParserContext* ctx = NULL;
-    if (!occ_build_and_run_parser_module(source_file, executable_dir, &job, &ctx) ||
-        !ctx || !ctx->ast_root) {
+    uint8_t* module_artifact = NULL;
+    size_t module_artifact_length = 0u;
+    if (!occ_build_and_run_parser_module(source_file, executable_dir, &job, &ctx,
+            &module_artifact, &module_artifact_length) ||
+        !ctx || !ctx->ast_root || !module_artifact || module_artifact_length == 0u) {
         printf("%s\n", msg_get(MSG_OCC_FAIL_PARSER));
         exit_code = 1;
     }
@@ -685,16 +831,33 @@ int main(int argc, char **argv) {
             }
 
             char ir_path[520];
+            char module_path[640];
+            int module_path_length;
             snprintf(ir_path, sizeof(ir_path), "%s.oir", base_name);
-            if (!parser_save_ir(ctx, ir_path)) {
+            module_path_length = snprintf(module_path, sizeof(module_path),
+                "%s.module.oir", base_name);
+            if (module_path_length < 0 ||
+                (size_t)module_path_length >= sizeof(module_path)) {
+                fprintf(stderr, "Hata: OIR_MODULE cikti yolu olusturulamadi.\n");
+                occ_add_host_diagnostic(&job, OCC_STAGE_OIR_LOWERING, 6018u,
+                    "The OIR_MODULE output path exceeds the supported path buffer.");
+                exit_code = 1;
+            } else if (!parser_save_ir(ctx, ir_path)) {
                 fprintf(stderr, "Hata: IR dosyasi kaydedilemedi: %s\n", ir_path);
                 occ_add_host_diagnostic(&job, OCC_STAGE_OIR, 4001u,
                     "Failed to write the OIR intermediate artifact.");
                 exit_code = 1;
+            } else if (!occ_write_artifact_file(module_path, module_artifact,
+                module_artifact_length, job.job_id)) {
+                fprintf(stderr, "Hata: OIR_MODULE artifact kaydedilemedi: %s\n", module_path);
+                occ_add_host_diagnostic(&job, OCC_STAGE_OIR_LOWERING, 6019u,
+                    "The validated OIR_MODULE artifact could not be persisted.");
+                exit_code = 1;
             } else {
                 printf("IR kaydedildi: %s\n", ir_path);
+                printf("OIR_MODULE kaydedildi: %s\n", module_path);
 
-                /* Load the platform-specific codegen module beside the executable. */
+                /* The legacy Codegen bridge remains until OIR_MODULE parity is proven. */
                 char codegen_path[OCC_PATH_BUFFER];
     #if defined(_WIN32)
                 const char* codegen_filename = "codegen.dll";
@@ -771,6 +934,7 @@ int main(int argc, char **argv) {
             ctx ? ctx->source_len : 0u);
     }
 
+    free(module_artifact);
     if (ctx) parser_destroy(ctx);
     occ_compilation_destroy(&job);
     return exit_code;
