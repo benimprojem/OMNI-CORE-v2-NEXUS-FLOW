@@ -901,6 +901,82 @@ done:
     return ok;
 }
 
+static int test_array_type_declarators(void) {
+    static const char source[] =
+        "f:consume(a![], b!i32[], c:i32[4]) {}"
+        "f:main() { v:dynamic[]; v:fixed[5]!i32; v:matrix[3][3]!f32; }";
+    ParserContext* ctx=parser_init_source("array-types.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTNode* function;
+    ASTNode* parameter;
+    ASTNode* variable;
+    int ok=0;
+    if(!ctx) return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) {
+        Error* error;
+        fprintf(stderr,"array type parser status=%d errors=%d\n",
+            (int)parser_get_status(ctx),ctx->error_count);
+        for(error=ctx->error_head;error;error=error->next)
+            fprintf(stderr,"  %d:%d %s\n",error->line,error->col,
+                error->message?error->message:"");
+        goto done;
+    }
+    function=((ASTProgram*)ctx->ast_root)->declarations;
+    if(!function || function->type!=AST_FUNC_DECL) goto done;
+    parameter=((ASTFuncDecl*)function)->params;
+    if(!parameter || parameter->type!=AST_VAR_DECL ||
+       !((ASTVarDecl*)parameter)->is_hard_typed ||
+       !((ASTVarDecl*)parameter)->inline_type ||
+       ((ASTVarDecl*)parameter)->inline_type->type!=AST_ARRAY_TYPE) goto done;
+    {
+        ASTNode* dim=((ASTArrayType*)((ASTVarDecl*)parameter)->inline_type)->dimensions;
+        if(!dim || dim->type!=AST_ARRAY_DIMENSION ||
+           ((ASTArrayDimension*)dim)->length!=NULL || dim->next) goto done;
+    }
+    parameter=parameter->next;
+    if(!parameter || strcmp(((ASTVarDecl*)parameter)->type_name,"!i32")!=0 ||
+       !((ASTVarDecl*)parameter)->inline_type ||
+       ((ASTArrayType*)((ASTVarDecl*)parameter)->inline_type)->dimensions==NULL) goto done;
+    parameter=parameter->next;
+    if(!parameter || strcmp(((ASTVarDecl*)parameter)->type_name,"i32")!=0 ||
+       !((ASTVarDecl*)parameter)->inline_type) goto done;
+    {
+        ASTNode* dim=((ASTArrayType*)((ASTVarDecl*)parameter)->inline_type)->dimensions;
+        if(!dim || !((ASTArrayDimension*)dim)->length ||
+           ((ASTArrayDimension*)dim)->length->type!=AST_LITERAL) goto done;
+    }
+    function=function->next;
+    if(!function || function->type!=AST_FUNC_DECL || !((ASTFuncDecl*)function)->body) goto done;
+    variable=((ASTBlock*)((ASTFuncDecl*)function)->body)->statements;
+    if(!variable || variable->type!=AST_VAR_DECL ||
+       !((ASTVarDecl*)variable)->inline_type) goto done;
+    variable=variable->next;
+    if(!variable || !((ASTVarDecl*)variable)->inline_type ||
+       strcmp(((ASTVarDecl*)variable)->type_name,"i32")!=0) goto done;
+    variable=variable->next;
+    if(!variable || !((ASTVarDecl*)variable)->inline_type ||
+       strcmp(((ASTVarDecl*)variable)->type_name,"f32")!=0) goto done;
+    {
+        ASTNode* first=((ASTArrayType*)((ASTVarDecl*)variable)->inline_type)->dimensions;
+        ASTNode* second=first?first->next:NULL;
+        if(!first || !second || second->next ||
+           !((ASTArrayDimension*)first)->length ||
+           !((ASTArrayDimension*)second)->length) goto done;
+    }
+    {
+        FILE* stream=tmpfile();
+        ASTNode* decoded=NULL;
+        if(stream && ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
+            decoded=ast_deserialize(stream);
+        ok=decoded && decoded->type==AST_PROGRAM;
+        if(decoded) ast_destroy(decoded);
+        if(stream) fclose(stream);
+    }
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_retry_metadata_rejects_overflow(void) {
     static const char source[] =
         "v:x = source?(999999999999999999999,1ms)->target;";
@@ -909,6 +985,7 @@ static int test_retry_metadata_rejects_overflow(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!test_array_type_declarators()) { fprintf(stderr, "Array type declarator parser/codec test failed.\n"); return 1; }
     if (!test_array_literal_ast()) { fprintf(stderr, "Array literal parser/codec test failed.\n"); return 1; }
     if (!test_retry_metadata_rejects_overflow()) {
         fprintf(stderr, "Rolling retry count overflow was not rejected.\\n");
