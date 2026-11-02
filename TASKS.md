@@ -485,6 +485,15 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [ ] Extend safe aggregation to LOAD/STORE and CALL only after memory/pointer and function-signature prerequisites are explicitly modeled.
 
 
+## AST / OIR pre-Codegen completion — aggregate syntax
+- [x] Add append-only `AST_ARRAY_LITERAL` frontend node kind and lifecycle/codec integration.
+- [x] Parse empty, nested and comma-separated array literals; preserve element order.
+- [x] Append OIR AST node ID 97 and register field schema, frontend index, writer and reader.
+- [x] Add parser binary-codec and OIR reader ordered-element round-trip regressions.
+- [ ] Add structured array type syntax for dynamic `T[]`, fixed `T[n]` and multidimensional `T[m][n]` declarations and parameters.
+- [ ] Define map key/value type and ownership semantics; implement indexing and relocation/move effects consistently.
+- [ ] Validate `Vec2`, `Vec3`, `Vec4` dimensionality and SIMD operation rules in semantic analysis.
+
 ## AST / OIR pre-Codegen completion — select/scan implementation gate
 
 - [x] Append six dedicated AST node kinds for select, scan, arms, binding patterns and constructor patterns without changing existing AST enum IDs.
