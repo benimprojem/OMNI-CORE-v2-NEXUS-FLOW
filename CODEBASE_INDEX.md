@@ -394,3 +394,24 @@ The file/path inventory below is complete for the snapshot. The function catalog
 - 2026-11-02: AST implementation audit pins the required complete-node integration points to `ast.h`, five `ast.c` switches (size/print/destroy/serialize/deserialize), `parser.c`, lexer token dispatch and `tests/test_parser.c`. Matrix now defines the implementation sequence: select/scan → rules → lambda → relocate → loop parity; no AST-only partial node additions.
 
 - 2026-11-02: `NEXSUS_AST_SYNTAX_MATRIX.md` now defines the concrete select/scan AST payloads, contextual parser recognition (preserving identifier compatibility), constructor/binding pattern representation, arm-local binding rules, duplicate-default validation and pointer-free codec contract. This is a design contract only; parser and AST implementation are still pending.
+
+
+## AST / OIR select-scan implementation snapshot — 2 Kasım 2026
+
+The C frontend now includes six append-only AST node kinds for select/scan and patterns. Existing OIR node IDs 1–80 are unchanged; IDs 81–86 are appended.
+
+Changed production files and responsibilities:
+
+- `omnicore-sdk/src/c/parser/ast.h`: `AST_SELECT`, `AST_SELECT_ARM`, `AST_SCAN`, `AST_SCAN_ARM`, `AST_PATTERN_BINDING`, `AST_PATTERN_CONSTRUCTOR` payloads.
+- `omnicore-sdk/src/c/parser/ast.c`: `get_node_size()`, `ast_print_recursive()`, `ast_destroy_recursive()`, `ast_serialize_recursive()`, `ast_deserialize_one()` now cover all six node kinds.
+- `omnicore-sdk/src/c/parser/parser.c`: `parser_identifier_is()`, `parse_pattern()`, `parse_select_scan()`; contextual statement dispatch preserves ordinary identifiers named `select` and `scan` outside this construct position.
+- `omnicore-sdk/src/c/oir/oir_ast_map.h` / `oir_ast_map.c`: stable registry size 86 and appended mappings 81–86.
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`: child-field mapping and counts for select/scan/pattern nodes.
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_writer.c`: OIR scalar/string/reference emission for the six nodes.
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`: disconnected string cleanup, scalar restoration and child ownership linking.
+- `omnicore-sdk/src/c/oir/oir_ast_field_schema.c`: required field counts, wire types and nullable pattern names.
+- `omnicore-sdk/src/c/tests/test_parser.c`: parse shape, duplicate default, empty constructor and AST binary round-trip regression.
+- `omnicore-sdk/src/c/tests/test_parser_ast_oir_roundtrip.c`: select/scan OIR payload materialization and byte-canonical re-encode regression.
+- `omnicore-sdk/src/c/tests/test_oir_ast_map.c`, `test_oir_ast_field_schema.c`: 86-node registry and field schema coverage.
+
+The implementation is committed to `refactor/c-core-roadmap`; full CI has not yet been confirmed. Semantic pattern scopes, exhaustiveness and lowering are not claimed complete. The repository-wide C source count remains unchanged; this snapshot is an update to existing files.
