@@ -2,7 +2,7 @@
 
 **Repository:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Branch:** `refactor/c-core-roadmap`  
-**Snapshot commit:** `76d63490ec3d2c6eb8174f80bf69e40c3800dd3c`  
+**Snapshot commit:** `bef278f2adac564c6d030cc6811c78718726c011`  
 **Scope:** `omnicore-sdk/src/c/`  
 **Snapshot inventory:** 126 C/header files (91 C implementation files and 35 headers).  
 **Purpose:** prevent duplicate files/functions, make existing implementation discoverable before adding or changing code.
@@ -13,13 +13,13 @@ Before creating a source file or function, search this index and the current bra
 
 ## Inventory completeness
 
-The file/path inventory below is complete for the snapshot. The function catalogue now covers all non-test production `.c` implementation files in this snapshot. The `tests/` directory is fully listed by filename, but per-test function names are pending. Header declarations are listed by filename and should be indexed separately as public API declarations. The first-pass extractor is mechanical: review macro-related or unusual declarations against source before relying on a symbol as a stable API. The OIR Verifier source now calls the existing `oir_opcode_validate_shape()` registry helper; this function is not reimplemented inside the verifier. Its independent `validate_type_records()` prerequisite pass aggregates up to 32 malformed type records before downstream checks; `validate_structure()` then validates block ownership, instruction coverage and function entry ownership. The second pass, `validate_ssa_definitions()`, validates the value/definition cross-reference and builds definition lookup tables. The third pass, `validate_instructions()`, reuses the shared opcode-shape registry, validates implemented opcode/type constraints and collects CFG predecessor edges. The fourth pass, `validate_terminators()`, enforces one final terminator per block and rejects instructions after a terminator. The fifth and sixth passes, `validate_dominance()` and `validate_ssa_uses()`, compute per-function reachability/dominators and then validate same-block order plus cross-block SSA dominance.
+The file/path inventory below is complete for the snapshot. The function catalogue now covers all non-test production `.c` implementation files in this snapshot. The `tests/` directory is fully listed by filename, but per-test function names are pending. Header declarations are listed by filename and should be indexed separately as public API declarations. The first-pass extractor is mechanical: review macro-related or unusual declarations against source before relying on a symbol as a stable API. The OIR Verifier source now calls the existing `oir_opcode_validate_shape()` registry helper; this function is not reimplemented inside the verifier. Its independent `validate_type_records()` prerequisite pass aggregates up to 32 malformed type records; `validate_ssa_value_records()` then aggregates up to 32 malformed SSA value records before dependent checks. `validate_structure()` then validates block ownership, instruction coverage and function entry ownership. The second pass, `validate_ssa_definitions()`, validates the value/definition cross-reference and builds definition lookup tables. The third pass, `validate_instructions()`, reuses the shared opcode-shape registry, validates implemented opcode/type constraints and collects CFG predecessor edges. The fourth pass, `validate_terminators()`, enforces one final terminator per block and rejects instructions after a terminator. The fifth and sixth passes, `validate_dominance()` and `validate_ssa_uses()`, compute per-function reachability/dominators and then validate same-block order plus cross-block SSA dominance.
 
 ## Verified function catalogue
 
 ### `omnicore-sdk/src/c/module/oir_verify_stage_module.c`
 
-`get_type()`, `get_value()`, `get_operand()`, `get_value_operand()`, `get_block_operand()`, `type_is_numeric()`, `bit_get()`, `bit_set()`, `has_terminator()`, `validate_type_records()`, `validate_structure()`, `validate_ssa_definitions()`, `validate_instructions()`, `validate_terminators()`, `validate_dominance()`, `validate_ssa_uses()`, `validate_module()`, `find_sections()`, `report_verify_error()`, `oir_verify_process()`, `occ_get_stage_module_v1()`
+`get_type()`, `get_value()`, `get_operand()`, `get_value_operand()`, `get_block_operand()`, `type_is_numeric()`, `bit_get()`, `bit_set()`, `has_terminator()`, `validate_type_records()`, `validate_ssa_value_records()`, `validate_structure()`, `validate_ssa_definitions()`, `validate_instructions()`, `validate_terminators()`, `validate_dominance()`, `validate_ssa_uses()`, `validate_module()`, `find_sections()`, `report_verify_error()`, `oir_verify_process()`, `occ_get_stage_module_v1()`
 
 ### `omnicore-sdk/src/c/module/oir_lowering_stage_module.c`
 
@@ -376,3 +376,4 @@ The file/path inventory below is complete for the snapshot. The function catalog
 
 - 2026-11-02: Initial source-tree snapshot and first-pass function catalogue added. File list covers all 126 C/header files under `omnicore-sdk/src/c/`; function-level extraction covers all 25 non-test production C implementation files. Test implementation function names and header API declarations remain pending.
 - 2026-11-02: Verifier now reuses the existing opcode shape validator; a malformed extra-operand regression case was added. No new source function or file was introduced.
+- 2026-11-02: OIR Verifier adds bounded aggregation for independent SSA value-record failures (diagnostic 8614; overflow 8624), with a two-record regression fixture. Type and SSA prerequisite tables now aggregate independently; dependent passes remain skipped on prerequisite failure.
