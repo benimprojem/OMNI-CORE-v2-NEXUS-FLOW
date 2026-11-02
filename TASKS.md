@@ -407,7 +407,7 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Include function/block/instruction/value/type identifiers in diagnostic message context where available; keep the shared OCC ABI unchanged.
 - [ ] Keep prerequisite failures from triggering unsafe dependent passes; report skipped passes distinctly from successful passes.
 - [ ] Extend fail-fast reporting to collect multiple independent safe-to-check validation failures without running passes whose prerequisites failed.
-- [x] Add regression assertions for exact diagnostic codes and available ID context: SSA use, cross-function CFG edge, function entry ownership, SSA definition, terminator and malformed opcode payload.
+- [x] Add regression assertions for exact diagnostic codes and available ID context: SSA use, cross-function CFG edge, function entry ownership, SSA definition, terminator, malformed opcode payload, type record, overlapping instruction coverage and opcode/result type mismatch.
 - [x] **CI run 41389527526:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed.
 - [x] Add a valid-artifact test with payload and metadata sections; prove every section payload is preserved byte-for-byte and the input buffer is not mutated.
 - [x] **CI run 41389854136:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed.
