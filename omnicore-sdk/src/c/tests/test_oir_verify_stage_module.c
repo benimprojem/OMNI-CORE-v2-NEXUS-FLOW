@@ -449,7 +449,7 @@ int main(int argc, char** argv) {
             assert(output == NULL && output_length == 0u);
             assert_last_diagnostic_code(&diagnostics, expected_codes[variant], expected_contexts[variant]);
             if (variant == 3) assert_last_diagnostic_hint(&diagnostics, "passes were skipped");
-            if (variant == 9) assert_last_diagnostic_hint(&diagnostics, "Dominance and SSA-use passes were skipped");
+            if (variant == 9) assert_last_diagnostic_hint(&diagnostics, "dominance and SSA-use passes were skipped");
             free(input); input = NULL; input_length = 0u;
         }
     }
