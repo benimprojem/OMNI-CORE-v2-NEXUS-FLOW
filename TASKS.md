@@ -370,4 +370,4 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Add boolean EQ/NE support; ordered boolean comparisons fail closed.
 - [x] Feed a signed integer CMP_LT result into a three-block conditional CFG test.
 - [x] Feed an f64 CMP_LT result into a three-block conditional CFG test; assert unordered-flag filtering instructions.
-- [x] **CI run 41376451054:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan passed. Valgrind is still running.
+- [x] **CI run 41376451054:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan and Valgrind passed.
