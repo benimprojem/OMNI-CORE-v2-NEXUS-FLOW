@@ -36,8 +36,8 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | `if / elsif / els` | `AST_IF` condition/then/else | Partial | Verify elsif chain shape and nesting semantics |
 | Conditional action `(cond) ? break : continue;` | No dedicated `AST_CONDITIONAL_CONTROL` | **Missing explicit model** | Add condition + true arm + optional false arm; parser must not confuse with Flow `->` |
 | Labels `label:>`, jump `label?>` | `AST_NEXUS_LABEL`, `AST_NEXUS_JUMP` | Present | Resolve label IDs and validate scope/control-flow |
-| `select` | No dedicated tag | **Missing** | Add select AST and branch/case/default payload |
-| `scan` | No dedicated tag | **Missing** | Add scan AST and pattern/arm model |
+| `select` | `AST_SELECT` + ordered `AST_SELECT_ARM`; literal, binding and constructor patterns | **Implemented in C parser/AST/OIR bridge; CI pending** | Semantic pattern binding/exhaustiveness and lowering remain gated |
+| `scan` | `AST_SCAN` + ordered `AST_SCAN_ARM`; binding and constructor pattern nodes | **Implemented in C parser/AST/OIR bridge; CI pending** | Semantic pattern binding and scan execution/lowering remain gated |
 | Multi-rule engine / ruleset | No dedicated tags (`BARRIER/TRIGGER/ALWAYS/DEFAULT`) | **Missing** | Add ruleset + rule-kind payloads and parser grammar |
 | Rule application | No `AST_APPLY_RULES` | **Missing** | Add explicit apply node and semantic/effect contract |
 | `on` blocks | No `AST_ON` | **Missing** | Add event/trigger block representation and binding fields |
@@ -61,7 +61,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 
 1. **Lambda and anonymous function expression:** no dedicated AST tag/payload currently declared.
 2. **Conditional action:** no explicit condition/true-arm/optional-false-arm node.
-3. **Select and scan:** no AST node/payload.
+3. **Select and scan:** implemented in C AST/parser and AST→OIR bridge; semantic binding/exhaustiveness and lowering remain pending.
 4. **Multi-rule engine:** no Ruleset/Barrier/Trigger/Always/Default node family.
 5. **Rule application and on-block:** no `AST_APPLY_RULES` or `AST_ON`.
 6. **Loop normalization:** AST currently has legacy `loop_type = Infinite/While/For/Foreach`; NEXSUS syntax decision is unified `loop`, so parser and payload contract need alignment.
@@ -114,7 +114,7 @@ The parser source was inspected by grammar entry points and AST construction sit
 | `if / elsif / els` | `parse_if_statement()` recursively parses `elsif` | `AST_IF.else_branch` contains nested `AST_IF` or final else branch | Parser representation exists; semantic/roundtrip chain tests still required |
 | Conditional action `(cond) -> break/continue/...` | `parse_conditional_action()`, gated by `parser_looks_like_conditional_action()` | `AST_IF` with condition and then branch | Explicit separate node is not necessary if this canonical encoding is documented/tested; parser ambiguity tests remain |
 | Unified `loop` forms | `parse_primary()` contains loop construction; `ASTLoop.loop_type` currently 0..3 | `AST_LOOP` fields init/condition/increment/collection/variable/body | Partial: range/foreach/while/for/infinite parser paths exist, but README's rolling/timed loop form and `unroll` need distinct syntax/metadata audit |
-| `select / scan` | No corresponding parse function or statement branch found in parser entry-point inventory | No AST tag | **Not implemented in C parser/model** |
+| `select / scan` | Contextual `parse_select_scan()` at statement position; `parse_pattern()` handles literal, binding and constructor patterns | `AST_SELECT`, `AST_SELECT_ARM`, `AST_SCAN`, `AST_SCAN_ARM`, `AST_PATTERN_BINDING`, `AST_PATTERN_CONSTRUCTOR` | **Parser, AST codec and OIR frontend bridge implemented; CI pending** |
 | Multi-rule `rules ...` | No rules parser or statement branch found | No AST tag | **Not implemented in C parser/model** |
 | `apply rules(...)` | No apply-rules grammar branch found | No AST tag | **Not implemented in C parser/model** |
 | `on Rule.Event { ... }` | No on-block grammar branch found | No AST tag | **Not implemented in C parser/model** |
@@ -125,7 +125,7 @@ The parser source was inspected by grammar entry points and AST construction sit
 
 ### Important structural finding
 
-`ASTNodeType` currently lacks dedicated kinds for select, scan, ruleset/rule, apply-rules, on-block, lambda/function-expression and relocate. These are README language constructs, not speculative additions. Their grammar and semantic design must be completed before Codegen. Conditional action, in contrast, already has a parser path and can remain an `AST_IF` canonical form unless the language contract requires preserving source form.
+`ASTNodeType` now includes dedicated select/scan and pattern kinds. It still lacks ruleset/rule, apply-rules, on-block, lambda/function-expression and relocate nodes. These are README language constructs, not speculative additions. Their grammar and semantic design must be completed before Codegen. Conditional action, in contrast, already has a parser path and can remain an `AST_IF` canonical form unless the language contract requires preserving source form.
 
 ### Scope boundary
 
@@ -232,7 +232,7 @@ Affected files and responsibilities:
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`: reader must allocate the correct AST payload size, restore owned strings/scalars, and attach every child field with ownership checks.
 - Existing AST binary codec in `parser/ast.c` remains a separate compatibility surface; OIR bridge support does not replace its print/destroy/serialize/deserialize integration.
 
-Current bridge audit: select, scan and pattern node cases are absent from all three OIR frontend bridge files. The implementation gate therefore includes **eight** coordinated surfaces: AST allocation, print, destroy, binary serialize, binary deserialize, OIR child index, OIR writer and OIR reader, plus parser grammar and regression tests. This is why parser construction remains disabled until the full patch is ready.
+Implementation status (2 Kasım 2026): the six node kinds are appended to `ast.h`; all five `ast.c` lifecycle/codec switches and contextual parser grammar are updated; OIR IDs 81–86, child index, writer, reader and field schema are registered. Parser/AST binary tests and OIR payload round-trip tests are added. Full CI has not yet been run, so release readiness remains pending.
 
 Recommended canonical field order for the proposed nodes (field IDs are OIR schema IDs, not C struct offsets):
 
@@ -248,7 +248,7 @@ Recommended canonical field order for the proposed nodes (field IDs are OIR sche
 The bridge must preserve arm order and pattern-binding order. The default flag is scalar metadata, not a child reference. These field assignments remain provisional until checked against the OIR node-kind and field-kind registries in `oir_ast_map.h` / `oir_ast_map.c`.
 
 
-**OIR field-model correction from registry inspection:** `oir_ast_map.h` currently fixes the registry at 80 stable OIR node kinds, and `oir_ast_map.c` maps AST tags to explicit stable IDs (it does not cast enum ordinals). The child-field counts in `oir_ast_frontend_index.c` count child references only; scalar flags and strings are encoded by the writer's scalar/string field records and must not be assigned child-field IDs. Therefore the provisional table above is refined as follows:
+**OIR field-model correction from registry inspection:** `oir_ast_map.h` now fixes the registry at 86 stable OIR node kinds, and `oir_ast_map.c` maps AST tags to explicit stable IDs (it does not cast enum ordinals). The child-field counts in `oir_ast_frontend_index.c` count child references only; scalar flags and strings are encoded by the writer's scalar/string field records and must not be assigned child-field IDs. Therefore the provisional table above is refined as follows:
 
 | Node | Child field 1 | Child field 2 | Scalar/string metadata |
 |---|---|---|---|
@@ -260,3 +260,8 @@ The bridge must preserve arm order and pattern-binding order. The default flag i
 | `AST_PATTERN_CONSTRUCTOR` | ordered bindings | — | constructor name string |
 
 The six new OIR node kinds must be appended to the stable registry with IDs 81–86 (in the agreed canonical order) and `OIR_AST_NODE_KIND_COUNT` increased accordingly. Existing IDs 1–80 must remain byte-for-byte stable. This is a format-level schema change and requires updating the published OIR AST registry and its compatibility/round-trip tests in the same implementation series.
+
+
+### Implementation note — 2 Kasım 2026
+
+`select` and `scan` are now implemented in the C frontend and OIR AST bridge. Recognition is contextual (identifier followed by `(` at statement position); `Range(s,e)` is represented by a constructor-pattern node, not a function call. Default arms have an explicit boolean flag. The C parser tests cover successful AST construction, duplicate defaults, empty constructor patterns and binary AST round-trip; the OIR round-trip test covers the new AST payloads. Semantic arm-local symbol introduction, type-aware exhaustiveness, and lowering are still separate pre-Codegen tasks. Cross-platform CI is pending.
