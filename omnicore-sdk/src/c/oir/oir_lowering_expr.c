@@ -419,6 +419,110 @@ static OirStatus lower_expr(ExprState* st, uint32_t id, uint32_t* out, uint32_t 
     return OIR_STATUS_INVALID_SECTION;
 }
 
+static OirStatus lower_return_current_block(ExprState* st, uint32_t branch_node_id) {
+    OirAstNodeRecord branch, ret;
+    uint32_t ret_id = branch_node_id, expr_id = 0u, value_id = 0u;
+    uint32_t ret_iid = 0u, ret_first = 0u;
+    uint16_t ret_tok = 0u;
+    OirStatus status;
+    if ((status = node(&st->artifact->ast, branch_node_id, &branch)) != OIR_STATUS_OK)
+        return status;
+    if (branch.node_kind_id == N_BLOCK) {
+        if (branch.next_node_id ||
+            (status = ref(&st->artifact->ast, branch_node_id, 1u, &ret_id)) != OIR_STATUS_OK ||
+            !ret_id ||
+            (status = node(&st->artifact->ast, ret_id, &ret)) != OIR_STATUS_OK ||
+            ret.node_kind_id != N_RETURN || ret.next_node_id)
+            return OIR_STATUS_INVALID_SECTION;
+    } else if (branch.node_kind_id != N_RETURN || branch.next_node_id) {
+        return OIR_STATUS_INVALID_SECTION;
+    } else {
+        ret = branch;
+    }
+    if ((status = token(&st->artifact->ast, ret_id, 1u, &ret_tok)) != OIR_STATUS_OK ||
+        ret_tok != T_RET ||
+        (status = ref(&st->artifact->ast, ret_id, 2u, &expr_id)) != OIR_STATUS_OK ||
+        !expr_id ||
+        (status = lower_expr(st, expr_id, &value_id, 0u)) != OIR_STATUS_OK)
+        return OIR_STATUS_INVALID_SECTION;
+    if (value_id == 0u || value_id > st->values ||
+        st->ws->values[value_id - 1u].type_id != 1u)
+        return OIR_STATUS_INVALID_SECTION;
+    if ((status = alloc_inst(st, 1u, &ret_iid, &ret_first)) != OIR_STATUS_OK)
+        return status;
+    memset(&st->ws->instructions[ret_iid - 1u], 0, sizeof(st->ws->instructions[0]));
+    st->ws->instructions[ret_iid - 1u].id = ret_iid;
+    st->ws->instructions[ret_iid - 1u].block_id = st->current_block_id;
+    st->ws->instructions[ret_iid - 1u].opcode_id = OIR_OP_RETURN;
+    st->ws->instructions[ret_iid - 1u].first_operand = ret_first;
+    st->ws->instructions[ret_iid - 1u].operand_count = 1u;
+    st->ws->operands[ret_first].kind = OIR_OPERAND_VALUE;
+    st->ws->operands[ret_first].reference_id = value_id;
+    st->ws->operands[ret_first].immediate = 0u;
+    return finish_block(st, st->current_block_id);
+}
+
+static OirStatus lower_branch(ExprState* st, uint32_t branch_node_id, uint32_t block_id);
+
+static OirStatus lower_if_tree(ExprState* st, uint32_t if_node_id) {
+    OirAstNodeRecord if_node;
+    uint32_t condition_id = 0u, then_id = 0u, else_id = 0u, condition_value = 0u;
+    uint32_t iid = 0u, first = 0u;
+    OirStatus status;
+    if ((status = node(&st->artifact->ast, if_node_id, &if_node)) != OIR_STATUS_OK ||
+        if_node.node_kind_id != N_IF || if_node.next_node_id ||
+        (status = ref(&st->artifact->ast, if_node_id, 1u, &condition_id)) != OIR_STATUS_OK ||
+        !condition_id ||
+        (status = ref(&st->artifact->ast, if_node_id, 2u, &then_id)) != OIR_STATUS_OK ||
+        !then_id ||
+        (status = ref(&st->artifact->ast, if_node_id, 3u, &else_id)) != OIR_STATUS_OK ||
+        !else_id)
+        return OIR_STATUS_INVALID_SECTION;
+    if (st->block_count > st->ws->block_capacity - 2u)
+        return OIR_STATUS_BUFFER_TOO_SMALL;
+    then_id = ++st->block_count;
+    else_id = ++st->block_count;
+
+    if ((status = lower_expr(st, condition_id, &condition_value, 0u)) != OIR_STATUS_OK)
+        return status;
+    if (condition_value == 0u || condition_value > st->values ||
+        st->ws->values[condition_value - 1u].type_id != st->bool_type_id ||
+        st->bool_type_id == 0u)
+        return OIR_STATUS_INVALID_SECTION;
+
+    if ((status = alloc_inst(st, 3u, &iid, &first)) != OIR_STATUS_OK)
+        return status;
+    memset(&st->ws->instructions[iid - 1u], 0, sizeof(st->ws->instructions[0]));
+    st->ws->instructions[iid - 1u].id = iid;
+    st->ws->instructions[iid - 1u].block_id = st->current_block_id;
+    st->ws->instructions[iid - 1u].opcode_id = OIR_OP_COND_BRANCH;
+    st->ws->instructions[iid - 1u].first_operand = first;
+    st->ws->instructions[iid - 1u].operand_count = 3u;
+    st->ws->operands[first].kind = OIR_OPERAND_VALUE;
+    st->ws->operands[first].reference_id = condition_value;
+    st->ws->operands[first + 1u].kind = OIR_OPERAND_BLOCK;
+    st->ws->operands[first + 1u].reference_id = then_id;
+    st->ws->operands[first + 2u].kind = OIR_OPERAND_BLOCK;
+    st->ws->operands[first + 2u].reference_id = else_id;
+    if ((status = finish_block(st, st->current_block_id)) != OIR_STATUS_OK)
+        return status;
+
+    if ((status = lower_branch(st, then_id, then_id)) != OIR_STATUS_OK)
+        return status;
+    return lower_branch(st, else_id, else_id);
+}
+
+static OirStatus lower_branch(ExprState* st, uint32_t branch_node_id, uint32_t block_id) {
+    OirAstNodeRecord branch;
+    OirStatus status;
+    if ((status = begin_block(st, block_id)) != OIR_STATUS_OK ||
+        (status = node(&st->artifact->ast, branch_node_id, &branch)) != OIR_STATUS_OK)
+        return status;
+    if (branch.node_kind_id == N_IF)
+        return lower_if_tree(st, branch_node_id);
+    return lower_return_current_block(st, branch_node_id);
+}
+
 OirStatus oir_lower_semantic_ast_return(
     const OirSemanticAstArtifactView* a, OirLoweringWorkspace* w,
     uint8_t* output, size_t capacity, size_t* written) {
