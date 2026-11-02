@@ -744,7 +744,7 @@ Yeni stage'in giriş doğrulamaları:
 - Tekil PAYLOAD section ve `oir_module_open()` yapısal kontrolü
 - İlk backend için tek function/basic block, tanımlı SSA değerleri, instruction sırası ve operand türleri
 
-İlk backend kapsamı bilinçli olarak sınırlıdır: x86-64 NASM BareMetal hedefi, tek fonksiyon/tek basic block, `i32` / `i64` / `f32` / `f64` / `bool`, sabitler, integer ADD/SUB/MUL/DIV/REM/NEG, SSE scalar float ADD/SUB/MUL/DIV/NEG ve RETURN. F32 sabitleri OIR_MODULE'de binary64 olarak taşındığı için backend `CVTSD2SS` ile f32'ye yuvarlar. BareMetal64 profilinde scalar dönüş register'ı RAX olduğundan f32/f64 dönüşleri IEEE bit deseni olarak RAX'e aktarılır. Branch, multi-block CFG, multi-function, call, memory, cast, float REM ve desteklenmeyen opcode'lar reddedilir. Bu sınırlar dilin genel sınırı değil, ilk backend dilimidir.
+İlk backend kapsamı bilinçli olarak sınırlıdır: x86-64 NASM BareMetal hedefi, tek fonksiyon ve çoklu basic block CFG; `i32` / `i64` / `f32` / `f64` / `bool`; sabitler; integer ADD/SUB/MUL/DIV/REM/NEG; SSE scalar float ADD/SUB/MUL/DIV/NEG; BRANCH, boolean COND_BRANCH, UNREACHABLE ve her blokta scalar RETURN. F32 sabitleri OIR_MODULE'de binary64 olarak taşındığı için backend `CVTSD2SS` ile f32'ye yuvarlar. BareMetal64 profilinde scalar dönüş register'ı RAX olduğundan f32/f64 dönüşleri IEEE bit deseni olarak RAX'e aktarılır. CMP opcode'ları, multi-function, call, memory, cast, float REM ve desteklenmeyen opcode'lar henüz reddedilir. Bu sınırlar dilin genel sınırı değil, ilk backend dilimidir.
 
 OIR_ASSEMBLY payload'u NUL terminatörsüz ASCII NASM metnidir; object file veya çalıştırılabilir dosya değildir. Host artifact'ı `<basename>.assembly.oir`, metni `<basename>.stage.s` olarak kaydeder. Mevcut `codegen_run` modülü ise eski AST köprüsünden çalışmaya devam eder ve `<basename>.s` üretir. Yeni ve eski çıktılar henüz parity açısından eşdeğer kabul edilmemiştir.
 
@@ -787,3 +787,12 @@ Doğrudan stage testi geçerli bir OIR_MODULE'ün doğrulanıp yeniden yayımlan
 
 
 **OIR Verifier CI — run 41375777590:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan and Valgrind passed. Direct verifier tests cover valid single-block OIR, same-block use-before-definition rejection, valid cross-block dominance and rejection of branch-local values used at a join where neither definition dominates.
+
+
+## 2 Kasım 2026 — Multi-block CFG Codegen
+
+Yeni Codegen DLL'i artık tek fonksiyon içinde birden fazla basic block işleyebilir. Her block için `.Lbb_<id>` etiketi üretir, function girişinde entry block'a dallanır ve `BRANCH`, boolean `COND_BRANCH` ile `UNREACHABLE` terminator'larını NASM komutlarına çevirir. Scalar RETURN herhangi bir block'un son terminator'ı olabilir. CFG sahipliği, terminator sırası ve SSA dominance doğrulaması bağımsız OIR Verifier'ın sorumluluğunda kalır; Codegen yalnızca kendi backend alt kümesini kontrol eder.
+
+Doğrudan DLL testi üç bloklu conditional CFG artifact'ını Codegen'e verir ve iki hedef etiketi, `test eax,eax`, `jne` ve `jmp` çıktısını doğrular.
+
+**CI run 41376095890:** Windows, Ubuntu ve macOS build/test başarılı; Ubuntu CTest **59/59**; ASan/UBSan ve Valgrind başarılı.
