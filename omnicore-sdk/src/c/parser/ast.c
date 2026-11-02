@@ -266,6 +266,12 @@ static void ast_print_recursive(ASTNode* node, int level) {
                 ast_print_recursive(tuple->elements, level + 1);
                 break;
             }
+            case AST_ARRAY_LITERAL: {
+                ASTArrayLiteral* array = (ASTArrayLiteral*)node;
+                printf("ARRAY_LITERAL\\n");
+                ast_print_recursive(array->elements, level + 1);
+                break;
+            }
             case AST_SELECT: { ASTSelect* n=(ASTSelect*)node; printf("SELECT\n"); ast_print_recursive(n->selector,level+1); ast_print_recursive(n->arms,level+1); break; }
             case AST_SELECT_ARM: { ASTSelectArm* n=(ASTSelectArm*)node; printf("SELECT_ARM%s\n",n->is_default?" DEFAULT":""); ast_print_recursive(n->pattern,level+1); ast_print_recursive(n->body,level+1); break; }
             case AST_SCAN: { ASTScan* n=(ASTScan*)node; printf("SCAN\n"); ast_print_recursive(n->subject,level+1); ast_print_recursive(n->arms,level+1); break; }
