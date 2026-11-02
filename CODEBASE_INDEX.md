@@ -415,3 +415,7 @@ Changed production files and responsibilities:
 - `omnicore-sdk/src/c/tests/test_oir_ast_map.c`, `test_oir_ast_field_schema.c`: 86-node registry and field schema coverage.
 
 The implementation is committed to `refactor/c-core-roadmap`; full CI has not yet been confirmed. Semantic pattern scopes, exhaustiveness and lowering are not claimed complete. The repository-wide C source count remains unchanged; this snapshot is an update to existing files.
+
+- `omnicore-sdk/src/c/oir/oir_ast_node_table.h`: `OIR_AST_NODE_KIND_MAX` is 86; IDs 1–80 remain stable and new pattern/select/scan IDs are 81–86.
+- Fixture storage in `test_oir_ast_frontend_writer.c` and `test_oir_ast_frontend_reader.c` includes the new AST payload layouts.
+- **Validation:** CI run `41451812569` passed Windows, Ubuntu and macOS build/test, Ubuntu ASan/UBSan and Valgrind.
