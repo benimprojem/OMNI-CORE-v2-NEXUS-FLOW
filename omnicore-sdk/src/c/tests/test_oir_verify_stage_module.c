@@ -117,10 +117,10 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     OirSectionInput section;
     uint8_t module_bytes[4096];
     uint8_t* artifact;
-    uint32_t block_count = variant == 5 ? 1u : (diamond ? 4u : 2u);
-    uint32_t value_count = variant == 5 ? 2u : (diamond ? 4u : 2u);
-    uint32_t instruction_count = variant == 5 ? 2u : (diamond ? 8u : 4u);
-    uint32_t operand_count = variant == 5 ? 2u : (diamond ? 11u : 5u);
+    uint32_t block_count = (variant == 5 || variant == 13) ? 1u : (diamond ? 4u : 2u);
+    uint32_t value_count = variant == 13 ? 1u : (variant == 5 ? 2u : (diamond ? 4u : 2u));
+    uint32_t instruction_count = variant == 13 ? 3u : (variant == 5 ? 2u : (diamond ? 8u : 4u));
+    uint32_t operand_count = variant == 13 ? 3u : (variant == 5 ? 2u : (diamond ? 11u : 5u));
     size_t module_length = 0u, artifact_capacity;
 
     memset(types, 0, sizeof(types));
@@ -248,6 +248,27 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     if (variant == 10) {
         /* Return value 1 instead of ADD result 2; value 2 is now unused. */
         operands[4].reference_id = 1u;
+    }
+    if (variant == 13) {
+        /* Two instructions claim the same SSA result; only instruction 1 defines it. */
+        blocks[0].id = 1u; blocks[0].function_id = 1u;
+        blocks[0].first_instruction = 0u; blocks[0].instruction_count = 3u;
+        values[0].id = 1u; values[0].type_id = 1u;
+        values[0].defining_instruction_id = 1u;
+        instructions[0].id = 1u; instructions[0].block_id = 1u;
+        instructions[0].opcode_id = OIR_OP_CONST_INT;
+        instructions[0].result_value_id = 1u;
+        instructions[0].first_operand = 0u; instructions[0].operand_count = 1u;
+        instructions[1].id = 2u; instructions[1].block_id = 1u;
+        instructions[1].opcode_id = OIR_OP_CONST_INT;
+        instructions[1].result_value_id = 1u;
+        instructions[1].first_operand = 1u; instructions[1].operand_count = 1u;
+        instructions[2].id = 3u; instructions[2].block_id = 1u;
+        instructions[2].opcode_id = OIR_OP_RETURN;
+        instructions[2].first_operand = 2u; instructions[2].operand_count = 1u;
+        operands[0].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[0].immediate = 7u;
+        operands[1].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[1].immediate = 9u;
+        operands[2].kind = OIR_OPERAND_VALUE; operands[2].reference_id = 1u;
     }
 
     memset(&input, 0, sizeof(input));
@@ -535,6 +556,29 @@ int main(int argc, char** argv) {
         assert(strstr(second_ssa_error.message, "value=2") != NULL);
         assert(first_ssa_error.hint != NULL &&
             strstr(first_ssa_error.hint, "Opcode, CFG") != NULL);
+        free(input); input = NULL; input_length = 0u;
+    }
+
+    /* Instruction result links are checked independently after the SSA table. */
+    {
+        OccModuleArtifactInputV1 stage_input;
+        OccDiagnosticView duplicate_result;
+        size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
+        assert(build_cfg_module_artifact(&input, &input_length, 13));
+        memset(&stage_input, 0, sizeof(stage_input));
+        stage_input.bytes = input; stage_input.length = input_length;
+        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 515u,
+            &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
+            OCC_MODULE_LOADER_INVOKE_FAILED);
+        assert(output == NULL && output_length == 0u);
+        assert(occ_diagnostics_count(&diagnostics) == diagnostics_before + 1u);
+        assert(occ_diagnostics_get(&diagnostics, diagnostics_before,
+            &duplicate_result));
+        assert(duplicate_result.record->code == 8614u);
+        assert(strstr(duplicate_result.message, "instruction=2") != NULL);
+        assert(strstr(duplicate_result.message, "value=1") != NULL);
+        assert(duplicate_result.hint != NULL &&
+            strstr(duplicate_result.hint, "Opcode, CFG") != NULL);
         free(input); input = NULL; input_length = 0u;
     }
 
