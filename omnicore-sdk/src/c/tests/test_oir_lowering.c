@@ -13,6 +13,7 @@
 #include "oir_ast_graph.h"
 
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 
 static void put16(uint8_t* p, uint16_t v) { p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8); }
