@@ -1692,13 +1692,14 @@ static int parse_array_type_suffix(Parser* p, ASTVarDecl* decl) {
                 return 0;
             }
         }
-        consume(p, TOKEN_RBRACKET, ERR_PARSER_UNEXPECTED_TOKEN,
-            "Expected ']' after array dimension.");
-        if (p->previous.type != TOKEN_RBRACKET) {
+        if (p->current.type != TOKEN_RBRACKET) {
+            error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Expected ']' after array dimension.");
             ast_destroy((ASTNode*)dimension);
             ast_destroy((ASTNode*)array_type);
             return 0;
         }
+        advance(p);
         if (!array_type->dimensions) array_type->dimensions = (ASTNode*)dimension;
         else tail->next = (ASTNode*)dimension;
         tail = (ASTNode*)dimension;
