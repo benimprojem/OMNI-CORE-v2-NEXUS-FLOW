@@ -1213,7 +1213,6 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
         }
         case AST_BINARY_EXPR:
         case AST_ASSIGNMENT:
-        case AST_INDEX_ACCESS:
         case AST_NEXUS_FLOW:
         case AST_NEXUS_PIPE: {
             ASTBinaryExpr* b = (ASTBinaryExpr*)node;
