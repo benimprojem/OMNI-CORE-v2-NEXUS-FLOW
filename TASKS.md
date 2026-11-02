@@ -400,7 +400,8 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Extract `validate_ssa_definitions()` as the second pass; validate value/definition cross-references and build definition lookup tables.
 - [x] Extract `validate_instructions()` as the third pass; reuse opcode-shape validation, enforce implemented opcode/type constraints and collect CFG predecessor edges.
 - [x] Extract `validate_terminators()` as the fourth pass; require one final terminator per block and reject instructions after it.
-- [ ] Extract dominance/reachability and SSA-use validation as subsequent dependency-ordered passes.
+- [x] Extract `validate_dominance()` as the fifth pass; compute per-function reachability and iterative dominator sets.
+- [x] Extract `validate_ssa_uses()` as the sixth pass; enforce same-block definition order and cross-block dominance for every SSA value use.
 - [ ] Add stable, specific diagnostic codes for module limits, type records, block/function ownership, instruction coverage, value definitions, opcode shape/type, CFG edges, terminators, dominance and SSA uses.
 - [ ] Include function/block/instruction/value identifiers in diagnostic context where available; keep the shared OCC ABI unchanged.
 - [ ] Keep prerequisite failures from triggering unsafe dependent passes; report skipped passes distinctly from successful passes.
