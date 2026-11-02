@@ -275,3 +275,14 @@ Optimization must preserve observable program behavior. The OIR Verifier runs af
 ## 12. Evolution rule
 
 When OIR_MODULE adds function signatures, block parameters, memory/effect metadata, conversions or source maps, this specification and the verifier tests must be extended before those features are accepted by downstream Codegen. Unknown executable semantics must fail closed.
+
+
+## 13. Bounded record-local type contracts (NEG/CMP/CAST)
+
+The verifier's shared `validate_instruction_type_contract()` helper also covers:
+
+- `NEG`: numeric result and one value operand with exactly the result type.
+- `CMP_EQ/NE/LT/LE/GT/GE`: boolean result and two value operands with matching operand types.
+- `CAST`: non-function result type, value source operand, and a type operand that resolves to the result type (also non-function).
+
+These checks are safe for bounded aggregation after the type, SSA-value and instruction-result tables pass. The preflight and full instruction pass call the same helper; they must not maintain separate opcode type rules. Up to 32 local errors use 8616; omitted records use 8625. CFG, terminator, dominance and SSA-use passes remain skipped when this preflight fails. LOAD/STORE and CALL semantic contracts remain deferred until their memory/signature prerequisites are modeled.
