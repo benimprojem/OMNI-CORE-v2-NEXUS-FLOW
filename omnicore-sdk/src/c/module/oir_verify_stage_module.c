@@ -85,7 +85,7 @@ static int validate_module(const OirModuleView* m) {
     queue = (uint32_t*)calloc((size_t)m->block_count + 1u, sizeof(uint32_t));
     pred = (uint64_t*)calloc(matrix_words, sizeof(uint64_t));
     dom = (uint64_t*)calloc(matrix_words, sizeof(uint64_t));
-    if (!block_function || !instruction_block || !definition_instruction ||
+    if (!block_function || !definition_instruction ||
         !definition_block || !covered || !reachable || !queue || !pred || !dom) goto done;
 
     /* Primitive type widths must match the published OIR type map. */
