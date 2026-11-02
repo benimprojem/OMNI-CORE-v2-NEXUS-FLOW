@@ -402,3 +402,14 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [ ] Add tests asserting exact diagnostic codes/context for representative malformed OIR fixtures.
 - [ ] Add a valid-artifact test proving the verifier preserves every input section payload byte-for-byte and does not mutate the input buffer.
 - [ ] When Optimizer is integrated, allow only registered OIR-producing stage IDs (Lowering and Optimizer) as verifier input producers; reject arbitrary producer IDs.
+
+
+## Codebase index and duplicate-prevention workflow — 2 Kasım 2026
+
+- [x] Add `CODEBASE_INDEX.md` with the complete snapshot list of all 126 C/header files under `omnicore-sdk/src/c/`.
+- [x] Add a first-pass verified function catalogue for core compiler, OIR, stage-module, verifier, semantic and target files.
+- [x] Record module reuse hints and Verifier-specific existing implementations/tests to prevent duplicate implementations.
+- [ ] Complete function-level indexing for every remaining C implementation file.
+- [ ] Add public header/API declaration indexing.
+- [ ] Update `CODEBASE_INDEX.md` and its snapshot commit after every source-file/function addition, removal or rename.
+- [ ] Before every implementation task, inspect this index and the actual source/callers; prefer extending existing functions over creating duplicates.
