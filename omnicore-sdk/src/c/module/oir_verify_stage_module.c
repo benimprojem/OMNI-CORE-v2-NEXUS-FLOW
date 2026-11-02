@@ -153,6 +153,123 @@ static int validate_ssa_definitions(const OirModuleView* m,
     return 1;
 }
 
+/* Pass 3: validate opcode shape/types and collect CFG predecessor edges. */
+static int validate_instructions(const OirModuleView* m,
+    const uint32_t* block_function, uint64_t* pred, size_t words) {
+    uint32_t i, j;
+
+    /* Validate opcode-specific types and collect CFG predecessor edges. */
+    for (i = 0u; i < m->instruction_count; ++i) {
+        OirModuleInstruction ins;
+        OirModuleValue a, b, result;
+        OirModuleType at, bt, rt;
+        uint32_t target_a, target_b;
+        const OirOpcodeDescriptor* desc;
+        if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK ||
+            ins.block_id == 0u || ins.block_id > m->block_count) return 0;
+        uint32_t operand_kinds[255];
+        desc = oir_opcode_lookup(ins.opcode_id);
+        if (!desc || ins.operand_count > 255u) return 0;
+        for (j = 0u; j < ins.operand_count; ++j) {
+            OirModuleOperand operand;
+            if (!get_operand(m, &ins, j, &operand)) return 0;
+            operand_kinds[j] = operand.kind;
+        }
+        if (!oir_opcode_validate_shape(ins.opcode_id, operand_kinds,
+            ins.operand_count, ins.result_value_id != 0u)) return 0;
+        if (ins.result_value_id && (!get_value(m, ins.result_value_id, &result) ||
+            !get_type(m, result.type_id, &rt))) return 0;
+        if (!ins.result_value_id) memset(&rt, 0, sizeof(rt));
+
+        switch (ins.opcode_id) {
+            case OIR_OP_CONST_INT:
+                if (!ins.result_value_id || ins.operand_count != 1u ||
+                    rt.kind != OIR_MODULE_TYPE_INTEGER) return 0;
+                break;
+            case OIR_OP_CONST_FLOAT:
+                if (!ins.result_value_id || ins.operand_count != 1u ||
+                    rt.kind != OIR_MODULE_TYPE_FLOAT) return 0;
+                break;
+            case OIR_OP_CONST_BOOL: {
+                OirModuleOperand immediate;
+                if (!ins.result_value_id || ins.operand_count != 1u ||
+                    rt.kind != OIR_MODULE_TYPE_BOOLEAN ||
+                    !get_operand(m, &ins, 0u, &immediate) ||
+                    immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE ||
+                    immediate.immediate > 1u) return 0;
+                break;
+            }
+            case OIR_OP_ADD: case OIR_OP_SUB: case OIR_OP_MUL: case OIR_OP_DIV:
+            case OIR_OP_REM:
+                if (!ins.result_value_id || !type_is_numeric(&rt) ||
+                    !get_value_operand(m, &ins, 0u, &a) ||
+                    !get_value_operand(m, &ins, 1u, &b) ||
+                    a.type_id != result.type_id || b.type_id != result.type_id ||
+                    (ins.opcode_id == OIR_OP_REM && rt.kind != OIR_MODULE_TYPE_INTEGER)) return 0;
+                break;
+            case OIR_OP_NEG:
+                if (!ins.result_value_id || !type_is_numeric(&rt) ||
+                    !get_value_operand(m, &ins, 0u, &a) ||
+                    a.type_id != result.type_id) return 0;
+                break;
+            case OIR_OP_CMP_EQ: case OIR_OP_CMP_NE: case OIR_OP_CMP_LT:
+            case OIR_OP_CMP_LE: case OIR_OP_CMP_GT: case OIR_OP_CMP_GE:
+                if (!ins.result_value_id || rt.kind != OIR_MODULE_TYPE_BOOLEAN ||
+                    !get_value_operand(m, &ins, 0u, &a) ||
+                    !get_value_operand(m, &ins, 1u, &b) || a.type_id != b.type_id) return 0;
+                break;
+            case OIR_OP_CAST: {
+                OirModuleOperand target_type;
+                if (!ins.result_value_id || !get_value_operand(m, &ins, 0u, &a) ||
+                    !get_operand(m, &ins, 1u, &target_type) ||
+                    target_type.kind != OIR_OPERAND_TYPE ||
+                    target_type.reference_id != result.type_id) return 0;
+                break;
+            }
+            case OIR_OP_CALL: {
+                OirModuleOperand callee;
+                if (!get_operand(m, &ins, 0u, &callee) ||
+                    callee.kind != OIR_OPERAND_FUNCTION || callee.reference_id == 0u ||
+                    callee.reference_id > m->function_count) return 0;
+                break;
+            }
+            case OIR_OP_LOAD:
+                if (!ins.result_value_id || !get_value_operand(m, &ins, 0u, &a)) return 0;
+                break;
+            case OIR_OP_STORE:
+                /* Pointer/value type compatibility is deferred until the
+                   memory and pointer type model is part of the OIR schema. */
+                if (ins.result_value_id || !get_value_operand(m, &ins, 0u, &a) ||
+                    !get_value_operand(m, &ins, 1u, &b)) return 0;
+                break;
+            case OIR_OP_BRANCH:
+                if (ins.result_value_id || !get_block_operand(m, &ins, 0u, &target_a) ||
+                    block_function[target_a] != block_function[ins.block_id]) return 0;
+                bit_set(pred + (size_t)target_a * words, ins.block_id);
+                break;
+            case OIR_OP_COND_BRANCH:
+                if (ins.result_value_id || !get_value_operand(m, &ins, 0u, &a) ||
+                    !get_type(m, a.type_id, &at) || at.kind != OIR_MODULE_TYPE_BOOLEAN ||
+                    !get_block_operand(m, &ins, 1u, &target_a) ||
+                    !get_block_operand(m, &ins, 2u, &target_b) ||
+                    block_function[target_a] != block_function[ins.block_id] ||
+                    block_function[target_b] != block_function[ins.block_id]) return 0;
+                bit_set(pred + (size_t)target_a * words, ins.block_id);
+                bit_set(pred + (size_t)target_b * words, ins.block_id);
+                break;
+            case OIR_OP_RETURN:
+            case OIR_OP_UNREACHABLE:
+                if (ins.result_value_id) return 0;
+                break;
+            default:
+                return 0;
+        }
+        (void)bt;
+    }
+
+    return 1;
+}
+
 static int validate_module(const OirModuleView* m) {
     uint32_t *block_function = NULL;
     uint32_t *definition_instruction = NULL, *definition_block = NULL;
@@ -190,114 +307,7 @@ static int validate_module(const OirModuleView* m) {
     if (!validate_ssa_definitions(m, definition_instruction, definition_block))
         goto done;
 
-    /* Validate opcode-specific types and collect CFG predecessor edges. */
-    for (i = 0u; i < m->instruction_count; ++i) {
-        OirModuleInstruction ins;
-        OirModuleValue a, b, result;
-        OirModuleType at, bt, rt;
-        uint32_t target_a, target_b;
-        const OirOpcodeDescriptor* desc;
-        if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK ||
-            ins.block_id == 0u || ins.block_id > m->block_count) goto done;
-        uint32_t operand_kinds[255];
-        desc = oir_opcode_lookup(ins.opcode_id);
-        if (!desc || ins.operand_count > 255u) goto done;
-        for (j = 0u; j < ins.operand_count; ++j) {
-            OirModuleOperand operand;
-            if (!get_operand(m, &ins, j, &operand)) goto done;
-            operand_kinds[j] = operand.kind;
-        }
-        if (!oir_opcode_validate_shape(ins.opcode_id, operand_kinds,
-            ins.operand_count, ins.result_value_id != 0u)) goto done;
-        if (ins.result_value_id && (!get_value(m, ins.result_value_id, &result) ||
-            !get_type(m, result.type_id, &rt))) goto done;
-        if (!ins.result_value_id) memset(&rt, 0, sizeof(rt));
-
-        switch (ins.opcode_id) {
-            case OIR_OP_CONST_INT:
-                if (!ins.result_value_id || ins.operand_count != 1u ||
-                    rt.kind != OIR_MODULE_TYPE_INTEGER) goto done;
-                break;
-            case OIR_OP_CONST_FLOAT:
-                if (!ins.result_value_id || ins.operand_count != 1u ||
-                    rt.kind != OIR_MODULE_TYPE_FLOAT) goto done;
-                break;
-            case OIR_OP_CONST_BOOL: {
-                OirModuleOperand immediate;
-                if (!ins.result_value_id || ins.operand_count != 1u ||
-                    rt.kind != OIR_MODULE_TYPE_BOOLEAN ||
-                    !get_operand(m, &ins, 0u, &immediate) ||
-                    immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE ||
-                    immediate.immediate > 1u) goto done;
-                break;
-            }
-            case OIR_OP_ADD: case OIR_OP_SUB: case OIR_OP_MUL: case OIR_OP_DIV:
-            case OIR_OP_REM:
-                if (!ins.result_value_id || !type_is_numeric(&rt) ||
-                    !get_value_operand(m, &ins, 0u, &a) ||
-                    !get_value_operand(m, &ins, 1u, &b) ||
-                    a.type_id != result.type_id || b.type_id != result.type_id ||
-                    (ins.opcode_id == OIR_OP_REM && rt.kind != OIR_MODULE_TYPE_INTEGER)) goto done;
-                break;
-            case OIR_OP_NEG:
-                if (!ins.result_value_id || !type_is_numeric(&rt) ||
-                    !get_value_operand(m, &ins, 0u, &a) ||
-                    a.type_id != result.type_id) goto done;
-                break;
-            case OIR_OP_CMP_EQ: case OIR_OP_CMP_NE: case OIR_OP_CMP_LT:
-            case OIR_OP_CMP_LE: case OIR_OP_CMP_GT: case OIR_OP_CMP_GE:
-                if (!ins.result_value_id || rt.kind != OIR_MODULE_TYPE_BOOLEAN ||
-                    !get_value_operand(m, &ins, 0u, &a) ||
-                    !get_value_operand(m, &ins, 1u, &b) || a.type_id != b.type_id) goto done;
-                break;
-            case OIR_OP_CAST: {
-                OirModuleOperand target_type;
-                if (!ins.result_value_id || !get_value_operand(m, &ins, 0u, &a) ||
-                    !get_operand(m, &ins, 1u, &target_type) ||
-                    target_type.kind != OIR_OPERAND_TYPE ||
-                    target_type.reference_id != result.type_id) goto done;
-                break;
-            }
-            case OIR_OP_CALL: {
-                OirModuleOperand callee;
-                if (!get_operand(m, &ins, 0u, &callee) ||
-                    callee.kind != OIR_OPERAND_FUNCTION || callee.reference_id == 0u ||
-                    callee.reference_id > m->function_count) goto done;
-                break;
-            }
-            case OIR_OP_LOAD:
-                if (!ins.result_value_id || !get_value_operand(m, &ins, 0u, &a)) goto done;
-                break;
-            case OIR_OP_STORE:
-                /* Pointer/value type compatibility is deferred until the
-                   memory and pointer type model is part of the OIR schema. */
-                if (ins.result_value_id || !get_value_operand(m, &ins, 0u, &a) ||
-                    !get_value_operand(m, &ins, 1u, &b)) goto done;
-                break;
-            case OIR_OP_BRANCH:
-                if (ins.result_value_id || !get_block_operand(m, &ins, 0u, &target_a) ||
-                    block_function[target_a] != block_function[ins.block_id]) goto done;
-                bit_set(pred + (size_t)target_a * words, ins.block_id);
-                break;
-            case OIR_OP_COND_BRANCH:
-                if (ins.result_value_id || !get_value_operand(m, &ins, 0u, &a) ||
-                    !get_type(m, a.type_id, &at) || at.kind != OIR_MODULE_TYPE_BOOLEAN ||
-                    !get_block_operand(m, &ins, 1u, &target_a) ||
-                    !get_block_operand(m, &ins, 2u, &target_b) ||
-                    block_function[target_a] != block_function[ins.block_id] ||
-                    block_function[target_b] != block_function[ins.block_id]) goto done;
-                bit_set(pred + (size_t)target_a * words, ins.block_id);
-                bit_set(pred + (size_t)target_b * words, ins.block_id);
-                break;
-            case OIR_OP_RETURN:
-            case OIR_OP_UNREACHABLE:
-                if (ins.result_value_id) goto done;
-                break;
-            default:
-                goto done;
-        }
-        (void)bt;
-    }
+    if (!validate_instructions(m, block_function, pred, words)) goto done;
 
     /* A block has exactly one final terminator; no instruction may follow it. */
     for (i = 1u; i <= m->block_count; ++i) {
