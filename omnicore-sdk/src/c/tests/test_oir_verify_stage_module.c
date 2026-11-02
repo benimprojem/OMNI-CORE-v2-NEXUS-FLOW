@@ -241,6 +241,10 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         operands[0].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[0].immediate = 7u;
         operands[1].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[1].immediate = 9u;
     }
+    if (variant == 10) {
+        /* Return value 1 instead of ADD result 2; value 2 is now unused. */
+        operands[4].reference_id = 1u;
+    }
 
     memset(&input, 0, sizeof(input));
     input.types = types; input.type_count = 3u;
@@ -282,13 +286,6 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
             (size_t)block_count * 16u;
         /* ADD's result is boolean rather than a numeric type. */
         test_put_u32(module_bytes + values_offset + 16u + 4u, 2u);
-    } else if (variant == 10) {
-        size_t instructions_offset = 36u + 3u * 12u + 20u +
-            (size_t)block_count * 16u + (size_t)value_count * 16u;
-        size_t operands_offset = instructions_offset +
-            (size_t)instruction_count * 24u;
-        /* Return value 1 instead of ADD result 2; value 2 is now unused. */
-        test_put_u32(module_bytes + operands_offset + 4u * 16u + 4u, 1u);
     }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
