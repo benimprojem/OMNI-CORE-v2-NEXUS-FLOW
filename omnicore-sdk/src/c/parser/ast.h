@@ -181,6 +181,13 @@ typedef struct {
     char* member_name;  // Üye ismi (örn: x)
 } ASTMemberAccess;
 
+/* arr[index]: target and index are independent owned expression children. */
+typedef struct {
+    ASTNode base;
+    ASTNode* target;
+    ASTNode* index;
+} ASTIndexAccess;
+
 typedef struct {
     ASTNode base;
     ASTNode* elements;  // Eleman listesi
