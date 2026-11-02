@@ -1355,9 +1355,11 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         OmniTokenType op;
         int retry_count = 0;
         int retry_delay = 0;
+        int is_rolling = 0;
 
         // Rolling Check: ?(n,ms)->
         if (p->current.type == TOKEN_QMARK) {
+            is_rolling = 1;
             advance(p); // Consume ?
             if (match(p, TOKEN_LPAREN)) {
                 {
@@ -1425,7 +1427,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             relocate->source = expr;
             relocate->target = right;
             expr = (ASTNode*)relocate;
-        } else if (op == TOKEN_PIPE || op == TOKEN_LSHIFT || op == TOKEN_RSHIFT) {
+        } else if (!is_rolling && (op == TOKEN_PIPE || op == TOKEN_LSHIFT || op == TOKEN_RSHIFT)) {
             ASTNexusFlow* pipe = (ASTNexusFlow*)parser_ast_create(p, AST_NEXUS_PIPE);
             if (!pipe) {
                 ast_destroy(expr);
