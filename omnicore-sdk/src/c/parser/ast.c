@@ -906,7 +906,6 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
         }
         case AST_BINARY_EXPR:
         case AST_ASSIGNMENT:
-        case AST_INDEX_ACCESS:
         case AST_NEXUS_FLOW:
         case AST_NEXUS_PIPE: {
             ASTBinaryExpr* b = (ASTBinaryExpr*)node;
