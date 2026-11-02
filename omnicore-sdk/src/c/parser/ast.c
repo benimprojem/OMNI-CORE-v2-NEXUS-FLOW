@@ -36,6 +36,7 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_LAMBDA: return sizeof(ASTLambda);
         case AST_RELOCATE: return sizeof(ASTRelocate);
         case AST_UNROLL: return sizeof(ASTUnroll);
+        case AST_ARRAY_LITERAL: return sizeof(ASTArrayLiteral);
 
         case AST_LITERAL:     return sizeof(ASTLiteral);
         case AST_IDENTIFIER:  return sizeof(ASTIdentifier);
@@ -641,6 +642,7 @@ static void ast_destroy_recursive(ASTNode* node) {
         case AST_LAMBDA: { ASTLambda* n=(ASTLambda*)node; if(n->params)ast_destroy_recursive(n->params); if(n->body)ast_destroy_recursive(n->body); break; }
         case AST_RELOCATE: { ASTRelocate* n=(ASTRelocate*)node; if(n->source)ast_destroy_recursive(n->source); if(n->target)ast_destroy_recursive(n->target); break; }
         case AST_UNROLL: { ASTUnroll* n=(ASTUnroll*)node; if(n->count)ast_destroy_recursive(n->count); if(n->loop)ast_destroy_recursive(n->loop); break; }
+        case AST_ARRAY_LITERAL: if(((ASTArrayLiteral*)node)->elements)ast_destroy_recursive(((ASTArrayLiteral*)node)->elements); break;
         case AST_BLOCK:
         case AST_PROGRAM:
         case AST_ASM_BLOCK: {
@@ -1031,6 +1033,7 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
         case AST_LAMBDA: { ASTLambda* n=(ASTLambda*)node; ast_serialize_recursive(n->params,writer); ast_serialize_recursive(n->body,writer); ast_write_exact(writer,&n->body_is_expression,sizeof(int)); break; }
         case AST_RELOCATE: { ASTRelocate* n=(ASTRelocate*)node; ast_serialize_recursive(n->source,writer); ast_serialize_recursive(n->target,writer); break; }
         case AST_UNROLL: { ASTUnroll* n=(ASTUnroll*)node; ast_serialize_recursive(n->count,writer); ast_serialize_recursive(n->loop,writer); break; }
+        case AST_ARRAY_LITERAL: ast_serialize_recursive(((ASTArrayLiteral*)node)->elements,writer); break;
         case AST_ENUM_DECL: {
             ASTEnumDecl* e = (ASTEnumDecl*)node;
             write_string(writer, e->name);
@@ -1331,6 +1334,7 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
         case AST_LAMBDA: { ASTLambda* n=(ASTLambda*)node; n->params=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->body=ast_deserialize_recursive(reader); if(reader->failed)goto fail; if(!ast_read_exact(reader,&n->body_is_expression,sizeof(int)))goto fail; break; }
         case AST_RELOCATE: { ASTRelocate* n=(ASTRelocate*)node; n->source=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->target=ast_deserialize_recursive(reader); break; }
         case AST_UNROLL: { ASTUnroll* n=(ASTUnroll*)node; n->count=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->loop=ast_deserialize_recursive(reader); break; }
+        case AST_ARRAY_LITERAL: ((ASTArrayLiteral*)node)->elements=ast_deserialize_recursive(reader); break;
         case AST_ENUM_DECL: {
             ASTEnumDecl* e = (ASTEnumDecl*)node;
             e->name = read_string(reader);
