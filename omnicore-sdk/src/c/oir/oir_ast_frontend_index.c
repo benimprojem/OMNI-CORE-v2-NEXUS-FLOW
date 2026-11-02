@@ -221,7 +221,7 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
 uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
     switch (type) {
         case AST_PROGRAM: case AST_BLOCK: case AST_ASM_BLOCK:
-        case AST_TUPLE: case AST_NEXUS_HALT: case AST_UNPACK: case AST_DEFER:
+        case AST_TUPLE: case AST_ARRAY_LITERAL: case AST_NEXUS_HALT: case AST_UNPACK: case AST_DEFER:
             return 1u;
         case AST_STRUCT_DECL: case AST_UNION_DECL: return 6u;
         case AST_GROUP_DECL: return 4u;
