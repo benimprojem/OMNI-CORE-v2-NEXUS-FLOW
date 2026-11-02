@@ -528,11 +528,6 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
             return type_name;
         }
-        case AST_ARRAY_LITERAL:
-            semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
-            (void)get_expr_type(ctx,node);
-            break;
-
         case AST_IDENTIFIER: {
             ASTIdentifier* id = (ASTIdentifier*)node;
             Slot* slot = find_slot(ctx, id->name);
@@ -946,6 +941,11 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             }
             break;
         }
+
+        case AST_ARRAY_LITERAL:
+            semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
+            (void)get_expr_type(ctx,node);
+            break;
 
         case AST_IDENTIFIER: {
             ASTIdentifier* id = (ASTIdentifier*)node;
