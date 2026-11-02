@@ -985,6 +985,12 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             ast_serialize_recursive(((ASTTuple*)node)->elements, writer);
             break;
         }
+        case AST_SELECT: { ASTSelect* n=(ASTSelect*)node; ast_serialize_recursive(n->selector,writer); ast_serialize_recursive(n->arms,writer); break; }
+        case AST_SELECT_ARM: { ASTSelectArm* n=(ASTSelectArm*)node; ast_serialize_recursive(n->pattern,writer); ast_serialize_recursive(n->body,writer); ast_write_exact(writer,&n->is_default,sizeof(int)); break; }
+        case AST_SCAN: { ASTScan* n=(ASTScan*)node; ast_serialize_recursive(n->subject,writer); ast_serialize_recursive(n->arms,writer); break; }
+        case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; ast_serialize_recursive(n->pattern,writer); ast_serialize_recursive(n->body,writer); break; }
+        case AST_PATTERN_BINDING: write_string(writer,((ASTPatternBinding*)node)->name); break;
+        case AST_PATTERN_CONSTRUCTOR: { ASTPatternConstructor* n=(ASTPatternConstructor*)node; write_string(writer,n->name); ast_serialize_recursive(n->bindings,writer); break; }
         case AST_ENUM_DECL: {
             ASTEnumDecl* e = (ASTEnumDecl*)node;
             write_string(writer, e->name);
