@@ -20,6 +20,12 @@ static size_t get_node_size(ASTNodeType type) {
             return sizeof(ASTCast);
             
         case AST_TUPLE: return sizeof(ASTTuple);
+        case AST_SELECT: return sizeof(ASTSelect);
+        case AST_SELECT_ARM: return sizeof(ASTSelectArm);
+        case AST_SCAN: return sizeof(ASTScan);
+        case AST_SCAN_ARM: return sizeof(ASTScanArm);
+        case AST_PATTERN_BINDING: return sizeof(ASTPatternBinding);
+        case AST_PATTERN_CONSTRUCTOR: return sizeof(ASTPatternConstructor);
 
         case AST_LITERAL:     return sizeof(ASTLiteral);
         case AST_IDENTIFIER:  return sizeof(ASTIdentifier);
