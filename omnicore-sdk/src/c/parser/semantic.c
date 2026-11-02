@@ -504,6 +504,8 @@ static void exit_scope(SemanticContext* ctx) {
     ctx->current_depth--;
 }
 
+static int are_types_compatible(const char* type1, const char* type2);
+
 static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
     if (!node) return NULL;
     switch (node->type) {
