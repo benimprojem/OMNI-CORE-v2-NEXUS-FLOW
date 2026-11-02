@@ -138,7 +138,7 @@ int occ_diagnostics_get(const OccDiagnosticCollector* collector, size_t index, O
 }
 int occ_diagnostics_blocks_output(const OccDiagnosticCollector* collector) {
     if (!collector || collector->allocation_failed || collector->limit_exceeded) return 1;
-    return collector->severity_counts[OCC_DIAG_WARNING] != 0 ||
-        collector->severity_counts[OCC_DIAG_ERROR] != 0 ||
+    /* Warnings are advisory and must not suppress otherwise-valid output. */
+    return collector->severity_counts[OCC_DIAG_ERROR] != 0 ||
         collector->severity_counts[OCC_DIAG_FATAL] != 0;
 }
