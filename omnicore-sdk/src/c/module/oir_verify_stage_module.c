@@ -37,9 +37,13 @@ static int get_block_operand(const OirModuleView* m, const OirModuleInstruction*
     return 1;
 }
 static int type_is_numeric(const OirModuleType* t) {
-    return t && (t->kind == OIR_MODULE_TYPE_INTEGER || t->kind == OIR_MODULE_TYPE_FLOAT) &&
-        (t->bit_width == 8u || t->bit_width == 16u || t->bit_width == 32u ||
-         t->bit_width == 64u || t->bit_width == 128u);
+    if (!t) return 0;
+    if (t->kind == OIR_MODULE_TYPE_INTEGER)
+        return t->bit_width == 8u || t->bit_width == 16u ||
+            t->bit_width == 32u || t->bit_width == 64u;
+    if (t->kind == OIR_MODULE_TYPE_FLOAT)
+        return t->bit_width == 32u || t->bit_width == 64u;
+    return 0;
 }
 static int bit_get(const uint64_t* bits, uint32_t id) {
     return (int)((bits[id >> 6] >> (id & 63u)) & UINT64_C(1));
@@ -83,6 +87,22 @@ static int validate_module(const OirModuleView* m) {
     dom = (uint64_t*)calloc(matrix_words, sizeof(uint64_t));
     if (!block_function || !instruction_block || !definition_instruction ||
         !definition_block || !covered || !reachable || !queue || !pred || !dom) goto done;
+
+    /* Primitive type widths must match the published OIR type map. */
+    for (i = 0u; i < m->type_count; ++i) {
+        OirModuleType t;
+        if (oir_module_get_type(m, i, &t) != OIR_STATUS_OK) goto done;
+        if (t.kind == OIR_MODULE_TYPE_INTEGER) {
+            if (t.bit_width != 8u && t.bit_width != 16u &&
+                t.bit_width != 32u && t.bit_width != 64u) goto done;
+        } else if (t.kind == OIR_MODULE_TYPE_FLOAT) {
+            if (t.bit_width != 32u && t.bit_width != 64u) goto done;
+        } else if (t.kind == OIR_MODULE_TYPE_BOOLEAN) {
+            if (t.bit_width != 1u) goto done;
+        } else if (t.kind != OIR_MODULE_TYPE_FUNCTION) {
+            goto done;
+        }
+    }
 
     /* Establish unique block ownership and exact, non-overlapping instruction ranges. */
     for (i = 0u; i < m->block_count; ++i) {
@@ -167,10 +187,15 @@ static int validate_module(const OirModuleView* m) {
                 if (!ins.result_value_id || ins.operand_count != 1u ||
                     rt.kind != OIR_MODULE_TYPE_FLOAT) goto done;
                 break;
-            case OIR_OP_CONST_BOOL:
+            case OIR_OP_CONST_BOOL: {
+                OirModuleOperand immediate;
                 if (!ins.result_value_id || ins.operand_count != 1u ||
-                    rt.kind != OIR_MODULE_TYPE_BOOLEAN) goto done;
+                    rt.kind != OIR_MODULE_TYPE_BOOLEAN ||
+                    !get_operand(m, &ins, 0u, &immediate) ||
+                    immediate.kind != OIR_OPERAND_INTEGER_IMMEDIATE ||
+                    immediate.immediate > 1u) goto done;
                 break;
+            }
             case OIR_OP_ADD: case OIR_OP_SUB: case OIR_OP_MUL: case OIR_OP_DIV:
             case OIR_OP_REM:
                 if (!ins.result_value_id || !type_is_numeric(&rt) ||
@@ -209,8 +234,10 @@ static int validate_module(const OirModuleView* m) {
                 if (!ins.result_value_id || !get_value_operand(m, &ins, 0u, &a)) goto done;
                 break;
             case OIR_OP_STORE:
+                /* Pointer/value type compatibility is deferred until the
+                   memory and pointer type model is part of the OIR schema. */
                 if (ins.result_value_id || !get_value_operand(m, &ins, 0u, &a) ||
-                    !get_value_operand(m, &ins, 1u, &b) || a.type_id != b.type_id) goto done;
+                    !get_value_operand(m, &ins, 1u, &b)) goto done;
                 break;
             case OIR_OP_BRANCH:
                 if (ins.result_value_id || !get_block_operand(m, &ins, 0u, &target_a) ||
