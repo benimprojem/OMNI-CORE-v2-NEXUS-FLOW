@@ -385,15 +385,15 @@ int main(int argc, char** argv) {
     /* Reject malformed CFG ownership, missing terminators, duplicate SSA definitions,
        and opcode operand-shape violations. */
     {
+        static const uint32_t expected_codes[] = {
+            0u, 0u, 8617u, 8613u, 8614u, 8618u, 8615u
+        };
         int variant;
         for (variant = 2; variant <= 6; ++variant) {
             OccModuleArtifactInputV1 stage_input;
             assert(build_cfg_module_artifact(&input, &input_length, variant));
             memset(&stage_input, 0, sizeof(stage_input));
             stage_input.bytes = input; stage_input.length = input_length;
-            static const uint32_t expected_codes[] = {
-                0u, 0u, 8617u, 8613u, 8614u, 8618u, 8615u
-            };
             assert(occ_module_loader_invoke(&loaded, &stage_input, 1u,
                 502u + (uint32_t)variant, &diagnostics, 256u,
                 1024u * 1024u, &output, &output_length) ==
