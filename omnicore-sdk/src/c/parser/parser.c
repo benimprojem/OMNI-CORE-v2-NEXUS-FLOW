@@ -649,7 +649,10 @@ static ASTNode* parse_primary(Parser* p) {
         return (ASTNode*)id_node;
     }
 
-    if (match(p, TOKEN_PRE_FUNC)) return parse_lambda(p);
+    if (check(p, TOKEN_KW_FN) && peek_token(p).type == TOKEN_LPAREN) {
+        advance(p);
+        return parse_lambda(p);
+    }
 
     if (match(p, TOKEN_KW_FN)) {
         return parse_func_decl(p);
