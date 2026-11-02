@@ -283,35 +283,45 @@ static OirStatus lower_assignment_statement(ExprState* st, uint32_t node_id) {
 static OirStatus lower_literal(ExprState* st, const OirAstNodeRecord* n, uint32_t* out) {
     OirAstTlvField f;
     uint16_t tok, opcode;
-    uint32_t kind, iid, first, vid, operand_kind;
+    uint32_t kind, iid, first, vid, operand_kind, result_type_id = 1u;
     uint64_t imm;
-    OirModuleType* ty = &st->ws->types[0];
-    OirStatus s = check_type(st, n->node_id);
-    if (s != OIR_STATUS_OK) return s;
+    OirModuleType* ty;
+    OirStatus s;
     if ((s = token(&st->artifact->ast, n->node_id, 1u, &tok)) != OIR_STATUS_OK ||
         (s = field(&st->artifact->ast, n->node_id, 2u, OIR_AST_VALUE_U32, &f)) != OIR_STATUS_OK)
         return s;
     kind = u32(f.value);
-    if (kind == 0u && tok == T_NUMBER && ty->kind == OIR_MODULE_TYPE_INTEGER) {
-        s = field(&st->artifact->ast, n->node_id, 3u, OIR_AST_VALUE_I64, &f);
-        if (s != OIR_STATUS_OK) return s;
-        imm = u64(f.value); opcode = OIR_OP_CONST_INT; operand_kind = OIR_OPERAND_INTEGER_IMMEDIATE;
-    } else if (kind == 1u && tok == T_NUMBER && ty->kind == OIR_MODULE_TYPE_FLOAT) {
-        s = field(&st->artifact->ast, n->node_id, 4u, OIR_AST_VALUE_F64, &f);
-        if (s != OIR_STATUS_OK) return s;
-        imm = u64(f.value); opcode = OIR_OP_CONST_FLOAT; operand_kind = OIR_OPERAND_FLOAT_IMMEDIATE;
-    } else if (kind == 4u && ty->kind == OIR_MODULE_TYPE_BOOLEAN &&
-        (tok == T_TRUE || tok == T_FALSE)) {
-        imm = tok == T_TRUE ? 1u : 0u; opcode = OIR_OP_CONST_BOOL;
+    if (kind == 4u && (tok == T_TRUE || tok == T_FALSE)) {
+        if ((s = ensure_bool_type(st, n->node_id)) != OIR_STATUS_OK) return s;
+        result_type_id = st->bool_type_id;
+        ty = &st->ws->types[result_type_id - 1u];
+        imm = tok == T_TRUE ? 1u : 0u;
+        opcode = OIR_OP_CONST_BOOL;
         operand_kind = OIR_OPERAND_INTEGER_IMMEDIATE;
-    } else return OIR_STATUS_INVALID_SECTION;
+    } else {
+        if ((s = check_type(st, n->node_id)) != OIR_STATUS_OK) return s;
+        ty = &st->ws->types[0];
+        if (kind == 0u && tok == T_NUMBER && ty->kind == OIR_MODULE_TYPE_INTEGER) {
+            s = field(&st->artifact->ast, n->node_id, 3u, OIR_AST_VALUE_I64, &f);
+            if (s != OIR_STATUS_OK) return s;
+            imm = u64(f.value); opcode = OIR_OP_CONST_INT;
+            operand_kind = OIR_OPERAND_INTEGER_IMMEDIATE;
+        } else if (kind == 1u && tok == T_NUMBER && ty->kind == OIR_MODULE_TYPE_FLOAT) {
+            s = field(&st->artifact->ast, n->node_id, 4u, OIR_AST_VALUE_F64, &f);
+            if (s != OIR_STATUS_OK) return s;
+            imm = u64(f.value); opcode = OIR_OP_CONST_FLOAT;
+            operand_kind = OIR_OPERAND_FLOAT_IMMEDIATE;
+        } else {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+    }
 
     if (st->values >= st->ws->value_capacity) return OIR_STATUS_BUFFER_TOO_SMALL;
     if ((s = alloc_inst(st, 1u, &iid, &first)) != OIR_STATUS_OK) return s;
     vid = ++st->values;
     memset(&st->ws->instructions[iid-1u], 0, sizeof(st->ws->instructions[0]));
     st->ws->instructions[iid-1u].id = iid;
-    st->ws->instructions[iid-1u].block_id = 1u;
+    st->ws->instructions[iid-1u].block_id = st->current_block_id;
     st->ws->instructions[iid-1u].opcode_id = opcode;
     st->ws->instructions[iid-1u].result_value_id = vid;
     st->ws->instructions[iid-1u].first_operand = first;
@@ -320,12 +330,13 @@ static OirStatus lower_literal(ExprState* st, const OirAstNodeRecord* n, uint32_
     st->ws->operands[first].kind = operand_kind;
     st->ws->operands[first].immediate = imm;
     st->ws->values[vid-1u].id = vid;
-    st->ws->values[vid-1u].type_id = 1u;
+    st->ws->values[vid-1u].type_id = result_type_id;
     st->ws->values[vid-1u].defining_instruction_id = iid;
     st->ws->values[vid-1u].flags = 0u;
     *out = vid;
     return OIR_STATUS_OK;
 }
+
 static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
     uint32_t* out, uint32_t depth) {
     uint16_t tok, opcode;
