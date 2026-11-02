@@ -113,7 +113,8 @@ typedef enum {
     AST_ON_BLOCK,
     AST_LAMBDA,
     AST_RELOCATE,
-    AST_UNROLL
+    AST_UNROLL,
+    AST_ARRAY_LITERAL
 
 } ASTNodeType;
 
@@ -200,6 +201,7 @@ typedef struct { ASTNode base; char* ruleset_name; char* event_name; ASTNode* bo
 typedef struct { ASTNode base; ASTNode* params; ASTNode* body; int body_is_expression; } ASTLambda;
 typedef struct { ASTNode base; ASTNode* source; ASTNode* target; } ASTRelocate;
 typedef struct { ASTNode base; ASTNode* count; ASTNode* loop; } ASTUnroll;
+typedef struct { ASTNode base; ASTNode* elements; } ASTArrayLiteral;
 
 // --- Bildirim Yapıları ---
 
