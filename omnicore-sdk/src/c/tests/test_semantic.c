@@ -90,7 +90,43 @@ static int check_control_flow_semantics(void) {
         check_source(invalid_conditional_actions, 2);
 }
 
+static int check_extended_ast_semantics(void) {
+    const char* valid =
+        "f:main() {"
+        " v:choice = 1;"
+        " select(choice) { Range(s,e) -> { v:seen = s; } default -> { } }"
+        " scan(choice) { Range(a,b) -> { v:seen2 = b; } }"
+        " rules PrimeBorders(n) {"
+        "  n < 2 :=> \"out of range\";"
+        "  n == 2 -> Success;"
+        "  always -> true;"
+        "  default -> false;"
+        " }"
+        " apply rules(PrimeBorders(2));"
+        " on PrimeBorders.Success { v:handled = true; }"
+        " v:callback = f:(x) > x;"
+        " v:callback_block = f:(y) { ret y; };"
+        " v:data = 1;"
+        " unroll(3) -> loop(item in data) { v:copy = item; }"
+        " v:src!i32 = 1; v:dst!i32 = 2; v:moved = src _> dst;"
+        "}";
+    const char* leaked_pattern =
+        "f:main() { v:choice = 1; select(choice) { Range(s,e) -> { } } v:leak = s; }";
+    const char* unknown_apply =
+        "f:main() { apply rules(Missing(1)); }";
+    const char* unknown_handler =
+        "f:main() { on Missing.Success { } }";
+    return check_source(valid,0) &&
+        check_source(leaked_pattern,1) &&
+        check_source(unknown_apply,1) &&
+        check_source(unknown_handler,1);
+}
+
 int main(int argc, char** argv) {
+    if (!check_extended_ast_semantics()) {
+        fprintf(stderr, "Extended AST semantic scope/effect checks failed.\\n");
+        return 1;
+    }
     if (!check_control_flow_semantics()) {
         fprintf(stderr, "Control-flow semantic checks failed.\\n");
         return 1;
