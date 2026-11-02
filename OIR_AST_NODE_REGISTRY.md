@@ -1,13 +1,13 @@
 # OIR AST Node Registry v1
 
 **Status:** Initial stable-ID registry proposal for AST payload schema 1.0  
-**Source inventory:** 86 node kinds in the current C frontend ASTNodeType enum  
+**Source inventory:** 96 node kinds in the current C frontend ASTNodeType enum  
 **Rule:** OIR IDs are explicit wire identifiers. They are not C enum ordinals, sizeof values, or compiler pointers.
 
 ## Registry rules
 
-- IDs 1–86 are assigned to the current node-kind inventory below.
-- New node kinds append after 86; published IDs are never renumbered or reused.
+- IDs 1–96 are assigned to the current node-kind inventory below.
+- New node kinds append after 96; published IDs are never renumbered or reused.
 - A removed node kind remains reserved.
 - Unknown required node kinds are rejected.
 - Each node kind has a field-ID namespace local to that kind. Existing field IDs are never reused.
@@ -104,6 +104,16 @@
 | 84 | `AST_SCAN_ARM` | Pattern and body |
 | 85 | `AST_PATTERN_BINDING` | Arm-local pattern binding name |
 | 86 | `AST_PATTERN_CONSTRUCTOR` | Constructor name and ordered binding list |
+| 87 | `AST_RULESET_DECL` | Named ruleset, parameters and ordered rules |
+| 88 | `AST_RULE_BARRIER` | Barrier condition and message |
+| 89 | `AST_RULE_TRIGGER` | Trigger condition and action |
+| 90 | `AST_RULE_ALWAYS` | Unconditional rule action |
+| 91 | `AST_RULE_DEFAULT` | No-match fallback action |
+| 92 | `AST_APPLY_RULES` | Ruleset name and ordered arguments |
+| 93 | `AST_ON_BLOCK` | Ruleset/event names and handler body |
+| 94 | `AST_LAMBDA` | Parameters, expression/block body and body-kind flag |
+| 95 | `AST_RELOCATE` | Source and destination/context expressions |
+| 96 | `AST_UNROLL` | Compile-time count and loop subtree |
 
 ## Field IDs and value types
 
@@ -185,6 +195,19 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_PATTERN_BINDING | 1 | name | STRING_REF / NULL |
 | AST_PATTERN_CONSTRUCTOR | 1 | name | STRING_REF / NULL |
 | AST_PATTERN_CONSTRUCTOR | 2 | ordered bindings | NODE_REF |
+| AST_RULESET_DECL | 1 | name | STRING_REF / NULL |
+| AST_RULESET_DECL | 2–3 | params, ordered rules | NODE_REF |
+| AST_RULE_BARRIER | 1–2 | condition, message | NODE_REF |
+| AST_RULE_TRIGGER | 1–2 | condition, action | NODE_REF |
+| AST_RULE_ALWAYS, AST_RULE_DEFAULT | 1 | action | NODE_REF |
+| AST_APPLY_RULES | 1 | ruleset_name | STRING_REF / NULL |
+| AST_APPLY_RULES | 2 | ordered args | NODE_REF |
+| AST_ON_BLOCK | 1–2 | ruleset_name, event_name | STRING_REF / NULL |
+| AST_ON_BLOCK | 3 | body | NODE_REF |
+| AST_LAMBDA | 1–2 | params, body | NODE_REF |
+| AST_LAMBDA | 3 | body_is_expression | BOOL |
+| AST_RELOCATE | 1–2 | source, target | NODE_REF |
+| AST_UNROLL | 1–2 | count, loop | NODE_REF |
 
 The intrinsic call-kind set is:
 AST_SPAWN, AST_ECHO, AST_SEND, AST_RECEIVE, AST_DONE, AST_AREA, AST_ZONE, AST_ADDR, AST_LEN, AST_PEEK, AST_POKE, AST_INB, AST_OUTB, AST_IRQ, AST_INTR, AST_REG, AST_PRNT, AST_PRMT, AST_WRITE, AST_FWRITE, AST_TYPEOF, AST_SIZEOF, AST_IS_OK, AST_IS_ERR, AST_IS_SOME, AST_IS_NONE, AST_IS_NULL, AST_EXIT, AST_SWAP, AST_DATE, AST_DATENOW, AST_TIME, AST_CLOCK, AST_FREE, AST_ZONE_SYNC, AST_ZONE_VIEW and AST_ZONE_LOCK.
