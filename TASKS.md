@@ -402,6 +402,7 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Extract `validate_terminators()` as the fourth pass; require one final terminator per block and reject instructions after it.
 - [x] Extract `validate_dominance()` as the fifth pass; compute per-function reachability and iterative dominator sets.
 - [x] Extract `validate_ssa_uses()` as the sixth pass; enforce same-block definition order and cross-block dominance for every SSA value use.
+- [x] **CI run 41387462122:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed after the six-pass decomposition.
 - [ ] Add stable, specific diagnostic codes for module limits, type records, block/function ownership, instruction coverage, value definitions, opcode shape/type, CFG edges, terminators, dominance and SSA uses.
 - [ ] Include function/block/instruction/value identifiers in diagnostic context where available; keep the shared OCC ABI unchanged.
 - [ ] Keep prerequisite failures from triggering unsafe dependent passes; report skipped passes distinctly from successful passes.
@@ -425,4 +426,4 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 
 - [x] Reuse existing `oir_opcode_validate_shape()` from the shared opcode registry instead of duplicating operand count/kind and result-presence checks in the verifier.
 - [x] Add a verifier regression fixture with an otherwise-unused third operand on a two-operand ADD instruction; the shared registry shape contract must reject it.
-- [ ] Run and record the verifier test and full CI results for this change.
+- [x] **CI run 41386670733:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed for the opcode-shape regression.
