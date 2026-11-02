@@ -712,6 +712,8 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
     } else if (code >= OIR_VERIFY_DIAG_OPCODE_SHAPE &&
         code <= OIR_VERIFY_DIAG_CFG_EDGE) {
         hint = "Terminator, dominance and SSA-use passes were skipped because instruction validation failed.";
+    } else if (code == OIR_VERIFY_DIAG_OPCODE_TYPE_ERROR_LIMIT) {
+        hint = "Structural, opcode, CFG, terminator, dominance and SSA-use passes were skipped because independent local opcode type contracts failed.";
     } else if (code == OIR_VERIFY_DIAG_TERMINATOR) {
         hint = "Dominance and SSA-use passes were skipped because terminator validation failed.";
     } else if (code == OIR_VERIFY_DIAG_DOMINANCE) {
