@@ -544,13 +544,19 @@ target_link_libraries(occ PRIVATE
     occ_failure_store
     occ_module_loader
     occ_oir
+    occ_oir_module
     occ_oir_token_stream
     occ_oir_diagnostics
     occ_oir_ast_artifact
     occ_oir_ast_node_table
     ${CMAKE_DL_LIBS}
 )
-add_dependencies(occ occ_parser_stage occ_lexer_stage occ_semantic_stage)
+add_dependencies(occ
+    occ_parser_stage
+    occ_lexer_stage
+    occ_semantic_stage
+    occ_oir_lowering_stage
+)
 
 if(MSVC)
     target_compile_options(occ_module_abi PRIVATE /W4)
@@ -711,13 +717,22 @@ if(BUILD_TESTING)
         WILL_FAIL TRUE
     )
 
-    # Exercises the complete C path: lexer, parser, semantic analysis,
-    # AST serialization/deserialization, shared-library loading and codegen.
+    # Exercises the complete C path and keeps the legacy Codegen bridge active.
     add_test(NAME occ_compiles_basic_source
         COMMAND occ "${C_RUNTIME_DIR}/tests/test1.nxf" --target BareMetal64
     )
     set_tests_properties(occ_compiles_basic_source PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+
+    # Run the CLI in an isolated directory and verify that the host persisted
+    # the validated SEMANTIC_AST -> OIR_MODULE lowering-stage artifact.
+    add_test(NAME occ_cli_persists_validated_oir_module
+        COMMAND ${CMAKE_COMMAND}
+            "-DOCC_EXE=$<TARGET_FILE:occ>"
+            "-DSOURCE_FILE=${C_SOURCE_DIR}/tests/test1.nxf"
+            "-DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/occ_lowering_pipeline_test"
+            -P "${C_SOURCE_DIR}/tests/verify_occ_lowering_pipeline.cmake"
     )
 
     set(OCC_INVALID_PARSER_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/occ_invalid_parser_stage.nxf")
