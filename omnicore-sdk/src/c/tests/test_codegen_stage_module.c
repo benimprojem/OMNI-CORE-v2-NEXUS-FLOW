@@ -115,7 +115,12 @@ static int build_module_artifact(uint8_t** out_bytes, size_t* out_length) {
     return 1;
 }
 
-static int build_float_module_artifact(uint8_t** out_bytes, size_t* out_length) {
+static int build_float_module_artifact(
+    uint8_t** out_bytes,
+    size_t* out_length,
+    uint16_t bit_width,
+    uint64_t job_id
+) {
     static const uint8_t strings[] = "main";
     OirModuleType types[2];
     OirModuleFunction functions[1];
@@ -140,7 +145,7 @@ static int build_float_module_artifact(uint8_t** out_bytes, size_t* out_length) 
     memset(types, 0, sizeof(types));
     types[0].id = 1u;
     types[0].kind = OIR_MODULE_TYPE_FLOAT;
-    types[0].bit_width = 64u;
+    types[0].bit_width = bit_width;
     types[1].id = 2u;
     types[1].kind = OIR_MODULE_TYPE_FUNCTION;
 
@@ -222,7 +227,7 @@ static int build_float_module_artifact(uint8_t** out_bytes, size_t* out_length) 
     header.payload_schema_minor = OIR_MODULE_SCHEMA_MINOR;
     header.producer_stage_id = OCC_STAGE_OIR_LOWERING;
     header.validity = OIR_VALIDITY_VALID;
-    header.job_id = 78u;
+    header.job_id = job_id;
 
     memset(&section, 0, sizeof(section));
     section.type = OIR_SECTION_PAYLOAD;
@@ -311,7 +316,7 @@ int main(int argc, char** argv) {
     module_bytes = NULL;
     module_length = 0u;
     found_payload = 0;
-    assert(build_float_module_artifact(&module_bytes, &module_length));
+    assert(build_float_module_artifact(&module_bytes, &module_length, 64u, 78u));
     input.bytes = module_bytes;
     input.length = module_length;
     assert(occ_module_loader_invoke(&loaded, &input, 1u, 78u,
@@ -343,6 +348,52 @@ int main(int argc, char** argv) {
     assert(strstr(assembly, "mulsd xmm0, xmm1") != NULL);
     assert(strstr(assembly, "addsd xmm0, xmm1") != NULL);
     assert(strstr(assembly, "movq rax, xmm0") != NULL);
+
+    free(assembly);
+    free(output);
+    free(module_bytes);
+
+    /* f32 constants enter the OIR payload as F64 values and are explicitly
+     * rounded by the backend with CVTSD2SS before SSE single-precision ops. */
+    assembly = NULL;
+    output = NULL;
+    output_length = 0u;
+    module_bytes = NULL;
+    module_length = 0u;
+    found_payload = 0;
+    assert(build_float_module_artifact(&module_bytes, &module_length, 32u, 79u));
+    input.bytes = module_bytes;
+    input.length = module_length;
+    assert(occ_module_loader_invoke(&loaded, &input, 1u, 79u,
+        &diagnostics, 64u, 1024u * 1024u,
+        &output, &output_length) == OCC_MODULE_LOADER_OK);
+    assert(output && output_length > 96u);
+    assert(oir_artifact_open(output, output_length, &output_artifact) == OIR_STATUS_OK);
+    assert(output_artifact.header.artifact_kind == OIR_KIND_ASSEMBLY);
+    assert(output_artifact.header.payload_schema_major == 1u);
+    assert(output_artifact.header.payload_schema_minor == 0u);
+    assert(output_artifact.header.producer_stage_id == OCC_STAGE_CODEGEN);
+    assert(output_artifact.header.job_id == 79u);
+
+    memset(&payload, 0, sizeof(payload));
+    for (i = 0u; i < output_artifact.section_count; ++i) {
+        OirSectionView section;
+        assert(oir_artifact_get_section(&output_artifact, i, &section) == OIR_STATUS_OK);
+        if (section.type == OIR_SECTION_PAYLOAD) {
+            assert(!found_payload);
+            payload = section;
+            found_payload = 1;
+        }
+    }
+    assert(found_payload && payload.length > 0u);
+    assembly = (char*)malloc((size_t)payload.length + 1u);
+    assert(assembly);
+    memcpy(assembly, payload.data, (size_t)payload.length);
+    assembly[payload.length] = '\0';
+    assert(strstr(assembly, "cvtsd2ss xmm0, xmm0") != NULL);
+    assert(strstr(assembly, "mulss xmm0, xmm1") != NULL);
+    assert(strstr(assembly, "addss xmm0, xmm1") != NULL);
+    assert(strstr(assembly, "movd eax, xmm0") != NULL);
 
     free(assembly);
     free(output);
