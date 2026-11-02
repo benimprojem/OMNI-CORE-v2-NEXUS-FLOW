@@ -115,7 +115,7 @@ static int is_nullable_string(uint16_t kind, uint16_t field_id) {
         case 3: case 4: case 5: case 6: case 7: case 8: case 9:
         case 10: case 11: case 12: case 13: case 14: case 20:
         case 30: case 33: case 34: case 36: case 37: case 39:
-        case 41: case 70: case 71:
+        case 41: case 70: case 71: case 85: case 86:
             return 1;
         default:
             return 0;
