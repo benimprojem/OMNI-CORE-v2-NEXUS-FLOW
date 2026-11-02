@@ -6,6 +6,7 @@
 #endif
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -297,6 +298,10 @@ static void assert_last_diagnostic_code(const OccDiagnosticCollector* diagnostic
     size_t count = occ_diagnostics_count(diagnostics);
     assert(count > 0u);
     assert(occ_diagnostics_get(diagnostics, count - 1u, &view));
+    if (view.record->code != expected_code) {
+        (void)fprintf(stderr, "diagnostic code mismatch: expected=%u actual=%u message=%s\\n",
+            expected_code, view.record->code, view.message);
+    }
     assert(view.record->code == expected_code);
     if (expected_context) assert(strstr(view.message, expected_context) != NULL);
 }
