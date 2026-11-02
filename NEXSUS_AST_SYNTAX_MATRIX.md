@@ -232,7 +232,7 @@ Affected files and responsibilities:
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`: reader must allocate the correct AST payload size, restore owned strings/scalars, and attach every child field with ownership checks.
 - Existing AST binary codec in `parser/ast.c` remains a separate compatibility surface; OIR bridge support does not replace its print/destroy/serialize/deserialize integration.
 
-Implementation status (2 Kasım 2026): select/scan, rules/apply/on, lambda, relocate and unroll node families are appended to `ast.h`; all five `ast.c` lifecycle/codec switches and parser productions are updated. OIR IDs 81–96, child index, writer, reader and field schema are registered. Parser AST shape tests and all-kind OIR payload tests are present. **CI passed:** run 41459511320 — Windows, Ubuntu and macOS build/test; Ubuntu ASan/UBSan and Valgrind. Rolling retry `ms` parsing and overflow regression are being validated in the subsequent run.
+Implementation status (2 Kasım 2026): select/scan, rules/apply/on, lambda, relocate and unroll node families are appended to `ast.h`; all five `ast.c` lifecycle/codec switches and parser productions are updated. OIR IDs 81–96, child index, writer, reader and field schema are registered. Parser AST shape tests and all-kind OIR payload tests are present. **CI passed:** run 41459659779 — Windows, Ubuntu and macOS build/test; Ubuntu ASan/UBSan and Valgrind. Rolling retry `ms` parsing and overflow regression are being validated in the subsequent run.
 
 Recommended canonical field order for the proposed nodes (field IDs are OIR schema IDs, not C struct offsets):
 
