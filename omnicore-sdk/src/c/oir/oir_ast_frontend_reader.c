@@ -410,6 +410,14 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
             if(field_id==1u) ((ASTArrayLiteral*)node)->elements=child;
             else return 0;
             break;
+        case AST_ARRAY_TYPE:
+            if(field_id==1u) ((ASTArrayType*)node)->dimensions=child;
+            else return 0;
+            break;
+        case AST_ARRAY_DIMENSION:
+            if(field_id==1u) ((ASTArrayDimension*)node)->length=child;
+            else return 0;
+            break;
         case AST_SELECT: { ASTSelect* n=(ASTSelect*)node; if(field_id==1u)n->selector=child; else if(field_id==2u)n->arms=child; else return 0; break; }
         case AST_SELECT_ARM: { ASTSelectArm* n=(ASTSelectArm*)node; if(field_id==1u)n->pattern=child; else if(field_id==2u)n->body=child; else return 0; break; }
         case AST_SCAN: { ASTScan* n=(ASTScan*)node; if(field_id==1u)n->subject=child; else if(field_id==2u)n->arms=child; else return 0; break; }
