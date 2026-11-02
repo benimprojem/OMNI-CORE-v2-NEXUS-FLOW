@@ -405,7 +405,7 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] **CI run 41387462122:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed after the six-pass decomposition.
 - [x] Add stable, specific verifier diagnostic codes for module limits/workspace/payload decode, type records, block/function ownership, instruction coverage, value definitions, opcode shape/type, CFG edges, terminators, dominance and SSA uses.
 - [x] Include function/block/instruction/value/type identifiers in diagnostic message context where available; keep the shared OCC ABI unchanged.
-- [ ] Keep prerequisite failures from triggering unsafe dependent passes; report skipped passes distinctly from successful passes.
+- [x] Keep prerequisite failures from triggering unsafe dependent passes; diagnostics now include a hint identifying downstream passes skipped after the failed prerequisite.
 - [ ] Extend fail-fast reporting to collect multiple independent safe-to-check validation failures without running passes whose prerequisites failed.
 - [x] Add regression assertions for exact diagnostic codes and available ID context: SSA use, cross-function CFG edge, function entry ownership, SSA definition, terminator, malformed opcode payload, type record, overlapping instruction coverage and opcode/result type mismatch.
 - [x] **CI run 41389527526:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed.
