@@ -127,7 +127,8 @@ OCC CLI'de OIR Lowering → OIR Verifier → Codegen DLL hattı entegre edildi. 
 - [ ] Artifact geçerlilik durumlarını tanımla: valid / partial / invalid / none.
 - [ ] Varsayılan strict output gate: error veya warning varsa final artifact yayımlama.
 - [ ] `--stop-after <stage>` ve checkpoint artifact yazımını ekle.
-- [x] OIR_MODULE tüketen ilk target-specific Codegen DLL'ini ortak `OccStageModuleV1` ABI'siyle ekle (OIR_ASSEMBLY 1.0 üretir; eski `codegen_run` henüz korunur).\n- [ ] Legacy `codegen_run` ve host AST materialization köprüsünü parity testleri tamamlanmadan kaldırma; parity tamamlandığında kaldır.
+- [x] OIR_MODULE tüketen ilk target-specific Codegen DLL'ini ortak `OccStageModuleV1` ABI'siyle ekle (OIR_ASSEMBLY 1.0 üretir; eski `codegen_run` henüz korunur).
+- [ ] Legacy `codegen_run` ve host AST materialization köprüsünü parity testleri tamamlanmadan kaldırma; parity tamamlandığında kaldır.
 - [x] Lexer, parser ve semantic analyzer'ı ayrı DLL/SO/dylib modüllerine ayır.
 - [ ] Bağımsız derleme işlerini paralel çalıştır; modül thread-safety/reentrancy sözleşmesini test et.
 - [ ] Kuyruk/back-pressure, job cancellation ve final output atomic publish testlerini ekle.
@@ -241,7 +242,8 @@ OCC CLI'de Semantic → OIR Lowering → OIR Verifier → Codegen stage zinciri 
 - [x] **CI run 41174447616:** Windows, Ubuntu ve macOS build/test başarılı; CTest 39/39; Ubuntu ASan/UBSan ve Valgrind başarılı.
 - [x] Lexer'ı bağımsız DLL stage'e ayır; OCC'nin statik lexer çağrısını kaldır ve SOURCE_UNIT → lexer DLL → TOKEN_STREAM → parser DLL zincirini gerçek CLI'da çalıştır.
 - [x] SEMANTIC_AST schema/codec, artifact validator/writer ve `occ_semantic_stage` DLL/SO/dylib oluştur; OCC CLI'da AST OIR → Semantic DLL → SEMANTIC_AST OIR zincirini çalıştır. Host AST materialization yalnızca legacy Codegen köprüsüdür; Codegen'in SEMANTIC_AST tüketmesi ayrı açık görevdir.
-- [x] OIR_MODULE→OIR_ASSEMBLY üreten yeni Codegen stage'i ortak ABI'ye taşı; legacy `codegen_run` ayrı entry-point olarak parity süresince korunuyor.\n- [ ] Eski `codegen_run` el sıkışmasını kaldır ve final assembly çıktısını yeni stage'e geçir; önce parity testleri tamamlanmalı.
+- [x] OIR_MODULE→OIR_ASSEMBLY üreten yeni Codegen stage'i ortak ABI'ye taşı; legacy `codegen_run` ayrı entry-point olarak parity süresince korunuyor.
+- [ ] Eski `codegen_run` el sıkışmasını kaldır ve final assembly çıktısını yeni stage'e geçir; önce parity testleri tamamlanmalı.
 - [ ] Aynı job diagnostic collector'a erişen çağrılar için synchronized dispatcher/serialization policy ekle.
 
 
@@ -265,7 +267,8 @@ OCC CLI'de Semantic → OIR Lowering → OIR Verifier → Codegen stage zinciri 
 - [x] Implement `occ_semantic_stage` DLL/SO/dylib using `OccStageModuleV1`, AST input and SEMANTIC_AST output.
 - [x] Integrate Semantic DLL in OCC and validate its SEMANTIC_AST output; retain host AST materialization only as a temporary legacy Codegen bridge.
 - [x] Pass SEMANTIC_AST through the new IR Lowering DLL in the OCC CLI; host validates and checkpoints the OIR_MODULE output (CI run 41366127592).
-- [x] Add a target-specific Codegen DLL using the common `OccStageModuleV1` ABI; consume OIR_MODULE 1.1 and emit OIR_ASSEMBLY 1.0.\n- [ ] Compare new and legacy assembly behavior on the supported fixture set; remove the legacy `codegen_run` handoff only after parity tests.
+- [x] Add a target-specific Codegen DLL using the common `OccStageModuleV1` ABI; consume OIR_MODULE 1.1 and emit OIR_ASSEMBLY 1.0.
+- [ ] Compare new and legacy assembly behavior on the supported fixture set; remove the legacy `codegen_run` handoff only after parity tests.
 
 
 
