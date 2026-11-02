@@ -10,6 +10,7 @@
 #define N_IDENTIFIER 14u
 #define N_BINARY 15u
 #define N_ASSIGNMENT 18u
+#define N_IF 24u
 #define N_RETURN 26u
 #define T_NUMBER 4u
 #define T_TRUE 7u
@@ -19,6 +20,12 @@
 #define T_MINUS 97u
 #define T_STAR 98u
 #define T_SLASH 99u
+#define T_EQ 109u
+#define T_NEQ 110u
+#define T_GT 111u
+#define T_LT 112u
+#define T_GTE 113u
+#define T_LTE 114u
 #define T_ASSIGN 102u
 
 static uint16_t u16(const uint8_t* p) {
@@ -105,6 +112,9 @@ typedef struct ExprState {
     uint32_t type_length;
     uint32_t values, instructions, operands;
     uint32_t local_count;
+    uint32_t current_block_id;
+    uint32_t block_count;
+    uint32_t bool_type_id;
 } ExprState;
 
 static OirStatus check_type(ExprState* st, uint32_t id) {
@@ -116,6 +126,49 @@ static OirStatus check_type(ExprState* st, uint32_t id) {
         memcmp(name, st->type_name, st->type_length) != 0)
         return OIR_STATUS_INVALID_SECTION;
     return OIR_STATUS_OK;
+}
+
+static OirStatus ensure_bool_type(ExprState* st, uint32_t node_id) {
+    OirSemanticType type;
+    const uint8_t* name = NULL;
+    OirStatus status;
+    if (!st || !node_id) return OIR_STATUS_INVALID_ARGUMENT;
+    if (st->bool_type_id != 0u) return OIR_STATUS_OK;
+    if (st->ws->type_capacity < 3u) return OIR_STATUS_BUFFER_TOO_SMALL;
+    status = annotation_type(st->artifact, node_id, &type, &name);
+    if (status != OIR_STATUS_OK || !name ||
+        type.kind != OIR_SEMANTIC_TYPE_PRIMITIVE ||
+        type.name_length != 4u || memcmp(name, "bool", 4u) != 0)
+        return OIR_STATUS_INVALID_SECTION;
+    status = oir_type_map_primitive(&type, name, type.name_length, 2u,
+        &st->ws->types[1]);
+    if (status == OIR_STATUS_OK) st->bool_type_id = 2u;
+    return status;
+}
+
+static OirStatus begin_block(ExprState* st, uint32_t block_id) {
+    OirModuleBlock* block;
+    if (!st || block_id == 0u || block_id > st->ws->block_capacity)
+        return OIR_STATUS_BUFFER_TOO_SMALL;
+    block = &st->ws->blocks[block_id - 1u];
+    memset(block, 0, sizeof(*block));
+    block->id = block_id;
+    block->function_id = 1u;
+    block->first_instruction = st->instructions;
+    st->current_block_id = block_id;
+    if (block_id > st->block_count) st->block_count = block_id;
+    return OIR_STATUS_OK;
+}
+
+static OirStatus finish_block(ExprState* st, uint32_t block_id) {
+    OirModuleBlock* block;
+    if (!st || block_id == 0u || block_id > st->block_count)
+        return OIR_STATUS_INVALID_ARGUMENT;
+    block = &st->ws->blocks[block_id - 1u];
+    if (st->instructions < block->first_instruction)
+        return OIR_STATUS_INVALID_SECTION;
+    block->instruction_count = st->instructions - block->first_instruction;
+    return block->instruction_count ? OIR_STATUS_OK : OIR_STATUS_INVALID_SECTION;
 }
 static OirStatus alloc_inst(ExprState* st, uint32_t operands,
     uint32_t* id, uint32_t* first) {
