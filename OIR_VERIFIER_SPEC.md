@@ -156,7 +156,7 @@ Source/IR validity failures are reported as diagnostics through the shared OCC d
 | 8619 | Reachability / dominance analysis |
 | 8620 | SSA use ordering, undefined use or non-dominating definition |
 
-Validation diagnostics include numeric function, block, instruction, value and type identifiers in the message when the failing record makes them available. These are message context fields; the common OCC ABI remains unchanged. Infrastructure failures remain distinct from invalid-source/IR diagnostics. The current implementation is fail-fast and reports the first validation failure; collecting multiple independent safe-to-check failures and explicit skipped-pass reporting remain pending.
+Validation diagnostics include numeric function, block, instruction, value and type identifiers in the message when the failing record makes them available. These are message context fields; the common OCC ABI remains unchanged. A diagnostic hint identifies dependent validation passes skipped because a prerequisite failed. Infrastructure failures remain distinct from invalid-source/IR diagnostics. The current implementation is fail-fast and reports the first validation failure; collecting multiple independent safe-to-check failures remains pending.
 
 Diagnostics should include, where available:
 
