@@ -90,6 +90,14 @@ static int check_control_flow_semantics(void) {
         check_source(invalid_conditional_actions, 2);
 }
 
+static int check_array_literal_semantics(void) {
+    const char* valid =
+        "f:main() { v:values = [1, 2, 3]; v:matrix = [[1, 2], [3, 4]]; v:empty = []; }";
+    const char* mixed =
+        "f:main() { v:invalid = [1, \"two\"]; }";
+    return check_source(valid,0) && check_source(mixed,1);
+}
+
 static int check_extended_ast_semantics(void) {
     const char* valid =
         "f:main() {"
@@ -132,6 +140,10 @@ static int check_extended_ast_semantics(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!check_array_literal_semantics()) {
+        fprintf(stderr, "Array literal semantic checks failed.\n");
+        return 1;
+    }
     if (!check_extended_ast_semantics()) {
         fprintf(stderr, "Extended AST semantic scope/effect checks failed.\\n");
         return 1;
