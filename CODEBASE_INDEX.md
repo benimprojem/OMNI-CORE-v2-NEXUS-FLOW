@@ -2,7 +2,7 @@
 
 **Repository:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Branch:** `refactor/c-core-roadmap`  
-**Snapshot commit:** `92b23c055e9718cf65c43c3c778a6aa80d6562fc`  
+**Snapshot commit:** `c5ae07d5ed8f54ca722fa553333cd6b5386d7d65`  
 **Scope:** `omnicore-sdk/src/c/`  
 **Snapshot inventory:** 126 C/header files (91 C implementation files and 35 headers).  
 **Purpose:** prevent duplicate files/functions, make existing implementation discoverable before adding or changing code.
@@ -329,7 +329,7 @@ The file/path inventory below is complete for the snapshot. The function catalog
 - `test_oir_token_map.c` — function catalogue pending
 - `test_oir_token_stream.c` — function catalogue pending
 - `test_oir_type_map.c` — function catalogue pending
-- `test_oir_verify_stage_module.c` — `build_module_artifact()`, `test_put_u32()`, `build_cfg_module_artifact()`, `assert_last_diagnostic_code()`, `main()`
+- `test_oir_verify_stage_module.c` — `build_module_artifact()`, `test_put_u32()`, `build_cfg_module_artifact()`, `assert_last_diagnostic_code()`, `assert_last_diagnostic_hint()`, `main()`
 - `test_parser.c` — function catalogue pending
 - `test_parser_ast_oir_roundtrip.c` — function catalogue pending
 - `test_parser_oir_handoff.c` — function catalogue pending
