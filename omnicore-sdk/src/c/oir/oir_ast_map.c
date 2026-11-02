@@ -96,7 +96,17 @@ static const OirAstNodeMapEntry node_map[OIR_AST_NODE_KIND_COUNT] = {
     { AST_SCAN, 83u },
     { AST_SCAN_ARM, 84u },
     { AST_PATTERN_BINDING, 85u },
-    { AST_PATTERN_CONSTRUCTOR, 86u }
+    { AST_PATTERN_CONSTRUCTOR, 86u },
+    { AST_RULESET_DECL, 87u },
+    { AST_RULE_BARRIER, 88u },
+    { AST_RULE_TRIGGER, 89u },
+    { AST_RULE_ALWAYS, 90u },
+    { AST_RULE_DEFAULT, 91u },
+    { AST_APPLY_RULES, 92u },
+    { AST_ON_BLOCK, 93u },
+    { AST_LAMBDA, 94u },
+    { AST_RELOCATE, 95u },
+    { AST_UNROLL, 96u }
 };
 
 uint16_t oir_ast_node_id_from_frontend(ASTNodeType type) {
