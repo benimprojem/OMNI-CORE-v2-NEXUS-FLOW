@@ -694,7 +694,79 @@ done:
     return ok;
 }
 
+static int test_select_scan_ast(void) {
+    static const char source[] =
+        "f:main() { v:x = 1;"
+        " select(x) { 1 -> { v:a = 2; } default -> { v:b = 3; } }"
+        " scan(x) { Range(s,e) -> { v:c = s; } item -> { v:d = item; } }"
+        "}";
+    ParserContext* ctx=parser_init_source("select-scan.nxf",(const uint8_t*)source,sizeof(source)-1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* node;
+    FILE* stream;
+    ASTNode* decoded;
+    int ok=0;
+    if(!ctx)return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count || !ctx->ast_root)goto done;
+    program=(ASTProgram*)ctx->ast_root;
+    function=(ASTFuncDecl*)program->declarations;
+    if(!function || function->base.type!=AST_FUNC_DECL)goto done;
+    body=(ASTBlock*)function->body;
+    if(!body || body->base.type!=AST_BLOCK)goto done;
+    node=body->statements;
+    if(!node || node->type!=AST_VAR_DECL)goto done;
+    node=node->next;
+    if(!node || node->type!=AST_SELECT)goto done;
+    {
+        ASTSelect* select_node=(ASTSelect*)node;
+        ASTSelectArm* first=(ASTSelectArm*)select_node->arms;
+        ASTSelectArm* fallback=first?(ASTSelectArm*)first->base.next:NULL;
+        if(!select_node->selector || !first || first->base.type!=AST_SELECT_ARM ||
+            !first->pattern || first->pattern->type!=AST_LITERAL ||
+            !fallback || fallback->base.type!=AST_SELECT_ARM || !fallback->is_default ||
+            fallback->pattern!=NULL)goto done;
+    }
+    node=node->next;
+    if(!node || node->type!=AST_SCAN)goto done;
+    {
+        ASTScan* scan_node=(ASTScan*)node;
+        ASTScanArm* first=(ASTScanArm*)scan_node->arms;
+        ASTPatternConstructor* ctor;
+        if(!scan_node->subject || !first || first->base.type!=AST_SCAN_ARM ||
+            !first->pattern || first->pattern->type!=AST_PATTERN_CONSTRUCTOR)goto done;
+        ctor=(ASTPatternConstructor*)first->pattern;
+        if(strcmp(ctor->name,"Range")!=0 || !ctor->bindings ||
+            ctor->bindings->type!=AST_PATTERN_BINDING ||
+            strcmp(((ASTPatternBinding*)ctor->bindings)->name,"s")!=0 ||
+            !ctor->bindings->next ||
+            strcmp(((ASTPatternBinding*)ctor->bindings->next)->name,"e")!=0)goto done;
+    }
+    stream=tmpfile();
+    if(!stream)goto done;
+    if(!ast_serialize((ASTNode*)ctx->ast_root,stream) || fseek(stream,0,SEEK_SET)!=0) {
+        fclose(stream); goto done;
+    }
+    decoded=ast_deserialize(stream);
+    fclose(stream);
+    if(!decoded || decoded->type!=AST_PROGRAM) { ast_destroy(decoded); goto done; }
+    ast_destroy(decoded);
+    ok=1;
+done:
+    parser_destroy(ctx);
+    if(!ok)return 0;
+    if(!parser_source_reports_syntax_error("select-duplicate-default.nxf",
+        "f:main() { select(x) { default -> { } default -> { } } }",
+        sizeof("f:main() { select(x) { default -> { } default -> { } } }")-1u))return 0;
+    if(!parser_source_reports_syntax_error("scan-empty-constructor.nxf",
+        "f:main() { scan(x) { Range() -> { } } }",
+        sizeof("f:main() { scan(x) { Range() -> { } } }")-1u))return 0;
+    return 1;
+}
+
 int main(int argc, char** argv) {
+    if (!test_select_scan_ast()) { fprintf(stderr, "select/scan AST parser and codec test failed.\\n"); return 1; }
     if (!test_structured_if_elsif_els_ast()) {
         fprintf(stderr, "Structured if/elsif/els parser test failed.\\n");
         return 1;
