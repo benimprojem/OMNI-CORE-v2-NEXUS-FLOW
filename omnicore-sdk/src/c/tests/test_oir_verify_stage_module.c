@@ -294,6 +294,12 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         /* Two independent type records are invalid in the same payload. */
         test_put_u32(module_bytes + 36u + 6u, 24u);
         test_put_u32(module_bytes + 36u + 12u + 6u, 8u);
+    } else if (variant == 12) {
+        size_t values_offset = 36u + 3u * 12u + 20u +
+            (size_t)block_count * 16u;
+        /* Value 1 has an unknown type; value 2 has no defining instruction. */
+        test_put_u32(module_bytes + values_offset + 4u, 99u);
+        test_put_u32(module_bytes + values_offset + 16u + 8u, 0u);
     }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
@@ -503,6 +509,32 @@ int main(int argc, char** argv) {
         assert(strstr(second_type_error.message, "type=2") != NULL);
         assert(first_type_error.hint != NULL &&
             strstr(first_type_error.hint, "passes were skipped") != NULL);
+        free(input); input = NULL; input_length = 0u;
+    }
+
+    /* Independent malformed SSA value records are reported together. */
+    {
+        OccModuleArtifactInputV1 stage_input;
+        OccDiagnosticView first_ssa_error, second_ssa_error;
+        size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
+        assert(build_cfg_module_artifact(&input, &input_length, 12));
+        memset(&stage_input, 0, sizeof(stage_input));
+        stage_input.bytes = input; stage_input.length = input_length;
+        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 514u,
+            &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
+            OCC_MODULE_LOADER_INVOKE_FAILED);
+        assert(output == NULL && output_length == 0u);
+        assert(occ_diagnostics_count(&diagnostics) == diagnostics_before + 2u);
+        assert(occ_diagnostics_get(&diagnostics, diagnostics_before,
+            &first_ssa_error));
+        assert(occ_diagnostics_get(&diagnostics, diagnostics_before + 1u,
+            &second_ssa_error));
+        assert(first_ssa_error.record->code == 8614u);
+        assert(second_ssa_error.record->code == 8614u);
+        assert(strstr(first_ssa_error.message, "value=1") != NULL);
+        assert(strstr(second_ssa_error.message, "value=2") != NULL);
+        assert(first_ssa_error.hint != NULL &&
+            strstr(first_ssa_error.hint, "Opcode, CFG") != NULL);
         free(input); input = NULL; input_length = 0u;
     }
 
