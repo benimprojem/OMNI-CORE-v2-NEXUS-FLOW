@@ -206,7 +206,8 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             module_bytes, sizeof(module_bytes), &module_length) != OIR_STATUS_OK ||
         oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
         goto cleanup;
-    if (module.type_count != 2u || module.function_count != 1u) goto cleanup;
+    if (module.type_count != (arithmetic == 5 ? 3u : 2u) ||
+        module.function_count != 1u) goto cleanup;
     {
         OirModuleType return_type;
         if (oir_module_get_type(&module, 0u, &return_type) != OIR_STATUS_OK ||
@@ -268,6 +269,23 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             right.kind != OIR_OPERAND_VALUE || right.reference_id != 2u ||
             oir_module_get_operand(&module, ret.first_operand, &returned) != OIR_STATUS_OK ||
             returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 3u)
+            goto cleanup;
+    } else if (arithmetic == 5) {
+        OirModuleInstruction compare, branch;
+        OirModuleOperand target_true, target_false;
+        OirModuleFunction function;
+        if (module.block_count != 3u || module.instruction_count != 7u ||
+            module.operand_count != 10u || module.value_count != 4u ||
+            oir_module_get_instruction(&module, 2u, &compare) != OIR_STATUS_OK ||
+            oir_module_get_instruction(&module, 3u, &branch) != OIR_STATUS_OK ||
+            compare.opcode_id != OIR_OP_CMP_LT ||
+            branch.opcode_id != OIR_OP_COND_BRANCH ||
+            oir_module_get_operand(&module, branch.first_operand + 1u, &target_true) != OIR_STATUS_OK ||
+            oir_module_get_operand(&module, branch.first_operand + 2u, &target_false) != OIR_STATUS_OK ||
+            target_true.kind != OIR_OPERAND_BLOCK || target_true.reference_id != 2u ||
+            target_false.kind != OIR_OPERAND_BLOCK || target_false.reference_id != 3u ||
+            oir_module_get_function(&module, 0u, &function) != OIR_STATUS_OK ||
+            function.function_type_id != 3u)
             goto cleanup;
     } else {
         OirModuleInstruction add, mul, sub, ret;
@@ -453,11 +471,15 @@ int main(int argc, char** argv) {
         static const uint8_t multi_assignment_source[] =
             "f:main() !i32 { v:x!i32 = 5; v:y!i32 = 2; "
             "x = x + 1; y = x * 2; x = y - 3; ret x; }";
+        static const uint8_t if_else_source[] =
+            "f:main() !i32 { v:x!i32 = 42; "
+            "if (x < 50) { ret x; } els { ret 0; } }";
         assert(test_real_frontend_to_module(&stage_module, literal_source, sizeof(literal_source)-1u, 0));
         assert(test_real_frontend_to_module(&stage_module, arithmetic_source, sizeof(arithmetic_source)-1u, 1));
         assert(test_real_frontend_to_module(&stage_module, local_source, sizeof(local_source)-1u, 2));
         assert(test_real_frontend_to_module(&stage_module, assignment_source, sizeof(assignment_source)-1u, 3));
         assert(test_real_frontend_to_module(&stage_module, multi_assignment_source, sizeof(multi_assignment_source)-1u, 4));
+        assert(test_real_frontend_to_module(&stage_module, if_else_source, sizeof(if_else_source)-1u, 5));
     }
     assert(test_lowering_stage_rejects_bad_input(&stage_module));
     occ_module_loader_close(&stage_module);
