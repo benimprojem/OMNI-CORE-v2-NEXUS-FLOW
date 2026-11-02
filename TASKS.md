@@ -407,6 +407,8 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Include function/block/instruction/value/type identifiers in diagnostic message context where available; keep the shared OCC ABI unchanged.
 - [x] Keep prerequisite failures from triggering unsafe dependent passes; diagnostics now include a hint identifying downstream passes skipped after the failed prerequisite.
 - [x] Add code-specific, advisory `Suggested fix:` guidance to the existing diagnostic hint field without changing the common OCC ABI; retain skipped-pass information in the same hint.
+- [x] Emit warning 8621 for defined-but-unused SSA values after all validity passes succeed; include the value ID and a removal/dead-computation suggestion.
+- [x] Correct shared diagnostic output policy so warning-only compilations retain valid output; errors/fatal diagnostics and collector failures still block output.
 - [ ] Extend fail-fast reporting to collect multiple independent safe-to-check validation failures without running passes whose prerequisites failed.
 - [x] Add regression assertions for exact diagnostic codes and available ID context: SSA use, cross-function CFG edge, function entry ownership, SSA definition, terminator, malformed opcode payload, type record, overlapping instruction coverage and opcode/result type mismatch.
 - [x] **CI run 41389527526:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed.
