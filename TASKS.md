@@ -403,8 +403,8 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Extract `validate_dominance()` as the fifth pass; compute per-function reachability and iterative dominator sets.
 - [x] Extract `validate_ssa_uses()` as the sixth pass; enforce same-block definition order and cross-block dominance for every SSA value use.
 - [x] **CI run 41387462122:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed after the six-pass decomposition.
-- [ ] Add stable, specific diagnostic codes for module limits, type records, block/function ownership, instruction coverage, value definitions, opcode shape/type, CFG edges, terminators, dominance and SSA uses.
-- [ ] Include function/block/instruction/value identifiers in diagnostic context where available; keep the shared OCC ABI unchanged.
+- [x] Add stable, specific verifier diagnostic codes for module limits/workspace/payload decode, type records, block/function ownership, instruction coverage, value definitions, opcode shape/type, CFG edges, terminators, dominance and SSA uses.
+- [x] Include function/block/instruction/value/type identifiers in diagnostic message context where available; keep the shared OCC ABI unchanged.
 - [ ] Keep prerequisite failures from triggering unsafe dependent passes; report skipped passes distinctly from successful passes.
 - [ ] Add tests asserting exact diagnostic codes/context for representative malformed OIR fixtures.
 - [ ] Add a valid-artifact test proving the verifier preserves every input section payload byte-for-byte and does not mutate the input buffer.
