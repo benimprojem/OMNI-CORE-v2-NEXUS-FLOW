@@ -279,7 +279,9 @@ static uint32_t semantic_type_id(
     if (force_hard) flags |= SEMANTIC_RESULT_TYPE_FLAG_HARD;
     if (!*name) return 0u;
 
-    if (is_primitive_type_for_result(name)) {
+    if (strcmp(name, "array") == 0) {
+        kind = SEMANTIC_RESULT_TYPE_AGGREGATE;
+    } else if (is_primitive_type_for_result(name)) {
         kind = SEMANTIC_RESULT_TYPE_PRIMITIVE;
     } else {
         declared_type = find_slot(ctx, name);
@@ -524,6 +526,11 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
             return type_name;
         }
+        case AST_ARRAY_LITERAL:
+            semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
+            (void)get_expr_type(ctx,node);
+            break;
+
         case AST_IDENTIFIER: {
             ASTIdentifier* id = (ASTIdentifier*)node;
             Slot* slot = find_slot(ctx, id->name);
@@ -569,6 +576,23 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             semantic_record_annotation(
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
             return type_name;
+        }
+        case AST_ARRAY_LITERAL: {
+            ASTNode* element=((ASTArrayLiteral*)node)->elements;
+            const char* element_type=NULL;
+            for(;element;element=element->next) {
+                const char* current_type=get_expr_type(ctx,element);
+                if(!current_type) continue;
+                if(!element_type) element_type=current_type;
+                else if(!are_types_compatible(element_type,current_type)) {
+                    report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Array literal elements must have compatible types.");
+                    return NULL;
+                }
+            }
+            semantic_record_annotation(
+                ctx,node,NULL,"array",SEMANTIC_RESULT_VALUE_RVALUE);
+            return "array";
         }
         case AST_RELOCATE: {
             const char* type_name = get_expr_type(ctx, ((ASTRelocate*)node)->source);
@@ -630,6 +654,9 @@ static int is_integer_primitive_type(const char* type_name) {
 static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
     if (type_name[0] == '!') type_name++; // Skip hard-type prefix
+
+    // Generic array aggregate (element compatibility is checked at the literal).
+    if (strcmp(type_name, "array") == 0) return 1;
 
     // Primitives
     if (strcmp(type_name, "i32") == 0 || strcmp(type_name, "u8") == 0 ||
