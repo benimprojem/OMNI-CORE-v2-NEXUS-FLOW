@@ -219,3 +219,30 @@ pattern := identifier
 Validation rules: reject duplicate defaults; reject empty constructor patterns; preserve arm order; require a body after each arrow; reject malformed/missing closing delimiters with parser diagnostics and recovery at the next arm boundary. Semantic analysis will check exhaustiveness only when the subject has a closed enum/union type; otherwise default remains optional and unmatched behavior is defined by the select/scan language contract. Pattern-bound names are arm-local and cannot leak into sibling arms.
 
 Wire format: each node serializes only explicit scalar flags and owned child subtrees; no raw pointers, `size_t`, or compiler-private struct layout is written. New node IDs append after the current maximum and are never inserted among existing IDs. All four construct nodes plus pattern nodes must be registered in allocation-size, print, destroy, serialize and deserialize switches before parser construction is enabled.
+
+
+### OIR frontend AST bridge — required integration (source-verified, 2 Kasım 2026)
+
+The select/scan AST extension must also be registered in the canonical AST-to-OIR frontend bridge. The current bridge is a closed set of explicit node/field mappings; adding AST tags without these mappings causes indexing/materialization failure or silently omits child relationships.
+
+Affected files and responsibilities:
+
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`: `oir_ast_frontend_child_at()` defines the canonical child-field mapping, and `oir_ast_frontend_child_field_count()` defines each node's field count. New select/scan nodes and pattern nodes need stable, ordered field IDs here.
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_writer.c`: node-specific scalar/string fields and child references must be emitted using the same field IDs.
+- `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`: reader must allocate the correct AST payload size, restore owned strings/scalars, and attach every child field with ownership checks.
+- Existing AST binary codec in `parser/ast.c` remains a separate compatibility surface; OIR bridge support does not replace its print/destroy/serialize/deserialize integration.
+
+Current bridge audit: select, scan and pattern node cases are absent from all three OIR frontend bridge files. The implementation gate therefore includes **eight** coordinated surfaces: AST allocation, print, destroy, binary serialize, binary deserialize, OIR child index, OIR writer and OIR reader, plus parser grammar and regression tests. This is why parser construction remains disabled until the full patch is ready.
+
+Recommended canonical field order for the proposed nodes (field IDs are OIR schema IDs, not C struct offsets):
+
+| Node | Field 1 | Field 2 | Field 3 |
+|---|---|---|---|
+| `AST_SELECT` | selector | ordered arms | — |
+| `AST_SELECT_ARM` | pattern | body | is_default scalar |
+| `AST_SCAN` | subject | ordered arms | — |
+| `AST_SCAN_ARM` | pattern | body | — |
+| `AST_PATTERN_BINDING` | binding name | — | — |
+| `AST_PATTERN_CONSTRUCTOR` | constructor name | ordered bindings | — |
+
+The bridge must preserve arm order and pattern-binding order. The default flag is scalar metadata, not a child reference. These field assignments remain provisional until checked against the OIR node-kind and field-kind registries in `oir_ast_map.h` / `oir_ast_map.c`.
