@@ -2596,7 +2596,7 @@ static ASTNode* parse_simple_parameter_list(Parser* p) {
         param->base.line=t.line; param->base.col=t.col;
         param->name=(char*)parser_malloc(p,(size_t)t.length+1u);
         if(!param->name){ast_destroy((ASTNode*)param);ast_destroy(head);return NULL;}
-        memcpy(param->name,t.start,(size_t)t.length); param->name[t.length]='\\0';
+        memcpy(param->name,t.start,(size_t)t.length); param->name[t.length]='\0';
         if(!head)head=(ASTNode*)param;else tail->next=(ASTNode*)param;
         tail=(ASTNode*)param;
     } while(match(p,TOKEN_COMMA));
@@ -2620,7 +2620,7 @@ static ASTNode* parse_ruleset(Parser* p) {
     node->base.line=keyword.line; node->base.col=keyword.col;
     node->name=(char*)parser_malloc(p,(size_t)name_token.length+1u);
     if(!node->name){ast_destroy((ASTNode*)node);return NULL;}
-    memcpy(node->name,name_token.start,(size_t)name_token.length);node->name[name_token.length]='\\0';
+    memcpy(node->name,name_token.start,(size_t)name_token.length);node->name[name_token.length]='\0';
     if(!check(p,TOKEN_LPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_LPAREN_FUNC));ast_destroy((ASTNode*)node);return NULL;}
     advance(p); node->params=parse_simple_parameter_list(p);
     if(!check(p,TOKEN_RPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_RPAREN_PARAMS));ast_destroy((ASTNode*)node);return NULL;}
@@ -2691,7 +2691,7 @@ static ASTNode* parse_apply_rules(Parser* p) {
     node->base.line=keyword.line;node->base.col=keyword.col;
     node->ruleset_name=(char*)parser_malloc(p,(size_t)name.length+1u);
     if(!node->ruleset_name){ast_destroy((ASTNode*)node);ast_destroy(args);return NULL;}
-    memcpy(node->ruleset_name,name.start,(size_t)name.length);node->ruleset_name[name.length]='\\0';
+    memcpy(node->ruleset_name,name.start,(size_t)name.length);node->ruleset_name[name.length]='\0';
     node->args=args; (void)match(p,TOKEN_SEMICOLON); return (ASTNode*)node;
 }
 
@@ -2710,8 +2710,8 @@ static ASTNode* parse_on_block(Parser* p) {
     node->ruleset_name=(char*)parser_malloc(p,(size_t)ruleset.length+1u);
     node->event_name=(char*)parser_malloc(p,(size_t)event.length+1u);
     if(!node->ruleset_name || !node->event_name){ast_destroy((ASTNode*)node);return NULL;}
-    memcpy(node->ruleset_name,ruleset.start,(size_t)ruleset.length);node->ruleset_name[ruleset.length]='\\0';
-    memcpy(node->event_name,event.start,(size_t)event.length);node->event_name[event.length]='\\0';
+    memcpy(node->ruleset_name,ruleset.start,(size_t)ruleset.length);node->ruleset_name[ruleset.length]='\0';
+    memcpy(node->event_name,event.start,(size_t)event.length);node->event_name[event.length]='\0';
     node->body=parse_block(p);
     if(!node->body){ast_destroy((ASTNode*)node);return NULL;}
     return (ASTNode*)node;
