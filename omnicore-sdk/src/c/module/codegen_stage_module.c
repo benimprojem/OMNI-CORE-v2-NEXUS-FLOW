@@ -265,6 +265,26 @@ static int verify_codegen_module(
                     !value_operand(module, &instruction, 0u, &a) ||
                     a.type_id != result_value.type_id) goto cleanup;
                 break;
+            case OIR_OP_CMP_EQ:
+            case OIR_OP_CMP_NE:
+            case OIR_OP_CMP_LT:
+            case OIR_OP_CMP_LE:
+            case OIR_OP_CMP_GT:
+            case OIR_OP_CMP_GE:
+                if (result_type.kind != OIR_MODULE_TYPE_BOOLEAN ||
+                    !value_operand(module, &instruction, 0u, &a) ||
+                    !value_operand(module, &instruction, 1u, &b) ||
+                    a.type_id != b.type_id ||
+                    !get_type(module, a.type_id, &result_type) ||
+                    (result_type.kind == OIR_MODULE_TYPE_INTEGER &&
+                     result_type.bit_width != 32u && result_type.bit_width != 64u) ||
+                    (result_type.kind == OIR_MODULE_TYPE_FLOAT &&
+                     result_type.bit_width != 32u && result_type.bit_width != 64u) ||
+                    (result_type.kind == OIR_MODULE_TYPE_BOOLEAN &&
+                     instruction.opcode_id != OIR_OP_CMP_EQ &&
+                     instruction.opcode_id != OIR_OP_CMP_NE) ||
+                    result_type.kind == OIR_MODULE_TYPE_FUNCTION) goto cleanup;
+                break;
             case OIR_OP_RETURN:
                 if (instruction.result_value_id != 0u || instruction.operand_count != 1u ||
                     !value_operand(module, &instruction, 0u, &a) ||
@@ -486,6 +506,81 @@ static int emit_instruction(
             return asm_emit(writer, is_64
                 ? "    mov qword [rbp - %u], rax\n"
                 : "    mov dword [rbp - %u], eax\n", offset);
+
+        case OIR_OP_CMP_EQ:
+        case OIR_OP_CMP_NE:
+        case OIR_OP_CMP_LT:
+        case OIR_OP_CMP_LE:
+        case OIR_OP_CMP_GT:
+        case OIR_OP_CMP_GE: {
+            const char* condition = NULL;
+            int is_signed = 0;
+            if (!value_operand(module, instruction, 0u, &a) ||
+                !value_operand(module, instruction, 1u, &b) ||
+                !get_type(module, a.type_id, &type) || a.type_id != b.type_id)
+                return 0;
+            is_signed = (type.flags & OIR_MODULE_TYPE_FLAG_SIGNED) != 0u;
+
+            if (type.kind == OIR_MODULE_TYPE_FLOAT) {
+                const char* compare_op = type.bit_width == 32u ? "ucomiss" : "ucomisd";
+                if (type.bit_width != 32u && type.bit_width != 64u) return 0;
+                if (instruction->opcode_id == OIR_OP_CMP_EQ) condition = "    sete al\n    setnp dl\n    and al, dl\n";
+                else if (instruction->opcode_id == OIR_OP_CMP_NE) condition = "    setne al\n    setp dl\n    or al, dl\n";
+                else if (instruction->opcode_id == OIR_OP_CMP_LT) condition = "    setb al\n    setnp dl\n    and al, dl\n";
+                else if (instruction->opcode_id == OIR_OP_CMP_LE) condition = "    setbe al\n    setnp dl\n    and al, dl\n";
+                else if (instruction->opcode_id == OIR_OP_CMP_GT) condition = "    seta al\n";
+                else condition = "    setae al\n";
+
+                if (type.bit_width == 32u) {
+                    if (!asm_emit(writer,
+                        "    movss xmm0, dword [rbp - %u]\n"
+                        "    movss xmm1, dword [rbp - %u]\n"
+                        "    %s xmm0, xmm1\n",
+                        value_offset(a.id), value_offset(b.id), compare_op)) return 0;
+                } else if (!asm_emit(writer,
+                    "    movsd xmm0, qword [rbp - %u]\n"
+                    "    movsd xmm1, qword [rbp - %u]\n"
+                    "    %s xmm0, xmm1\n",
+                    value_offset(a.id), value_offset(b.id), compare_op)) return 0;
+                if (!asm_emit(writer, "%s", condition)) return 0;
+                return asm_emit(writer,
+                    "    movzx eax, al\n"
+                    "    mov dword [rbp - %u], eax\n", offset);
+            }
+
+            if (type.kind != OIR_MODULE_TYPE_INTEGER &&
+                type.kind != OIR_MODULE_TYPE_BOOLEAN) return 0;
+            if (type.kind == OIR_MODULE_TYPE_BOOLEAN &&
+                instruction->opcode_id != OIR_OP_CMP_EQ &&
+                instruction->opcode_id != OIR_OP_CMP_NE) return 0;
+
+            if (type.bit_width == 64u) {
+                if (!asm_emit(writer,
+                    "    mov rax, qword [rbp - %u]\n"
+                    "    mov rbx, qword [rbp - %u]\n"
+                    "    cmp rax, rbx\n",
+                    value_offset(a.id), value_offset(b.id))) return 0;
+            } else if (type.bit_width == 32u || type.kind == OIR_MODULE_TYPE_BOOLEAN) {
+                if (!asm_emit(writer,
+                    "    mov eax, dword [rbp - %u]\n"
+                    "    mov ebx, dword [rbp - %u]\n"
+                    "    cmp eax, ebx\n",
+                    value_offset(a.id), value_offset(b.id))) return 0;
+            } else {
+                return 0;
+            }
+
+            if (instruction->opcode_id == OIR_OP_CMP_EQ) condition = "sete";
+            else if (instruction->opcode_id == OIR_OP_CMP_NE) condition = "setne";
+            else if (instruction->opcode_id == OIR_OP_CMP_LT) condition = is_signed ? "setl" : "setb";
+            else if (instruction->opcode_id == OIR_OP_CMP_LE) condition = is_signed ? "setle" : "setbe";
+            else if (instruction->opcode_id == OIR_OP_CMP_GT) condition = is_signed ? "setg" : "seta";
+            else condition = is_signed ? "setge" : "setae";
+            if (!asm_emit(writer, "    %s al\n", condition)) return 0;
+            return asm_emit(writer,
+                "    movzx eax, al\n"
+                "    mov dword [rbp - %u], eax\n", offset);
+        }
 
         case OIR_OP_NEG:
             if (!value_operand(module, instruction, 0u, &a)) return 0;
