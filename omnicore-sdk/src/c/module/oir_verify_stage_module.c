@@ -142,11 +142,13 @@ static int validate_module(const OirModuleView* m) {
     /* Every value has exactly one matching definition record. */
     for (i = 0u; i < m->value_count; ++i) {
         OirModuleValue v;
+        OirModuleType value_type;
         OirModuleInstruction def;
         if (oir_module_get_value(m, i, &v) != OIR_STATUS_OK ||
             v.id != i + 1u || v.defining_instruction_id == 0u ||
             v.defining_instruction_id > m->instruction_count ||
-            !get_type(m, v.type_id, &(OirModuleType){0}) ||
+            !get_type(m, v.type_id, &value_type) ||
+            value_type.kind == OIR_MODULE_TYPE_FUNCTION ||
             oir_module_get_instruction(m, v.defining_instruction_id - 1u, &def) != OIR_STATUS_OK ||
             def.result_value_id != v.id) goto done;
         definition_instruction[v.id] = v.defining_instruction_id;
