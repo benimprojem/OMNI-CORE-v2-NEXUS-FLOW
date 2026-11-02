@@ -478,7 +478,22 @@ int main(int argc, char** argv) {
         OccDiagnosticView warning_view;
         size_t before_warnings = occ_diagnostics_count_severity(
             &diagnostics, OCC_DIAG_WARNING);
+        OirModuleView warning_module;
+        OirArtifactView warning_artifact;
+        OirSectionView warning_section;
+        OirModuleInstruction return_instruction;
+        OirModuleOperand return_operand;
         assert(build_cfg_module_artifact(&input, &input_length, 10));
+        assert(oir_artifact_open(input, input_length, &warning_artifact) == OIR_STATUS_OK);
+        assert(oir_artifact_get_section(&warning_artifact, 0u, &warning_section) == OIR_STATUS_OK);
+        assert(oir_module_open(warning_section.data, (size_t)warning_section.length,
+            &warning_module) == OIR_STATUS_OK);
+        assert(oir_module_get_instruction(&warning_module, 3u,
+            &return_instruction) == OIR_STATUS_OK);
+        assert(oir_module_get_operand(&warning_module,
+            return_instruction.first_operand, &return_operand) == OIR_STATUS_OK);
+        assert(return_operand.kind == OIR_OPERAND_VALUE &&
+            return_operand.reference_id == 1u);
         memset(&stage_input, 0, sizeof(stage_input));
         stage_input.bytes = input; stage_input.length = input_length;
         assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 512u,
