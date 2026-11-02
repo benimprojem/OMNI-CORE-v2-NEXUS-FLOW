@@ -596,6 +596,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type);
 static ASTNode* parse_defer(Parser* p);
 static ASTNode* parse_use(Parser* p);
 static ASTNode* parse_thread_block(Parser* p, char* name);
+static ASTNode* parse_lambda(Parser* p);
 
 // Primary: Literals, Identifiers, Grouping
 static ASTNode* parse_primary(Parser* p) {
@@ -645,6 +646,8 @@ static ASTNode* parse_primary(Parser* p) {
         id_node->name[p->previous.length] = '\0';
         return (ASTNode*)id_node;
     }
+
+    if (match(p, TOKEN_PRE_FUNC)) return parse_lambda(p);
 
     if (match(p, TOKEN_KW_FN)) {
         return parse_func_decl(p);
