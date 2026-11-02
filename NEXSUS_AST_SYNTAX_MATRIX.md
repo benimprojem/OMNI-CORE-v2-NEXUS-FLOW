@@ -168,6 +168,24 @@ This is the minimum structure required by the language examples (not a claim tha
 - Rolling `?(count, delay)->target` needs retry count/delay metadata and retry semantics; existing ASTNexusFlow has retry fields but parser assignment and units must be verified.
 - `unroll(count) -> loop(...)`: compile-time directive/loop transform, not a runtime intrinsic call; define AST representation and constant-bound validation.
 
+## C implementation audit (source-verified)
+
+Implementation files are under `omnicore-sdk/src/c/parser/`:
+
+- `ast.h`: `ASTNodeType`, base ownership/sibling contract and payload declarations.
+- `ast.c`: `get_node_size()`, `ast_print_recursive()`, `ast_destroy_recursive()`, `ast_serialize_recursive()`, `ast_deserialize_one()` are all node-type switches. A new node is incomplete until all five paths are updated.
+- `parser.c`: grammar productions and AST construction; adding a type to `ast.h` alone does not make syntax parseable.
+- `lexer.h` / lexer implementation: keyword/token additions must be coordinated with parser token dispatch.
+- `tests/test_parser.c`: parse assertions and AST round-trip tests are the acceptance surface; ownership tests should include destroy after deserialize.
+
+**Implementation order:**
+1. Select + scan + arm/pattern payloads, parser and AST codec round-trip.
+2. Rule-set declaration + barrier/trigger/always/default + apply/on, with scoped semantic behavior.
+3. Lambda/function-expression + function-type representation.
+4. Relocate operator + move/ownership semantics.
+5. Rolling/unroll loop parity and parser/semantic tests.
+6. Run frontend suite and CI; only then mark syntax matrix complete.
+
 ## AST schema decision (proposed, pending implementation)
 
 Append new node IDs only; do not alter IDs 1–80. Proposed family: `AST_LAMBDA`, `AST_SELECT`, `AST_SELECT_ARM`, `AST_SCAN`, `AST_SCAN_ARM`, `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT`, `AST_APPLY_RULES`, `AST_ON_BLOCK`, `AST_RELOCATE`, and `AST_UNROLL`. These names are a design proposal, not yet added to `ast.h`; exact enum/payload/codecs/tests should be implemented as one coherent patch after grammar and ownership rules are agreed.
