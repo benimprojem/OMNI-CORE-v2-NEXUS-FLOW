@@ -647,8 +647,6 @@ static int report_unused_value_warnings(
         !invocation->diagnostic_sink.report) return 0;
     for (i = 0u; i < module->value_count; ++i) {
         OirModuleValue value;
-        (void)fprintf(stderr, "OIR_UNUSED_DEBUG value=%u uses=%u count=%u\\n",
-            i + 1u, use_count[i + 1u], module->value_count);
         OccModuleDiagnosticV1 diagnostic;
         char message[192];
         char hint[256];
@@ -715,9 +713,11 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
 
     for (i = 0u; i < input.section_count; ++i) {
         OirSectionView section;
-        if (oir_artifact_get_section(&input, i, &section) != OIR_STATUS_OK)
+        if (oir_artifact_get_section(&input, i, &section) != OIR_STATUS_OK) {
+            free(unused_value_counts);
             return report_verify_error(invocation, result, 8602u,
                 "OIR Verifier could not read an artifact section.", NULL);
+        }
         if (section.type == OIR_SECTION_PAYLOAD) {
             if (++payload_count != 1u || section.version != 1u ||
                 section.length > (uint64_t)SIZE_MAX)
@@ -730,21 +730,17 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                 return report_verify_error(invocation, result,
                     failure.code ? failure.code : 8603u,
                     "OIR_MODULE validation failed.", &failure);
-            if (!report_unused_value_warnings(invocation, result,
-                    &module, unused_value_counts)) {
-                free(unused_value_counts);
-                return OCC_MODULE_STATUS_FAILED;
-            }
-            free(unused_value_counts);
-            unused_value_counts = NULL;
         }
     }
-    if (payload_count != 1u || !find_sections(&input, &sections))
+    if (payload_count != 1u || !find_sections(&input, &sections)) {
+        free(unused_value_counts);
         return report_verify_error(invocation, result, 8604u,
             "OIR_MODULE must contain exactly one required payload section.", NULL);
+    }
 
     for (i = 0u; i < input.section_count; ++i) {
         if (sections[i].length > SIZE_MAX - required - OIR_SECTION_HEADER_SIZE) {
+            free(unused_value_counts);
             free(sections);
             return report_verify_error(invocation, result, 8605u,
                 "Verified OIR artifact size overflowed the host size range.", NULL);
@@ -753,9 +749,21 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
     }
     if (required > (size_t)invocation->output_capacity) {
         result->required_output_capacity = (uint64_t)required;
+        free(unused_value_counts);
         free(sections);
         return OCC_MODULE_STATUS_NEED_OUTPUT_BUFFER;
     }
+
+    /* Publish advisory diagnostics only after the output buffer is sufficient;
+       NEED_OUTPUT_BUFFER retries must not duplicate or leak diagnostics. */
+    if (!report_unused_value_warnings(invocation, result,
+            &module, unused_value_counts)) {
+        free(unused_value_counts);
+        free(sections);
+        return OCC_MODULE_STATUS_FAILED;
+    }
+    free(unused_value_counts);
+    unused_value_counts = NULL;
 
     header = input.header;
     header.producer_stage_id = OCC_STAGE_OIR_VERIFY;
