@@ -2,7 +2,7 @@
 
 **Repository:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Branch:** `refactor/c-core-roadmap`  
-**Snapshot commit:** `79612cc5c68c485f9b5e01a3125f77cf162afcf5`  
+**Snapshot commit:** `097a66b2a291c33d4ed78f77069781eac9df83f1`  
 **Scope:** `omnicore-sdk/src/c/`  
 **Snapshot inventory:** 126 C/header files (91 C implementation files and 35 headers).  
 **Purpose:** prevent duplicate files/functions, make existing implementation discoverable before adding or changing code.
@@ -378,4 +378,4 @@ The file/path inventory below is complete for the snapshot. The function catalog
 - 2026-11-02: Verifier now reuses the existing opcode shape validator; a malformed extra-operand regression case was added. No new source function or file was introduced.
 - 2026-11-02: OIR Verifier adds bounded aggregation for independent SSA value-record failures (diagnostic 8614; overflow 8624), with a two-record regression fixture. Type and SSA prerequisite tables now aggregate independently; dependent passes remain skipped on prerequisite failure.
 
-- 2026-11-02: OIR Verifier adds bounded instruction-result reverse-link aggregation (diagnostic 8614; overflow 8624), with a duplicate-result CALL regression fixture whose wire shape is valid at codec level. The check runs only after the SSA value table passes and skips dependent structural/instruction/CFG/terminator/dominance/use validation on failure.
+- 2026-11-02: OIR Verifier adds bounded instruction-result reverse-link aggregation (diagnostic 8614; overflow 8624), with a duplicate-result CALL regression fixture and a diagnostic message covering both value-record and instruction-link inconsistencies whose wire shape is valid at codec level. The check runs only after the SSA value table passes and skips dependent structural/instruction/CFG/terminator/dominance/use validation on failure.
