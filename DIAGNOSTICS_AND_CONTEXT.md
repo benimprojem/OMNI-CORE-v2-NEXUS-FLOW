@@ -139,6 +139,20 @@ The current API:
 - Fails closed if collector allocation fails or the collector is missing.
 - Rejects invalid severity/code, malformed source spans and embedded NUL in message text.
 
+Stable stage IDs currently declared by the C implementation:
+
+| Stage ID | Stage |
+|---:|---|
+| 1 | Lexer |
+| 2 | Parser |
+| 3 | Semantic analysis |
+| 4 | OIR validation |
+| 5 | Code generation |
+| 6 | OCC host |
+| 7 | OIR lowering |
+
+Stage ID 7 is assigned to the independent `occ_oir_lowering_stage` module. IDs are part of the current draft ABI registry and are not yet frozen for ABI 1.0.
+
 The collector is linked into the C frontend and can be attached to both `ParserContext` and `SemanticContext`. Parser/lexer and semantic findings are mirrored into the job-owned collector while the legacy linked `Error` lists remain available for the current CLI and existing tests. Stable stage identifiers are defined for lexer, parser and semantic analysis. Token-based parser findings now preserve a zero-based, half-open byte range (`start_offset`, `end_offset`) and 1-based start/end line and byte-column coordinates. End positions are exclusive, matching the byte-range convention; columns count UTF-8 bytes because the current lexer advances by source byte. A regression test places the same invalid construct on a second line and checks its exact offset and line/column, preventing a repeated code fragment elsewhere in the file from being misidentified. The current SOURCE_UNIT schema still assigns source ID 0; multi-source identity allocation/mapping remains open. The OIR `DIAGNOSTICS` schema 1.0 codec provides zero-copy validated reads and malformed-input tests. The collector is not internally synchronized, so the orchestrator must serialize writes to one collector before same-job concurrent reporting.
 
 
