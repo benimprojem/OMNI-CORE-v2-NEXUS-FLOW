@@ -322,6 +322,37 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
            own opcode-local result/operand type contracts. */
         test_put_u32(module_bytes + values_offset + 4u, 2u);
         test_put_u32(module_bytes + values_offset + 16u + 4u, 2u);
+    } else if (variant >= 15 && variant <= 17) {
+        size_t values_offset = 36u + 3u * 12u + 20u +
+            (size_t)block_count * 16u;
+        size_t instructions_offset = values_offset +
+            (size_t)value_count * 16u;
+        size_t operands_offset = instructions_offset +
+            (size_t)instruction_count * 24u;
+        /* Convert instruction 3 into a record-local NEG/CMP/CAST contract case. */
+        if (variant == 15) {
+            module_bytes[instructions_offset + 2u * 24u + 8u] =
+                (uint8_t)(OIR_OP_NEG & 0xffu);
+            module_bytes[instructions_offset + 2u * 24u + 9u] =
+                (uint8_t)(OIR_OP_NEG >> 8);
+            test_put_u32(module_bytes + instructions_offset + 2u * 24u + 20u, 1u);
+            test_put_u32(module_bytes + values_offset + 16u + 4u, 2u);
+        } else if (variant == 16) {
+            module_bytes[instructions_offset + 2u * 24u + 8u] =
+                (uint8_t)(OIR_OP_CMP_EQ & 0xffu);
+            module_bytes[instructions_offset + 2u * 24u + 9u] =
+                (uint8_t)(OIR_OP_CMP_EQ >> 8);
+            test_put_u32(module_bytes + values_offset + 16u + 4u, 1u);
+        } else {
+            module_bytes[instructions_offset + 2u * 24u + 8u] =
+                (uint8_t)(OIR_OP_CAST & 0xffu);
+            module_bytes[instructions_offset + 2u * 24u + 9u] =
+                (uint8_t)(OIR_OP_CAST >> 8);
+            test_put_u32(module_bytes + instructions_offset + 2u * 24u + 20u, 2u);
+            test_put_u32(module_bytes + operands_offset + 3u * 16u,
+                OIR_OPERAND_TYPE);
+            test_put_u32(module_bytes + operands_offset + 3u * 16u + 4u, 2u);
+        }
     }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
@@ -607,6 +638,33 @@ int main(int argc, char** argv) {
         assert(first_type_error.hint != NULL &&
             strstr(first_type_error.hint, "passes were skipped") != NULL);
         free(input); input = NULL; input_length = 0u;
+    }
+
+    /* NEG, CMP and CAST local type contracts are covered by the same
+       preflight helper used by the full instruction pass. */
+    {
+        const int variants[] = {15, 16, 17};
+        const uint32_t instruction_ids[] = {3u, 3u, 3u};
+        size_t k;
+        for (k = 0u; k < 3u; ++k) {
+            OccModuleArtifactInputV1 stage_input;
+            OccDiagnosticView type_error;
+            size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
+            assert(build_cfg_module_artifact(&input, &input_length, variants[k]));
+            memset(&stage_input, 0, sizeof(stage_input));
+            stage_input.bytes = input; stage_input.length = input_length;
+            assert(occ_module_loader_invoke(&loaded, &stage_input, 1u,
+                517u + (uint32_t)k, &diagnostics, 256u, 1024u * 1024u,
+                &output, &output_length) == OCC_MODULE_LOADER_INVOKE_FAILED);
+            assert(output == NULL && output_length == 0u);
+            assert(occ_diagnostics_count(&diagnostics) == diagnostics_before + 1u);
+            assert(occ_diagnostics_get(&diagnostics, diagnostics_before,
+                &type_error));
+            assert(type_error.record->code == 8616u);
+            assert(strstr(type_error.message, "instruction=3") != NULL);
+            assert(instruction_ids[k] == 3u);
+            free(input); input = NULL; input_length = 0u;
+        }
     }
 
     /* An unused SSA result is advisory: warn, but still emit valid OIR. */
