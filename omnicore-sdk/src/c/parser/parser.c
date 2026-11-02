@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+#include <limits.h>
 
 #define PARSER_MAX_NESTING_DEPTH 256u
 
@@ -1358,9 +1360,46 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         if (p->current.type == TOKEN_QMARK) {
             advance(p); // Consume ?
             if (match(p, TOKEN_LPAREN)) {
-                if (match(p, TOKEN_NUMBER)) retry_count = atoi(p->previous.start);
-                consume(p, TOKEN_COMMA, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_COMMA_ROLLING);
-                if (match(p, TOKEN_NUMBER)) retry_delay = atoi(p->previous.start);
+                {
+                    Token number;
+                    char buffer[32];
+                    char* end=NULL;
+                    long value;
+                    if (!match(p, TOKEN_NUMBER)) {
+                        error_at(p,&p->current,ERR_PARSER_EXPECTED_EXPRESSION,"Expected non-negative retry count.");
+                        return expr;
+                    }
+                    number=p->previous;
+                    if(number.length<=0 || (size_t)number.length>=sizeof(buffer)) {
+                        error_at(p,&number,ERR_PARSER_UNEXPECTED_TOKEN,"Retry count is out of range.");
+                        return expr;
+                    }
+                    memcpy(buffer,number.start,(size_t)number.length);buffer[number.length]='\\0';
+                    errno=0;value=strtol(buffer,&end,10);
+                    if(errno || !end || *end!='\\0' || value<0 || value>INT_MAX) {
+                        error_at(p,&number,ERR_PARSER_UNEXPECTED_TOKEN,"Retry count is out of range.");
+                        return expr;
+                    }
+                    retry_count=(int)value;
+                    consume(p, TOKEN_COMMA, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_COMMA_ROLLING);
+                    if (!match(p, TOKEN_NUMBER)) {
+                        error_at(p,&p->current,ERR_PARSER_EXPECTED_EXPRESSION,"Expected retry delay in milliseconds.");
+                        return expr;
+                    }
+                    number=p->previous;
+                    if(number.length<=0 || (size_t)number.length>=sizeof(buffer)) {
+                        error_at(p,&number,ERR_PARSER_UNEXPECTED_TOKEN,"Retry delay is out of range.");
+                        return expr;
+                    }
+                    memcpy(buffer,number.start,(size_t)number.length);buffer[number.length]='\\0';
+                    errno=0;value=strtol(buffer,&end,10);
+                    if(errno || !end || *end!='\\0' || value<0 || value>INT_MAX) {
+                        error_at(p,&number,ERR_PARSER_UNEXPECTED_TOKEN,"Retry delay is out of range.");
+                        return expr;
+                    }
+                    retry_delay=(int)value;
+                    if(p->current.type==TOKEN_IDENTIFIER && parser_identifier_is(&p->current,"ms")) advance(p);
+                }
                 consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ROLLING);
                 consume(p, TOKEN_PIPE, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_PIPE_ROLLING);
                 op = TOKEN_PIPE;
