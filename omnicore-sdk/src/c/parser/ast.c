@@ -271,6 +271,16 @@ static void ast_print_recursive(ASTNode* node, int level) {
             case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; printf("SCAN_ARM\n"); ast_print_recursive(n->pattern,level+1); ast_print_recursive(n->body,level+1); break; }
             case AST_PATTERN_BINDING: printf("PATTERN_BINDING: %s\n",((ASTPatternBinding*)node)->name); break;
             case AST_PATTERN_CONSTRUCTOR: { ASTPatternConstructor* n=(ASTPatternConstructor*)node; printf("PATTERN_CONSTRUCTOR: %s\n",n->name); ast_print_recursive(n->bindings,level+1); break; }
+            case AST_RULESET_DECL: { ASTRulesetDecl* n=(ASTRulesetDecl*)node; printf("RULESET: %s\n",n->name); ast_print_recursive(n->params,level+1); ast_print_recursive(n->rules,level+1); break; }
+            case AST_RULE_BARRIER: { ASTRuleBarrier* n=(ASTRuleBarrier*)node; printf("RULE_BARRIER\n"); ast_print_recursive(n->condition,level+1); ast_print_recursive(n->message,level+1); break; }
+            case AST_RULE_TRIGGER: { ASTRuleTrigger* n=(ASTRuleTrigger*)node; printf("RULE_TRIGGER\n"); ast_print_recursive(n->condition,level+1); ast_print_recursive(n->action,level+1); break; }
+            case AST_RULE_ALWAYS: printf("RULE_ALWAYS\n"); ast_print_recursive(((ASTRuleAlways*)node)->action,level+1); break;
+            case AST_RULE_DEFAULT: printf("RULE_DEFAULT\n"); ast_print_recursive(((ASTRuleDefault*)node)->action,level+1); break;
+            case AST_APPLY_RULES: { ASTApplyRules* n=(ASTApplyRules*)node; printf("APPLY_RULES: %s\n",n->ruleset_name); ast_print_recursive(n->args,level+1); break; }
+            case AST_ON_BLOCK: { ASTOnBlock* n=(ASTOnBlock*)node; printf("ON_BLOCK: %s.%s\n",n->ruleset_name,n->event_name); ast_print_recursive(n->body,level+1); break; }
+            case AST_LAMBDA: { ASTLambda* n=(ASTLambda*)node; printf("LAMBDA%s\n",n->body_is_expression?" EXPR":" BLOCK"); ast_print_recursive(n->params,level+1); ast_print_recursive(n->body,level+1); break; }
+            case AST_RELOCATE: { ASTRelocate* n=(ASTRelocate*)node; printf("RELOCATE\n"); ast_print_recursive(n->source,level+1); ast_print_recursive(n->target,level+1); break; }
+            case AST_UNROLL: { ASTUnroll* n=(ASTUnroll*)node; printf("UNROLL\n"); ast_print_recursive(n->count,level+1); ast_print_recursive(n->loop,level+1); break; }
             case AST_NEXUS_CAPTURE: {
                 ASTNexusCapture* cap = (ASTNexusCapture*)node;
                 printf("NEXUS_CAPTURE: %s\n", cap->handler_name);
