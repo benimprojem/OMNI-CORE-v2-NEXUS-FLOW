@@ -1021,6 +1021,16 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
         case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; ast_serialize_recursive(n->pattern,writer); ast_serialize_recursive(n->body,writer); break; }
         case AST_PATTERN_BINDING: write_string(writer,((ASTPatternBinding*)node)->name); break;
         case AST_PATTERN_CONSTRUCTOR: { ASTPatternConstructor* n=(ASTPatternConstructor*)node; write_string(writer,n->name); ast_serialize_recursive(n->bindings,writer); break; }
+        case AST_RULESET_DECL: { ASTRulesetDecl* n=(ASTRulesetDecl*)node; write_string(writer,n->name); ast_serialize_recursive(n->params,writer); ast_serialize_recursive(n->rules,writer); break; }
+        case AST_RULE_BARRIER: { ASTRuleBarrier* n=(ASTRuleBarrier*)node; ast_serialize_recursive(n->condition,writer); ast_serialize_recursive(n->message,writer); break; }
+        case AST_RULE_TRIGGER: { ASTRuleTrigger* n=(ASTRuleTrigger*)node; ast_serialize_recursive(n->condition,writer); ast_serialize_recursive(n->action,writer); break; }
+        case AST_RULE_ALWAYS: ast_serialize_recursive(((ASTRuleAlways*)node)->action,writer); break;
+        case AST_RULE_DEFAULT: ast_serialize_recursive(((ASTRuleDefault*)node)->action,writer); break;
+        case AST_APPLY_RULES: { ASTApplyRules* n=(ASTApplyRules*)node; write_string(writer,n->ruleset_name); ast_serialize_recursive(n->args,writer); break; }
+        case AST_ON_BLOCK: { ASTOnBlock* n=(ASTOnBlock*)node; write_string(writer,n->ruleset_name); write_string(writer,n->event_name); ast_serialize_recursive(n->body,writer); break; }
+        case AST_LAMBDA: { ASTLambda* n=(ASTLambda*)node; ast_serialize_recursive(n->params,writer); ast_serialize_recursive(n->body,writer); ast_write_exact(writer,&n->body_is_expression,sizeof(int)); break; }
+        case AST_RELOCATE: { ASTRelocate* n=(ASTRelocate*)node; ast_serialize_recursive(n->source,writer); ast_serialize_recursive(n->target,writer); break; }
+        case AST_UNROLL: { ASTUnroll* n=(ASTUnroll*)node; ast_serialize_recursive(n->count,writer); ast_serialize_recursive(n->loop,writer); break; }
         case AST_ENUM_DECL: {
             ASTEnumDecl* e = (ASTEnumDecl*)node;
             write_string(writer, e->name);
