@@ -9,7 +9,6 @@ static size_t get_node_size(ASTNodeType type) {
         // --- İfadeler ---
         case AST_BINARY_EXPR: 
         case AST_ASSIGNMENT:
-        case AST_INDEX_ACCESS:
             return sizeof(ASTBinaryExpr);
 
         case AST_UNARY_EXPR:
@@ -39,7 +38,6 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_ARRAY_LITERAL: return sizeof(ASTArrayLiteral);
         case AST_ARRAY_TYPE: return sizeof(ASTArrayType);
         case AST_ARRAY_DIMENSION: return sizeof(ASTArrayDimension);
-        case AST_INDEX_ACCESS: return sizeof(ASTIndexAccess);
 
         case AST_LITERAL:     return sizeof(ASTLiteral);
         case AST_IDENTIFIER:  return sizeof(ASTIdentifier);
@@ -85,7 +83,6 @@ static size_t get_node_size(ASTNodeType type) {
             return sizeof(ASTCall);
             
         case AST_MEMBER_ACCESS: return sizeof(ASTMemberAccess);
-        case AST_INDEX_ACCESS: return sizeof(ASTIndexAccess);
 
         // --- Bildirimler ---
         case AST_VAR_DECL:    return sizeof(ASTVarDecl);
