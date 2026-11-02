@@ -391,3 +391,14 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Record current implementation coverage, resource bounds, immutable artifact behavior and deferred schema-dependent checks.
 - [x] Correct the pipeline's current-state description: OCC already runs OIR Lowering → OIR Verifier → Codegen; legacy AST Codegen remains only as a parity bridge.
 - [ ] Extend verifier validation when function signatures, block parameters, memory/effect metadata and source maps are added to OIR_MODULE.
+
+
+## OIR Verifier structural pass decomposition — next increment
+
+- [ ] Split the current monolithic `validate_module()` into dependency-ordered internal validation passes without changing accepted OIR semantics.
+- [ ] Add stable, specific diagnostic codes for module limits, type records, block/function ownership, instruction coverage, value definitions, opcode shape/type, CFG edges, terminators, dominance and SSA uses.
+- [ ] Include function/block/instruction/value identifiers in diagnostic context where available; keep the shared OCC ABI unchanged.
+- [ ] Keep prerequisite failures from triggering unsafe dependent passes; report skipped passes distinctly from successful passes.
+- [ ] Add tests asserting exact diagnostic codes/context for representative malformed OIR fixtures.
+- [ ] Add a valid-artifact test proving the verifier preserves every input section payload byte-for-byte and does not mutate the input buffer.
+- [ ] When Optimizer is integrated, allow only registered OIR-producing stage IDs (Lowering and Optimizer) as verifier input producers; reject arbitrary producer IDs.
