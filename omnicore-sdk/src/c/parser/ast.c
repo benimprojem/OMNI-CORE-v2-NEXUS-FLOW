@@ -26,6 +26,16 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_SCAN_ARM: return sizeof(ASTScanArm);
         case AST_PATTERN_BINDING: return sizeof(ASTPatternBinding);
         case AST_PATTERN_CONSTRUCTOR: return sizeof(ASTPatternConstructor);
+        case AST_RULESET_DECL: return sizeof(ASTRulesetDecl);
+        case AST_RULE_BARRIER: return sizeof(ASTRuleBarrier);
+        case AST_RULE_TRIGGER: return sizeof(ASTRuleTrigger);
+        case AST_RULE_ALWAYS: return sizeof(ASTRuleAlways);
+        case AST_RULE_DEFAULT: return sizeof(ASTRuleDefault);
+        case AST_APPLY_RULES: return sizeof(ASTApplyRules);
+        case AST_ON_BLOCK: return sizeof(ASTOnBlock);
+        case AST_LAMBDA: return sizeof(ASTLambda);
+        case AST_RELOCATE: return sizeof(ASTRelocate);
+        case AST_UNROLL: return sizeof(ASTUnroll);
 
         case AST_LITERAL:     return sizeof(ASTLiteral);
         case AST_IDENTIFIER:  return sizeof(ASTIdentifier);
