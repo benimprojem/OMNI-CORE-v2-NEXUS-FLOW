@@ -436,3 +436,14 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Reuse existing `oir_opcode_validate_shape()` from the shared opcode registry instead of duplicating operand count/kind and result-presence checks in the verifier.
 - [x] Add a verifier regression fixture with an otherwise-unused third operand on a two-operand ADD instruction; the shared registry shape contract must reject it.
 - [x] **CI run 41386670733:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed for the opcode-shape regression.
+
+
+## OIR Verifier — bounded independent type diagnostics
+
+- [x] Extract type-record validation into an independent prerequisite pass before block/function and instruction-dependent validation.
+- [x] Aggregate up to 32 independent invalid type records in one verifier invocation, preserving each diagnostic's stable code 8610 and exact type ID.
+- [x] Report omitted invalid type-record count with diagnostic code 8623 when the bounded list is exceeded; do not let diagnostic floods consume unbounded memory.
+- [x] Skip all dependent structural/SSA/opcode/CFG/terminator/dominance passes when the type table contains invalid records.
+- [x] Preserve first-failure code semantics in the stage result while counting each successfully submitted diagnostic.
+- [x] Add a regression fixture with two independently invalid type records; assert both IDs are reported and no output artifact is emitted.
+- [ ] Extend aggregation to additional validation passes only where their prerequisites and independence can be proven; retain fail-fast behavior elsewhere.
