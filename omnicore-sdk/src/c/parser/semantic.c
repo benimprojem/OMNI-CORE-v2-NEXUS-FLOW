@@ -746,8 +746,8 @@ static void semantic_check_rule_arguments(
 ) {
     ASTNode* arg;
     int count=0,index=0;
+    if(args) semantic_check(ctx,args);
     for(arg=args;arg;arg=arg->next) {
-        semantic_check(ctx,arg);
         if(count<INT_MAX)++count;
     }
     if(!slot) {
@@ -1160,6 +1160,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             if(!unroll->count || unroll->count->type!=AST_LITERAL ||
                ((ASTLiteral*)unroll->count)->type!=TOKEN_NUMBER ||
                ((ASTLiteral*)unroll->count)->int_value<0 ||
+               !((ASTLiteral*)unroll->count)->string_value ||
                strchr(((ASTLiteral*)unroll->count)->string_value,'.')!=NULL) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                     "Unroll count must be a non-negative integer literal.");
