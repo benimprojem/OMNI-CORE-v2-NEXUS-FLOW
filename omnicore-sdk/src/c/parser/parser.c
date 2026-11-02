@@ -1374,9 +1374,9 @@ static ASTNode* parse_nexus_flow(Parser* p) {
                         error_at(p,&number,ERR_PARSER_UNEXPECTED_TOKEN,"Retry count is out of range.");
                         return expr;
                     }
-                    memcpy(buffer,number.start,(size_t)number.length);buffer[number.length]='\\0';
+                    memcpy(buffer,number.start,(size_t)number.length);buffer[number.length]='\0';
                     errno=0;value=strtol(buffer,&end,10);
-                    if(errno || !end || *end!='\\0' || value<0 || value>INT_MAX) {
+                    if(errno || !end || *end!='\0' || value<0 || value>INT_MAX) {
                         error_at(p,&number,ERR_PARSER_UNEXPECTED_TOKEN,"Retry count is out of range.");
                         return expr;
                     }
@@ -1391,9 +1391,9 @@ static ASTNode* parse_nexus_flow(Parser* p) {
                         error_at(p,&number,ERR_PARSER_UNEXPECTED_TOKEN,"Retry delay is out of range.");
                         return expr;
                     }
-                    memcpy(buffer,number.start,(size_t)number.length);buffer[number.length]='\\0';
+                    memcpy(buffer,number.start,(size_t)number.length);buffer[number.length]='\0';
                     errno=0;value=strtol(buffer,&end,10);
-                    if(errno || !end || *end!='\\0' || value<0 || value>INT_MAX) {
+                    if(errno || !end || *end!='\0' || value<0 || value>INT_MAX) {
                         error_at(p,&number,ERR_PARSER_UNEXPECTED_TOKEN,"Retry delay is out of range.");
                         return expr;
                     }
