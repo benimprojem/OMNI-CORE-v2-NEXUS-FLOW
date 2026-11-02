@@ -109,6 +109,8 @@ static int check_array_type_semantics(void) {
     const char* fractional_extent = "f:main() { v:invalid[1.5]!i32; }";
     const char* zero_expression = "f:main() { v:invalid[3-3]!i32; }";
     const char* division_by_zero = "f:main() { v:invalid[8/0]!i32; }";
+    const char* overflow_extent = "f:main() { v:invalid[9223372036854775807+1]!i32; }";
+    const char* negative_extent = "f:main() { v:invalid[-1]!i32; }";
     const char* wrong_shape = "f:main() { v:fixed[3]!i32 = [1,2]; }";
     const char* wrong_element = "f:main() { v:fixed[2]!i32 = [1.5,2.5]; }";
     return check_source(valid,0) &&
@@ -116,6 +118,8 @@ static int check_array_type_semantics(void) {
         check_source(fractional_extent,1) &&
         check_source(zero_expression,1) &&
         check_source(division_by_zero,2) &&
+        check_source(overflow_extent,1) &&
+        check_source(negative_extent,1) &&
         check_source(wrong_shape,1) &&
         check_source(wrong_element,2);
 }
