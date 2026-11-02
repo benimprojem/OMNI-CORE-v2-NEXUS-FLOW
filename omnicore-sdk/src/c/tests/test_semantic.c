@@ -63,7 +63,7 @@ static int check_source(const char* source, int expected_errors) {
     semantic_init(&semantic, "semantic-control.nxf", NULL);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
     ok = semantic.error_count == expected_errors;
-    if (!ok) fprintf(stderr, "Semantic test mismatch: expected=%d actual=%d source=%s\\n", expected_errors, semantic.error_count, source);
+    if (!ok) { Error* e; fprintf(stderr, "Semantic test mismatch: expected=%d actual=%d source=%s\\n", expected_errors, semantic.error_count, source); for(e=semantic.error_head;e;e=e->next) fprintf(stderr,"  semantic error %d: %s\\n",e->code,e->message?e->message:"(null)"); }
     semantic_destroy(&semantic);
     parser_destroy(parser);
     return ok;
