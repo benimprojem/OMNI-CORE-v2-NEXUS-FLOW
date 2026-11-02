@@ -784,7 +784,8 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     if (owned_element_type) {
                         memcpy(owned_element_type, begin, length);
                         owned_element_type[length] = '\0';
-                        element_type = owned_element_type;
+                        element_type = semantic_duplicate(ctx, owned_element_type);
+                        if (!element_type) element_type = "any";
                     }
                 }
             }
