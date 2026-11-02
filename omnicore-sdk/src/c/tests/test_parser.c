@@ -775,7 +775,7 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
         "  default -> false;"
         " }"
         " apply rules(PrimeBorders(5));"
-        " on PrimeBorders.Success { return true; }"
+        " on PrimeBorders.Success { ret true; }"
         " v:callback = f:(x) > x;"
         " unroll(3) -> loop(item in data) { echo(item); }"
         " v:moved = source _> target;"
