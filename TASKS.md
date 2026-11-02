@@ -317,7 +317,7 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Add `occ_codegen_stage` DLL/SO/dylib with stable module ID `0x00010005` and `OCC_STAGE_CODEGEN`.
 - [x] Consume one validated OIR_MODULE 1.1 artifact; validate producer stage, validity, job identity, unique payload, module structure and the first backend's SSA/use-def subset.
 - [x] Emit OIR_ASSEMBLY schema 1.0 with a bounded two-pass NASM text writer; NEED_OUTPUT_BUFFER retry does not publish partial output or diagnostics.
-- [x] Initial x86-64 BareMetal backend supports one function/basic block, i32/i64/f32/f64/bool constants, integer arithmetic, SSE scalar float arithmetic and scalar return; unsupported opcodes/CFG shapes fail closed.
+- [x] Initial x86-64 BareMetal backend supports one function, multi-block CFG, i32/i64/f32/f64/bool constants, integer arithmetic, SSE scalar float arithmetic, BRANCH, boolean COND_BRANCH, UNREACHABLE and scalar returns; unsupported opcodes fail closed.
 - [x] OCC validates the selected legacy target profile, loads the Codegen stage DLL, validates OIR_ASSEMBLY and persists `.assembly.oir` plus `.stage.s`.
 - [x] Preserve the legacy `codegen_run` path and its `.s` output; parity is **not** yet claimed.
 - [x] Add direct dynamic-stage tests and end-to-end CLI artifact tests.
@@ -325,7 +325,7 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] **CI run 41367164418:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **58/58**; Ubuntu ASan/UBSan and Valgrind passed.
 - [x] **CI run 41367815321:** f32/f64 Codegen tests passed; Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **58/58**; Ubuntu ASan/UBSan and Valgrind passed.
 
-**Next Codegen work:** expand multi-function/multi-block CFG, branches and calls incrementally; define a target descriptor artifact/selection contract for backend modules; compare behavior against the legacy output; only then make OIR_ASSEMBLY the final Codegen output and remove the AST bridge. F32/F64 constants, SSE arithmetic and RAX bit-pattern returns are covered by the direct Codegen stage test.
+**Next Codegen work:** add comparison lowering (integer signed/unsigned and IEEE float comparisons), then calls and multi-function modules; define a target descriptor artifact/selection contract; compare output behavior against legacy Codegen; only then remove the AST bridge. Multi-block branch emission is now covered by direct DLL tests.
 
 
 ## Independent OIR Verifier stage — 2 Kasım 2026
@@ -347,3 +347,16 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 **Current verifier resource bounds:** 8,192 blocks/module; 1,000,000 function, instruction and value records; OIR string table remains capped at 16 MiB. These are implementation/resource limits, not NEXSUS Flow language limits.
 
 **Next compiler task:** verify the end-to-end CI result for this stage, then expand the lowerer beyond the current one-function/one-block scalar subset. Codegen remains target-specific and its output parity with the legacy AST bridge is still pending.
+
+
+## Multi-block CFG Codegen — 2 Kasım 2026
+
+- [x] Extend the x86-64 NASM backend from one basic block to multiple blocks in one function.
+- [x] Emit deterministic `.Lbb_<id>` labels and an explicit jump to the function entry block.
+- [x] Emit `BRANCH`, boolean `COND_BRANCH` and `UNREACHABLE` (`UD2`) terminators.
+- [x] Allow scalar `RETURN` terminators in any block; each return emits the shared function epilogue.
+- [x] Keep SSA dominance validation in the independent OIR Verifier; Codegen retains backend type/shape checks and requires verifier-produced input.
+- [x] Add a three-block conditional CFG fixture and assert both branch labels and the conditional jump sequence.
+- [x] **CI run 41376095890:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan and Valgrind passed.
+
+**Next Codegen increment:** add CMP_EQ/NE/LT/LE/GT/GE lowering so source-level conditions can produce boolean SSA values, then connect those operations to multi-block lowering.
