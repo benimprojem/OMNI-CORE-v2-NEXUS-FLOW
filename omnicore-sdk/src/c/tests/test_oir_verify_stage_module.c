@@ -423,7 +423,7 @@ int main(int argc, char** argv) {
             0u, 0u, 8617u, 8613u, 8614u, 8618u, 8609u, 8610u, 8612u, 8616u
         };
         static const char* expected_contexts[] = {
-            NULL, NULL, "block=1", "function=2", "value=1",
+            NULL, NULL, "block=1", "function=2", "value=2",
             "block=1", NULL, "type=1", "instruction=2", "instruction=3"
         };
         int variant;
