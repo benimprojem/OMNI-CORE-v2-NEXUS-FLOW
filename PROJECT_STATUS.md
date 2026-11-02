@@ -761,3 +761,26 @@ Doğrudan stage testi OIR_MODULE girdisinden assembly üretimini, output-buffer 
 
 
 **Float test CI — run 41367815321:** f32/f64 direct Codegen stage tests passed. Windows, Ubuntu and macOS build/test jobs passed; Ubuntu CTest **58/58**, ASan/UBSan and Valgrind passed.
+
+
+## 2 Kasım 2026 — Bağımsız OIR Verifier DLL
+
+`occ_oir_verify_stage`, ortak `OccStageModuleV1` ABI'siyle eklendi. Modül OIR_MODULE 1.1 artifact'ını alır; envelope, schema, producer stage, job kimliği ve tekil PAYLOAD kontrolünden sonra modülün yapısal ve semantik alt kümesini doğrular. Başarılı durumda aynı OIR section içeriklerini koruyup yalnızca producer stage bilgisini `OCC_STAGE_OIR_VERIFY` olarak güncelleyerek yeni artifact üretir.
+
+Verifier kontrolleri:
+
+- Function/block sahipliği ve function entry block ilişkisi
+- Blok instruction aralıklarının çakışmaması ve instruction tablosunu eksiksiz kapsaması
+- Instruction'ın kendi block ID'siyle tutarlılığı
+- Her blokta son instruction olarak tek terminator; terminator sonrasında komut bulunmaması
+- Branch hedeflerinin aynı function içinde kalması
+- Opcode registry operand/result biçimi ve uygulanan scalar type kuralları
+- Her SSA değerinin tek bir tanımlayıcı instruction'a bağlı olması
+- Aynı blokta use-before-definition yasağı; bloklar arasında dominator tabanlı SSA doğrulaması
+- Unreachable blokları otomatik reddetmeme; bu bloklarda cross-block SSA kullanımına dominance kanıtı olmadan izin vermeme
+
+İlk sürümde dominator analizi en fazla 8.192 block kabul eder. Function/instruction/value tabloları ayrı ayrı 1.000.000 kayıtla; OIR string table 16 MiB ile sınırlıdır. Bunlar derleyici aşamasının açık kaynak/işlem sınırlarıdır, dilin semantik sınırı değildir. Function signature, block parameter/phi, tam memory semantics ve source-map cross-check henüz bu schema sürümünün kapsamı değildir.
+
+OCC host pipeline artık `SEMANTIC_AST → OIR Lowering → OIR Verifier → Codegen` sırasını uygular. `.module.oir` dosyası doğrulanmış artifact'tır; Codegen, producer stage'i verifier olmayan OIR_MODULE girdisini reddeder. Legacy AST tabanlı Codegen köprüsü parity testleri tamamlanana kadar ayrıca korunur.
+
+Doğrudan stage testi geçerli bir OIR_MODULE'ün doğrulanıp yeniden yayımlandığını ve codec'in yapısal olarak kabul ettiği use-before-definition SSA girdisinin Verifier tarafından reddedildiğini kontrol eder. CI doğrulaması bu aşama için henüz bekleniyor.
