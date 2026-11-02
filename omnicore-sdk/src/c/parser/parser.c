@@ -1657,6 +1657,56 @@ static int parse_struct_body(Parser* p, ASTStructDecl* decl) {
     return 1;
 }
 
+/* Parse declarator dimensions such as [5][n][] into an owned type subtree.
+ * The base element type remains on ASTVarDecl.type_name; an empty dimension
+ * has length == NULL and therefore represents a dynamic/unspecified extent.
+ */
+static int parse_array_type_suffix(Parser* p, ASTVarDecl* decl) {
+    ASTArrayType* array_type;
+    ASTNode* tail = NULL;
+    if (!p || !decl || p->current.type != TOKEN_LBRACKET) return 1;
+    if (decl->inline_type) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "An inline type cannot also have an array declarator.");
+        return 0;
+    }
+    array_type = (ASTArrayType*)parser_ast_create(p, AST_ARRAY_TYPE);
+    if (!array_type) return 0;
+    array_type->base.line = p->current.line;
+    array_type->base.col = p->current.col;
+    while (match(p, TOKEN_LBRACKET)) {
+        Token open = p->previous;
+        ASTArrayDimension* dimension =
+            (ASTArrayDimension*)parser_ast_create(p, AST_ARRAY_DIMENSION);
+        if (!dimension) {
+            ast_destroy((ASTNode*)array_type);
+            return 0;
+        }
+        dimension->base.line = open.line;
+        dimension->base.col = open.col;
+        if (p->current.type != TOKEN_RBRACKET) {
+            dimension->length = parse_expression(p);
+            if (!dimension->length) {
+                ast_destroy((ASTNode*)dimension);
+                ast_destroy((ASTNode*)array_type);
+                return 0;
+            }
+        }
+        consume(p, TOKEN_RBRACKET, ERR_PARSER_EXPECTED_BRACKET,
+            "Expected ']' after array dimension.");
+        if (p->previous.type != TOKEN_RBRACKET) {
+            ast_destroy((ASTNode*)dimension);
+            ast_destroy((ASTNode*)array_type);
+            return 0;
+        }
+        if (!array_type->dimensions) array_type->dimensions = (ASTNode*)dimension;
+        else tail->next = (ASTNode*)dimension;
+        tail = (ASTNode*)dimension;
+    }
+    decl->inline_type = (ASTNode*)array_type;
+    return 1;
+}
+
 // Variable Declaration: v:name = expr;
 static ASTNode* parse_var_decl(Parser* p) {
     // v: veya c: tüketildi, p->previous içinde
@@ -1692,6 +1742,9 @@ static ASTNode* parse_var_decl(Parser* p) {
     } else {
         error_at(p, &p->previous, ERR_PARSER_INVALID_VAR, msg_get(ERR_PARSER_INVALID_VAR));
     }
+
+    /* Array dimensions follow the declared variable name: v:a[4][8]!f32. */
+    if (!parse_array_type_suffix(p, decl)) { ast_destroy((ASTNode*)decl); return NULL; }
 
     // Tip Tanımı: !Type
     if (match(p, TOKEN_NOT)) {
@@ -1862,6 +1915,17 @@ static ASTNode* parse_func_decl(Parser* p) {
                 param->type_name[total_length] = '\0';
                 param->is_hard_typed = has_bang;
                 advance(p);
+                if (!parse_array_type_suffix(p, param)) {
+                    ast_destroy((ASTNode*)func);
+                    return NULL;
+                }
+            } else if (has_bang && p->current.type == TOKEN_LBRACKET) {
+                /* README form: a![] — element type is inferred/unspecified. */
+                param->is_hard_typed = 1;
+                if (!parse_array_type_suffix(p, param)) {
+                    ast_destroy((ASTNode*)func);
+                    return NULL;
+                }
             } else if (has_colon || has_bang) {
                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
                     msg_get(MSG_EXPECT_TYPE_BANG));
