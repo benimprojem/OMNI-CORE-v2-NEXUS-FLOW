@@ -1,11 +1,37 @@
 #include "occ_module_api.h"
 #include "oir_module.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define OIR_VERIFY_MAX_BLOCKS 8192u
 #define OIR_VERIFY_MAX_RECORDS 1000000u
+
+/* Stable OIR Verifier diagnostic codes. Keep these independent of the OCC ABI. */
+enum {
+    OIR_VERIFY_DIAG_MODULE_LIMIT = 8607u,
+    OIR_VERIFY_DIAG_INTERNAL_WORKSPACE = 8608u,
+    OIR_VERIFY_DIAG_TYPE_RECORD = 8610u,
+    OIR_VERIFY_DIAG_BLOCK_OWNERSHIP = 8611u,
+    OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE = 8612u,
+    OIR_VERIFY_DIAG_FUNCTION_ENTRY = 8613u,
+    OIR_VERIFY_DIAG_SSA_DEFINITION = 8614u,
+    OIR_VERIFY_DIAG_OPCODE_SHAPE = 8615u,
+    OIR_VERIFY_DIAG_OPCODE_TYPE = 8616u,
+    OIR_VERIFY_DIAG_CFG_EDGE = 8617u,
+    OIR_VERIFY_DIAG_TERMINATOR = 8618u,
+    OIR_VERIFY_DIAG_DOMINANCE = 8619u,
+    OIR_VERIFY_DIAG_SSA_USE = 8620u
+};
+
+typedef struct OirVerifyFailure {
+    uint32_t code;
+    uint32_t function_id;
+    uint32_t block_id;
+    uint32_t instruction_id;
+    uint32_t value_id;
+} OirVerifyFailure;
 
 static const OccStageModuleV1 g_oir_verify_module;
 
@@ -59,7 +85,7 @@ static int has_terminator(const OirModuleInstruction* ins) {
 /* Pass 1: validate module records and establish block/function ownership.
    This pass must complete before any instruction-dependent validation. */
 static int validate_structure(const OirModuleView* m,
-    uint32_t* block_function, uint8_t* covered) {
+    uint32_t* block_function, uint8_t* covered, OirVerifyFailure* failure) {
     uint32_t i, j, f;
 
     /* Primitive type widths must match the published OIR type map. */
@@ -121,7 +147,8 @@ static int validate_structure(const OirModuleView* m,
 
 /* Pass 2: validate the SSA value table and build definition lookup tables. */
 static int validate_ssa_definitions(const OirModuleView* m,
-    uint32_t* definition_instruction, uint32_t* definition_block) {
+    uint32_t* definition_instruction, uint32_t* definition_block,
+    OirVerifyFailure* failure) {
     uint32_t i;
 
     /* Every value has exactly one matching definition record. */
@@ -155,7 +182,8 @@ static int validate_ssa_definitions(const OirModuleView* m,
 
 /* Pass 3: validate opcode shape/types and collect CFG predecessor edges. */
 static int validate_instructions(const OirModuleView* m,
-    const uint32_t* block_function, uint64_t* pred, size_t words) {
+    const uint32_t* block_function, uint64_t* pred, size_t words,
+    OirVerifyFailure* failure) {
     uint32_t i, j;
 
     /* Validate opcode-specific types and collect CFG predecessor edges. */
@@ -271,7 +299,7 @@ static int validate_instructions(const OirModuleView* m,
 }
 
 /* Pass 4: enforce exactly one final terminator in every basic block. */
-static int validate_terminators(const OirModuleView* m) {
+static int validate_terminators(const OirModuleView* m, OirVerifyFailure* failure) {
     uint32_t i, j;
 
     /* A block has exactly one final terminator; no instruction may follow it. */
@@ -294,7 +322,8 @@ static int validate_terminators(const OirModuleView* m) {
 /* Pass 5: compute reachability and dominators for each function. */
 static int validate_dominance(const OirModuleView* m,
     const uint32_t* block_function, const uint64_t* pred, uint64_t* dom,
-    uint8_t* reachable, uint32_t* queue, size_t words) {
+    uint8_t* reachable, uint32_t* queue, size_t words,
+    OirVerifyFailure* failure) {
     uint32_t f, j;
 
     /* Per-function reachability and iterative dominators for SSA use validation. */
@@ -380,7 +409,7 @@ static int validate_dominance(const OirModuleView* m,
 /* Pass 6: validate local SSA order and cross-block dominance for every use. */
 static int validate_ssa_uses(const OirModuleView* m,
     const uint32_t* definition_instruction, const uint32_t* definition_block,
-    const uint64_t* dom, size_t words) {
+    const uint64_t* dom, size_t words, OirVerifyFailure* failure) {
     uint32_t i, j;
 
     /* Validate every SSA use: local definitions precede uses; external-block
@@ -410,7 +439,7 @@ static int validate_ssa_uses(const OirModuleView* m,
     return 1;
 }
 
-static int validate_module(const OirModuleView* m) {
+static int validate_module(const OirModuleView* m, OirVerifyFailure* failure) {
     uint32_t *block_function = NULL;
     uint32_t *definition_instruction = NULL, *definition_block = NULL;
     uint8_t *covered = NULL, *reachable = NULL;
@@ -419,16 +448,26 @@ static int validate_module(const OirModuleView* m) {
     size_t words, matrix_words;
     int ok = 0;
 
+    if (failure) memset(failure, 0, sizeof(*failure));
     if (!m || m->function_count == 0u || m->block_count == 0u ||
         m->instruction_count == 0u || m->block_count > OIR_VERIFY_MAX_BLOCKS ||
         m->function_count > OIR_VERIFY_MAX_RECORDS ||
         m->instruction_count > OIR_VERIFY_MAX_RECORDS ||
-        m->value_count > OIR_VERIFY_MAX_RECORDS) return 0;
+        m->value_count > OIR_VERIFY_MAX_RECORDS) {
+        if (failure) failure->code = OIR_VERIFY_DIAG_MODULE_LIMIT;
+        return 0;
+    }
 
     words = ((size_t)m->block_count + 1u + 63u) / 64u;
-    if (words == 0u || (size_t)m->block_count + 1u > SIZE_MAX / words) return 0;
+    if (words == 0u || (size_t)m->block_count + 1u > SIZE_MAX / words) {
+        if (failure) failure->code = OIR_VERIFY_DIAG_MODULE_LIMIT;
+        return 0;
+    }
     matrix_words = ((size_t)m->block_count + 1u) * words;
-    if (matrix_words > SIZE_MAX / sizeof(uint64_t)) return 0;
+    if (matrix_words > SIZE_MAX / sizeof(uint64_t)) {
+        if (failure) failure->code = OIR_VERIFY_DIAG_MODULE_LIMIT;
+        return 0;
+    }
 
     block_function = (uint32_t*)calloc((size_t)m->block_count + 1u, sizeof(uint32_t));
     definition_instruction = (uint32_t*)calloc((size_t)m->value_count + 1u, sizeof(uint32_t));
@@ -439,19 +478,22 @@ static int validate_module(const OirModuleView* m) {
     pred = (uint64_t*)calloc(matrix_words, sizeof(uint64_t));
     dom = (uint64_t*)calloc(matrix_words, sizeof(uint64_t));
     if (!block_function || !definition_instruction ||
-        !definition_block || !covered || !reachable || !queue || !pred || !dom) goto done;
+        !definition_block || !covered || !reachable || !queue || !pred || !dom) {
+        if (failure) failure->code = OIR_VERIFY_DIAG_INTERNAL_WORKSPACE;
+        goto done;
+    }
 
-    if (!validate_structure(m, block_function, covered)) goto done;
+    if (!validate_structure(m, block_function, covered, failure)) goto done;
 
-    if (!validate_ssa_definitions(m, definition_instruction, definition_block))
+    if (!validate_ssa_definitions(m, definition_instruction, definition_block, failure))
         goto done;
 
-    if (!validate_instructions(m, block_function, pred, words)) goto done;
+    if (!validate_instructions(m, block_function, pred, words, failure)) goto done;
 
-    if (!validate_terminators(m)) goto done;
+    if (!validate_terminators(m, failure)) goto done;
 
-    if (!validate_dominance(m, block_function, pred, dom, reachable, queue, words) ||
-        !validate_ssa_uses(m, definition_instruction, definition_block, dom, words))
+    if (!validate_dominance(m, block_function, pred, dom, reachable, queue, words, failure) ||
+        !validate_ssa_uses(m, definition_instruction, definition_block, dom, words, failure))
         goto done;
 
     ok = 1;
