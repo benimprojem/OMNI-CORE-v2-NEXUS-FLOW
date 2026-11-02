@@ -1,6 +1,9 @@
 #include "occ_module_loader.h"
 #include "oir_module.h"
 
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
