@@ -22,6 +22,15 @@
 - [x] Lexer, parser ve semantic için ayrı CTest programları ekle; token/konum, geçerli-geçersiz syntax, partial AST cleanup, geçerli program ve undefined symbol testlerini üç platformda doğrula (13/13).
 - [ ] AST ve semantic bellek sahipliği/free kurallarını doğrula.
 
+## P0 — Codegen öncesi AST / Semantic / OIR tamamlanması
+
+- [ ] [AST_OIR_COMPLETION_PLAN.md](AST_OIR_COMPLETION_PLAN.md) içindeki AST node/field/ownership envanterini tamamla.
+- [ ] Semantic scope/type/conversion/function/ownership/control-flow kurallarını test matrisiyle kapat.
+- [ ] AST → semantic artifact → OIR lowering destek kapsamını node/opcode bazında belgeleyip test et.
+- [ ] OIR opcode effects/type/terminator/memory/call sözleşmelerini tamamla.
+- [ ] Verifier invariant/test matrisini tamamla ve pipeline invalid-artifact gate testlerini ekle.
+- [ ] Bu çıkış ölçütleri tamamlanmadan Codegen/backend kapsamını genişletme.
+
 ## P0 — AST ve kaynak girdisi güvenliği
 
 - [x] AST deserializer tüm alan okumalarında tam okuma kontrolü yapsın ve hatayı üst seviyeye taşısın.
