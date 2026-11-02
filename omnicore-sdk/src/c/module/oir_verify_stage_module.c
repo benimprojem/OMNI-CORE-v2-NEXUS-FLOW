@@ -27,7 +27,7 @@ enum {
     OIR_VERIFY_DIAG_SSA_USE = 8620u,
     OIR_VERIFY_WARN_UNUSED_VALUE = 8621u,
     OIR_VERIFY_NOTE_UNUSED_VALUE_LIMIT = 8622u,
-    OIR_VERIFY_NOTE_TYPE_ERROR_LIMIT = 8623u
+    OIR_VERIFY_DIAG_TYPE_ERROR_LIMIT = 8623u
 };
 
 typedef struct OirVerifyFailure {
@@ -600,7 +600,7 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
         case OIR_VERIFY_DIAG_INTERNAL_WORKSPACE: message = "OIR Verifier could not allocate its validation workspace."; remediation = "Retry with a smaller module or free memory; if reproducible on a small valid module, report it as a verifier allocation defect."; break;
         case OIR_VERIFY_DIAG_PAYLOAD_DECODE: message = "OIR_MODULE payload is malformed or violates the registered opcode wire contract."; remediation = "Regenerate the OIR payload with the canonical OIR writer and check its schema version, section layout and each opcode's registered operand encoding."; break;
         case OIR_VERIFY_DIAG_TYPE_RECORD: message = "OIR type record is invalid."; remediation = "Check the referenced type record's kind and bit width; use only schema-supported integer, float, boolean or function type forms."; break;
-        case OIR_VERIFY_NOTE_TYPE_ERROR_LIMIT: message = "Additional invalid OIR type records were omitted from diagnostics."; remediation = "Fix the reported type records, then rerun verification to reveal any remaining invalid entries."; break;
+        case OIR_VERIFY_DIAG_TYPE_ERROR_LIMIT: message = "Additional invalid OIR type records were omitted from diagnostics."; remediation = "Fix the reported type records, then rerun verification to reveal any remaining invalid entries."; break;
         case OIR_VERIFY_DIAG_BLOCK_OWNERSHIP: message = "OIR block ownership or instruction range is invalid."; remediation = "Assign each block to an existing function and ensure its non-empty instruction range stays within the instruction table."; break;
         case OIR_VERIFY_DIAG_INSTRUCTION_COVERAGE: message = "OIR instruction coverage is incomplete, overlapping or inconsistent."; remediation = "Make block instruction ranges cover every instruction exactly once, without overlap, and ensure each instruction's block_id matches its owning block."; break;
         case OIR_VERIFY_DIAG_FUNCTION_ENTRY: message = "OIR function entry block or function type is invalid."; remediation = "Give the function a valid function-type record and an entry_block_id that names a block owned by that same function."; break;
@@ -788,7 +788,7 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                         memset(&overflow_failure, 0, sizeof(overflow_failure));
                         overflow_failure.type_id = omitted_type_errors;
                         (void)report_verify_error(invocation, result,
-                            OIR_VERIFY_NOTE_TYPE_ERROR_LIMIT,
+                            OIR_VERIFY_DIAG_TYPE_ERROR_LIMIT,
                             "Additional invalid OIR type records were omitted.", &overflow_failure);
                     }
                     return OCC_MODULE_STATUS_FAILED;
