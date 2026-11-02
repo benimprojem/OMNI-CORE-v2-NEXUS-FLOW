@@ -798,6 +798,7 @@ if(BUILD_TESTING)
         occ_oir_semantic_ast_artifact
         occ_module_loader
         occ_oir
+        occ_diagnostics
     )
     if(MSVC)
         target_compile_options(occ_oir_lowering PRIVATE /W4)
