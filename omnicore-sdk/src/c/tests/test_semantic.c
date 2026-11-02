@@ -156,7 +156,7 @@ static int check_array_type_semantics(void) {
         check_source(call_literal_element_mismatch,1) &&
         check_source(valid_index,0) &&
         check_source(invalid_index_target,1) &&
-        check_source(invalid_index_type,1);
+        check_source(invalid_index_type,2);
 }
 
 static int check_extended_ast_semantics(void) {
