@@ -340,22 +340,42 @@ static OirStatus lower_literal(ExprState* st, const OirAstNodeRecord* n, uint32_
 static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
     uint32_t* out, uint32_t depth) {
     uint16_t tok, opcode;
-    uint32_t lid, rid, lv, rv, iid, first, vid;
+    uint32_t lid, rid, lv, rv, iid, first, vid, result_type_id = 1u;
     OirAstNodeRecord ln, rn;
     OirModuleType* ty = &st->ws->types[0];
     OirStatus s;
+    int comparison = 0;
     if (depth >= OIR_AST_NODE_DEPTH_MAX) return OIR_STATUS_INVALID_SECTION;
-    if ((s = check_type(st, n->node_id)) != OIR_STATUS_OK ||
-        (s = token(&st->artifact->ast, n->node_id, 1u, &tok)) != OIR_STATUS_OK) return s;
+    if ((s = token(&st->artifact->ast, n->node_id, 1u, &tok)) != OIR_STATUS_OK)
+        return s;
+
     switch (tok) {
         case T_PLUS: opcode = OIR_OP_ADD; break;
         case T_MINUS: opcode = OIR_OP_SUB; break;
         case T_STAR: opcode = OIR_OP_MUL; break;
         case T_SLASH: opcode = OIR_OP_DIV; break;
+        case T_EQ: opcode = OIR_OP_CMP_EQ; comparison = 1; break;
+        case T_NEQ: opcode = OIR_OP_CMP_NE; comparison = 1; break;
+        case T_LT: opcode = OIR_OP_CMP_LT; comparison = 1; break;
+        case T_LTE: opcode = OIR_OP_CMP_LE; comparison = 1; break;
+        case T_GT: opcode = OIR_OP_CMP_GT; comparison = 1; break;
+        case T_GTE: opcode = OIR_OP_CMP_GE; comparison = 1; break;
         default: return OIR_STATUS_INVALID_SECTION;
     }
-    if (ty->kind != OIR_MODULE_TYPE_INTEGER && ty->kind != OIR_MODULE_TYPE_FLOAT)
-        return OIR_STATUS_INVALID_SECTION;
+
+    if (comparison) {
+        if ((s = ensure_bool_type(st, n->node_id)) != OIR_STATUS_OK)
+            return s;
+        if (ty->kind != OIR_MODULE_TYPE_INTEGER && ty->kind != OIR_MODULE_TYPE_FLOAT)
+            return OIR_STATUS_INVALID_SECTION;
+        result_type_id = st->bool_type_id;
+    } else {
+        if ((s = check_type(st, n->node_id)) != OIR_STATUS_OK)
+            return s;
+        if (ty->kind != OIR_MODULE_TYPE_INTEGER && ty->kind != OIR_MODULE_TYPE_FLOAT)
+            return OIR_STATUS_INVALID_SECTION;
+    }
+
     if ((s = ref(&st->artifact->ast, n->node_id, 2u, &lid)) != OIR_STATUS_OK || !lid ||
         (s = ref(&st->artifact->ast, n->node_id, 3u, &rid)) != OIR_STATUS_OK || !rid)
         return OIR_STATUS_INVALID_SECTION;
@@ -369,7 +389,7 @@ static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
     vid = ++st->values;
     memset(&st->ws->instructions[iid-1u], 0, sizeof(st->ws->instructions[0]));
     st->ws->instructions[iid-1u].id = iid;
-    st->ws->instructions[iid-1u].block_id = 1u;
+    st->ws->instructions[iid-1u].block_id = st->current_block_id;
     st->ws->instructions[iid-1u].opcode_id = opcode;
     st->ws->instructions[iid-1u].result_value_id = vid;
     st->ws->instructions[iid-1u].first_operand = first;
@@ -380,12 +400,13 @@ static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
     st->ws->operands[first+1u].kind = OIR_OPERAND_VALUE;
     st->ws->operands[first+1u].reference_id = rv;
     st->ws->values[vid-1u].id = vid;
-    st->ws->values[vid-1u].type_id = 1u;
+    st->ws->values[vid-1u].type_id = result_type_id;
     st->ws->values[vid-1u].defining_instruction_id = iid;
     st->ws->values[vid-1u].flags = 0u;
     *out = vid;
     return OIR_STATUS_OK;
 }
+
 static OirStatus lower_expr(ExprState* st, uint32_t id, uint32_t* out, uint32_t depth) {
     OirAstNodeRecord n;
     OirStatus s;
