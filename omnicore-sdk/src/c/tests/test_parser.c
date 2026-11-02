@@ -788,7 +788,7 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
     int rules=0, apply=0, on_block=0, lambda=0, unroll=0, relocate=0;
     int ok=0;
     if(!ctx)return 0;
-    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root)goto done;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) { fprintf(stderr,"feature parser status=%d errors=%d\\n",(int)parser_get_status(ctx),ctx->error_count); goto done; }
     function=(ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if(!function || function->base.type!=AST_FUNC_DECL ||
        !function->body || function->body->type!=AST_BLOCK)goto done;
@@ -826,6 +826,7 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
         }
     }
     ok=rules && apply && on_block && lambda && unroll && relocate;
+    if(!ok)fprintf(stderr,"feature AST flags rules=%d apply=%d on=%d lambda=%d unroll=%d relocate=%d\\n",rules,apply,on_block,lambda,unroll,relocate);
 done:
     parser_destroy(ctx);
     return ok;
