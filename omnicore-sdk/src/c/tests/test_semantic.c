@@ -57,6 +57,7 @@ static int check_source(const char* source, int expected_errors) {
     int ok;
     if (!parser) return 0;
     if (parser_run(parser) != 0 || !parser->ast_root) {
+        fprintf(stderr, "Parser rejected semantic fixture: %s\\n", source);
         parser_destroy(parser);
         return 0;
     }
