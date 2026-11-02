@@ -409,7 +409,7 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Add `CODEBASE_INDEX.md` with the complete snapshot list of all 126 C/header files under `omnicore-sdk/src/c/`.
 - [x] Add a first-pass verified function catalogue for core compiler, OIR, stage-module, verifier, semantic and target files.
 - [x] Record module reuse hints and Verifier-specific existing implementations/tests to prevent duplicate implementations.
-- [ ] Complete function-level indexing for every remaining C implementation file.
-- [ ] Add public header/API declaration indexing.
+- [x] Complete first-pass function-level indexing for all non-test production C implementation files.
+- [ ] Add function-level indexing for test source files and public header/API declaration indexing.
 - [ ] Update `CODEBASE_INDEX.md` and its snapshot commit after every source-file/function addition, removal or rename.
 - [ ] Before every implementation task, inspect this index and the actual source/callers; prefer extending existing functions over creating duplicates.
