@@ -32,7 +32,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Cast `cast(value,type)` | `AST_CAST` | Present | Type resolution and conversion record |
 | Tuple | `AST_TUPLE` | Present | Tuple typing/destructuring contract |
 | Array / map / vector forms | No dedicated AST tags apparent | **Representation unclear** | Decide explicit aggregate/type nodes vs generic syntax; inventory parser |
-| Unified `loop` (range/count/foreach/conditional/infinite/rolling) | `AST_LOOP` + `AST_UNROLL`; existing `AST_NEXUS_FLOW` retry metadata | Partial: foreach `in` and `unroll(count)->loop` parser paths exist; rolling/timed metadata still needs audit | Complete rolling/timed syntax, duration units, constant-bound checks and semantic loop normalization |
+| Unified `loop` (range/count/foreach/conditional/infinite) + `unroll` | `AST_LOOP`, `AST_UNROLL`; rolling retry is represented by `AST_NEXUS_FLOW.retry_count/retry_delay` | Parser/AST/OIR forms implemented; foreach `in`, `unroll(count)->loop`, and `?(count, delay ms)->target` are parsed with bounded integer validation | Runtime retry semantics, constant-bound validation and canonical loop normalization/lowering remain open |
 | `if / elsif / els` | `AST_IF` condition/then/else | Partial | Verify elsif chain shape and nesting semantics |
 | Conditional action `(cond) -> break/continue/...` | `AST_IF` canonical form | Parser path exists and is disambiguated from Flow pipe | Complete semantic loop-context and round-trip coverage; no separate node required unless source-form preservation becomes a language requirement |
 | Labels `label:>`, jump `label?>` | `AST_NEXUS_LABEL`, `AST_NEXUS_JUMP` | Present | Resolve label IDs and validate scope/control-flow |
@@ -113,7 +113,7 @@ The parser source was inspected by grammar entry points and AST construction sit
 |---|---|---|---|
 | `if / elsif / els` | `parse_if_statement()` recursively parses `elsif` | `AST_IF.else_branch` contains nested `AST_IF` or final else branch | Parser representation exists; semantic/roundtrip chain tests still required |
 | Conditional action `(cond) -> break/continue/...` | `parse_conditional_action()`, gated by `parser_looks_like_conditional_action()` | `AST_IF` with condition and then branch | Explicit separate node is not necessary if this canonical encoding is documented/tested; parser ambiguity tests remain |
-| Unified `loop` forms | `parse_primary()` contains loop construction; `ASTLoop.loop_type` currently 0..3 | `AST_LOOP` fields init/condition/increment/collection/variable/body | Partial: range/foreach/while/for/infinite parser paths exist, but README's rolling/timed loop form and `unroll` need distinct syntax/metadata audit |
+| Unified `loop` + rolling retry | `parse_primary()` builds loop kinds; `parse_unroll()` builds compile-time directive; `parse_nexus_flow()` handles `?(count, delay ms)->` | `AST_LOOP`, `AST_UNROLL`, `AST_NEXUS_FLOW.retry_count/retry_delay` | Foreach `in`, unroll and `ms` retry delay are parser/AST/OIR represented; runtime retry behavior, bounds and lowering remain open |
 | `select / scan` | Contextual `parse_select_scan()` at statement position; `parse_pattern()` handles literal, binding and constructor patterns | `AST_SELECT`, `AST_SELECT_ARM`, `AST_SCAN`, `AST_SCAN_ARM`, `AST_PATTERN_BINDING`, `AST_PATTERN_CONSTRUCTOR` | **Parser, AST codec and OIR frontend bridge implemented; CI pending** |
 | Multi-rule `rules ...` | No rules parser or statement branch found | No AST tag | **Not implemented in C parser/model** |
 | `apply rules(...)` | No apply-rules grammar branch found | No AST tag | **Not implemented in C parser/model** |
@@ -165,7 +165,7 @@ This is the minimum structure required by the language examples (not a claim tha
 ### Unified loop extensions
 
 - Preserve existing four loop shapes only where syntax maps clearly: infinite, condition, init+condition+increment, foreach/range.
-- Rolling `?(count, delay)->target` needs retry count/delay metadata and retry semantics; existing ASTNexusFlow has retry fields but parser assignment and units must be verified.
+- Rolling `?(count, delay ms)->target` is parsed into `AST_NEXUS_FLOW.retry_count/retry_delay`; `ms` is consumed explicitly and numeric overflow is rejected. Runtime retry scheduling/semantics remain to be defined and lowered.
 - `unroll(count) -> loop(...)`: compile-time directive/loop transform, not a runtime intrinsic call; define AST representation and constant-bound validation.
 
 ## C implementation audit (source-verified)
@@ -232,7 +232,7 @@ Affected files and responsibilities:
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_reader.c`: reader must allocate the correct AST payload size, restore owned strings/scalars, and attach every child field with ownership checks.
 - Existing AST binary codec in `parser/ast.c` remains a separate compatibility surface; OIR bridge support does not replace its print/destroy/serialize/deserialize integration.
 
-Implementation status (2 Kasım 2026): select/scan, rules/apply/on, lambda, relocate and unroll node families are appended to `ast.h`; all five `ast.c` lifecycle/codec switches and parser productions are updated. OIR IDs 81–96, child index, writer, reader and field schema are registered. Parser AST shape tests and all-kind OIR payload tests are present. **CI passed:** run 41458078191 — Windows, Ubuntu and macOS build/test; Ubuntu ASan/UBSan and Valgrind.
+Implementation status (2 Kasım 2026): select/scan, rules/apply/on, lambda, relocate and unroll node families are appended to `ast.h`; all five `ast.c` lifecycle/codec switches and parser productions are updated. OIR IDs 81–96, child index, writer, reader and field schema are registered. Parser AST shape tests and all-kind OIR payload tests are present. **CI passed:** run 41459511320 — Windows, Ubuntu and macOS build/test; Ubuntu ASan/UBSan and Valgrind. Rolling retry `ms` parsing and overflow regression are being validated in the subsequent run.
 
 Recommended canonical field order for the proposed nodes (field IDs are OIR schema IDs, not C struct offsets):
 
