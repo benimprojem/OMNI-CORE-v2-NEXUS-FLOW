@@ -94,6 +94,11 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     return 1;
 }
 
+static void test_put_u32(uint8_t* p, uint32_t v) {
+    p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16); p[3] = (uint8_t)(v >> 24);
+}
+
 static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int variant) {
     int diamond = variant == 1;
     static const uint8_t strings[] = "main";
@@ -220,12 +225,6 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         instructions[1].first_operand = 1u; instructions[1].operand_count = 1u;
         operands[0].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[0].immediate = 7u;
         operands[1].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[1].immediate = 9u;
-    } else if (!diamond && variant == 2) {
-        operands[1].reference_id = 99u; /* Branch target does not exist. */
-    } else if (!diamond && variant == 3) {
-        blocks[1].function_id = 2u; /* Block owner does not exist. */
-    } else if (!diamond && variant == 4) {
-        instructions[2].result_value_id = 1u; /* Duplicate definition of SSA value 1. */
     }
 
     memset(&input, 0, sizeof(input));
@@ -238,6 +237,22 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     input.strings = strings; input.strings_length = 4u;
     assert(oir_module_write(module_bytes, sizeof(module_bytes), &input,
         &module_length) == OIR_STATUS_OK);
+
+    /* Patch only after the codec writer has emitted a valid wire payload.
+       These malformed semantic relationships belong to the independent verifier. */
+    if (variant == 2) {
+        size_t operands_offset = 36u + 3u * 12u + 20u +
+            (size_t)block_count * 16u + (size_t)value_count * 16u +
+            (size_t)instruction_count * 24u;
+        test_put_u32(module_bytes + operands_offset + 16u + 4u, 99u);
+    } else if (variant == 3) {
+        size_t blocks_offset = 36u + 3u * 12u + 20u;
+        test_put_u32(module_bytes + blocks_offset + 16u + 4u, 2u);
+    } else if (variant == 4) {
+        size_t instructions_offset = 36u + 3u * 12u + 20u +
+            (size_t)block_count * 16u + (size_t)value_count * 16u;
+        test_put_u32(module_bytes + instructions_offset + 2u * 24u + 12u, 1u);
+    }
 
     artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE + module_length;
     artifact = (uint8_t*)malloc(artifact_capacity);
