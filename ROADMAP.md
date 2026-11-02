@@ -86,6 +86,16 @@ Proje şu an **prototip / entegrasyon aşamasında**. Yüzde tamamlanma yerine m
 
 **Çıkış ölçütü:** Writer-reader round-trip ve bozuk dosya testleri; OIR sürüm uyumluluğu açıkça tanımlı.
 
+## Faz 3.5 — AST / Semantic AST / OIR tamamlanması (Codegen kapısı)
+
+**Öncelik:** P0 — Codegen kapsamından önce zorunlu
+
+AST, semantic ve lowering/OIR eksikleri tamamlanmadan backend geliştirmesi genişletilmeyecek. Bu faz; node/field/ownership sözleşmesini, semantic type/scope/function/control-flow kurallarını, AST → OIR kapsamını, opcode semantics ve Verifier test matrisini kapatır.
+
+Ayrıntılı görev ve çıkış ölçütleri: [AST_OIR_COMPLETION_PLAN.md](AST_OIR_COMPLETION_PLAN.md).
+
+**Çıkış ölçütü:** AST/semantic/lowering coverage matrisi tamam; desteklenmeyen özellikler fail-closed; OIR Verifier bütün invariantları kontrol ediyor; invalid ara ürün Codegen'e ulaşmıyor; desteklenen örnekler uçtan uca testli.
+
 ## Faz 4 — Optimizer
 
 **Öncelik:** P1
