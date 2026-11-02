@@ -1372,7 +1372,15 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             return NULL;
         }
         
-        if (op == TOKEN_PIPE || op == TOKEN_LSHIFT || op == TOKEN_RSHIFT || op == TOKEN_RELOCATE) {
+        if (op == TOKEN_RELOCATE) {
+            ASTRelocate* relocate = (ASTRelocate*)parser_ast_create(p, AST_RELOCATE);
+            if (!relocate) { ast_destroy(expr); ast_destroy(right); return NULL; }
+            relocate->base.line = p->previous.line;
+            relocate->base.col = p->previous.col;
+            relocate->source = expr;
+            relocate->target = right;
+            expr = (ASTNode*)relocate;
+        } else if (op == TOKEN_PIPE || op == TOKEN_LSHIFT || op == TOKEN_RSHIFT) {
             ASTNexusFlow* pipe = (ASTNexusFlow*)parser_ast_create(p, AST_NEXUS_PIPE);
             if (!pipe) {
                 ast_destroy(expr);
@@ -2643,7 +2651,7 @@ static ASTNode* parse_ruleset(Parser* p) {
             ASTNode* condition=parse_range(p);
             if(!condition){ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
             if(match(p,TOKEN_COLON)) {
-                if(!match(p,TOKEN_ASSIGN) || !match(p,TOKEN_GT)){error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected ':=>' barrier operator.");ast_destroy(condition);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
+                if(!match(p,TOKEN_FAT_ARROW)){error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected ':=>' barrier operator.");ast_destroy(condition);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
                 ASTNode* message=parse_statement(p);
                 ASTRuleBarrier* n;
                 if(!message){ast_destroy(condition);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
