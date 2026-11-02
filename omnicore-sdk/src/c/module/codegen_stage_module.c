@@ -552,7 +552,7 @@ static const OccStageModuleV1 g_codegen_module = {
         1u, 0u, 0u, 0u,
         OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_MODULE),
         OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_MODULE),
-        OIR_KIND_ASSEMBLY, 1u, 0u, 0u,
+        OIR_KIND_ASSEMBLY, 1u, 1u, 0u,
         (uint64_t)OCC_MODULE_CAP_REENTRANT |
             (uint64_t)OCC_MODULE_CAP_DETERMINISTIC |
             (uint64_t)OCC_MODULE_CAP_STATELESS |
