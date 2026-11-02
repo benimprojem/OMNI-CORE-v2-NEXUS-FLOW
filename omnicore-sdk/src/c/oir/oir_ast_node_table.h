@@ -11,7 +11,7 @@ extern "C" {
 #define OIR_AST_NODE_RECORD_SIZE 32u
 #define OIR_AST_NODE_COUNT_MAX 1000000u
 #define OIR_AST_NODE_DEPTH_MAX 512u
-#define OIR_AST_NODE_KIND_MAX 96u
+#define OIR_AST_NODE_KIND_MAX 97u
 #define OIR_AST_STRING_MAX 16777216u
 
 typedef struct OirAstNodeRecord {
