@@ -153,6 +153,10 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
             return field_id == 1u ? ((const ASTTuple*)node)->elements : NULL;
         case AST_ARRAY_LITERAL:
             return field_id == 1u ? ((const ASTArrayLiteral*)node)->elements : NULL;
+        case AST_ARRAY_TYPE:
+            return field_id == 1u ? ((const ASTArrayType*)node)->dimensions : NULL;
+        case AST_ARRAY_DIMENSION:
+            return field_id == 1u ? ((const ASTArrayDimension*)node)->length : NULL;
         case AST_SELECT: { const ASTSelect* n=(const ASTSelect*)node; return field_id==1u?n->selector:(field_id==2u?n->arms:NULL); }
         case AST_SELECT_ARM: { const ASTSelectArm* n=(const ASTSelectArm*)node; return field_id==1u?n->pattern:(field_id==2u?n->body:NULL); }
         case AST_SCAN: { const ASTScan* n=(const ASTScan*)node; return field_id==1u?n->subject:(field_id==2u?n->arms:NULL); }
@@ -223,7 +227,8 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
 uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
     switch (type) {
         case AST_PROGRAM: case AST_BLOCK: case AST_ASM_BLOCK:
-        case AST_TUPLE: case AST_ARRAY_LITERAL: case AST_NEXUS_HALT: case AST_UNPACK: case AST_DEFER:
+        case AST_TUPLE: case AST_ARRAY_LITERAL: case AST_ARRAY_TYPE:
+        case AST_ARRAY_DIMENSION: case AST_NEXUS_HALT: case AST_UNPACK: case AST_DEFER:
             return 1u;
         case AST_STRUCT_DECL: case AST_UNION_DECL: return 6u;
         case AST_GROUP_DECL: return 4u;
