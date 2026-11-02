@@ -94,6 +94,9 @@ static void free_disconnected_node(ASTNode* node) {
         case AST_IDENTIFIER: free(((ASTIdentifier*)node)->name); break;
         case AST_PATTERN_BINDING: free(((ASTPatternBinding*)node)->name); break;
         case AST_PATTERN_CONSTRUCTOR: free(((ASTPatternConstructor*)node)->name); break;
+        case AST_RULESET_DECL: free(((ASTRulesetDecl*)node)->name); break;
+        case AST_APPLY_RULES: free(((ASTApplyRules*)node)->ruleset_name); break;
+        case AST_ON_BLOCK: { ASTOnBlock* n=(ASTOnBlock*)node; free(n->ruleset_name); free(n->event_name); break; }
         case AST_MEMBER_ACCESS: free(((ASTMemberAccess*)node)->member_name); break;
         case AST_NEXUS_CAPTURE: case AST_LISTEN:
             free(((ASTNexusCapture*)node)->handler_name); break;
@@ -262,6 +265,21 @@ static OirStatus populate_scalar_fields(
             case AST_PATTERN_CONSTRUCTOR:
                 if(field.field_id==1u) status=allocate_string(view,&field,&((ASTPatternConstructor*)node)->name);
                 break;
+            case AST_RULESET_DECL:
+                if(field.field_id==1u) status=allocate_string(view,&field,&((ASTRulesetDecl*)node)->name);
+                break;
+            case AST_APPLY_RULES:
+                if(field.field_id==1u) status=allocate_string(view,&field,&((ASTApplyRules*)node)->ruleset_name);
+                break;
+            case AST_ON_BLOCK: {
+                ASTOnBlock* n=(ASTOnBlock*)node;
+                if(field.field_id==1u) status=allocate_string(view,&field,&n->ruleset_name);
+                else if(field.field_id==2u) status=allocate_string(view,&field,&n->event_name);
+                break;
+            }
+            case AST_LAMBDA:
+                if(field.field_id==3u) ((ASTLambda*)node)->body_is_expression=(int)field.value[0];
+                break;
             case AST_SELECT_ARM:
                 if(field.field_id==3u) ((ASTSelectArm*)node)->is_default=(int)field.value[0];
                 break;
@@ -394,6 +412,16 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
         case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; if(field_id==1u)n->pattern=child; else if(field_id==2u)n->body=child; else return 0; break; }
         case AST_PATTERN_CONSTRUCTOR:
             if(field_id==2u)((ASTPatternConstructor*)node)->bindings=child; else return 0; break;
+        case AST_RULESET_DECL: { ASTRulesetDecl* n=(ASTRulesetDecl*)node; if(field_id==2u)n->params=child; else if(field_id==3u)n->rules=child; else return 0; break; }
+        case AST_RULE_BARRIER: { ASTRuleBarrier* n=(ASTRuleBarrier*)node; if(field_id==1u)n->condition=child; else if(field_id==2u)n->message=child; else return 0; break; }
+        case AST_RULE_TRIGGER: { ASTRuleTrigger* n=(ASTRuleTrigger*)node; if(field_id==1u)n->condition=child; else if(field_id==2u)n->action=child; else return 0; break; }
+        case AST_RULE_ALWAYS: if(field_id==1u)((ASTRuleAlways*)node)->action=child; else return 0; break;
+        case AST_RULE_DEFAULT: if(field_id==1u)((ASTRuleDefault*)node)->action=child; else return 0; break;
+        case AST_APPLY_RULES: if(field_id==2u)((ASTApplyRules*)node)->args=child; else return 0; break;
+        case AST_ON_BLOCK: if(field_id==3u)((ASTOnBlock*)node)->body=child; else return 0; break;
+        case AST_LAMBDA: { ASTLambda* n=(ASTLambda*)node; if(field_id==1u)n->params=child; else if(field_id==2u)n->body=child; else return 0; break; }
+        case AST_RELOCATE: { ASTRelocate* n=(ASTRelocate*)node; if(field_id==1u)n->source=child; else if(field_id==2u)n->target=child; else return 0; break; }
+        case AST_UNROLL: { ASTUnroll* n=(ASTUnroll*)node; if(field_id==1u)n->count=child; else if(field_id==2u)n->loop=child; else return 0; break; }
         case AST_IF: {
             ASTIf* n=(ASTIf*)node;
             if(field_id==1u) n->condition=child;
