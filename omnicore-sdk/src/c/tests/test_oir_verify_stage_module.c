@@ -94,7 +94,8 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     return 1;
 }
 
-static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int diamond) {
+static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int variant) {
+    int diamond = variant == 1;
     static const uint8_t strings[] = "main";
     OirModuleType types[3];
     OirModuleFunction functions[1];
@@ -107,10 +108,10 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int diam
     OirSectionInput section;
     uint8_t module_bytes[4096];
     uint8_t* artifact;
-    uint32_t block_count = diamond ? 4u : 2u;
-    uint32_t value_count = diamond ? 4u : 2u;
-    uint32_t instruction_count = diamond ? 8u : 4u;
-    uint32_t operand_count = diamond ? 11u : 5u;
+    uint32_t block_count = variant == 5 ? 1u : (diamond ? 4u : 2u);
+    uint32_t value_count = variant == 5 ? 2u : (diamond ? 4u : 2u);
+    uint32_t instruction_count = variant == 5 ? 2u : (diamond ? 8u : 4u);
+    uint32_t operand_count = variant == 5 ? 2u : (diamond ? 11u : 5u);
     size_t module_length = 0u, artifact_capacity;
 
     memset(types, 0, sizeof(types));
@@ -205,6 +206,28 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int diam
         operands[10].kind = OIR_OPERAND_VALUE; operands[10].reference_id = 4u;
     }
 
+    if (variant == 5) {
+        /* A structurally decodable block with no terminator must be rejected. */
+        blocks[0].id = 1u; blocks[0].function_id = 1u;
+        blocks[0].first_instruction = 0u; blocks[0].instruction_count = 2u;
+        values[0].id = 1u; values[0].type_id = 1u; values[0].defining_instruction_id = 1u;
+        values[1].id = 2u; values[1].type_id = 1u; values[1].defining_instruction_id = 2u;
+        instructions[0].id = 1u; instructions[0].block_id = 1u;
+        instructions[0].opcode_id = OIR_OP_CONST_INT; instructions[0].result_value_id = 1u;
+        instructions[0].first_operand = 0u; instructions[0].operand_count = 1u;
+        instructions[1].id = 2u; instructions[1].block_id = 1u;
+        instructions[1].opcode_id = OIR_OP_CONST_INT; instructions[1].result_value_id = 2u;
+        instructions[1].first_operand = 1u; instructions[1].operand_count = 1u;
+        operands[0].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[0].immediate = 7u;
+        operands[1].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[1].immediate = 9u;
+    } else if (!diamond && variant == 2) {
+        operands[1].reference_id = 99u; /* Branch target does not exist. */
+    } else if (!diamond && variant == 3) {
+        blocks[1].function_id = 2u; /* Block owner does not exist. */
+    } else if (!diamond && variant == 4) {
+        instructions[2].result_value_id = 1u; /* Duplicate definition of SSA value 1. */
+    }
+
     memset(&input, 0, sizeof(input));
     input.types = types; input.type_count = 3u;
     input.functions = functions; input.function_count = 1u;
@@ -227,7 +250,7 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int diam
     header.payload_schema_minor = OIR_MODULE_SCHEMA_MINOR;
     header.producer_stage_id = OCC_STAGE_OIR_LOWERING;
     header.validity = OIR_VALIDITY_VALID;
-    header.job_id = diamond ? 504u : 502u;
+    header.job_id = 502u + (uint32_t)variant;
     memset(&section, 0, sizeof(section));
     section.type = OIR_SECTION_PAYLOAD; section.version = 1u;
     section.flags = OIR_SECTION_FLAG_REQUIRED;
@@ -309,12 +332,30 @@ int main(int argc, char** argv) {
         OccModuleArtifactInputV1 stage_input;
         memset(&stage_input, 0, sizeof(stage_input));
         stage_input.bytes = input; stage_input.length = input_length;
-        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 504u,
+        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 503u,
             &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
             OCC_MODULE_LOADER_INVOKE_FAILED);
     }
     assert(output == NULL);
     assert(occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) >= 2u);
+    free(input); input = NULL; input_length = 0u;
+
+    /* Reject malformed CFG ownership, missing terminators and duplicate SSA definitions. */
+    {
+        int variant;
+        for (variant = 2; variant <= 5; ++variant) {
+            OccModuleArtifactInputV1 stage_input;
+            assert(build_cfg_module_artifact(&input, &input_length, variant));
+            memset(&stage_input, 0, sizeof(stage_input));
+            stage_input.bytes = input; stage_input.length = input_length;
+            assert(occ_module_loader_invoke(&loaded, &stage_input, 1u,
+                502u + (uint32_t)variant, &diagnostics, 256u,
+                1024u * 1024u, &output, &output_length) ==
+                OCC_MODULE_LOADER_INVOKE_FAILED);
+            assert(output == NULL && output_length == 0u);
+            free(input); input = NULL; input_length = 0u;
+        }
+    }
 
     free(input);
     occ_module_loader_close(&loaded);
