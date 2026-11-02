@@ -37,6 +37,7 @@ static uint16_t required_field_count(uint16_t kind) {
         case 87: case 93: return 3u;
         case 88: case 89: case 92: case 95: case 96: return 2u;
         case 94: return 3u;
+        case 97: return 1u;
         case 90: case 91: return 1u;
         default: return UINT16_MAX;
     }
@@ -114,6 +115,7 @@ static uint8_t expected_type(uint16_t kind, uint16_t field_id) {
         case 92: if(field_id==1u) return OIR_AST_VALUE_STRING_REF; return OIR_AST_VALUE_NODE_REF;
         case 93: if(field_id<=2u) return OIR_AST_VALUE_STRING_REF; return OIR_AST_VALUE_NODE_REF;
         case 94: if(field_id==3u) return OIR_AST_VALUE_BOOL; return OIR_AST_VALUE_NODE_REF;
+        case 97: return OIR_AST_VALUE_NODE_REF;
         default: return UINT8_MAX;
     }
 }
