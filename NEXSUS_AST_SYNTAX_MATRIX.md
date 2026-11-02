@@ -130,3 +130,44 @@ The parser source was inspected by grammar entry points and AST construction sit
 ### Scope boundary
 
 This source trace proves parser/model presence or absence only. It does **not** claim semantic, AST wire codec, artifact or OIR lowering completion. Those layers remain separately gated in the matrix.
+
+
+## README examples → minimum AST grammar contracts
+
+This is the minimum structure required by the language examples (not a claim that the parser already implements it).
+
+### Select / scan
+
+- `select(expr) { arm* default? }`: selector expression plus ordered arm list; each arm has pattern/label and body; default is explicit and unique.
+- `scan(expr) { pattern -> body; ... }`: scan input plus ordered pattern arms; patterns can be enum variants/constructor patterns (e.g. `Range(s,e)`) and bind variables.
+- Pattern matching must bind `s,e,i,list,cond` into an arm-local scope; AST cannot encode these only as ordinary call expressions without semantic pattern metadata.
+
+### Multi-rule engine
+
+- `rules Name(params) { rule* }`: named rule declaration, parameters, ordered rules.
+- Barrier `condition :=> message`: condition + message expression; barrier is a terminating/failure effect, not ordinary assignment.
+- Trigger `condition -> ActionName`: condition + trigger identifier.
+- `always -> Action` and `default -> Action`: explicit rule kinds with distinct execution semantics (unconditional vs no-match fallback).
+- `apply rules(Name(args))`: named rule-set invocation and argument list; function-local rule injection/effect context must be represented.
+- `on Name.Event { body }`: qualified event name + body; handler binding is scoped to the apply context.
+
+### Lambda / anonymous function
+
+- Expression lambda `f:(a,b)>expr`: parameter list + expression body + inferred/declared return type contract.
+- Block anonymous function `f:(a,b){...}`: parameter list + block body; may be used as group member or value depending on language rule. Do not conflate declaration `f:name(...)` with expression forms.
+- Function types (README callback examples) need a type representation for parameter types and return type; a string-only `type_name` cannot carry nested signatures reliably.
+
+### Relocate
+
+- `source _> target`: distinct relocation/move operation with source and destination/context operands, ordered before flow operators as README states.
+- Semantic contract must mark source moved/invalidated and destination initialized; lowerer must emit an explicit move/relocation effect or reject it. It must not be silently lowered as a normal binary arithmetic operation.
+
+### Unified loop extensions
+
+- Preserve existing four loop shapes only where syntax maps clearly: infinite, condition, init+condition+increment, foreach/range.
+- Rolling `?(count, delay)->target` needs retry count/delay metadata and retry semantics; existing ASTNexusFlow has retry fields but parser assignment and units must be verified.
+- `unroll(count) -> loop(...)`: compile-time directive/loop transform, not a runtime intrinsic call; define AST representation and constant-bound validation.
+
+## AST schema decision (proposed, pending implementation)
+
+Append new node IDs only; do not alter IDs 1–80. Proposed family: `AST_LAMBDA`, `AST_SELECT`, `AST_SELECT_ARM`, `AST_SCAN`, `AST_SCAN_ARM`, `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT`, `AST_APPLY_RULES`, `AST_ON_BLOCK`, `AST_RELOCATE`, and `AST_UNROLL`. These names are a design proposal, not yet added to `ast.h`; exact enum/payload/codecs/tests should be implemented as one coherent patch after grammar and ownership rules are agreed.
