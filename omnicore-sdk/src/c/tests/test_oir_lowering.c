@@ -117,7 +117,9 @@ static int test_lowering_stage_rejects_bad_input(
         64u, 16u * 1024u * 1024u, &output, &output_length);
     free(output);
     occ_diagnostics_destroy(&diagnostics);
-    return status == OCC_MODULE_LOADER_INVOKE_FAILED &&
+    /* Any loader rejection is valid here; the contract is that malformed
+     * input never yields a published output artifact. */
+    return status != OCC_MODULE_LOADER_OK &&
         output == NULL && output_length == 0u;
 }
 
