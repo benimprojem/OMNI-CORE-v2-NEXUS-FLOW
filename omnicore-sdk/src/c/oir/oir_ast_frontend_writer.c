@@ -260,9 +260,13 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
             STR(5,n->string_value); break;
         }
         case AST_IDENTIFIER: STR(1,((const ASTIdentifier*)node)->name); break;
-        case AST_BINARY_EXPR: case AST_ASSIGNMENT: case AST_INDEX_ACCESS: {
+        case AST_BINARY_EXPR: case AST_ASSIGNMENT: {
             const ASTBinaryExpr* n = (const ASTBinaryExpr*)node;
             TOKEN(1,n->op); REF(2,n->left); REF(3,n->right); break;
+        }
+        case AST_INDEX_ACCESS: {
+            const ASTIndexAccess* n = (const ASTIndexAccess*)node;
+            REF(1,n->target); REF(2,n->index); break;
         }
         case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN: {
             const ASTUnaryExpr* n = (const ASTUnaryExpr*)node;
