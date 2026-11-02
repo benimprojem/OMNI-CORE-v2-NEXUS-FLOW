@@ -52,6 +52,7 @@
 - [x] Update AST allocation, printer, destroy, serialization and deserialization paths; add codec fixture using the dedicated node shape.
 - [x] Semantic check: target must be array, index must be integer; index expression is annotated as an lvalue and element type is propagated.
 - [x] Add valid/invalid parser-semantic fixtures and diagnostic assertions.
+- [x] Correct OIR AST wire fields: index node stores target/index as two NODE_REF fields (no operator token); frontend index, writer, reader and schema now agree.
 - [x] Decide checked bounds, left-to-right single evaluation, row-major offset and checked overflow in `OIR_LOWERING_PLAN.md`.
 - [ ] Register checked-bounds/address-offset OIR instructions and verifier contracts before lowering indexed reads/writes.
 - [ ] Implement full-rank index lowering to typed `LOAD`/`STORE`; keep partial-rank views disabled until ownership/lifetime is modeled.
