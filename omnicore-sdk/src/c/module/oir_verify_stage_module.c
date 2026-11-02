@@ -61,58 +61,58 @@ static int has_terminator(const OirModuleInstruction* ins) {
 static int validate_structure(const OirModuleView* m,
     uint32_t* block_function, uint8_t* covered) {
     uint32_t i, j, f;
-        /* Primitive type widths must match the published OIR type map. */
-        for (i = 0u; i < m->type_count; ++i) {
-            OirModuleType t;
-            if (oir_module_get_type(m, i, &t) != OIR_STATUS_OK) goto done;
-            if (t.kind == OIR_MODULE_TYPE_INTEGER) {
-                if (t.bit_width != 8u && t.bit_width != 16u &&
-                    t.bit_width != 32u && t.bit_width != 64u) goto done;
-            } else if (t.kind == OIR_MODULE_TYPE_FLOAT) {
-                if (t.bit_width != 32u && t.bit_width != 64u) goto done;
-            } else if (t.kind == OIR_MODULE_TYPE_BOOLEAN) {
-                if (t.bit_width != 1u) goto done;
-            } else if (t.kind != OIR_MODULE_TYPE_FUNCTION) {
-                goto done;
-            }
+    /* Primitive type widths must match the published OIR type map. */
+    for (i = 0u; i < m->type_count; ++i) {
+        OirModuleType t;
+        if (oir_module_get_type(m, i, &t) != OIR_STATUS_OK) return 0;
+        if (t.kind == OIR_MODULE_TYPE_INTEGER) {
+        if (t.bit_width != 8u && t.bit_width != 16u &&
+            t.bit_width != 32u && t.bit_width != 64u) return 0;
+        } else if (t.kind == OIR_MODULE_TYPE_FLOAT) {
+        if (t.bit_width != 32u && t.bit_width != 64u) return 0;
+        } else if (t.kind == OIR_MODULE_TYPE_BOOLEAN) {
+        if (t.bit_width != 1u) return 0;
+        } else if (t.kind != OIR_MODULE_TYPE_FUNCTION) {
+        return 0;
         }
+    }
 
-        /* Establish unique block ownership and exact, non-overlapping instruction ranges. */
-        for (i = 0u; i < m->block_count; ++i) {
-            OirModuleBlock b;
-            if (oir_module_get_block(m, i, &b) != OIR_STATUS_OK ||
-                b.id != i + 1u || b.function_id == 0u || b.function_id > m->function_count ||
-                b.instruction_count == 0u ||
-                b.first_instruction > m->instruction_count ||
-                b.instruction_count > m->instruction_count - b.first_instruction) goto done;
-            block_function[b.id] = b.function_id;
-            for (j = 0u; j < b.instruction_count; ++j) {
-                uint32_t index = b.first_instruction + j;
-                OirModuleInstruction ins;
-                if (covered[index] ||
-                    oir_module_get_instruction(m, index, &ins) != OIR_STATUS_OK ||
-                    ins.id != index + 1u || ins.block_id != b.id) goto done;
-                covered[index] = 1u;
-            }
+    /* Establish unique block ownership and exact, non-overlapping instruction ranges. */
+    for (i = 0u; i < m->block_count; ++i) {
+        OirModuleBlock b;
+        if (oir_module_get_block(m, i, &b) != OIR_STATUS_OK ||
+        b.id != i + 1u || b.function_id == 0u || b.function_id > m->function_count ||
+        b.instruction_count == 0u ||
+        b.first_instruction > m->instruction_count ||
+        b.instruction_count > m->instruction_count - b.first_instruction) return 0;
+        block_function[b.id] = b.function_id;
+        for (j = 0u; j < b.instruction_count; ++j) {
+        uint32_t index = b.first_instruction + j;
+        OirModuleInstruction ins;
+        if (covered[index] ||
+            oir_module_get_instruction(m, index, &ins) != OIR_STATUS_OK ||
+            ins.id != index + 1u || ins.block_id != b.id) return 0;
+        covered[index] = 1u;
         }
-        for (i = 1u; i <= m->instruction_count; ++i) if (!covered[i - 1u]) goto done;
+    }
+    for (i = 1u; i <= m->instruction_count; ++i) if (!covered[i - 1u]) return 0;
 
-        /* Functions must have a valid function type and an entry block they own. */
-        for (f = 0u; f < m->function_count; ++f) {
-            OirModuleFunction fn;
-            OirModuleType ft;
-            int owns_block = 0;
-            if (oir_module_get_function(m, f, &fn) != OIR_STATUS_OK ||
-                fn.id != f + 1u || !get_type(m, fn.function_type_id, &ft) ||
-                ft.kind != OIR_MODULE_TYPE_FUNCTION || fn.entry_block_id == 0u ||
-                fn.entry_block_id > m->block_count ||
-                block_function[fn.entry_block_id] != fn.id) goto done;
-            for (i = 1u; i <= m->block_count; ++i)
-                if (block_function[i] == fn.id) owns_block = 1;
-            if (!owns_block) goto done;
-        }
+    /* Functions must have a valid function type and an entry block they own. */
+    for (f = 0u; f < m->function_count; ++f) {
+        OirModuleFunction fn;
+        OirModuleType ft;
+        int owns_block = 0;
+        if (oir_module_get_function(m, f, &fn) != OIR_STATUS_OK ||
+        fn.id != f + 1u || !get_type(m, fn.function_type_id, &ft) ||
+        ft.kind != OIR_MODULE_TYPE_FUNCTION || fn.entry_block_id == 0u ||
+        fn.entry_block_id > m->block_count ||
+        block_function[fn.entry_block_id] != fn.id) return 0;
+        for (i = 1u; i <= m->block_count; ++i)
+        if (block_function[i] == fn.id) owns_block = 1;
+        if (!owns_block) return 0;
+    }
 
-        return 1;
+    return 1;
 }
 
 static int validate_module(const OirModuleView* m) {
