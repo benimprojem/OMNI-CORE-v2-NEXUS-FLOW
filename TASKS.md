@@ -57,9 +57,10 @@
 - [x] Kapanmayan block comment'i TOKEN_ERROR olarak source span ile bildir; lexer'ın ardından EOF'a ulaşmasını test et.
 - [ ] The 15 Keys operatörlerinin token öncelik ve çakışma testlerini ekle.
 - [ ] AST düğüm sözleşmesini ve source location bilgisini sabitle.
-- [ ] Multi-rule (`rules`), `apply rules`, `on` blokları, lambda/anonymous function ve `_>` relocate syntax'larını C parser + AST'ye ekle; select/scan için semantic pattern scopes, exhaustiveness ve lowering zincirini tamamla.
+- [x] Multi-rule (`rules`), `apply rules`, `on` blokları, expression/block lambda, `_>` relocate ve `unroll(count)->loop` syntax'larını C parser + AST'ye ekle; AST lifecycle/codec ve OIR bridge node IDs 87–96'yı tamamla. Parser AST şekil testi ve tüm node-kind OIR writer/reader testleri eklendi; CI run `41458078191` Windows/Ubuntu/macOS + ASan/UBSan + Valgrind başarılı.
+- [ ] Select/scan pattern scope + exhaustiveness; ruleset symbol/argument binding and event dispatch effects; lambda function types/captures; relocate move/invalidation semantics; unroll constant-bound checks; semantic AST artifact and lowering coverage.
 - [x] `if/elsif/els` ve conditional action parser yollarını kaynakta doğrula; conditional action'ın AST_IF canonical biçimini matrix'e kaydet (semantic/round-trip testleri hâlâ açık).
-- [ ] Unified loop'un README varyantları (rolling/timed, unroll dahil) ile ASTLoop payloadını karşılaştır; syntax/metadata eksiklerini kapat.
+- [ ] Unified loop'un rolling/timed retry varyantları, süre birimleri ve canonical loop metadata'sını tamamla. Foreach `in` syntax'ı ve `unroll(count)->loop` parser/AST/OIR desteği eklendi; semantic sabit sınır doğrulaması ve lowering açık.
 - [x] Statement-level conditional action shorthand: `(condition) -> break;` / `continue;` ve diğer açık statement başlangıçları koşullu kontrol akışı olarak ayrıştırılır; `source -> target/process()` ve `-> { ... }` Nexus Flow pipe olarak kalır. Parser AST ve semantic loop-context testleri eklendi; CI run `41364158463` Windows/Ubuntu/macOS + ASan/UBSan + Valgrind başarılı.
 - [ ] Scope, type promotion, ownership ve control-flow kurallarını testlerle doğrula.
 - [ ] Hata ve warning API'sini ortaklaştır.
