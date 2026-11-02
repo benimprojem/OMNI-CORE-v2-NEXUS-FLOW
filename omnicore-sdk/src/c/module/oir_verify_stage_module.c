@@ -119,6 +119,40 @@ static int validate_structure(const OirModuleView* m,
     return 1;
 }
 
+/* Pass 2: validate the SSA value table and build definition lookup tables. */
+static int validate_ssa_definitions(const OirModuleView* m,
+    uint32_t* definition_instruction, uint32_t* definition_block) {
+    uint32_t i;
+
+    /* Every value has exactly one matching definition record. */
+    for (i = 0u; i < m->value_count; ++i) {
+        OirModuleValue v;
+        OirModuleType value_type;
+        OirModuleInstruction def;
+        if (oir_module_get_value(m, i, &v) != OIR_STATUS_OK ||
+            v.id != i + 1u || v.defining_instruction_id == 0u ||
+            v.defining_instruction_id > m->instruction_count ||
+            !get_type(m, v.type_id, &value_type) ||
+            value_type.kind == OIR_MODULE_TYPE_FUNCTION ||
+            oir_module_get_instruction(m, v.defining_instruction_id - 1u, &def) != OIR_STATUS_OK ||
+            def.result_value_id != v.id) return 0;
+        definition_instruction[v.id] = v.defining_instruction_id;
+        definition_block[v.id] = def.block_id;
+    }
+    for (i = 0u; i < m->instruction_count; ++i) {
+        OirModuleInstruction ins;
+        OirModuleValue result;
+        if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK) return 0;
+        if (ins.result_value_id != 0u) {
+            if (!get_value(m, ins.result_value_id, &result) ||
+                result.defining_instruction_id != ins.id ||
+                definition_instruction[ins.result_value_id] != ins.id) return 0;
+        }
+    }
+
+    return 1;
+}
+
 static int validate_module(const OirModuleView* m) {
     uint32_t *block_function = NULL;
     uint32_t *definition_instruction = NULL, *definition_block = NULL;
@@ -153,31 +187,8 @@ static int validate_module(const OirModuleView* m) {
 
     if (!validate_structure(m, block_function, covered)) goto done;
 
-    /* Every value has exactly one matching definition record. */
-    for (i = 0u; i < m->value_count; ++i) {
-        OirModuleValue v;
-        OirModuleType value_type;
-        OirModuleInstruction def;
-        if (oir_module_get_value(m, i, &v) != OIR_STATUS_OK ||
-            v.id != i + 1u || v.defining_instruction_id == 0u ||
-            v.defining_instruction_id > m->instruction_count ||
-            !get_type(m, v.type_id, &value_type) ||
-            value_type.kind == OIR_MODULE_TYPE_FUNCTION ||
-            oir_module_get_instruction(m, v.defining_instruction_id - 1u, &def) != OIR_STATUS_OK ||
-            def.result_value_id != v.id) goto done;
-        definition_instruction[v.id] = v.defining_instruction_id;
-        definition_block[v.id] = def.block_id;
-    }
-    for (i = 0u; i < m->instruction_count; ++i) {
-        OirModuleInstruction ins;
-        OirModuleValue result;
-        if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK) goto done;
-        if (ins.result_value_id != 0u) {
-            if (!get_value(m, ins.result_value_id, &result) ||
-                result.defining_instruction_id != ins.id ||
-                definition_instruction[ins.result_value_id] != ins.id) goto done;
-        }
-    }
+    if (!validate_ssa_definitions(m, definition_instruction, definition_block))
+        goto done;
 
     /* Validate opcode-specific types and collect CFG predecessor edges. */
     for (i = 0u; i < m->instruction_count; ++i) {
