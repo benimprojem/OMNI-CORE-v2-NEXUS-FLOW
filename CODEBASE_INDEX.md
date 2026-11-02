@@ -422,7 +422,7 @@ The implementation is committed to `refactor/c-core-roadmap`; full CI has not ye
 
 ## AST syntax implementation snapshot — 2 Kasım 2026
 
-The pre-Codegen AST syntax gap set now has parser/AST/OIR representation for select/scan, ruleset and rule kinds, apply-rules, on-block, expression/block lambdas, relocate and unroll. This is **frontend representation completion only**; semantic typing/scopes/effects and lowering remain open.
+The pre-Codegen AST syntax gap set now has parser/AST/OIR representation for select/scan, ruleset and rule kinds, apply-rules, on-block, expression/block lambdas, relocate and unroll. Baseline semantic scope/type checks are now implemented for these constructs; exhaustiveness, full effect/ownership semantics and lowering remain open.
 
 - `omnicore-sdk/src/c/parser/ast.h`: append-only AST kinds 81–96; payloads for `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT`, `AST_APPLY_RULES`, `AST_ON_BLOCK`, `AST_LAMBDA`, `AST_RELOCATE`, `AST_UNROLL`.
 - `omnicore-sdk/src/c/parser/ast.c`: allocation size, printer, destroy, binary serializer and deserializer cases for all new kinds.
@@ -431,6 +431,9 @@ The pre-Codegen AST syntax gap set now has parser/AST/OIR representation for sel
 - `omnicore-sdk/src/c/oir/oir_ast_map.c`: OIR IDs 87–96 appended; IDs 1–86 unchanged.
 - `omnicore-sdk/src/c/oir/oir_ast_frontend_index.c`, `oir_ast_frontend_writer.c`, `oir_ast_frontend_reader.c`, `oir_ast_field_schema.c`: child fields, scalar/string metadata and materialization registered for all ten new node kinds.
 - `OIR_AST_NODE_REGISTRY.md`: stable node registry and field schema extended through ID 96.
-- `omnicore-sdk/src/c/tests/test_parser.c`: parser shape coverage for barrier/trigger/always/default, apply, on, expression/block lambda, foreach-in, unroll and relocate; AST binary codec round-trip.
+- `omnicore-sdk/src/c/tests/test_parser.c`: parser shape coverage for barrier/trigger/always/default, apply, on, expression/block lambda, foreach-in, unroll, relocate and rolling retry; AST binary codec round-trip.
+- `omnicore-sdk/src/c/parser/semantic.c`: arm-local pattern binding scopes; ruleset symbols/signatures and trigger event names; apply argument count/type checks; on-event validation; lambda parameter scopes; relocate type compatibility; non-negative integer-literal unroll validation.
+- `omnicore-sdk/src/c/tests/test_semantic.c`: valid/invalid pattern scope, ruleset apply/on event, duplicate binding and relocate type mismatch regressions.
+- `omnicore-sdk/src/c/tests/test_semantic_result_integration.c`: resolver-backed scope visibility for select pattern bindings, lambda parameters and ruleset parameters.
 - `omnicore-sdk/src/c/tests/test_oir_ast_frontend_writer.c` / `test_oir_ast_frontend_reader.c`: all-kind payload writer/reader fixtures include the new payload layouts.
-- **Validation:** CI run `41459659779` passed Windows, Ubuntu and macOS build/test plus Ubuntu ASan/UBSan and Valgrind.
+- **Validation:** CI run `41462178481` passed Windows, Ubuntu and macOS build/test plus Ubuntu ASan/UBSan and Valgrind.
