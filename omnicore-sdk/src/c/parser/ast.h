@@ -180,6 +180,16 @@ typedef struct { ASTNode base; ASTNode* selector; ASTNode* arms; } ASTSelect;
 typedef struct { ASTNode base; ASTNode* pattern; ASTNode* body; int is_default; } ASTSelectArm;
 typedef struct { ASTNode base; ASTNode* subject; ASTNode* arms; } ASTScan;
 typedef struct { ASTNode base; ASTNode* pattern; ASTNode* body; } ASTScanArm;
+typedef struct { ASTNode base; char* name; ASTNode* params; ASTNode* rules; } ASTRulesetDecl;
+typedef struct { ASTNode base; ASTNode* condition; ASTNode* message; } ASTRuleBarrier;
+typedef struct { ASTNode base; ASTNode* condition; ASTNode* action; } ASTRuleTrigger;
+typedef struct { ASTNode base; ASTNode* action; } ASTRuleAlways;
+typedef struct { ASTNode base; ASTNode* action; } ASTRuleDefault;
+typedef struct { ASTNode base; char* ruleset_name; ASTNode* args; } ASTApplyRules;
+typedef struct { ASTNode base; char* ruleset_name; char* event_name; ASTNode* body; } ASTOnBlock;
+typedef struct { ASTNode base; ASTNode* params; ASTNode* body; int body_is_expression; } ASTLambda;
+typedef struct { ASTNode base; ASTNode* source; ASTNode* target; } ASTRelocate;
+typedef struct { ASTNode base; ASTNode* count; ASTNode* loop; } ASTUnroll;
 
 // --- Bildirim Yapıları ---
 
