@@ -2,7 +2,7 @@
 
 **Repository:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Branch:** `refactor/c-core-roadmap`  
-**Snapshot commit:** `c5ae07d5ed8f54ca722fa553333cd6b5386d7d65`  
+**Snapshot commit:** `1c4692aa80be57adff7aac4db5022846a98f175d`  
 **Scope:** `omnicore-sdk/src/c/`  
 **Snapshot inventory:** 126 C/header files (91 C implementation files and 35 headers).  
 **Purpose:** prevent duplicate files/functions, make existing implementation discoverable before adding or changing code.
