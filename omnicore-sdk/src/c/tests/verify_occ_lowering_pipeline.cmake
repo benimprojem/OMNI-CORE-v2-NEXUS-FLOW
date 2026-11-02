@@ -84,7 +84,7 @@ if(NOT assembly_magic STREQUAL "4f495231")
 endif()
 
 file(READ "${stage_assembly}" stage_text)
-foreach(required_text IN ITEMS "global _kernel_main" "call main" "imul eax, ebx" "add eax, ebx")
+foreach(required_text IN ITEMS "global _kernel_main" "call main" "imul eax, ebx" "add eax, ebx" "cmp eax, ebx" "setl al" "jne .Lbb_2" "jmp .Lbb_3")
     string(FIND "${stage_text}" "${required_text}" found_at)
     if(found_at LESS 0)
         message(FATAL_ERROR "Codegen stage output is missing '${required_text}':\n${stage_text}")
