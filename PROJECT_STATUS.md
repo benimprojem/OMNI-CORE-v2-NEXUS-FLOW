@@ -784,3 +784,6 @@ Verifier kontrolleri:
 OCC host pipeline artık `SEMANTIC_AST → OIR Lowering → OIR Verifier → Codegen` sırasını uygular. `.module.oir` dosyası doğrulanmış artifact'tır; Codegen, producer stage'i verifier olmayan OIR_MODULE girdisini reddeder. Legacy AST tabanlı Codegen köprüsü parity testleri tamamlanana kadar ayrıca korunur.
 
 Doğrudan stage testi geçerli bir OIR_MODULE'ün doğrulanıp yeniden yayımlandığını ve codec'in yapısal olarak kabul ettiği use-before-definition SSA girdisinin Verifier tarafından reddedildiğini kontrol eder. CI doğrulaması bu aşama için henüz bekleniyor.
+
+
+**OIR Verifier CI — run 41375777590:** Windows, Ubuntu and macOS build/test passed; Ubuntu CTest **59/59**; ASan/UBSan and Valgrind passed. Direct verifier tests cover valid single-block OIR, same-block use-before-definition rejection, valid cross-block dominance and rejection of branch-local values used at a join where neither definition dominates.
