@@ -570,6 +570,17 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
             return type_name;
         }
+        case AST_RELOCATE: {
+            const char* type_name = get_expr_type(ctx, ((ASTRelocate*)node)->source);
+            semantic_record_annotation(
+                ctx, node, NULL, type_name ? type_name : "any",
+                SEMANTIC_RESULT_VALUE_RVALUE);
+            return type_name ? type_name : "any";
+        }
+        case AST_LAMBDA:
+            semantic_record_annotation(
+                ctx, node, NULL, "any", SEMANTIC_RESULT_VALUE_RVALUE);
+            return "any";
         default:
             return NULL;
     }
@@ -673,6 +684,99 @@ static int semantic_is_boolean_condition(SemanticContext* ctx, ASTNode* node) {
     }
     type_name = get_expr_type(ctx, node);
     return type_name && strcmp(type_name[0] == '!' ? type_name + 1 : type_name, "bool") == 0;
+}
+
+static void semantic_check_pattern_bindings(SemanticContext* ctx, ASTNode* pattern) {
+    ASTNode* current;
+    for (current=pattern; current; current=current->next) {
+        if (current->type==AST_PATTERN_BINDING) {
+            ASTPatternBinding* binding=(ASTPatternBinding*)current;
+            Slot* existing=find_slot(ctx,binding->name ? binding->name : "");
+            if(existing && existing->depth==ctx->current_depth) {
+                report_error(ctx,current,ERR_SEMANTIC_REDEFINED,
+                    "Pattern binding is duplicated in the same arm.");
+            } else {
+                Slot* slot=add_slot(ctx,binding->name,SLOT_VAR,0,"any",
+                    current,1,0,0,0u);
+                semantic_record_annotation(ctx,current,slot,"any",
+                    SEMANTIC_RESULT_VALUE_LVALUE);
+            }
+        } else if (current->type==AST_PATTERN_CONSTRUCTOR) {
+            semantic_check_pattern_bindings(ctx,
+                ((ASTPatternConstructor*)current)->bindings);
+        }
+    }
+}
+
+static void semantic_register_rule_signature(
+    SemanticContext* ctx, Slot* slot, ASTNode* params
+) {
+    ASTNode* current;
+    int count=0,index=0;
+    for(current=params;current;current=current->next) {
+        if(count==INT_MAX) {
+            semantic_set_result_error(ctx,SEMANTIC_RESULT_INVALID_DATA);
+            return;
+        }
+        ++count;
+    }
+    if(!slot)return;
+    slot->param_count=count;
+    if(count==0)return;
+    slot->param_types=(char**)semantic_callocate(ctx,(size_t)count,sizeof(char*));
+    if(!slot->param_types) {
+        semantic_set_result_error(ctx,SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return;
+    }
+    for(current=params;current;current=current->next,++index) {
+        ASTVarDecl* parameter=(ASTVarDecl*)current;
+        if(parameter->type_name) {
+            slot->param_types[index]=semantic_duplicate(ctx,parameter->type_name);
+            if(!slot->param_types[index]) {
+                semantic_set_result_error(ctx,SEMANTIC_RESULT_OUT_OF_MEMORY);
+                return;
+            }
+        }
+    }
+}
+
+static void semantic_check_rule_arguments(
+    SemanticContext* ctx, ASTNode* node, const char* name,
+    ASTNode* args, Slot* slot
+) {
+    ASTNode* arg;
+    int count=0,index=0;
+    for(arg=args;arg;arg=arg->next) {
+        semantic_check(ctx,arg);
+        if(count<INT_MAX)++count;
+    }
+    if(!slot) {
+        char message[256];
+        snprintf(message,sizeof(message),"Unknown ruleset '%s'.",name?name:"");
+        report_error(ctx,node,ERR_SEMANTIC_UNDEFINED,message);
+        return;
+    }
+    if(slot->kind!=SLOT_FUNC) {
+        report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+            "Applied ruleset name does not refer to a callable ruleset.");
+        return;
+    }
+    if(count!=slot->param_count) {
+        char message[256];
+        snprintf(message,sizeof(message),
+            "Ruleset '%s' expects %d argument(s), got %d.",
+            name?name:"",slot->param_count,count);
+        report_error(ctx,node,ERR_SEMANTIC_ARG_COUNT,message);
+    }
+    for(arg=args;arg && slot->param_types && index<slot->param_count;
+        arg=arg->next,++index) {
+        const char* actual=get_expr_type(ctx,arg);
+        const char* expected=slot->param_types[index];
+        if(actual && expected && !are_types_compatible(expected,actual)) {
+            report_error(ctx,arg,ERR_SEMANTIC_ARG_TYPE,
+                "Ruleset argument type does not match its parameter type.");
+        }
+    }
 }
 
 void semantic_check(SemanticContext* ctx, ASTNode* node) {
@@ -911,6 +1015,156 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             semantic_check(ctx, flow->left);
             semantic_check(ctx, flow->right);
             if (flow->catch_block) semantic_check(ctx, flow->catch_block);
+            break;
+        }
+        case AST_SELECT:
+            semantic_check(ctx,((ASTSelect*)node)->selector);
+            semantic_check(ctx,((ASTSelect*)node)->arms);
+            break;
+
+        case AST_SCAN:
+            semantic_check(ctx,((ASTScan*)node)->subject);
+            semantic_check(ctx,((ASTScan*)node)->arms);
+            break;
+
+        case AST_SELECT_ARM: {
+            ASTSelectArm* arm=(ASTSelectArm*)node;
+            enter_scope(ctx,node);
+            semantic_check_pattern_bindings(ctx,arm->pattern);
+            semantic_check(ctx,arm->body);
+            exit_scope(ctx);
+            break;
+        }
+
+        case AST_SCAN_ARM: {
+            ASTScanArm* arm=(ASTScanArm*)node;
+            enter_scope(ctx,node);
+            semantic_check_pattern_bindings(ctx,arm->pattern);
+            semantic_check(ctx,arm->body);
+            exit_scope(ctx);
+            break;
+        }
+
+        case AST_RULESET_DECL: {
+            ASTRulesetDecl* ruleset=(ASTRulesetDecl*)node;
+            Slot* existing=find_slot(ctx,ruleset->name?ruleset->name:"");
+            Slot* slot=NULL;
+            if(existing && existing->depth==ctx->current_depth) {
+                report_error(ctx,node,ERR_SEMANTIC_FUNC_REDEFINED,
+                    "Ruleset is already declared in this scope.");
+            } else {
+                slot=add_slot(ctx,ruleset->name,SLOT_FUNC,1,NULL,node,0,0,0,0u);
+                semantic_register_rule_signature(ctx,slot,ruleset->params);
+            }
+            enter_scope(ctx,node);
+            semantic_check(ctx,ruleset->params);
+            semantic_check(ctx,ruleset->rules);
+            exit_scope(ctx);
+            break;
+        }
+
+        case AST_RULE_BARRIER: {
+            ASTRuleBarrier* rule=(ASTRuleBarrier*)node;
+            if(rule->condition) {
+                semantic_check(ctx,rule->condition);
+                if(!semantic_is_boolean_condition(ctx,rule->condition))
+                    report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Rule barrier condition must have bool type.");
+            }
+            if(rule->message) {
+                const char* message_type;
+                semantic_check(ctx,rule->message);
+                message_type=get_expr_type(ctx,rule->message);
+                if(message_type && strcmp(message_type,"str")!=0)
+                    report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Rule barrier message must have str type.");
+            }
+            break;
+        }
+
+        case AST_RULE_TRIGGER: {
+            ASTRuleTrigger* rule=(ASTRuleTrigger*)node;
+            if(rule->condition) {
+                semantic_check(ctx,rule->condition);
+                if(!semantic_is_boolean_condition(ctx,rule->condition))
+                    report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Rule trigger condition must have bool type.");
+            }
+            /* A bare identifier is an event label, not a variable reference. */
+            if(rule->action && rule->action->type!=AST_IDENTIFIER)
+                semantic_check(ctx,rule->action);
+            break;
+        }
+
+        case AST_RULE_ALWAYS:
+            semantic_check(ctx,((ASTRuleAlways*)node)->action);
+            break;
+
+        case AST_RULE_DEFAULT:
+            semantic_check(ctx,((ASTRuleDefault*)node)->action);
+            break;
+
+        case AST_APPLY_RULES: {
+            ASTApplyRules* apply=(ASTApplyRules*)node;
+            Slot* slot=find_slot(ctx,apply->ruleset_name?apply->ruleset_name:"");
+            semantic_check_rule_arguments(ctx,node,apply->ruleset_name,
+                apply->args,slot);
+            break;
+        }
+
+        case AST_ON_BLOCK: {
+            ASTOnBlock* handler=(ASTOnBlock*)node;
+            if(!find_slot(ctx,handler->ruleset_name?handler->ruleset_name:"")) {
+                char message[256];
+                snprintf(message,sizeof(message),"Unknown ruleset '%s' in on-block.",
+                    handler->ruleset_name?handler->ruleset_name:"");
+                report_error(ctx,node,ERR_SEMANTIC_UNDEFINED,message);
+            }
+            enter_scope(ctx,node);
+            semantic_check(ctx,handler->body);
+            exit_scope(ctx);
+            break;
+        }
+
+        case AST_LAMBDA: {
+            ASTLambda* lambda=(ASTLambda*)node;
+            enter_scope(ctx,node);
+            semantic_check(ctx,lambda->params);
+            semantic_check(ctx,lambda->body);
+            exit_scope(ctx);
+            semantic_record_annotation(ctx,node,NULL,"any",
+                SEMANTIC_RESULT_VALUE_RVALUE);
+            break;
+        }
+
+        case AST_RELOCATE: {
+            ASTRelocate* relocate=(ASTRelocate*)node;
+            const char* source_type;
+            const char* target_type;
+            semantic_check(ctx,relocate->source);
+            semantic_check(ctx,relocate->target);
+            source_type=get_expr_type(ctx,relocate->source);
+            target_type=get_expr_type(ctx,relocate->target);
+            if(source_type && target_type &&
+               !are_types_compatible(source_type,target_type))
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Relocate source and destination types must match.");
+            semantic_record_annotation(ctx,node,NULL,
+                source_type?source_type:"any",SEMANTIC_RESULT_VALUE_RVALUE);
+            break;
+        }
+
+        case AST_UNROLL: {
+            ASTUnroll* unroll=(ASTUnroll*)node;
+            semantic_check(ctx,unroll->count);
+            if(!unroll->count || unroll->count->type!=AST_LITERAL ||
+               ((ASTLiteral*)unroll->count)->type!=TOKEN_NUMBER ||
+               ((ASTLiteral*)unroll->count)->int_value<0 ||
+               strchr(((ASTLiteral*)unroll->count)->string_value,'.')!=NULL) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Unroll count must be a non-negative integer literal.");
+            }
+            semantic_check(ctx,unroll->loop);
             break;
         }
 
