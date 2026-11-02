@@ -563,6 +563,7 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
     OccModuleDiagnosticV1 d;
     char contextual_message[384];
     const char* reported_message = message;
+    const char* hint = NULL;
     switch (code) {
         case OIR_VERIFY_DIAG_MODULE_LIMIT: message = "OIR module exceeds verifier resource limits."; break;
         case OIR_VERIFY_DIAG_INTERNAL_WORKSPACE: message = "OIR Verifier could not allocate its validation workspace."; break;
@@ -580,6 +581,19 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
         case OIR_VERIFY_DIAG_SSA_USE: message = "OIR SSA use is undefined, precedes its definition or is not dominated."; break;
         default: break;
     }
+    if (code >= 8601u && code <= OIR_VERIFY_DIAG_PAYLOAD_DECODE) {
+        hint = "OIR validation passes were skipped because the artifact envelope or payload could not be safely opened.";
+    } else if (code >= OIR_VERIFY_DIAG_TYPE_RECORD &&
+        code <= OIR_VERIFY_DIAG_SSA_DEFINITION) {
+        hint = "Opcode, CFG, terminator, dominance and SSA-use passes were skipped because prerequisite structure or definitions failed.";
+    } else if (code >= OIR_VERIFY_DIAG_OPCODE_SHAPE &&
+        code <= OIR_VERIFY_DIAG_CFG_EDGE) {
+        hint = "Terminator, dominance and SSA-use passes were skipped because instruction validation failed.";
+    } else if (code == OIR_VERIFY_DIAG_TERMINATOR) {
+        hint = "Dominance and SSA-use passes were skipped because terminator validation failed.";
+    } else if (code == OIR_VERIFY_DIAG_DOMINANCE) {
+        hint = "SSA-use validation was skipped because dominance analysis failed.";
+    }
     reported_message = message;
     if (failure && (failure->function_id || failure->block_id ||
         failure->instruction_id || failure->value_id || failure->type_id)) {
@@ -595,6 +609,7 @@ static uint32_t report_verify_error(const OccModuleInvocationV1* invocation,
     d.struct_size = (uint32_t)sizeof(d);
     d.code = code; d.message_id = code; d.severity = OCC_DIAG_ERROR;
     d.message = reported_message; d.message_length = strlen(reported_message);
+    d.hint = hint; d.hint_length = hint ? strlen(hint) : 0u;
     if (invocation->diagnostic_sink.report(invocation->diagnostic_sink.user_context, &d))
         result->diagnostics_count = 1u;
     return OCC_MODULE_STATUS_FAILED;
