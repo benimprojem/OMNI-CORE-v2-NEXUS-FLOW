@@ -243,17 +243,6 @@ static uint32_t value_offset(uint32_t value_id) {
     return value_id * 8u;
 }
 
-static int emit_load_value(
-    AssemblyWriter* writer,
-    const OirModuleValue* value
-) {
-    uint32_t offset;
-    if (!writer || !value || value->id == 0u) return 0;
-    offset = value_offset(value->id);
-    if (value->type_id == 0u) return 0;
-    return asm_emit(writer, "    mov eax, dword [rbp - %u]\n", offset);
-}
-
 static int emit_instruction(
     AssemblyWriter* writer,
     const OirModuleView* module,
@@ -563,7 +552,7 @@ static const OccStageModuleV1 g_codegen_module = {
         1u, 0u, 0u, 0u,
         OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_MODULE),
         OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_MODULE),
-        OIR_KIND_ASSEMBLY, 1u, 1u, 0u,
+        OIR_KIND_ASSEMBLY, 1u, 0u, 0u,
         (uint64_t)OCC_MODULE_CAP_REENTRANT |
             (uint64_t)OCC_MODULE_CAP_DETERMINISTIC |
             (uint64_t)OCC_MODULE_CAP_STATELESS |
