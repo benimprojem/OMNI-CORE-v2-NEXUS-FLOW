@@ -676,7 +676,8 @@ static ASTNode* parse_primary(Parser* p) {
             return NULL;
         }
 
-        if (match(p, TOKEN_ITERATE)) {
+        if (match(p, TOKEN_ITERATE) ||
+            (p->current.type == TOKEN_IDENTIFIER && parser_identifier_is(&p->current, "in") && (advance(p), 1))) {
             loop->loop_type = 3;
             loop->variable = first;
             loop->collection = parse_expression(p);
