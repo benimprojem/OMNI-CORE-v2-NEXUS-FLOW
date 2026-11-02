@@ -730,3 +730,28 @@ CMake artık lowering DLL'ini OCC executable build bağımlılığına ekler ve 
 **Doğrulama — CI run 41366127592:** Windows, Ubuntu ve macOS build/test işleri başarılı; Ubuntu ASan/UBSan ve Valgrind işleri başarılı. Ubuntu CTest sonucu **57/57**.
 
 **Sonraki adım:** Codegen'i ortak `OccStageModuleV1` ABI'ye taşımak ve OIR_MODULE girdisini tüketen ilk backend stage'ini kurmak. Legacy Codegen yolu, aynı fixture setinde assembly/output parity doğrulanana kadar fallback/referans olarak kalacaktır.
+
+
+## 2 Kasım 2026 — OIR_MODULE tüketen ilk Codegen DLL'i
+
+İlk Codegen backend'i artık ortak `OccStageModuleV1` ABI'sini kullanıyor. `occ_codegen_stage`, doğrulanmış OIR_MODULE 1.1 girdisini alıyor ve NASM metni taşıyan OIR_ASSEMBLY 1.0 artifact'ı üretiyor.
+
+Yeni stage'in giriş doğrulamaları:
+
+- Girdi artifact kind/schema: OIR_MODULE 1.1
+- Producer stage: OIR Lowering
+- Validity ve job ID: geçerli ve aynı compilation job'a ait
+- Tekil PAYLOAD section ve `oir_module_open()` yapısal kontrolü
+- İlk backend için tek function/basic block, tanımlı SSA değerleri, instruction sırası ve operand türleri
+
+İlk backend kapsamı bilinçli olarak sınırlıdır: x86-64 NASM BareMetal hedefi, tek fonksiyon/tek basic block, `i32` / `i64` / `bool`, sabitler, integer ADD/SUB/MUL/DIV/REM/NEG ve RETURN. Float, branch, multi-block CFG, multi-function, call, memory ve desteklenmeyen opcode'lar reddedilir. Bu sınırlar dilin genel sınırı değil, ilk backend dilimidir.
+
+OIR_ASSEMBLY payload'u NUL terminatörsüz ASCII NASM metnidir; object file veya çalıştırılabilir dosya değildir. Host artifact'ı `<basename>.assembly.oir`, metni `<basename>.stage.s` olarak kaydeder. Mevcut `codegen_run` modülü ise eski AST köprüsünden çalışmaya devam eder ve `<basename>.s` üretir. Yeni ve eski çıktılar henüz parity açısından eşdeğer kabul edilmemiştir.
+
+Target parser host tarafında seçilen target profilini doğrular. İlk backend mevcut C backend'in desteklediği x86_64/64-bit, little-endian, bare-metal raw profili ile sınırlandırılmıştır. Backend frame pointer olarak RBP kullandığı için BareMetal64 target profilinde RBP de reserved register olarak işaretlenmiştir.
+
+Doğrudan stage testi OIR_MODULE girdisinden assembly üretimini, output-buffer retry yolunu ve OIR_ASSEMBLY envelope/job kimliğini doğrular. CLI testi ise gerçek Lexer → Parser → Semantic → Lowering → Codegen hattını çalıştırır; hem yeni OIR_ASSEMBLY artifact'ını hem yeni stage metnini hem de legacy Codegen çıktısını ayrı ayrı kontrol eder.
+
+**Doğrulama — CI run 41367164418:** Windows, Ubuntu ve macOS build/test işleri başarılı; Ubuntu CTest **58/58**; Ubuntu ASan/UBSan ve Valgrind başarılı.
+
+**Kalan işler:** Codegen parity; float ve kontrol akışı desteği; çok fonksiyonlu OIR_MODULE; target/backend artifact sözleşmesi; yeni assembly'nin assembler aşamasına bağlanması; ardından legacy `codegen_run` ve AST materialization köprüsünün kaldırılması.
