@@ -534,9 +534,8 @@ OirStatus oir_lower_semantic_ast_return(
     OirSemanticType ft;
     const uint8_t *fname=NULL, *declared=NULL, *type_name=NULL;
     uint32_t fname_len=0u, declared_len=0u, decl=0u, body_id=0u;
-    uint32_t statement_id=0u, ret_id=0u, expr_id=0u;
-    uint32_t type_off=0u, type_len, value_id=0u, ret_iid, ret_first;
-    uint16_t ret_tok;
+    uint32_t statement_id=0u;
+    uint32_t type_off=0u, type_len, function_type_id;
     int hard=0;
     ExprState st;
     OirModuleInput m;
@@ -593,12 +592,15 @@ OirStatus oir_lower_semantic_ast_return(
     if (declared[0]=='!') { hard=1; type_off=1u; --type_len; }
     if (type_len!=ft.name_length || memcmp(declared+type_off,type_name,type_len) ||
         hard!=((ft.flags&OIR_SEMANTIC_TYPE_FLAG_HARD)!=0u)) return OIR_STATUS_INVALID_SECTION;
-    memset(w->types,0,2u*sizeof(w->types[0]));
+    memset(w->types,0,(size_t)w->type_capacity*sizeof(w->types[0]));
     if ((s=oir_type_map_primitive(&ft,type_name,ft.name_length,1u,&w->types[0]))!=OIR_STATUS_OK)
         return s;
-    w->types[1].id=2u; w->types[1].kind=OIR_MODULE_TYPE_FUNCTION;
     memset(&st,0,sizeof(st));
     st.artifact=a; st.ws=w; st.type_name=type_name; st.type_length=ft.name_length;
+    st.current_block_id=1u;
+    st.block_count=1u;
+    if (w->types[0].kind==OIR_MODULE_TYPE_BOOLEAN) st.bool_type_id=1u;
+    if ((s=begin_block(&st,1u))!=OIR_STATUS_OK) return s;
 
     /* Straight-line scalar locals are promoted to SSA values; reassignment creates a new version. */
     while (statement.node_kind_id == N_VAR_DECL ||
@@ -634,32 +636,28 @@ OirStatus oir_lower_semantic_ast_return(
         if ((s=node(&a->ast,statement_id,&statement))!=OIR_STATUS_OK)
             return OIR_STATUS_INVALID_SECTION;
     }
-    if (statement.node_kind_id!=N_RETURN || statement.next_node_id)
+    if (statement.next_node_id) return OIR_STATUS_INVALID_SECTION;
+    if (statement.node_kind_id==N_IF) {
+        if ((s=lower_if_tree(&st,statement.node_id))!=OIR_STATUS_OK) return s;
+    } else if (statement.node_kind_id==N_RETURN) {
+        if ((s=lower_return_current_block(&st,statement.node_id))!=OIR_STATUS_OK) return s;
+    } else {
         return OIR_STATUS_INVALID_SECTION;
-    ret_id=statement.node_id;
-    if ((s=token(&a->ast,ret_id,1u,&ret_tok))!=OIR_STATUS_OK || ret_tok!=T_RET ||
-        (s=ref(&a->ast,ret_id,2u,&expr_id))!=OIR_STATUS_OK || !expr_id)
-        return OIR_STATUS_INVALID_SECTION;
-    if ((s=lower_expr(&st,expr_id,&value_id,0u))!=OIR_STATUS_OK) return s;
-    if ((s=alloc_inst(&st,1u,&ret_iid,&ret_first))!=OIR_STATUS_OK) return s;
-    memset(&w->instructions[ret_iid-1u],0,sizeof(w->instructions[0]));
-    w->instructions[ret_iid-1u].id=ret_iid;
-    w->instructions[ret_iid-1u].block_id=1u;
-    w->instructions[ret_iid-1u].opcode_id=OIR_OP_RETURN;
-    w->instructions[ret_iid-1u].first_operand=ret_first;
-    w->instructions[ret_iid-1u].operand_count=1u;
-    w->operands[ret_first].kind=OIR_OPERAND_VALUE;
-    w->operands[ret_first].reference_id=value_id;
-    w->operands[ret_first].immediate=0u;
+    }
+
+    function_type_id = st.bool_type_id == 2u ? 3u : 2u;
+    if (w->type_capacity < function_type_id) return OIR_STATUS_BUFFER_TOO_SMALL;
+    w->types[function_type_id - 1u].id=function_type_id;
+    w->types[function_type_id - 1u].kind=OIR_MODULE_TYPE_FUNCTION;
     memcpy(w->strings,fname,fname_len);
     w->functions[0].id=1u; w->functions[0].name_offset=0u;
-    w->functions[0].name_length=fname_len; w->functions[0].function_type_id=2u;
+    w->functions[0].name_length=fname_len;
+    w->functions[0].function_type_id=function_type_id;
     w->functions[0].entry_block_id=1u;
-    w->blocks[0].id=1u; w->blocks[0].function_id=1u;
-    w->blocks[0].first_instruction=0u; w->blocks[0].instruction_count=st.instructions;
     memset(&m,0,sizeof(m));
-    m.types=w->types; m.type_count=2u; m.functions=w->functions; m.function_count=1u;
-    m.blocks=w->blocks; m.block_count=1u; m.values=w->values; m.value_count=st.values;
+    m.types=w->types; m.type_count=function_type_id;
+    m.functions=w->functions; m.function_count=1u;
+    m.blocks=w->blocks; m.block_count=st.block_count; m.values=w->values; m.value_count=st.values;
     m.instructions=w->instructions; m.instruction_count=st.instructions;
     m.operands=w->operands; m.operand_count=st.operands;
     m.strings=w->strings; m.strings_length=fname_len;
