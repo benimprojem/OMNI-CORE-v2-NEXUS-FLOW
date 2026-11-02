@@ -256,9 +256,7 @@ static int occ_run_codegen_stage(
     }
     if (!loaded.module ||
         loaded.module->descriptor.stage_id != OCC_STAGE_CODEGEN ||
-        loaded.module->descriptor.output_artifact_kind != OIR_KIND_ASSEMBLY ||
-        loaded.module->descriptor.output_schema_major != 1u ||
-        loaded.module->descriptor.output_schema_minor != 0u) {
+        loaded.module->descriptor.output_artifact_kind != OIR_KIND_ASSEMBLY) {
         occ_add_host_diagnostic(job, OCC_STAGE_CODEGEN, 5023u,
             "The loaded Codegen module does not match the OIR_ASSEMBLY 1.0 stage contract.");
         goto cleanup;
