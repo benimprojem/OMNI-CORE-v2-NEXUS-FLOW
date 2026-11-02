@@ -308,6 +308,62 @@ static uint32_t semantic_type_id(
     return status == SEMANTIC_RESULT_OK ? type_id : 0u;
 }
 
+static uint32_t semantic_declared_type_id(
+    SemanticContext* ctx, const ASTVarDecl* declaration
+) {
+    const ASTArrayType* array_type;
+    const ASTNode* dimension;
+    char shape[256];
+    size_t used;
+    uint32_t base_type_id = 0u;
+    uint32_t type_id = 0u;
+    uint16_t flags = 0u;
+    SemanticResultStatus status;
+    if (!ctx || !declaration) return 0u;
+    if (!declaration->inline_type ||
+        declaration->inline_type->type != AST_ARRAY_TYPE) {
+        return semantic_type_id(ctx, declaration->type_name,
+            declaration->is_hard_typed);
+    }
+    if (!ctx->result_enabled || ctx->result_status != SEMANTIC_RESULT_OK)
+        return 0u;
+    array_type = (const ASTArrayType*)declaration->inline_type;
+    if (declaration->type_name) {
+        base_type_id = semantic_type_id(ctx, declaration->type_name,
+            declaration->is_hard_typed);
+    }
+    if (declaration->is_hard_typed)
+        flags |= SEMANTIC_RESULT_TYPE_FLAG_HARD;
+    memcpy(shape, "array", 6u);
+    used = 5u;
+    for (dimension = array_type->dimensions; dimension; dimension = dimension->next) {
+        const ASTArrayDimension* dim = (const ASTArrayDimension*)dimension;
+        int written;
+        if (!dim->length) {
+            written = snprintf(shape + used, sizeof(shape) - used, "[]");
+        } else if (dim->length->type == AST_LITERAL &&
+            ((const ASTLiteral*)dim->length)->type == TOKEN_NUMBER &&
+            ((const ASTLiteral*)dim->length)->int_value > 0 &&
+            ((const ASTLiteral*)dim->length)->string_value &&
+            !strchr(((const ASTLiteral*)dim->length)->string_value, '.') &&
+            !strchr(((const ASTLiteral*)dim->length)->string_value, 'e') &&
+            !strchr(((const ASTLiteral*)dim->length)->string_value, 'E')) {
+            written = snprintf(shape + used, sizeof(shape) - used, "[%lld]",
+                ((const ASTLiteral*)dim->length)->int_value);
+        } else {
+            written = snprintf(shape + used, sizeof(shape) - used, "[?]");
+        }
+        if (written < 0 || (size_t)written >= sizeof(shape) - used)
+            return 0u;
+        used += (size_t)written;
+    }
+    status = semantic_result_intern_type(
+        &ctx->result, SEMANTIC_RESULT_TYPE_AGGREGATE, flags,
+        shape, 0u, base_type_id, &type_id);
+    semantic_set_result_error(ctx, status);
+    return status == SEMANTIC_RESULT_OK ? type_id : 0u;
+}
+
 static Slot* add_slot(
     SemanticContext* ctx,
     const char* name,
@@ -868,39 +924,59 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 report_issue(ctx, node, ERR_SEMANTIC_REDEFINED, buf, NULL,
                     "Bu ismi daha önce kullandınız.", 0, 0);
             } else {
-                int is_inline = (decl->inline_type != NULL);
+                int is_array = (decl->inline_type &&
+                    decl->inline_type->type == AST_ARRAY_TYPE);
+                int is_inline = (decl->inline_type != NULL && !is_array);
                 int valid_type = 0;
-                if (decl->type_name) {
-                    if (is_type_defined(ctx, decl->type_name)) valid_type = 1;
-                    else if (is_inline) {
-                        const char* t = (decl->type_name[0] == '!')
-                            ? decl->type_name + 1 : decl->type_name;
-                        if (strcmp(t, "struct") == 0 || strcmp(t, "union") == 0)
-                            valid_type = 1;
-                    }
+                const char* element_type = decl->type_name;
+                if (element_type && element_type[0] == '!') ++element_type;
+                if (element_type && *element_type) {
+                    if (is_type_defined(ctx, element_type)) valid_type = 1;
+                    else if (is_inline &&
+                        (strcmp(element_type, "struct") == 0 ||
+                         strcmp(element_type, "union") == 0)) valid_type = 1;
                 }
 
                 if (decl->type_name && !valid_type) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_UNKNOWN_TYPE),
-                        decl->type_name);
+                        element_type ? element_type : decl->type_name);
                     report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                 }
 
                 declared_slot = add_slot(
                     ctx, decl->name, SLOT_VAR, decl->is_const,
-                    decl->type_name, node, 0, 0, decl->is_hard_typed,
+                    is_array ? "array" : decl->type_name, node, 0, 0, decl->is_hard_typed,
                     (decl->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
                     (decl->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
             }
 
             if (decl->inline_type) semantic_check(ctx, decl->inline_type);
+            if (declared_slot &&
+                decl->inline_type && decl->inline_type->type == AST_ARRAY_TYPE) {
+                uint32_t array_type_id = semantic_declared_type_id(ctx, decl);
+                if (array_type_id != 0u) {
+                    declared_slot->type_id = array_type_id;
+                    if (declared_slot->symbol_id != 0u) {
+                        SemanticResultStatus array_status =
+                            semantic_result_set_symbol_type(&ctx->result,
+                                declared_slot->symbol_id, array_type_id);
+                        semantic_set_result_error(ctx, array_status);
+                    }
+                }
+            }
 
             if (decl->initializer) {
                 const char* init_type;
                 semantic_check(ctx, decl->initializer);
                 init_type = get_expr_type(ctx, decl->initializer);
-                if (decl->type_name) {
+                if (decl->inline_type &&
+                    decl->inline_type->type == AST_ARRAY_TYPE) {
+                    if (init_type && strcmp(init_type, "array") != 0) {
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Array declarators require an array initializer.");
+                    }
+                } else if (decl->type_name) {
                     if (init_type && !are_types_compatible(decl->type_name, init_type)) {
                         char buf[256];
                         snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
@@ -945,6 +1021,28 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_ARRAY_LITERAL:
             semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
             break;
+
+        case AST_ARRAY_TYPE:
+            semantic_check(ctx,((ASTArrayType*)node)->dimensions);
+            break;
+
+        case AST_ARRAY_DIMENSION: {
+            ASTArrayDimension* dimension=(ASTArrayDimension*)node;
+            if (dimension->length) {
+                semantic_check(ctx,dimension->length);
+                if (dimension->length->type!=AST_LITERAL ||
+                    ((ASTLiteral*)dimension->length)->type!=TOKEN_NUMBER ||
+                    ((ASTLiteral*)dimension->length)->int_value<=0 ||
+                    !((ASTLiteral*)dimension->length)->string_value ||
+                    strchr(((ASTLiteral*)dimension->length)->string_value,'.') ||
+                    strchr(((ASTLiteral*)dimension->length)->string_value,'e') ||
+                    strchr(((ASTLiteral*)dimension->length)->string_value,'E')) {
+                    report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Fixed array dimensions must be positive integer literals; use [] for dynamic dimensions.");
+                }
+            }
+            break;
+        }
 
         case AST_IDENTIFIER: {
             ASTIdentifier* id = (ASTIdentifier*)node;
@@ -1288,8 +1386,11 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                                 int i = 0;
                                 while(p) {
                                     ASTVarDecl* v = (ASTVarDecl*)p;
-                                    if (v->type_name) {
-                                        function_slot->param_types[i] = semantic_duplicate(ctx, v->type_name);
+                                    if (v->type_name || (v->inline_type &&
+                                        v->inline_type->type == AST_ARRAY_TYPE)) {
+                                        function_slot->param_types[i] = semantic_duplicate(ctx,
+                                            (v->inline_type && v->inline_type->type == AST_ARRAY_TYPE)
+                                                ? "array" : v->type_name);
                                         if (!function_slot->param_types[i]) {
                                             semantic_set_result_error(
                                                 ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
@@ -1333,7 +1434,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         parameter_node_id,
                         parameter->name,
                         parameter_slot ? parameter_slot->type_id :
-                            semantic_type_id(ctx, parameter->type_name, parameter->is_hard_typed));
+                            semantic_declared_type_id(ctx, parameter));
                     semantic_set_result_error(ctx, status);
                     parameter_node = parameter_node->next;
                 }
