@@ -1,4 +1,11 @@
-# OCC CLI integration fixture: current scalar OIR lowering subset.
+# OCC CLI integration fixture: scalar expressions, comparison and multi-block if/else CFG.
 f:main() !i32 {
-    ret 10 + 20 * 3;
+    v:x!i32 = 42;
+    v:y!i32 = 3;
+    v:z!i32 = x + y * 2;
+    if (z < 50) {
+        ret z;
+    } els {
+        ret 0;
+    }
 }
