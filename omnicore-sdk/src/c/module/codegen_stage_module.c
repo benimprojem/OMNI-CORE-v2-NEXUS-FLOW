@@ -561,7 +561,7 @@ static uint32_t OCC_MODULE_CALL codegen_stage_process(
         input_artifact.header.artifact_kind != OIR_KIND_MODULE ||
         input_artifact.header.payload_schema_major != OIR_MODULE_SCHEMA_MAJOR ||
         input_artifact.header.payload_schema_minor != OIR_MODULE_SCHEMA_MINOR ||
-        input_artifact.header.producer_stage_id != OCC_STAGE_OIR_LOWERING ||
+        input_artifact.header.producer_stage_id != OCC_STAGE_OIR_VERIFY ||
         input_artifact.header.validity != OIR_VALIDITY_VALID ||
         input_artifact.header.job_id != invocation->job_id) {
         return report_codegen_error(invocation, result, 8501u,
