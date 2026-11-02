@@ -744,7 +744,7 @@ Yeni stage'in giriş doğrulamaları:
 - Tekil PAYLOAD section ve `oir_module_open()` yapısal kontrolü
 - İlk backend için tek function/basic block, tanımlı SSA değerleri, instruction sırası ve operand türleri
 
-İlk backend kapsamı bilinçli olarak sınırlıdır: x86-64 NASM BareMetal hedefi, tek fonksiyon/tek basic block, `i32` / `i64` / `bool`, sabitler, integer ADD/SUB/MUL/DIV/REM/NEG ve RETURN. Float, branch, multi-block CFG, multi-function, call, memory ve desteklenmeyen opcode'lar reddedilir. Bu sınırlar dilin genel sınırı değil, ilk backend dilimidir.
+İlk backend kapsamı bilinçli olarak sınırlıdır: x86-64 NASM BareMetal hedefi, tek fonksiyon/tek basic block, `i32` / `i64` / `f32` / `f64` / `bool`, sabitler, integer ADD/SUB/MUL/DIV/REM/NEG, SSE scalar float ADD/SUB/MUL/DIV/NEG ve RETURN. F32 sabitleri OIR_MODULE'de binary64 olarak taşındığı için backend `CVTSD2SS` ile f32'ye yuvarlar. BareMetal64 profilinde scalar dönüş register'ı RAX olduğundan f32/f64 dönüşleri IEEE bit deseni olarak RAX'e aktarılır. Branch, multi-block CFG, multi-function, call, memory, cast, float REM ve desteklenmeyen opcode'lar reddedilir. Bu sınırlar dilin genel sınırı değil, ilk backend dilimidir.
 
 OIR_ASSEMBLY payload'u NUL terminatörsüz ASCII NASM metnidir; object file veya çalıştırılabilir dosya değildir. Host artifact'ı `<basename>.assembly.oir`, metni `<basename>.stage.s` olarak kaydeder. Mevcut `codegen_run` modülü ise eski AST köprüsünden çalışmaya devam eder ve `<basename>.s` üretir. Yeni ve eski çıktılar henüz parity açısından eşdeğer kabul edilmemiştir.
 
@@ -755,3 +755,6 @@ Doğrudan stage testi OIR_MODULE girdisinden assembly üretimini, output-buffer 
 **Doğrulama — CI run 41367164418:** Windows, Ubuntu ve macOS build/test işleri başarılı; Ubuntu CTest **58/58**; Ubuntu ASan/UBSan ve Valgrind başarılı.
 
 **Kalan işler:** Codegen parity; float ve kontrol akışı desteği; çok fonksiyonlu OIR_MODULE; target/backend artifact sözleşmesi; yeni assembly'nin assembler aşamasına bağlanması; ardından legacy `codegen_run` ve AST materialization köprüsünün kaldırılması.
+
+
+**Float Codegen doğrulaması:** doğrudan Codegen DLL testi artık f64 için `MULSD/ADDSD` ve RAX bit-pattern dönüşünü; f32 için `CVTSD2SS/MULSS/ADDSS` ve `MOVD EAX,XMM0` dönüşünü doğrular. F32/F64 desteği yalnızca bu ilk straight-line backend alt kümesi içindir.
