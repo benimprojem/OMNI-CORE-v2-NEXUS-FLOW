@@ -282,11 +282,12 @@ The payload is source text, **not** an object file, executable image or linkable
 
 The first producer is the x86-64 NASM bare-metal Codegen module. Its host validates the selected target profile before invoking this backend. The initial implementation supports one function and one basic block with:
 
-- `i32`, `i64` and `bool` scalar values
-- Integer/boolean constants
+- `i32`, `i64`, `f32`, `f64` and `bool` scalar values
+- Integer, boolean and floating-point constants
 - Integer `ADD`, `SUB`, `MUL`, `DIV`, `REM` and `NEG`
+- Floating-point `ADD`, `SUB`, `MUL`, `DIV` and `NEG` using SSE scalar instructions
 - A final scalar `RETURN`
 
-The first backend uses bounded stack slots for SSA values and emits the `_kernel_main` entry stub for the current BareMetal64 profile. Floating-point values, multi-function modules, multi-block control flow, branches, calls, memory operations, casts and unsupported opcodes are rejected. These are implementation limits of the first backend, not language-level limits.
+F32 literal payloads arrive as binary64 values in the current OIR_MODULE representation and are rounded by the backend with `CVTSD2SS`. F32/F64 return values are moved as raw IEEE bit patterns through the BareMetal64 target's configured `RAX` scalar return register. The first backend uses bounded stack slots for SSA values and emits the `_kernel_main` entry stub. Multi-function modules, multi-block control flow, branches, calls, memory operations, casts, floating-point remainder and unsupported opcodes are rejected. These are implementation limits of the first backend, not language-level limits.
 
 The host persists the complete artifact as `<source-basename>.assembly.oir` and extracts the validated text to `<source-basename>.stage.s`. The legacy `codegen_run` path still produces the existing `.s` output while parity is evaluated. The two outputs are separate; parity is not yet established.
