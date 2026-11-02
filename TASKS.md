@@ -447,3 +447,14 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Preserve first-failure code semantics in the stage result while counting each successfully submitted diagnostic.
 - [x] Add a regression fixture with two independently invalid type records; assert both IDs are reported and no output artifact is emitted.
 - [ ] Extend aggregation to additional validation passes only where their prerequisites and independence can be proven; retain fail-fast behavior elsewhere.
+
+
+## OIR Verifier — bounded independent SSA definition diagnostics
+
+- [x] Add a prerequisite scan of SSA value records after type-record validation and before structural/SSA-dependent passes.
+- [x] Aggregate up to 32 independent malformed SSA value records with stable diagnostic code 8614 and exact value IDs.
+- [x] Report any omitted SSA definition errors with diagnostic code 8624 and a bounded count.
+- [x] Skip dependent structural, instruction, CFG, terminator, dominance and SSA-use validation when SSA value records are invalid.
+- [x] Keep the later instruction-to-value reverse-consistency scan fail-fast; it depends on the full instruction table and is not included in this aggregation increment.
+- [x] Add a regression fixture with two independently malformed SSA value records; assert both IDs are reported and no output artifact is emitted.
+- [ ] Extend aggregation to instruction-level checks only after identifying safe independent record boundaries.
