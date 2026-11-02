@@ -103,14 +103,19 @@ static int check_array_type_semantics(void) {
     const char* valid =
         "f:consume(a![], b!i32[], third:i32[4]) {}"
         "f:main() { v:dynamic[]; v:fixed[5]!i32 = [1,2,3,4,5];"
-        " v:matrix[2][2]!f64 = [[1.0,2.0],[3.0,4.0]]; }";
+        " v:matrix[2][2]!f64 = [[1.0,2.0],[3.0,4.0]];"
+        " v:computed[2+3]!i32 = [1,2,3,4,5]; }";
     const char* zero_extent = "f:main() { v:invalid[0]!i32; }";
     const char* fractional_extent = "f:main() { v:invalid[1.5]!i32; }";
+    const char* zero_expression = "f:main() { v:invalid[3-3]!i32; }";
+    const char* division_by_zero = "f:main() { v:invalid[8/0]!i32; }";
     const char* wrong_shape = "f:main() { v:fixed[3]!i32 = [1,2]; }";
     const char* wrong_element = "f:main() { v:fixed[2]!i32 = [1.5,2.5]; }";
     return check_source(valid,0) &&
         check_source(zero_extent,1) &&
         check_source(fractional_extent,1) &&
+        check_source(zero_expression,1) &&
+        check_source(division_by_zero,1) &&
         check_source(wrong_shape,1) &&
         check_source(wrong_element,2);
 }
