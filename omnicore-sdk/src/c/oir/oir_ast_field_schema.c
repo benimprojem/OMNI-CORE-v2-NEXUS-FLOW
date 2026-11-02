@@ -108,6 +108,11 @@ static uint8_t expected_type(uint16_t kind, uint16_t field_id) {
         case 82: if(field_id==3u) return OIR_AST_VALUE_BOOL; return OIR_AST_VALUE_NODE_REF;
         case 85: return OIR_AST_VALUE_STRING_REF;
         case 86: if(field_id==1u) return OIR_AST_VALUE_STRING_REF; return OIR_AST_VALUE_NODE_REF;
+        case 87: if(field_id==1u) return OIR_AST_VALUE_STRING_REF; return OIR_AST_VALUE_NODE_REF;
+        case 88: case 89: case 90: case 91: case 95: case 96: return OIR_AST_VALUE_NODE_REF;
+        case 92: if(field_id==1u) return OIR_AST_VALUE_STRING_REF; return OIR_AST_VALUE_NODE_REF;
+        case 93: if(field_id<=2u) return OIR_AST_VALUE_STRING_REF; return OIR_AST_VALUE_NODE_REF;
+        case 94: if(field_id==3u) return OIR_AST_VALUE_BOOL; return OIR_AST_VALUE_NODE_REF;
         default: return UINT8_MAX;
     }
 }
