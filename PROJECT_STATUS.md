@@ -702,3 +702,31 @@ Yeni `real_lexer_stage_source_to_token_stream_module` testi gerçek shared libra
 ## 31 Ekim 2026 — Semantic OIR tasarım başlangıcı
 
 Current semantic analysis is still an in-process checker. Inspection confirmed that `SemanticContext` retains transient `Slot` linked-list entries and scope depth; `exit_scope()` frees local symbols, and the checker does not produce stable symbol IDs or per-node resolved-type annotations. The new `OIR_SEMANTIC_AST.md` draft defines an unchanged embedded AST payload plus versioned scope/type/symbol/relation/annotation sections. Numeric conversion records are reserved but explicitly deferred until the NEXSUS Flow promotion lattice is specified and tested. No semantic codec or DLL is claimed in this update.
+
+
+## 2 Kasım 2026 — OCC CLI OIR Lowering DLL entegrasyonu
+
+OCC ana programı, Semantic DLL sonrasında bağımsız `occ_oir_lowering_stage` modülünü yükleyip çağıracak şekilde genişletildi. Böylece modüler pipeline'ın gerçek CLI akışı şu aşamaya ulaştı:
+
+`SOURCE_UNIT → Lexer DLL → TOKEN_STREAM → Parser DLL → AST OIR → Semantic DLL → SEMANTIC_AST → OIR Lowering DLL → OIR_MODULE`
+
+Host, lowering modülünü çağırmadan önce descriptor içindeki stage ID ve output artifact kind alanlarını beklenen sözleşmeyle karşılaştırır. Girdi aynı job ID ile iletilir; modülün tanıları aynı job-owned collector'a aktarılır.
+
+Lowering çıktısı host tarafında yeniden açılır ve şu koşullar doğrulanmadan kabul edilmez:
+
+- Artifact kind `OIR_KIND_MODULE`
+- Payload schema `OIR_MODULE 1.1`
+- Producer stage `OCC_STAGE_OIR_LOWERING`
+- `OIR_VALIDITY_VALID` ve geçerli job ID
+- Tekil, sürümü tanımlı PAYLOAD section
+- `oir_module_open()` ile payload yapısal doğrulaması
+
+Başarılı çıktı kaynak dosyasının yanında `<basename>.module.oir` olarak kaydedilir. Yazım aynı dizinde job-ID tabanlı geçici dosya üzerinden yapılır; tamamlanmamış içerik doğrudan final dosya adına açılmaz. Windows'ta `MoveFileExA(REPLACE_EXISTING | WRITE_THROUGH)`, POSIX sistemlerde `rename()` kullanılır.
+
+CMake artık lowering DLL'ini OCC executable build bağımlılığına ekler ve host'un OIR_MODULE reader codec'ini linkler. CLI integration testi ayrı bir küçük scalar fixture kullanır. Bunun nedeni mevcut lowering pass'in henüz tüm dil AST'sini değil, belgelenmiş ilk scalar alt kümesini desteklemesidir. Mevcut `test1.nxf` gibi çok fonksiyonlu/call içeren daha geniş örnekler parser ve semantic testlerinde korunur; lowering'in desteklemediği syntax sessizce kabul edilmez.
+
+**Legacy geçiş sınırı:** AST materialization köprüsü ve eski `codegen_run` yükleme yolu bilerek korunmuştur. Codegen OIR_MODULE tüketmeden önce bu köprü kaldırılmayacak; parity testleri zorunludur.
+
+**Doğrulama — CI run 41366127592:** Windows, Ubuntu ve macOS build/test işleri başarılı; Ubuntu ASan/UBSan ve Valgrind işleri başarılı. Ubuntu CTest sonucu **57/57**.
+
+**Sonraki adım:** Codegen'i ortak `OccStageModuleV1` ABI'ye taşımak ve OIR_MODULE girdisini tüketen ilk backend stage'ini kurmak. Legacy Codegen yolu, aynı fixture setinde assembly/output parity doğrulanana kadar fallback/referans olarak kalacaktır.
