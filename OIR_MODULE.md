@@ -224,7 +224,7 @@ The implemented checks are:
 - Reachable CFG blocks are analyzed with iterative dominators. Unreachable blocks are not rejected solely for being unreachable; their SSA uses are restricted to definitions in the same block because they cannot establish cross-block dominance.
 - The verifier rejects unsupported schema versions, invalid producer/job identity, duplicate/missing payloads, and malformed or inconsistent artifacts.
 
-The first implementation bounds the dominator analysis to **8,192 blocks per module** and the function/instruction/value tables to **1,000,000 records** each. The OIR_MODULE codec separately caps its string table at **16 MiB**. These are explicit implementation/resource limits, not source-language limits. Full function signatures, parameter typing, block parameters/phi nodes, complete memory semantics, source-map cross-checking and advanced effect validation remain future schema/verifier increments.
+The first implementation bounds the dominator analysis to **8,192 blocks per module** and the function/instruction/value tables to **1,000,000 records** each. The OIR_MODULE codec separately caps its string table at **16 MiB**. These are explicit implementation/resource limits, not source-language limits. Full function signatures, parameter typing, block parameters/phi nodes, complete memory semantics, source-map cross-checking and advanced effect validation remain future schema/verifier increments. Direct tests cover a valid dominating cross-block use and reject a diamond-CFG join that tries to consume values defined on separate, non-dominating branches. **CI run 41375777590** passed on Windows, Ubuntu and macOS; Ubuntu CTest **59/59**, ASan/UBSan and Valgrind passed.
 
 ## 6. SSA and lowering policy
 
