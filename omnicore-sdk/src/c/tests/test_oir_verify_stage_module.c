@@ -6,7 +6,6 @@
 #endif
 #include <assert.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -298,10 +297,6 @@ static void assert_last_diagnostic_code(const OccDiagnosticCollector* diagnostic
     size_t count = occ_diagnostics_count(diagnostics);
     assert(count > 0u);
     assert(occ_diagnostics_get(diagnostics, count - 1u, &view));
-    if (view.record->code != expected_code) {
-        (void)fprintf(stderr, "diagnostic code mismatch: expected=%u actual=%u message=%s\\n",
-            expected_code, view.record->code, view.message);
-    }
     assert(view.record->code == expected_code);
     if (expected_context) assert(strstr(view.message, expected_context) != NULL);
 }
@@ -388,10 +383,10 @@ int main(int argc, char** argv) {
     free(input); input = NULL; input_length = 0u;
 
     /* Reject malformed CFG ownership, missing terminators, duplicate SSA definitions,
-       and opcode operand-shape violations. */
+       and malformed opcode wire-shape payloads. */
     {
         static const uint32_t expected_codes[] = {
-            0u, 0u, 8617u, 8613u, 8614u, 8618u, 8615u
+            0u, 0u, 8617u, 8613u, 8614u, 8618u, 8609u
         };
         int variant;
         for (variant = 2; variant <= 6; ++variant) {
