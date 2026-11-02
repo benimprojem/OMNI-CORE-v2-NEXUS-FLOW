@@ -42,7 +42,9 @@ static uint32_t test_resolve_node_id(void* user_context, const ASTNode* node) {
 static int test_lowering_stage_module(
     const OccLoadedStageModule* loaded,
     const uint8_t* semantic_bytes,
-    size_t semantic_length
+    size_t semantic_length,
+    uint32_t expected_type_count,
+    uint32_t expected_block_count
 ) {
     OccModuleArtifactInputV1 input;
     OccDiagnosticCollector diagnostics;
@@ -87,8 +89,8 @@ static int test_lowering_stage_module(
     }
     if (!found_payload ||
         oir_module_open(payload.data, (size_t)payload.length, &module) != OIR_STATUS_OK ||
-        module.type_count != 2u || module.function_count != 1u ||
-        module.block_count != 1u || module.instruction_count < 2u ||
+        module.type_count != expected_type_count || module.function_count != 1u ||
+        module.block_count != expected_block_count || module.instruction_count < 2u ||
         module.value_count == 0u ||
         oir_module_get_function(&module, 0u, &function) != OIR_STATUS_OK ||
         function.id != 1u || function.entry_block_id != 1u) goto cleanup;
@@ -344,7 +346,8 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             goto cleanup;
     }
     debug_stage = 8;
-    if (!test_lowering_stage_module(stage_module, semantic_artifact, semantic_length)) {
+    if (!test_lowering_stage_module(stage_module, semantic_artifact, semantic_length,
+            module.type_count, module.block_count)) {
         fprintf(stderr, "if fixture: direct lowerer passed but stage DLL invocation failed\\n");
         goto cleanup;
     }
