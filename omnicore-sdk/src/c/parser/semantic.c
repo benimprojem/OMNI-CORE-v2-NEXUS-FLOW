@@ -1318,7 +1318,13 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_ARRAY_LITERAL:
             semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
             break;
-        case AST_INDEX_ACCESS: {\n            ASTIndexAccess* access=(ASTIndexAccess*)node;\n            semantic_check(ctx,access->target);\n            semantic_check(ctx,access->index);\n            break;\n        }\n
+        case AST_INDEX_ACCESS: {
+            ASTIndexAccess* access=(ASTIndexAccess*)node;
+            semantic_check(ctx,access->target);
+            semantic_check(ctx,access->index);
+            break;
+        }
+
         case AST_ARRAY_TYPE:
             semantic_check(ctx,((ASTArrayType*)node)->dimensions);
             break;
