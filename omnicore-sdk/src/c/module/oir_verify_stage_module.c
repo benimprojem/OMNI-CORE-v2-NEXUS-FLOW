@@ -92,7 +92,7 @@ static int validate_structure(const OirModuleView* m,
     /* Primitive type widths must match the published OIR type map. */
     for (i = 0u; i < m->type_count; ++i) {
         OirModuleType t;
-        if (failure) { failure->code = OIR_VERIFY_DIAG_TYPE_RECORD; failure->type_id = i + 1u; }
+        if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_TYPE_RECORD; failure->type_id = i + 1u; }
         if (oir_module_get_type(m, i, &t) != OIR_STATUS_OK) return 0;
         if (t.kind == OIR_MODULE_TYPE_INTEGER) {
             if (t.bit_width != 8u && t.bit_width != 16u &&
@@ -326,8 +326,9 @@ static int validate_terminators(const OirModuleView* m, OirVerifyFailure* failur
         OirModuleInstruction last;
         if (oir_module_get_block(m, i - 1u, &b) != OIR_STATUS_OK ||
             oir_module_get_instruction(m, b.first_instruction + b.instruction_count - 1u,
-                &last) != OIR_STATUS_OK || !has_terminator(&last)) return 0;
+                &last) != OIR_STATUS_OK) return 0;
         if (failure) failure->instruction_id = last.id;
+        if (!has_terminator(&last)) return 0;
         for (j = 0u; j + 1u < b.instruction_count; ++j) {
             OirModuleInstruction ins;
             if (oir_module_get_instruction(m, b.first_instruction + j, &ins) != OIR_STATUS_OK ||
@@ -442,7 +443,7 @@ static int validate_ssa_uses(const OirModuleView* m,
         OirModuleInstruction ins;
         if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_SSA_USE; failure->instruction_id = i + 1u; }
         if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK) return 0;
-        if (failure) failure->block_id = ins.block_id;
+        if (failure) { failure->block_id = ins.block_id; failure->function_id = block_function[ins.block_id]; }
         for (j = 0u; j < ins.operand_count; ++j) {
             OirModuleOperand op;
             if (!get_operand(m, &ins, j, &op)) return 0;
