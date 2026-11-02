@@ -458,6 +458,28 @@ set_target_properties(occ_oir_lowering_stage PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
+# Independent Codegen DLL: OIR_MODULE -> OIR_ASSEMBLY (x86-64 NASM bare-metal).
+add_library(occ_codegen_stage SHARED
+    "${C_SOURCE_DIR}/module/codegen_stage_module.c"
+)
+target_compile_definitions(occ_codegen_stage PRIVATE OCC_BUILD_MODULE)
+target_include_directories(occ_codegen_stage PRIVATE
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+)
+target_link_libraries(occ_codegen_stage PRIVATE
+    occ_module_abi
+    occ_oir
+    occ_oir_module
+)
+set_target_properties(occ_codegen_stage PROPERTIES
+    OUTPUT_NAME "occ_codegen_stage"
+    RUNTIME_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
+    LIBRARY_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
+    POSITION_INDEPENDENT_CODE ON
+)
+
 # Independent lexer DLL: SOURCE_UNIT -> TOKEN_STREAM (+ optional DIAGNOSTICS).
 add_library(occ_lexer_stage SHARED
     "${C_SOURCE_DIR}/module/lexer_stage_module.c"
@@ -523,7 +545,10 @@ target_compile_definitions(occ_codegen PRIVATE
 
 target_link_libraries(occ_codegen PRIVATE occ_frontend)
 
-add_executable(occ "${C_SOURCE_DIR}/main.c")
+add_executable(occ
+    "${C_SOURCE_DIR}/main.c"
+    "${C_CODEGEN_DIR}/target_parser.c"
+)
 
 set_target_properties(occ PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${C_RUNTIME_DIR}"
@@ -532,6 +557,7 @@ set_target_properties(occ PROPERTIES
 target_include_directories(occ PRIVATE
     "${C_SOURCE_DIR}"
     "${C_PARSER_DIR}"
+    "${C_CODEGEN_DIR}"
 )
 
 target_compile_definitions(occ PRIVATE OCC_STATIC)
@@ -556,6 +582,7 @@ add_dependencies(occ
     occ_lexer_stage
     occ_semantic_stage
     occ_oir_lowering_stage
+    occ_codegen_stage
 )
 
 if(MSVC)
@@ -956,6 +983,31 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME oir_ast_frontend_reader_all_kinds_validate_before_materialize
         COMMAND test_oir_ast_frontend_reader)
+
+    add_executable(test_codegen_stage_module "${C_SOURCE_DIR}/tests/test_codegen_stage_module.c")
+    target_link_libraries(test_codegen_stage_module PRIVATE
+        occ_module_loader
+        occ_oir
+        occ_oir_module
+        occ_diagnostics
+        ${CMAKE_DL_LIBS}
+    )
+    target_include_directories(test_codegen_stage_module PRIVATE
+        "${C_SOURCE_DIR}/module"
+        "${C_SOURCE_DIR}/oir"
+        "${C_SOURCE_DIR}/core"
+    )
+    add_dependencies(test_codegen_stage_module occ_codegen_stage)
+    if(MSVC)
+        target_compile_options(test_codegen_stage_module PRIVATE /W4)
+        target_compile_options(occ_codegen_stage PRIVATE /W4)
+    else()
+        target_compile_options(test_codegen_stage_module PRIVATE -Wall -Wextra)
+        target_compile_options(occ_codegen_stage PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME oir_module_codegen_stage_assembly_emission
+        COMMAND test_codegen_stage_module "$<TARGET_FILE:occ_codegen_stage>"
+    )
 
     add_executable(test_dynamic_stage_module "${C_SOURCE_DIR}/tests/test_dynamic_stage_module.c")
     target_link_libraries(test_dynamic_stage_module PRIVATE occ_module_abi ${CMAKE_DL_LIBS})
