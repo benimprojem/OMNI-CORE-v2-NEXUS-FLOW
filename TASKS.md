@@ -466,4 +466,6 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Aggregate up to 32 independent constant/arithmetic type-contract failures with diagnostic 8616 and instruction context.
 - [x] Report omitted local type-contract failures with diagnostic 8625; skip dependent structural/opcode/CFG/terminator/dominance/use passes when the preflight fails.
 - [x] Add a regression fixture containing two independently invalid instruction type contracts while keeping the type and SSA tables valid.
-- [ ] Extend safe aggregation to additional opcode families only after their reference and CFG dependencies are explicitly classified.
+- [x] Extend the shared local type-contract helper and bounded preflight to NEG, CMP_EQ/NE/LT/LE/GT/GE and CAST; main instruction validation reuses the same rules.
+- [x] Add focused NEG/CMP/CAST malformed-contract regression fixtures and assert stable 8616 instruction context.
+- [ ] Extend safe aggregation to LOAD/STORE and CALL only after memory/pointer and function-signature prerequisites are explicitly modeled.
