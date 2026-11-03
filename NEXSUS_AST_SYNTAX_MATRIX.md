@@ -96,6 +96,14 @@ This table is an implementation audit, not a change to the language design. Unsu
 7. **Intent/AI logic:** declared/deferred; do not invent semantics before their specs are activated.
 8. **Pattern binding type inference:** `semantic_check_pattern_bindings()` currently creates `any` slots without the select/scan subject type. Enum declaration analysis already records payload field types in Semantic Result relations, but the arm checker does not resolve a constructor pattern against that subject enum/variant. This is the reason a guard such as `when a > 0` cannot yet rely on the payload field's numeric type; subject-aware constructor resolution must close before those guards are claimed semantically complete.
 
+## AST structural audit findings (2026-11-03)
+
+- **All 99 current ASTNodeType values have explicit Graph Validator dispatch.** The validator's default branch now fails closed with AST_VALIDATE_INVALID_KIND; a future appended node cannot silently pass as a childless leaf. The 99-kind populated codec round-trip fixtures also pass through ast_validate() because serialization validates before writing.
+- **Source spans remain incomplete in the AST model.** ASTNode stores only line and col; token byte offsets and full end positions are available in Lexer tokens and diagnostic OccSourceSpan, but are not persisted on AST nodes. This prevents precise AST-level range diagnostics and stable source mapping after serialization/OIR transfer. Do not mark the source-span column complete.
+- **Block-scoped Halt remains an AST/parser gap.** AST_NEXUS_HALT can represent a target expression or a targetless halt, but the AST does not explicitly distinguish a statement-level resource halt from the block-closing }?; cleanup form. parse_block() currently consumes } and returns; it does not attach a block-cleanup marker to AST_BLOCK. Keep semantic cleanup/lowering gated.
+- **Inline assembly remains a confirmed parser/model gap.** AST_ASM_BLOCK currently reuses ASTBlock payload shape, while fastexec, asm: labels, asmcall and asmjmp have no parser construction path in the C Parser. Do not invent a raw-assembly payload or target syntax until the language contract is resolved.
+- **Normative syntax document path needs reconciliation.** The active branch contains omnicore-sdk/docs/syntax.md and the matrix points to it, while the project-level canonical filename NEXUS-FLOW-SYNTAX-REFERENCE.md is absent from this branch tree. Do not create a duplicate reference; reconcile the canonical path/branch history before declaring the syntax comparison closed.
+
 ## AST node payload/codec audit (all current enum tags)
 
 Every AST enum tag must be covered in all columns below. Shared payload is acceptable only when explicit and semantically valid.
