@@ -467,6 +467,7 @@ static void ast_print_recursive(ASTNode* node, int level) {
             case AST_ZONE_LOCK: printf("INTRINSIC: zone_lock\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_BREAK: printf("BREAK\n"); break;
             case AST_CONTINUE: printf("CONTINUE\n"); break;
+            case AST_BLOCK_HALT: printf("BLOCK_HALT (scope cleanup)\n"); break;
             case AST_PRNT: printf("INTRINSIC: prnt\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_PRMT: printf("INTRINSIC: prmt\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_WRITE: printf("INTRINSIC: write\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
