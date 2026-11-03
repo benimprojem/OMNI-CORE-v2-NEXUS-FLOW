@@ -697,8 +697,8 @@ done:
 static int test_select_scan_ast(void) {
     static const char source[] =
         "f:main() { v:x = 1;"
-        " select(x) { 1 -> { v:a = 2; } default -> { v:b = 3; } }"
-        " scan(x) { Range(s,e) -> { v:c = s; } item -> { v:d = item; } }"
+        " select(x) { 1 when x > 0 -> { v:a = 2; } default -> { v:b = 3; } }"
+        " scan(x) { Range(s,e) when s < e && e > 0 -> { v:c = s; } item -> { v:d = item; } }"
         "}";
     ParserContext* ctx=parser_init_source("select-scan.nxf",(const uint8_t*)source,sizeof(source)-1u);
     ASTProgram* program;
@@ -725,6 +725,10 @@ static int test_select_scan_ast(void) {
         ASTSelectArm* fallback=first?(ASTSelectArm*)first->base.next:NULL;
         if(!select_node->selector || !first || first->base.type!=AST_SELECT_ARM ||
             !first->pattern || first->pattern->type!=AST_LITERAL ||
+            !first->body || first->body->type!=AST_IF ||
+            !((ASTIf*)first->body)->condition ||
+            ((ASTIf*)first->body)->condition->type!=AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)((ASTIf*)first->body)->condition)->op!=TOKEN_GT ||
             !fallback || fallback->base.type!=AST_SELECT_ARM || !fallback->is_default ||
             fallback->pattern!=NULL)goto done;
     }
@@ -735,7 +739,11 @@ static int test_select_scan_ast(void) {
         ASTScanArm* first=(ASTScanArm*)scan_node->arms;
         ASTPatternConstructor* ctor;
         if(!scan_node->subject || !first || first->base.type!=AST_SCAN_ARM ||
-            !first->pattern || first->pattern->type!=AST_PATTERN_CONSTRUCTOR)goto done;
+            !first->pattern || first->pattern->type!=AST_PATTERN_CONSTRUCTOR ||
+            !first->body || first->body->type!=AST_IF ||
+            !((ASTIf*)first->body)->condition ||
+            ((ASTIf*)first->body)->condition->type!=AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)((ASTIf*)first->body)->condition)->op!=TOKEN_AND)goto done;
         ctor=(ASTPatternConstructor*)first->pattern;
         if(strcmp(ctor->name,"Range")!=0 || !ctor->bindings ||
             ctor->bindings->type!=AST_PATTERN_BINDING ||
