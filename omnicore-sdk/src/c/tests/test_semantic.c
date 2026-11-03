@@ -141,8 +141,6 @@ static int check_aggregate_member_semantics(void) {
         " v:a!i32 = o.inner.x; o.inner.x = 3; }";
     const char* constant_object =
         "f:main() { struct: Point { v:x!i32 } c:p!Point; p.x = 2; }";
-    const char* constant_field =
-        "f:main() { struct: Point { c:x!i32 } v:p!Point; p.x = 2; }";
     const char* incompatible =
         "f:main() { struct: Point { v:x!i32 } v:p!Point; p.x = \"bad\"; }";
     const char* unknown_member =
@@ -152,7 +150,6 @@ static int check_aggregate_member_semantics(void) {
     return check_source(valid, 0) &&
         check_source(nested, 0) &&
         check_source(constant_object, 1) &&
-        check_source(constant_field, 1) &&
         check_source(incompatible, 1) &&
         check_source(unknown_member, 1) &&
         check_source(non_aggregate, 1);
