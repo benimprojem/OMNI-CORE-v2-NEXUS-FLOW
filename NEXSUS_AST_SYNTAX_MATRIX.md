@@ -102,7 +102,7 @@ This table is an implementation audit, not a change to the language design. Unsu
 - **Source spans remain incomplete in the AST model.** ASTNode stores only line and col; token byte offsets and full end positions are available in Lexer tokens and diagnostic OccSourceSpan, but are not persisted on AST nodes. This prevents precise AST-level range diagnostics and stable source mapping after serialization/OIR transfer. Do not mark the source-span column complete.
 - **Block-scoped Halt remains an AST/parser gap.** AST_NEXUS_HALT can represent a target expression or a targetless halt, but the AST does not explicitly distinguish a statement-level resource halt from the block-closing }?; cleanup form. parse_block() currently consumes } and returns; it does not attach a block-cleanup marker to AST_BLOCK. Keep semantic cleanup/lowering gated.
 - **Inline assembly remains a confirmed parser/model gap.** AST_ASM_BLOCK currently reuses ASTBlock payload shape, while fastexec, asm: labels, asmcall and asmjmp have no parser construction path in the C Parser. Do not invent a raw-assembly payload or target syntax until the language contract is resolved.
-- **Normative syntax document path needs reconciliation.** The active branch contains omnicore-sdk/docs/syntax.md and the matrix points to it, while the project-level canonical filename NEXUS-FLOW-SYNTAX-REFERENCE.md is absent from this branch tree. Do not create a duplicate reference; reconcile the canonical path/branch history before declaring the syntax comparison closed.
+- **Normative syntax document path reconciled.** The active branch now uses `docs/language/syntax-reference.md` as the single normative reference. The duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` was read-only and remains untouched.
 
 ## AST node payload/codec audit (all current enum tags)
 
@@ -135,7 +135,7 @@ Every AST enum tag must be covered in all columns below. Shared payload is accep
 
 - `README.md`: control flow (Section 5), functions (Section 6), data structures (Section 7), Nexus Flow operators (Section 3), intrinsic/core operations (Section 14).
 - `omnicore-sdk/src/c/parser/ast.h`: current `ASTNodeType` and payload definitions.
-- `omnicore-sdk/docs/syntax.md`: canonical NEXUS Flow syntax and language-semantics reference.
+- `docs/language/syntax-reference.md`: canonical NEXUS Flow syntax and language-semantics reference.
 - `omnicore-sdk/src/c/parser/parser.c`: grammar and AST construction (114 KB; must be mapped function-by-function).
 - `omnicore-sdk/src/c/parser/ast.c`: allocation, print, destroy, serialization (50 KB).
 - `FRONTEND_COMPLETENESS_AUDIT.md`: layer-by-layer completion criteria.
