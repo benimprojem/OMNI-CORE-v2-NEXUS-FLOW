@@ -83,7 +83,7 @@ The syntax reference lists the language's designed operator inventory. The C Lex
 | String append `.=` | `AST_ASSIGNMENT` keeps `TOKEN_STRING_APPEND` | Parser production added; dedicated fixture/semantic test still needed |
 | Range `..` | Consumed by `parse_range()` | Range type and endpoint semantics |
 
-This table is an implementation audit, not a change to the language design. Unsupported forms must not be marked complete merely because the Lexer emits tokens. In particular, `&&` and `||` occur in existing language examples but currently cannot pass the C Parser; their short-circuit semantics are a precondition for closing that gap.
+This table is an implementation audit, not a change to the language design. Unsupported forms must not be marked complete merely because the Lexer emits tokens. `&&` and `||` are now consumed by the C Parser (`parse_logical_and()` / `parse_logical_or()`) with AND precedence above OR and left associativity; Parser/Semantic fixtures cover AST shape and bool operand checks. Runtime short-circuit behavior remains an OIR/lowering requirement and is not implied by parsing.
 
 ## Confirmed model-level gaps to address
 
