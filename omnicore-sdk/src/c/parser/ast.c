@@ -1495,7 +1495,7 @@ static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
 
         if (type_val == -1) return head;
 
-        if (type_val < AST_PROGRAM || type_val > AST_ARRAY_DIMENSION ||
+        if (type_val < AST_PROGRAM || type_val > AST_BLOCK_HALT ||
             reader->node_count >= AST_MAX_NODE_COUNT ||
             reader->depth >= AST_MAX_RECURSION_DEPTH) {
             reader->failed = 1;
@@ -1637,7 +1637,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
     }
     while(n) {
         size_t active_index;
-        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_ARRAY_DIMENSION)
+        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_BLOCK_HALT)
             return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"type");
         for(active_index=0;active_index<s->active_count;active_index++)
             if(s->active[active_index]==n)
@@ -1704,6 +1704,13 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_PANIC:
         case AST_USE:
         case AST_PATTERN_BINDING:
+        case AST_BLOCK_HALT:
+            if (n->type == AST_BLOCK_HALT &&
+                (s->active_count == 0u ||
+                 (s->active[s->active_count - 1u]->type != AST_BLOCK &&
+                  s->active[s->active_count - 1u]->type != AST_ASM_BLOCK) ||
+                 n->next != NULL))
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"block_cleanup_position");
             break;
         /* Fail closed: a newly appended ASTNodeType must be explicitly
          * assigned a child contract above before it can validate. */
