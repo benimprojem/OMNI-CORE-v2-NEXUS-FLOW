@@ -262,7 +262,7 @@ uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
         case AST_THREAD_BLOCK: return 4u;
         case AST_SELECT: case AST_SCAN: case AST_SCAN_ARM: case AST_PATTERN_CONSTRUCTOR: return 2u;
         case AST_SELECT_ARM: case AST_LAMBDA: return 3u;
-        case AST_PATTERN_BINDING: return 0u;
+        case AST_PATTERN_BINDING: case AST_BLOCK_HALT: return 0u;
         case AST_RULESET_DECL: case AST_ON_BLOCK: return 3u;
         case AST_RULE_BARRIER: case AST_RULE_TRIGGER: case AST_APPLY_RULES:
         case AST_RELOCATE: case AST_UNROLL: return 2u;
