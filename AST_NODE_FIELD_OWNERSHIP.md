@@ -55,6 +55,12 @@ For every ASTNodeType, verify all of these before declaring it complete:
 9. Lowering support state: supported / partial / fail-closed.
 10. Positive, negative, round-trip and allocation-failure tests.
 
+## Serialization regression coverage
+
+`omnicore-sdk/src/c/tests/test_ast_deserialize.c` exercises every append-only AST tag from `AST_PROGRAM` through the current terminal tag `AST_ARRAY_DIMENSION` in both populated-field and sibling-chain round-trip tests. The populated fixtures must be extended whenever a new tag is appended; the invalid-tag boundary must move with the terminal tag. This proves AST allocation/serialization/deserialization symmetry for the exercised fields, but does not prove parser construction, semantic correctness, OIR support or lowering readiness.
+
+The OIR AST frontend has separate writer/reader/index/schema tests under `omnicore-sdk/src/c/tests/`; those are a distinct wire contract and must not be conflated with the legacy native-layout AST stream tests.
+
 ## Known gaps (do not treat as complete)
 
 - Universal byte source spans (start/end offsets) and end line/column.
