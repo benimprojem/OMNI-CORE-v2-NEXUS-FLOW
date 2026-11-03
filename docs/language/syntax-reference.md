@@ -908,7 +908,9 @@ db  # default çalıştır.
 ## Bölüm 6. FONKSİYONLAR (FUNCTIONS)
 | Açıklama | Tanımlama | Syntax |
 | -------- | --------- | ------
-* **Main** | `f:main(argc, argv)!i32{ ... }` | 
+* **Main** | `f:main(argc, argv)!i32 { ... }` |
+  
+**Process CLI argument contract (normative):** The entry function's `argc` is the number of command-line arguments excluding the executable path; `argv` is a dynamic one-dimensional `str[]` in the same order, also excluding executable path. `argc == len(argv)`; empty invocation gives 0 and an empty array; no NULL sentinel. Runtime creates both before calling `main`; AST treats them as ordinary parameters. Runtime boundary strings are UTF-8. Windows/POSIX adapters normalize platform command-line behavior; bare-metal may supply an injected vector or empty values. Semantic validation and runtime adapters are not yet implemented. 
 * **Tanımlama:** | `f:fonksiyon_adi(params)!i32, !str { ... }` | `fonksiyon_adi(params) { ... }`
 * **Tanımlama:** | `f:fonksiyon_adi(a, ...)!i32[] { ... }` | `fonksiyon_adi(a, ...) { ... }` 
 * **Zorlama:** | `f:topla(a!i32, b!i32)i32 { ... }` |  `topla(a, b) { ... }`
