@@ -270,7 +270,7 @@ int main(void) {
         oir_ast_tlv_reader_init(&reader,view.field_data+access_record.field_data_offset,
             access_record.field_data_length);
         assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
-        assert(field.field_id==1u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==3u);
+        fprintf(stderr,"INDEX FIELD1 id=%u type=%u len=%u val=%u\\n",field.field_id,field.value_type,field.value_length,field.value[0]);\n        assert(field.field_id==1u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==3u);
         assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
         assert(field.field_id==2u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==4u);
         assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && !has_field);
