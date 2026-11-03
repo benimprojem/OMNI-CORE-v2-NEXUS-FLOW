@@ -116,7 +116,9 @@ typedef enum {
     AST_UNROLL,
     AST_ARRAY_LITERAL,
     AST_ARRAY_TYPE,
-    AST_ARRAY_DIMENSION
+    AST_ARRAY_DIMENSION,
+    /* Block-scope resource cleanup marker emitted by the closing `}?;`. */
+    AST_BLOCK_HALT
 } ASTNodeType;
 
 // Temel Düğüm
