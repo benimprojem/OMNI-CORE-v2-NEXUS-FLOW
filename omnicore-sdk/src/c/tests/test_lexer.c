@@ -206,5 +206,65 @@ int main(void) {
         free(nul_ctx.source_buffer);
     }
 
+    {
+        const char* numeric_source = "0 12 3.14 1..5";
+        const OmniTokenType numeric_expected[] = {
+            TOKEN_NUMBER, TOKEN_NUMBER, TOKEN_NUMBER,
+            TOKEN_NUMBER, TOKEN_RANGE, TOKEN_NUMBER, TOKEN_EOF
+        };
+        ParserContext numeric_ctx;
+        memset(&numeric_ctx, 0, sizeof(numeric_ctx));
+        numeric_ctx.source_len = strlen(numeric_source);
+        numeric_ctx.source_buffer = (char*)malloc(numeric_ctx.source_len + 1u);
+        if (!numeric_ctx.source_buffer) return 1;
+        memcpy(numeric_ctx.source_buffer, numeric_source, numeric_ctx.source_len + 1u);
+        numeric_ctx.current_line = 1;
+        numeric_ctx.current_col = 1;
+        for (size_t i = 0; i < sizeof(numeric_expected) / sizeof(numeric_expected[0]); ++i) {
+            Token token = lexer_next_token(&numeric_ctx);
+            if (token.type != numeric_expected[i]) {
+                fprintf(stderr, "Numeric grammar token %zu: expected %s, got %s\n",
+                    i, token_type_to_string(numeric_expected[i]),
+                    token_type_to_string(token.type));
+                free(numeric_ctx.source_buffer);
+                return 1;
+            }
+        }
+        free(numeric_ctx.source_buffer);
+    }
+
+    {
+        const char* delay_source = "500ms";
+        ParserContext delay_ctx;
+        Token number, unit, eof;
+        memset(&delay_ctx, 0, sizeof(delay_ctx));
+        delay_ctx.source_len = strlen(delay_source);
+        delay_ctx.source_buffer = (char*)malloc(delay_ctx.source_len + 1u);
+        if (!delay_ctx.source_buffer) return 1;
+        memcpy(delay_ctx.source_buffer, delay_source, delay_ctx.source_len + 1u);
+        delay_ctx.current_line = 1;
+        delay_ctx.current_col = 1;
+        number = lexer_next_token(&delay_ctx);
+        unit = lexer_next_token(&delay_ctx);
+        eof = lexer_next_token(&delay_ctx);
+        if (number.type != TOKEN_NUMBER || number.source_length != 3u ||
+            unit.type != TOKEN_IDENTIFIER || unit.source_length != 2u ||
+            strncmp(unit.start, "ms", 2u) != 0 || eof.type != TOKEN_EOF) {
+            fprintf(stderr, "Rolling millisecond suffix was not preserved as NUMBER + identifier.\n");
+            free(delay_ctx.source_buffer);
+            return 1;
+        }
+        free(delay_ctx.source_buffer);
+    }
+
+    {
+        const char* invalid_numeric[] = {
+            "0xFF", "0b1010", "10E3", "1e-3", "1_000", "12u8", "1.5f32"
+        };
+        for (size_t i = 0; i < sizeof(invalid_numeric) / sizeof(invalid_numeric[0]); ++i) {
+            if (!expect_invalid_numeric_literal(invalid_numeric[i])) return 1;
+        }
+    }
+
     return 0;
 }
