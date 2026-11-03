@@ -1843,8 +1843,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 Slot* operand_slot = find_slot(ctx,
                     ((ASTIdentifier*)postfix->operand)->name);
                 if (!operand_slot) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Postfix operand is not a resolved variable.");
+                    /* Identifier resolution already emitted the undefined-name diagnostic. */
                 } else if (operand_slot->is_const) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Postfix increment/decrement cannot modify a constant.");
