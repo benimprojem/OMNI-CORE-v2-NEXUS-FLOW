@@ -1286,6 +1286,16 @@ if(BUILD_TESTING)
     add_test(NAME parser_ast_oir_ast_roundtrip_canonical_bytes
         COMMAND test_parser_ast_oir_roundtrip "${C_SOURCE_DIR}/tests/test1.nxf")
 
+    add_executable(test_ast_validator "${C_SOURCE_DIR}/tests/test_ast_validator.c")
+    target_link_libraries(test_ast_validator PRIVATE occ_frontend)
+    if(MSVC)
+        target_compile_options(test_ast_validator PRIVATE /W4)
+    else()
+        target_compile_options(test_ast_validator PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME ast_graph_ownership_cycle_and_required_field_validation
+        COMMAND test_ast_validator)
+
     add_executable(test_parser "${C_SOURCE_DIR}/tests/test_parser.c")
     target_include_directories(test_parser PRIVATE "${C_PARSER_DIR}")
     target_link_libraries(test_parser PRIVATE occ_frontend)
