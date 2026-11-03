@@ -352,3 +352,23 @@ Confirmed AST representation gaps (not just parser gaps): **MUST dependency decl
 Some syntax can reuse existing AST shapes without a new enum tag (`elsif`, conditional action, array declarators, select/scan guard); these remain subject to lossless round-trip and semantic contract tests. `import(path)` is provisionally representable as a call expression but must carry an explicit import/resource kind to preserve its runtime ownership and DLL semantics.
 
 **Ordering:** define AST payload contracts first (variadic/named args and function types; directives/macro/import/export; ASM; map/vector/shift), then parser and codec. Source Span remains a cross-cutting AST/codec prerequisite. Codegen stays blocked.
+
+
+## AST contract decision — variadic and named arguments (2026-11-04)
+
+Normative examples in `docs/language/syntax-reference.md` establish:
+
+- Variadic declaration marker: `...` appears after fixed parameters, e.g. `f:liste(a!i32[], ...)`. The ellipsis is a parameter-list property, not a value expression. It is valid only once and in final position; a trailing comma or parameter after it is invalid.
+- Named call argument: `callee(a:10, b:20)`. The name belongs to the argument slot, not to the value expression. It must survive Parser → AST codec → OIR AST bridge losslessly.
+- Existing parser currently treats every call argument as `parse_expression()`; colon therefore is not represented as an argument label. Function declaration currently requires every parameter to begin with an identifier and has no ellipsis branch.
+- Do not encode named arguments as assignments (`AST_ASSIGNMENT`), because that changes expression semantics and loses argument-slot identity.
+- Do not encode variadic ellipsis as a fake `AST_VAR_DECL`; it has no identifier/type/value and is a list-level marker.
+
+**Chosen append-only representation (implementation pending):**
+1. Append `AST_VARIADIC_PARAM` as a zero-payload marker, legal only as the final child of `AST_FUNC_DECL.params` / `AST_EXTERN_DECL.params`. It represents the declaration's `...`; existing parameter nodes remain unchanged.
+2. Append `AST_NAMED_ARG` with owned `char *name` and owned `ASTNode *value`; each named argument is a single list element. Positional arguments remain their current expression nodes, preserving old AST shape and compatibility.
+3. Reject duplicate named labels in one call and reject positional arguments after the first named argument (deterministic rule; no positional-after-named ambiguity). Mixed positional-before-named remains valid.
+4. AST graph validator checks marker context/finality, named argument non-empty name + required value, and duplicate named labels in a call. Codec and OIR node IDs are append-only; existing IDs and field IDs are not changed.
+5. Tests required: declaration marker finality/duplicates; named+positional call parse; duplicate labels; positional-after-named; malformed `name:`; legacy codec compatibility; AST codec round-trip; OIR bridge round-trip and byte-stability; graph validator malformed graphs.
+
+These are syntax-to-AST decisions only. Type/name resolution, overload matching, variadic packing and runtime ABI are Semantic/lowering work and remain gated.
