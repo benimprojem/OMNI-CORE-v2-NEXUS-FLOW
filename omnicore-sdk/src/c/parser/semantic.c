@@ -754,6 +754,10 @@ static int semantic_lvalue_is_const(SemanticContext* ctx, ASTNode* node) {
         return field && (field->is_const ||
             semantic_lvalue_is_const(ctx, access->object));
     }
+    if (node->type == AST_INDEX_ACCESS) {
+        ASTIndexAccess* access = (ASTIndexAccess*)node;
+        return semantic_lvalue_is_const(ctx, access->target);
+    }
     return 0;
 }
 
@@ -1523,6 +1527,10 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf);
                     }
                 }
+            } else if (assign->left->type == AST_INDEX_ACCESS &&
+                       semantic_lvalue_is_const(ctx, assign->left)) {
+                report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                    "Cannot assign through an index of a constant array.");
             } else if (assign->left->type == AST_MEMBER_ACCESS) {
                 FieldInfo* field = semantic_resolve_member(ctx, assign->left, 0);
                 if (field) {
