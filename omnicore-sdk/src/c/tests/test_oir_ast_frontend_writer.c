@@ -271,6 +271,7 @@ int main(void) {
             access_record.field_data_length);
         assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
         assert(field.field_id==1u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==3u);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
         assert(field.field_id==2u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==4u);
         assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && !has_field);
     }
