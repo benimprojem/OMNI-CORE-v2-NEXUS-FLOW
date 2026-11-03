@@ -258,6 +258,36 @@ int main(void) {
         ast_destroy(array_decoded);
     }
 
+    /* Verify array indexing preserves both ordered child references. */
+    {
+        ASTProgram index_root;
+        ASTIndexAccess access;
+        ASTIdentifier target,index_node;
+        ASTNode* index_decoded=NULL;
+        ASTIndexAccess* decoded_access;
+        memset(&index_root,0,sizeof(index_root));
+        memset(&access,0,sizeof(access));
+        memset(&target,0,sizeof(target));
+        memset(&index_node,0,sizeof(index_node));
+        index_root.base.type=AST_PROGRAM;
+        access.base.type=AST_INDEX_ACCESS;
+        target.base.type=AST_IDENTIFIER; target.name="items";
+        index_node.base.type=AST_IDENTIFIER; index_node.name="position";
+        index_root.declarations=(ASTNode*)&access;
+        access.target=(ASTNode*)&target;
+        access.index=(ASTNode*)&index_node;
+        assert(encode_fixture((ASTNode*)&index_root,index,records,fields,strings,output,
+            &count,&written,&req)==OIR_STATUS_OK);
+        assert(count==4u);
+        assert(oir_ast_frontend_read_payload(output,written,decoded,MAX_NODES,
+            incoming,MAX_NODES,visited,MAX_NODES,stack,MAX_NODES,&index_decoded)==OIR_STATUS_OK);
+        decoded_access=(ASTIndexAccess*)((ASTProgram*)index_decoded)->declarations;
+        assert(decoded_access && decoded_access->base.type==AST_INDEX_ACCESS);
+        assert(strcmp(((ASTIdentifier*)decoded_access->target)->name,"items")==0);
+        assert(strcmp(((ASTIdentifier*)decoded_access->index)->name,"position")==0);
+        ast_destroy(index_decoded);
+    }
+
     /* Verify a nested ownership graph is materialized into real child pointers. */
     {
         ASTProgram nested_root;
