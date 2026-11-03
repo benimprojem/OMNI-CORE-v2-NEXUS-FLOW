@@ -398,6 +398,27 @@ OCC_API void ast_print(ASTNode* root);
 OCC_API int ast_serialize(ASTNode* root, FILE* out);
 OCC_API ASTNode* ast_deserialize(FILE* in);
 
+typedef enum {
+    AST_VALIDATE_OK = 0,
+    AST_VALIDATE_INVALID_KIND,
+    AST_VALIDATE_CYCLE,
+    AST_VALIDATE_SHARED_NODE,
+    AST_VALIDATE_MISSING_REQUIRED,
+    AST_VALIDATE_OUT_OF_MEMORY
+} ASTValidationCode;
+
+typedef struct {
+    ASTValidationCode code;
+    const ASTNode* node;
+    const char* field; /* Static field name; NULL when not applicable. */
+} ASTValidationError;
+
+/* Validates node kinds, unique ownership/cycles, and core required child fields.
+ * Does not mutate or free the tree. Returns 1 when valid, otherwise 0.
+ * error may be NULL; on success it is reset to AST_VALIDATE_OK.
+ */
+OCC_API int ast_validate(const ASTNode* root, ASTValidationError* error);
+
 /* Destroys root, its complete sibling chain, and all exclusively owned children. */
 OCC_API void ast_destroy(ASTNode* root);
 
