@@ -410,6 +410,106 @@ static int populate_ast_fixture(ASTNode* node) {
         case AST_BREAK:
         case AST_CONTINUE:
             return 1;
+
+        case AST_SELECT: {
+            ASTSelect* value = (ASTSelect*)node;
+            value->selector = make_identifier_fixture("select_value");
+            value->arms = make_identifier_fixture("select_arms");
+            return value->selector && value->arms;
+        }
+        case AST_SELECT_ARM: {
+            ASTSelectArm* value = (ASTSelectArm*)node;
+            value->pattern = make_identifier_fixture("select_pattern");
+            value->body = make_identifier_fixture("select_body");
+            value->is_default = 1;
+            return value->pattern && value->body;
+        }
+        case AST_SCAN: {
+            ASTScan* value = (ASTScan*)node;
+            value->subject = make_identifier_fixture("scan_subject");
+            value->arms = make_identifier_fixture("scan_arms");
+            return value->subject && value->arms;
+        }
+        case AST_SCAN_ARM: {
+            ASTScanArm* value = (ASTScanArm*)node;
+            value->pattern = make_identifier_fixture("scan_pattern");
+            value->body = make_identifier_fixture("scan_body");
+            return value->pattern && value->body;
+        }
+        case AST_PATTERN_BINDING:
+            return assign_text(&((ASTPatternBinding*)node)->name, "pattern_binding");
+        case AST_PATTERN_CONSTRUCTOR: {
+            ASTPatternConstructor* value = (ASTPatternConstructor*)node;
+            if (!assign_text(&value->name, "PatternCtor")) return 0;
+            value->bindings = make_identifier_fixture("pattern_arg");
+            return value->bindings != NULL;
+        }
+        case AST_RULESET_DECL: {
+            ASTRulesetDecl* value = (ASTRulesetDecl*)node;
+            if (!assign_text(&value->name, "FixtureRules")) return 0;
+            value->params = make_identifier_fixture("rule_param");
+            value->rules = make_identifier_fixture("rule_body");
+            return value->params && value->rules;
+        }
+        case AST_RULE_BARRIER: {
+            ASTRuleBarrier* value = (ASTRuleBarrier*)node;
+            value->condition = make_identifier_fixture("barrier_condition");
+            value->message = make_literal_fixture();
+            return value->condition && value->message;
+        }
+        case AST_RULE_TRIGGER: {
+            ASTRuleTrigger* value = (ASTRuleTrigger*)node;
+            value->condition = make_identifier_fixture("trigger_condition");
+            value->action = make_identifier_fixture("trigger_action");
+            return value->condition && value->action;
+        }
+        case AST_RULE_ALWAYS:
+            ((ASTRuleAlways*)node)->action = make_identifier_fixture("always_action");
+            return ((ASTRuleAlways*)node)->action != NULL;
+        case AST_RULE_DEFAULT:
+            ((ASTRuleDefault*)node)->action = make_identifier_fixture("default_action");
+            return ((ASTRuleDefault*)node)->action != NULL;
+        case AST_APPLY_RULES: {
+            ASTApplyRules* value = (ASTApplyRules*)node;
+            if (!assign_text(&value->ruleset_name, "FixtureRules")) return 0;
+            value->args = make_identifier_fixture("rule_argument");
+            return value->args != NULL;
+        }
+        case AST_ON_BLOCK: {
+            ASTOnBlock* value = (ASTOnBlock*)node;
+            if (!assign_text(&value->ruleset_name, "FixtureRules") ||
+                !assign_text(&value->event_name, "FixtureEvent")) return 0;
+            value->body = make_identifier_fixture("event_body");
+            return value->body != NULL;
+        }
+        case AST_LAMBDA: {
+            ASTLambda* value = (ASTLambda*)node;
+            value->params = make_identifier_fixture("lambda_param");
+            value->body = make_identifier_fixture("lambda_body");
+            value->body_is_expression = 1;
+            return value->params && value->body;
+        }
+        case AST_RELOCATE: {
+            ASTRelocate* value = (ASTRelocate*)node;
+            value->source = make_identifier_fixture("relocate_source");
+            value->target = make_identifier_fixture("relocate_target");
+            return value->source && value->target;
+        }
+        case AST_UNROLL: {
+            ASTUnroll* value = (ASTUnroll*)node;
+            value->count = make_literal_fixture();
+            value->loop = make_identifier_fixture("unroll_loop");
+            return value->count && value->loop;
+        }
+        case AST_ARRAY_LITERAL:
+            ((ASTArrayLiteral*)node)->elements = make_identifier_fixture("array_element");
+            return ((ASTArrayLiteral*)node)->elements != NULL;
+        case AST_ARRAY_TYPE:
+            ((ASTArrayType*)node)->dimensions = make_identifier_fixture("array_dimension");
+            return ((ASTArrayType*)node)->dimensions != NULL;
+        case AST_ARRAY_DIMENSION:
+            ((ASTArrayDimension*)node)->length = make_literal_fixture();
+            return ((ASTArrayDimension*)node)->length != NULL;
     }
 
     return 0;
@@ -433,7 +533,7 @@ static int streams_equal(FILE* left, FILE* right) {
 }
 
 static int roundtrips_populated_ast_types(void) {
-    for (int raw_type = AST_PROGRAM; raw_type <= AST_ZONE_LOCK; ++raw_type) {
+    for (int raw_type = AST_PROGRAM; raw_type <= AST_ARRAY_DIMENSION; ++raw_type) {
         ASTNode* original = ast_create((ASTNodeType)raw_type);
         if (!original) return 1;
         if (!populate_ast_fixture(original)) {
@@ -799,7 +899,7 @@ int main(int argc, char** argv) {
         ASTNodeType type;
         int line;
         int col;
-    } invalid_node = { (ASTNodeType)(AST_ZONE_LOCK + 1), 1, 1 };
+    } invalid_node = { (ASTNodeType)(AST_ARRAY_DIMENSION + 1), 1, 1 };
 
     if (rejects_bytes(&invalid_node, sizeof(invalid_node)) != 0) {
         return 2;
