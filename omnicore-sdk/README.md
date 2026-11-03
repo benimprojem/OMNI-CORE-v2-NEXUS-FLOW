@@ -2,7 +2,7 @@
 
 OmniCore SDK, NexusFlow kaynak kodunu analiz etmek ve hedef platformlara taşınabilir çıktılar üretmek için geliştirilen araç zinciridir.
 
-**Aktif karar:** C uygulaması ana kaynak ve birincil geliştirme hattıdır. C++ uygulaması silinmeyecek; `../temp/legacy-cpp/` altında karşılaştırma ve kontrollü özellik aktarımı için korunacaktır.
+**Aktif karar:** Bu SDK çalışma alanı C-only derleyici uygulamasıdır. Kaynak kodu, build sistemi, testler ve compiler belgeleri C hattına aittir.
 
 ## Durum ve yön
 
@@ -20,7 +20,6 @@ Bu depo henüz tamamlanmış, çoklu hedef destekli bir derleyici değildir. Lex
 | Yol | Rol | Karar |
 |---|---|---|
 | src/c/ | C lexer/parser/AST/semantic/codegen | Etkin ve kanonik uygulama kaynağı |
-| ../temp/legacy-cpp/src/ | Korunan C++ parser/OIR/analyzer | Referans ve karşılaştırma; yeni ana geliştirme hattı değil |
 | targets/ | Hedef tanımları | Korunacak; gerçek codegen desteği ayrıca doğrulanacak |
 | stdlib/, dpslib/ | Standart ve bağımlılık kütüphaneleri | Korunacak |
 | src/c/tests/ | Etkin CTest girdileri ve test programları | CMake tarafından kullanılıyor |
@@ -52,6 +51,6 @@ Bu akış hedef mimaridir; tüm adımların bugün uygulanmış olduğu iddia ed
 3. OIR; AST serileştirmesinden ve hedefe özel assembly'den bağımsız tanımlanır.
 4. Her yeni özellik için pozitif, negatif ve regresyon testleri eklenir.
 5. Tasarım kararı, mevcut uygulama ve gelecek hedefi dokümanlarda ayrı etiketlenir.
-6. C++ kodu, eşdeğer C davranışı ve testleri olmadan ana hatta taşınmaz.
+6. Compiler değişiklikleri C API, modül sözleşmeleri ve otomatik testlerle doğrulanır.
 
 İlk doğrulama build komutları, yol haritasındaki Faz 0 tamamlanmadan geçerli/kararlı kabul edilmemelidir.
