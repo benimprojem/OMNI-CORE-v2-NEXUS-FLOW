@@ -157,3 +157,10 @@ This is a source audit, not a runtime proof. It does not test malformed graphs, 
 ### Ownership invariant clarification
 
 `next` is an owned sibling chain and every child pointer owns a disjoint subtree. The current destructor assumes this invariant; a duplicated child pointer or cycle can cause double-free/nontermination. Parser-created ASTs are expected to obey it, but externally constructed ASTs are not currently protected by a graph validator.
+
+
+## AST Graph Validator coverage (2026-11-03)
+
+The public C API `ast_validate(const ASTNode*, ASTValidationError*)` is implemented in `ast.c`. Its dispatch has an explicit case for all 99 current `ASTNodeType` tags: structured nodes traverse every owned AST child field; scalar/string-only and payload-free leaves are explicitly listed as childless. The validator checks enum range, required structural child pointers, duplicate node addresses across the graph (covering shared ownership and cycles), allocation failure and a 512-level child nesting limit. It does not replace parser grammar validation or Semantic checks, and it does not yet validate every required string/scalar payload or all contextual invariants (for example, scan-else placement).
+
+Dedicated CTest target: `ast_graph_ownership_cycle_and_required_field_validation` (`test_ast_validator.c`). Coverage includes valid manually built AST, child and sibling cycles, shared child, missing binary operands, NULL root, childless leaf tags, invalid enum value, depth-limit rejection and a parser-produced AST. CI result must be recorded only after the current head's workflow completes.
