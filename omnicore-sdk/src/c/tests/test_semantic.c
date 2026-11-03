@@ -172,6 +172,7 @@ static int check_array_type_semantics(void) {
         "f:main() { v:dynamic[]; v:fixed[5]!i32 = [1,2,3,4,5];"
         " v:matrix[2][2]!f64 = [[1.0,2.0],[3.0,4.0]];"
         " v:computed[2+3]!i32 = [1,2,3,4,5];"
+        " v:modulo_extent[17%5]!i32 = [1,2];"
         " consume(dynamic,fixed,computed); consume_matrix(matrix); }";
     const char* zero_extent = "f:main() { v:invalid[0]!i32; }";
     const char* fractional_extent = "f:main() { v:invalid[1.5]!i32; }";
