@@ -790,7 +790,7 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             return slot ? slot->type_name : NULL;
         }
         case AST_MEMBER_ACCESS: {
-            FieldInfo* field = semantic_resolve_member(ctx, node, 1);
+            FieldInfo* field = semantic_resolve_member(ctx, node, 0);
             const char* type_name = field ? field->type_name : NULL;
             if (field) semantic_record_annotation(
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_LVALUE);
@@ -1935,11 +1935,17 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             break;
         }
 
-        case AST_MEMBER_ACCESS:
+        case AST_MEMBER_ACCESS: {
+            FieldInfo* field;
+            const char* type_name;
             if (((ASTMemberAccess*)node)->object)
                 semantic_check(ctx, ((ASTMemberAccess*)node)->object);
-            (void)get_expr_type(ctx, node);
+            field = semantic_resolve_member(ctx, node, 1);
+            type_name = field ? field->type_name : NULL;
+            if (field) semantic_record_annotation(
+                ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_LVALUE);
             break;
+        }
 
         case AST_TUPLE:
             semantic_check(ctx, ((ASTTuple*)node)->elements);
