@@ -1019,7 +1019,26 @@ static int test_retry_metadata_rejects_overflow(void) {
         "retry-overflow.nxf",source,sizeof(source)-1u);
 }
 
+static int test_ast_create_rejects_invalid_node_kinds(void) {
+    ASTNode* first = ast_create(AST_PROGRAM);
+    ASTNode* last = ast_create(AST_ARRAY_DIMENSION);
+    ASTNode* negative = ast_create((ASTNodeType)-1);
+    ASTNode* past_end = ast_create((ASTNodeType)((int)AST_ARRAY_DIMENSION + 1));
+    int ok = first != NULL && first->type == AST_PROGRAM &&
+        last != NULL && last->type == AST_ARRAY_DIMENSION &&
+        negative == NULL && past_end == NULL;
+    ast_destroy(first);
+    ast_destroy(last);
+    ast_destroy(negative);
+    ast_destroy(past_end);
+    return ok;
+}
+
 int main(int argc, char** argv) {
+    if (!test_ast_create_rejects_invalid_node_kinds()) {
+        fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\\n");
+        return 1;
+    }
     if (!test_array_type_declarators()) { fprintf(stderr, "Array type declarator parser/codec test failed.\n"); return 1; }
     if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
     if (!test_array_literal_ast()) { fprintf(stderr, "Array literal parser/codec test failed.\n"); return 1; }
