@@ -377,6 +377,25 @@ Token lexer_next_token(ParserContext* ctx) {
             advance(ctx); // .
             while (isdigit((unsigned char)peek(ctx))) advance(ctx);
         }
+
+        /*
+         * Numeric suffixes and radix/exponent prefixes are not part of the
+         * currently supported decimal literal grammar. Do not split inputs
+         * such as 0xFF, 10E3 or 12u8 into a valid number plus an identifier.
+         */
+        if (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_') {
+            while (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_') {
+                advance(ctx);
+            }
+            if ((peek(ctx) == '+' || peek(ctx) == '-') && ctx->pos > ctx->token_start_offset &&
+                (ctx->source_buffer[ctx->pos - 1u] == 'e' ||
+                 ctx->source_buffer[ctx->pos - 1u] == 'E')) {
+                advance(ctx);
+                while (isdigit((unsigned char)peek(ctx))) advance(ctx);
+            }
+            return error_token(ctx, "Unsupported numeric literal suffix or format");
+        }
+
         size_t length = (size_t)(&ctx->source_buffer[ctx->pos] - start);
         return make_token(ctx, TOKEN_NUMBER, start, length);
     }
