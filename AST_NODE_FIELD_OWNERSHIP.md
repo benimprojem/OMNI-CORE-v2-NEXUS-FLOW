@@ -58,7 +58,7 @@ The current `ast.h` / `ast.c` source audit confirms these intentional shared lay
 | `AST_BREAK`, `AST_CONTINUE` | base `ASTNode` only | no payload; sibling link is still handled by the outer destroy loop |
 | `AST_NEWTYPE_DECL` | `ASTNewTypeDecl` | name and target_type strings; target_type is not an AST child |
 
-`AST_SCAN_ARM.pattern == NULL` is reserved for the final scan `else` catch-all arm; ordinary scan arms require a pattern. The OIR field remains present as a nullable NODE_REF, so no field ID or wire layout change is needed.
+`AST_SCAN_ARM.pattern == NULL` is reserved for the final scan `else` catch-all arm; ordinary scan arms require a pattern. The OIR field remains present as a nullable NODE_REF, so no field ID or wire layout change is needed. A `when` guard is canonicalized as an `AST_IF` node stored in the arm's existing `body` pointer; the condition and guarded body are therefore owned and destroyed through the ordinary `AST_IF` child contract.
 
 `AST_NEXUS_PIPE` and `AST_NEXUS_FLOW` are both allocated as `ASTNexusFlow`; the destructor's binary-prefix access is safe only while the declared field order remains `base, op, left, right, ...`. Do not replace this with a distinct payload without updating all lifecycle and codec paths.
 
