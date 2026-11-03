@@ -52,6 +52,9 @@ int main(void) {
     static const char compound_bitwise_float[] = "f:main() { v:x = 1; x &= 2.0; }";
     static const char append_non_string[] = "f:main() { v:x = 1; x .= \"b\"; }";
     static const char invalid_lvalue[] = "f:main() { 1 = 2; }";
+    static const char power_integer[] = "f:main() !i32 { ret 2 ^^ 3; }";
+    static const char power_float[] = "f:main() !f64 { ret 2.0 ^^ 3.0; }";
+    static const char power_non_numeric[] = "f:main() !bool { ret true ^^ false; }";
     static const char bitwise_valid[] = "f:main() !i32 { ret 7 & 3 | 2 ^ 1; }";
     static const char bitwise_float[] = "f:main() !f32 { ret 7.0 & 3.0; }";
     static const char logical_valid[] =
@@ -71,6 +74,9 @@ int main(void) {
     if (!check_source(compound_bitwise_float, 1)) return 1;
     if (!check_source(append_non_string, 1)) return 1;
     if (!check_source(invalid_lvalue, 1)) return 1;
+    if (!check_source(power_integer, 0)) return 1;
+    if (!check_source(power_float, 0)) return 1;
+    if (!check_source(power_non_numeric, 1)) return 1;
     if (!check_source(bitwise_valid, 0)) return 1;
     if (!check_source(bitwise_float, 1)) return 1;
     if (!check_source(logical_valid, 0)) return 1;
