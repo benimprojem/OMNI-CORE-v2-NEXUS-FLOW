@@ -266,11 +266,11 @@ int main(void) {
         assert(oir_ast_field_schema_validate(&view)==OIR_STATUS_OK);
         assert(oir_ast_graph_validate(&view,incoming,MAX_NODES,visited,MAX_NODES,
             stack,MAX_NODES)==OIR_STATUS_OK);
-        assert(oir_ast_node_table_get(&view,2u,&access_record)==OIR_STATUS_OK);
+        assert(oir_ast_node_table_get(&view,1u,&access_record)==OIR_STATUS_OK);
         oir_ast_tlv_reader_init(&reader,view.field_data+access_record.field_data_offset,
             access_record.field_data_length);
         assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
-        printf("DBG field=%u type=%u len=%u val=%u\\n",field.field_id,field.value_type,field.value_length,field.value[0]); assert(field.field_id==1u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==3u);
+        assert(field.field_id==1u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==3u);
         assert(field.field_id==2u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==4u);
         assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && !has_field);
     }
