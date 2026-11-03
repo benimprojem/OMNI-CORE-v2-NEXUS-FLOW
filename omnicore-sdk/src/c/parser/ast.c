@@ -1705,8 +1705,10 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_USE:
         case AST_PATTERN_BINDING:
             break;
+        /* Fail closed: a newly appended ASTNodeType must be explicitly
+         * assigned a child contract above before it can validate. */
         default:
-            break;
+            return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"type");
         }
 #undef V
 #undef R
