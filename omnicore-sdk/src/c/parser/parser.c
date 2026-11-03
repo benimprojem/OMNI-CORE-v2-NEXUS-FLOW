@@ -1645,7 +1645,12 @@ static ASTNode* parse_assignment(Parser* p) {
         return (ASTNode*)capture;
     }
 
-    if (match(p, TOKEN_ASSIGN)) {
+    if (match(p, TOKEN_ASSIGN) || match(p, TOKEN_PLUS_EQ) ||
+        match(p, TOKEN_MINUS_EQ) || match(p, TOKEN_STAR_EQ) ||
+        match(p, TOKEN_SLASH_EQ) || match(p, TOKEN_BIT_AND_EQ) ||
+        match(p, TOKEN_BIT_OR_EQ) || match(p, TOKEN_BIT_XOR_EQ) ||
+        match(p, TOKEN_STRING_APPEND)) {
+        OmniTokenType assignment_op = p->previous.type;
         ASTNode* right;
         if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
             error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
