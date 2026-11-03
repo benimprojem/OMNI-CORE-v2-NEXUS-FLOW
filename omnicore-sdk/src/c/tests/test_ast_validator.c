@@ -56,6 +56,55 @@ int main(void) {
         fprintf(stderr, "NULL root accepted\n"); return 1;
     }
 
+    /* Payload-free and scalar-only leaf nodes are valid without child edges. */
+    {
+        const ASTNodeType leaves[] = { AST_LITERAL, AST_IDENTIFIER, AST_BREAK,
+            AST_CONTINUE, AST_NEXUS_JUMP, AST_AI_LOGIC, AST_PANIC, AST_USE,
+            AST_PATTERN_BINDING, AST_NEWTYPE_DECL };
+        size_t i;
+        for (i = 0; i < sizeof(leaves) / sizeof(leaves[0]); ++i) {
+            ASTNode *leaf = ast_create(leaves[i]);
+            if (!leaf || !expect(leaf, AST_VALIDATE_OK)) {
+                fprintf(stderr, "leaf node rejected: %d\\n", (int)leaves[i]);
+                if (leaf) ast_destroy(leaf);
+                return 1;
+            }
+            ast_destroy(leaf);
+        }
+    }
+
+    /* Invalid enum values must fail before payload dispatch. */
+    {
+        ASTNode invalid = { (ASTNodeType)-1, 0, 0, NULL };
+        ASTValidationError error;
+        if (ast_validate(&invalid, &error) ||
+            error.code != AST_VALIDATE_INVALID_KIND) {
+            fprintf(stderr, "invalid node kind accepted\\n"); return 1;
+        }
+    }
+
+    /* Depth guard prevents an adversarially deep child chain exhausting C stack. */
+    {
+        ASTNode *deep = ast_create(AST_UNARY_EXPR), *cursor = deep;
+        unsigned i;
+        if (!deep) return 1;
+        for (i = 0; i < 513u; ++i) {
+            ASTNode *child = ast_create(AST_UNARY_EXPR);
+            if (!child) { ast_destroy(deep); return 1; }
+            ((ASTUnaryExpr *)cursor)->operand = child;
+            cursor = child;
+        }
+        {
+            ASTValidationError error;
+            if (ast_validate(deep, &error) ||
+                error.code != AST_VALIDATE_DEPTH_LIMIT) {
+                fprintf(stderr, "depth limit not enforced\\n");
+                ast_destroy(deep); return 1;
+            }
+        }
+        ast_destroy(deep);
+    }
+
     /* Parser output is expected to satisfy the AST graph contract. */
     {
         const char source[] = "f:main() { v:x = 1 + 2; ret x; }";
