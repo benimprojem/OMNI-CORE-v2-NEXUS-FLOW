@@ -22,12 +22,12 @@ int main(void) {
 
     /* Child-to-ancestor edge and sibling self-loop must both be rejected. */
     ((ASTBlock *)block)->statements = root;
-    if (!expect(root, AST_VALIDATE_SHARED_NODE)) {
+    if (!expect(root, AST_VALIDATE_CYCLE)) {
         fprintf(stderr, "child cycle not detected\n"); return 1;
     }
     ((ASTBlock *)block)->statements = id;
     id->next = id;
-    if (!expect(root, AST_VALIDATE_SHARED_NODE)) {
+    if (!expect(root, AST_VALIDATE_CYCLE)) {
         fprintf(stderr, "sibling cycle not detected\n"); return 1;
     }
     id->next = NULL;
