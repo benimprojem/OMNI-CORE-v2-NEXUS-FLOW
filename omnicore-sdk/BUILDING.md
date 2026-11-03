@@ -66,10 +66,7 @@ by the caller.
 
 The current C compiler writes an internal AST serialization stream to files with
 the `.oir` extension so the separately loaded code generator can read it.
-This is not yet the canonical, stable OIR format described in the roadmap, and
-it is not compatible with the C++ OIR2 format. The AST stream layout is still
-being validated; regenerate previously saved `.oir` files when changing
-compiler revisions rather than treating them as a stable interchange format.
+This is not yet the canonical, stable OIR format described in the roadmap. The AST stream layout is still being validated; regenerate previously saved `.oir` files when changing compiler revisions rather than treating them as a stable interchange format.
 
 ## Source selection
 
@@ -83,9 +80,7 @@ The C frontend library contains:
 The C OCC entry point is `main.c`. The old `parser/main.c` is preserved at `../temp/legacy-c/obsolete-parser-main.c`;
 it defines a second `main()` and is deliberately excluded from the active build.
 
-The C code generator is built as a separate shared library. The C++ compiler sources are preserved under `../../temp/legacy-cpp/src/`;
-their legacy build scripts are under `../../temp/legacy-cpp/scripts/` and are
-not part of this C build.
+The C code generator is built as a separate shared library. The compiler workspace contains only the C implementation; CMake, wrappers and CI build the C targets.
 
 ## Current CTest coverage
 
