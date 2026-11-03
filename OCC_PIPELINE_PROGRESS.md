@@ -237,6 +237,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - `NEXSUS_AST_SYNTAX_MATRIX.md` — Nexus Flow syntax ↔ AST eşlemesi.
 - `OIR_AST_NODE_REGISTRY.md` — 1–99 sabit AST node ID ve field kayıtları.
 - `AST_NODE_OWNERSHIP_AUDIT.md` — 99 AST kind için payload, owned child/string ve lifecycle sözleşmesi; otomatik graph/ownership doğrulaması açık.
+- `AST_ASM_DESIGN.md` — fastexec/asm label/raw text/asmcall/asmjmp için Parser öncesi AST tasarım notu; henüz uygulanmadı.
 - `AST_OIR_COMPLETION_PLAN.md` — Codegen öncesi AST/Semantic/OIR kapıları.
 - `OIR_SEMANTIC_AST.md` — semantic artifact sözleşmesi.
 - `OIR_MODULE.md` — OIR_MODULE ve mevcut lowering kapsamı.
