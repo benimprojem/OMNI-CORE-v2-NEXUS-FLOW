@@ -30,13 +30,13 @@ int main(void) {
     {
         ASTNodeType type;
         if (oir_ast_node_id_to_frontend(0u, &type) ||
-            oir_ast_node_id_to_frontend(100u, &type) ||
+            oir_ast_node_id_to_frontend(101u, &type) ||
             oir_ast_node_id_from_frontend((ASTNodeType)-1) != 0u) {
             fprintf(stderr, "FAIL: invalid AST node IDs/tags must be rejected\n");
             return 1;
         }
     }
 
-    puts("OIR AST node registry mapping tests passed (99/99).");
+    puts("OIR AST node registry mapping tests passed (100/100).");
     return 0;
 }
