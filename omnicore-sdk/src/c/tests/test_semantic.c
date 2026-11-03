@@ -198,6 +198,7 @@ static int check_array_type_semantics(void) {
     const char* invalid_index_type = "f:main() { v:x!i32 = 2; v:y = x[1.5]; }";
     const char* const_array_index_write = "f:main() { c:items[2]!i32 = [1,2]; items[0] = 3; }";
     const char* indexed_element_type_mismatch = "f:main() { v:items[2]!i32 = [1,2]; items[0] = \"x\"; }";
+    const char* non_lvalue_assignment = "f:main() { v:x!i32 = 1; (x + 1) = 2; }";
     return check_source(valid_params,0) &&
         check_source(valid_matrix_param,0) &&
         check_source(valid,0) &&
@@ -218,7 +219,7 @@ static int check_array_type_semantics(void) {
         check_source(invalid_index_target,1) &&
         check_source(invalid_index_type,2) &&
         check_source(const_array_index_write,1) &&
-        check_source(indexed_element_type_mismatch,1);
+        check_source(indexed_element_type_mismatch,1) &&\n        check_source(non_lvalue_assignment,1);
 }
 
 static int check_extended_ast_semantics(void) {
