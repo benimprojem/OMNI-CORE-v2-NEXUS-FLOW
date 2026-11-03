@@ -101,7 +101,7 @@
 | 81 | `AST_SELECT` | Selector expression and ordered select arms |
 | 82 | `AST_SELECT_ARM` | Pattern, body and explicit default flag |
 | 83 | `AST_SCAN` | Scan subject and ordered scan arms |
-| 84 | `AST_SCAN_ARM` | Pattern and body |
+| 84 | `AST_SCAN_ARM` | Pattern and body; null pattern denotes the final scan else catch-all |
 | 85 | `AST_PATTERN_BINDING` | Arm-local pattern binding name |
 | 86 | `AST_PATTERN_CONSTRUCTOR` | Constructor name and ordered binding list |
 | 87 | `AST_RULESET_DECL` | Named ruleset, parameters and ordered rules |
