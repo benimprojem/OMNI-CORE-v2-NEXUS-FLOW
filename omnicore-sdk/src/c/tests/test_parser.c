@@ -1123,6 +1123,31 @@ static int test_power_bitwise_and_compound_assignment(void) {
 done:parser_destroy(ctx);return ok;
 }
 
+
+static int test_extern_echo_and_listen_keywords(void) {
+    static const char source[] =
+        "exf:external(a!i32)!i32 { ret a; }"
+        "f:main() { echo(\"hello\"); !(listen): { echo(\"event\"); } }";
+    ParserContext* ctx=parser_init_source("extern-echo-listen.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTProgram* program;ASTFuncDecl* external;ASTFuncDecl* main_fn;ASTBlock* body;
+    ASTNode* echo_node;ASTNode* listen_node;int ok=0;
+    if(!ctx)return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK||ctx->error_count||!ctx->ast_root)goto done;
+    program=(ASTProgram*)ctx->ast_root;external=(ASTFuncDecl*)program->declarations;
+    if(!external||external->base.type!=AST_FUNC_DECL||!external->is_extern||
+       !external->name||strcmp(external->name,"external")!=0)goto done;
+    main_fn=(ASTFuncDecl*)external->base.next;
+    if(!main_fn||main_fn->base.type!=AST_FUNC_DECL)goto done;
+    body=(ASTBlock*)main_fn->body;if(!body||body->base.type!=AST_BLOCK)goto done;
+    echo_node=body->statements;
+    if(!echo_node||echo_node->type!=AST_ECHO)goto done;
+    listen_node=echo_node->next;
+    if(!listen_node||listen_node->type!=AST_LISTEN)goto done;
+    ok=1;
+done:parser_destroy(ctx);return ok;
+}
+
 static int test_modulo_expression_ast(void) {
     static const char source[] =
         "f:main() { v:rem = 17 % 5 * 2; v:dimension[17 % 5]!i32; }";
@@ -1216,6 +1241,7 @@ int main(int argc, char** argv) {
     if (!test_array_type_declarators()) { fprintf(stderr, "Array type declarator parser/codec test failed.\n"); return 1; }
     if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
     if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\\n"); return 1; }
+    if (!test_extern_echo_and_listen_keywords()) { fprintf(stderr, "extern/echo/listen keyword parser test failed.\n"); return 1; }
     if (!test_modulo_expression_ast()) { fprintf(stderr, "Modulo expression/array extent parser test failed.\n"); return 1; }
     if (!test_logical_operator_precedence_ast()) { fprintf(stderr, "Logical operator precedence parser test failed.\n"); return 1; }
 

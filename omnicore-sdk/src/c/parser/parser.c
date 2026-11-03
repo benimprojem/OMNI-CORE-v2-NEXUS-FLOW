@@ -805,6 +805,7 @@ static ASTNode* parse_primary(Parser* p) {
         return expr;
     }
 
+    if (match(p, TOKEN_KW_ECHO)) return parse_intrinsic_call(p, AST_ECHO);
     if (match(p, TOKEN_KW_PRNT)) return parse_intrinsic_call(p, AST_PRNT);
     if (match(p, TOKEN_KW_PRMT)) return parse_intrinsic_call(p, AST_PRMT);
     if (match(p, TOKEN_KW_WRITE)) return parse_intrinsic_call(p, AST_WRITE);
@@ -3139,9 +3140,11 @@ static ASTNode* parse_statement(Parser* p) {
         return (ASTNode*)decl;
     }
     
-    if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) {
+    if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC) || match(p, TOKEN_KW_EXTERN)) {
+        int is_extern = p->previous.type == TOKEN_KW_EXTERN;
         ASTFuncDecl* decl = (ASTFuncDecl*)parse_func_decl(p);
         if (!decl) return NULL;
+        decl->is_extern = is_extern;
         decl->is_public = is_pub;
         decl->is_exported = is_exp;
         return (ASTNode*)decl;
@@ -3193,7 +3196,8 @@ static ASTNode* parse_statement(Parser* p) {
         // Check for !(listen)
         if (p->current.type == TOKEN_LPAREN) {
             Token lookahead = peek_token(p);
-            if (lookahead.type == TOKEN_IDENTIFIER && strncmp(lookahead.start, "listen", 6) == 0) {
+            if (lookahead.type == TOKEN_KW_LISTEN ||
+                (lookahead.type == TOKEN_IDENTIFIER && strncmp(lookahead.start, "listen", 6) == 0)) {
                 advance(p); // (
                 advance(p); // listen
                 consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
