@@ -250,3 +250,5 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 **Kural:** Bu tablo güncellenmeden bir AST düğümü veya pipeline aşaması tamamlandı olarak raporlanmaz.
 
 | 2026-11-03 | Semantic array-index assignment checks CI 5/5 geçti (run 41639121287); progress-only commit run 41639157932 de başarılı. Assignment target auditinde identifier/member/index dışında kalan hedefler için fail-closed kontrol zaten mevcut; bunun için `(x + 1) = 2` negatif regresyon testi eklendi. Bu testin CI sonucu henüz bekleniyor. | `semantic.c`, `test_semantic.c`, run 41639121287, 41639157932 |
+
+| 2026-11-03 | Compound assignment test kapsamı eklendi: numeric `+=/*=` geçerli, `str += str` ve float bitwise compound assignment reddedilmeli; u32 bitwise compound geçerli fixture olarak eklendi. AST_TUPLE semantiği bilinçli biçimde fail-closed: parser `(a,b)` tuple AST üretiyor fakat tuple type/assignment/destructuring sözleşmesi tanımlanmadan kabul edilmiyor. | `test_semantic.c`; compound/non-lvalue CI sonuçları bekleniyor |
