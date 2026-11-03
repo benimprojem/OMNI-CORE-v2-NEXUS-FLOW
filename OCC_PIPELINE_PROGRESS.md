@@ -49,7 +49,7 @@ Lexer bir AST düğümüne bire bir karşılık gelmez. Bu nedenle token takibi 
 |---|---|---|---|
 | Identifier / keyword | ~ | ~ | Tüm keyword ve contextual keyword eşlemesi |
 | Primitive type tokens | ~ | ~ | `i/u/f`, bool, bit, byte, hex, void, any ve yeni türler |
-| Integer / float literals | ~ | ~ | Ondalık, üs, hex/binary, suffix, forced-width ve overflow |
+| Integer / float literals | ~ | ~ | Decimal integer/fraction; unsupported radix/scientific/suffix forms fail closed; rolling `ms` unit token pair; overflow and source-span matrix |
 | String / char literals | ~ | ~ | Escape, UTF-8, kapanmayan literal ve newline |
 | Single-character operators | ~ | ~ | Token ID ve parser precedence |
 | Multi-character operators | ~ | ~ | Longest-match ve çakışma testleri |
