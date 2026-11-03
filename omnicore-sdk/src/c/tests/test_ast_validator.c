@@ -184,6 +184,31 @@ int main(void) {
         ast_destroy(block);
     }
 
+    /* The block cleanup leaf survives the legacy AST stream codec. */
+    {
+        ASTNode* block = ast_create(AST_BLOCK);
+        ASTNode* cleanup = ast_create(AST_BLOCK_HALT);
+        FILE* stream = tmpfile();
+        ASTNode* decoded;
+        if (!block || !cleanup || !stream) return 1;
+        ((ASTBlock*)block)->statements = cleanup;
+        if (!ast_validate(block, NULL) || !ast_serialize(block, stream) ||
+            fseek(stream, 0L, SEEK_SET) != 0) {
+            ast_destroy(block); fclose(stream); return 1;
+        }
+        decoded = ast_deserialize(stream);
+        if (!decoded || !ast_validate(decoded, NULL) ||
+            !((ASTBlock*)decoded)->statements ||
+            ((ASTBlock*)decoded)->statements->type != AST_BLOCK_HALT) {
+            fprintf(stderr, "block cleanup marker legacy AST round-trip failed\\n");
+            if (decoded) ast_destroy(decoded);
+            ast_destroy(block); fclose(stream); return 1;
+        }
+        ast_destroy(decoded);
+        ast_destroy(block);
+        fclose(stream);
+    }
+
     /* Parser output is expected to satisfy the AST graph contract. */
     {
         const char source[] = "f:main() { v:x = 1 + 2; ret x; }";
