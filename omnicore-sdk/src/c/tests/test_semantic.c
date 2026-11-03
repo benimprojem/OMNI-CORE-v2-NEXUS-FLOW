@@ -276,7 +276,11 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Postfix semantic checks failed.\\n");
         return 1;
     }
-    if (!check_compound_assignment_semantics()) {\n        fprintf(stderr, "Compound assignment semantic checks failed.\\n");\n        return 1;\n    }\n    if (!check_array_type_semantics()) {
+    if (!check_compound_assignment_semantics()) {
+        fprintf(stderr, "Compound assignment semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_array_type_semantics()) {
         fprintf(stderr, "Array type semantic checks failed.\n");
         return 1;
     }
