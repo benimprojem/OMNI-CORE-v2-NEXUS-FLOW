@@ -136,9 +136,8 @@ v:sayi[]; # Dinamik array Tanımlama
 v:sayilar[5]!i32 = [1, 2, 3, 4, 5]; #Statik Tanımlama ve atama.
 v:buffer[2*8+1]!i32; # Derleme zamanında hesaplanan pozitif sabit boyut.
 
-# Mevcut Parser boyut ifadelerinde +, -, *, / kabul edilir; % operatörünün genel Parser üretimi henüz yoktur.
-# Sonuç pozitif olmalı; taşma ve sıfıra bölme kabul edilmez.
-# Modulo desteği tamamlanana kadar boyut ifadesinde % kullanmayın.
+# Boyut ifadeleri tamsayı literal'ları ve +, -, *, /, % işlemlerini destekler.
+# % yalnızca integer operand'larla geçerlidir; sonuç pozitif olmalı, taşma ve sıfıra bölme kabul edilmez.
 
 v:matris[3][3]!f32 = [
     [1.2, 0.3, 0.6],
@@ -240,7 +239,7 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 * `...` : Fonksiyonlar için çoklu prametre
 * `.=` : String birleştirme operatörü. Mevcut string'e yeni string ekler.
 
-**C Parser uygulama sınırı (2026-11-03):** Yukarıdaki liste dil tasarım envanteridir; tamamının mevcut Parser tarafından kabul edildiği anlamına gelmez. Kaynak kod denetimine göre `+`, `-`, `*`, `/`, karşılaştırma/eşitlik operatörleri, unary `!` / `~`, prefix/postfix `++` / `--` ve `..` için Parser üretimleri vardır. `%`, `^^`, binary bitwise `& | ^`, `&& ||`, compound assignment (`+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=`) ve `.=` henüz Parser tarafından tüketilmez. `<<` / `>>` mevcut gramerde Nexus Flow akış operatörleridir; bit-shift ifadesi olarak kullanılmaları ayrıca kararlaştırılmalıdır. Ayrıntılı uygulama matrisi: [NEXSUS_AST_SYNTAX_MATRIX.md](../../NEXSUS_AST_SYNTAX_MATRIX.md).
+**C Parser uygulama sınırı (2026-11-03):** Yukarıdaki liste dil tasarım envanteridir; tamamının mevcut Parser tarafından kabul edildiği anlamına gelmez. Kaynak kod denetimine göre `+`, `-`, `*`, `/`, karşılaştırma/eşitlik operatörleri, unary `!` / `~`, prefix/postfix `++` / `--` ve `..` için Parser üretimleri vardır. `^^`, binary bitwise `& | ^`, `&& ||`, compound assignment (`+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=`) ve `.=` henüz Parser tarafından tüketilmez. `<<` / `>>` mevcut gramerde Nexus Flow akış operatörleridir; bit-shift ifadesi olarak kullanılmaları ayrıca kararlaştırılmalıdır. Ayrıntılı uygulama matrisi: [NEXSUS_AST_SYNTAX_MATRIX.md](../../NEXSUS_AST_SYNTAX_MATRIX.md).
 
 ---
 
