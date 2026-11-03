@@ -804,7 +804,7 @@ Trigger adları Analyzer aşamasında sabit kimliklere çözülür; OIR'ın çal
 
 > Not: `group` içindeki `rules ... => group { ... }` biçimi temel `rules Name(params) { ... }` sözdiziminden ayrı bir organizasyon katmanıdır; ayrı lowering/çözümleme adımı olarak ele alınacaktır.
 
-Ayrıntılı AST, Analyzer ve OIR semantiği: [Multi-Rule Engine Formal Specification](nexus%20docs/NEXUSFLOW%20%C3%87oklu%20Kural%20%C4%B0%C5%9Fleyici%20(Multi-Rule%20Engine)%20%E2%80%94%20Formal%20Specification.md).
+Ayrıntılı AST, Analyzer ve OIR semantiği: [Multi-Rule Engine Formal Specification](../../nexus%20docs/NEXUSFLOW%20%C3%87oklu%20Kural%20%C4%B0%C5%9Fleyici%20%28Multi-Rule%20Engine%29%20%E2%80%94%20Formal%20Specification.md).
 
 ---
 
