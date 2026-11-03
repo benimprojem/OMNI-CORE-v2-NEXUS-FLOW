@@ -20,7 +20,7 @@
 | Function | FUNC_DECL, EXTERN_DECL | ASTFuncDecl | name, return_type; params chain; body |
 | Aggregate | STRUCT_DECL, UNION_DECL | ASTStructDecl | name; fields chain |
 | Enum | ENUM_DECL / ENUM_VARIANT | ASTEnumDecl / ASTEnumVariant | name; variants chain; variant data |
-| Newtype | NEWTYPE_DECL | ASTNewTypeDecl | name; underlying/type child per struct |
+| Newtype | NEWTYPE_DECL | ASTNewTypeDecl | owned `name` and `target_type` strings; no child pointer in the current C struct |
 | Group / method | GROUP_DECL / METHOD | ASTGroupDecl / ASTMethod | group name/members; public_name/implementation |
 | Use / defer / thread | USE / DEFER / THREAD_BLOCK | dedicated structs | module_name/alias; body; thread name/body/mode/timeout |
 | Scalar expressions | LITERAL / IDENTIFIER | ASTLiteral / ASTIdentifier | literal string_value; identifier name |
@@ -39,6 +39,25 @@
 | Lambda / relocate / unroll | LAMBDA / RELOCATE / UNROLL | dedicated structs | params/body; source/target; count/loop |
 | Nexus Flow | CAPTURE / PIPE / FLOW / LABEL / JUMP / HALT / INTENT | dedicated structs | per-node expression/label/target payloads |
 | Other special forms | AI_LOGIC / UNPACK / PANIC / SPAWN / LISTEN / ECHO / SEND / RECEIVE / DONE / AREA / ADDR / LEN / PEEK / POKE / INB / OUTB / IRQ / INTR / REG / PRNT / PRMT / WRITE / FWRITE / TYPEOF / SIZEOF / IS_* / EXIT / SWAP / ZONE / DATE / DATENOW / TIME / CLOCK / FREE / ZONE_SYNC / ZONE_VIEW / ZONE_LOCK | AST-specific or ASTCall-backed | owned expression/list/string fields defined in each struct and destroy switch |
+
+## Confirmed shared payload layouts and destroy dispatch
+
+The current `ast.h` / `ast.c` source audit confirms these intentional shared layouts. Keep the allocation, parser construction, printer, serializer/deserializer and destroy cases synchronized:
+
+| AST tag(s) | C payload layout | Owned fields destroyed |
+|---|---|---|
+| `AST_PROGRAM`, `AST_BLOCK`, `AST_ASM_BLOCK` | `ASTProgram` / `ASTBlock` share the first payload pointer offset | program declarations / block statements sibling chain |
+| `AST_FUNC_DECL`, `AST_EXTERN_DECL` | `ASTFuncDecl` | name, return_type, params chain, body |
+| `AST_STRUCT_DECL`, `AST_UNION_DECL` | `ASTStructDecl` | name, fields chain |
+| `AST_BINARY_EXPR`, `AST_ASSIGNMENT` | `ASTBinaryExpr` | left and right subtrees |
+| `AST_UNARY_EXPR`, `AST_POSTFIX_EXPR`, `AST_RETURN` | `ASTUnaryExpr` | operand subtree |
+| `AST_NEXUS_FLOW`, `AST_NEXUS_PIPE` | `ASTNexusFlow` (prefix-compatible with the binary fields) | left, right, catch_block; retry_count/retry_delay are scalars |
+| `AST_NEXUS_CAPTURE`, `AST_LISTEN` | `ASTNexusCapture` | handler_name string and expr subtree |
+| Call-backed intrinsic tags | `ASTCall` | callee subtree and args sibling chain |
+| `AST_BREAK`, `AST_CONTINUE` | base `ASTNode` only | no payload; sibling link is still handled by the outer destroy loop |
+| `AST_NEWTYPE_DECL` | `ASTNewTypeDecl` | name and target_type strings; target_type is not an AST child |
+
+`AST_NEXUS_PIPE` and `AST_NEXUS_FLOW` are both allocated as `ASTNexusFlow`; the destructor's binary-prefix access is safe only while the declared field order remains `base, op, left, right, ...`. Do not replace this with a distinct payload without updating all lifecycle and codec paths.
 
 ## Cross-component checklist (per tag)
 
