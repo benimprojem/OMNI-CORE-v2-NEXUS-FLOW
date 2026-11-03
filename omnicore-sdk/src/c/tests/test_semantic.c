@@ -98,6 +98,25 @@ static int check_control_flow_semantics(void) {
         check_source(invalid_conditional_actions, 2);
 }
 
+static int rejects_semantic_pending_node(ASTNodeType type) {
+    ASTNode* node = ast_create(type);
+    SemanticContext semantic;
+    int rejected;
+    if (!node) return 0;
+    semantic_init(&semantic, "semantic-pending-node.nxf", NULL);
+    semantic_check(&semantic, node);
+    rejected = semantic.error_count > 0;
+    semantic_destroy(&semantic);
+    ast_destroy(node);
+    return rejected;
+}
+
+static int check_semantic_fail_closed_nodes(void) {
+    return rejects_semantic_pending_node(AST_MEMBER_ACCESS) &&
+        rejects_semantic_pending_node(AST_TUPLE) &&
+        rejects_semantic_pending_node(AST_ASM_BLOCK);
+}
+
 static int check_postfix_semantics(void) {
     const char* valid =
         "f:main() { v:counter!i32 = 0; counter++; counter--; }";
@@ -216,6 +235,10 @@ static int check_extended_ast_semantics(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!check_semantic_fail_closed_nodes()) {
+        fprintf(stderr, "Semantic pending AST nodes were not rejected.\\n");
+        return 1;
+    }
     if (!check_postfix_semantics()) {
         fprintf(stderr, "Postfix semantic checks failed.\\n");
         return 1;
