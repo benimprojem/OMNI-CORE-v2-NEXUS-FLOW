@@ -102,7 +102,7 @@
 
 - Graph Validator dispatch is explicit for all 99 enum tags; its switch default now returns AST_VALIDATE_INVALID_KIND rather than silently accepting an unregistered tag as a leaf.
 - Current ASTNode source metadata is limited to line/column. Byte start/end offsets and end line/column are present in token/diagnostic infrastructure but are not persisted in AST nodes or the legacy AST stream codec.
-- AST_NEXUS_HALT does not encode the distinction between targeted single-resource halt and block-scoped }?; cleanup. parse_block() currently returns an AST_BLOCK without a block-cleanup marker.
+- `AST_NEXUS_HALT` carries an optional target expression, but `parse_block()` currently consumes only `}` and returns an `AST_BLOCK` without representing the trailing `}?;`. The canonical syntax reference defines block cleanup as a scope-wide cleanup distinct from targeted resource halt; a dedicated block-cleanup marker is still required.
 - AST_ASM_BLOCK is currently a generic ASTBlock layout; fastexec, asm: labels and asmcall/asmjmp do not have a C Parser construction path.
 - Canonical syntax path is now reconciled on the active branch: `docs/language/syntax-reference.md` is the single normative document. It was restored from the branch's reconciled syntax content; the former duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` remains untouched.
 - These are explicit pre-Semantic AST/model gates. AST must not be marked complete until the source-span contract, block-Halt representation and assembly scope are resolved and the syntax-reference path is reconciled.
