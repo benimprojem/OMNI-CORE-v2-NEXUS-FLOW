@@ -212,7 +212,7 @@ Not: Bu değişiklikler legacy AST codec ve OIR AST payload sözleşmesini etkil
 - `AST_MEMBER_ACCESS`, `AST_TUPLE` and `AST_ASM_BLOCK` now produce semantic errors rather than falling through as accepted no-ops. Member access awaits aggregate-field lookup; tuple values await tuple type representation; inline assembly awaits a defined semantic/effect contract.
 - `AST_PATTERN_BINDING` and `AST_PATTERN_CONSTRUCTOR` are consumed by the dedicated pattern-binding checker under select/scan arms. `AST_ENUM_VARIANT` is validated while its parent enum declaration registers variants and payload fields.
 - Literal and identifier expression typing is handled by `get_expr_type`; those leaves are not required to duplicate their logic in the statement switch.
-- New postfix tests cover valid increment/decrement, const mutation, non-numeric operands and unresolved names. Keep this list synchronized with the AST tag inventory; direct switch-case counts alone do not capture delegated parent/helper handling.
+- New postfix tests cover valid increment/decrement, const mutation, non-numeric operands and unresolved names. Direct AST tests also assert that member access, tuple values and inline assembly are rejected while their semantic contracts remain incomplete. Keep this list synchronized with the AST tag inventory; direct switch-case counts alone do not capture delegated parent/helper handling.
 
 These are current implementation boundaries, not a claim that all semantic rules are complete. In particular, aggregate member resolution, tuple typing, inline assembly, full lvalue categories, and complete extern ABI validation remain open.
 
