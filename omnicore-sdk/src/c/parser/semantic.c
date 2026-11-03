@@ -1511,7 +1511,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     }
                 }
             } else if (assign->left->type == AST_MEMBER_ACCESS) {
-                FieldInfo* field = semantic_resolve_member(ctx, assign->left, 1);
+                FieldInfo* field = semantic_resolve_member(ctx, assign->left, 0);
                 if (field) {
                     if (semantic_lvalue_is_const(ctx, assign->left)) {
                         report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
