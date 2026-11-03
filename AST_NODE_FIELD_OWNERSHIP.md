@@ -143,7 +143,7 @@ These are parser construction invariants, not a complete semantic typing specifi
 - `AST_PATTERN_CONSTRUCTOR.bindings`, function parameter lists and rule argument lists may be empty.
 - `AST_ARRAY_TYPE.dimensions`: at least one dimension is required by the declarator production; each dimension node exists, while its `length` may be NULL for `[]`.
 
-**Validation gap:** these invariants are currently documented and partially covered by parser fixtures, but there is no generic AST graph validator that checks required-child contracts, duplicate ownership, or cycles. Do not treat the table as automatically enforced until such a validator and negative tests are added.
+**Validation boundary:** `ast_validate()` now checks the required structural child pointers listed in its dispatch, graph-wide unique ownership, sibling cycles and ancestor-child cycles. It does not validate every required string/scalar payload, loop-form-specific child combinations, or all Semantic/contextual invariants.
 
 
 ## AST kind lifecycle audit — 2026-11-03
@@ -160,11 +160,13 @@ This is a source audit, not a runtime proof. It does not test malformed graphs, 
 
 ### Ownership invariant clarification
 
-`next` is an owned sibling chain and every child pointer owns a disjoint subtree. The current destructor assumes this invariant; a duplicated child pointer or cycle can cause double-free/nontermination. Parser-created ASTs are expected to obey it, but externally constructed ASTs are not currently protected by a graph validator.
+`next` is an owned sibling chain and every child pointer owns a disjoint subtree. `ast_validate()` can verify this invariant before serialization and before handing a graph to another stage. `ast_destroy()` itself remains a low-level destructor and assumes an exclusively owned, acyclic graph; callers must not pass it a graph with shared children or cycles. Parser cleanup retains ownership of partial trees and uses this destructor without requiring successful structural validation.
 
 
 ## AST Graph Validator coverage (2026-11-03)
 
-The public C API `ast_validate(const ASTNode*, ASTValidationError*)` is implemented in `ast.c`. Its dispatch has an explicit case for all 99 current `ASTNodeType` tags: structured nodes traverse every owned AST child field; scalar/string-only and payload-free leaves are explicitly listed as childless. The validator checks enum range, required structural child pointers, duplicate node addresses across the graph (shared ownership), sibling-link cycles and ancestor child cycles; cycle and sharing diagnostics use separate codes, allocation failure and a 512-level child nesting limit. It does not replace parser grammar validation or Semantic checks, and it does not yet validate every required string/scalar payload or all contextual invariants (for example, scan-else placement).
+The public C API `ast_validate(const ASTNode*, ASTValidationError*)` is implemented in `ast.c`. Its dispatch has an explicit case for all 99 current `ASTNodeType` tags: structured nodes traverse every owned AST child field; scalar/string-only and payload-free leaves are explicitly listed as childless. The validator checks enum range, required structural child pointers, duplicate node addresses across the graph (shared ownership), sibling-link cycles and ancestor child cycles; cycle and sharing diagnostics use separate codes, allocation failure and a 512-level child nesting limit. It also enforces that a null-pattern `AST_SCAN_ARM` is the final catch-all arm. It does not replace parser grammar validation or Semantic checks, and it does not validate every required string/scalar payload or all contextual invariants.
 
-Dedicated CTest target: `ast_graph_ownership_cycle_and_required_field_validation` (`test_ast_validator.c`). Coverage includes valid manually built AST, child and sibling cycles, shared child, missing binary operands, NULL root, childless leaf tags, invalid enum value, depth-limit rejection and a parser-produced AST. CI result must be recorded only after the current head's workflow completes.
+`ast_serialize()` validates the graph before writing any bytes; invalid graphs are rejected without partial output. `ast_deserialize()` validates the fully materialized graph and rejects structurally invalid or trailing data. `ast_destroy()` remains a low-level destructor with an exclusive-ownership/acyclic-graph precondition; it is intentionally usable for partial Parser trees that may not satisfy successful-parse required-child contracts.
+
+Dedicated CTest target: `ast_graph_ownership_cycle_and_required_field_validation` (`test_ast_validator.c`). Coverage includes valid manually built AST, child and sibling cycles, shared child, missing required children, NULL root, childless leaf tags, invalid enum value, depth-limit rejection, Parser-produced AST, serializer no-write rejection, deserializer structural rejection and valid legacy stream round-trip. Separate `ast_rejects_malformed_streams` tests cover all 99 populated node tags, sibling chains, truncation and depth limits.
