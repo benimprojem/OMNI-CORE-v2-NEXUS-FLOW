@@ -15,6 +15,7 @@
 | ~ | Kısmen uygulandı; kapsam veya test eksiği var |
 | ? | Henüz satır bazında denetlenmedi; tamamlandı kabul edilmez |
 | D | Tasarım gereği ertelendi; davranış uydurulmayacak |
+| X | Mevcut kapsamda açıkça desteklenmiyor/reddediliyor; sessizce kabul edilmez |
 | — | Bu satır/aşama için uygulanamaz |
 
 **Güncelleme kuralı:** Bir hücre yalnızca ilgili aşamanın kodu ve testi incelendikten sonra ✓ yapılır. Testi olmayan kod ~ kalır. Desteklenmeyen özellik sessizce atlanmaz; açık hata/diagnostic üretmelidir.
@@ -94,7 +95,7 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–99 kayıtlı düğüm k
 | 26 | `AST_RETURN` | ~ | ✓ | ~ | ~ | ~ |
 | 27 | `AST_BREAK` | ~ | ✓ | ? | ? | ~ |
 | 28 | `AST_CONTINUE` | ~ | ✓ | ? | ? | ~ |
-| 29 | `AST_ASM_BLOCK` | ~ | ✓ | D | D | ~ |
+| 29 | `AST_ASM_BLOCK` | ~ | ✓ | X | X | ~ |
 | 30 | `AST_NEXUS_CAPTURE` | ~ | ✓ | ? | ? | ~ |
 | 31 | `AST_NEXUS_PIPE` | ~ | ✓ | ? | ? | ~ |
 | 32 | `AST_NEXUS_FLOW` | ~ | ✓ | ? | ? | ~ |
