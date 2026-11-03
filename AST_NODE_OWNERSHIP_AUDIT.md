@@ -96,3 +96,13 @@
 - Added regression tests for no-write rejection of shared ownership, malformed function declarations with missing bodies, and valid serialize/deserialize round-trip.
 - Existing all-tag codec test was aligned with the enforced contract: each tag is populated with a valid child shape before round-trip; this preserves the 99-kind coverage without requiring the codec to accept malformed empty nodes.
 - Current head `568ed8b`: GitHub Actions Linux CTest and ASan/UBSan passed; Windows, Valgrind and macOS jobs are still pending at record time. The earlier Linux failure in `ast_rejects_malformed_streams` was caused by an empty-node tag fixture conflicting with the new validator; the fixture was corrected to use `populate_ast_fixture()`.
+
+
+## 2026-11-03 — Structural validation closure and remaining AST gates
+
+- Graph Validator dispatch is explicit for all 99 enum tags; its switch default now returns AST_VALIDATE_INVALID_KIND rather than silently accepting an unregistered tag as a leaf.
+- Current ASTNode source metadata is limited to line/column. Byte start/end offsets and end line/column are present in token/diagnostic infrastructure but are not persisted in AST nodes or the legacy AST stream codec.
+- AST_NEXUS_HALT does not encode the distinction between targeted single-resource halt and block-scoped }?; cleanup. parse_block() currently returns an AST_BLOCK without a block-cleanup marker.
+- AST_ASM_BLOCK is currently a generic ASTBlock layout; fastexec, asm: labels and asmcall/asmjmp do not have a C Parser construction path.
+- The active branch's syntax reference path is omnicore-sdk/docs/syntax.md; the project-level filename NEXUS-FLOW-SYNTAX-REFERENCE.md is not present on this branch. Canonical path reconciliation remains open; no duplicate syntax document was created.
+- These are explicit pre-Semantic AST/model gates. AST must not be marked complete until the source-span contract, block-Halt representation and assembly scope are resolved and the syntax-reference path is reconciled.
