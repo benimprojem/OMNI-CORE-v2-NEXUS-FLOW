@@ -48,7 +48,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Flow / pipe `->, >>, <<` | `AST_NEXUS_FLOW`, `AST_NEXUS_PIPE` | Present/shared | Separate operator semantics, preserve retry/catch payload |
 | Relocate `_>` | `AST_RELOCATE` | Lexer/parser/AST/OIR implemented; semantic source/destination type compatibility check implemented | Source invalidation, destination ownership initialization and explicit lowering effect remain open |
 | Unpack `...>` | `AST_UNPACK` | Present | Verify target/value and ownership behavior |
-| Halt `?;`, block `} ?;` | `AST_NEXUS_HALT` | Present | Confirm single-resource vs block cleanup semantics |
+| Halt `(resource)?;` / block `}?;` | `AST_NEXUS_HALT` carries the optional target expression; no dedicated block-cleanup marker exists | Partial | Parser currently constructs only `AST_NEXUS_HALT`; `parse_block()` does not consume the trailing `}?;`. Add a distinct block-cleanup representation and validate that it is the final item of its owning block; then carry it through AST codec/OIR and test cleanup scope. |
 | Intent `@` | `AST_NEXUS_INTENT` | Declared / deferred | Do not invent behavior until Intent design is active |
 | AI logic `??` | `AST_AI_LOGIC` | Declared / deferred | Define payload and semantics before implementation |
 | Panic `panic("...")` | `AST_PANIC` | Present | Current documented literal-only message restriction must be tested |
