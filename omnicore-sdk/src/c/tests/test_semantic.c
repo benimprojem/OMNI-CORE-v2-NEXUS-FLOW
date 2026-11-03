@@ -278,7 +278,7 @@ static int check_extended_ast_semantics(void) {
 
 int main(int argc, char** argv) {
     if (!check_semantic_fail_closed_nodes()) {
-        fprintf(stderr, "Semantic pending AST nodes were not rejected.\\n");
+        fprintf(stderr, "Semantic pending AST nodes were not rejected.\n");
         return 1;
     }
     if (!check_postfix_semantics()) {
@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!check_compound_assignment_semantics()) {
-        fprintf(stderr, "Compound assignment semantic checks failed.\\n");
+        fprintf(stderr, "Compound assignment semantic checks failed.\n");
         return 1;
     }
     if (!check_array_type_semantics()) {
