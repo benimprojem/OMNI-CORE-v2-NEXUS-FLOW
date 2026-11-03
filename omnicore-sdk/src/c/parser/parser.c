@@ -1295,7 +1295,8 @@ static ASTNode* parse_term(Parser* p) {
     unsigned int chain_depth = 0u;
     ASTNode* left = parse_unary(p);
     if (!left) return NULL;
-    while (match(p, TOKEN_STAR) || match(p, TOKEN_SLASH)) {
+    while (match(p, TOKEN_STAR) || match(p, TOKEN_SLASH) ||
+           match(p, TOKEN_PERCENT)) {
         OmniTokenType op = p->previous.type;
         if (chain_depth++ >= 32u) {
             error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
