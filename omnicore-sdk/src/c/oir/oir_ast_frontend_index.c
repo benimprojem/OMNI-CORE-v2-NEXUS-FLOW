@@ -243,8 +243,8 @@ uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
             return 2u;
         case AST_VAR_DECL: return 8u;
         case AST_FUNC_DECL: case AST_EXTERN_DECL: return 7u;
-        case AST_BINARY_EXPR: case AST_ASSIGNMENT: case AST_INDEX_ACCESS:
-        case AST_IF: return 3u;
+        case AST_BINARY_EXPR: case AST_ASSIGNMENT: case AST_IF: return 3u;
+        case AST_INDEX_ACCESS: return 2u;
         case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN:
         case AST_CAST: return 2u;
         case AST_FUNC_CALL: case AST_SPAWN: case AST_ECHO: case AST_SEND:
