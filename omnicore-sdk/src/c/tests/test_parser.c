@@ -1083,11 +1083,11 @@ done:
 
 static int test_power_bitwise_and_compound_assignment(void) {
     static const char source[] =
-        "f:main() { v:p = 2 ^^ 3 ^^ 2; v:b = 1 | 2 ^ 3 & 4; v:x = 8; x += 2; x &= 3; }";
+        "f:main() { v:p = 2 ^^ 3 ^^ 2; v:b = 1 | 2 ^ 3 & 4; v:x = 8; x += 2; x -= 1; x *= 2; x /= 2; x &= 3; x |= 1; x ^= 2; x .= \"z\"; }";
     ParserContext* ctx=parser_init_source("power-bitwise-compound.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     ASTProgram* program;ASTFuncDecl* function;ASTBlock* body;ASTNode* node;
-    int saw_power=0,saw_bitwise=0,saw_add=0,saw_and=0,ok=0;
+    int saw_power=0,saw_bitwise=0,ops=0,ok=0;
     if(!ctx)return 0;
     if(parser_run(ctx)!=PARSER_STATUS_OK||ctx->error_count||!ctx->ast_root)goto done;
     program=(ASTProgram*)ctx->ast_root;function=(ASTFuncDecl*)program->declarations;
@@ -1109,11 +1109,17 @@ static int test_power_bitwise_and_compound_assignment(void) {
             }
         }else if(node->type==AST_ASSIGNMENT){
             ASTBinaryExpr* assignment=(ASTBinaryExpr*)node;
-            if(assignment->op==TOKEN_PLUS_EQ)saw_add=1;
-            if(assignment->op==TOKEN_BIT_AND_EQ)saw_and=1;
+            if(assignment->op==TOKEN_PLUS_EQ)ops|=1;
+            if(assignment->op==TOKEN_MINUS_EQ)ops|=2;
+            if(assignment->op==TOKEN_STAR_EQ)ops|=4;
+            if(assignment->op==TOKEN_SLASH_EQ)ops|=8;
+            if(assignment->op==TOKEN_BIT_AND_EQ)ops|=16;
+            if(assignment->op==TOKEN_BIT_OR_EQ)ops|=32;
+            if(assignment->op==TOKEN_BIT_XOR_EQ)ops|=64;
+            if(assignment->op==TOKEN_STRING_APPEND)ops|=128;
         }
     }
-    ok=saw_power&&saw_bitwise&&saw_add&&saw_and;
+    ok=saw_power&&saw_bitwise&&ops==255;
 done:parser_destroy(ctx);return ok;
 }
 
