@@ -354,7 +354,7 @@ Blok kapsamlı kapatma:
 - Temizleme deterministik olmalı; her kaynak en fazla bir kez sonlandırılmalıdır.
 - Kaynak kapatma hatalarının cleanup sırası ve hata birleştirme davranışı runtime sözleşmesinde ayrıca tanımlanmalıdır.
 
-Bu bölüm hedeflenen dil semantiğidir. Mevcut C Parser yalnızca `AST_NEXUS_HALT` düğümünü tanıyor; tekil kaynak hedefini ve `}?;` blok kapsamını henüz ayrı AST/semantic/OIR bilgisi olarak temsil etmiyor. Bu nedenle örnekler tam uygulanmış compiler özelliği değildir.
+Bu bölüm hedeflenen dil semantiğidir. C Parser tekil kaynak Halt için `AST_NEXUS_HALT`, blok kapanışındaki `}?;` için ayrı `AST_BLOCK_HALT` düğümü üretir. `AST_BLOCK_HALT` yalnızca ait olduğu bloğun son çocuğu olabilir. Kaynakların sahiplik listesine kaydı, cleanup sırası ve hata politikası Semantic/OIR lowering aşamalarında ayrıca uygulanmalıdır; bu AST temsili tek başına çalıştırılabilir cleanup garantisi vermez.
 
 ---
 
