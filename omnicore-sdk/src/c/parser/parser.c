@@ -1417,8 +1417,8 @@ static ASTNode* parse_range(Parser* p) {
 }
 
 static ASTNode* parse_bitwise_and(Parser* p) {
-    unsigned int depth=0u;ASTNode*left=parse_equality(p);if(!left)return NULL;
-    while(match(p,TOKEN_BIT_AND)){ASTNode*right;if(depth++>=32u){error_at(p,&p->previous,ERR_PARSER_UNEXPECTED_TOKEN,"Maximum bitwise chain depth exceeded.");ast_destroy(left);return NULL;}right=parse_equality(p);if(!right){ast_destroy(left);return NULL;}left=parser_make_binary(p,TOKEN_BIT_AND,left,right);if(!left)return NULL;}return left;
+    unsigned int depth=0u;ASTNode*left=parse_range(p);if(!left)return NULL;
+    while(match(p,TOKEN_BIT_AND)){ASTNode*right;if(depth++>=32u){error_at(p,&p->previous,ERR_PARSER_UNEXPECTED_TOKEN,"Maximum bitwise chain depth exceeded.");ast_destroy(left);return NULL;}right=parse_range(p);if(!right){ast_destroy(left);return NULL;}left=parser_make_binary(p,TOKEN_BIT_AND,left,right);if(!left)return NULL;}return left;
 }
 static ASTNode* parse_bitwise_xor(Parser* p) {
     unsigned int depth=0u;ASTNode*left=parse_bitwise_and(p);if(!left)return NULL;
