@@ -32,6 +32,8 @@ repository/
 
 CMake etkin kaynak kökü olarak omnicore-sdk/src/c/ kullanır. Çalışma dalında yalnızca C derleyici kaynakları ve C build/test belgeleri tutulur.
 
+`omnicore-sdk/docs/syntax.md`, Nexus Flow için tek normatif syntax/language reference dosyasıdır. `omnicore-sdk/docs/README.md` bu klasördeki dil ve SDK belgelerine giriş noktasıdır. Kök README yalnızca proje tanımı ve geliştirme takibini tutar; dil referansı burada kopyalanmaz.
+
 ## Sonraki hedef düzen
 
 ```text
