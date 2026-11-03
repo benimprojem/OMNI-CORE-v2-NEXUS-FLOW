@@ -1086,20 +1086,35 @@ static int test_power_bitwise_and_compound_assignment(void) {
         "f:main() { v:p = 2 ^^ 3 ^^ 2; v:b = 1 | 2 ^ 3 & 4; v:x = 8; x += 2; x &= 3; }";
     ParserContext* ctx=parser_init_source("power-bitwise-compound.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
-    ASTProgram* program; ASTFuncDecl* function; ASTBlock* body; ASTNode* node;
-    int saw_add=0,saw_and=0,ok=0;
+    ASTProgram* program;ASTFuncDecl* function;ASTBlock* body;ASTNode* node;
+    int saw_power=0,saw_bitwise=0,saw_add=0,saw_and=0,ok=0;
     if(!ctx)return 0;
     if(parser_run(ctx)!=PARSER_STATUS_OK||ctx->error_count||!ctx->ast_root)goto done;
     program=(ASTProgram*)ctx->ast_root;function=(ASTFuncDecl*)program->declarations;
     if(!function||function->base.type!=AST_FUNC_DECL)goto done;
     body=(ASTBlock*)function->body;if(!body||body->base.type!=AST_BLOCK)goto done;
-    for(node=body->statements;node;node=node->next)if(node->type==AST_ASSIGNMENT){
-        ASTBinaryExpr* assignment=(ASTBinaryExpr*)node;
-        if(assignment->op==TOKEN_PLUS_EQ)saw_add=1;
-        if(assignment->op==TOKEN_BIT_AND_EQ)saw_and=1;
+    for(node=body->statements;node;node=node->next){
+        if(node->type==AST_VAR_DECL){
+            ASTVarDecl* variable=(ASTVarDecl*)node;
+            if(variable->name&&strcmp(variable->name,"p")==0&&variable->initializer&&variable->initializer->type==AST_BINARY_EXPR){
+                ASTBinaryExpr* root=(ASTBinaryExpr*)variable->initializer;
+                if(root->op==TOKEN_POWER&&root->right&&root->right->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)root->right)->op==TOKEN_POWER)saw_power=1;
+            }
+            if(variable->name&&strcmp(variable->name,"b")==0&&variable->initializer&&variable->initializer->type==AST_BINARY_EXPR){
+                ASTBinaryExpr* root=(ASTBinaryExpr*)variable->initializer;
+                if(root->op==TOKEN_BIT_OR&&root->right&&root->right->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)root->right)->op==TOKEN_BIT_XOR){
+                    ASTBinaryExpr* xor_node=(ASTBinaryExpr*)root->right;
+                    if(xor_node->right&&xor_node->right->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)xor_node->right)->op==TOKEN_BIT_AND)saw_bitwise=1;
+                }
+            }
+        }else if(node->type==AST_ASSIGNMENT){
+            ASTBinaryExpr* assignment=(ASTBinaryExpr*)node;
+            if(assignment->op==TOKEN_PLUS_EQ)saw_add=1;
+            if(assignment->op==TOKEN_BIT_AND_EQ)saw_and=1;
+        }
     }
-    ok=saw_add&&saw_and;
-done: parser_destroy(ctx);return ok;
+    ok=saw_power&&saw_bitwise&&saw_add&&saw_and;
+done:parser_destroy(ctx);return ok;
 }
 
 static int test_modulo_expression_ast(void) {
