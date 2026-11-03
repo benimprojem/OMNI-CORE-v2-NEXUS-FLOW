@@ -130,6 +130,38 @@ int main(void) {
         ast_destroy(ret); ast_destroy(fn); ast_destroy(ext); ast_destroy(arm);
     }
 
+    {
+        ASTNode *scan_else = ast_create(AST_SCAN_ARM);
+        ASTNode *scan_body = ast_create(AST_BREAK);
+        ASTNode *scan_next = ast_create(AST_SCAN_ARM);
+        if (!scan_else || !scan_body || !scan_next) return 1;
+        ((ASTScanArm *)scan_else)->body = scan_body;
+        if (!expect(scan_else, AST_VALIDATE_OK)) {
+            fprintf(stderr, "final scan else arm rejected\n"); return 1;
+        }
+        scan_else->next = scan_next;
+        if (!expect(scan_else, AST_VALIDATE_MISSING_REQUIRED)) {
+            fprintf(stderr, "non-final scan else arm accepted\n"); return 1;
+        }
+        scan_else->next = NULL;
+        ast_destroy(scan_else);
+        ast_destroy(scan_next);
+    }
+
+    /* A parsed void-return function must retain a NULL return operand. */
+    {
+        const char source[] = "f:empty() { ret; }";
+        ParserContext *parser = parser_init_source("validator-void-return.nxf",
+            (const uint8_t *)source, sizeof(source) - 1u);
+        if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
+            !ast_validate(parser->ast_root, NULL)) {
+            fprintf(stderr, "void-return parser AST failed validation\n");
+            if (parser) parser_destroy(parser);
+            return 1;
+        }
+        parser_destroy(parser);
+    }
+
     /* Parser output is expected to satisfy the AST graph contract. */
     {
         const char source[] = "f:main() { v:x = 1 + 2; ret x; }";
