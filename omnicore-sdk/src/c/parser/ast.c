@@ -304,7 +304,7 @@ static void ast_print_recursive(ASTNode* node, int level) {
             case AST_SELECT: { ASTSelect* n=(ASTSelect*)node; printf("SELECT\n"); ast_print_recursive(n->selector,level+1); ast_print_recursive(n->arms,level+1); break; }
             case AST_SELECT_ARM: { ASTSelectArm* n=(ASTSelectArm*)node; printf("SELECT_ARM%s\n",n->is_default?" DEFAULT":""); ast_print_recursive(n->pattern,level+1); ast_print_recursive(n->body,level+1); break; }
             case AST_SCAN: { ASTScan* n=(ASTScan*)node; printf("SCAN\n"); ast_print_recursive(n->subject,level+1); ast_print_recursive(n->arms,level+1); break; }
-            case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; printf("SCAN_ARM\n"); ast_print_recursive(n->pattern,level+1); ast_print_recursive(n->body,level+1); break; }
+            case AST_SCAN_ARM: { ASTScanArm* n=(ASTScanArm*)node; printf("SCAN_ARM%s\n",n->pattern?"":" ELSE"); ast_print_recursive(n->pattern,level+1); ast_print_recursive(n->body,level+1); break; }
             case AST_PATTERN_BINDING: printf("PATTERN_BINDING: %s\n",((ASTPatternBinding*)node)->name); break;
             case AST_PATTERN_CONSTRUCTOR: { ASTPatternConstructor* n=(ASTPatternConstructor*)node; printf("PATTERN_CONSTRUCTOR: %s\n",n->name); ast_print_recursive(n->bindings,level+1); break; }
             case AST_RULESET_DECL: { ASTRulesetDecl* n=(ASTRulesetDecl*)node; printf("RULESET: %s\n",n->name); ast_print_recursive(n->params,level+1); ast_print_recursive(n->rules,level+1); break; }
