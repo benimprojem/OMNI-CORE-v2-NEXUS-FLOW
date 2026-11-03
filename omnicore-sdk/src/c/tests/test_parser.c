@@ -1020,18 +1020,31 @@ static int test_retry_metadata_rejects_overflow(void) {
 }
 
 static int test_ast_create_rejects_invalid_node_kinds(void) {
-    ASTNode* first = ast_create(AST_PROGRAM);
-    ASTNode* last = ast_create(AST_ARRAY_DIMENSION);
-    ASTNode* negative = ast_create((ASTNodeType)-1);
-    ASTNode* past_end = ast_create((ASTNodeType)((int)AST_ARRAY_DIMENSION + 1));
-    int ok = first != NULL && first->type == AST_PROGRAM &&
-        last != NULL && last->type == AST_ARRAY_DIMENSION &&
-        negative == NULL && past_end == NULL;
-    ast_destroy(first);
-    ast_destroy(last);
-    ast_destroy(negative);
-    ast_destroy(past_end);
-    return ok;
+    ASTNode* negative;
+    ASTNode* past_end;
+
+    /*
+     * Exercise the complete append-only public node inventory. This catches
+     * accidental gaps in the factory as new AST kinds are added.
+     */
+    for (int kind = (int)AST_PROGRAM;
+         kind <= (int)AST_ARRAY_DIMENSION; ++kind) {
+        ASTNode* node = ast_create((ASTNodeType)kind);
+        int valid = node != NULL &&
+            node->type == (ASTNodeType)kind &&
+            node->line == 0 && node->col == 0 && node->next == NULL;
+        ast_destroy(node);
+        if (!valid) return 0;
+    }
+
+    negative = ast_create((ASTNodeType)-1);
+    past_end = ast_create((ASTNodeType)((int)AST_ARRAY_DIMENSION + 1));
+    if (negative != NULL || past_end != NULL) {
+        ast_destroy(negative);
+        ast_destroy(past_end);
+        return 0;
+    }
+    return 1;
 }
 
 int main(int argc, char** argv) {
