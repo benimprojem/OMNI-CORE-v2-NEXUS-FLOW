@@ -65,7 +65,7 @@ int main(void) {
         for (i = 0; i < sizeof(leaves) / sizeof(leaves[0]); ++i) {
             ASTNode *leaf = ast_create(leaves[i]);
             if (!leaf || !expect(leaf, AST_VALIDATE_OK)) {
-                fprintf(stderr, "leaf node rejected: %d\\n", (int)leaves[i]);
+                fprintf(stderr, "leaf node rejected: %d\n", (int)leaves[i]);
                 if (leaf) ast_destroy(leaf);
                 return 1;
             }
@@ -79,7 +79,7 @@ int main(void) {
         ASTValidationError error;
         if (ast_validate(&invalid, &error) ||
             error.code != AST_VALIDATE_INVALID_KIND) {
-            fprintf(stderr, "invalid node kind accepted\\n"); return 1;
+            fprintf(stderr, "invalid node kind accepted\n"); return 1;
         }
     }
 
@@ -98,7 +98,7 @@ int main(void) {
             ASTValidationError error;
             if (ast_validate(deep, &error) ||
                 error.code != AST_VALIDATE_DEPTH_LIMIT) {
-                fprintf(stderr, "depth limit not enforced\\n");
+                fprintf(stderr, "depth limit not enforced\n");
                 ast_destroy(deep); return 1;
             }
         }
