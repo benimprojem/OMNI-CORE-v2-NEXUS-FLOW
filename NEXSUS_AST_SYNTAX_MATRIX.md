@@ -316,3 +316,39 @@ The following are tokenized by the C Lexer but have no explicit Parser consumpti
 | `asm:`, `fastexec`, `asmcall()`, `asmjmp()` | Inline assembly label/block and direct label call/jump | Lexer tokens exist; Parser does not consume them | Dedicated ASM payload/label representation and target validation required; current `AST_ASM_BLOCK` is only a generic block payload |
 
 **Fail-closed requirement:** these forms must not be reported as implemented because their Lexer tokens exist. Until their AST/semantic contracts are established, parser rejection is preferable to silent or lossy acceptance.
+
+
+## Normative syntax forms: AST representation audit (2026-11-04)
+
+This section separates **missing AST representation** from syntax that can legitimately reuse an existing node and from preprocessing/runtime constructs that do not belong in executable AST.
+
+| Syntax in `docs/language/syntax-reference.md` | AST representation decision | Audit status | Required work |
+|---|---|---|---|
+| `m:name = "module"` (MUST dependency) | No dedicated AST tag; currently not proven to map to `AST_VAR_DECL` with dependency metadata | **Missing explicit AST contract** | Add declaration-kind/dependency payload (append-only compatible) or dedicated node; Parser, codec, printer, destroy, OIR schema and tests |
+| `r:`, `t:`, `o:` reserved prefixes | No executable grammar contract | **Reserved, not missing executable AST** | Keep rejected/reserved; do not add nodes until language spec activates them |
+| Variadic parameter `...` | No explicit variadic flag/node in `ASTFuncDecl` or parameter payload | **Missing AST parameter contract** | Model variadic marker distinctly from ordinary parameter and call-site expansion; parser/codec/semantic tests |
+| Named arguments `name:value` | Generic argument AST chain currently lacks an explicit named-argument record | **Missing AST argument contract** | Add argument wrapper/name field or a documented lossless encoding; preserve positional vs named order and duplicates |
+| Generic type parameters `a!t`, return `!t` | Type names are strings in declaration payload; no generic parameter/binding node | **Missing explicit generic AST contract** | Preserve type-variable identity, constraints and generic argument inference metadata; don't treat `t` as primitive |
+| Function pointer/callback type `nt:Callback = f:(id!u32)>!bool` | No function-type AST node; current type strings cannot preserve signature structure | **Missing AST type representation** | Add function type/parameter/result model and codec/OIR schema; parser and semantic signature tests |
+| Macro definition `:macro! Name(...){...}` and invocation `!!=Name!(...)` | No macro-definition/invocation AST node | **Missing macro/preprocessor model** | Define macro expansion phase and source-origin mapping first; macro bodies must preserve syntax/tree or token stream without pretending to be runtime nodes |
+| Target/compiler directive `!!=[target=...]{...}` | No directive/conditional-compilation AST node | **Missing AST representation** | Dedicated directive node with condition/target expression and body; parser must preserve nested branches and directive assignment `!!=` separately |
+| Link directive `!!=link name = "...";` | No explicit link-directive node | **Missing AST representation** | Model as compile-time/link metadata, not ordinary runtime assignment; codec and semantic target validation |
+| `dllexp: entry(...){...}` | No DLL-export declaration node/flag in function payload | **Missing AST declaration contract** | Append export-entry metadata/node; parser, codec, symbol validation and module-output integration |
+| `import("path")` / DLL, object and library import | Can parse as generic `AST_FUNC_CALL` only if call grammar accepts it; resource acquisition is not distinguished | **Representation ambiguous / semantic metadata missing** | Preserve import as explicit intrinsic/resource operation or typed call annotation; distinguish dynamic-library import from ordinary function call; verify parser fixture and Halt ownership |
+| `asmcall(LABEL)`, `asmjmp("LABEL")` | No dedicated AST node; ordinary call would lose special call/jump intent | **Missing dedicated operation contract** | Dedicated ASM call/jump node or intrinsic kind; label normalization/reference tests |
+| ASM substitutions `%var`, `%var:reg`, clobber list | No ASM operand/metadata payload | **Missing AST payload** | Raw-body + structured substitutions/register hints/clobbers contract before parser |
+| Map type `map<key,val>` / map operations | `AST_INDEX_ACCESS` can syntactically represent `map[key]`; type payload has no key/value pair | **Missing map type AST contract** | Structured map type (key/value), map assignment/move semantics and round-trip tests; do not add map literal absent syntax |
+| `Vec2/Vec3/Vec4` | Type name can be stored as string; literal is `AST_ARRAY_LITERAL` | **AST syntax can be represented, but dimension/type metadata is missing** | Semantic vector shape contract; decide whether AST needs dedicated vector literal/type node or typed array-literal annotation |
+| Conditional target `!!=[target=...]` / target variants | Generic block/assignment cannot safely retain target condition semantics | **Missing directive node** | Same directive AST work as above; no heuristic parser |
+| `elsif` and conditional action | Nested `AST_IF` and canonical `AST_IF` | **Existing representation** | Explicit parser/codec shape tests; no new node required |
+| `select/scan when`, scan `else` | Arm body wrapper `AST_IF`; null pattern only final scan else | **Existing representation** | Subject-aware constructor typing remains Semantic gap |
+| `T[]`, `T[n]`, `T[m][n]` | `AST_ARRAY_TYPE` + ordered `AST_ARRAY_DIMENSION` | **Existing representation** | Keep current parser/codec; lowering later |
+| `<<` / `>>` bit shifts vs Flow operations | Current parser maps these to Flow pipe node only | **Missing numeric shift AST production** | Resolve grammar by operand productions/context, then produce `AST_BINARY_EXPR` for numeric shift and `AST_NEXUS_PIPE` for Flow; no token-only heuristic |
+
+### Audit conclusion
+
+Confirmed AST representation gaps (not just parser gaps): **MUST dependency declaration, variadic parameter marker, named argument wrapper, generic type-variable model, function type/callback, macro phase nodes, conditional target/link directives, DLL export metadata, ASM call/jump + operand/clobber payload, structured map type, and numeric bit-shift expression**.
+
+Some syntax can reuse existing AST shapes without a new enum tag (`elsif`, conditional action, array declarators, select/scan guard); these remain subject to lossless round-trip and semantic contract tests. `import(path)` is provisionally representable as a call expression but must carry an explicit import/resource kind to preserve its runtime ownership and DLL semantics.
+
+**Ordering:** define AST payload contracts first (variadic/named args and function types; directives/macro/import/export; ASM; map/vector/shift), then parser and codec. Source Span remains a cross-cutting AST/codec prerequisite. Codegen stays blocked.
