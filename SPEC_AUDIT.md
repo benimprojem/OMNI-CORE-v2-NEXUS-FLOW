@@ -87,7 +87,7 @@ Belgedeki açık sorular:
 
 ## 6. OIR belgeleri
 
-`omnicore-sdk/docs/ir v2.md` ile `nexus docs/OCC Intermediate Representation (OIR) Specification.md` farklı kapsam ve ayrıntı düzeyinde iki OIR anlatımı sunuyor. Mevcut C parser'ın AST serileştirmesi de bu OIR2 tanımıyla aynı şey değil.
+`omnicore-sdk/docs/ir v2.md` ile `nexus docs/OCC Intermediate Representation (OIR) Specification.md` farklı kapsam ve ayrıntı düzeyinde iki OIR anlatımı sunuyor. Mevcut C parser'ın AST serileştirmesi de kanonik OIR formatı değildir.
 
 Özellikle:
 - OIR v2 belgesinde 16 byte sabit opcode kaydı denirken alanların toplamı 16 byte olarak verilmiş olsa da format sürümleme, endian, alignment, string/section uzunlukları ve doğrulama kuralları tam değil.
@@ -95,7 +95,7 @@ Belgedeki açık sorular:
 - Target örneği Windows x64 ABI ve PE çıktısına özgü. Bu örnek genel target tanımı gibi algılanmamalı.
 - OIR'nin frontend AST'sinden nasıl üretildiği ve analiz/optimizasyon aşamalarının hangi alanları değiştirebildiği açık bir sözleşmeye bağlanmalı.
 
-**Karar:** Tek kanonik OIR formatı seçilmeden C AST serileştirmesi OIR v1 olarak adlandırılmamalı ve eski C++ OIR2 formatı otomatik olarak ana format kabul edilmemeli.
+**Karar:** C AST serileştirmesi, sürümlü ve platform bağımsız OIR v1 sözleşmesi tamamlanmadan kanonik format olarak adlandırılmamalı.
 
 ## 7. Belge çoğalması ve kaynak hiyerarşisi
 
