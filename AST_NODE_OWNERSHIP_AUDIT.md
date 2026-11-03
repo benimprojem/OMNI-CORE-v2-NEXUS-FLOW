@@ -79,11 +79,20 @@
 - `AST_FUNC_DECL` and `AST_EXTERN_DECL`, `AST_STRUCT_DECL` and `AST_UNION_DECL`, and `AST_NEXUS_FLOW` and `AST_NEXUS_PIPE` share payload structures; their discriminating kind remains in `base.type`.
 - `AST_LISTEN` currently shares `ASTNexusCapture` storage and codec/destructor behavior. Confirm its exact semantic contract before changing this representation.
 - Serializer, deserializer and destructor switches must remain field-symmetric. Current binary AST codec is a process/build-local artifact (it writes C enum/int representation); it is not the stable cross-version OIR format.
-- Child pointers are raw pointers; uniqueness/acyclicity is a caller invariant. The current destroy routine does not detect shared subtrees or cycles.
+- Child pointers are raw pointers. `ast_validate()` checks uniqueness/acyclicity for all 99 kinds; `ast_serialize()` calls it before writing and `ast_deserialize()` calls it before returning a decoded root. `ast_destroy()` remains a low-level operation whose caller must provide an exclusively owned, acyclic graph.
 
 ## Remaining automated checks
 
 1. Generate a compile-time/runtime table that compares each node kind's allocation size with its expected payload size.
 2. For every owned child/string field, inject allocation failure/truncated codec input and verify partial-tree cleanup under ASan/Valgrind.
-3. Add AST graph validation for duplicate ownership/cycles before serialization (or explicitly keep it as a documented caller precondition).
+3. Keep serializer/deserializer graph validation covered by tests; retain the explicit exclusive-ownership precondition for direct `ast_destroy()` calls.
 4. Keep the 99-kind factory, codec, registry and parser coverage counters independent; do not infer one from another.
+
+
+## 2026-11-03 — AST codec graph validation
+
+- Legacy stream serialization now calls `ast_validate()` before writing; invalid roots, shared ownership and cycles are rejected before the output stream is modified.
+- Legacy stream deserialization validates the complete decoded graph after checking end-of-stream; structurally invalid payloads are rejected and the partially materialized graph is destroyed.
+- Added regression tests for no-write rejection of shared ownership, malformed function declarations with missing bodies, and valid serialize/deserialize round-trip.
+- Existing all-tag codec test was aligned with the enforced contract: each tag is populated with a valid child shape before round-trip; this preserves the 99-kind coverage without requiring the codec to accept malformed empty nodes.
+- Current head `568ed8b`: GitHub Actions Linux CTest and ASan/UBSan passed; Windows, Valgrind and macOS jobs are still pending at record time. The earlier Linux failure in `ast_rejects_malformed_streams` was caused by an empty-node tag fixture conflicting with the new validator; the fixture was corrected to use `populate_ast_fixture()`.
