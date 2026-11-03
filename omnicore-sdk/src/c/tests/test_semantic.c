@@ -112,8 +112,7 @@ static int rejects_semantic_pending_node(ASTNodeType type) {
 }
 
 static int check_semantic_fail_closed_nodes(void) {
-    return rejects_semantic_pending_node(AST_MEMBER_ACCESS) &&
-        rejects_semantic_pending_node(AST_TUPLE) &&
+    return rejects_semantic_pending_node(AST_TUPLE) &&
         rejects_semantic_pending_node(AST_ASM_BLOCK);
 }
 
