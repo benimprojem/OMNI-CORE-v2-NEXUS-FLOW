@@ -47,6 +47,10 @@ int main(void) {
         "f:main() !f64 { ret 17.0 % 5.0; }";
     static const char modulo_zero[] =
         "f:main() !i32 { ret 17 % 0; }";
+    static const char logical_valid[] =
+        "f:main() !bool { ret (1 < 2) && (3 < 4) || false; }";
+    static const char logical_invalid[] =
+        "f:main() !bool { ret 1 && true; }";
     if (!check_source(integer_expression, 0)) return 1;
     if (!check_source(float_expression, 0)) return 1;
     if (!check_source(mismatched_operands, 1)) return 1;
@@ -55,6 +59,8 @@ int main(void) {
     if (!check_source(modulo_integer, 0)) return 1;
     if (!check_source(modulo_float, 1)) return 1;
     if (!check_source(modulo_zero, 1)) return 1;
+    if (!check_source(logical_valid, 0)) return 1;
+    if (!check_source(logical_invalid, 1)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
