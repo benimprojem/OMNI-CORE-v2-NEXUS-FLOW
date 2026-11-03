@@ -442,21 +442,7 @@ static void ast_print_recursive(ASTNode* node, int level) {
                 ast_print_recursive(call->args, level + 1);
                 break;
             }
-            case AST_SPAWN: printf("INTRINSIC: spawn\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_ECHO: printf("INTRINSIC: echo\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_SEND: printf("INTRINSIC: send\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_RECEIVE: printf("INTRINSIC: receive\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_DONE: printf("INTRINSIC: done\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_AREA: printf("INTRINSIC: area\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_ADDR: printf("INTRINSIC: addr\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_LEN: printf("INTRINSIC: len\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_PEEK: printf("INTRINSIC: peek\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_POKE: printf("INTRINSIC: poke\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_INB: printf("INTRINSIC: inb\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_OUTB: printf("INTRINSIC: outb\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_IRQ: printf("INTRINSIC: irq\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_INTR: printf("INTRINSIC: intr\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
-            case AST_REG: printf("INTRINSIC: reg\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_IS_ERR: printf("INTRINSIC: is_err\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_IS_SOME: printf("INTRINSIC: is_some\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_IS_NONE: printf("INTRINSIC: is_none\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
