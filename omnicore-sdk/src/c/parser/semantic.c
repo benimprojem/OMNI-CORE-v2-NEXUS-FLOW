@@ -704,6 +704,59 @@ static void exit_scope(SemanticContext* ctx) {
 
 static int are_types_compatible(const char* type1, const char* type2);
 
+static const char* get_expr_type(SemanticContext* ctx, ASTNode* node);
+
+static FieldInfo* semantic_resolve_member(
+    SemanticContext* ctx, ASTNode* node, int report_diagnostics
+) {
+    ASTMemberAccess* access;
+    const char* object_type;
+    const char* aggregate_name;
+    Slot* aggregate;
+    FieldInfo* field;
+    if (!node || node->type != AST_MEMBER_ACCESS) return NULL;
+    access = (ASTMemberAccess*)node;
+    if (!access->object || !access->member_name) return NULL;
+    object_type = get_expr_type(ctx, access->object);
+    if (!object_type) return NULL;
+    aggregate_name = object_type[0] == '!' ? object_type + 1 : object_type;
+    aggregate = find_slot(ctx, aggregate_name);
+    if (!aggregate ||
+        (aggregate->kind != SLOT_STRUCT && aggregate->kind != SLOT_UNION)) {
+        if (report_diagnostics) {
+            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Member access requires a struct or union value.");
+        }
+        return NULL;
+    }
+    for (field = aggregate->fields; field; field = field->next) {
+        if (strcmp(field->name, access->member_name) == 0) return field;
+    }
+    if (report_diagnostics) {
+        char message[256];
+        snprintf(message, sizeof(message),
+            "Aggregate type '%s' has no member named '%s'.",
+            aggregate_name, access->member_name);
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+    }
+    return NULL;
+}
+
+static int semantic_lvalue_is_const(SemanticContext* ctx, ASTNode* node) {
+    if (!node) return 0;
+    if (node->type == AST_IDENTIFIER) {
+        Slot* slot = find_slot(ctx, ((ASTIdentifier*)node)->name);
+        return slot ? slot->is_const : 0;
+    }
+    if (node->type == AST_MEMBER_ACCESS) {
+        ASTMemberAccess* access = (ASTMemberAccess*)node;
+        FieldInfo* field = semantic_resolve_member(ctx, node, 0);
+        return field && (field->is_const ||
+            semantic_lvalue_is_const(ctx, access->object));
+    }
+    return 0;
+}
+
 static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
     if (!node) return NULL;
     switch (node->type) {
@@ -735,6 +788,13 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     ? SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR
                     : SEMANTIC_RESULT_VALUE_LVALUE);
             return slot ? slot->type_name : NULL;
+        }
+        case AST_MEMBER_ACCESS: {
+            FieldInfo* field = semantic_resolve_member(ctx, node, 1);
+            const char* type_name = field ? field->type_name : NULL;
+            if (field) semantic_record_annotation(
+                ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_LVALUE);
+            return type_name;
         }
         case AST_FUNC_CALL: {
             ASTCall* call = (ASTCall*)node;
@@ -1441,14 +1501,32 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_CONST_ASSIGN), id->name);
                     report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN, buf);
                 }
-                
                 if (slot && slot->type_name) {
-                     const char* right_type = get_expr_type(ctx, assign->right);
-                     if (right_type && !are_types_compatible(slot->type_name, right_type)) {
-                         char buf[256];
-                         snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH), slot->type_name, right_type);
-                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf);
-                     }
+                    const char* right_type = get_expr_type(ctx, assign->right);
+                    if (right_type && !are_types_compatible(slot->type_name, right_type)) {
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
+                            slot->type_name, right_type);
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf);
+                    }
+                }
+            } else if (assign->left->type == AST_MEMBER_ACCESS) {
+                FieldInfo* field = semantic_resolve_member(ctx, assign->left, 1);
+                if (field) {
+                    if (semantic_lvalue_is_const(ctx, assign->left)) {
+                        report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                            "Cannot assign to a constant aggregate member.");
+                    }
+                    if (field->type_name) {
+                        const char* right_type = get_expr_type(ctx, assign->right);
+                        if (right_type &&
+                            !are_types_compatible(field->type_name, right_type)) {
+                            char buf[256];
+                            snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
+                                field->type_name, right_type);
+                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf);
+                        }
+                    }
                 }
             }
 
@@ -1860,8 +1938,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_MEMBER_ACCESS:
             if (((ASTMemberAccess*)node)->object)
                 semantic_check(ctx, ((ASTMemberAccess*)node)->object);
-            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                "Member access is not enabled until aggregate member resolution is implemented.");
+            (void)get_expr_type(ctx, node);
             break;
 
         case AST_TUPLE:
@@ -2008,6 +2085,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         }
                         f->name = semantic_duplicate(ctx, v->name ? v->name : "");
                         f->type_name = v->type_name ? semantic_duplicate(ctx, v->type_name) : NULL;
+                        f->is_const = v->is_const;
                         if (!f->name || (v->type_name && !f->type_name)) {
                             free(f->name);
                             free(f->type_name);
