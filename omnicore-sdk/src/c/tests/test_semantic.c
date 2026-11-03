@@ -221,8 +221,8 @@ static int check_extended_ast_semantics(void) {
     const char* valid =
         "f:main() {"
         " v:choice = 1;"
-        " select(choice) { Range(s,e) -> { v:seen = s; } default -> { } }"
-        " scan(choice) { Range(a,b) -> { v:seen2 = b; } }"
+        " select(choice) { Range(s,e) when s < e -> { v:seen = s; } default -> { } }"
+        " scan(choice) { Range(a,b) when a < b && b > 0 -> { v:seen2 = b; } }"
         " rules PrimeBorders(n) {"
         "  n < 2 :=> \"out of range\";"
         "  n == 2 -> Success;"
@@ -247,6 +247,8 @@ static int check_extended_ast_semantics(void) {
         "f:main() { rules R() { true -> Success; } on R.Missing { } }";
     const char* duplicate_pattern =
         "f:main() { v:choice = 1; select(choice) { Range(s,s) -> { } } }";
+    const char* invalid_guard =
+        "f:main() { v:choice = 1; scan(choice) { Range(a,b) when 1 -> { } } }";
     const char* relocate_type_mismatch =
         "f:main() { v:src!i32 = 1; v:dst!str = \"x\"; v:moved = src _> dst; }";
     return check_source(valid,0) &&
@@ -255,6 +257,7 @@ static int check_extended_ast_semantics(void) {
         check_source(unknown_handler,1) &&
         check_source(unknown_event,1) &&
         check_source(duplicate_pattern,1) &&
+        check_source(invalid_guard,1) &&
         check_source(relocate_type_mismatch,1);
 }
 
