@@ -196,6 +196,24 @@ int main(void) {
         fclose(stream);
     }
 
+    /* Cyclic graphs are rejected before the serializer touches the stream. */
+    {
+        ASTNode *unary = ast_create(AST_UNARY_EXPR);
+        FILE *stream = tmpfile();
+        if (!unary || !stream) return 1;
+        ((ASTUnaryExpr *)unary)->operand = unary;
+        if (ast_serialize(unary, stream) || ftell(stream) != 0L) {
+            fprintf(stderr, "serializer accepted a cyclic graph or wrote partial bytes\\n");
+            ((ASTUnaryExpr *)unary)->operand = NULL;
+            ast_destroy(unary);
+            fclose(stream);
+            return 1;
+        }
+        ((ASTUnaryExpr *)unary)->operand = NULL;
+        ast_destroy(unary);
+        fclose(stream);
+    }
+
     /* A structurally invalid stream must not materialize as a public AST. */
     {
         FILE *stream = tmpfile();
