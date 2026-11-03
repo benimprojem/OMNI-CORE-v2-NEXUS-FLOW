@@ -158,11 +158,15 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_LITERAL | 4 | float_value | F64 |
 | AST_LITERAL | 5 | string_value | STRING_REF / NULL |
 | AST_IDENTIFIER | 1 | name | STRING_REF / NULL |
-| AST_BINARY_EXPR, AST_ASSIGNMENT, AST_INDEX_ACCESS | 1 | op | TOKEN_ID |
-| AST_BINARY_EXPR, AST_ASSIGNMENT, AST_INDEX_ACCESS | 2 | left | NODE_REF |
-| AST_BINARY_EXPR, AST_ASSIGNMENT, AST_INDEX_ACCESS | 3 | right | NODE_REF |
-| AST_UNARY_EXPR, AST_POSTFIX_EXPR, AST_RETURN, AST_CAST | 1 | op | TOKEN_ID |
-| AST_UNARY_EXPR, AST_POSTFIX_EXPR, AST_RETURN, AST_CAST | 2 | operand | NODE_REF |
+| AST_BINARY_EXPR, AST_ASSIGNMENT | 1 | op | TOKEN_ID |
+| AST_BINARY_EXPR, AST_ASSIGNMENT | 2 | left | NODE_REF |
+| AST_BINARY_EXPR, AST_ASSIGNMENT | 3 | right | NODE_REF |
+| AST_INDEX_ACCESS | 1 | target | NODE_REF |
+| AST_INDEX_ACCESS | 2 | index | NODE_REF |
+| AST_UNARY_EXPR, AST_POSTFIX_EXPR, AST_RETURN | 1 | op | TOKEN_ID |
+| AST_UNARY_EXPR, AST_POSTFIX_EXPR, AST_RETURN | 2 | operand | NODE_REF |
+| AST_CAST | 1 | value | NODE_REF |
+| AST_CAST | 2 | target_type | NODE_REF |
 | AST_FUNC_CALL and intrinsic call kinds | 1 | callee | NODE_REF |
 | AST_FUNC_CALL and intrinsic call kinds | 2 | args | NODE_REF |
 | AST_MEMBER_ACCESS | 1 | member_name | STRING_REF / NULL |

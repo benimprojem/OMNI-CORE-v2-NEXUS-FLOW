@@ -76,7 +76,7 @@ The syntax reference lists the language's designed operator inventory. The C Lex
 | Logical `&&`, `||` | Parser now consumes `&&` in `parse_logical_and()` and `||` in `parse_logical_or()`; AST uses `AST_BINARY_EXPR`; `&&` binds tighter than `||` | Semantic bool-operand checks are present and tested; short-circuit execution must be verified in OIR/lowering |
 | Unary logical not `!` | Consumed by `parse_unary()` | Boolean operand/type rule |
 | Unary bitwise not `~` | Consumed by `parse_unary()` | Integer operand/type rule |
-| Binary bitwise `&`, `|`, `^` | Parser productions; precedence AND > XOR > OR; AST_BINARY_EXPR | Parser fixture added | Semantic matching integer operand validation is present/tested; bit-width semantics and lowering remain open |
+| Binary bitwise `&`, `|`, `^` | Parser productions; precedence AND > XOR > OR; AST_BINARY_EXPR | Parser fixture added | Semantic matching integer operand validation is present/tested; shift-count range/width and OIR lowering remain open |
 | Shift `<<`, `>>` | Consumed by Nexus Flow expression/flow parsing as flow operators; not implemented as bit-shift arithmetic | Resolve the existing language-level collision before adding bit-shift expression semantics |
 | Prefix/postfix `++`, `--` | Consumed by unary/postfix parsing | Lvalue and numeric semantic checks |
 | Compound assignment `+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=` | `AST_ASSIGNMENT` keeps the original operator token; parser fixture covers `+=` and `&=` | Parser production/test added | Semantic lvalue + equivalence checks |
