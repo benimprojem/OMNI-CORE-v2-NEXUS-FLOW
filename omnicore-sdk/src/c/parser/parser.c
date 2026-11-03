@@ -218,6 +218,8 @@ typedef struct {
     unsigned int nesting_depth;
 } Parser;
 
+static ASTNode* parse_logical_or(Parser* p);
+
 static void parser_mark_oom(Parser* p) {
     if (p && p->ctx) p->ctx->status = PARSER_STATUS_OUT_OF_MEMORY;
 }
@@ -2773,6 +2775,7 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
     while (p->current.type!=TOKEN_RBRACE && p->current.type!=TOKEN_EOF) {
         ASTNode* arm=NULL;
         ASTNode* pattern=NULL;
+        ASTNode* guard=NULL;
         ASTNode* body=NULL;
         int is_default=0;
         if (!is_scan && parser_identifier_is(&p->current,"default")) {
@@ -2785,15 +2788,40 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
         } else {
             pattern=parse_pattern(p);
             if(!pattern){ast_destroy(root);ast_destroy(arms);return NULL;}
+            if(parser_identifier_is(&p->current,"when")) {
+                advance(p);
+                guard=parse_logical_or(p);
+                if(!guard) {
+                    ast_destroy(pattern); ast_destroy(root); ast_destroy(arms); return NULL;
+                }
+            }
+        }
+        if(is_default && parser_identifier_is(&p->current,"when")) {
+            error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,
+                "A default select arm cannot have a when guard.");
+            ast_destroy(pattern); ast_destroy(guard); ast_destroy(root); ast_destroy(arms);
+            return NULL;
         }
         if(!check(p,TOKEN_PIPE)) {
             error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected '->' after the pattern.");
-            ast_destroy(pattern); ast_destroy(root); ast_destroy(arms); return NULL;
+            ast_destroy(pattern); ast_destroy(guard); ast_destroy(root); ast_destroy(arms); return NULL;
         }
         advance(p);
         if(check(p,TOKEN_LBRACE)){advance(p);body=parse_block(p);}
         else body=parse_statement(p);
-        if(!body){ast_destroy(pattern);ast_destroy(root);ast_destroy(arms);return NULL;}
+        if(!body){ast_destroy(pattern);ast_destroy(guard);ast_destroy(root);ast_destroy(arms);return NULL;}
+        if(guard) {
+            ASTIf* guarded_body=(ASTIf*)parser_ast_create(p,AST_IF);
+            if(!guarded_body) {
+                ast_destroy(pattern); ast_destroy(guard); ast_destroy(body);
+                ast_destroy(root); ast_destroy(arms); return NULL;
+            }
+            guarded_body->base.line=guard->line;
+            guarded_body->base.col=guard->col;
+            guarded_body->condition=guard;
+            guarded_body->then_branch=body;
+            body=(ASTNode*)guarded_body;
+        }
         if(is_scan) {
             ASTScanArm* n=(ASTScanArm*)parser_ast_create(p,AST_SCAN_ARM);
             if(!n){ast_destroy(pattern);ast_destroy(body);ast_destroy(root);ast_destroy(arms);return NULL;}
