@@ -1,17 +1,11 @@
 # OCC Documentation
 
-OCC ve NEXUS Flow için mühendislik belgeleri.
+OCC ve NEXUS Flow için düzenlenmiş dokümantasyon alanı.
 
-| Klasör | Kapsam |
+| Konum | Kapsam |
 |---|---|
-| [language](language/README.md) | Nexus Flow sözdizimi ve dil-semantik referansları |
-| [compiler](compiler/README.md) | Derleyici mimarisi ve uygulama belgeleri |
-| [oir](oir/README.md) | OIR formatı ve doğrulama sözleşmeleri |
-| [runtime](runtime/README.md) | Runtime ve eşzamanlılık |
-| [abi](abi/README.md) | ABI ve hedef çağrı kuralları |
-| [security](security/README.md) | Bellek sahipliği, güvenlik ve doğrulama |
-| [architecture](architecture/README.md) | Ortak mimari belgeler |
-| [research](research/README.md) | Araştırma ve karşılaştırmalar |
-| [archive/legacy](archive/legacy/) | Tarihsel ve geçersiz sürümler |
+| [language/](language/README.md) | Nexus Flow sözdizimi ve dil-semantik referansları |
 
 Dil referansı için tek normatif giriş noktası [language/syntax-reference.md](language/syntax-reference.md) dosyasıdır. Kök README proje tanımı ve geliştirme durumunu tutar; dil referansının kopyasını içermez.
+
+Derleyici mimarisi, OIR, Semantic, Verifier ve ilerleme kayıtları bu dalda şimdilik kök dizindeki ayrı belgelerde tutulmaktadır. Bunlar daha sonra PROPOSED_LAYOUT.md ile uyumlu, kontrollü bir taşıma çalışmasıyla düzenlenecektir. Mevcut kaynakların konumları bu aşamada topluca değiştirilmemiştir.
