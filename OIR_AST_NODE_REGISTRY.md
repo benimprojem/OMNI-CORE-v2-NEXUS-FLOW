@@ -218,6 +218,9 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_RELOCATE | 1–2 | source, target | NODE_REF |
 | AST_UNROLL | 1–2 | count, loop | NODE_REF |
 | AST_ARRAY_LITERAL | 1 | ordered elements | NODE_REF |
+| AST_BLOCK_HALT | — | Block-scoped `}?;` cleanup marker; valid only as final child of AST_BLOCK/AST_ASM_BLOCK | — |
+
+OIR node kind **100** is append-only and represents `AST_BLOCK_HALT`; IDs 1–99 are unchanged.
 
 The intrinsic call-kind set is:
 AST_SPAWN, AST_ECHO, AST_SEND, AST_RECEIVE, AST_DONE, AST_AREA, AST_ZONE, AST_ADDR, AST_LEN, AST_PEEK, AST_POKE, AST_INB, AST_OUTB, AST_IRQ, AST_INTR, AST_REG, AST_PRNT, AST_PRMT, AST_WRITE, AST_FWRITE, AST_TYPEOF, AST_SIZEOF, AST_IS_OK, AST_IS_ERR, AST_IS_SOME, AST_IS_NONE, AST_IS_NULL, AST_EXIT, AST_SWAP, AST_DATE, AST_DATENOW, AST_TIME, AST_CLOCK, AST_FREE, AST_ZONE_SYNC, AST_ZONE_VIEW and AST_ZONE_LOCK.
