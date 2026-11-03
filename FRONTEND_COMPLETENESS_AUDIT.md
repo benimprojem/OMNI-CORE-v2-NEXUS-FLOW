@@ -132,16 +132,16 @@ Bu bölüm kaynak kodunun doğrudan incelenmesiyle doğrulanan mevcut durumdur. 
 
 ### 6.2 Parser ve context yaşam döngüsü
 
-- `parser_init_source()` tüm context alanlarını başlatıyor; dosya tabanlı `parser_init()` ise `ast_root`, `file_handle` ve token başlangıç alanlarının tamamını başlatmıyor. Normal `parser_run()` akışında AST kökü atansa da AST allocation başarısızlığı gibi erken dönüş yollarında `parser_destroy()` başlatılmamış `ast_root` değerini kullanabilir. İki initializer tek bir ortak başlatma yordamına taşınmalı.
+- **Tarihsel bulgu — çözüldü:** `parser_init_source()` ve dosya tabanlı `parser_init()` artık `parser_context_init()` ortak yordamını kullanıyor; context alanları tek noktada sıfırlanıp başlatılıyor. Ayrıntı için §6.8.
 - `parser_attach_token_stream()` sıfır uzunluklu ve EOF ile sonlanmayan akışları reddediyor; bu koruma doğru.
-- `peek_token_ahead()` içinde `n <= 0` çağrısı yapılırsa yerel `Token t` başlatılmadan döndürülür. Çağrı noktaları incelenmeli; fonksiyon ya pozitif mesafe şartını doğrulamalı ya da güvenli bir varsayılan sağlamalı.
+- **Tarihsel bulgu — çözüldü:** `parser_peek_n()` `n <= 0` için deterministik EOF tokenı döndürüyor ve lexer konumunu geri yüklüyor. Ayrıntı için §6.8.
 - Parser'daki AST üretimlerinde `ast_create()` başarısızlığının her yerde kontrol edildiği henüz doğrulanmadı.
 
 ### 6.3 AST ve eski AST codec
 
-- AST enum'undaki 80 düğüm türünden 78'i allocation, destroy, serialize ve deserialize switch'lerinde açıkça ele alınıyor. Kalan `AST_BREAK` ve `AST_CONTINUE` payload taşımayan temel düğümler; bu iki düğümün yalnızca temel alanlarla taşınması beklenen davranış olarak ayrıca test edilmeli.
+- AST etiketleri append-only olduğundan sabit toplam sayıya dayalı denetim kullanılmamalı. Güncel son etiket `AST_ARRAY_DIMENSION`; `AST_BREAK` ve `AST_CONTINUE` payload taşımayan temel düğümlerdir. Her yeni etiket için allocation, destroy, serialize, deserialize ve round-trip fixture kapsamı birlikte güncellenmelidir.
 - Eski `ast_serialize()` akışı native C enum/int/long long/double temsillerini doğrudan dosyaya yazıyor. Bu nedenle platformlar ve ABI'ler arasında taşınabilir, sürümlenmiş OIR formatı değildir; yalnızca geçiş dönemi AST codec'i olarak görülmeli.
-- AST codec round-trip kapsamı her AST türü için ayrı fixture ile ölçülmeli; yalnızca birkaç örnek programın başarılı round-trip yapması tam kapsama kanıtı sayılmamalı.
+- **Güncel durum:** `test_ast_deserialize.c` her AST etiketi için dolu alan fixture'ı ve sibling-chain round-trip testi çalıştırır; bu yalnızca AST codec kapsamıdır, parser/semantic/OIR/lowering kapsamı değildir. Alan sahipliği tablosuyla birlikte güncel tutulmalıdır.
 
 ### 6.4 Semantik AST kapsaması
 
