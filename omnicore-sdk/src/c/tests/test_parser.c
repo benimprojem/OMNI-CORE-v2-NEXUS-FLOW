@@ -779,6 +779,12 @@ done:
     if(!parser_source_reports_syntax_error("scan-duplicate-else.nxf",
         "f:main() { scan(x) { item -> { } else -> { } else -> { } } }",
         sizeof("f:main() { scan(x) { item -> { } else -> { } else -> { } } }")-1u))return 0;
+    if(!parser_source_reports_syntax_error("scan-else-not-final.nxf",
+        "f:main() { scan(x) { else -> { } item -> { } } }",
+        sizeof("f:main() { scan(x) { else -> { } item -> { } } }")-1u))return 0;
+    if(!parser_source_reports_syntax_error("select-default-guard.nxf",
+        "f:main() { select(x) { default when true -> { } } }",
+        sizeof("f:main() { select(x) { default when true -> { } } }")-1u))return 0;
     return 1;
 }
 
