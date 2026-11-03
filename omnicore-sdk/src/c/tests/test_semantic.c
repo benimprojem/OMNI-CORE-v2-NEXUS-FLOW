@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!check_postfix_semantics()) {
-        fprintf(stderr, "Postfix semantic checks failed.\\n");
+        fprintf(stderr, "Postfix semantic checks failed.\n");
         return 1;
     }
     if (!check_compound_assignment_semantics()) {
@@ -294,7 +294,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!check_aggregate_member_semantics()) {
-        fprintf(stderr, "Aggregate member semantic checks failed.\\n");
+        fprintf(stderr, "Aggregate member semantic checks failed.\n");
         return 1;
     }
     if (!check_array_literal_semantics()) {
@@ -302,11 +302,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!check_extended_ast_semantics()) {
-        fprintf(stderr, "Extended AST semantic scope/effect checks failed.\\n");
+        fprintf(stderr, "Extended AST semantic scope/effect checks failed.\n");
         return 1;
     }
     if (!check_control_flow_semantics()) {
-        fprintf(stderr, "Control-flow semantic checks failed.\\n");
+        fprintf(stderr, "Control-flow semantic checks failed.\n");
         return 1;
     }
     if (argc != 3) return 2;
