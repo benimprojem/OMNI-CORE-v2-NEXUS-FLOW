@@ -162,6 +162,28 @@ int main(void) {
         parser_destroy(parser);
     }
 
+    /* A block-cleanup marker cannot escape its owning block or precede siblings. */
+    {
+        ASTNode* invalid_root = ast_create(AST_BLOCK_HALT);
+        ASTNode* block = ast_create(AST_BLOCK);
+        ASTNode* first = ast_create(AST_BLOCK_HALT);
+        ASTNode* second = ast_create(AST_BREAK);
+        if (!invalid_root || !block || !first || !second) return 1;
+        if (ast_validate(invalid_root, NULL)) {
+            fprintf(stderr, "root-level block cleanup marker was accepted\\n");
+            ast_destroy(invalid_root); ast_destroy(block); return 1;
+        }
+        ast_destroy(invalid_root);
+        first->next = second;
+        ((ASTBlock*)block)->statements = first;
+        if (ast_validate(block, NULL)) {
+            fprintf(stderr, "non-final block cleanup marker was accepted\\n");
+            ast_destroy(block); return 1;
+        }
+        first->next = NULL;
+        ast_destroy(block);
+    }
+
     /* Parser output is expected to satisfy the AST graph contract. */
     {
         const char source[] = "f:main() { v:x = 1 + 2; ret x; }";
