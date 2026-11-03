@@ -102,8 +102,8 @@
 ## 2026-11-03 — Structural validation closure and remaining AST gates
 
 - Graph Validator dispatch is explicit for all 100 enum tags; its switch default now returns AST_VALIDATE_INVALID_KIND rather than silently accepting an unregistered tag as a leaf.
-- Current ASTNode source metadata is limited to line/column. Byte start/end offsets and end line/column are present in token/diagnostic infrastructure but are not persisted in AST nodes or the legacy AST stream codec.
+- Current ASTNode source metadata is still limited to line/column. The normative propagation/compatibility contract is now documented in `docs/AST-SOURCE-SPAN-CONTRACT.md`; implementation across parser, AST codec and OIR optional TLVs remains open.
 - `AST_NEXUS_HALT` carries an optional target expression. `AST_BLOCK_HALT` now represents the block-closing `}?;` separately; Parser appends it as the final statement child. Graph validation rejects it at root level, outside a block, or before another sibling. Parser, graph-validator, legacy AST codec and OIR round-trip regression fixtures now cover the marker; latest CI is queued.
 - AST_ASM_BLOCK is currently a generic ASTBlock layout; fastexec, asm: labels and asmcall/asmjmp do not have a C Parser construction path.
 - Canonical syntax path is now reconciled on the active branch: `docs/language/syntax-reference.md` is the single normative document. It was restored from the branch's reconciled syntax content; the former duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` remains untouched.
-- These are explicit pre-Semantic AST/model gates. AST must not be marked complete until the source-span contract, block-Halt representation and assembly scope are resolved and the syntax-reference path is reconciled.
+- These are explicit pre-Semantic AST/model gates. The source-span contract and canonical syntax path are documented; span propagation and the inline-ASM parser/model remain open. Block-Halt code is implemented and awaits macOS CI.
