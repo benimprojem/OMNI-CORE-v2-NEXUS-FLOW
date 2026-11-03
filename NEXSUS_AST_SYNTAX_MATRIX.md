@@ -60,6 +60,31 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Inline ASM | `AST_ASM_BLOCK` | Present | ASM payload/constraints/clobbers and target validation |
 | `break / continue / return` | `AST_BREAK`, `AST_CONTINUE`, `AST_RETURN` | Present | Validate loop/function targets and return typing |
 
+## Operator parser coverage — source audit (2026-11-03)
+
+The syntax reference lists the language's designed operator inventory. The C Lexer token inventory is broader than the current Parser expression grammar. The following status is based on token-consumption sites in `omnicore-sdk/src/c/parser/parser.c`; a token declaration alone is not parser support.
+
+| Operator family | Current C Parser status | Remaining contract |
+|---|---|---|
+| Assignment `=`, directive assignment `!!=` | Consumed by `parse_assignment()`; creates `AST_ASSIGNMENT` | Lvalue validation and semantic operator rules |
+| Arithmetic `+`, `-` | Consumed by `parse_additive()` | Semantic numeric promotion and overflow behavior |
+| Arithmetic `*`, `/` | Consumed by `parse_term()` | Division-by-zero and numeric semantic rules |
+| Modulo `%` | Lexer token only; no Parser consumption | Add multiplicative-precedence production and tests |
+| Exponentiation `^^` | Lexer token only; no Parser consumption | Define precedence/associativity, then add Parser production and tests |
+| Comparison `<`, `<=`, `>`, `>=` | Consumed by `parse_comparison()` | Semantic comparability rules |
+| Equality `==`, `!=`, `===`, `==!` | Consumed by `parse_equality()` | Define and validate strict/forced equality semantics |
+| Logical `&&`, `||` | Lexer tokens only; no Parser consumption | Define precedence and short-circuit semantics before implementation |
+| Unary logical not `!` | Consumed by `parse_unary()` | Boolean operand/type rule |
+| Unary bitwise not `~` | Consumed by `parse_unary()` | Integer operand/type rule |
+| Binary bitwise `&`, `|`, `^` | Lexer tokens only; no Parser consumption | Define precedence and integer-width behavior |
+| Shift `<<`, `>>` | Consumed by Nexus Flow expression/flow parsing as flow operators; not implemented as bit-shift arithmetic | Resolve the existing language-level collision before adding bit-shift expression semantics |
+| Prefix/postfix `++`, `--` | Consumed by unary/postfix parsing | Lvalue and numeric semantic checks |
+| Compound assignment `+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=` | Lexer tokens only; no Parser consumption | Define AST assignment encoding and semantic equivalence |
+| String append `.=` | Lexer token only; no Parser consumption | Define string/lvalue behavior and add Parser/semantic tests |
+| Range `..` | Consumed by `parse_range()` | Range type and endpoint semantics |
+
+This table is an implementation audit, not a change to the language design. Unsupported forms must not be marked complete merely because the Lexer emits tokens. In particular, `&&` and `||` occur in existing language examples but currently cannot pass the C Parser; their short-circuit semantics are a precondition for closing that gap.
+
 ## Confirmed model-level gaps to address
 
 1. **Array type declarators:** `AST_ARRAY_TYPE` and `AST_ARRAY_DIMENSION` represent dynamic, fixed and multidimensional shapes, including function parameters. Function calls validate element type, rank and fixed/dynamic extents; remaining work is executable lowering.
@@ -101,6 +126,7 @@ Every AST enum tag must be covered in all columns below. Shared payload is accep
 
 - `README.md`: control flow (Section 5), functions (Section 6), data structures (Section 7), Nexus Flow operators (Section 3), intrinsic/core operations (Section 14).
 - `omnicore-sdk/src/c/parser/ast.h`: current `ASTNodeType` and payload definitions.
+- `omnicore-sdk/docs/syntax.md`: canonical NEXUS Flow syntax and language-semantics reference.
 - `omnicore-sdk/src/c/parser/parser.c`: grammar and AST construction (114 KB; must be mapped function-by-function).
 - `omnicore-sdk/src/c/parser/ast.c`: allocation, print, destroy, serialization (50 KB).
 - `FRONTEND_COMPLETENESS_AUDIT.md`: layer-by-layer completion criteria.
