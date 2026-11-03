@@ -1174,7 +1174,8 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
 }
 
 int ast_serialize(ASTNode* root, FILE* out) {
-    if (!out) return 0;
+    ASTValidationError validation_error;
+    if (!root || !out || !ast_validate(root, &validation_error)) return 0;
 
     ASTWriter writer = { out, 0u, 0 };
     ast_serialize_recursive(root, &writer);
@@ -1532,7 +1533,8 @@ ASTNode* ast_deserialize(FILE* in) {
     if (!root) return NULL;
 
     /* The serialized tree must consume the complete input stream. */
-    if (fgetc(in) != EOF || ferror(in)) {
+    if (fgetc(in) != EOF || ferror(in) ||
+        !ast_validate(root, NULL)) {
         ast_destroy(root);
         return NULL;
     }
