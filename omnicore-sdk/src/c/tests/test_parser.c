@@ -1012,6 +1012,51 @@ done:
     return ok;
 }
 
+static int test_logical_operator_precedence_ast(void) {
+    static const char source[] =
+        "f:main() { v:guard = a > 0 && b > 0 || c == 1; }";
+    ParserContext* ctx = parser_init_source(
+        "logical-precedence.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* statement;
+    ASTNode* expression;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root) goto done;
+
+    statement = ((ASTBlock*)((ASTFuncDecl*)
+        ((ASTProgram*)ctx->ast_root)->declarations)->body)->statements;
+    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_OR) goto done;
+    {
+        ASTNode* and_expr = ((ASTBinaryExpr*)expression)->left;
+        ASTNode* compare_right = ((ASTBinaryExpr*)expression)->right;
+        if (!and_expr || and_expr->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)and_expr)->op != TOKEN_AND ||
+            !compare_right || compare_right->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)compare_right)->op != TOKEN_EQ) goto done;
+        if (((ASTBinaryExpr*)and_expr)->left->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->left)->op != TOKEN_GT ||
+            ((ASTBinaryExpr*)and_expr)->right->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->right)->op != TOKEN_GT) goto done;
+    }
+
+    stream = tmpfile();
+    if (!stream || !ast_serialize(ctx->ast_root, stream) ||
+        fseek(stream, 0, SEEK_SET) != 0) goto done;
+    decoded = ast_deserialize(stream);
+    ok = decoded && decoded->type == AST_PROGRAM;
+done:
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_modulo_expression_ast(void) {
     static const char source[] =
         "f:main() { v:rem = 17 % 5 * 2; v:dimension[17 % 5]!i32; }";
@@ -1105,6 +1150,7 @@ int main(int argc, char** argv) {
     if (!test_array_type_declarators()) { fprintf(stderr, "Array type declarator parser/codec test failed.\n"); return 1; }
     if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
     if (!test_modulo_expression_ast()) { fprintf(stderr, "Modulo expression/array extent parser test failed.\n"); return 1; }
+    if (!test_logical_operator_precedence_ast()) { fprintf(stderr, "Logical operator precedence parser test failed.\n"); return 1; }
 
     if (!test_array_literal_ast()) { fprintf(stderr, "Array literal parser/codec test failed.\n"); return 1; }
     if (!test_retry_metadata_rejects_overflow()) {
