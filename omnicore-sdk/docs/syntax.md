@@ -207,7 +207,7 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 * `+`, `-`, `*`, `/`, `%` (Modülo)
 * `^^` (Üs alma)
 
-> Uygulama durumu: Lexer `^^` için token üretir; mevcut Parser henüz `TOKEN_POWER` tüketmez. Bu nedenle operatör dil tasarımında tanımlı, parser desteği ise açık eksiktir.
+> Uygulama durumu (2026-11-03): Lexer `^^` tokenını üretir; Parser `parse_power()` ile sağ birleşimli AST üretir. Semantic matching numeric operand kontrolü vardır. Promotion/overflow ve OIR opcode/lowering kapsamı açık kalır.
 * `+=`, `-=`, `*=`, `/=` (Bileşik atama)
 * `++`, `--` (Artırma/Azaltma)
 
@@ -228,16 +228,20 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 | Sıra | Operatör grubu | Birleşme |
 |---:|---|---|
 | 1 | Çağrı, üye erişimi, indeks, postfix `++ --` | postfix |
-| 2 | Unary `!`, `~`, `-` | sağdan |
-| 3 | `*`, `/`, `%` | soldan |
-| 4 | `+`, `-` | soldan |
-| 5 | `<`, `<=`, `>`, `>=` | soldan |
-| 6 | `==`, `!=`, `===`, `==!` | soldan |
-| 7 | `..` | tek aralık |
-| 8 | `&&` | soldan |
-| 9 | `||` | soldan |
-| 10 | Nexus Flow akış operatörleri | akış grameri |
-| 11 | `=`, `!!=`, capture `<-` | sağdan / capture grameri |
+| 2 | Power `^^` | sağdan; unary eksi operandından daha sıkı |
+| 3 | Unary `!`, `~`, `-` | sağdan |
+| 4 | `*`, `/`, `%` | soldan |
+| 5 | `+`, `-` | soldan |
+| 6 | Bitwise `&` | soldan |
+| 7 | Bitwise `^` | soldan |
+| 8 | Bitwise `|` | soldan |
+| 9 | `<`, `<=`, `>`, `>=` | soldan |
+| 10 | `==`, `!=`, `===`, `==!` | soldan |
+| 11 | `..` | tek aralık |
+| 12 | `&&` | soldan |
+| 13 | `||` | soldan |
+| 14 | Nexus Flow akış operatörleri | akış grameri |
+| 15 | `=`, `!!=`, capture `<-` | sağdan / capture grameri |
 
 Bu tablo mevcut C Parser üretim sırasını yansıtır. `&&` `||`'dan daha yüksek önceliklidir. Kısa devre yürütme davranışı ayrıca OIR/lowering sözleşmesinde doğrulanmalıdır.
 
