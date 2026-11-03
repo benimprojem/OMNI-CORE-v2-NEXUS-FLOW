@@ -70,7 +70,7 @@ The syntax reference lists the language's designed operator inventory. The C Lex
 | Arithmetic `+`, `-` | Consumed by `parse_additive()` | Semantic numeric promotion and overflow behavior |
 | Arithmetic `*`, `/` | Consumed by `parse_term()` | Division-by-zero and numeric semantic rules |
 | Modulo `%` | Consumed by `parse_term()` at the same precedence as `*` and `/`; AST uses `AST_BINARY_EXPR` | Integer-only semantic rule; parser AST/codec regression covers expression and array extent |
-| Exponentiation `^^` | Lexer token only; no Parser consumption | Define precedence/associativity, then add Parser production and tests |
+| Exponentiation `^^` | `parse_power()` consumes `TOKEN_POWER`; right-associative (`right=parse_unary()`), precedence tighter than multiplicative and unary minus is applied outside power (`-2^^2` parses as `-(2^^2)`) | Parser production exists; confirm precedence/associativity with explicit AST-shape fixtures and ensure semantic/lowering coverage remains gated |
 | Comparison `<`, `<=`, `>`, `>=` | Consumed by `parse_comparison()` | Semantic comparability rules |
 | Equality `==`, `!=`, `===`, `==!` | Consumed by `parse_equality()` | Define and validate strict/forced equality semantics |
 | Logical `&&`, `||` | Parser now consumes `&&` in `parse_logical_and()` and `||` in `parse_logical_or()`; AST uses `AST_BINARY_EXPR`; `&&` binds tighter than `||` | Semantic bool-operand checks are present and tested; short-circuit execution must be verified in OIR/lowering |
