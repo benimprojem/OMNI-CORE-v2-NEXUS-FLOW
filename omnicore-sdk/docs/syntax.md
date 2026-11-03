@@ -223,6 +223,24 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 * `>`, `<`, `>=`, `<=`
 * `&&` (VE), `||` (VEYA), `!` (DEĞİL)
 
+**Mevcut ifade önceliği (yüksekten düşüğe; parantezler her zaman önceliklidir):**
+
+| Sıra | Operatör grubu | Birleşme |
+|---:|---|---|
+| 1 | Çağrı, üye erişimi, indeks, postfix `++ --` | postfix |
+| 2 | Unary `!`, `~`, `-` | sağdan |
+| 3 | `*`, `/`, `%` | soldan |
+| 4 | `+`, `-` | soldan |
+| 5 | `<`, `<=`, `>`, `>=` | soldan |
+| 6 | `==`, `!=`, `===`, `==!` | soldan |
+| 7 | `..` | tek aralık |
+| 8 | `&&` | soldan |
+| 9 | `||` | soldan |
+| 10 | Nexus Flow akış operatörleri | akış grameri |
+| 11 | `=`, `!!=`, capture `<-` | sağdan / capture grameri |
+
+Bu tablo mevcut C Parser üretim sırasını yansıtır. `&&` `||`'dan daha yüksek önceliklidir. Kısa devre yürütme davranışı ayrıca OIR/lowering sözleşmesinde doğrulanmalıdır.
+
 ####  2.6 Bit Düzeyinde İşlemler (Kernel & Driver İçin Şart)**
 
 * `&` (Bitwise AND)
@@ -239,7 +257,7 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 * `...` : Fonksiyonlar için çoklu prametre
 * `.=` : String birleştirme operatörü. Mevcut string'e yeni string ekler.
 
-**C Parser uygulama sınırı (2026-11-03):** Yukarıdaki liste dil tasarım envanteridir; tamamının mevcut Parser tarafından kabul edildiği anlamına gelmez. Kaynak kod denetimine göre `+`, `-`, `*`, `/`, `%` (integer operands only), karşılaştırma/eşitlik operatörleri, unary `!` / `~`, prefix/postfix `++` / `--` ve `..` için Parser üretimleri vardır. `^^`, binary bitwise `& | ^`, `&& ||`, compound assignment (`+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=`) ve `.=` henüz Parser tarafından tüketilmez. `<<` / `>>` mevcut gramerde Nexus Flow akış operatörleridir; bit-shift ifadesi olarak kullanılmaları ayrıca kararlaştırılmalıdır. Ayrıntılı uygulama matrisi: [NEXSUS_AST_SYNTAX_MATRIX.md](../../NEXSUS_AST_SYNTAX_MATRIX.md).
+**C Parser uygulama sınırı (2026-11-03):** Yukarıdaki liste dil tasarım envanteridir; tamamının mevcut Parser tarafından kabul edildiği anlamına gelmez. Kaynak kod denetimine göre `+`, `-`, `*`, `/`, `%` (integer operands only), karşılaştırma/eşitlik, `&&`, `||`, unary `!` / `~`, prefix/postfix `++` / `--` ve `..` için Parser üretimleri vardır. Semantic aşaması modulo için integer operand, mantıksal operatörler için bool operand kontrolü yapar. `^^`, binary bitwise `& | ^`, compound assignment (`+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=`) ve `.=` henüz Parser tarafından tüketilmez. `<<` / `>>` mevcut gramerde Nexus Flow akış operatörleridir; bit-shift ifadesi olarak kullanılmaları ayrıca kararlaştırılmalıdır. Mantıksal operatörlerin kısa devre yürütme davranışı OIR/lowering aşamasında ayrıca doğrulanmalıdır. Ayrıntılı uygulama matrisi: [NEXSUS_AST_SYNTAX_MATRIX.md](../../NEXSUS_AST_SYNTAX_MATRIX.md).
 
 ---
 
