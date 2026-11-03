@@ -182,6 +182,7 @@ int main(void) {
         }
         first->next = NULL;
         ast_destroy(block);
+        ast_destroy(second);
     }
 
     /* The block cleanup leaf survives the legacy AST stream codec. */
