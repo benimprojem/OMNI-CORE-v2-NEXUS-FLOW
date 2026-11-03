@@ -10,6 +10,7 @@
 Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök belgelerde tutulur:
 
 - [Proje durumu](PROJECT_STATUS.md)
+- [OCC pipeline ve 99 AST düğümü ilerleme tablosu](OCC_PIPELINE_PROGRESS.md)
 - [Geliştirme yol haritası](ROADMAP.md)
 - [Güncel görevler](TASKS.md)
 - [Mimari kararlar](ARCHITECTURE_DECISIONS.md)
