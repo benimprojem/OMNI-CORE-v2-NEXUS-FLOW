@@ -25,6 +25,7 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [OIR_LOWERING_PLAN — IR Lowering aşamalı uygulama planı](OIR_LOWERING_PLAN.md)
 - [FRONTEND_COMPLETENESS_AUDIT — Lexer, Parser, AST ve Semantic tamlık denetimi](FRONTEND_COMPLETENESS_AUDIT.md)
 - [NEXSUS syntax ↔ AST coverage matrix](NEXSUS_AST_SYNTAX_MATRIX.md)
+- [OmniCore SDK documentation index](omnicore-sdk/docs/README.md)
 - [NEXUS Flow Syntax Reference](omnicore-sdk/docs/syntax.md)
 - [OIR SOURCE_UNIT, TOKEN_STREAM ve DIAGNOSTICS payload şemaları](OIR_PAYLOAD_SCHEMAS.md)
 - [OIR token ID registry](OIR_TOKEN_REGISTRY.md)
