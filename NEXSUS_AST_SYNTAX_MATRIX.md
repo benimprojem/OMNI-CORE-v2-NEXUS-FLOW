@@ -294,3 +294,17 @@ The six new OIR node kinds must be appended to the stable registry with IDs 81�
 ### Implementation note — 2 Kasım 2026
 
 `select` and `scan` are now implemented in the C frontend and OIR AST bridge. Recognition is contextual (identifier followed by `(` at statement position); `Range(s,e)` is represented by a constructor-pattern node, not a function call. Default arms have an explicit boolean flag. The C parser tests cover successful AST construction, duplicate defaults, empty constructor patterns and binary AST round-trip; the OIR round-trip test covers the new AST payloads. Semantic arm-local symbol introduction, type-aware exhaustiveness, and lowering are still separate pre-Codegen tasks. Cross-platform CI passed (run 41451812569: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind).
+
+## Lexer → Parser token gaps (source audit)
+
+The following are tokenized by the C Lexer but have no explicit Parser consumption in `parser.c`. Type-token families and prefixes may be handled by ordinal/range checks, so zero textual occurrences alone is not proof of a missing primitive type.
+
+| Lexed form | Syntax-reference meaning | Current Parser state | Next action |
+|---|---|---|---|
+| `no:` / `TOKEN_KW_NO` | Dependency/OS-adapter exclusion directive (e.g. `no:CoreModule;`) | No token consumption; no AST node/directive representation | Specify directive scope and artifact representation; then implement parser + semantic/module-resolution test |
+| `m:` / `TOKEN_PRE_MUST` | Mandatory dependency | No explicit Parser consumption | Resolve whether this is a declaration/import form or reserved syntax; do not map it to ordinary variable without contract |
+| `r:`, `t:`, `o:` | Reserved prefixes | Deliberately reserved in syntax reference | Keep rejected/reserved; no AST node needed until activated |
+| `...` / `TOKEN_ELLIPSIS` | Variadic function parameter marker (documented as trailing marker in signatures) | No Parser consumption; `ASTFuncDecl` has no variadic field | Add explicit function signature flag/AST codec + OIR field contract and tests before accepting |
+| `asm:`, `fastexec`, `asmcall()`, `asmjmp()` | Inline assembly label/block and direct label call/jump | Lexer tokens exist; Parser does not consume them | Dedicated ASM payload/label representation and target validation required; current `AST_ASM_BLOCK` is only a generic block payload |
+
+**Fail-closed requirement:** these forms must not be reported as implemented because their Lexer tokens exist. Until their AST/semantic contracts are established, parser rejection is preferable to silent or lossy acceptance.
