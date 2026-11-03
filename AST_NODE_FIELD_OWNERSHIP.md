@@ -140,3 +140,20 @@ These are parser construction invariants, not a complete semantic typing specifi
 - `AST_ARRAY_TYPE.dimensions`: at least one dimension is required by the declarator production; each dimension node exists, while its `length` may be NULL for `[]`.
 
 **Validation gap:** these invariants are currently documented and partially covered by parser fixtures, but there is no generic AST graph validator that checks required-child contracts, duplicate ownership, or cycles. Do not treat the table as automatically enforced until such a validator and negative tests are added.
+
+
+## AST kind lifecycle audit — 2026-11-03
+
+A source-level comparison of the 99 public `ASTNodeType` values in `ast.h` against `ast_create/get_node_size` and `ast_destroy_recursive` was performed.
+
+- All 99 kinds are within the factory's accepted enum range.
+- Every payload-bearing kind has an explicit allocation-size case in `get_node_size()`; `AST_BREAK` and `AST_CONTINUE` intentionally use the base `ASTNode` size.
+- Every owned payload kind has an explicit destructor case.
+- `AST_BREAK` and `AST_CONTINUE` intentionally have no destructor case because they contain no owned fields; they are released by the common `free(node)`.
+- No factory/destructor kind omission was found in this pass.
+
+This is a source audit, not a runtime proof. It does not test malformed graphs, shared-child aliasing, cycles, or required-field validation. Those remain the purpose of a future AST graph verifier.
+
+### Ownership invariant clarification
+
+`next` is an owned sibling chain and every child pointer owns a disjoint subtree. The current destructor assumes this invariant; a duplicated child pointer or cycle can cause double-free/nontermination. Parser-created ASTs are expected to obey it, but externally constructed ASTs are not currently protected by a graph validator.
