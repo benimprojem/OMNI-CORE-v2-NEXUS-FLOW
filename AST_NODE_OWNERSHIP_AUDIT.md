@@ -68,13 +68,14 @@
 | `AST_ARRAY_LITERAL` | `elements` | — |
 | `AST_ARRAY_TYPE` | `dimensions` | — |
 | `AST_ARRAY_DIMENSION` | `length` (NULL = dynamic dimension) | — |
+| `AST_BLOCK_HALT` | no payload; final marker in owning block | — |
 | `AST_BREAK`, `AST_CONTINUE` | — | Base node only; no payload |
 
 **Call-shaped intrinsic kinds** in the `AST_FUNC_CALL` row are: `AST_SPAWN`, `AST_ECHO`, `AST_SEND`, `AST_RECEIVE`, `AST_DONE`, `AST_AREA`, `AST_ZONE`, `AST_ADDR`, `AST_LEN`, `AST_PEEK`, `AST_POKE`, `AST_INB`, `AST_OUTB`, `AST_IRQ`, `AST_INTR`, `AST_REG`, `AST_PRNT`, `AST_PRMT`, `AST_WRITE`, `AST_FWRITE`, `AST_TYPEOF`, `AST_SIZEOF`, `AST_IS_OK`, `AST_IS_ERR`, `AST_IS_SOME`, `AST_IS_NONE`, `AST_IS_NULL`, `AST_EXIT`, `AST_SWAP`, `AST_DATE`, `AST_DATENOW`, `AST_TIME`, `AST_CLOCK`, `AST_FREE`, `AST_ZONE_SYNC`, `AST_ZONE_VIEW`, `AST_ZONE_LOCK`.
 
 ## Codec/lifecycle audit findings
 
-- Factory allocation is centralized in `get_node_size()`; all registered kinds are bounded by `AST_PROGRAM..AST_ARRAY_DIMENSION`.
+- Factory allocation is centralized in `get_node_size()`; all registered kinds are bounded by `AST_PROGRAM..AST_BLOCK_HALT` (100 tags).
 - `AST_BREAK` and `AST_CONTINUE` intentionally allocate only `ASTNode`.
 - `AST_FUNC_DECL` and `AST_EXTERN_DECL`, `AST_STRUCT_DECL` and `AST_UNION_DECL`, and `AST_NEXUS_FLOW` and `AST_NEXUS_PIPE` share payload structures; their discriminating kind remains in `base.type`.
 - `AST_LISTEN` currently shares `ASTNexusCapture` storage and codec/destructor behavior. Confirm its exact semantic contract before changing this representation.
@@ -102,7 +103,7 @@
 
 - Graph Validator dispatch is explicit for all 99 enum tags; its switch default now returns AST_VALIDATE_INVALID_KIND rather than silently accepting an unregistered tag as a leaf.
 - Current ASTNode source metadata is limited to line/column. Byte start/end offsets and end line/column are present in token/diagnostic infrastructure but are not persisted in AST nodes or the legacy AST stream codec.
-- `AST_NEXUS_HALT` carries an optional target expression, but `parse_block()` currently consumes only `}` and returns an `AST_BLOCK` without representing the trailing `}?;`. The canonical syntax reference defines block cleanup as a scope-wide cleanup distinct from targeted resource halt; a dedicated block-cleanup marker is still required.
+- `AST_NEXUS_HALT` carries an optional target expression. `AST_BLOCK_HALT` now represents the block-closing `}?;` separately; Parser appends it as the final statement child. Graph validation rejects it at root level, outside a block, or before another sibling. Parser/OIR regression tests are being completed.
 - AST_ASM_BLOCK is currently a generic ASTBlock layout; fastexec, asm: labels and asmcall/asmjmp do not have a C Parser construction path.
 - Canonical syntax path is now reconciled on the active branch: `docs/language/syntax-reference.md` is the single normative document. It was restored from the branch's reconciled syntax content; the former duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` remains untouched.
 - These are explicit pre-Semantic AST/model gates. AST must not be marked complete until the source-span contract, block-Halt representation and assembly scope are resolved and the syntax-reference path is reconciled.
