@@ -123,7 +123,7 @@ panic("critical failure");
 - `cast(value, type)`: İlk argüman ifade, ikinci argüman tür adıdır. Tür adı primitive tür tokenı veya tanımlayıcı olabilir.
 - `panic("message")`: Mevcut Parser uygulamasında mesaj string literalidir. Değişken veya genel ifade mesajı henüz desteklenmiş kabul edilmez.
 
-**Henüz tamamlanmamış sayısal biçimler:** Hex/binary literal, üs gösterimi, sayısal ayraçlar, tür ekleri ve zorunlu genişlik işaretlerinin tam grameri ayrı bir spesifikasyon ve test setiyle netleştirilecektir. README'deki eski `10E3` ve `10^^15` örnekleri tasarım örneğidir; mevcut Lexer desteği olarak yorumlanmamalıdır.
+**Desteklenmeyen sayısal yazımlar:** Hex/binary önekleri (`0xFF`, `0b1010`), bilimsel gösterim (`10E3`, `1e-3`), sayısal ayraçlar (`1_000`), tür ekleri (`12u8`, `1.5f32`) ve literal genişlik ekleri bu Lexer sürümünde desteklenmez; artık tek bir `TOKEN_ERROR` ile reddedilir, geçerli sayı + tanımlayıcı olarak sessizce bölünmez. `^^` ise sayısal literal biçimi değil, ayrı bir üs alma operatörüdür. Lexer bu operatörü tokenlaştırsa da Parser'da `TOKEN_POWER` için bir ifade üretim kuralı bulunmadığından `10^^15` şu an derlenebilir ifade değildir.
 
 ---
 
@@ -206,6 +206,8 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 
 * `+`, `-`, `*`, `/`, `%` (Modülo)
 * `^^` (Üs alma)
+
+> Uygulama durumu: Lexer `^^` için token üretir; mevcut Parser henüz `TOKEN_POWER` tüketmez. Bu nedenle operatör dil tasarımında tanımlı, parser desteği ise açık eksiktir.
 * `+=`, `-=`, `*=`, `/=` (Bileşik atama)
 * `++`, `--` (Artırma/Azaltma)
 
