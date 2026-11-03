@@ -585,7 +585,13 @@ static int roundtrips_all_node_type_tags(void) {
     for (int raw_type = AST_PROGRAM; raw_type <= AST_ARRAY_DIMENSION; ++raw_type) {
         ASTNode* original = ast_create((ASTNodeType)raw_type);
         if (!original) return 1;
-
+        /* The stream codec now enforces the public graph contract. Populate
+         * each tag with its valid child shape before testing tag/position data. */
+        if (!populate_ast_fixture(original)) {
+            fprintf(stderr, "Could not populate AST tag fixture for tag %d.\\n", raw_type);
+            ast_destroy(original);
+            return 1;
+        }
         original->line = 100 + raw_type;
         original->col = 200 + raw_type;
         ASTIdentifier* sibling = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
@@ -606,7 +612,12 @@ static int roundtrips_all_node_type_tags(void) {
             ast_destroy(original);
             return 1;
         }
-        ast_serialize(original, stream);
+        if (!ast_serialize(original, stream)) {
+            fclose(stream);
+            ast_destroy(original);
+            fprintf(stderr, "AST serializer rejected valid tag fixture %d.\\n", raw_type);
+            return 1;
+        }
         rewind(stream);
         ASTNode* decoded = ast_deserialize(stream);
         fclose(stream);
@@ -623,7 +634,7 @@ static int roundtrips_all_node_type_tags(void) {
         ast_destroy(decoded);
         ast_destroy(original);
         if (!valid) {
-            fprintf(stderr, "AST node type round-trip failed for tag %d.\n", raw_type);
+            fprintf(stderr, "AST node type round-trip failed for tag %d.\\n", raw_type);
             return 1;
         }
     }
