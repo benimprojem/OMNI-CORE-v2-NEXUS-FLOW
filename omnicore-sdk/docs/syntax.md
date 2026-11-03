@@ -136,8 +136,9 @@ v:sayi[]; # Dinamik array Tanımlama
 v:sayilar[5]!i32 = [1, 2, 3, 4, 5]; #Statik Tanımlama ve atama.
 v:buffer[2*8+1]!i32; # Derleme zamanında hesaplanan pozitif sabit boyut.
 
-# Boyut ifadeleri tamsayı literal'ları ve +, -, *, /, % işlemlerini destekler.
+# Mevcut Parser boyut ifadelerinde +, -, *, / kabul edilir; % operatörünün genel Parser üretimi henüz yoktur.
 # Sonuç pozitif olmalı; taşma ve sıfıra bölme kabul edilmez.
+# Modulo desteği tamamlanana kadar boyut ifadesinde % kullanmayın.
 
 v:matris[3][3]!f32 = [
     [1.2, 0.3, 0.6],
