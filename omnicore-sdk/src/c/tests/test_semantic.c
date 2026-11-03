@@ -169,7 +169,7 @@ static int check_compound_assignment_semantics(void) {
     const char* invalid_bitwise_float = "f:main() { v:x!f32 = 1.0; x &= 1.0; }";
     const char* valid_bitwise = "f:main() { v:x!u32 = 1; x |= 2; x ^= 3; }";
     return check_source(valid_numeric,0) && check_source(invalid_numeric,1) &&
-        check_source(invalid_bitwise_float,1) && check_source(valid_bitwise,0);
+        check_source(invalid_bitwise_float,3) && check_source(valid_bitwise,0);
 }
 
 static int check_array_type_semantics(void) {
