@@ -1986,6 +1986,13 @@ static ASTNode* parse_func_decl(Parser* p) {
         }
         memcpy(func->name, t.start + 2, (size_t)t.length - 2u);
         func->name[t.length - 2] = '\0';
+    } else if (p->previous.type == TOKEN_KW_EXTERN) {
+        Token t=p->previous;
+        if(t.length<=4){ast_destroy((ASTNode*)func);return NULL;}
+        func->name=(char*)parser_malloc(p,(size_t)t.length-3u);
+        if(!func->name){ast_destroy((ASTNode*)func);return NULL;}
+        memcpy(func->name,t.start+4,(size_t)t.length-4u);
+        func->name[t.length-4u]='\0';
     } else if (match(p, TOKEN_IDENTIFIER)) {
         Token t = p->previous;
         func->name = (char*)parser_malloc(p, (size_t)t.length + 1u);

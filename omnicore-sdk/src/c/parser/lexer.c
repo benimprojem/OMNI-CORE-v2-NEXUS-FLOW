@@ -204,8 +204,8 @@ static OmniTokenType identifier_type(const char* start, size_t length) {
     if (length > 4 && memcmp(start, "enum:", 5) == 0) return TOKEN_PRE_ENUM;
     if (length > 5 && memcmp(start, "union:", 6) == 0) return TOKEN_PRE_UNION;
     
-    // Fonksiyon Tanımları
-    if (length == 4 && start[0] == 'e' && start[1] == 'x' && start[2] == 'f' && start[3] == ':') return TOKEN_KW_EXTERN;
+    // exf:name is one token; Parser extracts the declaration name after the prefix.
+    if (length > 4 && memcmp(start, "exf:", 4u) == 0) return TOKEN_KW_EXTERN;
 
     // Anahtar Kelimeler
     switch (start[0]) {
