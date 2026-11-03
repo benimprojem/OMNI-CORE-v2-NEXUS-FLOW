@@ -240,4 +240,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - `OIR_MODULE.md` — OIR_MODULE ve mevcut lowering kapsamı.
 - `TASKS.md` / `PROJECT_STATUS.md` — görevler ve genel durum.
 
+
+| 2026-11-03 | AST allocation/destructor/codec switch'leri `ast.h` payload'larıyla yeniden tarandı: 99 kind aralığı korunuyor; `AST_BREAK` ve `AST_CONTINUE` payload'sız temel node, `AST_LISTEN` capture payload paylaşımı, `AST_NEXUS_PIPE/FLOW` Nexus payload ve `AST_FUNC_DECL/EXTERN_DECL` ortak function payload kullanıyor. Bu ortak payload'lar bilinçli ama node-kind bazında sözleşme testleriyle korunmalı; child ownership hâlâ tüm alanlar için otomatik doğrulanmıyor. HEAD `b322177` GitHub Actions run 41605036105: Windows, Ubuntu, macOS, ASan/UBSan ve Valgrind 5/5 başarı. | `ast.h`, `ast.c`, run 41605036105 |
+
 **Kural:** Bu tablo güncellenmeden bir AST düğümü veya pipeline aşaması tamamlandı olarak raporlanmaz.
