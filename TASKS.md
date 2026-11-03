@@ -1,7 +1,7 @@
 # OmniCore SDK — Güncel Görevler
 
 **Ana uygulama dili:** C  
-**C++:** Korunan referans uygulaması  
+**Çalışma alanı:** C-only compiler implementation  
 **Güncel plan:** ROADMAP.md  
 **Durum raporu:** PROJECT_STATUS.md
 
@@ -12,7 +12,6 @@
 > CMake/CI altyapısı mevcut. Windows, Ubuntu ve macOS'ta 21/21 CTest başarılı; Ubuntu GCC ASan/UBSan ve Valgrind koşuları da 21/21 geçti.
 
 - [x] C kaynaklarının temiz checkout üzerinde derlenmesini sağla (GitHub Actions: Windows, Ubuntu, macOS).
-- [x] parser_build.bat (C++ derlemesi) ile C uygulamasının build akışını açıkça ayır.
 - [x] C OCC için Windows build hedefi ve Linux/macOS build hedefleri oluştur.
 - [x] Parser, semantic ve codegen için ayrı build hedefleri oluştur.
 - [x] Config okuyucuyu bölüm/satır sırasından bağımsız hale getir (bölüm başlıklarından sonra gelen `language = "tr"` ayarıyla tanı testi).
@@ -80,7 +79,7 @@
 - [x] Kanonik OIR v1 container sözleşmesini ve ilk payload schema'larını tanımla.
 - [x] C OIR writer/reader geliştir ve CTest'e bağla.
 - [x] Bozuk/truncated/uyumsuz OIR dosyaları için temel güvenlik testlerini ekle.
-- [ ] C++ OIR2 ile özellik/format karşılaştırma tablosu oluştur; C++ hattı yalnızca tarihsel referans olarak tutulur.
+- [ ] C AST stream ile hedeflenen kanonik OIR v1 formatı arasındaki farkları ve migration gereksinimlerini belgeleyin.
 
 ## P1 — Backend ve optimizasyon
 
@@ -181,7 +180,7 @@ OCC CLI'de Semantic → OIR Lowering → OIR Verifier → Codegen stage zinciri 
 - [ ] SOURCE_MAP section payload codec'ini uygula.
 - [ ] SEMANTIC_AST payload şemasını tanımla.
 - [ ] Canonical OIR_MODULE için type system, opcode registry, control-flow, memory/ownership ve SSA kararlarını ayrı spec'te ver.
-- [ ] C++ OIR2 ve mevcut C AST stream için gerekirse açık legacy import/migration aracı tasarla; eski dosyaları OIR v1 gibi okumaya çalışma.
+- [ ] Eski C AST stream dosyaları için gerekirse açık migration aracı tasarla; eski dosyaları OIR v1 gibi okumaya çalışma.
 
  > OIR_FORMAT.md'de container v1.0 byte layout ve başlangıç numeric ID'leri sabitlendi. SOURCE_UNIT, DIAGNOSTICS ve TOKEN_STREAM payload codec'leri eklendi; lexer Token → OIR record dönüşümü ve diagnostic ID referansı test edildi.
 
