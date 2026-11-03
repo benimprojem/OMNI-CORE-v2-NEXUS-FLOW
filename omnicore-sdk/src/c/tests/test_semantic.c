@@ -132,6 +132,33 @@ static int check_postfix_semantics(void) {
         check_source(unresolved_operand, 1);
 }
 
+static int check_aggregate_member_semantics(void) {
+    const char* valid =
+        "f:main() { struct: Point { v:x!i32, v:y!i32 }"
+        " v:p!Point; v:a!i32 = p.x; p.y = 2; }";
+    const char* nested =
+        "f:main() { struct: Inner { v:x!i32 }"
+        " struct: Outer { v:inner!Inner } v:o!Outer;"
+        " v:a!i32 = o.inner.x; o.inner.x = 3; }";
+    const char* constant_object =
+        "f:main() { struct: Point { v:x!i32 } c:p!Point; p.x = 2; }";
+    const char* constant_field =
+        "f:main() { struct: Point { c:x!i32 } v:p!Point; p.x = 2; }";
+    const char* incompatible =
+        "f:main() { struct: Point { v:x!i32 } v:p!Point; p.x = \"bad\"; }";
+    const char* unknown_member =
+        "f:main() { struct: Point { v:x!i32 } v:p!Point; v:a = p.missing; }";
+    const char* non_aggregate =
+        "f:main() { v:value!i32 = 1; v:bad = value.member; }";
+    return check_source(valid, 0) &&
+        check_source(nested, 0) &&
+        check_source(constant_object, 1) &&
+        check_source(constant_field, 1) &&
+        check_source(incompatible, 1) &&
+        check_source(unknown_member, 1) &&
+        check_source(non_aggregate, 1);
+}
+
 static int check_array_literal_semantics(void) {
     const char* valid =
         "f:main() { v:values = [1, 2, 3]; v:matrix = [[1, 2], [3, 4]]; v:empty = []; }";
@@ -245,6 +272,10 @@ int main(int argc, char** argv) {
     }
     if (!check_array_type_semantics()) {
         fprintf(stderr, "Array type semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_aggregate_member_semantics()) {
+        fprintf(stderr, "Aggregate member semantic checks failed.\\n");
         return 1;
     }
     if (!check_array_literal_semantics()) {
