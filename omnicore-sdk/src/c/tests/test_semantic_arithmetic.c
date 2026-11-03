@@ -47,6 +47,11 @@ int main(void) {
         "f:main() !f64 { ret 17.0 % 5.0; }";
     static const char modulo_zero[] =
         "f:main() !i32 { ret 17 % 0; }";
+    static const char compound_valid[] = "f:main() { v:x = 1; x += 2; v:s = \"a\"; s .= \"b\"; }";
+    static const char compound_float[] = "f:main() { v:x = 1; x += 2.0; }";
+    static const char compound_bitwise_float[] = "f:main() { v:x = 1; x &= 2.0; }";
+    static const char append_non_string[] = "f:main() { v:x = 1; x .= \"b\"; }";
+    static const char invalid_lvalue[] = "f:main() { 1 = 2; }";
     static const char bitwise_valid[] = "f:main() !i32 { ret 7 & 3 | 2 ^ 1; }";
     static const char bitwise_float[] = "f:main() !f32 { ret 7.0 & 3.0; }";
     static const char logical_valid[] =
@@ -61,6 +66,11 @@ int main(void) {
     if (!check_source(modulo_integer, 0)) return 1;
     if (!check_source(modulo_float, 1)) return 1;
     if (!check_source(modulo_zero, 1)) return 1;
+    if (!check_source(compound_valid, 0)) return 1;
+    if (!check_source(compound_float, 1)) return 1;
+    if (!check_source(compound_bitwise_float, 1)) return 1;
+    if (!check_source(append_non_string, 1)) return 1;
+    if (!check_source(invalid_lvalue, 1)) return 1;
     if (!check_source(bitwise_valid, 0)) return 1;
     if (!check_source(bitwise_float, 1)) return 1;
     if (!check_source(logical_valid, 0)) return 1;

@@ -1543,6 +1543,40 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 }
             }
 
+            if (assign->left &&
+                assign->left->type != AST_IDENTIFIER &&
+                assign->left->type != AST_MEMBER_ACCESS &&
+                assign->left->type != AST_INDEX_ACCESS) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Assignment target must be a mutable identifier, member, or index.");
+            }
+            if (assign->op != TOKEN_ASSIGN && assign->op != TOKEN_FORCE_ASSIGN) {
+                const char* left_type=get_expr_type(ctx,assign->left);
+                const char* right_type=get_expr_type(ctx,assign->right);
+                int numeric_compound=assign->op==TOKEN_PLUS_EQ||
+                    assign->op==TOKEN_MINUS_EQ||assign->op==TOKEN_STAR_EQ||
+                    assign->op==TOKEN_SLASH_EQ;
+                int bitwise_compound=assign->op==TOKEN_BIT_AND_EQ||
+                    assign->op==TOKEN_BIT_OR_EQ||assign->op==TOKEN_BIT_XOR_EQ;
+                if(assign->op==TOKEN_STRING_APPEND) {
+                    if((left_type&&strcmp(left_type,"str")!=0)||
+                       (right_type&&strcmp(right_type,"str")!=0))
+                        report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                            "String append (.=) requires str operands.");
+                } else if(numeric_compound||bitwise_compound) {
+                    if(left_type&&right_type&&
+                       (!are_types_compatible(left_type,right_type)||
+                        !is_numeric_primitive_type(left_type)||
+                        !is_numeric_primitive_type(right_type)||
+                        (bitwise_compound&&
+                         (!is_integer_primitive_type(left_type)||
+                          !is_integer_primitive_type(right_type)))))
+                        report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                            bitwise_compound?
+                            "Bitwise compound assignment requires matching integer operands.":
+                            "Numeric compound assignment requires matching numeric operands.");
+                }
+            }
             semantic_check(ctx, assign->left);
             semantic_check(ctx, assign->right);
             break;
