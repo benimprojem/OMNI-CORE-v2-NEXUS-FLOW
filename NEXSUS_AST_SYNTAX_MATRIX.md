@@ -69,7 +69,7 @@ The syntax reference lists the language's designed operator inventory. The C Lex
 | Assignment `=`, directive assignment `!!=` | Consumed by `parse_assignment()`; creates `AST_ASSIGNMENT` | Lvalue validation and semantic operator rules |
 | Arithmetic `+`, `-` | Consumed by `parse_additive()` | Semantic numeric promotion and overflow behavior |
 | Arithmetic `*`, `/` | Consumed by `parse_term()` | Division-by-zero and numeric semantic rules |
-| Modulo `%` | Lexer token only; no Parser consumption | Add multiplicative-precedence production and tests |
+| Modulo `%` | Consumed by `parse_term()` at the same precedence as `*` and `/`; AST uses `AST_BINARY_EXPR` | Integer-only semantic rule; parser AST/codec regression covers expression and array extent |
 | Exponentiation `^^` | Lexer token only; no Parser consumption | Define precedence/associativity, then add Parser production and tests |
 | Comparison `<`, `<=`, `>`, `>=` | Consumed by `parse_comparison()` | Semantic comparability rules |
 | Equality `==`, `!=`, `===`, `==!` | Consumed by `parse_equality()` | Define and validate strict/forced equality semantics |
