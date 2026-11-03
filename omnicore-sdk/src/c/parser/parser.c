@@ -2743,6 +2743,7 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
     ASTNode* arms = NULL;
     ASTNode* tail = NULL;
     int seen_default = 0;
+    int seen_scan_else = 0;
     advance(p); /* contextual identifier: select / scan */
     if (!check(p, TOKEN_LPAREN)) {
         error_at(p, &p->current, ERR_PARSER_EXPECTED_PAREN, msg_get(MSG_EXPECT_LPAREN_FUNC));
@@ -2778,6 +2779,12 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
         ASTNode* guard=NULL;
         ASTNode* body=NULL;
         int is_default=0;
+        int is_scan_else=0;
+        if (is_scan && seen_scan_else) {
+            error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,
+                "A scan else arm must be the final arm.");
+            ast_destroy(root); ast_destroy(arms); return NULL;
+        }
         if (!is_scan && parser_identifier_is(&p->current,"default")) {
             is_default=1; advance(p);
             if(seen_default) {
@@ -2785,6 +2792,10 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
                 ast_destroy(root); ast_destroy(arms); return NULL;
             }
             seen_default=1;
+        } else if (is_scan && parser_identifier_is(&p->current,"else")) {
+            is_scan_else=1;
+            seen_scan_else=1;
+            advance(p);
         } else {
             pattern=parse_pattern(p);
             if(!pattern){ast_destroy(root);ast_destroy(arms);return NULL;}
@@ -2796,9 +2807,9 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
                 }
             }
         }
-        if(is_default && parser_identifier_is(&p->current,"when")) {
+        if((is_default || is_scan_else) && parser_identifier_is(&p->current,"when")) {
             error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,
-                "A default select arm cannot have a when guard.");
+                "A default/else arm cannot have a when guard.");
             ast_destroy(pattern); ast_destroy(guard); ast_destroy(root); ast_destroy(arms);
             return NULL;
         }
