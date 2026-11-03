@@ -709,7 +709,7 @@ OIR aşamasında:
 
 Özetle: `select` **değer seçer**, `scan` ise **yapı/varyant eşleştirir**. İkisi statement tabanlıdır ve birbirlerinin yerine kullanılmak zorunda değildir.
 
-Ayrıntılı tasarım: [NexusFlow Scan Select Syntax Spec.md](nexus%20docs/NexusFlow%20Scan%20Select%20Syntax%20Spec.md)
+Ayrıntılı tasarım: [NexusFlow Scan Select Syntax Spec.md](../../nexus%20docs/NexusFlow%20Scan%20Select%20Syntax%20Spec.md)
 
 ### 5.3.2 NEXUSFLOW: ÇOKLU KURAL İŞLEYİCİ (MULTI-RULE ENGINE)
 
