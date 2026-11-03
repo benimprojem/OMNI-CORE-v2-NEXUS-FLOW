@@ -239,7 +239,7 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 * `...` : Fonksiyonlar için çoklu prametre
 * `.=` : String birleştirme operatörü. Mevcut string'e yeni string ekler.
 
-**C Parser uygulama sınırı (2026-11-03):** Yukarıdaki liste dil tasarım envanteridir; tamamının mevcut Parser tarafından kabul edildiği anlamına gelmez. Kaynak kod denetimine göre `+`, `-`, `*`, `/`, karşılaştırma/eşitlik operatörleri, unary `!` / `~`, prefix/postfix `++` / `--` ve `..` için Parser üretimleri vardır. `^^`, binary bitwise `& | ^`, `&& ||`, compound assignment (`+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=`) ve `.=` henüz Parser tarafından tüketilmez. `<<` / `>>` mevcut gramerde Nexus Flow akış operatörleridir; bit-shift ifadesi olarak kullanılmaları ayrıca kararlaştırılmalıdır. Ayrıntılı uygulama matrisi: [NEXSUS_AST_SYNTAX_MATRIX.md](../../NEXSUS_AST_SYNTAX_MATRIX.md).
+**C Parser uygulama sınırı (2026-11-03):** Yukarıdaki liste dil tasarım envanteridir; tamamının mevcut Parser tarafından kabul edildiği anlamına gelmez. Kaynak kod denetimine göre `+`, `-`, `*`, `/`, `%` (integer operands only), karşılaştırma/eşitlik operatörleri, unary `!` / `~`, prefix/postfix `++` / `--` ve `..` için Parser üretimleri vardır. `^^`, binary bitwise `& | ^`, `&& ||`, compound assignment (`+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=`) ve `.=` henüz Parser tarafından tüketilmez. `<<` / `>>` mevcut gramerde Nexus Flow akış operatörleridir; bit-shift ifadesi olarak kullanılmaları ayrıca kararlaştırılmalıdır. Ayrıntılı uygulama matrisi: [NEXSUS_AST_SYNTAX_MATRIX.md](../../NEXSUS_AST_SYNTAX_MATRIX.md).
 
 ---
 
