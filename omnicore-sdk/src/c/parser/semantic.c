@@ -1454,6 +1454,19 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                 }
             }
 
+            if (bin->op == TOKEN_BIT_AND || bin->op == TOKEN_BIT_OR ||
+                bin->op == TOKEN_BIT_XOR) {
+                const char* left_type=get_expr_type(ctx,bin->left);
+                const char* right_type=get_expr_type(ctx,bin->right);
+                if(left_type&&right_type&&
+                   (!are_types_compatible(left_type,right_type)||
+                    !is_integer_primitive_type(left_type)||
+                    !is_integer_primitive_type(right_type))) {
+                    report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Bitwise operators require matching integer operands.");
+                }
+            }
+
             if (bin->op == TOKEN_EQ || bin->op == TOKEN_NEQ ||
                 bin->op == TOKEN_GT || bin->op == TOKEN_LT ||
                 bin->op == TOKEN_GTE || bin->op == TOKEN_LTE) {
