@@ -116,7 +116,8 @@ static int test_select_scan_oir_roundtrip(void) {
     static const char source[] =
         "f:take(a![], b!i32[], third:i32[4]) {}"
         "f:main() {"
-        " v:dynamic[]; v:fixed[5]!i32; v:matrix[3][3]!f32;"\n        " v:converted = cast(5, i32); v:indexed = array[0];"
+        " v:dynamic[]; v:fixed[5]!i32; v:matrix[3][3]!f32;"
+        " v:converted = cast(5, i32); v:indexed = array[0];"
         " select(x) { 1 when x > 0 -> { } default -> { } }"
         " scan(x) { Range(s,e) when s == e && e == s -> { } item -> { } else -> { } }"
         " rules PrimeBorders(n) { n < 2 :=> \"out of range\"; n == 2 -> true; always -> true; default -> false; }"
