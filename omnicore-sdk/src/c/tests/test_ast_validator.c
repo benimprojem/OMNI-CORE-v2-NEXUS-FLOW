@@ -175,5 +175,80 @@ int main(void) {
         }
         parser_destroy(parser);
     }
+
+    /* Legacy stream serialization must enforce the same ownership contract. */
+    {
+        ASTNode *bin = ast_create(AST_BINARY_EXPR);
+        ASTNode *shared = ast_create(AST_IDENTIFIER);
+        FILE *stream = tmpfile();
+        if (!bin || !shared || !stream) return 1;
+        ((ASTBinaryExpr *)bin)->left = shared;
+        ((ASTBinaryExpr *)bin)->right = shared;
+        if (ast_serialize(bin, stream) || ftell(stream) != 0L) {
+            fprintf(stderr, "serializer accepted shared ownership or wrote partial bytes\\n");
+            ((ASTBinaryExpr *)bin)->right = NULL;
+            ast_destroy(bin);
+            fclose(stream);
+            return 1;
+        }
+        ((ASTBinaryExpr *)bin)->right = NULL;
+        ast_destroy(bin);
+        fclose(stream);
+    }
+
+    /* A structurally invalid stream must not materialize as a public AST. */
+    {
+        FILE *stream = tmpfile();
+        int type = (int)AST_FUNC_DECL, line = 1, col = 1;
+        int name_length = 1, absent = -1, zero = 0;
+        ASTNode *decoded;
+        if (!stream) return 1;
+        if (fwrite(&type, sizeof(type), 1u, stream) != 1u ||
+            fwrite(&line, sizeof(line), 1u, stream) != 1u ||
+            fwrite(&col, sizeof(col), 1u, stream) != 1u ||
+            fwrite(&name_length, sizeof(name_length), 1u, stream) != 1u ||
+            fwrite("f", 1u, 1u, stream) != 1u ||
+            fwrite(&absent, sizeof(absent), 1u, stream) != 1u ||
+            fwrite(&zero, sizeof(zero), 1u, stream) != 1u ||
+            fwrite(&zero, sizeof(zero), 1u, stream) != 1u ||
+            fwrite(&zero, sizeof(zero), 1u, stream) != 1u ||
+            fwrite(&absent, sizeof(absent), 1u, stream) != 1u ||
+            fwrite(&absent, sizeof(absent), 1u, stream) != 1u ||
+            fwrite(&absent, sizeof(absent), 1u, stream) != 1u ||
+            fflush(stream) != 0 || fseek(stream, 0L, SEEK_SET) != 0) {
+            fclose(stream);
+            return 1;
+        }
+        decoded = ast_deserialize(stream);
+        if (decoded) {
+            fprintf(stderr, "deserializer accepted function declaration without body\\n");
+            ast_destroy(decoded);
+            fclose(stream);
+            return 1;
+        }
+        fclose(stream);
+    }
+
+    /* Valid ASTs survive the legacy stream codec and validate after decode. */
+    {
+        ASTNode *fn = ast_create(AST_FUNC_DECL);
+        ASTNode *body = ast_create(AST_BLOCK);
+        FILE *stream = tmpfile();
+        ASTNode *decoded;
+        if (!fn || !body || !stream) return 1;
+        ((ASTFuncDecl *)fn)->body = body;
+        if (!ast_serialize(fn, stream) || fseek(stream, 0L, SEEK_SET) != 0) {
+            ast_destroy(fn); fclose(stream); return 1;
+        }
+        decoded = ast_deserialize(stream);
+        if (!decoded || !ast_validate(decoded, NULL)) {
+            fprintf(stderr, "valid AST legacy round-trip failed\\n");
+            if (decoded) ast_destroy(decoded);
+            ast_destroy(fn); fclose(stream); return 1;
+        }
+        ast_destroy(decoded);
+        ast_destroy(fn);
+        fclose(stream);
+    }
     return 0;
 }
