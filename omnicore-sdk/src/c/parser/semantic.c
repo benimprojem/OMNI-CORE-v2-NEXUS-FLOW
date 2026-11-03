@@ -765,7 +765,8 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
             return type_name;
         }
-        case AST_UNARY_EXPR: {
+        case AST_UNARY_EXPR:
+        case AST_POSTFIX_EXPR: {
             const char* type_name =
                 get_expr_type(ctx, ((ASTUnaryExpr*)node)->operand);
             semantic_record_annotation(
@@ -1651,7 +1652,8 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             break;
         }
 
-        case AST_FUNC_DECL: {
+        case AST_FUNC_DECL:
+        case AST_EXTERN_DECL: {
             ASTFuncDecl* func = (ASTFuncDecl*)node;
             Slot* function_slot = NULL;
             if (func->name) {
@@ -1826,6 +1828,53 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             semantic_check(ctx, unary->operand);
             break;
         }
+
+        case AST_POSTFIX_EXPR: {
+            ASTUnaryExpr* postfix = (ASTUnaryExpr*)node;
+            const char* operand_type = NULL;
+            if (postfix->operand) {
+                semantic_check(ctx, postfix->operand);
+                operand_type = get_expr_type(ctx, postfix->operand);
+            }
+            if (!postfix->operand || postfix->operand->type != AST_IDENTIFIER) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Postfix increment/decrement currently requires a variable identifier.");
+            } else {
+                Slot* operand_slot = find_slot(ctx,
+                    ((ASTIdentifier*)postfix->operand)->name);
+                if (!operand_slot) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Postfix operand is not a resolved variable.");
+                } else if (operand_slot->is_const) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Postfix increment/decrement cannot modify a constant.");
+                } else if (!operand_type || !is_numeric_primitive_type(operand_type)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Postfix increment/decrement requires a numeric variable.");
+                }
+            }
+            if (operand_type) semantic_record_annotation(
+                ctx, node, NULL, operand_type, SEMANTIC_RESULT_VALUE_RVALUE);
+            break;
+        }
+
+        case AST_MEMBER_ACCESS:
+            if (((ASTMemberAccess*)node)->object)
+                semantic_check(ctx, ((ASTMemberAccess*)node)->object);
+            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Member access is not enabled until aggregate member resolution is implemented.");
+            break;
+
+        case AST_TUPLE:
+            semantic_check(ctx, ((ASTTuple*)node)->elements);
+            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Tuple values are not enabled until tuple typing is implemented.");
+            break;
+
+        case AST_ASM_BLOCK:
+            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Inline assembly blocks are not enabled in the semantic pipeline.");
+            break;
 
         case AST_FUNC_CALL: {
             ASTCall* call = (ASTCall*)node;
