@@ -94,6 +94,7 @@ This table is an implementation audit, not a change to the language design. Unsu
 5. **Conditional action:** parser canonicalizes it to `AST_IF`; loop-context semantic checks and source-form round-trip remain open.
 6. **Ownership/effects:** relocate invalidation, handler capture, unpack, defer and halt cleanup need complete semantic effect records and lowering.
 7. **Intent/AI logic:** declared/deferred; do not invent semantics before their specs are activated.
+8. **Pattern binding type inference:** `semantic_check_pattern_bindings()` currently creates `any` slots without the select/scan subject type. Enum declaration analysis already records payload field types in Semantic Result relations, but the arm checker does not resolve a constructor pattern against that subject enum/variant. This is the reason a guard such as `when a > 0` cannot yet rely on the payload field's numeric type; subject-aware constructor resolution must close before those guards are claimed semantically complete.
 
 ## AST node payload/codec audit (all current enum tags)
 
