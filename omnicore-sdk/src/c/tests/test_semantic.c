@@ -219,7 +219,8 @@ static int check_compound_assignment_semantics(void) {\n    const char* valid_nu
         check_source(invalid_index_target,1) &&
         check_source(invalid_index_type,2) &&
         check_source(const_array_index_write,1) &&
-        check_source(indexed_element_type_mismatch,1) &&\n        check_source(non_lvalue_assignment,1);
+        check_source(indexed_element_type_mismatch,1) &&
+        check_source(non_lvalue_assignment,1);
 }
 
 static int check_extended_ast_semantics(void) {
