@@ -1,5 +1,6 @@
 #include "ast.h"
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -1542,7 +1543,7 @@ ASTNode* ast_deserialize(FILE* in) {
 
 /* ---------------- AST graph validation ---------------- */
 typedef struct {
-    const ASTNode **items;
+    const ASTNode **slots;
     size_t count, capacity;
     unsigned depth;
     ASTValidationError *error;
@@ -1553,17 +1554,50 @@ static int ast_validation_fail(ASTValidationState *s, ASTValidationCode code,
     if (s->error) { s->error->code=code; s->error->node=node; s->error->field=field; }
     return 0;
 }
-static int ast_validation_mark(ASTValidationState *s, const ASTNode *n) {
+
+static size_t ast_validation_hash(const ASTNode *node) {
+    size_t key=(size_t)(uintptr_t)node;
+    key ^= key >> 17;
+    key *= (size_t)0xed5ad4bbu;
+    key ^= key >> 11;
+    key *= (size_t)0xac4c1b51u;
+    key ^= key >> 15;
+    return key;
+}
+
+static int ast_validation_grow(ASTValidationState *s, const ASTNode *node) {
+    size_t capacity=s->capacity ? s->capacity*2u : 128u;
     size_t i;
-    for (i=0;i<s->count;i++) if (s->items[i]==n)
-        return ast_validation_fail(s,AST_VALIDATE_SHARED_NODE,n,"ownership");
-    if (s->count==s->capacity) {
-        size_t cap=s->capacity ? s->capacity*2u : 64u;
-        const ASTNode **p=(const ASTNode**)realloc(s->items,cap*sizeof(*p));
-        if (!p) return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,n,NULL);
-        s->items=p; s->capacity=cap;
+    const ASTNode **slots;
+    if (capacity < s->capacity || capacity > ((size_t)-1)/sizeof(*slots))
+        return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
+    slots=(const ASTNode**)calloc(capacity,sizeof(*slots));
+    if (!slots) return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
+    for (i=0;i<s->capacity;i++) if (s->slots[i]) {
+        size_t at=ast_validation_hash(s->slots[i]) & (capacity-1u);
+        while (slots[at]) at=(at+1u)&(capacity-1u);
+        slots[at]=s->slots[i];
     }
-    s->items[s->count++]=n; return 1;
+    free(s->slots);
+    s->slots=slots;
+    s->capacity=capacity;
+    return 1;
+}
+
+static int ast_validation_mark(ASTValidationState *s, const ASTNode *node) {
+    size_t at;
+    if (!s->capacity || (s->count+1u) >= (s->capacity*7u)/10u) {
+        if (!ast_validation_grow(s,node)) return 0;
+    }
+    at=ast_validation_hash(node) & (s->capacity-1u);
+    while (s->slots[at]) {
+        if (s->slots[at]==node)
+            return ast_validation_fail(s,AST_VALIDATE_SHARED_NODE,node,"ownership");
+        at=(at+1u)&(s->capacity-1u);
+    }
+    s->slots[at]=node;
+    s->count++;
+    return 1;
 }
 static int ast_validation_chain(ASTValidationState*,const ASTNode*);
 static int ast_validation_child(ASTValidationState*s,const ASTNode*n,const ASTNode*c,const char*field,int required) {
@@ -1654,7 +1688,7 @@ int ast_validate(const ASTNode *root, ASTValidationError *error) {
     state.error=error;
     {
         int ok=ast_validation_chain(&state,root);
-        free(state.items);
+        free(state.slots);
         return ok;
     }
 }
