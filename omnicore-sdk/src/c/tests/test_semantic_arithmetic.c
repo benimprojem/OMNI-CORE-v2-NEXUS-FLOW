@@ -41,11 +41,20 @@ int main(void) {
         "f:main() !bool { ret true - false; }";
     static const char comparison_condition[] =
         "f:main() !bool { ret 10 < 20; }";
+    static const char modulo_integer[] =
+        "f:main() !i32 { ret 17 % 5; }";
+    static const char modulo_float[] =
+        "f:main() !f64 { ret 17.0 % 5.0; }";
+    static const char modulo_zero[] =
+        "f:main() !i32 { ret 17 % 0; }";
     if (!check_source(integer_expression, 0)) return 1;
     if (!check_source(float_expression, 0)) return 1;
     if (!check_source(mismatched_operands, 1)) return 1;
     if (!check_source(non_numeric_operands, 1)) return 1;
     if (!check_source(comparison_condition, 0)) return 1;
+    if (!check_source(modulo_integer, 0)) return 1;
+    if (!check_source(modulo_float, 1)) return 1;
+    if (!check_source(modulo_zero, 1)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
