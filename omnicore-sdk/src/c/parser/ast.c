@@ -1545,6 +1545,8 @@ ASTNode* ast_deserialize(FILE* in) {
 typedef struct {
     const ASTNode **slots;
     size_t count, capacity;
+    const ASTNode **active;
+    size_t active_count, active_capacity;
     unsigned depth;
     ASTValidationError *error;
 } ASTValidationState;
@@ -1586,7 +1588,7 @@ static int ast_validation_grow(ASTValidationState *s, const ASTNode *node) {
 
 static int ast_validation_mark(ASTValidationState *s, const ASTNode *node) {
     size_t at;
-    if (!s->capacity || (s->count+1u) >= (s->capacity*7u)/10u) {
+    if (!s->capacity || (s->count+1u) >= s->capacity-(s->capacity/3u)) {
         if (!ast_validation_grow(s,node)) return 0;
     }
     at=ast_validation_hash(node) & (s->capacity-1u);
@@ -1599,6 +1601,21 @@ static int ast_validation_mark(ASTValidationState *s, const ASTNode *node) {
     s->count++;
     return 1;
 }
+static int ast_validation_active_push(ASTValidationState *s, const ASTNode *node) {
+    if (s->active_count==s->active_capacity) {
+        size_t capacity=s->active_capacity ? s->active_capacity*2u : 32u;
+        const ASTNode **active;
+        if (capacity<s->active_capacity || capacity>((size_t)-1)/sizeof(*active))
+            return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
+        active=(const ASTNode**)realloc(s->active,capacity*sizeof(*active));
+        if (!active) return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
+        s->active=active;
+        s->active_capacity=capacity;
+    }
+    s->active[s->active_count++]=node;
+    return 1;
+}
+
 static int ast_validation_chain(ASTValidationState*,const ASTNode*);
 static int ast_validation_child(ASTValidationState*s,const ASTNode*n,const ASTNode*c,const char*field,int required) {
     int ok;
@@ -1608,10 +1625,22 @@ static int ast_validation_child(ASTValidationState*s,const ASTNode*n,const ASTNo
     s->depth++; ok=ast_validation_chain(s,c); s->depth--; return ok;
 }
 static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
+    const ASTNode *slow=n, *fast=n;
+    /* Detect cycles made solely through sibling links before linear traversal. */
+    while (fast && fast->next) {
+        slow=slow->next;
+        fast=fast->next->next;
+        if (slow==fast)
+            return ast_validation_fail(s,AST_VALIDATE_CYCLE,slow,"next");
+    }
     while(n) {
+        size_t active_index;
         if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_ARRAY_DIMENSION)
             return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"type");
-        if (!ast_validation_mark(s,n)) return 0;
+        for(active_index=0;active_index<s->active_count;active_index++)
+            if(s->active[active_index]==n)
+                return ast_validation_fail(s,AST_VALIDATE_CYCLE,n,"child");
+        if (!ast_validation_mark(s,n) || !ast_validation_active_push(s,n)) return 0;
 #define V(child,field) do { if(!ast_validation_child(s,n,(child),(field),0)) return 0; } while(0)
 #define R(child,field) do { if(!ast_validation_child(s,n,(child),(field),1)) return 0; } while(0)
         switch(n->type) {
@@ -1677,6 +1706,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         }
 #undef V
 #undef R
+        s->active_count--;
         n=n->next;
     }
     return 1;
@@ -1689,6 +1719,7 @@ int ast_validate(const ASTNode *root, ASTValidationError *error) {
     {
         int ok=ast_validation_chain(&state,root);
         free(state.slots);
+        free(state.active);
         return ok;
     }
 }
