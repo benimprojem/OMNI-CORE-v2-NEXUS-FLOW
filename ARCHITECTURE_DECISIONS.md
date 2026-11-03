@@ -8,13 +8,12 @@ Bu belge uygulama kararlarını ve henüz karara bağlanmamış tasarım konular
 - **Karar:** OmniCore Compiler'ın ana kaynak uygulaması C olacaktır.
 - **Gerekçe:** Daha yalın ABI, düşük seviye kontrol, küçük çalışma zamanı bağımlılığı ve sistem yazılımı hedefleriyle uyum.
 - **Kapsam:** Lexer, parser, AST, semantik analiz, OIR altyapısı, optimizer ve codegen ana hatları.
-- **C++ rolü:** Silinmeyecek. Parser, OIR writer/reader, analyzer ve IDE bileşenleri referans olarak tutulacak. Yararlı algoritmalar ancak davranışları testlerle doğrulandıktan sonra C tarafına aktarılacak.
 - **Geçiş:** Kaynaklar ilk aşamada yerinde korunur. Build/test düzeni doğrulanmadan toplu taşıma yapılmaz.
 
 ## ADR-002 — Tek ve açık ara temsil sözleşmesi
 
 - **Durum:** OIR v1 container yönü önerildi; binary layout ve payload semantiği henüz freeze edilmedi.
-- C tarafındaki parser_save_ir() AST serileştirmesi ile C++ tarafındaki OIR2 ikili biçimi aynı format değildir. Hiçbiri doğrudan kanonik format ilan edilmeyecektir.
+- C tarafındaki parser_save_ir() AST serileştirmesi dahili bir ara akıştır; tek başına kanonik OIR formatı olarak kabul edilmeyecektir.
 - Tüm compiler-stage handoff tek bir sürümlenmiş OIR container üzerinden yapılacaktır. Container, payload kind/schema version alanlarıyla SOURCE_UNIT, TOKEN_STREAM, AST, SEMANTIC_AST, OIR_MODULE, TARGET_IR, ASSEMBLY ve OBJECT gibi farklı aşama çıktılarını taşıyabilir.
 - OIR container aynı zamanda in-memory opaque artifact handle sözleşmesinin kalıcı/checkpoint byte representation'ıdır.
 - Container alanları fixed-width, little-endian, length-delimited ve pointer/host-struct bağımsız olacaktır.
@@ -91,7 +90,7 @@ Bu belge uygulama kararlarını ve henüz karara bağlanmamış tasarım konular
 - **Gerekçe:** Bir aşamanın çıktısının doğrudan sonraki aşamanın girdisi olması; modüllerin birbirlerinin özel C struct'larına, allocator'larına veya pointer'larına bağımlı kalmaması.
 - **Container/payload ayrımı:** OIR container ortak başlık, metadata ve length-delimited section yapısını sağlar. Token stream, AST, semantic AST, canonical OIR, assembly ve object gibi payload'lar kendi tip ve schema sürümleriyle tanımlanır.
 - **Geçerlilik:** Artifact envelope, payload kind/version ve validity durumu downstream çağrısından önce doğrulanır. PARTIAL yalnızca bunu kabul ettiğini bildiren modüle verilir.
-- **Eski formatlar:** Mevcut C native-layout AST stream ve eski C++ OIR2 birbirinden farklı legacy biçimlerdir; OIR v1 olarak yorumlanamazlar.
+- **Eski formatlar:** Mevcut C native-layout AST stream, OIR v1 olarak yorumlanamaz; sürümlü ve platform bağımsız formata dönüştürülmelidir.
 - **Detay:** [OIR_FORMAT.md](OIR_FORMAT.md).
 
 
