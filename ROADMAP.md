@@ -1,6 +1,6 @@
 # OmniCore SDK — Geliştirme Yol Haritası
 
-**Yön:** C ana kaynak, C++ referans uygulama  
+**Yön:** C-only compiler workspace  
 **Belge türü:** Canlı plan; her fazın çıkışı testlerle doğrulandıkça güncellenecek.
 
 ## Hedef
@@ -10,8 +10,7 @@ NexusFlow'u Windows, Linux ve macOS üzerinde çalıştırabilen; bu sistemler i
 ## Şu an neredeyiz?
 
 - **C hattı:** C11 tabanlı frontend (lexer/parser/AST/semantic), OCC CLI ve ayrı yüklenebilir codegen modülü mevcut. AST deserializer güvenlik kontrolleri, tüm AST tag'leri ve her düğüm ailesinin serialized alanları için byte-equality round-trip matrisi, AST_EXTERN_DECL/AST_LITERAL regresyonları ve yazma hata yayılımı eklendi. Sanitizer doğrulaması sırada.
-- **C++ hattı:** Lexer/parser, OIR writer, analyzer ve OCE/IDE kaynakları korunuyor; ana geliştirme hattı değil.
-- **Ortak sözleşme:** C AST serialization ile C++ OIR2 birbirinden farklı. Kanonik, sürümlenmiş OIR sözleşmesi henüz yok.
+- **Ara temsil:** C AST serialization mevcut; kanonik, sürümlenmiş OIR sözleşmesi henüz tamamlanmadı.
 - **Build/test:** CMake tabanlı C build'i, Windows/Linux/macOS CI matrisi ve CTest hattı mevcut. Son CI koşusunda Windows, Ubuntu ve macOS üzerinde 10/10 CTest başarılı; target parser doğrulaması da bu kapsama dahil.
 - **Backend:** Target descriptor parser mevcut tanımları doğrulayabiliyor; gerçek C backend şu an yalnızca x86-64/64-bit/little-endian/bare-metal/raw profili destekliyor. Diğer tanımların okunabilmesi codegen desteği anlamına gelmiyor.
 - **Dil doğruluğu:** Dokümanlardaki tüm özelliklerin C uygulamasında desteklendiğini gösteren kapsamlı test matrisi henüz yok.
@@ -82,7 +81,6 @@ Proje şu an **prototip / entegrasyon aşamasında**. Yüzde tamamlanma yerine m
 - [ ] Header, offset, length, count, alignment ve integer overflow kontrolleri ekle.
 - [ ] Truncated, bozuk, bilinmeyen opcode ve sürüm testleri yaz.
 - [ ] Source map ve debug/release farkını tanımla.
-- [ ] C++ OIR2'yi uyumluluk/özellik karşılaştırması için kullan; doğrulanmadan ana formata dönüştürme.
 
 **Çıkış ölçütü:** Writer-reader round-trip ve bozuk dosya testleri; OIR sürüm uyumluluğu açıkça tanımlı.
 
@@ -159,7 +157,7 @@ Ayrıntılı görev ve çıkış ölçütleri: [AST_OIR_COMPLETION_PLAN.md](AST_
 
 1. Valgrind çalıştırma altyapısı ekle; GCC ASan/UBSan CI artık 10/10 testle başarılı. İlk sanitizer koşusunda bulunan semantic scope slot type_name sızıntısı ortak destroy_slot() ile giderildi.
 2. Lexer/parser/semantic için ayrı, küçük ve izole test kümeleri kur.
-3. C AST serialization ile C++ OIR2'yi karşılaştırıp kanonik OIR v1 sözleşmesine hazırlan.
+3. C AST serialization ile kanonik OIR v1 sözleşmesinin sınırlarını netleştir ve C writer/reader tasarımını tamamla.
 
 ## İlerleme raporu formatı
 
