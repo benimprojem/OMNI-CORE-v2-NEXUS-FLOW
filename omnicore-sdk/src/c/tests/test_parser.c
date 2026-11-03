@@ -698,7 +698,7 @@ static int test_select_scan_ast(void) {
     static const char source[] =
         "f:main() { v:x = 1;"
         " select(x) { 1 when x > 0 -> { v:a = 2; } default -> { v:b = 3; } }"
-        " scan(x) { Range(s,e) when s < e && e > 0 -> { v:c = s; } item -> { v:d = item; } }"
+        " scan(x) { Range(s,e) when s < e && e > 0 -> { v:c = s; } item -> { v:d = item; } else -> { v:fallback = 0; } }"
         "}";
     ParserContext* ctx=parser_init_source("select-scan.nxf",(const uint8_t*)source,sizeof(source)-1u);
     ASTProgram* program;
@@ -750,6 +750,12 @@ static int test_select_scan_ast(void) {
             strcmp(((ASTPatternBinding*)ctor->bindings)->name,"s")!=0 ||
             !ctor->bindings->next ||
             strcmp(((ASTPatternBinding*)ctor->bindings->next)->name,"e")!=0)goto done;
+        {
+            ASTScanArm* second=(ASTScanArm*)first->base.next;
+            ASTScanArm* fallback=second?(ASTScanArm*)second->base.next:NULL;
+            if(!second || !second->pattern || !fallback || fallback->pattern ||
+                !fallback->body)goto done;
+        }
     }
     stream=tmpfile();
     if(!stream)goto done;
@@ -770,6 +776,9 @@ done:
     if(!parser_source_reports_syntax_error("scan-empty-constructor.nxf",
         "f:main() { scan(x) { Range() -> { } } }",
         sizeof("f:main() { scan(x) { Range() -> { } } }")-1u))return 0;
+    if(!parser_source_reports_syntax_error("scan-duplicate-else.nxf",
+        "f:main() { scan(x) { item -> { } else -> { } else -> { } } }",
+        sizeof("f:main() { scan(x) { item -> { } else -> { } else -> { } } }")-1u))return 0;
     return 1;
 }
 
