@@ -137,7 +137,7 @@ ASTNode* ast_create(ASTNodeType type) {
     size_t size;
 
     /* Reject values outside the append-only public AST kind inventory. */
-    if ((int)type < (int)AST_PROGRAM || (int)type > (int)AST_ARRAY_DIMENSION) {
+    if ((int)type < (int)AST_PROGRAM || (int)type > (int)AST_BLOCK_HALT) {
         return NULL;
     }
     size = get_node_size(type);
