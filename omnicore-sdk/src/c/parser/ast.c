@@ -133,7 +133,13 @@ static size_t get_node_size(ASTNodeType type) {
 }
 
 ASTNode* ast_create(ASTNodeType type) {
-    size_t size = get_node_size(type);
+    size_t size;
+
+    /* Reject values outside the append-only public AST kind inventory. */
+    if ((int)type < (int)AST_PROGRAM || (int)type > (int)AST_ARRAY_DIMENSION) {
+        return NULL;
+    }
+    size = get_node_size(type);
     ASTNode* node = (ASTNode*)malloc(size);
     if (node) {
         memset(node, 0, size); // Belleği sıfırla (tüm pointerlar NULL olur)
