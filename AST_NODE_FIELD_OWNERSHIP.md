@@ -95,3 +95,48 @@ The OIR AST frontend has separate writer/reader/index/schema tests under `omnico
 - Exhaustive AST tag-to-parser/OIR/semantic/lowering coverage report.
 - Explicit semantic status for syntax-only nodes that have not yet received type rules.
 - OIR partial-index/view lifetime representation.
+
+
+## Structural nullability contract (AST storage vs valid syntax)
+
+The zero-initialized factory deliberately permits every pointer field to be NULL. This is **storage/lifecycle tolerance**, not a statement that NULL is valid in a parsed program. Contracts are separated into three levels:
+
+- **Required after successful Parser:** fields that a grammar production must populate. A missing value indicates a Parser construction bug or malformed manually-built AST.
+- **Syntax-optional:** fields intentionally absent for a supported syntax form (e.g. variable initializer, function body for extern, dynamic array dimension length, scan-else pattern).
+- **Semantic-required:** Parser may structurally create a node, but Semantic must reject a missing/invalid value before a successful semantic artifact.
+
+### Explicit optional-field cases already established
+
+| Node / field | NULL meaning | Boundary |
+|---|---|---|
+| `AST_VAR_DECL.initializer` | declaration without initializer | Semantic checks const/inference/definite initialization rules |
+| `AST_VAR_DECL.inline_type` | no inline aggregate/declarator payload | Parser/type resolver decides from declaration syntax |
+| `AST_FUNC_DECL.body` / `AST_EXTERN_DECL.body` | extern signature has no body | Non-extern function body is Parser-required |
+| `AST_FUNC_DECL.return_type` | inferred/unspecified return type | Semantic return inference/validation |
+| `AST_ARRAY_DIMENSION.length` | dynamic/unspecified dimension (`[]`) | Semantic parameter/array context rules |
+| `AST_SCAN_ARM.pattern` | scan catch-all `else` arm only | Parser enforces final and unique else |
+| `AST_NEXUS_HALT.expr` | halt without explicit expression | Halt syntax/semantic context |
+| `AST_IF.else_branch` | no else/elsif continuation | Valid optional branch |
+| `AST_LOOP.init/condition/increment/collection/variable` | depends on loop form | Parser loop_type selects required subset; Semantic validates form |
+| `AST_NEXUS_FLOW.catch_block` | no explicit catch branch | Flow operator determines whether a catch is required |
+| `AST_ENUM_VARIANT.data` | unit variant | Enum payload contract |
+| `AST_MEMBER_ACCESS.member_name`, owned names generally | NULL is not a valid parsed name | Parser-required; Semantic must fail closed on malformed manual AST |
+
+### Required child groups after successful Parser (baseline)
+
+These are parser construction invariants, not a complete semantic typing specification:
+
+- `AST_PROGRAM.declarations` may be empty; `AST_BLOCK.statements` may be empty.
+- `AST_BINARY_EXPR` / `AST_ASSIGNMENT`: both `left` and `right` are required.
+- `AST_CAST`: `value` and `target_type` are required.
+- `AST_FUNC_CALL`: `callee` required; `args` may be empty.
+- `AST_INDEX_ACCESS`: `target` and `index` required.
+- `AST_TUPLE` / `AST_ARRAY_LITERAL`: empty element list is structurally representable; Semantic decides whether the empty form has an inferable type.
+- `AST_IF`: `condition` and `then_branch` required; `else_branch` optional.
+- `AST_SELECT` / `AST_SCAN`: selector/subject and arm list required by successful grammar; arm list must contain at least one arm.
+- `AST_SELECT_ARM`: body required; pattern may be absent only when `is_default` is set.
+- `AST_SCAN_ARM`: body required; pattern may be NULL only for the final else catch-all.
+- `AST_PATTERN_CONSTRUCTOR.bindings`, function parameter lists and rule argument lists may be empty.
+- `AST_ARRAY_TYPE.dimensions`: at least one dimension is required by the declarator production; each dimension node exists, while its `length` may be NULL for `[]`.
+
+**Validation gap:** these invariants are currently documented and partially covered by parser fixtures, but there is no generic AST graph validator that checks required-child contracts, duplicate ownership, or cycles. Do not treat the table as automatically enforced until such a validator and negative tests are added.
