@@ -98,6 +98,21 @@ static int check_control_flow_semantics(void) {
         check_source(invalid_conditional_actions, 2);
 }
 
+static int check_postfix_semantics(void) {
+    const char* valid =
+        "f:main() { v:counter!i32 = 0; counter++; counter--; }";
+    const char* constant_operand =
+        "f:main() { c:counter!i32 = 0; counter++; }";
+    const char* non_numeric_operand =
+        "f:main() { v:label!str = \"x\"; label++; }";
+    const char* unresolved_operand =
+        "f:main() { missing++; }";
+    return check_source(valid, 0) &&
+        check_source(constant_operand, 1) &&
+        check_source(non_numeric_operand, 1) &&
+        check_source(unresolved_operand, 1);
+}
+
 static int check_array_literal_semantics(void) {
     const char* valid =
         "f:main() { v:values = [1, 2, 3]; v:matrix = [[1, 2], [3, 4]]; v:empty = []; }";
@@ -201,6 +216,10 @@ static int check_extended_ast_semantics(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!check_postfix_semantics()) {
+        fprintf(stderr, "Postfix semantic checks failed.\\n");
+        return 1;
+    }
     if (!check_array_type_semantics()) {
         fprintf(stderr, "Array type semantic checks failed.\n");
         return 1;
