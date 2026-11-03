@@ -7,7 +7,7 @@
 
 ## Karar
 
-C ana kaynak olacaktır. C++ kaynakları korunacak ve referans olarak incelenecektir. OmniCore hedefi Windows, Linux ve macOS host/target platformları ile x86-64 ve AArch64 gibi genel CPU mimarilerini desteklemektir. Kullanıcı isterse CPU modeli ve ek yetenekleri seçebilir; hedef belirtilmezse host OS + host architecture varsayılan olur.
+Bu çalışma dalı C-only derleyici geliştirme alanıdır. Derleyici kaynakları, build sistemi, testler ve etkin teknik belgeler C uygulamasını esas alır. OmniCore hedefi Windows, Linux ve macOS host/target platformları ile x86-64 ve AArch64 gibi genel CPU mimarilerini desteklemektir. Kullanıcı isterse CPU modeli ve ek yetenekleri seçebilir; hedef belirtilmezse host OS + host architecture varsayılan olur.
 
 ## Mevcut envanter
 
@@ -23,19 +23,6 @@ Konum: omnicore-sdk/src/c/
 - Eski DLL, EXE ve statik kütüphane çıktıları temp/build-artifacts/ altında arşivlendi.
 
 **Değerlendirme:** C tarafında anlamlı bir frontend ve codegen iskeleti var. Dosyaların varlığı, tüm özelliklerin çalıştığını kanıtlamıyor. Otomatik çalışan bir build/test hattı bu incelemede doğrulanmadı.
-
-### C++ uygulaması
-
-Konum: temp/legacy-cpp/src/ (C++); omnicore-sdk/src/oce/ (IDE/editor)
-
-- parser/: Lexer, NexusParser, OIR writer ve generator.
-- analyzer/: Analyzer, OIR reader, symbol table ve type system.
-- occ/: OCC ana programı.
-
-
-**Değerlendirme:** Referans alınabilecek tasarım parçaları var. Ancak bu hat ana geliştirme hattı olmayacak. OIR writer/reader güvenlik ve veri bütünlüğü kontrolleri, ayrıca modül sınırları denetlenmeli.
-
-IDE/editor kaynağı ayrı tutulmuştur: omnicore-sdk/src/oce/.
 
 ### Diğer SDK bileşenleri
 
@@ -54,7 +41,7 @@ IDE/editor kaynağı ayrı tutulmuştur: omnicore-sdk/src/oce/.
 3. **C CLI — ilk katman çözüldü:** Kaynak ve `--target` sıralaması serbest; bilinmeyen seçenek, eksik target değeri ve birden fazla kaynak reddediliyor. CI testleriyle doğrulandı.
 4. **C codegen — açık:** Çıktı üretimi hâlâ x86-64/NASM varsayımlarına dayanıyor. Target dosyasının varlığı ARM64 desteğini kanıtlamaz.
 5. **C hata kodları — kısmen doğrulandı:** Normal compile yolu ve CLI hata yolları test edildi. Codegen modülünün yüklenememesi/bozuk sembol gibi hata enjeksiyon testleri henüz yok.
-6. **C++ OIR — açık:** C++ OIR2 reader/writer formatı C AST serialization ile aynı değil. Reader'ın header/offset/length doğrulaması ve string sonlandırması ayrıca denetlenmeli.
+
 7. **Build düzeni — ilk katman çözüldü:** CMake build, Windows/Ubuntu/macOS CI matrisi ve dokuz CTest kontrolü mevcut (sonraki target-parser testi eklenmeden önceki durum).
 8. **Görev listesi:** İlerleme yüzdeleri yerine test veya kod kanıtı olan tamamlanma durumu kullanılmaya devam edilecek.
 
@@ -98,7 +85,7 @@ Target modeli için ayrı [TARGET_MODEL.md](TARGET_MODEL.md) sözleşmesi oluşt
 3. **Target listesi — ilk katman çözüldü:** `list_targets()` Windows FindFirstFile ve POSIX opendir/readdir yollarını destekliyor.
 4. **Codegen yüklemesi — ilk katman çözüldü:** Windows `LoadLibrary`, Linux/macOS `dlopen` kullanıyor; shared library executable yanından mutlak yol ile yükleniyor.
 5. **Codegen hata kodu:** Modül veya `codegen_run` sembolü bulunamadığında ve codegen hata döndürdüğünde OCC başarısız çıkış kodu üretir. Başarı yolu test edildi; failure injection testi henüz yok.
-6. `parser_build.bat` dosyası MinGW `g++` ile C++ `OIR_Generator.cpp` derliyor; C ana uygulamasının build sistemi değildir. Yeni `CMakeLists.txt` C hattını bundan ayrı tanımlar.
+
 
 C derleyicisinin Windows, Linux ve macOS host sistemlerinde derlenmesi ve temel compile yolu CI ile doğrulanmıştır. Bu, codegen'in her target OS/architecture için doğru makine kodu ürettiği anlamına gelmez.
 
@@ -246,7 +233,7 @@ Bu sonuç yalnızca mevcut 10 testin kapsamındaki yolların sanitizer altında 
 ## Repository klasör düzenlemesi — 31 Ekim 2026
 
 - Etkin C derleyici kaynakları omnicore-sdk/src/c/ altına taşındı; CMake C_SOURCE_DIR bu yolu kullanacak şekilde güncellendi.
-- Eski C++ parser/analyzer/OCC kaynakları silinmeden temp/legacy-cpp/src/ altına taşındı; eski build betikleri temp/legacy-cpp/scripts/ altında tutuluyor.
+- Bu dalın C-only çalışma alanı düzenlemesinde C dışı derleyici kaynakları ve bunlara ait arşiv build çıktıları kapsam dışı bırakıldı.
 - Eski DLL/EXE/static library/object/IR/assembly ürünleri temp/build-artifacts/ altında korundu; aktif CMake build bunları kullanmıyor.
 - Eski bağımsız .nx test girdileri temp/legacy-tests/ altına alındı. CMake'in kullandığı test girdileri src/c/tests/ içinde kaldı.
 - Byte-for-byte aynı olduğu doğrulanan belge kopyaları temp/duplicate-docs/ altında arşivlendi. Farklı içerikli benzer belgeler yerinde bırakıldı.
@@ -279,7 +266,7 @@ Kullanıcının onayıyla derleme aşamaları arasında ortak veri taşıma stan
 - Aynı artifact, pipeline içinde opaque in-memory handle olarak aktarılabilecek; checkpoint istendiğinde aynı container biçimi `.oir` dosyasına yazılacak.
 - Container ile payload ayrıldı: SOURCE_UNIT, TOKEN_STREAM, AST, SEMANTIC_AST, OIR_MODULE, TARGET_IR, ASSEMBLY ve OBJECT ayrı payload türleri olacak.
 - Container fixed-width little-endian alanlar, length-delimited sections ve host pointer/struct bağımsız serileştirme hedefliyor.
-- Mevcut C AST serializer native int/enum gösterimi yazdığı ve artifact kind/schema metadata taşımadığı için OIR v1 olarak kabul edilmedi. Eski C++ OIR2 de ayrı legacy format olarak kalıyor.
+- Mevcut C AST serializer native int/enum gösterimi yazdığı ve artifact kind/schema metadata taşımadığı için OIR v1 olarak kabul edilmedi.
 - Canonical OIR_MODULE opcode/type/memory/ownership/SSA semantiği henüz tasarlanmadı.
 - OIR v1.0 container header offset'leri ve başlangıç numeric ID'leri tanımlandı; container reader/writer C kodu eklendi. Payload schema field layout'ları henüz tasarlanmadı.
 
