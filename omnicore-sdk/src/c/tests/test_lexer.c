@@ -4,6 +4,32 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int expect_invalid_numeric_literal(const char* source) {
+    ParserContext ctx;
+    Token token;
+    size_t length;
+    if (!source) return 0;
+    length = strlen(source);
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.source_buffer = (char*)malloc(length + 1u);
+    if (!ctx.source_buffer) return 0;
+    memcpy(ctx.source_buffer, source, length + 1u);
+    ctx.source_len = length;
+    ctx.current_line = 1;
+    ctx.current_col = 1;
+
+    token = lexer_next_token(&ctx);
+    if (token.type != TOKEN_ERROR || token.source_offset != 0u ||
+        token.source_length != length || ctx.pos != length ||
+        lexer_next_token(&ctx).type != TOKEN_EOF) {
+        fprintf(stderr, "Unsupported numeric literal was not rejected as one token: %s\n", source);
+        free(ctx.source_buffer);
+        return 0;
+    }
+    free(ctx.source_buffer);
+    return 1;
+}
+
 int main(void) {
     const char* source = "v:x = 12;\n@ !!= -> ?-> ?=> !-> << >> ...> name asm fastexec break echo send receive f32 f64 bool bit byte hex void any is_err true false";
     const OmniTokenType expected[] = {
