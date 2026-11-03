@@ -236,6 +236,46 @@ int main(void) {
             field.value[6]==0u && field.value[7]==0u);
     }
 
+    /* Dedicated AST_INDEX_ACCESS wire contract: exactly target/index NODE_REFs. */
+    {
+        ASTProgram index_root;
+        ASTIndexAccess access;
+        ASTIdentifier target_node, index_node;
+        OirAstNodeRecord access_record;
+        OirAstTlvReader reader;
+        OirAstTlvField field;
+        int has_field=0;
+        memset(&index_root,0,sizeof(index_root));
+        memset(&access,0,sizeof(access));
+        memset(&target_node,0,sizeof(target_node));
+        memset(&index_node,0,sizeof(index_node));
+        index_root.base.type=AST_PROGRAM;
+        access.base.type=AST_INDEX_ACCESS;
+        target_node.base.type=AST_IDENTIFIER; target_node.name="items";
+        index_node.base.type=AST_IDENTIFIER; index_node.name="i";
+        index_root.declarations=(ASTNode*)&access;
+        access.target=(ASTNode*)&target_node;
+        access.index=(ASTNode*)&index_node;
+        assert(oir_ast_frontend_index_build((ASTNode*)&index_root,index,INDEX_CAPACITY,&node_count)==OIR_STATUS_OK);
+        assert(node_count==4u);
+        assert(oir_ast_frontend_measure((ASTNode*)&index_root,index,INDEX_CAPACITY,node_count,&req)==OIR_STATUS_OK);
+        assert(oir_ast_frontend_write_payload((ASTNode*)&index_root,index,INDEX_CAPACITY,node_count,
+            records,MAX_NODES,field_data,FIELD_CAPACITY,strings,STRING_CAPACITY,
+            output,OUTPUT_CAPACITY,&written,&req)==OIR_STATUS_OK);
+        assert(oir_ast_node_table_open(output,written,&view)==OIR_STATUS_OK);
+        assert(oir_ast_field_schema_validate(&view)==OIR_STATUS_OK);
+        assert(oir_ast_graph_validate(&view,incoming,MAX_NODES,visited,MAX_NODES,
+            stack,MAX_NODES)==OIR_STATUS_OK);
+        assert(oir_ast_node_table_get(&view,2u,&access_record)==OIR_STATUS_OK);
+        oir_ast_tlv_reader_init(&reader,view.field_data+access_record.field_data_offset,
+            access_record.field_data_length);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
+        assert(field.field_id==1u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==3u);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && has_field);
+        assert(field.field_id==2u && field.value_type==OIR_AST_VALUE_NODE_REF && field.value[0]==4u);
+        assert(oir_ast_tlv_reader_next(&reader,&field,&has_field)==OIR_STATUS_OK && !has_field);
+    }
+
     puts("OIR AST frontend writer tests passed.");
     return 0;
 }
