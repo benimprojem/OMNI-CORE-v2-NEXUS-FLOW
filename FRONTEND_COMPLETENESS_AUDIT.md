@@ -474,3 +474,23 @@ Bu bölüm Parser → Semantic sınırını kapsar; IR Lowering'e geçildiği an
 - Hardened `semantic_stage_module.c` output-size preflight against OIR record-count and string-table ceilings and missing backing arrays before computing required capacity.
 - Successful semantic-stage invocations now publish collected diagnostics only after the artifact is written. This preserves retry idempotence for `NEED_OUTPUT_BUFFER` and prevents future non-error diagnostics from being silently omitted. If the host callback rejects a diagnostic, the result is marked failed and the artifact is not published (`bytes_written=0`, validity NONE).
 - IR Lowering and linker implementation remain out of scope.
+
+## 6.23 Aggregate member semantic resolution
+
+**Durum: Struct/union member type resolution and direct member assignment checks implemented; CI verification pending.**
+
+- FieldInfo artık field const niteliğini saklar; aggregate kayıt aşamasında AST field bildiriminin const bilgisi sembol kaydına aktarılır.
+- obj.member çözümlemesi, obj ifadesinin tipini alır ve yalnızca SLOT_STRUCT / SLOT_UNION sembollerinde alan arar.
+- Alan bulunamazsa veya taban ifade struct/union değilse semantic hata üretilir; sessizce any ya da belirsiz tip kabul edilmez.
+- İç içe erişim (outer.inner.value) her adımda önceki alanın tipinden devam eder.
+- Member expression için SemanticResult value category LVALUE olarak kaydedilir.
+- Doğrudan alan atamasında sağ taraf tipi alan tipiyle karşılaştırılır. Const aggregate değişkeninin alanına yazma reddedilir; const niteliği iç içe member zincirinde de tabandan devralınır.
+- Member çözümleme sırasında diagnostic yalnızca AST ziyaretinde üretilir. Tip sorguları diagnostic üretmez; böylece initializer/assignment kontrolleri ile AST traversal aynı hatayı iki kez raporlamaz.
+- Test kapsamı: geçerli alan okuma/yazma, iç içe member erişimi, const aggregate üzerinden yazma, uyumsuz atama tipi, bulunmayan alan ve primitive taban üzerinden member erişimi.
+
+**Sınırlar / açık işler:**
+
+- Tuple typing ve tuple member/index kuralları henüz uygulanmadı.
+- Member lvalue desteği şu an doğrudan obj.member atamasıdır. Member üzerinden postfix increment/decrement ve daha genel lvalue zincirleri ayrı doğrulama gerektirir.
+- Field visibility, aggregate forward declaration/recursive type politikası ve aggregate layout doğrulaması bu değişikliğin kapsamı değildir.
+- Bu aşama OIR lowering'e geçildiği anlamına gelmez.
