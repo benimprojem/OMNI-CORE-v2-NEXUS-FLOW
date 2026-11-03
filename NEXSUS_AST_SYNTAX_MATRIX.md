@@ -28,7 +28,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Identifier | `AST_IDENTIFIER` | Present | Symbol resolution + use-site metadata |
 | Unary / postfix | `AST_UNARY_EXPR`, `AST_POSTFIX_EXPR` | Present | Operator coverage and type rules |
 | Binary / assignment | `AST_BINARY_EXPR`, `AST_ASSIGNMENT` | Present | Full operator/precedence/associativity matrix |
-| Exponentiation `^^` | Lexer emits `TOKEN_POWER`; Parser has no `TOKEN_POWER` consumption or expression production, so no AST node is constructed | Lexer token exists only | Add precedence/associativity decision, Parser expression rule, AST/codec representation and parser/round-trip tests; keep feature open until then |
+| Exponentiation `^^` | `parse_power()` builds `AST_BINARY_EXPR(TOKEN_POWER)`; right-associative; tighter than unary minus | Parser production + basic parser fixture added | Semantic numeric/promotion/overflow and OIR opcode/lowering remain open |
 | Call / member / index | `AST_FUNC_CALL`, `AST_MEMBER_ACCESS`, `AST_INDEX_ACCESS` | Present | Call target, named args, lvalue and bounds contracts |
 | Cast `cast(value,type)` | `AST_CAST` | Present | Type resolution and conversion record |
 | Tuple | `AST_TUPLE` | Present | Tuple typing/destructuring contract |
@@ -76,11 +76,11 @@ The syntax reference lists the language's designed operator inventory. The C Lex
 | Logical `&&`, `||` | Parser now consumes `&&` in `parse_logical_and()` and `||` in `parse_logical_or()`; AST uses `AST_BINARY_EXPR`; `&&` binds tighter than `||` | Semantic bool-operand checks are present and tested; short-circuit execution must be verified in OIR/lowering |
 | Unary logical not `!` | Consumed by `parse_unary()` | Boolean operand/type rule |
 | Unary bitwise not `~` | Consumed by `parse_unary()` | Integer operand/type rule |
-| Binary bitwise `&`, `|`, `^` | Lexer tokens only; no Parser consumption | Define precedence and integer-width behavior |
+| Binary bitwise `&`, `|`, `^` | Parser productions; precedence AND > XOR > OR; AST_BINARY_EXPR | Parser fixture added | Semantic integer-only/width rules and lowering |
 | Shift `<<`, `>>` | Consumed by Nexus Flow expression/flow parsing as flow operators; not implemented as bit-shift arithmetic | Resolve the existing language-level collision before adding bit-shift expression semantics |
 | Prefix/postfix `++`, `--` | Consumed by unary/postfix parsing | Lvalue and numeric semantic checks |
-| Compound assignment `+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=` | Lexer tokens only; no Parser consumption | Define AST assignment encoding and semantic equivalence |
-| String append `.=` | Lexer token only; no Parser consumption | Define string/lvalue behavior and add Parser/semantic tests |
+| Compound assignment `+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=` | `AST_ASSIGNMENT` keeps the original operator token; parser fixture covers `+=` and `&=` | Parser production/test added | Semantic lvalue + equivalence checks |
+| String append `.=` | `AST_ASSIGNMENT` keeps `TOKEN_STRING_APPEND` | Parser production added; dedicated fixture/semantic test still needed |
 | Range `..` | Consumed by `parse_range()` | Range type and endpoint semantics |
 
 This table is an implementation audit, not a change to the language design. Unsupported forms must not be marked complete merely because the Lexer emits tokens. In particular, `&&` and `||` occur in existing language examples but currently cannot pass the C Parser; their short-circuit semantics are a precondition for closing that gap.
