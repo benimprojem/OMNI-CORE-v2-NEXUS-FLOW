@@ -123,7 +123,7 @@ panic("critical failure");
 - `cast(value, type)`: İlk argüman ifade, ikinci argüman tür adıdır. Tür adı primitive tür tokenı veya tanımlayıcı olabilir.
 - `panic("message")`: Mevcut Parser uygulamasında mesaj string literalidir. Değişken veya genel ifade mesajı henüz desteklenmiş kabul edilmez.
 
-**Desteklenmeyen sayısal yazımlar:** Hex/binary önekleri (`0xFF`, `0b1010`), bilimsel gösterim (`10E3`, `1e-3`), sayısal ayraçlar (`1_000`), tür ekleri (`12u8`, `1.5f32`) ve literal genişlik ekleri bu Lexer sürümünde desteklenmez; artık tek bir `TOKEN_ERROR` ile reddedilir, geçerli sayı + tanımlayıcı olarak sessizce bölünmez. `^^` ise sayısal literal biçimi değil, ayrı bir üs alma operatörüdür. Lexer bu operatörü tokenlaştırsa da Parser'da `TOKEN_POWER` için bir ifade üretim kuralı bulunmadığından `10^^15` şu an derlenebilir ifade değildir.
+**Desteklenmeyen sayısal yazımlar:** Hex/binary önekleri (`0xFF`, `0b1010`), bilimsel gösterim (`10E3`, `1e-3`), sayısal ayraçlar (`1_000`), tür ekleri (`12u8`, `1.5f32`) ve literal genişlik ekleri bu Lexer sürümünde desteklenmez; tek bir `TOKEN_ERROR` ile reddedilir, geçerli sayı + tanımlayıcı olarak sessizce bölünmez. Rolling delay için tanımlı `500ms` biçimi istisnadır: Lexer bunu `TOKEN_NUMBER` + `ms` identifier tokenlarına ayırır; birim Parser tarafından rolling metadata bağlamında tüketilir. `^^` ise sayısal literal biçimi değil, ayrı bir üs alma operatörüdür. Lexer bu operatörü tokenlaştırsa da Parser'da `TOKEN_POWER` için bir ifade üretim kuralı bulunmadığından `10^^15` şu an derlenebilir ifade değildir.
 
 ---
 
