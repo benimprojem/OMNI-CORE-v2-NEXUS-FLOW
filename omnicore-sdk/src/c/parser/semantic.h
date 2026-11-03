@@ -17,6 +17,7 @@ typedef enum {
 typedef struct FieldInfo {
     char* name;
     char* type_name;
+    int is_const;
     struct FieldInfo* next;
 } FieldInfo;
 
