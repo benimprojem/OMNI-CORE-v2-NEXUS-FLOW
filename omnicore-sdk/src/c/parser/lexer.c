@@ -383,17 +383,30 @@ Token lexer_next_token(ParserContext* ctx) {
          * currently supported decimal literal grammar. Do not split inputs
          * such as 0xFF, 10E3 or 12u8 into a valid number plus an identifier.
          */
-        if (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_') {
-            while (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_') {
-                advance(ctx);
+        /*
+         * The rolling-delay unit "ms" is a grammar suffix consumed by the
+         * Parser after the numeric token. Preserve that one documented form;
+         * reject other radix/exponent/type suffixes as a single lexical error.
+         */
+        {
+            int is_millisecond_unit =
+                peek(ctx) == 'm' && peek_next(ctx, 1u) == 's' &&
+                !isalnum((unsigned char)peek_next(ctx, 2u)) &&
+                peek_next(ctx, 2u) != '_';
+            if (!is_millisecond_unit &&
+                (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_')) {
+                while (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_') {
+                    advance(ctx);
+                }
+                if ((peek(ctx) == '+' || peek(ctx) == '-') &&
+                    ctx->pos > ctx->token_start_offset &&
+                    (ctx->source_buffer[ctx->pos - 1u] == 'e' ||
+                     ctx->source_buffer[ctx->pos - 1u] == 'E')) {
+                    advance(ctx);
+                    while (isdigit((unsigned char)peek(ctx))) advance(ctx);
+                }
+                return error_token(ctx, "Unsupported numeric literal suffix or format");
             }
-            if ((peek(ctx) == '+' || peek(ctx) == '-') && ctx->pos > ctx->token_start_offset &&
-                (ctx->source_buffer[ctx->pos - 1u] == 'e' ||
-                 ctx->source_buffer[ctx->pos - 1u] == 'E')) {
-                advance(ctx);
-                while (isdigit((unsigned char)peek(ctx))) advance(ctx);
-            }
-            return error_token(ctx, "Unsupported numeric literal suffix or format");
         }
 
         size_t length = (size_t)(&ctx->source_buffer[ctx->pos] - start);
