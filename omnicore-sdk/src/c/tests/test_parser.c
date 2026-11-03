@@ -1135,7 +1135,7 @@ static int test_extern_echo_and_listen_keywords(void) {
     if(!ctx)return 0;
     if(parser_run(ctx)!=PARSER_STATUS_OK||ctx->error_count||!ctx->ast_root)goto done;
     program=(ASTProgram*)ctx->ast_root;external=(ASTFuncDecl*)program->declarations;
-    if(!external||external->base.type!=AST_FUNC_DECL||!external->is_extern||
+    if(!external||external->base.type!=AST_EXTERN_DECL||!external->is_extern||
        !external->name||strcmp(external->name,"external")!=0)goto done;
     main_fn=(ASTFuncDecl*)external->base.next;
     if(!main_fn||main_fn->base.type!=AST_FUNC_DECL)goto done;

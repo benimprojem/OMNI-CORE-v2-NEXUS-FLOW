@@ -1967,7 +1967,9 @@ static ASTNode* parse_return_statement(Parser* p) {
 }
 
 static ASTNode* parse_func_decl(Parser* p) {
-    ASTFuncDecl* func = (ASTFuncDecl*)parser_ast_create(p, AST_FUNC_DECL);
+    ASTNodeType function_kind = p->previous.type == TOKEN_KW_EXTERN
+        ? AST_EXTERN_DECL : AST_FUNC_DECL;
+    ASTFuncDecl* func = (ASTFuncDecl*)parser_ast_create(p, function_kind);
     ASTNode* param_tail = NULL;
     if (!func) return NULL;
     func->base.line = p->previous.line;
