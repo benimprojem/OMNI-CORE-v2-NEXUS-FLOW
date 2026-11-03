@@ -99,7 +99,7 @@
 | 79 | `AST_ZONE_VIEW` | Current C enum member; OIR ID is fixed independently of its C ordinal |
 | 80 | `AST_ZONE_LOCK` | Current C enum member; OIR ID is fixed independently of its C ordinal |
 | 81 | `AST_SELECT` | Selector expression and ordered select arms |
-| 82 | `AST_SELECT_ARM` | Pattern, body and explicit default flag |
+| 82 | `AST_SELECT_ARM` | Pattern, body and explicit default flag; `when` guard is an `AST_IF` wrapper stored in body |
 | 83 | `AST_SCAN` | Scan subject and ordered scan arms |
 | 84 | `AST_SCAN_ARM` | Pattern and body; null pattern denotes the final scan else catch-all |
 | 85 | `AST_PATTERN_BINDING` | Arm-local pattern binding name |
