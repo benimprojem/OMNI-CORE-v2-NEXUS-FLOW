@@ -7,9 +7,6 @@
 ```text
 repository/
 ├── temp/
-│   ├── legacy-cpp/
-│   │   ├── src/                 # Korunan eski C++ parser/analyzer/OCC
-│   │   └── scripts/             # Eski C++ build betikleri
 │   ├── legacy-c/                # Kullanılmayan eski standalone C entry point
 │   ├── legacy-tests/            # CMake dışındaki eski .nx test girdileri
 │   ├── legacy-docs/             # Eski komut notları ve tarihsel belgeler
@@ -33,7 +30,7 @@ repository/
     └── build_c.sh
 ```
 
-CMake etkin kaynak kökü olarak omnicore-sdk/src/c/ kullanır. C++ kaynakları ve geçmiş derleme ürünleri silinmedi; yalnızca aktif derleme yolundan ayrıldı.
+CMake etkin kaynak kökü olarak omnicore-sdk/src/c/ kullanır. Çalışma dalında yalnızca C derleyici kaynakları ve C build/test belgeleri tutulur.
 
 ## Sonraki hedef düzen
 
@@ -72,7 +69,7 @@ Bu modül ayrımı henüz uygulanmadı. Mevcut src/c/parser/ içinde lexer, pars
 ## Doğrulama kontrol listesi
 
 - [x] C kaynak kökü src/c/ konumuna taşındı ve CMake yolu güncellendi.
-- [x] C++ kaynakları silinmeden arşiv konumuna taşındı.
+- [x] C-only çalışma alanı temizliği yapıldı; C dışı compiler kaynakları ve arşivleri bu daldan kaldırıldı.
 - [x] Eski derleme ürünleri kaynak klasörlerinden ayrıldı.
 - [x] Aynı belge kopyaları içerik SHA değerleriyle tespit edilip arşivlendi.
 - [x] Windows, Linux ve macOS temiz checkout build/test doğrulandı; üçünde de 10/10 CTest geçti.
