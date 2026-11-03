@@ -105,6 +105,31 @@ int main(void) {
         ast_destroy(deep);
     }
 
+    /* Syntax-level optional children and required function bodies. */
+    {
+        ASTNode *ret = ast_create(AST_RETURN);
+        ASTNode *fn = ast_create(AST_FUNC_DECL);
+        ASTNode *ext = ast_create(AST_EXTERN_DECL);
+        ASTNode *arm = ast_create(AST_SELECT_ARM);
+        ASTNode *arm_body = ast_create(AST_BREAK);
+        if (!ret || !fn || !ext || !arm || !arm_body) return 1;
+        if (!expect(ret, AST_VALIDATE_OK)) {
+            fprintf(stderr, "void return rejected\n"); return 1;
+        }
+        if (!expect(fn, AST_VALIDATE_MISSING_REQUIRED)) {
+            fprintf(stderr, "function without body accepted\n"); return 1;
+        }
+        if (!expect(ext, AST_VALIDATE_OK)) {
+            fprintf(stderr, "bodyless extern rejected\n"); return 1;
+        }
+        ((ASTSelectArm *)arm)->is_default = 1;
+        ((ASTSelectArm *)arm)->body = arm_body;
+        if (!expect(arm, AST_VALIDATE_OK)) {
+            fprintf(stderr, "select default arm rejected\n"); return 1;
+        }
+        ast_destroy(ret); ast_destroy(fn); ast_destroy(ext); ast_destroy(arm);
+    }
+
     /* Parser output is expected to satisfy the AST graph contract. */
     {
         const char source[] = "f:main() { v:x = 1 + 2; ret x; }";
