@@ -28,6 +28,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Identifier | `AST_IDENTIFIER` | Present | Symbol resolution + use-site metadata |
 | Unary / postfix | `AST_UNARY_EXPR`, `AST_POSTFIX_EXPR` | Present | Operator coverage and type rules |
 | Binary / assignment | `AST_BINARY_EXPR`, `AST_ASSIGNMENT` | Present | Full operator/precedence/associativity matrix |
+| Exponentiation `^^` | Lexer emits `TOKEN_POWER`; Parser has no `TOKEN_POWER` consumption or expression production, so no AST node is constructed | Lexer token exists only | Add precedence/associativity decision, Parser expression rule, AST/codec representation and parser/round-trip tests; keep feature open until then |
 | Call / member / index | `AST_FUNC_CALL`, `AST_MEMBER_ACCESS`, `AST_INDEX_ACCESS` | Present | Call target, named args, lvalue and bounds contracts |
 | Cast `cast(value,type)` | `AST_CAST` | Present | Type resolution and conversion record |
 | Tuple | `AST_TUPLE` | Present | Tuple typing/destructuring contract |
