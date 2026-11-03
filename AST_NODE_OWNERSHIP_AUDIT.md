@@ -80,14 +80,14 @@
 - `AST_FUNC_DECL` and `AST_EXTERN_DECL`, `AST_STRUCT_DECL` and `AST_UNION_DECL`, and `AST_NEXUS_FLOW` and `AST_NEXUS_PIPE` share payload structures; their discriminating kind remains in `base.type`.
 - `AST_LISTEN` currently shares `ASTNexusCapture` storage and codec/destructor behavior. Confirm its exact semantic contract before changing this representation.
 - Serializer, deserializer and destructor switches must remain field-symmetric. Current binary AST codec is a process/build-local artifact (it writes C enum/int representation); it is not the stable cross-version OIR format.
-- Child pointers are raw pointers. `ast_validate()` checks uniqueness/acyclicity for all 99 kinds; `ast_serialize()` calls it before writing and `ast_deserialize()` calls it before returning a decoded root. `ast_destroy()` remains a low-level operation whose caller must provide an exclusively owned, acyclic graph.
+- Child pointers are raw pointers. `ast_validate()` checks uniqueness/acyclicity for all 100 kinds; `ast_serialize()` calls it before writing and `ast_deserialize()` calls it before returning a decoded root. `ast_destroy()` remains a low-level operation whose caller must provide an exclusively owned, acyclic graph.
 
 ## Remaining automated checks
 
 1. Generate a compile-time/runtime table that compares each node kind's allocation size with its expected payload size.
 2. For every owned child/string field, inject allocation failure/truncated codec input and verify partial-tree cleanup under ASan/Valgrind.
 3. Keep serializer/deserializer graph validation covered by tests; retain the explicit exclusive-ownership precondition for direct `ast_destroy()` calls.
-4. Keep the 99-kind factory, codec, registry and parser coverage counters independent; do not infer one from another.
+4. Keep factory, codec, registry and parser coverage counters independent; the 99 original tags and the context-sensitive block marker have distinct test fixtures; do not infer one from another.
 
 
 ## 2026-11-03 — AST codec graph validation
@@ -101,9 +101,9 @@
 
 ## 2026-11-03 — Structural validation closure and remaining AST gates
 
-- Graph Validator dispatch is explicit for all 99 enum tags; its switch default now returns AST_VALIDATE_INVALID_KIND rather than silently accepting an unregistered tag as a leaf.
+- Graph Validator dispatch is explicit for all 100 enum tags; its switch default now returns AST_VALIDATE_INVALID_KIND rather than silently accepting an unregistered tag as a leaf.
 - Current ASTNode source metadata is limited to line/column. Byte start/end offsets and end line/column are present in token/diagnostic infrastructure but are not persisted in AST nodes or the legacy AST stream codec.
-- `AST_NEXUS_HALT` carries an optional target expression. `AST_BLOCK_HALT` now represents the block-closing `}?;` separately; Parser appends it as the final statement child. Graph validation rejects it at root level, outside a block, or before another sibling. Parser/OIR regression tests are being completed.
+- `AST_NEXUS_HALT` carries an optional target expression. `AST_BLOCK_HALT` now represents the block-closing `}?;` separately; Parser appends it as the final statement child. Graph validation rejects it at root level, outside a block, or before another sibling. Parser, graph-validator, legacy AST codec and OIR round-trip regression fixtures now cover the marker; latest CI is queued.
 - AST_ASM_BLOCK is currently a generic ASTBlock layout; fastexec, asm: labels and asmcall/asmjmp do not have a C Parser construction path.
 - Canonical syntax path is now reconciled on the active branch: `docs/language/syntax-reference.md` is the single normative document. It was restored from the branch's reconciled syntax content; the former duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` remains untouched.
 - These are explicit pre-Semantic AST/model gates. AST must not be marked complete until the source-span contract, block-Halt representation and assembly scope are resolved and the syntax-reference path is reconciled.
