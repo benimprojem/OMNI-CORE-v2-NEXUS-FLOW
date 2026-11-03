@@ -1544,6 +1544,7 @@ ASTNode* ast_deserialize(FILE* in) {
 typedef struct {
     const ASTNode **items;
     size_t count, capacity;
+    unsigned depth;
     ASTValidationError *error;
 } ASTValidationState;
 
@@ -1566,8 +1567,11 @@ static int ast_validation_mark(ASTValidationState *s, const ASTNode *n) {
 }
 static int ast_validation_chain(ASTValidationState*,const ASTNode*);
 static int ast_validation_child(ASTValidationState*s,const ASTNode*n,const ASTNode*c,const char*field,int required) {
+    int ok;
     if (!c && required) return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,field);
-    return !c || ast_validation_chain(s,c);
+    if (!c) return 1;
+    if (s->depth >= 512u) return ast_validation_fail(s,AST_VALIDATE_DEPTH_LIMIT,n,field);
+    s->depth++; ok=ast_validation_chain(s,c); s->depth--; return ok;
 }
 static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
     while(n) {
