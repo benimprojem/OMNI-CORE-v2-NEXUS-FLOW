@@ -166,7 +166,7 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–99 kayıtlı düğüm k
 | 97 | `AST_ARRAY_LITERAL` | ✓ | ✓ | ~ | ? | ✓ |
 | 98 | `AST_ARRAY_TYPE` | ✓ | ✓ | ~ | ? | ✓ |
 | 99 | `AST_ARRAY_DIMENSION` | ✓ | ✓ | ~ | ? | ✓ |
-| 100 | `AST_BLOCK_HALT` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 100 | `AST_BLOCK_HALT` | ✓ | ~ | ? | ? | ~ |
 
 ## 5. OIR ve Verifier kapsam kapısı
 
