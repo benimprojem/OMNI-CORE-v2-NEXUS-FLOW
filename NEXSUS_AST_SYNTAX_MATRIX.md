@@ -57,7 +57,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | I/O/reflection/time/free/zone sync/view/lock | Matching AST tags | Present/shared call payload | Complete intrinsic registry and semantic signatures |
 | Defer | `AST_DEFER` | Present | Scope exit ordering and cleanup semantics |
 | Thread block | `AST_THREAD_BLOCK` | Present | Name/body/mode/timeout and synchronization semantics |
-| Inline ASM | `AST_ASM_BLOCK` | Present | ASM payload/constraints/clobbers and target validation |
+| Inline ASM (`fastexec`, `asm: LABEL { ... }`) | `AST_ASM_BLOCK` exists as generic block payload only | **Parser gap confirmed:** current `parser.c` has no consumption of `TOKEN_KW_FASTEXEC`, `TOKEN_KW_ASM`, or `AST_ASM_BLOCK`; ASM label/raw instruction payload has no dedicated AST representation | Define C-safe ASM payload/label node contract and token/source capture before Parser implementation; `asmcall`/`asmjmp` tokens also have no Parser consumption |
 | `break / continue / return` | `AST_BREAK`, `AST_CONTINUE`, `AST_RETURN` | Present | Validate loop/function targets and return typing |
 
 ## Operator parser coverage — source audit (2026-11-03)
