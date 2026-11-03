@@ -60,8 +60,8 @@ Bu modül ayrımı henüz uygulanmadı. Mevcut src/c/parser/ içinde lexer, pars
 ## Taşıma ilkeleri
 
 1. C tek kanonik derleyici uygulamasıdır.
-2. C++ referans kaynakları temp/legacy-cpp/ altında korunur; silinmez.
-3. temp/build-artifacts/ içindeki dosyalar geçmiş çıktılardır; aktif build tarafından yüklenmez.
+2. Çalışma dalında compiler kaynakları ve build/test araçları C dilinde tutulur.
+3. temp/build-artifacts/ içindeki C build dosyaları geçmiş çıktılardır; aktif build tarafından yüklenmez.
 4. IDE/editor src/oce/ compiler frontend ile karıştırılmaz.
 5. Yalnızca byte-for-byte aynı belgelerin fazladan kopyaları arşivlenir. İçeriği farklı belgeler sırf adları benziyor diye birleştirilmez.
 6. Her sonraki taşıma aynı değişiklikte CMake/build betikleri, runtime yolları ve testlerle birlikte güncellenir.
