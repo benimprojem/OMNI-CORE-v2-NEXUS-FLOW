@@ -372,3 +372,19 @@ Normative examples in `docs/language/syntax-reference.md` establish:
 5. Tests required: declaration marker finality/duplicates; named+positional call parse; duplicate labels; positional-after-named; malformed `name:`; legacy codec compatibility; AST codec round-trip; OIR bridge round-trip and byte-stability; graph validator malformed graphs.
 
 These are syntax-to-AST decisions only. Type/name resolution, overload matching, variadic packing and runtime ABI are Semantic/lowering work and remain gated.
+
+
+## Process entry arguments: `main(argc, argv)` (2026-11-04)
+
+The normative function section already declares `f:main(argc, argv)!i32 { ... }`; this is not a new syntax. Its OS/CLI delivery contract is currently missing and must not be confused with ordinary user function arguments.
+
+**Contract:**
+- `argc`: integer count of command-line argument strings delivered to the process, excluding the executable path (Nexus convention; runtime adapter normalizes platform conventions).
+- `argv`: one-dimensional dynamic array/list of `str`, containing those arguments in order, also excluding executable path. Empty invocation means count 0 and empty list; no implicit NULL sentinel is exposed.
+- Invariant: `argc == len(argv)`. Runtime constructs both values before entering `main`; program cannot mutate the OS-owned original vector (the language values may be copied/owned by the runtime).
+- `main` signature is an entry-point special case: only `main(argc, argv)` (or the documented no-parameter form if later accepted) receives process arguments. Ordinary functions do not receive implicit CLI data.
+- Runtime/launcher responsibility: Windows command-line parsing follows Windows process argument rules; POSIX targets use the OS argv vector. Runtime must provide a consistent decoded string sequence and define encoding (UTF-8 at the language boundary). Bare-metal targets may inject a boot/launcher argument vector or provide empty args.
+- AST remains ordinary `AST_FUNC_DECL` + `AST_VAR_DECL` parameter nodes. No `AST_ARGC`/`AST_ARGV` nodes and no hard-coded names in AST. Semantic/entry-point validation will recognize the main signature; runtime/target ABI will materialize values.
+- Implementation stages: syntax/AST parsing is existing; semantic signature validation, runtime ABI and OS adapters, `len(argv)` compatibility, and tests are pending. Add tests for zero/one/multiple args, spaces/quotes, Unicode, argc-length invariant, Windows/POSIX normalization, and bare-metal empty/injected args.
+
+This defines CLI argument *delivery*, not the full `main` return/exit-code convention; the latter remains an explicit runtime contract item.
