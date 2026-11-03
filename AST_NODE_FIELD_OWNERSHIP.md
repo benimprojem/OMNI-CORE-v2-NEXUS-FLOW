@@ -16,6 +16,7 @@
 | Family | Tags | Primary representation | Owned child fields / strings |
 |---|---|---|---|
 | Root / blocks | PROGRAM, BLOCK, ASM_BLOCK | ASTProgram / ASTBlock | declarations/statements sibling chain |
+| Payload-free control | BREAK, CONTINUE | ASTNode | no payload fields; only the common owned sibling link |
 | Variable | VAR_DECL | ASTVarDecl | name, type_name; initializer; inline_type |
 | Function | FUNC_DECL, EXTERN_DECL | ASTFuncDecl | name, return_type; params chain; body |
 | Aggregate | STRUCT_DECL, UNION_DECL | ASTStructDecl | name; fields chain |
@@ -37,7 +38,7 @@
 | Pattern | PATTERN_BINDING / PATTERN_CONSTRUCTOR | dedicated structs | binding name; constructor name/bindings |
 | Rules | RULESET_DECL / RULE_* / APPLY_RULES / ON_BLOCK | dedicated structs | names; params/rules/conditions/actions/args/body |
 | Lambda / relocate / unroll | LAMBDA / RELOCATE / UNROLL | dedicated structs | params/body; source/target; count/loop |
-| Nexus Flow | CAPTURE / PIPE / FLOW / LABEL / JUMP / HALT / INTENT | dedicated structs | per-node expression/label/target payloads |
+| Nexus Flow | CAPTURE / LISTEN / PIPE / FLOW / LABEL / JUMP / HALT / INTENT | dedicated structs | per-node expression/label/target payloads |
 | Other special forms | AI_LOGIC / UNPACK / PANIC / SPAWN / LISTEN / ECHO / SEND / RECEIVE / DONE / AREA / ADDR / LEN / PEEK / POKE / INB / OUTB / IRQ / INTR / REG / PRNT / PRMT / WRITE / FWRITE / TYPEOF / SIZEOF / IS_* / EXIT / SWAP / ZONE / DATE / DATENOW / TIME / CLOCK / FREE / ZONE_SYNC / ZONE_VIEW / ZONE_LOCK | AST-specific or ASTCall-backed | owned expression/list/string fields defined in each struct and destroy switch |
 
 ## Confirmed shared payload layouts and destroy dispatch
