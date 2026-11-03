@@ -1539,3 +1539,104 @@ ASTNode* ast_deserialize(FILE* in) {
     return root;
 }
 /* AST extension integration follows the append-only node registry. */
+
+/* ---------------- AST graph validation ---------------- */
+typedef struct {
+    const ASTNode **items;
+    size_t count, capacity;
+    ASTValidationError *error;
+} ASTValidationState;
+
+static int ast_validation_fail(ASTValidationState *s, ASTValidationCode code,
+                               const ASTNode *node, const char *field) {
+    if (s->error) { s->error->code=code; s->error->node=node; s->error->field=field; }
+    return 0;
+}
+static int ast_validation_mark(ASTValidationState *s, const ASTNode *n) {
+    size_t i;
+    for (i=0;i<s->count;i++) if (s->items[i]==n)
+        return ast_validation_fail(s,AST_VALIDATE_SHARED_NODE,n,"ownership");
+    if (s->count==s->capacity) {
+        size_t cap=s->capacity ? s->capacity*2u : 64u;
+        const ASTNode **p=(const ASTNode**)realloc(s->items,cap*sizeof(*p));
+        if (!p) return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,n,NULL);
+        s->items=p; s->capacity=cap;
+    }
+    s->items[s->count++]=n; return 1;
+}
+static int ast_validation_chain(ASTValidationState*,const ASTNode*);
+static int ast_validation_child(ASTValidationState*s,const ASTNode*n,const ASTNode*c,const char*field,int required) {
+    if (!c && required) return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,field);
+    return !c || ast_validation_chain(s,c);
+}
+static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
+    while(n) {
+        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_ARRAY_DIMENSION)
+            return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"type");
+        if (!ast_validation_mark(s,n)) return 0;
+#define V(child,field) do { if(!ast_validation_child(s,n,(child),(field),0)) return 0; } while(0)
+#define R(child,field) do { if(!ast_validation_child(s,n,(child),(field),1)) return 0; } while(0)
+        switch(n->type) {
+        case AST_PROGRAM: R(((ASTProgram*)n)->declarations,"declarations"); break;
+        case AST_BLOCK: case AST_ASM_BLOCK: V(((ASTBlock*)n)->statements,"statements"); break;
+        case AST_VAR_DECL: V(((ASTVarDecl*)n)->initializer,"initializer"); V(((ASTVarDecl*)n)->inline_type,"inline_type"); break;
+        case AST_FUNC_DECL: case AST_EXTERN_DECL: V(((ASTFuncDecl*)n)->params,"params"); V(((ASTFuncDecl*)n)->body,"body"); break;
+        case AST_STRUCT_DECL: case AST_UNION_DECL: V(((ASTStructDecl*)n)->fields,"fields"); break;
+        case AST_ENUM_DECL: V(((ASTEnumDecl*)n)->variants,"variants"); break;
+        case AST_ENUM_VARIANT: V(((ASTEnumVariant*)n)->data,"data"); break;
+        case AST_GROUP_DECL: V(((ASTGroupDecl*)n)->members,"members"); break;
+        case AST_METHOD: R(((ASTMethod*)n)->implementation,"implementation"); break;
+        case AST_BINARY_EXPR: case AST_ASSIGNMENT: R(((ASTBinaryExpr*)n)->left,"left"); R(((ASTBinaryExpr*)n)->right,"right"); break;
+        case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN: R(((ASTUnaryExpr*)n)->operand,"operand"); break;
+        case AST_CAST: R(((ASTCast*)n)->value,"value"); R(((ASTCast*)n)->target_type,"target_type"); break;
+        case AST_FUNC_CALL: case AST_SPAWN: case AST_ECHO: case AST_SEND: case AST_RECEIVE: case AST_DONE: case AST_AREA: case AST_ZONE: case AST_ADDR: case AST_LEN: case AST_PEEK: case AST_POKE: case AST_INB: case AST_OUTB: case AST_IRQ: case AST_INTR: case AST_REG: case AST_PRNT: case AST_PRMT: case AST_WRITE: case AST_FWRITE: case AST_TYPEOF: case AST_SIZEOF: case AST_IS_OK: case AST_IS_ERR: case AST_IS_SOME: case AST_IS_NONE: case AST_IS_NULL: case AST_EXIT: case AST_SWAP: case AST_DATE: case AST_DATENOW: case AST_TIME: case AST_CLOCK: case AST_FREE: case AST_ZONE_SYNC: case AST_ZONE_VIEW: case AST_ZONE_LOCK: V(((ASTCall*)n)->callee,"callee"); V(((ASTCall*)n)->args,"args"); break;
+        case AST_MEMBER_ACCESS: R(((ASTMemberAccess*)n)->object,"object"); break;
+        case AST_INDEX_ACCESS: R(((ASTIndexAccess*)n)->target,"target"); R(((ASTIndexAccess*)n)->index,"index"); break;
+        case AST_TUPLE: V(((ASTTuple*)n)->elements,"elements"); break;
+        case AST_IF: R(((ASTIf*)n)->condition,"condition"); R(((ASTIf*)n)->then_branch,"then_branch"); V(((ASTIf*)n)->else_branch,"else_branch"); break;
+        case AST_LOOP: V(((ASTLoop*)n)->init,"init"); V(((ASTLoop*)n)->condition,"condition"); V(((ASTLoop*)n)->increment,"increment"); V(((ASTLoop*)n)->body,"body"); V(((ASTLoop*)n)->collection,"collection"); V(((ASTLoop*)n)->variable,"variable"); break;
+        case AST_NEXUS_CAPTURE: case AST_LISTEN: V(((ASTNexusCapture*)n)->expr,"expr"); break;
+        case AST_NEXUS_FLOW: case AST_NEXUS_PIPE: R(((ASTNexusFlow*)n)->left,"left"); R(((ASTNexusFlow*)n)->right,"right"); V(((ASTNexusFlow*)n)->catch_block,"catch_block"); break;
+        case AST_NEXUS_LABEL: V(((ASTNexusLabel*)n)->statement,"statement"); break;
+        case AST_NEXUS_HALT: V(((ASTHalt*)n)->expr,"expr"); break;
+        case AST_NEXUS_INTENT: V(((ASTIntent*)n)->target,"target"); break;
+        case AST_UNPACK: R(((ASTUnpack*)n)->expr,"expr"); break;
+        case AST_DEFER: R(((ASTDefer*)n)->body,"body"); break;
+        case AST_THREAD_BLOCK: R(((ASTThreadBlock*)n)->body,"body"); V(((ASTThreadBlock*)n)->mode,"mode"); V(((ASTThreadBlock*)n)->timeout,"timeout"); break;
+        case AST_SELECT: R(((ASTSelect*)n)->selector,"selector"); R(((ASTSelect*)n)->arms,"arms"); break;
+        case AST_SELECT_ARM: V(((ASTSelectArm*)n)->pattern,"pattern"); R(((ASTSelectArm*)n)->body,"body"); break;
+        case AST_SCAN: R(((ASTScan*)n)->subject,"subject"); R(((ASTScan*)n)->arms,"arms"); break;
+        case AST_SCAN_ARM: V(((ASTScanArm*)n)->pattern,"pattern"); R(((ASTScanArm*)n)->body,"body"); break;
+        case AST_PATTERN_CONSTRUCTOR: V(((ASTPatternConstructor*)n)->bindings,"bindings"); break;
+        case AST_RULESET_DECL: V(((ASTRulesetDecl*)n)->params,"params"); R(((ASTRulesetDecl*)n)->rules,"rules"); break;
+        case AST_RULE_BARRIER: R(((ASTRuleBarrier*)n)->condition,"condition"); V(((ASTRuleBarrier*)n)->message,"message"); break;
+        case AST_RULE_TRIGGER: R(((ASTRuleTrigger*)n)->condition,"condition"); R(((ASTRuleTrigger*)n)->action,"action"); break;
+        case AST_RULE_ALWAYS: R(((ASTRuleAlways*)n)->action,"action"); break;
+        case AST_RULE_DEFAULT: R(((ASTRuleDefault*)n)->action,"action"); break;
+        case AST_APPLY_RULES: V(((ASTApplyRules*)n)->args,"args"); break;
+        case AST_ON_BLOCK: R(((ASTOnBlock*)n)->body,"body"); break;
+        case AST_LAMBDA: V(((ASTLambda*)n)->params,"params"); R(((ASTLambda*)n)->body,"body"); break;
+        case AST_RELOCATE: R(((ASTRelocate*)n)->source,"source"); R(((ASTRelocate*)n)->target,"target"); break;
+        case AST_UNROLL: R(((ASTUnroll*)n)->count,"count"); R(((ASTUnroll*)n)->loop,"loop"); break;
+        case AST_ARRAY_LITERAL: V(((ASTArrayLiteral*)n)->elements,"elements"); break;
+        case AST_ARRAY_TYPE: V(((ASTArrayType*)n)->dimensions,"dimensions"); break;
+        case AST_ARRAY_DIMENSION: V(((ASTArrayDimension*)n)->length,"length"); break;
+        default: break;
+        }
+#undef V
+#undef R
+        n=n->next;
+    }
+    return 1;
+}
+int ast_validate(const ASTNode *root, ASTValidationError *error) {
+    ASTValidationState state={0};
+    if(error){error->code=AST_VALIDATE_OK;error->node=NULL;error->field=NULL;}
+    if(!root) { if(error)error->code=AST_VALIDATE_MISSING_REQUIRED; return 0; }
+    state.error=error;
+    {
+        int ok=ast_validation_chain(&state,root);
+        free(state.items);
+        return ok;
+    }
+}
