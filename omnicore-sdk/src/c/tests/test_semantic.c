@@ -163,7 +163,7 @@ static int check_array_literal_semantics(void) {
     return check_source(valid,0) && check_source(mixed,1);
 }
 
-static int check_array_type_semantics(void) {
+static int check_compound_assignment_semantics(void) {\n    const char* valid_numeric = "f:main() { v:x!i32 = 1; x += 2; x *= 3; }";\n    const char* invalid_numeric = "f:main() { v:x!str = \\"a\\"; x += \\"b\\"; }";\n    const char* invalid_bitwise_float = "f:main() { v:x!f32 = 1.0; x &= 1.0; }";\n    const char* valid_bitwise = "f:main() { v:x!u32 = 1; x |= 2; x ^= 3; }";\n    return check_source(valid_numeric,0) && check_source(invalid_numeric,1) &&\n        check_source(invalid_bitwise_float,1) && check_source(valid_bitwise,0);\n}\n\nstatic int check_array_type_semantics(void) {
     const char* valid_params = "f:consume(a![], b!i32[], third:i32[5]) {}";
     const char* valid_matrix_param = "f:consume_matrix(matrix_data:f64[2][2]) {}";
     const char* valid =
@@ -275,7 +275,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Postfix semantic checks failed.\\n");
         return 1;
     }
-    if (!check_array_type_semantics()) {
+    if (!check_compound_assignment_semantics()) {\n        fprintf(stderr, "Compound assignment semantic checks failed.\\n");\n        return 1;\n    }\n    if (!check_array_type_semantics()) {
         fprintf(stderr, "Array type semantic checks failed.\n");
         return 1;
     }
