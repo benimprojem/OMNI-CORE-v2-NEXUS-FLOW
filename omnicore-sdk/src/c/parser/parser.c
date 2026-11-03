@@ -591,6 +591,8 @@ static ASTNode* parse_newtype_decl(Parser* p);
 static ASTNode* parse_group_decl(Parser* p);
 static ASTNode* parse_postfix(Parser* p);
 static ASTNode* parse_range(Parser* p);
+static ASTNode* parse_logical_and(Parser* p);
+static ASTNode* parse_logical_or(Parser* p);
 static ASTNode* parse_equality(Parser* p);
 static int parse_struct_body(Parser* p, ASTStructDecl* decl);
 static ASTNode* parse_comparison(Parser* p);
@@ -1400,8 +1402,56 @@ static ASTNode* parse_range(Parser* p) {
     return expr;
 }
 
+static ASTNode* parse_logical_and(Parser* p) {
+    unsigned int chain_depth = 0u;
+    ASTNode* left = parse_range(p);
+    if (!left) return NULL;
+    while (match(p, TOKEN_AND)) {
+        OmniTokenType op = p->previous.type;
+        ASTNode* right;
+        if (chain_depth++ >= 32u) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum logical operator-chain depth exceeded.");
+            ast_destroy(left);
+            return NULL;
+        }
+        right = parse_range(p);
+        if (!right) {
+            ast_destroy(left);
+            return NULL;
+        }
+        left = parser_make_binary(p, op, left, right);
+        if (!left) return NULL;
+    }
+    return left;
+}
+
+static ASTNode* parse_logical_or(Parser* p) {
+    unsigned int chain_depth = 0u;
+    ASTNode* left = parse_logical_and(p);
+    if (!left) return NULL;
+    while (match(p, TOKEN_OR)) {
+        OmniTokenType op = p->previous.type;
+        ASTNode* right;
+        if (chain_depth++ >= 32u) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum logical operator-chain depth exceeded.");
+            ast_destroy(left);
+            return NULL;
+        }
+        right = parse_logical_and(p);
+        if (!right) {
+            ast_destroy(left);
+            return NULL;
+        }
+        left = parser_make_binary(p, op, left, right);
+        if (!left) return NULL;
+    }
+    return left;
+}
+
 static ASTNode* parse_nexus_flow(Parser* p) {
-    ASTNode* expr = parse_range(p);
+    ASTNode* expr = parse_logical_or(p);
     if (!expr) return NULL;
     
         if (match(p, TOKEN_ELSE_FLOW) || match(p, TOKEN_PIPE) || 
