@@ -1012,6 +1012,56 @@ done:
     return ok;
 }
 
+static int test_modulo_expression_ast(void) {
+    static const char source[] =
+        "f:main() { v:rem = 17 % 5 * 2; v:dimension[17 % 5]!i32; }";
+    ParserContext* ctx = parser_init_source(
+        "modulo-expression.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* statement;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root) goto done;
+
+    statement = ((ASTBlock*)((ASTFuncDecl*)
+        ((ASTProgram*)ctx->ast_root)->declarations)->body)->statements;
+    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    {
+        ASTNode* expression = ((ASTVarDecl*)statement)->initializer;
+        if (!expression || expression->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)expression)->op != TOKEN_STAR) goto done;
+        expression = ((ASTBinaryExpr*)expression)->left;
+        if (!expression || expression->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)expression)->op != TOKEN_PERCENT) goto done;
+    }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL ||
+        !((ASTVarDecl*)statement)->inline_type ||
+        ((ASTVarDecl*)statement)->inline_type->type != AST_ARRAY_TYPE) goto done;
+    {
+        ASTNode* dimension = ((ASTArrayType*)
+            ((ASTVarDecl*)statement)->inline_type)->dimensions;
+        ASTNode* length = dimension
+            ? ((ASTArrayDimension*)dimension)->length : NULL;
+        if (!length || length->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)length)->op != TOKEN_PERCENT) goto done;
+    }
+
+    stream = tmpfile();
+    if (!stream || !ast_serialize(ctx->ast_root, stream) ||
+        fseek(stream, 0, SEEK_SET) != 0) goto done;
+    decoded = ast_deserialize(stream);
+    ok = decoded && decoded->type == AST_PROGRAM;
+done:
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_retry_metadata_rejects_overflow(void) {
     static const char source[] =
         "v:x = source?(999999999999999999999,1ms)->target;";
@@ -1054,6 +1104,8 @@ int main(int argc, char** argv) {
     }
     if (!test_array_type_declarators()) { fprintf(stderr, "Array type declarator parser/codec test failed.\n"); return 1; }
     if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
+    if (!test_modulo_expression_ast()) { fprintf(stderr, "Modulo expression/array extent parser test failed.\n"); return 1; }
+
     if (!test_array_literal_ast()) { fprintf(stderr, "Array literal parser/codec test failed.\n"); return 1; }
     if (!test_retry_metadata_rejects_overflow()) {
         fprintf(stderr, "Rolling retry count overflow was not rejected.\\n");
