@@ -1287,7 +1287,7 @@ static ASTNode* parse_unary(Parser* p) {
         unary->operand = operand;
         return (ASTNode*)unary;
     }
-    return parse_postfix(p);
+    return parse_power(p);
 }
 
 // Binary expression construction keeps ownership of both operands on every path.
