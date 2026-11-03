@@ -1625,7 +1625,21 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_ARRAY_LITERAL: V(((ASTArrayLiteral*)n)->elements,"elements"); break;
         case AST_ARRAY_TYPE: V(((ASTArrayType*)n)->dimensions,"dimensions"); break;
         case AST_ARRAY_DIMENSION: V(((ASTArrayDimension*)n)->length,"length"); break;
-        default: break;
+
+        /* Leaf payloads: their data is scalar/string-owned, not AST children. */
+        case AST_NEWTYPE_DECL:
+        case AST_LITERAL:
+        case AST_IDENTIFIER:
+        case AST_BREAK:
+        case AST_CONTINUE:
+        case AST_NEXUS_JUMP:
+        case AST_AI_LOGIC:
+        case AST_PANIC:
+        case AST_USE:
+        case AST_PATTERN_BINDING:
+            break;
+        default:
+            break;
         }
 #undef V
 #undef R
