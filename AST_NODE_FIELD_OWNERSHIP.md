@@ -55,6 +55,10 @@ For every ASTNodeType, verify all of these before declaring it complete:
 9. Lowering support state: supported / partial / fail-closed.
 10. Positive, negative, round-trip and allocation-failure tests.
 
+## AST debug printer coverage
+
+The `ast_print_recursive` switch has an explicit case for every current `ASTNodeType`, including payload-free `AST_BREAK` and `AST_CONTINUE`. Shared-layout nodes are grouped only where their payload contracts match (for example, `AST_NEXUS_PIPE` with `AST_NEXUS_FLOW`, and call-backed intrinsic nodes through `ASTCall`). Keep the switch exhaustive when appending a new AST tag; the generic fallback is diagnostic protection, not feature coverage.
+
 ## Serialization regression coverage
 
 `omnicore-sdk/src/c/tests/test_ast_deserialize.c` exercises every append-only AST tag from `AST_PROGRAM` through the current terminal tag `AST_ARRAY_DIMENSION` in both populated-field and sibling-chain round-trip tests. The populated fixtures must be extended whenever a new tag is appended; the invalid-tag boundary must move with the terminal tag. This proves AST allocation/serialization/deserialization symmetry for the exercised fields, but does not prove parser construction, semantic correctness, OIR support or lowering readiness.
