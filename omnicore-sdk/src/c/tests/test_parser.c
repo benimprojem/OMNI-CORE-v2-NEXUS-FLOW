@@ -1083,7 +1083,7 @@ done:
 
 static int test_power_bitwise_and_compound_assignment(void) {
     static const char source[] =
-        "f:main() { v:p = 2 ^^ 3 ^^ 2; v:b = 1 | 2 ^ 3 & 4; v:x = 8; x += 2; x -= 1; x *= 2; x /= 2; x &= 3; x |= 1; x ^= 2; x .= \"z\"; }";
+        "f:main() { v:p = 2 ^^ 3 ^^ 2; v:n = -2 ^^ 2; v:q = 2 ^^ -2; v:b = 1 | 2 ^ 3 & 4; v:x = 8; x += 2; x -= 1; x *= 2; x /= 2; x &= 3; x |= 1; x ^= 2; x .= \"z\"; }";
     ParserContext* ctx=parser_init_source("power-bitwise-compound.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     ASTProgram* program;ASTFuncDecl* function;ASTBlock* body;ASTNode* node;
@@ -1099,6 +1099,14 @@ static int test_power_bitwise_and_compound_assignment(void) {
             if(variable->name&&strcmp(variable->name,"p")==0&&variable->initializer&&variable->initializer->type==AST_BINARY_EXPR){
                 ASTBinaryExpr* root=(ASTBinaryExpr*)variable->initializer;
                 if(root->op==TOKEN_POWER&&root->right&&root->right->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)root->right)->op==TOKEN_POWER)saw_power=1;
+            }
+            if(variable->name&&strcmp(variable->name,"n")==0&&variable->initializer&&variable->initializer->type==AST_UNARY_EXPR){
+                ASTUnaryExpr* unary=(ASTUnaryExpr*)variable->initializer;
+                if(unary->op==TOKEN_MINUS&&unary->operand&&unary->operand->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)unary->operand)->op==TOKEN_POWER)saw_power|=2;
+            }
+            if(variable->name&&strcmp(variable->name,"q")==0&&variable->initializer&&variable->initializer->type==AST_BINARY_EXPR){
+                ASTBinaryExpr* root=(ASTBinaryExpr*)variable->initializer;
+                if(root->op==TOKEN_POWER&&root->right&&root->right->type==AST_UNARY_EXPR&&((ASTUnaryExpr*)root->right)->op==TOKEN_MINUS)saw_power|=4;
             }
             if(variable->name&&strcmp(variable->name,"b")==0&&variable->initializer&&variable->initializer->type==AST_BINARY_EXPR){
                 ASTBinaryExpr* root=(ASTBinaryExpr*)variable->initializer;
@@ -1119,7 +1127,7 @@ static int test_power_bitwise_and_compound_assignment(void) {
             if(assignment->op==TOKEN_STRING_APPEND)ops|=128;
         }
     }
-    ok=saw_power&&saw_bitwise&&ops==255;
+    ok=(saw_power&1)&&(saw_power&2)&&(saw_power&4)&&saw_bitwise&&ops==255;
 done:parser_destroy(ctx);return ok;
 }
 
