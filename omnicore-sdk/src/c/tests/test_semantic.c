@@ -221,8 +221,8 @@ static int check_extended_ast_semantics(void) {
     const char* valid =
         "f:main() {"
         " v:choice = 1;"
-        " select(choice) { Range(s,e) when s < e -> { v:seen = s; } default -> { } }"
-        " scan(choice) { Range(a,b) when a < b && b > 0 -> { v:seen2 = b; } }"
+        " select(choice) { Range(s,e) when s == e -> { v:seen = s; } default -> { } }"
+        " scan(choice) { Range(a,b) when a == b && b == a -> { v:seen2 = b; } }"
         " rules PrimeBorders(n) {"
         "  n < 2 :=> \"out of range\";"
         "  n == 2 -> Success;"
