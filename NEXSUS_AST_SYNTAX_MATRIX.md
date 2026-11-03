@@ -73,7 +73,7 @@ The syntax reference lists the language's designed operator inventory. The C Lex
 | Exponentiation `^^` | Lexer token only; no Parser consumption | Define precedence/associativity, then add Parser production and tests |
 | Comparison `<`, `<=`, `>`, `>=` | Consumed by `parse_comparison()` | Semantic comparability rules |
 | Equality `==`, `!=`, `===`, `==!` | Consumed by `parse_equality()` | Define and validate strict/forced equality semantics |
-| Logical `&&`, `||` | Lexer tokens only; no Parser consumption | Define precedence and short-circuit semantics before implementation |
+| Logical `&&`, `||` | Parser now consumes `&&` in `parse_logical_and()` and `||` in `parse_logical_or()`; AST uses `AST_BINARY_EXPR`; `&&` binds tighter than `||` | Semantic bool-operand checks are present and tested; short-circuit execution must be verified in OIR/lowering |
 | Unary logical not `!` | Consumed by `parse_unary()` | Boolean operand/type rule |
 | Unary bitwise not `~` | Consumed by `parse_unary()` | Integer operand/type rule |
 | Binary bitwise `&`, `|`, `^` | Lexer tokens only; no Parser consumption | Define precedence and integer-width behavior |
