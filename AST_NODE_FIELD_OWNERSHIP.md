@@ -107,14 +107,18 @@ The zero-initialized factory deliberately permits every pointer field to be NULL
 
 ### Explicit optional-field cases already established
 
+| `AST_RETURN.operand` | Bare `ret;` return | Parser permits an empty return; Graph Validator preserves this as optional |
+| `AST_EXTERN_DECL.body` | External declaration has signature only | Parser permits no body; Graph Validator preserves this as optional |
+| `AST_SELECT_ARM.pattern` | `default` arm | Parser marks `is_default`; Graph Validator permits the missing pattern only for that arm |
+
 | Node / field | NULL meaning | Boundary |
 |---|---|---|
 | `AST_VAR_DECL.initializer` | declaration without initializer | Semantic checks const/inference/definite initialization rules |
 | `AST_VAR_DECL.inline_type` | no inline aggregate/declarator payload | Parser/type resolver decides from declaration syntax |
-| `AST_FUNC_DECL.body` / `AST_EXTERN_DECL.body` | extern signature has no body | Non-extern function body is Parser-required |
+| `AST_FUNC_DECL.body` / `AST_EXTERN_DECL.body` | extern signature has no body | Non-extern function body is Parser-required and Graph Validator enforces it |
 | `AST_FUNC_DECL.return_type` | inferred/unspecified return type | Semantic return inference/validation |
 | `AST_ARRAY_DIMENSION.length` | dynamic/unspecified dimension (`[]`) | Semantic parameter/array context rules |
-| `AST_SCAN_ARM.pattern` | scan catch-all `else` arm only | Parser enforces final and unique else |
+| `AST_SCAN_ARM.pattern` | scan catch-all `else` arm only | Parser and Graph Validator enforce that a null-pattern arm is final |
 | `AST_NEXUS_HALT.expr` | halt without explicit expression | Halt syntax/semantic context |
 | `AST_IF.else_branch` | no else/elsif continuation | Valid optional branch |
 | `AST_LOOP.init/condition/increment/collection/variable` | depends on loop form | Parser loop_type selects required subset; Semantic validates form |
