@@ -1577,7 +1577,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
 #define V(child,field) do { if(!ast_validation_child(s,n,(child),(field),0)) return 0; } while(0)
 #define R(child,field) do { if(!ast_validation_child(s,n,(child),(field),1)) return 0; } while(0)
         switch(n->type) {
-        case AST_PROGRAM: R(((ASTProgram*)n)->declarations,"declarations"); break;
+        case AST_PROGRAM: V(((ASTProgram*)n)->declarations,"declarations"); break;
         case AST_BLOCK: case AST_ASM_BLOCK: V(((ASTBlock*)n)->statements,"statements"); break;
         case AST_VAR_DECL: V(((ASTVarDecl*)n)->initializer,"initializer"); V(((ASTVarDecl*)n)->inline_type,"inline_type"); break;
         case AST_FUNC_DECL: case AST_EXTERN_DECL: V(((ASTFuncDecl*)n)->params,"params"); V(((ASTFuncDecl*)n)->body,"body"); break;
