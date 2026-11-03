@@ -1,7 +1,7 @@
 # OIR AST Node Registry v1
 
 **Status:** Initial stable-ID registry proposal for AST payload schema 1.0  
-**Source inventory:** 99 node kinds in the current C frontend ASTNodeType enum  
+**Source inventory:** 100 node kinds in the current C frontend ASTNodeType enum  
 **Rule:** OIR IDs are explicit wire identifiers. They are not C enum ordinals, sizeof values, or compiler pointers.
 
 ## Registry rules
@@ -117,6 +117,7 @@
 | 97 | `AST_ARRAY_LITERAL` | Appended aggregate literal node; ordered elements are field 1 |
 | 98 | `AST_ARRAY_TYPE` | Array type wrapper; ordered dimensions are field 1 |
 | 99 | `AST_ARRAY_DIMENSION` | One dimension; optional length expression is field 1 (null means dynamic) |
+| 100 | `AST_BLOCK_HALT` | Block-scoped `}?;` cleanup marker; no node-specific fields |
 
 ## Field IDs and value types
 
