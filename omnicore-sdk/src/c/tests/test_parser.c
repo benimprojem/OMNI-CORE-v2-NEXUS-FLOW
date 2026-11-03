@@ -1552,5 +1552,30 @@ int main(int argc, char** argv) {
         }
     }
 
+    /* Block-scoped }?; is preserved as a distinct final block child. */
+    {
+        static const char source[] = "f:main() { v:x = 1; }?;";
+        ParserContext* parser = parser_init_source("block-halt.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        ASTNode* root;
+        ASTNode* fn;
+        ASTNode* last;
+        if (!parser || parser_run(parser) != PARSER_STATUS_OK) {
+            if (parser) parser_destroy(parser);
+            fprintf(stderr, "block-scoped Halt syntax failed to parse\\n");
+            return 1;
+        }
+        root = parser->ast_root;
+        fn = root ? ((ASTProgram*)root)->declarations : NULL;
+        last = fn ? ((ASTBlock*)((ASTFuncDecl*)fn)->body)->statements : NULL;
+        while (last && last->next) last = last->next;
+        if (!last || last->type != AST_BLOCK_HALT || !ast_validate(root, NULL)) {
+            fprintf(stderr, "block-scoped Halt was not preserved as final AST child\\n");
+            parser_destroy(parser);
+            return 1;
+        }
+        parser_destroy(parser);
+    }
+
     return 0;
 }
