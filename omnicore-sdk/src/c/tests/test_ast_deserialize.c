@@ -641,6 +641,35 @@ static int roundtrips_all_node_type_tags(void) {
     return 0;
 }
 
+static int roundtrips_block_halt_tag(void) {
+    ASTNode* block = ast_create(AST_BLOCK);
+    ASTNode* marker = ast_create(AST_BLOCK_HALT);
+    FILE* stream;
+    ASTNode* decoded;
+    int valid;
+    if (!block || !marker) { ast_destroy(block); ast_destroy(marker); return 1; }
+    ((ASTBlock*)block)->statements = marker;
+    block->line = 100;
+    block->col = 200;
+    marker->line = 101;
+    marker->col = 201;
+    stream = tmpfile();
+    if (!stream) { ast_destroy(block); return 1; }
+    if (!ast_serialize(block, stream)) { fclose(stream); ast_destroy(block); return 1; }
+    rewind(stream);
+    decoded = ast_deserialize(stream);
+    fclose(stream);
+    valid = decoded && decoded->type == AST_BLOCK &&
+        ((ASTBlock*)decoded)->statements &&
+        ((ASTBlock*)decoded)->statements->type == AST_BLOCK_HALT &&
+        ((ASTBlock*)decoded)->statements->line == 101 &&
+        ((ASTBlock*)decoded)->statements->col == 201 &&
+        ast_validate(decoded, NULL);
+    ast_destroy(decoded);
+    ast_destroy(block);
+    return valid ? 0 : 1;
+}
+
 static int roundtrips_extern_decl(void) {
     ASTFuncDecl* original = (ASTFuncDecl*)ast_create(AST_EXTERN_DECL);
     if (!original) return 1;
@@ -890,6 +919,7 @@ int main(int argc, char** argv) {
     }
     if (roundtrips_populated_ast_types() != 0) return 11;
     if (roundtrips_all_node_type_tags() != 0) return 8;
+    if (roundtrips_block_halt_tag() != 0) return 14;
     if (roundtrips_extern_decl() != 0) return 7;
     if (roundtrips_special_nodes() != 0) return 4;
     if (roundtrips_large_sibling_list() != 0) return 5;
@@ -910,7 +940,7 @@ int main(int argc, char** argv) {
         ASTNodeType type;
         int line;
         int col;
-    } invalid_node = { (ASTNodeType)(AST_ARRAY_DIMENSION + 1), 1, 1 };
+    } invalid_node = { (ASTNodeType)(AST_BLOCK_HALT + 1), 1, 1 };
 
     if (rejects_bytes(&invalid_node, sizeof(invalid_node)) != 0) {
         return 2;
