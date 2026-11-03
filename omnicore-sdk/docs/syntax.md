@@ -1,22 +1,40 @@
-# OMNI CORE v2 NEXUS FLOW - REFERENCE GUIDE
-**Version:** 1.1 (gama)  
-**Architecture:** Nexus Flow & Handler-Oriented Memory  
-**Compiler:** OCC (Omni Core Compiler)
-**Language:** Nexus Flow
+# NEXUS FLOW — Syntax Reference Guide
 
+**Language:** NEXUS Flow  
+**Compiler project:** OMNI-CORE Compiler (OCC)  
+**Document type:** Language syntax and semantics reference  
+**Version:** 1.1 (gama; reconciled with the active C compiler branch)
+
+> Bu belge NEXUS Flow dilinin normatif sözdizimi ve dil-semantik başvuru kaynağıdır. Derleyici mimarisi, modül sorumlulukları ve geliştirme durumu kök [README](../../README.md) ile OCC ilerleme belgelerinde tutulur.
+>
+> **Olgunluk notu:** Dil tasarımında tanımlanmış olmak, özelliğin Lexer, Parser, AST, Semantic ve OIR katmanlarında uygulandığı anlamına gelmez. Mevcut uygulama sınırları ve açık semantik kararlar açıkça belirtilir. Kod örnekleri tek başına uygulama garantisi değildir.
+>
+> **Düzenleme notu:** Bu kılavuz, geliştirme dalındaki eski README içine gömülü dil referansını temel alır; main dalındaki daha kapsamlı syntax belgesiyle karşılaştırılarak eksik semantik açıklamalar korunmuştur. main dalı değiştirilmemiştir.
 
 ---
 
 ## Bölüm 1. TASARIM FELSEFESİ: MİNİMALİZM VE AKIŞ
 
 1.  **Handler-Oriented (Masa):** Değişkenler sadece veri değil, birer "istasyon" (Handler) olarak görülür. `(h)` boşsa veri akar, doluysa kilitlenir.
-2.  **Deterministik Bellek:** `area` ve `zone` ile bellek fiziksel olarak yönetilir. Sahiplik (Ownership) her zaman son bloktadır.
+2.  **Deterministik Bellek:** `area` ve `zone`, OS bağımsız mantıksal bellek alanlarını ifade eder. Fiziksel bellek/cache eşlemesi hedef topolojisine bırakılır; sahiplik (Ownership) ayrıca tanımlanır.
+
+### 1.1 `area` ve `zone` bellek alanları
+
+- `area`: çekirdeğe veya çekirdek grubuna yakın/yerel bellek alanı niyeti.
+- `zone`: birden fazla çekirdeğin erişebildiği daha geniş paylaşım alanı niyeti.
+- Bunlar doğrudan L1/L2 ve L3/L4 garantisi değildir. Cache paylaşım topolojisi işlemciye göre değiştiğinden fiziksel eşleme target/runtime katmanında yapılır.
+- Bare-metal/OS bağımsız hedeflerde özel runtime; OS üzerinde çalışan hedeflerde OS adapter aynı dil kontratını uygular.
+- Hangi fiziksel havuzdan tahsis yapılacağını seçen yerleşim politikası henüz tasarım aşamasındadır; mevcut sözdizimine yeni bir ayar eklenmiş değildir.
+
+Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY_MODEL.md).
+
+---
 
 ---
 
 ## Bölüm 2. TANIMLAYICILAR VE TİPLEME SİSTEMİ**
 
-###  2.1 Tanımlama Önekleri (Identifiers)**
+###  2.1 Identifiers (Niyet Belirleyiciler)**
 ---
 | Önek | Adı | Açıklama |
 | --- | --- | --- |
@@ -84,6 +102,31 @@ f:topla(a, b) {return a + b }
 v:sonuc = topla(a:10, b:20);
 ```
 	 
+### 2.3.1 Literal ve Intrinsic Sözdizimi (Mevcut Lexer/Parser sınırı)
+
+**Uygulanan literal kuralları:**
+
+- Sayısal literal: şu an ondalık tam sayı ve ondalık kesir biçimleri desteklenir (ör. `12`, `3.14`).
+- String literal çift tırnakla yazılır: `"metin"`.
+- Karakter literal tek tırnakla yazılır: `'A'`.
+- String içinde ters eğik çizgi (`\\`) kendisinden sonraki karakterin kapanış tırnağı olarak yorumlanmasını engeller. Örneğin `"a\\\"b"` tek bir string tokenıdır.
+- Karakter literalinde ters eğik çizgi, sonraki karakteri kaçışlı karakter olarak tüketir. Eksik literal veya EOF ile biten kaçış Lexer hatasıdır.
+- Lexer şu aşamada literal içeriğini ham yazımıyla AST'ye aktarır; kaçış dizilerinin çalışma zamanı değerine dönüştürülmesi bu sözdizimi kuralından ayrı bir aşamadır.
+
+**Intrinsic biçimleri:**
+
+```nxf
+v:converted = cast(value, i32);
+panic("critical failure");
+```
+
+- `cast(value, type)`: İlk argüman ifade, ikinci argüman tür adıdır. Tür adı primitive tür tokenı veya tanımlayıcı olabilir.
+- `panic("message")`: Mevcut Parser uygulamasında mesaj string literalidir. Değişken veya genel ifade mesajı henüz desteklenmiş kabul edilmez.
+
+**Desteklenmeyen sayısal yazımlar:** Hex/binary önekleri (`0xFF`, `0b1010`), bilimsel gösterim (`10E3`, `1e-3`), sayısal ayraçlar (`1_000`), tür ekleri (`12u8`, `1.5f32`) ve literal genişlik ekleri bu Lexer sürümünde desteklenmez; artık tek bir `TOKEN_ERROR` ile reddedilir, geçerli sayı + tanımlayıcı olarak sessizce bölünmez. `^^` ise sayısal literal biçimi değil, ayrı bir üs alma operatörüdür. Lexer bu operatörü tokenlaştırsa da Parser'da `TOKEN_POWER` için bir ifade üretim kuralı bulunmadığından `10^^15` şu an derlenebilir ifade değildir.
+
+---
+
 * Diziler (Arrays)
 ```
 v:sayi[]; # Dinamik array Tanımlama
@@ -91,6 +134,10 @@ v:sayi[]; # Dinamik array Tanımlama
   
 
 v:sayilar[5]!i32 = [1, 2, 3, 4, 5]; #Statik Tanımlama ve atama.
+v:buffer[2*8+1]!i32; # Derleme zamanında hesaplanan pozitif sabit boyut.
+
+# Boyut ifadeleri tamsayı literal'ları ve +, -, *, /, % işlemlerini destekler.
+# Sonuç pozitif olmalı; taşma ve sıfıra bölme kabul edilmez.
 
 v:matris[3][3]!f32 = [
     [1.2, 0.3, 0.6],
@@ -106,6 +153,13 @@ f:listele(a![]) { ... }
 
 # Tip zorlama
 f:liste(a!i32[], ...){ ... }
+
+# Çok boyutlu parametre ve imza uyumluluğu
+f:matrisAl(veri:f64[2][2]) { ... }
+
+# Çağrı sırasında eleman türü, boyut sayısı ve sabit boyutlar denetlenir.
+# Parametredeki [] ilgili boyutta herhangi bir uzunluğu kabul eder.
+# Örneğin i32[] parametresi i32[5] dizisini kabul eder; i32[4] kabul etmez.
 
 ```
 
@@ -152,6 +206,8 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 
 * `+`, `-`, `*`, `/`, `%` (Modülo)
 * `^^` (Üs alma)
+
+> Uygulama durumu: Lexer `^^` için token üretir; mevcut Parser henüz `TOKEN_POWER` tüketmez. Bu nedenle operatör dil tasarımında tanımlı, parser desteği ise açık eksiktir.
 * `+=`, `-=`, `*=`, `/=` (Bileşik atama)
 * `++`, `--` (Artırma/Azaltma)
 
@@ -201,9 +257,9 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 | **9** | `<<`  | **Zone Write** | Veriyi atomik olarak paylaşımlı belleğe yazar. |
 | **10** | `>>`  | **Flow Feed** | Veriyi atomik olarak akışa besler. |
 | **11** | `(e){}`| **Error Block** | Saptırılan hatanın işlendiği son durak. |
-| **12** | `?;`  | **Halt (Son)** | Akış biter, yerel masalar imha edilir. |
+| **12** | `?;` / `}?;` | **Halt** | `?;` tek kaynağı/masayı kapatır; blok sonundaki `}?;` blokta kalan kaynakları topluca kapatır. |
 | **13** | `!!`  | **Panic** | Kritik durdurma. |
-| **14** | `@`   | **Intent** | Gelecekteki AI yardımcısı için amaç/hedef bildirimi; tek başına derleyici talimatı değildir. Ayrıntılar: [Intent System Specification v0.1](../../INTENT_SPEC.md). |
+| **14** | `@`   | **Intent** | Derleyiciye niyet bildirimi. |
 | **15** | `!!=` | **Directive** | .target sistemi ve derleyici talimatları. |
 
 ---
@@ -220,24 +276,61 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 ### 4.1.1 `(h)` Masa (Handler) Yaşam Döngüsü
 
 * **Scope:** `(h)` sadece tanımlandığı blokta geçerlidir. Başka bloklardan doğrudan erişilemez.
-* **Ömür (Lifetime):** Blok sonunda `}?;` ile otomatik olarak serbest bırakılır.
+* **Ömür (Lifetime):** `?;` herhangi bir uygun noktada belirtilen tek kaynak/masayı kapatır. `}?;` blok kapanışına eklenir ve o blokta açılmış, hâlâ o bloğa ait tüm açık kaynakları topluca kapatır.
 * **Transfer:** Başka bloğa taşımak için `_>` kullanılır. Taşındığında orijinal masa **silinir**.
 * **Güvenlik Etkisi:**
 
   * Ömrü garanti altındadır → dangling pointer riskini minimize eder.
   * Başka bloklar `(h)`'yi okuyamaz → izinsiz erişim yok.
 
+
 ---
->Keyword / Operatör,Mimari Rolü (Adres Odaklı),Parser/OIR Karşılığı
-(h) / (name),"Masa (Address Holder): Bir adresi temsil eden ""slot"".",TOKEN_HANDLE - OIR: OP_REG_HANDLE
-<- (Capture),Adres Atama: Sağdaki fonksiyonun döndürdüğü adresi masa içine mühürler.,TOKEN_OP_CAPTURE - OIR: OP_BIND_ADDR
-_> (Relocate),"Adres Taşıma: Adres değerini bir masadan diğerine kopyalar, eski masayı null yapar.",TOKEN_OP_RELOCATE - OIR: OP_MOVE_ADDR
-}?; (Cleanup),Adres Temizleme: Masadaki adresi serbest bırakır (free/close) ve masayı imha eder.,TOKEN_TERMINATOR - OIR: OP_FREE_HANDLE
-addr(v),Adres Alma: Değişkenin veya masanın tuttuğu ham adresi döndürür.,TOKEN_KW_ADDR - OIR: OP_GET_PTR
-peek / poke,Adres Erişimi: Masadaki adrese doğrudan veri yazar veya okur.,TOKEN_KW_PEEK / POKE - OIR: OP_MEM_IO
-v:,Value: Stack/Register üzerinde duran doğrudan veriler.,TOKEN_PREFIX_VAR - OIR: OP_DEF_VAL
-rules,Constraint: Adreslerin kullanım sınırlarını belirler (örn: Read-Only).,TOKEN_KW_RULES - OIR: BLOCK_RULES
-area / zone,Memory Allocator: Adres üreticiler. Çıktıları bir masaya <- ile bağlanır.,TOKEN_KW_AREA - OIR: OP_ALLOC
+
+### 4.1.2 Halt: Tekil Kaynak ve Blok Kapsamlı Temizlik
+
+Halt iki ayrı operatör değildir; aynı `?;` işleminin hedef kapsamı farklıdır:
+
+- **Tekil Halt — `(resource)?;`:** Herhangi bir uygun statement noktasında kullanılabilir. İlgili kaynak/masa kapatılır veya temizlenir. Örnekler: açık dosyayı kapatmak, geçici tabloyu temizlemek, yüklenmiş DLL'yi kaldırmak.
+- **Blok Halt — `}?;`:** Bir bloğun kapanışına eklenir. O blok içinde açılmış ve hâlâ o bloğun sahipliğinde bulunan tüm açık kaynakları tek tek kapatma gerektirmeden topluca sonlandırır.
+
+Örnekler:
+
+```nexus
+(file) <- file.open("data.bin", r);
+file.read(file);
+(file)?;                 # Yalnızca bu dosya kaynağını kapat.
+
+(table) <- table.create();
+table.insert(table, row);
+(table)?;                # Yalnızca bu tabloyu temizle.
+
+(Optimizer) <- dll.load("optimizer.dll");
+Optimizer.run(Optimizer);
+(Optimizer)?;                  # Yüklenen DLL kaynağını kaldır.
+```
+
+Blok kapsamlı kapatma:
+
+```nexus
+{
+    (input)  <- file.open("input.bin", r);
+    (output) <- file.open("output.bin", w);
+    (socket) <- net.connect(endpoint);
+    process(input, output, socket);
+}?; # Blokta kalan üç kaynağın tamamını kapat.
+```
+
+**Sahiplik sınırları:**
+- Blok Halt yalnızca o blokta oluşturulmuş ve hâlâ o bloğa ait kaynakları kapatır.
+- `_>` ile başka kapsama taşınmış kaynak artık eski bloğun temizleme listesinde değildir.
+- Dış kapsamdan ödünç alınmış kaynak, açık bir sahiplik devri olmadan iç blok tarafından kapatılamaz.
+- Tekil Halt sonrası kaynak/handler geçersiz duruma geçer; sonraki kullanım semantik hata olmalıdır.
+- Temizleme deterministik olmalı; her kaynak en fazla bir kez sonlandırılmalıdır.
+- Kaynak kapatma hatalarının cleanup sırası ve hata birleştirme davranışı runtime sözleşmesinde ayrıca tanımlanmalıdır.
+
+Bu bölüm hedeflenen dil semantiğidir. Mevcut C Parser yalnızca `AST_NEXUS_HALT` düğümünü tanıyor; tekil kaynak hedefini ve `}?;` blok kapsamını henüz ayrı AST/semantic/OIR bilgisi olarak temsil etmiyor. Bu nedenle örnekler tam uygulanmış compiler özelliği değildir.
+
+---
 
 ### 4.2 Standart Masa Takma Adları (Shims)
 - `(h)` : Handle/Header (Dosya/Sistem kaynakları).
@@ -296,7 +389,10 @@ loop(a < b){ ....  a++;}
 loop(a < b, a++){ .... }
 
 # Loop (infinity)
-loop{....  (a == EOF)-> break;}
+loop{
+    process();
+    (a == EOF) ? break;
+}
 
 # Rolling Loop (Zaman Ayarlı) Hata saptırma.. Hata saptırmak yerine bir etiketede atlayabilir. ?(5, 500ms)->(newhttp);
 # Aşağıdaki kod http.open() başarılı olursa kontrol sola akar. 
@@ -334,35 +430,46 @@ f:send_packets() {
 
 ### 5.2 - 6: Dallanma (If / Elsif / Els)
 
-`if / elsif / els` açık dallanma yapısıdır. Koşul ve alternatif dallar doğrudan yazılır:
+#### Koşullu Kontrol Operatörü `? :`
 
-```nxf
-if (a == b) {
-    process();
-} els {
-    fallback();
+Koşulun sonucuna göre tek bir kontrol veya işlem seçilir. Bu yapı ternary kontrol mantığıyla çalışır; değer döndürmek zorunda değildir.
+
+- `(koşul) ? işlem;` — koşul doğruysa işlem çalışır. Yanlışsa normal akış devam eder.
+- `(koşul) ? işlem_A : işlem_B;` — doğruysa A, yanlışsa B çalışır.
+- `:` ve alternatif kol zorunlu değildir.
+- Her iki kolda da normal ifadeler, bloklar veya kontrol aktarımı bulunabilir.
+- `break` ve `continue` yalnızca geçerli bir loop kapsamı içindeyken kullanılabilir.
+- Bu operatör, Bölüm 3'teki veri/işlem akışı için kullanılan `->` operatöründen ayrıdır.
+- Tek satırlı kollar bir statement olmalı ve `;` ile biter. Blok kolları `{ ... }` ile biter.
+- Koşul parantezli yazılır; böylece `?` işareti Rolling (`?(n,ms)`) ve Halt (`?;`) kullanımlarından parser tarafından ayırt edilir.
+- Lexer, `?->`, `?=>` ve `?;` gibi mevcut çok karakterli operatörleri tek token olarak önce tanır. Koşullu kontrolün `?` token'ı yalnızca tamamlanmış `(koşul)` sonrasında parser tarafından kabul edilir.
+
+Dilbilgisi:
+
+```text
+ConditionalControl := "(" Expression ")" "?" ControlArm [ ":" ControlArm ]
+ControlArm         := Statement | Block
+```
+
+Bu yapı statement seviyesinde kontrol seçimidir; kendi başına ternary değer üretmez.
+
+Örnekler:
+
+```nexus
+(a == EOF) ? break;
+(a == 5) ? break : continue;
+
+(a > 10) ? process(a);
+(a > 10) ? process(a) : process(b);
+
+(a == 0) ? {
+    echo("zero");
+} : {
+    echo("non-zero");
 }
 ```
 
-Statement seviyesinde koşullu eylem kısaltması da vardır:
-
-```nxf
-(a == b) -> break;
-(a != b) -> continue;
-```
-
-Bu biçim, koşul parantez içindeyken ve `->` sonrasında Parser'ın tanıdığı statement-only bir eylem başladığında koşullu kontrol akışı olarak ayrıştırılır. AST'de tek kollu koşullu dal olarak temsil edilir. Bu, yeni bir Nexus Flow veri operatörü değildir ve `if` yapısının yerini almaz.
-
-Normal Nexus Flow pipe ifadeleri değişmeden kalır:
-
-```nxf
-source -> target;
-source -> process();
-```
-
-Bu ifadeler veri/işlem aktarımıdır. `-> { ... }` de pipe bloğu olarak kalır. Fonksiyon çağrısını koşula bağlamak için açık `if (condition) { process(); }` biçimi kullanılmalıdır; böylece pipe ile belirsizlik oluşmaz.
-
-
+Koşullu kontrol, OIR aşamasında iki yönlü CFG dallanmasına dönüştürülür. Alternatif kol yoksa FALSE yolu doğrudan devam block'una bağlanır. Operatörün kendisi bir değer üretmez; seçilen kolun sonucu normal ifade/statement kurallarına tabidir.
 
 ```
 # Standart Karşılaştırma
@@ -376,9 +483,13 @@ B:  if (a == b){ ... }
 C:  if (a == b) status = 1; 
     els status = -1;
     
-D:  (a == b) -> break;
+D:  (a == b) ? break;
 
-E:  (a == b) -> continue;
+E:  (a == b) ? break : continue;
+
+F:  (a == b) ? process(a);
+
+G:  (a == b) ? process(a) : process(b);
 
 ```
 
@@ -391,7 +502,7 @@ E:  (a == b) -> continue;
 
 ```
      (a > 4) -> out?>
-#or  (a > 4) -> jump(out);
+#or  (a > 4) -> jump(out)
 ...
 ...
 ...
@@ -399,141 +510,249 @@ E:  (a == b) -> continue;
 
 ```
 
-### 5.3.1 NEXUSFLOW: Select, scan (alternatif switch )
-Ayrıntılar: NexusFlow Scan Select Syntax Spec.md
-- Örnekler
 
-```
-nt:enum: LoopType {
-    Range(start, end)
-    For(i, start, end)
-    Foreach(list)
-    While(cond)
-}
+**Önemli kontrol akışı kuralı:** `jump(label)` aynı basic block içinde bir konuma atlamakla sınırlı değildir. Hedef etiket, fonksiyon içindeki başka bir basic block'un giriş noktası olabilir. Jump, bulunduğu block'u sonlandırır ve kontrolü hedef block'a aktarır; aradaki kaynak satırları yürütülmez. Hedef block kaynak kodda ileri veya geri konumda bulunabilir. Bu nedenle `jump`, fonksiyon içindeki farklı kontrol akışı bölgelerine doğrudan geçiş yapmak için kullanılan genel etiketli aktarım komutudur. Fonksiyon kapsamı ve lexical-scope güvenliği ayrıca denetlenir.
 
+**Çoklu giriş ve ölçeklenebilirlik:** Aynı hedef label'a fonksiyon içindeki birden fazla farklı block'tan `jump(label)` ile ulaşılabilir. Bir hedefin predecessor sayısı veya fonksiyon içindeki toplam jump sayısı için dil seviyesinde keyfî sabit bir sınır tanımlanmaz. Gerçek sınırlar OIR formatının temsil kapasitesi, kullanılabilir bellek ve uygulama güvenlik limitleridir; bunlara ulaşıldığında derleme açık hata vermeli, atlama/kenarları sessizce kaybetmemelidir. Her basic block tek bir terminator ile sona erer; birden fazla çıkış gerekiyorsa ilgili koşullu veya çok seçenekli kontrol yapısı ayrı CFG kenarları üretir.
+
+
+#### Jump ve lexical scope kaynak ömrü
+
+`jump(label)` bir basic block'tan diğerine kontrol aktarır; basic block değişimi tek başına kaynak ömrünü bitirmez. Kaynak ömrü lexical scope'a bağlıdır.
+
+- Hedef label, kaynak noktanın içinde bulunduğu lexical scope ile aynı scope'ta veya onun bir üst scope'unda olmalıdır. Daha derin bir scope'a ya da kaynak scope ile kardeş olan başka bir scope'a atlayarak o scope'un giriş/başlatma adımlarını atlamak geçersizdir.
+- `jump` aynı lexical scope içinde başka bir basic block'a gidiyorsa scope hâlâ aktiftir. Daha sonra aynı scope içindeki önceki bir etikete geri dönmek de mümkündür; bu durumda scope'a ait masalar ve kaynaklar erken temizlenmez.
+- `jump` bir veya daha fazla lexical scope'tan çıkıyorsa, terk edilen scope'ların yaşam süresi sona erer. Bu scope'lara ait otomatik kaynak temizliği, normal scope çıkışıyla aynı şekilde çalıştırılmalıdır.
+- Daha sonra terk edilmiş bir scope'un içindeki etikete yeniden girilerek eski kaynak aktivasyonunun sürdürülmesine izin verilmez. Yeni bir scope aktivasyonu ancak normal scope giriş yoluyla oluşturulabilir.
+- `}?;` blok kapsamındaki masaların/kaynakların toplu kapatılması için kullanılır. Yalın `?;` Halt/sonlandırma davranışıdır; bir kaynak/masa/DLL hedefine uygulanmış biçimi (ör. `(Optimizer)?;`) o hedefi serbest bırakır. Bu hedefli kullanım, `jump` için genel bir cleanup komutu yerine geçmez.
+- Kaynağın `_>` ile başka bir scope'a taşınması halinde sahiplik transferi kuralları geçerlidir; eski scope aynı kaynağı ikinci kez serbest bırakamaz.
+
+Bu kuralların OIR karşılığı ve negatif/pozitif testleri, Multi-Rule OIR test **MR-OIR-016** içinde tanımlanır.
+
+### 5.3.1 NEXUSFLOW: SELECT ve SCAN
+
+NexusFlow'da `select` ve `scan` benzer şekilde dallanma oluşturur; ancak aynı işi yapmazlar:
+
+- `select(expr)`: Bir ifadenin değerini seçeneklerle karşılaştırır. İlk eşleşen branch çalışır.
+- `scan expr`: Bir enum, sealed type veya struct değerinin yapısını/pattern'ini inceler. Eşleşen varyantın taşıdığı alanları değişkenlere bağlayabilir.
+- İkisi de **statement** yapısıdır; kendi başlarına değer üretmezler.
+- Her iki yapıda da branch gövdeleri normal NexusFlow ifadeleri, bloklar veya başka kontrol yapıları içerebilir.
+
+#### A) SELECT — Değere göre seçim
+
+`select`, subject ifadesini değerlendirir ve sonucu branch pattern'leriyle karşılaştırır. Eşleşen ilk branch çalıştırılır; sonraki branch'lere devam edilmez.
+
+Desteklenen branch biçimleri:
+
+| Pattern | Anlamı |
+| --- | --- |
+| `value -> { ... }` | Tek bir değerle eşleşir. |
+| `value1 | value2 -> { ... }` | Verilen değerlerden herhangi biriyle eşleşir. Tek branch'tir. |
+| `start..end -> { ... }` | Belirtilen aralıkla eşleşir. |
+| `default -> { ... }` | Hiçbir önceki branch eşleşmediyse çalışır. |
+
+Örnek:
+
+```nexus
 select(choice) {
-
-    1 -> {
-        scan loopType {
-            Range(s,e) -> loop(s..e){ doStep(it); }
-            For(i,s,e) -> loop(i,s<e,i++){ doStep(i); }
-            Foreach(lst) -> loop(v:item in lst){ doStep(item); }
-            While(c) -> loop(c){ doStep(it); }
-        }
+    1 | 2 -> {
+        echo("Bir veya iki");
     }
 
-    default -> { echo("Invalid choice"); }
+    3..5 -> {
+        echo("Üç ile beş arası");
+    }
+
+    default -> {
+        echo("Diğer değer");
+    }
+}
+```
+
+Bu örnekte:
+
+1. `choice` değerlendirilir.
+2. Değer 1 veya 2 ise ilk branch çalışır.
+3. İlk branch eşleşmez ve değer 3 ile 5 arasındaysa ikinci branch çalışır.
+4. Hiçbiri eşleşmezse `default` çalışır.
+
+`1 | 2` iki ayrı branch anlamına gelmez; aynı gövdeye yönlenen çoklu değer pattern'idir. `default` isteğe bağlıdır. Yazılmamışsa eşleşme bulunmayan durumda bu `select` için ek bir branch çalışmaz.
+
+#### B) SCAN — Tür ve yapı pattern eşleştirmesi
+
+`scan`, subject değerinin türünü/varyantını inceler. Enum ve sealed type varyantları eşleştirilebilir; pattern içindeki parametreler yerel değişkenlere bağlanabilir. Struct pattern'leri de aynı pattern mekanizmasının kapsamındadır.
+
+Temel pattern biçimleri:
+
+| Pattern | Anlamı |
+| --- | --- |
+| `TypeName -> { ... }` | Parametre taşımayan varyant/tür eşleştirmesi. |
+| `TypeName(a,b) -> { ... }` | Varyantın alanlarını `a`, `b` değişkenlerine bağlar. |
+| `TypeName(a,b) when cond -> { ... }` | Tür/pattern eşleşmesine ek koşul uygular. |
+| `else -> { ... }` | Hiçbir pattern eşleşmediğinde varsayılan kol. |
+
+Örnek enum ve kullanım:
+
+```nexus
+nt:enum: Task {
+    IO(file!str)
+    Compute(a!i32, b!i32)
+    Network(url!str)
+    Cleanup
 }
 
+v:current_task!Task = Compute(10, 20)
+
+scan current_task {
+    IO(f) -> {
+        echo("Dosya: {f}");
+    }
+
+    Compute(a,b) when a>0 && b>0 -> {
+        v:result = a + b
+        echo("Compute sonucu: {result}");
+    }
+
+    Network(url) -> {
+        echo("Adres: {url}");
+    }
+
+    Cleanup -> {
+        echo("Temizlik işlemi");
+    }
+
+    else -> {
+        echo("Bilinmeyen görev");
+    }
+}
 ```
+
+**Pattern binding kapsamı:** `IO(f)` eşleştiğinde `f`, yalnızca ilgili branch gövdesinde kullanılabilir. `Compute(a,b)` için de `a` ve `b) aynı şekilde yalnızca o branch'e aittir. Bu isimler dış kapsama taşınmaz ve başka branch'lerin binding'leriyle çakışmaz.
+
+**Guard (`when`):** Önce varyant/pattern eşleşmesi yapılır; ardından `when` koşulu değerlendirilir. Guard doğruysa gövde çalışır. Guard yanlışsa o pattern kolu seçilmez ve tarama sonraki uygun pattern'lerle devam eder. Guard ifadesinin türü `bool` olmalıdır.
+
+#### C) SELECT içinde SCAN kullanımı
+
+İki yapı iç içe kullanılabilir. Dıştaki `select` genel işlem yolunu, içteki `scan` ise seçilen yolun içindeki tür/varyantı belirler.
+
+```nexus
+select(choice) {
+    1 | 2 -> scan current_task {
+        IO(f) -> {
+            echo("Dosya işlemi: {f}");
+        }
+
+        Compute(a,b) when a>0 && b>0 -> {
+            v:result = a + b
+            echo("Compute sonucu: {result}");
+        }
+
+        Network(url) -> {
+            echo("Ağ işlemi: {url}");
+        }
+
+        Cleanup -> {
+            echo("Temizlik işlemi");
+        }
+
+        else -> echo("Bilinmeyen görev")
+    }
+
+    3..5 -> {
+        echo("Fast path branch");
+    }
+
+    default -> {
+        echo("Geçersiz seçim");
+    }
+}
+```
+
+Burada dıştaki `select` yalnızca `choice` değerine bakar. Değer 1 veya 2 olduğunda ilgili branch içindeki `scan` çalışır. `scan` ise `current_task` değerinin hangi varyant olduğunu bulur.
+
+#### D) SCAN ve diziler
+
+`scan` subject'i bir dizi olduğunda dizi elemanları üzerinde pattern taraması yapılabilir. Her eleman, ilgili pattern'lerle eşleştirilir. Bu kullanım, tek bir enum değerini taramaktan farklı olarak sequence/iterator akışı gerektirir.
+
+```nexus
+v:loop_tasks!Task[] = [Compute(1,2), IO("a.txt"), Cleanup]
+
+scan loop_tasks {
+    Compute(a,b) -> loop(i, 0..2) {
+        echo("Compute loop: {i}, değerler: {a}+{b}");
+    }
+
+    IO(f) -> {
+        echo("Dosya okundu: {f}");
+    }?;
+
+    Cleanup -> echo("Temizlik yapılıyor")
+
+    else -> echo("Bilinmeyen görev")
+}
+```
+
+Dizi kullanımında pattern binding'leri ilgili elemanın eşleşmesi sırasında oluşturulur. Derleyici bu modu OIR'de iterator ve loop kontrol akışıyla temsil eder.
+
+**Açık semantik notu:** Dizi taramasında `else` kolunun her eşleşmeyen eleman için mi çalışacağı, yoksa tüm dizi taramasında hiçbir eşleşme bulunmadığında bir kez mi çalışacağı ayrıca kesinleştirilecektir. Bu davranış netleşmeden derleyiciye varsayılan bir yorum yüklenmemelidir.
+
+#### E) Derleyici ve OIR davranışı
+
+Parser, `select` ve `scan` için ayrı AST düğümleri üretir. Analyzer pattern türlerini, binding sayısını/türlerini, guard koşullarını, tekrar eden pattern'leri ve enum/sealed type kapsamını doğrular.
+
+OIR aşamasında:
+
+- `select` sabit ve uygun tamsayı pattern'lerinde jump table'a dönüştürülebilir.
+- Aralıklar veya jump table için uygun olmayan pattern'ler karşılaştırma/dallanma zinciriyle işlenebilir.
+- `scan` önce tür/varyant etiketini kontrol eder; yalnızca eşleşme doğrulandıktan sonra payload alanlarını çıkarır.
+- `when` guard'ı pattern eşleşmesinden sonra ayrı bir koşullu dallanma olarak uygulanır.
+- Her branch normal tamamlandığında ortak çıkış bloğuna bağlanır. `return`, `break` veya `continue` ile sonlanan branch'ler kendi kontrol aktarımını korur.
+- Hedef işlemci jump table desteklemiyorsa Codegen aynı davranışı karşılaştırma ve dallanma komutlarıyla üretir.
+
+Özetle: `select` **değer seçer**, `scan` ise **yapı/varyant eşleştirir**. İkisi statement tabanlıdır ve birbirlerinin yerine kullanılmak zorunda değildir.
+
+Ayrıntılı tasarım: [NexusFlow Scan Select Syntax Spec.md](Scan%20Select%20Syntax%20Spec.md)
 
 ### 5.3.2 NEXUSFLOW: ÇOKLU KURAL İŞLEYİCİ (MULTI-RULE ENGINE)
 
-```
-# Kural İşleyici: Tünel ve Bariyer Kontrolü
-rules PrimeBorders(n) {
-    n < 2  :=> "Sınır İhlali: 2'den küçük asallık olmaz"; 
-    n == 2 -> true;
-    n == 3 -> true;
-    
-    # Tünel Zorlaması: 6n +/- 1 kuralına uymayanlar tünel dışıdır.
-    ( (n + 1) % 6 == 0 || (n - 1) % 6 == 0 ) :=> "Asal Değil: Tünel Dışı";
-    
-    default -> true;
-}
+Multi-Rule Engine, fonksiyonun ön koşullarını topluca doğrular ve koşullara bağlı trigger'ları/aksiyonları yönetir. Kural kümeleri `rules` ile tanımlanır ve `apply rules(...)` ile fonksiyon akışına uygulanır.
 
-f:isPrime(n) {
-    # Kuralları enjekte et. Error olursa fonksiyon burada durur.
-    apply rules(PrimeBorders(n));
-
-    # Başarı tetikleyicisi (2 ve 3 için)
-    on PrimeBorders.Success { return true; }
-
-    i = 5; 
-    # Tekil Döngü (Unified Loop): Koşullu varyasyon.
-    loop (i * i <= n) {
-        # Zikzak Radarı: Tünelin iki kanadını aynı anda tara.
-        (n % i == 0 || n % (i + 2) == 0) -> {
-            return false;
-        }
-
-        i = i + 6; # 
-    }
-
-    # Zorunlu bitiş: Tüm engelleri geçtiyse asaldır.
-    always -> return true; 
-}
-
-isPrime(n);
-```
-
-1. SÖZDİZİMİ (SYNTAX)
+#### 1. Kural tanımı
 
 ```nexus
-rules [Isim](parametreler) {
-    # 1. BARİYERLER (Koşul Sağlanırsa Fonksiyonu Durdurur)
-    [koşul] :=> "Hata Mesajı";
-
-    # 2. YÖNLENDİRMELER (Koşul Sağlanırsa Aksiyonu Tetikler)
-    [koşul] -> [Aksiyon/Tetikleyici];
-
-    # 3. ÖZEL DURUMLAR (Koşulsuz veya Varsayılan)
-    always -> [Aksiyon];   # Her durumda çalışır
-    default -> [Aksiyon];  # Hiçbir kural eşleşmezse çalışır
-}
-```
-
-2. UYGULAMA VE TETİKLEYİCİLER (ON-BLOCKS)
-Kurallar fonksiyona apply ile enjekte edilir. Tetiklenen aksiyonlar on blokları ile yakalanır.
-
-```
-f:executeTask(w, h, t) {
-    # Kurallar sırayla enjekte edilir (Multi-Handler)
-    apply rules (GeometryCheck(w, h));
-    apply rules (SafetyCheck(t));
-
-    # Tetikleyici Yakalayıcılar
-    on GeometryCheck.SquareMode {
-        # ... aksiyon kodları ...
-    }
-}
-```
-
-----
-
-3. NexusFlow Kural Mimarisi
-
-```
-#Kod snippet'i
-# Kural İşleyici Tanımı
 rules CNC_Safety(w, h, tool) {
-    
-    # 1. DURDURUCU KURALLAR (Hata durumunda fonksiyon ölür)
-    w > 2800 :=> "Genişlik sınırı aşıldı"; 
+    # Bariyerler: tümü test edilir, hatalar birlikte raporlanır.
+    w > 2800 :=> "Genişlik sınırı aşıldı";
     h > 2100 :=> "Yükseklik sınırı aşıldı";
 
-    # 2. TETİKLEYİCİLER (Koşul sağlanırsa aksiyona yönlen)
+    # Normal trigger kuralları: eşleşenlerin tamamı kaydedilir.
     (w == h) -> SquareMode;
     tool == "Diamond" -> HighSpeed;
 
-    # 3. VARSAYILAN / HER ZAMAN (Koşulsuz veya Eşleşme Yoksa)
-    # 'always' her durumda çalışır.
-    # 'default' hiçbir üst kurala girmezse çalışır.
+    # İsteğe bağlı özel kurallar:
     always -> LogMetrics;
     default -> StandardSettings;
 }
 ```
 
-*** Çoklu Kural Uygulaması (The Execution)
+#### 2. Bariyerlerin toplu değerlendirilmesi
 
-```
-#Kod snippet'i
-f:buildPart(w, h, t) {
-    # Kurallar sırayla enjekte edilir
-    apply rules(CNC_Safety(w, h, t));
-    apply rules(InventoryCheck(t));
+Bir RuleSet içindeki bütün `:=>` bariyerleri değerlendirilir. Koşulu doğru olan her bariyerin mesajı hata listesine eklenir. İlk hatada durulmaz.
 
-    # '->' ile tetiklenen 'on' blokları burada devreye girer
+- Hiç hata yoksa trigger değerlendirmesine geçilir.
+- Bir veya daha fazla hata varsa fonksiyon durur ve tüm hata mesajları birlikte raporlanır.
+- Bariyer hatası oluştuğunda o RuleSet'in trigger'ları, `on` handler'ları ve normal fonksiyon akışı çalıştırılmaz.
+
+Örneğin hem genişlik hem yükseklik sınırı aşılmışsa iki mesaj da raporlanır; fonksiyon tek bir başarısızlık sonucu ile durdurulur.
+
+#### 3. Trigger ve on handler'ları
+
+Bariyerlerin tamamı başarılıysa bütün normal trigger koşulları değerlendirilir. Birden fazla koşul doğruysa tüm trigger adları kaydedilir; yalnızca ilk eşleşme seçilmez.
+
+```nexus
+f:buildPart(w, h, tool) {
+    apply rules(CNC_Safety(w, h, tool));
+
     on CNC_Safety.SquareMode {
         v:angle = setAngle(90);
     }
@@ -542,12 +761,54 @@ f:buildPart(w, h, t) {
         v:rpm = 18000;
     }
 
-    # Gerçek üretim kodu
-    cut(rpm,mode,angle);
+    cut(rpm, mode, angle);
 }
 ```
 
- 
+`on` blokları derleme sırasında ilgili RuleSet/trigger çiftiyle eşleştirilir. İlgili handler'lar, başarılı `apply rules` değerlendirmesinin parçası olarak çalışır. Birden fazla trigger eşleşirse handler'lar kaynak sırasına göre yürütülür. Handler tanımlanmamış trigger hata değildir; yakalanmamış olay olarak kalır.
+
+#### 4. Birden fazla apply rules
+
+`apply rules` çağrıları kaynak kod sırasıyla yürütülür. Önceki RuleSet başarılıysa sıradaki değerlendirilir. Herhangi bir RuleSet bariyer hatası üretirse o RuleSet'in bütün bariyer mesajları raporlanır; sonraki `apply rules` çağrıları ve fonksiyonun normal akışı çalıştırılmaz.
+
+#### 5. always ve default (isteğe bağlı)
+
+İkisi de zorunlu değildir. Ok operatörlü biçimde sağ taraf bir **trigger adıdır**:
+
+```nexus
+always -> LogMetrics;
+default -> Success;
+```
+
+- `always -> LogMetrics;`: Bariyer aşaması başarılı olan her uygulamada `LogMetrics` trigger'ını üretir.
+- `default -> Success;`: Hiçbir normal trigger eşleşmediğinde `Success` trigger'ını üretir. Bu trigger, `on RuleName.Success { ... }` ile yakalanabilir.
+- Doğrudan aksiyon çalıştırmak için blok biçimi kullanılır:
+
+```nexus
+always {
+    writeMetrics();
+}
+
+default {
+    applyStandardSettings();
+}
+```
+
+Blok biçiminde aksiyon doğrudan yürütülür. `always` ve `default` tanımları yoksa otomatik bir işlem oluşmaz.
+
+#### 6. Derleyici temsili
+
+Parser; `AST_RULESET`, `AST_BARRIER`, `AST_TRIGGER`, `AST_APPLY_RULES` ve `AST_ON` düğümlerini oluşturur. Analyzer isim çözümlemesi, argüman/tip uyumu, yinelenen trigger adları ve handler eşleşmelerini doğrular.
+
+OIR Builder, her bariyer için koşul dallanması ve hata biriktirme adımı üretir. Tüm bariyerler test edildikten sonra hata listesi boş değilse bütün kayıtlar raporlanır ve ayrı bir `RuleSetFailureExit` yoluna gidilir; bu yol normal `RETURN` ile aynı değildir. Hata yoksa bütün normal trigger koşulları birer kez değerlendirilir ve sonuçları SSA boolean değerleri olarak saklanır. Ardından eşleşen `on` handler'ları kaynak sırasıyla koşullu bloklar halinde yürütülür. Sonrasında varsa `always`, normal trigger eşleşmemişse varsa `default` aşaması çalışır. Canlı başarılı yollar `ApplyContinue` bloğunda birleştirilir.
+
+Trigger adları Analyzer aşamasında sabit kimliklere çözülür; OIR'ın çalışma zamanında metin karşılaştırması yapması gerekmez. Handler gövdesi `return` veya başka bir sonlandırıcı kontrol akışı içerirse sonraki handler'a yapay bir CFG bağlantısı kurulmaz. Hata biriktirme işlemlerinin nihai opcode/runtime ABI karşılığı ayrıca belirlenecektir.
+
+> Not: `group` içindeki `rules ... => group { ... }` biçimi temel `rules Name(params) { ... }` sözdiziminden ayrı bir organizasyon katmanıdır; ayrı lowering/çözümleme adımı olarak ele alınacaktır.
+
+Ayrıntılı AST, Analyzer ve OIR semantiği: [Multi-Rule Engine Formal Specification](Multi-Rule%20Engine%20Formal%20Spec.md).
+
+---
 
 ### 5.4 Group Metodu
 
@@ -1113,6 +1374,28 @@ f:main() {
 - `wait(time-ms)`: Belirli bir süre Bekleyemeye alma
 - `swap(a,b)`: İki değişkeni yerdeğiştir. xor ile değiştir.
 - `defer { block }`: İçinde bulunduğu kapsam kapanırken çalışacak temizlik kodunu mühürler.
+
+
+
+#### defer — lexical scope kapanış eylemi
+
+`defer { block }`, bulunduğu lexical scope için bir kapanış eylemi kaydeder. Sözdizimi zaten mevcuttur; bu bölüm davranışını netleştirir.
+
+1. Defer kaydı, yürütme sırasında defer ifadesine ulaşıldığında etkinleşir.
+2. Kayıt, bulunduğu lexical scope aktivasyonuna aittir. Aynı scope içindeki basic block geçişleri ve geri jump kayıtları silmez.
+3. Scope normal akışla veya `break`, `continue`, `return` ya da scope dışına çıkan `jump(label)` nedeniyle terk edildiğinde kayıtlı defer blokları çalıştırılır.
+4. Aynı scope aktivasyonunda birden fazla defer kaydedilmişse son kaydedilen ilk çalışır (LIFO).
+5. Defer blokları, aynı scope'a ait otomatik `}?;` kaynak/masa temizliğinden önce çalışır. Böylece defer gövdesi, otomatik serbest bırakma başlamadan önce hâlâ sahip olunan kaynakları kullanabilir.
+6. Scope aktivasyonu sona erdiğinde o aktivasyona ait defer kayıtları tüketilir. Yeni ve geçerli bir scope aktivasyonu yeni kayıt listesi oluşturur.
+7. Defer gövdesi, kendisini kaydeden scope'un dışına `jump`, `return`, `break` veya `continue` ile kontrol aktaramaz.
+8. Bu sürümde defer gövdesi içinde yeni defer kaydı oluşturulması desteklenmez; Analyzer bunu reddeder.
+9. Defer gövdesindeki hata/panic ve otomatik cleanup hatalarının tamamlanma, biriktirme ve unwind politikası MR-OIR-020'de tanımlanır; cleanup hatası normal başarı gibi kabul edilemez.
+
+Bu kuralların OIR karşılığı ve testleri MR-OIR-017 içinde tanımlanır.
+
+Defer değişkenleri kayıt anında kopyalamaz. Defer gövdesi çalıştırıldığında, kendisini kaydeden scope activation'ındaki değişkenlerin güncel değerlerini görür; gövde içindeki yazmalar aynı değişkenleri günceller. Defer, kaynaklar için ayrı sahiplik veya handle kopyası oluşturmaz. `->_` ile devredilmiş kaynak eski değişken üzerinden kullanılamaz; sahiplik ve otomatik cleanup tek bir ownership kaydı üzerinden izlenir. Defer tarafından kullanılan değişkenler, defer tamamlanana kadar geçerli tutulur. Ayrıntılı OIR ve test sözleşmesi MR-OIR-019'dadır.
+Cleanup hata politikası da sabittir: bir defer veya otomatik kaynak temizliği hata verse bile aynı scope'taki kalan defer'ler ve kaynak cleanup işlemleri tamamlanır. Defer'ler LIFO, otomatik kaynaklar ters edinim sırasıyla temizlenir. Normal çıkışta cleanup hatası normal dönüşü engeller ve hata akışına aktarılır; önceden oluşmuş hata veya panic birincil kalır, cleanup hataları ikincil tanı olarak eklenir. !! ve ?; aktif scope'ları cleanup ederek sonlanır. Defer gövdesinde non-local kontrol aktarımı, ?;, }?;, nested defer ve yeni sahip olunan kaynak edinimi yasaktır. Ayrıntılı kurallar MR-OIR-020'dedir.
+
 
 ### 14.4 Donanım ve Düşük Seviye (Kernel Ready)
 - `peek(addr)` / `poke(addr, val)`: Doğrudan bellek manipülasyonu.
