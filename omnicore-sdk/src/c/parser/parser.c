@@ -3545,6 +3545,7 @@ static ASTNode* parse_statement(Parser* p) {
         return parse_block(p);
     }
     if (match(p, TOKEN_JUMP)) {
+        Token jump_start = p->previous;
         // ?>(label);
         consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC);
         if (match(p, TOKEN_IDENTIFIER)) {
@@ -3562,12 +3563,14 @@ static ASTNode* parse_statement(Parser* p) {
             jmp->label_name[t.length] = '\0';
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
             consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_EXPR);
+            parser_stamp_node_tokens(p, (ASTNode*)jmp, &jump_start, &p->previous);
             return (ASTNode*)jmp;
         }
         error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
     }
 
     if (match(p, TOKEN_HALT)) {
+        Token halt_start = p->previous;
         ASTHalt* halt = (ASTHalt*)parser_ast_create(p, AST_NEXUS_HALT);
         if (!halt) return NULL;
         halt->base.line = p->previous.line;
@@ -3580,10 +3583,12 @@ static ASTNode* parse_statement(Parser* p) {
             }
             consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_EXPR);
         }
+        parser_stamp_node_tokens(p, (ASTNode*)halt, &halt_start, &p->previous);
         return (ASTNode*)halt;
     }
 
     if (match(p, TOKEN_INTENT)) {
+        Token intent_start = p->previous;
         ASTIntent* in = (ASTIntent*)parser_ast_create(p, AST_NEXUS_INTENT);
         if (!in) return NULL;
         in->base.line = p->previous.line;
@@ -3607,10 +3612,12 @@ static ASTNode* parse_statement(Parser* p) {
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
         }
         if (match(p, TOKEN_SEMICOLON)) {} // Opsiyonel ;
+        parser_stamp_node_tokens(p, (ASTNode*)in, &intent_start, &p->previous);
         return (ASTNode*)in;
     }
 
     if (match(p, TOKEN_FORCE)) {
+        Token panic_start = p->previous;
         ASTPanic* panic = (ASTPanic*)parser_ast_create(p, AST_PANIC);
         if (!panic) return NULL;
         panic->base.line = p->previous.line;
@@ -3632,6 +3639,7 @@ static ASTNode* parse_statement(Parser* p) {
             }
         }
         consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_EXPR);
+        parser_stamp_node_tokens(p, (ASTNode*)panic, &panic_start, &p->previous);
         return (ASTNode*)panic;
     }
     
