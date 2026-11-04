@@ -48,7 +48,7 @@ void occ_source_files_init(OccSourceFileTable* table);
 void occ_source_files_destroy(OccSourceFileTable* table);
 /* Re-registering the same path returns its existing ID. */
 int occ_source_files_register(OccSourceFileTable* table, const char* path, uint32_t* out_source_id);
-/* Returned path is borrowed and remains valid until table mutation/destruction. */
+/* Returned path is borrowed and remains valid until table destruction. */
 const char* occ_source_files_get(const OccSourceFileTable* table, uint32_t source_id);
 
 typedef struct OccDiagnosticRecord {
