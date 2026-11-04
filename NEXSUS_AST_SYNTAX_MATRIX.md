@@ -98,13 +98,13 @@ This table is an implementation audit, not a change to the language design. Unsu
 
 ## AST structural audit findings (updated 2026-11-04)
 
-- **All 100 current ASTNodeType values have explicit Graph Validator dispatch.** The validator's default branch now fails closed with AST_VALIDATE_INVALID_KIND; a future appended node cannot silently pass as a childless leaf. The populated codec round-trip fixtures also pass through `ast_validate()` because serialization validates before writing.
+- **All 103 current ASTNodeType values have explicit Graph Validator dispatch.** The validator's default branch now fails closed with AST_VALIDATE_INVALID_KIND; a future appended node cannot silently pass as a childless leaf. The populated codec round-trip fixtures also pass through `ast_validate()` because serialization validates before writing.
 - **Source spans are implemented but not complete end-to-end.** `ASTNode` now stores `OccSourceSpan`; the graph validator checks byte-offset and line/column monotonicity plus `line/col` mirrors. Parser stamping covers program root, blocks/Halt, literals/identifiers, unary/binary/assignment/postfix/call/index/tuple/array/array dimensions, declarations/parameters, if/loop/select/scan, Nexus Flow capture/jump and several aggregate/intrinsic forms. Exact tests cover UTF-8 byte columns and multiline endpoints. The AST binary codec writes `OCCAST` version 1 with fieldwise spans and reads legacy unprefixed streams (including non-seekable streams via replay buffer). **Remaining:** finish per-production parser audit, then implement OIR optional span TLVs (`0xFFF0`–`0xFFF3`) and round-trip/backward-compatibility tests. Do not mark the full source-span column complete yet.
 - **Block-scoped Halt representation added.** `AST_BLOCK_HALT` is a payload-free final child of its owning block; parser and graph validator enforce the placement contract. OIR uses append-only kind ID 100. Semantic cleanup ordering and lowering are not part of this AST change.
 - **Inline assembly remains a confirmed parser/model gap.** AST_ASM_BLOCK currently reuses ASTBlock payload shape, while fastexec, asm: labels, asmcall and asmjmp have no parser construction path in the C Parser. Do not invent a raw-assembly payload or target syntax until the language contract is resolved.
 - **Normative syntax document path reconciled.** The active branch now uses `docs/language/syntax-reference.md` as the single normative reference. The duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` was read-only and remains untouched.
 
-## AST node payload/codec audit (all 100 current enum tags)
+## AST node payload/codec audit (all 103 current enum tags)
 
 Every AST enum tag must be covered in all columns below. Shared payload is acceptable only when explicit and semantically valid.
 
