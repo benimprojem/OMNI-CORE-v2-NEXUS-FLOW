@@ -516,3 +516,6 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-05 | AST codec için contextual round-trip fixture eklendi: AST_MUST_DECL → AST_PROGRAM declarations; AST_VARIADIC_PARAM → AST_FUNC_DECL params; AST_BLOCK_HALT → AST_BLOCK statements (son öğe); AST_ASM_LABEL → AST_FASTEXEC_BLOCK statements. Tek program ağacı graph validation, serialize → deserialize → validate → canonical re-encode byte eşitliği ile test ediliyor. Önceki standalone enum sweep sınırı AST_ARRAY_DIMENSION olarak tutuldu; bağlama bağımlı tag'ler artık parent-context fixture üzerinden kapsanıyor. | `test_ast_deserialize.c`; commit `522c84f1`; CI run `41917469888` queued |
+
+
+| 2026-11-05 | Contextual AST codec test CI ilk çalıştırmasında test çağrısına literal `\\n` kaçışının kaynak koda yazıldığı compile error tespit edildi; test mantığına geçmeden build duruyordu. Çağrı satırı gerçek newline ile düzeltildi; önceki başarısız CI'lar test sonucu olarak değerlendirilmez. | test fix commit `b712509f`; CI pending |
