@@ -1,6 +1,6 @@
 # AST Source Span Contract
 
-**Status:** Partial implementation — AST field/setter/validator and versioned legacy codec with span round-trip + unprefixed legacy reader are implemented. Parser production stamping and OIR TLV remain pending.  
+**Status:** Partial implementation — AST field/setter/validator, broad parser production stamping, exact parser span tests and versioned legacy codec are implemented. Remaining parser node families are under audit; OIR optional span TLV remains pending.  
 **Scope:** C frontend AST, legacy AST stream codec, OIR AST bridge  
 **Normative dependency:** `docs/language/syntax-reference.md`
 
@@ -23,21 +23,21 @@ The lexer already supplies zero-based UTF-8 byte offsets and token byte lengths.
 
 ## 3. AST representation
 
-The public `ASTNode` header will append an `OccSourceSpan` field. Existing `line` and `col` remain as compatibility mirrors of `span.start_line` and `span.start_column` when `span.has_location` is true.
+The public `ASTNode` header appends an `OccSourceSpan` field. Existing `line` and `col` remain as compatibility mirrors of `span.start_line` and `span.start_column` when `span.has_location` is true.
 
 Invariants when a complete span is present:
 
 1. `start_offset <= end_offset`.
 2. Start and end line/column values are non-zero.
 3. `line == span.start_line` and `col == span.start_column`.
-4. The span lies within the source length known to the parser.
+4. Parser stamping ensures the span lies within the source length known to the parser.
 5. The node's range encloses all child ranges; punctuation owned by the parent may extend beyond the first/last child.
 
 No source pointer is stored in AST nodes. AST remains independent of the lifetime of the parser's source buffer.
 
 ## 4. Parser propagation
 
-The parser will expose one internal helper that builds a span from a first and last consumed `Token`, using the same byte/line/column rules as diagnostic span construction.
+The parser uses internal helpers that build spans from first/last consumed `Token` values or child-node boundaries, using the same byte/line/column rules as diagnostic span construction.
 
 The parser program root is stamped with the complete source-file range `[0, source_length)`; every AST-producing grammar function must stamp the completed node from its production boundaries. **Current partial implementation:** numeric/string/character literals, boolean literals and identifier leaf nodes are stamped from their exact token span and inherit `ParserContext.source_id`; binary and assignment expressions compose their range from the first and last child spans; block nodes use the consumed opening brace and closing brace, extending through the owned `}?;` token when present. Variable declarations now span their prefix through the consumed semicolon, function declarations span their prefix through the closing body token, and function parameters/variadic markers retain their individual token ranges. Prefix unary expressions now span the operator through the operand; return, break and continue statements span their keyword through the consumed semicolon. Use/defer/MUST, struct/union/group/enum/newtype declarations and explicit jump/Halt/intent/panic statements now receive their parser boundary tokens; struct/union fields, enum variants and enum payload fields now carry their own token ranges; aggregate declaration fixtures assert exact root and child boundaries. Group member and inline newtype-aggregate paths still need dedicated coverage. For expression nodes, the range includes the operator token; for declarations and blocks, it includes their prefix/brace/terminator syntax. Parent ranges must be computed from the production boundaries, not inferred solely from child ranges.
 
@@ -78,7 +78,7 @@ The new reader validates that the four fields are either all present or all abse
 ## 7. Validator and test requirements
 
 - `ast_validate()` checks complete-span invariants and rejects malformed ranges. (Implemented and covered by AST validator tests.)
-- Parser tests currently assert exact ranges and source identity for numeric literal and identifier leaves, plus a binary expression composed from child spans. Other declaration forms, multiline source and multibyte UTF-8 byte-column tests now verify exact offsets and line/column endpoints; thread-block nodes/body blocks include the special `>{` opener; both normative lambda forms `f:(params)>expr` and `f:(params){...}` now stamp the full lambda production and parameter nodes. array type nodes span the complete dimension sequence and each `AST_ARRAY_DIMENSION` owns its own `[...]` range. select/scan roots and each arm are stamped independently, including literal/binding/constructor pattern nodes. Nexus Flow pipe/flow, relocate and capture nodes now compose spans from their left/right operands; labels span their label expression through the attached statement; unpack nodes extend through their operator token. array literals span `[` through `]`, and both `loop(...)` and `(loop)` forms span their keyword/opening delimiter through the body close. conditional nodes now span the `if`/`elsif` keyword through the final branch production. postfix index/member/call, postfix increment/decrement, named-argument, tuple and intrinsic-call nodes now derive full spans from their owned operands/tokens. parser tests verify variable/function declaration boundaries and the block-Halt test verifies the closing `}?;` is included.
+- Parser tests assert exact ranges for the AST program root, numeric/string/character/boolean literals, identifiers, unary/binary/assignment expressions, declarations/parameters, arrays and dimensions, tuples, calls/postfix access, conditionals/loops/select-scan, lambda forms, aggregate members, Nexus Flow operators/control statements, thread blocks, multiline source and multibyte UTF-8 byte columns; thread-block nodes/body blocks include the special `>{` opener; both normative lambda forms `f:(params)>expr` and `f:(params){...}` now stamp the full lambda production and parameter nodes. array type nodes span the complete dimension sequence and each `AST_ARRAY_DIMENSION` owns its own `[...]` range. select/scan roots and each arm are stamped independently, including literal/binding/constructor pattern nodes. Nexus Flow pipe/flow, relocate and capture nodes now compose spans from their left/right operands; labels span their label expression through the attached statement; unpack nodes extend through their operator token. array literals span `[` through `]`, and both `loop(...)` and `(loop)` forms span their keyword/opening delimiter through the body close. conditional nodes now span the `if`/`elsif` keyword through the final branch production. postfix index/member/call, postfix increment/decrement, named-argument, tuple and intrinsic-call nodes now derive full spans from their owned operands/tokens. parser tests also verify variable/function declaration boundaries and the block-Halt test verifies the closing `}?;` is included. Group member and inline newtype-aggregate subnodes, some rule/control node families and the full per-node syntax matrix still need an explicit final audit.
 - Legacy AST codec tests cover versioned span round-trip, unprefixed legacy input, unknown-version rejection and truncated magic/version prefixes. (Implemented; CI run `41786516465` passed 5/5.)
 - OIR tests must cover full-span preservation, old payloads without span extensions, partial extension rejection and unknown optional scalar compatibility. (Pending.)
 - Windows, Linux, macOS, ASan/UBSan and Valgrind must pass before the span feature is marked complete.
