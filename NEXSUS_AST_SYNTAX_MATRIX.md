@@ -1,7 +1,7 @@
 # NEXSUS Flow Syntax ↔ AST Coverage Matrix
 
 **Branch:** `refactor/c-core-roadmap`  
-**Status:** Parser, AST codec and OIR bridge extensions implemented for select/scan, rules, apply/on, lambda, relocate and unroll; semantic/lowering coverage remains open  
+**Status:** AST source-span field/validator and versioned legacy codec implemented; parser span stamping is broad but still under per-production audit; OIR optional span TLVs and inline ASM remain open. Existing semantic/lowering gaps remain gated.  
 **Gate:** This matrix must be complete before Codegen expansion.
 
 ## Comparison rule
@@ -12,11 +12,11 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 
 | NEXSUS Flow syntax / construct | Existing AST representation | Initial result | Required action |
 |---|---|---|---|
-| Program / block `{...}` | `AST_PROGRAM`, `AST_BLOCK` | Present | Check ownership, spans and codec |
+| Program / block `{...}` | `AST_PROGRAM`, `AST_BLOCK` | Present; program root spans full source file, blocks include delimiters and `}?;` | Finish per-node span audit and OIR span TLV |
 | Mutable / constant declaration `v:`, `c:` | `AST_VAR_DECL` | Present | Verify type/hard/public/export/inline type fields |
 | Function `f:name(...)` | `AST_FUNC_DECL` | Present | Audit parameter nodes, named args, return type and body |
 | Extern function `exf:name(...)` | `AST_EXTERN_DECL` / `ASTFuncDecl` | Present/shared payload | Verify parser, codec, semantic signature |
-| Lambda `f:(a,b)>expr` / block lambda `f:(a,b){...}` | `AST_LAMBDA` | Parser/AST/OIR implemented; expression/block bodies, parameter scopes and semantic-result scope visibility tested | Function-type model, capture rules, return inference and lowering remain open |
+| Lambda `f:(a,b)>expr` / block lambda `f:(a,b){...}` | `AST_LAMBDA` | Parser/AST/OIR implemented; expression/block bodies, parameter scopes, semantic-result scope visibility and source-span tests present | Function-type model, capture rules, return inference and lowering remain open |
 | Anonymous function `f:(a,b){...}` | `AST_LAMBDA` shared with expression lambda | Parser/AST/OIR and block-body codec implemented | Function-type representation, captures and return inference remain open |
 | Struct / packed struct | `AST_STRUCT_DECL` | Present | Confirm packed syntax and field type representation |
 | Enum + variants/data | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | Present | Validate payload variants and discriminants |
@@ -96,15 +96,15 @@ This table is an implementation audit, not a change to the language design. Unsu
 7. **Intent/AI logic:** declared/deferred; do not invent semantics before their specs are activated.
 8. **Pattern binding type inference:** `semantic_check_pattern_bindings()` currently creates `any` slots without the select/scan subject type. Enum declaration analysis already records payload field types in Semantic Result relations, but the arm checker does not resolve a constructor pattern against that subject enum/variant. This is the reason a guard such as `when a > 0` cannot yet rely on the payload field's numeric type; subject-aware constructor resolution must close before those guards are claimed semantically complete.
 
-## AST structural audit findings (2026-11-03)
+## AST structural audit findings (updated 2026-11-04)
 
-- **All 99 current ASTNodeType values have explicit Graph Validator dispatch.** The validator's default branch now fails closed with AST_VALIDATE_INVALID_KIND; a future appended node cannot silently pass as a childless leaf. The 99-kind populated codec round-trip fixtures also pass through ast_validate() because serialization validates before writing.
-- **Source spans remain incomplete in the AST model.** ASTNode stores only line and col; token byte offsets and full end positions are available in Lexer tokens and diagnostic OccSourceSpan, but are not persisted on AST nodes. This prevents precise AST-level range diagnostics and stable source mapping after serialization/OIR transfer. Do not mark the source-span column complete.
+- **All 100 current ASTNodeType values have explicit Graph Validator dispatch.** The validator's default branch now fails closed with AST_VALIDATE_INVALID_KIND; a future appended node cannot silently pass as a childless leaf. The populated codec round-trip fixtures also pass through `ast_validate()` because serialization validates before writing.
+- **Source spans are implemented but not complete end-to-end.** `ASTNode` now stores `OccSourceSpan`; the graph validator checks byte-offset and line/column monotonicity plus `line/col` mirrors. Parser stamping covers program root, blocks/Halt, literals/identifiers, unary/binary/assignment/postfix/call/index/tuple/array/array dimensions, declarations/parameters, if/loop/select/scan, Nexus Flow capture/jump and several aggregate/intrinsic forms. Exact tests cover UTF-8 byte columns and multiline endpoints. The AST binary codec writes `OCCAST` version 1 with fieldwise spans and reads legacy unprefixed streams (including non-seekable streams via replay buffer). **Remaining:** finish per-production parser audit, then implement OIR optional span TLVs (`0xFFF0`–`0xFFF3`) and round-trip/backward-compatibility tests. Do not mark the full source-span column complete yet.
 - **Block-scoped Halt representation added.** `AST_BLOCK_HALT` is a payload-free final child of its owning block; parser and graph validator enforce the placement contract. OIR uses append-only kind ID 100. Semantic cleanup ordering and lowering are not part of this AST change.
 - **Inline assembly remains a confirmed parser/model gap.** AST_ASM_BLOCK currently reuses ASTBlock payload shape, while fastexec, asm: labels, asmcall and asmjmp have no parser construction path in the C Parser. Do not invent a raw-assembly payload or target syntax until the language contract is resolved.
 - **Normative syntax document path reconciled.** The active branch now uses `docs/language/syntax-reference.md` as the single normative reference. The duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` was read-only and remains untouched.
 
-## AST node payload/codec audit (all current enum tags)
+## AST node payload/codec audit (all 100 current enum tags)
 
 Every AST enum tag must be covered in all columns below. Shared payload is acceptable only when explicit and semantically valid.
 
@@ -124,9 +124,9 @@ Every AST enum tag must be covered in all columns below. Shared payload is accep
 
 ## Next implementation sequence
 
-1. Finish parser grammar trace for all syntax rows above (including README/spec examples).
+1. Finish parser grammar and source-span trace for all syntax rows above (including README/spec examples).
 2. Add the missing AST node contracts in a stable, append-only manner; update OIR AST node registry IDs without renumbering existing IDs.
-3. Implement parser construction, allocation, printer, codec, destroy and round-trip tests for each added node.
+3. Implement parser construction, allocation, printer, codec, destroy, source-span and round-trip tests for each added node.
 4. Complete semantic typing/scope/effect contracts and semantic artifact validation.
 5. Add lowering coverage and verifier contracts only after frontend rows are complete.
 6. Keep Codegen expansion blocked until the matrix is green.
