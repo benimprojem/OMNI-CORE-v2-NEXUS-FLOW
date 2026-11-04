@@ -3421,11 +3421,13 @@ static ASTNode* parse_statement(Parser* p) {
     if (p->panic_mode) p->panic_mode = 0; // Her yeni ifadede hata modunu sıfırla (Basit senkronizasyon)
 
     if (match(p, TOKEN_SEMICOLON)) {
+        Token semicolon = p->previous;
         ASTBlock* nop = (ASTBlock*)parser_ast_create(p, AST_BLOCK);
         if (!nop) return NULL;
-        nop->base.line = p->previous.line;
-        nop->base.col = p->previous.col;
+        nop->base.line = semicolon.line;
+        nop->base.col = semicolon.col;
         nop->statements = NULL;
+        parser_stamp_node_token(p, (ASTNode*)nop, &semicolon);
         return (ASTNode*)nop;
     }
 
@@ -3739,6 +3741,8 @@ static ASTNode* parse_statement(Parser* p) {
     
     // Check for Label Syntax: expr :> statement
     if (match(p, TOKEN_NEXUS_LABEL)) {
+        Token label_operator = p->previous;
+        OccSourceSpan label_start_span = expr->source_span;
         char* label_name = NULL;
         
         /* Unwrap at most one single-element tuple; multi-element tuples stay invalid labels. */
@@ -3787,6 +3791,22 @@ static ASTNode* parse_statement(Parser* p) {
             !lbl->statement) {
             ast_destroy((ASTNode*)lbl);
             return NULL;
+        }
+        if (label_start_span.has_location) {
+            OccSourceSpan end_span;
+            if (lbl->statement && lbl->statement->source_span.has_location) {
+                end_span = lbl->statement->source_span;
+            } else {
+                parser_make_token_span(p->ctx, &label_operator, &end_span);
+            }
+            if (end_span.has_location &&
+                end_span.source_id == label_start_span.source_id &&
+                end_span.end_offset >= label_start_span.start_offset) {
+                label_start_span.end_offset = end_span.end_offset;
+                label_start_span.end_line = end_span.end_line;
+                label_start_span.end_column = end_span.end_column;
+                (void)ast_set_source_span((ASTNode*)lbl, &label_start_span);
+            }
         }
         return (ASTNode*)lbl;
     }
