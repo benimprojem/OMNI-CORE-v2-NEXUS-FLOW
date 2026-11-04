@@ -155,6 +155,9 @@ typedef struct {
     /* Borrowed job-owned registry; it must outlive this parser context. */
     OccSourceFileTable* source_files;
     uint32_t source_id;
+    /* Lexer state for raw ASM body after asm: LABEL {. */
+    uint8_t lexer_asm_state;
+    uint8_t lexer_asm_body_pending;
 } ParserContext;
 
 OCC_API ParserContext* parser_init(const char* filename);
