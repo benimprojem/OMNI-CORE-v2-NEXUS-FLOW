@@ -1863,7 +1863,8 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_FUNC_CALL: case AST_SPAWN: case AST_ECHO: case AST_SEND: case AST_RECEIVE: case AST_DONE: case AST_AREA: case AST_ZONE: case AST_ADDR: case AST_LEN: case AST_PEEK: case AST_POKE: case AST_INB: case AST_OUTB: case AST_IRQ: case AST_INTR: case AST_REG: case AST_PRNT: case AST_PRMT: case AST_WRITE: case AST_FWRITE: case AST_TYPEOF: case AST_SIZEOF: case AST_IS_OK: case AST_IS_ERR: case AST_IS_SOME: case AST_IS_NONE: case AST_IS_NULL: case AST_EXIT: case AST_SWAP: case AST_DATE: case AST_DATENOW: case AST_TIME: case AST_CLOCK: case AST_FREE: case AST_ZONE_SYNC: case AST_ZONE_VIEW: case AST_ZONE_LOCK: {
             const ASTNode *arg_a, *arg_b;
             int named_seen = 0;
-            R(((ASTCall*)n)->callee,"callee");
+            if(n->type==AST_FUNC_CALL) R(((ASTCall*)n)->callee,"callee");
+            else V(((ASTCall*)n)->callee,"callee");
             for (arg_a=((ASTCall*)n)->args; arg_a; arg_a=arg_a->next) {
                 if (arg_a->type == AST_NAMED_ARG) {
                     const char *label=((const ASTNamedArg*)arg_a)->name;
