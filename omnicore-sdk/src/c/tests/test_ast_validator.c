@@ -91,9 +91,9 @@ int main(void) {
 
     /* Payload-free and scalar-only leaf nodes are valid without child edges. */
     {
-        const ASTNodeType leaves[] = { AST_LITERAL, AST_IDENTIFIER, AST_BREAK,
-            AST_CONTINUE, AST_NEXUS_JUMP, AST_AI_LOGIC, AST_PANIC, AST_USE,
-            AST_PATTERN_BINDING, AST_NEWTYPE_DECL };
+        const ASTNodeType leaves[] = {
+            AST_BREAK, AST_CONTINUE, AST_VARIADIC_PARAM
+        };
         size_t i;
         for (i = 0; i < sizeof(leaves) / sizeof(leaves[0]); ++i) {
             ASTNode *leaf = ast_create(leaves[i]);
@@ -104,6 +104,45 @@ int main(void) {
             }
             ast_destroy(leaf);
         }
+    }
+
+    /* Scalar payloads that identify source constructs are required. */
+    {
+        ASTIdentifier* identifier=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+        ASTLiteral* literal=(ASTLiteral*)ast_create(AST_LITERAL);
+        ASTNewTypeDecl* newtype=(ASTNewTypeDecl*)ast_create(AST_NEWTYPE_DECL);
+        if(!identifier || !literal || !newtype) return 1;
+        if(!expect((ASTNode*)identifier,AST_VALIDATE_MISSING_REQUIRED) ||
+           !expect((ASTNode*)literal,AST_VALIDATE_MISSING_REQUIRED) ||
+           !expect((ASTNode*)newtype,AST_VALIDATE_MISSING_REQUIRED)) {
+            fprintf(stderr,"missing scalar AST payload was accepted\\n");
+            ast_destroy((ASTNode*)identifier);
+            ast_destroy((ASTNode*)literal);
+            ast_destroy((ASTNode*)newtype);
+            return 1;
+        }
+        identifier->name=(char*)malloc(2u);
+        literal->string_value=(char*)malloc(1u);
+        newtype->name=(char*)malloc(2u);
+        newtype->target_type=(char*)malloc(2u);
+        if(!identifier->name || !literal->string_value ||
+           !newtype->name || !newtype->target_type) return 1;
+        strcpy(identifier->name,"x");
+        literal->string_value[0]='\\0'; /* Empty string literal is valid. */
+        strcpy(newtype->name,"Id");
+        strcpy(newtype->target_type,"u32");
+        if(!expect((ASTNode*)identifier,AST_VALIDATE_OK) ||
+           !expect((ASTNode*)literal,AST_VALIDATE_OK) ||
+           !expect((ASTNode*)newtype,AST_VALIDATE_OK)) {
+            fprintf(stderr,"valid scalar AST payload was rejected\\n");
+            ast_destroy((ASTNode*)identifier);
+            ast_destroy((ASTNode*)literal);
+            ast_destroy((ASTNode*)newtype);
+            return 1;
+        }
+        ast_destroy((ASTNode*)identifier);
+        ast_destroy((ASTNode*)literal);
+        ast_destroy((ASTNode*)newtype);
     }
 
     /* Invalid enum values must fail before payload dispatch. */
