@@ -1430,14 +1430,19 @@ done:
         fprintf(stderr,"FASTEXEC/raw ASM Parser AST or exact source-span test failed.\n");
         return 0;
     }
-    parser=parser_init_source("asmcall-outside-fast-exec.nxf",
+    /* asmcall/asmjmp intentionally remain generic AST_FUNC_CALL nodes.
+       FASTEXEC scope and label checks belong to Semantic, not Parser. */
+    parser=parser_init_source("asmcall-generic-call.nxf",
         (const uint8_t*)call_outside_source,sizeof(call_outside_source)-1u);
     if(!parser) return 0;
-    (void)parser_run(parser);
-    valid=parser->error_count>0;
+    valid=parser_run(parser)==PARSER_STATUS_OK && parser->error_count==0 &&
+        parser->ast_root &&
+        ((ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations)->body &&
+        ((ASTBlock*)((ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations)->body)->statements &&
+        ((ASTBlock*)((ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations)->body)->statements->type==AST_FUNC_CALL;
     parser_destroy(parser);
     if(!valid) {
-        fprintf(stderr,"asmcall outside FASTEXEC was not diagnosed.\\n");
+        fprintf(stderr,"asmcall generic AST_FUNC_CALL parsing failed.\\n");
         return 0;
     }
     parser=parser_init_source("asm-outside-fast-exec.nxf",
