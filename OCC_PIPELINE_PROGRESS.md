@@ -504,3 +504,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-05 | AST node lifecycle audit: AST enum 105 node'a ulaşıyor. Payload-free `AST_BREAK`, `AST_CONTINUE`, `AST_BLOCK_HALT`, `AST_VARIADIC_PARAM` türleri factory, destructor, serializer ve deserializer switch'lerinde açıkça işaretlendi (sessiz default davranışı yerine). Variadic marker'ın payload taşımadığı AST header yorumuyla uyumlu. CI run `41912702421` queued; sonuç henüz yok. | `ast.c`; commit `ce0aa835` |
+
+
+| 2026-11-05 | AST lifecycle audit CI doğrulandı: payload-free düğüm türlerinin açık factory/destructor/serialize/deserialize davranışı Ubuntu CTest, ASan/UBSan, Valgrind ve Windows CTest'te başarılı. | run `41912702421`, progress correction `4d813d8a` |
+| 2026-11-05 | AST→OIR node-kind mapping 105/105; OIR writer 105/105 türü switch'te ele alıyor. Reader AST kind mapping üzerinden türü çözüyor ve ilgili field schema/child contract kontrolüyle decode ediyor. OIR frontend index child-field count tablosundaki payload'sız leaf türleri açık case'lere alındı (NewType, Literal, Identifier, Break/Continue, Nexus Jump, AI Logic, Panic, Use). | `oir_ast_map.c`, `oir_ast_frontend_writer.c`, `oir_ast_frontend_reader.c`, `oir_ast_frontend_index.c`; commits `8d37f948`, `53365649` |
