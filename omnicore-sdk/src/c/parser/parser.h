@@ -2,6 +2,7 @@
 #define OCC_PARSER_H
 
 #include <stdio.h>
+#include <stdint.h>
 #include "../core/diagnostics.h"
 
 #ifdef _WIN32
