@@ -3275,7 +3275,14 @@ static ASTNode* parse_statement(Parser* p) {
         return control;
     }
 
-    if (match(p, TOKEN_PRE_MUST)) return parse_must_decl(p);
+    if (match(p, TOKEN_PRE_MUST)) {
+        if (p->nesting_depth != 0u) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "MUST dependencies are only valid at program scope.");
+            return NULL;
+        }
+        return parse_must_decl(p);
+    }
 
     if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
         ASTVarDecl* decl = (ASTVarDecl*)parse_var_decl(p);
