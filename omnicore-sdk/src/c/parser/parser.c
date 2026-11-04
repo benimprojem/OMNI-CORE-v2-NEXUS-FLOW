@@ -1089,24 +1089,32 @@ static ASTNode* parse_defer(Parser* p) {
 
 static ASTNode* parse_must_decl(Parser* p) {
     ASTMustDecl* dependency = (ASTMustDecl*)parser_ast_create(p, AST_MUST_DECL);
-    Token name_token;
+    Token prefix_token = p->previous;
+    const char* name_start = NULL;
+    size_t name_length = 0u;
     if (!dependency) return NULL;
-    dependency->base.line = p->previous.line;
-    dependency->base.col = p->previous.col;
-    if (!match(p, TOKEN_IDENTIFIER)) {
+    dependency->base.line = prefix_token.line;
+    dependency->base.col = prefix_token.col;
+    /* Like f:name, the lexer may return the whole m:Name prefix as one token. */
+    if (prefix_token.length > 2) {
+        name_start = prefix_token.start + 2;
+        name_length = (size_t)prefix_token.length - 2u;
+    } else if (match(p, TOKEN_IDENTIFIER)) {
+        name_start = p->previous.start;
+        name_length = (size_t)p->previous.length;
+    } else {
         error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
             "Expected dependency name after m:.");
         ast_destroy((ASTNode*)dependency);
         return NULL;
     }
-    name_token = p->previous;
-    dependency->name = (char*)parser_malloc(p, (size_t)name_token.length + 1u);
+    dependency->name = (char*)parser_malloc(p, name_length + 1u);
     if (!dependency->name) {
         ast_destroy((ASTNode*)dependency);
         return NULL;
     }
-    memcpy(dependency->name, name_token.start, (size_t)name_token.length);
-    dependency->name[name_token.length] = '\0';
+    memcpy(dependency->name, name_start, name_length);
+    dependency->name[name_length] = '\0';
     if (!match(p, TOKEN_ASSIGN)) {
         error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
             "Expected '=' after mandatory dependency name.");
