@@ -420,3 +420,5 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 | 2026-11-04 | Inline newtype aggregate span coverage eklendi: normative `nt:struct: point { ... }` üretiminde AST_STRUCT_DECL root ve iki field node'unun prefix/type byte aralıkları test ediliyor; AST graph validation da doğrulanıyor. | `test_parser.c`, `docs/AST-SOURCE-SPAN-CONTRACT.md`; commit `badb44e`; CI bekleniyor |
 
 | 2026-11-04 | Multi-source AST root identity testi eklendi: parser source registry'de ikinci dosya ID=1 iken AST_PROGRAM source_span.source_id=1 ve `[0, source_len)` byte aralığını koruyor; aynı fixture diagnostic source_id kontrolünü de sürdürüyor. | `test_parser.c`, `docs/AST-SOURCE-SPAN-CONTRACT.md`; commit `182b202`; CI bekleniyor |
+
+| 2026-11-04 | Inline newtype aggregate test doğrulandı: `nt:struct: point { ... }` AST root + field span fixture CI `41791509581` passed 5/5 (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). | `test_parser.c`, `OCC_PIPELINE_PROGRESS.md`; commit `badb44e` |
