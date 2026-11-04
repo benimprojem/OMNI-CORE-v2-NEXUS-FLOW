@@ -2192,7 +2192,7 @@ generic_type_done:
 
     /* Explicit Nexus jump statements span their operator through semicolon. */
     {
-        static const char source[] = "f:main() { ?>(done); }";
+        static const char source[] = "f:main() { ?>(target); }";
         ParserContext* parser = parser_init_source("jump-span.nxf",
             (const uint8_t*)source, sizeof(source) - 1u);
         const char* jump = strstr(source, "?>");
@@ -2208,9 +2208,9 @@ generic_type_done:
             valid = node && node->type == AST_NEXUS_JUMP &&
                 node->source_span.has_location == 1u &&
                 node->source_span.start_offset == start_offset &&
-                node->source_span.end_offset == start_offset + 9u &&
+                node->source_span.end_offset == start_offset + 11u &&
                 node->source_span.start_column == start_offset + 1u &&
-                node->source_span.end_column == start_offset + 10u &&
+                node->source_span.end_column == start_offset + 12u &&
                 ast_validate(parser->ast_root, NULL);
         }
         if (!valid && parser) {
