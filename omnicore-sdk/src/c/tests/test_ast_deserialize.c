@@ -1041,6 +1041,50 @@ static int rejects_truncated_ast_stream_prefixes(void) {
 }
 
 
+static int rejects_all_truncated_ast_payload_prefixes(void) {
+    ASTNode* fixture = make_identifier_fixture("payload");
+    FILE* stream = NULL;
+    unsigned char* bytes = NULL;
+    long end;
+    size_t cut;
+    int ok = 0;
+
+    if (!fixture) return 1;
+    stream = tmpfile();
+    if (!stream) goto done;
+    if (!ast_serialize(fixture, stream) || fflush(stream) != 0) {
+        fprintf(stderr, "could not serialize truncation fixture\\n");
+        goto done;
+    }
+    end = ftell(stream);
+    if (end <= 0) {
+        fprintf(stderr, "invalid truncation fixture size\\n");
+        goto done;
+    }
+    bytes = (unsigned char*)malloc((size_t)end);
+    if (!bytes || fseek(stream, 0L, SEEK_SET) != 0 ||
+        fread(bytes, 1u, (size_t)end, stream) != (size_t)end) {
+        fprintf(stderr, "could not read truncation fixture\\n");
+        goto done;
+    }
+
+    for (cut = 0u; cut < (size_t)end; ++cut) {
+        int result = rejects_bytes(bytes, cut);
+        if (result != 0) {
+            fprintf(stderr, "truncated AST payload prefix=%zu/%ld result=%d\\n",
+                    cut, end, result);
+            goto done;
+        }
+    }
+    ok = 1;
+
+done:
+    free(bytes);
+    if (stream) fclose(stream);
+    ast_destroy(fixture);
+    return ok ? 0 : 1;
+}
+
 static int roundtrips_fast_exec_asm_payload(void) {
     ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
     ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
@@ -1086,6 +1130,7 @@ int main(int argc, char** argv) {
     if (reads_unprefixed_legacy_stream() != 0) return 16;
     if (rejects_unknown_ast_stream_version() != 0) return 17;
     if (rejects_truncated_ast_stream_prefixes() != 0) return 18;
+    if (rejects_all_truncated_ast_payload_prefixes() != 0) return 20;
     if (roundtrips_populated_ast_types() != 0) return 11;
     if (roundtrips_all_node_type_tags() != 0) return 8;
     if (roundtrips_block_halt_tag() != 0) return 14;
