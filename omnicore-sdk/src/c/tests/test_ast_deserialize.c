@@ -940,7 +940,7 @@ int main(int argc, char** argv) {
         ASTNodeType type;
         int line;
         int col;
-    } invalid_node = { (ASTNodeType)(AST_BLOCK_HALT + 1), 1, 1 };
+    } invalid_node = { (ASTNodeType)(AST_NAMED_ARG + 1), 1, 1 };
 
     if (rejects_bytes(&invalid_node, sizeof(invalid_node)) != 0) {
         return 2;
