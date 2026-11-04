@@ -524,7 +524,7 @@ int main(void) {
         ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
         if(!fast || !label) return 1;
         label->label=(char*)malloc(4u);
-        label->source_text=(char*)malloc(25u);
+        label->source_text=(char*)malloc(strlen("mov rax, %value\\r\\nadd rax, 1")+1u);
         if(!label->label || !label->source_text) return 1;
         strcpy(label->label,"ADD");
         strcpy(label->source_text,"mov rax, %value\r\nadd rax, 1");
