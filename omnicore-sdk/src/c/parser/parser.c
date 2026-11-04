@@ -733,6 +733,7 @@ static ASTNode* parse_primary(Parser* p) {
     }
 
     if (match(p, TOKEN_KW_LOOP)) {
+        Token loop_start = p->previous;
         ASTLoop* loop = (ASTLoop*)parser_ast_create(p, AST_LOOP);
         if (!loop) return NULL;
         loop->base.line = p->previous.line;
@@ -788,6 +789,7 @@ static ASTNode* parse_primary(Parser* p) {
         
         if (match(p, TOKEN_LBRACE)) loop->body = parse_block(p);
         else error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
+        if (loop->body) parser_stamp_node_tokens(p, (ASTNode*)loop, &loop_start, &p->previous);
         return (ASTNode*)loop;
     }
 
@@ -811,10 +813,12 @@ static ASTNode* parse_primary(Parser* p) {
         }
         advance(p);
         array->elements=head;
+        parser_stamp_node_tokens(p, (ASTNode*)array, &open, &p->previous);
         return (ASTNode*)array;
     }
 
     if (match(p, TOKEN_LPAREN)) {
+        Token open = p->previous;
         // (loop) Kontrolü
         if (match(p, TOKEN_KW_LOOP)) {
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
@@ -836,6 +840,7 @@ static ASTNode* parse_primary(Parser* p) {
             } else {
                 error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
             }
+            if (loop->body) parser_stamp_node_tokens(p, (ASTNode*)loop, &open, &p->previous);
             return (ASTNode*)loop;
         }
 
