@@ -58,10 +58,13 @@ int main(void) {
         source, (uint64_t)(sizeof(source) - 1u), &written) ==
         OIR_STATUS_BUFFER_TOO_SMALL, "small SOURCE_UNIT buffer should be rejected");
 
-    CHECK(oir_source_unit_write(buffer, sizeof(buffer), 1,
+    CHECK(oir_source_unit_write(buffer, sizeof(buffer), 42,
         path, (uint32_t)(sizeof(path) - 1u),
-        source, (uint64_t)(sizeof(source) - 1u), &written) ==
-        OIR_STATUS_INVALID_HEADER, "unsupported source ID should be rejected");
+        source, (uint64_t)(sizeof(source) - 1u), &written) == OIR_STATUS_OK,
+        "nonzero source IDs should be accepted for multi-file jobs");
+    CHECK(oir_source_unit_open(buffer, written, &view) == OIR_STATUS_OK &&
+        view.source_id == 42u,
+        "nonzero source ID should round-trip");
 
     puts("OIR SOURCE_UNIT payload tests passed.");
     return 0;
