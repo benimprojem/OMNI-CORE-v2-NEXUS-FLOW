@@ -1,6 +1,6 @@
 # AST Source Span Contract
 
-**Status:** Design baseline; implementation pending  
+**Status:** Partial implementation — AST field and setter exist; graph validator now enforces complete-span invariants. Parser production stamping, versioned codec and OIR TLV remain pending.  
 **Scope:** C frontend AST, legacy AST stream codec, OIR AST bridge  
 **Normative dependency:** `docs/language/syntax-reference.md`
 
@@ -76,10 +76,10 @@ The new reader validates that the four fields are either all present or all abse
 
 ## 7. Validator and test requirements
 
-- `ast_validate()` checks complete-span invariants and rejects malformed ranges.
-- Parser tests assert exact ranges for literals, identifiers, binary expressions, declarations, nested blocks, `}?;`, multiline source and multibyte UTF-8 text.
-- Legacy AST codec tests cover new versioned spans, legacy unprefixed input and malformed/truncated prefixes.
-- OIR tests cover full-span preservation, old payloads without span extensions, partial extension rejection and unknown optional scalar compatibility.
+- `ast_validate()` checks complete-span invariants and rejects malformed ranges. (Implemented and covered by AST validator tests.)
+- Parser tests must assert exact ranges for literals, identifiers, binary expressions, declarations, nested blocks, `}?;`, multiline source and multibyte UTF-8 text. (Pending parser stamping.)
+- Legacy AST codec tests must cover new versioned spans, legacy unprefixed input and malformed/truncated prefixes. (Pending.)
+- OIR tests must cover full-span preservation, old payloads without span extensions, partial extension rejection and unknown optional scalar compatibility. (Pending.)
 - Windows, Linux, macOS, ASan/UBSan and Valgrind must pass before the span feature is marked complete.
 
 ## 8. Non-goals
