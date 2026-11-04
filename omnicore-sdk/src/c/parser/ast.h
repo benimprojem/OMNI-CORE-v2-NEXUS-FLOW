@@ -124,7 +124,10 @@ typedef enum {
     AST_VARIADIC_PARAM,
     AST_NAMED_ARG,
     /* Required compile-time dependency declaration introduced by `m:`. */
-    AST_MUST_DECL
+    AST_MUST_DECL,
+    /* FASTEXEC scope and raw inline-ASM declaration; append-only. */
+    AST_FASTEXEC_BLOCK,
+    AST_ASM_LABEL
 } ASTNodeType;
 
 // Temel Düğüm
@@ -232,6 +235,15 @@ typedef struct { ASTNode base; } ASTVariadicParam;
 typedef struct { ASTNode base; char* name; ASTNode* value; } ASTNamedArg;
 /* `m:Name = source;` compile-time dependency; source remains an AST expression. */
 typedef struct { ASTNode base; char* name; ASTNode* source; } ASTMustDecl;
+/* FASTEXEC owns an ordered statement chain. */
+typedef struct { ASTNode base; ASTNode* statements; } ASTFastExecBlock;
+/* Raw target assembly is opaque to the Nexus lexer/parser. source_length is authoritative. */
+typedef struct {
+    ASTNode base;
+    char* label;
+    char* source_text;
+    size_t source_length;
+} ASTAsmLabel;
 
 // --- Bildirim Yapıları ---
 
