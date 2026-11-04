@@ -170,7 +170,7 @@ static int test_fast_exec_asm_oir_roundtrip(void) {
     ASTBlock* body=(ASTBlock*)ast_create(AST_BLOCK);
     ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
     ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
-    const char* raw="mov rax, %value\\r\\nadd rax, 1 ; preserve %x:reg";
+    const char* raw="mov rax, %value\r\nadd rax, 1 ; preserve %x:reg";
     uint8_t *first=NULL,*second=NULL;
     size_t first_length=0u,second_length=0u;
     OirAstNodeTableView view;
