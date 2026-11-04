@@ -224,7 +224,7 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_RELOCATE | 1–2 | source, target | NODE_REF |
 | AST_UNROLL | 1–2 | count, loop | NODE_REF |
 | AST_ARRAY_LITERAL | 1 | ordered elements | NODE_REF |
-| AST_BLOCK_HALT | — | Block-scoped `}?;` cleanup marker; valid only as final child of AST_BLOCK/AST_ASM_BLOCK | — |
+| AST_BLOCK_HALT | — | Block-scoped `}?;` cleanup marker; valid only as final child of AST_BLOCK/AST_ASM_BLOCK/AST_FASTEXEC_BLOCK | — |
 | AST_NAMED_ARG | 1 | name | STRING_REF |
 | AST_NAMED_ARG | 2 | value | NODE_REF |
 | AST_MUST_DECL | 1 | name | STRING_REF |
