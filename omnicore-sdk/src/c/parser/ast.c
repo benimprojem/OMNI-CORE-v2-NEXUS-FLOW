@@ -1667,6 +1667,20 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         size_t active_index;
         if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_MUST_DECL)
             return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"type");
+        if (n->source_span.has_location) {
+            const OccSourceSpan* span = &n->source_span;
+            if (span->has_location != 1u ||
+                span->end_offset < span->start_offset ||
+                span->start_line == 0u || span->start_column == 0u ||
+                span->end_line == 0u || span->end_column == 0u ||
+                n->line < 0 || n->col < 0 ||
+                (uint32_t)n->line != span->start_line ||
+                (uint32_t)n->col != span->start_column) {
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_SPAN,n,"source_span");
+            }
+        } else if (n->source_span.has_location != 0u) {
+            return ast_validation_fail(s,AST_VALIDATE_INVALID_SPAN,n,"source_span");
+        }
         for(active_index=0;active_index<s->active_count;active_index++)
             if(s->active[active_index]==n)
                 return ast_validation_fail(s,AST_VALIDATE_CYCLE,n,"child");
