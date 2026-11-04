@@ -1040,6 +1040,31 @@ static int rejects_truncated_ast_stream_prefixes(void) {
     return 0;
 }
 
+static int rejects_all_truncated_ast_payload_prefixes(void) {
+    ASTNode* root=make_variable_fixture();
+    FILE* stream=tmpfile();
+    unsigned char* bytes=NULL;
+    long end;
+    size_t cut;
+    int ok=0;
+    if(!root || !stream) goto done;
+    if(!ast_serialize(root,stream) || fflush(stream)!=0) goto done;
+    end=ftell(stream);
+    if(end<=0) goto done;
+    bytes=(unsigned char*)malloc((size_t)end);
+    if(!bytes || fseek(stream,0L,SEEK_SET)!=0 ||
+       fread(bytes,1u,(size_t)end,stream)!=(size_t)end) goto done;
+    for(cut=0u;cut<(size_t)end;++cut) {
+        if(rejects_bytes(bytes,cut)!=0) goto done;
+    }
+    ok=1;
+done:
+    free(bytes);
+    if(stream) fclose(stream);
+    if(root) ast_destroy(root);
+    return ok;
+}
+
 static int roundtrips_fast_exec_asm_payload(void) {
     ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
     ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
@@ -1085,6 +1110,7 @@ int main(int argc, char** argv) {
     if (reads_unprefixed_legacy_stream() != 0) return 16;
     if (rejects_unknown_ast_stream_version() != 0) return 17;
     if (rejects_truncated_ast_stream_prefixes() != 0) return 18;
+    if (rejects_all_truncated_ast_payload_prefixes() != 0) return 20;
     if (roundtrips_populated_ast_types() != 0) return 11;
     if (roundtrips_all_node_type_tags() != 0) return 8;
     if (roundtrips_block_halt_tag() != 0) return 14;
