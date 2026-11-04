@@ -1045,7 +1045,7 @@ static int roundtrips_fast_exec_asm_payload(void) {
     ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
     FILE* stream=NULL;
     ASTNode* decoded=NULL;
-    const char* raw="mov rax, %value\\r\\nadd rax, 1 ; keep %x:reg";
+    const char* raw="mov rax, %value\r\nadd rax, 1 ; keep %x:reg";
     int valid=0;
     if(!fast || !label) goto done;
     label->label=duplicate_text("ADD");
