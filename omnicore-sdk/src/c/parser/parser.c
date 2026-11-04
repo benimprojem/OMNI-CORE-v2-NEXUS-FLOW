@@ -3417,6 +3417,7 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
             guarded_body->base.col=guard->col;
             guarded_body->condition=guard;
             guarded_body->then_branch=body;
+            parser_stamp_node_child_range((ASTNode*)guarded_body, guard, body);
             body=(ASTNode*)guarded_body;
         }
         if(is_scan) {
