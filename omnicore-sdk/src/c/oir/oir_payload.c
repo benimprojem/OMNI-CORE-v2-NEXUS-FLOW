@@ -144,7 +144,7 @@ OirStatus oir_source_unit_write(
         (!source && source_length != 0)) {
         return OIR_STATUS_INVALID_ARGUMENT;
     }
-    if (source_id != 0) return OIR_STATUS_INVALID_HEADER;
+    /* source_id is a compilation-job identity; any uint32_t ID is valid. */
 #if SIZE_MAX < UINT64_MAX
     if (source_length > (uint64_t)SIZE_MAX) return OIR_STATUS_OVERFLOW;
 #endif
