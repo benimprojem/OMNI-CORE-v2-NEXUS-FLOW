@@ -815,7 +815,13 @@ typedef struct {
     FILE* stream;
     size_t depth;
     int failed;
+    uint32_t format_version;
 } ASTWriter;
+
+#define AST_STREAM_MAGIC "OCCAST\r\n"
+#define AST_STREAM_MAGIC_SIZE 8u
+#define AST_STREAM_VERSION 1u
+
 
 static void ast_write_exact(ASTWriter* writer, const void* source, size_t size) {
     if (!writer || writer->failed) return;
@@ -852,6 +858,7 @@ typedef struct {
     size_t node_count;
     size_t depth;
     int failed;
+    uint32_t format_version;
 } ASTReader;
 
 static int ast_read_exact(ASTReader* reader, void* destination, size_t size) {
@@ -913,6 +920,17 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
     ast_write_exact(writer, &node->type, sizeof(node->type));
     ast_write_exact(writer, &node->line, sizeof(node->line));
     ast_write_exact(writer, &node->col, sizeof(node->col));
+    if (writer->format_version) {
+        const OccSourceSpan* span = &node->source_span;
+        ast_write_exact(writer, &span->has_location, sizeof(span->has_location));
+        ast_write_exact(writer, &span->source_id, sizeof(span->source_id));
+        ast_write_exact(writer, &span->start_offset, sizeof(span->start_offset));
+        ast_write_exact(writer, &span->end_offset, sizeof(span->end_offset));
+        ast_write_exact(writer, &span->start_line, sizeof(span->start_line));
+        ast_write_exact(writer, &span->start_column, sizeof(span->start_column));
+        ast_write_exact(writer, &span->end_line, sizeof(span->end_line));
+        ast_write_exact(writer, &span->end_column, sizeof(span->end_column));
+    }
 
     switch(node->type) {
         case AST_VAR_DECL: {
@@ -1201,9 +1219,16 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
 
 int ast_serialize(ASTNode* root, FILE* out) {
     ASTValidationError validation_error;
+    ASTWriter writer;
+    const uint32_t version = AST_STREAM_VERSION;
     if (!root || !out || !ast_validate(root, &validation_error)) return 0;
 
-    ASTWriter writer = { out, 0u, 0 };
+    writer.stream = out;
+    writer.depth = 0u;
+    writer.failed = 0;
+    writer.format_version = AST_STREAM_VERSION;
+    ast_write_exact(&writer, AST_STREAM_MAGIC, AST_STREAM_MAGIC_SIZE);
+    ast_write_exact(&writer, &version, sizeof(version));
     ast_serialize_recursive(root, &writer);
     if (ferror(out)) writer.failed = 1;
     return writer.failed ? 0 : 1;
@@ -1222,6 +1247,17 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
     if (!ast_read_exact(reader, &node->line, sizeof(node->line)) ||
         !ast_read_exact(reader, &node->col, sizeof(node->col))) {
         goto fail;
+    }
+    if (reader->format_version) {
+        OccSourceSpan* span = &node->source_span;
+        if (!ast_read_exact(reader, &span->has_location, sizeof(span->has_location)) ||
+            !ast_read_exact(reader, &span->source_id, sizeof(span->source_id)) ||
+            !ast_read_exact(reader, &span->start_offset, sizeof(span->start_offset)) ||
+            !ast_read_exact(reader, &span->end_offset, sizeof(span->end_offset)) ||
+            !ast_read_exact(reader, &span->start_line, sizeof(span->start_line)) ||
+            !ast_read_exact(reader, &span->start_column, sizeof(span->start_column)) ||
+            !ast_read_exact(reader, &span->end_line, sizeof(span->end_line)) ||
+            !ast_read_exact(reader, &span->end_column, sizeof(span->end_column))) goto fail;
     }
 
     switch(type) {
@@ -1548,10 +1584,30 @@ static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
 }
 
 ASTNode* ast_deserialize(FILE* in) {
+    unsigned char prefix[AST_STREAM_MAGIC_SIZE];
+    ASTReader reader;
+    ASTNode* root;
+    long stream_start;
     if (!in) return NULL;
 
-    ASTReader reader = { in, 0u, 0u, 0 };
-    ASTNode* root = ast_deserialize_recursive(&reader);
+    memset(&reader, 0, sizeof(reader));
+    reader.stream = in;
+    stream_start = ftell(in);
+    if (stream_start < 0) return NULL;
+    {
+        size_t got = fread(prefix, 1u, sizeof(prefix), in);
+        if (got == sizeof(prefix) && memcmp(prefix, AST_STREAM_MAGIC, sizeof(prefix)) == 0) {
+            uint32_t version = 0u;
+            if (fread(&version, sizeof(version), 1u, in) != 1u ||
+                version != AST_STREAM_VERSION) return NULL;
+            reader.format_version = version;
+        } else {
+            clearerr(in);
+            if (fseek(in, stream_start, SEEK_SET) != 0) return NULL;
+            reader.format_version = 0u;
+        }
+    }
+    root = ast_deserialize_recursive(&reader);
 
     if (reader.failed) {
         ast_destroy(root);
@@ -1678,8 +1734,6 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
                 (uint32_t)n->col != span->start_column) {
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_SPAN,n,"source_span");
             }
-        } else if (n->source_span.has_location != 0u) {
-            return ast_validation_fail(s,AST_VALIDATE_INVALID_SPAN,n,"source_span");
         }
         for(active_index=0;active_index<s->active_count;active_index++)
             if(s->active[active_index]==n)
