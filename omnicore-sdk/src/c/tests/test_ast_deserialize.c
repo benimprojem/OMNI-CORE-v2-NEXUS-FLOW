@@ -1167,7 +1167,8 @@ int main(int argc, char** argv) {
         return 9;
     }
     if (roundtrips_versioned_source_spans() != 0) return 15;
-    if (roundtrips_fast_exec_asm_payload() != 0) return 19;\n    if (roundtrips_contextual_ast_tags() != 0) return 21;
+    if (roundtrips_fast_exec_asm_payload() != 0) return 19;
+    if (roundtrips_contextual_ast_tags() != 0) return 21;
     if (reads_unprefixed_legacy_stream() != 0) return 16;
     if (rejects_unknown_ast_stream_version() != 0) return 17;
     if (rejects_truncated_ast_stream_prefixes() != 0) return 18;
