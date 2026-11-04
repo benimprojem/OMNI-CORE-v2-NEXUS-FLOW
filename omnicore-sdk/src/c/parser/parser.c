@@ -366,7 +366,7 @@ static void parser_stamp_node_source_file(Parser* p, ASTNode* node) {
     memset(&span, 0, sizeof(span));
     span.source_id = p->ctx->source_id;
     span.start_offset = 0u;
-    span.end_offset = (uint64_t)p->ctx->source_length;
+    span.end_offset = (uint64_t)p->ctx->source_len;
     span.start_line = 1u;
     span.start_column = 1u;
     for (i = 0u; i < p->ctx->source_length; ++i) {
