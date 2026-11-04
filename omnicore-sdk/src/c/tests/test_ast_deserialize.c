@@ -1042,7 +1042,7 @@ static int rejects_truncated_ast_stream_prefixes(void) {
 
 
 static int rejects_all_truncated_ast_payload_prefixes(void) {
-    ASTNode* fixture = make_identifier_fixture("payload");
+    ASTNode* fixture = make_variable_fixture();
     FILE* stream = NULL;
     unsigned char* bytes = NULL;
     long end;
@@ -1053,7 +1053,7 @@ static int rejects_all_truncated_ast_payload_prefixes(void) {
     stream = tmpfile();
     if (!stream) goto done;
     if (!ast_serialize(fixture, stream) || fflush(stream) != 0) {
-        fprintf(stderr, "could not serialize truncation fixture\\n");
+        fprintf(stderr, "could not serialize nested truncation fixture\\n");
         goto done;
     }
     end = ftell(stream);
