@@ -91,7 +91,7 @@ static Token error_token(ParserContext* ctx, const char* message) {
         input.severity = OCC_DIAG_ERROR;
         input.message = message;
         input.message_length = message_length;
-        input.span.source_id = 0u;
+        input.span.source_id = ctx->source_id;
         input.span.start_offset = (uint64_t)ctx->token_start_offset;
         input.span.end_offset = (uint64_t)end;
         input.span.start_line = line;
