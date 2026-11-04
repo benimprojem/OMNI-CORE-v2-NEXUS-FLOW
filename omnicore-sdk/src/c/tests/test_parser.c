@@ -1914,6 +1914,7 @@ generic_type_done:
         OccSourceFileTable files;
         OccDiagnosticCollector diagnostics;
         OccDiagnosticView view;
+        ASTProgram* program = NULL;
         int valid = 0;
         occ_source_files_init(&files);
         occ_diagnostics_init(&diagnostics);
@@ -1925,9 +1926,14 @@ generic_type_done:
                 parser->source_id == 1u) {
                 parser_attach_diagnostics(parser, &diagnostics, OCC_STAGE_PARSER);
                 (void)parser_run(parser);
+                program = (ASTProgram*)parser->ast_root;
                 if (occ_diagnostics_count(&diagnostics) > 0u &&
                     occ_diagnostics_get(&diagnostics, 0u, &view) &&
-                    view.record->span.source_id == 1u)
+                    view.record->span.source_id == 1u &&
+                    program && program->base.source_span.has_location == 1u &&
+                    program->base.source_span.source_id == 1u &&
+                    program->base.source_span.start_offset == 0u &&
+                    program->base.source_span.end_offset == sizeof(bad_source) - 1u)
                     valid = 1;
             }
             parser_destroy(parser);
