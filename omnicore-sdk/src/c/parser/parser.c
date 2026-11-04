@@ -337,6 +337,7 @@ static void parser_make_token_span(
         }
     }
 
+    span->source_id = ctx->source_id;
     span->start_offset = (uint64_t)start;
     span->end_offset = (uint64_t)(start + length);
     span->start_line = (uint32_t)token->line;
@@ -344,6 +345,16 @@ static void parser_make_token_span(
     span->end_line = line;
     span->end_column = column;
     span->has_location = 1u;
+}
+
+/* Stamp a leaf node from the exact token that produced it. */
+static void parser_stamp_node_token(
+    Parser* p, ASTNode* node, const Token* token
+) {
+    OccSourceSpan span;
+    if (!p || !p->ctx || !node || !token) return;
+    parser_make_token_span(p->ctx, token, &span);
+    if (span.has_location) (void)ast_set_source_span(node, &span);
 }
 
 static void error_at(Parser* p, Token* token, ErrorCode code, const char* message) {
@@ -616,6 +627,7 @@ static ASTNode* parse_primary(Parser* p) {
         if (!node) return NULL;
         node->base.line = token.line;
         node->base.col = token.col;
+        parser_stamp_node_token(p, (ASTNode*)node, &token);
         node->type = token.type;
         node->string_value = (char*)parser_malloc(p, (size_t)token.length + 1u);
         if (!node->string_value) {
@@ -628,12 +640,14 @@ static ASTNode* parse_primary(Parser* p) {
     }
 
     if (match(p, TOKEN_TRUE) || match(p, TOKEN_FALSE)) {
-        const char* value = p->previous.type == TOKEN_TRUE ? "true" : "false";
+        Token token = p->previous;
+        const char* value = token.type == TOKEN_TRUE ? "true" : "false";
         ASTLiteral* node = (ASTLiteral*)parser_ast_create(p, AST_LITERAL);
         if (!node) return NULL;
-        node->base.line = p->previous.line;
-        node->base.col = p->previous.col;
-        node->type = p->previous.type;
+        node->base.line = token.line;
+        node->base.col = token.col;
+        parser_stamp_node_token(p, (ASTNode*)node, &token);
+        node->type = token.type;
         node->string_value = parser_strdup(p, value);
         if (!node->string_value) {
             ast_destroy((ASTNode*)node);
@@ -643,17 +657,19 @@ static ASTNode* parse_primary(Parser* p) {
     }
 
     if (match(p, TOKEN_IDENTIFIER)) {
+        Token token = p->previous;
         ASTIdentifier* id_node = (ASTIdentifier*)parser_ast_create(p, AST_IDENTIFIER);
         if (!id_node) return NULL;
-        id_node->base.line = p->previous.line;
-        id_node->base.col = p->previous.col;
-        id_node->name = (char*)parser_malloc(p, (size_t)p->previous.length + 1u);
+        id_node->base.line = token.line;
+        id_node->base.col = token.col;
+        parser_stamp_node_token(p, (ASTNode*)id_node, &token);
+        id_node->name = (char*)parser_malloc(p, (size_t)token.length + 1u);
         if (!id_node->name) {
             ast_destroy((ASTNode*)id_node);
             return NULL;
         }
-        memcpy(id_node->name, p->previous.start, (size_t)p->previous.length);
-        id_node->name[p->previous.length] = '\0';
+        memcpy(id_node->name, token.start, (size_t)token.length);
+        id_node->name[token.length] = '\0';
         return (ASTNode*)id_node;
     }
 
