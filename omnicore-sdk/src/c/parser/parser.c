@@ -2254,6 +2254,7 @@ static ASTNode* parse_func_decl(Parser* p) {
                 if (!marker) { ast_destroy((ASTNode*)func); return NULL; }
                 marker->line = p->previous.line;
                 marker->col = p->previous.col;
+                parser_stamp_node_token(p, marker, &p->previous);
                 if (!func->params) func->params = marker;
                 else param_tail->next = marker;
                 /* Ellipsis is the final parameter-list marker. */
@@ -2273,6 +2274,7 @@ static ASTNode* parse_func_decl(Parser* p) {
             }
             param->base.line = param_token.line;
             param->base.col = param_token.col;
+            parser_stamp_node_token(p, (ASTNode*)param, &param_token);
             param->is_const = 0;
             param->name = (char*)parser_malloc(p, (size_t)param_token.length + 1u);
             if (!param->name) {
@@ -2332,6 +2334,7 @@ static ASTNode* parse_func_decl(Parser* p) {
                 ast_destroy((ASTNode*)func);
                 return NULL;
             }
+            parser_stamp_node_tokens(p, (ASTNode*)param, &param_token, &p->previous);
         } while (match(p, TOKEN_COMMA));
     }
 
