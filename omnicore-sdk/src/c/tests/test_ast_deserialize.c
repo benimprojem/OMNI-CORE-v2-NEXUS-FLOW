@@ -1013,6 +1013,33 @@ static int rejects_unknown_ast_stream_version(void) {
     return 0;
 }
 
+
+static int rejects_truncated_ast_stream_prefixes(void) {
+    const unsigned char magic[8] = "OCCAST\\r\\n";
+    uint32_t version = 1u;
+    FILE* stream = tmpfile();
+    ASTNode* decoded;
+    if (!stream) return 1;
+    if (fwrite(magic, 1u, 4u, stream) != 4u) { fclose(stream); return 1; }
+    rewind(stream);
+    decoded = ast_deserialize(stream);
+    fclose(stream);
+    if (decoded) { ast_destroy(decoded); return 1; }
+
+    stream = tmpfile();
+    if (!stream) return 1;
+    if (fwrite(magic, 1u, sizeof(magic), stream) != sizeof(magic) ||
+        fwrite(&version, 1u, 2u, stream) != 2u) {
+        fclose(stream);
+        return 1;
+    }
+    rewind(stream);
+    decoded = ast_deserialize(stream);
+    fclose(stream);
+    if (decoded) { ast_destroy(decoded); return 1; }
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc != 2) {
         fprintf(stderr, "Usage: test_ast_deserialize <invalid-output-path>\n");
@@ -1021,6 +1048,7 @@ int main(int argc, char** argv) {
     if (roundtrips_versioned_source_spans() != 0) return 15;
     if (reads_unprefixed_legacy_stream() != 0) return 16;
     if (rejects_unknown_ast_stream_version() != 0) return 17;
+    if (rejects_truncated_ast_stream_prefixes() != 0) return 18;
     if (roundtrips_populated_ast_types() != 0) return 11;
     if (roundtrips_all_node_type_tags() != 0) return 8;
     if (roundtrips_block_halt_tag() != 0) return 14;
