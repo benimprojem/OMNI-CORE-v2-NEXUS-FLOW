@@ -1041,14 +1041,16 @@ static int rejects_truncated_ast_stream_prefixes(void) {
 }
 
 static int rejects_all_truncated_ast_payload_prefixes(void) {
-    ASTNode* root=make_variable_fixture();
+    ASTLiteral* literal=(ASTLiteral*)ast_create(AST_LITERAL);
     FILE* stream=tmpfile();
     unsigned char* bytes=NULL;
     long end;
     size_t cut;
     int ok=0;
-    if(!root || !stream) goto done;
-    if(!ast_serialize(root,stream) || fflush(stream)!=0) goto done;
+    if(!literal || !stream) goto done;
+    literal->string_value=duplicate_text("payload");
+    if(!literal->string_value || !ast_serialize((ASTNode*)literal,stream) ||
+       fflush(stream)!=0) goto done;
     end=ftell(stream);
     if(end<=0) goto done;
     bytes=(unsigned char*)malloc((size_t)end);
@@ -1065,7 +1067,7 @@ static int rejects_all_truncated_ast_payload_prefixes(void) {
 done:
     free(bytes);
     if(stream) fclose(stream);
-    if(root) ast_destroy(root);
+    if(literal) ast_destroy((ASTNode*)literal);
     return ok;
 }
 
