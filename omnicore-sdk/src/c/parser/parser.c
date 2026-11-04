@@ -3352,21 +3352,27 @@ static ASTNode* parse_statement(Parser* p) {
     }
 
     if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
+        Token declaration_start = p->previous;
         ASTVarDecl* decl = (ASTVarDecl*)parse_var_decl(p);
         if (!decl) return NULL;
         decl->is_public = is_pub;
         decl->is_exported = is_exp;
         consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
+        if (p->previous.type == TOKEN_SEMICOLON)
+            parser_stamp_node_tokens(p, (ASTNode*)decl, &declaration_start, &p->previous);
         return (ASTNode*)decl;
     }
     
     if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC) || match(p, TOKEN_KW_EXTERN)) {
+        Token declaration_start = p->previous;
         int is_extern = p->previous.type == TOKEN_KW_EXTERN;
         ASTFuncDecl* decl = (ASTFuncDecl*)parse_func_decl(p);
         if (!decl) return NULL;
         decl->is_extern = is_extern;
         decl->is_public = is_pub;
         decl->is_exported = is_exp;
+        if (p->previous.type == TOKEN_RBRACE || p->previous.type == TOKEN_HALT)
+            parser_stamp_node_tokens(p, (ASTNode*)decl, &declaration_start, &p->previous);
         return (ASTNode*)decl;
     }
 
