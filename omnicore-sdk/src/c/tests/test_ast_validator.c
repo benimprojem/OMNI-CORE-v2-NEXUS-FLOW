@@ -243,6 +243,53 @@ int main(void) {
         fclose(stream);
     }
 
+
+    /* Complete source spans are validated as part of the public AST contract. */
+    {
+        ASTIdentifier* identifier = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+        OccSourceSpan span;
+        if (!identifier) return 1;
+        memset(&span, 0, sizeof(span));
+        span.source_id = 7u;
+        span.start_offset = 4u;
+        span.end_offset = 9u;
+        span.start_line = 2u;
+        span.start_column = 3u;
+        span.end_line = 2u;
+        span.end_column = 8u;
+        span.has_location = 1u;
+        identifier->name = (char*)malloc(2u);
+        if (!identifier->name) { ast_destroy((ASTNode*)identifier); return 1; }
+        strcpy(identifier->name, "x");
+        if (!ast_set_source_span((ASTNode*)identifier, &span) ||
+            !expect((ASTNode*)identifier, AST_VALIDATE_OK)) {
+            fprintf(stderr, "valid source span rejected\\n");
+            ast_destroy((ASTNode*)identifier);
+            return 1;
+        }
+        identifier->base.source_span.end_offset = 3u;
+        if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
+            fprintf(stderr, "reversed source span accepted\\n");
+            ast_destroy((ASTNode*)identifier);
+            return 1;
+        }
+        identifier->base.source_span = span;
+        identifier->base.line = 99;
+        if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
+            fprintf(stderr, "source span line mirror mismatch accepted\\n");
+            ast_destroy((ASTNode*)identifier);
+            return 1;
+        }
+        identifier->base.line = 2;
+        identifier->base.source_span.end_column = 0u;
+        if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
+            fprintf(stderr, "zero source span end column accepted\\n");
+            ast_destroy((ASTNode*)identifier);
+            return 1;
+        }
+        ast_destroy((ASTNode*)identifier);
+    }
+
     /* Parser output is expected to satisfy the AST graph contract. */
     {
         const char source[] = "f:main() { v:x = 1 + 2; ret x; }";
