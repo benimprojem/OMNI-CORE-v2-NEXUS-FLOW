@@ -497,3 +497,5 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-04 | AST stream codec truncation regresyonu eklendi: geçerli AST_IDENTIFIER artifact'inin byte-prefix'lerinin tamamı (0..N-1) deserialize edilerek her kesilmenin reddedildiği doğrulanıyor; kısa magic/version prefix testleri de korunuyor. Run `41858633099`: Ubuntu CTest, Windows CTest, ASan/UBSan ve Valgrind başarılı; macOS job runner tarafından cancelled, dolayısıyla workflow genel sonucu failure (macOS test sonucu yok). Nested payload/partial ownership cleanup testleri ayrıca genişletilecek. | `test_ast_deserialize.c`; commit `f93a2e0` |
+
+| 2026-11-04 | Truncation test derinleştirildi: prefix sweep fixture artık yalnız leaf identifier değil; AST_VAR_DECL → nested literal initializer + inline_type identifier içeren çok katmanlı ownership ağacı. Böylece her byte kesiminde partial child cleanup ve üst düğüm cleanup birlikte exercised edilir. Commit `1e1be2d`; CI run `41868279190` queued, sonuç bekleniyor. | `test_ast_deserialize.c` |
