@@ -4,6 +4,57 @@
 #include <stdlib.h>
 #include <string.h>
 
+void occ_source_files_init(OccSourceFileTable* table) {
+    if (table) memset(table, 0, sizeof(*table));
+}
+
+void occ_source_files_destroy(OccSourceFileTable* table) {
+    size_t i;
+    if (!table) return;
+    for (i = 0; i < table->count; ++i) free(table->paths[i]);
+    free(table->paths);
+    memset(table, 0, sizeof(*table));
+}
+
+int occ_source_files_register(OccSourceFileTable* table, const char* path, uint32_t* out_source_id) {
+    size_t i, length, capacity;
+    char** paths;
+    char* copy;
+    if (out_source_id) *out_source_id = 0;
+    if (!table || !path || !path[0] || !out_source_id) return 0;
+    for (i = 0; i < table->count; ++i) {
+        if (strcmp(table->paths[i], path) == 0) {
+            *out_source_id = (uint32_t)i;
+            return 1;
+        }
+    }
+    if (table->count > UINT32_MAX || table->count == SIZE_MAX) return 0;
+    length = strlen(path);
+    if (length == SIZE_MAX) return 0;
+    copy = (char*)malloc(length + 1u);
+    if (!copy) return 0;
+    memcpy(copy, path, length + 1u);
+    if (table->count == table->capacity) {
+        capacity = table->capacity ? table->capacity * 2u : 8u;
+        if (capacity < table->capacity || capacity > SIZE_MAX / sizeof(*paths)) {
+            free(copy); return 0;
+        }
+        paths = (char**)realloc(table->paths, capacity * sizeof(*paths));
+        if (!paths) { free(copy); return 0; }
+        table->paths = paths;
+        table->capacity = capacity;
+    }
+    table->paths[table->count] = copy;
+    *out_source_id = (uint32_t)table->count;
+    ++table->count;
+    return 1;
+}
+
+const char* occ_source_files_get(const OccSourceFileTable* table, uint32_t source_id) {
+    if (!table || (size_t)source_id >= table->count) return NULL;
+    return table->paths[source_id];
+}
+
 static int reserve_records(OccDiagnosticCollector* collector, size_t needed) {
     size_t capacity;
     OccDiagnosticRecord* records;
