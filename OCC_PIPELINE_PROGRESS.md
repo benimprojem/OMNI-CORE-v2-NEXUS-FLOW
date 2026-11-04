@@ -310,3 +310,14 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - The contract's compatibility boundary is retained: append `OccSourceSpan` to ASTNode; keep line/col mirrors; version the legacy AST stream with a magic prefix while accepting old unprefixed streams with span absent; keep OIR's 32-byte node record and use optional span TLVs.
 - This is a confirmed foundational gap, not a completion claim. Implementation requires a cross-cutting change in token→parser node stamping, AST validator, legacy serializer/deserializer and OIR AST bridge, plus exact-range UTF-8/multiline/legacy compatibility tests.
 - **Next implementation priority:** source-span propagation and codec compatibility before more isolated AST syntax nodes. Callback/function-type remains separately blocked on a complete grammar; ASM payload must follow its existing normative syntax and must not be guessed.
+
+
+### AST Source Span — API/storage başlangıcı (2026-11-04)
+
+- [x] `ASTNode` içine `OccSourceSpan` alanı eklendi; mevcut `line/col` alanları geriye dönük başlangıç-konumu aynaları olarak korundu.
+- [x] `ast_set_source_span()` API'si eklendi: NULL ile temizleme, offset sıralama kontrolü ve line/col senkronizasyonu.
+- [x] AST validator testine span atama/geçersiz aralık/temizleme kontrolleri eklendi.
+- [ ] Parser'ın token başlangıç ve düğüm bitiş konumlarını tüm AST üretim yollarına yayması.
+- [ ] AST serialization sürümleme + legacy stream uyumluluğu; span round-trip testleri.
+- [ ] OIR span TLV aktarımı ve entegrasyon testleri.
+- **Durum:** API/storage/test kaynakları commit edildi; henüz CI çalıştırılmadı. Source Span tamamlanmış değildir.
