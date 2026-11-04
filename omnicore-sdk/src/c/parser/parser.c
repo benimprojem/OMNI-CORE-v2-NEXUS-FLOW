@@ -370,7 +370,7 @@ static void parser_stamp_node_source_file(Parser* p, ASTNode* node) {
     span.start_line = 1u;
     span.start_column = 1u;
     for (i = 0u; i < p->ctx->source_length; ++i) {
-        if (p->ctx->source_buffer[i] == '\\n') {
+        if (p->ctx->source_buffer[i] == '\n') {
             ++line;
             column = 1u;
         } else {
