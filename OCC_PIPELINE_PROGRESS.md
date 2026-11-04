@@ -513,3 +513,6 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-05 | Codec tag sweep genişletme denemesi: enum sınırını `AST_ASM_LABEL` yaptığımda bağlama bağlı AST türleri (`AST_MUST_DECL`, `AST_VARIADIC_PARAM`, `AST_BLOCK_HALT`, `AST_ASM_LABEL`) standalone root olarak graph validator tarafından haklı biçimde reddedildi. Testi hatalı biçimde tüm türleri kök kabul ettirmeye zorlamadım; standalone sweep sınırı `AST_ARRAY_DIMENSION` olarak geri alındı. `AST_FASTEXEC_BLOCK/AST_ASM_LABEL` roundtrip ayrı fixture ile zaten test ediliyor; contextual MUST/variadic/HALT için parent-context fixture'ları ayrı eklenmeli. Bu test denemesi başarısızdır ve tamamlanmış sayılmıyor. | commits `4ba6e152`, `04da05a6`, `05e80c2e`; CI failure (context fixture) |
+
+
+| 2026-11-05 | AST codec için contextual round-trip fixture eklendi: AST_MUST_DECL → AST_PROGRAM declarations; AST_VARIADIC_PARAM → AST_FUNC_DECL params; AST_BLOCK_HALT → AST_BLOCK statements (son öğe); AST_ASM_LABEL → AST_FASTEXEC_BLOCK statements. Tek program ağacı graph validation, serialize → deserialize → validate → canonical re-encode byte eşitliği ile test ediliyor. Önceki standalone enum sweep sınırı AST_ARRAY_DIMENSION olarak tutuldu; bağlama bağımlı tag'ler artık parent-context fixture üzerinden kapsanıyor. | `test_ast_deserialize.c`; commit `522c84f1`; CI run `41917469888` queued |
