@@ -1,7 +1,7 @@
 # OIR AST Node Registry v1
 
 **Status:** Initial stable-ID registry proposal for AST payload schema 1.0  
-**Source inventory:** 100 node kinds in the current C frontend ASTNodeType enum  
+**Source inventory:** 105 registered node kinds; append-only C frontend additions extend the original registry through kind 105  
 **Rule:** OIR IDs are explicit wire identifiers. They are not C enum ordinals, sizeof values, or compiler pointers.
 
 ## Registry rules
@@ -118,6 +118,11 @@
 | 98 | `AST_ARRAY_TYPE` | Array type wrapper; ordered dimensions are field 1 |
 | 99 | `AST_ARRAY_DIMENSION` | One dimension; optional length expression is field 1 (null means dynamic) |
 | 100 | `AST_BLOCK_HALT` | Block-scoped `}?;` cleanup marker; no node-specific fields |
+| 101 | `AST_VARIADIC_PARAM` | Final variadic parameter marker; no node-specific fields |
+| 102 | `AST_NAMED_ARG` | Named call argument; label and value |
+| 103 | `AST_MUST_DECL` | Compile-time dependency declaration; name and source expression |
+| 104 | `AST_FASTEXEC_BLOCK` | FASTEXEC execution-scope container; ordered statements |
+| 105 | `AST_ASM_LABEL` | Inline ASM label and exact raw source body |
 
 ## Field IDs and value types
 
@@ -220,11 +225,20 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_UNROLL | 1–2 | count, loop | NODE_REF |
 | AST_ARRAY_LITERAL | 1 | ordered elements | NODE_REF |
 | AST_BLOCK_HALT | — | Block-scoped `}?;` cleanup marker; valid only as final child of AST_BLOCK/AST_ASM_BLOCK | — |
+| AST_NAMED_ARG | 1 | name | STRING_REF / NULL |
+| AST_NAMED_ARG | 2 | value | NODE_REF |
+| AST_MUST_DECL | 1 | name | STRING_REF / NULL |
+| AST_MUST_DECL | 2 | source | NODE_REF |
+| AST_FASTEXEC_BLOCK | 1 | ordered statements | NODE_REF |
+| AST_ASM_LABEL | 1 | label | STRING_REF / NULL |
+| AST_ASM_LABEL | 2 | exact raw ASM source bytes | STRING_REF / NULL |
 
-OIR node kind **100** is append-only and represents `AST_BLOCK_HALT`; IDs 1–99 are unchanged.
+OIR node kinds **101–105** are append-only additions for `AST_VARIADIC_PARAM`, `AST_NAMED_ARG`, `AST_MUST_DECL`, `AST_FASTEXEC_BLOCK`, and `AST_ASM_LABEL`. IDs 1–100 are unchanged.
 
 The intrinsic call-kind set is:
 AST_SPAWN, AST_ECHO, AST_SEND, AST_RECEIVE, AST_DONE, AST_AREA, AST_ZONE, AST_ADDR, AST_LEN, AST_PEEK, AST_POKE, AST_INB, AST_OUTB, AST_IRQ, AST_INTR, AST_REG, AST_PRNT, AST_PRMT, AST_WRITE, AST_FWRITE, AST_TYPEOF, AST_SIZEOF, AST_IS_OK, AST_IS_ERR, AST_IS_SOME, AST_IS_NONE, AST_IS_NULL, AST_EXIT, AST_SWAP, AST_DATE, AST_DATENOW, AST_TIME, AST_CLOCK, AST_FREE, AST_ZONE_SYNC, AST_ZONE_VIEW and AST_ZONE_LOCK.
+
+FASTEXEC-specific kinds are `AST_FASTEXEC_BLOCK` and `AST_ASM_LABEL`. `asmcall` and `asmjmp` remain `AST_FUNC_CALL` nodes and are validated by Semantic using their intrinsic callee names and FASTEXEC context.
 
 ## Audit notes
 
