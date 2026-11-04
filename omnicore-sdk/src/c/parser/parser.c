@@ -3289,6 +3289,7 @@ static ASTNode* parse_pattern(Parser* p) {
                 if (!binding->name) { ast_destroy((ASTNode*)binding); ast_destroy((ASTNode*)ctor); ast_destroy(head); return NULL; }
                 memcpy(binding->name, binding_token.start, (size_t)binding_token.length);
                 binding->name[binding_token.length] = '\0';
+                parser_stamp_node_token(p, (ASTNode*)binding, &binding_token);
                 if (!head) head = (ASTNode*)binding; else tail->next = (ASTNode*)binding;
                 tail = (ASTNode*)binding;
             } while (match(p, TOKEN_COMMA));
