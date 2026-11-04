@@ -1900,5 +1900,38 @@ generic_type_done:
         }
     }
 
+
+    /* Prefix unary expressions span the operator and their operand. */
+    {
+        static const char source[] = "f:main() { v:x = -42; }";
+        ParserContext* parser = parser_init_source("unary-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        size_t operator_offset = (size_t)(strstr(source, "-42") - source);
+        ASTFuncDecl* function;
+        ASTVarDecl* variable;
+        ASTUnaryExpr* unary;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            variable = function
+                ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+            unary = variable && variable->initializer &&
+                variable->initializer->type == AST_UNARY_EXPR
+                    ? (ASTUnaryExpr*)variable->initializer : NULL;
+            valid = unary && unary->base.source_span.has_location == 1u &&
+                unary->base.source_span.start_offset == operator_offset &&
+                unary->base.source_span.end_offset == operator_offset + 3u &&
+                unary->base.source_span.start_column == operator_offset + 1u &&
+                unary->base.source_span.end_column == operator_offset + 4u &&
+                unary->operand && unary->operand->type == AST_LITERAL &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Unary expression source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
