@@ -1906,11 +1906,13 @@ static ASTNode* parse_assignment(Parser* p) {
         ++p->nesting_depth;
         capture->expr = parse_assignment(p);
         --p->nesting_depth;
-        ast_destroy(expr);
         if (!capture->expr) {
             ast_destroy((ASTNode*)capture);
+            ast_destroy(expr);
             return NULL;
         }
+        parser_stamp_node_child_range((ASTNode*)capture, expr, capture->expr);
+        ast_destroy(expr);
         return (ASTNode*)capture;
     }
 
