@@ -118,7 +118,10 @@ typedef enum {
     AST_ARRAY_TYPE,
     AST_ARRAY_DIMENSION,
     /* Block-scope resource cleanup marker emitted by the closing `}?;`. */
-    AST_BLOCK_HALT
+    AST_BLOCK_HALT,
+    /* Append-only: variadic parameter-list marker and named call argument. */
+    AST_VARIADIC_PARAM,
+    AST_NAMED_ARG
 } ASTNodeType;
 
 // Temel Düğüm
@@ -218,6 +221,10 @@ typedef struct { ASTNode base; ASTNode* elements; } ASTArrayLiteral;
  */
 typedef struct { ASTNode base; ASTNode* dimensions; } ASTArrayType;
 typedef struct { ASTNode base; ASTNode* length; } ASTArrayDimension;
+/* A variadic marker has no payload and must be final in a function parameter list. */
+typedef struct { ASTNode base; } ASTVariadicParam;
+/* Named call argument: owned label and one owned value expression. */
+typedef struct { ASTNode base; char* name; ASTNode* value; } ASTNamedArg;
 
 // --- Bildirim Yapıları ---
 
