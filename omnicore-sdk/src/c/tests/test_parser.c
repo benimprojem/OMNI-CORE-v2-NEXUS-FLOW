@@ -2588,5 +2588,33 @@ generic_type_done:
         }
     }
 
+
+    /* Nexus label spans its label expression and the attached statement. */
+    {
+        static const char source[] = "f:main() { label:> ret 1; }";
+        ParserContext* parser = parser_init_source("label-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* label = strstr(source, "label");
+        const char* statement_end = strstr(source, "ret 1;");
+        ASTFuncDecl* function;
+        ASTNode* node;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            node = function ? ((ASTBlock*)function->body)->statements : NULL;
+            valid = node && node->type == AST_NEXUS_LABEL &&
+                node->source_span.has_location == 1u &&
+                node->source_span.start_offset == (size_t)(label - source) &&
+                node->source_span.end_offset == (size_t)(statement_end + 6 - source) &&
+                node->source_span.start_column == (size_t)(label - source) + 1u &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Nexus label source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
