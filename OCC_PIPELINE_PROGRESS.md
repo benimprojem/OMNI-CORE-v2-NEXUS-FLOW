@@ -422,3 +422,5 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 | 2026-11-04 | Multi-source AST root identity testi eklendi: parser source registry'de ikinci dosya ID=1 iken AST_PROGRAM source_span.source_id=1 ve `[0, source_len)` byte aralığını koruyor; aynı fixture diagnostic source_id kontrolünü de sürdürüyor. | `test_parser.c`, `docs/AST-SOURCE-SPAN-CONTRACT.md`; commit `182b202`; CI bekleniyor |
 
 | 2026-11-04 | Inline newtype aggregate test doğrulandı: `nt:struct: point { ... }` AST root + field span fixture CI `41791509581` passed 5/5 (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). | `test_parser.c`, `OCC_PIPELINE_PROGRESS.md`; commit `badb44e` |
+
+| 2026-11-04 | Inline ASM çağrı girişleri ayrıştırıldı: `asmcall("LABEL")` ve `asmjmp("LABEL")` mevcut AST_FUNC_CALL + AST_IDENTIFIER modelini kullanıyor; yeni node kind icat edilmedi. Her iki çağrının parantez dahil exact span'ini ve callee adını doğrulayan parser testi eklendi. Raw `fastexec/asm:LABEL { ... }` payload modeli hâlâ açık mimari kararı. | `parser.c`, `test_parser.c`, `NEXSUS_AST_SYNTAX_MATRIX.md`; commits `9047485`, `64214fd`; CI bekleniyor |
