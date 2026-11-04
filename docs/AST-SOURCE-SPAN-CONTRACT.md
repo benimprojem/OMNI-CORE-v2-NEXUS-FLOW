@@ -79,7 +79,7 @@ The new reader validates that the four fields are either all present or all abse
 
 - `ast_validate()` checks complete-span invariants and rejects malformed ranges. (Implemented and covered by AST validator tests.)
 - Parser tests must assert exact ranges for literals, identifiers, binary expressions, declarations, nested blocks, `}?;`, multiline source and multibyte UTF-8 text. (Pending parser stamping.)
-- Legacy AST codec tests cover versioned span round-trip, unprefixed legacy input, unknown-version rejection and truncated magic/version prefixes. (Implemented; CI pending.)
+- Legacy AST codec tests cover versioned span round-trip, unprefixed legacy input, unknown-version rejection and truncated magic/version prefixes. (Implemented; CI run `41786516465` passed 5/5.)
 - OIR tests must cover full-span preservation, old payloads without span extensions, partial extension rejection and unknown optional scalar compatibility. (Pending.)
 - Windows, Linux, macOS, ASan/UBSan and Valgrind must pass before the span feature is marked complete.
 
