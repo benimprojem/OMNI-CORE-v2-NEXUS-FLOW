@@ -101,6 +101,21 @@ static OirStatus append_tlv(
     return OIR_STATUS_OK;
 }
 
+static OirStatus emit_optional_span_value(AstEmitContext* c, uint16_t* last,
+    uint16_t id, uint8_t type, const uint8_t* value, uint32_t length) {
+    size_t offset=c->field_used;
+    OirStatus status=append_tlv(c,last,id,type,value,length);
+    if(status!=OIR_STATUS_OK)return status;
+    if(!c->measure_only)c->field_data[offset+3u]=OIR_AST_TLV_OPTIONAL;
+    return OIR_STATUS_OK;
+}
+static OirStatus emit_optional_span_u64(AstEmitContext* c,uint16_t* last,uint16_t id,uint64_t v){
+    uint8_t b[8];put_u64(b,v);return emit_optional_span_value(c,last,id,OIR_AST_VALUE_U64,b,8u);
+}
+static OirStatus emit_optional_span_u32(AstEmitContext* c,uint16_t* last,uint16_t id,uint32_t v){
+    uint8_t b[4];put_u32(b,v);return emit_optional_span_value(c,last,id,OIR_AST_VALUE_U32,b,4u);
+}
+
 static OirStatus emit_null(AstEmitContext* c, uint16_t* last, uint16_t id) {
     return append_tlv(c, last, id, OIR_AST_VALUE_NULL, NULL, 0u);
 }
@@ -372,6 +387,16 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
 #undef BOOL
 #undef I32
 #undef U32
+    if(node->source_span.has_location){
+        const OccSourceSpan* span=&node->source_span;
+        if(span->end_offset<span->start_offset || !span->start_line || !span->start_column ||
+           !span->end_line || !span->end_column || node->line!=(int)span->start_line ||
+           node->col!=(int)span->start_column)return OIR_STATUS_INVALID_SECTION;
+        s=emit_optional_span_u64(c,&last,0xFFF0u,span->start_offset);if(s!=OIR_STATUS_OK)return s;
+        s=emit_optional_span_u64(c,&last,0xFFF1u,span->end_offset);if(s!=OIR_STATUS_OK)return s;
+        s=emit_optional_span_u32(c,&last,0xFFF2u,span->end_line);if(s!=OIR_STATUS_OK)return s;
+        s=emit_optional_span_u32(c,&last,0xFFF3u,span->end_column);if(s!=OIR_STATUS_OK)return s;
+    }
     return s;
 }
 
