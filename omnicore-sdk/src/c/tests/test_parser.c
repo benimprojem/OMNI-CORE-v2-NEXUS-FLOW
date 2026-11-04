@@ -1482,8 +1482,42 @@ done:
     return valid;
 }
 
+
+/* Entry-point argv/argc remain ordinary typed AST parameters; runtime owns injection. */
+static int test_main_cli_parameter_ast(void) {
+    static const char source[] = "f:main(argc!i32, argv!str[])!i32 { ret argc; }";
+    ParserContext* parser = parser_init_source("main-cli-params.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTVarDecl* argc_param;
+    ASTVarDecl* argv_param;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        ast_validate(parser->ast_root, NULL)) {
+        function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        argc_param = function ? (ASTVarDecl*)function->params : NULL;
+        argv_param = argc_param ? (ASTVarDecl*)argc_param->base.next : NULL;
+        valid = function && strcmp(function->name, "main") == 0 &&
+            function->return_type && strcmp(function->return_type, "!i32") == 0 &&
+            argc_param && strcmp(argc_param->name, "argc") == 0 &&
+            argc_param->type_name && strcmp(argc_param->type_name, "!i32") == 0 &&
+            !argc_param->inline_type &&
+            argv_param && strcmp(argv_param->name, "argv") == 0 &&
+            argv_param->type_name && strcmp(argv_param->type_name, "!str") == 0 &&
+            argv_param->inline_type && argv_param->inline_type->type == AST_ARRAY_TYPE &&
+            !((ASTArrayType*)argv_param->inline_type)->dimensions &&
+            argc_param->base.source_span.has_location &&
+            argv_param->base.source_span.has_location;
+    }
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "main(argc, argv) typed AST contract failed.\\n");
+    return valid;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
+    if (!test_main_cli_parameter_ast()) return 1;
     if (!test_ast_create_rejects_invalid_node_kinds()) {
         fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\\n");
         return 1;
