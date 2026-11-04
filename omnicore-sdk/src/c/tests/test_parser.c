@@ -1665,9 +1665,26 @@ named_args_done:
         ASTNode* decoded = NULL;
         FILE* stream = NULL;
         int valid = 0;
-        if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
-            !parser->ast_root || !ast_validate(parser->ast_root, NULL))
-            goto must_dependency_done;
+        if (!parser) goto must_dependency_done;
+        {
+            int parse_status = parser_run(parser);
+            if (parse_status != PARSER_STATUS_OK || !parser->ast_root) {
+                fprintf(stderr, "MUST parse status=%d errors=%d\\n",
+                    parse_status, parser->error_count);
+                if (parser->error_head && parser->error_head->message)
+                    fprintf(stderr, "MUST parser diagnostic: %s\\n",
+                        parser->error_head->message);
+                goto must_dependency_done;
+            }
+        }
+        {
+            ASTValidationError validation;
+            if (!ast_validate(parser->ast_root, &validation)) {
+                fprintf(stderr, "MUST AST validation failed: code=%d field=%s\\n",
+                    (int)validation.code, validation.field ? validation.field : "<none>");
+                goto must_dependency_done;
+            }
+        }
         {
             ASTProgram* program = (ASTProgram*)parser->ast_root;
             ASTMustDecl* must = (ASTMustDecl*)program->declarations;
