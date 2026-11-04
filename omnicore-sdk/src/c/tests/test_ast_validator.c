@@ -388,5 +388,42 @@ int main(void) {
         ast_destroy((ASTNode*)call);
     }
 
+    /* MUST declarations are legal at program scope, not inside executable blocks. */
+    {
+        ASTProgram* program = (ASTProgram*)ast_create(AST_PROGRAM);
+        ASTMustDecl* dependency = (ASTMustDecl*)ast_create(AST_MUST_DECL);
+        ASTNode* literal = ast_create(AST_LITERAL);
+        if (!program || !dependency || !literal) return 1;
+        dependency->name = (char*)malloc(2u);
+        if (!dependency->name) return 1;
+        strcpy(dependency->name, "M");
+        dependency->source = literal;
+        program->declarations = (ASTNode*)dependency;
+        if (!expect((ASTNode*)program, AST_VALIDATE_OK)) {
+            fprintf(stderr, "top-level MUST declaration rejected\\n");
+            ast_destroy((ASTNode*)program);
+            return 1;
+        }
+        ast_destroy((ASTNode*)program);
+    }
+    {
+        ASTFuncDecl* fn = (ASTFuncDecl*)ast_create(AST_FUNC_DECL);
+        ASTBlock* body = (ASTBlock*)ast_create(AST_BLOCK);
+        ASTMustDecl* dependency = (ASTMustDecl*)ast_create(AST_MUST_DECL);
+        if (!fn || !body || !dependency) return 1;
+        dependency->name = (char*)malloc(2u);
+        dependency->source = ast_create(AST_LITERAL);
+        if (!dependency->name || !dependency->source) return 1;
+        strcpy(dependency->name, "M");
+        body->statements = (ASTNode*)dependency;
+        fn->body = (ASTNode*)body;
+        if (!expect((ASTNode*)fn, AST_VALIDATE_INVALID_KIND)) {
+            fprintf(stderr, "nested MUST declaration accepted\\n");
+            ast_destroy((ASTNode*)fn);
+            return 1;
+        }
+        ast_destroy((ASTNode*)fn);
+    }
+
     return 0;
 }
