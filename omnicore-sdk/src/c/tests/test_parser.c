@@ -2025,5 +2025,49 @@ generic_type_done:
         }
     }
 
+
+    /* Array literal and loop expressions span their complete delimiters/body. */
+    {
+        static const char source[] =
+            "f:main() { v:a = [1,2]; (loop) -> { break; } }";
+        ParserContext* parser = parser_init_source("array-loop-spans.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* array_start = strstr(source, "[1,2]");
+        const char* loop_start = strstr(source, "(loop)");
+        const char* loop_end = strstr(source, "break; }");
+        size_t array_offset = array_start ? (size_t)(array_start - source) : 0u;
+        size_t array_end = array_start ? (size_t)(array_start + 5 - source) : 0u;
+        size_t loop_offset = loop_start ? (size_t)(loop_start - source) : 0u;
+        size_t loop_end_offset = loop_end ? (size_t)(loop_end + 8 - source) : 0u;
+        ASTFuncDecl* function;
+        ASTNode* statement;
+        ASTArrayLiteral* array;
+        ASTLoop* loop;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            statement = function ? ((ASTBlock*)function->body)->statements : NULL;
+            array = statement && statement->type == AST_VAR_DECL &&
+                ((ASTVarDecl*)statement)->initializer &&
+                ((ASTVarDecl*)statement)->initializer->type == AST_ARRAY_LITERAL
+                    ? (ASTArrayLiteral*)((ASTVarDecl*)statement)->initializer : NULL;
+            statement = statement ? statement->next : NULL;
+            loop = statement && statement->type == AST_LOOP
+                ? (ASTLoop*)statement : NULL;
+            valid = array && array->base.source_span.has_location == 1u &&
+                array->base.source_span.start_offset == array_offset &&
+                array->base.source_span.end_offset == array_end &&
+                loop && loop->base.source_span.has_location == 1u &&
+                loop->base.source_span.start_offset == loop_offset &&
+                loop->base.source_span.end_offset == loop_end_offset &&
+                loop->body && ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Array/loop AST source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
