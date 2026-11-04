@@ -2424,12 +2424,14 @@ generic_type_done:
             (const uint8_t*)source, sizeof(source) - 1u);
         const char* one = strstr(source, "1;");
         size_t literal_offset = one ? (size_t)(one - source) : 0u;
+        ASTProgram* program;
         ASTFuncDecl* function;
         ASTBlock* body;
         ASTVarDecl* variable;
         int valid = 0;
         if (parser && parser_run(parser) == PARSER_STATUS_OK) {
-            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            program = (ASTProgram*)parser->ast_root;
+            function = (ASTFuncDecl*)program->declarations;
             body = function ? (ASTBlock*)function->body : NULL;
             variable = body ? (ASTVarDecl*)body->statements : NULL;
             valid = function && body && variable && variable->initializer &&
@@ -2443,6 +2445,13 @@ generic_type_done:
                 body->base.source_span.end_column == 2u &&
                 function->base.source_span.end_line == 4u &&
                 function->base.source_span.end_column == 2u &&
+                program->base.source_span.has_location == 1u &&
+                program->base.source_span.start_offset == 0u &&
+                program->base.source_span.end_offset == sizeof(source) - 1u &&
+                program->base.source_span.start_line == 1u &&
+                program->base.source_span.start_column == 1u &&
+                program->base.source_span.end_line == 4u &&
+                program->base.source_span.end_column == 2u &&
                 variable->initializer->source_span.start_offset == literal_offset &&
                 ast_validate(parser->ast_root, NULL);
         }
