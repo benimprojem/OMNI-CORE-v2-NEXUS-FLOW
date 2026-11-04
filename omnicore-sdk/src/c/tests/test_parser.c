@@ -1793,7 +1793,7 @@ generic_type_done:
 
     /* Parser leaf nodes retain exact token spans and the compilation source ID. */
     {
-        static const char source[] = "f:main() { v:x = 42; ret x; }";
+        static const char source[] = "f:main() { v:x = 42 + 7; ret x; }";
         ParserContext* parser = parser_init_source("leaf-spans.nxf",
             (const uint8_t*)source, sizeof(source) - 1u);
         OccSourceFileTable files;
@@ -1802,6 +1802,7 @@ generic_type_done:
         const char* return_identifier = strstr(source, "ret x");
         size_t identifier_offset = return_identifier
             ? (size_t)(return_identifier + 4 - source) : 0u;
+        size_t right_literal_offset = (size_t)(strstr(source, "7;") - source);
         int valid = 0;
         occ_source_files_init(&files);
         if (parser &&
@@ -1823,8 +1824,14 @@ generic_type_done:
                     ? &variable->initializer->source_span : NULL;
             const OccSourceSpan* identifier_span =
                 identifier ? &identifier->source_span : NULL;
+            ASTBinaryExpr* binary = variable && variable->initializer &&
+                variable->initializer->type == AST_BINARY_EXPR
+                    ? (ASTBinaryExpr*)variable->initializer : NULL;
+            const OccSourceSpan* binary_span = binary
+                ? &binary->base.source_span : NULL;
             valid = variable && variable->base.type == AST_VAR_DECL &&
-                variable->initializer && variable->initializer->type == AST_LITERAL &&
+                binary && binary->left && binary->right &&
+                binary->left->type == AST_LITERAL && binary->right->type == AST_LITERAL &&
                 literal_span && literal_span->has_location == 1u &&
                 literal_span->source_id == 1u &&
                 literal_span->start_offset == literal_offset &&
@@ -1832,6 +1839,12 @@ generic_type_done:
                 literal_span->start_line == 1u &&
                 literal_span->start_column == literal_offset + 1u &&
                 literal_span->end_column == literal_offset + 3u &&
+                binary_span && binary_span->has_location == 1u &&
+                binary_span->source_id == 1u &&
+                binary_span->start_offset == literal_offset &&
+                binary_span->end_offset == right_literal_offset + 1u &&
+                binary_span->start_column == literal_offset + 1u &&
+                binary_span->end_column == right_literal_offset + 2u &&
                 return_node && return_node->type == AST_RETURN &&
                 identifier && identifier->type == AST_IDENTIFIER &&
                 identifier_span && identifier_span->has_location == 1u &&
