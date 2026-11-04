@@ -1046,6 +1046,20 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
                     arg = parse_expression(p);
                 }
                 if (!arg) { ast_destroy((ASTNode*)call); return NULL; }
+                if (arg->type == AST_NAMED_ARG) {
+                    ASTNode* prior;
+                    const char* label = ((ASTNamedArg*)arg)->name;
+                    for (prior = call->args; prior; prior = prior->next) {
+                        if (prior->type == AST_NAMED_ARG &&
+                            strcmp(((ASTNamedArg*)prior)->name, label) == 0) {
+                            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                                "Duplicate named argument label.");
+                            ast_destroy(arg);
+                            ast_destroy((ASTNode*)call);
+                            return NULL;
+                        }
+                    }
+                }
                 if (!call->args) call->args = arg;
                 else tail->next = arg;
                 tail = arg;
@@ -1267,6 +1281,20 @@ static ASTNode* parse_postfix(Parser* p) {
                         arg = parse_expression(p);
                     }
                     if (!arg) { ast_destroy((ASTNode*)call); return NULL; }
+                    if (arg->type == AST_NAMED_ARG) {
+                        ASTNode* prior;
+                        const char* label = ((ASTNamedArg*)arg)->name;
+                        for (prior = call->args; prior; prior = prior->next) {
+                            if (prior->type == AST_NAMED_ARG &&
+                                strcmp(((ASTNamedArg*)prior)->name, label) == 0) {
+                                error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                                    "Duplicate named argument label.");
+                                ast_destroy(arg);
+                                ast_destroy((ASTNode*)call);
+                                return NULL;
+                            }
+                        }
+                    }
                     if (!call->args) call->args = arg;
                     else tail->next = arg;
                     tail = arg;
