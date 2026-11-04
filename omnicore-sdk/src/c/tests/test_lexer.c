@@ -32,10 +32,10 @@ static int expect_invalid_numeric_literal(const char* source) {
 
 static int test_opaque_asm_body_token(void) {
     static const char source[] =
-        "asm: ADD {\\n"
-        "  mov rax, %x:reg\\r\\n"
-        "  ldm r0, {r1, r2}\\n"
-        "  db \\"}\\"\\n"
+        "asm: ADD {\n"
+        "  mov rax, %x:reg\r\n"
+        "  ldm r0, {r1, r2}\n"
+        "  db \"}\"\n"
         "}";
     ParserContext ctx;
     Token token;
@@ -64,16 +64,17 @@ static int test_opaque_asm_body_token(void) {
         token.source_offset!=(size_t)(raw_start-source) ||
         token.source_length!=raw_length || token.length!=(int)raw_length ||
         memcmp(token.start,raw_start,raw_length)!=0) {
-        fprintf(stderr,"Raw ASM body was not emitted losslessly.\\n");
+        fprintf(stderr,"Raw ASM body was not emitted losslessly.\n");
         return 0;
     }
     token=lexer_next_token(&ctx);
     if(token.type!=TOKEN_RBRACE || token.source_offset!=(size_t)(raw_end-source)) {
-        fprintf(stderr,"Raw ASM closing brace was not preserved as a delimiter.\\n");
+        fprintf(stderr,"Raw ASM closing brace was not preserved as a delimiter.\n");
         return 0;
     }
     return lexer_next_token(&ctx).type==TOKEN_EOF;
 }
+
 
 int main(void) {
     if (!test_opaque_asm_body_token()) return 1;
