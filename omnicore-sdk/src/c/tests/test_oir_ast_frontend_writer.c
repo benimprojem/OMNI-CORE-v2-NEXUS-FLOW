@@ -62,7 +62,8 @@ typedef union AstStorage {
 } AstStorage;
 
 #define INDEX_CAPACITY 256u
-#define MAX_NODES (OIR_AST_NODE_KIND_COUNT + 1u)
+#define LEGACY_FLAT_KIND_COUNT 100u
+#define MAX_NODES (LEGACY_FLAT_KIND_COUNT + 1u)
 #define FIELD_CAPACITY 8192u
 #define STRING_CAPACITY 2048u
 #define OUTPUT_CAPACITY 16384u
@@ -88,10 +89,10 @@ int main(void) {
     memset(&root,0,sizeof(root));
     memset(nodes,0,sizeof(nodes));
     root.base.type=AST_PROGRAM;
-    for(i=0;i<OIR_AST_NODE_KIND_COUNT;i++) {
+    for(i=0;i<LEGACY_FLAT_KIND_COUNT;i++) {
         assert(oir_ast_node_id_to_frontend((uint16_t)(i+1u),&frontend_type));
         nodes[i].base.type=frontend_type;
-        if(i+1u<OIR_AST_NODE_KIND_COUNT) nodes[i].base.next=&nodes[i+1u].base;
+        if(i+1u<LEGACY_FLAT_KIND_COUNT) nodes[i].base.next=&nodes[i+1u].base;
     }
     root.declarations=&nodes[0].base;
 
