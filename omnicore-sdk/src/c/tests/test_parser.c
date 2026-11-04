@@ -1790,5 +1790,63 @@ generic_type_done:
         }
     }
 
+
+    /* Parser leaf nodes retain exact token spans and the compilation source ID. */
+    {
+        static const char source[] = "f:main() { v:x = 42; ret x; }";
+        ParserContext* parser = parser_init_source("leaf-spans.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        OccSourceFileTable files;
+        uint32_t first_id = UINT32_MAX;
+        size_t literal_offset = (size_t)(strstr(source, "42") - source);
+        const char* return_identifier = strstr(source, "ret x");
+        size_t identifier_offset = return_identifier
+            ? (size_t)(return_identifier + 4 - source) : 0u;
+        int valid = 0;
+        occ_source_files_init(&files);
+        if (parser &&
+            occ_source_files_register(&files, "src/other.nxf", &first_id) &&
+            first_id == 0u &&
+            parser_attach_source_files(parser, &files) &&
+            parser->source_id == 1u &&
+            parser_run(parser) == PARSER_STATUS_OK) {
+            ASTFuncDecl* function =
+                (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            ASTNode* statements = function
+                ? ((ASTBlock*)function->body)->statements : NULL;
+            ASTVarDecl* variable = (ASTVarDecl*)statements;
+            ASTNode* return_node = statements ? statements->next : NULL;
+            ASTNode* identifier = return_node
+                ? ((ASTUnaryExpr*)return_node)->operand : NULL;
+            const OccSourceSpan* literal_span =
+                variable && variable->initializer
+                    ? &variable->initializer->source_span : NULL;
+            const OccSourceSpan* identifier_span =
+                identifier ? &identifier->source_span : NULL;
+            valid = variable && variable->base.type == AST_VAR_DECL &&
+                variable->initializer && variable->initializer->type == AST_LITERAL &&
+                literal_span && literal_span->has_location == 1u &&
+                literal_span->source_id == 1u &&
+                literal_span->start_offset == literal_offset &&
+                literal_span->end_offset == literal_offset + 2u &&
+                literal_span->start_line == 1u &&
+                literal_span->start_column == literal_offset + 1u &&
+                literal_span->end_column == literal_offset + 3u &&
+                return_node && return_node->type == AST_RETURN &&
+                identifier && identifier->type == AST_IDENTIFIER &&
+                identifier_span && identifier_span->has_location == 1u &&
+                identifier_span->source_id == 1u &&
+                identifier_span->start_offset == identifier_offset &&
+                identifier_span->end_offset == identifier_offset + 1u &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        occ_source_files_destroy(&files);
+        if (!valid) {
+            fprintf(stderr, "Parser leaf AST source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
