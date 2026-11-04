@@ -4210,14 +4210,15 @@ int parser_attach_token_stream(
     for (i = 0u; i < token_count; ++i) {
         const Token* token = &tokens[i];
         size_t token_end;
-        if ((unsigned int)token->type > (unsigned int)TOKEN_RBRACKET ||
+        if ((unsigned int)token->type > (unsigned int)TOKEN_ASM_BODY ||
             !token->start || token->length < 0 ||
             token->line <= 0 || token->col <= 0 ||
             token->source_offset > ctx->source_len ||
             token->source_length > ctx->source_len - token->source_offset ||
             token->source_offset < previous_end ||
             (token->type == TOKEN_EOF && i + 1u != token_count) ||
-            (token->type != TOKEN_EOF && token->source_length == 0u)) {
+            (token->type != TOKEN_EOF && token->type != TOKEN_ASM_BODY &&
+             token->source_length == 0u)) {
             return 0;
         }
         if (token->type != TOKEN_EOF && token->type != TOKEN_ERROR) {
