@@ -467,3 +467,6 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-04 | İkinci CI turu yeni fixture'ın C kaynak yazım hatasını yakaladı: `&&` koşuluna eklenen satır sonu yanlışlıkla literal `\\n` olarak dosyaya girmişti (stray backslash). Bu test kaynak hatası düzeltildi; Parser/AST davranışına ilişkin yeni hata yok. Commit `1b71309`; CI tekrar bekleniyor. | `test_parser.c`, run `41830146241` compile failure |
+
+
+| 2026-11-04 | `main(argc!i32, argv!str[])!i32` AST fixture düzeltmesi doğrulandı: run `41830313436` Ubuntu CTest **60/60 geçti**, ASan/UBSan ve macOS build/CTest başarılı; Windows ve Valgrind son kontrolü sürüyor. Böylece entry-point argc/argv Parser/AST shape testi yeşil Linux + sanitizer kanıtına sahip. | `test_parser.c`; commit `1b71309`; workflow run `41830313436` |
