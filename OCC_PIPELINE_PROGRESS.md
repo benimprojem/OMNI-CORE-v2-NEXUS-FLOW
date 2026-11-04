@@ -470,3 +470,6 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-04 | `main(argc!i32, argv!str[])!i32` AST fixture düzeltmesi doğrulandı: run `41830313436` Ubuntu CTest **60/60 geçti**, ASan/UBSan ve macOS build/CTest başarılı; Windows ve Valgrind son kontrolü sürüyor. Böylece entry-point argc/argv Parser/AST shape testi yeşil Linux + sanitizer kanıtına sahip. | `test_parser.c`; commit `1b71309`; workflow run `41830313436` |
+
+
+| 2026-11-04 | AST source span OIR TLV uygulaması ilk doğrulama: run `41838138909` Ubuntu CTest **60/60 passed**, ASan/UBSan başarılı. OIR round-trip fixture root + function span'lerini kontrol ediyor ve tekrar encode canonical bytes eşitliğini koruyor. Windows/macOS/Valgrind hâlâ çalışıyor. | `oir_ast_frontend_writer.c`, `oir_ast_frontend_reader.c`, `test_parser_ast_oir_roundtrip.c`, `docs/AST-SOURCE-SPAN-CONTRACT.md`; commits `d03018f`, `1138659`, `8d60a4a`, `3615021` |
