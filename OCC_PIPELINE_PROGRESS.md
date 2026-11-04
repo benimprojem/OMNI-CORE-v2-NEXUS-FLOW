@@ -464,3 +464,6 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-04 | `main(argc, argv)` fixture ilk CI'da gerçek AST model ayrıntısını ortaya çıkardı: hard-type marker `type_name` içine de `!` ekliyor (`is_hard_typed` ayrıca true), array `[]` için AST_ARRAY_TYPE altında dinamik AST_ARRAY_DIMENSION düğümü bulunuyor (dimension->length NULL). Test beklentisi AST payload'a göre düzeltildi; bu test hatası Parser regression değil, fixture assertion uyumsuzluğuydu. Düzeltme commit `67ee564`; yeni CI bekleniyor. | `test_parser.c`, run `41829923124` failure (54/60; yalnızca yeni fixture) |
+
+
+| 2026-11-04 | İkinci CI turu yeni fixture'ın C kaynak yazım hatasını yakaladı: `&&` koşuluna eklenen satır sonu yanlışlıkla literal `\\n` olarak dosyaya girmişti (stray backslash). Bu test kaynak hatası düzeltildi; Parser/AST davranışına ilişkin yeni hata yok. Commit `1b71309`; CI tekrar bekleniyor. | `test_parser.c`, run `41830146241` compile failure |
