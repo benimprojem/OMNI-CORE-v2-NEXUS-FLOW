@@ -166,10 +166,18 @@ done:
 
 static int test_fast_exec_asm_oir_roundtrip(void) {
     ASTProgram* program=(ASTProgram*)ast_create(AST_PROGRAM);
+    ASTMustDecl* dependency=(ASTMustDecl*)ast_create(AST_MUST_DECL);
+    ASTIdentifier* dependency_source=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
     ASTFuncDecl* function=(ASTFuncDecl*)ast_create(AST_FUNC_DECL);
+    ASTIdentifier* parameter=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    ASTVariadicParam* variadic=(ASTVariadicParam*)ast_create(AST_VARIADIC_PARAM);
     ASTBlock* body=(ASTBlock*)ast_create(AST_BLOCK);
     ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
     ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
+    ASTCall* call=(ASTCall*)ast_create(AST_FUNC_CALL);
+    ASTIdentifier* callee=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    ASTNamedArg* named=(ASTNamedArg*)ast_create(AST_NAMED_ARG);
+    ASTIdentifier* named_value=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
     const char* raw="mov rax, %value\r\nadd rax, 1 ; preserve %x:reg";
     uint8_t *first=NULL,*second=NULL;
     size_t first_length=0u,second_length=0u;
@@ -180,21 +188,47 @@ static int test_fast_exec_asm_oir_roundtrip(void) {
     OirAstGraphStackEntry* stack=NULL;
     OirStatus status;
     int ok=0;
-    if(!program || !function || !body || !fast || !label) goto done;
+    if(!program || !dependency || !dependency_source || !function || !parameter ||
+        !variadic || !body || !fast || !label || !call || !callee || !named || !named_value) goto done;
+
+    dependency->name=(char*)malloc(sizeof("runtime"));
+    dependency_source->name=(char*)malloc(sizeof("runtime.dll"));
     function->name=(char*)malloc(sizeof("main"));
     function->return_type=(char*)malloc(sizeof("i32"));
+    parameter->name=(char*)malloc(sizeof("value"));
     label->label=(char*)malloc(sizeof("ADD"));
     label->source_text=(char*)malloc(strlen(raw)+1u);
-    if(!function->name || !function->return_type || !label->label || !label->source_text) goto done;
+    callee->name=(char*)malloc(sizeof("consume"));
+    named->name=(char*)malloc(sizeof("input"));
+    named_value->name=(char*)malloc(sizeof("value"));
+    if(!dependency->name || !dependency_source->name || !function->name ||
+        !function->return_type || !parameter->name || !label->label ||
+        !label->source_text || !callee->name || !named->name || !named_value->name) goto done;
+    strcpy(dependency->name,"runtime");
+    strcpy(dependency_source->name,"runtime.dll");
     strcpy(function->name,"main");
     strcpy(function->return_type,"i32");
+    strcpy(parameter->name,"value");
     strcpy(label->label,"ADD");
     memcpy(label->source_text,raw,strlen(raw)+1u);
     label->source_length=strlen(raw);
+    strcpy(callee->name,"consume");
+    strcpy(named->name,"input");
+    strcpy(named_value->name,"value");
+
+    dependency->source=(ASTNode*)dependency_source; dependency_source=NULL;
+    parameter->base.next=(ASTNode*)variadic; variadic=NULL;
+    function->params=(ASTNode*)parameter; parameter=NULL;
+    named->value=(ASTNode*)named_value; named_value=NULL;
+    call->callee=(ASTNode*)callee; callee=NULL;
+    call->args=(ASTNode*)named; named=NULL;
     fast->statements=(ASTNode*)label; label=NULL;
+    fast->base.next=(ASTNode*)call; call=NULL;
     body->statements=(ASTNode*)fast; fast=NULL;
     function->body=(ASTNode*)body; body=NULL;
-    program->declarations=(ASTNode*)function; function=NULL;
+    dependency->base.next=(ASTNode*)function; function=NULL;
+    program->declarations=(ASTNode*)dependency; dependency=NULL;
+
     if(!ast_validate((ASTNode*)program,NULL)) goto done;
     status=encode_ast((ASTNode*)program,&first,&first_length);
     if(status!=OIR_STATUS_OK) goto done;
@@ -209,13 +243,24 @@ static int test_fast_exec_asm_oir_roundtrip(void) {
         incoming,view.node_count,visited,view.node_count,stack,view.node_count,&decoded);
     if(status!=OIR_STATUS_OK || !decoded || !ast_validate(decoded,NULL)) goto done;
     {
-        ASTFuncDecl* fn=(ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+        ASTMustDecl* dep=(ASTMustDecl*)((ASTProgram*)decoded)->declarations;
+        ASTFuncDecl* fn=(ASTFuncDecl*)dep->base.next;
+        ASTVariadicParam* var=(ASTVariadicParam*)((ASTIdentifier*)fn->params)->base.next;
         ASTFastExecBlock* fx=(ASTFastExecBlock*)((ASTBlock*)fn->body)->statements;
         ASTAsmLabel* asm_node=(ASTAsmLabel*)fx->statements;
-        if(!asm_node || asm_node->base.type!=AST_ASM_LABEL ||
+        ASTCall* decoded_call=(ASTCall*)fx->base.next;
+        ASTNamedArg* arg=(ASTNamedArg*)decoded_call->args;
+        if(!dep->name || strcmp(dep->name,"runtime")!=0 ||
+            !((ASTIdentifier*)dep->source)->name ||
+            strcmp(((ASTIdentifier*)dep->source)->name,"runtime.dll")!=0 ||
+            !var || var->base.type!=AST_VARIADIC_PARAM ||
+            !asm_node || asm_node->base.type!=AST_ASM_LABEL ||
             strcmp(asm_node->label,"ADD")!=0 ||
             asm_node->source_length!=strlen(raw) ||
-            memcmp(asm_node->source_text,raw,asm_node->source_length)!=0) goto done;
+            memcmp(asm_node->source_text,raw,asm_node->source_length)!=0 ||
+            !arg || strcmp(arg->name,"input")!=0 ||
+            !((ASTIdentifier*)arg->value)->name ||
+            strcmp(((ASTIdentifier*)arg->value)->name,"value")!=0) goto done;
     }
     status=encode_ast(decoded,&second,&second_length);
     if(status!=OIR_STATUS_OK || first_length!=second_length ||
@@ -224,10 +269,18 @@ static int test_fast_exec_asm_oir_roundtrip(void) {
 done:
     if(decoded) ast_destroy(decoded);
     if(program) ast_destroy((ASTNode*)program);
+    if(dependency) ast_destroy((ASTNode*)dependency);
+    if(dependency_source) ast_destroy((ASTNode*)dependency_source);
     if(function) ast_destroy((ASTNode*)function);
+    if(parameter) ast_destroy((ASTNode*)parameter);
+    if(variadic) ast_destroy((ASTNode*)variadic);
     if(body) ast_destroy((ASTNode*)body);
     if(fast) ast_destroy((ASTNode*)fast);
     if(label) ast_destroy((ASTNode*)label);
+    if(call) ast_destroy((ASTNode*)call);
+    if(callee) ast_destroy((ASTNode*)callee);
+    if(named) ast_destroy((ASTNode*)named);
+    if(named_value) ast_destroy((ASTNode*)named_value);
     free(first); free(second); free(storage); free(incoming); free(visited); free(stack);
     return ok;
 }
