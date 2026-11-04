@@ -1438,7 +1438,8 @@ static ASTNode* parse_power(Parser* p) {
 static ASTNode* parse_unary(Parser* p) {
     if (match(p, TOKEN_INC) || match(p, TOKEN_DEC) ||
         match(p, TOKEN_NOT) || match(p, TOKEN_MINUS) || match(p, TOKEN_BIT_NOT)) {
-        OmniTokenType op = p->previous.type;
+        Token operator_token = p->previous;
+        OmniTokenType op = operator_token.type;
         ASTNode* operand;
         if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
             error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
@@ -1459,6 +1460,7 @@ static ASTNode* parse_unary(Parser* p) {
         unary->base.col = p->previous.col;
         unary->op = op;
         unary->operand = operand;
+        parser_stamp_node_tokens(p, (ASTNode*)unary, &operator_token, &p->previous);
         return (ASTNode*)unary;
     }
     return parse_power(p);
