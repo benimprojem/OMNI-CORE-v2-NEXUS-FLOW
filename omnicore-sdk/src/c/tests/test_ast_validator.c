@@ -1,5 +1,7 @@
 #include "ast.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static int expect(ASTNode *root, ASTValidationCode code) {
     ASTValidationError error;
@@ -316,5 +318,75 @@ int main(void) {
         ast_destroy(fn);
         fclose(stream);
     }
+    /* Appended variadic and named-argument nodes enforce their context. */
+    {
+        ASTFuncDecl* fn = (ASTFuncDecl*)ast_create(AST_FUNC_DECL);
+        ASTNode* marker = ast_create(AST_VARIADIC_PARAM);
+        ASTNode* body = ast_create(AST_BLOCK);
+        if (!fn || !marker || !body) return 1;
+        fn->params = marker;
+        fn->body = body;
+        if (!expect((ASTNode*)fn, AST_VALIDATE_OK)) {
+            fprintf(stderr, "final variadic parameter marker rejected\\n");
+            ast_destroy((ASTNode*)fn);
+            return 1;
+        }
+        marker->next = ast_create(AST_VARIADIC_PARAM);
+        if (!marker->next || !expect((ASTNode*)fn, AST_VALIDATE_INVALID_KIND)) {
+            fprintf(stderr, "non-final variadic parameter marker accepted\\n");
+            ast_destroy((ASTNode*)fn);
+            return 1;
+        }
+        ast_destroy((ASTNode*)fn);
+    }
+    {
+        ASTCall* call = (ASTCall*)ast_create(AST_FUNC_CALL);
+        ASTIdentifier* callee = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+        ASTNamedArg* first = (ASTNamedArg*)ast_create(AST_NAMED_ARG);
+        ASTNamedArg* second = (ASTNamedArg*)ast_create(AST_NAMED_ARG);
+        ASTNode* positional = ast_create(AST_LITERAL);
+        if (!call || !callee || !first || !second || !positional) return 1;
+        callee->name = (char*)malloc(2u);
+        first->name = (char*)malloc(2u);
+        second->name = (char*)malloc(2u);
+        first->value = ast_create(AST_LITERAL);
+        second->value = ast_create(AST_LITERAL);
+        if (!callee->name || !first->name || !second->name ||
+            !first->value || !second->value) return 1;
+        strcpy(callee->name, "f");
+        strcpy(first->name, "a");
+        strcpy(second->name, "b");
+        call->callee = (ASTNode*)callee;
+        call->args = (ASTNode*)first;
+        first->base.next = (ASTNode*)second;
+        if (!expect((ASTNode*)call, AST_VALIDATE_OK)) {
+            fprintf(stderr, "unique named arguments rejected\\n");
+            ast_destroy((ASTNode*)call);
+            ast_destroy(positional);
+            return 1;
+        }
+        free(second->name);
+        second->name = (char*)malloc(2u);
+        if (!second->name) return 1;
+        strcpy(second->name, "a");
+        if (!expect((ASTNode*)call, AST_VALIDATE_INVALID_KIND)) {
+            fprintf(stderr, "duplicate named argument accepted\\n");
+            ast_destroy((ASTNode*)call);
+            ast_destroy(positional);
+            return 1;
+        }
+        free(second->name);
+        second->name = (char*)malloc(2u);
+        if (!second->name) return 1;
+        strcpy(second->name, "b");
+        second->base.next = positional;
+        if (!expect((ASTNode*)call, AST_VALIDATE_INVALID_KIND)) {
+            fprintf(stderr, "positional argument after named argument accepted\\n");
+            ast_destroy((ASTNode*)call);
+            return 1;
+        }
+        ast_destroy((ASTNode*)call);
+    }
+
     return 0;
 }
