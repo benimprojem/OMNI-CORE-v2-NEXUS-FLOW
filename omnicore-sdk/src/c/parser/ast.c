@@ -1666,7 +1666,26 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: R(((ASTUnaryExpr*)n)->operand,"operand"); break;
         case AST_RETURN: V(((ASTUnaryExpr*)n)->operand,"operand"); break;
         case AST_CAST: R(((ASTCast*)n)->value,"value"); R(((ASTCast*)n)->target_type,"target_type"); break;
-        case AST_FUNC_CALL: case AST_SPAWN: case AST_ECHO: case AST_SEND: case AST_RECEIVE: case AST_DONE: case AST_AREA: case AST_ZONE: case AST_ADDR: case AST_LEN: case AST_PEEK: case AST_POKE: case AST_INB: case AST_OUTB: case AST_IRQ: case AST_INTR: case AST_REG: case AST_PRNT: case AST_PRMT: case AST_WRITE: case AST_FWRITE: case AST_TYPEOF: case AST_SIZEOF: case AST_IS_OK: case AST_IS_ERR: case AST_IS_SOME: case AST_IS_NONE: case AST_IS_NULL: case AST_EXIT: case AST_SWAP: case AST_DATE: case AST_DATENOW: case AST_TIME: case AST_CLOCK: case AST_FREE: case AST_ZONE_SYNC: case AST_ZONE_VIEW: case AST_ZONE_LOCK: V(((ASTCall*)n)->callee,"callee"); V(((ASTCall*)n)->args,"args"); break;
+        case AST_FUNC_CALL: case AST_SPAWN: case AST_ECHO: case AST_SEND: case AST_RECEIVE: case AST_DONE: case AST_AREA: case AST_ZONE: case AST_ADDR: case AST_LEN: case AST_PEEK: case AST_POKE: case AST_INB: case AST_OUTB: case AST_IRQ: case AST_INTR: case AST_REG: case AST_PRNT: case AST_PRMT: case AST_WRITE: case AST_FWRITE: case AST_TYPEOF: case AST_SIZEOF: case AST_IS_OK: case AST_IS_ERR: case AST_IS_SOME: case AST_IS_NONE: case AST_IS_NULL: case AST_EXIT: case AST_SWAP: case AST_DATE: case AST_DATENOW: case AST_TIME: case AST_CLOCK: case AST_FREE: case AST_ZONE_SYNC: case AST_ZONE_VIEW: case AST_ZONE_LOCK: {
+            const ASTNode *arg_a, *arg_b;
+            int named_seen = 0;
+            V(((ASTCall*)n)->callee,"callee");
+            for (arg_a=((ASTCall*)n)->args; arg_a; arg_a=arg_a->next) {
+                if (arg_a->type == AST_NAMED_ARG) {
+                    const char *label=((const ASTNamedArg*)arg_a)->name;
+                    named_seen=1;
+                    for (arg_b=arg_a->next; arg_b; arg_b=arg_b->next)
+                        if (arg_b->type == AST_NAMED_ARG &&
+                            ((const ASTNamedArg*)arg_b)->name && label &&
+                            strcmp(((const ASTNamedArg*)arg_b)->name,label)==0)
+                            return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,arg_b,"duplicate_named_argument");
+                } else if (named_seen) {
+                    return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,arg_a,"positional_after_named_argument");
+                }
+            }
+            V(((ASTCall*)n)->args,"args");
+            break;
+        }
         case AST_MEMBER_ACCESS: R(((ASTMemberAccess*)n)->object,"object"); break;
         case AST_INDEX_ACCESS: R(((ASTIndexAccess*)n)->target,"target"); R(((ASTIndexAccess*)n)->index,"index"); break;
         case AST_TUPLE: V(((ASTTuple*)n)->elements,"elements"); break;
@@ -1704,7 +1723,23 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
                  s->active[s->active_count - 2u]->type != AST_EXTERN_DECL) || n->next)
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"variadic_parameter_position");
             break;
-        case AST_NAMED_ARG: R(((ASTNamedArg*)n)->value,"value");
+        case AST_NAMED_ARG:
+            if (s->active_count < 2u)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"named_argument_context");
+            switch (s->active[s->active_count - 2u]->type) {
+                case AST_FUNC_CALL: case AST_SPAWN: case AST_ECHO: case AST_SEND:
+                case AST_RECEIVE: case AST_DONE: case AST_AREA: case AST_ZONE:
+                case AST_ADDR: case AST_LEN: case AST_PEEK: case AST_POKE:
+                case AST_INB: case AST_OUTB: case AST_IRQ: case AST_INTR:
+                case AST_REG: case AST_PRNT: case AST_PRMT: case AST_WRITE:
+                case AST_FWRITE: case AST_TYPEOF: case AST_SIZEOF: case AST_IS_OK:
+                case AST_IS_ERR: case AST_IS_SOME: case AST_IS_NONE: case AST_IS_NULL:
+                case AST_EXIT: case AST_SWAP: case AST_DATE: case AST_DATENOW:
+                case AST_TIME: case AST_CLOCK: case AST_FREE: case AST_ZONE_SYNC:
+                case AST_ZONE_VIEW: case AST_ZONE_LOCK: break;
+                default: return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"named_argument_context");
+            }
+            R(((ASTNamedArg*)n)->value,"value");
             if (!((ASTNamedArg*)n)->name || !*(((ASTNamedArg*)n)->name))
                 return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"name");
             break;
