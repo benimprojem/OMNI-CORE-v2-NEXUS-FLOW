@@ -2,7 +2,7 @@
 
 **Branch:** `refactor/c-core-roadmap`  
 **Source of truth:** `omnicore-sdk/src/c/parser/ast.h` and `ast.c`  
-**Status:** static audit documented; exhaustive automated ownership validation remains open.
+**Status:** static audit documented; exhaustive automated ownership validation remains open. AST tags currently extend through append-only ID 105; this inventory includes FASTEXEC/ASM payload ownership.
 
 ## Rules
 
@@ -68,8 +68,13 @@
 | `AST_ARRAY_LITERAL` | `elements` | — |
 | `AST_ARRAY_TYPE` | `dimensions` | — |
 | `AST_ARRAY_DIMENSION` | `length` (NULL = dynamic dimension) | — |
+| `AST_FASTEXEC_BLOCK` | `statements` | — |
+| `AST_ASM_LABEL` | — | `label`, `source_text` (owned raw bytes; `source_length` authoritative) |
+| `AST_VARIADIC_PARAM` | — | no payload |
+| `AST_NAMED_ARG` | `value` | `name` |
+| `AST_MUST_DECL` | `source` | `name` |
 | `AST_BLOCK_HALT` | no payload; final marker in owning block | — |
-| `AST_BREAK`, `AST_CONTINUE` | — | Base node only; no payload |
+| `AST_BREAK`, `AST_CONTINUE`, `AST_VARIADIC_PARAM` | — | Base node only; no payload |
 
 **Call-shaped intrinsic kinds** in the `AST_FUNC_CALL` row are: `AST_SPAWN`, `AST_ECHO`, `AST_SEND`, `AST_RECEIVE`, `AST_DONE`, `AST_AREA`, `AST_ZONE`, `AST_ADDR`, `AST_LEN`, `AST_PEEK`, `AST_POKE`, `AST_INB`, `AST_OUTB`, `AST_IRQ`, `AST_INTR`, `AST_REG`, `AST_PRNT`, `AST_PRMT`, `AST_WRITE`, `AST_FWRITE`, `AST_TYPEOF`, `AST_SIZEOF`, `AST_IS_OK`, `AST_IS_ERR`, `AST_IS_SOME`, `AST_IS_NONE`, `AST_IS_NULL`, `AST_EXIT`, `AST_SWAP`, `AST_DATE`, `AST_DATENOW`, `AST_TIME`, `AST_CLOCK`, `AST_FREE`, `AST_ZONE_SYNC`, `AST_ZONE_VIEW`, `AST_ZONE_LOCK`.
 
@@ -87,7 +92,7 @@
 1. Generate a compile-time/runtime table that compares each node kind's allocation size with its expected payload size.
 2. For every owned child/string field, inject allocation failure/truncated codec input and verify partial-tree cleanup under ASan/Valgrind.
 3. Keep serializer/deserializer graph validation covered by tests; retain the explicit exclusive-ownership precondition for direct `ast_destroy()` calls.
-4. Keep factory, codec, registry and parser coverage counters independent; the 99 original tags and the context-sensitive block marker have distinct test fixtures; do not infer one from another.
+4. Keep factory, codec, registry and parser coverage counters independent; legacy kinds 1–100 and appended contextual kinds 101–105 have distinct fixtures; do not infer one from another.
 
 
 ## 2026-11-03 — AST codec graph validation
@@ -107,3 +112,12 @@
 - AST_ASM_BLOCK is currently a generic ASTBlock layout; fastexec, asm: labels and asmcall/asmjmp do not have a C Parser construction path.
 - Canonical syntax path is now reconciled on the active branch: `docs/language/syntax-reference.md` is the single normative document. It was restored from the branch's reconciled syntax content; the former duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` remains untouched.
 - These are explicit pre-Semantic AST/model gates. The source-span contract and canonical syntax path are documented; span propagation and the inline-ASM parser/model remain open. Block-Halt code is implemented and awaits macOS CI.
+
+
+## 2026-11-04 — FASTEXEC ownership audit closure
+
+- AST_FASTEXEC_BLOCK exclusively owns its ordered `statements` chain.
+- AST_ASM_LABEL owns both `label` and `source_text`; `source_length` is metadata and must equal the raw source byte length (including CRLF, excluding the NUL terminator).
+- AST_ASM_LABEL must occur below an AST_FASTEXEC_BLOCK ancestor. Ordinary AST_BLOCK nesting inside FASTEXEC is permitted; direct-child-only checks would incorrectly reject valid nesting.
+- AST_VARIADIC_PARAM is a payload-free leaf and must be final in a function parameter list. AST_NAMED_ARG owns its label and value; AST_MUST_DECL owns its name/source and is restricted to program scope.
+- Validator fixtures cover nested FASTEXEC/ASM ownership, standalone ASM rejection, and the appended-kind lifecycle. CI run `41828504098` passed after the Parser/OIR regression corrections.
