@@ -912,6 +912,27 @@ static ASTNode* parse_primary(Parser* p) {
         return expr;
     }
 
+    if (match(p, TOKEN_KW_ASMCALL) || match(p, TOKEN_KW_ASMJMP)) {
+        Token intrinsic = p->previous;
+        const char* name = intrinsic.type == TOKEN_KW_ASMCALL ? "asmcall" : "asmjmp";
+        ASTCall* call = (ASTCall*)parse_intrinsic_call(p, AST_FUNC_CALL);
+        ASTIdentifier* callee;
+        if (!call) return NULL;
+        callee = (ASTIdentifier*)parser_ast_create(p, AST_IDENTIFIER);
+        if (!callee) { ast_destroy((ASTNode*)call); return NULL; }
+        callee->base.line = intrinsic.line;
+        callee->base.col = intrinsic.col;
+        parser_stamp_node_token(p, (ASTNode*)callee, &intrinsic);
+        callee->name = (char*)parser_malloc(p, strlen(name) + 1u);
+        if (!callee->name) {
+            ast_destroy((ASTNode*)callee);
+            ast_destroy((ASTNode*)call);
+            return NULL;
+        }
+        memcpy(callee->name, name, strlen(name) + 1u);
+        call->callee = (ASTNode*)callee;
+        return (ASTNode*)call;
+    }
     if (match(p, TOKEN_KW_ECHO)) return parse_intrinsic_call(p, AST_ECHO);
     if (match(p, TOKEN_KW_PRNT)) return parse_intrinsic_call(p, AST_PRNT);
     if (match(p, TOKEN_KW_PRMT)) return parse_intrinsic_call(p, AST_PRMT);
