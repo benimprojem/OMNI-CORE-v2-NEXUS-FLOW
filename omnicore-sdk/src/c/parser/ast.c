@@ -1756,7 +1756,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_USE:
         case AST_PATTERN_BINDING:
         case AST_BLOCK_HALT:
-            if ((n->type == AST_BLOCK_HALT &&
+            if (n->type == AST_BLOCK_HALT &&
                 (s->active_count < 2u ||
                  (s->active[s->active_count - 2u]->type != AST_BLOCK &&
                   s->active[s->active_count - 2u]->type != AST_ASM_BLOCK) ||
