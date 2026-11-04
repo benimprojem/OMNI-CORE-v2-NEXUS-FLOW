@@ -321,3 +321,15 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - [ ] AST serialization sürümleme + legacy stream uyumluluğu; span round-trip testleri.
 - [ ] OIR span TLV aktarımı ve entegrasyon testleri.
 - **Durum:** API/storage/test kaynakları commit edildi; henüz CI çalıştırılmadı. Source Span tamamlanmış değildir.
+
+
+### Multi-file source identity — kaynak kayıt tablosu (2026-11-04)
+
+- [x] `OccSourceFileTable` eklendi: derleme işi kapsamında dosya yollarını sahiplenir, tekrar eden yolu aynı kimliğe bağlar ve `source_id -> path` çözümlemesi sağlar.
+- [x] Kaynak kimlikleri eklenme sırasına göre atanır; tablo ömrü derleme işiyle sınırlandırılmalıdır.
+- [x] OIR `SOURCE_UNIT` payload okuyucu/yazıcısı artık yalnızca `source_id == 0` kabul etmiyor; uint32 kaynak kimliğini saklayıp round-trip yapıyor.
+- [x] Diagnostics ve OIR SOURCE_UNIT için çoklu kaynak kimliği testleri eklendi.
+- [ ] Parser/lexer ve derleme işi yöneticisi kaynak tablosuna bağlanmalı; her token/AST span doğru source_id ile damgalanmalı.
+- [ ] Tanılama biçimleyicisi source_id üzerinden dosya yolunu göstermeli.
+- [ ] Çoklu dosya entegrasyon testi: iki kaynakta ayrı hata üretip doğru dosya/satır/sütun eşleşmesini doğrulamalı.
+- **Durum:** Kaynak kayıt tablosu ve OIR kimlik desteği commit edildi; uçtan uca parser/diagnostic entegrasyonu ve CI sonucu bekleniyor.
