@@ -461,3 +461,6 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-04 | `main(argc!i32, argv!str[])!i32` için Parser/AST fixture eklendi: `argc` ve `argv` özel AST node değil, standart `AST_VAR_DECL` parametreleri; `argv` dynamic one-dimensional `AST_ARRAY_TYPE` olarak saklanıyor ve parametre span'leri korunuyor. Runtime argc/argv injection (executable path dışarıda, UTF-8, no NULL sentinel) sözleşmesi syntax reference'da normatif; runtime adapter/semantic doğrulama bu AST işinden ayrı. CI yeni commit için bekleniyor. | `omnicore-sdk/src/c/tests/test_parser.c`; commit `1ad5cbc` |
+
+
+| 2026-11-04 | `main(argc, argv)` fixture ilk CI'da gerçek AST model ayrıntısını ortaya çıkardı: hard-type marker `type_name` içine de `!` ekliyor (`is_hard_typed` ayrıca true), array `[]` için AST_ARRAY_TYPE altında dinamik AST_ARRAY_DIMENSION düğümü bulunuyor (dimension->length NULL). Test beklentisi AST payload'a göre düzeltildi; bu test hatası Parser regression değil, fixture assertion uyumsuzluğuydu. Düzeltme commit `67ee564`; yeni CI bekleniyor. | `test_parser.c`, run `41829923124` failure (54/60; yalnızca yeni fixture) |
