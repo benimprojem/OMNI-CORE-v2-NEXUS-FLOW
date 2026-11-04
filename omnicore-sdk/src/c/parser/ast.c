@@ -1800,6 +1800,9 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_FASTEXEC_BLOCK: V(((ASTFastExecBlock*)n)->statements,"statements"); break;
         case AST_ASM_LABEL: {
             const ASTAsmLabel* a=(const ASTAsmLabel*)n;
+            if(s->active_count<2u ||
+                s->active[s->active_count-2u]->type!=AST_FASTEXEC_BLOCK)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"asm_fast_exec_scope");
             if(!a->label || !*a->label || !a->source_text ||
                 a->source_length>16u*1024u*1024u || strlen(a->source_text)!=a->source_length)
                 return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"asm_payload");
