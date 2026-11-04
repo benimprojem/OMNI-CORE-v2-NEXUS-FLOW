@@ -12,6 +12,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int compare_span_tree(const ASTNode* a,const ASTNode* b,unsigned depth){
+    if(depth>512u)return 0;
+    while(a&&b){
+        const OccSourceSpan* x=&a->source_span,*y=&b->source_span;
+        if(x->has_location!=y->has_location)return 0;
+        if(x->has_location&&(x->start_offset!=y->start_offset||x->end_offset!=y->end_offset||
+            x->start_line!=y->start_line||x->start_column!=y->start_column||
+            x->end_line!=y->end_line||x->end_column!=y->end_column))return 0;
+        if(oir_ast_frontend_child_field_count(a->type)!=oir_ast_frontend_child_field_count(b->type))return 0;
+        for(uint16_t field=1u;field<=oir_ast_frontend_child_field_count(a->type);++field)
+            if(!compare_span_tree(oir_ast_frontend_child_at(a,field),
+                oir_ast_frontend_child_at(b,field),depth+1u))return 0;
+        a=a->next;b=b->next;
+    }
+    return a==NULL&&b==NULL;
+}
+
 static OirStatus encode_ast(ASTNode* root,uint8_t** out_payload,size_t* out_length) {
     size_t index_capacity=1024u;
     OirAstPointerIndexEntry* index=NULL;
@@ -157,6 +174,7 @@ static int test_select_scan_oir_roundtrip(void) {
     if(status!=OIR_STATUS_OK || first_len!=second_len ||
         memcmp(first,second,first_len)!=0)goto done;
     /* Root and representative nested production ranges survive OIR decode. */
+    if(!compare_span_tree((ASTNode*)parser->ast_root,decoded,0u))goto done;
     if(!decoded->source_span.has_location ||
        decoded->source_span.start_offset!=0u ||
        decoded->source_span.end_offset!=sizeof(source)-1u ||
