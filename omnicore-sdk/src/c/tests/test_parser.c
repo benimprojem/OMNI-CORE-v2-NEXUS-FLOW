@@ -44,6 +44,8 @@ static int test_cast_and_panic_ast(void) {
     ASTCast* cast;
     ASTPanic* panic;
     int ok = 0;
+    const char* cast_start = strstr(source, "cast");
+    const char* cast_end = cast_start ? strstr(cast_start, "i32)") : NULL;
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK || parser_get_status(ctx) != PARSER_STATUS_OK || ctx->error_count != 0 || !ctx->ast_root) goto done;
     program = (ASTProgram*)ctx->ast_root;
@@ -57,7 +59,10 @@ static int test_cast_and_panic_ast(void) {
     cast = (ASTCast*)variable->initializer;
     if (!cast->value || cast->value->type != AST_LITERAL ||
         !cast->target_type || cast->target_type->type != AST_IDENTIFIER ||
-        strcmp(((ASTIdentifier*)cast->target_type)->name, "i32") != 0) goto done;
+        strcmp(((ASTIdentifier*)cast->target_type)->name, "i32") != 0 ||
+        !cast->base.source_span.has_location || !cast_start || !cast_end ||
+        cast->base.source_span.start_offset != (uint64_t)(cast_start - source) ||
+        cast->base.source_span.end_offset != (uint64_t)(cast_end + 4 - source)) goto done;
     panic = (ASTPanic*)variable->base.next;
     if (!panic || panic->base.type != AST_PANIC ||
         !panic->message || strcmp(panic->message, "\"boom\"") != 0) goto done;
@@ -2225,6 +2230,37 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Nexus jump source-span test failed.\\n");
+            return 1;
+        }
+    }
+
+
+    /* Tuple expressions include their opening and closing parentheses. */
+    {
+        static const char source[] = "f:main() { v:p = (1,2); }";
+        ParserContext* parser = parser_init_source("tuple-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* tuple_start = strstr(source, "(1,2)");
+        size_t start_offset = tuple_start ? (size_t)(tuple_start - source) : 0u;
+        ASTFuncDecl* function;
+        ASTVarDecl* variable;
+        ASTTuple* tuple;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            variable = function
+                ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+            tuple = variable && variable->initializer &&
+                variable->initializer->type == AST_TUPLE
+                    ? (ASTTuple*)variable->initializer : NULL;
+            valid = tuple && tuple->base.source_span.has_location == 1u &&
+                tuple->base.source_span.start_offset == start_offset &&
+                tuple->base.source_span.end_offset == start_offset + 5u &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Tuple AST source-span test failed.\\n");
             return 1;
         }
     }
