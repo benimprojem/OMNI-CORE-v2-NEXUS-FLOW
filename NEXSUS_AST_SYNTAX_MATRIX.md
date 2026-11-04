@@ -104,7 +104,7 @@ This table is an implementation audit, not a change to the language design. Unsu
 - **FASTEXEC/Inline ASM AST and Parser path is implemented but not complete as a pipeline feature.** `AST_FASTEXEC_BLOCK` and `AST_ASM_LABEL` have owned payloads, graph validation, AST stream codec and OIR 104–105 mapping; `TOKEN_ASM_BODY` preserves raw text and Parser builds the nodes. `AST_ASM_BLOCK` remains legacy kind 29. Semantic scope checks for asmcall/asmjmp and hardware primitives, placeholder/register/clobber analysis, target capability and ABI checks remain open.
 - **Normative syntax document path reconciled.** The active branch now uses `docs/language/syntax-reference.md` as the single normative reference. The duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` was read-only and remains untouched.
 
-## AST node payload/codec audit (all 103 current enum tags)
+## AST node payload/codec audit (all 105 current enum tags)
 
 Every AST enum tag must be covered in all columns below. Shared payload is acceptable only when explicit and semantically valid.
 
