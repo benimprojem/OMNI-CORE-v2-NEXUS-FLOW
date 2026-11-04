@@ -1577,5 +1577,57 @@ int main(int argc, char** argv) {
         parser_destroy(parser);
     }
 
+    /* Variadic declarations and named call arguments share the AST/codec contract. */
+    {
+        static const char source[] =
+            "f:many(a!i32, ...) { ret a; } "
+            "f:main() { many(1, b:2); }";
+        ParserContext* parser = parser_init_source("variadic-named-args.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        ASTProgram* program;
+        ASTFuncDecl* many;
+        ASTFuncDecl* main_fn;
+        ASTNode* call_node;
+        ASTCall* call;
+        ASTNode* decoded = NULL;
+        FILE* stream = NULL;
+        int valid = 0;
+        if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
+            parser_get_status(parser) != PARSER_STATUS_OK || !parser->ast_root)
+            goto named_args_done;
+        program = (ASTProgram*)parser->ast_root;
+        many = (ASTFuncDecl*)program->declarations;
+        main_fn = many ? (ASTFuncDecl*)many->base.next : NULL;
+        if (!many || many->base.type != AST_FUNC_DECL ||
+            !many->params || many->params->type != AST_VAR_DECL ||
+            !many->params->next || many->params->next->type != AST_VARIADIC_PARAM ||
+            many->params->next->next || !main_fn || main_fn->base.type != AST_FUNC_DECL)
+            goto named_args_done;
+        call_node = ((ASTBlock*)main_fn->body)->statements;
+        call = (ASTCall*)call_node;
+        if (!call_node || call_node->type != AST_FUNC_CALL || !call->args ||
+            call->args->type != AST_LITERAL || !call->args->next ||
+            call->args->next->type != AST_NAMED_ARG ||
+            strcmp(((ASTNamedArg*)call->args->next)->name, "b") != 0 ||
+            !ast_validate(parser->ast_root, NULL))
+            goto named_args_done;
+        stream = tmpfile();
+        if (!stream || !ast_serialize(parser->ast_root, stream) ||
+            fseek(stream, 0, SEEK_SET) != 0)
+            goto named_args_done;
+        decoded = ast_deserialize(stream);
+        if (!decoded || !ast_validate(decoded, NULL))
+            goto named_args_done;
+        valid = 1;
+named_args_done:
+        if (stream) fclose(stream);
+        if (decoded) ast_destroy(decoded);
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Variadic/named argument parser or AST codec test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
