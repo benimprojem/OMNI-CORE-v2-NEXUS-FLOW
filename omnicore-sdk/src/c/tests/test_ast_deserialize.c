@@ -912,11 +912,115 @@ static int parser_save_ir_rejects_invalid_path(const char* path) {
     return saved == 0;
 }
 
+
+static int roundtrips_versioned_source_spans(void) {
+    ASTIdentifier* original = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    OccSourceSpan span;
+    FILE* stream;
+    unsigned char magic[8];
+    uint32_t version = 0u;
+    ASTIdentifier* decoded;
+    int valid;
+    if (!original) return 1;
+    original->name = duplicate_text("span_fixture");
+    if (!original->name) { ast_destroy((ASTNode*)original); return 1; }
+    memset(&span, 0, sizeof(span));
+    span.source_id = 7u;
+    span.start_offset = 12u;
+    span.end_offset = 24u;
+    span.start_line = 3u;
+    span.start_column = 5u;
+    span.end_line = 3u;
+    span.end_column = 17u;
+    span.has_location = 1u;
+    if (!ast_set_source_span((ASTNode*)original, &span)) {
+        ast_destroy((ASTNode*)original);
+        return 1;
+    }
+    stream = tmpfile();
+    if (!stream) { ast_destroy((ASTNode*)original); return 1; }
+    if (!ast_serialize((ASTNode*)original, stream) ||
+        fseek(stream, 0L, SEEK_SET) != 0 ||
+        fread(magic, 1u, sizeof(magic), stream) != sizeof(magic) ||
+        fread(&version, sizeof(version), 1u, stream) != 1u ||
+        memcmp(magic, "OCCAST\\r\\n", sizeof(magic)) != 0 ||
+        version != 1u) {
+        fclose(stream);
+        ast_destroy((ASTNode*)original);
+        return 1;
+    }
+    rewind(stream);
+    decoded = (ASTIdentifier*)ast_deserialize(stream);
+    fclose(stream);
+    valid = decoded && decoded->name &&
+        strcmp(decoded->name, "span_fixture") == 0 &&
+        decoded->base.source_span.has_location == 1u &&
+        decoded->base.source_span.source_id == span.source_id &&
+        decoded->base.source_span.start_offset == span.start_offset &&
+        decoded->base.source_span.end_offset == span.end_offset &&
+        decoded->base.source_span.start_line == span.start_line &&
+        decoded->base.source_span.start_column == span.start_column &&
+        decoded->base.source_span.end_line == span.end_line &&
+        decoded->base.source_span.end_column == span.end_column &&
+        ast_validate((ASTNode*)decoded, NULL);
+    ast_destroy((ASTNode*)decoded);
+    ast_destroy((ASTNode*)original);
+    return valid ? 0 : 1;
+}
+
+static int reads_unprefixed_legacy_stream(void) {
+    FILE* stream = tmpfile();
+    int type = (int)AST_IDENTIFIER, line = 9, col = 4;
+    int name_length = 6, terminator = -1;
+    ASTIdentifier* decoded;
+    int valid;
+    if (!stream) return 1;
+    if (fwrite(&type, sizeof(type), 1u, stream) != 1u ||
+        fwrite(&line, sizeof(line), 1u, stream) != 1u ||
+        fwrite(&col, sizeof(col), 1u, stream) != 1u ||
+        fwrite(&name_length, sizeof(name_length), 1u, stream) != 1u ||
+        fwrite("legacy", 1u, 6u, stream) != 6u ||
+        fwrite(&terminator, sizeof(terminator), 1u, stream) != 1u) {
+        fclose(stream);
+        return 1;
+    }
+    rewind(stream);
+    decoded = (ASTIdentifier*)ast_deserialize(stream);
+    fclose(stream);
+    valid = decoded && decoded->base.type == AST_IDENTIFIER &&
+        decoded->base.line == line && decoded->base.col == col &&
+        decoded->base.source_span.has_location == 0u &&
+        decoded->name && strcmp(decoded->name, "legacy") == 0;
+    ast_destroy((ASTNode*)decoded);
+    return valid ? 0 : 1;
+}
+
+static int rejects_unknown_ast_stream_version(void) {
+    FILE* stream = tmpfile();
+    const unsigned char magic[8] = "OCCAST\\r\\n";
+    uint32_t version = 99u;
+    ASTNode* decoded;
+    if (!stream) return 1;
+    if (fwrite(magic, 1u, sizeof(magic), stream) != sizeof(magic) ||
+        fwrite(&version, sizeof(version), 1u, stream) != 1u) {
+        fclose(stream);
+        return 1;
+    }
+    rewind(stream);
+    decoded = ast_deserialize(stream);
+    fclose(stream);
+    if (decoded) { ast_destroy(decoded); return 1; }
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc != 2) {
         fprintf(stderr, "Usage: test_ast_deserialize <invalid-output-path>\n");
         return 9;
     }
+    if (roundtrips_versioned_source_spans() != 0) return 15;
+    if (reads_unprefixed_legacy_stream() != 0) return 16;
+    if (rejects_unknown_ast_stream_version() != 0) return 17;
     if (roundtrips_populated_ast_types() != 0) return 11;
     if (roundtrips_all_node_type_tags() != 0) return 8;
     if (roundtrips_block_halt_tag() != 0) return 14;
