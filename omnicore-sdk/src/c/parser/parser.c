@@ -1023,6 +1023,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
             }
             target->base.line = type_token.line;
             target->base.col = type_token.col;
+            parser_stamp_node_token(p, (ASTNode*)target, &type_token);
             target->name = (char*)parser_malloc(p, (size_t)type_token.length + 1u);
             if (!target->name) {
                 ast_destroy((ASTNode*)target);
@@ -1090,6 +1091,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
             id->name[member.length] = '\0';
             id->base.line = member.line;
             id->base.col = member.col;
+            parser_stamp_node_token(p, (ASTNode*)id, &member);
             call->callee = (ASTNode*)id;
         } else {
             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
@@ -3198,6 +3200,7 @@ static ASTNode* parse_simple_parameter_list(Parser* p) {
         param=(ASTVarDecl*)parser_ast_create(p,AST_VAR_DECL);
         if(!param){ast_destroy(head);return NULL;}
         param->base.line=t.line; param->base.col=t.col;
+        parser_stamp_node_token(p, (ASTNode*)param, &t);
         param->name=(char*)parser_malloc(p,(size_t)t.length+1u);
         if(!param->name){ast_destroy((ASTNode*)param);ast_destroy(head);return NULL;}
         memcpy(param->name,t.start,(size_t)t.length); param->name[t.length]='\0';
