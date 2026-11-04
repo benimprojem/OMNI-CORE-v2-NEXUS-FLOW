@@ -399,12 +399,10 @@ The syntax reference defines `m:CoreModule = "CoreModule.nxf";` as a mandatory c
 
 ## Parser/AST symbol audit (2026-11-04)
 
-A direct comparison of the 103 ASTNodeType symbols against ast.c and parser.c found:
+The latest C AST inventory contains 105 node tags. FASTEXEC/Inline ASM now has a dedicated `AST_FASTEXEC_BLOCK` and `AST_ASM_LABEL` payload, explicit lifecycle/graph validation, legacy AST codec support, a dedicated `TOKEN_ASM_BODY` Lexer token (stable OIR token ID 164), Parser productions, and OIR AST bridge IDs 104–105. Existing `AST_ASM_BLOCK` kind 29 remains untouched. `asmcall` and `asmjmp` intentionally remain `AST_FUNC_CALL` nodes with intrinsic callee names.
 
-- ast_validate() contains explicit handling for all 103 node kinds.
-- Parser source references 99 kinds. The only syntax-defined missing production is AST_ASM_BLOCK.
-- AST_ZONE_SYNC, AST_ZONE_VIEW and AST_ZONE_LOCK are reserved AST kinds with no matching production in the current normative syntax reference; they are not treated as parser defects until a language rule defines them.
-- Inline assembly is specified in Syntax Reference §9 as a fastexec { asm: LABEL { ... } } construct, with %variable, %variable:register, asmcall, asmjmp and clobber annotations. The current AST has only the enum tag AST_ASM_BLOCK; it has no dedicated payload structure and the parser does not handle fastexec/asm blocks. The parser now recognizes asmcall/asmjmp as AST_FUNC_CALL nodes with exact source spans. Do not invent an opaque payload or lower it to a generic block without a stable AST contract. The payload must decide how raw instruction bytes, labels, placeholders/register bindings and clobber declarations are represented and owned.
-- The OIR frontend writer audit also found no explicit cases for AST_VARIADIC_PARAM, AST_NAMED_ARG and AST_MUST_DECL. This is a later OIR bridge task; do not implement it before the AST contract and parser coverage are complete.
+- `AST_ZONE_SYNC`, `AST_ZONE_VIEW` and `AST_ZONE_LOCK` remain reserved AST kinds without matching productions in the current normative syntax reference; they are not treated as parser defects until a language rule defines them.
+- The OIR frontend bridge now includes `AST_VARIADIC_PARAM`, `AST_NAMED_ARG` and `AST_MUST_DECL` as stable OIR IDs 101–103, followed by FASTEXEC 104 and ASM_LABEL 105.
+- The raw ASM body is preserved exactly; Parser does not parse target instructions as Nexus Flow. Lexer balances nested braces and ignores brace characters inside quoted strings/chars with backslash escapes. Target comment syntax is opaque, so unmatched braces in comments still participate in delimiter balancing.
 
-**AST remains open:** finish the inline ASM node contract, re-audit every parser production and its exact span, then move to the OIR optional source-span TLVs and remaining AST/OIR bridge gaps. No Semantic or Codegen work is unblocked by this audit.
+**AST remains open:** run the new C tests on CI/build hosts; finish the full Parser source-span audit and OIR optional source-span TLVs; complete remaining AST gaps (function types/callbacks, macro/directive metadata, structured map/vector/shift forms). Semantic FASTEXEC checks for calls/primitives, labels, variable placeholders, register/clobber, ABI and control flow remain blocked until AST/Parser validation passes. Codegen remains blocked.
