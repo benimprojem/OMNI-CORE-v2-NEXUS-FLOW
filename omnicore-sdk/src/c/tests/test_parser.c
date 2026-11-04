@@ -2394,5 +2394,37 @@ generic_type_done:
         }
     }
 
+
+    /* Function parameters and variadic marker preserve their own token ranges. */
+    {
+        static const char source[] = "f:main(a!i32, ...){ ret a; }";
+        ParserContext* parser = parser_init_source("parameter-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* param_start = strstr(source, "a!i32");
+        const char* variadic = strstr(source, "...");
+        ASTFuncDecl* function;
+        ASTVarDecl* parameter;
+        ASTNode* marker;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            parameter = function ? (ASTVarDecl*)function->params : NULL;
+            marker = parameter ? parameter->base.next : NULL;
+            valid = parameter && parameter->base.source_span.has_location == 1u &&
+                parameter->base.source_span.start_offset == (size_t)(param_start - source) &&
+                parameter->base.source_span.end_offset == (size_t)(param_start + 5 - source) &&
+                marker && marker->type == AST_VARIADIC_PARAM &&
+                marker->source_span.has_location == 1u &&
+                marker->source_span.start_offset == (size_t)(variadic - source) &&
+                marker->source_span.end_offset == (size_t)(variadic + 3 - source) &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Function parameter source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
