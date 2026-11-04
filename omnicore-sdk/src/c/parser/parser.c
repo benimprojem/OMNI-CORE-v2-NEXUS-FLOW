@@ -2520,8 +2520,11 @@ static ASTNode* parse_block(Parser* p) {
     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
     block_end = p->previous;
     /* `}?;` is a block terminator, not a normal targeted Halt statement. */
-    if (match(p, TOKEN_HALT)) {
-        Token cleanup_token = p->previous;
+    if (check(p, TOKEN_HALT) && check_next(p, TOKEN_SEMICOLON)) {
+        Token cleanup_token;
+        advance(p); /* HALT */
+        advance(p); /* ; */
+        cleanup_token = p->previous;
         ASTNode* cleanup = parser_ast_create(p, AST_BLOCK_HALT);
         if (!cleanup) {
             ast_destroy(head);
