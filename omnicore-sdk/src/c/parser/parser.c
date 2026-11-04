@@ -527,6 +527,8 @@ static int parser_is_statement_start(OmniTokenType type) {
         case TOKEN_KW_IF:
         case TOKEN_KW_FASTEXEC:
         case TOKEN_KW_ASM:
+        case TOKEN_KW_ASMCALL:
+        case TOKEN_KW_ASMJMP:
         case TOKEN_KW_USE:
         case TOKEN_KW_DEFER:
         case TOKEN_KW_STRUCT:
