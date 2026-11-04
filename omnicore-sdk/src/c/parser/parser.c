@@ -2545,7 +2545,6 @@ static ASTNode* parse_block(Parser* p) {
 
 static ASTNode* parse_fast_exec_block(Parser* p) {
     Token fast_start = p->previous;
-    Token block_start;
     Token block_end;
     ASTFastExecBlock* block;
     ASTNode* head = NULL;
@@ -2562,7 +2561,6 @@ static ASTNode* parse_fast_exec_block(Parser* p) {
         return NULL;
     }
     advance(p); /* Consume '{'; the next token remains ordinary Nexus Flow. */
-    block_start = p->previous;
     ++p->nesting_depth;
     ++p->fast_exec_depth;
     block = (ASTFastExecBlock*)parser_ast_create(p, AST_FASTEXEC_BLOCK);
