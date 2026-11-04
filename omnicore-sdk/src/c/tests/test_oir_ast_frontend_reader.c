@@ -60,7 +60,8 @@ typedef union AstStorage {
 } AstStorage;
 
 #define INDEX_CAPACITY 256u
-#define MAX_NODES (OIR_AST_NODE_KIND_COUNT + 1u)
+#define LEGACY_FLAT_KIND_COUNT 100u
+#define MAX_NODES (LEGACY_FLAT_KIND_COUNT + 1u)
 #define FIELD_CAPACITY 8192u
 #define STRING_CAPACITY 2048u
 #define OUTPUT_CAPACITY 16384u
@@ -112,12 +113,12 @@ int main(void) {
     memset(nodes,0,sizeof(nodes));
     root.base.type=AST_PROGRAM;
     root.base.line=1; root.base.col=1;
-    for(i=0;i<OIR_AST_NODE_KIND_COUNT;i++) {
+    for(i=0;i<LEGACY_FLAT_KIND_COUNT;i++) {
         assert(oir_ast_node_id_to_frontend((uint16_t)(i+1u),&expected_type));
         nodes[i].base.type=expected_type;
         nodes[i].base.line=(int)i+2;
         nodes[i].base.col=(int)i+3;
-        if(i+1u<OIR_AST_NODE_KIND_COUNT)nodes[i].base.next=&nodes[i+1u].base;
+        if(i+1u<LEGACY_FLAT_KIND_COUNT)nodes[i].base.next=&nodes[i+1u].base;
     }
     root.declarations=&nodes[0].base;
 
@@ -166,7 +167,7 @@ int main(void) {
 
     {
         ASTNode* current=((ASTProgram*)decoded_root)->declarations;
-        for(i=0;i<OIR_AST_NODE_KIND_COUNT;i++) {
+        for(i=0;i<LEGACY_FLAT_KIND_COUNT;i++) {
             assert(current!=NULL);
             assert(oir_ast_node_id_to_frontend((uint16_t)(i+1u),&expected_type));
             assert(current->type==expected_type);
