@@ -3662,7 +3662,9 @@ static ASTNode* parse_statement(Parser* p) {
         if (!halt) return NULL;
         halt->base.line = p->previous.line;
         halt->base.col = p->previous.col;
-        if (!match(p, TOKEN_SEMICOLON)) {
+        if (!match(p, TOKEN_SEMICOLON) &&
+            p->current.type != TOKEN_RBRACE &&
+            p->current.type != TOKEN_EOF) {
             halt->expr = parse_expression(p);
             if (!halt->expr) {
                 ast_destroy((ASTNode*)halt);
