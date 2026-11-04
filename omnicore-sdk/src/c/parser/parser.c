@@ -1238,12 +1238,35 @@ static ASTNode* parse_postfix(Parser* p) {
 
             if (p->current.type != TOKEN_RPAREN) {
                 ASTNode* tail = NULL;
+                int saw_named = 0;
                 do {
-                    ASTNode* arg = parse_expression(p);
-                    if (!arg) {
-                        ast_destroy((ASTNode*)call);
-                        return NULL;
+                    ASTNode* arg = NULL;
+                    if (p->current.type == TOKEN_IDENTIFIER && peek_token(p).type == TOKEN_COLON) {
+                        Token label = p->current;
+                        ASTNamedArg* named = (ASTNamedArg*)parser_ast_create(p, AST_NAMED_ARG);
+                        if (!named) { ast_destroy((ASTNode*)call); return NULL; }
+                        named->base.line = label.line;
+                        named->base.col = label.col;
+                        named->name = (char*)parser_malloc(p, (size_t)label.length + 1u);
+                        if (!named->name) { ast_destroy((ASTNode*)named); ast_destroy((ASTNode*)call); return NULL; }
+                        memcpy(named->name, label.start, (size_t)label.length);
+                        named->name[label.length] = '\0';
+                        advance(p);
+                        consume(p, TOKEN_COLON, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_COLON);
+                        named->value = parse_expression(p);
+                        if (!named->value) { ast_destroy((ASTNode*)named); ast_destroy((ASTNode*)call); return NULL; }
+                        arg = (ASTNode*)named;
+                        saw_named = 1;
+                    } else {
+                        if (saw_named) {
+                            error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                                "Positional arguments cannot follow named arguments.");
+                            ast_destroy((ASTNode*)call);
+                            return NULL;
+                        }
+                        arg = parse_expression(p);
                     }
+                    if (!arg) { ast_destroy((ASTNode*)call); return NULL; }
                     if (!call->args) call->args = arg;
                     else tail->next = arg;
                     tail = arg;
