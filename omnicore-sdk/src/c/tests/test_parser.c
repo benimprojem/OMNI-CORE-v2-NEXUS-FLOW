@@ -1815,6 +1815,8 @@ generic_type_done:
         size_t declaration_offset = (size_t)(strstr(source, "v:x") - source);
         size_t literal_offset = (size_t)(strstr(source, "42") - source);
         const char* return_identifier = strstr(source, "ret x");
+        size_t return_offset = return_identifier
+            ? (size_t)(return_identifier - source) : 0u;
         size_t identifier_offset = return_identifier
             ? (size_t)(return_identifier + 4 - source) : 0u;
         size_t right_literal_offset = (size_t)(strstr(source, "7;") - source);
@@ -1841,6 +1843,8 @@ generic_type_done:
                 ? &binary->left->source_span : NULL;
             const OccSourceSpan* identifier_span =
                 identifier ? &identifier->source_span : NULL;
+            const OccSourceSpan* return_span =
+                return_node ? &return_node->source_span : NULL;
             const OccSourceSpan* binary_span = binary
                 ? &binary->base.source_span : NULL;
             const OccSourceSpan* declaration_span = variable
@@ -1875,6 +1879,12 @@ generic_type_done:
                 function_span->start_column == function_offset + 1u &&
                 function_span->end_column == sizeof(source) &&
                 return_node && return_node->type == AST_RETURN &&
+                return_span && return_span->has_location == 1u &&
+                return_span->source_id == 1u &&
+                return_span->start_offset == return_offset &&
+                return_span->end_offset == identifier_offset + 2u &&
+                return_span->start_column == return_offset + 1u &&
+                return_span->end_column == identifier_offset + 3u &&
                 identifier && identifier->type == AST_IDENTIFIER &&
                 identifier_span && identifier_span->has_location == 1u &&
                 identifier_span->source_id == 1u &&
