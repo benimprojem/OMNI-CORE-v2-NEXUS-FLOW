@@ -1819,14 +1819,13 @@ generic_type_done:
             ASTNode* return_node = statements ? statements->next : NULL;
             ASTNode* identifier = return_node
                 ? ((ASTUnaryExpr*)return_node)->operand : NULL;
-            const OccSourceSpan* literal_span =
-                variable && variable->initializer
-                    ? &variable->initializer->source_span : NULL;
-            const OccSourceSpan* identifier_span =
-                identifier ? &identifier->source_span : NULL;
             ASTBinaryExpr* binary = variable && variable->initializer &&
                 variable->initializer->type == AST_BINARY_EXPR
                     ? (ASTBinaryExpr*)variable->initializer : NULL;
+            const OccSourceSpan* literal_span = binary && binary->left
+                ? &binary->left->source_span : NULL;
+            const OccSourceSpan* identifier_span =
+                identifier ? &identifier->source_span : NULL;
             const OccSourceSpan* binary_span = binary
                 ? &binary->base.source_span : NULL;
             valid = variable && variable->base.type == AST_VAR_DECL &&
