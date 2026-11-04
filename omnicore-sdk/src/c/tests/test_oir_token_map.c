@@ -21,7 +21,8 @@ int main(void) {
 
     if (oir_token_id_from_omni(TOKEN_KW_IF) != 161u ||
         oir_token_id_from_omni(TOKEN_KW_ELS) != 162u ||
-        oir_token_id_from_omni(TOKEN_KW_ELSIF) != 163u) {
+        oir_token_id_from_omni(TOKEN_KW_ELSIF) != 163u ||
+        oir_token_id_from_omni(TOKEN_ASM_BODY) != 164u) {
         fprintf(stderr, "if/els/elsif token IDs are not stable\n");
         return 1;
     }
