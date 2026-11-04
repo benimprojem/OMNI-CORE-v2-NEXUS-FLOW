@@ -1629,5 +1629,30 @@ named_args_done:
         }
     }
 
+    /* Parser rejects duplicate labels, positional-after-named and missing values. */
+    {
+        static const char* invalid_sources[] = {
+            "f:main() { target(a:1, a:2); }",
+            "f:main() { target(a:1, 2); }",
+            "f:main() { target(a:); }"
+        };
+        size_t index;
+        for (index = 0u; index < sizeof(invalid_sources) / sizeof(invalid_sources[0]); ++index) {
+            ParserContext* parser = parser_init_source("invalid-named-args.nxf",
+                (const uint8_t*)invalid_sources[index], strlen(invalid_sources[index]));
+            int status;
+            if (!parser) return 1;
+            status = parser_run(parser);
+            if (status != PARSER_STATUS_SYNTAX_ERROR ||
+                parser_get_status(parser) != PARSER_STATUS_SYNTAX_ERROR) {
+                fprintf(stderr, "Invalid named-argument form was accepted: %s\\n",
+                    invalid_sources[index]);
+                parser_destroy(parser);
+                return 1;
+            }
+            parser_destroy(parser);
+        }
+    }
+
     return 0;
 }
