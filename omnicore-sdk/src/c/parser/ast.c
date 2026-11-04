@@ -1693,6 +1693,19 @@ static int ast_validation_fail(ASTValidationState *s, ASTValidationCode code,
     return 0;
 }
 
+static int ast_validation_required_text(ASTValidationState *s,
+    const ASTNode *node, const char *value, const char *field) {
+    if (!value || !*value)
+        return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,node,field);
+    return 1;
+}
+static int ast_validation_required_string(ASTValidationState *s,
+    const ASTNode *node, const char *value, const char *field) {
+    if (!value)
+        return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,node,field);
+    return 1;
+}
+
 static size_t ast_validation_hash(const ASTNode *node) {
     size_t key=(size_t)(uintptr_t)node;
     key ^= key >> 17;
@@ -1815,14 +1828,34 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
                 return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"asm_payload");
             break;
         }
-        case AST_VAR_DECL: V(((ASTVarDecl*)n)->initializer,"initializer"); V(((ASTVarDecl*)n)->inline_type,"inline_type"); break;
-        case AST_FUNC_DECL: V(((ASTFuncDecl*)n)->params,"params"); R(((ASTFuncDecl*)n)->body,"body"); break;
-        case AST_EXTERN_DECL: V(((ASTFuncDecl*)n)->params,"params"); V(((ASTFuncDecl*)n)->body,"body"); break;
-        case AST_STRUCT_DECL: case AST_UNION_DECL: V(((ASTStructDecl*)n)->fields,"fields"); break;
-        case AST_ENUM_DECL: V(((ASTEnumDecl*)n)->variants,"variants"); break;
-        case AST_ENUM_VARIANT: V(((ASTEnumVariant*)n)->data,"data"); break;
-        case AST_GROUP_DECL: V(((ASTGroupDecl*)n)->members,"members"); break;
-        case AST_METHOD: R(((ASTMethod*)n)->implementation,"implementation"); break;
+        case AST_VAR_DECL:
+            if(!ast_validation_required_text(s,n,((ASTVarDecl*)n)->name,"name")) return 0;
+            V(((ASTVarDecl*)n)->initializer,"initializer"); V(((ASTVarDecl*)n)->inline_type,"inline_type"); break;
+        case AST_FUNC_DECL:
+            if(!ast_validation_required_text(s,n,((ASTFuncDecl*)n)->name,"name")) return 0;
+            V(((ASTFuncDecl*)n)->params,"params"); R(((ASTFuncDecl*)n)->body,"body"); break;
+        case AST_EXTERN_DECL:
+            if(!ast_validation_required_text(s,n,((ASTFuncDecl*)n)->name,"name")) return 0;
+            V(((ASTFuncDecl*)n)->params,"params"); V(((ASTFuncDecl*)n)->body,"body"); break;
+        case AST_STRUCT_DECL: case AST_UNION_DECL:
+            if(!ast_validation_required_text(s,n,((ASTStructDecl*)n)->name,"name")) return 0;
+            V(((ASTStructDecl*)n)->fields,"fields"); break;
+        case AST_ENUM_DECL:
+            if(!ast_validation_required_text(s,n,((ASTEnumDecl*)n)->name,"name")) return 0;
+            V(((ASTEnumDecl*)n)->variants,"variants"); break;
+        case AST_ENUM_VARIANT:
+            if(!ast_validation_required_text(s,n,((ASTEnumVariant*)n)->name,"name")) return 0;
+            V(((ASTEnumVariant*)n)->data,"data"); break;
+        case AST_NEWTYPE_DECL:
+            if(!ast_validation_required_text(s,n,((ASTNewTypeDecl*)n)->name,"name") ||
+               !ast_validation_required_text(s,n,((ASTNewTypeDecl*)n)->target_type,"target_type")) return 0;
+            break;
+        case AST_GROUP_DECL:
+            if(!ast_validation_required_text(s,n,((ASTGroupDecl*)n)->name,"name")) return 0;
+            V(((ASTGroupDecl*)n)->members,"members"); break;
+        case AST_METHOD:
+            if(!ast_validation_required_text(s,n,((ASTMethod*)n)->public_name,"public_name")) return 0;
+            R(((ASTMethod*)n)->implementation,"implementation"); break;
         case AST_BINARY_EXPR: case AST_ASSIGNMENT: R(((ASTBinaryExpr*)n)->left,"left"); R(((ASTBinaryExpr*)n)->right,"right"); break;
         case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: R(((ASTUnaryExpr*)n)->operand,"operand"); break;
         case AST_RETURN: V(((ASTUnaryExpr*)n)->operand,"operand"); break;
@@ -1830,7 +1863,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_FUNC_CALL: case AST_SPAWN: case AST_ECHO: case AST_SEND: case AST_RECEIVE: case AST_DONE: case AST_AREA: case AST_ZONE: case AST_ADDR: case AST_LEN: case AST_PEEK: case AST_POKE: case AST_INB: case AST_OUTB: case AST_IRQ: case AST_INTR: case AST_REG: case AST_PRNT: case AST_PRMT: case AST_WRITE: case AST_FWRITE: case AST_TYPEOF: case AST_SIZEOF: case AST_IS_OK: case AST_IS_ERR: case AST_IS_SOME: case AST_IS_NONE: case AST_IS_NULL: case AST_EXIT: case AST_SWAP: case AST_DATE: case AST_DATENOW: case AST_TIME: case AST_CLOCK: case AST_FREE: case AST_ZONE_SYNC: case AST_ZONE_VIEW: case AST_ZONE_LOCK: {
             const ASTNode *arg_a, *arg_b;
             int named_seen = 0;
-            V(((ASTCall*)n)->callee,"callee");
+            R(((ASTCall*)n)->callee,"callee");
             for (arg_a=((ASTCall*)n)->args; arg_a; arg_a=arg_a->next) {
                 if (arg_a->type == AST_NAMED_ARG) {
                     const char *label=((const ASTNamedArg*)arg_a)->name;
@@ -1847,31 +1880,64 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
             V(((ASTCall*)n)->args,"args");
             break;
         }
-        case AST_MEMBER_ACCESS: R(((ASTMemberAccess*)n)->object,"object"); break;
+        case AST_MEMBER_ACCESS:
+            if(!ast_validation_required_text(s,n,((ASTMemberAccess*)n)->member_name,"member_name")) return 0;
+            R(((ASTMemberAccess*)n)->object,"object"); break;
         case AST_INDEX_ACCESS: R(((ASTIndexAccess*)n)->target,"target"); R(((ASTIndexAccess*)n)->index,"index"); break;
         case AST_TUPLE: V(((ASTTuple*)n)->elements,"elements"); break;
         case AST_IF: R(((ASTIf*)n)->condition,"condition"); R(((ASTIf*)n)->then_branch,"then_branch"); V(((ASTIf*)n)->else_branch,"else_branch"); break;
         case AST_LOOP: V(((ASTLoop*)n)->init,"init"); V(((ASTLoop*)n)->condition,"condition"); V(((ASTLoop*)n)->increment,"increment"); V(((ASTLoop*)n)->body,"body"); V(((ASTLoop*)n)->collection,"collection"); V(((ASTLoop*)n)->variable,"variable"); break;
-        case AST_NEXUS_CAPTURE: case AST_LISTEN: V(((ASTNexusCapture*)n)->expr,"expr"); break;
+        case AST_NEXUS_CAPTURE:
+            if(!ast_validation_required_text(s,n,((ASTNexusCapture*)n)->handler_name,"handler_name")) return 0;
+            V(((ASTNexusCapture*)n)->expr,"expr"); break;
+        case AST_LISTEN: V(((ASTNexusCapture*)n)->expr,"expr"); break;
         case AST_NEXUS_FLOW: case AST_NEXUS_PIPE: R(((ASTNexusFlow*)n)->left,"left"); R(((ASTNexusFlow*)n)->right,"right"); V(((ASTNexusFlow*)n)->catch_block,"catch_block"); break;
-        case AST_NEXUS_LABEL: V(((ASTNexusLabel*)n)->statement,"statement"); break;
+        case AST_NEXUS_LABEL:
+            if(!ast_validation_required_text(s,n,((ASTNexusLabel*)n)->label_name,"label_name")) return 0;
+            V(((ASTNexusLabel*)n)->statement,"statement"); break;
+        case AST_NEXUS_JUMP:
+            if(!ast_validation_required_text(s,n,((ASTNexusJump*)n)->label_name,"label_name")) return 0;
+            break;
+        case AST_NEXUS_INTENT:
+            if(!ast_validation_required_text(s,n,((ASTIntent*)n)->intent_name,"intent_name")) return 0;
+            V(((ASTIntent*)n)->target,"target"); break;
+        case AST_AI_LOGIC:
+            if(!ast_validation_required_text(s,n,((ASTAiLogic*)n)->query,"query")) return 0;
+            break;
+        case AST_PANIC:
+            if(!ast_validation_required_string(s,n,((ASTPanic*)n)->message,"message")) return 0;
+            break;
         case AST_NEXUS_HALT: V(((ASTHalt*)n)->expr,"expr"); break;
         case AST_NEXUS_INTENT: V(((ASTIntent*)n)->target,"target"); break;
         case AST_UNPACK: R(((ASTUnpack*)n)->expr,"expr"); break;
         case AST_DEFER: R(((ASTDefer*)n)->body,"body"); break;
-        case AST_THREAD_BLOCK: R(((ASTThreadBlock*)n)->body,"body"); V(((ASTThreadBlock*)n)->mode,"mode"); V(((ASTThreadBlock*)n)->timeout,"timeout"); break;
+        case AST_THREAD_BLOCK:
+            if(!ast_validation_required_text(s,n,((ASTThreadBlock*)n)->name,"name")) return 0;
+            R(((ASTThreadBlock*)n)->body,"body"); V(((ASTThreadBlock*)n)->mode,"mode"); V(((ASTThreadBlock*)n)->timeout,"timeout"); break;
         case AST_SELECT: R(((ASTSelect*)n)->selector,"selector"); R(((ASTSelect*)n)->arms,"arms"); break;
         case AST_SELECT_ARM: if(!((ASTSelectArm*)n)->is_default) R(((ASTSelectArm*)n)->pattern,"pattern"); else V(((ASTSelectArm*)n)->pattern,"pattern"); R(((ASTSelectArm*)n)->body,"body"); break;
         case AST_SCAN: R(((ASTScan*)n)->subject,"subject"); R(((ASTScan*)n)->arms,"arms"); break;
         case AST_SCAN_ARM: if(!((ASTScanArm*)n)->pattern && n->next) return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"pattern"); V(((ASTScanArm*)n)->pattern,"pattern"); R(((ASTScanArm*)n)->body,"body"); break;
-        case AST_PATTERN_CONSTRUCTOR: V(((ASTPatternConstructor*)n)->bindings,"bindings"); break;
-        case AST_RULESET_DECL: V(((ASTRulesetDecl*)n)->params,"params"); R(((ASTRulesetDecl*)n)->rules,"rules"); break;
+        case AST_PATTERN_BINDING:
+            if(!ast_validation_required_text(s,n,((ASTPatternBinding*)n)->name,"name")) return 0;
+            break;
+        case AST_PATTERN_CONSTRUCTOR:
+            if(!ast_validation_required_text(s,n,((ASTPatternConstructor*)n)->name,"name")) return 0;
+            V(((ASTPatternConstructor*)n)->bindings,"bindings"); break;
+        case AST_RULESET_DECL:
+            if(!ast_validation_required_text(s,n,((ASTRulesetDecl*)n)->name,"name")) return 0;
+            V(((ASTRulesetDecl*)n)->params,"params"); R(((ASTRulesetDecl*)n)->rules,"rules"); break;
         case AST_RULE_BARRIER: R(((ASTRuleBarrier*)n)->condition,"condition"); V(((ASTRuleBarrier*)n)->message,"message"); break;
         case AST_RULE_TRIGGER: R(((ASTRuleTrigger*)n)->condition,"condition"); R(((ASTRuleTrigger*)n)->action,"action"); break;
         case AST_RULE_ALWAYS: R(((ASTRuleAlways*)n)->action,"action"); break;
         case AST_RULE_DEFAULT: R(((ASTRuleDefault*)n)->action,"action"); break;
-        case AST_APPLY_RULES: V(((ASTApplyRules*)n)->args,"args"); break;
-        case AST_ON_BLOCK: R(((ASTOnBlock*)n)->body,"body"); break;
+        case AST_APPLY_RULES:
+            if(!ast_validation_required_text(s,n,((ASTApplyRules*)n)->ruleset_name,"ruleset_name")) return 0;
+            V(((ASTApplyRules*)n)->args,"args"); break;
+        case AST_ON_BLOCK:
+            if(!ast_validation_required_text(s,n,((ASTOnBlock*)n)->ruleset_name,"ruleset_name") ||
+               !ast_validation_required_text(s,n,((ASTOnBlock*)n)->event_name,"event_name")) return 0;
+            R(((ASTOnBlock*)n)->body,"body"); break;
         case AST_LAMBDA: V(((ASTLambda*)n)->params,"params"); R(((ASTLambda*)n)->body,"body"); break;
         case AST_RELOCATE: R(((ASTRelocate*)n)->source,"source"); R(((ASTRelocate*)n)->target,"target"); break;
         case AST_UNROLL: R(((ASTUnroll*)n)->count,"count"); R(((ASTUnroll*)n)->loop,"loop"); break;
@@ -1914,16 +1980,18 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
             break;
 
         /* Leaf payloads: their data is scalar/string-owned, not AST children. */
-        case AST_NEWTYPE_DECL:
         case AST_LITERAL:
+            if(!ast_validation_required_string(s,n,((ASTLiteral*)n)->string_value,"string_value")) return 0;
+            break;
         case AST_IDENTIFIER:
+            if(!ast_validation_required_text(s,n,((ASTIdentifier*)n)->name,"name")) return 0;
+            break;
+        case AST_USE:
+            if(!ast_validation_required_text(s,n,((ASTUse*)n)->module_name,"module_name")) return 0;
+            break;
         case AST_BREAK:
         case AST_CONTINUE:
-        case AST_NEXUS_JUMP:
-        case AST_AI_LOGIC:
-        case AST_PANIC:
-        case AST_USE:
-        case AST_PATTERN_BINDING:
+        case AST_VARIADIC_PARAM:
         case AST_BLOCK_HALT:
             if (n->type == AST_BLOCK_HALT &&
                 (s->active_count < 2u ||
