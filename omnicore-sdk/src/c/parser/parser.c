@@ -3653,6 +3653,7 @@ static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int c
             (ctx->diagnostic_stage_id ? ctx->diagnostic_stage_id : OCC_STAGE_PARSER);
         input.severity = is_warning ? OCC_DIAG_WARNING : OCC_DIAG_ERROR;
         if (source_span) input.span = *source_span;
+        input.span.source_id = ctx->source_id;
         input.span.start_line = source_span ? source_span->start_line : (line > 0 ? (uint32_t)line : 0u);
         input.span.start_column = source_span ? source_span->start_column : (col > 0 ? (uint32_t)col : 0u);
         if (!source_span) {
@@ -3708,6 +3709,15 @@ static void parser_add_issue(ParserContext* ctx, ErrorCode code, int line, int c
 }
 
 // Eski fonksiyonu yönlendir
+int parser_attach_source_files(ParserContext* ctx, OccSourceFileTable* table) {
+    uint32_t source_id;
+    if (!ctx || !table || !ctx->filename ||
+        !occ_source_files_register(table, ctx->filename, &source_id)) return 0;
+    ctx->source_files = table;
+    ctx->source_id = source_id;
+    return 1;
+}
+
 void parser_attach_diagnostics(ParserContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id) {
     if (!ctx) return;
     ctx->diagnostics = collector;
