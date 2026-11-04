@@ -1438,8 +1438,35 @@ done:
     return valid;
 }
 
+static int test_fast_exec_asm_token_stream(void) {
+    static const char source[]="f:main() { fastexec { asm: ADD { mov rax, %x:reg } } }";
+    ParserContext* parser=parser_init_source("fast-exec-token-stream.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    Token tokens[32];
+    size_t count=0u;
+    int saw_body=0;
+    int valid=0;
+    if(!parser) return 0;
+    while(count<sizeof(tokens)/sizeof(tokens[0])) {
+        tokens[count]=lexer_next_token(parser);
+        if(tokens[count].type==TOKEN_ERROR) goto done;
+        if(tokens[count].type==TOKEN_ASM_BODY) saw_body=1;
+        if(tokens[count].type==TOKEN_EOF) { ++count; break; }
+        ++count;
+    }
+    if(count==0u || tokens[count-1u].type!=TOKEN_EOF || !saw_body ||
+        !parser_attach_token_stream(parser,tokens,count)) goto done;
+    if(parser_run(parser)==PARSER_STATUS_OK && parser->error_count==0 &&
+        parser->ast_root && ast_validate((ASTNode*)parser->ast_root,NULL))
+        valid=1;
+done:
+    parser_destroy(parser);
+    if(!valid) fprintf(stderr,"FASTEXEC token-stream Parser test failed.\n");
+    return valid;
+}
+
 int main(int argc, char** argv) {
-    if (!test_fast_exec_raw_asm_ast()) return 1;
+    if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_ast_create_rejects_invalid_node_kinds()) {
         fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\\n");
         return 1;
