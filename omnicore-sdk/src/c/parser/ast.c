@@ -42,6 +42,8 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_VARIADIC_PARAM: return sizeof(ASTVariadicParam);
         case AST_NAMED_ARG: return sizeof(ASTNamedArg);
         case AST_MUST_DECL: return sizeof(ASTMustDecl);
+        case AST_FASTEXEC_BLOCK: return sizeof(ASTFastExecBlock);
+        case AST_ASM_LABEL: return sizeof(ASTAsmLabel);
 
         case AST_LITERAL:     return sizeof(ASTLiteral);
         case AST_IDENTIFIER:  return sizeof(ASTIdentifier);
@@ -140,7 +142,7 @@ ASTNode* ast_create(ASTNodeType type) {
     size_t size;
 
     /* Reject values outside the append-only public AST kind inventory. */
-    if ((int)type < (int)AST_PROGRAM || (int)type > (int)AST_MUST_DECL) {
+    if ((int)type < (int)AST_PROGRAM || (int)type > (int)AST_ASM_LABEL) {
         return NULL;
     }
     size = get_node_size(type);
@@ -190,6 +192,15 @@ static void ast_print_recursive(ASTNode* node, int level) {
                 printf("[BLOCK]\n");
                 ast_print_recursive(((ASTBlock*)node)->statements, level + 1);
                 break;
+            case AST_FASTEXEC_BLOCK:
+                printf("[FASTEXEC]\n");
+                ast_print_recursive(((ASTFastExecBlock*)node)->statements, level + 1);
+                break;
+            case AST_ASM_LABEL: {
+                ASTAsmLabel* a=(ASTAsmLabel*)node;
+                printf("[ASM LABEL: %s] (%zu bytes)\n",a->label?a->label:"<invalid>",a->source_length);
+                break;
+            }
             case AST_IF: {
                 ASTIf* conditional = (ASTIf*)node;
                 printf("[IF]\n");
@@ -737,6 +748,8 @@ static void ast_destroy_recursive(ASTNode* node) {
         case AST_ARRAY_DIMENSION: if(((ASTArrayDimension*)node)->length)ast_destroy_recursive(((ASTArrayDimension*)node)->length); break;
         case AST_NAMED_ARG: { ASTNamedArg* n=(ASTNamedArg*)node; free(n->name); if(n->value)ast_destroy_recursive(n->value); break; }
         case AST_MUST_DECL: { ASTMustDecl* n=(ASTMustDecl*)node; free(n->name); if(n->source)ast_destroy_recursive(n->source); break; }
+        case AST_FASTEXEC_BLOCK: { ASTFastExecBlock* n=(ASTFastExecBlock*)node; if(n->statements)ast_destroy_recursive(n->statements); break; }
+        case AST_ASM_LABEL: { ASTAsmLabel* n=(ASTAsmLabel*)node; free(n->label); free(n->source_text); break; }
         case AST_BLOCK:
         case AST_PROGRAM:
         case AST_ASM_BLOCK: {
@@ -1163,6 +1176,18 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
         case AST_ARRAY_LITERAL: ast_serialize_recursive(((ASTArrayLiteral*)node)->elements,writer); break;
         case AST_ARRAY_TYPE: ast_serialize_recursive(((ASTArrayType*)node)->dimensions,writer); break;
         case AST_ARRAY_DIMENSION: ast_serialize_recursive(((ASTArrayDimension*)node)->length,writer); break;
+        case AST_FASTEXEC_BLOCK: ast_serialize_recursive(((ASTFastExecBlock*)node)->statements,writer); break;
+        case AST_ASM_LABEL: {
+            ASTAsmLabel* n=(ASTAsmLabel*)node;
+            uint64_t length=(uint64_t)n->source_length;
+            if ((size_t)length!=n->source_length ||
+                (n->source_text && strlen(n->source_text)!=n->source_length) ||
+                (!n->source_text && n->source_length!=0u)) { writer->failed=1; break; }
+            write_string(writer,n->label);
+            write_string(writer,n->source_text);
+            ast_write_exact(writer,&length,sizeof(length));
+            break;
+        }
         case AST_NAMED_ARG: { ASTNamedArg* n=(ASTNamedArg*)node; write_string(writer,n->name); ast_serialize_recursive(n->value,writer); break; }
         case AST_MUST_DECL: { ASTMustDecl* n=(ASTMustDecl*)node; write_string(writer,n->name); ast_serialize_recursive(n->source,writer); break; }
         case AST_ENUM_DECL: {
@@ -1493,6 +1518,20 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
         case AST_ARRAY_LITERAL: ((ASTArrayLiteral*)node)->elements=ast_deserialize_recursive(reader); break;
         case AST_ARRAY_TYPE: ((ASTArrayType*)node)->dimensions=ast_deserialize_recursive(reader); break;
         case AST_ARRAY_DIMENSION: ((ASTArrayDimension*)node)->length=ast_deserialize_recursive(reader); break;
+        case AST_FASTEXEC_BLOCK: ((ASTFastExecBlock*)node)->statements=ast_deserialize_recursive(reader); break;
+        case AST_ASM_LABEL: {
+            ASTAsmLabel* n=(ASTAsmLabel*)node;
+            uint64_t length=0u;
+            n->label=read_string(reader);
+            if(reader->failed) goto fail;
+            n->source_text=read_string(reader);
+            if(reader->failed) goto fail;
+            if(!ast_read_exact(reader,&length,sizeof(length)) || length>(uint64_t)SIZE_MAX ||
+                (n->source_text ? strlen(n->source_text) : 0u)!=(size_t)length ||
+                (!n->source_text && length!=0u)) goto fail;
+            n->source_length=(size_t)length;
+            break;
+        }
         case AST_NAMED_ARG: { ASTNamedArg* n=(ASTNamedArg*)node; n->name=read_string(reader); if(reader->failed)goto fail; n->value=ast_deserialize_recursive(reader); break; }
         case AST_MUST_DECL: { ASTMustDecl* n=(ASTMustDecl*)node; n->name=read_string(reader); if(reader->failed)goto fail; n->source=ast_deserialize_recursive(reader); break; }
         case AST_ENUM_DECL: {
@@ -1569,7 +1608,7 @@ static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
 
         if (type_val == -1) return head;
 
-        if (type_val < AST_PROGRAM || type_val > AST_MUST_DECL ||
+        if (type_val < AST_PROGRAM || type_val > AST_ASM_LABEL ||
             reader->node_count >= AST_MAX_NODE_COUNT ||
             reader->depth >= AST_MAX_RECURSION_DEPTH) {
             reader->failed = 1;
@@ -1732,7 +1771,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
     }
     while(n) {
         size_t active_index;
-        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_MUST_DECL)
+        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_ASM_LABEL)
             return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"type");
         if (n->source_span.has_location) {
             const OccSourceSpan* span = &n->source_span;
@@ -1758,6 +1797,14 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         switch(n->type) {
         case AST_PROGRAM: V(((ASTProgram*)n)->declarations,"declarations"); break;
         case AST_BLOCK: case AST_ASM_BLOCK: V(((ASTBlock*)n)->statements,"statements"); break;
+        case AST_FASTEXEC_BLOCK: V(((ASTFastExecBlock*)n)->statements,"statements"); break;
+        case AST_ASM_LABEL: {
+            const ASTAsmLabel* a=(const ASTAsmLabel*)n;
+            if(!a->label || !*a->label || !a->source_text ||
+                a->source_length>16u*1024u*1024u || strlen(a->source_text)!=a->source_length)
+                return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"asm_payload");
+            break;
+        }
         case AST_VAR_DECL: V(((ASTVarDecl*)n)->initializer,"initializer"); V(((ASTVarDecl*)n)->inline_type,"inline_type"); break;
         case AST_FUNC_DECL: V(((ASTFuncDecl*)n)->params,"params"); R(((ASTFuncDecl*)n)->body,"body"); break;
         case AST_EXTERN_DECL: V(((ASTFuncDecl*)n)->params,"params"); V(((ASTFuncDecl*)n)->body,"body"); break;
