@@ -54,6 +54,24 @@ static Token make_token(
     token.source_offset = ctx->token_start_offset;
     token.source_length = length;
     token.diagnostic_id = 0;
+    switch (ctx->lexer_asm_state) {
+        case 0:
+            if (type == TOKEN_KW_ASM) ctx->lexer_asm_state = 1u;
+            break;
+        case 1:
+            ctx->lexer_asm_state = type == TOKEN_COLON ? 2u : 0u;
+            break;
+        case 2:
+            ctx->lexer_asm_state = type == TOKEN_IDENTIFIER ? 3u : 0u;
+            break;
+        case 3:
+            if (type == TOKEN_LBRACE) ctx->lexer_asm_body_pending = 1u;
+            ctx->lexer_asm_state = 0u;
+            break;
+        default:
+            ctx->lexer_asm_state = 0u;
+            break;
+    }
     return token;
 }
 
@@ -68,6 +86,8 @@ static Token error_token(ParserContext* ctx, const char* message) {
     token.source_offset = ctx->token_start_offset;
     token.source_length = ctx->pos - ctx->token_start_offset;
     token.diagnostic_id = 0;
+    ctx->lexer_asm_state = 0u;
+    ctx->lexer_asm_body_pending = 0u;
 
     /*
      * Lexer errors become job-owned diagnostics at their origin. The token
@@ -329,7 +349,55 @@ static OmniTokenType identifier_type(const char* start, size_t length) {
     return TOKEN_IDENTIFIER;
 }
 
+static Token lexer_scan_asm_body(ParserContext* ctx) {
+    const char* start;
+    size_t depth = 1u;
+    char quote = '\0';
+    int escaped = 0;
+    ctx->lexer_asm_body_pending = 0u;
+    ctx->token_start_offset = ctx->pos;
+    ctx->token_start_line = ctx->current_line;
+    ctx->token_start_col = ctx->current_col;
+    start = &ctx->source_buffer[ctx->pos];
+
+    /* The outer brace delimits the body; nested braces and quoted braces are data. */
+    while (ctx->pos < ctx->source_len) {
+        char c = peek(ctx);
+        if (quote != '\0') {
+            advance(ctx);
+            if (escaped) escaped = 0;
+            else if (c == '\\') escaped = 1;
+            else if (c == quote) quote = '\0';
+            continue;
+        }
+        if (c == '"' || c == '\'') {
+            quote = c;
+            advance(ctx);
+            continue;
+        }
+        if (c == '{') {
+            if (depth == SIZE_MAX) return error_token(ctx, "ASM brace nesting limit exceeded");
+            ++depth;
+            advance(ctx);
+            continue;
+        }
+        if (c == '}') {
+            if (depth == 1u) {
+                return make_token(ctx, TOKEN_ASM_BODY, start, ctx->pos - ctx->token_start_offset);
+            }
+            --depth;
+            advance(ctx);
+            continue;
+        }
+        advance(ctx);
+    }
+    return error_token(ctx, "Unterminated ASM body; expected matching '}'");
+}
+
 Token lexer_next_token(ParserContext* ctx) {
+    if (ctx && ctx->lexer_asm_body_pending) {
+        return lexer_scan_asm_body(ctx);
+    }
     if (!skip_whitespace(ctx)) {
         return error_token(ctx, "Unterminated block comment");
     }
@@ -606,6 +674,7 @@ const char* token_type_to_string(OmniTokenType type) {
         case TOKEN_UNPACK: return "UNPACK (...>)";
         case TOKEN_RELOCATE: return "RELOCATE (_>)";
         case TOKEN_KW_FN: return "FN (f:)";
+        case TOKEN_ASM_BODY: return "ASM_BODY";
         case TOKEN_KW_IF: return "IF";
         case TOKEN_KW_ELSIF: return "ELSIF";
         case TOKEN_KW_ELS: return "ELS";
