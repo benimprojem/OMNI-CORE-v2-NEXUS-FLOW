@@ -2396,5 +2396,33 @@ generic_type_done:
         }
     }
 
+
+    /* Nexus capture nodes cover the left identifier through the right expression. */
+    {
+        static const char source[] = "f:main() { v:x = 1; x <- handler; }";
+        ParserContext* parser = parser_init_source("capture-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* left = strstr(source, "x <-");
+        const char* right = strstr(source, "handler");
+        ASTFuncDecl* function;
+        ASTNode* statement;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            statement = function ? ((ASTBlock*)function->body)->statements : NULL;
+            statement = statement ? statement->next : NULL;
+            valid = statement && statement->type == AST_NEXUS_CAPTURE &&
+                statement->source_span.has_location == 1u &&
+                statement->source_span.start_offset == (size_t)(left - source) &&
+                statement->source_span.end_offset == (size_t)(right + 7 - source) &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Nexus capture source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
