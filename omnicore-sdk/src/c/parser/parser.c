@@ -357,6 +357,32 @@ static void parser_stamp_node_token(
     if (span.has_location) (void)ast_set_source_span(node, &span);
 }
 
+static void parser_stamp_node_source_file(Parser* p, ASTNode* node) {
+    OccSourceSpan span;
+    size_t i;
+    uint32_t line = 1u;
+    uint32_t column = 1u;
+    if (!p || !p->ctx || !node || !p->ctx->source_buffer) return;
+    memset(&span, 0, sizeof(span));
+    span.source_id = p->ctx->source_id;
+    span.start_offset = 0u;
+    span.end_offset = (uint64_t)p->ctx->source_length;
+    span.start_line = 1u;
+    span.start_column = 1u;
+    for (i = 0u; i < p->ctx->source_length; ++i) {
+        if (p->ctx->source_buffer[i] == '\\n') {
+            ++line;
+            column = 1u;
+        } else {
+            ++column;
+        }
+    }
+    span.end_line = line;
+    span.end_column = column;
+    span.has_location = 1u;
+    (void)ast_set_source_span(node, &span);
+}
+
 static void parser_stamp_node_tokens(
     Parser* p, ASTNode* node, const Token* first, const Token* last
 ) {
@@ -3794,6 +3820,7 @@ int parser_run(ParserContext* ctx) {
     if (!program) return (int)ctx->status;
     program->base.line = 1;
     program->base.col = 1;
+    parser_stamp_node_source_file(&parser, (ASTNode*)program);
     ctx->ast_root = (void*)program; /* Keep partial trees owned by the context on parse failure. */
     ASTNode* current_stmt = NULL;
 
