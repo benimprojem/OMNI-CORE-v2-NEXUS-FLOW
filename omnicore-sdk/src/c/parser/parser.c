@@ -432,6 +432,7 @@ static int parser_is_statement_start(OmniTokenType type) {
     switch (type) {
         case TOKEN_PRE_VAR:
         case TOKEN_PRE_CONST:
+        case TOKEN_PRE_MUST:
         case TOKEN_PRE_FUNC:
         case TOKEN_KW_FN:
         case TOKEN_KW_RET:
@@ -1084,6 +1085,36 @@ static ASTNode* parse_defer(Parser* p) {
         return NULL;
     }
     return (ASTNode*)defer;
+}
+
+static ASTNode* parse_must_decl(Parser* p) {
+    ASTMustDecl* dependency = (ASTMustDecl*)parser_ast_create(p, AST_MUST_DECL);
+    Token name_token;
+    if (!dependency) return NULL;
+    dependency->base.line = p->previous.line;
+    dependency->base.col = p->previous.col;
+    if (!match(p, TOKEN_IDENTIFIER)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+            "Expected dependency name after m:.");
+        ast_destroy((ASTNode*)dependency);
+        return NULL;
+    }
+    name_token = p->previous;
+    dependency->name = (char*)parser_malloc(p, (size_t)name_token.length + 1u);
+    if (!dependency->name) {
+        ast_destroy((ASTNode*)dependency);
+        return NULL;
+    }
+    memcpy(dependency->name, name_token.start, (size_t)name_token.length);
+    dependency->name[name_token.length] = '\0';
+    consume(p, TOKEN_ASSIGN, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_ASSIGN);
+    dependency->source = parse_expression(p);
+    if (!dependency->source) {
+        ast_destroy((ASTNode*)dependency);
+        return NULL;
+    }
+    consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
+    return (ASTNode*)dependency;
 }
 
 static ASTNode* parse_use(Parser* p) {
@@ -3238,6 +3269,8 @@ static ASTNode* parse_statement(Parser* p) {
             MSG_EXPECT_SEMICOLON_EXPR);
         return control;
     }
+
+    if (match(p, TOKEN_PRE_MUST)) return parse_must_decl(p);
 
     if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
         ASTVarDecl* decl = (ASTVarDecl*)parse_var_decl(p);
