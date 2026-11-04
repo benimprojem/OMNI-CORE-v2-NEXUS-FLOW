@@ -1992,5 +1992,38 @@ generic_type_done:
         }
     }
 
+
+    /* Conditional AST spans include the full then/else production. */
+    {
+        static const char source[] =
+            "f:main() { if (true) { ret 1; } els { ret 0; } }";
+        ParserContext* parser = parser_init_source("if-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* keyword = strstr(source, "if");
+        const char* else_close = strstr(source, "ret 0; }");
+        size_t start_offset = keyword ? (size_t)(keyword - source) : 0u;
+        size_t end_offset = else_close ? (size_t)(else_close + 8 - source) : 0u;
+        ASTFuncDecl* function;
+        ASTNode* if_node;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            if_node = function ? ((ASTBlock*)function->body)->statements : NULL;
+            valid = if_node && if_node->type == AST_IF &&
+                if_node->source_span.has_location == 1u &&
+                if_node->source_span.start_offset == start_offset &&
+                if_node->source_span.end_offset == end_offset &&
+                if_node->source_span.start_column == start_offset + 1u &&
+                if_node->source_span.end_column == end_offset + 1u &&
+                ((ASTIf*)if_node)->then_branch && ((ASTIf*)if_node)->else_branch &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Conditional AST source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
