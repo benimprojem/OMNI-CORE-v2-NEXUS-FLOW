@@ -39,6 +39,8 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_ARRAY_LITERAL: return sizeof(ASTArrayLiteral);
         case AST_ARRAY_TYPE: return sizeof(ASTArrayType);
         case AST_ARRAY_DIMENSION: return sizeof(ASTArrayDimension);
+        case AST_VARIADIC_PARAM: return sizeof(ASTVariadicParam);
+        case AST_NAMED_ARG: return sizeof(ASTNamedArg);
 
         case AST_LITERAL:     return sizeof(ASTLiteral);
         case AST_IDENTIFIER:  return sizeof(ASTIdentifier);
@@ -714,6 +716,7 @@ static void ast_destroy_recursive(ASTNode* node) {
         case AST_ARRAY_LITERAL: if(((ASTArrayLiteral*)node)->elements)ast_destroy_recursive(((ASTArrayLiteral*)node)->elements); break;
         case AST_ARRAY_TYPE: if(((ASTArrayType*)node)->dimensions)ast_destroy_recursive(((ASTArrayType*)node)->dimensions); break;
         case AST_ARRAY_DIMENSION: if(((ASTArrayDimension*)node)->length)ast_destroy_recursive(((ASTArrayDimension*)node)->length); break;
+        case AST_NAMED_ARG: { ASTNamedArg* n=(ASTNamedArg*)node; free(n->name); if(n->value)ast_destroy_recursive(n->value); break; }
         case AST_BLOCK:
         case AST_PROGRAM:
         case AST_ASM_BLOCK: {
@@ -1693,6 +1696,16 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_ARRAY_LITERAL: V(((ASTArrayLiteral*)n)->elements,"elements"); break;
         case AST_ARRAY_TYPE: V(((ASTArrayType*)n)->dimensions,"dimensions"); break;
         case AST_ARRAY_DIMENSION: V(((ASTArrayDimension*)n)->length,"length"); break;
+        case AST_VARIADIC_PARAM:
+            if (s->active_count < 2u ||
+                (s->active[s->active_count - 2u]->type != AST_FUNC_DECL &&
+                 s->active[s->active_count - 2u]->type != AST_EXTERN_DECL) || n->next)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"variadic_parameter_position");
+            break;
+        case AST_NAMED_ARG: R(((ASTNamedArg*)n)->value,"value");
+            if (!((ASTNamedArg*)n)->name || !*(((ASTNamedArg*)n)->name))
+                return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"name");
+            break;
 
         /* Leaf payloads: their data is scalar/string-owned, not AST children. */
         case AST_NEWTYPE_DECL:
@@ -1706,7 +1719,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_USE:
         case AST_PATTERN_BINDING:
         case AST_BLOCK_HALT:
-            if (n->type == AST_BLOCK_HALT &&
+            if ((n->type == AST_BLOCK_HALT &&
                 (s->active_count < 2u ||
                  (s->active[s->active_count - 2u]->type != AST_BLOCK &&
                   s->active[s->active_count - 2u]->type != AST_ASM_BLOCK) ||
