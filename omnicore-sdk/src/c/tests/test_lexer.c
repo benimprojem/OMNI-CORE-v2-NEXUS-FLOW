@@ -266,5 +266,56 @@ int main(void) {
         }
     }
 
+
+    {
+        static const char lexical_source[] = "\xC2\xA7;";
+        ParserContext lexical_ctx;
+        OccDiagnosticCollector diagnostics;
+        OccSourceFileTable source_files;
+        OccDiagnosticView view;
+        uint32_t source_id = 0u;
+        Token error;
+        memset(&lexical_ctx, 0, sizeof(lexical_ctx));
+        occ_diagnostics_init(&diagnostics);
+        occ_source_files_init(&source_files);
+        lexical_ctx.filename = "lib/lexer-input.nxf";
+        lexical_ctx.source_len = sizeof(lexical_source) - 1u;
+        lexical_ctx.source_buffer = (char*)malloc(sizeof(lexical_source));
+        if (!lexical_ctx.source_buffer) {
+            occ_source_files_destroy(&source_files);
+            occ_diagnostics_destroy(&diagnostics);
+            return 1;
+        }
+        memcpy(lexical_ctx.source_buffer, lexical_source, sizeof(lexical_source));
+        lexical_ctx.current_line = 1;
+        lexical_ctx.current_col = 1;
+        lexical_ctx.diagnostics = &diagnostics;
+        if (!parser_attach_source_files(&lexical_ctx, &source_files) ||
+            !occ_source_files_get(&source_files, lexical_ctx.source_id) ||
+            strcmp(occ_source_files_get(&source_files, lexical_ctx.source_id),
+                "lib/lexer-input.nxf") != 0) {
+            free(lexical_ctx.source_buffer);
+            occ_source_files_destroy(&source_files);
+            occ_diagnostics_destroy(&diagnostics);
+            return 1;
+        }
+        source_id = lexical_ctx.source_id;
+        error = lexer_next_token(&lexical_ctx);
+        if (error.type != TOKEN_ERROR || error.diagnostic_id == 0u ||
+            !occ_diagnostics_get(&diagnostics, 0u, &view) ||
+            view.record->span.source_id != source_id ||
+            view.record->span.start_line != 1u ||
+            view.record->span.start_column != 1u) {
+            fprintf(stderr, "Lexer diagnostic lost its registered source identity.\\n");
+            free(lexical_ctx.source_buffer);
+            occ_source_files_destroy(&source_files);
+            occ_diagnostics_destroy(&diagnostics);
+            return 1;
+        }
+        free(lexical_ctx.source_buffer);
+        occ_source_files_destroy(&source_files);
+        occ_diagnostics_destroy(&diagnostics);
+    }
+
     return 0;
 }
