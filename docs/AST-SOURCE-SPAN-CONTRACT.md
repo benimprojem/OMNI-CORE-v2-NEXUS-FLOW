@@ -51,7 +51,7 @@ The implementation must therefore introduce a root-level magic/version prefix fo
 
 - [x] New writer emits the 8-byte `OCCAST\r\n` magic and a 32-bit version (`1`) before the root node.
 - [x] New reader recognizes the prefix and decodes the versioned format.
-- [x] New reader also accepts the existing unprefixed legacy stream and leaves source spans absent.
+- [x] New reader also accepts the existing unprefixed legacy stream and leaves source spans absent. Legacy-prefix bytes are replayed from an internal reader buffer, so detection does not require `ftell`/`fseek` or a seekable input stream.
 - [x] Unknown future stream versions fail closed.
 - [x] Version 1 stores `has_location`, `source_id`, start/end byte offsets and start/end line/column as individual fields after each node's legacy `line/col` header; no C struct padding is written.
 - Existing truncation, trailing-data, graph ownership and depth checks remain mandatory.
