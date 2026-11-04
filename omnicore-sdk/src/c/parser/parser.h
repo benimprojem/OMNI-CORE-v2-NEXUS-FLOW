@@ -152,6 +152,9 @@ typedef struct {
     ParserStatus status;
     size_t test_allocation_count;
     size_t test_fail_allocation_at;
+    /* Borrowed job-owned registry; it must outlive this parser context. */
+    OccSourceFileTable* source_files;
+    uint32_t source_id;
 } ParserContext;
 
 OCC_API ParserContext* parser_init(const char* filename);
@@ -163,6 +166,9 @@ OCC_API ParserStatus parser_init_source_ex(const char* filename, const uint8_t* 
 OCC_API void parser_attach_diagnostics(
     ParserContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id
 );
+/* Registers ctx->filename and stamps subsequent diagnostics with its source ID.
+ * The source table is borrowed and must outlive the parser context. */
+OCC_API int parser_attach_source_files(ParserContext* ctx, OccSourceFileTable* table);
 /* Token storage and token text pointers must remain valid through parser_run(); spans are checked against ctx's source copy. */
 OCC_API int parser_attach_token_stream(
     ParserContext* ctx, const struct Token* tokens, size_t token_count
