@@ -1634,7 +1634,8 @@ named_args_done:
         static const char* invalid_sources[] = {
             "f:main() { target(a:1, a:2); }",
             "f:main() { target(a:1, 2); }",
-            "f:main() { target(a:); }"
+            "f:main() { target(a:); }",
+            "f:main() { m:CoreModule = \"CoreModule.nxf\"; }"
         };
         size_t index;
         for (index = 0u; index < sizeof(invalid_sources) / sizeof(invalid_sources[0]); ++index) {
