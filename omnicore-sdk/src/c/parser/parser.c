@@ -369,7 +369,7 @@ static void parser_stamp_node_source_file(Parser* p, ASTNode* node) {
     span.end_offset = (uint64_t)p->ctx->source_len;
     span.start_line = 1u;
     span.start_column = 1u;
-    for (i = 0u; i < p->ctx->source_length; ++i) {
+    for (i = 0u; i < p->ctx->source_len; ++i) {
         if (p->ctx->source_buffer[i] == '\n') {
             ++line;
             column = 1u;
