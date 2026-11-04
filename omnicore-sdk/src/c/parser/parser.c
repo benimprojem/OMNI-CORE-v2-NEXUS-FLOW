@@ -2012,6 +2012,8 @@ static int parse_array_type_suffix(Parser* p, ASTVarDecl* decl) {
             "An inline type cannot also have an array declarator.");
         return 0;
     }
+    Token array_start = p->current;
+    Token array_end;
     array_type = (ASTArrayType*)parser_ast_create(p, AST_ARRAY_TYPE);
     if (!array_type) return 0;
     array_type->base.line = p->current.line;
@@ -2042,10 +2044,13 @@ static int parse_array_type_suffix(Parser* p, ASTVarDecl* decl) {
             return 0;
         }
         advance(p);
+        array_end = p->previous;
+        parser_stamp_node_tokens(p, (ASTNode*)dimension, &open, &array_end);
         if (!array_type->dimensions) array_type->dimensions = (ASTNode*)dimension;
         else tail->next = (ASTNode*)dimension;
         tail = (ASTNode*)dimension;
     }
+    parser_stamp_node_tokens(p, (ASTNode*)array_type, &array_start, &array_end);
     decl->inline_type = (ASTNode*)array_type;
     return 1;
 }
