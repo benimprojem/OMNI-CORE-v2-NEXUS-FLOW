@@ -870,6 +870,7 @@ static ASTNode* parse_primary(Parser* p) {
             }
 
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
+            parser_stamp_node_tokens(p, (ASTNode*)tuple, &open, &p->previous);
             return (ASTNode*)tuple;
         }
 
@@ -984,6 +985,7 @@ static ASTNode* parse_primary(Parser* p) {
 }
 
 static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
+    Token intrinsic_start = p->previous;
     if (type == AST_CAST) {
         ASTCast* cast = (ASTCast*)parser_ast_create(p, AST_CAST);
         Token type_token;
@@ -1025,6 +1027,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
         }
         consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ARGS);
+        parser_stamp_node_tokens(p, (ASTNode*)cast, &intrinsic_start, &p->previous);
         return (ASTNode*)cast;
     }
 
@@ -1048,6 +1051,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
             }
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ARGS);
         }
+        parser_stamp_node_tokens(p, (ASTNode*)panic, &intrinsic_start, &p->previous);
         return (ASTNode*)panic;
     }
 
@@ -1106,6 +1110,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
                     consume(p, TOKEN_COLON, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_COLON_VAR);
                     named->value = parse_expression(p);
                     if (!named->value) { ast_destroy((ASTNode*)named); ast_destroy((ASTNode*)call); return NULL; }
+                    parser_stamp_node_tokens(p, (ASTNode*)named, &label, &p->previous);
                     arg = (ASTNode*)named;
                     saw_named = 1;
                 } else {
@@ -1139,6 +1144,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
         }
         consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ARGS);
     }
+    parser_stamp_node_tokens(p, (ASTNode*)call, &intrinsic_start, &p->previous);
     return (ASTNode*)call;
 }
 
