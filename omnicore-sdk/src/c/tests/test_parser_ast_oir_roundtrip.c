@@ -179,7 +179,7 @@ static int test_select_scan_oir_roundtrip(void) {
     {
         const ASTNode* missing=first_missing_source_span((ASTNode*)parser->ast_root,0u);
         if(missing) {
-            fprintf(stderr,"parser AST node kind %d is missing a source span\\n",(int)missing->type);
+            fprintf(stderr,"parser AST node kind %d is missing a source span\n",(int)missing->type);
             goto done;
         }
     }
