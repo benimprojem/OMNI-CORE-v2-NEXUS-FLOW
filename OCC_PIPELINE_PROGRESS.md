@@ -333,3 +333,16 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - [ ] Tanılama biçimleyicisi source_id üzerinden dosya yolunu göstermeli.
 - [ ] Çoklu dosya entegrasyon testi: iki kaynakta ayrı hata üretip doğru dosya/satır/sütun eşleşmesini doğrulamalı.
 - **Durum:** Kaynak kayıt tablosu ve OIR kimlik desteği commit edildi; uçtan uca parser/diagnostic entegrasyonu ve CI sonucu bekleniyor.
+
+
+### Parser → diagnostics source identity bağlantısı (2026-11-04)
+
+- [x] `ParserContext` için derleme işi tarafından sahip olunan `OccSourceFileTable` bağlantısı eklendi.
+- [x] `parser_attach_source_files()` parser dosya adını/yolunu kayıt tablosuna ekleyip `source_id` değerini context'e atıyor.
+- [x] Parser diagnostic kayıtları, konum span'i mevcut olsa da olmasa da context'in `source_id` değerini taşıyor.
+- [x] Parser testi: aynı tabloda ikinci dosyaya ayrılmış ID'nin diagnostic span'e taşındığı doğrulanıyor.
+- [ ] Lexer'ın bağımsız diagnostic üretim yolları aynı source identity ile ilişkilendirilmeli.
+- [ ] AST node üretim yolları tam başlangıç/bitiş span'i ve source_id ile damgalanmalı.
+- [ ] CLI/host diagnostic formatter source_id'yi dosya yoluna çözümleyip göstermeli.
+- [ ] İki dosyalı uçtan uca test ve CI sonuçları.
+- **Durum:** Parser context ve parser diagnostic kimlik bağlantısı eklendi; tam çoklu dosya derleme ve kullanıcıya gösterilen dosya adı henüz tamamlanmadı.
