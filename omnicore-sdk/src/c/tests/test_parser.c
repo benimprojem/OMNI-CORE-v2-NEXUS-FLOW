@@ -1560,6 +1560,9 @@ int main(int argc, char** argv) {
         ASTNode* root;
         ASTNode* fn;
         ASTNode* last;
+        ASTNode* body;
+        const OccSourceSpan* block_span;
+        size_t open_offset = (size_t)(strchr(source, '{') - source);
         if (!parser || parser_run(parser) != PARSER_STATUS_OK) {
             if (parser) parser_destroy(parser);
             fprintf(stderr, "block-scoped Halt syntax failed to parse\\n");
@@ -1567,9 +1570,19 @@ int main(int argc, char** argv) {
         }
         root = parser->ast_root;
         fn = root ? ((ASTProgram*)root)->declarations : NULL;
-        last = fn ? ((ASTBlock*)((ASTFuncDecl*)fn)->body)->statements : NULL;
+        body = fn ? ((ASTFuncDecl*)fn)->body : NULL;
+        block_span = body ? &body->source_span : NULL;
+        last = body ? ((ASTBlock*)body)->statements : NULL;
         while (last && last->next) last = last->next;
-        if (!last || last->type != AST_BLOCK_HALT || !ast_validate(root, NULL)) {
+        if (!last || last->type != AST_BLOCK_HALT ||
+            !block_span || !block_span->has_location ||
+            block_span->start_offset != open_offset ||
+            block_span->end_offset != sizeof(source) - 1u ||
+            block_span->start_line != 1u ||
+            block_span->start_column != open_offset + 1u ||
+            block_span->end_line != 1u ||
+            block_span->end_column != sizeof(source) ||
+            !ast_validate(root, NULL)) {
             fprintf(stderr, "block-scoped Halt was not preserved as final AST child\\n");
             parser_destroy(parser);
             return 1;
