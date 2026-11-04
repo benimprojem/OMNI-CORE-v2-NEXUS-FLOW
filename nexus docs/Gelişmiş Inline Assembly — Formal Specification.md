@@ -26,7 +26,36 @@ fastexec {
 ```
 
 * `<Label>` → ASM bloğunun etiketi, çağrılabilir (`asmcall`, `asmjmp`).
-* Etiket isimleri `_`, `-`, `$` gibi özel karakterlerle başlayamaz.
+* Etiket isimleri `_`, `-`, `
+# 9. Gelişmiş Inline Assembly (`fastexec{asm{}}`) — Formal Specification
+
+## 1. Tanım
+
+**`fastexec`**, inline assembly bloklarını kapsayan bir **yüksek performanslı çalışma konteyneri**dir.
+Amaç:
+
+* ASM kodlarını doğrudan çalıştırmak,
+* NexusFlow değişkenlerini **stack/heap/register mapping** ile yönetmek,
+* Call ve Jump mekanizmalarını entegre etmek,
+* Optimize edilmiş ve güvenli bir **asm çalışma ortamı** sağlamak.
+
+> Önemli: ASM blokları `fastexec` dışında tanımlanırsa derleyici **hata verir**.
+
+---
+
+## 2. Temel Kurallar
+
+1. **ASM Tanımı:**
+
+```nexus
+fastexec {
+    asm: <Label> { ... }
+}
+```
+
+* `<Label>` → ASM bloğunun etiketi, çağrılabilir (`asmcall`, `asmjmp`).
+ gibi özel karakterlerle başlayamaz.
+* Açılış `{` sonrasındaki gövde ham ASM metnidir; Lexer bunu Nexus Flow token'larına ayırmadan tek bir kaynak aralığı olarak taşır. Eşleşen dış `}` gövdeyi kapatır; iç içe `{}` dengelenir, tek/çift tırnak içindeki brace karakterleri ve backslash escape'leri delimiter sayılmaz. Hedefe özgü yorum sözdizimi çözümlenmez; yorumlardaki brace karakterleri de delimiter sayımına dahildir.
 
 2. **Değişken Geçişi:**
 
