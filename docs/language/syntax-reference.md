@@ -82,8 +82,11 @@ v:val= 10E3;
 # Üslü sayılar.
 v:vall= 10^^15;
 
-# Zorunlu: Modül yada bağımlılık yüklenemez ise derleme durur hata verir..
+# Zorunlu bağımlılık: modül kaynağı çözümlenemez/yüklenemez ise derleme başarısız olur.
 m:CoreModule = "CoreModule.nxf";
+
+# MUST bildirimi program kapsamındadır; fonksiyon/blok içinde kullanılamaz.
+# Kaynak ifadesi derleme aşamasında bir modül/bağımlılık kaynağına çözümlenir.
 
 ## Tip zorlama. '!' Eğer programcı zorlamak isterse:
 v:pi!f64 = 3.1415; # '!' operatörüyle tip mühürlenir (Hard-lock).
