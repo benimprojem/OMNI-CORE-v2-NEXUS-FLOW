@@ -1111,18 +1111,10 @@ f:main()!i32 {
             mov %total, rax  # %total -> [rbp - 24]
         }
         
+        asmcall(CRITICAL_ADD); # Aynı FASTEXEC kapsamındaki etiketi çağırır.
         echo(total); # Çıktı: 30
-        
+        # asmjmp("MY_ASM_BLOCK"); # FASTEXEC içinde koşulsuz sıçrama; geri dönüş olmayabilir.
     }
-
-    asmcall(CRITICAL_ADD);
-    # Üretilen ana kod bloğu içerisine call eklenir. Normal fonksiyon gibi asm bloklarınızı kullanabilirsiniz.
-    # Birden fazla asm blok yazıyorsanız birbirleri ile bağlantılı ise içlerinden birbirlerine call da yapabilirsiniz.
-    # call _print de yapabilirsiniz, nasıl yapılacağı ilgili dokümantasyon dosyasında bulunabilir.
-    
-    # Veya oraya zıpla (dikkat: Ne yaptığınızı bilmiyor iseniz asm bloklarını kullanmayın. 
-    # Eğer kodunuzda return veya başka bir jmp yoksa hiç geri dönmeyebilir, ve uygulama çöker.)
-    asmjmp("MY_ASM_BLOCK");
     
     return 0;
 }
