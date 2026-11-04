@@ -187,12 +187,25 @@ static OirStatus populate_scalar_fields(
     OirAstTlvField field;
     int has_field=0;
     OirStatus status;
+    unsigned span_mask=0u;
+    OccSourceSpan span;
+    memset(&span,0,sizeof(span));
     oir_ast_tlv_reader_init(&reader,view->field_data+record->field_data_offset,
         record->field_data_length);
     do {
         status=oir_ast_tlv_reader_next(&reader,&field,&has_field);
         if(status!=OIR_STATUS_OK) return status;
         if(!has_field) break;
+        if(field.field_id>=0xFFF0u && field.field_id<=0xFFF3u){
+            unsigned bit=(unsigned)(field.field_id-0xFFF0u);
+            if((field.flags&OIR_AST_TLV_OPTIONAL)==0u)return OIR_STATUS_INVALID_SECTION;
+            span_mask|=1u<<bit;
+            if(bit==0u){if(field.value_type!=OIR_AST_VALUE_U64)return OIR_STATUS_INVALID_SECTION;span.start_offset=get_u64(field.value);}
+            else if(bit==1u){if(field.value_type!=OIR_AST_VALUE_U64)return OIR_STATUS_INVALID_SECTION;span.end_offset=get_u64(field.value);}
+            else if(bit==2u){if(field.value_type!=OIR_AST_VALUE_U32)return OIR_STATUS_INVALID_SECTION;span.end_line=get_u32(field.value);}
+            else {if(field.value_type!=OIR_AST_VALUE_U32)return OIR_STATUS_INVALID_SECTION;span.end_column=get_u32(field.value);}
+            continue;
+        }
         switch(node->type) {
             case AST_VAR_DECL: {
                 ASTVarDecl* n=(ASTVarDecl*)node;
@@ -361,6 +374,16 @@ static OirStatus populate_scalar_fields(
         }
         if(status!=OIR_STATUS_OK) return status;
     } while(has_field);
+    if(span_mask!=0u){
+        if(span_mask!=0x0Fu || record->start_line==0u || record->start_column==0u ||
+           span.end_offset<span.start_offset || span.end_line==0u || span.end_column==0u)
+            return OIR_STATUS_INVALID_SECTION;
+        span.has_location=1;
+        span.source_id=0u;
+        span.start_line=record->start_line;
+        span.start_column=record->start_column;
+        if(!ast_set_source_span(node,&span))return OIR_STATUS_INVALID_SECTION;
+    }
     return OIR_STATUS_OK;
 }
 
