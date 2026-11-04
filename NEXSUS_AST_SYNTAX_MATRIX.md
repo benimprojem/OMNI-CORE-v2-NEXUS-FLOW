@@ -1,7 +1,7 @@
 # NEXSUS Flow Syntax ↔ AST Coverage Matrix
 
 **Branch:** `refactor/c-core-roadmap`  
-**Status:** AST source-span field/validator and versioned legacy codec implemented; parser span stamping is broad but still under per-production audit; OIR optional span TLVs and inline ASM remain open. Existing semantic/lowering gaps remain gated.  
+**Status:** AST source-span field/validator and versioned legacy codec implemented; FASTEXEC/ASM AST nodes, raw Lexer token, Parser productions and OIR node bridge are now present on the working branch. Parser span stamping remains under per-production audit; OIR optional span TLVs and FASTEXEC Semantic validation remain open. Existing semantic/lowering gaps remain gated.  
 **Gate:** This matrix must be complete before Codegen expansion.
 
 ## Comparison rule
@@ -48,7 +48,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Flow / pipe `->, >>, <<` | `AST_NEXUS_FLOW`, `AST_NEXUS_PIPE` | Present/shared | Separate operator semantics, preserve retry/catch payload |
 | Relocate `_>` | `AST_RELOCATE` | Lexer/parser/AST/OIR implemented; semantic source/destination type compatibility check implemented | Source invalidation, destination ownership initialization and explicit lowering effect remain open |
 | Unpack `...>` | `AST_UNPACK` | Present | Verify target/value and ownership behavior |
-| Halt `(resource)?;` / block `}?;` | `AST_NEXUS_HALT` for targeted/targetless statement Halt; `AST_BLOCK_HALT` (OIR 100) for block-scope cleanup | Parser and AST graph contract implemented; OIR node mapping/schema/writer implemented; end-to-end OIR regression pending CI | `}?;` is appended as the final block child. Validator permits it only as the final child of `AST_BLOCK`/`AST_ASM_BLOCK`; root-level and non-final markers are rejected. Semantic cleanup ordering and lowering remain later-stage work. |
+| Halt `(resource)?;` / block `}?;` | `AST_NEXUS_HALT` for targeted/targetless statement Halt; `AST_BLOCK_HALT` (OIR 100) for block-scope cleanup | Parser and AST graph contract implemented; OIR node mapping/schema/writer implemented; end-to-end OIR regression pending CI | `}?;` is appended as the final block child. Validator permits it only as the final child of `AST_BLOCK`/`AST_ASM_BLOCK`/`AST_FASTEXEC_BLOCK`; root-level and non-final markers are rejected. Semantic cleanup ordering and lowering remain later-stage work. |
 | Intent `@` | `AST_NEXUS_INTENT` | Declared / deferred | Do not invent behavior until Intent design is active |
 | AI logic `??` | `AST_AI_LOGIC` | Declared / deferred | Define payload and semantics before implementation |
 | Panic `panic("...")` | `AST_PANIC` | Present | Current documented literal-only message restriction must be tested |
@@ -57,7 +57,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | I/O/reflection/time/free/zone sync/view/lock | Matching AST tags | Present/shared call payload | Complete intrinsic registry and semantic signatures |
 | Defer | `AST_DEFER` | Present | Scope exit ordering and cleanup semantics |
 | Thread block | `AST_THREAD_BLOCK` | Present | Name/body/mode/timeout and synchronization semantics |
-| Inline ASM (`fastexec`, `asm: LABEL { ... }`) | `AST_ASM_BLOCK` exists as generic block payload only | **Parser gap confirmed:** current `parser.c` has no consumption of `TOKEN_KW_FASTEXEC`, `TOKEN_KW_ASM`, or `AST_ASM_BLOCK`; ASM label/raw instruction payload has no dedicated AST representation | Define C-safe ASM payload/label node contract and token/source capture before Parser implementation; `asmcall`/`asmjmp` tokens also have no Parser consumption |
+| Inline ASM (`fastexec`, `asm: LABEL { ... }`) | `AST_FASTEXEC_BLOCK` (OIR 104) owns statements; `AST_ASM_LABEL` (OIR 105) owns label and exact raw body; legacy `AST_ASM_BLOCK` kind 29 unchanged | Lexer emits opaque `TOKEN_ASM_BODY` (OIR token 164); Parser constructs FASTEXEC/ASM nodes, preserves source spans and rejects ASM declarations outside FASTEXEC | C nodes, lifecycle, AST codec, OIR 101–105 bridge and parser/lexer tests added; tests not yet executed. Semantic must still validate `asmcall`/`asmjmp`, primitives, placeholders, register/ABI and target capability constraints |
 | `break / continue / return` | `AST_BREAK`, `AST_CONTINUE`, `AST_RETURN` | Present | Validate loop/function targets and return typing |
 
 ## Operator parser coverage — source audit (2026-11-03)
@@ -98,10 +98,10 @@ This table is an implementation audit, not a change to the language design. Unsu
 
 ## AST structural audit findings (updated 2026-11-04)
 
-- **All 103 current ASTNodeType values have explicit Graph Validator dispatch.** The validator's default branch now fails closed with AST_VALIDATE_INVALID_KIND; a future appended node cannot silently pass as a childless leaf. The populated codec round-trip fixtures also pass through `ast_validate()` because serialization validates before writing.
+- **All 105 current ASTNodeType values have explicit Graph Validator dispatch.** The validator's default branch now fails closed with AST_VALIDATE_INVALID_KIND; a future appended node cannot silently pass as a childless leaf. The populated codec round-trip fixtures also pass through `ast_validate()` because serialization validates before writing.
 - **Source spans are implemented but not complete end-to-end.** `ASTNode` now stores `OccSourceSpan`; the graph validator checks byte-offset and line/column monotonicity plus `line/col` mirrors. Parser stamping covers program root, blocks/Halt, literals/identifiers, unary/binary/assignment/postfix/call/index/tuple/array/array dimensions, declarations/parameters, if/loop/select/scan, Nexus Flow capture/jump and several aggregate/intrinsic forms. Exact tests cover UTF-8 byte columns and multiline endpoints. The AST binary codec writes `OCCAST` version 1 with fieldwise spans and reads legacy unprefixed streams (including non-seekable streams via replay buffer). **Remaining:** finish per-production parser audit, then implement OIR optional span TLVs (`0xFFF0`–`0xFFF3`) and round-trip/backward-compatibility tests. Do not mark the full source-span column complete yet.
 - **Block-scoped Halt representation added.** `AST_BLOCK_HALT` is a payload-free final child of its owning block; parser and graph validator enforce the placement contract. OIR uses append-only kind ID 100. Semantic cleanup ordering and lowering are not part of this AST change.
-- **Inline assembly remains a confirmed parser/model gap.** AST_ASM_BLOCK currently reuses ASTBlock payload shape, while fastexec, asm: labels, asmcall and asmjmp have no parser construction path in the C Parser. Do not invent a raw-assembly payload or target syntax until the language contract is resolved.
+- **FASTEXEC/Inline ASM AST and Parser path is implemented but not complete as a pipeline feature.** `AST_FASTEXEC_BLOCK` and `AST_ASM_LABEL` have owned payloads, graph validation, AST stream codec and OIR 104–105 mapping; `TOKEN_ASM_BODY` preserves raw text and Parser builds the nodes. `AST_ASM_BLOCK` remains legacy kind 29. Semantic scope checks for asmcall/asmjmp and hardware primitives, placeholder/register/clobber analysis, target capability and ABI checks remain open.
 - **Normative syntax document path reconciled.** The active branch now uses `docs/language/syntax-reference.md` as the single normative reference. The duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` was read-only and remains untouched.
 
 ## AST node payload/codec audit (all 103 current enum tags)
@@ -313,7 +313,7 @@ The following are tokenized by the C Lexer but have no explicit Parser consumpti
 | `m:` / `TOKEN_PRE_MUST` | Mandatory dependency | No explicit Parser consumption | Resolve whether this is a declaration/import form or reserved syntax; do not map it to ordinary variable without contract |
 | `r:`, `t:`, `o:` | Reserved prefixes | Deliberately reserved in syntax reference | Keep rejected/reserved; no AST node needed until activated |
 | `...` / `TOKEN_ELLIPSIS` | Variadic function parameter marker (documented as trailing marker in signatures) | No Parser consumption; `ASTFuncDecl` has no variadic field | Add explicit function signature flag/AST codec + OIR field contract and tests before accepting |
-| `asm:`, `fastexec`, `asmcall()`, `asmjmp()` | Inline assembly label/block and direct label call/jump | Lexer tokens exist; Parser does not consume them | Dedicated ASM payload/label representation and target validation required; current `AST_ASM_BLOCK` is only a generic block payload |
+| `asm:`, `fastexec`, `asmcall()`, `asmjmp()` | `AST_FASTEXEC_BLOCK`, `AST_ASM_LABEL`; `asmcall`/`asmjmp` remain `AST_FUNC_CALL` with intrinsic callee names | Lexer/Parser now consume FASTEXEC and raw ASM declaration syntax; stable token ID 164 and OIR AST IDs 104–105 | Parser scope diagnostic exists for ASM declarations; Semantic label resolution and scope checks for call/jump remain open |
 
 **Fail-closed requirement:** these forms must not be reported as implemented because their Lexer tokens exist. Until their AST/semantic contracts are established, parser rejection is preferable to silent or lossy acceptance.
 
@@ -335,8 +335,8 @@ This section separates **missing AST representation** from syntax that can legit
 | Link directive `!!=link name = "...";` | No explicit link-directive node | **Missing AST representation** | Model as compile-time/link metadata, not ordinary runtime assignment; codec and semantic target validation |
 | `dllexp: entry(...){...}` | No DLL-export declaration node/flag in function payload | **Missing AST declaration contract** | Append export-entry metadata/node; parser, codec, symbol validation and module-output integration |
 | `import("path")` / DLL, object and library import | Can parse as generic `AST_FUNC_CALL` only if call grammar accepts it; resource acquisition is not distinguished | **Representation ambiguous / semantic metadata missing** | Preserve import as explicit intrinsic/resource operation or typed call annotation; distinguish dynamic-library import from ordinary function call; verify parser fixture and Halt ownership |
-| `asmcall(LABEL)`, `asmjmp("LABEL")` | No dedicated AST node; ordinary call would lose special call/jump intent | **Missing dedicated operation contract** | Dedicated ASM call/jump node or intrinsic kind; label normalization/reference tests |
-| ASM substitutions `%var`, `%var:reg`, clobber list | No ASM operand/metadata payload | **Missing AST payload** | Raw-body + structured substitutions/register hints/clobbers contract before parser |
+| `asmcall(LABEL)`, `asmjmp("LABEL")` | Existing `AST_FUNC_CALL` plus intrinsic callee name and argument expression | Parser already preserves the call shape and exact source span; Semantic identifies intrinsic names | FASTEXEC-only scope, label resolution, argument shape and control-flow validation remain Semantic work |
+| ASM substitutions `%var`, `%var:reg`, clobber list | Preserved byte-for-byte inside `AST_ASM_LABEL.source_text`; no speculative AST operand node | Lexer/Parser preserve exact raw body and source span | Semantic/target analysis must extract and validate variable bindings, direction, register hints, clobbers and ABI effects |
 | Map type `map<key,val>` / map operations | `AST_INDEX_ACCESS` can syntactically represent `map[key]`; type payload has no key/value pair | **Missing map type AST contract** | Structured map type (key/value), map assignment/move semantics and round-trip tests; do not add map literal absent syntax |
 | `Vec2/Vec3/Vec4` | Type name can be stored as string; literal is `AST_ARRAY_LITERAL` | **AST syntax can be represented, but dimension/type metadata is missing** | Semantic vector shape contract; decide whether AST needs dedicated vector literal/type node or typed array-literal annotation |
 | Conditional target `!!=[target=...]` / target variants | Generic block/assignment cannot safely retain target condition semantics | **Missing directive node** | Same directive AST work as above; no heuristic parser |
@@ -347,11 +347,11 @@ This section separates **missing AST representation** from syntax that can legit
 
 ### Audit conclusion
 
-Confirmed AST representation gaps (not just parser gaps): **function type/callback, macro phase nodes, conditional target/link directives, DLL export/import metadata, ASM call/jump + operand/clobber payload, structured map type, and numeric bit-shift expression**. Generic placeholder spelling `t` is already preserved losslessly in function parameter/return type strings; its binding and unification are Semantic work, not a reason to add a redundant AST node. MUST dependency, variadic marker and named argument now have AST/Parser representations; their OIR and Semantic stages remain open.
+Confirmed AST representation gaps (not just parser gaps): **function type/callback, macro phase nodes, conditional target/link directives, DLL export/import metadata, structured map type, and numeric bit-shift expression**. ASM calls/jumps intentionally remain intrinsic `AST_FUNC_CALL` nodes; operand/clobber data is preserved in the raw ASM body for Semantic/target analysis. Generic placeholder spelling `t` is already preserved losslessly in function parameter/return type strings; its binding and unification are Semantic work, not a reason to add a redundant AST node. MUST dependency, variadic marker and named argument now have AST/Parser representations; their OIR and Semantic stages remain open.
 
 Some syntax can reuse existing AST shapes without a new enum tag (`elsif`, conditional action, array declarators, select/scan guard); these remain subject to lossless round-trip and semantic contract tests. `import(path)` is provisionally representable as a call expression but must carry an explicit import/resource kind to preserve its runtime ownership and DLL semantics.
 
-**Ordering:** complete the remaining AST payload contracts (generic/function types; directives/macro/import/export; ASM; map/vector/shift), then finish Parser/codec and OIR bridge coverage. Source Span remains a cross-cutting AST/codec prerequisite. Codegen stays blocked.
+**Ordering:** complete remaining AST payload contracts (generic/function types; directives/macro/import/export; map/vector/shift), finish the FASTEXEC Lexer/Parser edge-case audit and OIR source-span TLVs, then Semantic. Codegen stays blocked.
 
 
 ## AST contract — variadic and named arguments (implemented; OIR/Semantic pending, 2026-11-04)
