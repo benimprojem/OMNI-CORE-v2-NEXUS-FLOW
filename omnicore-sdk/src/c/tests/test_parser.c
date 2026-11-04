@@ -2522,5 +2522,71 @@ generic_type_done:
         }
     }
 
+
+    /* Normative expression lambda f:(params)>expr spans the full production. */
+    {
+        static const char source[] = "f:main() { v:f = f:(x) > x + 1; }";
+        ParserContext* parser = parser_init_source("lambda-expression-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* start = strstr(source, "f:(x)");
+        const char* end = strstr(source, "x + 1;");
+        ASTFuncDecl* function;
+        ASTVarDecl* variable;
+        ASTLambda* lambda;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            variable = function
+                ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+            lambda = variable && variable->initializer &&
+                variable->initializer->type == AST_LAMBDA
+                    ? (ASTLambda*)variable->initializer : NULL;
+            valid = lambda && lambda->base.source_span.has_location == 1u &&
+                lambda->base.source_span.start_offset == (size_t)(start - source) &&
+                lambda->base.source_span.end_offset == (size_t)(end + 5 - source) &&
+                lambda->body_is_expression == 1 &&
+                lambda->params && lambda->params->source_span.has_location == 1u &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Expression lambda source-span test failed.\\n");
+            return 1;
+        }
+    }
+
+    /* Normative block lambda f:(params){...} includes its body braces. */
+    {
+        static const char source[] = "f:main() { v:f = f:(x) { ret x; } }";
+        ParserContext* parser = parser_init_source("lambda-block-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* start = strstr(source, "f:(x)");
+        const char* body_open = strstr(source, "{ ret x");
+        const char* body_close = strstr(source, "ret x; }");
+        ASTFuncDecl* function;
+        ASTVarDecl* variable;
+        ASTLambda* lambda;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            variable = function
+                ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+            lambda = variable && variable->initializer &&
+                variable->initializer->type == AST_LAMBDA
+                    ? (ASTLambda*)variable->initializer : NULL;
+            valid = lambda && lambda->base.source_span.has_location == 1u &&
+                lambda->base.source_span.start_offset == (size_t)(start - source) &&
+                lambda->base.source_span.end_offset == (size_t)(body_close + 8 - source) &&
+                lambda->body && lambda->body->source_span.start_offset == (size_t)(body_open - source) &&
+                lambda->body->source_span.end_offset == (size_t)(body_close + 8 - source) &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Block lambda source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
