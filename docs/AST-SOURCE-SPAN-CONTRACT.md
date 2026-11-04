@@ -49,7 +49,7 @@ The current legacy AST stream is process/build-local and writes native C enum/in
 
 The implementation must therefore introduce a root-level magic/version prefix for the new stream format:
 
-- [x] New writer emits the 8-byte `OCCAST\\r\\n` magic and a 32-bit version (`1`) before the root node.
+- [x] New writer emits the 8-byte `OCCAST\r\n` magic and a 32-bit version (`1`) before the root node.
 - [x] New reader recognizes the prefix and decodes the versioned format.
 - [x] New reader also accepts the existing unprefixed legacy stream and leaves source spans absent.
 - [x] Unknown future stream versions fail closed.
