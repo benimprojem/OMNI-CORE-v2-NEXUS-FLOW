@@ -375,6 +375,23 @@ static void parser_stamp_node_tokens(
 }
 
 /* Compose a production span from its first and last owned AST children. */
+static void parser_stamp_node_child_to_token(
+    Parser* p, ASTNode* node, const ASTNode* first, const Token* last
+) {
+    OccSourceSpan span;
+    OccSourceSpan end_span;
+    if (!p || !p->ctx || !node || !first || !last ||
+        !first->source_span.has_location) return;
+    span = first->source_span;
+    parser_make_token_span(p->ctx, last, &end_span);
+    if (!end_span.has_location || span.source_id != end_span.source_id ||
+        end_span.end_offset < span.start_offset) return;
+    span.end_offset = end_span.end_offset;
+    span.end_line = end_span.end_line;
+    span.end_column = end_span.end_column;
+    (void)ast_set_source_span(node, &span);
+}
+
 static void parser_stamp_node_child_range(
     ASTNode* node, const ASTNode* first, const ASTNode* last
 ) {
@@ -1296,6 +1313,7 @@ static ASTNode* parse_postfix(Parser* p) {
             access->base.col = open.col;
             access->target = expr;
             access->index = index_expr;
+            parser_stamp_node_child_to_token(p, (ASTNode*)access, expr, &p->previous);
             expr = (ASTNode*)access;
         } else if (match(p, TOKEN_DOT)) {
             if (postfix_depth++ >= 32u) {
@@ -1325,6 +1343,7 @@ static ASTNode* parse_postfix(Parser* p) {
             }
             memcpy(node->member_name, member.start, (size_t)member.length);
             node->member_name[member.length] = '\0';
+            parser_stamp_node_child_to_token(p, (ASTNode*)node, expr, &member);
             expr = (ASTNode*)node;
         } else if (match(p, TOKEN_LPAREN)) {
             if (postfix_depth++ >= 32u) {
@@ -1362,6 +1381,7 @@ static ASTNode* parse_postfix(Parser* p) {
                         consume(p, TOKEN_COLON, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_COLON_VAR);
                         named->value = parse_expression(p);
                         if (!named->value) { ast_destroy((ASTNode*)named); ast_destroy((ASTNode*)call); return NULL; }
+                        parser_stamp_node_tokens(p, (ASTNode*)named, &label, &p->previous);
                         arg = (ASTNode*)named;
                         saw_named = 1;
                     } else {
@@ -1394,6 +1414,8 @@ static ASTNode* parse_postfix(Parser* p) {
                 } while (match(p, TOKEN_COMMA));
             }
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_ARGS);
+            if (p->previous.type == TOKEN_RPAREN)
+                parser_stamp_node_child_to_token(p, (ASTNode*)call, call->callee, &p->previous);
             expr = (ASTNode*)call;
         } else if (match(p, TOKEN_INC) || match(p, TOKEN_DEC)) {
             if (postfix_depth++ >= 32u) {
@@ -1411,6 +1433,7 @@ static ASTNode* parse_postfix(Parser* p) {
             post->base.col = p->previous.col;
             post->op = p->previous.type;
             post->operand = expr;
+            parser_stamp_node_child_to_token(p, (ASTNode*)post, expr, &p->previous);
             expr = (ASTNode*)post;
         } else {
             break;
