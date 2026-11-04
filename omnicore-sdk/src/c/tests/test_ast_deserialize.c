@@ -943,7 +943,7 @@ static int roundtrips_versioned_source_spans(void) {
         fseek(stream, 0L, SEEK_SET) != 0 ||
         fread(magic, 1u, sizeof(magic), stream) != sizeof(magic) ||
         fread(&version, sizeof(version), 1u, stream) != 1u ||
-        memcmp(magic, "OCCAST\\r\\n", sizeof(magic)) != 0 ||
+        memcmp(magic, "OCCAST\r\n", sizeof(magic)) != 0 ||
         version != 1u) {
         fclose(stream);
         ast_destroy((ASTNode*)original);
@@ -997,7 +997,7 @@ static int reads_unprefixed_legacy_stream(void) {
 
 static int rejects_unknown_ast_stream_version(void) {
     FILE* stream = tmpfile();
-    const unsigned char magic[8] = "OCCAST\\r\\n";
+    const unsigned char magic[8] = "OCCAST\r\n";
     uint32_t version = 99u;
     ASTNode* decoded;
     if (!stream) return 1;
