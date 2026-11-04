@@ -225,13 +225,14 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_UNROLL | 1–2 | count, loop | NODE_REF |
 | AST_ARRAY_LITERAL | 1 | ordered elements | NODE_REF |
 | AST_BLOCK_HALT | — | Block-scoped `}?;` cleanup marker; valid only as final child of AST_BLOCK/AST_ASM_BLOCK | — |
-| AST_NAMED_ARG | 1 | name | STRING_REF / NULL |
+| AST_NAMED_ARG | 1 | name | STRING_REF |
 | AST_NAMED_ARG | 2 | value | NODE_REF |
-| AST_MUST_DECL | 1 | name | STRING_REF / NULL |
+| AST_MUST_DECL | 1 | name | STRING_REF |
 | AST_MUST_DECL | 2 | source | NODE_REF |
+| AST_VARIADIC_PARAM | — | Final variadic marker; no node-specific fields | — |
 | AST_FASTEXEC_BLOCK | 1 | ordered statements | NODE_REF |
-| AST_ASM_LABEL | 1 | label | STRING_REF / NULL |
-| AST_ASM_LABEL | 2 | exact raw ASM source bytes | STRING_REF / NULL |
+| AST_ASM_LABEL | 1 | label | STRING_REF |
+| AST_ASM_LABEL | 2 | exact raw ASM source text (UTF-8; byte length preserved) | STRING_REF |
 
 OIR node kinds **101–105** are append-only additions for `AST_VARIADIC_PARAM`, `AST_NAMED_ARG`, `AST_MUST_DECL`, `AST_FASTEXEC_BLOCK`, and `AST_ASM_LABEL`. IDs 1–100 are unchanged.
 
