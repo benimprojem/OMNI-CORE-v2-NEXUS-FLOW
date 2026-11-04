@@ -859,13 +859,23 @@ typedef struct {
     size_t depth;
     int failed;
     uint32_t format_version;
+    unsigned char replay[AST_STREAM_MAGIC_SIZE];
+    size_t replay_size;
+    size_t replay_offset;
 } ASTReader;
 
 static int ast_read_exact(ASTReader* reader, void* destination, size_t size) {
+    size_t copied = 0u;
     if (!reader || reader->failed || !destination) return 0;
-    if (size == 0) return 1;
-
-    if (fread(destination, 1, size, reader->stream) != size) {
+    if (size == 0u) return 1;
+    if (reader->replay_offset < reader->replay_size) {
+        size_t available = reader->replay_size - reader->replay_offset;
+        copied = available < size ? available : size;
+        memcpy(destination, reader->replay + reader->replay_offset, copied);
+        reader->replay_offset += copied;
+    }
+    if (copied < size &&
+        fread((unsigned char*)destination + copied, 1u, size - copied, reader->stream) != size - copied) {
         reader->failed = 1;
         return 0;
     }
@@ -1587,13 +1597,10 @@ ASTNode* ast_deserialize(FILE* in) {
     unsigned char prefix[AST_STREAM_MAGIC_SIZE];
     ASTReader reader;
     ASTNode* root;
-    long stream_start;
     if (!in) return NULL;
 
     memset(&reader, 0, sizeof(reader));
     reader.stream = in;
-    stream_start = ftell(in);
-    if (stream_start < 0) return NULL;
     {
         size_t got = fread(prefix, 1u, sizeof(prefix), in);
         if (got == sizeof(prefix) && memcmp(prefix, AST_STREAM_MAGIC, sizeof(prefix)) == 0) {
@@ -1602,8 +1609,12 @@ ASTNode* ast_deserialize(FILE* in) {
                 version != AST_STREAM_VERSION) return NULL;
             reader.format_version = version;
         } else {
-            clearerr(in);
-            if (fseek(in, stream_start, SEEK_SET) != 0) return NULL;
+            if (ferror(in)) return NULL;
+            if (feof(in)) clearerr(in);
+            if (got > 0u) {
+                memcpy(reader.replay, prefix, got);
+                reader.replay_size = got;
+            }
             reader.format_version = 0u;
         }
     }
