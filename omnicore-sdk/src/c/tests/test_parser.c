@@ -1933,5 +1933,64 @@ generic_type_done:
         }
     }
 
+
+    /* Postfix index, call and named-argument nodes preserve full production spans. */
+    {
+        static const char source[] = "f:main() { v:x = arr[1]; foo(a:2); x++; }";
+        ParserContext* parser = parser_init_source("postfix-spans.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        size_t array_offset = (size_t)(strstr(source, "arr") - source);
+        size_t index_end = (size_t)(strchr(strstr(source, "arr"), ']') + 1 - source);
+        size_t call_offset = (size_t)(strstr(source, "foo") - source);
+        size_t call_end = (size_t)(strchr(strstr(source, "foo"), ')') + 1 - source);
+        size_t named_offset = (size_t)(strstr(source, "a:2") - source);
+        size_t named_end = named_offset + 3u;
+        size_t postfix_offset = (size_t)(strrchr(source, 'x') - source);
+        ASTFuncDecl* function;
+        ASTNode* statement;
+        ASTIndexAccess* index;
+        ASTCall* call;
+        ASTNamedArg* named;
+        ASTUnaryExpr* postfix;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            statement = function
+                ? ((ASTBlock*)function->body)->statements : NULL;
+            index = statement && statement->type == AST_VAR_DECL &&
+                ((ASTVarDecl*)statement)->initializer &&
+                ((ASTVarDecl*)statement)->initializer->type == AST_INDEX_ACCESS
+                    ? (ASTIndexAccess*)((ASTVarDecl*)statement)->initializer : NULL;
+            statement = statement ? statement->next : NULL;
+            call = statement && statement->type == AST_FUNC_CALL
+                ? (ASTCall*)statement : NULL;
+            named = call && call->args && call->args->type == AST_NAMED_ARG
+                ? (ASTNamedArg*)call->args : NULL;
+            statement = statement ? statement->next : NULL;
+            postfix = statement && statement->type == AST_POSTFIX_EXPR
+                ? (ASTUnaryExpr*)statement : NULL;
+            valid = index && index->base.source_span.has_location == 1u &&
+                index->base.source_span.start_offset == array_offset &&
+                index->base.source_span.end_offset == index_end &&
+                index->base.source_span.start_column == array_offset + 1u &&
+                index->base.source_span.end_column == index_end + 1u &&
+                call && call->base.source_span.has_location == 1u &&
+                call->base.source_span.start_offset == call_offset &&
+                call->base.source_span.end_offset == call_end &&
+                named && named->base.source_span.has_location == 1u &&
+                named->base.source_span.start_offset == named_offset &&
+                named->base.source_span.end_offset == named_end &&
+                postfix && postfix->base.source_span.has_location == 1u &&
+                postfix->base.source_span.start_offset == postfix_offset &&
+                postfix->base.source_span.end_offset == postfix_offset + 3u &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Postfix/call source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
