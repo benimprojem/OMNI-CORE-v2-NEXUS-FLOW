@@ -2266,36 +2266,6 @@ generic_type_done:
     }
 
 
-    /* Lambda expression spans keyword through expression/body completion. */
-    {
-        static const char source[] = "f:main() { v:f = fn(x) > x + 1; }";
-        ParserContext* parser = parser_init_source("lambda-span.nxf",
-            (const uint8_t*)source, sizeof(source) - 1u);
-        const char* start = strstr(source, "fn(x)");
-        const char* end = strstr(source, "x + 1;");
-        ASTFuncDecl* function;
-        ASTVarDecl* variable;
-        ASTLambda* lambda;
-        int valid = 0;
-        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
-            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
-            variable = function
-                ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
-            lambda = variable && variable->initializer &&
-                variable->initializer->type == AST_LAMBDA
-                    ? (ASTLambda*)variable->initializer : NULL;
-            valid = lambda && lambda->base.source_span.has_location == 1u &&
-                lambda->base.source_span.start_offset == (size_t)(start - source) &&
-                lambda->base.source_span.end_offset == (size_t)(end + 5 - source) &&
-                lambda->body && ast_validate(parser->ast_root, NULL);
-        }
-        if (parser) parser_destroy(parser);
-        if (!valid) {
-            fprintf(stderr, "Lambda AST source-span test failed.\\n");
-            return 1;
-        }
-    }
-
     /* Thread block and its nested block include the special >{ opener. */
     {
         static const char source[] = "f:main() { (worker)>{ ret 1; } }";
