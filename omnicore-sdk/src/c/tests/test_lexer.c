@@ -59,7 +59,7 @@ static int test_opaque_asm_body_token(void) {
     raw_start=strchr(source,'{')+1;
     raw_end=strrchr(source,'}');
     raw_length=(size_t)(raw_end-raw_start);
-    token=lexer_next_token(&ctx);
+    token=lexer_next_token(&ctx); /* repeated token request must preserve pending raw body */
     if(token.type!=TOKEN_ASM_BODY || token.start!=raw_start ||
         token.source_offset!=(size_t)(raw_start-source) ||
         token.source_length!=raw_length || token.length!=(int)raw_length ||
