@@ -2453,6 +2453,7 @@ static ASTNode* parse_block(Parser* p) {
     block_end = p->previous;
     /* `}?;` is a block terminator, not a normal targeted Halt statement. */
     if (match(p, TOKEN_HALT)) {
+        Token cleanup_token = p->previous;
         ASTNode* cleanup = parser_ast_create(p, AST_BLOCK_HALT);
         if (!cleanup) {
             ast_destroy(head);
@@ -2460,9 +2461,10 @@ static ASTNode* parse_block(Parser* p) {
             --p->nesting_depth;
             return NULL;
         }
-        cleanup->line = p->previous.line;
-        cleanup->col = p->previous.col;
-        block_end = p->previous;
+        cleanup->line = cleanup_token.line;
+        cleanup->col = cleanup_token.col;
+        parser_stamp_node_token(p, cleanup, &cleanup_token);
+        block_end = cleanup_token;
         if (!head) head = cleanup;
         else tail->next = cleanup;
         tail = cleanup;
