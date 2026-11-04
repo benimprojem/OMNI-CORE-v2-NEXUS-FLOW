@@ -100,7 +100,7 @@ static OirStatus validate_record(
         }
     } else if (diagnostic_id != 0 ||
         source_offset == OIR_TOKEN_STREAM_NO_SOURCE_OFFSET ||
-        lexeme_length == 0) {
+        (lexeme_length == 0 && token_id != 164u)) {
         return OIR_STATUS_INVALID_SECTION;
     }
 
@@ -233,7 +233,7 @@ OirStatus oir_token_stream_record_to_lexer_token(
         out_token->start = source ? (const char*)(source + (size_t)offset) : "";
         out_token->length = 0;
     } else {
-        if (!source || record->lexeme_length == 0) return OIR_STATUS_INVALID_SECTION;
+        if (!source || (record->lexeme_length == 0 && frontend_token != TOKEN_ASM_BODY)) return OIR_STATUS_INVALID_SECTION;
         out_token->start = (const char*)(source + (size_t)offset);
         out_token->length = (int)record->lexeme_length;
     }
