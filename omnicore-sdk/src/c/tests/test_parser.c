@@ -1811,6 +1811,8 @@ generic_type_done:
             (const uint8_t*)source, sizeof(source) - 1u);
         OccSourceFileTable files;
         uint32_t first_id = UINT32_MAX;
+        size_t function_offset = (size_t)(strstr(source, "f:main") - source);
+        size_t declaration_offset = (size_t)(strstr(source, "v:x") - source);
         size_t literal_offset = (size_t)(strstr(source, "42") - source);
         const char* return_identifier = strstr(source, "ret x");
         size_t identifier_offset = return_identifier
@@ -1841,6 +1843,10 @@ generic_type_done:
                 identifier ? &identifier->source_span : NULL;
             const OccSourceSpan* binary_span = binary
                 ? &binary->base.source_span : NULL;
+            const OccSourceSpan* declaration_span = variable
+                ? &variable->base.source_span : NULL;
+            const OccSourceSpan* function_span = function
+                ? &function->base.source_span : NULL;
             valid = variable && variable->base.type == AST_VAR_DECL &&
                 binary && binary->left && binary->right &&
                 binary->left->type == AST_LITERAL && binary->right->type == AST_LITERAL &&
@@ -1857,6 +1863,17 @@ generic_type_done:
                 binary_span->end_offset == right_literal_offset + 1u &&
                 binary_span->start_column == literal_offset + 1u &&
                 binary_span->end_column == right_literal_offset + 2u &&
+                declaration_span && declaration_span->has_location == 1u &&
+                declaration_span->source_id == 1u &&
+                declaration_span->start_offset == declaration_offset &&
+                declaration_span->end_offset == right_literal_offset + 2u &&
+                declaration_span->start_column == declaration_offset + 1u &&
+                function_span && function_span->has_location == 1u &&
+                function_span->source_id == 1u &&
+                function_span->start_offset == function_offset &&
+                function_span->end_offset == sizeof(source) - 1u &&
+                function_span->start_column == function_offset + 1u &&
+                function_span->end_column == sizeof(source) &&
                 return_node && return_node->type == AST_RETURN &&
                 identifier && identifier->type == AST_IDENTIFIER &&
                 identifier_span && identifier_span->has_location == 1u &&
