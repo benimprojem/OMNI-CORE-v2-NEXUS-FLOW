@@ -33,7 +33,7 @@ int main(void) {
         }
         span.end_offset = 11;
         if (ast_set_source_span(span_node, &span)) {
-            fprintf(stderr, "invalid source span accepted\\n");
+            fprintf(stderr, "invalid source span accepted\n");
             ast_destroy(span_node); return 1;
         }
         if (!ast_set_source_span(span_node, NULL) ||
@@ -128,13 +128,13 @@ int main(void) {
         if(!identifier->name || !literal->string_value ||
            !newtype->name || !newtype->target_type) return 1;
         strcpy(identifier->name,"x");
-        literal->string_value[0]='\\0'; /* Empty string literal is valid. */
+        literal->string_value[0]='\0'; /* Empty string literal is valid. */
         strcpy(newtype->name,"Id");
         strcpy(newtype->target_type,"u32");
         if(!expect((ASTNode*)identifier,AST_VALIDATE_OK) ||
            !expect((ASTNode*)literal,AST_VALIDATE_OK) ||
            !expect((ASTNode*)newtype,AST_VALIDATE_OK)) {
-            fprintf(stderr,"valid scalar AST payload was rejected\\n");
+            fprintf(stderr,"valid scalar AST payload was rejected\n");
             ast_destroy((ASTNode*)identifier);
             ast_destroy((ASTNode*)literal);
             ast_destroy((ASTNode*)newtype);
