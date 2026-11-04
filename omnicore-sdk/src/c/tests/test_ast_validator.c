@@ -521,15 +521,17 @@ int main(void) {
     /* Raw ASM labels are owned by FASTEXEC and must never float outside it. */
     {
         ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
+        ASTBlock* nested=(ASTBlock*)ast_create(AST_BLOCK);
         ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
-        if(!fast || !label) return 1;
+        if(!fast || !nested || !label) return 1;
         label->label=(char*)malloc(4u);
         label->source_text=(char*)malloc(strlen("mov rax, %value\\r\\nadd rax, 1")+1u);
         if(!label->label || !label->source_text) return 1;
         strcpy(label->label,"ADD");
         strcpy(label->source_text,"mov rax, %value\r\nadd rax, 1");
         label->source_length=strlen(label->source_text);
-        fast->statements=(ASTNode*)label;
+        nested->statements=(ASTNode*)label;
+        fast->statements=(ASTNode*)nested;
         if(!expect((ASTNode*)fast,AST_VALIDATE_OK)) {
             fprintf(stderr,"FASTEXEC with raw ASM label rejected\\n");
             ast_destroy((ASTNode*)fast); return 1;
