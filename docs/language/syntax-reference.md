@@ -1077,8 +1077,9 @@ echo(o1.isim_getir()); // Ahmet
 
 ### Inline Assembly kodları için:
 *fastexec, asm kodları için kapsayıcı, değişken geçişlerinin otomatik olarak yapıldığı ve optimize edici bir bloktur.*
-> asm blockları fastexec kapsamında değil ise hata üretilir.
-> asm blokları başka asm bloklara, asm nin normal etiket çağrıları gibi çağrı (call) yapabilir.
+> ASM bildirimi, `asmcall`, `asmjmp` ve düşük seviyeli CPU/GPU/NPU ilkel işlemleri yalnızca `fastexec { ... }` kapsamı içinde kullanılabilir; kapsam dışı kullanım derleme hatasıdır.
+> `fastexec` normal Nexus Flow değişken ve ifadelerini de içeren ayrı bir AST yürütme kapsamıdır.
+> ASM etiketleri aynı FASTEXEC kapsamı içinde `asmcall`/`asmjmp` ile çağrılabilir.
 > etiket isimleri ( _, -, $ ) vs.. gibi işaretler ile başlayamaz
 
 -* Derleyici, aşağıdaki fonksiyonları standart kütüphane çağrısı yerine doğrudan assembly veya özel işlem kodlarına dönüştürür:
