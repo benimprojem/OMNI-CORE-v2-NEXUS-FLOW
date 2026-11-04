@@ -162,6 +162,12 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
             return field_id == 1u ? ((const ASTArrayType*)node)->dimensions : NULL;
         case AST_ARRAY_DIMENSION:
             return field_id == 1u ? ((const ASTArrayDimension*)node)->length : NULL;
+        case AST_FASTEXEC_BLOCK:
+            return field_id == 1u ? ((const ASTFastExecBlock*)node)->statements : NULL;
+        case AST_NAMED_ARG:
+            return field_id == 2u ? ((const ASTNamedArg*)node)->value : NULL;
+        case AST_MUST_DECL:
+            return field_id == 2u ? ((const ASTMustDecl*)node)->source : NULL;
         case AST_SELECT: { const ASTSelect* n=(const ASTSelect*)node; return field_id==1u?n->selector:(field_id==2u?n->arms:NULL); }
         case AST_SELECT_ARM: { const ASTSelectArm* n=(const ASTSelectArm*)node; return field_id==1u?n->pattern:(field_id==2u?n->body:NULL); }
         case AST_SCAN: { const ASTScan* n=(const ASTScan*)node; return field_id==1u?n->subject:(field_id==2u?n->arms:NULL); }
@@ -231,10 +237,11 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
 
 uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
     switch (type) {
-        case AST_PROGRAM: case AST_BLOCK: case AST_ASM_BLOCK:
+        case AST_PROGRAM: case AST_BLOCK: case AST_ASM_BLOCK: case AST_FASTEXEC_BLOCK:
         case AST_TUPLE: case AST_ARRAY_LITERAL: case AST_ARRAY_TYPE:
         case AST_ARRAY_DIMENSION: case AST_NEXUS_HALT: case AST_UNPACK: case AST_DEFER:
             return 1u;
+        case AST_NAMED_ARG: case AST_MUST_DECL: return 2u;
         case AST_STRUCT_DECL: case AST_UNION_DECL: return 6u;
         case AST_GROUP_DECL: return 4u;
         case AST_ENUM_DECL: case AST_ENUM_VARIANT: case AST_METHOD:
@@ -262,7 +269,7 @@ uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
         case AST_THREAD_BLOCK: return 4u;
         case AST_SELECT: case AST_SCAN: case AST_SCAN_ARM: case AST_PATTERN_CONSTRUCTOR: return 2u;
         case AST_SELECT_ARM: case AST_LAMBDA: return 3u;
-        case AST_PATTERN_BINDING: case AST_BLOCK_HALT: return 0u;
+        case AST_PATTERN_BINDING: case AST_BLOCK_HALT: case AST_VARIADIC_PARAM: case AST_ASM_LABEL: return 0u;
         case AST_RULESET_DECL: case AST_ON_BLOCK: return 3u;
         case AST_RULE_BARRIER: case AST_RULE_TRIGGER: case AST_APPLY_RULES:
         case AST_RELOCATE: case AST_UNROLL: return 2u;
