@@ -234,6 +234,17 @@ static int test_aggregate_declaration_ast(void) {
     ASTBlock* body;
     ASTNode* node;
     int seen_struct = 0, seen_newtype = 0, seen_enum = 0, seen_union = 0;
+    const char* struct_start = strstr(source, "struct: Point");
+    const char* field_x = strstr(source, "v:x!i32");
+    const char* field_y = strstr(source, "v:y!i32");
+    const char* newtype_start = strstr(source, "nt:id");
+    const char* newtype_end = strstr(source, "u64;");
+    const char* enum_start = strstr(source, "enum:State");
+    const char* enum_idle = strstr(source, "Idle");
+    const char* enum_running = strstr(source, "Running");
+    const char* enum_data = strstr(source, "pid!u32");
+    const char* union_start = strstr(source, "union:Register32");
+    const char* union_field = strstr(source, "v:full!u32");
     int ok = 0;
     if (!ctx) return 0;
     if (parser_run(ctx) != 0 || ctx->error_count != 0 || !ctx->ast_root) goto done;
@@ -245,22 +256,51 @@ static int test_aggregate_declaration_ast(void) {
     for (node = body->statements; node; node = node->next) {
         if (node->type == AST_STRUCT_DECL) {
             ASTStructDecl* d = (ASTStructDecl*)node;
-            if (!d->name || !d->fields || !d->fields->next) goto done;
+            const char* struct_close = struct_start ? strchr(struct_start, '}') : NULL;
+            if (!d->name || !d->fields || !d->fields->next ||
+                !d->base.source_span.has_location ||
+                d->base.source_span.start_offset != (uint64_t)(struct_start - source) ||
+                d->base.source_span.end_offset != (uint64_t)(struct_close + 1 - source) ||
+                !d->fields->source_span.has_location ||
+                d->fields->source_span.start_offset != (uint64_t)(field_x - source) ||
+                d->fields->source_span.end_offset != (uint64_t)(field_x + 7 - source) ||
+                !d->fields->next->source_span.has_location ||
+                d->fields->next->source_span.start_offset != (uint64_t)(field_y - source) ||
+                d->fields->next->source_span.end_offset != (uint64_t)(field_y + 7 - source)) goto done;
             seen_struct = 1;
         } else if (node->type == AST_NEWTYPE_DECL) {
             ASTNewTypeDecl* d = (ASTNewTypeDecl*)node;
-            if (!d->name || !d->target_type) goto done;
+            if (!d->name || !d->target_type ||
+                !d->base.source_span.has_location ||
+                d->base.source_span.start_offset != (uint64_t)(newtype_start - source) ||
+                d->base.source_span.end_offset != (uint64_t)(newtype_end + 4 - source)) goto done;
             seen_newtype = 1;
         } else if (node->type == AST_ENUM_DECL) {
             ASTEnumDecl* d = (ASTEnumDecl*)node;
             ASTEnumVariant* v;
-            if (!d->name || !d->variants) goto done;
+            const char* enum_close = enum_start ? strchr(enum_start, '}') : NULL;
+            if (!d->name || !d->variants || !d->base.source_span.has_location ||
+                d->base.source_span.start_offset != (uint64_t)(enum_start - source) ||
+                d->base.source_span.end_offset != (uint64_t)(enum_close + 1 - source)) goto done;
             v = (ASTEnumVariant*)d->variants;
-            if (!v->base.next || !((ASTEnumVariant*)v->base.next)->data) goto done;
+            if (!v->base.next || !((ASTEnumVariant*)v->base.next)->data ||
+                !v->base.source_span.has_location ||
+                v->base.source_span.start_offset != (uint64_t)(enum_idle - source) ||
+                v->base.source_span.end_offset != (uint64_t)(enum_idle + 4 - source) ||
+                !v->base.next->source_span.has_location ||
+                v->base.next->source_span.start_offset != (uint64_t)(enum_running - source) ||
+                v->base.next->source_span.end_offset != (uint64_t)(enum_data + 7 - source) ||
+                !((ASTEnumVariant*)v->base.next)->data->source_span.has_location ||
+                ((ASTEnumVariant*)v->base.next)->data->source_span.start_offset != (uint64_t)(enum_data - source) ||
+                ((ASTEnumVariant*)v->base.next)->data->source_span.end_offset != (uint64_t)(enum_data + 7 - source)) goto done;
             seen_enum = 1;
         } else if (node->type == AST_UNION_DECL) {
             ASTStructDecl* d = (ASTStructDecl*)node;
-            if (!d->name || !d->fields) goto done;
+            if (!d->name || !d->fields || !d->base.source_span.has_location ||
+                d->base.source_span.start_offset != (uint64_t)(union_start - source) ||
+                !d->fields->source_span.has_location ||
+                d->fields->source_span.start_offset != (uint64_t)(union_field - source) ||
+                d->fields->source_span.end_offset != (uint64_t)(union_field + 10 - source)) goto done;
             seen_union = 1;
         }
     }
