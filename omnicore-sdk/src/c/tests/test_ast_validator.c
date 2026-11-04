@@ -281,6 +281,21 @@ int main(void) {
             return 1;
         }
         identifier->base.line = 2;
+        identifier->base.source_span.end_line = 1u;
+        if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
+            fprintf(stderr, "backward source span line accepted\\n");
+            ast_destroy((ASTNode*)identifier);
+            return 1;
+        }
+        identifier->base.source_span = span;
+        identifier->base.source_span.end_column = 2u;
+        if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
+            fprintf(stderr, "backward same-line source span column accepted\\n");
+            ast_destroy((ASTNode*)identifier);
+            return 1;
+        }
+        identifier->base.source_span = span;
+        identifier->base.line = 2;
         identifier->base.source_span.end_column = 0u;
         if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
             fprintf(stderr, "zero source span end column accepted\\n");
