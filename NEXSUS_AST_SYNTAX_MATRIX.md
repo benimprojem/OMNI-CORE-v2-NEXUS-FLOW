@@ -388,3 +388,6 @@ The normative function section already declares `f:main(argc, argv)!i32 { ... }`
 - Implementation stages: syntax/AST parsing is existing; semantic signature validation, runtime ABI and OS adapters, `len(argv)` compatibility, and tests are pending. Add tests for zero/one/multiple args, spaces/quotes, Unicode, argc-length invariant, Windows/POSIX normalization, and bare-metal empty/injected args.
 
 This defines CLI argument *delivery*, not the full `main` return/exit-code convention; the latter remains an explicit runtime contract item.
+
+
+**Implementation update (2026-11-04):** `AST_VARIADIC_PARAM` and `AST_NAMED_ARG` have been appended after the existing AST kind inventory (IDs 101 and 102; prior IDs preserved). AST factory, printer, destructor, serializer/deserializer bounds and named-argument payload codec are wired. Parser now accepts final `...` in function/external parameter lists and `label:value` for intrinsic and ordinary calls; it rejects positional-after-named and duplicate labels. Graph validation checks variadic marker context/finality and named argument context, required fields, order and duplicate labels. Parser round-trip and validator tests have been added. **Not complete:** tests have not yet been run in CI; OIR stable IDs/schema/bridge support and semantic variadic packing/name resolution remain pending.
