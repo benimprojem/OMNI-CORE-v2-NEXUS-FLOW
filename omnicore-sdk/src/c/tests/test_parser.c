@@ -2198,9 +2198,11 @@ generic_type_done:
         const char* jump = strstr(source, "?>");
         size_t start_offset = jump ? (size_t)(jump - source) : 0u;
         ASTFuncDecl* function;
-        ASTNode* node;
+        ASTNode* node = NULL;
+        int parse_status = -1;
         int valid = 0;
-        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+        if (parser) parse_status = parser_run(parser);
+        if (parser && parse_status == PARSER_STATUS_OK && parser->ast_root) {
             function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
             node = function ? ((ASTBlock*)function->body)->statements : NULL;
             valid = node && node->type == AST_NEXUS_JUMP &&
@@ -2210,6 +2212,15 @@ generic_type_done:
                 node->source_span.start_column == start_offset + 1u &&
                 node->source_span.end_column == start_offset + 10u &&
                 ast_validate(parser->ast_root, NULL);
+        }
+        if (!valid && parser) {
+            fprintf(stderr, "jump diagnostic: status=%d errors=%d node=%d has=%u start=%llu end=%llu cols=%u..%u\n",
+                parse_status, parser->error_count, node ? (int)node->type : -1,
+                node ? (unsigned)node->source_span.has_location : 0u,
+                (unsigned long long)(node ? node->source_span.start_offset : 0u),
+                (unsigned long long)(node ? node->source_span.end_offset : 0u),
+                node ? node->source_span.start_column : 0u,
+                node ? node->source_span.end_column : 0u);
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
