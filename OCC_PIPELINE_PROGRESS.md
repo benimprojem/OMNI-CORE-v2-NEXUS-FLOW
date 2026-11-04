@@ -318,9 +318,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - [x] `ast_set_source_span()` API'si eklendi: NULL ile temizleme, offset sıralama kontrolü ve line/col senkronizasyonu.
 - [x] AST validator testine span atama/geçersiz aralık/temizleme kontrolleri eklendi.
 - [ ] Parser'ın token başlangıç ve düğüm bitiş konumlarını tüm AST üretim yollarına yayması.
-- [ ] AST serialization sürümleme + legacy stream uyumluluğu; span round-trip testleri.
+- [x] AST serialization sürümleme + legacy stream uyumluluğu; span round-trip ve legacy unprefixed okuma testleri.
+- [ ] Truncated magic/version prefix negatif testleri.
 - [ ] OIR span TLV aktarımı ve entegrasyon testleri.
-- **Durum:** API/storage/test kaynakları commit edildi; henüz CI çalıştırılmadı. Source Span tamamlanmış değildir.
+- **Durum:** API/storage/validator ve sürümlü legacy codec kaynakları commit edildi; parser stamping ve OIR TLV bekliyor. Source Span tamamlanmış değildir.
 
 
 ### Multi-file source identity — kaynak kayıt tablosu (2026-11-04)
@@ -348,3 +349,6 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - **Durum:** Parser context ve parser diagnostic kimlik bağlantısı eklendi; tam çoklu dosya derleme ve kullanıcıya gösterilen dosya adı henüz tamamlanmadı.
 
 | 2026-11-04 | AST source span doğrulaması eklendi: `ast_validate()` ters byte aralığını, sıfır bitiş satır/sütununu ve `line/col` başlangıç aynası uyuşmazlığını reddediyor; regresyon testleri eklendi. Parser production stamping, versioned legacy codec ve OIR TLV hâlâ açık. | `ast.h`, `ast.c`, `test_ast_validator.c`, `docs/AST-SOURCE-SPAN-CONTRACT.md` |
+
+
+| 2026-11-04 | Legacy AST codec sürümlendi: yeni yazıcı `OCCAST\\r\\n` + version 1 başlığı yazar ve her düğümün `OccSourceSpan` alanlarını padding bağımsız ayrı scalar alanlar olarak saklar. Okuyucu eski başlıksız stream'leri de kabul eder (span absent), bilinmeyen sürümü fail-closed reddeder. Testler: source_id/byte offset/line-column tam round-trip, unprefixed legacy stream okuma ve bilinmeyen sürüm reddi. Parser üretim sınırlarında span damgalama ve OIR optional TLV hâlâ açık; feature tamamlanmadı. | `ast.c`, `test_ast_deserialize.c`, `docs/AST-SOURCE-SPAN-CONTRACT.md`; commits `89d9ba8`, `6a0ae82`; CI bekleniyor |
