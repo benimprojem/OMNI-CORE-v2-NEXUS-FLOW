@@ -76,8 +76,29 @@ static int test_opaque_asm_body_token(void) {
 }
 
 
+static int test_unterminated_asm_body(void) {
+    static const char source[]="asm: BROKEN { mov rax, %value";
+    ParserContext ctx;
+    Token token;
+    const char* body=strchr(source,'{')+1;
+    memset(&ctx,0,sizeof(ctx));
+    ctx.source_buffer=(char*)source;
+    ctx.source_len=sizeof(source)-1u;
+    ctx.current_line=1;
+    ctx.current_col=1;
+    if(lexer_next_token(&ctx).type!=TOKEN_KW_ASM ||
+        lexer_next_token(&ctx).type!=TOKEN_COLON ||
+        lexer_next_token(&ctx).type!=TOKEN_IDENTIFIER ||
+        lexer_next_token(&ctx).type!=TOKEN_LBRACE) return 0;
+    token=lexer_next_token(&ctx);
+    return token.type==TOKEN_ERROR &&
+        token.source_offset==(size_t)(body-source) &&
+        token.source_length==sizeof(source)-1u-(size_t)(body-source) &&
+        ctx.pos==ctx.source_len;
+}
+
 int main(void) {
-    if (!test_opaque_asm_body_token()) return 1;
+    if (!test_opaque_asm_body_token() || !test_unterminated_asm_body()) return 1;
     const char* source = "v:x = 12;\n@ !!= -> ?-> ?=> !-> << >> ...> name asm fastexec break echo send receive f32 f64 bool bit byte hex void any is_err true false";
     const OmniTokenType expected[] = {
         TOKEN_PRE_VAR, TOKEN_ASSIGN, TOKEN_NUMBER, TOKEN_SEMICOLON,
