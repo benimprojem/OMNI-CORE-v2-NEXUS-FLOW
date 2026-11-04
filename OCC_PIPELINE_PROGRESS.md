@@ -500,4 +500,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 | 2026-11-04 | Truncation test derinleştirildi: prefix sweep fixture artık yalnız leaf identifier değil; AST_VAR_DECL → nested literal initializer + inline_type identifier içeren çok katmanlı ownership ağacı. Böylece her byte kesiminde partial child cleanup ve üst düğüm cleanup birlikte exercised edilir. Commit `1e1be2d`; CI run `41868279190` queued, sonuç bekleniyor. | `test_ast_deserialize.c` |
 
-| 2026-11-04 | Nested AST deserialize truncation sweep CI doğrulandı: Ubuntu/Windows CTest, ASan/UBSan ve Valgrind başarılı; macOS runner job'u iptal edildi (platform testi yok). AST ownership cleanup için bu regression güvence altında. | run `41868279190`, commit `c6a7916` |
+| 2026-11-04 | Nested AST deserialize truncation sweep CI doğrulandı: Ubuntu/Windows CTest, ASan/UBSan ve Valgrind başarılı; macOS runner job'u iptal edildi (platform testi yok). AST ownership cleanup için bu regression güvence altında. | run `41868279190`, test commit `1e1be2d1`; CI-status kayıt commit'i `614dd718` |
+
+
+| 2026-11-05 | AST node lifecycle audit: AST enum 105 node'a ulaşıyor. Payload-free `AST_BREAK`, `AST_CONTINUE`, `AST_BLOCK_HALT`, `AST_VARIADIC_PARAM` türleri factory, destructor, serializer ve deserializer switch'lerinde açıkça işaretlendi (sessiz default davranışı yerine). Variadic marker'ın payload taşımadığı AST header yorumuyla uyumlu. CI run `41912702421` queued; sonuç henüz yok. | `ast.c`; commit `ce0aa835` |
