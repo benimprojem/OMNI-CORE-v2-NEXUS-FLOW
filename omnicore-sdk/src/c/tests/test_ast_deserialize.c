@@ -1055,7 +1055,11 @@ static int rejects_all_truncated_ast_payload_prefixes(void) {
     if(!bytes || fseek(stream,0L,SEEK_SET)!=0 ||
        fread(bytes,1u,(size_t)end,stream)!=(size_t)end) goto done;
     for(cut=0u;cut<(size_t)end;++cut) {
-        if(rejects_bytes(bytes,cut)!=0) goto done;
+        int rejected=rejects_bytes(bytes,cut);
+        if(rejected!=0) {
+            fprintf(stderr,"prefix=%zu result=%d\\n",cut,rejected);
+            goto done;
+        }
     }
     ok=1;
 done:
