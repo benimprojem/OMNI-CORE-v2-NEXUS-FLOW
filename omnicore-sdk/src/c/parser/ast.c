@@ -153,6 +153,23 @@ ASTNode* ast_create(ASTNodeType type) {
     return node;
 }
 
+int ast_set_source_span(ASTNode* node, const OccSourceSpan* span) {
+    if (!node) return 0;
+    if (!span) {
+        memset(&node->source_span, 0, sizeof(node->source_span));
+        node->line = 0;
+        node->col = 0;
+        return 1;
+    }
+    if (span->has_location && span->end_offset < span->start_offset) return 0;
+    node->source_span = *span;
+    if (span->has_location) {
+        node->line = (int)span->start_line;
+        node->col = (int)span->start_column;
+    }
+    return 1;
+}
+
 // --- AST Printer ---
 
 static void print_indent(int level) {
