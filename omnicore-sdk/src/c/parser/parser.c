@@ -2457,7 +2457,7 @@ static ASTNode* parse_block(Parser* p) {
         tail = cleanup;
     }
     block->statements = head;
-    if (block_start.type == TOKEN_LBRACE &&
+    if ((block_start.type == TOKEN_LBRACE || block_start.type == TOKEN_THREAD_BLOCK) &&
         (block_end.type == TOKEN_RBRACE || block_end.type == TOKEN_HALT))
         parser_stamp_node_tokens(p, (ASTNode*)block, &block_start, &block_end);
     --p->nesting_depth;
