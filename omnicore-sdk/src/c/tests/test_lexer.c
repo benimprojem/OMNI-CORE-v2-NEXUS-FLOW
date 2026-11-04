@@ -30,7 +30,53 @@ static int expect_invalid_numeric_literal(const char* source) {
     return 1;
 }
 
+static int test_opaque_asm_body_token(void) {
+    static const char source[] =
+        "asm: ADD {\\n"
+        "  mov rax, %x:reg\\r\\n"
+        "  ldm r0, {r1, r2}\\n"
+        "  db \\"}\\"\\n"
+        "}";
+    ParserContext ctx;
+    Token token;
+    const char* raw_start;
+    const char* raw_end;
+    size_t raw_length;
+    memset(&ctx,0,sizeof(ctx));
+    ctx.source_buffer=(char*)source;
+    ctx.source_len=sizeof(source)-1u;
+    ctx.current_line=1;
+    ctx.current_col=1;
+
+    token=lexer_next_token(&ctx);
+    if(token.type!=TOKEN_KW_ASM) return 0;
+    token=lexer_next_token(&ctx);
+    if(token.type!=TOKEN_COLON) return 0;
+    token=lexer_next_token(&ctx);
+    if(token.type!=TOKEN_IDENTIFIER || token.length!=3 || memcmp(token.start,"ADD",3u)!=0) return 0;
+    token=lexer_next_token(&ctx);
+    if(token.type!=TOKEN_LBRACE) return 0;
+    raw_start=strchr(source,'{')+1;
+    raw_end=strrchr(source,'}');
+    raw_length=(size_t)(raw_end-raw_start);
+    token=lexer_next_token(&ctx);
+    if(token.type!=TOKEN_ASM_BODY || token.start!=raw_start ||
+        token.source_offset!=(size_t)(raw_start-source) ||
+        token.source_length!=raw_length || token.length!=(int)raw_length ||
+        memcmp(token.start,raw_start,raw_length)!=0) {
+        fprintf(stderr,"Raw ASM body was not emitted losslessly.\\n");
+        return 0;
+    }
+    token=lexer_next_token(&ctx);
+    if(token.type!=TOKEN_RBRACE || token.source_offset!=(size_t)(raw_end-source)) {
+        fprintf(stderr,"Raw ASM closing brace was not preserved as a delimiter.\\n");
+        return 0;
+    }
+    return lexer_next_token(&ctx).type==TOKEN_EOF;
+}
+
 int main(void) {
+    if (!test_opaque_asm_body_token()) return 1;
     const char* source = "v:x = 12;\n@ !!= -> ?-> ?=> !-> << >> ...> name asm fastexec break echo send receive f32 f64 bool bit byte hex void any is_err true false";
     const OmniTokenType expected[] = {
         TOKEN_PRE_VAR, TOKEN_ASSIGN, TOKEN_NUMBER, TOKEN_SEMICOLON,
