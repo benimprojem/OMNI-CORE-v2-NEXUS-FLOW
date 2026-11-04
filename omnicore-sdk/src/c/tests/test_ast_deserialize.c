@@ -587,7 +587,7 @@ static int roundtrips_populated_ast_types(void) {
 }
 
 static int roundtrips_all_node_type_tags(void) {
-    for (int raw_type = AST_PROGRAM; raw_type <= AST_ASM_LABEL; ++raw_type) {
+    for (int raw_type = AST_PROGRAM; raw_type <= AST_ARRAY_DIMENSION; ++raw_type) {
         ASTNode* original = ast_create((ASTNodeType)raw_type);
         if (!original) return 1;
         /* The stream codec now enforces the public graph contract. Populate
