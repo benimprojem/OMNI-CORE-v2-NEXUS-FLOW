@@ -54,6 +54,21 @@ fastexec {
 - AST, donanım ailesini sabit bir enum'a kilitlemez; hedef yetenekleri Semantic/target doğrulamasıyla belirlenir.
 - FASTEXEC içindeki Nexus Flow değişkenleri ASM operand eşlemeleriyle iki yönlü veri aktarımına katılabilir.
 
+## 3.1 Derleyicinin FASTEXEC içindeki ek doğrulama sorumluluğu
+
+FASTEXEC, hata riski yüksek bir sınırdır. Derleyici bu kapsamda normal bloklardan daha sıkı ve bağlama duyarlı analiz yapmalıdır. Bu analiz, keyfî ASM metninin tamamen güvenli olduğuna dair garanti değildir; kanıtlanamayan davranışlar sessizce güvenli kabul edilmez.
+
+- **Değişken çözümleme:** `%name` görünür bir değişkene bağlanmalı; ASM tarafından okunacak değişken başlatılmış olmalı, yazılacak değişken değiştirilebilir olmalıdır.
+- **Operand yönü:** Okuma, yazma veya iki yönlü kullanım; yalnızca operand kuralı bunu açıkça belirliyorsa çıkarılır. Belirsiz yön varsayılmaz, diagnostic üretilir.
+- **Tip ve genişlik:** Değişken tipi, operand genişliği ve register sınıfı hedef mimariyle uyumlu olmalıdır.
+- **Register ve bellek:** Geçersiz register, hedefte bulunmayan register, çakışan mapping, hizalama ve bellek erişim kısıtları kontrol edilir.
+- **Clobber ve canlı değerler:** ASM'nin açık/örtük clobber etkileri, register'da tutulan canlı değişkenlerle karşılaştırılır; gerekli koruma yapılmadan değer kaybına izin verilmez.
+- **Etiket ve akış:** Yinelenen/çözümlenemeyen etiketler, hatalı call dönüşü, sınır dışına çıkan jump, beklenmeyen fall-through ve erişilemeyen devam kodu denetlenir.
+- **ABI ve hedef:** Çağrı kuralı, stack/call-frame hizalaması, korunması gereken register'lar ve hedef yetenekleri kontrol edilir.
+- **Belirsiz ASM:** Derleyicinin ham ASM'den kesin çıkarım yapamadığı davranışlar için uyarı veya açık hata üretilir. Derleyici keyfî ASM'ye kendiliğinden return, register düzeltmesi veya başka bir komut eklemez.
+
+Her diagnostic kaynak dosyasını, satır/sütun ve mümkünse byte aralığını, FASTEXEC/ASM etiketini ve ilgili değişken/register/target bilgisini taşımalıdır. Hatalar OIR üretimini durdurur; uyarılar sonraki modüllere aktarılır.
+
 ## 4. Değişken Yönetimi
 
 | Tür             | Kullanım  | Açıklama                                               |
