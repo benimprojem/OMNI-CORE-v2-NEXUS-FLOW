@@ -29,6 +29,22 @@ static int compare_span_tree(const ASTNode* a,const ASTNode* b,unsigned depth){
     return a==NULL&&b==NULL;
 }
 
+/* Every parser-produced AST node must retain its originating source range. */
+static const ASTNode* first_missing_source_span(const ASTNode* node,unsigned depth) {
+    if(depth>512u)return node;
+    while(node) {
+        uint16_t field;
+        if(!node->source_span.has_location)return node;
+        for(field=1u;field<=oir_ast_frontend_child_field_count(node->type);++field) {
+            const ASTNode* missing=first_missing_source_span(
+                oir_ast_frontend_child_at(node,field),depth+1u);
+            if(missing)return missing;
+        }
+        node=node->next;
+    }
+    return NULL;
+}
+
 static OirStatus encode_ast(ASTNode* root,uint8_t** out_payload,size_t* out_length) {
     size_t index_capacity=1024u;
     OirAstPointerIndexEntry* index=NULL;
@@ -160,6 +176,13 @@ static int test_select_scan_oir_roundtrip(void) {
     if(!parser)return 0;
     if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count ||
         !parser->ast_root || !ast_validate((ASTNode*)parser->ast_root,NULL))goto done;
+    {
+        const ASTNode* missing=first_missing_source_span((ASTNode*)parser->ast_root,0u);
+        if(missing) {
+            fprintf(stderr,"parser AST node kind %d is missing a source span\\n",(int)missing->type);
+            goto done;
+        }
+    }
     status=encode_ast((ASTNode*)parser->ast_root,&first,&first_len);
     if(status!=OIR_STATUS_OK || oir_ast_node_table_open(first,first_len,&view)!=OIR_STATUS_OK)goto done;
     storage=(ASTNode**)calloc(view.node_count,sizeof(*storage));
