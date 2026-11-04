@@ -1506,7 +1506,8 @@ static int test_main_cli_parameter_ast(void) {
             argv_param && strcmp(argv_param->name, "argv") == 0 &&
             argv_param->type_name && strcmp(argv_param->type_name, "!str") == 0 &&
             argv_param->inline_type && argv_param->inline_type->type == AST_ARRAY_TYPE &&
-            ((ASTArrayType*)argv_param->inline_type)->dimensions &&\n            ((ASTArrayDimension*)((ASTArrayType*)argv_param->inline_type)->dimensions)->length == NULL &&
+            ((ASTArrayType*)argv_param->inline_type)->dimensions &&
+            ((ASTArrayDimension*)((ASTArrayType*)argv_param->inline_type)->dimensions)->length == NULL &&
             argc_param->base.source_span.has_location &&
             argv_param->base.source_span.has_location;
     }
