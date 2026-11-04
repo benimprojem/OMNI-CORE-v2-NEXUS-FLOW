@@ -266,14 +266,36 @@ static int test_aggregate_declaration_ast(void) {
                 d->fields->source_span.end_offset != (uint64_t)(field_x + 7 - source) ||
                 !d->fields->next->source_span.has_location ||
                 d->fields->next->source_span.start_offset != (uint64_t)(field_y - source) ||
-                d->fields->next->source_span.end_offset != (uint64_t)(field_y + 7 - source)) goto done;
+                d->fields->next->source_span.end_offset != (uint64_t)(field_y + 7 - source)) {
+                fprintf(stderr, "struct spans root=%llu..%llu expected=%llu..%llu field1=%llu..%llu expected=%llu..%llu field2=%llu..%llu expected=%llu..%llu\\n",
+                    (unsigned long long)d->base.source_span.start_offset,
+                    (unsigned long long)d->base.source_span.end_offset,
+                    (unsigned long long)(struct_start-source),
+                    (unsigned long long)(struct_close+1-source),
+                    (unsigned long long)d->fields->source_span.start_offset,
+                    (unsigned long long)d->fields->source_span.end_offset,
+                    (unsigned long long)(field_x-source),
+                    (unsigned long long)(field_x+7-source),
+                    (unsigned long long)d->fields->next->source_span.start_offset,
+                    (unsigned long long)d->fields->next->source_span.end_offset,
+                    (unsigned long long)(field_y-source),
+                    (unsigned long long)(field_y+7-source));
+                goto done;
+            }
             seen_struct = 1;
         } else if (node->type == AST_NEWTYPE_DECL) {
             ASTNewTypeDecl* d = (ASTNewTypeDecl*)node;
             if (!d->name || !d->target_type ||
                 !d->base.source_span.has_location ||
                 d->base.source_span.start_offset != (uint64_t)(newtype_start - source) ||
-                d->base.source_span.end_offset != (uint64_t)(newtype_end + 4 - source)) goto done;
+                d->base.source_span.end_offset != (uint64_t)(newtype_end + 4 - source)) {
+                fprintf(stderr, "newtype span=%llu..%llu expected=%llu..%llu\\n",
+                    (unsigned long long)d->base.source_span.start_offset,
+                    (unsigned long long)d->base.source_span.end_offset,
+                    (unsigned long long)(newtype_start-source),
+                    (unsigned long long)(newtype_end+4-source));
+                goto done;
+            }
             seen_newtype = 1;
         } else if (node->type == AST_ENUM_DECL) {
             ASTEnumDecl* d = (ASTEnumDecl*)node;
@@ -281,7 +303,14 @@ static int test_aggregate_declaration_ast(void) {
             const char* enum_close = enum_start ? strchr(enum_start, '}') : NULL;
             if (!d->name || !d->variants || !d->base.source_span.has_location ||
                 d->base.source_span.start_offset != (uint64_t)(enum_start - source) ||
-                d->base.source_span.end_offset != (uint64_t)(enum_close + 1 - source)) goto done;
+                d->base.source_span.end_offset != (uint64_t)(enum_close + 1 - source)) {
+                fprintf(stderr, "enum root span=%llu..%llu expected=%llu..%llu\\n",
+                    (unsigned long long)d->base.source_span.start_offset,
+                    (unsigned long long)d->base.source_span.end_offset,
+                    (unsigned long long)(enum_start-source),
+                    (unsigned long long)(enum_close+1-source));
+                goto done;
+            }
             v = (ASTEnumVariant*)d->variants;
             if (!v->base.next || !((ASTEnumVariant*)v->base.next)->data ||
                 !v->base.source_span.has_location ||
@@ -292,7 +321,16 @@ static int test_aggregate_declaration_ast(void) {
                 v->base.next->source_span.end_offset != (uint64_t)(enum_data + 8 - source) ||
                 !((ASTEnumVariant*)v->base.next)->data->source_span.has_location ||
                 ((ASTEnumVariant*)v->base.next)->data->source_span.start_offset != (uint64_t)(enum_data - source) ||
-                ((ASTEnumVariant*)v->base.next)->data->source_span.end_offset != (uint64_t)(enum_data + 7 - source)) goto done;
+                ((ASTEnumVariant*)v->base.next)->data->source_span.end_offset != (uint64_t)(enum_data + 7 - source)) {
+                fprintf(stderr, "enum variants idle=%llu..%llu running=%llu..%llu data=%llu..%llu\\n",
+                    (unsigned long long)v->base.source_span.start_offset,
+                    (unsigned long long)v->base.source_span.end_offset,
+                    (unsigned long long)v->base.next->source_span.start_offset,
+                    (unsigned long long)v->base.next->source_span.end_offset,
+                    (unsigned long long)((ASTEnumVariant*)v->base.next)->data->source_span.start_offset,
+                    (unsigned long long)((ASTEnumVariant*)v->base.next)->data->source_span.end_offset);
+                goto done;
+            }
             seen_enum = 1;
         } else if (node->type == AST_UNION_DECL) {
             ASTStructDecl* d = (ASTStructDecl*)node;
@@ -300,7 +338,16 @@ static int test_aggregate_declaration_ast(void) {
                 d->base.source_span.start_offset != (uint64_t)(union_start - source) ||
                 !d->fields->source_span.has_location ||
                 d->fields->source_span.start_offset != (uint64_t)(union_field - source) ||
-                d->fields->source_span.end_offset != (uint64_t)(union_field + 10 - source)) goto done;
+                d->fields->source_span.end_offset != (uint64_t)(union_field + 10 - source)) {
+                fprintf(stderr, "union span root=%llu..%llu field=%llu..%llu expected=%llu..%llu\\n",
+                    (unsigned long long)d->base.source_span.start_offset,
+                    (unsigned long long)d->base.source_span.end_offset,
+                    (unsigned long long)d->fields->source_span.start_offset,
+                    (unsigned long long)d->fields->source_span.end_offset,
+                    (unsigned long long)(union_field-source),
+                    (unsigned long long)(union_field+10-source));
+                goto done;
+            }
             seen_union = 1;
         }
     }
