@@ -476,3 +476,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-04 | OIR source-span test genişletildi: yalnız root/function örnekleri değil, AST child/sibling grafiğindeki **bütün parser node span'leri** decode sonrası karşılaştırılıyor (has_location, byte offsets, start/end line-column); source_id OIR extension'da taşınmadığından eşitlik kapsamı dışında. CI run `41838287034` pending. | `test_parser_ast_oir_roundtrip.c`; commit `66a5971` |
+
+
+## 2026-11-04 — Parser AST source-span audit
+
+- The Parser round-trip tests now recursively require a source span on every node in the extended syntax fixture and the canonical AST fixture. Traversal covers registered child fields and sibling chains.
+- The test exposed two missing paths: synthesized AST_IF nodes for select/scan when guards, and AST_PATTERN_BINDING nodes inside constructor patterns such as Range(s,e). Both paths now stamp source spans from their source tokens/child ranges.
+- Commits: 9d68b21 (per-node assertion), f1a2700 (guard wrapper), 05559d0 (constructor bindings), 3d547fc (canonical fixture coverage), 5f25115 (diagnostic formatting).
+- CI run 41840863533 passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- Scope: exercised fixtures are covered; the full grammar-production to Parser-function and positive/negative fixture matrix remains open.
