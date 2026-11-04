@@ -5,9 +5,9 @@
 ## Global invariants
 
 - `ASTNode.type` is the append-only node tag; never renumber published tags.
-- `ASTNode.line/col` are currently the source location baseline. Byte spans and end positions are not yet universal.
+- `ASTNode.line/col` are compatibility mirrors of the start position. Parser-produced nodes carry full byte offsets and start/end line-column spans; manually constructed or synthetic nodes may intentionally have no source location.
 - `ASTNode.next` is an owned sibling-chain link. A node/subtree has exactly one owner; never share child pointers.
-- Child pointers and sibling chains are destroyed recursively by `ast_destroy_recursive`; flat sibling traversal is iterative.
+- Child subtrees are destroyed recursively by `ast_destroy_recursive`; each sibling chain is traversed iteratively.
 - String fields allocated by parser are node-owned and freed by the matching destroy case.
 - A field not listed as an owned child/string is scalar metadata or borrowed input and must not be freed by AST destruction.
 
@@ -89,7 +89,7 @@ The OIR AST frontend has separate writer/reader/index/schema tests under `omnico
 
 ## Known gaps (do not treat as complete)
 
-- Universal byte source spans (start/end offsets) and end line/column.
+- Complete grammar-production coverage for source-span stamping; current extended and canonical AST fixtures assert that every produced node has a span.
 - Generated authoritative field schema; current switches/tables can drift.
 - Parser recovery ownership stress tests for every node family.
 - Exhaustive AST tag-to-parser/OIR/semantic/lowering coverage report.
@@ -143,7 +143,7 @@ These are parser construction invariants, not a complete semantic typing specifi
 - `AST_PATTERN_CONSTRUCTOR.bindings`, function parameter lists and rule argument lists may be empty.
 - `AST_ARRAY_TYPE.dimensions`: at least one dimension is required by the declarator production; each dimension node exists, while its `length` may be NULL for `[]`.
 
-**Validation boundary:** `ast_validate()` now checks the required structural child pointers listed in its dispatch, graph-wide unique ownership, sibling cycles and ancestor-child cycles. It does not validate every required string/scalar payload, loop-form-specific child combinations, or all Semantic/contextual invariants.
+**Validation boundary:** `ast_validate()` checks required structural child pointers, required owned names/text payloads, graph-wide unique ownership, sibling cycles and ancestor-child cycles. It also checks the contextual rules listed above. It does not validate every scalar enum/range, loop-form-specific child combinations, type rules, or all Semantic/contextual invariants.
 
 
 ## AST kind lifecycle audit — 2026-11-03
@@ -170,3 +170,11 @@ The public C API `ast_validate(const ASTNode*, ASTValidationError*)` is implemen
 `ast_serialize()` validates the graph before writing any bytes; invalid graphs are rejected without partial output. `ast_deserialize()` validates the fully materialized graph and rejects structurally invalid or trailing data. `ast_destroy()` remains a low-level destructor with an exclusive-ownership/acyclic-graph precondition; it is intentionally usable for partial Parser trees that may not satisfy successful-parse required-child contracts.
 
 `AST_BLOCK_HALT` is payload-free but context-sensitive: the all-tag stream test exercises it inside an owning block, rather than as an invalid standalone root. Dedicated CTest target: `ast_graph_ownership_cycle_and_required_field_validation` (`test_ast_validator.c`). Coverage includes valid manually built AST, child and sibling cycles, shared child, missing required children, NULL root, childless leaf tags, invalid enum value, depth-limit rejection, Parser-produced AST, serializer no-write rejection, deserializer structural rejection and valid legacy stream round-trip. Separate `ast_rejects_malformed_streams` tests cover all 99 original populated node tags plus the context-valid `AST_BLOCK_HALT` marker, sibling chains, truncation and depth limits.
+
+
+## AST Graph Validator — required payload checks (2026-11-04)
+
+- The validator now rejects missing/empty required names and labels for declarations, identifiers, member access, patterns, rules, imports, Nexus labels/jumps/intents, and other named AST forms.
+- Literal payloads require a non-NULL `string_value`; an empty string literal remains valid. Generic `AST_FUNC_CALL` requires a callee child, while call-shaped intrinsic nodes may omit the explicit callee child because their AST tag identifies the intrinsic.
+- Required-payload regression fixtures cover missing and valid identifier, literal and newtype fields. Existing parser/codec fixtures exercise the remaining named payload paths.
+- This is structural AST validation only; semantic type/name resolution and loop-form-specific scalar invariants remain separate.
