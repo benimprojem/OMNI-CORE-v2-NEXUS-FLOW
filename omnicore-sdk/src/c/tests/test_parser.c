@@ -1715,5 +1715,46 @@ must_dependency_done:
         }
     }
 
+    /* Generic type-variable spellings are preserved losslessly in signature strings. */
+    {
+        static const char source[] =
+            "f:sum(a!t, b!t)!t { ret a; }";
+        ParserContext* parser = parser_init_source("generic-type-variable.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        ASTFuncDecl* function;
+        ASTNode* decoded = NULL;
+        FILE* stream = NULL;
+        int valid = 0;
+        if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
+            !parser->ast_root || !ast_validate(parser->ast_root, NULL))
+            goto generic_type_done;
+        function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        if (!function || function->base.type != AST_FUNC_DECL ||
+            !function->params || !function->params->next ||
+            strcmp(((ASTVarDecl*)function->params)->type_name, "!t") != 0 ||
+            strcmp(((ASTVarDecl*)function->params->next)->type_name, "!t") != 0 ||
+            !function->return_type || strcmp(function->return_type, "!t") != 0)
+            goto generic_type_done;
+        stream = tmpfile();
+        if (!stream || !ast_serialize(parser->ast_root, stream) ||
+            fseek(stream, 0, SEEK_SET) != 0)
+            goto generic_type_done;
+        decoded = ast_deserialize(stream);
+        if (!decoded || !ast_validate(decoded, NULL))
+            goto generic_type_done;
+        function = (ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+        if (!function || strcmp(function->return_type, "!t") != 0)
+            goto generic_type_done;
+        valid = 1;
+generic_type_done:
+        if (stream) fclose(stream);
+        if (decoded) ast_destroy(decoded);
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Generic type-variable signature preservation test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
