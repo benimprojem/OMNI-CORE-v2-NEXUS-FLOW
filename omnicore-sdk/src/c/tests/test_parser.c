@@ -1355,7 +1355,7 @@ static int test_ast_create_rejects_invalid_node_kinds(void) {
      * accidental gaps in the factory as new AST kinds are added.
      */
     for (int kind = (int)AST_PROGRAM;
-         kind <= (int)AST_MUST_DECL; ++kind) {
+         kind <= (int)AST_ASM_LABEL; ++kind) {
         ASTNode* node = ast_create((ASTNodeType)kind);
         int valid = node != NULL &&
             node->type == (ASTNodeType)kind &&
@@ -1365,7 +1365,7 @@ static int test_ast_create_rejects_invalid_node_kinds(void) {
     }
 
     negative = ast_create((ASTNodeType)-1);
-    past_end = ast_create((ASTNodeType)((int)AST_MUST_DECL + 1));
+    past_end = ast_create((ASTNodeType)((int)AST_ASM_LABEL + 1));
     if (negative != NULL || past_end != NULL) {
         ast_destroy(negative);
         ast_destroy(past_end);
