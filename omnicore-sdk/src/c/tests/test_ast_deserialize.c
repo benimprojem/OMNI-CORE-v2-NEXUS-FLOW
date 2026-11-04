@@ -1125,13 +1125,49 @@ done:
     return valid ? 0 : 1;
 }
 
+
+/* Context-sensitive AST tags must be encoded under their legal owner. */
+static int roundtrips_contextual_ast_tags(void) {
+    ASTProgram* program=(ASTProgram*)ast_create(AST_PROGRAM);
+    ASTMustDecl* must=(ASTMustDecl*)ast_create(AST_MUST_DECL);
+    ASTFuncDecl* fn=(ASTFuncDecl*)ast_create(AST_FUNC_DECL);
+    ASTVariadicParam* variadic=(ASTVariadicParam*)ast_create(AST_VARIADIC_PARAM);
+    ASTBlock* block=(ASTBlock*)ast_create(AST_BLOCK);
+    ASTNode* halt=ast_create(AST_BLOCK_HALT);
+    ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
+    ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
+    FILE *a=NULL,*b=NULL; ASTNode *decoded=NULL; int ok=0;
+    if(!program||!must||!fn||!variadic||!block||!halt||!fast||!label) goto done;
+    must->name=duplicate_text("context_dependency"); must->source=make_identifier_fixture("source_name");
+    fn->name=duplicate_text("context_function"); fn->params=(ASTNode*)variadic; variadic=NULL;
+    fn->body=ast_create(AST_BLOCK);
+    block->statements=halt; halt=NULL;
+    label->label=duplicate_text("CTX_LABEL"); label->source_text=duplicate_text("nop\\n");
+    label->source_length=3; fast->statements=(ASTNode*)label; label=NULL;
+    program->declarations=(ASTNode*)must; must=NULL;
+    program->declarations->next=(ASTNode*)fn; fn=NULL;
+    program->declarations->next->next=(ASTNode*)block; block=NULL;
+    program->declarations->next->next->next=(ASTNode*)fast; fast=NULL;
+    if(!ast_validate((ASTNode*)program,NULL)) goto done;
+    a=tmpfile(); b=tmpfile(); if(!a||!b) goto done;
+    if(!ast_serialize((ASTNode*)program,a)) goto done;
+    rewind(a); decoded=ast_deserialize(a); if(!decoded||!ast_validate(decoded,NULL)) goto done;
+    if(!ast_serialize(decoded,b)) goto done;
+    ok=streams_equal(a,b);
+done:
+    if(a)fclose(a); if(b)fclose(b); ast_destroy(decoded); ast_destroy((ASTNode*)program);
+    ast_destroy((ASTNode*)must); ast_destroy((ASTNode*)fn); ast_destroy((ASTNode*)variadic);
+    ast_destroy((ASTNode*)block); ast_destroy(halt); ast_destroy((ASTNode*)fast); ast_destroy((ASTNode*)label);
+    return ok?0:1;
+}
+
 int main(int argc, char** argv) {
     if (argc != 2) {
         fprintf(stderr, "Usage: test_ast_deserialize <invalid-output-path>\n");
         return 9;
     }
     if (roundtrips_versioned_source_spans() != 0) return 15;
-    if (roundtrips_fast_exec_asm_payload() != 0) return 19;
+    if (roundtrips_fast_exec_asm_payload() != 0) return 19;\n    if (roundtrips_contextual_ast_tags() != 0) return 21;
     if (reads_unprefixed_legacy_stream() != 0) return 16;
     if (rejects_unknown_ast_stream_version() != 0) return 17;
     if (rejects_truncated_ast_stream_prefixes() != 0) return 18;
