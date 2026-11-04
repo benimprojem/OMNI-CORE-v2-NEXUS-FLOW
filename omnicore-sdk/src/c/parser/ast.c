@@ -1990,7 +1990,6 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
             break;
         case AST_BREAK:
         case AST_CONTINUE:
-        case AST_VARIADIC_PARAM:
         case AST_BLOCK_HALT:
             if (n->type == AST_BLOCK_HALT &&
                 (s->active_count < 2u ||
