@@ -1780,6 +1780,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             relocate->base.col = p->previous.col;
             relocate->source = expr;
             relocate->target = right;
+            parser_stamp_node_child_range((ASTNode*)relocate, expr, right);
             expr = (ASTNode*)relocate;
         } else if (!is_rolling && (op == TOKEN_PIPE || op == TOKEN_LSHIFT || op == TOKEN_RSHIFT)) {
             ASTNexusFlow* pipe = (ASTNexusFlow*)parser_ast_create(p, AST_NEXUS_PIPE);
@@ -1793,6 +1794,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             pipe->op = op;
             pipe->left = expr;
             pipe->right = right;
+            parser_stamp_node_child_range((ASTNode*)pipe, expr, right);
             expr = (ASTNode*)pipe;
         } else {
             ASTNexusFlow* flow = (ASTNexusFlow*)parser_ast_create(p, AST_NEXUS_FLOW);
@@ -1808,6 +1810,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             flow->retry_delay = retry_delay;
             flow->left = expr;
             flow->right = right;
+            parser_stamp_node_child_range((ASTNode*)flow, expr, right);
             expr = (ASTNode*)flow;
         }
     }
@@ -1821,6 +1824,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         unpack->base.line = p->previous.line;
         unpack->base.col = p->previous.col;
         unpack->expr = expr;
+        parser_stamp_node_child_to_token(p, (ASTNode*)unpack, expr, &p->previous);
         expr = (ASTNode*)unpack;
         if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
             error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
