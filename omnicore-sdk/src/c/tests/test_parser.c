@@ -1390,6 +1390,8 @@ static int test_fast_exec_raw_asm_ast(void) {
         "}";
     static const char outside_source[] =
         "f:main() { asm: OUTSIDE { nop } }";
+    static const char call_outside_source[]=
+        "f:main() { asmcall(ADD); }";
     ParserContext* parser=parser_init_source("fast-exec-asm.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     const char* fast_start=strstr(source,"fastexec");
@@ -1428,6 +1430,12 @@ done:
         fprintf(stderr,"FASTEXEC/raw ASM Parser AST or exact source-span test failed.\n");
         return 0;
     }
+    parser=parser_init_source("asmcall-outside-fast-exec.nxf",
+        (const uint8_t*)call_outside_source,sizeof(call_outside_source)-1u);
+    if(!parser) return 0;
+    (void)parser_run(parser);
+    valid=parser->error_count>0;
+    parser_destroy(parser);
     parser=parser_init_source("asm-outside-fast-exec.nxf",
         (const uint8_t*)outside_source,sizeof(outside_source)-1u);
     if(!parser) return 0;
