@@ -1092,6 +1092,8 @@ echo(o1.isim_getir()); // Ahmet
 -*   **Değişken Değiştirme (Variable Substitution):** `%degisken` sözdizimi ile NexusFlow değişkenlerinin bellek adreslerine (stack offset) doğrudan erişim.
 -*   **Register Eşleme (Register Mapping):** `%degisken:reg` (örn: `%sayac:rcx`) ile değişken değerlerinin otomatik olarak belirtilen register'a yüklenmesi ve işlem sonunda geri yazılması.
 -* codegen..  **Clobber Listesi:** `# clobber: rax, rbx` direktifi ile `asm` bloğu tarafından kirletilecek register'ların otomatik korunması (push/pop).
+-* Ham ASM gövdesi Lexer tarafından Nexus Flow token'larına ayrıştırılmaz; byte aralığı korunarak tek bir opaque body token olarak taşınır. Dış ASM `{}` çifti gövde sınırıdır; iç içe `{}` dengelenir, tek/çift tırnak içindeki brace karakterleri ve backslash escape'leri delimiter sayılmaz. Target comment biçimleri derleyici tarafından yorumlanmaz; yorumlarda bulunan brace karakterleri de ham delimiter sayımına dahildir.
+-* FASTEXEC doğrulaması değişken bağlama, başlatılma/yazılabilirlik, operand genişliği, register ve bellek çakışması, clobber/live-value, label/call/jump, hedef yeteneği ve ABI/hizalama kontrollerini kapsar. Derleyici ham ASM'nin kanıtlayamadığı davranışları güvenli varsaymaz.
 
 
 ```
