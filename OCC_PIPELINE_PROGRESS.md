@@ -319,7 +319,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - [x] AST validator testine span atama/geçersiz aralık/temizleme kontrolleri eklendi.
 - [ ] Parser'ın token başlangıç ve düğüm bitiş konumlarını tüm AST üretim yollarına yayması.
 - [x] AST serialization sürümleme + legacy stream uyumluluğu; span round-trip ve legacy unprefixed okuma testleri.
-- [ ] Truncated magic/version prefix negatif testleri.
+- [x] Truncated magic/version prefix negatif testleri.
 - [ ] OIR span TLV aktarımı ve entegrasyon testleri.
 - **Durum:** API/storage/validator ve sürümlü legacy codec kaynakları commit edildi; parser stamping ve OIR TLV bekliyor. Source Span tamamlanmış değildir.
 
@@ -352,3 +352,5 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-04 | Legacy AST codec sürümlendi: yeni yazıcı `OCCAST\\r\\n` + version 1 başlığı yazar ve her düğümün `OccSourceSpan` alanlarını padding bağımsız ayrı scalar alanlar olarak saklar. Okuyucu eski başlıksız stream'leri de kabul eder (span absent), bilinmeyen sürümü fail-closed reddeder. Testler: source_id/byte offset/line-column tam round-trip, unprefixed legacy stream okuma ve bilinmeyen sürüm reddi. Parser üretim sınırlarında span damgalama ve OIR optional TLV hâlâ açık; feature tamamlanmadı. | `ast.c`, `test_ast_deserialize.c`, `docs/AST-SOURCE-SPAN-CONTRACT.md`; commits `89d9ba8`, `6a0ae82`; CI bekleniyor |
+
+| 2026-11-04 | AST stream codec negatif sınır testleri tamamlandı: kısmi magic ve tam magic + kısmi version başlıkları reddediliyor; bilinmeyen version reddi ve legacy unprefixed okuma testleri de mevcut. İlk CI turunda testte magic literal'ı yanlış escape edildiği için test başarısız oldu; literal düzeltildi ve yeni CI çalışması başlatıldı. | `test_ast_deserialize.c`; commits `b91640d`, `dbe3a47`, `63702f6`; son CI bekleniyor |
