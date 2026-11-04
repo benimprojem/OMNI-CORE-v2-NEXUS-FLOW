@@ -1,6 +1,6 @@
 # FASTEXEC / Inline ASM AST Contract (C frontend)
 
-**Status:** AST and Parser implementation pending; this document records the approved design.
+**Status:** AST node lifecycle and OIR bridge implemented; Lexer/Parser integration is in progress; tests are committed but not yet executed.
 **Normative language source:** `nexus docs/Gelişmiş Inline Assembly — Formal Specification.md`.
 **Working branch:** `refactor/c-core-roadmap`.
 
@@ -33,7 +33,7 @@ The raw ASM body must not be lexed as ordinary Nexus Flow. The Lexer must emit a
 
 The Parser parses `fastexec { ... }` into `AST_FASTEXEC_BLOCK`, parses ordinary Nexus Flow statements inside its ordered statement list, parses `asm: LABEL { ... }` only within FASTEXEC and creates `AST_ASM_LABEL`, preserves label and exact raw body bytes, parses `asmcall` / `asmjmp` as existing call nodes, and rejects ASM declarations and low-level primitive calls outside FASTEXEC with precise diagnostics.
 
-Brace scanning for raw ASM must be defined by the Lexer raw-body state, not by parsing nested Nexus Flow tokens from assembly text. Unterminated raw bodies must fail with source-positioned diagnostics.
+The raw-body scanner starts immediately after the outer `{` and returns one `TOKEN_ASM_BODY` span without consuming the matching outer `}`. Nested braces are balanced for target forms such as register lists; braces inside single/double quoted strings are ignored and backslash escapes are honored. Target comment syntax remains opaque; unmatched braces inside comments still participate in delimiter balancing. Unterminated bodies fail with source-positioned diagnostics. The stable OIR token ID for `TOKEN_ASM_BODY` is 164.
 
 ## 4. Ownership, codec and OIR mapping
 
