@@ -523,10 +523,10 @@ int main(void) {
         ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
         ASTBlock* nested=(ASTBlock*)ast_create(AST_BLOCK);
         ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
-        if(!fast || !nested || !label) return 1;
+        if(!fast || !nested || !label) { ast_destroy((ASTNode*)fast); ast_destroy((ASTNode*)nested); ast_destroy((ASTNode*)label); return 1; }
         label->label=(char*)malloc(4u);
         label->source_text=(char*)malloc(strlen("mov rax, %value\\r\\nadd rax, 1")+1u);
-        if(!label->label || !label->source_text) return 1;
+        if(!label->label || !label->source_text) { ast_destroy((ASTNode*)fast); ast_destroy((ASTNode*)nested); ast_destroy((ASTNode*)label); return 1; }
         strcpy(label->label,"ADD");
         strcpy(label->source_text,"mov rax, %value\r\nadd rax, 1");
         label->source_length=strlen(label->source_text);
@@ -543,9 +543,9 @@ int main(void) {
         if(!label) return 1;
         label->label=(char*)malloc(4u);
         label->source_text=(char*)malloc(1u);
-        if(!label->label || !label->source_text) return 1;
+        if(!label->label || !label->source_text) { ast_destroy((ASTNode*)label); return 1; }
         strcpy(label->label,"ADD");
-        label->source_text[0]='\\0';
+        label->source_text[0]='\0';
         label->source_length=0u;
         if(!expect((ASTNode*)label,AST_VALIDATE_INVALID_KIND)) {
             fprintf(stderr,"ASM label outside FASTEXEC was accepted\\n");
