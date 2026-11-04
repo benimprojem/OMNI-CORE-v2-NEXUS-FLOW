@@ -39,7 +39,7 @@ No source pointer is stored in AST nodes. AST remains independent of the lifetim
 
 The parser will expose one internal helper that builds a span from a first and last consumed `Token`, using the same byte/line/column rules as diagnostic span construction.
 
-Every AST-producing grammar function must stamp the completed node from its production boundaries. **Current partial implementation:** numeric/string/character literals, boolean literals and identifier leaf nodes are stamped from their exact token span and inherit `ParserContext.source_id`; composite expressions, declarations, blocks and other productions still need explicit first/last-token boundaries. For expression nodes, the range includes the operator token; for declarations and blocks, it includes their prefix/brace/terminator syntax. Parent ranges must be computed from the production boundaries, not inferred solely from child ranges.
+Every AST-producing grammar function must stamp the completed node from its production boundaries. **Current partial implementation:** numeric/string/character literals, boolean literals and identifier leaf nodes are stamped from their exact token span and inherit `ParserContext.source_id`; binary and assignment expressions compose their range from the first and last child spans. Declarations, blocks and other productions still need explicit first/last-token boundaries. For expression nodes, the range includes the operator token; for declarations and blocks, it includes their prefix/brace/terminator syntax. Parent ranges must be computed from the production boundaries, not inferred solely from child ranges.
 
 Token-stream input must preserve and validate its supplied source offsets/lengths exactly as the current token-stream attachment contract requires.
 
@@ -78,7 +78,7 @@ The new reader validates that the four fields are either all present or all abse
 ## 7. Validator and test requirements
 
 - `ast_validate()` checks complete-span invariants and rejects malformed ranges. (Implemented and covered by AST validator tests.)
-- Parser tests currently assert exact ranges and source identity for numeric literal and identifier leaves. Binary expressions, declarations, nested blocks, `}?;`, multiline source and multibyte UTF-8 coverage remain pending.
+- Parser tests currently assert exact ranges and source identity for numeric literal and identifier leaves, plus a binary expression composed from child spans. Declarations, nested blocks, `}?;`, multiline source and multibyte UTF-8 coverage remain pending.
 - Legacy AST codec tests cover versioned span round-trip, unprefixed legacy input, unknown-version rejection and truncated magic/version prefixes. (Implemented; CI run `41786516465` passed 5/5.)
 - OIR tests must cover full-span preservation, old payloads without span extensions, partial extension rejection and unknown optional scalar compatibility. (Pending.)
 - Windows, Linux, macOS, ASan/UBSan and Valgrind must pass before the span feature is marked complete.
