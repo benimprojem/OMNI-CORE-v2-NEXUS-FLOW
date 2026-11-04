@@ -101,7 +101,6 @@ f:main()!i32 {
         }
         
         echo(total); # Çıktı: 30
-    }
 
         asmcall(CRITICAL_ADD);  # ASM bloğunu çağırır
         # asmjmp("MY_ASM_BLOCK"); # Kontrol akışı geri dönmeyecekse FASTEXEC içinde kullanılabilir.
