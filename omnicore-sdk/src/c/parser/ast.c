@@ -471,6 +471,7 @@ static void ast_print_recursive(ASTNode* node, int level) {
             case AST_BREAK: printf("BREAK\n"); break;
             case AST_CONTINUE: printf("CONTINUE\n"); break;
             case AST_BLOCK_HALT: printf("BLOCK_HALT (scope cleanup)\n"); break;
+            case AST_MUST_DECL: { ASTMustDecl* n=(ASTMustDecl*)node; printf("MUST_DEPENDENCY: %s\n",n->name?n->name:"<invalid>"); ast_print_recursive(n->source,level+1); break; }
             case AST_PRNT: printf("INTRINSIC: prnt\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_PRMT: printf("INTRINSIC: prmt\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_WRITE: printf("INTRINSIC: write\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
@@ -1726,6 +1727,14 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
                 (s->active[s->active_count - 2u]->type != AST_FUNC_DECL &&
                  s->active[s->active_count - 2u]->type != AST_EXTERN_DECL) || n->next)
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"variadic_parameter_position");
+            break;
+        case AST_MUST_DECL:
+            if (s->active_count < 2u ||
+                s->active[s->active_count - 2u]->type != AST_PROGRAM)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"must_dependency_scope");
+            R(((ASTMustDecl*)n)->source,"source");
+            if (!((ASTMustDecl*)n)->name || !*(((ASTMustDecl*)n)->name))
+                return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"name");
             break;
         case AST_NAMED_ARG:
             if (s->active_count < 2u)
