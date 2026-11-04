@@ -12,6 +12,37 @@ static int expect(ASTNode *root, ASTValidationCode code) {
 }
 
 int main(void) {
+    /* Source-span API preserves the start-position compatibility mirrors. */
+    {
+        ASTNode *span_node = ast_create(AST_IDENTIFIER);
+        OccSourceSpan span = {0};
+        if (!span_node) return 1;
+        span.source_id = 7;
+        span.start_offset = 12;
+        span.end_offset = 19;
+        span.start_line = 3;
+        span.start_column = 5;
+        span.end_line = 3;
+        span.end_column = 12;
+        span.has_location = 1;
+        if (!ast_set_source_span(span_node, &span) ||
+            span_node->line != 3 || span_node->col != 5 ||
+            memcmp(&span_node->source_span, &span, sizeof(span)) != 0) {
+            fprintf(stderr, "source span assignment failed\\n");
+            ast_destroy(span_node); return 1;
+        }
+        span.end_offset = 11;
+        if (ast_set_source_span(span_node, &span)) {
+            fprintf(stderr, "invalid source span accepted\\n");
+            ast_destroy(span_node); return 1;
+        }
+        if (!ast_set_source_span(span_node, NULL) ||
+            span_node->source_span.has_location || span_node->line || span_node->col) {
+            fprintf(stderr, "source span clear failed\\n");
+            ast_destroy(span_node); return 1;
+        }
+        ast_destroy(span_node);
+    }
     ASTNode *root = ast_create(AST_PROGRAM);
     ASTNode *block = ast_create(AST_BLOCK);
     ASTNode *id = ast_create(AST_IDENTIFIER);
