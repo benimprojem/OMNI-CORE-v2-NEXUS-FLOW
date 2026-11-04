@@ -1040,12 +1040,48 @@ static int rejects_truncated_ast_stream_prefixes(void) {
     return 0;
 }
 
+static int roundtrips_fast_exec_asm_payload(void) {
+    ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
+    ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
+    FILE* stream=NULL;
+    ASTNode* decoded=NULL;
+    const char* raw="mov rax, %value\\r\\nadd rax, 1 ; keep %x:reg";
+    int valid=0;
+    if(!fast || !label) goto done;
+    label->label=duplicate_text("ADD");
+    label->source_text=duplicate_text(raw);
+    if(!label->label || !label->source_text) goto done;
+    label->source_length=strlen(raw);
+    fast->statements=(ASTNode*)label;
+    label=NULL; /* ownership transferred to FASTEXEC */
+    if(!ast_validate((ASTNode*)fast,NULL)) goto done;
+    stream=tmpfile();
+    if(!stream || !ast_serialize((ASTNode*)fast,stream)) goto done;
+    rewind(stream);
+    decoded=ast_deserialize(stream);
+    if(!decoded || !ast_validate(decoded,NULL)) goto done;
+    {
+        ASTAsmLabel* got=(ASTAsmLabel*)((ASTFastExecBlock*)decoded)->statements;
+        valid=got && got->base.type==AST_ASM_LABEL &&
+            strcmp(got->label,"ADD")==0 &&
+            got->source_length==strlen(raw) &&
+            memcmp(got->source_text,raw,got->source_length)==0;
+    }
+done:
+    if(stream) fclose(stream);
+    if(decoded) ast_destroy(decoded);
+    if(label) ast_destroy((ASTNode*)label);
+    if(fast) ast_destroy((ASTNode*)fast);
+    return valid ? 0 : 1;
+}
+
 int main(int argc, char** argv) {
     if (argc != 2) {
         fprintf(stderr, "Usage: test_ast_deserialize <invalid-output-path>\n");
         return 9;
     }
     if (roundtrips_versioned_source_spans() != 0) return 15;
+    if (roundtrips_fast_exec_asm_payload() != 0) return 19;
     if (reads_unprefixed_legacy_stream() != 0) return 16;
     if (rejects_unknown_ast_stream_version() != 0) return 17;
     if (rejects_truncated_ast_stream_prefixes() != 0) return 18;
@@ -1072,7 +1108,7 @@ int main(int argc, char** argv) {
         ASTNodeType type;
         int line;
         int col;
-    } invalid_node = { (ASTNodeType)(AST_MUST_DECL + 1), 1, 1 };
+    } invalid_node = { (ASTNodeType)(AST_ASM_LABEL + 1), 1, 1 };
 
     if (rejects_bytes(&invalid_node, sizeof(invalid_node)) != 0) {
         return 2;
