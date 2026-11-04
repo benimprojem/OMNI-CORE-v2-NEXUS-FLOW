@@ -1439,7 +1439,7 @@ done:
 }
 
 static int test_fast_exec_asm_token_stream(void) {
-    static const char source[]="f:main() { fastexec { v:x!i32=1; ?; asm: ADD {} } }";
+    static const char source[]="f:main() { fastexec { v:x!i32=1; halt; asm: ADD {} } }";
     ParserContext* parser=parser_init_source("fast-exec-token-stream.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     Token tokens[32];
