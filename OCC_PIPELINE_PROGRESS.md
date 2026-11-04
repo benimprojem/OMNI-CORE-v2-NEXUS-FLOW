@@ -1,6 +1,6 @@
 # OCC Pipeline İlerleme Kaydı
 
-**Tarih:** 2026-11-03  
+**Tarih:** 2026-11-04  
 **Çalışma dalı:** `refactor/c-core-roadmap`  
 **Kaynak depo:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Belge amacı:** Lexer'dan Codegen'e kadar her Nexus Flow yapısının gerçek uygulama ve test durumunu tek tabloda izlemek.
@@ -95,7 +95,7 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–99 kayıtlı düğüm k
 | 26 | `AST_RETURN` | ~ | ✓ | ~ | ~ | ~ |
 | 27 | `AST_BREAK` | ~ | ✓ | ? | ? | ~ |
 | 28 | `AST_CONTINUE` | ~ | ✓ | ? | ? | ~ |
-| 29 | `AST_ASM_BLOCK` | ~ | ✓ | X | X | ~ |
+| 29 | `AST_ASM_BLOCK` (legacy generic block tag; do not repurpose) | ~ | ✓ | D | D | ~ |
 | 30 | `AST_NEXUS_CAPTURE` | ~ | ✓ | ? | ? | ~ |
 | 31 | `AST_NEXUS_PIPE` | ~ | ✓ | ? | ? | ~ |
 | 32 | `AST_NEXUS_FLOW` | ~ | ✓ | ? | ? | ~ |
@@ -167,6 +167,8 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–99 kayıtlı düğüm k
 | 98 | `AST_ARRAY_TYPE` | ✓ | ✓ | ~ | ? | ✓ |
 | 99 | `AST_ARRAY_DIMENSION` | ✓ | ✓ | ~ | ? | ✓ |
 | 100 | `AST_BLOCK_HALT` | ✓ | ~ | ? | ? | ~ |
+| 104 | `AST_FASTEXEC_BLOCK` | ~ | ~ | ~ | D | ~ |
+| 105 | `AST_ASM_LABEL` | ~ | ~ | ~ | D | ~ |
 
 ## 5. OIR ve Verifier kapsam kapısı
 
@@ -428,3 +430,6 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 | 2026-11-04 | AST_PROGRAM multi-source identity test CI `41791636064` passed 5/5. asmcall/asmjmp AST_CALL implementation and exact span tests: run `41791787499` passed Ubuntu, Windows, macOS and ASan/UBSan; Valgrind still running at update time. | `parser.c`, `test_parser.c`; commits `182b202`, `9047485`, `64214fd` |
 
 | 2026-11-04 | asmcall/asmjmp parser + AST_FUNC_CALL source-span testi CI `41791787499` tamamlandı ve 5/5 geçti (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). | `parser.c`, `test_parser.c`; commits `9047485`, `64214fd` |
+
+
+| 2026-11-04 | FASTEXEC/Inline ASM AST audit: confirmed the Lexer keyword tokens exist, but Parser currently consumes only `asmcall`/`asmjmp` as generic `AST_FUNC_CALL`; FASTEXEC and raw ASM declaration parsing are missing. Approved append-only contract: `AST_FASTEXEC_BLOCK` C/OIR kind 104 and `AST_ASM_LABEL` C/OIR kind 105; preserve existing `AST_ASM_BLOCK` kind 29 as legacy and do not reinterpret its serialized payload. Register already-existing frontend kinds `AST_VARIADIC_PARAM` / `AST_NAMED_ARG` / `AST_MUST_DECL` as OIR 101–103. Raw ASM must be a dedicated Lexer token/span, not ordinary Nexus Flow tokens. FASTEXEC is the required scope for ASM and CPU primitive operations, with GPU/NPU families extensible later. Design and syntax documents updated; no implementation or tests are claimed. | `ast.h`, `ast.c`, `parser.c`, `lexer.c`, OIR AST map/writer/reader/schema, parser and OIR tests, `AST_ASM_DESIGN.md`, `OIR_AST_NODE_REGISTRY.md` |
