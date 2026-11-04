@@ -2206,9 +2206,9 @@ generic_type_done:
             valid = node && node->type == AST_NEXUS_JUMP &&
                 node->source_span.has_location == 1u &&
                 node->source_span.start_offset == start_offset &&
-                node->source_span.end_offset == start_offset + 11u &&
+                node->source_span.end_offset == start_offset + 9u &&
                 node->source_span.start_column == start_offset + 1u &&
-                node->source_span.end_column == start_offset + 12u &&
+                node->source_span.end_column == start_offset + 10u &&
                 ast_validate(parser->ast_root, NULL);
         }
         if (parser) parser_destroy(parser);
