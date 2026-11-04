@@ -216,6 +216,7 @@ typedef struct {
     int had_error;
     int panic_mode;
     unsigned int nesting_depth;
+    unsigned int fast_exec_depth;
 } Parser;
 
 static ASTNode* parse_logical_or(Parser* p);
@@ -626,6 +627,7 @@ static Token parser_peek_n(Parser* p, int n) {
     size_t old_pos;
     size_t old_token_index;
     int old_line, old_col, old_token_line, old_token_col;
+    uint8_t old_asm_state, old_asm_pending;
     size_t old_token_offset;
     int i;
 
@@ -641,6 +643,8 @@ static Token parser_peek_n(Parser* p, int n) {
     old_token_line = p->ctx->token_start_line;
     old_token_col = p->ctx->token_start_col;
     old_token_index = p->ctx->token_stream_index;
+    old_asm_state = p->ctx->lexer_asm_state;
+    old_asm_pending = p->ctx->lexer_asm_body_pending;
 
     for (i = 0; i < n; ++i) token = parser_next_token(p->ctx);
 
@@ -651,6 +655,8 @@ static Token parser_peek_n(Parser* p, int n) {
     p->ctx->token_start_line = old_token_line;
     p->ctx->token_start_col = old_token_col;
     p->ctx->token_stream_index = old_token_index;
+    p->ctx->lexer_asm_state = old_asm_state;
+    p->ctx->lexer_asm_body_pending = old_asm_pending;
     return token;
 }
 
