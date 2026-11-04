@@ -1928,7 +1928,8 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
             if (n->type == AST_BLOCK_HALT &&
                 (s->active_count < 2u ||
                  (s->active[s->active_count - 2u]->type != AST_BLOCK &&
-                  s->active[s->active_count - 2u]->type != AST_ASM_BLOCK) ||
+                  s->active[s->active_count - 2u]->type != AST_ASM_BLOCK &&
+                  s->active[s->active_count - 2u]->type != AST_FASTEXEC_BLOCK) ||
                  n->next != NULL))
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"block_cleanup_position");
             break;
