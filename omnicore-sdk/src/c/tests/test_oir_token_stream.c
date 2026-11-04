@@ -182,6 +182,37 @@ int main(void) {
             "reject error token without diagnostic reference");
     }
 
+    {
+        Token raw_body={0};
+        Token decoded={0};
+        OirTokenStreamInput raw_tokens[2]={{0}};
+        raw_body.type=TOKEN_ASM_BODY;
+        raw_body.start="";
+        raw_body.length=0;
+        raw_body.line=1;
+        raw_body.col=1;
+        raw_body.source_offset=0u;
+        raw_body.source_length=0u;
+        CHECK(oir_token_stream_input_from_lexer_token(&raw_body,&raw_tokens[0])==OIR_STATUS_OK &&
+            raw_tokens[0].token_id==164u && raw_tokens[0].lexeme_length==0u,
+            "convert empty opaque ASM body token");
+        raw_tokens[1].token_id=oir_token_id_from_omni(TOKEN_EOF);
+        raw_tokens[1].source_offset=0u;
+        raw_tokens[1].line=1u;
+        raw_tokens[1].column=1u;
+        CHECK(oir_token_stream_write(buffer,capacity,0u,0u,0u,raw_tokens,2u,&written)==OIR_STATUS_OK,
+            "write zero-length ASM body token");
+        CHECK(oir_token_stream_open(buffer,written,0u,0u,0u,&view)==OIR_STATUS_OK,
+            "open zero-length ASM body token stream");
+        CHECK(oir_token_stream_get(&view,0u,&record)==OIR_STATUS_OK &&
+            record.token_id==164u && record.lexeme_length==0u,
+            "read zero-length ASM body record");
+        CHECK(oir_token_stream_record_to_lexer_token(&record,(const uint8_t*)"",0u,
+            NULL,0u,&decoded)==OIR_STATUS_OK && decoded.type==TOKEN_ASM_BODY &&
+            decoded.length==0 && decoded.source_length==0u,
+            "restore zero-length ASM body token");
+    }
+
     free(buffer);
     puts("OIR token stream payload tests passed.");
     return 0;
