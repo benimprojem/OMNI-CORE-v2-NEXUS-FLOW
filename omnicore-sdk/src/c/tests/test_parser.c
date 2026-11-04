@@ -1406,11 +1406,13 @@ static int test_fast_exec_raw_asm_ast(void) {
     if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count!=0 ||
         !parser->ast_root || !ast_validate((ASTNode*)parser->ast_root,NULL)) goto done;
     function=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    if(!function || !function->body || function->body->type!=AST_BLOCK) goto done;
     fast=(ASTFastExecBlock*)((ASTBlock*)function->body)->statements;
+    if(!fast || fast->base.type!=AST_FASTEXEC_BLOCK || !fast->statements ||
+        fast->statements->type!=AST_VAR_DECL) goto done;
     variable=(ASTVarDecl*)fast->statements;
     label=(ASTAsmLabel*)variable->base.next;
-    valid=fast->base.type==AST_FASTEXEC_BLOCK &&
-        label && label->base.type==AST_ASM_LABEL &&
+    valid=label && label->base.type==AST_ASM_LABEL &&
         label->label && strcmp(label->label,"ADD")==0 &&
         raw_start && raw_end && label->source_length==(size_t)(raw_end-raw_start) &&
         memcmp(label->source_text,raw_start,label->source_length)==0 &&
