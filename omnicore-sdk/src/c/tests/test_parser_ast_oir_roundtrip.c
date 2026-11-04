@@ -365,6 +365,15 @@ int main(int argc,char** argv) {
         goto cleanup;
     }
 
+    {
+        const ASTNode* missing=first_missing_source_span((ASTNode*)parser->ast_root,0u);
+        if(missing) {
+            fprintf(stderr,"AST round-trip fixture node kind %d is missing a source span\\n",
+                (int)missing->type);
+            goto cleanup;
+        }
+    }
+
     status=encode_ast((ASTNode*)parser->ast_root,&first_payload,&first_length);
     if(status!=OIR_STATUS_OK) {
         fprintf(stderr,"Frontend AST writer failed: %s\n",oir_status_string(status));
