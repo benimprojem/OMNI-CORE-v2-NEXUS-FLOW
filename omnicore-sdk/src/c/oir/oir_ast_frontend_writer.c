@@ -187,6 +187,12 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
     switch (node->type) {
         case AST_PROGRAM: REF(1, ((const ASTProgram*)node)->declarations); break;
         case AST_BLOCK: case AST_ASM_BLOCK: REF(1, ((const ASTBlock*)node)->statements); break;
+        case AST_FASTEXEC_BLOCK: REF(1,((const ASTFastExecBlock*)node)->statements); break;
+        case AST_ASM_LABEL: {
+            const ASTAsmLabel* a=(const ASTAsmLabel*)node;
+            if(!a->source_text || strlen(a->source_text)!=a->source_length) return OIR_STATUS_INVALID_SECTION;
+            STR(1,a->label); STR(2,a->source_text); break;
+        }
         case AST_VAR_DECL: {
             const ASTVarDecl* n = (const ASTVarDecl*)node;
             STR(1,n->name); STR(2,n->type_name);
@@ -296,6 +302,9 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
         case AST_ARRAY_LITERAL: REF(1,((const ASTArrayLiteral*)node)->elements); break;
         case AST_ARRAY_TYPE: REF(1,((const ASTArrayType*)node)->dimensions); break;
         case AST_ARRAY_DIMENSION: REF(1,((const ASTArrayDimension*)node)->length); break;
+        case AST_VARIADIC_PARAM: break;
+        case AST_NAMED_ARG: { const ASTNamedArg* n=(const ASTNamedArg*)node; STR(1,n->name); REF(2,n->value); break; }
+        case AST_MUST_DECL: { const ASTMustDecl* n=(const ASTMustDecl*)node; STR(1,n->name); REF(2,n->source); break; }
         case AST_BLOCK_HALT: break;
         case AST_IF: {
             const ASTIf* n = (const ASTIf*)node;
