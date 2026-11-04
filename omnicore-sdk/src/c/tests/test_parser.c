@@ -1696,6 +1696,7 @@ int main(int argc, char** argv) {
         ASTNode* body;
         const OccSourceSpan* block_span;
         size_t open_offset = (size_t)(strchr(source, '{') - source);
+        const char* halt_offset = strstr(source, "?;");
         if (!parser || parser_run(parser) != PARSER_STATUS_OK) {
             if (parser) parser_destroy(parser);
             fprintf(stderr, "block-scoped Halt syntax failed to parse\\n");
@@ -1708,6 +1709,9 @@ int main(int argc, char** argv) {
         last = body ? ((ASTBlock*)body)->statements : NULL;
         while (last && last->next) last = last->next;
         if (!last || last->type != AST_BLOCK_HALT ||
+            !last->source_span.has_location ||
+            last->source_span.start_offset != (uint64_t)(halt_offset - source) ||
+            last->source_span.end_offset != sizeof(source) - 1u ||
             !block_span || !block_span->has_location ||
             block_span->start_offset != open_offset ||
             block_span->end_offset != sizeof(source) - 1u ||
