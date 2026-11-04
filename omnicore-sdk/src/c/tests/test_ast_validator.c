@@ -49,6 +49,9 @@ int main(void) {
     if (!root || !block || !id) return 1;
     ((ASTProgram *)root)->declarations = block;
     ((ASTBlock *)block)->statements = id;
+    ((ASTIdentifier*)id)->name=(char*)malloc(3u);
+    if(!((ASTIdentifier*)id)->name) return 1;
+    strcpy(((ASTIdentifier*)id)->name,"id");
     if (!expect(root, AST_VALIDATE_OK)) {
         fprintf(stderr, "valid tree rejected\n"); return 1;
     }
@@ -71,6 +74,9 @@ int main(void) {
         ASTNode *bin = ast_create(AST_BINARY_EXPR);
         ASTNode *shared = ast_create(AST_IDENTIFIER);
         if (!bin || !shared) return 1;
+        ((ASTIdentifier*)shared)->name=(char*)malloc(7u);
+        if(!((ASTIdentifier*)shared)->name) return 1;
+        strcpy(((ASTIdentifier*)shared)->name,"shared");
         ((ASTBinaryExpr *)bin)->left = shared;
         ((ASTBinaryExpr *)bin)->right = shared;
         if (!expect(bin, AST_VALIDATE_SHARED_NODE)) {
@@ -189,6 +195,9 @@ int main(void) {
         if (!expect(fn, AST_VALIDATE_MISSING_REQUIRED)) {
             fprintf(stderr, "function without body accepted\n"); return 1;
         }
+        ((ASTFuncDecl*)ext)->name=(char*)malloc(4u);
+        if(!((ASTFuncDecl*)ext)->name) return 1;
+        strcpy(((ASTFuncDecl*)ext)->name,"ext");
         if (!expect(ext, AST_VALIDATE_OK)) {
             fprintf(stderr, "bodyless extern rejected\n"); return 1;
         }
@@ -434,6 +443,9 @@ int main(void) {
         FILE *stream = tmpfile();
         ASTNode *decoded;
         if (!fn || !body || !stream) return 1;
+        ((ASTFuncDecl *)fn)->name=(char*)malloc(3u);
+        if(!((ASTFuncDecl *)fn)->name) return 1;
+        strcpy(((ASTFuncDecl *)fn)->name,"fn");
         ((ASTFuncDecl *)fn)->body = body;
         if (!ast_serialize(fn, stream) || fseek(stream, 0L, SEEK_SET) != 0) {
             ast_destroy(fn); fclose(stream); return 1;
@@ -454,6 +466,9 @@ int main(void) {
         ASTNode* marker = ast_create(AST_VARIADIC_PARAM);
         ASTNode* body = ast_create(AST_BLOCK);
         if (!fn || !marker || !body) return 1;
+        fn->name=(char*)malloc(3u);
+        if(!fn->name) return 1;
+        strcpy(fn->name,"fn");
         fn->params = marker;
         fn->body = body;
         if (!expect((ASTNode*)fn, AST_VALIDATE_OK)) {
@@ -481,6 +496,12 @@ int main(void) {
         second->name = (char*)malloc(2u);
         first->value = ast_create(AST_LITERAL);
         second->value = ast_create(AST_LITERAL);
+        ((ASTLiteral*)first->value)->string_value=(char*)malloc(2u);
+        ((ASTLiteral*)second->value)->string_value=(char*)malloc(2u);
+        if(!((ASTLiteral*)first->value)->string_value ||
+           !((ASTLiteral*)second->value)->string_value) return 1;
+        strcpy(((ASTLiteral*)first->value)->string_value,"1");
+        strcpy(((ASTLiteral*)second->value)->string_value,"2");
         if (!callee->name || !first->name || !second->name ||
             !first->value || !second->value) return 1;
         strcpy(callee->name, "f");
@@ -527,6 +548,9 @@ int main(void) {
         dependency->name = (char*)malloc(2u);
         if (!dependency->name) return 1;
         strcpy(dependency->name, "M");
+        ((ASTLiteral*)literal)->string_value=(char*)malloc(2u);
+        if(!((ASTLiteral*)literal)->string_value) return 1;
+        strcpy(((ASTLiteral*)literal)->string_value,"x");
         dependency->source = literal;
         program->declarations = (ASTNode*)dependency;
         if (!expect((ASTNode*)program, AST_VALIDATE_OK)) {
