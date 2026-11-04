@@ -2661,6 +2661,11 @@ static ASTNode* parse_asm_label(Parser* p) {
         return NULL;
     }
     label_token = p->current;
+    if (label_token.length <= 0 || label_token.start[0] == '_') {
+        error_at(p, &label_token, ERR_PARSER_UNEXPECTED_TOKEN,
+            "ASM labels cannot begin with '_' or a special character.");
+        return NULL;
+    }
     advance(p);
     if (!check(p, TOKEN_LBRACE)) {
         error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE,
