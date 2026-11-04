@@ -1047,15 +1047,20 @@ static int rejects_all_truncated_ast_payload_prefixes(void) {
     long end;
     size_t cut;
     int ok=0;
+    int stage=1;
     if(!literal || !stream) goto done;
     literal->string_value=duplicate_text("payload");
+    stage=2;
     if(!literal->string_value || !ast_serialize((ASTNode*)literal,stream) ||
        fflush(stream)!=0) goto done;
+    stage=3;
     end=ftell(stream);
     if(end<=0) goto done;
+    stage=4;
     bytes=(unsigned char*)malloc((size_t)end);
     if(!bytes || fseek(stream,0L,SEEK_SET)!=0 ||
        fread(bytes,1u,(size_t)end,stream)!=(size_t)end) goto done;
+    stage=5;
     for(cut=0u;cut<(size_t)end;++cut) {
         int rejected=rejects_bytes(bytes,cut);
         if(rejected!=0) {
@@ -1065,6 +1070,7 @@ static int rejects_all_truncated_ast_payload_prefixes(void) {
     }
     ok=1;
 done:
+    if(!ok) fprintf(stderr,"truncation fixture stage=%d\\n",stage);
     free(bytes);
     if(stream) fclose(stream);
     if(literal) ast_destroy((ASTNode*)literal);
