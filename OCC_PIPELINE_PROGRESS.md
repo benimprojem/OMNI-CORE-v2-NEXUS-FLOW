@@ -61,7 +61,7 @@ Lexer bir AST düğümüne bire bir karşılık gelmez. Bu nedenle token takibi 
 
 ## 4. AST düğüm bazlı ilerleme tablosu
 
-Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–99 kayıtlı düğüm kimliklerini temel alır. ID'ler append-only'dir; mevcut ID'ler yeniden numaralandırılmaz.
+Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–105 kayıtlı OIR düğüm kimliklerini temel alır. ID'ler append-only'dir; mevcut ID'ler yeniden numaralandırılmaz.
 
 **Sütunlar:** Parser = syntax'tan bu düğümü üretme; AST+Codec = payload/lifecycle/serialize/deserialize; Semantic = tip/scope/ownership/control-flow kuralları; OIR Lowering = executable OIR üretimi; Tests = özellik bazlı parser/semantic/lowering testleri. AST codec için mevcut field-level round-trip matrisi tüm kayıtlı tag'leri kapsar; bu, her düğümün parser veya semantic olarak tamamlandığını göstermez.
 
@@ -167,6 +167,9 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–99 kayıtlı düğüm k
 | 98 | `AST_ARRAY_TYPE` | ✓ | ✓ | ~ | ? | ✓ |
 | 99 | `AST_ARRAY_DIMENSION` | ✓ | ✓ | ~ | ? | ✓ |
 | 100 | `AST_BLOCK_HALT` | ✓ | ~ | ? | ? | ~ |
+| 101 | `AST_VARIADIC_PARAM` | ✓ | ~ | ~ | D | ~ |
+| 102 | `AST_NAMED_ARG` | ✓ | ~ | ~ | D | ~ |
+| 103 | `AST_MUST_DECL` | ✓ | ~ | ~ | D | ~ |
 | 104 | `AST_FASTEXEC_BLOCK` | ~ | ~ | ~ | D | ~ |
 | 105 | `AST_ASM_LABEL` | ~ | ~ | ~ | D | ~ |
 
@@ -436,7 +439,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 | 2026-11-04 | FASTEXEC için sıkı derleyici doğrulama politikası tasarıma eklendi: placeholder read/write yönü, uninitialized read, immutable write, tip/operand genişliği, register ve bellek mapping çakışmaları, clobber/live-value koruması, label/call/jump/fall-through kontrolü, target capability ve ABI/hizalama kontrolleri; ham ASM'nin tam statik kanıtlanamadığı yerde fail-safe diagnostic/warning. Derleyici keyfî ASM'yi otomatik düzeltmeyecek veya güvenli olduğunu iddia etmeyecek. `AST_ASM_DESIGN.md` ve normatif ASM spesifikasyonu güncellendi. Yalnızca tasarım/belge değişikliği; C implementasyonu ve test yok. Sonraki kod adımı öncesi OIR map/schema'daki mevcut 100-kind sınırı ve schema kind 101 scalar kuralı uzlaştırılmalı; belge kayıtları tek başına wire implementation değildir. | commits `c0d5773`, `b4d7ba4`; `AST_ASM_DESIGN.md`, `nexus docs/Gelişmiş Inline Assembly — Formal Specification.md`, `OCC_PIPELINE_PROGRESS.md` |
 
-| 2026-11-04 | FASTEXEC AST çekirdeği eklendi: `AST_FASTEXEC_BLOCK` ve `AST_ASM_LABEL` append-only AST tag'leri; factory boyutlandırma, printer, destructor, legacy AST stream serialize/deserialize ve graph validator dispatch tamamlandı. `AST_ASM_LABEL` yalnızca doğrudan `AST_FASTEXEC_BLOCK` çocuğu olabilir; label/source_text sahipliği ve source_length eşitliği doğrulanır. `AST_ASM_BLOCK` legacy kind 29 ve payload'ı değiştirilmedi. AST validator ve raw ASM CRLF codec regresyon testleri eklendi; CTest/CI henüz çalıştırılmadı. | `ast.h`, `ast.c`, `test_ast_validator.c`, `test_ast_deserialize.c`; commits `195cc7f`, `0672567`, `033611b`, `7aa5e8f`, `ed27fc0`, `f11df33`, `c51e0c8`, `5afd432` |
+| 2026-11-04 | FASTEXEC AST çekirdeği eklendi: `AST_FASTEXEC_BLOCK` ve `AST_ASM_LABEL` append-only AST tag'leri; factory boyutlandırma, printer, destructor, legacy AST stream serialize/deserialize ve graph validator dispatch tamamlandı. `AST_ASM_LABEL` AST ancestor zincirinde bir `AST_FASTEXEC_BLOCK` kapsamı altında bulunmalıdır; label/source_text sahipliği ve source_length eşitliği doğrulanır. `AST_ASM_BLOCK` legacy kind 29 ve payload'ı değiştirilmedi. AST validator ve raw ASM CRLF codec regresyon testleri eklendi; CTest/CI henüz çalıştırılmadı. | `ast.h`, `ast.c`, `test_ast_validator.c`, `test_ast_deserialize.c`; commits `195cc7f`, `0672567`, `033611b`, `7aa5e8f`, `ed27fc0`, `f11df33`, `c51e0c8`, `5afd432` |
 | 2026-11-04 | OIR AST bridge 101–105 tamamlandı: `AST_VARIADIC_PARAM`/`AST_NAMED_ARG`/`AST_MUST_DECL` artık OIR 101–103'e; FASTEXEC/ASM 104–105'e eşlendi. Field schema, frontend child traversal, writer, reader ve `OIR_AST_NODE_KIND_MAX` 105'e çıkarıldı. Eski OIR ID'leri 1–100 korunuyor; kind 101'deki hatalı I64 schema kaydı kaldırılarak variadic leaf olarak tanımlandı. Mapping 105/105 testi ve OIR round-trip fixture'ı 101–105'in tamamını kapsayacak şekilde eklendi. Testler henüz çalıştırılmadı. | `oir_ast_map.h/.c`, `oir_ast_field_schema.c`, `oir_ast_frontend_index.c`, `oir_ast_frontend_writer.c`, `oir_ast_frontend_reader.c`, `oir_ast_node_table.h`, `OIR_AST_NODE_REGISTRY.md`, `test_oir_ast_map.c`, `test_parser_ast_oir_roundtrip.c`; commits `5565a0d`, `f8a7366`, `3474e2d`, `596ebb2`, `0f71732`, `b32a585`, `1eea47a`, `1e6427d`, `946b8b1`, `bb61193`, `74dd1cf`, `09fb9a7` |
 | 2026-11-04 | FASTEXEC AST/OIR uygulama kapısı açık: Parser `fastexec { ... }` ve Lexer raw ASM token/span entegrasyonu henüz yapılmadı; ASM dışı scope hatası için Parser/diagnostic testi bekliyor. Source span'in AST düğümlerinden OIR'a tam aktarımı da ayrı açık iş. Yeni test fixture'ları GitHub dalına yazıldı ancak bu çalışma ortamında C derleme/CTest yürütülmedi; son kod commit'i için PR workflow run bulunmadı. Bu nedenle AST veya OIR aşaması tamamlandı olarak işaretlenmiyor. | `parser.c`, `lexer.c`, `test_parser.c`, `test_parser_ast_oir_roundtrip.c`, `docs/AST-SOURCE-SPAN-CONTRACT.md` |
 
