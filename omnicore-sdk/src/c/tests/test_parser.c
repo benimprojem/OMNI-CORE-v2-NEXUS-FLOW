@@ -2616,5 +2616,38 @@ generic_type_done:
         }
     }
 
+
+    /* Group declarations and their members preserve independent spans. */
+    {
+        static const char source[] = "f:main() { group Pair { v:x!i32; } }";
+        ParserContext* parser = parser_init_source("group-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* group_start = strstr(source, "group Pair");
+        const char* group_end = group_start ? strchr(group_start, '}') : NULL;
+        const char* member_start = strstr(source, "v:x!i32");
+        ASTFuncDecl* function;
+        ASTGroupDecl* group;
+        ASTVarDecl* member;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            group = function
+                ? (ASTGroupDecl*)((ASTBlock*)function->body)->statements : NULL;
+            member = group ? (ASTVarDecl*)group->members : NULL;
+            valid = group && group->base.source_span.has_location == 1u &&
+                group->base.source_span.start_offset == (size_t)(group_start - source) &&
+                group->base.source_span.end_offset == (size_t)(group_end + 1 - source) &&
+                member && member->base.source_span.has_location == 1u &&
+                member->base.source_span.start_offset == (size_t)(member_start - source) &&
+                member->base.source_span.end_offset == (size_t)(member_start + 8 - source) &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Group AST source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
