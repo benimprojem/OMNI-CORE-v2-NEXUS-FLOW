@@ -3016,6 +3016,7 @@ static ASTNode* parse_pattern(Parser* p) {
             }
             advance(p);
             ctor->bindings = head;
+            parser_stamp_node_tokens(p, (ASTNode*)ctor, &token, &p->previous);
             return (ASTNode*)ctor;
         }
         pattern = parser_ast_create(p, AST_PATTERN_BINDING);
@@ -3026,6 +3027,7 @@ static ASTNode* parse_pattern(Parser* p) {
         if (!((ASTPatternBinding*)pattern)->name) { ast_destroy(pattern); return NULL; }
         memcpy(((ASTPatternBinding*)pattern)->name, token.start, (size_t)token.length);
         ((ASTPatternBinding*)pattern)->name[token.length] = '\0';
+        parser_stamp_node_token(p, pattern, &token);
         return pattern;
     }
     if (token.type == TOKEN_NUMBER || token.type == TOKEN_STRING ||
@@ -3074,6 +3076,7 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
     }
     advance(p);
     while (p->current.type!=TOKEN_RBRACE && p->current.type!=TOKEN_EOF) {
+        Token arm_start = p->current;
         ASTNode* arm=NULL;
         ASTNode* pattern=NULL;
         ASTNode* guard=NULL;
@@ -3142,6 +3145,7 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
             if(!n){ast_destroy(pattern);ast_destroy(body);ast_destroy(root);ast_destroy(arms);return NULL;}
             n->base.line=keyword.line; n->base.col=keyword.col; n->pattern=pattern; n->body=body; n->is_default=is_default; arm=(ASTNode*)n;
         }
+        parser_stamp_node_tokens(p, arm, &arm_start, &p->previous);
         if(!arms)arms=arm;else tail->next=arm;tail=arm;
         if(check(p,TOKEN_COMMA)||check(p,TOKEN_SEMICOLON))advance(p);
     }
