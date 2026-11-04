@@ -1729,6 +1729,9 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
                 span->end_offset < span->start_offset ||
                 span->start_line == 0u || span->start_column == 0u ||
                 span->end_line == 0u || span->end_column == 0u ||
+                span->end_line < span->start_line ||
+                (span->end_line == span->start_line &&
+                    span->end_column < span->start_column) ||
                 n->line < 0 || n->col < 0 ||
                 (uint32_t)n->line != span->start_line ||
                 (uint32_t)n->col != span->start_column) {
