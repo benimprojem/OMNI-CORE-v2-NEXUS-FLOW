@@ -1374,7 +1374,70 @@ static int test_ast_create_rejects_invalid_node_kinds(void) {
     return 1;
 }
 
+static int test_fast_exec_raw_asm_ast(void) {
+    static const char source[] =
+        "f:main()!i32 {\n"
+        "    fastexec {\n"
+        "        v:x!i32 = 10;\n"
+        "        asm: ADD {\n"
+        "            mov rax, %x:reg\r\n"
+        "            ldm r0, {r1, r2}\n"
+        "            db \"}\"\n"
+        "        }\n"
+        "        echo(x);\n"
+        "    }\n"
+        "    ret 0;\n"
+        "}";
+    static const char outside_source[] =
+        "f:main() { asm: OUTSIDE { nop } }";
+    ParserContext* parser=parser_init_source("fast-exec-asm.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    const char* fast_start=strstr(source,"fastexec");
+    const char* asm_start=strstr(source,"asm: ADD");
+    const char* raw_start=asm_start?strchr(asm_start,'{')+1:NULL;
+    const char* close_line=raw_start?strstr(raw_start,"\n        }\n"):NULL;
+    const char* raw_end=close_line?close_line+9:NULL;
+    ASTFuncDecl* function;
+    ASTFastExecBlock* fast;
+    ASTVarDecl* variable;
+    ASTAsmLabel* label;
+    int valid=0;
+    if(!parser) return 0;
+    if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count!=0 ||
+        !parser->ast_root || !ast_validate((ASTNode*)parser->ast_root,NULL)) goto done;
+    function=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    fast=(ASTFastExecBlock*)((ASTBlock*)function->body)->statements;
+    variable=(ASTVarDecl*)fast->statements;
+    label=(ASTAsmLabel*)variable->base.next;
+    valid=fast->base.type==AST_FASTEXEC_BLOCK &&
+        label && label->base.type==AST_ASM_LABEL &&
+        label->label && strcmp(label->label,"ADD")==0 &&
+        raw_start && raw_end && label->source_length==(size_t)(raw_end-raw_start) &&
+        memcmp(label->source_text,raw_start,label->source_length)==0 &&
+        label->base.source_span.has_location==1u &&
+        label->base.source_span.start_offset==(uint64_t)(asm_start-source) &&
+        label->base.source_span.end_offset==(uint64_t)(raw_end+1-source) &&
+        fast_start && fast->base.source_span.has_location==1u &&
+        fast->base.source_span.start_offset==(uint64_t)(fast_start-source) &&
+        ast_validate((ASTNode*)parser->ast_root,NULL);
+done:
+    parser_destroy(parser);
+    if(!valid) {
+        fprintf(stderr,"FASTEXEC/raw ASM Parser AST or exact source-span test failed.\n");
+        return 0;
+    }
+    parser=parser_init_source("asm-outside-fast-exec.nxf",
+        (const uint8_t*)outside_source,sizeof(outside_source)-1u);
+    if(!parser) return 0;
+    (void)parser_run(parser);
+    valid=parser->error_count>0;
+    parser_destroy(parser);
+    if(!valid) fprintf(stderr,"ASM outside FASTEXEC was not diagnosed.\n");
+    return valid;
+}
+
 int main(int argc, char** argv) {
+    if (!test_fast_exec_raw_asm_ast()) return 1;
     if (!test_ast_create_rejects_invalid_node_kinds()) {
         fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\\n");
         return 1;
