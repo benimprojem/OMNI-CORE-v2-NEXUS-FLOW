@@ -18,6 +18,28 @@ int main(void) {
     char mutable_message[] = "undefined symbol";
     char mutable_hint[] = "declare the symbol first";
 
+    /* Multi-file source IDs resolve to stable owned paths. */
+    {
+        OccSourceFileTable files;
+        uint32_t first_id, second_id, duplicate_id;
+        occ_source_files_init(&files);
+        CHECK(occ_source_files_register(&files, "src/main.nxf", &first_id),
+            "first source path should register");
+        CHECK(occ_source_files_register(&files, "lib/math.nxf", &second_id),
+            "second source path should register");
+        CHECK(first_id == 0u && second_id == 1u,
+            "source IDs should follow insertion order");
+        CHECK(occ_source_files_register(&files, "src/main.nxf", &duplicate_id) &&
+            duplicate_id == first_id,
+            "duplicate path should reuse its source ID");
+        CHECK(strcmp(occ_source_files_get(&files, first_id), "src/main.nxf") == 0 &&
+            strcmp(occ_source_files_get(&files, second_id), "lib/math.nxf") == 0,
+            "source IDs should resolve their file paths");
+        CHECK(occ_source_files_get(&files, 99u) == NULL,
+            "unknown source ID should not resolve");
+        occ_source_files_destroy(&files);
+    }
+
     occ_diagnostics_init(&collector);
     memset(&input, 0, sizeof(input));
     input.code = 3001;
