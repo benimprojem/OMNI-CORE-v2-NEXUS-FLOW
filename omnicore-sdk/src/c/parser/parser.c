@@ -1107,7 +1107,12 @@ static ASTNode* parse_must_decl(Parser* p) {
     }
     memcpy(dependency->name, name_token.start, (size_t)name_token.length);
     dependency->name[name_token.length] = '\0';
-    consume(p, TOKEN_ASSIGN, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_ASSIGN);
+    if (!match(p, TOKEN_ASSIGN)) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Expected '=' after mandatory dependency name.");
+        ast_destroy((ASTNode*)dependency);
+        return NULL;
+    }
     dependency->source = parse_expression(p);
     if (!dependency->source) {
         ast_destroy((ASTNode*)dependency);
