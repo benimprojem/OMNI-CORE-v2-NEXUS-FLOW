@@ -1654,5 +1654,48 @@ named_args_done:
         }
     }
 
+    /* MUST dependency declarations remain distinct from ordinary imports. */
+    {
+        static const char source[] =
+            "m:CoreModule = \"CoreModule.nxf\"; "
+            "f:main() { ret 0; }";
+        ParserContext* parser = parser_init_source("must-dependency.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        ASTNode* decoded = NULL;
+        FILE* stream = NULL;
+        int valid = 0;
+        if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
+            !parser->ast_root || !ast_validate(parser->ast_root, NULL))
+            goto must_dependency_done;
+        {
+            ASTProgram* program = (ASTProgram*)parser->ast_root;
+            ASTMustDecl* must = (ASTMustDecl*)program->declarations;
+            if (!must || must->base.type != AST_MUST_DECL ||
+                strcmp(must->name, "CoreModule") != 0 ||
+                !must->source || must->source->type != AST_LITERAL ||
+                strcmp(((ASTLiteral*)must->source)->string_value,
+                    "\"CoreModule.nxf\"") != 0 ||
+                !must->base.next || must->base.next->type != AST_FUNC_DECL)
+                goto must_dependency_done;
+        }
+        stream = tmpfile();
+        if (!stream || !ast_serialize(parser->ast_root, stream) ||
+            fseek(stream, 0, SEEK_SET) != 0)
+            goto must_dependency_done;
+        decoded = ast_deserialize(stream);
+        if (!decoded || !ast_validate(decoded, NULL) ||
+            ((ASTProgram*)decoded)->declarations->type != AST_MUST_DECL)
+            goto must_dependency_done;
+        valid = 1;
+must_dependency_done:
+        if (stream) fclose(stream);
+        if (decoded) ast_destroy(decoded);
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "MUST dependency parser/AST codec test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
