@@ -1,6 +1,7 @@
 #include "lexer.h"
 #include <ctype.h>
 #include <limits.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
 
