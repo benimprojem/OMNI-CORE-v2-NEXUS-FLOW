@@ -1122,7 +1122,10 @@ int main(int argc, char** argv) {
     if (reads_unprefixed_legacy_stream() != 0) return 16;
     if (rejects_unknown_ast_stream_version() != 0) return 17;
     if (rejects_truncated_ast_stream_prefixes() != 0) return 18;
-    if (rejects_all_truncated_ast_payload_prefixes() != 0) return 20;
+    if (rejects_all_truncated_ast_payload_prefixes() != 0) {
+        fprintf(stderr,"truncated payload prefix regression failed\\n");
+        return 20;
+    }
     if (roundtrips_populated_ast_types() != 0) return 11;
     if (roundtrips_all_node_type_tags() != 0) return 8;
     if (roundtrips_block_halt_tag() != 0) return 14;
