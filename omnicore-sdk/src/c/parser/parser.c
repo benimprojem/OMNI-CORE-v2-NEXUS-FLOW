@@ -2949,6 +2949,7 @@ static ASTNode* parse_if_statement(Parser* p) {
         ast_destroy((ASTNode*)node);
         return NULL;
     }
+    parser_stamp_node_tokens(p, (ASTNode*)node, &keyword, &p->previous);
     return (ASTNode*)node;
 }
 
@@ -3141,6 +3142,7 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
     }
     advance(p);
     if(is_scan)((ASTScan*)root)->arms=arms;else ((ASTSelect*)root)->arms=arms;
+    parser_stamp_node_tokens(p, root, &keyword, &p->previous);
     return root;
 }
 
