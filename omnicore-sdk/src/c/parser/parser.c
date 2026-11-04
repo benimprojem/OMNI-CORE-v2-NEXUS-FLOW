@@ -1031,7 +1031,7 @@ static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type) {
                     memcpy(named->name, label.start, (size_t)label.length);
                     named->name[label.length] = '\0';
                     advance(p);
-                    consume(p, TOKEN_COLON, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_COLON);
+                    consume(p, TOKEN_COLON, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_COLON_VAR);
                     named->value = parse_expression(p);
                     if (!named->value) { ast_destroy((ASTNode*)named); ast_destroy((ASTNode*)call); return NULL; }
                     arg = (ASTNode*)named;
@@ -1266,7 +1266,7 @@ static ASTNode* parse_postfix(Parser* p) {
                         memcpy(named->name, label.start, (size_t)label.length);
                         named->name[label.length] = '\0';
                         advance(p);
-                        consume(p, TOKEN_COLON, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_COLON);
+                        consume(p, TOKEN_COLON, ERR_PARSER_EXPECTED_EXPRESSION, MSG_EXPECT_COLON_VAR);
                         named->value = parse_expression(p);
                         if (!named->value) { ast_destroy((ASTNode*)named); ast_destroy((ASTNode*)call); return NULL; }
                         arg = (ASTNode*)named;
