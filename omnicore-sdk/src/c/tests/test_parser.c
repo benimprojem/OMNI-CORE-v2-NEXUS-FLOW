@@ -1436,13 +1436,17 @@ done:
     (void)parser_run(parser);
     valid=parser->error_count>0;
     parser_destroy(parser);
+    if(!valid) {
+        fprintf(stderr,"asmcall outside FASTEXEC was not diagnosed.\\n");
+        return 0;
+    }
     parser=parser_init_source("asm-outside-fast-exec.nxf",
         (const uint8_t*)outside_source,sizeof(outside_source)-1u);
     if(!parser) return 0;
     (void)parser_run(parser);
     valid=parser->error_count>0;
     parser_destroy(parser);
-    if(!valid) fprintf(stderr,"ASM outside FASTEXEC was not diagnosed.\n");
+    if(!valid) fprintf(stderr,"ASM outside FASTEXEC was not diagnosed.\\n");
     return valid;
 }
 
