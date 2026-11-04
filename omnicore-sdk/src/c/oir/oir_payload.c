@@ -102,8 +102,7 @@ OirStatus oir_source_unit_open(
     if (read_u32_le(payload + 12) != 0) return OIR_STATUS_INVALID_HEADER;
     source_length = read_u64_le(payload + 16);
 
-    if (out_view->source_id != 0 ||
-        out_view->encoding_id != OIR_SOURCE_ENCODING_UTF8 ||
+    if (out_view->encoding_id != OIR_SOURCE_ENCODING_UTF8 ||
         out_view->flags != 0) {
         return OIR_STATUS_INVALID_HEADER;
     }
