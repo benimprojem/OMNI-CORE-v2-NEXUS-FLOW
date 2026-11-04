@@ -3,6 +3,7 @@
 
 #include "parser.h"
 #include "lexer.h"
+#include "../core/diagnostics.h"
 
 // Omni Core v2: Abstract Syntax Tree (AST)
 
@@ -137,6 +138,8 @@ typedef struct ASTNode {
      * same node to more than one parent or sibling chain.
      */
     struct ASTNode* next;
+    /* Full source range; line/col remain compatibility mirrors. */
+    OccSourceSpan source_span;
 } ASTNode;
 
 // --- İfade Yapıları ---
@@ -406,6 +409,8 @@ typedef struct {
 
 // Fonksiyonlar
 OCC_API ASTNode* ast_create(ASTNodeType type);
+/* Sets/clears a node source range. NULL clears it; line/col mirrors start. */
+OCC_API int ast_set_source_span(ASTNode* node, const OccSourceSpan* span);
 OCC_API void ast_print(ASTNode* root);
 /* Serialization/deserialization reject AST nesting deeper than 512 nodes; sibling lists are iterative. */
 /* Serialization accepts only a non-NULL AST satisfying ast_validate().
