@@ -164,8 +164,77 @@ done:
     return ok;
 }
 
+static int test_fast_exec_asm_oir_roundtrip(void) {
+    ASTProgram* program=(ASTProgram*)ast_create(AST_PROGRAM);
+    ASTFuncDecl* function=(ASTFuncDecl*)ast_create(AST_FUNC_DECL);
+    ASTBlock* body=(ASTBlock*)ast_create(AST_BLOCK);
+    ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
+    ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
+    const char* raw="mov rax, %value\\r\\nadd rax, 1 ; preserve %x:reg";
+    uint8_t *first=NULL,*second=NULL;
+    size_t first_length=0u,second_length=0u;
+    OirAstNodeTableView view;
+    ASTNode **storage=NULL,*decoded=NULL;
+    uint32_t *incoming=NULL;
+    uint8_t *visited=NULL;
+    OirAstGraphStackEntry* stack=NULL;
+    OirStatus status;
+    int ok=0;
+    if(!program || !function || !body || !fast || !label) goto done;
+    function->name=(char*)malloc(sizeof("main"));
+    function->return_type=(char*)malloc(sizeof("i32"));
+    label->label=(char*)malloc(sizeof("ADD"));
+    label->source_text=(char*)malloc(strlen(raw)+1u);
+    if(!function->name || !function->return_type || !label->label || !label->source_text) goto done;
+    strcpy(function->name,"main");
+    strcpy(function->return_type,"i32");
+    strcpy(label->label,"ADD");
+    memcpy(label->source_text,raw,strlen(raw)+1u);
+    label->source_length=strlen(raw);
+    fast->statements=(ASTNode*)label; label=NULL;
+    body->statements=(ASTNode*)fast; fast=NULL;
+    function->body=(ASTNode*)body; body=NULL;
+    program->declarations=(ASTNode*)function; function=NULL;
+    if(!ast_validate((ASTNode*)program,NULL)) goto done;
+    status=encode_ast((ASTNode*)program,&first,&first_length);
+    if(status!=OIR_STATUS_OK) goto done;
+    status=oir_ast_node_table_open(first,first_length,&view);
+    if(status!=OIR_STATUS_OK) goto done;
+    storage=(ASTNode**)calloc(view.node_count,sizeof(*storage));
+    incoming=(uint32_t*)calloc(view.node_count,sizeof(*incoming));
+    visited=(uint8_t*)calloc(view.node_count,sizeof(*visited));
+    stack=(OirAstGraphStackEntry*)calloc(view.node_count,sizeof(*stack));
+    if(!storage || !incoming || !visited || !stack) goto done;
+    status=oir_ast_frontend_read_payload(first,first_length,storage,view.node_count,
+        incoming,view.node_count,visited,view.node_count,stack,view.node_count,&decoded);
+    if(status!=OIR_STATUS_OK || !decoded || !ast_validate(decoded,NULL)) goto done;
+    {
+        ASTFuncDecl* fn=(ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+        ASTFastExecBlock* fx=(ASTFastExecBlock*)((ASTBlock*)fn->body)->statements;
+        ASTAsmLabel* asm_node=(ASTAsmLabel*)fx->statements;
+        if(!asm_node || asm_node->base.type!=AST_ASM_LABEL ||
+            strcmp(asm_node->label,"ADD")!=0 ||
+            asm_node->source_length!=strlen(raw) ||
+            memcmp(asm_node->source_text,raw,asm_node->source_length)!=0) goto done;
+    }
+    status=encode_ast(decoded,&second,&second_length);
+    if(status!=OIR_STATUS_OK || first_length!=second_length ||
+        memcmp(first,second,first_length)!=0) goto done;
+    ok=1;
+done:
+    if(decoded) ast_destroy(decoded);
+    if(program) ast_destroy((ASTNode*)program);
+    if(function) ast_destroy((ASTNode*)function);
+    if(body) ast_destroy((ASTNode*)body);
+    if(fast) ast_destroy((ASTNode*)fast);
+    if(label) ast_destroy((ASTNode*)label);
+    free(first); free(second); free(storage); free(incoming); free(visited); free(stack);
+    return ok;
+}
+
 int main(int argc,char** argv) {
     if(!test_select_scan_oir_roundtrip()) { fprintf(stderr,"Extended AST OIR round-trip failed.\\n"); return 1; }
+    if(!test_fast_exec_asm_oir_roundtrip()) { fprintf(stderr,"FASTEXEC ASM OIR round-trip failed.\\n"); return 1; }
     ParserContext* parser;
     uint8_t* first_payload=NULL;
     uint8_t* second_payload=NULL;
