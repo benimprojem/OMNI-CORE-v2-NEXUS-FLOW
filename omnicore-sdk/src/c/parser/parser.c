@@ -357,6 +357,22 @@ static void parser_stamp_node_token(
     if (span.has_location) (void)ast_set_source_span(node, &span);
 }
 
+/* Compose a production span from its first and last owned AST children. */
+static void parser_stamp_node_child_range(
+    ASTNode* node, const ASTNode* first, const ASTNode* last
+) {
+    OccSourceSpan span;
+    if (!node || !first || !last ||
+        !first->source_span.has_location || !last->source_span.has_location ||
+        first->source_span.source_id != last->source_span.source_id ||
+        last->source_span.end_offset < first->source_span.start_offset) return;
+    span = first->source_span;
+    span.end_offset = last->source_span.end_offset;
+    span.end_line = last->source_span.end_line;
+    span.end_column = last->source_span.end_column;
+    (void)ast_set_source_span(node, &span);
+}
+
 static void error_at(Parser* p, Token* token, ErrorCode code, const char* message) {
     /* Lexical errors must remain visible even while syntax recovery is active. */
     if (p->panic_mode && token->type != TOKEN_ERROR) return;
@@ -1444,6 +1460,7 @@ static ASTNode* parser_make_binary(Parser* p, OmniTokenType op, ASTNode* left, A
     binary->left = left;
     binary->right = right;
     binary->op = op;
+    parser_stamp_node_child_range((ASTNode*)binary, left, right);
     return (ASTNode*)binary;
 }
 
@@ -1856,6 +1873,7 @@ static ASTNode* parse_assignment(Parser* p) {
         assign->op = assignment_op;
         assign->left = expr;
         assign->right = right;
+        parser_stamp_node_child_range((ASTNode*)assign, expr, right);
         return (ASTNode*)assign;
     }
 
@@ -1885,6 +1903,7 @@ static ASTNode* parse_assignment(Parser* p) {
         assign->op = TOKEN_FORCE_ASSIGN;
         assign->left = expr;
         assign->right = right;
+        parser_stamp_node_child_range((ASTNode*)assign, expr, right);
         return (ASTNode*)assign;
     }
     
