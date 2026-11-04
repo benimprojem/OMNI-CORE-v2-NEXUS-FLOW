@@ -324,10 +324,10 @@ This section separates **missing AST representation** from syntax that can legit
 
 | Syntax in `docs/language/syntax-reference.md` | AST representation decision | Audit status | Required work |
 |---|---|---|---|
-| `m:name = "module"` (MUST dependency) | No dedicated AST tag; currently not proven to map to `AST_VAR_DECL` with dependency metadata | **Missing explicit AST contract** | Add declaration-kind/dependency payload (append-only compatible) or dedicated node; Parser, codec, printer, destroy, OIR schema and tests |
+| `m:name = "module"` (MUST dependency) | `AST_MUST_DECL` with owned dependency name and source expression | **AST/Parser implemented; OIR/Semantic pending** | Preserve program-scope-only rule; add OIR ID/schema/bridge and Semantic dependency resolution/load-failure diagnostics |
 | `r:`, `t:`, `o:` reserved prefixes | No executable grammar contract | **Reserved, not missing executable AST** | Keep rejected/reserved; do not add nodes until language spec activates them |
-| Variadic parameter `...` | No explicit variadic flag/node in `ASTFuncDecl` or parameter payload | **Missing AST parameter contract** | Model variadic marker distinctly from ordinary parameter and call-site expansion; parser/codec/semantic tests |
-| Named arguments `name:value` | Generic argument AST chain currently lacks an explicit named-argument record | **Missing AST argument contract** | Add argument wrapper/name field or a documented lossless encoding; preserve positional vs named order and duplicates |
+| Variadic parameter `...` | Final zero-payload `AST_VARIADIC_PARAM` in function parameter list | **AST/Parser implemented; OIR/Semantic pending** | OIR ID/schema/bridge; Semantic variadic packing and signature checks |
+| Named arguments `name:value` | `AST_NAMED_ARG` with owned label and value expression; positional expressions remain unchanged | **AST/Parser implemented; OIR/Semantic pending** | OIR ID/schema/bridge; Semantic parameter-name resolution and argument matching |
 | Generic type parameters `a!t`, return `!t` | Type names are strings in declaration payload; no generic parameter/binding node | **Missing explicit generic AST contract** | Preserve type-variable identity, constraints and generic argument inference metadata; don't treat `t` as primitive |
 | Function pointer/callback type `nt:Callback = f:(id!u32)>!bool` | No function-type AST node; current type strings cannot preserve signature structure | **Missing AST type representation** | Add function type/parameter/result model and codec/OIR schema; parser and semantic signature tests |
 | Macro definition `:macro! Name(...){...}` and invocation `!!=Name!(...)` | No macro-definition/invocation AST node | **Missing macro/preprocessor model** | Define macro expansion phase and source-origin mapping first; macro bodies must preserve syntax/tree or token stream without pretending to be runtime nodes |
@@ -347,14 +347,14 @@ This section separates **missing AST representation** from syntax that can legit
 
 ### Audit conclusion
 
-Confirmed AST representation gaps (not just parser gaps): **MUST dependency declaration, variadic parameter marker, named argument wrapper, generic type-variable model, function type/callback, macro phase nodes, conditional target/link directives, DLL export metadata, ASM call/jump + operand/clobber payload, structured map type, and numeric bit-shift expression**.
+Confirmed AST representation gaps (not just parser gaps): **generic type-variable model, function type/callback, macro phase nodes, conditional target/link directives, DLL export/import metadata, ASM call/jump + operand/clobber payload, structured map type, and numeric bit-shift expression**. MUST dependency, variadic marker and named argument now have AST/Parser representations; their OIR and Semantic stages remain open.
 
 Some syntax can reuse existing AST shapes without a new enum tag (`elsif`, conditional action, array declarators, select/scan guard); these remain subject to lossless round-trip and semantic contract tests. `import(path)` is provisionally representable as a call expression but must carry an explicit import/resource kind to preserve its runtime ownership and DLL semantics.
 
-**Ordering:** define AST payload contracts first (variadic/named args and function types; directives/macro/import/export; ASM; map/vector/shift), then parser and codec. Source Span remains a cross-cutting AST/codec prerequisite. Codegen stays blocked.
+**Ordering:** complete the remaining AST payload contracts (generic/function types; directives/macro/import/export; ASM; map/vector/shift), then finish Parser/codec and OIR bridge coverage. Source Span remains a cross-cutting AST/codec prerequisite. Codegen stays blocked.
 
 
-## AST contract decision — variadic and named arguments (2026-11-04)
+## AST contract — variadic and named arguments (implemented; OIR/Semantic pending, 2026-11-04)
 
 Normative examples in `docs/language/syntax-reference.md` establish:
 
@@ -391,3 +391,7 @@ This defines CLI argument *delivery*, not the full `main` return/exit-code conve
 
 
 **Implementation update (2026-11-04):** `AST_VARIADIC_PARAM` and `AST_NAMED_ARG` have been appended after the existing AST kind inventory (IDs 101 and 102; prior IDs preserved). AST factory, printer, destructor, serializer/deserializer bounds and named-argument payload codec are wired. Parser now accepts final `...` in function/external parameter lists and `label:value` for intrinsic and ordinary calls; it rejects positional-after-named and duplicate labels. Graph validation checks variadic marker context/finality and named argument context, required fields, order and duplicate labels. Parser round-trip and validator tests have been added. **Validation:** CI run `41759489746` passed on Ubuntu, Windows and macOS; ASan/UBSan and Valgrind also passed. **Not complete:** OIR stable IDs/schema/bridge support and semantic variadic packing/name resolution remain pending.
+
+## AST contract — MUST dependency declaration (2026-11-04)
+
+The syntax reference defines `m:CoreModule = "CoreModule.nxf";` as a mandatory compile-time dependency, distinct from `use`. Lexer already emits `TOKEN_PRE_MUST`; the AST/Parser gap is now closed with appended `AST_MUST_DECL` (AST kind 103), carrying an owned dependency name and an owned source expression. Parser accepts the combined `m:Name` prefix token (and a separated name if lexed separately), requires `=` and a source expression, and rejects declarations outside program scope. AST printer/destructor/codec and graph validator are wired. Tests cover parse + codec round-trip, factory/codec tag boundaries, valid program scope and invalid nested scope. CI run `41760397845` passed on Ubuntu, Windows and macOS, plus ASan/UBSan and Valgrind. OIR registry/schema/bridge support and Semantic dependency resolution, load-failure behavior and diagnostic integration remain pending.
