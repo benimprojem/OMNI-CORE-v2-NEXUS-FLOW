@@ -729,7 +729,11 @@ static ASTNode* parse_primary(Parser* p) {
     }
 
     if (match(p, TOKEN_KW_FN)) {
-        return parse_func_decl(p);
+        Token function_start = p->previous;
+        ASTNode* function = parse_func_decl(p);
+        if (function)
+            parser_stamp_node_tokens(p, function, &function_start, &p->previous);
+        return function;
     }
 
     if (match(p, TOKEN_KW_LOOP)) {
@@ -918,13 +922,15 @@ static ASTNode* parse_primary(Parser* p) {
 
     // Support for { expr, expr } (Struct Init / Tuple)
     if (match(p, TOKEN_LBRACE)) {
+        Token open = p->previous;
         // { } Empty tuple check
         if (match(p, TOKEN_RBRACE)) {
              ASTTuple* tuple = (ASTTuple*)parser_ast_create(p, AST_TUPLE);
              if (!tuple) return NULL;
              tuple->base.line = p->previous.line;
-             tuple->base.col = p->previous.col;
+             tuple->base.col = open.col;
              tuple->elements = NULL;
+             parser_stamp_node_tokens(p, (ASTNode*)tuple, &open, &p->previous);
              return (ASTNode*)tuple;
         }
 
@@ -952,10 +958,12 @@ static ASTNode* parse_primary(Parser* p) {
         }
         
         consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
+        parser_stamp_node_tokens(p, (ASTNode*)tuple, &open, &p->previous);
         return (ASTNode*)tuple;
     }
 
     if (match(p, TOKEN_AI)) {
+        Token ai_start = p->previous;
         ASTAiLogic* ai = (ASTAiLogic*)parser_ast_create(p, AST_AI_LOGIC);
         if (!ai) return NULL;
         ai->base.line = p->previous.line;
@@ -977,6 +985,7 @@ static ASTNode* parse_primary(Parser* p) {
                 return NULL;
             }
         }
+        parser_stamp_node_tokens(p, (ASTNode*)ai, &ai_start, &p->previous);
         return (ASTNode*)ai;
     }
 
