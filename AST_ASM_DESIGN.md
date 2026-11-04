@@ -18,10 +18,10 @@ FASTEXEC does not encode a fixed hardware kind in the AST. Semantic/target capab
 
 The existing `AST_ASM_BLOCK` is already published as AST kind 29 / OIR kind 29 and has legacy `ASTBlock` payload semantics. Do not repurpose that ID or reinterpret old serialized streams.
 
-Append the following C AST kinds after the current `AST_MUST_DECL` kind 103:
+Append the following C AST kinds after `AST_MUST_DECL` in the C enum (whose stable OIR ID is 103):
 
-- `AST_FASTEXEC_BLOCK` (C kind 104; OIR kind 104): `ASTNode base; ASTNode *statements;` It owns the ordered statement chain in the FASTEXEC scope.
-- `AST_ASM_LABEL` (C kind 105; OIR kind 105): `ASTNode base; char *label; char *source_text; size_t source_length;`. It owns both strings and has no AST child nodes. `source_length` is authoritative; `source_text` also has a trailing NUL for C APIs.
+- `AST_FASTEXEC_BLOCK` (new C enum member; OIR kind 104): `ASTNode base; ASTNode *statements;` It owns the ordered statement chain in the FASTEXEC scope.
+- `AST_ASM_LABEL` (new C enum member; OIR kind 105): `ASTNode base; char *label; char *source_text; size_t source_length;`. It owns both strings and has no AST child nodes. `source_length` is authoritative; `source_text` also has a trailing NUL for C APIs.
 
 The current OIR registry omits three already-existing frontend kinds. Register `AST_VARIADIC_PARAM` as OIR 101, `AST_NAMED_ARG` as OIR 102, and `AST_MUST_DECL` as OIR 103 before adding FASTEXEC 104 and ASM_LABEL 105. No published OIR ID is renumbered or reused.
 
