@@ -902,6 +902,16 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
     ASTFuncDecl* function;
     ASTBlock* body;
     ASTNode* node;
+    const char* rules_start=strstr(source,"rules PrimeBorders");
+    const char* rules_close=rules_start?strstr(rules_start," } apply"):NULL;
+    const char* barrier_start=strstr(source,"n < 2");
+    const char* apply_start=strstr(source,"apply rules");
+    const char* on_start=strstr(source,"on PrimeBorders");
+    const char* on_end=on_start?strstr(on_start,"ret true; }"):NULL;
+    const char* unroll_start=strstr(source,"unroll(3)");
+    const char* unroll_end=unroll_start?strstr(unroll_start,"v:copy = item; }"):NULL;
+    const char* relocate_start=strstr(source,"source _> target");
+    const char* retry_start=strstr(source,"source?(5, 500ms)");
     int rules=0, apply=0, on_block=0, lambda=0, lambda_block=0, unroll=0, relocate=0, rolling=0;
     int ok=0;
     if(!ctx)return 0;
@@ -915,7 +925,13 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
             ASTRulesetDecl* r=(ASTRulesetDecl*)node;
             ASTNode* rule=r->rules;
             int barriers=0,triggers=0,always=0,defaults=0;
-            if(!r->name || strcmp(r->name,"PrimeBorders")!=0 || !r->params)goto done;
+            if(!r->name || strcmp(r->name,"PrimeBorders")!=0 || !r->params ||
+               !r->base.source_span.has_location ||
+               r->base.source_span.start_offset!=(uint64_t)(rules_start-source) ||
+               r->base.source_span.end_offset!=(uint64_t)(rules_close+2-source))goto done;
+            if(!rule || !rule->source_span.has_location ||
+               rule->source_span.start_offset!=(uint64_t)(barrier_start-source) ||
+               rule->source_span.end_offset!=(uint64_t)(strchr(barrier_start,';')+1-source))goto done;
             for(;rule;rule=rule->next) {
                 if(rule->type==AST_RULE_BARRIER)barriers++;
                 else if(rule->type==AST_RULE_TRIGGER)triggers++;
@@ -926,21 +942,46 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
             rules=1;
         } else if(node->type==AST_APPLY_RULES) {
             ASTApplyRules* a=(ASTApplyRules*)node;
-            if(!a->ruleset_name || strcmp(a->ruleset_name,"PrimeBorders")!=0 || !a->args)goto done;
+            if(!a->ruleset_name || strcmp(a->ruleset_name,"PrimeBorders")!=0 || !a->args ||
+               !a->base.source_span.has_location ||
+               a->base.source_span.start_offset!=(uint64_t)(apply_start-source) ||
+               a->base.source_span.end_offset!=(uint64_t)(strchr(apply_start,';')+1-source))goto done;
             apply=1;
         } else if(node->type==AST_ON_BLOCK) {
             ASTOnBlock* o=(ASTOnBlock*)node;
-            if(!o->ruleset_name || !o->event_name || strcmp(o->event_name,"Success")!=0 || !o->body)goto done;
+            if(!o->ruleset_name || !o->event_name || strcmp(o->event_name,"Success")!=0 || !o->body ||
+               !o->base.source_span.has_location ||
+               o->base.source_span.start_offset!=(uint64_t)(on_start-source) ||
+               o->base.source_span.end_offset!=(uint64_t)(on_end+11-source))goto done;
             on_block=1;
         } else if(node->type==AST_VAR_DECL) {
             ASTVarDecl* v=(ASTVarDecl*)node;
-            if(v->name && strcmp(v->name,"callback")==0 && v->initializer && v->initializer->type==AST_LAMBDA && ((ASTLambda*)v->initializer)->body_is_expression==1)lambda=1;
-            if(v->name && strcmp(v->name,"callback_block")==0 && v->initializer && v->initializer->type==AST_LAMBDA && ((ASTLambda*)v->initializer)->body_is_expression==0)lambda_block=1;
-            if(v->name && strcmp(v->name,"moved")==0 && v->initializer && v->initializer->type==AST_RELOCATE)relocate=1;
-            if(v->name && strcmp(v->name,"retry")==0 && v->initializer && v->initializer->type==AST_NEXUS_FLOW) { ASTNexusFlow* f=(ASTNexusFlow*)v->initializer; if(f->retry_count==5 && f->retry_delay==500)rolling=1; }
+            if(v->name && strcmp(v->name,"callback")==0 && v->initializer && v->initializer->type==AST_LAMBDA && ((ASTLambda*)v->initializer)->body_is_expression==1) {
+                ASTLambda* l=(ASTLambda*)v->initializer;
+                if(!l->base.source_span.has_location)goto done;
+                lambda=1;
+            }
+            if(v->name && strcmp(v->name,"callback_block")==0 && v->initializer && v->initializer->type==AST_LAMBDA && ((ASTLambda*)v->initializer)->body_is_expression==0) {
+                ASTLambda* l=(ASTLambda*)v->initializer;
+                if(!l->base.source_span.has_location || !l->body->source_span.has_location)goto done;
+                lambda_block=1;
+            }
+            if(v->name && strcmp(v->name,"moved")==0 && v->initializer && v->initializer->type==AST_RELOCATE) {
+                ASTRelocate* r=(ASTRelocate*)v->initializer;
+                if(!r->base.source_span.has_location ||
+                   r->base.source_span.start_offset!=(uint64_t)(relocate_start-source) ||
+                   r->base.source_span.end_offset!=(uint64_t)(relocate_start+strlen("source _> target")-source))goto done;
+                relocate=1;
+            }
+            if(v->name && strcmp(v->name,"retry")==0 && v->initializer && v->initializer->type==AST_NEXUS_FLOW) { ASTNexusFlow* f=(ASTNexusFlow*)v->initializer; if(f->retry_count==5 && f->retry_delay==500 && f->base.source_span.has_location &&
+                f->base.source_span.start_offset==(uint64_t)(retry_start-source) &&
+                f->base.source_span.end_offset==(uint64_t)(retry_start+strlen("source?(5, 500ms)->target")-source))rolling=1; }
         } else if(node->type==AST_UNROLL) {
             ASTUnroll* u=(ASTUnroll*)node;
-            if(!u->count || !u->loop || u->loop->type!=AST_LOOP)goto done;
+            if(!u->count || !u->loop || u->loop->type!=AST_LOOP ||
+               !u->base.source_span.has_location ||
+               u->base.source_span.start_offset!=(uint64_t)(unroll_start-source) ||
+               u->base.source_span.end_offset!=(uint64_t)(unroll_end+16-source))goto done;
             unroll=1;
         }
     }
