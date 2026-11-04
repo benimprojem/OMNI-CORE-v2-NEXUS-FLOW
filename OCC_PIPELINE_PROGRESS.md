@@ -473,3 +473,6 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-04 | AST source span OIR TLV uygulaması ilk doğrulama: run `41838138909` Ubuntu CTest **60/60 passed**, ASan/UBSan başarılı. OIR round-trip fixture root + function span'lerini kontrol ediyor ve tekrar encode canonical bytes eşitliğini koruyor. Windows/macOS/Valgrind hâlâ çalışıyor. | `oir_ast_frontend_writer.c`, `oir_ast_frontend_reader.c`, `test_parser_ast_oir_roundtrip.c`, `docs/AST-SOURCE-SPAN-CONTRACT.md`; commits `d03018f`, `1138659`, `8d60a4a`, `3615021` |
+
+
+| 2026-11-04 | OIR source-span test genişletildi: yalnız root/function örnekleri değil, AST child/sibling grafiğindeki **bütün parser node span'leri** decode sonrası karşılaştırılıyor (has_location, byte offsets, start/end line-column); source_id OIR extension'da taşınmadığından eşitlik kapsamı dışında. CI run `41838287034` pending. | `test_parser_ast_oir_roundtrip.c`; commit `66a5971` |
