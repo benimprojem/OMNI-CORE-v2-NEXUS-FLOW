@@ -289,7 +289,7 @@ static int test_aggregate_declaration_ast(void) {
                 v->base.source_span.end_offset != (uint64_t)(enum_idle + 4 - source) ||
                 !v->base.next->source_span.has_location ||
                 v->base.next->source_span.start_offset != (uint64_t)(enum_running - source) ||
-                v->base.next->source_span.end_offset != (uint64_t)(enum_data + 7 - source) ||
+                v->base.next->source_span.end_offset != (uint64_t)(enum_data + 8 - source) ||
                 !((ASTEnumVariant*)v->base.next)->data->source_span.has_location ||
                 ((ASTEnumVariant*)v->base.next)->data->source_span.start_offset != (uint64_t)(enum_data - source) ||
                 ((ASTEnumVariant*)v->base.next)->data->source_span.end_offset != (uint64_t)(enum_data + 7 - source)) goto done;
