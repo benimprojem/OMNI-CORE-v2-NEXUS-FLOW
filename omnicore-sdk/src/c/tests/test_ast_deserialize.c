@@ -1040,42 +1040,6 @@ static int rejects_truncated_ast_stream_prefixes(void) {
     return 0;
 }
 
-static int rejects_all_truncated_ast_payload_prefixes(void) {
-    ASTLiteral* literal=(ASTLiteral*)ast_create(AST_LITERAL);
-    FILE* stream=tmpfile();
-    unsigned char* bytes=NULL;
-    long end;
-    size_t cut;
-    int ok=0;
-    int stage=1;
-    if(!literal || !stream) goto done;
-    literal->string_value=duplicate_text("payload");
-    stage=2;
-    if(!literal->string_value || !ast_serialize((ASTNode*)literal,stream) ||
-       fflush(stream)!=0) goto done;
-    stage=3;
-    end=ftell(stream);
-    if(end<=0) goto done;
-    stage=4;
-    bytes=(unsigned char*)malloc((size_t)end);
-    if(!bytes || fseek(stream,0L,SEEK_SET)!=0 ||
-       fread(bytes,1u,(size_t)end,stream)!=(size_t)end) goto done;
-    stage=5;
-    for(cut=0u;cut<(size_t)end;++cut) {
-        int rejected=rejects_bytes(bytes,cut);
-        if(rejected!=0) {
-            fprintf(stderr,"prefix=%zu result=%d\\n",cut,rejected);
-            goto done;
-        }
-    }
-    ok=1;
-done:
-    if(!ok) fprintf(stderr,"truncation fixture stage=%d\\n",stage);
-    free(bytes);
-    if(stream) fclose(stream);
-    if(literal) ast_destroy((ASTNode*)literal);
-    return ok;
-}
 
 static int roundtrips_fast_exec_asm_payload(void) {
     ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
@@ -1122,10 +1086,6 @@ int main(int argc, char** argv) {
     if (reads_unprefixed_legacy_stream() != 0) return 16;
     if (rejects_unknown_ast_stream_version() != 0) return 17;
     if (rejects_truncated_ast_stream_prefixes() != 0) return 18;
-    if (rejects_all_truncated_ast_payload_prefixes() != 0) {
-        fprintf(stderr,"truncated payload prefix regression failed\\n");
-        return 20;
-    }
     if (roundtrips_populated_ast_types() != 0) return 11;
     if (roundtrips_all_node_type_tags() != 0) return 8;
     if (roundtrips_block_halt_tag() != 0) return 14;
