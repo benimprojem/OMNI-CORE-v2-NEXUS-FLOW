@@ -31,7 +31,7 @@ The current OIR registry omits three already-existing frontend kinds. Register `
 
 The raw ASM body must not be lexed as ordinary Nexus Flow. The Lexer must emit a dedicated raw-body token/span after recognizing the `asm: LABEL {` prefix, preserving exact source bytes and avoiding false lexical diagnostics for target assembly syntax.
 
-The Parser parses `fastexec { ... }` into `AST_FASTEXEC_BLOCK`, parses ordinary Nexus Flow statements inside its ordered statement list, parses `asm: LABEL { ... }` only within FASTEXEC and creates `AST_ASM_LABEL`, preserves label and exact raw body bytes, parses `asmcall` / `asmjmp` as existing call nodes, and rejects ASM declarations and low-level primitive calls outside FASTEXEC with precise diagnostics.
+The Parser parses `fastexec { ... }` into `AST_FASTEXEC_BLOCK`, parses ordinary Nexus Flow statements inside its ordered statement list, parses `asm: LABEL { ... }` only within FASTEXEC and creates `AST_ASM_LABEL`, preserves label and exact raw body bytes, and parses `asmcall` / `asmjmp` as existing call nodes. Parser rejects ASM declarations outside FASTEXEC; Semantic must reject `asmcall` / `asmjmp` and registered low-level primitive calls outside FASTEXEC with precise diagnostics.
 
 The raw-body scanner starts immediately after the outer `{` and returns one `TOKEN_ASM_BODY` span without consuming the matching outer `}`. Nested braces are balanced for target forms such as register lists; braces inside single/double quoted strings are ignored and backslash escapes are honored. Target comment syntax remains opaque; unmatched braces inside comments still participate in delimiter balancing. Unterminated bodies fail with source-positioned diagnostics. The stable OIR token ID for `TOKEN_ASM_BODY` is 164.
 
