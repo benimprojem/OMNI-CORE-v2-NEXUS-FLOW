@@ -55,6 +55,10 @@ static Token make_token(
     token.source_offset = ctx->token_start_offset;
     token.source_length = length;
     token.diagnostic_id = 0;
+    if (ctx->lexer_asm_body_pending && type != TOKEN_ERROR) {
+        ctx->lexer_asm_state = 0u;
+        return token;
+    }
     switch (ctx->lexer_asm_state) {
         case 0:
             if (type == TOKEN_KW_ASM) ctx->lexer_asm_state = 1u;
