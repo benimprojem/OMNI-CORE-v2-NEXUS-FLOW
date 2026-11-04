@@ -507,7 +507,12 @@ static int populate_ast_fixture(ASTNode* node) {
         case AST_ARRAY_TYPE:
             ((ASTArrayType*)node)->dimensions = make_identifier_fixture("array_dimension");
             return ((ASTArrayType*)node)->dimensions != NULL;
-        case AST_ARRAY_DIMENSION:
+        case AST_FASTEXEC_BLOCK: ((ASTFastExecBlock*)node)->statements=make_identifier_fixture("fast_statement"); return ((ASTFastExecBlock*)node)->statements!=NULL;
+case AST_ASM_LABEL: { ASTAsmLabel* v=(ASTAsmLabel*)node; if(!assign_text(&v->label,"FIXTURE_ASM"))return 0; v->source_text=duplicate_text("nop\\r\\n"); if(!v->source_text)return 0; v->source_length=strlen(v->source_text); return 1; }
+case AST_NAMED_ARG: { ASTNamedArg* v=(ASTNamedArg*)node; if(!assign_text(&v->name,"fixture_arg"))return 0; v->value=make_identifier_fixture("named_value"); return v->value!=NULL; }
+case AST_MUST_DECL: { ASTMustDecl* v=(ASTMustDecl*)node; if(!assign_text(&v->name,"fixture_dependency"))return 0; v->source=make_identifier_fixture("dependency_source"); return v->source!=NULL; }
+case AST_BLOCK_HALT: case AST_VARIADIC_PARAM: return 1;
+case AST_ARRAY_DIMENSION:
             ((ASTArrayDimension*)node)->length = make_literal_fixture();
             return ((ASTArrayDimension*)node)->length != NULL;
     }
