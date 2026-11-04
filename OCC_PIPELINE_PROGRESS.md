@@ -494,3 +494,6 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Regression fixtures now distinguish payload-free leaves from payload-bearing leaves and cover missing/valid identifier, literal and newtype payloads. Contextual MUST/variadic tests were adjusted to satisfy earlier required fields so each test reaches the intended validator rule.
 - Validation: GitHub Actions run `41842413877` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
 - Remaining AST work: full per-production parser/source-span fixture matrix, codec allocation-failure/partial-tree cleanup coverage, and remaining syntax-to-AST gaps already recorded in the AST syntax matrix. Semantic and Codegen remain gated.
+
+
+| 2026-11-04 | AST stream codec truncation regresyonu eklendi: geçerli AST_IDENTIFIER artifact'inin byte-prefix'lerinin tamamı (0..N-1) deserialize edilerek her kesilmenin reddedildiği doğrulanıyor; kısa magic/version prefix testleri de korunuyor. Run `41858633099`: Ubuntu CTest, Windows CTest, ASan/UBSan ve Valgrind başarılı; macOS job runner tarafından cancelled, dolayısıyla workflow genel sonucu failure (macOS test sonucu yok). Nested payload/partial ownership cleanup testleri ayrıca genişletilecek. | `test_ast_deserialize.c`; commit `f93a2e0` |
