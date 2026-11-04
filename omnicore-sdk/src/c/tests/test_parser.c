@@ -2765,5 +2765,43 @@ generic_type_done:
         }
     }
 
+
+    /* asmcall/asmjmp are function-call AST nodes with exact call ranges. */
+    {
+        static const char source[] =
+            "f:main() { asmcall(\"CRITICAL_ADD\"); asmjmp(\"MY_ASM_BLOCK\"); }";
+        ParserContext* parser = parser_init_source("asm-call-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* call_start = strstr(source, "asmcall");
+        const char* jump_start = strstr(source, "asmjmp");
+        ASTFuncDecl* function;
+        ASTCall* call;
+        ASTCall* jump;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            call = function ? (ASTCall*)((ASTBlock*)function->body)->statements : NULL;
+            jump = call ? (ASTCall*)call->base.next : NULL;
+            valid = call && call->base.type == AST_FUNC_CALL && call->callee &&
+                call->callee->type == AST_IDENTIFIER &&
+                strcmp(((ASTIdentifier*)call->callee)->name, "asmcall") == 0 &&
+                call->base.source_span.has_location == 1u &&
+                call->base.source_span.start_offset == (uint64_t)(call_start - source) &&
+                call->base.source_span.end_offset == (uint64_t)(strchr(call_start, ')') + 1 - source) &&
+                jump && jump->base.type == AST_FUNC_CALL && jump->callee &&
+                jump->callee->type == AST_IDENTIFIER &&
+                strcmp(((ASTIdentifier*)jump->callee)->name, "asmjmp") == 0 &&
+                jump->base.source_span.has_location == 1u &&
+                jump->base.source_span.start_offset == (uint64_t)(jump_start - source) &&
+                jump->base.source_span.end_offset == (uint64_t)(strchr(jump_start, ')') + 1 - source) &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "asmcall/asmjmp AST source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
