@@ -41,10 +41,20 @@ fastexec {
 
 * `asmcall("LABEL")` → ASM bloğunu **call** ile çağırır.
 * `asmjmp("LABEL")` → ASM bloğuna **koşulsuz jmp** yapar.
+* `asmcall`, `asmjmp` ve düşük seviyeli CPU/GPU/NPU ilkel işlemleri yalnızca `fastexec` kapsamı içinde kullanılabilir; kapsam dışı kullanım derleme hatasıdır.
 
 ---
 
-## 3. Değişken Yönetimi
+## 3. FASTEXEC Çalışma Kapsamı
+
+- `fastexec { ... }` ayrı bir AST yürütme kapsamıdır; yalnızca ASM kapsayıcısı değildir.
+- Normal Nexus Flow değişken bildirimleri ve ifadeleri bu blokta bulunabilir.
+- CPU ilkel donanım fonksiyonları bu kapsam içinde çalışır. Gelecekteki GPU ve NPU ilkel fonksiyonları da aynı kapsam kuralını kullanır.
+- ASM bildirimi, `asmcall` ve `asmjmp` FASTEXEC dışında kullanılamaz.
+- AST, donanım ailesini sabit bir enum'a kilitlemez; hedef yetenekleri Semantic/target doğrulamasıyla belirlenir.
+- FASTEXEC içindeki Nexus Flow değişkenleri ASM operand eşlemeleriyle iki yönlü veri aktarımına katılabilir.
+
+## 4. Değişken Yönetimi
 
 | Tür             | Kullanım  | Açıklama                                               |
 | --------------- | --------- | ------------------------------------------------------ |
@@ -57,7 +67,7 @@ fastexec {
 
 ---
 
-## 4. ASM Call & Jump Mantığı
+## 5. ASM Call & Jump Mantığı
 
 1. **ASM Call (`asmcall`)**
 
@@ -73,7 +83,7 @@ fastexec {
 
 ---
 
-## 5. Örnek Kullanım
+## 6. Örnek Kullanım
 
 ### 5.1 Fastexec + Inline ASM
 
@@ -133,7 +143,7 @@ f:main()!i32 {
 
 ---
 
-## 6. Özellikler ve Optimizasyon
+## 7. Özellikler ve Optimizasyon
 
 1. **Agressif Optimize:**
 
@@ -156,7 +166,7 @@ f:main()!i32 {
 
 ---
 
-## 7. Özet
+## 8. Özet
 
 * `fastexec` → Inline ASM kapsayıcısı
 * `%degisken` → Değişkenleri stack/register ile eşleme
