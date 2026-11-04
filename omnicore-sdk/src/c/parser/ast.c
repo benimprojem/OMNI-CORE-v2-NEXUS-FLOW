@@ -1908,7 +1908,6 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
             if(!ast_validation_required_string(s,n,((ASTPanic*)n)->message,"message")) return 0;
             break;
         case AST_NEXUS_HALT: V(((ASTHalt*)n)->expr,"expr"); break;
-        case AST_NEXUS_INTENT: V(((ASTIntent*)n)->target,"target"); break;
         case AST_UNPACK: R(((ASTUnpack*)n)->expr,"expr"); break;
         case AST_DEFER: R(((ASTDefer*)n)->body,"body"); break;
         case AST_THREAD_BLOCK:
