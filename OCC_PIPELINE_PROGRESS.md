@@ -294,3 +294,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 | 2026-11-04 | Generic signature audit refined: current parser already accepts `a!t`, repeated `t` parameter types and `!t` return type; AST stores these spellings losslessly in `ASTVarDecl.type_name` and `ASTFuncDecl.return_type`. Added parser/AST-codec round-trip test. This closes the representation gap without inventing a generic-parameter AST node; type-variable binding, unification and inference remain Semantic work. | `parser.c`, `test_parser.c`, `NEXSUS_AST_SYNTAX_MATRIX.md`; commit `b6a88a7` |
 
 | 2026-11-04 | Combined frontend validation after MUST and generic-signature work: CI run `41760749308` passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). Variadic/named argument and MUST AST tests, plus generic type spelling round-trip, are included. OIR node registry/schema/bridge remains the next pipeline-stage integration; other AST syntax gaps remain open. | `ast.h`, `ast.c`, `parser.c`, parser/validator/deserializer tests, `NEXSUS_AST_SYNTAX_MATRIX.md`; CI `41760749308` |
+
+
+## 2026-11-04 — Function type / callback AST gap audit
+
+- Canonical syntax currently contains the example `nt:Callback = f:(id!u32)>!bool;`, but this is only an example, not a complete function-type grammar.
+- Confirmed `ASTNewTypeDecl.target_type` is a scalar `char*`; it cannot encode parameter list structure or a return-type node. `AST_LAMBDA` models executable lambda bodies and is not a substitute for a function type.
+- No implementation was marked complete. Before adding a node, the function-type grammar must explicitly settle: typed parameter list and separators, optional parameter names, variadic placement, return-type delimiter, nested callback types, and function-type values/call compatibility.
+- Next AST task: define the minimal grammar from the existing callback example (without changing lambda/declaration syntax), then add an append-only function-type AST payload and lifecycle/codec/validator/printer/parser tests. OIR mapping remains downstream; Codegen remains gated.
