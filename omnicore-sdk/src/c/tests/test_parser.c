@@ -2069,5 +2069,37 @@ generic_type_done:
         }
     }
 
+
+    /* Nexus Flow operators span both operands, including the operator token. */
+    {
+        static const char source[] = "f:main() { v:x = 1 -> 2; }";
+        ParserContext* parser = parser_init_source("flow-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        size_t left_offset = (size_t)(strstr(source, "1 ->") - source);
+        size_t right_end = (size_t)(strstr(source, "2;") - source) + 1u;
+        ASTFuncDecl* function;
+        ASTVarDecl* variable;
+        ASTNexusFlow* pipe;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            variable = function
+                ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+            pipe = variable && variable->initializer &&
+                variable->initializer->type == AST_NEXUS_PIPE
+                    ? (ASTNexusFlow*)variable->initializer : NULL;
+            valid = pipe && pipe->base.source_span.has_location == 1u &&
+                pipe->base.source_span.start_offset == left_offset &&
+                pipe->base.source_span.end_offset == right_end &&
+                pipe->left && pipe->right &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Nexus Flow AST source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
