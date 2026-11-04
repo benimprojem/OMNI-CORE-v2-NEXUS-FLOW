@@ -395,3 +395,16 @@ This defines CLI argument *delivery*, not the full `main` return/exit-code conve
 ## AST contract — MUST dependency declaration (2026-11-04)
 
 The syntax reference defines `m:CoreModule = "CoreModule.nxf";` as a mandatory compile-time dependency, distinct from `use`. Lexer already emits `TOKEN_PRE_MUST`; the AST/Parser gap is now closed with appended `AST_MUST_DECL` (AST kind 103), carrying an owned dependency name and an owned source expression. Parser accepts the combined `m:Name` prefix token (and a separated name if lexed separately), requires `=` and a source expression, and rejects declarations outside program scope. AST printer/destructor/codec and graph validator are wired. Tests cover parse + codec round-trip, factory/codec tag boundaries, valid program scope and invalid nested scope. CI run `41760397845` passed on Ubuntu, Windows and macOS, plus ASan/UBSan and Valgrind. OIR registry/schema/bridge support and Semantic dependency resolution, load-failure behavior and diagnostic integration remain pending.
+
+
+## Parser/AST symbol audit (2026-11-04)
+
+A direct comparison of the 103 ASTNodeType symbols against ast.c and parser.c found:
+
+- ast_validate() contains explicit handling for all 103 node kinds.
+- Parser source references 99 kinds. The only syntax-defined missing production is AST_ASM_BLOCK.
+- AST_ZONE_SYNC, AST_ZONE_VIEW and AST_ZONE_LOCK are reserved AST kinds with no matching production in the current normative syntax reference; they are not treated as parser defects until a language rule defines them.
+- Inline assembly is specified in Syntax Reference §9 as a fastexec { asm: LABEL { ... } } construct, with %variable, %variable:register, asmcall, asmjmp and clobber annotations. The current AST has only the enum tag AST_ASM_BLOCK; it has no dedicated payload structure and the parser does not handle fastexec/asm tokens. Do not invent an opaque payload or lower it to a generic block without a stable AST contract. The payload must decide how raw instruction bytes, labels, placeholders/register bindings and clobber declarations are represented and owned.
+- The OIR frontend writer audit also found no explicit cases for AST_VARIADIC_PARAM, AST_NAMED_ARG and AST_MUST_DECL. This is a later OIR bridge task; do not implement it before the AST contract and parser coverage are complete.
+
+**AST remains open:** finish the inline ASM node contract, re-audit every parser production and its exact span, then move to the OIR optional source-span TLVs and remaining AST/OIR bridge gaps. No Semantic or Codegen work is unblocked by this audit.
