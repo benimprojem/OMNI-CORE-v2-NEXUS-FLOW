@@ -139,7 +139,7 @@ ASTNode* ast_create(ASTNodeType type) {
     size_t size;
 
     /* Reject values outside the append-only public AST kind inventory. */
-    if ((int)type < (int)AST_PROGRAM || (int)type > (int)AST_BLOCK_HALT) {
+    if ((int)type < (int)AST_PROGRAM || (int)type > (int)AST_NAMED_ARG) {
         return NULL;
     }
     size = get_node_size(type);
@@ -1115,6 +1115,7 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
         case AST_ARRAY_LITERAL: ast_serialize_recursive(((ASTArrayLiteral*)node)->elements,writer); break;
         case AST_ARRAY_TYPE: ast_serialize_recursive(((ASTArrayType*)node)->dimensions,writer); break;
         case AST_ARRAY_DIMENSION: ast_serialize_recursive(((ASTArrayDimension*)node)->length,writer); break;
+        case AST_NAMED_ARG: { ASTNamedArg* n=(ASTNamedArg*)node; write_string(writer,n->name); ast_serialize_recursive(n->value,writer); break; }
         case AST_ENUM_DECL: {
             ASTEnumDecl* e = (ASTEnumDecl*)node;
             write_string(writer, e->name);
@@ -1425,6 +1426,7 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
         case AST_ARRAY_LITERAL: ((ASTArrayLiteral*)node)->elements=ast_deserialize_recursive(reader); break;
         case AST_ARRAY_TYPE: ((ASTArrayType*)node)->dimensions=ast_deserialize_recursive(reader); break;
         case AST_ARRAY_DIMENSION: ((ASTArrayDimension*)node)->length=ast_deserialize_recursive(reader); break;
+        case AST_NAMED_ARG: { ASTNamedArg* n=(ASTNamedArg*)node; n->name=read_string(reader); if(reader->failed)goto fail; n->value=ast_deserialize_recursive(reader); break; }
         case AST_ENUM_DECL: {
             ASTEnumDecl* e = (ASTEnumDecl*)node;
             e->name = read_string(reader);
@@ -1499,7 +1501,7 @@ static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
 
         if (type_val == -1) return head;
 
-        if (type_val < AST_PROGRAM || type_val > AST_BLOCK_HALT ||
+        if (type_val < AST_PROGRAM || type_val > AST_NAMED_ARG ||
             reader->node_count >= AST_MAX_NODE_COUNT ||
             reader->depth >= AST_MAX_RECURSION_DEPTH) {
             reader->failed = 1;
@@ -1641,7 +1643,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
     }
     while(n) {
         size_t active_index;
-        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_BLOCK_HALT)
+        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_NAMED_ARG)
             return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"type");
         for(active_index=0;active_index<s->active_count;active_index++)
             if(s->active[active_index]==n)
