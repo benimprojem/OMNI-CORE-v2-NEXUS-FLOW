@@ -302,3 +302,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Confirmed `ASTNewTypeDecl.target_type` is a scalar `char*`; it cannot encode parameter list structure or a return-type node. `AST_LAMBDA` models executable lambda bodies and is not a substitute for a function type.
 - No implementation was marked complete. Before adding a node, the function-type grammar must explicitly settle: typed parameter list and separators, optional parameter names, variadic placement, return-type delimiter, nested callback types, and function-type values/call compatibility.
 - Next AST task: define the minimal grammar from the existing callback example (without changing lambda/declaration syntax), then add an append-only function-type AST payload and lifecycle/codec/validator/printer/parser tests. OIR mapping remains downstream; Codegen remains gated.
+
+
+## 2026-11-04 — AST source-span implementation gate (audit)
+
+- Rechecked `docs/AST-SOURCE-SPAN-CONTRACT.md` against current `ASTNode`: it still contains only `line/col`; full byte range and end coordinates are absent. Lexer tokens already carry offsets/lengths, but AST parser propagation, versioned legacy codec and OIR optional TLVs are not implemented.
+- The contract's compatibility boundary is retained: append `OccSourceSpan` to ASTNode; keep line/col mirrors; version the legacy AST stream with a magic prefix while accepting old unprefixed streams with span absent; keep OIR's 32-byte node record and use optional span TLVs.
+- This is a confirmed foundational gap, not a completion claim. Implementation requires a cross-cutting change in token→parser node stamping, AST validator, legacy serializer/deserializer and OIR AST bridge, plus exact-range UTF-8/multiline/legacy compatibility tests.
+- **Next implementation priority:** source-span propagation and codec compatibility before more isolated AST syntax nodes. Callback/function-type remains separately blocked on a complete grammar; ASM payload must follow its existing normative syntax and must not be guessed.
