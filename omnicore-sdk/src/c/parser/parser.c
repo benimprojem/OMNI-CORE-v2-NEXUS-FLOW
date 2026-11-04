@@ -3375,8 +3375,18 @@ static ASTNode* parse_statement(Parser* p) {
         return parse_select_scan(p, parser_identifier_is(&p->current,"scan"));
     }
     if (check(p, TOKEN_KW_IF)) return parse_if_statement(p);
-    if (match(p, TOKEN_KW_USE)) return parse_use(p);
-    if (match(p, TOKEN_KW_DEFER)) return parse_defer(p);
+    if (match(p, TOKEN_KW_USE)) {
+        Token start = p->previous;
+        ASTNode* use = parse_use(p);
+        if (use) parser_stamp_node_tokens(p, use, &start, &p->previous);
+        return use;
+    }
+    if (match(p, TOKEN_KW_DEFER)) {
+        Token start = p->previous;
+        ASTNode* deferred = parse_defer(p);
+        if (deferred) parser_stamp_node_tokens(p, deferred, &start, &p->previous);
+        return deferred;
+    }
     if (match(p, TOKEN_KW_RET)) return parse_return_statement(p);
     if (match(p, TOKEN_KW_BREAK) || match(p, TOKEN_KW_CONTINUE)) {
         Token keyword = p->previous;
@@ -3393,12 +3403,16 @@ static ASTNode* parse_statement(Parser* p) {
     }
 
     if (match(p, TOKEN_PRE_MUST)) {
+        Token start = p->previous;
+        ASTNode* must;
         if (p->nesting_depth != 0u) {
             error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
                 "MUST dependencies are only valid at program scope.");
             return NULL;
         }
-        return parse_must_decl(p);
+        must = parse_must_decl(p);
+        if (must) parser_stamp_node_tokens(p, must, &start, &p->previous);
+        return must;
     }
 
     if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
@@ -3427,18 +3441,22 @@ static ASTNode* parse_statement(Parser* p) {
     }
 
     if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) {
+        Token start = p->previous;
         ASTStructDecl* decl = (ASTStructDecl*)parse_struct_decl(p, 0, NULL);
         if (!decl) return NULL;
         decl->is_public = is_pub;
         decl->is_exported = is_exp;
+        parser_stamp_node_tokens(p, (ASTNode*)decl, &start, &p->previous);
         return (ASTNode*)decl;
     }
 
     if (match(p, TOKEN_KW_GROUP)) {
+        Token start = p->previous;
         ASTGroupDecl* decl = (ASTGroupDecl*)parse_group_decl(p);
         if (!decl) return NULL;
         decl->is_public = is_pub;
         decl->is_exported = is_exp;
+        parser_stamp_node_tokens(p, (ASTNode*)decl, &start, &p->previous);
         return (ASTNode*)decl;
     }
 
@@ -3498,10 +3516,30 @@ static ASTNode* parse_statement(Parser* p) {
             }
         }
     }
-    if (match(p, TOKEN_KW_ENUM) || match(p, TOKEN_PRE_ENUM)) return parse_enum_decl(p, NULL);
-    if (match(p, TOKEN_KW_UNION) || match(p, TOKEN_PRE_UNION)) return parse_union_decl(p, NULL);
-    if (match(p, TOKEN_PRE_NEWTYPE)) return parse_newtype_decl(p);
-    if (match(p, TOKEN_KW_GROUP)) return parse_group_decl(p);
+    if (match(p, TOKEN_KW_ENUM) || match(p, TOKEN_PRE_ENUM)) {
+        Token start = p->previous;
+        ASTNode* node = parse_enum_decl(p, NULL);
+        if (node) parser_stamp_node_tokens(p, node, &start, &p->previous);
+        return node;
+    }
+    if (match(p, TOKEN_KW_UNION) || match(p, TOKEN_PRE_UNION)) {
+        Token start = p->previous;
+        ASTNode* node = parse_union_decl(p, NULL);
+        if (node) parser_stamp_node_tokens(p, node, &start, &p->previous);
+        return node;
+    }
+    if (match(p, TOKEN_PRE_NEWTYPE)) {
+        Token start = p->previous;
+        ASTNode* node = parse_newtype_decl(p);
+        if (node) parser_stamp_node_tokens(p, node, &start, &p->previous);
+        return node;
+    }
+    if (match(p, TOKEN_KW_GROUP)) {
+        Token start = p->previous;
+        ASTNode* node = parse_group_decl(p);
+        if (node) parser_stamp_node_tokens(p, node, &start, &p->previous);
+        return node;
+    }
 
     if (match(p, TOKEN_LBRACE)) {
         return parse_block(p);
