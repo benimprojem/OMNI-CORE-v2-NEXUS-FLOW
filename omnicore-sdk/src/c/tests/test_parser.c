@@ -2557,7 +2557,7 @@ generic_type_done:
 
     /* Normative block lambda f:(params){...} includes its body braces. */
     {
-        static const char source[] = "f:main() { v:f = f:(x) { ret x; } }";
+        static const char source[] = "f:main() { v:f = f:(x) { ret x; }; }";
         ParserContext* parser = parser_init_source("lambda-block-span.nxf",
             (const uint8_t*)source, sizeof(source) - 1u);
         const char* start = strstr(source, "f:(x)");
