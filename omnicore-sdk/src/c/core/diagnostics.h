@@ -37,6 +37,20 @@ typedef struct OccSourceSpan {
     uint8_t has_location;
 } OccSourceSpan;
 
+/* Job-owned source path registry. IDs are stable insertion-order indexes. */
+typedef struct OccSourceFileTable {
+    char** paths;
+    size_t count;
+    size_t capacity;
+} OccSourceFileTable;
+
+void occ_source_files_init(OccSourceFileTable* table);
+void occ_source_files_destroy(OccSourceFileTable* table);
+/* Re-registering the same path returns its existing ID. */
+int occ_source_files_register(OccSourceFileTable* table, const char* path, uint32_t* out_source_id);
+/* Returned path is borrowed and remains valid until table mutation/destruction. */
+const char* occ_source_files_get(const OccSourceFileTable* table, uint32_t source_id);
+
 typedef struct OccDiagnosticRecord {
     uint32_t code;
     uint32_t stage_id;
