@@ -2101,5 +2101,51 @@ generic_type_done:
         }
     }
 
+
+    /* Select/scan roots, arms and constructor/binding patterns carry source spans. */
+    {
+        static const char source[] =
+            "f:main() { select(x) { 1 -> ret 2; default -> ret 0; } }";
+        ParserContext* parser = parser_init_source("select-spans.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* select_start = strstr(source, "select");
+        const char* first_pattern = strstr(source, "1 ->");
+        const char* first_end = strstr(source, "ret 2;");
+        const char* default_start = strstr(source, "default");
+        const char* default_end = strstr(source, "ret 0;");
+        size_t select_offset = select_start ? (size_t)(select_start - source) : 0u;
+        size_t select_end = default_end ? (size_t)(default_end + 8 - source) : 0u;
+        ASTFuncDecl* function;
+        ASTNode* select_node;
+        ASTNode* first_arm;
+        ASTNode* default_arm;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            select_node = function ? ((ASTBlock*)function->body)->statements : NULL;
+            first_arm = select_node && select_node->type == AST_SELECT
+                ? ((ASTSelect*)select_node)->arms : NULL;
+            default_arm = first_arm ? first_arm->next : NULL;
+            valid = select_node && select_node->type == AST_SELECT &&
+                select_node->source_span.has_location == 1u &&
+                select_node->source_span.start_offset == select_offset &&
+                select_node->source_span.end_offset == select_end &&
+                first_arm && first_arm->type == AST_SELECT_ARM &&
+                first_arm->source_span.has_location == 1u &&
+                first_arm->source_span.start_offset == (size_t)(first_pattern - source) &&
+                first_arm->source_span.end_offset == (size_t)(first_end + 6 - source) &&
+                default_arm && default_arm->type == AST_SELECT_ARM &&
+                default_arm->source_span.has_location == 1u &&
+                default_arm->source_span.start_offset == (size_t)(default_start - source) &&
+                default_arm->source_span.end_offset == (size_t)(default_end + 6 - source) &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Select AST source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
