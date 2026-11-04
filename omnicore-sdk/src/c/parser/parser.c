@@ -2342,7 +2342,7 @@ static ASTNode* parse_func_decl(Parser* p) {
 
 static ASTNode* parse_block(Parser* p) {
     ASTBlock* block;
-    Token block_start = p->current;
+    Token block_start = p->previous;
     Token block_end;
     if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
         error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
@@ -2405,7 +2405,9 @@ static ASTNode* parse_block(Parser* p) {
         tail = cleanup;
     }
     block->statements = head;
-    parser_stamp_node_tokens(p, (ASTNode*)block, &block_start, &block_end);
+    if (block_start.type == TOKEN_LBRACE &&
+        (block_end.type == TOKEN_RBRACE || block_end.type == TOKEN_HALT))
+        parser_stamp_node_tokens(p, (ASTNode*)block, &block_start, &block_end);
     --p->nesting_depth;
     return (ASTNode*)block;
 }
