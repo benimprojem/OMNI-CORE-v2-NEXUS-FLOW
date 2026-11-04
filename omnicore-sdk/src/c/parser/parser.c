@@ -2644,6 +2644,7 @@ static ASTNode* parse_asm_label(Parser* p) {
     Token close_token;
     ASTAsmLabel* node;
     int scope_valid = p->fast_exec_depth != 0u;
+    int label_valid = 1;
 
     if (!scope_valid) {
         error_at(p, &asm_start, ERR_PARSER_UNEXPECTED_TOKEN,
@@ -2664,7 +2665,7 @@ static ASTNode* parse_asm_label(Parser* p) {
     if (label_token.length <= 0 || label_token.start[0] == '_') {
         error_at(p, &label_token, ERR_PARSER_UNEXPECTED_TOKEN,
             "ASM labels cannot begin with '_' or a special character.");
-        return NULL;
+        label_valid = 0;
     }
     advance(p);
     if (!check(p, TOKEN_LBRACE)) {
@@ -2708,7 +2709,7 @@ static ASTNode* parse_asm_label(Parser* p) {
     close_token = p->current;
     advance(p);
     parser_stamp_node_tokens(p, (ASTNode*)node, &asm_start, &close_token);
-    if (!scope_valid) {
+    if (!scope_valid || !label_valid) {
         ast_destroy((ASTNode*)node);
         return NULL;
     }
