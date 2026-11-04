@@ -156,6 +156,17 @@ static int test_select_scan_oir_roundtrip(void) {
     status=encode_ast(decoded,&second,&second_len);
     if(status!=OIR_STATUS_OK || first_len!=second_len ||
         memcmp(first,second,first_len)!=0)goto done;
+    /* Root and representative nested production ranges survive OIR decode. */
+    if(!decoded->source_span.has_location ||
+       decoded->source_span.start_offset!=0u ||
+       decoded->source_span.end_offset!=sizeof(source)-1u ||
+       decoded->source_span.start_line!=1u)goto done;
+    {
+        ASTFuncDecl* main_fn=(ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+        if(!main_fn || !main_fn->base.source_span.has_location ||
+           main_fn->base.source_span.end_offset<=main_fn->base.source_span.start_offset)
+            goto done;
+    }
     ok=1;
 done:
     if(decoded)ast_destroy(decoded);
