@@ -424,3 +424,5 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 | 2026-11-04 | Inline newtype aggregate test doğrulandı: `nt:struct: point { ... }` AST root + field span fixture CI `41791509581` passed 5/5 (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). | `test_parser.c`, `OCC_PIPELINE_PROGRESS.md`; commit `badb44e` |
 
 | 2026-11-04 | Inline ASM çağrı girişleri ayrıştırıldı: `asmcall("LABEL")` ve `asmjmp("LABEL")` mevcut AST_FUNC_CALL + AST_IDENTIFIER modelini kullanıyor; yeni node kind icat edilmedi. Her iki çağrının parantez dahil exact span'ini ve callee adını doğrulayan parser testi eklendi. Raw `fastexec/asm:LABEL { ... }` payload modeli hâlâ açık mimari kararı. | `parser.c`, `test_parser.c`, `NEXSUS_AST_SYNTAX_MATRIX.md`; commits `9047485`, `64214fd`; CI bekleniyor |
+
+| 2026-11-04 | AST_PROGRAM multi-source identity test CI `41791636064` passed 5/5. asmcall/asmjmp AST_CALL implementation and exact span tests: run `41791787499` passed Ubuntu, Windows, macOS and ASan/UBSan; Valgrind still running at update time. | `parser.c`, `test_parser.c`; commits `182b202`, `9047485`, `64214fd` |
