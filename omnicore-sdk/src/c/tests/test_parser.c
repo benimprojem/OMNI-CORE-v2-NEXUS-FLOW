@@ -1756,5 +1756,39 @@ generic_type_done:
         }
     }
 
+    /* Parser diagnostics retain the registered file identity in multi-file jobs. */
+    {
+        static const char bad_source[] = "v:x = ;";
+        ParserContext* parser = parser_init_source("lib/math.nxf",
+            (const uint8_t*)bad_source, sizeof(bad_source) - 1u);
+        OccSourceFileTable files;
+        OccDiagnosticCollector diagnostics;
+        OccDiagnosticView view;
+        int valid = 0;
+        occ_source_files_init(&files);
+        occ_diagnostics_init(&diagnostics);
+        if (parser) {
+            uint32_t expected_id = UINT32_MAX;
+            if (occ_source_files_register(&files, "src/main.nxf", &expected_id) &&
+                expected_id == 0u &&
+                parser_attach_source_files(parser, &files) &&
+                parser->source_id == 1u) {
+                parser_attach_diagnostics(parser, &diagnostics, OCC_STAGE_PARSER);
+                (void)parser_run(parser);
+                if (occ_diagnostics_count(&diagnostics) > 0u &&
+                    occ_diagnostics_get(&diagnostics, 0u, &view) &&
+                    view.record->span.source_id == 1u)
+                    valid = 1;
+            }
+            parser_destroy(parser);
+        }
+        occ_diagnostics_destroy(&diagnostics);
+        occ_source_files_destroy(&files);
+        if (!valid) {
+            fprintf(stderr, "Parser diagnostic source identity test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
