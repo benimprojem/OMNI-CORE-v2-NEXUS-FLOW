@@ -1,6 +1,6 @@
 # AST Source Span Contract
 
-**Status:** Partial implementation — AST field/setter/validator, broad parser production stamping, exact parser span tests and versioned legacy codec are implemented. Remaining parser node families are under audit; OIR optional span TLV remains pending.  
+**Status:** OIR optional source-span TLV writer/reader implemented; CI round-trip verification pending. AST field/setter/validator, broad parser production stamping, exact parser span tests and versioned legacy codec are implemented. Remaining parser node families are under audit.  
 **Scope:** C frontend AST, legacy AST stream codec, OIR AST bridge  
 **Normative dependency:** `docs/language/syntax-reference.md`
 
@@ -86,3 +86,10 @@ The new reader validates that the four fields are either all present or all abse
 ## 8. Non-goals
 
 This contract does not define Semantic diagnostics, macro expansion/source maps, generated-code provenance, inline ASM source mapping or incremental parsing. Those may extend the span model later without changing the coordinate semantics above.
+
+
+## 2026-11-04 — OIR source-span extension implementation
+
+- Writer appends optional fields `0xFFF0` start offset (U64), `0xFFF1` end offset (U64), `0xFFF2` end line (U32), `0xFFF3` end column (U32) only when AST span is present. Fixed 32-byte node record remains unchanged.
+- Reader requires all four optional fields together, correct value types, nonzero end coordinates, and a non-reversed half-open range; start line/column are taken from the node record. `source_id` is not serialized in this extension and decodes as zero.
+- OIR round-trip test now asserts root and function declaration spans. Existing canonical byte re-encode assertion protects backward compatibility. CI is pending.
