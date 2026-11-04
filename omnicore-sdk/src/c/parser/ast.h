@@ -121,7 +121,9 @@ typedef enum {
     AST_BLOCK_HALT,
     /* Append-only: variadic parameter-list marker and named call argument. */
     AST_VARIADIC_PARAM,
-    AST_NAMED_ARG
+    AST_NAMED_ARG,
+    /* Required compile-time dependency declaration introduced by `m:`. */
+    AST_MUST_DECL
 } ASTNodeType;
 
 // Temel Düğüm
@@ -225,6 +227,8 @@ typedef struct { ASTNode base; ASTNode* length; } ASTArrayDimension;
 typedef struct { ASTNode base; } ASTVariadicParam;
 /* Named call argument: owned label and one owned value expression. */
 typedef struct { ASTNode base; char* name; ASTNode* value; } ASTNamedArg;
+/* `m:Name = source;` compile-time dependency; source remains an AST expression. */
+typedef struct { ASTNode base; char* name; ASTNode* source; } ASTMustDecl;
 
 // --- Bildirim Yapıları ---
 
