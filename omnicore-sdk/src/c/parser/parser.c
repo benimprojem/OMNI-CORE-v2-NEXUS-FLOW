@@ -3657,6 +3657,8 @@ static ASTNode* parse_statement(Parser* p) {
         return parse_select_scan(p, parser_identifier_is(&p->current,"scan"));
     }
     if (check(p, TOKEN_KW_IF)) return parse_if_statement(p);
+    if (match(p, TOKEN_KW_FASTEXEC)) return parse_fast_exec_block(p);
+    if (match(p, TOKEN_KW_ASM)) return parse_asm_label(p);
     if (match(p, TOKEN_KW_USE)) return parse_use(p);
     if (match(p, TOKEN_KW_DEFER)) {
         Token start = p->previous;
