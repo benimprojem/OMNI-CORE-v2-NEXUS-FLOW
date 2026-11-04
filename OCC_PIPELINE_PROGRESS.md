@@ -341,7 +341,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - [x] `parser_attach_source_files()` parser dosya adını/yolunu kayıt tablosuna ekleyip `source_id` değerini context'e atıyor.
 - [x] Parser diagnostic kayıtları, konum span'i mevcut olsa da olmasa da context'in `source_id` değerini taşıyor.
 - [x] Parser testi: aynı tabloda ikinci dosyaya ayrılmış ID'nin diagnostic span'e taşındığı doğrulanıyor.
-- [ ] Lexer'ın bağımsız diagnostic üretim yolları aynı source identity ile ilişkilendirilmeli.
+- [x] Lexer diagnostic üretimi `ParserContext.source_id` değerini span'e taşıyor; farklı dosya kimliği ve satır/sütun için regresyon testi eklendi (CI bekleniyor).
 - [ ] AST node üretim yolları tam başlangıç/bitiş span'i ve source_id ile damgalanmalı.
 - [ ] CLI/host diagnostic formatter source_id'yi dosya yoluna çözümleyip göstermeli.
 - [ ] İki dosyalı uçtan uca test ve CI sonuçları.
