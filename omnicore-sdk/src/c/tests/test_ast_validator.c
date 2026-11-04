@@ -569,6 +569,9 @@ int main(void) {
         dependency->source = ast_create(AST_LITERAL);
         if (!dependency->name || !dependency->source) return 1;
         strcpy(dependency->name, "M");
+        fn->name=(char*)malloc(3u);
+        if(!fn->name) return 1;
+        strcpy(fn->name,"fn");
         body->statements = (ASTNode*)dependency;
         fn->body = (ASTNode*)body;
         if (!expect((ASTNode*)fn, AST_VALIDATE_INVALID_KIND)) {
