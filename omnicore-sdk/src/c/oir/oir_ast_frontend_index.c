@@ -274,6 +274,15 @@ uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
         case AST_RULE_BARRIER: case AST_RULE_TRIGGER: case AST_APPLY_RULES:
         case AST_RELOCATE: case AST_UNROLL: return 2u;
         case AST_RULE_ALWAYS: case AST_RULE_DEFAULT: return 1u;
+case AST_NEWTYPE_DECL: return 0u;
+        case AST_LITERAL: return 0u;
+        case AST_IDENTIFIER: return 0u;
+        case AST_BREAK: return 0u;
+        case AST_CONTINUE: return 0u;
+        case AST_NEXUS_JUMP: return 0u;
+        case AST_AI_LOGIC: return 0u;
+        case AST_PANIC: return 0u;
+        case AST_USE: return 0u;
         default: return 0u;
     }
 }
