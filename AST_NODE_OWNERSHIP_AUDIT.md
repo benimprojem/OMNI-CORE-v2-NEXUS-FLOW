@@ -121,3 +121,11 @@
 - AST_ASM_LABEL must occur below an AST_FASTEXEC_BLOCK ancestor. Ordinary AST_BLOCK nesting inside FASTEXEC is permitted; direct-child-only checks would incorrectly reject valid nesting.
 - AST_VARIADIC_PARAM is a payload-free leaf and must be final in a function parameter list. AST_NAMED_ARG owns its label and value; AST_MUST_DECL owns its name/source and is restricted to program scope.
 - Validator fixtures cover nested FASTEXEC/ASM ownership, standalone ASM rejection, and the appended-kind lifecycle. CI run `41828504098` passed after the Parser/OIR regression corrections.
+
+
+## 2026-11-04 — Validator update
+
+- `ast_validate()` now checks required owned text payloads for named AST forms in addition to child ownership and shape. Empty literal text is valid when its owned `string_value` pointer exists.
+- Generic function calls require a callee; ASTCall-backed intrinsic tags may omit an explicit callee because the node kind identifies the operation.
+- Parser span assertions walk all child fields and sibling chains in the extended and canonical fixtures. They exposed and fixed missing spans on synthesized `AST_IF` guard wrappers and constructor-pattern `AST_PATTERN_BINDING` nodes.
+- CI run `41842413877` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
