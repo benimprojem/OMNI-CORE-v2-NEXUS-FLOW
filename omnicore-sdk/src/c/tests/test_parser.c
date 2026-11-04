@@ -2720,5 +2720,44 @@ generic_type_done:
         }
     }
 
+
+    /* Inline newtype struct aggregate preserves aggregate and field spans. */
+    {
+        static const char source[] =
+            "f:main() { nt:struct: point { v:x!i32, v:y!i32 } }";
+        ParserContext* parser = parser_init_source("newtype-aggregate-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* start = strstr(source, "nt:struct:");
+        const char* close = start ? strchr(start, '}') : NULL;
+        const char* field_x = strstr(source, "v:x!i32");
+        const char* field_y = strstr(source, "v:y!i32");
+        ASTFuncDecl* function;
+        ASTStructDecl* aggregate;
+        ASTNode* field;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            aggregate = function
+                ? (ASTStructDecl*)((ASTBlock*)function->body)->statements : NULL;
+            field = aggregate ? aggregate->fields : NULL;
+            valid = aggregate && aggregate->name && strcmp(aggregate->name, "point") == 0 &&
+                aggregate->base.source_span.has_location == 1u &&
+                aggregate->base.source_span.start_offset == (uint64_t)(start - source) &&
+                aggregate->base.source_span.end_offset == (uint64_t)(close + 1 - source) &&
+                field && field->source_span.has_location == 1u &&
+                field->source_span.start_offset == (uint64_t)(field_x - source) &&
+                field->source_span.end_offset == (uint64_t)(field_x + 7 - source) &&
+                field->next && field->next->source_span.has_location == 1u &&
+                field->next->source_span.start_offset == (uint64_t)(field_y - source) &&
+                field->next->source_span.end_offset == (uint64_t)(field_y + 7 - source) &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Inline newtype aggregate source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
