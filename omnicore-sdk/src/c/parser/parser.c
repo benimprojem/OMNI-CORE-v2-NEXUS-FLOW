@@ -2117,10 +2117,11 @@ static ASTNode* parse_var_decl(Parser* p) {
 }
 
 static ASTNode* parse_return_statement(Parser* p) {
+    Token return_start = p->previous;
     ASTUnaryExpr* ret = (ASTUnaryExpr*)parser_ast_create(p, AST_RETURN);
     if (!ret) return NULL;
-    ret->base.line = p->previous.line;
-    ret->base.col = p->previous.col;
+    ret->base.line = return_start.line;
+    ret->base.col = return_start.col;
     ret->op = TOKEN_KW_RET;
     
     if (!match(p, TOKEN_SEMICOLON)) {
@@ -2133,6 +2134,8 @@ static ASTNode* parse_return_statement(Parser* p) {
     } else {
         ret->operand = NULL;
     }
+    if (p->previous.type == TOKEN_SEMICOLON)
+        parser_stamp_node_tokens(p, (ASTNode*)ret, &return_start, &p->previous);
     return (ASTNode*)ret;
 }
 
@@ -3339,6 +3342,8 @@ static ASTNode* parse_statement(Parser* p) {
         control->col = keyword.col;
         consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON,
             MSG_EXPECT_SEMICOLON_EXPR);
+        if (p->previous.type == TOKEN_SEMICOLON)
+            parser_stamp_node_tokens(p, control, &keyword, &p->previous);
         return control;
     }
 
