@@ -519,3 +519,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 
 | 2026-11-05 | Contextual AST codec test CI ilk çalıştırmasında test çağrısına literal `\\n` kaçışının kaynak koda yazıldığı compile error tespit edildi; test mantığına geçmeden build duruyordu. Çağrı satırı gerçek newline ile düzeltildi; önceki başarısız CI'lar test sonucu olarak değerlendirilmez. | test fix commit `b712509f`; CI pending |
+
+
+| 2026-11-05 | `docs/AST_NODE_IMPLEMENTATION_MATRIX.md` eklendi: 105 AST kind için parser direct/helper notu, lifecycle, graph, OIR map/writer ve fixture sütunları; contextual node sahiplik tablosu ve AST kapanış kriterleri. Otomatik kaynak taraması 105/105 OIR map, 105/105 writer, 105/105 fixture switch ve 62 doğrudan parser create çağrısı buldu (62 bir node-completeness ölçütü değildir). | commit `48f33788` |
+| 2026-11-05 | Contextual AST test main çağrısında literal `\\n` kalıntısı ikinci düzeltmede bulundu; satır fiziksel newline ile ayrıldı. Commit `264cd247` CI run `41924686996` in progress; bu commit için test sonucu bekleniyor. Önceki `522c84f1`, `b712509f` ve `5a028ae7` CI build failures (aynı escaped newline). |
