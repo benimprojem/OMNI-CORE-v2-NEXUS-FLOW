@@ -133,7 +133,12 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_UNPACK:      return sizeof(ASTUnpack);
         case AST_PANIC:       return sizeof(ASTPanic);
 
-        // Diğerleri için temel düğüm boyutu (AST_BREAK, AST_CONTINUE vb.)
+        // Payload taşımayan AST türleri: yalnızca ASTNode başlığı saklanır.
+        case AST_BREAK:
+        case AST_CONTINUE:
+        case AST_BLOCK_HALT:
+            return sizeof(ASTNode);
+
         default: return sizeof(ASTNode);
     }
 }
@@ -750,6 +755,12 @@ static void ast_destroy_recursive(ASTNode* node) {
         case AST_MUST_DECL: { ASTMustDecl* n=(ASTMustDecl*)node; free(n->name); if(n->source)ast_destroy_recursive(n->source); break; }
         case AST_FASTEXEC_BLOCK: { ASTFastExecBlock* n=(ASTFastExecBlock*)node; if(n->statements)ast_destroy_recursive(n->statements); break; }
         case AST_ASM_LABEL: { ASTAsmLabel* n=(ASTAsmLabel*)node; free(n->label); free(n->source_text); break; }
+        /* Payload-free nodes: ASTNode header only; no owned children/fields. */
+        case AST_BREAK:
+        case AST_CONTINUE:
+        case AST_BLOCK_HALT:
+        case AST_VARIADIC_PARAM:
+            break;
         case AST_BLOCK:
         case AST_PROGRAM:
         case AST_ASM_BLOCK: {
@@ -1239,6 +1250,12 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             write_string(writer, ((ASTPanic*)node)->message);
             break;
         }
+        /* Payload-free nodes serialize only the common node header. */
+        case AST_BREAK:
+        case AST_CONTINUE:
+        case AST_BLOCK_HALT:
+        case AST_VARIADIC_PARAM:
+            break;
         default: break;
     }
 
@@ -1583,6 +1600,12 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             ((ASTPanic*)node)->message = read_string(reader);
             break;
         }
+        /* Payload-free nodes have no body after the common header. */
+        case AST_BREAK:
+        case AST_CONTINUE:
+        case AST_BLOCK_HALT:
+        case AST_VARIADIC_PARAM:
+            break;
         default: break;
     }
 
