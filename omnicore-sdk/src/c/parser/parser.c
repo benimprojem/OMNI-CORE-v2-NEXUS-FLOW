@@ -1213,6 +1213,7 @@ static ASTNode* parse_use(Parser* p) {
 
     do {
         Token module_token;
+        Token use_end;
         ASTUse* use;
         if (!match(p, TOKEN_IDENTIFIER)) {
             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
@@ -1221,6 +1222,7 @@ static ASTNode* parse_use(Parser* p) {
             return NULL;
         }
         module_token = p->previous;
+        use_end = module_token;
         use = (ASTUse*)parser_ast_create(p, AST_USE);
         if (!use) {
             ast_destroy((ASTNode*)head);
@@ -1247,6 +1249,7 @@ static ASTNode* parse_use(Parser* p) {
                 return NULL;
             }
             alias_token = p->previous;
+            use_end = alias_token;
             use->alias = (char*)parser_malloc(p, (size_t)alias_token.length + 1u);
             if (!use->alias) {
                 ast_destroy((ASTNode*)use);
@@ -1257,6 +1260,7 @@ static ASTNode* parse_use(Parser* p) {
             use->alias[alias_token.length] = '\0';
         }
 
+        parser_stamp_node_tokens(p, (ASTNode*)use, &module_token, &use_end);
         if (!head) head = use;
         else tail->base.next = (ASTNode*)use;
         tail = use;
@@ -2915,6 +2919,7 @@ static ASTNode* parse_conditional_action(Parser* p) {
         ast_destroy((ASTNode*)node);
         return NULL;
     }
+    parser_stamp_node_tokens(p, (ASTNode*)node, &opening, &p->previous);
     return (ASTNode*)node;
 }
 
@@ -3336,6 +3341,7 @@ static ASTNode* parse_lambda(Parser* p) {
     else if(check(p,TOKEN_LBRACE)){advance(p);node->body=parse_block(p);node->body_is_expression=0;}
     else {error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected '>' expression or block after lambda parameters.");ast_destroy((ASTNode*)node);return NULL;}
     if(!node->body){ast_destroy((ASTNode*)node);return NULL;}
+    parser_stamp_node_tokens(p, (ASTNode*)node, &keyword, &p->previous);
     return (ASTNode*)node;
 }
 
@@ -3381,12 +3387,7 @@ static ASTNode* parse_statement(Parser* p) {
         return parse_select_scan(p, parser_identifier_is(&p->current,"scan"));
     }
     if (check(p, TOKEN_KW_IF)) return parse_if_statement(p);
-    if (match(p, TOKEN_KW_USE)) {
-        Token start = p->previous;
-        ASTNode* use = parse_use(p);
-        if (use) parser_stamp_node_tokens(p, use, &start, &p->previous);
-        return use;
-    }
+    if (match(p, TOKEN_KW_USE)) return parse_use(p);
     if (match(p, TOKEN_KW_DEFER)) {
         Token start = p->previous;
         ASTNode* deferred = parse_defer(p);
@@ -3468,6 +3469,7 @@ static ASTNode* parse_statement(Parser* p) {
 
     // Special Thread Block: (name)>{...}
     if (p->current.type == TOKEN_LPAREN) {
+        Token thread_start = p->current;
         Token lookahead = peek_token(p);
         if (lookahead.type == TOKEN_IDENTIFIER) {
             Token next2 = peek_token_ahead(p, 2);
@@ -3483,7 +3485,12 @@ static ASTNode* parse_statement(Parser* p) {
                     if (!name) return NULL;
                     memcpy(name, name_tok.start, (size_t)name_tok.length);
                     name[name_tok.length] = '\0';
-                    return parse_thread_block(p, name);
+                    {
+                        ASTNode* thread = parse_thread_block(p, name);
+                        if (thread)
+                            parser_stamp_node_tokens(p, thread, &thread_start, &p->previous);
+                        return thread;
+                    }
                 }
             }
         }
