@@ -357,6 +357,23 @@ static void parser_stamp_node_token(
     if (span.has_location) (void)ast_set_source_span(node, &span);
 }
 
+static void parser_stamp_node_tokens(
+    Parser* p, ASTNode* node, const Token* first, const Token* last
+) {
+    OccSourceSpan span;
+    OccSourceSpan end_span;
+    if (!p || !p->ctx || !node || !first || !last) return;
+    parser_make_token_span(p->ctx, first, &span);
+    parser_make_token_span(p->ctx, last, &end_span);
+    if (!span.has_location || !end_span.has_location ||
+        span.source_id != end_span.source_id ||
+        end_span.end_offset < span.start_offset) return;
+    span.end_offset = end_span.end_offset;
+    span.end_line = end_span.end_line;
+    span.end_column = end_span.end_column;
+    (void)ast_set_source_span(node, &span);
+}
+
 /* Compose a production span from its first and last owned AST children. */
 static void parser_stamp_node_child_range(
     ASTNode* node, const ASTNode* first, const ASTNode* last
@@ -2325,6 +2342,8 @@ static ASTNode* parse_func_decl(Parser* p) {
 
 static ASTNode* parse_block(Parser* p) {
     ASTBlock* block;
+    Token block_start = p->current;
+    Token block_end;
     if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
         error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
             "Maximum parser nesting depth exceeded.");
@@ -2368,6 +2387,7 @@ static ASTNode* parse_block(Parser* p) {
         }
     }
     consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
+    block_end = p->previous;
     /* `}?;` is a block terminator, not a normal targeted Halt statement. */
     if (match(p, TOKEN_HALT)) {
         ASTNode* cleanup = parser_ast_create(p, AST_BLOCK_HALT);
@@ -2379,11 +2399,13 @@ static ASTNode* parse_block(Parser* p) {
         }
         cleanup->line = p->previous.line;
         cleanup->col = p->previous.col;
+        block_end = p->previous;
         if (!head) head = cleanup;
         else tail->next = cleanup;
         tail = cleanup;
     }
     block->statements = head;
+    parser_stamp_node_tokens(p, (ASTNode*)block, &block_start, &block_end);
     --p->nesting_depth;
     return (ASTNode*)block;
 }
