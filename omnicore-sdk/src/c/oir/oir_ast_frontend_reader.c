@@ -109,6 +109,9 @@ static void free_disconnected_node(ASTNode* node) {
         case AST_USE: {
             ASTUse* n=(ASTUse*)node; free(n->module_name); free(n->alias); break;
         }
+        case AST_NAMED_ARG: free(((ASTNamedArg*)node)->name); break;
+        case AST_MUST_DECL: free(((ASTMustDecl*)node)->name); break;
+        case AST_ASM_LABEL: { ASTAsmLabel* n=(ASTAsmLabel*)node; free(n->label); free(n->source_text); break; }
         default: break;
     }
     free(node);
@@ -339,6 +342,21 @@ static OirStatus populate_scalar_fields(
                 else if(field.field_id==2u) status=allocate_string(view,&field,&n->alias);
                 break;
             }
+            case AST_NAMED_ARG:
+                if(field.field_id==1u) status=allocate_string(view,&field,&((ASTNamedArg*)node)->name);
+                break;
+            case AST_MUST_DECL:
+                if(field.field_id==1u) status=allocate_string(view,&field,&((ASTMustDecl*)node)->name);
+                break;
+            case AST_ASM_LABEL: {
+                ASTAsmLabel* a=(ASTAsmLabel*)node;
+                if(field.field_id==1u) status=allocate_string(view,&field,&a->label);
+                else if(field.field_id==2u) {
+                    status=allocate_string(view,&field,&a->source_text);
+                    if(status==OIR_STATUS_OK && a->source_text) a->source_length=strlen(a->source_text);
+                }
+                break;
+            }
             default: break;
         }
         if(status!=OIR_STATUS_OK) return status;
@@ -352,6 +370,12 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
             if(field_id==1u)((ASTProgram*)node)->declarations=child; else return 0; break;
         case AST_BLOCK: case AST_ASM_BLOCK:
             if(field_id==1u)((ASTBlock*)node)->statements=child; else return 0; break;
+        case AST_FASTEXEC_BLOCK:
+            if(field_id==1u)((ASTFastExecBlock*)node)->statements=child; else return 0; break;
+        case AST_NAMED_ARG:
+            if(field_id==2u)((ASTNamedArg*)node)->value=child; else return 0; break;
+        case AST_MUST_DECL:
+            if(field_id==2u)((ASTMustDecl*)node)->source=child; else return 0; break;
         case AST_VAR_DECL: {
             ASTVarDecl* n=(ASTVarDecl*)node;
             if(field_id==7u)n->initializer=child; else if(field_id==8u)n->inline_type=child; else return 0; break;
