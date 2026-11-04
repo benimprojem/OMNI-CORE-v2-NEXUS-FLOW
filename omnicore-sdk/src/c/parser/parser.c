@@ -2004,8 +2004,10 @@ static int parse_struct_body(Parser* p, ASTStructDecl* decl) {
     ASTNode* tail = NULL;
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
         if (match(p, TOKEN_PRE_VAR)) {
+            Token field_start = p->previous;
             ASTNode* field = parse_var_decl(p);
             if (!field) { ast_destroy(head); return 0; }
+            parser_stamp_node_tokens(p, field, &field_start, &p->previous);
             if (!head) head = field; else tail->next = field;
             tail = field;
             if (match(p, TOKEN_COMMA)) {}
@@ -2621,6 +2623,7 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
                 field = (ASTVarDecl*)parser_ast_create(p, AST_VAR_DECL);
                 if (!field) { ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                 field->base.line = ft.line; field->base.col = ft.col; field->is_const = 1;
+                parser_stamp_node_token(p, (ASTNode*)field, &ft);
                 field->name = (char*)parser_malloc(p, (size_t)ft.length + 1u);
                 if (!field->name) { ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                 memcpy(field->name, ft.start, (size_t)ft.length); field->name[ft.length] = '\0';
@@ -2631,6 +2634,7 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
                     if (!field->type_name) { ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                     memcpy(field->type_name, tt.start, (size_t)tt.length); field->type_name[tt.length] = '\0';
                     field->is_hard_typed = 1; advance(p);
+                    parser_stamp_node_tokens(p, (ASTNode*)field, &ft, &p->previous);
                 } else { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE)); ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                 if (!data_head) data_head = (ASTNode*)field; else data_tail->next = (ASTNode*)field;
                 data_tail = (ASTNode*)field;
@@ -2638,6 +2642,7 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
             } while (match(p, TOKEN_COMMA));
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
         }
+        parser_stamp_node_tokens(p, (ASTNode*)var, &vt, &p->previous);
         if (match(p, TOKEN_COMMA)) {}
     }
     decl->variants = head;
