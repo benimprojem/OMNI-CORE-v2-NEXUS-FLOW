@@ -2147,5 +2147,47 @@ generic_type_done:
         }
     }
 
+
+    /* Array declarator dimensions preserve each bracketed source range. */
+    {
+        static const char source[] = "f:main() { v:a[4][8]!i32; }";
+        ParserContext* parser = parser_init_source("array-type-spans.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* first = strstr(source, "[4]");
+        const char* second = strstr(source, "[8]");
+        ASTFuncDecl* function;
+        ASTVarDecl* variable;
+        ASTArrayType* array_type;
+        ASTNode* dimension;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            variable = function
+                ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+            array_type = variable && variable->inline_type &&
+                variable->inline_type->type == AST_ARRAY_TYPE
+                    ? (ASTArrayType*)variable->inline_type : NULL;
+            dimension = array_type ? array_type->dimensions : NULL;
+            valid = array_type && dimension &&
+                dimension->type == AST_ARRAY_DIMENSION &&
+                dimension->source_span.has_location == 1u &&
+                dimension->source_span.start_offset == (size_t)(first - source) &&
+                dimension->source_span.end_offset == (size_t)(first + 3 - source) &&
+                dimension->next && dimension->next->type == AST_ARRAY_DIMENSION &&
+                dimension->next->source_span.has_location == 1u &&
+                dimension->next->source_span.start_offset == (size_t)(second - source) &&
+                dimension->next->source_span.end_offset == (size_t)(second + 3 - source) &&
+                array_type->base.source_span.has_location == 1u &&
+                array_type->base.source_span.start_offset == (size_t)(first - source) &&
+                array_type->base.source_span.end_offset == (size_t)(second + 3 - source) &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Array type/dimension source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
