@@ -1526,7 +1526,7 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             if(reader->failed) goto fail;
             n->source_text=read_string(reader);
             if(reader->failed) goto fail;
-            if(!ast_read_exact(reader,&length,sizeof(length)) || length>(uint64_t)SIZE_MAX ||
+            if(!ast_read_exact(reader,&length,sizeof(length)) || (uint64_t)(size_t)length!=length ||
                 (n->source_text ? strlen(n->source_text) : 0u)!=(size_t)length ||
                 (!n->source_text && length!=0u)) goto fail;
             n->source_length=(size_t)length;
