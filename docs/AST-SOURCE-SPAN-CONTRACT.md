@@ -1,6 +1,6 @@
 # AST Source Span Contract
 
-**Status:** Partial implementation — AST field and setter exist; graph validator now enforces complete-span invariants. Parser production stamping, versioned codec and OIR TLV remain pending.  
+**Status:** Partial implementation — AST field/setter/validator and versioned legacy codec with span round-trip + unprefixed legacy reader are implemented. Parser production stamping and OIR TLV remain pending.  
 **Scope:** C frontend AST, legacy AST stream codec, OIR AST bridge  
 **Normative dependency:** `docs/language/syntax-reference.md`
 
@@ -49,10 +49,11 @@ The current legacy AST stream is process/build-local and writes native C enum/in
 
 The implementation must therefore introduce a root-level magic/version prefix for the new stream format:
 
-- New writer emits a fixed magic and explicit stream version before the root node.
-- New reader recognizes the prefix and decodes the versioned format.
-- New reader also accepts the existing unprefixed legacy stream and marks source spans absent.
-- Unknown future stream versions fail closed.
+- [x] New writer emits the 8-byte `OCCAST\\r\\n` magic and a 32-bit version (`1`) before the root node.
+- [x] New reader recognizes the prefix and decodes the versioned format.
+- [x] New reader also accepts the existing unprefixed legacy stream and leaves source spans absent.
+- [x] Unknown future stream versions fail closed.
+- [x] Version 1 stores `has_location`, `source_id`, start/end byte offsets and start/end line/column as individual fields after each node's legacy `line/col` header; no C struct padding is written.
 - Existing truncation, trailing-data, graph ownership and depth checks remain mandatory.
 
 This does not promise that an old compiler can read a new stream. The legacy codec is not the stable cross-module interchange format; OIR remains that format.
@@ -78,7 +79,7 @@ The new reader validates that the four fields are either all present or all abse
 
 - `ast_validate()` checks complete-span invariants and rejects malformed ranges. (Implemented and covered by AST validator tests.)
 - Parser tests must assert exact ranges for literals, identifiers, binary expressions, declarations, nested blocks, `}?;`, multiline source and multibyte UTF-8 text. (Pending parser stamping.)
-- Legacy AST codec tests must cover new versioned spans, legacy unprefixed input and malformed/truncated prefixes. (Pending.)
+- Legacy AST codec tests cover versioned span round-trip, unprefixed legacy input and unknown-version rejection. (Implemented; truncated-prefix regression still to add.)
 - OIR tests must cover full-span preservation, old payloads without span extensions, partial extension rejection and unknown optional scalar compatibility. (Pending.)
 - Windows, Linux, macOS, ASan/UBSan and Valgrind must pass before the span feature is marked complete.
 
