@@ -1015,7 +1015,7 @@ static int rejects_unknown_ast_stream_version(void) {
 
 
 static int rejects_truncated_ast_stream_prefixes(void) {
-    const unsigned char magic[8] = "OCCAST\\r\\n";
+    const unsigned char magic[8] = "OCCAST\r\n";
     uint32_t version = 1u;
     FILE* stream = tmpfile();
     ASTNode* decoded;
