@@ -1,6 +1,6 @@
 # FASTEXEC / Inline ASM AST Contract (C frontend)
 
-**Status:** AST node lifecycle and OIR bridge implemented; Lexer/Parser integration is in progress; tests are committed but not yet executed.
+**Status:** AST node lifecycle, OIR bridge, opaque raw-body Lexer token and FASTEXEC/ASM Parser productions are implemented on the working branch; regression tests are committed but not yet executed or CI-verified.
 **Normative language source:** `nexus docs/Gelişmiş Inline Assembly — Formal Specification.md`.
 **Working branch:** `refactor/c-core-roadmap`.
 
