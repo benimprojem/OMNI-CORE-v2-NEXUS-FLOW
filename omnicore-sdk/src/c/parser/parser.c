@@ -2723,8 +2723,10 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                     consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
                     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
                         if (match(p, TOKEN_PRE_VAR)) {
+                            Token field_start = p->previous;
                             ASTNode* field = parse_var_decl(p);
                             if (!field) { ast_destroy(head); ast_destroy((ASTNode*)aggregate); return NULL; }
+                            parser_stamp_node_tokens(p, field, &field_start, &p->previous);
                             if (!head) head = field; else tail->next = field;
                             tail = field;
                             if (match(p, TOKEN_COMMA)) {}
@@ -2762,6 +2764,8 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                             ASTEnumVariant* variant = (ASTEnumVariant*)parser_ast_create(p, AST_ENUM_VARIANT);
                             if (!variant) { ast_destroy(head); ast_destroy((ASTNode*)aggregate); return NULL; }
                             t = p->previous;
+                            variant->base.line = t.line;
+                            variant->base.col = t.col;
                             variant->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
                             if (!variant->name) { ast_destroy((ASTNode*)variant); ast_destroy(head); ast_destroy((ASTNode*)aggregate); return NULL; }
                             memcpy(variant->name, t.start, (size_t)t.length);
@@ -2770,6 +2774,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                                 while (p->current.type != TOKEN_RPAREN && p->current.type != TOKEN_EOF) advance(p);
                                 consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
                             }
+                            parser_stamp_node_tokens(p, (ASTNode*)variant, &t, &p->previous);
                             if (!head) head = (ASTNode*)variant; else tail->next = (ASTNode*)variant;
                             tail = (ASTNode*)variant;
                             if (match(p, TOKEN_COMMA)) {}
@@ -2857,6 +2862,7 @@ static ASTNode* parse_group_decl(Parser* p) {
     }
     consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
     while (!check(p, TOKEN_RBRACE) && !check(p, TOKEN_EOF)) {
+        Token member_start = p->current;
         ASTNode* member = NULL;
         if (p->current.type == TOKEN_IDENTIFIER && peek_token(p).type == TOKEN_FAT_ARROW) {
             ASTMethod* method = (ASTMethod*)parser_ast_create(p, AST_METHOD);
@@ -2868,8 +2874,11 @@ static ASTNode* parse_group_decl(Parser* p) {
             memcpy(method->public_name, mt.start, (size_t)mt.length); method->public_name[mt.length] = '\0';
             advance(p); advance(p);
             if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) {
+                Token implementation_start = p->previous;
                 method->implementation = parse_func_decl(p);
                 if (!method->implementation) { ast_destroy((ASTNode*)method); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+                parser_stamp_node_tokens(p, method->implementation,
+                    &implementation_start, &p->previous);
             } else { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expected function after '=>'"); ast_destroy((ASTNode*)method); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
             member = (ASTNode*)method;
             if (match(p, TOKEN_SEMICOLON)) {}
@@ -2895,6 +2904,7 @@ static ASTNode* parse_group_decl(Parser* p) {
             }
         }
         if (!member) { ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+        parser_stamp_node_tokens(p, member, &member_start, &p->previous);
         if (!head) head = member; else tail->next = member;
         tail = member;
     }
