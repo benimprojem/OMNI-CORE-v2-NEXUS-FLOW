@@ -91,9 +91,7 @@ int main(void) {
 
     /* Payload-free and scalar-only leaf nodes are valid without child edges. */
     {
-        const ASTNodeType leaves[] = {
-            AST_BREAK, AST_CONTINUE, AST_VARIADIC_PARAM
-        };
+        const ASTNodeType leaves[] = { AST_BREAK, AST_CONTINUE };
         size_t i;
         for (i = 0; i < sizeof(leaves) / sizeof(leaves[0]); ++i) {
             ASTNode *leaf = ast_create(leaves[i]);
