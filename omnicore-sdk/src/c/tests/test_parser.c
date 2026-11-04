@@ -2694,5 +2694,31 @@ generic_type_done:
         }
     }
 
+
+    /* Targetless Nexus Halt is a complete ?; statement. */
+    {
+        static const char source[] = "f:main() { ?; }";
+        ParserContext* parser = parser_init_source("halt-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* halt = strstr(source, "?;");
+        ASTFuncDecl* function;
+        ASTNode* node;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            node = function ? ((ASTBlock*)function->body)->statements : NULL;
+            valid = node && node->type == AST_NEXUS_HALT &&
+                node->source_span.has_location == 1u &&
+                node->source_span.start_offset == (uint64_t)(halt - source) &&
+                node->source_span.end_offset == (uint64_t)(halt + 2 - source) &&
+                !((ASTHalt*)node)->expr && ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Targetless Halt source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
