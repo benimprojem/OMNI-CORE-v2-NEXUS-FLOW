@@ -346,3 +346,5 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - [ ] CLI/host diagnostic formatter source_id'yi dosya yoluna çözümleyip göstermeli.
 - [ ] İki dosyalı uçtan uca test ve CI sonuçları.
 - **Durum:** Parser context ve parser diagnostic kimlik bağlantısı eklendi; tam çoklu dosya derleme ve kullanıcıya gösterilen dosya adı henüz tamamlanmadı.
+
+| 2026-11-04 | AST source span doğrulaması eklendi: `ast_validate()` ters byte aralığını, sıfır bitiş satır/sütununu ve `line/col` başlangıç aynası uyuşmazlığını reddediyor; regresyon testleri eklendi. Parser production stamping, versioned legacy codec ve OIR TLV hâlâ açık. | `ast.h`, `ast.c`, `test_ast_validator.c`, `docs/AST-SOURCE-SPAN-CONTRACT.md` |
