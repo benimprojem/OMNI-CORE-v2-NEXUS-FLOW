@@ -128,7 +128,7 @@ int main(void) {
         identifier->name=(char*)malloc(2u);
         literal->string_value=(char*)malloc(1u);
         newtype->name=(char*)malloc(2u);
-        newtype->target_type=(char*)malloc(2u);
+        newtype->target_type=(char*)malloc(4u);
         if(!identifier->name || !literal->string_value ||
            !newtype->name || !newtype->target_type) return 1;
         strcpy(identifier->name,"x");
