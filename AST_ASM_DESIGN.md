@@ -50,7 +50,61 @@ Semantic validates FASTEXEC-only context for ASM declarations, `asmcall`, `asmjm
 
 CPU is the initial primitive family. GPU/NPU primitive families may be registered later without changing the AST container contract. Target-specific instruction validation/emission remains downstream; general scope, name, type, ownership and capability checks do not move into Codegen.
 
-## 6. Required tests / completion gate
+## 6. FASTEXEC compiler intelligence and conservative validation
+
+FASTEXEC is a high-risk boundary. The compiler must perform stricter, context-aware checks here than in an ordinary statement block. This is a compiler responsibility, not a promise that arbitrary target assembly can be fully understood.
+
+### 6.1 Validation layers
+
+- **Lexer:** preserve the raw ASM body byte-for-byte and report unterminated bodies or malformed delimiters at their exact source positions. Do not interpret target mnemonics as Nexus Flow tokens.
+- **Parser / AST:** preserve the FASTEXEC scope, statement order, ASM label, raw body, and source spans. Reject malformed FASTEXEC/ASM structure without silently dropping bytes.
+- **Semantic:** resolve every `%name` reference against visible declarations; verify read/write intent, type and width compatibility, duplicate labels, `asmcall`/`asmjmp` targets, and FASTEXEC-only primitive use.
+- **Target capability validation:** verify register names/classes, instruction-set availability, operand constraints, alignment and ABI requirements against the selected target profile. An unknown target capability must not be treated as supported.
+- **OIR boundary:** carry the validated source structure and diagnostics forward. No backend may silently reinterpret or discard an invalid operand mapping.
+
+### 6.2 Variable and register mapping analysis
+
+For every placeholder, Semantic records a use/definition contract:
+
+- Read: ASM consumes the current Nexus Flow value.
+- Write: ASM produces a value that must be written back to the Nexus Flow variable.
+- Read/write: both the incoming value and the outgoing result are observable.
+- Address/memory use: the target backend must provide a valid addressable location and honor the target's memory constraints.
+
+The exact direction must be inferred only where the operand syntax and target contract make it unambiguous. If the compiler cannot prove whether an operand is read, written, or both, it must issue a diagnostic or require an explicit supported constraint; it must not guess.
+
+The compiler checks that a value is initialized before an ASM read, that writes target mutable storage, that the type width matches the operand/register width, and that two simultaneous mappings do not illegally alias the same register or storage. Register allocation must respect live values and preserve values across clobbers and calls. A variable mapped to a register is not automatically safe merely because the register name exists.
+
+### 6.3 Control-flow and machine-state checks
+
+At minimum, the semantic/target validation plan must cover:
+
+- Duplicate and unresolved labels within the owning FASTEXEC scope.
+- `asmjmp` paths that bypass required cleanup, leave the valid function/FASTEXEC region, or make subsequent code unreachable.
+- ASM blocks with fall-through behavior that conflicts with their call/jump use.
+- Register clobber declarations, implicit instruction clobbers, and live-value preservation.
+- Stack or call-frame alignment, calling convention, callee/caller-saved register rules, and return-state consistency where the target ABI defines them.
+- Memory access width/alignment, invalid or unavailable registers, unsupported instructions, and target privilege/capability restrictions where statically knowable.
+- Conflicting or overlapping memory/register mappings and values whose lifetime crosses an ASM call or jump.
+
+The compiler must not invent a return instruction, rewrite arbitrary assembly control flow, or claim to prove arbitrary raw ASM safe. Where static proof is impossible, emit a clearly classified warning or require an explicit future unsafe/opaque contract only after that language feature is specified. Do not add such syntax implicitly in this implementation.
+
+### 6.4 Diagnostics policy
+
+Diagnostics must identify the source file, FASTEXEC/ASM label, exact source span, variable/register/target involved, and a stable diagnostic code. Errors block OIR generation; warnings remain attached to the compilation result and do not disappear at module boundaries.
+
+Suggested diagnostic families (stable numeric codes are assigned in the diagnostics registry, not here):
+
+- Scope: ASM/primitive used outside FASTEXEC.
+- Binding: unknown variable, uninitialized read, immutable write, unresolved or ambiguous placeholder.
+- Constraint: register unavailable, width mismatch, illegal alias, invalid memory/address mapping.
+- Control flow: duplicate/unresolved label, unsafe jump boundary, invalid fall-through/call-return contract, unreachable statements.
+- Target/ABI: unsupported instruction/capability, calling-convention or alignment violation, clobber/live-register conflict.
+- Opaque analysis: a warning when arbitrary raw ASM behavior prevents a complete static proof.
+
+Diagnostics should be actionable: explain the failed invariant and, when safe, identify the declaration, operand, or target profile that needs correction. The compiler must never silently auto-correct an ASM instruction or register constraint.
+
+## 7. Required tests / completion gate
 
 1. FASTEXEC positive parse and AST shape.
 2. Multiple ordinary statements and multiple ASM labels in one FASTEXEC.
