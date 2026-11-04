@@ -3235,6 +3235,7 @@ static ASTNode* parse_ruleset(Parser* p) {
     if(!check(p,TOKEN_LBRACE)){error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,msg_get(MSG_EXPECT_LBRACE_FUNC));ast_destroy((ASTNode*)node);return NULL;}
     advance(p);
     while(p->current.type!=TOKEN_RBRACE && p->current.type!=TOKEN_EOF) {
+        Token rule_start = p->current;
         ASTNode* rule=NULL;
         if(parser_identifier_is(&p->current,"always") || parser_identifier_is(&p->current,"default")) {
             int is_always=parser_identifier_is(&p->current,"always");
@@ -3269,10 +3270,13 @@ static ASTNode* parse_ruleset(Parser* p) {
                 ast_destroy(condition);ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;
             }
         }
+        parser_stamp_node_tokens(p, rule, &rule_start, &p->previous);
         if(!rules)rules=rule;else tail->next=rule;tail=rule;
     }
     if(!check(p,TOKEN_RBRACE)){error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,msg_get(MSG_EXPECT_RBRACE_BLOCK));ast_destroy((ASTNode*)node);ast_destroy(rules);return NULL;}
-    advance(p); node->rules=rules; return (ASTNode*)node;
+    advance(p); node->rules=rules;
+    parser_stamp_node_tokens(p, (ASTNode*)node, &keyword, &p->previous);
+    return (ASTNode*)node;
 }
 
 static ASTNode* parse_apply_rules(Parser* p) {
@@ -3299,7 +3303,9 @@ static ASTNode* parse_apply_rules(Parser* p) {
     node->ruleset_name=(char*)parser_malloc(p,(size_t)name.length+1u);
     if(!node->ruleset_name){ast_destroy((ASTNode*)node);ast_destroy(args);return NULL;}
     memcpy(node->ruleset_name,name.start,(size_t)name.length);node->ruleset_name[name.length]='\0';
-    node->args=args; (void)match(p,TOKEN_SEMICOLON); return (ASTNode*)node;
+    node->args=args; (void)match(p,TOKEN_SEMICOLON);
+    parser_stamp_node_tokens(p, (ASTNode*)node, &keyword, &p->previous);
+    return (ASTNode*)node;
 }
 
 static ASTNode* parse_on_block(Parser* p) {
@@ -3321,6 +3327,7 @@ static ASTNode* parse_on_block(Parser* p) {
     memcpy(node->event_name,event.start,(size_t)event.length);node->event_name[event.length]='\0';
     node->body=parse_block(p);
     if(!node->body){ast_destroy((ASTNode*)node);return NULL;}
+    parser_stamp_node_tokens(p, (ASTNode*)node, &keyword, &p->previous);
     return (ASTNode*)node;
 }
 
@@ -3337,6 +3344,7 @@ static ASTNode* parse_unroll(Parser* p) {
     node=(ASTUnroll*)parser_ast_create(p,AST_UNROLL);
     if(!node){ast_destroy(count);ast_destroy(loop);return NULL;}
     node->base.line=keyword.line;node->base.col=keyword.col;node->count=count;node->loop=loop;
+    parser_stamp_node_tokens(p, (ASTNode*)node, &keyword, &p->previous);
     return (ASTNode*)node;
 }
 
