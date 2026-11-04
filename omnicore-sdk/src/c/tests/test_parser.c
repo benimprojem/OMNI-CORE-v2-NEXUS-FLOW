@@ -2328,5 +2328,73 @@ generic_type_done:
         }
     }
 
+
+    /* UTF-8 source columns and offsets are byte-based, as specified. */
+    {
+        static const char source[] = "f:main() { v:s = \"é\"; }";
+        ParserContext* parser = parser_init_source("utf8-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* utf8 = strstr(source, "é");
+        size_t string_offset = utf8 ? (size_t)(utf8 - source) - 1u : 0u;
+        ASTFuncDecl* function;
+        ASTVarDecl* variable;
+        ASTNode* literal;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            variable = function
+                ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+            literal = variable ? variable->initializer : NULL;
+            valid = literal && literal->type == AST_LITERAL &&
+                literal->source_span.has_location == 1u &&
+                literal->source_span.start_offset == string_offset &&
+                literal->source_span.end_offset == string_offset + 4u &&
+                literal->source_span.start_column == string_offset + 1u &&
+                literal->source_span.end_column == string_offset + 5u &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "UTF-8 byte source-span test failed.\\n");
+            return 1;
+        }
+    }
+
+    /* Multiline productions retain exact end line and column. */
+    {
+        static const char source[] = "f:main() {\n  v:x = 1;\n  ret x;\n}";
+        ParserContext* parser = parser_init_source("multiline-span.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        const char* one = strstr(source, "1;");
+        size_t literal_offset = one ? (size_t)(one - source) : 0u;
+        ASTFuncDecl* function;
+        ASTBlock* body;
+        ASTVarDecl* variable;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            body = function ? (ASTBlock*)function->body : NULL;
+            variable = body ? (ASTVarDecl*)body->statements : NULL;
+            valid = function && body && variable && variable->initializer &&
+                variable->initializer->source_span.start_line == 2u &&
+                variable->initializer->source_span.start_column == 9u &&
+                variable->initializer->source_span.end_line == 2u &&
+                variable->initializer->source_span.end_column == 10u &&
+                body->base.source_span.start_line == 1u &&
+                body->base.source_span.start_column == 10u &&
+                body->base.source_span.end_line == 4u &&
+                body->base.source_span.end_column == 2u &&
+                function->base.source_span.end_line == 4u &&
+                function->base.source_span.end_column == 2u &&
+                variable->initializer->source_span.start_offset == literal_offset &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Multiline AST source-span test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
