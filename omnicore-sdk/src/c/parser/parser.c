@@ -674,6 +674,8 @@ static ASTNode* parse_expression(Parser* p);
 static ASTNode* parse_statement(Parser* p);
 static ASTNode* parse_if_statement(Parser* p);
 static ASTNode* parse_block(Parser* p);
+static ASTNode* parse_fast_exec_block(Parser* p);
+static ASTNode* parse_asm_label(Parser* p);
 static ASTNode* parse_select_scan(Parser* p, int is_scan);
 static ASTNode* parse_assignment(Parser* p);
 static ASTNode* parse_func_decl(Parser* p);
@@ -2539,6 +2541,173 @@ static ASTNode* parse_block(Parser* p) {
         parser_stamp_node_tokens(p, (ASTNode*)block, &block_start, &block_end);
     --p->nesting_depth;
     return (ASTNode*)block;
+}
+
+static ASTNode* parse_fast_exec_block(Parser* p) {
+    Token fast_start = p->previous;
+    Token block_start;
+    Token block_end;
+    ASTFastExecBlock* block;
+    ASTNode* head = NULL;
+    ASTNode* tail = NULL;
+
+    if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Maximum parser nesting depth exceeded.");
+        return NULL;
+    }
+    if (!check(p, TOKEN_LBRACE)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE,
+            "Expected '{' after fastexec.");
+        return NULL;
+    }
+    advance(p); /* Consume '{'; the next token remains ordinary Nexus Flow. */
+    block_start = p->previous;
+    ++p->nesting_depth;
+    ++p->fast_exec_depth;
+    block = (ASTFastExecBlock*)parser_ast_create(p, AST_FASTEXEC_BLOCK);
+    if (!block) {
+        --p->fast_exec_depth;
+        --p->nesting_depth;
+        return NULL;
+    }
+    block->base.line = fast_start.line;
+    block->base.col = fast_start.col;
+
+    while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
+        Token statement_start = p->current;
+        ASTNode* statement = parse_statement(p);
+        if (parser_status_is_terminal(p->ctx->status)) {
+            ast_destroy(statement);
+            ast_destroy(head);
+            ast_destroy((ASTNode*)block);
+            --p->fast_exec_depth;
+            --p->nesting_depth;
+            return NULL;
+        }
+        if (statement) {
+            if (!head) head = statement;
+            else tail->next = statement;
+            tail = statement;
+        } else {
+            if (p->current.type == statement_start.type &&
+                p->current.source_offset == statement_start.source_offset &&
+                p->current.line == statement_start.line &&
+                p->current.col == statement_start.col &&
+                p->current.type != TOKEN_EOF) {
+                advance(p);
+            }
+            parser_synchronize_statement(p);
+        }
+    }
+
+    if (check(p, TOKEN_RBRACE)) {
+        advance(p);
+        block_end = p->previous;
+    } else {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE,
+            msg_get(MSG_EXPECT_RBRACE_BLOCK));
+        block_end = p->previous;
+    }
+
+    if (match(p, TOKEN_HALT)) {
+        Token cleanup_token = p->previous;
+        ASTNode* cleanup = parser_ast_create(p, AST_BLOCK_HALT);
+        if (!cleanup) {
+            ast_destroy(head);
+            ast_destroy((ASTNode*)block);
+            --p->fast_exec_depth;
+            --p->nesting_depth;
+            return NULL;
+        }
+        cleanup->line = cleanup_token.line;
+        cleanup->col = cleanup_token.col;
+        parser_stamp_node_token(p, cleanup, &cleanup_token);
+        block_end = cleanup_token;
+        if (!head) head = cleanup;
+        else tail->next = cleanup;
+        tail = cleanup;
+    }
+
+    block->statements = head;
+    if (block_end.type == TOKEN_RBRACE || block_end.type == TOKEN_HALT)
+        parser_stamp_node_tokens(p, (ASTNode*)block, &fast_start, &block_end);
+    --p->fast_exec_depth;
+    --p->nesting_depth;
+    return (ASTNode*)block;
+}
+
+static ASTNode* parse_asm_label(Parser* p) {
+    Token asm_start = p->previous;
+    Token label_token;
+    Token body_token;
+    Token close_token;
+    ASTAsmLabel* node;
+    int scope_valid = p->fast_exec_depth != 0u;
+
+    if (!scope_valid) {
+        error_at(p, &asm_start, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Inline ASM declarations are only valid inside fastexec.");
+    }
+    if (!check(p, TOKEN_COLON)) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Expected ':' after asm.");
+        return NULL;
+    }
+    advance(p);
+    if (!check(p, TOKEN_IDENTIFIER)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+            "Expected an ASM label after 'asm:'.");
+        return NULL;
+    }
+    label_token = p->current;
+    advance(p);
+    if (!check(p, TOKEN_LBRACE)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE,
+            "Expected '{' before raw ASM body.");
+        return NULL;
+    }
+    advance(p); /* Lexer emits TOKEN_ASM_BODY here, without tokenizing its bytes. */
+    if (!check(p, TOKEN_ASM_BODY)) {
+        if (p->current.type != TOKEN_EOF) {
+            error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Expected an opaque ASM body token.");
+        }
+        return NULL;
+    }
+    body_token = p->current;
+    node = (ASTAsmLabel*)parser_ast_create(p, AST_ASM_LABEL);
+    if (!node) return NULL;
+    node->label = (char*)parser_malloc(p, (size_t)label_token.length + 1u);
+    node->source_text = (char*)parser_malloc(p, body_token.source_length + 1u);
+    if (!node->label || !node->source_text) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    memcpy(node->label, label_token.start, (size_t)label_token.length);
+    node->label[label_token.length] = '\0';
+    if (body_token.source_length != 0u)
+        memcpy(node->source_text, body_token.start, body_token.source_length);
+    node->source_text[body_token.source_length] = '\0';
+    node->source_length = body_token.source_length;
+    node->base.line = asm_start.line;
+    node->base.col = asm_start.col;
+
+    advance(p); /* The next ordinary token must be the matching outer '}'. */
+    if (!check(p, TOKEN_RBRACE)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE,
+            "Expected '}' after raw ASM body.");
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    close_token = p->current;
+    advance(p);
+    parser_stamp_node_tokens(p, (ASTNode*)node, &asm_start, &close_token);
+    if (!scope_valid) {
+        ast_destroy((ASTNode*)node);
+        return NULL;
+    }
+    return (ASTNode*)node;
 }
 
 static ASTNode* parse_struct_decl(Parser* p, int is_packed, char* name) {
