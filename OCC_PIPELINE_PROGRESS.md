@@ -485,3 +485,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Commits: 9d68b21 (per-node assertion), f1a2700 (guard wrapper), 05559d0 (constructor bindings), 3d547fc (canonical fixture coverage), 5f25115 (diagnostic formatting).
 - CI run 41840863533 passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
 - Scope: exercised fixtures are covered; the full grammar-production to Parser-function and positive/negative fixture matrix remains open.
+
+
+## 2026-11-04 — AST Graph Validator required-payload checks
+
+- `ast_validate()` now rejects absent required owned text payloads for named declarations and expressions, identifiers, literals, member access, patterns, rules, imports, Nexus labels/jumps/intents and related AST forms. Empty literal text remains valid when the owned string pointer is present.
+- Generic `AST_FUNC_CALL` requires its callee child. Call-shaped intrinsic nodes retain optional explicit callee children because their AST tag identifies the intrinsic operation.
+- Regression fixtures now distinguish payload-free leaves from payload-bearing leaves and cover missing/valid identifier, literal and newtype payloads. Contextual MUST/variadic tests were adjusted to satisfy earlier required fields so each test reaches the intended validator rule.
+- Validation: GitHub Actions run `41842413877` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- Remaining AST work: full per-production parser/source-span fixture matrix, codec allocation-failure/partial-tree cleanup coverage, and remaining syntax-to-AST gaps already recorded in the AST syntax matrix. Semantic and Codegen remain gated.
