@@ -351,7 +351,7 @@ Confirmed AST representation gaps (not just parser gaps): **function type/callba
 
 Some syntax can reuse existing AST shapes without a new enum tag (`elsif`, conditional action, array declarators, select/scan guard); these remain subject to lossless round-trip and semantic contract tests. `import(path)` is provisionally representable as a call expression but must carry an explicit import/resource kind to preserve its runtime ownership and DLL semantics.
 
-**Ordering:** complete remaining AST payload contracts (generic/function types; directives/macro/import/export; map/vector/shift), finish the FASTEXEC Lexer/Parser edge-case audit and OIR source-span TLVs, then Semantic. Codegen stays blocked.
+**Ordering:** complete remaining AST payload contracts (generic/function types; directives/macro/import/export; map Semantic contract; vector typing; numeric-shift/Flow grammar resolution), finish the FASTEXEC Lexer/Parser edge-case audit and OIR source-span TLVs, then Semantic. Codegen stays blocked.
 
 
 ## AST contract — variadic and named arguments (implemented; OIR/Semantic pending, 2026-11-04)
@@ -405,7 +405,7 @@ The latest C AST inventory contains 105 node tags. FASTEXEC/Inline ASM now has a
 - The OIR frontend bridge now includes `AST_VARIADIC_PARAM`, `AST_NAMED_ARG` and `AST_MUST_DECL` as stable OIR IDs 101–103, followed by FASTEXEC 104 and ASM_LABEL 105.
 - The raw ASM body is preserved exactly; Parser does not parse target instructions as Nexus Flow. Lexer balances nested braces and ignores brace characters inside quoted strings/chars with backslash escapes. Target comment syntax is opaque, so unmatched braces in comments still participate in delimiter balancing.
 
-**AST remains open:** run the new C tests on CI/build hosts; finish the full Parser source-span audit and OIR optional source-span TLVs; complete remaining AST gaps (function types/callbacks, macro/directive metadata, structured map/vector/shift forms). Semantic FASTEXEC checks for calls/primitives, labels, variable placeholders, register/clobber, ABI and control flow remain blocked until AST/Parser validation passes. Codegen remains blocked.
+**AST remains open:** finish the full Parser source-span audit and OIR optional source-span TLVs; complete remaining AST gaps (function types/callbacks, macro/directive metadata, map Semantic contract, vector typing, numeric shift/Flow grammar resolution). Semantic FASTEXEC checks for calls/primitives, labels, variable placeholders, register/clobber, ABI and control flow remain blocked until AST/Parser validation passes. Codegen remains blocked.
 
 
 ## AST representation audit cross-reference — 2026-11-05
