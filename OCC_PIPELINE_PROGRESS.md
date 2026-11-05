@@ -614,3 +614,9 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - `sizeof` fixture uses a normal expression operand; each intrinsic is parsed independently and checked against its AST node kind plus whole-graph validation.
 - Added a negative parser test that rejects `m:` MUST declarations inside function/block scope, matching the normative program-scope-only rule: commit 543d21bf. Existing positive MUST AST/codec fixture remains intact.
 - CI for the MUST negative test is pending; AST remains open.
+
+
+## Thread block grammar audit — 2026-11-05
+
+- `docs/AST_REPRESENTATION_GAPS.md` records that Parser currently accepts legacy `(name)>{...}` and creates ASTThreadBlock with name/body while mode/timeout remain NULL.
+- The normative syntax reference does not yet specify thread-block grammar, scheduling mode, timeout units, capture or ownership semantics. Existing compatibility/span tests remain; no speculative grammar or semantic behavior was added.
