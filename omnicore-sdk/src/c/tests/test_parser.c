@@ -1516,9 +1516,43 @@ static int test_main_cli_parameter_ast(void) {
     return valid;
 }
 
+static int test_group_method_ast(void) {
+    static const char source[] =
+        "f:main() { group Pair { v:value!i32; get => f:get()!i32 { ret value; } } }";
+    ParserContext* parser = parser_init_source("group-method.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTGroupDecl* group;
+    ASTNode* member;
+    ASTMethod* method;
+    ASTFuncDecl* implementation;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        parser->ast_root && ast_validate(parser->ast_root, NULL)) {
+        function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        group = function ? (ASTGroupDecl*)((ASTBlock*)function->body)->statements : NULL;
+        member = group ? group->members : NULL;
+        method = member && member->next ? (ASTMethod*)member->next : NULL;
+        implementation = method ? (ASTFuncDecl*)method->implementation : NULL;
+        valid = group && group->name && strcmp(group->name, "Pair") == 0 &&
+            member && member->type == AST_VAR_DECL &&
+            method && method->base.type == AST_METHOD &&
+            method->public_name && strcmp(method->public_name, "get") == 0 &&
+            implementation && implementation->base.type == AST_FUNC_DECL &&
+            implementation->name && strcmp(implementation->name, "get") == 0 &&
+            implementation->return_type && strcmp(implementation->return_type, "!i32") == 0 &&
+            implementation->body && implementation->body->type == AST_BLOCK;
+    }
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Group method AST parser/ownership test failed.\\n");
+    return valid;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
+    if (!test_group_method_ast()) return 1;
     if (!test_ast_create_rejects_invalid_node_kinds()) {
         fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\\n");
         return 1;
