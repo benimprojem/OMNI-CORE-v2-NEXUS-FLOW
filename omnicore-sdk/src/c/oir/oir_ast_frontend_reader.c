@@ -405,7 +405,7 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
         }
         case AST_FUNC_DECL: case AST_EXTERN_DECL: {
             ASTFuncDecl* n=(ASTFuncDecl*)node;
-            if(field_id==6u)n->params=child; else if(field_id==7u)n->body=child; else return 0; break;
+            if(field_id==6u)n->params=child; else if(field_id==7u)n->body=child; else if(field_id==8u)n->return_array_type=child; else return 0; break;
         }
         case AST_STRUCT_DECL: case AST_UNION_DECL:
             if(field_id==6u)((ASTStructDecl*)node)->fields=child; else return 0; break;
