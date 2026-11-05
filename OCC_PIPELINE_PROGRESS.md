@@ -664,4 +664,15 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Parser consumes return declarator suffix after base type and transfers `AST_ARRAY_TYPE` from the temporary declarator: `1b3da079`.
 - OIR AST frontend field 8 is optional node-ref; graph index count/child accessor, writer optional TLV, reader attachment: `721213c5`, `601a8a65`, `d02f751f`, `c9bfc748`.
 - Parser regression fixture covers `!i32[]`, `!i32[n]`, `!f32[m][n]` and AST stream round-trip: `d6ace431`, `c877bf81`; fixed empty dimension assertion (`[]` has NULL length) in `0324beb2`.
-- CI earlier failures were attributable to intermediate commits (writer optional helper order/link and malformed-stream test still expecting version 1) and initial fixture assertion treating `[]` as a named extent. Corrections are committed; final integrated CI is still pending. Do not mark this task complete until current CI is green and OIR frontend round-trip test explicitly exercises a function with return-array child.
+- CI diagnosis: run `42009813807` isolated the remaining OIR round-trip failure to a duplicated assertion that checked the array-return node twice, the second time at the wrong declaration position. Removed the redundant assertion in `27d279dd`; the full five-job matrix passed (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind) in run `42010539184`.
+- Added an explicit version-1 function-stream compatibility regression in `4a7569f9`; run `42010711975` passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind).
+- The tested path now covers Parser → AST → OIR frontend payload → AST → canonical OIR bytes for a function with named return-array extent `!i32[n]`. Parser tests cover `!i32[]`, `!i32[n]`, and `!f32[m][n]`.
+- Scope remains bounded: this closes the function array-return representation/codec integration gap only. It does not complete the full AST inventory or all syntax-matrix gaps; do not advance to Codegen.
+
+
+## Function array-return integration — CI verified — 2026-11-05
+
+- `ASTFuncDecl.return_array_type` is now represented as an owned optional `AST_ARRAY_TYPE` child, with ordered `AST_ARRAY_DIMENSION` entries; the existing `return_type` string remains the base-type compatibility field.
+- Parser suffix handling, AST lifecycle/validation, AST stream v2 writing with v1 reading, and OIR frontend optional field 8 are connected.
+- Parser, AST serialization, OIR round-trip/canonical-byte, and v1 compatibility regressions pass CI run `42010711975` on Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
+- This is a completed subtask, not an AST-stage completion declaration. Continue the remaining AST syntax/ownership/type-model audit before moving to later pipeline stages.
