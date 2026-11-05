@@ -732,3 +732,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Parser test added in `test_parser.c`: verifies a local map declaration is represented as hard-typed `AST_VAR_DECL` with `type_name="map"`, a function map parameter retains `type_name="!map"`, and the graph validates. The legacy parameterized spelling `!map str, i32` is asserted to fail parsing.
 - Updated `docs/language/syntax-reference.md`, `docs/AST_REPRESENTATION_GAPS.md`, `NEXSUS_AST_SYNTAX_MATRIX.md` and `docs/AST_PARSER_PRODUCTION_MATRIX.md`. No `AST_MAP_TYPE` or OIR schema change is needed for this marker.
 - CI run `42032892220` on code commit `0406d498152e` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind; Ubuntu and Valgrind each report 60/60 tests with zero failures. Semantic map key/value rules remain future Semantic work; this does not close AST globally.
+
+
+## Expression precedence regression — logical AND / bitwise OR — 2026-11-05
+
+- Parser audit found `parse_logical_and()` parsed its right operand with `parse_range()`, although bitwise operators bind more tightly than logical AND. Consequently `a && b | c` could leave `| c` unconsumed or fail instead of producing the expected AST.
+- Changed the right operand parser to `parse_bitwise_or()`. This matches the existing left operand path and preserves the precedence order: bitwise OR is evaluated/represented inside each logical-AND operand.
+- Extended `test_logical_operator_precedence_ast()` with both `a && b | c` (AND root, OR right child) and `a | b && c` (AND root, OR left child), asserting AST shape.
+- CI for code commits `a79600682d2c` / `8a1e0aaa9865` is pending at the time of this update. Do not mark the parser fix complete until all five CI jobs pass.
+- Remaining expression audit: associativity at each binary tier, chained comparison policy, and range/flow operator disambiguation.
