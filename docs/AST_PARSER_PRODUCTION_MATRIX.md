@@ -71,3 +71,20 @@
 4. Keep contextual AST nodes tested under valid owners (e.g. `AST_MUST_DECL` under program declarations, `AST_VARIADIC_PARAM` in params, `AST_BLOCK_HALT` as final block child, `AST_ASM_LABEL` under FASTEXEC).
 5. Use syntax-reference spellings only; do not introduce C/C++ or alternate-language examples.
 6. AST phase closes only when syntax inventory, parser behavior, graph contract, codec, spans and tests are reconciled. Semantic/OIR implementation status remains a separate gate.
+
+
+## Source-span test evidence (2026-11-05 audit)
+
+Parser source-span assertions are distributed through `test_parser.c` rather than a single span test. The current explicit cases include:
+
+- UTF-8 byte offsets and multiline program/variable endpoints.
+- Cast expression boundaries.
+- Struct/newtype/enum/union declaration and member/variant/data spans.
+- Ruleset, barrier, apply-rules and on-block ranges.
+- Lambda expression and block body boundaries.
+- Relocate, unroll and rolling retry expression boundaries.
+- FASTEXEC raw ASM declaration and attached label/body spans.
+- Capture, function parameter, variadic marker, Nexus label, group/member and targetless Halt.
+- `asmcall`/`asmjmp` full call ranges.
+
+This is a **tested subset**, not blanket source-span coverage for all productions. AST closure requires each row to declare its span policy (token-only, full production, or synthesized/no source) and have assertions for both endpoints where location is required. UTF-8 offsets are byte offsets; line/column are separately validated.
