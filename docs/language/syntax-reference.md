@@ -166,10 +166,10 @@ f:matrisAl(veri:f64[2][2]) { ... }
 
 ```
 
-* Haritalar (Maps / Dictionaries) `map<key, val>` Anahtar-Değer (Key-Value) çiftlerini tutar.
+* Haritalar (Maps / Dictionaries) yalnızca `!map` tür işaretiyle belirtilir. Map için key/value tür parametresi yazılmaz; anahtar ve değer türleri ayrıca bildirilmez.
 
 ```nxf
-v:notlar!map str, i32;
+v:notlar!map;
   notlar["Ali"] = 90;
   notlar["Veli"] = 85;
   
