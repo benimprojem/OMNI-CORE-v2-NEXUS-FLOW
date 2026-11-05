@@ -1142,7 +1142,7 @@ static int roundtrips_contextual_ast_tags(void) {
     fn->name=duplicate_text("context_function"); fn->params=(ASTNode*)variadic; variadic=NULL;
     fn->body=ast_create(AST_BLOCK);
     block->statements=halt; halt=NULL;
-    label->label=duplicate_text("CTX_LABEL"); label->source_text=duplicate_text("nop\\n");
+    label->label=duplicate_text("CTX_LABEL"); label->source_text=duplicate_text("nop");
     label->source_length=3; fast->statements=(ASTNode*)label; label=NULL;
     program->declarations=(ASTNode*)must; must=NULL;
     program->declarations->next=(ASTNode*)fn; fn=NULL;
