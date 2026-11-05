@@ -770,3 +770,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added a positive AST fixture for `1..10`, requiring a binary `TOKEN_RANGE` node with literal endpoints.
 - Added a negative Parser fixture for `1..2..3`; the language syntax reference defines a single range operator, so a second unparenthesized range operator must not be accepted as a chained range.
 - The new range fixtures are not yet CI-verified. Endpoint type rules and runtime range behavior remain Semantic/runtime work.
+
+
+## Single-range Parser rule — CI verified — 2026-11-05
+
+- Positive fixture confirms `1..10` becomes one `AST_BINARY_EXPR` with `TOKEN_RANGE` and literal endpoints.
+- Negative fixture confirms `1..2..3` is rejected; this enforces the syntax reference's single-range rule without adding a new AST node or precedence tier.
+- CI run `42039331167` / commit `5800afd55483` passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. Ubuntu and Valgrind each report 60/60 tests.
+- Range endpoint type validation and runtime iteration semantics remain Semantic/runtime work.
