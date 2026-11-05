@@ -567,6 +567,7 @@ static void ast_destroy_recursive(ASTNode* node) {
             if (f->return_type) free(f->return_type);
             if (f->params) ast_destroy_recursive(f->params);
             if (f->body) ast_destroy_recursive(f->body);
+            if (f->return_array_type) ast_destroy_recursive(f->return_array_type);
             break;
         }
         case AST_STRUCT_DECL:
@@ -844,7 +845,7 @@ typedef struct {
 
 #define AST_STREAM_MAGIC "OCCAST\r\n"
 #define AST_STREAM_MAGIC_SIZE 8u
-#define AST_STREAM_VERSION 1u
+#define AST_STREAM_VERSION 2u
 
 
 static void ast_write_exact(ASTWriter* writer, const void* source, size_t size) {
@@ -989,6 +990,7 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             ast_write_exact(writer, &f->is_exported, (size_t)(sizeof(int)) * (size_t)(1));
             ast_serialize_recursive(f->params, writer);
             ast_serialize_recursive(f->body, writer);
+            ast_serialize_recursive(f->return_array_type, writer);
             break;
         }
         case AST_STRUCT_DECL:
@@ -1335,6 +1337,8 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             if (!ast_read_exact(reader, &f->is_exported, sizeof(int))) goto fail;
             f->params = ast_deserialize_recursive(reader);
             f->body = ast_deserialize_recursive(reader);
+            if (reader->format_version >= 2u)
+                f->return_array_type = ast_deserialize_recursive(reader);
             break;
         }
         case AST_STRUCT_DECL:
@@ -1967,6 +1971,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_ARRAY_LITERAL: V(((ASTArrayLiteral*)n)->elements,"elements"); break;
         case AST_ARRAY_TYPE: V(((ASTArrayType*)n)->dimensions,"dimensions"); break;
         case AST_ARRAY_DIMENSION: V(((ASTArrayDimension*)n)->length,"length"); break;
+        case AST_FUNC_DECL: case AST_EXTERN_DECL: V(((ASTFuncDecl*)n)->return_array_type,"return_array_type"); break;
         case AST_VARIADIC_PARAM:
             if (s->active_count < 2u ||
                 (s->active[s->active_count - 2u]->type != AST_FUNC_DECL &&
