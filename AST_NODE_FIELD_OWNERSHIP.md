@@ -18,7 +18,7 @@
 | Root / blocks | PROGRAM, BLOCK, ASM_BLOCK | ASTProgram / ASTBlock | declarations/statements sibling chain |
 | Payload-free control | BREAK, CONTINUE | ASTNode | no payload fields; only the common owned sibling link |
 | Variable | VAR_DECL | ASTVarDecl | name, type_name; initializer; inline_type |
-| Function | FUNC_DECL, EXTERN_DECL | ASTFuncDecl | name, return_type; params chain; body |
+| Function | FUNC_DECL, EXTERN_DECL | ASTFuncDecl | name, return_type; params chain; body; optional owned `return_array_type` subtree |
 | Aggregate | STRUCT_DECL, UNION_DECL | ASTStructDecl | name; fields chain |
 | Enum | ENUM_DECL / ENUM_VARIANT | ASTEnumDecl / ASTEnumVariant | name; variants chain; variant data |
 | Newtype | NEWTYPE_DECL | ASTNewTypeDecl | owned `name` and `target_type` strings; no child pointer in the current C struct |
