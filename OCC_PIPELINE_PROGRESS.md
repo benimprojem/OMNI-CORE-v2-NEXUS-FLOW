@@ -561,3 +561,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Corrected the fixture's C newline escape in `8b8156a7`; CI for the test commit is pending/queued and will be evaluated against the corrected head.
 - Existing parser tests already cover group member spans, thread block spans, MUST declarations/codec, and lambda forms; this increment adds shape/ownership assertions rather than duplicating span-only coverage.
 - AST remains open: method implementation and use-path syntax are not equivalent to alias coverage; intrinsic family, parameter defaults, and function array-return representation still require targeted proof.
+
+
+## Function default parameter AST — 2026-11-05
+
+- Formal function spec documents `a:10` default parameters; Parser previously treated colon only as a type separator and rejected the default expression.
+- Parser now parses a colon without hard-type marker as a parameter initializer expression; explicit hard types remain `a!T` / `a:!T`. Commit `3fe950b2`.
+- Added AST fixture for `f:sum(a:10, b!i32)!i32 { ret a; }` checking default literal initializer and second parameter type; commit `93e37487`.
+- CI: malformed first use/defer fixture head `03f4b208` failed ASan/UBSan due parser recovery leaving unowned ASTUse; newline correction `8b8156a7` is running. Parser implementation + default-param test runs are pending. This failure is recorded, not represented as a passing test.
