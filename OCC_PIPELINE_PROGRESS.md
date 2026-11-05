@@ -748,3 +748,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Extended `test_expression_precedence_and_associativity_ast()` to assert left-nested AST shape for bitwise OR/XOR/AND and logical AND/OR chains, in addition to the existing additive, multiplicative, comparison and equality chains. Power remains covered as right-associative.
 - This is Parser/AST shape coverage only; Semantic legality of chained comparisons and runtime short-circuit execution remain separate contracts.
 - New test commit `1ca084159884` requires the full CI matrix before it is marked verified. Remaining expression ambiguity is the single-range rule and the interaction of `<<`/`>>` with Nexus Flow operators.
+
+
+## Map type spelling refinement — 2026-11-05
+
+- Owner clarified that map does not need a mandatory hard-type marker or a fixed key/value pair: keys are commonly strings, while values may carry their own type per entry.
+- Function parameter spelling `a:map` is the preferred ordinary type form. Existing `a!map` remains accepted as an explicit hard-type compatibility spelling; local declarations currently use the established `v:name!map` grammar.
+- `map<str, i32>` is not implemented by the current Parser, but it is no longer documented as permanently forbidden. Whether it should be an optional homogeneous key/value constraint remains undecided; no AST_MAP_TYPE or generic AST change is introduced pending that decision.
+- Parser fixture now checks ordinary `items:map` (type_name=`map`, is_hard_typed=0) and compatibility `legacy!map` (type_name=`!map`, is_hard_typed=1). Existing local `v:notlar!map` shape is preserved. The parser's current rejection of `!map<str, i32>` is recorded as unsupported syntax, not a normative language ban.
+- Latest expression associativity test commit `1ca084159884`, CI run `42034256447`: all five jobs passed (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). Ubuntu and Valgrind both report 60/60 tests.
