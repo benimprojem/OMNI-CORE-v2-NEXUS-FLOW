@@ -973,6 +973,43 @@ static int roundtrips_versioned_source_spans(void) {
     return valid ? 0 : 1;
 }
 
+static int reads_v1_function_stream_without_v2_return_child(void) {
+    ASTNode* original=make_function_fixture(AST_FUNC_DECL);
+    FILE* stream=NULL;
+    unsigned char* bytes=NULL;
+    long end;
+    uint32_t version=1u;
+    ASTFuncDecl* decoded=NULL;
+    int valid=0;
+    if(!original) return 1;
+    stream=tmpfile();
+    if(!stream || !ast_serialize(original,stream) || fflush(stream)!=0) goto done;
+    end=ftell(stream);
+    if(end<=4L || (unsigned long)end>SIZE_MAX) goto done;
+    bytes=(unsigned char*)malloc((size_t)end);
+    if(!bytes || fseek(stream,0L,SEEK_SET)!=0 ||
+       fread(bytes,1u,(size_t)end,stream)!=(size_t)end) goto done;
+    /* Version 1 function payloads end after body; the v2-only optional
+     * return-array NULL marker is removed while preserving the list marker. */
+    memcpy(bytes+8u,&version,sizeof(version));
+    fclose(stream);
+    stream=tmpfile();
+    if(!stream || fwrite(bytes,1u,(size_t)end-sizeof(int),stream)!=(size_t)end-sizeof(int))
+        goto done;
+    rewind(stream);
+    decoded=(ASTFuncDecl*)ast_deserialize(stream);
+    valid=decoded && decoded->base.type==AST_FUNC_DECL &&
+        decoded->name && strcmp(decoded->name,"fixture_function")==0 &&
+        decoded->params && decoded->body && !decoded->return_array_type &&
+        ast_validate((ASTNode*)decoded,NULL);
+done:
+    if(stream) fclose(stream);
+    free(bytes);
+    ast_destroy(decoded?(ASTNode*)decoded:NULL);
+    ast_destroy(original);
+    return valid?0:1;
+}
+
 static int reads_unprefixed_legacy_stream(void) {
     FILE* stream = tmpfile();
     int type = (int)AST_IDENTIFIER, line = 9, col = 4;
@@ -1167,6 +1204,7 @@ int main(int argc, char** argv) {
         return 9;
     }
     if (roundtrips_versioned_source_spans() != 0) return 15;
+    if (reads_v1_function_stream_without_v2_return_child() != 0) return 22;
     if (roundtrips_fast_exec_asm_payload() != 0) return 19;
     if (roundtrips_contextual_ast_tags() != 0) return 21;
     if (reads_unprefixed_legacy_stream() != 0) return 16;
