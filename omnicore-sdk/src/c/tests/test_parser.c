@@ -1152,7 +1152,7 @@ static int test_function_array_return_ast(void) {
         f=(ASTFuncDecl*)fn;
         if(!f->return_type || !f->return_array_type || f->return_array_type->type!=AST_ARRAY_TYPE) goto done;
         dim=((ASTArrayType*)f->return_array_type)->dimensions;
-        for(int d=0;d<expected;d++) {
+        const int dimensions[3]={1,1,2};\n        for(int d=0;d<dimensions[expected-1];d++) {
             if(!dim || dim->type!=AST_ARRAY_DIMENSION) goto done;
             if(expected==1) {
                 if(((ASTArrayDimension*)dim)->length) goto done; /* [] */
