@@ -724,3 +724,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added `test_must_top_level_ast()` to assert that `m:CoreModule = "CoreModule.nxf";` produces a top-level `AST_MUST_DECL` with the correct name, literal source, source span and following function declaration. Existing `test_must_scope_rejected()` continues to assert that the same declaration is rejected inside a function block.
 - CI first caught a literal `\\n` in the test registration line; after that was fixed, the positive test exposed that string-literal AST payloads preserve their source quotes. The assertion was corrected to compare the exact quoted token spelling (commit `1458c9cb`). Final run `42022856183` on `1458c9cb0ec8` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind; Ubuntu/Valgrind each report 60/60 tests and zero failures.
 - This closes a documentation consistency gap and adds positive Parser evidence for MUST scope. It does not close all Parser productions, the full AST gate, or authorize Semantic/Codegen advancement.
+
+
+## Canonical `!map` grammar and Parser regression — 2026-11-05
+
+- Language decision: map declarations and parameters use only `!map`. The declaration sample is `v:notlar!map;`; the parameter form is `a!map`. No key/value type arguments are written. `map<key, value>` and `!map key, value` are not Nexus Flow syntax.
+- Parser test added in `test_parser.c`: verifies a local map declaration is represented as hard-typed `AST_VAR_DECL` with `type_name="map"`, a function map parameter retains `type_name="!map"`, and the graph validates. The legacy parameterized spelling `!map str, i32` is asserted to fail parsing.
+- Updated `docs/language/syntax-reference.md`, `docs/AST_REPRESENTATION_GAPS.md`, `NEXSUS_AST_SYNTAX_MATRIX.md` and `docs/AST_PARSER_PRODUCTION_MATRIX.md`. No `AST_MAP_TYPE` or OIR schema change is needed for this marker.
+- Parser CI is required before marking the regression verified. Semantic map key/value rules remain future Semantic work; this does not close AST globally.
