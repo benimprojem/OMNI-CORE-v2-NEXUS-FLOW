@@ -715,3 +715,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Existing `AST_SPAWN` enum/OIR node identity and AST codec support are retained as legacy compatibility only; the tag is not removed or renumbered. `test_ast_deserialize` continues to cover the legacy tag's codec payload.
 - CI run `42014920664` / commit `4be14f14939c`: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed; all 60 tests passed in build/test jobs and Valgrind MemCheck.
 - Spawn parsing/validation/lowering and runtime integration remain the separate Thread module's responsibility. The core parser rejection is a fail-closed boundary, not an implementation of the Thread module frontend.
+
+
+## AST ownership inventory reconciliation and MUST parser coverage — 2026-11-05
+
+- Reconciled the function array-return child across `AST_NODE_FIELD_OWNERSHIP.md`, `AST_NODE_OWNERSHIP_AUDIT.md`, and `OIR_AST_NODE_REGISTRY.md`: `ASTFuncDecl.return_array_type` is an optional owned `AST_ARRAY_TYPE` subtree and OIR field 8 is optional. Existing IDs/fields remain unchanged.
+- Updated the implementation matrix to include the function array-return compatibility fixture and the parser production matrix to reflect actual group/method, thread-block, FASTEXEC/ASM and array-return tests.
+- Added `test_must_top_level_ast()` to assert that `m:CoreModule = "CoreModule.nxf";` produces a top-level `AST_MUST_DECL` with the correct name, literal source, source span and following function declaration. Existing `test_must_scope_rejected()` continues to assert that the same declaration is rejected inside a function block.
+- The first CI attempt caught a literal `\\n` accidentally inserted in the test registration line; corrected in commit `66b8758c`. The corrected test and latest documentation commits are awaiting the full CI matrix. No pass is claimed until that run completes.
+- This closes a documentation consistency gap and adds positive Parser evidence for MUST scope. It does not close all Parser productions, the full AST gate, or authorize Semantic/Codegen advancement.
