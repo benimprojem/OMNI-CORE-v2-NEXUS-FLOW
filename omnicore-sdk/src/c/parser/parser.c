@@ -1644,7 +1644,7 @@ static ASTNode* parse_comparison(Parser* p) {
             ast_destroy(left);
             return NULL;
         }
-        ASTNode* right = parse_range(p);
+        ASTNode* right = parse_bitwise_or(p);
         if (!right) {
             ast_destroy(left);
             return NULL;
@@ -1757,8 +1757,7 @@ static ASTNode* parse_logical_and(Parser* p) {
             ast_destroy(left);
             return NULL;
         }
-        /* Bitwise operators bind tighter than logical AND on both operands. */
-        right = parse_bitwise_or(p);
+        right = parse_range(p);
         if (!right) {
             ast_destroy(left);
             return NULL;
