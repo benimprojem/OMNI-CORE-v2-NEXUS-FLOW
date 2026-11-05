@@ -108,3 +108,14 @@ The existing `AST_THREAD_BLOCK` (name/body/mode/timeout) can preserve the declar
 - `ASTFuncDecl.return_array_type` is an owned optional `AST_ARRAY_TYPE` child. Parser, AST destroy/validation, AST stream v2 codec (including a v1 function-stream compatibility fixture), and OIR frontend optional field 8 are integrated.
 - Parser fixtures cover `!i32[]`, `!i32[n]`, and `!f32[m][n]`. OIR frontend round-trip verifies a named return extent survives decode and re-encodes to identical canonical payload bytes.
 - CI run `42010711975` passed Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind. This closes only the array-return AST/codec integration gap; other rows remain independently open.
+
+
+## Unified type representation — Parser audit — 2026-11-05
+
+The next type-model work is intentionally gated on canonical declarator grammar. Current source inspection confirms these concrete gaps:
+
+- **Function/callback type:** the syntax reference shows only the alias example `nt:Callback = f:(id!u32)>!bool;`; it does not define a complete function-type grammar (nested callbacks, optional parameter names, variadic placement, qualifiers, or type nesting). `parse_newtype_decl()` currently accepts one primitive-type token or one identifier as `target_type`; it does not consume a `PRE_FUNC` signature or build parameter/return type children. Existing `AST_LAMBDA` represents executable lambda bodies and must not be reused as a signature type.
+- **Map type:** the syntax reference documents `map str, i32` and `!map` parameter shorthand. The variable type parser currently consumes only the identifier `map` into `ASTVarDecl.type_name`; it does not attach separate key/value type children or consume the comma-separated type pair. The existing `AST_ARRAY_TYPE` is not a map substitute.
+- **Pointer/reference:** the type table lists `*`, `**`, and `&`, but the normative reference does not provide concrete declaration/declarator examples or define composition order, nullability, mutability, ownership, and lifetime rules. Do not infer prefix/suffix placement or pointer nesting from expression operators.
+
+**Next required step:** complete a grammar-only audit and settle the canonical type-expression/declarator forms before introducing any new AST kind or changing parser behavior. The eventual type representation should be append-only and typed (primitive/named, array, map, pointer/reference, function signature), with explicit ownership, graph contexts, codec fields, OIR mapping, and positive/negative fixtures. This is an architecture gate, not a claim that these forms are already supported.
