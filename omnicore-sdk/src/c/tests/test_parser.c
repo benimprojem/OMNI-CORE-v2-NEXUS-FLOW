@@ -2989,5 +2989,33 @@ generic_type_done:
         }
     }
 
+    /* Default parameter expressions are retained as initializer AST children. */
+    {
+        static const char source[] = "f:sum(a:10, b!i32)!i32 { ret a; }";
+        ParserContext* parser = parser_init_source("default-param.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        ASTFuncDecl* function;
+        ASTVarDecl* first;
+        ASTVarDecl* second;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            first = function ? (ASTVarDecl*)function->params : NULL;
+            second = first ? (ASTVarDecl*)first->base.next : NULL;
+            valid = function && first && first->name &&
+                strcmp(first->name, "a") == 0 && first->initializer &&
+                first->initializer->type == AST_LITERAL &&
+                strcmp(((ASTLiteral*)first->initializer)->string_value, "10") == 0 &&
+                second && second->name && strcmp(second->name, "b") == 0 &&
+                second->type_name && strcmp(second->type_name, "!i32") == 0 &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Default parameter AST test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
