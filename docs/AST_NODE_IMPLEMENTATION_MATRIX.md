@@ -25,8 +25,8 @@
 
 ## Per-node matrix
 
-| AST node | Parser creation | Factory | Destroy | Serialize | Deserialize | Graph | OIR map | OIR writer | Fixture |
-|---|---|---|---|---|---|---|---|---|
+| AST node | Parser creation | Factory | Destroy | Serialize | Deserialize | Graph | OIR map | OIR writer | Fixture | 
+|---|---|---|---|---|---|---|---|---| 
 | `AST_PROGRAM` | Helper/indirect | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
 | `AST_BLOCK` | Direct | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
 | `AST_VAR_DECL` | Direct | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
