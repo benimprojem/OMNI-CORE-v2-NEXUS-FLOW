@@ -1747,6 +1747,37 @@ static int test_intrinsic_ast_family(void) {
     return 1;
 }
 
+static int test_must_top_level_ast(void) {
+    static const char source[] =
+        "m:CoreModule = \"CoreModule.nxf\";\n"
+        "f:main() { ret 0; }";
+    ParserContext* parser = parser_init_source("must-top-level.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTMustDecl* dependency;
+    ASTFuncDecl* function;
+    ASTLiteral* path_literal;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        parser->ast_root && ast_validate(parser->ast_root, NULL)) {
+        dependency = (ASTMustDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        function = dependency ? (ASTFuncDecl*)dependency->base.next : NULL;
+        path_literal = dependency && dependency->source &&
+            dependency->source->type == AST_LITERAL
+            ? (ASTLiteral*)dependency->source : NULL;
+        valid = dependency && dependency->base.type == AST_MUST_DECL &&
+            dependency->name && strcmp(dependency->name, "CoreModule") == 0 &&
+            path_literal && path_literal->string_value &&
+            strcmp(path_literal->string_value, "CoreModule.nxf") == 0 &&
+            dependency->base.source_span.has_location &&
+            function && function->base.type == AST_FUNC_DECL &&
+            function->name && strcmp(function->name, "main") == 0;
+    }
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Top-level MUST declaration AST contract failed.\\n");
+    return valid;
+}
+
 static int test_must_scope_rejected(void) {
     static const char source[] =
         "f:main() { m:CoreModule = \"CoreModule.nxf\"; ret 0; }";
@@ -1767,7 +1798,7 @@ static int test_must_scope_rejected(void) {
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
-    if (!test_must_scope_rejected()) return 1;
+    if (!test_must_top_level_ast()) return 1;\n    if (!test_must_scope_rejected()) return 1;
     if (!test_spawn_is_outside_core_parser()) return 1;
     if (!test_intrinsic_ast_family()) return 1;
     if (!test_group_method_ast()) return 1;
