@@ -785,3 +785,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Rechecked the normative `NEXUS FLOW OPERATÖRLERİ` formal specification and the Core Reference Guide. They define `<<` as Zone Write and `>>` as Flow Feed, and list `flow.push` / `flow.pull` as functional counterparts, but do not define concrete operator operand productions or unambiguous source examples.
 - The current Parser consumes both tokens in `parse_nexus_flow()` and stores the exact token in `AST_NEXUS_PIPE`. Since both numeric shifts and Flow forms may have identifier operands, choosing `AST_BINARY_EXPR` from identifier/literal shape would be heuristic and unsafe.
 - No parser behavior was changed. Numeric shift AST production remains blocked until the language grammar defines a syntax-level discriminator or a neutral intermediate AST contract. Existing Flow token identity and OIR mapping remain unchanged.
+
+
+## Inclusive Range semantics + Parser chain restriction — 2026-11-05
+
+- Language decision: `1..10` is inclusive at both ends; it must yield 1,2,...,10 (10 values), not stop at 9. Syntax reference now states this explicitly.
+- Parser production `parse_range()` now checks for a remaining `TOKEN_RANGE` after constructing a range and rejects a second operator with a diagnostic. This prevents the previous AST fixture from passing while the expression was silently parsed as a chained range.
+- Regression source cases: valid `1..10`; invalid `1..2..3`; invalid nested composition `1..(2..3)`. Tests are added; CI verification for this latest implementation/test commit is pending.
+- Semantic/runtime work still must implement inclusive endpoint iteration consistently for range loops and range patterns; Parser AST construction alone does not prove runtime behavior.
