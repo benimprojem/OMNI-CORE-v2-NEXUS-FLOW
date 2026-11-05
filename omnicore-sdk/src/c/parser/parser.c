@@ -2393,6 +2393,12 @@ static ASTNode* parse_func_decl(Parser* p) {
                     ast_destroy((ASTNode*)func);
                     return NULL;
                 }
+            } else if (has_colon && !has_bang) {
+                param->initializer = parse_expression(p);
+                if (!param->initializer) {
+                    ast_destroy((ASTNode*)func);
+                    return NULL;
+                }
             } else if (has_colon || has_bang) {
                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
                     msg_get(MSG_EXPECT_TYPE_BANG));
