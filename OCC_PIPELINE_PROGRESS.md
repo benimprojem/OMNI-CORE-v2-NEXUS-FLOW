@@ -635,7 +635,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Commit 543d21bf; CI run 41984668004 successful across Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
 - Follow-up documentation commits (ba33bd88, eb0eba44, 15eced69, 1e062802, 48213a32, 33d95cc1) also passed their CI runs (41984692074, 41984728876, 41984743088, 41984822837, 41984842838, 41984860450).
 
-## Confirmed next AST implementation gap — function array return
+## Historical AST implementation gap — function array return (resolved in later entry)
 
 - Normative grammar includes `f:name(a, ...)!i32[] { ... }`; current Parser does not parse return-array suffixes.
 - Planned compatible representation: optional owned `AST_ARRAY_TYPE` child on `ASTFuncDecl`, with `return_type` retained as the base element-type compatibility string. The child owns ordered `AST_ARRAY_DIMENSION` nodes; no new AST kind is required.
@@ -657,7 +657,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Correction recorded in `docs/AST_REPRESENTATION_GAPS.md` commit `8814173a`. Core AST work proceeds independently with function array-return support.
 
 
-## Function array-return implementation in progress — 2026-11-05
+## Function array-return implementation — implementation history — 2026-11-05
 
 - Added appended `ASTFuncDecl.return_array_type` (owned optional `AST_ARRAY_TYPE`); base `return_type` remains compatibility spelling: commit `33cf3a85`.
 - AST stream bumped to v2; v1 deserialization skips the new trailing child, preserving old layouts; destruction and declaration validation updated: `3a9b6458`, `f4d53163`. AST stream version assertion updated to v2: `7fd62e1e`.
