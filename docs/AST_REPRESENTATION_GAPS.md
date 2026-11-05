@@ -96,3 +96,8 @@ This separates three concepts that must not be conflated in AST/Semantic work:
 - **Runtime scheduling and transfer contract:** how the context/address is captured, what `async` means, timeout units/behavior, ownership/lifetime, error propagation, and whether/how a spawned task is joined remain unspecified and require normative decisions.
 
 The existing `AST_THREAD_BLOCK` (name/body/mode/timeout) can preserve the declaration shape, but current Parser only fills name/body. The spawn call currently parses through the generic intrinsic-call path and does not establish a dedicated typed link to a thread declaration. Do not infer runtime behavior from the current AST alone. Next work should first encode this declaration-vs-spawn distinction in the syntax reference and AST/parser tests, then define semantic symbol resolution and execution metadata without prematurely implementing scheduling.
+
+
+## Spawn/core boundary — owner correction (2026-11-05)
+
+`spawn` is intentionally not part of the core AST: it belongs to a separate thread module/language layer. The runtime/thread specifications already exist in `nexus docs/NXF Runtime Threading Specification v1.0.md` and `nexus docs/Thread System Runtime — Full Formal Specification v1.0.md` (and SDK copies). Thus the earlier statement that the normative specs do not define thread behavior was too broad: runtime behavior is specified there; the core language syntax/AST boundary is the remaining distinction. Do not add `AST_SPAWN` or core scheduling semantics. Spawn parsing/validation/lowering and thread runtime linkage belong to the separate module contract.
