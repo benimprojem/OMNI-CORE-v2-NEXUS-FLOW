@@ -729,9 +729,9 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 ## Canonical `!map` grammar and Parser regression — 2026-11-05
 
 - Language decision: map declarations and parameters use only `!map`. The declaration sample is `v:notlar!map;`; the parameter form is `a!map`. No key/value type arguments are written. `map<key, value>` and `!map key, value` are not Nexus Flow syntax.
-- Parser test added in `test_parser.c`: verifies a local map declaration is represented as hard-typed `AST_VAR_DECL` with `type_name="map"`, a function map parameter retains `type_name="!map"`, and the graph validates. The legacy parameterized spelling `!map str, i32` is asserted to fail parsing.
+- Parser fixture added inside `test_parser_accepts_and_rejects_sources()` in `test_parser.c`: verifies a local map declaration is represented as hard-typed `AST_VAR_DECL` with `type_name="map"`, a function map parameter retains `type_name="!map"`, and the graph validates. Both legacy parameterized spellings `!map str, i32` and `!map<str, i32>` are asserted to fail parsing.
 - Updated `docs/language/syntax-reference.md`, `docs/AST_REPRESENTATION_GAPS.md`, `NEXSUS_AST_SYNTAX_MATRIX.md` and `docs/AST_PARSER_PRODUCTION_MATRIX.md`. No `AST_MAP_TYPE` or OIR schema change is needed for this marker.
-- CI run `42032892220` on code commit `0406d498152e` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind; Ubuntu and Valgrind each report 60/60 tests with zero failures. Semantic map key/value rules remain future Semantic work; this does not close AST globally.
+- Initial CI run `42032892220` on code commit `0406d498152e` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind (60/60). The expanded angle-bracket rejection assertion was added later in commit `355683f4`; its CI is pending. Semantic map key/value rules remain future Semantic work; this does not close AST globally.
 
 
 ## Expression precedence regression — logical AND / bitwise OR — 2026-11-05
