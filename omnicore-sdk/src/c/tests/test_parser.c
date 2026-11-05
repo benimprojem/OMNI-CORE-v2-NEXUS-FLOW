@@ -1571,6 +1571,8 @@ static int test_group_method_ast(void) {
     ASTNode* member;
     ASTMethod* method;
     ASTFuncDecl* implementation;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
     int valid = 0;
     if (!parser) return 0;
     if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
@@ -1589,8 +1591,33 @@ static int test_group_method_ast(void) {
             implementation->return_type && strcmp(implementation->return_type, "!i32") == 0 &&
             implementation->body && implementation->body->type == AST_BLOCK;
     }
+    if (valid) {
+        stream = tmpfile();
+        valid = stream && ast_serialize(parser->ast_root, stream) &&
+            fseek(stream, 0L, SEEK_SET) == 0;
+        if (valid) decoded = ast_deserialize(stream);
+        valid = valid && decoded && ast_validate(decoded, NULL);
+        if (valid) {
+            function = (ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+            group = function ? (ASTGroupDecl*)((ASTBlock*)function->body)->statements : NULL;
+            member = group ? group->members : NULL;
+            method = member && member->next ? (ASTMethod*)member->next : NULL;
+            implementation = method ? (ASTFuncDecl*)method->implementation : NULL;
+            valid = group && group->name && strcmp(group->name, "Pair") == 0 &&
+                member && member->type == AST_VAR_DECL &&
+                method && method->base.type == AST_METHOD &&
+                method->public_name && strcmp(method->public_name, "get") == 0 &&
+                implementation && implementation->name &&
+                strcmp(implementation->name, "get") == 0 &&
+                implementation->return_type &&
+                strcmp(implementation->return_type, "!i32") == 0 &&
+                implementation->body && implementation->body->type == AST_BLOCK;
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
     parser_destroy(parser);
-    if (!valid) fprintf(stderr, "Group method AST parser/ownership test failed.\\n");
+    if (!valid) fprintf(stderr, "Group method AST parser/codec ownership test failed.\\n");
     return valid;
 }
 
