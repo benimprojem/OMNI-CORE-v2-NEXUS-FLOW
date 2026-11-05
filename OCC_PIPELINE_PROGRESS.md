@@ -692,3 +692,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - The integrated regression covers Parser forms `!i32[]`, `!i32[n]`, `!f32[m][n]`; the OIR AST payload round-trip preserves the named extent for `!i32[n]` and canonical re-encoding remains byte-identical.
 - AST stream v1 compatibility is explicitly exercised by `reads_v1_function_stream_without_v2_return_child()`; the v2-only optional function child is absent in the synthesized v1 fixture and the decoded function validates.
 - This closes the function array-return parser/AST/codec/OIR bridge subtask. AST model/parser inventory and Semantic coverage remain open; no Codegen gate is opened.
+
+
+## Thread-block AST payload regression — 2026-11-05
+
+- Added `test_thread_block_ast()` in `omnicore-sdk/src/c/tests/test_parser.c` (commit `85bc7f35`). It parses `(worker)>{ v:value = 7; }`, validates `AST_THREAD_BLOCK` name/body, confirms the currently unset `mode` and `timeout` remain NULL, checks source span and nested variable ownership, then serializes/deserializes and validates the graph again.
+- CI run `42014109396` passed all five jobs: Ubuntu (60/60 tests), Windows, macOS, ASan/UBSan and Valgrind.
+- This test covers the core declaration/body AST only. It does not introduce `AST_SPAWN`, spawn syntax ownership, scheduling semantics or thread runtime lowering; those remain with the separate thread module contract.
