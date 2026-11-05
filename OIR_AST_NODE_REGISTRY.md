@@ -57,7 +57,7 @@
 | 37 | `AST_AI_LOGIC` | Current C enum member; OIR ID is fixed independently of its C ordinal |
 | 38 | `AST_UNPACK` | Current C enum member; OIR ID is fixed independently of its C ordinal |
 | 39 | `AST_PANIC` | Current C enum member; OIR ID is fixed independently of its C ordinal |
-| 40 | `AST_SPAWN` | Current C enum member; OIR ID is fixed independently of its C ordinal |
+| 40 | `AST_SPAWN` | Legacy serialized-compatibility tag only; core Parser must not emit it. OIR ID remains fixed independently of the C enum ordinal. |
 | 41 | `AST_LISTEN` | Current C enum member; OIR ID is fixed independently of its C ordinal |
 | 42 | `AST_ECHO` | Current C enum member; OIR ID is fixed independently of its C ordinal |
 | 43 | `AST_SEND` | Current C enum member; OIR ID is fixed independently of its C ordinal |
