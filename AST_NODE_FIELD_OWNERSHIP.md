@@ -48,7 +48,7 @@ The current `ast.h` / `ast.c` source audit confirms these intentional shared lay
 | AST tag(s) | C payload layout | Owned fields destroyed |
 |---|---|---|
 | `AST_PROGRAM`, `AST_BLOCK`, `AST_ASM_BLOCK` | `ASTProgram` / `ASTBlock` share the first payload pointer offset | program declarations / block statements sibling chain |
-| `AST_FUNC_DECL`, `AST_EXTERN_DECL` | `ASTFuncDecl` | name, return_type, params chain, body |
+| `AST_FUNC_DECL`, `AST_EXTERN_DECL` | `ASTFuncDecl` | name, return_type, params chain, body, optional `return_array_type` subtree |
 | `AST_STRUCT_DECL`, `AST_UNION_DECL` | `ASTStructDecl` | name, fields chain |
 | `AST_BINARY_EXPR`, `AST_ASSIGNMENT` | `ASTBinaryExpr` | left and right subtrees |
 | `AST_UNARY_EXPR`, `AST_POSTFIX_EXPR`, `AST_RETURN` | `ASTUnaryExpr` | operand subtree |
@@ -83,7 +83,7 @@ The `ast_print_recursive` switch has an explicit case for every current `ASTNode
 
 ## Serialization regression coverage
 
-`omnicore-sdk/src/c/tests/test_ast_deserialize.c` exercises every append-only AST tag from `AST_PROGRAM` through the current terminal tag `AST_ARRAY_DIMENSION` in both populated-field and sibling-chain round-trip tests. The populated fixtures must be extended whenever a new tag is appended; the invalid-tag boundary must move with the terminal tag. This proves AST allocation/serialization/deserialization symmetry for the exercised fields, but does not prove parser construction, semantic correctness, OIR support or lowering readiness.
+`omnicore-sdk/src/c/tests/test_ast_deserialize.c` exercises every append-only AST tag from `AST_PROGRAM` through the current terminal tag `AST_ASM_LABEL` (105 registered kinds) in both populated-field and sibling-chain round-trip tests. The populated fixtures must be extended whenever a new tag is appended; the invalid-tag boundary must move with the terminal tag. The populated fixtures include the appended contextual kinds 101–105 and the function array-return payload; a dedicated v1 function-stream fixture verifies backward reading. This proves AST allocation/serialization/deserialization symmetry for the exercised fields, but does not prove parser construction, semantic correctness, OIR support or lowering readiness.
 
 The OIR AST frontend has separate writer/reader/index/schema tests under `omnicore-sdk/src/c/tests/`; those are a distinct wire contract and must not be conflated with the legacy native-layout AST stream tests.
 
