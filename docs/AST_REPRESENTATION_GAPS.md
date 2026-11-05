@@ -100,7 +100,7 @@ The existing `AST_THREAD_BLOCK` (name/body/mode/timeout) preserves the declarati
 
 ## Spawn/core boundary — owner correction (2026-11-05)
 
-`spawn` is intentionally not part of the core AST: it belongs to a separate thread module/language layer. The runtime/thread specifications already exist in `nexus docs/NXF Runtime Threading Specification v1.0.md` and `nexus docs/Thread System Runtime — Full Formal Specification v1.0.md` (and SDK copies). Thus the earlier statement that the normative specs do not define thread behavior was too broad: runtime behavior is specified there; the core language syntax/AST boundary is the remaining distinction. Do not add `AST_SPAWN` or core scheduling semantics. Spawn parsing/validation/lowering and thread runtime linkage belong to the separate module contract.
+`spawn` is intentionally not part of the core AST: it belongs to a separate thread module/language layer. The runtime/thread specifications already exist in `nexus docs/NXF Runtime Threading Specification v1.0.md` and `nexus docs/Thread System Runtime — Full Formal Specification v1.0.md` (and SDK copies). Thus the earlier statement that the normative specs do not define thread behavior was too broad: runtime behavior is specified there; the core language syntax/AST boundary is the remaining distinction. Core Parser must not emit `AST_SPAWN` or core scheduling semantics. The existing AST enum/OIR node identity and codec support are retained as legacy serialized-artifact compatibility only. Spawn parsing/validation/lowering and thread runtime linkage belong to the separate module contract.
 
 
 ## Array-return implementation verification — 2026-11-05
@@ -148,3 +148,11 @@ The next type-model work is intentionally gated on canonical declarator grammar.
 - The parser regression for `group Pair { v:value!i32; get => f:get()!i32 { ret value; } }` now verifies both initial AST shape and AST stream round-trip. The decoded graph is validated and the nested `AST_METHOD` implementation function retains its public name, function name, return type and body.
 - CI run `42014382856` / commit `f63406fc`: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed (60/60 tests on each build/test platform).
 - This is Parser/AST/codec coverage only; it does not claim Semantic dispatch or OIR lowering support.
+
+
+## Spawn/core Parser boundary implementation — 2026-11-05
+
+- `TOKEN_KW_SPAWN` is no longer mapped to `AST_SPAWN` by the core Parser. The Parser emits a direct structured diagnostic and rejects the construct, leaving it for the separate Thread module frontend.
+- The `AST_SPAWN` enum tag and codec branches remain to preserve legacy serialized artifacts and stable node identity. They are not permission for the core Parser to construct new spawn nodes.
+- Regression `test_spawn_is_outside_core_parser()` verifies the syntax error and Thread-module diagnostic through `OccDiagnosticCollector`.
+- CI run `42014920664` / commit `4be14f14939c`: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind passed.
