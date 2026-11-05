@@ -591,3 +591,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Intrinsic mapping fixture commit 8b3ea910 checks nine representative mappings (len, sizeof, typeof, is_ok, addr, clock, datenow, date, time) through variable initializer ASTs.
 - CI runs: group test 41979868392 / progress run 41979893923 and intrinsic test 41979938267 are pending/in progress; status must be checked before marking tests green.
 - This is representative intrinsic coverage, not the complete intrinsic family; remaining intrinsic arities, invalid forms, and codec round-trip coverage remain open.
+
+
+## Intrinsic fixture isolation — 2026-11-05
+
+- The first combined intrinsic fixture (8b3ea910) failed in the parser test target; its failure was caused at least in part by the invalid `sizeof(i32)` expression fixture. The test was not treated as evidence of a compiler regression or as passing.
+- Replaced it with isolated per-intrinsic sources and explicit failing-index reporting in commit 6164f535. A preceding correction changed `sizeof(i32)` to `sizeof(x)` in 6bd99510.
+- CI for 6bd99510 and 6164f535 is running; intrinsic coverage remains unverified until the latest head passes all matrix jobs.
+- Group method AST fixture fa51b156 and progress commit d83c25ad both passed CI (runs 41979868392 and 41979893923).
