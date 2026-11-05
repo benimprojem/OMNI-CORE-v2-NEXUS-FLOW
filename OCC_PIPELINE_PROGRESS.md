@@ -793,3 +793,20 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Parser production `parse_range()` now checks for a remaining `TOKEN_RANGE` after constructing a range and rejects a second operator with a diagnostic. This prevents the previous AST fixture from passing while the expression was silently parsed as a chained range.
 - Regression source cases: valid `1..10`; invalid `1..2..3`; invalid nested composition `1..(2..3)`. Tests are added; CI verification for this latest implementation/test commit is pending.
 - Semantic/runtime work still must implement inclusive endpoint iteration consistently for range loops and range patterns; Parser AST construction alone does not prove runtime behavior.
+
+
+## 2026-11-05 — Parser precedence regression isolated; break checkpoint
+
+- Latest failed CI (`42046323779`, commit `7f220360ae`) localized the failure to the comparison-chain AST assertion in `test_expression_precedence_and_associativity_ast()` (line 1331): `a < b < c` no longer had the expected left-nested comparison shape.
+- Root cause: while adding the range precedence tier, `parse_comparison()` had incorrectly parsed its RHS with `parse_range()`. This let lower-precedence equality/range/logical operators leak into comparison operands. Corrected comparison RHS to `parse_bitwise_or()`; expected tier order is now comparison → bitwise operands, equality → comparison, range → equality, logical AND → range, logical OR → logical AND.
+- Fix commit: `4ea2e00589dabde62ec7885fc15c34f5aaff898b`. Full CI matrix is pending; do not mark Parser regression/range task verified until all five jobs pass.
+- Inclusive `1..10` is a language rule (10 included); Parser fixtures cover `1..10`, chained `1..2..3`, and nested range rejection. Semantic/runtime inclusive iteration remains unimplemented and must be tracked separately.
+- Numeric `<<`/`>>` versus Nexus Flow grammar remains deliberately blocked pending a syntax-level discriminator; no operand-shape heuristic.
+
+## Pause / resume checkpoint (2026-11-05)
+
+- Active branch: `refactor/c-core-roadmap`; `main` remains untouched.
+- Resume first: inspect CI for `4ea2e00589dabde62ec7885fc15c34f5aaff898b`; if failing, fix only the concrete regression and rerun the complete matrix. Then close the range Parser task with CI evidence.
+- Next AST work: finish intrinsic token → AST → codec/round-trip inventory; source-span completeness audit; then callback/function-pointer type grammar and AST representation. Keep shift/Flow grammar and map generic constraints explicitly open until language decisions are made.
+- Stage gate remains AST/Parser completion first. Semantic/OIR/Verifier follow in order; Codegen is not in scope.
+- Planned pause: 1–2 days after this checkpoint; no automatic reminder requested.
