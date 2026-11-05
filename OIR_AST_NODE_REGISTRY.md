@@ -144,6 +144,7 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_FUNC_DECL, AST_EXTERN_DECL | 3–5 | is_extern, is_public, is_exported | BOOL |
 | AST_FUNC_DECL, AST_EXTERN_DECL | 6 | params | NODE_REF |
 | AST_FUNC_DECL, AST_EXTERN_DECL | 7 | body | NODE_REF |
+| AST_FUNC_DECL, AST_EXTERN_DECL | 8 | optional return_array_type (`AST_ARRAY_TYPE`; absent for scalar/inferred return) | NODE_REF / omitted when NULL |
 | AST_STRUCT_DECL, AST_UNION_DECL | 1 | name | STRING_REF / NULL |
 | AST_STRUCT_DECL, AST_UNION_DECL | 2–5 | is_packed, is_union, is_public, is_exported | BOOL |
 | AST_STRUCT_DECL, AST_UNION_DECL | 6 | fields | NODE_REF |
