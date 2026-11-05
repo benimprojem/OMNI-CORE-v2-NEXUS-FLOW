@@ -699,3 +699,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added `test_thread_block_ast()` in `omnicore-sdk/src/c/tests/test_parser.c` (commit `85bc7f35`). It parses `(worker)>{ v:value = 7; }`, validates `AST_THREAD_BLOCK` name/body, confirms the currently unset `mode` and `timeout` remain NULL, checks source span and nested variable ownership, then serializes/deserializes and validates the graph again.
 - CI run `42014109396` passed all five jobs: Ubuntu (60/60 tests), Windows, macOS, ASan/UBSan and Valgrind.
 - This test covers the core declaration/body AST only. It does not introduce `AST_SPAWN`, spawn syntax ownership, scheduling semantics or thread runtime lowering; those remain with the separate thread module contract.
+
+
+## Group/method parser-to-codec regression — 2026-11-05
+
+- Extended `test_group_method_ast()` to serialize the parsed `group Pair` AST, deserialize it, re-run graph validation, and verify the group member, method public name, implementation function, return type and body survive ownership transfer (commit `f63406fc`).
+- CI run `42014382856` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind; each platform build/test suite reports 60/60 passing tests.
+- Group/method AST parser-to-codec path is covered; Semantic method resolution, receiver/dispatch rules and OIR lowering remain open.
