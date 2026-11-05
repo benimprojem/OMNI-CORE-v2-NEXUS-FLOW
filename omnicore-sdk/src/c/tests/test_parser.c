@@ -1557,7 +1557,7 @@ static int test_main_cli_parameter_ast(void) {
             argv_param->base.source_span.has_location;
     }
     parser_destroy(parser);
-    if (!valid) fprintf(stderr, "main(argc, argv) typed AST contract failed.\\n");
+    if (!valid) fprintf(stderr, "main(argc, argv) typed AST contract failed.\n");
     return valid;
 }
 
@@ -1798,7 +1798,8 @@ static int test_must_scope_rejected(void) {
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
-    if (!test_must_top_level_ast()) return 1;\n    if (!test_must_scope_rejected()) return 1;
+    if (!test_must_top_level_ast()) return 1;
+    if (!test_must_scope_rejected()) return 1;
     if (!test_spawn_is_outside_core_parser()) return 1;
     if (!test_intrinsic_ast_family()) return 1;
     if (!test_group_method_ast()) return 1;
