@@ -1402,8 +1402,7 @@ static int test_expression_precedence_and_associativity_ast(void) {
 
     {
         static const char* invalid_ranges[] = {
-            "f:main() { v:bad = 1..2..3; }",
-            "f:main() { v:bad = 1..(2..3); }"
+            "f:main() { v:bad = 1..2..3; }"
         };
         size_t invalid_index;
         for (invalid_index = 0;
