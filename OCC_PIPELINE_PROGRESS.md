@@ -106,7 +106,7 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–105 kayıtlı OIR düğ
 | 37 | `AST_AI_LOGIC` | D | ✓ | D | D | D |
 | 38 | `AST_UNPACK` | ~ | ✓ | ? | ? | ~ |
 | 39 | `AST_PANIC` | ~ | ✓ | ~ | ? | ~ |
-| 40 | `AST_SPAWN` | ~ | ✓ | ? | ? | ~ |
+| 40 | `AST_SPAWN` (legacy codec tag; Thread module owns spawn) | D | ✓ | D | D | D |
 | 41 | `AST_LISTEN` | ~ | ✓ | ? | ? | ~ |
 | 42 | `AST_ECHO` | ~ | ✓ | ? | ? | ~ |
 | 43 | `AST_SEND` | ~ | ✓ | ? | ? | ~ |
@@ -646,7 +646,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 - Owner clarified intended execution model: `(thread_block_name)>{ ... }` is a named thread code body/template, not inline application execution. `spawn(thread_block_name, addr(nexus)), async, 100);` refers to that body and requests separate thread-context execution.
 - Recorded the distinction and open contracts in `docs/AST_REPRESENTATION_GAPS.md` (commit 01fcfb37): declaration/body vs spawn invocation vs runtime scheduling/context/ownership/error behavior.
-- Current Parser still constructs `AST_THREAD_BLOCK` with name/body only (mode/timeout NULL); spawn is generic intrinsic-call AST. No runtime semantics or typed declaration link are implemented/claimed yet.
+- Historical state at the time of this note: Parser still emitted `AST_SPAWN`. Superseded by the Spawn/core parser boundary correction below; core Parser now rejects spawn and leaves it to the separate Thread module.
 - Next AST work: normative grammar + tests for thread declaration and spawn reference; then Semantic name resolution and explicit execution metadata. Scheduling, async, timeout units, context capture, lifetime, join/error semantics remain open.
 
 
@@ -706,3 +706,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Extended `test_group_method_ast()` to serialize the parsed `group Pair` AST, deserialize it, re-run graph validation, and verify the group member, method public name, implementation function, return type and body survive ownership transfer (commit `f63406fc`).
 - CI run `42014382856` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind; each platform build/test suite reports 60/60 passing tests.
 - Group/method AST parser-to-codec path is covered; Semantic method resolution, receiver/dispatch rules and OIR lowering remain open.
+
+
+## Spawn/core Parser boundary — implemented and CI-verified — 2026-11-05
+
+- Core Parser no longer maps `TOKEN_KW_SPAWN` to `AST_SPAWN`. It rejects the token with an explicit parser-stage diagnostic directing ownership to the separate Thread module (commit `4e57618a`; diagnostic path refinement `4be14f14`).
+- `test_spawn_is_outside_core_parser()` verifies syntax rejection and inspects the structured `OccDiagnosticCollector` message rather than the legacy CLI `Error.message` projection (test commit `3d0e541f`).
+- Existing `AST_SPAWN` enum/OIR node identity and AST codec support are retained as legacy compatibility only; the tag is not removed or renumbered. `test_ast_deserialize` continues to cover the legacy tag's codec payload.
+- CI run `42014920664` / commit `4be14f14939c`: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed; all 60 tests passed in build/test jobs and Valgrind MemCheck.
+- Spawn parsing/validation/lowering and runtime integration remain the separate Thread module's responsibility. The core parser rejection is a fail-closed boundary, not an implementation of the Thread module frontend.
