@@ -620,3 +620,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 - `docs/AST_REPRESENTATION_GAPS.md` records that Parser currently accepts legacy `(name)>{...}` and creates ASTThreadBlock with name/body while mode/timeout remain NULL.
 - The normative syntax reference does not yet specify thread-block grammar, scheduling mode, timeout units, capture or ownership semantics. Existing compatibility/span tests remain; no speculative grammar or semantic behavior was added.
+
+
+## Array-return syntax audit correction — 2026-11-05
+
+- Rechecked the function section of `docs/language/syntax-reference.md`: it explicitly documents `f:name(a, ...)!i32[] { ... }`. The earlier gap note that array-return syntax was unspecified was incorrect and has been corrected in `docs/AST_REPRESENTATION_GAPS.md`.
+- Parser currently consumes only the base return type token; it does not parse `[]` dimensions after the return type. This is a confirmed implementation gap.
+- Proposed compatible AST direction: retain `ASTFuncDecl.return_type` as the base-type spelling mirror and add an owned optional `AST_ARRAY_TYPE` child for return dimensions; append codec field 8 (existing function node schema has fields 1–7). Implementation still requires confirming AST destruction/validation/reader behavior and an end-to-end fixture before coding.
