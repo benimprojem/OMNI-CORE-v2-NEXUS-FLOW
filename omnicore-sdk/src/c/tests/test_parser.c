@@ -2950,7 +2950,7 @@ generic_type_done:
     /* use aliases and defer bodies retain dedicated AST ownership/context. */
     {
         static const char source[] =
-            "use CoreModule as Core, MathModule;\\n"
+            "use CoreModule as Core, MathModule;\n"
             "f:main() { defer { v:cleanup!i32 = 1; } ret 0; }";
         ParserContext* parser = parser_init_source("use-defer-ast.nxf",
             (const uint8_t*)source, sizeof(source) - 1u);
