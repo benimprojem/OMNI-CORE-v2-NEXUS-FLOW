@@ -1707,11 +1707,21 @@ static ASTNode* parse_range(Parser* p) {
     if (!expr) return NULL;
     if (match(p, TOKEN_RANGE)) {
         ASTNode* right = parse_equality(p);
+        ASTNode* range;
         if (!right) {
             ast_destroy(expr);
             return NULL;
         }
-        return parser_make_binary(p, TOKEN_RANGE, expr, right);
+        range = parser_make_binary(p, TOKEN_RANGE, expr, right);
+        if (!range) return NULL;
+        /* Inclusive interval: a second unparenthesized '..' is invalid. */
+        if (check(p, TOKEN_RANGE)) {
+            error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+                "A range expression accepts only one '..' operator; use parentheses to compose ranges.");
+            ast_destroy(range);
+            return NULL;
+        }
+        return range;
     }
     return expr;
 }
