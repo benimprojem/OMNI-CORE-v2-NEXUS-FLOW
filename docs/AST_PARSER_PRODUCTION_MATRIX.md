@@ -20,13 +20,13 @@
 | Unified `loop` / foreach / unroll | statement dispatch + `parse_unroll()` | `AST_LOOP`, `AST_UNROLL` | rules/lambda/relocate/unroll fixture | ~ Isolate all loop forms, malformed headers and nesting |
 | `return`, `break`, `continue` | `parse_return_statement()` + statement dispatch | `AST_RETURN`, `AST_BREAK`, `AST_CONTINUE` | parser general fixtures; validator context tests | ~ Need explicit parser shape tests for each target/operand form |
 | Struct / union / enum / newtype | `parse_struct_decl()`, `parse_union_decl()`, `parse_enum_decl()`, `parse_newtype_decl()` | matching declaration tags + fields/variants | aggregate declaration AST; invalid aggregate members | ✓ primary forms tested; malformed variants/data and span checks expand |
-| Group / method | `parse_group_decl()` | `AST_GROUP_DECL`, `AST_METHOD` | syntax matrix only; no isolated fixture located | ~ Add parser positive/negative AST fixture |
+| Group / method | `parse_group_decl()` | `AST_GROUP_DECL`, `AST_METHOD` | `test_group_method_ast`: group member, public method name, implementation, return type/body and AST codec round-trip | ~ Positive shape/codec covered; malformed group/member and span cases remain |
 | Module `use` | `parse_use()` | `AST_USE` | syntax matrix / generic parser acceptance | ~ Alias/path/invalid path AST tests |
 | `must` declaration | `parse_must_decl()` | contextual `AST_MUST_DECL` | contextual AST codec fixture; graph validator context tests | ~ Parser production needs positive + illegal scope tests |
 | Defer / thread | `parse_defer()`, `parse_thread_block()` | `AST_DEFER`, `AST_THREAD_BLOCK` | syntax matrix / codec populate fixture | ~ Dedicated parser structure and malformed form tests |
 | Select / scan / patterns | `parse_select_scan()`, `parse_pattern()` | `AST_SELECT/SCAN`, arms, pattern nodes | select-scan AST test | ~ Constructor/guard/catchall/duplicate pattern matrix |
 | Ruleset / apply / on / rule clauses | `parse_ruleset()`, `parse_apply_rules()`, `parse_on_block()` | `AST_RULESET_DECL`, rule nodes, `AST_APPLY_RULES`, `AST_ON_BLOCK` | combined rules/lambda/relocate/unroll fixture | ~ Split each production and malformed clause tests |
-| FASTEXEC / ASM label raw body | `parse_fast_exec_block()`, `parse_asm_label()` | `AST_FASTEXEC_BLOCK`, `AST_ASM_LABEL` | raw ASM AST + token-stream tests; contextual codec test | ~ Codec fixture corrected in commit 91e93258; await CI; parser outside-fastexec rejection/span checks |
+| FASTEXEC / ASM label raw body | `parse_fast_exec_block()`, `parse_asm_label()` | `AST_FASTEXEC_BLOCK`, `AST_ASM_LABEL` | `test_fast_exec_raw_asm_ast`, `test_fast_exec_asm_token_stream`, contextual codec fixture; exact raw bytes and source spans asserted; outside-FASTEXEC ASM rejected | ~ Parser/AST/codec shape is tested; semantic variable/register/clobber/label/ABI validation is not AST work and remains a later Semantic/target contract |
 | Assignment / compound / string append | `parse_assignment()` | `AST_ASSIGNMENT` retaining operator | power/bitwise/compound fixture | ~ `+=`, `&=` covered; complete operator set and `.=` need tests |
 | Nexus Flow / pipe / relocate / unpack / capture / halt / jump / label | `parse_nexus_flow()` + statement/primary dispatch | flow/pipe/capture/relocate/unpack/halt/label/jump tags | syntax matrix + select/rules combined fixtures; graph contextual validator | ~ Explicit AST payload tests for each operator/target form; distinguish `<< / >>` language flow from bit shifts |
 | Expressions and precedence | `parse_expression()`; assignment → flow → range → logical → bitwise → equality → comparison → additive → term → power → unary → postfix → primary | `AST_BINARY_EXPR`, unary, postfix, call/member/index, cast, tuple, literal, identifier | logical precedence; power/bitwise/compound; modulo; cast/panic; array/index tests | ~ Precedence table still incomplete; add associativity and AST-shape checks for every tier |
@@ -62,6 +62,9 @@
 - `test_fast_exec_raw_asm_ast`
 - `test_fast_exec_asm_token_stream`
 - `test_main_cli_parameter_ast`
+- `test_group_method_ast`
+- `test_thread_block_ast`
+- `test_spawn_is_outside_core_parser`
 
 ## Parser-to-AST closure checklist
 
