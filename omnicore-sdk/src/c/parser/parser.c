@@ -1767,7 +1767,7 @@ static ASTNode* parse_logical_and(Parser* p) {
             ast_destroy(left);
             return NULL;
         }
-        right = parse_bitwise_or(p);
+        right = parse_range(p);
         if (!right) {
             ast_destroy(left);
             return NULL;
