@@ -1768,7 +1768,7 @@ static int test_must_top_level_ast(void) {
         valid = dependency && dependency->base.type == AST_MUST_DECL &&
             dependency->name && strcmp(dependency->name, "CoreModule") == 0 &&
             path_literal && path_literal->string_value &&
-            strcmp(path_literal->string_value, "\\"CoreModule.nxf\\"") == 0 &&
+            strcmp(path_literal->string_value, "\"CoreModule.nxf\"") == 0 &&
             dependency->base.source_span.has_location &&
             function && function->base.type == AST_FUNC_DECL &&
             function->name && strcmp(function->name, "main") == 0;
