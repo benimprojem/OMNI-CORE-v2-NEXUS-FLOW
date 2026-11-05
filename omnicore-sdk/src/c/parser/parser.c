@@ -1644,7 +1644,7 @@ static ASTNode* parse_comparison(Parser* p) {
             ast_destroy(left);
             return NULL;
         }
-        ASTNode* right = parse_range(p);
+        ASTNode* right = parse_bitwise_or(p);
         if (!right) {
             ast_destroy(left);
             return NULL;
