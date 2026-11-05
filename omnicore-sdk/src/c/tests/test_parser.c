@@ -1153,9 +1153,11 @@ static int test_function_array_return_ast(void) {
         if(!f->return_type || !f->return_array_type || f->return_array_type->type!=AST_ARRAY_TYPE) goto done;
         dim=((ASTArrayType*)f->return_array_type)->dimensions;
         for(int d=0;d<expected;d++) {
-            if(!dim || dim->type!=AST_ARRAY_DIMENSION ||
-               !((ASTArrayDimension*)dim)->length ||
-               ((ASTArrayDimension*)dim)->length->type!=AST_IDENTIFIER) goto done;
+            if(!dim || dim->type!=AST_ARRAY_DIMENSION) goto done;
+            if(expected==1) {
+                if(((ASTArrayDimension*)dim)->length) goto done; /* [] */
+            } else if(!((ASTArrayDimension*)dim)->length ||
+                      ((ASTArrayDimension*)dim)->length->type!=AST_IDENTIFIER) goto done;
             dim=dim->next;
         }
         if(dim) goto done;
