@@ -505,3 +505,14 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [x] Add parser and AST binary round-trip tests, malformed duplicate-default/empty-constructor tests, and OIR AST payload round-trip coverage.
 - [x] Update the published OIR AST registry/schema and registry boundary/field-schema fixtures.
 - [x] **CI run 41451812569:** Windows, Ubuntu and macOS build/test passed; Ubuntu ASan/UBSan and Valgrind passed.
+
+
+## 2026-11-05 — Parser range/precedence closeout + pause
+
+- [ ] **CI pending:** validate comparison RHS precedence correction (`4ea2e00589da`) across Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. The preceding run exposed `parse_comparison()` consuming `parse_range()` on RHS; corrected to `parse_bitwise_or()`.
+- [ ] After green CI, mark Parser precedence/range fixtures complete: left-associative operator AST shapes, `1..10` inclusive endpoints, reject `1..2..3` and nested range composition.
+- [ ] Semantic/runtime later: implement inclusive range iteration/pattern semantics (10 must be included in `1..10`).
+- [ ] Resume AST inventory: token→AST→codec round-trip coverage, source-span audit, callback/function-pointer type AST/grammar.
+- [ ] Open language decision: numeric `<<`/`>>` vs Nexus Flow operand syntax; wait for grammar discriminator, do not heuristic parse. Map generic key/value constraints also remain undecided.
+
+**Pause checkpoint:** branch `refactor/c-core-roadmap`; `main` untouched. Planned 1–2 day break after CI settles. Codegen remains gated behind AST → Parser/Lexer → Semantic → OIR → Verifier completion.
