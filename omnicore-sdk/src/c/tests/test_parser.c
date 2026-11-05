@@ -1677,21 +1677,28 @@ static int test_spawn_is_outside_core_parser(void) {
     static const char source[] = "f:main() { spawn(worker); }";
     ParserContext* parser = parser_init_source("spawn-core-boundary.nxf",
         (const uint8_t*)source, sizeof(source) - 1u);
-    Error* error;
+    OccDiagnosticCollector diagnostics;
+    OccDiagnosticView view;
+    size_t i;
     int saw_boundary_diagnostic = 0;
     int valid;
     if (!parser) return 0;
+    occ_diagnostics_init(&diagnostics);
+    parser_attach_diagnostics(parser, &diagnostics, OCC_STAGE_PARSER);
     valid = parser_run(parser) == PARSER_STATUS_SYNTAX_ERROR &&
         parser_get_status(parser) == PARSER_STATUS_SYNTAX_ERROR &&
         parser->error_count > 0;
-    for (error = parser->error_head; error; error = error->next) {
-        if (error->message && strstr(error->message, "Thread module")) {
+    for (i = 0u; i < occ_diagnostics_count(&diagnostics); ++i) {
+        if (occ_diagnostics_get(&diagnostics, i, &view) &&
+            view.record->stage_id == OCC_STAGE_PARSER &&
+            view.message && strstr(view.message, "Thread module")) {
             saw_boundary_diagnostic = 1;
             break;
         }
     }
     valid = valid && saw_boundary_diagnostic;
     parser_destroy(parser);
+    occ_diagnostics_destroy(&diagnostics);
     if (!valid) fprintf(stderr, "Core Parser accepted spawn or omitted the Thread-module boundary diagnostic.\\n");
     return valid;
 }
