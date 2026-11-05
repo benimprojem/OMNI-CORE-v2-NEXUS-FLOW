@@ -1219,7 +1219,11 @@ static int test_logical_operator_precedence_ast(void) {
         "v:bitwise_rhs = a && b | c; "
         "v:bitwise_lhs = a | b && c; "
         "v:bitwise_cmp_rhs = a < b | c; "
-        "v:bitwise_cmp_lhs = a | b < c; }";
+        "v:bitwise_cmp_lhs = a | b < c; "
+        "v:sub_chain = a - b - c; "
+        "v:div_chain = a / b / c; "
+        "v:cmp_chain = a < b < c; "
+        "v:eq_chain = a == b == c; }";
     ParserContext* ctx = parser_init_source(
         "logical-precedence.nxf", (const uint8_t*)source, sizeof(source) - 1u);
     ASTNode* statement;
@@ -1288,6 +1292,46 @@ static int test_logical_operator_precedence_ast(void) {
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
+        goto done;
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_MINUS ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_MINUS)
+        goto done;
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_SLASH ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_SLASH)
+        goto done;
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_LT ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_LT)
+        goto done;
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_EQ ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_EQ)
         goto done;
 
     stream = tmpfile();
