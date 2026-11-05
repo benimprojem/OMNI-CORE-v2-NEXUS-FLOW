@@ -69,3 +69,10 @@ This model must not break current `ASTVarDecl.type_name` consumers abruptly. A m
 - **AST implementation:** still open; no new node kind is declared by this audit.
 - **Parser/codec tests:** remaining items above are not yet claimed complete.
 - **Semantic/OIR/Codegen:** unchanged and gated.
+
+
+## 2026-11-05 clarification — syntax boundaries
+
+- The current normative module-loading grammar is `use <module>` and `use <module> as <alias>`, with comma-separated module identifiers. Dotted/path-qualified module syntax is not specified in the syntax reference; Parser must not invent it. Treat `use Core.Module` as unsupported until the language grammar explicitly defines path separators, resolution roots and source-span behavior.
+- Function array-return syntax is also not demonstrated by the normative function/array examples. `ASTFuncDecl.return_type` is currently a string and Parser consumes one type token only. Do not silently accept `!i32[]` by heuristic; first specify whether return declarators use the same suffix grammar as variable/parameter arrays, then add a structured return-type child and codec/OIR schema.
+- `AST_ARRAY_TYPE` / `AST_ARRAY_DIMENSION` already model declaration and parameter arrays. Reusing that representation for return types is the intended direction, but no AST payload change is authorized until the function-type/type-expression design is specified.
