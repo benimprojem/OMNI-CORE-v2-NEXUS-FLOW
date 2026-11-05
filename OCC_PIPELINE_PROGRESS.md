@@ -525,3 +525,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 | 2026-11-05 | Contextual AST test main çağrısında literal `\\n` kalıntısı ikinci düzeltmede bulundu; satır fiziksel newline ile ayrıldı. Commit `264cd247` CI run `41924686996` in progress; bu commit için test sonucu bekleniyor. Önceki `522c84f1`, `b712509f` ve `5a028ae7` CI build failures (aynı escaped newline). |
 
 | 2026-11-05 | Contextual codec fixture derlendi; test 1/60 `ast_rejects_malformed_streams` fail oldu. Cause: ASM fixture raw text `nop\\n` (4 byte literal) iken source_length 3 ayarlanmıştı, graph validator beklenen şekilde reddetti. Fixture payload `nop` ve length 3 olarak düzeltildi; sonraki CI run bekleniyor. | fix commit `17a54718`; previous run `41924686996` failure (98% CTest, 59/60 pass) |
+
+
+## 2026-11-05 — AST parser production audit continuation
+
+- Added `docs/AST_PARSER_PRODUCTION_MATRIX.md`: parser entry/function → AST family → current named test evidence → remaining positive/negative production gaps.
+- Matrix records real C test function names and distinguishes parser acceptance from AST-shape assertions. It does not upgrade AST completion status.
+- AST node implementation matrix remains at `docs/AST_NODE_IMPLEMENTATION_MATRIX.md`; syntax/AST baseline remains `NEXSUS_AST_SYNTAX_MATRIX.md`.
+- Contextual ASM codec fixture had an actual length mismatch: C string `"nop\\n"` is five source bytes, while fixture declared 3. Corrected to `"nop"` with length 3 in commit `91e93258`. CI for earlier commit `17a54718` failed at `ast_rejects_malformed_streams`; no pass is claimed. New commit CI must verify the correction.
+- Next AST work: make syntax rows exhaustive (all intrinsic/operator/declaration modifier forms), then add focused AST-shape/span and paired rejection tests for rows currently marked partial. Continue to gate Semantic/OIR completion and Codegen.
