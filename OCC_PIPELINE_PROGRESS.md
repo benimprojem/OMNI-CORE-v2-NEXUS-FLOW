@@ -757,3 +757,16 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - `map<str, i32>` is not implemented by the current Parser, but it is no longer documented as permanently forbidden. Whether it should be an optional homogeneous key/value constraint remains undecided; no AST_MAP_TYPE or generic AST change is introduced pending that decision.
 - Parser fixture now checks ordinary `items:map` (type_name=`map`, is_hard_typed=0) and compatibility `legacy!map` (type_name=`!map`, is_hard_typed=1). Existing local `v:notlar!map` shape is preserved. The parser's current rejection of `!map<str, i32>` is recorded as unsupported syntax, not a normative language ban.
 - Latest expression associativity test commit `1ca084159884`, CI run `42034256447`: all five jobs passed (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). Ubuntu and Valgrind both report 60/60 tests.
+
+
+## Map ordinary parameter spelling — CI correction — 2026-11-05
+
+- The first `a:map` fixture CI attempt failed in the combined Parser regression; it was not marked successful. The test's source newline escape was corrected and a later all-five-job run `42038999247` passed (Ubuntu, Windows, macOS, ASan/UBSan and Valgrind).
+- The passing fixture checks ordinary `items:map` as `type_name="map"` with `is_hard_typed=0`, plus the retained `legacy!map` parameter form and local `v:notlar!map` declaration shape. The optional generic map spelling remains unimplemented and undecided.
+- A follow-up test-only diagnostic cleanup removes post-destruction diagnostic reads; its CI run is pending. No Parser production behavior changed in that cleanup.
+
+## Range operator single-use regression — 2026-11-05
+
+- Added a positive AST fixture for `1..10`, requiring a binary `TOKEN_RANGE` node with literal endpoints.
+- Added a negative Parser fixture for `1..2..3`; the language syntax reference defines a single range operator, so a second unparenthesized range operator must not be accepted as a chained range.
+- The new range fixtures are not yet CI-verified. Endpoint type rules and runtime range behavior remain Semantic/runtime work.
