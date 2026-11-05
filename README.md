@@ -26,6 +26,7 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [FRONTEND_COMPLETENESS_AUDIT — Lexer, Parser, AST ve Semantic tamlık denetimi](FRONTEND_COMPLETENESS_AUDIT.md)
 - [NEXSUS syntax ↔ AST coverage matrix](NEXSUS_AST_SYNTAX_MATRIX.md)
 - [AST representation gaps & design decisions](docs/AST_REPRESENTATION_GAPS.md)
+- [AST representation gaps & design decisions](docs/AST_REPRESENTATION_GAPS.md)
 - [OmniCore SDK documentation index](omnicore-sdk/docs/README.md)
 - [NEXUS Flow Syntax Reference](omnicore-sdk/docs/syntax.md)
 - [OIR SOURCE_UNIT, TOKEN_STREAM ve DIAGNOSTICS payload şemaları](OIR_PAYLOAD_SCHEMAS.md)
