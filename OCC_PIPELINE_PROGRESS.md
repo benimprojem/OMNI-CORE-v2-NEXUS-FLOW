@@ -576,3 +576,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - CI surfaced a real parser integration defect: when one top-level production returned a sibling chain (multi-module `use`), `parser_run` appended the next statement through the chain head and overwrote the intermediate sibling. The second `AST_USE` became unreachable and leaked.
 - Fixed top-level append logic to advance `current_stmt` to the returned chain's tail before the next production is attached. Commit `0da77258`.
 - The use-alias/defer test exposed this defect; its initial run failed (not ignored). Corrected chain ownership is now under CI.
+
+
+## Group method AST contract — 2026-11-05
+
+- Added parser fixture for a group containing a field and public method implementation (get => f:get()!i32 { ... }). It checks AST_GROUP_DECL → AST_VAR_DECL + AST_METHOD → AST_FUNC_DECL, method public name, implementation name/return type/body, and whole-graph validation.
+- Commit: fa51b156. CI workflow for this exact head is to be checked; no pass is claimed before Actions completes.
+- This closes one behavioral fixture gap only; group visibility/export and method semantic binding remain open.
