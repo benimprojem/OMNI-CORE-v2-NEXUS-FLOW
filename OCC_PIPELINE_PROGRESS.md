@@ -736,8 +736,8 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 ## Expression precedence regression — logical AND / bitwise OR — 2026-11-05
 
-- Parser audit found `parse_logical_and()` parsed its right operand with `parse_range()`, although bitwise operators bind more tightly than logical AND. Consequently `a && b | c` could leave `| c` unconsumed or fail instead of producing the expected AST.
-- Changed the right operand parser to `parse_bitwise_or()`. This matches the existing left operand path and preserves the precedence order: bitwise OR is evaluated/represented inside each logical-AND operand.
-- Extended `test_logical_operator_precedence_ast()` with both `a && b | c` (AND root, OR right child) and `a | b && c` (AND root, OR left child), asserting AST shape.
-- CI for code commits `a79600682d2c` / `8a1e0aaa9865` is pending at the time of this update. Do not mark the parser fix complete until all five CI jobs pass.
+- Parser audit found the implementation tier order contradicted the normative precedence table: bitwise operators were parsed below comparison/equality/range, even though the reference places bitwise above comparisons. `parse_logical_and()` also used an incomplete right-operand tier in the earlier intermediate patch.
+- Final Parser tier alignment: `parse_bitwise_and()` consumes additive operands; `parse_comparison()` consumes bitwise-OR operands; `parse_range()` remains below equality; `parse_logical_and()` consumes complete range/equality/comparison/bitwise expressions. This yields bitwise > comparison > equality > range > logical AND > logical OR, as documented.
+- `test_logical_operator_precedence_ast()` now asserts `a && b | c`, `a | b && c`, `a < b | c`, and `a | b < c` produce the expected AND/LT roots and OR children.
+- Intermediate commits `a79600682d2c` / `8a1e0aaa9865` were superseded before validation. Final implementation is in `b2446b1e3725`, with expanded AST assertions in `26f1968a17c2`; final CI is pending. Do not mark complete until all five CI jobs pass.
 - Remaining expression audit: associativity at each binary tier, chained comparison policy, and range/flow operator disambiguation.
