@@ -2462,6 +2462,16 @@ static ASTNode* parse_func_decl(Parser* p) {
                 type_token.start, type_length);
             func->return_type[total_length] = '\0';
             advance(p);
+            if (p->current.type == TOKEN_LBRACKET) {
+                ASTVarDecl return_array;
+                memset(&return_array, 0, sizeof(return_array));
+                if (!parse_array_type_suffix(p, &return_array)) {
+                    ast_destroy((ASTNode*)func);
+                    return NULL;
+                }
+                func->return_array_type = return_array.inline_type;
+                return_array.inline_type = NULL;
+            }
         } else if (has_bang) {
             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
                 msg_get(MSG_EXPECT_TYPE_BANG));
