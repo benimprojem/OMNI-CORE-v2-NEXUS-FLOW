@@ -219,7 +219,12 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
             const ASTFuncDecl* n = (const ASTFuncDecl*)node;
             STR(1,n->name); STR(2,n->return_type);
             BOOL(3,n->is_extern); BOOL(4,n->is_public); BOOL(5,n->is_exported);
-            REF(6,n->params); REF(7,n->body); break;
+            REF(6,n->params); REF(7,n->body);
+            if (n->return_array_type) {
+                s = emit_optional_node_ref(c, &last, 8u, n->return_array_type);
+                if (s != OIR_STATUS_OK) return s;
+            }
+            break;
         }
         case AST_STRUCT_DECL: case AST_UNION_DECL: {
             const ASTStructDecl* n = (const ASTStructDecl*)node;
