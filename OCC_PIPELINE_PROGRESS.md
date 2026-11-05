@@ -569,3 +569,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Parser now parses a colon without hard-type marker as a parameter initializer expression; explicit hard types remain `a!T` / `a:!T`. Commit `3fe950b2`.
 - Added AST fixture for `f:sum(a:10, b!i32)!i32 { ret a; }` checking default literal initializer and second parameter type; commit `93e37487`.
 - CI: malformed first use/defer fixture head `03f4b208` failed ASan/UBSan due parser recovery leaving unowned ASTUse; newline correction `8b8156a7` is running. Parser implementation + default-param test runs are pending. This failure is recorded, not represented as a passing test.
+
+
+## Parser sibling-chain ownership fix — 2026-11-05
+
+- CI surfaced a real parser integration defect: when one top-level production returned a sibling chain (multi-module `use`), `parser_run` appended the next statement through the chain head and overwrote the intermediate sibling. The second `AST_USE` became unreachable and leaked.
+- Fixed top-level append logic to advance `current_stmt` to the returned chain's tail before the next production is attached. Commit `0da77258`.
+- The use-alias/defer test exposed this defect; its initial run failed (not ignored). Corrected chain ownership is now under CI.
