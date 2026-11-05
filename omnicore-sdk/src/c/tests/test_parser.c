@@ -1550,7 +1550,7 @@ static int test_group_method_ast(void) {
 }
 
 static int test_intrinsic_ast_family(void) {
-    static const char source[] = "f:main() { v:n = len(items); v:s = sizeof(i32); v:t = typeof(x); v:o = is_ok(result); v:a = addr(x); v:c = clock(); v:d = datenow(); v:e = date(); v:f = time(); }";
+    static const char source[] = "f:main() { v:n = len(items); v:s = sizeof(x); v:t = typeof(x); v:o = is_ok(result); v:a = addr(x); v:c = clock(); v:d = datenow(); v:e = date(); v:f = time(); }";
     static const ASTNodeType expected[] = { AST_LEN, AST_SIZEOF, AST_TYPEOF, AST_IS_OK, AST_ADDR, AST_CLOCK, AST_DATENOW, AST_DATE, AST_TIME };
     ParserContext* parser = parser_init_source("intrinsic-family.nxf", (const uint8_t*)source, sizeof(source)-1u);
     ASTFuncDecl* function; ASTNode* statement; size_t i; int valid=0;
