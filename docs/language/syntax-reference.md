@@ -265,7 +265,7 @@ Bu tablo mevcut C Parser üretim sırasını yansıtır. `&&` `||`'dan daha yük
 ####  2.7 Özel Operatörler**
 
 * `.(nokta)` :  Grup/Namespace çözümleyici.Üye erişimi (Metot veya özellik).
-* `..` : Aralık (Range) belirtme (`1..100`).
+* `..` : Aralık (Range) belirtme; iki uç da dahildir (`1..10` = 1, 2, …, 10; toplam 10 değer). Tek bir aralık ifadesinde ikinci `..` kullanılamaz; aralık zincirleme yazımı geçersizdir.
 * `...` : Fonksiyonlar için çoklu prametre
 * `.=` : String birleştirme operatörü. Mevcut string'e yeni string ekler.
 
@@ -410,7 +410,7 @@ Tüm döngü varyasyonları `(loop)` çatısı altındadır.
 
 ```
 # Range Loop
-loop(1..100){ echo(it) }
+loop(1..100){ echo(it) } // 1 ve 100 dahil
 
 # For Loop
 loop(i, a < b, i++){... kodlar...}
