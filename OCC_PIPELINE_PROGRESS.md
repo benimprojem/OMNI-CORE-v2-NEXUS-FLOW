@@ -534,3 +534,13 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - AST node implementation matrix remains at `docs/AST_NODE_IMPLEMENTATION_MATRIX.md`; syntax/AST baseline remains `NEXSUS_AST_SYNTAX_MATRIX.md`.
 - Contextual ASM codec fixture had an actual length mismatch: C string `"nop\\n"` is five source bytes, while fixture declared 3. Corrected to `"nop"` with length 3 in commit `91e93258`. CI for earlier commit `17a54718` failed at `ast_rejects_malformed_streams`; no pass is claimed. New commit CI must verify the correction.
 - Next AST work: make syntax rows exhaustive (all intrinsic/operator/declaration modifier forms), then add focused AST-shape/span and paired rejection tests for rows currently marked partial. Continue to gate Semantic/OIR completion and Codegen.
+
+
+## 2026-11-05 — CI green + AST source-span inventory
+
+- Confirmed full CI success for fixture correction commit `91e93258` (run `41960982443`): Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- Confirmed matrix commit `bf7d9aa0` CI success (run `41961046955`) and progress update `553726c1` CI success (run `41961058190`).
+- Expanded `docs/AST_PARSER_PRODUCTION_MATRIX.md` with source-span test evidence: UTF-8/multiline, declarations/members, rules, lambda, relocate/retry/unroll, FASTEXEC, capture, params/variadic, group, Halt and asmcall/asmjmp.
+- Source-span tests are a subset of productions. Do not infer all-node coverage from this list.
+- Next: use syntax-reference rows to define span policy (token/full-production/synthesized) and close explicit AST representation blockers: function-type/callback, macro/preprocessor, compile-time directives/link/export/import metadata, map/vector and numeric shift representation. First establish normative syntax and stable AST payloads; don't conflate Semantic/runtime work.
+- AST remains open; Semantic and Codegen remain gated.
