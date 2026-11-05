@@ -3475,7 +3475,10 @@ generic_type_done:
         if (legacy_parser) parser_destroy(legacy_parser);
         if (generic_parser) parser_destroy(generic_parser);
         if (!valid || !legacy_rejected || !generic_not_yet_supported) {
-            fprintf(stderr, "Map ordinary/hard parameter AST or pending generic syntax test failed.\n");
+            fprintf(stderr, "Map fixture: valid=%d legacy=%d generic=%d status=%d errors=%d\n",
+                valid, legacy_rejected, generic_not_yet_supported,
+                parser ? (int)parser_get_status(parser) : -1,
+                parser ? parser->error_count : -1);
             return 1;
         }
     }
