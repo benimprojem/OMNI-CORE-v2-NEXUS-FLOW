@@ -1,4 +1,4 @@
-# OMNI CORE v2 NEXUS FLOW - REFERENCE GUIDE
+# OMNI CORE COMPLIER
 **Version:** 1.1 (gama)  
 **Architecture:** Nexus Flow & Handler-Oriented Memory  
 **Compiler:** OCC (Omni Core Compiler)
