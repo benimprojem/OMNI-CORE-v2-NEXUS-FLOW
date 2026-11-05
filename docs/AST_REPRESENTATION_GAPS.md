@@ -115,7 +115,7 @@ The existing `AST_THREAD_BLOCK` (name/body/mode/timeout) preserves the declarati
 The next type-model work is intentionally gated on canonical declarator grammar. Current source inspection confirms these concrete gaps:
 
 - **Function/callback type:** the syntax reference shows only the alias example `nt:Callback = f:(id!u32)>!bool;`; it does not define a complete function-type grammar (nested callbacks, optional parameter names, variadic placement, qualifiers, or type nesting). `parse_newtype_decl()` currently accepts one primitive-type token or one identifier as `target_type`; it does not consume a `PRE_FUNC` signature or build parameter/return type children. Existing `AST_LAMBDA` represents executable lambda bodies and must not be reused as a signature type.
-- **Map type:** the syntax reference documents `map str, i32` and `!map` parameter shorthand. The variable type parser currently consumes only the identifier `map` into `ASTVarDecl.type_name`; it does not attach separate key/value type children or consume the comma-separated type pair. The existing `AST_ARRAY_TYPE` is not a map substitute.
+- **Map type:** the syntax reference is internally inconsistent: its prose labels the form `map<key, val>`, while the code sample uses `v:notlar!map str, i32;`; the parameter example uses only `a!map`. These are not yet one canonical declarator production. The variable type parser currently consumes only the identifier `map` into `ASTVarDecl.type_name`; it does not attach separate key/value type children or consume a comma-separated type pair. Do not choose angle brackets or whitespace/comma form by guesswork. The existing `AST_ARRAY_TYPE` is not a map substitute; settle the canonical grammar and parameter shorthand first.
 - **Pointer/reference:** the type table lists `*`, `**`, and `&`, but the normative reference does not provide concrete declaration/declarator examples or define composition order, nullability, mutability, ownership, and lifetime rules. Do not infer prefix/suffix placement or pointer nesting from expression operators.
 
 **Next required step:** complete a grammar-only audit and settle the canonical type-expression/declarator forms before introducing any new AST kind or changing parser behavior. The eventual type representation should be append-only and typed (primitive/named, array, map, pointer/reference, function signature), with explicit ownership, graph contexts, codec fields, OIR mapping, and positive/negative fixtures. This is an architecture gate, not a claim that these forms are already supported.
@@ -135,3 +135,9 @@ The next type-model work is intentionally gated on canonical declarator grammar.
 - `test_thread_block_ast()` covers `(worker)>{ v:value = 7; }` as a core `AST_THREAD_BLOCK` declaration. It checks the name, block body, nested variable, NULL `mode`/`timeout`, source span, graph validation and AST serialize/deserialize ownership.
 - CI run `42014109396` / commit `85bc7f35`: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed. Ubuntu test suite reports 60/60.
 - `spawn` remains a separate thread-module concern; no `AST_SPAWN` behavior or core scheduling semantics were added.
+
+
+## Map declarator grammar conflict — 2026-11-05
+
+- The normative syntax reference currently presents two distinct spellings: prose `map<key, val>` and declaration example `v:notlar!map str, i32;`, plus shorthand parameter `a!map`. Their precedence/relationship is unspecified.
+- No parser or AST behavior is changed. `AST_MAP_TYPE` remains gated until the language reference chooses a canonical type production and explicitly defines whether `!map` is an inferred/unspecified map type or a shorthand with generic key/value parameters.
