@@ -676,3 +676,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Parser suffix handling, AST lifecycle/validation, AST stream v2 writing with v1 reading, and OIR frontend optional field 8 are connected.
 - Parser, AST serialization, OIR round-trip/canonical-byte, and v1 compatibility regressions pass CI run `42010711975` on Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
 - This is a completed subtask, not an AST-stage completion declaration. Continue the remaining AST syntax/ownership/type-model audit before moving to later pipeline stages.
+
+
+## Unified type AST — next design gate — 2026-11-05
+
+- Parser audit confirms the current `nt:Callback = f:(id!u32)>!bool;` example is not a complete function-type grammar; `parse_newtype_decl()` stores only one primitive/identifier target token and cannot represent a signature. `AST_LAMBDA` remains an executable expression/block node, not a function type.
+- Normative map example `map str, i32` is not represented as key/value children; the variable parser currently consumes only `map` as an opaque type name. `!map` parameter shorthand also needs an explicit typed contract.
+- Pointer/ref markers `*`, `**`, `&` lack concrete declarator examples and ownership/lifetime composition rules. No parser or AST change is made from ambiguous placement assumptions.
+- The detailed evidence and design gate are recorded in `docs/AST_REPRESENTATION_GAPS.md`. Next step is a grammar/type-expression audit; only after that should an append-only unified type payload and OIR mapping be designed. AST and Codegen gates remain open.
