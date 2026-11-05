@@ -977,7 +977,11 @@ static ASTNode* parse_primary(Parser* p) {
     if (match(p, TOKEN_KW_TIME)) return parse_intrinsic_call(p, AST_TIME);
     if (match(p, TOKEN_KW_CLOCK)) return parse_intrinsic_call(p, AST_CLOCK);
     if (match(p, TOKEN_KW_FREE)) return parse_intrinsic_call(p, AST_FREE);
-    if (match(p, TOKEN_KW_SPAWN)) return parse_intrinsic_call(p, AST_SPAWN);
+    if (check(p, TOKEN_KW_SPAWN)) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "'spawn' belongs to the separate Thread module and is not a core AST intrinsic.");
+        return NULL;
+    }
     if (match(p, TOKEN_KW_SEND)) return parse_intrinsic_call(p, AST_SEND);
     if (match(p, TOKEN_KW_RECEIVE)) return parse_intrinsic_call(p, AST_RECEIVE);
     if (match(p, TOKEN_KW_DONE)) return parse_intrinsic_call(p, AST_DONE);
