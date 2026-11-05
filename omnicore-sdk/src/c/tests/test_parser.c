@@ -1593,9 +1593,27 @@ static int test_intrinsic_ast_family(void) {
     return 1;
 }
 
+static int test_must_scope_rejected(void) {
+    static const char source[] =
+        "f:main() { m:CoreModule = \"CoreModule.nxf\"; ret 0; }";
+    ParserContext* parser = parser_init_source("must-scope-invalid.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    int status;
+    int valid;
+    if (!parser) return 0;
+    status = parser_run(parser);
+    valid = status == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(parser) == PARSER_STATUS_SYNTAX_ERROR &&
+        parser->error_count > 0;
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "MUST block-scope rejection test failed.\\n");
+    return valid;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
+    if (!test_must_scope_rejected()) return 1;
     if (!test_intrinsic_ast_family()) return 1;
     if (!test_group_method_ast()) return 1;
     if (!test_ast_create_rejects_invalid_node_kinds()) {
