@@ -1133,6 +1133,47 @@ done:
     return ok;
 }
 
+static int test_function_array_return_ast(void) {
+    static const char source[] =
+        "f:empty()!i32[] {}"
+        "f:one()!i32[n] {}"
+        "f:matrix()!f32[m][n] {}";
+    ParserContext* ctx=parser_init_source("function-array-return.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTNode* fn;
+    int ok=0;
+    if(!ctx) return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) goto done;
+    fn=((ASTProgram*)ctx->ast_root)->declarations;
+    for(int expected=1;expected<=3;expected++) {
+        ASTFuncDecl* f;
+        ASTNode* dim;
+        if(!fn || fn->type!=AST_FUNC_DECL) goto done;
+        f=(ASTFuncDecl*)fn;
+        if(!f->return_type || !f->return_array_type || f->return_array_type->type!=AST_ARRAY_TYPE) goto done;
+        dim=((ASTArrayType*)f->return_array_type)->dimensions;
+        for(int d=0;d<expected;d++) {
+            if(!dim || dim->type!=AST_ARRAY_DIMENSION ||
+               !((ASTArrayDimension*)dim)->length ||
+               ((ASTArrayDimension*)dim)->length->type!=AST_IDENTIFIER) goto done;
+            dim=dim->next;
+        }
+        if(dim) goto done;
+        fn=fn->next;
+    }
+    if(fn || !ast_validate(ctx->ast_root,NULL)) goto done;
+    {
+        FILE* stream=tmpfile(); ASTNode* decoded=NULL;
+        if(stream && ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
+            decoded=ast_deserialize(stream);
+        ok=decoded && ast_validate(decoded,NULL);
+        if(decoded) ast_destroy(decoded); if(stream) fclose(stream);
+    }
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_array_index_access_ast(void) {
     static const char source[] =
         "f:main() { v:items[4]!i32; v:x = items[1+2]; items[0] = x; }";
