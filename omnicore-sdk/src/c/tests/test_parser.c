@@ -2947,5 +2947,47 @@ generic_type_done:
         }
     }
 
+    /* use aliases and defer bodies retain dedicated AST ownership/context. */
+    {
+        static const char source[] =
+            "use CoreModule as Core, MathModule;\\n"
+            "f:main() { defer { v:cleanup!i32 = 1; } ret 0; }";
+        ParserContext* parser = parser_init_source("use-defer-ast.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        ASTProgram* program;
+        ASTUse* use_core;
+        ASTUse* use_math;
+        ASTFuncDecl* function;
+        ASTDefer* defer_node;
+        ASTBlock* defer_body;
+        ASTVarDecl* cleanup;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK) {
+            program = (ASTProgram*)parser->ast_root;
+            use_core = (ASTUse*)program->declarations;
+            use_math = use_core ? (ASTUse*)use_core->base.next : NULL;
+            function = use_math ? (ASTFuncDecl*)use_math->base.next : NULL;
+            defer_node = function
+                ? (ASTDefer*)((ASTBlock*)function->body)->statements : NULL;
+            defer_body = defer_node && defer_node->body &&
+                defer_node->body->type == AST_BLOCK ? (ASTBlock*)defer_node->body : NULL;
+            cleanup = defer_body ? (ASTVarDecl*)defer_body->statements : NULL;
+            valid = use_core && use_core->base.type == AST_USE &&
+                strcmp(use_core->module_name, "CoreModule") == 0 &&
+                use_core->alias && strcmp(use_core->alias, "Core") == 0 &&
+                use_math && strcmp(use_math->module_name, "MathModule") == 0 &&
+                !use_math->alias && function && function->base.type == AST_FUNC_DECL &&
+                defer_node && defer_node->base.type == AST_DEFER &&
+                defer_body && cleanup && cleanup->name &&
+                strcmp(cleanup->name, "cleanup") == 0 &&
+                ast_validate(parser->ast_root, NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "use alias/defer AST ownership test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
