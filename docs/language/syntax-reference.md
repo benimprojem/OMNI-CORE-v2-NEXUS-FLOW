@@ -166,7 +166,9 @@ f:matrisAl(veri:f64[2][2]) { ... }
 
 ```
 
-* Haritalar (Maps / Dictionaries) yalnızca `!map` tür işaretiyle belirtilir. Map için key/value tür parametresi yazılmaz; anahtar ve değer türleri ayrıca bildirilmez.
+* Haritalar (Maps / Dictionaries) normal bir türdür; fonksiyon parametresinde `a:map` biçimi tercih edilir. `a!map` biçimi mevcut Parser tarafından hard-type parametre olarak da kabul edilir, ancak map için zorunlu değildir. Yerel değişken bildiriminin mevcut grameri `!Type` biçiminde olduğundan `v:notlar!map;` bugün için kullanılan bildirim biçimidir; buradaki `!` map'e özgü bir key/value kuralı değil, değişken bildiriminin hard-type işaretidir.
+
+Map tek bir sabit key/value tür çiftiyle sınırlandırılmak zorunda değildir. Anahtarlar çoğunlukla string olabilir; değerlerin türleri map içindeki kayıt/öğe bazında tutulabilir. Bu nedenle `map<str, i32>` biçimini zorunlu kılmıyoruz. Bu generic yazımın gelecekte isteğe bağlı bir kısıtlama olarak desteklenip desteklenmeyeceği henüz kararlaştırılmamıştır; mevcut Parser bu yazımı henüz desteklemez.
 
 ```nxf
 v:notlar!map;
@@ -182,8 +184,11 @@ notu = notu +5; # notu değeri 95 oldu.
 notlar["Ali"]<-notu; # Artık "notlar["Ali"]"nin değeri 90 değil 95 dir. 
 # notu içerisi boşaltıldığı için 0 dır, tekrar kullanılmıyorsa blok bittiğinde silinir.
 
-# Normal
-f:listele(a!map, ...) { ... }
+# Normal map parametresi
+f:listele(a:map, ...) { ... }
+
+# Eski / açık hard-type parametre yazımı; map için gerekli değildir
+f:listele_legacy(a!map, ...) { ... }
 
 ```
 
