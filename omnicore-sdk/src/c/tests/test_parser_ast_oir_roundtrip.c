@@ -173,8 +173,9 @@ static int test_select_scan_oir_roundtrip(void) {
     OirAstGraphStackEntry *stack=NULL;
     OirAstNodeTableView view;
     OirStatus status;
-    int ok=0;
+    int ok=0,stage=0;
     if(!parser)return 0;
+    stage=1;
     if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count ||
         !parser->ast_root || !ast_validate((ASTNode*)parser->ast_root,NULL))goto done;
     {
@@ -184,20 +185,25 @@ static int test_select_scan_oir_roundtrip(void) {
             goto done;
         }
     }
+    stage=2;
     status=encode_ast((ASTNode*)parser->ast_root,&first,&first_len);
     if(status!=OIR_STATUS_OK || oir_ast_node_table_open(first,first_len,&view)!=OIR_STATUS_OK)goto done;
+    stage=3;
     storage=(ASTNode**)calloc(view.node_count,sizeof(*storage));
     incoming=(uint32_t*)calloc(view.node_count,sizeof(*incoming));
     visited=(uint8_t*)calloc(view.node_count,sizeof(*visited));
     stack=(OirAstGraphStackEntry*)calloc(view.node_count,sizeof(*stack));
     if(!storage || !incoming || !visited || !stack)goto done;
+    stage=4;
     status=oir_ast_frontend_read_payload(first,first_len,storage,view.node_count,
         incoming,view.node_count,visited,view.node_count,stack,view.node_count,&decoded);
     if(status!=OIR_STATUS_OK || !decoded || !ast_validate(decoded,NULL))goto done;
+    stage=5;
     status=encode_ast(decoded,&second,&second_len);
     if(status!=OIR_STATUS_OK || first_len!=second_len ||
         memcmp(first,second,first_len)!=0)goto done;
     /* Root and representative nested production ranges survive OIR decode. */
+    stage=6;
     if(!compare_span_tree((ASTNode*)parser->ast_root,decoded,0u))goto done;
     if(!decoded->source_span.has_location ||
        decoded->source_span.start_offset!=0u ||
@@ -209,6 +215,7 @@ static int test_select_scan_oir_roundtrip(void) {
            main_fn->base.source_span.end_offset<=main_fn->base.source_span.start_offset)
             goto done;
         {
+            stage=7;
             ASTFuncDecl* array_fn=(ASTFuncDecl*)main_fn->base.next;
             ASTArrayDimension* dimension;
             if(!array_fn || array_fn->base.type!=AST_FUNC_DECL) goto done;
@@ -237,6 +244,7 @@ static int test_select_scan_oir_roundtrip(void) {
     }
     ok=1;
 done:
+    if(!ok)fprintf(stderr,"extended AST OIR roundtrip stage=%d\n",stage);
     if(decoded)ast_destroy(decoded);
     free(first); free(second); free(storage); free(incoming); free(visited); free(stack);
     parser_destroy(parser);
