@@ -406,3 +406,19 @@ The latest C AST inventory contains 105 node tags. FASTEXEC/Inline ASM now has a
 - The raw ASM body is preserved exactly; Parser does not parse target instructions as Nexus Flow. Lexer balances nested braces and ignores brace characters inside quoted strings/chars with backslash escapes. Target comment syntax is opaque, so unmatched braces in comments still participate in delimiter balancing.
 
 **AST remains open:** run the new C tests on CI/build hosts; finish the full Parser source-span audit and OIR optional source-span TLVs; complete remaining AST gaps (function types/callbacks, macro/directive metadata, structured map/vector/shift forms). Semantic FASTEXEC checks for calls/primitives, labels, variable placeholders, register/clobber, ABI and control flow remain blocked until AST/Parser validation passes. Codegen remains blocked.
+
+
+## AST representation audit cross-reference — 2026-11-05
+
+The detailed representation decisions and unresolved type contracts are maintained in [AST_REPRESENTATION_GAPS.md](docs/AST_REPRESENTATION_GAPS.md). This matrix remains the syntax-to-node coverage inventory; the gap document deliberately does not add node kinds or imply Parser/Codec implementation.
+
+| Area | Current AST representation | Gate |
+|---|---|---|
+| Function pointer / callback | `fptr` is currently an opaque type name; lambda has `AST_LAMBDA` | Signature-bearing function type model required |
+| Map | No explicit key/value type payload node confirmed | Unified type AST + append-only OIR schema required |
+| Pointer/ref | Type spelling remains opaque in declaration type fields | Unified type constructors and ownership contract required |
+| Function array return | `ASTFuncDecl.return_type` is a string | Reuse structured array type payload in function signature |
+| Compile directives / macros | Must not be treated as executable statement nodes | Compile-unit/preprocessing representation separate from runtime AST |
+| Numeric `<< / >>` | Existing parser emits Flow `AST_NEXUS_PIPE` | Numeric shift AST production waits deterministic grammar resolution |
+
+No AST closure claim is made by this cross-reference.
