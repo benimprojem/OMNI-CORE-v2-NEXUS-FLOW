@@ -1662,6 +1662,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!test_array_type_declarators()) { fprintf(stderr, "Array type declarator parser/codec test failed.\n"); return 1; }
+    if (!test_function_array_return_ast()) { fprintf(stderr, "Function array-return parser/codec test failed.\\n"); return 1; }
     if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
     if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\\n"); return 1; }
     if (!test_extern_echo_and_listen_keywords()) { fprintf(stderr, "extern/echo/listen keyword parser test failed.\n"); return 1; }
