@@ -1239,166 +1239,166 @@ static int test_expression_precedence_and_associativity_ast(void) {
     int ok = 0;
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
-        ctx->error_count != 0 || !ctx->ast_root) goto done;
+        ctx->error_count != 0 || !ctx->ast_root) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = ((ASTBlock*)((ASTFuncDecl*)
         ((ASTProgram*)ctx->ast_root)->declarations)->body)->statements;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
-        ((ASTBinaryExpr*)expression)->op != TOKEN_OR) goto done;
+        ((ASTBinaryExpr*)expression)->op != TOKEN_OR) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     {
         ASTNode* and_expr = ((ASTBinaryExpr*)expression)->left;
         ASTNode* compare_right = ((ASTBinaryExpr*)expression)->right;
         if (!and_expr || and_expr->type != AST_BINARY_EXPR ||
             ((ASTBinaryExpr*)and_expr)->op != TOKEN_AND ||
             !compare_right || compare_right->type != AST_BINARY_EXPR ||
-            ((ASTBinaryExpr*)compare_right)->op != TOKEN_EQ) goto done;
+            ((ASTBinaryExpr*)compare_right)->op != TOKEN_EQ) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
         if (((ASTBinaryExpr*)and_expr)->left->type != AST_BINARY_EXPR ||
             ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->left)->op != TOKEN_GT ||
             ((ASTBinaryExpr*)and_expr)->right->type != AST_BINARY_EXPR ||
-            ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->right)->op != TOKEN_GT) goto done;
+            ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->right)->op != TOKEN_GT) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
         !((ASTBinaryExpr*)expression)->right ||
         ((ASTBinaryExpr*)expression)->right->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->right)->op != TOKEN_BIT_OR)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_LT ||
         !((ASTBinaryExpr*)expression)->right ||
         ((ASTBinaryExpr*)expression)->right->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->right)->op != TOKEN_BIT_OR)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_LT ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_MINUS ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_MINUS)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_SLASH ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_SLASH)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_LT ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_LT)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_EQ ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_EQ)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_BIT_OR ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_BIT_XOR ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_XOR)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_BIT_AND ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_AND)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_AND)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_OR ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_OR)
-        goto done;
+        fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    if (!statement || statement->type != AST_VAR_DECL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_RANGE ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_LITERAL ||
         !((ASTBinaryExpr*)expression)->right ||
-        ((ASTBinaryExpr*)expression)->right->type != AST_LITERAL) goto done;
+        ((ASTBinaryExpr*)expression)->right->type != AST_LITERAL) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
 
     {
         static const char* invalid_ranges[] = {
@@ -1415,13 +1415,13 @@ static int test_expression_precedence_and_associativity_ast(void) {
                 (parser_run(chained_range) != PARSER_STATUS_OK ||
                  chained_range->error_count != 0);
             if (chained_range) parser_destroy(chained_range);
-            if (!rejected) goto done;
+            if (!rejected) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
         }
     }
 
     stream = tmpfile();
     if (!stream || !ast_serialize(ctx->ast_root, stream) ||
-        fseek(stream, 0, SEEK_SET) != 0) goto done;
+        fseek(stream, 0, SEEK_SET) != 0) fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done;
     decoded = ast_deserialize(stream);
     ok = decoded && decoded->type == AST_PROGRAM;
 done:
