@@ -1215,7 +1215,9 @@ done:
 
 static int test_logical_operator_precedence_ast(void) {
     static const char source[] =
-        "f:main() { v:guard = a > 0 && b > 0 || c == 1; }";
+        "f:main() { v:guard = a > 0 && b > 0 || c == 1; "
+        "v:bitwise_rhs = a && b | c; "
+        "v:bitwise_lhs = a | b && c; }";
     ParserContext* ctx = parser_init_source(
         "logical-precedence.nxf", (const uint8_t*)source, sizeof(source) - 1u);
     ASTNode* statement;
@@ -1245,6 +1247,26 @@ static int test_logical_operator_precedence_ast(void) {
             ((ASTBinaryExpr*)and_expr)->right->type != AST_BINARY_EXPR ||
             ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->right)->op != TOKEN_GT) goto done;
     }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
+        !((ASTBinaryExpr*)expression)->right ||
+        ((ASTBinaryExpr*)expression)->right->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->right)->op != TOKEN_BIT_OR)
+        goto done;
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
+        goto done;
 
     stream = tmpfile();
     if (!stream || !ast_serialize(ctx->ast_root, stream) ||
