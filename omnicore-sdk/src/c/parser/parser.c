@@ -4075,11 +4075,11 @@ int parser_run(ParserContext* ctx) {
             // AST'ye ekle (Bağlı liste mantığı)
             if (program->declarations == NULL) {
                 program->declarations = stmt;
-                current_stmt = stmt;
             } else {
                 current_stmt->next = stmt;
-                current_stmt = stmt;
             }
+            current_stmt = stmt;
+            while (current_stmt->next) current_stmt = current_stmt->next;
         } else {
             if (parser_status_is_terminal(ctx->status)) return (int)ctx->status;
             if (!parser.had_error) {
