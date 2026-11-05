@@ -141,3 +141,10 @@ The next type-model work is intentionally gated on canonical declarator grammar.
 
 - The normative syntax reference currently presents two distinct spellings: prose `map<key, val>` and declaration example `v:notlar!map str, i32;`, plus shorthand parameter `a!map`. Their precedence/relationship is unspecified.
 - No parser or AST behavior is changed. `AST_MAP_TYPE` remains gated until the language reference chooses a canonical type production and explicitly defines whether `!map` is an inferred/unspecified map type or a shorthand with generic key/value parameters.
+
+
+## Group/method parser-to-codec coverage — 2026-11-05
+
+- The parser regression for `group Pair { v:value!i32; get => f:get()!i32 { ret value; } }` now verifies both initial AST shape and AST stream round-trip. The decoded graph is validated and the nested `AST_METHOD` implementation function retains its public name, function name, return type and body.
+- CI run `42014382856` / commit `f63406fc`: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed (60/60 tests on each build/test platform).
+- This is Parser/AST/codec coverage only; it does not claim Semantic dispatch or OIR lowering support.
