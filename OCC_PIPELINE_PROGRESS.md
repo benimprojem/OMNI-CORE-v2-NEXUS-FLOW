@@ -544,3 +544,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Source-span tests are a subset of productions. Do not infer all-node coverage from this list.
 - Next: use syntax-reference rows to define span policy (token/full-production/synthesized) and close explicit AST representation blockers: function-type/callback, macro/preprocessor, compile-time directives/link/export/import metadata, map/vector and numeric shift representation. First establish normative syntax and stable AST payloads; don't conflate Semantic/runtime work.
 - AST remains open; Semantic and Codegen remain gated.
+
+
+## 9. AST temsil boşlukları — 2026-11-05
+
+- `docs/AST_REPRESENTATION_GAPS.md` eklendi: function pointer/callback signature, map type, pointer/ref, function return-array, numeric shift, compile-time directive/preprocessor ve DLL metadata için mevcut AST temsili ile karar/eksik sözleşmeler kayıt altına alındı.
+- Bu audit yeni AST kind veya OIR ID eklemedi; syntax referansında kesinleşmeyen grammar için heuristik parser kararı alınmadı.
+- Unified type AST tasarımı (primitive/named/qualified/generic/array/map/pointer/ref/function) uygulama öncesi önkoşul olarak belirlendi.
+- Group/method, use alias/path, must scope, defer/thread, intrinsic, default param ve array return Parser/codec fixture eksikleri açık kaldı. AST kapanışı henüz ilan edilmedi.
+- CI durumu: `99cd5cf4` ve `609f143c` commit'leri başarılı (Actions run `41966108769`, `41966092730`). Yeni dokümantasyon commit'i için CI ayrıca izlenecek.
