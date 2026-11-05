@@ -81,7 +81,7 @@ The syntax reference lists the language's designed operator inventory. The C Lex
 | Prefix/postfix `++`, `--` | Consumed by unary/postfix parsing | Lvalue and numeric semantic checks |
 | Compound assignment `+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=` | `AST_ASSIGNMENT` keeps the original operator token; parser fixture covers `+=` and `&=` | Parser production/test added | Semantic lvalue + equivalence checks |
 | String append `.=` | `AST_ASSIGNMENT` keeps `TOKEN_STRING_APPEND` | Parser production added; dedicated fixture/semantic test still needed |
-| Range `..` | `parse_range()` creates one `AST_BINARY_EXPR(TOKEN_RANGE)`; positive `1..10` and negative chained `1..2..3` fixtures added | Parser must reject a second unparenthesized range operator in the same range expression; endpoint typing and range runtime semantics remain Semantic work |
+| Range `..` | `parse_range()` creates one `AST_BINARY_EXPR(TOKEN_RANGE)`; positive `1..10` and negative chained `1..2..3` fixtures pass CI run `42039331167` (all five jobs) | Parser rejects a second unparenthesized range operator in the same range expression; endpoint typing and range runtime semantics remain Semantic work |
 
 This table is an implementation audit, not a change to the language design. Unsupported forms must not be marked complete merely because the Lexer emits tokens. `&&` and `||` are now consumed by the C Parser (`parse_logical_and()` / `parse_logical_or()`) with AND precedence above OR and left associativity; Parser/Semantic fixtures cover AST shape and bool operand checks. Runtime short-circuit behavior remains an OIR/lowering requirement and is not implied by parsing.
 
