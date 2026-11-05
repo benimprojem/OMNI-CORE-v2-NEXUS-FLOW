@@ -417,7 +417,7 @@ The detailed representation decisions and unresolved type contracts are maintain
 | Function pointer / callback | `fptr` is currently an opaque type name; lambda has `AST_LAMBDA` | Signature-bearing function type model required |
 | Map | No explicit key/value type payload node confirmed | Unified type AST + append-only OIR schema required |
 | Pointer/ref | Type spelling remains opaque in declaration type fields | Unified type constructors and ownership contract required |
-| Function array return | `ASTFuncDecl.return_type` is a string | Reuse structured array type payload in function signature |
+| Function array return `f:name(...)!T[]` / `!T[n]` / `!T[m][n]` | `ASTFuncDecl.return_type` retains base type; optional owned `return_array_type: AST_ARRAY_TYPE` carries ordered dimensions | Parser, AST stream v2/v1-read compatibility, graph validation, OIR frontend field 8 and canonical OIR round-trip are implemented and CI-verified (run `42010711975`). Semantic return-type compatibility and lowering remain open. |
 | Compile directives / macros | Must not be treated as executable statement nodes | Compile-unit/preprocessing representation separate from runtime AST |
 | Numeric `<< / >>` | Existing parser emits Flow `AST_NEXUS_PIPE` | Numeric shift AST production waits deterministic grammar resolution |
 
