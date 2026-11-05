@@ -599,3 +599,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Replaced it with isolated per-intrinsic sources and explicit failing-index reporting in commit 6164f535. A preceding correction changed `sizeof(i32)` to `sizeof(x)` in 6bd99510.
 - CI for 6bd99510 and 6164f535 is running; intrinsic coverage remains unverified until the latest head passes all matrix jobs.
 - Group method AST fixture fa51b156 and progress commit d83c25ad both passed CI (runs 41979868392 and 41979893923).
+
+
+## AST syntax boundary clarification — 2026-11-05
+
+- `docs/AST_REPRESENTATION_GAPS.md` now records that dotted/path-qualified `use` syntax and function array-return syntax are not currently defined by the normative syntax reference. Parser behavior will not be extended by guesswork.
+- Array return support remains blocked on canonical type-expression/return-declarator design and AST/codec/OIR schema; existing `AST_ARRAY_TYPE` support for declarations/parameters is not sufficient proof of return support.
+- Intrinsic fixture commits 6bd99510 and 6164f535 are being validated. Run 41984394345 has Ubuntu, Windows, macOS and ASan/UBSan green; Valgrind is still running. Run 41984448985 has Ubuntu, macOS and ASan/UBSan green; Windows and Valgrind are still running.
