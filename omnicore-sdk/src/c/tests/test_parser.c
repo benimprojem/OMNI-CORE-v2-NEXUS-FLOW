@@ -3326,16 +3326,21 @@ generic_type_done:
             "f:consume(items!map) { ret; }";
         static const char legacy_source[] =
             "f:main() { v:notlar!map str, i32; }";
+        static const char generic_source[] =
+            "f:main() { v:notlar!map<str, i32>; }";
         ParserContext* parser = parser_init_source("map-hard-type.nxf",
             (const uint8_t*)source, sizeof(source) - 1u);
         ParserContext* legacy_parser = parser_init_source("map-legacy-args.nxf",
             (const uint8_t*)legacy_source, sizeof(legacy_source) - 1u);
+        ParserContext* generic_parser = parser_init_source("map-generic-args.nxf",
+            (const uint8_t*)generic_source, sizeof(generic_source) - 1u);
         ASTFuncDecl* main_function;
         ASTVarDecl* map_var;
         ASTFuncDecl* consume_function;
         ASTVarDecl* map_param;
         int valid = 0;
         int legacy_rejected = 0;
+        int generic_rejected = 0;
         if (parser && parser_run(parser) == PARSER_STATUS_OK &&
             parser->error_count == 0 && ast_validate(parser->ast_root, NULL)) {
             main_function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
@@ -3358,9 +3363,13 @@ generic_type_done:
         if (legacy_parser)
             legacy_rejected = parser_run(legacy_parser) != PARSER_STATUS_OK ||
                 legacy_parser->error_count != 0;
+        if (generic_parser)
+            generic_rejected = parser_run(generic_parser) != PARSER_STATUS_OK ||
+                generic_parser->error_count != 0;
         if (parser) parser_destroy(parser);
         if (legacy_parser) parser_destroy(legacy_parser);
-        if (!valid || !legacy_rejected) {
+        if (generic_parser) parser_destroy(generic_parser);
+        if (!valid || !legacy_rejected || !generic_rejected) {
             fprintf(stderr, "Canonical !map AST / legacy parameterized-map rejection test failed.\n");
             return 1;
         }
