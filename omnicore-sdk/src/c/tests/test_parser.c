@@ -1141,11 +1141,11 @@ static int test_function_array_return_ast(void) {
     ParserContext* ctx=parser_init_source("function-array-return.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     ASTNode* fn;
-    int ok=0;
+    int ok=0, stage=1;
     if(!ctx) return 0;
     if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) goto done;
-    fn=((ASTProgram*)ctx->ast_root)->declarations;
-    for(int expected=1;expected<=3;expected++) {
+    stage=2; fn=((ASTProgram*)ctx->ast_root)->declarations;
+    for(int expected=1;expected<=3;expected++) { stage=10+expected;
         ASTFuncDecl* f;
         ASTNode* dim;
         if(!fn || fn->type!=AST_FUNC_DECL) goto done;
@@ -1163,15 +1163,16 @@ static int test_function_array_return_ast(void) {
         if(dim) goto done;
         fn=fn->next;
     }
-    if(fn || !ast_validate(ctx->ast_root,NULL)) goto done;
+    stage=20; if(fn || !ast_validate(ctx->ast_root,NULL)) goto done;
     {
         FILE* stream=tmpfile(); ASTNode* decoded=NULL;
         if(stream && ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
             decoded=ast_deserialize(stream);
-        ok=decoded && ast_validate(decoded,NULL);
+        stage=21; ok=decoded && ast_validate(decoded,NULL);
         if(decoded) ast_destroy(decoded); if(stream) fclose(stream);
     }
 done:
+    if(!ok) { Error* e; fprintf(stderr,"function array return test stage=%d status=%d errors=%d\\n",stage,(int)parser_get_status(ctx),ctx->error_count); for(e=ctx->error_head;e;e=e->next) fprintf(stderr,"  %d:%d %s\\n",e->line,e->col,e->message?e->message:"(null)"); }
     parser_destroy(ctx);
     return ok;
 }
