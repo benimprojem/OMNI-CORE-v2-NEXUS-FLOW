@@ -34,7 +34,7 @@
 | Pointer/ref types `*T`, `**T`, `&T` | Type spelling / hard type string | **Partial / opaque.** Nested pointer depth and ref mutability/ownership cannot be reliably inferred from strings. | Add structured type AST (pointer/ref constructors) as part of unified type grammar; avoid one-off pointer nodes. |
 | Type identity / qualified member type | `AST_MEMBER_ACCESS` for expressions; type names mostly strings | **Partial.** Expression member access is not a type path. | Unified type-name/path representation required if namespace-qualified types are normative. |
 | Function default parameter `a:10` | Parser parameter AST likely shared `AST_VAR_DECL` initializer | **Reuse likely**, but parameter-vs-local declaration context needs explicit validation. | Confirm payload and add default-parameter parser/codec tests; ensure initializer is not mistaken for executable declaration initializer. |
-| Array return | `ASTFuncDecl.return_type` plus optional owned `AST_ARRAY_TYPE` child | **Implemented and CI-verified for the documented return-array suffix forms.** Base element type remains in `return_type`; ordered dimensions are represented by `AST_ARRAY_DIMENSION` children. | Preserve append-only AST payload layout and OIR optional field 8. Keep expanding the shared type-expression/declarator audit; do not infer that every type form or function-return semantic rule is complete. CI run `42010711975` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. |
+| Array return | `ASTFuncDecl.return_type` plus optional owned `AST_ARRAY_TYPE` child | **Implemented and CI-verified for the documented return-array suffix forms.** Base element type remains in `return_type`; ordered dimensions are represented by `AST_ARRAY_DIMENSION` children. | Preserve append-only AST payload layout and OIR optional field 8. Keep expanding the shared type-expression/declarator audit; do not infer that every type form or function-return semantic rule is complete. Latest CI run `42011297161` passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind; explicit v1 function-stream compatibility test is included. |
 | `elsif` / conditional action | Canonical nested `AST_IF` | **Adequate canonical AST** if source form need not be preserved. | Keep canonicalization; spans must cover each source branch and preserve diagnostic locations. |
 | `when` pattern guard | `AST_IF` wrapper in arm body | **Adequate canonical AST**, but guard/body distinction is implicit. | Keep only if Semantic consistently unwraps guard; otherwise add explicit optional guard field in a future arm schema (not a new node kind). |
 | `}?;` block cleanup | `AST_BLOCK_HALT` final block child | **Present/contextual.** | Preserve final-child invariant; codec and graph validator tests remain mandatory. |
@@ -74,7 +74,7 @@ This model must not break current `ASTVarDecl.type_name` consumers abruptly. A m
 ## 2026-11-05 clarification — syntax boundaries
 
 - The current normative module-loading grammar is `use <module>` and `use <module> as <alias>`, with comma-separated module identifiers. Dotted/path-qualified module syntax is not specified in the syntax reference; Parser must not invent it. Treat `use Core.Module` as unsupported until the language grammar explicitly defines path separators, resolution roots and source-span behavior.
-- Function array-return syntax is normative: the function section includes `f:name(a, ...)!i32[] { ... }`. Parser currently consumes the base return type only and does not attach array dimensions. This is an implementation gap, not a grammar ambiguity.
+- Function array-return syntax is normative: the function section includes `f:name(a, ...)!i32[] { ... }`. **Resolved:** Parser now attaches ordered return dimensions through the optional owned `AST_ARRAY_TYPE` child; see the implementation/CI status below. This was an implementation gap, not a grammar ambiguity.
 - `AST_ARRAY_TYPE` / `AST_ARRAY_DIMENSION` already model declaration and parameter arrays. Reuse that dimension payload for function returns, preserving `ASTFuncDecl.return_type` as a compatibility mirror while an owned structured return-array child becomes authoritative for dimensions.
 
 
@@ -119,3 +119,12 @@ The next type-model work is intentionally gated on canonical declarator grammar.
 - **Pointer/reference:** the type table lists `*`, `**`, and `&`, but the normative reference does not provide concrete declaration/declarator examples or define composition order, nullability, mutability, ownership, and lifetime rules. Do not infer prefix/suffix placement or pointer nesting from expression operators.
 
 **Next required step:** complete a grammar-only audit and settle the canonical type-expression/declarator forms before introducing any new AST kind or changing parser behavior. The eventual type representation should be append-only and typed (primitive/named, array, map, pointer/reference, function signature), with explicit ownership, graph contexts, codec fields, OIR mapping, and positive/negative fixtures. This is an architecture gate, not a claim that these forms are already supported.
+
+
+## Function array-return implementation confirmation — 2026-11-05
+
+- The former Parser gap is closed: the return suffix is parsed after the base return type, with `ASTFuncDecl.return_type` retained as the compatibility spelling and `return_array_type` owning ordered dimensions.
+- AST stream v2 writes the optional child; the reader accepts v1 and omits the v2-only child for v1 payloads. The regression `reads_v1_function_stream_without_v2_return_child()` verifies the compatibility path.
+- OIR frontend field 8 carries the optional return-array node. The round-trip fixture verifies a named extent survives OIR decode and canonical re-encoding.
+- Latest CI run `42011297161` / commit `1196820a3bcb`: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed.
+- This does not close the unified type AST design gate or the overall AST stage.
