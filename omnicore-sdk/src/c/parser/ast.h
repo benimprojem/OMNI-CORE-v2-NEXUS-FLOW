@@ -56,7 +56,7 @@ typedef enum {
     AST_AI_LOGIC,       // ??
     AST_UNPACK,         // ...>
     AST_PANIC,          // !!
-    AST_SPAWN,          // spawn()
+    AST_SPAWN,          // Legacy serialized tag; new spawn syntax belongs to the Thread module
     AST_LISTEN,         // !(listen)
     AST_ECHO,           // echo()
     AST_SEND,           // send()
