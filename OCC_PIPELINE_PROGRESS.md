@@ -640,3 +640,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Normative grammar includes `f:name(a, ...)!i32[] { ... }`; current Parser does not parse return-array suffixes.
 - Planned compatible representation: optional owned `AST_ARRAY_TYPE` child on `ASTFuncDecl`, with `return_type` retained as the base element-type compatibility string. The child owns ordered `AST_ARRAY_DIMENSION` nodes; no new AST kind is required.
 - Before implementation, update AST destroy/validation, versioned AST stream serialization (preserve v1 read compatibility), OIR frontend writer/reader optional field 8, AST graph indexing, and parser positive/negative + AST/OIR round-trip tests. This is a coordinated AST/codec change, not a parser-only patch.
+
+
+## Thread-block model clarification — 2026-11-05
+
+- Owner clarified intended execution model: `(thread_block_name)>{ ... }` is a named thread code body/template, not inline application execution. `spawn(thread_block_name, addr(nexus)), async, 100);` refers to that body and requests separate thread-context execution.
+- Recorded the distinction and open contracts in `docs/AST_REPRESENTATION_GAPS.md` (commit 01fcfb37): declaration/body vs spawn invocation vs runtime scheduling/context/ownership/error behavior.
+- Current Parser still constructs `AST_THREAD_BLOCK` with name/body only (mode/timeout NULL); spawn is generic intrinsic-call AST. No runtime semantics or typed declaration link are implemented/claimed yet.
+- Next AST work: normative grammar + tests for thread declaration and spawn reference; then Semantic name resolution and explicit execution metadata. Scheduling, async, timeout units, context capture, lifetime, join/error semantics remain open.
