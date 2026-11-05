@@ -553,3 +553,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Unified type AST tasarımı (primitive/named/qualified/generic/array/map/pointer/ref/function) uygulama öncesi önkoşul olarak belirlendi.
 - Group/method, use alias/path, must scope, defer/thread, intrinsic, default param ve array return Parser/codec fixture eksikleri açık kaldı. AST kapanışı henüz ilan edilmedi.
 - CI durumu: `99cd5cf4` ve `609f143c` commit'leri başarılı (Actions run `41966108769`, `41966092730`). Yeni dokümantasyon commit'i için CI ayrıca izlenecek.
+
+
+## AST Parser test increment — 2026-11-05
+
+- Added a focused Parser AST ownership/context test for `use CoreModule as Core, MathModule;` and a block-form `defer` containing a local declaration: commit `03f4b208`.
+- Corrected the fixture's C newline escape in `8b8156a7`; CI for the test commit is pending/queued and will be evaluated against the corrected head.
+- Existing parser tests already cover group member spans, thread block spans, MUST declarations/codec, and lambda forms; this increment adds shape/ownership assertions rather than duplicating span-only coverage.
+- AST remains open: method implementation and use-path syntax are not equivalent to alias coverage; intrinsic family, parameter defaults, and function array-return representation still require targeted proof.
