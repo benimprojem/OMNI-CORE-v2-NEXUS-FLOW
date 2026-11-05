@@ -141,6 +141,7 @@
 | `AST_VARIADIC_PARAM` | `AST_FUNC_DECL.params`, terminal parameter | Contextual round-trip |
 | `AST_BLOCK_HALT` | `AST_BLOCK` / allowed cleanup block, final statement | Dedicated block-halt round-trip |
 | `AST_ASM_LABEL` | `AST_FASTEXEC_BLOCK.statements` | FASTEXEC raw ASM payload round-trip |
+| `AST_FUNC_DECL.return_array_type` | `AST_FUNC_DECL` / `AST_EXTERN_DECL` payload | Function array-return parser, AST stream v2 round-trip + v1 compatibility, OIR field 8 round-trip |
 | `AST_NAMED_ARG` | Call/intrinsic args list | Populated fixture; call-parent validation is separately exercised |
 
 ## Remaining AST closure criteria
