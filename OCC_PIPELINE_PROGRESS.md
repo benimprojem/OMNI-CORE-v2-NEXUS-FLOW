@@ -583,3 +583,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added parser fixture for a group containing a field and public method implementation (get => f:get()!i32 { ... }). It checks AST_GROUP_DECL → AST_VAR_DECL + AST_METHOD → AST_FUNC_DECL, method public name, implementation name/return type/body, and whole-graph validation.
 - Commit: fa51b156. CI workflow for this exact head is to be checked; no pass is claimed before Actions completes.
 - This closes one behavioral fixture gap only; group visibility/export and method semantic binding remain open.
+
+
+## Group methods + intrinsic family AST tests — 2026-11-05
+
+- Group method production fixture commit fa51b156 validates member + method implementation shape and ownership.
+- Intrinsic mapping fixture commit 8b3ea910 checks nine representative mappings (len, sizeof, typeof, is_ok, addr, clock, datenow, date, time) through variable initializer ASTs.
+- CI runs: group test 41979868392 / progress run 41979893923 and intrinsic test 41979938267 are pending/in progress; status must be checked before marking tests green.
+- This is representative intrinsic coverage, not the complete intrinsic family; remaining intrinsic arities, invalid forms, and codec round-trip coverage remain open.
