@@ -95,7 +95,7 @@ This separates three concepts that must not be conflated in AST/Semantic work:
 - **Spawn invocation:** references the declared thread block and supplies execution/context arguments (including the address/endpoint expression and async/timeout-like arguments shown in the example).
 - **Runtime scheduling and transfer contract:** how the context/address is captured, what `async` means, timeout units/behavior, ownership/lifetime, error propagation, and whether/how a spawned task is joined remain unspecified and require normative decisions.
 
-The existing `AST_THREAD_BLOCK` (name/body/mode/timeout) can preserve the declaration shape, but current Parser only fills name/body. The spawn call currently parses through the generic intrinsic-call path and does not establish a dedicated typed link to a thread declaration. Do not infer runtime behavior from the current AST alone. Next work should first encode this declaration-vs-spawn distinction in the syntax reference and AST/parser tests, then define semantic symbol resolution and execution metadata without prematurely implementing scheduling.
+The existing `AST_THREAD_BLOCK` (name/body/mode/timeout) preserves the declaration shape; Parser currently fills name/body and leaves mode/timeout NULL. Regression `test_thread_block_ast()` now verifies the named body, NULL optional fields, source span, nested payload ownership and AST codec round-trip (CI run `42014109396`, all five jobs passed). The spawn call remains outside the core AST and must not be inferred from this declaration node. Semantic symbol resolution and execution metadata remain separate future work; do not implement scheduling in core AST.
 
 
 ## Spawn/core boundary — owner correction (2026-11-05)
@@ -128,3 +128,10 @@ The next type-model work is intentionally gated on canonical declarator grammar.
 - OIR frontend field 8 carries the optional return-array node. The round-trip fixture verifies a named extent survives OIR decode and canonical re-encoding.
 - Latest CI run `42011297161` / commit `1196820a3bcb`: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed.
 - This does not close the unified type AST design gate or the overall AST stage.
+
+
+## Thread-block AST regression confirmation — 2026-11-05
+
+- `test_thread_block_ast()` covers `(worker)>{ v:value = 7; }` as a core `AST_THREAD_BLOCK` declaration. It checks the name, block body, nested variable, NULL `mode`/`timeout`, source span, graph validation and AST serialize/deserialize ownership.
+- CI run `42014109396` / commit `85bc7f35`: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed. Ubuntu test suite reports 60/60.
+- `spawn` remains a separate thread-module concern; no `AST_SPAWN` behavior or core scheduling semantics were added.
