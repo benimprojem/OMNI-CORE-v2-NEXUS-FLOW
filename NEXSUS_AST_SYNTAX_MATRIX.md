@@ -88,7 +88,7 @@ This table is an implementation audit, not a change to the language design. Unsu
 ## Confirmed model-level gaps to address
 
 1. **Array type declarators:** `AST_ARRAY_TYPE` and `AST_ARRAY_DIMENSION` represent dynamic, fixed and multidimensional shapes, including function parameters. Function calls validate element type, rank and fixed/dynamic extents; remaining work is executable lowering.
-2. **Map: ordinary `map` type; prefer parameter spelling `a:map`, retain `a!map` compatibility; local declarations currently use `v:name!map`. Generic `map<key,value>` is not implemented and remains an open optional-constraint design question.
+2. **Map typing:** ordinary `map` type; prefer function parameter spelling `a:map`, retain `a!map` as hard-type compatibility; local declarations currently use `v:name!map`. Generic `map<key,value>` is not implemented and remains an open optional-constraint design question.
 3. **Vector typing:** `Vec2/Vec3/Vec4` currently rely on array-shaped literals; dimensionality and SIMD type rules must be checked semantically.
 4. **Loop normalization:** legacy `loop_type = Infinite/While/For/Foreach` remains the frontend payload; canonical lowering and runtime semantics are still open.
 5. **Conditional action:** parser canonicalizes it to `AST_IF`; loop-context semantic checks and source-form round-trip remain open.
@@ -337,7 +337,7 @@ This section separates **missing AST representation** from syntax that can legit
 | `import("path")` / DLL, object and library import | Can parse as generic `AST_FUNC_CALL` only if call grammar accepts it; resource acquisition is not distinguished | **Representation ambiguous / semantic metadata missing** | Preserve import as explicit intrinsic/resource operation or typed call annotation; distinguish dynamic-library import from ordinary function call; verify parser fixture and Halt ownership |
 | `asmcall(LABEL)`, `asmjmp("LABEL")` | Existing `AST_FUNC_CALL` plus intrinsic callee name and argument expression | Parser already preserves the call shape and exact source span; Semantic identifies intrinsic names | FASTEXEC-only scope, label resolution, argument shape and control-flow validation remain Semantic work |
 | ASM substitutions `%var`, `%var:reg`, clobber list | Preserved byte-for-byte inside `AST_ASM_LABEL.source_text`; no speculative AST operand node | Lexer/Parser preserve exact raw body and source span | Semantic/target analysis must extract and validate variable bindings, direction, register hints, clobbers and ABI effects |
-| Map: ordinary `map` type; prefer parameter spelling `a:map`, retain `a!map` compatibility; local declarations currently use `v:name!map`. Generic `map<key,value>` is not implemented and remains an open optional-constraint design question.
+|| Map | `ASTVarDecl.type_name = "map"` for ordinary `a:map`; `"!map"` for explicit hard-type parameter compatibility | No dedicated `AST_MAP_TYPE` node is needed for the current unparameterized form; generic constraints remain an open design question |
 | `Vec2/Vec3/Vec4` | Type name can be stored as string; literal is `AST_ARRAY_LITERAL` | **AST syntax can be represented, but dimension/type metadata is missing** | Semantic vector shape contract; decide whether AST needs dedicated vector literal/type node or typed array-literal annotation |
 | Conditional target `!!=[target=...]` / target variants | Generic block/assignment cannot safely retain target condition semantics | **Missing directive node** | Same directive AST work as above; no heuristic parser |
 | `elsif` and conditional action | Nested `AST_IF` and canonical `AST_IF` | **Existing representation** | Explicit parser/codec shape tests; no new node required |
@@ -415,7 +415,7 @@ The detailed representation decisions and unresolved type contracts are maintain
 | Area | Current AST representation | Gate |
 |---|---|---|
 | Function pointer / callback | `fptr` is currently an opaque type name; lambda has `AST_LAMBDA` | Signature-bearing function type model required |
-| Map | No explicit key/value type payload node confirmed | Unified type AST + append-only OIR schema required |
+| Map | Ordinary named type in `ASTVarDecl.type_name`; no key/value payload | Current syntax is represented; per-entry key/value constraints and runtime behavior belong to Semantic/runtime design. Optional generic constraint syntax remains undecided |
 | Pointer/ref | Type spelling remains opaque in declaration type fields | Unified type constructors and ownership contract required |
 | Function array return `f:name(...)!T[]` / `!T[n]` / `!T[m][n]` | `ASTFuncDecl.return_type` retains base type; optional owned `return_array_type: AST_ARRAY_TYPE` carries ordered dimensions | Parser, AST stream v2/v1-read compatibility, graph validation, OIR frontend field 8 and canonical OIR round-trip are implemented and CI-verified (run `42010711975`). Semantic return-type compatibility and lowering remain open. |
 | Compile directives / macros | Must not be treated as executable statement nodes | Compile-unit/preprocessing representation separate from runtime AST |
