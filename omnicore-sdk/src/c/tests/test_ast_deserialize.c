@@ -949,7 +949,7 @@ static int roundtrips_versioned_source_spans(void) {
         fread(magic, 1u, sizeof(magic), stream) != sizeof(magic) ||
         fread(&version, sizeof(version), 1u, stream) != 1u ||
         memcmp(magic, "OCCAST\r\n", sizeof(magic)) != 0 ||
-        version != 1u) {
+        version != 2u) {
         fclose(stream);
         ast_destroy((ASTNode*)original);
         return 1;
