@@ -1228,7 +1228,8 @@ static int test_expression_precedence_and_associativity_ast(void) {
         "v:bit_xor_chain = a ^ b ^ c; "
         "v:bit_and_chain = a & b & c; "
         "v:and_chain = a && b && c; "
-        "v:or_chain = a || b || c; }";
+        "v:or_chain = a || b || c; "
+        "v:range = 1..10; }";
     ParserContext* ctx = parser_init_source(
         "logical-precedence.nxf", (const uint8_t*)source, sizeof(source) - 1u);
     ASTNode* statement;
@@ -1388,6 +1389,29 @@ static int test_expression_precedence_and_associativity_ast(void) {
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_OR)
         goto done;
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_RANGE ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_LITERAL ||
+        !((ASTBinaryExpr*)expression)->right ||
+        ((ASTBinaryExpr*)expression)->right->type != AST_LITERAL) goto done;
+
+    {
+        static const char chained_range_source[] =
+            "f:main() { v:bad = 1..2..3; }";
+        ParserContext* chained_range = parser_init_source(
+            "chained-range.nxf", (const uint8_t*)chained_range_source,
+            sizeof(chained_range_source) - 1u);
+        int rejected = chained_range &&
+            (parser_run(chained_range) != PARSER_STATUS_OK ||
+             chained_range->error_count != 0);
+        if (chained_range) parser_destroy(chained_range);
+        if (!rejected) goto done;
+    }
 
     stream = tmpfile();
     if (!stream || !ast_serialize(ctx->ast_root, stream) ||
