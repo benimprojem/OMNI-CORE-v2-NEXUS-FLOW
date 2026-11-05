@@ -1550,23 +1550,47 @@ static int test_group_method_ast(void) {
 }
 
 static int test_intrinsic_ast_family(void) {
-    static const char source[] = "f:main() { v:n = len(items); v:s = sizeof(x); v:t = typeof(x); v:o = is_ok(result); v:a = addr(x); v:c = clock(); v:d = datenow(); v:e = date(); v:f = time(); }";
-    static const ASTNodeType expected[] = { AST_LEN, AST_SIZEOF, AST_TYPEOF, AST_IS_OK, AST_ADDR, AST_CLOCK, AST_DATENOW, AST_DATE, AST_TIME };
-    ParserContext* parser = parser_init_source("intrinsic-family.nxf", (const uint8_t*)source, sizeof(source)-1u);
-    ASTFuncDecl* function; ASTNode* statement; size_t i; int valid=0;
-    if (!parser) return 0;
-    if (parser_run(parser)==PARSER_STATUS_OK && parser->error_count==0 && parser->ast_root && ast_validate(parser->ast_root,NULL)) {
-        function=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
-        statement=function?((ASTBlock*)function->body)->statements:NULL; valid=function!=NULL;
-        for(i=0;valid && i<sizeof(expected)/sizeof(expected[0]);++i) {
-            ASTVarDecl* variable=(ASTVarDecl*)statement;
-            valid=statement && statement->type==AST_VAR_DECL && variable->initializer && variable->initializer->type==expected[i];
-            statement=statement?statement->next:NULL;
+    static const char* sources[] = {
+        "f:main() { v:n = len(items); }",
+        "f:main() { v:s = sizeof(x); }",
+        "f:main() { v:t = typeof(x); }",
+        "f:main() { v:o = is_ok(result); }",
+        "f:main() { v:a = addr(x); }",
+        "f:main() { v:c = clock(); }",
+        "f:main() { v:d = datenow(); }",
+        "f:main() { v:e = date(); }",
+        "f:main() { v:f = time(); }"
+    };
+    static const ASTNodeType expected[] = {
+        AST_LEN, AST_SIZEOF, AST_TYPEOF, AST_IS_OK, AST_ADDR,
+        AST_CLOCK, AST_DATENOW, AST_DATE, AST_TIME
+    };
+    size_t i;
+    for (i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
+        ParserContext* parser = parser_init_source("intrinsic-family.nxf",
+            (const uint8_t*)sources[i], strlen(sources[i]));
+        ASTFuncDecl* function;
+        ASTNode* statement;
+        ASTVarDecl* variable;
+        int valid = 0;
+        if (!parser) return 0;
+        if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+            parser->ast_root && ast_validate(parser->ast_root, NULL)) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            statement = function ? ((ASTBlock*)function->body)->statements : NULL;
+            variable = statement && statement->type == AST_VAR_DECL
+                ? (ASTVarDecl*)statement : NULL;
+            valid = variable && variable->initializer &&
+                variable->initializer->type == expected[i];
+        }
+        parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Intrinsic AST mapping failed at index %lu.\\n",
+                (unsigned long)i);
+            return 0;
         }
     }
-    parser_destroy(parser);
-    if(!valid) fprintf(stderr,"Intrinsic AST family mapping test failed.\\n");
-    return valid;
+    return 1;
 }
 
 int main(int argc, char** argv) {
