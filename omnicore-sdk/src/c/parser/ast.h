@@ -268,6 +268,9 @@ typedef struct {
     int is_extern;
     int is_public;
     int is_exported;
+    /* Optional owned AST_ARRAY_TYPE describing return dimensions. Keep appended
+     * for source/ABI layout compatibility; return_type remains base-type text. */
+    ASTNode* return_array_type;
 } ASTFuncDecl;
 
 typedef struct {
