@@ -207,6 +207,18 @@ static int test_select_scan_oir_roundtrip(void) {
         if(!main_fn || !main_fn->base.source_span.has_location ||
            main_fn->base.source_span.end_offset<=main_fn->base.source_span.start_offset)
             goto done;
+        {
+            ASTFuncDecl* array_fn=(ASTFuncDecl*)main_fn->base.next;
+            ASTArrayDimension* dimension;
+            if(!array_fn || array_fn->base.type!=AST_FUNC_DECL ||
+               !array_fn->return_array_type ||
+               array_fn->return_array_type->type!=AST_ARRAY_TYPE) goto done;
+            dimension=(ASTArrayDimension*)((ASTArrayType*)array_fn->return_array_type)->dimensions;
+            if(!dimension || !dimension->length ||
+               dimension->length->type!=AST_IDENTIFIER ||
+               strcmp(((ASTIdentifier*)dimension->length)->name,"n")!=0 ||
+               dimension->base.next) goto done;
+        }
     }
     ok=1;
 done:
