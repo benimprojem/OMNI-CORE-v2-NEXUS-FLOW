@@ -22,7 +22,7 @@
 | Function pointer `fptr` | `AST_VAR_DECL.type_name` string; lambda is `AST_LAMBDA` | **Partial / opaque.** Signature (parameters, return type, variadic) is not attached to the type. | Add a typed function-type payload only after choosing canonical declarator grammar. Keep bare `fptr` as an unspecified/legacy function pointer form if compatibility requires it. |
 | Callback parameter | Function parameter with `type_name="fptr"` | **Partial.** Calls can be parsed, but signature compatibility cannot be represented from this declaration alone. | Reuse function-type model; test callback argument and return compatibility. |
 | Generic type `t` | Type-name string | **Partial.** Generic identity/binding is semantic metadata, not just spelling. | Keep syntax node reuse; define explicit generic parameter/binding records in Semantic artifact. Do not add runtime AST node solely for generic substitution. |
-| Map `map key,value` | Type-name/inline declaration path; no dedicated map type node | **Missing structured AST contract.** Key and value types are not independently owned typed children. | Introduce append-only `AST_MAP_TYPE` with key/value type children (or equivalent typed inline payload); document field IDs and graph ownership before parser change. |
+| Map `!map` | `ASTVarDecl.type_name = "map"` (declaration) / `"!map"` (hard-typed parameter) | **Syntax representation is sufficient.** The map marker carries no key/value type arguments, so no `AST_MAP_TYPE` child is required. | Keep the canonical spelling `!map`; reject parameterized spellings. Define map key/value behavior and constraints in Semantic without inventing declaration type arguments. |
 | SIMD `Vec2/Vec3/Vec4` | Type name + `AST_ARRAY_LITERAL` values | **Reuse is adequate syntactically**, but vector width/type intent is not represented by array literal alone. | Keep vector as named type; Semantic must enforce fixed lane count and element compatibility. No separate vector literal node unless syntax reference adds one. |
 | Numeric shifts `<<`, `>>` | `AST_NEXUS_PIPE` | **Collision unresolved.** AST currently cannot represent numeric shift expression distinctly. | Add numeric shift as `AST_BINARY_EXPR` only after parser has deterministic grammar disambiguation. Preserve Flow Zone Write/Feed as `AST_NEXUS_PIPE`; no operand-shape heuristic. |
 | `!!=` target/link directives | Generic `AST_ASSIGNMENT` / parser-level directive handling | **Wrong-layer risk.** Target/link settings are compile configuration, not executable statements. | Define a compile-unit directive/preprocessing model outside runtime statement AST. Keep directive payloads in source/config artifact; reject them in function/block context. |
@@ -47,7 +47,7 @@ Before adding `AST_MAP_TYPE`, function types, pointer/ref constructors or return
 - primitive / named / qualified type;
 - generic type parameter;
 - dynamic/fixed/multidimensional array;
-- map key/value;
+- map marker (`!map`, without key/value type arguments);
 - pointer depth and reference;
 - function signature (ordered params, variadic marker, return type);
 - optional nominal/aggregate references.
@@ -115,7 +115,7 @@ The existing `AST_THREAD_BLOCK` (name/body/mode/timeout) preserves the declarati
 The next type-model work is intentionally gated on canonical declarator grammar. Current source inspection confirms these concrete gaps:
 
 - **Function/callback type:** the syntax reference shows only the alias example `nt:Callback = f:(id!u32)>!bool;`; it does not define a complete function-type grammar (nested callbacks, optional parameter names, variadic placement, qualifiers, or type nesting). `parse_newtype_decl()` currently accepts one primitive-type token or one identifier as `target_type`; it does not consume a `PRE_FUNC` signature or build parameter/return type children. Existing `AST_LAMBDA` represents executable lambda bodies and must not be reused as a signature type.
-- **Map type:** the syntax reference is internally inconsistent: its prose labels the form `map<key, val>`, while the code sample uses `v:notlar!map str, i32;`; the parameter example uses only `a!map`. These are not yet one canonical declarator production. The variable type parser currently consumes only the identifier `map` into `ASTVarDecl.type_name`; it does not attach separate key/value type children or consume a comma-separated type pair. Do not choose angle brackets or whitespace/comma form by guesswork. The existing `AST_ARRAY_TYPE` is not a map substitute; settle the canonical grammar and parameter shorthand first.
+- **Map type:** canonical syntax is now `!map` only. The variable parser preserves `map` in `ASTVarDecl.type_name`; function parameters preserve `!map` in the type spelling. No key/value type arguments or `AST_MAP_TYPE` child are part of this declaration syntax. Map key/value admissibility and runtime operations are Semantic responsibilities.
 - **Pointer/reference:** the type table lists `*`, `**`, and `&`, but the normative reference does not provide concrete declaration/declarator examples or define composition order, nullability, mutability, ownership, and lifetime rules. Do not infer prefix/suffix placement or pointer nesting from expression operators.
 
 **Next required step:** complete a grammar-only audit and settle the canonical type-expression/declarator forms before introducing any new AST kind or changing parser behavior. The eventual type representation should be append-only and typed (primitive/named, array, map, pointer/reference, function signature), with explicit ownership, graph contexts, codec fields, OIR mapping, and positive/negative fixtures. This is an architecture gate, not a claim that these forms are already supported.
@@ -137,10 +137,12 @@ The next type-model work is intentionally gated on canonical declarator grammar.
 - `spawn` remains a separate thread-module concern; no `AST_SPAWN` behavior or core scheduling semantics were added.
 
 
-## Map declarator grammar conflict — 2026-11-05
+## Canonical map declarator decision — 2026-11-05
 
-- The normative syntax reference currently presents two distinct spellings: prose `map<key, val>` and declaration example `v:notlar!map str, i32;`, plus shorthand parameter `a!map`. Their precedence/relationship is unspecified.
-- No parser or AST behavior is changed. `AST_MAP_TYPE` remains gated until the language reference chooses a canonical type production and explicitly defines whether `!map` is an inferred/unspecified map type or a shorthand with generic key/value parameters.
+- Canonical map type spelling is `!map` only. No key/value type arguments are written or parsed.
+- The forms `map<key, value>` and `!map key, value` are not part of Nexus Flow syntax and must be rejected.
+- `ASTVarDecl.type_name` remains the existing representation; no `AST_MAP_TYPE` node or OIR field is introduced for this unparameterized marker.
+- Semantic will own map operation/type constraints without requiring explicit key/value type arguments in the declaration.
 
 
 ## Group/method parser-to-codec coverage — 2026-11-05
