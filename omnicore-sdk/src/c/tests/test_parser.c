@@ -1594,6 +1594,58 @@ static int test_group_method_ast(void) {
     return valid;
 }
 
+static int test_thread_block_ast(void) {
+    static const char source[] =
+        "f:main() { (worker)>{ v:value = 7; } }";
+    ParserContext* parser = parser_init_source("thread-block.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTThreadBlock* thread;
+    ASTBlock* body;
+    ASTVarDecl* value;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK || parser->error_count != 0 ||
+        !parser->ast_root || !ast_validate(parser->ast_root, NULL)) goto done;
+    function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    thread = function && function->body
+        ? (ASTThreadBlock*)((ASTBlock*)function->body)->statements : NULL;
+    body = thread && thread->body ? (ASTBlock*)thread->body : NULL;
+    value = body ? (ASTVarDecl*)body->statements : NULL;
+    if (!thread || thread->base.type != AST_THREAD_BLOCK ||
+        !thread->name || strcmp(thread->name, "worker") != 0 ||
+        !body || body->base.type != AST_BLOCK ||
+        !value || value->base.type != AST_VAR_DECL ||
+        !value->name || strcmp(value->name, "value") != 0 ||
+        !value->initializer || value->initializer->type != AST_LITERAL ||
+        thread->mode != NULL || thread->timeout != NULL ||
+        !thread->base.source_span.has_location ||
+        thread->base.source_span.end_offset <= thread->base.source_span.start_offset)
+        goto done;
+    stream = tmpfile();
+    if (!stream || !ast_serialize(parser->ast_root, stream) ||
+        fseek(stream, 0L, SEEK_SET) != 0) goto done;
+    decoded = ast_deserialize(stream);
+    if (!decoded || !ast_validate(decoded, NULL)) goto done;
+    function = (ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+    thread = function && function->body
+        ? (ASTThreadBlock*)((ASTBlock*)function->body)->statements : NULL;
+    body = thread && thread->body ? (ASTBlock*)thread->body : NULL;
+    value = body ? (ASTVarDecl*)body->statements : NULL;
+    valid = thread && thread->base.type == AST_THREAD_BLOCK &&
+        thread->name && strcmp(thread->name, "worker") == 0 &&
+        body && value && value->name && strcmp(value->name, "value") == 0 &&
+        thread->mode == NULL && thread->timeout == NULL;
+done:
+    if (!valid) fprintf(stderr, "Thread-block AST parser/codec ownership test failed.\\n");
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    return valid;
+}
+
 static int test_intrinsic_ast_family(void) {
     static const char* sources[] = {
         "f:main() { v:n = len(items); }",
@@ -1661,6 +1713,7 @@ int main(int argc, char** argv) {
     if (!test_must_scope_rejected()) return 1;
     if (!test_intrinsic_ast_family()) return 1;
     if (!test_group_method_ast()) return 1;
+    if (!test_thread_block_ast()) return 1;
     if (!test_ast_create_rejects_invalid_node_kinds()) {
         fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\\n");
         return 1;
