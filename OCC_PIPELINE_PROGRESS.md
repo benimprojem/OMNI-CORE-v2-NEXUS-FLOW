@@ -606,3 +606,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - `docs/AST_REPRESENTATION_GAPS.md` now records that dotted/path-qualified `use` syntax and function array-return syntax are not currently defined by the normative syntax reference. Parser behavior will not be extended by guesswork.
 - Array return support remains blocked on canonical type-expression/return-declarator design and AST/codec/OIR schema; existing `AST_ARRAY_TYPE` support for declarations/parameters is not sufficient proof of return support.
 - Intrinsic fixture commits 6bd99510 and 6164f535 are being validated. Run 41984394345 has Ubuntu, Windows, macOS and ASan/UBSan green; Valgrind is still running. Run 41984448985 has Ubuntu, macOS and ASan/UBSan green; Windows and Valgrind are still running.
+
+
+## Intrinsic + MUST scope validation — 2026-11-05
+
+- Intrinsic AST fixtures isolated per expression and verified: commit 6164f535, Actions run 41984448985 successful across Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- `sizeof` fixture uses a normal expression operand; each intrinsic is parsed independently and checked against its AST node kind plus whole-graph validation.
+- Added a negative parser test that rejects `m:` MUST declarations inside function/block scope, matching the normative program-scope-only rule: commit 543d21bf. Existing positive MUST AST/codec fixture remains intact.
+- CI for the MUST negative test is pending; AST remains open.
