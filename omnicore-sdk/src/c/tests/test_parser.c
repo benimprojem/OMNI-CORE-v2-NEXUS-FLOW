@@ -267,7 +267,7 @@ static int test_aggregate_declaration_ast(void) {
                 !d->fields->next->source_span.has_location ||
                 d->fields->next->source_span.start_offset != (uint64_t)(field_y - source) ||
                 d->fields->next->source_span.end_offset != (uint64_t)(field_y + 7 - source)) {
-                fprintf(stderr, "struct spans root=%llu..%llu expected=%llu..%llu field1=%llu..%llu expected=%llu..%llu field2=%llu..%llu expected=%llu..%llu\\n",
+                fprintf(stderr, "struct spans root=%llu..%llu expected=%llu..%llu field1=%llu..%llu expected=%llu..%llu field2=%llu..%llu expected=%llu..%llu\n",
                     (unsigned long long)d->base.source_span.start_offset,
                     (unsigned long long)d->base.source_span.end_offset,
                     (unsigned long long)(struct_start-source),
@@ -289,7 +289,7 @@ static int test_aggregate_declaration_ast(void) {
                 !d->base.source_span.has_location ||
                 d->base.source_span.start_offset != (uint64_t)(newtype_start - source) ||
                 d->base.source_span.end_offset != (uint64_t)(newtype_end + 4 - source)) {
-                fprintf(stderr, "newtype span=%llu..%llu expected=%llu..%llu\\n",
+                fprintf(stderr, "newtype span=%llu..%llu expected=%llu..%llu\n",
                     (unsigned long long)d->base.source_span.start_offset,
                     (unsigned long long)d->base.source_span.end_offset,
                     (unsigned long long)(newtype_start-source),
@@ -304,7 +304,7 @@ static int test_aggregate_declaration_ast(void) {
             if (!d->name || !d->variants || !d->base.source_span.has_location ||
                 d->base.source_span.start_offset != (uint64_t)(enum_start - source) ||
                 d->base.source_span.end_offset != (uint64_t)(enum_close + 1 - source)) {
-                fprintf(stderr, "enum root span=%llu..%llu expected=%llu..%llu\\n",
+                fprintf(stderr, "enum root span=%llu..%llu expected=%llu..%llu\n",
                     (unsigned long long)d->base.source_span.start_offset,
                     (unsigned long long)d->base.source_span.end_offset,
                     (unsigned long long)(enum_start-source),
@@ -322,7 +322,7 @@ static int test_aggregate_declaration_ast(void) {
                 !((ASTEnumVariant*)v->base.next)->data->source_span.has_location ||
                 ((ASTEnumVariant*)v->base.next)->data->source_span.start_offset != (uint64_t)(enum_data - source) ||
                 ((ASTEnumVariant*)v->base.next)->data->source_span.end_offset != (uint64_t)(enum_data + 7 - source)) {
-                fprintf(stderr, "enum variants idle=%llu..%llu running=%llu..%llu data=%llu..%llu\\n",
+                fprintf(stderr, "enum variants idle=%llu..%llu running=%llu..%llu data=%llu..%llu\n",
                     (unsigned long long)v->base.source_span.start_offset,
                     (unsigned long long)v->base.source_span.end_offset,
                     (unsigned long long)v->base.next->source_span.start_offset,
@@ -339,7 +339,7 @@ static int test_aggregate_declaration_ast(void) {
                 !d->fields->source_span.has_location ||
                 d->fields->source_span.start_offset != (uint64_t)(union_field - source) ||
                 d->fields->source_span.end_offset != (uint64_t)(union_field + 10 - source)) {
-                fprintf(stderr, "union span root=%llu..%llu field=%llu..%llu expected=%llu..%llu\\n",
+                fprintf(stderr, "union span root=%llu..%llu field=%llu..%llu expected=%llu..%llu\n",
                     (unsigned long long)d->base.source_span.start_offset,
                     (unsigned long long)d->base.source_span.end_offset,
                     (unsigned long long)d->fields->source_span.start_offset,
@@ -618,7 +618,7 @@ static int test_parser_allocation_failure_injection(void) {
             break;
         } else {
             fprintf(stderr,
-                "OOM injection mismatch at allocation %zu (observed %zu, status %d, result %d).\\n",
+                "OOM injection mismatch at allocation %zu (observed %zu, status %d, result %d).\n",
                 fail_at, ctx->test_allocation_count, (int)status, result);
             parser_destroy(ctx);
             return 0;
@@ -915,7 +915,7 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
     int rules=0, apply=0, on_block=0, lambda=0, lambda_block=0, unroll=0, relocate=0, rolling=0;
     int ok=0;
     if(!ctx)return 0;
-    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) { Error* e; fprintf(stderr,"feature parser status=%d errors=%d\\n",(int)parser_get_status(ctx),ctx->error_count); for(e=ctx->error_head;e;e=e->next) fprintf(stderr,"  %d:%d %s\\n",e->line,e->col,e->message?e->message:""); goto done; }
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) { Error* e; fprintf(stderr,"feature parser status=%d errors=%d\n",(int)parser_get_status(ctx),ctx->error_count); for(e=ctx->error_head;e;e=e->next) fprintf(stderr,"  %d:%d %s\n",e->line,e->col,e->message?e->message:""); goto done; }
     function=(ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if(!function || function->base.type!=AST_FUNC_DECL ||
        !function->body || function->body->type!=AST_BLOCK)goto done;
@@ -986,7 +986,7 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
         }
     }
     ok=rules && apply && on_block && lambda && lambda_block && unroll && relocate && rolling;
-    if(!ok)fprintf(stderr,"feature AST flags rules=%d apply=%d on=%d lambda=%d lambda_block=%d unroll=%d relocate=%d rolling=%d\\n",rules,apply,on_block,lambda,lambda_block,unroll,relocate,rolling);
+    if(!ok)fprintf(stderr,"feature AST flags rules=%d apply=%d on=%d lambda=%d lambda_block=%d unroll=%d relocate=%d rolling=%d\n",rules,apply,on_block,lambda,lambda_block,unroll,relocate,rolling);
     if(ok) {
         FILE* stream=tmpfile();
         ASTNode* decoded=NULL;
@@ -1015,9 +1015,9 @@ static int test_array_literal_ast(void) {
     if(!ctx)return 0;
     if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) {
         Error* error;
-        fprintf(stderr,"array literal parser status=%d errors=%d\\n",(int)parser_get_status(ctx),ctx->error_count);
+        fprintf(stderr,"array literal parser status=%d errors=%d\n",(int)parser_get_status(ctx),ctx->error_count);
         for(error=ctx->error_head;error;error=error->next)
-            fprintf(stderr,"  %d:%d %s\\n",error->line,error->col,error->message?error->message:"");
+            fprintf(stderr,"  %d:%d %s\n",error->line,error->col,error->message?error->message:"");
         goto done;
     }
     function=(ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
@@ -1038,7 +1038,7 @@ static int test_array_literal_ast(void) {
                !((ASTArrayLiteral*)v->initializer)->elements) empty=1;
         }
     }
-    if(!matrix || !empty) fprintf(stderr,"array AST flags matrix=%d empty=%d\\n",matrix,empty);
+    if(!matrix || !empty) fprintf(stderr,"array AST flags matrix=%d empty=%d\n",matrix,empty);
     if(matrix && empty) {
         FILE* stream=tmpfile();
         ASTNode* decoded=NULL;
@@ -1048,7 +1048,7 @@ static int test_array_literal_ast(void) {
         ok=ok && parser_source_reports_syntax_error(
             "array-missing-close.nxf", "f:main() { v:a = [1, 2; }",
             sizeof("f:main() { v:a = [1, 2; }")-1u);
-        if(!ok) fprintf(stderr,"array AST binary roundtrip failed decoded=%p\\n",(void*)decoded);
+        if(!ok) fprintf(stderr,"array AST binary roundtrip failed decoded=%p\n",(void*)decoded);
         if(decoded)ast_destroy(decoded);
         if(stream)fclose(stream);
     }
@@ -1173,7 +1173,7 @@ static int test_function_array_return_ast(void) {
         if(decoded) ast_destroy(decoded); if(stream) fclose(stream);
     }
 done:
-    if(!ok) { Error* e; fprintf(stderr,"function array return test stage=%d status=%d errors=%d\\n",stage,(int)parser_get_status(ctx),ctx->error_count); for(e=ctx->error_head;e;e=e->next) fprintf(stderr,"  %d:%d %s\\n",e->line,e->col,e->message?e->message:"(null)"); }
+    if(!ok) { Error* e; fprintf(stderr,"function array return test stage=%d status=%d errors=%d\n",stage,(int)parser_get_status(ctx),ctx->error_count); for(e=ctx->error_head;e;e=e->next) fprintf(stderr,"  %d:%d %s\n",e->line,e->col,e->message?e->message:"(null)"); }
     parser_destroy(ctx);
     return ok;
 }
@@ -1630,7 +1630,7 @@ done:
         ((ASTBlock*)((ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations)->body)->statements->type==AST_FUNC_CALL;
     parser_destroy(parser);
     if(!valid) {
-        fprintf(stderr,"asmcall generic AST_FUNC_CALL parsing failed.\\n");
+        fprintf(stderr,"asmcall generic AST_FUNC_CALL parsing failed.\n");
         return 0;
     }
     parser=parser_init_source("asm-outside-fast-exec.nxf",
@@ -1639,7 +1639,7 @@ done:
     (void)parser_run(parser);
     valid=parser->error_count>0;
     parser_destroy(parser);
-    if(!valid) fprintf(stderr,"ASM outside FASTEXEC was not diagnosed.\\n");
+    if(!valid) fprintf(stderr,"ASM outside FASTEXEC was not diagnosed.\n");
     return valid;
 }
 
@@ -1760,7 +1760,7 @@ static int test_group_method_ast(void) {
     if (decoded) ast_destroy(decoded);
     if (stream) fclose(stream);
     parser_destroy(parser);
-    if (!valid) fprintf(stderr, "Group method AST parser/codec ownership test failed.\\n");
+    if (!valid) fprintf(stderr, "Group method AST parser/codec ownership test failed.\n");
     return valid;
 }
 
@@ -1809,7 +1809,7 @@ static int test_thread_block_ast(void) {
         body && value && value->name && strcmp(value->name, "value") == 0 &&
         thread->mode == NULL && thread->timeout == NULL;
 done:
-    if (!valid) fprintf(stderr, "Thread-block AST parser/codec ownership test failed.\\n");
+    if (!valid) fprintf(stderr, "Thread-block AST parser/codec ownership test failed.\n");
     if (decoded) ast_destroy(decoded);
     if (stream) fclose(stream);
     parser_destroy(parser);
@@ -1842,7 +1842,7 @@ static int test_spawn_is_outside_core_parser(void) {
     valid = valid && saw_boundary_diagnostic;
     parser_destroy(parser);
     occ_diagnostics_destroy(&diagnostics);
-    if (!valid) fprintf(stderr, "Core Parser accepted spawn or omitted the Thread-module boundary diagnostic.\\n");
+    if (!valid) fprintf(stderr, "Core Parser accepted spawn or omitted the Thread-module boundary diagnostic.\n");
     return valid;
 }
 
@@ -1882,7 +1882,7 @@ static int test_intrinsic_ast_family(void) {
         }
         parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Intrinsic AST mapping failed at index %lu.\\n",
+            fprintf(stderr, "Intrinsic AST mapping failed at index %lu.\n",
                 (unsigned long)i);
             return 0;
         }
@@ -1917,7 +1917,7 @@ static int test_must_top_level_ast(void) {
             function->name && strcmp(function->name, "main") == 0;
     }
     parser_destroy(parser);
-    if (!valid) fprintf(stderr, "Top-level MUST declaration AST contract failed.\\n");
+    if (!valid) fprintf(stderr, "Top-level MUST declaration AST contract failed.\n");
     return valid;
 }
 
@@ -1934,7 +1934,7 @@ static int test_must_scope_rejected(void) {
         parser_get_status(parser) == PARSER_STATUS_SYNTAX_ERROR &&
         parser->error_count > 0;
     parser_destroy(parser);
-    if (!valid) fprintf(stderr, "MUST block-scope rejection test failed.\\n");
+    if (!valid) fprintf(stderr, "MUST block-scope rejection test failed.\n");
     return valid;
 }
 
@@ -1948,53 +1948,53 @@ int main(int argc, char** argv) {
     if (!test_group_method_ast()) return 1;
     if (!test_thread_block_ast()) return 1;
     if (!test_ast_create_rejects_invalid_node_kinds()) {
-        fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\\n");
+        fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\n");
         return 1;
     }
     if (!test_array_type_declarators()) { fprintf(stderr, "Array type declarator parser/codec test failed.\n"); return 1; }
-    if (!test_function_array_return_ast()) { fprintf(stderr, "Function array-return parser/codec test failed.\\n"); return 1; }
+    if (!test_function_array_return_ast()) { fprintf(stderr, "Function array-return parser/codec test failed.\n"); return 1; }
     if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
-    if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\\n"); return 1; }
+    if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\n"); return 1; }
     if (!test_extern_echo_and_listen_keywords()) { fprintf(stderr, "extern/echo/listen keyword parser test failed.\n"); return 1; }
     if (!test_modulo_expression_ast()) { fprintf(stderr, "Modulo expression/array extent parser test failed.\n"); return 1; }
     if (!test_expression_precedence_and_associativity_ast()) { fprintf(stderr, "Logical operator precedence parser test failed.\n"); return 1; }
 
     if (!test_array_literal_ast()) { fprintf(stderr, "Array literal parser/codec test failed.\n"); return 1; }
     if (!test_retry_metadata_rejects_overflow()) {
-        fprintf(stderr, "Rolling retry count overflow was not rejected.\\n");
+        fprintf(stderr, "Rolling retry count overflow was not rejected.\n");
         return 1;
     }
     if (!test_rules_lambda_relocate_unroll_ast()) {
-        fprintf(stderr, "Rules/lambda/relocate/unroll AST parser test failed.\\n");
+        fprintf(stderr, "Rules/lambda/relocate/unroll AST parser test failed.\n");
         return 1;
     }
-    if (!test_select_scan_ast()) { fprintf(stderr, "select/scan AST parser and codec test failed.\\n"); return 1; }
+    if (!test_select_scan_ast()) { fprintf(stderr, "select/scan AST parser and codec test failed.\n"); return 1; }
     if (!test_structured_if_elsif_els_ast()) {
-        fprintf(stderr, "Structured if/elsif/els parser test failed.\\n");
+        fprintf(stderr, "Structured if/elsif/els parser test failed.\n");
         return 1;
     }
     if (!test_conditional_action_arrow_disambiguation()) {
-        fprintf(stderr, "Conditional action arrow was confused with a Nexus pipe.\\n");
+        fprintf(stderr, "Conditional action arrow was confused with a Nexus pipe.\n");
         return 1;
     }
     if (!test_parser_rejects_excessive_expression_nesting()) {
-        fprintf(stderr, "Parser did not safely reject excessive expression nesting.\\n");
+        fprintf(stderr, "Parser did not safely reject excessive expression nesting.\n");
         return 1;
     }
     if (!test_parser_rejects_excessive_operator_chain()) {
-        fprintf(stderr, "Parser did not safely reject an excessive operator chain.\\n");
+        fprintf(stderr, "Parser did not safely reject an excessive operator chain.\n");
         return 1;
     }
     if (!test_parser_bounds_recursive_expression_forms()) {
-        fprintf(stderr, "Parser did not bound recursive unary/assignment/postfix forms.\\n");
+        fprintf(stderr, "Parser did not bound recursive unary/assignment/postfix forms.\n");
         return 1;
     }
     if (!test_parser_context_initialization()) {
-        fprintf(stderr, "Parser context initialization/early destruction test failed.\\n");
+        fprintf(stderr, "Parser context initialization/early destruction test failed.\n");
         return 1;
     }
     if (!test_function_parameter_type_separator_forms()) {
-        fprintf(stderr, "Function parameter type separator forms were not parsed consistently.\\n");
+        fprintf(stderr, "Function parameter type separator forms were not parsed consistently.\n");
         return 1;
     }
     if (!test_cast_and_panic_ast()) {
@@ -2014,15 +2014,15 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!test_parser_nested_block_recovery()) {
-        fprintf(stderr, "Parser did not recover inside a nested block and preserve following statements.\\n");
+        fprintf(stderr, "Parser did not recover inside a nested block and preserve following statements.\n");
         return 1;
     }
     if (!test_parser_malformed_function_recovery()) {
-        fprintf(stderr, "Parser did not recover after a malformed function declaration.\\n");
+        fprintf(stderr, "Parser did not recover after a malformed function declaration.\n");
         return 1;
     }
     if (!test_parser_preserves_lexer_errors_during_recovery()) {
-        fprintf(stderr, "Lexer diagnostics were lost during parser panic-mode recovery.\\n");
+        fprintf(stderr, "Lexer diagnostics were lost during parser panic-mode recovery.\n");
         return 1;
     }
     if (!test_parser_allocation_failure_injection()) {
@@ -2162,7 +2162,7 @@ int main(int argc, char** argv) {
         parser_destroy(failed_lexer);
         occ_diagnostics_destroy(&failed_diagnostics);
         if (!failed_ok) {
-            fprintf(stderr, "Lexer diagnostic allocation failure was not propagated as OOM.\\n");
+            fprintf(stderr, "Lexer diagnostic allocation failure was not propagated as OOM.\n");
             return 1;
         }
     }
@@ -2192,7 +2192,7 @@ int main(int argc, char** argv) {
         if (parser_attach_token_stream(token_parser, invalid_tokens, 2u)) {
             parser_destroy(token_parser);
             occ_diagnostics_destroy(&token_diagnostics);
-            fprintf(stderr, "Malformed token source span was accepted.\\n");
+            fprintf(stderr, "Malformed token source span was accepted.\n");
             return 1;
         }
         if (!parser_attach_token_stream(token_parser, tokens, 2u)) {
@@ -2206,7 +2206,7 @@ int main(int argc, char** argv) {
         parser_destroy(token_parser);
         occ_diagnostics_destroy(&token_diagnostics);
         if (!token_ok) {
-            fprintf(stderr, "Invalid token diagnostic reference suppressed a lexer error.\\n");
+            fprintf(stderr, "Invalid token diagnostic reference suppressed a lexer error.\n");
             return 1;
         }
     }
@@ -2224,7 +2224,7 @@ int main(int argc, char** argv) {
         rejected = !parser_attach_token_stream(text_parser, tokens, 2u);
         parser_destroy(text_parser);
         if (!rejected) {
-            fprintf(stderr, "Token text that differs from its source span was accepted.\\n");
+            fprintf(stderr, "Token text that differs from its source span was accepted.\n");
             return 1;
         }
     }
@@ -2252,7 +2252,7 @@ int main(int argc, char** argv) {
             parser_destroy(limited_parser);
             occ_diagnostics_destroy(&limited);
             if (!limit_ok) {
-                fprintf(stderr, "Parser diagnostic budget exhaustion was not reported distinctly.\\n");
+                fprintf(stderr, "Parser diagnostic budget exhaustion was not reported distinctly.\n");
                 return 1;
             }
         }
@@ -2272,7 +2272,7 @@ int main(int argc, char** argv) {
         const char* halt_offset = strstr(source, "?;");
         if (!parser || parser_run(parser) != PARSER_STATUS_OK) {
             if (parser) parser_destroy(parser);
-            fprintf(stderr, "block-scoped Halt syntax failed to parse\\n");
+            fprintf(stderr, "block-scoped Halt syntax failed to parse\n");
             return 1;
         }
         root = parser->ast_root;
@@ -2293,7 +2293,7 @@ int main(int argc, char** argv) {
             block_span->end_line != 1u ||
             block_span->end_column != sizeof(source) ||
             !ast_validate(root, NULL)) {
-            fprintf(stderr, "block-scoped Halt was not preserved as final AST child\\n");
+            fprintf(stderr, "block-scoped Halt was not preserved as final AST child\n");
             parser_destroy(parser);
             return 1;
         }
@@ -2347,7 +2347,7 @@ named_args_done:
         if (decoded) ast_destroy(decoded);
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Variadic/named argument parser or AST codec test failed.\\n");
+            fprintf(stderr, "Variadic/named argument parser or AST codec test failed.\n");
             return 1;
         }
     }
@@ -2369,7 +2369,7 @@ named_args_done:
             status = parser_run(parser);
             if (status != PARSER_STATUS_SYNTAX_ERROR ||
                 parser_get_status(parser) != PARSER_STATUS_SYNTAX_ERROR) {
-                fprintf(stderr, "Invalid named-argument form was accepted: %s\\n",
+                fprintf(stderr, "Invalid named-argument form was accepted: %s\n",
                     invalid_sources[index]);
                 parser_destroy(parser);
                 return 1;
@@ -2392,10 +2392,10 @@ named_args_done:
         {
             int parse_status = parser_run(parser);
             if (parse_status != PARSER_STATUS_OK || !parser->ast_root) {
-                fprintf(stderr, "MUST parse status=%d errors=%d\\n",
+                fprintf(stderr, "MUST parse status=%d errors=%d\n",
                     parse_status, parser->error_count);
                 if (parser->error_head && parser->error_head->message)
-                    fprintf(stderr, "MUST parser diagnostic: %s\\n",
+                    fprintf(stderr, "MUST parser diagnostic: %s\n",
                         parser->error_head->message);
                 goto must_dependency_done;
             }
@@ -2403,7 +2403,7 @@ named_args_done:
         {
             ASTValidationError validation;
             if (!ast_validate(parser->ast_root, &validation)) {
-                fprintf(stderr, "MUST AST validation failed: code=%d field=%s\\n",
+                fprintf(stderr, "MUST AST validation failed: code=%d field=%s\n",
                     (int)validation.code, validation.field ? validation.field : "<none>");
                 goto must_dependency_done;
             }
@@ -2433,7 +2433,7 @@ must_dependency_done:
         if (decoded) ast_destroy(decoded);
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "MUST dependency parser/AST codec test failed.\\n");
+            fprintf(stderr, "MUST dependency parser/AST codec test failed.\n");
             return 1;
         }
     }
@@ -2474,7 +2474,7 @@ generic_type_done:
         if (decoded) ast_destroy(decoded);
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Generic type-variable signature preservation test failed.\\n");
+            fprintf(stderr, "Generic type-variable signature preservation test failed.\n");
             return 1;
         }
     }
@@ -2514,7 +2514,7 @@ generic_type_done:
         occ_diagnostics_destroy(&diagnostics);
         occ_source_files_destroy(&files);
         if (!valid) {
-            fprintf(stderr, "Parser diagnostic source identity test failed.\\n");
+            fprintf(stderr, "Parser diagnostic source identity test failed.\n");
             return 1;
         }
     }
@@ -2611,7 +2611,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         occ_source_files_destroy(&files);
         if (!valid) {
-            fprintf(stderr, "Parser leaf AST source-span test failed.\\n");
+            fprintf(stderr, "Parser leaf AST source-span test failed.\n");
             return 1;
         }
     }
@@ -2644,7 +2644,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Unary expression source-span test failed.\\n");
+            fprintf(stderr, "Unary expression source-span test failed.\n");
             return 1;
         }
     }
@@ -2703,7 +2703,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Postfix/call source-span test failed.\\n");
+            fprintf(stderr, "Postfix/call source-span test failed.\n");
             return 1;
         }
     }
@@ -2736,7 +2736,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Conditional AST source-span test failed.\\n");
+            fprintf(stderr, "Conditional AST source-span test failed.\n");
             return 1;
         }
     }
@@ -2780,7 +2780,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Array/loop AST source-span test failed.\\n");
+            fprintf(stderr, "Array/loop AST source-span test failed.\n");
             return 1;
         }
     }
@@ -2812,7 +2812,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Nexus Flow AST source-span test failed.\\n");
+            fprintf(stderr, "Nexus Flow AST source-span test failed.\n");
             return 1;
         }
     }
@@ -2858,7 +2858,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Select AST source-span test failed.\\n");
+            fprintf(stderr, "Select AST source-span test failed.\n");
             return 1;
         }
     }
@@ -2900,7 +2900,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Array type/dimension source-span test failed.\\n");
+            fprintf(stderr, "Array type/dimension source-span test failed.\n");
             return 1;
         }
     }
@@ -2940,7 +2940,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Nexus jump source-span test failed.\\n");
+            fprintf(stderr, "Nexus jump source-span test failed.\n");
             return 1;
         }
     }
@@ -2971,7 +2971,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Tuple AST source-span test failed.\\n");
+            fprintf(stderr, "Tuple AST source-span test failed.\n");
             return 1;
         }
     }
@@ -3004,7 +3004,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Thread block AST source-span test failed.\\n");
+            fprintf(stderr, "Thread block AST source-span test failed.\n");
             return 1;
         }
     }
@@ -3036,7 +3036,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "UTF-8 byte source-span test failed.\\n");
+            fprintf(stderr, "UTF-8 byte source-span test failed.\n");
             return 1;
         }
     }
@@ -3081,7 +3081,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Multiline AST source-span test failed.\\n");
+            fprintf(stderr, "Multiline AST source-span test failed.\n");
             return 1;
         }
     }
@@ -3109,7 +3109,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Nexus capture source-span test failed.\\n");
+            fprintf(stderr, "Nexus capture source-span test failed.\n");
             return 1;
         }
     }
@@ -3141,7 +3141,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Function parameter source-span test failed.\\n");
+            fprintf(stderr, "Function parameter source-span test failed.\n");
             return 1;
         }
     }
@@ -3174,7 +3174,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Expression lambda source-span test failed.\\n");
+            fprintf(stderr, "Expression lambda source-span test failed.\n");
             return 1;
         }
     }
@@ -3207,7 +3207,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Block lambda source-span test failed.\\n");
+            fprintf(stderr, "Block lambda source-span test failed.\n");
             return 1;
         }
     }
@@ -3235,7 +3235,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Nexus label source-span test failed.\\n");
+            fprintf(stderr, "Nexus label source-span test failed.\n");
             return 1;
         }
     }
@@ -3268,7 +3268,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Group AST source-span test failed.\\n");
+            fprintf(stderr, "Group AST source-span test failed.\n");
             return 1;
         }
     }
@@ -3294,7 +3294,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Targetless Halt source-span test failed.\\n");
+            fprintf(stderr, "Targetless Halt source-span test failed.\n");
             return 1;
         }
     }
@@ -3333,7 +3333,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Inline newtype aggregate source-span test failed.\\n");
+            fprintf(stderr, "Inline newtype aggregate source-span test failed.\n");
             return 1;
         }
     }
@@ -3371,7 +3371,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "asmcall/asmjmp AST source-span test failed.\\n");
+            fprintf(stderr, "asmcall/asmjmp AST source-span test failed.\n");
             return 1;
         }
     }
@@ -3413,7 +3413,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "use alias/defer AST ownership test failed.\\n");
+            fprintf(stderr, "use alias/defer AST ownership test failed.\n");
             return 1;
         }
     }
@@ -3421,7 +3421,7 @@ generic_type_done:
     /* Map is an ordinary parameter type; explicit hard typing remains compatible. */
     {
         static const char source[] =
-            "f:main() { v:notlar!map; }\\n"
+            "f:main() { v:notlar!map; }\n"
             "f:consume(items:map, legacy!map) { ret; }";
         static const char legacy_source[] =
             "f:main() { v:notlar!map str, i32; }";
@@ -3475,7 +3475,7 @@ generic_type_done:
         if (legacy_parser) parser_destroy(legacy_parser);
         if (generic_parser) parser_destroy(generic_parser);
         if (!valid || !legacy_rejected || !generic_not_yet_supported) {
-            fprintf(stderr, "Map ordinary/hard parameter AST or pending generic syntax test failed.\\n");
+            fprintf(stderr, "Map ordinary/hard parameter AST or pending generic syntax test failed.\n");
             return 1;
         }
     }
@@ -3503,7 +3503,7 @@ generic_type_done:
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Default parameter AST test failed.\\n");
+            fprintf(stderr, "Default parameter AST test failed.\n");
             return 1;
         }
     }
