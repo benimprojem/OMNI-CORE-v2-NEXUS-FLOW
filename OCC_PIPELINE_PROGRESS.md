@@ -1,6 +1,6 @@
 # OCC Pipeline İlerleme Kaydı
 
-**Tarih:** 2026-11-04  
+**Tarih:** 2026-11-05  
 **Çalışma dalı:** `refactor/c-core-roadmap`  
 **Kaynak depo:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Belge amacı:** Lexer'dan Codegen'e kadar her Nexus Flow yapısının gerçek uygulama ve test durumunu tek tabloda izlemek.
@@ -684,3 +684,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Normative map example `map str, i32` is not represented as key/value children; the variable parser currently consumes only `map` as an opaque type name. `!map` parameter shorthand also needs an explicit typed contract.
 - Pointer/ref markers `*`, `**`, `&` lack concrete declarator examples and ownership/lifetime composition rules. No parser or AST change is made from ambiguous placement assumptions.
 - The detailed evidence and design gate are recorded in `docs/AST_REPRESENTATION_GAPS.md`. Next step is a grammar/type-expression audit; only after that should an append-only unified type payload and OIR mapping be designed. AST and Codegen gates remain open.
+
+
+## Function array-return integration — latest CI confirmation — 2026-11-05
+
+- Current branch CI run `42011297161` (commit `1196820a3bcb`) completed successfully across all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- The integrated regression covers Parser forms `!i32[]`, `!i32[n]`, `!f32[m][n]`; the OIR AST payload round-trip preserves the named extent for `!i32[n]` and canonical re-encoding remains byte-identical.
+- AST stream v1 compatibility is explicitly exercised by `reads_v1_function_stream_without_v2_return_child()`; the v2-only optional function child is absent in the synthesized v1 fixture and the decoded function validates.
+- This closes the function array-return parser/AST/codec/OIR bridge subtask. AST model/parser inventory and Semantic coverage remain open; no Codegen gate is opened.
