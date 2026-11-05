@@ -1401,16 +1401,23 @@ static int test_expression_precedence_and_associativity_ast(void) {
         ((ASTBinaryExpr*)expression)->right->type != AST_LITERAL) goto done;
 
     {
-        static const char chained_range_source[] =
-            "f:main() { v:bad = 1..2..3; }";
-        ParserContext* chained_range = parser_init_source(
-            "chained-range.nxf", (const uint8_t*)chained_range_source,
-            sizeof(chained_range_source) - 1u);
-        int rejected = chained_range &&
-            (parser_run(chained_range) != PARSER_STATUS_OK ||
-             chained_range->error_count != 0);
-        if (chained_range) parser_destroy(chained_range);
-        if (!rejected) goto done;
+        static const char* invalid_ranges[] = {
+            "f:main() { v:bad = 1..2..3; }",
+            "f:main() { v:bad = 1..(2..3); }"
+        };
+        size_t invalid_index;
+        for (invalid_index = 0;
+             invalid_index < sizeof(invalid_ranges) / sizeof(invalid_ranges[0]);
+             ++invalid_index) {
+            ParserContext* chained_range = parser_init_source(
+                "chained-range.nxf", (const uint8_t*)invalid_ranges[invalid_index],
+                strlen(invalid_ranges[invalid_index]));
+            int rejected = chained_range &&
+                (parser_run(chained_range) != PARSER_STATUS_OK ||
+                 chained_range->error_count != 0);
+            if (chained_range) parser_destroy(chained_range);
+            if (!rejected) goto done;
+        }
     }
 
     stream = tmpfile();
