@@ -83,3 +83,16 @@ This model must not break current `ASTVarDecl.type_name` consumers abruptly. A m
 - The C Parser contains a legacy/special `(name)>{ ... }` thread-block production and ASTThreadBlock payload fields for `name`, `mode`, `timeout`, and `body`; current parser construction populates `name` and `body`, while `mode` and `timeout` remain NULL.
 - The normative `docs/language/syntax-reference.md` currently discusses thread handoff conceptually but does not define the thread-block production, its scheduling/mode grammar, timeout units, or ownership/capture semantics.
 - Keep existing parser compatibility and span tests, but do not expand mode/timeout syntax or claim the thread AST contract complete until the normative syntax reference defines these fields and their semantic meaning.
+
+
+## Thread-block intent clarification — 2026-11-05
+
+The intended model is clarified by the project owner: `(thread_block_name)>{ ... }` declares a **code template/body for a thread execution context**, not code that runs inline in the declaring application flow. A call such as `spawn(thread_block_name, addr(nexus)), async, 100);` refers to that named block and requests its execution in a separate thread context; the block body is the payload executed there.
+
+This separates three concepts that must not be conflated in AST/Semantic work:
+
+- **Thread block declaration/body:** named, separately represented executable code; declaration alone must not imply inline execution.
+- **Spawn invocation:** references the declared thread block and supplies execution/context arguments (including the address/endpoint expression and async/timeout-like arguments shown in the example).
+- **Runtime scheduling and transfer contract:** how the context/address is captured, what `async` means, timeout units/behavior, ownership/lifetime, error propagation, and whether/how a spawned task is joined remain unspecified and require normative decisions.
+
+The existing `AST_THREAD_BLOCK` (name/body/mode/timeout) can preserve the declaration shape, but current Parser only fills name/body. The spawn call currently parses through the generic intrinsic-call path and does not establish a dedicated typed link to a thread declaration. Do not infer runtime behavior from the current AST alone. Next work should first encode this declaration-vs-spawn distinction in the syntax reference and AST/parser tests, then define semantic symbol resolution and execution metadata without prematurely implementing scheduling.
