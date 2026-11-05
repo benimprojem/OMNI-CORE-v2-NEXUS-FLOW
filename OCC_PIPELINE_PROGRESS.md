@@ -741,3 +741,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - `test_expression_precedence_and_associativity_ast()` now asserts `a && b | c`, `a | b && c`, `a < b | c`, and `a | b < c` produce the expected AND/LT roots and OR children; it also asserts left associativity for subtraction, division, comparison and equality.
 - Intermediate runs `42033412161` (`564dddb74889`) and `42033446920` (`26f1968a17c2`) failed: logical precedence, AST↔OIR round-trip and an extended parser semantic-scope fixture regressed during the tier reordering. Log inspection showed the comparison RHS still called `parse_range()`, while logical AND had a temporary mismatched operand tier. The final correction in `b2446b1e3725` makes comparison operands use `parse_bitwise_or()` and logical-AND operands use `parse_range()`. CI run `42033487422` on `b2446b1e3725` passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. The associativity extensions in `504444879e9d` were then validated by CI run `42033941328`, also passing all five jobs; Ubuntu and Valgrind each report 60/60 tests, zero failures.
 - Remaining expression audit: associativity at each binary tier, chained comparison policy, and range/flow operator disambiguation.
+
+
+## Binary operator associativity expansion — 2026-11-05
+
+- Extended `test_expression_precedence_and_associativity_ast()` to assert left-nested AST shape for bitwise OR/XOR/AND and logical AND/OR chains, in addition to the existing additive, multiplicative, comparison and equality chains. Power remains covered as right-associative.
+- This is Parser/AST shape coverage only; Semantic legality of chained comparisons and runtime short-circuit execution remain separate contracts.
+- New test commit `1ca084159884` requires the full CI matrix before it is marked verified. Remaining expression ambiguity is the single-range rule and the interaction of `<<`/`>>` with Nexus Flow operators.
