@@ -648,3 +648,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Recorded the distinction and open contracts in `docs/AST_REPRESENTATION_GAPS.md` (commit 01fcfb37): declaration/body vs spawn invocation vs runtime scheduling/context/ownership/error behavior.
 - Current Parser still constructs `AST_THREAD_BLOCK` with name/body only (mode/timeout NULL); spawn is generic intrinsic-call AST. No runtime semantics or typed declaration link are implemented/claimed yet.
 - Next AST work: normative grammar + tests for thread declaration and spawn reference; then Semantic name resolution and explicit execution metadata. Scheduling, async, timeout units, context capture, lifetime, join/error semantics remain open.
+
+
+## Spawn module boundary correction — 2026-11-05
+
+- Owner clarified `spawn` is intentionally outside the core AST, in a separate thread module/language layer. No `AST_SPAWN` or core scheduling semantics should be introduced.
+- Thread/runtime specs are present: `nexus docs/NXF Runtime Threading Specification v1.0.md`, `nexus docs/Thread System Runtime — Full Formal Specification v1.0.md` (SDK copies also exist). Prior audit wording incorrectly implied the runtime specs themselves were absent; only the core syntax/AST vs module boundary needs clarification.
+- Correction recorded in `docs/AST_REPRESENTATION_GAPS.md` commit `8814173a`. Core AST work proceeds independently with function array-return support.
