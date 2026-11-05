@@ -627,3 +627,16 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Rechecked the function section of `docs/language/syntax-reference.md`: it explicitly documents `f:name(a, ...)!i32[] { ... }`. The earlier gap note that array-return syntax was unspecified was incorrect and has been corrected in `docs/AST_REPRESENTATION_GAPS.md`.
 - Parser currently consumes only the base return type token; it does not parse `[]` dimensions after the return type. This is a confirmed implementation gap.
 - Proposed compatible AST direction: retain `ASTFuncDecl.return_type` as the base-type spelling mirror and add an owned optional `AST_ARRAY_TYPE` child for return dimensions; append codec field 8 (existing function node schema has fields 1–7). Implementation still requires confirming AST destruction/validation/reader behavior and an end-to-end fixture before coding.
+
+
+## MUST scope regression test — 2026-11-05
+
+- Added `test_must_scope_rejected` for an `m:` dependency declaration inside `f:main` body; it requires `PARSER_STATUS_SYNTAX_ERROR` and a recorded diagnostic.
+- Commit 543d21bf; CI run 41984668004 successful across Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- Follow-up documentation commits (ba33bd88, eb0eba44, 15eced69, 1e062802, 48213a32, 33d95cc1) also passed their CI runs (41984692074, 41984728876, 41984743088, 41984822837, 41984842838, 41984860450).
+
+## Confirmed next AST implementation gap — function array return
+
+- Normative grammar includes `f:name(a, ...)!i32[] { ... }`; current Parser does not parse return-array suffixes.
+- Planned compatible representation: optional owned `AST_ARRAY_TYPE` child on `ASTFuncDecl`, with `return_type` retained as the base element-type compatibility string. The child owns ordered `AST_ARRAY_DIMENSION` nodes; no new AST kind is required.
+- Before implementation, update AST destroy/validation, versioned AST stream serialization (preserve v1 read compatibility), OIR frontend writer/reader optional field 8, AST graph indexing, and parser positive/negative + AST/OIR round-trip tests. This is a coordinated AST/codec change, not a parser-only patch.
