@@ -1703,10 +1703,10 @@ static ASTNode* parse_additive(Parser* p) {
 }
 
 static ASTNode* parse_range(Parser* p) {
-    ASTNode* expr = parse_equality(p);
+    ASTNode* expr = parse_logical_or(p);
     if (!expr) return NULL;
     if (match(p, TOKEN_RANGE)) {
-        ASTNode* right = parse_equality(p);
+        ASTNode* right = parse_logical_or(p);
         ASTNode* range;
         if (!right) {
             ast_destroy(expr);
@@ -1756,7 +1756,7 @@ static ASTNode* parse_bitwise_or(Parser* p) {
 
 static ASTNode* parse_logical_and(Parser* p) {
     unsigned int chain_depth = 0u;
-    ASTNode* left = parse_range(p);
+    ASTNode* left = parse_bitwise_or(p);
     if (!left) return NULL;
     while (match(p, TOKEN_AND)) {
         OmniTokenType op = p->previous.type;
@@ -1767,7 +1767,7 @@ static ASTNode* parse_logical_and(Parser* p) {
             ast_destroy(left);
             return NULL;
         }
-        right = parse_range(p);
+        right = parse_bitwise_or(p);
         if (!right) {
             ast_destroy(left);
             return NULL;
