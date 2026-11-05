@@ -47,7 +47,7 @@ Before adding `AST_MAP_TYPE`, function types, pointer/ref constructors or return
 - primitive / named / qualified type;
 - generic type parameter;
 - dynamic/fixed/multidimensional array;
-- map marker (`!map`, without key/value type arguments);
+- map type (ordinary named type `map`; optional generic key/value constraints are a separate unresolved extension);
 - pointer depth and reference;
 - function signature (ordered params, variadic marker, return type);
 - optional nominal/aggregate references.
@@ -137,12 +137,9 @@ The next type-model work is intentionally gated on canonical declarator grammar.
 - `spawn` remains a separate thread-module concern; no `AST_SPAWN` behavior or core scheduling semantics were added.
 
 
-## Canonical map declarator decision — 2026-11-05
+## Historical map spelling decision — superseded 2026-11-05
 
-- Canonical map type spelling is `!map` only. No key/value type arguments are written or parsed.
-- The forms `map<key, value>` and `!map key, value` are not part of Nexus Flow syntax and must be rejected.
-- `ASTVarDecl.type_name` remains the existing representation; no `AST_MAP_TYPE` node or OIR field is introduced for this unparameterized marker.
-- Semantic will own map operation/type constraints without requiring explicit key/value type arguments in the declaration.
+The earlier decision that `!map` was the only canonical spelling and that all parameterized forms were forbidden is superseded by the Map type spelling refinement recorded below and in `OCC_PIPELINE_PROGRESS.md`. Current direction prefers ordinary `map` typing for parameters (`a:map`), retains `a!map` compatibility, and leaves optional `map<key,value>` constraints undecided. The current Parser does not implement generic map syntax; that implementation fact is not a permanent language prohibition.
 
 
 ## Group/method parser-to-codec coverage — 2026-11-05
