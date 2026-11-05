@@ -778,3 +778,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Negative fixture confirms `1..2..3` is rejected; this enforces the syntax reference's single-range rule without adding a new AST node or precedence tier.
 - CI run `42039331167` / commit `5800afd55483` passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. Ubuntu and Valgrind each report 60/60 tests.
 - Range endpoint type validation and runtime iteration semantics remain Semantic/runtime work.
+
+
+## Numeric shift vs Nexus Flow operand grammar audit — 2026-11-05
+
+- Rechecked the normative `NEXUS FLOW OPERATÖRLERİ` formal specification and the Core Reference Guide. They define `<<` as Zone Write and `>>` as Flow Feed, and list `flow.push` / `flow.pull` as functional counterparts, but do not define concrete operator operand productions or unambiguous source examples.
+- The current Parser consumes both tokens in `parse_nexus_flow()` and stores the exact token in `AST_NEXUS_PIPE`. Since both numeric shifts and Flow forms may have identifier operands, choosing `AST_BINARY_EXPR` from identifier/literal shape would be heuristic and unsafe.
+- No parser behavior was changed. Numeric shift AST production remains blocked until the language grammar defines a syntax-level discriminator or a neutral intermediate AST contract. Existing Flow token identity and OIR mapping remain unchanged.
