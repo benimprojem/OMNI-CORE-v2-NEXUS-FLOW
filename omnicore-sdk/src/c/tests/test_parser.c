@@ -1213,7 +1213,7 @@ done:
     return ok;
 }
 
-static int test_logical_operator_precedence_ast(void) {
+static int test_expression_precedence_and_associativity_ast(void) {
     static const char source[] =
         "f:main() { v:guard = a > 0 && b > 0 || c == 1; "
         "v:bitwise_rhs = a && b | c; "
@@ -1902,7 +1902,7 @@ int main(int argc, char** argv) {
     if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\\n"); return 1; }
     if (!test_extern_echo_and_listen_keywords()) { fprintf(stderr, "extern/echo/listen keyword parser test failed.\n"); return 1; }
     if (!test_modulo_expression_ast()) { fprintf(stderr, "Modulo expression/array extent parser test failed.\n"); return 1; }
-    if (!test_logical_operator_precedence_ast()) { fprintf(stderr, "Logical operator precedence parser test failed.\n"); return 1; }
+    if (!test_expression_precedence_and_associativity_ast()) { fprintf(stderr, "Logical operator precedence parser test failed.\n"); return 1; }
 
     if (!test_array_literal_ast()) { fprintf(stderr, "Array literal parser/codec test failed.\n"); return 1; }
     if (!test_retry_metadata_rejects_overflow()) {
