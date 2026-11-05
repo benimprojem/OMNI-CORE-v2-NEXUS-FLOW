@@ -166,6 +166,16 @@ static OirStatus emit_node_ref(
     put_u32(b, id);
     return append_tlv(c, last, field_id, OIR_AST_VALUE_NODE_REF, b, 4u);
 }
+static OirStatus emit_optional_node_ref(
+    AstEmitContext* c, uint16_t* last, uint16_t field_id, const ASTNode* node
+) {
+    size_t offset = c->field_used;
+    OirStatus status = emit_node_ref(c, last, field_id, node);
+    if (status != OIR_STATUS_OK) return status;
+    if (!c->measure_only) c->field_data[offset + 3u] = OIR_AST_TLV_OPTIONAL;
+    return OIR_STATUS_OK;
+}
+
 static OirStatus emit_string(
     AstEmitContext* c, uint16_t* last, uint16_t field_id, const char* s
 ) {
