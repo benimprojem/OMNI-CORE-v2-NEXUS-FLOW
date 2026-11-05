@@ -3275,6 +3275,53 @@ generic_type_done:
         }
     }
 
+    /* Map is an unparameterized hard type: !map only. */
+    {
+        static const char source[] =
+            "f:main() { v:notlar!map; }\n"
+            "f:consume(items!map) { ret; }";
+        static const char legacy_source[] =
+            "f:main() { v:notlar!map str, i32; }";
+        ParserContext* parser = parser_init_source("map-hard-type.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        ParserContext* legacy_parser = parser_init_source("map-legacy-args.nxf",
+            (const uint8_t*)legacy_source, sizeof(legacy_source) - 1u);
+        ASTFuncDecl* main_function;
+        ASTVarDecl* map_var;
+        ASTFuncDecl* consume_function;
+        ASTVarDecl* map_param;
+        int valid = 0;
+        int legacy_rejected = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK &&
+            parser->error_count == 0 && ast_validate(parser->ast_root, NULL)) {
+            main_function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            map_var = main_function
+                ? (ASTVarDecl*)((ASTBlock*)main_function->body)->statements : NULL;
+            consume_function = main_function ? (ASTFuncDecl*)main_function->base.next : NULL;
+            map_param = consume_function ? (ASTVarDecl*)consume_function->params : NULL;
+            valid = main_function && main_function->name &&
+                strcmp(main_function->name, "main") == 0 &&
+                map_var && map_var->name && strcmp(map_var->name, "notlar") == 0 &&
+                map_var->is_hard_typed && map_var->type_name &&
+                strcmp(map_var->type_name, "map") == 0 &&
+                consume_function && consume_function->name &&
+                strcmp(consume_function->name, "consume") == 0 &&
+                map_param && map_param->name &&
+                strcmp(map_param->name, "items") == 0 &&
+                map_param->is_hard_typed && map_param->type_name &&
+                strcmp(map_param->type_name, "!map") == 0;
+        }
+        if (legacy_parser)
+            legacy_rejected = parser_run(legacy_parser) != PARSER_STATUS_OK ||
+                legacy_parser->error_count != 0;
+        if (parser) parser_destroy(parser);
+        if (legacy_parser) parser_destroy(legacy_parser);
+        if (!valid || !legacy_rejected) {
+            fprintf(stderr, "Canonical !map AST / legacy parameterized-map rejection test failed.\n");
+            return 1;
+        }
+    }
+
     /* Default parameter expressions are retained as initializer AST children. */
     {
         static const char source[] = "f:sum(a:10, b!i32)!i32 { ret a; }";
