@@ -1860,10 +1860,10 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
             V(((ASTVarDecl*)n)->initializer,"initializer"); V(((ASTVarDecl*)n)->inline_type,"inline_type"); break;
         case AST_FUNC_DECL:
             if(!ast_validation_required_text(s,n,((ASTFuncDecl*)n)->name,"name")) return 0;
-            V(((ASTFuncDecl*)n)->params,"params"); R(((ASTFuncDecl*)n)->body,"body"); break;
+            V(((ASTFuncDecl*)n)->params,"params"); R(((ASTFuncDecl*)n)->body,"body"); V(((ASTFuncDecl*)n)->return_array_type,"return_array_type"); break;
         case AST_EXTERN_DECL:
             if(!ast_validation_required_text(s,n,((ASTFuncDecl*)n)->name,"name")) return 0;
-            V(((ASTFuncDecl*)n)->params,"params"); V(((ASTFuncDecl*)n)->body,"body"); break;
+            V(((ASTFuncDecl*)n)->params,"params"); V(((ASTFuncDecl*)n)->body,"body"); V(((ASTFuncDecl*)n)->return_array_type,"return_array_type"); break;
         case AST_STRUCT_DECL: case AST_UNION_DECL:
             if(!ast_validation_required_text(s,n,((ASTStructDecl*)n)->name,"name")) return 0;
             V(((ASTStructDecl*)n)->fields,"fields"); break;
@@ -1971,7 +1971,6 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_ARRAY_LITERAL: V(((ASTArrayLiteral*)n)->elements,"elements"); break;
         case AST_ARRAY_TYPE: V(((ASTArrayType*)n)->dimensions,"dimensions"); break;
         case AST_ARRAY_DIMENSION: V(((ASTArrayDimension*)n)->length,"length"); break;
-        case AST_FUNC_DECL: case AST_EXTERN_DECL: V(((ASTFuncDecl*)n)->return_array_type,"return_array_type"); break;
         case AST_VARIADIC_PARAM:
             if (s->active_count < 2u ||
                 (s->active[s->active_count - 2u]->type != AST_FUNC_DECL &&
