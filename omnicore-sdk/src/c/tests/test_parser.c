@@ -3418,16 +3418,16 @@ generic_type_done:
         }
     }
 
-    /* Map is an unparameterized hard type: !map only. */
+    /* Map is an ordinary parameter type; explicit hard typing remains compatible. */
     {
         static const char source[] =
-            "f:main() { v:notlar!map; }\n"
-            "f:consume(items!map) { ret; }";
+            "f:main() { v:notlar!map; }\\n"
+            "f:consume(items:map, legacy!map) { ret; }";
         static const char legacy_source[] =
             "f:main() { v:notlar!map str, i32; }";
         static const char generic_source[] =
             "f:main() { v:notlar!map<str, i32>; }";
-        ParserContext* parser = parser_init_source("map-hard-type.nxf",
+        ParserContext* parser = parser_init_source("map-type.nxf",
             (const uint8_t*)source, sizeof(source) - 1u);
         ParserContext* legacy_parser = parser_init_source("map-legacy-args.nxf",
             (const uint8_t*)legacy_source, sizeof(legacy_source) - 1u);
@@ -3437,9 +3437,10 @@ generic_type_done:
         ASTVarDecl* map_var;
         ASTFuncDecl* consume_function;
         ASTVarDecl* map_param;
+        ASTVarDecl* hard_map_param;
         int valid = 0;
         int legacy_rejected = 0;
-        int generic_rejected = 0;
+        int generic_not_yet_supported = 0;
         if (parser && parser_run(parser) == PARSER_STATUS_OK &&
             parser->error_count == 0 && ast_validate(parser->ast_root, NULL)) {
             main_function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
@@ -3447,6 +3448,7 @@ generic_type_done:
                 ? (ASTVarDecl*)((ASTBlock*)main_function->body)->statements : NULL;
             consume_function = main_function ? (ASTFuncDecl*)main_function->base.next : NULL;
             map_param = consume_function ? (ASTVarDecl*)consume_function->params : NULL;
+            hard_map_param = map_param ? (ASTVarDecl*)map_param->base.next : NULL;
             valid = main_function && main_function->name &&
                 strcmp(main_function->name, "main") == 0 &&
                 map_var && map_var->name && strcmp(map_var->name, "notlar") == 0 &&
@@ -3456,20 +3458,24 @@ generic_type_done:
                 strcmp(consume_function->name, "consume") == 0 &&
                 map_param && map_param->name &&
                 strcmp(map_param->name, "items") == 0 &&
-                map_param->is_hard_typed && map_param->type_name &&
-                strcmp(map_param->type_name, "!map") == 0;
+                !map_param->is_hard_typed && map_param->type_name &&
+                strcmp(map_param->type_name, "map") == 0 &&
+                hard_map_param && hard_map_param->name &&
+                strcmp(hard_map_param->name, "legacy") == 0 &&
+                hard_map_param->is_hard_typed && hard_map_param->type_name &&
+                strcmp(hard_map_param->type_name, "!map") == 0;
         }
         if (legacy_parser)
             legacy_rejected = parser_run(legacy_parser) != PARSER_STATUS_OK ||
                 legacy_parser->error_count != 0;
         if (generic_parser)
-            generic_rejected = parser_run(generic_parser) != PARSER_STATUS_OK ||
+            generic_not_yet_supported = parser_run(generic_parser) != PARSER_STATUS_OK ||
                 generic_parser->error_count != 0;
         if (parser) parser_destroy(parser);
         if (legacy_parser) parser_destroy(legacy_parser);
         if (generic_parser) parser_destroy(generic_parser);
-        if (!valid || !legacy_rejected || !generic_rejected) {
-            fprintf(stderr, "Canonical !map AST / legacy parameterized-map rejection test failed.\n");
+        if (!valid || !legacy_rejected || !generic_not_yet_supported) {
+            fprintf(stderr, "Map ordinary/hard parameter AST or pending generic syntax test failed.\\n");
             return 1;
         }
     }
