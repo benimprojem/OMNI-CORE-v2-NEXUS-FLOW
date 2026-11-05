@@ -655,3 +655,13 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Owner clarified `spawn` is intentionally outside the core AST, in a separate thread module/language layer. No `AST_SPAWN` or core scheduling semantics should be introduced.
 - Thread/runtime specs are present: `nexus docs/NXF Runtime Threading Specification v1.0.md`, `nexus docs/Thread System Runtime — Full Formal Specification v1.0.md` (SDK copies also exist). Prior audit wording incorrectly implied the runtime specs themselves were absent; only the core syntax/AST vs module boundary needs clarification.
 - Correction recorded in `docs/AST_REPRESENTATION_GAPS.md` commit `8814173a`. Core AST work proceeds independently with function array-return support.
+
+
+## Function array-return implementation in progress — 2026-11-05
+
+- Added appended `ASTFuncDecl.return_array_type` (owned optional `AST_ARRAY_TYPE`); base `return_type` remains compatibility spelling: commit `33cf3a85`.
+- AST stream bumped to v2; v1 deserialization skips the new trailing child, preserving old layouts; destruction and declaration validation updated: `3a9b6458`, `f4d53163`. AST stream version assertion updated to v2: `7fd62e1e`.
+- Parser consumes return declarator suffix after base type and transfers `AST_ARRAY_TYPE` from the temporary declarator: `1b3da079`.
+- OIR AST frontend field 8 is optional node-ref; graph index count/child accessor, writer optional TLV, reader attachment: `721213c5`, `601a8a65`, `d02f751f`, `c9bfc748`.
+- Parser regression fixture covers `!i32[]`, `!i32[n]`, `!f32[m][n]` and AST stream round-trip: `d6ace431`, `c877bf81`; fixed empty dimension assertion (`[]` has NULL length) in `0324beb2`.
+- CI earlier failures were attributable to intermediate commits (writer optional helper order/link and malformed-stream test still expecting version 1) and initial fixture assertion treating `[]` as a named extent. Corrections are committed; final integrated CI is still pending. Do not mark this task complete until current CI is green and OIR frontend round-trip test explicitly exercises a function with return-array child.
