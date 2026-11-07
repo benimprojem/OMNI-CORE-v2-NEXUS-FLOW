@@ -2231,7 +2231,7 @@ static int parser_is_type_start(Parser* p) {
         p->current.type == TOKEN_IDENTIFIER ||
         p->current.type == TOKEN_STAR ||
         p->current.type == TOKEN_BIT_AND ||
-        (p->current.type == TOKEN_KW_FN && p->current.length == 2 &&
+        (p->current.type == TOKEN_KW_FN && p->current.length == 2 && p->current.start[1] == ':' &&
             peek_token(p).type == TOKEN_LPAREN));
 }
 
@@ -2249,7 +2249,7 @@ static int parser_parse_type_name(Parser* p, char** out,
     if (!p || !out) return 0;
     *out = NULL;
 
-    if (p->current.type == TOKEN_KW_FN && p->current.length == 2 &&
+    if (p->current.type == TOKEN_KW_FN && p->current.length == 2 && p->current.start[1] == ':' &&
         peek_token(p).type == TOKEN_LPAREN) {
         char* signature = NULL;
         if (!parser_parse_function_type_signature(p, &signature)) return 0;
@@ -2281,7 +2281,7 @@ static int parser_parse_type_name(Parser* p, char** out,
             p->current.type <= TOKEN_TYPE_ANY) ||
           p->current.type == TOKEN_IDENTIFIER)) {
         error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
-            msg_get(MSG_EXPECT_RET_TYPE));
+            "Expected a type name after pointer/reference modifier.");
         return 0;
     }
 
@@ -2341,14 +2341,14 @@ static int parser_parse_function_type_signature(Parser* p, char** out) {
             if (match(p, TOKEN_ELLIPSIS)) break;
             if (!match(p, TOKEN_IDENTIFIER)) {
                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
-                    msg_get(MSG_EXPECT_PARAM_NAME));
+                    "Expected a parameter name in function type signature.");
                 return 0;
             }
             has_colon = match(p, TOKEN_COLON);
             has_bang = match(p, TOKEN_NOT);
             if (!has_colon && !has_bang) {
                 error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
-                    msg_get(MSG_EXPECT_TYPE_BANG));
+                    "Expected a parameter type after the parameter name.");
                 return 0;
             }
             if (!parser_parse_type_name(p, &parameter_type, 1, has_bang)) return 0;
@@ -2364,7 +2364,7 @@ static int parser_parse_function_type_signature(Parser* p, char** out) {
     }
 
     consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
-    consume(p, TOKEN_GT, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_RET_TYPE);
+    consume(p, TOKEN_GT, ERR_PARSER_UNEXPECTED_TOKEN, "Expected '>' before function type return type.");
     {
         int has_bang = match(p, TOKEN_NOT);
         if (!parser_parse_type_name(p, &return_type, 1, has_bang)) return 0;
