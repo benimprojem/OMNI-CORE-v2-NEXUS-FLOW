@@ -729,9 +729,10 @@ static ASTNode* parse_primary(Parser* p) {
         return (ASTNode*)node;
     }
 
-    if (match(p, TOKEN_TRUE) || match(p, TOKEN_FALSE)) {
+    if (match(p, TOKEN_TRUE) || match(p, TOKEN_FALSE) || match(p, TOKEN_NULL)) {
         Token token = p->previous;
-        const char* value = token.type == TOKEN_TRUE ? "true" : "false";
+        const char* value = token.type == TOKEN_TRUE ? "true" :
+            (token.type == TOKEN_FALSE ? "false" : "null");
         ASTLiteral* node = (ASTLiteral*)parser_ast_create(p, AST_LITERAL);
         if (!node) return NULL;
         node->base.line = token.line;
@@ -3558,7 +3559,7 @@ static ASTNode* parse_pattern(Parser* p) {
         return pattern;
     }
     if (token.type == TOKEN_NUMBER || token.type == TOKEN_STRING ||
-        token.type == TOKEN_CHAR || token.type == TOKEN_TRUE || token.type == TOKEN_FALSE) {
+        token.type == TOKEN_CHAR || token.type == TOKEN_TRUE || token.type == TOKEN_FALSE || token.type == TOKEN_NULL) {
         return parse_primary(p);
     }
     error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
