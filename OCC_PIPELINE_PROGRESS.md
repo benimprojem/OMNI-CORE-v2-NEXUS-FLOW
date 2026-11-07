@@ -987,3 +987,14 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Canonical proposal: `f:(params)!ReturnType`; body: `>`.
 - Example: `f:(id!u32)!bool > (id == 1) ? true : false;`.
 - Existing `f:(params)>!ReturnType` Parser behavior is legacy; migration and regression tests remain open.
+
+
+## Group Parser increment — nested groups + default dispatch — 2026-11-08
+
+- `parse_group_body()` ayrıştırması ayrıştırıldı; `name => group { ... }` nested group alias'ı artık kendi `AST_GROUP_DECL.name` alanında korunuyor.
+- `default { ... }` Group gövdesi `AST_METHOD` (`public_name = "default"`) ve `AST_BLOCK` implementation olarak temsil ediliyor. Böylece mevcut AST_METHOD codec/destructor sahipliği yeniden kullanılıyor; AST node ID/ABI değişmedi.
+- Nested group içindeki metotlar ve default ile ana Group default'unu doğrulayan `test_nested_group_and_default_ast` eklendi; `ast_validate` ve AST serialize/deserialize round-trip kontrolü içeriyor.
+- Parser/test commitleri: `9fd3a151` (implementation), `80946258` (test). Production matrix commit: `54fa75e2`.
+- CI run `42416361727` (Parser change) ve `42416388202` (test change) tetiklendi; sonuçları henüz tamamlanmadan PASS olarak işaretlenmeyecek.
+- **Açık Group işleri:** default dispatch'in Semantic/OIR davranışı; `self` receiver binding; struct/group isim eşleştirmesi ve instance method çağrısı; `yeni` constructor; visibility/export (`pup`/`exp`) kapsamı; malformed nested/default testleri; Group span kapsamı ve AST Graph Validator bağlam kuralları.
+- Bu increment yalnızca Parser/AST biçim desteğidir; Group semantiği ve runtime dispatch tamamlanmış değildir.
