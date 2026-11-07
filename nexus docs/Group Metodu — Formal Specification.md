@@ -162,8 +162,14 @@ o1 = Oyuncu.yeni("Ahmet");
 
 ## 5. Kapsam (Scope)
 
-* **Grup** içerisinde tanımlanan yapılar ve metodlar **grup dışından erişilemez**. Bu, kapsülleme (encapsulation) ilkesini destekler.
-* **Metodlar** sadece **group adı ile çağrılır**. Dışarıdan doğrudan yapılamaz.
+Group üyelerinin erişimi, Group namespace üyeliği ve `pup` / `exp` görünürlük kurallarıyla belirlenir. Group içindeki her üye otomatik olarak dışarıya kapalı değildir; public API üyeleri Group yolu üzerinden çözümlenebilir.
+
+- Group içinde tanımlanan `struct`, `enum` ve `union` türleri özel Group türleridir. Yalnızca tanımlandıkları Group'un kendi fonksiyon/metotları tarafından kullanılabilir; dış fonksiyonlar ve diğer Group'lar bu türleri doğrudan kullanamaz.
+- Group dışında tanımlanan türler, normal lexical scope ve modül görünürlüğü kuralları çerçevesinde Group içinde kullanılabilir.
+- Group-owned türlerin izolasyonu `pup` / `exp` ile kaldırılamaz. Public/export görünürlüğü, özel türün sahibini değiştirmez ve türü Group dışına açmaz.
+- Nested Group bağımsız bir Group scope'tur; üst Group'un özel türlerini devralmaz. Her alt Group kendi Struct/Enum/Union türlerini tanımlayabilir ve bunlar yalnızca kendi Group'unda görünür.
+- Namespace fonksiyonları `Group.member` / `Group.SubGroup.member` yoluyla; Struct ile eşleştirilmiş instance metotları ise receiver kuralına göre `instance.method(args)` biçiminde çözümlenir.
+
 
 ---
 
