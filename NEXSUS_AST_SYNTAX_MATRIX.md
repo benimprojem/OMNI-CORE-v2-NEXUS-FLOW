@@ -35,10 +35,10 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Array literal `[a, b, ...]` (including nested/empty arrays) | `AST_ARRAY_LITERAL` with ordered element chain | Parser/AST codec and OIR kind 97 implemented; nested/empty and malformed-delimiter tests added; homogeneous literal element checks and generic aggregate inference implemented | Map Semantic constraints and vector typing remain open |
 | Array indexing `array[index]` and indexed assignment `array[index] = value` | `AST_INDEX_ACCESS` with separate target/index children; assignment keeps index node as its lvalue | Parser, AST codec, semantic array-target and integer-index checks; parser/codec and semantic valid/invalid fixtures added | Bounds checking, multidimensional flattening and load/store OIR lowering remain open |
 | Array type declarators `T[]`, `T[n]`, `T[m][n]` and function parameter arrays | `AST_ARRAY_TYPE` (OIR 98) with ordered `AST_ARRAY_DIMENSION` nodes (OIR 99); attached through the existing `ASTVarDecl.inline_type` child while the base element type remains in `type_name` | Parser, AST binary codec, OIR frontend writer/reader and semantic aggregate type records added; dynamic/fixed/multidimensional and parameter forms have dedicated tests | Fixed extents accept positive integer literals and compile-time integer arithmetic (`+`, `-`, `*`, `/`, `%`) with overflow/divide-by-zero rejection; modulo requires integer operands; function-call arguments validate element type, rank, fixed extents and dynamic `[]` extents; executable lowering remains open |
-| Unified `loop` (range/count/foreach/conditional/infinite) + `unroll` | `AST_LOOP`, `AST_UNROLL`; rolling retry is represented by `AST_NEXUS_FLOW.retry_count/retry_delay` | Parser/AST/OIR forms implemented; foreach `in`, `unroll(count)->loop`, and `?(count, delay ms)->target` are parsed with bounded integer validation | Runtime retry semantics, constant-bound validation and canonical loop normalization/lowering remain open |
+| Unified `loop` (range/count/foreach/conditional/infinite) + `unroll` | `AST_LOOP`, `AST_UNROLL`; rolling retry is represented by `AST_NEXUS_FLOW.retry_count/retry_delay` | Parser/AST/OIR forms implemented; `loop {}` and legacy `(loop) {}` infinite forms, foreach `in`, `unroll(count)->loop`, and `?(count, delay ms)->target` are parsed | Runtime retry semantics, constant-bound validation and canonical loop normalization/lowering remain open |
 | `if / elsif / els` | `AST_IF` condition/then/else | Partial | Verify elsif chain shape and nesting semantics |
 | Conditional action `(cond) -> break/continue/...` | `AST_IF` canonical form | Parser path exists and is disambiguated from Flow pipe | Complete semantic loop-context and round-trip coverage; no separate node required unless source-form preservation becomes a language requirement |
-| Labels `label:>`, jump `label?>` | `AST_NEXUS_LABEL`, `AST_NEXUS_JUMP` | Present | Resolve label IDs and validate scope/control-flow |
+| Labels `label:>`; jumps `?>(label);` and `jump(label);` | `AST_NEXUS_LABEL`, `AST_NEXUS_JUMP` | Parser supports explicit operator form and contextual call alias; new AST/codec regression added | Resolve label IDs and validate scope/control-flow |
 | `select` | `AST_SELECT` + ordered `AST_SELECT_ARM`; literal, binding and constructor patterns; `when` guard is canonicalized as an `AST_IF` body wrapper | Parser/AST/OIR and semantic arm-local binding, guard bool-check and duplicate-binding checks implemented | Closed-enum constructor/type resolution, exhaustiveness and lowering remain gated |
 | `scan` | `AST_SCAN` + ordered `AST_SCAN_ARM`; binding and constructor pattern nodes; `when` guard is canonicalized as an `AST_IF` body wrapper | Parser/AST/OIR and semantic arm-local binding, guard bool-check and duplicate-binding checks implemented | Subject-aware pattern binding type inference and scan execution/lowering remain gated; final `else` catch-all is implemented as a null pattern |
 | Multi-rule engine / ruleset | `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT` | Parser/AST/OIR implemented; semantic ruleset symbols/signatures, boolean conditions, string barriers and trigger event registration implemented | Rule ordering/termination/effect execution and lowering remain open |
@@ -422,3 +422,23 @@ The detailed representation decisions and unresolved type contracts are maintain
 | Numeric `<< / >>` | Existing parser emits Flow `AST_NEXUS_PIPE` | Numeric shift AST production waits deterministic grammar resolution |
 
 No AST closure claim is made by this cross-reference.
+
+
+## Syntax reconciliation — 2026-11-07
+
+The normative reference was compared against the active Lexer/Parser source rather than token declarations alone.
+
+| Syntax/document claim | Active source finding | Resolution |
+|---|---|---|
+| Infinite loop `loop { ... }` | Parser previously required `loop(...)` or `(loop)` | Implemented `loop { ... }`; legacy `(loop) { ... }` retained |
+| `jump(label)` | Only `?>(label);` was parsed as a jump statement | Implemented contextual `jump(label);` alias to the same `AST_NEXUS_JUMP` |
+| `label?>` / `out?>` | This postfix spelling was not a Parser production | Normative examples now use `?>(label);` or `jump(label);` |
+| `return` examples | Lexer keyword is `ret`; `return` is not a keyword | Normative code examples changed to `ret` |
+| Scientific literal `10E3` and hex literals `0x...` | Current Lexer rejects radix/exponent forms | Valid code examples now use supported decimal literals; numeric grammar remains an explicit open item |
+| `d32` / `d64` | Not built-in Lexer type tokens | Removed from the built-in type list; not treated as built-ins |
+| Generic `t` and callback `f:(...)>!R` type examples | No generic parameter declaration or function-type AST production exists | Marked as unsupported design gaps, not accepted syntax |
+| Pointer/reference `*T`, `**T`, `&T` | Prefix concepts are listed, but declaration/parameter/return type parser does not consume these declarators | Remain open AST/type-grammar work |
+| `!!=[target...]`, `:macro`, `dllexp:` | These are not complete productions in the core C Parser | Marked as target/preprocessor/build-layer syntax, not core Parser support |
+| `null` | Used in prose as a runtime state, but no dedicated null literal token exists | Clarified as not a current source literal |
+
+The language comparison and prioritized gap inventory is maintained in `docs/language/NEXUS-FLOW-LANGUAGE-COMPARISON.md`. These entries are audit findings; they do not imply that deferred syntax has been implemented.
