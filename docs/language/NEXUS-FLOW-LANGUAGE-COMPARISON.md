@@ -136,6 +136,14 @@ Bu ayrım Rust `match` ve Kotlin `when` gibi pattern tabanlı seçimlerle aynı 
 
 ---
 
+### 1.9 Expression lambda
+
+`f:(a, b) > a * b` biçimi expression-body lambda'dır. Dönüş değeri son ifadedir; AST'de body doğrudan ifade düğümü olarak tutulur, sentetik `ret` eklenmez.
+
+**Avantaj:** Kısa fonksiyon değerleri ve dönüş ifadesi tek yerde görünür; AST gövdesi gereksiz bir Return/Block katmanıyla şişmez.
+
+**Dezavantaj / açık alan:** Lambda capture listesi, capture-by-value/reference, closure lifetime ve function-type uyumu henüz tamamlanmış değildir. Kotlin ve Rust closure'ları dış scope değerlerini yakalayabilir; Kotlin ayrıca function types'ı değişken ve parametre türü olarak açıkça tanımlar. Nexus Flow bu yeteneklerin sözdizimini değil, semantik ve tip modelini henüz tamamlamalıdır.
+
 ## 2. Başka dillerde zaten bulunan / ortak özellikler
 
 Aşağıdaki yapılar Nexus Flow'da değerli olabilir; ancak tek başlarına özgün değildir:
@@ -177,6 +185,33 @@ Bu avantajlar henüz tasarım/Parser seviyesindeki avantaj potansiyelidir. Seman
 | Shift / Flow operator ayrımı | `<<` / `>>` iki anlam için çakışıyor | Açık bir syntax disambiguation; token heuristiği kullanma |
 | Directive / macro grameri | `!!=[target...]` ve `:macro` örnekleri core Parser tarafından tam karşılanmıyor | Preprocessor/target directive katmanını core expression gramerinden ayır |
 | Source-span parity | Her production'ın gerçek kaynak aralığı AST'de korunmalı | Her production için start/end test matrisi |
+
+## 4.1 Önerilen syntax adayları (henüz normatif değil)
+
+Bu adaylar yaygın dil tasarımlarından yararlanır; mevcut Parser desteği olarak okunmamalıdır.
+
+**Function type / callback:**
+
+```nexus
+nt:Callback = f:(id!u32)>!bool;
+f:apply(callback!Callback, id!u32)!bool {
+    ret callback(id);
+}
+```
+
+İmza grameri `f:(parametreler)>!DönüşTipi` olarak tutulabilir. Parser/AST tarafında callback imzası ayrı bir type descriptor olarak temsil edilmelidir; sıradan lambda expression ile karıştırılmamalıdır. Go ve Kotlin de fonksiyon tiplerini parametre ve sonuç tipleriyle tanımlar; Kotlin fonksiyon değerlerini `f(x)` biçiminde çağırabilir.
+
+**Generic function:**
+
+```nexus
+f:sum<T>(a!T, b!T)!T {
+    ret a + b;
+}
+```
+
+İlk aşamada type parameter listesi fonksiyon adından sonra, parametre listesinden önce gelir. Constraint syntax'ı (ör. `T:Numeric`) daha sonra ayrıca tanımlanmalıdır. Type parameter listesi AST'de isim/constraint taşıyan ayrı düğümler olmalıdır; yalnızca fonksiyon adının içine metin olarak eklenmemelidir.
+
+**Null / optional:** `null` bir literal, `none` ise varsa Option/Maybe türünün boş varyantı olarak ayrı kavramlar olmalıdır. Bunları tek değerde birleştirmek pointer nullability ile optional-value semantiğini karıştırır. Nexus Flow'da henüz bu karar verilmemiştir.
 
 ### P1 — Semantic/type sistemi
 
