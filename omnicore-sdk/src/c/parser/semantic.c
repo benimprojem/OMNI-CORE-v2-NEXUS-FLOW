@@ -1376,7 +1376,11 @@ static void semantic_predeclare_group_callables(
         if (existing && existing->declaration_node == implementation_node &&
             existing->kind == SLOT_FUNC) {
             function_slot = existing;
-        } else if (existing && existing->depth == ctx->current_depth) {
+        } else if (existing &&
+            (existing->depth == ctx->current_depth ||
+             (existing->kind == SLOT_FUNC &&
+              existing->group_owner == ctx->current_group_owner &&
+              existing->scope_id == ctx->current_scope_id))) {
             char message[256];
             snprintf(message, sizeof(message),
                 msg_get(ERR_SEMANTIC_FUNC_REDEFINED), implementation->name);
@@ -2269,7 +2273,11 @@ static void semantic_check_node(
                 if (existing && existing->declaration_node == node &&
                     existing->kind == SLOT_FUNC) {
                     function_slot = existing;
-                } else if (existing && existing->depth == ctx->current_depth) {
+                } else if (existing &&
+                    (existing->depth == ctx->current_depth ||
+                     (existing->kind == SLOT_FUNC &&
+                      existing->group_owner == ctx->current_group_owner &&
+                      existing->scope_id == ctx->current_scope_id))) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_FUNC_REDEFINED), func->name);
                     report_error(ctx, node, ERR_SEMANTIC_FUNC_REDEFINED, buf);
