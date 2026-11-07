@@ -65,6 +65,7 @@ typedef struct {
     uint32_t current_scope_id;
     const ASTNode* current_group_owner; /* Active lexical Group; NULL outside a Group. */
     const char* current_method_receiver_type;
+    const char* current_method_public_name;
     uint32_t current_method_receiver_type_id;
     uint8_t current_method_context;
     uint8_t current_method_is_object;
