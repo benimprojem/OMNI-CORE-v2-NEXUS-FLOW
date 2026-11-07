@@ -154,7 +154,7 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - Added contextual statement alias `jump(label);`; it produces the same `AST_NEXUS_JUMP` payload as the explicit `?>(label);` form. The word `jump` remains an ordinary identifier outside this statement-call shape.
 - Added `test_canonical_loop_and_jump_call_forms`: verifies AST shape, loop type/body, jump target, following label, graph validation and AST stream round-trip.
 - The test is newly committed; CI evidence is pending.
-- Remaining type grammar gaps are not marked supported: pointer/reference declarators, function-type/callback AST, and generic type-parameter declarations. See `docs/language/NEXUS-FLOW-LANGUAGE-COMPARISON.md`.
+- Remaining type grammar gaps are function-type/callback AST and generic type-parameter declarations. Pointer/reference declarators have since been added to Parser; see the later 2026-11-07 entry.
 
 
 ## 2026-11-07 — Dotted module path production
