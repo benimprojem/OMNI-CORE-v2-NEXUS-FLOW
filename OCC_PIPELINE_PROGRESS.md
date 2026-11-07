@@ -1031,4 +1031,4 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Semantic `Slot` kayıtlarına non-owning `group_owner` AST kimliği, `SemanticContext`'e aktif Group sahibi eklendi. Nominal tür çözümlemesi, sembol adı yanında aktif Group kimliğini de denetliyor. Nested Group üst Group'un özel türlerini devralmıyor; Group dışı türler görünürlüklerini koruyor.
 - `test_semantic.c` içine Struct/Enum/Union yerel kullanım, nested Group izolasyonu, aynı isimli nested türlerin ayrılması, sibling/dış kapsam reddi ve dışarıda tanımlı türün Group içinde kullanımı için testler eklendi.
 - Bu değişiklikler GitHub üzerinde `refactor/c-core-roadmap` dalına yazıldı. **Henüz CMake/CTest çalıştırılmadı; testler eklenmiş fakat doğrulanmamış durumda.** CI sonucu alınmadan Semantic Group scope tamamlandı olarak işaretlenmeyecek.
-- Kod commitleri: semantic header `a3fabf48`, Semantic scope `c3a6bcd8`, testler `bc5eba54`; spec `6fa982d9`.
+- Kod commitleri: semantic header `a3fabf48`, Semantic scope `c3a6bcd8` + kapsam daraltma `0709cccd`, testler `bc5eba54` + Group method fixture `d6db22b3`; spec `6fa982d9`.
