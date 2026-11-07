@@ -473,3 +473,12 @@ The language comparison and prioritized gap inventory is maintained in `docs/lan
 - Active `ASTNodeType` enum count: 105 (append-only IDs).
 - Intentionally not emitted by the core Parser: `AST_SPAWN` (legacy; Thread module owns spawn), `AST_ASM_BLOCK` (legacy; current syntax uses FASTEXEC/ASM_LABEL), and `AST_ZONE_SYNC/VIEW/LOCK` (reserved; member-call syntax currently produces generic call nodes).
 - These are reserved/legacy tags, not missing Parser productions to be filled blindly. Keep their IDs and serialization compatibility.
+
+
+### Numeric/null literal audit — 2026-11-07
+
+- Supported number forms: decimal integer/fraction, hexadecimal `0x`, binary `0b`, octal `0o`, scientific exponent `e/E`, and underscore separators between digits.
+- Numeric suffixes such as `u8` and `f32` remain invalid. The rolling-delay `ms` suffix remains a separate identifier token.
+- `null` is now a dedicated `TOKEN_NULL` and `AST_LITERAL`; token ID was appended, not inserted, to preserve existing IDs.
+- `test_lexer` covers accepted and malformed numeric forms; `test_null_and_numeric_literal_ast` covers null/radix/scientific AST preservation and codec round-trip. CI pending.
+- Numeric conversion/overflow, null pointer compatibility and Option/None semantics remain Semantic design work.
