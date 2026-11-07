@@ -146,8 +146,8 @@ static int test_group_semantic_records(void) {
     static const char source[] =
         "f:main() {"
         " group Storage {"
+        "   open => f:open_impl(self) { v:field_value!i32 = self.value; ret; }"
         "   struct:Storage { v:value!i32 }"
-        "   open => f:open_impl() { ret; }"
         "   default { }"
         " }"
         "}";
@@ -161,6 +161,12 @@ static int test_group_semantic_records(void) {
     uint32_t i, group_relation_count = 0u;
     int saw_member = 0, saw_binding = 0;
     int saw_method = 0, saw_default = 0;
+    ASTFuncDecl* main_function;
+    ASTBlock* main_body;
+    ASTGroupDecl* group_node;
+    ASTVarDecl* self_parameter = NULL;
+    uint32_t self_node_id = 0u, self_symbol_id = 0u, bound_type_id = 0u;
+    int saw_receiver_annotation = 0, saw_receiver_parameter_relation = 0;
     OirAstFrontendRequirements ast_requirements;
     OirAstNodeRecord* ast_records = NULL;
     uint8_t *ast_fields = NULL, *ast_strings = NULL;
@@ -187,6 +193,47 @@ static int test_group_semantic_records(void) {
     }
     resolver.entries = index;
     resolver.capacity = 256u;
+    main_function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    if (!main_function || !main_function->body ||
+        main_function->body->type != AST_BLOCK) {
+        parser_destroy(parser);
+        return 0;
+    }
+    main_body = (ASTBlock*)main_function->body;
+    group_node = main_body->statements &&
+        main_body->statements->type == AST_GROUP_DECL
+            ? (ASTGroupDecl*)main_body->statements : NULL;
+    if (!group_node) {
+        parser_destroy(parser);
+        return 0;
+    }
+    {
+        ASTNode* group_member;
+        for (group_member = group_node->members; group_member;
+             group_member = group_member->next) {
+            if (group_member->type == AST_METHOD) {
+                ASTMethod* method = (ASTMethod*)group_member;
+                if (method->public_name &&
+                    strcmp(method->public_name, "open") == 0 &&
+                    method->implementation &&
+                    method->implementation->type == AST_FUNC_DECL) {
+                    ASTFuncDecl* implementation =
+                        (ASTFuncDecl*)method->implementation;
+                    if (implementation->params &&
+                        implementation->params->type == AST_VAR_DECL) {
+                        self_parameter = (ASTVarDecl*)implementation->params;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    if (!self_parameter || !self_parameter->name ||
+        strcmp(self_parameter->name, "self") != 0) {
+        parser_destroy(parser);
+        return 0;
+    }
+    self_node_id = resolve_node_id(&resolver, (ASTNode*)self_parameter);
     semantic_init(&semantic, "group-semantic-result.nxf", NULL);
     semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
@@ -218,6 +265,7 @@ static int test_group_semantic_records(void) {
             relation->related_symbol_id != 0u &&
             relation->name && strcmp(relation->name, "Storage") == 0) {
             saw_binding = 1;
+            bound_type_id = relation->type_id;
         } else if (relation->kind ==
                 SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION &&
             relation->related_symbol_id != 0u &&
@@ -230,8 +278,39 @@ static int test_group_semantic_records(void) {
             saw_default = 1;
         }
     }
+    for (i = 0u; i < semantic.result.symbol_count; ++i) {
+        const SemanticResultSymbol* symbol = &semantic.result.symbols[i];
+        if (symbol->declaration_node_id == self_node_id &&
+            symbol->name && strcmp(symbol->name, "self") == 0) {
+            self_symbol_id = symbol->symbol_id;
+            if (symbol->type_id == bound_type_id && bound_type_id != 0u)
+                saw_receiver_annotation = 1;
+        }
+    }
+    for (i = 0u; i < semantic.result.annotation_count; ++i) {
+        const SemanticResultAnnotation* annotation =
+            &semantic.result.annotations[i];
+        if (annotation->node_id == self_node_id &&
+            annotation->resolved_symbol_id == self_symbol_id &&
+            annotation->resolved_type_id == bound_type_id &&
+            bound_type_id != 0u) {
+            saw_receiver_annotation = 1;
+        }
+    }
+    for (i = 0u; i < semantic.result.relation_count; ++i) {
+        const SemanticResultRelation* relation = &semantic.result.relations[i];
+        if (relation->kind == SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER &&
+            relation->related_node_id == self_node_id &&
+            relation->related_symbol_id == self_symbol_id &&
+            relation->type_id == bound_type_id &&
+            bound_type_id != 0u) {
+            saw_receiver_parameter_relation = 1;
+        }
+    }
     ok = group_symbol_id != 0u && group_relation_count == 6u &&
-        saw_member && saw_binding && saw_method && saw_default;
+        saw_member && saw_binding && saw_method && saw_default &&
+        self_symbol_id != 0u && saw_receiver_annotation &&
+        saw_receiver_parameter_relation;
     if (!ok) {
         fprintf(stderr,
             "Group SemanticResult mismatch: symbol=%u relations=%u member=%d binding=%d method=%d default=%d\n",
