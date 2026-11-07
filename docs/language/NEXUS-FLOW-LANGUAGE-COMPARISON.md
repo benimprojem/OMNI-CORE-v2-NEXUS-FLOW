@@ -161,7 +161,7 @@ Bu ayrım Rust `match` ve Kotlin `when` gibi pattern tabanlı seçimlerle aynı 
 | Block lambda | `f:(a,b) { ret ...; }` | Parser/AST mevcut; açık `ret` kullanılır |
 | Extern function | `exf:name(params)!R;` | Parser/AST mevcut; ABI/linking ve DLL metadata ayrı iş |
 | Group method | `method => f:(...) { ... }` | Parser/AST mevcut; receiver/dispatch/visibility Semantic kuralları açık |
-| Callback function type | `f:(id!u32)>!bool` | Parser imzayı type-name string alanında saklıyor; dedicated type node ve callback ABI açık |
+| Callback function type | `f:(id!u32)!bool` | Parser imzayı type-name string alanında saklıyor; dedicated type node ve callback ABI açık |
 | Default parameter | `f:sum(a:10)!i32 { ... }` | Parser mevcut; çağrıdaki `sum(a:10)` ise named argument'tır |
 | Variadic parameter | `f:log(args...)` | AST/Parser temeli var; ABI ve type-check kuralları açık |
 | Array parameter / return | `items!i32[]`, `!i32[]` | Parser/AST/codec köprüsü mevcut; semantic boyut/shape uyumu açık |
@@ -205,7 +205,7 @@ Bu avantajlar henüz tasarım/Parser seviyesindeki avantaj potansiyelidir. Seman
 | Eksik alan | Neden önemli | Önerilen yön |
 |---|---|---|
 | Pointer/reference type declarator | C ABI, extern, düşük seviye bellek erişimi | Parser `*T`, `**T`, `&T` yazımlarını type-name alanında koruyor; Semantic ownership/borrow/lifetime kuralları açık |
-| Function type / callback | Callback API, DLL/extern arayüzü, fonksiyon değerleri | Parser artık `f:(name!T)>!R` imzasını kabul edip AST type-name alanında saklıyor; dedicated type node, compatibility ve ABI lowering açık |
+| Function type / callback | Callback API, DLL/extern arayüzü, fonksiyon değerleri | Parser artık `f:(name!T)!R` imzasını kabul edip AST type-name alanında saklıyor; dedicated type node, compatibility ve ABI lowering açık |
 | Generic type parameter | Generic örnekteki `t` şu anda gerçek type parameter olarak tanımlı değil | Açık type-parameter listesi ve daha sonra constraint sistemi |
 | Null / optional değer | `null` ayrı literal; `none` ve Option/nullable type sözleşmesi hâlâ eksik | `null` pointer sentinel; Option/Maybe boş varyantı ayrı tanımlanmalı; Semantic nullability check gerekli |
 | Numeric literal standardı | Hex, binary, octal, scientific notation ve digit separator Lexer/Parser tarafından kabul ediliyor | Overflow, precision, integer range ve type promotion Semantic'te doğrulanmalı |
@@ -220,13 +220,13 @@ Callback signature ve `null` literalinin Parser desteği vardır. Generic functi
 **Function type / callback:**
 
 ```nexus
-nt:Callback = f:(id!u32)>!bool;
+nt:Callback = f:(id!u32)!bool;
 f:apply(callback!Callback, id!u32)!bool {
     ret callback(id);
 }
 ```
 
-İmza grameri `f:(parametreler)>!DönüşTipi` olarak tanımlandı ve Parser tarafından kabul ediliyor. Mevcut AST bu imzayı type-name string alanında korur; ileride type checking/ABI gereksinimi büyürse ayrı bir function-type AST node'a yükseltilebilir. Sıradan lambda expression ile karıştırılmamalıdır. Go ve Kotlin de fonksiyon tiplerini parametre ve sonuç tipleriyle tanımlar; Kotlin fonksiyon değerlerini `f(x)` biçiminde çağırabilir.
+İmza grameri `f:(parametreler)!DönüşTipi` olarak tanımlandı ve Parser tarafından kabul ediliyor. Mevcut AST bu imzayı type-name string alanında korur; ileride type checking/ABI gereksinimi büyürse ayrı bir function-type AST node'a yükseltilebilir. Sıradan lambda expression ile karıştırılmamalıdır. Go ve Kotlin de fonksiyon tiplerini parametre ve sonuç tipleriyle tanımlar; Kotlin fonksiyon değerlerini `f(x)` biçiminde çağırabilir.
 
 **Generic function / type variable:**
 
@@ -288,3 +288,11 @@ Bu liste özelliklerin mutlaka eklenmesi gerektiği anlamına gelmez. Her madde 
 - [Zig Language Reference](https://ziglang.org/documentation/) — `defer`, `errdefer` ve compile-time behavior.
 - [Kotlin: Higher-order functions and lambdas](https://kotlinlang.org/docs/lambdas.html) — function types, lambdas, closures ve function values.
 - [Kotlin: Sealed classes and interfaces](https://kotlinlang.org/docs/sealed-classes.html) — kapalı varyant kümeleri ve exhaustive `when`.
+
+
+## 2026-11-08 — Callback signature correction
+
+- The old example `f:(id!u32)>!bool` conflated signature and expression-body delimiter.
+- Canonical signature proposal: `f:(id!u32)!bool`.
+- Callable expression: `f:(id!u32)!bool > (id == 1) ? true : false;`.
+- This is a syntax/design correction, not yet implemented Parser support. Existing accepted old signature spelling remains compatibility behavior until grammar migration tests land.
