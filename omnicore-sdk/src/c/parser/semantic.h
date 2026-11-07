@@ -35,6 +35,7 @@ typedef struct Slot {
     int is_packed;        // Struct packed durumu
     uint32_t symbol_id;
     uint32_t scope_id;
+    const ASTNode* group_owner; /* Non-owning Group declaration that owns private nominal types. */
     uint32_t type_id;
     struct Slot* next;
 } Slot;
@@ -61,6 +62,7 @@ typedef struct {
     SemanticResult result;
     SemanticResultStatus result_status;
     uint32_t current_scope_id;
+    const ASTNode* current_group_owner; /* Active lexical Group; NULL outside a Group. */
     SemanticNodeIdResolver node_id_resolver;
     void* node_id_context;
     uint8_t result_enabled;
