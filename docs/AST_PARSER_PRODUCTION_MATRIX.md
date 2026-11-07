@@ -194,3 +194,13 @@ The active `ASTNodeType` enum contains 105 append-only tags. A source-to-AST aud
 | `AST_ZONE_SYNC`, `AST_ZONE_VIEW`, `AST_ZONE_LOCK` | Reserved tags with no direct Parser production. `zone.sync()`, `zone.view()` and `zone.lock()` currently parse as generic member calls. |
 
 These tags must not be counted as active syntax support merely because they exist in the AST enum or OIR registry. Their removal is not proposed; legacy serialization compatibility and future module boundaries are preserved.
+
+
+## 2026-11-07 — Numeric and null literal grammar
+
+- Lexer now accepts decimal integers/fractions, hexadecimal `0x`, binary `0b`, octal `0o`, decimal scientific notation and underscore digit separators.
+- Numeric type suffixes remain rejected as a single lexical error; rolling `500ms` remains NUMBER + `ms` identifier.
+- Added `TOKEN_NULL` at the end of the token enum to preserve existing token IDs. Parser emits `AST_LITERAL` with the original `null` spelling.
+- Added Lexer positive/negative numeric fixtures and Parser AST/codec coverage for null, radix and scientific literals.
+- Numeric value conversion, overflow/range and null-to-pointer compatibility remain Semantic work. `none` / Option is still not a literal/type contract.
+- CI pending.
