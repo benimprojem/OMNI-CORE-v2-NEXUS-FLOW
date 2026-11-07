@@ -1502,31 +1502,27 @@ static int semantic_group_relation_exposes_symbol(
     uint32_t annotation_scope_id,
     uint32_t target_symbol_id
 ) {
-    uint32_t group_index;
+    uint32_t relation_index;
     if (!scopes || !symbols || !relations || target_symbol_id == 0u) return 0;
-    for (group_index = 0u; group_index < symbols->record_count; ++group_index) {
+    for (relation_index = 0u;
+         relation_index < relations->record_count; ++relation_index) {
+        OirSemanticRelation relation;
         OirSemanticSymbol group;
-        uint32_t relation_index;
-        if (oir_semantic_symbols_get(
-                symbols, group_index, &group, NULL) != OIR_STATUS_OK)
+        if (oir_semantic_relations_get(
+                relations, relation_index, &relation, NULL) != OIR_STATUS_OK)
             return 0;
-        if (group.kind != OIR_SEMANTIC_SYMBOL_GROUP ||
-            !semantic_scope_is_ancestor(
-                scopes, group.scope_id, annotation_scope_id)) continue;
-        for (relation_index = 0u;
-             relation_index < relations->record_count; ++relation_index) {
-            OirSemanticRelation relation;
-            if (oir_semantic_relations_get(
-                    relations, relation_index, &relation, NULL) !=
-                OIR_STATUS_OK) return 0;
-            if (relation.owner_symbol_id == group.symbol_id &&
-                relation.related_symbol_id == target_symbol_id &&
-                (relation.kind == OIR_SEMANTIC_RELATION_GROUP_MEMBER ||
-                 relation.kind == OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING ||
-                 relation.kind == OIR_SEMANTIC_RELATION_GROUP_METHOD_IMPLEMENTATION)) {
-                return 1;
-            }
-        }
+        if (relation.related_symbol_id != target_symbol_id ||
+            (relation.kind != OIR_SEMANTIC_RELATION_GROUP_MEMBER &&
+             relation.kind != OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING &&
+             relation.kind != OIR_SEMANTIC_RELATION_GROUP_METHOD_IMPLEMENTATION) ||
+            relation.owner_symbol_id == 0u ||
+            relation.owner_symbol_id > symbols->record_count) continue;
+        if (oir_semantic_symbols_get(
+                symbols, relation.owner_symbol_id - 1u, &group, NULL) !=
+            OIR_STATUS_OK) return 0;
+        if (group.kind == OIR_SEMANTIC_SYMBOL_GROUP &&
+            semantic_scope_is_ancestor(
+                scopes, group.scope_id, annotation_scope_id)) return 1;
     }
     return 0;
 }
