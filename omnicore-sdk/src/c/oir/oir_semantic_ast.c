@@ -1495,6 +1495,7 @@ static int semantic_scope_is_ancestor(
     return 0;
 }
 
+/* Mirror SemanticResult's explicit Group-member visibility exception. */
 static int semantic_group_relation_exposes_symbol(
     const OirSemanticScopesView* scopes,
     const OirSemanticSymbolsView* symbols,
