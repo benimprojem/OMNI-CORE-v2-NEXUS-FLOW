@@ -114,7 +114,7 @@ The existing `AST_THREAD_BLOCK` (name/body/mode/timeout) preserves the declarati
 
 The next type-model work is intentionally gated on canonical declarator grammar. Current source inspection confirms these concrete gaps:
 
-- **Function/callback type:** the syntax reference shows only the alias example `nt:Callback = f:(id!u32)>!bool;`; it does not define a complete function-type grammar (nested callbacks, optional parameter names, variadic placement, qualifiers, or type nesting). `parse_newtype_decl()` currently accepts one primitive-type token or one identifier as `target_type`; it does not consume a `PRE_FUNC` signature or build parameter/return type children. Existing `AST_LAMBDA` represents executable lambda bodies and must not be reused as a signature type.
+- **Function/callback type:** the syntax reference shows only the alias example `nt:Callback = f:(id!u32)!bool;`; it does not define a complete function-type grammar (nested callbacks, optional parameter names, variadic placement, qualifiers, or type nesting). `parse_newtype_decl()` currently accepts one primitive-type token or one identifier as `target_type`; it does not consume a `PRE_FUNC` signature or build parameter/return type children. Existing `AST_LAMBDA` represents executable lambda bodies and must not be reused as a signature type.
 - **Map type:** `map` is an ordinary unparameterized type. Function parameters accept `a:map`; `a!map` remains an explicit hard-type compatibility form. Local variable declarations currently use the established hard-type syntax `v:name!map`. The parser does not implement `map<key,value>`; whether it may be offered later as an optional homogeneous constraint is undecided. No `AST_MAP_TYPE` child is needed for the current form. Per-entry key/value admissibility, heterogeneous value handling and runtime operations belong to Semantic/runtime contracts.
 - **Pointer/reference:** the type table lists `*`, `**`, and `&`, but the normative reference does not provide concrete declaration/declarator examples or define composition order, nullability, mutability, ownership, and lifetime rules. Do not infer prefix/suffix placement or pointer nesting from expression operators.
 
@@ -182,3 +182,11 @@ The earlier decision that `!map` was the only canonical spelling and that all pa
 - `TOKEN_NULL` is appended to the token enum and Parser emits `AST_LITERAL` for `null`.
 - Numeric Lexer supports decimal, radix-prefixed integer (`0x`, `0b`, `0o`), scientific exponent and digit separators.
 - Tests passed in workflow `42411942789`; Semantic numeric conversion, overflow and null-pointer compatibility remain open.
+
+
+## Callback signature correction — 2026-11-08
+
+- Signature grammar proposal: `f:(params)!ReturnType`.
+- Callable expression body begins with `>`, e.g. `f:(id!u32)!bool > (id == 1) ? true : false;`.
+- Old `f:(params)>!ReturnType` form is legacy Parser compatibility and must not be documented as canonical.
+- Parser/AST migration waits for unified type-expression design.
