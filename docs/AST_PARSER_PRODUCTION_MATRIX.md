@@ -11,8 +11,8 @@
 | Source production / family | Parser entry / builder | AST representation | Existing test evidence | Audit status / next action |
 |---|---|---|---|---|
 | Translation unit / declarations | parser root + declaration dispatch | `AST_PROGRAM` + declaration sibling chain | parser source accept/reject; AST↔OIR canonical roundtrip | ~ Root/declaration inventory needs full syntax-positive fixture |
-| `v:`, `c:` declaration + initializer/type modifiers | `parse_var_decl()` | `AST_VAR_DECL`, optional inline type child | array types, parameter forms, parser/semantic fixtures | ~ Every modifier and initializer shape needs focused assertions |
-| `f:name(...)`, `exf:name(...)`, main CLI args and array returns | `parse_func_decl()`, simple parameter parser | `AST_FUNC_DECL` / `AST_EXTERN_DECL`; `AST_ARRAY_TYPE` for argv and optional `return_array_type` | parameter separator; main CLI parameter AST; `!i32[]`, `!i32[n]`, `!f32[m][n]` return fixtures; AST stream v2 round-trip + v1 function-stream compatibility; OIR field 8 round-trip | ~ Array-return representation/codec is verified; named/default/variadic parameter cases and full signature-span matrix remain |
+| `v:`, `c:` declaration + initializer/type modifiers, pointer/reference types | `parse_var_decl()`, `parser_parse_type_name()` | `AST_VAR_DECL.type_name` preserves `*T`, `**T`, `&T`; arrays remain a separate inline child | `test_pointer_reference_type_declarators` covers local pointer, function params/return, NewType target and AST codec | ~ Parser spelling and AST string preservation covered; pointer validity, borrow/lifetime and ownership remain Semantic work |
+| `f:name(...)`, `exf:name(...)`, main CLI args, pointer/reference parameters/returns and array returns | `parse_func_decl()`, simple parameter parser, `parser_parse_type_name()` | `AST_FUNC_DECL` / `AST_EXTERN_DECL`; type-name strings preserve pointer/reference prefixes; `AST_ARRAY_TYPE` for argv and optional `return_array_type` | parameter separator; main CLI parameter AST; `!i32[]`, `!i32[n]`, `!f32[m][n]` return fixtures; AST stream v2 round-trip + v1 function-stream compatibility; OIR field 8 round-trip | ~ Array-return representation/codec is verified; named/default/variadic parameter cases and full signature-span matrix remain |
 | Lambda / anonymous function | `parse_lambda()` | `AST_LAMBDA` with params and expression/block body; expression body remains a direct expression child (no synthetic `AST_RETURN`) | combined rules/lambda fixture; exact expression/block span cases; `test_parser` now checks expression-vs-block body shape, malformed missing-body rejection, graph validation and AST codec round-trip (commits `c4177107`, `ccb4983a`, `bad267e6`; CI pending) | ~ Isolate parameter-list edge cases and capture representation; closure semantics and Semantic return-type inference remain later |
 | Block `{...}`, nested blocks | `parse_block()` | `AST_BLOCK` | nested-block recovery; halt codec/context test | ~ Source span + legal block-halt position fixtures |
 | `if / elsif / els` | `parse_if_statement()`, `parse_if_branch()` | `AST_IF` chain/nested else | structured if-elsif-els AST test | ✓ shape asserted; negative missing/duplicate branch cases expand |
@@ -163,3 +163,12 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - Module path segments are joined into the existing owned `AST_USE.module_name` string; no AST tag or OIR field layout changed.
 - Added `test_dotted_module_use_path` for the joined path, alias, graph validation and AST codec round-trip.
 - CI evidence is pending; malformed path segments and exact span boundaries remain in the test closure list.
+
+
+## 2026-11-07 — Pointer/reference type spelling
+
+- Added a shared Parser type-name reader for `T`, `*T`, `**T` and `&T` in variable declarations, function parameters, return types and NewType targets.
+- The existing AST stores these forms in the existing owned type-name strings; no AST enum ID or OIR node ID changed.
+- Added `test_pointer_reference_type_declarators` for local variable, typed parameters, return type, NewType alias, graph validation and AST stream round-trip.
+- This closes the Parser spelling gap only. Nullability, pointer validity, mutability, borrow/lifetime, aliasing and ownership remain Semantic contracts.
+- Parser commit: `0b87bd7b`; test commit: `df9ef675`. CI pending.
