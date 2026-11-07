@@ -1991,7 +1991,8 @@ static void semantic_check_node(
                 if (self_parameter && first_parameter == self_parameter) {
                     if (!ctx->current_method_is_object ||
                         !ctx->current_method_receiver_type ||
-                        ctx->current_method_receiver_type_id == 0u) {
+                        (ctx->result_enabled &&
+                         ctx->current_method_receiver_type_id == 0u)) {
                         report_error(ctx, (ASTNode*)self_parameter,
                             ERR_SEMANTIC_TYPE_MISMATCH,
                             "self is only valid on an instance method of a Struct-bound Object Group.");
@@ -2864,8 +2865,7 @@ static void semantic_check_node(
                     }
                 }
             }
-            if (receiver_slot && receiver_slot->kind == SLOT_STRUCT &&
-                receiver_slot->type_id != 0u) {
+            if (receiver_slot && receiver_slot->kind == SLOT_STRUCT) {
                 ctx->current_method_is_object = 1u;
                 ctx->current_method_receiver_type = receiver_slot->name;
                 ctx->current_method_receiver_type_id = receiver_slot->type_id;
