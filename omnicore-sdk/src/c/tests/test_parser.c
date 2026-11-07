@@ -2120,6 +2120,15 @@ static int test_canonical_loop_and_jump_call_forms(void) {
             parse_status, parser->error_count, ast_status, serialize_status,
             decoded_status, parser->ast_root, (void*)function, (void*)body,
             (void*)loop_node, (void*)jump_node, (void*)label_node);
+        {
+            Error* diagnostic = parser->error_head;
+            while (diagnostic) {
+                fprintf(stderr, "Parser diagnostic %d at %d:%d: %s\\n",
+                    (int)diagnostic->code, diagnostic->line, diagnostic->col,
+                    diagnostic->message ? diagnostic->message : "(no message)");
+                diagnostic = diagnostic->next;
+            }
+        }
         if (loop_node && loop_node->type == AST_LOOP) {
             ASTNode* loop_body = ((ASTLoop*)loop_node)->body;
             ASTNode* first = loop_body && loop_body->type == AST_BLOCK
