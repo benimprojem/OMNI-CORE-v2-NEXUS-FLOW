@@ -80,7 +80,7 @@ v:liste = [1, 2, 3]; # listenin içindeki en büyük elemana göre tipi ayarlar.
 # Sabit
 c:PI = 3.14159;
 
-# Bilimsel gösterim (10e3)
+# Ondalık tam sayı literal
 v:val = 10000; # Decimal integer; scientific notation is not supported by the current Lexer.
 
 # Üslü sayılar.
@@ -385,6 +385,7 @@ Bu bölüm hedeflenen dil semantiğidir. C Parser tekil kaynak Halt için `AST_N
 ### 4.3  Nexus Flow Mantığı
 >* Kural: `(h)<- fn() ?->{}` oparatörü.  (false,null,none,unknown) durumu 
         Ternary kontrole benzer: Başarılı ise sola, başarısız ise Akış sağa kayar.
+> Bu açıklamadaki `null`, `none` ve `unknown` çalışma zamanı durumlarını anlatır; mevcut Lexer'da `null` veya `none` için bağımsız literal tokenı yoktur.
 ```
 # Hata Saptırmalı Akış,  Hatayı işlemek için Hata işleme bloğuna iletir. 
 (h) <- file.open("a.txt",r) ?-> (e){ echo(e); };
@@ -931,7 +932,7 @@ db  # default çalıştır.
 * **Lamda:** | `f:(a, b)> a*b;` | `v:kare = f:(a, b)> a*b;`
 * **Anonim:** | `f:(a, b){...}` | `open => f:(a, b){...}` Group içinde
 * **Extern Tanımlama:** | `exf:fonksiyon_adi(a!i32, ...)!i64 { ... }` | `fonksiyon_adi(a, ...) { ... }`
-* **Generic:** | `f:add(a!t, b!t)!t{...}` | `add(32, 32){...}` `add(22.7, 22.5){...}` 
+* **Generic:** | Type-parameter grameri tasarım aşamasında | Mevcut Parser generic parameter listesi desteklemez 
 ---
 
 ### İfade gövdeli anonim fonksiyonlar
@@ -1238,6 +1239,9 @@ v:sonuc = Optimizer.run_optimizer(oir_path, nxir_path, target_info);
 ---
 
 ### 12. Extern Modül !!
+
+> Extern fonksiyon bildirimi `exf:` Parser tarafından desteklenir. Aşağıdaki `!!=[target ...]` ve `!!=link ...` örnekleri ise mevcut core Parser'ın tamamlanmış prefix-directive grameri değildir; Target/Directive katmanı tasarım örnekleridir.
+
 ** Extern dll, obj, lib.a dosyaları için..
 ** Modül Hazırlama
 ```
@@ -1303,6 +1307,8 @@ f:main()!i32 {
 ---
 
 ## 13. Macro Sistemi — Tasarım / Parser dışı katman
+
+> Aşağıdaki örnekler mevcut C Parser tarafından kabul edilen syntax değildir. Macro expansion/preprocessor grameri, AST metadata'sı ve diagnostic/source-map sözleşmesi henüz tanımlanmamıştır.
 
 ```
 # Makro programlama
@@ -1380,7 +1386,7 @@ f:main() {
 
 ## Bölüm 14. ÇEKİRDEK FONKSİYONLAR (CORE - KÜTÜPHANESİZ)
 
-** Bu kütüphanenin yüklemesi için no:CoreModule; gerekir. Yani Normal os bağımlı kütüphane iptal edilmelidir.
+** `no:CoreModule` örneği mevcut Lexer/Parser tarafından tanınan bir bildirim değildir. Core library seçimi/iptali build veya module configuration katmanında tanımlanmalıdır.
 
 ###  CORE ZERO FUNCTIONS (Os Bağımsız)
 
