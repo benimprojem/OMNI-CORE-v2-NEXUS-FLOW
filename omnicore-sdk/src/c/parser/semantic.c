@@ -21,6 +21,10 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->diagnostic_stage_id = OCC_STAGE_SEMANTIC;
     ctx->current_scope_id = 1u;
     ctx->current_group_owner = NULL;
+    ctx->current_method_receiver_type = NULL;
+    ctx->current_method_receiver_type_id = 0u;
+    ctx->current_method_context = 0u;
+    ctx->current_method_is_object = 0u;
     ctx->node_id_resolver = NULL;
     ctx->node_id_context = NULL;
     ctx->result_enabled = 0u;
@@ -1314,7 +1318,11 @@ static void semantic_validate_group_member_names(
         }
     }
 }
-void semantic_check(SemanticContext* ctx, ASTNode* node) {
+static void semantic_check_node(SemanticContext* ctx, ASTNode* node, int follow_siblings);
+
+static void semantic_check_node(
+    SemanticContext* ctx, ASTNode* node, int follow_siblings
+) {
     if (!node) return;
 
     switch (node->type) {
@@ -1957,6 +1965,107 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
             enter_scope(ctx, node);
             if (func->params) semantic_check(ctx, func->params);
 
+            if (ctx->current_method_context) {
+                ASTNode* parameter_node = func->params;
+                ASTVarDecl* first_parameter =
+                    parameter_node && parameter_node->type == AST_VAR_DECL
+                        ? (ASTVarDecl*)parameter_node : NULL;
+                ASTVarDecl* self_parameter = NULL;
+                uint32_t parameter_index = 0u;
+
+                for (; parameter_node; parameter_node = parameter_node->next,
+                     ++parameter_index) {
+                    if (parameter_node->type == AST_VAR_DECL &&
+                        ((ASTVarDecl*)parameter_node)->name &&
+                        strcmp(((ASTVarDecl*)parameter_node)->name, "self") == 0) {
+                        self_parameter = (ASTVarDecl*)parameter_node;
+                        if (parameter_index != 0u) {
+                            report_error(ctx, parameter_node,
+                                ERR_SEMANTIC_TYPE_MISMATCH,
+                                "The self receiver must be the first method parameter.");
+                        }
+                        break;
+                    }
+                }
+
+                if (self_parameter && first_parameter == self_parameter) {
+                    if (!ctx->current_method_is_object ||
+                        !ctx->current_method_receiver_type ||
+                        ctx->current_method_receiver_type_id == 0u) {
+                        report_error(ctx, (ASTNode*)self_parameter,
+                            ERR_SEMANTIC_TYPE_MISMATCH,
+                            "self is only valid on an instance method of a Struct-bound Object Group.");
+                    } else {
+                        const char* explicit_type = self_parameter->type_name;
+                        const char* normalized_type = explicit_type;
+                        Slot* self_slot = semantic_find_slot_by_declaration(
+                            ctx, (ASTNode*)self_parameter);
+                        if (normalized_type && normalized_type[0] == '!')
+                            ++normalized_type;
+
+                        if (normalized_type && *normalized_type &&
+                            strcmp(normalized_type,
+                                ctx->current_method_receiver_type) != 0) {
+                            report_error(ctx, (ASTNode*)self_parameter,
+                                ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Explicit self type must exactly match the Group's bound Struct type.");
+                        } else if (self_slot) {
+                            if (!normalized_type || !*normalized_type) {
+                                char* inferred_name = semantic_duplicate(
+                                    ctx, ctx->current_method_receiver_type);
+                                if (!inferred_name) {
+                                    semantic_set_result_error(
+                                        ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                                } else {
+                                    free(self_slot->type_name);
+                                    self_slot->type_name = inferred_name;
+                                    self_slot->type_id =
+                                        ctx->current_method_receiver_type_id;
+                                    if (self_slot->symbol_id != 0u) {
+                                        SemanticResultStatus self_status =
+                                            semantic_result_set_symbol_type(
+                                                &ctx->result, self_slot->symbol_id,
+                                                self_slot->type_id);
+                                        semantic_set_result_error(ctx, self_status);
+                                    }
+                                    semantic_record_annotation(
+                                        ctx, (ASTNode*)self_parameter, self_slot,
+                                        self_slot->type_name,
+                                        SEMANTIC_RESULT_VALUE_LVALUE);
+                                }
+                            } else if (self_slot->type_id == 0u) {
+                                self_slot->type_id = semantic_type_id(
+                                    ctx, self_parameter->type_name,
+                                    self_parameter->is_hard_typed);
+                                if (self_slot->symbol_id != 0u) {
+                                    SemanticResultStatus self_status =
+                                        semantic_result_set_symbol_type(
+                                            &ctx->result, self_slot->symbol_id,
+                                            self_slot->type_id);
+                                    semantic_set_result_error(ctx, self_status);
+                                }
+                                semantic_record_annotation(
+                                    ctx, (ASTNode*)self_parameter, self_slot,
+                                    self_slot->type_name,
+                                    SEMANTIC_RESULT_VALUE_LVALUE);
+                            }
+
+                            if (function_slot && function_slot->param_types &&
+                                function_slot->param_count > 0 &&
+                                !function_slot->param_types[0]) {
+                                function_slot->param_types[0] =
+                                    semantic_duplicate(ctx,
+                                        ctx->current_method_receiver_type);
+                                if (!function_slot->param_types[0]) {
+                                    semantic_set_result_error(
+                                        ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             if (ctx->result_enabled && function_slot &&
                 function_slot->symbol_id != 0u) {
                 ASTNode* parameter_node = func->params;
@@ -2175,7 +2284,14 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_UNION_DECL: {
             ASTStructDecl* sdecl = (ASTStructDecl*)node;
             if (sdecl->name) {
-                if (find_slot(ctx, sdecl->name)) {
+                Slot* existing_type = find_slot(ctx, sdecl->name);
+                int is_group_binding_name =
+                    existing_type && existing_type->kind == SLOT_GROUP &&
+                    ctx->current_group_owner &&
+                    existing_type->declaration_node == ctx->current_group_owner &&
+                    strcmp(((const ASTGroupDecl*)ctx->current_group_owner)->name,
+                        sdecl->name) == 0;
+                if (existing_type && !is_group_binding_name) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), "Type '%s' already defined.", sdecl->name);
                     report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
@@ -2291,7 +2407,14 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_ENUM_DECL: {
             ASTEnumDecl* edecl = (ASTEnumDecl*)node;
-            if (find_slot(ctx, edecl->name)) {
+            Slot* existing_type = find_slot(ctx, edecl->name);
+            int is_group_binding_name =
+                existing_type && existing_type->kind == SLOT_GROUP &&
+                ctx->current_group_owner &&
+                existing_type->declaration_node == ctx->current_group_owner &&
+                strcmp(((const ASTGroupDecl*)ctx->current_group_owner)->name,
+                    edecl->name) == 0;
+            if (existing_type && !is_group_binding_name) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "Type '%s' already defined.", edecl->name);
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
@@ -2600,7 +2723,24 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
             enter_scope(ctx, node);
             ctx->current_group_owner = node;
-            if (g->members) semantic_check(ctx, g->members);
+            {
+                ASTNode* binding = NULL;
+                ASTNode* current;
+                for (current = g->members; current; current = current->next) {
+                    const char* member_name = semantic_group_member_name(current);
+                    if (member_name && strcmp(member_name, g->name) == 0 &&
+                        (current->type == AST_STRUCT_DECL ||
+                         current->type == AST_ENUM_DECL ||
+                         current->type == AST_UNION_DECL)) {
+                        binding = current;
+                        break;
+                    }
+                }
+                if (binding) semantic_check_node(ctx, binding, 0);
+                for (current = g->members; current; current = current->next) {
+                    if (current != binding) semantic_check_node(ctx, current, 0);
+                }
+            }
 
             if (ctx->result_enabled && ctx->result_status == SEMANTIC_RESULT_OK &&
                 group_slot && group_slot->symbol_id != 0u) {
@@ -2689,7 +2829,44 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_METHOD: {
             ASTMethod* m = (ASTMethod*)node;
+            const char* previous_receiver_type = ctx->current_method_receiver_type;
+            uint32_t previous_receiver_type_id = ctx->current_method_receiver_type_id;
+            uint8_t previous_method_context = ctx->current_method_context;
+            uint8_t previous_method_is_object = ctx->current_method_is_object;
+            Slot* receiver_slot = NULL;
+
+            ctx->current_method_context = 1u;
+            ctx->current_method_is_object = 0u;
+            ctx->current_method_receiver_type = NULL;
+            ctx->current_method_receiver_type_id = 0u;
+
+            if (ctx->current_group_owner) {
+                const ASTGroupDecl* owner =
+                    (const ASTGroupDecl*)ctx->current_group_owner;
+                const ASTNode* member;
+                for (member = owner->members; member; member = member->next) {
+                    const char* member_name = semantic_group_member_name(member);
+                    if (member->type == AST_STRUCT_DECL && member_name &&
+                        strcmp(member_name, owner->name) == 0) {
+                        receiver_slot = semantic_find_slot_by_declaration(
+                            ctx, member);
+                        break;
+                    }
+                }
+            }
+            if (receiver_slot && receiver_slot->kind == SLOT_STRUCT &&
+                receiver_slot->type_id != 0u) {
+                ctx->current_method_is_object = 1u;
+                ctx->current_method_receiver_type = receiver_slot->name;
+                ctx->current_method_receiver_type_id = receiver_slot->type_id;
+            }
+
             if (m->implementation) semantic_check(ctx, m->implementation);
+
+            ctx->current_method_receiver_type = previous_receiver_type;
+            ctx->current_method_receiver_type_id = previous_receiver_type_id;
+            ctx->current_method_context = previous_method_context;
+            ctx->current_method_is_object = previous_method_is_object;
             break;
         }
 
@@ -2758,7 +2935,11 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         }
     }
 
-    if (node->next) semantic_check(ctx, node->next);
+    if (follow_siblings && node->next) semantic_check(ctx, node->next);
+}
+
+void semantic_check(SemanticContext* ctx, ASTNode* node) {
+    semantic_check_node(ctx, node, 1);
 }
 
 void semantic_print_errors(SemanticContext* ctx) {
