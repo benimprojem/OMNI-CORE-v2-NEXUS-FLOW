@@ -172,3 +172,12 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - Added `test_pointer_reference_type_declarators` for local variable, typed parameters, return type, NewType alias, graph validation and AST stream round-trip.
 - This closes the Parser spelling gap only. Nullability, pointer validity, mutability, borrow/lifetime, aliasing and ownership remain Semantic contracts.
 - Parser commit: `0b87bd7b`; test commit: `df9ef675`. CI pending.
+
+
+## 2026-11-07 — Function type / callback signature production
+
+- Added `f:(name!Type, ...)>!ReturnType` as a type expression in NewType targets, local type declarations, function parameters and return types.
+- The signature is whitespace-normalized and retained in the existing owned type-name/target-type string fields; it is distinct from `AST_LAMBDA` expression bodies.
+- Added `test_function_type_alias_and_callback_parameter` for NewType alias, callback parameter, invocation shape, AST validation, stream round-trip and malformed-signature rejection.
+- This is syntax/AST string preservation, not full callback type compatibility, closure capture, ABI lowering or a dedicated `AST_FUNCTION_TYPE` node.
+- Parser commit: `486a92ba`; regression test commit: `51198999`. CI pending.
