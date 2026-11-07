@@ -828,3 +828,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - CI run `42401080171` / commit `237597ca5a64` passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan, Valgrind). Ubuntu CTest and Valgrind each report 60/60 tests, zero failures.
 - Updated `docs/AST_PARSER_PRODUCTION_MATRIX.md` with the current intrinsic token → AST map. Signature-specific grammar, exact source-span endpoints, and Semantic argument/type contracts remain open.
 - Next concrete AST target: audit AST parser productions for exact source-span start/end policy and then add missing endpoint fixtures; do not conflate parser source spans with semantic/runtime behavior.
+
+
+## 2026-11-07 — Source-span audit: packed struct and listen
+
+- Found two statement-dispatch paths that bypassed the enclosing production span stamp: `!struct` and `!(listen)`.
+- Added full-production span stamping for packed struct declarations and listen handlers; AST_LISTEN line/column now point to the opening `!`.
+- Extended `test_extern_echo_and_listen_keywords()` to assert exact byte start/end offsets and start line/column for both nodes.
+- CI run `42401418322` / commit `ac13f7056143` passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan, Valgrind); Ubuntu and Valgrind each report 60/60 tests.
+- Continue source-span audit by tracing each parse_statement branch and its enclosing helper. A helper with no local stamp may be stamped by its caller; only confirmed gaps should be changed.
