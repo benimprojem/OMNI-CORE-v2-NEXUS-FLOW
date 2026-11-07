@@ -3665,6 +3665,7 @@ generic_type_done:
         ASTLambda* expression_lambda;
         ASTLambda* block_lambda;
         int valid = 0;
+        int invalid_rejected = 0;
         if (parser && parser_run(parser) == PARSER_STATUS_OK &&
             parser->error_count == 0 && parser->ast_root &&
             ast_validate(parser->ast_root, NULL)) {
@@ -3718,8 +3719,12 @@ generic_type_done:
                 }
             }
         }
-        if (invalid && parser_run(invalid) == PARSER_STATUS_OK &&
-            invalid->error_count == 0) valid = 0;
+        if (invalid) {
+            ParserStatus invalid_status = parser_run(invalid);
+            invalid_rejected = invalid_status != PARSER_STATUS_OK ||
+                invalid->error_count != 0;
+        }
+        valid = valid && invalid_rejected;
         if (stream) fclose(stream);
         if (decoded) ast_destroy(decoded);
         if (parser) parser_destroy(parser);
