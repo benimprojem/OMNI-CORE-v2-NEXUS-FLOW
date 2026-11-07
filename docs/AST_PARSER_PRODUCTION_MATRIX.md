@@ -181,3 +181,16 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - Added `test_function_type_alias_and_callback_parameter` for NewType alias, callback parameter, invocation shape, AST validation, stream round-trip and malformed-signature rejection.
 - This is syntax/AST string preservation, not full callback type compatibility, closure capture, ABI lowering or a dedicated `AST_FUNCTION_TYPE` node.
 - Parser commit: `486a92ba`; regression test commit: `51198999`. CI pending.
+
+
+## 2026-11-07 — AST enum tags without active Parser productions
+
+The active `ASTNodeType` enum contains 105 append-only tags. A source-to-AST audit found the following tags are intentionally legacy/reserved rather than active Parser outputs:
+
+| AST tag | Current contract |
+|---|---|
+| `AST_SPAWN` | Legacy serialized tag only. New spawn syntax belongs to the separate Thread module and is intentionally rejected by the core Parser. |
+| `AST_ASM_BLOCK` | Legacy tag. Current FASTEXEC/raw-ASM syntax emits `AST_FASTEXEC_BLOCK` and `AST_ASM_LABEL`. |
+| `AST_ZONE_SYNC`, `AST_ZONE_VIEW`, `AST_ZONE_LOCK` | Reserved tags with no direct Parser production. `zone.sync()`, `zone.view()` and `zone.lock()` currently parse as generic member calls. |
+
+These tags must not be counted as active syntax support merely because they exist in the AST enum or OIR registry. Their removal is not proposed; legacy serialization compatibility and future module boundaries are preserved.
