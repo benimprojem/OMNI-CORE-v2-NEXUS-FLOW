@@ -3735,5 +3735,62 @@ generic_type_done:
         }
     }
 
+
+    /* Return/break/continue are distinct control-flow AST productions. */
+    {
+        static const char source[] =
+            "f:main() { ret; ret 7; break; continue; }";
+        static const char invalid_source[] = "f:main() { break }";
+        ParserContext* parser = parser_init_source("control-flow-ast.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        ParserContext* invalid = parser_init_source("control-flow-missing-semicolon.nxf",
+            (const uint8_t*)invalid_source, sizeof(invalid_source) - 1u);
+        FILE* stream = NULL;
+        ASTNode* decoded = NULL;
+        ASTFuncDecl* function;
+        ASTNode* statement;
+        int valid = 0;
+        int invalid_rejected = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK &&
+            parser->error_count == 0 && parser->ast_root &&
+            ast_validate(parser->ast_root, NULL)) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            statement = function && function->body && function->body->type == AST_BLOCK
+                ? ((ASTBlock*)function->body)->statements : NULL;
+            stream = tmpfile();
+            if (statement && statement->type == AST_RETURN &&
+                ((ASTUnaryExpr*)statement)->operand == NULL &&
+                statement->next && statement->next->type == AST_RETURN &&
+                ((ASTUnaryExpr*)statement->next)->operand &&
+                ((ASTUnaryExpr*)statement->next)->operand->type == AST_LITERAL &&
+                statement->next->next && statement->next->next->type == AST_BREAK &&
+                statement->next->next->next &&
+                statement->next->next->next->type == AST_CONTINUE &&
+                statement->next->next->next->next == NULL &&
+                statement->source_span.has_location &&
+                statement->next->source_span.has_location &&
+                statement->next->next->source_span.has_location &&
+                statement->next->next->next->source_span.has_location &&
+                stream && ast_serialize(parser->ast_root, stream) &&
+                fseek(stream, 0L, SEEK_SET) == 0) {
+                decoded = ast_deserialize(stream);
+                valid = decoded && ast_validate(decoded, NULL);
+            }
+        }
+        if (invalid) {
+            ParserStatus status = parser_run(invalid);
+            invalid_rejected = status != PARSER_STATUS_OK || invalid->error_count != 0;
+        }
+        valid = valid && invalid_rejected;
+        if (stream) fclose(stream);
+        if (decoded) ast_destroy(decoded);
+        if (parser) parser_destroy(parser);
+        if (invalid) parser_destroy(invalid);
+        if (!valid) {
+            fprintf(stderr, "Return/break/continue AST contract test failed.\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
