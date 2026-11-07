@@ -81,7 +81,7 @@ v:liste = [1, 2, 3]; # listenin içindeki en büyük elemana göre tipi ayarlar.
 c:PI = 3.14159;
 
 # Ondalık tam sayı literal
-v:val = 10000; # Decimal integer; scientific notation is not supported by the current Lexer.
+v:val = 10E3; # Scientific notation
 
 # Üslü sayılar.
 v:vall= 10^^15;
@@ -130,7 +130,7 @@ panic("critical failure");
 - `cast(value, type)`: İlk argüman ifade, ikinci argüman tür adıdır. Tür adı primitive tür tokenı veya tanımlayıcı olabilir.
 - `panic("message")`: Mevcut Parser uygulamasında mesaj string literalidir. Değişken veya genel ifade mesajı henüz desteklenmiş kabul edilmez.
 
-**Desteklenmeyen sayısal yazımlar:** Hex/binary önekleri (`0xFF`, `0b1010`), bilimsel gösterim (`10E3`, `1e-3`), sayısal ayraçlar (`1_000`), tür ekleri (`12u8`, `1.5f32`) ve literal genişlik ekleri bu Lexer sürümünde desteklenmez; tek bir `TOKEN_ERROR` ile reddedilir, geçerli sayı + tanımlayıcı olarak sessizce bölünmez. Rolling delay için tanımlı `500ms` biçimi istisnadır: Lexer bunu `TOKEN_NUMBER` + `ms` identifier tokenlarına ayırır; birim Parser tarafından rolling metadata bağlamında tüketilir. `^^` ise sayısal literal biçimi değil, ayrı bir üs alma operatörüdür. Parser `^^` operatörünü right-associative olarak ayrıştırır; `a^^b^^c`, `a^^(b^^c)` biçimindedir. Üs alma, unary eksi işaretinden daha sıkı bağlanır.
+**Desteklenen sayısal yazımlar:** Ondalık tam sayı/ondalık kesir (`12`, `3.14`), hexadecimal (`0xFF`), binary (`0b1010`), octal (`0o17`), bilimsel gösterim (`10E3`, `1e-3`) ve rakam gruplama ayıracı (`1_000`, `1.5_25e-2`). Ayraç yalnızca iki geçerli rakam arasında kullanılabilir. Tür ekleri (`12u8`, `1.5f32`) desteklenmez ve tek bir `TOKEN_ERROR` ile reddedilir. Rolling delay için tanımlı `500ms` biçimi istisnadır: Lexer bunu `TOKEN_NUMBER` + `ms` identifier tokenlarına ayırır; birim Parser tarafından rolling metadata bağlamında tüketilir. `^^` sayısal literal biçimi değil, ayrı bir üs alma operatörüdür. Parser `^^` operatörünü right-associative olarak ayrıştırır; `a^^b^^c`, `a^^(b^^c)` biçimindedir. Üs alma, unary eksi işaretinden daha sıkı bağlanır.
 
 ---
 
@@ -387,7 +387,7 @@ Bu bölüm hedeflenen dil semantiğidir. C Parser tekil kaynak Halt için `AST_N
 ### 4.3  Nexus Flow Mantığı
 >* Kural: `(h)<- fn() ?->{}` operatörü. `(false, null, none, unknown)` hata/boşluk durumlarını anlatır.
 >  Ternary kontrole benzer: Başarılı ise sola, başarısız ise akış sağa kayar.
->  Bu listede geçen `null`, `none` ve `unknown` çalışma zamanı durumlarını anlatır; mevcut Lexer'da `null` veya `none` için bağımsız literal tokenı yoktur.
+>  Bu listede geçen `null` artık ayrı bir literal tokenıdır ve null pointer değerini ifade eder. `none` henüz literal değildir; Option/Maybe türünün boş varyantı ayrıca tanımlanmalıdır. `null` değerinin yalnızca nullable pointer hedeflerine atanması Semantic doğrulamasında zorunlu kılınacaktır.
 ```
 # Hata Saptırmalı Akış,  Hatayı işlemek için Hata işleme bloğuna iletir. 
 (h) <- file.open("a.txt",r) ?-> (e){ echo(e); };
@@ -1300,10 +1300,10 @@ group SysIO {
 
         !!=[target = "bare-metal"] {
             # Hiçbir kütüphane yok, doğrudan VGA belleğine yaz veya UART kullan
-            # 753664: Klasik x86 VGA metin tamponu adresi (0xB8000)
+            # 0xB8000: Klasik x86 VGA metin tamponu adresi
             loop(i, i < len, i++) {
-                poke(753664 + (i * 2), msg[i]);
-                poke(753664 + (i * 2) + 1, 7); # Gri renk
+                poke(0xB8000 + (i * 2), msg[i]);
+                poke(0xB8000 + (i * 2) + 1, 7); # Gri renk
             }
         }
     }
