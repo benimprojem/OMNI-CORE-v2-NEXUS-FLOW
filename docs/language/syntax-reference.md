@@ -989,7 +989,7 @@ Bu biçim AST içinde `AST_LAMBDA` olarak tutulur; `body_is_expression` işaretl
 
 ### Generic Fonksiyonlar — Tasarım Açığı
 
-Önceki `f:sum(a!t, b!t)!t` örneğinde `t` için bir type-parameter bildirimi bulunmuyordu. Lexer bunu sıradan identifier/type adı olarak görür; Parser'da generic parameter listesi ve Semantic type-variable çözümlemesi yoktur. Bu nedenle generic fonksiyonlar mevcut desteklenen syntax olarak gösterilmez. Önerilen açık gramer ve AST modeli `NEXUS-FLOW-LANGUAGE-COMPARISON.md` içinde takip edilir.
+`f:sum(a!t, b!t)!t` biçiminde `t` type-name yazımı AST type-name string alanlarında korunur; ancak Semantic henüz `t` için generic binding, scope, unification ve inference yapmaz. Bu nedenle generic fonksiyonlar uçtan uca desteklenmiş sayılmaz. Açık `<T>` parameter-list syntax'ı normatif değildir; örtük type-variable modeli netleştirilmeden eklenmemelidir.
 
 ---
 
