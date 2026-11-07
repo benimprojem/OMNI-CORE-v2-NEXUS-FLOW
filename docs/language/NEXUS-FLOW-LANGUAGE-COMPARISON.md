@@ -206,7 +206,7 @@ Bu liste özelliklerin mutlaka eklenmesi gerektiği anlamına gelmez. Her madde 
 
 ## 5. Önerilen karar sırası
 
-1. Pointer/reference type grameri ve AST temsili.
+1. Pointer/reference syntax Parser üretimi tamamlandı; type metadata/ownership Semantic kuralları açık.
 2. Function type/callback AST temsili.
 3. Generic type parameter grameri ve AST temsili.
 4. Null/optional modelinin dil seviyesinde kararı.
