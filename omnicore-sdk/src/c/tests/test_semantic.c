@@ -315,6 +315,17 @@ static int check_group_method_dispatch_semantics(void) {
         "run => f:run_impl(self) { v:other!Storage = self; other.store_value(7); ret; } "
         "store_value => f:store_value_impl(self,value!i32) { ret; } "
         "struct:Storage { v:value!i32 } } }";
+    const char* anonymous_instance_method_implementation =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.open(); ret; } "
+        "open => f:(self) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* anonymous_static_factory_returning_bound_type =
+        "f:main() { group Storage { "
+        "create => f:(instance!Storage)!Storage { ret instance; } "
+        "run => f:run_impl(instance!Storage) { "
+        "v:created!Storage = Storage.create(instance); ret; } "
+        "struct:Storage { v:value!i32 } } }";
     const char* type_qualified_static_call =
         "f:main() { group Storage { "
         "run => f:run_impl() { Storage.parse(\"x\"); ret; } "
@@ -370,6 +381,8 @@ static int check_group_method_dispatch_semantics(void) {
         "struct:Storage { v:value!i32 } } }";
 
     return check_source(instance_call_to_later_method, 0) &&
+        check_source(anonymous_instance_method_implementation, 0) &&
+        check_source(anonymous_static_factory_returning_bound_type, 0) &&
         check_source(type_qualified_static_call, 0) &&
         check_source(namespace_static_call, 0) &&
         check_source(direct_group_function_call, 0) &&
