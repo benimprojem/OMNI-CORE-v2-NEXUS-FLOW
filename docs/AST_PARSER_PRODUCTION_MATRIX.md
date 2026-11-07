@@ -90,6 +90,7 @@ Parser source-span assertions are distributed through `test_parser.c` rather tha
 - FASTEXEC raw ASM declaration and attached label/body spans.
 - Capture, function parameter, variadic marker, Nexus label, group/member and targetless Halt.
 - `!(listen)` full statement span beginning at `!` and ending after its handler block; `!struct:Packed` full declaration span beginning at the hard-pack marker.
+- `AST_USE` uses an import-item span (module identifier through optional alias), not the shared `use` keyword or semicolon; `AST_DEFER` uses the full `defer` statement span.
 - `asmcall`/`asmjmp` full call ranges.
 
 This is a **tested subset**, not blanket source-span coverage for all productions. AST closure requires each row to declare its span policy (token-only, full production, or synthesized/no source) and have assertions for both endpoints where location is required. UTF-8 offsets are byte offsets; line/column are separately validated.
@@ -129,3 +130,11 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - `test_extern_echo_and_listen_keywords()` now asserts exact start/end byte offsets and start location for both `AST_LISTEN` and packed `AST_STRUCT_DECL`.
 - CI run `42401418322` / commit `ac13f7056143`: all five jobs passed (Windows, Ubuntu, macOS, ASan/UBSan, Valgrind); Ubuntu and Valgrind CTest each report 60/60.
 - The audit is incremental: other helper functions may receive their span from the enclosing statement dispatcher. Do not infer a missing span merely because the helper itself does not call a stamping function; trace the complete parser path.
+
+
+## Source-span audit — use items and defer (2026-11-07)
+
+- Confirmed `AST_USE` is one AST node per imported module in a comma-separated declaration. Its intended span is the individual import item: module identifier through optional `as Alias`; the shared `use` keyword and final semicolon are outside the individual node range.
+- Extended the use/defer Parser fixture to assert exact offsets for both import-item shapes (aliased and unaliased) and the full `defer { ... }` statement.
+- The first test iteration exposed a fixture delimiter typo (`Core;` instead of the actual `Core,` separator); corrected the test expectation. No Parser production change was needed.
+- CI run `42401799340` / commit `41372b18b594`: all five jobs passed (Windows, Ubuntu, macOS, ASan/UBSan and Valgrind); Ubuntu and Valgrind report 60/60 tests.
