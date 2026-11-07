@@ -854,3 +854,13 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - The normative syntax reference documents expression bodies for lambda `f:(params)>expr`, but named functions are documented with block bodies. No Parser change was made.
 - Recorded the discrepancy in `docs/AST_PARSER_PRODUCTION_MATRIX.md`. Before changing behavior, determine whether this named-function shorthand is legacy compatibility syntax or unsupported accidental acceptance.
 - Synthetic block/return source-span policy remains open; do not fabricate source locations without deciding whether these nodes inherit the expression range or remain synthetic/no-location.
+
+
+## 2026-11-07 — Expression-bodied lambda contract and span regression
+
+- Confirmed the normative syntax is `f:(a, b) > a * b`; the expression after `>` is the lambda result. The shorter form does not require `ret`.
+- Clarified `docs/language/syntax-reference.md`: expression-bodied lambdas remain `AST_LAMBDA` with `body_is_expression=1` and the body is the direct expression node; Parser must not synthesize `AST_RETURN` for this lambda form. Block-bodied lambdas remain `AST_LAMBDA` and use explicit `ret` when returning.
+- The existing named-function shorthand `f:name(...) > expr` is not normative in the syntax reference. It remains untouched as a compatibility/spec discrepancy pending a separate usage audit; do not silently expand the language.
+- Added exact lambda start/end byte-offset and direct-expression-child assertions to `test_rules_lambda_relocate_unroll_ast()` in commit `4eb314b8d627789588e132f59a18266e051b9318`. Updated `docs/AST_PARSER_PRODUCTION_MATRIX.md` in `33143e33c7df`.
+- CI evidence is pending for the new test assertion; do not mark the lambda span regression verified until the complete Windows/Ubuntu/macOS/ASan/UBSan/Valgrind matrix passes.
+- AST remains the active stage. Continue the per-production source-span audit; Semantic return inference, closure/capture semantics, and function-pointer representation remain later AST/Semantic contract work. No Codegen advancement.
