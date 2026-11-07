@@ -3816,10 +3816,14 @@ static ASTNode* parse_statement(Parser* p) {
         }
     }
     if (match(p, TOKEN_NOT)) {
+        Token not_start = p->previous;
         if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) {
-            return parse_struct_decl(p, 1, NULL); // !struct (Packed)
+            ASTNode* packed = parse_struct_decl(p, 1, NULL);
+            if (packed)
+                parser_stamp_node_tokens(p, packed, &not_start, &p->previous);
+            return packed; // !struct (Packed)
         }
-        
+
         // Check for !(listen)
         if (p->current.type == TOKEN_LPAREN) {
             Token lookahead = peek_token(p);
@@ -3832,8 +3836,8 @@ static ASTNode* parse_statement(Parser* p) {
                 
                 ASTNexusCapture* listen = (ASTNexusCapture*)parser_ast_create(p, AST_LISTEN);
                 if (!listen) return NULL;
-                listen->base.line = p->previous.line;
-                listen->base.col = p->previous.col;
+                listen->base.line = not_start.line;
+                listen->base.col = not_start.col;
                 listen->handler_name = parser_strdup(p, "global_listener");
                 if (!listen->handler_name) {
                     ast_destroy((ASTNode*)listen);
@@ -3845,6 +3849,7 @@ static ASTNode* parse_statement(Parser* p) {
                     ast_destroy((ASTNode*)listen);
                     return NULL;
                 }
+                parser_stamp_node_tokens(p, (ASTNode*)listen, &not_start, &p->previous);
                 return (ASTNode*)listen;
             }
         }
