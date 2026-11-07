@@ -935,3 +935,10 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Dedicated function-type AST node, Semantic callback compatibility, closure capture and ABI lowering remain open.
 - Commits: Parser `486a92ba`; parser lookahead `37862b24`; test `51198999`.
 - CI pending.
+
+
+## 2026-11-07 — AST tag inventory reconciliation
+
+- Enumerated all 105 append-only AST tags and compared Parser construction/dispatch paths.
+- Classified `AST_SPAWN` as legacy-only (Thread module boundary), `AST_ASM_BLOCK` as legacy-only (current FASTEXEC/ASM_LABEL path), and `AST_ZONE_SYNC/VIEW/LOCK` as reserved tags (zone member methods currently parse as generic member calls).
+- Updated syntax reference and Parser/AST matrices so AST enum presence is not confused with active syntax support.
