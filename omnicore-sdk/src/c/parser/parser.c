@@ -848,7 +848,7 @@ static ASTNode* parse_primary(Parser* p) {
         if (match(p, TOKEN_PIPE)) { } // Opsiyonel ->
         
         if (match(p, TOKEN_LBRACE)) loop->body = parse_block(p);
-        else error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+        else error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
         if (loop->body) parser_stamp_node_tokens(p, (ASTNode*)loop, &loop_start, &p->previous);
         return (ASTNode*)loop;
     }
@@ -898,7 +898,7 @@ static ASTNode* parse_primary(Parser* p) {
             if (match(p, TOKEN_LBRACE)) {
                 loop->body = parse_block(p);
             } else {
-                error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
             }
             if (loop->body) parser_stamp_node_tokens(p, (ASTNode*)loop, &open, &p->previous);
             return (ASTNode*)loop;
@@ -3345,7 +3345,7 @@ static ASTNode* parse_group_body(Parser* p, ASTGroupDecl* group) {
             memcpy(child->name, alias.start, (size_t)alias.length); child->name[alias.length] = '\0';
             advance(p); advance(p); advance(p); /* alias => group */
             if (!match(p, TOKEN_LBRACE)) {
-                error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
                 ast_destroy((ASTNode*)child); ast_destroy(head); return NULL;
             }
             (void)parse_group_body(p, child);
@@ -3426,7 +3426,7 @@ static ASTNode* parse_group_decl(Parser* p) {
         memcpy(group->name, t.start, (size_t)t.length); group->name[t.length] = '\0';
     }
     if (!match(p, TOKEN_LBRACE)) {
-        error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
         ast_destroy((ASTNode*)group); return NULL;
     }
     (void)parse_group_body(p, group);
@@ -3642,7 +3642,7 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
     }
     advance(p);
     if (!check(p,TOKEN_LBRACE)) {
-        error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,MSG_EXPECT_LBRACE_FUNC);
+        error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,msg_get(MSG_EXPECT_LBRACE_FUNC));
         ast_destroy(root); return NULL;
     }
     advance(p);
@@ -3777,7 +3777,7 @@ static ASTNode* parse_ruleset(Parser* p) {
     advance(p); node->params=parse_simple_parameter_list(p);
     if(!check(p,TOKEN_RPAREN)){error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,msg_get(MSG_EXPECT_RPAREN_PARAMS));ast_destroy((ASTNode*)node);return NULL;}
     advance(p);
-    if(!check(p,TOKEN_LBRACE)){error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,MSG_EXPECT_LBRACE_FUNC);ast_destroy((ASTNode*)node);return NULL;}
+    if(!check(p,TOKEN_LBRACE)){error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,msg_get(MSG_EXPECT_LBRACE_FUNC));ast_destroy((ASTNode*)node);return NULL;}
     advance(p);
     while(p->current.type!=TOKEN_RBRACE && p->current.type!=TOKEN_EOF) {
         Token rule_start = p->current;
@@ -3861,7 +3861,7 @@ static ASTNode* parse_on_block(Parser* p) {
     ruleset=p->previous;
     if(!match(p,TOKEN_DOT) || !match(p,TOKEN_IDENTIFIER)){error_at(p,&p->current,ERR_PARSER_UNEXPECTED_TOKEN,"Expected Ruleset.Event after on.");return NULL;}
     event=p->previous;
-    if(!check(p,TOKEN_LBRACE)){error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,MSG_EXPECT_LBRACE_FUNC);return NULL;}
+    if(!check(p,TOKEN_LBRACE)){error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,msg_get(MSG_EXPECT_LBRACE_FUNC));return NULL;}
     advance(p);
     node=(ASTOnBlock*)parser_ast_create(p,AST_ON_BLOCK);if(!node)return NULL;
     node->base.line=keyword.line;node->base.col=keyword.col;
