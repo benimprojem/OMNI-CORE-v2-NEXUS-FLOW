@@ -162,7 +162,7 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - Extended `parse_use()` to accept dotted module paths such as `use msvcrt.exf as crt;`.
 - Module path segments are joined into the existing owned `AST_USE.module_name` string; no AST tag or OIR field layout changed.
 - Added `test_dotted_module_use_path` for the joined path, alias, graph validation and AST codec round-trip.
-- CI evidence is pending; malformed path segments and exact span boundaries remain in the test closure list.
+- CI validated by workflow run `42411223520`; malformed path segments and exact span boundaries remain in the test closure list.
 
 
 ## 2026-11-07 — Pointer/reference type spelling
