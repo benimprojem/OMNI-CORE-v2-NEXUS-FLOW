@@ -1495,6 +1495,42 @@ static int semantic_scope_is_ancestor(
     return 0;
 }
 
+static int semantic_group_relation_exposes_symbol(
+    const OirSemanticScopesView* scopes,
+    const OirSemanticSymbolsView* symbols,
+    const OirSemanticRelationsView* relations,
+    uint32_t annotation_scope_id,
+    uint32_t target_symbol_id
+) {
+    uint32_t group_index;
+    if (!scopes || !symbols || !relations || target_symbol_id == 0u) return 0;
+    for (group_index = 0u; group_index < symbols->record_count; ++group_index) {
+        OirSemanticSymbol group;
+        uint32_t relation_index;
+        if (oir_semantic_symbols_get(
+                symbols, group_index, &group, NULL) != OIR_STATUS_OK)
+            return 0;
+        if (group.kind != OIR_SEMANTIC_SYMBOL_GROUP ||
+            !semantic_scope_is_ancestor(
+                scopes, group.scope_id, annotation_scope_id)) continue;
+        for (relation_index = 0u;
+             relation_index < relations->record_count; ++relation_index) {
+            OirSemanticRelation relation;
+            if (oir_semantic_relations_get(
+                    relations, relation_index, &relation, NULL, NULL) !=
+                OIR_STATUS_OK) return 0;
+            if (relation.owner_symbol_id == group.symbol_id &&
+                relation.related_symbol_id == target_symbol_id &&
+                (relation.kind == OIR_SEMANTIC_RELATION_GROUP_MEMBER ||
+                 relation.kind == OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING ||
+                 relation.kind == OIR_SEMANTIC_RELATION_GROUP_METHOD_IMPLEMENTATION)) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 OirStatus oir_semantic_ast_validate_references(
     const OirAstNodeTableView* ast,
     const OirSemanticScopesView* scopes_input,
@@ -1735,8 +1771,11 @@ OirStatus oir_semantic_ast_validate_references(
             status = oir_semantic_symbols_get(
                 &symbols, annotation.resolved_symbol_id - 1u, &resolved, NULL);
             if (status != OIR_STATUS_OK ||
-                !semantic_scope_is_ancestor(
-                    &scopes, resolved.scope_id, annotation.scope_id)) {
+                (!semantic_scope_is_ancestor(
+                    &scopes, resolved.scope_id, annotation.scope_id) &&
+                 !semantic_group_relation_exposes_symbol(
+                    &scopes, &symbols, &relations,
+                    annotation.scope_id, annotation.resolved_symbol_id))) {
                 return OIR_STATUS_INVALID_SECTION;
             }
         }
