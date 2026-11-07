@@ -864,3 +864,13 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added exact lambda start/end byte-offset and direct-expression-child assertions to `test_rules_lambda_relocate_unroll_ast()` in commit `4eb314b8d627789588e132f59a18266e051b9318`. Updated `docs/AST_PARSER_PRODUCTION_MATRIX.md` in `33143e33c7df`.
 - CI evidence is pending for the new test assertion; do not mark the lambda span regression verified until the complete Windows/Ubuntu/macOS/ASan/UBSan/Valgrind matrix passes.
 - AST remains the active stage. Continue the per-production source-span audit; Semantic return inference, closure/capture semantics, and function-pointer representation remain later AST/Semantic contract work. No Codegen advancement.
+
+
+## 2026-11-07 — Lambda AST contract regression coverage
+
+- Added a dedicated Parser regression covering both normative lambda forms in one source: expression body `f:(a, b) > a * b` and block body `f:(a) { ret a * a; }`.
+- The test asserts the expression body is directly an `AST_BINARY_EXPR` (not a synthetic block/return), the block body is an `AST_BLOCK` containing `AST_RETURN`, parameter-list shape, full graph validity, and AST serialize → deserialize → graph-validation round-trip.
+- Added a malformed lambda fixture with a missing body; the test requires Parser rejection or a nonzero diagnostic count.
+- Commits: `c4177107`, `ccb4983a`, `bad267e6`; Parser Production Matrix updated in `6a85ab66`.
+- CI has not reported checks for these commits yet. Do not mark the regression verified until Windows, Ubuntu, macOS, ASan/UBSan and Valgrind jobs pass.
+- Next AST work: continue exact source-span endpoint inventory for the remaining statement/operator productions, then close unresolved syntax-to-AST representation contracts without inventing grammar (especially callback/function-signature type, pointer/reference declarators, macro/directive metadata and shift-vs-Flow token interpretation). Reconcile every remaining row against the node implementation and ownership matrices before declaring AST complete.
