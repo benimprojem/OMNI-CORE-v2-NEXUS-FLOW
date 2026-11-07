@@ -2263,6 +2263,77 @@ static int test_pointer_reference_type_declarators(void) {
 }
 
 
+static int test_function_type_alias_and_callback_parameter(void) {
+    static const char source[] =
+        "nt:Callback = f:(id!u32)>!bool; "
+        "f:apply(callback!f:(id!u32)>!bool, id!u32)!bool { ret callback(id); }";
+    static const char invalid_source[] = "nt:Broken = f:(id!u32)>;";
+    ParserContext* parser = parser_init_source(
+        "callback-function-type.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ParserContext* invalid = NULL;
+    ASTNode* alias_node;
+    ASTNode* function_node;
+    ASTFuncDecl* function;
+    ASTVarDecl* callback_param;
+    ASTVarDecl* id_param;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == 0 && parser->ast_root &&
+        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        alias_node = ((ASTProgram*)parser->ast_root)->declarations;
+        function_node = alias_node ? alias_node->next : NULL;
+        function = function_node && function_node->type == AST_FUNC_DECL
+            ? (ASTFuncDecl*)function_node : NULL;
+        callback_param = function ? (ASTVarDecl*)function->params : NULL;
+        id_param = callback_param ? (ASTVarDecl*)callback_param->base.next : NULL;
+
+        valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
+            strcmp(((ASTNewTypeDecl*)alias_node)->target_type,
+                "f:(id!u32)>!bool") == 0 &&
+            function && function->return_type &&
+            strcmp(function->return_type, "!bool") == 0 &&
+            callback_param && strcmp(callback_param->name, "callback") == 0 &&
+            strcmp(callback_param->type_name, "!f:(id!u32)>!bool") == 0 &&
+            id_param && strcmp(id_param->name, "id") == 0 &&
+            strcmp(id_param->type_name, "!u32") == 0 &&
+            !id_param->base.next &&
+            ast_validate((ASTNode*)parser->ast_root, NULL);
+
+        if (valid) {
+            stream = tmpfile();
+            valid = stream != NULL &&
+                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
+            if (valid) {
+                rewind(stream);
+                decoded = ast_deserialize(stream);
+                valid = decoded != NULL && ast_validate(decoded, NULL);
+            }
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    if (!valid) {
+        fprintf(stderr, "Function-type/callback AST contract failed.\n");
+        return 0;
+    }
+
+    invalid = parser_init_source(
+        "malformed-callback-type.nxf", (const uint8_t*)invalid_source,
+        sizeof(invalid_source) - 1u);
+    if (!invalid) return 0;
+    valid = parser_run(invalid) == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(invalid) == PARSER_STATUS_SYNTAX_ERROR &&
+        invalid->error_count > 0;
+    parser_destroy(invalid);
+    if (!valid) fprintf(stderr, "Malformed callback function type was not rejected.\n");
+    return valid;
+}
+
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -2271,6 +2342,7 @@ int main(int argc, char** argv) {
     if (!test_canonical_loop_and_jump_call_forms()) return 1;
     if (!test_dotted_module_use_path()) return 1;
     if (!test_pointer_reference_type_declarators()) return 1;
+    if (!test_function_type_alias_and_callback_parameter()) return 1;
     if (!test_spawn_is_outside_core_parser()) return 1;
     if (!test_intrinsic_ast_family()) return 1;
     if (!test_group_method_ast()) return 1;
