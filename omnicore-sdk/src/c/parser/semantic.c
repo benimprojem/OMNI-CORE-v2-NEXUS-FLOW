@@ -282,6 +282,7 @@ static uint16_t semantic_result_symbol_kind(SlotKind kind) {
         case SLOT_ENUM: return SEMANTIC_RESULT_SYMBOL_ENUM;
         case SLOT_NEWTYPE: return SEMANTIC_RESULT_SYMBOL_NEWTYPE;
         case SLOT_LABEL: return SEMANTIC_RESULT_SYMBOL_LABEL;
+        case SLOT_GROUP: return SEMANTIC_RESULT_SYMBOL_GROUP;
         default: return 0u;
     }
 }
@@ -1254,6 +1255,17 @@ static void semantic_validate_array_initializer(
             }
         }
     }
+}
+
+static Slot* semantic_find_slot_by_declaration(
+    SemanticContext* ctx, const ASTNode* declaration
+) {
+    Slot* slot = ctx ? ctx->head : NULL;
+    while (slot) {
+        if (slot->declaration_node == declaration) return slot;
+        slot = slot->next;
+    }
+    return NULL;
 }
 
 static const char* semantic_group_member_name(const ASTNode* member) {
@@ -2565,10 +2577,99 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_GROUP_DECL: {
             ASTGroupDecl* g = (ASTGroupDecl*)node;
             const ASTNode* previous_group_owner = ctx->current_group_owner;
+            Slot* group_slot = NULL;
+            Slot* existing_group = find_slot(ctx, g->name);
+            uint32_t member_ordinal = 0u;
+            uint32_t method_ordinal = 0u;
+            const ASTNode* member;
+
             semantic_validate_group_member_names(ctx, g);
+            if (existing_group && existing_group->depth == ctx->current_depth) {
+                char message[256];
+                snprintf(message, sizeof(message),
+                    "Group '%s' is already declared in this scope.", g->name);
+                report_error(ctx, node, ERR_SEMANTIC_REDEFINED, message);
+            } else {
+                group_slot = add_slot(ctx, g->name, SLOT_GROUP, 0, NULL,
+                    node, 0, 0, 0,
+                    (g->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
+                    (g->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
+                semantic_record_annotation(ctx, node, group_slot, NULL,
+                    SEMANTIC_RESULT_VALUE_UNSPECIFIED);
+            }
+
             enter_scope(ctx, node);
             ctx->current_group_owner = node;
             if (g->members) semantic_check(ctx, g->members);
+
+            if (ctx->result_enabled && ctx->result_status == SEMANTIC_RESULT_OK &&
+                group_slot && group_slot->symbol_id != 0u) {
+                for (member = g->members; member; member = member->next) {
+                    const char* member_name = semantic_group_member_name(member);
+                    Slot* member_slot = semantic_find_slot_by_declaration(
+                        ctx, member);
+                    uint32_t member_node_id = semantic_node_id(ctx, member);
+                    SemanticResultStatus relation_status;
+                    if (member_name && member_node_id != 0u) {
+                        relation_status = semantic_result_add_relation(
+                            &ctx->result, group_slot->symbol_id,
+                            SEMANTIC_RESULT_RELATION_GROUP_MEMBER,
+                            member_ordinal++,
+                            member_slot ? member_slot->symbol_id : 0u,
+                            member_node_id, member_name,
+                            member_slot ? member_slot->type_id : 0u);
+                        semantic_set_result_error(ctx, relation_status);
+                    }
+
+                    if (member->type == AST_STRUCT_DECL ||
+                        member->type == AST_UNION_DECL ||
+                        member->type == AST_ENUM_DECL) {
+                        const char* nominal_name = semantic_group_member_name(member);
+                        if (nominal_name && strcmp(nominal_name, g->name) == 0 &&
+                            member_slot && member_slot->symbol_id != 0u) {
+                            relation_status = semantic_result_add_relation(
+                                &ctx->result, group_slot->symbol_id,
+                                SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING,
+                                0u, member_slot->symbol_id, member_node_id,
+                                nominal_name, member_slot->type_id);
+                            semantic_set_result_error(ctx, relation_status);
+                        }
+                    } else if (member->type == AST_METHOD) {
+                        const ASTMethod* method = (const ASTMethod*)member;
+                        if (method->public_name &&
+                            strcmp(method->public_name, "default") == 0) {
+                            relation_status = semantic_result_add_relation(
+                                &ctx->result, group_slot->symbol_id,
+                                SEMANTIC_RESULT_RELATION_GROUP_DEFAULT_HANDLER,
+                                0u, 0u, member_node_id, "default", 0u);
+                            semantic_set_result_error(ctx, relation_status);
+                        } else if (method->implementation &&
+                            (method->implementation->type == AST_FUNC_DECL ||
+                             method->implementation->type == AST_EXTERN_DECL)) {
+                            Slot* implementation_slot =
+                                semantic_find_slot_by_declaration(
+                                    ctx, method->implementation);
+                            uint32_t implementation_node_id = semantic_node_id(
+                                ctx, method->implementation);
+                            if (implementation_slot &&
+                                implementation_slot->symbol_id != 0u &&
+                                implementation_node_id != 0u) {
+                                relation_status = semantic_result_add_relation(
+                                    &ctx->result, group_slot->symbol_id,
+                                    SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION,
+                                    method_ordinal++,
+                                    implementation_slot->symbol_id,
+                                    implementation_node_id,
+                                    method->public_name,
+                                    implementation_slot->type_id);
+                                semantic_set_result_error(ctx, relation_status);
+                            }
+                        }
+                    }
+                    if (ctx->result_status != SEMANTIC_RESULT_OK) break;
+                }
+            }
+
             exit_scope(ctx);
             ctx->current_group_owner = previous_group_owner;
             break;
