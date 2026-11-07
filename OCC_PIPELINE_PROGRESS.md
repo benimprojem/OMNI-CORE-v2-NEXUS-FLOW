@@ -509,7 +509,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 | 2026-11-05 | AST lifecycle audit CI doğrulandı: payload-free düğüm türlerinin açık factory/destructor/serialize/deserialize davranışı Ubuntu CTest, ASan/UBSan, Valgrind ve Windows CTest'te başarılı. | run `41912702421`, progress correction `4d813d8a` |
 | 2026-11-05 | AST→OIR node-kind mapping 105/105; OIR writer 105/105 türü switch'te ele alıyor. Reader AST kind mapping üzerinden türü çözüyor ve ilgili field schema/child contract kontrolüyle decode ediyor. OIR frontend index child-field count tablosundaki payload'sız leaf türleri açık case'lere alındı (NewType, Literal, Identifier, Break/Continue, Nexus Jump, AI Logic, Panic, Use). | `oir_ast_map.c`, `oir_ast_frontend_writer.c`, `oir_ast_frontend_reader.c`, `oir_ast_frontend_index.c`; commits `8d37f948`, `53365649` |
 
-| 2026-11-05 | AST codec type sweep genişletildi: `roundtrips_all_node_type_tags()` artık eski `AST_ARRAY_DIMENSION` sınırı yerine append-only son tür `AST_ASM_LABEL` dahil tüm 105 enum tag'ini kapsıyor. Her tür fixture populate → serialize → deserialize → type/line/column/sibling doğrulaması yapacak. Bu test yeni AST node eklenince kapsama otomatik genişler. | `test_ast_deserialize.c`; commit `4ba6e152`; CI pending |
+| 2026-11-05 | AST codec type sweep genişletildi: `roundtrips_all_node_type_tags()` artık eski `AST_ARRAY_DIMENSION` sınırı yerine append-only son tür `AST_ASM_LABEL` dahil tüm 105 enum tag'ini kapsıyor. Her tür fixture populate → serialize → deserialize → type/line/column/sibling doğrulaması yapacak. Bu test yeni AST node eklenince kapsama otomatik genişler. | `test_ast_deserialize.c`; commit `4ba6e152`; CI validated by workflow run `42411223520` (all 5 jobs passed) |
 
 
 | 2026-11-05 | Codec tag sweep genişletme denemesi: enum sınırını `AST_ASM_LABEL` yaptığımda bağlama bağlı AST türleri (`AST_MUST_DECL`, `AST_VARIADIC_PARAM`, `AST_BLOCK_HALT`, `AST_ASM_LABEL`) standalone root olarak graph validator tarafından haklı biçimde reddedildi. Testi hatalı biçimde tüm türleri kök kabul ettirmeye zorlamadım; standalone sweep sınırı `AST_ARRAY_DIMENSION` olarak geri alındı. `AST_FASTEXEC_BLOCK/AST_ASM_LABEL` roundtrip ayrı fixture ile zaten test ediliyor; contextual MUST/variadic/HALT için parent-context fixture'ları ayrı eklenmeli. Bu test denemesi başarısızdır ve tamamlanmış sayılmıyor. | commits `4ba6e152`, `04da05a6`, `05e80c2e`; CI failure (context fixture) |
@@ -518,7 +518,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 | 2026-11-05 | AST codec için contextual round-trip fixture eklendi: AST_MUST_DECL → AST_PROGRAM declarations; AST_VARIADIC_PARAM → AST_FUNC_DECL params; AST_BLOCK_HALT → AST_BLOCK statements (son öğe); AST_ASM_LABEL → AST_FASTEXEC_BLOCK statements. Tek program ağacı graph validation, serialize → deserialize → validate → canonical re-encode byte eşitliği ile test ediliyor. Önceki standalone enum sweep sınırı AST_ARRAY_DIMENSION olarak tutuldu; bağlama bağımlı tag'ler artık parent-context fixture üzerinden kapsanıyor. | `test_ast_deserialize.c`; commit `522c84f1`; CI run `41917469888` queued |
 
 
-| 2026-11-05 | Contextual AST codec test CI ilk çalıştırmasında test çağrısına literal `\\n` kaçışının kaynak koda yazıldığı compile error tespit edildi; test mantığına geçmeden build duruyordu. Çağrı satırı gerçek newline ile düzeltildi; önceki başarısız CI'lar test sonucu olarak değerlendirilmez. | test fix commit `b712509f`; CI pending |
+| 2026-11-05 | Contextual AST codec test CI ilk çalıştırmasında test çağrısına literal `\\n` kaçışının kaynak koda yazıldığı compile error tespit edildi; test mantığına geçmeden build duruyordu. Çağrı satırı gerçek newline ile düzeltildi; önceki başarısız CI'lar test sonucu olarak değerlendirilmez. | test fix commit `b712509f`; CI validated by workflow run `42411223520` (all 5 jobs passed) |
 
 
 | 2026-11-05 | `docs/AST_NODE_IMPLEMENTATION_MATRIX.md` eklendi: 105 AST kind için parser direct/helper notu, lifecycle, graph, OIR map/writer ve fixture sütunları; contextual node sahiplik tablosu ve AST kapanış kriterleri. Otomatik kaynak taraması 105/105 OIR map, 105/105 writer, 105/105 fixture switch ve 62 doğrudan parser create çağrısı buldu (62 bir node-completeness ölçütü değildir). | commit `48f33788` |
@@ -913,7 +913,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Parser now accepts dotted module paths and retains the joined module path in `AST_USE.module_name`; aliases and comma-separated imports remain unchanged.
 - Added `test_dotted_module_use_path` with AST graph validation and AST stream round-trip.
 - Commits: Parser `4738207c`; Parser test `9d1d5f7d`.
-- CI pending. Module file resolution and path security remain outside Parser/AST.
+- CI validated by workflow run `42411223520` (all 5 jobs passed). Module file resolution and path security remain outside Parser/AST.
 
 
 ## 2026-11-07 — Pointer/reference syntax production
@@ -923,7 +923,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added `test_pointer_reference_type_declarators` for all declaration contexts, graph validation and AST stream round-trip.
 - Updated the normative syntax reference and both Parser/AST matrices. Semantic pointer validity, borrow/lifetime, nullability and ownership remain open.
 - Commits: Parser `0b87bd7b`; test `df9ef675`; syntax `5f430749`.
-- CI pending.
+- CI validated by workflow run `42411223520` (all 5 jobs passed).
 
 
 ## 2026-11-07 — Callback/function-type syntax production
@@ -934,7 +934,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added `test_function_type_alias_and_callback_parameter` with positive alias/parameter/invocation checks, AST validation/codec round-trip and malformed-signature negative case.
 - Dedicated function-type AST node, Semantic callback compatibility, closure capture and ABI lowering remain open.
 - Commits: Parser `486a92ba`; parser lookahead `37862b24`; test `51198999`.
-- CI pending.
+- CI validated by workflow run `42411223520` (all 5 jobs passed).
 
 
 ## 2026-11-07 — AST tag inventory reconciliation
@@ -951,4 +951,13 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Appended `TOKEN_NULL` after existing token IDs and added Parser `AST_LITERAL` support preserving the source spelling.
 - Added positive/negative Lexer numeric tests and Parser AST/codec coverage for null, radix and scientific forms.
 - Updated normative syntax and comparison docs. Semantic conversion, overflow/range, pointer-nullability and Option/None remain open.
-- CI pending.
+- CI validated by workflow run `42411223520` (all 5 jobs passed).
+
+
+## 2026-11-07 — Syntax production CI checkpoint
+
+- Latest code/test workflow: `42411223520`.
+- <badge label="5/5 CI jobs passed" color="success" /> Ubuntu CTest, Windows CTest, macOS CTest, ASan/UBSan and Valgrind all succeeded.
+- CTest suite: 60/60 passed on the build/test matrix.
+- Covered in this validated checkpoint: canonical `loop {}`, `jump(label);`, dotted `use` paths, pointer/reference type spellings, callback function-type signature strings, numeric radix/exponent/separator forms and the `null` literal.
+- This checkpoint does not close AST as a whole. Generic type parameters, dedicated function-type AST node, Semantic type/ownership rules, exact source-span audit, AST OOM injection and full node/factory/codec/validator parity remain open.
