@@ -32,7 +32,7 @@
 | Nexus Flow / pipe / relocate / unpack / capture / halt / jump / label | `parse_nexus_flow()` + statement/primary dispatch | flow/pipe/capture/relocate/unpack/halt/label/jump tags | syntax matrix + select/rules combined fixtures; graph contextual validator | ~ Explicit AST payload tests for each operator/target form; distinguish `<< / >>` language flow from bit shifts |
 | Expressions and precedence | `parse_expression()`; assignment → flow → range → logical → bitwise → equality → comparison → additive → term → power → unary → postfix → primary | `AST_BINARY_EXPR`, unary, postfix, call/member/index, cast, tuple, literal, identifier | `test_expression_precedence_and_associativity_ast` checks logical/bitwise/comparison precedence, binary associativity, power associativity, inclusive range AST (`1..10`) and rejection of chained ranges | ✓ Precedence/associativity CI `42034256447` and range CI `42039331167` passed all five jobs; Ubuntu and Valgrind report 60/60. |
 | Array literal / type / indexing | `parse_primary()`, var/type parser, `parse_postfix()` | `AST_ARRAY_LITERAL`, `AST_ARRAY_TYPE`, dimensions, `AST_INDEX_ACCESS` | array literal, declarator, index tests | ✓ parser structural cases covered; negative nested delimiters/rank/span expansion |
-| Intrinsic calls | `parse_intrinsic_call()` | intrinsic-specific AST tags/shared `AST_CALL` payload | extern/echo/listen test + AST populated codec fixture | ~ Intrinsic token→node/signature inventory needed |
+| Intrinsic calls | `parse_intrinsic_call()` plus special `cast`/`panic` branches; `listen` has a dedicated statement form | 32 generic intrinsic tags are checked against exact AST tags and AST serialize→deserialize→validate; `echo`/`listen` use a separate statement fixture; `cast`/`panic` have dedicated payload/span assertions | `test_intrinsic_ast_family` (32 generic mappings + codec round-trip + source-span presence), `test_extern_echo_and_listen_keywords`, `test_cast_and_panic_ast` | ~ Parser tag/codec baseline now covered; remaining work is signature-specific positive/negative grammar, exact source-span endpoints, and intrinsic-specific payload semantics. |
 | Panic | statement/primary dispatch | `AST_PANIC` | cast/panic AST test | ✓ literal message path asserted; invalid message forms |
 | Literal / identifier / tuple / cast / postfix | `parse_primary()`, `parse_postfix()`, `parse_unary()` | corresponding AST leaf/expression nodes | expression-focused tests above | ~ char/bool/string escapes, tuple edge and postfix lvalue forms |
 | Error recovery / limits / OOM | parser recovery and allocation helpers | diagnostics; partial AST must not be accepted | panic recovery, lexer-error recovery, nesting/operator bounds, allocation injection | ✓ infrastructure tested; expand grammar-specific recovery boundaries |
@@ -92,3 +92,30 @@ Parser source-span assertions are distributed through `test_parser.c` rather tha
 - `asmcall`/`asmjmp` full call ranges.
 
 This is a **tested subset**, not blanket source-span coverage for all productions. AST closure requires each row to declare its span policy (token-only, full production, or synthesized/no source) and have assertions for both endpoints where location is required. UTF-8 offsets are byte offsets; line/column are separately validated.
+
+
+## Intrinsic token → AST audit (2026-11-07)
+
+The generic intrinsic dispatcher maps the following lexer keywords to AST tags. The expanded `test_intrinsic_ast_family()` covers each listed mapping with a one-expression source, AST validation, source-span presence, and binary serialize → deserialize → graph-validation round-trip.
+
+| Source form | AST tag | Parser path |
+|---|---|---|
+| `len(...)` | `AST_LEN` | generic intrinsic call |
+| `sizeof(...)` | `AST_SIZEOF` | generic intrinsic call |
+| `typeof(...)` | `AST_TYPEOF` | generic intrinsic call |
+| `is_ok(...)`, `is_err(...)`, `is_some(...)`, `is_none(...)`, `is_null(...)` | matching `AST_IS_*` tag | generic intrinsic call |
+| `addr(...)` | `AST_ADDR` | generic intrinsic call |
+| `clock()`, `datenow()`, `date()`, `time()` | `AST_CLOCK`, `AST_DATENOW`, `AST_DATE`, `AST_TIME` | generic intrinsic call |
+| `prnt(...)`, `prmt(...)`, `write(...)`, `fwrite(...)` | matching `AST_PRNT`, `AST_PRMT`, `AST_WRITE`, `AST_FWRITE` | generic intrinsic call |
+| `exit(...)`, `swap(...)` | `AST_EXIT`, `AST_SWAP` | generic intrinsic call |
+| `peek(...)`, `poke(...)`, `inb(...)`, `outb(...)` | matching `AST_PEEK`, `AST_POKE`, `AST_INB`, `AST_OUTB` | generic intrinsic call |
+| `irq(...)`, `intr(...)` | `AST_IRQ`, `AST_INTR` | generic intrinsic call |
+| `reg.member(...)` | `AST_REG` with member `AST_IDENTIFIER` in `callee` | generic call with dedicated member parsing |
+| `area(...)`, `zone(...)` | `AST_AREA`, `AST_ZONE` | generic intrinsic call |
+| `free(...)`, `send(...)`, `receive(...)`, `done()` | `AST_FREE`, `AST_SEND`, `AST_RECEIVE`, `AST_DONE` | generic intrinsic call |
+
+Special statement/expression forms are covered separately: `echo(...)` → `AST_ECHO`; `!(listen): {...}` → `AST_LISTEN`; `cast(value, type)` → `AST_CAST` with value/target-type children; `panic("...")` → `AST_PANIC` with a message payload. `spawn` remains rejected by the core Parser and belongs to the Thread module.
+
+**CI evidence:** commit `237597ca5a64`, run `42401080171`: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind all passed. Ubuntu CTest and Valgrind each report 60/60 tests, zero failures.
+
+**Not implied by this table:** Semantic argument count/type rules, hardware permission checks, runtime effects, and target-specific legality are not established by parser/codec round-trip coverage.
