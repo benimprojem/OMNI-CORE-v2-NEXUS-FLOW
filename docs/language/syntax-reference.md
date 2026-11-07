@@ -1199,6 +1199,8 @@ f:main()!i32 {
 use <module>;
 use <module> as <yeni_isim>;
 
+Noktalı modül yolları da kabul edilir: `use msvcrt.exf as crt;`. Parser bunu tek bir `AST_USE.module_name` metni olarak saklar; dosya çözümlemesi Module/Resolver aşamasına aittir.
+
 #örnek:
 use io, sys, cpu;
 use math as m;
