@@ -20,6 +20,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->diagnostics = NULL;
     ctx->diagnostic_stage_id = OCC_STAGE_SEMANTIC;
     ctx->current_scope_id = 1u;
+    ctx->current_group_owner = NULL;
     ctx->node_id_resolver = NULL;
     ctx->node_id_context = NULL;
     ctx->result_enabled = 0u;
@@ -226,10 +227,30 @@ static void report_error(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
     report_issue(ctx, node, code, msg, NULL, NULL, 0, 0);
 }
 
+static int semantic_slot_is_nominal_type(const Slot* slot) {
+    return slot && (slot->kind == SLOT_STRUCT || slot->kind == SLOT_UNION ||
+        slot->kind == SLOT_ENUM || slot->kind == SLOT_NEWTYPE);
+}
+
 static Slot* find_slot(SemanticContext* ctx, const char* name) {
-    Slot* current = ctx->head;
+    Slot* current = ctx ? ctx->head : NULL;
+    if (!name) return NULL;
     while (current) {
-        if (strcmp(current->name, name) == 0) return current;
+        if (strcmp(current->name, name) == 0) {
+            /*
+             * A nominal type declared by a Group is visible only while
+             * checking members of that exact Group. A nested/sibling Group
+             * must not inherit the enclosing Group's private type namespace.
+             * Types without a Group owner retain ordinary lexical visibility.
+             */
+            if (semantic_slot_is_nominal_type(current) &&
+                current->group_owner &&
+                current->group_owner != ctx->current_group_owner) {
+                current = current->next;
+                continue;
+            }
+            return current;
+        }
         current = current->next;
     }
     return NULL;
@@ -541,6 +562,7 @@ static Slot* add_slot(
     s->fields = NULL;
     s->is_packed = is_packed;
     s->scope_id = ctx->current_scope_id;
+    s->group_owner = ctx->current_group_owner;
     s->type_id = semantic_type_id(ctx, type_name, is_hard);
 
     if (ctx->result_enabled &&
@@ -2491,9 +2513,12 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
 
         case AST_GROUP_DECL: {
             ASTGroupDecl* g = (ASTGroupDecl*)node;
+            const ASTNode* previous_group_owner = ctx->current_group_owner;
             enter_scope(ctx, node);
+            ctx->current_group_owner = node;
             if (g->members) semantic_check(ctx, g->members);
             exit_scope(ctx);
+            ctx->current_group_owner = previous_group_owner;
             break;
         }
 
