@@ -818,3 +818,13 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Updated the Parser production matrix and task list to record the green result. No Codegen work was started.
 - AST continuation begins with a complete intrinsic token → Parser dispatch → AST node → payload/child → codec → positive/negative test inventory. Current `test_intrinsic_ast_family()` covers only nine representative nodes (`len`, `sizeof`, `typeof`, `is_ok`, `addr`, `clock`, `datenow`, `date`, `time`); `echo`/`listen` have a separate focused test. Other intrinsic AST tags and parser-special forms still need explicit coverage.
 - Then continue source-span policy/endpoint audit and contextual codec gaps. Preserve open grammar decisions for `<<`/`>>`, map constraints and unified pointer/reference/function type representation.
+
+
+## 2026-11-07 — Intrinsic AST family coverage expanded
+
+- Expanded `test_intrinsic_ast_family()` from 9 representative mappings to 32 generic intrinsic token → AST tag cases.
+- Every case now requires parser success, expected AST tag, a source location, AST graph validation, binary serialize → deserialize, and decoded graph validation.
+- Special forms remain independently covered: `echo` / `listen`, `cast` / `panic`; `reg.member(...)` is included in the generic family to exercise its member-callee representation.
+- CI run `42401080171` / commit `237597ca5a64` passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan, Valgrind). Ubuntu CTest and Valgrind each report 60/60 tests, zero failures.
+- Updated `docs/AST_PARSER_PRODUCTION_MATRIX.md` with the current intrinsic token → AST map. Signature-specific grammar, exact source-span endpoints, and Semantic argument/type contracts remain open.
+- Next concrete AST target: audit AST parser productions for exact source-span start/end policy and then add missing endpoint fixtures; do not conflate parser source spans with semantic/runtime behavior.
