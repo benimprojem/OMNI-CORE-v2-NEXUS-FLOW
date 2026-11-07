@@ -337,3 +337,57 @@ Parser bu erişim kararını vermez; AST'de bildirimin ve referansın yapısın�
 
 Bu kural ancak Struct, Enum ve Union için yukarıdaki erişim testleri Semantic testlerinde doğrulandığında uygulanmış sayılır. Belgenin güncellenmesi tek başına uygulama veya test tamamlanması anlamına gelmez.
 
+## 10. SemanticResult ve OIR kayıt sözleşmesi (Normative)
+
+Bu bölüm Group semantiğinin kalıcı SemanticResult ve OIR aktarımında nasıl temsil edileceğini tanımlar. Kayıtlar mevcut Symbol ve Relation tablolarıyla taşınır; Group için paralel ve birbirinden kopuk bir üye tablosu oluşturulmaz.
+
+### 10.1 Sembol kimlikleri
+
+- Her `AST_GROUP_DECL`, kendi AST düğüm kimliğine bağlı bir **Group Symbol** üretir.
+- Group sembolü, Group'un lexical scope kaydıyla ilişkilidir. Nested Group ayrı sembol ve ayrı scope alır.
+- Group içindeki Struct/Enum/Union sembolleri kendi gerçek nominal sembol kimliklerini korur.
+- Function implementation sembolü, AST_FUNC_DECL / AST_EXTERN_DECL bildiriminin gerçek AST node kimliğini taşır. Public method adı implementation sembolünün adını değiştirmez.
+
+### 10.2 Relation türleri
+
+SemanticResult ve OIR relation enum'larına append-only yeni türler eklenir:
+
+| Relation | Owner | Related node | Related symbol | Name |
+|---|---|---|---|---|
+| GROUP_MEMBER | Group Symbol | Doğrudan üye AST düğümü | Varsa aynı bildirimin sembolü; wrapper üyelerde 0 | Üyenin kaynak/API adı |
+| GROUP_TYPE_BINDING | Group Symbol | Bağlanan Struct/Enum/Union bildirimi | Nominal tür sembolü | Nominal tür adı |
+| GROUP_METHOD_IMPLEMENTATION | Group Symbol | Implementation AST_FUNC_DECL / AST_EXTERN_DECL | Implementation function sembolü | Public method adı |
+| GROUP_DEFAULT_HANDLER | Group Symbol | `AST_METHOD("default")` düğümü | 0 | `default` |
+
+- Relation ordinal değerleri her owner + relation türü grubu içinde sıfırdan başlayarak kesintisiz artar.
+- GROUP_TYPE_BINDING en fazla bir kayıt olabilir.
+- GROUP_DEFAULT_HANDLER en fazla bir kayıt olabilir.
+- GROUP_METHOD_IMPLEMENTATION kayıtları public method isimlerini ve gerçek implementation sembollerini birbirine bağlar.
+- GROUP_MEMBER, Group'un doğrudan AST üyelik listesini korur. Nested Group'un kendi üyeleri üst Group'un doğrudan üyeleri sayılmaz.
+- Relation içindeki `related_symbol_id` sıfır değilse, sembolün `declaration_node_id` değeri relation'ın `related_node_id` değeriyle aynı olmalıdır. Wrapper düğüm ile implementation düğümü bu nedenle ayrı relation kayıtlarıyla temsil edilir.
+
+### 10.3 OIR doğrulama kuralları
+
+OIR Verifier en az şu kontrolleri yapmalıdır:
+
+1. Group Symbol yalnızca `AST_GROUP_DECL` bildirimiyle eşleşir.
+2. GROUP_MEMBER relation owner'ı Group Symbol olmalı; related node yalnızca geçerli doğrudan Group üye bildirimlerinden biri olmalıdır.
+3. GROUP_TYPE_BINDING relation owner'ı Group Symbol olmalı; related node Struct, Enum veya Union bildirimi olmalı ve related symbol aynı bildirimin nominal sembolü olmalıdır.
+4. GROUP_METHOD_IMPLEMENTATION relation owner'ı Group Symbol olmalı; related node function/extern implementation bildirimi olmalı ve related symbol aynı function sembolünü göstermelidir.
+5. GROUP_DEFAULT_HANDLER relation owner'ı Group Symbol olmalı; related node `AST_METHOD` olmalı ve name tam olarak `default` olmalıdır.
+6. Aynı Group için birden fazla type binding veya default handler kaydı reddedilmelidir.
+7. Group ve relation kimlikleri yalnızca OIR'deki sayısal ID'lerle doğrulanır; isim metni üzerinden yeniden çözümleme yapılmaz.
+
+### 10.4 Şema sürümü ve geriye uyumluluk
+
+Semantic AST OIR şu anda schema 1.0 kullanır ve artifact reader schema minor değerini tam eşitlikle denetler. Yeni enum değerleri eski 1.0 tüketicileri tarafından tanınmayacağından yalnızca enum ekleyip 1.0 olarak yayımlamak geçerli değildir.
+
+- Group semantic kayıtlarını içeren ilk şema sürümü **1.1** olacaktır.
+- Yeni reader hem 1.0 hem 1.1 artifact'lerini okuyabilmelidir.
+- Schema 1.0 artifact içinde yeni Group symbol/relation enum değerleri bulunursa artifact reddedilmelidir.
+- Schema 1.1 artifact'lerinde yeni kayıt türleri ve bunların AST referansları tam doğrulanmalıdır.
+- Record boyutları ve mevcut alan offset'leri değişmediği sürece yeni enum değerleri aynı section record layout'unda taşınır.
+- Eski reader'ların 1.1 artifact'lerini desteklemesi beklenmez; producer/consumer schema capability eşleştirmesi entegrasyon aşamasında yapılmalıdır.
+
+**Uygulama durumu:** Bu bölüm normatif veri aktarım sözleşmesidir. SemanticResult enum/validator, OIR codec, artifact reader, Verifier ve testler uygulanıp CI doğrulanmadan Group SemanticResult/OIR desteği tamamlanmış sayılmaz.
+
