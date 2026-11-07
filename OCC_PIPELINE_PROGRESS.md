@@ -874,3 +874,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Commits: `c4177107`, `ccb4983a`, `bad267e6`; Parser Production Matrix updated in `6a85ab66`.
 - CI has not reported checks for these commits yet. Do not mark the regression verified until Windows, Ubuntu, macOS, ASan/UBSan and Valgrind jobs pass.
 - Next AST work: continue exact source-span endpoint inventory for the remaining statement/operator productions, then close unresolved syntax-to-AST representation contracts without inventing grammar (especially callback/function-signature type, pointer/reference declarators, macro/directive metadata and shift-vs-Flow token interpretation). Reconcile every remaining row against the node implementation and ownership matrices before declaring AST complete.
+
+
+## 2026-11-07 — Control-flow AST production coverage
+
+- Added a focused Parser fixture for `ret;`, `ret 7;`, `break;` and `continue;`.
+- The fixture checks the two distinct return operand shapes (NULL for void, literal for value), distinct break/continue node tags, source-span presence, full graph validation and AST serialize → deserialize → validate.
+- Added a negative fixture requiring a missing `break` semicolon to produce a Parser error/diagnostic.
+- Updated `docs/AST_PARSER_PRODUCTION_MATRIX.md` to record this coverage (commit `933efec0`); source test commit `7113e195`.
+- CI evidence is pending. This is Parser/AST structural coverage only; loop legality, reachability and return-type compatibility remain Semantic responsibilities.
