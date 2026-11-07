@@ -278,26 +278,37 @@ static int check_extended_ast_semantics(void) {
 
 static int check_group_type_scope_semantics(void) {
     const char* own_struct =
-        "group Alpha { struct LocalStruct {} fn use(value:LocalStruct) {} }";
+        "f:main() { group Alpha { struct:LocalStruct { v:value!i32 } "
+        "use => f:use(value!LocalStruct) { ret; } } }";
     const char* own_enum =
-        "group Alpha { enum LocalEnum { Value } fn use(value:LocalEnum) {} }";
+        "f:main() { group Alpha { enum:LocalEnum { Value } "
+        "use => f:use(value!LocalEnum) { ret; } } }";
     const char* own_union =
-        "group Alpha { union LocalUnion {} fn use(value:LocalUnion) {} }";
+        "f:main() { group Alpha { union:LocalUnion { v:value!i32 } "
+        "use => f:use(value!LocalUnion) { ret; } } }";
     const char* own_method =
-        "group Alpha { struct MethodType {} run => fn run(value:MethodType) {} }";
+        "f:main() { group Alpha { struct:MethodType { v:value!i32 } "
+        "run => f:run(value!MethodType) { ret; } } }";
     const char* nested_cannot_use_parent_type =
-        "group Alpha { struct Hidden {} child => group { fn use(value:Hidden) {} } }";
+        "f:main() { group Alpha { struct:Hidden { v:value!i32 } "
+        "child => group { use => f:use(value!Hidden) { ret; } } } }";
     const char* nested_owns_its_type =
-        "group Alpha { child => group { struct Local {} fn use(value:Local) {} } }";
+        "f:main() { group Alpha { child => group { "
+        "struct:Local { v:value!i32 } use => f:use(value!Local) { ret; } } } }";
     const char* nested_same_name_is_distinct =
-        "group Alpha { struct Item {} child => group { struct Item {} "
-        "fn child_use(value:Item) {} } fn parent_use(value:Item) {} }";
+        "f:main() { group Alpha { struct:Item { v:parent!i32 } "
+        "child => group { struct:Item { v:child!u32 } "
+        "use => f:child_use(value!Item) { ret; } } "
+        "use_parent => f:parent_use(value!Item) { ret; } } }";
     const char* sibling_cannot_use_group_type =
-        "group Alpha { struct Hidden {} } group Beta { fn use(value:Hidden) {} }";
+        "f:main() { group Alpha { struct:Hidden { v:value!i32 } } "
+        "group Beta { use => f:use(value!Hidden) { ret; } } }";
     const char* outside_cannot_use_group_type =
-        "group Alpha { struct Hidden {} } fn outside(value:Hidden) {}";
+        "f:main() { group Alpha { struct:Hidden { v:value!i32 } } "
+        "f:outside(value!Hidden) { ret; } }";
     const char* group_can_use_external_type =
-        "struct ExternalType {} group Alpha { fn use(value:ExternalType) {} }";
+        "f:main() { struct:ExternalType { v:value!i32 } "
+        "group Alpha { use => f:use(value!ExternalType) { ret; } } }";
     return check_source(own_struct, 0) &&
         check_source(own_enum, 0) &&
         check_source(own_union, 0) &&
