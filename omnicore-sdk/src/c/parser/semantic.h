@@ -11,7 +11,8 @@ typedef enum {
     SLOT_UNION,
     SLOT_ENUM,
     SLOT_NEWTYPE,
-    SLOT_LABEL
+    SLOT_LABEL,
+    SLOT_GROUP
 } SlotKind;
 
 typedef struct FieldInfo {
