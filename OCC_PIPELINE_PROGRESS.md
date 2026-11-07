@@ -1072,4 +1072,12 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - İlgili kod commitleri: SemanticResult enum/validator dbfc0ef5, 4f755f3f, 9d991fbb, 71b264a4; SemanticResult test f98dce70; OIR schema/validator 92b7298e, d58c6ffe, 2e5fd6ef; artifact reader 8d0e7d7c; schema uyumluluk testi 288d31f7; Group codec test a087ca57, relation verifier b7cdf754; Semantic checker f01ffa1a, e0094cca.
 - **Doğrulama durumu: çalıştırılmadı.** GitHub workflow sorgusu bu commitler için run döndürmedi; yerel CMake/CTest de henüz çalıştırılmadı. SemanticResult/OIR değişiklikleri bu nedenle testten geçmiş veya tamamlanmış sayılmıyor.
 - Sıradaki işler: Group semantic integration testinde node resolver bağlayarak SemanticResult kayıtlarını gerçek AST üzerinden doğrulamak; OIR artifact 1.1 Group round-trip ve bozuk referans testlerini eklemek; derleme/CI sonuçlarına göre düzeltmek. Ardından Group–Struct binding, self receiver ve çağrı çözümleme uygulamasına geçmek.
+### Group SemanticResult/OIR integration follow-up — 2026-11-08
 
+- SemanticResult integration fixture now builds a real Nexus Flow AST containing a Group whose name matches its Struct, a public method alias and a default handler. It attaches the same stable AST pointer index used by the Semantic stage.
+- The fixture checks Group Symbol plus six relations: three direct members, one nominal binding, one method implementation and one default handler.
+- The same fixture serializes the AST, writes a SEMANTIC_AST schema 1.1 artifact and passes it through the complete artifact reader/Verifier. It also rebuilds that artifact with schema minor 1.0 and requires rejection because the payload contains Group enum extensions.
+- SemanticResult and OIR Verifier now additionally require Group type-binding names to match both the Group symbol and nominal type symbol, and GroupMember names to match their related symbol when one exists.
+- Incomplete Group member node IDs, missing nominal binding symbols and missing method implementation symbols now fail closed instead of silently omitting relation records.
+- Follow-up commits: real Group SemanticResult/OIR integration 71fdb1ce; schema 1.0 Group-tag rejection fixture 46ad6d70; relation name/type identity checks 373089d7, ffb1800a; incomplete relation fail-closed handling 1be6360d.
+- **Test status remains unverified.** These tests and implementation changes have not been run locally or by GitHub Actions. The integration fixture is added but must not be counted as passing until CMake/CTest and the CI matrix complete.
