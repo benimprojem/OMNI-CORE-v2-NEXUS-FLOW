@@ -154,7 +154,8 @@ static Slot* find_best_suggestion(SemanticContext* ctx, const char* name, int* o
     Slot* best_slot = NULL;
     int best_score = 0;
     while (current) {
-        if (!(semantic_slot_is_nominal_type(current) &&
+        if (!((semantic_slot_is_nominal_type(current) ||
+               current->kind == SLOT_FUNC) &&
               current->group_owner &&
               current->group_owner != ctx->current_group_owner)) {
             int dist = levenshtein(name, current->name);
