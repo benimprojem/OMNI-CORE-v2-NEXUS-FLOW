@@ -906,6 +906,24 @@ db  # default çalıştır.
 
 ### 5.5 - 5: `_>` (Relocate)
 
+### 5.6 Named Thread Block
+
+Nexus Flow'da isimlendirilmiş thread çalışma gövdesi şu biçimdedir:
+
+```nexus
+(worker)>{ 
+    v:value = 7;
+}
+```
+
+- `worker` blok kimliğidir; `>{` özel tokenı thread bloğunu açar.
+- Parser bunu `AST_THREAD_BLOCK` düğümüne dönüştürür; isim ve gövde AST'de korunur.
+- Bu yazım tek başına thread başlatma/spawn işlemi değildir; isimli çalışma gövdesini tanımlar.
+- `mode` ve `timeout` AST alanları şimdilik ayrılmıştır ve Parser bunları `NULL` bırakır. Bu alanlara ait syntax henüz tanımlanmamıştır.
+- `spawn(worker)` core Nexus Flow Parser syntax'ı değildir. Spawn/start/join ve scheduling davranışı ayrı Thread modülünün sorumluluğundadır.
+
+
+
 * **Stratejik Konum:** Bir veri masaya yakalandıktan (`<-`) ve paket açıldıktan (`expand`) hemen sonra, 
 * eğer o verinin başka bir bellek bölgesinde işlenmesi gerekiyorsa (örneğin GPU belleğine taşıma veya başka bir thread handler'ına devretme), 
 * bu işlem tüm mantıksal kararlardan (`?`, `->`, `>>`) önce yapılmalıdır.
