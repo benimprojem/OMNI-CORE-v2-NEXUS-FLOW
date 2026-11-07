@@ -51,6 +51,8 @@ Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY
 | `*`  | **Pointer**| Ham bellek adresi. |
 | `**` | **P2P** | Pointer to Pointer. |
 | `&`  | **Ref** | Bellek referansı. |
+
+> Pointer/reference türleri tasarım envanterinde yer alır; ancak `*T`, `**T` ve `&T` için function parameter, variable ve return-type grameri henüz tamamlanmış değildir. Bu yazımlar mevcut Parser'da destekleniyor kabul edilmemelidir.
 ---
 
 ###  2.2 Tipler **
@@ -61,7 +63,7 @@ Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY
 
 - **Hard-Lock (`!`):** `v:sayi!u64 = 50`. Veri "50" 8 bit olsa bile 64-bit yer ayrılır.
 
-**Tipler:** `bit`, `byte` (u8), `hex`, `char`, `f32`, `f64`, `i8..i64`, `u8..u64`, `d32`, `d64`, `bool`.
+**Tipler:** `bit`, `byte` (u8), `hex`, `char`, `f32`, `f64`, `i8..i64`, `u8..u64`, `bool`. `d32` and `d64` are not current built-in types.
 **Oyun/Grafik:** `Vec2`, `Vec3`, `Vec4` (SIMD Destekli).
 
 ---
@@ -77,7 +79,7 @@ v:liste = [1, 2, 3]; # listenin içindeki en büyük elemana göre tipi ayarlar.
 c:PI = 3.14159;
 
 # Bilimsel gösterim (10e3)
-v:val= 10E3;
+v:val = 10000; # Decimal integer; scientific notation is not supported by the current Lexer.
 
 # Üslü sayılar.
 v:vall= 10^^15;
@@ -296,6 +298,8 @@ Bu tablo mevcut C Parser üretim sırasını yansıtır. `&&` `||`'dan daha yük
 | **14** | `@`   | **Intent** | Derleyiciye niyet bildirimi. |
 | **15** | `!!=` | **Directive** | .target sistemi ve derleyici talimatları. |
 
+> `!!=` tokenı mevcut Parser'da infix assignment düğümü olarak da tüketilir. `!!=[target = ...] { ... }` biçimindeki prefix target-directive örnekleri normal Parser'ın tamamlanmış grameri değildir; Directive/Target katmanı sözleşmesi ayrıca kapanmalıdır.
+
 ---
 
 
@@ -418,7 +422,7 @@ loop(i, a < b, i++){... kodlar...}
 # Foreach
 loop(v:item in list){ echo(item) }
                          
-# While (Conditional Loop)
+# Koşullu loop (while-benzeri; ayrı while anahtar kelimesi yok)
 loop(a < b){ ....  a++;}
 loop(a < b, a++){ .... }
 
@@ -529,19 +533,18 @@ G:  (a == b) ? process(a) : process(b);
 
 
 
-### 5.3  14-15: `label:>` `label?>` `jump(label)` Etiketli atlama.
+### 5.3 Etiketli atlama: `label:>`, `?>(label)` ve `jump(label)`
 
-> `label?>` or `jump(label)` `label:>`
+> `?>(label);` or `jump(label);` targets a label declared with `label:>`.
 | **Atlama (Jump)** | Akışı tamamen başka bir etiketli `label:>` noktaya transfer eder. |
 
-```
-     (a > 4) -> out?>
-#or  (a > 4) -> jump(out)
-...
-...
-...
-    out:>
+```nexus
+jump(out);
+# İleri veya geri tanımlanmış bir label hedeflenebilir.
 
+out:> {
+    process();
+}
 ```
 
 
@@ -944,18 +947,9 @@ Bu biçim AST içinde `AST_LAMBDA` olarak tutulur; `body_is_expression` işaretl
 
 ---
 
-# Fonksiyonlarda Generic 
-f:sum(a!t, b!t)!t {
-    return a + b;
-}
+### Generic Fonksiyonlar — Tasarım Açığı
 
-f:main() {
-    v:x!i32 = sum(10, 20);      # t → i32
-    v:y!f32 = sum(1.5, 2.5);    # t → f32
-}
-
-* Fonksiyon işaretçileri
-* callback fonksiyon
+Önceki `f:sum(a!t, b!t)!t` örneğinde `t` için bir type-parameter bildirimi bulunmuyordu. Lexer bunu sıradan identifier/type adı olarak görür; Parser'da generic parameter listesi ve Semantic type-variable çözümlemesi yoktur. Bu nedenle generic fonksiyonlar mevcut desteklenen syntax olarak gösterilmez. Önerilen açık gramer ve AST modeli `NEXUS-FLOW-LANGUAGE-COMPARISON.md` içinde takip edilir.
 
 ---
 
@@ -1027,7 +1021,6 @@ Karmaşık tipleri kısaltmak veya semantik isimler vermek için kullanılır.
 
 ```
 nt:Addr = u64;
-nt:Callback = f:(id!u32)>!bool;
 
 nt:struct: point {
     v:x!i32,
@@ -1037,6 +1030,8 @@ nt:struct: point {
 v:val!point = {25, 23};
 
 ```
+
+**Callback / function pointer tipi:** Fonksiyon değeri ve callback için ayrı bir function-type AST/gramer sözleşmesi henüz tamamlanmamıştır. `nt:Callback = f:(id!u32)>!bool;` biçimi tasarım örneğidir; mevcut Parser tarafından geçerli NewType hedef tipi olarak kabul edilmez.
 
 ---
 
@@ -1061,7 +1056,7 @@ group Oyuncu {
 
     # Yapıcı (Constructor) - Statik Fonksiyon
     yeni => f:(isim)!Oyuncu {
-                return Oyuncu { 
+                ret Oyuncu { 
                     ad = isim,
                     puan = 0,
                     aktif = true 
@@ -1136,7 +1131,7 @@ f:main()!i32 {
         # asmjmp("MY_ASM_BLOCK"); # FASTEXEC içinde koşulsuz sıçrama; geri dönüş olmayabilir.
     }
     
-    return 0;
+    ret 0;
 }
 
 ```
@@ -1155,7 +1150,7 @@ f:asm_func(a, b)!i32{
             mov %tot, rax
         }
         
-		return tot;
+		ret tot;
     }
 }
 
@@ -1168,7 +1163,7 @@ f:main()!i32 {
 	total = asm_func(a, b);
 	echo(total);
 	
-    return 0;
+    ret 0;
 }
 
 ```
@@ -1213,12 +1208,12 @@ pup f:myfunction(){...}
 
 ```
 ---
-### 11. `dllexp:` dll export. & DLL yükleme `import(path/imp.dll)` dll, .o, .obj, .so,vs.. import.
+### 11. DLL export ve yükleme — API / target sözleşmesi
 ** Bu fonksiyon dışarıdan alınan dll ler için geçerli değildir. Kendi yazdığınız dll ler için geçerlidir.
 
-`dllexp:` Main fonksiyonu yerine dll derlemek için ana fonksiyonu belirler.
+`dllexp:` ve prefix DLL export bildirimi mevcut C Parser gramerinde tanımlı değildir; DLL artifact/export metadata'sı target/build katmanında ayrıca tanımlanmalıdır. 
 
-`import(path)` dll yükler
+`import(path)` örneği özel bir dil anahtar kelimesi veya AST intrinsic'i değildir; sıradan fonksiyon çağrısı biçimindedir. DLL yükleme API/runtime sözleşmesi henüz tamamlanmamıştır.
 
 ```
 #DLL olarak derliyor iseniz f: main(){} yerine aşağıdaki şekilde kullanılır.
@@ -1278,10 +1273,10 @@ group SysIO {
 
         !!=[target = "bare-metal"] {
             # Hiçbir kütüphane yok, doğrudan VGA belleğine yaz veya UART kullan
-            # 0xB8000: Klasik x86 VGA metin tamponu adresi
+            # 753664: Klasik x86 VGA metin tamponu adresi (0xB8000)
             loop(i, i < len, i++) {
-                poke(0xB8000 + (i * 2), msg[i]);
-                poke(0xB8000 + (i * 2) + 1, 0x07); # Gri renk
+                poke(753664 + (i * 2), msg[i]);
+                poke(753664 + (i * 2) + 1, 7); # Gri renk
             }
         }
     }
@@ -1299,13 +1294,13 @@ f:main()!i32 {
     # Uygulama geliştiricisi OS detayını görmez.
     SysIO.output("NexusFlow OS Bridge Active.");
     
-    return 0;
+    ret 0;
 }
 
 ```
 ---
 
-## 13.  Macro Sistemi
+## 13. Macro Sistemi — Tasarım / Parser dışı katman
 
 ```
 # Makro programlama
@@ -1361,7 +1356,7 @@ f:main() {
     group $name {
         # Tip makro parametresinden geliyor
         add => f:(a!$type, b!$type)!$type {
-            return (a + b);
+            ret (a + b);
         }
     }
 }
