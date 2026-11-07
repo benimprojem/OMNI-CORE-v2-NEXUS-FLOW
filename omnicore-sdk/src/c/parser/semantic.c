@@ -2610,29 +2610,36 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                         ctx, member);
                     uint32_t member_node_id = semantic_node_id(ctx, member);
                     SemanticResultStatus relation_status;
-                    if (member_name && member_node_id != 0u) {
-                        relation_status = semantic_result_add_relation(
-                            &ctx->result, group_slot->symbol_id,
-                            SEMANTIC_RESULT_RELATION_GROUP_MEMBER,
-                            member_ordinal++,
-                            member_slot ? member_slot->symbol_id : 0u,
-                            member_node_id, member_name,
-                            member_slot ? member_slot->type_id : 0u);
-                        semantic_set_result_error(ctx, relation_status);
+                    if (!member_name || !*member_name || member_node_id == 0u) {
+                        semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+                        break;
                     }
+                    relation_status = semantic_result_add_relation(
+                        &ctx->result, group_slot->symbol_id,
+                        SEMANTIC_RESULT_RELATION_GROUP_MEMBER,
+                        member_ordinal++,
+                        member_slot ? member_slot->symbol_id : 0u,
+                        member_node_id, member_name,
+                        member_slot ? member_slot->type_id : 0u);
+                    semantic_set_result_error(ctx, relation_status);
+                    if (ctx->result_status != SEMANTIC_RESULT_OK) break;
 
                     if (member->type == AST_STRUCT_DECL ||
                         member->type == AST_UNION_DECL ||
                         member->type == AST_ENUM_DECL) {
                         const char* nominal_name = semantic_group_member_name(member);
-                        if (nominal_name && strcmp(nominal_name, g->name) == 0 &&
-                            member_slot && member_slot->symbol_id != 0u) {
-                            relation_status = semantic_result_add_relation(
-                                &ctx->result, group_slot->symbol_id,
-                                SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING,
-                                0u, member_slot->symbol_id, member_node_id,
-                                nominal_name, member_slot->type_id);
-                            semantic_set_result_error(ctx, relation_status);
+                        if (nominal_name && strcmp(nominal_name, g->name) == 0) {
+                            if (!member_slot || member_slot->symbol_id == 0u) {
+                                semantic_set_result_error(
+                                    ctx, SEMANTIC_RESULT_INVALID_DATA);
+                            } else {
+                                relation_status = semantic_result_add_relation(
+                                    &ctx->result, group_slot->symbol_id,
+                                    SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING,
+                                    0u, member_slot->symbol_id, member_node_id,
+                                    nominal_name, member_slot->type_id);
+                                semantic_set_result_error(ctx, relation_status);
+                            }
                         }
                     } else if (member->type == AST_METHOD) {
                         const ASTMethod* method = (const ASTMethod*)member;
@@ -2651,9 +2658,12 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                                     ctx, method->implementation);
                             uint32_t implementation_node_id = semantic_node_id(
                                 ctx, method->implementation);
-                            if (implementation_slot &&
-                                implementation_slot->symbol_id != 0u &&
-                                implementation_node_id != 0u) {
+                            if (!implementation_slot ||
+                                implementation_slot->symbol_id == 0u ||
+                                implementation_node_id == 0u) {
+                                semantic_set_result_error(
+                                    ctx, SEMANTIC_RESULT_INVALID_DATA);
+                            } else {
                                 relation_status = semantic_result_add_relation(
                                     &ctx->result, group_slot->symbol_id,
                                     SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION,
@@ -2664,6 +2674,8 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
                                     implementation_slot->type_id);
                                 semantic_set_result_error(ctx, relation_status);
                             }
+                        } else {
+                            semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
                         }
                     }
                     if (ctx->result_status != SEMANTIC_RESULT_OK) break;
