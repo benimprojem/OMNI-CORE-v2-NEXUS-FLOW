@@ -799,7 +799,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 - Latest failed CI (`42046323779`, commit `7f220360ae`) localized the failure to the comparison-chain AST assertion in `test_expression_precedence_and_associativity_ast()` (line 1331): `a < b < c` no longer had the expected left-nested comparison shape.
 - Root cause: while adding the range precedence tier, `parse_comparison()` had incorrectly parsed its RHS with `parse_range()`. This let lower-precedence equality/range/logical operators leak into comparison operands. Corrected comparison RHS to `parse_bitwise_or()`; expected tier order is now comparison → bitwise operands, equality → comparison, range → equality, logical AND → range, logical OR → logical AND.
-- Fix commit: `4ea2e00589dabde62ec7885fc15c34f5aaff898b`. Full CI matrix is pending; do not mark Parser regression/range task verified until all five jobs pass.
+- Fix commit: `4ea2e00589dabde62ec7885fc15c34f5aaff898b`. CI run `42055978416` passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan, Valgrind); Ubuntu CTest and Valgrind each report 60/60 tests, zero failures. Parser precedence/range fixture is now CI-verified.
 - Inclusive `1..10` is a language rule (10 included); Parser fixtures cover `1..10`, chained `1..2..3`, and nested range rejection. Semantic/runtime inclusive iteration remains unimplemented and must be tracked separately.
 - Numeric `<<`/`>>` versus Nexus Flow grammar remains deliberately blocked pending a syntax-level discriminator; no operand-shape heuristic.
 
@@ -810,3 +810,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Next AST work: finish intrinsic token → AST → codec/round-trip inventory; source-span completeness audit; then callback/function-pointer type grammar and AST representation. Keep shift/Flow grammar and map generic constraints explicitly open until language decisions are made.
 - Stage gate remains AST/Parser completion first. Semantic/OIR/Verifier follow in order; Codegen is not in scope.
 - Planned pause: 1–2 days after this checkpoint; no automatic reminder requested.
+
+
+## 2026-11-07 — Resume after pause: Parser gate closed
+
+- Verified run `42055978416` / commit `4ea2e00589da`: all five CI jobs passed. Ubuntu CTest and Valgrind report 60/60 tests, zero failures. The comparison-chain regression is closed.
+- Updated the Parser production matrix and task list to record the green result. No Codegen work was started.
+- AST continuation begins with a complete intrinsic token → Parser dispatch → AST node → payload/child → codec → positive/negative test inventory. Current `test_intrinsic_ast_family()` covers only nine representative nodes (`len`, `sizeof`, `typeof`, `is_ok`, `addr`, `clock`, `datenow`, `date`, `time`); `echo`/`listen` have a separate focused test. Other intrinsic AST tags and parser-special forms still need explicit coverage.
+- Then continue source-span policy/endpoint audit and contextual codec gaps. Preserve open grammar decisions for `<<`/`>>`, map constraints and unified pointer/reference/function type representation.
