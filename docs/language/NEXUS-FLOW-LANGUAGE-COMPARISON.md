@@ -180,7 +180,7 @@ Bu avantajlar henüz tasarım/Parser seviyesindeki avantaj potansiyelidir. Seman
 | Pointer/reference type declarator | C ABI, extern, düşük seviye bellek erişimi | `*T`, `**T`, `&T` gramerini AST type metadata ile temsil et |
 | Function type / callback | Callback API, DLL/extern arayüzü, fonksiyon değerleri | Parser artık `f:(name!T)>!R` imzasını kabul edip AST type-name alanında saklıyor; dedicated type node, compatibility ve ABI lowering açık |
 | Generic type parameter | Generic örnekteki `t` şu anda gerçek type parameter olarak tanımlı değil | Açık type-parameter listesi ve daha sonra constraint sistemi |
-| Null / optional değer | Flow fallback açıklamalarında null var, fakat gerçek literal/type sözleşmesi eksik | `null` literal ile Option/nullable type kavramını ayır |
+| Null / optional değer | `null` artık gerçek literal; `none` ve Option/nullable type sözleşmesi hâlâ eksik | `null` pointer sentinel; Option/Maybe boş varyantı ayrı tanımlanmalı |
 | Numeric literal standardı | Hex, binary, octal ve scientific notation low-level/numeric kodda önemlidir | Radix/exponent grammar ve overflow kuralları |
 | Shift / Flow operator ayrımı | `<<` / `>>` iki anlam için çakışıyor | Açık bir syntax disambiguation; token heuristiği kullanma |
 | Directive / macro grameri | `!!=[target...]` ve `:macro` örnekleri core Parser tarafından tam karşılanmıyor | Preprocessor/target directive katmanını core expression gramerinden ayır |
@@ -211,7 +211,7 @@ f:sum<T>(a!T, b!T)!T {
 
 İlk aşamada type parameter listesi fonksiyon adından sonra, parametre listesinden önce gelir. Constraint syntax'ı (ör. `T:Numeric`) daha sonra ayrıca tanımlanmalıdır. Type parameter listesi AST'de isim/constraint taşıyan ayrı düğümler olmalıdır; yalnızca fonksiyon adının içine metin olarak eklenmemelidir.
 
-**Null / optional:** `null` bir literal, `none` ise varsa Option/Maybe türünün boş varyantı olarak ayrı kavramlar olmalıdır. Bunları tek değerde birleştirmek pointer nullability ile optional-value semantiğini karıştırır. Nexus Flow'da henüz bu karar verilmemiştir.
+**Null / optional:** `null` artık null pointer literalıdır. `none` ise Option/Maybe türünün boş varyantı olarak ayrı kavram olmalıdır. Bunları tek değerde birleştirmek pointer nullability ile optional-value semantiğini karıştırır. Parser `null` literalini üretir; yalnızca nullable pointer bağlamlarında kullanılmasını Semantic doğrulamalıdır.
 
 ### P1 — Semantic/type sistemi
 
