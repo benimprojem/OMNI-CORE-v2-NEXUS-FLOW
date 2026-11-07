@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include "lexer.h"
 
+static int semantic_slot_is_nominal_type(const Slot* slot);
+
 void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path) {
     (void)lang_file_path; /* Reserved for the shared diagnostics localization API. */
     ctx->head = NULL;
