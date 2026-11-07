@@ -148,13 +148,18 @@ static Slot* find_best_suggestion(SemanticContext* ctx, const char* name, int* o
     Slot* best_slot = NULL;
     int best_score = 0;
     while (current) {
-        int dist = levenshtein(name, current->name);
-        size_t max_len = strlen(name) > strlen(current->name) ? strlen(name) : strlen(current->name);
-        double denominator = max_len ? (double)max_len : 1.0;
-        int score = (int)((1.0 - (double)dist / denominator) * 100);
-        if (score > best_score) {
-            best_score = score;
-            best_slot = current;
+        if (!(semantic_slot_is_nominal_type(current) &&
+              current->group_owner &&
+              current->group_owner != ctx->current_group_owner)) {
+            int dist = levenshtein(name, current->name);
+            size_t max_len = strlen(name) > strlen(current->name)
+                ? strlen(name) : strlen(current->name);
+            double denominator = max_len ? (double)max_len : 1.0;
+            int score = (int)((1.0 - (double)dist / denominator) * 100);
+            if (score > best_score) {
+                best_score = score;
+                best_slot = current;
+            }
         }
         current = current->next;
     }
