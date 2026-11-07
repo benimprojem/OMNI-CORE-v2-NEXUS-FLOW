@@ -165,7 +165,7 @@ The earlier decision that `!map` was the only canonical spelling and that all pa
 - `null` is now a dedicated token and `AST_LITERAL` spelling. It is intended as a null-pointer sentinel; Semantic must reject it for non-nullable reference/value targets. `none` and Option/Result remain undefined.
 - Numeric Lexer/Parser supports decimal, `0x`, `0b`, `0o`, scientific exponent and underscore separators. Numeric suffixes remain unsupported; Semantic conversion/overflow/precision remains open.
 - Syntax forms now aligned with Parser: `loop { ... }`, `jump(label);`, dotted `use` paths, `ret` keyword examples and radix/scientific literals.
-- Latest CI checkpoint: workflow `42411223520`, all 5 jobs passed, 60/60 CTest.
+- Latest CI checkpoint: workflow `42411942789`, all 5 jobs passed, 60/60 CTest.
 
 
 ## Thread block boundary — 2026-11-07
@@ -181,4 +181,4 @@ The earlier decision that `!map` was the only canonical spelling and that all pa
 
 - `TOKEN_NULL` is appended to the token enum and Parser emits `AST_LITERAL` for `null`.
 - Numeric Lexer supports decimal, radix-prefixed integer (`0x`, `0b`, `0o`), scientific exponent and digit separators.
-- Tests passed in workflow `42411223520`; Semantic numeric conversion, overflow and null-pointer compatibility remain open.
+- Tests passed in workflow `42411942789`; Semantic numeric conversion, overflow and null-pointer compatibility remain open.
