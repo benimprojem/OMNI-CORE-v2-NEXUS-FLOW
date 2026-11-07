@@ -13,12 +13,12 @@
 | Translation unit / declarations | parser root + declaration dispatch | `AST_PROGRAM` + declaration sibling chain | parser source accept/reject; AST↔OIR canonical roundtrip | ~ Root/declaration inventory needs full syntax-positive fixture |
 | `v:`, `c:` declaration + initializer/type modifiers, pointer/reference types | `parse_var_decl()`, `parser_parse_type_name()` | `AST_VAR_DECL.type_name` preserves `*T`, `**T`, `&T`; arrays remain a separate inline child | `test_pointer_reference_type_declarators` covers local pointer, function params/return, NewType target and AST codec | ~ Parser spelling and AST string preservation covered; pointer validity, borrow/lifetime and ownership remain Semantic work |
 | `f:name(...)`, `exf:name(...)`, main CLI args, pointer/reference parameters/returns and array returns | `parse_func_decl()`, simple parameter parser, `parser_parse_type_name()` | `AST_FUNC_DECL` / `AST_EXTERN_DECL`; type-name strings preserve pointer/reference prefixes; `AST_ARRAY_TYPE` for argv and optional `return_array_type` | parameter separator; main CLI parameter AST; `!i32[]`, `!i32[n]`, `!f32[m][n]` return fixtures; AST stream v2 round-trip + v1 function-stream compatibility; OIR field 8 round-trip | ~ Array-return representation/codec is verified; named/default/variadic parameter cases and full signature-span matrix remain |
-| Lambda / anonymous function | `parse_lambda()` | `AST_LAMBDA` with params and expression/block body; expression body remains a direct expression child (no synthetic `AST_RETURN`) | combined rules/lambda fixture; exact expression/block span cases; `test_parser` now checks expression-vs-block body shape, malformed missing-body rejection, graph validation and AST codec round-trip (commits `c4177107`, `ccb4983a`, `bad267e6`; CI validated by workflow run `42411223520` (all 5 jobs passed)) | ~ Isolate parameter-list edge cases and capture representation; closure semantics and Semantic return-type inference remain later |
+| Lambda / anonymous function | `parse_lambda()` | `AST_LAMBDA` with params and expression/block body; expression body remains a direct expression child (no synthetic `AST_RETURN`) | combined rules/lambda fixture; exact expression/block span cases; `test_parser` now checks expression-vs-block body shape, malformed missing-body rejection, graph validation and AST codec round-trip (commits `c4177107`, `ccb4983a`, `bad267e6`; CI validated by workflow run `42411942789` (all 5 jobs passed)) | ~ Isolate parameter-list edge cases and capture representation; closure semantics and Semantic return-type inference remain later |
 | Block `{...}`, nested blocks | `parse_block()` | `AST_BLOCK` | nested-block recovery; halt codec/context test | ~ Source span + legal block-halt position fixtures |
 | `if / elsif / els` | `parse_if_statement()`, `parse_if_branch()` | `AST_IF` chain/nested else | structured if-elsif-els AST test | ✓ shape asserted; negative missing/duplicate branch cases expand |
 | Conditional action `(cond) -> break/continue/...` | `parse_conditional_action()` | canonical `AST_IF` | conditional-action arrow disambiguation | ~ More action kinds and expression-vs-flow ambiguity |
 | Unified `loop` / foreach / unroll | statement dispatch + `parse_unroll()` | `AST_LOOP`, `AST_UNROLL` | rules/lambda/relocate/unroll fixture; `test_canonical_loop_and_jump_call_forms` covers `loop {}` | ~ `loop {}` is now accepted as the canonical infinite-loop form; isolate all other loop forms and malformed headers |
-| `ret`, `break`, `continue` | `parse_return_statement()` + statement dispatch | `AST_RETURN`, `AST_BREAK`, `AST_CONTINUE` | `test_parser` asserts void/value return operands, distinct break/continue nodes, source-span presence, graph validation, AST codec round-trip, and missing-semicolon rejection (commit `7113e195`; CI validated by workflow run `42411223520` (all 5 jobs passed)) | ~ Expand target/operand forms only where normative syntax defines them; control-flow semantics remain later Semantic work |
+| `ret`, `break`, `continue` | `parse_return_statement()` + statement dispatch | `AST_RETURN`, `AST_BREAK`, `AST_CONTINUE` | `test_parser` asserts void/value return operands, distinct break/continue nodes, source-span presence, graph validation, AST codec round-trip, and missing-semicolon rejection (commit `7113e195`; CI validated by workflow run `42411942789` (all 5 jobs passed)) | ~ Expand target/operand forms only where normative syntax defines them; control-flow semantics remain later Semantic work |
 | Struct / union / enum / newtype | `parse_struct_decl()`, `parse_union_decl()`, `parse_enum_decl()`, `parse_newtype_decl()` | matching declaration tags + fields/variants | aggregate declaration AST; invalid aggregate members | ✓ primary forms tested; malformed variants/data and span checks expand |
 | Function type / callback signature | `parser_parse_type_name()`, function-type signature parser | Normalized `f:(name!T, ...)>!R` string in existing `type_name` / `target_type`; no dedicated AST node yet | `test_function_type_alias_and_callback_parameter` checks alias, parameter, invocation, malformed rejection, validator and codec round-trip | ~ Syntax and string preservation covered; dedicated type node, callback compatibility and ABI remain open |
 | Generic type-variable spelling | Existing type-name parsing | `a!t` and return `!t` are preserved in `ASTVarDecl.type_name` / `ASTFuncDecl.return_type` strings | `test_implicit_type_variable_spelling` checks both parameters, return type, graph validation and codec round-trip; CI workflow `42411942789` passed 5/5 | ~ Syntax spelling is retained; Semantic type-variable binding, scope, unification and inference remain open. Explicit `<T>` list is not normative |
@@ -161,7 +161,7 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - Added the documented infinite-loop spelling `loop { ... }` to `parse_primary()`; existing `(loop) { ... }` compatibility form remains accepted.
 - Added contextual statement alias `jump(label);`; it produces the same `AST_NEXUS_JUMP` payload as the explicit `?>(label);` form. The word `jump` remains an ordinary identifier outside this statement-call shape.
 - Added `test_canonical_loop_and_jump_call_forms`: verifies AST shape, loop type/body, jump target, following label, graph validation and AST stream round-trip.
-- CI validated by workflow run `42411223520`; all five jobs passed.
+- CI validated by workflow run `42411942789`; all five jobs passed.
 - Remaining type grammar gaps are function-type/callback AST and generic type-parameter declarations. Pointer/reference declarators have since been added to Parser; see the later 2026-11-07 entry.
 
 
@@ -170,7 +170,7 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - Extended `parse_use()` to accept dotted module paths such as `use msvcrt.exf as crt;`.
 - Module path segments are joined into the existing owned `AST_USE.module_name` string; no AST tag or OIR field layout changed.
 - Added `test_dotted_module_use_path` for the joined path, alias, graph validation and AST codec round-trip.
-- CI validated by workflow run `42411223520`; malformed path segments and exact span boundaries remain in the test closure list.
+- CI validated by workflow run `42411942789`; malformed path segments and exact span boundaries remain in the test closure list.
 
 
 ## 2026-11-07 — Pointer/reference type spelling
@@ -179,7 +179,7 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - The existing AST stores these forms in the existing owned type-name strings; no AST enum ID or OIR node ID changed.
 - Added `test_pointer_reference_type_declarators` for local variable, typed parameters, return type, NewType alias, graph validation and AST stream round-trip.
 - This closes the Parser spelling gap only. Nullability, pointer validity, mutability, borrow/lifetime, aliasing and ownership remain Semantic contracts.
-- Parser commit: `0b87bd7b`; test commit: `df9ef675`. CI validated by workflow run `42411223520` (all 5 jobs passed).
+- Parser commit: `0b87bd7b`; test commit: `df9ef675`. CI validated by workflow run `42411942789` (all 5 jobs passed).
 
 
 ## 2026-11-07 — Function type / callback signature production
@@ -188,7 +188,7 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - The signature is whitespace-normalized and retained in the existing owned type-name/target-type string fields; it is distinct from `AST_LAMBDA` expression bodies.
 - Added `test_function_type_alias_and_callback_parameter` for NewType alias, callback parameter, invocation shape, AST validation, stream round-trip and malformed-signature rejection.
 - This is syntax/AST string preservation, not full callback type compatibility, closure capture, ABI lowering or a dedicated `AST_FUNCTION_TYPE` node.
-- Parser commit: `486a92ba`; regression test commit: `51198999`. CI validated by workflow run `42411223520` (all 5 jobs passed).
+- Parser commit: `486a92ba`; regression test commit: `51198999`. CI validated by workflow run `42411942789` (all 5 jobs passed).
 
 
 ## 2026-11-07 — AST enum tags without active Parser productions
@@ -211,7 +211,7 @@ These tags must not be counted as active syntax support merely because they exis
 - Added `TOKEN_NULL` at the end of the token enum to preserve existing token IDs. Parser emits `AST_LITERAL` with the original `null` spelling.
 - Added Lexer positive/negative numeric fixtures and Parser AST/codec coverage for null, radix and scientific literals.
 - Numeric value conversion, overflow/range and null-to-pointer compatibility remain Semantic work. `none` / Option is still not a literal/type contract.
-- CI validated by workflow run `42411223520` (all 5 jobs passed).
+- CI validated by workflow run `42411942789` (all 5 jobs passed).
 
 
 ## Remaining syntax/AST representation gaps after the 2026-11-07 reconciliation
@@ -234,4 +234,4 @@ These tags must not be counted as active syntax support merely because they exis
 - Parser creates `AST_THREAD_BLOCK` with the name and body. `mode` and `timeout` are currently NULL/reserved fields; no syntax is defined for them.
 - The block defines a named work body; it does not start a thread.
 - `spawn(...)` remains outside core Parser syntax and belongs to the separate Thread module. The existing negative fixture rejects `spawn(worker)`.
-- Existing `test_thread_block_ast` and exact source-span fixture cover the parser/AST/codec path; latest CI workflow `42411223520` passed all five jobs.
+- Existing `test_thread_block_ast` and exact source-span fixture cover the parser/AST/codec path; latest CI workflow `42411942789` passed all five jobs.
