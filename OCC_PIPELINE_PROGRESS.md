@@ -905,3 +905,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Commits: Parser `fee81b7e`; Parser test `456d8af7`; language comparison `8a2e44b0`; syntax reference `32469a06`.
 - CI has not yet validated the new Parser test. Keep Parser/AST status partial until Windows, Ubuntu, macOS, ASan/UBSan and Valgrind checks complete.
 - Next syntax/AST work: pointer/reference declarators, callback/function-type AST representation, generic type-parameter syntax, null literal decision, numeric literal grammar, and the `<< / >>` collision. Do not enter Semantic or Codegen while these AST contracts remain open.
+
+
+## 2026-11-07 — Module path syntax closure
+
+- The normative `use msvcrt.exf;` example did not match the old single-identifier `parse_use()` production.
+- Parser now accepts dotted module paths and retains the joined module path in `AST_USE.module_name`; aliases and comma-separated imports remain unchanged.
+- Added `test_dotted_module_use_path` with AST graph validation and AST stream round-trip.
+- Commits: Parser `4738207c`; Parser test `9d1d5f7d`.
+- CI pending. Module file resolution and path security remain outside Parser/AST.
