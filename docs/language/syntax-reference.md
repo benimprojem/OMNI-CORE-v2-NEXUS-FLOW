@@ -1071,7 +1071,7 @@ v:val!point = {25, 23};
 
 ```
 
-**Callback / function type:** `f:(parametreler)>!DönüşTipi` imza biçimi artık NewType hedefi, local değişken, fonksiyon parametresi ve dönüş tipi bağlamlarında Parser tarafından kabul edilir. Örneğin `nt:Callback = f:(id!u32)>!bool;`. AST imzayı mevcut type-name string alanında normalize ederek saklar; henüz ayrı `AST_FUNCTION_TYPE` düğümü yoktur. Callback uyumluluğu, closure conversion ve function-pointer ABI Semantic/Codegen sözleşmelerinde açık kalır.
+**Callback / function type (canonical proposal):** `f:(parametreler)!DönüşTipi` yalnızca imza/type biçimidir; `>` gövde başlangıcıdır. Callable expression örneği: `f:(id!u32)!bool > (id == 1) ? true : false;`. Bu ayrım henüz Parser/AST'de uygulanmış değildir; önce grammar ve type-expression AST tasarımı tamamlanmalıdır.
 
 ---
 
