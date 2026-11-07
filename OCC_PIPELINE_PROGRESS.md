@@ -978,4 +978,4 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Preserved the existing Nexus Flow model `f:sum(a!t,b!t)!t`; did not introduce a new `<T>` declaration syntax.
 - Added `test_implicit_type_variable_spelling` to verify parameter type strings, return type string, graph validation and AST codec round-trip.
 - Parser/AST spelling is covered; Semantic type-variable scope, binding, unification and inference remain open.
-- CI pending for the newly added fixture.
+- CI workflow `42411942789` passed all five jobs (60/60 CTest) for the newly added fixture.
