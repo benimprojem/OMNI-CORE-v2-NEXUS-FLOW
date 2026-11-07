@@ -136,7 +136,15 @@ Bu ayrım Rust `match` ve Kotlin `when` gibi pattern tabanlı seçimlerle aynı 
 
 ---
 
-### 1.9 Expression lambda
+### 1.9 Named Thread Block
+
+`(worker)>{ ... }` isimlendirilmiş bir thread çalışma gövdesi üretir. Parser bunu `AST_THREAD_BLOCK` olarak taşır; bu form thread'i başlatmaz. `spawn`, start/join, scheduling, timeout, capture ve memory-ordering ayrı Thread/runtime sözleşmesidir.
+
+**Avantaj:** Thread'e ait kod gövdesini isimle tanımlamak ve AST'de normal fonksiyon gövdesinden ayırmak.
+
+**Dezavantaj / açık alan:** Başlatma noktası, scheduling, worker sayısı, timeout, join, cancellation, error propagation, captured variable lifetime ve data-race kuralları henüz tamamlanmamıştır. Bu nedenle thread block sözdizimini runtime concurrency garantisi gibi sunmamak gerekir.
+
+### 1.10 Expression lambda
 
 `f:(a, b) > a * b` biçimi expression-body lambda'dır. Dönüş değeri son ifadedir; AST'de body doğrudan ifade düğümü olarak tutulur, sentetik `ret` eklenmez.
 
@@ -230,7 +238,7 @@ f:sum<T>(a!T, b!T)!T {
 
 - Flow operator retry/cancel/idempotency/error aggregation.
 - Defer/Halt cleanup sırası ve cleanup hata birleştirme.
-- Thread/spawn, channel, synchronization ve memory ordering.
+- Thread block için start/spawn/join, channel, scheduling, timeout, cancellation, capture/lifetime, synchronization ve memory ordering.
 - AREA/ZONE host/bare-metal allocation ve coherence.
 - FASTEXEC register/clobber/ABI/target capability validation.
 - Macro expansion, target conditional compilation ve external linker metadata.
