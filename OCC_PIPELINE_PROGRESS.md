@@ -959,7 +959,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Latest code/test workflow: `42411942789`.
 - **CI result: 5/5 jobs passed.** Ubuntu CTest, Windows CTest, macOS CTest, ASan/UBSan and Valgrind all succeeded.
 - CTest suite: 60/60 passed on the build/test matrix.
-- Covered in this validated checkpoint: canonical `loop {}`, `jump(label);`, dotted `use` paths, pointer/reference type spellings, callback function-type signature strings, numeric radix/exponent/separator forms and the `null` literal.
+- Covered in this validated checkpoint: canonical `loop {}`, `jump(label);`, dotted `use` paths, pointer/reference type spellings, callback function-type signature strings, implicit `t` type-variable spelling, numeric radix/exponent/separator forms and the `null` literal.
 - This checkpoint does not close AST as a whole. Generic type parameters, dedicated function-type AST node, Semantic type/ownership rules, exact source-span audit, AST OOM injection and full node/factory/codec/validator parity remain open.
 
 
