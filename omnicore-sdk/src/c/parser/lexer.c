@@ -209,6 +209,7 @@ static OmniTokenType identifier_type(const char* start, size_t length) {
        ahead of the general keyword dispatch so they cannot become identifiers. */
     if (length == 4 && memcmp(start, "true", 4) == 0) return TOKEN_TRUE;
     if (length == 5 && memcmp(start, "false", 5) == 0) return TOKEN_FALSE;
+    if (length == 4 && memcmp(start, "null", 4) == 0) return TOKEN_NULL;
 
     // Prefix Kontrolleri (v:, c:, vb.)
     if (length >= 2 && start[1] == ':') {
@@ -399,6 +400,61 @@ static Token lexer_scan_asm_body(ParserContext* ctx) {
     return error_token(ctx, "Unterminated ASM body; expected matching '}'");
 }
 
+static int numeric_digit_value(int c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return 10 + c - 'a';
+    if (c >= 'A' && c <= 'F') return 10 + c - 'A';
+    return -1;
+}
+
+static int scan_numeric_digit_sequence(ParserContext* ctx, unsigned base) {
+    int saw_digit = 0;
+    int previous_digit = 0;
+    while (1) {
+        int value = numeric_digit_value((unsigned char)peek(ctx));
+        if (value >= 0 && (unsigned)value < base) {
+            advance(ctx);
+            saw_digit = 1;
+            previous_digit = 1;
+            continue;
+        }
+        if (peek(ctx) == '_') {
+            int next_value = numeric_digit_value((unsigned char)peek_next(ctx, 1u));
+            if (!previous_digit || next_value < 0 || (unsigned)next_value >= base) return 0;
+            advance(ctx);
+            previous_digit = 0;
+            continue;
+        }
+        break;
+    }
+    return saw_digit && previous_digit;
+}
+
+static int scan_numeric_digit_tail(ParserContext* ctx, unsigned base) {
+    int previous_digit = 1; /* The first digit was consumed by the caller. */
+    while (1) {
+        int value = numeric_digit_value((unsigned char)peek(ctx));
+        if (value >= 0 && (unsigned)value < base) {
+            advance(ctx);
+            previous_digit = 1;
+            continue;
+        }
+        if (peek(ctx) == '_') {
+            int next_value = numeric_digit_value((unsigned char)peek_next(ctx, 1u));
+            if (!previous_digit || next_value < 0 || (unsigned)next_value >= base) return 0;
+            advance(ctx);
+            previous_digit = 0;
+            continue;
+        }
+        break;
+    }
+    return previous_digit;
+}
+
+static void consume_numeric_suffix(ParserContext* ctx) {
+    while (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_') advance(ctx);
+}
+
 Token lexer_next_token(ParserContext* ctx) {
     if (ctx && ctx->lexer_asm_body_pending) {
         return lexer_scan_asm_body(ctx);
@@ -443,47 +499,79 @@ Token lexer_next_token(ParserContext* ctx) {
         return make_token(ctx, identifier_type(start, length), start, length);
     }
 
-    // --- Sayılar ---
+    // --- Numeric literals: decimal, radix-prefixed integers and exponents ---
     if (isdigit((unsigned char)c)) {
-        while (isdigit((unsigned char)peek(ctx))) advance(ctx);
-        if (peek(ctx) == '.' && isdigit((unsigned char)peek_next(ctx, 1u))) {
-            advance(ctx); // .
-            while (isdigit((unsigned char)peek(ctx))) advance(ctx);
+        int has_fraction = 0;
+        int has_exponent = 0;
+        int is_radix = 0;
+
+        if (c == '0' && (peek(ctx) == 'x' || peek(ctx) == 'X' ||
+            peek(ctx) == 'b' || peek(ctx) == 'B' ||
+            peek(ctx) == 'o' || peek(ctx) == 'O')) {
+            unsigned base = 10u;
+            char prefix = peek(ctx);
+            is_radix = 1;
+            if (prefix == 'x' || prefix == 'X') base = 16u;
+            else if (prefix == 'b' || prefix == 'B') base = 2u;
+            else base = 8u;
+            advance(ctx);
+            if (!scan_numeric_digit_sequence(ctx, base)) {
+                consume_numeric_suffix(ctx);
+                return error_token(ctx, "Invalid radix-prefixed numeric literal");
+            }
+        } else {
+            if (!scan_numeric_digit_tail(ctx, 10u)) {
+                consume_numeric_suffix(ctx);
+                return error_token(ctx, "Invalid decimal numeric separator");
+            }
+
+            if (peek(ctx) == '.' && isdigit((unsigned char)peek_next(ctx, 1u))) {
+                has_fraction = 1;
+                advance(ctx);
+                advance(ctx); /* first fractional digit */
+                if (!scan_numeric_digit_tail(ctx, 10u)) {
+                    consume_numeric_suffix(ctx);
+                    return error_token(ctx, "Invalid fractional numeric separator");
+                }
+            }
+
+            if (peek(ctx) == 'e' || peek(ctx) == 'E') {
+                has_exponent = 1;
+                advance(ctx);
+                if (peek(ctx) == '+' || peek(ctx) == '-') advance(ctx);
+                if (!isdigit((unsigned char)peek(ctx))) {
+                    consume_numeric_suffix(ctx);
+                    return error_token(ctx, "Scientific notation requires exponent digits");
+                }
+                advance(ctx); /* first exponent digit */
+                if (!scan_numeric_digit_tail(ctx, 10u)) {
+                    consume_numeric_suffix(ctx);
+                    return error_token(ctx, "Invalid exponent digit separator");
+                }
+            }
         }
 
         /*
-         * Numeric suffixes and radix/exponent prefixes are not part of the
-         * currently supported decimal literal grammar. Do not split inputs
-         * such as 0xFF, 10E3 or 12u8 into a valid number plus an identifier.
-         */
-        /*
-         * The rolling-delay unit "ms" is a grammar suffix consumed by the
-         * Parser after the numeric token. Preserve that one documented form;
-         * reject other radix/exponent/type suffixes as a single lexical error.
+         * Keep the rolling-delay unit "ms" as a separate identifier token.
+         * It is valid only after a decimal integer; radix, fraction and
+         * scientific literals do not take this unit suffix.
          */
         {
-            int is_millisecond_unit =
+            int is_millisecond_unit = !is_radix && !has_fraction && !has_exponent &&
                 peek(ctx) == 'm' && peek_next(ctx, 1u) == 's' &&
                 !isalnum((unsigned char)peek_next(ctx, 2u)) &&
                 peek_next(ctx, 2u) != '_';
             if (!is_millisecond_unit &&
                 (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_')) {
-                while (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_') {
-                    advance(ctx);
-                }
-                if ((peek(ctx) == '+' || peek(ctx) == '-') &&
-                    ctx->pos > ctx->token_start_offset &&
-                    (ctx->source_buffer[ctx->pos - 1u] == 'e' ||
-                     ctx->source_buffer[ctx->pos - 1u] == 'E')) {
-                    advance(ctx);
-                    while (isdigit((unsigned char)peek(ctx))) advance(ctx);
-                }
-                return error_token(ctx, "Unsupported numeric literal suffix or format");
+                consume_numeric_suffix(ctx);
+                return error_token(ctx, "Unsupported numeric literal suffix");
             }
         }
 
-        size_t length = (size_t)(&ctx->source_buffer[ctx->pos] - start);
-        return make_token(ctx, TOKEN_NUMBER, start, length);
+        {
+            size_t length = (size_t)(&ctx->source_buffer[ctx->pos] - start);
+            return make_token(ctx, TOKEN_NUMBER, start, length);
+        }
     }
 
     // --- Stringler ---
@@ -667,6 +755,7 @@ const char* token_type_to_string(OmniTokenType type) {
         case TOKEN_AI: return "AI (\?\?)";
         case TOKEN_TRUE: return "TRUE";
         case TOKEN_FALSE: return "FALSE";
+        case TOKEN_NULL: return "NULL";
         case TOKEN_FORCE_ASSIGN: return "FORCE_ASSIGN (!!=)";
         case TOKEN_STRING_APPEND: return "APPEND (.=)";
         case TOKEN_RANGE: return "RANGE (..)";
