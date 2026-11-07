@@ -324,6 +324,10 @@ static int check_group_method_dispatch_semantics(void) {
         "f:main() { group Namespace { "
         "run => f:run_impl() { Namespace.parse(\"x\"); ret; } "
         "parse => f:parse_impl(text!str) { ret; } } }";
+    const char* direct_group_function_call =
+        "f:main() { group Namespace { "
+        "run => f:run_impl() { Namespace.helper(7); ret; } "
+        "f:helper(value!i32) { ret; } } }";
     const char* instance_call_to_static_method =
         "f:main() { group Storage { "
         "run => f:run_impl(self) { self.parse(\"x\"); ret; } "
@@ -352,6 +356,7 @@ static int check_group_method_dispatch_semantics(void) {
     return check_source(instance_call_to_later_method, 0) &&
         check_source(type_qualified_static_call, 0) &&
         check_source(namespace_static_call, 0) &&
+        check_source(direct_group_function_call, 0) &&
         check_source(instance_call_to_static_method, 1) &&
         check_source(type_call_to_instance_method, 1) &&
         check_source(wrong_method_argument_type, 1) &&
