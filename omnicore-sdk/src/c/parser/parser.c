@@ -2364,7 +2364,7 @@ static int parser_parse_function_type_signature(Parser* p, char** out) {
     }
 
     consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
-    consume(p, TOKEN_GT, ERR_PARSER_UNEXPECTED_TOKEN, "Expected '>' before function type return type.");
+    consume(p, TOKEN_GT, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_TYPE_BANG);
     {
         int has_bang = match(p, TOKEN_NOT);
         if (!parser_parse_type_name(p, &return_type, 1, has_bang)) return 0;
