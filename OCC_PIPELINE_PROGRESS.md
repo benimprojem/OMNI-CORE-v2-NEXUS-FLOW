@@ -1046,3 +1046,9 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Tekrarlanan public method adı, birden fazla `default` handler ve method alias/direct function adı çakışması `ERR_SEMANTIC_REDEFINED` ile raporlanıyor.
 - `test_semantic.c` için bu üç negatif senaryo eklendi (`e7b91637`). Semantic uygulama commit'i `64a8e27b`.
 - **Test çalıştırılmadı.** CMake/CTest doğrulaması hâlâ bekliyor; test fixture düzeltmeleri ve yeni negatif senaryolar CI veya yerel build gerektiriyor.
+
+## 2026-11-08 — Group scope visibility hardening
+
+- Group-owned Struct/Enum/Union türleri yalnızca çözümlemede değil, bilinmeyen tür için benzer isim önerilerinde de mevcut Group sahibiyle filtreleniyor. Böylece başka Group/dış kapsam tanılama önerileri özel tür adlarını sızdırmıyor (`27b0ed74`).
+- Group üye adı doğrulaması `AST_METHOD.public_name` dahil doğrudan API üyelerini tek isim alanında karşılaştırıyor; `default` da aynı kural altında tekil handler olarak korunuyor.
+- Bu aşamadaki tüm Semantic testleri kaynak düzeyinde eklendi/düzeltildi; derleme ve çalışma sonucu hâlâ yok. `test_semantic` CMake hedefi `occ_frontend` ile bağlı ve CTest tarafından iki fixture dosyası argümanıyla çağrılıyor; yeni `check_source` vakaları bu test çalıştırıldığında ana test başlamadan önce yürütülüyor.
