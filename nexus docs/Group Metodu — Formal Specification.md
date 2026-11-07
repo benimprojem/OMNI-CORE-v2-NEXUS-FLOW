@@ -183,3 +183,62 @@ Group metodunun en büyük avantajı, **modüler ve bağımsız** işlevsellik s
 * Kullanıcılar, **grup içindeki metodları** belirli bir grup adı ile çağırarak kolayca erişebilir.
 
 ---
+
+
+## 8. Kütüphane ve Modül Modeli (Normatif Tasarım)
+
+Group, yalnızca instance metotlarını taşıyan bir nesne kabı değildir. Nexus Flow kütüphane API'sinin isim alanı ve üyelik organizasyonunun da temel yapısıdır. İki kullanım biçimi ayrılır:
+
+- **Namespace Group:** Kütüphanenin fonksiyonlarını, sabitlerini, türlerini ve alt gruplarını isim alanında toplar. Instance oluşturulması gerekmez.
+- **Object Group:** Group bildirimi bir Struct ile eşleştirilerek instance alanları üzerinde çalışan metotlar sağlar. Namespace ve instance davranışları birlikte bulunabilir.
+
+### 8.1 Kütüphane yüzeyi ve üyeler
+
+| Üye | Kütüphane API rolü |
+|---|---|
+| Function / Method | İşlev ve metot dışa aktarımı |
+| Nested Group | Alt namespace / alt API |
+| Struct / Enum / Union | Kullanıcıya sunulan veri türleri |
+| Variable / Const | Kütüphane durumu veya sabitleri |
+| Default | Group çağrısı/namespace seçimi için varsayılan davranış |
+
+Aynı isimli API üyelerinin aynı Group içinde çakışması Semantic aşamasında hata olmalıdır; Parser yalnızca yapıyı üretir.
+
+### 8.2 Public / Export görünürlüğü
+
+- **Private:** Group içinde görünür; dış tüketici API'sine dahil değildir.
+- **Public (pup):** Kaynak/modül sınırının dışından erişilebilir API üyesi.
+- **Export (exp):** Derleme/kütüphane çıktısında dışa sunulacak sembol; export, public erişimden ayrı bir çıktı/linker kararıdır.
+
+Public olmak otomatik olarak export edilmek anlamına gelmez. Export edilen sembolün API görünürlüğü ve ABI kararı Semantic/Module çözümleme aşamasında doğrulanmalıdır. Mevcut pup/exp anlamları genişletilmeden, Group üyelerinin görünürlüğü AST ve Semantic katmanlarında temsil edilmelidir.
+
+### 8.3 m: bağımlılık bildirimi ile use erişimi
+
+İki mekanizma farklı sorumluluk taşır:
+
+- **m:Name = "source";** zorunlu bağımlılığı bildirir. Kaynak çözümlenemez/yüklenemezse derleme başarısız olur.
+- **use Name; / use path.segment;** modül adını/üyelerini mevcut kaynak kapsamına açma talebidir. Parser dotted path'i AST_USE içinde tek modül yolu olarak korur; gerçek çözümleme ve yükleme Semantic/Module Resolver sorumluluğudur.
+
+Bunlar birbirinin yerine kullanılmaz. use ifadesi kendi başına dosya yolu veya paket indirme garantisi değildir; dependency resolver'ın kaynak politikası uygulanır.
+
+### 8.4 Namespace çözümleme ve erişim
+
+- **Library.member:** kütüphane/Group üyesi çözümlemesi.
+- **Library.SubGroup.member:** iç içe namespace çözümlemesi.
+- **Type.method:** Struct ile eşleştirilmiş Group'un statik/constructor metodu.
+- **instance.method(args):** receiver bağlama kuralıyla instance metodu; ilk self parametresi otomatik receiver alır.
+- **Group / Group.SubGroup:** ilgili scope'ta default üye tanımlıysa default davranış çağrısı/çözümlemesi.
+
+Member access AST'de nokta zincirinin parse edilmiş olması yeterli değildir. Semantic; sembolün Group/Struct/Module türünü, üyelik ilişkisini, visibility ve çağrı biçimini doğrulamalıdır. Çözümleme başarılı olduğunda Semantic AST annotation'ı resolved symbol/member/receiver ilişkisini taşımalıdır; OIR ve Codegen isim metninden tahmin yürütmemelidir.
+
+### 8.5 Module Resolver ve Library ABI sınırı
+
+Kütüphane desteği, Group AST'sini doğrudan runtime nesnesine çevirmek değildir. Modüler sorumluluklar:
+
+1. **Parser/AST:** Group, nested Group, member ve use / m: syntax ağacını kayıpsız üretir.
+2. **Semantic:** Group scope, üye isim çakışması, tür/Struct eşleşmesi, self, constructor, default ve visibility kontrolü.
+3. **Module Resolver:** Dependency kaynağını bulur, modül kimliğini ve import kapsamını oluşturur; dependency graph/cycle ve sürüm/ABI metadata kontrolünü yürütür.
+4. **OIR:** Çözülmüş sembol kimliklerini ve çağrı hedeflerini taşır; kaynak modül adını runtime'da tekrar aramaz.
+5. **Codegen/Linker:** Export edilen sembolleri hedef ABI'ye göre üretir/bağlar. Linker'ın ayrı modül olması kararı korunur.
+
+**Uygulama durumu:** Bu bölüm tasarım kontratını tanımlar; Semantic/Module Resolver/ABI tamamlandı iddiası değildir. Kütüphane ve Group semantic testleri kapanmadan Group tamamlanmış sayılmaz.
