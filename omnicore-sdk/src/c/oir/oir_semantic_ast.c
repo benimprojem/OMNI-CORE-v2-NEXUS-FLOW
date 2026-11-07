@@ -1517,7 +1517,7 @@ static int semantic_group_relation_exposes_symbol(
              relation_index < relations->record_count; ++relation_index) {
             OirSemanticRelation relation;
             if (oir_semantic_relations_get(
-                    relations, relation_index, &relation, NULL, NULL) !=
+                    relations, relation_index, &relation, NULL) !=
                 OIR_STATUS_OK) return 0;
             if (relation.owner_symbol_id == group.symbol_id &&
                 relation.related_symbol_id == target_symbol_id &&
