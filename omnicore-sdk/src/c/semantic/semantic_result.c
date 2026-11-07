@@ -840,7 +840,9 @@ SemanticResultStatus semantic_result_finalize(
         if (relation->related_symbol_id != 0u) {
             const SemanticResultSymbol* related =
                 &result->symbols[relation->related_symbol_id - 1u];
-            if (related->declaration_node_id != relation->related_node_id) {
+            if (related->declaration_node_id != relation->related_node_id ||
+                (relation->kind == SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING &&
+                    related->type_id != relation->type_id)) {
                 return SEMANTIC_RESULT_INVALID_DATA;
             }
         }
