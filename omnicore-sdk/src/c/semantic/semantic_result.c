@@ -139,12 +139,12 @@ static int valid_type_kind(uint16_t kind) {
 
 static int valid_symbol_kind(uint16_t kind) {
     return kind >= SEMANTIC_RESULT_SYMBOL_VARIABLE &&
-        kind <= SEMANTIC_RESULT_SYMBOL_LABEL;
+        kind <= SEMANTIC_RESULT_SYMBOL_GROUP;
 }
 
 static int valid_relation_kind(uint16_t kind) {
     return kind >= SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER &&
-        kind <= SEMANTIC_RESULT_RELATION_ENUM_PAYLOAD_FIELD;
+        kind <= SEMANTIC_RESULT_RELATION_GROUP_DEFAULT_HANDLER;
 }
 
 static int relation_owner_kind_matches(uint16_t relation_kind, uint16_t symbol_kind) {
@@ -157,6 +157,11 @@ static int relation_owner_kind_matches(uint16_t relation_kind, uint16_t symbol_k
         case SEMANTIC_RESULT_RELATION_ENUM_VARIANT:
         case SEMANTIC_RESULT_RELATION_ENUM_PAYLOAD_FIELD:
             return symbol_kind == SEMANTIC_RESULT_SYMBOL_ENUM;
+        case SEMANTIC_RESULT_RELATION_GROUP_MEMBER:
+        case SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING:
+        case SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION:
+        case SEMANTIC_RESULT_RELATION_GROUP_DEFAULT_HANDLER:
+            return symbol_kind == SEMANTIC_RESULT_SYMBOL_GROUP;
         default:
             return 0;
     }
