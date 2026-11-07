@@ -769,7 +769,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 
 - Added a positive AST fixture for `1..10`, requiring a binary `TOKEN_RANGE` node with literal endpoints.
 - Added a negative Parser fixture for `1..2..3`; the language syntax reference defines a single range operator, so a second unparenthesized range operator must not be accepted as a chained range.
-- The new range fixtures are not yet CI-verified. Endpoint type rules and runtime range behavior remain Semantic/runtime work.
+- The new range fixtures passed in workflow `42411223520` (5/5 jobs, 60/60 CTest). Endpoint type rules and runtime range behavior remain Semantic/runtime work.
 
 
 ## Single-range Parser rule — CI verified — 2026-11-05
@@ -862,7 +862,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Clarified `docs/language/syntax-reference.md`: expression-bodied lambdas remain `AST_LAMBDA` with `body_is_expression=1` and the body is the direct expression node; Parser must not synthesize `AST_RETURN` for this lambda form. Block-bodied lambdas remain `AST_LAMBDA` and use explicit `ret` when returning.
 - The existing named-function shorthand `f:name(...) > expr` is not normative in the syntax reference. It remains untouched as a compatibility/spec discrepancy pending a separate usage audit; do not silently expand the language.
 - Added exact lambda start/end byte-offset and direct-expression-child assertions to `test_rules_lambda_relocate_unroll_ast()` in commit `4eb314b8d627789588e132f59a18266e051b9318`. Updated `docs/AST_PARSER_PRODUCTION_MATRIX.md` in `33143e33c7df`.
-- CI evidence is pending for the new test assertion; do not mark the lambda span regression verified until the complete Windows/Ubuntu/macOS/ASan/UBSan/Valgrind matrix passes.
+- The lambda span regression passed in workflow `42411223520` (Windows, Ubuntu, macOS, ASan/UBSan and Valgrind).
 - AST remains the active stage. Continue the per-production source-span audit; Semantic return inference, closure/capture semantics, and function-pointer representation remain later AST/Semantic contract work. No Codegen advancement.
 
 
@@ -882,7 +882,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - The fixture checks the two distinct return operand shapes (NULL for void, literal for value), distinct break/continue node tags, source-span presence, full graph validation and AST serialize → deserialize → validate.
 - Added a negative fixture requiring a missing `break` semicolon to produce a Parser error/diagnostic.
 - Updated `docs/AST_PARSER_PRODUCTION_MATRIX.md` to record this coverage (commit `933efec0`); source test commit `7113e195`.
-- CI evidence is pending. This is Parser/AST structural coverage only; loop legality, reachability and return-type compatibility remain Semantic responsibilities.
+- The Parser/AST structural fixture passed in workflow `42411223520` (5/5 jobs, 60/60 CTest). Loop legality, reachability and return-type compatibility remain Semantic responsibilities.
 
 
 ### CI update — run 42408436371 (commit `7113e195`)
