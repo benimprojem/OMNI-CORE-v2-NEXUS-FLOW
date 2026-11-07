@@ -184,6 +184,8 @@ static int scope_is_ancestor(
     return 0;
 }
 
+/* Qualified Group access may target a symbol in the Group child scope,
+ * but only when the Group symbol is visible and a relation exposes the target. */
 static int group_relation_exposes_symbol(
     const SemanticResult* result,
     uint32_t annotation_scope_id,
