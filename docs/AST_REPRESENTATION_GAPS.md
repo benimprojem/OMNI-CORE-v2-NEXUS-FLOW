@@ -175,3 +175,10 @@ The earlier decision that `!map` was the only canonical spelling and that all pa
 - This node is a named work body, not a thread-start instruction.
 - `spawn(worker)` remains rejected by core Parser and belongs to the separate Thread module.
 - Runtime scheduling, spawn/start/join, cancellation, timeout, capture ownership/lifetime, error propagation and memory ordering remain undefined.
+
+
+## Numeric and null literal update — 2026-11-07
+
+- `TOKEN_NULL` is appended to the token enum and Parser emits `AST_LITERAL` for `null`.
+- Numeric Lexer supports decimal, radix-prefixed integer (`0x`, `0b`, `0o`), scientific exponent and digit separators.
+- Tests passed in workflow `42411223520`; Semantic numeric conversion, overflow and null-pointer compatibility remain open.
