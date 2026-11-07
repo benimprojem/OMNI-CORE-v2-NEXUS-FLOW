@@ -153,6 +153,33 @@ int main(void) {
         semantic_result_destroy(&bad);
     }
 
+    /* A visible Group relation permits explicit access to its child-scope member. */
+    {
+        SemanticResult qualified;
+        uint32_t group_scope = 0u;
+        uint32_t group_symbol = 0u;
+        uint32_t function_symbol = 0u;
+        assert(semantic_result_init(&qualified) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_scope(
+            &qualified, 1u, 1u, 0u, 3u, &group_scope) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_symbol(
+            &qualified, 1u, 3u, SEMANTIC_RESULT_SYMBOL_GROUP, 0u,
+            "Namespace", 0u, &group_symbol) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_symbol(
+            &qualified, group_scope, 4u, SEMANTIC_RESULT_SYMBOL_FUNCTION, 0u,
+            "helper", 0u, &function_symbol) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_relation(
+            &qualified, group_symbol, SEMANTIC_RESULT_RELATION_GROUP_MEMBER,
+            0u, function_symbol, 4u, "helper", 0u) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_set_annotation(
+            &qualified, 5u, 1u, function_symbol, 0u,
+            SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR, 0u) ==
+            SEMANTIC_RESULT_OK);
+        assert(semantic_result_finalize(&qualified, 5u) ==
+            SEMANTIC_RESULT_OK);
+        semantic_result_destroy(&qualified);
+    }
+
     /* Scope owner nodes must be unique. */
     {
         SemanticResult bad;
