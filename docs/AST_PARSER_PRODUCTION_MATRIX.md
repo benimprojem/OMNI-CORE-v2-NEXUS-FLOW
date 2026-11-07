@@ -153,7 +153,7 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - Added the documented infinite-loop spelling `loop { ... }` to `parse_primary()`; existing `(loop) { ... }` compatibility form remains accepted.
 - Added contextual statement alias `jump(label);`; it produces the same `AST_NEXUS_JUMP` payload as the explicit `?>(label);` form. The word `jump` remains an ordinary identifier outside this statement-call shape.
 - Added `test_canonical_loop_and_jump_call_forms`: verifies AST shape, loop type/body, jump target, following label, graph validation and AST stream round-trip.
-- The test is newly committed; CI evidence is pending.
+- CI validated by workflow run `42411223520`; all five jobs passed.
 - Remaining type grammar gaps are function-type/callback AST and generic type-parameter declarations. Pointer/reference declarators have since been added to Parser; see the later 2026-11-07 entry.
 
 
@@ -204,3 +204,17 @@ These tags must not be counted as active syntax support merely because they exis
 - Added Lexer positive/negative numeric fixtures and Parser AST/codec coverage for null, radix and scientific literals.
 - Numeric value conversion, overflow/range and null-to-pointer compatibility remain Semantic work. `none` / Option is still not a literal/type contract.
 - CI validated by workflow run `42411223520` (all 5 jobs passed).
+
+
+## Remaining syntax/AST representation gaps after the 2026-11-07 reconciliation
+
+| Area | Current state | Closure requirement |
+|---|---|---|
+| Generic type parameters | Candidate syntax `f:sum<T>(...)`; Parser and AST payload absent | Append-only generic parameter AST payload, codec, validator, OIR schema and Semantic binding contract |
+| Function type representation | Parser accepts and preserves signature strings | Decide whether dedicated `AST_FUNCTION_TYPE` node is required; define callback compatibility and ABI lowering |
+| Pointer/reference type representation | Parser preserves `*T`, `**T`, `&T` in type-name strings | Decide unified type descriptor; Semantic nullability, mutability, borrow, aliasing and lifetime checks |
+| Option/Result | `null` literal exists; `none`/Option/Result constructors not defined | Define Option/Result types, constructors, propagation and predicates |
+| Numeric semantics | Lexer/Parser accepts radix/exponent/separator forms | Semantic conversion, overflow, precision, suffix policy and promotion |
+| Shift vs Flow | `<<`/ `>>` are Flow tokens | Define a non-ambiguous numeric shift form; do not infer from operand shapes |
+| Directive / macro / DLL export | Core Parser does not consume prefix target directives, macros or `dllexp:` | Separate Preprocessor/Target/Build grammar and metadata contract |
+| Source spans / AST lifecycle | Several targeted tests exist | Complete per-production exact spans, factory/destructor/codec/validator parity and AST allocation-failure injection |
