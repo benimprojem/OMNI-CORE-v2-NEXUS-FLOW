@@ -549,3 +549,11 @@ Resume on `refactor/c-core-roadmap`; `main` remains untouched. AST/parser closur
 - [x] Assert exact byte offsets and start location in Parser tests.
 - [x] CI run `42401418322` / commit `ac13f7056143`: all five jobs passed; Ubuntu and Valgrind each report 60/60 tests.
 - [ ] Continue production-by-production source-span audit, including child-composed spans and nested/synthesized nodes; only fix confirmed gaps.
+
+
+## 2026-11-07 — Source-span audit continuation
+
+- [x] Assert `AST_USE` item spans for aliased and unaliased imports (module identifier through optional alias).
+- [x] Assert full `AST_DEFER` statement span.
+- [x] CI run `42401799340` / commit `41372b18b594`: all five jobs passed; Ubuntu and Valgrind each report 60/60.
+- [ ] Continue source-span policy audit for synthesized expression-bodied function nodes and remaining statement/operator productions.
