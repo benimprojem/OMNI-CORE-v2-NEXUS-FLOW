@@ -10,6 +10,8 @@
 > **Olgunluk notu:** Dil tasarımında tanımlanmış olmak, özelliğin Lexer, Parser, AST, Semantic ve OIR katmanlarında uygulandığı anlamına gelmez. Mevcut uygulama sınırları ve açık semantik kararlar açıkça belirtilir. Kod örnekleri tek başına uygulama garantisi değildir.
 >
 > **Normatif konum:** Bu dosya OCC deposundaki tek normatif Nexus Flow syntax referansıdır. Derleyici uygulama durumu ve açık işler `OCC_PIPELINE_PROGRESS.md` ile AST/syntax matrisinde izlenir.
+>
+> Dil özelliklerinin diğer dillerle karşılaştırması ve eksik özellik envanteri için [NEXUS-FLOW-LANGUAGE-COMPARISON.md](NEXUS-FLOW-LANGUAGE-COMPARISON.md) belgesine bakın.
 
 ---
 
