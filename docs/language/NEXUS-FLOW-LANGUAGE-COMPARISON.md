@@ -186,7 +186,7 @@ Bu avantajlar henüz tasarım/Parser seviyesindeki avantaj potansiyelidir. Seman
 | Directive / macro grameri | `!!=[target...]` ve `:macro` örnekleri core Parser tarafından tam karşılanmıyor | Preprocessor/target directive katmanını core expression gramerinden ayır |
 | Source-span parity | Her production'ın gerçek kaynak aralığı AST'de korunmalı | Her production için start/end test matrisi |
 
-## 4.1 Önerilen syntax adayları (henüz normatif değil)
+### 4.1 Önerilen syntax adayları (henüz normatif değil)
 
 Bu adaylar yaygın dil tasarımlarından yararlanır; mevcut Parser desteği olarak okunmamalıdır.
 
