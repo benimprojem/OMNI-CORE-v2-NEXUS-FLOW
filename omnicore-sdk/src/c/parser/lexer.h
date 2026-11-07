@@ -154,7 +154,8 @@ typedef enum {
     TOKEN_LPAREN, TOKEN_RPAREN, TOKEN_LBRACE, TOKEN_RBRACE, TOKEN_LBRACKET, TOKEN_RBRACKET,
 
     /* Opaque raw body emitted after lexer recognizes asm: LABEL {. */
-    TOKEN_ASM_BODY
+    TOKEN_ASM_BODY,
+    TOKEN_NULL            // null pointer literal
 
 } OmniTokenType;
 
