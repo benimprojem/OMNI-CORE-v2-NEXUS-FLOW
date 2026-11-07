@@ -231,8 +231,9 @@ Bunlar birbirinin yerine kullanılmaz. use ifadesi kendi başına dosya yolu vey
 
 - **Library.member:** kütüphane/Group üyesi çözümlemesi.
 - **Library.SubGroup.member:** iç içe namespace çözümlemesi.
-- **Type.method:** Struct ile eşleştirilmiş Group'un statik/constructor metodu.
-- **instance.method(args):** receiver bağlama kuralıyla instance metodu; ilk self parametresi otomatik receiver alır.
+- **Group.member(args):** Group namespace üzerinden statik üye çağrısı; doğrudan Group function veya statik method olabilir.
+- **Type.method(args):** Group'a bağlanmış nominal tür üzerinden statik/constructor çağrısı; implicit receiver taşımaz.
+- **instance.method(args):** yalnızca Group'a bağlanmış Struct instance'ında geçerli instance çağrısı; ilk self parametresi otomatik receiver alır.
 - **Group / Group.SubGroup:** ilgili scope'ta default üye tanımlıysa default davranış çağrısı/çözümlemesi.
 
 Member access AST'de nokta zincirinin parse edilmiş olması yeterli değildir. Semantic; sembolün Group/Struct/Module türünü, üyelik ilişkisini, visibility ve çağrı biçimini doğrulamalıdır. Çözümleme başarılı olduğunda Semantic AST annotation'ı resolved symbol/member/receiver ilişkisini taşımalıdır; OIR ve Codegen isim metninden tahmin yürütmemelidir.
@@ -251,14 +252,19 @@ Group adı ile aynı ada sahip, Group'un doğrudan üyesi olan nominal tür vars
 #### Method isimleri ve receiver
 
 - `public_name => f:implementation_name(...) { ... }` biçiminde `public_name`, Group API yüzeyindeki çağrı adıdır; implementation function adı iç sembol/uygulama kimliğidir.
-- Semantic, Group içindeki public method adlarının çakışmasını kontrol etmeli ve çağrıları implementation adından değil çözümlenmiş Group üye sembolünden bağlamalıdır.
-- Object Group instance metotlarında ilk parametre `self` olmalı ve türü Group'a bağlanmış Struct ile uyumlu olmalıdır. Çağrıdaki receiver bu parametreye otomatik bağlanır; kullanıcı ayrıca `self` argümanı geçmez.
-- Namespace Group fonksiyonları ve Enum/Union statik API metotları için otomatik `self` receiver üretilmez.
+- Group içinde doğrudan tanımlanan `f:name(...)` / extern function, kendi adıyla erişilen statik Group callable üyesidir; implicit receiver almaz. Buradaki `self` parametresi varsa normal açık parametredir.
+- Semantic, Group içindeki public method/function API adlarının çakışmasını kontrol etmeli ve çağrıları implementation adından değil çözümlenmiş Group üye sembolünden bağlamalıdır.
+- Object Group instance metotlarında ilk parametre `self` olmalı ve türü Group'a bağlanmış Struct ile uyumlu olmalıdır. `instance.method(args)` çağrısında receiver bu parametreye otomatik bağlanır; kullanıcı ayrıca `self` argümanı geçmez.
+- `Group.method(args)` ve `Type.method(args)` statik çağrıdır; seçilen method ilk parametre `self` bekliyorsa bu çağrı biçimi reddedilir. Benzer şekilde instance üzerinden statik method veya doğrudan Group function çağrısı reddedilir.
+- Instance dispatch yalnızca Group'un ana binding'i olan Struct türünde geçerlidir. Aynı Group'a ait başka bir Struct, Group method receiver'ı olarak kullanılamaz.
+- Method ve doğrudan Group function imzaları Group body denetiminden önce predeclare edilir; böylece bir method daha sonra tanımlanmış başka bir Group callable'ı çağırabilir.
 - `default` normal method implementation'ı değildir; Group'a ait ayrı default handler olarak temsil edilir ve aynı Group içinde en fazla bir kez tanımlanabilir.
 
-Bu kuralların Semantic sonucu, Group kimliği, bağlı nominal tür kimliği, Group üye sembolleri, public method adı ve receiver ilişkisini taşımalıdır. OIR, bu çözülmüş kimlikleri korumalıdır; Codegen isim metninden ilişki çıkarmamalıdır.
+Group-qualified çağrının implementation sembolü Group child scope içinde bulunabilir. Bu sembole dış kapsamdan erişim yalnızca Group sembolü mevcut kapsamda görünür olduğunda ve GroupMember / GroupMethodImplementation ilişkisi hedef sembolü açıkça sunduğunda geçerlidir. Bu istisna normal lexical lookup veya implementation adının dışarı sızması anlamına gelmez. SemanticResult ve OIR Verifier aynı kuralı doğrulamalıdır.
 
-**Uygulama notu (2026-11-08):** SemanticResult'a Group symbol ve Group relation türleri eklendi; Semantic checker Group Symbol, doğrudan üyelik, nominal binding, public method implementation ve default handler kayıtlarını üretmeye başladı. OIR Semantic AST schema 1.1 bu kayıtları taşır; reader 1.0 legacy artifact'lerini korurken 1.0 içinde yeni enum değerlerini reddeder. Gerçek AST → SemanticResult → OIR artifact round-trip ve schema uyumluluk testleri eklendi ancak henüz çalıştırılmadı. İlk self receiver uygulaması eklendi: Group'un eşleşen nominal bildirimi metotlardan önce çözülüyor; yalnızca Struct binding instance receiver sağlıyor; ilk parametre self kontrolü, explicit type eşleşmesi ve untyped receiver type inference yapılıyor. Semantic regression ve SemanticResult/OIR integration testleri CI'da Linux, macOS ve Windows üzerinde 60/60 geçti; ASan/UBSan ve Valgrind işleri de başarılı tamamlandı (GitHub Actions run 42425608949). Bu doğrulama ilk receiver katmanını destekler ancak Group member call resolution, instance.method(args) receiver argüman bağlama ve Module Resolver bağlantısı henüz uygulanmadığından §8.6 tamamlanmış kabul edilmez. Group member call resolution, instance.method(args) receiver argüman bağlama ve Module Resolver bağlantısı henüz uygulanmadı.
+Bu kuralların Semantic sonucu, Group kimliği, bağlı nominal tür kimliği, Group üye sembolleri, public method adı, resolved implementation symbol ve receiver ilişkisini taşımalıdır. OIR, bu çözülmüş kimlikleri korumalıdır; Codegen isim metninden ilişki çıkarmamalıdır.
+
+**Uygulama notu (2026-11-08):** SemanticResult'a Group symbol ve Group relation türleri eklendi; Semantic checker Group Symbol, doğrudan üyelik, nominal binding, public method implementation ve default handler kayıtlarını üretir. OIR Semantic AST schema 1.1 bu kayıtları taşır; reader 1.0 legacy artifact'lerini korurken 1.0 içinde yeni enum değerlerini reddeder. İlk self receiver katmanı, Group'un eşleşen nominal bildirimini method body'lerinden önce çözerek yalnızca Struct binding için receiver inference/validation yapar. Group callable dispatch katmanı; AST_METHOD public alias → implementation symbol çözümlemesini, doğrudan Group function'larının statik çağrısını, Group/Type statik çağrılarını ve Struct instance çağrılarında implicit self argümanını destekler. Group callable imzaları predeclare edilir; implementation sembolleri Group scope dışına lexical ad olarak sızdırılmadan Group-qualified çağrılar için yaşatılır. SemanticResult ve OIR Verifier, görünür Group sembolü ile açık GroupMember/GroupMethodImplementation ilişkisi varsa Group child scope içindeki hedef sembole qualified referansı kabul eder. SemanticResult/OIR integration testi hem instance call target'ını hem Group scope dışından statik call target'ını ve alias relation'ını doğrular. Linux, macOS ve Windows CTest 60/60 geçti; ASan/UBSan ve Valgrind de başarılıdır (GitHub Actions run 42426973498). Constructor dispatch, nested Group dotted-path/Module Resolver, visibility/export politikası ve default handler dispatch henüz tamamlanmadığından §8.6 ve Group modülü tamamlanmış sayılmaz.
 ### 8.5 Module Resolver ve Library ABI sınırı
 
 Kütüphane desteği, Group AST'sini doğrudan runtime nesnesine çevirmek değildir. Modüler sorumluluklar:
