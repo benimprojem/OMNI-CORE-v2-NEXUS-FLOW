@@ -22,7 +22,7 @@
 | Struct / union / enum / newtype | `parse_struct_decl()`, `parse_union_decl()`, `parse_enum_decl()`, `parse_newtype_decl()` | matching declaration tags + fields/variants | aggregate declaration AST; invalid aggregate members | ✓ primary forms tested; malformed variants/data and span checks expand |
 | Group / method | `parse_group_decl()` | `AST_GROUP_DECL`, `AST_METHOD` | `test_group_method_ast`: group member, public method name, implementation, return type/body and AST codec round-trip | ~ Positive shape/codec covered; malformed group/member and span cases remain |
 | Map type | `parse_var_decl()`, function parameter parser | `AST_VAR_DECL.type_name` (`map` for ordinary parameter; `!map` for explicit hard parameter; local declaration currently hard-typed) | `test_parser_accepts_and_rejects_sources` inline fixture verifies ordinary `a:map` and compatibility `a!map`; generic syntax is currently unsupported, not normatively banned | ✓ Unparameterized map type represented; per-entry key/value semantics remain Semantic work |
-| Module `use` | `parse_use()` | `AST_USE` | syntax matrix / generic parser acceptance | ~ Alias/path/invalid path AST tests |
+| Module `use` | `parse_use()` | `AST_USE` | `test_dotted_module_use_path` covers `use msvcrt.exf as crt;`, alias, graph validation and AST codec round-trip | ~ Dotted path and alias shape covered; malformed dotted segment, comma-list and span boundary cases remain |
 | `must` declaration | `parse_must_decl()` | contextual `AST_MUST_DECL` | `test_must_top_level_ast` asserts program-scope name/source/span; `test_must_scope_rejected` rejects function-block scope; graph validator context tests | ~ Parser positive/negative scope behavior is now tested; malformed source expression and diagnostic-span cases remain |
 | Defer / thread | `parse_defer()`, `parse_thread_block()` | `AST_DEFER`, `AST_THREAD_BLOCK` | `test_thread_block_ast` asserts named body, optional NULL mode/timeout, source span and AST codec round-trip | ~ Thread-block declaration shape is tested; defer and malformed thread-block forms remain |
 | Select / scan / patterns | `parse_select_scan()`, `parse_pattern()` | `AST_SELECT/SCAN`, arms, pattern nodes | select-scan AST test | ~ Constructor/guard/catchall/duplicate pattern matrix |
@@ -155,3 +155,11 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - Added `test_canonical_loop_and_jump_call_forms`: verifies AST shape, loop type/body, jump target, following label, graph validation and AST stream round-trip.
 - The test is newly committed; CI evidence is pending.
 - Remaining type grammar gaps are not marked supported: pointer/reference declarators, function-type/callback AST, and generic type-parameter declarations. See `docs/language/NEXUS-FLOW-LANGUAGE-COMPARISON.md`.
+
+
+## 2026-11-07 — Dotted module path production
+
+- Extended `parse_use()` to accept dotted module paths such as `use msvcrt.exf as crt;`.
+- Module path segments are joined into the existing owned `AST_USE.module_name` string; no AST tag or OIR field layout changed.
+- Added `test_dotted_module_use_path` for the joined path, alias, graph validation and AST codec round-trip.
+- CI evidence is pending; malformed path segments and exact span boundaries remain in the test closure list.
