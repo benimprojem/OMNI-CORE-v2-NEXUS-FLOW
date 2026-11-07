@@ -1315,7 +1315,7 @@ static ASTNode* parse_use(Parser* p) {
         ASTUse* use;
         if (!match(p, TOKEN_IDENTIFIER)) {
             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
-                msg_get(MSG_EXPECT_MODULE_NAME));
+                "Expected an identifier after '.' in module path.");
             ast_destroy((ASTNode*)head);
             return NULL;
         }
@@ -2994,7 +2994,7 @@ static ASTNode* parse_struct_decl(Parser* p, int is_packed, char* name) {
         }
     }
     if (!decl->name || !parse_struct_body(p, decl)) {
-        if (!decl->name) error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME));
+        if (!decl->name) error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expected a label identifier inside jump(...).");
         ast_destroy((ASTNode*)decl);
         return NULL;
     }
