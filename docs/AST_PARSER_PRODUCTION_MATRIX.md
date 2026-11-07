@@ -138,3 +138,11 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 - Extended the use/defer Parser fixture to assert exact offsets for both import-item shapes (aliased and unaliased) and the full `defer { ... }` statement.
 - The first test iteration exposed a fixture delimiter typo (`Core;` instead of the actual `Core,` separator); corrected the test expectation. No Parser production change was needed.
 - CI run `42401799340` / commit `41372b18b594`: all five jobs passed (Windows, Ubuntu, macOS, ASan/UBSan and Valgrind); Ubuntu and Valgrind report 60/60 tests.
+
+
+## Parser/spec reconciliation item — expression-bodied named functions (2026-11-07)
+
+- `parse_func_decl()` currently accepts a `>` immediately after a named function's parameter list and synthesizes an `AST_BLOCK` containing an `AST_RETURN` for the parsed expression.
+- The normative `docs/language/syntax-reference.md` and the named-function row in `NEXSUS_AST_SYNTAX_MATRIX.md` document block-bodied named functions; the expression-body spelling is documented for `AST_LAMBDA` (`f:(a,b)>expr`), not for `f:name(...)`.
+- This is a Parser/spec discrepancy, not permission to silently expand the language grammar. Preserve the current Parser behavior for now; decide whether the named-function shorthand is a legacy compatibility form or should be rejected only after reviewing existing examples and compatibility requirements.
+- The generated block/return nodes have no literal source token of their own. Their span policy must be decided explicitly (synthesized/no-location vs expression-derived) before adding assertions or changing stamping behavior.
