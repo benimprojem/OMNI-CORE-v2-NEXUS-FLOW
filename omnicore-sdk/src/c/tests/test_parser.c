@@ -2271,17 +2271,19 @@ static int test_function_type_alias_and_callback_parameter(void) {
     ParserContext* parser = parser_init_source(
         "callback-function-type.nxf", (const uint8_t*)source, sizeof(source) - 1u);
     ParserContext* invalid = NULL;
-    ASTNode* alias_node;
-    ASTNode* function_node;
-    ASTFuncDecl* function;
-    ASTVarDecl* callback_param;
-    ASTVarDecl* id_param;
+    ASTNode* alias_node = NULL;
+    ASTNode* function_node = NULL;
+    ASTFuncDecl* function = NULL;
+    ASTVarDecl* callback_param = NULL;
+    ASTVarDecl* id_param = NULL;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
     int valid = 0;
+    int parse_status = -1;
 
     if (!parser) return 0;
-    if (parser_run(parser) == 0 && parser->ast_root &&
+    parse_status = parser_run(parser);
+    if (parse_status == 0 && parser->ast_root &&
         ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
         alias_node = ((ASTProgram*)parser->ast_root)->declarations;
         function_node = alias_node ? alias_node->next : NULL;
