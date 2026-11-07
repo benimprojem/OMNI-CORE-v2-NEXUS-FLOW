@@ -1039,3 +1039,10 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Mimari inceleme: ASTGroupDecl ve ASTMethod bu yapısal bilgileri taşıyor. Semantic şu anda AST_GROUP_DECL için yalnızca scope açıp kapatıyor; Group sembolü, Group member/public-name sembolleri ve binding ilişkisi henüz üretilmiyor. SemanticResult sembol türlerinde de Group kaydı/Group relation bulunmuyor. Bu nedenle Group binding uygulaması yalnızca `semantic.c` içinde küçük bir if ile yapılmamalı; SemanticResult validator/codec ve OIR handoff sözleşmesi birlikte ele alınmalı.
 - Group scope test fixture'ları gerçek Nexus Flow syntax'ına düzeltildi (`352aee36`). CMake/CTest hâlâ çalıştırılmadı; bu ortamdan GitHub checkout DNS hatası verdi ve ilgili commit için Actions run bulunamadı. Test doğrulaması açık.
 - Yeni spec commit: `71512edc`; ilerleme belgesi bu kaydı içerir.
+
+## 2026-11-08 — Group member name validation
+
+- Semantic `AST_GROUP_DECL` işlemi öncesinde doğrudan Group üyelerinin API adları karşılaştırılıyor. `AST_METHOD.public_name`, direct function, nested Group, Struct/Union, Enum, variable ve NewType adları aynı Group üye namespace'inde çakışma denetimine alındı.
+- Tekrarlanan public method adı, birden fazla `default` handler ve method alias/direct function adı çakışması `ERR_SEMANTIC_REDEFINED` ile raporlanıyor.
+- `test_semantic.c` için bu üç negatif senaryo eklendi (`e7b91637`). Semantic uygulama commit'i `64a8e27b`.
+- **Test çalıştırılmadı.** CMake/CTest doğrulaması hâlâ bekliyor; test fixture düzeltmeleri ve yeni negatif senaryolar CI veya yerel build gerektiriyor.
