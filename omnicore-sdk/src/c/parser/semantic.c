@@ -1345,33 +1345,44 @@ static void semantic_predeclare_group_methods(
     if (!ctx || !group) return;
 
     for (member = group->members; member; member = member->next) {
-        ASTMethod* method;
+        ASTNode* implementation_node = NULL;
         ASTFuncDecl* implementation;
         Slot* function_slot;
         Slot* existing;
-        if (member->type != AST_METHOD) continue;
-        method = (ASTMethod*)member;
-        if (!method->implementation ||
-            (method->implementation->type != AST_FUNC_DECL &&
-             method->implementation->type != AST_EXTERN_DECL)) continue;
-        implementation = (ASTFuncDecl*)method->implementation;
+        int is_method_alias = 0;
+
+        if (member->type == AST_METHOD) {
+            ASTMethod* method = (ASTMethod*)member;
+            implementation_node = method->implementation;
+            is_method_alias = 1;
+        } else if (member->type == AST_FUNC_DECL ||
+                   member->type == AST_EXTERN_DECL) {
+            /* Direct Group functions are static API members under their own names. */
+            implementation_node = member;
+        } else {
+            continue;
+        }
+        if (!implementation_node ||
+            (implementation_node->type != AST_FUNC_DECL &&
+             implementation_node->type != AST_EXTERN_DECL)) continue;
+        implementation = (ASTFuncDecl*)implementation_node;
         if (!implementation->name || !*implementation->name) continue;
 
         existing = find_slot(ctx, implementation->name);
-        if (existing && existing->declaration_node == method->implementation &&
+        if (existing && existing->declaration_node == implementation_node &&
             existing->kind == SLOT_FUNC) {
             function_slot = existing;
         } else if (existing && existing->depth == ctx->current_depth) {
             char message[256];
             snprintf(message, sizeof(message),
                 msg_get(ERR_SEMANTIC_FUNC_REDEFINED), implementation->name);
-            report_error(ctx, method->implementation,
+            report_error(ctx, implementation_node,
                 ERR_SEMANTIC_FUNC_REDEFINED, message);
             continue;
         } else {
             function_slot = add_slot(
                 ctx, implementation->name, SLOT_FUNC, 1,
-                implementation->return_type, method->implementation,
+                implementation->return_type, implementation_node,
                 0, 0, 0,
                 (implementation->is_public
                     ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
@@ -1383,10 +1394,11 @@ static void semantic_predeclare_group_methods(
             ctx, function_slot, implementation);
 
         /*
-         * Untyped self is part of the signature before any method body is
-         * visited. This allows earlier methods to call later methods.
+         * Only AST_METHOD aliases receive an implicit Object Group receiver.
+         * Direct Group functions remain ordinary static functions.
          */
-        if (receiver_slot && receiver_slot->kind == SLOT_STRUCT &&
+        if (is_method_alias && receiver_slot &&
+            receiver_slot->kind == SLOT_STRUCT &&
             implementation->params &&
             implementation->params->type == AST_VAR_DECL) {
             ASTVarDecl* first = (ASTVarDecl*)implementation->params;
@@ -1464,27 +1476,39 @@ static Slot* semantic_resolve_group_method(
     }
 
     for (member = group->members; member; member = member->next) {
-        const ASTMethod* method;
+        const char* public_name = NULL;
+        const ASTNode* implementation_node = NULL;
         Slot* implementation_slot;
-        if (member->type != AST_METHOD) continue;
-        method = (const ASTMethod*)member;
-        if (!method->public_name ||
-            strcmp(method->public_name, access->member_name) != 0) continue;
-        if (!method->implementation ||
-            (method->implementation->type != AST_FUNC_DECL &&
-             method->implementation->type != AST_EXTERN_DECL)) {
+
+        if (member->type == AST_METHOD) {
+            const ASTMethod* method = (const ASTMethod*)member;
+            public_name = method->public_name;
+            implementation_node = method->implementation;
+        } else if (member->type == AST_FUNC_DECL ||
+                   member->type == AST_EXTERN_DECL) {
+            const ASTFuncDecl* function = (const ASTFuncDecl*)member;
+            public_name = function->name;
+            implementation_node = member;
+        } else {
+            continue;
+        }
+        if (!public_name || strcmp(public_name, access->member_name) != 0)
+            continue;
+        if (!implementation_node ||
+            (implementation_node->type != AST_FUNC_DECL &&
+             implementation_node->type != AST_EXTERN_DECL)) {
             if (report_diagnostics) {
                 report_error(ctx, (ASTNode*)access, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "The selected Group member is not a callable method implementation.");
+                    "The selected Group member is not a callable function or method.");
             }
             return NULL;
         }
         implementation_slot = semantic_find_slot_by_declaration(
-            ctx, method->implementation);
+            ctx, implementation_node);
         if (!implementation_slot || implementation_slot->kind != SLOT_FUNC) {
             if (report_diagnostics) {
                 report_error(ctx, (ASTNode*)access, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "The Group method implementation has no resolved semantic symbol.");
+                    "The Group function/method has no resolved semantic symbol.");
             }
             return NULL;
         }
@@ -1501,6 +1525,33 @@ static Slot* semantic_resolve_group_method(
         report_error(ctx, (ASTNode*)access, ERR_SEMANTIC_TYPE_MISMATCH, message);
     }
     return NULL;
+}
+
+static int semantic_group_method_has_implicit_receiver(
+    const Slot* function_slot
+) {
+    const ASTNode* member;
+    const ASTGroupDecl* group;
+    if (!function_slot || !function_slot->group_owner ||
+        function_slot->group_owner->type != AST_GROUP_DECL ||
+        !function_slot->declaration_node) return 0;
+    group = (const ASTGroupDecl*)function_slot->group_owner;
+    for (member = group->members; member; member = member->next) {
+        if (member->type == AST_METHOD) {
+            const ASTMethod* method = (const ASTMethod*)member;
+            const ASTFuncDecl* implementation;
+            if (method->implementation != function_slot->declaration_node ||
+                (method->implementation->type != AST_FUNC_DECL &&
+                 method->implementation->type != AST_EXTERN_DECL)) continue;
+            implementation = (const ASTFuncDecl*)method->implementation;
+            return implementation->params &&
+                implementation->params->type == AST_VAR_DECL &&
+                ((const ASTVarDecl*)implementation->params)->name &&
+                strcmp(((const ASTVarDecl*)implementation->params)->name,
+                    "self") == 0;
+        }
+    }
+    return 0;
 }
 
 static void semantic_validate_call_arguments(
@@ -2505,12 +2556,8 @@ static void semantic_check_node(
                      method_slot->declaration_node->type == AST_EXTERN_DECL)) {
                     ASTFuncDecl* implementation =
                         (ASTFuncDecl*)method_slot->declaration_node;
-                    ASTVarDecl* first_parameter =
-                        implementation->params &&
-                        implementation->params->type == AST_VAR_DECL
-                            ? (ASTVarDecl*)implementation->params : NULL;
-                    method_has_self = first_parameter && first_parameter->name &&
-                        strcmp(first_parameter->name, "self") == 0;
+                    method_has_self =
+                        semantic_group_method_has_implicit_receiver(method_slot);
 
                     if (is_instance_call && !method_has_self) {
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
