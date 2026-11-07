@@ -2369,6 +2369,54 @@ static int test_null_and_numeric_literal_ast(void) {
 }
 
 
+static int test_implicit_type_variable_spelling(void) {
+    static const char source[] =
+        "f:sum(a!t, b!t)!t { ret a; }";
+    ParserContext* parser = parser_init_source(
+        "implicit-type-variable.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* function_node;
+    ASTFuncDecl* function;
+    ASTVarDecl* a;
+    ASTVarDecl* b;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == 0 && parser->ast_root &&
+        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        function_node = ((ASTProgram*)parser->ast_root)->declarations;
+        function = function_node && function_node->type == AST_FUNC_DECL
+            ? (ASTFuncDecl*)function_node : NULL;
+        a = function ? (ASTVarDecl*)function->params : NULL;
+        b = a ? (ASTVarDecl*)a->base.next : NULL;
+        valid = function && function->return_type &&
+            strcmp(function->return_type, "!t") == 0 &&
+            a && strcmp(a->name, "a") == 0 &&
+            strcmp(a->type_name, "!t") == 0 &&
+            b && strcmp(b->name, "b") == 0 &&
+            strcmp(b->type_name, "!t") == 0 &&
+            !b->base.next &&
+            ast_validate((ASTNode*)parser->ast_root, NULL);
+        if (valid) {
+            stream = tmpfile();
+            valid = stream != NULL &&
+                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
+            if (valid) {
+                rewind(stream);
+                decoded = ast_deserialize(stream);
+                valid = decoded != NULL && ast_validate(decoded, NULL);
+            }
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Implicit type-variable spelling AST contract failed.\n");
+    return valid;
+}
+
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -2379,6 +2427,7 @@ int main(int argc, char** argv) {
     if (!test_pointer_reference_type_declarators()) return 1;
     if (!test_function_type_alias_and_callback_parameter()) return 1;
     if (!test_null_and_numeric_literal_ast()) return 1;
+    if (!test_implicit_type_variable_spelling()) return 1;
     if (!test_spawn_is_outside_core_parser()) return 1;
     if (!test_intrinsic_ast_family()) return 1;
     if (!test_group_method_ast()) return 1;
