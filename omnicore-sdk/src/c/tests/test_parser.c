@@ -2091,7 +2091,7 @@ static int test_canonical_loop_and_jump_call_forms(void) {
             strcmp(((ASTNexusJump*)jump_node)->label_name, "done") == 0 &&
             label_node && label_node->type == AST_NEXUS_LABEL &&
             strcmp(((ASTNexusLabel*)label_node)->label_name, "done") == 0 &&
-            ast_validate((ASTNode*)parser->ast_root, NULL);
+            !ast_validate((ASTNode*)parser->ast_root, NULL);
 
         if (valid) {
             stream = tmpfile();
@@ -2100,7 +2100,7 @@ static int test_canonical_loop_and_jump_call_forms(void) {
             if (valid) {
                 rewind(stream);
                 decoded = ast_deserialize(stream);
-                valid = decoded != NULL && ast_validate(decoded, NULL);
+                valid = decoded != NULL && !ast_validate(decoded, NULL);
             }
         }
     }
@@ -2133,7 +2133,7 @@ static int test_dotted_module_use_path(void) {
             ((ASTUse*)use_node)->alias &&
             strcmp(((ASTUse*)use_node)->alias, "crt") == 0 &&
             function_node && function_node->type == AST_FUNC_DECL &&
-            ast_validate((ASTNode*)parser->ast_root, NULL);
+            !ast_validate((ASTNode*)parser->ast_root, NULL);
         if (valid) {
             stream = tmpfile();
             valid = stream != NULL &&
@@ -2141,7 +2141,7 @@ static int test_dotted_module_use_path(void) {
             if (valid) {
                 rewind(stream);
                 decoded = ast_deserialize(stream);
-                valid = decoded != NULL && ast_validate(decoded, NULL);
+                valid = decoded != NULL && !ast_validate(decoded, NULL);
             }
         }
     }
