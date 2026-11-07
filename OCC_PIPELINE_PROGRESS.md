@@ -979,3 +979,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added `test_implicit_type_variable_spelling` to verify parameter type strings, return type string, graph validation and AST codec round-trip.
 - Parser/AST spelling is covered; Semantic type-variable scope, binding, unification and inference remain open.
 - CI workflow `42411942789` passed all five jobs (60/60 CTest) for the newly added fixture.
+
+
+## 2026-11-08 — Callback syntax correction
+
+- Function signature and lambda body delimiter are now distinguished in the syntax audit.
+- Canonical proposal: `f:(params)!ReturnType`; body: `>`.
+- Example: `f:(id!u32)!bool > (id == 1) ? true : false;`.
+- Existing `f:(params)>!ReturnType` Parser behavior is legacy; migration and regression tests remain open.
