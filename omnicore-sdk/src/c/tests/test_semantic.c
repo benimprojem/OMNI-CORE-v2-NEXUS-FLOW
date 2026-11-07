@@ -276,6 +276,39 @@ static int check_extended_ast_semantics(void) {
         check_source(relocate_type_mismatch,1);
 }
 
+static int check_group_self_receiver_semantics(void) {
+    const char* inferred_self_before_struct =
+        "f:main() { group Storage { "
+        "open => f:open_impl(self) { v:value!i32 = self.value; ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* explicit_self_after_struct =
+        "f:main() { group Storage { struct:Storage { v:value!i32 } "
+        "open => f:open_impl(self!Storage) { v:value!i32 = self.value; ret; } } }";
+    const char* static_method_without_self =
+        "f:main() { group Storage { struct:Storage { v:value!i32 } "
+        "parse => f:parse_impl(text!str) { ret; } } }";
+    const char* wrong_explicit_self_type =
+        "f:main() { group Storage { struct:Storage { v:value!i32 } "
+        "struct:Other { v:other!i32 } "
+        "open => f:open_impl(self!Other) { ret; } } }";
+    const char* self_not_first =
+        "f:main() { group Storage { struct:Storage { v:value!i32 } "
+        "open => f:open_impl(value!i32,self) { ret; } } }";
+    const char* namespace_group_self =
+        "f:main() { group Namespace { run => f:run_impl(self) { ret; } } }";
+    const char* enum_group_self =
+        "f:main() { group State { enum:State { Ready } "
+        "run => f:run_impl(self) { ret; } } }";
+
+    return check_source(inferred_self_before_struct, 0) &&
+        check_source(explicit_self_after_struct, 0) &&
+        check_source(static_method_without_self, 0) &&
+        check_source(wrong_explicit_self_type, 1) &&
+        check_source(self_not_first, 1) &&
+        check_source(namespace_group_self, 1) &&
+        check_source(enum_group_self, 1);
+}
+
 static int check_group_type_scope_semantics(void) {
     const char* own_struct =
         "f:main() { group Alpha { struct:LocalStruct { v:value!i32 } "
@@ -333,6 +366,10 @@ static int check_group_type_scope_semantics(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!check_group_self_receiver_semantics()) {
+        fprintf(stderr, "Group self receiver inference/validation checks failed.\\n");
+        return 1;
+    }
     if (!check_group_type_scope_semantics()) {
         fprintf(stderr, "Group-owned nominal type scope checks failed.\n");
         return 1;
