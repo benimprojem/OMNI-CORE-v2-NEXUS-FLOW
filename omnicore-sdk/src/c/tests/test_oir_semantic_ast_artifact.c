@@ -121,6 +121,15 @@ int main(void) {
         view.annotations.record_count == 0u && view.relations.record_count == 0u &&
         view.has_conversions == 0u);
 
+    /* Schema 1.0 remains readable when no 1.1 Group records are present. */
+    header.payload_schema_minor = 0u;
+    CHECK(oir_artifact_write(artifact, sizeof(artifact), &header,
+        sections, 6u, &artifact_written) == OIR_STATUS_OK);
+    CHECK(oir_semantic_ast_artifact_open(artifact, artifact_written, &view,
+        incoming, 1u, visited, 1u, stack, 1u, owner_scope, 2u) ==
+        OIR_STATUS_OK);
+    header.payload_schema_minor = OIR_SEMANTIC_AST_SCHEMA_MINOR;
+
     /* The optional conversions section is accepted when present. */
     CHECK(oir_artifact_write(artifact, sizeof(artifact), &header,
         sections, 7u, &artifact_written) == OIR_STATUS_OK);
