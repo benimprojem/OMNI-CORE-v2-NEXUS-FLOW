@@ -331,6 +331,13 @@ static int check_group_method_dispatch_semantics(void) {
     const char* direct_group_function_called_from_enclosing_scope =
         "f:main() { group Namespace { f:helper(value!i32) { ret; } } "
         "Namespace.helper(7); ret; }";
+    const char* method_alias_called_from_enclosing_scope =
+        "f:main() { group Namespace { "
+        "parse => f:parse_impl(text!str) { ret; } } "
+        "Namespace.parse(\"x\"); ret; }";
+    const char* group_implementation_name_does_not_leak =
+        "f:main() { group Namespace { f:helper() { ret; } } "
+        "helper(); ret; }";
     const char* non_binding_group_type_has_no_instance_dispatch =
         "f:main() { group Storage { "
         "struct:Other { v:other!i32 } "
@@ -367,6 +374,8 @@ static int check_group_method_dispatch_semantics(void) {
         check_source(namespace_static_call, 0) &&
         check_source(direct_group_function_call, 0) &&
         check_source(direct_group_function_called_from_enclosing_scope, 0) &&
+        check_source(method_alias_called_from_enclosing_scope, 0) &&
+        check_source(group_implementation_name_does_not_leak, 1) &&
         check_source(non_binding_group_type_has_no_instance_dispatch, 1) &&
         check_source(instance_call_to_static_method, 1) &&
         check_source(type_call_to_instance_method, 1) &&
