@@ -6,6 +6,7 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
+#include <ctype.h>
 
 #define PARSER_MAX_NESTING_DEPTH 256u
 
@@ -2220,15 +2221,21 @@ static int parse_array_type_suffix(Parser* p, ASTVarDecl* decl) {
 }
 
 // Variable Declaration: v:name = expr;
+static int parser_parse_type_name(Parser* p, char** out,
+    int include_hard_marker, int is_hard_typed);
+static int parser_parse_function_type_signature(Parser* p, char** out);
+
 static int parser_is_type_start(const Parser* p) {
     return p && (
         (p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
         p->current.type == TOKEN_IDENTIFIER ||
         p->current.type == TOKEN_STAR ||
-        p->current.type == TOKEN_BIT_AND);
+        p->current.type == TOKEN_BIT_AND ||
+        (p->current.type == TOKEN_PRE_FUNC && p->current.length == 2 &&
+            peek_token((Parser*)p).type == TOKEN_LPAREN));
 }
 
-/* Preserve pointer/reference prefixes in the existing AST type-name field. */
+/* Preserve pointer/reference prefixes and callback signatures in AST type-name fields. */
 static int parser_parse_type_name(Parser* p, char** out,
     int include_hard_marker, int is_hard_typed) {
     char prefix[2];
@@ -2241,6 +2248,27 @@ static int parser_parse_type_name(Parser* p, char** out,
 
     if (!p || !out) return 0;
     *out = NULL;
+
+    if (p->current.type == TOKEN_PRE_FUNC && p->current.length == 2 &&
+        peek_token(p).type == TOKEN_LPAREN) {
+        char* signature = NULL;
+        if (!parser_parse_function_type_signature(p, &signature)) return 0;
+        if (include_hard_marker && is_hard_typed) {
+            size_t signature_length = strlen(signature);
+            char* hard_signature = (char*)parser_malloc(p, signature_length + 2u);
+            if (!hard_signature) {
+                free(signature);
+                return 0;
+            }
+            hard_signature[0] = '!';
+            memcpy(hard_signature + 1u, signature, signature_length + 1u);
+            free(signature);
+            *out = hard_signature;
+        } else {
+            *out = signature;
+        }
+        return 1;
+    }
 
     if (match(p, TOKEN_STAR)) {
         prefix[prefix_length++] = '*';
@@ -2277,6 +2305,93 @@ static int parser_parse_type_name(Parser* p, char** out,
     type_name[total_length] = '\0';
     advance(p);
     *out = type_name;
+    return 1;
+}
+
+/*
+ * Function type grammar:
+ *   f:(name!Type, other:Type)>!ReturnType
+ * The complete normalized signature is retained in the existing type-name
+ * string field. It is distinct from an AST_LAMBDA expression/body.
+ */
+static int parser_parse_function_type_signature(Parser* p, char** out) {
+    Token start;
+    const char* begin;
+    const char* end;
+    char* parameter_type = NULL;
+    char* return_type = NULL;
+    size_t raw_length;
+    size_t normalized_length = 0u;
+    size_t i;
+    char* signature;
+
+    if (!p || !out || p->current.type != TOKEN_PRE_FUNC ||
+        p->current.length != 2 || peek_token(p).type != TOKEN_LPAREN) return 0;
+    *out = NULL;
+    start = p->current;
+    begin = start.start;
+    advance(p);
+    consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC);
+
+    if (!check(p, TOKEN_RPAREN)) {
+        do {
+            ASTVarDecl array_suffix;
+            int has_colon;
+            int has_bang;
+            if (match(p, TOKEN_ELLIPSIS)) break;
+            if (!match(p, TOKEN_IDENTIFIER)) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                    msg_get(MSG_EXPECT_PARAM_NAME));
+                return 0;
+            }
+            has_colon = match(p, TOKEN_COLON);
+            has_bang = match(p, TOKEN_NOT);
+            if (!has_colon && !has_bang) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                    msg_get(MSG_EXPECT_TYPE_BANG));
+                return 0;
+            }
+            if (!parser_parse_type_name(p, &parameter_type, 1, has_bang)) return 0;
+            free(parameter_type);
+            parameter_type = NULL;
+            memset(&array_suffix, 0, sizeof(array_suffix));
+            if (!parse_array_type_suffix(p, &array_suffix)) {
+                if (array_suffix.inline_type) ast_destroy(array_suffix.inline_type);
+                return 0;
+            }
+            if (array_suffix.inline_type) ast_destroy(array_suffix.inline_type);
+        } while (match(p, TOKEN_COMMA));
+    }
+
+    consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
+    consume(p, TOKEN_GT, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_RET_TYPE);
+    {
+        int has_bang = match(p, TOKEN_NOT);
+        if (!parser_parse_type_name(p, &return_type, 1, has_bang)) return 0;
+    }
+    free(return_type);
+    return_type = NULL;
+    {
+        ASTVarDecl array_suffix;
+        memset(&array_suffix, 0, sizeof(array_suffix));
+        if (!parse_array_type_suffix(p, &array_suffix)) {
+            if (array_suffix.inline_type) ast_destroy(array_suffix.inline_type);
+            return 0;
+        }
+        if (array_suffix.inline_type) ast_destroy(array_suffix.inline_type);
+    }
+
+    end = p->previous.start + p->previous.length;
+    if (end < begin) return 0;
+    raw_length = (size_t)(end - begin);
+    signature = (char*)parser_malloc(p, raw_length + 1u);
+    if (!signature) return 0;
+    for (i = 0u; i < raw_length; ++i) {
+        unsigned char ch = (unsigned char)begin[i];
+        if (!isspace(ch)) signature[normalized_length++] = (char)ch;
+    }
+    signature[normalized_length] = '\0';
+    *out = signature;
     return 1;
 }
 
