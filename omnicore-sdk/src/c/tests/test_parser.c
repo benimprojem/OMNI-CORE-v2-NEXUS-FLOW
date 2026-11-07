@@ -2417,6 +2417,67 @@ static int test_implicit_type_variable_spelling(void) {
 }
 
 
+
+static int test_nested_group_and_default_ast(void) {
+    static const char source[] =
+        "f:main() { group db { nosql => group { open => f:open(path) { ret; } "
+        "default { echo(1); } } default { echo(2); } } }";
+    ParserContext* parser = parser_init_source("nested-group-default.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTGroupDecl* outer;
+    ASTGroupDecl* nested;
+    ASTMethod* nested_method;
+    ASTMethod* nested_default;
+    ASTMethod* outer_default;
+    FILE* stream = NULL;
+    ASTNode* decoded = NULL;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        ast_validate(parser->ast_root, NULL)) {
+        function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        outer = function && function->body && function->body->type == AST_BLOCK
+            ? (ASTGroupDecl*)((ASTBlock*)function->body)->statements : NULL;
+        nested = outer && outer->members && outer->members->type == AST_GROUP_DECL
+            ? (ASTGroupDecl*)outer->members : NULL;
+        nested_method = nested && nested->members && nested->members->type == AST_METHOD
+            ? (ASTMethod*)nested->members : NULL;
+        nested_default = nested_method && nested_method->base.next &&
+            nested_method->base.next->type == AST_METHOD
+            ? (ASTMethod*)nested_method->base.next : NULL;
+        outer_default = outer && outer->members && outer->members->next &&
+            outer->members->next->type == AST_METHOD
+            ? (ASTMethod*)outer->members->next : NULL;
+        valid = outer && outer->name && strcmp(outer->name, "db") == 0 &&
+            nested && nested->name && strcmp(nested->name, "nosql") == 0 &&
+            nested_method && nested_method->public_name &&
+            strcmp(nested_method->public_name, "open") == 0 &&
+            nested_method->implementation &&
+            nested_method->implementation->type == AST_FUNC_DECL &&
+            nested_default && nested_default->public_name &&
+            strcmp(nested_default->public_name, "default") == 0 &&
+            nested_default->implementation &&
+            nested_default->implementation->type == AST_BLOCK &&
+            outer_default && outer_default->public_name &&
+            strcmp(outer_default->public_name, "default") == 0 &&
+            outer_default->implementation &&
+            outer_default->implementation->type == AST_BLOCK;
+    }
+    if (valid) {
+        stream = tmpfile();
+        valid = stream && ast_serialize(parser->ast_root, stream) &&
+            fseek(stream, 0L, SEEK_SET) == 0;
+        if (valid) decoded = ast_deserialize(stream);
+        valid = valid && decoded && ast_validate(decoded, NULL);
+    }
+    if (stream) fclose(stream);
+    if (decoded) ast_destroy(decoded);
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Nested group/default AST parser+codec test failed.\\n");
+    return valid;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -2431,6 +2492,7 @@ int main(int argc, char** argv) {
     if (!test_spawn_is_outside_core_parser()) return 1;
     if (!test_intrinsic_ast_family()) return 1;
     if (!test_group_method_ast()) return 1;
+    if (!test_nested_group_and_default_ast()) return 1;
     if (!test_thread_block_ast()) return 1;
     if (!test_ast_create_rejects_invalid_node_kinds()) {
         fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\n");
