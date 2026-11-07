@@ -237,6 +237,28 @@ Bunlar birbirinin yerine kullanılmaz. use ifadesi kendi başına dosya yolu vey
 
 Member access AST'de nokta zincirinin parse edilmiş olması yeterli değildir. Semantic; sembolün Group/Struct/Module türünü, üyelik ilişkisini, visibility ve çağrı biçimini doğrulamalıdır. Çözümleme başarılı olduğunda Semantic AST annotation'ı resolved symbol/member/receiver ilişkisini taşımalıdır; OIR ve Codegen isim metninden tahmin yürütmemelidir.
 
+### 8.6 Group–Nominal Type Binding ve Method Dispatch (Normative)
+
+Group adı ile aynı ada sahip, Group'un doğrudan üyesi olan nominal tür varsa bu tür Group'un ana nominal binding adayıdır. Eşleşme yalnızca tam ve case-sensitive isim eşitliğiyle yapılır; benzer isim, nested Group üyesi veya dış kapsam türü binding oluşturmaz.
+
+- Aynı ada sahip doğrudan `struct`, `enum` veya `union` bildirimi Group ile ilişkilendirilebilir. Bir Group için en fazla bir ana nominal binding bulunabilir; aynı isimli birden fazla nominal bildirim zaten tür adı çakışmasıdır ve Semantic hatasıdır.
+- Eşleşen tür yoksa Group Namespace Group olarak kalır; bu geçerli bir durumdur ve otomatik Struct üretimi yapılmaz.
+- Eşleşen `struct`, Object Group davranışını sağlayabilir. Bu Group'un instance metotları `self` receiver sözleşmesine tabidir.
+- Eşleşen `enum` veya `union`, Group ile nominal/statik API ilişkisi kurar; tek başına instance receiver veya `self` semantiği oluşturmaz. Enum/Union instance davranışı ayrıca tanımlanmadan varsayılmaz.
+- Group içindeki başka isimli Struct/Enum/Union türleri Group-owned özel türlerdir; ana binding olmasalar da §9 kapsam izolasyonuna tabidir.
+- Nested Group kendi adına göre bağımsız binding arar. Üst Group'un ana nominal binding'ini devralmaz.
+
+#### Method isimleri ve receiver
+
+- `public_name => f:implementation_name(...) { ... }` biçiminde `public_name`, Group API yüzeyindeki çağrı adıdır; implementation function adı iç sembol/uygulama kimliğidir.
+- Semantic, Group içindeki public method adlarının çakışmasını kontrol etmeli ve çağrıları implementation adından değil çözümlenmiş Group üye sembolünden bağlamalıdır.
+- Object Group instance metotlarında ilk parametre `self` olmalı ve türü Group'a bağlanmış Struct ile uyumlu olmalıdır. Çağrıdaki receiver bu parametreye otomatik bağlanır; kullanıcı ayrıca `self` argümanı geçmez.
+- Namespace Group fonksiyonları ve Enum/Union statik API metotları için otomatik `self` receiver üretilmez.
+- `default` normal method implementation'ı değildir; Group'a ait ayrı default handler olarak temsil edilir ve aynı Group içinde en fazla bir kez tanımlanabilir.
+
+Bu kuralların Semantic sonucu, Group kimliği, bağlı nominal tür kimliği, Group üye sembolleri, public method adı ve receiver ilişkisini taşımalıdır. OIR, bu çözülmüş kimlikleri korumalıdır; Codegen isim metninden ilişki çıkarmamalıdır.
+
+**Uygulama notu:** Mevcut AST `ASTGroupDecl` / `ASTMethod` yapısı Group üyelerini ve public method adını taşır. Mevcut SemanticResult sembol modeli Group sembol türünü henüz tanımlamıyor; Group symbol/relation desteği eklenirken SemanticResult doğrulayıcısı, codec ve OIR aktarımı birlikte güncellenmelidir. Bu bölüm tasarım sözleşmesidir, tamamlanmış uygulama iddiası değildir.
 ### 8.5 Module Resolver ve Library ABI sınırı
 
 Kütüphane desteği, Group AST'sini doğrudan runtime nesnesine çevirmek değildir. Modüler sorumluluklar:
