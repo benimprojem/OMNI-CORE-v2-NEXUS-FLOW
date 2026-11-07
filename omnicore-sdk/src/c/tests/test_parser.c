@@ -2152,6 +2152,74 @@ static int test_dotted_module_use_path(void) {
     return valid;
 }
 
+static int test_pointer_reference_type_declarators(void) {
+    static const char source[] =
+        "nt:CharPtr = *char; "
+        "f:ptrs(p:*char, pp!**u8, ref:&Point)!*char { "
+        "v:local!*char; ret p; }";
+    ParserContext* parser = parser_init_source(
+        "pointer-reference-types.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* alias_node;
+    ASTNode* function_node;
+    ASTFuncDecl* function;
+    ASTVarDecl* p;
+    ASTVarDecl* pp;
+    ASTVarDecl* ref_param;
+    ASTNode* local_node;
+    ASTNode* ret_node;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == 0 && parser->ast_root &&
+        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        alias_node = ((ASTProgram*)parser->ast_root)->declarations;
+        function_node = alias_node ? alias_node->next : NULL;
+        function = function_node && function_node->type == AST_FUNC_DECL
+            ? (ASTFuncDecl*)function_node : NULL;
+        p = function ? (ASTVarDecl*)function->params : NULL;
+        pp = p ? (ASTVarDecl*)p->base.next : NULL;
+        ref_param = pp ? (ASTVarDecl*)pp->base.next : NULL;
+        local_node = function && function->body && function->body->type == AST_BLOCK
+            ? ((ASTBlock*)function->body)->statements : NULL;
+        ret_node = local_node ? local_node->next : NULL;
+
+        valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
+            strcmp(((ASTNewTypeDecl*)alias_node)->target_type, "*char") == 0 &&
+            function && function->return_type &&
+            strcmp(function->return_type, "!*char") == 0 &&
+            p && strcmp(p->name, "p") == 0 &&
+            strcmp(p->type_name, "*char") == 0 &&
+            pp && strcmp(pp->name, "pp") == 0 &&
+            strcmp(pp->type_name, "!**u8") == 0 &&
+            ref_param && strcmp(ref_param->name, "ref") == 0 &&
+            strcmp(ref_param->type_name, "&Point") == 0 &&
+            !ref_param->base.next &&
+            local_node && local_node->type == AST_VAR_DECL &&
+            strcmp(((ASTVarDecl*)local_node)->type_name, "*char") == 0 &&
+            ret_node && ret_node->type == AST_RETURN &&
+            !ast_validate((ASTNode*)parser->ast_root, NULL);
+
+        if (valid) {
+            stream = tmpfile();
+            valid = stream != NULL &&
+                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
+            if (valid) {
+                rewind(stream);
+                decoded = ast_deserialize(stream);
+                valid = decoded != NULL && !ast_validate(decoded, NULL);
+            }
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Pointer/reference type declarator AST contract failed.\n");
+    return valid;
+}
+
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -2159,6 +2227,7 @@ int main(int argc, char** argv) {
     if (!test_must_scope_rejected()) return 1;
     if (!test_canonical_loop_and_jump_call_forms()) return 1;
     if (!test_dotted_module_use_path()) return 1;
+    if (!test_pointer_reference_type_declarators()) return 1;
     if (!test_spawn_is_outside_core_parser()) return 1;
     if (!test_intrinsic_ast_family()) return 1;
     if (!test_group_method_ast()) return 1;
