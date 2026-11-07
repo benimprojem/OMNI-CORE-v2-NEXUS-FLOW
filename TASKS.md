@@ -509,10 +509,22 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 
 ## 2026-11-05 — Parser range/precedence closeout + pause
 
-- [ ] **CI pending:** validate comparison RHS precedence correction (`4ea2e00589da`) across Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. The preceding run exposed `parse_comparison()` consuming `parse_range()` on RHS; corrected to `parse_bitwise_or()`.
-- [ ] After green CI, mark Parser precedence/range fixtures complete: left-associative operator AST shapes, `1..10` inclusive endpoints, reject `1..2..3` and nested range composition.
+- [x] **CI passed:** comparison RHS precedence correction (`4ea2e00589da`) verified by run `42055978416` on Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; Ubuntu and Valgrind each report 60/60 tests.
+- [x] Parser precedence/range fixtures: left-associative operator AST shapes, inclusive `1..10`, reject chained `1..2..3` and nested range composition.
 - [ ] Semantic/runtime later: implement inclusive range iteration/pattern semantics (10 must be included in `1..10`).
 - [ ] Resume AST inventory: token→AST→codec round-trip coverage, source-span audit, callback/function-pointer type AST/grammar.
 - [ ] Open language decision: numeric `<<`/`>>` vs Nexus Flow operand syntax; wait for grammar discriminator, do not heuristic parse. Map generic key/value constraints also remain undecided.
 
 **Pause checkpoint:** branch `refactor/c-core-roadmap`; `main` untouched. Planned 1–2 day break after CI settles. Codegen remains gated behind AST → Parser/Lexer → Semantic → OIR → Verifier completion.
+
+
+## 2026-11-07 — Resume checkpoint
+
+- [x] Close Parser comparison-precedence regression after all five CI jobs passed (`42055978416`, `4ea2e00589da`; 60/60 on Ubuntu and Valgrind).
+- [ ] Complete intrinsic family audit: enumerate every intrinsic keyword, parser entry/branch, resulting AST node, special payload/child structure, source span, codec path, and positive/negative fixture. Expand `test_intrinsic_ast_family()` beyond its nine representative cases; preserve the separate `echo`/`listen` fixture and cover special forms such as `cast`, `panic`, `reg.member`, named arguments, and hardware/system intrinsics.
+- [ ] Continue full source-span policy and endpoint matrix for each parser production.
+- [ ] Close contextual codec negative fixtures (`AST_NAMED_ARG` and any remaining owner/position constraints).
+- [ ] Keep callback/function-pointer and pointer/reference type grammar as an architecture gate until canonical syntax is settled.
+- [ ] Keep `<<`/`>>` numeric shift vs Flow grammar discriminator open; do not introduce heuristic parsing.
+
+Resume on `refactor/c-core-roadmap`; `main` remains untouched. AST/parser closure remains the immediate priority; Semantic → OIR → Verifier follow after AST gate, and Codegen remains last.
