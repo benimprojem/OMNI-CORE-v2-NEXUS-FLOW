@@ -142,7 +142,102 @@ done:
     return ok;
 }
 
+static int test_group_semantic_records(void) {
+    static const char source[] =
+        "f:main() {"
+        " group Storage {"
+        "   struct:Storage { v:value!i32 }"
+        "   open => f:open_impl() { ret; }"
+        "   default { }"
+        " }"
+        "}";
+    ParserContext* parser = parser_init_source(
+        "group-semantic-result.nxf", (const uint8_t*)source,
+        sizeof(source) - 1u);
+    OirAstPointerIndexEntry index[256];
+    ResolverContext resolver;
+    SemanticContext semantic;
+    uint32_t node_count = 0u, group_symbol_id = 0u;
+    uint32_t i, group_relation_count = 0u;
+    int saw_member = 0, saw_binding = 0;
+    int saw_method = 0, saw_default = 0;
+    int ok = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK ||
+        parser->error_count != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    memset(index, 0, sizeof(index));
+    if (oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
+            index, 256u, &node_count) != OIR_STATUS_OK) {
+        parser_destroy(parser);
+        return 0;
+    }
+    resolver.entries = index;
+    resolver.capacity = 256u;
+    semantic_init(&semantic, "group-semantic-result.nxf", NULL);
+    semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    if (semantic.error_count != 0 ||
+        semantic.result_status != SEMANTIC_RESULT_OK ||
+        semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
+        semantic_destroy(&semantic);
+        parser_destroy(parser);
+        return 0;
+    }
+
+    for (i = 0u; i < semantic.result.symbol_count; ++i) {
+        const SemanticResultSymbol* symbol = &semantic.result.symbols[i];
+        if (symbol->kind == SEMANTIC_RESULT_SYMBOL_GROUP &&
+            symbol->name && strcmp(symbol->name, "Storage") == 0) {
+            group_symbol_id = symbol->symbol_id;
+            group_relation_count = symbol->relation_count;
+            break;
+        }
+    }
+    for (i = 0u; i < semantic.result.relation_count; ++i) {
+        const SemanticResultRelation* relation = &semantic.result.relations[i];
+        if (relation->owner_symbol_id != group_symbol_id) continue;
+        if (relation->kind == SEMANTIC_RESULT_RELATION_GROUP_MEMBER &&
+            relation->name && strcmp(relation->name, "Storage") == 0) {
+            saw_member = 1;
+        } else if (relation->kind ==
+                SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING &&
+            relation->related_symbol_id != 0u &&
+            relation->name && strcmp(relation->name, "Storage") == 0) {
+            saw_binding = 1;
+        } else if (relation->kind ==
+                SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION &&
+            relation->related_symbol_id != 0u &&
+            relation->name && strcmp(relation->name, "open") == 0) {
+            saw_method = 1;
+        } else if (relation->kind ==
+                SEMANTIC_RESULT_RELATION_GROUP_DEFAULT_HANDLER &&
+            relation->related_symbol_id == 0u &&
+            relation->name && strcmp(relation->name, "default") == 0) {
+            saw_default = 1;
+        }
+    }
+    ok = group_symbol_id != 0u && group_relation_count == 6u &&
+        saw_member && saw_binding && saw_method && saw_default;
+    if (!ok) {
+        fprintf(stderr,
+            "Group SemanticResult mismatch: symbol=%u relations=%u member=%d binding=%d method=%d default=%d\n",
+            group_symbol_id, group_relation_count, saw_member, saw_binding,
+            saw_method, saw_default);
+    }
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 int main(void) {
+    if(!test_group_semantic_records()) {
+        fprintf(stderr,"Group SemanticResult record integration failed.\n");
+        return 1;
+    }
     if(!test_extended_semantic_scopes()) {
         fprintf(stderr,"Extended AST semantic scope/result integration failed.\\n");
         return 1;
