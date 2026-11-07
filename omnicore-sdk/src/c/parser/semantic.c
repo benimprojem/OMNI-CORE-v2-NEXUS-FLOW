@@ -229,7 +229,7 @@ static void report_error(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
 
 static int semantic_slot_is_nominal_type(const Slot* slot) {
     return slot && (slot->kind == SLOT_STRUCT || slot->kind == SLOT_UNION ||
-        slot->kind == SLOT_ENUM || slot->kind == SLOT_NEWTYPE);
+        slot->kind == SLOT_ENUM);
 }
 
 static Slot* find_slot(SemanticContext* ctx, const char* name) {
