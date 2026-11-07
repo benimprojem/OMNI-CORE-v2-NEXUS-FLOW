@@ -846,3 +846,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Corrected a test-only expected delimiter after the first CI run; Parser production behavior was already correct.
 - CI run `42401799340` / commit `41372b18b594` passed all five jobs; Ubuntu and Valgrind report 60/60 tests, zero failures.
 - Current source-span work is still an incremental audit, not blanket completion. Next inspect synthesized expression-bodied function nodes and the remaining statement/operator productions for explicit span policy.
+
+
+## 2026-11-07 — Parser/spec audit: named function expression body
+
+- Found a Parser-only production in `parse_func_decl()`: named functions may currently use `f:name(params) > expression`, lowered structurally to a synthetic `AST_BLOCK` + `AST_RETURN`.
+- The normative syntax reference documents expression bodies for lambda `f:(params)>expr`, but named functions are documented with block bodies. No Parser change was made.
+- Recorded the discrepancy in `docs/AST_PARSER_PRODUCTION_MATRIX.md`. Before changing behavior, determine whether this named-function shorthand is legacy compatibility syntax or unsupported accidental acceptance.
+- Synthetic block/return source-span policy remains open; do not fabricate source locations without deciding whether these nodes inherit the expression range or remain synthetic/no-location.
