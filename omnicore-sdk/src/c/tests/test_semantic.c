@@ -331,7 +331,7 @@ static int check_group_type_scope_semantics(void) {
     const char* nested_same_name_is_distinct =
         "f:main() { group Alpha { struct:Item { v:parent!i32 } "
         "child => group { struct:Item { v:child!u32 } "
-        "use => f:child_use(value!Item) { ret; } } "
+        "consume => f:child_use(value!Item) { ret; } } "
         "use_parent => f:parent_use(value!Item) { ret; } } }";
     const char* sibling_cannot_use_group_type =
         "f:main() { group Alpha { struct:Hidden { v:value!i32 } } "
