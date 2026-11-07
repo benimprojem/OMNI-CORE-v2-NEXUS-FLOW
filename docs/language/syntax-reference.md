@@ -301,6 +301,8 @@ Bu tablo mevcut C Parser üretim sırasını yansıtır. `&&` `||`'dan daha yük
 | **15** | `!!=` | **Directive** | .target sistemi ve derleyici talimatları. |
 
 > `!!=` tokenı mevcut Parser'da infix assignment düğümü olarak da tüketilir. `!!=[target = ...] { ... }` biçimindeki prefix target-directive örnekleri normal Parser'ın tamamlanmış grameri değildir; Directive/Target katmanı sözleşmesi ayrıca kapanmalıdır.
+>
+> `??` AI-logic tokenı/AST ailesi olarak ayrılmıştır; sorgu payload'ı, bağlamı ve Semantic davranışı normatif olarak tanımlanmamıştır.
 
 ---
 
@@ -383,8 +385,9 @@ Bu bölüm hedeflenen dil semantiğidir. C Parser tekil kaynak Halt için `AST_N
 ---
 
 ### 4.3  Nexus Flow Mantığı
->* Kural: `(h)<- fn() ?->{}` oparatörü.  (false,null,none,unknown) durumu 
-        Ternary kontrole benzer: Başarılı ise sola, başarısız ise Akış sağa kayar.
+>* Kural: `(h)<- fn() ?->{}` operatörü. `(false, null, none, unknown)` hata/boşluk durumlarını anlatır.
+>  Ternary kontrole benzer: Başarılı ise sola, başarısız ise akış sağa kayar.
+>  Bu listede geçen `null` ve `none` mevcut Lexer'da bağımsız literal tokenı değildir; bunların değer/tip modeli henüz tanımlanmamıştır.
 > Bu açıklamadaki `null`, `none` ve `unknown` çalışma zamanı durumlarını anlatır; mevcut Lexer'da `null` veya `none` için bağımsız literal tokenı yoktur.
 ```
 # Hata Saptırmalı Akış,  Hatayı işlemek için Hata işleme bloğuna iletir. 
@@ -932,7 +935,7 @@ db  # default çalıştır.
 * **Lamda:** | `f:(a, b)> a*b;` | `v:kare = f:(a, b)> a*b;`
 * **Anonim:** | `f:(a, b){...}` | `open => f:(a, b){...}` Group içinde
 * **Extern Tanımlama:** | `exf:fonksiyon_adi(a!i32, ...)!i64 { ... }` | `fonksiyon_adi(a, ...) { ... }`
-* **Generic:** | Type-parameter grameri tasarım aşamasında | Mevcut Parser generic parameter listesi desteklemez 
+* **Generic:** | Generic type-parameter grameri henüz normatif değil | Mevcut Parser generic parameter listesi desteklemez 
 ---
 
 ### İfade gövdeli anonim fonksiyonlar
@@ -1242,7 +1245,7 @@ v:sonuc = Optimizer.run_optimizer(oir_path, nxir_path, target_info);
 
 ### 12. Extern Modül !!
 
-> Extern fonksiyon bildirimi `exf:` Parser tarafından desteklenir. Aşağıdaki `!!=[target ...]` ve `!!=link ...` örnekleri ise mevcut core Parser'ın tamamlanmış prefix-directive grameri değildir; Target/Directive katmanı tasarım örnekleridir.
+> Extern fonksiyon bildirimi `exf:` Parser tarafından desteklenir. Aşağıdaki `!!=[target ...]` ve `!!=link ...` örnekleri ise mevcut core Parser'ın tamamlanmış prefix-directive grameri değildir; Target/Directive katmanı tasarım örnekleridir. `buf!*char` pointer parametre yazımı da pointer type grameri tamamlanana kadar örnek/taslak durumundadır.
 
 ** Extern dll, obj, lib.a dosyaları için..
 ** Modül Hazırlama
@@ -1310,7 +1313,7 @@ f:main()!i32 {
 
 ## 13. Macro Sistemi — Tasarım / Parser dışı katman
 
-> Aşağıdaki örnekler mevcut C Parser tarafından kabul edilen syntax değildir. Macro expansion/preprocessor grameri, AST metadata'sı ve diagnostic/source-map sözleşmesi henüz tanımlanmamıştır.
+> Aşağıdaki örnekler mevcut C Parser tarafından kabul edilen syntax değildir. Macro expansion/preprocessor grameri, AST metadata'sı ve diagnostic/source-map sözleşmesi henüz tanımlanmamıştır. Bu örnekler normatif dil kodu değil, ileride ayrı Preprocessor katmanında değerlendirilecek tasarım notlarıdır.
 
 ```
 # Makro programlama
