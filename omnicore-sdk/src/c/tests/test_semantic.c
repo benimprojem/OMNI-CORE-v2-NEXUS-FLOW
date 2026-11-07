@@ -283,6 +283,8 @@ static int check_group_type_scope_semantics(void) {
         "group Alpha { enum LocalEnum { Value } fn use(value:LocalEnum) {} }";
     const char* own_union =
         "group Alpha { union LocalUnion {} fn use(value:LocalUnion) {} }";
+    const char* own_method =
+        "group Alpha { struct MethodType {} run => fn run(value:MethodType) {} }";
     const char* nested_cannot_use_parent_type =
         "group Alpha { struct Hidden {} child => group { fn use(value:Hidden) {} } }";
     const char* nested_owns_its_type =
@@ -299,6 +301,7 @@ static int check_group_type_scope_semantics(void) {
     return check_source(own_struct, 0) &&
         check_source(own_enum, 0) &&
         check_source(own_union, 0) &&
+        check_source(own_method, 0) &&
         check_source(nested_cannot_use_parent_type, 1) &&
         check_source(nested_owns_its_type, 0) &&
         check_source(nested_same_name_is_distinct, 0) &&
