@@ -971,3 +971,11 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - `spawn` remains intentionally outside the core Parser and is owned by the Thread module.
 - Scheduling, start/join, timeout, cancellation, capture/lifetime and memory-ordering remain Thread/runtime contracts.
 - CI workflow `42411223520`: 5/5 jobs passed, 60/60 CTest.
+
+
+## 2026-11-07 — Implicit generic type-variable AST fixture
+
+- Preserved the existing Nexus Flow model `f:sum(a!t,b!t)!t`; did not introduce a new `<T>` declaration syntax.
+- Added `test_implicit_type_variable_spelling` to verify parameter type strings, return type string, graph validation and AST codec round-trip.
+- Parser/AST spelling is covered; Semantic type-variable scope, binding, unification and inference remain open.
+- CI pending for the newly added fixture.
