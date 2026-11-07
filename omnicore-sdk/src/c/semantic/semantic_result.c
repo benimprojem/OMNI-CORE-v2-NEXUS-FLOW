@@ -842,7 +842,11 @@ SemanticResultStatus semantic_result_finalize(
                 &result->symbols[relation->related_symbol_id - 1u];
             if (related->declaration_node_id != relation->related_node_id ||
                 (relation->kind == SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING &&
-                    related->type_id != relation->type_id)) {
+                    (related->type_id != relation->type_id ||
+                     strcmp(owner->name, relation->name) != 0 ||
+                     strcmp(related->name, relation->name) != 0)) ||
+                (relation->kind == SEMANTIC_RESULT_RELATION_GROUP_MEMBER &&
+                    strcmp(related->name, relation->name) != 0)) {
                 return SEMANTIC_RESULT_INVALID_DATA;
             }
         }
