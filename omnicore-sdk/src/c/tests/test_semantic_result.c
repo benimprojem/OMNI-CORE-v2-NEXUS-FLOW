@@ -210,6 +210,41 @@ int main(void) {
         semantic_result_destroy(&empty);
     }
 
+    /* Group symbols and Group-owned relations use the same durable model. */
+    {
+        SemanticResult group_result;
+        uint32_t group_scope = 0u;
+        uint32_t group_symbol = 0u, implementation_symbol = 0u;
+        uint32_t nominal_symbol = 0u;
+        assert(semantic_result_init(&group_result) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_scope(&group_result, 1u, 1u, 0u, 2u,
+            &group_scope) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_symbol(&group_result, 1u, 2u,
+            SEMANTIC_RESULT_SYMBOL_GROUP, SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC,
+            "Storage", 0u, &group_symbol) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_symbol(&group_result, group_scope, 4u,
+            SEMANTIC_RESULT_SYMBOL_FUNCTION, 0u, "open_impl", 0u,
+            &implementation_symbol) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_symbol(&group_result, group_scope, 6u,
+            SEMANTIC_RESULT_SYMBOL_STRUCT, 0u, "Storage", 0u,
+            &nominal_symbol) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_relation(&group_result, group_symbol,
+            SEMANTIC_RESULT_RELATION_GROUP_MEMBER, 0u, 0u, 3u,
+            "open", 0u) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_relation(&group_result, group_symbol,
+            SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION, 0u,
+            implementation_symbol, 4u, "open", 0u) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_relation(&group_result, group_symbol,
+            SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING, 0u,
+            nominal_symbol, 6u, "Storage", 0u) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_relation(&group_result, group_symbol,
+            SEMANTIC_RESULT_RELATION_GROUP_DEFAULT_HANDLER, 0u,
+            0u, 5u, "default", 0u) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_finalize(&group_result, 6u) ==
+            SEMANTIC_RESULT_OK);
+        semantic_result_destroy(&group_result);
+    }
+
     puts("Persistent semantic result model tests passed.");
     return 0;
 }
