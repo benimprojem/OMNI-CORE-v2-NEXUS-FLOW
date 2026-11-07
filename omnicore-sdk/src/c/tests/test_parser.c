@@ -3644,5 +3644,91 @@ generic_type_done:
         }
     }
 
+
+    /* Expression-bodied and block-bodied lambdas have one stable AST contract. */
+    {
+        static const char source[] =
+            "f:main() {"
+            " v:mul = f:(a, b) > a * b;"
+            " v:square = f:(a) { ret a * a; };"
+            "}";
+        static const char invalid_source[] = "f:main() { v:bad = f:(x); }";
+        ParserContext* parser = parser_init_source("lambda-contract.nxf",
+            (const uint8_t*)source, sizeof(source) - 1u);
+        ParserContext* invalid = parser_init_source("lambda-missing-body.nxf",
+            (const uint8_t*)invalid_source, sizeof(invalid_source) - 1u);
+        FILE* stream = NULL;
+        ASTNode* decoded = NULL;
+        ASTFuncDecl* function;
+        ASTVarDecl* mul;
+        ASTVarDecl* square;
+        ASTLambda* expression_lambda;
+        ASTLambda* block_lambda;
+        int valid = 0;
+        if (parser && parser_run(parser) == PARSER_STATUS_OK &&
+            parser->error_count == 0 && parser->ast_root &&
+            ast_validate(parser->ast_root, NULL)) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            mul = function && function->body && function->body->type == AST_BLOCK
+                ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+            square = mul ? (ASTVarDecl*)mul->base.next : NULL;
+            expression_lambda = mul && mul->initializer &&
+                mul->initializer->type == AST_LAMBDA
+                    ? (ASTLambda*)mul->initializer : NULL;
+            block_lambda = square && square->initializer &&
+                square->initializer->type == AST_LAMBDA
+                    ? (ASTLambda*)square->initializer : NULL;
+            stream = tmpfile();
+            if (expression_lambda && block_lambda && stream &&
+                expression_lambda->body_is_expression == 1 &&
+                expression_lambda->body &&
+                expression_lambda->body->type == AST_BINARY_EXPR &&
+                ((ASTBinaryExpr*)expression_lambda->body)->left &&
+                ((ASTBinaryExpr*)expression_lambda->body)->left->type == AST_IDENTIFIER &&
+                ((ASTBinaryExpr*)expression_lambda->body)->right &&
+                ((ASTBinaryExpr*)expression_lambda->body)->right->type == AST_IDENTIFIER &&
+                expression_lambda->params && expression_lambda->params->next &&
+                !expression_lambda->params->next->next &&
+                block_lambda->body_is_expression == 0 &&
+                block_lambda->body && block_lambda->body->type == AST_BLOCK &&
+                ((ASTBlock*)block_lambda->body)->statements &&
+                ((ASTBlock*)block_lambda->body)->statements->type == AST_RETURN &&
+                ((ASTUnaryExpr*)((ASTBlock*)block_lambda->body)->statements)->operand &&
+                ast_serialize(parser->ast_root, stream) &&
+                fseek(stream, 0L, SEEK_SET) == 0) {
+                decoded = ast_deserialize(stream);
+                if (decoded && ast_validate(decoded, NULL)) {
+                    ASTFuncDecl* decoded_function =
+                        (ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+                    ASTVarDecl* decoded_mul = decoded_function && decoded_function->body
+                        ? (ASTVarDecl*)((ASTBlock*)decoded_function->body)->statements : NULL;
+                    ASTVarDecl* decoded_square = decoded_mul
+                        ? (ASTVarDecl*)decoded_mul->base.next : NULL;
+                    ASTLambda* decoded_expression = decoded_mul && decoded_mul->initializer &&
+                        decoded_mul->initializer->type == AST_LAMBDA
+                            ? (ASTLambda*)decoded_mul->initializer : NULL;
+                    ASTLambda* decoded_block = decoded_square && decoded_square->initializer &&
+                        decoded_square->initializer->type == AST_LAMBDA
+                            ? (ASTLambda*)decoded_square->initializer : NULL;
+                    valid = decoded_expression && decoded_expression->body_is_expression == 1 &&
+                        decoded_expression->body &&
+                        decoded_expression->body->type == AST_BINARY_EXPR &&
+                        decoded_block && decoded_block->body_is_expression == 0 &&
+                        decoded_block->body && decoded_block->body->type == AST_BLOCK;
+                }
+            }
+        }
+        if (invalid && parser_run(invalid) == PARSER_STATUS_OK &&
+            invalid->error_count == 0) valid = 0;
+        if (stream) fclose(stream);
+        if (decoded) ast_destroy(decoded);
+        if (parser) parser_destroy(parser);
+        if (invalid) parser_destroy(invalid);
+        if (!valid) {
+            fprintf(stderr, "Lambda expression/block AST contract test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
