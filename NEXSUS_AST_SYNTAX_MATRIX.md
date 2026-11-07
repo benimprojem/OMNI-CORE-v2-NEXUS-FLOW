@@ -449,14 +449,14 @@ The language comparison and prioritized gap inventory is maintained in `docs/lan
 - `parse_use()` previously consumed only one identifier, while the normative DLL example used `use msvcrt.exf;`.
 - Parser now consumes one or more identifier segments separated by dots and stores the joined path in `AST_USE.module_name`.
 - Alias parsing remains `as identifier`; comma-separated imports remain supported.
-- Regression: `test_dotted_module_use_path` checks `msvcrt.exf`, alias `crt`, AST validation and stream round-trip. CI pending.
+- Regression: `test_dotted_module_use_path` checks `msvcrt.exf`, alias `crt`, AST validation and stream round-trip. CI validated by workflow run `42411223520` (all 5 jobs passed).
 
 
 ### Pointer/reference type audit — 2026-11-07
 
 - Parser now accepts `*T`, `**T` and `&T` in local declarations, function parameters, return types and NewType targets.
 - Existing type-name string fields preserve the complete spelling; no new AST node kind or OIR ID was introduced.
-- `test_pointer_reference_type_declarators` checks all four contexts and AST codec round-trip. CI pending.
+- `test_pointer_reference_type_declarators` checks all four contexts and AST codec round-trip. CI validated by workflow run `42411223520` (all 5 jobs passed).
 - Syntax support does not imply pointer safety, borrow checking, mutability, nullability or lifetime semantics.
 
 
@@ -464,7 +464,7 @@ The language comparison and prioritized gap inventory is maintained in `docs/lan
 
 - Parser accepts `f:(name!Type, ...)>!ReturnType` in NewType target, variable, parameter and return-type contexts.
 - AST preserves the normalized complete signature in the existing owned type-name string field. Lambda expressions remain separate `AST_LAMBDA` nodes.
-- `test_function_type_alias_and_callback_parameter` covers valid aliases/parameters, invocation syntax, AST validation, codec round-trip and malformed signature rejection. CI pending.
+- `test_function_type_alias_and_callback_parameter` covers valid aliases/parameters, invocation syntax, AST validation, codec round-trip and malformed signature rejection. CI validated by workflow run `42411223520` (all 5 jobs passed).
 - A dedicated function-type AST node, callback compatibility/type checking, closure capture and function-pointer ABI remain open.
 
 
@@ -480,5 +480,5 @@ The language comparison and prioritized gap inventory is maintained in `docs/lan
 - Supported number forms: decimal integer/fraction, hexadecimal `0x`, binary `0b`, octal `0o`, scientific exponent `e/E`, and underscore separators between digits.
 - Numeric suffixes such as `u8` and `f32` remain invalid. The rolling-delay `ms` suffix remains a separate identifier token.
 - `null` is now a dedicated `TOKEN_NULL` and `AST_LITERAL`; token ID was appended, not inserted, to preserve existing IDs.
-- `test_lexer` covers accepted and malformed numeric forms; `test_null_and_numeric_literal_ast` covers null/radix/scientific AST preservation and codec round-trip. CI pending.
+- `test_lexer` covers accepted and malformed numeric forms; `test_null_and_numeric_literal_ast` covers null/radix/scientific AST preservation and codec round-trip. CI validated by workflow run `42411223520` (all 5 jobs passed).
 - Numeric conversion/overflow, null pointer compatibility and Option/None semantics remain Semantic design work.
