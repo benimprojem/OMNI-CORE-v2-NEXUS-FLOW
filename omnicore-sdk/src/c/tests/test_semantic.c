@@ -312,22 +312,22 @@ static int check_group_self_receiver_semantics(void) {
 static int check_group_type_scope_semantics(void) {
     const char* own_struct =
         "f:main() { group Alpha { struct:LocalStruct { v:value!i32 } "
-        "use => f:use(value!LocalStruct) { ret; } } }";
+        "consume => f:consume(value!LocalStruct) { ret; } } }";
     const char* own_enum =
         "f:main() { group Alpha { enum:LocalEnum { Value } "
-        "use => f:use(value!LocalEnum) { ret; } } }";
+        "consume => f:consume(value!LocalEnum) { ret; } } }";
     const char* own_union =
         "f:main() { group Alpha { union:LocalUnion { v:value!i32 } "
-        "use => f:use(value!LocalUnion) { ret; } } }";
+        "consume => f:consume(value!LocalUnion) { ret; } } }";
     const char* own_method =
         "f:main() { group Alpha { struct:MethodType { v:value!i32 } "
         "run => f:run(value!MethodType) { ret; } } }";
     const char* nested_cannot_use_parent_type =
         "f:main() { group Alpha { struct:Hidden { v:value!i32 } "
-        "child => group { use => f:use(value!Hidden) { ret; } } } }";
+        "child => group { consume => f:consume(value!Hidden) { ret; } } } }";
     const char* nested_owns_its_type =
         "f:main() { group Alpha { child => group { "
-        "struct:Local { v:value!i32 } use => f:use(value!Local) { ret; } } } }";
+        "struct:Local { v:value!i32 } consume => f:consume(value!Local) { ret; } } } }";
     const char* nested_same_name_is_distinct =
         "f:main() { group Alpha { struct:Item { v:parent!i32 } "
         "child => group { struct:Item { v:child!u32 } "
@@ -335,13 +335,13 @@ static int check_group_type_scope_semantics(void) {
         "use_parent => f:parent_use(value!Item) { ret; } } }";
     const char* sibling_cannot_use_group_type =
         "f:main() { group Alpha { struct:Hidden { v:value!i32 } } "
-        "group Beta { use => f:use(value!Hidden) { ret; } } }";
+        "group Beta { consume => f:consume(value!Hidden) { ret; } } }";
     const char* outside_cannot_use_group_type =
         "f:main() { group Alpha { struct:Hidden { v:value!i32 } } "
         "f:outside(value!Hidden) { ret; } }";
     const char* group_can_use_external_type =
         "f:main() { struct:ExternalType { v:value!i32 } "
-        "group Alpha { use => f:use(value!ExternalType) { ret; } } }";
+        "group Alpha { consume => f:consume(value!ExternalType) { ret; } } }";
     const char* duplicate_public_method_name =
         "f:main() { group Alpha { run => f:first() { ret; } "
         "run => f:second() { ret; } } }";
