@@ -242,3 +242,70 @@ Kütüphane desteği, Group AST'sini doğrudan runtime nesnesine çevirmek deği
 5. **Codegen/Linker:** Export edilen sembolleri hedef ABI'ye göre üretir/bağlar. Linker'ın ayrı modül olması kararı korunur.
 
 **Uygulama durumu:** Bu bölüm tasarım kontratını tanımlar; Semantic/Module Resolver/ABI tamamlandı iddiası değildir. Kütüphane ve Group semantic testleri kapanmadan Group tamamlanmış sayılmaz.
+## 9. Group-Owned Type Scope (Normative)
+
+Bu bölüm, Group kapsamındaki nominal tür görünürlüğünü kesinleştirir ve Semantic uygulaması için normatif kuraldır.
+
+### 9.1 Group içinde tanımlanan türler
+
+Bir Group'un doğrudan üyeleri arasında bildirilen her `struct`, `enum` veya `union`, bildirildiği Group'a ait özel bir tür sembolüdür.
+
+- Türün sahibi, bildirimin bulunduğu en yakın Group kapsamıdır.
+- Aynı Group'a ait fonksiyonlar ve metotlar bu türü kendi imzasında, parametrelerinde, dönüş tipinde, yerel değişkenlerinde ve tür ifadelerinde kullanabilir.
+- Group dışındaki fonksiyonlar/metotlar bu türü kullanamaz.
+- Başka bir Group, kardeş Group veya iç içe Group bu türe doğrudan erişemez.
+- Türün adının başka bir kapsamda aynı olması, sembolleri aynı tür yapmaz; tür kimliği ve sahibi ayrı tutulur.
+- Group dışı görünürlük `pup`, `exp` veya başka bir görünürlük bayrağıyla açılamaz.
+
+Bu kural Struct, Enum ve Union için aynıdır; yalnızca Struct'a özgü değildir.
+
+### 9.2 Group dışında tanımlanan türler
+
+Bir `struct`, `enum` veya `union` herhangi bir Group'un sahibi değilse, normal lexical scope ve modül görünürlüğü kurallarına tabidir. Bu türler, kapsamları izin verdiği sürece Group içindeki fonksiyon/metotlar tarafından kullanılabilir.
+
+### 9.3 Nested Group izolasyonu
+
+Her nested Group kendi Group scope kimliğine sahiptir.
+
+- Alt Group kendi özel türlerini tanımlayabilir.
+- Alt Group, üst Group'un özel türlerini otomatik olarak devralmaz.
+- Üst Group, alt Group'un özel türlerini kullanamaz.
+- Kardeş Group'lar birbirlerinin özel türlerini kullanamaz.
+- Alt Group'un namespace üyelerine erişim, Group türlerinin özel kapsamını genişletmez.
+
+### 9.4 Semantic uygulama yükümlülükleri
+
+Semantic katmanı:
+
+1. Group-owned tür sembolünün sahibi olan Group scope kimliğini saklamalıdır.
+2. Tür adı çözümlemesinde yalnızca ad eşleşmesini yeterli saymamalı; mevcut aktif Group kimliği ile türün sahibi olan Group kimliğini doğrulamalıdır.
+3. Fonksiyon parametre/dönüş tipleri, değişken bildirimleri, alan tipleri, enum payload tipleri, tür dönüşümleri ve diğer tüm tür referanslarında aynı erişim denetimini uygulamalıdır.
+4. Group scope kapandığında o Group'a ait sembolleri aktif sembol çözümlemesinden çıkarmalıdır.
+5. Aynı isimli türlerin farklı Group'larda çakışmadan ayrı sembol kimlikleriyle temsil edilmesini sağlamalıdır.
+6. Semantic sonucu/OIR için türün gerçek sembol kimliğini korumalı; isim metninden yeniden çözümleme yapılmasına güvenmemelidir.
+
+Parser bu erişim kararını vermez; AST'de bildirimin ve referansın yapısını kayıpsız tutar. Erişim doğrulaması Semantic sorumluluğudur.
+
+### 9.5 Zorunlu test matrisi
+
+| Senaryo | Beklenen sonuç |
+|---|---|
+| Group içindeki fonksiyon kendi Struct türünü kullanır | Geçer |
+| Group içindeki metot kendi Enum türünü kullanır | Geçer |
+| Group içindeki fonksiyon kendi Union türünü kullanır | Geçer |
+| Dış fonksiyon Group Struct türünü kullanır | Hata |
+| Dış fonksiyon Group Enum türünü kullanır | Hata |
+| Dış fonksiyon Group Union türünü kullanır | Hata |
+| Başka bir Group ilk Group'un özel türünü kullanır | Hata |
+| Nested Group üst Group'un özel türünü kullanır | Hata |
+| Üst Group nested Group'un özel türünü kullanır | Hata |
+| Kardeş Group diğerinin özel türünü kullanır | Hata |
+| Nested Group kendi Struct/Enum/Union türünü kullanır | Geçer |
+| Group dışında tanımlı tür, görünür olduğu Group içinde kullanılır | Geçer |
+| Aynı isimli tür iki farklı Group'ta tanımlanır | Ayrı semboller olarak geçer |
+| Group kapandıktan sonra özel tür sembolü çözümlemede bulunur | Hata |
+
+### 9.6 Tamamlanma koşulu
+
+Bu kural ancak Struct, Enum ve Union için yukarıdaki erişim testleri Semantic testlerinde doğrulandığında uygulanmış sayılır. Belgenin güncellenmesi tek başına uygulama veya test tamamlanması anlamına gelmez.
+
