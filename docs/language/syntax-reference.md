@@ -929,6 +929,21 @@ db  # default çalıştır.
 * **Generic:** | `f:add(a!t, b!t)!t{...}` | `add(32, 32){...}` `add(22.7, 22.5){...}` 
 ---
 
+### İfade gövdeli anonim fonksiyonlar
+
+`f:(parametreler) > ifade` biçiminde `>` sonrasındaki ifade fonksiyon gövdesidir ve fonksiyonun dönüş değerini oluşturur. Bu kısa biçimde ayrıca `ret` yazılmaz. Örneğin:
+
+```nexus
+v:carp = f:(a, b) > a * b;
+v:kare = f:(a) > a * a;
+```
+
+Bu biçim AST içinde `AST_LAMBDA` olarak tutulur; `body_is_expression` işaretlenir ve `body` doğrudan ifade düğümüdür. Parser bu ifade için sentetik `AST_RETURN` üretmez. Blok gövdeli anonim fonksiyon (`f:(a,b) { ... }`) ise `AST_LAMBDA` olarak kalır ve dönüş gerektiğinde blok içinde açık `ret` kullanılır. İfade gövdesinin dönüş tipi Semantic aşamasında çıkarılır/doğrulanır; Parser veya AST varlığı tek başına bu tip kontrolünün tamamlandığı anlamına gelmez.
+
+İfade gövdeli isimli fonksiyon (`f:name(...) > ifade`) bu belgede normatif bir tanımlama biçimi değildir. Mevcut Parser uyumluluk incelemesi tamamlanana kadar bu yazım yeni dil özelliği olarak kullanılmamalıdır.
+
+---
+
 # Fonksiyonlarda Generic 
 f:sum(a!t, b!t)!t {
     return a + b;
