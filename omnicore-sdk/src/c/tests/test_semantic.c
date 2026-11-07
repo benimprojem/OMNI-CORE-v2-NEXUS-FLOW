@@ -333,9 +333,10 @@ static int check_group_method_dispatch_semantics(void) {
         "Namespace.helper(7); ret; }";
     const char* non_binding_group_type_has_no_instance_dispatch =
         "f:main() { group Storage { "
+        "struct:Other { v:other!i32 } "
         "run => f:run_impl() { v:other!Other; other.open(); ret; } "
         "open => f:open_impl(self) { ret; } "
-        "struct:Storage { v:value!i32 } struct:Other { v:other!i32 } } }";
+        "struct:Storage { v:value!i32 } } }";
     const char* instance_call_to_static_method =
         "f:main() { group Storage { "
         "run => f:run_impl(self) { self.parse(\"x\"); ret; } "
