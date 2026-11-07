@@ -1433,8 +1433,10 @@ f:main() {
 - `typeof(v)`: Verinin aktif tipini döndürür.
 - `sizeof(v)`: Verinin bellekte kapladığı byte miktarını döndürür.
 - `len(v)`: Koleksiyon, string veya buffer uzunluğunu verir.
-- `val.is_ok()` / `val.is_err()`  : İşlemin başarılı mı başarısız mı olduğunu `bool` olarak söyler.
-- `val.is_some()` / `val.is_none()` / `val.is_null()` : Değer  mı yok mu (`Option` için) kontrol eder.
+- `val.is_ok()` / `val.is_err()` : İşlemin başarılı mı başarısız mı olduğunu `bool` olarak söyler.
+- `val.is_some()` / `val.is_none()` / `val.is_null()` : Değerin varlığını/null durumunu sorgular.
+
+> Bu noktalı üye çağrıları Parser'da genel member-call AST biçiminde temsil edilir. Global `is_ok(...)` / `is_some(...)` intrinsic tokenları ayrı AST intrinsic düğümlerine gider. Standart `Option` / `Result` türlerinin tanımı ve üreticileri henüz normatif değildir.
 
 ### 14.3 Sistem ve Yönetim
 
@@ -1482,6 +1484,8 @@ Cleanup hata politikası da sabittir: bir defer veya otomatik kaynak temizliği 
 - `zone.sync()`: Tüm çekirdeklerdeki cache'leri temizler ve verinin güncel olduğundan emin olur.
 - `zone.view()`: Zone içeriğini salt-okunur (read-only) bir `area` olarak kopyalamadan map eder.
 - `zone.lock()`: Manuel kritik bölge oluşturur (Sadece çok karmaşık işlemlerde).
+
+> Bu üç biçim mevcut Parser'da genel member-call olarak ayrıştırılır; `AST_ZONE_SYNC`, `AST_ZONE_VIEW` ve `AST_ZONE_LOCK` enum etiketleri henüz Parser tarafından üretilmez. Runtime/target etkileri doğrulanana kadar bu etiketler ayrılmış AST kapasitesi sayılır.
 
 ### 14.6 Time
 - `time()`:
