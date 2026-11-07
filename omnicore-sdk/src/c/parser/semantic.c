@@ -24,6 +24,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->current_scope_id = 1u;
     ctx->current_group_owner = NULL;
     ctx->current_method_receiver_type = NULL;
+    ctx->current_method_public_name = NULL;
     ctx->current_method_receiver_type_id = 0u;
     ctx->current_method_context = 0u;
     ctx->current_method_is_object = 0u;
@@ -1352,6 +1353,7 @@ static void semantic_predeclare_group_callables(
     for (member = group->members; member; member = member->next) {
         ASTNode* implementation_node = NULL;
         ASTFuncDecl* implementation;
+        const char* implementation_name = NULL;
         Slot* function_slot;
         Slot* existing;
         int is_method_alias = 0;
@@ -1359,6 +1361,7 @@ static void semantic_predeclare_group_callables(
         if (member->type == AST_METHOD) {
             ASTMethod* method = (ASTMethod*)member;
             implementation_node = method->implementation;
+            implementation_name = method->public_name;
             is_method_alias = 1;
         } else if (member->type == AST_FUNC_DECL ||
                    member->type == AST_EXTERN_DECL) {
@@ -1371,9 +1374,11 @@ static void semantic_predeclare_group_callables(
             (implementation_node->type != AST_FUNC_DECL &&
              implementation_node->type != AST_EXTERN_DECL)) continue;
         implementation = (ASTFuncDecl*)implementation_node;
-        if (!implementation->name || !*implementation->name) continue;
+        if (implementation->name && *implementation->name)
+            implementation_name = implementation->name;
+        if (!implementation_name || !*implementation_name) continue;
 
-        existing = find_slot(ctx, implementation->name);
+        existing = find_slot(ctx, implementation_name);
         if (existing && existing->declaration_node == implementation_node &&
             existing->kind == SLOT_FUNC) {
             function_slot = existing;
@@ -1384,13 +1389,13 @@ static void semantic_predeclare_group_callables(
               existing->scope_id == ctx->current_scope_id))) {
             char message[256];
             snprintf(message, sizeof(message),
-                msg_get(ERR_SEMANTIC_FUNC_REDEFINED), implementation->name);
+                msg_get(ERR_SEMANTIC_FUNC_REDEFINED), implementation_name);
             report_error(ctx, implementation_node,
                 ERR_SEMANTIC_FUNC_REDEFINED, message);
             continue;
         } else {
             function_slot = add_slot(
-                ctx, implementation->name, SLOT_FUNC, 1,
+                ctx, implementation_name, SLOT_FUNC, 1,
                 implementation->return_type, implementation_node,
                 0, 0, 0,
                 (implementation->is_public
@@ -2269,8 +2274,12 @@ static void semantic_check_node(
         case AST_EXTERN_DECL: {
             ASTFuncDecl* func = (ASTFuncDecl*)node;
             Slot* function_slot = NULL;
-            if (func->name) {
-                Slot* existing = find_slot(ctx, func->name);
+            const char* function_name = func->name;
+            if ((!function_name || !*function_name) &&
+                ctx->current_method_context)
+                function_name = ctx->current_method_public_name;
+            if (function_name && *function_name) {
+                Slot* existing = find_slot(ctx, function_name);
                 if (existing && existing->declaration_node == node &&
                     existing->kind == SLOT_FUNC) {
                     function_slot = existing;
@@ -2280,11 +2289,11 @@ static void semantic_check_node(
                       existing->group_owner == ctx->current_group_owner &&
                       existing->scope_id == ctx->current_scope_id))) {
                     char buf[256];
-                    snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_FUNC_REDEFINED), func->name);
+                    snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_FUNC_REDEFINED), function_name);
                     report_error(ctx, node, ERR_SEMANTIC_FUNC_REDEFINED, buf);
                 } else {
                     function_slot = add_slot(
-                        ctx, func->name, SLOT_FUNC, 1, func->return_type,
+                        ctx, function_name, SLOT_FUNC, 1, func->return_type,
                         node, 0, 0, 0,
                         (func->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
                         (func->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
@@ -3174,12 +3183,14 @@ static void semantic_check_node(
         case AST_METHOD: {
             ASTMethod* m = (ASTMethod*)node;
             const char* previous_receiver_type = ctx->current_method_receiver_type;
+            const char* previous_method_public_name = ctx->current_method_public_name;
             uint32_t previous_receiver_type_id = ctx->current_method_receiver_type_id;
             uint8_t previous_method_context = ctx->current_method_context;
             uint8_t previous_method_is_object = ctx->current_method_is_object;
             Slot* receiver_slot = NULL;
 
             ctx->current_method_context = 1u;
+            ctx->current_method_public_name = m->public_name;
             ctx->current_method_is_object = 0u;
             ctx->current_method_receiver_type = NULL;
             ctx->current_method_receiver_type_id = 0u;
@@ -3209,6 +3220,7 @@ static void semantic_check_node(
             ctx->current_method_receiver_type = previous_receiver_type;
             ctx->current_method_receiver_type_id = previous_receiver_type_id;
             ctx->current_method_context = previous_method_context;
+            ctx->current_method_public_name = previous_method_public_name;
             ctx->current_method_is_object = previous_method_is_object;
             break;
         }
