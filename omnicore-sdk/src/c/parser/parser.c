@@ -1327,14 +1327,57 @@ static ASTNode* parse_use(Parser* p) {
         }
         use->base.line = module_token.line;
         use->base.col = module_token.col;
-        use->module_name = (char*)parser_malloc(p, (size_t)module_token.length + 1u);
-        if (!use->module_name) {
-            ast_destroy((ASTNode*)use);
-            ast_destroy((ASTNode*)head);
-            return NULL;
+        {
+            size_t module_length = (size_t)module_token.length;
+            char* module_name = (char*)parser_malloc(p, module_length + 1u);
+            if (!module_name) {
+                ast_destroy((ASTNode*)use);
+                ast_destroy((ASTNode*)head);
+                return NULL;
+            }
+            memcpy(module_name, module_token.start, module_length);
+            module_name[module_length] = '\0';
+
+            /* Module paths may contain dotted segments: use platform.io as io; */
+            while (match(p, TOKEN_DOT)) {
+                Token segment;
+                char* expanded;
+                size_t segment_length;
+                if (!match(p, TOKEN_IDENTIFIER)) {
+                    error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                        "Expected an identifier after '.' in module path.");
+                    free(module_name);
+                    ast_destroy((ASTNode*)use);
+                    ast_destroy((ASTNode*)head);
+                    return NULL;
+                }
+                segment = p->previous;
+                segment_length = (size_t)segment.length;
+                if (module_length > SIZE_MAX - segment_length - 2u) {
+                    free(module_name);
+                    ast_destroy((ASTNode*)use);
+                    ast_destroy((ASTNode*)head);
+                    parser_mark_oom(p);
+                    return NULL;
+                }
+                expanded = (char*)parser_malloc(p, module_length + 1u + segment_length + 1u);
+                if (!expanded) {
+                    free(module_name);
+                    ast_destroy((ASTNode*)use);
+                    ast_destroy((ASTNode*)head);
+                    return NULL;
+                }
+                memcpy(expanded, module_name, module_length);
+                expanded[module_length] = '.';
+                memcpy(expanded + module_length + 1u, segment.start, segment_length);
+                module_length += 1u + segment_length;
+                expanded[module_length] = '\0';
+                free(module_name);
+                module_name = expanded;
+                use_end = segment;
+            }
+            use->module_name = module_name;
         }
-        memcpy(use->module_name, module_token.start, (size_t)module_token.length);
-        use->module_name[module_token.length] = '\0';
 
         if (match(p, TOKEN_KW_AS)) {
             Token alias_token;
