@@ -1698,7 +1698,9 @@ OirStatus oir_semantic_ast_validate_references(
             status = oir_semantic_symbols_get(
                 &symbols, relation.related_symbol_id - 1u, &related, NULL);
             if (status != OIR_STATUS_OK ||
-                related.declaration_node_id != relation.related_node_id) {
+                related.declaration_node_id != relation.related_node_id ||
+                (relation.kind == OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING &&
+                    related.type_id != relation.type_id)) {
                 return OIR_STATUS_INVALID_SECTION;
             }
         }
