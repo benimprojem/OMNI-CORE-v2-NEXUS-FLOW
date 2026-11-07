@@ -1053,7 +1053,7 @@ v:val!point = {25, 23};
 
 ```
 
-**Callback / function pointer tipi:** Fonksiyon değeri ve callback için ayrı bir function-type AST/gramer sözleşmesi henüz tamamlanmamıştır. `nt:Callback = f:(id!u32)>!bool;` biçimi tasarım örneğidir; mevcut Parser tarafından geçerli NewType hedef tipi olarak kabul edilmez.
+**Callback / function type:** `f:(parametreler)>!DönüşTipi` imza biçimi artık NewType hedefi, local değişken, fonksiyon parametresi ve dönüş tipi bağlamlarında Parser tarafından kabul edilir. Örneğin `nt:Callback = f:(id!u32)>!bool;`. AST imzayı mevcut type-name string alanında normalize ederek saklar; henüz ayrı `AST_FUNCTION_TYPE` düğümü yoktur. Callback uyumluluğu, closure conversion ve function-pointer ABI Semantic/Codegen sözleşmelerinde açık kalır.
 
 ---
 
