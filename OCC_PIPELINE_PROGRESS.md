@@ -1,6 +1,6 @@
 # OCC Pipeline İlerleme Kaydı
 
-**Tarih:** 2026-11-05  
+**Tarih:** 2026-11-07  
 **Çalışma dalı:** `refactor/c-core-roadmap`  
 **Kaynak depo:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Belge amacı:** Lexer'dan Codegen'e kadar her Nexus Flow yapısının gerçek uygulama ve test durumunu tek tabloda izlemek.
@@ -49,7 +49,7 @@ Lexer bir AST düğümüne bire bir karşılık gelmez. Bu nedenle token takibi 
 |---|---|---|---|
 | Identifier / keyword | ~ | ~ | Tüm keyword ve contextual keyword eşlemesi |
 | Primitive type tokens | ~ | ~ | `i/u/f`, bool, bit, byte, hex, void, any ve yeni türler |
-| Integer / float literals | ~ | ~ | Decimal integer/fraction; unsupported radix/scientific/suffix forms fail closed; rolling `ms` unit token pair; overflow and source-span matrix |
+| Integer / float / null literals | ✓ | ~ | Decimal integer/fraction, `0x`/`0b`/`0o`, scientific exponent, underscore separators and `null`; numeric type suffixes fail closed; rolling `ms` unit token pair; Semantic overflow/nullability rules remain open |
 | String / char literals | ~ | ~ | Escape, UTF-8, kapanmayan literal ve newline |
 | Single-character operators | ~ | ~ | Token ID ve parser precedence |
 | Multi-character operators | ~ | ~ | Longest-match ve çakışma testleri |
