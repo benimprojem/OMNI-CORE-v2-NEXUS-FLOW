@@ -904,7 +904,7 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added `test_canonical_loop_and_jump_call_forms` for AST shape, label target, graph validation and AST codec round-trip.
 - Commits: Parser `fee81b7e`; Parser test `456d8af7`; language comparison `8a2e44b0`; syntax reference `32469a06`.
 - CI has not yet validated the new Parser test. Keep Parser/AST status partial until Windows, Ubuntu, macOS, ASan/UBSan and Valgrind checks complete.
-- Remaining syntax/AST work: generic type-parameter payload/grammar, dedicated function-type AST decision, Option/Result and `none` model, numeric Semantic conversion, and the `<< / >>` collision. Pointer/reference, callback signature, numeric spelling and `null` literal Parser support are implemented; Semantic ownership/type rules remain open. Do not enter Codegen while AST contracts remain open.
+- Remaining syntax/AST work: generic type-variable binding/unification/inference, dedicated function-type AST decision, Option/Result and `none` model, numeric Semantic conversion, and the `<< / >>` collision. Pointer/reference, callback signature, numeric spelling and `null` literal Parser support are implemented; Semantic ownership/type rules remain open. Do not enter Codegen while AST contracts remain open.
 
 
 ## 2026-11-07 — Module path syntax closure
