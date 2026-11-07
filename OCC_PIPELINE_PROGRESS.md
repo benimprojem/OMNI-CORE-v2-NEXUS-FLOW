@@ -1052,3 +1052,12 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Group-owned Struct/Enum/Union türleri yalnızca çözümlemede değil, bilinmeyen tür için benzer isim önerilerinde de mevcut Group sahibiyle filtreleniyor. Böylece başka Group/dış kapsam tanılama önerileri özel tür adlarını sızdırmıyor (`27b0ed74`).
 - Group üye adı doğrulaması `AST_METHOD.public_name` dahil doğrudan API üyelerini tek isim alanında karşılaştırıyor; `default` da aynı kural altında tekil handler olarak korunuyor.
 - Bu aşamadaki tüm Semantic testleri kaynak düzeyinde eklendi/düzeltildi; derleme ve çalışma sonucu hâlâ yok. `test_semantic` CMake hedefi `occ_frontend` ile bağlı ve CTest tarafından iki fixture dosyası argümanıyla çağrılıyor; yeni `check_source` vakaları bu test çalıştırıldığında ana test başlamadan önce yürütülüyor.
+
+## 2026-11-08 — Group SemanticResult/OIR relation contract
+
+- SemanticResult mevcut Symbol/Relation tabloları üzerinden Group'u temsil edecek şekilde tasarlandı; paralel Group member tablosu açılmayacak.
+- Formal Group spec §10 eklendi: Group Symbol, doğrudan Group üyeliği, nominal type binding, public method → implementation bağlantısı ve default handler için append-only relation türleri tanımlandı.
+- OIR Verifier için Group AST node kind eşleşmeleri, relation owner/related-node/related-symbol kontrolleri ve tekil type binding/default handler kısıtları normatifleştirildi.
+- Semantic AST OIR reader'ın schema minor değerini tam eşitlikle kontrol ettiği doğrulandı. Bu nedenle Group kayıtları schema 1.1 ile yayımlanacak; yeni reader 1.0 ve 1.1 okuyacak, 1.0 içinde yeni enum değerlerini reddedecek. Record layout değişmeden kalacak.
+- **Kod henüz değiştirilmedi ve test çalıştırılmadı.** Sıradaki uygulama: SemanticResult enum/validator → OIR enum/codec → schema 1.0/1.1 reader uyumluluğu → OIR reference verifier → Semantic Group kayıt üretimi.
+
