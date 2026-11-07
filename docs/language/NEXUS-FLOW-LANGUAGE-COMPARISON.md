@@ -152,6 +152,25 @@ Bu ayrım Rust `match` ve Kotlin `when` gibi pattern tabanlı seçimlerle aynı 
 
 **Dezavantaj / açık alan:** Lambda capture listesi, capture-by-value/reference, closure lifetime ve function-type uyumu henüz tamamlanmış değildir. Kotlin ve Rust closure'ları dış scope değerlerini yakalayabilir; Kotlin ayrıca function types'ı değişken ve parametre türü olarak açıkça tanımlar. Nexus Flow bu yeteneklerin sözdizimini değil, semantik ve tip modelini henüz tamamlamalıdır.
 
+### 1.11 Function ve callable yapıları
+
+| Yapı | Nexus Flow biçimi | Mevcut durum / diğer dillerle karşılaştırma |
+|---|---|---|
+| Named function | `f:name(params)!R { ... }` | Parser/AST mevcut; tek dönüş tipi |
+| Expression-body lambda | `f:(a,b) > a*b` | Parser/AST mevcut; son ifade döner, sentetik `ret` üretilmez. Kotlin/Rust benzer expression-body/closure davranışlarına sahiptir |
+| Block lambda | `f:(a,b) { ret ...; }` | Parser/AST mevcut; açık `ret` kullanılır |
+| Extern function | `exf:name(params)!R;` | Parser/AST mevcut; ABI/linking ve DLL metadata ayrı iş |
+| Group method | `method => f:(...) { ... }` | Parser/AST mevcut; receiver/dispatch/visibility Semantic kuralları açık |
+| Callback function type | `f:(id!u32)>!bool` | Parser imzayı type-name string alanında saklıyor; dedicated type node ve callback ABI açık |
+| Default parameter | `f:sum(a:10)!i32 { ... }` | Parser mevcut; çağrıdaki `sum(a:10)` ise named argument'tır |
+| Variadic parameter | `f:log(args...)` | AST/Parser temeli var; ABI ve type-check kuralları açık |
+| Array parameter / return | `items!i32[]`, `!i32[]` | Parser/AST/codec köprüsü mevcut; semantic boyut/shape uyumu açık |
+| Generic function | `f:sum<T>(a!T,b!T)!T` | Önerilen biçim; Parser/AST generic parameter payload henüz yok |
+| Multiple return values | — | Mevcut gramer tek dönüş tipi taşır; çoklu dönüş için tuple/record veya ayrı result type kararı gerekir |
+| Named function expression body | `f:name(...) > expr` | Parser mevcut uyumluluk davranışı; syntax reference'te normatif değil, yeni özellik olarak kullanılmamalı |
+
+**Önemli ayrım:** Lambda, callback ve generic fonksiyon kavramları başka dillerde de bulunur. Nexus Flow'un ayırt edici tarafı bunların varlığı değil; `f:`/ `exf:` biçimleri, group method düzeni ve flow/error/resource operatörleriyle aynı dil içinde birleşmesidir.
+
 ## 2. Başka dillerde zaten bulunan / ortak özellikler
 
 Aşağıdaki yapılar Nexus Flow'da değerli olabilir; ancak tek başlarına özgün değildir:
