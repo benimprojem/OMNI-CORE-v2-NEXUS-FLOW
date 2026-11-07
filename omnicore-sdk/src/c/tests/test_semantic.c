@@ -309,6 +309,14 @@ static int check_group_type_scope_semantics(void) {
     const char* group_can_use_external_type =
         "f:main() { struct:ExternalType { v:value!i32 } "
         "group Alpha { use => f:use(value!ExternalType) { ret; } } }";
+    const char* duplicate_public_method_name =
+        "f:main() { group Alpha { run => f:first() { ret; } "
+        "run => f:second() { ret; } } }";
+    const char* duplicate_default_handler =
+        "f:main() { group Alpha { default { } default { } } }";
+    const char* method_alias_conflicts_with_function =
+        "f:main() { group Alpha { f:run() { ret; } "
+        "run => f:implementation() { ret; } } }";
     return check_source(own_struct, 0) &&
         check_source(own_enum, 0) &&
         check_source(own_union, 0) &&
@@ -318,7 +326,10 @@ static int check_group_type_scope_semantics(void) {
         check_source(nested_same_name_is_distinct, 0) &&
         check_source(sibling_cannot_use_group_type, 1) &&
         check_source(outside_cannot_use_group_type, 1) &&
-        check_source(group_can_use_external_type, 0);
+        check_source(group_can_use_external_type, 0) &&
+        check_source(duplicate_public_method_name, 1) &&
+        check_source(duplicate_default_handler, 1) &&
+        check_source(method_alias_conflicts_with_function, 1);
 }
 
 int main(int argc, char** argv) {
