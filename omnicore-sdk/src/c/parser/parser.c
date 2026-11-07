@@ -2231,7 +2231,7 @@ static int parser_is_type_start(Parser* p) {
         p->current.type == TOKEN_IDENTIFIER ||
         p->current.type == TOKEN_STAR ||
         p->current.type == TOKEN_BIT_AND ||
-        (p->current.type == TOKEN_PRE_FUNC && p->current.length == 2 &&
+        (p->current.type == TOKEN_KW_FN && p->current.length == 2 &&
             peek_token(p).type == TOKEN_LPAREN));
 }
 
@@ -2249,7 +2249,7 @@ static int parser_parse_type_name(Parser* p, char** out,
     if (!p || !out) return 0;
     *out = NULL;
 
-    if (p->current.type == TOKEN_PRE_FUNC && p->current.length == 2 &&
+    if (p->current.type == TOKEN_KW_FN && p->current.length == 2 &&
         peek_token(p).type == TOKEN_LPAREN) {
         char* signature = NULL;
         if (!parser_parse_function_type_signature(p, &signature)) return 0;
