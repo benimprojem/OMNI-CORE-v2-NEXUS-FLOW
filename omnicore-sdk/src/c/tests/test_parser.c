@@ -908,6 +908,8 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
     const char* apply_start=strstr(source,"apply rules");
     const char* on_start=strstr(source,"on PrimeBorders");
     const char* on_end=on_start?strstr(on_start,"ret true; }"):NULL;
+    const char* lambda_start=strstr(source,"f:(x) > x");
+    const char* lambda_end=lambda_start?lambda_start+strlen("f:(x) > x"):NULL;
     const char* unroll_start=strstr(source,"unroll(3)");
     const char* unroll_end=unroll_start?strstr(unroll_start,"v:copy = item; }"):NULL;
     const char* relocate_start=strstr(source,"source _> target");
@@ -958,7 +960,14 @@ static int test_rules_lambda_relocate_unroll_ast(void) {
             ASTVarDecl* v=(ASTVarDecl*)node;
             if(v->name && strcmp(v->name,"callback")==0 && v->initializer && v->initializer->type==AST_LAMBDA && ((ASTLambda*)v->initializer)->body_is_expression==1) {
                 ASTLambda* l=(ASTLambda*)v->initializer;
-                if(!l->base.source_span.has_location)goto done;
+                if(!lambda_start || !lambda_end || !l->body ||
+                   l->body->type!=AST_IDENTIFIER ||
+                   !l->base.source_span.has_location ||
+                   l->base.source_span.start_offset!=(uint64_t)(lambda_start-source) ||
+                   l->base.source_span.end_offset!=(uint64_t)(lambda_end-source) ||
+                   !l->body->source_span.has_location ||
+                   l->body->source_span.start_offset!=(uint64_t)(lambda_end-1-source) ||
+                   l->body->source_span.end_offset!=(uint64_t)(lambda_end-source))goto done;
                 lambda=1;
             }
             if(v->name && strcmp(v->name,"callback_block")==0 && v->initializer && v->initializer->type==AST_LAMBDA && ((ASTLambda*)v->initializer)->body_is_expression==0) {
