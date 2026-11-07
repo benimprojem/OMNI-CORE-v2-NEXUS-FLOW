@@ -437,7 +437,7 @@ The normative reference was compared against the active Lexer/Parser source rath
 | Scientific literal `10E3` and hex literals `0x...` | Current Lexer rejects radix/exponent forms | Valid code examples now use supported decimal literals; numeric grammar remains an explicit open item |
 | `d32` / `d64` | Not built-in Lexer type tokens | Removed from the built-in type list; not treated as built-ins |
 | Generic `t` and callback `f:(...)>!R` type examples | No generic parameter declaration or function-type AST production exists | Marked as unsupported design gaps, not accepted syntax |
-| Pointer/reference `*T`, `**T`, `&T` | Prefix concepts are listed, but declaration/parameter/return type parser does not consume these declarators | Remain open AST/type-grammar work |
+| Pointer/reference `*T`, `**T`, `&T` | Parser accepts them in variable, parameter, return and NewType type contexts; AST preserves spelling in existing type-name strings; dedicated regression added | Parser syntax/AST string preservation covered; Semantic ownership, mutability, nullability and lifetime rules remain open |
 | `!!=[target...]`, `:macro`, `dllexp:` | These are not complete productions in the core C Parser | Marked as target/preprocessor/build-layer syntax, not core Parser support |
 | `null` | Used in prose as a runtime state, but no dedicated null literal token exists | Clarified as not a current source literal |
 
@@ -450,3 +450,11 @@ The language comparison and prioritized gap inventory is maintained in `docs/lan
 - Parser now consumes one or more identifier segments separated by dots and stores the joined path in `AST_USE.module_name`.
 - Alias parsing remains `as identifier`; comma-separated imports remain supported.
 - Regression: `test_dotted_module_use_path` checks `msvcrt.exf`, alias `crt`, AST validation and stream round-trip. CI pending.
+
+
+### Pointer/reference type audit — 2026-11-07
+
+- Parser now accepts `*T`, `**T` and `&T` in local declarations, function parameters, return types and NewType targets.
+- Existing type-name string fields preserve the complete spelling; no new AST node kind or OIR ID was introduced.
+- `test_pointer_reference_type_declarators` checks all four contexts and AST codec round-trip. CI pending.
+- Syntax support does not imply pointer safety, borrow checking, mutability, nullability or lifetime semantics.
