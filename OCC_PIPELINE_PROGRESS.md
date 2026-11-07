@@ -942,3 +942,13 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Enumerated all 105 append-only AST tags and compared Parser construction/dispatch paths.
 - Classified `AST_SPAWN` as legacy-only (Thread module boundary), `AST_ASM_BLOCK` as legacy-only (current FASTEXEC/ASM_LABEL path), and `AST_ZONE_SYNC/VIEW/LOCK` as reserved tags (zone member methods currently parse as generic member calls).
 - Updated syntax reference and Parser/AST matrices so AST enum presence is not confused with active syntax support.
+
+
+## 2026-11-07 — Numeric and null literal production
+
+- Extended Lexer numeric grammar: decimal integer/fraction, hexadecimal `0x`, binary `0b`, octal `0o`, scientific exponent and underscore digit separators.
+- Kept numeric suffixes such as `u8` / `f32` invalid; `500ms` remains the dedicated rolling-delay token split.
+- Appended `TOKEN_NULL` after existing token IDs and added Parser `AST_LITERAL` support preserving the source spelling.
+- Added positive/negative Lexer numeric tests and Parser AST/codec coverage for null, radix and scientific forms.
+- Updated normative syntax and comparison docs. Semantic conversion, overflow/range, pointer-nullability and Option/None remain open.
+- CI pending.
