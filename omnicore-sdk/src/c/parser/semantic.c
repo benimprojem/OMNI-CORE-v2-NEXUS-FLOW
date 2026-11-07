@@ -739,7 +739,7 @@ static void exit_scope(SemanticContext* ctx) {
 static int are_types_compatible(const char* type1, const char* type2);
 
 static const char* get_expr_type(SemanticContext* ctx, ASTNode* node);
-static Slot* semantic_resolve_group_method(
+static Slot* semantic_resolve_group_callable(
     SemanticContext* ctx, ASTMemberAccess* access,
     int* out_is_instance_call, int report_diagnostics);
 
@@ -846,7 +846,7 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             } else if (call->callee &&
                 call->callee->type == AST_MEMBER_ACCESS) {
                 int is_instance_call = 0;
-                slot = semantic_resolve_group_method(
+                slot = semantic_resolve_group_callable(
                     ctx, (ASTMemberAccess*)call->callee,
                     &is_instance_call, 0);
             }
@@ -1338,7 +1338,7 @@ static int semantic_populate_function_signature(
     return 1;
 }
 
-static void semantic_predeclare_group_methods(
+static void semantic_predeclare_group_callables(
     SemanticContext* ctx, ASTGroupDecl* group, Slot* receiver_slot
 ) {
     ASTNode* member;
@@ -1416,7 +1416,7 @@ static void semantic_predeclare_group_methods(
     }
 }
 
-static Slot* semantic_resolve_group_method(
+static Slot* semantic_resolve_group_callable(
     SemanticContext* ctx, ASTMemberAccess* access,
     int* out_is_instance_call, int report_diagnostics
 ) {
@@ -2549,7 +2549,7 @@ static void semantic_check_node(
                 uint32_t parameter_offset = 0u;
 
                 if (access->object) semantic_check(ctx, access->object);
-                method_slot = semantic_resolve_group_method(
+                method_slot = semantic_resolve_group_callable(
                     ctx, access, &is_instance_call, 1);
                 if (method_slot && method_slot->declaration_node &&
                     (method_slot->declaration_node->type == AST_FUNC_DECL ||
@@ -3051,7 +3051,7 @@ static void semantic_check_node(
                 {
                     Slot* receiver_slot = binding
                         ? semantic_find_slot_by_declaration(ctx, binding) : NULL;
-                    semantic_predeclare_group_methods(ctx, g, receiver_slot);
+                    semantic_predeclare_group_callables(ctx, g, receiver_slot);
                 }
                 for (current = g->members; current; current = current->next) {
                     if (current != binding) semantic_check_node(ctx, current, 0);
