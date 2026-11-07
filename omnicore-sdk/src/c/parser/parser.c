@@ -2220,6 +2220,66 @@ static int parse_array_type_suffix(Parser* p, ASTVarDecl* decl) {
 }
 
 // Variable Declaration: v:name = expr;
+static int parser_is_type_start(const Parser* p) {
+    return p && (
+        (p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
+        p->current.type == TOKEN_IDENTIFIER ||
+        p->current.type == TOKEN_STAR ||
+        p->current.type == TOKEN_BIT_AND);
+}
+
+/* Preserve pointer/reference prefixes in the existing AST type-name field. */
+static int parser_parse_type_name(Parser* p, char** out,
+    int include_hard_marker, int is_hard_typed) {
+    char prefix[2];
+    size_t prefix_length = 0u;
+    size_t type_length;
+    size_t total_length;
+    size_t offset = 0u;
+    Token type_token;
+    char* type_name;
+
+    if (!p || !out) return 0;
+    *out = NULL;
+
+    if (match(p, TOKEN_STAR)) {
+        prefix[prefix_length++] = '*';
+        if (match(p, TOKEN_STAR)) prefix[prefix_length++] = '*';
+    } else if (match(p, TOKEN_BIT_AND)) {
+        prefix[prefix_length++] = '&';
+    }
+
+    if (!((p->current.type >= TOKEN_TYPE_U8 &&
+            p->current.type <= TOKEN_TYPE_ANY) ||
+          p->current.type == TOKEN_IDENTIFIER)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+            msg_get(MSG_EXPECT_RET_TYPE));
+        return 0;
+    }
+
+    type_token = p->current;
+    type_length = (size_t)type_token.length;
+    if (type_length > SIZE_MAX - prefix_length - 2u) {
+        parser_mark_oom(p);
+        return 0;
+    }
+    total_length = prefix_length + type_length +
+        ((include_hard_marker && is_hard_typed) ? 1u : 0u);
+    type_name = (char*)parser_malloc(p, total_length + 1u);
+    if (!type_name) return 0;
+
+    if (include_hard_marker && is_hard_typed) type_name[offset++] = '!';
+    if (prefix_length) {
+        memcpy(type_name + offset, prefix, prefix_length);
+        offset += prefix_length;
+    }
+    memcpy(type_name + offset, type_token.start, type_length);
+    type_name[total_length] = '\0';
+    advance(p);
+    *out = type_name;
+    return 1;
+}
+
 static ASTNode* parse_var_decl(Parser* p) {
     // v: veya c: tüketildi, p->previous içinde
     int is_const = (p->previous.type == TOKEN_PRE_CONST);
@@ -2292,13 +2352,11 @@ static ASTNode* parse_var_decl(Parser* p) {
                  if (!parse_struct_body(p, sdecl)) { ast_destroy((ASTNode*)sdecl); ast_destroy((ASTNode*)decl); return NULL; }
                  decl->inline_type = (ASTNode*)sdecl;
              }
-        } else if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) || p->current.type == TOKEN_IDENTIFIER) {
-             Token type_token = p->current;
-             decl->type_name = (char*)parser_malloc(p, (size_t)type_token.length + 1u);
-             if (!decl->type_name) { ast_destroy((ASTNode*)decl); return NULL; }
-             memcpy(decl->type_name, type_token.start, (size_t)type_token.length);
-             decl->type_name[type_token.length] = '\0';
-             advance(p);
+        } else if (parser_is_type_start(p)) {
+             if (!parser_parse_type_name(p, &decl->type_name, 0, 0)) {
+                 ast_destroy((ASTNode*)decl);
+                 return NULL;
+             }
         } else {
              error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
         }
@@ -2436,28 +2494,18 @@ static ASTNode* parse_func_decl(Parser* p) {
              */
             has_colon = match(p, TOKEN_COLON);
             if (match(p, TOKEN_NOT)) has_bang = 1;
-            if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
-                p->current.type == TOKEN_IDENTIFIER) {
-                Token type_token = p->current;
+            if (parser_is_type_start(p)) {
                 if (!has_colon && !has_bang) {
                     error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
                         msg_get(MSG_EXPECT_TYPE_BANG));
                     ast_destroy((ASTNode*)func);
                     return NULL;
                 }
-                size_t type_length = (size_t)type_token.length;
-                size_t total_length = type_length + (has_bang ? 1u : 0u);
-                param->type_name = (char*)parser_malloc(p, total_length + 1u);
-                if (!param->type_name) {
+                if (!parser_parse_type_name(p, &param->type_name, 1, has_bang)) {
                     ast_destroy((ASTNode*)func);
                     return NULL;
                 }
-                if (has_bang) param->type_name[0] = '!';
-                memcpy(param->type_name + (has_bang ? 1u : 0u),
-                    type_token.start, type_length);
-                param->type_name[total_length] = '\0';
                 param->is_hard_typed = has_bang;
-                advance(p);
                 if (!parse_array_type_suffix(p, param)) {
                     ast_destroy((ASTNode*)func);
                     return NULL;
@@ -2523,21 +2571,11 @@ static ASTNode* parse_func_decl(Parser* p) {
     {
         int has_bang = 0;
         if (match(p, TOKEN_NOT)) has_bang = 1;
-        if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
-            p->current.type == TOKEN_IDENTIFIER) {
-            Token type_token = p->current;
-            size_t type_length = (size_t)type_token.length;
-            size_t total_length = type_length + (has_bang ? 1u : 0u);
-            func->return_type = (char*)parser_malloc(p, total_length + 1u);
-            if (!func->return_type) {
+        if (parser_is_type_start(p)) {
+            if (!parser_parse_type_name(p, &func->return_type, 1, has_bang)) {
                 ast_destroy((ASTNode*)func);
                 return NULL;
             }
-            if (has_bang) func->return_type[0] = '!';
-            memcpy(func->return_type + (has_bang ? 1u : 0u),
-                type_token.start, type_length);
-            func->return_type[total_length] = '\0';
-            advance(p);
             if (p->current.type == TOKEN_LBRACKET) {
                 ASTVarDecl return_array;
                 memset(&return_array, 0, sizeof(return_array));
@@ -3156,14 +3194,11 @@ static ASTNode* parse_newtype_decl(Parser* p) {
         memcpy(decl->name, name_part, name_length + 1u);
         free(raw);
         consume(p, TOKEN_ASSIGN, ERR_PARSER_UNEXPECTED_TOKEN, MSG_UNEXPECTED_CHAR);
-        if ((p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
-            p->current.type == TOKEN_IDENTIFIER) {
-            Token type_token = p->current;
-            decl->target_type = (char*)parser_malloc(p, (size_t)type_token.length + 1u);
-            if (!decl->target_type) { ast_destroy((ASTNode*)decl); return NULL; }
-            memcpy(decl->target_type, type_token.start, (size_t)type_token.length);
-            decl->target_type[type_token.length] = '\0';
-            advance(p);
+        if (parser_is_type_start(p)) {
+            if (!parser_parse_type_name(p, &decl->target_type, 0, 0)) {
+                ast_destroy((ASTNode*)decl);
+                return NULL;
+            }
         } else {
             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
             ast_destroy((ASTNode*)decl);
