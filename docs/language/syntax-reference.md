@@ -387,8 +387,7 @@ Bu bölüm hedeflenen dil semantiğidir. C Parser tekil kaynak Halt için `AST_N
 ### 4.3  Nexus Flow Mantığı
 >* Kural: `(h)<- fn() ?->{}` operatörü. `(false, null, none, unknown)` hata/boşluk durumlarını anlatır.
 >  Ternary kontrole benzer: Başarılı ise sola, başarısız ise akış sağa kayar.
->  Bu listede geçen `null` ve `none` mevcut Lexer'da bağımsız literal tokenı değildir; bunların değer/tip modeli henüz tanımlanmamıştır.
-> Bu açıklamadaki `null`, `none` ve `unknown` çalışma zamanı durumlarını anlatır; mevcut Lexer'da `null` veya `none` için bağımsız literal tokenı yoktur.
+>  Bu listede geçen `null`, `none` ve `unknown` çalışma zamanı durumlarını anlatır; mevcut Lexer'da `null` veya `none` için bağımsız literal tokenı yoktur.
 ```
 # Hata Saptırmalı Akış,  Hatayı işlemek için Hata işleme bloğuna iletir. 
 (h) <- file.open("a.txt",r) ?-> (e){ echo(e); };
@@ -1262,7 +1261,7 @@ v:sonuc = Optimizer.run_optimizer(oir_path, nxir_path, target_info);
 
 ### 12. Extern Modül !!
 
-> Extern fonksiyon bildirimi `exf:` Parser tarafından desteklenir. Aşağıdaki `!!=[target ...]` ve `!!=link ...` örnekleri ise mevcut core Parser'ın tamamlanmış prefix-directive grameri değildir; Target/Directive katmanı tasarım örnekleridir. `buf!*char` pointer parametre yazımı da pointer type grameri tamamlanana kadar örnek/taslak durumundadır.
+> Extern fonksiyon bildirimi `exf:` Parser tarafından desteklenir. Aşağıdaki `!!=[target ...]` ve `!!=link ...` örnekleri ise mevcut core Parser'ın tamamlanmış prefix-directive grameri değildir; Target/Directive katmanı tasarım örnekleridir. `buf!*char` pointer parametre yazımı artık Parser tarafından kabul edilir; pointer güvenliği ve ABI kontrolleri Semantic/Extern aşamasında tamamlanacaktır.
 
 ** Extern dll, obj, lib.a dosyaları için..
 ** Modül Hazırlama
