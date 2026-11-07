@@ -3541,9 +3541,6 @@ generic_type_done:
             fprintf(stderr, "use alias/defer AST ownership test failed.\n");
             return 1;
         }
-            fprintf(stderr, "use alias/defer AST ownership test failed.\\n");
-            return 1;
-        }
         if (parser) parser_destroy(parser);
     }
 
