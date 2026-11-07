@@ -276,7 +276,43 @@ static int check_extended_ast_semantics(void) {
         check_source(relocate_type_mismatch,1);
 }
 
+static int check_group_type_scope_semantics(void) {
+    const char* own_struct =
+        "group Alpha { struct LocalStruct {} fn use(value:LocalStruct) {} }";
+    const char* own_enum =
+        "group Alpha { enum LocalEnum { Value } fn use(value:LocalEnum) {} }";
+    const char* own_union =
+        "group Alpha { union LocalUnion {} fn use(value:LocalUnion) {} }";
+    const char* nested_cannot_use_parent_type =
+        "group Alpha { struct Hidden {} child => group { fn use(value:Hidden) {} } }";
+    const char* nested_owns_its_type =
+        "group Alpha { child => group { struct Local {} fn use(value:Local) {} } }";
+    const char* nested_same_name_is_distinct =
+        "group Alpha { struct Item {} child => group { struct Item {} "
+        "fn child_use(value:Item) {} } fn parent_use(value:Item) {} }";
+    const char* sibling_cannot_use_group_type =
+        "group Alpha { struct Hidden {} } group Beta { fn use(value:Hidden) {} }";
+    const char* outside_cannot_use_group_type =
+        "group Alpha { struct Hidden {} } fn outside(value:Hidden) {}";
+    const char* group_can_use_external_type =
+        "struct ExternalType {} group Alpha { fn use(value:ExternalType) {} }";
+    return check_source(own_struct, 0) &&
+        check_source(own_enum, 0) &&
+        check_source(own_union, 0) &&
+        check_source(nested_cannot_use_parent_type, 1) &&
+        check_source(nested_owns_its_type, 0) &&
+        check_source(nested_same_name_is_distinct, 0) &&
+        check_source(sibling_cannot_use_group_type, 1) &&
+        check_source(outside_cannot_use_group_type, 1) &&
+        check_source(group_can_use_external_type, 0);
+}
+
 int main(int argc, char** argv) {
+    if (!check_group_type_scope_semantics()) {
+        fprintf(stderr, "Group-owned nominal type scope checks failed.\n");
+        return 1;
+    }
+
     if (!check_semantic_fail_closed_nodes()) {
         fprintf(stderr, "Semantic pending AST nodes were not rejected.\n");
         return 1;
