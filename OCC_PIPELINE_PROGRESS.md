@@ -998,3 +998,5 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - CI run `42416361727` (Parser change) ve `42416388202` (test change) tetiklendi; sonuçları henüz tamamlanmadan PASS olarak işaretlenmeyecek.
 - **Açık Group işleri:** default dispatch'in Semantic/OIR davranışı; `self` receiver binding; struct/group isim eşleştirmesi ve instance method çağrısı; `yeni` constructor; visibility/export (`pup`/`exp`) kapsamı; malformed nested/default testleri; Group span kapsamı ve AST Graph Validator bağlam kuralları.
 - Bu increment yalnızca Parser/AST biçim desteğidir; Group semantiği ve runtime dispatch tamamlanmış değildir.
+
+- Follow-up düzeltme: `1464fee3` C string terminator literal ve `error_at()` diagnostic argümanını düzeltti. CI run `42416476317` bu commit üzerinde çalışıyor (Ubuntu/macOS/Windows + ASan/UBSan + Valgrind); final sonuç bekleniyor.
