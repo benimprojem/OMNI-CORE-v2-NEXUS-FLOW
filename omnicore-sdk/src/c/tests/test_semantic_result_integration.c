@@ -161,6 +161,15 @@ static int test_group_semantic_records(void) {
     uint32_t i, group_relation_count = 0u;
     int saw_member = 0, saw_binding = 0;
     int saw_method = 0, saw_default = 0;
+    OirAstFrontendRequirements ast_requirements;
+    OirAstNodeRecord* ast_records = NULL;
+    uint8_t *ast_fields = NULL, *ast_strings = NULL;
+    uint8_t *ast_payload = NULL, *artifact = NULL;
+    uint32_t *incoming_counts = NULL, *owner_scope_by_node = NULL;
+    uint8_t* visited = NULL;
+    OirAstGraphStackEntry* graph_stack = NULL;
+    OirSemanticAstArtifactView artifact_view;
+    size_t ast_payload_written = 0u, artifact_written = 0u;
     int ok = 0;
 
     if (!parser) return 0;
@@ -228,6 +237,58 @@ static int test_group_semantic_records(void) {
             group_symbol_id, group_relation_count, saw_member, saw_binding,
             saw_method, saw_default);
     }
+
+    /* Serialize the real Group AST and validate the resulting schema 1.1 artifact. */
+    if (ok && oir_ast_frontend_measure((ASTNode*)parser->ast_root,
+            index, 256u, node_count, &ast_requirements) == OIR_STATUS_OK) {
+        ast_records = (OirAstNodeRecord*)calloc(node_count, sizeof(*ast_records));
+        ast_fields = (uint8_t*)malloc(ast_requirements.field_data_length ?
+            ast_requirements.field_data_length : 1u);
+        ast_strings = (uint8_t*)malloc(ast_requirements.string_table_length ?
+            ast_requirements.string_table_length : 1u);
+        ast_payload = (uint8_t*)malloc(ast_requirements.payload_size);
+        artifact = (uint8_t*)malloc(1024u * 1024u);
+        incoming_counts = (uint32_t*)calloc(node_count, sizeof(*incoming_counts));
+        visited = (uint8_t*)calloc(node_count, sizeof(*visited));
+        graph_stack = (OirAstGraphStackEntry*)calloc(node_count, sizeof(*graph_stack));
+        owner_scope_by_node = (uint32_t*)calloc(
+            (size_t)node_count + 1u, sizeof(*owner_scope_by_node));
+        if (!ast_records || !ast_fields || !ast_strings || !ast_payload ||
+            !artifact || !incoming_counts || !visited || !graph_stack ||
+            !owner_scope_by_node) {
+            ok = 0;
+        } else if (oir_ast_frontend_write_payload(
+                (ASTNode*)parser->ast_root, index, 256u, node_count,
+                ast_records, node_count, ast_fields,
+                ast_requirements.field_data_length, ast_strings,
+                ast_requirements.string_table_length, ast_payload,
+                ast_requirements.payload_size, &ast_payload_written,
+                &ast_requirements) != OIR_STATUS_OK ||
+            oir_semantic_ast_artifact_write(ast_payload, ast_payload_written,
+                &semantic.result, 77u, artifact, 1024u * 1024u,
+                &artifact_written) != OIR_STATUS_OK ||
+            oir_semantic_ast_artifact_open(artifact, artifact_written,
+                &artifact_view, incoming_counts, node_count, visited,
+                node_count, graph_stack, node_count, owner_scope_by_node,
+                (size_t)node_count + 1u) != OIR_STATUS_OK ||
+            artifact_view.envelope.header.payload_schema_minor != 1u ||
+            artifact_view.symbols.record_count != semantic.result.symbol_count ||
+            artifact_view.relations.record_count != 6u) {
+            ok = 0;
+        }
+    } else if (ok) {
+        ok = 0;
+    }
+
+    free(ast_records);
+    free(ast_fields);
+    free(ast_strings);
+    free(ast_payload);
+    free(artifact);
+    free(incoming_counts);
+    free(visited);
+    free(graph_stack);
+    free(owner_scope_by_node);
     semantic_destroy(&semantic);
     parser_destroy(parser);
     return ok;
