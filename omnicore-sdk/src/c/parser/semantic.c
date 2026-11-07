@@ -2090,7 +2090,17 @@ static void semantic_check_node(
                 }
             }
 
-            if (func->body) semantic_check(ctx, func->body);
+            /*
+             * The method receiver context applies to this implementation's
+             * signature only. Nested/local function declarations in the body
+             * must not accidentally inherit the outer method's implicit self.
+             */
+            {
+                uint8_t method_context_for_function = ctx->current_method_context;
+                ctx->current_method_context = 0u;
+                if (func->body) semantic_check(ctx, func->body);
+                ctx->current_method_context = method_context_for_function;
+            }
             exit_scope(ctx);
             ctx->current_func_return_type = prev_return_type;
             ctx->loop_depth = prev_loop_depth;
