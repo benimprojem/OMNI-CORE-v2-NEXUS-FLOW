@@ -3326,46 +3326,73 @@ static ASTNode* parse_newtype_decl(Parser* p) {
     }
 }
 
-static ASTNode* parse_group_decl(Parser* p) {
-    ASTGroupDecl* group = (ASTGroupDecl*)parser_ast_create(p, AST_GROUP_DECL);
+static ASTNode* parse_group_body(Parser* p, ASTGroupDecl* group) {
     ASTNode* head = NULL;
     ASTNode* tail = NULL;
-    if (!group) return NULL;
-    group->base.line = p->previous.line; group->base.col = p->previous.col;
-    if (match(p, TOKEN_IDENTIFIER)) {
-        Token t = p->previous;
-        group->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
-        if (!group->name) { ast_destroy((ASTNode*)group); return NULL; }
-        memcpy(group->name, t.start, (size_t)t.length); group->name[t.length] = '\0';
-    }
-    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
     while (!check(p, TOKEN_RBRACE) && !check(p, TOKEN_EOF)) {
         Token member_start = p->current;
         ASTNode* member = NULL;
-        if (p->current.type == TOKEN_IDENTIFIER && peek_token(p).type == TOKEN_FAT_ARROW) {
+
+        /* Nested group alias: child => group { ... } */
+        if (p->current.type == TOKEN_IDENTIFIER && peek_token(p).type == TOKEN_FAT_ARROW &&
+            peek_token_ahead(p, 2).type == TOKEN_KW_GROUP) {
+            Token alias = p->current;
+            ASTGroupDecl* child = (ASTGroupDecl*)parser_ast_create(p, AST_GROUP_DECL);
+            if (!child) { ast_destroy(head); return NULL; }
+            child->base.line = alias.line; child->base.col = alias.col;
+            child->name = (char*)parser_malloc(p, (size_t)alias.length + 1u);
+            if (!child->name) { ast_destroy((ASTNode*)child); ast_destroy(head); return NULL; }
+            memcpy(child->name, alias.start, (size_t)alias.length); child->name[alias.length] = '\0';
+            advance(p); advance(p); advance(p); /* alias => group */
+            if (!match(p, TOKEN_LBRACE)) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+                ast_destroy((ASTNode*)child); ast_destroy(head); return NULL;
+            }
+            (void)parse_group_body(p, child);
+            if (p->ctx->status == PARSER_STATUS_OUT_OF_MEMORY) { ast_destroy((ASTNode*)child); ast_destroy(head); return NULL; }
+            consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
+            member = (ASTNode*)child;
+        } else if (p->current.type == TOKEN_IDENTIFIER &&
+                   parser_identifier_is(&p->current, "default") &&
+                   peek_token(p).type == TOKEN_LBRACE) {
+            /* Default dispatch is represented as METHOD("default", BLOCK). */
+            ASTMethod* method = (ASTMethod*)parser_ast_create(p, AST_METHOD);
+            if (!method) { ast_destroy(head); return NULL; }
+            method->base.line = p->current.line; method->base.col = p->current.col;
+            method->public_name = parser_strdup(p, "default");
+            advance(p); advance(p); /* default { */
+            method->implementation = parse_block(p);
+            if (!method->public_name || !method->implementation) {
+                ast_destroy((ASTNode*)method); ast_destroy(head); return NULL;
+            }
+            member = (ASTNode*)method;
+        } else if (p->current.type == TOKEN_IDENTIFIER && peek_token(p).type == TOKEN_FAT_ARROW) {
             ASTMethod* method = (ASTMethod*)parser_ast_create(p, AST_METHOD);
             Token mt = p->current;
-            if (!method) { ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+            if (!method) { ast_destroy(head); return NULL; }
             method->base.line = mt.line; method->base.col = mt.col;
             method->public_name = (char*)parser_malloc(p, (size_t)mt.length + 1u);
-            if (!method->public_name) { ast_destroy((ASTNode*)method); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
-            memcpy(method->public_name, mt.start, (size_t)mt.length); method->public_name[mt.length] = '\0';
+            if (!method->public_name) { ast_destroy((ASTNode*)method); ast_destroy(head); return NULL; }
+            memcpy(method->public_name, mt.start, (size_t)mt.length); method->public_name[mt.length] = ' ';
             advance(p); advance(p);
             if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) {
                 Token implementation_start = p->previous;
                 method->implementation = parse_func_decl(p);
-                if (!method->implementation) { ast_destroy((ASTNode*)method); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
-                parser_stamp_node_tokens(p, method->implementation,
-                    &implementation_start, &p->previous);
-            } else { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expected function after '=>'"); ast_destroy((ASTNode*)method); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+                if (!method->implementation) { ast_destroy((ASTNode*)method); ast_destroy(head); return NULL; }
+                parser_stamp_node_tokens(p, method->implementation, &implementation_start, &p->previous);
+            } else {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expected function after '=>'");
+                ast_destroy((ASTNode*)method); ast_destroy(head); return NULL;
+            }
             member = (ASTNode*)method;
-            if (match(p, TOKEN_SEMICOLON)) {}
+            (void)match(p, TOKEN_SEMICOLON);
         }
+
         if (!member) {
             if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) member = parse_struct_decl(p, 0, NULL);
             else if (match(p, TOKEN_NOT)) {
                 if (match(p, TOKEN_KW_STRUCT) || match(p, TOKEN_PRE_STRUCT)) member = parse_struct_decl(p, 1, NULL);
-                else { error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN, msg_get(MSG_EXPECT_TYPE_BANG)); ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+                else { error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN, msg_get(MSG_EXPECT_TYPE_BANG)); ast_destroy(head); return NULL; }
             } else if (match(p, TOKEN_KW_ENUM) || match(p, TOKEN_PRE_ENUM)) member = parse_enum_decl(p, NULL);
             else if (match(p, TOKEN_KW_UNION) || match(p, TOKEN_PRE_UNION)) member = parse_union_decl(p, NULL);
             else if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
@@ -3373,24 +3400,40 @@ static ASTNode* parse_group_decl(Parser* p) {
                 if (member) consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
             } else if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) member = parse_func_decl(p);
             else {
-                if (p->current.type != TOKEN_ERROR) {
-                    error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
-                        msg_get(ERR_PARSER_UNEXPECTED_TOKEN));
-                }
+                if (p->current.type != TOKEN_ERROR)
+                    error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN, msg_get(ERR_PARSER_UNEXPECTED_TOKEN));
                 advance(p);
                 continue;
             }
         }
-        if (!member) { ast_destroy(head); ast_destroy((ASTNode*)group); return NULL; }
+        if (!member) { ast_destroy(head); return NULL; }
         parser_stamp_node_tokens(p, member, &member_start, &p->previous);
         if (!head) head = member; else tail->next = member;
         tail = member;
     }
-    consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
     group->members = head;
     return (ASTNode*)group;
 }
 
+static ASTNode* parse_group_decl(Parser* p) {
+    ASTGroupDecl* group = (ASTGroupDecl*)parser_ast_create(p, AST_GROUP_DECL);
+    if (!group) return NULL;
+    group->base.line = p->previous.line; group->base.col = p->previous.col;
+    if (match(p, TOKEN_IDENTIFIER)) {
+        Token t = p->previous;
+        group->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
+        if (!group->name) { ast_destroy((ASTNode*)group); return NULL; }
+        memcpy(group->name, t.start, (size_t)t.length); group->name[t.length] = ' ';
+    }
+    if (!match(p, TOKEN_LBRACE)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+        ast_destroy((ASTNode*)group); return NULL;
+    }
+    (void)parse_group_body(p, group);
+    if (p->ctx->status == PARSER_STATUS_OUT_OF_MEMORY) { ast_destroy((ASTNode*)group); return NULL; }
+    consume(p, TOKEN_RBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_RBRACE_BLOCK);
+    return (ASTNode*)group;
+}
 static ASTNode* parse_if_branch(Parser* p) {
     if (match(p, TOKEN_LBRACE)) return parse_block(p);
     return parse_statement(p);
