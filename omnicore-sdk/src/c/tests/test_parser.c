@@ -3730,7 +3730,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (invalid) parser_destroy(invalid);
         if (!valid) {
-            fprintf(stderr, "Lambda expression/block AST contract test failed.\\n");
+            fprintf(stderr, "Lambda expression/block AST contract test failed.\n");
             return 1;
         }
     }
