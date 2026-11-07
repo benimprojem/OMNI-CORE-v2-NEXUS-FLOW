@@ -169,9 +169,11 @@ static int test_group_semantic_records(void) {
     ASTFuncDecl* store_implementation = NULL;
     ASTCall* store_call = NULL;
     uint32_t self_node_id = 0u, self_symbol_id = 0u, bound_type_id = 0u;
-    uint32_t store_node_id = 0u, store_symbol_id = 0u;
+    uint32_t store_node_id = 0u, store_callee_node_id = 0u;
+    uint32_t store_symbol_id = 0u;
     int saw_receiver_annotation = 0, saw_receiver_parameter_relation = 0;
-    int saw_store_call_target = 0;
+    int saw_store_call_target = 0, saw_store_callee_target = 0;
+    int saw_store_method_relation = 0;
     OirAstFrontendRequirements ast_requirements;
     OirAstNodeRecord* ast_records = NULL;
     uint8_t *ast_fields = NULL, *ast_strings = NULL;
@@ -262,6 +264,8 @@ static int test_group_semantic_records(void) {
     }
     self_node_id = resolve_node_id(&resolver, (ASTNode*)self_parameter);
     store_node_id = resolve_node_id(&resolver, (ASTNode*)store_call);
+    store_callee_node_id = resolve_node_id(
+        &resolver, store_call ? store_call->callee : NULL);
     semantic_init(&semantic, "group-semantic-result.nxf", NULL);
     semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
@@ -367,18 +371,34 @@ static int test_group_semantic_records(void) {
             store_symbol_id != 0u) {
             saw_store_call_target = 1;
         }
+        if (annotation->node_id == store_callee_node_id &&
+            annotation->resolved_symbol_id == store_symbol_id &&
+            store_symbol_id != 0u) {
+            saw_store_callee_target = 1;
+        }
+    }
+    for (i = 0u; i < semantic.result.relation_count; ++i) {
+        const SemanticResultRelation* relation = &semantic.result.relations[i];
+        if (relation->kind ==
+                SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION &&
+            relation->related_symbol_id == store_symbol_id &&
+            relation->name && strcmp(relation->name, "store_value") == 0) {
+            saw_store_method_relation = 1;
+        }
     }
     ok = group_symbol_id != 0u && group_relation_count == 8u &&
         saw_member && saw_binding && saw_method && saw_default &&
         self_symbol_id != 0u && saw_receiver_annotation &&
-        saw_receiver_parameter_relation && saw_store_call_target;
+        saw_receiver_parameter_relation && saw_store_call_target &&
+        saw_store_callee_target && saw_store_method_relation;
     if (!ok) {
         fprintf(stderr,
-            "Group SemanticResult mismatch: symbol=%u relations=%u member=%d binding=%d method=%d default=%d receiver_symbol=%u receiver_type=%u receiver_annotation=%d receiver_relation=%d store_symbol=%u store_target=%d\n",
+            "Group SemanticResult mismatch: symbol=%u relations=%u member=%d binding=%d method=%d default=%d receiver_symbol=%u receiver_type=%u receiver_annotation=%d receiver_relation=%d store_symbol=%u store_target=%d callee_target=%d alias_relation=%d\n",
             group_symbol_id, group_relation_count, saw_member, saw_binding,
             saw_method, saw_default, self_symbol_id, bound_type_id,
             saw_receiver_annotation, saw_receiver_parameter_relation,
-            store_symbol_id, saw_store_call_target);
+            store_symbol_id, saw_store_call_target, saw_store_callee_target,
+            saw_store_method_relation);
     }
 
     /* Serialize the real Group AST and validate the resulting schema 1.1 artifact. */
