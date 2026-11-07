@@ -218,3 +218,12 @@ These tags must not be counted as active syntax support merely because they exis
 | Shift vs Flow | `<<`/ `>>` are Flow tokens | Define a non-ambiguous numeric shift form; do not infer from operand shapes |
 | Directive / macro / DLL export | Core Parser does not consume prefix target directives, macros or `dllexp:` | Separate Preprocessor/Target/Build grammar and metadata contract |
 | Source spans / AST lifecycle | Several targeted tests exist | Complete per-production exact spans, factory/destructor/codec/validator parity and AST allocation-failure injection |
+
+
+## 2026-11-07 — Named Thread Block syntax
+
+- Normative syntax: `(name)>{ ... }`; `>{` is the dedicated thread-block opener token.
+- Parser creates `AST_THREAD_BLOCK` with the name and body. `mode` and `timeout` are currently NULL/reserved fields; no syntax is defined for them.
+- The block defines a named work body; it does not start a thread.
+- `spawn(...)` remains outside core Parser syntax and belongs to the separate Thread module. The existing negative fixture rejects `spawn(worker)`.
+- Existing `test_thread_block_ast` and exact source-span fixture cover the parser/AST/codec path; latest CI workflow `42411223520` passed all five jobs.
