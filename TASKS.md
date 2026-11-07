@@ -528,3 +528,15 @@ This is a planned end-state requirement, not part of the current Semantic DLL mi
 - [ ] Keep `<<`/`>>` numeric shift vs Flow grammar discriminator open; do not introduce heuristic parsing.
 
 Resume on `refactor/c-core-roadmap`; `main` remains untouched. AST/parser closure remains the immediate priority; Semantic → OIR → Verifier follow after AST gate, and Codegen remains last.
+
+
+## 2026-11-07 — Intrinsic AST audit checkpoint
+
+- [x] Expand generic intrinsic token → AST mapping coverage from 9 to 32 cases.
+- [x] For all 32 cases, verify expected AST tag, source-location presence, graph validity, AST binary round-trip and decoded graph validity.
+- [x] Preserve separate tests for `echo` / `listen` and special payload tests for `cast` / `panic`.
+- [x] Document current mapping in `docs/AST_PARSER_PRODUCTION_MATRIX.md`.
+- [x] CI run `42401080171` / commit `237597ca5a64`: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind all passed; Ubuntu and Valgrind each report 60/60.
+- [ ] Continue intrinsic signature grammar and invalid-argument-form tests; AST Parser acceptance alone does not prove Semantic signature correctness.
+- [ ] Source-span audit: specify and test exact start/end offsets for all source-bearing productions (current intrinsic tests assert location presence, not exact endpoints).
+- [ ] Continue contextual codec negative cases, especially named argument ownership/order/duplicate constraints.
