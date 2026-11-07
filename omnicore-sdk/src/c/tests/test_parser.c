@@ -2056,7 +2056,7 @@ static int test_must_scope_rejected(void) {
 
 static int test_canonical_loop_and_jump_call_forms(void) {
     static const char source[] =
-        "f:main() { loop { break; } jump(done); done:> { ret 0; } }";
+        "f:main() { loop { break; } jump(finish); finish:> { ret 0; } }";
     ParserContext* parser = parser_init_source(
         "canonical-loop-jump.nxf", (const uint8_t*)source, sizeof(source) - 1u);
     ASTNode* function = NULL;
@@ -2094,9 +2094,9 @@ static int test_canonical_loop_and_jump_call_forms(void) {
             ((ASTBlock*)((ASTLoop*)loop_node)->body)->statements->type == AST_BREAK &&
             jump_node && jump_node->type == AST_NEXUS_JUMP &&
             ((ASTNexusJump*)jump_node)->label_name &&
-            strcmp(((ASTNexusJump*)jump_node)->label_name, "done") == 0 &&
+            strcmp(((ASTNexusJump*)jump_node)->label_name, "finish") == 0 &&
             label_node && label_node->type == AST_NEXUS_LABEL &&
-            strcmp(((ASTNexusLabel*)label_node)->label_name, "done") == 0 &&
+            strcmp(((ASTNexusLabel*)label_node)->label_name, "finish") == 0 &&
             ast_status == 0;
 
         if (valid) {
