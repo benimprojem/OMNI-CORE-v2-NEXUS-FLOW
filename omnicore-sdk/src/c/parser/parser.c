@@ -1345,7 +1345,7 @@ static ASTNode* parse_use(Parser* p) {
                 size_t segment_length;
                 if (!match(p, TOKEN_IDENTIFIER)) {
                     error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
-                        "Expected an identifier after '.' in module path.");
+                        msg_get(MSG_EXPECT_MODULE_NAME));
                     free(module_name);
                     ast_destroy((ASTNode*)use);
                     ast_destroy((ASTNode*)head);
@@ -3982,7 +3982,7 @@ static ASTNode* parse_statement(Parser* p) {
         consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC);
         if (!match(p, TOKEN_IDENTIFIER)) {
             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
-                "Expected a label identifier inside jump(...).");
+                msg_get(MSG_EXPECT_FUNC_NAME));
             return NULL;
         }
         target = p->previous;
