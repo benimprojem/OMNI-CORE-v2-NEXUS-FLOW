@@ -99,7 +99,7 @@ static int test_unterminated_asm_body(void) {
 
 int main(void) {
     if (!test_opaque_asm_body_token() || !test_unterminated_asm_body()) return 1;
-    const char* source = "v:x = 12;\n@ !!= -> ?-> ?=> !-> << >> ...> name asm fastexec break echo send receive f32 f64 bool bit byte hex void any is_err true false";
+    const char* source = "v:x = 12;\n@ !!= -> ?-> ?=> !-> << >> ...> name asm fastexec break echo send receive f32 f64 bool bit byte hex void any is_err true false null";
     const OmniTokenType expected[] = {
         TOKEN_PRE_VAR, TOKEN_ASSIGN, TOKEN_NUMBER, TOKEN_SEMICOLON,
         TOKEN_INTENT, TOKEN_FORCE_ASSIGN, TOKEN_PIPE,
