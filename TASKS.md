@@ -540,3 +540,12 @@ Resume on `refactor/c-core-roadmap`; `main` remains untouched. AST/parser closur
 - [ ] Continue intrinsic signature grammar and invalid-argument-form tests; AST Parser acceptance alone does not prove Semantic signature correctness.
 - [ ] Source-span audit: specify and test exact start/end offsets for all source-bearing productions (current intrinsic tests assert location presence, not exact endpoints).
 - [ ] Continue contextual codec negative cases, especially named argument ownership/order/duplicate constraints.
+
+
+## 2026-11-07 — Source-span fixes
+
+- [x] Add full source span to packed `!struct` declarations.
+- [x] Add full source span to `!(listen)` handlers; align AST line/column to the opening `!`.
+- [x] Assert exact byte offsets and start location in Parser tests.
+- [x] CI run `42401418322` / commit `ac13f7056143`: all five jobs passed; Ubuntu and Valgrind each report 60/60 tests.
+- [ ] Continue production-by-production source-span audit, including child-composed spans and nested/synthesized nodes; only fix confirmed gaps.
