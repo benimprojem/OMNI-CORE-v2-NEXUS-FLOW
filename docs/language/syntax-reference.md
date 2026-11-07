@@ -54,7 +54,7 @@ Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY
 | `**` | **P2P** | Pointer to Pointer. |
 | `&`  | **Ref** | Bellek referansı. |
 
-> Pointer/reference türleri tasarım envanterinde yer alır; ancak `*T`, `**T` ve `&T` için function parameter, variable ve return-type grameri henüz tamamlanmış değildir. Bu yazımlar mevcut Parser'da destekleniyor kabul edilmemelidir.
+> Pointer/reference türleri `*T`, `**T` ve `&T` biçimlerinde Parser tarafından local variable, function parameter, return type ve `nt:` hedef tipi bağlamlarında kabul edilir. AST bunları mevcut type-name string alanlarında korur. Pointer validity, mutability, nullability, aliasing ve borrow/lifetime kuralları Semantic aşamasında tanımlanacaktır.
 ---
 
 ###  2.2 Tipler **
@@ -928,15 +928,32 @@ db  # default çalıştır.
 * **Main** | `f:main(argc, argv)!i32 { ... }` |
   
 **Process CLI argument contract (normative):** The entry function's `argc` is the number of command-line arguments excluding the executable path; `argv` is a dynamic one-dimensional `str[]` in the same order, also excluding executable path. `argc == len(argv)`; empty invocation gives 0 and an empty array; no NULL sentinel. Runtime creates both before calling `main`; AST treats them as ordinary parameters. Runtime boundary strings are UTF-8. Windows/POSIX adapters normalize platform command-line behavior; bare-metal may supply an injected vector or empty values. Semantic validation and runtime adapters are not yet implemented. 
-* **Tanımlama:** | `f:fonksiyon_adi(params)!i32, !str { ... }` | `fonksiyon_adi(params) { ... }`
+* **Tanımlama:** | `f:fonksiyon_adi(params)!i32 { ... }` | `fonksiyon_adi(params) { ... }`
 * **Tanımlama:** | `f:fonksiyon_adi(a, ...)!i32[] { ... }` | `fonksiyon_adi(a, ...) { ... }` 
-* **Zorlama:** | `f:topla(a!i32, b!i32)i32 { ... }` |  `topla(a, b) { ... }`
-* **İsimli Parametreler:** | `f:topla(a:10, b:20)i32 { ... }` | `topla(a:10, b:20) { ... }` 
-* **Lamda:** | `f:(a, b)> a*b;` | `v:kare = f:(a, b)> a*b;`
+* **Zorlama:** | `f:topla(a!i32, b!i32)!i32 { ... }` |  `topla(a, b) { ... }`
+* **Varsayılan Parametreler:** | `f:topla(a:10, b:20)!i32 { ... }` | `topla(a:10, b:20) { ... }` 
+* **Lambda:** | `f:(a, b) > a*b;` | `v:kare = f:(a, b) > a*b;`
 * **Anonim:** | `f:(a, b){...}` | `open => f:(a, b){...}` Group içinde
 * **Extern Tanımlama:** | `exf:fonksiyon_adi(a!i32, ...)!i64 { ... }` | `fonksiyon_adi(a, ...) { ... }`
 * **Generic:** | Generic type-parameter grameri henüz normatif değil | Mevcut Parser generic parameter listesi desteklemez 
 ---
+
+**Parametre ayrımı:** Fonksiyon bildirimindeki `a:10` bir varsayılan parametre değeridir. Çağrıdaki `topla(a:10, b:20)` ise isimli argümanlardır. Bunlar aynı token biçimini kullansa da farklı Parser bağlamlarında farklı AST düğümleri üretir. Fonksiyonlar şu an tek bir dönüş tipi taşır; çoklu dönüş tipi grameri tanımlı değildir.
+
+**Pointer/reference örnekleri:**
+
+```nexus
+nt:BytePtr = *u8;
+v:buffer!*u8;
+f:read(buffer:*u8, size!u32)!*u8 {
+    ret buffer;
+}
+f:inspect(value:&Point)!bool {
+    ret true;
+}
+```
+
+Parser pointer/reference yazımlarını type-name string alanlarında korur. Bu, syntax/AST taşımasını sağlar; güvenli dereference, mutable borrow, lifetime ve ownership doğrulaması anlamına gelmez.
 
 ### İfade gövdeli anonim fonksiyonlar
 
