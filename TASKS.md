@@ -557,3 +557,9 @@ Resume on `refactor/c-core-roadmap`; `main` remains untouched. AST/parser closur
 - [x] Assert full `AST_DEFER` statement span.
 - [x] CI run `42401799340` / commit `41372b18b594`: all five jobs passed; Ubuntu and Valgrind each report 60/60.
 - [ ] Continue source-span policy audit for synthesized expression-bodied function nodes and remaining statement/operator productions.
+
+
+## 2026-11-07 — Parser/spec reconciliation
+
+- [ ] Review the undocumented named-function form `f:name(params) > expression` accepted by `parse_func_decl()`; decide whether it is a legacy compatibility form or should be rejected. Do not change grammar until existing examples and compatibility are checked.
+- [ ] Decide source-span policy for its synthetic `AST_BLOCK` / `AST_RETURN` nodes (no source location vs expression-derived span) and add a focused fixture after the policy is established.
