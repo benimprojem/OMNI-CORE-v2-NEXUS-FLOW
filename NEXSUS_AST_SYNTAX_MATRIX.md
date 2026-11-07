@@ -458,3 +458,11 @@ The language comparison and prioritized gap inventory is maintained in `docs/lan
 - Existing type-name string fields preserve the complete spelling; no new AST node kind or OIR ID was introduced.
 - `test_pointer_reference_type_declarators` checks all four contexts and AST codec round-trip. CI pending.
 - Syntax support does not imply pointer safety, borrow checking, mutability, nullability or lifetime semantics.
+
+
+### Function type / callback syntax audit — 2026-11-07
+
+- Parser accepts `f:(name!Type, ...)>!ReturnType` in NewType target, variable, parameter and return-type contexts.
+- AST preserves the normalized complete signature in the existing owned type-name string field. Lambda expressions remain separate `AST_LAMBDA` nodes.
+- `test_function_type_alias_and_callback_parameter` covers valid aliases/parameters, invocation syntax, AST validation, codec round-trip and malformed signature rejection. CI pending.
+- A dedicated function-type AST node, callback compatibility/type checking, closure capture and function-pointer ABI remain open.
