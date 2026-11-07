@@ -466,3 +466,10 @@ The language comparison and prioritized gap inventory is maintained in `docs/lan
 - AST preserves the normalized complete signature in the existing owned type-name string field. Lambda expressions remain separate `AST_LAMBDA` nodes.
 - `test_function_type_alias_and_callback_parameter` covers valid aliases/parameters, invocation syntax, AST validation, codec round-trip and malformed signature rejection. CI pending.
 - A dedicated function-type AST node, callback compatibility/type checking, closure capture and function-pointer ABI remain open.
+
+
+### AST tag-to-Parser audit — 2026-11-07
+
+- Active `ASTNodeType` enum count: 105 (append-only IDs).
+- Intentionally not emitted by the core Parser: `AST_SPAWN` (legacy; Thread module owns spawn), `AST_ASM_BLOCK` (legacy; current syntax uses FASTEXEC/ASM_LABEL), and `AST_ZONE_SYNC/VIEW/LOCK` (reserved; member-call syntax currently produces generic call nodes).
+- These are reserved/legacy tags, not missing Parser productions to be filled blindly. Keep their IDs and serialization compatibility.
