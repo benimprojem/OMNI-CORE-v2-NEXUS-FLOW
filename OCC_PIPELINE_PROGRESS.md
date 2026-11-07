@@ -914,3 +914,13 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added `test_dotted_module_use_path` with AST graph validation and AST stream round-trip.
 - Commits: Parser `4738207c`; Parser test `9d1d5f7d`.
 - CI pending. Module file resolution and path security remain outside Parser/AST.
+
+
+## 2026-11-07 — Pointer/reference syntax production
+
+- Added Parser type-name handling for `*T`, `**T` and `&T` across local variables, function parameters, function return types and `nt:` target types.
+- AST preserves the exact normalized type spelling in existing owned type-name strings; AST node IDs and OIR node IDs remain unchanged.
+- Added `test_pointer_reference_type_declarators` for all declaration contexts, graph validation and AST stream round-trip.
+- Updated the normative syntax reference and both Parser/AST matrices. Semantic pointer validity, borrow/lifetime, nullability and ownership remain open.
+- Commits: Parser `0b87bd7b`; test `df9ef675`; syntax `5f430749`.
+- CI pending.
