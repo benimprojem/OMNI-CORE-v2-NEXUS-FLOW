@@ -184,6 +184,35 @@ static int scope_is_ancestor(
     return 0;
 }
 
+static int group_relation_exposes_symbol(
+    const SemanticResult* result,
+    uint32_t annotation_scope_id,
+    uint32_t target_symbol_id
+) {
+    uint32_t group_index;
+    if (!result || target_symbol_id == 0u) return 0;
+    for (group_index = 0u; group_index < result->symbol_count; ++group_index) {
+        const SemanticResultSymbol* group = &result->symbols[group_index];
+        uint32_t relation_index;
+        if (group->kind != SEMANTIC_RESULT_SYMBOL_GROUP ||
+            !scope_is_ancestor(result, group->scope_id, annotation_scope_id))
+            continue;
+        for (relation_index = 0u;
+             relation_index < result->relation_count; ++relation_index) {
+            const SemanticResultRelation* relation =
+                &result->relations[relation_index];
+            if (relation->owner_symbol_id == group->symbol_id &&
+                relation->related_symbol_id == target_symbol_id &&
+                (relation->kind == SEMANTIC_RESULT_RELATION_GROUP_MEMBER ||
+                 relation->kind == SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING ||
+                 relation->kind == SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION)) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 static int compare_u32(const void* left, const void* right) {
     uint32_t a = *(const uint32_t*)left;
     uint32_t b = *(const uint32_t*)right;
@@ -772,7 +801,10 @@ SemanticResultStatus semantic_result_finalize(
             const SemanticResultSymbol* symbol =
                 &result->symbols[annotation->resolved_symbol_id - 1u];
             if (!scope_is_ancestor(
-                    result, symbol->scope_id, annotation->scope_id)) {
+                    result, symbol->scope_id, annotation->scope_id) &&
+                !group_relation_exposes_symbol(
+                    result, annotation->scope_id,
+                    annotation->resolved_symbol_id)) {
                 return SEMANTIC_RESULT_INVALID_DATA;
             }
         }
