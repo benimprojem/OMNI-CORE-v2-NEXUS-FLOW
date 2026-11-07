@@ -155,3 +155,14 @@ The earlier decision that `!map` was the only canonical spelling and that all pa
 - The `AST_SPAWN` enum tag and codec branches remain to preserve legacy serialized artifacts and stable node identity. They are not permission for the core Parser to construct new spawn nodes.
 - Regression `test_spawn_is_outside_core_parser()` verifies the syntax error and Thread-module diagnostic through `OccDiagnosticCollector`.
 - CI run `42014920664` / commit `4be14f14939c`: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind passed.
+
+
+## 2026-11-07 syntax audit reconciliation
+
+- Pointer/reference declarators `*T`, `**T`, `&T` now parse in variable, parameter, return and NewType contexts. Current AST preserves spelling in existing type-name strings; unified type descriptor and Semantic lifetime/ownership rules remain open.
+- Callback signature `f:(name!T)>!R` now parses in type contexts and is preserved as a normalized type-name string. A dedicated `AST_FUNCTION_TYPE` node and Semantic callback compatibility/ABI rules remain open.
+- Generic function type parameters remain unsupported; proposed syntax is `f:sum<T>(a!T,b!T)!T`. Do not store generic parameters inside the function name string; design an append-only AST payload and codec/OIR mapping.
+- `null` is now a dedicated token and `AST_LITERAL` spelling. It is intended as a null-pointer sentinel; Semantic must reject it for non-nullable reference/value targets. `none` and Option/Result remain undefined.
+- Numeric Lexer/Parser supports decimal, `0x`, `0b`, `0o`, scientific exponent and underscore separators. Numeric suffixes remain unsupported; Semantic conversion/overflow/precision remains open.
+- Syntax forms now aligned with Parser: `loop { ... }`, `jump(label);`, dotted `use` paths, `ret` keyword examples and radix/scientific literals.
+- Latest CI checkpoint: workflow `42411223520`, all 5 jobs passed, 60/60 CTest.
