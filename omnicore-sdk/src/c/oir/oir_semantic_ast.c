@@ -1640,6 +1640,7 @@ OirStatus oir_semantic_ast_validate_references(
     for (i = 0u; i < relations.record_count; ++i) {
         OirSemanticRelation relation;
         OirSemanticSymbol owner;
+        const uint8_t* owner_name = NULL;
         uint16_t related_kind;
         const uint8_t* relation_name = NULL;
         uint64_t relation_index_1based = (uint64_t)i + 1u;
@@ -1653,7 +1654,7 @@ OirStatus oir_semantic_ast_validate_references(
             return OIR_STATUS_INVALID_SECTION;
         }
         status = oir_semantic_symbols_get(
-            &symbols, relation.owner_symbol_id - 1u, &owner, NULL);
+            &symbols, relation.owner_symbol_id - 1u, &owner, &owner_name);
         if (status != OIR_STATUS_OK ||
             owner.relation_count == 0u ||
             relation_index_1based < owner.first_relation ||
@@ -1695,12 +1696,21 @@ OirStatus oir_semantic_ast_validate_references(
         }
         if (relation.related_symbol_id != 0u) {
             OirSemanticSymbol related;
+            const uint8_t* related_name = NULL;
             status = oir_semantic_symbols_get(
-                &symbols, relation.related_symbol_id - 1u, &related, NULL);
+                &symbols, relation.related_symbol_id - 1u, &related,
+                &related_name);
             if (status != OIR_STATUS_OK ||
                 related.declaration_node_id != relation.related_node_id ||
                 (relation.kind == OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING &&
-                    related.type_id != relation.type_id)) {
+                    (related.type_id != relation.type_id || !owner_name ||
+                     !related_name || owner.name_length != relation.name_length ||
+                     related.name_length != relation.name_length ||
+                     memcmp(owner_name, relation_name, relation.name_length) != 0 ||
+                     memcmp(related_name, relation_name, relation.name_length) != 0)) ||
+                (relation.kind == OIR_SEMANTIC_RELATION_GROUP_MEMBER &&
+                    (!related_name || related.name_length != relation.name_length ||
+                     memcmp(related_name, relation_name, relation.name_length) != 0))) {
                 return OIR_STATUS_INVALID_SECTION;
             }
         }
