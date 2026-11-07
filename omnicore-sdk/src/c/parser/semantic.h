@@ -64,6 +64,10 @@ typedef struct {
     SemanticResultStatus result_status;
     uint32_t current_scope_id;
     const ASTNode* current_group_owner; /* Active lexical Group; NULL outside a Group. */
+    const char* current_method_receiver_type;
+    uint32_t current_method_receiver_type_id;
+    uint8_t current_method_context;
+    uint8_t current_method_is_object;
     SemanticNodeIdResolver node_id_resolver;
     void* node_id_context;
     uint8_t result_enabled;
