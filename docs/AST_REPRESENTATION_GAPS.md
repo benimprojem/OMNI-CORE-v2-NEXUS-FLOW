@@ -166,3 +166,12 @@ The earlier decision that `!map` was the only canonical spelling and that all pa
 - Numeric Lexer/Parser supports decimal, `0x`, `0b`, `0o`, scientific exponent and underscore separators. Numeric suffixes remain unsupported; Semantic conversion/overflow/precision remains open.
 - Syntax forms now aligned with Parser: `loop { ... }`, `jump(label);`, dotted `use` paths, `ret` keyword examples and radix/scientific literals.
 - Latest CI checkpoint: workflow `42411223520`, all 5 jobs passed, 60/60 CTest.
+
+
+## Thread block boundary — 2026-11-07
+
+- Core Parser syntax is `(name)>{ ... }`, producing `AST_THREAD_BLOCK`.
+- The node currently carries `name` and `body`; `mode` and `timeout` remain NULL/reserved.
+- This node is a named work body, not a thread-start instruction.
+- `spawn(worker)` remains rejected by core Parser and belongs to the separate Thread module.
+- Runtime scheduling, spawn/start/join, cancellation, timeout, capture ownership/lifetime, error propagation and memory ordering remain undefined.
