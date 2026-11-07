@@ -71,13 +71,13 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–105 kayıtlı OIR düğ
 | 2 | `AST_BLOCK` | ~ | ~ | ? | ? | ~ |
 | 3 | `AST_VAR_DECL` | ~ | ~ | ~ | ~ | ~ |
 | 4 | `AST_FUNC_DECL` | ~ | ~ | ~ | ~ | ~ |
-| 5 | `AST_STRUCT_DECL` | ? | ~ | ? | ? | ? |
-| 6 | `AST_ENUM_DECL` | ? | ~ | ? | ? | ? |
-| 7 | `AST_UNION_DECL` | ? | ~ | ? | ? | ? |
+| 5 | `AST_STRUCT_DECL` | ~ | ~ | ~ | ? | ~ |
+| 6 | `AST_ENUM_DECL` | ~ | ~ | ~ | ? | ~ |
+| 7 | `AST_UNION_DECL` | ~ | ~ | ~ | ? | ~ |
 | 8 | `AST_NEWTYPE_DECL` | ? | ~ | ? | ? | ? |
 | 9 | `AST_ENUM_VARIANT` | ? | ~ | ? | ? | ? |
-| 10 | `AST_GROUP_DECL` | ? | ~ | ? | ? | ? |
-| 11 | `AST_METHOD` | ? | ~ | ? | ? | ? |
+| 10 | `AST_GROUP_DECL` | ~ | ~ | ~ | ? | ~ |
+| 11 | `AST_METHOD` | ~ | ~ | ~ | ? | ~ |
 | 12 | `AST_EXTERN_DECL` | ~ | ✓ | ~ | ? | ~ |
 | 13 | `AST_LITERAL` | ~ | ✓ | ~ | ~ | ~ |
 | 14 | `AST_IDENTIFIER` | ~ | ✓ | ~ | ~ | ~ |
@@ -1008,11 +1008,12 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 
 | Özellik | Parser / AST | Semantic | Module/OIR | Durum |
 |---|---|---|---|---|
-| Named Group + üyeler | ~ | ? | ? | Parser AST üretimi ve codec mevcut; kapsam/üyelik çözümleme açık |
-| Nested Group alias | ~ | ? | ? | Parser eklendi; negatif/nested hata testleri ve Semantic çözümleme açık |
+| Named Group + üyeler | ~ | ~ | ? | Parser AST üretimi ve codec mevcut; Group type scope için ilk Semantic sahiplik denetimi eklendi; tam üyelik çözümleme açık |
+| Nested Group alias | ~ | ~ | ? | Parser eklendi; üst Group özel tür izolasyonu için Semantic denetimi/testleri eklendi; negatif/nested hata testleri çalıştırılmalı |
 | Group default | ~ | ? | ? | AST_METHOD("default", BLOCK) temsili; dispatch/default resolution yok |
 | Group method | ~ | ? | ? | AST_METHOD üretimi; callable symbol ve signature checks açık |
-| Struct–Group eşleşmesi | ? | ? | ? | İsim/ilişki kuralı formal spec'te; semantic doğrulama yok |
+| Group-owned Struct / Enum / Union scope | ~ | ~ | ? | Group owner AST kimliği Slot üzerinde tutuluyor; nested Group tür izolasyonu ve dış tür görünürlüğü için testler eklendi, çalıştırma bekliyor |
+| Struct–Group eşleşmesi | ? | ? | ? | İsim/ilişki kuralı formal spec'te; binding doğrulaması açık |
 | self receiver | ? | ? | ? | İlk parametre receiver sözleşmesi; binding/type/member checks açık |
 | Constructor (yeni) | ? | ? | ? | Constructor semantiği ve instance initialization açık |
 | Group namespace member access | ~ | ? | ? | AST_MEMBER_ACCESS parse edilir; Group path çözümleme yok |
@@ -1023,3 +1024,11 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 **Normatif tasarım kaydı:** Group Formal Specification §8, Group'un Namespace Group ve Object Group rollerini; pup/exp, m:/use, member resolution, Module Resolver ve Library ABI sınırını tanımlar. Bu belge tasarım kararıdır, uygulama tamamlanma kanıtı değildir.
 
 **CI notu:** macOS Clang, parser.c içinde consume() fonksiyonuna message string yerine integer message ID verilmesi hatasını yakaladı. c6859c49 bu beş çağrıyı MSG_EXPECT_LBRACE_FUNC sabitine düzeltti; yeni CI run 42417366333 devam ediyor. Windows, Ubuntu, ASan/UBSan ve Valgrind önceki run'da geçti; macOS düzeltme commit'i için tekrar doğrulanacak.
+
+## 2026-11-08 — Group-owned nominal type scope
+
+- `nexus docs/Group Metodu — Formal Specification.md` §5 ve yeni §9 güncellendi: Group içinde bildirilen Struct/Enum/Union türlerinin yalnızca kendi Group fonksiyon/metotlarında görünmesi; nested, sibling ve dış kapsam izolasyonu; Group dışı türlerin normal lexical görünürlüğü normatifleştirildi.
+- Semantic `Slot` kayıtlarına non-owning `group_owner` AST kimliği, `SemanticContext`'e aktif Group sahibi eklendi. Nominal tür çözümlemesi, sembol adı yanında aktif Group kimliğini de denetliyor. Nested Group üst Group'un özel türlerini devralmıyor; Group dışı türler görünürlüklerini koruyor.
+- `test_semantic.c` içine Struct/Enum/Union yerel kullanım, nested Group izolasyonu, aynı isimli nested türlerin ayrılması, sibling/dış kapsam reddi ve dışarıda tanımlı türün Group içinde kullanımı için testler eklendi.
+- Bu değişiklikler GitHub üzerinde `refactor/c-core-roadmap` dalına yazıldı. **Henüz CMake/CTest çalıştırılmadı; testler eklenmiş fakat doğrulanmamış durumda.** CI sonucu alınmadan Semantic Group scope tamamlandı olarak işaretlenmeyecek.
+- Kod commitleri: semantic header `a3fabf48`, Semantic scope `c3a6bcd8`, testler `bc5eba54`; spec `6fa982d9`.
