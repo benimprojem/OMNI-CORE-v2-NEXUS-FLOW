@@ -892,3 +892,16 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Windows build + CTest: passed.
 - ASan/UBSan: passed.
 - Valgrind: still running at the time of this update; overall matrix is not yet green.
+
+
+## 2026-11-07 — Full syntax reconciliation and comparison baseline
+
+- Compared `docs/language/syntax-reference.md` against active `lexer.c`, `lexer.h`, `parser.c`, `ast.h`, AST lifecycle/validator dispatch and the existing production matrix.
+- Corrected misleading normative examples: `return` → `ret`, unsupported scientific literal example, unsupported hexadecimal code operands, and the non-Parser `label?>` spelling.
+- Removed `d32/d64` from the current built-in type list; documented generic `t`, callback/function-type, pointer/reference, null literal, directive/macro and DLL-export gaps rather than claiming support.
+- Added `docs/language/NEXUS-FLOW-LANGUAGE-COMPARISON.md` with distinctive feature combinations, advantages/risks, comparisons to C/Rust/Zig/Go/Kotlin, and a prioritized missing-feature inventory.
+- Parser additions: canonical `loop { ... }` infinite loop and contextual `jump(label);` statement alias; legacy `(loop) { ... }` and explicit `?>(label);` remain.
+- Added `test_canonical_loop_and_jump_call_forms` for AST shape, label target, graph validation and AST codec round-trip.
+- Commits: Parser `fee81b7e`; Parser test `456d8af7`; language comparison `8a2e44b0`; syntax reference `32469a06`.
+- CI has not yet validated the new Parser test. Keep Parser/AST status partial until Windows, Ubuntu, macOS, ASan/UBSan and Valgrind checks complete.
+- Next syntax/AST work: pointer/reference declarators, callback/function-type AST representation, generic type-parameter syntax, null literal decision, numeric literal grammar, and the `<< / >>` collision. Do not enter Semantic or Codegen while these AST contracts remain open.
