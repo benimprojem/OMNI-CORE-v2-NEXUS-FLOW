@@ -224,6 +224,7 @@ f:sum<T>(a!T, b!T)!T {
 - Vector/SIMD type dimension ve promotion kuralları.
 - Function overloading, method receiver ve ambiguity resolution.
 - String interpolation, Unicode escape ve character encoding semantics.
+- `Option` / `Result` standart türleri ve `is_some/is_none/is_ok/is_err` predicate'leri için değer üretme/unwrap/error propagation sözleşmesi.
 
 ### P2 — Runtime / OIR / target sözleşmesi
 
