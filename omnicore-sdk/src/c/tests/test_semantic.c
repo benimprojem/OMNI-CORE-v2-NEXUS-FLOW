@@ -309,6 +309,56 @@ static int check_group_self_receiver_semantics(void) {
         check_source(enum_group_self, 1);
 }
 
+static int check_group_method_dispatch_semantics(void) {
+    const char* instance_call_to_later_method =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.store_value(7); ret; } "
+        "store_value => f:store_value_impl(self,value!i32) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* type_qualified_static_call =
+        "f:main() { group Storage { "
+        "run => f:run_impl() { Storage.parse(\"x\"); ret; } "
+        "parse => f:parse_impl(text!str) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* namespace_static_call =
+        "f:main() { group Namespace { "
+        "run => f:run_impl() { Namespace.parse(\"x\"); ret; } "
+        "parse => f:parse_impl(text!str) { ret; } } }";
+    const char* instance_call_to_static_method =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { self.parse(\"x\"); ret; } "
+        "parse => f:parse_impl(text!str) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* type_call_to_instance_method =
+        "f:main() { group Storage { "
+        "run => f:run_impl() { Storage.open(); ret; } "
+        "open => f:open_impl(self) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* wrong_method_argument_type =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.store_value(\"bad\"); ret; } "
+        "store_value => f:store_value_impl(self,value!i32) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* wrong_method_argument_count =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.store_value(); ret; } "
+        "store_value => f:store_value_impl(self,value!i32) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* unknown_group_method =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.no_such_method(); ret; } "
+        "struct:Storage { v:value!i32 } } }";
+
+    return check_source(instance_call_to_later_method, 0) &&
+        check_source(type_qualified_static_call, 0) &&
+        check_source(namespace_static_call, 0) &&
+        check_source(instance_call_to_static_method, 1) &&
+        check_source(type_call_to_instance_method, 1) &&
+        check_source(wrong_method_argument_type, 1) &&
+        check_source(wrong_method_argument_count, 1) &&
+        check_source(unknown_group_method, 1);
+}
+
 static int check_group_type_scope_semantics(void) {
     const char* own_struct =
         "f:main() { group Alpha { struct:LocalStruct { v:value!i32 } "
@@ -368,6 +418,10 @@ static int check_group_type_scope_semantics(void) {
 int main(int argc, char** argv) {
     if (!check_group_self_receiver_semantics()) {
         fprintf(stderr, "Group self receiver inference/validation checks failed.\\n");
+        return 1;
+    }
+    if (!check_group_method_dispatch_semantics()) {
+        fprintf(stderr, "Group method dispatch checks failed.\\n");
         return 1;
     }
     if (!check_group_type_scope_semantics()) {
