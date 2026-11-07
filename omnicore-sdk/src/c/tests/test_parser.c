@@ -3497,6 +3497,11 @@ generic_type_done:
         ASTDefer* defer_node;
         ASTBlock* defer_body;
         ASTVarDecl* cleanup;
+        const char* core_start = strstr(source, "CoreModule");
+        const char* core_alias_end = strstr(source, "Core;");
+        const char* math_start = strstr(source, "MathModule");
+        const char* defer_start = strstr(source, "defer");
+        const char* defer_close = defer_start ? strchr(defer_start, '}') : NULL;
         int valid = 0;
         if (parser && parser_run(parser) == PARSER_STATUS_OK) {
             program = (ASTProgram*)parser->ast_root;
@@ -3511,9 +3516,22 @@ generic_type_done:
             valid = use_core && use_core->base.type == AST_USE &&
                 strcmp(use_core->module_name, "CoreModule") == 0 &&
                 use_core->alias && strcmp(use_core->alias, "Core") == 0 &&
+                use_core->base.source_span.has_location && core_start &&
+                core_alias_end &&
+                use_core->base.source_span.start_offset == (uint64_t)(core_start-source) &&
+                use_core->base.source_span.end_offset ==
+                    (uint64_t)(core_alias_end + strlen("Core") - source) &&
                 use_math && strcmp(use_math->module_name, "MathModule") == 0 &&
-                !use_math->alias && function && function->base.type == AST_FUNC_DECL &&
+                !use_math->alias && math_start &&
+                use_math->base.source_span.has_location &&
+                use_math->base.source_span.start_offset == (uint64_t)(math_start-source) &&
+                use_math->base.source_span.end_offset ==
+                    (uint64_t)(math_start + strlen("MathModule") - source) &&
+                function && function->base.type == AST_FUNC_DECL &&
                 defer_node && defer_node->base.type == AST_DEFER &&
+                defer_start && defer_close && defer_node->base.source_span.has_location &&
+                defer_node->base.source_span.start_offset == (uint64_t)(defer_start-source) &&
+                defer_node->base.source_span.end_offset == (uint64_t)(defer_close+1-source) &&
                 defer_body && cleanup && cleanup->name &&
                 strcmp(cleanup->name, "cleanup") == 0 &&
                 ast_validate(parser->ast_root, NULL);
