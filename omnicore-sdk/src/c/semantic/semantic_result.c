@@ -822,7 +822,14 @@ SemanticResultStatus semantic_result_finalize(
             return SEMANTIC_RESULT_INVALID_DATA;
         }
         if (relation->kind == SEMANTIC_RESULT_RELATION_GROUP_DEFAULT_HANDLER &&
-            relation->related_symbol_id != 0u) {
+            (relation->related_symbol_id != 0u || relation->ordinal != 0u ||
+                !relation->name || strcmp(relation->name, "default") != 0)) {
+            return SEMANTIC_RESULT_INVALID_DATA;
+        }
+        if ((relation->kind == SEMANTIC_RESULT_RELATION_GROUP_MEMBER ||
+                relation->kind == SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING ||
+                relation->kind == SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION) &&
+            (!relation->name || !*relation->name)) {
             return SEMANTIC_RESULT_INVALID_DATA;
         }
         if ((relation->kind == SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING ||
