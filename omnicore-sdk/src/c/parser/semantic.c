@@ -739,6 +739,9 @@ static void exit_scope(SemanticContext* ctx) {
 static int are_types_compatible(const char* type1, const char* type2);
 
 static const char* get_expr_type(SemanticContext* ctx, ASTNode* node);
+static Slot* semantic_resolve_group_method(
+    SemanticContext* ctx, ASTMemberAccess* access,
+    int* out_is_instance_call, int report_diagnostics);
 
 static FieldInfo* semantic_resolve_member(
     SemanticContext* ctx, ASTNode* node, int report_diagnostics
@@ -836,15 +839,21 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
         }
         case AST_FUNC_CALL: {
             ASTCall* call = (ASTCall*)node;
+            Slot* slot = NULL;
             if (call->callee && call->callee->type == AST_IDENTIFIER) {
                 ASTIdentifier* id = (ASTIdentifier*)call->callee;
-                Slot* slot = find_slot(ctx, id->name);
-                semantic_record_annotation(
-                    ctx, node, slot, slot ? slot->type_name : NULL,
-                    SEMANTIC_RESULT_VALUE_RVALUE);
-                return slot ? slot->type_name : NULL;
+                slot = find_slot(ctx, id->name);
+            } else if (call->callee &&
+                call->callee->type == AST_MEMBER_ACCESS) {
+                int is_instance_call = 0;
+                slot = semantic_resolve_group_method(
+                    ctx, (ASTMemberAccess*)call->callee,
+                    &is_instance_call, 0);
             }
-            return NULL;
+            semantic_record_annotation(
+                ctx, node, slot, slot ? slot->type_name : NULL,
+                SEMANTIC_RESULT_VALUE_RVALUE);
+            return slot ? slot->type_name : NULL;
         }
         case AST_BINARY_EXPR:
         case AST_ASSIGNMENT: {
@@ -1272,6 +1281,291 @@ static Slot* semantic_find_slot_by_declaration(
         slot = slot->next;
     }
     return NULL;
+}
+static int semantic_populate_function_signature(
+    SemanticContext* ctx, Slot* function_slot, ASTFuncDecl* function
+) {
+    int parameter_count = 0;
+    ASTNode* parameter;
+    if (!ctx || !function_slot || !function) return 0;
+    if (function_slot->param_count != 0 || function_slot->param_types)
+        return 1;
+
+    for (parameter = function->params; parameter; parameter = parameter->next)
+        ++parameter_count;
+    function_slot->param_count = parameter_count;
+    if (parameter_count == 0) return 1;
+
+    function_slot->param_types = (char**)semantic_callocate(
+        ctx, (size_t)parameter_count, sizeof(char*));
+    if (!function_slot->param_types) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return 0;
+    }
+
+    parameter = function->params;
+    {
+        int index = 0;
+        while (parameter) {
+            ASTVarDecl* variable = (ASTVarDecl*)parameter;
+            if (variable->type_name || (variable->inline_type &&
+                variable->inline_type->type == AST_ARRAY_TYPE)) {
+                if (variable->inline_type &&
+                    variable->inline_type->type == AST_ARRAY_TYPE) {
+                    char array_signature[256];
+                    if (!semantic_format_array_signature(
+                        variable, array_signature, sizeof(array_signature))) {
+                        semantic_set_result_error(
+                            ctx, SEMANTIC_RESULT_INVALID_DATA);
+                        return 0;
+                    }
+                    function_slot->param_types[index] =
+                        semantic_duplicate(ctx, array_signature);
+                } else {
+                    function_slot->param_types[index] =
+                        semantic_duplicate(ctx, variable->type_name);
+                }
+                if (!function_slot->param_types[index]) {
+                    semantic_set_result_error(
+                        ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                    return 0;
+                }
+            }
+            ++index;
+            parameter = parameter->next;
+        }
+    }
+    return 1;
+}
+
+static void semantic_predeclare_group_methods(
+    SemanticContext* ctx, ASTGroupDecl* group, Slot* receiver_slot
+) {
+    ASTNode* member;
+    if (!ctx || !group) return;
+
+    for (member = group->members; member; member = member->next) {
+        ASTMethod* method;
+        ASTFuncDecl* implementation;
+        Slot* function_slot;
+        Slot* existing;
+        if (member->type != AST_METHOD) continue;
+        method = (ASTMethod*)member;
+        if (!method->implementation ||
+            (method->implementation->type != AST_FUNC_DECL &&
+             method->implementation->type != AST_EXTERN_DECL)) continue;
+        implementation = (ASTFuncDecl*)method->implementation;
+        if (!implementation->name || !*implementation->name) continue;
+
+        existing = find_slot(ctx, implementation->name);
+        if (existing && existing->declaration_node == method->implementation &&
+            existing->kind == SLOT_FUNC) {
+            function_slot = existing;
+        } else if (existing && existing->depth == ctx->current_depth) {
+            char message[256];
+            snprintf(message, sizeof(message),
+                msg_get(ERR_SEMANTIC_FUNC_REDEFINED), implementation->name);
+            report_error(ctx, method->implementation,
+                ERR_SEMANTIC_FUNC_REDEFINED, message);
+            continue;
+        } else {
+            function_slot = add_slot(
+                ctx, implementation->name, SLOT_FUNC, 1,
+                implementation->return_type, method->implementation,
+                0, 0, 0,
+                (implementation->is_public
+                    ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
+                (implementation->is_exported
+                    ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
+        }
+        if (!function_slot) continue;
+        (void)semantic_populate_function_signature(
+            ctx, function_slot, implementation);
+
+        /*
+         * Untyped self is part of the signature before any method body is
+         * visited. This allows earlier methods to call later methods.
+         */
+        if (receiver_slot && receiver_slot->kind == SLOT_STRUCT &&
+            implementation->params &&
+            implementation->params->type == AST_VAR_DECL) {
+            ASTVarDecl* first = (ASTVarDecl*)implementation->params;
+            if (first->name && strcmp(first->name, "self") == 0 &&
+                (!first->type_name || !*first->type_name) &&
+                function_slot->param_types &&
+                function_slot->param_count > 0 &&
+                !function_slot->param_types[0]) {
+                function_slot->param_types[0] =
+                    semantic_duplicate(ctx, receiver_slot->name);
+                if (!function_slot->param_types[0])
+                    semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+            }
+        }
+    }
+}
+
+static Slot* semantic_resolve_group_method(
+    SemanticContext* ctx, ASTMemberAccess* access,
+    int* out_is_instance_call, int report_diagnostics
+) {
+    Slot* object_slot = NULL;
+    Slot* nominal_slot = NULL;
+    const ASTGroupDecl* group = NULL;
+    const char* object_type = NULL;
+    const char* nominal_name = NULL;
+    const ASTNode* member;
+    int is_instance_call = 0;
+
+    if (out_is_instance_call) *out_is_instance_call = 0;
+    if (!ctx || !access || !access->object || !access->member_name) return NULL;
+
+    if (access->object->type == AST_IDENTIFIER) {
+        object_slot = find_slot(ctx, ((ASTIdentifier*)access->object)->name);
+    }
+
+    if (object_slot && object_slot->kind == SLOT_GROUP &&
+        object_slot->declaration_node &&
+        object_slot->declaration_node->type == AST_GROUP_DECL) {
+        group = (const ASTGroupDecl*)object_slot->declaration_node;
+    } else if (object_slot &&
+        (object_slot->kind == SLOT_STRUCT ||
+         object_slot->kind == SLOT_UNION ||
+         object_slot->kind == SLOT_ENUM) &&
+        object_slot->group_owner &&
+        object_slot->group_owner->type == AST_GROUP_DECL) {
+        group = (const ASTGroupDecl*)object_slot->group_owner;
+    } else {
+        object_type = get_expr_type(ctx, access->object);
+        if (object_type && object_type[0] == '!') ++object_type;
+        if (object_type && *object_type) {
+            nominal_name = object_type;
+            nominal_slot = find_slot(ctx, nominal_name);
+            if (nominal_slot && nominal_slot->kind == SLOT_STRUCT &&
+                nominal_slot->group_owner &&
+                nominal_slot->group_owner->type == AST_GROUP_DECL) {
+                group = (const ASTGroupDecl*)nominal_slot->group_owner;
+                is_instance_call = 1;
+            }
+        }
+    }
+
+    if (!group) {
+        if (report_diagnostics) {
+            report_error(ctx, (ASTNode*)access, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Method calls require a Group namespace/type or a Group-bound Struct instance.");
+        }
+        return NULL;
+    }
+
+    for (member = group->members; member; member = member->next) {
+        const ASTMethod* method;
+        Slot* implementation_slot;
+        if (member->type != AST_METHOD) continue;
+        method = (const ASTMethod*)member;
+        if (!method->public_name ||
+            strcmp(method->public_name, access->member_name) != 0) continue;
+        if (!method->implementation ||
+            (method->implementation->type != AST_FUNC_DECL &&
+             method->implementation->type != AST_EXTERN_DECL)) {
+            if (report_diagnostics) {
+                report_error(ctx, (ASTNode*)access, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "The selected Group member is not a callable method implementation.");
+            }
+            return NULL;
+        }
+        implementation_slot = semantic_find_slot_by_declaration(
+            ctx, method->implementation);
+        if (!implementation_slot || implementation_slot->kind != SLOT_FUNC) {
+            if (report_diagnostics) {
+                report_error(ctx, (ASTNode*)access, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "The Group method implementation has no resolved semantic symbol.");
+            }
+            return NULL;
+        }
+        if (out_is_instance_call) *out_is_instance_call = is_instance_call;
+        return implementation_slot;
+    }
+
+    if (report_diagnostics) {
+        char message[256];
+        snprintf(message, sizeof(message),
+            "Group '%s' has no method named '%s'.",
+            group->name ? group->name : "<anonymous>",
+            access->member_name);
+        report_error(ctx, (ASTNode*)access, ERR_SEMANTIC_TYPE_MISMATCH, message);
+    }
+    return NULL;
+}
+
+static void semantic_validate_call_arguments(
+    SemanticContext* ctx, ASTNode* call_node, Slot* function_slot,
+    ASTNode* arguments, uint32_t parameter_offset
+) {
+    uint32_t argument_count = 0u;
+    uint32_t expected_count;
+    ASTNode* argument;
+    uint32_t argument_index = 0u;
+    ASTFuncDecl* declaration = NULL;
+
+    if (!ctx || !function_slot) return;
+    for (argument = arguments; argument; argument = argument->next)
+        ++argument_count;
+
+    if (function_slot->param_count < (int)parameter_offset) {
+        report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Resolved method signature is inconsistent with its receiver mode.");
+        return;
+    }
+    expected_count = (uint32_t)function_slot->param_count - parameter_offset;
+    if (argument_count != expected_count) {
+        char message[256];
+        snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_COUNT),
+            function_slot->name, expected_count, argument_count);
+        report_error(ctx, call_node, ERR_SEMANTIC_ARG_COUNT, message);
+    }
+
+    if (function_slot->declaration_node &&
+        (function_slot->declaration_node->type == AST_FUNC_DECL ||
+         function_slot->declaration_node->type == AST_EXTERN_DECL)) {
+        declaration = (ASTFuncDecl*)function_slot->declaration_node;
+    }
+
+    for (argument = arguments; argument; argument = argument->next,
+         ++argument_index) {
+        uint32_t parameter_index = argument_index + parameter_offset;
+        const char* argument_type = get_expr_type(ctx, argument);
+        const char* expected_type =
+            function_slot->param_types &&
+            parameter_index < (uint32_t)function_slot->param_count
+                ? function_slot->param_types[parameter_index] : NULL;
+        ASTVarDecl* parameter = NULL;
+
+        if (declaration) {
+            ASTNode* parameter_node = declaration->params;
+            uint32_t current_index = 0u;
+            while (parameter_node && current_index < parameter_index) {
+                parameter_node = parameter_node->next;
+                ++current_index;
+            }
+            if (parameter_node && parameter_node->type == AST_VAR_DECL)
+                parameter = (ASTVarDecl*)parameter_node;
+        }
+
+        if (argument_type && expected_type &&
+            !are_types_compatible(expected_type, argument_type)) {
+            char message[256];
+            snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_TYPE),
+                parameter_index + 1u, expected_type, argument_type);
+            report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE, message);
+        } else if (parameter && parameter->inline_type &&
+            parameter->inline_type->type == AST_ARRAY_TYPE &&
+            argument->type == AST_ARRAY_LITERAL) {
+            semantic_validate_array_initializer(
+                ctx, argument,
+                ((ASTArrayType*)parameter->inline_type)->dimensions,
+                parameter->type_name);
+        }
+    }
 }
 
 static const char* semantic_group_member_name(const ASTNode* member) {
@@ -1896,7 +2190,10 @@ static void semantic_check_node(
             Slot* function_slot = NULL;
             if (func->name) {
                 Slot* existing = find_slot(ctx, func->name);
-                if (existing && existing->depth == ctx->current_depth) {
+                if (existing && existing->declaration_node == node &&
+                    existing->kind == SLOT_FUNC) {
+                    function_slot = existing;
+                } else if (existing && existing->depth == ctx->current_depth) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_FUNC_REDEFINED), func->name);
                     report_error(ctx, node, ERR_SEMANTIC_FUNC_REDEFINED, buf);
@@ -1906,55 +2203,10 @@ static void semantic_check_node(
                         node, 0, 0, 0,
                         (func->is_public ? SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC : 0u) |
                         (func->is_exported ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
-
-                    // Parametre bilgilerini kaydet
-                    int p_count = 0;
-                    ASTNode* p = func->params;
-                    while(p) { p_count++; p = p->next; }
-
-                    if (function_slot) {
-                        function_slot->param_count = p_count;
-                        if (p_count > 0) {
-                            function_slot->param_types =
-                                (char**)semantic_callocate(ctx, (size_t)p_count, sizeof(char*));
-                            if (!function_slot->param_types) {
-                                semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
-                            } else {
-                                p = func->params;
-                                int i = 0;
-                                while(p) {
-                                    ASTVarDecl* v = (ASTVarDecl*)p;
-                                    if (v->type_name || (v->inline_type &&
-                                        v->inline_type->type == AST_ARRAY_TYPE)) {
-                                        if (v->inline_type &&
-                                            v->inline_type->type == AST_ARRAY_TYPE) {
-                                            char array_signature[256];
-                                            if (!semantic_format_array_signature(
-                                                v, array_signature,
-                                                sizeof(array_signature))) {
-                                                semantic_set_result_error(
-                                                    ctx, SEMANTIC_RESULT_INVALID_DATA);
-                                                break;
-                                            }
-                                            function_slot->param_types[i] =
-                                                semantic_duplicate(ctx, array_signature);
-                                        } else {
-                                            function_slot->param_types[i] =
-                                                semantic_duplicate(ctx, v->type_name);
-                                        }
-                                        if (!function_slot->param_types[i]) {
-                                            semantic_set_result_error(
-                                                ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
-                                            break;
-                                        }
-                                    }
-                                    ++i;
-                                    p = p->next;
-                                }
-                            }
-                        }
-                    }
                 }
+                if (function_slot)
+                    (void)semantic_populate_function_signature(
+                        ctx, function_slot, func);
             }
             semantic_record_annotation(
                 ctx, node, function_slot, func->return_type,
@@ -2232,63 +2484,56 @@ static void semantic_check_node(
 
         case AST_FUNC_CALL: {
             ASTCall* call = (ASTCall*)node;
-            semantic_check(ctx, call->callee);
-            
-            if (call->callee->type == AST_IDENTIFIER) {
-                ASTIdentifier* id = (ASTIdentifier*)call->callee;
-                Slot* s = find_slot(ctx, id->name);
-                if (s) {
-                    // Argüman Sayısı Kontrolü
-                    int arg_count = 0;
-                    ASTNode* arg = call->args;
-                    while(arg) { arg_count++; arg = arg->next; }
-                    
-                    if (arg_count != s->param_count) {
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_ARG_COUNT), id->name, s->param_count, arg_count);
-                        report_error(ctx, node, ERR_SEMANTIC_ARG_COUNT, buf);
-                    }
+            if (call->callee && call->callee->type == AST_MEMBER_ACCESS) {
+                ASTMemberAccess* access = (ASTMemberAccess*)call->callee;
+                Slot* method_slot;
+                int is_instance_call = 0;
+                int method_has_self = 0;
+                uint32_t parameter_offset = 0u;
 
-                    // Tip Kontrolü
-                    arg = call->args;
-                    int i = 0;
-                    while(arg && s->param_types && i < s->param_count) {
-                        const char* arg_type = get_expr_type(ctx, arg);
-                        const char* expected = s->param_types[i];
-                        ASTVarDecl* parameter = NULL;
-                        if (s->declaration_node &&
-                            s->declaration_node->type == AST_FUNC_DECL) {
-                            ASTNode* parameter_node =
-                                ((ASTFuncDecl*)s->declaration_node)->params;
-                            int parameter_index = 0;
-                            while (parameter_node && parameter_index < i) {
-                                parameter_node = parameter_node->next;
-                                ++parameter_index;
-                            }
-                            if (parameter_node &&
-                                parameter_node->type == AST_VAR_DECL) {
-                                parameter = (ASTVarDecl*)parameter_node;
-                            }
-                        }
-                        if (arg_type && expected &&
-                            !are_types_compatible(expected, arg_type)) {
-                            char buf[256];
-                            snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_ARG_TYPE), i+1, expected, arg_type);
-                            report_error(ctx, arg, ERR_SEMANTIC_ARG_TYPE, buf);
-                        } else if (parameter && parameter->inline_type &&
-                            parameter->inline_type->type == AST_ARRAY_TYPE &&
-                            arg->type == AST_ARRAY_LITERAL) {
-                            semantic_validate_array_initializer(
-                                ctx, arg,
-                                ((ASTArrayType*)parameter->inline_type)->dimensions,
-                                parameter->type_name);
-                        }
-                        arg = arg->next;
-                        i++;
+                if (access->object) semantic_check(ctx, access->object);
+                method_slot = semantic_resolve_group_method(
+                    ctx, access, &is_instance_call, 1);
+                if (method_slot && method_slot->declaration_node &&
+                    (method_slot->declaration_node->type == AST_FUNC_DECL ||
+                     method_slot->declaration_node->type == AST_EXTERN_DECL)) {
+                    ASTFuncDecl* implementation =
+                        (ASTFuncDecl*)method_slot->declaration_node;
+                    ASTVarDecl* first_parameter =
+                        implementation->params &&
+                        implementation->params->type == AST_VAR_DECL
+                            ? (ASTVarDecl*)implementation->params : NULL;
+                    method_has_self = first_parameter && first_parameter->name &&
+                        strcmp(first_parameter->name, "self") == 0;
+
+                    if (is_instance_call && !method_has_self) {
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "A static Group method must be called through its Group/type name, not an instance.");
+                    } else if (!is_instance_call && method_has_self) {
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "An instance Group method requires an instance receiver.");
+                    } else {
+                        parameter_offset = method_has_self ? 1u : 0u;
+                        semantic_validate_call_arguments(
+                            ctx, node, method_slot, call->args, parameter_offset);
+                        semantic_record_annotation(
+                            ctx, call->callee, method_slot, method_slot->type_name,
+                            SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR);
+                        semantic_record_annotation(
+                            ctx, node, method_slot, method_slot->type_name,
+                            SEMANTIC_RESULT_VALUE_RVALUE);
                     }
                 }
+            } else if (call->callee) {
+                semantic_check(ctx, call->callee);
+                if (call->callee->type == AST_IDENTIFIER) {
+                    ASTIdentifier* id = (ASTIdentifier*)call->callee;
+                    Slot* function_slot = find_slot(ctx, id->name);
+                    if (function_slot)
+                        semantic_validate_call_arguments(
+                            ctx, node, function_slot, call->args, 0u);
+                }
             }
-            
             if (call->args) semantic_check(ctx, call->args);
             break;
         }
@@ -2750,6 +2995,11 @@ static void semantic_check_node(
                     }
                 }
                 if (binding) semantic_check_node(ctx, binding, 0);
+                {
+                    Slot* receiver_slot = binding
+                        ? semantic_find_slot_by_declaration(ctx, binding) : NULL;
+                    semantic_predeclare_group_methods(ctx, g, receiver_slot);
+                }
                 for (current = g->members; current; current = current->next) {
                     if (current != binding) semantic_check_node(ctx, current, 0);
                 }
