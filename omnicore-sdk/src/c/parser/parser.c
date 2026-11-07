@@ -2140,7 +2140,7 @@ static ASTNode* parse_expression(Parser* p) {
 }
 
 static int parse_struct_body(Parser* p, ASTStructDecl* decl) {
-    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
     ASTNode* head = NULL;
     ASTNode* tail = NULL;
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
@@ -2711,7 +2711,7 @@ static ASTNode* parse_func_decl(Parser* p) {
         }
     }
 
-    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
     func->body = parse_block(p);
     if (!func->body) {
         ast_destroy((ASTNode*)func);
@@ -3071,7 +3071,7 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
         }
     }
     if (!decl->name) { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_FUNC_NAME)); ast_destroy((ASTNode*)decl); return NULL; }
-    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
         ASTEnumVariant* var;
         Token vt;
@@ -3201,7 +3201,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                     aggregate->base.col = p->previous.col;
                     aggregate->is_packed = 0;
                     aggregate->is_union = (kind == 3);
-                    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+                    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
                     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
                         if (match(p, TOKEN_PRE_VAR)) {
                             Token field_start = p->previous;
@@ -3239,7 +3239,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                     ASTNode* tail = NULL;
                     if (!aggregate) return NULL;
                     aggregate->base.line = p->previous.line;
-                    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+                    consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
                     while (p->current.type != TOKEN_RBRACE && p->current.type != TOKEN_EOF) {
                         if (match(p, TOKEN_IDENTIFIER)) {
                             ASTEnumVariant* variant = (ASTEnumVariant*)parser_ast_create(p, AST_ENUM_VARIANT);
@@ -3345,7 +3345,7 @@ static ASTNode* parse_group_body(Parser* p, ASTGroupDecl* group) {
             memcpy(child->name, alias.start, (size_t)alias.length); child->name[alias.length] = '\0';
             advance(p); advance(p); advance(p); /* alias => group */
             if (!match(p, TOKEN_LBRACE)) {
-                error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
                 ast_destroy((ASTNode*)child); ast_destroy(head); return NULL;
             }
             (void)parse_group_body(p, child);
@@ -3373,7 +3373,7 @@ static ASTNode* parse_group_body(Parser* p, ASTGroupDecl* group) {
             method->base.line = mt.line; method->base.col = mt.col;
             method->public_name = (char*)parser_malloc(p, (size_t)mt.length + 1u);
             if (!method->public_name) { ast_destroy((ASTNode*)method); ast_destroy(head); return NULL; }
-            memcpy(method->public_name, mt.start, (size_t)mt.length); method->public_name[mt.length] = ' ';
+            memcpy(method->public_name, mt.start, (size_t)mt.length); method->public_name[mt.length] = '\0';
             advance(p); advance(p);
             if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC)) {
                 Token implementation_start = p->previous;
@@ -3423,10 +3423,10 @@ static ASTNode* parse_group_decl(Parser* p) {
         Token t = p->previous;
         group->name = (char*)parser_malloc(p, (size_t)t.length + 1u);
         if (!group->name) { ast_destroy((ASTNode*)group); return NULL; }
-        memcpy(group->name, t.start, (size_t)t.length); group->name[t.length] = ' ';
+        memcpy(group->name, t.start, (size_t)t.length); group->name[t.length] = '\0';
     }
     if (!match(p, TOKEN_LBRACE)) {
-        error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE, msg_get(MSG_EXPECT_LBRACE_FUNC));
         ast_destroy((ASTNode*)group); return NULL;
     }
     (void)parse_group_body(p, group);
