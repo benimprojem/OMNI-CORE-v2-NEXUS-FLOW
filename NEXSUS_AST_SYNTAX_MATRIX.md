@@ -16,15 +16,18 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Mutable / constant declaration `v:`, `c:` | `AST_VAR_DECL` | Present | Verify type/hard/public/export/inline type fields |
 | Function `f:name(...)` | `AST_FUNC_DECL` | Present | Audit parameter nodes, named args, return type and body |
 | Extern function `exf:name(...)` | `AST_EXTERN_DECL` / `ASTFuncDecl` | Present/shared payload | Verify parser, codec, semantic signature |
+| Pointer/reference types `*T`, `**T`, `&T` | Existing `ASTVarDecl.type_name`, `ASTFuncDecl.return_type`, `ASTNewTypeDecl.target_type` strings | Parser accepts these in local, parameter, return and NewType contexts; AST string preservation/codec regression passed | Dedicated type descriptor decision; Semantic nullability, mutability, borrow/lifetime and ownership rules |
 | Lambda `f:(a,b)>expr` / block lambda `f:(a,b){...}` | `AST_LAMBDA` | Parser/AST/OIR implemented; expression/block bodies, parameter scopes, semantic-result scope visibility and source-span tests present | Function-type model, capture rules, return inference and lowering remain open |
 | Anonymous function `f:(a,b){...}` | `AST_LAMBDA` shared with expression lambda | Parser/AST/OIR and block-body codec implemented | Function-type representation, captures and return inference remain open |
+| Callback/function type `f:(id!u32)>!bool` | Existing type-name string in NewType/variable/parameter/return fields | Parser accepts and normalizes the signature; AST validator/codec regression passed | Dedicated `AST_FUNCTION_TYPE` node decision, callback compatibility, closure conversion and function-pointer ABI remain open |
+| Implicit generic type variable `a!t`, return `!t` | Existing type-name strings | Parser preserves spelling; `test_implicit_type_variable_spelling` covers parameters, return, validator and codec | Semantic type-variable binding, scope, unification and inference; explicit `<T>` list is not normative |
 | Struct / packed struct | `AST_STRUCT_DECL` | Present | Confirm packed syntax and field type representation |
 | Enum + variants/data | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | Present | Validate payload variants and discriminants |
 | Union | `AST_UNION_DECL` / `ASTStructDecl` | Present/shared | Confirm union field layout/type rules |
 | NewType `nt:` | `AST_NEWTYPE_DECL` | Present | Confirm target type and nominal semantics |
 | Group / methods | `AST_GROUP_DECL`, `AST_METHOD` | Present | Confirm member dispatch and method receiver |
 | Module import `use` | `AST_USE` | Parser supports comma-separated module names, aliases and dotted paths such as `use msvcrt.exf as crt;`; dotted path AST/codec test added | Module resolution and malformed path diagnostics remain |
-| Literals (number/string/char/bool) | `AST_LITERAL` | Present | Confirm all token/literal variants round-trip |
+| Literals (number/string/char/bool/null) | `AST_LITERAL` | Parser/AST/codec supports decimal, `0x`/`0b`/`0o`, scientific exponent, digit separators and `null` | Numeric conversion/overflow and null-pointer compatibility remain Semantic work |
 | Identifier | `AST_IDENTIFIER` | Present | Symbol resolution + use-site metadata |
 | Unary / postfix | `AST_UNARY_EXPR`, `AST_POSTFIX_EXPR` | Present | Operator coverage and type rules |
 | Binary / assignment | `AST_BINARY_EXPR`, `AST_ASSIGNMENT` | Present | Full operator/precedence/associativity matrix |
@@ -52,12 +55,13 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Intent `@` | `AST_NEXUS_INTENT` | Declared / deferred | Do not invent behavior until Intent design is active |
 | AI logic `??` | `AST_AI_LOGIC` | Declared / deferred | Define payload and semantics before implementation |
 | Panic `panic("...")` | `AST_PANIC` | Present | Current documented literal-only message restriction must be tested |
-| Spawn/listen/send/receive/done | Matching AST tags | Present/shared payloads | Thread/event semantics, payload and effects |
+| Listen/send/receive/done | Matching AST tags | Parser/AST payloads present | Thread/event semantics, payload and effects remain open |
+| Spawn | Legacy `AST_SPAWN` tag only | Intentionally not emitted by core Parser; `spawn(...)` rejected | Separate Thread module owns spawn/start/join grammar and runtime semantics |
 | Area/zone/address/len/peek/poke/inb/outb/irq/intr/reg | Matching AST tags | Present/shared call payload | Signature, type, effect and target constraints |
-| I/O/reflection/time/free/zone sync/view/lock | Matching AST tags | Present/shared call payload | Complete intrinsic registry and semantic signatures |
+| I/O/reflection/time/free/zone | Matching AST tags | I/O/reflection/time/free intrinsic calls are parsed; `zone.sync/view/lock` member forms are generic member calls, not dedicated AST_ZONE_* nodes | Complete intrinsic registry and semantic signatures; reserved AST_ZONE_SYNC/VIEW/LOCK tags must not be counted as active productions |
 | Defer | `AST_DEFER` | Present | Scope exit ordering and cleanup semantics |
-| Thread block | `AST_THREAD_BLOCK` | Present | Name/body/mode/timeout and synchronization semantics |
-| Inline ASM (`fastexec`, `asm: LABEL { ... }`) | `AST_FASTEXEC_BLOCK` (OIR 104) owns statements; `AST_ASM_LABEL` (OIR 105) owns label and exact raw body; legacy `AST_ASM_BLOCK` kind 29 unchanged | Lexer emits opaque `TOKEN_ASM_BODY` (OIR token 164); Parser constructs FASTEXEC/ASM nodes, preserves source spans and rejects ASM declarations outside FASTEXEC | C nodes, lifecycle, AST codec, OIR 101–105 bridge and parser/lexer tests added; tests not yet executed. Semantic must still validate `asmcall`/`asmjmp`, primitives, placeholders, register/ABI and target capability constraints |
+| Thread block `(name)>{...}` | `AST_THREAD_BLOCK` | Parser stores name/body; `mode` and `timeout` remain NULL/reserved | Scheduling, timeout syntax, start/join, capture/lifetime, cancellation and synchronization semantics |
+| Inline ASM (`fastexec`, `asm: LABEL { ... }`) | `AST_FASTEXEC_BLOCK` (OIR 104) owns statements; `AST_ASM_LABEL` (OIR 105) owns label and exact raw body; legacy `AST_ASM_BLOCK` kind 29 unchanged | Lexer emits opaque `TOKEN_ASM_BODY` (OIR token 164); Parser constructs FASTEXEC/ASM nodes, preserves source spans and rejects ASM declarations outside FASTEXEC | C nodes, lifecycle, AST codec, OIR 101–105 bridge and parser/lexer tests added; workflow `42411223520` passed all 5 jobs. Semantic must still validate `asmcall`/`asmjmp`, primitives, placeholders, register/ABI and target capability constraints |
 | `break / continue / return` | `AST_BREAK`, `AST_CONTINUE`, `AST_RETURN` | Present | Validate loop/function targets and return typing |
 
 ## Operator parser coverage — source audit (2026-11-03)
@@ -347,11 +351,11 @@ This section separates **missing AST representation** from syntax that can legit
 
 ### Audit conclusion
 
-Confirmed AST representation gaps (not just parser gaps): **function type/callback, macro phase nodes, conditional target/link directives, DLL export/import metadata, map semantic constraints, and numeric bit-shift expression**. ASM calls/jumps intentionally remain intrinsic `AST_FUNC_CALL` nodes; operand/clobber data is preserved in the raw ASM body for Semantic/target analysis. Generic placeholder spelling `t` is already preserved losslessly in function parameter/return type strings; its binding and unification are Semantic work, not a reason to add a redundant AST node. MUST dependency, variadic marker and named argument now have AST/Parser representations; their OIR and Semantic stages remain open.
+Confirmed AST representation gaps (not just parser gaps): **dedicated function-type tree, macro phase nodes, conditional target/link directives, DLL export/import metadata, map semantic constraints, and numeric bit-shift expression**. Callback signature syntax itself is now parsed and preserved as a normalized type-name string. ASM calls/jumps intentionally remain intrinsic `AST_FUNC_CALL` nodes; operand/clobber data is preserved in the raw ASM body for Semantic/target analysis. Generic placeholder spelling `t` is already preserved losslessly in function parameter/return type strings; its binding and unification are Semantic work, not a reason to add a redundant AST node. MUST dependency, variadic marker and named argument now have AST/Parser representations; their OIR and Semantic stages remain open.
 
 Some syntax can reuse existing AST shapes without a new enum tag (`elsif`, conditional action, array declarators, select/scan guard); these remain subject to lossless round-trip and semantic contract tests. `import(path)` is provisionally representable as a call expression but must carry an explicit import/resource kind to preserve its runtime ownership and DLL semantics.
 
-**Ordering:** complete remaining AST payload contracts (generic/function types; directives/macro/import/export; map Semantic contract; vector typing; numeric-shift/Flow grammar resolution), finish the FASTEXEC Lexer/Parser edge-case audit and OIR source-span TLVs, then Semantic. Codegen stays blocked.
+**Ordering:** complete remaining AST payload contracts (dedicated function-type representation decision; directives/macro/import/export; map Semantic contract; vector typing; numeric-shift/Flow grammar resolution), finish the FASTEXEC Lexer/Parser edge-case audit and OIR source-span TLVs, then Semantic. Codegen stays blocked.
 
 
 ## AST contract — variadic and named arguments (implemented; OIR/Semantic pending, 2026-11-04)
