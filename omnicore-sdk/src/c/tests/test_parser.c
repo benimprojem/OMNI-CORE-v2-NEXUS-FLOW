@@ -2059,17 +2059,22 @@ static int test_canonical_loop_and_jump_call_forms(void) {
         "f:main() { loop { break; } jump(done); done:> { ret 0; } }";
     ParserContext* parser = parser_init_source(
         "canonical-loop-jump.nxf", (const uint8_t*)source, sizeof(source) - 1u);
-    ASTNode* function;
-    ASTNode* body;
-    ASTNode* loop_node;
-    ASTNode* jump_node;
-    ASTNode* label_node;
+    ASTNode* function = NULL;
+    ASTNode* body = NULL;
+    ASTNode* loop_node = NULL;
+    ASTNode* jump_node = NULL;
+    ASTNode* label_node = NULL;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
+    int parse_status = -1;
+    int ast_status = -1;
+    int serialize_status = 0;
+    int decoded_status = -1;
     int valid = 0;
 
     if (!parser) return 0;
-    if (parser_run(parser) == 0 && parser->ast_root &&
+    parse_status = parser_run(parser);
+    if (parse_status == 0 && parser->ast_root &&
         ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
         function = ((ASTProgram*)parser->ast_root)->declarations;
         body = function && function->type == AST_FUNC_DECL
@@ -2078,6 +2083,7 @@ static int test_canonical_loop_and_jump_call_forms(void) {
             ? ((ASTBlock*)body)->statements : NULL;
         jump_node = loop_node ? loop_node->next : NULL;
         label_node = jump_node ? jump_node->next : NULL;
+        ast_status = ast_validate((ASTNode*)parser->ast_root, NULL);
 
         valid = function && function->type == AST_FUNC_DECL &&
             loop_node && loop_node->type == AST_LOOP &&
@@ -2091,26 +2097,54 @@ static int test_canonical_loop_and_jump_call_forms(void) {
             strcmp(((ASTNexusJump*)jump_node)->label_name, "done") == 0 &&
             label_node && label_node->type == AST_NEXUS_LABEL &&
             strcmp(((ASTNexusLabel*)label_node)->label_name, "done") == 0 &&
-            !ast_validate((ASTNode*)parser->ast_root, NULL);
+            ast_status == 0;
 
         if (valid) {
             stream = tmpfile();
-            valid = stream != NULL &&
-                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
+            serialize_status = stream
+                ? ast_serialize((ASTNode*)parser->ast_root, stream) : 0;
+            valid = stream != NULL && serialize_status != 0;
             if (valid) {
                 rewind(stream);
                 decoded = ast_deserialize(stream);
-                valid = decoded != NULL && !ast_validate(decoded, NULL);
+                decoded_status = decoded ? ast_validate(decoded, NULL) : -1;
+                valid = decoded != NULL && decoded_status == 0;
             }
         }
+    }
+
+    if (!valid) {
+        fprintf(stderr,
+            "Canonical loop/jump debug: parse=%d errors=%u ast=%d serial=%d decoded=%d "
+            "root=%p function=%p body=%p loop=%p jump=%p label=%p\n",
+            parse_status, parser->error_count, ast_status, serialize_status,
+            decoded_status, parser->ast_root, (void*)function, (void*)body,
+            (void*)loop_node, (void*)jump_node, (void*)label_node);
+        if (loop_node && loop_node->type == AST_LOOP) {
+            ASTNode* loop_body = ((ASTLoop*)loop_node)->body;
+            ASTNode* first = loop_body && loop_body->type == AST_BLOCK
+                ? ((ASTBlock*)loop_body)->statements : NULL;
+            fprintf(stderr, "loop_type=%d loop_body=%p first=%p first_type=%d\n",
+                ((ASTLoop*)loop_node)->loop_type, (void*)loop_body,
+                (void*)first, first ? (int)first->type : -1);
+        }
+        if (jump_node && jump_node->type == AST_NEXUS_JUMP)
+            fprintf(stderr, "jump_target=%s\n",
+                ((ASTNexusJump*)jump_node)->label_name ?
+                ((ASTNexusJump*)jump_node)->label_name : "(null)");
+        if (label_node && label_node->type == AST_NEXUS_LABEL)
+            fprintf(stderr, "label_name=%s\n",
+                ((ASTNexusLabel*)label_node)->label_name ?
+                ((ASTNexusLabel*)label_node)->label_name : "(null)");
+        fprintf(stderr, "Canonical loop/jump syntax AST contract failed.\n");
     }
 
     if (decoded) ast_destroy(decoded);
     if (stream) fclose(stream);
     parser_destroy(parser);
-    if (!valid) fprintf(stderr, "Canonical loop/jump syntax AST contract failed.\n");
     return valid;
 }
+
 
 static int test_dotted_module_use_path(void) {
     static const char source[] =
