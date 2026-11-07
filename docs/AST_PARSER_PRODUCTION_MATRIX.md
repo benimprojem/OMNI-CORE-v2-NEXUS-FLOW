@@ -1,7 +1,7 @@
 # AST Parser Production Matrix
 
 **Branch:** `refactor/c-core-roadmap`  
-**Audit:** 2026-11-05  
+**Audit:** 2026-11-07  
 **Scope:** Nexus Flow source production → C Parser production/function → AST shape → regression fixture.
 
 > A parser function existing is not proof of production completeness. A test is considered evidence only for the form/assertions it actually checks. This matrix does not mark Semantic/OIR/Codegen completion.
@@ -18,13 +18,15 @@
 | `if / elsif / els` | `parse_if_statement()`, `parse_if_branch()` | `AST_IF` chain/nested else | structured if-elsif-els AST test | ✓ shape asserted; negative missing/duplicate branch cases expand |
 | Conditional action `(cond) -> break/continue/...` | `parse_conditional_action()` | canonical `AST_IF` | conditional-action arrow disambiguation | ~ More action kinds and expression-vs-flow ambiguity |
 | Unified `loop` / foreach / unroll | statement dispatch + `parse_unroll()` | `AST_LOOP`, `AST_UNROLL` | rules/lambda/relocate/unroll fixture; `test_canonical_loop_and_jump_call_forms` covers `loop {}` | ~ `loop {}` is now accepted as the canonical infinite-loop form; isolate all other loop forms and malformed headers |
-| `return`, `break`, `continue` | `parse_return_statement()` + statement dispatch | `AST_RETURN`, `AST_BREAK`, `AST_CONTINUE` | `test_parser` asserts void/value return operands, distinct break/continue nodes, source-span presence, graph validation, AST codec round-trip, and missing-semicolon rejection (commit `7113e195`; CI validated by workflow run `42411223520` (all 5 jobs passed)) | ~ Expand target/operand forms only where normative syntax defines them; control-flow semantics remain later Semantic work |
+| `ret`, `break`, `continue` | `parse_return_statement()` + statement dispatch | `AST_RETURN`, `AST_BREAK`, `AST_CONTINUE` | `test_parser` asserts void/value return operands, distinct break/continue nodes, source-span presence, graph validation, AST codec round-trip, and missing-semicolon rejection (commit `7113e195`; CI validated by workflow run `42411223520` (all 5 jobs passed)) | ~ Expand target/operand forms only where normative syntax defines them; control-flow semantics remain later Semantic work |
 | Struct / union / enum / newtype | `parse_struct_decl()`, `parse_union_decl()`, `parse_enum_decl()`, `parse_newtype_decl()` | matching declaration tags + fields/variants | aggregate declaration AST; invalid aggregate members | ✓ primary forms tested; malformed variants/data and span checks expand |
+| Function type / callback signature | `parser_parse_type_name()`, function-type signature parser | Normalized `f:(name!T, ...)>!R` string in existing `type_name` / `target_type`; no dedicated AST node yet | `test_function_type_alias_and_callback_parameter` checks alias, parameter, invocation, malformed rejection, validator and codec round-trip | ~ Syntax and string preservation covered; dedicated type node, callback compatibility and ABI remain open |
+| Generic function type parameters | — | No generic parameter AST payload exists | Candidate syntax documented as `f:sum<T>(a!T,b!T)!T`; no Parser fixture | × Not implemented; requires append-only AST payload, codec, validator, OIR mapping and Semantic binding contract |
 | Group / method | `parse_group_decl()` | `AST_GROUP_DECL`, `AST_METHOD` | `test_group_method_ast`: group member, public method name, implementation, return type/body and AST codec round-trip | ~ Positive shape/codec covered; malformed group/member and span cases remain |
 | Map type | `parse_var_decl()`, function parameter parser | `AST_VAR_DECL.type_name` (`map` for ordinary parameter; `!map` for explicit hard parameter; local declaration currently hard-typed) | `test_parser_accepts_and_rejects_sources` inline fixture verifies ordinary `a:map` and compatibility `a!map`; generic syntax is currently unsupported, not normatively banned | ✓ Unparameterized map type represented; per-entry key/value semantics remain Semantic work |
 | Module `use` | `parse_use()` | `AST_USE` | `test_dotted_module_use_path` covers `use msvcrt.exf as crt;`, alias, graph validation and AST codec round-trip | ~ Dotted path and alias shape covered; malformed dotted segment, comma-list and span boundary cases remain |
 | `must` declaration | `parse_must_decl()` | contextual `AST_MUST_DECL` | `test_must_top_level_ast` asserts program-scope name/source/span; `test_must_scope_rejected` rejects function-block scope; graph validator context tests | ~ Parser positive/negative scope behavior is now tested; malformed source expression and diagnostic-span cases remain |
-| Defer / thread | `parse_defer()`, `parse_thread_block()` | `AST_DEFER`, `AST_THREAD_BLOCK` | `test_thread_block_ast` asserts named body, optional NULL mode/timeout, source span and AST codec round-trip | ~ Thread-block declaration shape is tested; defer and malformed thread-block forms remain |
+| Defer / named thread block | `parse_defer()`, `parse_thread_block()` | `AST_DEFER`, `AST_THREAD_BLOCK` | `(name)>{...}` emits named body; `test_thread_block_ast` asserts NULL mode/timeout, source span and AST codec round-trip; `test_spawn_is_outside_core_parser` rejects core `spawn(...)` | ~ Thread block is a definition, not a start operation; defer and malformed forms remain |
 | Select / scan / patterns | `parse_select_scan()`, `parse_pattern()` | `AST_SELECT/SCAN`, arms, pattern nodes | select-scan AST test | ~ Constructor/guard/catchall/duplicate pattern matrix |
 | Ruleset / apply / on / rule clauses | `parse_ruleset()`, `parse_apply_rules()`, `parse_on_block()` | `AST_RULESET_DECL`, rule nodes, `AST_APPLY_RULES`, `AST_ON_BLOCK` | combined rules/lambda/relocate/unroll fixture | ~ Split each production and malformed clause tests |
 | FASTEXEC / ASM label raw body | `parse_fast_exec_block()`, `parse_asm_label()` | `AST_FASTEXEC_BLOCK`, `AST_ASM_LABEL` | `test_fast_exec_raw_asm_ast`, `test_fast_exec_asm_token_stream`, contextual codec fixture; exact raw bytes and source spans asserted; outside-FASTEXEC ASM rejected | ~ Parser/AST/codec shape is tested; semantic variable/register/clobber/label/ABI validation is not AST work and remains a later Semantic/target contract |
@@ -34,11 +36,16 @@
 | Array literal / type / indexing | `parse_primary()`, var/type parser, `parse_postfix()` | `AST_ARRAY_LITERAL`, `AST_ARRAY_TYPE`, dimensions, `AST_INDEX_ACCESS` | array literal, declarator, index tests | ✓ parser structural cases covered; negative nested delimiters/rank/span expansion |
 | Intrinsic calls | `parse_intrinsic_call()` plus special `cast`/`panic` branches; `listen` has a dedicated statement form | 32 generic intrinsic tags are checked against exact AST tags and AST serialize→deserialize→validate; `echo`/`listen` use a separate statement fixture; `cast`/`panic` have dedicated payload/span assertions | `test_intrinsic_ast_family` (32 generic mappings + codec round-trip + source-span presence), `test_extern_echo_and_listen_keywords`, `test_cast_and_panic_ast` | ~ Parser tag/codec baseline now covered; remaining work is signature-specific positive/negative grammar, exact source-span endpoints, and intrinsic-specific payload semantics. |
 | Panic | statement/primary dispatch | `AST_PANIC` | cast/panic AST test | ✓ literal message path asserted; invalid message forms |
-| Literal / identifier / tuple / cast / postfix | `parse_primary()`, `parse_postfix()`, `parse_unary()` | corresponding AST leaf/expression nodes | expression-focused tests above | ~ char/bool/string escapes, tuple edge and postfix lvalue forms |
+| Literal / identifier / tuple / cast / postfix | `parse_primary()`, `parse_postfix()`, `parse_unary()` | corresponding AST leaf/expression nodes; `TOKEN_NULL` maps to `AST_LITERAL` | `test_null_and_numeric_literal_ast`; `test_lexer` accepted/rejected radix, exponent and separator cases; expression-focused tests above | ~ Numeric value conversion/overflow, null pointer compatibility, char/string escape and postfix lvalue semantics remain |
 | Error recovery / limits / OOM | parser recovery and allocation helpers | diagnostics; partial AST must not be accepted | panic recovery, lexer-error recovery, nesting/operator bounds, allocation injection | ✓ infrastructure tested; expand grammar-specific recovery boundaries |
 
 ## Test inventory (actual C test names)
 
+- `test_canonical_loop_and_jump_call_forms`
+- `test_dotted_module_use_path`
+- `test_pointer_reference_type_declarators`
+- `test_function_type_alias_and_callback_parameter`
+- `test_null_and_numeric_literal_ast`
 - `test_cast_and_panic_ast`
 - `test_aggregate_declaration_ast`
 - `test_rejects_invalid_aggregate_members`
