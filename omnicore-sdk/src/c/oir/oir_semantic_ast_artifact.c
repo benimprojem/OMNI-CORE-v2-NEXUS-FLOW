@@ -3,6 +3,29 @@
 
 #include <string.h>
 
+static int semantic_ast_has_group_extensions(
+    const OirSemanticAstArtifactView* view
+) {
+    uint32_t i;
+    if (!view) return 1;
+    for (i = 0u; i < view->symbols.record_count; ++i) {
+        OirSemanticSymbol symbol;
+        if (oir_semantic_symbols_get(&view->symbols, i, &symbol, NULL) !=
+                OIR_STATUS_OK || symbol.kind > OIR_SEMANTIC_SYMBOL_LABEL) {
+            return 1;
+        }
+    }
+    for (i = 0u; i < view->relations.record_count; ++i) {
+        OirSemanticRelation relation;
+        if (oir_semantic_relations_get(&view->relations, i, &relation, NULL) !=
+                OIR_STATUS_OK ||
+            relation.kind > OIR_SEMANTIC_RELATION_ENUM_PAYLOAD_FIELD) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 OirStatus oir_semantic_ast_artifact_open(
     const uint8_t* artifact_bytes,
     size_t artifact_length,
@@ -43,7 +66,7 @@ OirStatus oir_semantic_ast_artifact_open(
     if (result.envelope.header.artifact_kind != OIR_KIND_SEMANTIC_AST ||
         result.envelope.header.payload_schema_major !=
             OIR_SEMANTIC_AST_SCHEMA_MAJOR ||
-        result.envelope.header.payload_schema_minor !=
+        result.envelope.header.payload_schema_minor >
             OIR_SEMANTIC_AST_SCHEMA_MINOR ||
         result.envelope.header.producer_stage_id != OCC_STAGE_SEMANTIC ||
         result.envelope.header.validity != OIR_VALIDITY_VALID) {
@@ -142,6 +165,12 @@ OirStatus oir_semantic_ast_artifact_open(
 
     if (!payload_seen || !scopes_seen || !types_seen || !symbols_seen ||
         !annotations_seen || !relations_seen) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
+    /* Schema 1.0 consumers did not define Group semantic enum values. */
+    if (result.envelope.header.payload_schema_minor == 0u &&
+        semantic_ast_has_group_extensions(&result)) {
         return OIR_STATUS_INVALID_SECTION;
     }
 
