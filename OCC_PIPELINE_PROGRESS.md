@@ -1094,3 +1094,12 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Commits: context/header e5ba41c4; initial Semantic implementation 0071555f; tests 98bef8fe; method-child traversal isolation follow-up recorded separately.
 - Verification status: not run. CMake/CTest and CI are still required. These fixtures and the receiver behavior remain partial until compilation, the full Semantic test target, SemanticResult/OIR integration tests, and platform/sanitizer CI pass.
 - Remaining Group work: constructor semantics, resolved Group/member call targets, instance.method(args) receiver argument binding, Module Resolver/import scope, visibility/export and default dispatch.
+
+### Receiver implementation verification update
+
+- GitHub Actions run `42425608949` completed successfully on the active branch.
+- Linux, macOS and Windows build/test jobs passed; each CTest run reports **60/60 tests passed**.
+- ASan/UBSan passed.
+- Valgrind passed.
+- The initial run exposed two issues and both were corrected before the successful run: a missing forward declaration for the nominal-slot predicate, and test fixtures using reserved keyword `use` as a Group method alias. The integration fixture also now checks that inferred `self` type is reflected in the SemanticResult symbol, annotation and function-parameter relation.
+- This validates the current initial receiver implementation on the tested CI matrix. It does not complete Group method dispatch or Module Resolver work.
