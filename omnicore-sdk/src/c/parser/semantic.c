@@ -1251,6 +1251,52 @@ static void semantic_validate_array_initializer(
     }
 }
 
+static const char* semantic_group_member_name(const ASTNode* member) {
+    if (!member) return NULL;
+    switch (member->type) {
+        case AST_METHOD:
+            return ((const ASTMethod*)member)->public_name;
+        case AST_GROUP_DECL:
+            return ((const ASTGroupDecl*)member)->name;
+        case AST_STRUCT_DECL:
+        case AST_UNION_DECL:
+            return ((const ASTStructDecl*)member)->name;
+        case AST_ENUM_DECL:
+            return ((const ASTEnumDecl*)member)->name;
+        case AST_FUNC_DECL:
+        case AST_EXTERN_DECL:
+            return ((const ASTFuncDecl*)member)->name;
+        case AST_VAR_DECL:
+            return ((const ASTVarDecl*)member)->name;
+        case AST_NEWTYPE_DECL:
+            return ((const ASTNewTypeDecl*)member)->name;
+        default:
+            return NULL;
+    }
+}
+
+static void semantic_validate_group_member_names(
+    SemanticContext* ctx, ASTGroupDecl* group
+) {
+    const ASTNode* member;
+    if (!ctx || !group) return;
+    for (member = group->members; member; member = member->next) {
+        const char* name = semantic_group_member_name(member);
+        const ASTNode* previous;
+        if (!name || !*name) continue;
+        for (previous = group->members; previous && previous != member;
+             previous = previous->next) {
+            const char* previous_name = semantic_group_member_name(previous);
+            if (previous_name && strcmp(previous_name, name) == 0) {
+                char message[256];
+                snprintf(message, sizeof(message),
+                    "Group member '%s' is declared more than once.", name);
+                report_error(ctx, (ASTNode*)member, ERR_SEMANTIC_REDEFINED, message);
+                break;
+            }
+        }
+    }
+}
 void semantic_check(SemanticContext* ctx, ASTNode* node) {
     if (!node) return;
 
@@ -2514,6 +2560,7 @@ void semantic_check(SemanticContext* ctx, ASTNode* node) {
         case AST_GROUP_DECL: {
             ASTGroupDecl* g = (ASTGroupDecl*)node;
             const ASTNode* previous_group_owner = ctx->current_group_owner;
+            semantic_validate_group_member_names(ctx, g);
             enter_scope(ctx, node);
             ctx->current_group_owner = node;
             if (g->members) semantic_check(ctx, g->members);
