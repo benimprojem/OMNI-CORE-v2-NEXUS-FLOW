@@ -1432,7 +1432,10 @@ static Slot* semantic_resolve_group_method(
          object_slot->kind == SLOT_UNION ||
          object_slot->kind == SLOT_ENUM) &&
         object_slot->group_owner &&
-        object_slot->group_owner->type == AST_GROUP_DECL) {
+        object_slot->group_owner->type == AST_GROUP_DECL &&
+        ((const ASTGroupDecl*)object_slot->group_owner)->name &&
+        strcmp(object_slot->name,
+            ((const ASTGroupDecl*)object_slot->group_owner)->name) == 0) {
         group = (const ASTGroupDecl*)object_slot->group_owner;
     } else {
         object_type = get_expr_type(ctx, access->object);
@@ -1442,7 +1445,10 @@ static Slot* semantic_resolve_group_method(
             nominal_slot = find_slot(ctx, nominal_name);
             if (nominal_slot && nominal_slot->kind == SLOT_STRUCT &&
                 nominal_slot->group_owner &&
-                nominal_slot->group_owner->type == AST_GROUP_DECL) {
+                nominal_slot->group_owner->type == AST_GROUP_DECL &&
+                ((const ASTGroupDecl*)nominal_slot->group_owner)->name &&
+                strcmp(nominal_slot->name,
+                    ((const ASTGroupDecl*)nominal_slot->group_owner)->name) == 0) {
                 group = (const ASTGroupDecl*)nominal_slot->group_owner;
                 is_instance_call = 1;
             }
