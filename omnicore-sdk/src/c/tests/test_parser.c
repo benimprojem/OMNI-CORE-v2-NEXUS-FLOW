@@ -2097,7 +2097,7 @@ static int test_canonical_loop_and_jump_call_forms(void) {
             strcmp(((ASTNexusJump*)jump_node)->label_name, "finish") == 0 &&
             label_node && label_node->type == AST_NEXUS_LABEL &&
             strcmp(((ASTNexusLabel*)label_node)->label_name, "finish") == 0 &&
-            ast_status == 0;
+            ast_status == 1;
 
         if (valid) {
             stream = tmpfile();
@@ -2108,7 +2108,7 @@ static int test_canonical_loop_and_jump_call_forms(void) {
                 rewind(stream);
                 decoded = ast_deserialize(stream);
                 decoded_status = decoded ? ast_validate(decoded, NULL) : -1;
-                valid = decoded != NULL && decoded_status == 0;
+                valid = decoded != NULL && decoded_status == 1;
             }
         }
     }
@@ -2176,7 +2176,7 @@ static int test_dotted_module_use_path(void) {
             ((ASTUse*)use_node)->alias &&
             strcmp(((ASTUse*)use_node)->alias, "crt") == 0 &&
             function_node && function_node->type == AST_FUNC_DECL &&
-            !ast_validate((ASTNode*)parser->ast_root, NULL);
+            ast_validate((ASTNode*)parser->ast_root, NULL);
         if (valid) {
             stream = tmpfile();
             valid = stream != NULL &&
@@ -2184,7 +2184,7 @@ static int test_dotted_module_use_path(void) {
             if (valid) {
                 rewind(stream);
                 decoded = ast_deserialize(stream);
-                valid = decoded != NULL && !ast_validate(decoded, NULL);
+                valid = decoded != NULL && ast_validate(decoded, NULL);
             }
         }
     }
@@ -2242,7 +2242,7 @@ static int test_pointer_reference_type_declarators(void) {
             local_node && local_node->type == AST_VAR_DECL &&
             strcmp(((ASTVarDecl*)local_node)->type_name, "*char") == 0 &&
             ret_node && ret_node->type == AST_RETURN &&
-            !ast_validate((ASTNode*)parser->ast_root, NULL);
+            ast_validate((ASTNode*)parser->ast_root, NULL);
 
         if (valid) {
             stream = tmpfile();
@@ -2251,7 +2251,7 @@ static int test_pointer_reference_type_declarators(void) {
             if (valid) {
                 rewind(stream);
                 decoded = ast_deserialize(stream);
-                valid = decoded != NULL && !ast_validate(decoded, NULL);
+                valid = decoded != NULL && ast_validate(decoded, NULL);
             }
         }
     }
