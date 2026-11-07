@@ -165,7 +165,7 @@ Bu ayrım Rust `match` ve Kotlin `when` gibi pattern tabanlı seçimlerle aynı 
 | Default parameter | `f:sum(a:10)!i32 { ... }` | Parser mevcut; çağrıdaki `sum(a:10)` ise named argument'tır |
 | Variadic parameter | `f:log(args...)` | AST/Parser temeli var; ABI ve type-check kuralları açık |
 | Array parameter / return | `items!i32[]`, `!i32[]` | Parser/AST/codec köprüsü mevcut; semantic boyut/shape uyumu açık |
-| Generic function | `f:sum<T>(a!T,b!T)!T` | Önerilen biçim; Parser/AST generic parameter payload henüz yok |
+| Generic function / type variable | `f:sum(a!t,b!t)!t` | Type-name string korunur; Semantic generic binding/unification henüz yok. Açık `<T>` listesi normatif değil |
 | Multiple return values | — | Mevcut gramer tek dönüş tipi taşır; çoklu dönüş için tuple/record veya ayrı result type kararı gerekir |
 | Named function expression body | `f:name(...) > expr` | Parser mevcut uyumluluk davranışı; syntax reference'te normatif değil, yeni özellik olarak kullanılmamalı |
 
@@ -215,7 +215,7 @@ Bu avantajlar henüz tasarım/Parser seviyesindeki avantaj potansiyelidir. Seman
 
 ### 4.1 Eksik gramer için önerilen syntax adayı
 
-Callback signature ve `null` literalinin Parser desteği vardır; aşağıdaki generic function biçimi henüz normatif değildir ve mevcut Parser tarafından kabul edilmez.
+Callback signature ve `null` literalinin Parser desteği vardır. Generic function için mevcut tasarım adayı `a!t` / `!t` biçiminde örtük type variable'dır; Semantic binding henüz yoktur. Açık `<T>` listesi ek syntax olarak kabul edilmemelidir.
 
 **Function type / callback:**
 
@@ -228,15 +228,15 @@ f:apply(callback!Callback, id!u32)!bool {
 
 İmza grameri `f:(parametreler)>!DönüşTipi` olarak tanımlandı ve Parser tarafından kabul ediliyor. Mevcut AST bu imzayı type-name string alanında korur; ileride type checking/ABI gereksinimi büyürse ayrı bir function-type AST node'a yükseltilebilir. Sıradan lambda expression ile karıştırılmamalıdır. Go ve Kotlin de fonksiyon tiplerini parametre ve sonuç tipleriyle tanımlar; Kotlin fonksiyon değerlerini `f(x)` biçiminde çağırabilir.
 
-**Generic function:**
+**Generic function / type variable:**
 
 ```nexus
-f:sum<T>(a!T, b!T)!T {
+f:sum(a!t, b!t)!t {
     ret a + b;
 }
 ```
 
-İlk aşamada type parameter listesi fonksiyon adından sonra, parametre listesinden önce gelir. Constraint syntax'ı (ör. `T:Numeric`) daha sonra ayrıca tanımlanmalıdır. Type parameter listesi AST'de isim/constraint taşıyan ayrı düğümler olmalıdır; yalnızca fonksiyon adının içine metin olarak eklenmemelidir.
+Bu, mevcut dil tasarımında görülen örtük type-variable biçimidir. Parser `t` yazımını sıradan type-name string olarak koruyabilir; ancak Semantic henüz `t` için generic binding, scope, unification ve inference kurallarını uygulamaz. Açık `<T>` parameter-list syntax'ı normatif değildir; mevcut örtük tasarım netleştirilmeden eklenmemelidir.
 
 **Null / optional:** `null` artık null pointer literalıdır. `none` ise Option/Maybe türünün boş varyantı olarak ayrı kavram olmalıdır. Bunları tek değerde birleştirmek pointer nullability ile optional-value semantiğini karıştırır. Parser `null` literalini üretir; yalnızca nullable pointer bağlamlarında kullanılmasını Semantic doğrulamalıdır.
 
