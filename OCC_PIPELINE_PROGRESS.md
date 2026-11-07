@@ -1103,3 +1103,16 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Valgrind passed.
 - The initial run exposed two issues and both were corrected before the successful run: a missing forward declaration for the nominal-slot predicate, and test fixtures using reserved keyword `use` as a Group method alias. The integration fixture also now checks that inferred `self` type is reflected in the SemanticResult symbol, annotation and function-parameter relation.
 - This validates the current initial receiver implementation on the tested CI matrix. It does not complete Group method dispatch or Module Resolver work.
+
+## 2026-11-08 — Group callable dispatch
+
+- Added Group callable signature predeclaration. AST_METHOD implementation functions and direct Group functions are registered before Group member bodies are checked, allowing forward calls to later members.
+- Group callable resolver supports AST_METHOD public aliases and direct Group function names. AST_METHOD aliases resolve to their internal implementation symbol; direct Group functions are static members under their own names.
+- Implemented static calls through Group namespace and bound nominal Type, plus instance calls through the Group's bound Struct. Instance calls implicitly consume the first self parameter; explicit call arguments are checked starting at parameter index 1.
+- Static/instance call form mismatches are rejected. A static method or direct Group function cannot be called through an instance; an instance method cannot be called through a Group/Type qualifier. Argument count, argument types and unknown method names are checked.
+- Instance dispatch is restricted to the Group's exact nominal binding Struct; another Group-owned Struct does not inherit the Group's method surface.
+- Group implementation Slots persist at the containing lexical depth after Group scope exit so qualified Group calls can resolve them. Their internal names remain hidden from ordinary lookup and suggestion filtering outside their owning Group. Scope exit now removes all slots at the exiting depth rather than assuming depth-contiguous list order.
+- SemanticResult and OIR Verifier permit a qualified reference to a Group child-scope symbol only when the Group symbol is visible from the reference scope and a GroupMember, GroupTypeBinding or GroupMethodImplementation relation exposes the target. Added a direct SemanticResult test for this exception; sibling-scope references without a Group relation remain rejected.
+- Integration tests verify instance call to a later method, receiver offset, call/callee annotations, alias-to-implementation relation, and Group-qualified static call after leaving the Group scope. Semantic tests cover Type/Group static calls, direct Group functions, hidden implementation names, invalid receiver modes, wrong argument count/type, unknown methods and non-binding nominal types.
+- Verification: GitHub Actions run `42426973498` succeeded. Linux, macOS and Windows CTest passed 60/60; ASan/UBSan and Valgrind passed.
+- Remaining Group work: constructor behavior, nested Group dotted-path resolution/Module Resolver, visibility/export enforcement, default handler dispatch and full Group/Library ABI integration. Codegen remains blocked until the earlier pipeline stages are complete.
