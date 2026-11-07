@@ -110,7 +110,7 @@ int main(void) {
         TOKEN_TYPE_F32, TOKEN_TYPE_F64, TOKEN_TYPE_BOOL,
         TOKEN_TYPE_BIT, TOKEN_TYPE_BYTE, TOKEN_TYPE_HEX,
         TOKEN_TYPE_VOID, TOKEN_TYPE_ANY, TOKEN_KW_IS_ERR,
-        TOKEN_TRUE, TOKEN_FALSE, TOKEN_EOF
+        TOKEN_TRUE, TOKEN_FALSE, TOKEN_NULL, TOKEN_EOF
     };
 
     ParserContext ctx;
@@ -275,10 +275,13 @@ int main(void) {
     }
 
     {
-        const char* numeric_source = "0 12 3.14 1..5";
+        const char* numeric_source = "0 12 3.14 1..5 0xFF 0b1010 0o17 10E3 1e-3 1_000 1.5_25e-2";
         const OmniTokenType numeric_expected[] = {
             TOKEN_NUMBER, TOKEN_NUMBER, TOKEN_NUMBER,
-            TOKEN_NUMBER, TOKEN_RANGE, TOKEN_NUMBER, TOKEN_EOF
+            TOKEN_NUMBER, TOKEN_RANGE, TOKEN_NUMBER,
+            TOKEN_NUMBER, TOKEN_NUMBER, TOKEN_NUMBER,
+            TOKEN_NUMBER, TOKEN_NUMBER, TOKEN_NUMBER,
+            TOKEN_NUMBER, TOKEN_EOF
         };
         ParserContext numeric_ctx;
         memset(&numeric_ctx, 0, sizeof(numeric_ctx));
@@ -327,7 +330,8 @@ int main(void) {
 
     {
         const char* invalid_numeric[] = {
-            "0xFF", "0b1010", "10E3", "1e-3", "1_000", "12u8", "1.5f32"
+            "12u8", "1.5f32", "0x", "0b2", "0o8", "1e", "1e+",
+            "1__000", "1_", "0x_FF", "0xFF_"
         };
         for (size_t i = 0; i < sizeof(invalid_numeric) / sizeof(invalid_numeric[0]); ++i) {
             if (!expect_invalid_numeric_literal(invalid_numeric[i])) return 1;
