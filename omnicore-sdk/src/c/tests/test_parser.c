@@ -1882,23 +1882,55 @@ static int test_intrinsic_ast_family(void) {
         "f:main() { v:s = sizeof(x); }",
         "f:main() { v:t = typeof(x); }",
         "f:main() { v:o = is_ok(result); }",
+        "f:main() { v:o = is_err(result); }",
+        "f:main() { v:o = is_some(result); }",
+        "f:main() { v:o = is_none(result); }",
+        "f:main() { v:o = is_null(result); }",
         "f:main() { v:a = addr(x); }",
         "f:main() { v:c = clock(); }",
         "f:main() { v:d = datenow(); }",
         "f:main() { v:e = date(); }",
-        "f:main() { v:f = time(); }"
+        "f:main() { v:f = time(); }",
+        "f:main() { v:p = prnt(value); }",
+        "f:main() { v:p = prmt(value); }",
+        "f:main() { v:w = write(value); }",
+        "f:main() { v:w = fwrite(value); }",
+        "f:main() { v:x = exit(0); }",
+        "f:main() { v:x = swap(a, b); }",
+        "f:main() { v:x = peek(0); }",
+        "f:main() { v:x = poke(0, 1); }",
+        "f:main() { v:x = inb(0); }",
+        "f:main() { v:x = outb(0, 1); }",
+        "f:main() { v:x = irq(1); }",
+        "f:main() { v:x = intr(1); }",
+        "f:main() { v:x = reg.r(0); }",
+        "f:main() { v:x = area(1); }",
+        "f:main() { v:x = zone(1); }",
+        "f:main() { v:x = free(value); }",
+        "f:main() { v:x = send(value); }",
+        "f:main() { v:x = receive(value); }",
+        "f:main() { v:x = done(); }"
     };
     static const ASTNodeType expected[] = {
-        AST_LEN, AST_SIZEOF, AST_TYPEOF, AST_IS_OK, AST_ADDR,
-        AST_CLOCK, AST_DATENOW, AST_DATE, AST_TIME
+        AST_LEN, AST_SIZEOF, AST_TYPEOF, AST_IS_OK, AST_IS_ERR,
+        AST_IS_SOME, AST_IS_NONE, AST_IS_NULL, AST_ADDR, AST_CLOCK,
+        AST_DATENOW, AST_DATE, AST_TIME, AST_PRNT, AST_PRMT, AST_WRITE,
+        AST_FWRITE, AST_EXIT, AST_SWAP, AST_PEEK, AST_POKE, AST_INB,
+        AST_OUTB, AST_IRQ, AST_INTR, AST_REG, AST_AREA, AST_ZONE,
+        AST_FREE, AST_SEND, AST_RECEIVE, AST_DONE
     };
     size_t i;
+    if (sizeof(sources) / sizeof(sources[0]) !=
+        sizeof(expected) / sizeof(expected[0])) return 0;
+
     for (i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
         ParserContext* parser = parser_init_source("intrinsic-family.nxf",
             (const uint8_t*)sources[i], strlen(sources[i]));
         ASTFuncDecl* function;
         ASTNode* statement;
         ASTVarDecl* variable;
+        ASTNode* decoded = NULL;
+        FILE* stream = NULL;
         int valid = 0;
         if (!parser) return 0;
         if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
@@ -1908,11 +1940,22 @@ static int test_intrinsic_ast_family(void) {
             variable = statement && statement->type == AST_VAR_DECL
                 ? (ASTVarDecl*)statement : NULL;
             valid = variable && variable->initializer &&
-                variable->initializer->type == expected[i];
+                variable->initializer->type == expected[i] &&
+                variable->initializer->source_span.has_location;
+            if (valid) {
+                stream = tmpfile();
+                valid = stream && ast_serialize(parser->ast_root, stream) &&
+                    fseek(stream, 0, SEEK_SET) == 0;
+                if (valid) decoded = ast_deserialize(stream);
+                valid = valid && decoded && decoded->type == AST_PROGRAM &&
+                    ast_validate(decoded, NULL);
+            }
         }
+        if (decoded) ast_destroy(decoded);
+        if (stream) fclose(stream);
         parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Intrinsic AST mapping failed at index %lu.\n",
+            fprintf(stderr, "Intrinsic AST/codec mapping failed at index %lu.\\n",
                 (unsigned long)i);
             return 0;
         }
