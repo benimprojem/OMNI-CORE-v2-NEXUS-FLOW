@@ -2994,7 +2994,7 @@ static ASTNode* parse_struct_decl(Parser* p, int is_packed, char* name) {
         }
     }
     if (!decl->name || !parse_struct_body(p, decl)) {
-        if (!decl->name) error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expected a label identifier inside jump(...).");
+        if (!decl->name) error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expected a struct name.");
         ast_destroy((ASTNode*)decl);
         return NULL;
     }
@@ -4097,7 +4097,7 @@ static ASTNode* parse_statement(Parser* p) {
         consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC);
         if (!match(p, TOKEN_IDENTIFIER)) {
             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
-                msg_get(MSG_EXPECT_FUNC_NAME));
+                "Expected a label identifier inside jump(...).");
             return NULL;
         }
         target = p->previous;
