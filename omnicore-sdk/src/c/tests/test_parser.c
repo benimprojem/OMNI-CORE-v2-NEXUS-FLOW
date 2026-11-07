@@ -2112,12 +2112,53 @@ static int test_canonical_loop_and_jump_call_forms(void) {
     return valid;
 }
 
+static int test_dotted_module_use_path(void) {
+    static const char source[] =
+        "use msvcrt.exf as crt; f:main() { ret 0; }";
+    ParserContext* parser = parser_init_source(
+        "dotted-module-use.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* use_node;
+    ASTNode* function_node;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == 0 && parser->ast_root &&
+        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        use_node = ((ASTProgram*)parser->ast_root)->declarations;
+        function_node = use_node ? use_node->next : NULL;
+        valid = use_node && use_node->type == AST_USE &&
+            strcmp(((ASTUse*)use_node)->module_name, "msvcrt.exf") == 0 &&
+            ((ASTUse*)use_node)->alias &&
+            strcmp(((ASTUse*)use_node)->alias, "crt") == 0 &&
+            function_node && function_node->type == AST_FUNC_DECL &&
+            ast_validate((ASTNode*)parser->ast_root, NULL);
+        if (valid) {
+            stream = tmpfile();
+            valid = stream != NULL &&
+                ast_serialize((ASTNode*)parser->ast_root, stream) == 0;
+            if (valid) {
+                rewind(stream);
+                decoded = ast_deserialize(stream);
+                valid = decoded != NULL && ast_validate(decoded, NULL);
+            }
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Dotted module use path AST contract failed.\n");
+    return valid;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
     if (!test_must_top_level_ast()) return 1;
     if (!test_must_scope_rejected()) return 1;
     if (!test_canonical_loop_and_jump_call_forms()) return 1;
+    if (!test_dotted_module_use_path()) return 1;
     if (!test_spawn_is_outside_core_parser()) return 1;
     if (!test_intrinsic_ast_family()) return 1;
     if (!test_group_method_ast()) return 1;
