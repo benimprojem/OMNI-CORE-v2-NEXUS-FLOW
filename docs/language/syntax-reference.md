@@ -748,7 +748,7 @@ OIR aşamasında:
 - Aralıklar veya jump table için uygun olmayan pattern'ler karşılaştırma/dallanma zinciriyle işlenebilir.
 - `scan` önce tür/varyant etiketini kontrol eder; yalnızca eşleşme doğrulandıktan sonra payload alanlarını çıkarır.
 - `when` guard'ı pattern eşleşmesinden sonra ayrı bir koşullu dallanma olarak uygulanır.
-- Her branch normal tamamlandığında ortak çıkış bloğuna bağlanır. `return`, `break` veya `continue` ile sonlanan branch'ler kendi kontrol aktarımını korur.
+- Her branch normal tamamlandığında ortak çıkış bloğuna bağlanır. `ret`, `break` veya `continue` ile sonlanan branch'ler kendi kontrol aktarımını korur.
 - Hedef işlemci jump table desteklemiyorsa Codegen aynı davranışı karşılaştırma ve dallanma komutlarıyla üretir.
 
 Özetle: `select` **değer seçer**, `scan` ise **yapı/varyant eşleştirir**. İkisi statement tabanlıdır ve birbirlerinin yerine kullanılmak zorunda değildir.
@@ -844,7 +844,7 @@ Parser; `AST_RULESET`, `AST_BARRIER`, `AST_TRIGGER`, `AST_APPLY_RULES` ve `AST_O
 
 OIR Builder, her bariyer için koşul dallanması ve hata biriktirme adımı üretir. Tüm bariyerler test edildikten sonra hata listesi boş değilse bütün kayıtlar raporlanır ve ayrı bir `RuleSetFailureExit` yoluna gidilir; bu yol normal `RETURN` ile aynı değildir. Hata yoksa bütün normal trigger koşulları birer kez değerlendirilir ve sonuçları SSA boolean değerleri olarak saklanır. Ardından eşleşen `on` handler'ları kaynak sırasıyla koşullu bloklar halinde yürütülür. Sonrasında varsa `always`, normal trigger eşleşmemişse varsa `default` aşaması çalışır. Canlı başarılı yollar `ApplyContinue` bloğunda birleştirilir.
 
-Trigger adları Analyzer aşamasında sabit kimliklere çözülür; OIR'ın çalışma zamanında metin karşılaştırması yapması gerekmez. Handler gövdesi `return` veya başka bir sonlandırıcı kontrol akışı içerirse sonraki handler'a yapay bir CFG bağlantısı kurulmaz. Hata biriktirme işlemlerinin nihai opcode/runtime ABI karşılığı ayrıca belirlenecektir.
+Trigger adları Analyzer aşamasında sabit kimliklere çözülür; OIR'ın çalışma zamanında metin karşılaştırması yapması gerekmez. Handler gövdesi `ret` veya başka bir sonlandırıcı kontrol akışı içerirse sonraki handler'a yapay bir CFG bağlantısı kurulmaz. Hata biriktirme işlemlerinin nihai opcode/runtime ABI karşılığı ayrıca belirlenecektir.
 
 > Not: `group` içindeki `rules ... => group { ... }` biçimi temel `rules Name(params) { ... }` sözdiziminden ayrı bir organizasyon katmanıdır; ayrı lowering/çözümleme adımı olarak ele alınacaktır.
 
@@ -1459,7 +1459,7 @@ f:main() {
 4. Aynı scope aktivasyonunda birden fazla defer kaydedilmişse son kaydedilen ilk çalışır (LIFO).
 5. Defer blokları, aynı scope'a ait otomatik `}?;` kaynak/masa temizliğinden önce çalışır. Böylece defer gövdesi, otomatik serbest bırakma başlamadan önce hâlâ sahip olunan kaynakları kullanabilir.
 6. Scope aktivasyonu sona erdiğinde o aktivasyona ait defer kayıtları tüketilir. Yeni ve geçerli bir scope aktivasyonu yeni kayıt listesi oluşturur.
-7. Defer gövdesi, kendisini kaydeden scope'un dışına `jump`, `return`, `break` veya `continue` ile kontrol aktaramaz.
+7. Defer gövdesi, kendisini kaydeden scope'un dışına `jump`, `ret`, `break` veya `continue` ile kontrol aktaramaz.
 8. Bu sürümde defer gövdesi içinde yeni defer kaydı oluşturulması desteklenmez; Analyzer bunu reddeder.
 9. Defer gövdesindeki hata/panic ve otomatik cleanup hatalarının tamamlanma, biriktirme ve unwind politikası MR-OIR-020'de tanımlanır; cleanup hatası normal başarı gibi kabul edilemez.
 
