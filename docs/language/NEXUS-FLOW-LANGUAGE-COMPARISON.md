@@ -177,18 +177,18 @@ Bu avantajlar henüz tasarım/Parser seviyesindeki avantaj potansiyelidir. Seman
 
 | Eksik alan | Neden önemli | Önerilen yön |
 |---|---|---|
-| Pointer/reference type declarator | C ABI, extern, düşük seviye bellek erişimi | `*T`, `**T`, `&T` gramerini AST type metadata ile temsil et |
+| Pointer/reference type declarator | C ABI, extern, düşük seviye bellek erişimi | Parser `*T`, `**T`, `&T` yazımlarını type-name alanında koruyor; Semantic ownership/borrow/lifetime kuralları açık |
 | Function type / callback | Callback API, DLL/extern arayüzü, fonksiyon değerleri | Parser artık `f:(name!T)>!R` imzasını kabul edip AST type-name alanında saklıyor; dedicated type node, compatibility ve ABI lowering açık |
 | Generic type parameter | Generic örnekteki `t` şu anda gerçek type parameter olarak tanımlı değil | Açık type-parameter listesi ve daha sonra constraint sistemi |
-| Null / optional değer | `null` artık gerçek literal; `none` ve Option/nullable type sözleşmesi hâlâ eksik | `null` pointer sentinel; Option/Maybe boş varyantı ayrı tanımlanmalı |
-| Numeric literal standardı | Hex, binary, octal ve scientific notation low-level/numeric kodda önemlidir | Radix/exponent grammar ve overflow kuralları |
+| Null / optional değer | `null` ayrı literal; `none` ve Option/nullable type sözleşmesi hâlâ eksik | `null` pointer sentinel; Option/Maybe boş varyantı ayrı tanımlanmalı; Semantic nullability check gerekli |
+| Numeric literal standardı | Hex, binary, octal, scientific notation ve digit separator Lexer/Parser tarafından kabul ediliyor | Overflow, precision, integer range ve type promotion Semantic'te doğrulanmalı |
 | Shift / Flow operator ayrımı | `<<` / `>>` iki anlam için çakışıyor | Açık bir syntax disambiguation; token heuristiği kullanma |
 | Directive / macro grameri | `!!=[target...]` ve `:macro` örnekleri core Parser tarafından tam karşılanmıyor | Preprocessor/target directive katmanını core expression gramerinden ayır |
 | Source-span parity | Her production'ın gerçek kaynak aralığı AST'de korunmalı | Her production için start/end test matrisi |
 
-### 4.1 Önerilen syntax adayları (henüz normatif değil)
+### 4.1 Eksik gramer için önerilen syntax adayı
 
-Bu adaylar yaygın dil tasarımlarından yararlanır; mevcut Parser desteği olarak okunmamalıdır.
+Callback signature ve `null` literalinin Parser desteği vardır; aşağıdaki generic function biçimi henüz normatif değildir ve mevcut Parser tarafından kabul edilmez.
 
 **Function type / callback:**
 
@@ -242,11 +242,11 @@ Bu liste özelliklerin mutlaka eklenmesi gerektiği anlamına gelmez. Her madde 
 
 ## 5. Önerilen karar sırası
 
-1. Pointer/reference syntax Parser üretimi tamamlandı; type metadata/ownership Semantic kuralları açık.
-2. Function type/callback AST temsili.
-3. Generic type parameter grameri ve AST temsili.
-4. Null/optional modelinin dil seviyesinde kararı.
-5. Numeric literal biçimleri.
+1. Pointer/reference type-name string biçiminin AST type descriptor'a yükseltilip yükseltilmeyeceği; Semantic ownership/borrow/nullability kuralları.
+2. Callback imzası için ayrı `AST_FUNCTION_TYPE` node gereksinimi ve OIR karşılığı.
+3. Generic function type parameter grameri ve append-only AST/codec/OIR payload tasarımı.
+4. Option/Result, `none`, unwrap ve error propagation sözleşmesi.
+5. Numeric literal conversion, overflow, precision ve type promotion.
 6. `<<` / `>>` çakışması için açık gramer.
 7. Directive/macro'nun core Parser dışındaki katmanının kesinleştirilmesi.
 8. Syntax → Lexer → Parser → AST → Codec → Validator → tests matrisi.
