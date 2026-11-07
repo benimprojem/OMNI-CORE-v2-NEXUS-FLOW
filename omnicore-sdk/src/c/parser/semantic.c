@@ -2861,7 +2861,7 @@ static void semantic_check_node(
                 ctx->current_method_receiver_type_id = receiver_slot->type_id;
             }
 
-            if (m->implementation) semantic_check(ctx, m->implementation);
+            if (m->implementation) semantic_check_node(ctx, m->implementation, 0);
 
             ctx->current_method_receiver_type = previous_receiver_type;
             ctx->current_method_receiver_type_id = previous_receiver_type_id;
