@@ -258,7 +258,7 @@ Group adı ile aynı ada sahip, Group'un doğrudan üyesi olan nominal tür vars
 
 Bu kuralların Semantic sonucu, Group kimliği, bağlı nominal tür kimliği, Group üye sembolleri, public method adı ve receiver ilişkisini taşımalıdır. OIR, bu çözülmüş kimlikleri korumalıdır; Codegen isim metninden ilişki çıkarmamalıdır.
 
-**Uygulama notu:** Mevcut AST `ASTGroupDecl` / `ASTMethod` yapısı Group üyelerini ve public method adını taşır. Mevcut SemanticResult sembol modeli Group sembol türünü henüz tanımlamıyor; Group symbol/relation desteği eklenirken SemanticResult doğrulayıcısı, codec ve OIR aktarımı birlikte güncellenmelidir. Bu bölüm tasarım sözleşmesidir, tamamlanmış uygulama iddiası değildir.
+**Uygulama notu (2026-11-08):** SemanticResult'a Group symbol ve Group relation türleri eklendi; Semantic checker Group Symbol, doğrudan üyelik, nominal binding, public method implementation ve default handler kayıtlarını üretmeye başladı. OIR Semantic AST schema 1.1 bu kayıtları taşır; reader 1.0 legacy artifact'lerini korurken 1.0 içinde yeni enum değerlerini reddeder. Gerçek AST → SemanticResult → OIR artifact round-trip ve schema uyumluluk testleri eklendi ancak henüz çalıştırılmadı. `self` receiver type inference/validation, Group member call resolution ve Module Resolver bağlantısı henüz uygulanmadı; bu nedenle §8.6 tamamlanmış kabul edilmez.
 ### 8.5 Module Resolver ve Library ABI sınırı
 
 Kütüphane desteği, Group AST'sini doğrudan runtime nesnesine çevirmek değildir. Modüler sorumluluklar:
