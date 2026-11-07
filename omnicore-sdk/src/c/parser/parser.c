@@ -787,6 +787,17 @@ static ASTNode* parse_primary(Parser* p) {
         loop->base.col = p->previous.col;
         loop->loop_type = 0;
 
+        /* Canonical infinite-loop form: loop { ... }. */
+        if (match(p, TOKEN_LBRACE)) {
+            loop->body = parse_block(p);
+            if (!loop->body) {
+                ast_destroy((ASTNode*)loop);
+                return NULL;
+            }
+            parser_stamp_node_tokens(p, (ASTNode*)loop, &loop_start, &p->previous);
+            return (ASTNode*)loop;
+        }
+
         consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC);
 
         // Argümanları parse et
@@ -3882,6 +3893,38 @@ static ASTNode* parse_statement(Parser* p) {
     if (match(p, TOKEN_LBRACE)) {
         return parse_block(p);
     }
+    /* Contextual alias for the explicit jump operator: jump(label); */
+    if (p->current.type == TOKEN_IDENTIFIER &&
+        parser_identifier_is(&p->current, "jump") &&
+        peek_token(p).type == TOKEN_LPAREN) {
+        Token jump_start = p->current;
+        Token target;
+        ASTNexusJump* jump_node;
+        advance(p);
+        consume(p, TOKEN_LPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_LPAREN_FUNC);
+        if (!match(p, TOKEN_IDENTIFIER)) {
+            error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                "Expected a label identifier inside jump(...).");
+            return NULL;
+        }
+        target = p->previous;
+        jump_node = (ASTNexusJump*)parser_ast_create(p, AST_NEXUS_JUMP);
+        if (!jump_node) return NULL;
+        jump_node->base.line = jump_start.line;
+        jump_node->base.col = jump_start.col;
+        jump_node->label_name = (char*)parser_malloc(p, (size_t)target.length + 1u);
+        if (!jump_node->label_name) {
+            ast_destroy((ASTNode*)jump_node);
+            return NULL;
+        }
+        memcpy(jump_node->label_name, target.start, (size_t)target.length);
+        jump_node->label_name[target.length] = '\0';
+        consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
+        consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_EXPR);
+        parser_stamp_node_tokens(p, (ASTNode*)jump_node, &jump_start, &p->previous);
+        return (ASTNode*)jump_node;
+    }
+
     if (match(p, TOKEN_JUMP)) {
         Token jump_start = p->previous;
         // ?>(label);
