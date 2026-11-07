@@ -313,9 +313,10 @@ static int test_group_semantic_records(void) {
         saw_receiver_parameter_relation;
     if (!ok) {
         fprintf(stderr,
-            "Group SemanticResult mismatch: symbol=%u relations=%u member=%d binding=%d method=%d default=%d\n",
+            "Group SemanticResult mismatch: symbol=%u relations=%u member=%d binding=%d method=%d default=%d receiver_symbol=%u receiver_type=%u receiver_annotation=%d receiver_relation=%d\n",
             group_symbol_id, group_relation_count, saw_member, saw_binding,
-            saw_method, saw_default);
+            saw_method, saw_default, self_symbol_id, bound_type_id,
+            saw_receiver_annotation, saw_receiver_parameter_relation);
     }
 
     /* Serialize the real Group AST and validate the resulting schema 1.1 artifact. */
@@ -354,7 +355,7 @@ static int test_group_semantic_records(void) {
                 (size_t)node_count + 1u) != OIR_STATUS_OK ||
             artifact_view.envelope.header.payload_schema_minor != 1u ||
             artifact_view.symbols.record_count != semantic.result.symbol_count ||
-            artifact_view.relations.record_count != 6u) {
+            artifact_view.relations.record_count != 8u) {
             ok = 0;
         } else {
             OirArtifactHeader legacy_header = artifact_view.envelope.header;
