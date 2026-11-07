@@ -65,7 +65,7 @@ Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY
 
 - **Hard-Lock (`!`):** `v:sayi!u64 = 50`. Veri "50" 8 bit olsa bile 64-bit yer ayrılır.
 
-**Tipler:** `bit`, `byte` (u8), `hex`, `char`, `f32`, `f64`, `i8..i64`, `u8..u64`, `bool`. `d32` and `d64` are not current built-in types.
+**Tipler:** `bit`, `byte` (u8), `hex`, `char`, `f32`, `f64`, `i8..i64`, `u8..u64`, `bool`. `d32` ve `d64` mevcut yerleşik tipler değildir.
 **Oyun/Grafik:** `Vec2`, `Vec3`, `Vec4` (SIMD Destekli).
 
 ---
@@ -100,10 +100,10 @@ loop(i, i < 100, i++) -> {
     # 'sonuc' burada 'float' olur, bir sonraki adımda gerekirse 'int'e evrilir.
 }
 
-f:hassas_toplam(a:!f64, b:!f64)!f64 {return a + b }
+f:hassas_toplam(a:!f64, b:!f64)!f64 {ret a + b }
 # Burada, içeri giren her veriyi f64'e zorlar.
 
-f:topla(a, b) {return a + b }
+f:topla(a, b) {ret a + b }
 # Kullanım: topla(5, 10) veya topla(a:5, b:10)
 
 v:sonuc = topla(a:10, b:20);
@@ -1426,7 +1426,7 @@ f:main() {
 
 1. Defer kaydı, yürütme sırasında defer ifadesine ulaşıldığında etkinleşir.
 2. Kayıt, bulunduğu lexical scope aktivasyonuna aittir. Aynı scope içindeki basic block geçişleri ve geri jump kayıtları silmez.
-3. Scope normal akışla veya `break`, `continue`, `return` ya da scope dışına çıkan `jump(label)` nedeniyle terk edildiğinde kayıtlı defer blokları çalıştırılır.
+3. Scope normal akışla veya `break`, `continue`, `ret` ya da scope dışına çıkan `jump(label)` nedeniyle terk edildiğinde kayıtlı defer blokları çalıştırılır.
 4. Aynı scope aktivasyonunda birden fazla defer kaydedilmişse son kaydedilen ilk çalışır (LIFO).
 5. Defer blokları, aynı scope'a ait otomatik `}?;` kaynak/masa temizliğinden önce çalışır. Böylece defer gövdesi, otomatik serbest bırakma başlamadan önce hâlâ sahip olunan kaynakları kullanabilir.
 6. Scope aktivasyonu sona erdiğinde o aktivasyona ait defer kayıtları tüketilir. Yeni ve geçerli bir scope aktivasyonu yeni kayıt listesi oluşturur.
