@@ -1116,3 +1116,9 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Integration tests verify instance call to a later method, receiver offset, call/callee annotations, alias-to-implementation relation, and Group-qualified static call after leaving the Group scope. Semantic tests cover Type/Group static calls, direct Group functions, hidden implementation names, invalid receiver modes, wrong argument count/type, unknown methods and non-binding nominal types.
 - Verification: GitHub Actions run `42426973498` succeeded. Linux, macOS and Windows CTest passed 60/60; ASan/UBSan and Valgrind passed.
 - Remaining Group work: constructor behavior, nested Group dotted-path resolution/Module Resolver, visibility/export enforcement, default handler dispatch and full Group/Library ABI integration. Codegen remains blocked until the earlier pipeline stages are complete.
+### Anonymous Group method implementation and static factory typing
+
+- Preserved the parser's supported alias form where the implementation function name is omitted: `open => f:(self) { ... }`. Semantic uses the public alias as the internal function symbol name only for this anonymous implementation form. Named implementations keep their explicit internal symbol name.
+- Added regression tests for anonymous instance methods and anonymous static factory methods whose return type is the Group's bound Struct. `Type.factory(args)` propagates the declared return type to the call expression, enabling a typed local assignment.
+- GitHub Actions run `42427536942` passed: Linux, macOS and Windows CTest 60/60; ASan/UBSan and Valgrind passed.
+- Actual Struct literal construction and field initialization checks remain pending; the static factory test verifies call/return type flow, not complete constructor lowering.
