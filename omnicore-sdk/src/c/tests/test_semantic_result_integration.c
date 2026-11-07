@@ -164,12 +164,13 @@ static int test_group_semantic_records(void) {
     OirAstFrontendRequirements ast_requirements;
     OirAstNodeRecord* ast_records = NULL;
     uint8_t *ast_fields = NULL, *ast_strings = NULL;
-    uint8_t *ast_payload = NULL, *artifact = NULL;
+    uint8_t *ast_payload = NULL, *artifact = NULL, *legacy_artifact = NULL;
     uint32_t *incoming_counts = NULL, *owner_scope_by_node = NULL;
     uint8_t* visited = NULL;
     OirAstGraphStackEntry* graph_stack = NULL;
     OirSemanticAstArtifactView artifact_view;
     size_t ast_payload_written = 0u, artifact_written = 0u;
+    size_t legacy_artifact_written = 0u;
     int ok = 0;
 
     if (!parser) return 0;
@@ -248,13 +249,14 @@ static int test_group_semantic_records(void) {
             ast_requirements.string_table_length : 1u);
         ast_payload = (uint8_t*)malloc(ast_requirements.payload_size);
         artifact = (uint8_t*)malloc(1024u * 1024u);
+        legacy_artifact = (uint8_t*)malloc(1024u * 1024u);
         incoming_counts = (uint32_t*)calloc(node_count, sizeof(*incoming_counts));
         visited = (uint8_t*)calloc(node_count, sizeof(*visited));
         graph_stack = (OirAstGraphStackEntry*)calloc(node_count, sizeof(*graph_stack));
         owner_scope_by_node = (uint32_t*)calloc(
             (size_t)node_count + 1u, sizeof(*owner_scope_by_node));
         if (!ast_records || !ast_fields || !ast_strings || !ast_payload ||
-            !artifact || !incoming_counts || !visited || !graph_stack ||
+            !artifact || !legacy_artifact || !incoming_counts || !visited || !graph_stack ||
             !owner_scope_by_node) {
             ok = 0;
         } else if (oir_ast_frontend_write_payload(
@@ -275,6 +277,43 @@ static int test_group_semantic_records(void) {
             artifact_view.symbols.record_count != semantic.result.symbol_count ||
             artifact_view.relations.record_count != 6u) {
             ok = 0;
+        } else {
+            OirArtifactHeader legacy_header = artifact_view.envelope.header;
+            OirSectionInput legacy_sections[8];
+            uint32_t section_index;
+            if (artifact_view.envelope.section_count > 8u) {
+                ok = 0;
+            } else {
+                for (section_index = 0u;
+                    section_index < artifact_view.envelope.section_count;
+                    ++section_index) {
+                    OirSectionView section_view;
+                    if (oir_artifact_get_section(&artifact_view.envelope,
+                            section_index, &section_view) != OIR_STATUS_OK) {
+                        ok = 0;
+                        break;
+                    }
+                    legacy_sections[section_index].type = section_view.type;
+                    legacy_sections[section_index].version = section_view.version;
+                    legacy_sections[section_index].flags = section_view.flags;
+                    legacy_sections[section_index].data = section_view.data;
+                    legacy_sections[section_index].length = section_view.length;
+                }
+                if (ok) {
+                    legacy_header.payload_schema_minor = 0u;
+                    if (oir_artifact_write(legacy_artifact, 1024u * 1024u,
+                            &legacy_header, legacy_sections,
+                            artifact_view.envelope.section_count,
+                            &legacy_artifact_written) != OIR_STATUS_OK ||
+                        oir_semantic_ast_artifact_open(legacy_artifact,
+                            legacy_artifact_written, &artifact_view,
+                            incoming_counts, node_count, visited, node_count,
+                            graph_stack, node_count, owner_scope_by_node,
+                            (size_t)node_count + 1u) != OIR_STATUS_INVALID_SECTION) {
+                        ok = 0;
+                    }
+                }
+            }
         }
     } else if (ok) {
         ok = 0;
@@ -285,6 +324,7 @@ static int test_group_semantic_records(void) {
     free(ast_strings);
     free(ast_payload);
     free(artifact);
+    free(legacy_artifact);
     free(incoming_counts);
     free(visited);
     free(graph_stack);
