@@ -178,7 +178,7 @@ Bu avantajlar henüz tasarım/Parser seviyesindeki avantaj potansiyelidir. Seman
 | Eksik alan | Neden önemli | Önerilen yön |
 |---|---|---|
 | Pointer/reference type declarator | C ABI, extern, düşük seviye bellek erişimi | `*T`, `**T`, `&T` gramerini AST type metadata ile temsil et |
-| Function type / callback | Callback API, DLL/extern arayüzü, fonksiyon değerleri | `f:(a!T)>!R` imzasını ayrı function-type AST düğümüyle temsil et |
+| Function type / callback | Callback API, DLL/extern arayüzü, fonksiyon değerleri | Parser artık `f:(name!T)>!R` imzasını kabul edip AST type-name alanında saklıyor; dedicated type node, compatibility ve ABI lowering açık |
 | Generic type parameter | Generic örnekteki `t` şu anda gerçek type parameter olarak tanımlı değil | Açık type-parameter listesi ve daha sonra constraint sistemi |
 | Null / optional değer | Flow fallback açıklamalarında null var, fakat gerçek literal/type sözleşmesi eksik | `null` literal ile Option/nullable type kavramını ayır |
 | Numeric literal standardı | Hex, binary, octal ve scientific notation low-level/numeric kodda önemlidir | Radix/exponent grammar ve overflow kuralları |
@@ -199,7 +199,7 @@ f:apply(callback!Callback, id!u32)!bool {
 }
 ```
 
-İmza grameri `f:(parametreler)>!DönüşTipi` olarak tutulabilir. Parser/AST tarafında callback imzası ayrı bir type descriptor olarak temsil edilmelidir; sıradan lambda expression ile karıştırılmamalıdır. Go ve Kotlin de fonksiyon tiplerini parametre ve sonuç tipleriyle tanımlar; Kotlin fonksiyon değerlerini `f(x)` biçiminde çağırabilir.
+İmza grameri `f:(parametreler)>!DönüşTipi` olarak tanımlandı ve Parser tarafından kabul ediliyor. Mevcut AST bu imzayı type-name string alanında korur; ileride type checking/ABI gereksinimi büyürse ayrı bir function-type AST node'a yükseltilebilir. Sıradan lambda expression ile karıştırılmamalıdır. Go ve Kotlin de fonksiyon tiplerini parametre ve sonuç tipleriyle tanımlar; Kotlin fonksiyon değerlerini `f(x)` biçiminde çağırabilir.
 
 **Generic function:**
 
