@@ -1061,3 +1061,15 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Semantic AST OIR reader'ın schema minor değerini tam eşitlikle kontrol ettiği doğrulandı. Bu nedenle Group kayıtları schema 1.1 ile yayımlanacak; yeni reader 1.0 ve 1.1 okuyacak, 1.0 içinde yeni enum değerlerini reddedecek. Record layout değişmeden kalacak.
 - **Kod henüz değiştirilmedi ve test çalıştırılmadı.** Sıradaki uygulama: SemanticResult enum/validator → OIR enum/codec → schema 1.0/1.1 reader uyumluluğu → OIR reference verifier → Semantic Group kayıt üretimi.
 
+## 2026-11-08 — Group SemanticResult/OIR foundational implementation
+
+- SemanticResult'a append-only SYMBOL_GROUP ve dört Group relation türü eklendi: doğrudan üyelik, nominal type binding, public method → implementation ve default handler.
+- SemanticResult validator Group relation owner türünü, zorunlu related symbol kurallarını, tekil binding/default ordinal değerlerini ve relation adlarını doğruluyor.
+- OIR Semantic AST schema minor 1.1'e çıkarıldı. Group symbol için AST_GROUP_DECL node-kind eşleşmesi; Group relation türleri için owner ve related-node doğrulaması eklendi.
+- Artifact reader 1.0 ve 1.1'i kabul edecek şekilde güncellendi; 1.0 artifact içinde 1.1 Group enum değerleri varsa reddediyor. 1.0 boş/legacy artifact okuma regresyon testi eklendi.
+- Semantic checker artık Group Symbol üretiyor; doğrudan üyelik, eşleşen Struct/Enum/Union binding, public method implementation ve default handler relation kayıtlarını SemanticResult'a ekliyor. Group annotation'ı da Group sembol kimliğine bağlanıyor.
+- SemanticResult model, OIR symbol/relation codec ve schema 1.0 okuma uyumluluğu için testler eklendi.
+- İlgili kod commitleri: SemanticResult enum/validator dbfc0ef5, 4f755f3f, 9d991fbb, 71b264a4; SemanticResult test f98dce70; OIR schema/validator 92b7298e, d58c6ffe, 2e5fd6ef; artifact reader 8d0e7d7c; schema uyumluluk testi 288d31f7; Group codec test a087ca57, relation verifier b7cdf754; Semantic checker f01ffa1a, e0094cca.
+- **Doğrulama durumu: çalıştırılmadı.** GitHub workflow sorgusu bu commitler için run döndürmedi; yerel CMake/CTest de henüz çalıştırılmadı. SemanticResult/OIR değişiklikleri bu nedenle testten geçmiş veya tamamlanmış sayılmıyor.
+- Sıradaki işler: Group semantic integration testinde node resolver bağlayarak SemanticResult kayıtlarını gerçek AST üzerinden doğrulamak; OIR artifact 1.1 Group round-trip ve bozuk referans testlerini eklemek; derleme/CI sonuçlarına göre düzeltmek. Ardından Group–Struct binding, self receiver ve çağrı çözümleme uygulamasına geçmek.
+
