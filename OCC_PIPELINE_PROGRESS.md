@@ -837,3 +837,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Extended `test_extern_echo_and_listen_keywords()` to assert exact byte start/end offsets and start line/column for both nodes.
 - CI run `42401418322` / commit `ac13f7056143` passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan, Valgrind); Ubuntu and Valgrind each report 60/60 tests.
 - Continue source-span audit by tracing each parse_statement branch and its enclosing helper. A helper with no local stamp may be stamped by its caller; only confirmed gaps should be changed.
+
+
+## 2026-11-07 — Source-span audit: import items and defer
+
+- Confirmed `AST_USE` represents one import item per node; the source-span policy is module identifier through optional alias, excluding the shared `use` keyword and final semicolon.
+- Extended the use/defer fixture to assert exact source offsets for aliased and unaliased import items and the full `defer` statement.
+- Corrected a test-only expected delimiter after the first CI run; Parser production behavior was already correct.
+- CI run `42401799340` / commit `41372b18b594` passed all five jobs; Ubuntu and Valgrind report 60/60 tests, zero failures.
+- Current source-span work is still an incremental audit, not blanket completion. Next inspect synthesized expression-bodied function nodes and the remaining statement/operator productions for explicit span policy.
