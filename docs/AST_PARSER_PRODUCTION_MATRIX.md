@@ -89,6 +89,7 @@ Parser source-span assertions are distributed through `test_parser.c` rather tha
 - Relocate, unroll and rolling retry expression boundaries.
 - FASTEXEC raw ASM declaration and attached label/body spans.
 - Capture, function parameter, variadic marker, Nexus label, group/member and targetless Halt.
+- `!(listen)` full statement span beginning at `!` and ending after its handler block; `!struct:Packed` full declaration span beginning at the hard-pack marker.
 - `asmcall`/`asmjmp` full call ranges.
 
 This is a **tested subset**, not blanket source-span coverage for all productions. AST closure requires each row to declare its span policy (token-only, full production, or synthesized/no source) and have assertions for both endpoints where location is required. UTF-8 offsets are byte offsets; line/column are separately validated.
@@ -119,3 +120,12 @@ Special statement/expression forms are covered separately: `echo(...)` → `AST_
 **CI evidence:** commit `237597ca5a64`, run `42401080171`: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind all passed. Ubuntu CTest and Valgrind each report 60/60 tests, zero failures.
 
 **Not implied by this table:** Semantic argument count/type rules, hardware permission checks, runtime effects, and target-specific legality are not established by parser/codec round-trip coverage.
+
+
+## Source-span audit — packed struct and listen fixes (2026-11-07)
+
+- The statement dispatcher had two direct-return paths that bypassed the common source-span stamping used by adjacent declarations: packed `!struct` and `!(listen)`.
+- Both now stamp the full syntactic production range. `AST_LISTEN` line/column mirrors the opening `!` token instead of the consumed colon.
+- `test_extern_echo_and_listen_keywords()` now asserts exact start/end byte offsets and start location for both `AST_LISTEN` and packed `AST_STRUCT_DECL`.
+- CI run `42401418322` / commit `ac13f7056143`: all five jobs passed (Windows, Ubuntu, macOS, ASan/UBSan, Valgrind); Ubuntu and Valgrind CTest each report 60/60.
+- The audit is incremental: other helper functions may receive their span from the enclosing statement dispatcher. Do not infer a missing span merely because the helper itself does not call a stamping function; trace the complete parser path.
