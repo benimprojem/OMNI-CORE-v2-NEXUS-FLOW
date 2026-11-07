@@ -23,7 +23,7 @@ A syntax form is complete only if Lexer → Parser → AST payload → AST codec
 | Union | `AST_UNION_DECL` / `ASTStructDecl` | Present/shared | Confirm union field layout/type rules |
 | NewType `nt:` | `AST_NEWTYPE_DECL` | Present | Confirm target type and nominal semantics |
 | Group / methods | `AST_GROUP_DECL`, `AST_METHOD` | Present | Confirm member dispatch and method receiver |
-| Module import `use` | `AST_USE` | Present | Verify alias, path, module resolution |
+| Module import `use` | `AST_USE` | Parser supports comma-separated module names, aliases and dotted paths such as `use msvcrt.exf as crt;`; dotted path AST/codec test added | Module resolution and malformed path diagnostics remain |
 | Literals (number/string/char/bool) | `AST_LITERAL` | Present | Confirm all token/literal variants round-trip |
 | Identifier | `AST_IDENTIFIER` | Present | Symbol resolution + use-site metadata |
 | Unary / postfix | `AST_UNARY_EXPR`, `AST_POSTFIX_EXPR` | Present | Operator coverage and type rules |
@@ -442,3 +442,11 @@ The normative reference was compared against the active Lexer/Parser source rath
 | `null` | Used in prose as a runtime state, but no dedicated null literal token exists | Clarified as not a current source literal |
 
 The language comparison and prioritized gap inventory is maintained in `docs/language/NEXUS-FLOW-LANGUAGE-COMPARISON.md`. These entries are audit findings; they do not imply that deferred syntax has been implemented.
+
+
+### Module path syntax audit — 2026-11-07
+
+- `parse_use()` previously consumed only one identifier, while the normative DLL example used `use msvcrt.exf;`.
+- Parser now consumes one or more identifier segments separated by dots and stores the joined path in `AST_USE.module_name`.
+- Alias parsing remains `as identifier`; comma-separated imports remain supported.
+- Regression: `test_dotted_module_use_path` checks `msvcrt.exf`, alias `crt`, AST validation and stream round-trip. CI pending.
