@@ -2315,6 +2315,34 @@ static int test_function_type_alias_and_callback_parameter(void) {
             }
         }
     }
+    if (!valid) {
+        fprintf(stderr, "Callback debug: parse=%d errors=%u root=%p alias=%p function=%p callback=%p id=%p ast_valid=%d\\n",
+            parse_status, parser->error_count, parser->ast_root, (void*)alias_node,
+            (void*)function, (void*)callback_param, (void*)id_param,
+            parser->ast_root ? ast_validate((ASTNode*)parser->ast_root, NULL) : 0);
+        if (alias_node && alias_node->type == AST_NEWTYPE_DECL)
+            fprintf(stderr, "callback alias target='%s'\\n",
+                ((ASTNewTypeDecl*)alias_node)->target_type ?
+                ((ASTNewTypeDecl*)alias_node)->target_type : "(null)");
+        if (function)
+            fprintf(stderr, "function return='%s'\\n",
+                function->return_type ? function->return_type : "(null)");
+        if (callback_param)
+            fprintf(stderr, "callback parameter type='%s'\\n",
+                callback_param->type_name ? callback_param->type_name : "(null)");
+        if (id_param)
+            fprintf(stderr, "id parameter type='%s'\\n",
+                id_param->type_name ? id_param->type_name : "(null)");
+        {
+            Error* diagnostic = parser->error_head;
+            while (diagnostic) {
+                fprintf(stderr, "Callback parser diagnostic %d at %d:%d: %s\\n",
+                    (int)diagnostic->code, diagnostic->line, diagnostic->col,
+                    diagnostic->message ? diagnostic->message : "(no message)");
+                diagnostic = diagnostic->next;
+            }
+        }
+    }
     if (decoded) ast_destroy(decoded);
     if (stream) fclose(stream);
     parser_destroy(parser);
