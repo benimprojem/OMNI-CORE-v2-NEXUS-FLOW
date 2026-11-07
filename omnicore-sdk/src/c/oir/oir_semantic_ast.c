@@ -509,7 +509,7 @@ static OirStatus validate_symbol_values(
     uint64_t relation_end;
 
     if (kind < OIR_SEMANTIC_SYMBOL_VARIABLE ||
-        kind > OIR_SEMANTIC_SYMBOL_LABEL ||
+        kind > OIR_SEMANTIC_SYMBOL_GROUP ||
         (flags & ~(OIR_SEMANTIC_SYMBOL_FLAG_CONST |
             OIR_SEMANTIC_SYMBOL_FLAG_PUBLIC |
             OIR_SEMANTIC_SYMBOL_FLAG_EXPORTED |
@@ -949,7 +949,7 @@ static OirStatus validate_relation_records(
 
         if (owner == 0u ||
             kind < OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER ||
-            kind > OIR_SEMANTIC_RELATION_ENUM_PAYLOAD_FIELD ||
+            kind > OIR_SEMANTIC_RELATION_GROUP_DEFAULT_HANDLER ||
             flags != 0u || related_node_id == 0u) {
             return OIR_STATUS_INVALID_SECTION;
         }
@@ -1420,6 +1420,8 @@ static int semantic_symbol_declaration_kind_matches(
             return node_kind == 8u;
         case OIR_SEMANTIC_SYMBOL_LABEL:
             return node_kind == 33u; /* AST_NEXUS_LABEL */
+        case OIR_SEMANTIC_SYMBOL_GROUP:
+            return node_kind == 10u; /* AST_GROUP_DECL */
         default:
             return 0;
     }
@@ -1436,6 +1438,16 @@ static int semantic_relation_node_kind_matches(
             return node_kind == 3u; /* AST_VAR_DECL */
         case OIR_SEMANTIC_RELATION_ENUM_VARIANT:
             return node_kind == 9u; /* AST_ENUM_VARIANT */
+        case OIR_SEMANTIC_RELATION_GROUP_MEMBER:
+            return node_kind == 3u || node_kind == 4u ||
+                (node_kind >= 5u && node_kind <= 8u) ||
+                (node_kind >= 10u && node_kind <= 12u);
+        case OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING:
+            return node_kind == 5u || node_kind == 6u || node_kind == 7u;
+        case OIR_SEMANTIC_RELATION_GROUP_METHOD_IMPLEMENTATION:
+            return node_kind == 4u || node_kind == 12u;
+        case OIR_SEMANTIC_RELATION_GROUP_DEFAULT_HANDLER:
+            return node_kind == 11u; /* AST_METHOD */
         default:
             return 0;
     }
@@ -1454,6 +1466,11 @@ static int semantic_relation_owner_kind_matches(
         case OIR_SEMANTIC_RELATION_ENUM_VARIANT:
         case OIR_SEMANTIC_RELATION_ENUM_PAYLOAD_FIELD:
             return symbol_kind == OIR_SEMANTIC_SYMBOL_ENUM;
+        case OIR_SEMANTIC_RELATION_GROUP_MEMBER:
+        case OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING:
+        case OIR_SEMANTIC_RELATION_GROUP_METHOD_IMPLEMENTATION:
+        case OIR_SEMANTIC_RELATION_GROUP_DEFAULT_HANDLER:
+            return symbol_kind == OIR_SEMANTIC_SYMBOL_GROUP;
         default:
             return 0;
     }
@@ -1645,6 +1662,19 @@ OirStatus oir_semantic_ast_validate_references(
             semantic_ast_node_kind(ast, relation.related_node_id,
                 &related_kind) != OIR_STATUS_OK ||
             !semantic_relation_node_kind_matches(relation.kind, related_kind)) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if ((relation.kind == OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING ||
+                relation.kind == OIR_SEMANTIC_RELATION_GROUP_METHOD_IMPLEMENTATION) &&
+            relation.related_symbol_id == 0u) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if (relation.kind == OIR_SEMANTIC_RELATION_GROUP_DEFAULT_HANDLER &&
+            (relation.related_symbol_id != 0u || relation.ordinal != 0u)) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if (relation.kind == OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING &&
+            relation.ordinal != 0u) {
             return OIR_STATUS_INVALID_SECTION;
         }
         if (relation.related_symbol_id != 0u) {
