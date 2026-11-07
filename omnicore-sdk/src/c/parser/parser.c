@@ -2325,8 +2325,9 @@ static int parser_parse_function_type_signature(Parser* p, char** out) {
     size_t i;
     char* signature;
 
-    if (!p || !out || p->current.type != TOKEN_PRE_FUNC ||
-        p->current.length != 2 || peek_token(p).type != TOKEN_LPAREN) return 0;
+    if (!p || !out || p->current.type != TOKEN_KW_FN ||
+        p->current.length != 2 || p->current.start[1] != ':' ||
+        peek_token(p).type != TOKEN_LPAREN) return 0;
     *out = NULL;
     start = p->current;
     begin = start.start;
