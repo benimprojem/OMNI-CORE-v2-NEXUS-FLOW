@@ -1931,6 +1931,9 @@ static int test_intrinsic_ast_family(void) {
         ASTVarDecl* variable;
         ASTNode* decoded = NULL;
         FILE* stream = NULL;
+        const char* assignment = strstr(sources[i], " = ");
+        const char* expr_start = assignment ? assignment + 3 : NULL;
+        const char* expr_end = expr_start ? strchr(expr_start, ';') : NULL;
         int valid = 0;
         if (!parser) return 0;
         if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
@@ -1939,9 +1942,19 @@ static int test_intrinsic_ast_family(void) {
             statement = function ? ((ASTBlock*)function->body)->statements : NULL;
             variable = statement && statement->type == AST_VAR_DECL
                 ? (ASTVarDecl*)statement : NULL;
-            valid = variable && variable->initializer &&
+            valid = variable && variable->initializer && expr_start && expr_end &&
                 variable->initializer->type == expected[i] &&
-                variable->initializer->source_span.has_location;
+                variable->initializer->source_span.has_location &&
+                variable->initializer->source_span.start_offset ==
+                    (uint64_t)(expr_start - sources[i]) &&
+                variable->initializer->source_span.end_offset ==
+                    (uint64_t)(expr_end - sources[i]) &&
+                variable->initializer->source_span.start_line == 1u &&
+                variable->initializer->source_span.end_line == 1u &&
+                variable->initializer->source_span.start_column ==
+                    (uint32_t)(expr_start - sources[i] + 1) &&
+                variable->initializer->source_span.end_column ==
+                    (uint32_t)(expr_end - sources[i] + 1);
             if (valid) {
                 stream = tmpfile();
                 valid = stream && ast_serialize(parser->ast_root, stream) &&
