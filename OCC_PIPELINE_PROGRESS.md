@@ -883,3 +883,12 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Added a negative fixture requiring a missing `break` semicolon to produce a Parser error/diagnostic.
 - Updated `docs/AST_PARSER_PRODUCTION_MATRIX.md` to record this coverage (commit `933efec0`); source test commit `7113e195`.
 - CI evidence is pending. This is Parser/AST structural coverage only; loop legality, reachability and return-type compatibility remain Semantic responsibilities.
+
+
+### CI update — run 42408436371 (commit `7113e195`)
+
+- Ubuntu CTest: 60/60 passed.
+- macOS CTest: 60/60 passed.
+- Windows build + CTest: passed.
+- ASan/UBSan: passed.
+- Valgrind: still running at the time of this update; overall matrix is not yet green.
