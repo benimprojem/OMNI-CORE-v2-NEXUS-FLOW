@@ -634,6 +634,56 @@ int main(void) {
     }
 
 
+    /* Group symbol and default-handler relation kinds are stable codec values. */
+    {
+        const uint8_t group_name[] = { 'S', 't', 'o', 'r', 'a', 'g', 'e' };
+        const uint8_t default_name[] = {
+            'd', 'e', 'f', 'a', 'u', 'l', 't'
+        };
+        const OirSemanticSymbol group_symbol = {
+            1u, 1u, 2u, OIR_SEMANTIC_SYMBOL_GROUP, 0u,
+            0u, 7u, 0u, 0u, 0u
+        };
+        const OirSemanticRelation default_relation = {
+            1u, OIR_SEMANTIC_RELATION_GROUP_DEFAULT_HANDLER, 0u,
+            0u, 0u, 11u, 0u, 7u, 0u
+        };
+        uint8_t group_symbol_bytes[OIR_SEMANTIC_SYMBOLS_HEADER_SIZE +
+            OIR_SEMANTIC_SYMBOL_RECORD_SIZE + sizeof(group_name)];
+        uint8_t default_relation_bytes[OIR_SEMANTIC_RELATIONS_HEADER_SIZE +
+            OIR_SEMANTIC_RELATION_RECORD_SIZE + sizeof(default_name)];
+        size_t group_symbol_written = 0u, default_relation_written = 0u;
+        OirSemanticSymbolsView group_symbols_view;
+        OirSemanticRelationsView default_relations_view;
+        OirSemanticSymbol decoded_group;
+        OirSemanticRelation decoded_default;
+        const uint8_t* decoded_name = NULL;
+
+        assert(oir_semantic_symbols_write(group_symbol_bytes,
+            sizeof(group_symbol_bytes), &group_symbol, 1u, group_name,
+            (uint32_t)sizeof(group_name), &group_symbol_written) == OIR_STATUS_OK);
+        assert(oir_semantic_symbols_open(group_symbol_bytes, group_symbol_written,
+            &group_symbols_view) == OIR_STATUS_OK);
+        assert(oir_semantic_symbols_get(&group_symbols_view, 0u,
+            &decoded_group, &decoded_name) == OIR_STATUS_OK);
+        assert(decoded_group.kind == OIR_SEMANTIC_SYMBOL_GROUP &&
+            decoded_group.declaration_node_id == 2u &&
+            decoded_name && memcmp(decoded_name, "Storage", 7u) == 0);
+
+        assert(oir_semantic_relations_write(default_relation_bytes,
+            sizeof(default_relation_bytes), &default_relation, 1u, default_name,
+            (uint32_t)sizeof(default_name), &default_relation_written) ==
+            OIR_STATUS_OK);
+        assert(oir_semantic_relations_open(default_relation_bytes,
+            default_relation_written, &default_relations_view) == OIR_STATUS_OK);
+        assert(oir_semantic_relations_get(&default_relations_view, 0u,
+            &decoded_default, &decoded_name) == OIR_STATUS_OK);
+        assert(decoded_default.kind ==
+            OIR_SEMANTIC_RELATION_GROUP_DEFAULT_HANDLER &&
+            decoded_default.related_node_id == 11u &&
+            decoded_name && memcmp(decoded_name, "default", 7u) == 0);
+    }
+
     {
         const OirSemanticConversion conversions[] = {
             { 4u, 0u, 1u, 2u, OIR_SEMANTIC_CONVERSION_WIDENING,
