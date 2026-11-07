@@ -2225,14 +2225,14 @@ static int parser_parse_type_name(Parser* p, char** out,
     int include_hard_marker, int is_hard_typed);
 static int parser_parse_function_type_signature(Parser* p, char** out);
 
-static int parser_is_type_start(const Parser* p) {
+static int parser_is_type_start(Parser* p) {
     return p && (
         (p->current.type >= TOKEN_TYPE_U8 && p->current.type <= TOKEN_TYPE_ANY) ||
         p->current.type == TOKEN_IDENTIFIER ||
         p->current.type == TOKEN_STAR ||
         p->current.type == TOKEN_BIT_AND ||
         (p->current.type == TOKEN_PRE_FUNC && p->current.length == 2 &&
-            peek_token((Parser*)p).type == TOKEN_LPAREN));
+            peek_token(p).type == TOKEN_LPAREN));
 }
 
 /* Preserve pointer/reference prefixes and callback signatures in AST type-name fields. */
