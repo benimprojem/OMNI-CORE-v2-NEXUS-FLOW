@@ -1641,9 +1641,10 @@ OirStatus oir_semantic_ast_validate_references(
         OirSemanticRelation relation;
         OirSemanticSymbol owner;
         uint16_t related_kind;
+        const uint8_t* relation_name = NULL;
         uint64_t relation_index_1based = (uint64_t)i + 1u;
         status = oir_semantic_relations_get(
-            &relations, i, &relation, NULL);
+            &relations, i, &relation, &relation_name);
         if (status != OIR_STATUS_OK ||
             relation.owner_symbol_id > symbols.record_count ||
             relation.related_symbol_id > symbols.record_count ||
@@ -1675,6 +1676,21 @@ OirStatus oir_semantic_ast_validate_references(
         }
         if (relation.kind == OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING &&
             relation.ordinal != 0u) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if ((relation.kind == OIR_SEMANTIC_RELATION_GROUP_TYPE_BINDING ||
+                relation.kind == OIR_SEMANTIC_RELATION_GROUP_METHOD_IMPLEMENTATION) &&
+            (relation.related_symbol_id == 0u || relation.name_length == 0u)) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if (relation.kind == OIR_SEMANTIC_RELATION_GROUP_MEMBER &&
+            relation.name_length == 0u) {
+            return OIR_STATUS_INVALID_SECTION;
+        }
+        if (relation.kind == OIR_SEMANTIC_RELATION_GROUP_DEFAULT_HANDLER &&
+            (relation.related_symbol_id != 0u || relation.ordinal != 0u ||
+                relation.name_length != 7u || !relation_name ||
+                memcmp(relation_name, "default", 7u) != 0)) {
             return OIR_STATUS_INVALID_SECTION;
         }
         if (relation.related_symbol_id != 0u) {
