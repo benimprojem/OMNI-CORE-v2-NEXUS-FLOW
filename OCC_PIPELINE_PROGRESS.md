@@ -961,3 +961,13 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - CTest suite: 60/60 passed on the build/test matrix.
 - Covered in this validated checkpoint: canonical `loop {}`, `jump(label);`, dotted `use` paths, pointer/reference type spellings, callback function-type signature strings, numeric radix/exponent/separator forms and the `null` literal.
 - This checkpoint does not close AST as a whole. Generic type parameters, dedicated function-type AST node, Semantic type/ownership rules, exact source-span audit, AST OOM injection and full node/factory/codec/validator parity remain open.
+
+
+## 2026-11-07 — Thread block syntax reconciliation
+
+- Added the missing normative syntax for `(name)>{ ... }` to the language reference.
+- Confirmed Parser emits `AST_THREAD_BLOCK` with name/body and leaves `mode` / `timeout` NULL.
+- Existing `test_thread_block_ast` checks AST shape, codec round-trip and spawn rejection; `test_thread_block_source_span` checks exact byte span.
+- `spawn` remains intentionally outside the core Parser and is owned by the Thread module.
+- Scheduling, start/join, timeout, cancellation, capture/lifetime and memory-ordering remain Thread/runtime contracts.
+- CI workflow `42411223520`: 5/5 jobs passed, 60/60 CTest.
