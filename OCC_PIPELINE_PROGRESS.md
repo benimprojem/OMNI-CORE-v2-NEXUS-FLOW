@@ -1000,3 +1000,26 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Bu increment yalnızca Parser/AST biçim desteğidir; Group semantiği ve runtime dispatch tamamlanmış değildir.
 
 - Follow-up düzeltme: `1464fee3` C string terminator literal ve `error_at()` diagnostic argümanını düzeltti. CI run `42416476317` bu commit üzerinde çalışıyor (Ubuntu/macOS/Windows + ASan/UBSan + Valgrind); final sonuç bekleniyor.
+
+
+## 12. Group + Library/Module Takibi (2026-11-08)
+
+Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct bağlı instance metotları**. Yalnızca object ilişkisi tamamlanınca Group bitmiş sayılmaz.
+
+| Özellik | Parser / AST | Semantic | Module/OIR | Durum |
+|---|---|---|---|---|
+| Named Group + üyeler | ~ | ? | ? | Parser AST üretimi ve codec mevcut; kapsam/üyelik çözümleme açık |
+| Nested Group alias | ~ | ? | ? | Parser eklendi; negatif/nested hata testleri ve Semantic çözümleme açık |
+| Group default | ~ | ? | ? | AST_METHOD("default", BLOCK) temsili; dispatch/default resolution yok |
+| Group method | ~ | ? | ? | AST_METHOD üretimi; callable symbol ve signature checks açık |
+| Struct–Group eşleşmesi | ? | ? | ? | İsim/ilişki kuralı formal spec'te; semantic doğrulama yok |
+| self receiver | ? | ? | ? | İlk parametre receiver sözleşmesi; binding/type/member checks açık |
+| Constructor (yeni) | ? | ? | ? | Constructor semantiği ve instance initialization açık |
+| Group namespace member access | ~ | ? | ? | AST_MEMBER_ACCESS parse edilir; Group path çözümleme yok |
+| Library public/private | ~ | ? | ? | Group top-level pup/exp bayrakları mevcut; üye bazlı API visibility doğrulanmalı |
+| Module use / dependency | ~ | ? | ? | AST_USE dotted path ve m: dependency syntax mevcut; resolver/import scope yok |
+| Export / ABI | — | ? | ? | Codegen/linker öncesi symbol/ABI kontratı açık |
+
+**Normatif tasarım kaydı:** Group Formal Specification §8, Group'un Namespace Group ve Object Group rollerini; pup/exp, m:/use, member resolution, Module Resolver ve Library ABI sınırını tanımlar. Bu belge tasarım kararıdır, uygulama tamamlanma kanıtı değildir.
+
+**CI notu:** macOS Clang, parser.c içinde consume() fonksiyonuna message string yerine integer message ID verilmesi hatasını yakaladı. c6859c49 bu beş çağrıyı MSG_EXPECT_LBRACE_FUNC sabitine düzeltti; yeni CI run 42417366333 devam ediyor. Windows, Ubuntu, ASan/UBSan ve Valgrind önceki run'da geçti; macOS düzeltme commit'i için tekrar doğrulanacak.
