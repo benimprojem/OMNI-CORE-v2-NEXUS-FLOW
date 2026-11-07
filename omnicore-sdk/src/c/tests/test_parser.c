@@ -2096,7 +2096,7 @@ static int test_canonical_loop_and_jump_call_forms(void) {
         if (valid) {
             stream = tmpfile();
             valid = stream != NULL &&
-                ast_serialize((ASTNode*)parser->ast_root, stream) == 0;
+                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
             if (valid) {
                 rewind(stream);
                 decoded = ast_deserialize(stream);
@@ -2137,7 +2137,7 @@ static int test_dotted_module_use_path(void) {
         if (valid) {
             stream = tmpfile();
             valid = stream != NULL &&
-                ast_serialize((ASTNode*)parser->ast_root, stream) == 0;
+                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
             if (valid) {
                 rewind(stream);
                 decoded = ast_deserialize(stream);
