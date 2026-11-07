@@ -254,9 +254,10 @@ static Slot* find_slot(SemanticContext* ctx, const char* name) {
              * must not inherit the enclosing Group's private type namespace.
              * Types without a Group owner retain ordinary lexical visibility.
              */
-            if (semantic_slot_is_nominal_type(current) &&
-                current->group_owner &&
-                current->group_owner != ctx->current_group_owner) {
+            if (((semantic_slot_is_nominal_type(current) ||
+                  current->kind == SLOT_FUNC) &&
+                 current->group_owner &&
+                 current->group_owner != ctx->current_group_owner)) {
                 current = current->next;
                 continue;
             }
@@ -719,13 +720,16 @@ static void enter_scope(SemanticContext* ctx, ASTNode* owner_node) {
 static void exit_scope(SemanticContext* ctx) {
     if (!ctx) return;
 
-    Slot* current = ctx->head;
-    while (current && current->depth == ctx->current_depth) {
-        Slot* next = current->next;
-        destroy_slot(current);
-        current = next;
+    Slot** link = &ctx->head;
+    while (*link) {
+        Slot* current = *link;
+        if (current->depth == ctx->current_depth) {
+            *link = current->next;
+            destroy_slot(current);
+        } else {
+            link = &current->next;
+        }
     }
-    ctx->head = current;
     if (ctx->result_enabled && ctx->current_scope_id > 1u) {
         const SemanticResultScope* scope =
             &ctx->result.scopes[ctx->current_scope_id - 1u];
@@ -1390,6 +1394,14 @@ static void semantic_predeclare_group_callables(
                     ? SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED : 0u));
         }
         if (!function_slot) continue;
+        /*
+         * Keep the implementation symbol alive at the containing lexical
+         * depth so Group-qualified calls after the Group declaration can
+         * resolve it. find_slot hides this symbol outside its owning Group;
+         * its SemanticResult scope_id remains the actual Group scope.
+         */
+        if (ctx->current_depth > 0)
+            function_slot->depth = ctx->current_depth - 1;
         (void)semantic_populate_function_signature(
             ctx, function_slot, implementation);
 
