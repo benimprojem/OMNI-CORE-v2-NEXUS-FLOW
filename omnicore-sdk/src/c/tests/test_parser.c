@@ -3498,7 +3498,7 @@ generic_type_done:
         ASTBlock* defer_body;
         ASTVarDecl* cleanup;
         const char* core_start = strstr(source, "CoreModule");
-        const char* core_alias_end = strstr(source, "Core;");
+        const char* core_alias_end = strstr(source, "Core,");
         const char* math_start = strstr(source, "MathModule");
         const char* defer_start = strstr(source, "defer");
         const char* defer_close = defer_start ? strchr(defer_start, '}') : NULL;
@@ -3537,26 +3537,10 @@ generic_type_done:
                 ast_validate(parser->ast_root, NULL);
         }
         if (!valid) {
-            fprintf(stderr,
-                "use/defer spans: core=%d:%llu..%llu expected=%llu..%llu "
-                "math=%d:%llu..%llu expected=%llu..%llu "
-                "defer=%d:%llu..%llu expected=%llu..%llu\\n",
-                use_core ? (int)use_core->base.source_span.has_location : -1,
-                (unsigned long long)(use_core ? use_core->base.source_span.start_offset : 0u),
-                (unsigned long long)(use_core ? use_core->base.source_span.end_offset : 0u),
-                (unsigned long long)(core_start ? core_start-source : 0u),
-                (unsigned long long)(core_alias_end ? core_alias_end+strlen("Core")-source : 0u),
-                use_math ? (int)use_math->base.source_span.has_location : -1,
-                (unsigned long long)(use_math ? use_math->base.source_span.start_offset : 0u),
-                (unsigned long long)(use_math ? use_math->base.source_span.end_offset : 0u),
-                (unsigned long long)(math_start ? math_start-source : 0u),
-                (unsigned long long)(math_start ? math_start+strlen("MathModule")-source : 0u),
-                defer_node ? (int)defer_node->base.source_span.has_location : -1,
-                (unsigned long long)(defer_node ? defer_node->base.source_span.start_offset : 0u),
-                (unsigned long long)(defer_node ? defer_node->base.source_span.end_offset : 0u),
-                (unsigned long long)(defer_start ? defer_start-source : 0u),
-                (unsigned long long)(defer_close ? defer_close+1-source : 0u));
             if (parser) parser_destroy(parser);
+            fprintf(stderr, "use alias/defer AST ownership test failed.\n");
+            return 1;
+        }
             fprintf(stderr, "use alias/defer AST ownership test failed.\\n");
             return 1;
         }
