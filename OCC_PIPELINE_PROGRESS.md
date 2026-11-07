@@ -1081,3 +1081,16 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Incomplete Group member node IDs, missing nominal binding symbols and missing method implementation symbols now fail closed instead of silently omitting relation records.
 - Follow-up commits: real Group SemanticResult/OIR integration 71fdb1ce; schema 1.0 Group-tag rejection fixture 46ad6d70; relation name/type identity checks 373089d7, ffb1800a, 60ef47f4; incomplete relation fail-closed handling 1be6360d.
 - **Test status remains unverified.** These tests and implementation changes have not been run locally or by GitHub Actions. The integration fixture is added but must not be counted as passing until CMake/CTest and the CI matrix complete.
+
+
+## 2026-11-08 — Group Object receiver inference (initial implementation)
+
+- Semantic traversal gained an internal single-node mode so Group members can be visited without following their sibling chain. This preserves the AST graph and prevents a binding-first pass from double-processing declarations.
+- A Group's direct Struct/Enum/Union declaration whose name exactly matches the Group is now semantically checked before other direct members. The remaining members are then checked once in source order. This makes the nominal binding available to method signatures regardless of whether the binding appears before or after a method.
+- Corrected a binding collision discovered during implementation: the Group Symbol and its same-named direct nominal binding intentionally coexist in adjacent lexical scopes. Struct/Enum duplicate checks now permit only the exact active Group's own matching Group Symbol; unrelated collisions remain errors.
+- AST_METHOD establishes a temporary method context and resolves the matching direct Struct binding. An initial self receiver is accepted only for Struct-bound Object Groups; a later-positioned self is rejected; an explicit type must exactly match the bound Struct name; an untyped first self receives the bound Struct's type name and type ID before the method body is checked. The parameter Slot, SemanticResult symbol type, annotation and function parameter signature are updated.
+- Namespace Group and Enum/Union-bound Group methods do not receive implicit self. A method without self remains a static method. Direct Group functions do not inherit method receiver context.
+- Added Semantic regression fixtures for method-before-Struct inference and self.field, explicit matching type, static method, wrong explicit type, non-first self, Namespace Group self rejection and Enum-bound self rejection.
+- Commits: context/header e5ba41c4; initial Semantic implementation 0071555f; tests 98bef8fe; method-child traversal isolation follow-up recorded separately.
+- Verification status: not run. CMake/CTest and CI are still required. These fixtures and the receiver behavior remain partial until compilation, the full Semantic test target, SemanticResult/OIR integration tests, and platform/sanitizer CI pass.
+- Remaining Group work: constructor semantics, resolved Group/member call targets, instance.method(args) receiver argument binding, Module Resolver/import scope, visibility/export and default dispatch.
