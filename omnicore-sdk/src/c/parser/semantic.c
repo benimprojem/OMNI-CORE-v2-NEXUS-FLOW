@@ -1429,7 +1429,14 @@ static Slot* semantic_resolve_group_callable(
     int is_instance_call = 0;
 
     if (out_is_instance_call) *out_is_instance_call = 0;
-    if (!ctx || !access || !access->object || !access->member_name) return NULL;
+    if (!ctx || !access) return NULL;
+    if (!access->object || !access->member_name || !*access->member_name) {
+        if (report_diagnostics) {
+            report_error(ctx, (ASTNode*)access, ERR_SEMANTIC_TYPE_MISMATCH,
+                "A Group callable access requires both a receiver and a member name.");
+        }
+        return NULL;
+    }
 
     if (access->object->type == AST_IDENTIFIER) {
         object_slot = find_slot(ctx, ((ASTIdentifier*)access->object)->name);
@@ -1577,7 +1584,7 @@ static void semantic_validate_call_arguments(
     if (argument_count != expected_count) {
         char message[256];
         snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_COUNT),
-            function_slot->name, expected_count, argument_count);
+            function_slot->name, (int)expected_count, (int)argument_count);
         report_error(ctx, call_node, ERR_SEMANTIC_ARG_COUNT, message);
     }
 
@@ -1612,7 +1619,7 @@ static void semantic_validate_call_arguments(
             !are_types_compatible(expected_type, argument_type)) {
             char message[256];
             snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_TYPE),
-                parameter_index + 1u, expected_type, argument_type);
+                (int)(parameter_index + 1u), expected_type, argument_type);
             report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE, message);
         } else if (parameter && parameter->inline_type &&
             parameter->inline_type->type == AST_ARRAY_TYPE &&
