@@ -2305,6 +2305,70 @@ static int test_function_type_alias_and_callback_parameter(void) {
 }
 
 
+static int test_null_and_numeric_literal_ast(void) {
+    static const char source[] =
+        "f:main() { "
+        "v:p!*u8 = null; "
+        "v:a = 0xFF; "
+        "v:b = 10E3; "
+        "v:c = 1e-3; "
+        "v:d = 0b1010; "
+        "ret 0; }";
+    ParserContext* parser = parser_init_source(
+        "null-numeric-literals.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* function_node;
+    ASTNode* statement;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    const char* expected[] = { "null", "0xFF", "10E3", "1e-3", "0b1010" };
+    const OmniTokenType expected_types[] = {
+        TOKEN_NULL, TOKEN_NUMBER, TOKEN_NUMBER, TOKEN_NUMBER, TOKEN_NUMBER
+    };
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == 0 && parser->ast_root &&
+        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        function_node = ((ASTProgram*)parser->ast_root)->declarations;
+        statement = function_node && function_node->type == AST_FUNC_DECL &&
+            ((ASTFuncDecl*)function_node)->body &&
+            ((ASTFuncDecl*)function_node)->body->type == AST_BLOCK
+            ? ((ASTBlock*)((ASTFuncDecl*)function_node)->body)->statements : NULL;
+
+        valid = function_node && function_node->type == AST_FUNC_DECL;
+        for (size_t i = 0u; valid && i < 5u; ++i) {
+            ASTVarDecl* declaration = statement && statement->type == AST_VAR_DECL
+                ? (ASTVarDecl*)statement : NULL;
+            ASTLiteral* literal = declaration && declaration->initializer &&
+                declaration->initializer->type == AST_LITERAL
+                ? (ASTLiteral*)declaration->initializer : NULL;
+            valid = literal && literal->type == expected_types[i] &&
+                literal->string_value &&
+                strcmp(literal->string_value, expected[i]) == 0;
+            statement = statement ? statement->next : NULL;
+        }
+        valid = valid && statement && statement->type == AST_RETURN &&
+            ast_validate((ASTNode*)parser->ast_root, NULL);
+
+        if (valid) {
+            stream = tmpfile();
+            valid = stream != NULL &&
+                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
+            if (valid) {
+                rewind(stream);
+                decoded = ast_deserialize(stream);
+                valid = decoded != NULL && ast_validate(decoded, NULL);
+            }
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Null/radix/scientific numeric AST contract failed.\n");
+    return valid;
+}
+
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -2314,6 +2378,7 @@ int main(int argc, char** argv) {
     if (!test_dotted_module_use_path()) return 1;
     if (!test_pointer_reference_type_declarators()) return 1;
     if (!test_function_type_alias_and_callback_parameter()) return 1;
+    if (!test_null_and_numeric_literal_ast()) return 1;
     if (!test_spawn_is_outside_core_parser()) return 1;
     if (!test_intrinsic_ast_family()) return 1;
     if (!test_group_method_ast()) return 1;
