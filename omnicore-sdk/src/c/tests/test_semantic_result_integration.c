@@ -238,11 +238,27 @@ static int test_group_semantic_records(void) {
     semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
     if (semantic.error_count != 0 ||
-        semantic.result_status != SEMANTIC_RESULT_OK ||
-        semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
+        semantic.result_status != SEMANTIC_RESULT_OK) {
+        fprintf(stderr,
+            "Group receiver Semantic failure: errors=%d result_status=%d\\n",
+            semantic.error_count, (int)semantic.result_status);
+        semantic_print_errors(&semantic);
         semantic_destroy(&semantic);
         parser_destroy(parser);
         return 0;
+    }
+    {
+        SemanticResultStatus finalize_status =
+            semantic_finalize_result(&semantic, node_count);
+        if (finalize_status != SEMANTIC_RESULT_OK) {
+            fprintf(stderr,
+                "Group receiver SemanticResult finalize failed: %d (%s)\\n",
+                (int)finalize_status,
+                semantic_result_status_string(finalize_status));
+            semantic_destroy(&semantic);
+            parser_destroy(parser);
+            return 0;
+        }
     }
 
     for (i = 0u; i < semantic.result.symbol_count; ++i) {
