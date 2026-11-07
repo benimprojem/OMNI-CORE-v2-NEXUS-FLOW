@@ -924,3 +924,14 @@ Bir düğüm veya syntax özelliği ancak aşağıdaki kanıt zinciri sağlandı
 - Updated the normative syntax reference and both Parser/AST matrices. Semantic pointer validity, borrow/lifetime, nullability and ownership remain open.
 - Commits: Parser `0b87bd7b`; test `df9ef675`; syntax `5f430749`.
 - CI pending.
+
+
+## 2026-11-07 — Callback/function-type syntax production
+
+- Added Parser type-expression grammar `f:(name!Type, ...)>!ReturnType`.
+- Supported contexts: `nt:` aliases, local variable type, function parameter type and function return type.
+- The normalized signature is preserved in existing AST type-name strings; lambda expression bodies remain separate `AST_LAMBDA` nodes.
+- Added `test_function_type_alias_and_callback_parameter` with positive alias/parameter/invocation checks, AST validation/codec round-trip and malformed-signature negative case.
+- Dedicated function-type AST node, Semantic callback compatibility, closure capture and ABI lowering remain open.
+- Commits: Parser `486a92ba`; parser lookahead `37862b24`; test `51198999`.
+- CI pending.
