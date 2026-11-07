@@ -189,26 +189,23 @@ static int group_relation_exposes_symbol(
     uint32_t annotation_scope_id,
     uint32_t target_symbol_id
 ) {
-    uint32_t group_index;
+    uint32_t relation_index;
     if (!result || target_symbol_id == 0u) return 0;
-    for (group_index = 0u; group_index < result->symbol_count; ++group_index) {
-        const SemanticResultSymbol* group = &result->symbols[group_index];
-        uint32_t relation_index;
-        if (group->kind != SEMANTIC_RESULT_SYMBOL_GROUP ||
-            !scope_is_ancestor(result, group->scope_id, annotation_scope_id))
-            continue;
-        for (relation_index = 0u;
-             relation_index < result->relation_count; ++relation_index) {
-            const SemanticResultRelation* relation =
-                &result->relations[relation_index];
-            if (relation->owner_symbol_id == group->symbol_id &&
-                relation->related_symbol_id == target_symbol_id &&
-                (relation->kind == SEMANTIC_RESULT_RELATION_GROUP_MEMBER ||
-                 relation->kind == SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING ||
-                 relation->kind == SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION)) {
-                return 1;
-            }
-        }
+    for (relation_index = 0u;
+         relation_index < result->relation_count; ++relation_index) {
+        const SemanticResultRelation* relation =
+            &result->relations[relation_index];
+        const SemanticResultSymbol* group;
+        if (relation->related_symbol_id != target_symbol_id ||
+            (relation->kind != SEMANTIC_RESULT_RELATION_GROUP_MEMBER &&
+             relation->kind != SEMANTIC_RESULT_RELATION_GROUP_TYPE_BINDING &&
+             relation->kind != SEMANTIC_RESULT_RELATION_GROUP_METHOD_IMPLEMENTATION) ||
+            relation->owner_symbol_id == 0u ||
+            relation->owner_symbol_id > result->symbol_count) continue;
+        group = &result->symbols[relation->owner_symbol_id - 1u];
+        if (group->kind == SEMANTIC_RESULT_SYMBOL_GROUP &&
+            scope_is_ancestor(result, group->scope_id, annotation_scope_id))
+            return 1;
     }
     return 0;
 }
