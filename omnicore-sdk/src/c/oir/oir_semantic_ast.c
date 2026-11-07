@@ -1114,7 +1114,7 @@ OirStatus oir_semantic_relations_write(
         const OirSemanticRelation* relation = &relations[i];
         if (relation->owner_symbol_id == 0u ||
             relation->kind < OIR_SEMANTIC_RELATION_FUNCTION_PARAMETER ||
-            relation->kind > OIR_SEMANTIC_RELATION_ENUM_PAYLOAD_FIELD ||
+            relation->kind > OIR_SEMANTIC_RELATION_GROUP_DEFAULT_HANDLER ||
             relation->flags != 0u || relation->related_node_id == 0u) {
             return OIR_STATUS_INVALID_SECTION;
         }
