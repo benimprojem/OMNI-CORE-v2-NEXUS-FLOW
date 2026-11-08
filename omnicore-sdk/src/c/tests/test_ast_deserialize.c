@@ -1246,7 +1246,7 @@ static int roundtrips_recursive_type_expr_declaration_slots(void) {
     ASTVarDecl* restored_var;
     ASTFuncDecl* restored_function;
     ASTNewTypeDecl* restored_newtype;
-    int ok=0,attached=0;
+    int ok=0,attached=0,stage=0;
     if(!program||!variable||!function||!newtype||!var_pointer||
        !var_named||!return_named||!target_pointer||!target_named)goto done;
 
@@ -1281,13 +1281,17 @@ static int roundtrips_recursive_type_expr_declaration_slots(void) {
     variable->base.next=(ASTNode*)function;
     function->base.next=(ASTNode*)newtype;
     attached=1;
+    stage=1;
     if(!ast_validate((ASTNode*)program,NULL))goto done;
 
+    stage=2;
     stream=tmpfile();
     if(!stream||!ast_serialize((ASTNode*)program,stream)||fseek(stream,0L,SEEK_SET)!=0)
         goto done;
+    stage=3;
     decoded=ast_deserialize(stream);
     if(!decoded||!ast_validate(decoded,NULL))goto done;
+    stage=4;
     restored_var=(ASTVarDecl*)((ASTProgram*)decoded)->declarations;
     restored_function=(ASTFuncDecl*)restored_var->base.next;
     restored_newtype=(ASTNewTypeDecl*)restored_function->base.next;
@@ -1299,8 +1303,10 @@ static int roundtrips_recursive_type_expr_declaration_slots(void) {
        !restored_newtype->target_type_expr ||
        ((ASTTypeExpr*)restored_newtype->target_type_expr)->kind!=AST_TYPE_POINTER)
         goto done;
+    stage=5;
     ok=1;
 done:
+    if(!ok)fprintf(stderr,"recursive type slot codec test stage=%d decoded=%p\\n",stage,(void*)decoded);
     if(stream)fclose(stream);
     if(decoded)ast_destroy(decoded);
     if(attached)ast_destroy((ASTNode*)program);
