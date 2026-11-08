@@ -114,6 +114,7 @@ static void free_disconnected_node(ASTNode* node) {
         case AST_ASM_LABEL: { ASTAsmLabel* n=(ASTAsmLabel*)node; free(n->label); free(n->source_text); break; }
         case AST_STRUCT_LITERAL: free(((ASTStructLiteral*)node)->type_name); break;
         case AST_STRUCT_FIELD_INIT: free(((ASTStructFieldInit*)node)->name); break;
+        case AST_TYPE_EXPR: free(((ASTTypeExpr*)node)->name); break;
         default: break;
     }
     free(node);
@@ -379,6 +380,13 @@ static OirStatus populate_scalar_fields(
             case AST_STRUCT_FIELD_INIT:
                 if(field.field_id==1u) status=allocate_string(view,&field,&((ASTStructFieldInit*)node)->name);
                 break;
+            case AST_TYPE_EXPR: {
+                ASTTypeExpr* n=(ASTTypeExpr*)node;
+                if(field.field_id==1u)n->kind=get_u32(field.value);
+                else if(field.field_id==2u)n->flags=get_u32(field.value);
+                else if(field.field_id==3u)status=allocate_string(view,&field,&n->name);
+                break;
+            }
             default: break;
         }
         if(status!=OIR_STATUS_OK) return status;
