@@ -179,6 +179,7 @@ static int test_group_semantic_records(void) {
     uint32_t store_symbol_id = 0u, static_info_symbol_id = 0u;
     uint32_t external_call_node_id = 0u, default_reference_node_id = 0u;
     int saw_receiver_annotation = 0, saw_receiver_parameter_relation = 0;
+    int saw_address_receiver_annotation = 0;
     int saw_store_call_target = 0, saw_store_callee_target = 0;
     int saw_store_method_relation = 0, saw_external_static_call_target = 0;
     int saw_static_info_method_relation = 0;
@@ -368,6 +369,9 @@ static int test_group_semantic_records(void) {
             annotation->resolved_type_id == bound_type_id &&
             bound_type_id != 0u) {
             saw_receiver_annotation = 1;
+            if ((annotation->flags &
+                    SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER) != 0u)
+                saw_address_receiver_annotation = 1;
         }
     }
     for (i = 0u; i < semantic.result.relation_count; ++i) {
@@ -436,6 +440,7 @@ static int test_group_semantic_records(void) {
     ok = group_symbol_id != 0u && group_relation_count == 10u &&
         saw_member && saw_binding && saw_method && saw_default &&
         self_symbol_id != 0u && saw_receiver_annotation &&
+        saw_address_receiver_annotation &&
         saw_receiver_parameter_relation && saw_store_call_target &&
         saw_store_callee_target && saw_store_method_relation &&
         static_info_symbol_id != 0u && saw_external_static_call_target &&
@@ -491,6 +496,23 @@ static int test_group_semantic_records(void) {
             artifact_view.relations.record_count != 14u) {
             ok = 0;
         } else {
+            uint32_t annotation_index;
+            int artifact_has_address_receiver = 0;
+            for (annotation_index = 0u;
+                annotation_index < artifact_view.annotations.record_count;
+                ++annotation_index) {
+                OirSemanticAnnotation encoded_annotation;
+                if (oir_semantic_annotations_get(&artifact_view.annotations,
+                        annotation_index, &encoded_annotation) != OIR_STATUS_OK) {
+                    ok = 0;
+                    break;
+                }
+                if (encoded_annotation.node_id == self_node_id &&
+                    (encoded_annotation.flags &
+                        SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER) != 0u)
+                    artifact_has_address_receiver = 1;
+            }
+            if (!artifact_has_address_receiver) ok = 0;
             OirArtifactHeader legacy_header = artifact_view.envelope.header;
             OirSectionInput legacy_sections[8];
             uint32_t section_index;
