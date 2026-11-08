@@ -1755,7 +1755,7 @@ ASTNode* ast_deserialize(FILE* in) {
         if (got == sizeof(prefix) && memcmp(prefix, AST_STREAM_MAGIC, sizeof(prefix)) == 0) {
             uint32_t version = 0u;
             if (fread(&version, sizeof(version), 1u, in) != 1u ||
-                version != 1u && version != AST_STREAM_VERSION) return NULL;
+                (version != 1u && version != AST_STREAM_VERSION)) return NULL;
             reader.format_version = version;
         } else {
             if (ferror(in)) return NULL;
