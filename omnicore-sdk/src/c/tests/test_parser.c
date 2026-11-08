@@ -4682,13 +4682,29 @@ generic_type_done:
                 query->base.source_span.start_offset==(uint64_t)(query_start-source) &&
                 query->base.source_span.end_offset==(uint64_t)(query_end+strlen("ret; }")-source) &&
                 query->base.next==NULL && ast_validate(parser->ast_root,NULL);
-            if(!valid) fprintf(stderr,
-                "Group AST shape mismatch db=%s open=%s default=%s nested=%s query=%s\\n",
-                group&&group->name?group->name:"<null>",
-                open&&open->public_name?open->public_name:"<null>",
-                default_method&&default_method->public_name?default_method->public_name:"<null>",
-                nested&&nested->name?nested->name:"<null>",
-                query&&query->public_name?query->public_name:"<null>");
+            if(!valid) {
+                ASTValidationError validation_error;
+                int graph_ok=ast_validate(parser->ast_root,&validation_error);
+                fprintf(stderr,
+                    "Group AST shape mismatch db=%s open=%s default=%s nested=%s query=%s graph=%d code=%d field=%s node=%d spans[g=%llu..%llu o=%llu..%llu d=%llu..%llu n=%llu..%llu q=%llu..%llu]\\n",
+                    group&&group->name?group->name:"<null>",
+                    open&&open->public_name?open->public_name:"<null>",
+                    default_method&&default_method->public_name?default_method->public_name:"<null>",
+                    nested&&nested->name?nested->name:"<null>",
+                    query&&query->public_name?query->public_name:"<null>",graph_ok,
+                    (int)validation_error.code,validation_error.field?validation_error.field:"<none>",
+                    validation_error.node?(int)validation_error.node->type:-1,
+                    (unsigned long long)(group?group->base.source_span.start_offset:0),
+                    (unsigned long long)(group?group->base.source_span.end_offset:0),
+                    (unsigned long long)(open?open->base.source_span.start_offset:0),
+                    (unsigned long long)(open?open->base.source_span.end_offset:0),
+                    (unsigned long long)(default_method?default_method->base.source_span.start_offset:0),
+                    (unsigned long long)(default_method?default_method->base.source_span.end_offset:0),
+                    (unsigned long long)(nested?nested->base.source_span.start_offset:0),
+                    (unsigned long long)(nested?nested->base.source_span.end_offset:0),
+                    (unsigned long long)(query?query->base.source_span.start_offset:0),
+                    (unsigned long long)(query?query->base.source_span.end_offset:0));
+            }
             stream=tmpfile();
             if(!stream) { fprintf(stderr,"Group AST tmpfile failed\\n"); valid=0; }
             else if(valid && !ast_serialize(parser->ast_root,stream)) {
