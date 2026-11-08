@@ -2619,12 +2619,20 @@ static void semantic_check_node(
                 if (init->value) semantic_check(ctx, init->value);
             }
 
-            if (!struct_slot || struct_slot->kind != SLOT_STRUCT) {
+            if (!struct_slot) {
                 char message[256];
                 snprintf(message, sizeof(message),
-                    "Struct literal type '%s' is not a visible Struct type.",
+                    "Struct literal type '%s' is unknown or not visible here.",
                     literal->type_name ? literal->type_name : "");
                 report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
+                break;
+            }
+            if (struct_slot->kind != SLOT_STRUCT) {
+                char message[256];
+                snprintf(message, sizeof(message),
+                    "Type '%s' is not a Struct and cannot use Struct literal syntax.",
+                    literal->type_name ? literal->type_name : "");
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                 break;
             }
 
