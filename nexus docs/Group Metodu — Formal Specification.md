@@ -241,6 +241,15 @@ Bu yazımın geçerli hale gelmesi için Struct literal AST node/field mapping, 
 
 ## 4.5 Struct Literal ve Alan Başlatma (Normatif Tasarım)
 
+#### 4.5.1 Instance adresi ve kopyalama sözleşmesi
+
+Nexus Flow Struct instance'ları varsayılan olarak kopyalanan aggregate değerler değildir; adresle tanımlanan aynı depolama nesnesidir. Bir Struct değişkeninin başka bir değişkene atanması, fonksiyon parametresine verilmesi, fonksiyondan döndürülmesi veya instance metoduna receiver olarak aktarılması Struct alanlarının otomatik kopyalanması anlamına gelmez. Aktarılan/çözümlenen şey aynı instance'ın adresidir. `self`, çağıran instance'ın adres tabanlı receiver alias'ıdır; `self.field` yazımı aynı nesnenin alanını değiştirir.
+
+Bu sözleşme örtük heap allocation anlamına gelmez. Struct literal hedef depolama alanına initialize edilir; hedefin nereden geldiği (yerel frame slotu, önceden ayrılmış `area`/`zone`, çağıran tarafından verilen adres veya başka açık storage kaynağı) Semantic/OIR storage contract'ında belirlenmelidir. Literal, alanları geçici bir aggregate kopyasına doldurup sonra kopyalamaz. Alan ifadeleri kaynak sırasıyla tam bir kez değerlendirilir; sonuçlar çözümlenmiş field identity üzerinden hedef instance alanlarına yazılır.
+
+`*T`, `**T` ve `&T` yazımları Pointer/Ref türlerini ifade eder. Normatif Syntax Reference pointer validity, mutability, nullability, aliasing ve borrow/lifetime doğrulamasını Semantic işi olarak bırakır. Bu nedenle adres tabanlı instance kararı; nullability, mutable/immutable referans ayrımı, dangling kontrolü, alias kuralları ve escape/return lifetime kurallarının tamamlandığı anlamına gelmez. Bu kurallar kapanmadan OIR lowering örtük allocation, kopyalama veya doğrulanmamış pointer erişimi üretemez.
+
+
 Struct instance oluşturmanın ifade biçimi **`Type { field = expression, ... }`** olarak belirlenir. Bu biçim, Group factory çağrısından bağımsız bir expression'dır; factory gövdesinde `ret Type { ... };` ile kullanılabilir. Lexer'da yeni token gerekmez: Type identifier'ından sonra `{` geldiğinde Parser bunu expression bağlamında Struct literal olarak ele alır. Struct declaration (`struct:Type { ... }`) ise declaration bağlamında kalır.
 
 ```nexus
