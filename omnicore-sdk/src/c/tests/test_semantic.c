@@ -561,7 +561,11 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Compound assignment semantic checks failed.\n");
         return 1;
     }
-    if (!check_pointer_reference_type_semantics()) {\n        fprintf(stderr, "Pointer/reference compatibility checks failed.\\n");\n        return 1;\n    }\n    if (!check_array_type_semantics()) {
+    if (!check_pointer_reference_type_semantics()) {
+        fprintf(stderr, "Pointer/reference compatibility checks failed.\\n");
+        return 1;
+    }
+    if (!check_array_type_semantics()) {
         fprintf(stderr, "Array type semantic checks failed.\n");
         return 1;
     }
