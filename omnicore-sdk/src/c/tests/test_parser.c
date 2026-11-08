@@ -2832,7 +2832,8 @@ static int test_function_type_alias_and_callback_parameter(void) {
             ((ASTNewTypeDecl*)nested_alias_node)->target_type_expr &&
             ((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->kind==AST_TYPE_FUNCTION &&
             ((ASTVarDecl*)((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->params)->type_expr &&
-            ((ASTTypeExpr*)((ASTVarDecl*)((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->params)->type_expr)->kind==AST_TYPE_FUNCTION &&
+            ((ASTTypeExpr*)((ASTVarDecl*)((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->params)->type_expr)->kind==AST_TYPE_QUALIFIED &&
+            ((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->params)->type_expr)->child)->kind==AST_TYPE_FUNCTION &&
             function && function->return_type &&
             strcmp(function->return_type, "!bool") == 0 &&
             callback_param && strcmp(callback_param->name, "callback") == 0 &&
