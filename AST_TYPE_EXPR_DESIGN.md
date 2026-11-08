@@ -1,6 +1,6 @@
 # AST Type Expression Model — Design Draft
 
-**Status:** Implementation phase 3 — recursive node, Parser construction for named/pointer/reference/qualified/function/array types, AST codec v4 and OIR AST handoff are implemented; final CI and remaining nested-type/allocation-failure coverage are pending  
+**Status:** Implementation phase 3 — recursive node, Parser construction for named/pointer/reference/qualified/function/array types, AST codec v4 and OIR AST handoff are implemented; CI run `42497533312` passed all five jobs (Ubuntu CTest 60/60); callback-array composition, precise parameter spans and allocation-failure coverage remain open  
 **Branch:** `refactor/c-core-roadmap`  
 **Scope:** C AST + parser representation only. Semantic meaning, ABI validation and lowering remain later stages.
 
@@ -74,11 +74,12 @@ EXF additionally needs external symbol name and the declared linkage source rela
 ## 8. Parser integration checkpoint (2026-11-08)
 
 - `parser_build_type_expr` creates `NAMED`, `POINTER`, `REFERENCE`, and hard-type `QUALIFIED` nodes for variable declarations, function parameters/returns and NewType targets.
-- Callback/function type spellings `f:(name!Type, other:Type)!ReturnType` and legacy `f:(...)>!ReturnType` produce `FUNCTION` nodes with ordered parameter `ASTVarDecl` children and a recursive return-type child. Nested callback parameter signatures are recursively represented.
+- Callback/function type spellings `f:(name!Type, other:Type)!ReturnType` and legacy `f:(...)>!ReturnType` produce `FUNCTION` nodes with ordered parameter `ASTVarDecl` children and a recursive return-type child. Nested callback parameter signatures are recursively represented. The syntax reference now documents `nt:` aliases, direct callback parameters, nested callback signatures, and the distinction between a function type and a `>` lambda body.
 - Array declarators now receive an `AST_TYPE_ARRAY` wrapper. Its `child` is the element type expression and its `dimensions` owns the legacy `AST_ARRAY_TYPE` dimension subtree.
 - During migration, `ASTVarDecl.inline_type` and `ASTFuncDecl.return_array_type` remain available as borrowed aliases to the array node owned by the recursive type tree. They are not independent ownership edges:
   - AST destruction and validation skip the legacy edge when it aliases the type-expression array node.
   - AST stream v4 writes the array subtree once and reconstructs the borrowed alias on decode; v1–v3 compatibility remains unchanged.
   - OIR frontend indexing/writing omits the duplicate legacy reference; OIR reading restores the alias after all owned edges are linked.
 - Parser tests assert array wrappers and legacy alias identity through AST codec round-trip. OIR round-trip tests assert array wrapper/alias identity for local arrays and function array returns.
-- Remaining: callback function-type array parameter/return composition, precise per-parameter type spans, malformed nested-type and deterministic type-builder allocation-failure coverage, final full CI. Recursive Type Expression is not yet declared complete.
+- CI run `42497533312` passed Windows, macOS, Ubuntu, ASan/UBSan and Valgrind (5/5); Ubuntu CTest 60/60.
+- Remaining: callback function-type array parameter/return composition, precise per-parameter type spans, malformed nested-type and deterministic type-builder allocation-failure coverage. Recursive Type Expression is not yet declared complete.
