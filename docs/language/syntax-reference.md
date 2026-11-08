@@ -972,6 +972,8 @@ f:inspect(value:&Point)!bool {
 
 Parser pointer/reference yazımlarını type-name string alanlarında korur. Bu, syntax/AST taşımasını sağlar; güvenli dereference, mutable borrow, lifetime ve ownership doğrulaması anlamına gelmez.
 
+**Adres tabanlı Struct instance kuralı:** Struct instance bir aggregate kopyası değil, adresle tanımlanan depolama nesnesidir. Struct ataması, parametre/return aktarımı ve instance method receiver bağlaması aynı instance adresini korur; alanların otomatik kopyalanması yapılmaz. Object Group metodundaki `self`, çağıran instance'ın adres tabanlı receiver alias'ıdır. Bu kural örtük heap allocation anlamına gelmez; literal hedef storage'a initialize edilir ve storage kaynağı açık Semantic/OIR sözleşmesiyle belirlenir. `*T`, `**T` ve `&T` pointer/reference yazımlarının nullability, mutability, aliasing, dangling ve borrow/lifetime kontrolleri ayrı Semantic işi olarak kalır.
+
 ### İfade gövdeli anonim fonksiyonlar
 
 `f:(parametreler) > ifade` biçiminde `>` sonrasındaki ifade fonksiyon gövdesidir ve fonksiyonun dönüş değerini oluşturur. Bu kısa biçimde ayrıca `ret` yazılmaz. Örneğin:
