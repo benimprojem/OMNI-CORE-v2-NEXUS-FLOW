@@ -1989,6 +1989,8 @@ static int test_thread_block_ast(void) {
     ASTThreadBlock* thread;
     ASTBlock* body;
     ASTVarDecl* value;
+    const char* thread_start=strstr(source,"(worker)>{");
+    const char* thread_close=thread_start?strchr(thread_start,'}'):NULL;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
     int valid = 0;
@@ -2007,8 +2009,11 @@ static int test_thread_block_ast(void) {
         !value->name || strcmp(value->name, "value") != 0 ||
         !value->initializer || value->initializer->type != AST_LITERAL ||
         thread->mode != NULL || thread->timeout != NULL ||
-        !thread->base.source_span.has_location ||
-        thread->base.source_span.end_offset <= thread->base.source_span.start_offset)
+        !thread_start || !thread_close || !thread->base.source_span.has_location ||
+        thread->base.source_span.start_offset==(uint64_t)(thread_start-source) &&
+        thread->base.source_span.end_offset==(uint64_t)(thread_close+1-source) &&
+        thread->base.source_span.start_column==(uint32_t)(thread_start-source)+1u &&
+        thread->base.source_span.end_column==(uint32_t)(thread_close+1-source)+1u)
         goto done;
     stream = tmpfile();
     if (!stream || !ast_serialize(parser->ast_root, stream) ||
