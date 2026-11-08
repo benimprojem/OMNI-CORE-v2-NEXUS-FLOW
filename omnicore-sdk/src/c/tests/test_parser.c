@@ -4410,6 +4410,14 @@ generic_type_done:
                 root->source_span.end_column==2u &&
                 root->line==1 && root->col==1 &&
                 ast_validate(root,NULL);
+            if(!valid) fprintf(stderr,
+                "AST_PROGRAM root span actual type=%d has=%u offsets=%llu..%llu lines=%u..%u cols=%u..%u node=%d:%d expected_end=%zu\\n",
+                (int)root->type,(unsigned)root->source_span.has_location,
+                (unsigned long long)root->source_span.start_offset,
+                (unsigned long long)root->source_span.end_offset,
+                (unsigned)root->source_span.start_line,(unsigned)root->source_span.end_line,
+                (unsigned)root->source_span.start_column,(unsigned)root->source_span.end_column,
+                root->line,root->col,sizeof(source)-1u);
             stream=tmpfile();
             if(valid && stream && ast_serialize(root,stream) &&
                fseek(stream,0L,SEEK_SET)==0) {
@@ -4420,6 +4428,7 @@ generic_type_done:
                     decoded->source_span.end_line==3u &&
                     decoded->source_span.end_column==2u &&
                     ast_validate(decoded,NULL);
+                if(!valid) fprintf(stderr,"AST_PROGRAM decoded span missing or mismatched\\n");
             } else valid=0;
         }
         if(stream) fclose(stream);
