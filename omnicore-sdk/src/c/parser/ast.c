@@ -4,6 +4,42 @@
 #include <string.h>
 #include <stdio.h>
 
+/* Test-only, process-global allocator fault injection. */
+static size_t ast_test_fail_at = 0u;
+static size_t ast_test_alloc_count = 0u;
+
+void ast_test_fail_allocation_at(size_t allocation_index) {
+    ast_test_alloc_count = 0u;
+    ast_test_fail_at = allocation_index;
+}
+
+void ast_test_reset_allocation_failure(void) {
+    ast_test_alloc_count = 0u;
+    ast_test_fail_at = 0u;
+}
+
+size_t ast_test_get_allocation_count(void) {
+    return ast_test_alloc_count;
+}
+
+static int ast_test_should_fail_allocation(void) {
+    ast_test_alloc_count++;
+    return ast_test_fail_at != 0u &&
+        ast_test_alloc_count == ast_test_fail_at;
+}
+
+static void* ast_malloc(size_t size) {
+    return ast_test_should_fail_allocation() ? NULL : malloc(size);
+}
+
+static void* ast_calloc(size_t count, size_t size) {
+    return ast_test_should_fail_allocation() ? NULL : calloc(count, size);
+}
+
+static void* ast_realloc(void* memory, size_t size) {
+    return ast_test_should_fail_allocation() ? NULL : realloc(memory, size);
+}
+
 // AST Düğüm tiplerine göre bellek boyutunu belirleyen harita
 static size_t get_node_size(ASTNodeType type) {
     switch (type) {
@@ -153,7 +189,7 @@ ASTNode* ast_create(ASTNodeType type) {
         return NULL;
     }
     size = get_node_size(type);
-    ASTNode* node = (ASTNode*)malloc(size);
+    ASTNode* node = (ASTNode*)ast_malloc(size);
     if (node) {
         memset(node, 0, size); // Belleği sıfırla (tüm pointerlar NULL olur)
         node->type = type;
@@ -943,7 +979,7 @@ static char* read_string(ASTReader* reader) {
         return NULL;
     }
 
-    char* value = (char*)malloc((size_t)len + 1u);
+    char* value = (char*)ast_malloc((size_t)len + 1u);
     if (!value) {
         reader->failed = 1;
         return NULL;
@@ -1779,7 +1815,7 @@ static int ast_validation_grow(ASTValidationState *s, const ASTNode *node) {
     const ASTNode **slots;
     if (capacity < s->capacity || capacity > ((size_t)-1)/sizeof(*slots))
         return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
-    slots=(const ASTNode**)calloc(capacity,sizeof(*slots));
+    slots=(const ASTNode**)ast_calloc(capacity,sizeof(*slots));
     if (!slots) return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
     for (i=0;i<s->capacity;i++) if (s->slots[i]) {
         size_t at=ast_validation_hash(s->slots[i]) & (capacity-1u);
@@ -1817,11 +1853,11 @@ static int ast_validation_active_push(ASTValidationState *s, const ASTNode *node
             capacity>((size_t)-1)/sizeof(*active) ||
             capacity>((size_t)-1)/sizeof(*fields))
             return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
-        active=(const ASTNode**)realloc(s->active,capacity*sizeof(*active));
+        active=(const ASTNode**)ast_realloc(s->active,capacity*sizeof(*active));
         if (!active) return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
         s->active=active;
         s->active_capacity=capacity;
-        fields=(const char**)realloc(s->active_fields,capacity*sizeof(*fields));
+        fields=(const char**)ast_realloc(s->active_fields,capacity*sizeof(*fields));
         if (!fields) return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
         s->active_fields=fields;
         s->active_fields_capacity=capacity;
