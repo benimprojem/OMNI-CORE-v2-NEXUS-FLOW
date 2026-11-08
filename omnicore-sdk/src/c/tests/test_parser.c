@@ -2373,10 +2373,13 @@ static int test_canonical_loop_and_jump_call_forms(void) {
     ASTNode* loop_node = NULL;
     ASTNode* jump_node = NULL;
     ASTNode* label_node = NULL;
+    ASTNode* break_node = NULL;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
     const char* loop_start=strstr(source,"loop {");
     const char* loop_close=loop_start?strchr(loop_start,'}'):NULL;
+    const char* break_start=strstr(source,"break;");
+    const char* break_end=break_start?break_start+strlen("break;"):NULL;
     const char* jump_start=strstr(source,"jump(finish)");
     const char* jump_end=jump_start?jump_start+strlen("jump(finish);"):NULL;
     const char* label_start=strstr(source,"finish:>");
@@ -2398,6 +2401,9 @@ static int test_canonical_loop_and_jump_call_forms(void) {
             ? ((ASTBlock*)body)->statements : NULL;
         jump_node = loop_node ? loop_node->next : NULL;
         label_node = jump_node ? jump_node->next : NULL;
+        break_node = loop_node && ((ASTLoop*)loop_node)->body &&
+            ((ASTLoop*)loop_node)->body->type==AST_BLOCK
+            ? ((ASTBlock*)((ASTLoop*)loop_node)->body)->statements : NULL;
         ast_status = ast_validate((ASTNode*)parser->ast_root, NULL);
 
         valid = function && function->type == AST_FUNC_DECL &&
@@ -2417,6 +2423,12 @@ static int test_canonical_loop_and_jump_call_forms(void) {
             loop_node->source_span.end_offset==(uint64_t)(loop_close+1-source) &&
             loop_node->source_span.start_column==(uint32_t)(loop_start-source)+1u &&
             loop_node->source_span.end_column==(uint32_t)(loop_close+1-source)+1u &&
+            break_start && break_end && break_node && break_node->type==AST_BREAK &&
+            break_node->source_span.has_location &&
+            break_node->source_span.start_offset==(uint64_t)(break_start-source) &&
+            break_node->source_span.end_offset==(uint64_t)(break_end-source) &&
+            break_node->source_span.start_column==(uint32_t)(break_start-source)+1u &&
+            break_node->source_span.end_column==(uint32_t)(break_end-source)+1u &&
             jump_start && jump_end && jump_node->source_span.has_location &&
             jump_node->source_span.start_offset==(uint64_t)(jump_start-source) &&
             jump_node->source_span.end_offset==(uint64_t)(jump_end-source) &&
