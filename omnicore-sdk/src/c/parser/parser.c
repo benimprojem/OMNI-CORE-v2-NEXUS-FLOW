@@ -714,9 +714,7 @@ static ASTNode* parse_struct_literal(Parser* p, const Token* type_token) {
     ASTStructLiteral* literal;
     ASTNode* head = NULL;
     ASTNode* tail = NULL;
-    Token open;
     if (!p || !type_token || !check(p, TOKEN_LBRACE)) return NULL;
-    open = p->current;
     advance(p);
     literal = (ASTStructLiteral*)parser_ast_create(p, AST_STRUCT_LITERAL);
     if (!literal) return NULL;
