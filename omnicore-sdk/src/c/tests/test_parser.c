@@ -2375,6 +2375,12 @@ static int test_canonical_loop_and_jump_call_forms(void) {
     ASTNode* label_node = NULL;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
+    const char* loop_start=strstr(source,"loop {");
+    const char* loop_close=loop_start?strchr(loop_start,'}'):NULL;
+    const char* jump_start=strstr(source,"jump(finish)");
+    const char* jump_end=jump_start?jump_start+strlen("jump(finish);"):NULL;
+    const char* label_start=strstr(source,"finish:>");
+    const char* label_close=label_start?strchr(label_start,'}'):NULL;
     int parse_status = -1;
     int ast_status = -1;
     int serialize_status = 0;
@@ -2406,6 +2412,21 @@ static int test_canonical_loop_and_jump_call_forms(void) {
             strcmp(((ASTNexusJump*)jump_node)->label_name, "finish") == 0 &&
             label_node && label_node->type == AST_NEXUS_LABEL &&
             strcmp(((ASTNexusLabel*)label_node)->label_name, "finish") == 0 &&
+            loop_start && loop_close && loop_node->source_span.has_location &&
+            loop_node->source_span.start_offset==(uint64_t)(loop_start-source) &&
+            loop_node->source_span.end_offset==(uint64_t)(loop_close+1-source) &&
+            loop_node->source_span.start_column==(uint32_t)(loop_start-source)+1u &&
+            loop_node->source_span.end_column==(uint32_t)(loop_close+1-source)+1u &&
+            jump_start && jump_end && jump_node->source_span.has_location &&
+            jump_node->source_span.start_offset==(uint64_t)(jump_start-source) &&
+            jump_node->source_span.end_offset==(uint64_t)(jump_end-source) &&
+            jump_node->source_span.start_column==(uint32_t)(jump_start-source)+1u &&
+            jump_node->source_span.end_column==(uint32_t)(jump_end-source)+1u &&
+            label_start && label_close && label_node->source_span.has_location &&
+            label_node->source_span.start_offset==(uint64_t)(label_start-source) &&
+            label_node->source_span.end_offset==(uint64_t)(label_close+1-source) &&
+            label_node->source_span.start_column==(uint32_t)(label_start-source)+1u &&
+            label_node->source_span.end_column==(uint32_t)(label_close+1-source)+1u &&
             ast_status == 1;
 
         if (valid) {
