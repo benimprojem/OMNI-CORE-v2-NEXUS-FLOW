@@ -796,6 +796,16 @@ SemanticResultStatus semantic_result_finalize(
             (annotation->flags & (uint16_t)~SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER) != 0u) {
             return SEMANTIC_RESULT_INVALID_DATA;
         }
+        if ((annotation->flags &
+                SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER) != 0u &&
+            (annotation->resolved_symbol_id == 0u ||
+                result->symbols[annotation->resolved_symbol_id - 1u].kind !=
+                    SEMANTIC_RESULT_SYMBOL_VARIABLE ||
+                !result->symbols[annotation->resolved_symbol_id - 1u].name ||
+                strcmp(result->symbols[annotation->resolved_symbol_id - 1u].name,
+                    "self") != 0)) {
+            return SEMANTIC_RESULT_INVALID_DATA;
+        }
         if (annotation->resolved_symbol_id != 0u) {
             const SemanticResultSymbol* symbol =
                 &result->symbols[annotation->resolved_symbol_id - 1u];
