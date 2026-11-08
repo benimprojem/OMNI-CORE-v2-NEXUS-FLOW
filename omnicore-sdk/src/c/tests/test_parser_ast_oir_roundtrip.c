@@ -456,14 +456,16 @@ static int test_recursive_type_expr_oir_roundtrip(void) {
     OirAstNodeTableView view;
     OirStatus status;
     int ok=0;
-    if(!program||!pointer||!named)goto done;
+    if(!program)goto done;
+    if(!pointer)goto done;
+    program->declarations=(ASTNode*)pointer;
+    if(!named)goto done;
     pointer->kind=AST_TYPE_POINTER;
     pointer->child=(ASTNode*)named;
     named->kind=AST_TYPE_NAMED;
     named->name=(char*)malloc(4u);
     if(!named->name)goto done;
     memcpy(named->name,"i32",4u);
-    program->declarations=(ASTNode*)pointer;
     if(!ast_validate((ASTNode*)program,NULL))goto done;
     status=encode_ast((ASTNode*)program,&first,&first_len);
     if(status!=OIR_STATUS_OK ||
@@ -489,7 +491,7 @@ static int test_recursive_type_expr_oir_roundtrip(void) {
     ok=1;
 done:
     if(decoded)ast_destroy(decoded);
-    else if(program)ast_destroy((ASTNode*)program);
+    if(program)ast_destroy((ASTNode*)program);
     free(first);free(second);free(storage);free(incoming);free(visited);free(stack);
     return ok;
 }
