@@ -413,6 +413,7 @@ static int test_group_semantic_records(void) {
         }
         if (annotation->node_id == default_reference_node_id &&
             annotation->resolved_symbol_id == group_symbol_id &&
+            annotation->value_category == SEMANTIC_RESULT_VALUE_RVALUE &&
             group_symbol_id != 0u) {
             saw_default_dispatch_annotation = 1;
         }
