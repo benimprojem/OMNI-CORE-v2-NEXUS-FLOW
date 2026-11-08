@@ -2585,6 +2585,7 @@ static ASTNode* parse_return_statement(Parser* p) {
 }
 
 static ASTNode* parse_func_decl(Parser* p) {
+    Token function_start = p->previous;
     ASTNodeType function_kind = p->previous.type == TOKEN_KW_EXTERN
         ? AST_EXTERN_DECL : AST_FUNC_DECL;
     ASTFuncDecl* func = (ASTFuncDecl*)parser_ast_create(p, function_kind);
@@ -2776,6 +2777,16 @@ static ASTNode* parse_func_decl(Parser* p) {
             ast_destroy((ASTNode*)func);
             return NULL;
         }
+    }
+
+    /*
+     * EXF is a declaration, not a function definition. The semicolon form
+     * exposes an external symbol without inventing a local function body.
+     * Keep the legacy body form accepted for source compatibility.
+     */
+    if (function_kind == AST_EXTERN_DECL && match(p, TOKEN_SEMICOLON)) {
+        parser_stamp_node_tokens(p, (ASTNode*)func, &function_start, &p->previous);
+        return (ASTNode*)func;
     }
 
     consume(p, TOKEN_LBRACE, ERR_PARSER_EXPECTED_BRACE, MSG_EXPECT_LBRACE_FUNC);
