@@ -1,6 +1,6 @@
 # AST Type Expression Model — Design Draft
 
-**Status:** Implementation phase 1 — recursive node, declaration attachment fields, AST codec v4 and OIR AST handoff are in progress; Parser population for named/pointer/reference and function/callback types is implemented; array-wrapper population and full integration tests remain open  
+**Status:** Implementation phase 3 — recursive node, Parser construction for named/pointer/reference/qualified/function/array types, AST codec v4 and OIR AST handoff are implemented; final CI and remaining nested-type/allocation-failure coverage are pending  
 **Branch:** `refactor/c-core-roadmap`  
 **Scope:** C AST + parser representation only. Semantic meaning, ABI validation and lowering remain later stages.
 
@@ -15,7 +15,7 @@ This makes nested combinations hard to represent structurally and forces consume
 - Preserve all existing AST node numeric IDs (append-only).
 - Keep existing text fields during migration for source/API compatibility; new structured fields are authoritative when populated.
 - No Semantic decisions in Parser: type syntax is represented, not validated for ABI compatibility or borrow/lifetime correctness.
-- No implicit copying or ownership changes. Type-expression child nodes have unique ownership like the rest of AST.
+- No implicit copying or ownership changes. Type-expression child nodes have unique ownership like the rest of AST. Legacy array fields are borrowed aliases only when the recursive array wrapper owns the same `AST_ARRAY_TYPE` node.
 - Source spans must cover the exact type syntax, including modifiers and nested delimiters.
 - AST serialization/deserialization, graph validation, destruction, debug print and OIR AST field schema must all recognize added nodes/edges before adoption is considered complete.
 - Existing syntax remains authoritative; do not invent a new surface grammar in this task.
@@ -50,7 +50,7 @@ EXF additionally needs external symbol name and the declared linkage source rela
 
 1. Audit all type-bearing fields and parser functions; create a field-to-type-expression inventory.
 2. Freeze the C representation and ownership table; append node tags only after this review.
-3. Add constructors/destructor/validator/serializer/deserializer/debug-printer/schema support. **Node core and declaration attachment fields are now implemented; Parser population is still pending.**
+3. Add constructors/destructor/validator/serializer/deserializer/debug-printer/schema support. **Node core and declaration attachment fields are implemented.**
 4. Add parser construction for the existing syntax (no grammar redesign).
 5. Add positive, malformed, nested, ownership and allocation-failure tests.
 6. Keep legacy string fields synchronized during transition and verify codec round-trip.
@@ -73,7 +73,12 @@ EXF additionally needs external symbol name and the declared linkage source rela
 
 ## 8. Parser integration checkpoint (2026-11-08)
 
-- `parser_build_type_expr` now creates `NAMED`, `POINTER`, `REFERENCE`, and hard-type `QUALIFIED` nodes for variable declarations, function parameters/returns and NewType targets.
-- Callback/function type spellings `f:(name!Type, other:Type)!ReturnType` and legacy `f:(...)>!ReturnType` now produce `FUNCTION` nodes with parameter `ASTVarDecl` children and a recursive return-type child. The original canonical strings remain populated for compatibility.
-- Parser regression coverage now asserts pointer/reference trees, hard qualifiers, callback parameter trees and function-type aliases. OIR round-trip coverage includes a callback tree.
-- Array type wrappers and precise per-parameter spans remain the next gaps; do not mark recursive type expressions complete yet.
+- `parser_build_type_expr` creates `NAMED`, `POINTER`, `REFERENCE`, and hard-type `QUALIFIED` nodes for variable declarations, function parameters/returns and NewType targets.
+- Callback/function type spellings `f:(name!Type, other:Type)!ReturnType` and legacy `f:(...)>!ReturnType` produce `FUNCTION` nodes with ordered parameter `ASTVarDecl` children and a recursive return-type child. Nested callback parameter signatures are recursively represented.
+- Array declarators now receive an `AST_TYPE_ARRAY` wrapper. Its `child` is the element type expression and its `dimensions` owns the legacy `AST_ARRAY_TYPE` dimension subtree.
+- During migration, `ASTVarDecl.inline_type` and `ASTFuncDecl.return_array_type` remain available as borrowed aliases to the array node owned by the recursive type tree. They are not independent ownership edges:
+  - AST destruction and validation skip the legacy edge when it aliases the type-expression array node.
+  - AST stream v4 writes the array subtree once and reconstructs the borrowed alias on decode; v1–v3 compatibility remains unchanged.
+  - OIR frontend indexing/writing omits the duplicate legacy reference; OIR reading restores the alias after all owned edges are linked.
+- Parser tests assert array wrappers and legacy alias identity through AST codec round-trip. OIR round-trip tests assert array wrapper/alias identity for local arrays and function array returns.
+- Remaining: callback function-type array parameter/return composition, precise per-parameter type spans, malformed nested-type and deterministic type-builder allocation-failure coverage, final full CI. Recursive Type Expression is not yet declared complete.
