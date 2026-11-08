@@ -57,6 +57,8 @@ The current `ast.h` / `ast.c` source audit confirms these intentional shared lay
 | Call-backed intrinsic tags | `ASTCall` | callee subtree and args sibling chain |
 | `AST_BREAK`, `AST_CONTINUE` | base `ASTNode` only | no payload; sibling link is still handled by the outer destroy loop |
 | `AST_NEWTYPE_DECL` | `ASTNewTypeDecl` | name and target_type strings; target_type is not an AST child |
+`AST_STRUCT_LITERAL` | `ASTStructLiteral` | type_name string; fields child chain |
+`AST_STRUCT_FIELD_INIT` | `ASTStructFieldInit` | name string; value child |
 
 `AST_SCAN_ARM.pattern == NULL` is reserved for the final scan `else` catch-all arm; ordinary scan arms require a pattern. The OIR field remains present as a nullable NODE_REF, so no field ID or wire layout change is needed. A `when` guard is canonicalized as an `AST_IF` node stored in the arm's existing `body` pointer; the condition and guarded body are therefore owned and destroyed through the ordinary `AST_IF` child contract.
 
@@ -83,7 +85,7 @@ The `ast_print_recursive` switch has an explicit case for every current `ASTNode
 
 ## Serialization regression coverage
 
-`omnicore-sdk/src/c/tests/test_ast_deserialize.c` exercises every append-only AST tag from `AST_PROGRAM` through the current terminal tag `AST_ASM_LABEL` (105 registered kinds) in both populated-field and sibling-chain round-trip tests. The populated fixtures must be extended whenever a new tag is appended; the invalid-tag boundary must move with the terminal tag. The populated fixtures include the appended contextual kinds 101–105 and the function array-return payload; a dedicated v1 function-stream fixture verifies backward reading. This proves AST allocation/serialization/deserialization symmetry for the exercised fields, but does not prove parser construction, semantic correctness, OIR support or lowering readiness.
+`omnicore-sdk/src/c/tests/test_ast_deserialize.c` exercises every append-only AST tag from `AST_PROGRAM` through the current terminal tag `AST_STRUCT_FIELD_INIT` (107 registered kinds) in both populated-field and sibling-chain round-trip tests. The populated fixtures must be extended whenever a new tag is appended; the invalid-tag boundary must move with the terminal tag. The populated fixture switch includes the appended kinds through 107; context-bound kinds use legal parent fixtures. Dedicated Struct literal tests cover the new `AST_STRUCT_LITERAL`/`AST_STRUCT_FIELD_INIT` owned strings and child subtree, and a v1 function-stream fixture verifies backward reading. This proves AST allocation/serialization/deserialization symmetry for the exercised fields, but does not prove parser construction, semantic correctness, OIR support or lowering readiness.
 
 The OIR AST frontend has separate writer/reader/index/schema tests under `omnicore-sdk/src/c/tests/`; those are a distinct wire contract and must not be conflated with the legacy native-layout AST stream tests.
 
@@ -165,7 +167,7 @@ This is a source audit, not a runtime proof. It does not test malformed graphs, 
 
 ## AST Graph Validator coverage (2026-11-03)
 
-The public C API `ast_validate(const ASTNode*, ASTValidationError*)` is implemented in `ast.c`. Its dispatch has an explicit case for all 100 current `ASTNodeType` tags: structured nodes traverse every owned AST child field; scalar/string-only and payload-free leaves are explicitly listed as childless. The validator checks enum range, required structural child pointers, duplicate node addresses across the graph (shared ownership), sibling-link cycles and ancestor child cycles; cycle and sharing diagnostics use separate codes, allocation failure and a 512-level child nesting limit. It also enforces that a null-pattern `AST_SCAN_ARM` is the final catch-all arm and that `AST_BLOCK_HALT` is the final child of an owning `AST_BLOCK`/`AST_ASM_BLOCK`. It does not replace parser grammar validation or Semantic checks, and it does not validate every required string/scalar payload or all contextual invariants.
+The public C API `ast_validate(const ASTNode*, ASTValidationError*)` is implemented in `ast.c`. Its dispatch has an explicit case for all 107 current `ASTNodeType` tags: structured nodes traverse every owned AST child field; scalar/string-only and payload-free leaves are explicitly listed as childless. The validator checks enum range, required structural child pointers, duplicate node addresses across the graph (shared ownership), sibling-link cycles and ancestor child cycles; cycle and sharing diagnostics use separate codes, allocation failure and a 512-level child nesting limit. It also enforces that a null-pattern `AST_SCAN_ARM` is the final catch-all arm and that `AST_BLOCK_HALT` is the final child of an owning `AST_BLOCK`/`AST_ASM_BLOCK`. It does not replace parser grammar validation or Semantic checks, and it does not validate every required string/scalar payload or all contextual invariants.
 
 `ast_serialize()` validates the graph before writing any bytes; invalid graphs are rejected without partial output. `ast_deserialize()` validates the fully materialized graph and rejects structurally invalid or trailing data. `ast_destroy()` remains a low-level destructor with an exclusive-ownership/acyclic-graph precondition; it is intentionally usable for partial Parser trees that may not satisfy successful-parse required-child contracts.
 
