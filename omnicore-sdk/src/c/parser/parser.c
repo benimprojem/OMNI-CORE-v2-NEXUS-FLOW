@@ -2602,7 +2602,7 @@ static ASTNode* parse_var_decl(Parser* p) {
                  decl->inline_type = (ASTNode*)sdecl;
              }
          } else if (parser_is_type_start(p)) {
-                 Token type_start=p->current;
+                 Token type_start=p->previous;
                  if (!parser_parse_type_name(p, &decl->type_name, 0, 0)) {
                      ast_destroy((ASTNode*)decl);
                      return NULL;
@@ -2759,7 +2759,7 @@ static ASTNode* parse_func_decl(Parser* p) {
                     return NULL;
                 }
                  {
-                     Token type_start=p->current;
+                     Token type_start=has_bang?p->previous:p->current;
                      if (!parser_parse_type_name(p, &param->type_name, 1, has_bang)) {
                          ast_destroy((ASTNode*)func);
                          return NULL;
@@ -2837,7 +2837,7 @@ static ASTNode* parse_func_decl(Parser* p) {
         if (match(p, TOKEN_NOT)) has_bang = 1;
         if (parser_is_type_start(p)) {
                  {
-                     Token return_type_start=p->current;
+                     Token return_type_start=has_bang?p->previous:p->current;
                      if (!parser_parse_type_name(p, &func->return_type, 1, has_bang)) {
                          ast_destroy((ASTNode*)func);
                          return NULL;
