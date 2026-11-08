@@ -1999,7 +1999,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_ARRAY_LITERAL: V(((ASTArrayLiteral*)n)->elements,"elements"); break;
         case AST_STRUCT_LITERAL:
             if(!ast_validation_required_text(s,n,((ASTStructLiteral*)n)->type_name,"type_name")) return 0;
-            R(((ASTStructLiteral*)n)->fields,"fields"); break;
+            V(((ASTStructLiteral*)n)->fields,"fields"); break;
         case AST_STRUCT_FIELD_INIT:
             if(!ast_validation_required_text(s,n,((ASTStructFieldInit*)n)->name,"name")) return 0;
             R(((ASTStructFieldInit*)n)->value,"value"); break;
