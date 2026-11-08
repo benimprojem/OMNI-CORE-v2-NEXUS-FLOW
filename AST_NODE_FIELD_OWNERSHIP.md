@@ -20,6 +20,8 @@
 | Variable | VAR_DECL | ASTVarDecl | name, type_name; initializer; inline_type |
 | Function | FUNC_DECL, EXTERN_DECL | ASTFuncDecl | name, return_type; params chain; body; optional owned `return_array_type` subtree |
 | Aggregate | STRUCT_DECL, UNION_DECL | ASTStructDecl | name; fields chain |
+| Struct literal | STRUCT_LITERAL | ASTStructLiteral | owned type_name; ordered fields child chain |
+| Struct field initializer | STRUCT_FIELD_INIT | ASTStructFieldInit | owned name; required value child |
 | Enum | ENUM_DECL / ENUM_VARIANT | ASTEnumDecl / ASTEnumVariant | name; variants chain; variant data |
 | Newtype | NEWTYPE_DECL | ASTNewTypeDecl | owned `name` and `target_type` strings; no child pointer in the current C struct |
 | Group / method | GROUP_DECL / METHOD | ASTGroupDecl / ASTMethod | group name/members; public_name/implementation |
@@ -85,7 +87,7 @@ The `ast_print_recursive` switch has an explicit case for every current `ASTNode
 
 ## Serialization regression coverage
 
-`omnicore-sdk/src/c/tests/test_ast_deserialize.c` exercises every append-only AST tag from `AST_PROGRAM` through the current terminal tag `AST_STRUCT_FIELD_INIT` (107 registered kinds) in both populated-field and sibling-chain round-trip tests. The populated fixtures must be extended whenever a new tag is appended; the invalid-tag boundary must move with the terminal tag. The populated fixture switch includes the appended kinds through 107; context-bound kinds use legal parent fixtures. Dedicated Struct literal tests cover the new `AST_STRUCT_LITERAL`/`AST_STRUCT_FIELD_INIT` owned strings and child subtree, and a v1 function-stream fixture verifies backward reading. This proves AST allocation/serialization/deserialization symmetry for the exercised fields, but does not prove parser construction, semantic correctness, OIR support or lowering readiness.
+`omnicore-sdk/src/c/tests/test_ast_deserialize.c` covers the non-contextual generic populated-field/sibling-chain sweep through `AST_ARRAY_DIMENSION`; context-bound appended kinds use dedicated legal-parent fixtures, and `AST_STRUCT_LITERAL`/`AST_STRUCT_FIELD_INIT` use a dedicated owned-string/child-subtree codec round-trip. The fixture switch includes the appended kinds through 107, and the invalid-tag boundary follows `AST_STRUCT_FIELD_INIT`. A v1 function-stream fixture verifies backward reading. This proves AST allocation/serialization/deserialization symmetry for the exercised fields, but does not prove parser construction, semantic correctness, OIR support or lowering readiness.
 
 The OIR AST frontend has separate writer/reader/index/schema tests under `omnicore-sdk/src/c/tests/`; those are a distinct wire contract and must not be conflated with the legacy native-layout AST stream tests.
 
