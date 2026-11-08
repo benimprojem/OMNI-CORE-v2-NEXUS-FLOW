@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 #define OIR_SEMANTIC_AST_SCHEMA_MAJOR 1u
-#define OIR_SEMANTIC_AST_SCHEMA_MINOR 2u
+#define OIR_SEMANTIC_AST_SCHEMA_MINOR 3u
 
 /* SCOPES section payload: u32 record_count, u32 record_size, then 20-byte records. */
 #define OIR_SEMANTIC_SCOPES_HEADER_SIZE 8u
@@ -43,7 +43,9 @@ typedef enum OirSemanticTypeKind {
     OIR_SEMANTIC_TYPE_AGGREGATE = 4,
     OIR_SEMANTIC_TYPE_TUPLE = 5,
     OIR_SEMANTIC_TYPE_INFERRED = 6,
-    OIR_SEMANTIC_TYPE_UNKNOWN = 7
+    OIR_SEMANTIC_TYPE_UNKNOWN = 7,
+    OIR_SEMANTIC_TYPE_POINTER = 8,
+    OIR_SEMANTIC_TYPE_REFERENCE = 9
 } OirSemanticTypeKind;
 
 #define OIR_SEMANTIC_TYPE_FLAG_CONST 0x0001u
