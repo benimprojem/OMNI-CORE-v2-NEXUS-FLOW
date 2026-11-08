@@ -1178,6 +1178,42 @@ done:
     return valid?0:1;
 }
 
+static int reads_v2_function_stream_without_v3_linkname(void) {
+    ASTNode* original=make_function_fixture(AST_FUNC_DECL);
+    FILE* stream=NULL;
+    unsigned char* bytes=NULL;
+    long end;
+    uint32_t version=2u;
+    ASTFuncDecl* decoded=NULL;
+    int valid=0;
+    if(!original) return 1;
+    stream=tmpfile();
+    if(!stream || !ast_serialize(original,stream) || fflush(stream)!=0) goto done;
+    end=ftell(stream);
+    if(end<=4L || (unsigned long)end>SIZE_MAX) goto done;
+    bytes=(unsigned char*)malloc((size_t)end);
+    if(!bytes || fseek(stream,0L,SEEK_SET)!=0 ||
+       fread(bytes,1u,(size_t)end,stream)!=(size_t)end) goto done;
+    /* A v2 payload includes return_array_type but has no trailing linkname string. */
+    memcpy(bytes+8u,&version,sizeof(version));
+    fclose(stream);
+    stream=tmpfile();
+    if(!stream || fwrite(bytes,1u,(size_t)end-sizeof(int),stream)!=(size_t)end-sizeof(int))
+        goto done;
+    rewind(stream);
+    decoded=(ASTFuncDecl*)ast_deserialize(stream);
+    valid=decoded && decoded->base.type==AST_FUNC_DECL &&
+        decoded->name && strcmp(decoded->name,"fixture_function")==0 &&
+        decoded->params && decoded->body && !decoded->return_array_type &&
+        !decoded->linkname && ast_validate((ASTNode*)decoded,NULL);
+done:
+    if(stream) fclose(stream);
+    free(bytes);
+    ast_destroy((ASTNode*)decoded);
+    ast_destroy(original);
+    return valid?0:1;
+}
+
 static int reads_unprefixed_legacy_stream(void) {
     FILE* stream = tmpfile();
     int type = (int)AST_IDENTIFIER, line = 9, col = 4;
@@ -1417,6 +1453,7 @@ int main(int argc, char** argv) {
     }
     if (roundtrips_versioned_source_spans() != 0) { fprintf(stderr, "roundtrips_versioned_source_spans failed.\\n"); return 15; }
     if (reads_v1_function_stream_without_v2_return_child() != 0) { fprintf(stderr, "reads_v1_function_stream_without_v2_return_child failed.\\n"); return 22; }
+    if (reads_v2_function_stream_without_v3_linkname() != 0) { fprintf(stderr, "reads_v2_function_stream_without_v3_linkname failed.\\n"); return 24; }
     if (rejects_ast_decode_allocation_failures() != 0) { fprintf(stderr, "rejects_ast_decode_allocation_failures failed.\\n"); return 23; }
     if (roundtrips_fast_exec_asm_payload() != 0) { fprintf(stderr, "roundtrips_fast_exec_asm_payload failed.\\n"); return 19; }
     if (roundtrips_contextual_ast_tags() != 0) { fprintf(stderr, "roundtrips_contextual_ast_tags failed.\\n"); return 21; }
