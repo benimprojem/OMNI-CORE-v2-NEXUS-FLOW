@@ -1140,8 +1140,13 @@ static int test_array_type_declarators(void) {
     ASTNode* function;
     ASTNode* parameter;
     ASTNode* variable;
+    const char* a_dimension=strstr(source,"a![]");
+    const char* matrix_start=strstr(source,"matrix[3][3]");
     int ok=0;
     if(!ctx) return 0;
+    if(!a_dimension || !matrix_start) goto done;
+    a_dimension+=2;
+    matrix_start+=6;
     if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) {
         Error* error;
         fprintf(stderr,"array type parser status=%d errors=%d\n",
@@ -1159,9 +1164,18 @@ static int test_array_type_declarators(void) {
        !((ASTVarDecl*)parameter)->inline_type ||
        ((ASTVarDecl*)parameter)->inline_type->type!=AST_ARRAY_TYPE) goto done;
     {
-        ASTNode* dim=((ASTArrayType*)((ASTVarDecl*)parameter)->inline_type)->dimensions;
+        ASTArrayType* array=(ASTArrayType*)((ASTVarDecl*)parameter)->inline_type;
+        ASTNode* dim=array->dimensions;
         if(!dim || dim->type!=AST_ARRAY_DIMENSION ||
-           ((ASTArrayDimension*)dim)->length!=NULL || dim->next) goto done;
+           ((ASTArrayDimension*)dim)->length!=NULL || dim->next ||
+           !array->base.source_span.has_location ||
+           array->base.source_span.start_offset!=(uint64_t)(a_dimension-source) ||
+           array->base.source_span.end_offset!=(uint64_t)(a_dimension+2-source) ||
+           !dim->source_span.has_location ||
+           dim->source_span.start_offset!=(uint64_t)(a_dimension-source) ||
+           dim->source_span.end_offset!=(uint64_t)(a_dimension+2-source) ||
+           dim->source_span.start_column!=(uint32_t)(a_dimension-source)+1u ||
+           dim->source_span.end_column!=(uint32_t)(a_dimension+2-source)+1u) goto done;
     }
     parameter=parameter->next;
     if(!parameter || strcmp(((ASTVarDecl*)parameter)->type_name,"!i32")!=0 ||
@@ -1187,11 +1201,22 @@ static int test_array_type_declarators(void) {
     if(!variable || !((ASTVarDecl*)variable)->inline_type ||
        strcmp(((ASTVarDecl*)variable)->type_name,"f32")!=0) goto done;
     {
-        ASTNode* first=((ASTArrayType*)((ASTVarDecl*)variable)->inline_type)->dimensions;
+        ASTArrayType* array=(ASTArrayType*)((ASTVarDecl*)variable)->inline_type;
+        ASTNode* first=array->dimensions;
         ASTNode* second=first?first->next:NULL;
+        const char* matrix_second=matrix_start+3;
         if(!first || !second || second->next ||
            !((ASTArrayDimension*)first)->length ||
-           !((ASTArrayDimension*)second)->length) goto done;
+           !((ASTArrayDimension*)second)->length ||
+           !array->base.source_span.has_location ||
+           array->base.source_span.start_offset!=(uint64_t)(matrix_start-source) ||
+           array->base.source_span.end_offset!=(uint64_t)(matrix_second+3-source) ||
+           !first->source_span.has_location ||
+           first->source_span.start_offset!=(uint64_t)(matrix_start-source) ||
+           first->source_span.end_offset!=(uint64_t)(matrix_start+3-source) ||
+           !second->source_span.has_location ||
+           second->source_span.start_offset!=(uint64_t)(matrix_second-source) ||
+           second->source_span.end_offset!=(uint64_t)(matrix_second+3-source)) goto done;
     }
     {
         FILE* stream=tmpfile();
