@@ -549,6 +549,13 @@ static ASTNode* wrap_contextual_fixture(ASTNodeType type, ASTNode* child) {
     ASTNode* owner=NULL;
     if(!child) return NULL;
     switch(type) {
+        case AST_ENUM_VARIANT: {
+            ASTEnumDecl* n=(ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+            if(!n) return NULL;
+            n->name=duplicate_text("EnumOwner");
+            if(!n->name) { ast_destroy((ASTNode*)n); return NULL; }
+            n->variants=child; owner=(ASTNode*)n; break;
+        }
         case AST_SELECT_ARM: {
             ASTSelect* n=(ASTSelect*)ast_create(AST_SELECT);
             if(!n) return NULL;
@@ -621,6 +628,7 @@ static ASTNode* wrap_contextual_fixture(ASTNodeType type, ASTNode* child) {
 static ASTNode* contextual_fixture_target(ASTNodeType type, ASTNode* root) {
     if(!root) return NULL;
     switch(type) {
+        case AST_ENUM_VARIANT: return ((ASTEnumDecl*)root)->variants;
         case AST_SELECT_ARM: return ((ASTSelect*)root)->arms;
         case AST_SCAN_ARM: return ((ASTScan*)root)->arms;
         case AST_ARRAY_DIMENSION: return ((ASTArrayType*)root)->dimensions;
