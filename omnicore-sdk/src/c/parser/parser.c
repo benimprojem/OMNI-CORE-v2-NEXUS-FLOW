@@ -3180,8 +3180,10 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
                 } else { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE)); ast_destroy((ASTNode*)field); ast_destroy(data_head); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
                 if (!data_head) data_head = (ASTNode*)field; else data_tail->next = (ASTNode*)field;
                 data_tail = (ASTNode*)field;
-                var->data = data_head;
             } while (match(p, TOKEN_COMMA));
+            /* Transfer the payload list to the variant only after it is complete.
+             * Error paths above still own data_head separately and also destroy head. */
+            var->data = data_head;
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
         }
         parser_stamp_node_tokens(p, (ASTNode*)var, &vt, &p->previous);
