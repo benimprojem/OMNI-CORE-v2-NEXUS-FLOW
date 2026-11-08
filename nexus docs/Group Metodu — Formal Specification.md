@@ -243,6 +243,9 @@ Bu yazımın geçerli hale gelmesi için Struct literal AST node/field mapping, 
 
 #### 4.5.1 Instance adresi ve kopyalama sözleşmesi
 
+**Explicit copy/move notu (tasarım kararı):** Varsayılan Struct aktarımı aynı instance adresini korur; alan kopyası üretmez. Bağımsız kopya gerekiyorsa açık `copy(x)` işlemi kullanılacaktır. Ownership transferi için `move(x)` ayrı bir işlem olarak tasarlanır; move sonrası kaynak kullanımının Semantic tarafından engellenmesi gerekir. `copy()` işleminin shallow/deep davranışı ve iç pointer alanlarının politikası ayrıca normatifleştirilmeden implementasyon tamamlanmış sayılmaz. Bu karar örtülü kopyalama veya gizli allocation izni vermez.
+
+
 Nexus Flow Struct instance'ları varsayılan olarak kopyalanan aggregate değerler değildir; adresle tanımlanan aynı depolama nesnesidir. Bir Struct değişkeninin başka bir değişkene atanması, fonksiyon parametresine verilmesi, fonksiyondan döndürülmesi veya instance metoduna receiver olarak aktarılması Struct alanlarının otomatik kopyalanması anlamına gelmez. Aktarılan/çözümlenen şey aynı instance'ın adresidir. `self`, çağıran instance'ın adres tabanlı receiver alias'ıdır; `self.field` yazımı aynı nesnenin alanını değiştirir.
 SemanticResult schema 1.2, `SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER` ile `self` identifier annotation'ını adres receiver olarak işaretler. OIR Semantic AST 1.2 bu bayrağı korur; 1.1 artifact'lerinde annotation flag alanı sıfır olma kuralı geriye dönük korunur. Integration testi bayrağın SemanticResult → OIR encode → OIR decode yolunda aynı kaldığını doğrular.
 
