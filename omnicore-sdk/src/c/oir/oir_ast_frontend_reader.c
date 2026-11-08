@@ -584,6 +584,16 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
     return 1;
 }
 
+static ASTNode* type_expr_array_dimensions_reader(ASTNode* node) {
+    while (node && node->type == AST_TYPE_EXPR) {
+        ASTTypeExpr* type = (ASTTypeExpr*)node;
+        if (type->kind == AST_TYPE_ARRAY) return type->dimensions;
+        if (type->kind != AST_TYPE_QUALIFIED) return NULL;
+        node = type->child;
+    }
+    return NULL;
+}
+
 OirStatus oir_ast_frontend_read_payload(
     const uint8_t* payload,
     size_t payload_length,
@@ -664,6 +674,20 @@ OirStatus oir_ast_frontend_read_payload(
         } while(has_field);
         if(record.next_node_id!=0u) {
             node_storage[i]->next=node_storage[record.next_node_id-1u];
+        }
+    }
+
+    /* Rebuild non-owning legacy aliases after all owned type edges exist. */
+    for(i=0;i<view.node_count;i++) {
+        ASTNode* node=node_storage[i];
+        if(node->type==AST_VAR_DECL) {
+            ASTVarDecl* decl=(ASTVarDecl*)node;
+            ASTNode* dimensions=type_expr_array_dimensions_reader(decl->type_expr);
+            if(dimensions && !decl->inline_type) decl->inline_type=dimensions;
+        } else if(node->type==AST_FUNC_DECL || node->type==AST_EXTERN_DECL) {
+            ASTFuncDecl* decl=(ASTFuncDecl*)node;
+            ASTNode* dimensions=type_expr_array_dimensions_reader(decl->return_type_expr);
+            if(dimensions && !decl->return_array_type) decl->return_array_type=dimensions;
         }
     }
 
