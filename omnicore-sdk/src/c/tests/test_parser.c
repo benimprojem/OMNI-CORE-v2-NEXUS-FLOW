@@ -4643,7 +4643,7 @@ generic_type_done:
         const char* query_start=strstr(source,"query =>");
         const char* query_end=query_start?strstr(query_start,"ret; }"):NULL;
         const char* nested_close=strstr(source,"  }\n}");
-        const char* nested_end=nested_close?nested_close+3:NULL;
+        const char* nested_end=nested_close?nested_close+2:NULL;
         const char* group_end=strrchr(source,'}');
         ParserContext* parser=parser_init_source("group-method-ast.nxf",
             (const uint8_t*)source,sizeof(source)-1u);
