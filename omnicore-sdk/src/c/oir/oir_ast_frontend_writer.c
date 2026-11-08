@@ -246,7 +246,9 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
             STR(1,n->name); STR(2,n->type_name);
             BOOL(3,n->is_const); BOOL(4,n->is_hard_typed);
             BOOL(5,n->is_public); BOOL(6,n->is_exported);
-            REF(7,n->initializer); if (n->inline_type != NULL && n->inline_type != (ASTNode*)type_expr_array_dimensions_writer(n->type_expr)) REF(8,n->inline_type);
+            REF(7,n->initializer); REF(8,
+                n->inline_type == (ASTNode*)type_expr_array_dimensions_writer(n->type_expr)
+                    ? NULL : n->inline_type);
             if(n->type_expr){s=emit_optional_node_ref(c,&last,9u,n->type_expr);if(s!=OIR_STATUS_OK)return s;} break;
         }
         case AST_FUNC_DECL: case AST_EXTERN_DECL: {
