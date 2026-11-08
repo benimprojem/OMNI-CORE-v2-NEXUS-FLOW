@@ -2601,10 +2601,18 @@ static ASTNode* parse_var_decl(Parser* p) {
                  if (!parse_struct_body(p, sdecl)) { ast_destroy((ASTNode*)sdecl); ast_destroy((ASTNode*)decl); return NULL; }
                  decl->inline_type = (ASTNode*)sdecl;
              }
-        } else if (parser_is_type_start(p)) {
-             if (!parser_parse_type_name(p, &decl->type_name, 0, 0)) {
-                 ast_destroy((ASTNode*)decl);
-                 return NULL;
+             {
+                 Token type_start=p->current;
+                 if (!parser_parse_type_name(p, &decl->type_name, 0, 0)) {
+                     ast_destroy((ASTNode*)decl);
+                     return NULL;
+                 }
+                 if (decl->type_name && strncmp(decl->type_name,"f:(",3u)!=0 &&
+                     !(decl->inline_type &&
+                       (decl->inline_type->type==AST_STRUCT_DECL || decl->inline_type->type==AST_UNION_DECL))) {
+                     decl->type_expr=parser_build_type_expr(p,decl->type_name,&type_start,&p->previous,decl->is_hard_typed);
+                     if(!decl->type_expr) { ast_destroy((ASTNode*)decl); return NULL; }
+                 }
              }
         } else {
              error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
@@ -2751,11 +2759,18 @@ static ASTNode* parse_func_decl(Parser* p) {
                     ast_destroy((ASTNode*)func);
                     return NULL;
                 }
-                if (!parser_parse_type_name(p, &param->type_name, 1, has_bang)) {
-                    ast_destroy((ASTNode*)func);
-                    return NULL;
-                }
-                param->is_hard_typed = has_bang;
+                 {
+                     Token type_start=p->current;
+                     if (!parser_parse_type_name(p, &param->type_name, 1, has_bang)) {
+                         ast_destroy((ASTNode*)func);
+                         return NULL;
+                     }
+                     if(param->type_name && strncmp(param->type_name,"f:(",3u)!=0) {
+                         param->type_expr=parser_build_type_expr(p,param->type_name,&type_start,&p->previous,has_bang);
+                         if(!param->type_expr) { ast_destroy((ASTNode*)func); return NULL; }
+                     }
+                 }
+                 param->is_hard_typed = has_bang;
                 if (!parse_array_type_suffix(p, param)) {
                     ast_destroy((ASTNode*)func);
                     return NULL;
@@ -2822,10 +2837,18 @@ static ASTNode* parse_func_decl(Parser* p) {
         int has_bang = 0;
         if (match(p, TOKEN_NOT)) has_bang = 1;
         if (parser_is_type_start(p)) {
-            if (!parser_parse_type_name(p, &func->return_type, 1, has_bang)) {
-                ast_destroy((ASTNode*)func);
-                return NULL;
-            }
+                 {
+                     Token return_type_start=p->current;
+                     if (!parser_parse_type_name(p, &func->return_type, 1, has_bang)) {
+                         ast_destroy((ASTNode*)func);
+                         return NULL;
+                     }
+                     if(func->return_type && strncmp(func->return_type,"f:(",3u)!=0) {
+                         func->return_type_expr=parser_build_type_expr(p,func->return_type,&return_type_start,&p->previous,has_bang);
+                         if(!func->return_type_expr) { ast_destroy((ASTNode*)func); return NULL; }
+                     }
+                 }
+                 if (p->current.type == TOKEN_LBRACKET) {
             if (p->current.type == TOKEN_LBRACKET) {
                 ASTVarDecl return_array;
                 memset(&return_array, 0, sizeof(return_array));
@@ -3477,10 +3500,17 @@ static ASTNode* parse_newtype_decl(Parser* p) {
         free(raw);
         consume(p, TOKEN_ASSIGN, ERR_PARSER_UNEXPECTED_TOKEN, MSG_UNEXPECTED_CHAR);
         if (parser_is_type_start(p)) {
-            if (!parser_parse_type_name(p, &decl->target_type, 0, 0)) {
-                ast_destroy((ASTNode*)decl);
-                return NULL;
-            }
+                 {
+                     Token target_type_start=p->current;
+                     if (!parser_parse_type_name(p, &decl->target_type, 0, 0)) {
+                         ast_destroy((ASTNode*)decl);
+                         return NULL;
+                     }
+                     if(decl->target_type && strncmp(decl->target_type,"f:(",3u)!=0) {
+                         decl->target_type_expr=parser_build_type_expr(p,decl->target_type,&target_type_start,&p->previous,0);
+                         if(!decl->target_type_expr) { ast_destroy((ASTNode*)decl); return NULL; }
+                     }
+                 }
         } else {
             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
             ast_destroy((ASTNode*)decl);
