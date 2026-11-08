@@ -319,6 +319,39 @@ static uint32_t semantic_type_id(
     if (force_hard) flags |= SEMANTIC_RESULT_TYPE_FLAG_HARD;
     if (!*name) return 0u;
 
+    /* Pointer/reference layers are structural SemanticResult types.
+       Each layer points to the immediately underlying type ID. */
+    if (*name == '*' || *name == '&') {
+        const char* layer = name;
+        uint32_t underlying;
+        if (*name == '&') {
+            if (name[1] == '\0') return 0u;
+            underlying = semantic_type_id(ctx, name + 1, 0);
+            kind = SEMANTIC_RESULT_TYPE_REFERENCE;
+            layer = "&";
+        } else {
+            size_t depth = 0u;
+            while (name[depth] == '*') ++depth;
+            if (name[depth] == '\0') return 0u;
+            underlying = semantic_type_id(ctx, name + depth, 0);
+            if (!underlying) return 0u;
+            kind = SEMANTIC_RESULT_TYPE_POINTER;
+            layer = "*";
+            while (depth > 1u) {
+                status = semantic_result_intern_type(
+                    &ctx->result, kind, 0u, layer, 0u, underlying, &underlying);
+                semantic_set_result_error(ctx, status);
+                if (status != SEMANTIC_RESULT_OK) return 0u;
+                --depth;
+            }
+        }
+        if (!underlying) return 0u;
+        status = semantic_result_intern_type(
+            &ctx->result, kind, flags, layer, 0u, underlying, &type_id);
+        semantic_set_result_error(ctx, status);
+        return status == SEMANTIC_RESULT_OK ? type_id : 0u;
+    }
+
     if (strcmp(name, "array") == 0) {
         kind = SEMANTIC_RESULT_TYPE_AGGREGATE;
     } else if (is_primitive_type_for_result(name)) {
