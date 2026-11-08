@@ -33,6 +33,8 @@ typedef union AstStorage {
     ASTLambda lambda_node;
     ASTRelocate relocate_node;
     ASTUnroll unroll_node;
+    ASTStructLiteral struct_literal;
+    ASTStructFieldInit struct_field_init;
     ASTVarDecl var_decl;
     ASTFuncDecl func_decl;
     ASTStructDecl struct_decl;
