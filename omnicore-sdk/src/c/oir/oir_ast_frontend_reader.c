@@ -164,6 +164,10 @@ static OirStatus validate_scalar_ranges(const OirAstNodeTableView* view) {
             } else if(field.value_type==OIR_AST_VALUE_U32 &&
                 record.node_kind_id==13u && field.field_id==2u) {
                 if(get_u32(field.value)>4u) return OIR_STATUS_INVALID_SECTION;
+            } else if(field.value_type==OIR_AST_VALUE_U32 &&
+                record.node_kind_id==108u && field.field_id==1u) {
+                if(get_u32(field.value)<1u || get_u32(field.value)>6u)
+                    return OIR_STATUS_INVALID_SECTION;
             } else if(field.value_type==OIR_AST_VALUE_I32) {
                 int value;
                 if(!get_i32(field.value,&value)) return OIR_STATUS_INVALID_SECTION;
