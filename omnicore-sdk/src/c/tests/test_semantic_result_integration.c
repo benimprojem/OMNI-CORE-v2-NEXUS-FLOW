@@ -491,7 +491,7 @@ static int test_group_semantic_records(void) {
                 &artifact_view, incoming_counts, node_count, visited,
                 node_count, graph_stack, node_count, owner_scope_by_node,
                 (size_t)node_count + 1u) != OIR_STATUS_OK ||
-            artifact_view.envelope.header.payload_schema_minor != 1u ||
+            artifact_view.envelope.header.payload_schema_minor != 2u ||
             artifact_view.symbols.record_count != semantic.result.symbol_count ||
             artifact_view.relations.record_count != 14u) {
             ok = 0;
