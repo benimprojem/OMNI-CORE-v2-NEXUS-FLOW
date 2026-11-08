@@ -1130,3 +1130,10 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Önemli sınır açıkça yazıldı: factory signature/type propagation, instance allocation veya field initialization değildir. Struct literal örneği hedef syntax olarak işaretlendi ve mevcut destek gibi gösterilmesi engellendi.
 - Bu commit yalnızca specification netleştirmesidir; constructor/Struct literal uygulaması veya test başarısı iddiası değildir.
 - Sıradaki uygulama: Struct literal AST üretimi ve Semantic field mapping/type validation; ardından OIR instance-init temsili. Codegen'e geçilmeyecek.
+
+## 2026-11-08 — Struct literal contract (design checkpoint)
+
+- Group Formal Specification §4.5 now normatively fixes Struct literal syntax as `Type { field = expression, ... }`; field names are declaration-order independent, each field exactly once, unknown/duplicate/missing fields reject, and each initializer is checked against the declared field type.
+- SemanticResult/OIR contract requires nominal Struct symbol/type ID and resolved field symbol IDs; OIR initialization follows source expression evaluation order while layout order remains Struct declaration order. No partially valid instance is emitted after diagnostics.
+- **Implementation status remains pending (~):** no Parser/AST node, codec schema, Semantic field mapping, OIR instance-init record/opcode or feature tests are claimed complete. This design checkpoint does not advance the implementation completion matrix.
+- Next implementation sequence: append-only AST StructLiteral + StructFieldInit tags/payload/ownership → Parser primary/postfix grammar → AST codec/registry round-trip → Semantic nominal type and field validation → SemanticResult serialization → OIR instance-init representation + verifier → positive/negative tests and CI.
