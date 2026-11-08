@@ -61,7 +61,7 @@ Lexer bir AST düğümüne bire bir karşılık gelmez. Bu nedenle token takibi 
 
 ## 4. AST düğüm bazlı ilerleme tablosu
 
-Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–105 kayıtlı OIR düğüm kimliklerini temel alır. ID'ler append-only'dir; mevcut ID'ler yeniden numaralandırılmaz.
+Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–107 kayıtlı OIR düğüm kimliklerini temel alır. ID'ler append-only'dir; mevcut ID'ler yeniden numaralandırılmaz.
 
 **Sütunlar:** Parser = syntax'tan bu düğümü üretme; AST+Codec = payload/lifecycle/serialize/deserialize; Semantic = tip/scope/ownership/control-flow kuralları; OIR Lowering = executable OIR üretimi; Tests = özellik bazlı parser/semantic/lowering testleri. AST codec için mevcut field-level round-trip matrisi tüm kayıtlı tag'leri kapsar; bu, her düğümün parser veya semantic olarak tamamlandığını göstermez.
 
@@ -172,6 +172,8 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–105 kayıtlı OIR düğ
 | 103 | `AST_MUST_DECL` | ✓ | ~ | ~ | D | ~ |
 | 104 | `AST_FASTEXEC_BLOCK` | ~ | ~ | ~ | D | ~ |
 | 105 | `AST_ASM_LABEL` | ~ | ~ | ~ | D | ~ |
+| 106 | `AST_STRUCT_LITERAL` | ✓ | ✓ | ~ | ? | ✓ |
+| 107 | `AST_STRUCT_FIELD_INIT` | ✓ | ✓ | ~ | ? | ✓ |
 
 ## 5. OIR ve Verifier kapsam kapısı
 
@@ -1156,5 +1158,16 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - AST graph validator now checks required Struct type name, field names, and initializer/value child links. Validator tests cover valid/invalid payloads, empty initializer-list structural acceptance, and child-cycle detection. Empty/missing Struct fields remain a Semantic completeness rule, not an AST graph rule.
 - `OIR_AST_NODE_REGISTRY.md` records the field contracts for both node kinds.
 - Parser regression test covers `Point { y = 2, x = 1 }` and confirms source initializer order is preserved. AST codec round-trip fixture now covers both Struct literal and field-init nodes.
-- SemanticResult design decision is documented: Struct literal and field initializer annotations reuse existing `resolved_symbol_id` / `resolved_type_id`; no extra table is needed because the AST field-init node already owns the value-expression edge.
-- **Validation status: test source added but not yet built or executed; latest commit has no reported CI status.** Codec round-trip, graph validator negative cases, Semantic checks (unknown/duplicate/missing fields and type compatibility), and OIR lowering remain pending. Do not mark Struct literal end-to-end complete.
+- SemanticResult mapping reuses the existing `SEMANTIC_RESULT_RELATION_AGGREGATE_FIELD`: owner is the nominal Struct symbol; `related_node_id` identifies the field declaration AST node; name, ordinal and type ID complete the field contract. The field-init annotation carries its expression type; no separate field Symbol kind or new table is introduced.
+- **Validation status at this checkpoint:** Semantic tests and the OIR AST bridge/round-trip passed in GitHub Actions run `42455141289` (60/60 CTest; Ubuntu, macOS, Windows, ASan/UBSan and Valgrind). A dedicated legacy AST stream round-trip test was added afterward and is awaiting its own CI run. OIR instance-init lowering and independent Verifier rules remain pending; Struct literal is not end-to-end complete.
+
+## 2026-11-08 — Struct literal Semantic + OIR AST bridge validation
+
+- Semantic traversal now resolves only visible `SLOT_STRUCT` types for Struct literal construction; visible Enum/Union/non-Struct types receive type-mismatch diagnostics, while unknown or Group-inaccessible nominal types receive unknown-type diagnostics.
+- Every initializer expression is checked; unknown fields, duplicate initializers, missing declared fields and incompatible values are diagnosed. Field lookup is independent of source order; expression evaluation order remains the AST source order. Empty `{}` is structurally valid and succeeds semantically only for a zero-field Struct.
+- Group-private nominal type visibility is preserved. Semantic regression tests cover valid reordered fields, unknown/duplicate/missing fields, string and numeric type mismatches, non-Struct type, empty Struct and inside/outside Group visibility.
+- SemanticResult integration validates the literal's nominal Struct symbol/type annotation and field declaration relations. `AGGREGATE_FIELD` relation carries the field declaration node ID, name, declaration ordinal and type ID; field initializer annotation carries the expression type.
+- OIR AST registry appended IDs 106/107. Map, schema, index child traversal, writer and reader were extended; parser→OIR AST→reader→writer canonical byte round-trip is covered. Parser now stamps source spans on each field initializer.
+- AST factory and graph-validator upper bounds were advanced to `AST_STRUCT_FIELD_INIT`; factory-boundary, graph, parser, semantic, OIR schema/map and round-trip regressions were updated.
+- Run `42455141289` on commit `d552313d`: Ubuntu/macOS/Windows CTest, ASan/UBSan and Valgrind all passed; Ubuntu CTest reported 60/60. Commit `6a43ce54` adds a dedicated legacy AST codec round-trip and updated invalid-tag boundary; that follow-up plus documentation changes await CI.
+- **Remaining:** complete OIR instance-init representation and independent Verifier validation before Codegen; keep Codegen gated.
