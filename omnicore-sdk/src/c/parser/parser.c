@@ -2742,7 +2742,7 @@ static ASTNode* parse_var_decl(Parser* p) {
                      ast_destroy((ASTNode*)decl);
                      return NULL;
                  }
-                 if (decl->type_name && strncmp(decl->type_name,"f:(",3u)!=0 &&
+                 if (decl->type_name && (strncmp(decl->type_name,"f:(",3u)!=0 || !strchr(decl->type_name,'[')) &&
                      !(decl->inline_type &&
                        (decl->inline_type->type==AST_STRUCT_DECL || decl->inline_type->type==AST_UNION_DECL))) {
                      decl->type_expr=parser_build_type_expr(p,decl->type_name,&type_start,&p->previous,decl->is_hard_typed);
@@ -2899,7 +2899,7 @@ static ASTNode* parse_func_decl(Parser* p) {
                          ast_destroy((ASTNode*)func);
                          return NULL;
                      }
-                     if(param->type_name && strncmp(param->type_name,"f:(",3u)!=0) {
+                     if(param->type_name && (strncmp(param->type_name,"f:(",3u)!=0 || !strchr(param->type_name,'['))) {
                          param->type_expr=parser_build_type_expr(p,param->type_name,&type_start,&p->previous,has_bang);
                          if(!param->type_expr) { ast_destroy((ASTNode*)func); return NULL; }
                      }
@@ -2977,7 +2977,7 @@ static ASTNode* parse_func_decl(Parser* p) {
                          ast_destroy((ASTNode*)func);
                          return NULL;
                      }
-                     if(func->return_type && strncmp(func->return_type,"f:(",3u)!=0) {
+                     if(func->return_type && (strncmp(func->return_type,"f:(",3u)!=0 || !strchr(func->return_type,'['))) {
                          func->return_type_expr=parser_build_type_expr(p,func->return_type,&return_type_start,&p->previous,has_bang);
                          if(!func->return_type_expr) { ast_destroy((ASTNode*)func); return NULL; }
                      }
@@ -3639,7 +3639,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                          ast_destroy((ASTNode*)decl);
                          return NULL;
                      }
-                     if(decl->target_type && strncmp(decl->target_type,"f:(",3u)!=0) {
+                     if(decl->target_type && (strncmp(decl->target_type,"f:(",3u)!=0 || !strchr(decl->target_type,'['))) {
                          decl->target_type_expr=parser_build_type_expr(p,decl->target_type,&target_type_start,&p->previous,0);
                          if(!decl->target_type_expr) { ast_destroy((ASTNode*)decl); return NULL; }
                      }
