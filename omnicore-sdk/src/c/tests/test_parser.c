@@ -1930,6 +1930,49 @@ done:
     return ok;
 }
 
+static int test_extern_linkname_association_and_codec(void) {
+    static const char source[] =
+        "!!=linkname = \"math.obj\";\n"
+        "exf:add(a!i32, b!i32)!i32;\n"
+        "exf:sub(a!i32, b!i32)!i32;";
+    ParserContext* ctx = parser_init_source("extern-linkname.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* add;
+    ASTFuncDecl* sub;
+    FILE* stream = NULL;
+    ASTNode* decoded = NULL;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK || ctx->error_count ||
+        !ctx->ast_root) goto done;
+    program = (ASTProgram*)ctx->ast_root;
+    add = (ASTFuncDecl*)program->declarations;
+    sub = add ? (ASTFuncDecl*)add->base.next : NULL;
+    if (!add || add->base.type != AST_EXTERN_DECL ||
+        !sub || sub->base.type != AST_EXTERN_DECL || sub->base.next ||
+        !add->linkname || strcmp(add->linkname, "math.obj") != 0 ||
+        !sub->linkname || strcmp(sub->linkname, "math.obj") != 0 ||
+        !ast_validate((ASTNode*)program, NULL)) goto done;
+
+    stream = tmpfile();
+    if (!stream || !ast_serialize((ASTNode*)program, stream) ||
+        fseek(stream, 0, SEEK_SET) != 0) goto done;
+    decoded = ast_deserialize(stream);
+    if (!decoded || !ast_validate(decoded, NULL)) goto done;
+    add = (ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+    sub = add ? (ASTFuncDecl*)add->base.next : NULL;
+    if (!add || !sub || !add->linkname || !sub->linkname ||
+        strcmp(add->linkname, "math.obj") != 0 ||
+        strcmp(sub->linkname, "math.obj") != 0) goto done;
+    ok = 1;
+done:
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_extern_echo_and_listen_keywords(void) {
     static const char source[] =
         "exf:external(a!i32)!i32 { ret a; }"
@@ -3022,6 +3065,7 @@ int main(int argc, char** argv) {
     if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
     if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\n"); return 1; }
     if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
+    if (!test_extern_linkname_association_and_codec()) { fprintf(stderr, "EXF linkname association/codec test failed.\n"); return 1; }
     if (!test_extern_echo_and_listen_keywords()) { fprintf(stderr, "extern/echo/listen keyword parser test failed.\n"); return 1; }
     if (!test_modulo_expression_ast()) { fprintf(stderr, "Modulo expression/array extent parser test failed.\n"); return 1; }
     if (!test_expression_precedence_and_associativity_ast()) { fprintf(stderr, "Logical operator precedence parser test failed.\n"); return 1; }
