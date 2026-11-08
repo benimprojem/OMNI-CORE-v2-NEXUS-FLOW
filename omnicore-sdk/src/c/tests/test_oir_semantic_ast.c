@@ -172,7 +172,13 @@ int main(void) {
             decoded_type.referenced_symbol_id == 7u &&
             decoded_type.base_type_id == 1u &&
             decoded_name && memcmp(decoded_name, "Widget", 6u) == 0);
-        assert(oir_semantic_types_get(&types_view, 2u, &decoded_type,\n            &decoded_name) == OIR_STATUS_OK);\n        assert(decoded_type.type_id == 3u &&\n            decoded_type.kind == OIR_SEMANTIC_TYPE_POINTER &&\n            decoded_type.base_type_id == 1u &&\n            decoded_name && memcmp(decoded_name, "*", 1u) == 0);\n
+        assert(oir_semantic_types_get(&types_view, 2u, &decoded_type,
+            &decoded_name) == OIR_STATUS_OK);
+        assert(decoded_type.type_id == 3u &&
+            decoded_type.kind == OIR_SEMANTIC_TYPE_POINTER &&
+            decoded_type.base_type_id == 1u &&
+            decoded_name && memcmp(decoded_name, "*", 1u) == 0);
+
         assert(oir_semantic_types_write(type_second, sizeof(type_second), types, 2u,
             names, (uint32_t)sizeof(names), &type_second_written) == OIR_STATUS_OK);
         assert(type_second_written == type_written &&
