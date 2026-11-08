@@ -149,6 +149,81 @@ int main(void) {
         ast_destroy((ASTNode*)newtype);
     }
 
+    /* Struct literal graph ownership and required payload contracts. */
+    {
+        ASTStructLiteral* literal=(ASTStructLiteral*)ast_create(AST_STRUCT_LITERAL);
+        ASTStructFieldInit* field=(ASTStructFieldInit*)ast_create(AST_STRUCT_FIELD_INIT);
+        ASTLiteral* value=(ASTLiteral*)ast_create(AST_LITERAL);
+        if(!literal || !field || !value) return 1;
+        literal->type_name=(char*)malloc(sizeof("Point"));
+        field->name=(char*)malloc(sizeof("x"));
+        value->string_value=(char*)malloc(sizeof("1"));
+        if(!literal->type_name || !field->name || !value->string_value) return 1;
+        strcpy(literal->type_name,"Point");
+        strcpy(field->name,"x");
+        strcpy(value->string_value,"1");
+        field->value=(ASTNode*)value;
+        literal->fields=(ASTNode*)field;
+        if(!expect((ASTNode*)literal,AST_VALIDATE_OK)) {
+            fprintf(stderr,"valid Struct literal graph rejected\\n");
+            ast_destroy((ASTNode*)literal); return 1;
+        }
+
+        free(literal->type_name); literal->type_name=NULL;
+        if(!expect((ASTNode*)literal,AST_VALIDATE_MISSING_REQUIRED)) {
+            fprintf(stderr,"Struct literal without type name accepted\\n");
+            ast_destroy((ASTNode*)literal); return 1;
+        }
+        literal->type_name=(char*)malloc(sizeof("Point"));
+        if(!literal->type_name) return 1;
+        strcpy(literal->type_name,"Point");
+
+        free(field->name); field->name=NULL;
+        if(!expect((ASTNode*)literal,AST_VALIDATE_MISSING_REQUIRED)) {
+            fprintf(stderr,"Struct field without name accepted\\n");
+            ast_destroy((ASTNode*)literal); return 1;
+        }
+        field->name=(char*)malloc(sizeof("x"));
+        if(!field->name) return 1;
+        strcpy(field->name,"x");
+
+        field->value=NULL;
+        if(!expect((ASTNode*)literal,AST_VALIDATE_MISSING_REQUIRED)) {
+            fprintf(stderr,"Struct field without value accepted\\n");
+            ast_destroy((ASTNode*)literal); return 1;
+        }
+        field->value=(ASTNode*)value;
+
+        /* Empty initializer list is structurally legal; Semantic checks completeness. */
+        literal->fields=NULL;
+        if(!expect((ASTNode*)literal,AST_VALIDATE_OK)) {
+            fprintf(stderr,"empty Struct initializer list rejected by AST validator\\n");
+            ast_destroy((ASTNode*)literal); return 1;
+        }
+        literal->fields=(ASTNode*)field;
+        ast_destroy((ASTNode*)literal);
+    }
+
+    /* Struct field initializers participate in graph cycle/ownership checks. */
+    {
+        ASTStructLiteral* literal=(ASTStructLiteral*)ast_create(AST_STRUCT_LITERAL);
+        ASTStructFieldInit* field=(ASTStructFieldInit*)ast_create(AST_STRUCT_FIELD_INIT);
+        if(!literal || !field) return 1;
+        literal->type_name=(char*)malloc(sizeof("Node"));
+        field->name=(char*)malloc(sizeof("next"));
+        if(!literal->type_name || !field->name) return 1;
+        strcpy(literal->type_name,"Node");
+        strcpy(field->name,"next");
+        literal->fields=(ASTNode*)field;
+        field->value=(ASTNode*)literal;
+        if(!expect((ASTNode*)literal,AST_VALIDATE_CYCLE)) {
+            fprintf(stderr,"Struct literal child cycle not detected\\n");
+            field->value=NULL; ast_destroy((ASTNode*)literal); return 1;
+        }
+        field->value=NULL;
+        ast_destroy((ASTNode*)literal);
+    }
+
     /* Invalid enum values must fail before payload dispatch. */
     {
         ASTNode invalid = { (ASTNodeType)-1, 0, 0, NULL };
