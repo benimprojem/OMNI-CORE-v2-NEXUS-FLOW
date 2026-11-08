@@ -1270,7 +1270,11 @@ done:
     if(stream)fclose(stream);
     if(decoded)ast_destroy(decoded);
     if(attached)ast_destroy((ASTNode*)program);
-    else { ast_destroy((ASTNode*)variable); ast_destroy((ASTNode*)program); ast_destroy((ASTNode*)pointer); ast_destroy((ASTNode*)named); }
+    else {
+        if(variable && variable->type_expr) ast_destroy((ASTNode*)variable);
+        else { ast_destroy((ASTNode*)variable); ast_destroy((ASTNode*)pointer); ast_destroy((ASTNode*)named); }
+        ast_destroy((ASTNode*)program);
+    }
     return ok;
 }
 
