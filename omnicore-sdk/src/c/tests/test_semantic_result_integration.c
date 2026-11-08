@@ -194,7 +194,6 @@ static int test_group_semantic_records(void) {
     size_t ast_payload_written = 0u, artifact_written = 0u;
     size_t legacy_artifact_written = 0u;
     int ok = 0;
-    int stage = 1;
 
     if (!parser) return 0;
     if (parser_run(parser) != PARSER_STATUS_OK ||
