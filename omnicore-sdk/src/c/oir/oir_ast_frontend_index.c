@@ -244,14 +244,14 @@ uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
     switch (type) {
         case AST_PROGRAM: case AST_BLOCK: case AST_ASM_BLOCK: case AST_FASTEXEC_BLOCK:
         case AST_TUPLE: case AST_ARRAY_LITERAL: case AST_ARRAY_TYPE:
-        case AST_STRUCT_LITERAL: case AST_STRUCT_FIELD_INIT:
         case AST_ARRAY_DIMENSION: case AST_NEXUS_HALT: case AST_UNPACK: case AST_DEFER:
             return 1u;
         case AST_NAMED_ARG: case AST_MUST_DECL: return 2u;
         case AST_STRUCT_DECL: case AST_UNION_DECL: return 6u;
         case AST_GROUP_DECL: return 4u;
         case AST_ENUM_DECL: case AST_ENUM_VARIANT: case AST_METHOD:
-        case AST_MEMBER_ACCESS: case AST_NEXUS_CAPTURE: case AST_LISTEN:
+        case AST_MEMBER_ACCESS: case AST_STRUCT_LITERAL: case AST_STRUCT_FIELD_INIT:
+        case AST_NEXUS_CAPTURE: case AST_LISTEN:
         case AST_NEXUS_LABEL: case AST_NEXUS_INTENT:
             return 2u;
         case AST_VAR_DECL: return 8u;
