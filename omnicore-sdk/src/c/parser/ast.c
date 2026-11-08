@@ -607,6 +607,28 @@ void ast_print(ASTNode* root) {
     printf("-------------------------\n\n");
 }
 
+static ASTNode* ast_type_expr_array_dimensions(ASTNode* type_expr) {
+    ASTNode* node = type_expr;
+    while (node && node->type == AST_TYPE_EXPR) {
+        ASTTypeExpr* type = (ASTTypeExpr*)node;
+        if (type->kind == AST_TYPE_ARRAY) return type->dimensions;
+        if (type->kind != AST_TYPE_QUALIFIED) return NULL;
+        node = type->child;
+    }
+    return NULL;
+}
+
+static const ASTNode* ast_type_expr_array_dimensions_const(const ASTNode* type_expr) {
+    const ASTNode* node = type_expr;
+    while (node && node->type == AST_TYPE_EXPR) {
+        const ASTTypeExpr* type = (const ASTTypeExpr*)node;
+        if (type->kind == AST_TYPE_ARRAY) return type->dimensions;
+        if (type->kind != AST_TYPE_QUALIFIED) return NULL;
+        node = type->child;
+    }
+    return NULL;
+}
+
 static void ast_destroy_recursive(ASTNode* node) {
     /*
      * Walk sibling lists iteratively. A flat source file can contain many
@@ -623,7 +645,9 @@ static void ast_destroy_recursive(ASTNode* node) {
             if (d->name) free(d->name);
             if (d->type_name) free(d->type_name);
             if (d->initializer) ast_destroy_recursive(d->initializer);
-            if (d->inline_type) ast_destroy_recursive(d->inline_type);
+            if (d->inline_type &&
+                ast_type_expr_array_dimensions(d->type_expr) != d->inline_type)
+                ast_destroy_recursive(d->inline_type);
             if (d->type_expr) ast_destroy_recursive(d->type_expr);
             break;
         }
@@ -634,7 +658,9 @@ static void ast_destroy_recursive(ASTNode* node) {
             if (f->return_type) free(f->return_type);
             if (f->params) ast_destroy_recursive(f->params);
             if (f->body) ast_destroy_recursive(f->body);
-            if (f->return_array_type) ast_destroy_recursive(f->return_array_type);
+            if (f->return_array_type &&
+                ast_type_expr_array_dimensions(f->return_type_expr) != f->return_array_type)
+                ast_destroy_recursive(f->return_array_type);
             if (f->linkname) free(f->linkname);
             if (f->return_type_expr) ast_destroy_recursive(f->return_type_expr);
             break;
@@ -1067,7 +1093,9 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             ast_write_exact(writer, &d->is_public, (size_t)(sizeof(int)) * (size_t)(1));
             ast_write_exact(writer, &d->is_exported, (size_t)(sizeof(int)) * (size_t)(1));
             ast_serialize_recursive(d->initializer, writer);
-            ast_serialize_recursive(d->inline_type, writer);
+            ast_serialize_recursive(
+                ast_type_expr_array_dimensions_const(d->type_expr) == d->inline_type
+                    ? NULL : d->inline_type, writer);
             ast_serialize_recursive(d->type_expr, writer);
             break;
         }
@@ -1081,7 +1109,9 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             ast_write_exact(writer, &f->is_exported, (size_t)(sizeof(int)) * (size_t)(1));
             ast_serialize_recursive(f->params, writer);
             ast_serialize_recursive(f->body, writer);
-            ast_serialize_recursive(f->return_array_type, writer);
+            ast_serialize_recursive(
+                ast_type_expr_array_dimensions_const(f->return_type_expr) == f->return_array_type
+                    ? NULL : f->return_array_type, writer);
             write_string(writer, f->linkname);
             ast_serialize_recursive(f->return_type_expr, writer);
             break;
@@ -1441,7 +1471,13 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             if (!ast_read_exact(reader, &d->is_exported, sizeof(int))) goto fail;
             d->initializer = ast_deserialize_recursive(reader);
             d->inline_type = ast_deserialize_recursive(reader);
-            if(reader->format_version>=4u) d->type_expr=ast_deserialize_recursive(reader);
+            if(reader->format_version>=4u) {
+                d->type_expr=ast_deserialize_recursive(reader);
+                if (!reader->failed &&
+                    ast_type_expr_array_dimensions(d->type_expr) &&
+                    !d->inline_type)
+                    d->inline_type = ast_type_expr_array_dimensions(d->type_expr);
+            }
             break;
         }
         case AST_FUNC_DECL:
@@ -1458,8 +1494,13 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
                 f->return_array_type = ast_deserialize_recursive(reader);
             if (reader->format_version >= 3u)
                 f->linkname = read_string(reader);
-            if (reader->format_version >= 4u)
+            if (reader->format_version >= 4u) {
                 f->return_type_expr = ast_deserialize_recursive(reader);
+                if (!reader->failed &&
+                    ast_type_expr_array_dimensions(f->return_type_expr) &&
+                    !f->return_array_type)
+                    f->return_array_type = ast_type_expr_array_dimensions(f->return_type_expr);
+            }
             break;
         }
         case AST_STRUCT_DECL:
@@ -1998,7 +2039,11 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
         }
         case AST_VAR_DECL:
             if(!ast_validation_required_text(s,n,((ASTVarDecl*)n)->name,"name")) return 0;
-            V(((ASTVarDecl*)n)->initializer,"initializer"); V(((ASTVarDecl*)n)->inline_type,"inline_type"); V(((ASTVarDecl*)n)->type_expr,"type_expr"); break;
+            V(((ASTVarDecl*)n)->initializer,"initializer");
+            if (ast_type_expr_array_dimensions_const(((ASTVarDecl*)n)->type_expr) !=
+                ((ASTVarDecl*)n)->inline_type)
+                V(((ASTVarDecl*)n)->inline_type,"inline_type");
+            V(((ASTVarDecl*)n)->type_expr,"type_expr"); break;
         case AST_FUNC_DECL: {
             const ASTFuncDecl* function=(const ASTFuncDecl*)n;
             int group_method_implementation=s->active_count>=2u &&
@@ -2011,13 +2056,19 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"linkname_extern_only");
             V(function->params,"params");
             R(function->body,"body");
-            V(function->return_array_type,"return_array_type");
+            if (ast_type_expr_array_dimensions_const(function->return_type_expr) !=
+                function->return_array_type)
+                V(function->return_array_type,"return_array_type");
             V(function->return_type_expr,"return_type_expr");
             break;
         }
         case AST_EXTERN_DECL:
             if(!ast_validation_required_text(s,n,((ASTFuncDecl*)n)->name,"name")) return 0;
-            V(((ASTFuncDecl*)n)->params,"params"); V(((ASTFuncDecl*)n)->body,"body"); V(((ASTFuncDecl*)n)->return_array_type,"return_array_type"); V(((ASTFuncDecl*)n)->return_type_expr,"return_type_expr"); break;
+            V(((ASTFuncDecl*)n)->params,"params"); V(((ASTFuncDecl*)n)->body,"body");
+            if (ast_type_expr_array_dimensions_const(((ASTFuncDecl*)n)->return_type_expr) !=
+                ((ASTFuncDecl*)n)->return_array_type)
+                V(((ASTFuncDecl*)n)->return_array_type,"return_array_type");
+            V(((ASTFuncDecl*)n)->return_type_expr,"return_type_expr"); break;
         case AST_STRUCT_DECL: case AST_UNION_DECL:
             if(!ast_validation_required_text(s,n,((ASTStructDecl*)n)->name,"name")) return 0;
             V(((ASTStructDecl*)n)->fields,"fields"); break;
