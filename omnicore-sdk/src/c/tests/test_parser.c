@@ -4454,7 +4454,7 @@ generic_type_done:
     /* Nested Struct literals remain owned expression children and round-trip recursively. */
     {
         static const char source[] =
-            "f:main() { v:o!Outer = Outer { inner = Inner { value = 1 }, flag = true }; }";
+            "f:main() { v:o!Outer = Outer { inner = Inner { value = 1 }, flag = 2 }; }";
         ParserContext* parser=parser_init_source("nested-struct-literals.nxf",
             (const uint8_t*)source,sizeof(source)-1u);
         ASTNode* decoded=NULL;
@@ -4490,6 +4490,13 @@ generic_type_done:
                 decoded=ast_deserialize(stream);
                 valid=decoded && ast_validate(decoded,NULL);
             } else valid=0;
+        } else if(parser) {
+            Error* error;
+            fprintf(stderr,"Nested Struct literal parse failed status=%d errors=%d\\n",
+                (int)parser_get_status(parser),parser->error_count);
+            for(error=parser->error_head;error;error=error->next)
+                fprintf(stderr,"  %d:%d %s\\n",error->line,error->col,
+                    error->message?error->message:"");
         }
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
