@@ -79,7 +79,7 @@ static void free_disconnected_node(ASTNode* node) {
             ASTVarDecl* n=(ASTVarDecl*)node; free(n->name); free(n->type_name); break;
         }
         case AST_FUNC_DECL: case AST_EXTERN_DECL: {
-            ASTFuncDecl* n=(ASTFuncDecl*)node; free(n->name); free(n->return_type); break;
+            ASTFuncDecl* n=(ASTFuncDecl*)node; free(n->name); free(n->return_type); free(n->linkname); break;
         }
         case AST_STRUCT_DECL: case AST_UNION_DECL:
             free(((ASTStructDecl*)node)->name); break;
@@ -229,6 +229,7 @@ static OirStatus populate_scalar_fields(
                 else if(field.field_id==3u)n->is_extern=(int)field.value[0];
                 else if(field.field_id==4u)n->is_public=(int)field.value[0];
                 else if(field.field_id==5u)n->is_exported=(int)field.value[0];
+                else if(field.field_id==9u)status=allocate_string(view,&field,&n->linkname);
                 break;
             }
             case AST_STRUCT_DECL: case AST_UNION_DECL: {
