@@ -1500,6 +1500,8 @@ static int test_expression_precedence_and_associativity_ast(void) {
     ASTNode* expression;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
+    const char* guard_start=strstr(source,"a > 0 && b > 0 || c == 1");
+    const char* guard_end=guard_start?guard_start+strlen("a > 0 && b > 0 || c == 1"):NULL;
     int ok = 0;
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
@@ -1510,7 +1512,12 @@ static int test_expression_precedence_and_associativity_ast(void) {
     if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
-        ((ASTBinaryExpr*)expression)->op != TOKEN_OR) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        ((ASTBinaryExpr*)expression)->op != TOKEN_OR ||
+        !guard_start || !guard_end || !expression->source_span.has_location ||
+        expression->source_span.start_offset!=(uint64_t)(guard_start-source) ||
+        expression->source_span.end_offset!=(uint64_t)(guard_end-source) ||
+        expression->source_span.start_column!=(uint32_t)(guard_start-source)+1u ||
+        expression->source_span.end_column!=(uint32_t)(guard_end-source)+1u) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
     {
         ASTNode* and_expr = ((ASTBinaryExpr*)expression)->left;
         ASTNode* compare_right = ((ASTBinaryExpr*)expression)->right;
