@@ -8,7 +8,7 @@
 
 - **Parser:** `Direct` means a direct `parser_ast_create(p, AST_...)` call was found in `parser.c`; `Helper/indirect` means no such direct call was found. It is *not* a claim that the parser cannot produce the node; helper constructors, dynamic type selection, and shared representations must be audited separately.
 - **Factory / Destroy / Serialize / Deserialize:** the AST lifecycle implementation is centralized in `ast.c`; the generic fixture suite exercises node tags and populated payloads. ✓ is registry/lifecycle presence, not proof every field or malformed path is covered.
-- **Graph:** graph validator has explicit contracts for all current tags and fails closed for unknown kinds.
+- **Graph:** graph validator has explicit contracts for all current tags, records each incoming child-field edge, enforces context-bound node ownership/position, and fails closed for unknown kinds.
 - **OIR map / Writer:** AST-to-OIR registry and AST frontend writer coverage.
 - **Fixture:** `test_ast_deserialize.c` has a populate switch for the type. Context-bound node tests must use legal parent contexts; no standalone-root assumption.
 
@@ -21,7 +21,7 @@
 | OIR writer kind cases | 107/107 |
 | Populated fixture switch | 107/107 |
 | Direct parser construction calls | 64 kinds (not a parser completeness metric) |
-| Graph validator | Explicit kind contracts; invalid/unregistered kind fails closed |
+| Graph validator | Explicit kind + incoming-edge/context contracts; invalid/unregistered kind fails closed |
 
 ## Per-node matrix
 
@@ -144,8 +144,8 @@
 | `AST_BLOCK_HALT` | `AST_BLOCK` / allowed cleanup block, final statement | Dedicated block-halt round-trip |
 | `AST_ASM_LABEL` | `AST_FASTEXEC_BLOCK.statements` | FASTEXEC raw ASM payload round-trip |
 | `AST_FUNC_DECL.return_array_type` | `AST_FUNC_DECL` / `AST_EXTERN_DECL` payload | Function array-return parser, AST stream v2 round-trip + v1 compatibility, OIR field 8 round-trip |
-| `AST_NAMED_ARG` | Call/intrinsic args list | Populated fixture; call-parent validation is separately exercised |
-| `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` | `AST_STRUCT_LITERAL.fields` owns ordered field-init nodes; each field init owns its value expression | Dedicated legacy AST codec round-trip and parser→OIR writer→reader→writer byte-stable round-trip |
+| `AST_SELECT_ARM` | `AST_SELECT.arms` | Generic codec fixture is wrapped in `AST_SELECT`; validator enforces `arms` edge |\n| `AST_SCAN_ARM` | `AST_SCAN.arms` | Generic codec fixture is wrapped in `AST_SCAN`; validator enforces `arms` edge and final catch-all position |\n| `AST_ARRAY_DIMENSION` | `AST_ARRAY_TYPE.dimensions` | Generic codec fixture is wrapped in `AST_ARRAY_TYPE`; validator enforces `dimensions` edge |\n| `AST_NAMED_ARG` | `AST_FUNC_CALL` / intrinsic `.args` list | Parser + codec round-trip; exact `b:2` source span; validator accepts `.args` and rejects `.callee` edge |
+| `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` | `AST_STRUCT_LITERAL.fields` owns ordered field-init nodes; each field init owns its value expression | Dedicated legacy AST codec round-trip and parser→OIR writer→reader→writer byte-stable round-trip; validator enforces `fields` edge |
 
 ## Remaining AST closure criteria
 
