@@ -602,6 +602,49 @@ static int roundtrips_populated_ast_types(void) {
     return 0;
 }
 
+static int roundtrips_struct_literal_nodes(void) {
+    ASTStructLiteral* literal=(ASTStructLiteral*)ast_create(AST_STRUCT_LITERAL);
+    ASTStructFieldInit* field=(ASTStructFieldInit*)ast_create(AST_STRUCT_FIELD_INIT);
+    FILE *first=NULL,*second=NULL;
+    ASTNode* decoded=NULL;
+    int ok=0;
+    if(!literal || !field) goto done;
+    literal->type_name=duplicate_text("Point");
+    field->name=duplicate_text("x");
+    field->value=make_literal_fixture();
+    if(!literal->type_name || !field->name || !field->value) goto done;
+    literal->fields=(ASTNode*)field;
+    field=NULL;
+    if(!ast_validate((ASTNode*)literal,NULL)) goto done;
+    first=tmpfile(); second=tmpfile();
+    if(!first || !second) goto done;
+    if(!ast_serialize((ASTNode*)literal,first)) goto done;
+    rewind(first);
+    decoded=ast_deserialize(first);
+    if(!decoded || !ast_validate(decoded,NULL) ||
+        !ast_serialize(decoded,second) || !streams_equal(first,second)) goto done;
+    {
+        ASTStructLiteral* restored=(ASTStructLiteral*)decoded;
+        ASTStructFieldInit* restored_field=restored->fields
+            ? (ASTStructFieldInit*)restored->fields : NULL;
+        if(restored->base.type!=AST_STRUCT_LITERAL ||
+            !restored->type_name || strcmp(restored->type_name,"Point")!=0 ||
+            !restored_field || restored_field->base.type!=AST_STRUCT_FIELD_INIT ||
+            !restored_field->name || strcmp(restored_field->name,"x")!=0 ||
+            !restored_field->value || restored_field->value->type!=AST_LITERAL ||
+            strcmp(((ASTLiteral*)restored_field->value)->string_value,"321.75")!=0 ||
+            restored_field->base.next) goto done;
+    }
+    ok=1;
+done:
+    if(first) fclose(first);
+    if(second) fclose(second);
+    if(decoded) ast_destroy(decoded);
+    if(literal) ast_destroy((ASTNode*)literal);
+    if(field) ast_destroy((ASTNode*)field);
+    return ok;
+}
+
 static int roundtrips_all_node_type_tags(void) {
     for (int raw_type = AST_PROGRAM; raw_type <= AST_ARRAY_DIMENSION; ++raw_type) {
         ASTNode* original = ast_create((ASTNodeType)raw_type);
@@ -1229,6 +1272,7 @@ int main(int argc, char** argv) {
     if (rejects_all_truncated_ast_payload_prefixes() != 0) return 20;
     if (roundtrips_populated_ast_types() != 0) return 11;
     if (roundtrips_all_node_type_tags() != 0) return 8;
+    if (roundtrips_struct_literal_nodes() != 0) return 19;
     if (roundtrips_block_halt_tag() != 0) return 14;
     if (roundtrips_extern_decl() != 0) return 7;
     if (roundtrips_special_nodes() != 0) return 4;
@@ -1250,7 +1294,7 @@ int main(int argc, char** argv) {
         ASTNodeType type;
         int line;
         int col;
-    } invalid_node = { (ASTNodeType)(AST_ASM_LABEL + 1), 1, 1 };
+    } invalid_node = { (ASTNodeType)(AST_STRUCT_FIELD_INIT + 1), 1, 1 };
 
     if (rejects_bytes(&invalid_node, sizeof(invalid_node)) != 0) {
         return 2;
