@@ -1155,5 +1155,5 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - AST lifecycle/debug printing, recursive destruction, serialization and deserialization now include both node kinds.
 - AST graph validator now checks required Struct type name, field names, and initializer/value child links.
 - `OIR_AST_NODE_REGISTRY.md` records the field contracts for both node kinds.
-- Parser regression test covers `Point { y = 2, x = 1 }` and confirms source initializer order is preserved.
+- Parser regression test covers `Point { y = 2, x = 1 }` and confirms source initializer order is preserved. AST codec round-trip fixture now covers both Struct literal and field-init nodes.
 - **Validation status: not yet built or executed.** Codec round-trip, graph validator negative cases, Semantic checks (unknown/duplicate/missing fields and type compatibility), and OIR lowering remain pending. Do not mark Struct literal end-to-end complete.
