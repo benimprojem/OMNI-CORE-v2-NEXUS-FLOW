@@ -532,6 +532,16 @@ static int populate_ast_fixture(ASTNode* node) {
             v->value=make_literal_fixture();
             return v->value!=NULL;
         }
+        case AST_TYPE_EXPR: {
+            ASTTypeExpr* v=(ASTTypeExpr*)node;
+            ASTTypeExpr* named=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+            if(!named) return 0;
+            v->kind=AST_TYPE_POINTER;
+            v->child=(ASTNode*)named;
+            named->kind=AST_TYPE_NAMED;
+            named->name=duplicate_text("i32");
+            return named->name!=NULL;
+        }
         case AST_FASTEXEC_BLOCK: ((ASTFastExecBlock*)node)->statements=make_identifier_fixture("fast_statement"); return ((ASTFastExecBlock*)node)->statements!=NULL;
 case AST_ASM_LABEL: { ASTAsmLabel* v=(ASTAsmLabel*)node; if(!assign_text(&v->label,"FIXTURE_ASM"))return 0; v->source_text=duplicate_text("nop\\r\\n"); if(!v->source_text)return 0; v->source_length=strlen(v->source_text); return 1; }
 case AST_NAMED_ARG: { ASTNamedArg* v=(ASTNamedArg*)node; if(!assign_text(&v->name,"fixture_arg"))return 0; v->value=make_identifier_fixture("named_value"); return v->value!=NULL; }
@@ -661,7 +671,7 @@ static int streams_equal(FILE* left, FILE* right) {
 }
 
 static int roundtrips_populated_ast_types(void) {
-    for (int raw_type = AST_PROGRAM; raw_type <= AST_STRUCT_FIELD_INIT; ++raw_type) {
+    for (int raw_type = AST_PROGRAM; raw_type <= AST_TYPE_EXPR; ++raw_type) {
         ASTNode* original = ast_create((ASTNodeType)raw_type);
         ASTNode* root;
         if (!original) { fprintf(stderr, "ast_create failed for populated tag %d.\\n", raw_type); return 1; }
@@ -1487,7 +1497,7 @@ int main(int argc, char** argv) {
         ASTNodeType type;
         int line;
         int col;
-    } invalid_node = { (ASTNodeType)(AST_STRUCT_FIELD_INIT + 1), 1, 1 };
+    } invalid_node = { (ASTNodeType)(AST_TYPE_EXPR + 1), 1, 1 };
 
     if (rejects_bytes(&invalid_node, sizeof(invalid_node)) != 0) {
         return 2;
