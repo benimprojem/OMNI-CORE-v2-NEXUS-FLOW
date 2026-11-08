@@ -1251,3 +1251,12 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - AST'de mevcut node/metadata yapısı denetlenmeden yeni node veya linker altyapısı eklenmeyecek.
 
 **Durum:** Dil/spec kararı belgelendi; AST uygulama/test parity henüz ayrıca doğrulanmadı (tamamlandı işaretlenmez).
+
+
+## 11. Recursive AST Type Expression — design baseline (2026-11-08)
+
+- Added `AST_TYPE_EXPR_DESIGN.md` as a draft design/implementation contract (commit `11ee81a8d4b572537b22befbe929f9202c3903e1`).
+- Current C AST already has `AST_ARRAY_TYPE` / `AST_ARRAY_DIMENSION`, but declarations and callback/function signatures still store base types in text fields (`ASTVarDecl.type_name`, `ASTFuncDecl.return_type`, `ASTNewTypeDecl.target_type`).
+- Parser's `exf:` form currently reuses `ASTFuncDecl` with `AST_EXTERN_DECL`; it does not itself establish a `linkname` binding. Linkname directive parsing and AST relation still need implementation/design review.
+- Design contract: append-only node IDs; legacy strings retained during migration; recursive named/pointer/reference/array/function type forms; exact spans; all codec/validator/destroy/printer/schema paths and tests must be updated together.
+- **Status:** design draft only. No recursive type-expression C implementation or test completion is claimed. AST remains open; no Semantic/Codegen transition.
