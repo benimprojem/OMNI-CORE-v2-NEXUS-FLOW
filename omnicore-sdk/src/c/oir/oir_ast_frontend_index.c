@@ -55,6 +55,16 @@ uint32_t oir_ast_frontend_index_lookup(
     return 0u;
 }
 
+static const ASTNode* type_expr_array_dimensions(const ASTNode* node) {
+    while (node && node->type == AST_TYPE_EXPR) {
+        const ASTTypeExpr* type = (const ASTTypeExpr*)node;
+        if (type->kind == AST_TYPE_ARRAY) return type->dimensions;
+        if (type->kind != AST_TYPE_QUALIFIED) return NULL;
+        node = type->child;
+    }
+    return NULL;
+}
+
 const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id) {
     switch (node->type) {
         case AST_PROGRAM:
@@ -65,7 +75,7 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
         case AST_VAR_DECL: {
             const ASTVarDecl* n = (const ASTVarDecl*)node;
             if (field_id == 7u) return n->initializer;
-            if (field_id == 8u) return n->inline_type;
+            if (field_id == 8u) return type_expr_array_dimensions(n->type_expr) == n->inline_type ? NULL : n->inline_type;
             if (field_id == 9u) return n->type_expr;
             return NULL;
         }
@@ -74,7 +84,7 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
             const ASTFuncDecl* n = (const ASTFuncDecl*)node;
             if (field_id == 6u) return n->params;
             if (field_id == 7u) return n->body;
-            if (field_id == 8u) return n->return_array_type;
+            if (field_id == 8u) return type_expr_array_dimensions(n->return_type_expr) == n->return_array_type ? NULL : n->return_array_type;
             if (field_id == 10u) return n->return_type_expr;
             return NULL;
         }
