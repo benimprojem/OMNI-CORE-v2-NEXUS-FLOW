@@ -1285,3 +1285,6 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Tasarım kaydı güncellendi: `AST_TYPE_EXPR_DESIGN.md`.
 - **Doğrulama durumu:** Değişiklikler `refactor/c-core-roadmap` dalında commitlendi; bu oturumda yerel C derlemesi/CTest çalıştırılamadı ve bu commit grubu için doğrulanmış yeni CI sonucu henüz yok. CI tamamlanmadan bu entegrasyon tamamlanmış sayılmayacak.
 - **Açık kalanlar:** callback signature içindeki array parametre/return bileşimi, hassas parametre bazlı source span, nested malformed-type ve allocation-failure testleri. AST kapanışı ve Semantic geçişi hâlâ kilitli.
+
+
+- **CI doğrulaması:** Workflow `42497533312` tüm 5 işi başarıyla tamamladı (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). Ubuntu CTest: 60/60. İlk iki CI denemesinde ortaya çıkan zorunlu OIR field-slot ve hard-qualified array test beklentisi hataları düzeltildi; başarılı run bu düzeltmelerin tamamını içeriyor.
