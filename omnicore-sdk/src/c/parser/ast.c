@@ -1881,15 +1881,10 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
         case AST_FASTEXEC_BLOCK: V(((ASTFastExecBlock*)n)->statements,"statements"); break;
         case AST_ASM_LABEL: {
             const ASTAsmLabel* a=(const ASTAsmLabel*)n;
-            size_t ancestor;
-            int in_fast_exec=0;
-            for(ancestor=0u;ancestor+1u<s->active_count;ancestor++) {
-                if(s->active[ancestor]->type==AST_FASTEXEC_BLOCK) {
-                    in_fast_exec=1;
-                    break;
-                }
-            }
-            if(!in_fast_exec)
+            if(s->active_count<2u ||
+               s->active[s->active_count-2u]->type!=AST_FASTEXEC_BLOCK ||
+               !s->active_fields[s->active_count-1u] ||
+               strcmp(s->active_fields[s->active_count-1u],"statements")!=0)
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"asm_fast_exec_scope");
             if(!a->label || !*a->label || !a->source_text ||
                 a->source_length>16u*1024u*1024u || strlen(a->source_text)!=a->source_length)
@@ -1983,9 +1978,25 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
             if(!ast_validation_required_text(s,n,((ASTThreadBlock*)n)->name,"name")) return 0;
             R(((ASTThreadBlock*)n)->body,"body"); V(((ASTThreadBlock*)n)->mode,"mode"); V(((ASTThreadBlock*)n)->timeout,"timeout"); break;
         case AST_SELECT: R(((ASTSelect*)n)->selector,"selector"); R(((ASTSelect*)n)->arms,"arms"); break;
-        case AST_SELECT_ARM: if(!((ASTSelectArm*)n)->is_default) R(((ASTSelectArm*)n)->pattern,"pattern"); else V(((ASTSelectArm*)n)->pattern,"pattern"); R(((ASTSelectArm*)n)->body,"body"); break;
+        case AST_SELECT_ARM:
+            if(s->active_count<2u ||
+               s->active[s->active_count-2u]->type!=AST_SELECT ||
+               !s->active_fields[s->active_count-1u] ||
+               strcmp(s->active_fields[s->active_count-1u],"arms")!=0)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"select_arm_context");
+            if(!((ASTSelectArm*)n)->is_default) R(((ASTSelectArm*)n)->pattern,"pattern");
+            else V(((ASTSelectArm*)n)->pattern,"pattern");
+            R(((ASTSelectArm*)n)->body,"body"); break;
         case AST_SCAN: R(((ASTScan*)n)->subject,"subject"); R(((ASTScan*)n)->arms,"arms"); break;
-        case AST_SCAN_ARM: if(!((ASTScanArm*)n)->pattern && n->next) return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"pattern"); V(((ASTScanArm*)n)->pattern,"pattern"); R(((ASTScanArm*)n)->body,"body"); break;
+        case AST_SCAN_ARM:
+            if(s->active_count<2u ||
+               s->active[s->active_count-2u]->type!=AST_SCAN ||
+               !s->active_fields[s->active_count-1u] ||
+               strcmp(s->active_fields[s->active_count-1u],"arms")!=0)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"scan_arm_context");
+            if(!((ASTScanArm*)n)->pattern && n->next)
+                return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"pattern");
+            V(((ASTScanArm*)n)->pattern,"pattern"); R(((ASTScanArm*)n)->body,"body"); break;
         case AST_PATTERN_BINDING:
             if(!ast_validation_required_text(s,n,((ASTPatternBinding*)n)->name,"name")) return 0;
             break;
@@ -2014,19 +2025,35 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
             if(!ast_validation_required_text(s,n,((ASTStructLiteral*)n)->type_name,"type_name")) return 0;
             V(((ASTStructLiteral*)n)->fields,"fields"); break;
         case AST_STRUCT_FIELD_INIT:
+            if(s->active_count<2u ||
+               s->active[s->active_count-2u]->type!=AST_STRUCT_LITERAL ||
+               !s->active_fields[s->active_count-1u] ||
+               strcmp(s->active_fields[s->active_count-1u],"fields")!=0)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"struct_field_context");
             if(!ast_validation_required_text(s,n,((ASTStructFieldInit*)n)->name,"name")) return 0;
             R(((ASTStructFieldInit*)n)->value,"value"); break;
         case AST_ARRAY_TYPE: V(((ASTArrayType*)n)->dimensions,"dimensions"); break;
-        case AST_ARRAY_DIMENSION: V(((ASTArrayDimension*)n)->length,"length"); break;
+        case AST_ARRAY_DIMENSION:
+            if(s->active_count<2u ||
+               s->active[s->active_count-2u]->type!=AST_ARRAY_TYPE ||
+               !s->active_fields[s->active_count-1u] ||
+               strcmp(s->active_fields[s->active_count-1u],"dimensions")!=0)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"array_dimension_context");
+            V(((ASTArrayDimension*)n)->length,"length"); break;
         case AST_VARIADIC_PARAM:
             if (s->active_count < 2u ||
                 (s->active[s->active_count - 2u]->type != AST_FUNC_DECL &&
-                 s->active[s->active_count - 2u]->type != AST_EXTERN_DECL) || n->next)
+                 s->active[s->active_count - 2u]->type != AST_EXTERN_DECL) ||
+                !s->active_fields[s->active_count-1u] ||
+                strcmp(s->active_fields[s->active_count-1u],"params")!=0 ||
+                n->next)
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"variadic_parameter_position");
             break;
         case AST_MUST_DECL:
             if (s->active_count < 2u ||
-                s->active[s->active_count - 2u]->type != AST_PROGRAM)
+                s->active[s->active_count - 2u]->type != AST_PROGRAM ||
+                !s->active_fields[s->active_count-1u] ||
+                strcmp(s->active_fields[s->active_count-1u],"declarations")!=0)
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"must_dependency_scope");
             R(((ASTMustDecl*)n)->source,"source");
             if (!((ASTMustDecl*)n)->name || !*(((ASTMustDecl*)n)->name))
@@ -2073,6 +2100,8 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
                  (s->active[s->active_count - 2u]->type != AST_BLOCK &&
                   s->active[s->active_count - 2u]->type != AST_ASM_BLOCK &&
                   s->active[s->active_count - 2u]->type != AST_FASTEXEC_BLOCK) ||
+                 !s->active_fields[s->active_count-1u] ||
+                 strcmp(s->active_fields[s->active_count-1u],"statements")!=0 ||
                  n->next != NULL))
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"block_cleanup_position");
             break;
