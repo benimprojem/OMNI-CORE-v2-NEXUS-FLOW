@@ -148,6 +148,7 @@
 | `AST_BLOCK_HALT` | `AST_BLOCK` / allowed cleanup block, final statement | Dedicated block-halt round-trip |
 | `AST_ASM_LABEL` | `AST_FASTEXEC_BLOCK.statements` | FASTEXEC raw ASM payload round-trip |
 | `AST_FUNC_DECL.return_array_type` | `AST_FUNC_DECL` / `AST_EXTERN_DECL` payload | Function array-return parser, AST stream v2 round-trip + v1 compatibility, OIR field 8 round-trip |
+| `AST_ENUM_VARIANT` | `AST_ENUM_DECL.variants` | Generic populated/all-tag codec fixtures wrap variants in an Enum owner; graph validator rejects variants under unrelated statement edges |
 | `AST_SELECT_ARM` | `AST_SELECT.arms` | Generic populated/all-tag codec fixtures are wrapped in `AST_SELECT`; validator enforces `arms` edge |
 | `AST_SCAN_ARM` | `AST_SCAN.arms` | Generic populated/all-tag codec fixtures are wrapped in `AST_SCAN`; validator enforces `arms` edge and final catch-all position |
 | `AST_ARRAY_DIMENSION` | `AST_ARRAY_TYPE.dimensions` | Generic populated/all-tag codec fixtures are wrapped in `AST_ARRAY_TYPE`; validator enforces `dimensions` edge |
