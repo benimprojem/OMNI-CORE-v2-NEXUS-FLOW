@@ -2471,9 +2471,10 @@ static int parser_attach_array_type_expr(
     wrapper->kind = AST_TYPE_ARRAY;
     wrapper->child = inner;
     wrapper->dimensions = array_type;
-    wrapper->base.line = inner->line;
-    wrapper->base.col = inner->col;
-    wrapper->base.source_span = inner->source_span;
+    wrapper->base.line = qualifier ? qualifier->base.line : inner->line;
+    wrapper->base.col = qualifier ? qualifier->base.col : inner->col;
+    wrapper->base.source_span = qualifier
+        ? qualifier->base.source_span : inner->source_span;
     if (array_type->source_span.has_location) {
         if (!wrapper->base.source_span.has_location) {
             wrapper->base.source_span = array_type->source_span;
@@ -2483,7 +2484,10 @@ static int parser_attach_array_type_expr(
             wrapper->base.source_span.end_column = array_type->source_span.end_column;
         }
     }
-    if (qualifier) qualifier->child = (ASTNode*)wrapper;
+    if (qualifier) {
+        qualifier->child = (ASTNode*)wrapper;
+        qualifier->base.source_span = wrapper->base.source_span;
+    }
     else *type_expr = (ASTNode*)wrapper;
     return 1;
 }
