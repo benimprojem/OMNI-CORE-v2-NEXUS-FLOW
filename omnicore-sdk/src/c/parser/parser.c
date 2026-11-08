@@ -709,6 +709,63 @@ static ASTNode* parse_use(Parser* p);
 static ASTNode* parse_thread_block(Parser* p, char* name);
 static ASTNode* parse_lambda(Parser* p);
 
+// Struct literal: Type { field = expression, ... }.
+static ASTNode* parse_struct_literal(Parser* p, const Token* type_token) {
+    ASTStructLiteral* literal;
+    ASTNode* head = NULL;
+    ASTNode* tail = NULL;
+    Token open;
+    if (!p || !type_token || !check(p, TOKEN_LBRACE)) return NULL;
+    open = p->current;
+    advance(p);
+    literal = (ASTStructLiteral*)parser_ast_create(p, AST_STRUCT_LITERAL);
+    if (!literal) return NULL;
+    literal->base.line = type_token->line;
+    literal->base.col = type_token->col;
+    literal->type_name = (char*)parser_malloc(p, (size_t)type_token->length + 1u);
+    if (!literal->type_name) { ast_destroy((ASTNode*)literal); return NULL; }
+    memcpy(literal->type_name, type_token->start, (size_t)type_token->length);
+    literal->type_name[type_token->length] = '\0';
+    if (!check(p, TOKEN_RBRACE)) {
+        do {
+            Token field_token;
+            ASTStructFieldInit* field;
+            ASTNode* value;
+            if (!match(p, TOKEN_IDENTIFIER)) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                    "Expected Struct field name in initializer.");
+                ast_destroy((ASTNode*)literal); ast_destroy(head); return NULL;
+            }
+            field_token = p->previous;
+            field = (ASTStructFieldInit*)parser_ast_create(p, AST_STRUCT_FIELD_INIT);
+            if (!field) { ast_destroy((ASTNode*)literal); ast_destroy(head); return NULL; }
+            field->base.line = field_token.line; field->base.col = field_token.col;
+            field->name = (char*)parser_malloc(p, (size_t)field_token.length + 1u);
+            if (!field->name) { ast_destroy((ASTNode*)field); ast_destroy((ASTNode*)literal); ast_destroy(head); return NULL; }
+            memcpy(field->name, field_token.start, (size_t)field_token.length);
+            field->name[field_token.length] = '\0';
+            if (!match(p, TOKEN_ASSIGN)) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                    "Expected '=' after Struct field name.");
+                ast_destroy((ASTNode*)field); ast_destroy((ASTNode*)literal); ast_destroy(head); return NULL;
+            }
+            value = parse_expression(p);
+            if (!value) { ast_destroy((ASTNode*)field); ast_destroy((ASTNode*)literal); ast_destroy(head); return NULL; }
+            field->value = value;
+            if (!head) head = (ASTNode*)field; else tail->next = (ASTNode*)field;
+            tail = (ASTNode*)field;
+        } while (match(p, TOKEN_COMMA) && !check(p, TOKEN_RBRACE));
+    }
+    if (!match(p, TOKEN_RBRACE)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_BRACE,
+            "Expected '}' after Struct initializer.");
+        ast_destroy((ASTNode*)literal); ast_destroy(head); return NULL;
+    }
+    literal->fields = head;
+    parser_stamp_node_tokens(p, (ASTNode*)literal, type_token, &p->previous);
+    return (ASTNode*)literal;
+}
+
 // Primary: Literals, Identifiers, Grouping
 static ASTNode* parse_primary(Parser* p) {
     if (match(p, TOKEN_NUMBER) || match(p, TOKEN_STRING) || match(p, TOKEN_CHAR)) {
@@ -761,6 +818,11 @@ static ASTNode* parse_primary(Parser* p) {
         }
         memcpy(id_node->name, token.start, (size_t)token.length);
         id_node->name[token.length] = '\0';
+        if (check(p, TOKEN_LBRACE)) {
+            ASTNode* literal = parse_struct_literal(p, &token);
+            ast_destroy((ASTNode*)id_node);
+            return literal;
+        }
         return (ASTNode*)id_node;
     }
 
