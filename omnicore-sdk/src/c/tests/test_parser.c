@@ -4499,12 +4499,27 @@ generic_type_done:
                 flag_field && strcmp(flag_field->name,"flag")==0 &&
                 flag_field->value && flag_field->value->type==AST_LITERAL &&
                 flag_field->base.next==NULL;
+            if(!valid) fprintf(stderr,"Nested Struct literal parsed shape assertion failed\\n");
             stream=tmpfile();
-            if(valid && stream && ast_serialize(parser->ast_root,stream) &&
-               fseek(stream,0L,SEEK_SET)==0) {
+            if(!stream) {
+                fprintf(stderr,"Nested Struct literal tmpfile failed\\n");
+                valid=0;
+            } else if(valid && !ast_serialize(parser->ast_root,stream)) {
+                fprintf(stderr,"Nested Struct literal serialization failed\\n");
+                valid=0;
+            } else if(valid && fseek(stream,0L,SEEK_SET)!=0) {
+                fprintf(stderr,"Nested Struct literal stream rewind failed\\n");
+                valid=0;
+            } else if(valid) {
                 decoded=ast_deserialize(stream);
-                valid=decoded && ast_validate(decoded,NULL);
-            } else valid=0;
+                if(!decoded) {
+                    fprintf(stderr,"Nested Struct literal deserialization failed\\n");
+                    valid=0;
+                } else if(!ast_validate(decoded,NULL)) {
+                    fprintf(stderr,"Nested Struct literal decoded graph invalid\\n");
+                    valid=0;
+                }
+            }
         } else if(parser) {
             Error* error;
             fprintf(stderr,"Nested Struct literal parse failed status=%d errors=%d\\n",
