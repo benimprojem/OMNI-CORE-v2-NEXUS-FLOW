@@ -1179,3 +1179,14 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - SemanticResult now marks object-method `self` with `SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER`; OIR Semantic AST schema 1.2 preserves the flag. The integration test asserts the marker survives SemanticResult → OIR artifact encode/decode; legacy 1.1 artifacts retain zero-only annotation flags. Address receiver marking is not yet a complete pointer/borrow/lifetime verifier.
 - CI run `42458567864` on commit `7d3ee685` passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. Ubuntu CTest reported 60/60; this includes the address-receiver annotation round-trip, non-`self` rejection and schema 1.1 compatibility regression.
 - **Remaining:** complete OIR instance-init representation and independent Verifier validation before Codegen; keep Codegen gated.
+
+
+## 2026-11-08 — Semantic pointer/reference type shape (partial)
+
+- SemanticResult type kind enum'una append-only POINTER=8 ve REFERENCE=9 eklendi; mevcut kind değerleri korunuyor.
+- Semantic checker `*T`, `**T`, `&T` için katmanlı type kayıtları üretir: her pointer/reference kaydının `base_type_id` alanı doğrudan alt türü gösterir. Pointer-depth iki ayrı kayıtla temsil edilir; hard flag dış katmana uygulanır.
+- SemanticResult finalize ve OIR Semantic AST type validator pointer/reference base ID ve layer-name invariants kontrol eder.
+- OIR Semantic AST schema minor 1.3 oldu. 1.0–1.2 artifact reader eski şemalarda yeni type kind değerlerini reddeder; annotation-flag ve Group schema kontrolleri korunur.
+- SemanticResult unit testine Pointer→Pointer ve Reference base ilişkisi/interner ayrımı eklendi.
+- **Test/build/CI henüz çalıştırılmadı.** Semantic parser testleri, OIR type round-trip/Verifier testleri ve schema 1.2 legacy artifact regression eklenip doğrulanmalı. Bu slice tamamlandı sayılmaz.
+- Sonraki: semantic type compatibility'yi pointer/ref layer eşitliği + base type identity ile kontrol eden ortak helper; ardından nullability/mutability/alias/lifetime kurallarını ayrı kararlar olarak spesifikasyona bağlamak. Codegen kapalı.
