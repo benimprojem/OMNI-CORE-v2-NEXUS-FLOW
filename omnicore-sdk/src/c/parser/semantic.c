@@ -28,6 +28,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->current_method_receiver_type_id = 0u;
     ctx->current_method_context = 0u;
     ctx->current_method_is_object = 0u;
+    ctx->suppress_group_default_dispatch = 0u;
     ctx->node_id_resolver = NULL;
     ctx->node_id_context = NULL;
     ctx->result_enabled = 0u;
@@ -1678,6 +1679,23 @@ static const char* semantic_group_member_name(const ASTNode* member) {
     }
 }
 
+static ASTMethod* semantic_group_default_handler(
+    const ASTGroupDecl* group
+) {
+    const ASTNode* member;
+    if (!group) return NULL;
+    for (member = group->members; member; member = member->next) {
+        if (member->type == AST_METHOD) {
+            ASTMethod* method = (ASTMethod*)member;
+            if (method->public_name &&
+                strcmp(method->public_name, "default") == 0 &&
+                method->implementation &&
+                method->implementation->type == AST_BLOCK) return method;
+        }
+    }
+    return NULL;
+}
+
 static void semantic_validate_group_member_names(
     SemanticContext* ctx, ASTGroupDecl* group
 ) {
@@ -1895,6 +1913,27 @@ static void semantic_check_node(
                     report_issue(ctx, node, ERR_SEMANTIC_UNDEFINED, buf, suggest_buf, NULL, score, 0);
                 } else {
                     report_issue(ctx, node, ERR_SEMANTIC_UNDEFINED, buf, NULL, "Değişken tanımlanmamış. 'v:' ile tanımlamayı deneyin.", 0, 0);
+                }
+            } else if (resolved->kind == SLOT_GROUP &&
+                !ctx->suppress_group_default_dispatch) {
+                const ASTGroupDecl* group =
+                    resolved->declaration_node &&
+                    resolved->declaration_node->type == AST_GROUP_DECL
+                        ? (const ASTGroupDecl*)resolved->declaration_node : NULL;
+                if (!semantic_group_default_handler(group)) {
+                    char message[256];
+                    snprintf(message, sizeof(message),
+                        "Group '%s' has no default handler.",
+                        group && group->name ? group->name : resolved->name);
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                } else {
+                    /*
+                     * The Group symbol plus GROUP_DEFAULT_HANDLER relation
+                     * identifies this bare Group expression as default dispatch.
+                     */
+                    semantic_record_annotation(
+                        ctx, node, resolved, NULL,
+                        SEMANTIC_RESULT_VALUE_RVALUE);
                 }
             } else {
                 semantic_record_annotation(
@@ -2556,8 +2595,14 @@ static void semantic_check_node(
         case AST_MEMBER_ACCESS: {
             FieldInfo* field;
             const char* type_name;
-            if (((ASTMemberAccess*)node)->object)
-                semantic_check(ctx, ((ASTMemberAccess*)node)->object);
+            if (((ASTMemberAccess*)node)->object) {
+                uint8_t previous_suppression =
+                    ctx->suppress_group_default_dispatch;
+                ctx->suppress_group_default_dispatch = 1u;
+                semantic_check_node(
+                    ctx, ((ASTMemberAccess*)node)->object, 0);
+                ctx->suppress_group_default_dispatch = previous_suppression;
+            }
             field = semantic_resolve_member(ctx, node, 1);
             type_name = field ? field->type_name : NULL;
             if (field) semantic_record_annotation(
@@ -2585,7 +2630,13 @@ static void semantic_check_node(
                 int method_has_self = 0;
                 uint32_t parameter_offset = 0u;
 
-                if (access->object) semantic_check(ctx, access->object);
+                if (access->object) {
+                    uint8_t previous_suppression =
+                        ctx->suppress_group_default_dispatch;
+                    ctx->suppress_group_default_dispatch = 1u;
+                    semantic_check_node(ctx, access->object, 0);
+                    ctx->suppress_group_default_dispatch = previous_suppression;
+                }
                 method_slot = semantic_resolve_group_callable(
                     ctx, access, &is_instance_call, 1);
                 if (method_slot && method_slot->declaration_node &&
