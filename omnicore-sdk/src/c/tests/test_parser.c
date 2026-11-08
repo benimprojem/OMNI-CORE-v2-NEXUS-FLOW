@@ -757,6 +757,11 @@ static int test_structured_if_elsif_els_ast(void) {
         " if (a != b) v:fourth = 4;"
         " els v:fifth = 5;"
         "}";
+    static const char* const invalid_sources[] = {
+        "f:main() { if (true) }",
+        "f:main() { if (true) {} elsif (false) }",
+        "f:main() { if (true) {} els {} els {} }"
+    };
     ParserContext* ctx = parser_init_source(
         "structured-if.nxf", (const uint8_t*)source, sizeof(source) - 1u);
     ASTProgram* program;
@@ -765,13 +770,22 @@ static int test_structured_if_elsif_els_ast(void) {
     ASTIf* first;
     ASTIf* second;
     ASTIf* simple;
+    const char* first_start=strstr(source,"if (a == b)");
+    const char* elsif_start=strstr(source,"elsif (a >= 1)");
+    const char* first_end_text=strstr(source,"els { v:third = 3; }");
+    const char* first_end=first_end_text?strchr(first_end_text,'}'):NULL;
+    const char* simple_start=strstr(source,"if (a != b)");
+    const char* simple_end_text=strstr(source,"v:fifth = 5;");
+    const char* simple_end=simple_end_text?simple_end_text+strlen("v:fifth = 5;"):NULL;
+    ASTNode* decoded=NULL;
+    FILE* stream=NULL;
+    size_t i;
     int ok = 0;
-
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         parser_get_status(ctx) != PARSER_STATUS_OK ||
-        ctx->error_count != 0 || !ctx->ast_root) goto done;
-
+        ctx->error_count != 0 || !ctx->ast_root ||
+        !ast_validate(ctx->ast_root,NULL)) goto done;
     program = (ASTProgram*)ctx->ast_root;
     function = (ASTFuncDecl*)program->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK) goto done;
@@ -790,9 +804,34 @@ static int test_structured_if_elsif_els_ast(void) {
         !simple->then_branch || !simple->else_branch ||
         simple->then_branch->type == AST_BLOCK ||
         simple->else_branch->type == AST_BLOCK) goto done;
-    ok = 1;
-
+    if(!first_start || !elsif_start || !first_end || !simple_start || !simple_end ||
+       !first->base.source_span.has_location ||
+       first->base.source_span.start_offset!=(uint64_t)(first_start-source) ||
+       first->base.source_span.end_offset!=(uint64_t)(first_end+1-source) ||
+       first->base.source_span.start_column!=(uint32_t)(first_start-source)+1u ||
+       first->base.source_span.end_column!=(uint32_t)(first_end+1-source)+1u ||
+       !second->base.source_span.has_location ||
+       second->base.source_span.start_offset!=(uint64_t)(elsif_start-source) ||
+       second->base.source_span.end_offset!=(uint64_t)(first_end+1-source) ||
+       second->base.source_span.start_column!=(uint32_t)(elsif_start-source)+1u ||
+       second->base.source_span.end_column!=(uint32_t)(first_end+1-source)+1u ||
+       !simple->base.source_span.has_location ||
+       simple->base.source_span.start_offset!=(uint64_t)(simple_start-source) ||
+       simple->base.source_span.end_offset!=(uint64_t)(simple_end-source) ||
+       simple->base.source_span.start_column!=(uint32_t)(simple_start-source)+1u ||
+       simple->base.source_span.end_column!=(uint32_t)(simple_end-source)+1u) goto done;
+    stream=tmpfile();
+    if(!stream || !ast_serialize(ctx->ast_root,stream) || fseek(stream,0,SEEK_SET)!=0)goto done;
+    decoded=ast_deserialize(stream);
+    if(!decoded || !ast_validate(decoded,NULL))goto done;
+    for(i=0u;i<sizeof(invalid_sources)/sizeof(invalid_sources[0]);++i) {
+        if(!parser_source_reports_syntax_error("structured-if-invalid.nxf",
+            invalid_sources[i],strlen(invalid_sources[i]))) goto done;
+    }
+    ok=1;
 done:
+    if(decoded)ast_destroy(decoded);
+    if(stream)fclose(stream);
     parser_destroy(ctx);
     return ok;
 }
