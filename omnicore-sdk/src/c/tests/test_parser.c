@@ -4498,6 +4498,10 @@ generic_type_done:
                 fprintf(stderr,"  %d:%d %s\\n",error->line,error->col,
                     error->message?error->message:"");
         }
+        if(!valid && parser && parser->ast_root) {
+            fprintf(stderr,"Nested Struct literal AST shape dump follows:\\n");
+            ast_print((ASTNode*)parser->ast_root);
+        }
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
         if(parser) parser_destroy(parser);
