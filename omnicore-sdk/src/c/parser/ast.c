@@ -1962,16 +1962,8 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
                 s->active[s->active_count-2u]->type==AST_METHOD &&
                 s->active_fields[s->active_count-1u] &&
                 strcmp(s->active_fields[s->active_count-1u],"implementation")==0;
-            if(!function->name || (!*function->name && !group_method_implementation)) {
-                if(s->active_count >= 2u && function->name && !*function->name) {
-                    fprintf(stderr,"AST validator anonymous function context: depth=%zu parent=%d edge=%s parent2=%d\\n",
-                        s->active_count,
-                        (int)s->active[s->active_count-2u]->type,
-                        s->active_fields[s->active_count-1u]?s->active_fields[s->active_count-1u]:"<null>",
-                        s->active_count>=3u?(int)s->active[s->active_count-3u]->type:-1);
-                }
+            if((!function->name || !*function->name) && !group_method_implementation)
                 return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"name");
-            }
             V(function->params,"params");
             R(function->body,"body");
             V(function->return_array_type,"return_array_type");
