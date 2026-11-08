@@ -4046,6 +4046,11 @@ static ASTNode* parse_linkname_directive(Parser* p) {
         return NULL;
     }
     value_length = (size_t)value_token.length - 2u;
+    if (value_length == 0u) {
+        error_at(p, &value_token, ERR_PARSER_UNEXPECTED_TOKEN,
+            "linkname source cannot be empty.");
+        return NULL;
+    }
     value = (char*)parser_malloc(p, value_length + 1u);
     if (!value) return NULL;
     if (value_length) memcpy(value, value_token.start + 1, value_length);
@@ -4053,7 +4058,7 @@ static ASTNode* parse_linkname_directive(Parser* p) {
     if (!match(p, TOKEN_SEMICOLON)) {
         free(value);
         error_at(p, &p->current, ERR_PARSER_EXPECTED_SEMICOLON,
-            MSG_EXPECT_SEMICOLON_VAR);
+            msg_get(MSG_EXPECT_SEMICOLON_VAR));
         return NULL;
     }
     if (p->ctx->active_linkname) free(p->ctx->active_linkname);
