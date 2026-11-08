@@ -22,6 +22,55 @@ static int rejects_block_statement_context(ASTNodeType type) {
     return rejected;
 }
 
+static int test_ast_allocation_failure_injection(void) {
+    ASTNode* node;
+    ASTBinaryExpr* binary;
+    ASTIdentifier* left;
+    ASTIdentifier* right;
+    size_t fail_at;
+
+    ast_test_fail_allocation_at(1u);
+    node=ast_create(AST_IDENTIFIER);
+    if(node || ast_test_get_allocation_count()!=1u) {
+        ast_test_reset_allocation_failure();
+        ast_destroy(node);
+        return 0;
+    }
+    ast_test_reset_allocation_failure();
+
+    binary=(ASTBinaryExpr*)ast_create(AST_BINARY_EXPR);
+    left=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    right=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    if(!binary || !left || !right) {
+        ast_destroy((ASTNode*)binary); ast_destroy((ASTNode*)left);
+        ast_destroy((ASTNode*)right); return 0;
+    }
+    left->name=(char*)malloc(sizeof("left"));
+    right->name=(char*)malloc(sizeof("right"));
+    if(!left->name || !right->name) {
+        ast_destroy((ASTNode*)binary); ast_destroy((ASTNode*)left);
+        ast_destroy((ASTNode*)right); return 0;
+    }
+    strcpy(left->name,"left"); strcpy(right->name,"right");
+    binary->left=(ASTNode*)left; binary->right=(ASTNode*)right;
+
+    for(fail_at=1u;fail_at<=3u;++fail_at) {
+        ASTValidationError error;
+        int valid;
+        ast_test_fail_allocation_at(fail_at);
+        valid=ast_validate((ASTNode*)binary,&error);
+        if(valid || error.code!=AST_VALIDATE_OUT_OF_MEMORY ||
+           ast_test_get_allocation_count()!=fail_at) {
+            ast_test_reset_allocation_failure();
+            ast_destroy((ASTNode*)binary);
+            return 0;
+        }
+        ast_test_reset_allocation_failure();
+    }
+    ast_destroy((ASTNode*)binary);
+    return 1;
+}
+
 int main(void) {
     /* Source-span API preserves the start-position compatibility mirrors. */
     {
@@ -326,6 +375,11 @@ int main(void) {
             ast_destroy((ASTNode*)conditional); return 1;
         }
         ast_destroy((ASTNode*)conditional);
+    }
+
+    if(!test_ast_allocation_failure_injection()) {
+        fprintf(stderr,"AST allocation failure injection checks failed\\n");
+        return 1;
     }
 
     /* Invalid enum values must fail before payload dispatch. */
