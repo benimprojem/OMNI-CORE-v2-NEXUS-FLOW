@@ -737,6 +737,15 @@ SemanticResultStatus semantic_result_finalize(
             !valid_utf8(type->name)) {
             return SEMANTIC_RESULT_INVALID_DATA;
         }
+        if ((type->kind == SEMANTIC_RESULT_TYPE_POINTER ||
+                type->kind == SEMANTIC_RESULT_TYPE_REFERENCE) &&
+            (type->base_type_id == 0u ||
+                type->base_type_id >= type->type_id ||
+                !type->name || (type->kind == SEMANTIC_RESULT_TYPE_POINTER
+                    ? strcmp(type->name, "*") != 0
+                    : strcmp(type->name, "&") != 0))) {
+            return SEMANTIC_RESULT_INVALID_DATA;
+        }
         if (type->kind == SEMANTIC_RESULT_TYPE_USER_DEFINED) {
             const SemanticResultSymbol* referenced;
             if (type->referenced_symbol_id == 0u ||
