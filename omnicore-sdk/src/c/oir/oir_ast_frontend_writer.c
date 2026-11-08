@@ -347,6 +347,7 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
         case AST_ARRAY_LITERAL: REF(1,((const ASTArrayLiteral*)node)->elements); break;
         case AST_STRUCT_LITERAL: { const ASTStructLiteral* n=(const ASTStructLiteral*)node; STR(1,n->type_name); REF(2,n->fields); break; }
         case AST_STRUCT_FIELD_INIT: { const ASTStructFieldInit* n=(const ASTStructFieldInit*)node; STR(1,n->name); REF(2,n->value); break; }
+        case AST_TYPE_EXPR: { const ASTTypeExpr* n=(const ASTTypeExpr*)node; U32(1,n->kind); U32(2,n->flags); STR(3,n->name); REF(4,n->child); REF(5,n->params); REF(6,n->dimensions); break; }
         case AST_ARRAY_TYPE: REF(1,((const ASTArrayType*)node)->dimensions); break;
         case AST_ARRAY_DIMENSION: REF(1,((const ASTArrayDimension*)node)->length); break;
         case AST_VARIADIC_PARAM: break;
