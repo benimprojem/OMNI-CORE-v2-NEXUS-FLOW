@@ -1991,7 +1991,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
         case AST_METHOD: {
             const ASTMethod* method=(const ASTMethod*)n;
             const ASTNode* implementation=method->implementation;
-            const char* edge=s->active_fields[s->active_count-1u];
+            const char* edge=s->active_count>0u?s->active_fields[s->active_count-1u]:NULL;
             if(s->active_count<2u ||
                s->active[s->active_count-2u]->type!=AST_GROUP_DECL ||
                !edge || strcmp(edge,"members")!=0)
