@@ -159,6 +159,10 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
             return field_id == 1u ? ((const ASTTuple*)node)->elements : NULL;
         case AST_ARRAY_LITERAL:
             return field_id == 1u ? ((const ASTArrayLiteral*)node)->elements : NULL;
+        case AST_STRUCT_LITERAL:
+            return field_id == 2u ? ((const ASTStructLiteral*)node)->fields : NULL;
+        case AST_STRUCT_FIELD_INIT:
+            return field_id == 2u ? ((const ASTStructFieldInit*)node)->value : NULL;
         case AST_ARRAY_TYPE:
             return field_id == 1u ? ((const ASTArrayType*)node)->dimensions : NULL;
         case AST_ARRAY_DIMENSION:
@@ -240,6 +244,7 @@ uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
     switch (type) {
         case AST_PROGRAM: case AST_BLOCK: case AST_ASM_BLOCK: case AST_FASTEXEC_BLOCK:
         case AST_TUPLE: case AST_ARRAY_LITERAL: case AST_ARRAY_TYPE:
+        case AST_STRUCT_LITERAL: case AST_STRUCT_FIELD_INIT:
         case AST_ARRAY_DIMENSION: case AST_NEXUS_HALT: case AST_UNPACK: case AST_DEFER:
             return 1u;
         case AST_NAMED_ARG: case AST_MUST_DECL: return 2u;
