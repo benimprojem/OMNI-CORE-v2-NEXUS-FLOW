@@ -1084,6 +1084,14 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
     if (type_name[0] == '!') type_name++; // Skip hard-type prefix
 
+    /* Pointer/reference wrappers are valid only when their base type resolves. */
+    if (type_name[0] == '&')
+        return type_name[1] != '\\0' && is_type_defined(ctx, type_name + 1);
+    if (type_name[0] == '*') {
+        while (*type_name == '*') ++type_name;
+        return *type_name != '\\0' && is_type_defined(ctx, type_name);
+    }
+
     // Generic and structurally typed array aggregates.
     if (semantic_is_array_type_name(type_name)) return 1;
 
