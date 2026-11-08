@@ -535,6 +535,20 @@ static int test_group_semantic_records(void) {
                     legacy_sections[section_index].length = section_view.length;
                 }
                 if (ok) {
+                    legacy_header.payload_schema_minor = 1u;
+                    if (oir_artifact_write(legacy_artifact, 1024u * 1024u,
+                            &legacy_header, legacy_sections,
+                            artifact_view.envelope.section_count,
+                            &legacy_artifact_written) != OIR_STATUS_OK ||
+                        oir_semantic_ast_artifact_open(legacy_artifact,
+                            legacy_artifact_written, &artifact_view,
+                            incoming_counts, node_count, visited, node_count,
+                            graph_stack, node_count, owner_scope_by_node,
+                            (size_t)node_count + 1u) != OIR_STATUS_INVALID_SECTION) {
+                        ok = 0;
+                    }
+                }
+                if (ok) {
                     legacy_header.payload_schema_minor = 0u;
                     if (oir_artifact_write(legacy_artifact, 1024u * 1024u,
                             &legacy_header, legacy_sections,
