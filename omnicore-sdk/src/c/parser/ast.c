@@ -554,6 +554,13 @@ static void ast_print_recursive(ASTNode* node, int level) {
             case AST_BREAK: printf("BREAK\n"); break;
             case AST_CONTINUE: printf("CONTINUE\n"); break;
             case AST_BLOCK_HALT: printf("BLOCK_HALT (scope cleanup)\n"); break;
+            case AST_VARIADIC_PARAM: printf("VARIADIC_PARAM\n"); break;
+            case AST_NAMED_ARG: {
+                ASTNamedArg* n=(ASTNamedArg*)node;
+                printf("NAMED_ARG: %s\n",n->name?n->name:"<invalid>");
+                ast_print_recursive(n->value,level+1);
+                break;
+            }
             case AST_MUST_DECL: { ASTMustDecl* n=(ASTMustDecl*)node; printf("MUST_DEPENDENCY: %s\n",n->name?n->name:"<invalid>"); ast_print_recursive(n->source,level+1); break; }
             case AST_PRNT: printf("INTRINSIC: prnt\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_PRMT: printf("INTRINSIC: prmt\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
