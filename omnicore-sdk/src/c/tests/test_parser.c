@@ -1388,7 +1388,11 @@ static int test_array_type_declarators(void) {
     parameter=parameter->next;
     if(!parameter || strcmp(((ASTVarDecl*)parameter)->type_name,"!i32")!=0 ||
        !((ASTVarDecl*)parameter)->inline_type ||
-       ((ASTArrayType*)((ASTVarDecl*)parameter)->inline_type)->dimensions==NULL) goto done;
+       ((ASTArrayType*)((ASTVarDecl*)parameter)->inline_type)->dimensions==NULL ||
+       !((ASTVarDecl*)parameter)->type_expr ||
+       ((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->kind!=AST_TYPE_ARRAY ||
+       ((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->dimensions!=
+           ((ASTVarDecl*)parameter)->inline_type) goto done;
     parameter=parameter->next;
     if(!parameter || strcmp(((ASTVarDecl*)parameter)->type_name,"i32")!=0 ||
        !((ASTVarDecl*)parameter)->inline_type) goto done;
@@ -1404,7 +1408,11 @@ static int test_array_type_declarators(void) {
        !((ASTVarDecl*)variable)->inline_type) goto done;
     variable=variable->next;
     if(!variable || !((ASTVarDecl*)variable)->inline_type ||
-       strcmp(((ASTVarDecl*)variable)->type_name,"i32")!=0) goto done;
+       strcmp(((ASTVarDecl*)variable)->type_name,"i32")!=0 ||
+       !((ASTVarDecl*)variable)->type_expr ||
+       ((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->kind!=AST_TYPE_ARRAY ||
+       ((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->dimensions!=
+           ((ASTVarDecl*)variable)->inline_type) goto done;
     variable=variable->next;
     if(!variable || !((ASTVarDecl*)variable)->inline_type ||
        strcmp(((ASTVarDecl*)variable)->type_name,"f32")!=0) goto done;
@@ -1462,7 +1470,10 @@ static int test_function_array_return_ast(void) {
         ASTNode* dim;
         if(!fn || fn->type!=AST_FUNC_DECL) goto done;
         f=(ASTFuncDecl*)fn;
-        if(!f->return_type || !f->return_array_type || f->return_array_type->type!=AST_ARRAY_TYPE) goto done;
+        if(!f->return_type || !f->return_array_type || f->return_array_type->type!=AST_ARRAY_TYPE ||
+           !f->return_type_expr ||
+           ((ASTTypeExpr*)f->return_type_expr)->kind!=AST_TYPE_ARRAY ||
+           ((ASTTypeExpr*)f->return_type_expr)->dimensions!=f->return_array_type) goto done;
         {
             ASTArrayType* array=(ASTArrayType*)f->return_array_type;
             const char* first_dimension=expected==1?empty_dimension:
@@ -1498,6 +1509,12 @@ static int test_function_array_return_ast(void) {
         if(stream && ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
             decoded=ast_deserialize(stream);
         stage=21; ok=decoded && ast_validate(decoded,NULL);
+        if(ok) {
+            ASTFuncDecl* decoded_fn=(ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+            ok=decoded_fn && decoded_fn->return_type_expr &&
+               ((ASTTypeExpr*)decoded_fn->return_type_expr)->kind==AST_TYPE_ARRAY &&
+               ((ASTTypeExpr*)decoded_fn->return_type_expr)->dimensions==decoded_fn->return_array_type;
+        }
         if(decoded) ast_destroy(decoded); if(stream) fclose(stream);
     }
 done:
