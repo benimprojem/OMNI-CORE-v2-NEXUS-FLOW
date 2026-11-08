@@ -4624,12 +4624,12 @@ generic_type_done:
     /* Group methods, default dispatch and nested groups have distinct AST ownership. */
     {
         static const char source[] =
-            "group db {\\n"
-            "  open => f:(path!str) { ret; }\\n"
-            "  default { ret; }\\n"
-            "  nosql => group {\\n"
-            "    query => f:(sql!str) { ret; }\\n"
-            "  }\\n"
+            "group db {\n"
+            "  open => f:(path!str) { ret; }\n"
+            "  default { ret; }\n"
+            "  nosql => group {\n"
+            "    query => f:(sql!str) { ret; }\n"
+            "  }\n"
             "}";
         const char* group_start=strstr(source,"group db");
         const char* open_start=strstr(source,"open =>");
@@ -4639,7 +4639,8 @@ generic_type_done:
         const char* nested_start=strstr(source,"nosql => group");
         const char* query_start=strstr(source,"query =>");
         const char* query_end=query_start?strstr(query_start,"ret; }"):NULL;
-        const char* nested_end=query_end?strchr(query_end,'}'):NULL;
+        const char* nested_close=strstr(source,"  }\\n}");
+        const char* nested_end=nested_close?nested_close+3:NULL;
         const char* group_end=strrchr(source,'}');
         ParserContext* parser=parser_init_source("group-method-ast.nxf",
             (const uint8_t*)source,sizeof(source)-1u);
@@ -4689,7 +4690,7 @@ generic_type_done:
         if(decoded) ast_destroy(decoded);
         if(parser) parser_destroy(parser);
         if(!valid) {
-            fprintf(stderr,"Group method/default/nested-group AST span and codec test failed.\\n");
+            fprintf(stderr,"Group method/default/nested-group AST span and codec test failed.\n");
             return 1;
         }
     }
