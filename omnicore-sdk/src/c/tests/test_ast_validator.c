@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define AST_TEST_FAIL() do { fprintf(stderr, "AST validator early exit at line %d\\n", __LINE__); return 1; } while (0)
 
 static int expect(ASTNode *root, ASTValidationCode code) {
     ASTValidationError error;
@@ -16,7 +17,7 @@ int main(void) {
     {
         ASTNode *span_node = ast_create(AST_IDENTIFIER);
         OccSourceSpan span = {0};
-        if (!span_node) return 1;
+        if (!span_node) AST_TEST_FAIL();
         span.source_id = 7;
         span.start_offset = 12;
         span.end_offset = 19;
@@ -29,42 +30,42 @@ int main(void) {
             span_node->line != 3 || span_node->col != 5 ||
             memcmp(&span_node->source_span, &span, sizeof(span)) != 0) {
             fprintf(stderr, "source span assignment failed\\n");
-            ast_destroy(span_node); return 1;
+            ast_destroy(span_node); AST_TEST_FAIL();
         }
         span.end_offset = 11;
         if (ast_set_source_span(span_node, &span)) {
             fprintf(stderr, "invalid source span accepted\n");
-            ast_destroy(span_node); return 1;
+            ast_destroy(span_node); AST_TEST_FAIL();
         }
         if (!ast_set_source_span(span_node, NULL) ||
             span_node->source_span.has_location || span_node->line || span_node->col) {
             fprintf(stderr, "source span clear failed\\n");
-            ast_destroy(span_node); return 1;
+            ast_destroy(span_node); AST_TEST_FAIL();
         }
         ast_destroy(span_node);
     }
     ASTNode *root = ast_create(AST_PROGRAM);
     ASTNode *block = ast_create(AST_BLOCK);
     ASTNode *id = ast_create(AST_IDENTIFIER);
-    if (!root || !block || !id) return 1;
+    if (!root || !block || !id) AST_TEST_FAIL();
     ((ASTProgram *)root)->declarations = block;
     ((ASTBlock *)block)->statements = id;
     ((ASTIdentifier*)id)->name=(char*)malloc(3u);
-    if(!((ASTIdentifier*)id)->name) return 1;
+    if(!((ASTIdentifier*)id)->name) AST_TEST_FAIL();
     strcpy(((ASTIdentifier*)id)->name,"id");
     if (!expect(root, AST_VALIDATE_OK)) {
-        fprintf(stderr, "valid tree rejected\n"); return 1;
+        fprintf(stderr, "valid tree rejected\n"); AST_TEST_FAIL();
     }
 
     /* Child-to-ancestor edge and sibling self-loop must both be rejected. */
     ((ASTBlock *)block)->statements = root;
     if (!expect(root, AST_VALIDATE_CYCLE)) {
-        fprintf(stderr, "child cycle not detected\n"); return 1;
+        fprintf(stderr, "child cycle not detected\n"); AST_TEST_FAIL();
     }
     ((ASTBlock *)block)->statements = id;
     id->next = id;
     if (!expect(root, AST_VALIDATE_CYCLE)) {
-        fprintf(stderr, "sibling cycle not detected\n"); return 1;
+        fprintf(stderr, "sibling cycle not detected\n"); AST_TEST_FAIL();
     }
     id->next = NULL;
     ast_destroy(root);
@@ -73,14 +74,14 @@ int main(void) {
     {
         ASTNode *bin = ast_create(AST_BINARY_EXPR);
         ASTNode *shared = ast_create(AST_IDENTIFIER);
-        if (!bin || !shared) return 1;
+        if (!bin || !shared) AST_TEST_FAIL();
         ((ASTIdentifier*)shared)->name=(char*)malloc(7u);
-        if(!((ASTIdentifier*)shared)->name) return 1;
+        if(!((ASTIdentifier*)shared)->name) AST_TEST_FAIL();
         strcpy(((ASTIdentifier*)shared)->name,"shared");
         ((ASTBinaryExpr *)bin)->left = shared;
         ((ASTBinaryExpr *)bin)->right = shared;
         if (!expect(bin, AST_VALIDATE_SHARED_NODE)) {
-            fprintf(stderr, "shared ownership not detected\n"); return 1;
+            fprintf(stderr, "shared ownership not detected\n"); AST_TEST_FAIL();
         }
         ((ASTBinaryExpr *)bin)->right = NULL; /* safe cleanup of test fixture */
         ast_destroy(bin);
@@ -88,11 +89,11 @@ int main(void) {
 
     root = ast_create(AST_BINARY_EXPR);
     if (!root || !expect(root, AST_VALIDATE_MISSING_REQUIRED)) {
-        fprintf(stderr, "missing required operand not detected\n"); return 1;
+        fprintf(stderr, "missing required operand not detected\n"); AST_TEST_FAIL();
     }
     ast_destroy(root);
     if (ast_validate(NULL, NULL)) {
-        fprintf(stderr, "NULL root accepted\n"); return 1;
+        fprintf(stderr, "NULL root accepted\n"); AST_TEST_FAIL();
     }
 
     /* Payload-free and scalar-only leaf nodes are valid without child edges. */
@@ -104,7 +105,7 @@ int main(void) {
             if (!leaf || !expect(leaf, AST_VALIDATE_OK)) {
                 fprintf(stderr, "leaf node rejected: %d\n", (int)leaves[i]);
                 if (leaf) ast_destroy(leaf);
-                return 1;
+                AST_TEST_FAIL();
             }
             ast_destroy(leaf);
         }
@@ -115,7 +116,7 @@ int main(void) {
         ASTIdentifier* identifier=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
         ASTLiteral* literal=(ASTLiteral*)ast_create(AST_LITERAL);
         ASTNewTypeDecl* newtype=(ASTNewTypeDecl*)ast_create(AST_NEWTYPE_DECL);
-        if(!identifier || !literal || !newtype) return 1;
+        if(!identifier || !literal || !newtype) AST_TEST_FAIL();
         if(!expect((ASTNode*)identifier,AST_VALIDATE_MISSING_REQUIRED) ||
            !expect((ASTNode*)literal,AST_VALIDATE_MISSING_REQUIRED) ||
            !expect((ASTNode*)newtype,AST_VALIDATE_MISSING_REQUIRED)) {
@@ -123,14 +124,14 @@ int main(void) {
             ast_destroy((ASTNode*)identifier);
             ast_destroy((ASTNode*)literal);
             ast_destroy((ASTNode*)newtype);
-            return 1;
+            AST_TEST_FAIL();
         }
         identifier->name=(char*)malloc(2u);
         literal->string_value=(char*)malloc(1u);
         newtype->name=(char*)malloc(3u);
         newtype->target_type=(char*)malloc(4u);
         if(!identifier->name || !literal->string_value ||
-           !newtype->name || !newtype->target_type) return 1;
+           !newtype->name || !newtype->target_type) AST_TEST_FAIL();
         strcpy(identifier->name,"x");
         literal->string_value[0]='\0'; /* Empty string literal is valid. */
         strcpy(newtype->name,"Id");
@@ -142,7 +143,7 @@ int main(void) {
             ast_destroy((ASTNode*)identifier);
             ast_destroy((ASTNode*)literal);
             ast_destroy((ASTNode*)newtype);
-            return 1;
+            AST_TEST_FAIL();
         }
         ast_destroy((ASTNode*)identifier);
         ast_destroy((ASTNode*)literal);
@@ -154,11 +155,11 @@ int main(void) {
         ASTStructLiteral* literal=(ASTStructLiteral*)ast_create(AST_STRUCT_LITERAL);
         ASTStructFieldInit* field=(ASTStructFieldInit*)ast_create(AST_STRUCT_FIELD_INIT);
         ASTLiteral* value=(ASTLiteral*)ast_create(AST_LITERAL);
-        if(!literal || !field || !value) return 1;
+        if(!literal || !field || !value) AST_TEST_FAIL();
         literal->type_name=(char*)malloc(sizeof("Point"));
         field->name=(char*)malloc(sizeof("x"));
         value->string_value=(char*)malloc(sizeof("1"));
-        if(!literal->type_name || !field->name || !value->string_value) return 1;
+        if(!literal->type_name || !field->name || !value->string_value) AST_TEST_FAIL();
         strcpy(literal->type_name,"Point");
         strcpy(field->name,"x");
         strcpy(value->string_value,"1");
@@ -166,31 +167,31 @@ int main(void) {
         literal->fields=(ASTNode*)field;
         if(!expect((ASTNode*)literal,AST_VALIDATE_OK)) {
             fprintf(stderr,"valid Struct literal graph rejected\\n");
-            ast_destroy((ASTNode*)literal); return 1;
+            ast_destroy((ASTNode*)literal); AST_TEST_FAIL();
         }
 
         free(literal->type_name); literal->type_name=NULL;
         if(!expect((ASTNode*)literal,AST_VALIDATE_MISSING_REQUIRED)) {
             fprintf(stderr,"Struct literal without type name accepted\\n");
-            ast_destroy((ASTNode*)literal); return 1;
+            ast_destroy((ASTNode*)literal); AST_TEST_FAIL();
         }
         literal->type_name=(char*)malloc(sizeof("Point"));
-        if(!literal->type_name) return 1;
+        if(!literal->type_name) AST_TEST_FAIL();
         strcpy(literal->type_name,"Point");
 
         free(field->name); field->name=NULL;
         if(!expect((ASTNode*)literal,AST_VALIDATE_MISSING_REQUIRED)) {
             fprintf(stderr,"Struct field without name accepted\\n");
-            ast_destroy((ASTNode*)literal); return 1;
+            ast_destroy((ASTNode*)literal); AST_TEST_FAIL();
         }
         field->name=(char*)malloc(sizeof("x"));
-        if(!field->name) return 1;
+        if(!field->name) AST_TEST_FAIL();
         strcpy(field->name,"x");
 
         field->value=NULL;
         if(!expect((ASTNode*)literal,AST_VALIDATE_MISSING_REQUIRED)) {
             fprintf(stderr,"Struct field without value accepted\\n");
-            ast_destroy((ASTNode*)literal); return 1;
+            ast_destroy((ASTNode*)literal); AST_TEST_FAIL();
         }
         field->value=(ASTNode*)value;
 
@@ -198,7 +199,7 @@ int main(void) {
         literal->fields=NULL;
         if(!expect((ASTNode*)literal,AST_VALIDATE_OK)) {
             fprintf(stderr,"empty Struct initializer list rejected by AST validator\\n");
-            ast_destroy((ASTNode*)literal); return 1;
+            ast_destroy((ASTNode*)literal); AST_TEST_FAIL();
         }
         literal->fields=(ASTNode*)field;
         ast_destroy((ASTNode*)literal);
@@ -208,17 +209,17 @@ int main(void) {
     {
         ASTStructLiteral* literal=(ASTStructLiteral*)ast_create(AST_STRUCT_LITERAL);
         ASTStructFieldInit* field=(ASTStructFieldInit*)ast_create(AST_STRUCT_FIELD_INIT);
-        if(!literal || !field) return 1;
+        if(!literal || !field) AST_TEST_FAIL();
         literal->type_name=(char*)malloc(sizeof("Node"));
         field->name=(char*)malloc(sizeof("next"));
-        if(!literal->type_name || !field->name) return 1;
+        if(!literal->type_name || !field->name) AST_TEST_FAIL();
         strcpy(literal->type_name,"Node");
         strcpy(field->name,"next");
         literal->fields=(ASTNode*)field;
         field->value=(ASTNode*)literal;
         if(!expect((ASTNode*)literal,AST_VALIDATE_CYCLE)) {
             fprintf(stderr,"Struct literal child cycle not detected\\n");
-            field->value=NULL; ast_destroy((ASTNode*)literal); return 1;
+            field->value=NULL; ast_destroy((ASTNode*)literal); AST_TEST_FAIL();
         }
         field->value=NULL;
         ast_destroy((ASTNode*)literal);
@@ -230,7 +231,7 @@ int main(void) {
         ASTValidationError error;
         if (ast_validate(&invalid, &error) ||
             error.code != AST_VALIDATE_INVALID_KIND) {
-            fprintf(stderr, "invalid node kind accepted\n"); return 1;
+            fprintf(stderr, "invalid node kind accepted\n"); AST_TEST_FAIL();
         }
     }
 
@@ -238,10 +239,10 @@ int main(void) {
     {
         ASTNode *deep = ast_create(AST_UNARY_EXPR), *cursor = deep;
         unsigned i;
-        if (!deep) return 1;
+        if (!deep) AST_TEST_FAIL();
         for (i = 0; i < 513u; ++i) {
             ASTNode *child = ast_create(AST_UNARY_EXPR);
-            if (!child) { ast_destroy(deep); return 1; }
+            if (!child) { ast_destroy(deep); AST_TEST_FAIL(); }
             ((ASTUnaryExpr *)cursor)->operand = child;
             cursor = child;
         }
@@ -250,7 +251,7 @@ int main(void) {
             if (ast_validate(deep, &error) ||
                 error.code != AST_VALIDATE_DEPTH_LIMIT) {
                 fprintf(stderr, "depth limit not enforced\n");
-                ast_destroy(deep); return 1;
+                ast_destroy(deep); AST_TEST_FAIL();
             }
         }
         ast_destroy(deep);
@@ -263,23 +264,23 @@ int main(void) {
         ASTNode *ext = ast_create(AST_EXTERN_DECL);
         ASTNode *arm = ast_create(AST_SELECT_ARM);
         ASTNode *arm_body = ast_create(AST_BREAK);
-        if (!ret || !fn || !ext || !arm || !arm_body) return 1;
+        if (!ret || !fn || !ext || !arm || !arm_body) AST_TEST_FAIL();
         if (!expect(ret, AST_VALIDATE_OK)) {
-            fprintf(stderr, "void return rejected\n"); return 1;
+            fprintf(stderr, "void return rejected\n"); AST_TEST_FAIL();
         }
         if (!expect(fn, AST_VALIDATE_MISSING_REQUIRED)) {
-            fprintf(stderr, "function without body accepted\n"); return 1;
+            fprintf(stderr, "function without body accepted\n"); AST_TEST_FAIL();
         }
         ((ASTFuncDecl*)ext)->name=(char*)malloc(4u);
-        if(!((ASTFuncDecl*)ext)->name) return 1;
+        if(!((ASTFuncDecl*)ext)->name) AST_TEST_FAIL();
         strcpy(((ASTFuncDecl*)ext)->name,"ext");
         if (!expect(ext, AST_VALIDATE_OK)) {
-            fprintf(stderr, "bodyless extern rejected\n"); return 1;
+            fprintf(stderr, "bodyless extern rejected\n"); AST_TEST_FAIL();
         }
         ((ASTSelectArm *)arm)->is_default = 1;
         ((ASTSelectArm *)arm)->body = arm_body;
         if (!expect(arm, AST_VALIDATE_OK)) {
-            fprintf(stderr, "select default arm rejected\n"); return 1;
+            fprintf(stderr, "select default arm rejected\n"); AST_TEST_FAIL();
         }
         ast_destroy(ret); ast_destroy(fn); ast_destroy(ext); ast_destroy(arm);
     }
@@ -288,14 +289,14 @@ int main(void) {
         ASTNode *scan_else = ast_create(AST_SCAN_ARM);
         ASTNode *scan_body = ast_create(AST_BREAK);
         ASTNode *scan_next = ast_create(AST_SCAN_ARM);
-        if (!scan_else || !scan_body || !scan_next) return 1;
+        if (!scan_else || !scan_body || !scan_next) AST_TEST_FAIL();
         ((ASTScanArm *)scan_else)->body = scan_body;
         if (!expect(scan_else, AST_VALIDATE_OK)) {
-            fprintf(stderr, "final scan else arm rejected\n"); return 1;
+            fprintf(stderr, "final scan else arm rejected\n"); AST_TEST_FAIL();
         }
         scan_else->next = scan_next;
         if (!expect(scan_else, AST_VALIDATE_MISSING_REQUIRED)) {
-            fprintf(stderr, "non-final scan else arm accepted\n"); return 1;
+            fprintf(stderr, "non-final scan else arm accepted\n"); AST_TEST_FAIL();
         }
         scan_else->next = NULL;
         ast_destroy(scan_else);
@@ -311,7 +312,7 @@ int main(void) {
             !ast_validate(parser->ast_root, NULL)) {
             fprintf(stderr, "void-return parser AST failed validation\n");
             if (parser) parser_destroy(parser);
-            return 1;
+            AST_TEST_FAIL();
         }
         parser_destroy(parser);
     }
@@ -322,17 +323,17 @@ int main(void) {
         ASTNode* block = ast_create(AST_BLOCK);
         ASTNode* first = ast_create(AST_BLOCK_HALT);
         ASTNode* second = ast_create(AST_BREAK);
-        if (!invalid_root || !block || !first || !second) return 1;
+        if (!invalid_root || !block || !first || !second) AST_TEST_FAIL();
         if (ast_validate(invalid_root, NULL)) {
             fprintf(stderr, "root-level block cleanup marker was accepted\\n");
-            ast_destroy(invalid_root); ast_destroy(block); return 1;
+            ast_destroy(invalid_root); ast_destroy(block); AST_TEST_FAIL();
         }
         ast_destroy(invalid_root);
         first->next = second;
         ((ASTBlock*)block)->statements = first;
         if (ast_validate(block, NULL)) {
             fprintf(stderr, "non-final block cleanup marker was accepted\\n");
-            ast_destroy(block); return 1;
+            ast_destroy(block); AST_TEST_FAIL();
         }
         first->next = NULL;
         ast_destroy(block);
@@ -345,11 +346,11 @@ int main(void) {
         ASTNode* cleanup = ast_create(AST_BLOCK_HALT);
         FILE* stream = tmpfile();
         ASTNode* decoded;
-        if (!block || !cleanup || !stream) return 1;
+        if (!block || !cleanup || !stream) AST_TEST_FAIL();
         ((ASTBlock*)block)->statements = cleanup;
         if (!ast_validate(block, NULL) || !ast_serialize(block, stream) ||
             fseek(stream, 0L, SEEK_SET) != 0) {
-            ast_destroy(block); fclose(stream); return 1;
+            ast_destroy(block); fclose(stream); AST_TEST_FAIL();
         }
         decoded = ast_deserialize(stream);
         if (!decoded || !ast_validate(decoded, NULL) ||
@@ -357,7 +358,7 @@ int main(void) {
             ((ASTBlock*)decoded)->statements->type != AST_BLOCK_HALT) {
             fprintf(stderr, "block cleanup marker legacy AST round-trip failed\\n");
             if (decoded) ast_destroy(decoded);
-            ast_destroy(block); fclose(stream); return 1;
+            ast_destroy(block); fclose(stream); AST_TEST_FAIL();
         }
         ast_destroy(decoded);
         ast_destroy(block);
@@ -369,7 +370,7 @@ int main(void) {
     {
         ASTIdentifier* identifier = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
         OccSourceSpan span;
-        if (!identifier) return 1;
+        if (!identifier) AST_TEST_FAIL();
         memset(&span, 0, sizeof(span));
         span.source_id = 7u;
         span.start_offset = 4u;
@@ -380,40 +381,40 @@ int main(void) {
         span.end_column = 8u;
         span.has_location = 1u;
         identifier->name = (char*)malloc(2u);
-        if (!identifier->name) { ast_destroy((ASTNode*)identifier); return 1; }
+        if (!identifier->name) { ast_destroy((ASTNode*)identifier); AST_TEST_FAIL(); }
         strcpy(identifier->name, "x");
         if (!ast_set_source_span((ASTNode*)identifier, &span) ||
             !expect((ASTNode*)identifier, AST_VALIDATE_OK)) {
             fprintf(stderr, "valid source span rejected\\n");
             ast_destroy((ASTNode*)identifier);
-            return 1;
+            AST_TEST_FAIL();
         }
         identifier->base.source_span.end_offset = 3u;
         if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
             fprintf(stderr, "reversed source span accepted\\n");
             ast_destroy((ASTNode*)identifier);
-            return 1;
+            AST_TEST_FAIL();
         }
         identifier->base.source_span = span;
         identifier->base.line = 99;
         if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
             fprintf(stderr, "source span line mirror mismatch accepted\\n");
             ast_destroy((ASTNode*)identifier);
-            return 1;
+            AST_TEST_FAIL();
         }
         identifier->base.line = 2;
         identifier->base.source_span.end_line = 1u;
         if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
             fprintf(stderr, "backward source span line accepted\\n");
             ast_destroy((ASTNode*)identifier);
-            return 1;
+            AST_TEST_FAIL();
         }
         identifier->base.source_span = span;
         identifier->base.source_span.end_column = 2u;
         if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
             fprintf(stderr, "backward same-line source span column accepted\\n");
             ast_destroy((ASTNode*)identifier);
-            return 1;
+            AST_TEST_FAIL();
         }
         identifier->base.source_span = span;
         identifier->base.line = 2;
@@ -421,7 +422,7 @@ int main(void) {
         if (!expect((ASTNode*)identifier, AST_VALIDATE_INVALID_SPAN)) {
             fprintf(stderr, "zero source span end column accepted\\n");
             ast_destroy((ASTNode*)identifier);
-            return 1;
+            AST_TEST_FAIL();
         }
         ast_destroy((ASTNode*)identifier);
     }
@@ -435,7 +436,7 @@ int main(void) {
             !ast_validate(parser->ast_root, NULL)) {
             fprintf(stderr, "parser AST failed graph validation\n");
             if (parser) parser_destroy(parser);
-            return 1;
+            AST_TEST_FAIL();
         }
         parser_destroy(parser);
     }
@@ -445,7 +446,7 @@ int main(void) {
         ASTNode *bin = ast_create(AST_BINARY_EXPR);
         ASTNode *shared = ast_create(AST_IDENTIFIER);
         FILE *stream = tmpfile();
-        if (!bin || !shared || !stream) return 1;
+        if (!bin || !shared || !stream) AST_TEST_FAIL();
         ((ASTBinaryExpr *)bin)->left = shared;
         ((ASTBinaryExpr *)bin)->right = shared;
         if (ast_serialize(bin, stream) || ftell(stream) != 0L) {
@@ -453,7 +454,7 @@ int main(void) {
             ((ASTBinaryExpr *)bin)->right = NULL;
             ast_destroy(bin);
             fclose(stream);
-            return 1;
+            AST_TEST_FAIL();
         }
         ((ASTBinaryExpr *)bin)->right = NULL;
         ast_destroy(bin);
@@ -464,14 +465,14 @@ int main(void) {
     {
         ASTNode *unary = ast_create(AST_UNARY_EXPR);
         FILE *stream = tmpfile();
-        if (!unary || !stream) return 1;
+        if (!unary || !stream) AST_TEST_FAIL();
         ((ASTUnaryExpr *)unary)->operand = unary;
         if (ast_serialize(unary, stream) || ftell(stream) != 0L) {
             fprintf(stderr, "serializer accepted a cyclic graph or wrote partial bytes\\n");
             ((ASTUnaryExpr *)unary)->operand = NULL;
             ast_destroy(unary);
             fclose(stream);
-            return 1;
+            AST_TEST_FAIL();
         }
         ((ASTUnaryExpr *)unary)->operand = NULL;
         ast_destroy(unary);
@@ -484,7 +485,7 @@ int main(void) {
         int type = (int)AST_FUNC_DECL, line = 1, col = 1;
         int name_length = 1, absent = -1, zero = 0;
         ASTNode *decoded;
-        if (!stream) return 1;
+        if (!stream) AST_TEST_FAIL();
         if (fwrite(&type, sizeof(type), 1u, stream) != 1u ||
             fwrite(&line, sizeof(line), 1u, stream) != 1u ||
             fwrite(&col, sizeof(col), 1u, stream) != 1u ||
@@ -499,14 +500,14 @@ int main(void) {
             fwrite(&absent, sizeof(absent), 1u, stream) != 1u ||
             fflush(stream) != 0 || fseek(stream, 0L, SEEK_SET) != 0) {
             fclose(stream);
-            return 1;
+            AST_TEST_FAIL();
         }
         decoded = ast_deserialize(stream);
         if (decoded) {
             fprintf(stderr, "deserializer accepted function declaration without body\\n");
             ast_destroy(decoded);
             fclose(stream);
-            return 1;
+            AST_TEST_FAIL();
         }
         fclose(stream);
     }
@@ -517,19 +518,19 @@ int main(void) {
         ASTNode *body = ast_create(AST_BLOCK);
         FILE *stream = tmpfile();
         ASTNode *decoded;
-        if (!fn || !body || !stream) return 1;
+        if (!fn || !body || !stream) AST_TEST_FAIL();
         ((ASTFuncDecl *)fn)->name=(char*)malloc(3u);
-        if(!((ASTFuncDecl *)fn)->name) return 1;
+        if(!((ASTFuncDecl *)fn)->name) AST_TEST_FAIL();
         strcpy(((ASTFuncDecl *)fn)->name,"fn");
         ((ASTFuncDecl *)fn)->body = body;
         if (!ast_serialize(fn, stream) || fseek(stream, 0L, SEEK_SET) != 0) {
-            ast_destroy(fn); fclose(stream); return 1;
+            ast_destroy(fn); fclose(stream); AST_TEST_FAIL();
         }
         decoded = ast_deserialize(stream);
         if (!decoded || !ast_validate(decoded, NULL)) {
             fprintf(stderr, "valid AST legacy round-trip failed\\n");
             if (decoded) ast_destroy(decoded);
-            ast_destroy(fn); fclose(stream); return 1;
+            ast_destroy(fn); fclose(stream); AST_TEST_FAIL();
         }
         ast_destroy(decoded);
         ast_destroy(fn);
@@ -540,22 +541,22 @@ int main(void) {
         ASTFuncDecl* fn = (ASTFuncDecl*)ast_create(AST_FUNC_DECL);
         ASTNode* marker = ast_create(AST_VARIADIC_PARAM);
         ASTNode* body = ast_create(AST_BLOCK);
-        if (!fn || !marker || !body) return 1;
+        if (!fn || !marker || !body) AST_TEST_FAIL();
         fn->name=(char*)malloc(3u);
-        if(!fn->name) return 1;
+        if(!fn->name) AST_TEST_FAIL();
         strcpy(fn->name,"fn");
         fn->params = marker;
         fn->body = body;
         if (!expect((ASTNode*)fn, AST_VALIDATE_OK)) {
             fprintf(stderr, "final variadic parameter marker rejected\\n");
             ast_destroy((ASTNode*)fn);
-            return 1;
+            AST_TEST_FAIL();
         }
         marker->next = ast_create(AST_VARIADIC_PARAM);
         if (!marker->next || !expect((ASTNode*)fn, AST_VALIDATE_INVALID_KIND)) {
             fprintf(stderr, "non-final variadic parameter marker accepted\\n");
             ast_destroy((ASTNode*)fn);
-            return 1;
+            AST_TEST_FAIL();
         }
         ast_destroy((ASTNode*)fn);
     }
@@ -565,7 +566,7 @@ int main(void) {
         ASTNamedArg* first = (ASTNamedArg*)ast_create(AST_NAMED_ARG);
         ASTNamedArg* second = (ASTNamedArg*)ast_create(AST_NAMED_ARG);
         ASTNode* positional = ast_create(AST_LITERAL);
-        if (!call || !callee || !first || !second || !positional) return 1;
+        if (!call || !callee || !first || !second || !positional) AST_TEST_FAIL();
         callee->name = (char*)malloc(2u);
         first->name = (char*)malloc(2u);
         second->name = (char*)malloc(2u);
@@ -574,11 +575,11 @@ int main(void) {
         ((ASTLiteral*)first->value)->string_value=(char*)malloc(2u);
         ((ASTLiteral*)second->value)->string_value=(char*)malloc(2u);
         if(!((ASTLiteral*)first->value)->string_value ||
-           !((ASTLiteral*)second->value)->string_value) return 1;
+           !((ASTLiteral*)second->value)->string_value) AST_TEST_FAIL();
         strcpy(((ASTLiteral*)first->value)->string_value,"1");
         strcpy(((ASTLiteral*)second->value)->string_value,"2");
         if (!callee->name || !first->name || !second->name ||
-            !first->value || !second->value) return 1;
+            !first->value || !second->value) AST_TEST_FAIL();
         strcpy(callee->name, "f");
         strcpy(first->name, "a");
         strcpy(second->name, "b");
@@ -589,27 +590,27 @@ int main(void) {
             fprintf(stderr, "unique named arguments rejected\\n");
             ast_destroy((ASTNode*)call);
             ast_destroy(positional);
-            return 1;
+            AST_TEST_FAIL();
         }
         free(second->name);
         second->name = (char*)malloc(2u);
-        if (!second->name) return 1;
+        if (!second->name) AST_TEST_FAIL();
         strcpy(second->name, "a");
         if (!expect((ASTNode*)call, AST_VALIDATE_INVALID_KIND)) {
             fprintf(stderr, "duplicate named argument accepted\\n");
             ast_destroy((ASTNode*)call);
             ast_destroy(positional);
-            return 1;
+            AST_TEST_FAIL();
         }
         free(second->name);
         second->name = (char*)malloc(2u);
-        if (!second->name) return 1;
+        if (!second->name) AST_TEST_FAIL();
         strcpy(second->name, "b");
         second->base.next = positional;
         if (!expect((ASTNode*)call, AST_VALIDATE_INVALID_KIND)) {
             fprintf(stderr, "positional argument after named argument accepted\\n");
             ast_destroy((ASTNode*)call);
-            return 1;
+            AST_TEST_FAIL();
         }
         ast_destroy((ASTNode*)call);
     }
@@ -619,19 +620,19 @@ int main(void) {
         ASTProgram* program = (ASTProgram*)ast_create(AST_PROGRAM);
         ASTMustDecl* dependency = (ASTMustDecl*)ast_create(AST_MUST_DECL);
         ASTNode* literal = ast_create(AST_LITERAL);
-        if (!program || !dependency || !literal) return 1;
+        if (!program || !dependency || !literal) AST_TEST_FAIL();
         dependency->name = (char*)malloc(2u);
-        if (!dependency->name) return 1;
+        if (!dependency->name) AST_TEST_FAIL();
         strcpy(dependency->name, "M");
         ((ASTLiteral*)literal)->string_value=(char*)malloc(2u);
-        if(!((ASTLiteral*)literal)->string_value) return 1;
+        if(!((ASTLiteral*)literal)->string_value) AST_TEST_FAIL();
         strcpy(((ASTLiteral*)literal)->string_value,"x");
         dependency->source = literal;
         program->declarations = (ASTNode*)dependency;
         if (!expect((ASTNode*)program, AST_VALIDATE_OK)) {
             fprintf(stderr, "top-level MUST declaration rejected\\n");
             ast_destroy((ASTNode*)program);
-            return 1;
+            AST_TEST_FAIL();
         }
         ast_destroy((ASTNode*)program);
     }
@@ -639,20 +640,20 @@ int main(void) {
         ASTFuncDecl* fn = (ASTFuncDecl*)ast_create(AST_FUNC_DECL);
         ASTBlock* body = (ASTBlock*)ast_create(AST_BLOCK);
         ASTMustDecl* dependency = (ASTMustDecl*)ast_create(AST_MUST_DECL);
-        if (!fn || !body || !dependency) return 1;
+        if (!fn || !body || !dependency) AST_TEST_FAIL();
         dependency->name = (char*)malloc(2u);
         dependency->source = ast_create(AST_LITERAL);
-        if (!dependency->name || !dependency->source) return 1;
+        if (!dependency->name || !dependency->source) AST_TEST_FAIL();
         strcpy(dependency->name, "M");
         fn->name=(char*)malloc(3u);
-        if(!fn->name) return 1;
+        if(!fn->name) AST_TEST_FAIL();
         strcpy(fn->name,"fn");
         body->statements = (ASTNode*)dependency;
         fn->body = (ASTNode*)body;
         if (!expect((ASTNode*)fn, AST_VALIDATE_INVALID_KIND)) {
             fprintf(stderr, "nested MUST declaration accepted\\n");
             ast_destroy((ASTNode*)fn);
-            return 1;
+            AST_TEST_FAIL();
         }
         ast_destroy((ASTNode*)fn);
     }
@@ -662,10 +663,10 @@ int main(void) {
         ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
         ASTBlock* nested=(ASTBlock*)ast_create(AST_BLOCK);
         ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
-        if(!fast || !nested || !label) { ast_destroy((ASTNode*)fast); ast_destroy((ASTNode*)nested); ast_destroy((ASTNode*)label); return 1; }
+        if(!fast || !nested || !label) { ast_destroy((ASTNode*)fast); ast_destroy((ASTNode*)nested); ast_destroy((ASTNode*)label); AST_TEST_FAIL(); }
         label->label=(char*)malloc(4u);
         label->source_text=(char*)malloc(strlen("mov rax, %value\\r\\nadd rax, 1")+1u);
-        if(!label->label || !label->source_text) { ast_destroy((ASTNode*)fast); ast_destroy((ASTNode*)nested); ast_destroy((ASTNode*)label); return 1; }
+        if(!label->label || !label->source_text) { ast_destroy((ASTNode*)fast); ast_destroy((ASTNode*)nested); ast_destroy((ASTNode*)label); AST_TEST_FAIL(); }
         strcpy(label->label,"ADD");
         strcpy(label->source_text,"mov rax, %value\r\nadd rax, 1");
         label->source_length=strlen(label->source_text);
@@ -673,22 +674,22 @@ int main(void) {
         fast->statements=(ASTNode*)nested;
         if(!expect((ASTNode*)fast,AST_VALIDATE_OK)) {
             fprintf(stderr,"FASTEXEC with raw ASM label rejected\\n");
-            ast_destroy((ASTNode*)fast); return 1;
+            ast_destroy((ASTNode*)fast); AST_TEST_FAIL();
         }
         ast_destroy((ASTNode*)fast);
     }
     {
         ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
-        if(!label) return 1;
+        if(!label) AST_TEST_FAIL();
         label->label=(char*)malloc(4u);
         label->source_text=(char*)malloc(1u);
-        if(!label->label || !label->source_text) { ast_destroy((ASTNode*)label); return 1; }
+        if(!label->label || !label->source_text) { ast_destroy((ASTNode*)label); AST_TEST_FAIL(); }
         strcpy(label->label,"ADD");
         label->source_text[0]='\0';
         label->source_length=0u;
         if(!expect((ASTNode*)label,AST_VALIDATE_INVALID_KIND)) {
             fprintf(stderr,"ASM label outside FASTEXEC was accepted\\n");
-            ast_destroy((ASTNode*)label); return 1;
+            ast_destroy((ASTNode*)label); AST_TEST_FAIL();
         }
         ast_destroy((ASTNode*)label);
     }
