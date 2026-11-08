@@ -584,44 +584,54 @@ static int test_parser_allocation_failure_injection(void) {
     static const char source[] =
         "f:main(a!i32, b!i64) {"
         " v:first = a + b;"
-        " { v:inner = combine(first, 7); }"
+        " { v:inner = combine(first, b:7); }"
         " v:pair = (first, b);"
         " struct: Point { v:x!i32, v:y!i32 }"
+        " v:p!Point = Point { y = 2, x = 1 };"
         " nt:id = u64;"
-        " enum:State { Idle, Running(pid!u32), Error(code!u16) }"
+        " nt:enum: State { Idle, Running(pid!u32), Error(code!u16) }"
         " union:Register32 { v:full!u32, v:parts!u16 }"
+        " group db { open => f:(path!str) { ret; } default { ret; } }"
         " v:casted = cast(1, i32);"
         " panic(\"boom\");"
         " ?? \"inspect\";"
         " ret;"
         "}";
     size_t fail_at;
-    size_t oom_count = 0u;
-    int reached_success = 0;
-    for (fail_at = 1u; fail_at <= 256u; ++fail_at) {
-        ParserContext* ctx = parser_init_source(
-            "parser-oom-injection.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    size_t oom_count=0u;
+    int reached_success=0;
+    for(fail_at=1u;fail_at<=512u;++fail_at) {
+        ParserContext* ctx=parser_init_source("parser-oom-injection.nxf",
+            (const uint8_t*)source,sizeof(source)-1u);
         int result;
         ParserStatus status;
-        if (!ctx) return 0;
-        parser_test_fail_allocation_at(ctx, fail_at);
-        result = parser_run(ctx);
-        status = parser_get_status(ctx);
-        if (status == PARSER_STATUS_OUT_OF_MEMORY &&
-            result == PARSER_STATUS_OUT_OF_MEMORY &&
-            ctx->test_allocation_count >= fail_at) {
+        if(!ctx) return 0;
+        parser_test_fail_allocation_at(ctx,fail_at);
+        result=parser_run(ctx);
+        status=parser_get_status(ctx);
+        if(status==PARSER_STATUS_OUT_OF_MEMORY &&
+           result==PARSER_STATUS_OUT_OF_MEMORY &&
+           ctx->test_allocation_count>=fail_at) {
             ++oom_count;
-        } else if (status == PARSER_STATUS_OK && result == PARSER_STATUS_OK &&
-                   ctx->test_allocation_count < fail_at) {
-            reached_success = 1;
+            parser_destroy(ctx);
+            continue;
+        }
+        if(status==PARSER_STATUS_OK && result==PARSER_STATUS_OK &&
+           ctx->test_allocation_count<fail_at) {
+            reached_success=1;
             parser_destroy(ctx);
             break;
-        } else {
-            fprintf(stderr,
-                "OOM injection mismatch at allocation %zu (observed %zu, status %d, result %d).\n",
-                fail_at, ctx->test_allocation_count, (int)status, result);
-            parser_destroy(ctx);
-        
+        }
+        fprintf(stderr,
+            "OOM injection mismatch at allocation %zu (observed %zu, status %d, result %d).\\n",
+            fail_at,ctx->test_allocation_count,(int)status,result);
+        parser_destroy(ctx);
+        return 0;
+    }
+    return oom_count>0u && reached_success;
+}
+
+static int test_struct_literal_parser_source_spans(void) {
     /* Struct literal parser shape: named fields retain source order. */
     {
         static const uint8_t source[] =
@@ -677,20 +687,15 @@ static int test_parser_allocation_failure_injection(void) {
                 second->base.source_span.end_offset==(uint64_t)(second_value+1-literal_start) &&
                 second->base.source_span.start_column==(uint32_t)(second_start-literal_start)+1u &&
                 second->base.source_span.end_column==(uint32_t)(second_value+1-literal_start)+1u &&
-                second->base.next == NULL;
+                second->base.next == NULL && ast_validate(parser->ast_root,NULL);
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Struct literal parser AST test failed.\\n");
-            return 1;
+            return 0;
         }
     }
-
-    return 0;
-        }
-        parser_destroy(ctx);
-    }
-    return oom_count > 0u && reached_success;
+    return 1;
 }
 
 static int test_function_parameter_type_separator_forms(void) {
@@ -2725,6 +2730,10 @@ int main(int argc, char** argv) {
     }
     if (!test_parser_allocation_failure_injection()) {
         fprintf(stderr, "Parser allocation failure injection did not preserve OOM status/cleanup.\n");
+        return 1;
+    }
+    if (!test_struct_literal_parser_source_spans()) {
+        fprintf(stderr, "Struct literal parser source-span fixture failed.\n");
         return 1;
     }
     if (argc != 4) return 2;
