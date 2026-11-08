@@ -3278,7 +3278,9 @@ int main(int argc, char** argv) {
             call->args->next->type != AST_NAMED_ARG || !named_start)
             goto named_args_done;
         named_arg=(ASTNamedArg*)call->args->next;
-        if(!call_start || call_node->source_span.start_offset!=(uint64_t)(call_start-source) ||
+        if(!call_start || !call_node->source_span.has_location ||
+           !many->params->next->source_span.has_location ||
+           call_node->source_span.start_offset!=(uint64_t)(call_start-source) ||
            call_node->source_span.end_offset!=(uint64_t)(call_start+strlen("many(1, b:2)")-source) ||
            call_node->source_span.start_column!=(uint32_t)(call_start-source)+1u ||
            call_node->source_span.end_column!=(uint32_t)(call_start+strlen("many(1, b:2)")-source)+1u ||
