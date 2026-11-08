@@ -1247,10 +1247,13 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - `exf:name(params)!return_type;` yalnızca bildirilen dış fonksiyon sembolünü Nexus Flow arayüzüne açar.
 - Linkname, tüm kütüphane sembollerini otomatik açmaz; OCL linker yalnız EXF ile ilan edilen sembolleri çözümleme kapsamına alır.
 - Bir linkname kaynağı birden fazla EXF bildirimiyle ilişkilendirilebilir.
-- AST, EXF imzasını ve linkname–EXF ilişkisini kayıpsız korumalıdır. ABI/object-format ve gerçek OCL linker işi ileriki aşamadır.
-- AST'de mevcut node/metadata yapısı denetlenmeden yeni node veya linker altyapısı eklenmeyecek.
+- `ASTFuncDecl.linkname` alanı append-only payload alanı olarak eklendi; yalnız `AST_EXTERN_DECL` üzerinde geçerlidir. Normal `AST_FUNC_DECL` üzerinde dolu olması Graph Validator tarafından reddedilir.
+- Program kapsamındaki `!!=linkname = "...";` directive'i sonraki EXF bildirimlerine uygulanır; yeni directive önceki aktif kaynağı değiştirir. Aynı kaynak birden fazla EXF'ye kopyalanarak ilişkilendirilebilir; directive ayrı bir executable AST statement üretmez.
+- AST stream sürümü 3 linkname alanını taşır; sürüm 1 ve 2 okumaları geriye dönük korunur.
+- OIR AST frontend writer/reader optional field id 9 ile linkname'i modüller arası handoff'ta korur; EXF OIR AST round-trip regresyonu eklendi.
+- ABI/calling-convention, object-format çözümleme ve gerçek OCL linker işi ileriki aşamadır.
 
-**Durum:** EXF semicolon bildirimi ve `linkname` ilişkilendirmesi C Parser/AST/codec yoluna eklendi; yeni codec stream sürümü 3, eski sürüm 1 ve 2 okumaları korunuyor. Linker/ABI çözümlemesi bu kapsamda değildir; yeni regresyon testinin CI sonucu bekleniyor.
+**Durum:** EXF semicolon bildirimi, top-level linkname parser'ı, AST ownership/validation, AST stream v3 ve OIR AST frontend handoff uygulandı. CI run `42486110131` Windows, macOS, Ubuntu, ASan/UBSan ve Valgrind 5/5 geçti; Ubuntu CTest 60/60. Ardından v1/v2 codec geriye dönük uyumluluk testleri eklendi; run `42486189216` sonucu bu kayıt güncellenirken bekleniyor. Linker/ABI çözümlemesi kapsam dışıdır.
 
 
 ## 11. Recursive AST Type Expression — design baseline (2026-11-08)
