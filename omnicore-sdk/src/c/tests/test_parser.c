@@ -2002,17 +2002,6 @@ static int test_thread_block_ast(void) {
         ? (ASTThreadBlock*)((ASTBlock*)function->body)->statements : NULL;
     body = thread && thread->body ? (ASTBlock*)thread->body : NULL;
     value = body ? (ASTVarDecl*)body->statements : NULL;
-    if(thread && thread_start && thread_close) {
-        fprintf(stderr,"Thread span actual=%llu..%llu col=%u..%u expected=%llu..%llu col=%u..%u\\n",
-            (unsigned long long)thread->base.source_span.start_offset,
-            (unsigned long long)thread->base.source_span.end_offset,
-            (unsigned)thread->base.source_span.start_column,
-            (unsigned)thread->base.source_span.end_column,
-            (unsigned long long)(thread_start-source),
-            (unsigned long long)(thread_close+1-source),
-            (unsigned)(thread_start-source)+1u,
-            (unsigned)(thread_close+1-source)+1u);
-    }
     if (!thread || thread->base.type != AST_THREAD_BLOCK ||
         !thread->name || strcmp(thread->name, "worker") != 0 ||
         !body || body->base.type != AST_BLOCK ||
