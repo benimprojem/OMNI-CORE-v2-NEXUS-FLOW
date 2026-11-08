@@ -2,7 +2,7 @@
 
 **Branch:** `refactor/c-core-roadmap`  
 **Source of truth:** `omnicore-sdk/src/c/parser/ast.h` and `ast.c`  
-**Status:** static audit documented; exhaustive automated ownership validation remains open. AST tags currently extend through append-only ID 105; this inventory includes FASTEXEC/ASM payload ownership.
+**Status:** static audit documented; exhaustive automated ownership validation remains open. AST tags currently extend through append-only ID 107; this inventory includes FASTEXEC/ASM payload ownership.
 
 ## Rules
 
@@ -22,6 +22,8 @@
 | `AST_VAR_DECL` | `initializer`, `inline_type` | `name`, `type_name`; const/hard/public/export flags |
 | `AST_FUNC_DECL`, `AST_EXTERN_DECL` | `params`, `body`, optional `return_array_type` (`AST_ARRAY_TYPE`) | `name`, `return_type`; extern/public/export flags |
 | `AST_STRUCT_DECL`, `AST_UNION_DECL` | `fields` | `name`; packed/union/public/export flags |
+| `AST_STRUCT_LITERAL` | `fields` | `type_name` |
+| `AST_STRUCT_FIELD_INIT` | `value` | `name` |
 | `AST_ENUM_DECL` | `variants` | `name` |
 | `AST_ENUM_VARIANT` | `data` | `name` |
 | `AST_NEWTYPE_DECL` | — | `name`, `target_type` |
@@ -80,12 +82,12 @@
 
 ## Codec/lifecycle audit findings
 
-- Factory allocation is centralized in `get_node_size()`; all registered kinds are bounded by `AST_PROGRAM..AST_ASM_LABEL` (105 tags).
+- Factory allocation is centralized in `get_node_size()`; all registered kinds are bounded by `AST_PROGRAM..AST_STRUCT_FIELD_INIT` (107 tags).
 - `AST_BREAK` and `AST_CONTINUE` intentionally allocate only `ASTNode`.
 - `AST_FUNC_DECL` and `AST_EXTERN_DECL`, `AST_STRUCT_DECL` and `AST_UNION_DECL`, and `AST_NEXUS_FLOW` and `AST_NEXUS_PIPE` share payload structures; their discriminating kind remains in `base.type`.
 - `AST_LISTEN` currently shares `ASTNexusCapture` storage and codec/destructor behavior. Confirm its exact semantic contract before changing this representation.
 - Serializer, deserializer and destructor switches must remain field-symmetric. Current binary AST codec is a process/build-local artifact (it writes C enum/int representation); it is not the stable cross-version OIR format.
-- Child pointers are raw pointers. `ast_validate()` checks uniqueness/acyclicity and context contracts for all 105 kinds; `ast_serialize()` calls it before writing and `ast_deserialize()` calls it before returning a decoded root. `ast_destroy()` remains a low-level operation whose caller must provide an exclusively owned, acyclic graph.
+- Child pointers are raw pointers. `ast_validate()` checks uniqueness/acyclicity and context contracts for all 107 kinds; `ast_serialize()` calls it before writing and `ast_deserialize()` calls it before returning a decoded root. `ast_destroy()` remains a low-level operation whose caller must provide an exclusively owned, acyclic graph.
 
 ## Remaining automated checks
 
