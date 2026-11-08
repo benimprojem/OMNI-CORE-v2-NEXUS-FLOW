@@ -1,7 +1,7 @@
 # AST Parser Production Matrix
 
 **Branch:** `refactor/c-core-roadmap`  
-**Audit:** 2026-11-07  
+**Audit:** 2026-11-08  
 **Scope:** Nexus Flow source production → C Parser production/function → AST shape → regression fixture.
 
 > A parser function existing is not proof of production completeness. A test is considered evidence only for the form/assertions it actually checks. This matrix does not mark Semantic/OIR/Codegen completion.
@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | Translation unit / declarations | parser root + declaration dispatch | `AST_PROGRAM` + declaration sibling chain | parser source accept/reject; AST↔OIR canonical roundtrip | ~ Root/declaration inventory needs full syntax-positive fixture |
 | `v:`, `c:` declaration + initializer/type modifiers, pointer/reference types | `parse_var_decl()`, `parser_parse_type_name()` | `AST_VAR_DECL.type_name` preserves `*T`, `**T`, `&T`; arrays remain a separate inline child | `test_pointer_reference_type_declarators` covers local pointer, function params/return, NewType target and AST codec | ~ Parser spelling and AST string preservation covered; pointer validity, borrow/lifetime and ownership remain Semantic work |
-| `f:name(...)`, `exf:name(...)`, main CLI args, pointer/reference parameters/returns and array returns | `parse_func_decl()`, simple parameter parser, `parser_parse_type_name()` | `AST_FUNC_DECL` / `AST_EXTERN_DECL`; type-name strings preserve pointer/reference prefixes; `AST_ARRAY_TYPE` for argv and optional `return_array_type` | parameter separator; main CLI parameter AST; `!i32[]`, `!i32[n]`, `!f32[m][n]` return fixtures; AST stream v2 round-trip + v1 function-stream compatibility; OIR field 8 round-trip | ~ Array-return representation/codec is verified; named/default/variadic parameter cases and full signature-span matrix remain |
+| `f:name(...)`, `exf:name(...)`, main CLI args, pointer/reference parameters/returns and array returns | `parse_func_decl()`, simple parameter parser, `parser_parse_type_name()` | `AST_FUNC_DECL` / `AST_EXTERN_DECL`; type-name strings preserve pointer/reference prefixes; `AST_ARRAY_TYPE` for argv and optional `return_array_type` | parameter separator; main CLI parameter AST; `!i32[]`, `!i32[n]`, `!f32[m][n]` return fixtures; AST stream v2 round-trip + v1 function-stream compatibility; OIR field 8 round-trip; variadic parameter position and named-call-argument shape/codec | ~ Array-return representation/codec and named-argument label/value span are verified; default-parameter cases and full signature-span matrix remain |
 | Lambda / anonymous function | `parse_lambda()` | `AST_LAMBDA` with params and expression/block body; expression body remains a direct expression child (no synthetic `AST_RETURN`) | combined rules/lambda fixture; exact expression/block span cases; `test_parser` now checks expression-vs-block body shape, malformed missing-body rejection, graph validation and AST codec round-trip (commits `c4177107`, `ccb4983a`, `bad267e6`; CI validated by workflow run `42411942789` (all 5 jobs passed)) | ~ Isolate parameter-list edge cases and capture representation; closure semantics and Semantic return-type inference remain later |
 | Block `{...}`, nested blocks | `parse_block()` | `AST_BLOCK` | nested-block recovery; halt codec/context test | ~ Source span + legal block-halt position fixtures |
 | `if / elsif / els` | `parse_if_statement()`, `parse_if_branch()` | `AST_IF` chain/nested else | structured if-elsif-els AST test | ✓ shape asserted; negative missing/duplicate branch cases expand |
@@ -98,7 +98,7 @@ Parser source-span assertions are distributed through `test_parser.c` rather tha
 - FASTEXEC raw ASM declaration and attached label/body spans.
 - Capture, function parameter, variadic marker, Nexus label, group/member and targetless Halt.
 - `!(listen)` full statement span beginning at `!` and ending after its handler block; `!struct:Packed` full declaration span beginning at the hard-pack marker.
-- `AST_USE` uses an import-item span (module identifier through optional alias), not the shared `use` keyword or semicolon; `AST_DEFER` uses the full `defer` statement span.
+- `AST_USE` uses an import-item span (module identifier through optional alias), not the shared `use` keyword or semicolon; `AST_DEFER` uses the full `defer` statement span.\n- Named call argument `b:2` is asserted from the label start through the value expression end, including byte offsets and line/column endpoints.
 - `asmcall`/`asmjmp` full call ranges.
 
 This is a **tested subset**, not blanket source-span coverage for all productions. AST closure requires each row to declare its span policy (token-only, full production, or synthesized/no source) and have assertions for both endpoints where location is required. UTF-8 offsets are byte offsets; line/column are separately validated.
