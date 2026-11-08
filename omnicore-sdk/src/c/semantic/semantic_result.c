@@ -134,7 +134,7 @@ static int names_equal(const char* left, const char* right) {
 
 static int valid_type_kind(uint16_t kind) {
     return kind >= SEMANTIC_RESULT_TYPE_PRIMITIVE &&
-        kind <= SEMANTIC_RESULT_TYPE_UNKNOWN;
+        kind <= SEMANTIC_RESULT_TYPE_REFERENCE;
 }
 
 static int valid_symbol_kind(uint16_t kind) {
