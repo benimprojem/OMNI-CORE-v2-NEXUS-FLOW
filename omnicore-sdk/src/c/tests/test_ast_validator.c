@@ -303,45 +303,67 @@ int main(void) {
         ASTNode *ret = ast_create(AST_RETURN);
         ASTNode *fn = ast_create(AST_FUNC_DECL);
         ASTNode *ext = ast_create(AST_EXTERN_DECL);
-        ASTNode *arm = ast_create(AST_SELECT_ARM);
+        ASTSelect *select = (ASTSelect*)ast_create(AST_SELECT);
+        ASTSelectArm *arm = (ASTSelectArm*)ast_create(AST_SELECT_ARM);
+        ASTNode *selector = ast_create(AST_IDENTIFIER);
         ASTNode *arm_body = ast_create(AST_BREAK);
-        if (!ret || !fn || !ext || !arm || !arm_body) return 1;
-        if (!expect(ret, AST_VALIDATE_OK)) {
-            fprintf(stderr, "void return rejected\n"); return 1;
-        }
-        if (!expect(fn, AST_VALIDATE_MISSING_REQUIRED)) {
-            fprintf(stderr, "function without body accepted\n"); return 1;
-        }
+        if (!ret || !fn || !ext || !select || !arm || !selector || !arm_body) return 1;
+        if (!expect(ret, AST_VALIDATE_OK)) return 1;
+        if (!expect(fn, AST_VALIDATE_MISSING_REQUIRED)) return 1;
         ((ASTFuncDecl*)ext)->name=(char*)malloc(4u);
-        if(!((ASTFuncDecl*)ext)->name) return 1;
+        ((ASTIdentifier*)selector)->name=(char*)malloc(sizeof("choice"));
+        if(!((ASTFuncDecl*)ext)->name || !((ASTIdentifier*)selector)->name) return 1;
         strcpy(((ASTFuncDecl*)ext)->name,"ext");
-        if (!expect(ext, AST_VALIDATE_OK)) {
-            fprintf(stderr, "bodyless extern rejected\n"); return 1;
+        strcpy(((ASTIdentifier*)selector)->name,"choice");
+        if (!expect(ext, AST_VALIDATE_OK)) return 1;
+        arm->is_default=1;
+        arm->body=arm_body;
+        select->selector=selector;
+        select->arms=(ASTNode*)arm;
+        if (!expect((ASTNode*)select, AST_VALIDATE_OK)) {
+            fprintf(stderr, "select default arm rejected in legal arms context\n");
+            ast_destroy(ret); ast_destroy(fn); ast_destroy(ext);
+            ast_destroy((ASTNode*)select); return 1;
         }
-        ((ASTSelectArm *)arm)->is_default = 1;
-        ((ASTSelectArm *)arm)->body = arm_body;
-        if (!expect(arm, AST_VALIDATE_OK)) {
-            fprintf(stderr, "select default arm rejected\n"); return 1;
-        }
-        ast_destroy(ret); ast_destroy(fn); ast_destroy(ext); ast_destroy(arm);
+        ast_destroy(ret); ast_destroy(fn); ast_destroy(ext);
+        ast_destroy((ASTNode*)select);
     }
 
+    /* A scan else arm is legal only as the final AST_SCAN.arms entry. */
     {
-        ASTNode *scan_else = ast_create(AST_SCAN_ARM);
-        ASTNode *scan_body = ast_create(AST_BREAK);
-        ASTNode *scan_next = ast_create(AST_SCAN_ARM);
-        if (!scan_else || !scan_body || !scan_next) return 1;
-        ((ASTScanArm *)scan_else)->body = scan_body;
-        if (!expect(scan_else, AST_VALIDATE_OK)) {
-            fprintf(stderr, "final scan else arm rejected\n"); return 1;
+        ASTScan *scan=(ASTScan*)ast_create(AST_SCAN);
+        ASTScanArm *scan_else=(ASTScanArm*)ast_create(AST_SCAN_ARM);
+        ASTScanArm *scan_next=(ASTScanArm*)ast_create(AST_SCAN_ARM);
+        ASTNode *subject=ast_create(AST_IDENTIFIER);
+        ASTNode *scan_body=ast_create(AST_BREAK);
+        ASTPatternBinding *next_pattern=(ASTPatternBinding*)ast_create(AST_PATTERN_BINDING);
+        ASTNode *next_body=ast_create(AST_BREAK);
+        if(!scan || !scan_else || !scan_next || !subject ||
+           !scan_body || !next_pattern || !next_body) return 1;
+        ((ASTIdentifier*)subject)->name=(char*)malloc(sizeof("value"));
+        next_pattern->name=(char*)malloc(sizeof("item"));
+        if(!((ASTIdentifier*)subject)->name || !next_pattern->name) return 1;
+        strcpy(((ASTIdentifier*)subject)->name,"value");
+        strcpy(next_pattern->name,"item");
+        scan->subject=subject;
+        scan->arms=(ASTNode*)scan_else;
+        scan_else->body=scan_body;
+        if(!expect((ASTNode*)scan,AST_VALIDATE_OK)) {
+            fprintf(stderr,"final scan else arm rejected in legal arms context\n");
+            ast_destroy((ASTNode*)scan); ast_destroy((ASTNode*)scan_next);
+            ast_destroy((ASTNode*)next_pattern); ast_destroy(next_body); return 1;
         }
-        scan_else->next = scan_next;
-        if (!expect(scan_else, AST_VALIDATE_MISSING_REQUIRED)) {
-            fprintf(stderr, "non-final scan else arm accepted\n"); return 1;
+        scan_next->pattern=(ASTNode*)next_pattern;
+        scan_next->body=next_body;
+        scan_else->base.next=(ASTNode*)scan_next;
+        if(!expect((ASTNode*)scan,AST_VALIDATE_MISSING_REQUIRED)) {
+            fprintf(stderr,"non-final scan else arm accepted\n");
+            scan_else->base.next=NULL;
+            ast_destroy((ASTNode*)scan); ast_destroy((ASTNode*)scan_next); return 1;
         }
-        scan_else->next = NULL;
-        ast_destroy(scan_else);
-        ast_destroy(scan_next);
+        scan_else->base.next=NULL;
+        ast_destroy((ASTNode*)scan);
+        ast_destroy((ASTNode*)scan_next);
     }
 
     /* A parsed void-return function must retain a NULL return operand. */
