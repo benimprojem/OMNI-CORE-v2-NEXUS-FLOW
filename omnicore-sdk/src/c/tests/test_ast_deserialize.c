@@ -676,7 +676,7 @@ done:
     if(decoded) ast_destroy(decoded);
     if(literal) ast_destroy((ASTNode*)literal);
     if(field) ast_destroy((ASTNode*)field);
-    return ok;
+    return ok ? 0 : 1;
 }
 
 static int roundtrips_all_node_type_tags(void) {
