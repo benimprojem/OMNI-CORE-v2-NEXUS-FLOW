@@ -1117,7 +1117,7 @@ static int roundtrips_versioned_source_spans(void) {
         fread(magic, 1u, sizeof(magic), stream) != sizeof(magic) ||
         fread(&version, sizeof(version), 1u, stream) != 1u ||
         memcmp(magic, "OCCAST\r\n", sizeof(magic)) != 0 ||
-        version != 2u) {
+        version != 3u) {
         fclose(stream);
         ast_destroy((ASTNode*)original);
         return 1;
@@ -1157,12 +1157,12 @@ static int reads_v1_function_stream_without_v2_return_child(void) {
     bytes=(unsigned char*)malloc((size_t)end);
     if(!bytes || fseek(stream,0L,SEEK_SET)!=0 ||
        fread(bytes,1u,(size_t)end,stream)!=(size_t)end) goto done;
-    /* Version 1 function payloads end after body; the v2-only optional
-     * return-array NULL marker is removed while preserving the list marker. */
+    /* Version 1 function payloads end after body; remove the v2 return-array
+     * marker and v3 linkname marker while preserving the sibling-list marker. */
     memcpy(bytes+8u,&version,sizeof(version));
     fclose(stream);
     stream=tmpfile();
-    if(!stream || fwrite(bytes,1u,(size_t)end-sizeof(int),stream)!=(size_t)end-sizeof(int))
+    if(!stream || fwrite(bytes,1u,(size_t)end-2u*sizeof(int),stream)!=(size_t)end-2u*sizeof(int))
         goto done;
     rewind(stream);
     decoded=(ASTFuncDecl*)ast_deserialize(stream);
