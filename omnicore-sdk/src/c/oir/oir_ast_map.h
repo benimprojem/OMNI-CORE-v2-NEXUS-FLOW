@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#define OIR_AST_NODE_KIND_COUNT 107u
+#define OIR_AST_NODE_KIND_COUNT 108u
 
 /* Stable OIR IDs are independent of ASTNodeType enum ordinals. */
 uint16_t oir_ast_node_id_from_frontend(ASTNodeType type);
