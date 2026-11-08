@@ -66,6 +66,7 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
             const ASTVarDecl* n = (const ASTVarDecl*)node;
             if (field_id == 7u) return n->initializer;
             if (field_id == 8u) return n->inline_type;
+            if (field_id == 9u) return n->type_expr;
             return NULL;
         }
         case AST_FUNC_DECL:
@@ -74,11 +75,14 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
             if (field_id == 6u) return n->params;
             if (field_id == 7u) return n->body;
             if (field_id == 8u) return n->return_array_type;
+            if (field_id == 10u) return n->return_type_expr;
             return NULL;
         }
         case AST_STRUCT_DECL:
         case AST_UNION_DECL:
             return field_id == 6u ? ((const ASTStructDecl*)node)->fields : NULL;
+        case AST_NEWTYPE_DECL:
+            return field_id == 3u ? ((const ASTNewTypeDecl*)node)->target_type_expr : NULL;
         case AST_ENUM_DECL:
             return field_id == 2u ? ((const ASTEnumDecl*)node)->variants : NULL;
         case AST_ENUM_VARIANT:
@@ -255,9 +259,10 @@ uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
         case AST_NEXUS_CAPTURE: case AST_LISTEN:
         case AST_NEXUS_LABEL: case AST_NEXUS_INTENT:
             return 2u;
-        case AST_VAR_DECL: return 8u;
+        case AST_VAR_DECL: return 9u;
         case AST_TYPE_EXPR: return 6u;
-        case AST_FUNC_DECL: case AST_EXTERN_DECL: return 8u;
+        case AST_FUNC_DECL: case AST_EXTERN_DECL: return 10u;
+        case AST_NEWTYPE_DECL: return 3u;
         case AST_BINARY_EXPR: case AST_ASSIGNMENT: case AST_IF: return 3u;
         case AST_INDEX_ACCESS: return 2u;
         case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: case AST_RETURN:
