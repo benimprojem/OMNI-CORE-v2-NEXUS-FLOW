@@ -1956,9 +1956,19 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
         case AST_VAR_DECL:
             if(!ast_validation_required_text(s,n,((ASTVarDecl*)n)->name,"name")) return 0;
             V(((ASTVarDecl*)n)->initializer,"initializer"); V(((ASTVarDecl*)n)->inline_type,"inline_type"); break;
-        case AST_FUNC_DECL:
-            if(!ast_validation_required_text(s,n,((ASTFuncDecl*)n)->name,"name")) return 0;
-            V(((ASTFuncDecl*)n)->params,"params"); R(((ASTFuncDecl*)n)->body,"body"); V(((ASTFuncDecl*)n)->return_array_type,"return_array_type"); break;
+        case AST_FUNC_DECL: {
+            const ASTFuncDecl* function=(const ASTFuncDecl*)n;
+            int group_method_implementation=s->active_count>=2u &&
+                s->active[s->active_count-2u]->type==AST_METHOD &&
+                s->active_fields[s->active_count-1u] &&
+                strcmp(s->active_fields[s->active_count-1u],"implementation")==0;
+            if(!function->name || (!*function->name && !group_method_implementation))
+                return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"name");
+            V(function->params,"params");
+            R(function->body,"body");
+            V(function->return_array_type,"return_array_type");
+            break;
+        }
         case AST_EXTERN_DECL:
             if(!ast_validation_required_text(s,n,((ASTFuncDecl*)n)->name,"name")) return 0;
             V(((ASTFuncDecl*)n)->params,"params"); V(((ASTFuncDecl*)n)->body,"body"); V(((ASTFuncDecl*)n)->return_array_type,"return_array_type"); break;
@@ -1978,9 +1988,26 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
         case AST_GROUP_DECL:
             if(!ast_validation_required_text(s,n,((ASTGroupDecl*)n)->name,"name")) return 0;
             V(((ASTGroupDecl*)n)->members,"members"); break;
-        case AST_METHOD:
-            if(!ast_validation_required_text(s,n,((ASTMethod*)n)->public_name,"public_name")) return 0;
-            R(((ASTMethod*)n)->implementation,"implementation"); break;
+        case AST_METHOD: {
+            const ASTMethod* method=(const ASTMethod*)n;
+            const ASTNode* implementation=method->implementation;
+            const char* edge=s->active_fields[s->active_count-1u];
+            if(s->active_count<2u ||
+               s->active[s->active_count-2u]->type!=AST_GROUP_DECL ||
+               !edge || strcmp(edge,"members")!=0)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"group_method_owner");
+            if(!ast_validation_required_text(s,n,method->public_name,"public_name")) return 0;
+            if(!implementation)
+                return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"implementation");
+            if(strcmp(method->public_name,"default")==0) {
+                if(implementation->type!=AST_BLOCK)
+                    return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"default_method_block");
+            } else if(implementation->type!=AST_FUNC_DECL) {
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"method_function");
+            }
+            R(implementation,"implementation");
+            break;
+        }
         case AST_BINARY_EXPR: case AST_ASSIGNMENT: R(((ASTBinaryExpr*)n)->left,"left"); R(((ASTBinaryExpr*)n)->right,"right"); break;
         case AST_UNARY_EXPR: case AST_POSTFIX_EXPR: R(((ASTUnaryExpr*)n)->operand,"operand"); break;
         case AST_RETURN: V(((ASTUnaryExpr*)n)->operand,"operand"); break;
