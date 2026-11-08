@@ -1514,3 +1514,41 @@ Cleanup hata politikası da sabittir: bir defer veya otomatik kaynak temizliği 
 - `clock()`:
 
 ----
+
+
+## 15. EXF — External Function Declarations ve Linkage
+
+### 15.1 Dış fonksiyon bildirimi
+
+Nexus Flow, object/library kaynaklarındaki dış fonksiyonları açık bildirimle kullanır. Örnek:
+
+```nxf
+exf:add(a!i32, b!i32)!i32;
+```
+
+- `exf:` yalnızca belirtilen dış sembolü Nexus Flow programına fonksiyon arayüzü olarak tanıtır.
+- Parametreler normal fonksiyon parametre tipleriyle aynı type-expression altyapısını kullanır.
+- `!i32` dönüş tipini belirtir; dönüş tipi olmayan bildirimler ayrıca dil kuralına göre ele alınır.
+- EXF ile bildirilen fonksiyon, kaynak kodunda yerel fonksiyon çağrısı gibi kullanılabilir; dış sembol çözümlemesi ayrı linkage aşamasına aittir.
+
+### 15.2 Linkname bildirimi ve EXF kapsamı
+
+```nxf
+!!=linkname = "math.obj";
+
+exf:add(a!i32, b!i32)!i32;
+exf:sub(a!i32, b!i32)!i32;
+````
+
+- `linkname`, dış bağlantı kaynağını bildirir ve OCL linker için linkage metadata sağlar.
+- `exf:` bildirimleri, bu kaynaktan Nexus Flow'a açılan sembolleri belirler.
+- Linkname verilmesi kütüphanedeki tüm sembolleri otomatik olarak kullanılabilir yapmaz.
+- Yalnızca EXF ile açıkça bildirilen fonksiyonlar Nexus Flow dış-fonksiyon arayüzüne dahil edilir.
+- EXF sembol adı ile gerçek object/library sembol adı gerekirse ayrı tutulabilir; bu eşleştirme linker metadata'sıdır.
+- Bir linkname kaynağı birden fazla EXF bildirimiyle ilişkilendirilebilir.
+
+### 15.3 Aşama sınırı
+
+Bu bölüm dil bildiriminin ve AST'de korunması gereken ilişkinin normatif tanımıdır. Object format çözümleme, ABI/calling-convention doğrulaması, sembol seçimi ve OCL linker uygulaması bu AST işi kapsamında tamamlanmış sayılmaz; ileriki linker aşamasında ele alınacaktır.
+
+**AST gereksinimi:** EXF parametre/dönüş tipleri, sembol adı ve linkname ilişkisi kayıpsız taşınmalıdır. Linkname ile EXF arasındaki ilişkiyi temsil etmek için mevcut AST node/metadata modeli incelenir; gereksiz yeni node oluşturulmaz.
