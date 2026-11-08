@@ -156,19 +156,6 @@ static OirStatus emit_token(AstEmitContext* c, uint16_t* last, uint16_t id, Omni
     put_u16(b, stable);
     return append_tlv(c, last, id, OIR_AST_VALUE_TOKEN_ID, b, 2u);
 }
-static OirStatus emit_optional_string(
-    AstEmitContext* c, uint16_t* last, uint16_t field_id, const char* value
-) {
-    size_t offset;
-    OirStatus status;
-    if (!value) return OIR_STATUS_OK;
-    offset = c->field_used;
-    status = emit_string(c, last, field_id, value);
-    if (status != OIR_STATUS_OK) return status;
-    if (!c->measure_only) c->field_data[offset + 3u] = OIR_AST_TLV_OPTIONAL;
-    return OIR_STATUS_OK;
-}
-
 static OirStatus emit_node_ref(
     AstEmitContext* c, uint16_t* last, uint16_t field_id, const ASTNode* node
 ) {
@@ -211,6 +198,19 @@ static OirStatus emit_string(
     put_u32(b, offset);
     put_u32(b + 4, length);
     return append_tlv(c, last, field_id, OIR_AST_VALUE_STRING_REF, b, 8u);
+}
+
+static OirStatus emit_optional_string(
+    AstEmitContext* c, uint16_t* last, uint16_t field_id, const char* value
+) {
+    size_t offset;
+    OirStatus status;
+    if (!value) return OIR_STATUS_OK;
+    offset = c->field_used;
+    status = emit_string(c, last, field_id, value);
+    if (status != OIR_STATUS_OK) return status;
+    if (!c->measure_only) c->field_data[offset + 3u] = OIR_AST_TLV_OPTIONAL;
+    return OIR_STATUS_OK;
 }
 
 static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
