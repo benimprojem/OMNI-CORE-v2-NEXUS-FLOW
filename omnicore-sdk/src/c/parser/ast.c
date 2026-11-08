@@ -1997,6 +1997,12 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         case AST_RELOCATE: R(((ASTRelocate*)n)->source,"source"); R(((ASTRelocate*)n)->target,"target"); break;
         case AST_UNROLL: R(((ASTUnroll*)n)->count,"count"); R(((ASTUnroll*)n)->loop,"loop"); break;
         case AST_ARRAY_LITERAL: V(((ASTArrayLiteral*)n)->elements,"elements"); break;
+        case AST_STRUCT_LITERAL:
+            if(!ast_validation_required_text(s,n,((ASTStructLiteral*)n)->type_name,"type_name")) return 0;
+            R(((ASTStructLiteral*)n)->fields,"fields"); break;
+        case AST_STRUCT_FIELD_INIT:
+            if(!ast_validation_required_text(s,n,((ASTStructFieldInit*)n)->name,"name")) return 0;
+            R(((ASTStructFieldInit*)n)->value,"value"); break;
         case AST_ARRAY_TYPE: V(((ASTArrayType*)n)->dimensions,"dimensions"); break;
         case AST_ARRAY_DIMENSION: V(((ASTArrayDimension*)n)->length,"length"); break;
         case AST_VARIADIC_PARAM:
