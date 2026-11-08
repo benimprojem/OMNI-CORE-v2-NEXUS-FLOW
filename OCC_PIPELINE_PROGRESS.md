@@ -1218,3 +1218,5 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Array type span regression now checks dynamic parameter `[]` and multidimensional local `[3][3]`, both the enclosing `AST_ARRAY_TYPE` range and each `AST_ARRAY_DIMENSION` range. CI run `42466136344` passed 5/5 with these source-range checks.
 
 - The minimal program-root span fixture now also asserts the nested `AST_FUNC_DECL` and `AST_BLOCK` ranges. CI run `42466243975` passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan and Valgrind).
+
+- Function return array source-span checks now cover dynamic `[]`, fixed `[n]` and multidimensional `[m][n]` forms, including both enclosing `AST_ARRAY_TYPE` and each dimension node. CI run `42466307736` passed all five jobs.
