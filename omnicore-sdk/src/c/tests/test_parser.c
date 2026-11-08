@@ -4553,7 +4553,8 @@ generic_type_done:
             "union:Register32 {\n"
             "  v:full!u32,\n"
             "  v:parts!u16\n"
-            "}";
+            "}\n"
+            "nt:Addr = u64;";
         const char* point_start=strstr(source,"struct:Point");
         const char* packet_start=strstr(source,"!struct:NetworkPacket");
         const char* union_start=strstr(source,"union:Register32");
