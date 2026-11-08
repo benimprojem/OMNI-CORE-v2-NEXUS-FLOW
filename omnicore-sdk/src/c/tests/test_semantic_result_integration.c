@@ -516,11 +516,12 @@ static int test_group_semantic_records(void) {
             OirArtifactHeader legacy_header = artifact_view.envelope.header;
             OirSectionInput legacy_sections[8];
             uint32_t section_index;
-            if (artifact_view.envelope.section_count > 8u) {
+            uint32_t legacy_section_count = artifact_view.envelope.section_count;
+            if (legacy_section_count > 8u) {
                 ok = 0;
             } else {
                 for (section_index = 0u;
-                    section_index < artifact_view.envelope.section_count;
+                    section_index < legacy_section_count;
                     ++section_index) {
                     OirSectionView section_view;
                     if (oir_artifact_get_section(&artifact_view.envelope,
@@ -538,7 +539,7 @@ static int test_group_semantic_records(void) {
                     legacy_header.payload_schema_minor = 1u;
                     if (oir_artifact_write(legacy_artifact, 1024u * 1024u,
                             &legacy_header, legacy_sections,
-                            artifact_view.envelope.section_count,
+                            legacy_section_count,
                             &legacy_artifact_written) != OIR_STATUS_OK ||
                         oir_semantic_ast_artifact_open(legacy_artifact,
                             legacy_artifact_written, &artifact_view,
