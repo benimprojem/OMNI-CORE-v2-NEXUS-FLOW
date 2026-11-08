@@ -545,6 +545,96 @@ case AST_ARRAY_DIMENSION:
     return 0;
 }
 
+static ASTNode* wrap_contextual_fixture(ASTNodeType type, ASTNode* child) {
+    ASTNode* owner=NULL;
+    if(!child) return NULL;
+    switch(type) {
+        case AST_SELECT_ARM: {
+            ASTSelect* n=(ASTSelect*)ast_create(AST_SELECT);
+            if(!n) return NULL;
+            n->selector=make_identifier_fixture("select_owner");
+            if(!n->selector) { ast_destroy((ASTNode*)n); return NULL; }
+            n->arms=child; owner=(ASTNode*)n; break;
+        }
+        case AST_SCAN_ARM: {
+            ASTScan* n=(ASTScan*)ast_create(AST_SCAN);
+            if(!n) return NULL;
+            n->subject=make_identifier_fixture("scan_owner");
+            if(!n->subject) { ast_destroy((ASTNode*)n); return NULL; }
+            n->arms=child; owner=(ASTNode*)n; break;
+        }
+        case AST_ARRAY_DIMENSION: {
+            ASTArrayType* n=(ASTArrayType*)ast_create(AST_ARRAY_TYPE);
+            if(!n) return NULL;
+            n->dimensions=child; owner=(ASTNode*)n; break;
+        }
+        case AST_METHOD: {
+            ASTGroupDecl* n=(ASTGroupDecl*)ast_create(AST_GROUP_DECL);
+            if(!n) return NULL;
+            n->name=duplicate_text("method_owner");
+            if(!n->name) { ast_destroy((ASTNode*)n); return NULL; }
+            n->members=child; owner=(ASTNode*)n; break;
+        }
+        case AST_BLOCK_HALT: {
+            ASTBlock* n=(ASTBlock*)ast_create(AST_BLOCK);
+            if(!n) return NULL;
+            n->statements=child; owner=(ASTNode*)n; break;
+        }
+        case AST_VARIADIC_PARAM: {
+            ASTFuncDecl* n=(ASTFuncDecl*)ast_create(AST_FUNC_DECL);
+            if(!n) return NULL;
+            n->name=duplicate_text("variadic_owner");
+            n->body=make_identifier_fixture("variadic_body");
+            if(!n->name || !n->body) { ast_destroy((ASTNode*)n); return NULL; }
+            n->params=child; owner=(ASTNode*)n; break;
+        }
+        case AST_NAMED_ARG: {
+            ASTCall* n=(ASTCall*)ast_create(AST_FUNC_CALL);
+            if(!n) return NULL;
+            n->callee=make_identifier_fixture("named_owner");
+            if(!n->callee) { ast_destroy((ASTNode*)n); return NULL; }
+            n->args=child; owner=(ASTNode*)n; break;
+        }
+        case AST_MUST_DECL: {
+            ASTProgram* n=(ASTProgram*)ast_create(AST_PROGRAM);
+            if(!n) return NULL;
+            n->declarations=child; owner=(ASTNode*)n; break;
+        }
+        case AST_ASM_LABEL: {
+            ASTFastExecBlock* n=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
+            if(!n) return NULL;
+            n->statements=child; owner=(ASTNode*)n; break;
+        }
+        case AST_STRUCT_FIELD_INIT: {
+            ASTStructLiteral* n=(ASTStructLiteral*)ast_create(AST_STRUCT_LITERAL);
+            if(!n) return NULL;
+            n->type_name=duplicate_text("Fixture");
+            if(!n->type_name) { ast_destroy((ASTNode*)n); return NULL; }
+            n->fields=child; owner=(ASTNode*)n; break;
+        }
+        default:
+            return child;
+    }
+    return owner;
+}
+
+static ASTNode* contextual_fixture_target(ASTNodeType type, ASTNode* root) {
+    if(!root) return NULL;
+    switch(type) {
+        case AST_SELECT_ARM: return ((ASTSelect*)root)->arms;
+        case AST_SCAN_ARM: return ((ASTScan*)root)->arms;
+        case AST_ARRAY_DIMENSION: return ((ASTArrayType*)root)->dimensions;
+        case AST_METHOD: return ((ASTGroupDecl*)root)->members;
+        case AST_BLOCK_HALT: return ((ASTBlock*)root)->statements;
+        case AST_VARIADIC_PARAM: return ((ASTFuncDecl*)root)->params;
+        case AST_NAMED_ARG: return ((ASTCall*)root)->args;
+        case AST_MUST_DECL: return ((ASTProgram*)root)->declarations;
+        case AST_ASM_LABEL: return ((ASTFastExecBlock*)root)->statements;
+        case AST_STRUCT_FIELD_INIT: return ((ASTStructLiteral*)root)->fields;
+        default: return root;
+    }
+}
+
 static int streams_equal(FILE* left, FILE* right) {
     unsigned char left_buffer[512];
     unsigned char right_buffer[512];
@@ -563,7 +653,7 @@ static int streams_equal(FILE* left, FILE* right) {
 }
 
 static int roundtrips_populated_ast_types(void) {
-    for (int raw_type = AST_PROGRAM; raw_type <= AST_ARRAY_DIMENSION; ++raw_type) {
+    for (int raw_type = AST_PROGRAM; raw_type <= AST_STRUCT_FIELD_INIT; ++raw_type) {
         ASTNode* original = ast_create((ASTNodeType)raw_type);
         ASTNode* root;
         if (!original) { fprintf(stderr, "ast_create failed for populated tag %d.\\n", raw_type); return 1; }
@@ -572,35 +662,8 @@ static int roundtrips_populated_ast_types(void) {
             ast_destroy(original);
             return 1;
         }
-        root=original;
-        /* Context-bound records are round-tripped under their legal owning edge. */
-        if(raw_type==AST_SELECT_ARM) {
-            ASTSelect* owner=(ASTSelect*)ast_create(AST_SELECT);
-            if(!owner) { fprintf(stderr,"context owner allocation failed for tag %d.\\n",raw_type); ast_destroy(original); return 1; }
-            owner->selector=make_identifier_fixture("select_owner");
-            if(!owner->selector) { fprintf(stderr,"select owner selector allocation failed.\\n"); ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
-            owner->arms=original;
-            root=(ASTNode*)owner;
-        } else if(raw_type==AST_SCAN_ARM) {
-            ASTScan* owner=(ASTScan*)ast_create(AST_SCAN);
-            if(!owner) { ast_destroy(original); return 1; }
-            owner->subject=make_identifier_fixture("scan_owner");
-            if(!owner->subject) { fprintf(stderr,"scan owner subject allocation failed.\\n"); ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
-            owner->arms=original;
-            root=(ASTNode*)owner;
-        } else if(raw_type==AST_ARRAY_DIMENSION) {
-            ASTArrayType* owner=(ASTArrayType*)ast_create(AST_ARRAY_TYPE);
-            if(!owner) { ast_destroy(original); return 1; }
-            owner->dimensions=original;
-            root=(ASTNode*)owner;
-        } else if(raw_type==AST_METHOD) {
-            ASTGroupDecl* owner=(ASTGroupDecl*)ast_create(AST_GROUP_DECL);
-            if(!owner) { ast_destroy(original); return 1; }
-            owner->name=duplicate_text("method_owner");
-            if(!owner->name) { ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
-            owner->members=original;
-            root=(ASTNode*)owner;
-        }
+        root=wrap_contextual_fixture((ASTNodeType)raw_type,original);
+        if(!root) { ast_destroy(original); return 1; }
 
         FILE* first = tmpfile();
         FILE* second = tmpfile();
@@ -698,28 +761,8 @@ static int roundtrips_all_node_type_tags(void) {
             ast_destroy(original);
             return 1;
         }
-        root=original;
-        /* Contextual tags are tested as children of their normative owner. */
-        if(raw_type==AST_SELECT_ARM) {
-            ASTSelect* owner=(ASTSelect*)ast_create(AST_SELECT);
-            if(!owner) { ast_destroy(original); return 1; }
-            owner->selector=make_identifier_fixture("select_owner");
-            if(!owner->selector) { ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
-            owner->arms=original;
-            root=(ASTNode*)owner;
-        } else if(raw_type==AST_SCAN_ARM) {
-            ASTScan* owner=(ASTScan*)ast_create(AST_SCAN);
-            if(!owner) { ast_destroy(original); return 1; }
-            owner->subject=make_identifier_fixture("scan_owner");
-            if(!owner->subject) { ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
-            owner->arms=original;
-            root=(ASTNode*)owner;
-        } else if(raw_type==AST_ARRAY_DIMENSION) {
-            ASTArrayType* owner=(ASTArrayType*)ast_create(AST_ARRAY_TYPE);
-            if(!owner) { ast_destroy(original); return 1; }
-            owner->dimensions=original;
-            root=(ASTNode*)owner;
-        }
+        root=wrap_contextual_fixture((ASTNodeType)raw_type,original);
+        if(!root) { ast_destroy(original); return 1; }
         original->line = 100 + raw_type;
         original->col = 200 + raw_type;
         sibling = ast_create(AST_IDENTIFIER);
@@ -742,13 +785,7 @@ static int roundtrips_all_node_type_tags(void) {
         ASTNode* decoded = ast_deserialize(stream);
         fclose(stream);
 
-        ASTNode* decoded_target=decoded;
-        if(raw_type==AST_SELECT_ARM && decoded)
-            decoded_target=((ASTSelect*)decoded)->arms;
-        else if(raw_type==AST_SCAN_ARM && decoded)
-            decoded_target=((ASTScan*)decoded)->arms;
-        else if(raw_type==AST_ARRAY_DIMENSION && decoded)
-            decoded_target=((ASTArrayType*)decoded)->dimensions;
+        ASTNode* decoded_target=contextual_fixture_target((ASTNodeType)raw_type,decoded);
 
         int valid = decoded && decoded_target &&
             decoded_target->type == (ASTNodeType)raw_type &&
