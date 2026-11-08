@@ -11,6 +11,17 @@ static int expect(ASTNode *root, ASTValidationCode code) {
         : !valid && error.code == code;
 }
 
+static int rejects_block_statement_context(ASTNodeType type) {
+    ASTNode* block=ast_create(AST_BLOCK);
+    ASTNode* child=ast_create(type);
+    int rejected;
+    if(!block || !child) { ast_destroy(block); ast_destroy(child); return 0; }
+    ((ASTBlock*)block)->statements=child;
+    rejected=expect(block,AST_VALIDATE_INVALID_KIND);
+    ast_destroy(block);
+    return rejected;
+}
+
 int main(void) {
     /* Source-span API preserves the start-position compatibility mirrors. */
     {
@@ -264,6 +275,57 @@ int main(void) {
         call->callee=(ASTNode*)callee;
         call->args=(ASTNode*)named;
         ast_destroy((ASTNode*)call);
+    }
+
+    /* Context-bound tags cannot be moved into an unrelated statement list. */
+    {
+        const ASTNodeType invalid_statement_tags[] = {
+            AST_SELECT_ARM, AST_SCAN_ARM, AST_STRUCT_FIELD_INIT,
+            AST_ARRAY_DIMENSION, AST_VARIADIC_PARAM, AST_MUST_DECL,
+            AST_NAMED_ARG, AST_ASM_LABEL
+        };
+        size_t i;
+        for(i=0u;i<sizeof(invalid_statement_tags)/sizeof(invalid_statement_tags[0]);++i) {
+            if(!rejects_block_statement_context(invalid_statement_tags[i])) {
+                fprintf(stderr,"context-bound AST tag accepted in AST_BLOCK.statements: %d\\n",
+                    (int)invalid_statement_tags[i]);
+                return 1;
+            }
+        }
+    }
+
+    /* Variadic marker must occupy the params edge, not another function edge. */
+    {
+        ASTFuncDecl* fn=(ASTFuncDecl*)ast_create(AST_FUNC_DECL);
+        ASTVariadicParam* variadic=(ASTVariadicParam*)ast_create(AST_VARIADIC_PARAM);
+        if(!fn || !variadic) return 1;
+        fn->name=(char*)malloc(sizeof("wrong_edge"));
+        if(!fn->name) return 1;
+        strcpy(fn->name,"wrong_edge");
+        fn->body=(ASTNode*)variadic;
+        if(!expect((ASTNode*)fn,AST_VALIDATE_INVALID_KIND)) {
+            fprintf(stderr,"variadic marker accepted outside function params\\n");
+            ast_destroy((ASTNode*)fn); return 1;
+        }
+        ast_destroy((ASTNode*)fn);
+    }
+
+    /* Block cleanup is not a generic expression/branch child. */
+    {
+        ASTIf* conditional=(ASTIf*)ast_create(AST_IF);
+        ASTNode* condition=ast_create(AST_LITERAL);
+        ASTNode* halt=ast_create(AST_BLOCK_HALT);
+        if(!conditional || !condition || !halt) return 1;
+        ((ASTLiteral*)condition)->string_value=(char*)malloc(2u);
+        if(!((ASTLiteral*)condition)->string_value) return 1;
+        strcpy(((ASTLiteral*)condition)->string_value,"1");
+        conditional->condition=condition;
+        conditional->then_branch=halt;
+        if(!expect((ASTNode*)conditional,AST_VALIDATE_INVALID_KIND)) {
+            fprintf(stderr,"block cleanup accepted as AST_IF.then_branch\\n");
+            ast_destroy((ASTNode*)conditional); return 1;
+        }
+        ast_destroy((ASTNode*)conditional);
     }
 
     /* Invalid enum values must fail before payload dispatch. */
