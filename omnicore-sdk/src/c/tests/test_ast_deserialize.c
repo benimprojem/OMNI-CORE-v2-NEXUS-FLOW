@@ -1360,24 +1360,24 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Usage: test_ast_deserialize <invalid-output-path>\n");
         return 9;
     }
-    if (roundtrips_versioned_source_spans() != 0) return 15;
-    if (reads_v1_function_stream_without_v2_return_child() != 0) return 22;
-    if (rejects_ast_decode_allocation_failures() != 0) return 23;
-    if (roundtrips_fast_exec_asm_payload() != 0) return 19;
-    if (roundtrips_contextual_ast_tags() != 0) return 21;
-    if (reads_unprefixed_legacy_stream() != 0) return 16;
-    if (rejects_unknown_ast_stream_version() != 0) return 17;
-    if (rejects_truncated_ast_stream_prefixes() != 0) return 18;
-    if (rejects_all_truncated_ast_payload_prefixes() != 0) return 20;
-    if (roundtrips_populated_ast_types() != 0) return 11;
-    if (roundtrips_all_node_type_tags() != 0) return 8;
-    if (roundtrips_struct_literal_nodes() != 0) return 19;
-    if (roundtrips_block_halt_tag() != 0) return 14;
-    if (roundtrips_extern_decl() != 0) return 7;
-    if (roundtrips_special_nodes() != 0) return 4;
-    if (roundtrips_large_sibling_list() != 0) return 5;
-    if (!destroys_very_large_sibling_list()) return 12;
-    if (!rejects_excessive_serialization_depth()) return 13;
+    if (roundtrips_versioned_source_spans() != 0) { fprintf(stderr, "roundtrips_versioned_source_spans failed.\\n"); return 15; }
+    if (reads_v1_function_stream_without_v2_return_child() != 0) { fprintf(stderr, "reads_v1_function_stream_without_v2_return_child failed.\\n"); return 22; }
+    if (rejects_ast_decode_allocation_failures() != 0) { fprintf(stderr, "rejects_ast_decode_allocation_failures failed.\\n"); return 23; }
+    if (roundtrips_fast_exec_asm_payload() != 0) { fprintf(stderr, "roundtrips_fast_exec_asm_payload failed.\\n"); return 19; }
+    if (roundtrips_contextual_ast_tags() != 0) { fprintf(stderr, "roundtrips_contextual_ast_tags failed.\\n"); return 21; }
+    if (reads_unprefixed_legacy_stream() != 0) { fprintf(stderr, "reads_unprefixed_legacy_stream failed.\\n"); return 16; }
+    if (rejects_unknown_ast_stream_version() != 0) { fprintf(stderr, "rejects_unknown_ast_stream_version failed.\\n"); return 17; }
+    if (rejects_truncated_ast_stream_prefixes() != 0) { fprintf(stderr, "rejects_truncated_ast_stream_prefixes failed.\\n"); return 18; }
+    if (rejects_all_truncated_ast_payload_prefixes() != 0) { fprintf(stderr, "rejects_all_truncated_ast_payload_prefixes failed.\\n"); return 20; }
+    if (roundtrips_populated_ast_types() != 0) { fprintf(stderr, "roundtrips_populated_ast_types failed.\\n"); return 11; }
+    if (roundtrips_all_node_type_tags() != 0) { fprintf(stderr, "roundtrips_all_node_type_tags failed.\\n"); return 8; }
+    if (roundtrips_struct_literal_nodes() != 0) { fprintf(stderr, "roundtrips_struct_literal_nodes failed.\\n"); return 19; }
+    if (roundtrips_block_halt_tag() != 0) { fprintf(stderr, "roundtrips_block_halt_tag failed.\\n"); return 14; }
+    if (roundtrips_extern_decl() != 0) { fprintf(stderr, "roundtrips_extern_decl failed.\\n"); return 7; }
+    if (roundtrips_special_nodes() != 0) { fprintf(stderr, "roundtrips_special_nodes failed.\\n"); return 4; }
+    if (roundtrips_large_sibling_list() != 0) { fprintf(stderr, "roundtrips_large_sibling_list failed.\\n"); return 5; }
+    if (!destroys_very_large_sibling_list()) { fprintf(stderr, "destroys_very_large_sibling_list failed.\\n"); return 12; }
+    if (!rejects_excessive_serialization_depth()) { fprintf(stderr, "rejects_excessive_serialization_depth failed.\\n"); return 13; }
     if (!parser_save_ir_rejects_invalid_path(argv[1])) return 10;
 
     struct {
