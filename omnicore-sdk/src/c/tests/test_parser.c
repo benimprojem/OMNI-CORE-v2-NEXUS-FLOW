@@ -864,8 +864,30 @@ static int test_select_scan_ast(void) {
     ASTNode* node;
     FILE* stream;
     ASTNode* decoded;
+    const char* select_start=strstr(source,"select(x)");
+    const char* select_first_start=strstr(source,"1 when x > 0");
+    const char* select_first_end=strstr(source,"v:a = 2; }");
+    const char* select_fallback_start=strstr(source,"default ->");
+    const char* select_fallback_end=strstr(source,"v:b = 3; }");
+    const char* select_end=strstr(source,"default -> { v:b = 3; } }");
+    const char* scan_start=strstr(source,"scan(x)");
+    const char* scan_first_start=strstr(source,"Range(s,e)");
+    const char* scan_first_end=strstr(source,"v:c = s; }");
+    const char* scan_else_start=strstr(source,"else ->");
+    const char* scan_else_end=strstr(source,"v:fallback = 0; }");
+    const char* scan_end=strstr(source,"else -> { v:fallback = 0; } }");
     int ok=0;
     if(!ctx)return 0;
+    if(!select_start || !select_first_start || !select_first_end ||
+       !select_fallback_start || !select_fallback_end || !select_end ||
+       !scan_start || !scan_first_start || !scan_first_end ||
+       !scan_else_start || !scan_else_end || !scan_end) goto done;
+    select_first_end+=strlen("v:a = 2; }");
+    select_fallback_end+=strlen("v:b = 3; }");
+    select_end+=strlen("default -> { v:b = 3; } }");
+    scan_first_end+=strlen("v:c = s; }");
+    scan_else_end+=strlen("v:fallback = 0; }");
+    scan_end+=strlen("else -> { v:fallback = 0; } }");
     if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count || !ctx->ast_root)goto done;
     program=(ASTProgram*)ctx->ast_root;
     function=(ASTFuncDecl*)program->declarations;
@@ -887,7 +909,16 @@ static int test_select_scan_ast(void) {
             ((ASTIf*)first->body)->condition->type!=AST_BINARY_EXPR ||
             ((ASTBinaryExpr*)((ASTIf*)first->body)->condition)->op!=TOKEN_GT ||
             !fallback || fallback->base.type!=AST_SELECT_ARM || !fallback->is_default ||
-            fallback->pattern!=NULL)goto done;
+            fallback->pattern!=NULL ||
+            !select_node->base.source_span.has_location ||
+            select_node->base.source_span.start_offset!=(uint64_t)(select_start-source) ||
+            select_node->base.source_span.end_offset!=(uint64_t)(select_end-source) ||
+            !first->base.source_span.has_location ||
+            first->base.source_span.start_offset!=(uint64_t)(select_first_start-source) ||
+            first->base.source_span.end_offset!=(uint64_t)(select_first_end-source) ||
+            !fallback->base.source_span.has_location ||
+            fallback->base.source_span.start_offset!=(uint64_t)(select_fallback_start-source) ||
+            fallback->base.source_span.end_offset!=(uint64_t)(select_fallback_end-source))goto done;
     }
     node=node->next;
     if(!node || node->type!=AST_SCAN)goto done;
@@ -911,7 +942,16 @@ static int test_select_scan_ast(void) {
             ASTScanArm* second=(ASTScanArm*)first->base.next;
             ASTScanArm* fallback=second?(ASTScanArm*)second->base.next:NULL;
             if(!second || !second->pattern || !fallback || fallback->pattern ||
-                !fallback->body)goto done;
+                !fallback->body ||
+                !scan_node->base.source_span.has_location ||
+                scan_node->base.source_span.start_offset!=(uint64_t)(scan_start-source) ||
+                scan_node->base.source_span.end_offset!=(uint64_t)(scan_end-source) ||
+                !first->base.source_span.has_location ||
+                first->base.source_span.start_offset!=(uint64_t)(scan_first_start-source) ||
+                first->base.source_span.end_offset!=(uint64_t)(scan_first_end-source) ||
+                !fallback->base.source_span.has_location ||
+                fallback->base.source_span.start_offset!=(uint64_t)(scan_else_start-source) ||
+                fallback->base.source_span.end_offset!=(uint64_t)(scan_else_end-source))goto done;
         }
     }
     stream=tmpfile();
