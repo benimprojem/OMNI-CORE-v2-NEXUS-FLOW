@@ -1968,6 +1968,8 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
                 strcmp(s->active_fields[s->active_count-1u],"implementation")==0;
             if((!function->name || !*function->name) && !group_method_implementation)
                 return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"name");
+            if(function->linkname)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"linkname_extern_only");
             V(function->params,"params");
             R(function->body,"body");
             V(function->return_array_type,"return_array_type");
