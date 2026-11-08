@@ -1238,3 +1238,16 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - AST graph validation now requires `AST_ENUM_VARIANT` to be a child of `AST_ENUM_DECL.variants`. All-tag codec fixtures wrap the variant in its legal owner; negative validator fixtures reject it as an unrelated block statement.
 - CI run `42470807011` passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind (5/5) after the Enum ownership and parser cleanup fixes.
 - **AST remains open:** complete the syntax-production inventory, broaden exact spans to remaining source forms, add remaining malformed owner-edge/position cases, and audit parser allocation failure at all partial-child boundaries. No Codegen work is unblocked.\n- Confirmed `nt:` means New Type and is the Nexus Flow `typedef`-equivalent declaration prefix; `nt:enum:` is the Enum declaration form within that family. No syntax change was made. The dedicated Enum fixture now mirrors the reference's newline-separated variant form.\n- CI run `42480076522` passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan, Valgrind); Ubuntu CTest 60/60.\n- Parser matrix reconciliation: `test_intrinsic_ast_family()` asserts exact byte offsets and line/column endpoints for all 32 generic intrinsic AST tags; documentation now records the actual coverage.\n\n- Added nested-block exact-span regression: verifies outer and inner block byte offsets, start/end line-column coordinates, nested statement ownership, graph validity and codec round-trip. CI run `42480323113` passed all five jobs; Ubuntu CTest 60/60.\n\n- Added exact source-span checks for `Range(s,e)` constructor patterns, both bindings, and simple `item` binding in `scan`; select/scan roots and arm spans remain covered.\n- Callback type parser now accepts canonical `f:(params)!ReturnType`; legacy `f:(params)>!ReturnType` remains accepted and is normalized to canonical text. Tests cover both forms, callback parameter storage, invocation and malformed return rejection. The syntax reference and AST matrices were reconciled.\n- CI run `42480623594` passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind (5/5); Ubuntu CTest 60/60.\n- **Remaining AST architecture gap:** type signatures are still stored as strings in `type_name` / `target_type`; a unified recursive type-expression AST (for nested function/callback types and consistent pointer/reference/array composition) is not implemented. Do not mark AST complete until this is designed and tested.\n
+
+## 10. EXF / Linkname AST notu (2026-11-08)
+
+Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
+
+- `!!=linkname = "...";` dış object/library bağlantı kaynağını belirtir.
+- `exf:name(params)!return_type;` yalnızca bildirilen dış fonksiyon sembolünü Nexus Flow arayüzüne açar.
+- Linkname, tüm kütüphane sembollerini otomatik açmaz; OCL linker yalnız EXF ile ilan edilen sembolleri çözümleme kapsamına alır.
+- Bir linkname kaynağı birden fazla EXF bildirimiyle ilişkilendirilebilir.
+- AST, EXF imzasını ve linkname–EXF ilişkisini kayıpsız korumalıdır. ABI/object-format ve gerçek OCL linker işi ileriki aşamadır.
+- AST'de mevcut node/metadata yapısı denetlenmeden yeni node veya linker altyapısı eklenmeyecek.
+
+**Durum:** Dil/spec kararı belgelendi; AST uygulama/test parity henüz ayrıca doğrulanmadı (tamamlandı işaretlenmez).
