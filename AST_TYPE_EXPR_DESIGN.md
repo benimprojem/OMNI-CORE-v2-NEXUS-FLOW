@@ -1,6 +1,6 @@
 # AST Type Expression Model — Design Draft
 
-**Status:** Draft / AST implementation not yet started  
+**Status:** Implementation phase 1 — recursive node, declaration attachment fields, AST codec v4 and OIR AST handoff are in progress; Parser construction and full integration tests remain open  
 **Branch:** `refactor/c-core-roadmap`  
 **Scope:** C AST + parser representation only. Semantic meaning, ABI validation and lowering remain later stages.
 
@@ -31,16 +31,16 @@ Introduce a common `AST_TYPE_EXPR` root tag and explicit kinds represented by ap
 - **Function type:** ordered parameter type list, optional variadic marker, and one return type child. Callback/function type must remain distinct from callable expression/lambda nodes.
 - **Qualifier/modifier:** preserve hard-typing/coercion markers and any type-local syntax modifiers without conflating them with the underlying named type.
 
-Exact C structs and node IDs will be finalized after reviewing AST ownership conventions and parser token grammar. Avoid one tag per primitive scalar; primitive names stay in named-type payload.
+Implemented append-only `AST_TYPE_EXPR` with `ASTTypeExprKind` values `NAMED`, `POINTER`, `REFERENCE`, `ARRAY`, `FUNCTION`, and `QUALIFIED`. Primitive names stay in the named-type payload; wrapper nodes own their child/parameter/dimension subtrees. OIR kind 108 is reserved for this node.
 
 ## 4. Integration targets
 
-Structured type expressions should eventually be attached to:
+Structured type expressions are being attached to:
 
-- variable declarations and parameters;
-- function and EXF parameter/return signatures;
+- variable declarations and parameters (`ASTVarDecl.type_expr`);
+- function and EXF return signatures (`ASTFuncDecl.return_type_expr`); parameters use `ASTVarDecl.type_expr`;
 - callback/function type declarations and nested callbacks;
-- NewType targets;
+- NewType targets (`ASTNewTypeDecl.target_type_expr`);
 - array element types and dimensions;
 - casts and other explicit type operands where current AST uses text or expression-shaped placeholders.
 
@@ -50,7 +50,7 @@ EXF additionally needs external symbol name and the declared linkage source rela
 
 1. Audit all type-bearing fields and parser functions; create a field-to-type-expression inventory.
 2. Freeze the C representation and ownership table; append node tags only after this review.
-3. Add constructors/destructor/validator/serializer/deserializer/debug-printer/schema support.
+3. Add constructors/destructor/validator/serializer/deserializer/debug-printer/schema support. **Node core and declaration attachment fields are now implemented; Parser population is still pending.**
 4. Add parser construction for the existing syntax (no grammar redesign).
 5. Add positive, malformed, nested, ownership and allocation-failure tests.
 6. Keep legacy string fields synchronized during transition and verify codec round-trip.
@@ -63,3 +63,10 @@ EXF additionally needs external symbol name and the declared linkage source rela
 - Pointer safety, nullability, mutability, aliasing, borrow/lifetime and dangling-reference analysis.
 - External ABI/calling convention/object-format checks and OCL linker implementation.
 - Codegen/backend representation.
+
+## 7. Implementation checkpoint (2026-11-08)
+
+- Added append-only `AST_TYPE_EXPR` and the six type-expression kinds. Ownership, destruction, validation, debug printing and AST stream v4 serialization/deserialization are implemented.
+- Added optional structured type slots to `ASTVarDecl`, `ASTFuncDecl` and `ASTNewTypeDecl`; legacy string fields remain intact. AST stream v1–v3 readers remain supported, and pre-v4 streams reject the new node tag.
+- Added OIR node kind 108, schema fields, child traversal, writer/reader reconstruction and an OIR round-trip test using a pointer-to-`i32` variable type.
+- **Not complete:** Parser does not yet populate these slots. Function callback signatures, parser spans, malformed nested-type tests, allocation-failure coverage and full CI must pass before this design can be marked complete.
