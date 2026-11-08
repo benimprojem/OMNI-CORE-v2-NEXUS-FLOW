@@ -1181,6 +1181,11 @@ static int reads_v1_function_stream_without_v2_return_child(void) {
         decoded->name && strcmp(decoded->name,"fixture_function")==0 &&
         decoded->params && decoded->body && !decoded->return_array_type &&
         ast_validate((ASTNode*)decoded,NULL);
+    if(!valid) fprintf(stderr,"v1 codec debug decoded=%p params=%p body=%p return_array=%p name=%s validate=%d\\n",
+        (void*)decoded,decoded?(void*)decoded->params:NULL,decoded?(void*)decoded->body:NULL,
+        decoded?(void*)decoded->return_array_type:NULL,
+        decoded&&decoded->name?decoded->name:"<null>",
+        decoded?ast_validate((ASTNode*)decoded,NULL):0);
 done:
     if(stream) fclose(stream);
     free(bytes);
