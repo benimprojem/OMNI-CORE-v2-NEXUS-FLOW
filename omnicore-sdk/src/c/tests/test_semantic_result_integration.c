@@ -547,7 +547,155 @@ static int test_group_semantic_records(void) {
     return ok;
 }
 
+static int test_struct_literal_semantic_records(void) {
+    static const char source[] =
+        "f:main() {"
+        " struct: Point { v:x!i32, v:y!i32 }"
+        " v:p!Point = Point { y = 2, x = 1 };"
+        "}";
+    ParserContext* parser = parser_init_source(
+        "struct-literal-semantic-result.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    OirAstPointerIndexEntry index[128];
+    ResolverContext resolver;
+    SemanticContext semantic;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTStructDecl* declaration;
+    ASTVarDecl* variable;
+    ASTStructLiteral* literal;
+    ASTNode* field_node;
+    uint32_t node_count = 0u, struct_symbol_id = 0u, nominal_type_id = 0u;
+    uint32_t i, i32_type_id = 0u;
+    int saw_literal_annotation = 0;
+    int saw_x_relation = 0, saw_y_relation = 0;
+    int saw_x_initializer = 0, saw_y_initializer = 0;
+    int ok = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK ||
+        parser->error_count != 0 || !parser->ast_root) goto done;
+    memset(index, 0, sizeof(index));
+    if (oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
+            index, 128u, &node_count) != OIR_STATUS_OK) goto done;
+    resolver.entries = index;
+    resolver.capacity = 128u;
+
+    function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    body = function && function->body && function->body->type == AST_BLOCK
+        ? (ASTBlock*)function->body : NULL;
+    declaration = body && body->statements &&
+        body->statements->type == AST_STRUCT_DECL
+            ? (ASTStructDecl*)body->statements : NULL;
+    variable = declaration && declaration->base.next &&
+        declaration->base.next->type == AST_VAR_DECL
+            ? (ASTVarDecl*)declaration->base.next : NULL;
+    literal = variable && variable->initializer &&
+        variable->initializer->type == AST_STRUCT_LITERAL
+            ? (ASTStructLiteral*)variable->initializer : NULL;
+    if (!declaration || !variable || !literal || !literal->fields) goto done;
+
+    semantic_init(&semantic, "struct-literal-semantic-result.nxf", NULL);
+    semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    if (semantic.error_count != 0 ||
+        semantic.result_status != SEMANTIC_RESULT_OK ||
+        semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
+        semantic_destroy(&semantic);
+        goto done;
+    }
+
+    for (i = 0u; i < semantic.result.symbol_count; ++i) {
+        const SemanticResultSymbol* symbol = &semantic.result.symbols[i];
+        if (symbol->declaration_node_id ==
+                resolve_node_id(&resolver, (ASTNode*)declaration) &&
+            symbol->kind == SEMANTIC_RESULT_SYMBOL_STRUCT &&
+            symbol->name && strcmp(symbol->name, "Point") == 0) {
+            struct_symbol_id = symbol->symbol_id;
+            nominal_type_id = symbol->type_id;
+        }
+    }
+    for (i = 0u; i < semantic.result.type_count; ++i) {
+        const SemanticResultType* type = &semantic.result.types[i];
+        if (type->name && strcmp(type->name, "i32") == 0 &&
+            type->kind == SEMANTIC_RESULT_TYPE_PRIMITIVE &&
+            (type->flags & SEMANTIC_RESULT_TYPE_FLAG_HARD) == 0u) {
+            i32_type_id = type->type_id;
+        }
+    }
+    for (i = 0u; i < semantic.result.annotation_count; ++i) {
+        const SemanticResultAnnotation* annotation =
+            &semantic.result.annotations[i];
+        if (annotation->node_id ==
+                resolve_node_id(&resolver, (ASTNode*)literal) &&
+            annotation->resolved_symbol_id == struct_symbol_id &&
+            annotation->resolved_type_id == nominal_type_id &&
+            annotation->value_category == SEMANTIC_RESULT_VALUE_RVALUE &&
+            struct_symbol_id != 0u && nominal_type_id != 0u) {
+            saw_literal_annotation = 1;
+        }
+    }
+    for (i = 0u; i < semantic.result.relation_count; ++i) {
+        const SemanticResultRelation* relation = &semantic.result.relations[i];
+        if (relation->owner_symbol_id != struct_symbol_id ||
+            relation->kind != SEMANTIC_RESULT_RELATION_AGGREGATE_FIELD)
+            continue;
+        if (relation->name && strcmp(relation->name, "x") == 0 &&
+            relation->ordinal == 0u && relation->related_symbol_id == 0u &&
+            relation->related_node_id ==
+                resolve_node_id(&resolver, declaration->fields)) {
+            saw_x_relation = 1;
+        }
+        if (relation->name && strcmp(relation->name, "y") == 0 &&
+            relation->ordinal == 1u && relation->related_symbol_id == 0u &&
+            relation->related_node_id ==
+                resolve_node_id(&resolver, declaration->fields->next)) {
+            saw_y_relation = 1;
+        }
+    }
+    for (field_node = literal->fields; field_node; field_node = field_node->next) {
+        ASTStructFieldInit* initializer = (ASTStructFieldInit*)field_node;
+        uint32_t initializer_id = resolve_node_id(&resolver, field_node);
+        uint32_t value_id = resolve_node_id(&resolver, initializer->value);
+        int found_initializer = 0, found_value = 0;
+        for (i = 0u; i < semantic.result.annotation_count; ++i) {
+            const SemanticResultAnnotation* annotation =
+                &semantic.result.annotations[i];
+            if (annotation->node_id == initializer_id &&
+                annotation->resolved_symbol_id == 0u &&
+                annotation->resolved_type_id == i32_type_id &&
+                i32_type_id != 0u) found_initializer = 1;
+            if (annotation->node_id == value_id &&
+                annotation->resolved_type_id == i32_type_id &&
+                i32_type_id != 0u) found_value = 1;
+        }
+        if (initializer->name && strcmp(initializer->name, "y") == 0) {
+            saw_y_initializer = found_initializer && found_value;
+        } else if (initializer->name && strcmp(initializer->name, "x") == 0) {
+            saw_x_initializer = found_initializer && found_value;
+        }
+    }
+
+    ok = saw_literal_annotation && saw_x_relation && saw_y_relation &&
+        saw_x_initializer && saw_y_initializer;
+    if (!ok) {
+        fprintf(stderr,
+            "Struct literal SemanticResult mismatch: symbol=%u type=%u i32=%u literal=%d relations=%d/%d initializers=%d/%d\\n",
+            struct_symbol_id, nominal_type_id, i32_type_id,
+            saw_literal_annotation, saw_x_relation, saw_y_relation,
+            saw_x_initializer, saw_y_initializer);
+    }
+    semantic_destroy(&semantic);
+done:
+    parser_destroy(parser);
+    return ok;
+}
+
 int main(void) {
+    if(!test_struct_literal_semantic_records()) {
+        fprintf(stderr,"Struct literal SemanticResult relation integration failed.\\n");
+        return 1;
+    }
     if(!test_group_semantic_records()) {
         fprintf(stderr,"Group SemanticResult record integration failed.\n");
         return 1;
