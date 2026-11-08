@@ -2371,10 +2371,15 @@ static int parser_parse_type_name(Parser* p, char** out,
     return 1;
 }
 
-/* Build the structured form for the currently supported named, pointer and
- * reference spellings. Function signatures remain on the legacy string path
- * until their parameter list is represented as ASTVarDecl children.
- */
+static ASTNode* parser_build_type_expr(
+    Parser* p, const char* spelling, const Token* first, const Token* last,
+    int hard_typed
+);
+static ASTNode* parser_build_function_type_expr(
+    Parser* p, const char* spelling, const Token* first, const Token* last
+);
+
+/* Build recursive named, pointer, reference, qualified and function types. */
 static ASTNode* parser_build_type_expr(
     Parser* p, const char* spelling, const Token* first, const Token* last,
     int hard_typed
@@ -2386,11 +2391,15 @@ static ASTNode* parser_build_type_expr(
     ASTTypeExpr* named=NULL;
 
     if(!p || !spelling || !*spelling || !first || !last) return NULL;
-    if(strncmp(spelling,"f:(",3u)==0) return NULL;
     if(spelling[offset]=='!') { hard_typed=1; ++offset; }
+    if(strncmp(spelling+offset,"f:(",3u)==0) {
+        root=parser_build_function_type_expr(p,spelling+offset,first,last);
+        if(!root) return NULL;
+        goto apply_qualifier;
+    }
     while(spelling[offset]=='*') { ++pointer_depth; ++offset; }
     if(spelling[offset]=='&') { is_reference=1; ++offset; }
-    if(!spelling[offset]) return NULL;
+    if(!spelling[offset] || strchr(spelling+offset,'[')) return NULL;
 
     named=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
     if(!named) return NULL;
@@ -2421,6 +2430,7 @@ static ASTNode* parser_build_type_expr(
         parser_stamp_node_tokens(p,(ASTNode*)wrapper,first,last);
         root=(ASTNode*)wrapper;
     }
+apply_qualifier:
     if(hard_typed) {
         ASTTypeExpr* qualifier=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
         if(!qualifier) { ast_destroy(root); return NULL; }
