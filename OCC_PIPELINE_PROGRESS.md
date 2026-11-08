@@ -1190,3 +1190,5 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - SemanticResult unit testine Pointer→Pointer ve Reference base ilişkisi/interner ayrımı eklendi.
 - **Test/build/CI henüz çalıştırılmadı.** Semantic parser testleri, OIR type round-trip/Verifier testleri ve schema 1.2 legacy artifact regression eklenip doğrulanmalı. Bu slice tamamlandı sayılmaz.
 - Sonraki: semantic type compatibility'yi pointer/ref layer eşitliği + base type identity ile kontrol eden ortak helper; ardından nullability/mutability/alias/lifetime kurallarını ayrı kararlar olarak spesifikasyona bağlamak. Codegen kapalı.
+
+- CI ilk denemesi run `42460134137`: derleme başarılı, CTest 59/60; tek başarısız test `semantic_checker_persistent_result_integration` içindeki sabit schema-minor=2 beklentisiydi. Test beklentisi 1.3'e güncellendi; yeni CI run `42460211363` queued/in progress, sonuç bekleniyor. Pointer/reference kodu bu nedenle henüz yeşil CI doğrulamasına sahip değil.
