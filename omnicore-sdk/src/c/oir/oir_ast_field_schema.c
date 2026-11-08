@@ -45,6 +45,7 @@ static uint16_t required_field_count(uint16_t kind) {
         case 104: return 1u;
         case 105: return 2u;
         case 106: case 107: return 2u;
+        case 108: return 6u;
         default: return UINT16_MAX;
     }
 }
@@ -130,6 +131,10 @@ static uint8_t expected_type(uint16_t kind, uint16_t field_id) {
         case 105: return OIR_AST_VALUE_STRING_REF;
         case 106: case 107:
             return field_id == 1u ? OIR_AST_VALUE_STRING_REF : OIR_AST_VALUE_NODE_REF;
+        case 108:
+            if(field_id<=2u)return OIR_AST_VALUE_U32;
+            if(field_id==3u)return OIR_AST_VALUE_STRING_REF;
+            return OIR_AST_VALUE_NODE_REF;
         default: return UINT8_MAX;
     }
 }
@@ -140,7 +145,7 @@ static int is_nullable_string(uint16_t kind, uint16_t field_id) {
         case 3: case 4: case 5: case 6: case 7: case 8: case 9:
         case 10: case 11: case 12: case 13: case 14: case 20:
         case 30: case 33: case 34: case 36: case 37: case 39:
-        case 41: case 70: case 71: case 85: case 86: case 87: case 92: case 93:
+        case 41: case 70: case 71: case 85: case 86: case 87: case 92: case 93: case 108:
             return 1;
         default:
             return 0;
