@@ -1,13 +1,13 @@
 # OIR AST Node Registry v1
 
 **Status:** Initial stable-ID registry proposal for AST payload schema 1.0  
-**Source inventory:** 107 registered node kinds; append-only C frontend additions extend the original registry through kind 107  
+**Source inventory:** 108 registered node kinds; append-only C frontend additions extend the original registry through kind 108  
 **Rule:** OIR IDs are explicit wire identifiers. They are not C enum ordinals, sizeof values, or compiler pointers.
 
 ## Registry rules
 
-- IDs 1–107 are assigned to the current node-kind inventory below.
-- New node kinds append after 107; published IDs are never renumbered or reused.
+- IDs 1–108 are assigned to the current node-kind inventory below.
+- New node kinds append after 108; published IDs are never renumbered or reused.
 - A removed node kind remains reserved.
 - Unknown required node kinds are rejected.
 - Each node kind has a field-ID namespace local to that kind. Existing field IDs are never reused.
@@ -125,6 +125,7 @@
 | 105 | `AST_ASM_LABEL` | Inline ASM label and exact raw source body |
 | 106 | `AST_STRUCT_LITERAL` | Nominal Struct literal; type name and ordered field initializers |
 | 107 | `AST_STRUCT_FIELD_INIT` | Named Struct field initializer and its value expression |
+| 108 | `AST_TYPE_EXPR` | Recursive named, pointer, reference, array, function or qualified type syntax |
 
 ## Field IDs and value types
 
@@ -231,6 +232,9 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_STRUCT_LITERAL | 2 | ordered field initializers | NODE_REF |
 | AST_STRUCT_FIELD_INIT | 1 | field name | STRING_REF / NULL |
 | AST_STRUCT_FIELD_INIT | 2 | initializer value | NODE_REF |
+| AST_VAR_DECL | 9 | optional recursive declared type expression | NODE_REF |
+| AST_FUNC_DECL, AST_EXTERN_DECL | 10 | optional recursive return type expression | NODE_REF |
+| AST_NEWTYPE_DECL | 3 | optional recursive target type expression | NODE_REF |
 | AST_TYPE_EXPR | 1 | recursive type-expression kind | U32 |
 | AST_TYPE_EXPR | 2 | type-local syntax flags | U32 |
 | AST_TYPE_EXPR | 3 | named type payload (NULL for wrapper kinds) | STRING_REF / NULL |
