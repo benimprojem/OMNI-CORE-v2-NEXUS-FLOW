@@ -135,14 +135,15 @@ int main(void) {
 
 
     {
-        const uint8_t names[] = { 'i', '3', '2', 'W', 'i', 'd', 'g', 'e', 't' };
+        const uint8_t names[] = { 'i', '3', '2', 'W', 'i', 'd', 'g', 'e', 't', '*' };
         const OirSemanticType types[] = {
             { 1u, OIR_SEMANTIC_TYPE_PRIMITIVE, 0u, 0u, 3u, 0u, 0u },
             { 2u, OIR_SEMANTIC_TYPE_USER_DEFINED, OIR_SEMANTIC_TYPE_FLAG_HARD,
-                3u, 6u, 7u, 1u }
+                3u, 6u, 7u, 1u },
+            { 3u, OIR_SEMANTIC_TYPE_POINTER, 0u, 9u, 1u, 0u, 1u }
         };
         uint8_t type_bytes[OIR_SEMANTIC_TYPES_HEADER_SIZE +
-            2u * OIR_SEMANTIC_TYPE_RECORD_SIZE + sizeof(names)];
+            3u * OIR_SEMANTIC_TYPE_RECORD_SIZE + sizeof(names)];
         uint8_t type_second[sizeof(type_bytes)];
         uint8_t type_bad[sizeof(type_bytes)];
         size_t type_written = 0u;
@@ -151,12 +152,12 @@ int main(void) {
         OirSemanticType decoded_type;
         const uint8_t* decoded_name = NULL;
 
-        assert(oir_semantic_types_write(type_bytes, sizeof(type_bytes), types, 2u,
+        assert(oir_semantic_types_write(type_bytes, sizeof(type_bytes), types, 3u,
             names, (uint32_t)sizeof(names), &type_written) == OIR_STATUS_OK);
         assert(type_written == sizeof(type_bytes));
         assert(oir_semantic_types_open(type_bytes, type_written, &types_view) ==
             OIR_STATUS_OK);
-        assert(types_view.record_count == 2u);
+        assert(types_view.record_count == 3u);
         assert(oir_semantic_types_get(&types_view, 0u, &decoded_type,
             &decoded_name) == OIR_STATUS_OK);
         assert(decoded_type.type_id == 1u &&
@@ -171,7 +172,7 @@ int main(void) {
             decoded_type.referenced_symbol_id == 7u &&
             decoded_type.base_type_id == 1u &&
             decoded_name && memcmp(decoded_name, "Widget", 6u) == 0);
-
+        assert(oir_semantic_types_get(&types_view, 2u, &decoded_type,\n            &decoded_name) == OIR_STATUS_OK);\n        assert(decoded_type.type_id == 3u &&\n            decoded_type.kind == OIR_SEMANTIC_TYPE_POINTER &&\n            decoded_type.base_type_id == 1u &&\n            decoded_name && memcmp(decoded_name, "*", 1u) == 0);\n
         assert(oir_semantic_types_write(type_second, sizeof(type_second), types, 2u,
             names, (uint32_t)sizeof(names), &type_second_written) == OIR_STATUS_OK);
         assert(type_second_written == type_written &&
