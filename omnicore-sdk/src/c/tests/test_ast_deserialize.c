@@ -1162,7 +1162,8 @@ static int reads_v1_function_stream_without_v2_return_child(void) {
     memcpy(bytes+8u,&version,sizeof(version));
     fclose(stream);
     stream=tmpfile();
-    if(!stream || fwrite(bytes,1u,(size_t)end-2u*sizeof(int),stream)!=(size_t)end-2u*sizeof(int))
+    if(!stream || fwrite(bytes,1u,(size_t)end-3u*sizeof(int),stream)!=(size_t)end-3u*sizeof(int) ||
+       fwrite(bytes+end-(long)sizeof(int),1u,sizeof(int),stream)!=sizeof(int))
         goto done;
     rewind(stream);
     decoded=(ASTFuncDecl*)ast_deserialize(stream);
@@ -1198,7 +1199,8 @@ static int reads_v2_function_stream_without_v3_linkname(void) {
     memcpy(bytes+8u,&version,sizeof(version));
     fclose(stream);
     stream=tmpfile();
-    if(!stream || fwrite(bytes,1u,(size_t)end-sizeof(int),stream)!=(size_t)end-sizeof(int))
+    if(!stream || fwrite(bytes,1u,(size_t)end-2u*sizeof(int),stream)!=(size_t)end-2u*sizeof(int) ||
+       fwrite(bytes+end-(long)sizeof(int),1u,sizeof(int),stream)!=sizeof(int))
         goto done;
     rewind(stream);
     decoded=(ASTFuncDecl*)ast_deserialize(stream);
