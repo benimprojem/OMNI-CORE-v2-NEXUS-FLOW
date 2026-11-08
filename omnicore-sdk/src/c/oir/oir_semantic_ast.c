@@ -279,6 +279,14 @@ static OirStatus validate_type_values(
         }
     }
 
+    if ((kind == OIR_SEMANTIC_TYPE_POINTER ||
+            kind == OIR_SEMANTIC_TYPE_REFERENCE) &&
+        (base_type_id == 0u || base_type_id >= type_id ||
+            name_length != 1u ||
+            string_table[name_offset] != (kind == OIR_SEMANTIC_TYPE_POINTER ? '*' : '&'))) {
+        return OIR_STATUS_INVALID_SECTION;
+    }
+
     if (kind == OIR_SEMANTIC_TYPE_USER_DEFINED) {
         if (referenced_symbol_id == 0u) return OIR_STATUS_INVALID_SECTION;
     } else if (referenced_symbol_id != 0u) {
