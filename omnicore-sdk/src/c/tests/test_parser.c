@@ -1390,8 +1390,10 @@ static int test_array_type_declarators(void) {
        !((ASTVarDecl*)parameter)->inline_type ||
        ((ASTArrayType*)((ASTVarDecl*)parameter)->inline_type)->dimensions==NULL ||
        !((ASTVarDecl*)parameter)->type_expr ||
-       ((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->kind!=AST_TYPE_ARRAY ||
-       ((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->dimensions!=
+       ((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->kind!=AST_TYPE_QUALIFIED ||
+       !((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->child) ||
+       ((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->child)->kind!=AST_TYPE_ARRAY ||
+       ((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->child)->dimensions!=
            ((ASTVarDecl*)parameter)->inline_type) goto done;
     parameter=parameter->next;
     if(!parameter || strcmp(((ASTVarDecl*)parameter)->type_name,"i32")!=0 ||
@@ -1410,8 +1412,10 @@ static int test_array_type_declarators(void) {
     if(!variable || !((ASTVarDecl*)variable)->inline_type ||
        strcmp(((ASTVarDecl*)variable)->type_name,"i32")!=0 ||
        !((ASTVarDecl*)variable)->type_expr ||
-       ((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->kind!=AST_TYPE_ARRAY ||
-       ((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->dimensions!=
+       ((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->kind!=AST_TYPE_QUALIFIED ||
+       !((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->child) ||
+       ((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->child)->kind!=AST_TYPE_ARRAY ||
+       ((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->child)->dimensions!=
            ((ASTVarDecl*)variable)->inline_type) goto done;
     variable=variable->next;
     if(!variable || !((ASTVarDecl*)variable)->inline_type ||
@@ -1472,8 +1476,10 @@ static int test_function_array_return_ast(void) {
         f=(ASTFuncDecl*)fn;
         if(!f->return_type || !f->return_array_type || f->return_array_type->type!=AST_ARRAY_TYPE ||
            !f->return_type_expr ||
-           ((ASTTypeExpr*)f->return_type_expr)->kind!=AST_TYPE_ARRAY ||
-           ((ASTTypeExpr*)f->return_type_expr)->dimensions!=f->return_array_type) goto done;
+           ((ASTTypeExpr*)f->return_type_expr)->kind!=AST_TYPE_QUALIFIED ||
+           !((ASTTypeExpr*)((ASTTypeExpr*)f->return_type_expr)->child) ||
+           ((ASTTypeExpr*)((ASTTypeExpr*)f->return_type_expr)->child)->kind!=AST_TYPE_ARRAY ||
+           ((ASTTypeExpr*)((ASTTypeExpr*)f->return_type_expr)->child)->dimensions!=f->return_array_type) goto done;
         {
             ASTArrayType* array=(ASTArrayType*)f->return_array_type;
             const char* first_dimension=expected==1?empty_dimension:
