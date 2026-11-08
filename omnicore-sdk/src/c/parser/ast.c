@@ -2196,7 +2196,9 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
         case AST_ARRAY_TYPE: V(((ASTArrayType*)n)->dimensions,"dimensions"); break;
         case AST_ARRAY_DIMENSION:
             if(s->active_count<2u ||
-               s->active[s->active_count-2u]->type!=AST_ARRAY_TYPE ||
+               (s->active[s->active_count-2u]->type!=AST_ARRAY_TYPE &&
+                !(s->active[s->active_count-2u]->type==AST_TYPE_EXPR &&
+                  ((const ASTTypeExpr*)s->active[s->active_count-2u])->kind==AST_TYPE_ARRAY)) ||
                !s->active_fields[s->active_count-1u] ||
                strcmp(s->active_fields[s->active_count-1u],"dimensions")!=0)
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"array_dimension_context");
