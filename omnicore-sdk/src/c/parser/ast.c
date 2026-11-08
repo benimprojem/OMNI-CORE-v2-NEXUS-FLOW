@@ -1979,6 +1979,11 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
             if(!ast_validation_required_text(s,n,((ASTEnumDecl*)n)->name,"name")) return 0;
             V(((ASTEnumDecl*)n)->variants,"variants"); break;
         case AST_ENUM_VARIANT:
+            if(s->active_count<2u ||
+               s->active[s->active_count-2u]->type!=AST_ENUM_DECL ||
+               !s->active_fields[s->active_count-1u] ||
+               strcmp(s->active_fields[s->active_count-1u],"variants")!=0)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"enum_variant_owner");
             if(!ast_validation_required_text(s,n,((ASTEnumVariant*)n)->name,"name")) return 0;
             V(((ASTEnumVariant*)n)->data,"data"); break;
         case AST_NEWTYPE_DECL:
