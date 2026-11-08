@@ -307,7 +307,9 @@ static int test_select_scan_oir_roundtrip(void) {
                ((ASTTypeExpr*)((ASTTypeExpr*)array_fn->return_type_expr)->child)->dimensions!=array_fn->return_array_type)
                 goto done;
             {
-                ASTNode* local=((ASTBlock*)main_fn->body)->statements;
+                ASTFuncDecl* main_body_fn=(ASTFuncDecl*)main_fn->base.next;
+                ASTNode* local=main_body_fn && main_body_fn->body
+                    ? ((ASTBlock*)main_body_fn->body)->statements : NULL;
                 ASTVarDecl* fixed;
                 local=local?local->next:NULL; /* fixed[5]!i32 */
                 fixed=local && local->type==AST_VAR_DECL?(ASTVarDecl*)local:NULL;
