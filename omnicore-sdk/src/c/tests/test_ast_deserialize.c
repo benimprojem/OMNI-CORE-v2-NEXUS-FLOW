@@ -1240,6 +1240,50 @@ done:
     return ok ? 0 : 1;
 }
 
+static int rejects_ast_decode_allocation_failures(void) {
+    ASTBinaryExpr* root=(ASTBinaryExpr*)ast_create(AST_BINARY_EXPR);
+    ASTIdentifier* left=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    ASTIdentifier* right=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    FILE* stream=NULL;
+    size_t fail_at;
+    size_t failed_sites=0u;
+    int reached_success=0;
+    if(!root || !left || !right) goto done;
+    left->name=duplicate_text("left_payload");
+    right->name=duplicate_text("right_payload");
+    if(!left->name || !right->name) goto done;
+    root->left=(ASTNode*)left; root->right=(ASTNode*)right;
+    stream=tmpfile();
+    if(!stream || !ast_serialize((ASTNode*)root,stream)) goto done;
+
+    /* Root/child nodes, owned strings, validator hash table and both stacks. */
+    for(fail_at=1u;fail_at<=9u;++fail_at) {
+        ASTNode* decoded;
+        size_t allocations;
+        rewind(stream);
+        ast_test_fail_allocation_at(fail_at);
+        decoded=ast_deserialize(stream);
+        allocations=ast_test_get_allocation_count();
+        ast_test_reset_allocation_failure();
+        if(decoded) {
+            if(allocations>=fail_at) {
+                ast_destroy(decoded);
+                goto done;
+            }
+            ast_destroy(decoded);
+            reached_success=1;
+            break;
+        }
+        if(allocations!=fail_at) goto done;
+        ++failed_sites;
+    }
+done:
+    ast_test_reset_allocation_failure();
+    if(stream) fclose(stream);
+    ast_destroy((ASTNode*)root);
+    return reached_success && failed_sites==8u ? 0 : 1;
+}
+
 static int roundtrips_fast_exec_asm_payload(void) {
     ASTFastExecBlock* fast=(ASTFastExecBlock*)ast_create(AST_FASTEXEC_BLOCK);
     ASTAsmLabel* label=(ASTAsmLabel*)ast_create(AST_ASM_LABEL);
@@ -1318,6 +1362,7 @@ int main(int argc, char** argv) {
     }
     if (roundtrips_versioned_source_spans() != 0) return 15;
     if (reads_v1_function_stream_without_v2_return_child() != 0) return 22;
+    if (rejects_ast_decode_allocation_failures() != 0) return 23;
     if (roundtrips_fast_exec_asm_payload() != 0) return 19;
     if (roundtrips_contextual_ast_tags() != 0) return 21;
     if (reads_unprefixed_legacy_stream() != 0) return 16;
