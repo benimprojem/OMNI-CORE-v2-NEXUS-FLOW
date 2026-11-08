@@ -1563,6 +1563,8 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
         case AST_RELOCATE: { ASTRelocate* n=(ASTRelocate*)node; n->source=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->target=ast_deserialize_recursive(reader); break; }
         case AST_UNROLL: { ASTUnroll* n=(ASTUnroll*)node; n->count=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->loop=ast_deserialize_recursive(reader); break; }
         case AST_ARRAY_LITERAL: ((ASTArrayLiteral*)node)->elements=ast_deserialize_recursive(reader); break;
+        case AST_STRUCT_LITERAL: { ASTStructLiteral* n=(ASTStructLiteral*)node; n->type_name=read_string(reader); if(reader->failed)goto fail; n->fields=ast_deserialize_recursive(reader); break; }
+        case AST_STRUCT_FIELD_INIT: { ASTStructFieldInit* n=(ASTStructFieldInit*)node; n->name=read_string(reader); if(reader->failed)goto fail; n->value=ast_deserialize_recursive(reader); break; }
         case AST_ARRAY_TYPE: ((ASTArrayType*)node)->dimensions=ast_deserialize_recursive(reader); break;
         case AST_ARRAY_DIMENSION: ((ASTArrayDimension*)node)->length=ast_deserialize_recursive(reader); break;
         case AST_FASTEXEC_BLOCK: ((ASTFastExecBlock*)node)->statements=ast_deserialize_recursive(reader); break;
