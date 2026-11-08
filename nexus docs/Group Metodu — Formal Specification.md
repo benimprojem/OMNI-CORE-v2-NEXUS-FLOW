@@ -149,14 +149,95 @@ Burada:
 * **`self`** ilk parametre olarak kullanılarak, **Oyuncu** nesnesine ait özelliklere (`ad`, `puan`, `aktif`) erişilebilir.
 * **Alt grup** olan `canta`, **Oyuncu** nesnesiyle ilişkili olarak kullanılır: `Oyuncu.canta.envanter()`.
 
-### 4.4 Yapıcı Fonksiyon
+### 4.4 Yapıcı Fonksiyon (Factory / Constructor API)
 
-Yapıcı fonksiyonlar, nesne oluştururken gerekli başlangıç verilerini belirler:
+Nexus Flow Group modelinde yapıcı işlev, **instance metodu değil statik Group method'udur**. Group ile aynı isimdeki Struct, oluşturulacak instance'ın nominal türünü belirler; yapıcı işlev ise bu türden bir değer üretir.
 
-```plaintext
-# Yeni bir Oyuncu nesnesi oluşturulurken isim, puan ve aktif durumu başlangıçta atanır.
-o1 = Oyuncu.yeni("Ahmet");
+Normatif kurallar:
+
+1. Constructor/factory, Group'un public method alias'ı olarak tanımlanır.
+2. Constructor çağrısı `Type.alias(args)` biçimindedir. Group-qualified çağrı aynı statik callable API'ye ulaşır; Group ve bağlı Type aynı callable yüzeyi kullanır.
+3. Constructor ilk parametrede `self` alamaz. `self` alan bir method instance method'dur ve `instance.alias(args)` biçiminde çağrılır.
+4. Factory dönüş türü, Group'a bağlanmış Struct türü olmalıdır. Dönüş tipi imzası `!Type` biçiminde açıkça yazılır; Semantic çağrı ifadesinin türünü bu nominal tür olarak belirler.
+5. Factory'nin döndürdüğü değer gerçekten oluşturulmuş/başka yerden edinilmiş bir Struct instance olmalıdır. Factory imzası tek başına bellekte instance oluşturmaz.
+6. Public alias ile implementation adı ayrıdır. Çağrı public alias üzerinden çözülür; SemanticResult/OIR gerçek implementation symbol ID'sini taşır.
+7. Struct literal/field initializer ile doğrudan instance üretimi ayrı bir dil özelliğidir. Parser/AST/Semantic/OIR zincirinde doğrulanmadan bu örnek çalışır kabul edilmez.
+
+#### Kullanım biçimi A — Type üzerinden factory çağrısı
+
+```nexus
+group Oyuncu {
+    struct:Oyuncu {
+        v:ad!str,
+        v:puan!i32,
+        v:aktif!bool
+    }
+
+    yeni => f:(isim!str)!Oyuncu {
+        # Instance üretimi/alan initializer desteği ayrıca gerekir.
+        ret oyuncu;
+    }
+
+    puan_arttir => f:(self,miktar!i32) {
+        self.puan = self.puan + miktar;
+        ret;
+    }
+}
+
+v:oyuncu!Oyuncu = Oyuncu.yeni("Ahmet");
+oyuncu.puan_arttir(10);
 ```
+
+`Oyuncu.yeni(...)` statik çağrıdır; implicit `self` aktarılmaz. Çağrı sonucu `Oyuncu` nominal türünde değerlendirilir.
+
+#### Kullanım biçimi B — Group-qualified factory çağrısı
+
+```nexus
+v:oyuncu!Oyuncu = Oyuncu.yeni("Ahmet");
+# Type ve Group qualifier aynı Group callable yüzeyine erişir.
+v:oyuncu2!Oyuncu = Oyuncu.yeni("Mehmet");
+```
+
+Nested Group yolu Module Resolver/dotted-path aşamasına bağlıdır; bu örnek nested Group desteğinin tamamlandığı anlamına gelmez.
+
+#### Kullanım biçimi C — Factory sonucunu başka fonksiyona/parametreye aktarma
+
+```nexus
+f:kaydet(oyuncu!Oyuncu) {
+    oyuncu.puan_arttir(1);
+    ret;
+}
+
+v:oyuncu!Oyuncu = Oyuncu.yeni("Ahmet");
+kaydet(oyuncu);
+```
+
+Factory call expression türü atama ve fonksiyon parametre türü denetiminde kullanılabilir. Bu, factory'nin alanları initialize ettiği anlamına gelmez.
+
+#### Instance metotları ile farkı
+
+```nexus
+Oyuncu.yeni("Ahmet");       # statik factory
+oyuncu.puan_arttir(10);     # instance method; self otomatik bağlanır
+Oyuncu.puan_arttir(10);     # HATA: instance method statik çağrılamaz
+oyuncu.yeni("Ahmet");        # HATA: factory/static method instance üzerinden çağrılamaz
+```
+
+#### Doğrudan Struct literal sınırı
+
+Aşağıdaki biçim **hedeflenen initializer örneğidir; mevcut destek olarak kabul edilmez**:
+
+```nexus
+# Henüz Parser + Semantic + OIR tarafından doğrulanmış constructor syntax değildir.
+ret Oyuncu {
+    ad = isim,
+    puan = 0,
+    aktif = true
+};
+```
+
+Bu yazımın geçerli hale gelmesi için Struct literal AST node/field mapping, duplicate/unknown/missing field kontrolleri, field tür dönüşümü ve OIR instance oluşturma temsilinin tamamlanması gerekir. Bu aşama tamamlanana kadar factory, var olan bir `Oyuncu` değerini döndüren typed API olarak kullanılabilir; gerçek allocation/initialization garantisi vermez.
+
 
 ---
 
