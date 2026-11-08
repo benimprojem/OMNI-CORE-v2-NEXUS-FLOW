@@ -4411,6 +4411,55 @@ generic_type_done:
         }
     }
 
+    /* Nested Struct literals remain owned expression children and round-trip recursively. */
+    {
+        static const char source[] =
+            "f:main() { v:o!Outer = Outer { inner = Inner { value = 1 }, flag = true }; }";
+        ParserContext* parser=parser_init_source("nested-struct-literals.nxf",
+            (const uint8_t*)source,sizeof(source)-1u);
+        ASTNode* decoded=NULL;
+        FILE* stream=NULL;
+        int valid=0;
+        if(parser && parser_run(parser)==PARSER_STATUS_OK &&
+           parser->error_count==0 && parser->ast_root && ast_validate(parser->ast_root,NULL)) {
+            ASTFuncDecl* fn=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            ASTVarDecl* variable=fn && fn->body && fn->body->type==AST_BLOCK
+                ? (ASTVarDecl*)((ASTBlock*)fn->body)->statements : NULL;
+            ASTStructLiteral* outer=variable && variable->initializer &&
+                variable->initializer->type==AST_STRUCT_LITERAL
+                    ? (ASTStructLiteral*)variable->initializer : NULL;
+            ASTStructFieldInit* inner_field=outer?(ASTStructFieldInit*)outer->fields:NULL;
+            ASTStructFieldInit* flag_field=inner_field && inner_field->base.next &&
+                inner_field->base.next->type==AST_STRUCT_FIELD_INIT
+                    ? (ASTStructFieldInit*)inner_field->base.next : NULL;
+            ASTStructLiteral* inner=inner_field && inner_field->value &&
+                inner_field->value->type==AST_STRUCT_LITERAL
+                    ? (ASTStructLiteral*)inner_field->value : NULL;
+            ASTStructFieldInit* value_field=inner?(ASTStructFieldInit*)inner->fields:NULL;
+            valid=outer && strcmp(outer->type_name,"Outer")==0 &&
+                inner_field && strcmp(inner_field->name,"inner")==0 &&
+                inner && strcmp(inner->type_name,"Inner")==0 &&
+                value_field && strcmp(value_field->name,"value")==0 &&
+                value_field->value && value_field->value->type==AST_LITERAL &&
+                flag_field && strcmp(flag_field->name,"flag")==0 &&
+                flag_field->value && flag_field->value->type==AST_LITERAL &&
+                flag_field->base.next==NULL;
+            stream=tmpfile();
+            if(valid && stream && ast_serialize(parser->ast_root,stream) &&
+               fseek(stream,0L,SEEK_SET)==0) {
+                decoded=ast_deserialize(stream);
+                valid=decoded && ast_validate(decoded,NULL);
+            } else valid=0;
+        }
+        if(stream) fclose(stream);
+        if(decoded) ast_destroy(decoded);
+        if(parser) parser_destroy(parser);
+        if(!valid) {
+            fprintf(stderr,"Nested Struct literal AST/codec test failed.\\n");
+            return 1;
+        }
+    }
+
     /* Program root span covers the complete source buffer, not only the last token. */
     {
         static const char source[]="f:main() {}";
