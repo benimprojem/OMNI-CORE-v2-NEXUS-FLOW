@@ -37,6 +37,8 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_RELOCATE: return sizeof(ASTRelocate);
         case AST_UNROLL: return sizeof(ASTUnroll);
         case AST_ARRAY_LITERAL: return sizeof(ASTArrayLiteral);
+        case AST_STRUCT_LITERAL: return sizeof(ASTStructLiteral);
+        case AST_STRUCT_FIELD_INIT: return sizeof(ASTStructFieldInit);
         case AST_ARRAY_TYPE: return sizeof(ASTArrayType);
         case AST_ARRAY_DIMENSION: return sizeof(ASTArrayDimension);
         case AST_VARIADIC_PARAM: return sizeof(ASTVariadicParam);
@@ -318,6 +320,18 @@ static void ast_print_recursive(ASTNode* node, int level) {
                 ASTTuple* tuple = (ASTTuple*)node;
                 printf("TUPLE\n");
                 ast_print_recursive(tuple->elements, level + 1);
+                break;
+            }
+            case AST_STRUCT_LITERAL: {
+                ASTStructLiteral* n = (ASTStructLiteral*)node;
+                printf("STRUCT_LITERAL %s\\n", n->type_name ? n->type_name : "<null>");
+                ast_print_recursive(n->fields, level + 1);
+                break;
+            }
+            case AST_STRUCT_FIELD_INIT: {
+                ASTStructFieldInit* n = (ASTStructFieldInit*)node;
+                printf("STRUCT_FIELD_INIT %s\\n", n->name ? n->name : "<null>");
+                ast_print_recursive(n->value, level + 1);
                 break;
             }
             case AST_ARRAY_LITERAL: {
@@ -731,6 +745,18 @@ static void ast_destroy_recursive(ASTNode* node) {
         case AST_TUPLE: {
             ASTTuple* t = (ASTTuple*)node;
             if (t->elements) ast_destroy_recursive(t->elements);
+            break;
+        }
+        case AST_STRUCT_LITERAL: {
+            ASTStructLiteral* n = (ASTStructLiteral*)node;
+            free(n->type_name);
+            if (n->fields) ast_destroy_recursive(n->fields);
+            break;
+        }
+        case AST_STRUCT_FIELD_INIT: {
+            ASTStructFieldInit* n = (ASTStructFieldInit*)node;
+            free(n->name);
+            if (n->value) ast_destroy_recursive(n->value);
             break;
         }
         case AST_SELECT: { ASTSelect* n=(ASTSelect*)node; if(n->selector)ast_destroy_recursive(n->selector); if(n->arms)ast_destroy_recursive(n->arms); break; }
