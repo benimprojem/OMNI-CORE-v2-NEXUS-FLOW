@@ -483,6 +483,75 @@ done:
     return ok;
 }
 
+static int test_nested_block_exact_source_spans(void) {
+    static const char source[] =
+        "f:main() {\\n"
+        "  {\\n"
+        "    v:x = 1;\\n"
+        "  }\\n"
+        "}";
+    const char* outer_open=strchr(source,'{');
+    const char* outer_close=strrchr(source,'}');
+    const char* nested_open=outer_open?strchr(outer_open+1,'{'):NULL;
+    const char* nested_close=nested_open?strchr(nested_open,'}'):NULL;
+    ParserContext* parser=parser_init_source("nested-block-spans.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTNode* decoded=NULL;
+    FILE* stream=NULL;
+    int valid=0;
+    if(!parser) return 0;
+    if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count!=0 ||
+       !parser->ast_root || !ast_validate(parser->ast_root,NULL) ||
+       !outer_open || !outer_close || !nested_open || !nested_close) goto done;
+    {
+        ASTFuncDecl* function=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        ASTBlock* outer=function && function->body && function->body->type==AST_BLOCK
+            ? (ASTBlock*)function->body:NULL;
+        ASTBlock* nested=outer && outer->statements &&
+            outer->statements->type==AST_BLOCK?(ASTBlock*)outer->statements:NULL;
+        ASTVarDecl* value=nested && nested->statements &&
+            nested->statements->type==AST_VAR_DECL?(ASTVarDecl*)nested->statements:NULL;
+        valid=outer && nested && value && value->name &&
+            strcmp(value->name,"x")==0 &&
+            outer->base.source_span.has_location &&
+            outer->base.source_span.start_offset==(uint64_t)(outer_open-source) &&
+            outer->base.source_span.end_offset==(uint64_t)(outer_close+1-source) &&
+            outer->base.source_span.start_line==1u &&
+            outer->base.source_span.end_line==5u &&
+            outer->base.source_span.start_column==10u &&
+            outer->base.source_span.end_column==2u &&
+            nested->base.source_span.has_location &&
+            nested->base.source_span.start_offset==(uint64_t)(nested_open-source) &&
+            nested->base.source_span.end_offset==(uint64_t)(nested_close+1-source) &&
+            nested->base.source_span.start_line==2u &&
+            nested->base.source_span.end_line==4u &&
+            nested->base.source_span.start_column==3u &&
+            nested->base.source_span.end_column==4u;
+    }
+    if(!valid) goto done;
+    stream=tmpfile();
+    if(!stream || !ast_serialize(parser->ast_root,stream) ||
+       fseek(stream,0L,SEEK_SET)!=0) goto done;
+    decoded=ast_deserialize(stream);
+    if(!decoded || !ast_validate(decoded,NULL)) goto done;
+    {
+        ASTFuncDecl* function=(ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+        ASTBlock* outer=function && function->body?(ASTBlock*)function->body:NULL;
+        ASTBlock* nested=outer && outer->statements?(ASTBlock*)outer->statements:NULL;
+        valid=outer && nested &&
+            outer->base.source_span.start_offset==(uint64_t)(outer_open-source) &&
+            outer->base.source_span.end_offset==(uint64_t)(outer_close+1-source) &&
+            nested->base.source_span.start_offset==(uint64_t)(nested_open-source) &&
+            nested->base.source_span.end_offset==(uint64_t)(nested_close+1-source);
+    }
+done:
+    if(!valid) fprintf(stderr,"Nested block exact source-span/codec test failed.\\n");
+    if(stream) fclose(stream);
+    if(decoded) ast_destroy(decoded);
+    parser_destroy(parser);
+    return valid;
+}
+
 static int test_parser_malformed_function_recovery(void) {
     static const char source[] =
         "f:broken(, value) { v:discarded = 1; }"
@@ -2943,6 +3012,10 @@ int main(int argc, char** argv) {
     }
     if (!test_parser_panic_mode_recovers_at_statement_boundaries()) {
         fprintf(stderr, "Parser panic-mode recovery did not preserve later valid statements.\n");
+        return 1;
+    }
+    if (!test_nested_block_exact_source_spans()) {
+        fprintf(stderr, "Nested block exact source-span test failed.\\n");
         return 1;
     }
     if (!test_parser_nested_block_recovery()) {
