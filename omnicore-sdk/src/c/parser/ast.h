@@ -127,7 +127,10 @@ typedef enum {
     AST_MUST_DECL,
     /* FASTEXEC scope and raw inline-ASM declaration; append-only. */
     AST_FASTEXEC_BLOCK,
-    AST_ASM_LABEL
+    AST_ASM_LABEL,
+    /* Append-only: Struct aggregate expression and named field initializer. */
+    AST_STRUCT_LITERAL,
+    AST_STRUCT_FIELD_INIT
 } ASTNodeType;
 
 // Temel Düğüm
@@ -223,6 +226,10 @@ typedef struct { ASTNode base; ASTNode* params; ASTNode* body; int body_is_expre
 typedef struct { ASTNode base; ASTNode* source; ASTNode* target; } ASTRelocate;
 typedef struct { ASTNode base; ASTNode* count; ASTNode* loop; } ASTUnroll;
 typedef struct { ASTNode base; ASTNode* elements; } ASTArrayLiteral;
+/* Struct literal preserves nominal type path and ordered named field values. */
+typedef struct { ASTNode base; char* type_name; ASTNode* fields; } ASTStructLiteral;
+/* One owned field initializer: name = value. */
+typedef struct { ASTNode base; char* name; ASTNode* value; } ASTStructFieldInit;
 /* Array type declarator: dimensions are ordered AST_ARRAY_DIMENSION siblings.
  * A NULL dimension length means a dynamic/unspecified dimension. The element
  * type is carried by the owning ASTVarDecl.type_name (NULL means inferred).
