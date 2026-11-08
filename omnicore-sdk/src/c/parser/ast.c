@@ -625,6 +625,7 @@ static void ast_destroy_recursive(ASTNode* node) {
             if (f->params) ast_destroy_recursive(f->params);
             if (f->body) ast_destroy_recursive(f->body);
             if (f->return_array_type) ast_destroy_recursive(f->return_array_type);
+            if (f->linkname) free(f->linkname);
             break;
         }
         case AST_STRUCT_DECL:
@@ -914,7 +915,7 @@ typedef struct {
 
 #define AST_STREAM_MAGIC "OCCAST\r\n"
 #define AST_STREAM_MAGIC_SIZE 8u
-#define AST_STREAM_VERSION 2u
+#define AST_STREAM_VERSION 3u
 
 
 static void ast_write_exact(ASTWriter* writer, const void* source, size_t size) {
@@ -1060,6 +1061,7 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             ast_serialize_recursive(f->params, writer);
             ast_serialize_recursive(f->body, writer);
             ast_serialize_recursive(f->return_array_type, writer);
+            write_string(writer, f->linkname);
             break;
         }
         case AST_STRUCT_DECL:
@@ -1420,6 +1422,8 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             f->body = ast_deserialize_recursive(reader);
             if (reader->format_version >= 2u)
                 f->return_array_type = ast_deserialize_recursive(reader);
+            if (reader->format_version >= 3u)
+                f->linkname = read_string(reader);
             break;
         }
         case AST_STRUCT_DECL:
@@ -1755,7 +1759,7 @@ ASTNode* ast_deserialize(FILE* in) {
         if (got == sizeof(prefix) && memcmp(prefix, AST_STREAM_MAGIC, sizeof(prefix)) == 0) {
             uint32_t version = 0u;
             if (fread(&version, sizeof(version), 1u, in) != 1u ||
-                (version != 1u && version != AST_STREAM_VERSION)) return NULL;
+                (version != 1u && version != 2u && version != AST_STREAM_VERSION)) return NULL;
             reader.format_version = version;
         } else {
             if (ferror(in)) return NULL;
