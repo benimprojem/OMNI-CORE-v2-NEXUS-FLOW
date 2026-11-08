@@ -2726,17 +2726,25 @@ static int test_pointer_reference_type_declarators(void) {
 
         valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
             strcmp(((ASTNewTypeDecl*)alias_node)->target_type, "*char") == 0 &&
+            ((ASTNewTypeDecl*)alias_node)->target_type_expr &&
+            ((ASTTypeExpr*)((ASTNewTypeDecl*)alias_node)->target_type_expr)->kind==AST_TYPE_POINTER &&
             function && function->return_type &&
             strcmp(function->return_type, "!*char") == 0 &&
+            function->return_type_expr &&
+            ((ASTTypeExpr*)function->return_type_expr)->kind==AST_TYPE_QUALIFIED &&
             p && strcmp(p->name, "p") == 0 &&
-            strcmp(p->type_name, "*char") == 0 &&
+            strcmp(p->type_name, "*char") == 0 && p->type_expr &&
+            ((ASTTypeExpr*)p->type_expr)->kind==AST_TYPE_POINTER &&
             pp && strcmp(pp->name, "pp") == 0 &&
-            strcmp(pp->type_name, "!**u8") == 0 &&
+            strcmp(pp->type_name, "!**u8") == 0 && pp->type_expr &&
+            ((ASTTypeExpr*)pp->type_expr)->kind==AST_TYPE_QUALIFIED &&
             ref_param && strcmp(ref_param->name, "ref") == 0 &&
-            strcmp(ref_param->type_name, "&Point") == 0 &&
+            strcmp(ref_param->type_name, "&Point") == 0 && ref_param->type_expr &&
+            ((ASTTypeExpr*)ref_param->type_expr)->kind==AST_TYPE_REFERENCE &&
             !ref_param->base.next &&
             local_node && local_node->type == AST_VAR_DECL &&
             strcmp(((ASTVarDecl*)local_node)->type_name, "*char") == 0 &&
+            ((ASTVarDecl*)local_node)->type_expr &&
             ret_node && ret_node->type == AST_RETURN &&
             ast_validate((ASTNode*)parser->ast_root, NULL);
 
