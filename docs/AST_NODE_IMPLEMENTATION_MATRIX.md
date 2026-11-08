@@ -132,8 +132,8 @@
 | `AST_MUST_DECL` | Direct | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
 | `AST_FASTEXEC_BLOCK` | Direct | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
 | `AST_ASM_LABEL` | Direct | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
-| `AST_STRUCT_LITERAL` | Direct/helper | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
-| `AST_STRUCT_FIELD_INIT` | Direct/helper | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
+| `AST_STRUCT_LITERAL` | Direct | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
+| `AST_STRUCT_FIELD_INIT` | Direct | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
 
 ## Context-specific codec fixtures
 
