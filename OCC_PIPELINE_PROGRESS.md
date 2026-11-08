@@ -1195,3 +1195,11 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 
 - Pointer/reference syntax follow-up: `&&T` is marked reserved/undefined in the canonical syntax reference; `**T` remains nested pointer (P2P), `&T` remains Ref. No second reference layer is introduced absent a separate semantic use case.
 - Struct copy/move design note added to Group spec: default transfer preserves instance address; explicit `copy(x)` creates independent copy; `move(x)` is ownership transfer and source use must be rejected after move. Shallow/deep copy and pointer-field behavior remain unresolved, so copy/move are not yet implemented/complete.
+
+
+## 2026-11-08 — Pointer/reference Semantic compatibility regression slice
+
+- Added Semantic fixtures for exact pointer assignment/call compatibility and exact reference call compatibility.
+- Negative fixtures cover pointer base mismatch, pointer depth mismatch, pointer/reference mismatch, and reference base mismatch.
+- These tests exercise the existing exact type-name compatibility behavior; they do not introduce implicit pointer conversions. Hard-type marker handling remains governed by the existing compatibility contract.
+- **CI pending:** test source was committed; no local CTest run is available in this session. Verify the new CI run before treating the slice as complete. Struct nominal pointer identity and SemanticResult/OIR recursive type validation remain separate follow-up checks.
