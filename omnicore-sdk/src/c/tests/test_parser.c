@@ -4451,6 +4451,70 @@ generic_type_done:
         }
     }
 
+    /* Enum variants, optional payload fields and their source ranges form a stable AST chain. */
+    {
+        static const char source[] =
+            "nt:enum: Task {\\n"
+            "  IO(file!str)\\n"
+            "  Compute(a!i32, b!i32)\\n"
+            "  Cleanup\\n"
+            "}";
+        const char* io_start=strstr(source,"IO(file!str)");
+        const char* io_close=io_start?strchr(io_start,')'):NULL;
+        const char* compute_start=strstr(source,"Compute(a!i32, b!i32)");
+        const char* compute_close=compute_start?strchr(compute_start,')'):NULL;
+        const char* cleanup_start=strstr(source,"Cleanup");
+        const char* enum_close=strrchr(source,'}');
+        ParserContext* parser=parser_init_source("enum-variant-ast.nxf",
+            (const uint8_t*)source,sizeof(source)-1u);
+        ASTNode* decoded=NULL;
+        FILE* stream=NULL;
+        int valid=0;
+        if(parser && parser_run(parser)==PARSER_STATUS_OK &&
+           parser->error_count==0 && parser->ast_root && io_start && io_close &&
+           compute_start && compute_close && cleanup_start && enum_close) {
+            ASTEnumDecl* declaration=(ASTEnumDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            ASTEnumVariant* io=declaration?(ASTEnumVariant*)declaration->variants:NULL;
+            ASTEnumVariant* compute=io?(ASTEnumVariant*)io->base.next:NULL;
+            ASTEnumVariant* cleanup=compute?(ASTEnumVariant*)compute->base.next:NULL;
+            ASTVarDecl* file_field=io?(ASTVarDecl*)io->data:NULL;
+            ASTVarDecl* a_field=compute?(ASTVarDecl*)compute->data:NULL;
+            ASTVarDecl* b_field=a_field?(ASTVarDecl*)a_field->base.next:NULL;
+            valid=declaration && strcmp(declaration->name,"Task")==0 &&
+                declaration->base.source_span.has_location &&
+                declaration->base.source_span.start_offset==0u &&
+                declaration->base.source_span.end_offset==(uint64_t)(enum_close+1-source) &&
+                io && strcmp(io->name,"IO")==0 && file_field &&
+                strcmp(file_field->name,"file")==0 && file_field->type_name &&
+                strcmp(file_field->type_name,"str")==0 &&
+                io->base.source_span.start_offset==(uint64_t)(io_start-source) &&
+                io->base.source_span.end_offset==(uint64_t)(io_close+1-source) &&
+                file_field->base.source_span.start_offset==(uint64_t)(strstr(source,"file!str")-source) &&
+                file_field->base.source_span.end_offset==(uint64_t)(strstr(source,"file!str")+strlen("file!str")-source) &&
+                compute && strcmp(compute->name,"Compute")==0 && a_field && b_field &&
+                strcmp(a_field->name,"a")==0 && strcmp(b_field->name,"b")==0 &&
+                compute->base.source_span.start_offset==(uint64_t)(compute_start-source) &&
+                compute->base.source_span.end_offset==(uint64_t)(compute_close+1-source) &&
+                cleanup && strcmp(cleanup->name,"Cleanup")==0 && cleanup->data==NULL &&
+                cleanup->base.source_span.start_offset==(uint64_t)(cleanup_start-source) &&
+                cleanup->base.source_span.end_offset==(uint64_t)(cleanup_start+strlen("Cleanup")-source) &&
+                cleanup->base.next==NULL && ast_validate(parser->ast_root,NULL);
+            stream=tmpfile();
+            if(valid && stream && ast_serialize(parser->ast_root,stream) &&
+               fseek(stream,0L,SEEK_SET)==0) {
+                decoded=ast_deserialize(stream);
+                valid=decoded && ast_validate(decoded,NULL);
+            } else valid=0;
+        }
+        if(stream) fclose(stream);
+        if(decoded) ast_destroy(decoded);
+        if(parser) parser_destroy(parser);
+        if(!valid) {
+            fprintf(stderr,"Enum variant/payload AST span and codec test failed.\\n");
+            return 1;
+        }
+    }
+
     /* Nested Struct literals remain owned expression children and round-trip recursively. */
     {
         static const char source[] =
