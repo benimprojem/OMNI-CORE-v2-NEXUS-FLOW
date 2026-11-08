@@ -1280,7 +1280,7 @@ done:
         else { ast_destroy((ASTNode*)variable); ast_destroy((ASTNode*)pointer); ast_destroy((ASTNode*)named); }
         ast_destroy((ASTNode*)program);
     }
-    return ok;
+    return ok ? 0 : stage;
 }
 
 static int reads_unprefixed_legacy_stream(void) {
