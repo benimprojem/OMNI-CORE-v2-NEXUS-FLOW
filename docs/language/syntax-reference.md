@@ -1075,20 +1075,54 @@ v:val!point = {25, 23};
 
 ```
 
-**Callback / function type:** `f:(parametreler)!DönüşTipi` bir fonksiyon imza/türüdür; `>` ise anonim callable/lambda gövdesini başlatır. Fonksiyon türü, başka bir fonksiyonun parametresi olarak doğrudan kullanılabilir:
+**Callback / function type (fonksiyon türü):**
+
+Fonksiyon türü, bir fonksiyonun parametre ve dönüş imzasını ifade eder. İmza biçimi `f:(parametreler)!DönüşTipi` şeklindedir. Bu ifade tek başına fonksiyon gövdesi oluşturmaz; `>` işareti yalnızca lambda/anonim fonksiyon gövdesini başlatır.
+
+**1. Fonksiyon türü alias'ı**
 
 ```nexus
 nt:Callback = f:(id!u32)!bool;
+```
 
+**2. Fonksiyon türünü doğrudan parametre olarak kullanma**
+
+```nexus
 f:apply(callback!f:(id!u32)!bool, id!u32)!bool {
     ret callback(id);
 }
 ```
 
-Burada `callback`, `u32` alan ve `bool` döndüren bir fonksiyonun çağrılabilir adresini temsil eden parametredir. Bu imza biçimi lambda gövdesi değildir; `>` olmadan yalnızca tür bildirimidir. Parser kanonik `)!ReturnType` biçimini kabul eder. Eski `)>!ReturnType` yazımı geriye dönük uyumluluk için kabul edilir ve AST'nin legacy metin alanında kanonik biçime normalize edilir.
+`callback`, belirtilen imzaya sahip fonksiyon adresini taşır. Çağrı sırasında fonksiyon gövdesi değil, bu adres üzerinden çağrılabilir hedef kullanılır. Fonksiyon adresinin ABI/calling-convention temsili ve imza uyumluluğu Semantic/ABI aşamalarında doğrulanacaktır.
 
-C AST Parser, bu imzayı `AST_TYPE_FUNCTION` ve parametre/return alt ağaçlarıyla temsil eder; NewType alias ve doğrudan callback parametresi için parser/AST codec regresyonu vardır. Fonksiyon adresinin ABI/calling-convention temsili, callback tür uyumluluğu ve yaşam süresi kontrolleri Semantic/ABI aşamalarında tamamlanacaktır.
+**3. İç içe callback türü**
 
+Bir callback'in parametresi de fonksiyon türü olabilir:
+
+```nexus
+nt:Predicate = f:(value!i32)!bool;
+nt:PredicateHandler = f:(test!Predicate)!bool;
+
+f:run_test(test!Predicate, handler!PredicateHandler)!bool {
+    ret handler(test);
+}
+```
+
+İç içe imzalar aynı fonksiyon türü gramerini tekrar kullanır. Parametre listesi içindeki virgüller, iç içe parantez derinliği dikkate alınarak ayrıştırılır.
+
+**4. Fonksiyon türü ile lambda arasındaki fark**
+
+```nexus
+# Yalnızca tür/imza:
+nt:Check = f:(value!u32)!bool;
+
+# Lambda/callable gövdesi:
+v:check = f:(value!u32)!bool > (value > 0);
+```
+
+İlk örnekte yalnızca fonksiyon türü tanımlanır. İkinci örnekte `>` sonrasındaki ifade lambda gövdesidir. Blok gövdeli anonim fonksiyonlarda `f:(value!u32)!bool { ... }` biçimi kullanılır.
+
+**Uyumluluk:** Kanonik dönüş tipi ayıracı `)!ReturnType` biçimidir. Eski `)>!ReturnType` biçimi geriye dönük uyumluluk için kabul edilir ve AST'nin legacy metin alanında kanonik biçime normalize edilir. Fonksiyon türü AST'de `AST_TYPE_FUNCTION` düğümü ve parametre/dönüş alt ağaçlarıyla temsil edilir. Parser/AST temsili, callback'in ABI uyumluluğu, adres geçerliliği ve yaşam süresi denetimlerinin tamamlandığı anlamına gelmez.
 ---
 
 ## Bölüm 8. Nesne Yönelimli Programlama (Struct & Group)
