@@ -553,7 +553,7 @@ static int test_group_semantic_records(void) {
                     legacy_header.payload_schema_minor = 0u;
                     if (oir_artifact_write(legacy_artifact, 1024u * 1024u,
                             &legacy_header, legacy_sections,
-                            artifact_view.envelope.section_count,
+                            legacy_section_count,
                             &legacy_artifact_written) != OIR_STATUS_OK ||
                         oir_semantic_ast_artifact_open(legacy_artifact,
                             legacy_artifact_written, &artifact_view,
