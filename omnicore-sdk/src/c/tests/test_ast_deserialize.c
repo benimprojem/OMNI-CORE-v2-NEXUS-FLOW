@@ -566,7 +566,7 @@ static int roundtrips_populated_ast_types(void) {
     for (int raw_type = AST_PROGRAM; raw_type <= AST_ARRAY_DIMENSION; ++raw_type) {
         ASTNode* original = ast_create((ASTNodeType)raw_type);
         ASTNode* root;
-        if (!original) return 1;
+        if (!original) { fprintf(stderr, "ast_create failed for populated tag %d.\\n", raw_type); return 1; }
         if (!populate_ast_fixture(original)) {
             fprintf(stderr, "Could not populate AST fixture for tag %d.\n", raw_type);
             ast_destroy(original);
@@ -576,16 +576,16 @@ static int roundtrips_populated_ast_types(void) {
         /* Context-bound records are round-tripped under their legal owning edge. */
         if(raw_type==AST_SELECT_ARM) {
             ASTSelect* owner=(ASTSelect*)ast_create(AST_SELECT);
-            if(!owner) { ast_destroy(original); return 1; }
+            if(!owner) { fprintf(stderr,"context owner allocation failed for tag %d.\\n",raw_type); ast_destroy(original); return 1; }
             owner->selector=make_identifier_fixture("select_owner");
-            if(!owner->selector) { ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
+            if(!owner->selector) { fprintf(stderr,"select owner selector allocation failed.\\n"); ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
             owner->arms=original;
             root=(ASTNode*)owner;
         } else if(raw_type==AST_SCAN_ARM) {
             ASTScan* owner=(ASTScan*)ast_create(AST_SCAN);
             if(!owner) { ast_destroy(original); return 1; }
             owner->subject=make_identifier_fixture("scan_owner");
-            if(!owner->subject) { ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
+            if(!owner->subject) { fprintf(stderr,"scan owner subject allocation failed.\\n"); ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
             owner->arms=original;
             root=(ASTNode*)owner;
         } else if(raw_type==AST_ARRAY_DIMENSION) {
@@ -597,7 +597,7 @@ static int roundtrips_populated_ast_types(void) {
 
         FILE* first = tmpfile();
         FILE* second = tmpfile();
-        if (!first || !second) {
+        if (!first || !second) { fprintf(stderr,"tmpfile failed for populated tag %d.\\n",raw_type);
             if (first) fclose(first);
             if (second) fclose(second);
             ast_destroy(root);
