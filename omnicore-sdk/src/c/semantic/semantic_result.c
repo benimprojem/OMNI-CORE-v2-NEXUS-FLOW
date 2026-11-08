@@ -497,7 +497,7 @@ SemanticResultStatus semantic_result_set_annotation(
         resolved_symbol_id > result->symbol_count ||
         resolved_type_id > result->type_count ||
         value_category > SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR ||
-        flags != 0u) {
+        (flags & (uint16_t)~SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER) != 0u) {
         return SEMANTIC_RESULT_INVALID_DATA;
     }
 
