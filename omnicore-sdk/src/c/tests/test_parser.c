@@ -2171,6 +2171,8 @@ static int test_must_top_level_ast(void) {
     ASTMustDecl* dependency;
     ASTFuncDecl* function;
     ASTLiteral* path_literal;
+    const char* declaration_start=strstr(source,"m:CoreModule");
+    const char* declaration_end=declaration_start?strchr(declaration_start,';'):NULL;
     int valid = 0;
     if (!parser) return 0;
     if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
@@ -2184,7 +2186,14 @@ static int test_must_top_level_ast(void) {
             dependency->name && strcmp(dependency->name, "CoreModule") == 0 &&
             path_literal && path_literal->string_value &&
             strcmp(path_literal->string_value, "\"CoreModule.nxf\"") == 0 &&
+            declaration_start && declaration_end &&
             dependency->base.source_span.has_location &&
+            dependency->base.source_span.start_offset==(uint64_t)(declaration_start-source) &&
+            dependency->base.source_span.end_offset==(uint64_t)(declaration_end+1-source) &&
+            dependency->base.source_span.start_line==1u &&
+            dependency->base.source_span.start_column==1u &&
+            dependency->base.source_span.end_line==1u &&
+            dependency->base.source_span.end_column==(uint32_t)(declaration_end+2-source) &&
             function && function->base.type == AST_FUNC_DECL &&
             function->name && strcmp(function->name, "main") == 0;
     }
