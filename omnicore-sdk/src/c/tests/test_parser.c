@@ -4560,6 +4560,7 @@ generic_type_done:
         const char* point_end=strstr(source,"}\n!struct:NetworkPacket");
         const char* packet_end=strstr(source,"}\nunion:Register32");
         const char* union_end=strrchr(source,'}');
+        const char* newtype_start=strstr(source,"nt:Addr = u64;");
         ParserContext* parser=parser_init_source("aggregate-declarations.nxf",
             (const uint8_t*)source,sizeof(source)-1u);
         ASTNode* decoded=NULL;
@@ -4568,10 +4569,12 @@ generic_type_done:
         if(parser && parser_run(parser)==PARSER_STATUS_OK &&
            parser->error_count==0 && parser->ast_root &&
            point_start && packet_start && union_start && point_end &&
-           packet_end && union_end) {
+           packet_end && union_end && newtype_start) {
             ASTStructDecl* point=(ASTStructDecl*)((ASTProgram*)parser->ast_root)->declarations;
             ASTStructDecl* packet=point?(ASTStructDecl*)point->base.next:NULL;
             ASTStructDecl* reg=packet?(ASTStructDecl*)packet->base.next:NULL;
+            ASTNewTypeDecl* newtype=reg && reg->base.next && reg->base.next->type==AST_NEWTYPE_DECL
+                ? (ASTNewTypeDecl*)reg->base.next : NULL;
             ASTVarDecl* point_x=point?(ASTVarDecl*)point->fields:NULL;
             ASTVarDecl* point_y=point_x?(ASTVarDecl*)point_x->base.next:NULL;
             ASTVarDecl* packet_id=packet?(ASTVarDecl*)packet->fields:NULL;
@@ -4596,7 +4599,11 @@ generic_type_done:
                 reg->base.source_span.end_offset==(uint64_t)(union_end+1-source) &&
                 reg_full && strcmp(reg_full->name,"full")==0 &&
                 reg_parts && strcmp(reg_parts->name,"parts")==0 &&
-                reg_parts->base.next==NULL && ast_validate(parser->ast_root,NULL);
+                reg_parts->base.next==NULL && newtype &&
+                strcmp(newtype->name,"Addr")==0 && strcmp(newtype->target_type,"u64")==0 &&
+                newtype->base.source_span.start_offset==(uint64_t)(newtype_start-source) &&
+                newtype->base.source_span.end_offset==(uint64_t)(newtype_start+strlen("nt:Addr = u64;")-source) &&
+                newtype->base.next==NULL && ast_validate(parser->ast_root,NULL);
             stream=tmpfile();
             if(valid && stream && ast_serialize(parser->ast_root,stream) &&
                fseek(stream,0L,SEEK_SET)==0) {
