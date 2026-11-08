@@ -669,7 +669,9 @@ static void semantic_record_annotation(
         slot ? slot->symbol_id : 0u,
         type_id,
         value_category,
-        0u);
+        (uint16_t)((ctx->current_method_is_object && slot &&
+            slot->name && strcmp(slot->name, "self") == 0)
+            ? SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER : 0u));
     semantic_set_result_error(ctx, status);
 }
 
