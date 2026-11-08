@@ -1220,3 +1220,7 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - The minimal program-root span fixture now also asserts the nested `AST_FUNC_DECL` and `AST_BLOCK` ranges. CI run `42466243975` passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan and Valgrind).
 
 - Function return array source-span checks now cover dynamic `[]`, fixed `[n]` and multidimensional `[m][n]` forms, including both enclosing `AST_ARRAY_TYPE` and each dimension node. CI run `42466307736` passed all five jobs.
+
+- Nested Struct literal codec regression exposed two missed AST details: serializer payload cases for `AST_STRUCT_LITERAL` / `AST_STRUCT_FIELD_INIT`, and the deserializer's stale maximum-tag bound (`AST_ASM_LABEL`). Both are fixed; the dedicated Struct literal codec test's success/failure return convention was corrected so CTest now observes its result. Nested `Outer { inner = Inner { ... } }` parser→AST→serialize→deserialize→validate passes.
+- CI run `42467148216` passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind (5/5) with the nested Struct codec and appended-tag reader fix.
+- Static AST switch audit now reports 107/107 tags in factory sizing, serializer, deserializer, graph validator, destroyer and debug printer. The debug printer's missing `AST_VARIADIC_PARAM` and `AST_NAMED_ARG` renderers were added; its follow-up CI is pending.
