@@ -1175,4 +1175,5 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Follow-up CI run `42455583043` passed all five jobs with 60/60 CTest after adding the negative SemanticResult finalization-gate test.
 - Follow-up CI run `42455856774` on commit `830e0dac` passed all five jobs with 60/60 CTest after adding the Group factory-return and nested Group isolation cases.
 - Documentation/registry audit follow-up run `42455976764` passed all five jobs; the updated Group spec, AST ownership/implementation matrices and syntax matrix are CI-validated.
+- Struct instance design decision (2026-11-08): address identity, not aggregate value-copy semantics. Assignment/parameter/return/instance receiver must preserve the same instance address; `self` is an address-based receiver alias. No hidden heap allocation or aggregate-copy SSA value is permitted. Storage origin, mutable reference model, alias/null/dangling checks and escape/lifetime/ownership remain explicit Semantic/OIR prerequisites.
 - **Remaining:** complete OIR instance-init representation and independent Verifier validation before Codegen; keep Codegen gated.
