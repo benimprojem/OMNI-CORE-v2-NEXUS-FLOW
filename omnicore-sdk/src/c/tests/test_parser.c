@@ -4278,5 +4278,70 @@ generic_type_done:
         }
     }
 
+    /* Default parameter values are AST_VAR_DECL initializers, not named-call args. */
+    {
+        static const char source[] =
+            "f:defaults(a:10, b:20) { ret a; }";
+        static const char* invalid_sources[] = {
+            "f:bad(a:) { ret; }",
+            "f:bad(a:10, b:) { ret; }"
+        };
+        const char* a_start=strstr(source,"a:10");
+        const char* b_start=strstr(source,"b:20");
+        ParserContext* parser=parser_init_source("default-parameters.nxf",
+            (const uint8_t*)source,sizeof(source)-1u);
+        ASTNode* decoded=NULL;
+        FILE* stream=NULL;
+        int valid=0;
+        size_t i;
+        if(parser && parser_run(parser)==PARSER_STATUS_OK &&
+           parser->error_count==0 && parser->ast_root &&
+           ast_validate(parser->ast_root,NULL) && a_start && b_start) {
+            ASTFuncDecl* fn=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            ASTVarDecl* first=fn?(ASTVarDecl*)fn->params:NULL;
+            ASTVarDecl* second=first?(ASTVarDecl*)first->base.next:NULL;
+            valid=first && first->base.type==AST_VAR_DECL &&
+                first->name && strcmp(first->name,"a")==0 &&
+                first->initializer && first->initializer->type==AST_LITERAL &&
+                strcmp(((ASTLiteral*)first->initializer)->string_value,"10")==0 &&
+                first->base.source_span.has_location &&
+                first->base.source_span.start_offset==(uint64_t)(a_start-source) &&
+                first->base.source_span.end_offset==(uint64_t)(a_start-source)+4u &&
+                first->base.source_span.start_column==(uint32_t)(a_start-source)+1u &&
+                first->base.source_span.end_column==(uint32_t)(a_start-source)+5u &&
+                second && second->base.type==AST_VAR_DECL &&
+                second->name && strcmp(second->name,"b")==0 &&
+                second->initializer && second->initializer->type==AST_LITERAL &&
+                strcmp(((ASTLiteral*)second->initializer)->string_value,"20")==0 &&
+                second->base.source_span.has_location &&
+                second->base.source_span.start_offset==(uint64_t)(b_start-source) &&
+                second->base.source_span.end_offset==(uint64_t)(b_start-source)+4u &&
+                second->base.source_span.start_column==(uint32_t)(b_start-source)+1u &&
+                second->base.source_span.end_column==(uint32_t)(b_start-source)+5u &&
+                second->base.next==NULL;
+            stream=tmpfile();
+            if(valid && stream && ast_serialize(parser->ast_root,stream) &&
+               fseek(stream,0L,SEEK_SET)==0) {
+                decoded=ast_deserialize(stream);
+                valid=decoded && ast_validate(decoded,NULL);
+            } else valid=0;
+        }
+        for(i=0u;i<sizeof(invalid_sources)/sizeof(invalid_sources[0]);++i) {
+            ParserContext* invalid=parser_init_source("invalid-default-parameter.nxf",
+                (const uint8_t*)invalid_sources[i],strlen(invalid_sources[i]));
+            if(!invalid) { valid=0; break; }
+            if(parser_run(invalid)==PARSER_STATUS_OK &&
+               invalid->error_count==0) valid=0;
+            parser_destroy(invalid);
+        }
+        if(stream) fclose(stream);
+        if(decoded) ast_destroy(decoded);
+        if(parser) parser_destroy(parser);
+        if(!valid) {
+            fprintf(stderr,"Default parameter AST/span/codec checks failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
