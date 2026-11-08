@@ -1200,6 +1200,10 @@ static int test_array_literal_ast(void) {
         ok=ok && parser_source_reports_syntax_error(
             "array-missing-close.nxf", "f:main() { v:a = [1, 2; }",
             sizeof("f:main() { v:a = [1, 2; }")-1u);
+        ok=ok && parser_source_reports_syntax_error(
+            "array-nested-missing-close.nxf",
+            "f:main() { v:a = [[1, 2], [3, 4]; }",
+            sizeof("f:main() { v:a = [[1, 2], [3, 4]; }")-1u);
         if(!ok) fprintf(stderr,"array AST binary roundtrip failed decoded=%p\n",(void*)decoded);
         if(decoded)ast_destroy(decoded);
         if(stream)fclose(stream);
@@ -1423,6 +1427,12 @@ static int test_array_index_access_ast(void) {
     fclose(stream);
     ok=decoded && decoded->type==AST_PROGRAM;
     if(decoded) ast_destroy(decoded);
+    ok=ok && parser_source_reports_syntax_error(
+        "array-index-missing-close.nxf","f:main() { v:x = items[1+2; }",
+        sizeof("f:main() { v:x = items[1+2; }")-1u);
+    ok=ok && parser_source_reports_syntax_error(
+        "array-index-empty.nxf","f:main() { v:x = items[]; }",
+        sizeof("f:main() { v:x = items[]; }")-1u);
 done:
     parser_destroy(ctx);
     return ok;
