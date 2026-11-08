@@ -2648,6 +2648,34 @@ static int test_nested_group_and_default_ast(void) {
     return valid;
 }
 
+static int test_enum_payload_rejects_malformed_fields(void) {
+    static const char* const invalid_sources[] = {
+        "nt:enum: Broken { Value(x) }",
+        "nt:enum: Broken { Value(!i32) }",
+        "nt:enum: Broken { Value(x!i32,) }",
+        "nt:enum: Broken { Value(x!i32, y) }",
+        "nt:enum: Broken { Value(x! ) }"
+    };
+    size_t i;
+    for(i=0u;i<sizeof(invalid_sources)/sizeof(invalid_sources[0]);++i) {
+        ParserContext* parser=parser_init_source("enum-invalid-payload.nxf",
+            (const uint8_t*)invalid_sources[i],strlen(invalid_sources[i]));
+        int result;
+        if(!parser) return 0;
+        result=parser_run(parser);
+        if(result==PARSER_STATUS_OK ||
+           parser_get_status(parser)!=PARSER_STATUS_SYNTAX_ERROR ||
+           parser->error_count==0u) {
+            fprintf(stderr,"Malformed Enum payload %lu was not rejected.\\n",
+                (unsigned long)i);
+            parser_destroy(parser);
+            return 0;
+        }
+        parser_destroy(parser);
+    }
+    return 1;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -2748,6 +2776,10 @@ int main(int argc, char** argv) {
     }
     if (!test_struct_literal_parser_source_spans()) {
         fprintf(stderr, "Struct literal parser source-span fixture failed.\n");
+        return 1;
+    }
+    if (!test_enum_payload_rejects_malformed_fields()) {
+        fprintf(stderr, "Malformed Enum payload forms were accepted.\\n");
         return 1;
     }
     if (argc != 4) return 2;
