@@ -155,6 +155,44 @@ static int check_aggregate_member_semantics(void) {
         check_source(non_aggregate, 1);
 }
 
+static int check_struct_literal_semantics(void) {
+    const char* valid_reordered =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "v:p!Point = Point { y = 2, x = 1 }; }";
+    const char* unknown_field =
+        "f:main() { struct:Point { v:x!i32 } "
+        "v:p!Point = Point { x = 1, missing = 2 }; }";
+    const char* duplicate_field =
+        "f:main() { struct:Point { v:x!i32 } "
+        "v:p!Point = Point { x = 1, x = 2 }; }";
+    const char* missing_field =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "v:p!Point = Point { x = 1 }; }";
+    const char* incompatible_field =
+        "f:main() { struct:Point { v:x!i32 } "
+        "v:p!Point = Point { x = \"wrong\" }; }";
+    const char* non_struct_type =
+        "f:main() { enum:State { Ready } v:s!State = State { Ready = 1 }; }";
+    const char* empty_struct =
+        "f:main() { struct:Empty { } v:e!Empty = Empty { }; }";
+    const char* group_owned_type_inside =
+        "f:main() { group Store { struct:Local { v:value!i32 } "
+        "f:make() { v:item!Local = Local { value = 7 }; ret; } } }";
+    const char* group_owned_type_outside =
+        "f:main() { group Store { struct:Local { v:value!i32 } } "
+        "f:make() { v:item!Local = Local { value = 7 }; ret; } }";
+
+    return check_source(valid_reordered, 0) &&
+        check_source(unknown_field, 1) &&
+        check_source(duplicate_field, 1) &&
+        check_source(missing_field, 1) &&
+        check_source(incompatible_field, 1) &&
+        check_source(non_struct_type, 1) &&
+        check_source(empty_struct, 0) &&
+        check_source(group_owned_type_inside, 0) &&
+        check_source(group_owned_type_outside, 2);
+}
+
 static int check_array_literal_semantics(void) {
     const char* valid =
         "f:main() { v:values = [1, 2, 3]; v:matrix = [[1, 2], [3, 4]]; v:empty = []; }";
@@ -491,6 +529,10 @@ int main(int argc, char** argv) {
     }
     if (!check_aggregate_member_semantics()) {
         fprintf(stderr, "Aggregate member semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_struct_literal_semantics()) {
+        fprintf(stderr, "Struct literal semantic checks failed.\\n");
         return 1;
     }
     if (!check_array_literal_semantics()) {
