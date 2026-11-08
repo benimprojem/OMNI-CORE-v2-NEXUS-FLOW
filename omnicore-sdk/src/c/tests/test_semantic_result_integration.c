@@ -547,6 +547,46 @@ static int test_group_semantic_records(void) {
     return ok;
 }
 
+static int test_invalid_struct_literal_not_finalized(void) {
+    static const char source[] =
+        "f:main() {"
+        " struct: Point { v:x!i32, v:y!i32 }"
+        " v:p!Point = Point { x = 1 };"
+        "}";
+    ParserContext* parser=parser_init_source(
+        "invalid-struct-literal-result.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    OirAstPointerIndexEntry index[128];
+    ResolverContext resolver;
+    SemanticContext semantic;
+    uint32_t node_count=0u;
+    int ok=0;
+    if(!parser)return 0;
+    if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count ||
+        !parser->ast_root)goto done;
+    memset(index,0,sizeof(index));
+    if(oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
+        index,128u,&node_count)!=OIR_STATUS_OK)goto done;
+    resolver.entries=index;
+    resolver.capacity=128u;
+    semantic_init(&semantic,"invalid-struct-literal-result.nxf",NULL);
+    semantic_attach_node_id_resolver(&semantic,resolve_node_id,&resolver);
+    semantic_check(&semantic,(ASTNode*)parser->ast_root);
+    if(semantic.error_count==0 ||
+        semantic_finalize_result(&semantic,node_count)!=SEMANTIC_RESULT_INVALID_DATA) {
+        fprintf(stderr,
+            "Invalid Struct literal unexpectedly finalized: errors=%d status=%d\\n",
+            semantic.error_count,(int)semantic.result_status);
+        semantic_destroy(&semantic);
+        goto done;
+    }
+    ok=1;
+    semantic_destroy(&semantic);
+done:
+    parser_destroy(parser);
+    return ok;
+}
+
 static int test_struct_literal_semantic_records(void) {
     static const char source[] =
         "f:main() {"
@@ -707,6 +747,9 @@ done:
 }
 
 int main(void) {
+    if(!test_invalid_struct_literal_not_finalized()) {
+        fprintf(stderr,"Invalid Struct literal SemanticResult gate failed.\\n"); return 1;
+    }
     if(!test_struct_literal_semantic_records()) {
         fprintf(stderr,"Struct literal SemanticResult relation integration failed.\\n");
         return 1;
