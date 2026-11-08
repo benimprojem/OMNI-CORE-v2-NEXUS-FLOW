@@ -2371,6 +2371,70 @@ static int parser_parse_type_name(Parser* p, char** out,
     return 1;
 }
 
+/* Build the structured form for the currently supported named, pointer and
+ * reference spellings. Function signatures remain on the legacy string path
+ * until their parameter list is represented as ASTVarDecl children.
+ */
+static ASTNode* parser_build_type_expr(
+    Parser* p, const char* spelling, const Token* first, const Token* last,
+    int hard_typed
+) {
+    size_t offset=0u;
+    size_t pointer_depth=0u;
+    int is_reference=0;
+    ASTNode* root=NULL;
+    ASTTypeExpr* named=NULL;
+
+    if(!p || !spelling || !*spelling || !first || !last) return NULL;
+    if(strncmp(spelling,"f:(",3u)==0) return NULL;
+    if(spelling[offset]=='!') { hard_typed=1; ++offset; }
+    while(spelling[offset]=='*') { ++pointer_depth; ++offset; }
+    if(spelling[offset]=='&') { is_reference=1; ++offset; }
+    if(!spelling[offset]) return NULL;
+
+    named=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
+    if(!named) return NULL;
+    named->kind=AST_TYPE_NAMED;
+    named->name=parser_strdup(p,spelling+offset);
+    if(!named->name) { ast_destroy((ASTNode*)named); return NULL; }
+    parser_stamp_node_tokens(p,(ASTNode*)named,last,last);
+    root=(ASTNode*)named;
+
+    while(pointer_depth>0u) {
+        ASTTypeExpr* wrapper=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
+        if(!wrapper) { ast_destroy(root); return NULL; }
+        wrapper->kind=AST_TYPE_POINTER;
+        wrapper->child=root;
+        wrapper->base.line=first->line;
+        wrapper->base.col=first->col;
+        parser_stamp_node_tokens(p,(ASTNode*)wrapper,first,last);
+        root=(ASTNode*)wrapper;
+        --pointer_depth;
+    }
+    if(is_reference) {
+        ASTTypeExpr* wrapper=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
+        if(!wrapper) { ast_destroy(root); return NULL; }
+        wrapper->kind=AST_TYPE_REFERENCE;
+        wrapper->child=root;
+        wrapper->base.line=first->line;
+        wrapper->base.col=first->col;
+        parser_stamp_node_tokens(p,(ASTNode*)wrapper,first,last);
+        root=(ASTNode*)wrapper;
+    }
+    if(hard_typed) {
+        ASTTypeExpr* qualifier=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
+        if(!qualifier) { ast_destroy(root); return NULL; }
+        qualifier->kind=AST_TYPE_QUALIFIED;
+        qualifier->flags=AST_TYPE_FLAG_HARD_TYPED;
+        qualifier->child=root;
+        qualifier->base.line=first->line;
+        qualifier->base.col=first->col;
+        parser_stamp_node_tokens(p,(ASTNode*)qualifier,first,last);
+        root=(ASTNode*)qualifier;
+    }
+    return root;
+}
+
 /*
  * Function type grammar:
  *   f:(name!Type, other:Type)!ReturnType
