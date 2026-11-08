@@ -4621,6 +4621,79 @@ generic_type_done:
         }
     }
 
+    /* Group methods, default dispatch and nested groups have distinct AST ownership. */
+    {
+        static const char source[] =
+            "group db {\\n"
+            "  open => f:(path!str) { ret; }\\n"
+            "  default { ret; }\\n"
+            "  nosql => group {\\n"
+            "    query => f:(sql!str) { ret; }\\n"
+            "  }\\n"
+            "}";
+        const char* group_start=strstr(source,"group db");
+        const char* open_start=strstr(source,"open =>");
+        const char* open_end=strstr(source,"ret; }");
+        const char* default_start=strstr(source,"default {");
+        const char* default_end=default_start?strstr(default_start,"ret; }"):NULL;
+        const char* nested_start=strstr(source,"nosql => group");
+        const char* query_start=strstr(source,"query =>");
+        const char* query_end=query_start?strstr(query_start,"ret; }"):NULL;
+        const char* nested_end=query_end?strchr(query_end,'}'):NULL;
+        const char* group_end=strrchr(source,'}');
+        ParserContext* parser=parser_init_source("group-method-ast.nxf",
+            (const uint8_t*)source,sizeof(source)-1u);
+        ASTNode* decoded=NULL;
+        FILE* stream=NULL;
+        int valid=0;
+        if(parser && parser_run(parser)==PARSER_STATUS_OK &&
+           parser->error_count==0 && parser->ast_root &&
+           group_start && open_start && open_end && default_start &&
+           default_end && nested_start && query_start && query_end &&
+           nested_end && group_end) {
+            ASTGroupDecl* group=(ASTGroupDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            ASTMethod* open=group?(ASTMethod*)group->members:NULL;
+            ASTMethod* default_method=open && open->base.next &&
+                open->base.next->type==AST_METHOD?(ASTMethod*)open->base.next:NULL;
+            ASTGroupDecl* nested=default_method && default_method->base.next &&
+                default_method->base.next->type==AST_GROUP_DECL
+                    ? (ASTGroupDecl*)default_method->base.next : NULL;
+            ASTMethod* query=nested?(ASTMethod*)nested->members:NULL;
+            valid=group && strcmp(group->name,"db")==0 &&
+                group->base.source_span.start_offset==(uint64_t)(group_start-source) &&
+                group->base.source_span.end_offset==(uint64_t)(group_end+1-source) &&
+                open && strcmp(open->public_name,"open")==0 &&
+                open->implementation && open->implementation->type==AST_FUNC_DECL &&
+                open->base.source_span.start_offset==(uint64_t)(open_start-source) &&
+                open->base.source_span.end_offset==(uint64_t)(open_end+strlen("ret; }")-source) &&
+                default_method && strcmp(default_method->public_name,"default")==0 &&
+                default_method->implementation && default_method->implementation->type==AST_BLOCK &&
+                default_method->base.source_span.start_offset==(uint64_t)(default_start-source) &&
+                default_method->base.source_span.end_offset==(uint64_t)(default_end+strlen("ret; }")-source) &&
+                nested && strcmp(nested->name,"nosql")==0 &&
+                nested->base.source_span.start_offset==(uint64_t)(nested_start-source) &&
+                nested->base.source_span.end_offset==(uint64_t)(nested_end+1-source) &&
+                query && strcmp(query->public_name,"query")==0 &&
+                query->implementation && query->implementation->type==AST_FUNC_DECL &&
+                query->base.source_span.start_offset==(uint64_t)(query_start-source) &&
+                query->base.source_span.end_offset==(uint64_t)(query_end+strlen("ret; }")-source) &&
+                query->base.next==NULL && ast_validate(parser->ast_root,NULL);
+            stream=tmpfile();
+            if(valid && stream && ast_serialize(parser->ast_root,stream) &&
+               fseek(stream,0L,SEEK_SET)==0) {
+                decoded=ast_deserialize(stream);
+                valid=decoded && ast_validate(decoded,NULL);
+            } else valid=0;
+        }
+        if(stream) fclose(stream);
+        if(decoded) ast_destroy(decoded);
+        if(parser) parser_destroy(parser);
+        if(!valid) {
+            fprintf(stderr,"Group method/default/nested-group AST span and codec test failed.\\n");
+            return 1;
+        }
+    }
+
     /* Nested Struct literals remain owned expression children and round-trip recursively. */
     {
         static const char source[] =
