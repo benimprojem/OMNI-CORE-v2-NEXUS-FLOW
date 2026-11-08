@@ -4679,13 +4679,29 @@ generic_type_done:
                 query->base.source_span.start_offset==(uint64_t)(query_start-source) &&
                 query->base.source_span.end_offset==(uint64_t)(query_end+strlen("ret; }")-source) &&
                 query->base.next==NULL && ast_validate(parser->ast_root,NULL);
+            if(!valid) fprintf(stderr,
+                "Group AST shape mismatch db=%s open=%s default=%s nested=%s query=%s\\n",
+                group&&group->name?group->name:"<null>",
+                open&&open->public_name?open->public_name:"<null>",
+                default_method&&default_method->public_name?default_method->public_name:"<null>",
+                nested&&nested->name?nested->name:"<null>",
+                query&&query->public_name?query->public_name:"<null>");
             stream=tmpfile();
-            if(valid && stream && ast_serialize(parser->ast_root,stream) &&
-               fseek(stream,0L,SEEK_SET)==0) {
+            if(!stream) { fprintf(stderr,"Group AST tmpfile failed\\n"); valid=0; }
+            else if(valid && !ast_serialize(parser->ast_root,stream)) {
+                fprintf(stderr,"Group AST serialization failed\\n"); valid=0;
+            } else if(valid && fseek(stream,0L,SEEK_SET)!=0) {
+                fprintf(stderr,"Group AST rewind failed\\n"); valid=0;
+            } else if(valid) {
                 decoded=ast_deserialize(stream);
-                valid=decoded && ast_validate(decoded,NULL);
-            } else valid=0;
+                if(!decoded) { fprintf(stderr,"Group AST deserialization failed\\n"); valid=0; }
+                else if(!ast_validate(decoded,NULL)) {
+                    fprintf(stderr,"Group AST decoded graph invalid\\n"); valid=0;
+                }
+            }
         }
+        if(!valid && parser && !parser->ast_root)
+            fprintf(stderr,"Group AST parser produced no root\\n");
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
         if(parser) parser_destroy(parser);
