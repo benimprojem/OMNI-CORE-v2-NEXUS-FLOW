@@ -33,6 +33,29 @@ int main(void) {
         &type_i32_hard) == SEMANTIC_RESULT_OK);
     assert(type_i32_hard == 2u && type_i32_hard != type_i32);
 
+    /* Pointer/reference layers are structural and intern by base type ID. */
+    {
+        uint32_t pointer_i32 = 0u, pointer_pointer_i32 = 0u;
+        uint32_t reference_i32 = 0u, pointer_i64 = 0u;
+        assert(semantic_result_intern_type(&result,
+            SEMANTIC_RESULT_TYPE_POINTER, 0u, "*", 0u, type_i32,
+            &pointer_i32) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_intern_type(&result,
+            SEMANTIC_RESULT_TYPE_POINTER, 0u, "*", 0u, pointer_i32,
+            &pointer_pointer_i32) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_intern_type(&result,
+            SEMANTIC_RESULT_TYPE_REFERENCE, 0u, "&", 0u, type_i32,
+            &reference_i32) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_intern_type(&result,
+            SEMANTIC_RESULT_TYPE_PRIMITIVE, 0u, "i64", 0u, 0u,
+            &pointer_i64) == SEMANTIC_RESULT_OK);
+        assert(pointer_i32 != pointer_pointer_i32 &&
+            pointer_i32 != reference_i32 && pointer_i32 != pointer_i64);
+        assert(result.types[pointer_i32 - 1u].base_type_id == type_i32);
+        assert(result.types[pointer_pointer_i32 - 1u].base_type_id == pointer_i32);
+        assert(result.types[reference_i32 - 1u].base_type_id == type_i32);
+    }
+
     /* Forward declaration: symbol is recorded before its final type is known. */
     assert(semantic_result_add_symbol(&result, 1u, 4u,
         SEMANTIC_RESULT_SYMBOL_FUNCTION, SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC,
