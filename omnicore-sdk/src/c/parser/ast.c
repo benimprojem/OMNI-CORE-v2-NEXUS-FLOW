@@ -1249,6 +1249,18 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
         case AST_RELOCATE: { ASTRelocate* n=(ASTRelocate*)node; ast_serialize_recursive(n->source,writer); ast_serialize_recursive(n->target,writer); break; }
         case AST_UNROLL: { ASTUnroll* n=(ASTUnroll*)node; ast_serialize_recursive(n->count,writer); ast_serialize_recursive(n->loop,writer); break; }
         case AST_ARRAY_LITERAL: ast_serialize_recursive(((ASTArrayLiteral*)node)->elements,writer); break;
+        case AST_STRUCT_LITERAL: {
+            ASTStructLiteral* n=(ASTStructLiteral*)node;
+            write_string(writer,n->type_name);
+            ast_serialize_recursive(n->fields,writer);
+            break;
+        }
+        case AST_STRUCT_FIELD_INIT: {
+            ASTStructFieldInit* n=(ASTStructFieldInit*)node;
+            write_string(writer,n->name);
+            ast_serialize_recursive(n->value,writer);
+            break;
+        }
         case AST_ARRAY_TYPE: ast_serialize_recursive(((ASTArrayType*)node)->dimensions,writer); break;
         case AST_ARRAY_DIMENSION: ast_serialize_recursive(((ASTArrayDimension*)node)->length,writer); break;
         case AST_FASTEXEC_BLOCK: ast_serialize_recursive(((ASTFastExecBlock*)node)->statements,writer); break;
