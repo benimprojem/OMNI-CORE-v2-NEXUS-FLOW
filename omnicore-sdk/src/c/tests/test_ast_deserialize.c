@@ -605,6 +605,7 @@ static int roundtrips_populated_ast_types(void) {
         }
 
         if (!ast_serialize(root, first)) {
+            fprintf(stderr,"AST serializer rejected populated fixture tag %d.\\n",raw_type);
             fclose(first);
             fclose(second);
             ast_destroy(root);
