@@ -569,6 +569,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Array type semantic checks failed.\n");
         return 1;
     }
+    if (!check_aggregate_member_semantics()) {
         fprintf(stderr, "Aggregate member semantic checks failed.\n");
         return 1;
     }
