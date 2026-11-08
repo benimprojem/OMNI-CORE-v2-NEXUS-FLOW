@@ -179,7 +179,7 @@ int main(void) {
             decoded_type.base_type_id == 1u &&
             decoded_name && memcmp(decoded_name, "*", 1u) == 0);
 
-        assert(oir_semantic_types_write(type_second, sizeof(type_second), types, 2u,
+        assert(oir_semantic_types_write(type_second, sizeof(type_second), types, 3u,
             names, (uint32_t)sizeof(names), &type_second_written) == OIR_STATUS_OK);
         assert(type_second_written == type_written &&
             memcmp(type_bytes, type_second, type_written) == 0);
