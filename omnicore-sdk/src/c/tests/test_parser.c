@@ -1517,9 +1517,11 @@ static int test_function_array_return_ast(void) {
         stage=21; ok=decoded && ast_validate(decoded,NULL);
         if(ok) {
             ASTFuncDecl* decoded_fn=(ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
-            ok=decoded_fn && decoded_fn->return_type_expr &&
-               ((ASTTypeExpr*)decoded_fn->return_type_expr)->kind==AST_TYPE_ARRAY &&
-               ((ASTTypeExpr*)decoded_fn->return_type_expr)->dimensions==decoded_fn->return_array_type;
+            ASTTypeExpr* qualified=decoded_fn?(ASTTypeExpr*)decoded_fn->return_type_expr:NULL;
+            ASTTypeExpr* array=qualified && qualified->kind==AST_TYPE_QUALIFIED
+                ? (ASTTypeExpr*)qualified->child : NULL;
+            ok=array && array->kind==AST_TYPE_ARRAY &&
+               array->dimensions==decoded_fn->return_array_type;
         }
         if(decoded) ast_destroy(decoded); if(stream) fclose(stream);
     }
