@@ -109,6 +109,7 @@ int main(void) {
     nodes[13].identifier.name="nexus";
     nodes[105].struct_literal.type_name="Point";
     nodes[106].struct_field_init.name="x";
+    struct_value.base.type=AST_LITERAL;
     struct_value.type=TOKEN_NUMBER; struct_value.lit_type=0; struct_value.string_value="1";
     nodes[106].struct_field_init.value=(ASTNode*)&struct_value;
 
