@@ -2452,6 +2452,131 @@ apply_qualifier:
  * The canonical signature is retained in the existing type-name string field.
  * It is distinct from an AST_LAMBDA expression/body.
  */
+static ASTNode* parser_build_function_type_expr(
+    Parser* p, const char* spelling, const Token* first, const Token* last
+) {
+    const char* open;
+    const char* close;
+    const char* cursor;
+    const char* return_spelling;
+    size_t depth=0u;
+    ASTTypeExpr* function;
+    ASTNode* param_head=NULL;
+    ASTNode* param_tail=NULL;
+
+    if(!p||!spelling||!first||!last||strncmp(spelling,"f:(",3u)!=0)
+        return NULL;
+    open=strchr(spelling,'(');
+    if(!open) return NULL;
+    close=open+1;
+    depth=1u;
+    while(*close && depth) {
+        if(*close=='(') ++depth;
+        else if(*close==')') --depth;
+        if(depth) ++close;
+    }
+    if(depth!=0u || *close!=')') return NULL;
+    return_spelling=close+1;
+    if(!*return_spelling || strchr(return_spelling,'[')) return NULL;
+
+    function=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
+    if(!function) return NULL;
+    function->kind=AST_TYPE_FUNCTION;
+    function->base.line=first->line;
+    function->base.col=first->col;
+    parser_stamp_node_tokens(p,(ASTNode*)function,first,last);
+
+    cursor=open+1;
+    while(cursor<close) {
+        const char* segment_end=cursor;
+        const char* marker=NULL;
+        const char* scan;
+        size_t nested=0u;
+        ASTVarDecl* param;
+        size_t name_length;
+        size_t type_length;
+        const char* type_start;
+        int hard=0;
+
+        while(segment_end<close) {
+            if(*segment_end=='(') ++nested;
+            else if(*segment_end==')' && nested) --nested;
+            else if(*segment_end==',' && nested==0u) break;
+            ++segment_end;
+        }
+        if(segment_end==cursor) { ast_destroy((ASTNode*)function); return NULL; }
+        if((size_t)(segment_end-cursor)==3u &&
+           cursor[0]=='.'&&cursor[1]=='.'&&cursor[2]=='.') {
+            ASTNode* variadic=parser_ast_create(p,AST_VARIADIC_PARAM);
+            if(!variadic) { ast_destroy((ASTNode*)function); return NULL; }
+            parser_stamp_node_tokens(p,variadic,first,last);
+            if(!param_head)param_head=variadic;
+            else param_tail->next=variadic;
+            param_tail=variadic;
+            cursor=segment_end<close?segment_end+1:close;
+            continue;
+        }
+        for(scan=cursor;scan<segment_end;++scan) {
+            if(*scan=='!'||*scan==':') { marker=scan; break; }
+        }
+        if(!marker || marker==cursor || marker+1>=segment_end) {
+            ast_destroy(param_head);
+            ast_destroy((ASTNode*)function);
+            return NULL;
+        }
+        name_length=(size_t)(marker-cursor);
+        hard=(*marker=='!');
+        type_start=hard?marker:marker+1;
+        type_length=(size_t)(segment_end-type_start);
+        if(memchr(type_start,'[',type_length)) {
+            ast_destroy(param_head);
+            ast_destroy((ASTNode*)function);
+            return NULL;
+        }
+
+        param=(ASTVarDecl*)parser_ast_create(p,AST_VAR_DECL);
+        if(!param) {
+            ast_destroy(param_head);
+            ast_destroy((ASTNode*)function);
+            return NULL;
+        }
+        param->name=(char*)parser_malloc(p,name_length+1u);
+        param->type_name=(char*)parser_malloc(p,type_length+1u);
+        if(!param->name||!param->type_name) {
+            ast_destroy((ASTNode*)param);
+            ast_destroy(param_head);
+            ast_destroy((ASTNode*)function);
+            return NULL;
+        }
+        memcpy(param->name,cursor,name_length);
+        param->name[name_length]='\0';
+        memcpy(param->type_name,type_start,type_length);
+        param->type_name[type_length]='\0';
+        param->is_hard_typed=hard;
+        param->type_expr=parser_build_type_expr(
+            p,param->type_name,first,last,hard);
+        if(!param->type_expr) {
+            ast_destroy((ASTNode*)param);
+            ast_destroy(param_head);
+            ast_destroy((ASTNode*)function);
+            return NULL;
+        }
+        parser_stamp_node_tokens(p,(ASTNode*)param,first,last);
+        if(!param_head)param_head=(ASTNode*)param;
+        else param_tail->next=(ASTNode*)param;
+        param_tail=(ASTNode*)param;
+        cursor=segment_end<close?segment_end+1:close;
+    }
+
+    function->params=param_head;
+    function->child=parser_build_type_expr(p,return_spelling,first,last,0);
+    if(!function->child) {
+        ast_destroy((ASTNode*)function);
+        return NULL;
+    }
+    return (ASTNode*)function;
+}
+
 static int parser_parse_function_type_signature(Parser* p, char** out) {
     Token start;
     const char* begin;
