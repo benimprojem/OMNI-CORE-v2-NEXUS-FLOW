@@ -53,7 +53,9 @@ Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY
 | `*`  | **Pointer**| Ham bellek adresi. |
 | `**` | **P2P** | Pointer to Pointer. |
 | `&`  | **Ref** | Bellek referansı. |
+| `&&` | **RESERVE** | Referansın referansı için henüz tanımlı değildir; kullanılmaz. |
 
+ > `&&T` mevcut Nexus Flow type syntax'ında tanımlı değildir ve reserved kabul edilir. `**T`, pointer katmanlarının iç içe geçmesini ifade eder; `&T` referans türüdür.
  > Pointer/reference türleri `*T`, `**T` ve `&T` biçimlerinde Parser tarafından local variable, function parameter, return type ve `nt:` hedef tipi bağlamlarında kabul edilir. SemanticResult bunları katman başına ayrı type ID ve `base_type_id` ilişkisiyle temsil eder; `**T` iki Pointer kaydı, `&T` Reference kaydı üretir. Bu yapısal kayıt pointer validity, mutability, nullability, aliasing ve borrow/lifetime kurallarının tamamlandığı anlamına gelmez.
 ---
 
