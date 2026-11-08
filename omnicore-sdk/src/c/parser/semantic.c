@@ -3451,7 +3451,6 @@ static void semantic_check_node(
     if (ctx->result_enabled) {
         switch (node->type) {
             case AST_LITERAL:
-            case AST_IDENTIFIER:
             case AST_BINARY_EXPR:
             case AST_ASSIGNMENT:
             case AST_UNARY_EXPR:
