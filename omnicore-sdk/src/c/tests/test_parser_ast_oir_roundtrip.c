@@ -301,8 +301,10 @@ static int test_select_scan_oir_roundtrip(void) {
                !array_fn->return_array_type ||
                array_fn->return_array_type->type!=AST_ARRAY_TYPE ||
                !array_fn->return_type_expr ||
-               ((ASTTypeExpr*)array_fn->return_type_expr)->kind!=AST_TYPE_ARRAY ||
-               ((ASTTypeExpr*)array_fn->return_type_expr)->dimensions!=array_fn->return_array_type)
+               ((ASTTypeExpr*)array_fn->return_type_expr)->kind!=AST_TYPE_QUALIFIED ||
+               !((ASTTypeExpr*)((ASTTypeExpr*)array_fn->return_type_expr)->child) ||
+               ((ASTTypeExpr*)((ASTTypeExpr*)array_fn->return_type_expr)->child)->kind!=AST_TYPE_ARRAY ||
+               ((ASTTypeExpr*)((ASTTypeExpr*)array_fn->return_type_expr)->child)->dimensions!=array_fn->return_array_type)
                 goto done;
             {
                 ASTNode* local=((ASTBlock*)main_fn->body)->statements;
@@ -310,8 +312,10 @@ static int test_select_scan_oir_roundtrip(void) {
                 local=local?local->next:NULL; /* fixed[5]!i32 */
                 fixed=local && local->type==AST_VAR_DECL?(ASTVarDecl*)local:NULL;
                 if(!fixed || !fixed->inline_type || !fixed->type_expr ||
-                   ((ASTTypeExpr*)fixed->type_expr)->kind!=AST_TYPE_ARRAY ||
-                   ((ASTTypeExpr*)fixed->type_expr)->dimensions!=fixed->inline_type)
+                   ((ASTTypeExpr*)fixed->type_expr)->kind!=AST_TYPE_QUALIFIED ||
+                   !((ASTTypeExpr*)((ASTTypeExpr*)fixed->type_expr)->child) ||
+                   ((ASTTypeExpr*)((ASTTypeExpr*)fixed->type_expr)->child)->kind!=AST_TYPE_ARRAY ||
+                   ((ASTTypeExpr*)((ASTTypeExpr*)fixed->type_expr)->child)->dimensions!=fixed->inline_type)
                     goto done;
             }
             dimension=(ASTArrayDimension*)((ASTArrayType*)array_fn->return_array_type)->dimensions;
