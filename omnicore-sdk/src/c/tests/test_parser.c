@@ -4454,10 +4454,10 @@ generic_type_done:
     /* Enum variants, optional payload fields and their source ranges form a stable AST chain. */
     {
         static const char source[] =
-            "enum:Task {\\n"
-            "  IO(file!str),\\n"
-            "  Compute(a!i32, b!i32),\\n"
-            "  Cleanup\\n"
+            "enum:Task {\n"
+            "  IO(file!str),\n"
+            "  Compute(a!i32, b!i32),\n"
+            "  Cleanup\n"
             "}";
         const char* io_start=strstr(source,"IO(file!str)");
         const char* io_close=io_start?strchr(io_start,')'):NULL;
@@ -4500,7 +4500,7 @@ generic_type_done:
                 cleanup->base.source_span.end_offset==(uint64_t)(cleanup_start+strlen("Cleanup")-source) &&
                 cleanup->base.next==NULL && ast_validate(parser->ast_root,NULL);
             if(!valid) fprintf(stderr,
-                "Enum AST shape mismatch decl=%s IO=%s field=%s type=%s Compute=%s a=%s b=%s Cleanup=%s\\n",
+                "Enum AST shape mismatch decl=%s IO=%s field=%s type=%s Compute=%s a=%s b=%s Cleanup=%s\n",
                 declaration&&declaration->name?declaration->name:"<null>",
                 io&&io->name?io->name:"<null>",
                 file_field&&file_field->name?file_field->name:"<null>",
@@ -4510,31 +4510,31 @@ generic_type_done:
                 b_field&&b_field->name?b_field->name:"<null>",
                 cleanup&&cleanup->name?cleanup->name:"<null>");
             stream=tmpfile();
-            if(!stream) { fprintf(stderr,"Enum AST tmpfile failed\\n"); valid=0; }
+            if(!stream) { fprintf(stderr,"Enum AST tmpfile failed\n"); valid=0; }
             else if(valid && !ast_serialize(parser->ast_root,stream)) {
-                fprintf(stderr,"Enum AST serialization failed\\n"); valid=0;
+                fprintf(stderr,"Enum AST serialization failed\n"); valid=0;
             } else if(valid && fseek(stream,0L,SEEK_SET)!=0) {
-                fprintf(stderr,"Enum AST rewind failed\\n"); valid=0;
+                fprintf(stderr,"Enum AST rewind failed\n"); valid=0;
             } else if(valid) {
                 decoded=ast_deserialize(stream);
-                if(!decoded) { fprintf(stderr,"Enum AST deserialization failed\\n"); valid=0; }
+                if(!decoded) { fprintf(stderr,"Enum AST deserialization failed\n"); valid=0; }
                 else if(!ast_validate(decoded,NULL)) {
-                    fprintf(stderr,"Enum AST decoded graph invalid\\n"); valid=0;
+                    fprintf(stderr,"Enum AST decoded graph invalid\n"); valid=0;
                 }
             }
         } else if(parser) {
             Error* error;
-            fprintf(stderr,"Enum AST parse failed status=%d errors=%d\\n",
+            fprintf(stderr,"Enum AST parse failed status=%d errors=%d\n",
                 (int)parser_get_status(parser),parser->error_count);
             for(error=parser->error_head;error;error=error->next)
-                fprintf(stderr,"  %d:%d %s\\n",error->line,error->col,
+                fprintf(stderr,"  %d:%d %s\n",error->line,error->col,
                     error->message?error->message:"");
         }
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
         if(parser) parser_destroy(parser);
         if(!valid) {
-            fprintf(stderr,"Enum variant/payload AST span and codec test failed.\\n");
+            fprintf(stderr,"Enum variant/payload AST span and codec test failed.\n");
             return 1;
         }
     }
