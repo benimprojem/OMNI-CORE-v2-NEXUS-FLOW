@@ -299,7 +299,21 @@ static int test_select_scan_oir_roundtrip(void) {
             array_fn=(ASTFuncDecl*)array_fn->base.next;
             if(!array_fn || array_fn->base.type!=AST_FUNC_DECL ||
                !array_fn->return_array_type ||
-               array_fn->return_array_type->type!=AST_ARRAY_TYPE) goto done;
+               array_fn->return_array_type->type!=AST_ARRAY_TYPE ||
+               !array_fn->return_type_expr ||
+               ((ASTTypeExpr*)array_fn->return_type_expr)->kind!=AST_TYPE_ARRAY ||
+               ((ASTTypeExpr*)array_fn->return_type_expr)->dimensions!=array_fn->return_array_type)
+                goto done;
+            {
+                ASTNode* local=((ASTBlock*)main_fn->body)->statements;
+                ASTVarDecl* fixed;
+                local=local?local->next:NULL; /* fixed[5]!i32 */
+                fixed=local && local->type==AST_VAR_DECL?(ASTVarDecl*)local:NULL;
+                if(!fixed || !fixed->inline_type || !fixed->type_expr ||
+                   ((ASTTypeExpr*)fixed->type_expr)->kind!=AST_TYPE_ARRAY ||
+                   ((ASTTypeExpr*)fixed->type_expr)->dimensions!=fixed->inline_type)
+                    goto done;
+            }
             dimension=(ASTArrayDimension*)((ASTArrayType*)array_fn->return_array_type)->dimensions;
             if(!dimension || !dimension->length ||
                dimension->length->type!=AST_IDENTIFIER ||
