@@ -4733,8 +4733,8 @@ generic_type_done:
     {
         static const char source[] =
             "nt:enum: Task {\n"
-            "  IO(file!str),\n"
-            "  Compute(a!i32, b!i32),\n"
+            "  IO(file!str)\n"
+            "  Compute(a!i32, b!i32)\n"
             "  Cleanup\n"
             "}";
         const char* io_start=strstr(source,"IO(file!str)");
@@ -4777,16 +4777,32 @@ generic_type_done:
                 cleanup->base.source_span.start_offset==(uint64_t)(cleanup_start-source) &&
                 cleanup->base.source_span.end_offset==(uint64_t)(cleanup_start+strlen("Cleanup")-source) &&
                 cleanup->base.next==NULL && ast_validate(parser->ast_root,NULL);
-            if(!valid) fprintf(stderr,
-                "Enum AST shape mismatch decl=%s IO=%s field=%s type=%s Compute=%s a=%s b=%s Cleanup=%s\n",
-                declaration&&declaration->name?declaration->name:"<null>",
-                io&&io->name?io->name:"<null>",
-                file_field&&file_field->name?file_field->name:"<null>",
-                file_field&&file_field->type_name?file_field->type_name:"<null>",
-                compute&&compute->name?compute->name:"<null>",
-                a_field&&a_field->name?a_field->name:"<null>",
-                b_field&&b_field->name?b_field->name:"<null>",
-                cleanup&&cleanup->name?cleanup->name:"<null>");
+            if(!valid) {
+                ASTValidationError ve;
+                int graph_ok=ast_validate(parser->ast_root,&ve);
+                fprintf(stderr,
+                    "Enum AST mismatch decl=%s span=%llu..%llu IO=%s span=%llu..%llu field=%s type=%s fieldspan=%llu..%llu Compute=%s span=%llu..%llu a=%s b=%s Cleanup=%s span=%llu..%llu graph=%d code=%d field=%s node=%d\n",
+                    declaration&&declaration->name?declaration->name:"<null>",
+                    (unsigned long long)(declaration?declaration->base.source_span.start_offset:0),
+                    (unsigned long long)(declaration?declaration->base.source_span.end_offset:0),
+                    io&&io->name?io->name:"<null>",
+                    (unsigned long long)(io?io->base.source_span.start_offset:0),
+                    (unsigned long long)(io?io->base.source_span.end_offset:0),
+                    file_field&&file_field->name?file_field->name:"<null>",
+                    file_field&&file_field->type_name?file_field->type_name:"<null>",
+                    (unsigned long long)(file_field?file_field->base.source_span.start_offset:0),
+                    (unsigned long long)(file_field?file_field->base.source_span.end_offset:0),
+                    compute&&compute->name?compute->name:"<null>",
+                    (unsigned long long)(compute?compute->base.source_span.start_offset:0),
+                    (unsigned long long)(compute?compute->base.source_span.end_offset:0),
+                    a_field&&a_field->name?a_field->name:"<null>",
+                    b_field&&b_field->name?b_field->name:"<null>",
+                    cleanup&&cleanup->name?cleanup->name:"<null>",
+                    (unsigned long long)(cleanup?cleanup->base.source_span.start_offset:0),
+                    (unsigned long long)(cleanup?cleanup->base.source_span.end_offset:0),
+                    graph_ok,(int)ve.code,ve.field?ve.field:"<none>",
+                    ve.node?(int)ve.node->type:-1);
+            }
             stream=tmpfile();
             if(!stream) { fprintf(stderr,"Enum AST tmpfile failed\n"); valid=0; }
             else if(valid && !ast_serialize(parser->ast_root,stream)) {
