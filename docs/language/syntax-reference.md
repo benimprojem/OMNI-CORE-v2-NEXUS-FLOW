@@ -1075,7 +1075,7 @@ v:val!point = {25, 23};
 
 ```
 
-**Callback / function type (canonical proposal):** `f:(parametreler)!DönüşTipi` yalnızca imza/type biçimidir; `>` gövde başlangıcıdır. Callable expression örneği: `f:(id!u32)!bool > (id == 1) ? true : false;`. Bu ayrım henüz Parser/AST'de uygulanmış değildir; önce grammar ve type-expression AST tasarımı tamamlanmalıdır.
+**Callback / function type:** `f:(parametreler)!DönüşTipi` yalnızca imza/type biçimidir; `>` callable/lambda gövdesini başlatır. Callable expression örneği: `f:(id!u32)!bool > (id == 1) ? true : false;`. Parser kanonik `)!ReturnType` biçimini kabul eder. Eski `)>!ReturnType` yazımı geriye dönük uyumluluk için kabul edilir, AST type-name metninde kanonik biçime normalize edilir. İmza şu aşamada mevcut `type_name` / `target_type` alanlarında metin olarak tutulur; bağımsız ve iç içe type-expression AST modeli henüz tamamlanmamıştır.
 
 ---
 
