@@ -2601,7 +2601,7 @@ static ASTNode* parse_var_decl(Parser* p) {
                  if (!parse_struct_body(p, sdecl)) { ast_destroy((ASTNode*)sdecl); ast_destroy((ASTNode*)decl); return NULL; }
                  decl->inline_type = (ASTNode*)sdecl;
              }
-             {
+         } else if (parser_is_type_start(p)) {
                  Token type_start=p->current;
                  if (!parser_parse_type_name(p, &decl->type_name, 0, 0)) {
                      ast_destroy((ASTNode*)decl);
@@ -2613,7 +2613,6 @@ static ASTNode* parse_var_decl(Parser* p) {
                      decl->type_expr=parser_build_type_expr(p,decl->type_name,&type_start,&p->previous,decl->is_hard_typed);
                      if(!decl->type_expr) { ast_destroy((ASTNode*)decl); return NULL; }
                  }
-             }
         } else {
              error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
         }
