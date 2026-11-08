@@ -221,6 +221,27 @@ static int check_compound_assignment_semantics(void) {
         check_source(invalid_bitwise_float,3) && check_source(valid_bitwise,0);
 }
 
+static int check_pointer_reference_type_semantics(void) {
+    const char* exact_pointer =
+        "f:take(value!*i32) {} f:main() { v:a!*i32; v:b!*i32; a = b; take(a); }";
+    const char* pointer_base_mismatch =
+        "f:take(value!*i32) {} f:main() { v:a!*f32; take(a); }";
+    const char* pointer_depth_mismatch =
+        "f:take(value!**i32) {} f:main() { v:a!*i32; take(a); }";
+    const char* pointer_reference_mismatch =
+        "f:take(value!&i32) {} f:main() { v:a!*i32; take(a); }";
+    const char* exact_reference =
+        "f:take(value!&i32) {} f:main() { v:a!&i32; take(a); }";
+    const char* reference_base_mismatch =
+        "f:take(value!&i32) {} f:main() { v:a!&f32; take(a); }";
+    return check_source(exact_pointer, 0) &&
+        check_source(pointer_base_mismatch, 1) &&
+        check_source(pointer_depth_mismatch, 1) &&
+        check_source(pointer_reference_mismatch, 1) &&
+        check_source(exact_reference, 0) &&
+        check_source(reference_base_mismatch, 1);
+}
+
 static int check_array_type_semantics(void) {
     const char* valid_params = "f:consume(a![], b!i32[], third:i32[5]) {}";
     const char* valid_matrix_param = "f:consume_matrix(matrix_data:f64[2][2]) {}";
@@ -540,7 +561,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Compound assignment semantic checks failed.\n");
         return 1;
     }
-    if (!check_array_type_semantics()) {
+    if (!check_pointer_reference_type_semantics()) {\n        fprintf(stderr, "Pointer/reference compatibility checks failed.\\n");\n        return 1;\n    }\n    if (!check_array_type_semantics()) {
         fprintf(stderr, "Array type semantic checks failed.\n");
         return 1;
     }
