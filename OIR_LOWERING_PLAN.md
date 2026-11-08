@@ -114,6 +114,14 @@ Required OIR capabilities:
 
 No target byte offsets or register assignments are introduced in generic OIR.
 
+### Struct literal aggregate-lowering gate (2026-11-08)
+
+The `AST_STRUCT_LITERAL` / `AST_STRUCT_FIELD_INIT` frontend and Semantic contract are implemented and tested. SemanticResult provides the nominal Struct type and `AGGREGATE_FIELD` relations (field declaration node ID, name, ordinal and type ID). The OIR AST bridge also preserves the nodes, but this is not yet an executable aggregate representation.
+
+OIR_MODULE schema 1.1 currently registers only integer, float, boolean and function types; it has no aggregate type/field table, and opcode registry 1.0 has no aggregate construction/extraction operations. Struct lowering therefore requires a versioned module-schema extension, aggregate field metadata, opcode contracts and matching independent Verifier rules. It must not encode aggregate layout as host offsets or assume allocation behavior.
+
+**Blocking language decision before implementation:** define whether a Struct instance has value/copy semantics or reference/identity semantics. Value semantics can produce a nominal aggregate SSA value with field operands ordered by declaration ordinal (while evaluating initializer expressions in source order); reference semantics requires explicit allocation, lifetime, ownership and aliasing rules. The `self` receiver mutation contract must agree with that choice. No aggregate-init opcode or implicit allocation is to be emitted until this is fixed.
+
 ### Increment 4 — NEXSUS Flow control and ownership
 
 Candidate constructs include:
