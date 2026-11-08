@@ -1137,3 +1137,13 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - SemanticResult/OIR contract requires nominal Struct symbol/type ID and resolved field symbol IDs; OIR initialization follows source expression evaluation order while layout order remains Struct declaration order. No partially valid instance is emitted after diagnostics.
 - **Implementation status remains pending (~):** no Parser/AST node, codec schema, Semantic field mapping, OIR instance-init record/opcode or feature tests are claimed complete. This design checkpoint does not advance the implementation completion matrix.
 - Next implementation sequence: append-only AST StructLiteral + StructFieldInit tags/payload/ownership → Parser primary/postfix grammar → AST codec/registry round-trip → Semantic nominal type and field validation → SemanticResult serialization → OIR instance-init representation + verifier → positive/negative tests and CI.
+
+
+## 2026-11-08 — Struct Literal AST/Parser first implementation slice
+
+- AST enum'a append-only `AST_STRUCT_LITERAL` ve `AST_STRUCT_FIELD_INIT` eklendi; mevcut tag ordinal'ları değiştirilmedi.
+- AST payload: literal nominal type name + owned field initializer sibling chain; field initializer owned name + value expression. AST destroy/debug-print lifecycle eklendi.
+- Parser `Type { field = expression, ... }` biçimini expression context'inde ayrıştırıyor. Field source order ve type spelling AST'de korunuyor.
+- `test_parser.c` içine `Point { y = 2, x = 1 }` AST shape/source-order testi eklendi.
+- **Henüz test/build çalıştırılmadı:** GitHub API üzerinden kaynak değişikliği yapıldı; yerel checkout/CI sonucu bu oturumda yok. AST codec/validator registry ve Semantic mapping halen bekliyor; bu nedenle feature tamamlandı işaretlenmedi.
+- Bir sonraki kapı: AST serialize/deserialize + AST graph validator + OIR AST field schema/registry için iki yeni node'un bütün alanlarını tanımlamak ve round-trip testleri.
