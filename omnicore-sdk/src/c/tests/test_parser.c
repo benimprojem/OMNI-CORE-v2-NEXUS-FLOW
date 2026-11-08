@@ -4539,6 +4539,80 @@ generic_type_done:
         }
     }
 
+    /* Struct, packed Struct and Union declarations preserve distinct AST flags and field order. */
+    {
+        static const char source[] =
+            "struct:Point {\\n"
+            "  v:x!i32,\\n"
+            "  v:y!i32\\n"
+            "}\\n"
+            "!struct:NetworkPacket {\\n"
+            "  v:id!u8,\\n"
+            "  v:data!u32\\n"
+            "}\\n"
+            "union:Register32 {\\n"
+            "  v:full!u32,\\n"
+            "  v:parts!u16\\n"
+            "}";
+        const char* point_start=strstr(source,"struct:Point");
+        const char* packet_start=strstr(source,"!struct:NetworkPacket");
+        const char* union_start=strstr(source,"union:Register32");
+        const char* point_end=strstr(source,"}\\n!struct:NetworkPacket");
+        const char* packet_end=strstr(source,"}\\nunion:Register32");
+        const char* union_end=strrchr(source,'}');
+        ParserContext* parser=parser_init_source("aggregate-declarations.nxf",
+            (const uint8_t*)source,sizeof(source)-1u);
+        ASTNode* decoded=NULL;
+        FILE* stream=NULL;
+        int valid=0;
+        if(parser && parser_run(parser)==PARSER_STATUS_OK &&
+           parser->error_count==0 && parser->ast_root &&
+           point_start && packet_start && union_start && point_end &&
+           packet_end && union_end) {
+            ASTStructDecl* point=(ASTStructDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            ASTStructDecl* packet=point?(ASTStructDecl*)point->base.next:NULL;
+            ASTStructDecl* reg=packet?(ASTStructDecl*)packet->base.next:NULL;
+            ASTVarDecl* point_x=point?(ASTVarDecl*)point->fields:NULL;
+            ASTVarDecl* point_y=point_x?(ASTVarDecl*)point_x->base.next:NULL;
+            ASTVarDecl* packet_id=packet?(ASTVarDecl*)packet->fields:NULL;
+            ASTVarDecl* packet_data=packet_id?(ASTVarDecl*)packet_id->base.next:NULL;
+            ASTVarDecl* reg_full=reg?(ASTVarDecl*)reg->fields:NULL;
+            ASTVarDecl* reg_parts=reg_full?(ASTVarDecl*)reg_full->base.next:NULL;
+            valid=point && strcmp(point->name,"Point")==0 &&
+                !point->is_packed && !point->is_union &&
+                point->base.source_span.start_offset==(uint64_t)(point_start-source) &&
+                point->base.source_span.end_offset==(uint64_t)(point_end+1-source) &&
+                point_x && strcmp(point_x->name,"x")==0 &&
+                point_y && strcmp(point_y->name,"y")==0 &&
+                packet && strcmp(packet->name,"NetworkPacket")==0 &&
+                packet->is_packed && !packet->is_union &&
+                packet->base.source_span.start_offset==(uint64_t)(packet_start-source) &&
+                packet->base.source_span.end_offset==(uint64_t)(packet_end+1-source) &&
+                packet_id && strcmp(packet_id->name,"id")==0 &&
+                packet_data && strcmp(packet_data->name,"data")==0 &&
+                reg && strcmp(reg->name,"Register32")==0 &&
+                reg->is_union && !reg->is_packed &&
+                reg->base.source_span.start_offset==(uint64_t)(union_start-source) &&
+                reg->base.source_span.end_offset==(uint64_t)(union_end+1-source) &&
+                reg_full && strcmp(reg_full->name,"full")==0 &&
+                reg_parts && strcmp(reg_parts->name,"parts")==0 &&
+                reg_parts->base.next==NULL && ast_validate(parser->ast_root,NULL);
+            stream=tmpfile();
+            if(valid && stream && ast_serialize(parser->ast_root,stream) &&
+               fseek(stream,0L,SEEK_SET)==0) {
+                decoded=ast_deserialize(stream);
+                valid=decoded && ast_validate(decoded,NULL);
+            } else valid=0;
+        }
+        if(stream) fclose(stream);
+        if(decoded) ast_destroy(decoded);
+        if(parser) parser_destroy(parser);
+        if(!valid) {
+            fprintf(stderr,"Struct/packed Struct/Union AST shape, span and codec test failed.\\n");
+            return 1;
+        }
+    }
+
     /* Nested Struct literals remain owned expression children and round-trip recursively. */
     {
         static const char source[] =
