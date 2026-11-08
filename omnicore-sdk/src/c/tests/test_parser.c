@@ -4570,6 +4570,10 @@ generic_type_done:
         ASTNode* decoded = NULL;
         ASTFuncDecl* function;
         ASTNode* statement;
+        const char* ret_void_start=strstr(source,"ret;");
+        const char* ret_value_start=strstr(source,"ret 7;");
+        const char* break_start=strstr(source,"break;");
+        const char* continue_start=strstr(source,"continue;");
         int valid = 0;
         int invalid_rejected = 0;
         if (parser && parser_run(parser) == PARSER_STATUS_OK &&
@@ -4592,6 +4596,26 @@ generic_type_done:
                 statement->next->source_span.has_location &&
                 statement->next->next->source_span.has_location &&
                 statement->next->next->next->source_span.has_location &&
+                ret_void_start &&
+                statement->source_span.start_offset==(uint64_t)(ret_void_start-source) &&
+                statement->source_span.end_offset==(uint64_t)(ret_void_start+strlen("ret;")-source) &&
+                statement->source_span.start_column==(uint32_t)(ret_void_start-source)+1u &&
+                statement->source_span.end_column==(uint32_t)(ret_void_start+strlen("ret;")-source)+1u &&
+                ret_value_start &&
+                statement->next->source_span.start_offset==(uint64_t)(ret_value_start-source) &&
+                statement->next->source_span.end_offset==(uint64_t)(ret_value_start+strlen("ret 7;")-source) &&
+                statement->next->source_span.start_column==(uint32_t)(ret_value_start-source)+1u &&
+                statement->next->source_span.end_column==(uint32_t)(ret_value_start+strlen("ret 7;")-source)+1u &&
+                break_start &&
+                statement->next->next->source_span.start_offset==(uint64_t)(break_start-source) &&
+                statement->next->next->source_span.end_offset==(uint64_t)(break_start+strlen("break;")-source) &&
+                statement->next->next->source_span.start_column==(uint32_t)(break_start-source)+1u &&
+                statement->next->next->source_span.end_column==(uint32_t)(break_start+strlen("break;")-source)+1u &&
+                continue_start &&
+                statement->next->next->next->source_span.start_offset==(uint64_t)(continue_start-source) &&
+                statement->next->next->next->source_span.end_offset==(uint64_t)(continue_start+strlen("continue;")-source) &&
+                statement->next->next->next->source_span.start_column==(uint32_t)(continue_start-source)+1u &&
+                statement->next->next->next->source_span.end_column==(uint32_t)(continue_start+strlen("continue;")-source)+1u &&
                 stream && ast_serialize(parser->ast_root, stream) &&
                 fseek(stream, 0L, SEEK_SET) == 0) {
                 decoded = ast_deserialize(stream);
