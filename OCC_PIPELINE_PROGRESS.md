@@ -1122,3 +1122,11 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Added regression tests for anonymous instance methods and anonymous static factory methods whose return type is the Group's bound Struct. `Type.factory(args)` propagates the declared return type to the call expression, enabling a typed local assignment.
 - GitHub Actions run `42427536942` passed: Linux, macOS and Windows CTest 60/60; ASan/UBSan and Valgrind passed.
 - Actual Struct literal construction and field initialization checks remain pending; the static factory test verifies call/return type flow, not complete constructor lowering.
+
+## 2026-11-08 — Group constructor/factory contract clarification
+
+- Group Formal Specification §4.4 yeniden yazıldı: yapıcı/factory'nin statik Group method olduğu, `Type.alias(args)` biçiminde çağrıldığı, `self` alamadığı ve bağlı Struct nominal türünü dönüş imzasında `!Type` ile bildirmesi gerektiği normatifleştirildi.
+- Kullanım örnekleri eklendi: Type-qualified factory call ve typed assignment; factory sonucunu başka fonksiyona/parametreye aktarma; instance method ile static factory ayrımı ve geçersiz çağrı biçimleri.
+- Önemli sınır açıkça yazıldı: factory signature/type propagation, instance allocation veya field initialization değildir. Struct literal örneği hedef syntax olarak işaretlendi ve mevcut destek gibi gösterilmesi engellendi.
+- Bu commit yalnızca specification netleştirmesidir; constructor/Struct literal uygulaması veya test başarısı iddiası değildir.
+- Sıradaki uygulama: Struct literal AST üretimi ve Semantic field mapping/type validation; ardından OIR instance-init temsili. Codegen'e geçilmeyecek.
