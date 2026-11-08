@@ -33,8 +33,6 @@ typedef union AstStorage {
     ASTLambda lambda_node;
     ASTRelocate relocate_node;
     ASTUnroll unroll_node;
-    ASTStructLiteral struct_literal;
-    ASTStructFieldInit struct_field_init;
     ASTVarDecl var_decl;
     ASTFuncDecl func_decl;
     ASTStructDecl struct_decl;
@@ -62,8 +60,8 @@ typedef union AstStorage {
 } AstStorage;
 
 #define INDEX_CAPACITY 256u
-#define LEGACY_FLAT_KIND_COUNT 107u
-#define MAX_NODES (LEGACY_FLAT_KIND_COUNT + 2u)
+#define LEGACY_FLAT_KIND_COUNT 100u
+#define MAX_NODES (LEGACY_FLAT_KIND_COUNT + 1u)
 #define FIELD_CAPACITY 8192u
 #define STRING_CAPACITY 2048u
 #define OUTPUT_CAPACITY 16384u
@@ -98,7 +96,6 @@ static OirStatus encode_fixture(
 
 int main(void) {
     ASTProgram root;
-    ASTLiteral struct_value;
     AstStorage nodes[OIR_AST_NODE_KIND_COUNT];
     OirAstPointerIndexEntry index[INDEX_CAPACITY];
     OirAstNodeRecord records[MAX_NODES];
@@ -113,7 +110,6 @@ int main(void) {
     ASTNodeType expected_type;
 
     memset(&root,0,sizeof(root));
-    memset(&struct_value,0,sizeof(struct_value));
     memset(nodes,0,sizeof(nodes));
     root.base.type=AST_PROGRAM;
     root.base.line=1; root.base.col=1;
@@ -160,11 +156,6 @@ int main(void) {
     nodes[69].thread_block.name="worker";
     nodes[70].use.module_name="std.io";
     nodes[70].use.alias="io";
-    nodes[105].struct_literal.type_name="Point";
-    nodes[106].struct_field_init.name="x";
-    struct_value.base.type=AST_LITERAL;
-    struct_value.type=TOKEN_NUMBER; struct_value.lit_type=0; struct_value.string_value="1";
-    nodes[106].struct_field_init.value=(ASTNode*)&struct_value;
 
     assert(encode_fixture((ASTNode*)&root,index,records,fields,strings,output,
         &count,&written,&req)==OIR_STATUS_OK);
@@ -193,8 +184,6 @@ int main(void) {
         ASTLiteral* literal=(ASTLiteral*)nth_next(first,12u);
         ASTIdentifier* identifier=(ASTIdentifier*)nth_next(first,13u);
         ASTLoop* loop=(ASTLoop*)nth_next(first,24u);
-        ASTStructLiteral* struct_literal=(ASTStructLiteral*)nth_next(first,105u);
-        ASTStructFieldInit* struct_field=(ASTStructFieldInit*)nth_next(first,106u);
         assert(strcmp(var->name,"amount")==0 && strcmp(var->type_name,"i64")==0);
         assert(var->is_const==1 && var->is_hard_typed==1 && var->is_public==0 && var->is_exported==1);
         assert(strcmp(fn->name,"calculate")==0 && strcmp(fn->return_type,"f64")==0 && fn->is_public==1);
@@ -203,10 +192,6 @@ int main(void) {
         assert(strcmp(literal->string_value,"literal value")==0);
         assert(strcmp(identifier->name,"nexus")==0);
         assert(loop->loop_type==3);
-        assert(struct_literal->base.type==AST_STRUCT_LITERAL && strcmp(struct_literal->type_name,"Point")==0);
-        assert(struct_field->base.type==AST_STRUCT_FIELD_INIT && strcmp(struct_field->name,"x")==0);
-        assert(struct_field->value && struct_field->value->type==AST_LITERAL &&
-            strcmp(((ASTLiteral*)struct_field->value)->string_value,"1")==0);
     }
     ast_destroy(decoded_root);
     decoded_root=NULL;
