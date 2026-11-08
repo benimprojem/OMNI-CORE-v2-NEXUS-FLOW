@@ -485,10 +485,10 @@ done:
 
 static int test_nested_block_exact_source_spans(void) {
     static const char source[] =
-        "f:main() {\\n"
-        "  {\\n"
-        "    v:x = 1;\\n"
-        "  }\\n"
+        "f:main() {\n"
+        "  {\n"
+        "    v:x = 1;\n"
+        "  }\n"
         "}";
     const char* outer_open=strchr(source,'{');
     const char* outer_close=strrchr(source,'}');
@@ -545,7 +545,7 @@ static int test_nested_block_exact_source_spans(void) {
             nested->base.source_span.end_offset==(uint64_t)(nested_close+1-source);
     }
 done:
-    if(!valid) fprintf(stderr,"Nested block exact source-span/codec test failed.\\n");
+    if(!valid) fprintf(stderr,"Nested block exact source-span/codec test failed.\n");
     if(stream) fclose(stream);
     if(decoded) ast_destroy(decoded);
     parser_destroy(parser);
