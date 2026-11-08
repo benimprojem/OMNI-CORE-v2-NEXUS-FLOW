@@ -278,6 +278,8 @@ typedef struct {
     /* Optional owned AST_ARRAY_TYPE describing return dimensions. Keep appended
      * for source/ABI layout compatibility; return_type remains base-type text. */
     ASTNode* return_array_type;
+    /* Optional source-level linkage file inherited from the preceding linkname directive. */
+    char* linkname;
 } ASTFuncDecl;
 
 typedef struct {
