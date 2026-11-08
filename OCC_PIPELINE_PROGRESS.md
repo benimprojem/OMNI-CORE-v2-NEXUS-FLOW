@@ -172,8 +172,8 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–107 kayıtlı OIR düğ
 | 103 | `AST_MUST_DECL` | ✓ | ~ | ~ | D | ~ |
 | 104 | `AST_FASTEXEC_BLOCK` | ~ | ~ | ~ | D | ~ |
 | 105 | `AST_ASM_LABEL` | ~ | ~ | ~ | D | ~ |
-| 106 | `AST_STRUCT_LITERAL` | ✓ | ✓ | ~ | ? | ✓ |
-| 107 | `AST_STRUCT_FIELD_INIT` | ✓ | ✓ | ~ | ? | ✓ |
+| 106 | `AST_STRUCT_LITERAL` | ✓ | ✓ | ✓ | ? | ✓ |
+| 107 | `AST_STRUCT_FIELD_INIT` | ✓ | ✓ | ✓ | ? | ✓ |
 
 ## 5. OIR ve Verifier kapsam kapısı
 
@@ -1165,7 +1165,7 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 
 - Semantic traversal now resolves only visible `SLOT_STRUCT` types for Struct literal construction; visible Enum/Union/non-Struct types receive type-mismatch diagnostics, while unknown or Group-inaccessible nominal types receive unknown-type diagnostics.
 - Every initializer expression is checked; unknown fields, duplicate initializers, missing declared fields and incompatible values are diagnosed. Field lookup is independent of source order; expression evaluation order remains the AST source order. Empty `{}` is structurally valid and succeeds semantically only for a zero-field Struct.
-- Group-private nominal type visibility is preserved. Semantic regression tests cover valid reordered fields, unknown/duplicate/missing fields, string and numeric type mismatches, non-Struct type, empty Struct and inside/outside Group visibility.
+- Group-private nominal type visibility is preserved. Semantic regression tests cover valid reordered fields, unknown/duplicate/missing fields, string and numeric type mismatches, non-Struct type, empty Struct, inside/outside/nested Group visibility and a Group factory returning a Struct literal.
 - SemanticResult integration validates the literal's nominal Struct symbol/type annotation and field declaration relations. `AGGREGATE_FIELD` relation carries the field declaration node ID, name, declaration ordinal and type ID; field initializer annotation carries the expression type.
 - Invalid-literal gate is tested: a Struct literal with a missing field produces Semantic diagnostics and `semantic_finalize_result` returns `SEMANTIC_RESULT_INVALID_DATA`; no failed instance can be finalized for OIR handoff.
 - OIR AST registry appended IDs 106/107. Map, schema, index child traversal, writer and reader were extended; parser→OIR AST→reader→writer canonical byte round-trip is covered. Parser now stamps source spans on each field initializer.
@@ -1173,4 +1173,5 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Run `42455141289` on commit `d552313d` passed Ubuntu/macOS/Windows CTest, ASan/UBSan and Valgrind; Ubuntu CTest reported 60/60. Follow-up run `42455300701` on commit `6a43ce54` also passed all five jobs after adding the dedicated legacy AST codec round-trip and updated invalid-tag boundary.
 - CI validation: `42455300701` (commit `6a43ce54`) passed Ubuntu/macOS/Windows, ASan/UBSan and Valgrind; 60/60 CTest. This confirms the dedicated legacy AST codec fixture in addition to the earlier Semantic/OIR round-trip coverage.
 - Follow-up CI run `42455583043` passed all five jobs with 60/60 CTest after adding the negative SemanticResult finalization-gate test.
+- Follow-up CI run `42455856774` on commit `830e0dac` passed all five jobs with 60/60 CTest after adding the Group factory-return and nested Group isolation cases.
 - **Remaining:** complete OIR instance-init representation and independent Verifier validation before Codegen; keep Codegen gated.
