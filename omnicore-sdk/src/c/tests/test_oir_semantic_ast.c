@@ -231,7 +231,7 @@ int main(void) {
 
         memset(type_second, 0xa5, sizeof(type_second));
         assert(oir_semantic_types_write(type_second, sizeof(type_second) - 1u,
-            types, 2u, names, (uint32_t)sizeof(names), &type_second_written) ==
+            types, 3u, names, (uint32_t)sizeof(names), &type_second_written) ==
             OIR_STATUS_BUFFER_TOO_SMALL);
         assert(type_second_written == 0u && type_second[0] == 0xa5u);
 
