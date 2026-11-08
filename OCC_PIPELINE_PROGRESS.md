@@ -1174,4 +1174,5 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - CI validation: `42455300701` (commit `6a43ce54`) passed Ubuntu/macOS/Windows, ASan/UBSan and Valgrind; 60/60 CTest. This confirms the dedicated legacy AST codec fixture in addition to the earlier Semantic/OIR round-trip coverage.
 - Follow-up CI run `42455583043` passed all five jobs with 60/60 CTest after adding the negative SemanticResult finalization-gate test.
 - Follow-up CI run `42455856774` on commit `830e0dac` passed all five jobs with 60/60 CTest after adding the Group factory-return and nested Group isolation cases.
+- Documentation/registry audit follow-up run `42455976764` passed all five jobs; the updated Group spec, AST ownership/implementation matrices and syntax matrix are CI-validated.
 - **Remaining:** complete OIR instance-init representation and independent Verifier validation before Codegen; keep Codegen gated.
