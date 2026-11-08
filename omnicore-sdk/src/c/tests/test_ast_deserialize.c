@@ -1239,7 +1239,7 @@ static int roundtrips_recursive_type_expr_declaration_slots(void) {
     FILE* stream=NULL;
     ASTNode* decoded=NULL;
     ASTVarDecl* restored;
-    int ok=0,attached=0;
+    int ok=0,attached=0,stage=1;
     if(!program||!variable||!pointer||!named)goto done;
     variable->name=duplicate_text("ptr");
     variable->type_name=duplicate_text("*i32");
@@ -1251,12 +1251,16 @@ static int roundtrips_recursive_type_expr_declaration_slots(void) {
     if(!variable->name||!variable->type_name||!named->name)goto done;
     program->declarations=(ASTNode*)variable;
     attached=1;
+    stage=2;
     if(!ast_validate((ASTNode*)program,NULL))goto done;
+    stage=3;
     stream=tmpfile();
     if(!stream||!ast_serialize((ASTNode*)program,stream)||fseek(stream,0L,SEEK_SET)!=0)
         goto done;
+    stage=4;
     decoded=ast_deserialize(stream);
     if(!decoded||!ast_validate(decoded,NULL))goto done;
+    stage=5;
     restored=(ASTVarDecl*)((ASTProgram*)decoded)->declarations;
     if(!restored||!restored->type_expr||
        ((ASTTypeExpr*)restored->type_expr)->kind!=AST_TYPE_POINTER||
@@ -1267,6 +1271,7 @@ static int roundtrips_recursive_type_expr_declaration_slots(void) {
         goto done;
     ok=1;
 done:
+    if(!ok)fprintf(stderr,"recursive type expr test failed at stage %d\\n",stage);
     if(stream)fclose(stream);
     if(decoded)ast_destroy(decoded);
     if(attached)ast_destroy((ASTNode*)program);
@@ -1516,7 +1521,7 @@ int main(int argc, char** argv) {
         return 9;
     }
     if (roundtrips_versioned_source_spans() != 0) { fprintf(stderr, "roundtrips_versioned_source_spans failed.\\n"); return 15; }
-    if (roundtrips_recursive_type_expr_declaration_slots() != 0) { fprintf(stderr, "roundtrips_recursive_type_expr_declaration_slots failed.\\n"); return 25; }
+    { int type_expr_result=roundtrips_recursive_type_expr_declaration_slots(); if (type_expr_result != 0) { fprintf(stderr, "roundtrips_recursive_type_expr_declaration_slots failed at stage %d.\\n",type_expr_result); return 25; } }
     if (reads_v1_function_stream_without_v2_return_child() != 0) { fprintf(stderr, "reads_v1_function_stream_without_v2_return_child failed.\\n"); return 22; }
     if (reads_v2_function_stream_without_v3_linkname() != 0) { fprintf(stderr, "reads_v2_function_stream_without_v3_linkname failed.\\n"); return 24; }
     if (rejects_ast_decode_allocation_failures() != 0) { fprintf(stderr, "rejects_ast_decode_allocation_failures failed.\\n"); return 23; }
