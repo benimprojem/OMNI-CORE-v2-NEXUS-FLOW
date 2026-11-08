@@ -1147,3 +1147,13 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - `test_parser.c` içine `Point { y = 2, x = 1 }` AST shape/source-order testi eklendi.
 - **Henüz test/build çalıştırılmadı:** GitHub API üzerinden kaynak değişikliği yapıldı; yerel checkout/CI sonucu bu oturumda yok. AST codec/validator registry ve Semantic mapping halen bekliyor; bu nedenle feature tamamlandı işaretlenmedi.
 - Bir sonraki kapı: AST serialize/deserialize + AST graph validator + OIR AST field schema/registry için iki yeni node'un bütün alanlarını tanımlamak ve round-trip testleri.
+
+
+## 2026-11-08 — Struct literal AST implementation checkpoint
+
+- `AST_STRUCT_LITERAL` and `AST_STRUCT_FIELD_INIT` tags/payloads are append-only additions; parser syntax and ordered field initializer list are implemented.
+- AST lifecycle/debug printing, recursive destruction, serialization and deserialization now include both node kinds.
+- AST graph validator now checks required Struct type name, field names, and initializer/value child links.
+- `OIR_AST_NODE_REGISTRY.md` records the field contracts for both node kinds.
+- Parser regression test covers `Point { y = 2, x = 1 }` and confirms source initializer order is preserved.
+- **Validation status: not yet built or executed.** Codec round-trip, graph validator negative cases, Semantic checks (unknown/duplicate/missing fields and type compatibility), and OIR lowering remain pending. Do not mark Struct literal end-to-end complete.
