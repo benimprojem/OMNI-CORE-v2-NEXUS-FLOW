@@ -153,6 +153,7 @@ static int test_group_semantic_records(void) {
         "   default { }"
         " }"
         " Storage.static_info();"
+        " Storage;"
         "}";
     ParserContext* parser = parser_init_source(
         "group-semantic-result.nxf", (const uint8_t*)source,
@@ -172,14 +173,16 @@ static int test_group_semantic_records(void) {
     ASTFuncDecl* static_info_implementation = NULL;
     ASTCall* store_call = NULL;
     ASTCall* external_static_call = NULL;
+    ASTNode* default_reference = NULL;
     uint32_t self_node_id = 0u, self_symbol_id = 0u, bound_type_id = 0u;
     uint32_t store_node_id = 0u, store_callee_node_id = 0u;
     uint32_t store_symbol_id = 0u, static_info_symbol_id = 0u;
-    uint32_t external_call_node_id = 0u;
+    uint32_t external_call_node_id = 0u, default_reference_node_id = 0u;
     int saw_receiver_annotation = 0, saw_receiver_parameter_relation = 0;
     int saw_store_call_target = 0, saw_store_callee_target = 0;
     int saw_store_method_relation = 0, saw_external_static_call_target = 0;
     int saw_static_info_method_relation = 0;
+    int saw_default_dispatch_annotation = 0;
     OirAstFrontendRequirements ast_requirements;
     OirAstNodeRecord* ast_records = NULL;
     uint8_t *ast_fields = NULL, *ast_strings = NULL;
@@ -272,17 +275,22 @@ static int test_group_semantic_records(void) {
         strcmp(self_parameter->name, "self") != 0 ||
         !store_implementation || !store_call ||
         !static_info_implementation || !group_node->base.next ||
-        group_node->base.next->type != AST_FUNC_CALL) {
+        group_node->base.next->type != AST_FUNC_CALL ||
+        !group_node->base.next->next ||
+        group_node->base.next->next->type != AST_IDENTIFIER) {
         parser_destroy(parser);
         return 0;
     }
     external_static_call = (ASTCall*)group_node->base.next;
+    default_reference = group_node->base.next->next;
     self_node_id = resolve_node_id(&resolver, (ASTNode*)self_parameter);
     store_node_id = resolve_node_id(&resolver, (ASTNode*)store_call);
     store_callee_node_id = resolve_node_id(
         &resolver, store_call ? store_call->callee : NULL);
     external_call_node_id = resolve_node_id(
         &resolver, (ASTNode*)external_static_call);
+    default_reference_node_id = resolve_node_id(
+        &resolver, default_reference);
     semantic_init(&semantic, "group-semantic-result.nxf", NULL);
     semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
@@ -403,6 +411,11 @@ static int test_group_semantic_records(void) {
             static_info_symbol_id != 0u) {
             saw_external_static_call_target = 1;
         }
+        if (annotation->node_id == default_reference_node_id &&
+            annotation->resolved_symbol_id == group_symbol_id &&
+            group_symbol_id != 0u) {
+            saw_default_dispatch_annotation = 1;
+        }
     }
     for (i = 0u; i < semantic.result.relation_count; ++i) {
         const SemanticResultRelation* relation = &semantic.result.relations[i];
@@ -425,16 +438,17 @@ static int test_group_semantic_records(void) {
         saw_receiver_parameter_relation && saw_store_call_target &&
         saw_store_callee_target && saw_store_method_relation &&
         static_info_symbol_id != 0u && saw_external_static_call_target &&
-        saw_static_info_method_relation;
+        saw_static_info_method_relation && saw_default_dispatch_annotation;
     if (!ok) {
         fprintf(stderr,
-            "Group SemanticResult mismatch: symbol=%u relations=%u member=%d binding=%d method=%d default=%d receiver_symbol=%u receiver_type=%u receiver_annotation=%d receiver_relation=%d store_symbol=%u store_target=%d callee_target=%d alias_relation=%d static_symbol=%u external_target=%d static_relation=%d\n",
+            "Group SemanticResult mismatch: symbol=%u relations=%u member=%d binding=%d method=%d default=%d receiver_symbol=%u receiver_type=%u receiver_annotation=%d receiver_relation=%d store_symbol=%u store_target=%d callee_target=%d alias_relation=%d static_symbol=%u external_target=%d static_relation=%d default_dispatch=%d\n",
             group_symbol_id, group_relation_count, saw_member, saw_binding,
             saw_method, saw_default, self_symbol_id, bound_type_id,
             saw_receiver_annotation, saw_receiver_parameter_relation,
             store_symbol_id, saw_store_call_target, saw_store_callee_target,
             saw_store_method_relation, static_info_symbol_id,
-            saw_external_static_call_target, saw_static_info_method_relation);
+            saw_external_static_call_target, saw_static_info_method_relation,
+            saw_default_dispatch_annotation);
     }
 
     /* Serialize the real Group AST and validate the resulting schema 1.1 artifact. */
