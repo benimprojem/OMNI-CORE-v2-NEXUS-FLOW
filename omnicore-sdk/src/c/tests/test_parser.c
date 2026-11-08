@@ -2902,6 +2902,8 @@ int main(int argc, char** argv) {
         ASTFuncDecl* main_fn;
         ASTNode* call_node;
         ASTCall* call;
+        const char* named_start;
+        ASTNamedArg* named_arg;
         ASTNode* decoded = NULL;
         FILE* stream = NULL;
         int valid = 0;
@@ -2918,10 +2920,20 @@ int main(int argc, char** argv) {
             goto named_args_done;
         call_node = ((ASTBlock*)main_fn->body)->statements;
         call = (ASTCall*)call_node;
+        named_start=strstr(source,"b:2");
         if (!call_node || call_node->type != AST_FUNC_CALL || !call->args ||
             call->args->type != AST_LITERAL || !call->args->next ||
-            call->args->next->type != AST_NAMED_ARG ||
-            strcmp(((ASTNamedArg*)call->args->next)->name, "b") != 0 ||
+            call->args->next->type != AST_NAMED_ARG || !named_start)
+            goto named_args_done;
+        named_arg=(ASTNamedArg*)call->args->next;
+        if (strcmp(named_arg->name,"b") != 0 ||
+            !named_arg->base.source_span.has_location ||
+            named_arg->base.source_span.start_offset != (uint64_t)(named_start-source) ||
+            named_arg->base.source_span.end_offset != (uint64_t)(named_start-source)+3u ||
+            named_arg->base.source_span.start_line != 1u ||
+            named_arg->base.source_span.start_column != (uint32_t)(named_start-source)+1u ||
+            named_arg->base.source_span.end_line != 1u ||
+            named_arg->base.source_span.end_column != (uint32_t)(named_start-source)+4u ||
             !ast_validate(parser->ast_root, NULL))
             goto named_args_done;
         stream = tmpfile();
