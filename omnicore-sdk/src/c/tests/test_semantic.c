@@ -193,7 +193,7 @@ static int check_struct_literal_semantics(void) {
         check_source(duplicate_field, 1) &&
         check_source(missing_field, 1) &&
         check_source(incompatible_field, 1) &&
-        check_source(hard_type_mismatch, 1) &&
+        check_source(numeric_type_mismatch, 1) &&
         check_source(non_struct_type, 1) &&
         check_source(empty_struct, 0) &&
         check_source(group_owned_type_inside, 0) &&
