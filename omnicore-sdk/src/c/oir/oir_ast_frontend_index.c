@@ -167,6 +167,7 @@ const ASTNode* oir_ast_frontend_child_at(const ASTNode* node, uint16_t field_id)
             return field_id == 1u ? ((const ASTArrayType*)node)->dimensions : NULL;
         case AST_ARRAY_DIMENSION:
             return field_id == 1u ? ((const ASTArrayDimension*)node)->length : NULL;
+        case AST_TYPE_EXPR: { const ASTTypeExpr* n=(const ASTTypeExpr*)node; if(field_id==4u)return n->child; if(field_id==5u)return n->params; if(field_id==6u)return n->dimensions; return NULL; }
         case AST_FASTEXEC_BLOCK:
             return field_id == 1u ? ((const ASTFastExecBlock*)node)->statements : NULL;
         case AST_NAMED_ARG:
@@ -255,6 +256,7 @@ uint16_t oir_ast_frontend_child_field_count(ASTNodeType type) {
         case AST_NEXUS_LABEL: case AST_NEXUS_INTENT:
             return 2u;
         case AST_VAR_DECL: return 8u;
+        case AST_TYPE_EXPR: return 6u;
         case AST_FUNC_DECL: case AST_EXTERN_DECL: return 8u;
         case AST_BINARY_EXPR: case AST_ASSIGNMENT: case AST_IF: return 3u;
         case AST_INDEX_ACCESS: return 2u;
