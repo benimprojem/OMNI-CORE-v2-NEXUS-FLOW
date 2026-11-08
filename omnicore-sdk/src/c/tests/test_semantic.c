@@ -335,6 +335,10 @@ static int check_group_method_dispatch_semantics(void) {
         "f:main() { group Namespace { "
         "run => f:run_impl() { Namespace.parse(\"x\"); ret; } "
         "parse => f:parse_impl(text!str) { ret; } } }";
+    const char* bare_group_expression_dispatches_default =
+        "f:main() { group Namespace { default { } } Namespace; ret; }";
+    const char* bare_group_expression_requires_default =
+        "f:main() { group Namespace { f:helper() { ret; } } Namespace; ret; }";
     const char* direct_group_function_call =
         "f:main() { group Namespace { "
         "run => f:run_impl() { Namespace.helper(7); ret; } "
@@ -385,6 +389,8 @@ static int check_group_method_dispatch_semantics(void) {
         check_source(anonymous_static_factory_returning_bound_type, 0) &&
         check_source(type_qualified_static_call, 0) &&
         check_source(namespace_static_call, 0) &&
+        check_source(bare_group_expression_dispatches_default, 0) &&
+        check_source(bare_group_expression_requires_default, 1) &&
         check_source(direct_group_function_call, 0) &&
         check_source(direct_group_function_called_from_enclosing_scope, 0) &&
         check_source(method_alias_called_from_enclosing_scope, 0) &&
