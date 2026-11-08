@@ -710,8 +710,8 @@ static int roundtrips_all_node_type_tags(void) {
             owner->dimensions=original;
             root=(ASTNode*)owner;
         }
-        root->line = 100 + raw_type;
-        root->col = 200 + raw_type;
+        original->line = 100 + raw_type;
+        original->col = 200 + raw_type;
         sibling = ast_create(AST_IDENTIFIER);
         if (!sibling) { ast_destroy(root); return 1; }
         ((ASTIdentifier*)sibling)->name = duplicate_text("sibling-node");
@@ -742,8 +742,8 @@ static int roundtrips_all_node_type_tags(void) {
 
         int valid = decoded && decoded_target &&
             decoded_target->type == (ASTNodeType)raw_type &&
-            root->line == 100 + raw_type &&
-            root->col == 200 + raw_type &&
+            decoded_target->line == 100 + raw_type &&
+            decoded_target->col == 200 + raw_type &&
             decoded->next &&
             decoded->next->type == AST_IDENTIFIER &&
             ((ASTIdentifier*)decoded->next)->name &&
