@@ -1709,6 +1709,15 @@ static int test_power_bitwise_and_compound_assignment(void) {
     ParserContext* ctx=parser_init_source("power-bitwise-compound.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     ASTProgram* program;ASTFuncDecl* function;ASTBlock* body;ASTNode* node;
+    ASTNode* power_expression=NULL;
+    ASTNode* unary_expression=NULL;
+    ASTNode* plus_assignment=NULL;
+    const char* power_start=strstr(source,"2 ^^ 3 ^^ 2");
+    const char* power_end=power_start?power_start+strlen("2 ^^ 3 ^^ 2"):NULL;
+    const char* unary_start=strstr(source,"-2 ^^ 2");
+    const char* unary_end=unary_start?unary_start+strlen("-2 ^^ 2"):NULL;
+    const char* assignment_start=strstr(source,"x += 2;");
+    const char* assignment_end=assignment_start?assignment_start+strlen("x += 2"):NULL;
     int saw_power=0,saw_bitwise=0,ops=0,ok=0;
     if(!ctx)return 0;
     if(parser_run(ctx)!=PARSER_STATUS_OK||ctx->error_count||!ctx->ast_root)goto done;
@@ -1720,11 +1729,17 @@ static int test_power_bitwise_and_compound_assignment(void) {
             ASTVarDecl* variable=(ASTVarDecl*)node;
             if(variable->name&&strcmp(variable->name,"p")==0&&variable->initializer&&variable->initializer->type==AST_BINARY_EXPR){
                 ASTBinaryExpr* root=(ASTBinaryExpr*)variable->initializer;
-                if(root->op==TOKEN_POWER&&root->right&&root->right->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)root->right)->op==TOKEN_POWER)saw_power=1;
+                if(root->op==TOKEN_POWER&&root->right&&root->right->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)root->right)->op==TOKEN_POWER) {
+                    saw_power=1;
+                    power_expression=(ASTNode*)root;
+                }
             }
             if(variable->name&&strcmp(variable->name,"n")==0&&variable->initializer&&variable->initializer->type==AST_UNARY_EXPR){
                 ASTUnaryExpr* unary=(ASTUnaryExpr*)variable->initializer;
-                if(unary->op==TOKEN_MINUS&&unary->operand&&unary->operand->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)unary->operand)->op==TOKEN_POWER)saw_power|=2;
+                if(unary->op==TOKEN_MINUS&&unary->operand&&unary->operand->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)unary->operand)->op==TOKEN_POWER) {
+                    saw_power|=2;
+                    unary_expression=(ASTNode*)unary;
+                }
             }
             if(variable->name&&strcmp(variable->name,"q")==0&&variable->initializer&&variable->initializer->type==AST_BINARY_EXPR){
                 ASTBinaryExpr* root=(ASTBinaryExpr*)variable->initializer;
@@ -1739,7 +1754,7 @@ static int test_power_bitwise_and_compound_assignment(void) {
             }
         }else if(node->type==AST_ASSIGNMENT){
             ASTBinaryExpr* assignment=(ASTBinaryExpr*)node;
-            if(assignment->op==TOKEN_PLUS_EQ)ops|=1;
+            if(assignment->op==TOKEN_PLUS_EQ) { ops|=1; plus_assignment=node; }
             if(assignment->op==TOKEN_MINUS_EQ)ops|=2;
             if(assignment->op==TOKEN_STAR_EQ)ops|=4;
             if(assignment->op==TOKEN_SLASH_EQ)ops|=8;
@@ -1749,7 +1764,25 @@ static int test_power_bitwise_and_compound_assignment(void) {
             if(assignment->op==TOKEN_STRING_APPEND)ops|=128;
         }
     }
-    ok=(saw_power&1)&&(saw_power&2)&&(saw_power&4)&&saw_bitwise&&ops==255;
+    ok=(saw_power&1)&&(saw_power&2)&&(saw_power&4)&&saw_bitwise&&ops==255 &&
+        power_start && power_end && power_expression &&
+        power_expression->source_span.has_location &&
+        power_expression->source_span.start_offset==(uint64_t)(power_start-source) &&
+        power_expression->source_span.end_offset==(uint64_t)(power_end-source) &&
+        power_expression->source_span.start_column==(uint32_t)(power_start-source)+1u &&
+        power_expression->source_span.end_column==(uint32_t)(power_end-source)+1u &&
+        unary_start && unary_end && unary_expression &&
+        unary_expression->source_span.has_location &&
+        unary_expression->source_span.start_offset==(uint64_t)(unary_start-source) &&
+        unary_expression->source_span.end_offset==(uint64_t)(unary_end-source) &&
+        unary_expression->source_span.start_column==(uint32_t)(unary_start-source)+1u &&
+        unary_expression->source_span.end_column==(uint32_t)(unary_end-source)+1u &&
+        assignment_start && assignment_end && plus_assignment &&
+        plus_assignment->source_span.has_location &&
+        plus_assignment->source_span.start_offset==(uint64_t)(assignment_start-source) &&
+        plus_assignment->source_span.end_offset==(uint64_t)(assignment_end-source) &&
+        plus_assignment->source_span.start_column==(uint32_t)(assignment_start-source)+1u &&
+        plus_assignment->source_span.end_column==(uint32_t)(assignment_end-source)+1u;
 done:parser_destroy(ctx);return ok;
 }
 
