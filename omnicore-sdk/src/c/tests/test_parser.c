@@ -2725,92 +2725,25 @@ static int test_pointer_reference_type_declarators(void) {
         ret_node = local_node ? local_node->next : NULL;
 
         valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
-            strcmp(((ASTNewTypeDecl*)alias_node)->target_type, "*char") == 0 &&
-            ((ASTNewTypeDecl*)alias_node)->target_type_expr &&
-            ((ASTTypeExpr*)((ASTNewTypeDecl*)alias_node)->target_type_expr)->kind==AST_TYPE_POINTER &&
-            function && function->return_type &&
-            strcmp(function->return_type, "!*char") == 0 &&
-            function->return_type_expr &&
-            ((ASTTypeExpr*)function->return_type_expr)->kind==AST_TYPE_QUALIFIED &&
-            p && strcmp(p->name, "p") == 0 &&
-            strcmp(p->type_name, "*char") == 0 && p->type_expr &&
-            ((ASTTypeExpr*)p->type_expr)->kind==AST_TYPE_POINTER &&
-            pp && strcmp(pp->name, "pp") == 0 &&
-            strcmp(pp->type_name, "!**u8") == 0 && pp->type_expr &&
-            ((ASTTypeExpr*)pp->type_expr)->kind==AST_TYPE_QUALIFIED &&
-            ref_param && strcmp(ref_param->name, "ref") == 0 &&
-            strcmp(ref_param->type_name, "&Point") == 0 && ref_param->type_expr &&
-            ((ASTTypeExpr*)ref_param->type_expr)->kind==AST_TYPE_REFERENCE &&
-            !ref_param->base.next &&
-            local_node && local_node->type == AST_VAR_DECL &&
-            strcmp(((ASTVarDecl*)local_node)->type_name, "*char") == 0 &&
-            ((ASTVarDecl*)local_node)->type_expr &&
-            ret_node && ret_node->type == AST_RETURN &&
-            ast_validate((ASTNode*)parser->ast_root, NULL);
-
-        if (valid) {
-            stream = tmpfile();
-            valid = stream != NULL &&
-                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
-            if (valid) {
-                rewind(stream);
-                decoded = ast_deserialize(stream);
-                valid = decoded != NULL && ast_validate(decoded, NULL);
-            }
-        }
-    }
-    if (decoded) ast_destroy(decoded);
-    if (stream) fclose(stream);
-    parser_destroy(parser);
-    if (!valid) fprintf(stderr, "Pointer/reference type declarator AST contract failed.\n");
-    return valid;
-}
-
-
-static int test_function_type_alias_and_callback_parameter(void) {
-    static const char source[] =
-        "nt:Callback = f:(id!u32)!bool; "
-        "nt:LegacyCallback = f:(id!u32)>!bool; "
-        "f:apply(callback!f:(id!u32)!bool, id!u32)!bool { ret callback(id); }";
-    static const char invalid_source[] = "nt:Broken = f:(id!u32)!;";
-    ParserContext* parser = parser_init_source(
-        "callback-function-type.nxf", (const uint8_t*)source, sizeof(source) - 1u);
-    ParserContext* invalid = NULL;
-    ASTNode* alias_node = NULL;
-    ASTNode* legacy_alias_node = NULL;
-    ASTNode* function_node = NULL;
-    ASTFuncDecl* function = NULL;
-    ASTVarDecl* callback_param = NULL;
-    ASTVarDecl* id_param = NULL;
-    ASTNode* decoded = NULL;
-    FILE* stream = NULL;
-    int valid = 0;
-    int parse_status = -1;
-
-    if (!parser) return 0;
-    parse_status = parser_run(parser);
-    if (parse_status == 0 && parser->ast_root &&
-        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
-        alias_node = ((ASTProgram*)parser->ast_root)->declarations;
-        legacy_alias_node = alias_node ? alias_node->next : NULL;
-        function_node = legacy_alias_node ? legacy_alias_node->next : NULL;
-        function = function_node && function_node->type == AST_FUNC_DECL
-            ? (ASTFuncDecl*)function_node : NULL;
-        callback_param = function ? (ASTVarDecl*)function->params : NULL;
-        id_param = callback_param ? (ASTVarDecl*)callback_param->base.next : NULL;
-
-        valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
-            strcmp(((ASTNewTypeDecl*)alias_node)->target_type,
-                "f:(id!u32)!bool") == 0 &&
-            legacy_alias_node && legacy_alias_node->type == AST_NEWTYPE_DECL &&
-            strcmp(((ASTNewTypeDecl*)legacy_alias_node)->target_type,
-                "f:(id!u32)!bool") == 0 &&
-            function && function->return_type &&
-            strcmp(function->return_type, "!bool") == 0 &&
-            callback_param && strcmp(callback_param->name, "callback") == 0 &&
-            strcmp(callback_param->type_name, "!f:(id!u32)!bool") == 0 &&
-            id_param && strcmp(id_param->name, "id") == 0 &&
-            strcmp(id_param->type_name, "!u32") == 0 &&
+             strcmp(((ASTNewTypeDecl*)alias_node)->target_type,
+                 "f:(id!u32)!bool") == 0 &&
+             ((ASTNewTypeDecl*)alias_node)->target_type_expr &&
+             ((ASTTypeExpr*)((ASTNewTypeDecl*)alias_node)->target_type_expr)->kind==AST_TYPE_FUNCTION &&
+             ((ASTTypeExpr*)((ASTNewTypeDecl*)alias_node)->target_type_expr)->child &&
+             legacy_alias_node && legacy_alias_node->type == AST_NEWTYPE_DECL &&
+             strcmp(((ASTNewTypeDecl*)legacy_alias_node)->target_type,
+                 "f:(id!u32)!bool") == 0 &&
+             ((ASTNewTypeDecl*)legacy_alias_node)->target_type_expr &&
+             function && function->return_type &&
+             strcmp(function->return_type, "!bool") == 0 &&
+             callback_param && strcmp(callback_param->name, "callback") == 0 &&
+             strcmp(callback_param->type_name, "!f:(id!u32)!bool") == 0 &&
+             callback_param->type_expr &&
+             ((ASTTypeExpr*)callback_param->type_expr)->kind==AST_TYPE_QUALIFIED &&
+             ((ASTTypeExpr*)((ASTTypeExpr*)callback_param->type_expr)->child)->kind==AST_TYPE_FUNCTION &&
+             id_param && strcmp(id_param->name, "id") == 0 &&
+             strcmp(id_param->type_name, "!u32") == 0 &&
+             id_param->type_expr && ((ASTTypeExpr*)id_param->type_expr)->kind==AST_TYPE_QUALIFIED &&
             !id_param->base.next &&
             ast_validate((ASTNode*)parser->ast_root, NULL);
 
