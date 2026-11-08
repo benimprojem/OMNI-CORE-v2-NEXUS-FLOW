@@ -1737,7 +1737,9 @@ typedef struct {
     const ASTNode **slots;
     size_t count, capacity;
     const ASTNode **active;
+    const char **active_fields;
     size_t active_count, active_capacity;
+    size_t active_fields_capacity;
     unsigned depth;
     ASTValidationError *error;
 } ASTValidationState;
@@ -1805,30 +1807,40 @@ static int ast_validation_mark(ASTValidationState *s, const ASTNode *node) {
     s->count++;
     return 1;
 }
-static int ast_validation_active_push(ASTValidationState *s, const ASTNode *node) {
+static int ast_validation_active_push(ASTValidationState *s, const ASTNode *node,
+                                      const char *incoming_field) {
     if (s->active_count==s->active_capacity) {
         size_t capacity=s->active_capacity ? s->active_capacity*2u : 32u;
         const ASTNode **active;
-        if (capacity<s->active_capacity || capacity>((size_t)-1)/sizeof(*active))
+        const char **fields;
+        if (capacity<s->active_capacity ||
+            capacity>((size_t)-1)/sizeof(*active) ||
+            capacity>((size_t)-1)/sizeof(*fields))
             return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
         active=(const ASTNode**)realloc(s->active,capacity*sizeof(*active));
         if (!active) return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
         s->active=active;
         s->active_capacity=capacity;
+        fields=(const char**)realloc(s->active_fields,capacity*sizeof(*fields));
+        if (!fields) return ast_validation_fail(s,AST_VALIDATE_OUT_OF_MEMORY,node,NULL);
+        s->active_fields=fields;
+        s->active_fields_capacity=capacity;
     }
-    s->active[s->active_count++]=node;
+    s->active[s->active_count]=node;
+    s->active_fields[s->active_count]=incoming_field;
+    s->active_count++;
     return 1;
 }
 
-static int ast_validation_chain(ASTValidationState*,const ASTNode*);
+static int ast_validation_chain(ASTValidationState*,const ASTNode*,const char*);
 static int ast_validation_child(ASTValidationState*s,const ASTNode*n,const ASTNode*c,const char*field,int required) {
     int ok;
     if (!c && required) return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,field);
     if (!c) return 1;
     if (s->depth >= 512u) return ast_validation_fail(s,AST_VALIDATE_DEPTH_LIMIT,n,field);
-    s->depth++; ok=ast_validation_chain(s,c); s->depth--; return ok;
+    s->depth++; ok=ast_validation_chain(s,c,field); s->depth--; return ok;
 }
-static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
+static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*incoming_field) {
     const ASTNode *slow=n, *fast=n;
     /* Detect cycles made solely through sibling links before linear traversal. */
     while (fast && fast->next) {
@@ -1859,7 +1871,8 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
         for(active_index=0;active_index<s->active_count;active_index++)
             if(s->active[active_index]==n)
                 return ast_validation_fail(s,AST_VALIDATE_CYCLE,n,"child");
-        if (!ast_validation_mark(s,n) || !ast_validation_active_push(s,n)) return 0;
+        if (!ast_validation_mark(s,n) ||
+            !ast_validation_active_push(s,n,incoming_field)) return 0;
 #define V(child,field) do { if(!ast_validation_child(s,n,(child),(field),0)) return 0; } while(0)
 #define R(child,field) do { if(!ast_validation_child(s,n,(child),(field),1)) return 0; } while(0)
         switch(n->type) {
@@ -2020,7 +2033,9 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
                 return ast_validation_fail(s,AST_VALIDATE_MISSING_REQUIRED,n,"name");
             break;
         case AST_NAMED_ARG:
-            if (s->active_count < 2u)
+            if (s->active_count < 2u ||
+                !s->active_fields[s->active_count - 1u] ||
+                strcmp(s->active_fields[s->active_count - 1u],"args") != 0)
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"named_argument_context");
             switch (s->active[s->active_count - 2u]->type) {
                 case AST_FUNC_CALL: case AST_SPAWN: case AST_ECHO: case AST_SEND:
@@ -2079,9 +2094,10 @@ int ast_validate(const ASTNode *root, ASTValidationError *error) {
     if(!root) { if(error)error->code=AST_VALIDATE_MISSING_REQUIRED; return 0; }
     state.error=error;
     {
-        int ok=ast_validation_chain(&state,root);
+        int ok=ast_validation_chain(&state,root,NULL);
         free(state.slots);
         free(state.active);
+        free(state.active_fields);
         return ok;
     }
 }
