@@ -837,6 +837,128 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     : SEMANTIC_RESULT_VALUE_LVALUE);
             return slot ? slot->type_name : NULL;
         }
+        case AST_STRUCT_LITERAL: {
+            ASTStructLiteral* literal = (ASTStructLiteral*)node;
+            Slot* struct_slot = literal->type_name
+                ? find_slot(ctx, literal->type_name) : NULL;
+            ASTNode* initializer;
+            FieldInfo* field;
+
+            /* Always visit initializer expressions so independent diagnostics
+             * are retained even when the nominal type is invalid. */
+            for (initializer = literal->fields; initializer;
+                 initializer = initializer->next) {
+                ASTStructFieldInit* init = (ASTStructFieldInit*)initializer;
+                if (init->value) semantic_check(ctx, init->value);
+            }
+
+            if (!struct_slot || struct_slot->kind != SLOT_STRUCT) {
+                char message[256];
+                snprintf(message, sizeof(message),
+                    "Struct literal type '%s' is not a visible Struct type.",
+                    literal->type_name ? literal->type_name : "");
+                report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
+                break;
+            }
+
+            /* Resolve each named initializer against the declared field set. */
+            for (initializer = literal->fields; initializer;
+                 initializer = initializer->next) {
+                ASTStructFieldInit* init = (ASTStructFieldInit*)initializer;
+                ASTNode* previous;
+                const char* actual_type = init->value
+                    ? get_expr_type(ctx, init->value) : NULL;
+                int duplicate = 0;
+
+                for (previous = literal->fields; previous != initializer;
+                     previous = previous->next) {
+                    const ASTStructFieldInit* prior =
+                        (const ASTStructFieldInit*)previous;
+                    if (prior->name && init->name &&
+                        strcmp(prior->name, init->name) == 0) {
+                        duplicate = 1;
+                        break;
+                    }
+                }
+                if (duplicate) {
+                    char message[256];
+                    snprintf(message, sizeof(message),
+                        "Struct literal initializes field '%s' more than once.",
+                        init->name ? init->name : "");
+                    report_error(ctx, (ASTNode*)init,
+                        ERR_SEMANTIC_REDEFINED, message);
+                    continue;
+                }
+
+                for (field = struct_slot->fields; field; field = field->next) {
+                    if (init->name && strcmp(field->name, init->name) == 0)
+                        break;
+                }
+                if (!field) {
+                    char message[256];
+                    snprintf(message, sizeof(message),
+                        "Struct '%s' has no field named '%s'.",
+                        struct_slot->name, init->name ? init->name : "");
+                    report_error(ctx, (ASTNode*)init,
+                        ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    continue;
+                }
+
+                if (actual_type && field->type_name &&
+                    !are_types_compatible(field->type_name, actual_type)) {
+                    char message[256];
+                    snprintf(message, sizeof(message),
+                        "Initializer for field '%s' has type '%s'; expected '%s'.",
+                        field->name, actual_type, field->type_name);
+                    report_error(ctx, (ASTNode*)init,
+                        ERR_SEMANTIC_TYPE_MISMATCH, message);
+                }
+
+                semantic_record_annotation(
+                    ctx, (ASTNode*)init, NULL, actual_type,
+                    SEMANTIC_RESULT_VALUE_RVALUE);
+            }
+
+            /* Completeness is a Semantic rule, not an AST graph rule. */
+            for (field = struct_slot->fields; field; field = field->next) {
+                int initialized = 0;
+                for (initializer = literal->fields; initializer;
+                     initializer = initializer->next) {
+                    const ASTStructFieldInit* init =
+                        (const ASTStructFieldInit*)initializer;
+                    if (init->name && strcmp(field->name, init->name) == 0) {
+                        initialized = 1;
+                        break;
+                    }
+                }
+                if (!initialized) {
+                    char message[256];
+                    snprintf(message, sizeof(message),
+                        "Struct literal is missing required field '%s'.",
+                        field->name);
+                    report_error(ctx, node,
+                        ERR_SEMANTIC_TYPE_MISMATCH, message);
+                }
+            }
+
+            semantic_record_annotation(
+                ctx, node, struct_slot, struct_slot->name,
+                SEMANTIC_RESULT_VALUE_RVALUE);
+            break;
+        }
+
+        case AST_STRUCT_LITERAL: {
+            ASTStructLiteral* literal = (ASTStructLiteral*)node;
+            Slot* type_slot = literal->type_name
+                ? find_slot(ctx, literal->type_name) : NULL;
+            if (type_slot && type_slot->kind == SLOT_STRUCT) {
+                semantic_record_annotation(
+                    ctx, node, type_slot, type_slot->name,
+                    SEMANTIC_RESULT_VALUE_RVALUE);
+                return type_slot->name;
+            }
+            return NULL;
+        }
         case AST_MEMBER_ACCESS: {
             FieldInfo* field = semantic_resolve_member(ctx, node, 0);
             const char* type_name = field ? field->type_name : NULL;
