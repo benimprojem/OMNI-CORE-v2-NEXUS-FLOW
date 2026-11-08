@@ -159,6 +159,8 @@ typedef struct {
     /* Lexer state for raw ASM body after asm: LABEL {. */
     uint8_t lexer_asm_state;
     uint8_t lexer_asm_body_pending;
+    /* Owned current top-level linkname directive; copied into subsequent EXF nodes. */
+    char* active_linkname;
 } ParserContext;
 
 OCC_API ParserContext* parser_init(const char* filename);
