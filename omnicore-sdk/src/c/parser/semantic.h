@@ -69,6 +69,7 @@ typedef struct {
     uint32_t current_method_receiver_type_id;
     uint8_t current_method_context;
     uint8_t current_method_is_object;
+    uint8_t suppress_group_default_dispatch;
     SemanticNodeIdResolver node_id_resolver;
     void* node_id_context;
     uint8_t result_enabled;
