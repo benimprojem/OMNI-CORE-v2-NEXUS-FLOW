@@ -1159,7 +1159,7 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - `OIR_AST_NODE_REGISTRY.md` records the field contracts for both node kinds.
 - Parser regression test covers `Point { y = 2, x = 1 }` and confirms source initializer order is preserved. AST codec round-trip fixture now covers both Struct literal and field-init nodes.
 - SemanticResult mapping reuses the existing `SEMANTIC_RESULT_RELATION_AGGREGATE_FIELD`: owner is the nominal Struct symbol; `related_node_id` identifies the field declaration AST node; name, ordinal and type ID complete the field contract. The field-init annotation carries its expression type; no separate field Symbol kind or new table is introduced.
-- **Validation status at this checkpoint:** Semantic tests and the OIR AST bridge/round-trip passed in GitHub Actions run `42455141289` (60/60 CTest; Ubuntu, macOS, Windows, ASan/UBSan and Valgrind). A dedicated legacy AST stream round-trip test was added afterward and is awaiting its own CI run. OIR instance-init lowering and independent Verifier rules remain pending; Struct literal is not end-to-end complete.
+- **Validation status at this checkpoint:** GitHub Actions run `42455300701` on commit `6a43ce54` passed all five jobs: Ubuntu, macOS, Windows, ASan/UBSan and Valgrind; CTest reported 60/60. This run includes the dedicated legacy AST stream round-trip and invalid-tag boundary update. OIR instance-init lowering and independent Verifier rules remain pending; Struct literal is not end-to-end complete.
 
 ## 2026-11-08 — Struct literal Semantic + OIR AST bridge validation
 
@@ -1169,5 +1169,6 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - SemanticResult integration validates the literal's nominal Struct symbol/type annotation and field declaration relations. `AGGREGATE_FIELD` relation carries the field declaration node ID, name, declaration ordinal and type ID; field initializer annotation carries the expression type.
 - OIR AST registry appended IDs 106/107. Map, schema, index child traversal, writer and reader were extended; parser→OIR AST→reader→writer canonical byte round-trip is covered. Parser now stamps source spans on each field initializer.
 - AST factory and graph-validator upper bounds were advanced to `AST_STRUCT_FIELD_INIT`; factory-boundary, graph, parser, semantic, OIR schema/map and round-trip regressions were updated.
-- Run `42455141289` on commit `d552313d`: Ubuntu/macOS/Windows CTest, ASan/UBSan and Valgrind all passed; Ubuntu CTest reported 60/60. Commit `6a43ce54` adds a dedicated legacy AST codec round-trip and updated invalid-tag boundary; that follow-up plus documentation changes await CI.
+- Run `42455141289` on commit `d552313d` passed Ubuntu/macOS/Windows CTest, ASan/UBSan and Valgrind; Ubuntu CTest reported 60/60. Follow-up run `42455300701` on commit `6a43ce54` also passed all five jobs after adding the dedicated legacy AST codec round-trip and updated invalid-tag boundary.
+- CI validation: `42455300701` (commit `6a43ce54`) passed Ubuntu/macOS/Windows, ASan/UBSan and Valgrind; 60/60 CTest. This confirms the dedicated legacy AST codec fixture in addition to the earlier Semantic/OIR round-trip coverage.
 - **Remaining:** complete OIR instance-init representation and independent Verifier validation before Codegen; keep Codegen gated.
