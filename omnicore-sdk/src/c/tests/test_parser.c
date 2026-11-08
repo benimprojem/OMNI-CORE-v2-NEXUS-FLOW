@@ -4427,27 +4427,12 @@ generic_type_done:
                 second->base.source_span.start_column==(uint32_t)(b_start-source)+1u &&
                 second->base.source_span.end_column==(uint32_t)(b_start-source)+5u &&
                 second->base.next==NULL;
-            if(!valid) fprintf(stderr,"Nested Struct literal parsed shape assertion failed\\n");
             stream=tmpfile();
-            if(!stream) {
-                fprintf(stderr,"Nested Struct literal tmpfile failed\\n");
-                valid=0;
-            } else if(valid && !ast_serialize(parser->ast_root,stream)) {
-                fprintf(stderr,"Nested Struct literal serialization failed\\n");
-                valid=0;
-            } else if(valid && fseek(stream,0L,SEEK_SET)!=0) {
-                fprintf(stderr,"Nested Struct literal stream rewind failed\\n");
-                valid=0;
-            } else if(valid) {
+            if(valid && stream && ast_serialize(parser->ast_root,stream) &&
+               fseek(stream,0L,SEEK_SET)==0) {
                 decoded=ast_deserialize(stream);
-                if(!decoded) {
-                    fprintf(stderr,"Nested Struct literal deserialization failed\\n");
-                    valid=0;
-                } else if(!ast_validate(decoded,NULL)) {
-                    fprintf(stderr,"Nested Struct literal decoded graph invalid\\n");
-                    valid=0;
-                }
-            }
+                valid=decoded && ast_validate(decoded,NULL);
+            } else valid=0;
         }
         for(i=0u;i<sizeof(invalid_sources)/sizeof(invalid_sources[0]);++i) {
             ParserContext* invalid=parser_init_source("invalid-default-parameter.nxf",
