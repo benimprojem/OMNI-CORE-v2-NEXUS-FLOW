@@ -4419,8 +4419,18 @@ generic_type_done:
                 (unsigned)root->source_span.start_column,(unsigned)root->source_span.end_column,
                 root->line,root->col,sizeof(source)-1u);
             stream=tmpfile();
-            if(valid && stream && ast_serialize(root,stream) &&
-               fseek(stream,0L,SEEK_SET)==0) {
+            if(!stream) {
+                fprintf(stderr,"AST_PROGRAM span test tmpfile failed\\n");
+                valid=0;
+            } else if(!valid) {
+                valid=0;
+            } else if(!ast_serialize(root,stream)) {
+                fprintf(stderr,"AST_PROGRAM span test serialization failed\\n");
+                valid=0;
+            } else if(fseek(stream,0L,SEEK_SET)!=0) {
+                fprintf(stderr,"AST_PROGRAM span test rewind failed\\n");
+                valid=0;
+            } else {
                 decoded=ast_deserialize(stream);
                 valid=decoded && decoded->source_span.has_location &&
                     decoded->source_span.start_offset==0u &&
@@ -4429,7 +4439,7 @@ generic_type_done:
                     decoded->source_span.end_column==2u &&
                     ast_validate(decoded,NULL);
                 if(!valid) fprintf(stderr,"AST_PROGRAM decoded span missing or mismatched\\n");
-            } else valid=0;
+            }
         }
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
