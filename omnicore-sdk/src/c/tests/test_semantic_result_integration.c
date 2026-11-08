@@ -194,6 +194,7 @@ static int test_group_semantic_records(void) {
     size_t ast_payload_written = 0u, artifact_written = 0u;
     size_t legacy_artifact_written = 0u;
     int ok = 0;
+    int stage = 1;
 
     if (!parser) return 0;
     if (parser_run(parser) != PARSER_STATUS_OK ||
@@ -573,11 +574,14 @@ static int test_struct_literal_semantic_records(void) {
     int ok = 0;
 
     if (!parser) return 0;
+    stage = 2;
     if (parser_run(parser) != PARSER_STATUS_OK ||
         parser->error_count != 0 || !parser->ast_root) goto done;
+    stage = 3;
     memset(index, 0, sizeof(index));
     if (oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
             index, 128u, &node_count) != OIR_STATUS_OK) goto done;
+    stage = 4;
     resolver.entries = index;
     resolver.capacity = 128u;
 
@@ -594,16 +598,26 @@ static int test_struct_literal_semantic_records(void) {
         variable->initializer->type == AST_STRUCT_LITERAL
             ? (ASTStructLiteral*)variable->initializer : NULL;
     if (!declaration || !variable || !literal || !literal->fields) goto done;
+    stage = 5;
 
     semantic_init(&semantic, "struct-literal-semantic-result.nxf", NULL);
     semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    stage = 6;
     if (semantic.error_count != 0 ||
-        semantic.result_status != SEMANTIC_RESULT_OK ||
-        semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
+        semantic.result_status != SEMANTIC_RESULT_OK) {
+        fprintf(stderr, "Struct literal SemanticResult checker: errors=%d status=%d\\n",
+            semantic.error_count, (int)semantic.result_status);
         semantic_destroy(&semantic);
         goto done;
     }
+    if (semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
+        fprintf(stderr, "Struct literal SemanticResult finalize failed: status=%d\\n",
+            (int)semantic.result_status);
+        semantic_destroy(&semantic);
+        goto done;
+    }
+    stage = 7;
 
     for (i = 0u; i < semantic.result.symbol_count; ++i) {
         const SemanticResultSymbol* symbol = &semantic.result.symbols[i];
@@ -687,6 +701,7 @@ static int test_struct_literal_semantic_records(void) {
     }
     semantic_destroy(&semantic);
 done:
+    if (!ok) fprintf(stderr, "Struct literal SemanticResult test stopped at stage %d\\n", stage);
     parser_destroy(parser);
     return ok;
 }
