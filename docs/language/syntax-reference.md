@@ -1283,7 +1283,7 @@ v:sonuc = Optimizer.run_optimizer(oir_path, nxir_path, target_info);
 
 ### 12. Extern Modül !!
 
-> Extern fonksiyon bildirimi `exf:` Parser tarafından desteklenir. Aşağıdaki `!!=[target ...]` ve `!!=link ...` örnekleri ise mevcut core Parser'ın tamamlanmış prefix-directive grameri değildir; Target/Directive katmanı tasarım örnekleridir. `buf!*char` pointer parametre yazımı artık Parser tarafından kabul edilir; pointer güvenliği ve ABI kontrolleri Semantic/Extern aşamasında tamamlanacaktır.
+> Extern fonksiyon bildirimi `exf:` ve program kapsamındaki `!!=linkname = "...";` bildirimi Core Parser tarafından desteklenir. `!!=[target ...]` ve genel `!!=link ...` örnekleri Target/Directive katmanı tasarım örnekleridir; bunların prefix grameri tamamlanmış değildir. `buf!*char` pointer parametre yazımı Parser tarafından kabul edilir; pointer güvenliği ve ABI kontrolleri Semantic/Extern aşamasında tamamlanacaktır.
 
 ** Extern dll, obj, lib.a dosyaları için..
 ** Modül Hazırlama
