@@ -1192,3 +1192,6 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Sonraki: semantic type compatibility'yi pointer/ref layer eşitliği + base type identity ile kontrol eden ortak helper; ardından nullability/mutability/alias/lifetime kurallarını ayrı kararlar olarak spesifikasyona bağlamak. Codegen kapalı.
 
 - CI ilk denemesi run `42460134137`: derleme başarılı, CTest 59/60; tek başarısız test `semantic_checker_persistent_result_integration` içindeki sabit schema-minor=2 beklentisiydi. Test beklentisi 1.3'e güncellendi; yeni CI run `42460211363` queued/in progress, sonuç bekleniyor. Pointer/reference kodu bu nedenle henüz yeşil CI doğrulamasına sahip değil.
+
+- Pointer/reference syntax follow-up: `&&T` is marked reserved/undefined in the canonical syntax reference; `**T` remains nested pointer (P2P), `&T` remains Ref. No second reference layer is introduced absent a separate semantic use case.
+- Struct copy/move design note added to Group spec: default transfer preserves instance address; explicit `copy(x)` creates independent copy; `move(x)` is ownership transfer and source use must be rejected after move. Shallow/deep copy and pointer-field behavior remain unresolved, so copy/move are not yet implemented/complete.
