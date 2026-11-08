@@ -2372,9 +2372,10 @@ static int parser_parse_type_name(Parser* p, char** out,
 
 /*
  * Function type grammar:
- *   f:(name!Type, other:Type)>!ReturnType
- * The complete normalized signature is retained in the existing type-name
- * string field. It is distinct from an AST_LAMBDA expression/body.
+ *   f:(name!Type, other:Type)!ReturnType
+ *   Legacy compatibility: f:(name!Type, other:Type)>!ReturnType
+ * The canonical signature is retained in the existing type-name string field.
+ * It is distinct from an AST_LAMBDA expression/body.
  */
 static int parser_parse_function_type_signature(Parser* p, char** out) {
     Token start;
@@ -2427,9 +2428,14 @@ static int parser_parse_function_type_signature(Parser* p, char** out) {
     }
 
     consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
-    consume(p, TOKEN_GT, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_TYPE_BANG);
     {
+        int legacy_arrow = match(p, TOKEN_GT);
         int has_bang = match(p, TOKEN_NOT);
+        if (!legacy_arrow && !has_bang) {
+            error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                "Expected '!ReturnType' after function type parameters.");
+            return 0;
+        }
         if (!parser_parse_type_name(p, &return_type, 1, has_bang)) return 0;
     }
     free(return_type);
@@ -2451,7 +2457,7 @@ static int parser_parse_function_type_signature(Parser* p, char** out) {
     if (!signature) return 0;
     for (i = 0u; i < raw_length; ++i) {
         unsigned char ch = (unsigned char)begin[i];
-        if (!isspace(ch)) signature[normalized_length++] = (char)ch;
+        if (!isspace(ch) && ch != '>') signature[normalized_length++] = (char)ch;
     }
     signature[normalized_length] = '\0';
     *out = signature;
