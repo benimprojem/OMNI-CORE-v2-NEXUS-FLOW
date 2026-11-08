@@ -237,7 +237,9 @@ static int test_select_scan_oir_roundtrip(void) {
         " v:moved = source _> target;"
         " v:retry = source?(5, 500ms)->target;"
         "}?;"
-        "f:array_return()!i32[n] {}";
+        "f:array_return()!i32[n] {}"
+        "!!=linkname = \"math.obj\";"
+        "exf:add(a!i32, b!i32)!i32;";
     ParserContext* parser=parser_init_source("pattern-oir.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     uint8_t *first=NULL,*second=NULL;
@@ -303,6 +305,12 @@ static int test_select_scan_oir_roundtrip(void) {
                dimension->length->type!=AST_IDENTIFIER ||
                strcmp(((ASTIdentifier*)dimension->length)->name,"n")!=0 ||
                dimension->base.next) goto done;
+            {
+                ASTFuncDecl* external=(ASTFuncDecl*)array_fn->base.next;
+                if(!external || external->base.type!=AST_EXTERN_DECL ||
+                   !external->linkname || strcmp(external->linkname,"math.obj")!=0 ||
+                   external->base.next) goto done;
+            }
         }
     }
     ok=1;
