@@ -130,7 +130,8 @@ typedef enum {
     AST_ASM_LABEL,
     /* Append-only: Struct aggregate expression and named field initializer. */
     AST_STRUCT_LITERAL,
-    AST_STRUCT_FIELD_INIT
+    AST_STRUCT_FIELD_INIT,
+    AST_TYPE_EXPR
 } ASTNodeType;
 
 // Temel Düğüm
@@ -230,6 +231,21 @@ typedef struct { ASTNode base; ASTNode* elements; } ASTArrayLiteral;
 typedef struct { ASTNode base; char* type_name; ASTNode* fields; } ASTStructLiteral;
 /* One owned field initializer: name = value. */
 typedef struct { ASTNode base; char* name; ASTNode* value; } ASTStructFieldInit;
+
+/* Recursive type syntax; all child pointers have unique AST ownership. */
+typedef enum {
+    AST_TYPE_NAMED = 1, AST_TYPE_POINTER = 2, AST_TYPE_REFERENCE = 3,
+    AST_TYPE_ARRAY = 4, AST_TYPE_FUNCTION = 5, AST_TYPE_QUALIFIED = 6
+} ASTTypeExprKind;
+typedef struct {
+    ASTNode base;
+    uint32_t kind;
+    uint32_t flags;
+    char* name;
+    ASTNode* child;
+    ASTNode* params;
+    ASTNode* dimensions;
+} ASTTypeExpr;
 /* Array type declarator: dimensions are ordered AST_ARRAY_DIMENSION siblings.
  * A NULL dimension length means a dynamic/unspecified dimension. The element
  * type is carried by the owning ASTVarDecl.type_name (NULL means inferred).
