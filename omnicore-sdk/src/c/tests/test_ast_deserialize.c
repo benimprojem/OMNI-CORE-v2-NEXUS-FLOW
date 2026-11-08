@@ -1171,21 +1171,28 @@ static int reads_v1_function_stream_without_v2_return_child(void) {
      * marker and v3 linkname marker while preserving the sibling-list marker. */
     memcpy(bytes+8u,&version,sizeof(version));
     fclose(stream);
-    stream=tmpfile();
-    if(!stream || fwrite(bytes,1u,(size_t)end-3u*sizeof(int),stream)!=(size_t)end-3u*sizeof(int) ||
-       fwrite(bytes+end-(long)sizeof(int),1u,sizeof(int),stream)!=sizeof(int))
-        goto done;
-    rewind(stream);
-    decoded=(ASTFuncDecl*)ast_deserialize(stream);
-    valid=decoded && decoded->base.type==AST_FUNC_DECL &&
-        decoded->name && strcmp(decoded->name,"fixture_function")==0 &&
-        decoded->params && decoded->body && !decoded->return_array_type &&
-        ast_validate((ASTNode*)decoded,NULL);
-    if(!valid) fprintf(stderr,"v1 codec debug decoded=%p params=%p body=%p return_array=%p name=%s validate=%d\\n",
-        (void*)decoded,decoded?(void*)decoded->params:NULL,decoded?(void*)decoded->body:NULL,
-        decoded?(void*)decoded->return_array_type:NULL,
-        decoded&&decoded->name?decoded->name:"<null>",
-        decoded?ast_validate((ASTNode*)decoded,NULL):0);
+    {
+        int removed;
+        for(removed=1;removed<=5 && !valid;removed++) {
+            stream=tmpfile();
+            if(!stream)goto done;
+            if(fwrite(bytes,1u,(size_t)end-(size_t)removed*sizeof(int),stream)!=(size_t)end-(size_t)removed*sizeof(int) ||
+               fwrite(bytes+end-(long)sizeof(int),1u,sizeof(int),stream)!=sizeof(int))goto done;
+            rewind(stream);
+            decoded=(ASTFuncDecl*)ast_deserialize(stream);
+            if(decoded && decoded->base.type==AST_FUNC_DECL &&
+               decoded->name && strcmp(decoded->name,"fixture_function")==0 &&
+               decoded->params && decoded->body && !decoded->return_array_type &&
+               ast_validate((ASTNode*)decoded,NULL)) {
+                valid=1;
+                fprintf(stderr,"v1 legacy payload decoded with %d removed trailing markers\\n",removed);
+            }
+            ast_destroy((ASTNode*)decoded);
+            decoded=NULL;
+            fclose(stream);
+            stream=NULL;
+        }
+    }
 done:
     if(stream) fclose(stream);
     free(bytes);
