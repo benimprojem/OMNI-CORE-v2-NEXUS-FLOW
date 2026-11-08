@@ -329,7 +329,7 @@ int main(void) {
     /* Context-bound tags cannot be moved into an unrelated statement list. */
     {
         const ASTNodeType invalid_statement_tags[] = {
-            AST_SELECT_ARM, AST_SCAN_ARM, AST_STRUCT_FIELD_INIT,
+            AST_ENUM_VARIANT, AST_SELECT_ARM, AST_SCAN_ARM, AST_STRUCT_FIELD_INIT, AST_METHOD,
             AST_ARRAY_DIMENSION, AST_VARIADIC_PARAM, AST_MUST_DECL,
             AST_NAMED_ARG, AST_ASM_LABEL
         };
