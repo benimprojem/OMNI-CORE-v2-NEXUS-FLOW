@@ -4392,7 +4392,7 @@ generic_type_done:
 
     /* Program root span covers the complete source buffer, not only the last token. */
     {
-        static const char source[]="f:main() {\\n ret 0;\\n}";
+        static const char source[]="f:main() {\\n ret;\\n}";
         ParserContext* parser=parser_init_source("program-root-span.nxf",
             (const uint8_t*)source,sizeof(source)-1u);
         ASTNode* decoded=NULL;
@@ -4440,6 +4440,13 @@ generic_type_done:
                     ast_validate(decoded,NULL);
                 if(!valid) fprintf(stderr,"AST_PROGRAM decoded span missing or mismatched\\n");
             }
+        } else if(parser) {
+            Error* error;
+            fprintf(stderr,"AST_PROGRAM span parse failed status=%d errors=%d\\n",
+                (int)parser_get_status(parser),parser->error_count);
+            for(error=parser->error_head;error;error=error->next)
+                fprintf(stderr,"  %d:%d %s\\n",error->line,error->col,
+                    error->message?error->message:"");
         }
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
