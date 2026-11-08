@@ -3160,10 +3160,22 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
             if (p->current.type != TOKEN_RPAREN) do {
                 ASTVarDecl* field;
                 Token ft;
-                if (!match(p, TOKEN_IDENTIFIER)) { error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, "Expect field name in enum variant."); ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+                if (!match(p, TOKEN_IDENTIFIER)) {
+                    error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                        "Expect field name in enum variant.");
+                    ast_destroy(data_head);
+                    ast_destroy(head);
+                    ast_destroy((ASTNode*)decl);
+                    return NULL;
+                }
                 ft = p->previous;
                 field = (ASTVarDecl*)parser_ast_create(p, AST_VAR_DECL);
-                if (!field) { ast_destroy(head); ast_destroy((ASTNode*)decl); return NULL; }
+                if (!field) {
+                    ast_destroy(data_head);
+                    ast_destroy(head);
+                    ast_destroy((ASTNode*)decl);
+                    return NULL;
+                }
                 field->base.line = ft.line; field->base.col = ft.col; field->is_const = 1;
                 parser_stamp_node_token(p, (ASTNode*)field, &ft);
                 field->name = (char*)parser_malloc(p, (size_t)ft.length + 1u);
