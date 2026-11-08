@@ -621,7 +621,50 @@ static int test_parser_allocation_failure_injection(void) {
                 "OOM injection mismatch at allocation %zu (observed %zu, status %d, result %d).\n",
                 fail_at, ctx->test_allocation_count, (int)status, result);
             parser_destroy(ctx);
-            return 0;
+        
+    /* Struct literal parser shape: named fields retain source order. */
+    {
+        static const uint8_t source[] =
+            "f:main() { v:p!Point = Point { y = 2, x = 1 }; }";
+        ParserContext* parser = parser_init_source("<struct-literal>", source,
+            sizeof(source) - 1u);
+        ASTFuncDecl* function;
+        ASTNode* statement;
+        ASTVarDecl* variable;
+        ASTStructLiteral* literal;
+        ASTStructFieldInit* first;
+        ASTStructFieldInit* second;
+        int valid = parser && parser_run(parser) == PARSER_STATUS_OK &&
+            parser->error_count == 0 && parser->ast_root;
+        if (valid) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            statement = function && function->body && function->body->type == AST_BLOCK
+                ? ((ASTBlock*)function->body)->statements : NULL;
+            variable = statement && statement->type == AST_VAR_DECL
+                ? (ASTVarDecl*)statement : NULL;
+            literal = variable && variable->initializer &&
+                variable->initializer->type == AST_STRUCT_LITERAL
+                ? (ASTStructLiteral*)variable->initializer : NULL;
+            first = literal && literal->fields &&
+                literal->fields->type == AST_STRUCT_FIELD_INIT
+                ? (ASTStructFieldInit*)literal->fields : NULL;
+            second = first && first->base.next &&
+                first->base.next->type == AST_STRUCT_FIELD_INIT
+                ? (ASTStructFieldInit*)first->base.next : NULL;
+            valid = literal && literal->type_name &&
+                strcmp(literal->type_name, "Point") == 0 &&
+                first && strcmp(first->name, "y") == 0 && first->value &&
+                second && strcmp(second->name, "x") == 0 && second->value &&
+                second->base.next == NULL;
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Struct literal parser AST test failed.\\n");
+            return 1;
+        }
+    }
+
+    return 0;
         }
         parser_destroy(ctx);
     }
