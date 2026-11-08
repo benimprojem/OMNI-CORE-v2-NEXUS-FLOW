@@ -425,6 +425,19 @@ Bir `struct`, `enum` veya `union` herhangi bir Group'un sahibi değilse, normal 
 
 Her nested Group kendi Group scope kimliğine sahiptir.
 
+Nested Group, parent Group içinde alias biçimiyle tanımlanır: `Inner => group { ... }`. `Inner` child Group'un kendi adıdır; bu bildirim `group Inner { ... }` biçiminde yazılmaz. Örnek:
+
+```nexus
+group Outer {
+    struct:Private { v:value!i32 }
+    Inner => group {
+        f:make() { v:item!Private = Private { value = 7 }; ret; }
+    }
+}
+```
+
+Yukarıdaki örnekte `Private`, `Outer` türüdür ve `Inner` scope'una aktarılmaz; `Inner` içindeki kullanım Semantic hatasıdır.
+
 - Alt Group kendi özel türlerini tanımlayabilir.
 - Alt Group, üst Group'un özel türlerini otomatik olarak devralmaz.
 - Üst Group, alt Group'un özel türlerini kullanamaz.
