@@ -75,6 +75,7 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_ARRAY_LITERAL: return sizeof(ASTArrayLiteral);
         case AST_STRUCT_LITERAL: return sizeof(ASTStructLiteral);
         case AST_STRUCT_FIELD_INIT: return sizeof(ASTStructFieldInit);
+        case AST_TYPE_EXPR: return sizeof(ASTTypeExpr);
         case AST_ARRAY_TYPE: return sizeof(ASTArrayType);
         case AST_ARRAY_DIMENSION: return sizeof(ASTArrayDimension);
         case AST_VARIADIC_PARAM: return sizeof(ASTVariadicParam);
@@ -185,7 +186,7 @@ ASTNode* ast_create(ASTNodeType type) {
     size_t size;
 
     /* Reject values outside the append-only public AST kind inventory. */
-    if ((int)type < (int)AST_PROGRAM || (int)type > (int)AST_STRUCT_FIELD_INIT) {
+    if ((int)type < (int)AST_PROGRAM || (int)type > (int)AST_TYPE_EXPR) {
         return NULL;
     }
     size = get_node_size(type);
@@ -368,6 +369,14 @@ static void ast_print_recursive(ASTNode* node, int level) {
                 ASTStructFieldInit* n = (ASTStructFieldInit*)node;
                 printf("STRUCT_FIELD_INIT %s\\n", n->name ? n->name : "<null>");
                 ast_print_recursive(n->value, level + 1);
+                break;
+            }
+            case AST_TYPE_EXPR: {
+                ASTTypeExpr* n=(ASTTypeExpr*)node;
+                printf("TYPE_EXPR kind=%u flags=%u name=%s\\n",n->kind,n->flags,n->name?n->name:"<none>");
+                ast_print_recursive(n->child,level+1);
+                ast_print_recursive(n->params,level+1);
+                ast_print_recursive(n->dimensions,level+1);
                 break;
             }
             case AST_ARRAY_LITERAL: {
@@ -803,6 +812,14 @@ static void ast_destroy_recursive(ASTNode* node) {
             if (n->value) ast_destroy_recursive(n->value);
             break;
         }
+        case AST_TYPE_EXPR: {
+            ASTTypeExpr* n=(ASTTypeExpr*)node;
+            free(n->name);
+            if(n->child)ast_destroy_recursive(n->child);
+            if(n->params)ast_destroy_recursive(n->params);
+            if(n->dimensions)ast_destroy_recursive(n->dimensions);
+            break;
+        }
         case AST_SELECT: { ASTSelect* n=(ASTSelect*)node; if(n->selector)ast_destroy_recursive(n->selector); if(n->arms)ast_destroy_recursive(n->arms); break; }
         case AST_SELECT_ARM: { ASTSelectArm* n=(ASTSelectArm*)node; if(n->pattern)ast_destroy_recursive(n->pattern); if(n->body)ast_destroy_recursive(n->body); break; }
         case AST_SCAN: { ASTScan* n=(ASTScan*)node; if(n->subject)ast_destroy_recursive(n->subject); if(n->arms)ast_destroy_recursive(n->arms); break; }
@@ -915,7 +932,7 @@ typedef struct {
 
 #define AST_STREAM_MAGIC "OCCAST\r\n"
 #define AST_STREAM_MAGIC_SIZE 8u
-#define AST_STREAM_VERSION 3u
+#define AST_STREAM_VERSION 4u
 
 
 static void ast_write_exact(ASTWriter* writer, const void* source, size_t size) {
@@ -1268,6 +1285,16 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             ASTStructFieldInit* n=(ASTStructFieldInit*)node;
             write_string(writer,n->name);
             ast_serialize_recursive(n->value,writer);
+            break;
+        }
+        case AST_TYPE_EXPR: {
+            ASTTypeExpr* n=(ASTTypeExpr*)node;
+            ast_write_exact(writer,&n->kind,sizeof(n->kind));
+            ast_write_exact(writer,&n->flags,sizeof(n->flags));
+            write_string(writer,n->name);
+            ast_serialize_recursive(n->child,writer);
+            ast_serialize_recursive(n->params,writer);
+            ast_serialize_recursive(n->dimensions,writer);
             break;
         }
         case AST_ARRAY_TYPE: ast_serialize_recursive(((ASTArrayType*)node)->dimensions,writer); break;
@@ -1624,6 +1651,7 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
         case AST_ARRAY_LITERAL: ((ASTArrayLiteral*)node)->elements=ast_deserialize_recursive(reader); break;
         case AST_STRUCT_LITERAL: { ASTStructLiteral* n=(ASTStructLiteral*)node; n->type_name=read_string(reader); if(reader->failed)goto fail; n->fields=ast_deserialize_recursive(reader); break; }
         case AST_STRUCT_FIELD_INIT: { ASTStructFieldInit* n=(ASTStructFieldInit*)node; n->name=read_string(reader); if(reader->failed)goto fail; n->value=ast_deserialize_recursive(reader); break; }
+        case AST_TYPE_EXPR: { ASTTypeExpr* n=(ASTTypeExpr*)node; if(!ast_read_exact(reader,&n->kind,sizeof(n->kind)) || !ast_read_exact(reader,&n->flags,sizeof(n->flags)))goto fail; n->name=read_string(reader); if(reader->failed)goto fail; n->child=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->params=ast_deserialize_recursive(reader); if(reader->failed)goto fail; n->dimensions=ast_deserialize_recursive(reader); break; }
         case AST_ARRAY_TYPE: ((ASTArrayType*)node)->dimensions=ast_deserialize_recursive(reader); break;
         case AST_ARRAY_DIMENSION: ((ASTArrayDimension*)node)->length=ast_deserialize_recursive(reader); break;
         case AST_FASTEXEC_BLOCK: ((ASTFastExecBlock*)node)->statements=ast_deserialize_recursive(reader); break;
@@ -1722,7 +1750,7 @@ static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
 
         if (type_val == -1) return head;
 
-        if (type_val < AST_PROGRAM || type_val > AST_STRUCT_FIELD_INIT ||
+        if (type_val < AST_PROGRAM || type_val > AST_TYPE_EXPR ||
             reader->node_count >= AST_MAX_NODE_COUNT ||
             reader->depth >= AST_MAX_RECURSION_DEPTH) {
             reader->failed = 1;
@@ -1759,7 +1787,7 @@ ASTNode* ast_deserialize(FILE* in) {
         if (got == sizeof(prefix) && memcmp(prefix, AST_STREAM_MAGIC, sizeof(prefix)) == 0) {
             uint32_t version = 0u;
             if (fread(&version, sizeof(version), 1u, in) != 1u ||
-                (version != 1u && version != 2u && version != AST_STREAM_VERSION)) return NULL;
+                (version != 1u && version != 2u && version != 3u && version != AST_STREAM_VERSION)) return NULL;
             reader.format_version = version;
         } else {
             if (ferror(in)) return NULL;
@@ -1910,7 +1938,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
     }
     while(n) {
         size_t active_index;
-        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_STRUCT_FIELD_INIT)
+        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_TYPE_EXPR)
             return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"type");
         if (n->source_span.has_location) {
             const OccSourceSpan* span = &n->source_span;
@@ -2124,6 +2152,26 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
         case AST_STRUCT_LITERAL:
             if(!ast_validation_required_text(s,n,((ASTStructLiteral*)n)->type_name,"type_name")) return 0;
             V(((ASTStructLiteral*)n)->fields,"fields"); break;
+        case AST_TYPE_EXPR: {
+            const ASTTypeExpr* t=(const ASTTypeExpr*)n;
+            if(t->kind<AST_TYPE_NAMED || t->kind>AST_TYPE_QUALIFIED)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"type_expr_kind");
+            if(t->kind==AST_TYPE_NAMED) {
+                if(!ast_validation_required_text(s,n,t->name,"name") || t->child || t->params || t->dimensions)
+                    return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"named_type_shape");
+            } else if(t->kind==AST_TYPE_POINTER || t->kind==AST_TYPE_REFERENCE || t->kind==AST_TYPE_QUALIFIED) {
+                if(!t->child || t->name || t->params || t->dimensions)
+                    return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"wrapped_type_shape");
+            } else if(t->kind==AST_TYPE_ARRAY) {
+                if(!t->child || t->name || t->params)
+                    return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"array_type_shape");
+            } else if(t->kind==AST_TYPE_FUNCTION) {
+                if(!t->child || t->name || t->dimensions)
+                    return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"function_type_shape");
+            }
+            V(t->child,"child"); V(t->params,"params"); V(t->dimensions,"dimensions");
+            break;
+        }
         case AST_STRUCT_FIELD_INIT:
             if(s->active_count<2u ||
                s->active[s->active_count-2u]->type!=AST_STRUCT_LITERAL ||
