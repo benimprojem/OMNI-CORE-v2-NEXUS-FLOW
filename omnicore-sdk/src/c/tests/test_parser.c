@@ -4454,7 +4454,7 @@ generic_type_done:
     /* Enum variants, optional payload fields and their source ranges form a stable AST chain. */
     {
         static const char source[] =
-            "nt:enum: Task {\\n"
+            "enum: Task {\\n"
             "  IO(file!str)\\n"
             "  Compute(a!i32, b!i32)\\n"
             "  Cleanup\\n"
