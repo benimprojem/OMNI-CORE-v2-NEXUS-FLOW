@@ -1421,7 +1421,7 @@ done:
 
 static int test_array_index_access_ast(void) {
     static const char source[] =
-        "f:main() { v:items[4]!i32; v:x = items[1+2]; items[0] = x; }";
+        "f:main() { v:items[4]!i32; v:x = items[1+2]; items[0] = x; v:y = object.field; }";
     ParserContext* ctx=parser_init_source("array-index.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     ASTNode* statement;
@@ -1430,6 +1430,8 @@ static int test_array_index_access_ast(void) {
     const char* read_end=read_start?read_start+strlen("items[1+2]"):NULL;
     const char* write_start=strstr(source,"items[0]");
     const char* write_end=write_start?write_start+strlen("items[0]"):NULL;
+    const char* member_start=strstr(source,"object.field");
+    const char* member_end=member_start?member_start+strlen("object.field"):NULL;
     FILE* stream;
     int ok=0;
     if(!ctx) return 0;
@@ -1458,6 +1460,19 @@ static int test_array_index_access_ast(void) {
            left->base.source_span.end_offset!=(uint64_t)(write_end-source) ||
            left->base.source_span.start_column!=(uint32_t)(write_start-source)+1u ||
            left->base.source_span.end_column!=(uint32_t)(write_end-source)+1u) goto done;
+    }
+    statement=statement->next;
+    if(!statement || statement->type!=AST_VAR_DECL ||
+       !((ASTVarDecl*)statement)->initializer ||
+       ((ASTVarDecl*)statement)->initializer->type!=AST_MEMBER_ACCESS) goto done;
+    {
+        ASTMemberAccess* member=(ASTMemberAccess*)((ASTVarDecl*)statement)->initializer;
+        if(!member_start || !member_end || !member->member_name ||
+           strcmp(member->member_name,"field")!=0 || !member->base.source_span.has_location ||
+           member->base.source_span.start_offset!=(uint64_t)(member_start-source) ||
+           member->base.source_span.end_offset!=(uint64_t)(member_end-source) ||
+           member->base.source_span.start_column!=(uint32_t)(member_start-source)+1u ||
+           member->base.source_span.end_column!=(uint32_t)(member_end-source)+1u) goto done;
     }
     stream=tmpfile();
     if(!stream) goto done;
