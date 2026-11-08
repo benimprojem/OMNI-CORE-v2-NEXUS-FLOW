@@ -65,13 +65,14 @@ typedef union AstStorage {
 
 #define INDEX_CAPACITY 256u
 #define LEGACY_FLAT_KIND_COUNT 107u
-#define MAX_NODES (LEGACY_FLAT_KIND_COUNT + 1u)
+#define MAX_NODES (LEGACY_FLAT_KIND_COUNT + 2u)
 #define FIELD_CAPACITY 8192u
 #define STRING_CAPACITY 2048u
 #define OUTPUT_CAPACITY 16384u
 
 int main(void) {
     ASTProgram root;
+    ASTLiteral struct_value;
     AstStorage nodes[OIR_AST_NODE_KIND_COUNT];
     OirAstPointerIndexEntry index[INDEX_CAPACITY];
     OirAstNodeRecord records[MAX_NODES];
@@ -89,6 +90,7 @@ int main(void) {
     uint32_t i;
 
     memset(&root,0,sizeof(root));
+    memset(&struct_value,0,sizeof(struct_value));
     memset(nodes,0,sizeof(nodes));
     root.base.type=AST_PROGRAM;
     for(i=0;i<LEGACY_FLAT_KIND_COUNT;i++) {
@@ -107,6 +109,8 @@ int main(void) {
     nodes[13].identifier.name="nexus";
     nodes[105].struct_literal.type_name="Point";
     nodes[106].struct_field_init.name="x";
+    struct_value.type=TOKEN_NUMBER; struct_value.lit_type=0; struct_value.string_value="1";
+    nodes[106].struct_field_init.value=(ASTNode*)&struct_value;
 
     /* Exercise nullable strings and canonical booleans. */
     nodes[2].var_decl.name="value";
@@ -122,7 +126,7 @@ int main(void) {
     assert(req.node_count==MAX_NODES);
     assert(req.field_data_length>0u);
     assert(req.string_table_length==strlen("value")+strlen("i32")+
-        strlen("literal text")+strlen("nexus")+strlen("Point")+strlen("x"));
+        strlen("literal text")+strlen("nexus")+strlen("Point")+strlen("x")+strlen("1"));
 
     memset(records,0xa5,sizeof(records));
     memset(field_data,0xa5,sizeof(field_data));
