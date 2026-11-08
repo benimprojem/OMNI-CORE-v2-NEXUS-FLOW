@@ -280,6 +280,7 @@ typedef struct {
     int is_exported;    // exp
     ASTNode* initializer;
     ASTNode* inline_type; // Inline aggregate or structured type payload (e.g. AST_ARRAY_TYPE)
+    ASTNode* type_expr;   // Optional recursive type syntax; appended for compatibility.
 } ASTVarDecl;
 
 typedef struct {
@@ -296,6 +297,7 @@ typedef struct {
     ASTNode* return_array_type;
     /* Optional source-level linkage file inherited from the preceding linkname directive. */
     char* linkname;
+    ASTNode* return_type_expr; // Optional recursive return type syntax; appended for compatibility.
 } ASTFuncDecl;
 
 typedef struct {
@@ -357,6 +359,7 @@ typedef struct {
     ASTNode base;
     char* name;
     char* target_type; // Hedef tip ismi
+    ASTNode* target_type_expr; // Optional recursive target type syntax; appended for compatibility.
 } ASTNewTypeDecl;
 
 // --- Akış Yapıları ---
