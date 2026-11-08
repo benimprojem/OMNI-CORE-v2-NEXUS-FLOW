@@ -634,6 +634,13 @@ static int test_parser_allocation_failure_injection(void) {
         ASTStructLiteral* literal;
         ASTStructFieldInit* first;
         ASTStructFieldInit* second;
+        const char* literal_start=(const char*)source;
+        const char* literal_name=literal_start?strstr(literal_start,"Point {"):NULL;
+        const char* literal_close=literal_name?strchr(literal_name,'}'):NULL;
+        const char* first_start=literal_name?strstr(literal_name,"y = 2"):NULL;
+        const char* second_start=literal_name?strstr(literal_name,"x = 1"):NULL;
+        const char* first_value=first_start?strchr(first_start,'2'):NULL;
+        const char* second_value=second_start?strchr(second_start,'1'):NULL;
         int valid = parser && parser_run(parser) == PARSER_STATUS_OK &&
             parser->error_count == 0 && parser->ast_root;
         if (valid) {
@@ -653,8 +660,23 @@ static int test_parser_allocation_failure_injection(void) {
                 ? (ASTStructFieldInit*)first->base.next : NULL;
             valid = literal && literal->type_name &&
                 strcmp(literal->type_name, "Point") == 0 &&
+                literal_name && literal_close && literal->base.source_span.has_location &&
+                literal->base.source_span.start_offset==(uint64_t)(literal_name-literal_start) &&
+                literal->base.source_span.end_offset==(uint64_t)(literal_close+1-literal_start) &&
+                literal->base.source_span.start_column==(uint32_t)(literal_name-literal_start)+1u &&
+                literal->base.source_span.end_column==(uint32_t)(literal_close+1-literal_start)+1u &&
                 first && strcmp(first->name, "y") == 0 && first->value &&
+                first_start && first_value && first->base.source_span.has_location &&
+                first->base.source_span.start_offset==(uint64_t)(first_start-literal_start) &&
+                first->base.source_span.end_offset==(uint64_t)(first_value+1-literal_start) &&
+                first->base.source_span.start_column==(uint32_t)(first_start-literal_start)+1u &&
+                first->base.source_span.end_column==(uint32_t)(first_value+1-literal_start)+1u &&
                 second && strcmp(second->name, "x") == 0 && second->value &&
+                second_start && second_value && second->base.source_span.has_location &&
+                second->base.source_span.start_offset==(uint64_t)(second_start-literal_start) &&
+                second->base.source_span.end_offset==(uint64_t)(second_value+1-literal_start) &&
+                second->base.source_span.start_column==(uint32_t)(second_start-literal_start)+1u &&
+                second->base.source_span.end_column==(uint32_t)(second_value+1-literal_start)+1u &&
                 second->base.next == NULL;
         }
         if (parser) parser_destroy(parser);
