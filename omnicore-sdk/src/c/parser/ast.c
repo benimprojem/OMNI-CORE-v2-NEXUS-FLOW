@@ -1839,7 +1839,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n) {
     }
     while(n) {
         size_t active_index;
-        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_ASM_LABEL)
+        if ((int)n->type<(int)AST_PROGRAM || (int)n->type>(int)AST_STRUCT_FIELD_INIT)
             return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"type");
         if (n->source_span.has_location) {
             const OccSourceSpan* span = &n->source_span;
