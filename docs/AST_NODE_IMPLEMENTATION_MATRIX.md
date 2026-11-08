@@ -1,8 +1,8 @@
 # AST Node Implementation Matrix
 
 **Branch:** `refactor/c-core-roadmap`  
-**Registry:** `AST_PROGRAM` … `AST_ASM_LABEL` (append-only, 105 node kinds)  
-**Audit date:** 2026-11-05
+**Registry:** `AST_PROGRAM` … `AST_STRUCT_FIELD_INIT` (append-only, 107 node kinds)  
+**Audit date:** 2026-11-08
 
 ## Meaning of columns
 
@@ -16,11 +16,11 @@
 
 | Area | Audit result |
 |---|---:|
-| AST enum kinds | 105/105 |
-| AST → OIR mapping | 105/105 |
-| OIR writer kind cases | 105/105 |
-| Populated fixture switch | 105/105 |
-| Direct parser construction calls | 62 kinds (not a parser completeness metric) |
+| AST enum kinds | 107/107 |
+| AST → OIR mapping | 107/107 |
+| OIR writer kind cases | 107/107 |
+| Populated fixture switch | 107/107 |
+| Direct parser construction calls | 64 kinds (not a parser completeness metric) |
 | Graph validator | Explicit kind contracts; invalid/unregistered kind fails closed |
 
 ## Per-node matrix
@@ -132,6 +132,8 @@
 | `AST_MUST_DECL` | Direct | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
 | `AST_FASTEXEC_BLOCK` | Direct | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
 | `AST_ASM_LABEL` | Direct | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
+| `AST_STRUCT_LITERAL` | Direct/helper | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
+| `AST_STRUCT_FIELD_INIT` | Direct/helper | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | fixture |
 
 ## Context-specific codec fixtures
 
@@ -143,6 +145,7 @@
 | `AST_ASM_LABEL` | `AST_FASTEXEC_BLOCK.statements` | FASTEXEC raw ASM payload round-trip |
 | `AST_FUNC_DECL.return_array_type` | `AST_FUNC_DECL` / `AST_EXTERN_DECL` payload | Function array-return parser, AST stream v2 round-trip + v1 compatibility, OIR field 8 round-trip |
 | `AST_NAMED_ARG` | Call/intrinsic args list | Populated fixture; call-parent validation is separately exercised |
+| `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` | `AST_STRUCT_LITERAL.fields` owns ordered field-init nodes; each field init owns its value expression | Dedicated legacy AST codec round-trip and parser→OIR writer→reader→writer byte-stable round-trip |
 
 ## Remaining AST closure criteria
 
