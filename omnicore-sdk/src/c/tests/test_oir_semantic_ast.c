@@ -370,7 +370,7 @@ int main(void) {
 
     {
         const OirSemanticAnnotation annotations[] = {
-            { 2u, 1u, 1u, 1u, OIR_SEMANTIC_VALUE_LVALUE, 0u },
+            { 2u, 1u, 1u, 1u, OIR_SEMANTIC_VALUE_LVALUE, OIR_SEMANTIC_ANNOTATION_FLAG_ADDRESS_RECEIVER },
             { 5u, 1u, 0u, 1u, OIR_SEMANTIC_VALUE_RVALUE, 0u }
         };
         uint8_t annotation_bytes[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE +
@@ -401,7 +401,8 @@ int main(void) {
             decoded_annotation.scope_id == 1u &&
             decoded_annotation.resolved_symbol_id == 1u &&
             decoded_annotation.resolved_type_id == 1u &&
-            decoded_annotation.value_category == OIR_SEMANTIC_VALUE_LVALUE);
+            decoded_annotation.value_category == OIR_SEMANTIC_VALUE_LVALUE &&
+            decoded_annotation.flags == OIR_SEMANTIC_ANNOTATION_FLAG_ADDRESS_RECEIVER);
         assert(oir_semantic_annotations_get(&annotation_view, 1u,
             &decoded_annotation) == OIR_STATUS_OK);
         assert(decoded_annotation.node_id == 5u &&
@@ -442,7 +443,7 @@ int main(void) {
             annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
 
         memcpy(annotation_bad, annotation_bytes, annotation_written);
-        annotation_bad[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE + 18u] = 1u;
+        annotation_bad[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE + 18u] = 2u;
         assert(oir_semantic_annotations_open(annotation_bad,
             annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
 
