@@ -1101,7 +1101,7 @@ Bir callback'in parametresi de fonksiyon türü olabilir:
 
 ```nexus
 nt:Predicate = f:(value!i32)!bool;
-nt:PredicateHandler = f:(test!Predicate)!bool;
+nt:PredicateHandler = f:(test!f:(value!i32)!bool)!bool;
 
 f:run_test(test!Predicate, handler!PredicateHandler)!bool {
     ret handler(test);
