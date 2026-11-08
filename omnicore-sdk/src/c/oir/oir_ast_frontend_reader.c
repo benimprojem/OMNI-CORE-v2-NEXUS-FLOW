@@ -112,6 +112,8 @@ static void free_disconnected_node(ASTNode* node) {
         case AST_NAMED_ARG: free(((ASTNamedArg*)node)->name); break;
         case AST_MUST_DECL: free(((ASTMustDecl*)node)->name); break;
         case AST_ASM_LABEL: { ASTAsmLabel* n=(ASTAsmLabel*)node; free(n->label); free(n->source_text); break; }
+        case AST_STRUCT_LITERAL: free(((ASTStructLiteral*)node)->type_name); break;
+        case AST_STRUCT_FIELD_INIT: free(((ASTStructFieldInit*)node)->name); break;
         default: break;
     }
     free(node);
@@ -370,6 +372,12 @@ static OirStatus populate_scalar_fields(
                 }
                 break;
             }
+            case AST_STRUCT_LITERAL:
+                if(field.field_id==1u) status=allocate_string(view,&field,&((ASTStructLiteral*)node)->type_name);
+                break;
+            case AST_STRUCT_FIELD_INIT:
+                if(field.field_id==1u) status=allocate_string(view,&field,&((ASTStructFieldInit*)node)->name);
+                break;
             default: break;
         }
         if(status!=OIR_STATUS_OK) return status;
@@ -459,6 +467,14 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
             break;
         case AST_ARRAY_LITERAL:
             if(field_id==1u) ((ASTArrayLiteral*)node)->elements=child;
+            else return 0;
+            break;
+        case AST_STRUCT_LITERAL:
+            if(field_id==2u) ((ASTStructLiteral*)node)->fields=child;
+            else return 0;
+            break;
+        case AST_STRUCT_FIELD_INIT:
+            if(field_id==2u) ((ASTStructFieldInit*)node)->value=child;
             else return 0;
             break;
         case AST_ARRAY_TYPE:
