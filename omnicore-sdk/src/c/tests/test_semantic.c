@@ -189,7 +189,7 @@ static int check_struct_literal_semantics(void) {
         "f:make() { v:item!Local = Local { value = 7 }; ret; } }";
     const char* nested_group_cannot_use_outer_struct =
         "f:main() { group Outer { struct:Private { v:value!i32 } "
-        "group Inner { f:make() { v:item!Private = Private { value = 7 }; ret; } } } }";
+        "Inner => group { f:make() { v:item!Private = Private { value = 7 }; ret; } } } }";
 
     return check_source(valid_reordered, 0) &&
         check_source(unknown_field, 1) &&
