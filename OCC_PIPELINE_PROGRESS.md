@@ -1273,3 +1273,15 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Parser implementation commit: `c701064f5c2abd5bf261762535264432e61c0439`.
 - Test commit: `6f42147f7dc154663061aa026f55937b18923ab1`.
 - CI run `42485259430` was triggered for Windows, macOS, Ubuntu, ASan/UBSan and Valgrind; results pending at the time of this note.
+
+
+## 2026-11-08 — Recursive Type Expression: callback syntax + array ownership integration
+
+- `docs/language/syntax-reference.md` callback bölümü tamamlandı: NewType alias, doğrudan callback parametresi, iç içe callback imzası ve lambda gövdesi ayrımı örneklerle tanımlandı. Kanonik imza `f:(params)!ReturnType`; `>` yalnızca callable/lambda gövdesini başlatır. Eski `f:(params)>!ReturnType` biçimi Parser uyumluluğu olarak korunur.
+- Parser testine doğrudan iç içe callback parametre türü eklendi: `f:(test!f:(value!i32)!bool)!bool`.
+- Normal değişken/parametre array declarator'ları ve fonksiyon array return'leri artık `AST_TYPE_ARRAY` wrapper üretir; `child` eleman türünü, `dimensions` ise `AST_ARRAY_TYPE` boyut alt ağacını taşır.
+- Tek sahiplik korunur: `ASTVarDecl.inline_type` ve `ASTFuncDecl.return_array_type` yalnızca recursive array node'a borrowed alias olur. AST destroy/validator/codec ve OIR index/writer/reader duplicate ownership edge üretmeyecek, decode sonrasında alias'ı yeniden kuracak şekilde güncellendi.
+- Parser AST codec testleri ve OIR round-trip testleri array wrapper/alias kimliğini doğrulayacak şekilde genişletildi.
+- Tasarım kaydı güncellendi: `AST_TYPE_EXPR_DESIGN.md`.
+- **Doğrulama durumu:** Değişiklikler `refactor/c-core-roadmap` dalında commitlendi; bu oturumda yerel C derlemesi/CTest çalıştırılamadı ve bu commit grubu için doğrulanmış yeni CI sonucu henüz yok. CI tamamlanmadan bu entegrasyon tamamlanmış sayılmayacak.
+- **Açık kalanlar:** callback signature içindeki array parametre/return bileşimi, hassas parametre bazlı source span, nested malformed-type ve allocation-failure testleri. AST kapanışı ve Semantic geçişi hâlâ kilitli.
