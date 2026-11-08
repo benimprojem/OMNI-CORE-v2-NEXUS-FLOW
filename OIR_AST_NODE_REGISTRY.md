@@ -231,6 +231,10 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_STRUCT_LITERAL | 2 | ordered field initializers | NODE_REF |
 | AST_STRUCT_FIELD_INIT | 1 | field name | STRING_REF / NULL |
 | AST_STRUCT_FIELD_INIT | 2 | initializer value | NODE_REF |
+| AST_TYPE_EXPR | 1 | recursive type-expression kind | U32 |
+| AST_TYPE_EXPR | 2 | type-local syntax flags | U32 |
+| AST_TYPE_EXPR | 3 | named type payload (NULL for wrapper kinds) | STRING_REF / NULL |
+| AST_TYPE_EXPR | 4–6 | wrapped child, function parameters, array dimensions | NODE_REF |
 | AST_BLOCK_HALT | — | Block-scoped `}?;` cleanup marker; valid only as final child of AST_BLOCK/AST_ASM_BLOCK/AST_FASTEXEC_BLOCK | — |
 | AST_NAMED_ARG | 1 | name | STRING_REF |
 | AST_NAMED_ARG | 2 | value | NODE_REF |
@@ -241,7 +245,7 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_ASM_LABEL | 1 | label | STRING_REF |
 | AST_ASM_LABEL | 2 | exact raw ASM source text (UTF-8; byte length preserved) | STRING_REF |
 
-OIR node kinds **101–107** are append-only additions: 101 `AST_VARIADIC_PARAM`, 102 `AST_NAMED_ARG`, 103 `AST_MUST_DECL`, 104 `AST_FASTEXEC_BLOCK`, 105 `AST_ASM_LABEL`, 106 `AST_STRUCT_LITERAL`, and 107 `AST_STRUCT_FIELD_INIT`. IDs 1–100 are unchanged.
+OIR node kinds **101–108** are append-only additions: 101 `AST_VARIADIC_PARAM`, 102 `AST_NAMED_ARG`, 103 `AST_MUST_DECL`, 104 `AST_FASTEXEC_BLOCK`, 105 `AST_ASM_LABEL`, 106 `AST_STRUCT_LITERAL`, 107 `AST_STRUCT_FIELD_INIT`, and 108 `AST_TYPE_EXPR`. IDs 1–107 are unchanged.
 
 The intrinsic call-kind set is:
 AST_SPAWN, AST_ECHO, AST_SEND, AST_RECEIVE, AST_DONE, AST_AREA, AST_ZONE, AST_ADDR, AST_LEN, AST_PEEK, AST_POKE, AST_INB, AST_OUTB, AST_IRQ, AST_INTR, AST_REG, AST_PRNT, AST_PRMT, AST_WRITE, AST_FWRITE, AST_TYPEOF, AST_SIZEOF, AST_IS_OK, AST_IS_ERR, AST_IS_SOME, AST_IS_NONE, AST_IS_NULL, AST_EXIT, AST_SWAP, AST_DATE, AST_DATENOW, AST_TIME, AST_CLOCK, AST_FREE, AST_ZONE_SYNC, AST_ZONE_VIEW and AST_ZONE_LOCK.
