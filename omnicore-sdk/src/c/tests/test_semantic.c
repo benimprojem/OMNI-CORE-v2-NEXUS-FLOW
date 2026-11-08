@@ -187,6 +187,9 @@ static int check_struct_literal_semantics(void) {
     const char* group_owned_type_outside =
         "f:main() { group Store { struct:Local { v:value!i32 } } "
         "f:make() { v:item!Local = Local { value = 7 }; ret; } }";
+    const char* nested_group_cannot_use_outer_struct =
+        "f:main() { group Outer { struct:Private { v:value!i32 } "
+        "group Inner { f:make() { v:item!Private = Private { value = 7 }; ret; } } } }";
 
     return check_source(valid_reordered, 0) &&
         check_source(unknown_field, 1) &&
@@ -197,7 +200,8 @@ static int check_struct_literal_semantics(void) {
         check_source(non_struct_type, 1) &&
         check_source(empty_struct, 0) &&
         check_source(group_owned_type_inside, 0) &&
-        check_source(group_owned_type_outside, 2);
+        check_source(group_owned_type_outside, 2) &&
+        check_source(nested_group_cannot_use_outer_struct, 2);
 }
 
 static int check_array_literal_semantics(void) {
