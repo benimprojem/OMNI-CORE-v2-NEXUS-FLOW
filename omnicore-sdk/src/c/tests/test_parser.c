@@ -4699,6 +4699,14 @@ generic_type_done:
                     fprintf(stderr,"Group AST decoded graph invalid\\n"); valid=0;
                 }
             }
+        } else if(parser) {
+            Error* error;
+            fprintf(stderr,"Group AST parse/validation failed status=%d errors=%d\\n",
+                (int)parser_get_status(parser),parser->error_count);
+            for(error=parser->error_head;error;error=error->next)
+                fprintf(stderr,"  %d:%d %s\\n",error->line,error->col,
+                    error->message?error->message:"");
+            if(parser->ast_root) ast_print((ASTNode*)parser->ast_root);
         }
         if(!valid && parser && !parser->ast_root)
             fprintf(stderr,"Group AST parser produced no root\\n");
