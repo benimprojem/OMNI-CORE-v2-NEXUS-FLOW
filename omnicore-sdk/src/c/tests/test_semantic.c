@@ -566,6 +566,10 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!check_array_type_semantics()) {
+        fprintf(stderr, "Pointer/reference compatibility checks failed.\\n");
+        return 1;
+    }
+    if (!check_array_type_semantics()) {
         fprintf(stderr, "Array type semantic checks failed.\n");
         return 1;
     }
