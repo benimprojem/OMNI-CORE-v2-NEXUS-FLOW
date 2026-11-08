@@ -1,6 +1,6 @@
 # AST Type Expression Model — Design Draft
 
-**Status:** Implementation phase 1 — recursive node, declaration attachment fields, AST codec v4 and OIR AST handoff are in progress; Parser construction and full integration tests remain open  
+**Status:** Implementation phase 1 — recursive node, declaration attachment fields, AST codec v4 and OIR AST handoff are in progress; Parser population for named/pointer/reference and function/callback types is implemented; array-wrapper population and full integration tests remain open  
 **Branch:** `refactor/c-core-roadmap`  
 **Scope:** C AST + parser representation only. Semantic meaning, ABI validation and lowering remain later stages.
 
@@ -69,4 +69,11 @@ EXF additionally needs external symbol name and the declared linkage source rela
 - Added append-only `AST_TYPE_EXPR` and the six type-expression kinds. Ownership, destruction, validation, debug printing and AST stream v4 serialization/deserialization are implemented.
 - Added optional structured type slots to `ASTVarDecl`, `ASTFuncDecl` and `ASTNewTypeDecl`; legacy string fields remain intact. AST stream v1–v3 readers remain supported, and pre-v4 streams reject the new node tag.
 - Added OIR node kind 108, schema fields, child traversal, writer/reader reconstruction and an OIR round-trip test using a pointer-to-`i32` variable type.
-- **Not complete:** Parser does not yet populate these slots. Function callback signatures, parser spans, malformed nested-type tests, allocation-failure coverage and full CI must pass before this design can be marked complete.
+- **Not complete:** Parser populates named/pointer/reference and function/callback type trees, but array declarators still use the legacy `AST_ARRAY_TYPE` side field rather than an `AST_TYPE_ARRAY` wrapper. Function-type child spans currently use the encompassing signature span rather than individual parameter token spans. Malformed nested-type tests, type-builder allocation-failure coverage and full CI must pass before this design can be marked complete.
+
+## 8. Parser integration checkpoint (2026-11-08)
+
+- `parser_build_type_expr` now creates `NAMED`, `POINTER`, `REFERENCE`, and hard-type `QUALIFIED` nodes for variable declarations, function parameters/returns and NewType targets.
+- Callback/function type spellings `f:(name!Type, other:Type)!ReturnType` and legacy `f:(...)>!ReturnType` now produce `FUNCTION` nodes with parameter `ASTVarDecl` children and a recursive return-type child. The original canonical strings remain populated for compatibility.
+- Parser regression coverage now asserts pointer/reference trees, hard qualifiers, callback parameter trees and function-type aliases. OIR round-trip coverage includes a callback tree.
+- Array type wrappers and precise per-parameter spans remain the next gaps; do not mark recursive type expressions complete yet.
