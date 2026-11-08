@@ -593,6 +593,13 @@ static int roundtrips_populated_ast_types(void) {
             if(!owner) { ast_destroy(original); return 1; }
             owner->dimensions=original;
             root=(ASTNode*)owner;
+        } else if(raw_type==AST_METHOD) {
+            ASTGroupDecl* owner=(ASTGroupDecl*)ast_create(AST_GROUP_DECL);
+            if(!owner) { ast_destroy(original); return 1; }
+            owner->name=duplicate_text("method_owner");
+            if(!owner->name) { ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
+            owner->members=original;
+            root=(ASTNode*)owner;
         }
 
         FILE* first = tmpfile();
