@@ -413,9 +413,14 @@ static int populate_ast_fixture(ASTNode* node) {
 
         case AST_SELECT: {
             ASTSelect* value = (ASTSelect*)node;
+            ASTSelectArm* arm=(ASTSelectArm*)ast_create(AST_SELECT_ARM);
+            if(!arm) return 0;
             value->selector = make_identifier_fixture("select_value");
-            value->arms = make_identifier_fixture("select_arms");
-            return value->selector && value->arms;
+            arm->pattern=make_identifier_fixture("select_pattern");
+            arm->body=make_identifier_fixture("select_body");
+            arm->is_default=1;
+            value->arms=(ASTNode*)arm;
+            return value->selector && arm->pattern && arm->body;
         }
         case AST_SELECT_ARM: {
             ASTSelectArm* value = (ASTSelectArm*)node;
@@ -426,9 +431,13 @@ static int populate_ast_fixture(ASTNode* node) {
         }
         case AST_SCAN: {
             ASTScan* value = (ASTScan*)node;
+            ASTScanArm* arm=(ASTScanArm*)ast_create(AST_SCAN_ARM);
+            if(!arm) return 0;
             value->subject = make_identifier_fixture("scan_subject");
-            value->arms = make_identifier_fixture("scan_arms");
-            return value->subject && value->arms;
+            arm->pattern=make_identifier_fixture("scan_pattern");
+            arm->body=make_identifier_fixture("scan_body");
+            value->arms=(ASTNode*)arm;
+            return value->subject && arm->pattern && arm->body;
         }
         case AST_SCAN_ARM: {
             ASTScanArm* value = (ASTScanArm*)node;
@@ -556,11 +565,34 @@ static int streams_equal(FILE* left, FILE* right) {
 static int roundtrips_populated_ast_types(void) {
     for (int raw_type = AST_PROGRAM; raw_type <= AST_ARRAY_DIMENSION; ++raw_type) {
         ASTNode* original = ast_create((ASTNodeType)raw_type);
+        ASTNode* root;
         if (!original) return 1;
         if (!populate_ast_fixture(original)) {
             fprintf(stderr, "Could not populate AST fixture for tag %d.\n", raw_type);
             ast_destroy(original);
             return 1;
+        }
+        root=original;
+        /* Context-bound records are round-tripped under their legal owning edge. */
+        if(raw_type==AST_SELECT_ARM) {
+            ASTSelect* owner=(ASTSelect*)ast_create(AST_SELECT);
+            if(!owner) { ast_destroy(original); return 1; }
+            owner->selector=make_identifier_fixture("select_owner");
+            if(!owner->selector) { ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
+            owner->arms=original;
+            root=(ASTNode*)owner;
+        } else if(raw_type==AST_SCAN_ARM) {
+            ASTScan* owner=(ASTScan*)ast_create(AST_SCAN);
+            if(!owner) { ast_destroy(original); return 1; }
+            owner->subject=make_identifier_fixture("scan_owner");
+            if(!owner->subject) { ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
+            owner->arms=original;
+            root=(ASTNode*)owner;
+        } else if(raw_type==AST_ARRAY_DIMENSION) {
+            ASTArrayType* owner=(ASTArrayType*)ast_create(AST_ARRAY_TYPE);
+            if(!owner) { ast_destroy(original); return 1; }
+            owner->dimensions=original;
+            root=(ASTNode*)owner;
         }
 
         FILE* first = tmpfile();
@@ -568,14 +600,14 @@ static int roundtrips_populated_ast_types(void) {
         if (!first || !second) {
             if (first) fclose(first);
             if (second) fclose(second);
-            ast_destroy(original);
+            ast_destroy(root);
             return 1;
         }
 
-        if (!ast_serialize(original, first)) {
+        if (!ast_serialize(root, first)) {
             fclose(first);
             fclose(second);
-            ast_destroy(original);
+            ast_destroy(root);
             return 1;
         }
         rewind(first);
@@ -584,7 +616,7 @@ static int roundtrips_populated_ast_types(void) {
             fclose(first);
             fclose(second);
             ast_destroy(decoded);
-            ast_destroy(original);
+            ast_destroy(root);
             fprintf(stderr, "AST serialize/deserialize failed for tag %d.\n", raw_type);
             return 1;
         }
@@ -593,7 +625,7 @@ static int roundtrips_populated_ast_types(void) {
         fclose(first);
         fclose(second);
         ast_destroy(decoded);
-        ast_destroy(original);
+        ast_destroy(root);
         if (!valid) {
             fprintf(stderr, "AST field round-trip mismatch for tag %d.\n", raw_type);
             return 1;
