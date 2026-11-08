@@ -239,6 +239,47 @@ ret Oyuncu {
 Bu yazımın geçerli hale gelmesi için Struct literal AST node/field mapping, duplicate/unknown/missing field kontrolleri, field tür dönüşümü ve OIR instance oluşturma temsilinin tamamlanması gerekir. Bu aşama tamamlanana kadar factory, var olan bir `Oyuncu` değerini döndüren typed API olarak kullanılabilir; gerçek allocation/initialization garantisi vermez.
 
 
+## 4.5 Struct Literal ve Alan Başlatma (Normatif Tasarım)
+
+Struct instance oluşturmanın ifade biçimi **`Type { field = expression, ... }`** olarak belirlenir. Bu biçim, Group factory çağrısından bağımsız bir expression'dır; factory gövdesinde `ret Type { ... };` ile kullanılabilir. Lexer'da yeni token gerekmez: Type identifier'ından sonra `{` geldiğinde Parser bunu expression bağlamında Struct literal olarak ele alır. Struct declaration (`struct:Type { ... }`) ise declaration bağlamında kalır.
+
+```nexus
+group Oyuncu {
+    struct:Oyuncu {
+        v:ad!str,
+        v:puan!i32,
+        v:aktif!bool
+    }
+
+    yeni => f:(isim!str)!Oyuncu {
+        ret Oyuncu {
+            ad = isim,
+            puan = 0,
+            aktif = true
+        };
+    }
+}
+
+v:oyuncu!Oyuncu = Oyuncu.yeni("Ahmet");
+```
+
+### Alan başlatma kuralları
+
+1. Literal'in Type adı, erişilebilir ve Group binding'iyle uyumlu nominal Struct türüne çözülmelidir. Group-owned type erişim izolasyonu aynen uygulanır.
+2. Her initializer girdisi `field_name = expression` biçimindedir; alanlar virgülle ayrılır. Alan sırası Struct declaration sırasından bağımsızdır.
+3. Her alan adı, Struct'ın bildirilen alanlarından tam birine çözülür. Bilinmeyen alan hata; aynı alanın ikinci kez yazılması duplicate-field hatasıdır.
+4. Struct alanlarının tamamı literal içinde tam bir kez başlatılmalıdır. Eksik alan için default değer varsayılmaz; ileride default-field özelliği ayrıca tanımlanabilir.
+5. Her expression'ın türü ilgili field türüne Semantic conversion kurallarıyla uyumlu olmalıdır. Hard-lock (`!`) türler implicit dönüşümle gevşetilmez.
+6. AST, literal Type yolunu ve ordered field initializer listesini kayıpsız korur. SemanticResult, Struct nominal symbol/type ID'sini ve her initializer'ın resolved field symbol ID'sini + value expression ilişkisini taşır. Kaynak isimler diagnostic ve AST fidelity içindir; OIR çözümlemesi isim tahmini yapmaz.
+7. OIR, instance değerini tek bir nominal Struct type ID ile temsil eder ve her field initializer'ı resolved field ID üzerinden instance initialization işlemine bağlar. Field evaluation sırası kaynak initializer sırasıdır; depolama/layout sırası Struct tanımına aittir.
+8. Literal başarısızsa kısmi/valid instance değeri üretilmez. Diagnostic'ler aynı derleme biriminde toplanır; hatalı SEMANTIC_AST OIR lowering'e verilmez.
+
+### AST ve uygulama kapısı
+
+Bu özellik için append-only AST node ID ile ayrı Struct literal ve Struct field initializer node'ları gereklidir; mevcut `AST_ARRAY_LITERAL` veya `AST_MEMBER_ACCESS` yeniden amaçlandırılmaz. Node payload, ownership, codec field schema, parser grammar, SemanticResult cross-reference ve OIR instance-init opcode/record sözleşmesi birlikte tamamlanmalıdır.
+
+**Uygulama durumu:** Bu bölüm syntax ve semantic/OIR kontratını normatif olarak sabitler; Parser/AST/codec/Semantic/OIR/test implementation henüz tamamlanmış değildir. Bu nedenle Struct literal kullanılabilir bir özellik olarak ilan edilmez.
+
 ---
 
 ## 5. Kapsam (Scope)
