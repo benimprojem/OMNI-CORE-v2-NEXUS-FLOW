@@ -218,6 +218,7 @@ typedef struct {
     int panic_mode;
     unsigned int nesting_depth;
     unsigned int fast_exec_depth;
+    int consumed_metadata;
 } Parser;
 
 static ASTNode* parse_logical_or(Parser* p);
@@ -2779,6 +2780,14 @@ static ASTNode* parse_func_decl(Parser* p) {
         }
     }
 
+    if (function_kind == AST_EXTERN_DECL && p->ctx->active_linkname) {
+        func->linkname = parser_strdup(p, p->ctx->active_linkname);
+        if (!func->linkname) {
+            ast_destroy((ASTNode*)func);
+            return NULL;
+        }
+    }
+
     /*
      * EXF is a declaration, not a function definition. The semicolon form
      * exposes an external symbol without inventing a local function body.
@@ -4002,8 +4011,61 @@ static ASTNode* parse_lambda(Parser* p) {
     return (ASTNode*)node;
 }
 
+static ASTNode* parse_linkname_directive(Parser* p) {
+    Token directive_start = p->previous;
+    Token value_token;
+    char* value;
+    size_t value_length;
+
+    if (p->nesting_depth != 0u) {
+        error_at(p, &directive_start, ERR_PARSER_UNEXPECTED_TOKEN,
+            "linkname directives are only valid at program scope.");
+        return NULL;
+    }
+    if (!match(p, TOKEN_IDENTIFIER) ||
+        !parser_identifier_is(&p->previous, "linkname")) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Expected 'linkname' after '!!='.");
+        return NULL;
+    }
+    if (!match(p, TOKEN_ASSIGN)) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Expected '=' after linkname.");
+        return NULL;
+    }
+    if (!match(p, TOKEN_STRING)) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Expected a string literal as linkname source.");
+        return NULL;
+    }
+    value_token = p->previous;
+    if (value_token.length < 2 || value_token.start[0] != '"' ||
+        value_token.start[value_token.length - 1] != '"') {
+        error_at(p, &value_token, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Malformed linkname string literal.");
+        return NULL;
+    }
+    value_length = (size_t)value_token.length - 2u;
+    value = (char*)parser_malloc(p, value_length + 1u);
+    if (!value) return NULL;
+    if (value_length) memcpy(value, value_token.start + 1, value_length);
+    value[value_length] = '\0';
+    if (!match(p, TOKEN_SEMICOLON)) {
+        free(value);
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_SEMICOLON,
+            MSG_EXPECT_SEMICOLON_VAR);
+        return NULL;
+    }
+    if (p->ctx->active_linkname) free(p->ctx->active_linkname);
+    p->ctx->active_linkname = value;
+    p->consumed_metadata = 1;
+    return NULL;
+}
+
 static ASTNode* parse_statement(Parser* p) {
     if (p->panic_mode) p->panic_mode = 0; // Her yeni ifadede hata modunu sıfırla (Basit senkronizasyon)
+
+    if (match(p, TOKEN_FORCE_ASSIGN)) return parse_linkname_directive(p);
 
     if (match(p, TOKEN_SEMICOLON)) {
         Token semicolon = p->previous;
@@ -4476,7 +4538,9 @@ int parser_run(ParserContext* ctx) {
 
     while (!match(&parser, TOKEN_EOF)) {
         Token statement_start = parser.current;
-        ASTNode* stmt = parse_statement(&parser);
+        ASTNode* stmt;
+        parser.consumed_metadata = 0;
+        stmt = parse_statement(&parser);
         if (parser_status_is_terminal(ctx->status)) {
             ast_destroy(stmt);
             return (int)ctx->status;
@@ -4491,6 +4555,7 @@ int parser_run(ParserContext* ctx) {
             current_stmt = stmt;
             while (current_stmt->next) current_stmt = current_stmt->next;
         } else {
+            if (parser.consumed_metadata) continue;
             if (parser_status_is_terminal(ctx->status)) return (int)ctx->status;
             if (!parser.had_error) {
                 ctx->status = PARSER_STATUS_INVALID_STATE;
@@ -4704,6 +4769,7 @@ void parser_destroy(ParserContext* ctx) {
             current = next;
         }
         if (ctx->source_buffer) free(ctx->source_buffer);
+        if (ctx->active_linkname) free(ctx->active_linkname);
         free(ctx);
     }
 }
