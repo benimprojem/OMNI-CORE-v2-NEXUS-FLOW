@@ -4542,23 +4542,23 @@ generic_type_done:
     /* Struct, packed Struct and Union declarations preserve distinct AST flags and field order. */
     {
         static const char source[] =
-            "struct:Point {\\n"
-            "  v:x!i32,\\n"
-            "  v:y!i32\\n"
-            "}\\n"
-            "!struct:NetworkPacket {\\n"
-            "  v:id!u8,\\n"
-            "  v:data!u32\\n"
-            "}\\n"
-            "union:Register32 {\\n"
-            "  v:full!u32,\\n"
-            "  v:parts!u16\\n"
+            "struct:Point {\n"
+            "  v:x!i32,\n"
+            "  v:y!i32\n"
+            "}\n"
+            "!struct:NetworkPacket {\n"
+            "  v:id!u8,\n"
+            "  v:data!u32\n"
+            "}\n"
+            "union:Register32 {\n"
+            "  v:full!u32,\n"
+            "  v:parts!u16\n"
             "}";
         const char* point_start=strstr(source,"struct:Point");
         const char* packet_start=strstr(source,"!struct:NetworkPacket");
         const char* union_start=strstr(source,"union:Register32");
-        const char* point_end=strstr(source,"}\\n!struct:NetworkPacket");
-        const char* packet_end=strstr(source,"}\\nunion:Register32");
+        const char* point_end=strstr(source,"}\n!struct:NetworkPacket");
+        const char* packet_end=strstr(source,"}\nunion:Register32");
         const char* union_end=strrchr(source,'}');
         ParserContext* parser=parser_init_source("aggregate-declarations.nxf",
             (const uint8_t*)source,sizeof(source)-1u);
@@ -4608,7 +4608,7 @@ generic_type_done:
         if(decoded) ast_destroy(decoded);
         if(parser) parser_destroy(parser);
         if(!valid) {
-            fprintf(stderr,"Struct/packed Struct/Union AST shape, span and codec test failed.\\n");
+            fprintf(stderr,"Struct/packed Struct/Union AST shape, span and codec test failed.\n");
             return 1;
         }
     }
