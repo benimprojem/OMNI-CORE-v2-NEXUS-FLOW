@@ -1130,11 +1130,20 @@ static int test_array_literal_ast(void) {
     ASTFuncDecl* function;
     ASTBlock* body;
     ASTNode* node;
+    ASTArrayLiteral* matrix_node=NULL;
+    ASTArrayLiteral* first_row=NULL;
+    ASTArrayLiteral* empty_node=NULL;
+    const char* matrix_start=strstr(source,"[[1, 2], [3, 4]]");
+    const char* matrix_close=matrix_start?strstr(matrix_start,"]]"):NULL;
+    const char* row_start=matrix_start?matrix_start+1:NULL;
+    const char* row_close=row_start?strchr(row_start,']'):NULL;
+    const char* empty_start=strstr(source,"[]");
     int matrix=0,empty=0,ok=0;
     if(!ctx)return 0;
     if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) {
         Error* error;
-        fprintf(stderr,"array literal parser status=%d errors=%d\n",(int)parser_get_status(ctx),ctx->error_count);
+        fprintf(stderr,"array literal parser status=%d errors=%d\n",
+            (int)parser_get_status(ctx),ctx->error_count);
         for(error=ctx->error_head;error;error=error->next)
             fprintf(stderr,"  %d:%d %s\n",error->line,error->col,error->message?error->message:"");
         goto done;
@@ -1150,14 +1159,38 @@ static int test_array_literal_ast(void) {
                 ASTNode* row=((ASTArrayLiteral*)v->initializer)->elements;
                 if(row && row->type==AST_ARRAY_LITERAL &&
                    ((ASTArrayLiteral*)row)->elements &&
-                   ((ASTArrayLiteral*)row)->elements->next) matrix=1;
+                   ((ASTArrayLiteral*)row)->elements->next) {
+                    matrix=1;
+                    matrix_node=(ASTArrayLiteral*)v->initializer;
+                    first_row=(ASTArrayLiteral*)row;
+                }
             }
             if(v->name && strcmp(v->name,"empty")==0 &&
                v->initializer && v->initializer->type==AST_ARRAY_LITERAL &&
-               !((ASTArrayLiteral*)v->initializer)->elements) empty=1;
+               !((ASTArrayLiteral*)v->initializer)->elements) {
+                empty=1;
+                empty_node=(ASTArrayLiteral*)v->initializer;
+            }
         }
     }
-    if(!matrix || !empty) fprintf(stderr,"array AST flags matrix=%d empty=%d\n",matrix,empty);
+    matrix=matrix && matrix_start && matrix_close && row_start && row_close &&
+        matrix_node && first_row && matrix_node->base.source_span.has_location &&
+        matrix_node->base.source_span.start_offset==(uint64_t)(matrix_start-source) &&
+        matrix_node->base.source_span.end_offset==(uint64_t)(matrix_close+2-source) &&
+        matrix_node->base.source_span.start_column==(uint32_t)(matrix_start-source)+1u &&
+        matrix_node->base.source_span.end_column==(uint32_t)(matrix_close+2-source)+1u &&
+        first_row->base.source_span.has_location &&
+        first_row->base.source_span.start_offset==(uint64_t)(row_start-source) &&
+        first_row->base.source_span.end_offset==(uint64_t)(row_close+1-source) &&
+        first_row->base.source_span.start_column==(uint32_t)(row_start-source)+1u &&
+        first_row->base.source_span.end_column==(uint32_t)(row_close+1-source)+1u;
+    empty=empty && empty_start && empty_node && empty_node->base.source_span.has_location &&
+        empty_node->base.source_span.start_offset==(uint64_t)(empty_start-source) &&
+        empty_node->base.source_span.end_offset==(uint64_t)(empty_start+2-source) &&
+        empty_node->base.source_span.start_column==(uint32_t)(empty_start-source)+1u &&
+        empty_node->base.source_span.end_column==(uint32_t)(empty_start+2-source)+1u;
+    if(!matrix || !empty)
+        fprintf(stderr,"array AST shape/span flags matrix=%d empty=%d\n",matrix,empty);
     if(matrix && empty) {
         FILE* stream=tmpfile();
         ASTNode* decoded=NULL;
@@ -1350,6 +1383,10 @@ static int test_array_index_access_ast(void) {
         (const uint8_t*)source,sizeof(source)-1u);
     ASTNode* statement;
     ASTNode* decoded=NULL;
+    const char* read_start=strstr(source,"items[1+2]");
+    const char* read_end=read_start?read_start+strlen("items[1+2]"):NULL;
+    const char* write_start=strstr(source,"items[0]");
+    const char* write_end=write_start?write_start+strlen("items[0]"):NULL;
     FILE* stream;
     int ok=0;
     if(!ctx) return 0;
@@ -1361,11 +1398,24 @@ static int test_array_index_access_ast(void) {
        ((ASTVarDecl*)statement)->initializer->type!=AST_INDEX_ACCESS) goto done;
     {
         ASTIndexAccess* index=(ASTIndexAccess*)((ASTVarDecl*)statement)->initializer;
-        if(index->target->type!=AST_IDENTIFIER || index->index->type!=AST_BINARY_EXPR) goto done;
+        if(index->target->type!=AST_IDENTIFIER || index->index->type!=AST_BINARY_EXPR ||
+           !read_start || !read_end || !index->base.source_span.has_location ||
+           index->base.source_span.start_offset!=(uint64_t)(read_start-source) ||
+           index->base.source_span.end_offset!=(uint64_t)(read_end-source) ||
+           index->base.source_span.start_column!=(uint32_t)(read_start-source)+1u ||
+           index->base.source_span.end_column!=(uint32_t)(read_end-source)+1u) goto done;
     }
     statement=statement->next;
     if(!statement || statement->type!=AST_ASSIGNMENT ||
        ((ASTBinaryExpr*)statement)->left->type!=AST_INDEX_ACCESS) goto done;
+    {
+        ASTIndexAccess* left=(ASTIndexAccess*)((ASTBinaryExpr*)statement)->left;
+        if(!write_start || !write_end || !left->base.source_span.has_location ||
+           left->base.source_span.start_offset!=(uint64_t)(write_start-source) ||
+           left->base.source_span.end_offset!=(uint64_t)(write_end-source) ||
+           left->base.source_span.start_column!=(uint32_t)(write_start-source)+1u ||
+           left->base.source_span.end_column!=(uint32_t)(write_end-source)+1u) goto done;
+    }
     stream=tmpfile();
     if(!stream) goto done;
     if(ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
