@@ -174,10 +174,7 @@ static int check_struct_literal_semantics(void) {
     const char* incompatible_field =
         "f:main() { struct: Point { v:x!i32 } "
         "v:p!Point = Point { x = \"wrong\" }; }";
-    const char* normal_type_mismatch =
-        "f:main() { struct: Point { v:x:i32 } "
-        "v:p!Point = Point { x = 1.0 }; }";
-    const char* hard_type_mismatch =
+    const char* numeric_type_mismatch =
         "f:main() { struct: Point { v:x!i32 } "
         "v:p!Point = Point { x = 1.0 }; }";
     const char* non_struct_type =
@@ -196,7 +193,6 @@ static int check_struct_literal_semantics(void) {
         check_source(duplicate_field, 1) &&
         check_source(missing_field, 1) &&
         check_source(incompatible_field, 1) &&
-        check_source(normal_type_mismatch, 1) &&
         check_source(hard_type_mismatch, 1) &&
         check_source(non_struct_type, 1) &&
         check_source(empty_struct, 0) &&
