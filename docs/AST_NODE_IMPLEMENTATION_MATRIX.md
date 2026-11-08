@@ -148,7 +148,11 @@
 | `AST_BLOCK_HALT` | `AST_BLOCK` / allowed cleanup block, final statement | Dedicated block-halt round-trip |
 | `AST_ASM_LABEL` | `AST_FASTEXEC_BLOCK.statements` | FASTEXEC raw ASM payload round-trip |
 | `AST_FUNC_DECL.return_array_type` | `AST_FUNC_DECL` / `AST_EXTERN_DECL` payload | Function array-return parser, AST stream v2 round-trip + v1 compatibility, OIR field 8 round-trip |
-| `AST_SELECT_ARM` | `AST_SELECT.arms` | Generic populated/all-tag codec fixtures are wrapped in `AST_SELECT`; validator enforces `arms` edge |\n| `AST_SCAN_ARM` | `AST_SCAN.arms` | Generic populated/all-tag codec fixtures are wrapped in `AST_SCAN`; validator enforces `arms` edge and final catch-all position |\n| `AST_ARRAY_DIMENSION` | `AST_ARRAY_TYPE.dimensions` | Generic populated/all-tag codec fixtures are wrapped in `AST_ARRAY_TYPE`; validator enforces `dimensions` edge |\n| `AST_METHOD` | `AST_GROUP_DECL.members` | Generic populated/all-tag codec fixtures wrap the method in a Group owner; anonymous implementation `AST_FUNC_DECL` is accepted only on the method's `implementation` edge |\n| `AST_NAMED_ARG` | `AST_FUNC_CALL` / intrinsic `.args` list | Parser + codec round-trip; exact `b:2` source span; validator accepts `.args` and rejects `.callee` edge |
+| `AST_SELECT_ARM` | `AST_SELECT.arms` | Generic populated/all-tag codec fixtures are wrapped in `AST_SELECT`; validator enforces `arms` edge |
+| `AST_SCAN_ARM` | `AST_SCAN.arms` | Generic populated/all-tag codec fixtures are wrapped in `AST_SCAN`; validator enforces `arms` edge and final catch-all position |
+| `AST_ARRAY_DIMENSION` | `AST_ARRAY_TYPE.dimensions` | Generic populated/all-tag codec fixtures are wrapped in `AST_ARRAY_TYPE`; validator enforces `dimensions` edge |
+| `AST_METHOD` | `AST_GROUP_DECL.members` | Generic populated/all-tag codec fixtures wrap the method in a Group owner; anonymous implementation `AST_FUNC_DECL` is accepted only on the method's `implementation` edge |
+| `AST_NAMED_ARG` | `AST_FUNC_CALL` / intrinsic `.args` list | Parser + codec round-trip; exact `b:2` source span; validator accepts `.args` and rejects `.callee` edge |
 | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` | `AST_STRUCT_LITERAL.fields` owns ordered field-init nodes; each field init owns its value expression | Dedicated legacy AST codec round-trip and parser→OIR writer→reader→writer byte-stable round-trip; validator enforces `fields` edge |
 
 ## Remaining AST closure criteria
