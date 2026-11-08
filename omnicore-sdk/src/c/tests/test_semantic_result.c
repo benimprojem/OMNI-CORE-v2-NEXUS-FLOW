@@ -180,6 +180,23 @@ int main(void) {
         semantic_result_destroy(&qualified);
     }
 
+    /* Address receiver annotations are only valid on the reserved self variable. */
+    {
+        SemanticResult bad;
+        uint32_t symbol = 0u;
+        assert(semantic_result_init(&bad) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_add_symbol(&bad, 1u, 2u,
+            SEMANTIC_RESULT_SYMBOL_VARIABLE, 0u, "not_self", 0u,
+            &symbol) == SEMANTIC_RESULT_OK);
+        assert(semantic_result_set_annotation(&bad, 3u, 1u, symbol, 0u,
+            SEMANTIC_RESULT_VALUE_LVALUE,
+            SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER) ==
+            SEMANTIC_RESULT_OK);
+        assert(semantic_result_finalize(&bad, 3u) ==
+            SEMANTIC_RESULT_INVALID_DATA);
+        semantic_result_destroy(&bad);
+    }
+
     /* Scope owner nodes must be unique. */
     {
         SemanticResult bad;
