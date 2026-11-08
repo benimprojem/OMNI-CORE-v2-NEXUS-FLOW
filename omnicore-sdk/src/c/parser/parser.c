@@ -750,6 +750,7 @@ static ASTNode* parse_struct_literal(Parser* p, const Token* type_token) {
             value = parse_expression(p);
             if (!value) { ast_destroy((ASTNode*)field); ast_destroy((ASTNode*)literal); ast_destroy(head); return NULL; }
             field->value = value;
+            parser_stamp_node_tokens(p, (ASTNode*)field, &field_token, &p->previous);
             if (!head) head = (ASTNode*)field; else tail->next = (ASTNode*)field;
             tail = (ASTNode*)field;
         } while (match(p, TOKEN_COMMA) && !check(p, TOKEN_RBRACE));
