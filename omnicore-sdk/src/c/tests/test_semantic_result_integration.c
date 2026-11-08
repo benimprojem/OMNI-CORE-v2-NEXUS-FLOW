@@ -572,6 +572,7 @@ static int test_struct_literal_semantic_records(void) {
     int saw_x_relation = 0, saw_y_relation = 0;
     int saw_x_initializer = 0, saw_y_initializer = 0;
     int ok = 0;
+    int stage = 1;
 
     if (!parser) return 0;
     stage = 2;
