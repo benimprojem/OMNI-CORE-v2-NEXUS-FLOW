@@ -117,7 +117,8 @@ static const OirAstNodeMapEntry node_map[OIR_AST_NODE_KIND_COUNT] = {
     { AST_FASTEXEC_BLOCK, 104u },
     { AST_ASM_LABEL, 105u },
     { AST_STRUCT_LITERAL, 106u },
-    { AST_STRUCT_FIELD_INIT, 107u }
+    { AST_STRUCT_FIELD_INIT, 107u },
+    { AST_TYPE_EXPR, 108u }
 };
 
 uint16_t oir_ast_node_id_from_frontend(ASTNodeType type) {
