@@ -35,6 +35,8 @@ typedef union AstStorage {
     ASTRelocate relocate_node;
     ASTUnroll unroll_node;
     ASTArrayLiteral array_literal;
+    ASTStructLiteral struct_literal;
+    ASTStructFieldInit struct_field_init;
     ASTVarDecl var_decl;
     ASTFuncDecl func_decl;
     ASTStructDecl struct_decl;
@@ -62,7 +64,7 @@ typedef union AstStorage {
 } AstStorage;
 
 #define INDEX_CAPACITY 256u
-#define LEGACY_FLAT_KIND_COUNT 100u
+#define LEGACY_FLAT_KIND_COUNT 107u
 #define MAX_NODES (LEGACY_FLAT_KIND_COUNT + 1u)
 #define FIELD_CAPACITY 8192u
 #define STRING_CAPACITY 2048u
@@ -103,6 +105,8 @@ int main(void) {
     nodes[12].literal.float_value=3.25;
     nodes[12].literal.string_value="literal text";
     nodes[13].identifier.name="nexus";
+    nodes[105].struct_literal.type_name="Point";
+    nodes[106].struct_field_init.name="x";
 
     /* Exercise nullable strings and canonical booleans. */
     nodes[2].var_decl.name="value";
@@ -118,7 +122,7 @@ int main(void) {
     assert(req.node_count==MAX_NODES);
     assert(req.field_data_length>0u);
     assert(req.string_table_length==strlen("value")+strlen("i32")+
-        strlen("literal text")+strlen("nexus"));
+        strlen("literal text")+strlen("nexus")+strlen("Point")+strlen("x"));
 
     memset(records,0xa5,sizeof(records));
     memset(field_data,0xa5,sizeof(field_data));
