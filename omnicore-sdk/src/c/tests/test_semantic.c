@@ -157,24 +157,24 @@ static int check_aggregate_member_semantics(void) {
 
 static int check_struct_literal_semantics(void) {
     const char* valid_reordered =
-        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
         "v:p!Point = Point { y = 2, x = 1 }; }";
     const char* unknown_field =
-        "f:main() { struct:Point { v:x!i32 } "
+        "f:main() { struct: Point { v:x!i32 } "
         "v:p!Point = Point { x = 1, missing = 2 }; }";
     const char* duplicate_field =
-        "f:main() { struct:Point { v:x!i32 } "
+        "f:main() { struct: Point { v:x!i32 } "
         "v:p!Point = Point { x = 1, x = 2 }; }";
     const char* missing_field =
-        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
         "v:p!Point = Point { x = 1 }; }";
     const char* incompatible_field =
-        "f:main() { struct:Point { v:x!i32 } "
+        "f:main() { struct: Point { v:x!i32 } "
         "v:p!Point = Point { x = \"wrong\" }; }";
     const char* non_struct_type =
-        "f:main() { enum:State { Ready } v:s!State = State { Ready = 1 }; }";
+        "f:main() { enum: State { Ready } v:s!State = State { Ready = 1 }; }";
     const char* empty_struct =
-        "f:main() { struct:Empty { } v:e!Empty = Empty { }; }";
+        "f:main() { struct: Empty { } v:e!Empty = Empty { }; }";
     const char* group_owned_type_inside =
         "f:main() { group Store { struct:Local { v:value!i32 } "
         "f:make() { v:item!Local = Local { value = 7 }; ret; } } }";
@@ -335,7 +335,7 @@ static int check_group_self_receiver_semantics(void) {
     const char* namespace_group_self =
         "f:main() { group Namespace { run => f:run_impl(self) { ret; } } }";
     const char* enum_group_self =
-        "f:main() { group State { enum:State { Ready } "
+        "f:main() { group State { enum: State { Ready } "
         "run => f:run_impl(self) { ret; } } }";
 
     return check_source(inferred_self_before_struct, 0) &&
