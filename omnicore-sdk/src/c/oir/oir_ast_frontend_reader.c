@@ -422,14 +422,16 @@ static int set_child_pointer(ASTNode* node, uint16_t field_id, ASTNode* child) {
             if(field_id==2u)((ASTMustDecl*)node)->source=child; else return 0; break;
         case AST_VAR_DECL: {
             ASTVarDecl* n=(ASTVarDecl*)node;
-            if(field_id==7u)n->initializer=child; else if(field_id==8u)n->inline_type=child; else return 0; break;
+            if(field_id==7u)n->initializer=child; else if(field_id==8u)n->inline_type=child; else if(field_id==9u)n->type_expr=child; else return 0; break;
         }
         case AST_FUNC_DECL: case AST_EXTERN_DECL: {
             ASTFuncDecl* n=(ASTFuncDecl*)node;
-            if(field_id==6u)n->params=child; else if(field_id==7u)n->body=child; else if(field_id==8u)n->return_array_type=child; else return 0; break;
+            if(field_id==6u)n->params=child; else if(field_id==7u)n->body=child; else if(field_id==8u)n->return_array_type=child; else if(field_id==10u)n->return_type_expr=child; else return 0; break;
         }
         case AST_STRUCT_DECL: case AST_UNION_DECL:
             if(field_id==6u)((ASTStructDecl*)node)->fields=child; else return 0; break;
+        case AST_NEWTYPE_DECL:
+            if(field_id==3u)((ASTNewTypeDecl*)node)->target_type_expr=child; else return 0; break;
         case AST_ENUM_DECL:
             if(field_id==2u)((ASTEnumDecl*)node)->variants=child; else return 0; break;
         case AST_ENUM_VARIANT:
