@@ -446,8 +446,16 @@ done:
 static int test_recursive_type_expr_oir_roundtrip(void) {
     ASTProgram* program=(ASTProgram*)ast_create(AST_PROGRAM);
     ASTVarDecl* variable=(ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTVarDecl* callback=(ASTVarDecl*)ast_create(AST_VAR_DECL);
     ASTTypeExpr* pointer=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
     ASTTypeExpr* named=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    ASTTypeExpr* callback_qualified=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    ASTTypeExpr* callback_function=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    ASTVarDecl* callback_param=(ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTTypeExpr* param_qualified=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    ASTTypeExpr* param_named=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    ASTTypeExpr* return_qualified=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    ASTTypeExpr* return_named=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
     uint8_t *first=NULL,*second=NULL;
     size_t first_len=0u,second_len=0u;
     ASTNode **storage=NULL,*decoded=NULL;
@@ -460,6 +468,50 @@ static int test_recursive_type_expr_oir_roundtrip(void) {
     if(!program)goto done;
     if(!variable)goto done;
     program->declarations=(ASTNode*)variable;
+    if(!callback)goto done;
+    variable->base.next=(ASTNode*)callback;
+    callback->name=(char*)malloc(9u);
+    callback->type_name=(char*)malloc(19u);
+    if(!callback->name||!callback->type_name)goto done;
+    memcpy(callback->name,"callback",9u);
+    memcpy(callback->type_name,"!f:(id!u32)!bool",17u);
+    callback->is_hard_typed=1;
+    if(!callback_qualified)goto done;
+    callback->type_expr=(ASTNode*)callback_qualified;
+    callback_qualified->kind=AST_TYPE_QUALIFIED;
+    callback_qualified->flags=AST_TYPE_FLAG_HARD_TYPED;
+    if(!callback_function)goto done;
+    callback_qualified->child=(ASTNode*)callback_function;
+    callback_function->kind=AST_TYPE_FUNCTION;
+    if(!callback_param)goto done;
+    callback_function->params=(ASTNode*)callback_param;
+    callback_param->name=(char*)malloc(3u);
+    callback_param->type_name=(char*)malloc(5u);
+    if(!callback_param->name||!callback_param->type_name)goto done;
+    memcpy(callback_param->name,"id",3u);
+    memcpy(callback_param->type_name,"!u32",5u);
+    callback_param->is_hard_typed=1;
+    if(!param_qualified)goto done;
+    callback_param->type_expr=(ASTNode*)param_qualified;
+    param_qualified->kind=AST_TYPE_QUALIFIED;
+    param_qualified->flags=AST_TYPE_FLAG_HARD_TYPED;
+    if(!param_named)goto done;
+    param_qualified->child=(ASTNode*)param_named;
+    param_named->kind=AST_TYPE_NAMED;
+    param_named->name=(char*)malloc(4u);
+    if(!param_named->name)goto done;
+    memcpy(param_named->name,"u32",4u);
+    if(!return_qualified)goto done;
+    callback_function->child=(ASTNode*)return_qualified;
+    return_qualified->kind=AST_TYPE_QUALIFIED;
+    return_qualified->flags=AST_TYPE_FLAG_HARD_TYPED;
+    if(!return_named)goto done;
+    return_qualified->child=(ASTNode*)return_named;
+    return_named->kind=AST_TYPE_NAMED;
+    return_named->name=(char*)malloc(5u);
+    if(!return_named->name)goto done;
+    memcpy(return_named->name,"bool",5u);
+    
     if(!pointer)goto done;
     variable->name=(char*)malloc(4u);
     variable->type_name=(char*)malloc(5u);
@@ -490,11 +542,22 @@ static int test_recursive_type_expr_oir_roundtrip(void) {
     {
         ASTVarDecl* restored_var=(ASTVarDecl*)((ASTProgram*)decoded)->declarations;
         ASTTypeExpr* restored=restored_var?(ASTTypeExpr*)restored_var->type_expr:NULL;
+        ASTVarDecl* restored_callback=(ASTVarDecl*)restored_var->base.next;
+        ASTTypeExpr* callback_type=restored_callback?(ASTTypeExpr*)restored_callback->type_expr:NULL;
+        ASTTypeExpr* function_type=callback_type?(ASTTypeExpr*)callback_type->child:NULL;
+        ASTVarDecl* restored_param=function_type?(ASTVarDecl*)function_type->params:NULL;
         if(!restored_var||!restored_var->type_name||strcmp(restored_var->type_name,"*i32")!=0||
            !restored||restored->kind!=AST_TYPE_POINTER||!restored->child||
            ((ASTTypeExpr*)restored->child)->kind!=AST_TYPE_NAMED||
            !((ASTTypeExpr*)restored->child)->name||
-           strcmp(((ASTTypeExpr*)restored->child)->name,"i32")!=0)goto done;
+           strcmp(((ASTTypeExpr*)restored->child)->name,"i32")!=0||
+           !callback_type||callback_type->kind!=AST_TYPE_QUALIFIED||
+           !function_type||function_type->kind!=AST_TYPE_FUNCTION||
+           !function_type->child||!restored_param||!restored_param->type_expr||
+           ((ASTTypeExpr*)restored_param->type_expr)->kind!=AST_TYPE_QUALIFIED||
+           !((ASTTypeExpr*)function_type->child)->child||
+           strcmp(((ASTTypeExpr*)((ASTTypeExpr*)function_type->child)->child)->name,"bool")!=0)
+            goto done;
     }
     status=encode_ast(decoded,&second,&second_len);
     if(status!=OIR_STATUS_OK||first_len!=second_len||
