@@ -168,6 +168,20 @@ OirStatus oir_semantic_ast_artifact_open(
         return OIR_STATUS_INVALID_SECTION;
     }
 
+    /* Schemas before 1.3 do not define pointer/reference type tags. */
+    if (result.envelope.header.payload_schema_minor < 3u) {
+        uint32_t type_index;
+        for (type_index = 0u; type_index < result.types.record_count;
+             ++type_index) {
+            OirSemanticType type_record;
+            status = oir_semantic_types_get(
+                &result.types, type_index, &type_record, NULL);
+            if (status != OIR_STATUS_OK) return status;
+            if (type_record.kind >= OIR_SEMANTIC_TYPE_POINTER)
+                return OIR_STATUS_INVALID_SECTION;
+        }
+    }
+
     /* Schema 1.0 consumers did not define Group semantic enum values. */
     if (result.envelope.header.payload_schema_minor == 0u &&
         semantic_ast_has_group_extensions(&result)) {
