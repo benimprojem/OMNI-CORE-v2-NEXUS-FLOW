@@ -1889,6 +1889,47 @@ done:parser_destroy(ctx);return ok;
 }
 
 
+static int test_extern_semicolon_declaration(void) {
+    static const char source[] = "exf:add(a!i32, b!i32)!i32;";
+    ParserContext* ctx = parser_init_source("extern-declaration.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* external;
+    ASTVarDecl* a;
+    ASTVarDecl* b;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK || ctx->error_count ||
+        !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    external = (ASTFuncDecl*)program->declarations;
+    if (!external || external->base.type != AST_EXTERN_DECL ||
+        !external->is_extern || !external->name ||
+        strcmp(external->name, "add") != 0 || external->body != NULL ||
+        !external->return_type || strcmp(external->return_type, "!i32") != 0)
+        goto done;
+
+    a = (ASTVarDecl*)external->params;
+    b = a ? (ASTVarDecl*)a->base.next : NULL;
+    if (!a || !b || b->base.next || !a->name || strcmp(a->name, "a") != 0 ||
+        !a->type_name || strcmp(a->type_name, "!i32") != 0 ||
+        !b->name || strcmp(b->name, "b") != 0 ||
+        !b->type_name || strcmp(b->type_name, "!i32") != 0)
+        goto done;
+
+    if (!external->base.source_span.has_location ||
+        external->base.source_span.start_offset != 0u ||
+        external->base.source_span.end_offset != sizeof(source) - 1u)
+        goto done;
+
+    ok = ast_validate((ASTNode*)program, NULL);
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 static int test_extern_echo_and_listen_keywords(void) {
     static const char source[] =
         "exf:external(a!i32)!i32 { ret a; }"
@@ -2980,6 +3021,7 @@ int main(int argc, char** argv) {
     if (!test_function_array_return_ast()) { fprintf(stderr, "Function array-return parser/codec test failed.\n"); return 1; }
     if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
     if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\n"); return 1; }
+    if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
     if (!test_extern_echo_and_listen_keywords()) { fprintf(stderr, "extern/echo/listen keyword parser test failed.\n"); return 1; }
     if (!test_modulo_expression_ast()) { fprintf(stderr, "Modulo expression/array extent parser test failed.\n"); return 1; }
     if (!test_expression_precedence_and_associativity_ast()) { fprintf(stderr, "Logical operator precedence parser test failed.\n"); return 1; }
