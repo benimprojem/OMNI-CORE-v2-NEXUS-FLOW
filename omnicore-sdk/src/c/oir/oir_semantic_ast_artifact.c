@@ -203,6 +203,20 @@ OirStatus oir_semantic_ast_artifact_open(
         owner_scope_capacity);
     if (status != OIR_STATUS_OK) return status;
 
+    /* Schema 1.1 reserved all annotation flags as zero. */
+    if (result.envelope.header.payload_schema_minor < 2u) {
+        uint32_t annotation_index;
+        for (annotation_index = 0u;
+            annotation_index < result.annotations.record_count;
+            ++annotation_index) {
+            OirSemanticAnnotation annotation;
+            status = oir_semantic_annotations_get(
+                &result.annotations, annotation_index, &annotation);
+            if (status != OIR_STATUS_OK) return status;
+            if (annotation.flags != 0u) return OIR_STATUS_INVALID_SECTION;
+        }
+    }
+
     *out_view = result;
     return OIR_STATUS_OK;
 }
