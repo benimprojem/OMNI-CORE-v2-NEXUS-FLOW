@@ -3253,6 +3253,8 @@ int main(int argc, char** argv) {
         ASTNode* call_node;
         ASTCall* call;
         const char* named_start;
+        const char* call_start=strstr(source,"many(1, b:2)");
+        const char* variadic_start=strstr(source,"...");
         ASTNamedArg* named_arg;
         ASTNode* decoded = NULL;
         FILE* stream = NULL;
@@ -3276,7 +3278,15 @@ int main(int argc, char** argv) {
             call->args->next->type != AST_NAMED_ARG || !named_start)
             goto named_args_done;
         named_arg=(ASTNamedArg*)call->args->next;
-        if (strcmp(named_arg->name,"b") != 0 ||
+        if(!call_start || call_node->source_span.start_offset!=(uint64_t)(call_start-source) ||
+           call_node->source_span.end_offset!=(uint64_t)(call_start+strlen("many(1, b:2)")-source) ||
+           call_node->source_span.start_column!=(uint32_t)(call_start-source)+1u ||
+           call_node->source_span.end_column!=(uint32_t)(call_start+strlen("many(1, b:2)")-source)+1u ||
+           !variadic_start || many->params->next->source_span.start_offset!=(uint64_t)(variadic_start-source) ||
+           many->params->next->source_span.end_offset!=(uint64_t)(variadic_start+3-source) ||
+           many->params->next->source_span.start_column!=(uint32_t)(variadic_start-source)+1u ||
+           many->params->next->source_span.end_column!=(uint32_t)(variadic_start+3-source)+1u ||
+           strcmp(named_arg->name,"b") != 0 ||
             !named_arg->base.source_span.has_location ||
             named_arg->base.source_span.start_offset != (uint64_t)(named_start-source) ||
             named_arg->base.source_span.end_offset != (uint64_t)(named_start-source)+3u ||
