@@ -1260,3 +1260,13 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Parser's `exf:` form currently reuses `ASTFuncDecl` with `AST_EXTERN_DECL`; it does not itself establish a `linkname` binding. Linkname directive parsing and AST relation still need implementation/design review.
 - Design contract: append-only node IDs; legacy strings retained during migration; recursive named/pointer/reference/array/function type forms; exact spans; all codec/validator/destroy/printer/schema paths and tests must be updated together.
 - **Status:** design draft only. No recursive type-expression C implementation or test completion is claimed. AST remains open; no Semantic/Codegen transition.
+
+
+## 12. EXF semicolon declaration parser support (2026-11-08)
+
+- Parser now accepts bodyless external declarations in the documented form `exf:add(a!i32, b!i32)!i32;`. The AST remains `AST_EXTERN_DECL` / `ASTFuncDecl`; the declaration has no synthetic function body.
+- Legacy EXF body form remains accepted for compatibility; this change does not implement `linkname` directive parsing or OCL linking.
+- Added parser regression coverage for symbol name, hard-typed parameter list, hard-typed return type, absent body, exact declaration source span and `ast_validate()`.
+- Parser implementation commit: `c701064f5c2abd5bf261762535264432e61c0439`.
+- Test commit: `6f42147f7dc154663061aa026f55937b18923ab1`.
+- CI run `42485259430` was triggered for Windows, macOS, Ubuntu, ASan/UBSan and Valgrind; results pending at the time of this note.
