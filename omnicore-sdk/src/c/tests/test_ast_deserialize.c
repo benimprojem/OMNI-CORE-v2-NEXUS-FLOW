@@ -680,57 +680,79 @@ done:
 static int roundtrips_all_node_type_tags(void) {
     for (int raw_type = AST_PROGRAM; raw_type <= AST_ARRAY_DIMENSION; ++raw_type) {
         ASTNode* original = ast_create((ASTNodeType)raw_type);
+        ASTNode* root;
+        ASTNode* sibling;
         if (!original) return 1;
-        /* The stream codec now enforces the public graph contract. Populate
-         * each tag with its valid child shape before testing tag/position data. */
         if (!populate_ast_fixture(original)) {
-            fprintf(stderr, "Could not populate AST tag fixture for tag %d.\\n", raw_type);
+            fprintf(stderr, "Could not populate AST tag fixture for tag %d.\n", raw_type);
             ast_destroy(original);
             return 1;
         }
-        original->line = 100 + raw_type;
-        original->col = 200 + raw_type;
-        ASTIdentifier* sibling = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
-        if (!sibling) {
-            ast_destroy(original);
-            return 1;
+        root=original;
+        /* Contextual tags are tested as children of their normative owner. */
+        if(raw_type==AST_SELECT_ARM) {
+            ASTSelect* owner=(ASTSelect*)ast_create(AST_SELECT);
+            if(!owner) { ast_destroy(original); return 1; }
+            owner->selector=make_identifier_fixture("select_owner");
+            if(!owner->selector) { ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
+            owner->arms=original;
+            root=(ASTNode*)owner;
+        } else if(raw_type==AST_SCAN_ARM) {
+            ASTScan* owner=(ASTScan*)ast_create(AST_SCAN);
+            if(!owner) { ast_destroy(original); return 1; }
+            owner->subject=make_identifier_fixture("scan_owner");
+            if(!owner->subject) { ast_destroy((ASTNode*)owner); ast_destroy(original); return 1; }
+            owner->arms=original;
+            root=(ASTNode*)owner;
+        } else if(raw_type==AST_ARRAY_DIMENSION) {
+            ASTArrayType* owner=(ASTArrayType*)ast_create(AST_ARRAY_TYPE);
+            if(!owner) { ast_destroy(original); return 1; }
+            owner->dimensions=original;
+            root=(ASTNode*)owner;
         }
-        sibling->name = duplicate_text("sibling-node");
-        if (!sibling->name) {
-            ast_destroy((ASTNode*)sibling);
-            ast_destroy(original);
-            return 1;
+        root->line = 100 + raw_type;
+        root->col = 200 + raw_type;
+        sibling = ast_create(AST_IDENTIFIER);
+        if (!sibling) { ast_destroy(root); return 1; }
+        ((ASTIdentifier*)sibling)->name = duplicate_text("sibling-node");
+        if (!((ASTIdentifier*)sibling)->name) {
+            ast_destroy(sibling); ast_destroy(root); return 1;
         }
-        original->next = (ASTNode*)sibling;
+        root->next = sibling;
 
         FILE* stream = tmpfile();
-        if (!stream) {
-            ast_destroy(original);
-            return 1;
-        }
-        if (!ast_serialize(original, stream)) {
+        if (!stream) { ast_destroy(root); return 1; }
+        if (!ast_serialize(root, stream)) {
             fclose(stream);
-            ast_destroy(original);
-            fprintf(stderr, "AST serializer rejected valid tag fixture %d.\\n", raw_type);
+            ast_destroy(root);
+            fprintf(stderr, "AST serializer rejected valid tag fixture %d.\n", raw_type);
             return 1;
         }
         rewind(stream);
         ASTNode* decoded = ast_deserialize(stream);
         fclose(stream);
 
-        int valid = decoded &&
-            decoded->type == (ASTNodeType)raw_type &&
-            decoded->line == 100 + raw_type &&
-            decoded->col == 200 + raw_type &&
+        ASTNode* decoded_target=decoded;
+        if(raw_type==AST_SELECT_ARM && decoded)
+            decoded_target=((ASTSelect*)decoded)->arms;
+        else if(raw_type==AST_SCAN_ARM && decoded)
+            decoded_target=((ASTScan*)decoded)->arms;
+        else if(raw_type==AST_ARRAY_DIMENSION && decoded)
+            decoded_target=((ASTArrayType*)decoded)->dimensions;
+
+        int valid = decoded && decoded_target &&
+            decoded_target->type == (ASTNodeType)raw_type &&
+            root->line == 100 + raw_type &&
+            root->col == 200 + raw_type &&
             decoded->next &&
             decoded->next->type == AST_IDENTIFIER &&
             ((ASTIdentifier*)decoded->next)->name &&
             strcmp(((ASTIdentifier*)decoded->next)->name, "sibling-node") == 0;
 
         ast_destroy(decoded);
-        ast_destroy(original);
+        ast_destroy(root);
         if (!valid) {
-            fprintf(stderr, "AST node type round-trip failed for tag %d.\\n", raw_type);
+            fprintf(stderr, "AST node type round-trip failed for tag %d.\n", raw_type);
             return 1;
         }
     }
