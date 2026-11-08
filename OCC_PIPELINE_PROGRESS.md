@@ -1262,7 +1262,7 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Current C AST already has `AST_ARRAY_TYPE` / `AST_ARRAY_DIMENSION`, but declarations and callback/function signatures still store base types in text fields (`ASTVarDecl.type_name`, `ASTFuncDecl.return_type`, `ASTNewTypeDecl.target_type`).
 - Parser `!!=linkname = "...";` directive'ini yalnızca program kapsamında kabul eder; sonraki EXF bildirimleri aktif kaynağın kendi kopyasını `ASTFuncDecl.linkname` alanında taşır. Tek kaynak birden fazla EXF bildirimiyle ilişkilendirilebilir.
 - Design contract: append-only node IDs; legacy strings retained during migration; recursive named/pointer/reference/array/function type forms; exact spans; all codec/validator/destroy/printer/schema paths and tests must be updated together.
-- **Status:** design draft only. No recursive type-expression C implementation or test completion is claimed. AST remains open; no Semantic/Codegen transition.
+- **Status:** implementation phase 1. Append-only `AST_TYPE_EXPR` + six kinds, ownership/destruction/validation/debug print, AST stream v4, declaration attachment slots (`ASTVarDecl`, `ASTFuncDecl`, `ASTNewTypeDecl`) and OIR kind 108 writer/reader/schema/child traversal are implemented. Legacy AST stream v1–v3 read paths remain supported. A pointer-to-`i32` AST codec fixture and OIR declaration-field round-trip test are added. Parser population, function-type parameter tree construction, full span/malformed/allocation-failure coverage and CI are still open; do not mark AST type expressions complete.
 
 
 ## 12. EXF semicolon declaration parser support (2026-11-08)
