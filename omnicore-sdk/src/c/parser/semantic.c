@@ -837,6 +837,18 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     : SEMANTIC_RESULT_VALUE_LVALUE);
             return slot ? slot->type_name : NULL;
         }
+        case AST_STRUCT_LITERAL: {
+            ASTStructLiteral* literal = (ASTStructLiteral*)node;
+            Slot* type_slot = literal->type_name
+                ? find_slot(ctx, literal->type_name) : NULL;
+            if (type_slot && type_slot->kind == SLOT_STRUCT) {
+                semantic_record_annotation(
+                    ctx, node, type_slot, type_slot->name,
+                    SEMANTIC_RESULT_VALUE_RVALUE);
+                return type_slot->name;
+            }
+            return NULL;
+        }
         case AST_MEMBER_ACCESS: {
             FieldInfo* field = semantic_resolve_member(ctx, node, 0);
             const char* type_name = field ? field->type_name : NULL;
@@ -2702,18 +2714,6 @@ static void semantic_check_node(
             break;
         }
 
-        case AST_STRUCT_LITERAL: {
-            ASTStructLiteral* literal = (ASTStructLiteral*)node;
-            Slot* type_slot = literal->type_name
-                ? find_slot(ctx, literal->type_name) : NULL;
-            if (type_slot && type_slot->kind == SLOT_STRUCT) {
-                semantic_record_annotation(
-                    ctx, node, type_slot, type_slot->name,
-                    SEMANTIC_RESULT_VALUE_RVALUE);
-                return type_slot->name;
-            }
-            return NULL;
-        }
         case AST_MEMBER_ACCESS: {
             FieldInfo* field;
             const char* type_name;
