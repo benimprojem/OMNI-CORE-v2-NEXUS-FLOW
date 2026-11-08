@@ -1240,8 +1240,13 @@ static int test_function_array_return_ast(void) {
     ParserContext* ctx=parser_init_source("function-array-return.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     ASTNode* fn;
+    const char* empty_dimension=strstr(source,"!i32[]");
+    const char* one_dimension=strstr(source,"!i32[n]");
+    const char* matrix_dimension=strstr(source,"!f32[m][n]");
     int ok=0, stage=1;
     if(!ctx) return 0;
+    if(!empty_dimension || !one_dimension || !matrix_dimension) goto done;
+    empty_dimension+=4; one_dimension+=4; matrix_dimension+=4;
     if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) goto done;
     stage=2; fn=((ASTProgram*)ctx->ast_root)->declarations;
     for(int expected=1;expected<=3;expected++) { stage=10+expected;
@@ -1250,15 +1255,31 @@ static int test_function_array_return_ast(void) {
         if(!fn || fn->type!=AST_FUNC_DECL) goto done;
         f=(ASTFuncDecl*)fn;
         if(!f->return_type || !f->return_array_type || f->return_array_type->type!=AST_ARRAY_TYPE) goto done;
-        dim=((ASTArrayType*)f->return_array_type)->dimensions;
-        const int dimensions[3]={1,1,2};
-        for(int d=0;d<dimensions[expected-1];d++) {
-            if(!dim || dim->type!=AST_ARRAY_DIMENSION) goto done;
-            if(expected==1) {
-                if(((ASTArrayDimension*)dim)->length) goto done; /* [] */
-            } else if(!((ASTArrayDimension*)dim)->length ||
-                      ((ASTArrayDimension*)dim)->length->type!=AST_IDENTIFIER) goto done;
-            dim=dim->next;
+        {
+            ASTArrayType* array=(ASTArrayType*)f->return_array_type;
+            const char* first_dimension=expected==1?empty_dimension:
+                (expected==2?one_dimension:matrix_dimension);
+            const int dimensions[3]={1,1,2};
+            const size_t dimension_width=expected==1?2u:3u;
+            size_t dimension_count=(size_t)dimensions[expected-1];
+            if(!array->base.source_span.has_location ||
+               array->base.source_span.start_offset!=(uint64_t)(first_dimension-source) ||
+               array->base.source_span.end_offset!=(uint64_t)(first_dimension-source)+
+                    dimension_count*dimension_width) goto done;
+            dim=array->dimensions;
+            for(int d=0;d<dimensions[expected-1];d++) {
+                const char* expected_dimension=first_dimension+(size_t)d*dimension_width;
+                if(!dim || dim->type!=AST_ARRAY_DIMENSION ||
+                   !dim->source_span.has_location ||
+                   dim->source_span.start_offset!=(uint64_t)(expected_dimension-source) ||
+                   dim->source_span.end_offset!=(uint64_t)(expected_dimension-source)+dimension_width)
+                    goto done;
+                if(expected==1) {
+                    if(((ASTArrayDimension*)dim)->length) goto done; /* [] */
+                } else if(!((ASTArrayDimension*)dim)->length ||
+                          ((ASTArrayDimension*)dim)->length->type!=AST_IDENTIFIER) goto done;
+                dim=dim->next;
+            }
         }
         if(dim) goto done;
         fn=fn->next;
