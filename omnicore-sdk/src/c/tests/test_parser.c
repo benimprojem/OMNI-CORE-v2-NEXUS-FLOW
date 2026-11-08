@@ -4365,5 +4365,46 @@ generic_type_done:
         }
     }
 
+    /* Program root span covers the complete source buffer, not only the last token. */
+    {
+        static const char source[]="f:main() {\\n ret 0;\\n}";
+        ParserContext* parser=parser_init_source("program-root-span.nxf",
+            (const uint8_t*)source,sizeof(source)-1u);
+        ASTNode* decoded=NULL;
+        FILE* stream=NULL;
+        int valid=0;
+        if(parser && parser_run(parser)==PARSER_STATUS_OK &&
+           parser->error_count==0 && parser->ast_root) {
+            ASTNode* root=(ASTNode*)parser->ast_root;
+            valid=root->type==AST_PROGRAM && root->source_span.has_location &&
+                root->source_span.start_offset==0u &&
+                root->source_span.end_offset==(uint64_t)(sizeof(source)-1u) &&
+                root->source_span.start_line==1u &&
+                root->source_span.start_column==1u &&
+                root->source_span.end_line==3u &&
+                root->source_span.end_column==2u &&
+                root->line==1 && root->col==1 &&
+                ast_validate(root,NULL);
+            stream=tmpfile();
+            if(valid && stream && ast_serialize(root,stream) &&
+               fseek(stream,0L,SEEK_SET)==0) {
+                decoded=ast_deserialize(stream);
+                valid=decoded && decoded->source_span.has_location &&
+                    decoded->source_span.start_offset==0u &&
+                    decoded->source_span.end_offset==(uint64_t)(sizeof(source)-1u) &&
+                    decoded->source_span.end_line==3u &&
+                    decoded->source_span.end_column==2u &&
+                    ast_validate(decoded,NULL);
+            } else valid=0;
+        }
+        if(stream) fclose(stream);
+        if(decoded) ast_destroy(decoded);
+        if(parser) parser_destroy(parser);
+        if(!valid) {
+            fprintf(stderr,"AST_PROGRAM full-source span/codec test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }
