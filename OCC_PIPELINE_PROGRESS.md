@@ -1253,7 +1253,7 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - OIR AST frontend writer/reader optional field id 9 ile linkname'i modüller arası handoff'ta korur; EXF OIR AST round-trip regresyonu eklendi.
 - ABI/calling-convention, object-format çözümleme ve gerçek OCL linker işi ileriki aşamadır.
 
-**Durum:** EXF semicolon bildirimi, top-level linkname parser'ı, AST ownership/validation, AST stream v3 ve OIR AST frontend handoff uygulandı. CI run `42486110131` Windows, macOS, Ubuntu, ASan/UBSan ve Valgrind 5/5 geçti; Ubuntu CTest 60/60. Ardından v1/v2 codec geriye dönük uyumluluk testleri eklendi; run `42486189216` sonucu bu kayıt güncellenirken bekleniyor. Linker/ABI çözümlemesi kapsam dışıdır.
+**Durum:** EXF semicolon bildirimi, top-level linkname parser'ı, AST ownership/validation, AST stream v3 ve OIR AST frontend handoff uygulandı. CI run `42486110131` Windows, macOS, Ubuntu, ASan/UBSan ve Valgrind 5/5 geçti; Ubuntu CTest 60/60. Ardından v1/v2 codec geriye dönük uyumluluk testleri eklendi; CI run `42486189216` Windows, macOS, Ubuntu, ASan/UBSan ve Valgrind 5/5 geçti; Ubuntu CTest 60/60. Linker/ABI çözümlemesi kapsam dışıdır.
 
 
 ## 11. Recursive AST Type Expression — design baseline (2026-11-08)
