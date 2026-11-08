@@ -230,6 +230,42 @@ int main(void) {
         ast_destroy((ASTNode*)literal);
     }
 
+    /* Named arguments are valid only in the argument-list edge of a call. */
+    {
+        ASTCall *call=(ASTCall*)ast_create(AST_FUNC_CALL);
+        ASTIdentifier *callee=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+        ASTNamedArg *named=(ASTNamedArg*)ast_create(AST_NAMED_ARG);
+        ASTIdentifier *value=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+        if(!call || !callee || !named || !value) return 1;
+        callee->name=(char*)malloc(sizeof("target"));
+        named->name=(char*)malloc(sizeof("item"));
+        value->name=(char*)malloc(sizeof("payload"));
+        if(!callee->name || !named->name || !value->name) return 1;
+        strcpy(callee->name,"target");
+        strcpy(named->name,"item");
+        strcpy(value->name,"payload");
+        named->value=(ASTNode*)value;
+        call->callee=(ASTNode*)callee;
+        call->args=(ASTNode*)named;
+        if(!expect((ASTNode*)call,AST_VALIDATE_OK)) {
+            fprintf(stderr,"named argument in call args was rejected\\n");
+            ast_destroy((ASTNode*)call); return 1;
+        }
+
+        /* Same node shape under the callee edge is structurally illegal. */
+        call->callee=(ASTNode*)named;
+        call->args=NULL;
+        if(!expect((ASTNode*)call,AST_VALIDATE_INVALID_KIND)) {
+            fprintf(stderr,"named argument under call callee was accepted\\n");
+            call->callee=(ASTNode*)callee;
+            call->args=(ASTNode*)named;
+            ast_destroy((ASTNode*)call); return 1;
+        }
+        call->callee=(ASTNode*)callee;
+        call->args=(ASTNode*)named;
+        ast_destroy((ASTNode*)call);
+    }
+
     /* Invalid enum values must fail before payload dispatch. */
     {
         ASTNode invalid = { (ASTNodeType)-1, 0, 0, NULL };
