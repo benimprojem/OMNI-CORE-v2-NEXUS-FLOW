@@ -985,6 +985,10 @@ static int test_select_scan_ast(void) {
     const char* select_end=strstr(source,"default -> { v:b = 3; } }");
     const char* scan_start=strstr(source,"scan(x)");
     const char* scan_first_start=strstr(source,"Range(s,e)");
+    const char* scan_ctor_end=scan_first_start?strchr(scan_first_start,')'):NULL;
+    const char* scan_binding_s=scan_first_start?strchr(scan_first_start,'('):NULL;
+    const char* scan_binding_e=scan_binding_s?strchr(scan_binding_s,','):NULL;
+    const char* scan_second_pattern=strstr(source,"item ->");
     const char* scan_first_end=strstr(source,"v:c = s; }");
     const char* scan_else_start=strstr(source,"else ->");
     const char* scan_else_end=strstr(source,"v:fallback = 0; }");
@@ -993,8 +997,9 @@ static int test_select_scan_ast(void) {
     if(!ctx)return 0;
     if(!select_start || !select_first_start || !select_first_end ||
        !select_fallback_start || !select_fallback_end || !select_end ||
-       !scan_start || !scan_first_start || !scan_first_end ||
-       !scan_else_start || !scan_else_end || !scan_end) goto done;
+       !scan_start || !scan_first_start || !scan_ctor_end ||
+       !scan_binding_s || !scan_binding_e || !scan_second_pattern ||
+       !scan_first_end || !scan_else_start || !scan_else_end || !scan_end) goto done;
     select_first_end+=strlen("v:a = 2; }");
     select_fallback_end+=strlen("v:b = 3; }");
     select_end+=strlen("default -> { v:b = 3; } }");
@@ -1050,11 +1055,24 @@ static int test_select_scan_ast(void) {
             ctor->bindings->type!=AST_PATTERN_BINDING ||
             strcmp(((ASTPatternBinding*)ctor->bindings)->name,"s")!=0 ||
             !ctor->bindings->next ||
-            strcmp(((ASTPatternBinding*)ctor->bindings->next)->name,"e")!=0)goto done;
+            strcmp(((ASTPatternBinding*)ctor->bindings->next)->name,"e")!=0 ||
+            !ctor->base.source_span.has_location ||
+            ctor->base.source_span.start_offset!=(uint64_t)(scan_first_start-source) ||
+            ctor->base.source_span.end_offset!=(uint64_t)(scan_ctor_end+1-source) ||
+            ((ASTPatternBinding*)ctor->bindings)->base.source_span.start_offset!=(uint64_t)(scan_binding_s+1-source) ||
+            ((ASTPatternBinding*)ctor->bindings)->base.source_span.end_offset!=(uint64_t)(scan_binding_s+2-source) ||
+            ((ASTPatternBinding*)ctor->bindings->next)->base.source_span.start_offset!=(uint64_t)(scan_binding_e+1-source) ||
+            ((ASTPatternBinding*)ctor->bindings->next)->base.source_span.end_offset!=(uint64_t)(scan_binding_e+2-source))goto done;
         {
             ASTScanArm* second=(ASTScanArm*)first->base.next;
             ASTScanArm* fallback=second?(ASTScanArm*)second->base.next:NULL;
-            if(!second || !second->pattern || !fallback || fallback->pattern ||
+            ASTPatternBinding* simple_pattern=second && second->pattern &&
+                second->pattern->type==AST_PATTERN_BINDING
+                    ? (ASTPatternBinding*)second->pattern:NULL;
+            if(!second || !simple_pattern || !simple_pattern->base.source_span.has_location ||
+                simple_pattern->base.source_span.start_offset!=(uint64_t)(scan_second_pattern-source) ||
+                simple_pattern->base.source_span.end_offset!=(uint64_t)(scan_second_pattern+4-source) ||
+                !fallback || fallback->pattern ||
                 !fallback->body ||
                 !scan_node->base.source_span.has_location ||
                 scan_node->base.source_span.start_offset!=(uint64_t)(scan_start-source) ||
