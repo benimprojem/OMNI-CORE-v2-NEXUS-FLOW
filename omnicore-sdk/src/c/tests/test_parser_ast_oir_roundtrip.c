@@ -145,6 +145,81 @@ done:
     return status;
 }
 
+static int test_struct_literal_oir_roundtrip(void) {
+    static const char source[] =
+        "f:main() {"
+        " struct: Point { v:x!i32, v:y!i32 }"
+        " v:p!Point = Point { y = 2, x = 1 };"
+        "}";
+    ParserContext* parser=parser_init_source("struct-literal-oir.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    uint8_t *first=NULL,*second=NULL;
+    size_t first_length=0u,second_length=0u;
+    ASTNode **storage=NULL,*decoded=NULL;
+    uint32_t *incoming=NULL;
+    uint8_t *visited=NULL;
+    OirAstGraphStackEntry *stack=NULL;
+    OirAstNodeTableView view;
+    OirStatus status;
+    int ok=0,stage=0;
+    if(!parser)return 0;
+    stage=1;
+    if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count ||
+        !parser->ast_root || !ast_validate((ASTNode*)parser->ast_root,NULL))goto done;
+    if(first_missing_source_span((ASTNode*)parser->ast_root,0u))goto done;
+    stage=2;
+    status=encode_ast((ASTNode*)parser->ast_root,&first,&first_length);
+    if(status!=OIR_STATUS_OK ||
+       oir_ast_node_table_open(first,first_length,&view)!=OIR_STATUS_OK)goto done;
+    stage=3;
+    storage=(ASTNode**)calloc(view.node_count,sizeof(*storage));
+    incoming=(uint32_t*)calloc(view.node_count,sizeof(*incoming));
+    visited=(uint8_t*)calloc(view.node_count,sizeof(*visited));
+    stack=(OirAstGraphStackEntry*)calloc(view.node_count,sizeof(*stack));
+    if(!storage || !incoming || !visited || !stack)goto done;
+    status=oir_ast_frontend_read_payload(first,first_length,storage,view.node_count,
+        incoming,view.node_count,visited,view.node_count,stack,view.node_count,&decoded);
+    if(status!=OIR_STATUS_OK || !decoded || !ast_validate(decoded,NULL))goto done;
+    stage=4;
+    {
+        ASTFuncDecl* function=(ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+        ASTBlock* body=function && function->body && function->body->type==AST_BLOCK
+            ? (ASTBlock*)function->body : NULL;
+        ASTStructDecl* declaration=body && body->statements &&
+            body->statements->type==AST_STRUCT_DECL
+                ? (ASTStructDecl*)body->statements : NULL;
+        ASTVarDecl* variable=declaration && declaration->base.next &&
+            declaration->base.next->type==AST_VAR_DECL
+                ? (ASTVarDecl*)declaration->base.next : NULL;
+        ASTStructLiteral* literal=variable && variable->initializer &&
+            variable->initializer->type==AST_STRUCT_LITERAL
+                ? (ASTStructLiteral*)variable->initializer : NULL;
+        ASTStructFieldInit* y=literal && literal->fields
+            ? (ASTStructFieldInit*)literal->fields : NULL;
+        ASTStructFieldInit* x=y && y->base.next
+            ? (ASTStructFieldInit*)y->base.next : NULL;
+        if(!literal || !literal->type_name || strcmp(literal->type_name,"Point")!=0 ||
+            !y || !x || strcmp(y->name,"y")!=0 || strcmp(x->name,"x")!=0 ||
+            !y->value || y->value->type!=AST_LITERAL ||
+            strcmp(((ASTLiteral*)y->value)->string_value,"2")!=0 ||
+            !x->value || x->value->type!=AST_LITERAL ||
+            strcmp(((ASTLiteral*)x->value)->string_value,"1")!=0 ||
+            x->base.next || !y->base.source_span.has_location ||
+            !x->base.source_span.has_location)goto done;
+    }
+    stage=5;
+    status=encode_ast(decoded,&second,&second_length);
+    if(status!=OIR_STATUS_OK || first_length!=second_length ||
+        memcmp(first,second,first_length)!=0)goto done;
+    ok=1;
+done:
+    if(!ok)fprintf(stderr,"Struct literal OIR AST roundtrip stage=%d\\n",stage);
+    if(decoded)ast_destroy(decoded);
+    free(first);free(second);free(storage);free(incoming);free(visited);free(stack);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int test_select_scan_oir_roundtrip(void) {
     static const char source[] =
         "f:take(a![], b!i32[], third:i32[4]) {}"
@@ -361,6 +436,7 @@ done:
 }
 
 int main(int argc,char** argv) {
+    if(!test_struct_literal_oir_roundtrip()) { fprintf(stderr,"Struct literal OIR AST round-trip failed.\\n"); return 1; }
     if(!test_select_scan_oir_roundtrip()) { fprintf(stderr,"Extended AST OIR round-trip failed.\\n"); return 1; }
     if(!test_fast_exec_asm_oir_roundtrip()) { fprintf(stderr,"FASTEXEC ASM OIR round-trip failed.\\n"); return 1; }
     ParserContext* parser;
