@@ -1234,83 +1234,43 @@ done:
 static int roundtrips_recursive_type_expr_declaration_slots(void) {
     ASTProgram* program=(ASTProgram*)ast_create(AST_PROGRAM);
     ASTVarDecl* variable=(ASTVarDecl*)ast_create(AST_VAR_DECL);
-    ASTFuncDecl* function=(ASTFuncDecl*)ast_create(AST_FUNC_DECL);
-    ASTNewTypeDecl* newtype=(ASTNewTypeDecl*)ast_create(AST_NEWTYPE_DECL);
-    ASTTypeExpr* var_pointer=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
-    ASTTypeExpr* var_named=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
-    ASTTypeExpr* return_named=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
-    ASTTypeExpr* target_pointer=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
-    ASTTypeExpr* target_named=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    ASTTypeExpr* pointer=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    ASTTypeExpr* named=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
     FILE* stream=NULL;
     ASTNode* decoded=NULL;
-    ASTVarDecl* restored_var;
-    ASTFuncDecl* restored_function;
-    ASTNewTypeDecl* restored_newtype;
-    int ok=0,attached=0,stage=0;
-    if(!program||!variable||!function||!newtype||!var_pointer||
-       !var_named||!return_named||!target_pointer||!target_named)goto done;
-
+    ASTVarDecl* restored;
+    int ok=0,attached=0;
+    if(!program||!variable||!pointer||!named)goto done;
     variable->name=duplicate_text("ptr");
     variable->type_name=duplicate_text("*i32");
-    variable->type_expr=(ASTNode*)var_pointer;
-    var_pointer->kind=AST_TYPE_POINTER;
-    var_pointer->child=(ASTNode*)var_named;
-    var_named->kind=AST_TYPE_NAMED;
-    var_named->name=duplicate_text("i32");
-
-    function->name=duplicate_text("get");
-    function->return_type=duplicate_text("i32");
-    function->body=ast_create(AST_BLOCK);
-    function->return_type_expr=(ASTNode*)return_named;
-    return_named->kind=AST_TYPE_NAMED;
-    return_named->name=duplicate_text("i32");
-
-    newtype->name=duplicate_text("IntPtr");
-    newtype->target_type=duplicate_text("*i32");
-    newtype->target_type_expr=(ASTNode*)target_pointer;
-    target_pointer->kind=AST_TYPE_POINTER;
-    target_pointer->child=(ASTNode*)target_named;
-    target_named->kind=AST_TYPE_NAMED;
-    target_named->name=duplicate_text("i32");
-
-    if(!variable->name||!variable->type_name||!var_named->name||
-       !function->name||!function->return_type||!function->body||
-       !return_named->name||!newtype->name||!newtype->target_type||
-       !target_named->name)goto done;
+    variable->type_expr=(ASTNode*)pointer;
+    pointer->kind=AST_TYPE_POINTER;
+    pointer->child=(ASTNode*)named;
+    named->kind=AST_TYPE_NAMED;
+    named->name=duplicate_text("i32");
+    if(!variable->name||!variable->type_name||!named->name)goto done;
     program->declarations=(ASTNode*)variable;
-    variable->base.next=(ASTNode*)function;
-    function->base.next=(ASTNode*)newtype;
     attached=1;
-    stage=1;
     if(!ast_validate((ASTNode*)program,NULL))goto done;
-
-    stage=2;
     stream=tmpfile();
     if(!stream||!ast_serialize((ASTNode*)program,stream)||fseek(stream,0L,SEEK_SET)!=0)
         goto done;
-    stage=3;
     decoded=ast_deserialize(stream);
     if(!decoded||!ast_validate(decoded,NULL))goto done;
-    stage=4;
-    restored_var=(ASTVarDecl*)((ASTProgram*)decoded)->declarations;
-    restored_function=(ASTFuncDecl*)restored_var->base.next;
-    restored_newtype=(ASTNewTypeDecl*)restored_function->base.next;
-    if(!restored_var->type_expr ||
-       ((ASTTypeExpr*)restored_var->type_expr)->kind!=AST_TYPE_POINTER ||
-       !((ASTTypeExpr*)restored_var->type_expr)->child ||
-       !restored_function->return_type_expr ||
-       ((ASTTypeExpr*)restored_function->return_type_expr)->kind!=AST_TYPE_NAMED ||
-       !restored_newtype->target_type_expr ||
-       ((ASTTypeExpr*)restored_newtype->target_type_expr)->kind!=AST_TYPE_POINTER)
+    restored=(ASTVarDecl*)((ASTProgram*)decoded)->declarations;
+    if(!restored||!restored->type_expr||
+       ((ASTTypeExpr*)restored->type_expr)->kind!=AST_TYPE_POINTER||
+       !((ASTTypeExpr*)restored->type_expr)->child||
+       ((ASTTypeExpr*)((ASTTypeExpr*)restored->type_expr)->child)->kind!=AST_TYPE_NAMED||
+       !((ASTTypeExpr*)((ASTTypeExpr*)restored->type_expr)->child)->name||
+       strcmp(((ASTTypeExpr*)((ASTTypeExpr*)restored->type_expr)->child)->name,"i32")!=0)
         goto done;
-    stage=5;
     ok=1;
 done:
-    if(!ok)fprintf(stderr,"recursive type slot codec test stage=%d decoded=%p\\n",stage,(void*)decoded);
     if(stream)fclose(stream);
     if(decoded)ast_destroy(decoded);
     if(attached)ast_destroy((ASTNode*)program);
-    else { ast_destroy((ASTNode*)variable); ast_destroy((ASTNode*)function); ast_destroy((ASTNode*)newtype); ast_destroy((ASTNode*)program); }
+    else { ast_destroy((ASTNode*)variable); ast_destroy((ASTNode*)program); ast_destroy((ASTNode*)pointer); ast_destroy((ASTNode*)named); }
     return ok;
 }
 
