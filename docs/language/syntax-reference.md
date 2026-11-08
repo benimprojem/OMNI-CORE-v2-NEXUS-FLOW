@@ -1075,7 +1075,19 @@ v:val!point = {25, 23};
 
 ```
 
-**Callback / function type:** `f:(parametreler)!DönüşTipi` yalnızca imza/type biçimidir; `>` callable/lambda gövdesini başlatır. Callable expression örneği: `f:(id!u32)!bool > (id == 1) ? true : false;`. Parser kanonik `)!ReturnType` biçimini kabul eder. Eski `)>!ReturnType` yazımı geriye dönük uyumluluk için kabul edilir, AST type-name metninde kanonik biçime normalize edilir. İmza şu aşamada mevcut `type_name` / `target_type` alanlarında metin olarak tutulur; bağımsız ve iç içe type-expression AST modeli henüz tamamlanmamıştır.
+**Callback / function type:** `f:(parametreler)!DönüşTipi` bir fonksiyon imza/türüdür; `>` ise anonim callable/lambda gövdesini başlatır. Fonksiyon türü, başka bir fonksiyonun parametresi olarak doğrudan kullanılabilir:
+
+```nexus
+nt:Callback = f:(id!u32)!bool;
+
+f:apply(callback!f:(id!u32)!bool, id!u32)!bool {
+    ret callback(id);
+}
+```
+
+Burada `callback`, `u32` alan ve `bool` döndüren bir fonksiyonun çağrılabilir adresini temsil eden parametredir. Bu imza biçimi lambda gövdesi değildir; `>` olmadan yalnızca tür bildirimidir. Parser kanonik `)!ReturnType` biçimini kabul eder. Eski `)>!ReturnType` yazımı geriye dönük uyumluluk için kabul edilir ve AST'nin legacy metin alanında kanonik biçime normalize edilir.
+
+C AST Parser, bu imzayı `AST_TYPE_FUNCTION` ve parametre/return alt ağaçlarıyla temsil eder; NewType alias ve doğrudan callback parametresi için parser/AST codec regresyonu vardır. Fonksiyon adresinin ABI/calling-convention temsili, callback tür uyumluluğu ve yaşam süresi kontrolleri Semantic/ABI aşamalarında tamamlanacaktır.
 
 ---
 
