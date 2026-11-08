@@ -21,7 +21,7 @@
 | OIR writer kind cases | 107/107 |
 | Populated fixture switch | 107/107 |
 | Direct parser construction calls | 64 kinds (not a parser completeness metric) |
-| Graph validator | Explicit kind + incoming-edge/context contracts; invalid/unregistered kind fails closed |
+| Graph validator | Explicit kind + incoming-edge/context contracts; invalid/unregistered kind fails closed |\n| Allocation-failure tests | Factory, graph-validator allocations, decoder node/string allocation and partial-child cleanup injection |
 
 ## Per-node matrix
 
