@@ -263,7 +263,7 @@ static OirStatus validate_type_values(
     uint32_t string_table_length
 ) {
     if (kind < OIR_SEMANTIC_TYPE_PRIMITIVE ||
-        kind > OIR_SEMANTIC_TYPE_UNKNOWN ||
+        kind > OIR_SEMANTIC_TYPE_REFERENCE ||
         (flags & ~(OIR_SEMANTIC_TYPE_FLAG_CONST |
             OIR_SEMANTIC_TYPE_FLAG_HARD)) != 0u) {
         return OIR_STATUS_INVALID_SECTION;
