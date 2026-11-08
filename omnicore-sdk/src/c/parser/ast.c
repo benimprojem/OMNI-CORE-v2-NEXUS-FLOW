@@ -1711,7 +1711,7 @@ static ASTNode* ast_deserialize_recursive(ASTReader* reader) {
 
         if (type_val == -1) return head;
 
-        if (type_val < AST_PROGRAM || type_val > AST_ASM_LABEL ||
+        if (type_val < AST_PROGRAM || type_val > AST_STRUCT_FIELD_INIT ||
             reader->node_count >= AST_MAX_NODE_COUNT ||
             reader->depth >= AST_MAX_RECURSION_DEPTH) {
             reader->failed = 1;
