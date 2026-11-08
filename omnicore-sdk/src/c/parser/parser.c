@@ -2847,7 +2847,6 @@ static ASTNode* parse_func_decl(Parser* p) {
                          if(!func->return_type_expr) { ast_destroy((ASTNode*)func); return NULL; }
                      }
                  }
-                 if (p->current.type == TOKEN_LBRACKET) {
             if (p->current.type == TOKEN_LBRACKET) {
                 ASTVarDecl return_array;
                 memset(&return_array, 0, sizeof(return_array));
