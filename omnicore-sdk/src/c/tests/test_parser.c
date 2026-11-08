@@ -4392,7 +4392,7 @@ generic_type_done:
 
     /* Program root span covers the complete source buffer, not only the last token. */
     {
-        static const char source[]="f:main() { ret; }";
+        static const char source[]="f:main() {}";
         ParserContext* parser=parser_init_source("program-root-span.nxf",
             (const uint8_t*)source,sizeof(source)-1u);
         ASTNode* decoded=NULL;
