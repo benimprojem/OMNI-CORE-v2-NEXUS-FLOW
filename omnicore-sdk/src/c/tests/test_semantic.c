@@ -371,6 +371,11 @@ static int check_group_method_dispatch_semantics(void) {
         "run => f:run_impl(instance!Storage) { "
         "v:created!Storage = Storage.create(instance); ret; } "
         "struct:Storage { v:value!i32 } } }";
+    const char* static_factory_returns_struct_literal =
+        "f:main() { group Point { "
+        "create => f:(x!i32)!Point { ret Point { x = x }; } "
+        "run => f:run_impl() { v:p!Point = Point.create(7); ret; } "
+        "struct:Point { v:x!i32 } } }";
     const char* type_qualified_static_call =
         "f:main() { group Storage { "
         "run => f:run_impl() { Storage.parse(\"x\"); ret; } "
@@ -432,6 +437,7 @@ static int check_group_method_dispatch_semantics(void) {
     return check_source(instance_call_to_later_method, 0) &&
         check_source(anonymous_instance_method_implementation, 0) &&
         check_source(anonymous_static_factory_returning_bound_type, 0) &&
+        check_source(static_factory_returns_struct_literal, 0) &&
         check_source(type_qualified_static_call, 0) &&
         check_source(namespace_static_call, 0) &&
         check_source(bare_group_expression_dispatches_default, 0) &&
