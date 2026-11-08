@@ -431,6 +431,13 @@ typedef struct {
 
 // Fonksiyonlar
 OCC_API ASTNode* ast_create(ASTNodeType type);
+/* Deterministic, process-global allocation fault injection for serialized AST tests.
+ * Test-only seam: do not change the hook while AST operations run concurrently.
+ * Passing zero disables injection and resets the allocation counter.
+ */
+OCC_API void ast_test_fail_allocation_at(size_t allocation_index);
+OCC_API void ast_test_reset_allocation_failure(void);
+OCC_API size_t ast_test_get_allocation_count(void);
 /* Sets/clears a node source range. NULL clears it; line/col mirrors start. */
 OCC_API int ast_set_source_span(ASTNode* node, const OccSourceSpan* span);
 OCC_API void ast_print(ASTNode* root);
