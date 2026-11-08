@@ -4454,7 +4454,7 @@ generic_type_done:
     /* Enum variants, optional payload fields and their source ranges form a stable AST chain. */
     {
         static const char source[] =
-            "enum:Task {\n"
+            "nt:enum: Task {\n"
             "  IO(file!str),\n"
             "  Compute(a!i32, b!i32),\n"
             "  Cleanup\n"
@@ -4530,6 +4530,9 @@ generic_type_done:
                 fprintf(stderr,"  %d:%d %s\n",error->line,error->col,
                     error->message?error->message:"");
         }
+        if(parser && (!parser->ast_root || parser->error_count!=0))
+            fprintf(stderr,"Enum fixture parse failed: status=%d errors=%u\\n",
+                (int)parser->status,(unsigned)parser->error_count);
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
         if(parser) parser_destroy(parser);
