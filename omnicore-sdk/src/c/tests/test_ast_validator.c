@@ -164,9 +164,15 @@ int main(void) {
         strcpy(value->string_value,"1");
         field->value=(ASTNode*)value;
         literal->fields=(ASTNode*)field;
-        if(!expect((ASTNode*)literal,AST_VALIDATE_OK)) {
-            fprintf(stderr,"valid Struct literal graph rejected\\n");
-            ast_destroy((ASTNode*)literal); return 1;
+        {
+            ASTValidationError validation_error;
+            if(!ast_validate((ASTNode*)literal,&validation_error)) {
+                fprintf(stderr,"valid Struct literal graph rejected: code=%d field=%s node=%d\\n",
+                    (int)validation_error.code,
+                    validation_error.field ? validation_error.field : "(null)",
+                    validation_error.node ? (int)validation_error.node->type : -1);
+                ast_destroy((ASTNode*)literal); return 1;
+            }
         }
 
         free(literal->type_name); literal->type_name=NULL;
