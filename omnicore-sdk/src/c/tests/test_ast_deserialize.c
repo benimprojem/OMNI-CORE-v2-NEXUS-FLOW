@@ -1241,7 +1241,7 @@ static int roundtrips_recursive_type_expr_declaration_slots(void) {
     ASTVarDecl* restored_var;
     ASTFuncDecl* restored_function;
     ASTNewTypeDecl* restored_newtype;
-    int ok=0;
+    int ok=0,attached=0;
     if(!program||!variable||!function||!newtype||!var_pointer||
        !var_named||!return_named||!target_pointer||!target_named)goto done;
 
@@ -1275,6 +1275,7 @@ static int roundtrips_recursive_type_expr_declaration_slots(void) {
     program->declarations=(ASTNode*)variable;
     variable->base.next=(ASTNode*)function;
     function->base.next=(ASTNode*)newtype;
+    attached=1;
     if(!ast_validate((ASTNode*)program,NULL))goto done;
 
     stream=tmpfile();
@@ -1297,7 +1298,8 @@ static int roundtrips_recursive_type_expr_declaration_slots(void) {
 done:
     if(stream)fclose(stream);
     if(decoded)ast_destroy(decoded);
-    if(program)ast_destroy((ASTNode*)program);
+    if(attached)ast_destroy((ASTNode*)program);
+    else { ast_destroy((ASTNode*)variable); ast_destroy((ASTNode*)function); ast_destroy((ASTNode*)newtype); ast_destroy((ASTNode*)program); }
     return ok;
 }
 
