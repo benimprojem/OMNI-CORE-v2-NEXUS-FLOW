@@ -640,21 +640,23 @@ static int roundtrips_struct_literal_nodes(void) {
     FILE *first=NULL,*second=NULL;
     ASTNode* decoded=NULL;
     int ok=0;
-    if(!literal || !field) goto done;
+    if(!literal || !field) { fprintf(stderr,"Struct literal fixture allocation failed.\\n"); goto done; }
     literal->type_name=duplicate_text("Point");
     field->name=duplicate_text("x");
     field->value=make_literal_fixture();
-    if(!literal->type_name || !field->name || !field->value) goto done;
+    if(!literal->type_name || !field->name || !field->value) { fprintf(stderr,"Struct literal fixture payload allocation failed.\\n"); goto done; }
     literal->fields=(ASTNode*)field;
     field=NULL;
-    if(!ast_validate((ASTNode*)literal,NULL)) goto done;
+    if(!ast_validate((ASTNode*)literal,NULL)) { fprintf(stderr,"Struct literal source graph validation failed.\\n"); goto done; }
     first=tmpfile(); second=tmpfile();
-    if(!first || !second) goto done;
-    if(!ast_serialize((ASTNode*)literal,first)) goto done;
+    if(!first || !second) { fprintf(stderr,"Struct literal tmpfile failed.\\n"); goto done; }
+    if(!ast_serialize((ASTNode*)literal,first)) { fprintf(stderr,"Struct literal serialization failed.\\n"); goto done; }
     rewind(first);
     decoded=ast_deserialize(first);
-    if(!decoded || !ast_validate(decoded,NULL) ||
-        !ast_serialize(decoded,second) || !streams_equal(first,second)) goto done;
+    if(!decoded) { fprintf(stderr,"Struct literal deserialization failed.\\n"); goto done; }
+    if(!ast_validate(decoded,NULL)) { fprintf(stderr,"Struct literal decoded graph validation failed.\\n"); goto done; }
+    if(!ast_serialize(decoded,second)) { fprintf(stderr,"Struct literal reserialization failed.\\n"); goto done; }
+    if(!streams_equal(first,second)) { fprintf(stderr,"Struct literal stream bytes differ after round-trip.\\n"); goto done; }
     {
         ASTStructLiteral* restored=(ASTStructLiteral*)decoded;
         ASTStructFieldInit* restored_field=restored->fields
