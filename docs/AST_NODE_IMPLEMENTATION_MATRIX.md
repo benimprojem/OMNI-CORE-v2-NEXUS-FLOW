@@ -21,7 +21,11 @@
 | OIR writer kind cases | 107/107 |
 | Populated fixture switch | 107/107 |
 | Direct parser construction calls | 64 kinds (not a parser completeness metric) |
-| Graph validator | Explicit kind + incoming-edge/context contracts; invalid/unregistered kind fails closed |\n| Allocation-failure tests | Factory, graph-validator allocations, decoder node/string allocation and partial-child cleanup injection |
+| AST factory / destroy | 107/107 |
+| AST codec writer / reader | 107/107 |
+| AST debug printer | 107/107 (including variadic and named arguments) |
+| Graph validator | Explicit kind + incoming-edge/context contracts; invalid/unregistered kind fails closed |
+| Allocation-failure tests | Factory, graph-validator allocations, decoder node/string allocation and partial-child cleanup injection |
 
 ## Per-node matrix
 
