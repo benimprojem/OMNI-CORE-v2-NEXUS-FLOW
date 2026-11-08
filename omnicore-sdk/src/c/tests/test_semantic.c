@@ -59,8 +59,9 @@ static int check_source(const char* source, int expected_errors) {
     if (parser_run(parser) != 0 || !parser->ast_root) {
         Error* parser_error;
         fprintf(stderr, "Parser rejected semantic fixture: %s\\n", source);
-        fprintf(stderr, "  parser status=%d errors=%d root=%p\\n",
-            (int)parser_get_status(parser), parser->error_count, parser->ast_root);
+        fprintf(stderr, "  parser status=%d errors=%d root=%p allocations=%zu fail_at=%zu\\n",
+            (int)parser_get_status(parser), parser->error_count, parser->ast_root,
+            parser->test_allocation_count, parser->test_fail_allocation_at);
         for (parser_error = parser->error_head; parser_error; parser_error = parser_error->next) {
             fprintf(stderr, "  parser error %d at %d:%d: %s\\n", parser_error->code,
                 parser_error->line, parser_error->col,
