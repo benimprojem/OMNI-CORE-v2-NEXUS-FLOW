@@ -445,6 +445,7 @@ done:
 
 static int test_recursive_type_expr_oir_roundtrip(void) {
     ASTProgram* program=(ASTProgram*)ast_create(AST_PROGRAM);
+    ASTVarDecl* variable=(ASTVarDecl*)ast_create(AST_VAR_DECL);
     ASTTypeExpr* pointer=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
     ASTTypeExpr* named=(ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
     uint8_t *first=NULL,*second=NULL;
@@ -457,8 +458,16 @@ static int test_recursive_type_expr_oir_roundtrip(void) {
     OirStatus status;
     int ok=0;
     if(!program)goto done;
+    if(!variable)goto done;
+    program->declarations=(ASTNode*)variable;
     if(!pointer)goto done;
-    program->declarations=(ASTNode*)pointer;
+    variable->name=(char*)malloc(4u);
+    variable->type_name=(char*)malloc(5u);
+    if(!variable->name||!variable->type_name)goto done;
+    memcpy(variable->name,"ptr",4u);
+    memcpy(variable->type_name,"*i32",5u);
+    variable->type_expr=(ASTNode*)pointer;
+    variable->is_hard_typed=1;
     if(!named)goto done;
     pointer->kind=AST_TYPE_POINTER;
     pointer->child=(ASTNode*)named;
@@ -479,8 +488,10 @@ static int test_recursive_type_expr_oir_roundtrip(void) {
         incoming,view.node_count,visited,view.node_count,stack,view.node_count,&decoded);
     if(status!=OIR_STATUS_OK||!decoded||!ast_validate(decoded,NULL))goto done;
     {
-        ASTTypeExpr* restored=(ASTTypeExpr*)((ASTProgram*)decoded)->declarations;
-        if(!restored||restored->kind!=AST_TYPE_POINTER||!restored->child||
+        ASTVarDecl* restored_var=(ASTVarDecl*)((ASTProgram*)decoded)->declarations;
+        ASTTypeExpr* restored=restored_var?(ASTTypeExpr*)restored_var->type_expr:NULL;
+        if(!restored_var||!restored_var->type_name||strcmp(restored_var->type_name,"*i32")!=0||
+           !restored||restored->kind!=AST_TYPE_POINTER||!restored->child||
            ((ASTTypeExpr*)restored->child)->kind!=AST_TYPE_NAMED||
            !((ASTTypeExpr*)restored->child)->name||
            strcmp(((ASTTypeExpr*)restored->child)->name,"i32")!=0)goto done;
