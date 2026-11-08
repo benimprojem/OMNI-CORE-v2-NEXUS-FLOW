@@ -4397,10 +4397,15 @@ generic_type_done:
             (const uint8_t*)source,sizeof(source)-1u);
         ASTNode* decoded=NULL;
         FILE* stream=NULL;
+        const char* open_brace=strchr(source,'{');
+        const char* close_brace=strchr(source,'}');
         int valid=0;
         if(parser && parser_run(parser)==PARSER_STATUS_OK &&
-           parser->error_count==0 && parser->ast_root) {
+           parser->error_count==0 && parser->ast_root && open_brace && close_brace) {
             ASTNode* root=(ASTNode*)parser->ast_root;
+            ASTFuncDecl* function=(ASTFuncDecl*)((ASTProgram*)root)->declarations;
+            ASTBlock* body=function && function->body && function->body->type==AST_BLOCK
+                ? (ASTBlock*)function->body : NULL;
             valid=root->type==AST_PROGRAM && root->source_span.has_location &&
                 root->source_span.start_offset==0u &&
                 root->source_span.end_offset==(uint64_t)(sizeof(source)-1u) &&
@@ -4409,6 +4414,14 @@ generic_type_done:
                 root->source_span.end_line==1u &&
                 root->source_span.end_column==(uint32_t)sizeof(source) &&
                 root->line==1 && root->col==1 &&
+                function && function->base.source_span.has_location &&
+                function->base.source_span.start_offset==0u &&
+                function->base.source_span.end_offset==(uint64_t)(sizeof(source)-1u) &&
+                body && body->base.source_span.has_location &&
+                body->base.source_span.start_offset==(uint64_t)(open_brace-source) &&
+                body->base.source_span.end_offset==(uint64_t)(close_brace+1-source) &&
+                body->base.source_span.start_column==(uint32_t)(open_brace-source)+1u &&
+                body->base.source_span.end_column==(uint32_t)(close_brace+1-source)+1u &&
                 ast_validate(root,NULL);
             if(!valid) fprintf(stderr,
                 "AST_PROGRAM root span actual type=%d has=%u offsets=%llu..%llu lines=%u..%u cols=%u..%u node=%d:%d expected_end=%zu\\n",
