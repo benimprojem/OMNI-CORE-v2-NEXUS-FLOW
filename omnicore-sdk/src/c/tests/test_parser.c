@@ -2788,6 +2788,7 @@ static int test_function_type_alias_and_callback_parameter(void) {
     static const char source[] =
         "nt:Callback = f:(id!u32)!bool; "
         "nt:LegacyCallback = f:(id!u32)>!bool; "
+        "nt:NestedCallback = f:(test!f:(value!i32)!bool)!bool; "
         "f:apply(callback!f:(id!u32)!bool, id!u32)!bool { ret callback(id); }";
     static const char invalid_source[] = "nt:Broken = f:(id!u32)!;";
     ParserContext* parser = parser_init_source(
@@ -2810,7 +2811,8 @@ static int test_function_type_alias_and_callback_parameter(void) {
         ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
         alias_node = ((ASTProgram*)parser->ast_root)->declarations;
         legacy_alias_node = alias_node ? alias_node->next : NULL;
-        function_node = legacy_alias_node ? legacy_alias_node->next : NULL;
+        ASTNode* nested_alias_node = legacy_alias_node ? legacy_alias_node->next : NULL;
+        function_node = nested_alias_node ? nested_alias_node->next : NULL;
         function = function_node && function_node->type == AST_FUNC_DECL
             ? (ASTFuncDecl*)function_node : NULL;
         callback_param = function ? (ASTVarDecl*)function->params : NULL;
@@ -2826,6 +2828,11 @@ static int test_function_type_alias_and_callback_parameter(void) {
             strcmp(((ASTNewTypeDecl*)legacy_alias_node)->target_type,
                 "f:(id!u32)!bool") == 0 &&
             ((ASTNewTypeDecl*)legacy_alias_node)->target_type_expr &&
+            nested_alias_node && nested_alias_node->type == AST_NEWTYPE_DECL &&
+            ((ASTNewTypeDecl*)nested_alias_node)->target_type_expr &&
+            ((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->kind==AST_TYPE_FUNCTION &&
+            ((ASTVarDecl*)((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->params)->type_expr &&
+            ((ASTTypeExpr*)((ASTVarDecl*)((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->params)->type_expr)->kind==AST_TYPE_FUNCTION &&
             function && function->return_type &&
             strcmp(function->return_type, "!bool") == 0 &&
             callback_param && strcmp(callback_param->name, "callback") == 0 &&
