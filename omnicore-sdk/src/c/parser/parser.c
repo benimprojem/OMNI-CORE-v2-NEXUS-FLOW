@@ -2445,6 +2445,49 @@ apply_qualifier:
     return root;
 }
 
+/* Wrap a parsed legacy array declarator in the recursive type tree.
+ * The AST_TYPE_EXPR owns the AST_ARRAY_TYPE; declaration legacy fields are
+ * borrowed aliases and are handled as such by AST lifecycle/codec/OIR code.
+ */
+static int parser_attach_array_type_expr(
+    Parser* p, ASTNode** type_expr, ASTNode* array_type
+) {
+    ASTTypeExpr* wrapper;
+    ASTNode* inner;
+    ASTTypeExpr* qualifier = NULL;
+    if (!p || !type_expr || !*type_expr || !array_type ||
+        array_type->type != AST_ARRAY_TYPE) return 0;
+
+    inner = *type_expr;
+    if (inner->type == AST_TYPE_EXPR &&
+        ((ASTTypeExpr*)inner)->kind == AST_TYPE_QUALIFIED) {
+        qualifier = (ASTTypeExpr*)inner;
+        inner = qualifier->child;
+        if (!inner) return 0;
+    }
+
+    wrapper = (ASTTypeExpr*)parser_ast_create(p, AST_TYPE_EXPR);
+    if (!wrapper) return 0;
+    wrapper->kind = AST_TYPE_ARRAY;
+    wrapper->child = inner;
+    wrapper->dimensions = array_type;
+    wrapper->base.line = inner->line;
+    wrapper->base.col = inner->col;
+    wrapper->base.source_span = inner->source_span;
+    if (array_type->source_span.has_location) {
+        if (!wrapper->base.source_span.has_location) {
+            wrapper->base.source_span = array_type->source_span;
+        } else {
+            wrapper->base.source_span.end_offset = array_type->source_span.end_offset;
+            wrapper->base.source_span.end_line = array_type->source_span.end_line;
+            wrapper->base.source_span.end_column = array_type->source_span.end_column;
+        }
+    }
+    if (qualifier) qualifier->child = (ASTNode*)wrapper;
+    else *type_expr = (ASTNode*)wrapper;
+    return 1;
+}
+
 /*
  * Function type grammar:
  *   f:(name!Type, other:Type)!ReturnType
@@ -2747,6 +2790,10 @@ static ASTNode* parse_var_decl(Parser* p) {
                        (decl->inline_type->type==AST_STRUCT_DECL || decl->inline_type->type==AST_UNION_DECL))) {
                      decl->type_expr=parser_build_type_expr(p,decl->type_name,&type_start,&p->previous,decl->is_hard_typed);
                      if(!decl->type_expr) { ast_destroy((ASTNode*)decl); return NULL; }
+                     if (decl->inline_type && decl->inline_type->type == AST_ARRAY_TYPE &&
+                         !parser_attach_array_type_expr(p, &decl->type_expr, decl->inline_type)) {
+                         ast_destroy((ASTNode*)decl); return NULL;
+                     }
                  }
         } else {
              error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(MSG_EXPECT_RET_TYPE));
@@ -2909,6 +2956,11 @@ static ASTNode* parse_func_decl(Parser* p) {
                     ast_destroy((ASTNode*)func);
                     return NULL;
                 }
+                if (param->inline_type && param->type_expr &&
+                    !parser_attach_array_type_expr(p, &param->type_expr, param->inline_type)) {
+                    ast_destroy((ASTNode*)func);
+                    return NULL;
+                }
             } else if (has_bang && p->current.type == TOKEN_LBRACKET) {
                 /* README form: a![] — element type is inferred/unspecified. */
                 param->is_hard_typed = 1;
@@ -2991,6 +3043,12 @@ static ASTNode* parse_func_decl(Parser* p) {
                 }
                 func->return_array_type = return_array.inline_type;
                 return_array.inline_type = NULL;
+                if (func->return_type_expr &&
+                    !parser_attach_array_type_expr(p, &func->return_type_expr,
+                        func->return_array_type)) {
+                    ast_destroy((ASTNode*)func);
+                    return NULL;
+                }
             }
         } else if (has_bang) {
             error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
