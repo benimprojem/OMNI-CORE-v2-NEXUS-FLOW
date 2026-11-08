@@ -1,6 +1,6 @@
 # OCC Pipeline İlerleme Kaydı
 
-**Tarih:** 2026-11-07  
+**Tarih:** 2026-11-08  
 **Çalışma dalı:** `refactor/c-core-roadmap`  
 **Kaynak depo:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Belge amacı:** Lexer'dan Codegen'e kadar her Nexus Flow yapısının gerçek uygulama ve test durumunu tek tabloda izlemek.
@@ -1203,3 +1203,13 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 - Negative fixtures cover pointer base mismatch, pointer depth mismatch, pointer/reference mismatch, and reference base mismatch.
 - These tests exercise the existing exact type-name compatibility behavior; they do not introduce implicit pointer conversions. Hard-type marker handling remains governed by the existing compatibility contract.
 - **CI pending:** test source was committed; no local CTest run is available in this session. Verify the new CI run before treating the slice as complete. Struct nominal pointer identity and SemanticResult/OIR recursive type validation remain separate follow-up checks.
+
+## 2026-11-08 — AST contextual ownership and source-span closure slice
+
+- AST graph validator state now records the incoming child-field edge alongside the active parent stack. Context-bound nodes are checked against both parent kind and owning field, not merely parent kind.
+- Enforced legal edges/positions for `AST_NAMED_ARG` (`args` only), `AST_VARIADIC_PARAM` (`params`, terminal), `AST_MUST_DECL` (`AST_PROGRAM.declarations`), `AST_BLOCK_HALT` (final `statements` child), `AST_SELECT_ARM` (`AST_SELECT.arms`), `AST_SCAN_ARM` (`AST_SCAN.arms`, catch-all final), `AST_STRUCT_FIELD_INIT` (`AST_STRUCT_LITERAL.fields`), and `AST_ARRAY_DIMENSION` (`AST_ARRAY_TYPE.dimensions`).
+- FASTEXEC raw ASM labels remain legal inside nested statement blocks under a FASTEXEC ancestor; labels outside FASTEXEC or outside a statement edge are rejected.
+- Generic AST codec fixtures now wrap Select arm, Scan arm and Array dimension records in their legal owner nodes. Dedicated contextual codec tests continue to cover `must`, variadic parameters, block Halt and FASTEXEC ASM.
+- Added a negative graph test proving a named argument cannot be attached to a call's `callee` edge. Parser regression now asserts the exact `b:2` named-argument source range (byte offsets and line/column endpoints).
+- CI run `42465058674` on validator/context-fixture commit `fc66f81e` passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind (5/5). The follow-up run for the exact named-argument span assertion and documentation updates is pending at this entry's creation.
+- **AST remains open.** Remaining closure work: complete syntax-production → parser function → AST shape → positive/negative test inventory; finish per-production source-span endpoint assertions (including nested/synthesized nodes); add deterministic AST factory/codec allocation-failure injection and partial-child cleanup tests; audit remaining contextual parent/edge negative cases. Do not mark AST complete or advance the pipeline gate yet.
