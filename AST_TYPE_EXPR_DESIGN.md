@@ -91,5 +91,5 @@ EXF additionally needs external symbol name and the declared linkage source rela
 - Fixed dimension AST_LITERAL payloads preserve both int_value and NUL-terminated string_value. Invalid nonnumeric dimensions, missing closing brackets and signed-64-bit overflow are rejected with parser diagnostics.
 - AST graph validation accepts AST_VARIADIC_PARAM under AST_TYPE_FUNCTION.params and continues to require the variadic marker to be final.
 - Parser tests cover callback alias/parameter arrays, return arrays, AST codec round-trip, malformed dimensions and variadic callback round-trip. OIR AST kind 108 continues to carry type-expression trees.
-- CI run 42695649641 passed Windows, macOS, Ubuntu, ASan/UBSan and Valgrind (5/5); Ubuntu CTest 60/60. Follow-up removal of temporary test diagnostics is tracked in CI run for commit b5e03f2.
+- CI run 42695649641 passed Windows, macOS, Ubuntu, ASan/UBSan and Valgrind (5/5); Ubuntu CTest 60/60. Follow-up cleanup commit b5e03f2 also passed the full 5/5 CI matrix.
 - Remaining: exact per-parameter source spans, deterministic allocation-failure coverage for nested type construction, and Semantic callback compatibility. This design and AST stage remain open; no Codegen scope is started.
