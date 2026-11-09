@@ -1666,11 +1666,12 @@ Array dimensions may be attached to callback parameter or return types. The recu
 nt:BufferCallback = f:(buffer!u8[16])!bool;
 nt:MatrixCallback = f:(matrix!f32[4][4])!bool;
 nt:DynamicArrayCallback = f:(items!u32[])!u32;
+nt:ReturnArrayCallback = f:(value!u32)!u8[8];
 nt:CallbackTable = f:(handlers!f:(code!u32)!bool[8])!bool;
 nt:CallbackMatrix = f:(callbacks!f:(row!u32)!bool[4][4])!bool;
 ```
 
-Dimension order follows the normal array declarator rules. An empty `[]` represents an unspecified/dynamic dimension; a numeric dimension is fixed-size syntax. Array shape and callback signature compatibility belong to AST/Semantic validation, not Codegen.
+Dimension order follows the normal array declarator rules. An empty `[]` represents an unspecified/dynamic dimension; a numeric dimension is fixed-size syntax. Array shape and callback signature compatibility belong to AST/Semantic validation, not Codegen. Parser tests cover parameter arrays, return arrays, malformed dimension spellings, and AST codec round-trip.
 
 ### 16.6 AST and semantic boundary
 
