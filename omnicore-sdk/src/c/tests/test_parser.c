@@ -3014,6 +3014,8 @@ static int test_callback_return_array_and_bad_dimensions(void) {
         ASTTypeExpr* fn = alias ? (ASTTypeExpr*)alias->target_type_expr : NULL;
         ASTTypeExpr* ret = fn && fn->kind == AST_TYPE_FUNCTION
             ? (ASTTypeExpr*)fn->child : NULL;
+        if (ret && ret->kind == AST_TYPE_QUALIFIED)
+            ret = (ASTTypeExpr*)ret->child;
         ASTArrayType* array = ret && ret->kind == AST_TYPE_ARRAY
             ? (ASTArrayType*)ret->dimensions : NULL;
         ASTArrayDimension* dim = array ? (ASTArrayDimension*)array->dimensions : NULL;
@@ -3030,6 +3032,8 @@ static int test_callback_return_array_and_bad_dimensions(void) {
                 ? (ASTNewTypeDecl*)((ASTProgram*)decoded)->declarations : NULL;
             fn = alias ? (ASTTypeExpr*)alias->target_type_expr : NULL;
             ret = fn && fn->kind == AST_TYPE_FUNCTION ? (ASTTypeExpr*)fn->child : NULL;
+            if (ret && ret->kind == AST_TYPE_QUALIFIED)
+                ret = (ASTTypeExpr*)ret->child;
             array = ret && ret->kind == AST_TYPE_ARRAY ? (ASTArrayType*)ret->dimensions : NULL;
             dim = array ? (ASTArrayDimension*)array->dimensions : NULL;
             ok = ok && dim && dim->length && ((ASTLiteral*)dim->length)->int_value == 8;
