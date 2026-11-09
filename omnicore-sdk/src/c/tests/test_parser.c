@@ -2973,6 +2973,22 @@ static int test_function_type_alias_and_callback_parameter(void) {
         }
     }
 
+    if (!valid) {
+        fprintf(stderr,
+            "callback state: parse=%d aliases=%p,%p,%p function=%p "
+            "types=%p,%p,%p arrays=%p,%p,%p kinds=%u,%u,%u "
+            "dims=%p,%p,%p params=%p,%p validate=%d\\n",
+            parse_status, (void*)alias_node, (void*)legacy_alias_node,
+            (void*)nested_alias_node, (void*)function_node,
+            (void*)buffer_type, (void*)matrix_type, (void*)dynamic_type,
+            (void*)buffer_array, (void*)matrix_array, (void*)dynamic_array,
+            buffer_array ? ((ASTTypeExpr*)buffer_array)->kind : 0u,
+            matrix_array ? ((ASTTypeExpr*)matrix_array)->kind : 0u,
+            dynamic_array ? ((ASTTypeExpr*)dynamic_array)->kind : 0u,
+            (void*)buffer_dims, (void*)matrix_dims, (void*)dynamic_dims,
+            function ? function->params : NULL, callback_param ? callback_param->type_expr : NULL,
+            parser->ast_root ? ast_validate((ASTNode*)parser->ast_root, NULL) : 0);
+    }
     if (decoded) ast_destroy(decoded);
     if (stream) fclose(stream);
     parser_destroy(parser);
