@@ -2960,6 +2960,23 @@ static int test_function_type_alias_and_callback_parameter(void) {
     if (stream) fclose(stream);
     parser_destroy(parser);
     if (!valid) {
+        fprintf(stderr,
+            "callback debug: parse=%d alias=%p legacy=%p function=%p "
+            "buffer=%p/%u array=%p/%u dims=%p dim=%p matrix=%p/%u array=%p/%u "
+            "dims=%p d1=%p d2=%p dynamic=%p/%u array=%p/%u dims=%p "
+            "ast_valid=%d\n",
+            parse_status, (void*)alias_node, (void*)legacy_alias_node,
+            (void*)function_node, (void*)buffer_type,
+            buffer_type ? ((ASTTypeExpr*)buffer_type)->kind : 0u,
+            (void*)buffer_array, buffer_array ? ((ASTTypeExpr*)buffer_array)->kind : 0u,
+            (void*)buffer_dims, (void*)buffer_dim, (void*)matrix_type,
+            matrix_type ? ((ASTTypeExpr*)matrix_type)->kind : 0u,
+            (void*)matrix_array, matrix_array ? ((ASTTypeExpr*)matrix_array)->kind : 0u,
+            (void*)matrix_dims, (void*)matrix_dim1, (void*)matrix_dim2,
+            (void*)dynamic_type, dynamic_type ? ((ASTTypeExpr*)dynamic_type)->kind : 0u,
+            (void*)dynamic_array, dynamic_array ? ((ASTTypeExpr*)dynamic_array)->kind : 0u,
+            (void*)dynamic_dims,
+            parser && parser->ast_root ? ast_validate((ASTNode*)parser->ast_root, NULL) : 0);
         fprintf(stderr, "Function-type/callback AST contract failed.\n");
         return 0;
     }
