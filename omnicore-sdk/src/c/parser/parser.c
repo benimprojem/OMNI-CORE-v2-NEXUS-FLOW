@@ -2399,15 +2399,79 @@ static ASTNode* parser_build_type_expr(
     }
     while(spelling[offset]=='*') { ++pointer_depth; ++offset; }
     if(spelling[offset]=='&') { is_reference=1; ++offset; }
-    if(!spelling[offset] || strchr(spelling+offset,'[')) return NULL;
+    if(!spelling[offset]) return NULL;
 
-    named=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
-    if(!named) return NULL;
-    named->kind=AST_TYPE_NAMED;
-    named->name=parser_strdup(p,spelling+offset);
-    if(!named->name) { ast_destroy((ASTNode*)named); return NULL; }
-    parser_stamp_node_tokens(p,(ASTNode*)named,last,last);
-    root=(ASTNode*)named;
+    /* Parse a compact fixed/dynamic array suffix in recursive type spelling.
+     * Dimensions are numeric literals or empty []; arbitrary expressions remain
+     * handled by the normal declarator parser, not this signature codec. */
+    {
+        const char* bracket=strchr(spelling+offset,'[');
+        size_t base_length=bracket?(size_t)(bracket-(spelling+offset)):strlen(spelling+offset);
+        char* base_name=(char*)parser_malloc(p,base_length+1u);
+        if(!base_name) return NULL;
+        memcpy(base_name,spelling+offset,base_length);
+        base_name[base_length]='\\0';
+        if(!base_length) { free(base_name); return NULL; }
+
+        named=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
+        if(!named) { free(base_name); return NULL; }
+        named->kind=AST_TYPE_NAMED;
+        named->name=base_name;
+        parser_stamp_node_tokens(p,(ASTNode*)named,last,last);
+        root=(ASTNode*)named;
+
+        if(bracket) {
+            ASTArrayType* array=(ASTArrayType*)parser_ast_create(p,AST_ARRAY_TYPE);
+            ASTNode* dim_tail=NULL;
+            const char* q=bracket;
+            if(!array) { ast_destroy(root); return NULL; }
+            while(*q) {
+                const char* close;
+                const char* d;
+                ASTArrayDimension* dimension;
+                ASTNode* length_node=NULL;
+                long long value=0;
+                if(*q!='[') { ast_destroy((ASTNode*)array); ast_destroy(root); return NULL; }
+                close=strchr(q+1,']');
+                if(!close) { ast_destroy((ASTNode*)array); ast_destroy(root); return NULL; }
+                dimension=(ASTArrayDimension*)parser_ast_create(p,AST_ARRAY_DIMENSION);
+                if(!dimension) { ast_destroy((ASTNode*)array); ast_destroy(root); return NULL; }
+                d=q+1;
+                if(d<close) {
+                    const char* n;
+                    for(n=d;n<close;++n) if(*n<'0'||*n>'9') break;
+                    if(n!=close) { ast_destroy((ASTNode*)dimension); ast_destroy((ASTNode*)array); ast_destroy(root); return NULL; }
+                    for(n=d;n<close;++n) {
+                        if(value>(LLONG_MAX-(*n-'0'))/10) { ast_destroy((ASTNode*)dimension); ast_destroy((ASTNode*)array); ast_destroy(root); return NULL; }
+                        value=value*10+(*n-'0');
+                    }
+                    length_node=parser_ast_create(p,AST_LITERAL);
+                    if(!length_node) { ast_destroy((ASTNode*)dimension); ast_destroy((ASTNode*)array); ast_destroy(root); return NULL; }
+                    ((ASTLiteral*)length_node)->lit_type=0;
+                    ((ASTLiteral*)length_node)->int_value=value;
+                    parser_stamp_node_tokens(p,length_node,first,last);
+                    dimension->length=length_node;
+                }
+                parser_stamp_node_tokens(p,(ASTNode*)dimension,first,last);
+                if(!array->dimensions) array->dimensions=(ASTNode*)dimension;
+                else dim_tail->next=(ASTNode*)dimension;
+                dim_tail=(ASTNode*)dimension;
+                q=close+1;
+            }
+            parser_stamp_node_tokens(p,(ASTNode*)array,first,last);
+            {
+                ASTTypeExpr* wrapper=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
+                if(!wrapper) { ast_destroy((ASTNode*)array); ast_destroy(root); return NULL; }
+                wrapper->kind=AST_TYPE_ARRAY;
+                wrapper->child=root;
+                wrapper->dimensions=(ASTNode*)array;
+                wrapper->base.line=first->line;
+                wrapper->base.col=first->col;
+                parser_stamp_node_tokens(p,(ASTNode*)wrapper,first,last);
+                root=(ASTNode*)wrapper;
+            }
+        }
+    }
 
     while(pointer_depth>0u) {
         ASTTypeExpr* wrapper=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
