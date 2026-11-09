@@ -465,7 +465,6 @@ static int parser_map_function_type_range(
             if (index == spelling_length &&
                 range_start_offset != SIZE_MAX &&
                 range_end_offset != SIZE_MAX &&
-                range_start_offset <= first->source_offset &&
                 scan >= raw_end &&
                 (best_start == SIZE_MAX || candidate >= best_start)) {
                 best_start = candidate;
