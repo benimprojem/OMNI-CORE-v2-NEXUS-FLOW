@@ -3760,7 +3760,7 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                          ast_destroy((ASTNode*)decl);
                          return NULL;
                      }
-                     if(decl->target_type && (strncmp(decl->target_type,"f:(",3u)!=0 || !strchr(decl->target_type,'['))) {
+                     if(decl->target_type) {
                          decl->target_type_expr=parser_build_type_expr(p,decl->target_type,&target_type_start,&p->previous,0);
                          if(!decl->target_type_expr) { ast_destroy((ASTNode*)decl); return NULL; }
                      }
