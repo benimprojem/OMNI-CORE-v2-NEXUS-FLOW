@@ -2460,7 +2460,7 @@ static ASTNode* parser_build_type_expr(
                     }
                     memcpy(((ASTLiteral*)length_node)->string_value,d,
                         (size_t)(close-d));
-                    ((ASTLiteral*)length_node)->string_value[close-d]='\\0';
+                    ((ASTLiteral*)length_node)->string_value[close-d]='\0';
                     parser_stamp_node_tokens(p,length_node,first,last);
                     dimension->length=length_node;
                 }
