@@ -3107,26 +3107,6 @@ static int test_callback_parameter_exact_source_spans(void) {
             first->type_expr->source_span.end_offset ==
                 (uint64_t)(first_text - source) + strlen("first!u8[16]");
     }
-    if (!valid) {
-        fprintf(stderr,
-            "callback span debug: status=%d errors=%d source_first=%td source_second=%td "
-            "first=%llu-%llu line=%u col=%u second=%llu-%llu line=%u col=%u "
-            "first_type=%llu-%llu\\n",
-            parser ? (int)parser_get_status(parser) : -1,
-            parser ? parser->error_count : -1,
-            first_text ? first_text-source : -1,
-            second_text ? second_text-source : -1,
-            first ? (unsigned long long)first->base.source_span.start_offset : 0ULL,
-            first ? (unsigned long long)first->base.source_span.end_offset : 0ULL,
-            first ? first->base.source_span.start_line : 0u,
-            first ? first->base.source_span.start_column : 0u,
-            second ? (unsigned long long)second->base.source_span.start_offset : 0ULL,
-            second ? (unsigned long long)second->base.source_span.end_offset : 0ULL,
-            second ? second->base.source_span.start_line : 0u,
-            second ? second->base.source_span.start_column : 0u,
-            first && first->type_expr ? (unsigned long long)first->type_expr->source_span.start_offset : 0ULL,
-            first && first->type_expr ? (unsigned long long)first->type_expr->source_span.end_offset : 0ULL);
-    }
     parser_destroy(parser);
     return valid;
 }
