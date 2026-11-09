@@ -3058,9 +3058,9 @@ static int test_callback_return_array_and_bad_dimensions(void) {
 
 static int test_callback_parameter_exact_source_spans(void) {
     static const char source[] =
-        "nt:SpanCallback = f:(\\n"
-        "    first!u8[16],\\n"
-        "    second:i32\\n"
+        "nt:SpanCallback = f:(\n"
+        "    first!u8[16],\n"
+        "    second:i32\n"
         ")!void;";
     ParserContext* parser = parser_init_source(
         "callback-parameter-spans.nxf", (const uint8_t*)source,
