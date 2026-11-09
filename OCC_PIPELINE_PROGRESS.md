@@ -1297,3 +1297,10 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - **Kod eklendi (CI bekliyor):** `parser_build_type_expr()` recursive type spelling içindeki array suffix'ini `AST_TYPE_ARRAY` + `ASTArrayType` + ordered `ASTArrayDimension` olarak kuruyor. Numeric fixed dimensions `AST_LITERAL` uzunluk, `[]` NULL uzunluk ile korunuyor. Function type parametre/return builder'ındaki array reddi kaldırıldı. Test `BufferCallback[16]`, `MatrixCallback[4][4]`, dynamic `[]` AST yapısını ve `ast_validate()` kontrolünü kapsıyor. Commit: `c58e707`, `131b6d6`, `5031ad5`.
 - **Sınır:** Bu imza codec'i numeric ve boş dimension ile sınırlı; arbitrary expression dimensions, semantic callback compatibility ve ABI doğrulaması tamamlanmış değil. GitHub CI sonucu henüz alınamadı; test geçişi onaylanmış sayılmaz.
 - ABI/calling convention ve callback compatibility Semantic/backend sınırında; parser bunları doğruluyor kabul edilmez.
+
+
+### Callback array type follow-up (2026-11-09)
+- Added parser test for callback function return arrays (`!u8[8]`) and AST serialize/deserialize preservation.
+- Added rejection tests for nonnumeric dimensions, missing closing bracket, and signed-64-bit dimension overflow.
+- Callback parameter fixed/multidimensional/dynamic array cases remain covered in the existing callback AST test.
+- GitHub CI verification for commit `b86f922` is pending; local build is unavailable in this GitHub-only workspace. Do not mark these tests passed until CI reports success.
