@@ -2785,23 +2785,45 @@ static ASTNode* parser_build_function_type_expr(
         param->is_hard_typed=hard;
         {
             Token mapped_type;
-            Token mapped_param;
             const Token* type_first=first;
             const Token* type_last=last;
             if(parser_map_function_type_range(p,spelling,first,last,
                 (size_t)(type_start-spelling),(size_t)(segment_end-spelling),
                 &mapped_type)) {
+                Token mapped_param=mapped_type;
+                size_t prefix_length=name_length+(hard?0u:1u);
+                size_t scan;
+                uint32_t line=1u;
+                uint32_t column=1u;
                 type_first=&mapped_type;
                 type_last=&mapped_type;
-            }
-            param->type_expr=parser_build_type_expr(
-                p,param->type_name,type_first,type_last,hard);
-            if(parser_map_function_type_range(p,spelling,first,last,
-                (size_t)(cursor-spelling),(size_t)(segment_end-spelling),
-                &mapped_param))
-                parser_stamp_node_tokens(p,(ASTNode*)param,&mapped_param,&mapped_param);
-            else
+                param->type_expr=parser_build_type_expr(
+                    p,param->type_name,type_first,type_last,hard);
+                if(mapped_param.source_offset>=prefix_length) {
+                    mapped_param.source_offset-=prefix_length;
+                    mapped_param.start-=prefix_length;
+                    mapped_param.source_length+=prefix_length;
+                    mapped_param.length+=(int)prefix_length;
+                    for(scan=0u;scan<mapped_param.source_offset;++scan) {
+                        if(p->ctx->source_buffer[scan]=='\\n') {
+                            ++line;
+                            column=1u;
+                        } else {
+                            ++column;
+                        }
+                    }
+                    mapped_param.line=(int)line;
+                    mapped_param.col=(int)column;
+                    parser_stamp_node_tokens(p,(ASTNode*)param,
+                        &mapped_param,&mapped_param);
+                } else {
+                    parser_stamp_node_tokens(p,(ASTNode*)param,first,last);
+                }
+            } else {
+                param->type_expr=parser_build_type_expr(
+                    p,param->type_name,first,last,hard);
                 parser_stamp_node_tokens(p,(ASTNode*)param,first,last);
+            }
         }
         if(!param->type_expr) {
             ast_destroy((ASTNode*)param);
