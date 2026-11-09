@@ -1598,3 +1598,84 @@ exf:sub(a!i32, b!i32)!i32;
 Bu bölüm dil bildiriminin ve AST'de korunması gereken ilişkinin normatif tanımıdır. Object format çözümleme, ABI/calling-convention doğrulaması, sembol seçimi ve OCL linker uygulaması bu AST işi kapsamında tamamlanmış sayılmaz; ileriki linker aşamasında ele alınacaktır.
 
 **AST gereksinimi:** EXF parametre/dönüş tipleri, sembol adı ve linkname ilişkisi kayıpsız taşınmalıdır. Linkname ile EXF arasındaki ilişkiyi temsil etmek için mevcut AST node/metadata modeli incelenir; gereksiz yeni node oluşturulmaz.
+
+## 16. Function Types and Callbacks
+
+### 16.1 Function type syntax
+
+Nexus Flow function types describe a callable signature as a type. They do not define a function body or a lambda expression.
+
+```nexus
+f:(parameter!Type, other:Type)!ReturnType
+```
+
+- `f:(...)` declares the parameter list of the function type.
+- `name!Type` marks a hard-typed parameter; `name:Type` uses the regular typed form.
+- `!ReturnType` specifies the return type. The legacy `>ReturnType` spelling is normalized to the canonical `!ReturnType` form by the parser.
+- An empty parameter list is written `f:()!ReturnType`.
+- `...` may be used as the final parameter marker for a variadic signature.
+
+### 16.2 Named callback type
+
+Use `nt:` to give a function type a reusable name:
+
+```nexus
+nt:Callback = f:(id!u32)!bool;
+nt:CompareCallback = f:(left!i32,right!i32)!i32;
+nt:NoArgCallback = f:()!bool;
+```
+
+The `nt:` declaration is a type alias (new type declaration in the language syntax); it does not create a runtime callback object.
+
+### 16.3 Callback as a function parameter
+
+A function type can be used directly in a parameter declaration. The callback is invoked with ordinary call syntax:
+
+```nexus
+f:apply(callback!f:(id!u32)!bool, id!u32)!bool {
+    ret callback(id);
+}
+```
+
+Or use a named alias to make the declaration shorter:
+
+```nexus
+nt:Predicate = f:(item!u32)!bool;
+f:filter(test!Predicate, value!u32)!bool {
+    ret test(value);
+}
+```
+
+Callback arguments are passed according to the language's address/reference-oriented parameter model; this syntax alone does not imply copying the callback value.
+
+### 16.4 Nested callback signatures
+
+Function types may themselves contain callback parameters:
+
+```nexus
+nt:NestedCallback = f:(test!f:(value!i32)!bool)!bool;
+```
+
+Read this from the inside out: `test` accepts a callback taking `value!i32` and returning `bool`; the outer callback returns `bool`.
+
+### 16.5 Arrays in callback signatures (syntax target)
+
+Array dimensions may be attached to callback parameter or return types. These examples define the intended source spelling; parser/AST dimension preservation and semantic compatibility must be verified by the corresponding implementation tests before treating every form as supported:
+
+```nexus
+nt:BufferCallback = f:(buffer!u8[16])!bool;
+nt:MatrixCallback = f:(matrix!f32[4][4])!bool;
+nt:DynamicArrayCallback = f:(items!u32[])!u32;
+nt:CallbackTable = f:(handlers!f:(code!u32)!bool[8])!bool;
+nt:CallbackMatrix = f:(callbacks!f:(row!u32)!bool[4][4])!bool;
+```
+
+Dimension order follows the normal array declarator rules. An empty `[]` represents an unspecified/dynamic dimension; a numeric dimension is fixed-size syntax. Array shape and callback signature compatibility belong to AST/Semantic validation, not Codegen.
+
+### 16.6 AST and semantic boundary
+
+- AST retains the function type, its ordered parameter list, return type, qualifiers, and any array dimensions without reducing it to a plain named type.
+- Semantic analysis is responsible for checking callback argument/return compatibility and applicable type qualifiers.
+- Calling convention, ABI lowering, and target-specific function-pointer representation are later backend/linker concerns.
+- A function type is not an `AST_LAMBDA` expression and does not carry an executable body.
+
