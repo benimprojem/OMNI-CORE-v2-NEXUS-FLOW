@@ -2449,6 +2449,18 @@ static ASTNode* parser_build_type_expr(
                     if(!length_node) { ast_destroy((ASTNode*)dimension); ast_destroy((ASTNode*)array); ast_destroy(root); return NULL; }
                     ((ASTLiteral*)length_node)->lit_type=0;
                     ((ASTLiteral*)length_node)->int_value=value;
+                    ((ASTLiteral*)length_node)->string_value=
+                        (char*)parser_malloc(p,(size_t)(close-d)+1u);
+                    if(!((ASTLiteral*)length_node)->string_value) {
+                        ast_destroy(length_node);
+                        ast_destroy((ASTNode*)dimension);
+                        ast_destroy((ASTNode*)array);
+                        ast_destroy(root);
+                        return NULL;
+                    }
+                    memcpy(((ASTLiteral*)length_node)->string_value,d,
+                        (size_t)(close-d));
+                    ((ASTLiteral*)length_node)->string_value[close-d]='\\0';
                     parser_stamp_node_tokens(p,length_node,first,last);
                     dimension->length=length_node;
                 }
