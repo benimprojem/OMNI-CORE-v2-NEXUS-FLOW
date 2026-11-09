@@ -456,10 +456,12 @@ static int parser_map_function_type_range(
         mapped_end - mapped_start > (size_t)INT_MAX)
         return 0;
 
-    line = (uint32_t)first->line;
-    column = (uint32_t)first->col;
-    if (first->line <= 0 || first->col <= 0) return 0;
-    for (i = first->source_offset; i < mapped_start; ++i) {
+    /* Token line/column metadata may refer to the parser's synthetic
+     * signature start. Recompute from the owned source buffer so multiline
+     * callback parameters receive exact physical coordinates. */
+    line = 1u;
+    column = 1u;
+    for (i = 0u; i < mapped_start; ++i) {
         if (p->ctx->source_buffer[i] == '\\n') {
             if (line == UINT32_MAX) return 0;
             ++line;
