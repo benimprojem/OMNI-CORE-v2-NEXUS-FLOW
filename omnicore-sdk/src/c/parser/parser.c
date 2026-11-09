@@ -473,7 +473,14 @@ static int parser_map_function_type_range(
                 best_range_end = range_end_offset;
             }
         }
-        if (best_start == SIZE_MAX) return 0;
+        if (best_start == SIZE_MAX) {
+            fprintf(stderr,
+                "callback range map failed: spelling=[%s] range=%zu-%zu first=%zu last_end=%zu source=[%.*s]\\n",
+                spelling, range_start, range_end, first->source_offset, raw_end,
+                (int)((raw_end < p->ctx->source_len ? raw_end : p->ctx->source_len)),
+                p->ctx->source_buffer);
+            return 0;
+        }
         mapped_start = best_range_start;
         mapped_end = best_range_end;
     }
