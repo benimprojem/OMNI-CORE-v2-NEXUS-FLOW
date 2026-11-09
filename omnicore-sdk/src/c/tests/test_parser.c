@@ -2956,9 +2956,6 @@ static int test_function_type_alias_and_callback_parameter(void) {
         }
     }
 
-    if (decoded) ast_destroy(decoded);
-    if (stream) fclose(stream);
-    parser_destroy(parser);
     if (!valid) {
         fprintf(stderr,
             "callback debug: parse=%d alias=%p legacy=%p function=%p "
@@ -2977,6 +2974,9 @@ static int test_function_type_alias_and_callback_parameter(void) {
             (void*)dynamic_array, dynamic_array ? ((ASTTypeExpr*)dynamic_array)->kind : 0u,
             (void*)dynamic_dims,
             0);
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
         fprintf(stderr, "Function-type/callback AST contract failed.\n");
         return 0;
     }
