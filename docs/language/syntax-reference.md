@@ -1660,7 +1660,7 @@ Read this from the inside out: `test` accepts a callback taking `value!i32` and 
 
 ### 16.5 Arrays in callback signatures (syntax target)
 
-Array dimensions may be attached to callback parameter or return types. These examples define the intended source spelling; parser/AST dimension preservation and semantic compatibility must be verified by the corresponding implementation tests before treating every form as supported:
+Array dimensions may be attached to callback parameter or return types. The recursive parser type builder currently preserves numeric fixed dimensions and empty dynamic dimensions (`[]`) in callback parameter/return ASTs. These examples are parser-level forms; arbitrary expression dimensions and Semantic callback compatibility remain separate work:
 
 ```nexus
 nt:BufferCallback = f:(buffer!u8[16])!bool;
