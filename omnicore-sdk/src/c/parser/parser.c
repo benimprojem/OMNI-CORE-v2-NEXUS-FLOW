@@ -403,6 +403,83 @@ static void parser_stamp_node_tokens(
     (void)ast_set_source_span(node, &span);
 }
 
+/* Map a normalized function-type spelling range back to its exact source bytes.
+ * The signature parser removes whitespace and the legacy '>' return delimiter;
+ * those are the only source characters skipped while matching. */
+static int parser_map_function_type_range(
+    Parser* p, const char* spelling, const Token* first, const Token* last,
+    size_t range_start, size_t range_end, Token* mapped
+) {
+    size_t raw;
+    size_t raw_end;
+    size_t normalized = 0u;
+    size_t spelling_length;
+    size_t mapped_start = SIZE_MAX;
+    size_t mapped_end = SIZE_MAX;
+    size_t i;
+    uint32_t line;
+    uint32_t column;
+
+    if (!p || !p->ctx || !p->ctx->source_buffer || !spelling ||
+        !first || !last || !mapped || range_start >= range_end) return 0;
+    spelling_length = strlen(spelling);
+    if (range_end > spelling_length ||
+        first->source_offset > p->ctx->source_len ||
+        last->source_offset > p->ctx->source_len ||
+        last->source_length > p->ctx->source_len - last->source_offset)
+        return 0;
+    raw = first->source_offset;
+    raw_end = last->source_offset + last->source_length;
+    if (raw_end < raw) return 0;
+
+    while (raw < raw_end) {
+        unsigned char ch = (unsigned char)p->ctx->source_buffer[raw];
+        if (isspace(ch) || ch == '>') {
+            ++raw;
+            continue;
+        }
+        /* A hard-type marker may be consumed by parser_build_type_expr()
+         * before the recursive function-type builder receives its spelling. */
+        if (normalized == 0u && ch == '!' && spelling[0] != '!') {
+            ++raw;
+            continue;
+        }
+        if (normalized >= spelling_length || ch != (unsigned char)spelling[normalized])
+            return 0;
+        if (normalized == range_start) mapped_start = raw;
+        if (normalized + 1u == range_end) mapped_end = raw + 1u;
+        ++normalized;
+        ++raw;
+    }
+    if (normalized != spelling_length || mapped_start == SIZE_MAX ||
+        mapped_end == SIZE_MAX || mapped_end <= mapped_start ||
+        mapped_end - mapped_start > (size_t)INT_MAX)
+        return 0;
+
+    line = (uint32_t)first->line;
+    column = (uint32_t)first->col;
+    if (first->line <= 0 || first->col <= 0) return 0;
+    for (i = first->source_offset; i < mapped_start; ++i) {
+        if (p->ctx->source_buffer[i] == '\\n') {
+            if (line == UINT32_MAX) return 0;
+            ++line;
+            column = 1u;
+        } else {
+            if (column == UINT32_MAX) return 0;
+            ++column;
+        }
+    }
+
+    *mapped = *first;
+    mapped->start = p->ctx->source_buffer + mapped_start;
+    mapped->length = (int)(mapped_end - mapped_start);
+    mapped->line = (int)line;
+    mapped->col = (int)column;
+    mapped->source_offset = mapped_start;
+    mapped->source_length = mapped_end - mapped_start;
+    return 1;
+}
+
 /* Compose a production span from its first and last owned AST children. */
 static void parser_stamp_node_child_to_token(
     Parser* p, ASTNode* node, const ASTNode* first, const Token* last
@@ -2631,8 +2708,14 @@ static ASTNode* parser_build_function_type_expr(
         if((size_t)(segment_end-cursor)==3u &&
            cursor[0]=='.'&&cursor[1]=='.'&&cursor[2]=='.') {
             ASTNode* variadic=parser_ast_create(p,AST_VARIADIC_PARAM);
+            Token mapped_variadic;
             if(!variadic) { ast_destroy((ASTNode*)function); return NULL; }
-            parser_stamp_node_tokens(p,variadic,first,last);
+            if(parser_map_function_type_range(p,spelling,first,last,
+                (size_t)(cursor-spelling),(size_t)(segment_end-spelling),
+                &mapped_variadic))
+                parser_stamp_node_tokens(p,variadic,&mapped_variadic,&mapped_variadic);
+            else
+                parser_stamp_node_tokens(p,variadic,first,last);
             if(!param_head)param_head=variadic;
             else param_tail->next=variadic;
             param_tail=variadic;
@@ -2671,15 +2754,32 @@ static ASTNode* parser_build_function_type_expr(
         memcpy(param->type_name,type_start,type_length);
         param->type_name[type_length]='\0';
         param->is_hard_typed=hard;
-        param->type_expr=parser_build_type_expr(
-            p,param->type_name,first,last,hard);
+        {
+            Token mapped_type;
+            Token mapped_param;
+            const Token* type_first=first;
+            const Token* type_last=last;
+            if(parser_map_function_type_range(p,spelling,first,last,
+                (size_t)(type_start-spelling),(size_t)(segment_end-spelling),
+                &mapped_type)) {
+                type_first=&mapped_type;
+                type_last=&mapped_type;
+            }
+            param->type_expr=parser_build_type_expr(
+                p,param->type_name,type_first,type_last,hard);
+            if(parser_map_function_type_range(p,spelling,first,last,
+                (size_t)(cursor-spelling),(size_t)(segment_end-spelling),
+                &mapped_param))
+                parser_stamp_node_tokens(p,(ASTNode*)param,&mapped_param,&mapped_param);
+            else
+                parser_stamp_node_tokens(p,(ASTNode*)param,first,last);
+        }
         if(!param->type_expr) {
             ast_destroy((ASTNode*)param);
             ast_destroy(param_head);
             ast_destroy((ASTNode*)function);
             return NULL;
         }
-        parser_stamp_node_tokens(p,(ASTNode*)param,first,last);
         if(!param_head)param_head=(ASTNode*)param;
         else param_tail->next=(ASTNode*)param;
         param_tail=(ASTNode*)param;
@@ -2687,7 +2787,15 @@ static ASTNode* parser_build_function_type_expr(
     }
 
     function->params=param_head;
-    function->child=parser_build_type_expr(p,return_spelling,first,last,0);
+    {
+        Token mapped_return;
+        if(parser_map_function_type_range(p,spelling,first,last,
+            (size_t)(return_spelling-spelling),strlen(spelling),&mapped_return))
+            function->child=parser_build_type_expr(
+                p,return_spelling,&mapped_return,&mapped_return,0);
+        else
+            function->child=parser_build_type_expr(p,return_spelling,first,last,0);
+    }
     if(!function->child) {
         ast_destroy((ASTNode*)function);
         return NULL;
