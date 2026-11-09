@@ -2797,7 +2797,9 @@ static int test_function_type_alias_and_callback_parameter(void) {
         "nt:Callback = f:(id!u32)!bool; "
         "nt:LegacyCallback = f:(id!u32)>!bool; "
         "nt:NestedCallback = f:(test!f:(value!i32)!bool)!bool; "
-        "f:apply(callback!f:(id!u32)!bool, id!u32)!bool { ret callback(id); }";
+        "f:apply(callback!f:(id!u32)!bool, id!u32)!bool { ret callback(id); } "
+        "nt:ZeroCallback = f:()!bool; "
+        "nt:VariadicCallback = f:(first!u32,...)!void;";
     static const char invalid_source[] = "nt:Broken = f:(id!u32)!;";
     ParserContext* parser = parser_init_source(
         "callback-function-type.nxf", (const uint8_t*)source, sizeof(source) - 1u);
