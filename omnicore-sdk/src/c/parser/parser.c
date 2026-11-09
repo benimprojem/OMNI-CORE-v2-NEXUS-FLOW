@@ -428,29 +428,60 @@ static int parser_map_function_type_range(
         last->source_offset > p->ctx->source_len ||
         last->source_length > p->ctx->source_len - last->source_offset)
         return 0;
-    raw = first->source_offset;
     raw_end = last->source_offset + last->source_length;
-    if (raw_end < raw) return 0;
+    if (raw_end < last->source_offset) return 0;
 
-    while (raw < raw_end) {
-        unsigned char ch = (unsigned char)p->ctx->source_buffer[raw];
-        if (isspace(ch) || ch == '>') {
-            ++raw;
-            continue;
+    /* The caller's first token can be the first callback parameter rather
+     * than the 'f:' token. Search backwards for the complete normalized
+     * signature and require it to cover the supplied token range. */
+    {
+        size_t candidate;
+        size_t best_start = SIZE_MAX;
+        size_t best_end = SIZE_MAX;
+        size_t best_range_start = SIZE_MAX;
+        size_t best_range_end = SIZE_MAX;
+        for (candidate = 0u; candidate <= first->source_offset; ++candidate) {
+            size_t scan = candidate;
+            size_t index = 0u;
+            size_t range_start_offset = SIZE_MAX;
+            size_t range_end_offset = SIZE_MAX;
+            if (scan >= p->ctx->source_len) break;
+            if (p->ctx->source_buffer[scan] != spelling[0] &&
+                !(p->ctx->source_buffer[scan] == '!' && spelling[0] != '!'))
+                continue;
+            while (scan < p->ctx->source_len && index < spelling_length) {
+                unsigned char ch = (unsigned char)p->ctx->source_buffer[scan];
+                if (isspace(ch) || ch == '>') {
+                    ++scan;
+                    continue;
+                }
+                if (index == 0u && ch == '!' && spelling[0] != '!') {
+                    ++scan;
+                    continue;
+                }
+                if (ch != (unsigned char)spelling[index]) break;
+                if (index == range_start) range_start_offset = scan;
+                if (index + 1u == range_end) range_end_offset = scan + 1u;
+                ++index;
+                ++scan;
+            }
+            if (index == spelling_length &&
+                range_start_offset != SIZE_MAX &&
+                range_end_offset != SIZE_MAX &&
+                range_start_offset <= first->source_offset &&
+                scan >= raw_end && candidate >= best_start) {
+                best_start = candidate;
+                best_end = scan;
+                best_range_start = range_start_offset;
+                best_range_end = range_end_offset;
+            }
         }
-        /* A hard-type marker may be consumed by parser_build_type_expr()
-         * before the recursive function-type builder receives its spelling. */
-        if (normalized == 0u && ch == '!' && spelling[0] != '!') {
-            ++raw;
-            continue;
-        }
-        if (normalized >= spelling_length || ch != (unsigned char)spelling[normalized])
-            return 0;
-        if (normalized == range_start) mapped_start = raw;
-        if (normalized + 1u == range_end) mapped_end = raw + 1u;
-        ++normalized;
-        ++raw;
+        (void)best_end;
+        if (best_start == SIZE_MAX) return 0;
+        mapped_start = best_range_start;
+        mapped_end = best_range_end;
     }
+
     if (normalized != spelling_length || mapped_start == SIZE_MAX ||
         mapped_end == SIZE_MAX || mapped_end <= mapped_start ||
         mapped_end - mapped_start > (size_t)INT_MAX)
