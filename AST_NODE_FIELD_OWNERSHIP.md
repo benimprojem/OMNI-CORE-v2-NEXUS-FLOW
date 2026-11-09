@@ -35,6 +35,8 @@
 | Index | INDEX_ACCESS | ASTIndexAccess | target; index |
 | Tuple / array literal | TUPLE / ARRAY_LITERAL | ASTTuple / ASTArrayLiteral | elements chain |
 | Array type | ARRAY_TYPE / ARRAY_DIMENSION | ASTArrayType / ASTArrayDimension | dimensions chain; dimension length |
+| Recursive type expression | TYPE_EXPR | ASTTypeExpr | owned name (named types); child wrapper/element/return type; params chain (function signature); dimensions subtree (array type) |
+| Function-type parameter | VAR_DECL under TYPE_EXPR(kind=FUNCTION).params | ASTVarDecl | owned name/type_name; recursive type_expr; legacy inline_type only when not aliased by type_expr array dimensions |
 | If / loop | IF / LOOP | ASTIf / ASTLoop | condition/branches; loop fields |
 | Selection | SELECT / SELECT_ARM / SCAN / SCAN_ARM | dedicated structs | selector/subject; arms; pattern/body |
 | Pattern | PATTERN_BINDING / PATTERN_CONSTRUCTOR | dedicated structs | binding name; constructor name/bindings |
