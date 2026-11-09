@@ -3774,7 +3774,12 @@ static ASTNode* parse_newtype_decl(Parser* p) {
                      }
                      if(decl->target_type) {
                          decl->target_type_expr=parser_build_type_expr(p,decl->target_type,&target_type_start,&p->previous,0);
-                         if(!decl->target_type_expr) { ast_destroy((ASTNode*)decl); return NULL; }
+                         if(!decl->target_type_expr) {
+                             error_at(p,&p->previous,ERR_PARSER_UNEXPECTED_TOKEN,
+                                 "Invalid recursive type expression in newtype declaration.");
+                             ast_destroy((ASTNode*)decl);
+                             return NULL;
+                         }
                      }
                  }
         } else {
