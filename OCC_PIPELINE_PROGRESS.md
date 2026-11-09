@@ -1288,3 +1288,11 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 
 
 - **CI doğrulaması:** Workflow `42497533312` tüm 5 işi başarıyla tamamladı (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). Ubuntu CTest: 60/60. İlk iki CI denemesinde ortaya çıkan zorunlu OIR field-slot ve hard-qualified array test beklentisi hataları düzeltildi; başarılı run bu düzeltmelerin tamamını içeriyor.
+
+
+## 12. Callback / function type takip notu (2026-11-09)
+
+- `AST_TYPE_FUNCTION` modelinin parser üretimi mevcut; function-type alias, legacy `>` dönüş yazımı, nested callback parametresi ve fonksiyon parametresinde callback AST'si `test_function_type_alias_and_callback_parameter()` tarafından kontrol ediliyor. AST codec round-trip ve `ast_validate()` de bu testte yer alıyor.
+- `docs/language/syntax-reference.md` §16'ya callback alias, doğrudan callback parametresi, callback çağrısı, nested signature ve array hedef yazımları örnekleri eklendi.
+- **Açık kalan:** callback parametre/return array suffix'leri `parser_parse_function_type_signature()` içinde şu an parse edilip geçiliyor; `parser_build_function_type_expr()` ise spelling içindeki `[` için reddediyor. Bu nedenle §16.5 array callback örnekleri henüz çalışan özellik olarak işaretlenmemeli. Sonraki iş: boyutları signature metninden kayıpsız koruyup ASTTypeExpr/ASTArrayType ilişkisine bağlamak, round-trip + pozitif/negatif test eklemek.
+- ABI/calling convention ve callback compatibility Semantic/backend sınırında; parser bunları doğruluyor kabul edilmez.
