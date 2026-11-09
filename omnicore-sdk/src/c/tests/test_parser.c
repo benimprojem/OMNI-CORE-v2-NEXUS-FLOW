@@ -3107,11 +3107,3116 @@ static int test_callback_parameter_exact_source_spans(void) {
             first->type_expr->source_span.end_offset ==
                 (uint64_t)(first_text - source) + strlen("first!u8[16]");
     }
+#include "parser.h"
+#include "ast.h"
+#include "lexer.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static int write_invalid_source(const char* path) {
+    static const char source[] = "v:x = ;\n";
+    FILE* file = fopen(path, "wb");
+    if (!file) return 0;
+    int ok = fwrite(source, 1, sizeof(source) - 1u, file) == sizeof(source) - 1u;
+    if (fclose(file) != 0) ok = 0;
+    return ok;
+}
+
+static int write_invalid_second_line_source(const char* path) {
+    static const char source[] = "v:x = 1;\nv:x = ;\n";
+    FILE* file = fopen(path, "wb");
+    if (!file) return 0;
+    int ok = fwrite(source, 1, sizeof(source) - 1u, file) == sizeof(source) - 1u;
+    if (fclose(file) != 0) ok = 0;
+    return ok;
+}
+
+static int write_invalid_lexical_source(const char* path) {
+    static const char source[] = "v:x = \xC2\xA7;\n";
+    FILE* file = fopen(path, "wb");
+    if (!file) return 0;
+    int ok = fwrite(source, 1, sizeof(source) - 1u, file) == sizeof(source) - 1u;
+    if (fclose(file) != 0) ok = 0;
+    return ok;
+}
+
+static int test_cast_and_panic_ast(void) {
+    static const char source[] =
+        "f:main() { v:x = cast(1, i32); panic(\"boom\"); }";
+    ParserContext* ctx = parser_init_source(
+        "cast-panic-test.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTVarDecl* variable;
+    ASTCast* cast;
+    ASTPanic* panic;
+    int ok = 0;
+    const char* cast_start = strstr(source, "cast");
+    const char* cast_end = cast_start ? strstr(cast_start, "i32)") : NULL;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK || parser_get_status(ctx) != PARSER_STATUS_OK || ctx->error_count != 0 || !ctx->ast_root) goto done;
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL) goto done;
+    body = (ASTBlock*)function->body;
+    if (!body || body->base.type != AST_BLOCK) goto done;
+    variable = (ASTVarDecl*)body->statements;
+    if (!variable || variable->base.type != AST_VAR_DECL ||
+        !variable->initializer || variable->initializer->type != AST_CAST) goto done;
+    cast = (ASTCast*)variable->initializer;
+    if (!cast->value || cast->value->type != AST_LITERAL ||
+        !cast->target_type || cast->target_type->type != AST_IDENTIFIER ||
+        strcmp(((ASTIdentifier*)cast->target_type)->name, "i32") != 0 ||
+        !cast->base.source_span.has_location || !cast_start || !cast_end ||
+        cast->base.source_span.start_offset != (uint64_t)(cast_start - source) ||
+        cast->base.source_span.end_offset != (uint64_t)(cast_end + 4 - source)) goto done;
+    panic = (ASTPanic*)variable->base.next;
+    if (!panic || panic->base.type != AST_PANIC ||
+        !panic->message || strcmp(panic->message, "\"boom\"") != 0) goto done;
+    ok = 1;
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_parser_rejects_excessive_expression_nesting(void) {
+    enum { NESTING = 300 };
+    char source[2 * NESTING + 32];
+    size_t offset = 0u;
+    ParserContext* ctx;
+    int result;
+    int ok;
+
+    memcpy(source + offset, "v:x = ", 6u);
+    offset += 6u;
+    for (int i = 0; i < NESTING; ++i) source[offset++] = '(';
+    source[offset++] = '1';
+    for (int i = 0; i < NESTING; ++i) source[offset++] = ')';
+    source[offset++] = ';';
+
+    ctx = parser_init_source("deep-expression.nxf",
+        (const uint8_t*)source, offset);
+    if (!ctx) return 0;
+
+    result = parser_run(ctx);
+    ok = result == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+        ctx->ast_root != NULL && ctx->error_count > 0;
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_parser_rejects_excessive_operator_chain(void) {
+    enum { OPERATORS = 100 };
+    char source[OPERATORS * 2 + 32];
+    size_t offset = 0u;
+    ParserContext* ctx;
+    int result;
+    int ok;
+
+    memcpy(source + offset, "v:x = 1", 7u);
+    offset += 7u;
+    for (int i = 0; i < OPERATORS; ++i) {
+        source[offset++] = '+';
+        source[offset++] = '1';
+    }
+    source[offset++] = ';';
+
+    ctx = parser_init_source("deep-operator-chain.nxf",
+        (const uint8_t*)source, offset);
+    if (!ctx) return 0;
+    result = parser_run(ctx);
+    ok = result == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+        ctx->ast_root != NULL && ctx->error_count > 0;
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int parser_source_reports_syntax_error(
+    const char* filename, const char* source, size_t source_length
+) {
+    ParserContext* ctx = parser_init_source(
+        filename, (const uint8_t*)source, source_length);
+    int result;
+    int ok;
+    if (!ctx) return 0;
+    result = parser_run(ctx);
+    ok = result == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+        ctx->ast_root != NULL && ctx->error_count > 0;
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_parser_bounds_recursive_expression_forms(void) {
+    enum { DEPTH = 300 };
+    char unary_source[DEPTH + 32];
+    char assignment_source[DEPTH * 2 + 32];
+    char postfix_source[DEPTH * 2 + 32];
+    char block_source[DEPTH * 2 + 32];
+    size_t unary_length = 0u;
+    size_t assignment_length = 0u;
+    size_t postfix_length = 0u;
+    size_t block_length = 0u;
+
+    memcpy(unary_source + unary_length, "v:x = ", 6u);
+    unary_length += 6u;
+    for (int i = 0; i < DEPTH; ++i) unary_source[unary_length++] = '!';
+    unary_source[unary_length++] = '1';
+    unary_source[unary_length++] = ';';
+
+    memcpy(assignment_source + assignment_length, "v:x = 1", 7u);
+    assignment_length += 7u;
+    for (int i = 0; i < DEPTH; ++i) {
+        assignment_source[assignment_length++] = '=';
+        assignment_source[assignment_length++] = '1';
+    }
+    assignment_source[assignment_length++] = ';';
+
+    memcpy(postfix_source + postfix_length, "v:x = a", 7u);
+    postfix_length += 7u;
+    for (int i = 0; i < DEPTH; ++i) {
+        postfix_source[postfix_length++] = '.';
+        postfix_source[postfix_length++] = 'b';
+    }
+    postfix_source[postfix_length++] = ';';
+
+    memcpy(block_source + block_length, "f:main() {", 10u);
+    block_length += 10u;
+    for (int i = 0; i < DEPTH; ++i) block_source[block_length++] = '{';
+    block_source[block_length++] = ';';
+    for (int i = 0; i < DEPTH + 1; ++i) block_source[block_length++] = '}';
+
+    return parser_source_reports_syntax_error(
+            "deep-unary.nxf", unary_source, unary_length) &&
+        parser_source_reports_syntax_error(
+            "deep-assignment.nxf", assignment_source, assignment_length) &&
+        parser_source_reports_syntax_error(
+            "deep-postfix.nxf", postfix_source, postfix_length) &&
+        parser_source_reports_syntax_error(
+            "deep-blocks.nxf", block_source, block_length);
+}
+
+static int test_parser_context_initialization(void) {
+    static const uint8_t empty_source[] = "";
+    ParserContext* memory = parser_init_source("empty.nxf", empty_source, 0u);
+    ParserContext* missing = parser_init(NULL);
+    ParserContext* status_ctx = (ParserContext*)1;
+    ParserStatus invalid_status = parser_init_source_ex("bad.nxf", NULL, 1u, &status_ctx);
+    ParserStatus io_status = parser_init_ex("__omni_core_missing_parser_input__.nxf", &status_ctx);
+    ParserStatus argument_status = parser_init_ex(NULL, &status_ctx);
+    int ok = memory != NULL && missing == NULL &&
+        invalid_status == PARSER_STATUS_INVALID_ARGUMENT && status_ctx == NULL &&
+        io_status == PARSER_STATUS_IO_ERROR && status_ctx == NULL &&
+        argument_status == PARSER_STATUS_INVALID_ARGUMENT && status_ctx == NULL;
+    if (memory) {
+        ok = ok && memory->source_buffer != NULL &&
+            memory->source_len == 0u && memory->pos == 0u &&
+            memory->current_line == 1 && memory->current_col == 1 &&
+            memory->token_start_offset == 0u &&
+            memory->token_start_line == 1 && memory->token_start_col == 1 &&
+            memory->ast_root == NULL && memory->error_count == 0 &&
+            memory->error_head == NULL && memory->error_tail == NULL &&
+            memory->file_handle == NULL && memory->token_stream == NULL &&
+            memory->token_stream_count == 0u && memory->token_stream_index == 0u &&
+            memory->status == PARSER_STATUS_OK;
+        parser_destroy(memory); /* Destroying a context before parser_run is valid. */
+    }
+    return ok;
+}
+
+static int test_aggregate_declaration_ast(void) {
+    static const char source[] =
+        "f:main() {"
+        " struct: Point { v:x!i32, v:y!i32 }"
+        " nt:id = u64;"
+        " enum:State { Idle, Running(pid!u32), Error(code!u16) }"
+        " union:Register32 { v:full!u32, v:parts!u16 }"
+        "}";
+    ParserContext* ctx = parser_init_source(
+        "aggregate-declarations.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* node;
+    int seen_struct = 0, seen_newtype = 0, seen_enum = 0, seen_union = 0;
+    const char* struct_start = strstr(source, "struct: Point");
+    const char* field_x = strstr(source, "v:x!i32");
+    const char* field_y = strstr(source, "v:y!i32");
+    const char* newtype_start = strstr(source, "nt:id");
+    const char* newtype_end = strstr(source, "u64;");
+    const char* enum_start = strstr(source, "enum:State");
+    const char* enum_idle = strstr(source, "Idle");
+    const char* enum_running = strstr(source, "Running");
+    const char* enum_data = strstr(source, "pid!u32");
+    const char* union_start = strstr(source, "union:Register32");
+    const char* union_field = strstr(source, "v:full!u32");
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != 0 || ctx->error_count != 0 || !ctx->ast_root) goto done;
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL) goto done;
+    body = (ASTBlock*)function->body;
+    if (!body || body->base.type != AST_BLOCK) goto done;
+    for (node = body->statements; node; node = node->next) {
+        if (node->type == AST_STRUCT_DECL) {
+            ASTStructDecl* d = (ASTStructDecl*)node;
+            const char* struct_close = struct_start ? strchr(struct_start, '}') : NULL;
+            if (!d->name || !d->fields || !d->fields->next ||
+                !d->base.source_span.has_location ||
+                d->base.source_span.start_offset != (uint64_t)(struct_start - source) ||
+                d->base.source_span.end_offset != (uint64_t)(struct_close + 1 - source) ||
+                !d->fields->source_span.has_location ||
+                d->fields->source_span.start_offset != (uint64_t)(field_x - source) ||
+                d->fields->source_span.end_offset != (uint64_t)(field_x + 7 - source) ||
+                !d->fields->next->source_span.has_location ||
+                d->fields->next->source_span.start_offset != (uint64_t)(field_y - source) ||
+                d->fields->next->source_span.end_offset != (uint64_t)(field_y + 7 - source)) {
+                fprintf(stderr, "struct spans root=%llu..%llu expected=%llu..%llu field1=%llu..%llu expected=%llu..%llu field2=%llu..%llu expected=%llu..%llu\n",
+                    (unsigned long long)d->base.source_span.start_offset,
+                    (unsigned long long)d->base.source_span.end_offset,
+                    (unsigned long long)(struct_start-source),
+                    (unsigned long long)(struct_close+1-source),
+                    (unsigned long long)d->fields->source_span.start_offset,
+                    (unsigned long long)d->fields->source_span.end_offset,
+                    (unsigned long long)(field_x-source),
+                    (unsigned long long)(field_x+7-source),
+                    (unsigned long long)d->fields->next->source_span.start_offset,
+                    (unsigned long long)d->fields->next->source_span.end_offset,
+                    (unsigned long long)(field_y-source),
+                    (unsigned long long)(field_y+7-source));
+                goto done;
+            }
+            seen_struct = 1;
+        } else if (node->type == AST_NEWTYPE_DECL) {
+            ASTNewTypeDecl* d = (ASTNewTypeDecl*)node;
+            if (!d->name || !d->target_type ||
+                !d->base.source_span.has_location ||
+                d->base.source_span.start_offset != (uint64_t)(newtype_start - source) ||
+                d->base.source_span.end_offset != (uint64_t)(newtype_end + 4 - source)) {
+                fprintf(stderr, "newtype span=%llu..%llu expected=%llu..%llu\n",
+                    (unsigned long long)d->base.source_span.start_offset,
+                    (unsigned long long)d->base.source_span.end_offset,
+                    (unsigned long long)(newtype_start-source),
+                    (unsigned long long)(newtype_end+4-source));
+                goto done;
+            }
+            seen_newtype = 1;
+        } else if (node->type == AST_ENUM_DECL) {
+            ASTEnumDecl* d = (ASTEnumDecl*)node;
+            ASTEnumVariant* v;
+            const char* enum_close = enum_start ? strchr(enum_start, '}') : NULL;
+            if (!d->name || !d->variants || !d->base.source_span.has_location ||
+                d->base.source_span.start_offset != (uint64_t)(enum_start - source) ||
+                d->base.source_span.end_offset != (uint64_t)(enum_close + 1 - source)) {
+                fprintf(stderr, "enum root span=%llu..%llu expected=%llu..%llu\n",
+                    (unsigned long long)d->base.source_span.start_offset,
+                    (unsigned long long)d->base.source_span.end_offset,
+                    (unsigned long long)(enum_start-source),
+                    (unsigned long long)(enum_close+1-source));
+                goto done;
+            }
+            v = (ASTEnumVariant*)d->variants;
+            if (!v->base.next || !((ASTEnumVariant*)v->base.next)->data ||
+                !v->base.source_span.has_location ||
+                v->base.source_span.start_offset != (uint64_t)(enum_idle - source) ||
+                v->base.source_span.end_offset != (uint64_t)(enum_idle + 4 - source) ||
+                !v->base.next->source_span.has_location ||
+                v->base.next->source_span.start_offset != (uint64_t)(enum_running - source) ||
+                v->base.next->source_span.end_offset != (uint64_t)(enum_data + 8 - source) ||
+                !((ASTEnumVariant*)v->base.next)->data->source_span.has_location ||
+                ((ASTEnumVariant*)v->base.next)->data->source_span.start_offset != (uint64_t)(enum_data - source) ||
+                ((ASTEnumVariant*)v->base.next)->data->source_span.end_offset != (uint64_t)(enum_data + 7 - source)) {
+                fprintf(stderr, "enum variants idle=%llu..%llu running=%llu..%llu data=%llu..%llu\n",
+                    (unsigned long long)v->base.source_span.start_offset,
+                    (unsigned long long)v->base.source_span.end_offset,
+                    (unsigned long long)v->base.next->source_span.start_offset,
+                    (unsigned long long)v->base.next->source_span.end_offset,
+                    (unsigned long long)((ASTEnumVariant*)v->base.next)->data->source_span.start_offset,
+                    (unsigned long long)((ASTEnumVariant*)v->base.next)->data->source_span.end_offset);
+                goto done;
+            }
+            seen_enum = 1;
+        } else if (node->type == AST_UNION_DECL) {
+            ASTStructDecl* d = (ASTStructDecl*)node;
+            if (!d->name || !d->fields || !d->base.source_span.has_location ||
+                d->base.source_span.start_offset != (uint64_t)(union_start - source) ||
+                !d->fields->source_span.has_location ||
+                d->fields->source_span.start_offset != (uint64_t)(union_field - source) ||
+                d->fields->source_span.end_offset != (uint64_t)(union_field + 10 - source)) {
+                fprintf(stderr, "union span root=%llu..%llu field=%llu..%llu expected=%llu..%llu\n",
+                    (unsigned long long)d->base.source_span.start_offset,
+                    (unsigned long long)d->base.source_span.end_offset,
+                    (unsigned long long)d->fields->source_span.start_offset,
+                    (unsigned long long)d->fields->source_span.end_offset,
+                    (unsigned long long)(union_field-source),
+                    (unsigned long long)(union_field+10-source));
+                goto done;
+            }
+            seen_union = 1;
+        }
+    }
+    ok = seen_struct && seen_newtype && seen_enum && seen_union;
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_rejects_invalid_aggregate_members(void) {
+    static const char* sources[] = {
+        "f:main() { struct:Broken { ; } }",
+        "f:main() { enum:Broken { ; } }",
+        "f:main() { group Broken { ; } }"
+    };
+    size_t i;
+    for (i = 0; i < sizeof(sources) / sizeof(sources[0]); ++i) {
+        ParserContext* ctx = parser_init_source("invalid-aggregate-member.nxf",
+            (const uint8_t*)sources[i], strlen(sources[i]));
+        int rejected;
+        if (!ctx) return 0;
+        rejected = parser_run(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+            parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+            ctx->error_count > 0 && ctx->ast_root != NULL;
+        parser_destroy(ctx);
+        if (!rejected) return 0;
+    }
+    return 1;
+}
+
+static int test_parser_panic_mode_recovers_at_statement_boundaries(void) {
+    static const char source[] =
+        "f:main() {"
+        " v:first = ;"
+        " v:second = ;"
+        " v:good = 3;"
+        "}";
+    ParserContext* ctx = parser_init_source(
+        "parser-panic-recovery.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    OccDiagnosticCollector diagnostics;
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* statement;
+    size_t diagnostic_count;
+    int found_good = 0;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    occ_diagnostics_init(&diagnostics);
+    parser_attach_diagnostics(ctx, &diagnostics, OCC_STAGE_PARSER);
+    if (parser_run(ctx) != PARSER_STATUS_SYNTAX_ERROR || !ctx->ast_root) goto done;
+
+    diagnostic_count = occ_diagnostics_count(&diagnostics);
+    if (diagnostic_count < 2u) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL) goto done;
+    body = (ASTBlock*)function->body;
+    if (!body || body->base.type != AST_BLOCK) goto done;
+
+    for (statement = body->statements; statement; statement = statement->next) {
+        if (statement->type == AST_VAR_DECL) {
+            ASTVarDecl* variable = (ASTVarDecl*)statement;
+            if (variable->name && strcmp(variable->name, "good") == 0 &&
+                variable->initializer && variable->initializer->type == AST_LITERAL) {
+                found_good = 1;
+            }
+        }
+    }
+    ok = found_good;
+
+done:
+    parser_destroy(ctx);
+    occ_diagnostics_destroy(&diagnostics);
+    return ok;
+}
+
+static int test_parser_nested_block_recovery(void) {
+    static const char source[] =
+        "f:main() {"
+        " { v:broken = ; v:inside_good = 4; }"
+        " v:after = 5;"
+        "}";
+    ParserContext* ctx = parser_init_source(
+        "parser-nested-recovery.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* outer;
+    ASTBlock* nested;
+    ASTNode* statement;
+    int found_inside = 0;
+    int found_after = 0;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_SYNTAX_ERROR || !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL ||
+        !function->body || function->body->type != AST_BLOCK) goto done;
+    outer = (ASTBlock*)function->body;
+
+    for (statement = outer->statements; statement; statement = statement->next) {
+        if (statement->type == AST_BLOCK) {
+            ASTNode* inner_statement;
+            nested = (ASTBlock*)statement;
+            for (inner_statement = nested->statements; inner_statement;
+                 inner_statement = inner_statement->next) {
+                if (inner_statement->type == AST_VAR_DECL) {
+                    ASTVarDecl* variable = (ASTVarDecl*)inner_statement;
+                    if (variable->name && strcmp(variable->name, "inside_good") == 0 &&
+                        variable->initializer &&
+                        variable->initializer->type == AST_LITERAL) {
+                        found_inside = 1;
+                    }
+                }
+            }
+        } else if (statement->type == AST_VAR_DECL) {
+            ASTVarDecl* variable = (ASTVarDecl*)statement;
+            if (variable->name && strcmp(variable->name, "after") == 0 &&
+                variable->initializer && variable->initializer->type == AST_LITERAL) {
+                found_after = 1;
+            }
+        }
+    }
+    ok = found_inside && found_after;
+
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_nested_block_exact_source_spans(void) {
+    static const char source[] =
+        "f:main() {\n"
+        "  {\n"
+        "    v:x = 1;\n"
+        "  }\n"
+        "}";
+    const char* outer_open=strchr(source,'{');
+    const char* outer_close=strrchr(source,'}');
+    const char* nested_open=outer_open?strchr(outer_open+1,'{'):NULL;
+    const char* nested_close=nested_open?strchr(nested_open,'}'):NULL;
+    ParserContext* parser=parser_init_source("nested-block-spans.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTNode* decoded=NULL;
+    FILE* stream=NULL;
+    int valid=0;
+    if(!parser) return 0;
+    if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count!=0 ||
+       !parser->ast_root || !ast_validate(parser->ast_root,NULL) ||
+       !outer_open || !outer_close || !nested_open || !nested_close) goto done;
+    {
+        ASTFuncDecl* function=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        ASTBlock* outer=function && function->body && function->body->type==AST_BLOCK
+            ? (ASTBlock*)function->body:NULL;
+        ASTBlock* nested=outer && outer->statements &&
+            outer->statements->type==AST_BLOCK?(ASTBlock*)outer->statements:NULL;
+        ASTVarDecl* value=nested && nested->statements &&
+            nested->statements->type==AST_VAR_DECL?(ASTVarDecl*)nested->statements:NULL;
+        valid=outer && nested && value && value->name &&
+            strcmp(value->name,"x")==0 &&
+            outer->base.source_span.has_location &&
+            outer->base.source_span.start_offset==(uint64_t)(outer_open-source) &&
+            outer->base.source_span.end_offset==(uint64_t)(outer_close+1-source) &&
+            outer->base.source_span.start_line==1u &&
+            outer->base.source_span.end_line==5u &&
+            outer->base.source_span.start_column==10u &&
+            outer->base.source_span.end_column==2u &&
+            nested->base.source_span.has_location &&
+            nested->base.source_span.start_offset==(uint64_t)(nested_open-source) &&
+            nested->base.source_span.end_offset==(uint64_t)(nested_close+1-source) &&
+            nested->base.source_span.start_line==2u &&
+            nested->base.source_span.end_line==4u &&
+            nested->base.source_span.start_column==3u &&
+            nested->base.source_span.end_column==4u;
+    }
+    if(!valid) goto done;
+    stream=tmpfile();
+    if(!stream || !ast_serialize(parser->ast_root,stream) ||
+       fseek(stream,0L,SEEK_SET)!=0) goto done;
+    decoded=ast_deserialize(stream);
+    if(!decoded || !ast_validate(decoded,NULL)) goto done;
+    {
+        ASTFuncDecl* function=(ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+        ASTBlock* outer=function && function->body?(ASTBlock*)function->body:NULL;
+        ASTBlock* nested=outer && outer->statements?(ASTBlock*)outer->statements:NULL;
+        valid=outer && nested &&
+            outer->base.source_span.start_offset==(uint64_t)(outer_open-source) &&
+            outer->base.source_span.end_offset==(uint64_t)(outer_close+1-source) &&
+            nested->base.source_span.start_offset==(uint64_t)(nested_open-source) &&
+            nested->base.source_span.end_offset==(uint64_t)(nested_close+1-source);
+    }
+done:
+    if(!valid) fprintf(stderr,"Nested block exact source-span/codec test failed.\n");
+    if(stream) fclose(stream);
+    if(decoded) ast_destroy(decoded);
     parser_destroy(parser);
     return valid;
 }
 
-static int test_null_and_numeric_literal_ast(void) {
+static int test_parser_malformed_function_recovery(void) {
+    static const char source[] =
+        "f:broken(, value) { v:discarded = 1; }"
+        "f:missing( f:good() { v:kept = 2; }";
+    ParserContext* ctx = parser_init_source(
+        "parser-malformed-function-recovery.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTNode* declaration;
+    int found_good = 0;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_SYNTAX_ERROR || !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    for (declaration = program->declarations; declaration;
+         declaration = declaration->next) {
+        if (declaration->type == AST_FUNC_DECL) {
+            ASTFuncDecl* function = (ASTFuncDecl*)declaration;
+            if (function->name && strcmp(function->name, "good") == 0 &&
+                function->body && function->body->type == AST_BLOCK) {
+                ASTNode* statement;
+                for (statement = ((ASTBlock*)function->body)->statements;
+                     statement; statement = statement->next) {
+                    if (statement->type == AST_VAR_DECL) {
+                        ASTVarDecl* variable = (ASTVarDecl*)statement;
+                        if (variable->name && strcmp(variable->name, "kept") == 0 &&
+                            variable->initializer &&
+                            variable->initializer->type == AST_LITERAL) {
+                            found_good = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ok = found_good;
+
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_parser_preserves_lexer_errors_during_recovery(void) {
+    static const char source[] =
+        "f:main() { v:broken = ; $ v:good = 3; }";
+    ParserContext* ctx = parser_init_source(
+        "parser-recovery-lexer-error.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    OccDiagnosticCollector diagnostics;
+    OccDiagnosticView diagnostic;
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* statement;
+    int found_good = 0;
+    int found_lexer_error = 0;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    occ_diagnostics_init(&diagnostics);
+    parser_attach_diagnostics(ctx, &diagnostics, OCC_STAGE_PARSER);
+    if (parser_run(ctx) != PARSER_STATUS_SYNTAX_ERROR || !ctx->ast_root) goto done;
+
+    {
+        size_t diagnostic_index;
+        for (diagnostic_index = 0u;
+             diagnostic_index < occ_diagnostics_count(&diagnostics);
+             ++diagnostic_index) {
+            if (occ_diagnostics_get(&diagnostics, diagnostic_index, &diagnostic) &&
+                diagnostic.record->stage_id == OCC_STAGE_LEXER) {
+                found_lexer_error = 1;
+                break;
+            }
+        }
+    }
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK) goto done;
+    body = (ASTBlock*)function->body;
+    for (statement = body->statements; statement; statement = statement->next) {
+        if (statement->type == AST_VAR_DECL) {
+            ASTVarDecl* variable = (ASTVarDecl*)statement;
+            if (variable->name && strcmp(variable->name, "good") == 0 &&
+                variable->initializer && variable->initializer->type == AST_LITERAL) {
+                found_good = 1;
+            }
+        }
+    }
+    ok = found_lexer_error && found_good;
+
+done:
+    parser_destroy(ctx);
+    occ_diagnostics_destroy(&diagnostics);
+    return ok;
+}
+
+static int test_parser_allocation_failure_injection(void) {
+    static const char source[] =
+        "f:main(a!i32, b!i64) {"
+        " v:first = a + b;"
+        " { v:inner = combine(first, b:7); }"
+        " v:pair = (first, b);"
+        " struct: Point { v:x!i32, v:y!i32 }"
+        " v:p!Point = Point { y = 2, x = 1 };"
+        " nt:Callback = f:(buffer!u8[16], matrix!i32[4][4], dynamic!u8[])!u8[8];"
+        " nt:id = u64;"
+        " nt:enum: State { Idle, Running(pid!u32), Error(code!u16) }"
+        " union:Register32 { v:full!u32, v:parts!u16 }"
+        " group db { open => f:(path!str) { ret; } default { ret; } }"
+        " v:casted = cast(1, i32);"
+        " panic(\"boom\");"
+        " ?? \"inspect\";"
+        " ret;"
+        "}";
+    size_t fail_at;
+    size_t oom_count=0u;
+    int reached_success=0;
+    for(fail_at=1u;fail_at<=512u;++fail_at) {
+        ParserContext* ctx=parser_init_source("parser-oom-injection.nxf",
+            (const uint8_t*)source,sizeof(source)-1u);
+        int result;
+        ParserStatus status;
+        if(!ctx) return 0;
+        parser_test_fail_allocation_at(ctx,fail_at);
+        result=parser_run(ctx);
+        status=parser_get_status(ctx);
+        if(status==PARSER_STATUS_OUT_OF_MEMORY &&
+           result==PARSER_STATUS_OUT_OF_MEMORY &&
+           ctx->test_allocation_count>=fail_at) {
+            ++oom_count;
+            parser_destroy(ctx);
+            continue;
+        }
+        if(status==PARSER_STATUS_OK && result==PARSER_STATUS_OK &&
+           ctx->test_allocation_count<fail_at) {
+            reached_success=1;
+            parser_destroy(ctx);
+            break;
+        }
+        fprintf(stderr,
+            "OOM injection mismatch at allocation %zu (observed %zu, status %d, result %d).\\n",
+            fail_at,ctx->test_allocation_count,(int)status,result);
+        parser_destroy(ctx);
+        return 0;
+    }
+    return oom_count>0u && reached_success;
+}
+
+static int test_struct_literal_parser_source_spans(void) {
+    /* Struct literal parser shape: named fields retain source order. */
+    {
+        static const uint8_t source[] =
+            "f:main() { v:p!Point = Point { y = 2, x = 1 }; }";
+        ParserContext* parser = parser_init_source("<struct-literal>", source,
+            sizeof(source) - 1u);
+        ASTFuncDecl* function;
+        ASTNode* statement;
+        ASTVarDecl* variable;
+        ASTStructLiteral* literal;
+        ASTStructFieldInit* first;
+        ASTStructFieldInit* second;
+        const char* literal_start=(const char*)source;
+        const char* literal_name=literal_start?strstr(literal_start,"Point {"):NULL;
+        const char* literal_close=literal_name?strchr(literal_name,'}'):NULL;
+        const char* first_start=literal_name?strstr(literal_name,"y = 2"):NULL;
+        const char* second_start=literal_name?strstr(literal_name,"x = 1"):NULL;
+        const char* first_value=first_start?strchr(first_start,'2'):NULL;
+        const char* second_value=second_start?strchr(second_start,'1'):NULL;
+        int valid = parser && parser_run(parser) == PARSER_STATUS_OK &&
+            parser->error_count == 0 && parser->ast_root;
+        if (valid) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            statement = function && function->body && function->body->type == AST_BLOCK
+                ? ((ASTBlock*)function->body)->statements : NULL;
+            variable = statement && statement->type == AST_VAR_DECL
+                ? (ASTVarDecl*)statement : NULL;
+            literal = variable && variable->initializer &&
+                variable->initializer->type == AST_STRUCT_LITERAL
+                ? (ASTStructLiteral*)variable->initializer : NULL;
+            first = literal && literal->fields &&
+                literal->fields->type == AST_STRUCT_FIELD_INIT
+                ? (ASTStructFieldInit*)literal->fields : NULL;
+            second = first && first->base.next &&
+                first->base.next->type == AST_STRUCT_FIELD_INIT
+                ? (ASTStructFieldInit*)first->base.next : NULL;
+            valid = literal && literal->type_name &&
+                strcmp(literal->type_name, "Point") == 0 &&
+                literal_name && literal_close && literal->base.source_span.has_location &&
+                literal->base.source_span.start_offset==(uint64_t)(literal_name-literal_start) &&
+                literal->base.source_span.end_offset==(uint64_t)(literal_close+1-literal_start) &&
+                literal->base.source_span.start_column==(uint32_t)(literal_name-literal_start)+1u &&
+                literal->base.source_span.end_column==(uint32_t)(literal_close+1-literal_start)+1u &&
+                first && strcmp(first->name, "y") == 0 && first->value &&
+                first_start && first_value && first->base.source_span.has_location &&
+                first->base.source_span.start_offset==(uint64_t)(first_start-literal_start) &&
+                first->base.source_span.end_offset==(uint64_t)(first_value+1-literal_start) &&
+                first->base.source_span.start_column==(uint32_t)(first_start-literal_start)+1u &&
+                first->base.source_span.end_column==(uint32_t)(first_value+1-literal_start)+1u &&
+                second && strcmp(second->name, "x") == 0 && second->value &&
+                second_start && second_value && second->base.source_span.has_location &&
+                second->base.source_span.start_offset==(uint64_t)(second_start-literal_start) &&
+                second->base.source_span.end_offset==(uint64_t)(second_value+1-literal_start) &&
+                second->base.source_span.start_column==(uint32_t)(second_start-literal_start)+1u &&
+                second->base.source_span.end_column==(uint32_t)(second_value+1-literal_start)+1u &&
+                second->base.next == NULL && ast_validate(parser->ast_root,NULL);
+        }
+        if (parser) parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Struct literal parser AST test failed.\\n");
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int test_function_parameter_type_separator_forms(void) {
+    static const char source[] =
+        "f:forms(a:f32, b!f32, d:!f32) { ret 1; }";
+    ParserContext* ctx = parser_init_source(
+        "function-parameter-type-forms.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTVarDecl* a;
+    ASTVarDecl* b;
+    ASTVarDecl* c;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        parser_get_status(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL ||
+        !function->params || function->params->type != AST_VAR_DECL) goto done;
+    a = (ASTVarDecl*)function->params;
+    b = (ASTVarDecl*)a->base.next;
+    c = b ? (ASTVarDecl*)b->base.next : NULL;
+    if (!b || !c || c->base.next ||
+        strcmp(a->name, "a") != 0 || strcmp(a->type_name, "f32") != 0 ||
+        a->is_hard_typed ||
+        strcmp(b->name, "b") != 0 || strcmp(b->type_name, "!f32") != 0 ||
+        !b->is_hard_typed ||
+        strcmp(c->name, "d") != 0 || strcmp(c->type_name, "!f32") != 0 ||
+        !c->is_hard_typed) goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    if (ok) {
+        static const char invalid_source[] = "f:bad(a f32) { ret 1; }";
+        ParserContext* invalid = parser_init_source(
+            "function-parameter-missing-separator.nxf",
+            (const uint8_t*)invalid_source, sizeof(invalid_source) - 1u);
+        if (!invalid) return 0;
+        ok = parser_run(invalid) == PARSER_STATUS_SYNTAX_ERROR &&
+            parser_get_status(invalid) == PARSER_STATUS_SYNTAX_ERROR &&
+            invalid->error_count > 0;
+        parser_destroy(invalid);
+    }
+    return ok;
+}
+
+static int test_structured_if_elsif_els_ast(void) {
+    static const char source[] =
+        "f:main() {"
+        " if (a == b) { v:first = 1; }"
+        " elsif (a >= 1) v:second = 2;"
+        " els { v:third = 3; }"
+        " if (a != b) v:fourth = 4;"
+        " els v:fifth = 5;"
+        "}";
+    static const char* const invalid_sources[] = {
+        "f:main() { if (true) }",
+        "f:main() { if (true) {} elsif (false) }",
+        "f:main() { if (true) {} els {} els {} }"
+    };
+    ParserContext* ctx = parser_init_source(
+        "structured-if.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTIf* first;
+    ASTIf* second;
+    ASTIf* simple;
+    const char* first_start=strstr(source,"if (a == b)");
+    const char* elsif_start=strstr(source,"elsif (a >= 1)");
+    const char* first_end_text=strstr(source,"els { v:third = 3; }");
+    const char* first_end=first_end_text?strchr(first_end_text,'}'):NULL;
+    const char* simple_start=strstr(source,"if (a != b)");
+    const char* simple_end_text=strstr(source,"v:fifth = 5;");
+    const char* simple_end=simple_end_text?simple_end_text+strlen("v:fifth = 5;"):NULL;
+    ASTNode* decoded=NULL;
+    FILE* stream=NULL;
+    size_t i;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        parser_get_status(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root ||
+        !ast_validate(ctx->ast_root,NULL)) goto done;
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK) goto done;
+    body = (ASTBlock*)function->body;
+    first = (ASTIf*)body->statements;
+    if (!first || first->base.type != AST_IF || !first->condition ||
+        !first->then_branch || !first->else_branch ||
+        first->then_branch->type != AST_BLOCK) goto done;
+    second = (ASTIf*)first->else_branch;
+    if (second->base.type != AST_IF || !second->condition ||
+        !second->then_branch || !second->else_branch ||
+        second->then_branch->type == AST_BLOCK ||
+        second->else_branch->type != AST_BLOCK) goto done;
+    simple = (ASTIf*)first->base.next;
+    if (!simple || simple->base.type != AST_IF ||
+        !simple->then_branch || !simple->else_branch ||
+        simple->then_branch->type == AST_BLOCK ||
+        simple->else_branch->type == AST_BLOCK) goto done;
+    if(!first_start || !elsif_start || !first_end || !simple_start || !simple_end ||
+       !first->base.source_span.has_location ||
+       first->base.source_span.start_offset!=(uint64_t)(first_start-source) ||
+       first->base.source_span.end_offset!=(uint64_t)(first_end+1-source) ||
+       first->base.source_span.start_column!=(uint32_t)(first_start-source)+1u ||
+       first->base.source_span.end_column!=(uint32_t)(first_end+1-source)+1u ||
+       !second->base.source_span.has_location ||
+       second->base.source_span.start_offset!=(uint64_t)(elsif_start-source) ||
+       second->base.source_span.end_offset!=(uint64_t)(first_end+1-source) ||
+       second->base.source_span.start_column!=(uint32_t)(elsif_start-source)+1u ||
+       second->base.source_span.end_column!=(uint32_t)(first_end+1-source)+1u ||
+       !simple->base.source_span.has_location ||
+       simple->base.source_span.start_offset!=(uint64_t)(simple_start-source) ||
+       simple->base.source_span.end_offset!=(uint64_t)(simple_end-source) ||
+       simple->base.source_span.start_column!=(uint32_t)(simple_start-source)+1u ||
+       simple->base.source_span.end_column!=(uint32_t)(simple_end-source)+1u) goto done;
+    stream=tmpfile();
+    if(!stream || !ast_serialize(ctx->ast_root,stream) || fseek(stream,0,SEEK_SET)!=0)goto done;
+    decoded=ast_deserialize(stream);
+    if(!decoded || !ast_validate(decoded,NULL))goto done;
+    for(i=0u;i<sizeof(invalid_sources)/sizeof(invalid_sources[0]);++i) {
+        if(!parser_source_reports_syntax_error("structured-if-invalid.nxf",
+            invalid_sources[i],strlen(invalid_sources[i]))) goto done;
+    }
+    ok=1;
+done:
+    if(decoded)ast_destroy(decoded);
+    if(stream)fclose(stream);
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_conditional_action_arrow_disambiguation(void) {
+    static const char source[] =
+        "f:main() {"
+        " (a == b) -> break;"
+        " ((c != d)) -> continue;"
+        " (e == f) -> ret 1;"
+        " a == b -> target;"
+        "}";
+    ParserContext* ctx = parser_init_source(
+        "conditional-action-arrow.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTIf* break_action;
+    ASTIf* continue_action;
+    ASTIf* return_action;
+    ASTNexusFlow* ordinary_pipe;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        parser_get_status(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    function = (ASTFuncDecl*)program->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK) goto done;
+    body = (ASTBlock*)function->body;
+
+    break_action = (ASTIf*)body->statements;
+    if (!break_action || break_action->base.type != AST_IF ||
+        !break_action->condition || !break_action->then_branch ||
+        break_action->then_branch->type != AST_BREAK ||
+        break_action->else_branch != NULL) goto done;
+
+    continue_action = (ASTIf*)break_action->base.next;
+    if (!continue_action || continue_action->base.type != AST_IF ||
+        !continue_action->condition || !continue_action->then_branch ||
+        continue_action->then_branch->type != AST_CONTINUE ||
+        continue_action->else_branch != NULL) goto done;
+
+    return_action = (ASTIf*)continue_action->base.next;
+    if (!return_action || return_action->base.type != AST_IF ||
+        !return_action->condition || !return_action->then_branch ||
+        return_action->then_branch->type != AST_RETURN ||
+        return_action->else_branch != NULL) goto done;
+
+    ordinary_pipe = (ASTNexusFlow*)return_action->base.next;
+    if (!ordinary_pipe || ordinary_pipe->base.type != AST_NEXUS_PIPE ||
+        ordinary_pipe->op != TOKEN_PIPE || !ordinary_pipe->left ||
+        !ordinary_pipe->right || ordinary_pipe->right->type != AST_IDENTIFIER) goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_select_scan_ast(void) {
+    static const char source[] =
+        "f:main() { v:x = 1;"
+        " select(x) { 1 when x > 0 -> { v:a = 2; } default -> { v:b = 3; } }"
+        " scan(x) { Range(s,e) when s < e && e > 0 -> { v:c = s; } item -> { v:d = item; } else -> { v:fallback = 0; } }"
+        "}";
+    ParserContext* ctx=parser_init_source("select-scan.nxf",(const uint8_t*)source,sizeof(source)-1u);
+    ASTProgram* program;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* node;
+    FILE* stream;
+    ASTNode* decoded;
+    const char* select_start=strstr(source,"select(x)");
+    const char* select_first_start=strstr(source,"1 when x > 0");
+    const char* select_first_end=strstr(source,"v:a = 2; }");
+    const char* select_fallback_start=strstr(source,"default ->");
+    const char* select_fallback_end=strstr(source,"v:b = 3; }");
+    const char* select_end=strstr(source,"default -> { v:b = 3; } }");
+    const char* scan_start=strstr(source,"scan(x)");
+    const char* scan_first_start=strstr(source,"Range(s,e)");
+    const char* scan_ctor_end=scan_first_start?strchr(scan_first_start,')'):NULL;
+    const char* scan_binding_s=scan_first_start?strchr(scan_first_start,'('):NULL;
+    const char* scan_binding_e=scan_binding_s?strchr(scan_binding_s,','):NULL;
+    const char* scan_second_pattern=strstr(source,"item ->");
+    const char* scan_first_end=strstr(source,"v:c = s; }");
+    const char* scan_else_start=strstr(source,"else ->");
+    const char* scan_else_end=strstr(source,"v:fallback = 0; }");
+    const char* scan_end=strstr(source,"else -> { v:fallback = 0; } }");
+    int ok=0;
+    if(!ctx)return 0;
+    if(!select_start || !select_first_start || !select_first_end ||
+       !select_fallback_start || !select_fallback_end || !select_end ||
+       !scan_start || !scan_first_start || !scan_ctor_end ||
+       !scan_binding_s || !scan_binding_e || !scan_second_pattern ||
+       !scan_first_end || !scan_else_start || !scan_else_end || !scan_end) goto done;
+    select_first_end+=strlen("v:a = 2; }");
+    select_fallback_end+=strlen("v:b = 3; }");
+    select_end+=strlen("default -> { v:b = 3; } }");
+    scan_first_end+=strlen("v:c = s; }");
+    scan_else_end+=strlen("v:fallback = 0; }");
+    scan_end+=strlen("else -> { v:fallback = 0; } }");
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count || !ctx->ast_root)goto done;
+    program=(ASTProgram*)ctx->ast_root;
+    function=(ASTFuncDecl*)program->declarations;
+    if(!function || function->base.type!=AST_FUNC_DECL)goto done;
+    body=(ASTBlock*)function->body;
+    if(!body || body->base.type!=AST_BLOCK)goto done;
+    node=body->statements;
+    if(!node || node->type!=AST_VAR_DECL)goto done;
+    node=node->next;
+    if(!node || node->type!=AST_SELECT)goto done;
+    {
+        ASTSelect* select_node=(ASTSelect*)node;
+        ASTSelectArm* first=(ASTSelectArm*)select_node->arms;
+        ASTSelectArm* fallback=first?(ASTSelectArm*)first->base.next:NULL;
+        if(!select_node->selector || !first || first->base.type!=AST_SELECT_ARM ||
+            !first->pattern || first->pattern->type!=AST_LITERAL ||
+            !first->body || first->body->type!=AST_IF ||
+            !((ASTIf*)first->body)->condition ||
+            ((ASTIf*)first->body)->condition->type!=AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)((ASTIf*)first->body)->condition)->op!=TOKEN_GT ||
+            !fallback || fallback->base.type!=AST_SELECT_ARM || !fallback->is_default ||
+            fallback->pattern!=NULL ||
+            !select_node->base.source_span.has_location ||
+            select_node->base.source_span.start_offset!=(uint64_t)(select_start-source) ||
+            select_node->base.source_span.end_offset!=(uint64_t)(select_end-source) ||
+            !first->base.source_span.has_location ||
+            first->base.source_span.start_offset!=(uint64_t)(select_first_start-source) ||
+            first->base.source_span.end_offset!=(uint64_t)(select_first_end-source) ||
+            !fallback->base.source_span.has_location ||
+            fallback->base.source_span.start_offset!=(uint64_t)(select_fallback_start-source) ||
+            fallback->base.source_span.end_offset!=(uint64_t)(select_fallback_end-source))goto done;
+    }
+    node=node->next;
+    if(!node || node->type!=AST_SCAN)goto done;
+    {
+        ASTScan* scan_node=(ASTScan*)node;
+        ASTScanArm* first=(ASTScanArm*)scan_node->arms;
+        ASTPatternConstructor* ctor;
+        if(!scan_node->subject || !first || first->base.type!=AST_SCAN_ARM ||
+            !first->pattern || first->pattern->type!=AST_PATTERN_CONSTRUCTOR ||
+            !first->body || first->body->type!=AST_IF ||
+            !((ASTIf*)first->body)->condition ||
+            ((ASTIf*)first->body)->condition->type!=AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)((ASTIf*)first->body)->condition)->op!=TOKEN_AND)goto done;
+        ctor=(ASTPatternConstructor*)first->pattern;
+        if(strcmp(ctor->name,"Range")!=0 || !ctor->bindings ||
+            ctor->bindings->type!=AST_PATTERN_BINDING ||
+            strcmp(((ASTPatternBinding*)ctor->bindings)->name,"s")!=0 ||
+            !ctor->bindings->next ||
+            strcmp(((ASTPatternBinding*)ctor->bindings->next)->name,"e")!=0 ||
+            !ctor->base.source_span.has_location ||
+            ctor->base.source_span.start_offset!=(uint64_t)(scan_first_start-source) ||
+            ctor->base.source_span.end_offset!=(uint64_t)(scan_ctor_end+1-source) ||
+            ((ASTPatternBinding*)ctor->bindings)->base.source_span.start_offset!=(uint64_t)(scan_binding_s+1-source) ||
+            ((ASTPatternBinding*)ctor->bindings)->base.source_span.end_offset!=(uint64_t)(scan_binding_s+2-source) ||
+            ((ASTPatternBinding*)ctor->bindings->next)->base.source_span.start_offset!=(uint64_t)(scan_binding_e+1-source) ||
+            ((ASTPatternBinding*)ctor->bindings->next)->base.source_span.end_offset!=(uint64_t)(scan_binding_e+2-source))goto done;
+        {
+            ASTScanArm* second=(ASTScanArm*)first->base.next;
+            ASTScanArm* fallback=second?(ASTScanArm*)second->base.next:NULL;
+            ASTPatternBinding* simple_pattern=second && second->pattern &&
+                second->pattern->type==AST_PATTERN_BINDING
+                    ? (ASTPatternBinding*)second->pattern:NULL;
+            if(!second || !simple_pattern || !simple_pattern->base.source_span.has_location ||
+                simple_pattern->base.source_span.start_offset!=(uint64_t)(scan_second_pattern-source) ||
+                simple_pattern->base.source_span.end_offset!=(uint64_t)(scan_second_pattern+4-source) ||
+                !fallback || fallback->pattern ||
+                !fallback->body ||
+                !scan_node->base.source_span.has_location ||
+                scan_node->base.source_span.start_offset!=(uint64_t)(scan_start-source) ||
+                scan_node->base.source_span.end_offset!=(uint64_t)(scan_end-source) ||
+                !first->base.source_span.has_location ||
+                first->base.source_span.start_offset!=(uint64_t)(scan_first_start-source) ||
+                first->base.source_span.end_offset!=(uint64_t)(scan_first_end-source) ||
+                !fallback->base.source_span.has_location ||
+                fallback->base.source_span.start_offset!=(uint64_t)(scan_else_start-source) ||
+                fallback->base.source_span.end_offset!=(uint64_t)(scan_else_end-source))goto done;
+        }
+    }
+    stream=tmpfile();
+    if(!stream)goto done;
+    if(!ast_serialize((ASTNode*)ctx->ast_root,stream) || fseek(stream,0,SEEK_SET)!=0) {
+        fclose(stream); goto done;
+    }
+    decoded=ast_deserialize(stream);
+    fclose(stream);
+    if(!decoded || decoded->type!=AST_PROGRAM) { ast_destroy(decoded); goto done; }
+    ast_destroy(decoded);
+    ok=1;
+done:
+    parser_destroy(ctx);
+    if(!ok)return 0;
+    if(!parser_source_reports_syntax_error("select-duplicate-default.nxf",
+        "f:main() { select(x) { default -> { } default -> { } } }",
+        sizeof("f:main() { select(x) { default -> { } default -> { } } }")-1u))return 0;
+    if(!parser_source_reports_syntax_error("scan-empty-constructor.nxf",
+        "f:main() { scan(x) { Range() -> { } } }",
+        sizeof("f:main() { scan(x) { Range() -> { } } }")-1u))return 0;
+    if(!parser_source_reports_syntax_error("scan-duplicate-else.nxf",
+        "f:main() { scan(x) { item -> { } else -> { } else -> { } } }",
+        sizeof("f:main() { scan(x) { item -> { } else -> { } else -> { } } }")-1u))return 0;
+    if(!parser_source_reports_syntax_error("scan-else-not-final.nxf",
+        "f:main() { scan(x) { else -> { } item -> { } } }",
+        sizeof("f:main() { scan(x) { else -> { } item -> { } } }")-1u))return 0;
+    if(!parser_source_reports_syntax_error("select-default-guard.nxf",
+        "f:main() { select(x) { default when true -> { } } }",
+        sizeof("f:main() { select(x) { default when true -> { } } }")-1u))return 0;
+    return 1;
+}
+
+static int test_rules_lambda_relocate_unroll_ast(void) {
+    static const char source[] =
+        "f:main() {"
+        " rules PrimeBorders(n) {"
+        "  n < 2 :=> \"out of range\";"
+        "  n == 2 -> true;"
+        "  always -> true;"
+        "  default -> false;"
+        " }"
+        " apply rules(PrimeBorders(5));"
+        " on PrimeBorders.Success { ret true; }"
+        " v:callback = f:(x) > x;"
+        " v:callback_block = f:(x) { ret x; };"
+        " unroll(3) -> loop(item in data) { v:copy = item; }"
+        " v:moved = source _> target;"
+        " v:retry = source?(5, 500ms)->target;"
+        "}";
+    ParserContext* ctx=parser_init_source(
+        "rules-lambda-relocate-unroll.nxf",(const uint8_t*)source,sizeof(source)-1u);
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* node;
+    const char* rules_start=strstr(source,"rules PrimeBorders");
+    const char* rules_close=rules_start?strstr(rules_start," } apply"):NULL;
+    const char* barrier_start=strstr(source,"n < 2");
+    const char* apply_start=strstr(source,"apply rules");
+    const char* on_start=strstr(source,"on PrimeBorders");
+    const char* on_end=on_start?strstr(on_start,"ret true; }"):NULL;
+    const char* lambda_start=strstr(source,"f:(x) > x");
+    const char* lambda_end=lambda_start?lambda_start+strlen("f:(x) > x"):NULL;
+    const char* unroll_start=strstr(source,"unroll(3)");
+    const char* unroll_end=unroll_start?strstr(unroll_start,"v:copy = item; }"):NULL;
+    const char* relocate_start=strstr(source,"source _> target");
+    const char* retry_start=strstr(source,"source?(5, 500ms)");
+    int rules=0, apply=0, on_block=0, lambda=0, lambda_block=0, unroll=0, relocate=0, rolling=0;
+    int ok=0;
+    if(!ctx)return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) { Error* e; fprintf(stderr,"feature parser status=%d errors=%d\n",(int)parser_get_status(ctx),ctx->error_count); for(e=ctx->error_head;e;e=e->next) fprintf(stderr,"  %d:%d %s\n",e->line,e->col,e->message?e->message:""); goto done; }
+    function=(ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    if(!function || function->base.type!=AST_FUNC_DECL ||
+       !function->body || function->body->type!=AST_BLOCK)goto done;
+    body=(ASTBlock*)function->body;
+    for(node=body->statements;node;node=node->next) {
+        if(node->type==AST_RULESET_DECL) {
+            ASTRulesetDecl* r=(ASTRulesetDecl*)node;
+            ASTNode* rule=r->rules;
+            int barriers=0,triggers=0,always=0,defaults=0;
+            if(!r->name || strcmp(r->name,"PrimeBorders")!=0 || !r->params ||
+               !r->base.source_span.has_location ||
+               r->base.source_span.start_offset!=(uint64_t)(rules_start-source) ||
+               r->base.source_span.end_offset!=(uint64_t)(rules_close+2-source))goto done;
+            if(!rule || !rule->source_span.has_location ||
+               rule->source_span.start_offset!=(uint64_t)(barrier_start-source) ||
+               rule->source_span.end_offset!=(uint64_t)(strchr(barrier_start,';')+1-source))goto done;
+            for(;rule;rule=rule->next) {
+                if(rule->type==AST_RULE_BARRIER)barriers++;
+                else if(rule->type==AST_RULE_TRIGGER)triggers++;
+                else if(rule->type==AST_RULE_ALWAYS)always++;
+                else if(rule->type==AST_RULE_DEFAULT)defaults++;
+            }
+            if(barriers!=1 || triggers!=1 || always!=1 || defaults!=1)goto done;
+            rules=1;
+        } else if(node->type==AST_APPLY_RULES) {
+            ASTApplyRules* a=(ASTApplyRules*)node;
+            if(!a->ruleset_name || strcmp(a->ruleset_name,"PrimeBorders")!=0 || !a->args ||
+               !a->base.source_span.has_location ||
+               a->base.source_span.start_offset!=(uint64_t)(apply_start-source) ||
+               a->base.source_span.end_offset!=(uint64_t)(strchr(apply_start,';')+1-source))goto done;
+            apply=1;
+        } else if(node->type==AST_ON_BLOCK) {
+            ASTOnBlock* o=(ASTOnBlock*)node;
+            if(!o->ruleset_name || !o->event_name || strcmp(o->event_name,"Success")!=0 || !o->body ||
+               !o->base.source_span.has_location ||
+               o->base.source_span.start_offset!=(uint64_t)(on_start-source) ||
+               o->base.source_span.end_offset!=(uint64_t)(on_end+11-source))goto done;
+            on_block=1;
+        } else if(node->type==AST_VAR_DECL) {
+            ASTVarDecl* v=(ASTVarDecl*)node;
+            if(v->name && strcmp(v->name,"callback")==0 && v->initializer && v->initializer->type==AST_LAMBDA && ((ASTLambda*)v->initializer)->body_is_expression==1) {
+                ASTLambda* l=(ASTLambda*)v->initializer;
+                if(!lambda_start || !lambda_end || !l->body ||
+                   l->body->type!=AST_IDENTIFIER ||
+                   !l->base.source_span.has_location ||
+                   l->base.source_span.start_offset!=(uint64_t)(lambda_start-source) ||
+                   l->base.source_span.end_offset!=(uint64_t)(lambda_end-source) ||
+                   !l->body->source_span.has_location ||
+                   l->body->source_span.start_offset!=(uint64_t)(lambda_end-1-source) ||
+                   l->body->source_span.end_offset!=(uint64_t)(lambda_end-source))goto done;
+                lambda=1;
+            }
+            if(v->name && strcmp(v->name,"callback_block")==0 && v->initializer && v->initializer->type==AST_LAMBDA && ((ASTLambda*)v->initializer)->body_is_expression==0) {
+                ASTLambda* l=(ASTLambda*)v->initializer;
+                if(!l->base.source_span.has_location || !l->body->source_span.has_location)goto done;
+                lambda_block=1;
+            }
+            if(v->name && strcmp(v->name,"moved")==0 && v->initializer && v->initializer->type==AST_RELOCATE) {
+                ASTRelocate* r=(ASTRelocate*)v->initializer;
+                if(!r->base.source_span.has_location ||
+                   r->base.source_span.start_offset!=(uint64_t)(relocate_start-source) ||
+                   r->base.source_span.end_offset!=(uint64_t)(relocate_start+strlen("source _> target")-source))goto done;
+                relocate=1;
+            }
+            if(v->name && strcmp(v->name,"retry")==0 && v->initializer && v->initializer->type==AST_NEXUS_FLOW) { ASTNexusFlow* f=(ASTNexusFlow*)v->initializer; if(f->retry_count==5 && f->retry_delay==500 && f->base.source_span.has_location &&
+                f->base.source_span.start_offset==(uint64_t)(retry_start-source) &&
+                f->base.source_span.end_offset==(uint64_t)(retry_start+strlen("source?(5, 500ms)->target")-source))rolling=1; }
+        } else if(node->type==AST_UNROLL) {
+            ASTUnroll* u=(ASTUnroll*)node;
+            if(!u->count || !u->loop || u->loop->type!=AST_LOOP ||
+               !u->base.source_span.has_location ||
+               u->base.source_span.start_offset!=(uint64_t)(unroll_start-source) ||
+               u->base.source_span.end_offset!=(uint64_t)(unroll_end+16-source))goto done;
+            unroll=1;
+        }
+    }
+    ok=rules && apply && on_block && lambda && lambda_block && unroll && relocate && rolling;
+    if(!ok)fprintf(stderr,"feature AST flags rules=%d apply=%d on=%d lambda=%d lambda_block=%d unroll=%d relocate=%d rolling=%d\n",rules,apply,on_block,lambda,lambda_block,unroll,relocate,rolling);
+    if(ok) {
+        FILE* stream=tmpfile();
+        ASTNode* decoded=NULL;
+        if(!stream || !ast_serialize(ctx->ast_root,stream) || fseek(stream,0,SEEK_SET)!=0) ok=0;
+        else {
+            decoded=ast_deserialize(stream);
+            if(!decoded || decoded->type!=AST_PROGRAM) ok=0;
+        }
+        if(decoded)ast_destroy(decoded);
+        if(stream)fclose(stream);
+    }
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_array_literal_ast(void) {
+    static const char source[] =
+        "f:main() { v:matrix = [[1, 2], [3, 4]]; v:empty = []; }";
+    ParserContext* ctx=parser_init_source("array-literal.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* node;
+    ASTArrayLiteral* matrix_node=NULL;
+    ASTArrayLiteral* first_row=NULL;
+    ASTArrayLiteral* empty_node=NULL;
+    const char* matrix_start=strstr(source,"[[1, 2], [3, 4]]");
+    const char* matrix_close=matrix_start?strstr(matrix_start,"]]"):NULL;
+    const char* row_start=matrix_start?matrix_start+1:NULL;
+    const char* row_close=row_start?strchr(row_start,']'):NULL;
+    const char* empty_start=strstr(source,"[]");
+    int matrix=0,empty=0,ok=0;
+    if(!ctx)return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) {
+        Error* error;
+        fprintf(stderr,"array literal parser status=%d errors=%d\n",
+            (int)parser_get_status(ctx),ctx->error_count);
+        for(error=ctx->error_head;error;error=error->next)
+            fprintf(stderr,"  %d:%d %s\n",error->line,error->col,error->message?error->message:"");
+        goto done;
+    }
+    function=(ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    if(!function || !function->body || function->body->type!=AST_BLOCK)goto done;
+    body=(ASTBlock*)function->body;
+    for(node=body->statements;node;node=node->next) {
+        if(node->type==AST_VAR_DECL) {
+            ASTVarDecl* v=(ASTVarDecl*)node;
+            if(v->name && strcmp(v->name,"matrix")==0 &&
+               v->initializer && v->initializer->type==AST_ARRAY_LITERAL) {
+                ASTNode* row=((ASTArrayLiteral*)v->initializer)->elements;
+                if(row && row->type==AST_ARRAY_LITERAL &&
+                   ((ASTArrayLiteral*)row)->elements &&
+                   ((ASTArrayLiteral*)row)->elements->next) {
+                    matrix=1;
+                    matrix_node=(ASTArrayLiteral*)v->initializer;
+                    first_row=(ASTArrayLiteral*)row;
+                }
+            }
+            if(v->name && strcmp(v->name,"empty")==0 &&
+               v->initializer && v->initializer->type==AST_ARRAY_LITERAL &&
+               !((ASTArrayLiteral*)v->initializer)->elements) {
+                empty=1;
+                empty_node=(ASTArrayLiteral*)v->initializer;
+            }
+        }
+    }
+    matrix=matrix && matrix_start && matrix_close && row_start && row_close &&
+        matrix_node && first_row && matrix_node->base.source_span.has_location &&
+        matrix_node->base.source_span.start_offset==(uint64_t)(matrix_start-source) &&
+        matrix_node->base.source_span.end_offset==(uint64_t)(matrix_close+2-source) &&
+        matrix_node->base.source_span.start_column==(uint32_t)(matrix_start-source)+1u &&
+        matrix_node->base.source_span.end_column==(uint32_t)(matrix_close+2-source)+1u &&
+        first_row->base.source_span.has_location &&
+        first_row->base.source_span.start_offset==(uint64_t)(row_start-source) &&
+        first_row->base.source_span.end_offset==(uint64_t)(row_close+1-source) &&
+        first_row->base.source_span.start_column==(uint32_t)(row_start-source)+1u &&
+        first_row->base.source_span.end_column==(uint32_t)(row_close+1-source)+1u;
+    empty=empty && empty_start && empty_node && empty_node->base.source_span.has_location &&
+        empty_node->base.source_span.start_offset==(uint64_t)(empty_start-source) &&
+        empty_node->base.source_span.end_offset==(uint64_t)(empty_start+2-source) &&
+        empty_node->base.source_span.start_column==(uint32_t)(empty_start-source)+1u &&
+        empty_node->base.source_span.end_column==(uint32_t)(empty_start+2-source)+1u;
+    if(!matrix || !empty)
+        fprintf(stderr,"array AST shape/span flags matrix=%d empty=%d\n",matrix,empty);
+    if(matrix && empty) {
+        FILE* stream=tmpfile();
+        ASTNode* decoded=NULL;
+        if(stream && ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
+            decoded=ast_deserialize(stream);
+        ok=decoded && decoded->type==AST_PROGRAM;
+        ok=ok && parser_source_reports_syntax_error(
+            "array-missing-close.nxf", "f:main() { v:a = [1, 2; }",
+            sizeof("f:main() { v:a = [1, 2; }")-1u);
+        ok=ok && parser_source_reports_syntax_error(
+            "array-nested-missing-close.nxf",
+            "f:main() { v:a = [[1, 2], [3, 4]; }",
+            sizeof("f:main() { v:a = [[1, 2], [3, 4]; }")-1u);
+        if(!ok) fprintf(stderr,"array AST binary roundtrip failed decoded=%p\n",(void*)decoded);
+        if(decoded)ast_destroy(decoded);
+        if(stream)fclose(stream);
+    }
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_array_type_declarators(void) {
+    static const char source[] =
+        "f:consume(a![], b!i32[], third:i32[4]) {}"
+        "f:main() { v:dynamic[]; v:fixed[5]!i32; v:matrix[3][3]!f32; }";
+    ParserContext* ctx=parser_init_source("array-types.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTNode* function;
+    ASTNode* parameter;
+    ASTNode* variable;
+    const char* a_dimension=strstr(source,"a![]");
+    const char* matrix_start=strstr(source,"matrix[3][3]");
+    int ok=0;
+    if(!ctx) return 0;
+    if(!a_dimension || !matrix_start) goto done;
+    a_dimension+=2;
+    matrix_start+=6;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) {
+        Error* error;
+        fprintf(stderr,"array type parser status=%d errors=%d\n",
+            (int)parser_get_status(ctx),ctx->error_count);
+        for(error=ctx->error_head;error;error=error->next)
+            fprintf(stderr,"  %d:%d %s\n",error->line,error->col,
+                error->message?error->message:"");
+        goto done;
+    }
+    function=((ASTProgram*)ctx->ast_root)->declarations;
+    if(!function || function->type!=AST_FUNC_DECL) goto done;
+    parameter=((ASTFuncDecl*)function)->params;
+    if(!parameter || parameter->type!=AST_VAR_DECL ||
+       !((ASTVarDecl*)parameter)->is_hard_typed ||
+       !((ASTVarDecl*)parameter)->inline_type ||
+       ((ASTVarDecl*)parameter)->inline_type->type!=AST_ARRAY_TYPE) goto done;
+    {
+        ASTArrayType* array=(ASTArrayType*)((ASTVarDecl*)parameter)->inline_type;
+        ASTNode* dim=array->dimensions;
+        if(!dim || dim->type!=AST_ARRAY_DIMENSION ||
+           ((ASTArrayDimension*)dim)->length!=NULL || dim->next ||
+           !array->base.source_span.has_location ||
+           array->base.source_span.start_offset!=(uint64_t)(a_dimension-source) ||
+           array->base.source_span.end_offset!=(uint64_t)(a_dimension+2-source) ||
+           !dim->source_span.has_location ||
+           dim->source_span.start_offset!=(uint64_t)(a_dimension-source) ||
+           dim->source_span.end_offset!=(uint64_t)(a_dimension+2-source) ||
+           dim->source_span.start_column!=(uint32_t)(a_dimension-source)+1u ||
+           dim->source_span.end_column!=(uint32_t)(a_dimension+2-source)+1u) goto done;
+    }
+    parameter=parameter->next;
+    if(!parameter || strcmp(((ASTVarDecl*)parameter)->type_name,"!i32")!=0 ||
+       !((ASTVarDecl*)parameter)->inline_type ||
+       ((ASTArrayType*)((ASTVarDecl*)parameter)->inline_type)->dimensions==NULL ||
+       !((ASTVarDecl*)parameter)->type_expr ||
+       ((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->kind!=AST_TYPE_QUALIFIED ||
+       !((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->child) ||
+       ((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->child)->kind!=AST_TYPE_ARRAY ||
+       ((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)parameter)->type_expr)->child)->dimensions!=
+           ((ASTVarDecl*)parameter)->inline_type) goto done;
+    parameter=parameter->next;
+    if(!parameter || strcmp(((ASTVarDecl*)parameter)->type_name,"i32")!=0 ||
+       !((ASTVarDecl*)parameter)->inline_type) goto done;
+    {
+        ASTNode* dim=((ASTArrayType*)((ASTVarDecl*)parameter)->inline_type)->dimensions;
+        if(!dim || !((ASTArrayDimension*)dim)->length ||
+           ((ASTArrayDimension*)dim)->length->type!=AST_LITERAL) goto done;
+    }
+    function=function->next;
+    if(!function || function->type!=AST_FUNC_DECL || !((ASTFuncDecl*)function)->body) goto done;
+    variable=((ASTBlock*)((ASTFuncDecl*)function)->body)->statements;
+    if(!variable || variable->type!=AST_VAR_DECL ||
+       !((ASTVarDecl*)variable)->inline_type) goto done;
+    variable=variable->next;
+    if(!variable || !((ASTVarDecl*)variable)->inline_type ||
+       strcmp(((ASTVarDecl*)variable)->type_name,"i32")!=0 ||
+       !((ASTVarDecl*)variable)->type_expr ||
+       ((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->kind!=AST_TYPE_QUALIFIED ||
+       !((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->child) ||
+       ((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->child)->kind!=AST_TYPE_ARRAY ||
+       ((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)variable)->type_expr)->child)->dimensions!=
+           ((ASTVarDecl*)variable)->inline_type) goto done;
+    variable=variable->next;
+    if(!variable || !((ASTVarDecl*)variable)->inline_type ||
+       strcmp(((ASTVarDecl*)variable)->type_name,"f32")!=0) goto done;
+    {
+        ASTArrayType* array=(ASTArrayType*)((ASTVarDecl*)variable)->inline_type;
+        ASTNode* first=array->dimensions;
+        ASTNode* second=first?first->next:NULL;
+        const char* matrix_second=matrix_start+3;
+        if(!first || !second || second->next ||
+           !((ASTArrayDimension*)first)->length ||
+           !((ASTArrayDimension*)second)->length ||
+           !array->base.source_span.has_location ||
+           array->base.source_span.start_offset!=(uint64_t)(matrix_start-source) ||
+           array->base.source_span.end_offset!=(uint64_t)(matrix_second+3-source) ||
+           !first->source_span.has_location ||
+           first->source_span.start_offset!=(uint64_t)(matrix_start-source) ||
+           first->source_span.end_offset!=(uint64_t)(matrix_start+3-source) ||
+           !second->source_span.has_location ||
+           second->source_span.start_offset!=(uint64_t)(matrix_second-source) ||
+           second->source_span.end_offset!=(uint64_t)(matrix_second+3-source)) goto done;
+    }
+    {
+        FILE* stream=tmpfile();
+        ASTNode* decoded=NULL;
+        if(stream && ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
+            decoded=ast_deserialize(stream);
+        ok=decoded && decoded->type==AST_PROGRAM;
+        if(decoded) ast_destroy(decoded);
+        if(stream) fclose(stream);
+    }
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_function_array_return_ast(void) {
+    static const char source[] =
+        "f:empty()!i32[] {}"
+        "f:one()!i32[n] {}"
+        "f:matrix()!f32[m][n] {}";
+    ParserContext* ctx=parser_init_source("function-array-return.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTNode* fn;
+    const char* empty_dimension=strstr(source,"!i32[]");
+    const char* one_dimension=strstr(source,"!i32[n]");
+    const char* matrix_dimension=strstr(source,"!f32[m][n]");
+    int ok=0, stage=1;
+    if(!ctx) return 0;
+    if(!empty_dimension || !one_dimension || !matrix_dimension) goto done;
+    empty_dimension+=4; one_dimension+=4; matrix_dimension+=4;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) goto done;
+    stage=2; fn=((ASTProgram*)ctx->ast_root)->declarations;
+    for(int expected=1;expected<=3;expected++) { stage=10+expected;
+        ASTFuncDecl* f;
+        ASTNode* dim;
+        if(!fn || fn->type!=AST_FUNC_DECL) goto done;
+        f=(ASTFuncDecl*)fn;
+        if(!f->return_type || !f->return_array_type || f->return_array_type->type!=AST_ARRAY_TYPE ||
+           !f->return_type_expr ||
+           ((ASTTypeExpr*)f->return_type_expr)->kind!=AST_TYPE_QUALIFIED ||
+           !((ASTTypeExpr*)((ASTTypeExpr*)f->return_type_expr)->child) ||
+           ((ASTTypeExpr*)((ASTTypeExpr*)f->return_type_expr)->child)->kind!=AST_TYPE_ARRAY ||
+           ((ASTTypeExpr*)((ASTTypeExpr*)f->return_type_expr)->child)->dimensions!=f->return_array_type) goto done;
+        {
+            ASTArrayType* array=(ASTArrayType*)f->return_array_type;
+            const char* first_dimension=expected==1?empty_dimension:
+                (expected==2?one_dimension:matrix_dimension);
+            const int dimensions[3]={1,1,2};
+            const size_t dimension_width=expected==1?2u:3u;
+            size_t dimension_count=(size_t)dimensions[expected-1];
+            if(!array->base.source_span.has_location ||
+               array->base.source_span.start_offset!=(uint64_t)(first_dimension-source) ||
+               array->base.source_span.end_offset!=(uint64_t)(first_dimension-source)+
+                    dimension_count*dimension_width) goto done;
+            dim=array->dimensions;
+            for(int d=0;d<dimensions[expected-1];d++) {
+                const char* expected_dimension=first_dimension+(size_t)d*dimension_width;
+                if(!dim || dim->type!=AST_ARRAY_DIMENSION ||
+                   !dim->source_span.has_location ||
+                   dim->source_span.start_offset!=(uint64_t)(expected_dimension-source) ||
+                   dim->source_span.end_offset!=(uint64_t)(expected_dimension-source)+dimension_width)
+                    goto done;
+                if(expected==1) {
+                    if(((ASTArrayDimension*)dim)->length) goto done; /* [] */
+                } else if(!((ASTArrayDimension*)dim)->length ||
+                          ((ASTArrayDimension*)dim)->length->type!=AST_IDENTIFIER) goto done;
+                dim=dim->next;
+            }
+        }
+        if(dim) goto done;
+        fn=fn->next;
+    }
+    stage=20; if(fn || !ast_validate(ctx->ast_root,NULL)) goto done;
+    {
+        FILE* stream=tmpfile(); ASTNode* decoded=NULL;
+        if(stream && ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
+            decoded=ast_deserialize(stream);
+        stage=21; ok=decoded && ast_validate(decoded,NULL);
+        if(ok) {
+            ASTFuncDecl* decoded_fn=(ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+            ASTTypeExpr* qualified=decoded_fn?(ASTTypeExpr*)decoded_fn->return_type_expr:NULL;
+            ASTTypeExpr* array=qualified && qualified->kind==AST_TYPE_QUALIFIED
+                ? (ASTTypeExpr*)qualified->child : NULL;
+            ok=array && array->kind==AST_TYPE_ARRAY &&
+               array->dimensions==decoded_fn->return_array_type;
+        }
+        if(decoded) ast_destroy(decoded); if(stream) fclose(stream);
+    }
+done:
+    if(!ok) { Error* e; fprintf(stderr,"function array return test stage=%d status=%d errors=%d\n",stage,(int)parser_get_status(ctx),ctx->error_count); for(e=ctx->error_head;e;e=e->next) fprintf(stderr,"  %d:%d %s\n",e->line,e->col,e->message?e->message:"(null)"); }
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_array_index_access_ast(void) {
+    static const char source[] =
+        "f:main() { v:items[4]!i32; v:x = items[1+2]; items[0] = x; v:y = object.field; }";
+    ParserContext* ctx=parser_init_source("array-index.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTNode* statement;
+    ASTNode* decoded=NULL;
+    const char* read_start=strstr(source,"items[1+2]");
+    const char* read_end=read_start?read_start+strlen("items[1+2]"):NULL;
+    const char* write_start=strstr(source,"items[0]");
+    const char* write_end=write_start?write_start+strlen("items[0]"):NULL;
+    const char* member_start=strstr(source,"object.field");
+    const char* member_end=member_start?member_start+strlen("object.field"):NULL;
+    FILE* stream;
+    int ok=0;
+    if(!ctx) return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root) goto done;
+    statement=((ASTBlock*)((ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations)->body)->statements;
+    statement=statement?statement->next:NULL;
+    if(!statement || statement->type!=AST_VAR_DECL ||
+       !((ASTVarDecl*)statement)->initializer ||
+       ((ASTVarDecl*)statement)->initializer->type!=AST_INDEX_ACCESS) goto done;
+    {
+        ASTIndexAccess* index=(ASTIndexAccess*)((ASTVarDecl*)statement)->initializer;
+        if(index->target->type!=AST_IDENTIFIER || index->index->type!=AST_BINARY_EXPR ||
+           !read_start || !read_end || !index->base.source_span.has_location ||
+           index->base.source_span.start_offset!=(uint64_t)(read_start-source) ||
+           index->base.source_span.end_offset!=(uint64_t)(read_end-source) ||
+           index->base.source_span.start_column!=(uint32_t)(read_start-source)+1u ||
+           index->base.source_span.end_column!=(uint32_t)(read_end-source)+1u) goto done;
+    }
+    statement=statement->next;
+    if(!statement || statement->type!=AST_ASSIGNMENT ||
+       ((ASTBinaryExpr*)statement)->left->type!=AST_INDEX_ACCESS) goto done;
+    {
+        ASTIndexAccess* left=(ASTIndexAccess*)((ASTBinaryExpr*)statement)->left;
+        if(!write_start || !write_end || !left->base.source_span.has_location ||
+           left->base.source_span.start_offset!=(uint64_t)(write_start-source) ||
+           left->base.source_span.end_offset!=(uint64_t)(write_end-source) ||
+           left->base.source_span.start_column!=(uint32_t)(write_start-source)+1u ||
+           left->base.source_span.end_column!=(uint32_t)(write_end-source)+1u) goto done;
+    }
+    statement=statement->next;
+    if(!statement || statement->type!=AST_VAR_DECL ||
+       !((ASTVarDecl*)statement)->initializer ||
+       ((ASTVarDecl*)statement)->initializer->type!=AST_MEMBER_ACCESS) goto done;
+    {
+        ASTMemberAccess* member=(ASTMemberAccess*)((ASTVarDecl*)statement)->initializer;
+        if(!member_start || !member_end || !member->member_name ||
+           strcmp(member->member_name,"field")!=0 || !member->base.source_span.has_location ||
+           member->base.source_span.start_offset!=(uint64_t)(member_start-source) ||
+           member->base.source_span.end_offset!=(uint64_t)(member_end-source) ||
+           member->base.source_span.start_column!=(uint32_t)(member_start-source)+1u ||
+           member->base.source_span.end_column!=(uint32_t)(member_end-source)+1u) goto done;
+    }
+    stream=tmpfile();
+    if(!stream) goto done;
+    if(ast_serialize(ctx->ast_root,stream) && fseek(stream,0,SEEK_SET)==0)
+        decoded=ast_deserialize(stream);
+    fclose(stream);
+    ok=decoded && decoded->type==AST_PROGRAM;
+    if(decoded) ast_destroy(decoded);
+    ok=ok && parser_source_reports_syntax_error(
+        "array-index-missing-close.nxf","f:main() { v:x = items[1+2; }",
+        sizeof("f:main() { v:x = items[1+2; }")-1u);
+    ok=ok && parser_source_reports_syntax_error(
+        "array-index-empty.nxf","f:main() { v:x = items[]; }",
+        sizeof("f:main() { v:x = items[]; }")-1u);
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_expression_precedence_and_associativity_ast(void) {
+    static const char source[] =
+        "f:main() { v:guard = a > 0 && b > 0 || c == 1; "
+        "v:bitwise_rhs = a && b | c; "
+        "v:bitwise_lhs = a | b && c; "
+        "v:bitwise_cmp_rhs = a < b | c; "
+        "v:bitwise_cmp_lhs = a | b < c; "
+        "v:sub_chain = a - b - c; "
+        "v:div_chain = a / b / c; "
+        "v:cmp_chain = a < b < c; "
+        "v:eq_chain = a == b == c; "
+        "v:bit_or_chain = a | b | c; "
+        "v:bit_xor_chain = a ^ b ^ c; "
+        "v:bit_and_chain = a & b & c; "
+        "v:and_chain = a && b && c; "
+        "v:or_chain = a || b || c; "
+        "v:range = 1..10; }";
+    ParserContext* ctx = parser_init_source(
+        "logical-precedence.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* statement;
+    ASTNode* expression;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    const char* guard_start=strstr(source,"a > 0 && b > 0 || c == 1");
+    const char* guard_end=guard_start?guard_start+strlen("a > 0 && b > 0 || c == 1"):NULL;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = ((ASTBlock*)((ASTFuncDecl*)
+        ((ASTProgram*)ctx->ast_root)->declarations)->body)->statements;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_OR ||
+        !guard_start || !guard_end || !expression->source_span.has_location ||
+        expression->source_span.start_offset!=(uint64_t)(guard_start-source) ||
+        expression->source_span.end_offset!=(uint64_t)(guard_end-source) ||
+        expression->source_span.start_column!=(uint32_t)(guard_start-source)+1u ||
+        expression->source_span.end_column!=(uint32_t)(guard_end-source)+1u) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    {
+        ASTNode* and_expr = ((ASTBinaryExpr*)expression)->left;
+        ASTNode* compare_right = ((ASTBinaryExpr*)expression)->right;
+        if (!and_expr || and_expr->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)and_expr)->op != TOKEN_AND ||
+            !compare_right || compare_right->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)compare_right)->op != TOKEN_EQ) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        if (((ASTBinaryExpr*)and_expr)->left->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->left)->op != TOKEN_GT ||
+            ((ASTBinaryExpr*)and_expr)->right->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->right)->op != TOKEN_GT) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
+        !((ASTBinaryExpr*)expression)->right ||
+        ((ASTBinaryExpr*)expression)->right->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->right)->op != TOKEN_BIT_OR)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_LT ||
+        !((ASTBinaryExpr*)expression)->right ||
+        ((ASTBinaryExpr*)expression)->right->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->right)->op != TOKEN_BIT_OR)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_LT ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_MINUS ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_MINUS)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_SLASH ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_SLASH)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_LT ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_LT)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_EQ ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_EQ)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_BIT_OR ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_BIT_XOR ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_XOR)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_BIT_AND ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_AND)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_AND)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_OR ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_OR)
+        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    expression = ((ASTVarDecl*)statement)->initializer;
+    if (!expression || expression->type != AST_BINARY_EXPR ||
+        ((ASTBinaryExpr*)expression)->op != TOKEN_RANGE ||
+        !((ASTBinaryExpr*)expression)->left ||
+        ((ASTBinaryExpr*)expression)->left->type != AST_LITERAL ||
+        !((ASTBinaryExpr*)expression)->right ||
+        ((ASTBinaryExpr*)expression)->right->type != AST_LITERAL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+
+    {
+        static const char* invalid_ranges[] = {
+            "f:main() { v:bad = 1..2..3; }"
+        };
+        size_t invalid_index;
+        for (invalid_index = 0;
+             invalid_index < sizeof(invalid_ranges) / sizeof(invalid_ranges[0]);
+             ++invalid_index) {
+            ParserContext* chained_range = parser_init_source(
+                "chained-range.nxf", (const uint8_t*)invalid_ranges[invalid_index],
+                strlen(invalid_ranges[invalid_index]));
+            int rejected = chained_range &&
+                (parser_run(chained_range) != PARSER_STATUS_OK ||
+                 chained_range->error_count != 0);
+            if (chained_range) parser_destroy(chained_range);
+            if (!rejected) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        }
+    }
+
+    stream = tmpfile();
+    if (!stream || !ast_serialize(ctx->ast_root, stream) ||
+        fseek(stream, 0, SEEK_SET) != 0) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    decoded = ast_deserialize(stream);
+    ok = decoded && decoded->type == AST_PROGRAM;
+done:
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(ctx);
+    return ok;
+}
+
+
+static int test_power_bitwise_and_compound_assignment(void) {
+    static const char source[] =
+        "f:main() { v:p = 2 ^^ 3 ^^ 2; v:n = -2 ^^ 2; v:q = 2 ^^ -2; v:b = 1 | 2 ^ 3 & 4; v:x = 8; x += 2; x -= 1; x *= 2; x /= 2; x &= 3; x |= 1; x ^= 2; x .= \"z\"; }";
+    ParserContext* ctx=parser_init_source("power-bitwise-compound.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTProgram* program;ASTFuncDecl* function;ASTBlock* body;ASTNode* node;
+    ASTNode* power_expression=NULL;
+    ASTNode* unary_expression=NULL;
+    ASTNode* plus_assignment=NULL;
+    const char* power_start=strstr(source,"2 ^^ 3 ^^ 2");
+    const char* power_end=power_start?power_start+strlen("2 ^^ 3 ^^ 2"):NULL;
+    const char* unary_start=strstr(source,"-2 ^^ 2");
+    const char* unary_end=unary_start?unary_start+strlen("-2 ^^ 2"):NULL;
+    const char* assignment_start=strstr(source,"x += 2;");
+    const char* assignment_end=assignment_start?assignment_start+strlen("x += 2"):NULL;
+    int saw_power=0,saw_bitwise=0,ops=0,ok=0;
+    if(!ctx)return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK||ctx->error_count||!ctx->ast_root)goto done;
+    program=(ASTProgram*)ctx->ast_root;function=(ASTFuncDecl*)program->declarations;
+    if(!function||function->base.type!=AST_FUNC_DECL)goto done;
+    body=(ASTBlock*)function->body;if(!body||body->base.type!=AST_BLOCK)goto done;
+    for(node=body->statements;node;node=node->next){
+        if(node->type==AST_VAR_DECL){
+            ASTVarDecl* variable=(ASTVarDecl*)node;
+            if(variable->name&&strcmp(variable->name,"p")==0&&variable->initializer&&variable->initializer->type==AST_BINARY_EXPR){
+                ASTBinaryExpr* root=(ASTBinaryExpr*)variable->initializer;
+                if(root->op==TOKEN_POWER&&root->right&&root->right->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)root->right)->op==TOKEN_POWER) {
+                    saw_power=1;
+                    power_expression=(ASTNode*)root;
+                }
+            }
+            if(variable->name&&strcmp(variable->name,"n")==0&&variable->initializer&&variable->initializer->type==AST_UNARY_EXPR){
+                ASTUnaryExpr* unary=(ASTUnaryExpr*)variable->initializer;
+                if(unary->op==TOKEN_MINUS&&unary->operand&&unary->operand->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)unary->operand)->op==TOKEN_POWER) {
+                    saw_power|=2;
+                    unary_expression=(ASTNode*)unary;
+                }
+            }
+            if(variable->name&&strcmp(variable->name,"q")==0&&variable->initializer&&variable->initializer->type==AST_BINARY_EXPR){
+                ASTBinaryExpr* root=(ASTBinaryExpr*)variable->initializer;
+                if(root->op==TOKEN_POWER&&root->right&&root->right->type==AST_UNARY_EXPR&&((ASTUnaryExpr*)root->right)->op==TOKEN_MINUS)saw_power|=4;
+            }
+            if(variable->name&&strcmp(variable->name,"b")==0&&variable->initializer&&variable->initializer->type==AST_BINARY_EXPR){
+                ASTBinaryExpr* root=(ASTBinaryExpr*)variable->initializer;
+                if(root->op==TOKEN_BIT_OR&&root->right&&root->right->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)root->right)->op==TOKEN_BIT_XOR){
+                    ASTBinaryExpr* xor_node=(ASTBinaryExpr*)root->right;
+                    if(xor_node->right&&xor_node->right->type==AST_BINARY_EXPR&&((ASTBinaryExpr*)xor_node->right)->op==TOKEN_BIT_AND)saw_bitwise=1;
+                }
+            }
+        }else if(node->type==AST_ASSIGNMENT){
+            ASTBinaryExpr* assignment=(ASTBinaryExpr*)node;
+            if(assignment->op==TOKEN_PLUS_EQ) { ops|=1; plus_assignment=node; }
+            if(assignment->op==TOKEN_MINUS_EQ)ops|=2;
+            if(assignment->op==TOKEN_STAR_EQ)ops|=4;
+            if(assignment->op==TOKEN_SLASH_EQ)ops|=8;
+            if(assignment->op==TOKEN_BIT_AND_EQ)ops|=16;
+            if(assignment->op==TOKEN_BIT_OR_EQ)ops|=32;
+            if(assignment->op==TOKEN_BIT_XOR_EQ)ops|=64;
+            if(assignment->op==TOKEN_STRING_APPEND)ops|=128;
+        }
+    }
+    ok=(saw_power&1)&&(saw_power&2)&&(saw_power&4)&&saw_bitwise&&ops==255 &&
+        power_start && power_end && power_expression &&
+        power_expression->source_span.has_location &&
+        power_expression->source_span.start_offset==(uint64_t)(power_start-source) &&
+        power_expression->source_span.end_offset==(uint64_t)(power_end-source) &&
+        power_expression->source_span.start_column==(uint32_t)(power_start-source)+1u &&
+        power_expression->source_span.end_column==(uint32_t)(power_end-source)+1u &&
+        unary_start && unary_end && unary_expression &&
+        unary_expression->source_span.has_location &&
+        unary_expression->source_span.start_offset==(uint64_t)(unary_start-source) &&
+        unary_expression->source_span.end_offset==(uint64_t)(unary_end-source) &&
+        unary_expression->source_span.start_column==(uint32_t)(unary_start-source)+1u &&
+        unary_expression->source_span.end_column==(uint32_t)(unary_end-source)+1u &&
+        assignment_start && assignment_end && plus_assignment &&
+        plus_assignment->source_span.has_location &&
+        plus_assignment->source_span.start_offset==(uint64_t)(assignment_start-source) &&
+        plus_assignment->source_span.end_offset==(uint64_t)(assignment_end-source) &&
+        plus_assignment->source_span.start_column==(uint32_t)(assignment_start-source)+1u &&
+        plus_assignment->source_span.end_column==(uint32_t)(assignment_end-source)+1u;
+done:parser_destroy(ctx);return ok;
+}
+
+
+static int test_extern_semicolon_declaration(void) {
+    static const char source[] = "exf:add(a!i32, b!i32)!i32;";
+    ParserContext* ctx = parser_init_source("extern-declaration.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* external;
+    ASTVarDecl* a;
+    ASTVarDecl* b;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK || ctx->error_count ||
+        !ctx->ast_root) goto done;
+
+    program = (ASTProgram*)ctx->ast_root;
+    external = (ASTFuncDecl*)program->declarations;
+    if (!external || external->base.type != AST_EXTERN_DECL ||
+        !external->is_extern || !external->name ||
+        strcmp(external->name, "add") != 0 || external->body != NULL ||
+        !external->return_type || strcmp(external->return_type, "!i32") != 0)
+        goto done;
+
+    a = (ASTVarDecl*)external->params;
+    b = a ? (ASTVarDecl*)a->base.next : NULL;
+    if (!a || !b || b->base.next || !a->name || strcmp(a->name, "a") != 0 ||
+        !a->type_name || strcmp(a->type_name, "!i32") != 0 ||
+        !b->name || strcmp(b->name, "b") != 0 ||
+        !b->type_name || strcmp(b->type_name, "!i32") != 0)
+        goto done;
+
+    if (!external->base.source_span.has_location ||
+        external->base.source_span.start_offset != 0u ||
+        external->base.source_span.end_offset != sizeof(source) - 1u)
+        goto done;
+
+    ok = ast_validate((ASTNode*)program, NULL);
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_extern_linkname_association_and_codec(void) {
+    static const char source[] =
+        "!!=linkname = \"math.obj\";\n"
+        "exf:add(a!i32, b!i32)!i32;\n"
+        "exf:sub(a!i32, b!i32)!i32;";
+    ParserContext* ctx = parser_init_source("extern-linkname.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTFuncDecl* add;
+    ASTFuncDecl* sub;
+    FILE* stream = NULL;
+    ASTNode* decoded = NULL;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK || ctx->error_count ||
+        !ctx->ast_root) goto done;
+    program = (ASTProgram*)ctx->ast_root;
+    add = (ASTFuncDecl*)program->declarations;
+    sub = add ? (ASTFuncDecl*)add->base.next : NULL;
+    if (!add || add->base.type != AST_EXTERN_DECL ||
+        !sub || sub->base.type != AST_EXTERN_DECL || sub->base.next ||
+        !add->linkname || strcmp(add->linkname, "math.obj") != 0 ||
+        !sub->linkname || strcmp(sub->linkname, "math.obj") != 0 ||
+        !ast_validate((ASTNode*)program, NULL)) goto done;
+
+    stream = tmpfile();
+    if (!stream || !ast_serialize((ASTNode*)program, stream) ||
+        fseek(stream, 0, SEEK_SET) != 0) goto done;
+    decoded = ast_deserialize(stream);
+    if (!decoded || !ast_validate(decoded, NULL)) goto done;
+    add = (ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+    sub = add ? (ASTFuncDecl*)add->base.next : NULL;
+    if (!add || !sub || !add->linkname || !sub->linkname ||
+        strcmp(add->linkname, "math.obj") != 0 ||
+        strcmp(sub->linkname, "math.obj") != 0) goto done;
+    ok = 1;
+done:
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_extern_echo_and_listen_keywords(void) {
+    static const char source[] =
+        "exf:external(a!i32)!i32 { ret a; }"
+        "f:main() { echo(\"hello\"); !(listen): { echo(\"event\"); } "
+        "!struct:Packed { v:a!u8, v:b!u32 } }";
+    ParserContext* ctx=parser_init_source("extern-echo-listen.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    ASTProgram* program;ASTFuncDecl* external;ASTFuncDecl* main_fn;ASTBlock* body;
+    ASTNode* echo_node;ASTNode* listen_node;ASTNode* packed_node;
+    const char* listen_start=strstr(source,"!(listen)");
+    const char* listen_body_end=listen_start?strstr(listen_start,"echo(\"event\"); }"):NULL;
+    const char* packed_start=strstr(source,"!struct:Packed");
+    const char* packed_close=packed_start?strchr(packed_start,'}'):NULL;
+    int ok=0;
+    if(!ctx)return 0;
+    if(parser_run(ctx)!=PARSER_STATUS_OK||ctx->error_count||!ctx->ast_root)goto done;
+    program=(ASTProgram*)ctx->ast_root;external=(ASTFuncDecl*)program->declarations;
+    if(!external||external->base.type!=AST_EXTERN_DECL||!external->is_extern||
+       !external->name||strcmp(external->name,"external")!=0)goto done;
+    main_fn=(ASTFuncDecl*)external->base.next;
+    if(!main_fn||main_fn->base.type!=AST_FUNC_DECL)goto done;
+    body=(ASTBlock*)main_fn->body;if(!body||body->base.type!=AST_BLOCK)goto done;
+    echo_node=body->statements;
+    if(!echo_node||echo_node->type!=AST_ECHO)goto done;
+    listen_node=echo_node->next;
+    if(!listen_node||listen_node->type!=AST_LISTEN ||
+       !listen_start || !listen_body_end ||
+       !listen_node->source_span.has_location ||
+       listen_node->source_span.start_offset!=(uint64_t)(listen_start-source) ||
+       listen_node->source_span.end_offset!=(uint64_t)(listen_body_end+strlen("echo(\"event\"); }")-source) ||
+       listen_node->source_span.start_line!=1u ||
+       listen_node->source_span.start_column!=(uint32_t)(listen_start-source+1))goto done;
+    packed_node=listen_node->next;
+    if(!packed_node || packed_node->type!=AST_STRUCT_DECL ||
+       !((ASTStructDecl*)packed_node)->is_packed ||
+       !packed_start || !packed_close ||
+       !packed_node->source_span.has_location ||
+       packed_node->source_span.start_offset!=(uint64_t)(packed_start-source) ||
+       packed_node->source_span.end_offset!=(uint64_t)(packed_close+1-source) ||
+       packed_node->source_span.start_line!=1u ||
+       packed_node->source_span.start_column!=(uint32_t)(packed_start-source+1))goto done;
+    ok=1;
+done:parser_destroy(ctx);return ok;
+}
+
+static int test_modulo_expression_ast(void) {
+    static const char source[] =
+        "f:main() { v:rem = 17 % 5 * 2; v:dimension[17 % 5]!i32; }";
+    ParserContext* ctx = parser_init_source(
+        "modulo-expression.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* statement;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root) goto done;
+
+    statement = ((ASTBlock*)((ASTFuncDecl*)
+        ((ASTProgram*)ctx->ast_root)->declarations)->body)->statements;
+    if (!statement || statement->type != AST_VAR_DECL) goto done;
+    {
+        ASTNode* expression = ((ASTVarDecl*)statement)->initializer;
+        if (!expression || expression->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)expression)->op != TOKEN_STAR) goto done;
+        expression = ((ASTBinaryExpr*)expression)->left;
+        if (!expression || expression->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)expression)->op != TOKEN_PERCENT) goto done;
+    }
+
+    statement = statement->next;
+    if (!statement || statement->type != AST_VAR_DECL ||
+        !((ASTVarDecl*)statement)->inline_type ||
+        ((ASTVarDecl*)statement)->inline_type->type != AST_ARRAY_TYPE) goto done;
+    {
+        ASTNode* dimension = ((ASTArrayType*)
+            ((ASTVarDecl*)statement)->inline_type)->dimensions;
+        ASTNode* length = dimension
+            ? ((ASTArrayDimension*)dimension)->length : NULL;
+        if (!length || length->type != AST_BINARY_EXPR ||
+            ((ASTBinaryExpr*)length)->op != TOKEN_PERCENT) goto done;
+    }
+
+    stream = tmpfile();
+    if (!stream || !ast_serialize(ctx->ast_root, stream) ||
+        fseek(stream, 0, SEEK_SET) != 0) goto done;
+    decoded = ast_deserialize(stream);
+    ok = decoded && decoded->type == AST_PROGRAM;
+done:
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(ctx);
+    return ok;
+}
+
+static int test_retry_metadata_rejects_overflow(void) {
+    static const char source[] =
+        "v:x = source?(999999999999999999999,1ms)->target;";
+    return parser_source_reports_syntax_error(
+        "retry-overflow.nxf",source,sizeof(source)-1u);
+}
+
+static int test_ast_create_rejects_invalid_node_kinds(void) {
+    ASTNode* negative;
+    ASTNode* past_end;
+
+    /*
+     * Exercise the complete append-only public node inventory. This catches
+     * accidental gaps in the factory as new AST kinds are added.
+     */
+    for (int kind = (int)AST_PROGRAM;
+         kind <= (int)AST_TYPE_EXPR; ++kind) {
+        ASTNode* node = ast_create((ASTNodeType)kind);
+        int valid = node != NULL &&
+            node->type == (ASTNodeType)kind &&
+            node->line == 0 && node->col == 0 && node->next == NULL;
+        ast_destroy(node);
+        if (!valid) return 0;
+    }
+
+    negative = ast_create((ASTNodeType)-1);
+    past_end = ast_create((ASTNodeType)((int)AST_TYPE_EXPR + 1));
+    if (negative != NULL || past_end != NULL) {
+        ast_destroy(negative);
+        ast_destroy(past_end);
+        return 0;
+    }
+    return 1;
+}
+
+static int test_fast_exec_raw_asm_ast(void) {
+    static const char source[] =
+        "f:main()!i32 {\n"
+        "    fastexec {\n"
+        "        v:x!i32 = 10;\n"
+        "        asm: ADD {\n"
+        "            mov rax, %x:reg\r\n"
+        "            ldm r0, {r1, r2}\n"
+        "            db \"}\"\n"
+        "        }\n"
+        "        echo(x);\n"
+        "    }\n"
+        "    ret 0;\n"
+        "}";
+    static const char outside_source[] =
+        "f:main() { asm: OUTSIDE { nop } }";
+    static const char call_outside_source[]=
+        "f:main() { asmcall(ADD); }";
+    ParserContext* parser=parser_init_source("fast-exec-asm.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    const char* fast_start=strstr(source,"fastexec");
+    const char* asm_start=strstr(source,"asm: ADD");
+    const char* raw_start=asm_start?strchr(asm_start,'{')+1:NULL;
+    const char* close_line=raw_start?strstr(raw_start,"\n        }\n"):NULL;
+    const char* raw_end=close_line?close_line+9:NULL;
+    ASTFuncDecl* function;
+    ASTFastExecBlock* fast;
+    ASTVarDecl* variable;
+    ASTAsmLabel* label;
+    int valid=0;
+    if(!parser) return 0;
+    if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count!=0 ||
+        !parser->ast_root || !ast_validate((ASTNode*)parser->ast_root,NULL)) goto done;
+    function=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    if(!function || !function->body || function->body->type!=AST_BLOCK) goto done;
+    fast=(ASTFastExecBlock*)((ASTBlock*)function->body)->statements;
+    if(!fast || fast->base.type!=AST_FASTEXEC_BLOCK || !fast->statements ||
+        fast->statements->type!=AST_VAR_DECL) goto done;
+    variable=(ASTVarDecl*)fast->statements;
+    label=(ASTAsmLabel*)variable->base.next;
+    valid=label && label->base.type==AST_ASM_LABEL &&
+        label->label && strcmp(label->label,"ADD")==0 &&
+        raw_start && raw_end && label->source_length==(size_t)(raw_end-raw_start) &&
+        memcmp(label->source_text,raw_start,label->source_length)==0 &&
+        label->base.source_span.has_location==1u &&
+        label->base.source_span.start_offset==(uint64_t)(asm_start-source) &&
+        label->base.source_span.end_offset==(uint64_t)(raw_end+1-source) &&
+        fast_start && fast->base.source_span.has_location==1u &&
+        fast->base.source_span.start_offset==(uint64_t)(fast_start-source) &&
+        ast_validate((ASTNode*)parser->ast_root,NULL);
+done:
+    parser_destroy(parser);
+    if(!valid) {
+        fprintf(stderr,"FASTEXEC/raw ASM Parser AST or exact source-span test failed.\n");
+        return 0;
+    }
+    /* asmcall/asmjmp intentionally remain generic AST_FUNC_CALL nodes.
+       FASTEXEC scope and label checks belong to Semantic, not Parser. */
+    parser=parser_init_source("asmcall-generic-call.nxf",
+        (const uint8_t*)call_outside_source,sizeof(call_outside_source)-1u);
+    if(!parser) return 0;
+    valid=parser_run(parser)==PARSER_STATUS_OK && parser->error_count==0 &&
+        parser->ast_root &&
+        ((ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations)->body &&
+        ((ASTBlock*)((ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations)->body)->statements &&
+        ((ASTBlock*)((ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations)->body)->statements->type==AST_FUNC_CALL;
+    parser_destroy(parser);
+    if(!valid) {
+        fprintf(stderr,"asmcall generic AST_FUNC_CALL parsing failed.\n");
+        return 0;
+    }
+    parser=parser_init_source("asm-outside-fast-exec.nxf",
+        (const uint8_t*)outside_source,sizeof(outside_source)-1u);
+    if(!parser) return 0;
+    (void)parser_run(parser);
+    valid=parser->error_count>0;
+    parser_destroy(parser);
+    if(!valid) fprintf(stderr,"ASM outside FASTEXEC was not diagnosed.\n");
+    return valid;
+}
+
+static int test_fast_exec_asm_token_stream(void) {
+    static const char source[]="f:main() { fastexec { v:x!i32=1; halt; asm: ADD {} } }";
+    ParserContext* parser=parser_init_source("fast-exec-token-stream.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    Token tokens[32];
+    size_t count=0u;
+    int saw_body=0;
+    int valid=0;
+    if(!parser) return 0;
+    while(count<sizeof(tokens)/sizeof(tokens[0])) {
+        tokens[count]=lexer_next_token(parser);
+        if(tokens[count].type==TOKEN_ERROR) goto done;
+        if(tokens[count].type==TOKEN_ASM_BODY) saw_body=1;
+        if(tokens[count].type==TOKEN_EOF) { ++count; break; }
+        ++count;
+    }
+    if(count==0u || tokens[count-1u].type!=TOKEN_EOF || !saw_body ||
+        !parser_attach_token_stream(parser,tokens,count)) goto done;
+    if(parser_run(parser)==PARSER_STATUS_OK && parser->error_count==0 &&
+        parser->ast_root && ast_validate((ASTNode*)parser->ast_root,NULL))
+        valid=1;
+done:
+    parser_destroy(parser);
+    if(!valid) fprintf(stderr,"FASTEXEC token-stream Parser test failed.\n");
+    return valid;
+}
+
+
+/* Entry-point argv/argc remain ordinary typed AST parameters; runtime owns injection. */
+static int test_main_cli_parameter_ast(void) {
+    static const char source[] = "f:main(argc!i32, argv!str[])!i32 { ret argc; }";
+    ParserContext* parser = parser_init_source("main-cli-params.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTVarDecl* argc_param;
+    ASTVarDecl* argv_param;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        ast_validate(parser->ast_root, NULL)) {
+        function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        argc_param = function ? (ASTVarDecl*)function->params : NULL;
+        argv_param = argc_param ? (ASTVarDecl*)argc_param->base.next : NULL;
+        valid = function && strcmp(function->name, "main") == 0 &&
+            function->return_type && strcmp(function->return_type, "!i32") == 0 &&
+            argc_param && strcmp(argc_param->name, "argc") == 0 &&
+            argc_param->type_name && strcmp(argc_param->type_name, "!i32") == 0 &&
+            !argc_param->inline_type &&
+            argv_param && strcmp(argv_param->name, "argv") == 0 &&
+            argv_param->type_name && strcmp(argv_param->type_name, "!str") == 0 &&
+            argv_param->inline_type && argv_param->inline_type->type == AST_ARRAY_TYPE &&
+            ((ASTArrayType*)argv_param->inline_type)->dimensions &&
+            ((ASTArrayDimension*)((ASTArrayType*)argv_param->inline_type)->dimensions)->length == NULL &&
+            argc_param->base.source_span.has_location &&
+            argv_param->base.source_span.has_location;
+    }
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "main(argc, argv) typed AST contract failed.\n");
+    return valid;
+}
+
+static int test_group_method_ast(void) {
+    static const char source[] =
+        "f:main() { group Pair { v:value!i32; get => f:get()!i32 { ret value; } } }";
+    ParserContext* parser = parser_init_source("group-method.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTGroupDecl* group;
+    ASTNode* member;
+    ASTMethod* method;
+    ASTFuncDecl* implementation;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        parser->ast_root && ast_validate(parser->ast_root, NULL)) {
+        function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        group = function ? (ASTGroupDecl*)((ASTBlock*)function->body)->statements : NULL;
+        member = group ? group->members : NULL;
+        method = member && member->next ? (ASTMethod*)member->next : NULL;
+        implementation = method ? (ASTFuncDecl*)method->implementation : NULL;
+        valid = group && group->name && strcmp(group->name, "Pair") == 0 &&
+            member && member->type == AST_VAR_DECL &&
+            method && method->base.type == AST_METHOD &&
+            method->public_name && strcmp(method->public_name, "get") == 0 &&
+            implementation && implementation->base.type == AST_FUNC_DECL &&
+            implementation->name && strcmp(implementation->name, "get") == 0 &&
+            implementation->return_type && strcmp(implementation->return_type, "!i32") == 0 &&
+            implementation->body && implementation->body->type == AST_BLOCK;
+    }
+    if (valid) {
+        stream = tmpfile();
+        valid = stream && ast_serialize(parser->ast_root, stream) &&
+            fseek(stream, 0L, SEEK_SET) == 0;
+        if (valid) decoded = ast_deserialize(stream);
+        valid = valid && decoded && ast_validate(decoded, NULL);
+        if (valid) {
+            function = (ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+            group = function ? (ASTGroupDecl*)((ASTBlock*)function->body)->statements : NULL;
+            member = group ? group->members : NULL;
+            method = member && member->next ? (ASTMethod*)member->next : NULL;
+            implementation = method ? (ASTFuncDecl*)method->implementation : NULL;
+            valid = group && group->name && strcmp(group->name, "Pair") == 0 &&
+                member && member->type == AST_VAR_DECL &&
+                method && method->base.type == AST_METHOD &&
+                method->public_name && strcmp(method->public_name, "get") == 0 &&
+                implementation && implementation->name &&
+                strcmp(implementation->name, "get") == 0 &&
+                implementation->return_type &&
+                strcmp(implementation->return_type, "!i32") == 0 &&
+                implementation->body && implementation->body->type == AST_BLOCK;
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Group method AST parser/codec ownership test failed.\n");
+    return valid;
+}
+
+static int test_thread_block_ast(void) {
+    static const char source[] =
+        "f:main() { (worker)>{ v:value = 7; } }";
+    ParserContext* parser = parser_init_source("thread-block.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTThreadBlock* thread;
+    ASTBlock* body;
+    ASTVarDecl* value;
+    const char* thread_start=strstr(source,"(worker)>{");
+    const char* thread_close=thread_start?strchr(thread_start,'}'):NULL;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK || parser->error_count != 0 ||
+        !parser->ast_root || !ast_validate(parser->ast_root, NULL)) goto done;
+    function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    thread = function && function->body
+        ? (ASTThreadBlock*)((ASTBlock*)function->body)->statements : NULL;
+    body = thread && thread->body ? (ASTBlock*)thread->body : NULL;
+    value = body ? (ASTVarDecl*)body->statements : NULL;
+    if (!thread || thread->base.type != AST_THREAD_BLOCK ||
+        !thread->name || strcmp(thread->name, "worker") != 0 ||
+        !body || body->base.type != AST_BLOCK ||
+        !value || value->base.type != AST_VAR_DECL ||
+        !value->name || strcmp(value->name, "value") != 0 ||
+        !value->initializer || value->initializer->type != AST_LITERAL ||
+        thread->mode != NULL || thread->timeout != NULL ||
+        !thread_start || !thread_close || !thread->base.source_span.has_location ||
+        thread->base.source_span.start_offset!=(uint64_t)(thread_start-source) ||
+        thread->base.source_span.end_offset!=(uint64_t)(thread_close+1-source) ||
+        thread->base.source_span.start_column!=(uint32_t)(thread_start-source)+1u ||
+        thread->base.source_span.end_column!=(uint32_t)(thread_close+1-source)+1u)
+        goto done;
+    stream = tmpfile();
+    if (!stream || !ast_serialize(parser->ast_root, stream) ||
+        fseek(stream, 0L, SEEK_SET) != 0) goto done;
+    decoded = ast_deserialize(stream);
+    if (!decoded || !ast_validate(decoded, NULL)) goto done;
+    function = (ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+    thread = function && function->body
+        ? (ASTThreadBlock*)((ASTBlock*)function->body)->statements : NULL;
+    body = thread && thread->body ? (ASTBlock*)thread->body : NULL;
+    value = body ? (ASTVarDecl*)body->statements : NULL;
+    valid = thread && thread->base.type == AST_THREAD_BLOCK &&
+        thread->name && strcmp(thread->name, "worker") == 0 &&
+        body && value && value->name && strcmp(value->name, "value") == 0 &&
+        thread->mode == NULL && thread->timeout == NULL;
+done:
+    if (!valid) fprintf(stderr, "Thread-block AST parser/codec ownership test failed.\n");
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    return valid;
+}
+
+static int test_spawn_is_outside_core_parser(void) {
+    static const char source[] = "f:main() { spawn(worker); }";
+    ParserContext* parser = parser_init_source("spawn-core-boundary.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    OccDiagnosticCollector diagnostics;
+    OccDiagnosticView view;
+    size_t i;
+    int saw_boundary_diagnostic = 0;
+    int valid;
+    if (!parser) return 0;
+    occ_diagnostics_init(&diagnostics);
+    parser_attach_diagnostics(parser, &diagnostics, OCC_STAGE_PARSER);
+    valid = parser_run(parser) == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(parser) == PARSER_STATUS_SYNTAX_ERROR &&
+        parser->error_count > 0;
+    for (i = 0u; i < occ_diagnostics_count(&diagnostics); ++i) {
+        if (occ_diagnostics_get(&diagnostics, i, &view) &&
+            view.record->stage_id == OCC_STAGE_PARSER &&
+            view.message && strstr(view.message, "Thread module")) {
+            saw_boundary_diagnostic = 1;
+            break;
+        }
+    }
+    valid = valid && saw_boundary_diagnostic;
+    parser_destroy(parser);
+    occ_diagnostics_destroy(&diagnostics);
+    if (!valid) fprintf(stderr, "Core Parser accepted spawn or omitted the Thread-module boundary diagnostic.\n");
+    return valid;
+}
+
+static int test_intrinsic_ast_family(void) {
+    static const char* sources[] = {
+        "f:main() { v:n = len(items); }",
+        "f:main() { v:s = sizeof(x); }",
+        "f:main() { v:t = typeof(x); }",
+        "f:main() { v:o = is_ok(result); }",
+        "f:main() { v:o = is_err(result); }",
+        "f:main() { v:o = is_some(result); }",
+        "f:main() { v:o = is_none(result); }",
+        "f:main() { v:o = is_null(result); }",
+        "f:main() { v:a = addr(x); }",
+        "f:main() { v:c = clock(); }",
+        "f:main() { v:d = datenow(); }",
+        "f:main() { v:e = date(); }",
+        "f:main() { v:f = time(); }",
+        "f:main() { v:p = prnt(value); }",
+        "f:main() { v:p = prmt(value); }",
+        "f:main() { v:w = write(value); }",
+        "f:main() { v:w = fwrite(value); }",
+        "f:main() { v:x = exit(0); }",
+        "f:main() { v:x = swap(a, b); }",
+        "f:main() { v:x = peek(0); }",
+        "f:main() { v:x = poke(0, 1); }",
+        "f:main() { v:x = inb(0); }",
+        "f:main() { v:x = outb(0, 1); }",
+        "f:main() { v:x = irq(1); }",
+        "f:main() { v:x = intr(1); }",
+        "f:main() { v:x = reg.r(0); }",
+        "f:main() { v:x = area(1); }",
+        "f:main() { v:x = zone(1); }",
+        "f:main() { v:x = free(value); }",
+        "f:main() { v:x = send(value); }",
+        "f:main() { v:x = receive(value); }",
+        "f:main() { v:x = done(); }"
+    };
+    static const ASTNodeType expected[] = {
+        AST_LEN, AST_SIZEOF, AST_TYPEOF, AST_IS_OK, AST_IS_ERR,
+        AST_IS_SOME, AST_IS_NONE, AST_IS_NULL, AST_ADDR, AST_CLOCK,
+        AST_DATENOW, AST_DATE, AST_TIME, AST_PRNT, AST_PRMT, AST_WRITE,
+        AST_FWRITE, AST_EXIT, AST_SWAP, AST_PEEK, AST_POKE, AST_INB,
+        AST_OUTB, AST_IRQ, AST_INTR, AST_REG, AST_AREA, AST_ZONE,
+        AST_FREE, AST_SEND, AST_RECEIVE, AST_DONE
+    };
+    size_t i;
+    if (sizeof(sources) / sizeof(sources[0]) !=
+        sizeof(expected) / sizeof(expected[0])) return 0;
+
+    for (i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
+        ParserContext* parser = parser_init_source("intrinsic-family.nxf",
+            (const uint8_t*)sources[i], strlen(sources[i]));
+        ASTFuncDecl* function;
+        ASTNode* statement;
+        ASTVarDecl* variable;
+        ASTNode* decoded = NULL;
+        FILE* stream = NULL;
+        const char* assignment = strstr(sources[i], " = ");
+        const char* expr_start = assignment ? assignment + 3 : NULL;
+        const char* expr_end = expr_start ? strchr(expr_start, ';') : NULL;
+        int valid = 0;
+        if (!parser) return 0;
+        if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+            parser->ast_root && ast_validate(parser->ast_root, NULL)) {
+            function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            statement = function ? ((ASTBlock*)function->body)->statements : NULL;
+            variable = statement && statement->type == AST_VAR_DECL
+                ? (ASTVarDecl*)statement : NULL;
+            valid = variable && variable->initializer && expr_start && expr_end &&
+                variable->initializer->type == expected[i] &&
+                variable->initializer->source_span.has_location &&
+                variable->initializer->source_span.start_offset ==
+                    (uint64_t)(expr_start - sources[i]) &&
+                variable->initializer->source_span.end_offset ==
+                    (uint64_t)(expr_end - sources[i]) &&
+                variable->initializer->source_span.start_line == 1u &&
+                variable->initializer->source_span.end_line == 1u &&
+                variable->initializer->source_span.start_column ==
+                    (uint32_t)(expr_start - sources[i] + 1) &&
+                variable->initializer->source_span.end_column ==
+                    (uint32_t)(expr_end - sources[i] + 1);
+            if (valid) {
+                stream = tmpfile();
+                valid = stream && ast_serialize(parser->ast_root, stream) &&
+                    fseek(stream, 0, SEEK_SET) == 0;
+                if (valid) decoded = ast_deserialize(stream);
+                valid = valid && decoded && decoded->type == AST_PROGRAM &&
+                    ast_validate(decoded, NULL);
+            }
+        }
+        if (decoded) ast_destroy(decoded);
+        if (stream) fclose(stream);
+        parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Intrinsic AST/codec mapping failed at index %lu.\\n",
+                (unsigned long)i);
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int test_must_top_level_ast(void) {
+    static const char source[] =
+        "m:CoreModule = \"CoreModule.nxf\";\n"
+        "f:main() { ret 0; }";
+    ParserContext* parser = parser_init_source("must-top-level.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTMustDecl* dependency;
+    ASTFuncDecl* function;
+    ASTLiteral* path_literal;
+    const char* declaration_start=strstr(source,"m:CoreModule");
+    const char* declaration_end=declaration_start?strchr(declaration_start,';'):NULL;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        parser->ast_root && ast_validate(parser->ast_root, NULL)) {
+        dependency = (ASTMustDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        function = dependency ? (ASTFuncDecl*)dependency->base.next : NULL;
+        path_literal = dependency && dependency->source &&
+            dependency->source->type == AST_LITERAL
+            ? (ASTLiteral*)dependency->source : NULL;
+        valid = dependency && dependency->base.type == AST_MUST_DECL &&
+            dependency->name && strcmp(dependency->name, "CoreModule") == 0 &&
+            path_literal && path_literal->string_value &&
+            strcmp(path_literal->string_value, "\"CoreModule.nxf\"") == 0 &&
+            declaration_start && declaration_end &&
+            dependency->base.source_span.has_location &&
+            dependency->base.source_span.start_offset==(uint64_t)(declaration_start-source) &&
+            dependency->base.source_span.end_offset==(uint64_t)(declaration_end+1-source) &&
+            dependency->base.source_span.start_line==1u &&
+            dependency->base.source_span.start_column==1u &&
+            dependency->base.source_span.end_line==1u &&
+            dependency->base.source_span.end_column==(uint32_t)(declaration_end+2-source) &&
+            function && function->base.type == AST_FUNC_DECL &&
+            function->name && strcmp(function->name, "main") == 0;
+    }
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Top-level MUST declaration AST contract failed.\n");
+    return valid;
+}
+
+static int test_must_scope_rejected(void) {
+    static const char source[] =
+        "f:main() { m:CoreModule = \"CoreModule.nxf\"; ret 0; }";
+    ParserContext* parser = parser_init_source("must-scope-invalid.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    int status;
+    int valid;
+    if (!parser) return 0;
+    status = parser_run(parser);
+    valid = status == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(parser) == PARSER_STATUS_SYNTAX_ERROR &&
+        parser->error_count > 0;
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "MUST block-scope rejection test failed.\n");
+    return valid;
+}
+
+static int test_canonical_loop_and_jump_call_forms(void) {
+    static const char source[] =
+        "f:main() { loop { break; } jump(finish); finish:> { ret 0; } }";
+    ParserContext* parser = parser_init_source(
+        "canonical-loop-jump.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* function = NULL;
+    ASTNode* body = NULL;
+    ASTNode* loop_node = NULL;
+    ASTNode* jump_node = NULL;
+    ASTNode* label_node = NULL;
+    ASTNode* break_node = NULL;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    const char* loop_start=strstr(source,"loop {");
+    const char* loop_close=loop_start?strchr(loop_start,'}'):NULL;
+    const char* break_start=strstr(source,"break;");
+    const char* break_end=break_start?break_start+strlen("break;"):NULL;
+    const char* jump_start=strstr(source,"jump(finish)");
+    const char* jump_end=jump_start?jump_start+strlen("jump(finish);"):NULL;
+    const char* label_start=strstr(source,"finish:>");
+    const char* label_close=label_start?strchr(label_start,'}'):NULL;
+    int parse_status = -1;
+    int ast_status = -1;
+    int serialize_status = 0;
+    int decoded_status = -1;
+    int valid = 0;
+
+    if (!parser) return 0;
+    parse_status = parser_run(parser);
+    if (parse_status == 0 && parser->ast_root &&
+        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        function = ((ASTProgram*)parser->ast_root)->declarations;
+        body = function && function->type == AST_FUNC_DECL
+            ? ((ASTFuncDecl*)function)->body : NULL;
+        loop_node = body && body->type == AST_BLOCK
+            ? ((ASTBlock*)body)->statements : NULL;
+        jump_node = loop_node ? loop_node->next : NULL;
+        label_node = jump_node ? jump_node->next : NULL;
+        break_node = loop_node && ((ASTLoop*)loop_node)->body &&
+            ((ASTLoop*)loop_node)->body->type==AST_BLOCK
+            ? ((ASTBlock*)((ASTLoop*)loop_node)->body)->statements : NULL;
+        ast_status = ast_validate((ASTNode*)parser->ast_root, NULL);
+
+        valid = function && function->type == AST_FUNC_DECL &&
+            loop_node && loop_node->type == AST_LOOP &&
+            ((ASTLoop*)loop_node)->loop_type == 0 &&
+            ((ASTLoop*)loop_node)->body &&
+            ((ASTLoop*)loop_node)->body->type == AST_BLOCK &&
+            ((ASTBlock*)((ASTLoop*)loop_node)->body)->statements &&
+            ((ASTBlock*)((ASTLoop*)loop_node)->body)->statements->type == AST_BREAK &&
+            jump_node && jump_node->type == AST_NEXUS_JUMP &&
+            ((ASTNexusJump*)jump_node)->label_name &&
+            strcmp(((ASTNexusJump*)jump_node)->label_name, "finish") == 0 &&
+            label_node && label_node->type == AST_NEXUS_LABEL &&
+            strcmp(((ASTNexusLabel*)label_node)->label_name, "finish") == 0 &&
+            loop_start && loop_close && loop_node->source_span.has_location &&
+            loop_node->source_span.start_offset==(uint64_t)(loop_start-source) &&
+            loop_node->source_span.end_offset==(uint64_t)(loop_close+1-source) &&
+            loop_node->source_span.start_column==(uint32_t)(loop_start-source)+1u &&
+            loop_node->source_span.end_column==(uint32_t)(loop_close+1-source)+1u &&
+            break_start && break_end && break_node && break_node->type==AST_BREAK &&
+            break_node->source_span.has_location &&
+            break_node->source_span.start_offset==(uint64_t)(break_start-source) &&
+            break_node->source_span.end_offset==(uint64_t)(break_end-source) &&
+            break_node->source_span.start_column==(uint32_t)(break_start-source)+1u &&
+            break_node->source_span.end_column==(uint32_t)(break_end-source)+1u &&
+            jump_start && jump_end && jump_node->source_span.has_location &&
+            jump_node->source_span.start_offset==(uint64_t)(jump_start-source) &&
+            jump_node->source_span.end_offset==(uint64_t)(jump_end-source) &&
+            jump_node->source_span.start_column==(uint32_t)(jump_start-source)+1u &&
+            jump_node->source_span.end_column==(uint32_t)(jump_end-source)+1u &&
+            label_start && label_close && label_node->source_span.has_location &&
+            label_node->source_span.start_offset==(uint64_t)(label_start-source) &&
+            label_node->source_span.end_offset==(uint64_t)(label_close+1-source) &&
+            label_node->source_span.start_column==(uint32_t)(label_start-source)+1u &&
+            label_node->source_span.end_column==(uint32_t)(label_close+1-source)+1u &&
+            ast_status == 1;
+
+        if (valid) {
+            stream = tmpfile();
+            serialize_status = stream
+                ? ast_serialize((ASTNode*)parser->ast_root, stream) : 0;
+            valid = stream != NULL && serialize_status != 0;
+            if (valid) {
+                rewind(stream);
+                decoded = ast_deserialize(stream);
+                decoded_status = decoded ? ast_validate(decoded, NULL) : -1;
+                valid = decoded != NULL && decoded_status == 1;
+            }
+        }
+    }
+
+    if (!valid) fprintf(stderr, "Canonical loop/jump syntax AST contract failed.\n");
+
+
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    return valid;
+}
+
+
+static int test_dotted_module_use_path(void) {
+    static const char source[] =
+        "use msvcrt.exf as crt; f:main() { ret 0; }";
+    ParserContext* parser = parser_init_source(
+        "dotted-module-use.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* use_node;
+    ASTNode* function_node;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == 0 && parser->ast_root &&
+        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        use_node = ((ASTProgram*)parser->ast_root)->declarations;
+        function_node = use_node ? use_node->next : NULL;
+        valid = use_node && use_node->type == AST_USE &&
+            strcmp(((ASTUse*)use_node)->module_name, "msvcrt.exf") == 0 &&
+            ((ASTUse*)use_node)->alias &&
+            strcmp(((ASTUse*)use_node)->alias, "crt") == 0 &&
+            function_node && function_node->type == AST_FUNC_DECL &&
+            ast_validate((ASTNode*)parser->ast_root, NULL);
+        if (valid) {
+            stream = tmpfile();
+            valid = stream != NULL &&
+                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
+            if (valid) {
+                rewind(stream);
+                decoded = ast_deserialize(stream);
+                valid = decoded != NULL && ast_validate(decoded, NULL);
+            }
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Dotted module use path AST contract failed.\n");
+    return valid;
+}
+
+static int test_pointer_reference_type_declarators(void) {
+    static const char source[] =
+        "nt:CharPtr = *char; "
+        "f:ptrs(p:*char, pp!**u8, ref:&Point)!*char { "
+        "v:local!*char; ret p; }";
+    ParserContext* parser = parser_init_source(
+        "pointer-reference-types.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* alias_node;
+    ASTNode* function_node;
+    ASTFuncDecl* function;
+    ASTVarDecl* p;
+    ASTVarDecl* pp;
+    ASTVarDecl* ref_param;
+    ASTNode* local_node;
+    ASTNode* ret_node;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == 0 && parser->ast_root &&
+        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        alias_node = ((ASTProgram*)parser->ast_root)->declarations;
+        function_node = alias_node ? alias_node->next : NULL;
+        function = function_node && function_node->type == AST_FUNC_DECL
+            ? (ASTFuncDecl*)function_node : NULL;
+        p = function ? (ASTVarDecl*)function->params : NULL;
+        pp = p ? (ASTVarDecl*)p->base.next : NULL;
+        ref_param = pp ? (ASTVarDecl*)pp->base.next : NULL;
+        local_node = function && function->body && function->body->type == AST_BLOCK
+            ? ((ASTBlock*)function->body)->statements : NULL;
+        ret_node = local_node ? local_node->next : NULL;
+
+        ASTNode* buffer_alias = function_node ? function_node->next : NULL;
+        ASTNode* matrix_alias = buffer_alias ? buffer_alias->next : NULL;
+        ASTNode* dynamic_alias = matrix_alias ? matrix_alias->next : NULL;
+        ASTTypeExpr* buffer_type = buffer_alias && buffer_alias->type == AST_NEWTYPE_DECL
+            ? (ASTTypeExpr*)((ASTNewTypeDecl*)buffer_alias)->target_type_expr : NULL;
+        ASTTypeExpr* matrix_type = matrix_alias && matrix_alias->type == AST_NEWTYPE_DECL
+            ? (ASTTypeExpr*)((ASTNewTypeDecl*)matrix_alias)->target_type_expr : NULL;
+        ASTTypeExpr* dynamic_type = dynamic_alias && dynamic_alias->type == AST_NEWTYPE_DECL
+            ? (ASTTypeExpr*)((ASTNewTypeDecl*)dynamic_alias)->target_type_expr : NULL;
+        ASTVarDecl* buffer_param = buffer_type && buffer_type->kind == AST_TYPE_FUNCTION
+            ? (ASTVarDecl*)buffer_type->params : NULL;
+        ASTTypeExpr* buffer_array = buffer_param ? (ASTTypeExpr*)buffer_param->type_expr : NULL;
+        ASTArrayType* buffer_dims = buffer_array && buffer_array->kind == AST_TYPE_ARRAY
+            ? (ASTArrayType*)buffer_array->dimensions : NULL;
+        ASTArrayDimension* buffer_dim = buffer_dims ? (ASTArrayDimension*)buffer_dims->dimensions : NULL;
+        ASTVarDecl* matrix_param = matrix_type && matrix_type->kind == AST_TYPE_FUNCTION
+            ? (ASTVarDecl*)matrix_type->params : NULL;
+        ASTTypeExpr* matrix_array = matrix_param ? (ASTTypeExpr*)matrix_param->type_expr : NULL;
+        ASTArrayType* matrix_dims = matrix_array && matrix_array->kind == AST_TYPE_ARRAY
+            ? (ASTArrayType*)matrix_array->dimensions : NULL;
+        ASTArrayDimension* matrix_dim1 = matrix_dims ? (ASTArrayDimension*)matrix_dims->dimensions : NULL;
+        ASTArrayDimension* matrix_dim2 = matrix_dim1 ? (ASTArrayDimension*)matrix_dim1->base.next : NULL;
+        ASTVarDecl* dynamic_param = dynamic_type && dynamic_type->kind == AST_TYPE_FUNCTION
+            ? (ASTVarDecl*)dynamic_type->params : NULL;
+        ASTTypeExpr* dynamic_array = dynamic_param ? (ASTTypeExpr*)dynamic_param->type_expr : NULL;
+        ASTArrayType* dynamic_dims = dynamic_array && dynamic_array->kind == AST_TYPE_ARRAY
+            ? (ASTArrayType*)dynamic_array->dimensions : NULL;
+
+        valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
+            strcmp(((ASTNewTypeDecl*)alias_node)->target_type, "*char") == 0 &&
+            ((ASTNewTypeDecl*)alias_node)->target_type_expr &&
+            ((ASTTypeExpr*)((ASTNewTypeDecl*)alias_node)->target_type_expr)->kind==AST_TYPE_POINTER &&
+            function && function->return_type &&
+            strcmp(function->return_type, "!*char") == 0 &&
+            function->return_type_expr &&
+            ((ASTTypeExpr*)function->return_type_expr)->kind==AST_TYPE_QUALIFIED &&
+            p && strcmp(p->name, "p") == 0 &&
+            strcmp(p->type_name, "*char") == 0 && p->type_expr &&
+            ((ASTTypeExpr*)p->type_expr)->kind==AST_TYPE_POINTER &&
+            pp && strcmp(pp->name, "pp") == 0 &&
+            strcmp(pp->type_name, "!**u8") == 0 && pp->type_expr &&
+            ((ASTTypeExpr*)pp->type_expr)->kind==AST_TYPE_QUALIFIED &&
+            ref_param && strcmp(ref_param->name, "ref") == 0 &&
+            strcmp(ref_param->type_name, "&Point") == 0 && ref_param->type_expr &&
+            ((ASTTypeExpr*)ref_param->type_expr)->kind==AST_TYPE_REFERENCE &&
+            !ref_param->base.next &&
+            local_node && local_node->type == AST_VAR_DECL &&
+            strcmp(((ASTVarDecl*)local_node)->type_name, "*char") == 0 &&
+            ((ASTVarDecl*)local_node)->type_expr &&
+            ret_node && ret_node->type == AST_RETURN &&
+            ast_validate((ASTNode*)parser->ast_root, NULL);
+
+        if (valid) {
+            stream = tmpfile();
+            valid = stream != NULL &&
+                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
+            if (valid) {
+                rewind(stream);
+                decoded = ast_deserialize(stream);
+                valid = decoded != NULL && ast_validate(decoded, NULL);
+            }
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Pointer/reference type declarator AST contract failed.\n");
+    return valid;
+}
+
+
+static int test_function_type_alias_and_callback_parameter(void) {
+    static const char source[] =
+        "nt:Callback = f:(id!u32)!bool; "
+        "nt:LegacyCallback = f:(id!u32)>!bool; "
+        "nt:NestedCallback = f:(test!f:(value!i32)!bool)!bool; "
+        "f:apply(callback!f:(id!u32)!bool, id!u32)!bool { ret callback(id); } "
+        "nt:ZeroCallback = f:()!bool; "
+        "nt:VariadicCallback = f:(first!u32,...)!void; "
+        "nt:BufferCallback = f:(buffer!u8[16])!bool; "
+        "nt:MatrixCallback = f:(matrix!f32[4][4])!bool; "
+        "nt:DynamicArrayCallback = f:(items!u32[])!u32; "
+        "nt:ReturnArrayCallback = f:(value!u32)!u8[8];";
+    static const char invalid_source[] = "nt:Broken = f:(id!u32)!;";
+    ParserContext* parser = parser_init_source(
+        "callback-function-type.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ParserContext* invalid = NULL;
+    ASTNode* alias_node = NULL;
+    ASTNode* legacy_alias_node = NULL;
+    ASTNode* nested_alias_node = NULL;
+    ASTNode* function_node = NULL;
+    ASTFuncDecl* function = NULL;
+    ASTVarDecl* callback_param = NULL;
+    ASTVarDecl* id_param = NULL;
+    ASTTypeExpr* buffer_type = NULL;
+    ASTTypeExpr* buffer_array = NULL;
+    ASTArrayType* buffer_dims = NULL;
+    ASTArrayDimension* buffer_dim = NULL;
+    ASTTypeExpr* matrix_type = NULL;
+    ASTTypeExpr* matrix_array = NULL;
+    ASTArrayType* matrix_dims = NULL;
+    ASTArrayDimension* matrix_dim1 = NULL;
+    ASTArrayDimension* matrix_dim2 = NULL;
+    ASTTypeExpr* dynamic_type = NULL;
+    ASTTypeExpr* dynamic_array = NULL;
+    ASTArrayType* dynamic_dims = NULL;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int valid = 0;
+    int parse_status = -1;
+
+    if (!parser) return 0;
+    parse_status = parser_run(parser);
+    if (parse_status == 0 && parser->ast_root &&
+        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        {
+            ASTNode* declaration;
+            ASTNode* buffer_alias_node = NULL;
+            ASTNode* matrix_alias_node = NULL;
+            ASTNode* dynamic_alias_node = NULL;
+            ASTProgram* program = (ASTProgram*)parser->ast_root;
+
+            for (declaration = program->declarations; declaration;
+                 declaration = declaration->next) {
+                if (declaration->type == AST_NEWTYPE_DECL) {
+                    ASTNewTypeDecl* alias = (ASTNewTypeDecl*)declaration;
+                    if (!alias->name) continue;
+                    if (strcmp(alias->name, "Callback") == 0) alias_node = declaration;
+                    else if (strcmp(alias->name, "LegacyCallback") == 0) legacy_alias_node = declaration;
+                    else if (strcmp(alias->name, "NestedCallback") == 0) nested_alias_node = declaration;
+                    else if (strcmp(alias->name, "BufferCallback") == 0) buffer_alias_node = declaration;
+                    else if (strcmp(alias->name, "MatrixCallback") == 0) matrix_alias_node = declaration;
+                    else if (strcmp(alias->name, "DynamicArrayCallback") == 0) dynamic_alias_node = declaration;
+                } else if (declaration->type == AST_FUNC_DECL) {
+                    ASTFuncDecl* candidate = (ASTFuncDecl*)declaration;
+                    if (candidate->name && strcmp(candidate->name, "apply") == 0)
+                        function_node = declaration;
+                }
+            }
+
+            function = function_node ? (ASTFuncDecl*)function_node : NULL;
+            callback_param = function ? (ASTVarDecl*)function->params : NULL;
+            id_param = callback_param ? (ASTVarDecl*)callback_param->base.next : NULL;
+
+            buffer_type = buffer_alias_node
+                ? (ASTTypeExpr*)((ASTNewTypeDecl*)buffer_alias_node)->target_type_expr : NULL;
+            matrix_type = matrix_alias_node
+                ? (ASTTypeExpr*)((ASTNewTypeDecl*)matrix_alias_node)->target_type_expr : NULL;
+            dynamic_type = dynamic_alias_node
+                ? (ASTTypeExpr*)((ASTNewTypeDecl*)dynamic_alias_node)->target_type_expr : NULL;
+            buffer_array = buffer_type && buffer_type->kind == AST_TYPE_FUNCTION
+                ? (ASTTypeExpr*)((ASTVarDecl*)buffer_type->params)->type_expr : NULL;
+            matrix_array = matrix_type && matrix_type->kind == AST_TYPE_FUNCTION
+                ? (ASTTypeExpr*)((ASTVarDecl*)matrix_type->params)->type_expr : NULL;
+            dynamic_array = dynamic_type && dynamic_type->kind == AST_TYPE_FUNCTION
+                ? (ASTTypeExpr*)((ASTVarDecl*)dynamic_type->params)->type_expr : NULL;
+            if (buffer_array && buffer_array->kind == AST_TYPE_QUALIFIED)
+                buffer_array = (ASTTypeExpr*)buffer_array->child;
+            if (matrix_array && matrix_array->kind == AST_TYPE_QUALIFIED)
+                matrix_array = (ASTTypeExpr*)matrix_array->child;
+            if (dynamic_array && dynamic_array->kind == AST_TYPE_QUALIFIED)
+                dynamic_array = (ASTTypeExpr*)dynamic_array->child;
+            buffer_dims = buffer_array && buffer_array->kind == AST_TYPE_ARRAY
+                ? (ASTArrayType*)buffer_array->dimensions : NULL;
+            matrix_dims = matrix_array && matrix_array->kind == AST_TYPE_ARRAY
+                ? (ASTArrayType*)matrix_array->dimensions : NULL;
+            dynamic_dims = dynamic_array && dynamic_array->kind == AST_TYPE_ARRAY
+                ? (ASTArrayType*)dynamic_array->dimensions : NULL;
+            buffer_dim = buffer_dims ? (ASTArrayDimension*)buffer_dims->dimensions : NULL;
+            matrix_dim1 = matrix_dims ? (ASTArrayDimension*)matrix_dims->dimensions : NULL;
+            matrix_dim2 = matrix_dim1 ? (ASTArrayDimension*)matrix_dim1->base.next : NULL;
+        }
+
+        valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
+            strcmp(((ASTNewTypeDecl*)alias_node)->target_type,
+                "f:(id!u32)!bool") == 0 &&
+            ((ASTNewTypeDecl*)alias_node)->target_type_expr &&
+            ((ASTTypeExpr*)((ASTNewTypeDecl*)alias_node)->target_type_expr)->kind==AST_TYPE_FUNCTION &&
+            ((ASTTypeExpr*)((ASTNewTypeDecl*)alias_node)->target_type_expr)->child &&
+            legacy_alias_node && legacy_alias_node->type == AST_NEWTYPE_DECL &&
+            strcmp(((ASTNewTypeDecl*)legacy_alias_node)->target_type,
+                "f:(id!u32)!bool") == 0 &&
+            ((ASTNewTypeDecl*)legacy_alias_node)->target_type_expr &&
+            nested_alias_node && nested_alias_node->type == AST_NEWTYPE_DECL &&
+            ((ASTNewTypeDecl*)nested_alias_node)->target_type_expr &&
+            ((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->kind==AST_TYPE_FUNCTION &&
+            ((ASTVarDecl*)((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->params)->type_expr &&
+            ((ASTTypeExpr*)((ASTVarDecl*)((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->params)->type_expr)->kind==AST_TYPE_QUALIFIED &&
+            ((ASTTypeExpr*)((ASTTypeExpr*)((ASTVarDecl*)((ASTTypeExpr*)((ASTNewTypeDecl*)nested_alias_node)->target_type_expr)->params)->type_expr)->child)->kind==AST_TYPE_FUNCTION &&
+            function && function->return_type &&
+            strcmp(function->return_type, "!bool") == 0 &&
+            callback_param && strcmp(callback_param->name, "callback") == 0 &&
+            strcmp(callback_param->type_name, "!f:(id!u32)!bool") == 0 &&
+            callback_param->type_expr &&
+            ((ASTTypeExpr*)callback_param->type_expr)->kind==AST_TYPE_QUALIFIED &&
+            ((ASTTypeExpr*)((ASTTypeExpr*)callback_param->type_expr)->child)->kind==AST_TYPE_FUNCTION &&
+            id_param && strcmp(id_param->name, "id") == 0 &&
+            strcmp(id_param->type_name, "!u32") == 0 &&
+            id_param->type_expr && ((ASTTypeExpr*)id_param->type_expr)->kind==AST_TYPE_QUALIFIED &&
+            !id_param->base.next &&
+            buffer_type && buffer_type->kind == AST_TYPE_FUNCTION &&
+            buffer_array && buffer_array->kind == AST_TYPE_ARRAY &&
+            buffer_dims && buffer_dim && buffer_dim->length &&
+            ((ASTLiteral*)buffer_dim->length)->int_value == 16 &&
+            matrix_type && matrix_array && matrix_array->kind == AST_TYPE_ARRAY &&
+            matrix_dim1 && matrix_dim1->length && ((ASTLiteral*)matrix_dim1->length)->int_value == 4 &&
+            matrix_dim2 && matrix_dim2->length && ((ASTLiteral*)matrix_dim2->length)->int_value == 4 &&
+            dynamic_type && dynamic_array && dynamic_array->kind == AST_TYPE_ARRAY &&
+            dynamic_dims && dynamic_dims->dimensions &&
+            !((ASTArrayDimension*)dynamic_dims->dimensions)->length &&
+            ast_validate((ASTNode*)parser->ast_root, NULL);
+
+        if (valid) {
+            stream = tmpfile();
+            valid = stream != NULL &&
+                ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
+            if (valid) {
+                rewind(stream);
+                decoded = ast_deserialize(stream);
+                valid = decoded != NULL && ast_validate(decoded, NULL);
+            }
+        }
+    }
+
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    if (!valid) {
+        fprintf(stderr, "Function-type/callback AST contract failed.\\n");
+        return 0;
+    }
+
+    invalid = parser_init_source(
+        "malformed-callback-type.nxf", (const uint8_t*)invalid_source,
+        sizeof(invalid_source) - 1u);
+    if (!invalid) return 0;
+    valid = parser_run(invalid) == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(invalid) == PARSER_STATUS_SYNTAX_ERROR &&
+        invalid->error_count > 0;
+    parser_destroy(invalid);
+    if (!valid) fprintf(stderr, "Malformed callback function type was not rejected.\n");
+    return valid;
+}
+
+
+
+static int test_callback_return_array_and_bad_dimensions(void) {
+    static const char source[] = "nt:ReturnArrayCallback = f:(value!u32)!u8[8];";
+    static const char* invalid[] = {
+        "nt:Bad = f:(value!u32)!u8[abc];",
+        "nt:Bad = f:(value!u32)!u8[8;",
+        "nt:Bad = f:(value!u32)!u8[9223372036854775808];"
+    };
+    ParserContext* ctx = parser_init_source("callback-return-array.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) == PARSER_STATUS_OK && ctx->ast_root &&
+        ast_validate((ASTNode*)ctx->ast_root, NULL)) {
+        ASTNewTypeDecl* alias = (ASTNewTypeDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+        ASTTypeExpr* fn = alias ? (ASTTypeExpr*)alias->target_type_expr : NULL;
+        ASTTypeExpr* ret = fn && fn->kind == AST_TYPE_FUNCTION
+            ? (ASTTypeExpr*)fn->child : NULL;
+        if (ret && ret->kind == AST_TYPE_QUALIFIED)
+            ret = (ASTTypeExpr*)ret->child;
+        ASTArrayType* array = ret && ret->kind == AST_TYPE_ARRAY
+            ? (ASTArrayType*)ret->dimensions : NULL;
+        ASTArrayDimension* dim = array ? (ASTArrayDimension*)array->dimensions : NULL;
+        ok = alias && strcmp(alias->name, "ReturnArrayCallback") == 0 &&
+            fn && fn->kind == AST_TYPE_FUNCTION && ret && ret->kind == AST_TYPE_ARRAY &&
+            dim && dim->length && ((ASTLiteral*)dim->length)->int_value == 8;
+        stream = tmpfile();
+        ok = ok && stream && ast_serialize((ASTNode*)ctx->ast_root, stream);
+        if (ok) {
+            rewind(stream);
+            decoded = ast_deserialize(stream);
+            ok = decoded && ast_validate(decoded, NULL);
+            alias = decoded && decoded->type == AST_PROGRAM
+                ? (ASTNewTypeDecl*)((ASTProgram*)decoded)->declarations : NULL;
+            fn = alias ? (ASTTypeExpr*)alias->target_type_expr : NULL;
+            ret = fn && fn->kind == AST_TYPE_FUNCTION ? (ASTTypeExpr*)fn->child : NULL;
+            if (ret && ret->kind == AST_TYPE_QUALIFIED)
+                ret = (ASTTypeExpr*)ret->child;
+            array = ret && ret->kind == AST_TYPE_ARRAY ? (ASTArrayType*)ret->dimensions : NULL;
+            dim = array ? (ASTArrayDimension*)array->dimensions : NULL;
+            ok = ok && dim && dim->length && ((ASTLiteral*)dim->length)->int_value == 8;
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(ctx);
+    if (!ok) return 0;
+    for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
+        ctx = parser_init_source("callback-bad-array-dimension.nxf",
+            (const uint8_t*)invalid[i], strlen(invalid[i]));
+        if (!ctx) return 0;
+        ok = parser_run(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+            parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR && ctx->error_count > 0;
+        parser_destroy(ctx);
+        if (!ok) return 0;
+    }
+    return 1;
+}
+
+static int test_callback_parameter_exact_source_spans(void) {
+    static const char source[] =
+        "nt:SpanCallback = f:(\n"
+        "    first!u8[16],\n"
+        "    second:i32\n"
+        ")!void;";
+    ParserContext* parser = parser_init_source(
+        "callback-parameter-spans.nxf", (const uint8_t*)source,
+        sizeof(source) - 1u);
+    ASTNewTypeDecl* alias;
+    ASTTypeExpr* function;
+    ASTVarDecl* first;
+    ASTVarDecl* second;
+    const char* first_text = strstr(source, "first!u8[16]");
+    const char* second_text = strstr(source, "second:i32");
+    int valid = parser && parser_run(parser) == PARSER_STATUS_OK &&
+        parser->error_count == 0 && parser->ast_root &&
+        ast_validate((ASTNode*)parser->ast_root, NULL);
+    if (valid) {
+        alias = (ASTNewTypeDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        function = alias && alias->target_type_expr
+            ? (ASTTypeExpr*)alias->target_type_expr : NULL;
+        first = function && function->kind == AST_TYPE_FUNCTION &&
+            function->params && function->params->type == AST_VAR_DECL
+            ? (ASTVarDecl*)function->params : NULL;
+        second = first && first->base.next &&
+            first->base.next->type == AST_VAR_DECL
+            ? (ASTVarDecl*)first->base.next : NULL;
+        valid = alias && alias->name &&
+            strcmp(alias->name, "SpanCallback") == 0 &&
+            first && second && first_text && second_text &&
+            first->base.source_span.has_location &&
+            second->base.source_span.has_location &&
+            first->base.source_span.start_offset ==
+                (uint64_t)(first_text - source) &&
+            first->base.source_span.end_offset ==
+                (uint64_t)(first_text - source) + strlen("first!u8[16]") &&
+            first->base.source_span.start_line == 2u &&
+            first->base.source_span.start_column == 5u &&
+            second->base.source_span.start_offset ==
+                (uint64_t)(second_text - source) &&
+            second->base.source_span.end_offset ==
+                (uint64_t)(second_text - source) + strlen("second:i32") &&
+            second->base.source_span.start_line == 3u &&
+            second->base.source_span.start_column == 5u &&
+            first->type_expr && first->type_expr->source_span.has_location &&
+            first->type_expr->source_span.start_offset ==
+                (uint64_t)(strchr(first_text, '!') - source) &&
+            first->type_expr->source_span.end_offset ==
+                (uint64_t)(first_text - source) + strlen("first!u8[16]");
+    }
+(void) {
     static const char source[] =
         "f:main() { "
         "v:p!*u8 = null; "
