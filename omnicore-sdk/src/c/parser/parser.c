@@ -2588,7 +2588,7 @@ static ASTNode* parser_build_function_type_expr(
     }
     if(depth!=0u || *close!=')') return NULL;
     return_spelling=close+1;
-    if(!*return_spelling || strchr(return_spelling,'[')) return NULL;
+    if(!*return_spelling) return NULL;
 
     function=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
     if(!function) return NULL;
@@ -2639,11 +2639,6 @@ static ASTNode* parser_build_function_type_expr(
         hard=(*marker=='!');
         type_start=hard?marker:marker+1;
         type_length=(size_t)(segment_end-type_start);
-        if(memchr(type_start,'[',type_length)) {
-            ast_destroy(param_head);
-            ast_destroy((ASTNode*)function);
-            return NULL;
-        }
 
         param=(ASTVarDecl*)parser_ast_create(p,AST_VAR_DECL);
         if(!param) {
