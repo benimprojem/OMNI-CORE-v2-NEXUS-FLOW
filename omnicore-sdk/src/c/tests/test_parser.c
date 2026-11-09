@@ -658,6 +658,7 @@ static int test_parser_allocation_failure_injection(void) {
         " struct: Point { v:x!i32, v:y!i32 }"
         " v:p!Point = Point { y = 2, x = 1 };"
         " nt:Callback = f:(buffer!u8[16], matrix!i32[4][4], dynamic!u8[])!u8[8];"
+        " nt:NestedCallback = f:(test!f:(value!i32, buffer!u8[8])!bool)!bool;"
         " nt:id = u64;"
         " nt:enum: State { Idle, Running(pid!u32), Error(code!u16) }"
         " union:Register32 { v:full!u32, v:parts!u16 }"
