@@ -3056,6 +3056,54 @@ static int test_callback_return_array_and_bad_dimensions(void) {
     return 1;
 }
 
+static int test_callback_parameter_exact_source_spans(void) {
+    static const char source[] =
+        "nt:SpanCallback = f:(first!u8[16], second:i32)!void;";
+    ParserContext* parser = parser_init_source(
+        "callback-parameter-spans.nxf", (const uint8_t*)source,
+        sizeof(source) - 1u);
+    ASTNewTypeDecl* alias;
+    ASTTypeExpr* function;
+    ASTVarDecl* first;
+    ASTVarDecl* second;
+    const char* first_text = strstr(source, "first!u8[16]");
+    const char* second_text = strstr(source, "second:i32");
+    int valid = parser && parser_run(parser) == PARSER_STATUS_OK &&
+        parser->error_count == 0 && parser->ast_root &&
+        ast_validate((ASTNode*)parser->ast_root, NULL);
+    if (valid) {
+        alias = (ASTNewTypeDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        function = alias && alias->target_type_expr
+            ? (ASTTypeExpr*)alias->target_type_expr : NULL;
+        first = function && function->kind == AST_TYPE_FUNCTION &&
+            function->params && function->params->type == AST_VAR_DECL
+            ? (ASTVarDecl*)function->params : NULL;
+        second = first && first->base.next &&
+            first->base.next->type == AST_VAR_DECL
+            ? (ASTVarDecl*)first->base.next : NULL;
+        valid = alias && alias->name &&
+            strcmp(alias->name, "SpanCallback") == 0 &&
+            first && second && first_text && second_text &&
+            first->base.source_span.has_location &&
+            second->base.source_span.has_location &&
+            first->base.source_span.start_offset ==
+                (uint64_t)(first_text - source) &&
+            first->base.source_span.end_offset ==
+                (uint64_t)(first_text - source) + strlen("first!u8[16]") &&
+            second->base.source_span.start_offset ==
+                (uint64_t)(second_text - source) &&
+            second->base.source_span.end_offset ==
+                (uint64_t)(second_text - source) + strlen("second:i32") &&
+            first->type_expr && first->type_expr->source_span.has_location &&
+            first->type_expr->source_span.start_offset ==
+                (uint64_t)(strchr(first_text, '!') - source) &&
+            first->type_expr->source_span.end_offset ==
+                (uint64_t)(first_text - source) + strlen("first!u8[16]");
+    }
+    parser_destroy(parser);
+    return valid;
+}
+
 static int test_null_and_numeric_literal_ast(void) {
     static const char source[] =
         "f:main() { "
@@ -3267,6 +3315,7 @@ int main(int argc, char** argv) {
     if (!test_pointer_reference_type_declarators()) return 1;
     if (!test_function_type_alias_and_callback_parameter()) return 1;
     if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\\n"); return 1; }
+    if (!test_callback_parameter_exact_source_spans()) { fprintf(stderr, "Callback parameter exact source-span test failed.\\n"); return 1; }
     if (!test_null_and_numeric_literal_ast()) return 1;
     if (!test_implicit_type_variable_spelling()) return 1;
     if (!test_spawn_is_outside_core_parser()) return 1;
