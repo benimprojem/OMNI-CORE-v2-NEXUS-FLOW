@@ -3047,14 +3047,8 @@ static int test_callback_return_array_and_bad_dimensions(void) {
         ctx = parser_init_source("callback-bad-array-dimension.nxf",
             (const uint8_t*)invalid[i], strlen(invalid[i]));
         if (!ctx) return 0;
-        {
-            int result = parser_run(ctx);
-            ok = result == PARSER_STATUS_SYNTAX_ERROR &&
-                parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR && ctx->error_count > 0;
-            if (!ok) fprintf(stderr,
-                "callback invalid[%zu] result=%d status=%d errors=%d source=%s\\n",
-                i, result, parser_get_status(ctx), ctx->error_count, invalid[i]);
-        }
+        ok = parser_run(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+            parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR && ctx->error_count > 0;
         parser_destroy(ctx);
         if (!ok) return 0;
     }
