@@ -2961,14 +2961,17 @@ static int test_function_type_alias_and_callback_parameter(void) {
             !((ASTArrayDimension*)dynamic_dims->dimensions)->length &&
             ast_validate((ASTNode*)parser->ast_root, NULL);
 
+        fprintf(stderr, "callback base checks: %d\\n", valid);
         if (valid) {
             stream = tmpfile();
             valid = stream != NULL &&
                 ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
+            fprintf(stderr, "callback serialize: %d\\n", valid);
             if (valid) {
                 rewind(stream);
                 decoded = ast_deserialize(stream);
                 valid = decoded != NULL && ast_validate(decoded, NULL);
+                fprintf(stderr, "callback deserialize+validate: %d\\n", valid);
             }
         }
     }
