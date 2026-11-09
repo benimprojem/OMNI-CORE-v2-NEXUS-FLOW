@@ -2749,6 +2749,34 @@ static int test_pointer_reference_type_declarators(void) {
             ? ((ASTBlock*)function->body)->statements : NULL;
         ret_node = local_node ? local_node->next : NULL;
 
+        ASTNode* buffer_alias = function_node ? function_node->next : NULL;
+        ASTNode* matrix_alias = buffer_alias ? buffer_alias->next : NULL;
+        ASTNode* dynamic_alias = matrix_alias ? matrix_alias->next : NULL;
+        ASTTypeExpr* buffer_type = buffer_alias && buffer_alias->type == AST_NEWTYPE_DECL
+            ? (ASTTypeExpr*)((ASTNewTypeDecl*)buffer_alias)->target_type_expr : NULL;
+        ASTTypeExpr* matrix_type = matrix_alias && matrix_alias->type == AST_NEWTYPE_DECL
+            ? (ASTTypeExpr*)((ASTNewTypeDecl*)matrix_alias)->target_type_expr : NULL;
+        ASTTypeExpr* dynamic_type = dynamic_alias && dynamic_alias->type == AST_NEWTYPE_DECL
+            ? (ASTTypeExpr*)((ASTNewTypeDecl*)dynamic_alias)->target_type_expr : NULL;
+        ASTVarDecl* buffer_param = buffer_type && buffer_type->kind == AST_TYPE_FUNCTION
+            ? (ASTVarDecl*)buffer_type->params : NULL;
+        ASTTypeExpr* buffer_array = buffer_param ? (ASTTypeExpr*)buffer_param->type_expr : NULL;
+        ASTArrayType* buffer_dims = buffer_array && buffer_array->kind == AST_TYPE_ARRAY
+            ? (ASTArrayType*)buffer_array->dimensions : NULL;
+        ASTArrayDimension* buffer_dim = buffer_dims ? (ASTArrayDimension*)buffer_dims->dimensions : NULL;
+        ASTVarDecl* matrix_param = matrix_type && matrix_type->kind == AST_TYPE_FUNCTION
+            ? (ASTVarDecl*)matrix_type->params : NULL;
+        ASTTypeExpr* matrix_array = matrix_param ? (ASTTypeExpr*)matrix_param->type_expr : NULL;
+        ASTArrayType* matrix_dims = matrix_array && matrix_array->kind == AST_TYPE_ARRAY
+            ? (ASTArrayType*)matrix_array->dimensions : NULL;
+        ASTArrayDimension* matrix_dim1 = matrix_dims ? (ASTArrayDimension*)matrix_dims->dimensions : NULL;
+        ASTArrayDimension* matrix_dim2 = matrix_dim1 ? (ASTArrayDimension*)matrix_dim1->base.next : NULL;
+        ASTVarDecl* dynamic_param = dynamic_type && dynamic_type->kind == AST_TYPE_FUNCTION
+            ? (ASTVarDecl*)dynamic_type->params : NULL;
+        ASTTypeExpr* dynamic_array = dynamic_param ? (ASTTypeExpr*)dynamic_param->type_expr : NULL;
+        ASTArrayType* dynamic_dims = dynamic_array && dynamic_array->kind == AST_TYPE_ARRAY
+            ? (ASTArrayType*)dynamic_array->dimensions : NULL;
+
         valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
             strcmp(((ASTNewTypeDecl*)alias_node)->target_type, "*char") == 0 &&
             ((ASTNewTypeDecl*)alias_node)->target_type_expr &&
@@ -2799,7 +2827,10 @@ static int test_function_type_alias_and_callback_parameter(void) {
         "nt:NestedCallback = f:(test!f:(value!i32)!bool)!bool; "
         "f:apply(callback!f:(id!u32)!bool, id!u32)!bool { ret callback(id); } "
         "nt:ZeroCallback = f:()!bool; "
-        "nt:VariadicCallback = f:(first!u32,...)!void;";
+        "nt:VariadicCallback = f:(first!u32,...)!void; "
+        "nt:BufferCallback = f:(buffer!u8[16])!bool; "
+        "nt:MatrixCallback = f:(matrix!f32[4][4])!bool; "
+        "nt:DynamicArrayCallback = f:(items!u32[])!u32;";
     static const char invalid_source[] = "nt:Broken = f:(id!u32)!;";
     ParserContext* parser = parser_init_source(
         "callback-function-type.nxf", (const uint8_t*)source, sizeof(source) - 1u);
@@ -2855,6 +2886,16 @@ static int test_function_type_alias_and_callback_parameter(void) {
             strcmp(id_param->type_name, "!u32") == 0 &&
             id_param->type_expr && ((ASTTypeExpr*)id_param->type_expr)->kind==AST_TYPE_QUALIFIED &&
             !id_param->base.next &&
+            buffer_type && buffer_type->kind == AST_TYPE_FUNCTION &&
+            buffer_array && buffer_array->kind == AST_TYPE_ARRAY &&
+            buffer_dims && buffer_dim && buffer_dim->length &&
+            ((ASTLiteral*)buffer_dim->length)->int_value == 16 &&
+            matrix_type && matrix_array && matrix_array->kind == AST_TYPE_ARRAY &&
+            matrix_dim1 && matrix_dim1->length && ((ASTLiteral*)matrix_dim1->length)->int_value == 4 &&
+            matrix_dim2 && matrix_dim2->length && ((ASTLiteral*)matrix_dim2->length)->int_value == 4 &&
+            dynamic_type && dynamic_array && dynamic_array->kind == AST_TYPE_ARRAY &&
+            dynamic_dims && dynamic_dims->dimensions &&
+            !((ASTArrayDimension*)dynamic_dims->dimensions)->length &&
             ast_validate((ASTNode*)parser->ast_root, NULL);
 
         if (valid) {
