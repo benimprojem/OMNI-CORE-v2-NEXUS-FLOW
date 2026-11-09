@@ -2410,7 +2410,7 @@ static ASTNode* parser_build_type_expr(
         char* base_name=(char*)parser_malloc(p,base_length+1u);
         if(!base_name) return NULL;
         memcpy(base_name,spelling+offset,base_length);
-        base_name[base_length]='\\0';
+        base_name[base_length]='\0';
         if(!base_length) { free(base_name); return NULL; }
 
         named=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
