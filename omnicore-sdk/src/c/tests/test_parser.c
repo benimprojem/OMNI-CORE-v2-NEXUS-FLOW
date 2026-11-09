@@ -3058,7 +3058,10 @@ static int test_callback_return_array_and_bad_dimensions(void) {
 
 static int test_callback_parameter_exact_source_spans(void) {
     static const char source[] =
-        "nt:SpanCallback = f:(first!u8[16], second:i32)!void;";
+        "nt:SpanCallback = f:(\\n"
+        "    first!u8[16],\\n"
+        "    second:i32\\n"
+        ")!void;";
     ParserContext* parser = parser_init_source(
         "callback-parameter-spans.nxf", (const uint8_t*)source,
         sizeof(source) - 1u);
@@ -3090,10 +3093,14 @@ static int test_callback_parameter_exact_source_spans(void) {
                 (uint64_t)(first_text - source) &&
             first->base.source_span.end_offset ==
                 (uint64_t)(first_text - source) + strlen("first!u8[16]") &&
+            first->base.source_span.start_line == 2u &&
+            first->base.source_span.start_column == 5u &&
             second->base.source_span.start_offset ==
                 (uint64_t)(second_text - source) &&
             second->base.source_span.end_offset ==
                 (uint64_t)(second_text - source) + strlen("second:i32") &&
+            second->base.source_span.start_line == 3u &&
+            second->base.source_span.start_column == 5u &&
             first->type_expr && first->type_expr->source_span.has_location &&
             first->type_expr->source_span.start_offset ==
                 (uint64_t)(strchr(first_text, '!') - source) &&
