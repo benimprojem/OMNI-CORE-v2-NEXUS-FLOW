@@ -2931,6 +2931,63 @@ static int test_function_type_alias_and_callback_parameter(void) {
 }
 
 
+
+static int test_callback_return_array_and_bad_dimensions(void) {
+    static const char source[] = "nt:ReturnArrayCallback = f:(value!u32)!u8[8];";
+    static const char* invalid[] = {
+        "nt:Bad = f:(value!u32)!u8[abc];",
+        "nt:Bad = f:(value!u32)!u8[8;",
+        "nt:Bad = f:(value!u32)!u8[9223372036854775808];"
+    };
+    ParserContext* ctx = parser_init_source("callback-return-array.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int ok = 0;
+    if (!ctx) return 0;
+    if (parser_run(ctx) == PARSER_STATUS_OK && ctx->ast_root &&
+        ast_validate((ASTNode*)ctx->ast_root, NULL)) {
+        ASTNewTypeDecl* alias = (ASTNewTypeDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+        ASTTypeExpr* fn = alias ? (ASTTypeExpr*)alias->target_type_expr : NULL;
+        ASTTypeExpr* ret = fn && fn->kind == AST_TYPE_FUNCTION
+            ? (ASTTypeExpr*)fn->child : NULL;
+        ASTArrayType* array = ret && ret->kind == AST_TYPE_ARRAY
+            ? (ASTArrayType*)ret->dimensions : NULL;
+        ASTArrayDimension* dim = array ? (ASTArrayDimension*)array->dimensions : NULL;
+        ok = alias && strcmp(alias->name, "ReturnArrayCallback") == 0 &&
+            fn && fn->kind == AST_TYPE_FUNCTION && ret && ret->kind == AST_TYPE_ARRAY &&
+            dim && dim->length && ((ASTLiteral*)dim->length)->int_value == 8;
+        stream = tmpfile();
+        ok = ok && stream && ast_serialize((ASTNode*)ctx->ast_root, stream);
+        if (ok) {
+            rewind(stream);
+            decoded = ast_deserialize(stream);
+            ok = decoded && ast_validate(decoded, NULL);
+            alias = decoded && decoded->type == AST_PROGRAM
+                ? (ASTNewTypeDecl*)((ASTProgram*)decoded)->declarations : NULL;
+            fn = alias ? (ASTTypeExpr*)alias->target_type_expr : NULL;
+            ret = fn && fn->kind == AST_TYPE_FUNCTION ? (ASTTypeExpr*)fn->child : NULL;
+            array = ret && ret->kind == AST_TYPE_ARRAY ? (ASTArrayType*)ret->dimensions : NULL;
+            dim = array ? (ASTArrayDimension*)array->dimensions : NULL;
+            ok = ok && dim && dim->length && ((ASTLiteral*)dim->length)->int_value == 8;
+        }
+    }
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(ctx);
+    if (!ok) return 0;
+    for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
+        ctx = parser_init_source("callback-bad-array-dimension.nxf",
+            (const uint8_t*)invalid[i], strlen(invalid[i]));
+        if (!ctx) return 0;
+        ok = parser_run(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
+            parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR && ctx->error_count > 0;
+        parser_destroy(ctx);
+        if (!ok) return 0;
+    }
+    return 1;
+}
+
 static int test_null_and_numeric_literal_ast(void) {
     static const char source[] =
         "f:main() { "
@@ -3141,6 +3198,7 @@ int main(int argc, char** argv) {
     if (!test_dotted_module_use_path()) return 1;
     if (!test_pointer_reference_type_declarators()) return 1;
     if (!test_function_type_alias_and_callback_parameter()) return 1;
+    if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\\n"); return 1; }
     if (!test_null_and_numeric_literal_ast()) return 1;
     if (!test_implicit_type_variable_spelling()) return 1;
     if (!test_spawn_is_outside_core_parser()) return 1;
