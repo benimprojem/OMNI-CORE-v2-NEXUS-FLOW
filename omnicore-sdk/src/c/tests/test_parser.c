@@ -2965,12 +2965,10 @@ static int test_function_type_alias_and_callback_parameter(void) {
             stream = tmpfile();
             valid = stream != NULL &&
                 ast_serialize((ASTNode*)parser->ast_root, stream) != 0;
-            fprintf(stderr, "callback serialize: %d\\n", valid);
             if (valid) {
                 rewind(stream);
                 decoded = ast_deserialize(stream);
                 valid = decoded != NULL && ast_validate(decoded, NULL);
-                fprintf(stderr, "callback deserialize+validate: %d\\n", valid);
             }
         }
     }
