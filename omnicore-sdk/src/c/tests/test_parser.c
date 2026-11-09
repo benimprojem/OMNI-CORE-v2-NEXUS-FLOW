@@ -2838,6 +2838,7 @@ static int test_function_type_alias_and_callback_parameter(void) {
     ParserContext* invalid = NULL;
     ASTNode* alias_node = NULL;
     ASTNode* legacy_alias_node = NULL;
+    ASTNode* nested_alias_node = NULL;
     ASTNode* function_node = NULL;
     ASTFuncDecl* function = NULL;
     ASTVarDecl* callback_param = NULL;
@@ -2865,13 +2866,9 @@ static int test_function_type_alias_and_callback_parameter(void) {
         ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
         {
             ASTNode* declaration;
-            ASTNode* nested_alias_node = NULL;
             ASTNode* buffer_alias_node = NULL;
             ASTNode* matrix_alias_node = NULL;
             ASTNode* dynamic_alias_node = NULL;
-            ASTNode* zero_alias_node = NULL;
-            ASTNode* variadic_alias_node = NULL;
-            ASTNode* return_alias_node = NULL;
             ASTProgram* program = (ASTProgram*)parser->ast_root;
 
             for (declaration = program->declarations; declaration;
@@ -2882,12 +2879,9 @@ static int test_function_type_alias_and_callback_parameter(void) {
                     if (strcmp(alias->name, "Callback") == 0) alias_node = declaration;
                     else if (strcmp(alias->name, "LegacyCallback") == 0) legacy_alias_node = declaration;
                     else if (strcmp(alias->name, "NestedCallback") == 0) nested_alias_node = declaration;
-                    else if (strcmp(alias->name, "ZeroCallback") == 0) zero_alias_node = declaration;
-                    else if (strcmp(alias->name, "VariadicCallback") == 0) variadic_alias_node = declaration;
                     else if (strcmp(alias->name, "BufferCallback") == 0) buffer_alias_node = declaration;
                     else if (strcmp(alias->name, "MatrixCallback") == 0) matrix_alias_node = declaration;
                     else if (strcmp(alias->name, "DynamicArrayCallback") == 0) dynamic_alias_node = declaration;
-                    else if (strcmp(alias->name, "ReturnArrayCallback") == 0) return_alias_node = declaration;
                 } else if (declaration->type == AST_FUNC_DECL) {
                     ASTFuncDecl* candidate = (ASTFuncDecl*)declaration;
                     if (candidate->name && strcmp(candidate->name, "apply") == 0)
@@ -2926,9 +2920,6 @@ static int test_function_type_alias_and_callback_parameter(void) {
             buffer_dim = buffer_dims ? (ASTArrayDimension*)buffer_dims->dimensions : NULL;
             matrix_dim1 = matrix_dims ? (ASTArrayDimension*)matrix_dims->dimensions : NULL;
             matrix_dim2 = matrix_dim1 ? (ASTArrayDimension*)matrix_dim1->base.next : NULL;
-            (void)zero_alias_node;
-            (void)variadic_alias_node;
-            (void)return_alias_node;
         }
 
         valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
