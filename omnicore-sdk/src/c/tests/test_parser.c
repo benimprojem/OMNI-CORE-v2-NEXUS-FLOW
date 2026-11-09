@@ -3035,6 +3035,11 @@ static int test_callback_return_array_and_bad_dimensions(void) {
             ok = ok && dim && dim->length && ((ASTLiteral*)dim->length)->int_value == 8;
         }
     }
+    fprintf(stderr,
+        "return-array state: ok=%d alias=%p fn=%p ret=%p array=%p dim=%p len=%p value=%lld\\n",
+        ok, (void*)alias, (void*)fn, (void*)ret, (void*)array, (void*)dim,
+        dim ? (void*)dim->length : NULL,
+        dim && dim->length ? ((ASTLiteral*)dim->length)->int_value : -1LL);
     if (decoded) ast_destroy(decoded);
     if (stream) fclose(stream);
     parser_destroy(ctx);
