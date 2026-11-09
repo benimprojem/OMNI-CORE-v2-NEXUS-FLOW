@@ -2961,7 +2961,30 @@ static int test_function_type_alias_and_callback_parameter(void) {
             !((ASTArrayDimension*)dynamic_dims->dimensions)->length &&
             ast_validate((ASTNode*)parser->ast_root, NULL);
 
-        fprintf(stderr, "callback base checks: %d\\n", valid);
+        {
+            ASTValidationError error;
+            int graph_ok = ast_validate((ASTNode*)parser->ast_root, &error);
+            fprintf(stderr,
+                "callback detail: target=%s legacy=%s fnret=%s cb=%s/%s cbkind=%u childkind=%u id=%s/%s idkind=%u idnext=%p "
+                "bufdim=%lld matdims=%lld,%lld dynlen=%p graph=%d err=%d/%d/%s\\n",
+                alias_node ? ((ASTNewTypeDecl*)alias_node)->target_type : "(null)",
+                legacy_alias_node ? ((ASTNewTypeDecl*)legacy_alias_node)->target_type : "(null)",
+                function ? function->return_type : "(null)",
+                callback_param ? callback_param->name : "(null)",
+                callback_param ? callback_param->type_name : "(null)",
+                callback_param && callback_param->type_expr ? ((ASTTypeExpr*)callback_param->type_expr)->kind : 0u,
+                callback_param && callback_param->type_expr && ((ASTTypeExpr*)callback_param->type_expr)->child ? ((ASTTypeExpr*)((ASTTypeExpr*)callback_param->type_expr)->child)->kind : 0u,
+                id_param ? id_param->name : "(null)",
+                id_param ? id_param->type_name : "(null)",
+                id_param && id_param->type_expr ? ((ASTTypeExpr*)id_param->type_expr)->kind : 0u,
+                id_param ? (void*)id_param->base.next : NULL,
+                buffer_dim && buffer_dim->length ? ((ASTLiteral*)buffer_dim->length)->int_value : -1LL,
+                matrix_dim1 && matrix_dim1->length ? ((ASTLiteral*)matrix_dim1->length)->int_value : -1LL,
+                matrix_dim2 && matrix_dim2->length ? ((ASTLiteral*)matrix_dim2->length)->int_value : -1LL,
+                dynamic_dims && dynamic_dims->dimensions ? (void*)((ASTArrayDimension*)dynamic_dims->dimensions)->length : NULL,
+                graph_ok, (int)error.code, error.node ? (int)error.node->type : -1,
+                error.field ? error.field : "(null)");
+        }
         if (valid) {
             stream = tmpfile();
             valid = stream != NULL &&
