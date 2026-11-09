@@ -2257,7 +2257,10 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
         case AST_VARIADIC_PARAM:
             if (s->active_count < 2u ||
                 (s->active[s->active_count - 2u]->type != AST_FUNC_DECL &&
-                 s->active[s->active_count - 2u]->type != AST_EXTERN_DECL) ||
+                 s->active[s->active_count - 2u]->type != AST_EXTERN_DECL &&
+                 !(s->active[s->active_count - 2u]->type == AST_TYPE_EXPR &&
+                   ((const ASTTypeExpr*)s->active[s->active_count - 2u])->kind ==
+                       AST_TYPE_FUNCTION)) ||
                 !s->active_fields[s->active_count-1u] ||
                 strcmp(s->active_fields[s->active_count-1u],"params")!=0 ||
                 n->next)
