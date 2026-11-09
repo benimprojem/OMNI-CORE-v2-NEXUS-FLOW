@@ -2830,7 +2830,8 @@ static int test_function_type_alias_and_callback_parameter(void) {
         "nt:VariadicCallback = f:(first!u32,...)!void; "
         "nt:BufferCallback = f:(buffer!u8[16])!bool; "
         "nt:MatrixCallback = f:(matrix!f32[4][4])!bool; "
-        "nt:DynamicArrayCallback = f:(items!u32[])!u32;";
+        "nt:DynamicArrayCallback = f:(items!u32[])!u32; "
+        "nt:ReturnArrayCallback = f:(value!u32)!u8[8];";
     static const char invalid_source[] = "nt:Broken = f:(id!u32)!;";
     ParserContext* parser = parser_init_source(
         "callback-function-type.nxf", (const uint8_t*)source, sizeof(source) - 1u);
@@ -2841,6 +2842,18 @@ static int test_function_type_alias_and_callback_parameter(void) {
     ASTFuncDecl* function = NULL;
     ASTVarDecl* callback_param = NULL;
     ASTVarDecl* id_param = NULL;
+    ASTTypeExpr* buffer_type = NULL;
+    ASTTypeExpr* buffer_array = NULL;
+    ASTArrayType* buffer_dims = NULL;
+    ASTArrayDimension* buffer_dim = NULL;
+    ASTTypeExpr* matrix_type = NULL;
+    ASTTypeExpr* matrix_array = NULL;
+    ASTArrayType* matrix_dims = NULL;
+    ASTArrayDimension* matrix_dim1 = NULL;
+    ASTArrayDimension* matrix_dim2 = NULL;
+    ASTTypeExpr* dynamic_type = NULL;
+    ASTTypeExpr* dynamic_array = NULL;
+    ASTArrayType* dynamic_dims = NULL;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
     int valid = 0;
@@ -2858,6 +2871,39 @@ static int test_function_type_alias_and_callback_parameter(void) {
             ? (ASTFuncDecl*)function_node : NULL;
         callback_param = function ? (ASTVarDecl*)function->params : NULL;
         id_param = callback_param ? (ASTVarDecl*)callback_param->base.next : NULL;
+        {
+            ASTNode* buffer_alias_node = function_node;
+            ASTNode* matrix_alias_node;
+            ASTNode* dynamic_alias_node;
+            int index = 0;
+            while (buffer_alias_node && index < 3) {
+                buffer_alias_node = buffer_alias_node->next;
+                ++index;
+            }
+            matrix_alias_node = buffer_alias_node ? buffer_alias_node->next : NULL;
+            dynamic_alias_node = matrix_alias_node ? matrix_alias_node->next : NULL;
+            buffer_type = buffer_alias_node && buffer_alias_node->type == AST_NEWTYPE_DECL
+                ? (ASTTypeExpr*)((ASTNewTypeDecl*)buffer_alias_node)->target_type_expr : NULL;
+            matrix_type = matrix_alias_node && matrix_alias_node->type == AST_NEWTYPE_DECL
+                ? (ASTTypeExpr*)((ASTNewTypeDecl*)matrix_alias_node)->target_type_expr : NULL;
+            dynamic_type = dynamic_alias_node && dynamic_alias_node->type == AST_NEWTYPE_DECL
+                ? (ASTTypeExpr*)((ASTNewTypeDecl*)dynamic_alias_node)->target_type_expr : NULL;
+            buffer_array = buffer_type && buffer_type->kind == AST_TYPE_FUNCTION
+                ? (ASTTypeExpr*)((ASTVarDecl*)buffer_type->params)->type_expr : NULL;
+            matrix_array = matrix_type && matrix_type->kind == AST_TYPE_FUNCTION
+                ? (ASTTypeExpr*)((ASTVarDecl*)matrix_type->params)->type_expr : NULL;
+            dynamic_array = dynamic_type && dynamic_type->kind == AST_TYPE_FUNCTION
+                ? (ASTTypeExpr*)((ASTVarDecl*)dynamic_type->params)->type_expr : NULL;
+            if (buffer_array && buffer_array->kind == AST_TYPE_QUALIFIED) buffer_array = (ASTTypeExpr*)buffer_array->child;
+            if (matrix_array && matrix_array->kind == AST_TYPE_QUALIFIED) matrix_array = (ASTTypeExpr*)matrix_array->child;
+            if (dynamic_array && dynamic_array->kind == AST_TYPE_QUALIFIED) dynamic_array = (ASTTypeExpr*)dynamic_array->child;
+            buffer_dims = buffer_array && buffer_array->kind == AST_TYPE_ARRAY ? (ASTArrayType*)buffer_array->dimensions : NULL;
+            matrix_dims = matrix_array && matrix_array->kind == AST_TYPE_ARRAY ? (ASTArrayType*)matrix_array->dimensions : NULL;
+            dynamic_dims = dynamic_array && dynamic_array->kind == AST_TYPE_ARRAY ? (ASTArrayType*)dynamic_array->dimensions : NULL;
+            buffer_dim = buffer_dims ? (ASTArrayDimension*)buffer_dims->dimensions : NULL;
+            matrix_dim1 = matrix_dims ? (ASTArrayDimension*)matrix_dims->dimensions : NULL;
+            matrix_dim2 = matrix_dim1 ? (ASTArrayDimension*)matrix_dim1->base.next : NULL;
+        }
 
         valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
             strcmp(((ASTNewTypeDecl*)alias_node)->target_type,
