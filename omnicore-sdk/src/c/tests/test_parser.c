@@ -2874,6 +2874,17 @@ static int test_function_type_alias_and_callback_parameter(void) {
             for (declaration = program->declarations; declaration;
                  declaration = declaration->next) {
                 if (declaration->type == AST_NEWTYPE_DECL) {
+                    fprintf(stderr, "decl type=%d newtype=%s node=%p next=%p\\n",
+                        (int)declaration->type,
+                        ((ASTNewTypeDecl*)declaration)->name ?
+                            ((ASTNewTypeDecl*)declaration)->name : "(null)",
+                        (void*)declaration, (void*)declaration->next);
+                } else {
+                    fprintf(stderr, "decl type=%d node=%p next=%p\\n",
+                        (int)declaration->type, (void*)declaration,
+                        (void*)declaration->next);
+                }
+                if (declaration->type == AST_NEWTYPE_DECL) {
                     ASTNewTypeDecl* alias = (ASTNewTypeDecl*)declaration;
                     if (!alias->name) continue;
                     if (strcmp(alias->name, "Callback") == 0) alias_node = declaration;
