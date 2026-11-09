@@ -410,9 +410,7 @@ static int parser_map_function_type_range(
     Parser* p, const char* spelling, const Token* first, const Token* last,
     size_t range_start, size_t range_end, Token* mapped
 ) {
-    size_t raw;
     size_t raw_end;
-    size_t normalized = 0u;
     size_t spelling_length;
     size_t mapped_start = SIZE_MAX;
     size_t mapped_end = SIZE_MAX;
@@ -437,7 +435,6 @@ static int parser_map_function_type_range(
     {
         size_t candidate;
         size_t best_start = SIZE_MAX;
-        size_t best_end = SIZE_MAX;
         size_t best_range_start = SIZE_MAX;
         size_t best_range_end = SIZE_MAX;
         for (candidate = 0u; candidate <= first->source_offset; ++candidate) {
@@ -471,18 +468,16 @@ static int parser_map_function_type_range(
                 range_start_offset <= first->source_offset &&
                 scan >= raw_end && candidate >= best_start) {
                 best_start = candidate;
-                best_end = scan;
                 best_range_start = range_start_offset;
                 best_range_end = range_end_offset;
             }
         }
-        (void)best_end;
         if (best_start == SIZE_MAX) return 0;
         mapped_start = best_range_start;
         mapped_end = best_range_end;
     }
 
-    if (normalized != spelling_length || mapped_start == SIZE_MAX ||
+    if (mapped_start == SIZE_MAX ||
         mapped_end == SIZE_MAX || mapped_end <= mapped_start ||
         mapped_end - mapped_start > (size_t)INT_MAX)
         return 0;
