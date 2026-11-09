@@ -1,6 +1,6 @@
 # OCC Pipeline İlerleme Kaydı
 
-**Tarih:** 2026-11-08  
+**Tarih:** 2026-11-09  
 **Çalışma dalı:** `refactor/c-core-roadmap`  
 **Kaynak depo:** `benimprojem/OMNI-CORE-v2-NEXUS-FLOW`  
 **Belge amacı:** Lexer'dan Codegen'e kadar her Nexus Flow yapısının gerçek uygulama ve test durumunu tek tabloda izlemek.
@@ -167,13 +167,14 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–107 kayıtlı OIR düğ
 | 98 | `AST_ARRAY_TYPE` | ✓ | ✓ | ~ | ? | ✓ |
 | 99 | `AST_ARRAY_DIMENSION` | ✓ | ✓ | ~ | ? | ✓ |
 | 100 | `AST_BLOCK_HALT` | ✓ | ~ | ? | ? | ~ |
-| 101 | `AST_VARIADIC_PARAM` | ✓ | ~ | ~ | D | ~ |
+| 101 | `AST_VARIADIC_PARAM` | ✓ | ✓ | ~ | D | ✓ |
 | 102 | `AST_NAMED_ARG` | ✓ | ~ | ~ | D | ~ |
 | 103 | `AST_MUST_DECL` | ✓ | ~ | ~ | D | ~ |
 | 104 | `AST_FASTEXEC_BLOCK` | ~ | ~ | ~ | D | ~ |
 | 105 | `AST_ASM_LABEL` | ~ | ~ | ~ | D | ~ |
 | 106 | `AST_STRUCT_LITERAL` | ✓ | ✓ | ✓ | ? | ✓ |
 | 107 | `AST_STRUCT_FIELD_INIT` | ✓ | ✓ | ✓ | ? | ✓ |
+| 108 | `AST_TYPE_EXPR` | ✓ | ✓ | ~ | D | ✓ |
 
 ## 5. OIR ve Verifier kapsam kapısı
 
@@ -1262,7 +1263,7 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Current C AST already has `AST_ARRAY_TYPE` / `AST_ARRAY_DIMENSION`, but declarations and callback/function signatures still store base types in text fields (`ASTVarDecl.type_name`, `ASTFuncDecl.return_type`, `ASTNewTypeDecl.target_type`).
 - Parser `!!=linkname = "...";` directive'ini yalnızca program kapsamında kabul eder; sonraki EXF bildirimleri aktif kaynağın kendi kopyasını `ASTFuncDecl.linkname` alanında taşır. Tek kaynak birden fazla EXF bildirimiyle ilişkilendirilebilir.
 - Design contract: append-only node IDs; legacy strings retained during migration; recursive named/pointer/reference/array/function type forms; exact spans; all codec/validator/destroy/printer/schema paths and tests must be updated together.
-- **Status:** implementation phase 2. Append-only `AST_TYPE_EXPR` + six kinds, ownership/destruction/validation/debug print, AST stream v4, declaration attachment slots (`ASTVarDecl`, `ASTFuncDecl`, `ASTNewTypeDecl`) and OIR kind 108 writer/reader/schema/child traversal are implemented. Legacy AST stream v1–v3 read paths remain supported. Parser now populates named/pointer/reference/hard-qualified type trees and callback/function type trees; original type strings remain for compatibility. Parser tests cover pointer/reference/callback structures; OIR round-trip covers pointer and callback trees. Array wrapper population, exact per-parameter spans, malformed nested-type/allocation-failure tests and final full CI are still open; do not mark AST type expressions complete. CI run `42489790380` passed on Windows, macOS, Ubuntu, ASan/UBSan and Valgrind (5/5 jobs); Ubuntu CTest 60/60.
+- **Status:** implementation phase 3. Append-only `AST_TYPE_EXPR` + six kinds, ownership/destruction/validation/printer, AST stream v4, declaration attachment slots (`ASTVarDecl`, `ASTFuncDecl`, `ASTNewTypeDecl`) and OIR kind 108 writer/reader/schema/child traversal are implemented. Legacy AST stream v1–v3 read paths remain supported. Parser populates named/pointer/reference/hard-qualified/array/function types; callback parameters support fixed, multidimensional and dynamic arrays, and callback return arrays are represented as qualified array return types. Legacy text fields remain for compatibility. Array dimension literals carry both numeric and string payloads required by AST validation. Invalid recursive newtype type construction produces a syntax diagnostic. Variadic markers are valid in `AST_TYPE_FUNCTION.params` and remain final-only. Parser AST codec tests cover callback arrays and return arrays; malformed dimensions and round-trip cases are included. CI run `42695649641` passed Windows, macOS, Ubuntu, ASan/UBSan and Valgrind (5/5 jobs); Ubuntu CTest 60/60. A follow-up cleanup-only test commit `b5e03f2` is undergoing its own CI run. Remaining: exact per-parameter source spans, allocation-failure injection for nested type construction, and Semantic callback compatibility. AST type expressions and the AST stage are not yet complete.
 
 
 ## 12. EXF semicolon declaration parser support (2026-11-08)
@@ -1294,7 +1295,7 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 
 - `AST_TYPE_FUNCTION` modelinin parser üretimi mevcut; function-type alias, legacy `>` dönüş yazımı, nested callback parametresi ve fonksiyon parametresinde callback AST'si `test_function_type_alias_and_callback_parameter()` tarafından kontrol ediliyor. AST codec round-trip ve `ast_validate()` de bu testte yer alıyor.
 - `docs/language/syntax-reference.md` §16'ya callback alias, doğrudan callback parametresi, callback çağrısı, nested signature ve array hedef yazımları örnekleri eklendi.
-- **Kod eklendi (CI bekliyor):** `parser_build_type_expr()` recursive type spelling içindeki array suffix'ini `AST_TYPE_ARRAY` + `ASTArrayType` + ordered `ASTArrayDimension` olarak kuruyor. Numeric fixed dimensions `AST_LITERAL` uzunluk, `[]` NULL uzunluk ile korunuyor. Function type parametre/return builder'ındaki array reddi kaldırıldı. Test `BufferCallback[16]`, `MatrixCallback[4][4]`, dynamic `[]` AST yapısını ve `ast_validate()` kontrolünü kapsıyor. Commit: `c58e707`, `131b6d6`, `5031ad5`.
+- **Uygulandı ve doğrulandı:** `parser_build_type_expr()` recursive type spelling içindeki array suffix'ini `AST_TYPE_ARRAY` + `ASTArrayType` + ordered `ASTArrayDimension` olarak kuruyor. Numeric fixed dimensions AST_LITERAL'da `int_value` ve NUL-terminated `string_value` taşır; `[]` NULL length ile korunur. Function type parametre/return builder'ındaki array kısıtı kaldırıldı. Testler `BufferCallback[16]`, `MatrixCallback[4][4]`, dynamic `[]`, `!u8[8]` return array, codec round-trip ve malformed dimensions (nonnumeric, missing bracket, int64 overflow) kapsamını içeriyor. AST graph validator variadic callback parametresinin function type `params` altında final olmasını da doğrular. CI run `42695649641` beş işi de geçti.
 - **Sınır:** Bu imza codec'i numeric ve boş dimension ile sınırlı; arbitrary expression dimensions, semantic callback compatibility ve ABI doğrulaması tamamlanmış değil. GitHub CI sonucu henüz alınamadı; test geçişi onaylanmış sayılmaz.
 - ABI/calling convention ve callback compatibility Semantic/backend sınırında; parser bunları doğruluyor kabul edilmez.
 
@@ -1304,3 +1305,13 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Added rejection tests for nonnumeric dimensions, missing closing bracket, and signed-64-bit dimension overflow.
 - Callback parameter fixed/multidimensional/dynamic array cases remain covered in the existing callback AST test.
 - GitHub CI verification for commit `b86f922` is pending; local build is unavailable in this GitHub-only workspace. Do not mark these tests passed until CI reports success.
+
+## 13. Recursive callback array AST fixes and verification (2026-11-09)
+
+- parse_newtype_decl() artık function type alias metninde '[' bulunduğu için target_type_expr üretimini atlamaz. Fixed, multidimensional ve dynamic array suffix'leri callback signature AST ağacına bağlanır.
+- AST_VARIADIC_PARAM validator sözleşmesi, normal/extern fonksiyonlara ek olarak AST_TYPE_FUNCTION.params bağlamını da kapsar; final-only kuralı korunur.
+- AST_TYPE_ARRAY dimension literal'ları zorunlu string_value alanını ve numeric int_value alanını birlikte taşır. NUL terminator ve allocation sınırları ASan ile doğrulandı.
+- Recursive newtype type construction başarısız olduğunda Parser açık syntax diagnostic üretir; malformed callback dimensions sessizce kabul edilmez.
+- Test kapsamı: callback alias, direct callback parameter, nested callback, fixed/multidimensional/dynamic callback parameter arrays, callback return array, AST serialize/deserialize, invalid dimension rejection.
+- CI run 42695649641: Windows, macOS, Ubuntu, ASan/UBSan ve Valgrind 5/5 başarılı; Ubuntu CTest 60/60. Commit a8d0182 doğrulandı. Diagnostic cleanup commit b5e03f2 için CI sürüyor.
+- Semantic callback compatibility, exact per-parameter source spans ve nested-type allocation-failure injection açık kalır. Codegen aşamasına geçiş yapılmaz.
