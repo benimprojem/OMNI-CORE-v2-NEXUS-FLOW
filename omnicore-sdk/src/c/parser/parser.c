@@ -2811,7 +2811,7 @@ static ASTNode* parser_build_function_type_expr(
                     mapped_param.source_length+=prefix_length;
                     mapped_param.length+=(int)prefix_length;
                     for(scan=0u;scan<mapped_param.source_offset;++scan) {
-                        if(p->ctx->source_buffer[scan]=='\\n') {
+                        if(p->ctx->source_buffer[scan]=='\n') {
                             ++line;
                             column=1u;
                         } else {
