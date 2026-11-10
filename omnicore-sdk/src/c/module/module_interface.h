@@ -12,6 +12,8 @@ extern "C" {
 #define OCC_MODULE_INTERFACE_SCHEMA_MAJOR 1u
 #define OCC_MODULE_INTERFACE_SCHEMA_MINOR 0u
 
+struct OirSemanticAstArtifactView;
+
 typedef enum OccModuleInterfaceStatus {
     OCC_MODULE_INTERFACE_OK = 0,
     OCC_MODULE_INTERFACE_INVALID_ARGUMENT = 1,
@@ -76,6 +78,14 @@ typedef struct OccModuleInterface {
 OccModuleInterfaceStatus occ_module_interface_build(
     const char* canonical_identity,
     const SemanticResult* semantic_result,
+    OccModuleInterface* out_interface
+);
+
+/* Build the same publication snapshot from a fully validated SEMANTIC_AST
+ * artifact view. All source IDs remain local to the producing module. */
+OccModuleInterfaceStatus occ_module_interface_build_from_oir_view(
+    const char* canonical_identity,
+    const struct OirSemanticAstArtifactView* semantic_artifact,
     OccModuleInterface* out_interface
 );
 
