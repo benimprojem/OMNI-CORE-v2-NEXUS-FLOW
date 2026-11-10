@@ -134,7 +134,8 @@ OccModuleInterfaceStatus occ_module_interface_build_from_oir_view(
        artifact->envelope.header.validity!=OIR_VALIDITY_VALID ||
        artifact->envelope.header.payload_schema_major!=OIR_SEMANTIC_AST_SCHEMA_MAJOR ||
        artifact->envelope.header.payload_schema_minor>OIR_SEMANTIC_AST_SCHEMA_MINOR ||
-       !artifact->envelope.bytes || !artifact->ast.bytes ||
+       !artifact->envelope.bytes || !artifact->ast.node_records ||
+       artifact->ast.node_count == 0u ||
        !artifact->scopes.bytes || !artifact->symbols.bytes ||
        !artifact->types.bytes || !artifact->annotations.bytes ||
        !artifact->relations.bytes)
