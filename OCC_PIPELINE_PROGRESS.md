@@ -1467,3 +1467,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Ubuntu CTest: **61/61 geçti**; Parser regression testi `parser_accepts_and_rejects_sources` dahil.
 - Bu doğrulama ASTProgram alanı, AST codec v6, Parser bildirimi ve eklenen no-directive regresyon testlerini kapsar.
 - Sonraki commit'ler yalnızca stdlib dosya adı ve dokümantasyon güncellemeleri içerir; bunların push CI çalışmaları ayrıca izleniyor.
+
+
+### 2026-11-10 — Implicit `osmodule` dependency edge
+
+- Module Resolver graph API artık explicit `AST_USE` ve implicit `osmodule` bağımlılıklarını ayrı edge türleriyle temsil ediyor: `OCC_MODULE_EDGE_EXPLICIT_USE` / `OCC_MODULE_EDGE_IMPLICIT_OSMODULE`.
+- `occ_module_resolver_add_implicit_osmodule()`, AST_USE node ID'si olmayan standart bağımlılığı `ast_use_node_id = 0` ve program root source span'i ile kaydeder. Ownership, text/edge limitleri, module state ve cycle kontrolleri explicit edge yolu ile ortaktır.
+- Resolver testine implicit edge span/kind, duplicate rejection ve aynı modüle explicit USE edge eklenebilmesi regresyonu eklendi.
+- **Sınır:** Bu API tek başına otomatik yüklemeyi başlatmaz. Host scheduler'ın ASTProgram.disable_osmodule alanını okuyup provider ile `osmodule`'ı çözmesi ve bu API'yi çağırması henüz entegre edilmedi.
+- **CI bekliyor:** Yeni resolver edge testi henüz CI ile doğrulanmadı.
