@@ -1320,3 +1320,11 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Parser allocation-failure injection fixture'ı nested callback + nested fixed array türlerini de kapsıyor. CI run `42699233464` / commit `7dba16e177817262343b8148c834c4b60647e94b`: Windows, macOS, Ubuntu, ASan/UBSan ve Valgrind 5/5 başarılı; Ubuntu CTest 60/60.
 - AST tarafında callback signature parse/build, recursive type payload, exact parameter source spans, codec round-trip ve nested allocation-failure cleanup testleri mevcut. Semantic callback compatibility / function value call-compatibility henüz Semantic aşamasında tamamlanmadı; ABI/calling convention doğrulaması da açık.
 - Açık kalan callback işi Semantic katmanındadır: callback signature uyumluluğu, function value çağrı uyumluluğu ve ABI/calling convention kuralları. Bunlar Semantic tamamlanmadan Codegen'e taşınmaz.
+
+## 2026-11-10 — Callback AST verification and matrix reconciliation
+
+- Confirmed callback recursive-type implementation and source-span/OOM regression coverage from commit `7dba16e177817262343b8148c834c4b60647e94b`.
+- GitHub Actions run `42699233464`: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind all passed (5/5); Ubuntu CTest 60/60.
+- Corrected `docs/AST_PARSER_PRODUCTION_MATRIX.md`: `AST_TYPE_EXPR` ID 108 and OIR/codec v4 are now reflected; the stale “no dedicated AST type node” claim is removed.
+- Callback parser/AST work is verified. Remaining callback gaps are Semantic signature/function-value compatibility and ABI/calling convention—not parser syntax or Codegen.
+- Next AST task: continue the source-production inventory and exact-span / malformed owner-edge / parser partial-child allocation audit. Codegen remains blocked until AST and Semantic/OIR/Verifier gates are complete.
