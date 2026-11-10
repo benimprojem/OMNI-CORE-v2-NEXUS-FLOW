@@ -2875,8 +2875,23 @@ static int test_use_comma_list_spans(void) {
             second->base.source_span.start_line==1u &&
             ast_validate((ASTNode*)parser->ast_root,NULL);
     }
+    if(!valid) {
+        fprintf(stderr,"USE comma-list ownership/span test failed (errors=%d, status=%d).\\n",
+            parser->error_count,(int)parser_get_status(parser));
+        if(first) fprintf(stderr," first path=%s alias=%s span=%llu..%llu loc=%u\\n",
+            first->module_name?first->module_name:"(null)",
+            first->alias?first->alias:"(null)",
+            (unsigned long long)first->base.source_span.start_offset,
+            (unsigned long long)first->base.source_span.end_offset,
+            (unsigned)first->base.source_span.has_location);
+        if(second) fprintf(stderr," second path=%s alias=%s span=%llu..%llu loc=%u\\n",
+            second->module_name?second->module_name:"(null)",
+            second->alias?second->alias:"(null)",
+            (unsigned long long)second->base.source_span.start_offset,
+            (unsigned long long)second->base.source_span.end_offset,
+            (unsigned)second->base.source_span.has_location);
+    }
     parser_destroy(parser);
-    if(!valid) fprintf(stderr,"USE comma-list ownership/span test failed.\\n");
     return valid;
 }
 
