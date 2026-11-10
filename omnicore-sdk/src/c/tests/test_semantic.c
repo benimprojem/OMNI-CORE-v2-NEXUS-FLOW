@@ -239,6 +239,11 @@ static int check_compound_assignment_semantics(void) {
         "f:main() { v:a!8bit; v:b!8bit; v:inverse = ~a; v:same = a == b; }";
     const char* invalid_bitwise_complement =
         "f:main() { v:a!f32; v:inverse = ~a; }";
+    const char* valid_fixed_bitwise_binary =
+        "f:main() { v:a!8bit; v:b!8bit; "
+        "v:masked = a & b; v:merged = a | b; v:toggled = a ^ b; }";
+    const char* invalid_fixed_bitwise_binary_width =
+        "f:main() { v:a!8bit; v:b!16bit; v:masked = a & b; }";
     const char* valid_decimal_widths =
         "f:main() { v:decimal32!d32; v:decimal64!d64; decimal32 += decimal32; decimal64 *= decimal64; }";
     const char* immutable_compound =
@@ -270,6 +275,8 @@ static int check_compound_assignment_semantics(void) {
         check_source(invalid_fixed_width_mismatch,1) &&
         check_source(valid_bitwise_complement_and_compare,0) &&
         check_source(invalid_bitwise_complement,1) &&
+        check_source(valid_fixed_bitwise_binary,0) &&
+        check_source(invalid_fixed_bitwise_binary_width,1) &&
         check_source(valid_decimal_widths,0) &&
         check_source(immutable_compound,1) &&
         check_source(valid_string_append,0) &&
