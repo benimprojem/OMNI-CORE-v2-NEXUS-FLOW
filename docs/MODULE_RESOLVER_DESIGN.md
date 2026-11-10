@@ -158,7 +158,7 @@ The default-module policy is a program-level decision, not a Parser filesystem o
 - If the root `ASTProgram.disable_osmodule` flag is set by `no: osmodule;`, the host omits that implicit dependency.
 - The AST field is accompanied by `disable_osmodule_span` so host diagnostics can point to the exact directive.
 - This directive does not create an `AST_USE` node and does not represent a user-written dependency edge.
-- The graph API currently records explicit `AST_USE` edges only. An explicit implicit-edge kind/API and host scheduling integration are still required before automatic `osmodule` loading is operational.
+- The graph API now distinguishes `OCC_MODULE_EDGE_EXPLICIT_USE` from `OCC_MODULE_EDGE_IMPLICIT_OSMODULE`. `occ_module_resolver_add_implicit_osmodule()` records the standard dependency with `ast_use_node_id == 0` and the root program span; it shares the same graph ownership, limits, state checks and cycle detection as explicit edges. The host must call it only when `ASTProgram.disable_osmodule == 0`. Host scheduling, provider resolution of the standard module, and the actual ASTProgram-to-resolver pipeline connection are still required before automatic loading is operational.
 - `coremodule` is OS-independent; its automatic/manual loading policy remains an open language decision.
 
 Do not rename the compiler's internal `src/c/core` subsystem: these names refer to Nexus Flow standard-library modules, not the OCC compiler's own core implementation directory.
