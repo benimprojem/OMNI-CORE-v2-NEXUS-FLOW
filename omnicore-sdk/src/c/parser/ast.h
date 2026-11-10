@@ -257,7 +257,7 @@ typedef struct { ASTNode base; ASTNode* length; } ASTArrayDimension;
 typedef struct { ASTNode base; } ASTVariadicParam;
 /* Named call argument: owned label and one owned value expression. */
 typedef struct { ASTNode base; char* name; ASTNode* value; } ASTNamedArg;
-/* `m:Name = source;` compile-time dependency; source remains an AST expression. */
+/* `m:name = expression;` immutable value; source owns its initializer expression. */
 typedef struct { ASTNode base; char* name; ASTNode* source; } ASTMustDecl;
 /* FASTEXEC owns an ordered statement chain. */
 typedef struct { ASTNode base; ASTNode* statements; } ASTFastExecBlock;
