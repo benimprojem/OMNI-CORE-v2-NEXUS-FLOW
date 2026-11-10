@@ -146,7 +146,7 @@ done:
 }
 
 static int test_use_namespace_oir_roundtrip(void) {
-    static const char source[] = "use db.mysql.sql as connector ns sql;\\n";
+    static const char source[] = "use db.mysql.sql as connector ns sql;\n";
     ParserContext* parser=parser_init_source("use-namespace-oir.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     uint8_t *first=NULL,*second=NULL;
