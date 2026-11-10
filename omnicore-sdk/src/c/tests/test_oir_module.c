@@ -29,7 +29,7 @@ int main(void) {
     OirModuleInput input;
     OirModuleView view;
     OirModuleInstruction decoded;
-    uint8_t payload[256], legacy_payload[256];
+    uint8_t payload[512], legacy_payload[512];
     size_t written = 0, legacy_written = 0;
 
     memset(&input, 0, sizeof(input));
