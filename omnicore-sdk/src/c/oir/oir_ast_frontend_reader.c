@@ -107,7 +107,7 @@ static void free_disconnected_node(ASTNode* node) {
         case AST_PANIC: free(((ASTPanic*)node)->message); break;
         case AST_THREAD_BLOCK: free(((ASTThreadBlock*)node)->name); break;
         case AST_USE: {
-            ASTUse* n=(ASTUse*)node; free(n->module_name); free(n->alias); break;
+            ASTUse* n=(ASTUse*)node; free(n->module_name); free(n->alias); free(n->namespace_name); break;
         }
         case AST_NAMED_ARG: free(((ASTNamedArg*)node)->name); break;
         case AST_MUST_DECL: free(((ASTMustDecl*)node)->name); break;
@@ -361,6 +361,7 @@ static OirStatus populate_scalar_fields(
                 ASTUse* n=(ASTUse*)node;
                 if(field.field_id==1u) status=allocate_string(view,&field,&n->module_name);
                 else if(field.field_id==2u) status=allocate_string(view,&field,&n->alias);
+                else if(field.field_id==3u) status=allocate_string(view,&field,&n->namespace_name);
                 break;
             }
             case AST_NAMED_ARG:
