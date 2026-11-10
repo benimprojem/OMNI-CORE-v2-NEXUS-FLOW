@@ -66,6 +66,8 @@ static int append_use(ASTNode* program, const char* name) {
     use->module_name = (char*)malloc(length + 1u);
     if (!use->module_name) { ast_destroy((ASTNode*)use); return 0; }
     memcpy(use->module_name, name, length + 1u);
+    use->base.line = 1;
+    use->base.col = 1;
     use->base.source_span.has_location = 1u;
     use->base.source_span.start_line = 1u;
     use->base.source_span.start_column = 1u;
@@ -90,9 +92,18 @@ static int fake_parse(void* context, const OccModuleSourceView* source,
     program = ast_create(AST_PROGRAM);
     if (!program) return 0;
     ((ASTProgram*)program)->disable_osmodule = 1u;
+    ((ASTProgram*)program)->disable_osmodule_span.has_location = 1u;
+    ((ASTProgram*)program)->disable_osmodule_span.start_line = 1u;
+    ((ASTProgram*)program)->disable_osmodule_span.start_column = 1u;
+    ((ASTProgram*)program)->disable_osmodule_span.end_line = 1u;
+    ((ASTProgram*)program)->disable_osmodule_span.end_column = 1u;
+    program->line = 1;
+    program->col = 1;
     program->source_span.has_location = 1u;
     program->source_span.start_line = 1u;
     program->source_span.start_column = 1u;
+    program->source_span.end_line = 1u;
+    program->source_span.end_column = 1u;
     if (strcmp(name, "root") == 0) {
         if (!append_use(program, "a") ||
             (!((FakePipeline*)context)->cycle_mode && !append_use(program, "b"))) {
@@ -156,12 +167,20 @@ static int test_dependency_first_semantic_schedule(void) {
     CHECK(occ_module_scheduler_init(&scheduler, &config, &provider,
         &callbacks) == OCC_MODULE_SCHEDULER_OK);
     status = occ_module_scheduler_run(&scheduler, &root_request);
-    CHECK(status == OCC_MODULE_SCHEDULER_OK);
-    CHECK(pipeline.semantic_count == 3u);
-    CHECK(pipeline.semantic_order[0] == 3u);
-    CHECK(pipeline.semantic_order[1] == 2u);
-    CHECK(pipeline.semantic_order[2] == 1u);
-    CHECK(fake_provider.release_count == 4);
+    if (status != OCC_MODULE_SCHEDULER_OK) {
+        fprintf(stderr, "scheduler returned %s (%d)\\n",
+            occ_module_scheduler_status_string(status), (int)status);
+        occ_module_scheduler_destroy(&scheduler);
+        return 0;
+    }
+    if (pipeline.semantic_count != 3u ||
+        pipeline.semantic_order[0] != 3u ||
+        pipeline.semantic_order[1] != 2u ||
+        pipeline.semantic_order[2] != 1u ||
+        fake_provider.release_count != 4) {
+        occ_module_scheduler_destroy(&scheduler);
+        return 0;
+    }
     occ_module_scheduler_destroy(&scheduler);
     return 1;
 }
@@ -194,9 +213,17 @@ static int test_dependency_cycle_is_reported(void) {
     root_request.use_span = &root_span;
     CHECK(occ_module_scheduler_init(&scheduler, &config, &provider,
         &callbacks) == OCC_MODULE_SCHEDULER_OK);
-    CHECK(occ_module_scheduler_run(&scheduler, &root_request) ==
-        OCC_MODULE_SCHEDULER_CYCLE);
-    CHECK(pipeline.semantic_count == 0u);
+    {
+        OccModuleSchedulerStatus status =
+            occ_module_scheduler_run(&scheduler, &root_request);
+        if (status != OCC_MODULE_SCHEDULER_CYCLE ||
+            pipeline.semantic_count != 0u) {
+            fprintf(stderr, "cycle test returned %s (%d)\\n",
+                occ_module_scheduler_status_string(status), (int)status);
+            occ_module_scheduler_destroy(&scheduler);
+            return 0;
+        }
+    }
     occ_module_scheduler_destroy(&scheduler);
     return 1;
 }
