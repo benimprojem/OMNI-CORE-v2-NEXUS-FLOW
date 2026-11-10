@@ -65,8 +65,13 @@ int main(void) {
     oir_module_imports_destroy(&imports);
 
     /* Duplicate USE ordinals are structurally invalid, even if strings parse. */
-    bytes[OIR_HEADER_SIZE+OIR_SECTION_HEADER_SIZE+16u] = 1u;
-    bytes[OIR_HEADER_SIZE+OIR_SECTION_HEADER_SIZE+OMI_HEADER_SIZE+60u] = 1u;
+    {
+        size_t second_ordinal = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE +
+            16u + strlen("file:///project/main.nxf") + 60u +
+            strlen("math") + strlen("m") + strlen("core") +
+            strlen("file:///libs/math.nxf");
+        bytes[second_ordinal] = 1u;
+    }
     assert(oir_module_imports_artifact_open(bytes,written,&decoded)==OIR_STATUS_INVALID_SECTION);
     return 0;
 }
