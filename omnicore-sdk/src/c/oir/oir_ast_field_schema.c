@@ -186,6 +186,10 @@ OirStatus oir_ast_field_schema_validate(const OirAstNodeTableView* view) {
                     return OIR_STATUS_INVALID_SECTION;
                 }
                 ++next_required;
+            } else if (record.node_kind_id == 71u && field.field_id == 3u &&
+                       (field.flags & OIR_AST_TLV_OPTIONAL) != 0u &&
+                       field.value_type == OIR_AST_VALUE_STRING_REF) {
+                /* Optional USE namespace selector; absent in older OIR artifacts. */
             } else if ((field.flags & OIR_AST_TLV_OPTIONAL) == 0u) {
                 return OIR_STATUS_INVALID_SECTION;
             }
