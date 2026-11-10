@@ -1102,6 +1102,7 @@ static int roundtrips_versioned_source_spans(void) {
     FILE* stream;
     unsigned char magic[8];
     uint32_t version = 0u;
+    uint32_t legacy_version = 4u;
     ASTIdentifier* decoded;
     int valid;
     if (!original) return 1;
@@ -1127,14 +1128,13 @@ static int roundtrips_versioned_source_spans(void) {
         fread(magic, 1u, sizeof(magic), stream) != sizeof(magic) ||
         fread(&version, sizeof(version), 1u, stream) != 1u ||
         memcmp(magic, "OCCAST\r\n", sizeof(magic)) != 0 ||
-        version != 4u) {
+        version != 5u) {
         fclose(stream);
         ast_destroy((ASTNode*)original);
         return 1;
     }
     rewind(stream);
     decoded = (ASTIdentifier*)ast_deserialize(stream);
-    fclose(stream);
     valid = decoded && decoded->name &&
         strcmp(decoded->name, "span_fixture") == 0 &&
         decoded->base.source_span.has_location == 1u &&
@@ -1147,6 +1147,21 @@ static int roundtrips_versioned_source_spans(void) {
         decoded->base.source_span.end_column == span.end_column &&
         ast_validate((ASTNode*)decoded, NULL);
     ast_destroy((ASTNode*)decoded);
+    decoded = NULL;
+    /* A v4 stream has no AST_USE namespace payload; older streams remain readable. */
+    if (valid && fseek(stream, (long)sizeof(magic), SEEK_SET) == 0 &&
+        fwrite(&legacy_version, sizeof(legacy_version), 1u, stream) == 1u &&
+        fflush(stream) == 0) {
+        rewind(stream);
+        decoded = (ASTIdentifier*)ast_deserialize(stream);
+        valid = decoded && decoded->name &&
+            strcmp(decoded->name, "span_fixture") == 0 &&
+            ast_validate((ASTNode*)decoded, NULL);
+    } else {
+        valid = 0;
+    }
+    ast_destroy((ASTNode*)decoded);
+    fclose(stream);
     ast_destroy((ASTNode*)original);
     return valid ? 0 : 1;
 }
