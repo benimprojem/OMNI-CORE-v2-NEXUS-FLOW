@@ -1762,3 +1762,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - The adapter uses OIR table accessors and copies all strings into the owned Module Interface snapshot; it does not retain pointers into the source artifact.
 - The real Semantic DLL integration test now marks a source symbol PUBLIC in a validated SEMANTIC_AST artifact, builds the interface snapshot from that artifact view, and verifies the published symbol and type closure.
 - This enables dependency interfaces to be derived from Semantic stage output. Host Scheduler/main.c still needs to run each dependency through Semantic, invoke the interface writer + independent verifier, and pass the verified set to the importer Semantic call.
+
+### Semantic import environment — 2026-11-10
+
+- Added semantic_import_environment.h/.c, a C read-only Semantic-side index built only from a successfully matched verified import bundle.
+- Each explicit USE binding remains a separate view with its source ordinal, requested dotted spelling, canonical dependency identity, as alias and ns selector. Repeated imports share the interface object but do not collapse binding metadata.
+- Added scoped symbol lookup and source-local type lookup. Source module symbol/type IDs are preserved, and PUBLIC/EXPORTED flags are returned unchanged.
+- Duplicate same-name published symbols are reported as ambiguous; missing symbols/types have separate status.
+- The environment owns only its binding index. OIR strings and interface data remain borrowed and must outlive the environment.
+- Added semantic_import_environment_binding_and_source_local_lookup CTest for alias/namespace preservation, repeated module bindings, visibility flags, ambiguity, missing lookup and cleanup.
+- Boundary: this does not yet inject imported symbols into ordinary Semantic lexical lookup or decide PUBLIC/EXPORTED, alias-default, namespace-selection and collision policies. Those rules remain explicit next Semantic work; no end-to-end import claim is made.
