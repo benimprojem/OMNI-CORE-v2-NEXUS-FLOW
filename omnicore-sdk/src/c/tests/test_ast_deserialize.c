@@ -1166,6 +1166,55 @@ static int roundtrips_versioned_source_spans(void) {
     return valid ? 0 : 1;
 }
 
+static int reads_v5_program_stream_without_module_policy_payload(void) {
+    ASTProgram* original = (ASTProgram*)ast_create(AST_PROGRAM);
+    ASTNode* decoded = NULL;
+    FILE* current = NULL;
+    FILE* legacy = NULL;
+    unsigned char* bytes = NULL;
+    long end = 0L;
+    uint32_t legacy_version = 5u;
+    int valid = 0;
+
+    if (!original) return 1;
+    current = tmpfile();
+    if (!current || !ast_serialize((ASTNode*)original, current) ||
+        fflush(current) != 0 || fseek(current, 0L, SEEK_END) != 0)
+        goto done;
+    end = ftell(current);
+    /* v6 appends one policy byte + the eight serialized span fields (38 bytes)
+       immediately before the root sibling terminator. */
+    if (end < (long)(sizeof(uint32_t) + 38u) ||
+        fseek(current, 0L, SEEK_SET) != 0)
+        goto done;
+    bytes = (unsigned char*)malloc((size_t)end);
+    if (!bytes || fread(bytes, 1u, (size_t)end, current) != (size_t)end)
+        goto done;
+    memcpy(bytes + 8u, &legacy_version, sizeof(legacy_version));
+    legacy = tmpfile();
+    if (!legacy ||
+        fwrite(bytes, 1u, (size_t)end - 38u - sizeof(uint32_t), legacy) !=
+            (size_t)end - 38u - sizeof(uint32_t) ||
+        fwrite(bytes + end - (long)sizeof(uint32_t), 1u,
+            sizeof(uint32_t), legacy) != sizeof(uint32_t) ||
+        fflush(legacy) != 0 || fseek(legacy, 0L, SEEK_SET) != 0)
+        goto done;
+
+    decoded = ast_deserialize(legacy);
+    valid = decoded && decoded->type == AST_PROGRAM &&
+        ((ASTProgram*)decoded)->disable_osmodule == 0u &&
+        !((ASTProgram*)decoded)->disable_osmodule_span.has_location &&
+        ast_validate(decoded, NULL);
+
+done:
+    if (decoded) ast_destroy(decoded);
+    if (bytes) free(bytes);
+    if (legacy) fclose(legacy);
+    if (current) fclose(current);
+    ast_destroy((ASTNode*)original);
+    return valid ? 0 : 1;
+}
+
 static int reads_v1_function_stream_without_v2_return_child(void) {
     ASTNode* original=make_function_fixture(AST_FUNC_DECL);
     FILE* stream=NULL;
@@ -1531,6 +1580,7 @@ int main(int argc, char** argv) {
         return 9;
     }
     if (roundtrips_versioned_source_spans() != 0) { fprintf(stderr, "roundtrips_versioned_source_spans failed.\\n"); return 15; }
+    if (reads_v5_program_stream_without_module_policy_payload() != 0) { fprintf(stderr, "reads_v5_program_stream_without_module_policy_payload failed.\\n"); return 26; }
     { int type_expr_result=roundtrips_recursive_type_expr_declaration_slots(); if (type_expr_result != 0) { fprintf(stderr, "roundtrips_recursive_type_expr_declaration_slots failed at stage %d.\\n",type_expr_result); return 25; } }
     if (reads_v1_function_stream_without_v2_return_child() != 0) { fprintf(stderr, "reads_v1_function_stream_without_v2_return_child failed.\\n"); return 22; }
     if (reads_v2_function_stream_without_v3_linkname() != 0) { fprintf(stderr, "reads_v2_function_stream_without_v3_linkname failed.\\n"); return 24; }
