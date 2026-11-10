@@ -137,17 +137,31 @@ OirStatus oir_module_imports_build_from_scheduler(
 static int payload_size(const OirModuleImports* m,size_t* out) {
     size_t n=OMI_HEADER_SIZE+strlen(m->importer_identity);
     size_t i;
+    uint8_t* seen;
     if(m->record_count>OIR_MODULE_IMPORTS_MAX_RECORDS) return 0;
+    seen=(uint8_t*)calloc((size_t)OIR_MODULE_IMPORTS_MAX_RECORDS+1u,1u);
+    if(!seen) return 0;
     for(i=0;i<m->record_count;i++) {
         const OirModuleImportRecord* r=&m->records[i];
         const char* s[4]={r->requested_path,r->alias,r->namespace_name,r->dependency_identity};
         size_t k;
-        if(!r->use_ordinal || !valid_text(s[0],0)||!valid_text(s[1],1)||
-           !valid_text(s[2],1)||!valid_text(s[3],0)||!add_size(&n,OMI_RECORD_SIZE)) return 0;
-        for(k=0;k<4;k++) if(s[k]&&!add_size(&n,strlen(s[k]))) return 0;
+        if(!r->use_ordinal || r->use_ordinal>OIR_MODULE_IMPORTS_MAX_RECORDS ||
+           seen[r->use_ordinal] || !valid_text(s[0],0)||!valid_text(s[1],1)||
+           !valid_text(s[2],1)||!valid_text(s[3],0) ||
+           (r->span.has_location>1u) ||
+           (r->span.has_location && r->span.end_offset<r->span.start_offset) ||
+           !add_size(&n,OMI_RECORD_SIZE)) {
+            free(seen); return 0;
+        }
+        seen[r->use_ordinal]=1u;
+        for(k=0;k<4;k++) if(s[k]&&!add_size(&n,strlen(s[k]))) {
+            free(seen); return 0;
+        }
     }
+    free(seen);
     *out=n; return 1;
 }
+
 OirStatus oir_module_imports_artifact_write(const OirModuleImports* m,
     uint64_t job_id,uint8_t* output,size_t capacity,size_t* out_written) {
     size_t psize,total,written=0,off,i;
