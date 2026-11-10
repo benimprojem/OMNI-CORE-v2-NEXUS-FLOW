@@ -1430,14 +1430,14 @@ static ASTNode* parse_defer(Parser* p) {
     return (ASTNode*)defer;
 }
 
-static ASTNode* parse_must_decl(Parser* p) {
-    ASTMustDecl* dependency = (ASTMustDecl*)parser_ast_create(p, AST_MUST_DECL);
+static ASTNode* parse_immutable_value_decl(Parser* p) {
+    ASTMustDecl* immutable = (ASTMustDecl*)parser_ast_create(p, AST_MUST_DECL);
     Token prefix_token = p->previous;
     const char* name_start = NULL;
     size_t name_length = 0u;
-    if (!dependency) return NULL;
-    dependency->base.line = prefix_token.line;
-    dependency->base.col = prefix_token.col;
+    if (!immutable) return NULL;
+    immutable->base.line = prefix_token.line;
+    immutable->base.col = prefix_token.col;
     /* Like f:name, the lexer may return the whole m:Name prefix as one token. */
     if (prefix_token.length > 2) {
         name_start = prefix_token.start + 2;
@@ -1447,30 +1447,30 @@ static ASTNode* parse_must_decl(Parser* p) {
         name_length = (size_t)p->previous.length;
     } else {
         error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
-            "Expected dependency name after m:.");
-        ast_destroy((ASTNode*)dependency);
+            "Expected immutable value name after m:.");
+        ast_destroy((ASTNode*)immutable);
         return NULL;
     }
-    dependency->name = (char*)parser_malloc(p, name_length + 1u);
-    if (!dependency->name) {
-        ast_destroy((ASTNode*)dependency);
+    immutable->name = (char*)parser_malloc(p, name_length + 1u);
+    if (!immutable->name) {
+        ast_destroy((ASTNode*)immutable);
         return NULL;
     }
-    memcpy(dependency->name, name_start, name_length);
-    dependency->name[name_length] = '\0';
+    memcpy(immutable->name, name_start, name_length);
+    immutable->name[name_length] = '\0';
     if (!match(p, TOKEN_ASSIGN)) {
         error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
-            "Expected '=' after mandatory dependency name.");
-        ast_destroy((ASTNode*)dependency);
+            "Expected '=' after immutable value name.");
+        ast_destroy((ASTNode*)immutable);
         return NULL;
     }
-    dependency->source = parse_expression(p);
-    if (!dependency->source) {
-        ast_destroy((ASTNode*)dependency);
+    immutable->source = parse_expression(p);
+    if (!immutable->source) {
+        ast_destroy((ASTNode*)immutable);
         return NULL;
     }
     consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
-    return (ASTNode*)dependency;
+    return (ASTNode*)immutable;
 }
 
 static ASTNode* parse_use(Parser* p) {
@@ -4687,15 +4687,9 @@ static ASTNode* parse_statement(Parser* p) {
 
     if (match(p, TOKEN_PRE_MUST)) {
         Token start = p->previous;
-        ASTNode* must;
-        if (p->nesting_depth != 0u) {
-            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
-                "MUST dependencies are only valid at program scope.");
-            return NULL;
-        }
-        must = parse_must_decl(p);
-        if (must) parser_stamp_node_tokens(p, must, &start, &p->previous);
-        return must;
+        ASTNode* immutable = parse_immutable_value_decl(p);
+        if (immutable) parser_stamp_node_tokens(p, immutable, &start, &p->previous);
+        return immutable;
     }
 
     if (match(p, TOKEN_PRE_VAR) || match(p, TOKEN_PRE_CONST)) {
