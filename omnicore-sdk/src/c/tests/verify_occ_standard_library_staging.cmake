@@ -1,0 +1,27 @@
+if(NOT DEFINED OCC_RUNTIME_DIR)
+    message(FATAL_ERROR "OCC_RUNTIME_DIR was not provided")
+endif()
+
+set(_occ_config "${OCC_RUNTIME_DIR}/occ.ocf")
+set(_osmodule "${OCC_RUNTIME_DIR}/occ/libs/osmodule.nxf")
+set(_coremodule "${OCC_RUNTIME_DIR}/occ/libs/coremodule.nxf")
+
+foreach(_required IN ITEMS "${_occ_config}" "${_osmodule}" "${_coremodule}")
+    if(NOT EXISTS "${_required}")
+        message(FATAL_ERROR "Required OCC runtime library file is missing: ${_required}")
+    endif()
+endforeach()
+
+file(READ "${_occ_config}" _config_text)
+if(NOT _config_text MATCHES "\.\/occ\/libs")
+    message(FATAL_ERROR "Runtime occ.ocf does not include ./occ/libs")
+endif()
+
+file(READ "${_osmodule}" _osmodule_text)
+file(READ "${_coremodule}" _coremodule_text)
+if(NOT _osmodule_text MATCHES "osmodule\.nxf")
+    message(FATAL_ERROR "osmodule.nxf starter file header is invalid")
+endif()
+if(NOT _coremodule_text MATCHES "coremodule\.nxf")
+    message(FATAL_ERROR "coremodule.nxf starter file header is invalid")
+endif()
