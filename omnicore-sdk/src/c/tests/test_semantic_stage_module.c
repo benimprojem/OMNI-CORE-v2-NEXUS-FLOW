@@ -88,6 +88,7 @@ int main(int argc,char** argv) {
     memset(&import_binding,0,sizeof(import_binding));
     memset(&module_imports,0,sizeof(module_imports));
     memset(&module_interface,0,sizeof(module_interface));
+    memset(&module_snapshot,0,sizeof(module_snapshot));
     memset(import_inputs,0,sizeof(import_inputs));
     occ_diagnostics_init(&diagnostics);
     parser=parser_init_source("semantic-stage-test.nxf",source,sizeof(source)-1u);
@@ -154,6 +155,12 @@ int main(int argc,char** argv) {
             owner_scope,(size_t)ast.node_count+1u)==OIR_STATUS_OK);
         CHECK(view.scopes.record_count>=2u);
         CHECK(view.symbols.record_count>=3u);
+        CHECK(occ_module_interface_build_from_oir_view(
+            "file:///project/main.nxf",&view,&module_snapshot)==
+            OCC_MODULE_INTERFACE_OK);
+        CHECK(strcmp(module_snapshot.canonical_identity,
+            "file:///project/main.nxf")==0);
+        occ_module_interface_destroy(&module_snapshot);
     }
 
     /* The Semantic DLL accepts one verified import manifest plus one verified
