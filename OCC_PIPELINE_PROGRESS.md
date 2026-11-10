@@ -1706,3 +1706,11 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - The Module Interface artifact reader now accepts both Semantic-produced input and Verifier-stamped output, allowing downstream consumers to re-open the verified artifact.
 - Added a dynamic DLL test using the host module loader. It checks descriptor validation, retry/output sizing, artifact identity/job preservation, verifier producer stamping and clean diagnostic behavior.
 - This verifier is an independent validation gate for module-interface transport; it does not perform importer visibility, alias, namespace, collision or type-binding semantics.
+
+
+### Scheduler USE binding canonical identity — 2026-11-10
+
+- Extended `OccModuleImportBinding` with `dependency_identity`, a borrowed pointer to the resolved dependency's canonical identity in the Resolver graph.
+- `occ_module_scheduler_get_import_binding()` now returns both the resolved dependency module ID and canonical identity alongside the requested dotted spelling, alias, namespace selector and source span.
+- The new field remains borrowed for scheduler lifetime; no path is re-resolved and no alias/namespace normalization is performed.
+- Added regression assertion against the fake provider's canonical identity.
