@@ -356,3 +356,10 @@ The manifest is scoped to one importer and records its canonical identity. Each 
 `oir_module_imports_build_from_scheduler()` gathers the bindings from the scheduler and derives the importer identity from its Resolver graph node; callers do not need to reconstruct or re-resolve paths. The writer and reader use fixed-width little-endian records and length-prefixed strings, enforce bounded record/string sizes, reject duplicate ordinals, invalid spans and embedded NULs, and return owned decoded data.
 
 This artifact is the transport contract between host scheduling and the importing Semantic stage. It is not yet consumed by the Semantic DLL: the host pipeline still needs to supply it alongside each matching verified Module Interface artifact. PUBLIC/EXPORTED access policy, namespace lookup, alias binding, collision diagnostics and source-local-to-importer type/symbol mapping remain Semantic responsibilities.
+
+
+### 14.14 Independent Module Imports Verifier DLL
+
+The host-produced `OIR_KIND_MODULE_IMPORTS` artifact has its own `occ_module_imports_verify_stage` C DLL. It accepts only a valid host-produced manifest for the active job, validates the complete `OIM1` payload through the dedicated reader, and republishes the same sections with producer stage `OCC_STAGE_OIR_VERIFY`. The reader accepts both host and verifier producer stamps so downstream Semantic can reopen the verified manifest.
+
+A dynamic-loader CTest exercises the module ABI and verified artifact round-trip. This is a structural transport gate only; it does not apply alias/namespace lookup or imported-symbol visibility rules.
