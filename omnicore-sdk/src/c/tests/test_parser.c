@@ -2783,9 +2783,9 @@ static int test_use_comma_list_spans(void) {
             strcmp(second->module_name,"beta.gamma")==0 && strcmp(second->alias,"b")==0 &&
             first->base.source_span.has_location &&
             first->base.source_span.start_offset==4u &&
-            first->base.source_span.end_offset==11u &&
+            first->base.source_span.end_offset==14u &&
             second->base.source_span.has_location &&
-            second->base.source_span.start_offset==14u &&
+            second->base.source_span.start_offset==16u &&
             second->base.source_span.end_offset==31u &&
             first->base.source_span.start_line==1u &&
             second->base.source_span.start_line==1u &&
