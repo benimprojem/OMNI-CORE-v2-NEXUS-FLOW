@@ -812,6 +812,7 @@ static ASTNode* parse_unary(Parser* p);
 static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type);
 static ASTNode* parse_defer(Parser* p);
 static ASTNode* parse_use(Parser* p);
+static ASTNode* parse_no_directive(Parser* p);
 static ASTNode* parse_thread_block(Parser* p, char* name);
 static ASTNode* parse_lambda(Parser* p);
 
@@ -1602,6 +1603,64 @@ static ASTNode* parse_use(Parser* p) {
 
     consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_VAR);
     return (ASTNode*)head;
+}
+
+static ASTNode* parse_no_directive(Parser* p) {
+    Token directive_start = p->previous;
+    Token module_token;
+    ASTProgram* program;
+    ASTNode span_node;
+
+    if (!p || !p->ctx || p->nesting_depth != 0u) {
+        error_at(p, &directive_start, ERR_PARSER_UNEXPECTED_TOKEN,
+            "'no:' directives are valid only at program scope.");
+        return NULL;
+    }
+    program = (ASTProgram*)p->ctx->ast_root;
+    if (!program || program->base.type != AST_PROGRAM) {
+        error_at(p, &directive_start, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Program root is unavailable for the 'no:' directive.");
+        return NULL;
+    }
+    if (!match(p, TOKEN_COLON)) {
+        error_at(p, &p->current, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Expected ':' after 'no'.");
+        return NULL;
+    }
+    if (!match(p, TOKEN_IDENTIFIER)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+            "Expected 'osmodule' after 'no:'.");
+        return NULL;
+    }
+    module_token = p->previous;
+    if (module_token.length != 8 ||
+        memcmp(module_token.start, "osmodule", 8u) != 0) {
+        error_at(p, &module_token, ERR_PARSER_UNEXPECTED_TOKEN,
+            "'no:' currently supports only 'osmodule'.");
+        return NULL;
+    }
+    if (program->disable_osmodule) {
+        error_at(p, &directive_start, ERR_PARSER_UNEXPECTED_TOKEN,
+            "'no: osmodule;' may be declared only once.");
+        return NULL;
+    }
+    if (!match(p, TOKEN_SEMICOLON)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_SEMICOLON,
+            "Expected ';' after 'no: osmodule'.");
+        return NULL;
+    }
+
+    memset(&span_node, 0, sizeof(span_node));
+    parser_stamp_node_tokens(p, &span_node, &directive_start, &p->previous);
+    if (!span_node.source_span.has_location) {
+        error_at(p, &directive_start, ERR_PARSER_UNEXPECTED_TOKEN,
+            "Could not preserve the source span for 'no: osmodule;'.");
+        return NULL;
+    }
+    program->disable_osmodule = 1u;
+    program->disable_osmodule_span = span_node.source_span;
+    p->consumed_metadata = 1;
+    return NULL;
 }
 
 static ASTNode* parse_thread_block(Parser* p, char* name) {
@@ -4663,6 +4722,7 @@ static ASTNode* parse_statement(Parser* p) {
     if (check(p, TOKEN_KW_IF)) return parse_if_statement(p);
     if (match(p, TOKEN_KW_FASTEXEC)) return parse_fast_exec_block(p);
     if (match(p, TOKEN_KW_ASM)) return parse_asm_label(p);
+    if (match(p, TOKEN_KW_NO)) return parse_no_directive(p);
     if (match(p, TOKEN_KW_USE)) return parse_use(p);
     if (match(p, TOKEN_KW_DEFER)) {
         Token start = p->previous;
