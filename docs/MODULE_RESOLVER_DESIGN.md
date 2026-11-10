@@ -254,23 +254,39 @@ The visitor walks only the direct `ASTProgram.declarations` sibling list, select
 
 The ordinal is not a persistent AST node identity. The host may use it as the Resolver edge's `ast_use_node_id` correlation value for the lifetime of the current parsed module. `module_name`, `alias`, and `namespace_name` remain separate AST fields; path lookup and alias/namespace binding are outside this visitor.
 
-The visitor and its regression test are implemented. The host bridge that turns visitor records into `OccModuleSourceRequest` values, recursively invokes Parser DLLs, and retains per-module AST artifacts remains pending.
+The visitor and its regression test are implemented. A callback-driven host scheduler now consumes the visitor output, resolves provider requests, recursively parses newly discovered modules, retains their AST roots for the job, and invokes the Semantic callback in dependency-first order. The scheduler is deliberately independent of filesystem policy and stage-DLL loading.
 
 ### 14.5 Current implementation boundary
 
-Implemented in the portable graph core:
+Implemented:
 - canonical module registration/cache identity and edge storage;
 - provider callback contract and source budget checks;
 - implicit `osmodule` edge representation;
-- dependency-first ordering API and cycle rejection.
+- dependency-first ordering API and cycle rejection;
+- top-level AST_USE collection with source-order ordinals and copied source spans;
+- callback-driven recursive discovery with a bounded graph, retained per-module AST roots, provider-view release discipline, and precise source/provider/resource error statuses;
+- dependency-first Semantic callback pass, with no Semantic invocation when discovery fails.
 
 Still not implemented:
-- filesystem/package source provider;
-- recursive host scheduler invoking Lexer/Parser DLLs;
-- AST_USE visitor output being converted by the host into provider requests and Resolver graph edges;
-- retained per-module AST artifact/job store;
+- concrete filesystem/project/include/package source provider;
+- adapter callbacks that invoke the actual Lexer/Parser/Semantic DLLs from the host;
+- wiring the scheduler into `main.c` in place of the current single-module stage sequence;
 - dependency OIR interface artifact and validator;
-- Semantic DLL imported-interface input and symbol binding;
-- end-to-end integration tests.
+- Semantic DLL imported-interface input, alias/namespace binding and exported symbol publication;
+- end-to-end multi-file integration tests using real source files and stage DLLs.
 
-The tree above is the normative intended behavior, not a claim that module loading is operational end-to-end yet.
+The scheduler is an implemented coordinator core, not yet an operational end-to-end module loader. In particular, the existing `main.c` pipeline still invokes Semantic immediately after parsing the root module and does not yet use this scheduler.
+
+### 14.7 Callback-driven host scheduler API
+
+The host coordinator is exposed in `module/module_scheduler.h` and implemented in `module/module_scheduler.c`:
+
+- `occ_module_scheduler_init()` borrows a source provider and Parser/Semantic callbacks; the provider and callback context must outlive the scheduler.
+- `occ_module_scheduler_run()` resolves the root source, parses and validates each AST_PROGRAM, copies top-level USE path/span/ordinal records, then performs iterative depth-first dependency discovery. A dependency is parsed only on first discovery; repeated canonical identities reuse the existing graph node and retained AST.
+- The implicit `osmodule` edge is resolved before explicit USE edges when `ASTProgram.disable_osmodule == 0`. The provider determines where that standard module source comes from.
+- The scheduler retains each parsed AST until `occ_module_scheduler_destroy()`. Provider source views are released exactly once after the Parser callback has consumed their bytes.
+- After discovery completes, the Resolver's dependency-first order drives the Semantic callback. A Semantic callback failure aborts the pass; imported-interface data is not synthesized by the scheduler.
+- The run is single-shot for one scheduler instance. Destroy it after success or failure; partial discovery state is not reusable.
+- Source-not-found, denied, ambiguous, I/O, provider, resource-limit, parse, AST, cycle and Semantic failures remain distinguishable.
+
+The scheduler has isolated C tests for shared dependencies, deterministic dependency-first Semantic order, provider-view release counts and cycle detection. These tests exercise callback contracts with fake sources; they do not claim that the filesystem provider or actual stage DLL integration is complete.
