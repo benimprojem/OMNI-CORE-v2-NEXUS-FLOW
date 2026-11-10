@@ -535,7 +535,20 @@ static int check_group_type_scope_semantics(void) {
         check_source(method_alias_conflicts_with_function, 1);
 }
 
+static int check_m_immutable_value_semantics(void) {
+    return
+        check_source("m:answer = 42; f:main() { echo(answer); }", 0) &&
+        check_source("f:main() { m:local = 5; echo(local); }", 0) &&
+        check_source("f:main() { m:value = 5; value = 6; }", 1) &&
+        check_source("f:main() { m:value = 5; value++; }", 1) &&
+        check_source("f:main() { m:value = 5; m:value = 6; }", 1);
+}
+
 int main(int argc, char** argv) {
+    if (!check_m_immutable_value_semantics()) {
+        fprintf(stderr, "Immutable m: value semantic checks failed.\\n");
+        return 1;
+    }
     if (!check_group_self_receiver_semantics()) {
         fprintf(stderr, "Group self receiver inference/validation checks failed.\\n");
         return 1;
