@@ -361,6 +361,19 @@ target_include_directories(occ_frontend PUBLIC
 target_compile_definitions(occ_frontend PUBLIC OCC_STATIC)
 target_link_libraries(occ_frontend PUBLIC occ_diagnostics occ_semantic_result)
 
+# Host-side module scheduler coordinates source resolution, recursive parsing,
+# and dependency-first Semantic invocation without coupling the resolver to AST.
+add_library(occ_module_scheduler STATIC
+    "${C_SOURCE_DIR}/module/module_scheduler.c"
+)
+target_include_directories(occ_module_scheduler PUBLIC
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/core"
+    "${C_PARSER_DIR}"
+)
+target_link_libraries(occ_module_scheduler PUBLIC occ_module_resolver occ_frontend)
+set_target_properties(occ_module_scheduler PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # Validate-first AST materializer. It depends on the canonical frontend allocator
 # only after payload/schema/graph validation has completed.
 add_library(occ_oir_ast_frontend_reader STATIC
@@ -886,6 +899,20 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME module_resolver_dependency_graph_identity_and_cycles
         COMMAND test_module_resolver)
+
+    add_executable(test_module_scheduler
+        "${C_SOURCE_DIR}/tests/test_module_scheduler.c"
+    )
+    target_link_libraries(test_module_scheduler PRIVATE occ_module_scheduler)
+    if(MSVC)
+        target_compile_options(test_module_scheduler PRIVATE /W4)
+        target_compile_options(occ_module_scheduler PRIVATE /W4)
+    else()
+        target_compile_options(test_module_scheduler PRIVATE -Wall -Wextra)
+        target_compile_options(occ_module_scheduler PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME module_scheduler_dependency_first_semantic_order
+        COMMAND test_module_scheduler)
 
     add_executable(test_occ_project_config
         "${C_SOURCE_DIR}/tests/test_occ_project_config.c"
