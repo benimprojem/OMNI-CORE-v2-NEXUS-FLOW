@@ -106,7 +106,7 @@ static int test_ordered_lookup(void) {
     memset(&provider_state, 0, sizeof(provider_state));
     memset(&config, 0, sizeof(config));
     project.project_root = (char*)OCC_MODULE_PROVIDER_FIXTURE_DIR;
-    project.include_paths[0] = "include";
+    project.include_paths[0] = "custom";
     project.include_count = 1u;
     config.dsplibs_root = OCC_MODULE_PROVIDER_FIXTURE_DIR "/dsplibs";
     config.libs_root = OCC_MODULE_PROVIDER_FIXTURE_DIR "/libs";
@@ -118,6 +118,7 @@ static int test_ordered_lookup(void) {
     CHECK(resolve_text(provider, "priority", "from-dsplibs\n"));
     CHECK(resolve_text(provider, "fallback", "from-libs-fallback\n"));
     CHECK(resolve_text(provider, "project_only", "from-project-include\n"));
+    CHECK(resolve_text(provider, "configured_only", "from-configured-include\n"));
     CHECK(resolve_text(provider, "not_present", NULL));
     occ_filesystem_module_provider_destroy(&provider_state);
     CHECK(occ_filesystem_module_provider_source(&provider_state) == NULL);
