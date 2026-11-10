@@ -48,25 +48,20 @@ static OccModuleInterfaceStatus select_type_closure(
     const SemanticResult* result, OccModuleInterface* interface,
     uint32_t initial_type_id
 ) {
-    uint32_t pending[SEMANTIC_RESULT_MAX_RECORDS > 0u ? 64u : 1u];
-    size_t pending_count = 0u;
     uint32_t current = initial_type_id;
-    if (current == 0u) return OCC_MODULE_INTERFACE_OK;
-    if (current > result->type_count) return OCC_MODULE_INTERFACE_INVALID_SEMANTIC_RESULT;
-    pending[pending_count++] = current;
-    while (pending_count) {
+    while (current != 0u) {
         const SemanticResultType* source;
+        OccModuleInterfaceType* grown;
         OccModuleInterfaceType* target;
-        uint32_t id = pending[--pending_count];
-        if (type_is_selected(result, interface, id)) continue;
-        if (id == 0u || id > result->type_count ||
+        if (type_is_selected(result, interface, current)) break;
+        if (current > result->type_count ||
             interface->type_count >= SEMANTIC_RESULT_MAX_RECORDS)
             return OCC_MODULE_INTERFACE_LIMIT_EXCEEDED;
-        source = &result->types[id - 1u];
-        target = (OccModuleInterfaceType*)realloc(interface->types,
-            (interface->type_count + 1u) * sizeof(*target));
-        if (!target) return OCC_MODULE_INTERFACE_OUT_OF_MEMORY;
-        interface->types = target;
+        source = &result->types[current - 1u];
+        grown = (OccModuleInterfaceType*)realloc(interface->types,
+            (interface->type_count + 1u) * sizeof(*grown));
+        if (!grown) return OCC_MODULE_INTERFACE_OUT_OF_MEMORY;
+        interface->types = grown;
         target = &interface->types[interface->type_count];
         memset(target, 0, sizeof(*target));
         target->source_type_id = source->type_id;
@@ -74,14 +69,10 @@ static OccModuleInterfaceStatus select_type_closure(
         target->flags = source->flags;
         target->referenced_symbol_id = source->referenced_symbol_id;
         target->base_type_id = source->base_type_id;
-        target->name = interface_strdup(source->name);
+        target->name = source->name ? interface_strdup(source->name) : NULL;
         if (source->name && !target->name) return OCC_MODULE_INTERFACE_OUT_OF_MEMORY;
         ++interface->type_count;
-        if (source->base_type_id) {
-            if (pending_count >= sizeof(pending) / sizeof(pending[0]))
-                return OCC_MODULE_INTERFACE_LIMIT_EXCEEDED;
-            pending[pending_count++] = source->base_type_id;
-        }
+        current = source->base_type_id;
     }
     return OCC_MODULE_INTERFACE_OK;
 }
