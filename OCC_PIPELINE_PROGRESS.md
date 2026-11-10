@@ -1772,3 +1772,19 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - The environment owns only its binding index. OIR strings and interface data remain borrowed and must outlive the environment.
 - Added semantic_import_environment_binding_and_source_local_lookup CTest for alias/namespace preservation, repeated module bindings, visibility flags, ambiguity, missing lookup and cleanup.
 - Boundary: this does not yet inject imported symbols into ordinary Semantic lexical lookup or decide PUBLIC/EXPORTED, alias-default, namespace-selection and collision policies. Those rules remain explicit next Semantic work; no end-to-end import claim is made.
+
+### Semantic import selector lookup — 2026-11-10
+
+- Extended semantic_import_environment with exact lookup of explicitly declared as aliases and ns namespace selectors.
+- Alias and namespace lookup are separate APIs; repeated selectors return AMBIGUOUS, missing selectors return NOT_FOUND.
+- NULL, empty and _ selectors are not treated as implicit bindings. In particular, as _ and ns _ do not create a lookup key, and no default alias is inferred here.
+- Added regression assertions for alias lookup, namespace lookup, missing selectors and underscore behavior.
+- This remains a binding-index API. It does not yet inject names into ordinary expression/type lookup or define collision precedence.
+
+### Primitive bit/byte type audit — 2026-11-10
+
+- Lexer already emits dedicated TOKEN_TYPE_BIT and TOKEN_TYPE_BYTE; parser type-start logic accepts the primitive token range. Re-adding tokens is unnecessary.
+- byte is already present in some Semantic primitive checks, but it is not classified as an integer primitive for bitwise operator validation.
+- bit is not consistently included in Semantic primitive/type-result classification and needs targeted completion.
+- The proposed 8bit width-specific type is not currently a primitive type. Its grammar and semantics are intentionally not changed pending the design decision between raw storage units (byte), scalar one-bit values (bit) and fixed-width bit vectors (8bit, etc.).
+- Recommended direction under discussion: keep u8 numeric, byte as raw 8-bit storage, bit as one-bit value, and fixed-width Nbit as a distinct bit-vector family. Explicit conversion such as a:!8bit must be range/width checked by Semantic; no silent integer/bit-vector coercion.
