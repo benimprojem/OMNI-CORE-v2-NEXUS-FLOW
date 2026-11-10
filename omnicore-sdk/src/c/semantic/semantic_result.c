@@ -390,7 +390,8 @@ SemanticResultStatus semantic_result_add_symbol(
         declaration_node_id == 0u || !valid_symbol_kind(kind) ||
         ((flags & SEMANTIC_RESULT_SYMBOL_FLAG_IMMUTABLE) != 0u &&
             (kind != SEMANTIC_RESULT_SYMBOL_VARIABLE ||
-             (flags & SEMANTIC_RESULT_SYMBOL_FLAG_CONST) != 0u)) ||
+             (flags & (SEMANTIC_RESULT_SYMBOL_FLAG_CONST |
+                       SEMANTIC_RESULT_SYMBOL_FLAG_IMPLICIT)) != 0u)) ||
         (flags & ~(SEMANTIC_RESULT_SYMBOL_FLAG_CONST |
             SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC |
             SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED |
