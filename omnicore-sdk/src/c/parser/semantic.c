@@ -2685,7 +2685,14 @@ static void semantic_check_node(
 
         case AST_UNARY_EXPR: {
             ASTUnaryExpr* unary = (ASTUnaryExpr*)node;
+            const char* operand_type;
             semantic_check(ctx, unary->operand);
+            operand_type = get_expr_type(ctx, unary->operand);
+            if (unary->op == TOKEN_BIT_NOT && operand_type &&
+                !is_bitwise_primitive_type(operand_type)) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Bitwise complement requires a bitwise-capable operand.");
+            }
             break;
         }
 
