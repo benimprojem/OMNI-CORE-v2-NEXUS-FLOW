@@ -185,6 +185,9 @@ int main(int argc,char** argv) {
     import_inputs[0]=input;
     import_inputs[1].bytes=imports_artifact; import_inputs[1].length=imports_len;
     import_inputs[2].bytes=interface_artifact; import_inputs[2].length=interface_len;
+    CHECK(occ_module_loader_invoke(&loaded,import_inputs,2u,77u,&diagnostics,
+        64u,semantic_cap,&semantic_artifact,&semantic_len)!=OCC_MODULE_LOADER_OK);
+    free(semantic_artifact); semantic_artifact=NULL; semantic_len=0u;
     CHECK(occ_module_loader_invoke(&loaded,import_inputs,3u,77u,&diagnostics,
         64u,semantic_cap,&semantic_artifact,&semantic_len)==OCC_MODULE_LOADER_OK);
     CHECK(semantic_artifact&&semantic_len>OIR_HEADER_SIZE);
