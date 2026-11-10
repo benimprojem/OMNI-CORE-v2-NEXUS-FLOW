@@ -42,7 +42,6 @@ typedef struct OirModuleImportsArtifactView {
 OirStatus oir_module_imports_build_from_scheduler(
     const OccModuleScheduler* scheduler,
     uint32_t importer_module_id,
-    const char* importer_identity,
     OirModuleImports* out_imports
 );
 
