@@ -2277,8 +2277,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
             if (s->active[s->active_count-2u]->type == AST_PROGRAM) {
                 if (strcmp(s->active_fields[s->active_count-1u],"declarations")!=0)
                     return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"immutable_value_scope");
-            } else if (s->active[s->active_count-2u]->type == AST_BLOCK ||
-                       s->active[s->active_count-2u]->type == AST_FASTEXEC_BLOCK) {
+            } else if (s->active[s->active_count-2u]->type == AST_BLOCK) {
                 if (strcmp(s->active_fields[s->active_count-1u],"statements")!=0)
                     return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"immutable_value_scope");
             } else {
