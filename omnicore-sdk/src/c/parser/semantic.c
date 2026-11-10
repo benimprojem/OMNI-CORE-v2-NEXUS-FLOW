@@ -1082,9 +1082,18 @@ static int is_integer_primitive_type(const char* type_name) {
 static int is_bitwise_primitive_type(const char* type_name) {
     if (!type_name) return 0;
     if (type_name[0] == '!') ++type_name;
-    return is_integer_primitive_type(type_name) ||
-        strcmp(type_name, "bit") == 0 ||
-        strcmp(type_name, "byte") == 0;
+    static const char* const representation_types[] = {
+        "8bit", "16bit", "32bit", "64bit", "128bit",
+        "1byte", "2byte", "4byte", "8byte", "16byte"
+    };
+    size_t i;
+    if (is_integer_primitive_type(type_name) ||
+        strcmp(type_name, "bit") == 0 || strcmp(type_name, "byte") == 0)
+        return 1;
+    for (i = 0u; i < sizeof(representation_types) / sizeof(representation_types[0]); ++i) {
+        if (strcmp(type_name, representation_types[i]) == 0) return 1;
+    }
+    return 0;
 }
 static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
@@ -1111,6 +1120,11 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
         strcmp(type_name, "d32") == 0 || strcmp(type_name, "d64") == 0 ||
         strcmp(type_name, "char") == 0 || strcmp(type_name, "bit") == 0 ||
         strcmp(type_name, "byte") == 0 ||
+        strcmp(type_name, "8bit") == 0 || strcmp(type_name, "16bit") == 0 ||
+        strcmp(type_name, "32bit") == 0 || strcmp(type_name, "64bit") == 0 ||
+        strcmp(type_name, "128bit") == 0 || strcmp(type_name, "1byte") == 0 ||
+        strcmp(type_name, "2byte") == 0 || strcmp(type_name, "4byte") == 0 ||
+        strcmp(type_name, "8byte") == 0 || strcmp(type_name, "16byte") == 0 ||
         strcmp(type_name, "void") == 0 || strcmp(type_name, "any") == 0) {
         return 1;
     }
