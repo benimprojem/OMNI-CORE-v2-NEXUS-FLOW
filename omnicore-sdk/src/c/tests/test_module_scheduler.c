@@ -104,11 +104,13 @@ static int fake_parse(void* context, const OccModuleSourceView* source,
     ((ASTProgram*)program)->disable_osmodule =
         (strcmp(name, "root") == 0 && ((FakePipeline*)context)->implicit_osmodule_mode)
             ? 0u : 1u;
-    ((ASTProgram*)program)->disable_osmodule_span.has_location = 1u;
-    ((ASTProgram*)program)->disable_osmodule_span.start_line = 1u;
-    ((ASTProgram*)program)->disable_osmodule_span.start_column = 1u;
-    ((ASTProgram*)program)->disable_osmodule_span.end_line = 1u;
-    ((ASTProgram*)program)->disable_osmodule_span.end_column = 1u;
+    if (((ASTProgram*)program)->disable_osmodule) {
+        ((ASTProgram*)program)->disable_osmodule_span.has_location = 1u;
+        ((ASTProgram*)program)->disable_osmodule_span.start_line = 1u;
+        ((ASTProgram*)program)->disable_osmodule_span.start_column = 1u;
+        ((ASTProgram*)program)->disable_osmodule_span.end_line = 1u;
+        ((ASTProgram*)program)->disable_osmodule_span.end_column = 1u;
+    }
     program->line = 1;
     program->col = 1;
     program->source_span.has_location = 1u;
