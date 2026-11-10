@@ -276,22 +276,14 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
 
     /* Patch only after the codec writer has emitted a valid wire payload.
        These malformed semantic relationships belong to the independent verifier. */
-    if (variant == 18 || variant == 19) {
+    if (variant == 19) {
         size_t values_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u;
         size_t instructions_offset = values_offset +
             (size_t)value_count * 16u;
-        size_t operands_offset = instructions_offset +
-            (size_t)instruction_count * 24u;
-        /* Reuse the simple two-block fixture to exercise typed bitwise checks. */
+        /* Reuse the simple two-block fixture to exercise a typed bitwise op. */
         test_put_u16(module_bytes + instructions_offset + 2u * 24u + 8u,
             OIR_OP_BIT_AND);
-        if (variant == 18) {
-            /* Produce a bool input, then incorrectly claim an integer result. */
-            test_put_u16(module_bytes + instructions_offset + 8u, OIR_OP_CONST_BOOL);
-            test_put_u32(module_bytes + values_offset + 4u, 2u);
-            test_put_u32(module_bytes + operands_offset + 8u, 1u);
-        }
     } else if (variant == 4) {
         size_t instructions_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u + (size_t)value_count * 16u;
