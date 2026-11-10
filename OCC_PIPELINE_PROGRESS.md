@@ -1431,3 +1431,6 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Added an integration test that compiles `c:CompileValue = 5; m:RuntimeValue = 6;`, verifies distinct SemanticResult flags, serializes SEMANTIC_AST schema 1.4, reopens it through the full artifact validator, and verifies the wire flags remain distinct.
 - Updated the normative and SDK syntax references, Group spec, OIR Semantic AST schema doc, AST matrix, and Module Resolver design. Compile-time evaluation/folding for `c:` remains a separate Semantic capability and is not claimed completed by adding the flag distinction.
 - **CI pending** for the schema 1.4 and new integration test changes. The earlier 1.3-era `m:` implementation CI success does not cover this later schema/flag refinement.
+
+- CI verification for the `m:`/ `c:` flag separation and SEMANTIC_AST schema 1.4: run `42776942902` on code commit `b1362d5c95fbcd4a4b5f320484d0faadf7b268cd` passed all five jobs — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. Ubuntu CTest: 61/61 passed, including the SemanticResult/OIR schema 1.4 integration and rejection of an IMMUTABLE flag under legacy schema 1.3.
+- Module Resolver source-provider callback tests (including the fail-closed test harness correction) passed all five CI jobs in run `42775933125`.
