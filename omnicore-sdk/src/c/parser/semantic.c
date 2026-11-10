@@ -1785,6 +1785,53 @@ static void semantic_check_node(
             semantic_check(ctx, ((ASTProgram*)node)->declarations);
             break;
 
+        case AST_MUST_DECL: {
+            ASTMustDecl* immutable = (ASTMustDecl*)node;
+            Slot* existing = find_slot(ctx, immutable->name);
+            Slot* declared_slot = NULL;
+            const char* value_type = NULL;
+            if (existing && existing->depth == ctx->current_depth) {
+                char message[256];
+                snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_REDEFINED),
+                    immutable->name ? immutable->name : "<unnamed>");
+                report_error(ctx, node, ERR_SEMANTIC_REDEFINED, message);
+            } else if (!immutable->source) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "An immutable m: value requires an initializer expression.");
+            } else {
+                /* Resolve the initializer before introducing the name: m:x = x
+                   must not accidentally resolve to the declaration itself. */
+                semantic_check(ctx, immutable->source);
+                value_type = get_expr_type(ctx, immutable->source);
+                declared_slot = add_slot(
+                    ctx, immutable->name, SLOT_VAR, 1,
+                    value_type, node, 0, 0, 0, 0u);
+                if (declared_slot && value_type && *value_type) {
+                    uint32_t inferred_type_id = semantic_type_id(ctx, value_type, 0);
+                    declared_slot->type_id = inferred_type_id;
+                    if (ctx->result_enabled &&
+                        ctx->result_status == SEMANTIC_RESULT_OK &&
+                        declared_slot->symbol_id != 0u &&
+                        inferred_type_id != 0u) {
+                        SemanticResultStatus infer_status =
+                            semantic_result_set_symbol_type(
+                                &ctx->result, declared_slot->symbol_id,
+                                inferred_type_id);
+                        semantic_set_result_error(ctx, infer_status);
+                    }
+                } else if (declared_slot) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "The initializer of an immutable m: value must have a determinable type.");
+                }
+            }
+            if (declared_slot) {
+                semantic_record_annotation(
+                    ctx, node, declared_slot, declared_slot->type_name,
+                    SEMANTIC_RESULT_VALUE_LVALUE);
+            }
+            break;
+        }
+
         case AST_VAR_DECL: {
             ASTVarDecl* decl = (ASTVarDecl*)node;
             Slot* declared_slot = NULL;
