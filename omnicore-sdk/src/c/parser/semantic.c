@@ -274,7 +274,7 @@ static Slot* find_slot(SemanticContext* ctx, const char* name) {
 static int is_primitive_type_for_result(const char* name) {
     static const char* const names[] = {
         "i32", "u8", "str", "bool", "f64", "i64", "u64", "u32",
-        "u16", "i16", "i8", "f32", "char", "byte", "void", "any"
+        "u16", "i16", "i8", "f32", "d32", "d64", "char", "byte", "void", "any"
     };
     size_t i;
     for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
@@ -1049,7 +1049,7 @@ static int is_numeric_primitive_type(const char* type_name) {
     static const char* const names[] = {
         "i8", "i16", "i32", "i64",
         "u8", "u16", "u32", "u64",
-        "f32", "f64"
+        "f32", "f64", "d32", "d64"
     };
     size_t i;
     if (!type_name) return 0;
@@ -1101,6 +1101,7 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
         strcmp(type_name, "u64") == 0 || strcmp(type_name, "u32") == 0 ||
         strcmp(type_name, "u16") == 0 || strcmp(type_name, "i16") == 0 ||
         strcmp(type_name, "i8") == 0 || strcmp(type_name, "f32") == 0 ||
+        strcmp(type_name, "d32") == 0 || strcmp(type_name, "d64") == 0 ||
         strcmp(type_name, "char") == 0 || strcmp(type_name, "byte") == 0 ||
         strcmp(type_name, "void") == 0 || strcmp(type_name, "any") == 0) {
         return 1;
