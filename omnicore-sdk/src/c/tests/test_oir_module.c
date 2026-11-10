@@ -93,9 +93,9 @@ int main(void) {
     assert(oir_module_open(payload, written, &view) == OIR_STATUS_INVALID_SECTION);
     payload[68] = 0u;
     /* Corrupt an instruction opcode; structural validation must reject it. */
-    payload[144] = 0xffu;
+    payload[192] = 0xffu;
     assert(oir_module_open(payload, written, &view) == OIR_STATUS_INVALID_SECTION);
-    payload[144] = 0u;
+    payload[192] = 0u;
 
     /* Schema 1.1 remains readable when it contains only the original type kinds. */
     {
