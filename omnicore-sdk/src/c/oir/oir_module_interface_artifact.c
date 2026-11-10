@@ -102,7 +102,9 @@ static int validate_interface(const OccModuleInterface* interface) {
         const OccModuleInterfaceSymbol* s = &interface->symbols[i];
         if (!s->source_symbol_id ||
             s->source_symbol_id > SEMANTIC_RESULT_MAX_RECORDS ||
-            !s->scope_id || !s->declaration_node_id ||
+            !s->scope_id || s->scope_id > SEMANTIC_RESULT_MAX_RECORDS ||
+            !s->declaration_node_id ||
+            s->declaration_node_id > SEMANTIC_RESULT_MAX_RECORDS ||
             s->kind < SEMANTIC_RESULT_SYMBOL_VARIABLE ||
             s->kind > SEMANTIC_RESULT_SYMBOL_GROUP ||
             (s->flags & ~(SEMANTIC_RESULT_SYMBOL_FLAG_CONST |
@@ -148,6 +150,7 @@ static int validate_interface(const OccModuleInterface* interface) {
             r->owner_source_symbol_id > SEMANTIC_RESULT_MAX_RECORDS ||
             !symbol_ids[r->owner_source_symbol_id] ||
             r->related_source_symbol_id > SEMANTIC_RESULT_MAX_RECORDS ||
+            r->related_node_id > SEMANTIC_RESULT_MAX_RECORDS ||
             (r->related_source_symbol_id &&
              !symbol_ids[r->related_source_symbol_id]) ||
             r->type_id > SEMANTIC_RESULT_MAX_RECORDS ||
