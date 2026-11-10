@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 #define OCC_FILESYSTEM_MODULE_PATH_MAX 4096u
+#define OCC_FILESYSTEM_MODULE_MAX_INCLUDE_PATHS (OCC_PROJECT_CONFIG_MAX_INCLUDE_PATHS + 1u)
 
 typedef struct OccFilesystemModuleProviderConfig {
     /* Ordered search roots: dsplibs, then libs, then OCF [include] entries. */
@@ -22,7 +23,7 @@ typedef struct OccFilesystemModuleProvider {
     char* dsplibs_root;
     char* libs_root;
     char* project_root;
-    char* include_paths[OCC_PROJECT_CONFIG_MAX_INCLUDE_PATHS];
+    char* include_paths[OCC_FILESYSTEM_MODULE_MAX_INCLUDE_PATHS];
     size_t include_count;
     size_t max_source_bytes;
     OccModuleSourceProvider provider;
