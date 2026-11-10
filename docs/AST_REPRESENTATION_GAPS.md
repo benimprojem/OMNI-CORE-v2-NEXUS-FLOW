@@ -56,7 +56,7 @@ This model must not break current `ASTVarDecl.type_name` consumers abruptly. A m
 
 ## Immediate AST closure tasks
 
-1. Add focused Parser fixtures for Group/method, `use` alias/path, `m:` scope rejection, defer/thread payload, and each intrinsic family.
+1. Add focused Parser fixtures for Group/method, `use` alias/path, `m:` program/block scope, defer/thread payload, and each intrinsic family.
 2. Add parameter defaults and function-return array AST/codec tests.
 3. Audit declaration visibility flags and parameter payload context.
 4. Specify the unified type AST and OIR field IDs; then implement in small append-only steps.
