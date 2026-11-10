@@ -1585,5 +1585,5 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Semantic primitive recognition now includes `d32` and `d64` in the primitive-result/type-defined registries.
 - Both are recognized as numeric primitives for arithmetic/compound-assignment validation.
 - Added Semantic regression coverage for declaring `d32`/`d64` values and using numeric compound assignment.
-- Commit(s): `2b5a1ceb` (Semantic), `76ede2b7` (tests).
-- CI is required before treating this addition as validated. Future `d128`, `i128`, `u128`, `f128` are intentionally not implemented yet; the primitive lists remain explicit and must be extended with tests when those types are introduced.
+- Commit(s): `2b5a1ceb` (Semantic), `76ede2b7` (tests), `517567aa` (syntax reference).
+- CI run [42806777590](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42806777590) completed successfully: Windows, Ubuntu, macOS, Valgrind and ASan/UBSan (5/5). Future `d128`, `i128`, `u128`, `f128` are intentionally not implemented yet; the primitive lists remain explicit and must be extended with tests when those types are introduced.
