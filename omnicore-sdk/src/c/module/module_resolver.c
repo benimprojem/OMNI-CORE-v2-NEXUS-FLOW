@@ -68,6 +68,8 @@ OccModuleResolverStatus occ_module_resolver_init(
         ? config->max_edges : OCC_MODULE_RESOLVER_DEFAULT_MAX_EDGES;
     resolver->max_text_bytes = config && config->max_text_bytes
         ? config->max_text_bytes : OCC_MODULE_RESOLVER_DEFAULT_MAX_TEXT_BYTES;
+    resolver->max_source_bytes = config && config->max_source_bytes
+        ? config->max_source_bytes : OCC_MODULE_RESOLVER_DEFAULT_MAX_SOURCE_BYTES;
     if (resolver->max_modules > UINT32_MAX ||
         resolver->max_modules > SIZE_MAX / sizeof(*resolver->modules) ||
         resolver->max_edges > SIZE_MAX / sizeof(*resolver->edges)) {
@@ -87,6 +89,110 @@ void occ_module_resolver_destroy(OccModuleResolver* resolver) {
     free(resolver->modules);
     free(resolver->edges);
     memset(resolver, 0, sizeof(*resolver));
+}
+
+uint64_t occ_module_resolver_fingerprint_source(
+    const uint8_t* source_bytes,
+    size_t source_length
+) {
+    uint64_t hash = UINT64_C(14695981039346656037);
+    size_t i;
+    if (source_length != 0u && !source_bytes) return 0u;
+    for (i = 0u; i < source_length; ++i) {
+        hash ^= (uint64_t)source_bytes[i];
+        hash *= UINT64_C(1099511628211);
+    }
+    return hash;
+}
+
+static OccModuleResolverStatus resolver_map_provider_status(
+    OccModuleSourceProviderStatus status
+) {
+    switch (status) {
+        case OCC_MODULE_SOURCE_PROVIDER_OK:
+            return OCC_MODULE_RESOLVER_OK;
+        case OCC_MODULE_SOURCE_PROVIDER_NOT_FOUND:
+            return OCC_MODULE_RESOLVER_NOT_FOUND;
+        case OCC_MODULE_SOURCE_PROVIDER_DENIED:
+            return OCC_MODULE_RESOLVER_SOURCE_DENIED;
+        case OCC_MODULE_SOURCE_PROVIDER_AMBIGUOUS:
+            return OCC_MODULE_RESOLVER_SOURCE_AMBIGUOUS;
+        case OCC_MODULE_SOURCE_PROVIDER_IO_ERROR:
+            return OCC_MODULE_RESOLVER_SOURCE_IO_ERROR;
+        case OCC_MODULE_SOURCE_PROVIDER_ERROR:
+        default:
+            return OCC_MODULE_RESOLVER_PROVIDER_ERROR;
+    }
+}
+
+void occ_module_resolver_release_source(
+    const OccModuleSourceProvider* provider,
+    OccModuleSourceView* source
+) {
+    if (!source) return;
+    if (provider && provider->release &&
+        (source->canonical_identity || source->source_bytes ||
+         source->provider_cookie || source->source_length != 0u)) {
+        provider->release(provider->context, source);
+    }
+    memset(source, 0, sizeof(*source));
+}
+
+OccModuleResolverStatus occ_module_resolver_resolve_source(
+    const OccModuleResolver* resolver,
+    const OccModuleSourceProvider* provider,
+    const OccModuleSourceRequest* request,
+    OccModuleSourceView* out_source
+) {
+    OccModuleSourceProviderStatus provider_status;
+    OccModuleResolverStatus status;
+    size_t path_length;
+    size_t identity_length;
+    if (out_source) memset(out_source, 0, sizeof(*out_source));
+    if (!resolver || !provider || !provider->resolve || !provider->release ||
+        !request || !request->requested_path || !request->requested_path[0] ||
+        !request->use_span || !out_source) {
+        return OCC_MODULE_RESOLVER_INVALID_ARGUMENT;
+    }
+    if (request->use_span->has_location &&
+        request->use_span->end_offset < request->use_span->start_offset) {
+        return OCC_MODULE_RESOLVER_INVALID_ARGUMENT;
+    }
+    path_length = strlen(request->requested_path);
+    if (path_length > resolver->max_text_bytes ||
+        (request->importer_identity &&
+         strlen(request->importer_identity) > resolver->max_text_bytes)) {
+        return OCC_MODULE_RESOLVER_LIMIT_EXCEEDED;
+    }
+
+    provider_status = provider->resolve(provider->context, request, out_source);
+    status = resolver_map_provider_status(provider_status);
+    if (status != OCC_MODULE_RESOLVER_OK) {
+        /* Providers should normally return an empty view on failure. Release
+           defensively if a callback left a partial allocation behind. */
+        occ_module_resolver_release_source(provider, out_source);
+        return status;
+    }
+
+    if (!out_source->canonical_identity ||
+        !out_source->canonical_identity[0] ||
+        (out_source->source_length != 0u && !out_source->source_bytes)) {
+        occ_module_resolver_release_source(provider, out_source);
+        return OCC_MODULE_RESOLVER_PROVIDER_ERROR;
+    }
+    identity_length = strlen(out_source->canonical_identity);
+    if (identity_length > resolver->max_text_bytes ||
+        out_source->source_length > resolver->max_source_bytes) {
+        occ_module_resolver_release_source(provider, out_source);
+        return OCC_MODULE_RESOLVER_LIMIT_EXCEEDED;
+    }
+    out_source->content_fingerprint = occ_module_resolver_fingerprint_source(
+        out_source->source_bytes, out_source->source_length);
+    if (out_source->content_fingerprint == 0u) {
+        occ_module_resolver_release_source(provider, out_source);
+        return OCC_MODULE_RESOLVER_PROVIDER_ERROR;
+    }
+    return OCC_MODULE_RESOLVER_OK;
 }
 
 OccModuleResolverStatus occ_module_resolver_register(
@@ -259,6 +365,10 @@ const char* occ_module_resolver_status_string(OccModuleResolverStatus status) {
         case OCC_MODULE_RESOLVER_INVALID_STATE: return "invalid module state transition";
         case OCC_MODULE_RESOLVER_CYCLE: return "dependency cycle";
         case OCC_MODULE_RESOLVER_DEPENDENCY_FAILED: return "dependency already failed";
+        case OCC_MODULE_RESOLVER_SOURCE_DENIED: return "source access denied by provider policy";
+        case OCC_MODULE_RESOLVER_SOURCE_AMBIGUOUS: return "source identity is ambiguous";
+        case OCC_MODULE_RESOLVER_SOURCE_IO_ERROR: return "source provider I/O error";
+        case OCC_MODULE_RESOLVER_PROVIDER_ERROR: return "invalid source provider response";
         default: return "unknown module resolver status";
     }
 }
