@@ -79,10 +79,13 @@ static int fs_read_file(const char* path, size_t max_bytes,
     file = fopen(path, "rb");
     if (!file) return errno == ENOENT || errno == ENOTDIR ? 0 : -1;
     if (fseek(file, 0, SEEK_END) != 0 || (file_size = ftell(file)) < 0 ||
-        (uintmax_t)file_size > (uintmax_t)max_bytes ||
         fseek(file, 0, SEEK_SET) != 0) {
         fclose(file);
         return -1;
+    }
+    if ((uintmax_t)file_size > (uintmax_t)max_bytes) {
+        fclose(file);
+        return -3;
     }
     bytes = (uint8_t*)malloc((size_t)file_size + 1u);
     if (!bytes) { fclose(file); return -2; }
@@ -110,6 +113,7 @@ static OccModuleSourceProviderStatus fs_try_candidate(
     int result = fs_read_file(candidate, max_bytes, &bytes, &length);
     if (result == 0) return OCC_MODULE_SOURCE_PROVIDER_NOT_FOUND;
     if (result == -2) return OCC_MODULE_SOURCE_PROVIDER_ERROR;
+    if (result == -3) return OCC_MODULE_SOURCE_PROVIDER_LIMIT_EXCEEDED;
     if (result < 0) return OCC_MODULE_SOURCE_PROVIDER_IO_ERROR;
 #if defined(_WIN32)
     identity = _fullpath(NULL, candidate, 0);
