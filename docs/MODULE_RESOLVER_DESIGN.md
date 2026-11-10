@@ -324,7 +324,29 @@ This is a data-transfer foundation, not yet the final serialized OIR interface c
 
 Tests currently cover exported Group + public member publication, preservation of source IDs and type/relation metadata, omission of an unmarked private symbol, and rejection of non-finalized semantic input. The snapshot is not yet consumed by the Semantic DLL and is not yet encoded as an OIR artifact.
 
-### 14.11 Serialized Module Interface OIR artifact
+### 14.12 Independent Module Interface Verifier DLL
+
+A separate `occ_module_interface_verify_stage` C DLL validates the serialized Module Interface artifact before it is consumed by another module's Semantic stage. It accepts one Semantic-produced artifact for the active job, runs the complete Module Interface OIR envelope/payload/reference validation, and republishes the same sections with producer stage `OCC_STAGE_OIR_VERIFY`.
+
+The stage follows the normal OCC module ABI, including output-buffer retry without duplicated diagnostics. A dynamic-loader CTest checks the descriptor, invocation/retry path, job identity, artifact kind and verified producer stamp. The artifact reader accepts both Semantic and Verifier producer stamps so the verified artifact can be reopened downstream.
+
+This gate validates transport integrity and structural consistency only. It does not decide PUBLIC versus EXPORTED access, namespace selection, alias binding, local collisions, or imported type semantics; those remain the importing Semantic stage's responsibility.
+
+
+The in-memory snapshot now has a dedicated OIR transport artifact. The generic OIR artifact-kind registry adds `OIR_KIND_MODULE_INTERFACE = 10`; earlier numeric artifact kinds and the SEMANTIC_AST section registry are unchanged.
+
+The artifact uses one required OIR payload section (version 1) containing the `OMI1` payload schema 1.0. Its fixed-width little-endian records encode canonical module identity, publication-candidate symbols, the referenced type closure, and retained relations. Strings are length-prefixed and are not serialized as host pointers or C structs.
+
+The writer accepts only a structurally consistent `OccModuleInterface`. The reader validates the outer OIR envelope, requires Semantic producer stage + valid artifact state, validates payload schema and record limits, rejects embedded NUL bytes and duplicate source IDs, and checks that symbol/type/relation references that must be part of the published snapshot are present. Type referenced-symbol IDs remain source-module-local and may point to non-published declarations; importer Semantic must enforce visibility before exposing such references.
+
+The reader materializes an owned `OccModuleInterface` and the caller releases it through `oir_module_interface_artifact_destroy()`. The codec is a standalone C library and is tested by a snapshot → OIR → decoded snapshot round-trip. This does not yet connect the artifact to Semantic DLL output or the scheduler's imported-interface input, and does not replace independent Verifier-stage validation.
+
+### 14.10 Import binding preservation
+
+The scheduler now retains each top-level USE declaration's three independent source-level values: dotted `module_name`, optional `alias`, and optional `namespace_name`. It exposes `occ_module_scheduler_get_import_binding()`, keyed by importer module ID and the visitor's 1-based USE ordinal. The returned view includes the resolved dependency module ID and original source span; string fields are borrowed from the scheduler and remain valid until scheduler destruction.
+
+This accessor is the bridge between dependency graph resolution and later importer Semantic binding. In particular, `as _` and `ns _` remain distinguishable because the original alias and namespace fields are not merged or normalized. A C regression test checks the independent values and dependency identity. This does not yet implement the language's visibility or namespace lookup rules.
+
 
 The in-memory snapshot now has a dedicated OIR transport artifact. The generic OIR artifact-kind registry adds `OIR_KIND_MODULE_INTERFACE = 10`; earlier numeric artifact kinds and the SEMANTIC_AST section registry are unchanged.
 
