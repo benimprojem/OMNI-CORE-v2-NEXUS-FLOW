@@ -2149,6 +2149,7 @@ static void semantic_check_node(
         case AST_ASSIGNMENT: {
             ASTBinaryExpr* assign = (ASTBinaryExpr*)node;
             
+            if (assign->op == TOKEN_ASSIGN || assign->op == TOKEN_FORCE_ASSIGN) {
             if (assign->left->type == AST_IDENTIFIER) {
                 ASTIdentifier* id = (ASTIdentifier*)assign->left;
                 Slot* slot = find_slot(ctx, id->name);
@@ -2199,6 +2200,7 @@ static void semantic_check_node(
                     }
                 }
             }
+            }
 
             if (assign->left &&
                 assign->left->type != AST_IDENTIFIER &&
@@ -2230,7 +2232,7 @@ static void semantic_check_node(
                                !is_numeric_primitive_type(right_type)))))
                         report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                             bitwise_compound?
-                            "Bitwise compound assignment requires matching integer operands.":
+                            "Bitwise compound assignment requires matching bitwise-capable operands.":
                             "Numeric compound assignment requires matching numeric operands.");
                 }
             }
