@@ -1298,6 +1298,14 @@ Noktalı modül yolları da kabul edilir: `use msvcrt.exf as crt;`. Parser bunu 
 use io, sys, cpu;
 use math as m;
 
+# Namespace seçimi ve prefix davranışı:
+use db.mysql.sql as connector ns sql; # connector alias + seçilen namespace kökü
+use db.mysql ns mysql;               # mysql namespace kökünü seç
+use db.mysql.sql ns _;                # otomatik namespace prefix'ini bastırma
+use legacy as _;                      # alias "_" (namespace seçimi değildir)
+
+`as _` modül alias'ını "_" yapar; `ns _` ise namespace-prefix seçimini "_" ile bastırır. Bunlar farklı AST alanlarına kaydedilir. Parser/AST codec bunları korur; modülün gerçekten yüklenmesi, alias/namespace sembollerinin bağlanması ve import görünürlüğü Module Resolver + Semantic entegrasyonuna aittir (henüz tamamlanmış değildir).
+
 # Modül dosyalarında dışarı aktarılacak fonksiyon ve grouplar için.
 # exp(export) pup(puplic)
 
