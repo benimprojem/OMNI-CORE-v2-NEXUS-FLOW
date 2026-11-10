@@ -9,7 +9,7 @@ date 	= "12-01-2026"
 info 	= "Omni Core Nexus Flow"
 
 # Derleyicinin modülleri arayacağı ek dizinler.
-# coremodule otomatik yüklenir no:coremodule; kullanılarak iptal edilebilir. 
+# osmodule otomatik yüklenir no: osmodule; kullanılarak iptal edilebilir. 
 # Baremetal, kernel yazıyorsanız iptal edebilirsiniz.
 [include]
 ./lib
