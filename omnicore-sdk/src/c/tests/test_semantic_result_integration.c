@@ -87,6 +87,16 @@ static int test_bit_byte_semantic_conversion_records(void) {
     ASTBlock* body;
     ASTVarDecl *one, *raw, *flags, *wide;
     uint32_t node_count = 0u;
+    OirAstFrontendRequirements requirements;
+    OirAstNodeRecord* ast_records = NULL;
+    uint8_t *ast_fields = NULL, *ast_strings = NULL;
+    uint8_t *ast_payload = NULL, *artifact = NULL;
+    uint32_t *incoming_counts = NULL, *owner_scope_by_node = NULL;
+    uint8_t* visited = NULL;
+    OirAstGraphStackEntry* graph_stack = NULL;
+    OirSemanticAstArtifactView artifact_view;
+    size_t ast_payload_written = 0u, artifact_written = 0u;
+    int semantic_initialized = 0;
     int ok = 0;
     if (!parser) return 0;
     if (parser_run(parser) != PARSER_STATUS_OK ||
@@ -107,14 +117,66 @@ static int test_bit_byte_semantic_conversion_records(void) {
     if (!one || !raw || !flags || !wide) goto done;
 
     semantic_init(&semantic, "bit-byte-conversions.nxf", NULL);
+    semantic_initialized = 1;
     semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
     if (semantic.error_count != 0 ||
         semantic.result_status != SEMANTIC_RESULT_OK ||
         semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
-        semantic_destroy(&semantic);
         goto done;
     }
+
+    if (oir_ast_frontend_measure((ASTNode*)parser->ast_root, index, 128u,
+            node_count, &requirements) != OIR_STATUS_OK) goto done;
+    ast_records = (OirAstNodeRecord*)calloc(node_count, sizeof(*ast_records));
+    ast_fields = (uint8_t*)malloc(requirements.field_data_length ?
+        requirements.field_data_length : 1u);
+    ast_strings = (uint8_t*)malloc(requirements.string_table_length ?
+        requirements.string_table_length : 1u);
+    ast_payload = (uint8_t*)malloc(requirements.payload_size);
+    artifact = (uint8_t*)malloc(262144u);
+    incoming_counts = (uint32_t*)calloc(node_count, sizeof(*incoming_counts));
+    visited = (uint8_t*)calloc(node_count, sizeof(*visited));
+    graph_stack = (OirAstGraphStackEntry*)calloc(node_count, sizeof(*graph_stack));
+    owner_scope_by_node = (uint32_t*)calloc(
+        (size_t)node_count + 1u, sizeof(*owner_scope_by_node));
+    if (!ast_records || !ast_fields || !ast_strings || !ast_payload || !artifact ||
+        !incoming_counts || !visited || !graph_stack || !owner_scope_by_node)
+        goto done;
+    if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
+            index, 128u, node_count, ast_records, node_count,
+            ast_fields, requirements.field_data_length,
+            ast_strings, requirements.string_table_length,
+            ast_payload, requirements.payload_size, &ast_payload_written,
+            &requirements) != OIR_STATUS_OK ||
+        oir_semantic_ast_artifact_write(ast_payload, ast_payload_written,
+            &semantic.result, 1701u, artifact, 262144u,
+            &artifact_written) != OIR_STATUS_OK ||
+        oir_semantic_ast_artifact_open(artifact, artifact_written,
+            &artifact_view, incoming_counts, node_count, visited, node_count,
+            graph_stack, node_count, owner_scope_by_node,
+            (size_t)node_count + 1u) != OIR_STATUS_OK ||
+        !artifact_view.has_conversions ||
+        artifact_view.conversions.record_count != 4u)
+        goto done;
+    {
+        uint32_t conversion_index;
+        for (conversion_index = 0u; conversion_index < 4u; ++conversion_index) {
+            OirSemanticConversion encoded;
+            const SemanticResultConversion* original =
+                &semantic.result.conversions[conversion_index];
+            if (oir_semantic_conversions_get(
+                    &artifact_view.conversions, conversion_index, &encoded)
+                    != OIR_STATUS_OK ||
+                encoded.node_id != original->node_id ||
+                encoded.operand_ordinal != original->operand_ordinal ||
+                encoded.source_type_id != original->source_type_id ||
+                encoded.destination_type_id != original->destination_type_id ||
+                encoded.kind != original->kind || encoded.flags != original->flags)
+                goto done;
+        }
+    }
+
     ok = semantic.result.conversion_count == 4u &&
         conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)one),
             "bit", SEMANTIC_RESULT_CONVERSION_NARROWING) &&
@@ -126,8 +188,17 @@ static int test_bit_byte_semantic_conversion_records(void) {
             "16bit", SEMANTIC_RESULT_CONVERSION_WIDENING);
     if (!ok) fprintf(stderr, "Bit/byte conversion records: count=%u\n",
         semantic.result.conversion_count);
-    semantic_destroy(&semantic);
 done:
+    if (semantic_initialized) semantic_destroy(&semantic);
+    free(ast_records);
+    free(ast_fields);
+    free(ast_strings);
+    free(ast_payload);
+    free(artifact);
+    free(incoming_counts);
+    free(visited);
+    free(graph_stack);
+    free(owner_scope_by_node);
     parser_destroy(parser);
     return ok;
 }
