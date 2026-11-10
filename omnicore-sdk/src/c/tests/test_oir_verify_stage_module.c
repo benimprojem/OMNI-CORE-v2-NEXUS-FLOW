@@ -276,14 +276,19 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
 
     /* Patch only after the codec writer has emitted a valid wire payload.
        These malformed semantic relationships belong to the independent verifier. */
-    if (variant == 19) {
+    if (variant == 19 || variant == 20 || variant == 21) {
         size_t values_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u;
         size_t instructions_offset = values_offset +
             (size_t)value_count * 16u;
-        /* Reuse the simple two-block fixture to exercise a typed bitwise op. */
+        /* Reuse the two-block fixture for independent bit-op type contracts. */
         test_put_u16(module_bytes + instructions_offset + 2u * 24u + 8u,
-            OIR_OP_BIT_AND);
+            variant == 19 ? OIR_OP_BIT_AND :
+                (variant == 20 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR));
+        if (variant == 21) {
+            /* Result type differs from the integer left operand. */
+            test_put_u32(module_bytes + values_offset + 16u + 4u, 2u);
+        }
     } else if (variant == 4) {
         size_t instructions_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u + (size_t)value_count * 16u;
@@ -686,20 +691,40 @@ int main(int argc, char** argv) {
         }
     }
 
-    /* The verifier accepts a well-typed integer bitwise instruction. */
+    /* The verifier accepts well-typed bitwise and integer shift instructions. */
+    {
+        const int variants[] = {19, 20};
+        size_t k;
+        for (k = 0u; k < 2u; ++k) {
+            OccModuleArtifactInputV1 stage_input;
+            size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
+            assert(build_cfg_module_artifact(&input, &input_length, variants[k]));
+            memset(&stage_input, 0, sizeof(stage_input));
+            stage_input.bytes = input; stage_input.length = input_length;
+            assert(occ_module_loader_invoke(&loaded, &stage_input, 1u,
+                521u + (uint32_t)k, &diagnostics, 256u, 1024u * 1024u,
+                &output, &output_length) == OCC_MODULE_LOADER_OK);
+            assert(output != NULL && output_length != 0u);
+            assert(occ_diagnostics_count(&diagnostics) == diagnostics_before);
+            free(input); input = NULL; input_length = 0u;
+            free(output); output = NULL; output_length = 0u;
+        }
+    }
+
+    /* The verifier rejects a shift whose result/left operand types disagree. */
     {
         OccModuleArtifactInputV1 stage_input;
         size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
-        assert(build_cfg_module_artifact(&input, &input_length, 19));
+        assert(build_cfg_module_artifact(&input, &input_length, 21));
         memset(&stage_input, 0, sizeof(stage_input));
         stage_input.bytes = input; stage_input.length = input_length;
-        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 521u,
+        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 523u,
             &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
-            OCC_MODULE_LOADER_OK);
-        assert(output != NULL && output_length != 0u);
-        assert(occ_diagnostics_count(&diagnostics) == diagnostics_before);
+            OCC_MODULE_LOADER_INVOKE_FAILED);
+        assert(output == NULL && output_length == 0u);
+        assert(occ_diagnostics_count(&diagnostics) == diagnostics_before + 1u);
+        assert_last_diagnostic_code(&diagnostics, 8616u, "instruction=3");
         free(input); input = NULL; input_length = 0u;
-        free(output); output = NULL; output_length = 0u;
     }
 
     /* An unused SSA result is advisory: warn, but still emit valid OIR. */

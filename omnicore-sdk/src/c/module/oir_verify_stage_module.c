@@ -408,6 +408,7 @@ static int validate_instructions(const OirModuleView* m,
             case OIR_OP_MUL: case OIR_OP_DIV: case OIR_OP_REM:
             case OIR_OP_NEG: case OIR_OP_BIT_AND: case OIR_OP_BIT_OR:
             case OIR_OP_BIT_XOR: case OIR_OP_BIT_NOT:
+            case OIR_OP_BIT_SHL: case OIR_OP_BIT_SHR:
             case OIR_OP_CMP_EQ: case OIR_OP_CMP_NE:
             case OIR_OP_CMP_LT: case OIR_OP_CMP_LE: case OIR_OP_CMP_GT:
             case OIR_OP_CMP_GE: case OIR_OP_CAST:
