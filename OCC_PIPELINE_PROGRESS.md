@@ -1391,3 +1391,17 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - **Verification pending:** GitHub Actions must compile and run the new C target on Windows, macOS, Ubuntu, ASan/UBSan and Valgrind. No local build was available in this GitHub-only workspace.
 - **Not complete:** host-owned source provider, recursive dependency scheduling through lexer/parser DLLs, dependency/interface OIR artifact + independent validation, and Semantic import binding/visibility checks. The Semantic `AST_USE` branch remains a no-op until that validated handoff exists; no imported symbol support is claimed.
 - Updated `docs/MODULE_RESOLVER_DESIGN.md` and the USE row in `docs/AST_PARSER_PRODUCTION_MATRIX.md`. Codegen remains blocked.
+
+
+## 2026-11-10 — Correction: `m:` is an immutable value, not a dependency
+
+The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time dependency or required source dependency were based on an incorrect interpretation and are superseded by this entry. The language contract clarified by the project owner is:
+
+- `m:name = expression;` declares a normal readable value whose binding cannot be reassigned or updated after initialization.
+- The initializer is an expression; its type is inferred by Semantic. Examples: `m:a = 5;`, `m:pi = 3.141592653589793;`.
+- `m:` does not check file existence, load source, or create module dependency edges. Source/module loading is performed by `use`.
+- Parser/AST now accepts `m:` at program and block scope; AST kind/payload name `AST_MUST_DECL` remains unchanged for append-only compatibility.
+- Semantic now registers the value as a const symbol and uses existing constant assignment/update diagnostics. Parser and Semantic tests cover program/block declarations, reading, assignment, increment and duplicate declarations.
+- Updated `omnicore-sdk/nfsyntax.md`, `docs/AST_PARSER_PRODUCTION_MATRIX.md`, `OIR_AST_NODE_REGISTRY.md`, and `docs/MODULE_RESOLVER_DESIGN.md` to reflect the corrected contract.
+- OIR already has stable node kind 103 with name + initializer-expression fields; its field schema/round-trip remains part of the validation gate. The legacy AST struct member `source` is the initializer payload, not a file path.
+- CI verification for these code changes is pending. The Module Resolver remains exclusively for `use`; the previous resolver document's erroneous association of `m:` with source-provider work is superseded.
