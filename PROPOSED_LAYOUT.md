@@ -22,7 +22,10 @@ repository/
     │   │   └── tests/
     │   └── oce/                 # Ayrı IDE/editor projesi
     ├── targets/
-    ├── stdlib/
+    ├── occ/
+    │   └── libs/                # Önceden tanımlı Nexus Flow modülleri
+    │       ├── osmodule.nxf
+    │       └── coremodule.nxf
     ├── dpslib/
     ├── docs/
     ├── CMakeLists.txt
@@ -50,7 +53,10 @@ omnicore-sdk/
 │   │   └── support/             # Config, path, logging
 │   └── oce/                     # IDE/editor; compiler'dan ayrı
 ├── targets/
-├── stdlib/
+├── occ/
+│   └── libs/                    # Önceden tanımlı Nexus Flow modülleri
+│       ├── osmodule.nxf
+│       └── coremodule.nxf
 ├── dpslib/
 ├── tests/                       # İleride modül bazlı test ayrımı
 ├── docs/
