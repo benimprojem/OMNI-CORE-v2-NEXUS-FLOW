@@ -701,9 +701,22 @@ int main(int argc, char** argv) {
             assert(build_cfg_module_artifact(&input, &input_length, variants[k]));
             memset(&stage_input, 0, sizeof(stage_input));
             stage_input.bytes = input; stage_input.length = input_length;
-            assert(occ_module_loader_invoke(&loaded, &stage_input, 1u,
-                521u + (uint32_t)k, &diagnostics, 256u, 1024u * 1024u,
-                &output, &output_length) == OCC_MODULE_LOADER_OK);
+            {
+                uint32_t verify_status = occ_module_loader_invoke(&loaded, &stage_input, 1u,
+                    521u + (uint32_t)k, &diagnostics, 256u, 1024u * 1024u,
+                    &output, &output_length);
+                if (verify_status != OCC_MODULE_LOADER_OK) {
+                    OccDiagnosticView failure_view;
+                    fprintf(stderr, "shift verifier fixture variant=%d status=%u diagnostics=%zu\\n",
+                        variants[k], verify_status, occ_diagnostics_count(&diagnostics));
+                    if (occ_diagnostics_count(&diagnostics) &&
+                        occ_diagnostics_get(&diagnostics,
+                            occ_diagnostics_count(&diagnostics) - 1u, &failure_view))
+                        fprintf(stderr, "shift verifier diagnostic code=%u message=%s\\n",
+                            failure_view.record->code, failure_view.message);
+                    assert(verify_status == OCC_MODULE_LOADER_OK);
+                }
+            }
             assert(output != NULL && output_length != 0u);
             assert(occ_diagnostics_count(&diagnostics) == diagnostics_before);
             free(input); input = NULL; input_length = 0u;
