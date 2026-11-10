@@ -176,7 +176,7 @@ The two `.nxf` files currently contain only starter comments. The previous mixed
 
 The package-root `omnicore-sdk/occ.ocf` uses `./occ/libs`. The runtime copy `omnicore-sdk/src/c/occ.ocf` is placed beside the `bin/occ` executable and uses `../occ/libs`; CMake stages the source `occ/` directory at the build root, avoiding a collision between the executable file `bin/occ` and a same-named directory. CTest `occ_predefined_standard_libraries_staged_for_runtime` verifies the staged files and runtime config path.
 
-**Integration boundary:** the current C host reads the runtime OCF for its language setting only; it does not yet consume `[include]` to resolve source modules. A real project-config reader/provider must be implemented before the resolver can locate `occ/libs/osmodule.nxf` or user modules.
+**Implementation update:** a concrete C filesystem source provider now consumes the bounded OCF `[include]` paths. For dependency requests, it maps a dotted module name to one filename by appending `.nxf` (for example, `db.mysql.sql` → `db.mysql.sql.nxf`) and searches in this strict order: host-supplied `dsplibs/` root, host-supplied `libs/` root, project-root `include/`, then additional OCF `[include]` paths in declaration order. It does not split dotted names into directory components. The host still must supply the actual package roots and load the correct project OCF; current `main.c` only reads the SDK runtime OCF language setting, so end-to-end CLI resolution remains pending.
 
 
 ## 14. Dependency loading tree and host scheduler (implementation progress)
@@ -290,3 +290,21 @@ The host coordinator is exposed in `module/module_scheduler.h` and implemented i
 - Source-not-found, denied, ambiguous, I/O, provider, resource-limit, parse, AST, cycle and Semantic failures remain distinguishable.
 
 The scheduler has isolated C tests for shared dependencies, deterministic dependency-first Semantic order, provider-view release counts and cycle detection. These tests exercise callback contracts with fake sources; they do not claim that the filesystem provider or actual stage DLL integration is complete.
+
+
+### 14.8 Filesystem module provider and single-file policy
+
+The filesystem provider is implemented in `module/filesystem_module_provider.h/.c` and is deliberately separate from the graph Resolver.
+
+- `use db;` maps to the single file `db.nxf`.
+- `use db.mysql.sql;` maps to `db.mysql.sql.nxf`; dotted segments are not converted to directories.
+- Dependency search precedence is strict: (1) host-provided `dsplibs` root, (2) host-provided `libs` root, (3) the project's fixed `include/` directory, and (4) additional directories declared by the project's OCF `[include]` section in declaration order.
+- The first existing candidate wins. A later directory is not consulted after a successful earlier match.
+- Module names accept identifier-like dot-separated segments only. Absolute paths, slashes, backslashes, colon, and traversal spellings are rejected for dependency requests.
+- Root compilation input is different from a dependency request: when `importer_identity == NULL`, the requested path is treated as the root source path and is opened directly.
+- Files are read in binary mode under a configurable source-size bound. Canonical identity is the resolved filesystem path (`realpath` on POSIX and `_fullpath` on Windows); source bytes and identity remain provider-owned until the matching release callback.
+- Oversized files produce a distinct provider resource-limit status, which Resolver maps to `OCC_MODULE_RESOLVER_LIMIT_EXCEEDED`.
+
+The provider copies its configured roots and OCF include entries at initialization, so the caller may destroy the parsed OCF object afterward. It does not itself parse OCF or decide where the global `dsplibs/` and `libs/` roots live; the host supplies those roots. The SDK's current CLI has not yet wired this provider or selected a per-project OCF.
+
+Isolated C tests cover single-file dotted-name mapping, path traversal rejection, dsplibs-over-libs precedence, libs fallback, project `include/` fallback, additional OCF include fallback, missing-module behavior, and source-size limits. These tests do not yet represent an end-to-end compilation through the stage DLLs.
