@@ -1401,7 +1401,7 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - The initializer is an expression; its type is inferred by Semantic. Examples: `m:a = 5;`, `m:pi = 3.141592653589793;`.
 - `m:` does not check file existence, load source, or create module dependency edges. Source/module loading is performed by `use`.
 - Parser/AST now accepts `m:` at program and block scope; AST kind/payload name `AST_MUST_DECL` remains unchanged for append-only compatibility.
-- Semantic now registers the value as a const symbol and uses existing constant assignment/update diagnostics. Parser and Semantic tests cover program/block declarations, reading, assignment, increment and duplicate declarations.
+- Semantic blocks reassignment/update through the existing immutable-lvalue checks, but records `m:` with a new `IMMUTABLE` symbol flag rather than `CONST`. `c:` retains the separate `CONST` flag for compile-time constants. Parser and Semantic tests cover program/block declarations, reading, assignment, increment and duplicate declarations.
 - Updated `omnicore-sdk/nfsyntax.md`, `docs/AST_PARSER_PRODUCTION_MATRIX.md`, `OIR_AST_NODE_REGISTRY.md`, and `docs/MODULE_RESOLVER_DESIGN.md` to reflect the corrected contract.
 - OIR already has stable node kind 103 with name + initializer-expression fields; its field schema/round-trip remains part of the validation gate. The legacy AST struct member `source` is the initializer payload, not a file path.
 - CI verification for these code changes is pending. The Module Resolver remains exclusively for `use`; the previous resolver document's erroneous association of `m:` with source-provider work is superseded.
@@ -1421,3 +1421,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - CI for this provider API/test addition is pending. Codegen remains blocked.
 
 - Architecture boundary: `occ_module_resolver` is currently a portable static C core library for graph/provider contracts, not yet a pipeline DLL. The resolver-stage DLL wrapper and its standard input/output artifact ABI are deliberately deferred until the versioned dependency/interface artifact and host scheduler contract are specified. This preserves the project's module-DLL pipeline rather than pretending the helper library is already an integrated stage.
+
+
+## 2026-11-10 — Separate `m:` immutable and `c:` compile-time constant symbol contracts
+
+- Reconciled the normative `docs/language/syntax-reference.md` with the SDK syntax reference: `c:` denotes compile-time constants; `m:` denotes a normal value whose binding cannot be reassigned. `m:` is not a compile-time constant and does not load a file/module.
+- Added `SEMANTIC_RESULT_SYMBOL_FLAG_IMMUTABLE` (bit 6). `CONST` (bit 0) remains reserved for `c:`; the flags are mutually exclusive and IMMUTABLE is valid only for variable symbols. Semantic still uses its internal const-lvalue protection for both, but the exported symbol metadata distinguishes their language meaning.
+- Added corresponding `OIR_SEMANTIC_SYMBOL_FLAG_IMMUTABLE`, bumped SEMANTIC_AST payload schema minor from 1.3 to 1.4, added old-schema rejection for the new flag, and allowed IMMUTABLE variable declarations to reference AST node kind 103 (`AST_MUST_DECL`). Existing 1.0–1.3 artifacts remain readable under their previous constraints.
+- Added an integration test that compiles `c:CompileValue = 5; m:RuntimeValue = 6;`, verifies distinct SemanticResult flags, serializes SEMANTIC_AST schema 1.4, reopens it through the full artifact validator, and verifies the wire flags remain distinct.
+- Updated the normative and SDK syntax references, Group spec, OIR Semantic AST schema doc, AST matrix, and Module Resolver design. Compile-time evaluation/folding for `c:` remains a separate Semantic capability and is not claimed completed by adding the flag distinction.
+- **CI pending** for the schema 1.4 and new integration test changes. The earlier 1.3-era `m:` implementation CI success does not cover this later schema/flag refinement.
