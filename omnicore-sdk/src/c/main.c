@@ -927,6 +927,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Hata: Dil dosyasi yolu olusturulamadi.\n");
         return 1;
     }
+    fprintf(stderr, "[OCC runtime paths] executable='%s' config='%s' lang='%s' targets='%s'\\n", executable_dir, config_path, lang_path, target_dir);
     msg_init(lang_path);
 
     if (argc < 2) {
