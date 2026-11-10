@@ -880,8 +880,8 @@ static int test_immutable_vs_compile_time_constant_flags(void) {
         if (oir_semantic_symbols_get(&view.symbols, i, &symbol, &name)
                 != OIR_STATUS_OK)
             goto done;
-        if (symbol.name_length == 11u &&
-            memcmp(name, "CompileValue", 11u) == 0) {
+        if (symbol.name_length == 12u &&
+            memcmp(name, "CompileValue", 12u) == 0) {
             saw_compile_time_const =
                 (symbol.flags & OIR_SEMANTIC_SYMBOL_FLAG_CONST) != 0u &&
                 (symbol.flags & OIR_SEMANTIC_SYMBOL_FLAG_IMMUTABLE) == 0u;
@@ -898,13 +898,13 @@ done:
     if (parser) parser_destroy(parser);
     free(records); free(fields); free(strings); free(ast_payload); free(artifact);
     free(incoming); free(visited); free(graph_stack); free(owner_scope);
-    if (!ok) fprintf(stderr, "c: compile-time constant and m: immutable flags were conflated.\\n");
+    if (!ok) fprintf(stderr, "c: compile-time constant and m: immutable flags were conflated.\n");
     return ok;
 }
 
 int main(void) {
     if(!test_immutable_vs_compile_time_constant_flags()) {
-        fprintf(stderr,"c:/m: SemanticResult flag separation failed.\\n");
+        fprintf(stderr,"c:/m: SemanticResult flag separation failed.\n");
         return 1;
     }
 
