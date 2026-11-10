@@ -408,6 +408,14 @@ OccModuleSchedulerStatus occ_module_scheduler_get_import_binding(
             edge->ast_use_node_id == use_ordinal) {
             out_binding->importer_module_id = importer_module_id;
             out_binding->dependency_module_id = edge->dependency_module_id;
+            {
+                const OccModuleResolverNode* dependency =
+                    occ_module_resolver_get_module(
+                        &scheduler->resolver, edge->dependency_module_id);
+                if (!dependency || !dependency->canonical_identity)
+                    return OCC_MODULE_SCHEDULER_RESOLVER_ERROR;
+                out_binding->dependency_identity = dependency->canonical_identity;
+            }
             out_binding->use_ordinal = use_ordinal;
             out_binding->requested_path = use->requested_path;
             out_binding->alias = use->alias;
