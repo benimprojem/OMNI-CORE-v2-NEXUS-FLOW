@@ -3,8 +3,8 @@ if(NOT DEFINED OCC_RUNTIME_DIR)
 endif()
 
 set(_occ_config "${OCC_RUNTIME_DIR}/occ.ocf")
-set(_osmodule "${OCC_RUNTIME_DIR}/occ/libs/osmodule.nxf")
-set(_coremodule "${OCC_RUNTIME_DIR}/occ/libs/coremodule.nxf")
+set(_osmodule "${OCC_RUNTIME_DIR}/../occ/libs/osmodule.nxf")
+set(_coremodule "${OCC_RUNTIME_DIR}/../occ/libs/coremodule.nxf")
 
 foreach(_required IN ITEMS "${_occ_config}" "${_osmodule}" "${_coremodule}")
     if(NOT EXISTS "${_required}")
