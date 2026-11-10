@@ -1566,3 +1566,16 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - `docs/OCM_PROJECT_TEMPLATE.md` başlangıç proje ağacı, örnek OCF, kaynak dosyası ilkeleri ve güvenli oluşturma gereksinimleri için eklendi.
 - **Uygulama durumu:** Bu commit'ler dokümantasyon/tasarım kararıdır. OCM CLI, proje şablon motoru, OCC proje keşfi ve proje-local build output entegrasyonu henüz kodlanmadı; örnek OCF dependency syntax'ı da normatif değildir.
 - **Sonraki teknik adım:** önce mevcut host path/config akışını proje root discovery sözleşmesine göre inceleyip tasarlamak; ardından C tarafında proje keşfi ve filesystem provider entegrasyonunu testlerle geliştirmek. OCM'nin proje scaffold motoru, CLI/process sözleşmesi netleşince ayrı C modülü olarak uygulanmalı.
+
+
+### 2026-11-10 — Parser allocation-failure ve Semantic compound/index kontrolleri
+
+- Parser'da mevcut deterministic allocation-failure injection regression fonksiyonu `test_parser_allocation_failure_injection()` tanımlıydı ancak `test_parser` main test akışında çağrılmıyordu. Ana test akışına eklendi; her allocation noktasında OOM status/result eşleşmesi ve sonunda fail index'i allocation sayısını aştığında başarı yolu denetleniyor.
+- Semantic compound assignment testleri genişletildi: immutable `m:` ataması, `.=` string append pozitif/negatif örnekleri, array index ve struct member compound assignment, constant index/member write kontrolleri eklendi.
+- Semantic array index kontrolü ortak integer primitive sınıflandırmasını kullanacak şekilde düzeltildi. Böylece `i8/i16/i32/i64` ve `u8/u16/u32/u64` türleri geçerli index türü olarak kabul edilir; float gibi integer olmayan türler reddedilir. Genel `any` index türünün mevcut dinamik davranışı korunur.
+- Index hedefi array değilse type diagnostic üretilir; hedef türü çözümlenememişse ayrıca ikinci bir hedef-type diagnostic üretilmez. Inferred `array` türleri index kullanımında desteklenir.
+- Semantic regression testleri: undefined index identifier, float index variable, inferred array index, narrow signed/unsigned integer index ve mevcut invalid target/type örnekleri.
+- **CI doğrulaması:** Parser allocation-injection testini çalıştıran commit `d152a385a5be80780cfa0e6ceea9c5cbd0b6a503`, run [42802957950](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42802957950) ile 5/5 job başarılı oldu.
+- Array index semantic düzeltmesi commit `8d36b309673d947cec8357c81a417e929d278ec8`, run [42803438524](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42803438524) ile 5/5 job başarılı oldu; Ubuntu CTest ve Valgrind MemCheck 63/63 geçti.
+- Narrow integer index ek testinin düzeltilmiş fixture commit'i `ab43b51234da03410c67d8fa77374bb6709adc5d` için run [42803824486](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42803824486): Ubuntu, macOS, Windows ve ASan/UBSan başarılı; Valgrind job'u henüz tamamlanmadı. Bu son CI kapısı tamamlanmadan son commit'in tam 5/5 doğrulandığı söylenmeyecek.
+- **Kalan Semantic ana işleri:** `AST_USE` modül import semantiği henüz no-op; gerçek çözümleme Module Resolver/host scheduler ile birlikte tasarlanmalı. Tuple type/destructuring ve inline ASM semantic desteği mevcut fail-closed davranışta. Semantic AST annotation/cross-reference matrisi henüz tüm AST node'ları için kapanmış değil.
