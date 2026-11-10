@@ -523,7 +523,7 @@ static void ast_print_recursive(ASTNode* node, int level) {
             }
             case AST_USE: {
                 ASTUse* u = (ASTUse*)node;
-                printf("USE: %s%s%s\n", u->module_name, u->alias ? " as " : "", u->alias ? u->alias : "");
+                printf("USE: %s%s%s%s%s\n", u->module_name, u->alias ? " as " : "", u->alias ? u->alias : "", u->namespace_name ? " ns " : "", u->namespace_name ? u->namespace_name : "");
                 break;
             }
             case AST_DEFER: {
@@ -797,6 +797,7 @@ static void ast_destroy_recursive(ASTNode* node) {
             ASTUse* u = (ASTUse*)node;
             if (u->module_name) free(u->module_name);
             if (u->alias) free(u->alias);
+            if (u->namespace_name) free(u->namespace_name);
             break;
         }
         case AST_DEFER: {
@@ -961,7 +962,7 @@ typedef struct {
 
 #define AST_STREAM_MAGIC "OCCAST\r\n"
 #define AST_STREAM_MAGIC_SIZE 8u
-#define AST_STREAM_VERSION 4u
+#define AST_STREAM_VERSION 5u
 
 
 static void ast_write_exact(ASTWriter* writer, const void* source, size_t size) {
@@ -1263,6 +1264,7 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             ASTUse* u = (ASTUse*)node;
             write_string(writer, u->module_name);
             write_string(writer, u->alias);
+            write_string(writer, u->namespace_name);
             break;
         }
         case AST_DEFER: {
@@ -1651,6 +1653,8 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             ASTUse* u = (ASTUse*)node;
             u->module_name = read_string(reader);
             u->alias = read_string(reader);
+            if (reader->format_version >= 5u)
+                u->namespace_name = read_string(reader);
             break;
         }
         case AST_DEFER: {
@@ -1839,7 +1843,7 @@ ASTNode* ast_deserialize(FILE* in) {
         if (got == sizeof(prefix) && memcmp(prefix, AST_STREAM_MAGIC, sizeof(prefix)) == 0) {
             uint32_t version = 0u;
             if (fread(&version, sizeof(version), 1u, in) != 1u ||
-                (version != 1u && version != 2u && version != 3u && version != AST_STREAM_VERSION)) return NULL;
+                (version != 1u && version != 2u && version != 3u && version != 4u && version != AST_STREAM_VERSION)) return NULL;
             reader.format_version = version;
         } else {
             if (ferror(in)) return NULL;
