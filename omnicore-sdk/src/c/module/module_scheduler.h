@@ -50,9 +50,21 @@ typedef struct OccModuleSchedulerCallbacks {
 
 typedef struct OccModuleSchedulerUse {
     char* requested_path;
+    char* alias;
+    char* namespace_name;
     OccSourceSpan span;
     uint32_t ordinal;
 } OccModuleSchedulerUse;
+
+typedef struct OccModuleImportBinding {
+    uint32_t importer_module_id;
+    uint32_t dependency_module_id;
+    uint32_t use_ordinal;
+    const char* requested_path;   /* Borrowed from scheduler. */
+    const char* alias;            /* Borrowed; NULL when no `as` binding. */
+    const char* namespace_name;  /* Borrowed; NULL when no `ns` selector. */
+    OccSourceSpan span;
+} OccModuleImportBinding;
 
 typedef struct OccModuleSchedulerEntry {
     ASTNode* program;
@@ -86,6 +98,14 @@ OccModuleSchedulerStatus occ_module_scheduler_init(
 OccModuleSchedulerStatus occ_module_scheduler_run(
     OccModuleScheduler* scheduler,
     const OccModuleSourceRequest* root_request
+);
+
+/* Retrieve the exact importer-side binding for one top-level USE ordinal. */
+OccModuleSchedulerStatus occ_module_scheduler_get_import_binding(
+    const OccModuleScheduler* scheduler,
+    uint32_t importer_module_id,
+    uint32_t use_ordinal,
+    OccModuleImportBinding* out_binding
 );
 
 void occ_module_scheduler_destroy(OccModuleScheduler* scheduler);
