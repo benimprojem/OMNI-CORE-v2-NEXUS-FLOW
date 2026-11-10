@@ -72,6 +72,8 @@ typedef struct OccModuleSourceView {
     void* provider_cookie;
 } OccModuleSourceView;
 
+/* On failure, resolve must clean up and zero out_source. On success, all
+   returned views are owned by the provider until the matching release call. */
 typedef OccModuleSourceProviderStatus (*OccModuleSourceResolveFn)(
     void* provider_context,
     const OccModuleSourceRequest* request,
