@@ -708,29 +708,6 @@ static int get_executable_dir(char* out_dir, size_t out_size) {
     return 1;
 }
 
-static int path_parent(char* out, size_t out_size, const char* directory) {
-    size_t length;
-    char* slash;
-    char* backslash;
-    char* separator;
-    if (!out || out_size == 0u || !directory || !directory[0]) return 0;
-    length = strlen(directory);
-    if (length >= out_size) return 0;
-    memcpy(out, directory, length + 1u);
-    slash = strrchr(out, '/');
-    backslash = strrchr(out, '\\');
-    separator = slash;
-    if (backslash && (!separator || backslash > separator)) separator = backslash;
-    if (!separator) return 0;
-    if (separator == out ||
-        (separator == out + 2 && out[1] == ':')) {
-        separator[1] = '\0';
-    } else {
-        *separator = '\0';
-    }
-    return 1;
-}
-
 static int path_join(char* out, size_t out_size, const char* base, const char* relative) {
     if (!out || out_size == 0 || !base || !relative) return 0;
 
@@ -930,25 +907,23 @@ int main(int argc, char **argv) {
     int exit_code = 0;
     /* Resolve runtime assets from the executable location, not the caller's CWD. */
     char executable_dir[OCC_PATH_BUFFER];
-    char package_dir[OCC_PATH_BUFFER];
     char config_path[OCC_PATH_BUFFER];
     char target_dir[OCC_PATH_BUFFER];
     char lang_path[OCC_PATH_BUFFER];
-    char lang_relative[64];
+    char lang_relative[96];
 
     if (!get_executable_dir(executable_dir, sizeof(executable_dir)) ||
-        !path_parent(package_dir, sizeof(package_dir), executable_dir) ||
-        !path_join(config_path, sizeof(config_path), package_dir, "occ.ocf") ||
-        !path_join(target_dir, sizeof(target_dir), package_dir, "targets")) {
+        !path_join(config_path, sizeof(config_path), executable_dir, "../occ.ocf") ||
+        !path_join(target_dir, sizeof(target_dir), executable_dir, "../targets")) {
         fprintf(stderr, "Hata: OCC package/runtime dizinleri cozumlenemedi.\n");
         return 1;
     }
 
     char lang[16];
     get_config_language(config_path, lang, sizeof(lang));
-    int lang_length = snprintf(lang_relative, sizeof(lang_relative), "lang/messages_%s.conf", lang);
+    int lang_length = snprintf(lang_relative, sizeof(lang_relative), "../lang/messages_%s.conf", lang);
     if (lang_length < 0 || (size_t)lang_length >= sizeof(lang_relative) ||
-        !path_join(lang_path, sizeof(lang_path), package_dir, lang_relative)) {
+        !path_join(lang_path, sizeof(lang_path), executable_dir, lang_relative)) {
         fprintf(stderr, "Hata: Dil dosyasi yolu olusturulamadi.\n");
         return 1;
     }
