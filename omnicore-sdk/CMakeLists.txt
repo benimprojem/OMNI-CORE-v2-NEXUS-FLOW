@@ -381,6 +381,24 @@ add_library(occ_module_interface STATIC
 add_library(occ_oir_module_interface_artifact STATIC
     "${C_SOURCE_DIR}/oir/oir_module_interface_artifact.c"
 )
+
+# OIR transport manifest for resolved top-level USE bindings.
+add_library(occ_oir_module_imports_artifact STATIC
+    "${C_SOURCE_DIR}/oir/oir_module_imports_artifact.c"
+)
+target_include_directories(occ_oir_module_imports_artifact PUBLIC
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/core"
+)
+target_link_libraries(occ_oir_module_imports_artifact PUBLIC
+    occ_oir
+    occ_module_scheduler
+)
+set_target_properties(occ_oir_module_imports_artifact PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
+
 target_include_directories(occ_oir_module_interface_artifact PUBLIC
     "${C_SOURCE_DIR}/oir"
     "${C_SOURCE_DIR}/module"
@@ -975,6 +993,26 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME module_scheduler_dependency_first_semantic_order
         COMMAND test_module_scheduler)
+
+    add_executable(test_module_imports_artifact
+        "${C_SOURCE_DIR}/tests/test_module_imports_artifact.c"
+    )
+    target_link_libraries(test_module_imports_artifact PRIVATE
+        occ_oir_module_imports_artifact
+    )
+    target_include_directories(test_module_imports_artifact PRIVATE
+        "${C_SOURCE_DIR}/oir"
+        "${C_SOURCE_DIR}/module"
+        "${C_SOURCE_DIR}/core"
+    )
+    if(MSVC)
+        target_compile_options(test_module_imports_artifact PRIVATE /W4)
+    else()
+        target_compile_options(test_module_imports_artifact PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME module_imports_manifest_roundtrip
+        COMMAND test_module_imports_artifact
+    )
 
     add_executable(test_module_interface
         "${C_SOURCE_DIR}/tests/test_module_interface.c"
