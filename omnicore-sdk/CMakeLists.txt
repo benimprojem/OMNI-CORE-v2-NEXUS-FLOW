@@ -47,8 +47,8 @@ endforeach()
 
 file(MAKE_DIRECTORY "${C_RUNTIME_DIR}")
 file(COPY "${C_SOURCE_DIR}/occ.ocf" DESTINATION "${C_RUNTIME_DIR}")
-# Ship the predefined Nexus Flow modules beside occ.ocf so ./occ/libs resolves at runtime.
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/occ" DESTINATION "${C_RUNTIME_DIR}")
+# Stage source-tree occ/libs beside the runtime bin directory; bin/occ is the CLI executable.
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/occ" DESTINATION "${CMAKE_BINARY_DIR}")
 file(COPY "${C_SOURCE_DIR}/lang" DESTINATION "${C_RUNTIME_DIR}")
 file(COPY "${C_SOURCE_DIR}/tests" DESTINATION "${C_RUNTIME_DIR}")
 configure_file("${C_SOURCE_DIR}/tests/test1.nxf" "${C_RUNTIME_DIR}/tests/test1_alt.nxf" COPYONLY)
