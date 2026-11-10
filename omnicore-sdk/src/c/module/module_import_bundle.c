@@ -32,7 +32,7 @@ void occ_module_import_bundle_destroy(OccModuleImportBundle* bundle) {
 
 OccModuleImportBundleStatus occ_module_import_bundle_bind(
     const char* expected_importer_identity,
-    const OirModuleImports* imports,
+    const OirModuleImportsArtifactView* imports_artifact,
     const OirModuleInterfaceArtifactView* interfaces,
     size_t interface_count,
     OccModuleImportBundle* out_bundle
@@ -40,14 +40,21 @@ OccModuleImportBundleStatus occ_module_import_bundle_bind(
     size_t capacity=0u,i;
     size_t* slots=NULL;
     uint8_t* matched=NULL;
+    const OirModuleImports* imports;
     if(!out_bundle || !valid_identity(expected_importer_identity) ||
-       !imports || !valid_identity(imports->importer_identity) ||
+       !imports_artifact || !valid_identity(imports_artifact->imports.importer_identity) ||
        (interface_count && !interfaces) ||
-       imports->record_count>OIR_MODULE_IMPORTS_MAX_RECORDS ||
-       interface_count>OCC_MODULE_IMPORT_BUNDLE_MAX_INTERFACES ||
-       (imports->record_count && !imports->records))
+       interface_count>OCC_MODULE_IMPORT_BUNDLE_MAX_INTERFACES)
         return OCC_MODULE_IMPORT_BUNDLE_INVALID_ARGUMENT;
     memset(out_bundle,0,sizeof(*out_bundle));
+    imports=&imports_artifact->imports;
+    if(imports->record_count>OIR_MODULE_IMPORTS_MAX_RECORDS ||
+       (imports->record_count && !imports->records))
+        return OCC_MODULE_IMPORT_BUNDLE_INVALID_ARGUMENT;
+    if(imports_artifact->envelope.header.artifact_kind!=OIR_KIND_MODULE_IMPORTS ||
+       imports_artifact->envelope.header.producer_stage_id!=OCC_STAGE_OIR_VERIFY ||
+       imports_artifact->envelope.header.validity!=OIR_VALIDITY_VALID)
+        return OCC_MODULE_IMPORT_BUNDLE_INVALID_ARGUMENT;
     if(strcmp(expected_importer_identity,imports->importer_identity)!=0)
         return OCC_MODULE_IMPORT_BUNDLE_IMPORTER_MISMATCH;
     if(interface_count>imports->record_count)
@@ -65,7 +72,13 @@ OccModuleImportBundleStatus occ_module_import_bundle_bind(
     for(i=0;i<interface_count;i++) {
         const OccModuleInterface* mi=&interfaces[i].module_interface;
         size_t slot;
-        if(!valid_identity(mi->canonical_identity)) {
+        if(!valid_identity(mi->canonical_identity) ||
+           mi->schema_major!=OCC_MODULE_INTERFACE_SCHEMA_MAJOR ||
+           mi->schema_minor>OCC_MODULE_INTERFACE_SCHEMA_MINOR ||
+           interfaces[i].envelope.header.artifact_kind!=OIR_KIND_MODULE_INTERFACE ||
+           interfaces[i].envelope.header.producer_stage_id!=OCC_STAGE_OIR_VERIFY ||
+           interfaces[i].envelope.header.validity!=OIR_VALIDITY_VALID ||
+           interfaces[i].envelope.header.job_id!=imports_artifact->envelope.header.job_id) {
             free(slots); free(matched); return OCC_MODULE_IMPORT_BUNDLE_INVALID_ARGUMENT;
         }
         slot=(size_t)identity_hash(mi->canonical_identity)&(capacity-1u);
