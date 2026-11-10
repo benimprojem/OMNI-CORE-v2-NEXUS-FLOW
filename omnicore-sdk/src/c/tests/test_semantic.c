@@ -217,6 +217,14 @@ static int check_compound_assignment_semantics(void) {
     const char* invalid_numeric = "f:main() { v:x!str = \"a\"; x += \"b\"; }";
     const char* invalid_bitwise_float = "f:main() { v:x!f32 = 1.0; x &= 1.0; }";
     const char* valid_bitwise = "f:main() { v:x!i32 = 1; x |= 2; x ^= 3; }";
+    const char* valid_bitwise_bit =
+        "f:main() { v:a!bit; v:b!bit; a &= b; a ^= b; }";
+    const char* valid_bitwise_byte =
+        "f:main() { v:a!byte; v:b!byte; a |= b; a ^= b; }";
+    const char* invalid_bit_arithmetic =
+        "f:main() { v:a!bit; v:b!bit; a += b; }";
+    const char* invalid_byte_arithmetic =
+        "f:main() { v:a!byte; v:b!byte; a += b; }";
     const char* valid_decimal_widths =
         "f:main() { v:decimal32!d32; v:decimal64!d64; decimal32 += decimal32; decimal64 *= decimal64; }";
     const char* immutable_compound =
@@ -238,6 +246,10 @@ static int check_compound_assignment_semantics(void) {
         check_source(invalid_numeric,1) &&
         check_source(invalid_bitwise_float,3) &&
         check_source(valid_bitwise,0) &&
+        check_source(valid_bitwise_bit,0) &&
+        check_source(valid_bitwise_byte,0) &&
+        check_source(invalid_bit_arithmetic,1) &&
+        check_source(invalid_byte_arithmetic,1) &&
         check_source(valid_decimal_widths,0) &&
         check_source(immutable_compound,1) &&
         check_source(valid_string_append,0) &&
