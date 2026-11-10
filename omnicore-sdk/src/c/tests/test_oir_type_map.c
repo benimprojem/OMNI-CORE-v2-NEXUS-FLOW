@@ -34,11 +34,41 @@ int main(void) {
     assert(map_name("bool", 0u, 4u, &type) == OIR_STATUS_OK);
     assert(type.kind == OIR_MODULE_TYPE_BOOLEAN && type.bit_width == 1u);
 
-    assert(map_name("str", 0u, 5u, &type) == OIR_STATUS_INVALID_SECTION);
-    assert(map_name("char", 0u, 6u, &type) == OIR_STATUS_INVALID_SECTION);
-    assert(map_name("byte", 0u, 7u, &type) == OIR_STATUS_INVALID_SECTION);
-    assert(map_name("void", 0u, 8u, &type) == OIR_STATUS_INVALID_SECTION);
-    assert(map_name("any", 0u, 9u, &type) == OIR_STATUS_INVALID_SECTION);
+    assert(map_name("bit", 0u, 5u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BIT && type.bit_width == 1u);
+    assert(map_name("byte", 0u, 6u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BYTE && type.bit_width == 8u);
+
+    assert(map_name("8bit", 0u, 7u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BIT_VECTOR && type.bit_width == 8u);
+    assert(map_name("16bit", 0u, 8u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BIT_VECTOR && type.bit_width == 16u);
+    assert(map_name("32bit", 0u, 9u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BIT_VECTOR && type.bit_width == 32u);
+    assert(map_name("64bit", 0u, 10u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BIT_VECTOR && type.bit_width == 64u);
+    assert(map_name("128bit", OIR_SEMANTIC_TYPE_FLAG_HARD, 11u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BIT_VECTOR && type.bit_width == 128u);
+    assert(type.flags == OIR_MODULE_TYPE_FLAG_HARD);
+
+    assert(map_name("1byte", 0u, 12u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BYTE_BLOCK && type.bit_width == 8u);
+    assert(map_name("2byte", 0u, 13u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BYTE_BLOCK && type.bit_width == 16u);
+    assert(map_name("4byte", 0u, 14u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BYTE_BLOCK && type.bit_width == 32u);
+    assert(map_name("8byte", 0u, 15u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BYTE_BLOCK && type.bit_width == 64u);
+    assert(map_name("16byte", OIR_SEMANTIC_TYPE_FLAG_CONST, 16u, &type) == OIR_STATUS_OK);
+    assert(type.kind == OIR_MODULE_TYPE_BYTE_BLOCK && type.bit_width == 128u);
+    assert(type.flags == OIR_MODULE_TYPE_FLAG_CONST);
+
+    assert(map_name("str", 0u, 17u, &type) == OIR_STATUS_INVALID_SECTION);
+    assert(map_name("char", 0u, 18u, &type) == OIR_STATUS_INVALID_SECTION);
+    assert(map_name("void", 0u, 19u, &type) == OIR_STATUS_INVALID_SECTION);
+    assert(map_name("any", 0u, 20u, &type) == OIR_STATUS_INVALID_SECTION);
+    assert(map_name("9bit", 0u, 21u, &type) == OIR_STATUS_INVALID_SECTION);
+    assert(map_name("3byte", 0u, 22u, &type) == OIR_STATUS_INVALID_SECTION);
     assert(map_name("i32", 0u, 0u, &type) == OIR_STATUS_INVALID_ARGUMENT);
 
     return 0;
