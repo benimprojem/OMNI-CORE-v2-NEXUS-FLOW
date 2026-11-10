@@ -6,6 +6,7 @@
 #endif
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -701,9 +702,21 @@ int main(int argc, char** argv) {
         assert(build_cfg_module_artifact(&input, &input_length, 19));
         memset(&stage_input, 0, sizeof(stage_input));
         stage_input.bytes = input; stage_input.length = input_length;
-        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 521u,
-            &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
-            OCC_MODULE_LOADER_OK);
+        {
+            OccModuleLoaderStatus invoke_status = occ_module_loader_invoke(
+                &loaded, &stage_input, 1u, 521u, &diagnostics, 256u,
+                1024u * 1024u, &output, &output_length);
+            if (invoke_status != OCC_MODULE_LOADER_OK) {
+                size_t di;
+                for (di = diagnostics_before; di < occ_diagnostics_count(&diagnostics); ++di) {
+                    OccDiagnosticView diagnostic;
+                    if (occ_diagnostics_get(&diagnostics, di, &diagnostic))
+                        fprintf(stderr, "bitwise verifier diagnostic %u: %s\\n",
+                            diagnostic.record->code, diagnostic.message);
+                }
+            }
+            assert(invoke_status == OCC_MODULE_LOADER_OK);
+        }
         assert(output != NULL && output_length != 0u);
         assert(occ_diagnostics_count(&diagnostics) == diagnostics_before);
         free(input); input = NULL; input_length = 0u;
