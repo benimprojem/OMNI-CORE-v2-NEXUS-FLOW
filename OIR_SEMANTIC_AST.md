@@ -118,7 +118,7 @@ Each declared name gets a stable symbol ID independent of its current `Slot*` ad
 | scope_id | u32 | Declaring scope. |
 | declaration_node_id | u32 | AST declaration node. |
 | kind | u16 | Variable, function, struct, union, enum, newtype, label or future registered kind. |
-| flags | u16 | Const, public, exported, packed and hard-typed flags as defined by the registry. |
+| flags | u16 | `CONST` (c: compile-time constant), public, exported, packed, hard-typed, implicit and schema-1.4 `IMMUTABLE` (m: non-reassignable normal value) flags as defined by the registry. |
 | name_offset | u32 | Name offset in symbol string table. |
 | name_length | u32 | Name byte length. |
 | type_id | u32 | Declared/return/target type; zero when unresolved or not applicable. |
