@@ -737,16 +737,20 @@ static int test_fixed_width_representation_type_oir_roundtrip(void) {
     size_t index=0u;
     int ok=0,stage=0;
     if(!parser)return 0;
+    stage=1;
     if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count ||
         !parser->ast_root || !ast_validate((ASTNode*)parser->ast_root,NULL))goto done;
+    stage=2;
     status=encode_ast((ASTNode*)parser->ast_root,&first,&first_length);
     if(status!=OIR_STATUS_OK ||
         oir_ast_node_table_open(first,first_length,&view)!=OIR_STATUS_OK)goto done;
+    stage=3;
     storage=(ASTNode**)calloc(view.node_count,sizeof(*storage));
     incoming=(uint32_t*)calloc(view.node_count,sizeof(*incoming));
     visited=(uint8_t*)calloc(view.node_count,sizeof(*visited));
     stack=(OirAstGraphStackEntry*)calloc(view.node_count,sizeof(*stack));
     if(!storage || !incoming || !visited || !stack)goto done;
+    stage=4;
     status=oir_ast_frontend_read_payload(first,first_length,storage,view.node_count,
         incoming,view.node_count,visited,view.node_count,stack,view.node_count,&decoded);
     if(status!=OIR_STATUS_OK || !decoded || !ast_validate(decoded,NULL))goto done;
@@ -763,11 +767,13 @@ static int test_fixed_width_representation_type_oir_roundtrip(void) {
         declaration=declaration->next;
     }
     if(declaration)goto done;
+    stage=6;
     status=encode_ast(decoded,&second,&second_length);
     if(status!=OIR_STATUS_OK || first_length!=second_length ||
         memcmp(first,second,first_length)!=0)goto done;
     ok=1;
 done:
+    if(!ok)fprintf(stderr,"Fixed-width type OIR roundtrip stage=%d\\n",stage);
     if(decoded)ast_destroy(decoded);
     free(storage);free(incoming);free(visited);free(stack);
     free(first);free(second);parser_destroy(parser);
