@@ -102,6 +102,13 @@ OccModuleSchedulerStatus occ_module_scheduler_run(
 );
 
 /* Retrieve the exact importer-side binding for one top-level USE ordinal. */
+OccModuleSchedulerStatus occ_module_scheduler_get_import_binding_count(
+    const OccModuleScheduler* scheduler,
+    uint32_t importer_module_id,
+    size_t* out_count
+);
+
+/* Retrieve one exact top-level USE binding. */
 OccModuleSchedulerStatus occ_module_scheduler_get_import_binding(
     const OccModuleScheduler* scheduler,
     uint32_t importer_module_id,
