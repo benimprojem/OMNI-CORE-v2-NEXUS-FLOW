@@ -1714,3 +1714,14 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - `occ_module_scheduler_get_import_binding()` now returns both the resolved dependency module ID and canonical identity alongside the requested dotted spelling, alias, namespace selector and source span.
 - The new field remains borrowed for scheduler lifetime; no path is re-resolved and no alias/namespace normalization is performed.
 - Added regression assertion against the fake provider's canonical identity.
+
+
+### OIR Module Imports manifest — 2026-11-10
+
+- Appended `OIR_KIND_MODULE_IMPORTS = 11`; existing artifact IDs 1–10 remain unchanged.
+- Added the `OIM1` payload schema 1.0 and a C-owned manifest model for one importer's explicit top-level USE declarations.
+- Each record preserves the 1-based USE ordinal, original requested module spelling, canonical resolved dependency identity, alias, namespace selector and complete source span. Scheduler-local module IDs are deliberately not serialized as stable identities.
+- Added `oir_module_imports_build_from_scheduler()`: it collects the importer's resolved bindings and obtains the importer canonical identity directly from the Resolver graph, then creates the owned manifest.
+- Added OIR writer/reader with bounded strings and record counts, duplicate ordinal detection, span validation, embedded-NUL rejection and owned decode cleanup.
+- Added CTest round-trip coverage, including independent alias/namespace values, preservation of `as _`, job identity and malformed duplicate-ordinal rejection. Scheduler now exposes a tested binding-count accessor.
+- Not yet integrated: host `main.c` does not yet pass this manifest plus the matching verified Module Interface artifacts to the Semantic DLL. Semantic imported-symbol visibility, alias/namespace lookup, collision checks and imported type mapping remain pending.
