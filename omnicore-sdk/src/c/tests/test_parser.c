@@ -2546,7 +2546,7 @@ static int test_m_immutable_value_ast(void) {
             ? (ASTLiteral*)immutable->source : NULL;
         valid = immutable && immutable->base.type == AST_MUST_DECL &&
             immutable->name && strcmp(immutable->name, "CoreValue") == 0 &&
-            literal && literal->lit_type == 0 && literal->int_value == 42 &&
+            literal && literal->type == TOKEN_NUMBER && literal->string_value && strcmp(literal->string_value, "42") == 0 &&
             declaration_start && declaration_end &&
             immutable->base.source_span.has_location &&
             immutable->base.source_span.start_offset == (uint64_t)(declaration_start-source) &&
