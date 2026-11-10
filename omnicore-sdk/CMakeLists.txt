@@ -378,6 +378,20 @@ set_target_properties(occ_module_scheduler PROPERTIES POSITION_INDEPENDENT_CODE 
 add_library(occ_module_interface STATIC
     "${C_SOURCE_DIR}/module/module_interface.c"
 )
+add_library(occ_oir_module_interface_artifact STATIC
+    "${C_SOURCE_DIR}/oir/oir_module_interface_artifact.c"
+)
+target_include_directories(occ_oir_module_interface_artifact PUBLIC
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/module"
+)
+target_link_libraries(occ_oir_module_interface_artifact PUBLIC
+    occ_oir
+    occ_module_interface
+)
+set_target_properties(occ_oir_module_interface_artifact PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
 target_include_directories(occ_module_interface PUBLIC
     "${C_SOURCE_DIR}/module"
     "${C_SOURCE_DIR}/semantic"
@@ -942,7 +956,7 @@ if(BUILD_TESTING)
     add_executable(test_module_interface
         "${C_SOURCE_DIR}/tests/test_module_interface.c"
     )
-    target_link_libraries(test_module_interface PRIVATE occ_module_interface)
+    target_link_libraries(test_module_interface PRIVATE occ_module_interface occ_oir_module_interface_artifact)
     if(MSVC)
         target_compile_options(test_module_interface PRIVATE /W4)
         target_compile_options(occ_module_interface PRIVATE /W4)
