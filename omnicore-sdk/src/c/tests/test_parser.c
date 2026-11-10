@@ -2854,8 +2854,8 @@ static int test_use_comma_list_spans(void) {
     static const char source[] = "use alpha as a, beta.gamma as b;\\n";
     ParserContext* parser = parser_init_source("use-list.nxf",
         (const uint8_t*)source, sizeof(source)-1u);
-    ASTUse* first;
-    ASTUse* second;
+    ASTUse* first = NULL;
+    ASTUse* second = NULL;
     int valid = 0;
     if (!parser) return 0;
     if (parser_run(parser)==PARSER_STATUS_OK && parser->error_count==0 &&
