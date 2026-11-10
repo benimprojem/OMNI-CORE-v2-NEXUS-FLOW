@@ -27,6 +27,9 @@
 #define T_GTE 113u
 #define T_LTE 114u
 #define T_ASSIGN 102u
+#define T_BIT_AND 130u
+#define T_BIT_OR 131u
+#define T_BIT_XOR 132u
 
 static uint16_t u16(const uint8_t* p) {
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
@@ -345,6 +348,7 @@ static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
     OirModuleType* ty = &st->ws->types[0];
     OirStatus s;
     int comparison = 0;
+    int bitwise = 0;
     if (depth >= OIR_AST_NODE_DEPTH_MAX) return OIR_STATUS_INVALID_SECTION;
     if ((s = token(&st->artifact->ast, n->node_id, 1u, &tok)) != OIR_STATUS_OK)
         return s;
@@ -360,6 +364,9 @@ static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
         case T_LTE: opcode = OIR_OP_CMP_LE; comparison = 1; break;
         case T_GT: opcode = OIR_OP_CMP_GT; comparison = 1; break;
         case T_GTE: opcode = OIR_OP_CMP_GE; comparison = 1; break;
+        case T_BIT_AND: opcode = OIR_OP_BIT_AND; bitwise = 1; break;
+        case T_BIT_OR: opcode = OIR_OP_BIT_OR; bitwise = 1; break;
+        case T_BIT_XOR: opcode = OIR_OP_BIT_XOR; bitwise = 1; break;
         default: return OIR_STATUS_INVALID_SECTION;
     }
 
@@ -372,8 +379,17 @@ static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
     } else {
         if ((s = check_type(st, n->node_id)) != OIR_STATUS_OK)
             return s;
-        if (ty->kind != OIR_MODULE_TYPE_INTEGER && ty->kind != OIR_MODULE_TYPE_FLOAT)
+        if (bitwise) {
+            if (ty->kind != OIR_MODULE_TYPE_INTEGER &&
+                ty->kind != OIR_MODULE_TYPE_BIT &&
+                ty->kind != OIR_MODULE_TYPE_BYTE &&
+                ty->kind != OIR_MODULE_TYPE_BIT_VECTOR &&
+                ty->kind != OIR_MODULE_TYPE_BYTE_BLOCK)
+                return OIR_STATUS_INVALID_SECTION;
+        } else if (ty->kind != OIR_MODULE_TYPE_INTEGER &&
+                   ty->kind != OIR_MODULE_TYPE_FLOAT) {
             return OIR_STATUS_INVALID_SECTION;
+        }
     }
 
     if ((s = ref(&st->artifact->ast, n->node_id, 2u, &lid)) != OIR_STATUS_OK || !lid ||
