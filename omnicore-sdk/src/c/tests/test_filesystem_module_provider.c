@@ -64,6 +64,39 @@ static int test_single_file_name_mapping(void) {
     return 1;
 }
 
+static int test_source_size_limit(void) {
+    OccProjectConfig project;
+    OccFilesystemModuleProvider provider_state;
+    OccFilesystemModuleProviderConfig config;
+    const OccModuleSourceProvider* provider;
+    OccModuleSourceRequest request;
+    OccModuleSourceView view;
+    OccSourceSpan span;
+    memset(&project, 0, sizeof(project));
+    memset(&provider_state, 0, sizeof(provider_state));
+    memset(&config, 0, sizeof(config));
+    memset(&request, 0, sizeof(request));
+    memset(&view, 0, sizeof(view));
+    memset(&span, 0, sizeof(span));
+    project.project_root = (char*)OCC_MODULE_PROVIDER_FIXTURE_DIR;
+    config.dsplibs_root = OCC_MODULE_PROVIDER_FIXTURE_DIR "/dsplibs";
+    config.libs_root = OCC_MODULE_PROVIDER_FIXTURE_DIR "/libs";
+    config.project_config = &project;
+    config.max_source_bytes = 4u;
+    CHECK(occ_filesystem_module_provider_init(&provider_state, &config) ==
+        OCC_MODULE_RESOLVER_OK);
+    provider = occ_filesystem_module_provider_source(&provider_state);
+    span.has_location = 1u;
+    request.requested_path = "priority";
+    request.importer_identity = "fixture://root.nxf";
+    request.use_span = &span;
+    CHECK(provider->resolve(provider->context, &request, &view) ==
+        OCC_MODULE_SOURCE_PROVIDER_LIMIT_EXCEEDED);
+    CHECK(view.canonical_identity == NULL && view.source_bytes == NULL);
+    occ_filesystem_module_provider_destroy(&provider_state);
+    return 1;
+}
+
 static int test_ordered_lookup(void) {
     OccProjectConfig project;
     OccFilesystemModuleProvider provider_state;
@@ -94,5 +127,6 @@ static int test_ordered_lookup(void) {
 int main(void) {
     if (!test_single_file_name_mapping()) return 1;
     if (!test_ordered_lookup()) return 1;
+    if (!test_source_size_limit()) return 1;
     return 0;
 }
