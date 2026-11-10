@@ -943,15 +943,9 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
         case AST_INDEX_ACCESS: {
             ASTIndexAccess* access = (ASTIndexAccess*)node;
             const char* target_type = get_expr_type(ctx, access->target);
-            const char* index_type = get_expr_type(ctx, access->index);
             const char* element_type = "any";
             const char* representation_element =
                 semantic_representation_element_type(target_type);
-            if (index_type && !is_integer_primitive_type(index_type)) {
-                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Index expression must have an integer type.");
-                return NULL;
-            }
             if (representation_element) {
                 element_type = representation_element;
             } else if (target_type && strncmp(target_type, "array|", 6u) == 0) {
@@ -2034,15 +2028,16 @@ static void semantic_check_node(
             semantic_check(ctx, access->target);
             semantic_check(ctx, access->index);
             target_type = get_expr_type(ctx, access->target);
-            if (target_type && !semantic_is_array_type_name(target_type)) {
+            if (target_type && !semantic_is_array_type_name(target_type) &&
+                !semantic_representation_element_type(target_type)) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Index target must be an array value.");
+                    "Index target must be an array, bit vector, or byte block.");
             }
             index_type = get_expr_type(ctx, access->index);
             if (index_type && strcmp(index_type, "any") != 0 &&
                 !is_integer_primitive_type(index_type)) {
                 report_error(ctx, access->index, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Array index must have an integer type.");
+                    "Index expression must have an integer type.");
             }
             semantic_record_annotation(ctx, node, NULL,
                 get_expr_type(ctx, node), SEMANTIC_RESULT_VALUE_LVALUE);
