@@ -119,7 +119,9 @@ static int fake_parse(void* context, const OccModuleSourceView* source,
     if (strcmp(name, "root") == 0) {
         FakePipeline* pipeline = (FakePipeline*)context;
         ++pipeline->parse_root_count;
-        if (pipeline->long_import_mode) {
+        if (pipeline->implicit_osmodule_mode) {
+            /* Root has no explicit imports in this focused policy test. */
+        } else if (pipeline->long_import_mode) {
             if (!append_use(program, "module_name_that_exceeds_limit")) {
                 ast_destroy(program); return 0;
             }
