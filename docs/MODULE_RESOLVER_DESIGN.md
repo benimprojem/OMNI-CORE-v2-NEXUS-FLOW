@@ -282,7 +282,7 @@ The scheduler is an implemented coordinator core, not yet an operational end-to-
 The host coordinator is exposed in `module/module_scheduler.h` and implemented in `module/module_scheduler.c`:
 
 - `occ_module_scheduler_init()` borrows a source provider and Parser/Semantic callbacks; the provider and callback context must outlive the scheduler.
-- `occ_module_scheduler_run()` resolves the root source, parses and validates each AST_PROGRAM, copies top-level USE path/span/ordinal records, then performs iterative depth-first dependency discovery. A dependency is parsed only on first discovery; repeated canonical identities reuse the existing graph node and retained AST.
+- `occ_module_scheduler_run()` resolves the root source, parses and validates each AST_PROGRAM, copies top-level USE path/span/ordinal records under the configured edge/text budgets, then performs iterative depth-first dependency discovery. A dependency is parsed only on first discovery; repeated canonical identities reuse the existing graph node and retained AST.
 - The implicit `osmodule` edge is resolved before explicit USE edges when `ASTProgram.disable_osmodule == 0`. The provider determines where that standard module source comes from.
 - The scheduler retains each parsed AST until `occ_module_scheduler_destroy()`. Provider source views are released exactly once after the Parser callback has consumed their bytes.
 - After discovery completes, the Resolver's dependency-first order drives the Semantic callback. A Semantic callback failure aborts the pass; imported-interface data is not synthesized by the scheduler.
