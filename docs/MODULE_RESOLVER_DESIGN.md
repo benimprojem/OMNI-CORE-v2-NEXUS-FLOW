@@ -31,14 +31,18 @@ The current Semantic DLL accepts one AST artifact and has no project/module cont
 
 The resolver must not concatenate a dotted module path into an arbitrary filesystem path and open it directly. A host-owned source provider supplies module content under the active project policy.
 
-The provider contract is expected to:
-- receive a validated module request, importer identity, and source location;
-- return an immutable canonical module identity and source-unit bytes, or a structured not-found/denied/ambiguous result;
-- enforce project roots, configured search paths, allowed extensions, and filesystem policy;
-- keep file I/O and platform path handling in the host;
-- guarantee the returned buffer lifetime for the complete resolution operation.
+The C provider boundary is now declared in `module_resolver.h`:
+- the request carries the original dotted USE spelling, optional canonical importer identity, and exact AST_USE source span;
+- the provider returns a canonical module identity and a borrowed source-byte view, or a structured not-found/denied/ambiguous/I/O result;
+- the provider owns source lookup, project-root/search-path policy, extension selection and platform file I/O;
+- the returned view remains valid until the host calls the matching provider release callback; the resolver copies no source bytes and does not retain borrowed pointers;
+- the resolver computes a stable 64-bit FNV-1a content fingerprint for per-job cache consistency. This is not a security hash and must not be used for trust/authenticity decisions.
 
-This keeps Windows/Linux/macOS path behavior outside the portable resolver core and prevents source text from granting arbitrary path access. Exact project manifest/search-path rules and file-extension policy remain open until the repository's project configuration contract is reviewed. `m:` is unrelated to this mechanism: it declares an immutable value initialized by an expression, while `use` is the only source/module import mechanism described here.
+The resolver core validates provider responses and configured source/text budgets, maps provider errors to stable resolver statuses, and guarantees that malformed successful responses are released before returning. The host must register the canonical identity + fingerprint in the graph while the view is alive, pass the source bytes through Lexer/Parser, then release the view.
+
+Repository configuration review found `omnicore-sdk/occ.ocf` and `omnicore-sdk/src/c/occ.ocf` declare `[include]` (currently `./lib`) and `[dependencies]` sections (currently empty). No C OCF project-config loader was found in the active source tree. Therefore the project-config/host layer must parse these settings and construct the provider's search policy; the portable resolver must not parse OCF or interpret `./lib` itself. Exact dotted-path-to-source mapping, extension policy, dependency package installation/cache behavior and precedence between importer-relative and `[include]` roots remain open until the project configuration contract is specified.
+
+This keeps Windows/Linux/macOS path behavior outside the portable resolver core and prevents source text from granting arbitrary path access. `m:` is unrelated to this mechanism: it declares an immutable value initialized by an expression, while `use` is the only source/module import mechanism described here.
 
 ## 4. Module identity and graph
 
@@ -107,7 +111,7 @@ A failed dependency prevents the importing module from receiving a valid Semanti
 ## 8. Implementation gates
 
 1. Define canonical module identity and source-provider policy for `use`; keep immutable `m:` value semantics in the Semantic declaration path, outside Module Resolver.
-2. [x] Add the first portable C resolver graph API: canonical-identity registration/cache reuse, provider fingerprint consistency, owned dependency edges, source-span retention, bounded graph growth, lifecycle transitions, and DFS back-edge cycle reporting. Host provider callback integration and deterministic allocation-failure injection remain open.
+2. [x] Add the portable C graph API and host source-provider callback boundary: canonical-identity registration/cache reuse, computed content fingerprint, provider status mapping, borrowed source-view ownership/release, exact USE spans, source/text budgets, lifecycle transitions, and DFS back-edge cycle reporting. Actual host provider implementation and deterministic allocation-failure injection remain open.
 3. Test cache reuse, aliases not affecting cache keys, missing/denied/ambiguous sources, nested dependencies, cycles, exact USE spans, and OOM cleanup.
 4. Define a versioned OIR dependency/interface artifact and independent validator.
 5. Integrate the host dependency scheduler with existing lexer/parser DLLs; do not add file I/O to Parser or Semantic.
@@ -121,7 +125,7 @@ No Codegen work is authorized by this plan. AST/Parser gates and Semantic import
 
 The first C implementation is in `omnicore-sdk/src/c/module/module_resolver.h/.c` and is built as the independent static target `occ_module_resolver`. It intentionally has no filesystem dependency and does not depend on Parser internals.
 
-- The host/provider supplies a canonical identity and a per-job content fingerprint; identical identity+fingerprint reuses the stable 1-based module ID, while identity with a different fingerprint is rejected.
+- The provider supplies a canonical identity and borrowed source bytes; the resolver computes a stable 64-bit FNV-1a content fingerprint. Identical identity+fingerprint reuses the stable 1-based module ID, while identity with different content is rejected. The fingerprint is not cryptographic.
 - The graph owns canonical identity and original dotted import-path strings. Each dependency edge retains importer/dependency IDs, AST_USE node ID, and the complete `OccSourceSpan`.
 - Module state transitions are constrained to DISCOVERED → RESOLVING → RESOLVED/FAILED. The scheduler must mark a module RESOLVING before walking its imports; edges to a RESOLVING node are retained and return CYCLE so the caller can report the exact USE location.
 - Module, edge and aggregate text limits are configurable. Failed dependencies are not added as successful edges. Returned node/edge views are borrowed and invalidated by graph mutation/destruction.
@@ -133,3 +137,12 @@ This graph core does not yet call a source provider, parse dependency modules, c
 ## 10. Explicit separation from `m:`
 
 Nexus Flow `m:name = expression;` declares an immutable value. Its initializer is an expression, its type is inferred by Semantic, and the resulting symbol is constant for assignment/update checks. It does not inspect file existence, load source, or create a dependency edge. Source/module loading is performed by `use` and the host-owned source provider described in this document. The AST enum/payload name `AST_MUST_DECL` is retained for append-only compatibility; it is not a module/dependency declaration.
+
+
+## 11. Host source-provider C contract status
+
+`OccModuleSourceProvider` now exposes `resolve(context, request, out_view)` and `release(context, view)`. A request carries the dotted import spelling, optional importer identity and mandatory source span. A successful view carries canonical identity, source bytes/length and an opaque provider cookie; the resolver fills its content fingerprint. All view pointers are provider-owned and borrowed until the matching release call. The host must copy/register the identity and consume the bytes before releasing the view. A failed provider callback must clean up its own partial state and leave the view zeroed.
+
+Stable resolver statuses distinguish not-found, denied, ambiguous, provider I/O and malformed-provider results. Configurable source byte limits default to 64 MiB; aggregate identity/path text remains separately bounded. The portable resolver never opens a file or parses OCF. The project-config host layer is responsible for turning OCF `[include]` and `[dependencies]` entries into the policy used by the provider.
+
+`test_module_resolver.c` now covers provider success + content fingerprint, graph registration from the returned identity, exactly-once release, not-found/denied/ambiguous/I/O status mapping, malformed successful response cleanup, and source-size limit cleanup. This remains a callback contract test using a fake provider; no real filesystem/package provider or recursive Lexer/Parser scheduler is implemented.
