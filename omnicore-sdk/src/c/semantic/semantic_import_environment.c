@@ -43,6 +43,51 @@ OccSemanticImportEnvironmentStatus occ_semantic_import_environment_init(
     return OCC_SEMANTIC_IMPORT_ENV_OK;
 }
 
+static OccSemanticImportEnvironmentStatus find_selector(
+    const OccSemanticImportEnvironment* environment,
+    const char* selector,
+    int namespace_selector,
+    size_t* out_binding_index
+) {
+    size_t i;
+    size_t match = 0u;
+    int found = 0;
+    if (!environment || !selector || !selector[0] || strcmp(selector, "_") == 0 ||
+        !out_binding_index ||
+        (environment->binding_count && !environment->bindings))
+        return OCC_SEMANTIC_IMPORT_ENV_INVALID_ARGUMENT;
+    for (i = 0u; i < environment->binding_count; ++i) {
+        const char* candidate = namespace_selector
+            ? environment->bindings[i].namespace_name
+            : environment->bindings[i].alias;
+        if (candidate && candidate[0] && strcmp(candidate, "_") != 0 &&
+            strcmp(candidate, selector) == 0) {
+            if (found) return OCC_SEMANTIC_IMPORT_ENV_AMBIGUOUS;
+            found = 1;
+            match = i;
+        }
+    }
+    if (!found) return OCC_SEMANTIC_IMPORT_ENV_NOT_FOUND;
+    *out_binding_index = match;
+    return OCC_SEMANTIC_IMPORT_ENV_OK;
+}
+
+OccSemanticImportEnvironmentStatus occ_semantic_import_environment_find_alias(
+    const OccSemanticImportEnvironment* environment,
+    const char* alias,
+    size_t* out_binding_index
+) {
+    return find_selector(environment, alias, 0, out_binding_index);
+}
+
+OccSemanticImportEnvironmentStatus occ_semantic_import_environment_find_namespace(
+    const OccSemanticImportEnvironment* environment,
+    const char* namespace_name,
+    size_t* out_binding_index
+) {
+    return find_selector(environment, namespace_name, 1, out_binding_index);
+}
+
 OccSemanticImportEnvironmentStatus occ_semantic_import_environment_get_binding(
     const OccSemanticImportEnvironment* environment,
     size_t binding_index,
