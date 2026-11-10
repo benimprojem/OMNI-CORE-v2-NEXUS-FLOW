@@ -11,7 +11,11 @@ typedef struct SchedulerFrame {
 
 typedef struct UseCollector {
     OccModuleSchedulerEntry* entry;
+    size_t max_uses;
+    size_t max_text_bytes;
+    size_t text_bytes;
     int failed;
+    int limit_exceeded;
 } UseCollector;
 
 static char* scheduler_strdup(const char* value) {
@@ -58,11 +62,19 @@ static int scheduler_collect_use(
     UseCollector* collector = (UseCollector*)context;
     OccModuleSchedulerEntry* entry;
     OccModuleSchedulerUse* item;
+    size_t path_length;
     if (!collector || !use || !use->module_name || !use->module_name[0]) {
         if (collector) collector->failed = 1;
         return 0;
     }
     entry = collector->entry;
+    path_length = strlen(use->module_name);
+    if (entry->use_count >= collector->max_uses ||
+        path_length > collector->max_text_bytes ||
+        collector->text_bytes > collector->max_text_bytes - path_length) {
+        collector->limit_exceeded = 1;
+        return 0;
+    }
     if (!scheduler_grow((void**)&entry->uses, &entry->use_capacity,
         entry->use_count + 1u, sizeof(*entry->uses))) {
         collector->failed = 1;
@@ -78,6 +90,7 @@ static int scheduler_collect_use(
     item->span = use->base.source_span;
     item->ordinal = ordinal;
     ++entry->use_count;
+    collector->text_bytes += path_length;
     return 1;
 }
 
@@ -130,8 +143,11 @@ static OccModuleSchedulerStatus scheduler_parse_source(
     entry->program = program;
     memset(&collector, 0, sizeof(collector));
     collector.entry = entry;
+    collector.max_uses = scheduler->resolver.max_edges;
+    collector.max_text_bytes = scheduler->resolver.max_text_bytes;
     visit_status = ast_visit_top_level_uses(program, scheduler_collect_use,
         &collector, NULL);
+    if (collector.limit_exceeded) return OCC_MODULE_SCHEDULER_RESOURCE_LIMIT;
     if (collector.failed) return OCC_MODULE_SCHEDULER_OUT_OF_MEMORY;
     if (visit_status != AST_USE_VISIT_OK)
         return OCC_MODULE_SCHEDULER_AST_ERROR;
@@ -173,8 +189,12 @@ static OccModuleSchedulerStatus scheduler_resolve_dependency(
         occ_module_resolver_release_source(&scheduler->provider, &source);
         return scheduler_map_resolver(resolver_status);
     }
-    is_new = occ_module_resolver_get_module(&scheduler->resolver,
-        dependency_id)->state == OCC_MODULE_STATE_DISCOVERED;
+    dependency = occ_module_resolver_get_module(&scheduler->resolver, dependency_id);
+    if (!dependency) {
+        occ_module_resolver_release_source(&scheduler->provider, &source);
+        return OCC_MODULE_SCHEDULER_RESOLVER_ERROR;
+    }
+    is_new = dependency->state == OCC_MODULE_STATE_DISCOVERED;
     resolver_status = implicit
         ? occ_module_resolver_add_implicit_osmodule(&scheduler->resolver,
             importer_id, dependency_id, span)
@@ -184,7 +204,6 @@ static OccModuleSchedulerStatus scheduler_resolve_dependency(
         occ_module_resolver_release_source(&scheduler->provider, &source);
         return scheduler_map_resolver(resolver_status);
     }
-    dependency = occ_module_resolver_get_module(&scheduler->resolver, dependency_id);
     if (is_new) {
         resolver_status = occ_module_resolver_begin(&scheduler->resolver, dependency_id);
         if (resolver_status != OCC_MODULE_RESOLVER_OK) {
