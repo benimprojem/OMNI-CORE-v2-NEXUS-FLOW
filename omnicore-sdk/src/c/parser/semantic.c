@@ -940,8 +940,18 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
         case AST_INDEX_ACCESS: {
             ASTIndexAccess* access = (ASTIndexAccess*)node;
             const char* target_type = get_expr_type(ctx, access->target);
+            const char* index_type = get_expr_type(ctx, access->index);
             const char* element_type = "any";
-            if (target_type && strncmp(target_type, "array|", 6u) == 0) {
+            const char* representation_element =
+                semantic_representation_element_type(target_type);
+            if (index_type && !is_integer_primitive_type(index_type)) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Index expression must have an integer type.");
+                return NULL;
+            }
+            if (representation_element) {
+                element_type = representation_element;
+            } else if (target_type && strncmp(target_type, "array|", 6u) == 0) {
                 const char* begin = target_type + 6u;
                 const char* end = strchr(begin, '[');
                 size_t length = end ? (size_t)(end - begin) : strlen(begin);
@@ -951,6 +961,8 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     element_type = indexed_element_type_buffer;
                 }
             }
+            semantic_record_annotation(
+                ctx, node, NULL, element_type, SEMANTIC_RESULT_VALUE_LVALUE);
             return element_type;
         }
         case AST_ARRAY_LITERAL: {
@@ -1096,6 +1108,30 @@ static int is_bitwise_primitive_type(const char* type_name) {
         if (strcmp(type_name, representation_types[i]) == 0) return 1;
     }
     return 0;
+}
+
+/*
+ * Fixed-width representation indexing:
+ * - Nbit is indexed by individual bit and yields "bit".
+ * - Nbyte is indexed by byte and yields "byte".
+ * The source spelling is retained in the AST; this helper only determines
+ * the semantic element type and does not prescribe host integer endianness.
+ */
+static const char* semantic_representation_element_type(const char* type_name) {
+    static const char* const bit_vectors[] = {
+        "8bit", "16bit", "32bit", "64bit", "128bit"
+    };
+    static const char* const byte_blocks[] = {
+        "1byte", "2byte", "4byte", "8byte", "16byte"
+    };
+    size_t i;
+    if (!type_name) return NULL;
+    if (type_name[0] == '!') ++type_name;
+    for (i = 0u; i < sizeof(bit_vectors) / sizeof(bit_vectors[0]); ++i)
+        if (strcmp(type_name, bit_vectors[i]) == 0) return "bit";
+    for (i = 0u; i < sizeof(byte_blocks) / sizeof(byte_blocks[0]); ++i)
+        if (strcmp(type_name, byte_blocks[i]) == 0) return "byte";
+    return NULL;
 }
 static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
