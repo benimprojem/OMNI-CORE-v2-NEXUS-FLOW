@@ -1679,3 +1679,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Group/member relation metadata is retained only when both owner and related symbol are publication candidates; private related declarations are not leaked through the snapshot.
 - Added CTest coverage for public/exported Group + member data, type and relation preservation, private symbol omission, and rejection of non-finalized SemanticResult input.
 - Not complete: OIR serialization/validation of the interface, AST_USE alias/namespace binding, importer-side collision/visibility/type checks, actual Semantic DLL input extension, and main.c scheduler integration. This snapshot is a tested in-memory foundation only.
+
+### USE binding transfer preparation — 2026-11-10
+
+- Scheduler use records now retain module_name/requested path, alias, namespace_name, source span and visitor ordinal independently.
+- Added occ_module_scheduler_get_import_binding(), which maps importer module ID + USE ordinal to the resolved dependency module ID and returns borrowed alias/namespace strings and the original source span.
+- Added regression coverage for `use a as math ns core`-equivalent AST data; alias and namespace are verified independently. This preserves the distinction between `as _` and `ns _` for the Semantic layer.
+- The accessor is scheduler-lifetime scoped; it does not yet apply visibility, namespace lookup, collision or symbol-binding rules.
