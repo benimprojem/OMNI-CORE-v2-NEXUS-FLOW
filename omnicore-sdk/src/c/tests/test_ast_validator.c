@@ -330,7 +330,7 @@ int main(void) {
     {
         const ASTNodeType invalid_statement_tags[] = {
             AST_ENUM_VARIANT, AST_SELECT_ARM, AST_SCAN_ARM, AST_STRUCT_FIELD_INIT, AST_METHOD,
-            AST_ARRAY_DIMENSION, AST_VARIADIC_PARAM, AST_MUST_DECL,
+            AST_ARRAY_DIMENSION, AST_VARIADIC_PARAM,
             AST_NAMED_ARG, AST_ASM_LABEL
         };
         size_t i;
@@ -794,22 +794,19 @@ int main(void) {
         ast_destroy((ASTNode*)call);
     }
 
-    /* MUST declarations are legal at program scope, not inside executable blocks. */
+    /* Immutable m: values are legal at program and executable-block scope. */
     {
         ASTProgram* program = (ASTProgram*)ast_create(AST_PROGRAM);
-        ASTMustDecl* dependency = (ASTMustDecl*)ast_create(AST_MUST_DECL);
+        ASTMustDecl* immutable = (ASTMustDecl*)ast_create(AST_MUST_DECL);
         ASTNode* literal = ast_create(AST_LITERAL);
-        if (!program || !dependency || !literal) return 1;
-        dependency->name = (char*)malloc(2u);
-        if (!dependency->name) return 1;
-        strcpy(dependency->name, "M");
-        ((ASTLiteral*)literal)->string_value=(char*)malloc(2u);
-        if(!((ASTLiteral*)literal)->string_value) return 1;
-        strcpy(((ASTLiteral*)literal)->string_value,"x");
-        dependency->source = literal;
-        program->declarations = (ASTNode*)dependency;
+        if (!program || !immutable || !literal) return 1;
+        immutable->name = (char*)malloc(2u);
+        if (!immutable->name) return 1;
+        strcpy(immutable->name, "M");
+        immutable->source = literal;
+        program->declarations = (ASTNode*)immutable;
         if (!expect((ASTNode*)program, AST_VALIDATE_OK)) {
-            fprintf(stderr, "top-level MUST declaration rejected\\n");
+            fprintf(stderr, "program-scope immutable value rejected\\n");
             ast_destroy((ASTNode*)program);
             return 1;
         }
@@ -818,19 +815,19 @@ int main(void) {
     {
         ASTFuncDecl* fn = (ASTFuncDecl*)ast_create(AST_FUNC_DECL);
         ASTBlock* body = (ASTBlock*)ast_create(AST_BLOCK);
-        ASTMustDecl* dependency = (ASTMustDecl*)ast_create(AST_MUST_DECL);
-        if (!fn || !body || !dependency) return 1;
-        dependency->name = (char*)malloc(2u);
-        dependency->source = ast_create(AST_LITERAL);
-        if (!dependency->name || !dependency->source) return 1;
-        strcpy(dependency->name, "M");
+        ASTMustDecl* immutable = (ASTMustDecl*)ast_create(AST_MUST_DECL);
+        if (!fn || !body || !immutable) return 1;
+        immutable->name = (char*)malloc(2u);
+        immutable->source = ast_create(AST_LITERAL);
+        if (!immutable->name || !immutable->source) return 1;
+        strcpy(immutable->name, "M");
         fn->name=(char*)malloc(3u);
         if(!fn->name) return 1;
         strcpy(fn->name,"fn");
-        body->statements = (ASTNode*)dependency;
+        body->statements = (ASTNode*)immutable;
         fn->body = (ASTNode*)body;
-        if (!expect((ASTNode*)fn, AST_VALIDATE_INVALID_KIND)) {
-            fprintf(stderr, "nested MUST declaration accepted\\n");
+        if (!expect((ASTNode*)fn, AST_VALIDATE_OK)) {
+            fprintf(stderr, "block-scope immutable value rejected\\n");
             ast_destroy((ASTNode*)fn);
             return 1;
         }
