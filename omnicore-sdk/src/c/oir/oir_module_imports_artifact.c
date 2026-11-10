@@ -57,10 +57,13 @@ OirStatus oir_module_imports_build(const char* importer_identity,
     const OccModuleImportBinding* bindings,size_t binding_count,
     OirModuleImports* out_imports) {
     size_t i;
+    uint8_t* seen=NULL;
     if(!out_imports || !valid_text(importer_identity,0) ||
        (binding_count && !bindings) || binding_count>OIR_MODULE_IMPORTS_MAX_RECORDS)
         return OIR_STATUS_INVALID_ARGUMENT;
     memset(out_imports,0,sizeof(*out_imports));
+    seen=(uint8_t*)calloc((size_t)OIR_MODULE_IMPORTS_MAX_RECORDS+1u,1u);
+    if(!seen) return OIR_STATUS_OUT_OF_MEMORY;
     out_imports->importer_identity=dup_text(importer_identity);
     if(!out_imports->importer_identity) return OIR_STATUS_OUT_OF_MEMORY;
     out_imports->schema_major=OIR_MODULE_IMPORTS_SCHEMA_MAJOR;
@@ -75,15 +78,13 @@ OirStatus oir_module_imports_build(const char* importer_identity,
     for(i=0;i<binding_count;i++) {
         const OccModuleImportBinding* b=&bindings[i];
         OirModuleImportRecord* r=&out_imports->records[i];
-        size_t j;
-        if(!b->use_ordinal || !valid_text(b->requested_path,0) ||
+        if(!b->use_ordinal || b->use_ordinal>OIR_MODULE_IMPORTS_MAX_RECORDS ||
+           seen[b->use_ordinal] || !valid_text(b->requested_path,0) ||
            !valid_text(b->dependency_identity,0) ||
            !valid_text(b->alias,1) || !valid_text(b->namespace_name,1)) {
-            oir_module_imports_destroy(out_imports); return OIR_STATUS_INVALID_ARGUMENT;
+            free(seen); oir_module_imports_destroy(out_imports); return OIR_STATUS_INVALID_ARGUMENT;
         }
-        for(j=0;j<i;j++) if(out_imports->records[j].use_ordinal==b->use_ordinal) {
-            oir_module_imports_destroy(out_imports); return OIR_STATUS_INVALID_ARGUMENT;
-        }
+        seen[b->use_ordinal]=1u;
         r->use_ordinal=b->use_ordinal; r->span=b->span;
         r->requested_path=dup_text(b->requested_path);
         r->alias=b->alias?dup_text(b->alias):NULL;
@@ -96,6 +97,7 @@ OirStatus oir_module_imports_build(const char* importer_identity,
         }
         out_imports->record_count=i+1u;
     }
+    free(seen);
     return OIR_STATUS_OK;
 }
 
@@ -177,6 +179,7 @@ OirStatus oir_module_imports_artifact_open(const uint8_t* bytes,size_t length,
     OirModuleImportsArtifactView* out) {
     OirSectionView sec; OirStatus st; size_t off=OMI_HEADER_SIZE,i;
     uint32_t count,idlen; const uint8_t* p; size_t n;
+    uint8_t* seen=NULL;
     if(!bytes||!out) return OIR_STATUS_INVALID_ARGUMENT;
     memset(out,0,sizeof(*out));
     st=oir_artifact_open(bytes,length,&out->envelope);
@@ -201,6 +204,8 @@ OirStatus oir_module_imports_artifact_open(const uint8_t* bytes,size_t length,
     out->imports.importer_identity=read_text(p,n,&off,idlen,0);
     if(!out->imports.importer_identity) return OIR_STATUS_OUT_OF_MEMORY;
     out->imports.schema_major=rd16(p+4); out->imports.schema_minor=rd16(p+6);
+    seen=(uint8_t*)calloc((size_t)OIR_MODULE_IMPORTS_MAX_RECORDS+1u,1u);
+    if(!seen) { st=OIR_STATUS_OUT_OF_MEMORY; goto fail; }
     if(count) {
         if((size_t)count>SIZE_MAX/sizeof(*out->imports.records)) { st=OIR_STATUS_OVERFLOW; goto fail; }
         out->imports.records=(OirModuleImportRecord*)calloc(count,sizeof(*out->imports.records));
@@ -215,24 +220,29 @@ OirStatus oir_module_imports_artifact_open(const uint8_t* bytes,size_t length,
         r->span.start_line=rd32(p+off+24); r->span.start_column=rd32(p+off+28);
         r->span.end_line=rd32(p+off+32); r->span.end_column=rd32(p+off+36);
         r->span.has_location=p[off+40];
-        if(!r->use_ordinal || r->span.has_location>1u || p[off+41]||p[off+42]||p[off+43]) { st=OIR_STATUS_INVALID_SECTION; goto fail; }
+        if(!r->use_ordinal || r->use_ordinal>OIR_MODULE_IMPORTS_MAX_RECORDS ||
+           seen[r->use_ordinal] || r->span.has_location>1u ||
+           (r->span.has_location && r->span.end_offset<r->span.start_offset) ||
+           p[off+41]||p[off+42]||p[off+43]) { st=OIR_STATUS_INVALID_SECTION; goto fail; }
+        seen[r->use_ordinal]=1u;
         for(k=0;k<4;k++) lens[k]=rd32(p+off+44u+k*4u);
         off+=OMI_RECORD_SIZE;
+        out->imports.record_count=i+1u;
         r->requested_path=read_text(p,n,&off,lens[0],0);
         r->alias=read_text(p,n,&off,lens[1],1);
         r->namespace_name=read_text(p,n,&off,lens[2],1);
         r->dependency_identity=read_text(p,n,&off,lens[3],0);
         if(!r->requested_path||!r->dependency_identity ||
            (lens[1]&&!r->alias)||(lens[2]&&!r->namespace_name)) { st=OIR_STATUS_INVALID_SECTION; goto fail; }
-        {
-            size_t j;
-            for(j=0;j<i;j++) if(out->imports.records[j].use_ordinal==r->use_ordinal) { st=OIR_STATUS_INVALID_SECTION; goto fail; }
+        if(r->span.has_location && r->span.end_offset<r->span.start_offset) {
+            st=OIR_STATUS_INVALID_SECTION; goto fail;
         }
-        out->imports.record_count=i+1u;
     }
     if(off!=n) { st=OIR_STATUS_INVALID_SECTION; goto fail; }
+    free(seen);
     return OIR_STATUS_OK;
 fail:
+    free(seen);
     oir_module_imports_artifact_destroy(out);
     return st;
 }
