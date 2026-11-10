@@ -197,6 +197,48 @@ done:
     return ok;
 }
 
+static int test_dependency_first_schedule(void) {
+    OccModuleResolver resolver;
+    OccModuleResolverConfig config = {8u, 16u, 1024u, 4096u};
+    OccSourceSpan span;
+    uint32_t root = 0u, a = 0u, b = 0u;
+    uint32_t order[3] = {0u, 0u, 0u};
+    size_t count = 99u;
+    int ok = 0;
+#define ORDER_CHECK(condition) do { \
+    if (!(condition)) { \
+        fprintf(stderr, "ORDER_CHECK failed line %d: %s\\n", __LINE__, #condition); \
+        goto done; \
+    } \
+} while (0)
+    memset(&resolver, 0, sizeof(resolver));
+    memset(&span, 0, sizeof(span));
+    span.has_location = 1u;
+    ORDER_CHECK(occ_module_resolver_init(&resolver, &config) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_register(&resolver, "root", 1u, &root) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_register(&resolver, "a", 2u, &a) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_register(&resolver, "b", 3u, &b) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_begin(&resolver, root) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_add_dependency(&resolver, root, a, "a", 1u, &span) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_add_dependency(&resolver, root, b, "b", 2u, &span) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_begin(&resolver, a) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_add_dependency(&resolver, a, b, "b", 3u, &span) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_complete(&resolver, b) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_complete(&resolver, a) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_complete(&resolver, root) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_dependency_order(&resolver, order, 3u, &count) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(count == 3u && order[0] == b && order[1] == a && order[2] == root);
+    count = 99u;
+    ORDER_CHECK(occ_module_resolver_dependency_order(&resolver, order, 2u, &count) == OCC_MODULE_RESOLVER_LIMIT_EXCEEDED);
+    ORDER_CHECK(count == 0u);
+    occ_module_resolver_destroy(&resolver);
+    ok = 1;
+done:
+    if (!ok) occ_module_resolver_destroy(&resolver);
+#undef ORDER_CHECK
+    return ok;
+}
+
 int main(void) {
     if (!test_dependency_first_schedule()) return 1;
     if (!test_source_provider_boundary()) return 1;
