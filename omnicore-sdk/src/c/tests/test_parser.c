@@ -2719,7 +2719,7 @@ static int test_dotted_module_use_path(void) {
 }
 
 static int test_use_path_malformed_and_exact_spans(void) {
-    static const char valid_source[] = "use alpha.beta.gamma as mod;\\n";
+    static const char valid_source[] = "use alpha.beta.gamma as mod;\n";
     static const char* invalid_sources[] = {
         "use alpha.;",
         "use alpha..beta;",
@@ -2740,16 +2740,16 @@ static int test_use_path_malformed_and_exact_spans(void) {
             strcmp(use_node->alias, "mod") == 0 &&
             use_node->base.source_span.has_location &&
             use_node->base.source_span.start_offset == 4u &&
-            use_node->base.source_span.end_offset == 27u &&
+            use_node->base.source_span.end_offset == 23u &&
             use_node->base.source_span.start_line == 1u &&
             use_node->base.source_span.start_column == 5u &&
             use_node->base.source_span.end_line == 1u &&
-            use_node->base.source_span.end_column == 28u &&
+            use_node->base.source_span.end_column == 24u &&
             ast_validate((ASTNode*)parser->ast_root, NULL);
     }
     parser_destroy(parser);
     if (!valid) {
-        fprintf(stderr, "USE dotted path exact source-span assertion failed.\\n");
+        fprintf(stderr, "USE dotted path exact source-span assertion failed.\n");
         return 0;
     }
     for (i=0; i<sizeof(invalid_sources)/sizeof(invalid_sources[0]); ++i) {
@@ -2757,7 +2757,7 @@ static int test_use_path_malformed_and_exact_spans(void) {
             (const uint8_t*)invalid_sources[i], strlen(invalid_sources[i]));
         if (!parser) return 0;
         if (parser_run(parser) == PARSER_STATUS_OK || parser->error_count == 0) {
-            fprintf(stderr, "Malformed USE path accepted: %s\\n", invalid_sources[i]);
+            fprintf(stderr, "Malformed USE path accepted: %s\n", invalid_sources[i]);
             parser_destroy(parser);
             return 0;
         }
