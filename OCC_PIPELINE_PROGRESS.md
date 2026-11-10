@@ -1362,3 +1362,5 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - AST stream regression updated to assert newly written v5 headers and successful reading of a legacy v4 stream. The v4 fixture uses an AST kind whose payload layout is unchanged; old AST_USE nodes remain decoded without a namespace value.
 
 - CI run `42769028209` / commit `189cb9c` exposed one failing existing USE path span assertion in the Parser CTest (59/60 other tests passed in the ASan/UBSan run). The fixture expected end offset 23 for `use alpha.beta.gamma as mod;`, but the parser correctly spans through the alias token: exclusive byte end 27, end column 28. Corrected the test expectation in `c6155d4`; rerun is pending. This was a test expectation correction, not a parser grammar change.
+
+- Follow-up CI root cause: `test_use_comma_list_spans` had a double-escaped newline in its C fixture (`\\\\n` in source), so the lexer correctly reported two trailing invalid characters after the semicolon. Restored the fixture's normal C newline escape in commit `abb7cd2`; CI run `42770341740` is queued. The parser grammar and span calculation were not changed for this failure.
