@@ -303,6 +303,21 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
         if (module.block_count != 5u || module.instruction_count != 12u ||
             module.operand_count != 18u || module.value_count != 7u)
             goto cleanup;
+    } else if (arithmetic == 7) {
+        OirModuleInstruction bit_and, ret;
+        OirModuleOperand left, right, returned;
+        if (module.instruction_count != 4u || module.operand_count != 4u ||
+            module.value_count != 3u ||
+            oir_module_get_instruction(&module, 2u, &bit_and) != OIR_STATUS_OK ||
+            oir_module_get_instruction(&module, 3u, &ret) != OIR_STATUS_OK ||
+            bit_and.opcode_id != OIR_OP_BIT_AND || ret.opcode_id != OIR_OP_RETURN ||
+            oir_module_get_operand(&module, bit_and.first_operand, &left) != OIR_STATUS_OK ||
+            oir_module_get_operand(&module, bit_and.first_operand + 1u, &right) != OIR_STATUS_OK ||
+            left.kind != OIR_OPERAND_VALUE || left.reference_id != 1u ||
+            right.kind != OIR_OPERAND_VALUE || right.reference_id != 2u ||
+            oir_module_get_operand(&module, ret.first_operand, &returned) != OIR_STATUS_OK ||
+            returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 3u)
+            goto cleanup;
     } else {
         OirModuleInstruction add, mul, sub, ret;
         OirModuleOperand left, right, returned, immediate;
@@ -497,6 +512,7 @@ int main(int argc, char** argv) {
         static const uint8_t if_elsif_else_source[] =
             "f:main() !i32 { v:x!i32 = 42; "
             "if (x < 0) { ret 0; } elsif (x > 50) { ret 1; } els { ret x; } }";
+        static const uint8_t bitwise_source[] = "f:main() !i32 { ret 5 & 3; }";
         assert(test_real_frontend_to_module(&stage_module, literal_source, sizeof(literal_source)-1u, 0));
         assert(test_real_frontend_to_module(&stage_module, arithmetic_source, sizeof(arithmetic_source)-1u, 1));
         assert(test_real_frontend_to_module(&stage_module, local_source, sizeof(local_source)-1u, 2));
@@ -504,6 +520,7 @@ int main(int argc, char** argv) {
         assert(test_real_frontend_to_module(&stage_module, multi_assignment_source, sizeof(multi_assignment_source)-1u, 4));
         assert(test_real_frontend_to_module(&stage_module, if_else_source, sizeof(if_else_source)-1u, 5));
         assert(test_real_frontend_to_module(&stage_module, if_elsif_else_source, sizeof(if_elsif_else_source)-1u, 6));
+        assert(test_real_frontend_to_module(&stage_module, bitwise_source, sizeof(bitwise_source)-1u, 7));
     }
     assert(test_lowering_stage_rejects_bad_input(&stage_module));
     occ_module_loader_close(&stage_module);
