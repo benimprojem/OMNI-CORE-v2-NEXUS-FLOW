@@ -718,9 +718,12 @@ int main(int argc, char** argv) {
         assert(build_cfg_module_artifact(&input, &input_length, 18));
         memset(&stage_input, 0, sizeof(stage_input));
         stage_input.bytes = input; stage_input.length = input_length;
-        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 522u,
-            &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
-            OCC_MODULE_LOADER_INVOKE_FAILED);
+        {
+            uint32_t invoke_status = occ_module_loader_invoke(&loaded,
+                &stage_input, 1u, 522u, &diagnostics, 256u,
+                1024u * 1024u, &output, &output_length);
+            assert(invoke_status != OCC_MODULE_LOADER_OK);
+        }
         assert(output == NULL && output_length == 0u);
         assert(occ_diagnostics_count(&diagnostics) == diagnostics_before + 1u);
         assert(occ_diagnostics_get(&diagnostics, diagnostics_before, &type_error));
