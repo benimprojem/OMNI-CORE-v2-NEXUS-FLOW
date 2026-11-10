@@ -11,7 +11,7 @@ language = "en"  # "tr" -Türkçe  "en" -English eğer ayar yoksa (error/info) m
 lisans 	= "";
 
 # Derleyicinin modülleri arayacağı ek dizinler.
-# coremodule otomatik yüklenir no:coremodule; kullanılarak iptal edilebilir. 
+# osmodule otomatik yüklenir no: osmodule; kullanılarak iptal edilebilir. 
 # Baremetal, kernel yazıyorsanız iptal edebilirsiniz.
 [include]
 ./lib
