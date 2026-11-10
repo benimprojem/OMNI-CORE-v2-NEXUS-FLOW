@@ -399,6 +399,24 @@ set_target_properties(occ_oir_module_imports_artifact PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
+# Validate the one-importer manifest against its exact dependency interfaces.
+add_library(occ_module_import_bundle STATIC
+    "${C_SOURCE_DIR}/module/module_import_bundle.c"
+)
+target_include_directories(occ_module_import_bundle PUBLIC
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+)
+target_link_libraries(occ_module_import_bundle PUBLIC
+    occ_oir_module_imports_artifact
+    occ_oir_module_interface_artifact
+)
+set_target_properties(occ_module_import_bundle PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
+
+
 target_include_directories(occ_oir_module_interface_artifact PUBLIC
     "${C_SOURCE_DIR}/oir"
     "${C_SOURCE_DIR}/module"
@@ -1016,6 +1034,26 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME module_scheduler_dependency_first_semantic_order
         COMMAND test_module_scheduler)
+
+    add_executable(test_module_import_bundle
+        "${C_SOURCE_DIR}/tests/test_module_import_bundle.c"
+    )
+    target_link_libraries(test_module_import_bundle PRIVATE
+        occ_module_import_bundle
+    )
+    target_include_directories(test_module_import_bundle PRIVATE
+        "${C_SOURCE_DIR}/module"
+        "${C_SOURCE_DIR}/oir"
+        "${C_SOURCE_DIR}/core"
+    )
+    if(MSVC)
+        target_compile_options(test_module_import_bundle PRIVATE /W4)
+    else()
+        target_compile_options(test_module_import_bundle PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME semantic_import_bundle_identity_matching
+        COMMAND test_module_import_bundle
+    )
 
     add_executable(test_module_imports_artifact
         "${C_SOURCE_DIR}/tests/test_module_imports_artifact.c"
