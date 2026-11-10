@@ -308,3 +308,18 @@ The filesystem provider is implemented in `module/filesystem_module_provider.h/.
 The provider copies its configured roots and OCF include entries at initialization, so the caller may destroy the parsed OCF object afterward. It does not itself parse OCF or decide where the global `dsplibs/` and `libs/` roots live; the host supplies those roots. The SDK's current CLI has not yet wired this provider or selected a per-project OCF.
 
 Isolated C tests cover single-file dotted-name mapping, path traversal rejection, dsplibs-over-libs precedence, libs fallback, project `include/` fallback, additional OCF include fallback, missing-module behavior, and source-size limits. These tests do not yet represent an end-to-end compilation through the stage DLLs.
+
+### 14.9 Semantic module interface snapshot
+
+The first C interface-snapshot layer is implemented in `module/module_interface.h/.c`. It consumes a finalized `SemanticResult` and creates an independently owned, immutable-by-convention snapshot for later importer Semantic work.
+
+- The snapshot retains canonical module identity and a versioned schema marker (1.0).
+- A declaration is included as a publication candidate when its SemanticResult symbol flags contain either `PUBLIC` or `EXPORTED`. Both bits are preserved verbatim; the snapshot does not collapse their meaning or decide whether a particular importer may access the declaration.
+- Symbol source IDs, lexical scope IDs, declaration AST node IDs, kind, flags, name and type ID are preserved. IDs are source-module-local and must never be interpreted as importer-local IDs.
+- Only type records referenced by published symbols or published relations, plus their base-type chain, are copied. Type source IDs and referenced symbol IDs remain source-module-local for future visibility/type-reference validation.
+- Relations are copied only when their owner is published; relations with a nonzero related-symbol ID are retained only when that related symbol is also published. This preserves visible Group membership and method/type relation metadata without leaking private related declarations.
+- The snapshot owns every copied string and table and is released with `occ_module_interface_destroy()`. It requires a finalized and structurally populated SemanticResult.
+
+This is a data-transfer foundation, not yet the final serialized OIR interface contract. Alias and namespace bindings remain importer-side data sourced from each AST_USE (`module_name`, `alias`, and `namespace_name` are distinct). The importing Semantic stage must apply the language's exact PUBLIC/EXPORTED rules, detect local and alias collisions, resolve namespace selection, and validate Group/type access. No imported symbol is injected into the local AST or silently treated as a local declaration.
+
+Tests currently cover exported Group + public member publication, preservation of source IDs and type/relation metadata, omission of an unmarked private symbol, and rejection of non-finalized semantic input. The snapshot is not yet consumed by the Semantic DLL and is not yet encoded as an OIR artifact.
