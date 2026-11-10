@@ -96,7 +96,7 @@ v:vall= 10^^15;
 `use` modül/kaynak yükleme ve import işlemidir; `m:` dosya varlığı kontrolü veya dependency bildirimi değildir.
 
 ```nxf
-use coremodule;
+use osmodule;
 m:connection_limit = 8;
 ```
 
