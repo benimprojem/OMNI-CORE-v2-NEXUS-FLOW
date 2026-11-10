@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-static char* oir_interface_copy_name(const uint8_t* name,uint32_t length,int required) {
+static char* oir_interface_copy_name(const uint8_t* name,uint32_t length) {
     char* copy;
-    if(!name || length==0u) return required?NULL:NULL;
+    if(!name || length==0u) return NULL;
     if(length>SEMANTIC_RESULT_MAX_RECORDS*16u) return NULL;
     if(memchr(name,0,length)) return NULL;
     copy=(char*)malloc((size_t)length+1u);
@@ -42,7 +42,7 @@ static OccModuleInterfaceStatus append_oir_type(
         target->flags=source.flags; target->referenced_symbol_id=source.referenced_symbol_id;
         target->base_type_id=source.base_type_id;
         if(source.name_length) {
-            target->name=oir_interface_copy_name(name,source.name_length,0);
+            target->name=oir_interface_copy_name(name,source.name_length);
             if(!target->name) return OCC_MODULE_INTERFACE_OUT_OF_MEMORY;
         }
         ++out->type_count; selected[current]=1u;
@@ -73,7 +73,7 @@ static OccModuleInterfaceStatus append_oir_symbol(
     target->source_symbol_id=source.symbol_id; target->scope_id=source.scope_id;
     target->declaration_node_id=source.declaration_node_id;
     target->type_id=source.type_id; target->kind=source.kind; target->flags=source.flags;
-    target->name=oir_interface_copy_name(name,source.name_length,1);
+    target->name=oir_interface_copy_name(name,source.name_length);
     if(!target->name) return OCC_MODULE_INTERFACE_OUT_OF_MEMORY;
     ++out->symbol_count; selected[source.symbol_id]=1u;
     return OCC_MODULE_INTERFACE_OK;
@@ -130,10 +130,6 @@ OccModuleInterfaceStatus occ_module_interface_build_from_oir_view(
     if(!out->canonical_identity) return OCC_MODULE_INTERFACE_OUT_OF_MEMORY;
     out->schema_major=OCC_MODULE_INTERFACE_SCHEMA_MAJOR;
     out->schema_minor=OCC_MODULE_INTERFACE_SCHEMA_MINOR;
-    if((size_t)artifact->symbols.record_count+1u>SIZE_MAX ||
-       (size_t)artifact->types.record_count+1u>SIZE_MAX) {
-        result=OCC_MODULE_INTERFACE_LIMIT_EXCEEDED; goto done;
-    }
     selected_symbols=(uint8_t*)calloc((size_t)artifact->symbols.record_count+1u,1u);
     selected_types=(uint8_t*)calloc((size_t)artifact->types.record_count+1u,1u);
     if(!selected_symbols || !selected_types) {
