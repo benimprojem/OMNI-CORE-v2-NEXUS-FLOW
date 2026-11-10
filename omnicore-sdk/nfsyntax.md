@@ -100,7 +100,7 @@ f:main() {
 
 Bitwise operatörler aynı tip/genişlikte operand ister. Örneğin `8bit | 16bit` Semantic hatasıdır. `<<` ve `>>` mevcut Nexus Flow stream/zone operatörleridir; bu operatörlere bit kaydırma anlamı yüklenmez.
 
-**Uygulama durumu:** Lexer artık `bit`, `byte`, `8bit`–`128bit` ve `1byte`–`16byte` yazımlarını ayrı tip tokenları olarak tanır. Parser bu tokenları mevcut TypeExpr/AST type-name alanlarında yazımını koruyarak taşır. Semantic; tiplerin tanımlı olmasını, eş genişlikte bitwise işlemleri ve `~` bitwise complement operandını doğrular; bu aileye sayısal aritmetik açılmaz. OIR codec/lowering round-trip doğrulaması ve açık dönüşümün genişlik/değer aralığı kontrolleri henüz tamamlanmamıştır.
+**Uygulama durumu:** Lexer artık `bit`, `byte`, `8bit`–`128bit` ve `1byte`–`16byte` yazımlarını ayrı tip tokenları olarak tanır. Parser bu tokenları mevcut TypeExpr/AST type-name alanlarında yazımını koruyarak taşır. Semantic; tiplerin tanımlı olmasını, eş genişlikte bitwise işlemleri ve `~` bitwise complement operandını doğrular; bu aileye sayısal aritmetik açılmaz. AST frontend OIR codec için tip yazımı ve hard-type işaretinin round-trip korunması regresyon testiyle doğrulanır. SemanticResult primitive tür sınıflandırması da güncellenmiştir. Semantic AST lowering/verifier üzerinden uçtan uca tür doğrulaması ve açık dönüşümün genişlik/değer aralığı kontrolleri henüz tamamlanmamıştır.
 
 ---
 
