@@ -5,6 +5,8 @@
 #include "oir_ast_frontend_index.h"
 #include "oir_ast_node_table.h"
 #include "oir_semantic_ast_artifact.h"
+#include "oir_module_imports_artifact.h"
+#include "oir_module_interface_artifact.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,18 +68,28 @@ int main(int argc,char** argv) {
     ParserContext* parser=NULL; ASTNode* root=NULL;
     OirAstPointerIndexEntry* index=NULL; OirAstNodeRecord* records=NULL;
     uint8_t *fields=NULL,*strings=NULL,*ast_payload=NULL,*ast_artifact=NULL,*semantic_artifact=NULL;
+    uint8_t *imports_artifact=NULL,*interface_artifact=NULL;
     size_t index_cap=256u,field_cap=0u,string_cap=0u,payload_cap=0u,ast_len=0u,artifact_len=0u;
     size_t fields_len=0u,strings_len=0u,semantic_cap=16u*1024u*1024u,semantic_len=0u;
+    size_t imports_len=0u,interface_len=0u;
     uint32_t node_count=0u; OirAstFrontendRequirements req;
     OirArtifactHeader header; OirSectionInput section;
-    OccModuleArtifactInputV1 input; OccDiagnosticCollector diagnostics;
+    OccModuleArtifactInputV1 input,import_inputs[3]; OccDiagnosticCollector diagnostics;
+    OccModuleImportBinding import_binding;
+    OirModuleImports module_imports;
+    OirModuleInterface module_interface;
     OccLoadedStageModule loaded; char loader_error[512];
     uint32_t* incoming=NULL,*owner_scope=NULL; uint8_t* visited=NULL;
     OirAstGraphStackEntry* stack=NULL; OirSemanticAstArtifactView view;
     int exit_code=1;
 
     if(argc!=2) return 2;
-    memset(&loaded,0,sizeof(loaded)); occ_diagnostics_init(&diagnostics);
+    memset(&loaded,0,sizeof(loaded));
+    memset(&import_binding,0,sizeof(import_binding));
+    memset(&module_imports,0,sizeof(module_imports));
+    memset(&module_interface,0,sizeof(module_interface));
+    memset(import_inputs,0,sizeof(import_inputs));
+    occ_diagnostics_init(&diagnostics);
     parser=parser_init_source("semantic-stage-test.nxf",source,sizeof(source)-1u);
     CHECK(parser!=NULL); CHECK(parser_run(parser)==0); CHECK(parser->ast_root!=NULL);
     root=(ASTNode*)parser->ast_root;
@@ -143,6 +155,42 @@ int main(int argc,char** argv) {
         CHECK(view.scopes.record_count>=2u);
         CHECK(view.symbols.record_count>=3u);
     }
+
+    /* The Semantic DLL accepts one verified import manifest plus one verified
+     * Module Interface per unique dependency, and checks their exact identities. */
+    imports_artifact=(uint8_t*)malloc(4096u);
+    interface_artifact=(uint8_t*)malloc(4096u);
+    CHECK(imports_artifact&&interface_artifact);
+    import_binding.use_ordinal=1u;
+    import_binding.requested_path="math";
+    import_binding.dependency_identity="file:///lib/math.nxf";
+    import_binding.alias="m";
+    import_binding.namespace_name="core";
+    CHECK(oir_module_imports_build("file:///project/main.nxf",
+        &import_binding,1u,&module_imports)==OIR_STATUS_OK);
+    CHECK(oir_module_imports_artifact_write(&module_imports,77u,
+        imports_artifact,4096u,&imports_len)==OIR_STATUS_OK);
+    imports_artifact[20]=(uint8_t)OCC_STAGE_OIR_VERIFY;
+    imports_artifact[21]=0u; imports_artifact[22]=0u; imports_artifact[23]=0u;
+
+    module_interface.canonical_identity="file:///lib/math.nxf";
+    module_interface.schema_major=OCC_MODULE_INTERFACE_SCHEMA_MAJOR;
+    module_interface.schema_minor=OCC_MODULE_INTERFACE_SCHEMA_MINOR;
+    CHECK(oir_module_interface_artifact_write(&module_interface,77u,
+        interface_artifact,4096u,&interface_len)==OIR_STATUS_OK);
+    interface_artifact[20]=(uint8_t)OCC_STAGE_OIR_VERIFY;
+    interface_artifact[21]=0u; interface_artifact[22]=0u; interface_artifact[23]=0u;
+
+    free(semantic_artifact); semantic_artifact=NULL; semantic_len=0u;
+    import_inputs[0]=input;
+    import_inputs[1].bytes=imports_artifact; import_inputs[1].length=imports_len;
+    import_inputs[2].bytes=interface_artifact; import_inputs[2].length=interface_len;
+    CHECK(occ_module_loader_invoke(&loaded,import_inputs,3u,77u,&diagnostics,
+        64u,semantic_cap,&semantic_artifact,&semantic_len)==OCC_MODULE_LOADER_OK);
+    CHECK(semantic_artifact&&semantic_len>OIR_HEADER_SIZE);
+    CHECK(occ_diagnostics_count(&diagnostics)==0u);
+    free(semantic_artifact); semantic_artifact=NULL; semantic_len=0u;
+
     /* Concurrent invocations share only the immutable module descriptor and AST input. */
     {
         SemanticWorker workers[SEMANTIC_CONCURRENT_CALLS];
@@ -200,7 +248,9 @@ int main(int argc,char** argv) {
     exit_code=0; puts("Real semantic stage shared-module test passed.");
 
 cleanup:
-    free(semantic_artifact); free(index); free(records); free(fields); free(strings);
+    free(semantic_artifact); free(imports_artifact); free(interface_artifact);
+    oir_module_imports_destroy(&module_imports);
+    free(index); free(records); free(fields); free(strings);
     free(ast_payload); free(ast_artifact); free(incoming); free(visited); free(stack); free(owner_scope);
     occ_module_loader_close(&loaded); occ_diagnostics_destroy(&diagnostics);
     if(parser) parser_destroy(parser);
