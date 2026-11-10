@@ -83,6 +83,20 @@ Bit ve byte ailesi, sayısal tamsayı türlerinden ayrı tutulur. Tür adı değ
 
 `bit` ile `bool` aynı kavram değildir: `bool` mantıksal koşul/doğruluk değeridir; `bit` tek bitlik veri temsilidir. `byte` ham 8-bit saklama birimidir. `u8` ise aritmetik yapılabilen sayısal işaretsiz tamsayıdır. `byte`, `8bit` ve `u8` aynı genişlikte olabilseler de birbirlerinin yerine örtük olarak kullanılamaz. Benzer biçimde `1byte` ve `8bit` aynı fiziksel genişliğe sahiptir, ancak tip niyetleri farklıdır.
 
+**Bellek yerleşimi ve bit numaralandırma (normatif):**
+
+PC bellekleri byte adreslenebilir olduğundan tek başına kullanılan `bit` değişkeni bellekte 1 byte'lık bir slot kaplar. Bu slotun yalnızca **bit 0** alanı değeri taşır; bit 1–7 sıfır tutulur. Dolayısıyla `bit` için saklama kodlaması `0x00` veya `0x01` olur. Ayrı `bit` değişkenleri otomatik olarak aynı byte içinde paketlenmez. Paketli flag alanları için `8bit`, `16bit` vb. bit vektörleri kullanılır.
+
+Bit vektörlerinde bit numarası **LSB-first** olarak tanımlanır:
+
+- Bit 0, ilk byte'ın en düşük anlamlı bitidir (LSB, maske `0x01`).
+- Bit 7, ilk byte'ın en yüksek anlamlı bitidir (MSB, maske `0x80`).
+- Bit 8, ikinci byte'ın en düşük anlamlı bitidir.
+- Genel eşleme: `byte_index = bit_index / 8`; `bit_offset = bit_index % 8`.
+- Bu sıralama bit vektörünün bellek/serileştirme düzenidir; hedef CPU'nun sayısal tamsayı endianness ayarından bağımsızdır.
+
+Örneğin `16bit` için bit 0–7 ilk byte'ta, bit 8–15 ikinci byte'tadır. `Nbit` türünün saklama boyutu `N / 8` byte'tır (tanımlı genişliklerin tamamı 8'in katıdır). `Nbyte` türü ise doğrudan N byte ham veri bloğudur.
+
 **Açık tür bildirimi örnekleri:**
 
 ```nxf
@@ -126,13 +140,31 @@ f:update_flags() {
 }
 ```
 
-Bu örnek, önceden elde edilmiş aynı genişlikte bir maskeyi kullanır. Sayısal literalden bit/byte türüne açık dönüşüm ve maskeyi doğrudan literal ile kurma sözdiziminin Semantic genişlik/değer aralığı denetimi henüz tamamlanmadığından, burada desteklenmiş bir özellik gibi gösterilmez. Doğrudan `flags[index]` ile tek bit erişimi de henüz desteklenmiş kabul edilmez.
+Tek bit erişimi bit vektörlerinde köşeli parantez ile yapılır. `flags[0]` en düşük anlamlı bit, `flags[7]` ise `8bit` vektörünün en yüksek anlamlı bitidir. Okuma sonucu `bit`, yazma hedefi de `bit` türündedir. `Nbyte` bloklarında `data[0]` ilk byte'ı verir ve sonucu `byte` türündedir:
 
-`sizeof(value)` byte cinsinden saklama boyutunu sorgular; bit genişliği ise türün ayrı bir özelliğidir. Örneğin `8bit` ve `1byte` 1 byte genişliğe karşılık gelir. Hedefe bağlı hizalama/padding ve tüm tür ailesinin nihai ABI yerleşimi ayrıca doğrulanacaktır.
+```nxf
+f:inspect_flags() {
+    v:flags!8bit;
+    v:first!bit = flags[0];  # LSB
+    v:last!bit = flags[7];   # MSB
+    v:one!bit;
+    flags[0] = one;          # LSB'yi güncelle
+}
+
+f:read_packet() {
+    v:packet!4byte;
+    v:first_byte!byte = packet[0];
+    v:last_byte!byte = packet[3];
+}
+```
+
+Semantic artık `Nbit[index]` erişimini `bit`, `Nbyte[index]` erişimini `byte` olarak sınıflandırır ve indeks ifadesinin tamsayı türünde olmasını ister. İndeksin tanımlı aralıkta kalmasının statik sabit kontrolü ve dinamik erişimlerde sınır denetimi OIR/Verifier ve çalışma zamanı sözleşmesinde ayrıca tamamlanacaktır. Sayısal literalden bit/byte türüne açık dönüşüm ve maskeyi doğrudan literal ile kurma sözdiziminin Semantic genişlik/değer aralığı denetimi de henüz tamamlanmamıştır.
+
+`sizeof(value)` byte cinsinden saklama boyutunu sorgular; bit genişliği ise türün ayrı bir özelliğidir. Bu yerleşim kuralında `sizeof(bit)` ve `sizeof(byte)` 1 byte; `sizeof(8bit)` ve `sizeof(1byte)` de 1 byte'tır. `sizeof(16bit)` 2 byte, `sizeof(128bit)` 16 byte'tır. Hedefe bağlı hizalama/padding ve tüm tür ailesinin nihai ABI yerleşimi ayrıca doğrulanacaktır.
 
 `<<` ve `>>` Nexus Flow'un mevcut stream/zone operatörleridir; bit kaydırma anlamı verilmez.
 
-**Uygulama durumu:** Lexer `bit`, `byte`, `8bit`–`128bit` ve `1byte`–`16byte` yazımlarını ayrı tip tokenları olarak tanır. Parser yazımları AST type-name alanında korur ve açık tür işaretini ayrı saklar. Semantic türleri tanır, uyumlu bitwise işlemleri ve `~` operandını doğrular; temsil türlerine sayısal aritmetik izni vermez. AST frontend OIR codec round-trip testi tüm on numeric-leading type spelling ve hard-type işaretini doğrular; SemanticResult primitive tür sınıflandırması günceldir. Semantic AST lowering/OIR Verifier uçtan uca tür aktarımı, açık dönüşümün genişlik/değer aralığı denetimi ve ABI yerleşimi henüz tamamlanmamıştır.
+**Uygulama durumu:** Lexer `bit`, `byte`, `8bit`–`128bit` ve `1byte`–`16byte` yazımlarını ayrı tip tokenları olarak tanır. Parser yazımları AST type-name alanında korur ve açık tür işaretini ayrı saklar. Semantic türleri tanır, uyumlu bitwise işlemleri ve `~` operandını doğrular; temsil türlerine sayısal aritmetik izni vermez. `Nbit[index]` erişimini `bit`, `Nbyte[index]` erişimini `byte` olarak sınıflandırır ve indeks türünü tamsayıyla sınırlar. AST frontend OIR codec round-trip testi tüm on numeric-leading type spelling ve hard-type işaretini doğrular; SemanticResult primitive tür sınıflandırması günceldir. Bit/byte fiziksel yerleşim kuralı LSB-first olarak belgelenmiştir. Semantic AST lowering/OIR Verifier uçtan uca tür aktarımı, indeks sınır denetimi, açık dönüşümün genişlik/değer aralığı denetimi ve nihai ABI hizalama/padding doğrulaması henüz tamamlanmamıştır.
 
 ---
 
