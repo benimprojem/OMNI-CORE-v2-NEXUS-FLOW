@@ -117,6 +117,13 @@ f:main() {
 }
 ```
 
+`!` işareti açık tür zorlamasıdır. Bit/byte ailesinde bu, kaynak değerin hedef genişliğe güvenli biçimde dönüştürülmesini ister; sessiz kesme/truncation yapılmaz. Derleyici şu durumları Semantic aşamasında doğrular:
+
+- Sabit tamsayı değerleri hedef aralığına sığmalıdır. Örneğin `v:one!bit = 1;`, `v:flags!8bit = 255;` ve `v:raw!byte = 255;` geçerlidir; `bit = 2` veya `8bit = 256` hata verir.
+- Kaynak unsigned tamsayının genişliği hedef genişliğe eşit veya küçükse dönüşüm güvenlidir (ör. `u8` → `8bit`).
+- Bit/byte temsil türünde daha geniş kaynaktan daha dar hedefe dönüşüm, kaynak değerin aralığı kanıtlanamıyorsa reddedilir. Dinamik değerler için çalışma zamanı kontrolü henüz yoktur.
+- Daha dar bit/byte temsil türünden daha geniş hedefe dönüşüm sıfır genişletme olarak kabul edilir.
+
 Bit vektörleri (`Nbit`) ve ham byte türleri (`byte`, `Nbyte`) üzerinde desteklenen bitwise işlemler:
 
 - `&`, `|`, `^`, `~`: bitwise maskeleme, birleştirme, XOR ve complement.
@@ -158,7 +165,7 @@ f:read_packet() {
 }
 ```
 
-Semantic artık `Nbit[index]` erişimini `bit`, `Nbyte[index]` erişimini `byte` olarak sınıflandırır, indeks ifadesinin tamsayı türünde olmasını ister ve sabit olarak hesaplanabilen negatif veya sınır dışı indeksleri reddeder. Çalışma anında hesaplanan indeksler için sınır kontrolü OIR/Verifier ve çalışma zamanı sözleşmesinde ayrıca tamamlanacaktır. Sayısal literalden bit/byte türüne açık dönüşüm ve maskeyi doğrudan literal ile kurma sözdiziminin Semantic genişlik/değer aralığı denetimi de henüz tamamlanmamıştır.
+Semantic artık `Nbit[index]` erişimini `bit`, `Nbyte[index]` erişimini `byte` olarak sınıflandırır, indeks ifadesinin tamsayı türünde olmasını ister ve sabit olarak hesaplanabilen negatif veya sınır dışı indeksleri reddeder. Çalışma anında hesaplanan indeksler için sınır kontrolü OIR/Verifier ve çalışma zamanı sözleşmesinde ayrıca tamamlanacaktır. Bit/byte ailesine açık `!` zorlaması; sabit tamsayı aralık kontrolü, güvenli unsigned genişlik dönüşümü ve temsil türlerinde sıfır genişletme ile uygulanır. Kanıtlanamayan dinamik daraltmalar reddedilir; genel çalışma zamanı dönüşüm kontrolleri ve maskelerin daha geniş literal biçimleri henüz tamamlanmamıştır.
 
 `sizeof(value)` byte cinsinden saklama boyutunu sorgular; bit genişliği ise türün ayrı bir özelliğidir. Bu yerleşim kuralında `sizeof(bit)` ve `sizeof(byte)` 1 byte; `sizeof(8bit)` ve `sizeof(1byte)` de 1 byte'tır. `sizeof(16bit)` 2 byte, `sizeof(128bit)` 16 byte'tır. Hedefe bağlı hizalama/padding ve tüm tür ailesinin nihai ABI yerleşimi ayrıca doğrulanacaktır.
 
