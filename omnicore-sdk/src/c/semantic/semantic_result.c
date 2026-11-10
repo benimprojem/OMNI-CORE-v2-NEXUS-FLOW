@@ -388,12 +388,16 @@ SemanticResultStatus semantic_result_add_symbol(
     if (!result || !out_symbol_id) return SEMANTIC_RESULT_INVALID_ARGUMENT;
     if (result->finalized || scope_id == 0u || scope_id > result->scope_count ||
         declaration_node_id == 0u || !valid_symbol_kind(kind) ||
+        ((flags & SEMANTIC_RESULT_SYMBOL_FLAG_IMMUTABLE) != 0u &&
+            (kind != SEMANTIC_RESULT_SYMBOL_VARIABLE ||
+             (flags & SEMANTIC_RESULT_SYMBOL_FLAG_CONST) != 0u)) ||
         (flags & ~(SEMANTIC_RESULT_SYMBOL_FLAG_CONST |
             SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC |
             SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED |
             SEMANTIC_RESULT_SYMBOL_FLAG_PACKED |
             SEMANTIC_RESULT_SYMBOL_FLAG_HARD |
-            SEMANTIC_RESULT_SYMBOL_FLAG_IMPLICIT)) != 0u ||
+            SEMANTIC_RESULT_SYMBOL_FLAG_IMPLICIT |
+            SEMANTIC_RESULT_SYMBOL_FLAG_IMMUTABLE)) != 0u ||
         !name || !*name || !valid_utf8(name) || type_id > result->type_count) {
         return SEMANTIC_RESULT_INVALID_DATA;
     }
@@ -773,12 +777,16 @@ SemanticResultStatus semantic_result_finalize(
             symbol->declaration_node_id > ast_node_count ||
             symbol->type_id > result->type_count ||
             !valid_symbol_kind(symbol->kind) ||
+            ((symbol->flags & SEMANTIC_RESULT_SYMBOL_FLAG_IMMUTABLE) != 0u &&
+                (symbol->kind != SEMANTIC_RESULT_SYMBOL_VARIABLE ||
+                 (symbol->flags & SEMANTIC_RESULT_SYMBOL_FLAG_CONST) != 0u)) ||
             (symbol->flags & ~(SEMANTIC_RESULT_SYMBOL_FLAG_CONST |
                 SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC |
                 SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED |
                 SEMANTIC_RESULT_SYMBOL_FLAG_PACKED |
                 SEMANTIC_RESULT_SYMBOL_FLAG_HARD |
-                SEMANTIC_RESULT_SYMBOL_FLAG_IMPLICIT)) != 0u ||
+                SEMANTIC_RESULT_SYMBOL_FLAG_IMPLICIT |
+            SEMANTIC_RESULT_SYMBOL_FLAG_IMMUTABLE)) != 0u ||
             !symbol->name || !*symbol->name || !valid_utf8(symbol->name)) {
             return SEMANTIC_RESULT_INVALID_DATA;
         }
