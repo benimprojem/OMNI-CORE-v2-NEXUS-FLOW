@@ -102,6 +102,16 @@ static int validate_interface(const OccModuleInterface* interface) {
         const OccModuleInterfaceSymbol* s = &interface->symbols[i];
         if (!s->source_symbol_id ||
             s->source_symbol_id > SEMANTIC_RESULT_MAX_RECORDS ||
+            !s->scope_id || !s->declaration_node_id ||
+            s->kind < SEMANTIC_RESULT_SYMBOL_VARIABLE ||
+            s->kind > SEMANTIC_RESULT_SYMBOL_GROUP ||
+            (s->flags & ~(SEMANTIC_RESULT_SYMBOL_FLAG_CONST |
+                SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC |
+                SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED |
+                SEMANTIC_RESULT_SYMBOL_FLAG_PACKED |
+                SEMANTIC_RESULT_SYMBOL_FLAG_HARD |
+                SEMANTIC_RESULT_SYMBOL_FLAG_IMPLICIT |
+                SEMANTIC_RESULT_SYMBOL_FLAG_IMMUTABLE)) != 0u ||
             !s->name || !s->name[0] ||
             (s->type_id > SEMANTIC_RESULT_MAX_RECORDS))
             goto done;
@@ -112,6 +122,10 @@ static int validate_interface(const OccModuleInterface* interface) {
         const OccModuleInterfaceType* t = &interface->types[i];
         if (!t->source_type_id ||
             t->source_type_id > SEMANTIC_RESULT_MAX_RECORDS ||
+            t->kind < SEMANTIC_RESULT_TYPE_PRIMITIVE ||
+            t->kind > SEMANTIC_RESULT_TYPE_REFERENCE ||
+            (t->flags & ~(SEMANTIC_RESULT_TYPE_FLAG_CONST |
+                SEMANTIC_RESULT_TYPE_FLAG_HARD)) != 0u ||
             t->base_type_id > SEMANTIC_RESULT_MAX_RECORDS ||
             t->referenced_symbol_id > SEMANTIC_RESULT_MAX_RECORDS)
             goto done;
@@ -129,6 +143,8 @@ static int validate_interface(const OccModuleInterface* interface) {
     for (i = 0; i < interface->relation_count; ++i) {
         const OccModuleInterfaceRelation* r = &interface->relations[i];
         if (!r->owner_source_symbol_id ||
+            r->kind < SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER ||
+            r->kind > SEMANTIC_RESULT_RELATION_GROUP_DEFAULT_HANDLER ||
             r->owner_source_symbol_id > SEMANTIC_RESULT_MAX_RECORDS ||
             !symbol_ids[r->owner_source_symbol_id] ||
             r->related_source_symbol_id > SEMANTIC_RESULT_MAX_RECORDS ||
