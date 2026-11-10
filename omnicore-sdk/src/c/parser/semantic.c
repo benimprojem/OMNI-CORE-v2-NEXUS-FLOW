@@ -1154,6 +1154,94 @@ static int semantic_representation_index_limit(
     }
     return 0;
 }
+
+static int semantic_representation_bit_width(
+    const char* type_name, uint64_t* width_out
+) {
+    static const struct {
+        const char* name;
+        uint64_t bits;
+    } types[] = {
+        { "bit", 1u }, { "byte", 8u },
+        { "8bit", 8u }, { "16bit", 16u }, { "32bit", 32u },
+        { "64bit", 64u }, { "128bit", 128u },
+        { "1byte", 8u }, { "2byte", 16u }, { "4byte", 32u },
+        { "8byte", 64u }, { "16byte", 128u }
+    };
+    size_t i;
+    if (!type_name || !width_out) return 0;
+    if (type_name[0] == '!') ++type_name;
+    for (i = 0u; i < sizeof(types) / sizeof(types[0]); ++i) {
+        if (strcmp(type_name, types[i].name) == 0) {
+            *width_out = types[i].bits;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int semantic_integer_type_width(
+    const char* type_name, uint64_t* width_out, int* is_unsigned_out
+) {
+    static const struct {
+        const char* name;
+        uint64_t bits;
+        int is_unsigned;
+    } types[] = {
+        { "i8", 8u, 0 }, { "i16", 16u, 0 },
+        { "i32", 32u, 0 }, { "i64", 64u, 0 },
+        { "u8", 8u, 1 }, { "u16", 16u, 1 },
+        { "u32", 32u, 1 }, { "u64", 64u, 1 }
+    };
+    size_t i;
+    if (!type_name || !width_out || !is_unsigned_out) return 0;
+    if (type_name[0] == '!') ++type_name;
+    for (i = 0u; i < sizeof(types) / sizeof(types[0]); ++i) {
+        if (strcmp(type_name, types[i].name) == 0) {
+            *width_out = types[i].bits;
+            *is_unsigned_out = types[i].is_unsigned;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/*
+ * Return 1 for a proven-safe explicit representation conversion, 0 when
+ * the source/target categories are not convertible, -1 for a constant value
+ * outside the target range, and -2 when a runtime range check is required.
+ */
+static int semantic_hard_representation_coercion_status(
+    const ASTVarDecl* declaration, const char* source_type
+) {
+    uint64_t target_bits = 0u;
+    uint64_t source_bits = 0u;
+    uint64_t integer_bits = 0u;
+    int source_unsigned = 0;
+    int64_t constant_value = 0;
+    if (!declaration || !declaration->is_hard_typed ||
+        !declaration->type_name || !source_type ||
+        !semantic_representation_bit_width(
+            declaration->type_name, &target_bits)) return 0;
+
+    if (semantic_representation_bit_width(source_type, &source_bits))
+        return source_bits <= target_bits ? 1 : -2;
+
+    if (!semantic_integer_type_width(
+            source_type, &integer_bits, &source_unsigned)) return 0;
+
+    if (semantic_eval_integer_constant(
+            declaration->initializer, &constant_value)) {
+        uint64_t maximum;
+        if (constant_value < 0) return -1;
+        if (target_bits >= 64u) return 1;
+        maximum = (UINT64_C(1) << target_bits) - UINT64_C(1);
+        return (uint64_t)constant_value <= maximum ? 1 : -1;
+    }
+
+    if (source_unsigned && integer_bits <= target_bits) return 1;
+    return -2;
+}
 static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
     if (type_name[0] == '!') type_name++; // Skip hard-type prefix
@@ -1997,11 +2085,22 @@ static void semantic_check_node(
                     }
                 } else if (decl->type_name) {
                     if (init_type && !are_types_compatible(decl->type_name, init_type)) {
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
-                            decl->type_name, init_type);
-                        report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf,
-                            NULL, "İlgili veri tipini kontrol edin.", 0, 0);
+                        int coercion_status =
+                            semantic_hard_representation_coercion_status(
+                                decl, init_type);
+                        if (coercion_status == -1) {
+                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Explicit bit/byte coercion value is outside the target type range.");
+                        } else if (coercion_status == -2) {
+                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Explicit bit/byte coercion requires a runtime range check that is not yet available for this source type.");
+                        } else if (coercion_status != 1) {
+                            char buf[256];
+                            snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
+                                decl->type_name, init_type);
+                            report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf,
+                                NULL, "İlgili veri tipini kontrol edin.", 0, 0);
+                        }
                     }
                 } else if (declared_slot && init_type && *init_type) {
                     char* inferred_name = semantic_duplicate(ctx, init_type);
