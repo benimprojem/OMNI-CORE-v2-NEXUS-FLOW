@@ -59,6 +59,7 @@ typedef struct OccModuleSchedulerUse {
 typedef struct OccModuleImportBinding {
     uint32_t importer_module_id;
     uint32_t dependency_module_id;
+    const char* dependency_identity; /* Borrowed from resolver graph. */
     uint32_t use_ordinal;
     const char* requested_path;   /* Borrowed from scheduler. */
     const char* alias;            /* Borrowed; NULL when no `as` binding. */
