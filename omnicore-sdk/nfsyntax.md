@@ -177,6 +177,36 @@ okunabilir. Parser/AST testleri sözdizimini, alanları, kaynak aralıklarını 
 round-trip davranışını doğrular. Bu testler Semantic namespace çözümlemesinin tamamlandığı
 anlamına gelmez.
 
+
+## 5.2 Varsayılan modüller: `coremodule` ve `osmodule`
+
+- `coremodule`: işletim sistemi bağımsız genel fonksiyon kütüphanesi.
+- `osmodule`: `file`, `print`, `echo`, `input` gibi OS servislerine bağlı standart fonksiyonlar.
+- `osmodule` varsayılan olarak otomatik yüklenir.
+- `no: osmodule;` program kapsamında bu otomatik yüklemeyi kapatır.
+- `no:` genel modül kapatma mekanizması değildir; `no: coremodule;` geçersizdir.
+- `coremodule` için varsayılan yükleme politikası ayrıca karara bağlanacaktır.
+
+```nxf
+f:main() {
+    print("Hello World");
+    echo("Nexus Flow");
+    input();
+}
+```
+
+OS bulunmayan bare-metal hedefte:
+
+```nxf
+no: osmodule;
+
+f:main() {
+    # Kernel başlangıç kodu
+}
+```
+
+Parser bu bildirimi yalnızca program seviyesinde kabul eder; ASTProgram üzerinde boolean politika alanı ve tam kaynak aralığı taşır. Bu alan otomatik modül ekleme kararının host/pipeline katmanına aktarılması içindir. Module Resolver'ın otomatik osmodule ekleme entegrasyonu henüz tamamlanmış değildir.
+
 ## 6. Döngüler (Unified Loop)
 Tek bir `loop` anahtar kelimesi altında 5 farklı varyasyon parser tarafından ayrıştırılır:
 ```nxf
@@ -279,32 +309,3 @@ asmcall(LABEL_1);
 ### Modül 1 Çıktısı (OIR v2.0)
 Tüm yukarıdaki kodlar hatasız şekilde binary `*.oir` dosyası olarak sentezlenmektedir. Oluşturulan AST (Abstract Syntax Tree) doğrudan lineer bir Instruction dizilimine (OIR) yapılandırılmakta; bilinmeyen tanımlayıcılar veya yanlış blok sınırlandırmalarında `ErrorList` devreye girerek (Panic-mode recovery destekli) süreci raporlamaktadır.
 
-
-## 5.2 Varsayılan modüller: `coremodule` ve `osmodule`
-
-- `coremodule`: işletim sistemi bağımsız genel fonksiyon kütüphanesi.
-- `osmodule`: `file`, `print`, `echo`, `input` gibi OS servislerine bağlı standart fonksiyonlar.
-- `osmodule` varsayılan olarak otomatik yüklenir.
-- `no: osmodule;` program kapsamında bu otomatik yüklemeyi kapatır.
-- `no:` genel modül kapatma mekanizması değildir; `no: coremodule;` geçersizdir.
-- `coremodule` için varsayılan yükleme politikası ayrıca karara bağlanacaktır.
-
-```nxf
-f:main() {
-    print("Hello World");
-    echo("Nexus Flow");
-    input();
-}
-```
-
-OS bulunmayan bare-metal hedefte:
-
-```nxf
-no: osmodule;
-
-f:main() {
-    # Kernel başlangıç kodu
-}
-```
-
-Parser bu bildirimi yalnızca program seviyesinde kabul eder; ASTProgram üzerinde boolean politika alanı ve tam kaynak aralığı taşır. Bu alan otomatik modül ekleme kararının host/pipeline katmanına aktarılması içindir. Module Resolver'ın otomatik osmodule ekleme entegrasyonu henüz tamamlanmış değildir.
