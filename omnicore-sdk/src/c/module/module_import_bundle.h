@@ -36,7 +36,7 @@ typedef struct OccModuleImportBundle {
  * Module Interface. Multiple USE records may share one interface. */
 OccModuleImportBundleStatus occ_module_import_bundle_bind(
     const char* expected_importer_identity,
-    const OirModuleImports* imports,
+    const OirModuleImportsArtifactView* imports_artifact,
     const OirModuleInterfaceArtifactView* interfaces,
     size_t interface_count,
     OccModuleImportBundle* out_bundle
