@@ -13,7 +13,7 @@ lisans 	= "";
 
 # Derleyicinin modülleri arayacağı ek dizinler.
 [include]
-./occ/libs
+../occ/libs
 
 # dpslib/  Eğer ekleyeceğiniz bağımlıklar omnicore-sdk içerisinde var ise yüklenmez. 
 # Yok ise "omnicore-sdk/dpslib/" içerisine yüklenir, bir başka projede gerekli olur ise tekrar yüklemekten kurtarır.
