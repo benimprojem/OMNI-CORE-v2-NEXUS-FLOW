@@ -326,8 +326,15 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             left.kind != OIR_OPERAND_VALUE || left.reference_id != 1u ||
             right.kind != OIR_OPERAND_VALUE || right.reference_id != 2u ||
             oir_module_get_operand(&module, ret.first_operand, &returned) != OIR_STATUS_OK ||
-            returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 3u)
+            returned.kind != OIR_OPERAND_VALUE || returned.reference_id != 3u) {
+            fprintf(stderr, "bit fixture=%d blocks=%u ins=%u ops=%u vals=%u opcode=%u expected=%u ret=%u first=%u left=%u/%u right=%u/%u returned=%u/%u\\n",
+                arithmetic, module.block_count, module.instruction_count,
+                module.operand_count, module.value_count, bit_op.opcode_id,
+                expected_opcode, ret.opcode_id, bit_op.first_operand,
+                left.kind, left.reference_id, right.kind, right.reference_id,
+                returned.kind, returned.reference_id);
             goto cleanup;
+        }
     } else {
         OirModuleInstruction add, mul, sub, ret;
         OirModuleOperand left, right, returned, immediate;
