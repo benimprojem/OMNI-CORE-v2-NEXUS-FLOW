@@ -105,7 +105,7 @@ typedef enum OccModuleResolverEdgeKind {
 typedef struct OccModuleResolverEdge {
     uint32_t importer_module_id;
     uint32_t dependency_module_id;
-    uint32_t ast_use_node_id;       /* 0 only for implicit standard-module edges. */
+    uint32_t ast_use_node_id;       /* 1-based AST_USE source-order ordinal; 0 for implicit edges. */
     OccSourceSpan use_span;         /* AST_USE span or root-program span. */
     char* requested_path;           /* Dotted spelling / standard module name; graph-owned. */
     OccModuleResolverEdgeKind kind; /* Appended to preserve the existing field prefix. */
@@ -182,7 +182,9 @@ OccModuleResolverStatus occ_module_resolver_fail(
 );
 
 /*
- * Record one AST_USE dependency edge. The importer must be RESOLVING.
+ * Record one AST_USE dependency edge. ast_use_node_id is the 1-based source-order
+ * ordinal assigned by the host's AST_USE visitor (not a persistent AST identity).
+ * The importer must be RESOLVING.
  * The edge is retained even when CYCLE is returned, so the caller can emit
  * the diagnostic at the exact AST_USE span. The scheduler marks a module
  * RESOLVING before walking its dependencies; an edge to another RESOLVING
