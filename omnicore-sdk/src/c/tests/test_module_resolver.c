@@ -143,6 +143,12 @@ static int test_implicit_osmodule_dependency_edge(void) {
     uint32_t root = 0u, osmodule = 0u;
     const OccModuleResolverEdge* edge;
     int ok = 0;
+#define IMPLICIT_IMPLICIT_CHECK(condition) do { \
+    if (!(condition)) { \
+        fprintf(stderr, "IMPLICIT_CHECK failed line %d: %s\\n", __LINE__, #condition); \
+        goto done; \
+    } \
+} while (0)
 
     memset(&resolver, 0, sizeof(resolver));
     memset(&program_span, 0, sizeof(program_span));
@@ -155,37 +161,39 @@ static int test_implicit_osmodule_dependency_edge(void) {
     program_span.end_column = 1u;
     program_span.has_location = 1u;
 
-    CHECK(occ_module_resolver_init(&resolver, &config) == OCC_MODULE_RESOLVER_OK);
-    CHECK(occ_module_resolver_register(&resolver, "project://app/main.nxf",
+    IMPLICIT_CHECK(occ_module_resolver_init(&resolver, &config) == OCC_MODULE_RESOLVER_OK);
+    IMPLICIT_CHECK(occ_module_resolver_register(&resolver, "project://app/main.nxf",
         UINT64_C(0x1010), &root) == OCC_MODULE_RESOLVER_OK);
-    CHECK(occ_module_resolver_register(&resolver, "stdlib://osmodule",
+    IMPLICIT_CHECK(occ_module_resolver_register(&resolver, "stdlib://osmodule",
         UINT64_C(0x2020), &osmodule) == OCC_MODULE_RESOLVER_OK);
-    CHECK(occ_module_resolver_begin(&resolver, root) == OCC_MODULE_RESOLVER_OK);
-    CHECK(occ_module_resolver_add_implicit_osmodule(
+    IMPLICIT_CHECK(occ_module_resolver_begin(&resolver, root) == OCC_MODULE_RESOLVER_OK);
+    IMPLICIT_CHECK(occ_module_resolver_add_implicit_osmodule(
         &resolver, root, osmodule, &program_span) == OCC_MODULE_RESOLVER_OK);
-    CHECK(resolver.edge_count == 1u);
+    IMPLICIT_CHECK(resolver.edge_count == 1u);
     edge = occ_module_resolver_get_edge(&resolver, 0u);
-    CHECK(edge != NULL);
-    CHECK(edge->kind == OCC_MODULE_EDGE_IMPLICIT_OSMODULE);
-    CHECK(edge->ast_use_node_id == 0u);
-    CHECK(edge->importer_module_id == root);
-    CHECK(edge->dependency_module_id == osmodule);
-    CHECK(strcmp(edge->requested_path, "osmodule") == 0);
-    CHECK(edge->use_span.source_id == program_span.source_id);
-    CHECK(edge->use_span.start_offset == program_span.start_offset);
-    CHECK(edge->use_span.end_offset == program_span.end_offset);
-    CHECK(occ_module_resolver_add_implicit_osmodule(
+    IMPLICIT_CHECK(edge != NULL);
+    IMPLICIT_CHECK(edge->kind == OCC_MODULE_EDGE_IMPLICIT_OSMODULE);
+    IMPLICIT_CHECK(edge->ast_use_node_id == 0u);
+    IMPLICIT_CHECK(edge->importer_module_id == root);
+    IMPLICIT_CHECK(edge->dependency_module_id == osmodule);
+    IMPLICIT_CHECK(strcmp(edge->requested_path, "osmodule") == 0);
+    IMPLICIT_CHECK(edge->use_span.source_id == program_span.source_id);
+    IMPLICIT_CHECK(edge->use_span.start_offset == program_span.start_offset);
+    IMPLICIT_CHECK(edge->use_span.end_offset == program_span.end_offset);
+    IMPLICIT_CHECK(occ_module_resolver_add_implicit_osmodule(
         &resolver, root, osmodule, &program_span) ==
         OCC_MODULE_RESOLVER_INVALID_ARGUMENT);
-    CHECK(occ_module_resolver_add_dependency(&resolver, root, osmodule,
+    IMPLICIT_CHECK(occ_module_resolver_add_dependency(&resolver, root, osmodule,
         "osmodule", 42u, &program_span) == OCC_MODULE_RESOLVER_OK);
-    CHECK(resolver.edge_count == 2u);
+    IMPLICIT_CHECK(resolver.edge_count == 2u);
     edge = occ_module_resolver_get_edge(&resolver, 1u);
-    CHECK(edge != NULL && edge->kind == OCC_MODULE_EDGE_EXPLICIT_USE);
-    CHECK(edge->ast_use_node_id == 42u);
-    CHECK(occ_module_resolver_complete(&resolver, root) == OCC_MODULE_RESOLVER_OK);
+    IMPLICIT_CHECK(edge != NULL && edge->kind == OCC_MODULE_EDGE_EXPLICIT_USE);
+    IMPLICIT_CHECK(edge->ast_use_node_id == 42u);
+    IMPLICIT_CHECK(occ_module_resolver_complete(&resolver, root) == OCC_MODULE_RESOLVER_OK);
     ok = 1;
+done:
     occ_module_resolver_destroy(&resolver);
+#undef IMPLICIT_CHECK
     return ok;
 }
 
