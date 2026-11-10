@@ -755,9 +755,16 @@ static int test_fixed_width_representation_type_oir_roundtrip(void) {
     declaration=body?body->statements:NULL;
     for(index=0u;index<sizeof(expected)/sizeof(expected[0]);++index) {
         ASTVarDecl* variable;
-        if(!declaration || declaration->type!=AST_VAR_DECL)goto done;
+        if(!declaration || declaration->type!=AST_VAR_DECL) {
+            fprintf(stderr,"Fixed-width OIR declaration index=%zu missing or wrong node kind\\n",index);
+            goto done;
+        }
         variable=(ASTVarDecl*)declaration;
-        if(!variable->type_name || strcmp(variable->type_name,expected[index])!=0)goto done;
+        if(!variable->type_name || strcmp(variable->type_name,expected[index])!=0) {
+            fprintf(stderr,"Fixed-width OIR declaration index=%zu expected=%s actual=%s\\n",
+                index,expected[index],variable->type_name?variable->type_name:"(null)");
+            goto done;
+        }
         declaration=declaration->next;
     }
     if(declaration)goto done;
