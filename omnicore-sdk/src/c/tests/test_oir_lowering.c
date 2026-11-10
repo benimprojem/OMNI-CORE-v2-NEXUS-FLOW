@@ -185,10 +185,13 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     semantic_initialized = 1;
     semantic_attach_node_id_resolver(&semantic, test_resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
-    if (semantic.error_count != 0 ||
-        semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK ||
-        semantic.result.finalized != 1u)
+    if (semantic.error_count != 0) {
+        if (arithmetic == 7)
+            fprintf(stderr, "bitwise semantic errors=%d\\n", semantic.error_count);
         goto cleanup;
+    }
+    if (semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK ||
+        semantic.result.finalized != 1u) goto cleanup;
     if (oir_semantic_ast_artifact_write(ast_payload, ast_length,
             &semantic.result, 1u, semantic_artifact,
             sizeof(semantic_artifact), &semantic_length) != OIR_STATUS_OK)
@@ -206,9 +209,15 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     workspace.instructions = instructions; workspace.instruction_capacity = 32u;
     workspace.operands = operands; workspace.operand_capacity = 64u;
     workspace.strings = module_strings; workspace.string_capacity = sizeof(module_strings);
-    if (oir_lower_semantic_ast_return(&artifact, &workspace,
-            module_bytes, sizeof(module_bytes), &module_length) != OIR_STATUS_OK ||
-        oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
+    {
+        OirStatus lower_status = oir_lower_semantic_ast_return(&artifact, &workspace,
+            module_bytes, sizeof(module_bytes), &module_length);
+        if (lower_status != OIR_STATUS_OK) {
+            if (arithmetic == 7) fprintf(stderr, "bitwise lower status=%u\\n", (unsigned)lower_status);
+            goto cleanup;
+        }
+    }
+    if (oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
         goto cleanup;
     if (module.type_count != ((arithmetic == 5 || arithmetic == 6) ? 3u : 2u) ||
         module.function_count != 1u) goto cleanup;
