@@ -1554,3 +1554,15 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Yeni test `occ_project_config_bounded_include_parsing`: include listesi, quoted path/space, duplicate eleme, dependency/diğer section'ları yorumlamama, hatalı quote ve missing config durumlarını doğruluyor.
 - OCM merkezi dependency manager için `docs/OCM_DESIGN.md` taslağı eklendi. Paket metadata, registry, sürüm/lockfile ve CLI syntax açık karar olarak bırakıldı; uygulama varmış gibi gösterilmiyor.
 - Sıradaki adım: bu config API'sini host proje keşfine bağlamak ve filesystem source-provider sözleşmesini (importer-relative arama, include roots, standard libs, dsplibs, canonical identity, ambiguity ve path confinement) testlerle tanımlamak. Recursive module scheduler henüz uygulanmadı.
+
+
+### 2026-11-10 — OCM proje oluşturma ve proje çalışma alanı sorumluluğu
+
+- Kullanıcı kararı: OCM yalnızca dependency manager değildir; sıfırdan yeni Nexus Flow proje klasörü oluşturabilir ve başlangıç dosya/klasör yapısını bir şablondan üretir.
+- OCM proje oluşturma ve dependency yönetimini üstlenir. OCC ise oluşturulan proje klasöründe kaynakları derler ve build işlemlerini yürütür.
+- SDK dağıtım kökü ile kullanıcı proje kökü ayrıldı. SDK `bin/occ`, `bin/ocm`, stage DLL'leri, standart `libs/` ve merkezi `dsplibs/` deposunu taşır. Proje kökü kendi `occ.ocf`, `src/`, `include/`, `tests/`, README ve proje-local `build/` alanını taşır.
+- Proje klasörlerine OCC/OCM executable'ları, DLL'ler, standart kütüphane veya üçüncü taraf dependency payload kopyalanmaz. Bağımlılıklar merkezi SDK `occ/dsplibs/` deposunda tekil tutulur.
+- `docs/OCM_DESIGN.md` OCM sorumlulukları, proje oluşturma, OCC ile çalışma akışı, güvenlik ve uygulama kapılarıyla genişletildi.
+- `docs/OCM_PROJECT_TEMPLATE.md` başlangıç proje ağacı, örnek OCF, kaynak dosyası ilkeleri ve güvenli oluşturma gereksinimleri için eklendi.
+- **Uygulama durumu:** Bu commit'ler dokümantasyon/tasarım kararıdır. OCM CLI, proje şablon motoru, OCC proje keşfi ve proje-local build output entegrasyonu henüz kodlanmadı; örnek OCF dependency syntax'ı da normatif değildir.
+- **Sonraki teknik adım:** önce mevcut host path/config akışını proje root discovery sözleşmesine göre inceleyip tasarlamak; ardından C tarafında proje keşfi ve filesystem provider entegrasyonunu testlerle geliştirmek. OCM'nin proje scaffold motoru, CLI/process sözleşmesi netleşince ayrı C modülü olarak uygulanmalı.
