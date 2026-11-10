@@ -377,6 +377,7 @@ set_target_properties(occ_module_scheduler PROPERTIES POSITION_INDEPENDENT_CODE 
 # Immutable public/exported semantic interface snapshot for dependent modules.
 add_library(occ_module_interface STATIC
     "${C_SOURCE_DIR}/module/module_interface.c"
+    "${C_SOURCE_DIR}/module/module_interface_from_oir.c"
 )
 add_library(occ_oir_module_interface_artifact STATIC
     "${C_SOURCE_DIR}/oir/oir_module_interface_artifact.c"
@@ -431,8 +432,12 @@ set_target_properties(occ_oir_module_interface_artifact PROPERTIES
 target_include_directories(occ_module_interface PUBLIC
     "${C_SOURCE_DIR}/module"
     "${C_SOURCE_DIR}/semantic"
+    "${C_SOURCE_DIR}/oir"
 )
-target_link_libraries(occ_module_interface PUBLIC occ_semantic_result)
+target_link_libraries(occ_module_interface PUBLIC
+    occ_semantic_result
+    occ_oir_semantic_ast_artifact
+)
 set_target_properties(occ_module_interface PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Filesystem source provider: single-file .nxf mapping and ordered search policy.
