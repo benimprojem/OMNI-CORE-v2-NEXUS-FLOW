@@ -402,3 +402,55 @@ const char* occ_module_resolver_status_string(OccModuleResolverStatus status) {
         default: return "unknown module resolver status";
     }
 }
+
+static int resolver_order_visit(
+    const OccModuleResolver* resolver, uint32_t module_id,
+    uint8_t* marks, uint32_t* output, size_t* count
+) {
+    size_t i;
+    uint8_t* mark;
+    if (!resolver || module_id == 0u || module_id > resolver->module_count)
+        return 0;
+    mark = &marks[module_id - 1u];
+    if (*mark == 2u) return 1;
+    if (*mark == 1u) return 0;
+    *mark = 1u;
+    for (i = 0u; i < resolver->edge_count; ++i) {
+        const OccModuleResolverEdge* edge = &resolver->edges[i];
+        if (edge->importer_module_id == module_id &&
+            !resolver_order_visit(resolver, edge->dependency_module_id,
+                marks, output, count)) return 0;
+    }
+    *mark = 2u;
+    output[(*count)++] = module_id;
+    return 1;
+}
+
+OccModuleResolverStatus occ_module_resolver_dependency_order(
+    const OccModuleResolver* resolver,
+    uint32_t* out_module_ids,
+    size_t out_capacity,
+    size_t* out_count
+) {
+    uint8_t* marks;
+    size_t i, count = 0u;
+    if (out_count) *out_count = 0u;
+    if (!resolver || !out_count ||
+        (resolver->module_count && (!out_module_ids ||
+         out_capacity < resolver->module_count)))
+        return OCC_MODULE_RESOLVER_INVALID_ARGUMENT;
+    if (!resolver->module_count) return OCC_MODULE_RESOLVER_OK;
+    marks = (uint8_t*)calloc(resolver->module_count, sizeof(*marks));
+    if (!marks) return OCC_MODULE_RESOLVER_OUT_OF_MEMORY;
+    for (i = 0u; i < resolver->module_count; ++i) {
+        if (!resolver_order_visit(resolver, (uint32_t)(i + 1u),
+            marks, out_module_ids, &count)) {
+            free(marks);
+            return OCC_MODULE_RESOLVER_CYCLE;
+        }
+    }
+    free(marks);
+    *out_count = count;
+    return OCC_MODULE_RESOLVER_OK;
+}
+
