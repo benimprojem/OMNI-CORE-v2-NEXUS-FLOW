@@ -27,9 +27,9 @@
 #define T_GTE 113u
 #define T_LTE 114u
 #define T_ASSIGN 102u
-#define T_BIT_AND 130u
-#define T_BIT_OR 131u
-#define T_BIT_XOR 132u
+#define T_BIT_AND 118u
+#define T_BIT_OR 119u
+#define T_BIT_XOR 120u
 
 static uint16_t u16(const uint8_t* p) {
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
