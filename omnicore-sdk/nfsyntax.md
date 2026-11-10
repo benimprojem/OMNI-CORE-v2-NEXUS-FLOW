@@ -1,7 +1,7 @@
 # NexusFlow Syntax & Parser Implementation Status
 **Versiyon:** 1.0 (OIR v2 Parser Katmanı)
 
-Bu belge, **Modül 1 (Parser DLL)** çerçevesinde C++ ile başarıyla kodlanmış, tokenizasyonu (lexer) ve AST ayrıştırması (parser) tamamlanıp OIR çıktı formatına dönüştürülebilen tüm syntax (sözdizimi) yeteneklerini özetler.
+Bu belge, **Modül 1 (Parser DLL)** kapsamındaki C tabanlı Lexer, Parser ve AST altyapısının desteklediği Nexus Flow syntax (sözdizimi) yeteneklerini ve uygulama durumunu özetler.
 
 ---
 
