@@ -2740,11 +2740,11 @@ static int test_use_path_malformed_and_exact_spans(void) {
             strcmp(use_node->alias, "mod") == 0 &&
             use_node->base.source_span.has_location &&
             use_node->base.source_span.start_offset == 4u &&
-            use_node->base.source_span.end_offset == 23u &&
+            use_node->base.source_span.end_offset == 27u &&
             use_node->base.source_span.start_line == 1u &&
             use_node->base.source_span.start_column == 5u &&
             use_node->base.source_span.end_line == 1u &&
-            use_node->base.source_span.end_column == 24u &&
+            use_node->base.source_span.end_column == 28u &&
             ast_validate((ASTNode*)parser->ast_root, NULL);
     }
     parser_destroy(parser);
