@@ -84,9 +84,15 @@ int main(void) {
             "noncanonical BOOL rejected");
         malformed[2] = OIR_AST_VALUE_TOKEN_ID;
         put_u32(malformed + 4, 2u);
-        put_u16(malformed + 8, 161u);
+        put_u16(malformed + 8, 167u);
         CHECK(oir_ast_tlv_validate(malformed, 10u) == OIR_STATUS_INVALID_SECTION,
             "unknown stable token ID rejected");
+        put_u16(malformed + 8, 165u);
+        CHECK(oir_ast_tlv_validate(malformed, 10u) == OIR_STATUS_OK,
+            "stable left-shift token ID accepted");
+        put_u16(malformed + 8, 166u);
+        CHECK(oir_ast_tlv_validate(malformed, 10u) == OIR_STATUS_OK,
+            "stable right-shift token ID accepted");
         malformed[2] = OIR_AST_VALUE_NULL;
         put_u32(malformed + 4, 0u);
         malformed[3] = 0x80u;
