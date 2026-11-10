@@ -1744,3 +1744,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Returned binding views borrow the decoded manifest/interface storage; destroy frees only the mapping array.
 - Added tests for repeated dependency mapping, independent alias/namespace retention, importer mismatch, missing interface and duplicate interface rejection.
 - Still pending: Semantic DLL must accept and pass the verified manifest/interface set into this matcher, then apply the language's visibility and binding rules. This matcher does not itself expose symbols to expressions.
+
+
+### Semantic DLL verified import inputs — 2026-11-10
+
+- Extended the Semantic stage ABI descriptor to accept AST plus optional Module Imports and Module Interface artifacts (up to 64 total inputs); AST remains the required first input and legacy AST-only invocations remain supported.
+- Defined the input order: AST at index 0, verifier-stamped OIM1 manifest at index 1, then one verifier-stamped Module Interface artifact for each unique dependency.
+- Semantic DLL decodes the manifest and interfaces, checks job IDs and verifier producer stamps, and runs `occ_module_import_bundle_bind()` before semantic analysis. A missing, duplicate, mismatched or unverified interface bundle is rejected.
+- Added dynamic Semantic DLL tests for the existing AST-only path, a valid three-input import bundle, and rejection when a required dependency interface is missing.
+- Important boundary: this wires and validates imported artifacts at the Semantic DLL boundary; imported symbols are not yet injected into local name lookup. PUBLIC/EXPORTED access policy, alias/namespace resolution, collision diagnostics and imported type mapping remain pending. The host CLI scheduler is also not yet wired to construct and pass this multi-artifact input list.
