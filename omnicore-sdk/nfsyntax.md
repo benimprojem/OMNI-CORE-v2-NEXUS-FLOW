@@ -124,6 +124,8 @@ f:main() {
 - Bit/byte temsil türünde daha geniş kaynaktan daha dar hedefe dönüşüm, kaynak değerin aralığı kanıtlanamıyorsa reddedilir. Dinamik değerler için çalışma zamanı kontrolü henüz yoktur.
 - Daha dar bit/byte temsil türünden daha geniş hedefe dönüşüm sıfır genişletme olarak kabul edilir.
 
+Başarılı açık dönüşümler SemanticResult dönüşüm tablosuna kaynak/hedef tür kimlikleri, dönüşüm türü ve explicit işaretiyle kaydedilir; bu kayıtlar SEMANTIC_AST OIR artifact'ine taşınır. Bu metadata aktarımı test edilmiştir; henüz Codegen/runtime dönüşüm komutu üretildiği anlamına gelmez.
+
 Bit vektörleri (`Nbit`) ve ham byte türleri (`byte`, `Nbyte`) üzerinde desteklenen bitwise işlemler:
 
 - `&`, `|`, `^`, `~`: bitwise maskeleme, birleştirme, XOR ve complement.
