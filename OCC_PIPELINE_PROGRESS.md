@@ -1377,3 +1377,5 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Defined dependency graph states, canonical-identity cache reuse, alias/namespace independence from cache keys, deterministic initial cycle rejection, exact AST_USE source-span diagnostics, and the future validated OIR imported-interface handoff.
 - No resolver C API, dependency artifact, or Semantic import behavior is claimed implemented yet. Next implementation gate: inspect project configuration and `m:` semantics, then specify the portable C resolver core API and its ownership/failure contract before coding the graph.
 - Codegen remains blocked; no downstream stage was advanced by this architecture work.
+
+- Follow-up repository audit: `m:Name = source;` is currently parsed into `AST_MUST_DECL{name, source}`, but `semantic.c` has no `AST_MUST_DECL` handler; checked-in `occ.ocf` dependency sections are empty. It is therefore a Parser-only construct today, not an existing dependency resolver contract and not interchangeable with `use`. Clarified this explicitly in `docs/MODULE_RESOLVER_DESIGN.md`; its future semantics must be specified separately.
