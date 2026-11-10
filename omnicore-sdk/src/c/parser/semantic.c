@@ -274,7 +274,7 @@ static Slot* find_slot(SemanticContext* ctx, const char* name) {
 static int is_primitive_type_for_result(const char* name) {
     static const char* const names[] = {
         "i32", "u8", "str", "bool", "f64", "i64", "u64", "u32",
-        "u16", "i16", "i8", "f32", "d32", "d64", "char", "byte", "void", "any"
+        "u16", "i16", "i8", "f32", "d32", "d64", "char", "bit", "byte", "void", "any"
     };
     size_t i;
     for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
@@ -1079,6 +1079,13 @@ static int is_integer_primitive_type(const char* type_name) {
     return 0;
 }
 
+static int is_bitwise_primitive_type(const char* type_name) {
+    if (!type_name) return 0;
+    if (type_name[0] == '!') ++type_name;
+    return is_integer_primitive_type(type_name) ||
+        strcmp(type_name, "bit") == 0 ||
+        strcmp(type_name, "byte") == 0;
+}
 static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
     if (type_name[0] == '!') type_name++; // Skip hard-type prefix
@@ -1102,7 +1109,8 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
         strcmp(type_name, "u16") == 0 || strcmp(type_name, "i16") == 0 ||
         strcmp(type_name, "i8") == 0 || strcmp(type_name, "f32") == 0 ||
         strcmp(type_name, "d32") == 0 || strcmp(type_name, "d64") == 0 ||
-        strcmp(type_name, "char") == 0 || strcmp(type_name, "byte") == 0 ||
+        strcmp(type_name, "char") == 0 || strcmp(type_name, "bit") == 0 ||
+        strcmp(type_name, "byte") == 0 ||
         strcmp(type_name, "void") == 0 || strcmp(type_name, "any") == 0) {
         return 1;
     }
@@ -2081,10 +2089,10 @@ static void semantic_check_node(
                 const char* right_type=get_expr_type(ctx,bin->right);
                 if(left_type&&right_type&&
                    (!are_types_compatible(left_type,right_type)||
-                    !is_integer_primitive_type(left_type)||
-                    !is_integer_primitive_type(right_type))) {
+                    !is_bitwise_primitive_type(left_type)||
+                    !is_bitwise_primitive_type(right_type))) {
                     report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Bitwise operators require matching integer operands.");
+                        "Bitwise operators require matching bitwise-capable operands.");
                 }
             }
 
@@ -2204,8 +2212,8 @@ static void semantic_check_node(
                         !is_numeric_primitive_type(left_type)||
                         !is_numeric_primitive_type(right_type)||
                         (bitwise_compound&&
-                         (!is_integer_primitive_type(left_type)||
-                          !is_integer_primitive_type(right_type)))))
+                         (!is_bitwise_primitive_type(left_type)||
+                          !is_bitwise_primitive_type(right_type)))))
                         report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                             bitwise_compound?
                             "Bitwise compound assignment requires matching integer operands.":
