@@ -518,12 +518,16 @@ static OirStatus validate_symbol_values(
 
     if (kind < OIR_SEMANTIC_SYMBOL_VARIABLE ||
         kind > OIR_SEMANTIC_SYMBOL_GROUP ||
+        ((flags & OIR_SEMANTIC_SYMBOL_FLAG_IMMUTABLE) != 0u &&
+            (kind != OIR_SEMANTIC_SYMBOL_VARIABLE ||
+             (flags & OIR_SEMANTIC_SYMBOL_FLAG_CONST) != 0u)) ||
         (flags & ~(OIR_SEMANTIC_SYMBOL_FLAG_CONST |
             OIR_SEMANTIC_SYMBOL_FLAG_PUBLIC |
             OIR_SEMANTIC_SYMBOL_FLAG_EXPORTED |
             OIR_SEMANTIC_SYMBOL_FLAG_PACKED |
             OIR_SEMANTIC_SYMBOL_FLAG_HARD |
-            OIR_SEMANTIC_SYMBOL_FLAG_IMPLICIT)) != 0u ||
+            OIR_SEMANTIC_SYMBOL_FLAG_IMPLICIT |
+            OIR_SEMANTIC_SYMBOL_FLAG_IMMUTABLE)) != 0u ||
         scope_id == 0u || declaration_node_id == 0u ||
         name_length == 0u) {
         return OIR_STATUS_INVALID_SECTION;
@@ -1415,7 +1419,9 @@ static int semantic_symbol_declaration_kind_matches(
                 return node_kind == 14u || node_kind == 25u ||
                     node_kind == 30u || node_kind == 41u;
             }
-            return node_kind == 3u; /* AST_VAR_DECL */
+            if ((symbol_flags & OIR_SEMANTIC_SYMBOL_FLAG_IMMUTABLE) != 0u)
+                return node_kind == 103u; /* AST_MUST_DECL: immutable m: value */
+            return node_kind == 3u; /* AST_VAR_DECL: ordinary/const declaration */
         case OIR_SEMANTIC_SYMBOL_FUNCTION:
             return node_kind == 4u || node_kind == 11u || node_kind == 12u;
         case OIR_SEMANTIC_SYMBOL_STRUCT:
