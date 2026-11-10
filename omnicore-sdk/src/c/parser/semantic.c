@@ -1242,6 +1242,59 @@ static int semantic_hard_representation_coercion_status(
     if (source_unsigned && integer_bits <= target_bits) return 1;
     return -2;
 }
+
+static void semantic_record_representation_conversion(
+    SemanticContext* ctx,
+    ASTNode* declaration_node,
+    const Slot* destination_slot,
+    const char* source_type,
+    const char* destination_type
+) {
+    uint32_t node_id, source_type_id, destination_type_id;
+    uint64_t source_bits = 0u, destination_bits = 0u;
+    uint64_t integer_bits = 0u;
+    int source_unsigned = 0;
+    uint16_t conversion_kind;
+    SemanticResultStatus status;
+    if (!ctx || !ctx->result_enabled ||
+        ctx->result_status != SEMANTIC_RESULT_OK ||
+        !declaration_node || !destination_slot ||
+        !source_type || !destination_type) return;
+
+    node_id = semantic_node_id(ctx, declaration_node);
+    source_type_id = semantic_type_id(ctx, source_type, 0);
+    destination_type_id = destination_slot->type_id
+        ? destination_slot->type_id
+        : semantic_type_id(ctx, destination_type, 1);
+    if (!node_id || !source_type_id || !destination_type_id) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+        return;
+    }
+
+    if (semantic_representation_bit_width(source_type, &source_bits)) {
+        /* source is another bit/byte representation type */
+    } else if (semantic_integer_type_width(
+            source_type, &integer_bits, &source_unsigned)) {
+        source_bits = integer_bits;
+    } else {
+        return;
+    }
+    (void)source_unsigned;
+    if (!semantic_representation_bit_width(
+            destination_type, &destination_bits)) return;
+
+    if (source_bits < destination_bits)
+        conversion_kind = SEMANTIC_RESULT_CONVERSION_WIDENING;
+    else if (source_bits > destination_bits)
+        conversion_kind = SEMANTIC_RESULT_CONVERSION_NARROWING;
+    else
+        conversion_kind = SEMANTIC_RESULT_CONVERSION_EXPLICIT_CAST;
+
+    status = semantic_result_add_conversion(
+        &ctx->result, node_id, 0u, source_type_id, destination_type_id,
+        conversion_kind, SEMANTIC_RESULT_CONVERSION_FLAG_EXPLICIT);
+    semantic_set_result_error(ctx, status);
+}
 static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
     if (type_name[0] == '!') type_name++; // Skip hard-type prefix
@@ -2094,7 +2147,10 @@ static void semantic_check_node(
                         } else if (coercion_status == -2) {
                             report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                                 "Explicit bit/byte coercion requires a runtime range check that is not yet available for this source type.");
-                        } else if (coercion_status != 1) {
+                        } else if (coercion_status == 1) {
+                            semantic_record_representation_conversion(
+                                ctx, node, declared_slot, init_type, decl->type_name);
+                        } else {
                             char buf[256];
                             snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
                                 decl->type_name, init_type);
