@@ -707,8 +707,69 @@ done:
     return ok;
 }
 
+static int test_fixed_width_representation_type_oir_roundtrip(void) {
+    static const char source[] =
+        "f:main() { v:a!8bit; v:b!16bit; v:c!32bit; v:d!64bit; v:e!128bit; "
+        "v:f!1byte; v:g!2byte; v:h!4byte; v:i!8byte; v:j!16byte; }";
+    ParserContext* parser=parser_init_source("fixed-width-types.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    uint8_t *first=NULL,*second=NULL;
+    size_t first_length=0u,second_length=0u;
+    ASTNode **storage=NULL,*decoded=NULL;
+    uint32_t *incoming=NULL;
+    uint8_t *visited=NULL;
+    OirAstGraphStackEntry *stack=NULL;
+    OirAstNodeTableView view;
+    OirStatus status;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* declaration;
+    static const char* const expected[]={
+        "!8bit","!16bit","!32bit","!64bit","!128bit",
+        "!1byte","!2byte","!4byte","!8byte","!16byte"
+    };
+    size_t index=0u;
+    int ok=0;
+    if(!parser)return 0;
+    if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count ||
+        !parser->ast_root || !ast_validate((ASTNode*)parser->ast_root,NULL))goto done;
+    status=encode_ast((ASTNode*)parser->ast_root,&first,&first_length);
+    if(status!=OIR_STATUS_OK ||
+        oir_ast_node_table_open(first,first_length,&view)!=OIR_STATUS_OK)goto done;
+    storage=(ASTNode**)calloc(view.node_count,sizeof(*storage));
+    incoming=(uint32_t*)calloc(view.node_count,sizeof(*incoming));
+    visited=(uint8_t*)calloc(view.node_count,sizeof(*visited));
+    stack=(OirAstGraphStackEntry*)calloc(view.node_count,sizeof(*stack));
+    if(!storage || !incoming || !visited || !stack)goto done;
+    status=oir_ast_frontend_read_payload(first,first_length,storage,view.node_count,
+        incoming,view.node_count,visited,view.node_count,stack,view.node_count,&decoded);
+    if(status!=OIR_STATUS_OK || !decoded || !ast_validate(decoded,NULL))goto done;
+    function=(ASTFuncDecl*)((ASTProgram*)decoded)->declarations;
+    body=function && function->body && function->body->type==AST_BLOCK
+        ? (ASTBlock*)function->body : NULL;
+    declaration=body?body->statements:NULL;
+    for(index=0u;index<sizeof(expected)/sizeof(expected[0]);++index) {
+        ASTVarDecl* variable;
+        if(!declaration || declaration->type!=AST_VAR_DECL)goto done;
+        variable=(ASTVarDecl*)declaration;
+        if(!variable->type_name || strcmp(variable->type_name,expected[index])!=0)goto done;
+        declaration=declaration->next;
+    }
+    if(declaration)goto done;
+    status=encode_ast(decoded,&second,&second_length);
+    if(status!=OIR_STATUS_OK || first_length!=second_length ||
+        memcmp(first,second,first_length)!=0)goto done;
+    ok=1;
+done:
+    if(decoded)ast_destroy(decoded);
+    free(storage);free(incoming);free(visited);free(stack);
+    free(first);free(second);parser_destroy(parser);
+    return ok;
+}
+
 int main(int argc,char** argv) {
     if(!test_use_namespace_oir_roundtrip()) { fprintf(stderr,"USE namespace OIR round-trip failed.\\n"); return 1; }
+    if(!test_fixed_width_representation_type_oir_roundtrip()) { fprintf(stderr,"Fixed-width bit/byte type OIR round-trip failed.\\n"); return 1; }
     if(!test_m_immutable_value_oir_roundtrip()) { fprintf(stderr,"m: immutable value OIR round-trip failed.\\n"); return 1; }
     if(!test_struct_literal_oir_roundtrip()) { fprintf(stderr,"Struct literal OIR AST round-trip failed.\\n"); return 1; }
     if(!test_select_scan_oir_roundtrip()) { fprintf(stderr,"Extended AST OIR round-trip failed.\\n"); return 1; }
