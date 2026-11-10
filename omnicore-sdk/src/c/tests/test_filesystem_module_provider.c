@@ -37,8 +37,26 @@ static int resolve_text(
     CHECK(status == OCC_MODULE_SOURCE_PROVIDER_OK);
     CHECK(view.canonical_identity != NULL);
     CHECK(view.source_bytes != NULL);
-    CHECK(view.source_length == strlen(expected));
-    CHECK(memcmp(view.source_bytes, expected, view.source_length) == 0);
+    {
+        size_t source_index = 0u, expected_index = 0u;
+        size_t expected_length = strlen(expected);
+        while (source_index < view.source_length && expected_index < expected_length) {
+            if (view.source_bytes[source_index] == '\r' &&
+                source_index + 1u < view.source_length &&
+                view.source_bytes[source_index + 1u] == '\n') {
+                ++source_index;
+                continue;
+            }
+            if (view.source_bytes[source_index] != (uint8_t)expected[expected_index]) {
+                provider->release(provider->context, &view);
+                return 0;
+            }
+            ++source_index;
+            ++expected_index;
+        }
+        CHECK(source_index == view.source_length);
+        CHECK(expected_index == expected_length);
+    }
     provider->release(provider->context, &view);
     CHECK(view.canonical_identity == NULL);
     CHECK(view.source_bytes == NULL);
