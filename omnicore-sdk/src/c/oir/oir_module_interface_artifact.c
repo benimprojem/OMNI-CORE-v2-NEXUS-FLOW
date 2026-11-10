@@ -75,23 +75,13 @@ static char* read_string(const uint8_t* payload, size_t length, size_t* offset,
     return value;
 }
 
-static int has_symbol(const OccModuleInterface* interface, uint32_t id) {
-    size_t i;
-    if (id == 0u) return 0;
-    for (i = 0; i < interface->symbol_count; ++i)
-        if (interface->symbols[i].source_symbol_id == id) return 1;
-    return 0;
-}
-static int has_type(const OccModuleInterface* interface, uint32_t id) {
-    size_t i;
-    if (id == 0u) return 0;
-    for (i = 0; i < interface->type_count; ++i)
-        if (interface->types[i].source_type_id == id) return 1;
-    return 0;
-}
-
 static int validate_interface(const OccModuleInterface* interface) {
+    uint8_t* symbol_ids = NULL;
+    uint8_t* type_ids = NULL;
     size_t i;
+    int valid = 0;
+    const size_t bitmap_size = (size_t)SEMANTIC_RESULT_MAX_RECORDS + 1u;
+
     if (!interface || !interface->canonical_identity ||
         !interface->canonical_identity[0] ||
         interface->schema_major != OCC_MODULE_INTERFACE_SCHEMA_MAJOR ||
@@ -104,33 +94,56 @@ static int validate_interface(const OccModuleInterface* interface) {
         interface->relation_count > SEMANTIC_RESULT_MAX_RECORDS)
         return 0;
 
+    symbol_ids = (uint8_t*)calloc(bitmap_size, 1u);
+    type_ids = (uint8_t*)calloc(bitmap_size, 1u);
+    if (!symbol_ids || !type_ids) goto done;
+
     for (i = 0; i < interface->symbol_count; ++i) {
         const OccModuleInterfaceSymbol* s = &interface->symbols[i];
-        size_t j;
-        if (!s->source_symbol_id || !s->name || !s->name[0] ||
-            (s->type_id && !has_type(interface, s->type_id))) return 0;
-        for (j = 0; j < i; ++j)
-            if (interface->symbols[j].source_symbol_id == s->source_symbol_id)
-                return 0;
+        if (!s->source_symbol_id ||
+            s->source_symbol_id > SEMANTIC_RESULT_MAX_RECORDS ||
+            !s->name || !s->name[0] ||
+            (s->type_id > SEMANTIC_RESULT_MAX_RECORDS))
+            goto done;
+        if (symbol_ids[s->source_symbol_id]) goto done;
+        symbol_ids[s->source_symbol_id] = 1u;
     }
     for (i = 0; i < interface->type_count; ++i) {
         const OccModuleInterfaceType* t = &interface->types[i];
-        size_t j;
         if (!t->source_type_id ||
-            (t->base_type_id && !has_type(interface, t->base_type_id)))
-            return 0;
-        for (j = 0; j < i; ++j)
-            if (interface->types[j].source_type_id == t->source_type_id)
-                return 0;
+            t->source_type_id > SEMANTIC_RESULT_MAX_RECORDS ||
+            t->base_type_id > SEMANTIC_RESULT_MAX_RECORDS ||
+            t->referenced_symbol_id > SEMANTIC_RESULT_MAX_RECORDS)
+            goto done;
+        if (type_ids[t->source_type_id]) goto done;
+        type_ids[t->source_type_id] = 1u;
+    }
+    for (i = 0; i < interface->symbol_count; ++i) {
+        uint32_t type_id = interface->symbols[i].type_id;
+        if (type_id && !type_ids[type_id]) goto done;
+    }
+    for (i = 0; i < interface->type_count; ++i) {
+        uint32_t base_type_id = interface->types[i].base_type_id;
+        if (base_type_id && !type_ids[base_type_id]) goto done;
     }
     for (i = 0; i < interface->relation_count; ++i) {
         const OccModuleInterfaceRelation* r = &interface->relations[i];
-        if (!has_symbol(interface, r->owner_source_symbol_id) ||
+        if (!r->owner_source_symbol_id ||
+            r->owner_source_symbol_id > SEMANTIC_RESULT_MAX_RECORDS ||
+            !symbol_ids[r->owner_source_symbol_id] ||
+            r->related_source_symbol_id > SEMANTIC_RESULT_MAX_RECORDS ||
             (r->related_source_symbol_id &&
-             !has_symbol(interface, r->related_source_symbol_id)) ||
-            (r->type_id && !has_type(interface, r->type_id))) return 0;
+             !symbol_ids[r->related_source_symbol_id]) ||
+            r->type_id > SEMANTIC_RESULT_MAX_RECORDS ||
+            (r->type_id && !type_ids[r->type_id]))
+            goto done;
     }
-    return 1;
+    valid = 1;
+
+done:
+    free(symbol_ids);
+    free(type_ids);
+    return valid;
 }
 
 OirStatus oir_module_interface_artifact_write(
