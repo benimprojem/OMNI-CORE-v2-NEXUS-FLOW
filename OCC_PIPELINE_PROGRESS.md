@@ -1783,8 +1783,9 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 ### Primitive bit/byte type audit — 2026-11-10
 
-- Lexer already emits dedicated TOKEN_TYPE_BIT and TOKEN_TYPE_BYTE; parser type-start logic accepts the primitive token range. Re-adding tokens is unnecessary.
-- byte is already present in some Semantic primitive checks, but it is not classified as an integer primitive for bitwise operator validation.
-- bit is not consistently included in Semantic primitive/type-result classification and needs targeted completion.
-- The proposed 8bit width-specific type is not currently a primitive type. Its grammar and semantics are intentionally not changed pending the design decision between raw storage units (byte), scalar one-bit values (bit) and fixed-width bit vectors (8bit, etc.).
-- Recommended direction under discussion: keep u8 numeric, byte as raw 8-bit storage, bit as one-bit value, and fixed-width Nbit as a distinct bit-vector family. Explicit conversion such as a:!8bit must be range/width checked by Semantic; no silent integer/bit-vector coercion.
+- User decision confirmed: retain the width suffix spelling `8bit`, `16bit`, `32bit`, `64bit`, and `128bit`. These are a distinct fixed-width bit-vector family, not numeric integer aliases.
+- `bit` is a one-bit value. `byte` is a raw 8-bit storage unit. `u8` remains an ordinary numeric integer; the types are not interchangeable implicitly.
+- Semantic now recognizes `bit` as a primitive type and permits `&=`, `|=`, and `^=` for matching `bit` and matching `byte` operands. These types do not gain arithmetic compound assignment; regression tests cover both accepted bitwise cases and rejected `+=` cases.
+- The existing `TOKEN_TYPE_BIT` and `TOKEN_TYPE_BYTE` lexer tokens are reused; parser already accepts the primitive token range.
+- `8bit` through `128bit` and `1byte`, `2byte`, etc. still need dedicated lexer/parser type spelling support, AST/type-expression preservation, Semantic width rules, OIR serialization and tests. Do not mark those spellings implemented until the complete path is tested.
+- Bit-vector equality/inequality, bitwise operations, shifts, single-bit set/clear/toggle, and flag testing are the intended operation family. Width mismatches must be rejected; bit vectors do not inherit ordinary arithmetic. Explicit conversion such as `a:!8bit` is intended and must be checked for source/target width and value range by Semantic.
