@@ -15,6 +15,7 @@ typedef struct FakePipeline {
     uint32_t semantic_order[8];
     size_t semantic_count;
     int cycle_mode;
+    int long_import_mode;
 } FakePipeline;
 
 static const char* fake_source_for(const char* path, int cycle_mode) {
@@ -105,8 +106,13 @@ static int fake_parse(void* context, const OccModuleSourceView* source,
     program->source_span.end_line = 1u;
     program->source_span.end_column = 1u;
     if (strcmp(name, "root") == 0) {
-        if (!append_use(program, "a") ||
-            (!((FakePipeline*)context)->cycle_mode && !append_use(program, "b"))) {
+        FakePipeline* pipeline = (FakePipeline*)context;
+        if (pipeline->long_import_mode) {
+            if (!append_use(program, "module_name_that_exceeds_limit")) {
+                ast_destroy(program); return 0;
+            }
+        } else if (!append_use(program, "a") ||
+            (!pipeline->cycle_mode && !append_use(program, "b"))) {
             ast_destroy(program); return 0;
         }
     } else if (strcmp(name, "a") == 0) {
@@ -185,6 +191,49 @@ static int test_dependency_first_semantic_schedule(void) {
     return 1;
 }
 
+static int test_use_collection_resource_limit(void) {
+    OccModuleScheduler scheduler;
+    OccModuleResolverConfig config = {4u, 8u, 16u, 1024u};
+    OccModuleSourceProvider provider;
+    OccModuleSchedulerCallbacks callbacks;
+    OccModuleSourceRequest root_request;
+    OccSourceSpan root_span;
+    FakeProvider fake_provider;
+    FakePipeline pipeline;
+    OccModuleSchedulerStatus status;
+    memset(&scheduler, 0, sizeof(scheduler));
+    memset(&provider, 0, sizeof(provider));
+    memset(&callbacks, 0, sizeof(callbacks));
+    memset(&root_request, 0, sizeof(root_request));
+    memset(&root_span, 0, sizeof(root_span));
+    memset(&fake_provider, 0, sizeof(fake_provider));
+    memset(&pipeline, 0, sizeof(pipeline));
+    pipeline.long_import_mode = 1;
+    provider.context = &fake_provider;
+    provider.resolve = fake_resolve;
+    provider.release = fake_release;
+    callbacks.context = &pipeline;
+    callbacks.parse = fake_parse;
+    callbacks.semantic = fake_semantic;
+    root_span.has_location = 1u;
+    root_span.start_line = 1u;
+    root_span.start_column = 1u;
+    root_request.requested_path = "root";
+    root_request.use_span = &root_span;
+    if (occ_module_scheduler_init(&scheduler, &config, &provider,
+        &callbacks) != OCC_MODULE_SCHEDULER_OK) return 0;
+    status = occ_module_scheduler_run(&scheduler, &root_request);
+    if (status != OCC_MODULE_SCHEDULER_RESOURCE_LIMIT ||
+        pipeline.semantic_count != 0u) {
+        fprintf(stderr, "limit test returned %s (%d)\\n",
+            occ_module_scheduler_status_string(status), (int)status);
+        occ_module_scheduler_destroy(&scheduler);
+        return 0;
+    }
+    occ_module_scheduler_destroy(&scheduler);
+    return 1;
+}
+
 static int test_dependency_cycle_is_reported(void) {
     OccModuleScheduler scheduler;
     OccModuleResolverConfig config = {4u, 8u, 512u, 1024u};
@@ -231,5 +280,6 @@ static int test_dependency_cycle_is_reported(void) {
 int main(void) {
     if (!test_dependency_first_semantic_schedule()) return 1;
     if (!test_dependency_cycle_is_reported()) return 1;
+    if (!test_use_collection_resource_limit()) return 1;
     return 0;
 }
