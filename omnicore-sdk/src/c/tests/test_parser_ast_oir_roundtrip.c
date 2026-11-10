@@ -709,7 +709,8 @@ done:
 
 static int test_fixed_width_representation_type_oir_roundtrip(void) {
     static const char source[] =
-        "f:main() { v:a!8bit; v:b!16bit; v:c!32bit; v:d!64bit; v:e!128bit; "
+        "f:main() { v:k!bit; v:l!byte; "
+        "v:a!8bit; v:b!16bit; v:c!32bit; v:d!64bit; v:e!128bit; "
         "v:f!1byte; v:g!2byte; v:h!4byte; v:i!8byte; v:j!16byte; }";
     ParserContext* parser=parser_init_source("fixed-width-types.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
@@ -725,6 +726,7 @@ static int test_fixed_width_representation_type_oir_roundtrip(void) {
     ASTBlock* body;
     ASTNode* declaration;
     static const char* const expected[]={
+        "bit","byte",
         "8bit","16bit","32bit","64bit","128bit",
         "1byte","2byte","4byte","8byte","16byte"
     };
