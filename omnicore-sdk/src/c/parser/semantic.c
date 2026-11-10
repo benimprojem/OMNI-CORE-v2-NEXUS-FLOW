@@ -2209,11 +2209,11 @@ static void semantic_check_node(
                 } else if(numeric_compound||bitwise_compound) {
                     if(left_type&&right_type&&
                        (!are_types_compatible(left_type,right_type)||
-                        !is_numeric_primitive_type(left_type)||
-                        !is_numeric_primitive_type(right_type)||
-                        (bitwise_compound&&
-                         (!is_bitwise_primitive_type(left_type)||
-                          !is_bitwise_primitive_type(right_type)))))
+                        (bitwise_compound
+                            ? (!is_bitwise_primitive_type(left_type)||
+                               !is_bitwise_primitive_type(right_type))
+                            : (!is_numeric_primitive_type(left_type)||
+                               !is_numeric_primitive_type(right_type)))))
                         report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                             bitwise_compound?
                             "Bitwise compound assignment requires matching integer operands.":
