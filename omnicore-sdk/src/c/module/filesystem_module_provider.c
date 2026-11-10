@@ -225,11 +225,11 @@ OccModuleResolverStatus occ_filesystem_module_provider_init(
         char resolved[OCC_FILESYSTEM_MODULE_PATH_MAX];
         if (!include_path || !include_path[0]) goto invalid;
         if (fs_is_absolute(include_path)) {
-            provider->include_paths[i] = fs_duplicate(include_path);
+            provider->include_paths[provider->include_count] = fs_duplicate(include_path);
         } else if (provider->project_root &&
             fs_path_join(resolved, sizeof(resolved), provider->project_root,
                 include_path)) {
-            provider->include_paths[i] = fs_duplicate(resolved);
+            provider->include_paths[provider->include_count] = fs_duplicate(resolved);
         } else {
             goto invalid;
         }
