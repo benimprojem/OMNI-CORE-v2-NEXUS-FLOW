@@ -22,7 +22,7 @@
 * **Time** → `clock_gettime`, `gettimeofday`
 * **Exit / Panic** → `_exit`
 
-> Burada da OS Bridge, POSIX standardını kapsayan bir `exf:` modül olabilir.
+> POSIX fonksiyon bildirimleri ve OS köprü uygulaması `osmodule.nxf` içinde tanımlanır; harici nesne/kütüphane bağlantı tanımları gerektiğinde ayrı `.exf` dosyalarıyla sağlanır.
 
 ---
 
@@ -37,7 +37,7 @@
 
 * **coremodule** → Yalnızca OS bağımsız CPU / memory / handler / primitive operations.
 * **osmodule** → Her OS’ye özgü fonksiyonları kapsar; coremodule'den bağımsızdır.
-* **Cross-Platform Abstraction** → Kullanıcı `SysIO.output()`, `mem.area()`, `thread.create()` gibi çağırır, alt katmanda OS-specific exf wrapper’lar çalışır.
+* **Cross-Platform Abstraction** → Kullanıcı `SysIO.output()`, `mem.area()`, `thread.create()` gibi çağırır; alt katmanda `osmodule.nxf` içindeki OS-specific wrapper'lar, gerektiğinde `.exf` harici bağlantıları kullanır.
 * **Dead-Code Optimization** → Kullanılmayan OS-specific fonksiyonlar linker tarafından çıkarılır; EXE minimal kalır.
 
 ---
@@ -53,7 +53,7 @@
 
 ---
 
-## **osmodule.exf API Tablosu (Önerilen)**
+## **osmodule.nxf için eski API taslak notları (normatif değildir)**
 
 | Fonksiyon / Metot                                    | Açıklama                             | OS Wrapper / Notes                                |
 | ---------------------------------------------------- | ------------------------------------ | ------------------------------------------------- |
@@ -93,7 +93,7 @@
 
 ---
 
-Böylece **osmodule.exf** OS bağımlı standart modül, eski **Core** modülünün yeni adı olan **coremodule** ise saf OS bağımsız fonksiyon kütüphanesi olur. SDK deposunda coremodule kaynak dosyasının eklenmesi ve fonksiyon bazında ayrıştırma henüz tamamlanmamıştır.
+Kanonik kaynak dosyaları `omnicore-sdk/occ/libs/osmodule.nxf` ve `omnicore-sdk/occ/libs/coremodule.nxf` konumundadır. Her ikisi şimdilik başlangıç dosyasıdır; bu belgedeki eski API tabloları uygulanmış/kararlaştırılmış arayüz sayılmaz.
 
 ---
 
@@ -101,7 +101,7 @@ Böylece **osmodule.exf** OS bağımlı standart modül, eski **Core** modülün
 
 ## Yeni modül adları
 
-- Eski `CoreModule.exf` dosyası `osmodule.exf` olarak yeniden adlandırılmıştır. Dosya/standart I/O ve işletim sistemi servisleri bu modüle aittir.
+- Eski `CoreModule.exf` dosyası `osmodule.nxf` olarak yeniden adlandırılmıştır. Dosya/standart I/O ve işletim sistemi servisleri bu modüle aittir.
 - Eski `Core` modülünün yeni adı `coremodule` olacaktır; bu modül OS bağımsız fonksiyonlardan oluşmalıdır ve `osmodule` bağımlılığı taşımamalıdır.
 - Yalnızca `osmodule` varsayılan otomatik yükleme kapsamındadır; `no: osmodule;` bu yüklemeyi kapatır. `no:` genel modül kapatma bildirimi değildir.
-- Mevcut `osmodule.exf` içindeki grupların bir kısmı (ör. Array/String/Math/Crypto) OS bağımsız adaylar içerir. Bunların `coremodule`'e taşınması, bağımlılık ve Group `default` davranışları incelenerek ayrı bir değişiklik grubunda yapılacaktır; bu belge mevcut karışık kaynak içeriğini tamamlanmış bir ayrıştırma olarak göstermez.
+- Mevcut `osmodule.nxf` içindeki grupların bir kısmı (ör. Array/String/Math/Crypto) OS bağımsız adaylar içerir. Bunların `coremodule`'e taşınması, bağımlılık ve Group `default` davranışları incelenerek ayrı bir değişiklik grubunda yapılacaktır; bu belge mevcut karışık kaynak içeriğini tamamlanmış bir ayrıştırma olarak göstermez.
