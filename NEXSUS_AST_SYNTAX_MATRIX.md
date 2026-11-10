@@ -315,7 +315,7 @@ The following are tokenized by the C Lexer but have no explicit Parser consumpti
 | Lexed form | Syntax-reference meaning | Current Parser state | Next action |
 |---|---|---|---|
 | `no:` / `TOKEN_KW_NO` | Dependency/OS-adapter exclusion directive (e.g. `no:CoreModule;`) | No token consumption; no AST node/directive representation | Specify directive scope and artifact representation; then implement parser + semantic/module-resolution test |
-| `m:` / `TOKEN_PRE_MUST` | Immutable value declaration; initializer expression required | `AST_MUST_DECL` (legacy append-only kind), Parser accepts program/block scope | Semantic infers initializer type, creates const symbol and rejects assignment/update; `use` alone handles module/source imports |
+| `m:` / `TOKEN_PRE_MUST` | Immutable value declaration; initializer expression required | `AST_MUST_DECL` (legacy append-only kind), Parser accepts program/block scope | Semantic infers initializer type, creates an `IMMUTABLE` symbol (distinct from `c:`'s `CONST` flag) and rejects assignment/update; `use` alone handles module/source imports |
 | `r:`, `t:`, `o:` | Reserved prefixes | Deliberately reserved in syntax reference | Keep rejected/reserved; no AST node needed until activated |
 | `...` / `TOKEN_ELLIPSIS` | Variadic function parameter marker (documented as trailing marker in signatures) | No Parser consumption; `ASTFuncDecl` has no variadic field | Add explicit function signature flag/AST codec + OIR field contract and tests before accepting |
 | `asm:`, `fastexec`, `asmcall()`, `asmjmp()` | `AST_FASTEXEC_BLOCK`, `AST_ASM_LABEL`; `asmcall`/`asmjmp` remain `AST_FUNC_CALL` with intrinsic callee names | Lexer/Parser now consume FASTEXEC and raw ASM declaration syntax; stable token ID 164 and OIR AST IDs 104–105 | Parser scope diagnostic exists for ASM declarations; Semantic label resolution and scope checks for call/jump remain open |
@@ -329,7 +329,7 @@ This section separates **missing AST representation** from syntax that can legit
 
 | Syntax in `docs/language/syntax-reference.md` | AST representation decision | Audit status | Required work |
 |---|---|---|---|
-| `m:name = expression` (immutable value) | `AST_MUST_DECL` with owned name and initializer expression | **AST/Parser + OIR kind/schema/bridge + Semantic const symbol implemented; CI in progress** | Verify type inference, scope/visibility, assignment/update rejection, parser→OIR round-trip; no file/dependency resolution |
+| `m:name = expression` (immutable value) | `AST_MUST_DECL` with owned name and initializer expression | **AST/Parser + OIR kind/schema/bridge + Semantic immutable symbol flag implemented; CI verification tracked in progress** | Verify type inference, scope/visibility, assignment/update rejection, parser→OIR round-trip; no file/dependency resolution |
 | `r:`, `t:`, `o:` reserved prefixes | No executable grammar contract | **Reserved, not missing executable AST** | Keep rejected/reserved; do not add nodes until language spec activates them |
 | Variadic parameter `...` | Final zero-payload `AST_VARIADIC_PARAM` in function parameter list | **AST/Parser implemented; OIR/Semantic pending** | OIR ID/schema/bridge; Semantic variadic packing and signature checks |
 | Named arguments `name:value` | `AST_NAMED_ARG` with owned label and value expression; positional expressions remain unchanged | **AST/Parser implemented; OIR/Semantic pending** | OIR ID/schema/bridge; Semantic parameter-name resolution and argument matching |
@@ -399,7 +399,7 @@ This defines CLI argument *delivery*, not the full `main` return/exit-code conve
 
 ## AST contract — immutable `m:` value declaration (corrected 2026-11-10)
 
-`m:name = expression;` declares an immutable value, not a compile-time dependency. Lexer emits `TOKEN_PRE_MUST`; the AST kind 103 / `AST_MUST_DECL` payload retains an owned name and initializer expression for append-only compatibility. Parser accepts the combined `m:Name` prefix token (and a separated name if lexed separately), requires `=` and an initializer, and permits program/block scope. Semantic creates a const symbol, infers the initializer type and rejects reassignment/update. OIR kind 103 already carries name + initializer reference. Current validation adds parser, AST graph, Semantic and parser→OIR round-trip tests; CI status is tracked in `OCC_PIPELINE_PROGRESS.md`. Source/module loading is exclusively `use`/Module Resolver responsibility.
+`m:name = expression;` declares an immutable value, not a compile-time dependency. Lexer emits `TOKEN_PRE_MUST`; the AST kind 103 / `AST_MUST_DECL` payload retains an owned name and initializer expression for append-only compatibility. Parser accepts the combined `m:Name` prefix token (and a separated name if lexed separately), requires `=` and an initializer, and permits program/block scope. Semantic creates an `IMMUTABLE` symbol (not a `CONST`/`c:` symbol), infers the initializer type and rejects reassignment/update. OIR kind 103 already carries name + initializer reference. Current validation adds parser, AST graph, Semantic and parser→OIR round-trip tests; CI status is tracked in `OCC_PIPELINE_PROGRESS.md`. Source/module loading is exclusively `use`/Module Resolver responsibility.
 
 
 ## Parser/AST symbol audit (2026-11-04)
