@@ -68,6 +68,30 @@ Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY
 - **Hard-Lock (`!`):** `v:sayi!u64 = 50`. Veri "50" 8 bit olsa bile 64-bit yer ayrılır.
 
 **Tipler:** `bit`, `byte` (u8), `hex`, `char`, `f32`, `f64`, `d32`, `d64`, `i8..i64`, `u8..u64`, `bool`. `d32` ve `d64`, Decimal (ondalık) numeric tipleridir; Semantic numeric işlem ve compound assignment kontrollerinde tanınırlar. `d128`, `i128`, `u128`, `f128` gibi daha geniş tipler ileride eklenebilir; henüz desteklenmez.
+
+**Bit/byte temsil türleri (C compiler branch):** `bit` tek bitlik veri, `byte` ham 8-bit saklama birimidir. `bool` mantıksal doğruluk türü; `u8` ise aritmetik işaretsiz tamsayıdır. Aynı fiziksel genişlik, türlerin örtük olarak birbirine dönüştürülebileceği anlamına gelmez.
+
+| Tür ailesi | Desteklenen yazımlar | Anlam |
+|---|---|---|
+| Tek bit | `bit` | Tek 0/1 veri biti |
+| Ham byte | `byte` | 8-bit ham saklama birimi |
+| Bit vektörü | `8bit`, `16bit`, `32bit`, `64bit`, `128bit` | N bitlik maske/flag vektörü |
+| Byte bloğu | `1byte`, `2byte`, `4byte`, `8byte`, `16byte` | N byte ham veri bloğu |
+
+Bu türler değişken bildiriminde açık tür işaretiyle yazılır; `!` tür adının parçası değil, zorlamanın işaretidir:
+
+```nxf
+v:enabled!bit = 1;
+v:packet_type!byte = 0x2A;
+v:flags!16bit = 0x0101;
+v:header!4byte;
+```
+
+PC bellekleri byte adreslenebilir olduğundan tekil `bit` değeri bir byte'lık slot kullanır. Yalnız slotun bit 0 alanı değer taşır: `0x00` false, `0x01` true; bit 1–7 sıfır/rezervedir. Ayrı `bit` değişkenleri otomatik paketlenmez. Paketli alanlar `Nbit` ile ifade edilir.
+
+Bit vektörleri LSB-first sıralanır: `flags[0]` ilk byte'ın bit 0'ı (maske `0x01`), `flags[7]` ilk byte'ın bit 7'si (maske `0x80`), `flags[8]` ikinci byte'ın bit 0'ıdır. Genel eşleme `byte_index = bit_index / 8`, `bit_offset = bit_index % 8` biçimindedir. Bu, bit vektörünün kanonik byte sıralamasıdır ve CPU integer endianness'inden bağımsızdır. `Nbit` saklama boyutu N/8 byte, `Nbyte` saklama boyutu N byte'tır. `sizeof(value)` byte cinsinden boyut döndürür.
+
+`!Type` açık zorlamadır. Bit/byte hedeflerine sabit tamsayı atanırken değer hedef aralığına sığmalıdır; örneğin `1` → `bit`, `255` → `byte` veya `8bit` geçerlidir, `2` → `bit` ve `256` → `8bit` geçersizdir. Daha dar unsigned/bit temsil türünden daha geniş hedefe sıfır genişletme güvenlidir. Kanıtlanamayan dinamik daraltma sessizce kesilmez ve Semantic tarafından reddedilir. Başarılı dönüşümler SemanticResult/OIR metadata'sında açık dönüşüm olarak saklanır; bu kayıt tek başına runtime komutunun üretildiği anlamına gelmez.
 **Oyun/Grafik:** `Vec2`, `Vec3`, `Vec4` (SIMD Destekli).
 
 ---
@@ -265,14 +289,50 @@ Bu operatörler, işlem sonucunu her zaman en küçük sığabileceği tipe (u8,
 
 Bu tablo mevcut C Parser üretim sırasını yansıtır. `&&` `||`'dan daha yüksek önceliklidir. Kısa devre yürütme davranışı ayrıca OIR/lowering sözleşmesinde doğrulanmalıdır.
 
-####  2.6 Bit Düzeyinde İşlemler (Kernel & Driver İçin Şart)**
+#### 2.6 Bit düzeyinde işlemler ve indeks erişimi
 
-* `&` (Bitwise AND)
-* `|` (Bitwise OR)
-* `^` (Bitwise XOR)
-* `~` (Bitwise NOT/Tersleme)
-* `<<`, `>>` (Bit Kaydırma)
-* `|=`, `&=`, `^=` (Bitwise bileşik atama)
+Bitwise işlemler \`bit\`, \`byte\`, sabit genişlikli \`Nbit\` ve \`Nbyte\` temsil türlerinde; ayrıca Semantic'in izin verdiği tamsayı türlerinde uygulanır. İki operandlı işlemlerde operand türleri aynı olmalı; genişlik veya temsil türü farklıysa örtük dönüşüm yapılmaz. Gerekli dönüşüm açık \`!\` zorlamasıyla yazılır.
+
+| Operatör | İşlem | Kural |
+|---|---|---|
+| \`&\` | Bitwise AND | İki eş tür operand |
+| \`|\` | Bitwise OR | İki eş tür operand |
+| \`^\` | Bitwise XOR | İki eş tür operand |
+| \`~\` | Bitwise NOT | Tek bitwise-capable operand; aynı tür/genişlikte sonuç |
+| \`&=\`, \`|=\`, \`^=\` | Bitwise bileşik atama | Lvalue ve sağ operand uyumlu/eş tür olmalı |
+| \`==\`, \`!=\` | Eşitlik | Aynı temsil türü ve genişlikte karşılaştırma |
+
+\`\`\`nxf
+f:update_flags() {
+    v:flags!8bit = 0;
+    v:mask!8bit = 0x05;
+
+    flags |= mask;       # bitleri etkinleştir
+    flags &= ~mask;      # maskede 1 olan bitleri temizle
+    flags ^= mask;       # maskede 1 olan bitleri tersle
+
+    v:has_flag!bool = (flags & mask) != 0;
+}
+\`\`\`
+
+\`Nbit[index]\` erişimi tek bir \`bit\` okur veya yazar. İndeks 0 tabanlı ve LSB-first'tir. \`Nbyte[index]\` erişimi bir \`byte\` okur veya yazar; indeks 0 ilk byte'tır.
+
+\`\`\`nxf
+f:inspect() {
+    v:flags!16bit = 0;
+    v:enabled!bit = 1;
+    flags[0] = enabled;        # ilk byte, LSB
+    v:high!bit = flags[15];    # ikinci byte, MSB
+
+    v:data!4byte;
+    v:first!byte = data[0];
+    v:last!byte = data[3];
+}
+\`\`\`
+
+Sabit olarak hesaplanabilen negatif veya sınır dışı indeks Semantic hatasıdır. Dinamik indeks için çalışma zamanı sınır kontrolü henüz OIR/Verifier/runtime sözleşmesinde tamamlanmamıştır. Bit/byte indeksleme OIR lowering kapsamına henüz alınmamıştır.
+
+**Önemli:** \`<<\` ve \`>>\` Nexus Flow'un Zone Write / Flow Feed akış operatörleridir; bit kaydırma işlemi değildir. Bu işaretlere sayısal shift anlamı yüklenmez.
 
 ####  2.7 Özel Operatörler**
 
