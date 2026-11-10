@@ -32,6 +32,8 @@ int main(void) {
 
     imports_artifact.imports=imports;
     imports_artifact.envelope.header.artifact_kind=OIR_KIND_MODULE_IMPORTS;
+    imports_artifact.envelope.header.payload_schema_major=1u;
+    imports_artifact.envelope.header.payload_schema_minor=0u;
     imports_artifact.envelope.header.producer_stage_id=OCC_STAGE_OIR_VERIFY;
     imports_artifact.envelope.header.validity=OIR_VALIDITY_VALID;
     imports_artifact.envelope.header.job_id=501u;
@@ -39,6 +41,8 @@ int main(void) {
     interfaces[0].module_interface.canonical_identity="file:///lib/math.nxf";
     interfaces[0].module_interface.schema_major=OCC_MODULE_INTERFACE_SCHEMA_MAJOR;
     interfaces[0].envelope.header.artifact_kind=OIR_KIND_MODULE_INTERFACE;
+    interfaces[0].envelope.header.payload_schema_major=1u;
+    interfaces[0].envelope.header.payload_schema_minor=0u;
     interfaces[0].envelope.header.producer_stage_id=OCC_STAGE_OIR_VERIFY;
     interfaces[0].envelope.header.validity=OIR_VALIDITY_VALID;
     interfaces[0].envelope.header.job_id=501u;
@@ -46,6 +50,8 @@ int main(void) {
     interfaces[1].module_interface.canonical_identity="file:///lib/io.nxf";
     interfaces[1].module_interface.schema_major=OCC_MODULE_INTERFACE_SCHEMA_MAJOR;
     interfaces[1].envelope.header.artifact_kind=OIR_KIND_MODULE_INTERFACE;
+    interfaces[1].envelope.header.payload_schema_major=1u;
+    interfaces[1].envelope.header.payload_schema_minor=0u;
     interfaces[1].envelope.header.producer_stage_id=OCC_STAGE_OIR_VERIFY;
     interfaces[1].envelope.header.validity=OIR_VALIDITY_VALID;
     interfaces[1].envelope.header.job_id=501u;
