@@ -195,6 +195,73 @@ done:
     return ok;
 }
 
+static int test_m_immutable_value_oir_roundtrip(void) {
+    static const char source[] =
+        "m:pi = 3.141592653589793;\\n"
+        "f:main() { m:limit = 64; echo(pi); echo(limit); }";
+    ParserContext* parser=parser_init_source("immutable-value-oir.nxf",
+        (const uint8_t*)source,sizeof(source)-1u);
+    uint8_t *first=NULL,*second=NULL;
+    size_t first_length=0u,second_length=0u;
+    ASTNode *decoded=NULL;
+    ASTNode **storage=NULL;
+    uint32_t *incoming=NULL;
+    uint8_t *visited=NULL;
+    OirAstGraphStackEntry *stack=NULL;
+    OirAstNodeTableView view;
+    ASTMustDecl *original,*roundtrip;
+    OirStatus status;
+    int ok=0;
+    if(!parser)return 0;
+    if(parser_run(parser)!=PARSER_STATUS_OK || parser->error_count ||
+        !parser->ast_root || !ast_validate((ASTNode*)parser->ast_root,NULL) ||
+        first_missing_source_span((ASTNode*)parser->ast_root,0u))goto done;
+    original=(ASTMustDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    if(!original || !original->name || strcmp(original->name,"pi")!=0 ||
+        !original->source || original->source->type!=AST_LITERAL ||
+        strcmp(((ASTLiteral*)original->source)->string_value,"3.141592653589793")!=0)
+        goto done;
+    status=encode_ast((ASTNode*)parser->ast_root,&first,&first_length);
+    if(status!=OIR_STATUS_OK ||
+        oir_ast_node_table_open(first,first_length,&view)!=OIR_STATUS_OK)goto done;
+    storage=(ASTNode**)calloc(view.node_count,sizeof(*storage));
+    incoming=(uint32_t*)calloc(view.node_count,sizeof(*incoming));
+    visited=(uint8_t*)calloc(view.node_count,sizeof(*visited));
+    stack=(OirAstGraphStackEntry*)calloc(view.node_count,sizeof(*stack));
+    if(!storage || !incoming || !visited || !stack)goto done;
+    status=oir_ast_frontend_read_payload(first,first_length,storage,view.node_count,
+        incoming,view.node_count,visited,view.node_count,stack,view.node_count,&decoded);
+    if(status!=OIR_STATUS_OK || !decoded || !ast_validate(decoded,NULL))goto done;
+    roundtrip=(ASTMustDecl*)((ASTProgram*)decoded)->declarations;
+    if(!roundtrip || !roundtrip->name || strcmp(roundtrip->name,"pi")!=0 ||
+        !roundtrip->source || roundtrip->source->type!=AST_LITERAL ||
+        strcmp(((ASTLiteral*)roundtrip->source)->string_value,
+            "3.141592653589793")!=0 ||
+        !roundtrip->base.source_span.has_location)goto done;
+    {
+        ASTFuncDecl* function=(ASTFuncDecl*)roundtrip->base.next;
+        ASTBlock* body=function && function->body && function->body->type==AST_BLOCK
+            ? (ASTBlock*)function->body : NULL;
+        ASTMustDecl* local=body && body->statements &&
+            body->statements->type==AST_MUST_DECL
+                ? (ASTMustDecl*)body->statements : NULL;
+        if(!local || !local->name || strcmp(local->name,"limit")!=0 ||
+            !local->source || local->source->type!=AST_LITERAL ||
+            strcmp(((ASTLiteral*)local->source)->string_value,"64")!=0)
+            goto done;
+    }
+    status=encode_ast(decoded,&second,&second_length);
+    if(status!=OIR_STATUS_OK || first_length!=second_length ||
+        memcmp(first,second,first_length)!=0)goto done;
+    ok=1;
+done:
+    if(decoded)ast_destroy(decoded);
+    free(storage);free(incoming);free(visited);free(stack);
+    free(first);free(second);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int test_struct_literal_oir_roundtrip(void) {
     static const char source[] =
         "f:main() {"
@@ -642,6 +709,7 @@ done:
 
 int main(int argc,char** argv) {
     if(!test_use_namespace_oir_roundtrip()) { fprintf(stderr,"USE namespace OIR round-trip failed.\\n"); return 1; }
+    if(!test_m_immutable_value_oir_roundtrip()) { fprintf(stderr,"m: immutable value OIR round-trip failed.\\n"); return 1; }
     if(!test_struct_literal_oir_roundtrip()) { fprintf(stderr,"Struct literal OIR AST round-trip failed.\\n"); return 1; }
     if(!test_select_scan_oir_roundtrip()) { fprintf(stderr,"Extended AST OIR round-trip failed.\\n"); return 1; }
     if(!test_fast_exec_asm_oir_roundtrip()) { fprintf(stderr,"FASTEXEC ASM OIR round-trip failed.\\n"); return 1; }
