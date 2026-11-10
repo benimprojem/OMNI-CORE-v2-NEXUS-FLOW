@@ -700,6 +700,34 @@ int main(int argc, char** argv) {
         OccModuleArtifactInputV1 stage_input;
         size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
         assert(build_cfg_module_artifact(&input, &input_length, 19));
+        {
+            OirArtifactView artifact_view;
+            OirSectionView payload_view;
+            OirModuleView module_view;
+            OirModuleInstruction bitwise_instruction;
+            OirModuleValue result_value, left_value, right_value;
+            OirModuleOperand left_operand, right_operand;
+            assert(oir_artifact_open(input, input_length, &artifact_view) == OIR_STATUS_OK);
+            assert(oir_artifact_get_section(&artifact_view, 0u, &payload_view) == OIR_STATUS_OK);
+            assert(oir_module_open(payload_view.data, (size_t)payload_view.length,
+                &module_view) == OIR_STATUS_OK);
+            assert(oir_module_get_instruction(&module_view, 2u,
+                &bitwise_instruction) == OIR_STATUS_OK);
+            assert(bitwise_instruction.opcode_id == OIR_OP_BIT_AND);
+            assert(oir_module_get_value(&module_view, 1u, &result_value) == OIR_STATUS_OK);
+            assert(oir_module_get_operand(&module_view, bitwise_instruction.first_operand,
+                &left_operand) == OIR_STATUS_OK);
+            assert(oir_module_get_operand(&module_view, bitwise_instruction.first_operand + 1u,
+                &right_operand) == OIR_STATUS_OK);
+            assert(left_operand.kind == OIR_OPERAND_VALUE &&
+                right_operand.kind == OIR_OPERAND_VALUE);
+            assert(oir_module_get_value(&module_view, left_operand.reference_id - 1u,
+                &left_value) == OIR_STATUS_OK);
+            assert(oir_module_get_value(&module_view, right_operand.reference_id - 1u,
+                &right_value) == OIR_STATUS_OK);
+            fprintf(stderr, "bitwise fixture: result type=%u left type=%u right type=%u\\n",
+                result_value.type_id, left_value.type_id, right_value.type_id);
+        }
         memset(&stage_input, 0, sizeof(stage_input));
         stage_input.bytes = input; stage_input.length = input_length;
         {
