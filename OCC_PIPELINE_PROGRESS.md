@@ -1669,3 +1669,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - ASTProgram.disable_osmodule == 0 durumu için ayrı test eklendi. Root modülün implicit osmodule bağımlılığı explicit importlardan bağımsız kaydedilir ve Semantic sırası osmodule → root olur. Test fixture'ında osmodule kendi implicit bağımlılığını disable_osmodule ile kapatır.
 - Mevcut testler cycle, resource limit, dependency-first sıralama ve provider view release sayısını da korur.
 - **CI:** Test genişletme commit'leri için Actions çalışıyor; tüm platformlar, ASan/UBSan ve Valgrind sonuçları tamamlanmadan yeni kapsam doğrulanmış sayılmayacak.
+
+### Semantic module interface snapshot — 2026-11-10
+
+- Added occ_module_interface C library, built from finalized SemanticResult data without coupling the Resolver to Semantic internals.
+- Snapshot carries canonical module identity, schema version 1.0, publication-candidate symbols, referenced type closure (including base types), and relations owned by published symbols.
+- Publication candidates are selected by the existing PUBLIC or EXPORTED SemanticResult flags. Both flags are preserved exactly; no unverified equivalence or access rule is imposed by the snapshot layer.
+- Source-module symbol/type IDs remain stable and explicitly source-local. Importer Semantic must map references rather than reusing these IDs as local IDs.
+- Group/member relation metadata is retained only when both owner and related symbol are publication candidates; private related declarations are not leaked through the snapshot.
+- Added CTest coverage for public/exported Group + member data, type and relation preservation, private symbol omission, and rejection of non-finalized SemanticResult input.
+- Not complete: OIR serialization/validation of the interface, AST_USE alias/namespace binding, importer-side collision/visibility/type checks, actual Semantic DLL input extension, and main.c scheduler integration. This snapshot is a tested in-memory foundation only.
