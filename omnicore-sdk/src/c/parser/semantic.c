@@ -1807,7 +1807,8 @@ static void semantic_check_node(
             } else {
                 declared_slot = add_slot(
                     ctx, immutable->name, SLOT_VAR, 1,
-                    value_type, node, 0, 0, 0, 0u);
+                    value_type, node, 0, 0, 0,
+                    SEMANTIC_RESULT_SYMBOL_FLAG_IMMUTABLE);
                 if (declared_slot && value_type && *value_type) {
                     uint32_t inferred_type_id = semantic_type_id(ctx, value_type, 0);
                     declared_slot->type_id = inferred_type_id;
