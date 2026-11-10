@@ -1507,3 +1507,6 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Ubuntu CTest: **62/62 passed**. The new `occ_predefined_standard_libraries_staged_for_runtime` test confirms that `occ.ocf`, `occ/libs/osmodule.nxf` and `occ/libs/coremodule.nxf` are staged into the expected build layout and that the runtime include path matches.
 - Valgrind CTest: **62/62 passed**.
 - This validates packaging/staging only. It does not claim that the C host has started resolving/importing Nexus Flow modules; the host provider and recursive module scheduler remain the next integration task.
+
+
+- **Host integration inspection:** `main.c` currently resolves `occ.ocf` and calls `get_config_language()`, but does not parse `[include]` or `[dependencies]`. Therefore the new include paths and CMake staging are packaging-ready, not yet active module resolution. Next implementation unit is a bounded C OCF include/dependency reader plus a filesystem source-provider adapter; only then should recursive module scheduling consume the existing Resolver API.
