@@ -120,7 +120,7 @@
 | 100 | `AST_BLOCK_HALT` | Block-scoped `}?;` cleanup marker; no node-specific fields |
 | 101 | `AST_VARIADIC_PARAM` | Final variadic parameter marker; no node-specific fields |
 | 102 | `AST_NAMED_ARG` | Named call argument; label and value |
-| 103 | `AST_MUST_DECL` | Compile-time dependency declaration; name and source expression |
+| 103 | `AST_MUST_DECL` | Immutable m: value declaration; name and initializer expression |
 | 104 | `AST_FASTEXEC_BLOCK` | FASTEXEC execution-scope container; ordered statements |
 | 105 | `AST_ASM_LABEL` | Inline ASM label and exact raw source body |
 | 106 | `AST_STRUCT_LITERAL` | Nominal Struct literal; type name and ordered field initializers |
