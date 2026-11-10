@@ -3,6 +3,7 @@
 
 #include "oir.h"
 #include "../core/diagnostics.h"
+#include "../module/module_scheduler.h"
 
 #ifdef __cplusplus
 extern "C" {
