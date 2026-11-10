@@ -210,6 +210,14 @@ OccModuleResolverStatus occ_filesystem_module_provider_init(
         provider->project_root = fs_duplicate(config->project_config->project_root);
         if (!provider->project_root) goto oom;
     }
+    if (config->project_config->project_root) {
+        char default_include[OCC_FILESYSTEM_MODULE_PATH_MAX];
+        if (!fs_path_join(default_include, sizeof(default_include),
+            provider->project_root, "include")) goto invalid;
+        provider->include_paths[provider->include_count] = fs_duplicate(default_include);
+        if (!provider->include_paths[provider->include_count]) goto oom;
+        ++provider->include_count;
+    }
     if (config->project_config->include_count > OCC_PROJECT_CONFIG_MAX_INCLUDE_PATHS)
         goto invalid;
     for (i = 0u; i < config->project_config->include_count; ++i) {
@@ -225,7 +233,7 @@ OccModuleResolverStatus occ_filesystem_module_provider_init(
         } else {
             goto invalid;
         }
-        if (!provider->include_paths[i]) goto oom;
+        if (!provider->include_paths[provider->include_count]) goto oom;
         ++provider->include_count;
     }
     provider->max_source_bytes = config->max_source_bytes
