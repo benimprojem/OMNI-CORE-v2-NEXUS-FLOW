@@ -1569,9 +1569,19 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             break;
         }
         case AST_BLOCK:
-        case AST_PROGRAM:
         case AST_ASM_BLOCK: {
             ((ASTBlock*)node)->statements = ast_deserialize_recursive(reader);
+            break;
+        }
+        case AST_PROGRAM: {
+            ASTProgram* program = (ASTProgram*)node;
+            program->declarations = ast_deserialize_recursive(reader);
+            if (reader->format_version >= 6u) {
+                if (!ast_read_exact(reader, &program->disable_osmodule,
+                        sizeof(program->disable_osmodule)) ||
+                    !ast_read_exact(reader, &program->disable_osmodule_span,
+                        sizeof(program->disable_osmodule_span))) goto fail;
+            }
             break;
         }
         case AST_FUNC_CALL:
@@ -1843,7 +1853,7 @@ ASTNode* ast_deserialize(FILE* in) {
         if (got == sizeof(prefix) && memcmp(prefix, AST_STREAM_MAGIC, sizeof(prefix)) == 0) {
             uint32_t version = 0u;
             if (fread(&version, sizeof(version), 1u, in) != 1u ||
-                (version != 1u && version != 2u && version != 3u && version != 4u && version != AST_STREAM_VERSION)) return NULL;
+                (version != 1u && version != 2u && version != 3u && version != 4u && version != 5u && version != AST_STREAM_VERSION)) return NULL;
             reader.format_version = version;
         } else {
             if (ferror(in)) return NULL;
@@ -2019,7 +2029,28 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
 #define V(child,field) do { if(!ast_validation_child(s,n,(child),(field),0)) return 0; } while(0)
 #define R(child,field) do { if(!ast_validation_child(s,n,(child),(field),1)) return 0; } while(0)
         switch(n->type) {
-        case AST_PROGRAM: V(((ASTProgram*)n)->declarations,"declarations"); break;
+        case AST_PROGRAM: {
+            const ASTProgram* program=(const ASTProgram*)n;
+            const OccSourceSpan* span=&program->disable_osmodule_span;
+            if (program->disable_osmodule > 1u)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"disable_osmodule");
+            if (program->disable_osmodule) {
+                if (!span->has_location || span->has_location != 1u ||
+                    span->end_offset < span->start_offset ||
+                    span->start_line == 0u || span->start_column == 0u ||
+                    span->end_line == 0u || span->end_column == 0u ||
+                    span->end_line < span->start_line ||
+                    (span->end_line == span->start_line &&
+                        span->end_column < span->start_column))
+                    return ast_validation_fail(s,AST_VALIDATE_INVALID_SPAN,n,"disable_osmodule_span");
+            } else if (span->has_location || span->source_id || span->start_offset ||
+                span->end_offset || span->start_line || span->start_column ||
+                span->end_line || span->end_column) {
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_SPAN,n,"unused_disable_osmodule_span");
+            }
+            V(program->declarations,"declarations");
+            break;
+        }
         case AST_BLOCK: case AST_ASM_BLOCK: V(((ASTBlock*)n)->statements,"statements"); break;
         case AST_FASTEXEC_BLOCK: V(((ASTFastExecBlock*)n)->statements,"statements"); break;
         case AST_ASM_LABEL: {
