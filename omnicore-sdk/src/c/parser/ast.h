@@ -451,6 +451,9 @@ typedef struct {
 typedef struct {
     ASTNode base;
     ASTNode* declarations; // Global tanımlar
+    /* Program policy: suppress the implicit OS module only when explicitly set. */
+    uint8_t disable_osmodule;
+    OccSourceSpan disable_osmodule_span;
 } ASTProgram;
 
 // Fonksiyonlar
