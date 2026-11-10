@@ -26,7 +26,7 @@ repository/
     │   └── libs/                # Önceden tanımlı Nexus Flow modülleri
     │       ├── osmodule.nxf
     │       └── coremodule.nxf
-    ├── dpslib/
+    ├── occ/dsplibs/            # OCM merkezi bağımlılık deposu
     ├── docs/
     ├── CMakeLists.txt
     ├── build_c.bat
@@ -36,6 +36,22 @@ repository/
 CMake etkin kaynak kökü olarak omnicore-sdk/src/c/ kullanır. Çalışma dalında yalnızca C derleyici kaynakları ve C build/test belgeleri tutulur.
 
 `omnicore-sdk/docs/syntax.md`, Nexus Flow için tek normatif syntax/language reference dosyasıdır. `omnicore-sdk/docs/README.md` bu klasördeki dil ve SDK belgelerine giriş noktasıdır. Kök README yalnızca proje tanımı ve geliştirme takibini tutar; dil referansı burada kopyalanmaz.
+
+## Kaynak ağacı ve dağıtım ağacı ayrımı
+
+`omnicore-sdk/` kaynak kodu, CMake, testler, specs ve belgeleri barındırır. `occ/` ise derleme sırasında üretilen dağıtım paketinin köküdür. `build/` klasörü bu paket kökünü aynen üretir; yayınlama aşamasında `build/` dizini `occ/` adıyla dağıtılabilir.
+
+```text
+occ/                         # CMAKE_BINARY_DIR; release package root
+├── bin/                     # occ, ocm ve stage DLL'leri
+├── libs/                    # osmodule.nxf, coremodule.nxf
+├── dsplibs/                 # OCM tarafından yönetilen ortak harici bağımlılıklar
+├── targets/                 # Target descriptor dosyaları
+├── lang/                    # Mesaj/dil kaynakları
+└── occ.ocf                  # Paket kökü config dosyası
+```
+
+OCC executable `bin/` içinde kalır; runtime config, target ve lang yolları `bin/` dizininin üstündeki paket kökünden çözülür. DLL arama yolu `bin/` olarak kalır. Proje kaynakları veya bağımlılıklar proje dizinlerine kopyalanmaz.
 
 ## Sonraki hedef düzen
 
@@ -54,10 +70,10 @@ omnicore-sdk/
 │   └── oce/                     # IDE/editor; compiler'dan ayrı
 ├── targets/
 ├── occ/
-│   └── libs/                    # Önceden tanımlı Nexus Flow modülleri
-│       ├── osmodule.nxf
-│       └── coremodule.nxf
-├── dpslib/
+│   ├── libs/                    # Önceden tanımlı Nexus Flow modülleri
+│   │   ├── osmodule.nxf
+│   │   └── coremodule.nxf
+│   └── dsplibs/                 # OCM merkezi bağımlılık deposu
 ├── tests/                       # İleride modül bazlı test ayrımı
 ├── docs/
 └── tools/
