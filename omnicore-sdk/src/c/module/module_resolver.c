@@ -102,9 +102,6 @@ OccModuleResolverStatus occ_module_resolver_register(
     if (!resolver || !canonical_identity || !canonical_identity[0] ||
         !out_module_id) return OCC_MODULE_RESOLVER_INVALID_ARGUMENT;
     length = strlen(canonical_identity);
-    if (length > resolver->max_text_bytes ||
-        resolver->text_bytes > resolver->max_text_bytes - length)
-        return OCC_MODULE_RESOLVER_LIMIT_EXCEEDED;
     for (i = 0u; i < resolver->module_count; ++i) {
         node = &resolver->modules[i];
         if (strcmp(node->canonical_identity, canonical_identity) == 0) {
@@ -114,6 +111,9 @@ OccModuleResolverStatus occ_module_resolver_register(
             return OCC_MODULE_RESOLVER_OK;
         }
     }
+    if (length > resolver->max_text_bytes ||
+        resolver->text_bytes > resolver->max_text_bytes - length)
+        return OCC_MODULE_RESOLVER_LIMIT_EXCEEDED;
     if (resolver->module_count >= resolver->max_modules ||
         resolver->module_count >= UINT32_MAX)
         return OCC_MODULE_RESOLVER_LIMIT_EXCEEDED;
