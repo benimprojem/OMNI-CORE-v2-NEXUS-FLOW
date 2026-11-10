@@ -1,5 +1,6 @@
 #include "module_interface.h"
 #include "../oir/oir_semantic_ast_artifact.h"
+#include "../core/diagnostics.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -110,7 +111,7 @@ static OccModuleInterfaceStatus append_oir_relation(
     target->related_node_id=source.related_node_id; target->type_id=source.type_id;
     target->ordinal=source.ordinal; target->kind=source.kind; target->flags=source.flags;
     if(source.name_length) {
-        target->name=oir_interface_copy_name(name,source.name_length,0);
+        target->name=oir_interface_copy_name(name,source.name_length);
         if(!target->name) return OCC_MODULE_INTERFACE_OUT_OF_MEMORY;
     }
     ++out->relation_count;
