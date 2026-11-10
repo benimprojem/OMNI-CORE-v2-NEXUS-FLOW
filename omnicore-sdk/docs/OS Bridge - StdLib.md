@@ -35,8 +35,8 @@
 
 ### 4. Ortak Mantık
 
-* **Core** → Sadece CPU / memory / handler / primitive operations.
-* **OS Bridge / StdLib** → Her OS’ye özgü fonksiyonları kapsar, Core’dan bağımsız.
+* **coremodule** → Yalnızca OS bağımsız CPU / memory / handler / primitive operations.
+* **osmodule** → Her OS’ye özgü fonksiyonları kapsar; coremodule'den bağımsızdır.
 * **Cross-Platform Abstraction** → Kullanıcı `SysIO.output()`, `mem.area()`, `thread.create()` gibi çağırır, alt katmanda OS-specific exf wrapper’lar çalışır.
 * **Dead-Code Optimization** → Kullanılmayan OS-specific fonksiyonlar linker tarafından çıkarılır; EXE minimal kalır.
 
@@ -46,23 +46,23 @@
 
 * **Windows:** `msvcrt` ve gerekli low-level Windows API çağrıları
 * **Linux / Mac:** POSIX + libc
-* **Core:** tamamen bağımsız, OS’ye dokunmaz
-* **Bridge:** OS-specific modüller, Core üstünde çalışır, kullanıcıya unified API sunar
+* **coremodule:** tamamen bağımsızdır, OS’ye dokunmaz
+* **osmodule:** OS-specific modüller, coremodule üstünde çalışır ve kullanıcıya unified API sunar
 
 
 
 ---
 
-## **CoreModule.exf API Tablosu (Önerilen)**
+## **osmodule.exf API Tablosu (Önerilen)**
 
 | Fonksiyon / Metot                                    | Açıklama                             | OS Wrapper / Notes                                |
 | ---------------------------------------------------- | ------------------------------------ | ------------------------------------------------- |
 | `echo(msg!str)`                                      | Konsola veya stdout’a yazı basar     | Windows → `_write` / Linux → `write`              |
 | `area(size!usize)!*void`                             | Ham bellek bloğu tahsis eder         | Windows/Linux → `malloc`                          |
-| `zone(size!usize)!*void`                             | Paylaşımlı bellek bloğu tahsis eder  | OS farkı yok, CoreModule yönetir                  |
+| `zone(size!usize)!*void`                             | Paylaşımlı bellek bloğu tahsis eder  | OS bağımsız; coremodule sorumluluğundadır                  |
 | `free_mem(ptr!*void)`                                | Ham bellek bloğunu serbest bırakır   | Windows/Linux → `free`                            |
 | `sleep(ms!u32)`                                      | Belirli süre bekleme                 | Windows → `Sleep(ms)` / Linux → `usleep(ms*1000)` |
-| `time_now()!u64`                                     | Sistem zamanı veya epok zamanı döner | OS wrapper, CoreModule standardize eder           |
+| `time_now()!u64`                                     | Sistem zamanı veya epok zamanı döner | OS wrapper, osmodule standardize eder           |
 | `thread.spawn(f!callback, arg!*void)!*thread_handle` | Yeni thread başlatır                 | **threading sistemi**, OS bağımsız    |
 | `thread.join(handle!*thread_handle)`                 | Thread’in bitmesini bekler           | Hafif threading sistemi                           |
 | `exit(code!i32)!void`                                | Programı sonlandırır                 | Windows → `_exit` / Linux → `exit`                |
@@ -85,7 +85,7 @@
 3. **Memory Management:**
 
    * `area` → tekil ownership
-   * `zone` → paylaşımlı alan, cache sync ve lock mekanizmaları CoreModule tarafında yönetiliyor
+   * `zone` → paylaşımlı alan, cache sync ve lock mekanizmaları osmodule tarafında yönetiliyor
 
 4. **Dead Code Optimization:**
 
@@ -93,7 +93,15 @@
 
 ---
 
-Böylece **CoreModule.exf** tamamen OS-bridge olurken, **Core.nx** saf çekirdek fonksiyonları barındırıyor.
+Böylece **osmodule.exf** tamamen OS-bridge olurken, **Core.nx** saf çekirdek fonksiyonları barındırıyor.
 
 ---
 
+
+
+## Yeni modül adları
+
+- Eski `CoreModule.exf` dosyası `osmodule.exf` olarak yeniden adlandırılmıştır. Dosya/standart I/O ve işletim sistemi servisleri bu modüle aittir.
+- Eski `Core` modülünün yeni adı `coremodule` olacaktır; bu modül OS bağımsız fonksiyonlardan oluşmalıdır ve `osmodule` bağımlılığı taşımamalıdır.
+- Yalnızca `osmodule` varsayılan otomatik yükleme kapsamındadır; `no: osmodule;` bu yüklemeyi kapatır. `no:` genel modül kapatma bildirimi değildir.
+- Mevcut `osmodule.exf` içindeki grupların bir kısmı (ör. Array/String/Math/Crypto) OS bağımsız adaylar içerir. Bunların `coremodule`'e taşınması, bağımlılık ve Group `default` davranışları incelenerek ayrı bir değişiklik grubunda yapılacaktır; bu belge mevcut karışık kaynak içeriğini tamamlanmış bir ayrıştırma olarak göstermez.
