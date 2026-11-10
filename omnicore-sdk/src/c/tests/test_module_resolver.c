@@ -143,9 +143,9 @@ static int test_implicit_osmodule_dependency_edge(void) {
     uint32_t root = 0u, osmodule = 0u;
     const OccModuleResolverEdge* edge;
     int ok = 0;
-#define IMPLICIT_IMPLICIT_CHECK(condition) do { \
+#define IMPLICIT_CHECK(condition) do { \
     if (!(condition)) { \
-        fprintf(stderr, "IMPLICIT_CHECK failed line %d: %s\\n", __LINE__, #condition); \
+        fprintf(stderr, "IMPLICIT_CHECK failed line %d: %s\n", __LINE__, #condition); \
         goto done; \
     } \
 } while (0)
