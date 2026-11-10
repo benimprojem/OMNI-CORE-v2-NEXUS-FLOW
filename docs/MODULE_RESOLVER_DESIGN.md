@@ -136,7 +136,7 @@ This graph core does not yet call a source provider, parse dependency modules, c
 
 ## 10. Explicit separation from `m:`
 
-Nexus Flow `m:name = expression;` declares an immutable value. Its initializer is an expression, its type is inferred by Semantic, and the resulting symbol is constant for assignment/update checks. It does not inspect file existence, load source, or create a dependency edge. Source/module loading is performed by `use` and the host-owned source provider described in this document. The AST enum/payload name `AST_MUST_DECL` is retained for append-only compatibility; it is not a module/dependency declaration.
+Nexus Flow `m:name = expression;` declares a normal value with an immutable binding. Its initializer is an expression, its type is inferred by Semantic, and the resulting symbol carries the distinct `IMMUTABLE` flag for assignment/update checks. It is not a `c:` compile-time constant and must not be encoded with the `CONST` flag. It does not inspect file existence, load source, or create a dependency edge. Source/module loading is performed by `use` and the host-owned source provider described in this document. The AST enum/payload name `AST_MUST_DECL` is retained for append-only compatibility; it is not a module/dependency declaration.
 
 
 ## 11. Host source-provider C contract status
