@@ -6,7 +6,6 @@
 #endif
 #include <assert.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -700,60 +699,11 @@ int main(int argc, char** argv) {
         OccModuleArtifactInputV1 stage_input;
         size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
         assert(build_cfg_module_artifact(&input, &input_length, 19));
-        {
-            OirArtifactView artifact_view;
-            OirSectionView payload_view;
-            OirModuleView module_view;
-            OirModuleInstruction bitwise_instruction;
-            OirModuleValue result_value, left_value, right_value;
-            OirModuleType result_type, left_type, right_type;
-            OirModuleOperand left_operand, right_operand;
-            assert(oir_artifact_open(input, input_length, &artifact_view) == OIR_STATUS_OK);
-            assert(oir_artifact_get_section(&artifact_view, 0u, &payload_view) == OIR_STATUS_OK);
-            assert(oir_module_open(payload_view.data, (size_t)payload_view.length,
-                &module_view) == OIR_STATUS_OK);
-            assert(oir_module_get_instruction(&module_view, 2u,
-                &bitwise_instruction) == OIR_STATUS_OK);
-            assert(bitwise_instruction.opcode_id == OIR_OP_BIT_AND);
-            assert(oir_module_get_value(&module_view, 1u, &result_value) == OIR_STATUS_OK);
-            assert(oir_module_get_operand(&module_view, bitwise_instruction.first_operand,
-                &left_operand) == OIR_STATUS_OK);
-            assert(oir_module_get_operand(&module_view, bitwise_instruction.first_operand + 1u,
-                &right_operand) == OIR_STATUS_OK);
-            assert(left_operand.kind == OIR_OPERAND_VALUE &&
-                right_operand.kind == OIR_OPERAND_VALUE);
-            assert(oir_module_get_value(&module_view, left_operand.reference_id - 1u,
-                &left_value) == OIR_STATUS_OK);
-            assert(oir_module_get_value(&module_view, right_operand.reference_id - 1u,
-                &right_value) == OIR_STATUS_OK);
-            assert(oir_module_get_type(&module_view, result_value.type_id - 1u,
-                &result_type) == OIR_STATUS_OK);
-            assert(oir_module_get_type(&module_view, left_value.type_id - 1u,
-                &left_type) == OIR_STATUS_OK);
-            assert(oir_module_get_type(&module_view, right_value.type_id - 1u,
-                &right_type) == OIR_STATUS_OK);
-            fprintf(stderr, "bitwise fixture: opcode=%u result=%u/type%u/kind%u left=%u/type%u/kind%u right=%u/type%u/kind%u\\n",
-                bitwise_instruction.opcode_id, result_value.id, result_value.type_id,
-                result_type.kind, left_value.id, left_value.type_id, left_type.kind,
-                right_value.id, right_value.type_id, right_type.kind);
-        }
         memset(&stage_input, 0, sizeof(stage_input));
         stage_input.bytes = input; stage_input.length = input_length;
-        {
-            OccModuleLoaderStatus invoke_status = occ_module_loader_invoke(
-                &loaded, &stage_input, 1u, 521u, &diagnostics, 256u,
-                1024u * 1024u, &output, &output_length);
-            if (invoke_status != OCC_MODULE_LOADER_OK) {
-                size_t di;
-                for (di = diagnostics_before; di < occ_diagnostics_count(&diagnostics); ++di) {
-                    OccDiagnosticView diagnostic;
-                    if (occ_diagnostics_get(&diagnostics, di, &diagnostic))
-                        fprintf(stderr, "bitwise verifier diagnostic %u: %s\\n",
-                            diagnostic.record->code, diagnostic.message);
-                }
-            }
-            assert(invoke_status == OCC_MODULE_LOADER_OK);
-        }
+        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 521u,
+            &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
+            OCC_MODULE_LOADER_OK);
         assert(output != NULL && output_length != 0u);
         assert(occ_diagnostics_count(&diagnostics) == diagnostics_before);
         free(input); input = NULL; input_length = 0u;
