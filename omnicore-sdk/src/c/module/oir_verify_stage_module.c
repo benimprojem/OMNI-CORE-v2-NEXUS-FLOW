@@ -155,8 +155,16 @@ static uint32_t validate_type_records(const OirModuleView* m,
                     t.bit_width == 32u || t.bit_width == 64u;
             else if (t.kind == OIR_MODULE_TYPE_FLOAT)
                 valid = t.bit_width == 32u || t.bit_width == 64u;
-            else if (t.kind == OIR_MODULE_TYPE_BOOLEAN)
+            else if (t.kind == OIR_MODULE_TYPE_BOOLEAN ||
+                     t.kind == OIR_MODULE_TYPE_BIT)
                 valid = t.bit_width == 1u;
+            else if (t.kind == OIR_MODULE_TYPE_BYTE)
+                valid = t.bit_width == 8u;
+            else if (t.kind == OIR_MODULE_TYPE_BIT_VECTOR ||
+                     t.kind == OIR_MODULE_TYPE_BYTE_BLOCK)
+                valid = t.bit_width == 8u || t.bit_width == 16u ||
+                    t.bit_width == 32u || t.bit_width == 64u ||
+                    t.bit_width == 128u;
             else valid = t.kind == OIR_MODULE_TYPE_FUNCTION;
         }
         if (!valid) {
