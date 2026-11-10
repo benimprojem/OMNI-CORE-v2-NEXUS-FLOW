@@ -1346,3 +1346,14 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Added `test_use_namespace_prefix_suppression_alias()` to verify Parser accepts `as _`, retains the complete dotted module path and underscore alias in AST, and passes `ast_validate()`.
 - This is a Parser/AST syntax acceptance test only. Semantic module-member injection, visibility and duplicate-name diagnostics remain to be implemented/verified; no claim of runtime/import resolution is made.
 - CI for the latest parser commits is pending; do not mark this test green until the branch workflow runs.
+
+
+## 2026-11-10 — USE alias and namespace selector
+
+- Normative USE options are now distinct and ordered: optional `as alias`, then optional `ns namespace`.
+- `as` assigns the imported item a local alias. `ns` selects the namespace root for the imported Group; `ns _` explicitly requests unqualified/current-scope exposure. `as _` is no longer documented as namespace suppression and remains an ordinary alias spelling.
+- Appended `ASTUse.namespace_name`; Parser keeps module path, alias and namespace in separate owned strings. The contextual `ns` spelling is recognized only in USE declarations and is not globally reserved.
+- AST stream format advanced from v4 to v5 to serialize the namespace payload. Deserializer continues accepting v1-v4 streams unchanged.
+- Added Parser/AST regression coverage for combined alias+namespace, namespace-only, ordinary alias `_`, unqualified `ns _`, comma-separated imports, malformed selectors, per-item spans, graph validation and v5 codec round-trip.
+- Updated `omnicore-sdk/nfsyntax.md` and `docs/AST_PARSER_PRODUCTION_MATRIX.md`.
+- Semantic Group/member import resolution is not claimed complete. OIR frontend payload mapping for the appended namespace field, USE allocation-failure injection, and end-to-end resolver tests remain open. CI must validate the commits before this Parser/AST addition is marked verified.
