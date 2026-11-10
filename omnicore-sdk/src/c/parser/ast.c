@@ -200,6 +200,39 @@ ASTNode* ast_create(ASTNodeType type) {
     return node;
 }
 
+ASTUseVisitStatus ast_visit_top_level_uses(
+    const ASTNode* root,
+    ASTUseVisitorFn visitor,
+    void* context,
+    size_t* out_count
+) {
+    const ASTProgram* program;
+    const ASTNode* declaration;
+    size_t count = 0u;
+
+    if (out_count) *out_count = 0u;
+    if (!root) return AST_USE_VISIT_INVALID_ARGUMENT;
+    if (root->type != AST_PROGRAM) return AST_USE_VISIT_INVALID_ROOT;
+
+    program = (const ASTProgram*)root;
+    for (declaration = program->declarations; declaration;
+         declaration = declaration->next) {
+        if (declaration->type == AST_USE) {
+            if (count >= (size_t)UINT32_MAX)
+                return AST_USE_VISIT_ORDINAL_OVERFLOW;
+            count++;
+            if (visitor && !visitor((const ASTUse*)declaration,
+                    (uint32_t)count, context)) {
+                if (out_count) *out_count = count;
+                return AST_USE_VISIT_STOPPED;
+            }
+        }
+    }
+
+    if (out_count) *out_count = count;
+    return AST_USE_VISIT_OK;
+}
+
 int ast_set_source_span(ASTNode* node, const OccSourceSpan* span) {
     if (!node) return 0;
     if (!span) {
