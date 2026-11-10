@@ -99,7 +99,7 @@ static int test_unterminated_asm_body(void) {
 
 int main(void) {
     if (!test_opaque_asm_body_token() || !test_unterminated_asm_body()) return 1;
-    const char* source = "v:x = 12;\n@ !!= -> ?-> ?=> !-> << >> ...> name asm fastexec break echo send receive f32 f64 bool bit byte hex void any is_err true false null";
+    const char* source = "v:x = 12;\n@ !!= -> ?-> ?=> !-> << >> ...> name asm fastexec break echo send receive f32 f64 bool bit byte 8bit 16bit 32bit 64bit 128bit 1byte 2byte 4byte 8byte 16byte hex void any is_err true false null";
     const OmniTokenType expected[] = {
         TOKEN_PRE_VAR, TOKEN_ASSIGN, TOKEN_NUMBER, TOKEN_SEMICOLON,
         TOKEN_INTENT, TOKEN_FORCE_ASSIGN, TOKEN_PIPE,
@@ -108,8 +108,12 @@ int main(void) {
         TOKEN_KW_ASM, TOKEN_KW_FASTEXEC, TOKEN_KW_BREAK,
         TOKEN_KW_ECHO, TOKEN_KW_SEND, TOKEN_KW_RECEIVE,
         TOKEN_TYPE_F32, TOKEN_TYPE_F64, TOKEN_TYPE_BOOL,
-        TOKEN_TYPE_BIT, TOKEN_TYPE_BYTE, TOKEN_TYPE_HEX,
-        TOKEN_TYPE_VOID, TOKEN_TYPE_ANY, TOKEN_KW_IS_ERR,
+        TOKEN_TYPE_BIT, TOKEN_TYPE_BYTE,
+        TOKEN_TYPE_8BIT, TOKEN_TYPE_16BIT, TOKEN_TYPE_32BIT,
+        TOKEN_TYPE_64BIT, TOKEN_TYPE_128BIT,
+        TOKEN_TYPE_1BYTE, TOKEN_TYPE_2BYTE, TOKEN_TYPE_4BYTE,
+        TOKEN_TYPE_8BYTE, TOKEN_TYPE_16BYTE,
+        TOKEN_TYPE_HEX, TOKEN_TYPE_VOID, TOKEN_TYPE_ANY, TOKEN_KW_IS_ERR,
         TOKEN_TRUE, TOKEN_FALSE, TOKEN_NULL, TOKEN_EOF
     };
 
