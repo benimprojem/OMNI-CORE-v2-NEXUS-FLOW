@@ -9,7 +9,7 @@ extern "C" {
 
 /* Initial OIR_MODULE opcode registry. IDs are wire identifiers, never C enum ordinals. */
 #define OIR_OPCODE_REGISTRY_MAJOR 1u
-#define OIR_OPCODE_REGISTRY_MINOR 0u
+#define OIR_OPCODE_REGISTRY_MINOR 1u
 #define OIR_OPCODE_MAX_FIXED_OPERANDS 3u
 
 typedef enum OirOperandKind {
@@ -48,6 +48,11 @@ typedef enum OirOpcodeId {
     OIR_OP_DIV = 19,
     OIR_OP_REM = 20,
     OIR_OP_NEG = 21,
+
+    OIR_OP_BIT_AND = 22,
+    OIR_OP_BIT_OR = 23,
+    OIR_OP_BIT_XOR = 24,
+    OIR_OP_BIT_NOT = 25,
 
     OIR_OP_CMP_EQ = 32,
     OIR_OP_CMP_NE = 33,
