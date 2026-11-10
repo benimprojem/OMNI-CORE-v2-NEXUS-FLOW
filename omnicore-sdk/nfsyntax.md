@@ -430,3 +430,12 @@ asmcall(LABEL_1);
 ### Modül 1 Çıktısı (OIR v2.0)
 Tüm yukarıdaki kodlar hatasız şekilde binary `*.oir` dosyası olarak sentezlenmektedir. Oluşturulan AST (Abstract Syntax Tree) doğrudan lineer bir Instruction dizilimine (OIR) yapılandırılmakta; bilinmeyen tanımlayıcılar veya yanlış blok sınırlandırmalarında `ErrorList` devreye girerek (Panic-mode recovery destekli) süreci raporlamaktadır.
 
+
+
+### Bit kaydırma operatörleri (syntax kararı)
+
+- `<<<`: bit dizisini sola kaydırır.
+- `>>>`: bit dizisini sağa kaydırır.
+- `<<` / `>>` Zone Write / Flow Feed olarak kalır; bit shift değildir.
+- Kaydırma işaret bitini özel ele almaz; boşalan bitler sıfır, genişlik dışı bitler atılır. Kaydırma miktarı genişlikten büyük/eşit ise sonuç sıfırdır.
+- Syntax referansına yazılmıştır; lexer/parser tokenizasyonu ve Semantic/OIR desteği henüz uygulanmış değildir.
