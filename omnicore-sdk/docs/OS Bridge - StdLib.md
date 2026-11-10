@@ -93,7 +93,7 @@
 
 ---
 
-Böylece **osmodule.exf** tamamen OS-bridge olurken, **Core.nx** saf çekirdek fonksiyonları barındırıyor.
+Böylece **osmodule.exf** OS bağımlı standart modül, eski **Core** modülünün yeni adı olan **coremodule** ise saf OS bağımsız fonksiyon kütüphanesi olur. SDK deposunda coremodule kaynak dosyasının eklenmesi ve fonksiyon bazında ayrıştırma henüz tamamlanmamıştır.
 
 ---
 
