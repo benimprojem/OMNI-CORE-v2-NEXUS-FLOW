@@ -1,6 +1,6 @@
 # Module Resolver Architecture (Draft)
 
-**Status:** Architecture contract draft. This document does not claim that module loading, dependency resolution, or imported-symbol Semantic validation is implemented.
+**Status:** Architecture contract draft. A portable C dependency-graph core is now implemented; host source lookup, recursive dependency scheduling, OIR dependency interfaces, and imported-symbol Semantic validation are not yet implemented.
 
 ## 1. Responsibility boundary
 
@@ -107,11 +107,24 @@ A failed dependency prevents the importing module from receiving a valid Semanti
 ## 8. Implementation gates
 
 1. Review project configuration; separately specify `m:` compile-time dependency semantics (currently Parser-only) and define canonical module identity/source-provider policy for `use`.
-2. Specify and test the portable C resolver core API (provider callback, graph ownership, deterministic traversal, allocation-failure cleanup).
+2. [x] Add the first portable C resolver graph API: canonical-identity registration/cache reuse, provider fingerprint consistency, owned dependency edges, source-span retention, bounded graph growth, lifecycle transitions, and DFS back-edge cycle reporting. Host provider callback integration and deterministic allocation-failure injection remain open.
 3. Test cache reuse, aliases not affecting cache keys, missing/denied/ambiguous sources, nested dependencies, cycles, exact USE spans, and OOM cleanup.
 4. Define a versioned OIR dependency/interface artifact and independent validator.
 5. Integrate the host dependency scheduler with existing lexer/parser DLLs; do not add file I/O to Parser or Semantic.
 6. Extend Semantic invocation to consume validated imported interfaces; test `as`, `ns`, `ns _`, nested Groups, visibility, collisions, and private-type isolation.
-7. Verify Windows, macOS, Ubuntu, ASan/UBSan and Valgrind before marking the stage complete.
+7. Verify the graph core on Windows, macOS, Ubuntu, ASan/UBSan and Valgrind; then continue with provider integration and Semantic handoff. The graph core is not the complete Module Resolver stage.
 
 No Codegen work is authorized by this plan. AST/Parser gates and Semantic import validation remain prerequisites.
+
+
+## 9. C graph-core implementation status
+
+The first C implementation is in `omnicore-sdk/src/c/module/module_resolver.h/.c` and is built as the independent static target `occ_module_resolver`. It intentionally has no filesystem dependency and does not depend on Parser internals.
+
+- The host/provider supplies a canonical identity and a per-job content fingerprint; identical identity+fingerprint reuses the stable 1-based module ID, while identity with a different fingerprint is rejected.
+- The graph owns canonical identity and original dotted import-path strings. Each dependency edge retains importer/dependency IDs, AST_USE node ID, and the complete `OccSourceSpan`.
+- Module state transitions are constrained to DISCOVERED → RESOLVING → RESOLVED/FAILED. The scheduler must mark a module RESOLVING before walking its imports; edges to a RESOLVING node are retained and return CYCLE so the caller can report the exact USE location.
+- Module, edge and aggregate text limits are configurable. Failed dependencies are not added as successful edges. Returned node/edge views are borrowed and invalidated by graph mutation/destruction.
+- `test_module_resolver.c` covers identity cache reuse, inconsistent fingerprints, edge payload/span preservation, duplicate AST_USE edge rejection, cycle reporting, state transitions, failed dependency rejection, and configured limits.
+
+This graph core does not yet call a source provider, parse dependency modules, compute fingerprints, schedule recursive pipeline invocations, serialize dependency interfaces, or populate Semantic imported symbols. Those are explicit next gates.
