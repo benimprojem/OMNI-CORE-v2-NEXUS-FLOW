@@ -103,14 +103,14 @@ f:main() {
 }
 ```
 
-Bit vektörlerinde desteklenen işlemler:
+Bit vektörleri (`Nbit`) ve ham byte türleri (`byte`, `Nbyte`) üzerinde desteklenen bitwise işlemler:
 
 - `&`, `|`, `^`, `~`: bitwise maskeleme, birleştirme, XOR ve complement.
 - `==`, `!=`: aynı tip/genişlikte değer karşılaştırması.
 - `&=`, `|=`, `^=`: bitwise bileşik atama.
 - Tek bit ayarlama, temizleme ve tersleme maskelerle yapılır: `flags |= mask`, `flags &= ~mask`, `flags ^= mask`.
 - Flag kontrolü `(flags & mask) != 0` kalıbıyla yapılır.
-- Maskeler aynı bit genişliğindeki bit vektörleriyle kullanılmalıdır; `8bit | 16bit` tür/genişlik uyuşmazlığıdır.
+- İşlemlerde operand türleri aynı olmalıdır; `8bit | 16bit` ve `1byte | 2byte` tür/genişlik uyuşmazlığıdır. Byte türleri ham veri taşısa da desteklenen bitwise işlemlerle maske olarak kullanılabilir.
 
 ```nxf
 f:update_flags() {
