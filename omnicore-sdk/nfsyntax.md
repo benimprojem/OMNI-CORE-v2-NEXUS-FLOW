@@ -94,11 +94,15 @@ import "NetModule";
 
 ---
 
-## 5.1 Use ile namespace ön ekini kaldırma (import)
+## 5.1 USE: alias ve namespace seçimi
 
-Bir modül normalde kendi namespace'iyle erişilir; `as` modül için yerel bir ad
-(alias) belirler. Namespace ön eki kullanılmasını istemediğimiz durumda **`_` özel
-alias'ı** kullanılabilir:
+Nexus Flow'da `use` bildirimi iki ayrı isimlendirme seçeneği sunar:
+
+- `as` import edilen modülün/öğenin yerel **alias** adını belirler.
+- `ns` seçilen Group'un üyelerinin hangi **namespace kökü** altında sunulacağını belirler.
+
+Bu iki seçenek farklı görevler üstlenir; birbirinin yerine kullanılmaz. Kullanım sırası
+sabittir: önce isteğe bağlı `as`, ardından isteğe bağlı `ns`.
 
 ```nxf
 group db {
@@ -109,25 +113,44 @@ group db {
     }
 }
 
-// Namespace korunur: db.mysql.sql.query(...)
-use db.mysql.sql as sql;
+// Son Group seçilir; namespace kökü sql olur.
+use db.mysql.sql ns sql;
 
-// Modülün namespace ön eki kaldırılır; üyeler doğrudan kapsamdan çözülür.
-use db.mysql.sql as _;
+// mysql Group'u seçilir; altındaki sql Group'u hiyerarşide kalır.
+use db.mysql ns mysql;
 
-// Örneğin yukarıdaki importtan sonra:
-query("SELECT 1");
+// Alias ve namespace birlikte kullanılabilir.
+use db.mysql.sql as mysql_sql ns sql;
+
+// Alias olmadan yalnızca namespace seçilebilir.
+use db.mysql ns mysql;
+
+// ns _ namespace ön ekini kaldırır; üyeler doğrudan mevcut kapsamda aranır.
+use db.mysql.sql ns _;
 ```
 
-- `as _`, modül yolunu (ör. `db.mysql.sql`) çağrı adının önüne eklemez.
-- Bu biçim modülün üyelerini mevcut isim çözümleme kapsamına açar; isim çakışmaları
-  Semantic aşamasında normal sembol/visibility kurallarıyla denetlenir.
-- `as sql` gibi normal alias'lar namespace erişimini korur.
-- `_` yalnızca `use ... as _` bağlamında özel anlam taşır; genel identifier değildir.
+Yukarıdaki seçimlerin isim çözümleme hedefleri:
 
-**Uygulama durumu:** Parser'ın `_` alias'ını AST'ye taşıması test edilir. Modül üyelerinin
-scope'a aktarılması ve çakışma kontrolü Semantic/import-resolution işi olarak ayrıca
-doğrulanmalıdır; Parser testi bunu tamamlanmış saymaz.
+- `use db.mysql.sql ns sql;` → `sql.query(...)`
+- `use db.mysql ns mysql;` → `mysql.sql.query(...)`
+- `use db.mysql.sql as mysql_sql ns sql;` → import öğesinin alias'ı `mysql_sql`, namespace kökü `sql`
+- `use db.mysql.sql ns _;` → `query(...)` biçiminde doğrudan kapsamdan erişim
+
+Kurallar:
+
+1. Dotted yol, seçilecek modül veya Group öğesini tanımlar.
+2. `as name`, import öğesine yerel alias verir; namespace hiyerarşisini tek başına değiştirmez.
+3. `ns name`, seçilen Group'un namespace kök adını belirler.
+4. `ns _`, namespace ön ekini kaldırarak üyeleri mevcut kapsamda görünür kılma isteğini belirtir.
+5. `as _` özel bir namespace kısaltması değildir; `as` sonrasında sıradan alias olarak değerlendirilir.
+6. Bir `use` listesinde her import öğesi kendi `as` ve `ns` seçeneklerini taşıyabilir.
+7. Namespace/alias çakışmaları, Group görünürlüğü ve gerçek sembol aktarımı Semantic import-resolution aşamasında doğrulanır.
+
+Parser, `module_name`, `alias` ve `namespace_name` alanlarını ayrı AST payload'ları olarak
+korur. AST stream formatı v5, namespace alanını saklar; v1-v4 akışları geriye dönük
+okunabilir. Parser/AST testleri sözdizimini, alanları, kaynak aralıklarını ve codec
+round-trip davranışını doğrular. Bu testler Semantic namespace çözümlemesinin tamamlandığı
+anlamına gelmez.
 
 ## 6. Döngüler (Unified Loop)
 Tek bir `loop` anahtar kelimesi altında 5 farklı varyasyon parser tarafından ayrıştırılır:
