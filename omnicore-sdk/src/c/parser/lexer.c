@@ -457,8 +457,22 @@ static OmniTokenType numeric_width_type(const char* start, size_t width_length,
     size_t suffix_length;
     OmniTokenType type = TOKEN_ERROR;
     if (!start || !ctx || ctx->pos > ctx->source_len) return TOKEN_ERROR;
-    if (width_length == 1u && start[0] == '8') { type = TOKEN_TYPE_8BIT; suffix = "bit"; }
-    else if (width_length == 2u && memcmp(start, "16", 2u) == 0) { type = TOKEN_TYPE_16BIT; suffix = "bit"; }
+    if (width_length == 1u && start[0] == '8') {
+        if (ctx->source_len - ctx->pos >= 3u &&
+            memcmp(ctx->source_buffer + ctx->pos, "bit", 3u) == 0) {
+            type = TOKEN_TYPE_8BIT; suffix = "bit";
+        } else {
+            type = TOKEN_TYPE_8BYTE; suffix = "byte";
+        }
+    }
+    else if (width_length == 2u && memcmp(start, "16", 2u) == 0) {
+        if (ctx->source_len - ctx->pos >= 3u &&
+            memcmp(ctx->source_buffer + ctx->pos, "bit", 3u) == 0) {
+            type = TOKEN_TYPE_16BIT; suffix = "bit";
+        } else {
+            type = TOKEN_TYPE_16BYTE; suffix = "byte";
+        }
+    }
     else if (width_length == 2u && memcmp(start, "32", 2u) == 0) { type = TOKEN_TYPE_32BIT; suffix = "bit"; }
     else if (width_length == 2u && memcmp(start, "64", 2u) == 0) { type = TOKEN_TYPE_64BIT; suffix = "bit"; }
     else if (width_length == 3u && memcmp(start, "128", 3u) == 0) { type = TOKEN_TYPE_128BIT; suffix = "bit"; }
@@ -466,7 +480,6 @@ static OmniTokenType numeric_width_type(const char* start, size_t width_length,
     else if (width_length == 1u && start[0] == '2') { type = TOKEN_TYPE_2BYTE; suffix = "byte"; }
     else if (width_length == 1u && start[0] == '4') { type = TOKEN_TYPE_4BYTE; suffix = "byte"; }
     else if (width_length == 1u && start[0] == '8') { type = TOKEN_TYPE_8BYTE; suffix = "byte"; }
-    else if (width_length == 2u && memcmp(start, "16", 2u) == 0) { type = TOKEN_TYPE_16BYTE; suffix = "byte"; }
     else return TOKEN_ERROR;
     suffix_length = strlen(suffix);
     if (suffix_length > ctx->source_len - ctx->pos ||
