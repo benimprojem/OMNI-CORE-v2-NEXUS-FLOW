@@ -209,6 +209,17 @@ OccModuleResolverStatus occ_module_resolver_add_implicit_osmodule(
     const OccSourceSpan* program_span
 );
 
+/* Produce a deterministic dependency-first module order (each module once).
+ * Output capacity must be at least module_count. Returns CYCLE if graph contains
+ * a cycle; on failure out_count is zero and output is not a valid schedule.
+ */
+OccModuleResolverStatus occ_module_resolver_dependency_order(
+    const OccModuleResolver* resolver,
+    uint32_t* out_module_ids,
+    size_t out_capacity,
+    size_t* out_count
+);
+
 /* Returned records are borrowed and valid until graph mutation/destruction. */
 const OccModuleResolverNode* occ_module_resolver_get_module(
     const OccModuleResolver* resolver,
