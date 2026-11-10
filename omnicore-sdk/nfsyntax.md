@@ -9,8 +9,8 @@ Bu belge, **Modül 1 (Parser DLL)** çerçevesinde C++ ile başarıyla kodlanmı
 NexusFlow değişken ve yapı tanımlamalarında ön ekler (prefix) kullanır. Aşağıdaki yapılar tamamen desteklenmektedir:
 
 - `v:` Değişkenler (Mutable)
-- `c:` Sabitler (Constant)
-- `m:` Değiştirilemez değer (immutable value; initializer zorunludur)
+- `c:` Derleme zamanı sabitleri (Compile-time Constant)
+- `m:` Normal, değiştirilemez değer (Immutable Value; initializer zorunludur)
 - `f:` Fonksiyonlar
 - `exf:` Extern fonksiyonlar
 - `r:` Rules (Kurallar)
@@ -18,7 +18,7 @@ NexusFlow değişken ve yapı tanımlamalarında ön ekler (prefix) kullanır. A
 
 ### Değiştirilemez Değerler — `m:`
 
-`m:` bir modül, dosya veya dependency yükleme bildirimi değildir. İsimlendirilmiş bir değeri initializer ile tanımlar ve bu bağlamanın sonradan yeniden atanmasını yasaklar. Kaynak/modül yükleme ve import işlemi `use` ile yapılır.
+`c:` derleme zamanı sabiti olarak tanımlanır. `m:` ise normal bir değer gibi initializer ile oluşturulur; değeri çalışma zamanı/normal ifade bağlamında kullanılabilir fakat isim üzerinden sonradan yeniden atanamaz. `m:` derleme zamanı sabiti değildir. Kaynak/modül yükleme ve import işlemi `use` ile yapılır.
 
 ```nxf
 m:a = 5;
@@ -39,7 +39,7 @@ f:main() {
 - `m:` değişkenleri program ve blok kapsamlarında tanımlanabilir; normal kapsam ve isim çakışması kuralları uygulanır.
 - `m:` ifadesi dosya varlığını kontrol etmez, kaynak yüklemez ve `use` yerine geçmez.
 
-Bu tanımın Parser/AST temsili `AST_MUST_DECL` adını korur (append-only AST kimlik uyumluluğu); buradaki MUST adı modül bağımlılığı anlamına gelmez. Semantic bunu sabit sembol olarak kaydeder.
+Bu tanımın Parser/AST temsili `AST_MUST_DECL` adını korur (append-only AST kimlik uyumluluğu); buradaki MUST adı modül bağımlılığı anlamına gelmez. Semantic bunu `IMMUTABLE` sembol bayrağıyla, `c:` sabitlerinden ayrı kaydeder. `c:` için derleme zamanı ifade değerlendirmesi ayrı bir Semantic yeteneğidir; mevcut sembol bayrağı tek başına constant folding tamamlandı anlamına gelmez.
 
 **Tip Zorlama (Hard-Lock):** `!type` biçiminde tip dayatması desteklenir. 
 Örnek: `v:sayi!i32 = 10;`, `v:data!u8[]`
