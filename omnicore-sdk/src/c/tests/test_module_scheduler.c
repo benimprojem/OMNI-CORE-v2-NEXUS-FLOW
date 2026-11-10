@@ -14,13 +14,14 @@ typedef struct FakeProvider {
 typedef struct FakePipeline {
     uint32_t semantic_order[8];
     size_t semantic_count;
+    int cycle_mode;
 } FakePipeline;
 
 static const char* fake_source_for(const char* path, int cycle_mode) {
     if (strcmp(path, "root") == 0) return "root";
     if (strcmp(path, "a") == 0) return "a";
     if (strcmp(path, "b") == 0) return "b";
-    if (cycle_mode && strcmp(path, "back") == 0) return "root";
+    (void)cycle_mode;
     return NULL;
 }
 
@@ -83,7 +84,6 @@ static int fake_parse(void* context, const OccModuleSourceView* source,
     ASTNode** out_program) {
     ASTNode* program;
     const char* name;
-    (void)context;
     if (!source || !source->source_bytes || !out_program) return 0;
     *out_program = NULL;
     name = (const char*)source->source_bytes;
@@ -94,11 +94,14 @@ static int fake_parse(void* context, const OccModuleSourceView* source,
     program->source_span.start_line = 1u;
     program->source_span.start_column = 1u;
     if (strcmp(name, "root") == 0) {
-        if (!append_use(program, "a") || !append_use(program, "b")) {
+        if (!append_use(program, "a") ||
+            (!((FakePipeline*)context)->cycle_mode && !append_use(program, "b"))) {
             ast_destroy(program); return 0;
         }
     } else if (strcmp(name, "a") == 0) {
-        if (!append_use(program, "b")) { ast_destroy(program); return 0; }
+        if (!append_use(program, ((FakePipeline*)context)->cycle_mode ? "root" : "b")) {
+            ast_destroy(program); return 0;
+        }
     } else if (strcmp(name, "b") == 0) {
         /* leaf */
     } else {
@@ -179,8 +182,7 @@ static int test_dependency_cycle_is_reported(void) {
     memset(&root_span, 0, sizeof(root_span));
     memset(&fake_provider, 0, sizeof(fake_provider));
     memset(&pipeline, 0, sizeof(pipeline));
-    /* The cycle test uses a separate parser callback below. */
-    fake_provider.cycle_mode = 1;
+    pipeline.cycle_mode = 1;
     provider.context = &fake_provider;
     provider.resolve = fake_resolve;
     provider.release = fake_release;
@@ -192,10 +194,9 @@ static int test_dependency_cycle_is_reported(void) {
     root_request.use_span = &root_span;
     CHECK(occ_module_scheduler_init(&scheduler, &config, &provider,
         &callbacks) == OCC_MODULE_SCHEDULER_OK);
-    /* fake_parse's normal graph is acyclic; validate provider rejection path
-       without pretending that an unconstructed cycle was discovered. */
     CHECK(occ_module_scheduler_run(&scheduler, &root_request) ==
-        OCC_MODULE_SCHEDULER_OK);
+        OCC_MODULE_SCHEDULER_CYCLE);
+    CHECK(pipeline.semantic_count == 0u);
     occ_module_scheduler_destroy(&scheduler);
     return 1;
 }
