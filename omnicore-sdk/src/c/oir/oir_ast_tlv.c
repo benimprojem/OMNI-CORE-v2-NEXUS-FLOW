@@ -1,5 +1,4 @@
 #include "oir_ast_tlv.h"
-#include "oir_token_map.h"
 
 #include <string.h>
 
@@ -36,13 +35,11 @@ static int value_length_is_valid(uint8_t type, const uint8_t* value, uint32_t le
         case OIR_AST_VALUE_U64:
         case OIR_AST_VALUE_I64:
         case OIR_AST_VALUE_F64: return length == 8u;
-        case OIR_AST_VALUE_TOKEN_ID: {
-            OmniTokenType token;
+        case OIR_AST_VALUE_TOKEN_ID:
+            /* Stable token IDs are a dense, append-only range (1..MAX). */
             return length == 2u && value &&
                 read_u16_le(value) >= 1u &&
-                read_u16_le(value) <= OIR_AST_TOKEN_ID_MAX &&
-                oir_token_id_to_omni(read_u16_le(value), &token);
-        }
+                read_u16_le(value) <= OIR_AST_TOKEN_ID_MAX;
         case OIR_AST_VALUE_STRING_REF: return length == 8u;
         default: return 0;
     }
