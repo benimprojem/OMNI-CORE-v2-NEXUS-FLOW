@@ -329,7 +329,7 @@ This section separates **missing AST representation** from syntax that can legit
 
 | Syntax in `docs/language/syntax-reference.md` | AST representation decision | Audit status | Required work |
 |---|---|---|---|
-| `m:name = expression` (immutable value) | `AST_MUST_DECL` with owned name and initializer expression | **AST/Parser + OIR kind/schema/bridge + Semantic immutable symbol flag implemented; CI verification tracked in progress** | Verify type inference, scope/visibility, assignment/update rejection, parser→OIR round-trip; no file/dependency resolution |
+| `m:name = expression` (immutable value) | `AST_MUST_DECL` with owned name and initializer expression | **AST/Parser + OIR kind/schema/bridge + Semantic immutable symbol flag implemented; CI run `42776942902` passed 5/5** | Verify type inference, scope/visibility, assignment/update rejection, parser→OIR round-trip; no file/dependency resolution |
 | `r:`, `t:`, `o:` reserved prefixes | No executable grammar contract | **Reserved, not missing executable AST** | Keep rejected/reserved; do not add nodes until language spec activates them |
 | Variadic parameter `...` | Final zero-payload `AST_VARIADIC_PARAM` in function parameter list | **AST/Parser implemented; OIR/Semantic pending** | OIR ID/schema/bridge; Semantic variadic packing and signature checks |
 | Named arguments `name:value` | `AST_NAMED_ARG` with owned label and value expression; positional expressions remain unchanged | **AST/Parser implemented; OIR/Semantic pending** | OIR ID/schema/bridge; Semantic parameter-name resolution and argument matching |
