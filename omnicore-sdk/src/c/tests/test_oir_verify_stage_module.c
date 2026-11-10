@@ -12,7 +12,7 @@
 static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_ssa) {
     static const uint8_t strings[] = "main";
     static const uint8_t metadata[] = "verifier-payload-preservation";
-    OirModuleType types[2];
+    OirModuleType types[6];
     OirModuleFunction functions[1];
     OirModuleBlock blocks[1];
     OirModuleValue values[3];
@@ -29,6 +29,14 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     types[0].id = 1u; types[0].kind = OIR_MODULE_TYPE_INTEGER;
     types[0].bit_width = 32u; types[0].flags = OIR_MODULE_TYPE_FLAG_SIGNED;
     types[1].id = 2u; types[1].kind = OIR_MODULE_TYPE_FUNCTION;
+    types[2].id = 3u; types[2].kind = OIR_MODULE_TYPE_BIT;
+    types[2].bit_width = 1u;
+    types[3].id = 4u; types[3].kind = OIR_MODULE_TYPE_BYTE;
+    types[3].bit_width = 8u;
+    types[4].id = 5u; types[4].kind = OIR_MODULE_TYPE_BIT_VECTOR;
+    types[4].bit_width = 128u;
+    types[5].id = 6u; types[5].kind = OIR_MODULE_TYPE_BYTE_BLOCK;
+    types[5].bit_width = 128u;
     memset(functions, 0, sizeof(functions));
     functions[0].id = 1u; functions[0].name_length = 4u;
     functions[0].function_type_id = 2u; functions[0].entry_block_id = 1u;
@@ -63,7 +71,7 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     operands[4].kind = OIR_OPERAND_VALUE; operands[4].reference_id = 3u;
 
     memset(&input, 0, sizeof(input));
-    input.types = types; input.type_count = 2u;
+    input.types = types; input.type_count = 6u;
     input.functions = functions; input.function_count = 1u;
     input.blocks = blocks; input.block_count = 1u;
     input.values = values; input.value_count = 3u;
