@@ -9,9 +9,15 @@
 # STDLIBS - Kütüphaler
 
 
-## Bölüm 1. CoreModule "Çekirdek modül"
-** Genişletilmiş Fonksiyon listesini barındırır. Os bağımlıdır ve (CoreModule) otomatik yüklenir. 
-** Ana kod sayfası başına ( no:CoreModule; ) kullanılarak iptal edilebilir. Iptal ettiğinizde: Nexus Flow Primordial Katmanı "core" Modülü yüklenir.
+## Bölüm 1. Standart modüller: `osmodule` ve `coremodule`
+
+Önceden tanımlı modüllerin kanonik kaynak konumu `omnicore-sdk/occ/libs/` dizinidir:
+
+- `osmodule.nxf`: OS bağımlı standart fonksiyonlar. Varsayılan olarak otomatik yüklenir; `no: osmodule;` bu otomatik yüklemeyi kapatır.
+- `coremodule.nxf`: OS bağımsız genel fonksiyonlar. Varsayılan yükleme politikası ayrıca belirlenecektir.
+- `.exf`: harici fonksiyon/nesne dosyası bağlantı tanımları içindir; standart modüllerin ana Nexus Flow kaynak dosyası değildir.
+
+Bu klasördeki dosyalar başlangıç iskeletidir. Aşağıdaki eski fonksiyon listeleri tarihsel tasarım notlarıdır; güncel API veya uygulanmış özellik olarak kabul edilmemelidir.
 
 ### Fonksiyon Listesi
 #### I/O - girdi/çıktı.
@@ -180,7 +186,7 @@ f:main()!i32 {
 Bare-metal modunda `!listen()`, `active_tasks` varsa ve `trigger_flag` sıfırsa işlemciyi uyutur.
 
 ```
-no:CoreModule;
+no: osmodule;
 use flow;
 
 f:kernel_main() {
