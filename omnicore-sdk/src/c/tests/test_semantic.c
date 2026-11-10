@@ -229,8 +229,11 @@ static int check_compound_assignment_semantics(void) {
         "f:main() { v:a!8bit; v:b!8bit; a |= b; a &= b; a ^= b; "
         "v:c!16bit; v:d!32bit; v:e!64bit; v:f!128bit; }";
     const char* valid_fixed_byte_widths =
-        "f:main() { v:a!1byte; v:b!2byte; v:c!4byte; "
-        "v:d!8byte; v:e!16byte; }";
+        "f:main() { v:a!1byte; a |= a; a &= a; a ^= a; "
+        "v:b!2byte; b |= b; b &= b; b ^= b; "
+        "v:c!4byte; c |= c; c &= c; c ^= c; "
+        "v:d!8byte; d |= d; d &= d; d ^= d; "
+        "v:e!16byte; e |= e; e &= e; e ^= e; v:inverse!16byte = ~e; }";
     const char* invalid_fixed_bit_arithmetic =
         "f:main() { v:a!8bit; v:b!8bit; a += b; }";
     const char* invalid_fixed_width_mismatch =
