@@ -77,13 +77,6 @@ static uint32_t OCC_MODULE_CALL module_interface_verify_process(
     }
 
     if (view.envelope.section_count) {
-        if ((size_t)view.envelope.section_count >
-            SIZE_MAX / sizeof(OirSectionInput)) {
-            oir_module_interface_artifact_destroy(&view);
-            return report_failure(invocation, result,
-                OIR_MI_VERIFY_DIAG_SECTION_COPY,
-                "Module Interface Verifier section table exceeds host limits.");
-        }
         sections = (OirSectionInput*)calloc(
             view.envelope.section_count, sizeof(OirSectionInput));
         if (!sections) {
