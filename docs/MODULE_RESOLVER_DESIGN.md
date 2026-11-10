@@ -324,6 +324,16 @@ This is a data-transfer foundation, not yet the final serialized OIR interface c
 
 Tests currently cover exported Group + public member publication, preservation of source IDs and type/relation metadata, omission of an unmarked private symbol, and rejection of non-finalized semantic input. The snapshot is not yet consumed by the Semantic DLL and is not yet encoded as an OIR artifact.
 
+### 14.11 Serialized Module Interface OIR artifact
+
+The in-memory snapshot now has a dedicated OIR transport artifact. The generic OIR artifact-kind registry adds `OIR_KIND_MODULE_INTERFACE = 10`; earlier numeric artifact kinds and the SEMANTIC_AST section registry are unchanged.
+
+The artifact uses one required OIR payload section (version 1) containing the `OMI1` payload schema 1.0. Its fixed-width little-endian records encode canonical module identity, publication-candidate symbols, the referenced type closure, and retained relations. Strings are length-prefixed and are not serialized as host pointers or C structs.
+
+The writer accepts only a structurally consistent `OccModuleInterface`. The reader validates the outer OIR envelope, requires Semantic producer stage + valid artifact state, validates payload schema and record limits, rejects embedded NUL bytes and duplicate source IDs, and checks that symbol/type/relation references that must be part of the published snapshot are present. Type referenced-symbol IDs remain source-module-local and may point to non-published declarations; importer Semantic must enforce visibility before exposing such references.
+
+The reader materializes an owned `OccModuleInterface` and the caller releases it through `oir_module_interface_artifact_destroy()`. The codec is a standalone C library and is tested by a snapshot → OIR → decoded snapshot round-trip. This does not yet connect the artifact to Semantic DLL output or the scheduler's imported-interface input, and does not replace independent Verifier-stage validation.
+
 ### 14.10 Import binding preservation
 
 The scheduler now retains each top-level USE declaration's three independent source-level values: dotted `module_name`, optional `alias`, and optional `namespace_name`. It exposes `occ_module_scheduler_get_import_binding()`, keyed by importer module ID and the visitor's 1-based USE ordinal. The returned view includes the resolved dependency module ID and original source span; string fields are borrowed from the scheduler and remain valid until scheduler destruction.
