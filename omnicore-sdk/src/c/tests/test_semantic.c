@@ -253,6 +253,12 @@ static int check_compound_assignment_semantics(void) {
         "v:data!4byte; v:raw!byte = data[2]; data[3] = raw; }";
     const char* invalid_representation_index_type =
         "f:main() { v:flags!8bit; v:read = flags[1.5]; }";
+    const char* invalid_bit_vector_index_range =
+        "f:main() { v:flags!8bit; v:read!bit = flags[8]; }";
+    const char* invalid_byte_block_index_range =
+        "f:main() { v:data!4byte; v:read!byte = data[4]; }";
+    const char* invalid_negative_bit_index =
+        "f:main() { v:flags!8bit; v:read!bit = flags[-1]; }";
     const char* valid_decimal_widths =
         "f:main() { v:decimal32!d32; v:decimal64!d64; decimal32 += decimal32; decimal64 *= decimal64; }";
     const char* immutable_compound =
@@ -288,6 +294,9 @@ static int check_compound_assignment_semantics(void) {
         check_source(invalid_fixed_bitwise_binary_width,1) &&
         check_source(valid_representation_indexing,0) &&
         check_source(invalid_representation_index_type,1) &&
+        check_source(invalid_bit_vector_index_range,1) &&
+        check_source(invalid_byte_block_index_range,1) &&
+        check_source(invalid_negative_bit_index,1) &&
         check_source(valid_decimal_widths,0) &&
         check_source(immutable_compound,1) &&
         check_source(valid_string_append,0) &&
