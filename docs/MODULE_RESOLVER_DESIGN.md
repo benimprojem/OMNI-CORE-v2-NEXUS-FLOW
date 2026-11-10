@@ -345,3 +345,14 @@ A separate `occ_module_interface_verify_stage` C DLL validates the serialized Mo
 The stage follows the normal OCC module ABI, including output-buffer retry without duplicated diagnostics. A dynamic-loader CTest checks the descriptor, invocation/retry path, job identity, artifact kind and verified producer stamp. The artifact reader accepts both Semantic and Verifier producer stamps so the verified artifact can be reopened downstream.
 
 This gate validates transport integrity and structural consistency only. It does not decide PUBLIC versus EXPORTED access, namespace selection, alias binding, local collisions, or imported type semantics; those remain the importing Semantic stage's responsibility.
+
+
+### 14.13 OIR Module Imports manifest
+
+Resolved top-level USE bindings now have a separate OIR artifact kind, `OIR_KIND_MODULE_IMPORTS = 11`; existing artifact kind IDs 1–10 are unchanged. The required payload is `OIM1`, schema 1.0, and is produced by the OCC host after Scheduler resolution.
+
+The manifest is scoped to one importer and records its canonical identity. Each explicit USE record carries the visitor's 1-based ordinal, original dotted requested spelling, resolved dependency canonical identity, optional alias, optional namespace selector and full source span. Resolver graph module IDs are intentionally excluded because they are job-local implementation identifiers, not stable cross-stage identities. The manifest preserves alias and namespace independently, including literal `_` selectors.
+
+`oir_module_imports_build_from_scheduler()` gathers the bindings from the scheduler and derives the importer identity from its Resolver graph node; callers do not need to reconstruct or re-resolve paths. The writer and reader use fixed-width little-endian records and length-prefixed strings, enforce bounded record/string sizes, reject duplicate ordinals, invalid spans and embedded NULs, and return owned decoded data.
+
+This artifact is the transport contract between host scheduling and the importing Semantic stage. It is not yet consumed by the Semantic DLL: the host pipeline still needs to supply it alongside each matching verified Module Interface artifact. PUBLIC/EXPORTED access policy, namespace lookup, alias binding, collision diagnostics and source-local-to-importer type/symbol mapping remain Semantic responsibilities.
