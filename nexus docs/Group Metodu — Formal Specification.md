@@ -358,7 +358,7 @@ Public olmak otomatik olarak export edilmek anlamına gelmez. Export edilen semb
 
 İki mekanizma farklı sorumluluk taşır:
 
-- **m:name = expression;** initializer ifadesiyle normal bir değer tanımlar. Değer okunabilir ve diğer ifadelerde kullanılabilir; ancak tanımlandıktan sonra bu isim üzerinden yeniden atama, bileşik atama veya artırma/azaltma yapılamaz. Örneğin `m:a = 5;` ve `m:pi = 3.141592653589793;`. Tür, initializer ifadesinden Semantic aşamasında çıkarılır.
+- **m:name = expression;** initializer ifadesiyle normal bir değer tanımlar. Değer okunabilir ve diğer ifadelerde kullanılabilir; ancak tanımlandıktan sonra bu isim üzerinden yeniden atama, bileşik atama veya artırma/azaltma yapılamaz. Örneğin `m:a = 5;` ve `m:pi = 3.141592653589793;`. Tür, initializer ifadesinden Semantic aşamasında çıkarılır. `c:` derleme zamanı sabitiyle karıştırılmaz: `m:` normal değer ömrüne sahiptir ve yalnızca yeniden atanması yasaktır.
 - **use Name; / use path.segment;** modül/kaynak yükleme ve import talebidir. Parser dotted path'i AST_USE içinde korur; kaynak bulma/yükleme host source-provider ve Module Resolver sorumluluğudur. Gerçek import kapsamı ve sembol görünürlüğü Semantic tarafından doğrulanır.
 
 `m:` dosya varlığını kontrol etmez, kaynak yüklemez ve dependency edge oluşturmaz. `use` ile birbirinin yerine kullanılamaz. AST'deki `AST_MUST_DECL` adı append-only AST kimlik uyumluluğu için korunur; dil anlamı immutable value declaration'dır.
