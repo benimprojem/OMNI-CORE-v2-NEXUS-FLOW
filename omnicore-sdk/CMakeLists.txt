@@ -533,6 +533,9 @@ target_link_libraries(occ_semantic_stage PRIVATE
     occ_oir_ast_frontend_reader
     occ_oir_ast_frontend_index
     occ_oir_semantic_ast_artifact
+    occ_module_import_bundle
+    occ_oir_module_imports_artifact
+    occ_oir_module_interface_artifact
     Threads::Threads
 )
 set_target_properties(occ_semantic_stage PROPERTIES
