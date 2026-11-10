@@ -1453,6 +1453,9 @@ if(BUILD_TESTING)
         occ_oir_ast_artifact
         occ_oir_ast_frontend_writer
         occ_oir_semantic_ast_artifact
+        occ_oir_module_imports_artifact
+        occ_oir_module_interface_artifact
+        occ_module_interface
         occ_diagnostics
         Threads::Threads
     )
