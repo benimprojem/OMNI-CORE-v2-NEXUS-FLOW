@@ -1409,3 +1409,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Current-summary correction: `AST_MUST_DECL` is the compatibility-preserved AST kind for immutable `m:` values; it is not a module dependency. The AST graph validator accepts its initializer-bearing node in program and ordinary block statement contexts. Earlier historical notes describing it as program-only or as a dependency are superseded by the 2026-11-10 correction section above.
 
 - CI verification for the corrected `m:` implementation and parser→OIR round-trip: run `42774871338` on code commit `1c4b2013e6e0924951ebf0bc4f31eb5eef8a9615` passed all five jobs — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. Ubuntu CTest: 61/61 passed. Later changes in this correction series after that code commit were documentation-only.
+
+
+## 2026-11-10 — Module Resolver host source-provider boundary
+
+- Reviewed the active OCF files: `omnicore-sdk/occ.ocf` and `omnicore-sdk/src/c/occ.ocf` currently declare `[include] ./lib` and empty `[dependencies]` sections. No C OCF project-config loader was found in the active source tree. OCF parsing and search-policy construction therefore remain host/project-config responsibilities; the portable resolver will not parse OCF or open paths.
+- Added `OccModuleSourceProvider` callback API to `module_resolver.h`: resolve receives dotted USE path, optional importer identity and exact source span; success returns canonical identity and borrowed source bytes; release ends the borrow. Provider statuses distinguish not-found, denied, ambiguous, I/O and provider errors.
+- Implemented provider status mapping, provider-response validation, exact release behavior, independent text/source budgets (source default 64 MiB), and deterministic 64-bit FNV-1a content fingerprint for cache consistency. Fingerprint is explicitly non-cryptographic and is not a trust/security primitive.
+- Expanded `test_module_resolver.c` to cover fake-provider success, identity/fingerprint registration, exactly-once release, not-found/denied/ambiguous/I/O mapping, malformed success cleanup and source-size limit cleanup.
+- Updated `docs/MODULE_RESOLVER_DESIGN.md` with the callback ownership contract and OCF host-policy boundary. No real filesystem/package provider, OCF parser, recursive Lexer/Parser scheduler, dependency OIR interface or Semantic import binding is claimed implemented.
+- CI for this provider API/test addition is pending. Codegen remains blocked.
