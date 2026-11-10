@@ -46,10 +46,12 @@ foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
 endforeach()
 
 file(MAKE_DIRECTORY "${C_RUNTIME_DIR}")
-file(COPY "${C_SOURCE_DIR}/occ.ocf" DESTINATION "${C_RUNTIME_DIR}")
-# Stage source-tree occ/libs beside the runtime bin directory; bin/occ is the CLI executable.
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/occ" DESTINATION "${CMAKE_BINARY_DIR}")
-file(COPY "${C_SOURCE_DIR}/lang" DESTINATION "${C_RUNTIME_DIR}")
+# CMAKE_BINARY_DIR mirrors the future release package root (occ/).
+# Executables and stage DLLs live in bin/; package assets live beside bin/.
+file(COPY "${C_SOURCE_DIR}/occ.ocf" DESTINATION "${CMAKE_BINARY_DIR}")
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/occ/libs" DESTINATION "${CMAKE_BINARY_DIR}")
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/occ/dsplibs" DESTINATION "${CMAKE_BINARY_DIR}")
+file(COPY "${C_SOURCE_DIR}/lang" DESTINATION "${CMAKE_BINARY_DIR}")
 file(COPY "${C_SOURCE_DIR}/tests" DESTINATION "${C_RUNTIME_DIR}")
 configure_file("${C_SOURCE_DIR}/tests/test1.nxf" "${C_RUNTIME_DIR}/tests/test1_alt.nxf" COPYONLY)
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/targets" DESTINATION "${CMAKE_BINARY_DIR}")
@@ -671,12 +673,12 @@ endif()
 if(BUILD_TESTING)
     add_test(NAME occ_predefined_standard_libraries_staged_for_runtime
         COMMAND ${CMAKE_COMMAND}
-            -DOCC_RUNTIME_DIR=${C_RUNTIME_DIR}
+            -DOCC_PACKAGE_DIR=${CMAKE_BINARY_DIR}
             -P "${C_SOURCE_DIR}/tests/verify_occ_standard_library_staging.cmake")
     # A second executable copy proves that config and language assets are
     # resolved beside the executable and that language is read after sections.
     set(C_LOCALE_TEST_DIR "${CMAKE_BINARY_DIR}/locale-tr")
-    file(MAKE_DIRECTORY "${C_LOCALE_TEST_DIR}")
+    file(MAKE_DIRECTORY "${C_LOCALE_TEST_DIR}/bin")
     file(WRITE "${C_LOCALE_TEST_DIR}/occ.ocf"
         "[package]\n[package.metadata]\nlanguage = \"tr\"\n"
     )
@@ -684,25 +686,25 @@ if(BUILD_TESTING)
     add_custom_command(TARGET occ POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:occ>"
-            "${C_LOCALE_TEST_DIR}/occ${CMAKE_EXECUTABLE_SUFFIX}"
+            "${C_LOCALE_TEST_DIR}/bin/occ${CMAKE_EXECUTABLE_SUFFIX}"
         VERBATIM
     )
     add_custom_command(TARGET occ POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:occ_parser_stage>"
-            "${C_LOCALE_TEST_DIR}/$<TARGET_FILE_NAME:occ_parser_stage>"
+            "${C_LOCALE_TEST_DIR}/bin/$<TARGET_FILE_NAME:occ_parser_stage>"
         VERBATIM
     )
     add_custom_command(TARGET occ POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:occ_lexer_stage>"
-            "${C_LOCALE_TEST_DIR}/$<TARGET_FILE_NAME:occ_lexer_stage>"
+            "${C_LOCALE_TEST_DIR}/bin/$<TARGET_FILE_NAME:occ_lexer_stage>"
         VERBATIM
     )
     add_custom_command(TARGET occ POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:occ_semantic_stage>"
-            "${C_LOCALE_TEST_DIR}/$<TARGET_FILE_NAME:occ_semantic_stage>"
+            "${C_LOCALE_TEST_DIR}/bin/$<TARGET_FILE_NAME:occ_semantic_stage>"
         VERBATIM
     )
 
@@ -811,7 +813,7 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME occ_uses_configured_language
-        COMMAND "${C_LOCALE_TEST_DIR}/occ${CMAKE_EXECUTABLE_SUFFIX}"
+        COMMAND "${C_LOCALE_TEST_DIR}/bin/occ${CMAKE_EXECUTABLE_SUFFIX}"
             "${C_SOURCE_DIR}/tests/test_undefined_variable.nxf"
     )
     set_tests_properties(occ_uses_configured_language PROPERTIES
