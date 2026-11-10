@@ -1339,3 +1339,10 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Next Parser gaps from the inventory: comma-list `use` span/ownership + OOM; then source-span and partial-child allocation audits by production family.
 
 - Added comma-list `use alpha as a, beta.gamma as b;` AST sibling/alias and per-node exact-span regression. Corrected expected token boundaries in `e8c5bfd`; matrix record commit `f3b6b89`. CI remains pending.
+
+
+## 2026-11-10 — USE namespace prefix suppression
+- Syntax reference `omnicore-sdk/nfsyntax.md` now defines `use module.path as _;` as the explicit prefix-suppression/import-into-current-scope form, with a nested `group db.mysql.sql` example and normal alias contrast.
+- Added `test_use_namespace_prefix_suppression_alias()` to verify Parser accepts `as _`, retains the complete dotted module path and underscore alias in AST, and passes `ast_validate()`.
+- This is a Parser/AST syntax acceptance test only. Semantic module-member injection, visibility and duplicate-name diagnostics remain to be implemented/verified; no claim of runtime/import resolution is made.
+- CI for the latest parser commits is pending; do not mark this test green until the branch workflow runs.
