@@ -46,7 +46,8 @@ OccModuleResolverStatus occ_filesystem_module_name_to_filename(
     if (!module_name || !module_name[0] || !out_filename || out_capacity == 0u)
         return OCC_MODULE_RESOLVER_INVALID_ARGUMENT;
     n = strlen(module_name);
-    if (n > out_capacity - 5u) return OCC_MODULE_RESOLVER_LIMIT_EXCEEDED;
+    if (out_capacity < 5u || n > out_capacity - 5u)
+        return OCC_MODULE_RESOLVER_LIMIT_EXCEEDED;
     if (fs_is_absolute(module_name)) return OCC_MODULE_RESOLVER_SOURCE_DENIED;
     for (i = 0u; i < n; ++i) {
         unsigned char ch = (unsigned char)module_name[i];
@@ -86,9 +87,13 @@ static int fs_read_file(const char* path, size_t max_bytes,
     bytes = (uint8_t*)malloc((size_t)file_size + 1u);
     if (!bytes) { fclose(file); return -2; }
     read_size = fread(bytes, 1u, (size_t)file_size, file);
-    if (read_size != (size_t)file_size || ferror(file) || fclose(file) != 0) {
-        free(bytes);
-        return -1;
+    {
+        int read_failed = read_size != (size_t)file_size || ferror(file);
+        int close_failed = fclose(file) != 0;
+        if (read_failed || close_failed) {
+            free(bytes);
+            return -1;
+        }
     }
     bytes[read_size] = 0u;
     *out_bytes = bytes;
