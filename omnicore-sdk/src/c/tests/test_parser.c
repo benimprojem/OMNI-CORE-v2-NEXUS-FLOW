@@ -2768,8 +2768,7 @@ static int test_use_path_malformed_and_exact_spans(void) {
 
 static int test_use_alias_and_namespace_ast_codec(void) {
     static const char source[] =
-        "use db.mysql.sql as connector ns sql, db.mysql ns mysql, legacy as _;\\n"
-        "use plain;\\n";
+        "use db.mysql.sql as connector ns sql, db.mysql ns mysql, legacy as _, plain, db.mysql.sql ns _;\\n";
     static const char* invalid_sources[] = {
         "use db.mysql ns ;",
         "use db.mysql ns mysql ns sql;",
@@ -2781,6 +2780,7 @@ static int test_use_alias_and_namespace_ast_codec(void) {
     ASTUse* second;
     ASTUse* third;
     ASTUse* fourth;
+    ASTUse* fifth;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
     int valid = 0;
@@ -2792,7 +2792,8 @@ static int test_use_alias_and_namespace_ast_codec(void) {
         second=first?(ASTUse*)first->base.next:NULL;
         third=second?(ASTUse*)second->base.next:NULL;
         fourth=third?(ASTUse*)third->base.next:NULL;
-        valid=first && second && third && fourth && !fourth->base.next &&
+        fifth=fourth?(ASTUse*)fourth->base.next:NULL;
+        valid=first && second && third && fourth && fifth && !fifth->base.next &&
             strcmp(first->module_name,"db.mysql.sql")==0 &&
             strcmp(first->alias,"connector")==0 &&
             strcmp(first->namespace_name,"sql")==0 &&
@@ -2802,6 +2803,8 @@ static int test_use_alias_and_namespace_ast_codec(void) {
             strcmp(third->alias,"_")==0 && third->namespace_name==NULL &&
             strcmp(fourth->module_name,"plain")==0 &&
             fourth->alias==NULL && fourth->namespace_name==NULL &&
+            strcmp(fifth->module_name,"db.mysql.sql")==0 &&
+            fifth->alias==NULL && strcmp(fifth->namespace_name,"_")==0 &&
             first->base.source_span.has_location &&
             first->base.source_span.start_offset==4u &&
             first->base.source_span.end_offset==
