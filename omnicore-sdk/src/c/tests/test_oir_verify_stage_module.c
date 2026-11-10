@@ -276,7 +276,7 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
 
     /* Patch only after the codec writer has emitted a valid wire payload.
        These malformed semantic relationships belong to the independent verifier. */
-    if (variant == 19 || variant == 20 || variant == 21) {
+    if (variant == 19 || variant == 20 || variant == 21 || variant == 22) {
         size_t values_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u;
         size_t instructions_offset = values_offset +
@@ -693,9 +693,9 @@ int main(int argc, char** argv) {
 
     /* The verifier accepts well-typed bitwise and integer shift instructions. */
     {
-        const int variants[] = {19, 20};
+        const int variants[] = {19, 20, 22};
         size_t k;
-        for (k = 0u; k < 2u; ++k) {
+        for (k = 0u; k < 3u; ++k) {
             OccModuleArtifactInputV1 stage_input;
             size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
             assert(build_cfg_module_artifact(&input, &input_length, variants[k]));

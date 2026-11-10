@@ -1819,3 +1819,14 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Semantic regression cases cover valid shifts, mixed integer count widths, floating operands and negative constants. The latest follow-up commit adds a real frontend-to-OIR `<<<` fixture and independent Verifier acceptance/rejection fixtures.
 - **Still pending:** `>>>` end-to-end lowering fixture; general mixed-width shift-count lowering; shift count boundary/runtime behavior tests; binary `|` and `^` end-to-end lowering tests; unary `~`; bit-vector extract/update and byte indexed load/store.
 - Commit `bbb4158` introduced the initial shift contracts; its CI run failed on all five test jobs. The follow-up commit `9a2b641` fixes the Verifier's main instruction switch and adds the missing lowering/Verifier regressions. CI run `42874827012` is queued/running; do not mark this subtask verified until that run completes.
+
+
+### Integer bit-shift codec integration follow-up — 2026-11-10
+
+- Shift token stable IDs 165 (TOKEN_BIT_SHL) and 166 (TOKEN_BIT_SHR) were appended to the token registry, but the AST TLV primitive still capped token IDs at 160. This caused the real Parser → Semantic → AST OIR writer path to reject shift expressions before OIR lowering.
+- Raised the AST TLV accepted stable-token upper bound to 166 and updated the TLV regression to accept IDs 165/166 while rejecting 167. The AST TLV primitive remains independent of Parser/Lexer headers.
+- Added Semantic boundary acceptance checks for shift counts equal to and greater than the left integer width (both produce zero by language contract).
+- Added a real frontend-to-OIR lowering fixture for >>>, separate from <<<, and an independent Verifier acceptance fixture for OIR_OP_BIT_SHR.
+- OIR registry assertions now require both shift descriptors to be PURE and MAY_TRAP. Dynamic negative-count execution remains a runtime/backend behavior; current tests verify opcode metadata and verifier contract, not an executed runtime trap.
+- Mixed-width shift-count Semantic acceptance is covered, but general mixed-width OIR lowering remains unsupported by the current single-configured-scalar-type lowering slice.
+- CI verification is pending for the follow-up commits. Do not mark the shift package complete until the full matrix passes.

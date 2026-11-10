@@ -64,6 +64,10 @@ int main(void) {
         "f:main() !f64 { ret 7.0 <<< 2.0; }";
     static const char shift_negative_invalid[] =
         "f:main() !i32 { ret 7 <<< -1; }";
+    static const char shift_count_equal_width[] =
+        "f:main() !i32 { ret 1 <<< 32; }";
+    static const char shift_count_greater_width[] =
+        "f:main() !i32 { ret 1 >>> 33; }";
     static const char logical_valid[] =
         "f:main() !bool { ret (1 < 2) && (3 < 4) || false; }";
     static const char logical_invalid[] =
@@ -90,6 +94,8 @@ int main(void) {
     if (!check_source(shift_mixed_integer_types, 0)) return 1;
     if (!check_source(shift_float_invalid, 1)) return 1;
     if (!check_source(shift_negative_invalid, 1)) return 1;
+    if (!check_source(shift_count_equal_width, 0)) return 1;
+    if (!check_source(shift_count_greater_width, 0)) return 1;
     if (!check_source(logical_valid, 0)) return 1;
     if (!check_source(logical_invalid, 1)) return 1;
     puts("Arithmetic semantic operand validation passed.");

@@ -203,7 +203,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     semantic_attach_node_id_resolver(&semantic, test_resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
     if (semantic.error_count != 0) {
-        if (arithmetic == 7 || arithmetic == 8)
+        if (arithmetic == 7 || arithmetic == 8 || arithmetic == 9)
             fprintf(stderr, "bitwise/shift semantic errors=%d\\n", semantic.error_count);
         goto cleanup;
     }
@@ -233,7 +233,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
         OirStatus lower_status = oir_lower_semantic_ast_return(&artifact, &workspace,
             module_bytes, sizeof(module_bytes), &module_length);
         if (lower_status != OIR_STATUS_OK) {
-            if (arithmetic == 7 || arithmetic == 8) fprintf(stderr, "bitwise/shift lower status=%u\\n", (unsigned)lower_status);
+            if (arithmetic == 7 || arithmetic == 8 || arithmetic == 9) fprintf(stderr, "bitwise/shift lower status=%u\\n", (unsigned)lower_status);
             goto cleanup;
         }
     }
@@ -241,7 +241,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     {
         OirStatus open_status = oir_module_open(module_bytes, module_length, &module);
         if (open_status != OIR_STATUS_OK) {
-            if (arithmetic == 7 || arithmetic == 8)
+            if (arithmetic == 7 || arithmetic == 8 || arithmetic == 9)
                 fprintf(stderr, "bit fixture=%d module open status=%u length=%zu\\n",
                     arithmetic, (unsigned)open_status, module_length);
             goto cleanup;
@@ -249,7 +249,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     }
     if (module.type_count != ((arithmetic == 5 || arithmetic == 6) ? 3u : 2u) ||
         module.function_count != 1u) {
-        if (arithmetic == 7 || arithmetic == 8)
+        if (arithmetic == 7 || arithmetic == 8 || arithmetic == 9)
             fprintf(stderr, "bit fixture=%d module header types=%u functions=%u blocks=%u ins=%u operands=%u values=%u\\n",
                 arithmetic, module.type_count, module.function_count, module.block_count,
                 module.instruction_count, module.operand_count, module.value_count);
@@ -261,7 +261,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
         if (type_status != OIR_STATUS_OK ||
             return_type.kind != OIR_MODULE_TYPE_INTEGER ||
             (return_type.flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u) {
-            if (arithmetic == 7 || arithmetic == 8)
+            if (arithmetic == 7 || arithmetic == 8 || arithmetic == 9)
                 fprintf(stderr, "bit fixture=%d return type status=%u kind=%u flags=%u\\n",
                     arithmetic, (unsigned)type_status, return_type.kind, return_type.flags);
             goto cleanup;
@@ -352,10 +352,10 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
         if (module.block_count != 5u || module.instruction_count != 12u ||
             module.operand_count != 18u || module.value_count != 7u)
             goto cleanup;
-    } else if (arithmetic == 7 || arithmetic == 8) {
+    } else if (arithmetic == 7 || arithmetic == 8 || arithmetic == 9) {
         OirModuleInstruction bit_op, ret;
         OirModuleOperand left, right, returned;
-        uint16_t expected_opcode = arithmetic == 7 ? OIR_OP_BIT_AND : OIR_OP_BIT_SHL;
+        uint16_t expected_opcode = arithmetic == 7 ? OIR_OP_BIT_AND : (arithmetic == 8 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR);
         if (module.instruction_count != 4u || module.operand_count != 5u ||
             module.value_count != 3u ||
             oir_module_get_instruction(&module, 2u, &bit_op) != OIR_STATUS_OK ||
@@ -572,6 +572,7 @@ int main(int argc, char** argv) {
             "if (x < 0) { ret 0; } elsif (x > 50) { ret 1; } els { ret x; } }";
         static const uint8_t bitwise_source[] = "f:main() !i32 { v:a!i32 = 5; v:b!i32 = 3; ret a & b; }";
         static const uint8_t bit_shift_source[] = "f:main() !i32 { v:a!i32 = 5; v:b!i32 = 3; ret a <<< b; }";
+        static const uint8_t bit_shift_right_source[] = "f:main() !i32 { v:a!i32 = 5; v:b!i32 = 3; ret a >>> b; }";
         assert(test_real_frontend_to_module(&stage_module, literal_source, sizeof(literal_source)-1u, 0));
         assert(test_real_frontend_to_module(&stage_module, arithmetic_source, sizeof(arithmetic_source)-1u, 1));
         assert(test_real_frontend_to_module(&stage_module, local_source, sizeof(local_source)-1u, 2));
@@ -581,6 +582,7 @@ int main(int argc, char** argv) {
         assert(test_real_frontend_to_module(&stage_module, if_elsif_else_source, sizeof(if_elsif_else_source)-1u, 6));
         assert(test_real_frontend_to_module(&stage_module, bitwise_source, sizeof(bitwise_source)-1u, 7));
         assert(test_real_frontend_to_module(&stage_module, bit_shift_source, sizeof(bit_shift_source)-1u, 8));
+        assert(test_real_frontend_to_module(&stage_module, bit_shift_right_source, sizeof(bit_shift_right_source)-1u, 9));
     }
     assert(test_lowering_stage_rejects_bad_input(&stage_module));
     occ_module_loader_close(&stage_module);

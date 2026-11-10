@@ -50,8 +50,10 @@ int main(void) {
         assert(bit_not && strcmp(bit_not->name, "bit.not") == 0);
         assert(bit_shl && strcmp(bit_shl->name, "bit.shl") == 0);
         assert(bit_shr && strcmp(bit_shr->name, "bit.shr") == 0);
-        assert((bit_shl->flags & OIR_OPCODE_FLAG_MAY_TRAP) != 0u);
-        assert((bit_shr->flags & OIR_OPCODE_FLAG_MAY_TRAP) != 0u);
+        assert((bit_shl->flags & (OIR_OPCODE_FLAG_PURE | OIR_OPCODE_FLAG_MAY_TRAP)) ==
+            (OIR_OPCODE_FLAG_PURE | OIR_OPCODE_FLAG_MAY_TRAP));
+        assert((bit_shr->flags & (OIR_OPCODE_FLAG_PURE | OIR_OPCODE_FLAG_MAY_TRAP)) ==
+            (OIR_OPCODE_FLAG_PURE | OIR_OPCODE_FLAG_MAY_TRAP));
         assert(oir_opcode_lookup_name("bit.shl") == bit_shl);
         assert(oir_opcode_lookup_name("bit.shr") == bit_shr);
         assert(oir_opcode_lookup_name("bit.xor") == bit_xor);
