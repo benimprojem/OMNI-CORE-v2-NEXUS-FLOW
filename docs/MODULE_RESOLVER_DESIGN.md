@@ -237,6 +237,25 @@ Discovery and Semantic are separate passes:
 
 This prevents a module from being marked semantically usable merely because its source parsed. It also keeps imported symbol visibility, Group ownership, alias/namespace collision and type checking in Semantic—not in the Resolver.
 
+### 14.6 AST_USE traversal API
+
+The Parser/AST library now exposes a Resolver-independent visitor:
+
+```c
+ASTUseVisitStatus ast_visit_top_level_uses(
+    const ASTNode* program,
+    ASTUseVisitorFn visitor,
+    void* context,
+    size_t* out_count
+);
+```
+
+The visitor walks only the direct `ASTProgram.declarations` sibling list, selects `AST_USE` nodes in source order, and passes each borrowed `ASTUse` plus a 1-based per-program ordinal to the callback. It does not descend into function or block bodies, allocate memory, mutate the AST, or resolve module paths. The callback may stop traversal; the result distinguishes normal completion, callback stop, invalid input/root, and ordinal overflow.
+
+The ordinal is not a persistent AST node identity. The host may use it as the Resolver edge's `ast_use_node_id` correlation value for the lifetime of the current parsed module. `module_name`, `alias`, and `namespace_name` remain separate AST fields; path lookup and alias/namespace binding are outside this visitor.
+
+The visitor and its regression test are implemented. The host bridge that turns visitor records into `OccModuleSourceRequest` values, recursively invokes Parser DLLs, and retains per-module AST artifacts remains pending.
+
 ### 14.5 Current implementation boundary
 
 Implemented in the portable graph core:
@@ -248,7 +267,7 @@ Implemented in the portable graph core:
 Still not implemented:
 - filesystem/package source provider;
 - recursive host scheduler invoking Lexer/Parser DLLs;
-- AST_USE scanner that converts AST nodes into resolver requests;
+- AST_USE visitor output being converted by the host into provider requests and Resolver graph edges;
 - retained per-module AST artifact/job store;
 - dependency OIR interface artifact and validator;
 - Semantic DLL imported-interface input and symbol binding;
