@@ -2718,6 +2718,54 @@ static int test_dotted_module_use_path(void) {
     return valid;
 }
 
+static int test_use_path_malformed_and_exact_spans(void) {
+    static const char valid_source[] = "use alpha.beta.gamma as mod;\\n";
+    static const char* invalid_sources[] = {
+        "use alpha.;",
+        "use alpha..beta;",
+        "use alpha.beta as ;",
+        "use alpha.beta"
+    };
+    ParserContext* parser = parser_init_source(
+        "use-path-span.nxf", (const uint8_t*)valid_source, sizeof(valid_source)-1u);
+    ASTUse* use_node;
+    int valid = 0;
+    size_t i;
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        parser->ast_root && ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        use_node = (ASTUse*)((ASTProgram*)parser->ast_root)->declarations;
+        valid = use_node && use_node->base.type == AST_USE &&
+            strcmp(use_node->module_name, "alpha.beta.gamma") == 0 &&
+            strcmp(use_node->alias, "mod") == 0 &&
+            use_node->base.source_span.has_location &&
+            use_node->base.source_span.start_offset == 4u &&
+            use_node->base.source_span.end_offset == 27u &&
+            use_node->base.source_span.start_line == 1u &&
+            use_node->base.source_span.start_column == 5u &&
+            use_node->base.source_span.end_line == 1u &&
+            use_node->base.source_span.end_column == 28u &&
+            ast_validate((ASTNode*)parser->ast_root, NULL);
+    }
+    parser_destroy(parser);
+    if (!valid) {
+        fprintf(stderr, "USE dotted path exact source-span assertion failed.\\n");
+        return 0;
+    }
+    for (i=0; i<sizeof(invalid_sources)/sizeof(invalid_sources[0]); ++i) {
+        parser = parser_init_source("use-path-invalid.nxf",
+            (const uint8_t*)invalid_sources[i], strlen(invalid_sources[i]));
+        if (!parser) return 0;
+        if (parser_run(parser) == PARSER_STATUS_OK || parser->error_count == 0) {
+            fprintf(stderr, "Malformed USE path accepted: %s\\n", invalid_sources[i]);
+            parser_destroy(parser);
+            return 0;
+        }
+        parser_destroy(parser);
+    }
+    return 1;
+}
+
 static int test_pointer_reference_type_declarators(void) {
     static const char source[] =
         "nt:CharPtr = *char; "
@@ -3320,6 +3368,7 @@ int main(int argc, char** argv) {
     if (!test_must_scope_rejected()) return 1;
     if (!test_canonical_loop_and_jump_call_forms()) return 1;
     if (!test_dotted_module_use_path()) return 1;
+    if (!test_use_path_malformed_and_exact_spans()) return 1;
     if (!test_pointer_reference_type_declarators()) return 1;
     if (!test_function_type_alias_and_callback_parameter()) return 1;
     if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\\n"); return 1; }
