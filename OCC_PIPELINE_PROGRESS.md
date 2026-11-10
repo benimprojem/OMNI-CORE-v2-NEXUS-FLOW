@@ -1528,3 +1528,11 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Düzeltme: host artık config/targets/lang yollarını executable dizinine göre `../occ.ocf`, `../targets`, `../lang` biçiminde kuruyor. Böylece `bin/occ` ile paket kökü arasındaki ilişki açık ve platformlar arası yol birleştirme helper'ı kullanılarak korunuyor. Yeni CI run [42798199142](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42798199142) bekleniyor; henüz başarılı sayılmıyor.
 
 - **Locale regression kök neden düzeltmesi:** ikinci CI denemesinde OCC host path'lerinin `bin/../...` biçiminde doğru olduğu debug çıktısıyla doğrulandı; başarısızlık Semantic stage DLL'in kendi modül klasöründe (bin/) `occ.ocf` ve `lang/` aramasından kaynaklanıyordu. `semantic_stage_module.c` artık `../occ.ocf` ve `../lang/messages_<language>.conf` kullanıyor. Geçici debug çıktısı `main.c` içinden kaldırıldı. Bu düzeltmenin CI doğrulaması henüz bekleniyor.
+
+
+### CI doğrulaması — OCC paket kökü ve DLL runtime yolları
+
+- Run [42798680457](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42798680457), commit `1580f7194de88dfcf442ff29638fc045831479a6`: **5/5 iş başarılı** — Ubuntu, Windows, macOS, ASan/UBSan ve Valgrind.
+- Her beş işte de CTest **62/62 başarılı**.
+- Locale regression testi artık `bin/occ` ve `bin/occ_semantic_stage` kopyalarının paket kökü config/dil dosyalarını `bin/../occ.ocf` ve `bin/../lang` üzerinden bulduğunu doğruluyor.
+- Bu doğrulama yalnızca paket asset staging ve runtime path çözümlemesini kapsar. OCF include/dependency okuyucusu, gerçek filesystem source provider, OCM ve recursive module scheduler henüz uygulanmadı.
