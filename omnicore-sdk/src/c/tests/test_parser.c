@@ -2766,6 +2766,25 @@ static int test_use_path_malformed_and_exact_spans(void) {
     return 1;
 }
 
+static int test_use_namespace_prefix_suppression_alias(void) {
+    static const char source[] = "use db.mysql.sql as _;\n";
+    ParserContext* parser = parser_init_source("use-prefix-drop.nxf",
+        (const uint8_t*)source, sizeof(source)-1u);
+    ASTUse* use_node;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser)==PARSER_STATUS_OK && parser->error_count==0 &&
+        parser->ast_root && ((ASTNode*)parser->ast_root)->type==AST_PROGRAM) {
+        use_node=(ASTUse*)((ASTProgram*)parser->ast_root)->declarations;
+        valid=use_node && use_node->module_name &&
+            strcmp(use_node->module_name,"db.mysql.sql")==0 &&
+            use_node->alias && strcmp(use_node->alias,"_")==0 &&
+            ast_validate((ASTNode*)parser->ast_root);
+    }
+    parser_free(parser);
+    return valid;
+}
+
 static int test_use_comma_list_spans(void) {
     static const char source[] = "use alpha as a, beta.gamma as b;\\n";
     ParserContext* parser = parser_init_source("use-list.nxf",
@@ -3400,6 +3419,7 @@ int main(int argc, char** argv) {
     if (!test_dotted_module_use_path()) return 1;
     if (!test_use_path_malformed_and_exact_spans()) return 1;
     if (!test_use_comma_list_spans()) return 1;
+    if (!test_use_namespace_prefix_suppression_alias()) { fprintf(stderr, "Use namespace-prefix suppression alias test failed.\\n"); return 1; }
     if (!test_pointer_reference_type_declarators()) return 1;
     if (!test_function_type_alias_and_callback_parameter()) return 1;
     if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\\n"); return 1; }
