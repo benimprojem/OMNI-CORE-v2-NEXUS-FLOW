@@ -155,6 +155,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     OirModuleView module;
     int ok = 0;
     int semantic_initialized = 0;
+    const char* failed_at = "parser";
 
     memset(&semantic, 0, sizeof(semantic));
     memset(&workspace, 0, sizeof(workspace));
@@ -165,6 +166,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
         parser_get_status(parser) != PARSER_STATUS_OK || !parser->ast_root)
         goto cleanup;
 
+    failed_at = "AST frontend index/measure/write";
     if (oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
             index, 64u, &node_count) != OIR_STATUS_OK ||
         oir_ast_frontend_measure((ASTNode*)parser->ast_root,
@@ -179,6 +181,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             ast_payload, sizeof(ast_payload), &ast_length, &requirements) != OIR_STATUS_OK)
         goto cleanup;
 
+    failed_at = "Semantic check/finalize";
     resolver.entries = index;
     resolver.capacity = 64u;
     semantic_init(&semantic, "real-lowering.nxf", NULL);
@@ -192,15 +195,18 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     }
     if (semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK ||
         semantic.result.finalized != 1u) goto cleanup;
+    failed_at = "Semantic AST artifact write";
     if (oir_semantic_ast_artifact_write(ast_payload, ast_length,
             &semantic.result, 1u, semantic_artifact,
             sizeof(semantic_artifact), &semantic_length) != OIR_STATUS_OK)
         goto cleanup;
+    failed_at = "Semantic AST artifact open/graph validation";
     if (oir_semantic_ast_artifact_open(semantic_artifact, semantic_length,
             &artifact, incoming, 64u, visited, 64u, graph_stack, 64u,
             owner_scope, 65u) != OIR_STATUS_OK)
         goto cleanup;
 
+    failed_at = "OIR lowering";
     workspace.types = module_types; workspace.type_capacity = 3u;
     workspace.functions = functions; workspace.function_capacity = 1u;
     workspace.blocks = blocks; workspace.block_capacity = 16u;
@@ -217,6 +223,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             goto cleanup;
         }
     }
+    failed_at = "OIR module open/contract";
     {
         OirStatus open_status = oir_module_open(module_bytes, module_length, &module);
         if (open_status != OIR_STATUS_OK) {
@@ -401,6 +408,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     ok = 1;
 
 cleanup:
+    if (!ok && arithmetic == 8) fprintf(stderr, "bit fixture=8 failed at %s\\n", failed_at);
     if (semantic_initialized) semantic_destroy(&semantic);
     if (parser) parser_destroy(parser);
     return ok;
