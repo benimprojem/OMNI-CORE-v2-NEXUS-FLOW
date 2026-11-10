@@ -1806,3 +1806,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Added registry descriptor/shape assertions to `test_oir_module`; extended the independent verifier test fixture with a well-typed integer bitwise instruction; the type contract explicitly excludes boolean and floating-point types.
 - **Not yet implemented:** Semantic AST → OIR bitwise instruction emission; 128-bit constant/immediate representation; Nbit extraction/update and Nbyte indexed load/store lowering; dynamic index bounds checks. These remain OIR work and do not authorize Codegen work.
 - CI run `42856277976` for the bitwise verifier changes has passed Ubuntu, Windows and ASan/UBSan; Valgrind is still running and macOS is queued at the time of this update. Do not treat this as a 5/5 result.
+
+
+### Binary bitwise AST → OIR lowering — 2026-11-10
+
+- `oir_lowering_expr.c` maps AST token IDs for `&`, `|` and `^` to `OIR_OP_BIT_AND`, `OIR_OP_BIT_OR` and `OIR_OP_BIT_XOR`. Lowering only accepts integer and bit/byte representation type kinds; semantic analysis remains responsible for operand compatibility and verifier rechecks exact OIR type IDs.
+- `test_oir_lowering.c` now has a real Parser → Semantic → Semantic AST artifact → OIR lowering regression for `ret 5 & 3;` and asserts opcode, value references and return linkage.
+- Bit-shift syntax decision documented in canonical syntax reference: `<<<` / `>>>`; `<<` / `>>` stay Zone Write / Flow Feed. Shift behavior is bit-pattern based, zero-fills, truncates width overflow, and returns zero for shift amount >= width.
+- **Pending:** lexer/parser recognition for triple shift tokens, Semantic shift typing/range behavior, shift OIR opcode IDs/lowering; binary `|` and `^` end-to-end lowering tests; unary `~`; bit-vector extract/update and byte indexed load/store.
+- New lowerer/test changes need CI; do not mark bitwise lowering complete before CI confirms.
