@@ -1657,5 +1657,8 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - CMake'e `occ_filesystem_module_provider` hedefi ve `filesystem_module_provider_single_file_mapping_and_search_order` testi eklendi.
 - Fixture testleri: dotted filename, `db.nxf`, traversal reddi, dsplibs önceliği, libs fallback, proje include fallback, OCF ek include fallback, bulunamadı ve kaynak boyutu limiti.
 - **Entegrasyon sınırı:** Provider henüz `main.c` tarafından kullanılmıyor. CLI hâlâ SDK runtime OCF'den yalnızca dil ayarını okuyor; proje OCF seçimi ve `dsplibs/` + `libs/` köklerinin runtime çözümü sonraki entegrasyon adımı. Bu nedenle USE uçtan uca çalışıyor olarak işaretlenmiyor.
-- **CI:** Bu provider commit seti için CI henüz sonuçlanmadı. CMake/CTest, Windows, macOS, ASan/UBSan ve Valgrind tamamlanana kadar doğrulanmış sayılmayacak.
+- **CI:** Son test düzeltmesi commit'i `189815d1` için run [42816468235](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42816468235) **5/5 başarılı**: Ubuntu 66/66, Windows 66/66, macOS 66/66, ASan/UBSan ve Valgrind MemCheck 66/66. Windows checkout CRLF farkı test karşılaştırmasında normalize edildi; provider kaynak baytlarını değiştirmiyor.
 - Commit'ler: `589f0543` / `ef1e9807` provider API/ilk uygulama, `64fe4480` CMake/test kaydı, `56651ecf` test, `b163d7ed` / `79c1bc6c` / `bf139265` limit statüsü, `07ee6e14` limit testi, `4e164007` / `930cbdfb` / `1e9942d5` include kökü, `675ecc1e` fixture, `69557d8f` include index düzeltmesi.
+
+
+- Son provider test/CI düzeltme commit'i: `ccf78e13` (traversal reddi + POSIX realpath bildirimi), `2aaa8921` (erişim reddi statüsü), `189815d1` (platformlar arası satır sonu testi). Son CI tüm kontrollerde yeşil.
