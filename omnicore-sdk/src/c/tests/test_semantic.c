@@ -261,6 +261,22 @@ static int check_compound_assignment_semantics(void) {
         "f:main() { v:data!4byte; v:read!byte = data[4]; }";
     const char* invalid_negative_bit_index =
         "f:main() { v:flags!8bit; v:read!bit = flags[-1]; }";
+    const char* valid_explicit_bit_byte_coercions =
+        "f:main() { v:one!bit = 1; v:zero!bit = 0; "
+        "v:raw!byte = 255; v:flags!8bit = 255; "
+        "v:word!16bit = 65535; v:packet!2byte = 65535; "
+        "v:source!u8; v:from_source!8bit = source; "
+        "v:small!8bit; v:widened!16bit = small; }";
+    const char* invalid_explicit_bit_coercions =
+        "f:main() { v:invalid!bit = 2; }";
+    const char* invalid_explicit_byte_coercions =
+        "f:main() { v:invalid!byte = 256; }";
+    const char* invalid_explicit_bit_vector_coercions =
+        "f:main() { v:invalid!8bit = 256; }";
+    const char* invalid_explicit_word_coercions =
+        "f:main() { v:invalid!16bit = 65536; }";
+    const char* invalid_dynamic_narrowing_coercion =
+        "f:main() { v:source!u16; v:target!8bit = source; }";
     const char* valid_decimal_widths =
         "f:main() { v:decimal32!d32; v:decimal64!d64; decimal32 += decimal32; decimal64 *= decimal64; }";
     const char* immutable_compound =
@@ -299,6 +315,12 @@ static int check_compound_assignment_semantics(void) {
         check_source(invalid_bit_vector_index_range,1) &&
         check_source(invalid_byte_block_index_range,1) &&
         check_source(invalid_negative_bit_index,1) &&
+        check_source(valid_explicit_bit_byte_coercions,0) &&
+        check_source(invalid_explicit_bit_coercions,1) &&
+        check_source(invalid_explicit_byte_coercions,1) &&
+        check_source(invalid_explicit_bit_vector_coercions,1) &&
+        check_source(invalid_explicit_word_coercions,1) &&
+        check_source(invalid_dynamic_narrowing_coercion,1) &&
         check_source(valid_decimal_widths,0) &&
         check_source(immutable_compound,1) &&
         check_source(valid_string_append,0) &&
