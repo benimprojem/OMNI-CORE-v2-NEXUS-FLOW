@@ -167,19 +167,33 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
         goto cleanup;
 
     failed_at = "AST frontend index/measure/write";
-    if (oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
-            index, 64u, &node_count) != OIR_STATUS_OK ||
-        oir_ast_frontend_measure((ASTNode*)parser->ast_root,
-            index, 64u, node_count, &requirements) != OIR_STATUS_OK ||
-        requirements.field_data_length > sizeof(fields) ||
-        requirements.string_table_length > sizeof(strings) ||
-        requirements.payload_size > sizeof(ast_payload))
-        goto cleanup;
-    if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
+    {
+        OirStatus ast_status = oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
+            index, 64u, &node_count);
+        if (ast_status != OIR_STATUS_OK) {
+            if (arithmetic == 8) fprintf(stderr, "bit fixture=8 AST index status=%u\\n", (unsigned)ast_status);
+            goto cleanup;
+        }
+        ast_status = oir_ast_frontend_measure((ASTNode*)parser->ast_root,
+            index, 64u, node_count, &requirements);
+        if (ast_status != OIR_STATUS_OK ||
+            requirements.field_data_length > sizeof(fields) ||
+            requirements.string_table_length > sizeof(strings) ||
+            requirements.payload_size > sizeof(ast_payload)) {
+            if (arithmetic == 8) fprintf(stderr, "bit fixture=8 AST measure status=%u nodes=%u fields=%zu strings=%zu payload=%zu\\n",
+                (unsigned)ast_status, node_count, requirements.field_data_length,
+                requirements.string_table_length, requirements.payload_size);
+            goto cleanup;
+        }
+        ast_status = oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
             index, 64u, node_count, records, 64u,
             fields, sizeof(fields), strings, sizeof(strings),
-            ast_payload, sizeof(ast_payload), &ast_length, &requirements) != OIR_STATUS_OK)
-        goto cleanup;
+            ast_payload, sizeof(ast_payload), &ast_length, &requirements);
+        if (ast_status != OIR_STATUS_OK) {
+            if (arithmetic == 8) fprintf(stderr, "bit fixture=8 AST write status=%u\\n", (unsigned)ast_status);
+            goto cleanup;
+        }
+    }
 
     failed_at = "Semantic check/finalize";
     resolver.entries = index;
