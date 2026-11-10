@@ -16,7 +16,6 @@ lisans 	= "";
 [include]
 ./libs
 
-# dpslib/  Eğer ekleyeceğiniz bağımlıklar o.c.sdk içerisinde var ise yüklenmez. 
-# Yok ise o.c.sdk/dpslib/ yüklenir, bir başka projede gerekli olur ise tekrar yüklemekten kurtarır.
+# OCM merkezi bağımlılıkları paket kökündeki dsplibs/ deposundan çözer.
 [dependencies]
 
