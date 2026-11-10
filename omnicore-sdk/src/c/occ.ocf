@@ -14,7 +14,7 @@ lisans 	= "";
 # osmodule otomatik yüklenir no: osmodule; kullanılarak iptal edilebilir. 
 # Baremetal, kernel yazıyorsanız iptal edebilirsiniz.
 [include]
-./lib
+./occ/libs
 
 # dpslib/  Eğer ekleyeceğiniz bağımlıklar o.c.sdk içerisinde var ise yüklenmez. 
 # Yok ise o.c.sdk/dpslib/ yüklenir, bir başka projede gerekli olur ise tekrar yüklemekten kurtarır.
