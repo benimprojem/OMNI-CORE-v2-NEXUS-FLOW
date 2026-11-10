@@ -1,0 +1,117 @@
+# Module Resolver Architecture (Draft)
+
+**Status:** Architecture contract draft. This document does not claim that module loading, dependency resolution, or imported-symbol Semantic validation is implemented.
+
+## 1. Responsibility boundary
+
+The Module Resolver is a distinct C component between Parser/AST production and Semantic analysis. It owns module identity, dependency discovery, source-provider coordination, canonical module lookup, dependency graph construction, cache identity, and cycle diagnostics.
+
+It does not parse Nexus Flow source, duplicate Parser grammar, decide type correctness, bypass Group ownership/visibility, lower AST, or perform unrestricted filesystem access based on source-controlled strings.
+
+Parser emits AST_USE nodes with the dotted path, optional `as` alias, and optional `ns` selector. Semantic validates imported names, Group membership, visibility, local collisions, and use-site type rules.
+
+## 2. Pipeline placement
+
+```text
+SOURCE_UNIT -> Lexer DLL -> TOKEN_STREAM -> Parser DLL -> AST
+  -> Module Resolver + host dependency scheduler
+       -> recursively discover AST_USE dependencies
+       -> resolve canonical module identities and build dependency graph
+       -> reject unresolved paths and dependency cycles
+       -> schedule dependency modules before their importers
+  -> Semantic DLL
+       -> consume root AST + validated imported-module interface data
+       -> validate alias/namespace bindings, exports, visibility and symbol use
+  -> SEMANTIC_AST -> OIR lowering
+```
+
+The current Semantic DLL accepts one AST artifact and has no project/module context. Imported-symbol validation must not be faked by silently treating imports as local declarations. Its invocation contract will be extended only after the dependency/interface artifact is specified.
+
+## 3. Host source-provider boundary
+
+The resolver must not concatenate a dotted module path into an arbitrary filesystem path and open it directly. A host-owned source provider supplies module content under the active project policy.
+
+The provider contract is expected to:
+- receive a validated module request, importer identity, and source location;
+- return an immutable canonical module identity and source-unit bytes, or a structured not-found/denied/ambiguous result;
+- enforce project roots, configured search paths, allowed extensions, and filesystem policy;
+- keep file I/O and platform path handling in the host;
+- guarantee the returned buffer lifetime for the complete resolution operation.
+
+This keeps Windows/Linux/macOS path behavior outside the portable resolver core and prevents source text from granting arbitrary path access. Exact project manifest/search-path rules and file-extension policy remain open until the repository's project configuration contract and existing `m:` required-dependency semantics are reviewed.
+
+## 4. Module identity and graph
+
+A resolved module is identified by its provider-issued canonical identity, not by an import alias or raw path spelling. The graph stores:
+- canonical module identity and source identity/content fingerprint;
+- importer-to-dependency edges;
+- originating AST_USE node identity and exact source span for each edge;
+- resolution state (unseen, resolving, resolved, failed);
+- selected Group path, when the import selects a Group within a module.
+
+Repeated requests for the same canonical identity reuse one graph node within a compilation job. Aliases and namespace selectors are edge-local bindings and never alter module cache identity.
+
+A deterministic depth-first traversal may use `UNSEEN -> RESOLVING -> RESOLVED`. Encountering a `RESOLVING` node through a new dependency edge is a cycle and produces a diagnostic at the importing AST_USE span. Failed dependencies are never marked resolved or published as valid interfaces.
+
+The initial implementation rejects dependency cycles deterministically. Strongly connected module initialization or mutually recursive module interfaces are not implied and require a separate language-level design.
+
+## 5. USE binding semantics
+
+Each AST_USE item preserves three independent values:
+- `module_name`: dotted module/selection path written by the user;
+- `alias`: optional local alias introduced by `as`;
+- `namespace_name`: optional namespace root introduced by `ns`.
+
+Rules:
+- `as name` names the imported item locally; it does not rewrite the namespace root.
+- `ns name` selects the namespace root used to expose members of the selected Group.
+- `ns _` requests unqualified exposure in the importing scope.
+- `as _` remains an ordinary alias spelling.
+- Comma-separated imports are independent bindings; each retains its own source span and options.
+- Alias/namespace collisions and duplicate imported symbols are checked against the actual importing scope, not by Parser.
+- A selected Group must exist in the resolved module and be eligible for import.
+- Only exported/public members allowed by the Group specification enter the imported interface. Group-owned private nominal types remain private even when a namespace prefix is removed.
+
+The resolver establishes which module and Group were selected. Semantic validates the resulting symbol interface and all use-site references. Namespace flattening must never weaken visibility or Group-owned type isolation.
+
+## 6. Imported interface and Semantic handoff
+
+The dependency graph and imported symbol interface are separate concepts. The graph answers which source module depends on which other module. The Semantic interface answers which declarations are importable and how each import binds them.
+
+Before Semantic import support is implemented, a versioned OIR representation must define:
+- stable module and declaration identities;
+- exported declaration kind, name, signature/type reference, visibility and owning Group identity;
+- selected Group identity and eligible exported members;
+- import-edge identity and the AST_USE node/source span that introduced it;
+- alias and namespace binding values;
+- references that prevent downstream name-only re-resolution.
+
+The interface is independently validated before Semantic consumes it. SemanticResult/OIR annotations retain resolved symbol identities; downstream OIR never reopens source paths or repeats name lookup.
+
+Dependency modules are parsed and semantically checked under their own module scopes before validated export interfaces are consumed by importers. The host scheduler may parallelize independent graph branches later, but deterministic diagnostics and collector synchronization remain required.
+
+## 7. Diagnostics and failure behavior
+
+Diagnostics identify the importing AST_USE node and preserve its exact source span. Resolution distinguishes at least:
+- module not found;
+- module denied by project/source-provider policy;
+- ambiguous module identity;
+- selected Group not found;
+- dependency cycle;
+- duplicate/colliding alias or namespace binding;
+- invalid or non-exported imported member;
+- dependency source read/parse failure.
+
+A failed dependency prevents the importing module from receiving a valid Semantic interface. Diagnostics accumulate for the compilation job, but no valid SEMANTIC_AST or downstream OIR_MODULE is published while blocking errors remain.
+
+## 8. Implementation gates
+
+1. Review project configuration and existing `m:` required-dependency semantics; define canonical module identity and source-provider policy.
+2. Specify and test the portable C resolver core API (provider callback, graph ownership, deterministic traversal, allocation-failure cleanup).
+3. Test cache reuse, aliases not affecting cache keys, missing/denied/ambiguous sources, nested dependencies, cycles, exact USE spans, and OOM cleanup.
+4. Define a versioned OIR dependency/interface artifact and independent validator.
+5. Integrate the host dependency scheduler with existing lexer/parser DLLs; do not add file I/O to Parser or Semantic.
+6. Extend Semantic invocation to consume validated imported interfaces; test `as`, `ns`, `ns _`, nested Groups, visibility, collisions, and private-type isolation.
+7. Verify Windows, macOS, Ubuntu, ASan/UBSan and Valgrind before marking the stage complete.
+
+No Codegen work is authorized by this plan. AST/Parser gates and Semantic import validation remain prerequisites.
