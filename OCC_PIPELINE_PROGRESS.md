@@ -1783,9 +1783,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 ### Primitive bit/byte type audit — 2026-11-10
 
-- User decision confirmed: retain the width suffix spelling `8bit`, `16bit`, `32bit`, `64bit`, and `128bit`. These are a distinct fixed-width bit-vector family, not numeric integer aliases.
-- `bit` is a one-bit value. `byte` is a raw 8-bit storage unit. `u8` remains an ordinary numeric integer; the types are not interchangeable implicitly.
-- Semantic now recognizes `bit` as a primitive type and permits `&=`, `|=`, and `^=` for matching `bit` and matching `byte` operands. These types do not gain arithmetic compound assignment; regression tests cover both accepted bitwise cases and rejected `+=` cases.
-- The existing `TOKEN_TYPE_BIT` and `TOKEN_TYPE_BYTE` lexer tokens are reused; parser already accepts the primitive token range.
-- `8bit` through `128bit` and `1byte`, `2byte`, etc. still need dedicated lexer/parser type spelling support, AST/type-expression preservation, Semantic width rules, OIR serialization and tests. Do not mark those spellings implemented until the complete path is tested.
-- Bit-vector equality/inequality, bitwise operations, shifts, single-bit set/clear/toggle, and flag testing are the intended operation family. Width mismatches must be rejected; bit vectors do not inherit ordinary arithmetic. Explicit conversion such as `a:!8bit` is intended and must be checked for source/target width and value range by Semantic.
+- User decision confirmed: retain `8bit`, `16bit`, `32bit`, `64bit`, `128bit` as a fixed-width bit-vector family; retain `1byte`, `2byte`, `4byte`, `8byte`, `16byte` as fixed-width raw storage family.
+- Lexer now emits dedicated token kinds for all ten numeric-leading type spellings. Exact decimal width + suffix is required; unsupported widths and malformed suffix continuations remain invalid numeric suffixes. The ambiguous spellings `8bit`/`8byte` and `16bit`/`16byte` are disambiguated by the suffix.
+- Parser accepts the new token kinds through the existing primitive type range and preserves their exact spelling in AST type-name/TypeExpr fields.
+- Semantic recognizes every new type as defined, permits bitwise `&`, `|`, `^`, `~` and compound `&=`, `|=`, `^=` only for compatible bitwise-capable operands, and rejects width/type mismatches. The new representation types do not gain numeric arithmetic.
+- C regression coverage added for all lexer tokens, all declared widths, bitwise compound operations, equality, complement, arithmetic rejection and width mismatch. The `test_semantic` test exercises Lexer → Parser → Semantic for these declarations.
+- OIR codec/lowering round-trip tests for the new type spellings and explicit conversion range/width checking remain pending. `<<` and `>>` remain Nexus Flow stream/zone operators; no bit-shift meaning is assigned to them.
+- `sizeof(value)` remains the byte-size query. The physical width of a bit-vector type and the storage size of a byte-array type are separate concepts.
