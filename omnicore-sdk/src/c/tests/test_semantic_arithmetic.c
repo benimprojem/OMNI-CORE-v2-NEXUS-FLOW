@@ -59,7 +59,7 @@ int main(void) {
     static const char bitwise_float[] = "f:main() !f32 { ret 7.0 & 3.0; }";
     static const char shift_valid[] = "f:main() !i32 { ret 7 <<< 2 >>> 1; }";
     static const char shift_mixed_integer_types[] =
-        "f:main() { v:a!u8 = 1; v:b!u16 = 2; v:c!u8 = a <<< b; }";
+        "f:main(a!u8, b!u16) { v:c!u8 = a <<< b; }";
     static const char shift_float_invalid[] =
         "f:main() !f64 { ret 7.0 <<< 2.0; }";
     static const char shift_negative_invalid[] =
