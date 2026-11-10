@@ -273,7 +273,23 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
 
     /* Patch only after the codec writer has emitted a valid wire payload.
        These malformed semantic relationships belong to the independent verifier. */
-    if (variant == 4) {
+    if (variant == 18 || variant == 19) {
+        size_t values_offset = 36u + 3u * 12u + 20u +
+            (size_t)block_count * 16u;
+        size_t instructions_offset = values_offset +
+            (size_t)value_count * 16u;
+        size_t operands_offset = instructions_offset +
+            (size_t)instruction_count * 24u;
+        /* Reuse the simple two-block fixture to exercise typed bitwise checks. */
+        test_put_u32(module_bytes + instructions_offset + 2u * 24u + 4u,
+            OIR_OP_BIT_AND);
+        if (variant == 18) {
+            /* Produce a bool input, then incorrectly claim an integer result. */
+            test_put_u32(module_bytes + instructions_offset + 4u, OIR_OP_CONST_BOOL);
+            test_put_u32(module_bytes + values_offset + 4u, 2u);
+            test_put_u32(module_bytes + operands_offset + 8u, 1u);
+        }
+    } else if (variant == 4) {
         size_t instructions_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u + (size_t)value_count * 16u;
         test_put_u32(module_bytes + instructions_offset + 2u * 24u + 12u, 1u);
@@ -673,6 +689,41 @@ int main(int argc, char** argv) {
             assert(instruction_ids[k] == 3u);
             free(input); input = NULL; input_length = 0u;
         }
+    }
+
+    /* The verifier accepts a well-typed integer bitwise instruction. */
+    {
+        OccModuleArtifactInputV1 stage_input;
+        size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
+        assert(build_cfg_module_artifact(&input, &input_length, 19));
+        memset(&stage_input, 0, sizeof(stage_input));
+        stage_input.bytes = input; stage_input.length = input_length;
+        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 521u,
+            &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
+            OCC_MODULE_LOADER_OK);
+        assert(output != NULL && output_length != 0u);
+        assert(occ_diagnostics_count(&diagnostics) == diagnostics_before);
+        free(input); input = NULL; input_length = 0u;
+        free(output); output = NULL; output_length = 0u;
+    }
+
+    /* A bitwise instruction cannot consume bool and claim an integer result. */
+    {
+        OccModuleArtifactInputV1 stage_input;
+        OccDiagnosticView type_error;
+        size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
+        assert(build_cfg_module_artifact(&input, &input_length, 18));
+        memset(&stage_input, 0, sizeof(stage_input));
+        stage_input.bytes = input; stage_input.length = input_length;
+        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 522u,
+            &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
+            OCC_MODULE_LOADER_INVOKE_FAILED);
+        assert(output == NULL && output_length == 0u);
+        assert(occ_diagnostics_count(&diagnostics) == diagnostics_before + 1u);
+        assert(occ_diagnostics_get(&diagnostics, diagnostics_before, &type_error));
+        assert(type_error.record->code == 8616u);
+        assert(strstr(type_error.message, "instruction=3") != NULL);
+        free(input); input = NULL; input_length = 0u;
     }
 
     /* An unused SSA result is advisory: warn, but still emit valid OIR. */
