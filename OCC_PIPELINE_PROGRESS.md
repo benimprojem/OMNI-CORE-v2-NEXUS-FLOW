@@ -1686,3 +1686,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Added occ_module_scheduler_get_import_binding(), which maps importer module ID + USE ordinal to the resolved dependency module ID and returns borrowed alias/namespace strings and the original source span.
 - Added regression coverage for `use a as math ns core`-equivalent AST data; alias and namespace are verified independently. This preserves the distinction between `as _` and `ns _` for the Semantic layer.
 - The accessor is scheduler-lifetime scoped; it does not yet apply visibility, namespace lookup, collision or symbol-binding rules.
+
+
+### Module Interface OIR artifact codec — 2026-11-10
+
+- Added the append-only artifact kind `OIR_KIND_MODULE_INTERFACE = 10`; existing artifact kind values and SEMANTIC_AST section IDs remain unchanged.
+- Added a dedicated `OMI1` payload schema 1.0 inside the generic OIR envelope. The payload carries canonical module identity, source-local symbol/type IDs, PUBLIC/EXPORTED flags, type closure, and published relations.
+- Added a C writer and validating reader. The reader checks envelope kind, Semantic producer stage, validity, required payload uniqueness/version, bounded record counts, string boundaries/NUL safety, duplicate IDs, and symbol/type/relation cross-references. Decoded data is owned and released through the artifact destroy API.
+- The writer validates the in-memory snapshot before serialization and does not modify caller output on validation/allocation failure; OIR container write still enforces caller capacity.
+- Added CTest coverage for snapshot → OIR bytes → decoded snapshot round-trip, source identity/job ID, visibility flags, type and Group relation preservation, private symbol exclusion, and invalid/non-finalized input rejection.
+- This is the transport codec and structural validation layer only. It is not yet wired into the Semantic DLL or host scheduler; importer visibility/collision/namespace rules and the independent verifier DLL's dedicated MODULE_INTERFACE validation remain next integration work.
