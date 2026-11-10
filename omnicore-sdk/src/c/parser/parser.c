@@ -1569,6 +1569,31 @@ static ASTNode* parse_use(Parser* p) {
             use->alias[alias_token.length] = '\0';
         }
 
+        /* ns is contextual to USE and remains an ordinary identifier elsewhere. */
+        if (parser_identifier_is(&p->current, "ns")) {
+            Token namespace_token;
+            advance(p);
+            if (!match(p, TOKEN_IDENTIFIER)) {
+                error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+                    "Expected a namespace name after 'ns'.");
+                ast_destroy((ASTNode*)use);
+                ast_destroy((ASTNode*)head);
+                return NULL;
+            }
+            namespace_token = p->previous;
+            use_end = namespace_token;
+            use->namespace_name = (char*)parser_malloc(
+                p, (size_t)namespace_token.length + 1u);
+            if (!use->namespace_name) {
+                ast_destroy((ASTNode*)use);
+                ast_destroy((ASTNode*)head);
+                return NULL;
+            }
+            memcpy(use->namespace_name, namespace_token.start,
+                (size_t)namespace_token.length);
+            use->namespace_name[namespace_token.length] = '\0';
+        }
+
         parser_stamp_node_tokens(p, (ASTNode*)use, &module_token, &use_end);
         if (!head) head = use;
         else tail->base.next = (ASTNode*)use;
