@@ -5891,5 +5891,37 @@ generic_type_done:
         }
     }
 
+    /* Shift operators bind tighter than bitwise AND and remain left-associative. */
+    {
+        static const char source[] =
+            "f:main() { v:a!u8 = 1 + 2 <<< 3 & 4; }";
+        ParserContext* parser=parser_init_source("shift-precedence.nxf",
+            (const uint8_t*)source,sizeof(source)-1u);
+        int valid=0;
+        if(parser && parser_run(parser)==PARSER_STATUS_OK &&
+           parser->error_count==0 && parser->ast_root) {
+            ASTFuncDecl* fn=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+            ASTVarDecl* variable=fn && fn->body && fn->body->type==AST_BLOCK
+                ? (ASTVarDecl*)((ASTBlock*)fn->body)->statements : NULL;
+            ASTBinaryExpr* and_expr=variable && variable->initializer &&
+                variable->initializer->type==AST_BINARY_EXPR
+                    ? (ASTBinaryExpr*)variable->initializer : NULL;
+            ASTBinaryExpr* shift_expr=and_expr && and_expr->left &&
+                and_expr->left->type==AST_BINARY_EXPR
+                    ? (ASTBinaryExpr*)and_expr->left : NULL;
+            ASTBinaryExpr* add_expr=shift_expr && shift_expr->left &&
+                shift_expr->left->type==AST_BINARY_EXPR
+                    ? (ASTBinaryExpr*)shift_expr->left : NULL;
+            valid=and_expr && and_expr->op==TOKEN_BIT_AND &&
+                shift_expr && shift_expr->op==TOKEN_BIT_SHL &&
+                add_expr && add_expr->op==TOKEN_PLUS;
+        }
+        if(parser) parser_destroy(parser);
+        if(!valid) {
+            fprintf(stderr,"Shift precedence/AST construction test failed.\\n");
+            return 1;
+        }
+    }
+
     return 0;
 }

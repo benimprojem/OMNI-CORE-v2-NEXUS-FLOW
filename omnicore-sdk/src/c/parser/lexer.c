@@ -749,13 +749,19 @@ Token lexer_next_token(ParserContext* ctx) {
                 if (match(ctx, '-')) return make_token(ctx, TOKEN_ITERATE, start, 3); // <--
                 return make_token(ctx, TOKEN_CAPTURE, start, 2); // <-
             }
-            if (match(ctx, '<')) return make_token(ctx, TOKEN_LSHIFT, start, 2); // <<
+            if (match(ctx, '<')) {
+                if (match(ctx, '<')) return make_token(ctx, TOKEN_BIT_SHL, start, 3); // <<<
+                return make_token(ctx, TOKEN_LSHIFT, start, 2); // <<
+            }
             if (match(ctx, '=')) return make_token(ctx, TOKEN_LTE, start, 2); // <=
             return make_token(ctx, TOKEN_LT, start, 1);
 
         case '>':
             if (match(ctx, '{')) return make_token(ctx, TOKEN_THREAD_BLOCK, start, 2); // >{
-            if (match(ctx, '>')) return make_token(ctx, TOKEN_RSHIFT, start, 2); // >>
+            if (match(ctx, '>')) {
+                if (match(ctx, '>')) return make_token(ctx, TOKEN_BIT_SHR, start, 3); // >>>
+                return make_token(ctx, TOKEN_RSHIFT, start, 2); // >>
+            }
             if (match(ctx, '=')) return make_token(ctx, TOKEN_GTE, start, 2); // >=
             return make_token(ctx, TOKEN_GT, start, 1);
 
@@ -822,6 +828,8 @@ const char* token_type_to_string(OmniTokenType type) {
         case TOKEN_FORCE_EQ: return "FORCE_EQ (==!)";
         case TOKEN_LSHIFT: return "STREAM_IN (<<)";
         case TOKEN_RSHIFT: return "STREAM_OUT (>>)";
+        case TOKEN_BIT_SHL: return "BIT_SHIFT_LEFT (<<<)";
+        case TOKEN_BIT_SHR: return "BIT_SHIFT_RIGHT (>>>)";
         case TOKEN_UNPACK: return "UNPACK (...>)";
         case TOKEN_RELOCATE: return "RELOCATE (_>)";
         case TOKEN_KW_FN: return "FN (f:)";

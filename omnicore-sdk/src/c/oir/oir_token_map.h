@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 #define OIR_TOKEN_REGISTRY_VERSION 1u
-#define OIR_TOKEN_REGISTRY_COUNT 164u
+#define OIR_TOKEN_REGISTRY_COUNT 166u
 
 /* Stable OIR IDs are independent from the C enum's numeric ordinals. */
 uint16_t oir_token_id_from_omni(OmniTokenType token);

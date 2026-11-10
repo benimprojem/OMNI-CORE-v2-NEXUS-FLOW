@@ -808,6 +808,7 @@ static int parse_struct_body(Parser* p, ASTStructDecl* decl);
 static ASTNode* parse_comparison(Parser* p);
 static ASTNode* parse_bitwise_or(Parser* p);
 static ASTNode* parse_additive(Parser* p);
+static ASTNode* parse_shift(Parser* p);
 static ASTNode* parse_unary(Parser* p);
 static ASTNode* parse_intrinsic_call(Parser* p, ASTNodeType type);
 static ASTNode* parse_defer(Parser* p);
@@ -2033,12 +2034,33 @@ static ASTNode* parse_range(Parser* p) {
     return expr;
 }
 
+static ASTNode* parse_shift(Parser* p) {
+    unsigned int depth=0u;
+    ASTNode* left=parse_additive(p);
+    if(!left)return NULL;
+    while(match(p,TOKEN_BIT_SHL) || match(p,TOKEN_BIT_SHR)) {
+        OmniTokenType op=p->previous.type;
+        ASTNode* right;
+        if(depth++>=32u) {
+            error_at(p,&p->previous,ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum shift operator-chain depth exceeded.");
+            ast_destroy(left);
+            return NULL;
+        }
+        right=parse_additive(p);
+        if(!right) { ast_destroy(left); return NULL; }
+        left=parser_make_binary(p,op,left,right);
+        if(!left)return NULL;
+    }
+    return left;
+}
+
 static ASTNode* parse_bitwise_and(Parser* p) {
-    unsigned int depth=0u;ASTNode*left=parse_additive(p);if(!left)return NULL;
+    unsigned int depth=0u;ASTNode*left=parse_shift(p);if(!left)return NULL;
     while(match(p,TOKEN_BIT_AND)){
         ASTNode*right;
         if(depth++>=32u){error_at(p,&p->previous,ERR_PARSER_UNEXPECTED_TOKEN,"Maximum bitwise chain depth exceeded.");ast_destroy(left);return NULL;}
-        right=parse_additive(p);if(!right){ast_destroy(left);return NULL;}
+        right=parse_shift(p);if(!right){ast_destroy(left);return NULL;}
         left=parser_make_binary(p,TOKEN_BIT_AND,left,right);if(!left)return NULL;
     }return left;
 }

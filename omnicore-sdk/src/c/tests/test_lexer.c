@@ -103,12 +103,12 @@ int main(void) {
         !expect_invalid_numeric_literal("3byte") ||
         !expect_invalid_numeric_literal("8bits") ||
         !expect_invalid_numeric_literal("32byte")) return 1;
-    const char* source = "v:x = 12;\n@ !!= -> ?-> ?=> !-> << >> ...> name asm fastexec break echo send receive f32 f64 bool bit byte 8bit 16bit 32bit 64bit 128bit 1byte 2byte 4byte 8byte 16byte hex void any is_err true false null";
+    const char* source = "v:x = 12;\n@ !!= -> ?-> ?=> !-> << >> <<< >>> ...> name asm fastexec break echo send receive f32 f64 bool bit byte 8bit 16bit 32bit 64bit 128bit 1byte 2byte 4byte 8byte 16byte hex void any is_err true false null";
     const OmniTokenType expected[] = {
         TOKEN_PRE_VAR, TOKEN_ASSIGN, TOKEN_NUMBER, TOKEN_SEMICOLON,
         TOKEN_INTENT, TOKEN_FORCE_ASSIGN, TOKEN_PIPE,
         TOKEN_ELSE_FLOW, TOKEN_FALLBACK, TOKEN_IGNORE, TOKEN_LSHIFT,
-        TOKEN_RSHIFT, TOKEN_UNPACK, TOKEN_IDENTIFIER,
+        TOKEN_RSHIFT, TOKEN_BIT_SHL, TOKEN_BIT_SHR, TOKEN_UNPACK, TOKEN_IDENTIFIER,
         TOKEN_KW_ASM, TOKEN_KW_FASTEXEC, TOKEN_KW_BREAK,
         TOKEN_KW_ECHO, TOKEN_KW_SEND, TOKEN_KW_RECEIVE,
         TOKEN_TYPE_F32, TOKEN_TYPE_F64, TOKEN_TYPE_BOOL,

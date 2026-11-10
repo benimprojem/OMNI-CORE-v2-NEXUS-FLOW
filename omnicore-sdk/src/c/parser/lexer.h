@@ -157,7 +157,11 @@ typedef enum {
 
     /* Opaque raw body emitted after lexer recognizes asm: LABEL {. */
     TOKEN_ASM_BODY,
-    TOKEN_NULL            // null pointer literal
+    TOKEN_NULL,           // null pointer literal
+
+    /* Integer bit shifts; appended to preserve existing frontend token ordinals. */
+    TOKEN_BIT_SHL,         // <<< logical left shift
+    TOKEN_BIT_SHR          // >>> logical right shift
 
 } OmniTokenType;
 
