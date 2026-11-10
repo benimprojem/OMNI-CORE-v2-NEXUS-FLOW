@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 #define OIR_SEMANTIC_AST_SCHEMA_MAJOR 1u
-#define OIR_SEMANTIC_AST_SCHEMA_MINOR 3u
+#define OIR_SEMANTIC_AST_SCHEMA_MINOR 4u
 
 /* SCOPES section payload: u32 record_count, u32 record_size, then 20-byte records. */
 #define OIR_SEMANTIC_SCOPES_HEADER_SIZE 8u
