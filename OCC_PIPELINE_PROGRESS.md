@@ -1619,3 +1619,19 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Commit'ler: `2531bfc4` (AST API), `20d2135c` (visitor implementasyonu), `391f88c4` / `0a319324` (test ve CMake), `d6463720` / `a89349b8` (Resolver test düzeltmeleri), `0e13442c` (edge ordinal sözleşmesi), `67d52d13` (belge).
 - **CI:** Sonuçlar bu kayıt hazırlanırken devam ediyor; tüm platformlar, Valgrind ve ASan/UBSan tamamlanmadan bu adım doğrulanmış sayılmayacak.
 - **Sonraki iş:** Host compilation coordinator içinde AST visitor callback'ini Resolver source-provider isteğine bağlamak; ardından Parser DLL recursive discovery ve modül AST artifact saklama sözleşmesini tamamlamak.
+
+
+## 2026-11-10 — Callback-driven Module Scheduler çekirdeği
+
+- Resolver'dan ayrı `module_scheduler.h/.c` eklendi. Scheduler AST bağımlılığını yalnızca bu host koordinasyon katmanında tutuyor; `module_resolver.c` AST'den bağımsız kaldı.
+- Root kaynak ve her yeni bağımlılık, provider callback üzerinden canonical identity + source bytes olarak alınıyor. Parser callback AST_PROGRAM üretip scheduler'a devrediyor; AST doğrulanıyor ve top-level USE kayıtları kaynak sırası, span ve ordinal ile kopyalanıyor.
+- Recursive C çağrı zinciri yerine açık DFS frame stack kullanılıyor. Böylece modül keşfi derinliği C call-stack tüketimine dönüşmüyor. Yeni modül ilk keşifte parse ediliyor; tekrar eden canonical identity aynı graph node/AST ile paylaşılıyor.
+- `ASTProgram.disable_osmodule == 0` ise implicit `osmodule` bağımlılığı explicit USE kayıtlarından önce ekleniyor. Kaynağın nereden bulunacağı provider sorumluluğunda.
+- Tüm discovery başarılı olursa Resolver dependency-first sırasına göre Semantic callback çağrılıyor. Discovery hatasında Semantic pass başlamıyor. AST'ler `occ_module_scheduler_destroy()` çağrısına kadar tutuluyor; provider view her parse işleminden sonra serbest bırakılıyor.
+- Hata dönüşleri source-not-found/denied/ambiguous/I/O/provider/resource-limit, parse, AST, cycle ve Semantic olarak ayrıştırıldı.
+- Test: ortak bağımlılık B'nin bir kez parse edilmesi, B → A → Root Semantic sırası, provider release sayısı ve Root → A → Root cycle tespiti.
+- CMake'e `occ_module_scheduler` statik hedefi ve `module_scheduler_dependency_first_semantic_order` CTest kaydı eklendi.
+- Commit'ler: `78c38739` API, `04dfe1c3` implementasyon, `a4649a04` test, `97c535e5` CMake, `91b21875` cycle testi, `1bcdebdd` / `e78ae4f9` hata kodları, `7a575a70` temizleme.
+- **Entegrasyon sınırı:** Bu commit seti Scheduler koordinatör çekirdeğini sağlar; gerçek filesystem/OCF include provider'ı, Lexer/Parser/Semantic DLL callback adapter'ları ve `main.c` bağlantısı henüz yapılmadı. Mevcut main pipeline hâlâ tek root modül için Parser'dan hemen sonra Semantic çalıştırıyor. Bu nedenle çok dosyalı USE yüklemesi henüz uçtan uca çalışır olarak işaretlenmiyor.
+- **CI:** Bu yeni commit setinin CI sonuçları henüz alınmadı. Platform, sanitizer ve Valgrind kontrolleri yeşile dönmeden doğrulanmış kabul edilmeyecek.
+- **Sonraki adım:** OCF + include + `occ/libs` politikasıyla somut C source provider'ı oluşturmak; ardından main pipeline'ı önce tüm modülleri parse/discover edecek, sonra dependency-first Semantic çalıştıracak şekilde refactor etmek. Semantic imported-interface handoff bu sırada ayrı API olarak ele alınacak.
