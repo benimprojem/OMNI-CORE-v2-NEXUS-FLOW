@@ -3530,7 +3530,7 @@ done:
     if (stream) fclose(stream);
     parser_destroy(parser);
     if (!valid) {
-        fprintf(stderr, "no: osmodule AST/codec test failed.\\n");
+        fprintf(stderr, "no: osmodule AST/codec test failed.\n");
         return 0;
     }
 
@@ -3545,7 +3545,7 @@ done:
             invalid->error_count > 0;
         parser_destroy(invalid);
         if (!rejected) {
-            fprintf(stderr, "Invalid no: directive %lu was accepted.\\n",
+            fprintf(stderr, "Invalid no: directive %lu was accepted.\n",
                 (unsigned long)i);
             return 0;
         }
