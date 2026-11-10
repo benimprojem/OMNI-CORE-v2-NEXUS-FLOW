@@ -341,6 +341,8 @@ typedef struct {
     ASTNode base;
     char* module_name;
     char* alias;
+    /* Optional selected namespace root introduced by USE `ns`. */
+    char* namespace_name;
 } ASTUse;
 
 typedef struct {
