@@ -10,7 +10,7 @@ extern "C" {
 #define OIR_AST_TLV_HEADER_SIZE 8u
 #define OIR_AST_TLV_OPTIONAL 0x01u
 #define OIR_AST_TLV_KNOWN_FLAGS OIR_AST_TLV_OPTIONAL
-#define OIR_AST_TOKEN_ID_MAX 160u
+#define OIR_AST_TOKEN_ID_MAX 166u
 
 typedef enum OirAstValueType {
     OIR_AST_VALUE_NULL = 0,
