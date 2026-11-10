@@ -158,7 +158,7 @@ f:read_packet() {
 }
 ```
 
-Semantic artık `Nbit[index]` erişimini `bit`, `Nbyte[index]` erişimini `byte` olarak sınıflandırır ve indeks ifadesinin tamsayı türünde olmasını ister. İndeksin tanımlı aralıkta kalmasının statik sabit kontrolü ve dinamik erişimlerde sınır denetimi OIR/Verifier ve çalışma zamanı sözleşmesinde ayrıca tamamlanacaktır. Sayısal literalden bit/byte türüne açık dönüşüm ve maskeyi doğrudan literal ile kurma sözdiziminin Semantic genişlik/değer aralığı denetimi de henüz tamamlanmamıştır.
+Semantic artık `Nbit[index]` erişimini `bit`, `Nbyte[index]` erişimini `byte` olarak sınıflandırır, indeks ifadesinin tamsayı türünde olmasını ister ve sabit olarak hesaplanabilen negatif veya sınır dışı indeksleri reddeder. Çalışma anında hesaplanan indeksler için sınır kontrolü OIR/Verifier ve çalışma zamanı sözleşmesinde ayrıca tamamlanacaktır. Sayısal literalden bit/byte türüne açık dönüşüm ve maskeyi doğrudan literal ile kurma sözdiziminin Semantic genişlik/değer aralığı denetimi de henüz tamamlanmamıştır.
 
 `sizeof(value)` byte cinsinden saklama boyutunu sorgular; bit genişliği ise türün ayrı bir özelliğidir. Bu yerleşim kuralında `sizeof(bit)` ve `sizeof(byte)` 1 byte; `sizeof(8bit)` ve `sizeof(1byte)` de 1 byte'tır. `sizeof(16bit)` 2 byte, `sizeof(128bit)` 16 byte'tır. Hedefe bağlı hizalama/padding ve tüm tür ailesinin nihai ABI yerleşimi ayrıca doğrulanacaktır.
 
