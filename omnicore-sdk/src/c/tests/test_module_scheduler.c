@@ -452,6 +452,12 @@ static int test_use_alias_and_namespace_binding_preserved(void) {
         &callbacks) == OCC_MODULE_SCHEDULER_OK);
     status = occ_module_scheduler_run(&scheduler, &root_request);
     CHECK(status == OCC_MODULE_SCHEDULER_OK);
+    {
+        size_t binding_count = 0u;
+        CHECK(occ_module_scheduler_get_import_binding_count(
+            &scheduler, 1u, &binding_count) == OCC_MODULE_SCHEDULER_OK);
+        CHECK(binding_count == 1u);
+    }
     CHECK(occ_module_scheduler_get_import_binding(&scheduler, 1u, 1u,
         &binding) == OCC_MODULE_SCHEDULER_OK);
     CHECK(binding.importer_module_id == 1u);
