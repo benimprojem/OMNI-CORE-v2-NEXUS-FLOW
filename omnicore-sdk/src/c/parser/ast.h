@@ -492,6 +492,25 @@ typedef struct {
     const char* field; /* Static field name; NULL when not applicable. */
 } ASTValidationError;
 
+/* Top-level USE visitor. use_ordinal is a deterministic 1-based ordinal among
+ * AST_USE declarations in source order (not a persistent AST node identity).
+ * Return nonzero to continue; zero stops traversal.
+ */
+typedef int (*ASTUseVisitorFn)(const ASTUse* use, uint32_t use_ordinal, void* context);
+typedef enum {
+    AST_USE_VISIT_OK = 0,
+    AST_USE_VISIT_INVALID_ARGUMENT,
+    AST_USE_VISIT_INVALID_ROOT,
+    AST_USE_VISIT_ORDINAL_OVERFLOW,
+    AST_USE_VISIT_STOPPED
+} ASTUseVisitStatus;
+OCC_API ASTUseVisitStatus ast_visit_top_level_uses(
+    const ASTNode* program,
+    ASTUseVisitorFn visitor,
+    void* context,
+    size_t* out_count
+);
+
 /* Validates node kinds, unique ownership/cycles, and core required child fields.
  * Does not mutate or free the tree. Returns 1 when valid, otherwise 0.
  * error may be NULL; on success it is reset to AST_VALIDATE_OK.
