@@ -1195,10 +1195,17 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             const ASTProgram* program = (const ASTProgram*)node;
             ast_serialize_recursive(program->declarations, writer);
             if (writer->format_version >= 6u) {
+                const OccSourceSpan* span = &program->disable_osmodule_span;
                 ast_write_exact(writer, &program->disable_osmodule,
                     sizeof(program->disable_osmodule));
-                ast_write_exact(writer, &program->disable_osmodule_span,
-                    sizeof(program->disable_osmodule_span));
+                ast_write_exact(writer, &span->has_location, sizeof(span->has_location));
+                ast_write_exact(writer, &span->source_id, sizeof(span->source_id));
+                ast_write_exact(writer, &span->start_offset, sizeof(span->start_offset));
+                ast_write_exact(writer, &span->end_offset, sizeof(span->end_offset));
+                ast_write_exact(writer, &span->start_line, sizeof(span->start_line));
+                ast_write_exact(writer, &span->start_column, sizeof(span->start_column));
+                ast_write_exact(writer, &span->end_line, sizeof(span->end_line));
+                ast_write_exact(writer, &span->end_column, sizeof(span->end_column));
             }
             break;
         }
@@ -1594,10 +1601,17 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             ASTProgram* program = (ASTProgram*)node;
             program->declarations = ast_deserialize_recursive(reader);
             if (reader->format_version >= 6u) {
+                OccSourceSpan* span = &program->disable_osmodule_span;
                 if (!ast_read_exact(reader, &program->disable_osmodule,
                         sizeof(program->disable_osmodule)) ||
-                    !ast_read_exact(reader, &program->disable_osmodule_span,
-                        sizeof(program->disable_osmodule_span))) goto fail;
+                    !ast_read_exact(reader, &span->has_location, sizeof(span->has_location)) ||
+                    !ast_read_exact(reader, &span->source_id, sizeof(span->source_id)) ||
+                    !ast_read_exact(reader, &span->start_offset, sizeof(span->start_offset)) ||
+                    !ast_read_exact(reader, &span->end_offset, sizeof(span->end_offset)) ||
+                    !ast_read_exact(reader, &span->start_line, sizeof(span->start_line)) ||
+                    !ast_read_exact(reader, &span->start_column, sizeof(span->start_column)) ||
+                    !ast_read_exact(reader, &span->end_line, sizeof(span->end_line)) ||
+                    !ast_read_exact(reader, &span->end_column, sizeof(span->end_column))) goto fail;
             }
             break;
         }
