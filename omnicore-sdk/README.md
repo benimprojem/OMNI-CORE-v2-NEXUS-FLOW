@@ -22,7 +22,7 @@ Bu depo henüz tamamlanmış, çoklu hedef destekli bir derleyici değildir. Lex
 | src/c/ | C lexer/parser/AST/semantic/codegen | Etkin ve kanonik uygulama kaynağı |
 | targets/ | Hedef tanımları | Korunacak; gerçek codegen desteği ayrıca doğrulanacak |
 | occ/libs/ | Önceden tanımlı Nexus Flow standart modülleri | Kanonik standart kütüphane konumu |
-| dpslib/ | Proje dışı/harici bağımlılık paketleri | Bağımlılık deposu; standart modül dizininden ayrı |
+| occ/dsplibs/ | Harici bağımlılık paketleri | OCM tarafından yönetilen merkezi bağımlılık deposu; projelere kopyalanmaz |
 | src/c/tests/ | Etkin CTest girdileri ve test programları | CMake tarafından kullanılıyor |
 | ../temp/build-artifacts/ | Önceden izlenen derleme çıktıları | Kaynaklardan ayrıldı; silinmedi |
 
