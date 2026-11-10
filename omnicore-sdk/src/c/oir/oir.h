@@ -29,7 +29,8 @@ typedef enum OirArtifactKind {
     OIR_KIND_ASSEMBLY = 7,
     OIR_KIND_OBJECT = 8,
     OIR_KIND_LINK_INPUT = 9,
-    OIR_KIND_MODULE_INTERFACE = 10
+    OIR_KIND_MODULE_INTERFACE = 10,
+    OIR_KIND_MODULE_IMPORTS = 11
 } OirArtifactKind;
 
 typedef enum OirArtifactValidity {
