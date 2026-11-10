@@ -1587,3 +1587,11 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Added Semantic regression coverage for declaring `d32`/`d64` values and using numeric compound assignment.
 - Commit(s): `2b5a1ceb` (Semantic), `76ede2b7` (tests), `517567aa` (syntax reference).
 - CI run [42806777590](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42806777590) completed successfully: Windows, Ubuntu, macOS, Valgrind and ASan/UBSan (5/5). Future `d128`, `i128`, `u128`, `f128` are intentionally not implemented yet; the primitive lists remain explicit and must be extended with tests when those types are introduced.
+
+## 2026-11-10 — USE alias / namespace syntax açıklaması
+
+- Normatif syntax reference `use ... as ...` ve `use ... ns ...` ayrımını örneklerle açıklıyor.
+- `as _` alias alanına, `ns _` namespace seçimi alanına kaydedilir; aynı anlama gelmez.
+- Parser regression testleri `db.mysql.sql`, alias, namespace seçimi, `as _`, `ns _`, AST codec round-trip ve malformed biçimleri zaten kapsıyor (`test_use_alias_and_namespace_ast_codec`, `test_use_path_malformed_and_exact_spans`).
+- Parser/AST syntax tarafı mevcut testlerle korunuyor. Import yükleme, namespace-prefix uygulaması, alias sembol bağlama ve görünürlük Semantic/Resolver entegrasyonunda hâlâ açık; `AST_USE` Semantic traversal şu an no-op ve bunu tamamlandı saymıyoruz.
+- Belge commit: `51b1f67c`.
