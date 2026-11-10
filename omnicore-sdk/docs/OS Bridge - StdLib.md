@@ -104,4 +104,4 @@ Kanonik kaynak dosyaları `omnicore-sdk/occ/libs/osmodule.nxf` ve `omnicore-sdk/
 - Önceden tanımlı OS bağımlı modülün kaynak dosyası `occ/libs/osmodule.nxf`; OS bağımsız genel modülün kaynak dosyası `occ/libs/coremodule.nxf` konumundadır.
 - Eski `Core` modülünün yeni adı `coremodule` olacaktır; bu modül OS bağımsız fonksiyonlardan oluşmalıdır ve `osmodule` bağımlılığı taşımamalıdır.
 - Yalnızca `osmodule` varsayılan otomatik yükleme kapsamındadır; `no: osmodule;` bu yüklemeyi kapatır. `no:` genel modül kapatma bildirimi değildir.
-- Önceki karışık `osmodule.nxf` taslağı aktif arama yolundan çıkarılıp `temp/legacy-stdlib/` altına arşivlenmiştir. Fonksiyon grupları bağımlılıkları incelendikten sonra yeni `.nxf` kaynaklarına yazılacaktır.
+- Önceki karışık `osmodule.exf` taslağı aktif arama yolundan çıkarılıp `temp/legacy-stdlib/` altına arşivlenmiştir. Fonksiyon grupları bağımlılıkları incelendikten sonra yeni `.nxf` kaynaklarına yazılacaktır.
