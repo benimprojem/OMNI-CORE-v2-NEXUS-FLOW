@@ -651,6 +651,7 @@ done:
 
 static int test_parser_allocation_failure_injection(void) {
     static const char source[] =
+        "use db.mysql.sql as connector ns sql, db.mysql ns mysql, db.mysql.sql ns _;"
         "f:main(a!i32, b!i64) {"
         " v:first = a + b;"
         " { v:inner = combine(first, b:7); }"
