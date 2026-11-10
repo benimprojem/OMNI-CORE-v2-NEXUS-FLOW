@@ -1419,3 +1419,5 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Expanded `test_module_resolver.c` to cover fake-provider success, identity/fingerprint registration, exactly-once release, not-found/denied/ambiguous/I/O mapping, malformed success cleanup and source-size limit cleanup.
 - Updated `docs/MODULE_RESOLVER_DESIGN.md` with the callback ownership contract and OCF host-policy boundary. No real filesystem/package provider, OCF parser, recursive Lexer/Parser scheduler, dependency OIR interface or Semantic import binding is claimed implemented.
 - CI for this provider API/test addition is pending. Codegen remains blocked.
+
+- Architecture boundary: `occ_module_resolver` is currently a portable static C core library for graph/provider contracts, not yet a pipeline DLL. The resolver-stage DLL wrapper and its standard input/output artifact ABI are deliberately deferred until the versioned dependency/interface artifact and host scheduler contract are specified. This preserves the project's module-DLL pipeline rather than pretending the helper library is already an integrated stage.
