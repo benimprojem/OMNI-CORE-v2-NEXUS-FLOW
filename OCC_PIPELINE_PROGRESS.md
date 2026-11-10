@@ -1725,3 +1725,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Added OIR writer/reader with bounded strings and record counts, duplicate ordinal detection, span validation, embedded-NUL rejection and owned decode cleanup.
 - Added CTest round-trip coverage, including independent alias/namespace values, preservation of `as _`, job identity and malformed duplicate-ordinal rejection. Scheduler now exposes a tested binding-count accessor.
 - Not yet integrated: host `main.c` does not yet pass this manifest plus the matching verified Module Interface artifacts to the Semantic DLL. Semantic imported-symbol visibility, alias/namespace lookup, collision checks and imported type mapping remain pending.
+
+
+### Independent Module Imports Verifier DLL — 2026-11-10
+
+- Added `occ_module_imports_verify_stage`, an independent C DLL for host-produced `OIR_KIND_MODULE_IMPORTS` artifacts.
+- It validates the `OIM1` payload through the dedicated reader, enforces the active job ID, and republishes the unchanged sections with producer stage `OCC_STAGE_OIR_VERIFY`.
+- The reader now permits both host-produced and verifier-stamped manifests, while still rejecting any other producer stage.
+- Added a dynamic module-loader CTest for ABI descriptor, invocation, job preservation, verifier stamp and clean diagnostics.
+- This verifies transport integrity only; the importing Semantic DLL has not yet consumed the manifest.
