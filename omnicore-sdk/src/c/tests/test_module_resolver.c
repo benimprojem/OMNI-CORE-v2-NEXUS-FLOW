@@ -70,6 +70,35 @@ int main(void) {
 
     occ_module_resolver_destroy(&resolver);
     CHECK(resolver.modules == NULL && resolver.edges == NULL);
+
+    /* A failed dependency cannot be attached to a new importer. */
+    CHECK(occ_module_resolver_init(&resolver, &config) == OCC_MODULE_RESOLVER_OK);
+    CHECK(occ_module_resolver_register(&resolver, "root", 1u, &root) == OCC_MODULE_RESOLVER_OK);
+    CHECK(occ_module_resolver_register(&resolver, "bad", 2u, &dep) == OCC_MODULE_RESOLVER_OK);
+    CHECK(occ_module_resolver_fail(&resolver, dep) == OCC_MODULE_RESOLVER_OK);
+    CHECK(occ_module_resolver_begin(&resolver, root) == OCC_MODULE_RESOLVER_OK);
+    CHECK(occ_module_resolver_add_dependency(&resolver, root, dep,
+        "bad.module", 91u, &span) == OCC_MODULE_RESOLVER_DEPENDENCY_FAILED);
+    CHECK(resolver.edge_count == 0u);
+    CHECK(occ_module_resolver_complete(&resolver, root) == OCC_MODULE_RESOLVER_OK);
+    occ_module_resolver_destroy(&resolver);
+
+    /* Explicit resource limits reject growth without publishing partial records. */
+    {
+        OccModuleResolverConfig limited = {1u, 1u, 8u};
+        CHECK(occ_module_resolver_init(&resolver, &limited) == OCC_MODULE_RESOLVER_OK);
+        CHECK(occ_module_resolver_register(&resolver, "root", 1u, &root) == OCC_MODULE_RESOLVER_OK);
+        CHECK(occ_module_resolver_register(&resolver, "dependency", 2u, &dep) == OCC_MODULE_RESOLVER_LIMIT_EXCEEDED);
+        CHECK(dep == 0u && resolver.module_count == 1u);
+        CHECK(occ_module_resolver_begin(&resolver, root) == OCC_MODULE_RESOLVER_OK);
+        CHECK(occ_module_resolver_add_dependency(&resolver, root, root,
+            "self", 92u, &span) == OCC_MODULE_RESOLVER_CYCLE);
+        CHECK(resolver.edge_count == 1u);
+        CHECK(occ_module_resolver_add_dependency(&resolver, root, root,
+            "self2", 93u, &span) == OCC_MODULE_RESOLVER_LIMIT_EXCEEDED);
+        CHECK(resolver.edge_count == 1u);
+        occ_module_resolver_destroy(&resolver);
+    }
     puts("Module resolver graph tests passed.");
     return 0;
 }
