@@ -40,6 +40,98 @@ static ASTVarDecl* find_local(ASTNode* statements,const char* name) {
     return NULL;
 }
 
+static const SemanticResultType* find_result_type(
+    const SemanticResult* result, uint32_t type_id
+) {
+    uint32_t i;
+    if (!result || type_id == 0u) return NULL;
+    for (i = 0u; i < result->type_count; ++i)
+        if (result->types[i].type_id == type_id) return &result->types[i];
+    return NULL;
+}
+
+static int conversion_matches(
+    const SemanticResult* result,
+    uint32_t node_id,
+    const char* destination_name,
+    uint16_t conversion_kind
+) {
+    uint32_t i;
+    if (!result || !destination_name) return 0;
+    for (i = 0u; i < result->conversion_count; ++i) {
+        const SemanticResultConversion* conversion = &result->conversions[i];
+        const SemanticResultType* source =
+            find_result_type(result, conversion->source_type_id);
+        const SemanticResultType* destination =
+            find_result_type(result, conversion->destination_type_id);
+        if (conversion->node_id == node_id && source && destination &&
+            source->name && destination->name &&
+            strcmp(destination->name, destination_name) == 0 &&
+            conversion->kind == conversion_kind &&
+            conversion->flags == SEMANTIC_RESULT_CONVERSION_FLAG_EXPLICIT)
+            return 1;
+    }
+    return 0;
+}
+
+static int test_bit_byte_semantic_conversion_records(void) {
+    static const char source[] =
+        "f:main() { v:one!bit = 1; v:raw!byte = 255; "
+        "v:flags!8bit = 255; v:wide!16bit = flags; }";
+    ParserContext* parser = parser_init_source(
+        "bit-byte-conversions.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    OirAstPointerIndexEntry index[128];
+    ResolverContext resolver;
+    SemanticContext semantic;
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTVarDecl *one, *raw, *flags, *wide;
+    uint32_t node_count = 0u;
+    int ok = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK ||
+        parser->error_count != 0 || !parser->ast_root) goto done;
+    memset(index, 0, sizeof(index));
+    if (oir_ast_frontend_index_build(
+            (ASTNode*)parser->ast_root, index, 128u, &node_count) != OIR_STATUS_OK)
+        goto done;
+    resolver.entries = index;
+    resolver.capacity = 128u;
+    function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK) goto done;
+    body = (ASTBlock*)function->body;
+    one = find_local(body->statements, "one");
+    raw = find_local(body->statements, "raw");
+    flags = find_local(body->statements, "flags");
+    wide = find_local(body->statements, "wide");
+    if (!one || !raw || !flags || !wide) goto done;
+
+    semantic_init(&semantic, "bit-byte-conversions.nxf", NULL);
+    semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    if (semantic.error_count != 0 ||
+        semantic.result_status != SEMANTIC_RESULT_OK ||
+        semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
+        semantic_destroy(&semantic);
+        goto done;
+    }
+    ok = semantic.result.conversion_count == 4u &&
+        conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)one),
+            "bit", SEMANTIC_RESULT_CONVERSION_NARROWING) &&
+        conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)raw),
+            "byte", SEMANTIC_RESULT_CONVERSION_NARROWING) &&
+        conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)flags),
+            "8bit", SEMANTIC_RESULT_CONVERSION_NARROWING) &&
+        conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)wide),
+            "16bit", SEMANTIC_RESULT_CONVERSION_WIDENING);
+    if (!ok) fprintf(stderr, "Bit/byte conversion records: count=%u\n",
+        semantic.result.conversion_count);
+    semantic_destroy(&semantic);
+done:
+    parser_destroy(parser);
+    return ok;
+}
+
 static int test_extended_semantic_scopes(void) {
     static const char source[] =
         "f:main() {"
@@ -933,6 +1025,10 @@ done:
 }
 
 int main(void) {
+    if (!test_bit_byte_semantic_conversion_records()) {
+        fprintf(stderr, "Bit/byte SemanticResult conversion records failed.\\n");
+        return 1;
+    }
     if(!test_immutable_vs_compile_time_constant_flags()) {
         fprintf(stderr,"c:/m: SemanticResult flag separation failed.\n");
         return 1;
