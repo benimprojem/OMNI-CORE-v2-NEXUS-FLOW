@@ -1337,3 +1337,5 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Test commits: `5aa64c44` (initial), `dee01b4` (fixture correction); matrix update `2264d21`.
 - CI for corrected test commit is pending. This item remains unverified until Windows/Ubuntu/macOS/ASan-UBSan/Valgrind pass.
 - Next Parser gaps from the inventory: comma-list `use` span/ownership + OOM; then source-span and partial-child allocation audits by production family.
+
+- Added comma-list `use alpha as a, beta.gamma as b;` AST sibling/alias and per-node exact-span regression. Corrected expected token boundaries in `e8c5bfd`; matrix record commit `f3b6b89`. CI remains pending.
