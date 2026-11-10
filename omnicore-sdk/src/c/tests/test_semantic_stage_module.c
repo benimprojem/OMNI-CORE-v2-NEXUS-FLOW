@@ -155,11 +155,36 @@ int main(int argc,char** argv) {
             owner_scope,(size_t)ast.node_count+1u)==OIR_STATUS_OK);
         CHECK(view.scopes.record_count>=2u);
         CHECK(view.symbols.record_count>=3u);
+        {
+            uint32_t symbol_index;
+            int marked_public=0;
+            for(symbol_index=0u;symbol_index<view.symbols.record_count;symbol_index++) {
+                OirSemanticSymbol symbol;
+                const uint8_t* name=NULL;
+                CHECK(oir_semantic_symbols_get(&view.symbols,symbol_index,
+                    &symbol,&name)==OIR_STATUS_OK);
+                if(symbol.name_length==3u && memcmp(name,"sum",3u)==0) {
+                    size_t flag_offset=(size_t)(view.symbols.bytes-semantic_artifact)+
+                        view.symbols.records_offset+
+                        (size_t)symbol_index*OIR_SEMANTIC_SYMBOL_RECORD_SIZE+14u;
+                    semantic_artifact[flag_offset]|=0x02u; /* PUBLIC */
+                    marked_public=1;
+                    break;
+                }
+            }
+            CHECK(marked_public);
+            CHECK(oir_semantic_ast_artifact_open(semantic_artifact,semantic_len,&view,
+                incoming,ast.node_count,visited,ast.node_count,stack,ast.node_count,
+                owner_scope,(size_t)ast.node_count+1u)==OIR_STATUS_OK);
+        }
         CHECK(occ_module_interface_build_from_oir_view(
             "file:///project/main.nxf",&view,&module_snapshot)==
             OCC_MODULE_INTERFACE_OK);
         CHECK(strcmp(module_snapshot.canonical_identity,
             "file:///project/main.nxf")==0);
+        CHECK(module_snapshot.symbol_count==1u);
+        CHECK(strcmp(module_snapshot.symbols[0].name,"sum")==0);
+        CHECK(module_snapshot.type_count>0u);
         occ_module_interface_destroy(&module_snapshot);
     }
 
