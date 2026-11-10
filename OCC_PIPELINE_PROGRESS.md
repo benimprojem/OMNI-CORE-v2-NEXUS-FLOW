@@ -1021,7 +1021,7 @@ Group'un iki ana rolü ayrı takip edilir: **namespace/library API** ve **Struct
 | Constructor (yeni) | ? | ? | ? | Constructor semantiği ve instance initialization açık |
 | Group namespace member access | ~ | ? | ? | AST_MEMBER_ACCESS parse edilir; Group path çözümleme yok |
 | Library public/private | ~ | ? | ? | Group top-level pup/exp bayrakları mevcut; üye bazlı API visibility doğrulanmalı |
-| Module use / dependency | ~ | ? | ? | AST_USE dotted path ve m: dependency syntax mevcut; resolver/import scope yok |
+| Module use / import | ~ | ? | ? | AST_USE dotted path ve `as`/`ns` Parser–AST–OIR desteği mevcut; Module Resolver C graph core eklendi, host source-provider ve Semantic import scope yok. `m:` ayrı olarak immutable value'dur; dosya/dependency çözümlemesi yapmaz |
 | Export / ABI | — | ? | ? | Codegen/linker öncesi symbol/ABI kontratı açık |
 
 **Normatif tasarım kaydı:** Group Formal Specification §8, Group'un Namespace Group ve Object Group rollerini; pup/exp, m:/use, member resolution, Module Resolver ve Library ABI sınırını tanımlar. Bu belge tasarım kararıdır, uygulama tamamlanma kanıtı değildir.
@@ -1405,3 +1405,5 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Updated `omnicore-sdk/nfsyntax.md`, `docs/AST_PARSER_PRODUCTION_MATRIX.md`, `OIR_AST_NODE_REGISTRY.md`, and `docs/MODULE_RESOLVER_DESIGN.md` to reflect the corrected contract.
 - OIR already has stable node kind 103 with name + initializer-expression fields; its field schema/round-trip remains part of the validation gate. The legacy AST struct member `source` is the initializer payload, not a file path.
 - CI verification for these code changes is pending. The Module Resolver remains exclusively for `use`; the previous resolver document's erroneous association of `m:` with source-provider work is superseded.
+
+- Current-summary correction: `AST_MUST_DECL` is the compatibility-preserved AST kind for immutable `m:` values; it is not a module dependency. The AST graph validator now accepts its initializer-bearing node in program/block/FASTEXEC statement contexts. Earlier historical notes describing it as program-only or as a dependency are superseded by the 2026-11-10 correction section above.
