@@ -217,8 +217,32 @@ static int check_compound_assignment_semantics(void) {
     const char* invalid_numeric = "f:main() { v:x!str = \"a\"; x += \"b\"; }";
     const char* invalid_bitwise_float = "f:main() { v:x!f32 = 1.0; x &= 1.0; }";
     const char* valid_bitwise = "f:main() { v:x!i32 = 1; x |= 2; x ^= 3; }";
-    return check_source(valid_numeric,0) && check_source(invalid_numeric,1) &&
-        check_source(invalid_bitwise_float,3) && check_source(valid_bitwise,0);
+    const char* immutable_compound =
+        "f:main() { m:value = 1; value += 2; }";
+    const char* valid_string_append =
+        "f:main() { v:text!str = \"a\"; text .= \"b\"; }";
+    const char* invalid_string_append =
+        "f:main() { v:value!i32 = 1; value .= 2; }";
+    const char* valid_index_compound =
+        "f:main() { v:items[2]!i32 = [1,2]; items[0] += 1; }";
+    const char* constant_index_compound =
+        "f:main() { c:items[2]!i32 = [1,2]; items[0] += 1; }";
+    const char* valid_member_compound =
+        "f:main() { struct:Point { v:x!i32 } v:p!Point; p.x += 1; }";
+    const char* constant_member_compound =
+        "f:main() { struct:Point { v:x!i32 } c:p!Point; p.x += 1; }";
+
+    return check_source(valid_numeric,0) &&
+        check_source(invalid_numeric,1) &&
+        check_source(invalid_bitwise_float,3) &&
+        check_source(valid_bitwise,0) &&
+        check_source(immutable_compound,1) &&
+        check_source(valid_string_append,0) &&
+        check_source(invalid_string_append,1) &&
+        check_source(valid_index_compound,0) &&
+        check_source(constant_index_compound,1) &&
+        check_source(valid_member_compound,0) &&
+        check_source(constant_member_compound,1);
 }
 
 static int check_pointer_reference_type_semantics(void) {
