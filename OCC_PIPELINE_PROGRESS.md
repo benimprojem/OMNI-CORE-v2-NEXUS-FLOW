@@ -1510,3 +1510,15 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 
 - **Host integration inspection:** `main.c` currently resolves `occ.ocf` and calls `get_config_language()`, but does not parse `[include]` or `[dependencies]`. Therefore the new include paths and CMake staging are packaging-ready, not yet active module resolution. Next implementation unit is a bounded C OCF include/dependency reader plus a filesystem source-provider adapter; only then should recursive module scheduling consume the existing Resolver API.
+
+
+### 2026-11-10 — OCC kaynak / dağıtım dosya sistemi ayrımı
+
+- Kullanıcı kararı: repository içindeki SDK adı `omnicore-sdk` olarak korunur; kaynak kodu, specs, belgeler ve build/test altyapısı burada kalır.
+- Dağıtım kökü, CMake binary directory ile aynı ağaçtır. Yayınlama aşamasında `build/` dizini `occ/` adıyla paketlenebilir; derleme sırasında ayrıca yeniden klasör taşıma gerekmez.
+- Paket sözleşmesi: `bin/` içinde `occ`, `ocm` ve stage DLL'leri; kökte `occ.ocf`, `libs/`, `dsplibs/`, `targets/` ve `lang/` bulunur.
+- `occ/libs/` kaynak ağacından paket kökündeki `libs/` içine stage edilir. `occ/dsplibs/` aynı şekilde paket kökündeki `dsplibs/` içine stage edilir.
+- Eski SDK kökü `dpslib/` kaldırıldı; merkezi bağımlılık deposu `occ/dsplibs/` olarak konumlandırıldı. OCM'nin bağımlılık indirme/ekleme, sürüm ve çözümleme işlemleri henüz uygulanmadı.
+- `main.c` executable dizinini DLL yükleme için korur; config, targets ve lang yollarını executable dizininin parent'ından çözer. Böylece çalışma dizinine bağımlılık kalmaz.
+- CMake staging testi artık paket kökünde config, standart modüller, dsplibs, targets ve lang varlığını kontrol eder. Locale regression kopyası da `locale-tr/bin/occ` + paket kökü config/lang düzenini kullanır.
+- **CI doğrulaması bekleniyor.** Bu değişikliklerden sonra henüz build/CTest veya Windows/macOS/Valgrind sonucu alınmadı. Host OCF include/dependency okuyucusu ve recursive Module Resolver scheduler hâlâ sonraki entegrasyon adımıdır.
