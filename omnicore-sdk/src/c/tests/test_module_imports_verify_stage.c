@@ -44,6 +44,21 @@ int main(int argc,char** argv) {
     assert(occ_diagnostics_count(&diagnostics)==0u);
     oir_module_imports_artifact_destroy(&verified);
     free(output_bytes); output_bytes=NULL;
+
+    /* Corrupt the payload magic; the independent verifier must reject it. */
+    input_bytes[OIR_HEADER_SIZE+OIR_SECTION_HEADER_SIZE] ^= 0x01u;
+    {
+        OccModuleArtifactInputV1 input;
+        OccDiagnosticView diagnostic;
+        memset(&input,0,sizeof(input)); input.bytes=input_bytes; input.length=input_length;
+        assert(occ_module_loader_invoke(&loaded,&input,1u,7788u,&diagnostics,
+            16u,4096u,&output_bytes,&output_length)==OCC_MODULE_LOADER_INVOKE_FAILED);
+        assert(output_bytes==NULL);
+        assert(occ_diagnostics_count(&diagnostics)==1u);
+        assert(occ_diagnostics_get(&diagnostics,0u,&diagnostic));
+        assert(diagnostic.record->stage_id==OCC_STAGE_OIR_VERIFY);
+        assert(diagnostic.record->code==8711u);
+    }
     occ_module_loader_close(&loaded);
     occ_diagnostics_destroy(&diagnostics);
     oir_module_imports_destroy(&imports);
