@@ -72,7 +72,7 @@ int main(void) {
 
     interfaces[1].module_interface.canonical_identity="file:///lib/math.nxf";
     assert(occ_module_import_bundle_bind("file:///project/main.nxf",
-        &imports,interfaces,2u,&bundle)==
+        &imports_artifact,interfaces,2u,&bundle)==
         OCC_MODULE_IMPORT_BUNDLE_DUPLICATE_INTERFACE);
 
     oir_module_imports_destroy(&imports);
