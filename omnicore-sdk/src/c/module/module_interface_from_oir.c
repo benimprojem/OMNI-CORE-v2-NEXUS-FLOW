@@ -134,7 +134,10 @@ OccModuleInterfaceStatus occ_module_interface_build_from_oir_view(
        artifact->envelope.header.validity!=OIR_VALIDITY_VALID ||
        artifact->envelope.header.payload_schema_major!=OIR_SEMANTIC_AST_SCHEMA_MAJOR ||
        artifact->envelope.header.payload_schema_minor>OIR_SEMANTIC_AST_SCHEMA_MINOR ||
-       !artifact->symbols.bytes || !artifact->types.bytes || !artifact->relations.bytes)
+       !artifact->envelope.bytes || !artifact->ast.bytes ||
+       !artifact->scopes.bytes || !artifact->symbols.bytes ||
+       !artifact->types.bytes || !artifact->annotations.bytes ||
+       !artifact->relations.bytes)
         return OCC_MODULE_INTERFACE_INVALID_SEMANTIC_RESULT;
     out->canonical_identity=oir_interface_copy_identity(canonical_identity);
     if(!out->canonical_identity) return OCC_MODULE_INTERFACE_OUT_OF_MEMORY;
