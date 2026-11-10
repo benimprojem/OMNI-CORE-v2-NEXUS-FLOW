@@ -706,6 +706,7 @@ int main(int argc, char** argv) {
             OirModuleView module_view;
             OirModuleInstruction bitwise_instruction;
             OirModuleValue result_value, left_value, right_value;
+            OirModuleType result_type, left_type, right_type;
             OirModuleOperand left_operand, right_operand;
             assert(oir_artifact_open(input, input_length, &artifact_view) == OIR_STATUS_OK);
             assert(oir_artifact_get_section(&artifact_view, 0u, &payload_view) == OIR_STATUS_OK);
@@ -725,8 +726,16 @@ int main(int argc, char** argv) {
                 &left_value) == OIR_STATUS_OK);
             assert(oir_module_get_value(&module_view, right_operand.reference_id - 1u,
                 &right_value) == OIR_STATUS_OK);
-            fprintf(stderr, "bitwise fixture: result type=%u left type=%u right type=%u\\n",
-                result_value.type_id, left_value.type_id, right_value.type_id);
+            assert(oir_module_get_type(&module_view, result_value.type_id - 1u,
+                &result_type) == OIR_STATUS_OK);
+            assert(oir_module_get_type(&module_view, left_value.type_id - 1u,
+                &left_type) == OIR_STATUS_OK);
+            assert(oir_module_get_type(&module_view, right_value.type_id - 1u,
+                &right_type) == OIR_STATUS_OK);
+            fprintf(stderr, "bitwise fixture: opcode=%u result=%u/type%u/kind%u left=%u/type%u/kind%u right=%u/type%u/kind%u\\n",
+                bitwise_instruction.opcode_id, result_value.id, result_value.type_id,
+                result_type.kind, left_value.id, left_value.type_id, left_type.kind,
+                right_value.id, right_value.type_id, right_type.kind);
         }
         memset(&stage_input, 0, sizeof(stage_input));
         stage_input.bytes = input; stage_input.length = input_length;
