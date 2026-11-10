@@ -10,7 +10,7 @@
 
 | Source production / family | Parser entry / builder | AST representation | Existing test evidence | Audit status / next action |
 |---|---|---|---|---|
-| Translation unit / declarations | parser root + declaration dispatch | `AST_PROGRAM` + declaration sibling chain | parser source accept/reject; full-source `AST_PROGRAM` byte range/line-column span and AST codec round-trip; AST↔OIR canonical roundtrip | ~ Root span is asserted; full syntax-positive declaration inventory remains |
+| Translation unit / declarations / program policy | parser root + declaration dispatch + `no:` directive | `AST_PROGRAM` + declaration sibling chain + `disable_osmodule` and exact directive span | full-source root span, `no: osmodule;` positive/negative/scope/duplicate tests, AST codec v6 round-trip and v1-v5 read compatibility | ~ Program-policy Parser/AST representation added; host implicit-module scheduling remains open |
 | `v:`, `c:` declaration + initializer/type modifiers, pointer/reference types | `parse_var_decl()`, `parser_parse_type_name()` | `AST_VAR_DECL.type_name` preserves `*T`, `**T`, `&T`; arrays remain a separate inline child | `test_pointer_reference_type_declarators` covers local pointer, function params/return, NewType target and AST codec | ~ Parser spelling and AST string preservation covered; pointer validity, borrow/lifetime and ownership remain Semantic work |
 | `f:name(...)`, `exf:name(...)`, main CLI args, pointer/reference parameters/returns and array returns | `parse_func_decl()`, simple parameter parser, `parser_parse_type_name()` | `AST_FUNC_DECL` / `AST_EXTERN_DECL`; type-name strings preserve pointer/reference prefixes; `AST_ARRAY_TYPE` for argv and optional `return_array_type`; default parameter `a:10` is `AST_VAR_DECL.initializer` | parameter separator; main CLI parameter AST; `!i32[]`, `!i32[n]`, `!f32[m][n]` return fixtures; AST stream v2 round-trip + v1 function-stream compatibility; OIR field 8 round-trip; function/root/block spans, variadic position, default initializer and named-call-argument shape/codec and parameter spans | ~ Function/root and parameter span samples plus named/default/variadic parameter AST forms are verified; full signature-span matrix remains |
 | Lambda / anonymous function | `parse_lambda()` | `AST_LAMBDA` with params and expression/block body; expression body remains a direct expression child (no synthetic `AST_RETURN`) | combined rules/lambda fixture; exact expression/block span cases; `test_parser` now checks expression-vs-block body shape, malformed missing-body rejection, graph validation and AST codec round-trip (commits `c4177107`, `ccb4983a`, `bad267e6`; CI validated by workflow run `42411942789` (all 5 jobs passed)) | ~ Isolate parameter-list edge cases and capture representation; closure semantics and Semantic return-type inference remain later |
@@ -267,3 +267,13 @@ These tags must not be counted as active syntax support merely because they exis
 
 - Follow-up `test_use_comma_list_spans()` now checks two comma-separated imports, each module/alias pair, sibling ownership, exact exclusive byte spans and `ast_validate()`.
 - Commit `ee31623` added the test; `e8c5bfd` corrected the expected token boundaries. CI for the corrected test commit is pending.
+
+
+## 2026-11-10 — Program-level OS module suppression
+
+- Added the program policy fields `ASTProgram.disable_osmodule` and `ASTProgram.disable_osmodule_span`; no generic `AST_NO_MODULE` node was introduced and existing AST kind IDs remain unchanged.
+- Parser accepts only `no: osmodule;` at program scope, rejects other module names, duplicate declarations, nested declarations and missing semicolons, and retains the exact directive span.
+- AST factory sizing, printer, destructor, graph validation and AST stream codec were updated. Stream format is now v6; v1-v5 remain readable. Program policy span fields are serialized individually rather than as a compiler-native struct blob.
+- Added Parser/AST codec tests for positive parsing, exact span, round-trip, invalid target, duplicate and nested use.
+- **Verification pending:** no local build was available in the GitHub-only workspace. The updated C test suite and full Windows/macOS/Ubuntu/ASan-UBSan/Valgrind CI must pass before marking this work verified.
+- **Not implemented:** the host scheduler does not yet inject implicit `osmodule`; the resolver graph API still models explicit `AST_USE` edges. An explicit implicit-edge contract and integration are required. `coremodule` default-loading policy remains open.
