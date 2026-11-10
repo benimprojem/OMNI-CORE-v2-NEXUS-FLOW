@@ -1447,7 +1447,7 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - AST factory size, printer, destructor, graph validator ve stream codec güncellendi. AST stream v6 yazılır; v1-v5 okuma yolları korunur. Directive span alanları ABI bağımlı ham struct olarak değil, tek tek wire alanları olarak yazılır.
 - Parser testleri eklendi: başarılı directive, tam byte/line/column span, v6 serialize/deserialize round-trip, geçersiz hedef, duplicate, nested-scope ve eksik semicolon.
 - SDK syntax reference, normatif language syntax reference, AST/Parser üretim matrisi ve Module Resolver tasarım belgesi güncellendi. OCF örneklerindeki eski `no:coremodule;` yorumları `no: osmodule;` olarak düzeltildi.
-- **Doğrulama bekliyor:** Bu oturumda yerel C build/CTest çalıştırılmadı. Parser/AST testleri ve Windows/macOS/Ubuntu/ASan-UBSan/Valgrind CI geçmeden özellik doğrulanmış sayılmayacak.
+- **Doğrulama:** GitHub Actions run `42788198833` commit `7349e78579cc75f43f3c14b5498234643af841ae` üzerinde beş işin tamamında başarılı: Ubuntu, macOS, Windows, ASan/UBSan ve Valgrind. Ubuntu CTest 61/61 geçti. Bu run no-directive Parser/AST testini, AST v5 Program uyumluluk testini ve implicit osmodule edge regression testini kapsar.
 - **Entegrasyon açığı:** Host scheduler henüz ASTProgram bayrağını okuyup implicit `osmodule` bağımlılığını ekleme/atlama işlemini yapmıyor. Resolver graph API şu an explicit `AST_USE` edge modelinde; implicit dependency edge sözleşmesi ve host entegrasyonu sonraki adım.
 - `coremodule` için otomatik mi yoksa açık `use` ile mi yükleneceği kararı açık bırakıldı.
 
@@ -1475,4 +1475,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - `occ_module_resolver_add_implicit_osmodule()`, AST_USE node ID'si olmayan standart bağımlılığı `ast_use_node_id = 0` ve program root source span'i ile kaydeder. Ownership, text/edge limitleri, module state ve cycle kontrolleri explicit edge yolu ile ortaktır.
 - Resolver testine implicit edge span/kind, duplicate rejection ve aynı modüle explicit USE edge eklenebilmesi regresyonu eklendi.
 - **Sınır:** Bu API tek başına otomatik yüklemeyi başlatmaz. Host scheduler'ın ASTProgram.disable_osmodule alanını okuyup provider ile `osmodule`'ı çözmesi ve bu API'yi çağırması henüz entegre edilmedi.
-- **CI bekliyor:** Yeni resolver edge testi henüz CI ile doğrulanmadı.
+- **CI doğrulandı:** Run `42788198833` tüm beş işte başarılı; Ubuntu CTest 61/61. Yeni implicit edge regression testi `module_resolver_dependency_graph_identity_and_cycles` altında geçti.
+
+
+### Son doğrulama özeti — 2026-11-10
+
+- Çalışma dalı: `refactor/c-core-roadmap`; `main` dalına müdahale edilmedi.
+- CI run: [42788198833](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42788198833) — Ubuntu, macOS, Windows, ASan/UBSan ve Valgrind **5/5 başarılı**.
+- Ubuntu CTest: **61/61 başarılı**.
+- Doğrulanan yeni kapsam: `no: osmodule;` program kapsamı ve exact span, AST v6 encode/decode, v1-v5 uyumluluk (özellikle v5 AST_PROGRAM payload), implicit osmodule resolver edge, explicit USE edge ayrımı.
+- Açık kalan: host scheduler ASTProgram bayrağını okuyup `osmodule` provider çözümlemesini/otomatik bağımlılık eklemeyi henüz yapmıyor. `coremodule` kaynak dosyası repo içinde yok; mevcut osmodule kaynak gruplarının bağımlılık denetimi ve ayrıştırılması sürüyor.
