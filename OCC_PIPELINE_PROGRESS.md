@@ -1606,3 +1606,16 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Commit'ler: `4dd2fcaf` API, `a79714f0` implementasyon, `60c9d460` test, `294a86dc` test temizliği, `597ca704` cycle testi, `6266a97f` resolver tasarım belgesi.
 - **CI durumu:** Bu değişikliklerin CI run'ları başlatıldı; sonuçlar henüz bekleniyor. Testler tamamlanmadan bu API doğrulanmış/entegrasyon hazır olarak işaretlenmeyecek.
 - **Sonraki iş:** Host scheduler için AST_USE traversal ve Parser DLL recursive invocation sözleşmesi; ardından filesystem provider ve Semantic imported-interface handoff.
+
+
+## 2026-11-10 — AST_USE top-level visitor ve Resolver korelasyonu
+
+- AST API'sine `ast_visit_top_level_uses()` eklendi. Yalnızca `ASTProgram.declarations` doğrudan bildirim zincirini dolaşır; iç içe fonksiyon/blok gövdelerini import olarak değerlendirmez.
+- Visitor, her `AST_USE` için kaynak sırasını koruyan 1 tabanlı modül-içi ordinal verir; AST'yi değiştirmez ve bellek ayırmaz. Callback ile erken durma, geçersiz kök/girdi ve ordinal taşması durumları ayrıştırılır.
+- Test: iki top-level USE düğümü, nested AST_USE'nin dışlanması, alias/namespace alanlarının korunması, ordinal sırası ve callback erken durması.
+- Resolver edge alanı `ast_use_node_id` açıklaması, kalıcı AST kimliği değil host visitor tarafından atanan bu modül-içi ordinal olarak netleştirildi.
+- `docs/MODULE_RESOLVER_DESIGN.md` bölüm 14.6 ile API ve uygulanmış/henüz bekleyen host köprüsü sınırı belgelendi.
+- Ayrıca dependency schedule testindeki iki sözleşme hatası düzeltildi: modül durum geçişi için `begin()` çağrısı ve yetersiz kapasite için API'nin mevcut `INVALID_ARGUMENT` dönüşü.
+- Commit'ler: `2531bfc4` (AST API), `20d2135c` (visitor implementasyonu), `391f88c4` / `0a319324` (test ve CMake), `d6463720` / `a89349b8` (Resolver test düzeltmeleri), `0e13442c` (edge ordinal sözleşmesi), `67d52d13` (belge).
+- **CI:** Sonuçlar bu kayıt hazırlanırken devam ediyor; tüm platformlar, Valgrind ve ASan/UBSan tamamlanmadan bu adım doğrulanmış sayılmayacak.
+- **Sonraki iş:** Host compilation coordinator içinde AST visitor callback'ini Resolver source-provider isteğine bağlamak; ardından Parser DLL recursive discovery ve modül AST artifact saklama sözleşmesini tamamlamak.
