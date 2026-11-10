@@ -1450,3 +1450,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - **Doğrulama bekliyor:** Bu oturumda yerel C build/CTest çalıştırılmadı. Parser/AST testleri ve Windows/macOS/Ubuntu/ASan-UBSan/Valgrind CI geçmeden özellik doğrulanmış sayılmayacak.
 - **Entegrasyon açığı:** Host scheduler henüz ASTProgram bayrağını okuyup implicit `osmodule` bağımlılığını ekleme/atlama işlemini yapmıyor. Resolver graph API şu an explicit `AST_USE` edge modelinde; implicit dependency edge sözleşmesi ve host entegrasyonu sonraki adım.
 - `coremodule` için otomatik mi yoksa açık `use` ile mi yükleneceği kararı açık bırakıldı.
+
+
+### 2026-11-10 — Standard library source rename follow-up
+
+- Confirmed in the repository tree that the existing `omnicore-sdk/stdlib/CoreModule.exf` is the OS-dependent standard module source. Renamed it to `omnicore-sdk/stdlib/osmodule.exf`; header, filename references and `no:` comment now use the lowercase `osmodule` name.
+- Updated the normative and SDK import examples from the legacy `CoreModule` name to `osmodule`, and synchronized both OS Bridge / StdLib documents.
+- The former OS-independent `Core` / `Core.nxf` source file is not present in the active repository tree. No empty or fabricated replacement was added.
+- The renamed `osmodule.exf` still contains mixed utility groups (including Array, String, Math, Crypto, Mem and Flow). Their OS dependency and Group `default` behavior must be audited before moving any group into `coremodule`; the source-level split is not complete yet.
+- `coremodule` remains the agreed name and OS-independence contract, but its source library has not yet been created/located. The default auto-load policy for `coremodule` remains open.
