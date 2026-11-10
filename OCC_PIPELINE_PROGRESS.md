@@ -1328,3 +1328,12 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Corrected `docs/AST_PARSER_PRODUCTION_MATRIX.md`: `AST_TYPE_EXPR` ID 108 and OIR/codec v4 are now reflected; the stale “no dedicated AST type node” claim is removed.
 - Callback parser/AST work is verified. Remaining callback gaps are Semantic signature/function-value compatibility and ABI/calling convention—not parser syntax or Codegen.
 - Next AST task: continue the source-production inventory and exact-span / malformed owner-edge / parser partial-child allocation audit. Codegen remains blocked until AST and Semantic/OIR/Verifier gates are complete.
+
+
+## 2026-11-10 — Parser gap: USE path validation and source spans
+
+- Added a focused Parser regression for dotted `use` path exact spans (`alpha.beta.gamma as mod`) and malformed trailing-dot, doubled-dot, missing alias and missing-semicolon forms.
+- This was a test-coverage gap; `parse_use()` already rejects these forms, so no unnecessary grammar change was made.
+- Test commits: `5aa64c44` (initial), `dee01b4` (fixture correction); matrix update `2264d21`.
+- CI for corrected test commit is pending. This item remains unverified until Windows/Ubuntu/macOS/ASan-UBSan/Valgrind pass.
+- Next Parser gaps from the inventory: comma-list `use` span/ownership + OOM; then source-span and partial-child allocation audits by production family.
