@@ -18,6 +18,7 @@ typedef struct FakePipeline {
     int long_import_mode;
     int duplicate_import_mode;
     int implicit_osmodule_mode;
+    int binding_mode;
     int parse_root_count;
     int parse_a_count;
     int parse_b_count;
@@ -66,7 +67,8 @@ static void fake_release(void* context, OccModuleSourceView* source) {
     ++provider->release_count;
 }
 
-static int append_use(ASTNode* program, const char* name) {
+static int append_use_ex(ASTNode* program, const char* name,
+    const char* alias, const char* namespace_name) {
     ASTProgram* root = (ASTProgram*)program;
     ASTUse* use = (ASTUse*)ast_create(AST_USE);
     ASTNode* tail;
@@ -76,6 +78,18 @@ static int append_use(ASTNode* program, const char* name) {
     use->module_name = (char*)malloc(length + 1u);
     if (!use->module_name) { ast_destroy((ASTNode*)use); return 0; }
     memcpy(use->module_name, name, length + 1u);
+    if (alias) {
+        size_t n = strlen(alias);
+        use->alias = (char*)malloc(n + 1u);
+        if (!use->alias) { ast_destroy((ASTNode*)use); return 0; }
+        memcpy(use->alias, alias, n + 1u);
+    }
+    if (namespace_name) {
+        size_t n = strlen(namespace_name);
+        use->namespace_name = (char*)malloc(n + 1u);
+        if (!use->namespace_name) { ast_destroy((ASTNode*)use); return 0; }
+        memcpy(use->namespace_name, namespace_name, n + 1u);
+    }
     use->base.line = 1;
     use->base.col = 1;
     use->base.source_span.has_location = 1u;
@@ -90,6 +104,10 @@ static int append_use(ASTNode* program, const char* name) {
         tail->next = (ASTNode*)use;
     }
     return 1;
+}
+
+static int append_use(ASTNode* program, const char* name) {
+    return append_use_ex(program, name, NULL, NULL);
 }
 
 static int fake_parse(void* context, const OccModuleSourceView* source,
@@ -121,7 +139,11 @@ static int fake_parse(void* context, const OccModuleSourceView* source,
     if (strcmp(name, "root") == 0) {
         FakePipeline* pipeline = (FakePipeline*)context;
         ++pipeline->parse_root_count;
-        if (pipeline->implicit_osmodule_mode) {
+        if (pipeline->binding_mode) {
+            if (!append_use_ex(program, "a", "math", "core")) {
+                ast_destroy(program); return 0;
+            }
+        } else if (pipeline->implicit_osmodule_mode) {
             /* Root has no explicit imports in this focused policy test. */
         } else if (pipeline->long_import_mode) {
             if (!append_use(program, "module_name_that_exceeds_limit")) {
@@ -394,7 +416,60 @@ static int test_implicit_osmodule_is_dependency_first(void) {
     return 1;
 }
 
+
+static int test_use_alias_and_namespace_binding_preserved(void) {
+    OccModuleScheduler scheduler;
+    OccModuleResolverConfig config = {8u, 16u, 1024u, 4096u};
+    OccModuleSourceProvider provider;
+    OccModuleSchedulerCallbacks callbacks;
+    OccModuleSourceRequest root_request;
+    OccSourceSpan root_span;
+    FakeProvider fake_provider;
+    FakePipeline pipeline;
+    OccModuleImportBinding binding;
+    OccModuleSchedulerStatus status;
+    memset(&scheduler, 0, sizeof(scheduler));
+    memset(&provider, 0, sizeof(provider));
+    memset(&callbacks, 0, sizeof(callbacks));
+    memset(&root_request, 0, sizeof(root_request));
+    memset(&root_span, 0, sizeof(root_span));
+    memset(&fake_provider, 0, sizeof(fake_provider));
+    memset(&pipeline, 0, sizeof(pipeline));
+    memset(&binding, 0, sizeof(binding));
+    pipeline.binding_mode = 1;
+    provider.context = &fake_provider;
+    provider.resolve = fake_resolve;
+    provider.release = fake_release;
+    callbacks.context = &pipeline;
+    callbacks.parse = fake_parse;
+    callbacks.semantic = fake_semantic;
+    root_span.has_location = 1u;
+    root_span.start_line = 1u;
+    root_span.start_column = 1u;
+    root_request.requested_path = "root";
+    root_request.use_span = &root_span;
+    CHECK(occ_module_scheduler_init(&scheduler, &config, &provider,
+        &callbacks) == OCC_MODULE_SCHEDULER_OK);
+    status = occ_module_scheduler_run(&scheduler, &root_request);
+    CHECK(status == OCC_MODULE_SCHEDULER_OK);
+    CHECK(occ_module_scheduler_get_import_binding(&scheduler, 1u, 1u,
+        &binding) == OCC_MODULE_SCHEDULER_OK);
+    CHECK(binding.importer_module_id == 1u);
+    CHECK(binding.dependency_module_id == 2u);
+    CHECK(strcmp(binding.requested_path, "a") == 0);
+    CHECK(binding.alias && strcmp(binding.alias, "math") == 0);
+    CHECK(binding.namespace_name &&
+        strcmp(binding.namespace_name, "core") == 0);
+    CHECK(binding.span.start_line == 1u);
+    occ_module_scheduler_destroy(&scheduler);
+    return 1;
+fail:
+    occ_module_scheduler_destroy(&scheduler);
+    return 0;
+}
+
 int main(void) {
+    if (!test_use_alias_and_namespace_binding_preserved()) return 1;
     if (!test_dependency_first_semantic_schedule()) return 1;
     if (!test_duplicate_import_reuses_one_module()) return 1;
     if (!test_implicit_osmodule_is_dependency_first()) return 1;
