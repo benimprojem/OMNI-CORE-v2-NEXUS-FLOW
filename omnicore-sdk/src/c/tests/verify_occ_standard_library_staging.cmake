@@ -14,7 +14,7 @@ endforeach()
 
 file(READ "${_occ_config}" _config_text)
 if(NOT _config_text MATCHES "\.\/occ\/libs")
-    message(FATAL_ERROR "Runtime occ.ocf does not include ./occ/libs")
+    message(FATAL_ERROR "Runtime occ.ocf does not include ../occ/libs")
 endif()
 
 file(READ "${_osmodule}" _osmodule_text)
