@@ -334,6 +334,25 @@ Sabit olarak hesaplanabilen negatif veya sınır dışı indeks Semantic hatası
 
 **Önemli:** `<<` ve `>>` Nexus Flow'un Zone Write / Flow Feed akış operatörleridir; bit kaydırma işlemi değildir. Bu işaretlere sayısal shift anlamı yüklenmez.
 
+#### 2.6.1 Bit kaydırma operatörleri
+
+Nexus Flow'da `<<` ve `>>` Zone Write / Flow Feed anlamlarını korur. Bit kaydırma için ayrı operatörler kullanılır:
+
+| Operatör | Anlam |
+|---|---|
+| `<<<` | Bit dizisini sola kaydır |
+| `>>>` | Bit dizisini sağa kaydır |
+
+```nexus
+v: u8 = 1;
+left: u8 = v <<< 2;    // 00000001 -> 00000100
+right: u8 = left >>> 1; // 00000100 -> 00000010
+```
+
+Kaydırma işaretli türlerde de yalnızca bit dizisini işler; işaret biti özel korunmaz. Boşalan bitler sıfırla doldurulur, genişlik dışına çıkan bitler atılır. Kaydırma miktarı tür genişliğine eşit veya büyükse sonuç sıfırdır. Sonuç türü sol operandın türüdür. `Nbit` bit vektörleri kaydırılabilir; `Nbyte` ham bloklarında bit kaydırma doğrudan tanımlı değildir.
+
+
+
 ####  2.7 Özel Operatörler**
 
 * `.(nokta)` :  Grup/Namespace çözümleyici.Üye erişimi (Metot veya özellik).
