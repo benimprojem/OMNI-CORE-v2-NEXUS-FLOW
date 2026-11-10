@@ -298,7 +298,7 @@ static int check_array_type_semantics(void) {
     const char* valid_index =
         "f:main() { v:items[4]!i32; v:x = items[1+2]; items[0] = x; }";
     const char* valid_narrow_integer_indices =
-        "f:main() { v:items[4]!i32; v:small!i8 = 1; v:unsigned!u16 = 2; "
+        "f:main() { v:items[4]!i32; v:small!i8; v:unsigned!u16; "
         "v:a = items[small]; v:b = items[unsigned]; }";
     const char* valid_inferred_array_index =
         "f:main() { v:items = [1,2]; v:first = items[0]; }";
