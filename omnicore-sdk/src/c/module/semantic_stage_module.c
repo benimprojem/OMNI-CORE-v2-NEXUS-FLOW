@@ -8,6 +8,7 @@
 #include "oir_ast_frontend_index.h"
 #include "oir_ast_node_table.h"
 #include "oir_semantic_ast_artifact.h"
+#include "module_import_bundle.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -203,11 +204,18 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
     uint8_t *visited=NULL; OirAstGraphStackEntry *stack=NULL;
     OirAstPointerIndexEntry *index=NULL; size_t index_cap=2u,required=0u,written=0u;
     SemanticResolver resolver; SemanticContext sem; OccDiagnosticCollector diags;
-    int sem_init=0,diag_init=0; OirStatus st; uint32_t rc=OCC_MODULE_STATUS_FAILED;
+    OirModuleImportsArtifactView imports_view;
+    OirModuleInterfaceArtifactView* interface_views=NULL;
+    OccModuleImportBundle import_bundle;
+    size_t interface_count=0u,interface_index;
+    int sem_init=0,diag_init=0,imports_open=0,bundle_bound=0;
+    OirStatus st; uint32_t rc=OCC_MODULE_STATUS_FAILED;
     memset(&sem,0,sizeof(sem)); memset(&resolver,0,sizeof(resolver));
+    memset(&imports_view,0,sizeof(imports_view));
+    memset(&import_bundle,0,sizeof(import_bundle));
     out->bytes_written=0u; out->required_output_capacity=0u; out->output_validity=OIR_VALIDITY_NONE;
     out->failure_code=0u; out->diagnostics_count=0u;
-    if(occ_module_validate_invocation_v1(&g_semantic_module.descriptor,inv,out)!=OCC_MODULE_STATUS_OK||inv->input_count!=1u)
+    if(occ_module_validate_invocation_v1(&g_semantic_module.descriptor,inv,out)!=OCC_MODULE_STATUS_OK||inv->input_count<1u)
         return OCC_MODULE_STATUS_INVALID_INVOCATION;
     if(oir_artifact_open(inv->inputs[0].bytes,(size_t)inv->inputs[0].length,&artifact)!=OIR_STATUS_OK||
        artifact.header.artifact_kind!=OIR_KIND_AST||
@@ -217,6 +225,46 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
        artifact.header.job_id!=inv->job_id||find_payload(&artifact,OIR_SECTION_PAYLOAD,&payload)!=OIR_STATUS_OK||
        oir_ast_node_table_open(payload.data,(size_t)payload.length,&table)!=OIR_STATUS_OK||!table.node_count) {
         out->failure_code=8301u; return OCC_MODULE_STATUS_INVALID_INVOCATION;
+    }
+
+    /* Optional import bundle: AST first, verified OIM1 manifest second,
+     * followed by one verified Module Interface artifact per unique dependency. */
+    if(inv->input_count>1u) {
+        OirStatus import_status;
+        if(inv->input_count<2u) return OCC_MODULE_STATUS_INVALID_INVOCATION;
+        import_status=oir_module_imports_artifact_open(inv->inputs[1].bytes,
+            (size_t)inv->inputs[1].length,&imports_view);
+        if(import_status!=OIR_STATUS_OK ||
+           imports_view.envelope.header.job_id!=inv->job_id ||
+           imports_view.envelope.header.producer_stage_id!=OCC_STAGE_OIR_VERIFY) {
+            oir_module_imports_artifact_destroy(&imports_view);
+            out->failure_code=8312u; return OCC_MODULE_STATUS_INVALID_INVOCATION;
+        }
+        imports_open=1;
+        interface_count=(size_t)inv->input_count-2u;
+        if(interface_count) {
+            if(interface_count>SIZE_MAX/sizeof(*interface_views)) goto allocation_failure;
+            interface_views=(OirModuleInterfaceArtifactView*)calloc(
+                interface_count,sizeof(*interface_views));
+            if(!interface_views) goto allocation_failure;
+        }
+        for(interface_index=0u;interface_index<interface_count;interface_index++) {
+            import_status=oir_module_interface_artifact_open(
+                inv->inputs[interface_index+2u].bytes,
+                (size_t)inv->inputs[interface_index+2u].length,
+                &interface_views[interface_index]);
+            if(import_status!=OIR_STATUS_OK ||
+               interface_views[interface_index].envelope.header.job_id!=inv->job_id ||
+               interface_views[interface_index].envelope.header.producer_stage_id!=OCC_STAGE_OIR_VERIFY) {
+                out->failure_code=8313u; rc=OCC_MODULE_STATUS_INVALID_INVOCATION; goto done;
+            }
+        }
+        if(occ_module_import_bundle_bind(imports_view.imports.importer_identity,
+            &imports_view,interface_views,interface_count,&import_bundle)!=
+            OCC_MODULE_IMPORT_BUNDLE_OK) {
+            out->failure_code=8314u; rc=OCC_MODULE_STATUS_INVALID_INVOCATION; goto done;
+        }
+        bundle_bound=1;
     }
     semantic_stage_ensure_messages();
     count=table.node_count;
@@ -281,6 +329,13 @@ done:
         occ_diagnostics_destroy(&diags);
     }
     if(sem_init) semantic_destroy(&sem);
+    if(bundle_bound) occ_module_import_bundle_destroy(&import_bundle);
+    if(interface_views) {
+        for(interface_index=0u;interface_index<interface_count;interface_index++)
+            oir_module_interface_artifact_destroy(&interface_views[interface_index]);
+    }
+    free(interface_views);
+    if(imports_open) oir_module_imports_artifact_destroy(&imports_view);
     if(root) ast_destroy(root);
     free(storage); free(incoming); free(visited); free(stack); free(index);
     return rc;
@@ -289,8 +344,11 @@ static const OccStageModuleV1 g_semantic_module={
     (uint32_t)sizeof(OccStageModuleV1),0u,
     {(uint32_t)sizeof(OccStageDescriptorV1),OCC_MODULE_ABI_MAJOR,OCC_MODULE_ABI_MINOR,
      0x00010003u,OCC_STAGE_SEMANTIC,1u,0u,0u,0u,
-     OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_AST),OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_AST),
-     OIR_KIND_SEMANTIC_AST,1u,1u,0u,
+     (OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_AST)|
+      OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_MODULE_IMPORTS)|
+      OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_MODULE_INTERFACE)),
+     OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_AST),
+     OIR_KIND_SEMANTIC_AST,1u,64u,0u,
      (uint64_t)OCC_MODULE_CAP_DETERMINISTIC|(uint64_t)OCC_MODULE_CAP_DIAGNOSTIC_REPORTING,
      "nexsus-semantic"},semantic_process
 };
