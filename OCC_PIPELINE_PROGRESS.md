@@ -1753,3 +1753,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Semantic DLL decodes the manifest and interfaces, checks job IDs and verifier producer stamps, and runs `occ_module_import_bundle_bind()` before semantic analysis. A missing, duplicate, mismatched or unverified interface bundle is rejected.
 - Added dynamic Semantic DLL tests for the existing AST-only path, a valid three-input import bundle, and rejection when a required dependency interface is missing.
 - Important boundary: this wires and validates imported artifacts at the Semantic DLL boundary; imported symbols are not yet injected into local name lookup. PUBLIC/EXPORTED access policy, alias/namespace resolution, collision diagnostics and imported type mapping remain pending. The host CLI scheduler is also not yet wired to construct and pass this multi-artifact input list.
+
+
+### Module Interface snapshot from Semantic OIR — 2026-11-10
+
+- Added `occ_module_interface_build_from_oir_view()`, allowing the host to build a public/exported interface snapshot directly from a fully validated `SEMANTIC_AST` OIR view instead of reconstructing a mutable `SemanticResult`.
+- It preserves source-local symbol/type IDs and PUBLIC/EXPORTED flags, copies only publication candidates, follows referenced type base chains, and retains relations only when their owner and any nonzero related symbol are published.
+- The adapter uses OIR table accessors and copies all strings into the owned Module Interface snapshot; it does not retain pointers into the source artifact.
+- The real Semantic DLL integration test now marks a source symbol PUBLIC in a validated SEMANTIC_AST artifact, builds the interface snapshot from that artifact view, and verifies the published symbol and type closure.
+- This enables dependency interfaces to be derived from Semantic stage output. Host Scheduler/main.c still needs to run each dependency through Semantic, invoke the interface writer + independent verifier, and pass the verified set to the importer Semantic call.
