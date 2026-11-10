@@ -1479,7 +1479,7 @@ f:main() {
 ```
 
 
-## Bölüm 14. COREMODULE — OS BAĞIMSIZ GENEL FONKSİYONLAR
+## Bölüm 14. STANDART MODÜLLER: COREMODULE / OSMODULE
 
 ### 14.0.1 Modül rolleri ve varsayılan yükleme
 
