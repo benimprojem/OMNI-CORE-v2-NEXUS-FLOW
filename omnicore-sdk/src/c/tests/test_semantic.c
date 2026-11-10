@@ -258,7 +258,7 @@ static int check_compound_assignment_semantics(void) {
 
     return check_source(valid_numeric,0) &&
         check_source(invalid_numeric,1) &&
-        check_source(invalid_bitwise_float,3) &&
+        check_source(invalid_bitwise_float,2) &&
         check_source(valid_bitwise,0) &&
         check_source(valid_bitwise_bit,0) &&
         check_source(valid_bitwise_byte,0) &&
