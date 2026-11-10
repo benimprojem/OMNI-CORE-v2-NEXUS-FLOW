@@ -949,8 +949,6 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     element_type = indexed_element_type_buffer;
                 }
             }
-            semantic_record_annotation(
-                ctx, node, NULL, element_type, SEMANTIC_RESULT_VALUE_LVALUE);
             return element_type;
         }
         case AST_ARRAY_LITERAL: {
@@ -1961,31 +1959,29 @@ static void semantic_check_node(
             semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
             break;
         case AST_INDEX_ACCESS: {
-            ASTIndexAccess* access=(ASTIndexAccess*)node;
+            ASTIndexAccess* access = (ASTIndexAccess*)node;
             const char* target_type;
             const char* index_type;
             if (!access->target || !access->index) {
-                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Array indexing requires both target and index.");
                 break;
             }
-            semantic_check(ctx,access->target);
-            semantic_check(ctx,access->index);
-            target_type=get_expr_type(ctx,access->target);
-            if (!target_type || !semantic_is_array_type_name(target_type)) {
-                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+            semantic_check(ctx, access->target);
+            semantic_check(ctx, access->index);
+            target_type = get_expr_type(ctx, access->target);
+            if (target_type && !semantic_is_array_type_name(target_type)) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Index target must be an array value.");
             }
-            index_type=get_expr_type(ctx,access->index);
-            if (index_type && strcmp(index_type,"any")!=0 &&
-                strcmp(index_type,"i32")!=0 && strcmp(index_type,"i64")!=0 &&
-                strcmp(index_type,"u32")!=0 && strcmp(index_type,"u64")!=0 &&
-                strcmp(index_type,"int")!=0 && strcmp(index_type,"uint")!=0) {
-                report_error(ctx,access->index,ERR_SEMANTIC_TYPE_MISMATCH,
+            index_type = get_expr_type(ctx, access->index);
+            if (index_type && strcmp(index_type, "any") != 0 &&
+                !is_integer_primitive_type(index_type)) {
+                report_error(ctx, access->index, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Array index must have an integer type.");
             }
-            semantic_record_annotation(ctx,node,NULL,
-                get_expr_type(ctx,node),SEMANTIC_RESULT_VALUE_LVALUE);
+            semantic_record_annotation(ctx, node, NULL,
+                get_expr_type(ctx, node), SEMANTIC_RESULT_VALUE_LVALUE);
             break;
         }
         case AST_ARRAY_TYPE:
@@ -2813,26 +2809,6 @@ static void semantic_check_node(
             semantic_record_annotation(
                 ctx, node, struct_slot, struct_slot->name,
                 SEMANTIC_RESULT_VALUE_RVALUE);
-            break;
-        }
-
-        case AST_INDEX_ACCESS: {
-            ASTIndexAccess* access = (ASTIndexAccess*)node;
-            const char* target_type;
-            const char* index_type;
-            if (access->target) semantic_check_node(ctx, access->target, 0);
-            if (access->index) semantic_check_node(ctx, access->index, 0);
-            target_type = get_expr_type(ctx, access->target);
-            index_type = get_expr_type(ctx, access->index);
-            if (target_type && !semantic_is_array_type_name(target_type)) {
-                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Index access requires an array target.");
-            }
-            if (index_type && !is_integer_primitive_type(index_type)) {
-                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Array index expression must have an integer type.");
-            }
-            (void)get_expr_type(ctx, node);
             break;
         }
 
