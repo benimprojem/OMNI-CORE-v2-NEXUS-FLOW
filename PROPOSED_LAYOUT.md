@@ -23,10 +23,10 @@ repository/
     │   └── oce/                 # Ayrı IDE/editor projesi
     ├── targets/
     ├── occ/
-    │   └── libs/                # Önceden tanımlı Nexus Flow modülleri
-    │       ├── osmodule.nxf
-    │       └── coremodule.nxf
-    ├── occ/dsplibs/            # OCM merkezi bağımlılık deposu
+    │   ├── libs/                # Önceden tanımlı Nexus Flow modülleri
+    │   │   ├── osmodule.nxf
+    │   │   └── coremodule.nxf
+    │   └── dsplibs/             # OCM merkezi bağımlılık deposu
     ├── docs/
     ├── CMakeLists.txt
     ├── build_c.bat
