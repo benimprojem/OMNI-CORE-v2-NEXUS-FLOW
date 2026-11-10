@@ -29,7 +29,7 @@ static int scheduler_grow(void** buffer, size_t* capacity,
     size_t required, size_t element_size) {
     size_t next;
     void* grown;
-    if (required > SIZE_MAX / element_size) return 0;
+    if (element_size == 0u || required > SIZE_MAX / element_size) return 0;
     if (*capacity >= required) return 1;
     next = *capacity ? *capacity : 4u;
     while (next < required) {
@@ -240,7 +240,6 @@ OccModuleSchedulerStatus occ_module_scheduler_run(
     size_t order_count = 0u, i;
     SchedulerFrame* stack = NULL;
     size_t stack_count = 0u, stack_capacity = 0u;
-    OccModuleSchedulerEntry* root_entry;
     if (!scheduler || !scheduler->initialized || !root_request ||
         !root_request->requested_path || !root_request->use_span ||
         scheduler->resolver.module_count != 0u)
