@@ -378,6 +378,21 @@ done:
 }
 
 
+OccModuleSchedulerStatus occ_module_scheduler_get_import_binding_count(
+    const OccModuleScheduler* scheduler,
+    uint32_t importer_module_id,
+    size_t* out_count
+) {
+    const OccModuleSchedulerEntry* entry;
+    if (!scheduler || !scheduler->initialized || !out_count ||
+        importer_module_id == 0u ||
+        (size_t)importer_module_id > scheduler->entry_capacity)
+        return OCC_MODULE_SCHEDULER_INVALID_ARGUMENT;
+    entry = &scheduler->entries[importer_module_id - 1u];
+    *out_count = entry->use_count;
+    return OCC_MODULE_SCHEDULER_OK;
+}
+
 OccModuleSchedulerStatus occ_module_scheduler_get_import_binding(
     const OccModuleScheduler* scheduler,
     uint32_t importer_module_id,
