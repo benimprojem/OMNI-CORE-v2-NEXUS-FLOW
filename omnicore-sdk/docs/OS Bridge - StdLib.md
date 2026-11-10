@@ -104,4 +104,4 @@ Kanonik kaynak dosyaları `omnicore-sdk/occ/libs/osmodule.nxf` ve `omnicore-sdk/
 - Eski `CoreModule.exf` dosyası `osmodule.nxf` olarak yeniden adlandırılmıştır. Dosya/standart I/O ve işletim sistemi servisleri bu modüle aittir.
 - Eski `Core` modülünün yeni adı `coremodule` olacaktır; bu modül OS bağımsız fonksiyonlardan oluşmalıdır ve `osmodule` bağımlılığı taşımamalıdır.
 - Yalnızca `osmodule` varsayılan otomatik yükleme kapsamındadır; `no: osmodule;` bu yüklemeyi kapatır. `no:` genel modül kapatma bildirimi değildir.
-- Mevcut `osmodule.nxf` içindeki grupların bir kısmı (ör. Array/String/Math/Crypto) OS bağımsız adaylar içerir. Bunların `coremodule`'e taşınması, bağımlılık ve Group `default` davranışları incelenerek ayrı bir değişiklik grubunda yapılacaktır; bu belge mevcut karışık kaynak içeriğini tamamlanmış bir ayrıştırma olarak göstermez.
+- Önceki karışık `osmodule.exf` taslağı aktif arama yolundan çıkarılıp `temp/legacy-stdlib/` altına arşivlenmiştir. Fonksiyon grupları bağımlılıkları incelendikten sonra yeni `.nxf` kaynaklarına yazılacaktır.
