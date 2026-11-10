@@ -570,7 +570,7 @@ static void ast_print_recursive(ASTNode* node, int level) {
                 ast_print_recursive(n->value,level+1);
                 break;
             }
-            case AST_MUST_DECL: { ASTMustDecl* n=(ASTMustDecl*)node; printf("MUST_DEPENDENCY: %s\n",n->name?n->name:"<invalid>"); ast_print_recursive(n->source,level+1); break; }
+            case AST_MUST_DECL: { ASTMustDecl* n=(ASTMustDecl*)node; printf("IMMUTABLE_VALUE: %s\n",n->name?n->name:"<invalid>"); ast_print_recursive(n->source,level+1); break; }
             case AST_PRNT: printf("INTRINSIC: prnt\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_PRMT: printf("INTRINSIC: prmt\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
             case AST_WRITE: printf("INTRINSIC: write\n"); ast_print_recursive(((ASTCall*)node)->args, level + 1); break;
