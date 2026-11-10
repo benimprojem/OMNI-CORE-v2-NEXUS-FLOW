@@ -38,7 +38,7 @@ The provider contract is expected to:
 - keep file I/O and platform path handling in the host;
 - guarantee the returned buffer lifetime for the complete resolution operation.
 
-This keeps Windows/Linux/macOS path behavior outside the portable resolver core and prevents source text from granting arbitrary path access. Exact project manifest/search-path rules and file-extension policy remain open until the repository's project configuration contract and existing `m:` required-dependency semantics are reviewed.
+This keeps Windows/Linux/macOS path behavior outside the portable resolver core and prevents source text from granting arbitrary path access. Exact project manifest/search-path rules and file-extension policy remain open until the repository's project configuration contract is reviewed. The current Parser represents `m:Name = source;` as `AST_MUST_DECL` with a name and source expression, but Semantic has no `AST_MUST_DECL` handler; the checked-in `[dependencies]` sections are empty. Therefore `m:` is not yet an implemented module resolver contract and must not be conflated with `use`.
 
 ## 4. Module identity and graph
 
@@ -106,7 +106,7 @@ A failed dependency prevents the importing module from receiving a valid Semanti
 
 ## 8. Implementation gates
 
-1. Review project configuration and existing `m:` required-dependency semantics; define canonical module identity and source-provider policy.
+1. Review project configuration; separately specify `m:` compile-time dependency semantics (currently Parser-only) and define canonical module identity/source-provider policy for `use`.
 2. Specify and test the portable C resolver core API (provider callback, graph ownership, deterministic traversal, allocation-failure cleanup).
 3. Test cache reuse, aliases not affecting cache keys, missing/denied/ambiguous sources, nested dependencies, cycles, exact USE spans, and OOM cleanup.
 4. Define a versioned OIR dependency/interface artifact and independent validator.
