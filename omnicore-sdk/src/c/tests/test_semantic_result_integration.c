@@ -491,7 +491,7 @@ static int test_group_semantic_records(void) {
                 &artifact_view, incoming_counts, node_count, visited,
                 node_count, graph_stack, node_count, owner_scope_by_node,
                 (size_t)node_count + 1u) != OIR_STATUS_OK ||
-            artifact_view.envelope.header.payload_schema_minor != 3u ||
+            artifact_view.envelope.header.payload_schema_minor != 4u ||
             artifact_view.symbols.record_count != semantic.result.symbol_count ||
             artifact_view.relations.record_count != 14u) {
             ok = 0;
@@ -783,7 +783,131 @@ done:
     return ok;
 }
 
+static int test_immutable_vs_compile_time_constant_flags(void) {
+    static const char source[] =
+        "c:CompileValue = 5; m:RuntimeValue = 6;";
+    ParserContext* parser = NULL;
+    OirAstPointerIndexEntry index[32];
+    OirAstFrontendRequirements requirements;
+    OirAstNodeRecord* records = NULL;
+    uint8_t *fields = NULL, *strings = NULL, *ast_payload = NULL;
+    uint8_t *artifact = NULL, *visited = NULL;
+    uint32_t *incoming = NULL, *owner_scope = NULL;
+    OirAstGraphStackEntry* graph_stack = NULL;
+    OirSemanticAstArtifactView view;
+    ResolverContext resolver;
+    SemanticContext semantic;
+    uint32_t node_count = 0u, i;
+    size_t ast_written = 0u, artifact_written = 0u;
+    int semantic_initialized = 0;
+    int saw_compile_time_const = 0, saw_immutable = 0, ok = 0;
+
+    memset(index, 0, sizeof(index));
+    memset(&requirements, 0, sizeof(requirements));
+    memset(&view, 0, sizeof(view));
+    parser = parser_init_source("m-vs-c-flags.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    if (!parser || parser_run(parser) != PARSER_STATUS_OK ||
+        parser->error_count != 0 || !parser->ast_root ||
+        !ast_validate((ASTNode*)parser->ast_root, NULL))
+        goto done;
+    if (oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
+            index, 32u, &node_count) != OIR_STATUS_OK)
+        goto done;
+    resolver.entries = index;
+    resolver.capacity = 32u;
+    semantic_init(&semantic, "m-vs-c-flags.nxf", NULL);
+    semantic_initialized = 1;
+    semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    if (semantic.error_count != 0 ||
+        semantic.result_status != SEMANTIC_RESULT_OK ||
+        semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK)
+        goto done;
+
+    for (i = 0u; i < semantic.result.symbol_count; ++i) {
+        const SemanticResultSymbol* symbol = &semantic.result.symbols[i];
+        if (strcmp(symbol->name, "CompileValue") == 0) {
+            saw_compile_time_const =
+                (symbol->flags & SEMANTIC_RESULT_SYMBOL_FLAG_CONST) != 0u &&
+                (symbol->flags & SEMANTIC_RESULT_SYMBOL_FLAG_IMMUTABLE) == 0u;
+        } else if (strcmp(symbol->name, "RuntimeValue") == 0) {
+            saw_immutable =
+                (symbol->flags & SEMANTIC_RESULT_SYMBOL_FLAG_IMMUTABLE) != 0u &&
+                (symbol->flags & SEMANTIC_RESULT_SYMBOL_FLAG_CONST) == 0u;
+        }
+    }
+    if (!saw_compile_time_const || !saw_immutable) goto done;
+
+    if (oir_ast_frontend_measure((ASTNode*)parser->ast_root, index, 32u,
+            node_count, &requirements) != OIR_STATUS_OK)
+        goto done;
+    records = (OirAstNodeRecord*)calloc(node_count, sizeof(*records));
+    fields = (uint8_t*)malloc(requirements.field_data_length ?
+        requirements.field_data_length : 1u);
+    strings = (uint8_t*)malloc(requirements.string_table_length ?
+        requirements.string_table_length : 1u);
+    ast_payload = (uint8_t*)malloc(requirements.payload_size);
+    artifact = (uint8_t*)malloc(65536u);
+    incoming = (uint32_t*)calloc(node_count, sizeof(*incoming));
+    visited = (uint8_t*)calloc(node_count, sizeof(*visited));
+    graph_stack = (OirAstGraphStackEntry*)calloc(node_count, sizeof(*graph_stack));
+    owner_scope = (uint32_t*)calloc((size_t)node_count + 1u, sizeof(*owner_scope));
+    if (!records || !fields || !strings || !ast_payload || !artifact ||
+        !incoming || !visited || !graph_stack || !owner_scope)
+        goto done;
+    if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
+            index, 32u, node_count, records, node_count,
+            fields, requirements.field_data_length,
+            strings, requirements.string_table_length,
+            ast_payload, requirements.payload_size, &ast_written,
+            &requirements) != OIR_STATUS_OK ||
+        oir_semantic_ast_artifact_write(ast_payload, ast_written,
+            &semantic.result, 9001u, artifact, 65536u,
+            &artifact_written) != OIR_STATUS_OK ||
+        oir_semantic_ast_artifact_open(artifact, artifact_written, &view,
+            incoming, node_count, visited, node_count,
+            graph_stack, node_count, owner_scope, (size_t)node_count + 1u)
+            != OIR_STATUS_OK ||
+        view.envelope.header.payload_schema_minor != 4u)
+        goto done;
+
+    saw_compile_time_const = 0;
+    saw_immutable = 0;
+    for (i = 0u; i < view.symbols.record_count; ++i) {
+        OirSemanticSymbol symbol;
+        const uint8_t* name = NULL;
+        if (oir_semantic_symbols_get(&view.symbols, i, &symbol, &name)
+                != OIR_STATUS_OK)
+            goto done;
+        if (symbol.name_length == 11u &&
+            memcmp(name, "CompileValue", 11u) == 0) {
+            saw_compile_time_const =
+                (symbol.flags & OIR_SEMANTIC_SYMBOL_FLAG_CONST) != 0u &&
+                (symbol.flags & OIR_SEMANTIC_SYMBOL_FLAG_IMMUTABLE) == 0u;
+        } else if (symbol.name_length == 12u &&
+            memcmp(name, "RuntimeValue", 12u) == 0) {
+            saw_immutable =
+                (symbol.flags & OIR_SEMANTIC_SYMBOL_FLAG_IMMUTABLE) != 0u &&
+                (symbol.flags & OIR_SEMANTIC_SYMBOL_FLAG_CONST) == 0u;
+        }
+    }
+    ok = saw_compile_time_const && saw_immutable;
+done:
+    if (semantic_initialized) semantic_destroy(&semantic);
+    if (parser) parser_destroy(parser);
+    free(records); free(fields); free(strings); free(ast_payload); free(artifact);
+    free(incoming); free(visited); free(graph_stack); free(owner_scope);
+    if (!ok) fprintf(stderr, "c: compile-time constant and m: immutable flags were conflated.\\n");
+    return ok;
+}
+
 int main(void) {
+    if(!test_immutable_vs_compile_time_constant_flags()) {
+        fprintf(stderr,"c:/m: SemanticResult flag separation failed.\\n");
+        return 1;
+    }
+
     if(!test_invalid_struct_literal_not_finalized()) {
         fprintf(stderr,"Invalid Struct literal SemanticResult gate failed.\\n"); return 1;
     }
