@@ -373,6 +373,20 @@ target_include_directories(occ_module_scheduler PUBLIC
 )
 target_link_libraries(occ_module_scheduler PUBLIC occ_module_resolver occ_frontend)
 set_target_properties(occ_module_scheduler PROPERTIES POSITION_INDEPENDENT_CODE ON)
+ 
+# Filesystem source provider: single-file .nxf mapping and ordered search policy.
+add_library(occ_filesystem_module_provider STATIC
+    "${C_SOURCE_DIR}/module/filesystem_module_provider.c"
+)
+target_include_directories(occ_filesystem_module_provider PUBLIC
+    "${C_SOURCE_DIR}/module"
+)
+target_link_libraries(occ_filesystem_module_provider PUBLIC
+    occ_module_resolver occ_project_config
+)
+set_target_properties(occ_filesystem_module_provider PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
 
 # Validate-first AST materializer. It depends on the canonical frontend allocator
 # only after payload/schema/graph validation has completed.
@@ -913,6 +927,25 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME module_scheduler_dependency_first_semantic_order
         COMMAND test_module_scheduler)
+
+    add_executable(test_filesystem_module_provider
+        "${C_SOURCE_DIR}/tests/test_filesystem_module_provider.c"
+    )
+    target_compile_definitions(test_filesystem_module_provider PRIVATE
+        OCC_MODULE_PROVIDER_FIXTURE_DIR="${C_SOURCE_DIR}/tests/fixtures/module_provider"
+    )
+    target_link_libraries(test_filesystem_module_provider PRIVATE
+        occ_filesystem_module_provider
+    )
+    if(MSVC)
+        target_compile_options(test_filesystem_module_provider PRIVATE /W4)
+        target_compile_options(occ_filesystem_module_provider PRIVATE /W4)
+    else()
+        target_compile_options(test_filesystem_module_provider PRIVATE -Wall -Wextra)
+        target_compile_options(occ_filesystem_module_provider PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME filesystem_module_provider_single_file_mapping_and_search_order
+        COMMAND test_filesystem_module_provider)
 
     add_executable(test_occ_project_config
         "${C_SOURCE_DIR}/tests/test_occ_project_config.c"
