@@ -302,7 +302,8 @@ OirStatus oir_module_interface_artifact_open(
             OIR_MODULE_INTERFACE_PAYLOAD_SCHEMA_MAJOR ||
         result.envelope.header.payload_schema_minor >
             OIR_MODULE_INTERFACE_PAYLOAD_SCHEMA_MINOR ||
-        result.envelope.header.producer_stage_id != OCC_STAGE_SEMANTIC ||
+        (result.envelope.header.producer_stage_id != OCC_STAGE_SEMANTIC &&
+         result.envelope.header.producer_stage_id != OCC_STAGE_OIR_VERIFY) ||
         result.envelope.header.validity != OIR_VALIDITY_VALID)
         return OIR_STATUS_INVALID_HEADER;
 
