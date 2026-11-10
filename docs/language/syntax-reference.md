@@ -42,7 +42,7 @@ Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY
 | --- | --- | --- |
 | `v:` | **VAR** | Değiştirilebilir değişken. Sahiplik son bloktadır. |
 | `c:` | **CONST** | Derleme anı sabitleri (Değiştirilemez). |
-| `m:` | **MUST** | Zorunlu bağımlılıklar. Yüklenemezse derleme durur. |
+| `m:` | **MUST** | Normal değer bildirimi; initializer zorunludur ve bağlama değiştirilemez. Modül yüklemez. |
 ||||
 | `nt:`| **NewType**| Tip takma adları (Typedef-like). |
 ||||
@@ -79,8 +79,11 @@ v:sayi = 100;   # i32
                     
 v:liste = [1, 2, 3]; # listenin içindeki en büyük elemana göre tipi ayarlar.
 
-# Sabit
+# Derleme zamanı sabiti
 c:PI = 3.14159;
+
+# Normal, fakat yeniden atanamayan değer
+m:runtime_limit = get_limit();
 
 # Ondalık tam sayı literal
 v:val = 10E3; # Scientific notation
@@ -88,11 +91,14 @@ v:val = 10E3; # Scientific notation
 # Üslü sayılar.
 v:vall= 10^^15;
 
-# Zorunlu bağımlılık: modül kaynağı çözümlenemez/yüklenemez ise derleme başarısız olur.
-m:CoreModule = "CoreModule.nxf";
+`c:` derleme zamanı sabitidir; derleme zamanı değerlendirilebilen ifadelerde kullanılmak üzere tasarlanmıştır. `m:` ise normal bir değer bildirir: initializer çalıştırılır/değerlendirilir, değer okunabilir, ancak isim üzerinden sonradan yeniden atama veya güncelleme yapılamaz. `m:` türünü initializer ifadesinden çıkarır ve program/blok kapsamında kullanılabilir.
 
-# MUST bildirimi program kapsamındadır; fonksiyon/blok içinde kullanılamaz.
-# Kaynak ifadesi derleme aşamasında bir modül/bağımlılık kaynağına çözümlenir.
+`use` modül/kaynak yükleme ve import işlemidir; `m:` dosya varlığı kontrolü veya dependency bildirimi değildir.
+
+```nxf
+use CoreModule;
+m:connection_limit = 8;
+```
 
 ## Tip zorlama. '!' Eğer programcı zorlamak isterse:
 v:pi!f64 = 3.1415; # '!' operatörüyle tip mühürlenir (Hard-lock).
