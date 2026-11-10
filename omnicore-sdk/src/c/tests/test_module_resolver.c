@@ -223,6 +223,7 @@ static int test_dependency_first_schedule(void) {
     ORDER_CHECK(occ_module_resolver_add_dependency(&resolver, root, b, "b", 2u, &span) == OCC_MODULE_RESOLVER_OK);
     ORDER_CHECK(occ_module_resolver_begin(&resolver, a) == OCC_MODULE_RESOLVER_OK);
     ORDER_CHECK(occ_module_resolver_add_dependency(&resolver, a, b, "b", 3u, &span) == OCC_MODULE_RESOLVER_OK);
+    ORDER_CHECK(occ_module_resolver_begin(&resolver, b) == OCC_MODULE_RESOLVER_OK);
     ORDER_CHECK(occ_module_resolver_complete(&resolver, b) == OCC_MODULE_RESOLVER_OK);
     ORDER_CHECK(occ_module_resolver_complete(&resolver, a) == OCC_MODULE_RESOLVER_OK);
     ORDER_CHECK(occ_module_resolver_complete(&resolver, root) == OCC_MODULE_RESOLVER_OK);
