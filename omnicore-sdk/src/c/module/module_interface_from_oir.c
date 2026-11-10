@@ -5,6 +5,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+static char* oir_interface_copy_identity(const char* identity) {
+    size_t length=strlen(identity);
+    char* copy;
+    if(length==SIZE_MAX) return NULL;
+    copy=(char*)malloc(length+1u);
+    if(copy) memcpy(copy,identity,length+1u);
+    return copy;
+}
+
 static char* oir_interface_copy_name(const uint8_t* name,uint32_t length) {
     char* copy;
     if(!name || length==0u) return NULL;
@@ -126,7 +135,7 @@ OccModuleInterfaceStatus occ_module_interface_build_from_oir_view(
        artifact->envelope.header.payload_schema_minor>OIR_SEMANTIC_AST_SCHEMA_MINOR ||
        !artifact->symbols.bytes || !artifact->types.bytes || !artifact->relations.bytes)
         return OCC_MODULE_INTERFACE_INVALID_SEMANTIC_RESULT;
-    out->canonical_identity=interface_strdup(canonical_identity);
+    out->canonical_identity=oir_interface_copy_identity(canonical_identity);
     if(!out->canonical_identity) return OCC_MODULE_INTERFACE_OUT_OF_MEMORY;
     out->schema_major=OCC_MODULE_INTERFACE_SCHEMA_MAJOR;
     out->schema_minor=OCC_MODULE_INTERFACE_SCHEMA_MINOR;
