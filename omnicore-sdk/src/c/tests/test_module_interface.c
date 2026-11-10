@@ -6,7 +6,7 @@
 #include <string.h>
 
 #define CHECK(expr) do { if (!(expr)) { \
-    fprintf(stderr, "CHECK failed at %s:%d: %s\\n", __FILE__, __LINE__, #expr); \
+    fprintf(stderr, "CHECK failed at %s:%d: %s\n", __FILE__, __LINE__, #expr); \
     goto fail; \
 } } while (0)
 
