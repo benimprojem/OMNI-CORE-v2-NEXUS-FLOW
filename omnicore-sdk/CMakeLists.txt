@@ -374,6 +374,17 @@ target_include_directories(occ_module_scheduler PUBLIC
 target_link_libraries(occ_module_scheduler PUBLIC occ_module_resolver occ_frontend)
 set_target_properties(occ_module_scheduler PROPERTIES POSITION_INDEPENDENT_CODE ON)
  
+# Immutable public/exported semantic interface snapshot for dependent modules.
+add_library(occ_module_interface STATIC
+    "${C_SOURCE_DIR}/module/module_interface.c"
+)
+target_include_directories(occ_module_interface PUBLIC
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/semantic"
+)
+target_link_libraries(occ_module_interface PUBLIC occ_semantic_result)
+set_target_properties(occ_module_interface PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # Filesystem source provider: single-file .nxf mapping and ordered search policy.
 add_library(occ_filesystem_module_provider STATIC
     "${C_SOURCE_DIR}/module/filesystem_module_provider.c"
@@ -927,6 +938,20 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME module_scheduler_dependency_first_semantic_order
         COMMAND test_module_scheduler)
+
+    add_executable(test_module_interface
+        "${C_SOURCE_DIR}/tests/test_module_interface.c"
+    )
+    target_link_libraries(test_module_interface PRIVATE occ_module_interface)
+    if(MSVC)
+        target_compile_options(test_module_interface PRIVATE /W4)
+        target_compile_options(occ_module_interface PRIVATE /W4)
+    else()
+        target_compile_options(test_module_interface PRIVATE -Wall -Wextra)
+        target_compile_options(occ_module_interface PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME module_interface_public_export_snapshot
+        COMMAND test_module_interface)
 
     add_executable(test_filesystem_module_provider
         "${C_SOURCE_DIR}/tests/test_filesystem_module_provider.c"
