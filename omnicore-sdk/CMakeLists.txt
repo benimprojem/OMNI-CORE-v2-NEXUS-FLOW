@@ -111,6 +111,16 @@ target_include_directories(occ_module_loader PUBLIC
 target_link_libraries(occ_module_loader PUBLIC occ_module_abi ${CMAKE_DL_LIBS})
 set_target_properties(occ_module_loader PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Portable module identity/dependency graph core; source lookup remains host-owned.
+add_library(occ_module_resolver STATIC
+    "${C_SOURCE_DIR}/module/module_resolver.c"
+)
+target_include_directories(occ_module_resolver PUBLIC
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/core"
+)
+set_target_properties(occ_module_resolver PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 if(BUILD_TESTING)
 # A tiny pass-through stage proves the shared-library ABI and ownership rules.
 add_library(occ_test_passthrough_module SHARED
@@ -835,6 +845,20 @@ if(BUILD_TESTING)
         target_compile_options(test_compilation PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME compilation_context_state_and_output_gate COMMAND test_compilation)
+
+    add_executable(test_module_resolver
+        "${C_SOURCE_DIR}/tests/test_module_resolver.c"
+    )
+    target_link_libraries(test_module_resolver PRIVATE occ_module_resolver)
+    if(MSVC)
+        target_compile_options(test_module_resolver PRIVATE /W4)
+        target_compile_options(occ_module_resolver PRIVATE /W4)
+    else()
+        target_compile_options(test_module_resolver PRIVATE -Wall -Wextra)
+        target_compile_options(occ_module_resolver PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME module_resolver_dependency_graph_identity_and_cycles
+        COMMAND test_module_resolver)
 
     add_executable(test_oir_module "${C_SOURCE_DIR}/tests/test_oir_module.c")
     target_link_libraries(test_oir_module PRIVATE occ_oir_module)
