@@ -56,7 +56,7 @@ static int test_source_provider_boundary(void) {
     int ok = 0;
 #define PROVIDER_CHECK(condition) do { \
     if (!(condition)) { \
-        fprintf(stderr, "PROVIDER_CHECK failed line %d: %s\\n", __LINE__, #condition); \
+        fprintf(stderr, "PROVIDER_CHECK failed line %d: %s\n", __LINE__, #condition); \
         goto done; \
     } \
 } while (0)
