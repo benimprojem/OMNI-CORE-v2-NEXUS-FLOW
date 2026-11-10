@@ -169,7 +169,7 @@ Bu tablo `OIR_AST_NODE_REGISTRY.md` içindeki mevcut 1–107 kayıtlı OIR düğ
 | 100 | `AST_BLOCK_HALT` | ✓ | ~ | ? | ? | ~ |
 | 101 | `AST_VARIADIC_PARAM` | ✓ | ✓ | ~ | D | ✓ |
 | 102 | `AST_NAMED_ARG` | ✓ | ~ | ~ | D | ~ |
-| 103 | `AST_MUST_DECL` | ✓ | ~ | ~ | D | ~ |
+| 103 | `AST_MUST_DECL` (immutable `m:` value) | ✓ | ✓ | ✓ | D | ✓ |
 | 104 | `AST_FASTEXEC_BLOCK` | ~ | ~ | ~ | D | ~ |
 | 105 | `AST_ASM_LABEL` | ~ | ~ | ~ | D | ~ |
 | 106 | `AST_STRUCT_LITERAL` | ✓ | ✓ | ✓ | ? | ✓ |
