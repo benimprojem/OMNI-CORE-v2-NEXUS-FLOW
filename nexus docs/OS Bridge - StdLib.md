@@ -53,7 +53,7 @@
 
 ---
 
-## **osmodule.exf API Tablosu (Önerilen)**
+## **osmodule.nxf için eski API taslak notları (normatif değildir)**
 
 | Fonksiyon / Metot                                    | Açıklama                             | OS Wrapper / Notes                                |
 | ---------------------------------------------------- | ------------------------------------ | ------------------------------------------------- |
@@ -93,7 +93,7 @@
 
 ---
 
-Böylece **osmodule.exf** OS bağımlı standart modül, eski **Core** modülünün yeni adı olan **coremodule** ise saf OS bağımsız fonksiyon kütüphanesi olur. SDK deposunda coremodule kaynak dosyasının eklenmesi ve fonksiyon bazında ayrıştırma henüz tamamlanmamıştır.
+Kanonik kaynak dosyaları `omnicore-sdk/occ/libs/osmodule.nxf` ve `omnicore-sdk/occ/libs/coremodule.nxf` konumundadır. Her ikisi şimdilik başlangıç iskeletidir.
 
 ---
 
@@ -101,7 +101,7 @@ Böylece **osmodule.exf** OS bağımlı standart modül, eski **Core** modülün
 
 ## Yeni modül adları
 
-- Eski `CoreModule.exf` dosyası `osmodule.exf` olarak yeniden adlandırılmıştır. Dosya/standart I/O ve işletim sistemi servisleri bu modüle aittir.
+- Önceden tanımlı OS bağımlı modülün kaynak dosyası `occ/libs/osmodule.nxf`; OS bağımsız genel modülün kaynak dosyası `occ/libs/coremodule.nxf` konumundadır.
 - Eski `Core` modülünün yeni adı `coremodule` olacaktır; bu modül OS bağımsız fonksiyonlardan oluşmalıdır ve `osmodule` bağımlılığı taşımamalıdır.
 - Yalnızca `osmodule` varsayılan otomatik yükleme kapsamındadır; `no: osmodule;` bu yüklemeyi kapatır. `no:` genel modül kapatma bildirimi değildir.
-- Mevcut `osmodule.exf` içindeki grupların bir kısmı (ör. Array/String/Math/Crypto) OS bağımsız adaylar içerir. Bunların `coremodule`'e taşınması, bağımlılık ve Group `default` davranışları incelenerek ayrı bir değişiklik grubunda yapılacaktır; bu belge mevcut karışık kaynak içeriğini tamamlanmış bir ayrıştırma olarak göstermez.
+- Önceki karışık `osmodule.exf` taslağı aktif arama yolundan çıkarılıp `temp/legacy-stdlib/` altına arşivlenmiştir. Fonksiyon grupları bağımlılıkları incelendikten sonra yeni `.nxf` kaynaklarına yazılacaktır.
