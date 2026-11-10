@@ -3981,20 +3981,20 @@ named_args_done:
         {
             int parse_status = parser_run(parser);
             if (parse_status != PARSER_STATUS_OK || !parser->ast_root) {
-                fprintf(stderr, "MUST parse status=%d errors=%d\n",
+                fprintf(stderr, "m: parse status=%d errors=%d\n",
                     parse_status, parser->error_count);
                 if (parser->error_head && parser->error_head->message)
-                    fprintf(stderr, "MUST parser diagnostic: %s\n",
+                    fprintf(stderr, "m: parser diagnostic: %s\n",
                         parser->error_head->message);
-                goto must_dependency_done;
+                goto immutable_value_done;
             }
         }
         {
             ASTValidationError validation;
             if (!ast_validate(parser->ast_root, &validation)) {
-                fprintf(stderr, "MUST AST validation failed: code=%d field=%s\n",
+                fprintf(stderr, "m: AST validation failed: code=%d field=%s\n",
                     (int)validation.code, validation.field ? validation.field : "<none>");
-                goto must_dependency_done;
+                goto immutable_value_done;
             }
         }
         {
@@ -4005,23 +4005,23 @@ named_args_done:
                 !must->source || must->source->type != AST_LITERAL ||
                 strcmp(((ASTLiteral*)must->source)->string_value, "5") != 0 ||
                 !must->base.next || must->base.next->type != AST_FUNC_DECL)
-                goto must_dependency_done;
+                goto immutable_value_done;
         }
         stream = tmpfile();
         if (!stream || !ast_serialize(parser->ast_root, stream) ||
             fseek(stream, 0, SEEK_SET) != 0)
-            goto must_dependency_done;
+            goto immutable_value_done;
         decoded = ast_deserialize(stream);
         if (!decoded || !ast_validate(decoded, NULL) ||
             ((ASTProgram*)decoded)->declarations->type != AST_MUST_DECL)
-            goto must_dependency_done;
+            goto immutable_value_done;
         valid = 1;
-must_dependency_done:
+immutable_value_done:
         if (stream) fclose(stream);
         if (decoded) ast_destroy(decoded);
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "MUST dependency parser/AST codec test failed.\n");
+            fprintf(stderr, "m: immutable-value parser/AST codec test failed.\n");
             return 1;
         }
     }
