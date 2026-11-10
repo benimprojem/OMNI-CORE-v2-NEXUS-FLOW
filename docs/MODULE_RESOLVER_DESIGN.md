@@ -381,3 +381,12 @@ The Semantic DLL now accepts an optional verified import bundle in addition to t
 When the optional bundle is present, Semantic decodes the manifest and each interface, checks their active job IDs and verifier producer stamps, and invokes `occ_module_import_bundle_bind()` before checking the AST. Missing, duplicate, mismatched or unverified dependency interfaces are rejected. Dynamic DLL tests cover AST-only compatibility, a valid AST+manifest+interface invocation, and rejection of a manifest whose dependency interface is missing.
 
 This is the verified artifact-ingress boundary only. The current Semantic checker still does not inject imported symbols into local name lookup. Visibility rules for PUBLIC versus EXPORTED, alias/namespace lookup, local-name collisions and source-local-to-importer type/symbol mapping remain to be implemented. The host CLI has not yet been connected to build and pass this multi-artifact list.
+
+
+### 14.17 Module Interface extraction from Semantic OIR
+
+The host can now build an owned Module Interface snapshot directly from a validated `OirSemanticAstArtifactView` with `occ_module_interface_build_from_oir_view()`. This avoids reconstructing or mutating a `SemanticResult` after the Semantic DLL has serialized it.
+
+The adapter uses the canonical OIR semantic table accessors. It preserves source-local symbol/type IDs and PUBLIC/EXPORTED flags, selects publication candidates, follows the referenced type/base-type closure, and retains a relation only when its owner and any nonzero related symbol are included. Names are copied into the owned snapshot; no pointer into the source artifact is retained.
+
+The real Semantic DLL test exercises this path by marking a declaration PUBLIC in a validated SEMANTIC_AST artifact and checking that the extracted snapshot contains that declaration and its type closure. The host scheduler still needs to run dependency modules through Semantic, serialize and independently verify their interfaces, and provide the verified set to each importer invocation.
