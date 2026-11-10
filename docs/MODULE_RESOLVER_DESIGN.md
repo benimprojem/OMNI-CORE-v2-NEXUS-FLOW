@@ -324,7 +324,7 @@ Tests cover exported Group + public member publication, preservation of source I
 
 ### 14.10 Import binding preservation
 
-The scheduler retains each top-level USE declaration's three independent source-level values: dotted `module_name`, optional `alias`, and optional `namespace_name`. It exposes `occ_module_scheduler_get_import_binding()`, keyed by importer module ID and the visitor's 1-based USE ordinal. The returned view includes the resolved dependency module ID and original source span; string fields are borrowed from the scheduler and remain valid until scheduler destruction.
+The scheduler retains each top-level USE declaration's three independent source-level values: dotted `module_name`, optional `alias`, and optional `namespace_name`. It exposes `occ_module_scheduler_get_import_binding()`, keyed by importer module ID and the visitor's 1-based USE ordinal. The returned view includes the resolved dependency module ID, its canonical identity from the Resolver graph, and the original source span; string fields are borrowed from the scheduler and remain valid until scheduler destruction.
 
 In particular, `as _` and `ns _` remain distinguishable because the original alias and namespace fields are not merged or normalized. This accessor is the bridge between dependency graph resolution and later importer Semantic binding. It does not yet implement visibility or namespace lookup rules.
 
