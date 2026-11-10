@@ -96,7 +96,7 @@ v:vall= 10^^15;
 `use` modül/kaynak yükleme ve import işlemidir; `m:` dosya varlığı kontrolü veya dependency bildirimi değildir.
 
 ```nxf
-use CoreModule;
+use coremodule;
 m:connection_limit = 8;
 ```
 
@@ -1481,7 +1481,33 @@ f:main() {
 
 ## Bölüm 14. ÇEKİRDEK FONKSİYONLAR (CORE - KÜTÜPHANESİZ)
 
-** `no:CoreModule` örneği mevcut Lexer/Parser tarafından tanınan bir bildirim değildir. Core library seçimi/iptali build veya module configuration katmanında tanımlanmalıdır.
+### 14.0.1 Modül rolleri ve varsayılan yükleme
+
+- `coremodule`, işletim sistemi bağımlılığı taşımayan genel fonksiyon kütüphanesidir.
+- `osmodule`, dosya işlemleri, standart çıktı/girdi ve benzeri işletim sistemi servislerine bağlı fonksiyonları içerir.
+- `osmodule` program için varsayılan olarak otomatik yüklenir.
+- `no: osmodule;` yalnızca bu otomatik yüklemeyi kapatır. Genel bir modül devre dışı bırakma sözdizimi değildir; `no: coremodule;` geçersizdir.
+- `coremodule` için otomatik yükleme veya açık `use` gereksinimi kararı bu sözleşmede henüz sabitlenmemiştir.
+
+```nxf
+f:main() {
+    print("Hello World");
+    echo("Nexus Flow");
+    input();
+}
+```
+
+Bare-metal / OS'siz hedefte OS modülünün varsayılan yüklemesi kapatılabilir:
+
+```nxf
+no: osmodule;
+
+f:main() {
+    # Kernel veya bare-metal işlemleri
+}
+```
+
+Bu bildirim `use` ile yapılan açık import sözdiziminin yerine geçmez. Açık `use osmodule` ile birlikte kullanımın politika sonucu, Module Resolver/host entegrasyonunda ayrıca ele alınmalıdır.
 
 ###  CORE ZERO FUNCTIONS (Os Bağımsız)
 
