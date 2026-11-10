@@ -125,6 +125,13 @@ target_include_directories(occ_module_resolver PUBLIC
 )
 set_target_properties(occ_module_resolver PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Bounded OCF project-config reader. Dependency package declarations remain OCM-owned.
+add_library(occ_project_config STATIC
+    "${C_SOURCE_DIR}/module/occ_project_config.c"
+)
+target_include_directories(occ_project_config PUBLIC "${C_SOURCE_DIR}/module")
+set_target_properties(occ_project_config PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 if(BUILD_TESTING)
 # A tiny pass-through stage proves the shared-library ABI and ownership rules.
 add_library(occ_test_passthrough_module SHARED
@@ -867,6 +874,20 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME module_resolver_dependency_graph_identity_and_cycles
         COMMAND test_module_resolver)
+
+    add_executable(test_occ_project_config
+        "${C_SOURCE_DIR}/tests/test_occ_project_config.c"
+    )
+    target_link_libraries(test_occ_project_config PRIVATE occ_project_config)
+    if(MSVC)
+        target_compile_options(test_occ_project_config PRIVATE /W4)
+    else()
+        target_compile_options(test_occ_project_config PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME occ_project_config_bounded_include_parsing
+        COMMAND test_occ_project_config
+            "${CMAKE_CURRENT_BINARY_DIR}/occ_project_config_test.ocf"
+    )
 
     add_executable(test_oir_module "${C_SOURCE_DIR}/tests/test_oir_module.c")
     target_link_libraries(test_oir_module PRIVATE occ_oir_module)
