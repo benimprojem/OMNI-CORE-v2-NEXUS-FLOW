@@ -1379,3 +1379,15 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Codegen remains blocked; no downstream stage was advanced by this architecture work.
 
 - Follow-up repository audit: `m:Name = source;` is currently parsed into `AST_MUST_DECL{name, source}`, but `semantic.c` has no `AST_MUST_DECL` handler; checked-in `occ.ocf` dependency sections are empty. It is therefore a Parser-only construct today, not an existing dependency resolver contract and not interchangeable with `use`. Clarified this explicitly in `docs/MODULE_RESOLVER_DESIGN.md`; its future semantics must be specified separately.
+
+
+## 2026-11-10 — Initial Module Resolver C graph core
+
+- Added `omnicore-sdk/src/c/module/module_resolver.h/.c` and independent CMake target `occ_module_resolver`. The core is portable C11 and has no filesystem or Parser-internal dependency.
+- Implemented canonical module identity registration with stable per-graph IDs, same-identity/fingerprint cache reuse, and rejection of inconsistent fingerprints within one compilation job.
+- Implemented owned dependency edges preserving original dotted USE path, importer/dependency IDs, AST_USE node ID, and full source span. Added constrained DISCOVERED → RESOLVING → RESOLVED/FAILED transitions; an edge to a RESOLVING module is retained and reports CYCLE for exact USE-site diagnostics.
+- Added configurable module/edge/text limits and rejection of failed dependencies. Borrowed graph views are valid until mutation/destruction.
+- Added `test_module_resolver.c` for cache identity, fingerprint mismatch, edge/span ownership, duplicate AST_USE edge, cycle detection, state transitions, failed dependency handling and configured limits.
+- **Verification pending:** GitHub Actions must compile and run the new C target on Windows, macOS, Ubuntu, ASan/UBSan and Valgrind. No local build was available in this GitHub-only workspace.
+- **Not complete:** host-owned source provider, recursive dependency scheduling through lexer/parser DLLs, dependency/interface OIR artifact + independent validation, and Semantic import binding/visibility checks. The Semantic `AST_USE` branch remains a no-op until that validated handoff exists; no imported symbol support is claimed.
+- Updated `docs/MODULE_RESOLVER_DESIGN.md` and the USE row in `docs/AST_PARSER_PRODUCTION_MATRIX.md`. Codegen remains blocked.
