@@ -12,9 +12,9 @@ extern "C" {
  * Map one validated SEMANTIC_AST primitive type to the initial OIR scalar
  * registry. The caller supplies the destination module-local type ID.
  *
- * Only i8/i16/i32/i64, u8/u16/u32/u64, f32/f64 and bool are supported.
- * Unsupported primitive names (including str, char, byte, void and any)
- * fail closed until their OIR representations are specified.
+ * Supported names include i8/i16/i32/i64, u8/u16/u32/u64, f32/f64,
+ * bool, bit, byte, Nbit and Nbyte representation types.
+ * Unsupported primitive names (including str, char, void and any) fail closed.
  */
 OirStatus oir_type_map_primitive(
     const OirSemanticType* semantic_type,
