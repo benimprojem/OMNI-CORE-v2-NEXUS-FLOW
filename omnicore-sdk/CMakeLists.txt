@@ -669,6 +669,10 @@ else()
 endif()
 
 if(BUILD_TESTING)
+    add_test(NAME occ_predefined_standard_libraries_staged_for_runtime
+        COMMAND ${CMAKE_COMMAND}
+            -DOCC_RUNTIME_DIR=${C_RUNTIME_DIR}
+            -P "${C_SOURCE_DIR}/tests/verify_occ_standard_library_staging.cmake")
     # A second executable copy proves that config and language assets are
     # resolved beside the executable and that language is read after sections.
     set(C_LOCALE_TEST_DIR "${CMAKE_BINARY_DIR}/locale-tr")
