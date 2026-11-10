@@ -197,8 +197,8 @@ done:
     return ok;
 }
 
-int main(void) {
-    if (!test_source_provider_boundary()) return 1;
+int main(void) {\n    if (!test_dependency_first_schedule()) return 1;\n    if (!test_dependency_first_schedule()) return 1;
+    if (!test_source_provider_boundary()) return 1;\n    if (!test_dependency_first_schedule()) return 1;
     if (!test_implicit_osmodule_dependency_edge()) return 1;
     OccModuleResolver resolver;
     OccModuleResolverConfig config = {8u, 16u, 1024u, 4096u};
