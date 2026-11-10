@@ -372,3 +372,12 @@ A dynamic-loader CTest exercises the module ABI and verified artifact round-trip
 Every manifest dependency identity must match exactly one supplied Module Interface. Multiple USE records may reference the same decoded interface; duplicate interface artifacts, missing dependency interfaces, unreferenced extra interfaces and importer identity mismatches are rejected. The returned binding views borrow the decoded manifest and interface objects; destroying the bundle releases only its mapping array.
 
 This is a structural association boundary, not a visibility or name-resolution implementation. It deliberately preserves each binding's alias, namespace selector and source span without deciding how the language resolves them. Semantic DLL input wiring and imported expression/type lookup remain pending.
+
+
+### 14.16 Semantic DLL verified import inputs
+
+The Semantic DLL now accepts an optional verified import bundle in addition to the AST artifact. Input order is fixed: AST at index 0, verifier-stamped `OIR_KIND_MODULE_IMPORTS` manifest at index 1, then one verifier-stamped `OIR_KIND_MODULE_INTERFACE` artifact for each unique dependency identity. The descriptor permits up to 64 inputs while retaining the legacy one-AST-input invocation.
+
+When the optional bundle is present, Semantic decodes the manifest and each interface, checks their active job IDs and verifier producer stamps, and invokes `occ_module_import_bundle_bind()` before checking the AST. Missing, duplicate, mismatched or unverified dependency interfaces are rejected. Dynamic DLL tests cover AST-only compatibility, a valid AST+manifest+interface invocation, and rejection of a manifest whose dependency interface is missing.
+
+This is the verified artifact-ingress boundary only. The current Semantic checker still does not inject imported symbols into local name lookup. Visibility rules for PUBLIC versus EXPORTED, alias/namespace lookup, local-name collisions and source-local-to-importer type/symbol mapping remain to be implemented. The host CLI has not yet been connected to build and pass this multi-artifact list.
