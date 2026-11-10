@@ -147,10 +147,11 @@ static size_t get_node_size(ASTNodeType type) {
         case AST_THREAD_BLOCK: return sizeof(ASTThreadBlock);
 
         // --- Akış Kontrolü ---
-        case AST_BLOCK:       
-        case AST_PROGRAM:     // Program kökü de bir blok gibidir (statement listesi)
+        case AST_BLOCK:
         case AST_ASM_BLOCK:
             return sizeof(ASTBlock);
+        case AST_PROGRAM:
+            return sizeof(ASTProgram);
 
         case AST_IF:          return sizeof(ASTIf);
         case AST_LOOP:        return sizeof(ASTLoop);
@@ -227,10 +228,12 @@ static void ast_print_recursive(ASTNode* node, int level) {
         print_indent(level);
 
         switch (node->type) {
-            case AST_PROGRAM:
-                printf("[PROGRAM]\n");
-                ast_print_recursive(((ASTProgram*)node)->declarations, level + 1);
+            case AST_PROGRAM: {
+                const ASTProgram* program = (const ASTProgram*)node;
+                printf("[PROGRAM%s]\n", program->disable_osmodule ? " no:osmodule" : "");
+                ast_print_recursive(program->declarations, level + 1);
                 break;
+            }
             case AST_BLOCK:
             case AST_ASM_BLOCK:
                 printf("[BLOCK]\n");
@@ -880,10 +883,14 @@ static void ast_destroy_recursive(ASTNode* node) {
         case AST_VARIADIC_PARAM:
             break;
         case AST_BLOCK:
-        case AST_PROGRAM:
         case AST_ASM_BLOCK: {
             ASTBlock* b = (ASTBlock*)node;
             if (b->statements) ast_destroy_recursive(b->statements);
+            break;
+        }
+        case AST_PROGRAM: {
+            ASTProgram* program = (ASTProgram*)node;
+            if (program->declarations) ast_destroy_recursive(program->declarations);
             break;
         }
         case AST_IF: {
@@ -962,7 +969,7 @@ typedef struct {
 
 #define AST_STREAM_MAGIC "OCCAST\r\n"
 #define AST_STREAM_MAGIC_SIZE 8u
-#define AST_STREAM_VERSION 5u
+#define AST_STREAM_VERSION 6u
 
 
 static void ast_write_exact(ASTWriter* writer, const void* source, size_t size) {
@@ -1180,9 +1187,19 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             break;
         }
         case AST_BLOCK:
-        case AST_PROGRAM:
         case AST_ASM_BLOCK: {
             ast_serialize_recursive(((ASTBlock*)node)->statements, writer);
+            break;
+        }
+        case AST_PROGRAM: {
+            const ASTProgram* program = (const ASTProgram*)node;
+            ast_serialize_recursive(program->declarations, writer);
+            if (writer->format_version >= 6u) {
+                ast_write_exact(writer, &program->disable_osmodule,
+                    sizeof(program->disable_osmodule));
+                ast_write_exact(writer, &program->disable_osmodule_span,
+                    sizeof(program->disable_osmodule_span));
+            }
             break;
         }
         case AST_FUNC_CALL:
