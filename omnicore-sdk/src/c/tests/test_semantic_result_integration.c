@@ -795,6 +795,10 @@ static int test_immutable_vs_compile_time_constant_flags(void) {
     uint32_t *incoming = NULL, *owner_scope = NULL;
     OirAstGraphStackEntry* graph_stack = NULL;
     OirSemanticAstArtifactView view;
+    OirArtifactView envelope;
+    OirSectionView section_view;
+    OirSectionInput legacy_sections[8];
+    uint8_t* legacy_artifact = NULL;
     ResolverContext resolver;
     SemanticContext semantic;
     uint32_t node_count = 0u, i;
@@ -849,12 +853,13 @@ static int test_immutable_vs_compile_time_constant_flags(void) {
         requirements.string_table_length : 1u);
     ast_payload = (uint8_t*)malloc(requirements.payload_size);
     artifact = (uint8_t*)malloc(65536u);
+    legacy_artifact = (uint8_t*)malloc(65536u);
     incoming = (uint32_t*)calloc(node_count, sizeof(*incoming));
     visited = (uint8_t*)calloc(node_count, sizeof(*visited));
     graph_stack = (OirAstGraphStackEntry*)calloc(node_count, sizeof(*graph_stack));
     owner_scope = (uint32_t*)calloc((size_t)node_count + 1u, sizeof(*owner_scope));
     if (!records || !fields || !strings || !ast_payload || !artifact ||
-        !incoming || !visited || !graph_stack || !owner_scope)
+        !legacy_artifact || !incoming || !visited || !graph_stack || !owner_scope)
         goto done;
     if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
             index, 32u, node_count, records, node_count,
@@ -892,11 +897,36 @@ static int test_immutable_vs_compile_time_constant_flags(void) {
                 (symbol.flags & OIR_SEMANTIC_SYMBOL_FLAG_CONST) == 0u;
         }
     }
-    ok = saw_compile_time_const && saw_immutable;
+    if (!saw_compile_time_const || !saw_immutable ||
+        oir_artifact_open(artifact, artifact_written, &envelope) != OIR_STATUS_OK ||
+        envelope.section_count > 8u)
+        goto done;
+    for (i = 0u; i < envelope.section_count; ++i) {
+        if (oir_artifact_get_section(&envelope, i, &section_view) != OIR_STATUS_OK)
+            goto done;
+        legacy_sections[i].type = section_view.type;
+        legacy_sections[i].version = section_view.version;
+        legacy_sections[i].flags = section_view.flags;
+        legacy_sections[i].data = section_view.data;
+        legacy_sections[i].length = section_view.length;
+    }
+    envelope.header.payload_schema_minor = 3u;
+    {
+        size_t legacy_written = 0u;
+        if (oir_artifact_write(legacy_artifact, 65536u, &envelope.header,
+                legacy_sections, envelope.section_count, &legacy_written)
+                != OIR_STATUS_OK ||
+            oir_semantic_ast_artifact_open(legacy_artifact, legacy_written,
+                &view, incoming, node_count, visited, node_count,
+                graph_stack, node_count, owner_scope,
+                (size_t)node_count + 1u) != OIR_STATUS_INVALID_SECTION)
+            goto done;
+    }
+    ok = 1;
 done:
     if (semantic_initialized) semantic_destroy(&semantic);
     if (parser) parser_destroy(parser);
-    free(records); free(fields); free(strings); free(ast_payload); free(artifact);
+    free(records); free(fields); free(strings); free(ast_payload); free(artifact); free(legacy_artifact);
     free(incoming); free(visited); free(graph_stack); free(owner_scope);
     if (!ok) fprintf(stderr, "c: compile-time constant and m: immutable flags were conflated.\n");
     return ok;
