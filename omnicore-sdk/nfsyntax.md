@@ -78,7 +78,29 @@ Bit ailesinin hedeflenen işlemleri:
 
 `sizeof(value)` nesnenin bellekte kapladığı byte sayısını döndürür; bit genişliği türün özelliğidir. Örneğin `sizeof` sonucu bir `8bit` değer için 1 byte olabilir. `1byte` ve `8bit` aynı fiziksel genişlikte olsa da farklı tip niyeti taşır.
 
-**Uygulama durumu:** Lexer'ın `bit` ve `byte` tokenları ve Semantic'teki bitwise bileşik atama desteği mevcuttur. `8bit`–`128bit` ve `1byte`–`16byte` yazımlarının Lexer → Parser → AST → Semantic → OIR zincirindeki uygulaması henüz tamamlanmamıştır; bu aile tamamlanmış syntax olarak kabul edilmez.
+```nxf
+f:main() {
+    v:flags!8bit;
+    v:read_mask!8bit;
+    v:inverse = ~flags;
+
+    # Bir veya daha fazla flag ayarla.
+    flags |= read_mask;
+
+    # Maskedeki flag'leri temizle.
+    flags &= ~read_mask;
+
+    # Maskedeki flag'leri tersle.
+    flags ^= read_mask;
+
+    # Maskede en az bir bit etkin mi?
+    v:has_read = (flags & read_mask) != 0;
+}
+```
+
+Bitwise operatörler aynı tip/genişlikte operand ister. Örneğin `8bit | 16bit` Semantic hatasıdır. `<<` ve `>>` mevcut Nexus Flow stream/zone operatörleridir; bu operatörlere bit kaydırma anlamı yüklenmez.
+
+**Uygulama durumu:** Lexer artık `bit`, `byte`, `8bit`–`128bit` ve `1byte`–`16byte` yazımlarını ayrı tip tokenları olarak tanır. Parser bu tokenları mevcut TypeExpr/AST type-name alanlarında yazımını koruyarak taşır. Semantic; tiplerin tanımlı olmasını, eş genişlikte bitwise işlemleri ve `~` bitwise complement operandını doğrular; bu aileye sayısal aritmetik açılmaz. OIR codec/lowering round-trip doğrulaması ve açık dönüşümün genişlik/değer aralığı kontrolleri henüz tamamlanmamıştır.
 
 ---
 
