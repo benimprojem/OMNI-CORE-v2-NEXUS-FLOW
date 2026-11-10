@@ -63,7 +63,7 @@ static void semantic_stage_load_messages(void) {
     if (!separator) return;
     *separator = '\0';
     {
-        int n = snprintf(config_path, sizeof(config_path), "%s/occ.ocf", module_path);
+        int n = snprintf(config_path, sizeof(config_path), "%s/../occ.ocf", module_path);
         if (n < 0 || (size_t)n >= sizeof(config_path)) return;
     }
     config = fopen(config_path, "r");
@@ -99,7 +99,7 @@ static void semantic_stage_load_messages(void) {
     }
     {
         int n = snprintf(language_relative, sizeof(language_relative),
-            "lang/messages_%s.conf", language);
+            "../lang/messages_%s.conf", language);
         if (n < 0 || (size_t)n >= sizeof(language_relative)) return;
         n = snprintf(message_path, sizeof(message_path), "%s/%s",
             module_path, language_relative);
