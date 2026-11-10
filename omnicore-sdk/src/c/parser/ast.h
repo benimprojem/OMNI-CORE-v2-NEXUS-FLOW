@@ -123,7 +123,7 @@ typedef enum {
     /* Append-only: variadic parameter-list marker and named call argument. */
     AST_VARIADIC_PARAM,
     AST_NAMED_ARG,
-    /* Required compile-time dependency declaration introduced by `m:`. */
+    /* Immutable value declaration introduced by `m:`. */
     AST_MUST_DECL,
     /* FASTEXEC scope and raw inline-ASM declaration; append-only. */
     AST_FASTEXEC_BLOCK,
