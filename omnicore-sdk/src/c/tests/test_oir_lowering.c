@@ -217,15 +217,34 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
             goto cleanup;
         }
     }
-    if (oir_module_open(module_bytes, module_length, &module) != OIR_STATUS_OK)
-        goto cleanup;
+    {
+        OirStatus open_status = oir_module_open(module_bytes, module_length, &module);
+        if (open_status != OIR_STATUS_OK) {
+            if (arithmetic == 7 || arithmetic == 8)
+                fprintf(stderr, "bit fixture=%d module open status=%u length=%zu\\n",
+                    arithmetic, (unsigned)open_status, module_length);
+            goto cleanup;
+        }
+    }
     if (module.type_count != ((arithmetic == 5 || arithmetic == 6) ? 3u : 2u) ||
-        module.function_count != 1u) goto cleanup;
+        module.function_count != 1u) {
+        if (arithmetic == 7 || arithmetic == 8)
+            fprintf(stderr, "bit fixture=%d module header types=%u functions=%u blocks=%u ins=%u operands=%u values=%u\\n",
+                arithmetic, module.type_count, module.function_count, module.block_count,
+                module.instruction_count, module.operand_count, module.value_count);
+        goto cleanup;
+    }
     {
         OirModuleType return_type;
-        if (oir_module_get_type(&module, 0u, &return_type) != OIR_STATUS_OK ||
+        OirStatus type_status = oir_module_get_type(&module, 0u, &return_type);
+        if (type_status != OIR_STATUS_OK ||
             return_type.kind != OIR_MODULE_TYPE_INTEGER ||
-            (return_type.flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u) goto cleanup;
+            (return_type.flags & OIR_MODULE_TYPE_FLAG_HARD) == 0u) {
+            if (arithmetic == 7 || arithmetic == 8)
+                fprintf(stderr, "bit fixture=%d return type status=%u kind=%u flags=%u\\n",
+                    arithmetic, (unsigned)type_status, return_type.kind, return_type.flags);
+            goto cleanup;
+        }
     }
     if (arithmetic == 0) {
         OirModuleInstruction constant;
