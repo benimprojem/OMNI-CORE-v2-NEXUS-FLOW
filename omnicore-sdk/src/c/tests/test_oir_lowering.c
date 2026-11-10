@@ -186,8 +186,8 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     semantic_attach_node_id_resolver(&semantic, test_resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
     if (semantic.error_count != 0) {
-        if (arithmetic == 7)
-            fprintf(stderr, "bitwise semantic errors=%d\\n", semantic.error_count);
+        if (arithmetic == 7 || arithmetic == 8)
+            fprintf(stderr, "bitwise/shift semantic errors=%d\\n", semantic.error_count);
         goto cleanup;
     }
     if (semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK ||
@@ -213,7 +213,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
         OirStatus lower_status = oir_lower_semantic_ast_return(&artifact, &workspace,
             module_bytes, sizeof(module_bytes), &module_length);
         if (lower_status != OIR_STATUS_OK) {
-            if (arithmetic == 7) fprintf(stderr, "bitwise lower status=%u\\n", (unsigned)lower_status);
+            if (arithmetic == 7 || arithmetic == 8) fprintf(stderr, "bitwise/shift lower status=%u\\n", (unsigned)lower_status);
             goto cleanup;
         }
     }
