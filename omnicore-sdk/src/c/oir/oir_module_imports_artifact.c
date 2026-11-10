@@ -65,15 +65,15 @@ OirStatus oir_module_imports_build(const char* importer_identity,
     seen=(uint8_t*)calloc((size_t)OIR_MODULE_IMPORTS_MAX_RECORDS+1u,1u);
     if(!seen) return OIR_STATUS_OUT_OF_MEMORY;
     out_imports->importer_identity=dup_text(importer_identity);
-    if(!out_imports->importer_identity) return OIR_STATUS_OUT_OF_MEMORY;
+    if(!out_imports->importer_identity) { free(seen); return OIR_STATUS_OUT_OF_MEMORY; }
     out_imports->schema_major=OIR_MODULE_IMPORTS_SCHEMA_MAJOR;
     out_imports->schema_minor=OIR_MODULE_IMPORTS_SCHEMA_MINOR;
     if(binding_count) {
         if(binding_count>SIZE_MAX/sizeof(*out_imports->records)) {
-            oir_module_imports_destroy(out_imports); return OIR_STATUS_OVERFLOW;
+            free(seen); oir_module_imports_destroy(out_imports); return OIR_STATUS_OVERFLOW;
         }
         out_imports->records=(OirModuleImportRecord*)calloc(binding_count,sizeof(*out_imports->records));
-        if(!out_imports->records) { oir_module_imports_destroy(out_imports); return OIR_STATUS_OUT_OF_MEMORY; }
+        if(!out_imports->records) { free(seen); oir_module_imports_destroy(out_imports); return OIR_STATUS_OUT_OF_MEMORY; }
     }
     for(i=0;i<binding_count;i++) {
         const OccModuleImportBinding* b=&bindings[i];
@@ -93,12 +93,42 @@ OirStatus oir_module_imports_build(const char* importer_identity,
         if(!r->requested_path || (b->alias&&!r->alias) ||
            (b->namespace_name&&!r->namespace_name) || !r->dependency_identity) {
             out_imports->record_count=i+1u;
-            oir_module_imports_destroy(out_imports); return OIR_STATUS_OUT_OF_MEMORY;
+            free(seen); oir_module_imports_destroy(out_imports); return OIR_STATUS_OUT_OF_MEMORY;
         }
         out_imports->record_count=i+1u;
     }
     free(seen);
     return OIR_STATUS_OK;
+}
+
+OirStatus oir_module_imports_build_from_scheduler(
+    const OccModuleScheduler* scheduler,
+    uint32_t importer_module_id,
+    const char* importer_identity,
+    OirModuleImports* out_imports
+) {
+    size_t count=0u,i;
+    OccModuleImportBinding* bindings=NULL;
+    OccModuleSchedulerStatus scheduler_status;
+    OirStatus status;
+    scheduler_status=occ_module_scheduler_get_import_binding_count(
+        scheduler,importer_module_id,&count);
+    if(scheduler_status!=OCC_MODULE_SCHEDULER_OK) return OIR_STATUS_INVALID_ARGUMENT;
+    if(count) {
+        if(count>SIZE_MAX/sizeof(*bindings)) return OIR_STATUS_OVERFLOW;
+        bindings=(OccModuleImportBinding*)calloc(count,sizeof(*bindings));
+        if(!bindings) return OIR_STATUS_OUT_OF_MEMORY;
+    }
+    for(i=0u;i<count;i++) {
+        scheduler_status=occ_module_scheduler_get_import_binding(
+            scheduler,importer_module_id,(uint32_t)(i+1u),&bindings[i]);
+        if(scheduler_status!=OCC_MODULE_SCHEDULER_OK) {
+            free(bindings); return OIR_STATUS_INVALID_SECTION;
+        }
+    }
+    status=oir_module_imports_build(importer_identity,bindings,count,out_imports);
+    free(bindings);
+    return status;
 }
 
 static int payload_size(const OirModuleImports* m,size_t* out) {
