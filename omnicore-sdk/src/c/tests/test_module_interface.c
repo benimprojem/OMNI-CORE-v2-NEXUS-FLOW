@@ -84,6 +84,9 @@ static int test_public_export_snapshot_and_oir_roundtrip(void) {
         function_id);
 
     oir_module_interface_artifact_destroy(&decoded);
+    bytes[OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE] ^= 0x01u;
+    CHECK(oir_module_interface_artifact_open(bytes, written, &decoded) ==
+        OIR_STATUS_INVALID_SECTION);
     occ_module_interface_destroy(&interface);
     semantic_result_destroy(&semantic);
     free(bytes);
@@ -108,6 +111,7 @@ static int test_rejects_corrupt_payload_and_nonfinalized_input(void) {
     CHECK(semantic_result_init(&semantic) == SEMANTIC_RESULT_OK);
     CHECK(occ_module_interface_build("module://unfinished",
         &semantic, &interface) == OCC_MODULE_INTERFACE_INVALID_SEMANTIC_RESULT);
+    memset(bytes, 0, sizeof(bytes));
     CHECK(oir_module_interface_artifact_open(bytes, sizeof(bytes), &decoded) !=
         OIR_STATUS_OK);
     semantic_result_destroy(&semantic);
