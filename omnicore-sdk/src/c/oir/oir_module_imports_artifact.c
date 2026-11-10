@@ -104,13 +104,16 @@ OirStatus oir_module_imports_build(const char* importer_identity,
 OirStatus oir_module_imports_build_from_scheduler(
     const OccModuleScheduler* scheduler,
     uint32_t importer_module_id,
-    const char* importer_identity,
     OirModuleImports* out_imports
 ) {
     size_t count=0u,i;
     OccModuleImportBinding* bindings=NULL;
     OccModuleSchedulerStatus scheduler_status;
     OirStatus status;
+    const OccModuleResolverNode* importer;
+    if(!scheduler || !out_imports) return OIR_STATUS_INVALID_ARGUMENT;
+    importer=occ_module_resolver_get_module(&scheduler->resolver,importer_module_id);
+    if(!importer || !importer->canonical_identity) return OIR_STATUS_INVALID_ARGUMENT;
     scheduler_status=occ_module_scheduler_get_import_binding_count(
         scheduler,importer_module_id,&count);
     if(scheduler_status!=OCC_MODULE_SCHEDULER_OK) return OIR_STATUS_INVALID_ARGUMENT;
@@ -126,7 +129,7 @@ OirStatus oir_module_imports_build_from_scheduler(
             free(bindings); return OIR_STATUS_INVALID_SECTION;
         }
     }
-    status=oir_module_imports_build(importer_identity,bindings,count,out_imports);
+    status=oir_module_imports_build(importer->canonical_identity,bindings,count,out_imports);
     free(bindings);
     return status;
 }
@@ -214,7 +217,8 @@ OirStatus oir_module_imports_artifact_open(const uint8_t* bytes,size_t length,
     memset(out,0,sizeof(*out));
     st=oir_artifact_open(bytes,length,&out->envelope);
     if(st!=OIR_STATUS_OK) return st;
-    if(out->envelope.header.artifact_kind!=OIR_KIND_MODULE_IMPORTS ||
+    if(out->envelope.section_count!=1u ||
+       out->envelope.header.artifact_kind!=OIR_KIND_MODULE_IMPORTS ||
        out->envelope.header.producer_stage_id!=OCC_STAGE_OCC_HOST ||
        out->envelope.header.validity!=OIR_VALIDITY_VALID ||
        out->envelope.header.payload_schema_major!=1u ||
