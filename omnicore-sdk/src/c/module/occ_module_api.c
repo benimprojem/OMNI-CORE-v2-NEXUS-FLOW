@@ -18,7 +18,7 @@ static int valid_artifact_kind(uint32_t kind) {
 static int valid_descriptor_fields(const OccStageDescriptorV1* d) {
     const uint64_t known_capabilities=OCC_MODULE_CAPABILITY_MASK_V1;
     const uint64_t known_artifact_kinds=
-        (OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_LINK_INPUT+1u)-UINT64_C(2));
+        (OCC_MODULE_ARTIFACT_KIND_MASK(OIR_KIND_MODULE_INTERFACE+1u)-UINT64_C(2));
     if(!d || d->struct_size < sizeof(*d) ||
         d->abi_major!=OCC_MODULE_ABI_MAJOR ||
         d->abi_minor>OCC_MODULE_ABI_MINOR ||
