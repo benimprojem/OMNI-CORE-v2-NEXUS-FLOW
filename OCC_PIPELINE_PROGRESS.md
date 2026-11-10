@@ -1522,3 +1522,7 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - `main.c` executable dizinini DLL yükleme için korur; config, targets ve lang yollarını executable dizininin parent'ından çözer. Böylece çalışma dizinine bağımlılık kalmaz.
 - CMake staging testi artık paket kökünde config, standart modüller, dsplibs, targets ve lang varlığını kontrol eder. Locale regression kopyası da `locale-tr/bin/occ` + paket kökü config/lang düzenini kullanır.
 - **CI doğrulaması bekleniyor.** Bu değişikliklerden sonra henüz build/CTest veya Windows/macOS/Valgrind sonucu alınmadı. Host OCF include/dependency okuyucusu ve recursive Module Resolver scheduler hâlâ sonraki entegrasyon adımıdır.
+
+
+- **İlk paket-layout CI sonucu:** run [42797859769](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42797859769) Ubuntu ve ASan/UBSan işlerinde başarısız oldu; 62 CTest'in 61'i geçti. Tek başarısız test `occ_uses_configured_language` idi: locale test kopyasında dil dosyası arama yolu `bin/lang` olarak kalmıştı.
+- Düzeltme: host artık config/targets/lang yollarını executable dizinine göre `../occ.ocf`, `../targets`, `../lang` biçiminde kuruyor. Böylece `bin/occ` ile paket kökü arasındaki ilişki açık ve platformlar arası yol birleştirme helper'ı kullanılarak korunuyor. Yeni CI run [42798199142](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42798199142) bekleniyor; henüz başarılı sayılmıyor.
