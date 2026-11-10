@@ -188,6 +188,20 @@ OirStatus oir_semantic_ast_artifact_open(
         return OIR_STATUS_INVALID_SECTION;
     }
 
+    /* Schema 1.4 introduced the distinct immutable-value symbol flag. */
+    if (result.envelope.header.payload_schema_minor < 4u) {
+        uint32_t symbol_index;
+        for (symbol_index = 0u; symbol_index < result.symbols.record_count;
+             ++symbol_index) {
+            OirSemanticSymbol symbol;
+            status = oir_semantic_symbols_get(
+                &result.symbols, symbol_index, &symbol, NULL);
+            if (status != OIR_STATUS_OK) return status;
+            if ((symbol.flags & OIR_SEMANTIC_SYMBOL_FLAG_IMMUTABLE) != 0u)
+                return OIR_STATUS_INVALID_SECTION;
+        }
+    }
+
     if (incoming_capacity < result.ast.node_count ||
         visited_capacity < result.ast.node_count ||
         graph_stack_capacity < result.ast.node_count ||
