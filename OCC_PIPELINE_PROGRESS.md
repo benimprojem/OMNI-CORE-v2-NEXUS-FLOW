@@ -1645,3 +1645,17 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 
 - Ek regresyon: `e85b4586` ile AST_USE path metninin `max_text_bytes` sınırını aşması durumunda Scheduler'ın Semantic aşamasına geçmeden `RESOURCE_LIMIT` döndürdüğü test eklendi. Bu son test commit'inin CI run'ı [42813781295](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42813781295) **5/5 başarılı** oldu: Ubuntu, macOS, Windows, ASan/UBSan ve Valgrind. Ubuntu CTest ve Valgrind MemCheck 65/65 geçti.
+
+
+## 2026-11-10 — Filesystem Module Provider ve tek dosya USE eşlemesi
+
+- Kullanıcı kararı: `use db;` → `db.nxf`; dotted modül adları klasörlere bölünmez, ör. `use db.mysql.sql;` → `db.mysql.sql.nxf`.
+- Arama sırası: host tarafından verilen `dsplibs/`, ardından `libs/`, proje kökünün sabit `include/` dizini, son olarak proje OCF `[include]` girdileri (bildirim sırası korunur). İlk bulunan dosya seçilir.
+- `filesystem_module_provider.h/.c` eklendi. Resolver'ın dosya sistemi bağımsızlığı korundu; sağlayıcı yalnızca source provider callback'lerini uyguluyor.
+- Modül adları dot-separated identifier segmentleri olarak doğrulanıyor; slash/backslash/absolute path/traversal kabul edilmiyor. Root input (`importer_identity == NULL`) doğrudan kaynak dosya yoludur.
+- Kaynak dosyası okuma boyut limiti, provider-owned buffer/identity ve tam bir kez release sözleşmesi eklendi. Büyük dosya ayrı resource-limit statüsüyle Resolver'a aktarılıyor.
+- CMake'e `occ_filesystem_module_provider` hedefi ve `filesystem_module_provider_single_file_mapping_and_search_order` testi eklendi.
+- Fixture testleri: dotted filename, `db.nxf`, traversal reddi, dsplibs önceliği, libs fallback, proje include fallback, OCF ek include fallback, bulunamadı ve kaynak boyutu limiti.
+- **Entegrasyon sınırı:** Provider henüz `main.c` tarafından kullanılmıyor. CLI hâlâ SDK runtime OCF'den yalnızca dil ayarını okuyor; proje OCF seçimi ve `dsplibs/` + `libs/` köklerinin runtime çözümü sonraki entegrasyon adımı. Bu nedenle USE uçtan uca çalışıyor olarak işaretlenmiyor.
+- **CI:** Bu provider commit seti için CI henüz sonuçlanmadı. CMake/CTest, Windows, macOS, ASan/UBSan ve Valgrind tamamlanana kadar doğrulanmış sayılmayacak.
+- Commit'ler: `589f0543` / `ef1e9807` provider API/ilk uygulama, `64fe4480` CMake/test kaydı, `56651ecf` test, `b163d7ed` / `79c1bc6c` / `bf139265` limit statüsü, `07ee6e14` limit testi, `4e164007` / `930cbdfb` / `1e9942d5` include kökü, `675ecc1e` fixture, `69557d8f` include index düzeltmesi.
