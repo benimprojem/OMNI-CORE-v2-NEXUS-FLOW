@@ -1536,3 +1536,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Her beş işte de CTest **62/62 başarılı**.
 - Locale regression testi artık `bin/occ` ve `bin/occ_semantic_stage` kopyalarının paket kökü config/dil dosyalarını `bin/../occ.ocf` ve `bin/../lang` üzerinden bulduğunu doğruluyor.
 - Bu doğrulama yalnızca paket asset staging ve runtime path çözümlemesini kapsar. OCF include/dependency okuyucusu, gerçek filesystem source provider, OCM ve recursive module scheduler henüz uygulanmadı.
+
+
+### 2026-11-10 — Bounded OCF include reader
+
+- Added `occ_project_config.h/.c` as a standalone C host/config component. It reads the OCF file's project-root directory and bounded `[include]` entries; it does not open include directories or resolve module source files.
+- Limits: 1 MiB total OCF text, 4 KiB line/path, 64 include roots. Duplicate include strings are collapsed; quoted paths with spaces are supported; malformed sections/quoted paths and I/O failures return distinct statuses.
+- `[dependencies]` is intentionally opaque to this reader. OCM owns dependency declaration syntax and the centralized `occ/dsplibs/` package store. No project-local dependency copies are created.
+- Added CTest coverage for include parsing, quoted paths, duplicate removal, ignoring dependency/other sections, malformed quote rejection and missing-file handling.
+- **CI pending** for this new C component and its tests. Filesystem provider, canonical path security checks and recursive scheduling remain unimplemented.
