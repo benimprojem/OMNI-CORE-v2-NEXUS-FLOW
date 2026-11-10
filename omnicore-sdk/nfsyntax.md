@@ -41,8 +41,16 @@ f:main() {
 
 Bu tanımın Parser/AST temsili `AST_MUST_DECL` adını korur (append-only AST kimlik uyumluluğu); buradaki MUST adı modül bağımlılığı anlamına gelmez. Semantic bunu `IMMUTABLE` sembol bayrağıyla, `c:` sabitlerinden ayrı kaydeder. `c:` için derleme zamanı ifade değerlendirmesi ayrı bir Semantic yeteneğidir; mevcut sembol bayrağı tek başına constant folding tamamlandı anlamına gelmez.
 
-**Tip Zorlama (Hard-Lock):** `!type` biçiminde tip dayatması desteklenir. 
-Örnek: `v:sayi!i32 = 10;`, `v:data!u8[]`
+**Açık Tip Zorlaması:** `!`, Nexus Flow'da türün açıkça zorlandığını/belirtildiğini gösterir. Değişken bildiriminde tür adı değişken adından sonra gelir:
+
+```nxf
+v:sayi!i32 = 10;
+v:data!u8[];
+v:flags!8bit;
+v:raw!byte;
+```
+
+Burada `!` tür adının parçası değildir; `i32`, `u8`, `8bit` veya `byte` türünü açıkça seçer. Tür çıkarımı istenen bildirimlerde `!` kullanılmayabilir; ancak bit/byte gibi temsil odaklı türlerde açık tür belirtimi tercih edilir. Açık dönüşüm/zorlama ifadelerinin kaynak değer aralığı ve hedef genişliği bakımından Semantic doğrulaması ayrıca tamamlanacaktır.
 
 ---
 
@@ -56,51 +64,75 @@ Tüm temel tip anahtar kelimeleri parser tarafından tanınmakta ve analizöre d
 
 ### Bit ve byte türleri
 
-Bit ve byte ailesi, sayısal tamsayı türlerinden ayrı tutulur:
+Bit ve byte ailesi, sayısal tamsayı türlerinden ayrı tutulur. Tür adı değişken bildiriminde `!` ile açıkça belirtilir:
 
-| Tür ailesi | Anlamı | Kullanım |
-|---|---|---|
-| `bit` | Tek bitlik değer | Tek flag / ikili durum |
-| `byte` | Ham 8-bit saklama birimi | Bellek, dosya ve protokol verisi |
-| `8bit`, `16bit`, `32bit`, `64bit`, `128bit` | Sabit genişlikli bit dizisi | Maskeleme, flag alanları ve bitwise işlemler |
-| `1byte`, `2byte`, `4byte`, `8byte`, `16byte` | Sabit byte genişliğinde ham veri | Bellek/veri blokları |
+| Tür | Genişlik | Anlamı | Tipik kullanım |
+|---|---:|---|---|
+| `bit` | 1 bit | Tek bitlik veri değeri (0 veya 1) | Tek flag / ikili durum |
+| `byte` | 8 bit | Ham byte saklama birimi | Bellek, dosya ve protokol verisi |
+| `8bit` | 8 bit | Bit vektörü | 8 flag / maske |
+| `16bit` | 16 bit | Bit vektörü | 16 flag / maske |
+| `32bit` | 32 bit | Bit vektörü | 32 flag / maske |
+| `64bit` | 64 bit | Bit vektörü | 64 flag / maske |
+| `128bit` | 128 bit | Bit vektörü | 128 flag / maske |
+| `1byte` | 1 byte | Ham veri bloğu | Tek byte veri |
+| `2byte` | 2 byte | Ham veri bloğu | 2 byte veri |
+| `4byte` | 4 byte | Ham veri bloğu | 4 byte veri |
+| `8byte` | 8 byte | Ham veri bloğu | 8 byte veri |
+| `16byte` | 16 byte | Ham veri bloğu | 16 byte veri |
 
-`u8` sayısal tamsayı olmaya devam eder; `byte` ve `8bit` ile örtük olarak birbirine dönüştürülmez. Açık dönüşüm `!` ile yazılır; dönüşümün genişlik ve değer aralığı Semantic tarafından doğrulanmalıdır.
+`bit` ile `bool` aynı kavram değildir: `bool` mantıksal koşul/doğruluk değeridir; `bit` tek bitlik veri temsilidir. `byte` ham 8-bit saklama birimidir. `u8` ise aritmetik yapılabilen sayısal işaretsiz tamsayıdır. `byte`, `8bit` ve `u8` aynı genişlikte olabilseler de birbirlerinin yerine örtük olarak kullanılamaz. Benzer biçimde `1byte` ve `8bit` aynı fiziksel genişliğe sahiptir, ancak tip niyetleri farklıdır.
 
-Bit ailesinin hedeflenen işlemleri:
-
-- `&`, `|`, `^`, `~`: bitwise maskeleme ve birleştirme.
-- `==`, `!=`: aynı genişlikte bit dizisi karşılaştırması.
-- `<<`, `>>`: bit kaydırma; Nexus Flow'daki mevcut akış/zone anlamlarıyla çakışma denetimi tamamlanmadan bu operatörlere bit kaydırma anlamı verilmez.
-- `&=`, `|=`, `^=`: bitwise bileşik atama.
-- Tek bit ayarlama, temizleme ve tersleme sırasıyla `flags | mask`, `flags & ~mask`, `flags ^ mask` kalıplarıyla yapılabilir.
-- Flag kontrolü `(flags & mask) != 0` kalıbıyla yapılır.
-
-`sizeof(value)` nesnenin bellekte kapladığı byte sayısını döndürür; bit genişliği türün özelliğidir. Örneğin `sizeof` sonucu bir `8bit` değer için 1 byte olabilir. `1byte` ve `8bit` aynı fiziksel genişlikte olsa da farklı tip niyeti taşır.
+**Açık tür bildirimi örnekleri:**
 
 ```nxf
 f:main() {
-    v:flags!8bit;
-    v:read_mask!8bit;
-    v:inverse = ~flags;
+    v:enabled!bit;
+    v:packet_byte!byte;
+    v:flags8!8bit;
+    v:flags16!16bit;
+    v:flags32!32bit;
+    v:flags64!64bit;
+    v:flags128!128bit;
 
-    # Bir veya daha fazla flag ayarla.
-    flags |= read_mask;
-
-    # Maskedeki flag'leri temizle.
-    flags &= ~read_mask;
-
-    # Maskedeki flag'leri tersle.
-    flags ^= read_mask;
-
-    # Maskede en az bir bit etkin mi?
-    v:has_read = (flags & read_mask) != 0;
+    v:header!1byte;
+    v:word!2byte;
+    v:record!4byte;
+    v:block!8byte;
+    v:large_block!16byte;
 }
 ```
 
-Bitwise operatörler aynı tip/genişlikte operand ister. Örneğin `8bit | 16bit` Semantic hatasıdır. `<<` ve `>>` mevcut Nexus Flow stream/zone operatörleridir; bu operatörlere bit kaydırma anlamı yüklenmez.
+Bit vektörlerinde desteklenen işlemler:
 
-**Uygulama durumu:** Lexer artık `bit`, `byte`, `8bit`–`128bit` ve `1byte`–`16byte` yazımlarını ayrı tip tokenları olarak tanır. Parser bu tokenları mevcut TypeExpr/AST type-name alanlarında yazımını koruyarak taşır. Semantic; tiplerin tanımlı olmasını, eş genişlikte bitwise işlemleri ve `~` bitwise complement operandını doğrular; bu aileye sayısal aritmetik açılmaz. AST frontend OIR codec için tip yazımı ve hard-type işaretinin round-trip korunması regresyon testiyle doğrulanır. SemanticResult primitive tür sınıflandırması da güncellenmiştir. Semantic AST lowering/verifier üzerinden uçtan uca tür doğrulaması ve açık dönüşümün genişlik/değer aralığı kontrolleri henüz tamamlanmamıştır.
+- `&`, `|`, `^`, `~`: bitwise maskeleme, birleştirme, XOR ve complement.
+- `==`, `!=`: aynı tip/genişlikte değer karşılaştırması.
+- `&=`, `|=`, `^=`: bitwise bileşik atama.
+- Tek bit ayarlama, temizleme ve tersleme maskelerle yapılır: `flags |= mask`, `flags &= ~mask`, `flags ^= mask`.
+- Flag kontrolü `(flags & mask) != 0` kalıbıyla yapılır.
+- Maskeler aynı bit genişliğindeki bit vektörleriyle kullanılmalıdır; `8bit | 16bit` tür/genişlik uyuşmazlığıdır.
+
+```nxf
+f:update_flags() {
+    v:flags!8bit;
+    v:read_mask!8bit;
+    v:inverse!8bit = ~flags;
+
+    flags |= read_mask;   # Flag'i etkinleştir.
+    flags &= ~read_mask;  # Flag'i temizle.
+    flags ^= read_mask;   # Flag'i tersle.
+
+    v:has_read!bool = (flags & read_mask) != 0;
+}
+```
+
+Bu örnek, önceden elde edilmiş aynı genişlikte bir maskeyi kullanır. Sayısal literalden bit/byte türüne açık dönüşüm ve maskeyi doğrudan literal ile kurma sözdiziminin Semantic genişlik/değer aralığı denetimi henüz tamamlanmadığından, burada desteklenmiş bir özellik gibi gösterilmez. Doğrudan `flags[index]` ile tek bit erişimi de henüz desteklenmiş kabul edilmez.
+
+`sizeof(value)` byte cinsinden saklama boyutunu sorgular; bit genişliği ise türün ayrı bir özelliğidir. Örneğin `8bit` ve `1byte` 1 byte genişliğe karşılık gelir. Hedefe bağlı hizalama/padding ve tüm tür ailesinin nihai ABI yerleşimi ayrıca doğrulanacaktır.
+
+`<<` ve `>>` Nexus Flow'un mevcut stream/zone operatörleridir; bit kaydırma anlamı verilmez.
+
+**Uygulama durumu:** Lexer `bit`, `byte`, `8bit`–`128bit` ve `1byte`–`16byte` yazımlarını ayrı tip tokenları olarak tanır. Parser yazımları AST type-name alanında korur ve açık tür işaretini ayrı saklar. Semantic türleri tanır, uyumlu bitwise işlemleri ve `~` operandını doğrular; temsil türlerine sayısal aritmetik izni vermez. AST frontend OIR codec round-trip testi tüm on numeric-leading type spelling ve hard-type işaretini doğrular; SemanticResult primitive tür sınıflandırması günceldir. Semantic AST lowering/OIR Verifier uçtan uca tür aktarımı, açık dönüşümün genişlik/değer aralığı denetimi ve ABI yerleşimi henüz tamamlanmamıştır.
 
 ---
 
