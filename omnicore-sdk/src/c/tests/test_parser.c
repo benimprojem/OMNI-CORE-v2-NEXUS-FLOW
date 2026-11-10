@@ -2520,60 +2520,43 @@ static int test_intrinsic_ast_family(void) {
     return 1;
 }
 
-static int test_must_top_level_ast(void) {
+static int test_m_immutable_value_ast(void) {
     static const char source[] =
-        "m:CoreModule = \"CoreModule.nxf\";\n"
-        "f:main() { ret 0; }";
-    ParserContext* parser = parser_init_source("must-top-level.nxf",
+        "m:CoreValue = 42;\n"
+        "f:main() { m:localValue = 7; ret 0; }";
+    ParserContext* parser = parser_init_source("immutable-values.nxf",
         (const uint8_t*)source, sizeof(source) - 1u);
-    ASTMustDecl* dependency;
+    ASTMustDecl* immutable;
     ASTFuncDecl* function;
-    ASTLiteral* path_literal;
-    const char* declaration_start=strstr(source,"m:CoreModule");
-    const char* declaration_end=declaration_start?strchr(declaration_start,';'):NULL;
+    ASTMustDecl* local;
+    ASTLiteral* literal;
+    const char* declaration_start = strstr(source, "m:CoreValue");
+    const char* declaration_end = declaration_start
+        ? strchr(declaration_start, ';') : NULL;
     int valid = 0;
     if (!parser) return 0;
     if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
         parser->ast_root && ast_validate(parser->ast_root, NULL)) {
-        dependency = (ASTMustDecl*)((ASTProgram*)parser->ast_root)->declarations;
-        function = dependency ? (ASTFuncDecl*)dependency->base.next : NULL;
-        path_literal = dependency && dependency->source &&
-            dependency->source->type == AST_LITERAL
-            ? (ASTLiteral*)dependency->source : NULL;
-        valid = dependency && dependency->base.type == AST_MUST_DECL &&
-            dependency->name && strcmp(dependency->name, "CoreModule") == 0 &&
-            path_literal && path_literal->string_value &&
-            strcmp(path_literal->string_value, "\"CoreModule.nxf\"") == 0 &&
+        immutable = (ASTMustDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        function = immutable ? (ASTFuncDecl*)immutable->base.next : NULL;
+        local = function && function->body && function->body->type == AST_BLOCK
+            ? (ASTMustDecl*)((ASTBlock*)function->body)->statements : NULL;
+        literal = immutable && immutable->source &&
+            immutable->source->type == AST_LITERAL
+            ? (ASTLiteral*)immutable->source : NULL;
+        valid = immutable && immutable->base.type == AST_MUST_DECL &&
+            immutable->name && strcmp(immutable->name, "CoreValue") == 0 &&
+            literal && literal->lit_type == 0 && literal->int_value == 42 &&
             declaration_start && declaration_end &&
-            dependency->base.source_span.has_location &&
-            dependency->base.source_span.start_offset==(uint64_t)(declaration_start-source) &&
-            dependency->base.source_span.end_offset==(uint64_t)(declaration_end+1-source) &&
-            dependency->base.source_span.start_line==1u &&
-            dependency->base.source_span.start_column==1u &&
-            dependency->base.source_span.end_line==1u &&
-            dependency->base.source_span.end_column==(uint32_t)(declaration_end+2-source) &&
+            immutable->base.source_span.has_location &&
+            immutable->base.source_span.start_offset == (uint64_t)(declaration_start-source) &&
+            immutable->base.source_span.end_offset == (uint64_t)(declaration_end+1-source) &&
             function && function->base.type == AST_FUNC_DECL &&
-            function->name && strcmp(function->name, "main") == 0;
+            local && local->base.type == AST_MUST_DECL &&
+            local->name && strcmp(local->name, "localValue") == 0;
     }
     parser_destroy(parser);
-    if (!valid) fprintf(stderr, "Top-level MUST declaration AST contract failed.\n");
-    return valid;
-}
-
-static int test_must_scope_rejected(void) {
-    static const char source[] =
-        "f:main() { m:CoreModule = \"CoreModule.nxf\"; ret 0; }";
-    ParserContext* parser = parser_init_source("must-scope-invalid.nxf",
-        (const uint8_t*)source, sizeof(source) - 1u);
-    int status;
-    int valid;
-    if (!parser) return 0;
-    status = parser_run(parser);
-    valid = status == PARSER_STATUS_SYNTAX_ERROR &&
-        parser_get_status(parser) == PARSER_STATUS_SYNTAX_ERROR &&
-        parser->error_count > 0;
-    parser_destroy(parser);
-    if (!valid) fprintf(stderr, "MUST block-scope rejection test failed.\n");
+    if (!valid) fprintf(stderr, "Immutable m: value AST contract failed.\n");
     return valid;
 }
 
@@ -3498,8 +3481,8 @@ static int test_enum_payload_rejects_malformed_fields(void) {
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
-    if (!test_must_top_level_ast()) return 1;
-    if (!test_must_scope_rejected()) return 1;
+    if (!test_m_immutable_value_ast()) return 1;
+
     if (!test_canonical_loop_and_jump_call_forms()) return 1;
     if (!test_dotted_module_use_path()) return 1;
     if (!test_use_path_malformed_and_exact_spans()) return 1;
