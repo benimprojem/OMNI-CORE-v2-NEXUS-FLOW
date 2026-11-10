@@ -56,6 +56,26 @@ int main(int argc, char** argv) {
     oir_module_interface_artifact_destroy(&verified_view);
     free(output_bytes);
     output_bytes = NULL;
+
+    /* A structurally corrupted payload must be rejected with a verifier diagnostic. */
+    input_bytes[OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE] ^= 0x01u;
+    {
+        OccModuleArtifactInputV1 input;
+        OccDiagnosticView diagnostic;
+        memset(&input, 0, sizeof(input));
+        input.bytes = input_bytes;
+        input.length = input_length;
+        assert(occ_module_loader_invoke(&loaded, &input, 1u, 9001u,
+            &diagnostics, 32u, 4096u, &output_bytes, &output_length) ==
+            OCC_MODULE_LOADER_INVOKE_FAILED);
+        assert(output_bytes == NULL);
+        assert(occ_diagnostics_count(&diagnostics) == 1u);
+        assert(occ_diagnostics_get(&diagnostics, 0u, &diagnostic));
+        assert(diagnostic.record->stage_id == OCC_STAGE_OIR_VERIFY);
+        assert(diagnostic.record->code == 8701u);
+        assert(diagnostic.record->severity == OCC_DIAG_ERROR);
+    }
+
     occ_module_loader_close(&loaded);
     occ_diagnostics_destroy(&diagnostics);
     return 0;
