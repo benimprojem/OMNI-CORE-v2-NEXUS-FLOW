@@ -1579,3 +1579,11 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Array index semantic düzeltmesi commit `8d36b309673d947cec8357c81a417e929d278ec8`, run [42803438524](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42803438524) ile 5/5 job başarılı oldu; Ubuntu CTest ve Valgrind MemCheck 63/63 geçti.
 - Narrow integer index ek testinin düzeltilmiş fixture commit'i `ab43b51234da03410c67d8fa77374bb6709adc5d` için run [42803824486](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42803824486): Ubuntu, macOS, Windows ve ASan/UBSan başarılı; Valgrind job'u henüz tamamlanmadı. Bu son CI kapısı tamamlanmadan son commit'in tam 5/5 doğrulandığı söylenmeyecek.
 - **Kalan Semantic ana işleri:** `AST_USE` modül import semantiği henüz no-op; gerçek çözümleme Module Resolver/host scheduler ile birlikte tasarlanmalı. Tuple type/destructuring ve inline ASM semantic desteği mevcut fail-closed davranışta. Semantic AST annotation/cross-reference matrisi henüz tüm AST node'ları için kapanmış değil.
+
+## 2026-11-10 — Semantic primitive types: d32 / d64
+
+- Semantic primitive recognition now includes `d32` and `d64` in the primitive-result/type-defined registries.
+- Both are recognized as numeric primitives for arithmetic/compound-assignment validation.
+- Added Semantic regression coverage for declaring `d32`/`d64` values and using numeric compound assignment.
+- Commit(s): `2b5a1ceb` (Semantic), `76ede2b7` (tests).
+- CI is required before treating this addition as validated. Future `d128`, `i128`, `u128`, `f128` are intentionally not implemented yet; the primitive lists remain explicit and must be extended with tests when those types are introduced.
