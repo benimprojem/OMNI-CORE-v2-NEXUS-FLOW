@@ -1790,6 +1790,12 @@ static void semantic_check_node(
             Slot* existing = find_slot(ctx, immutable->name);
             Slot* declared_slot = NULL;
             const char* value_type = NULL;
+            if (immutable->source) {
+                /* Resolve before introducing the name: m:x = x must not
+                   accidentally resolve to the declaration itself. */
+                semantic_check(ctx, immutable->source);
+                value_type = get_expr_type(ctx, immutable->source);
+            }
             if (existing && existing->depth == ctx->current_depth) {
                 char message[256];
                 snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_REDEFINED),
@@ -1799,10 +1805,6 @@ static void semantic_check_node(
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "An immutable m: value requires an initializer expression.");
             } else {
-                /* Resolve the initializer before introducing the name: m:x = x
-                   must not accidentally resolve to the declaration itself. */
-                semantic_check(ctx, immutable->source);
-                value_type = get_expr_type(ctx, immutable->source);
                 declared_slot = add_slot(
                     ctx, immutable->name, SLOT_VAR, 1,
                     value_type, node, 0, 0, 0, 0u);
