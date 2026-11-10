@@ -1,0 +1,4 @@
+# coremodule.nxf
+# OCC standard library module.
+# OS-independent general-purpose functions will be implemented here.
+# Loading policy: explicit/default behavior is not finalized yet.
