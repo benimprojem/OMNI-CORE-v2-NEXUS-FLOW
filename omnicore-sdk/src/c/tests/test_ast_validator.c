@@ -803,6 +803,9 @@ int main(void) {
         immutable->name = (char*)malloc(2u);
         if (!immutable->name) return 1;
         strcpy(immutable->name, "M");
+        ((ASTLiteral*)literal)->string_value = (char*)malloc(2u);
+        if (!((ASTLiteral*)literal)->string_value) return 1;
+        strcpy(((ASTLiteral*)literal)->string_value, "5");
         immutable->source = literal;
         program->declarations = (ASTNode*)immutable;
         if (!expect((ASTNode*)program, AST_VALIDATE_OK)) {
@@ -820,6 +823,9 @@ int main(void) {
         immutable->name = (char*)malloc(2u);
         immutable->source = ast_create(AST_LITERAL);
         if (!immutable->name || !immutable->source) return 1;
+        ((ASTLiteral*)immutable->source)->string_value = (char*)malloc(2u);
+        if (!((ASTLiteral*)immutable->source)->string_value) return 1;
+        strcpy(((ASTLiteral*)immutable->source)->string_value, "5");
         strcpy(immutable->name, "M");
         fn->name=(char*)malloc(3u);
         if(!fn->name) return 1;
