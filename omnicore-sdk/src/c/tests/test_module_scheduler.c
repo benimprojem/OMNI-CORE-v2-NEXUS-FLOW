@@ -1,4 +1,5 @@
 #include "module_scheduler.h"
+#include "oir_module_imports_artifact.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -427,6 +428,7 @@ static int test_use_alias_and_namespace_binding_preserved(void) {
     FakeProvider fake_provider;
     FakePipeline pipeline;
     OccModuleImportBinding binding;
+    OirModuleImports imports;
     OccModuleSchedulerStatus status;
     memset(&scheduler, 0, sizeof(scheduler));
     memset(&provider, 0, sizeof(provider));
@@ -436,6 +438,7 @@ static int test_use_alias_and_namespace_binding_preserved(void) {
     memset(&fake_provider, 0, sizeof(fake_provider));
     memset(&pipeline, 0, sizeof(pipeline));
     memset(&binding, 0, sizeof(binding));
+    memset(&imports, 0, sizeof(imports));
     pipeline.binding_mode = 1;
     provider.context = &fake_provider;
     provider.resolve = fake_resolve;
@@ -469,6 +472,14 @@ static int test_use_alias_and_namespace_binding_preserved(void) {
     CHECK(binding.namespace_name &&
         strcmp(binding.namespace_name, "core") == 0);
     CHECK(binding.span.start_line == 1u);
+    CHECK(oir_module_imports_build_from_scheduler(
+        &scheduler, 1u, &imports) == OIR_STATUS_OK);
+    CHECK(strcmp(imports.importer_identity, "test://root") == 0);
+    CHECK(imports.record_count == 1u);
+    CHECK(strcmp(imports.records[0].dependency_identity, "test://a") == 0);
+    CHECK(strcmp(imports.records[0].alias, "math") == 0);
+    CHECK(strcmp(imports.records[0].namespace_name, "core") == 0);
+    oir_module_imports_destroy(&imports);
     occ_module_scheduler_destroy(&scheduler);
     return 1;
 fail:
