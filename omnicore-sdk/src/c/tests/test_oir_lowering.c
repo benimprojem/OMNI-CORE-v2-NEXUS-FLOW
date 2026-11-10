@@ -315,7 +315,7 @@ static int test_real_frontend_to_module(const OccLoadedStageModule* stage_module
     } else if (arithmetic == 7) {
         OirModuleInstruction bit_and, ret;
         OirModuleOperand left, right, returned;
-        if (module.instruction_count != 4u || module.operand_count != 4u ||
+        if (module.instruction_count != 4u || module.operand_count != 5u ||
             module.value_count != 3u ||
             oir_module_get_instruction(&module, 2u, &bit_and) != OIR_STATUS_OK ||
             oir_module_get_instruction(&module, 3u, &ret) != OIR_STATUS_OK ||
