@@ -2149,6 +2149,15 @@ static void semantic_check_node(
         case AST_ASSIGNMENT: {
             ASTBinaryExpr* assign = (ASTBinaryExpr*)node;
             
+            if (assign->op != TOKEN_ASSIGN && assign->op != TOKEN_FORCE_ASSIGN &&
+                assign->left && assign->left->type == AST_IDENTIFIER) {
+                Slot* compound_slot = find_slot(ctx,
+                    ((ASTIdentifier*)assign->left)->name);
+                if (compound_slot && compound_slot->is_const) {
+                    report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                        "Cannot modify an immutable value with compound assignment.");
+                }
+            }
             if (assign->op == TOKEN_ASSIGN || assign->op == TOKEN_FORCE_ASSIGN) {
             if (assign->left->type == AST_IDENTIFIER) {
                 ASTIdentifier* id = (ASTIdentifier*)assign->left;
