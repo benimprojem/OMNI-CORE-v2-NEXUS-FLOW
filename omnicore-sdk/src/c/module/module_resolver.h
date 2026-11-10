@@ -12,6 +12,7 @@ extern "C" {
 #define OCC_MODULE_RESOLVER_DEFAULT_MAX_MODULES 65536u
 #define OCC_MODULE_RESOLVER_DEFAULT_MAX_EDGES 262144u
 #define OCC_MODULE_RESOLVER_DEFAULT_MAX_TEXT_BYTES (16u * 1024u * 1024u)
+#define OCC_MODULE_RESOLVER_DEFAULT_MAX_SOURCE_BYTES (64u * 1024u * 1024u)
 
 typedef enum OccModuleResolverStatus {
     OCC_MODULE_RESOLVER_OK = 0,
@@ -22,7 +23,11 @@ typedef enum OccModuleResolverStatus {
     OCC_MODULE_RESOLVER_CONTENT_MISMATCH = 5,
     OCC_MODULE_RESOLVER_INVALID_STATE = 6,
     OCC_MODULE_RESOLVER_CYCLE = 7,
-    OCC_MODULE_RESOLVER_DEPENDENCY_FAILED = 8
+    OCC_MODULE_RESOLVER_DEPENDENCY_FAILED = 8,
+    OCC_MODULE_RESOLVER_SOURCE_DENIED = 9,
+    OCC_MODULE_RESOLVER_SOURCE_AMBIGUOUS = 10,
+    OCC_MODULE_RESOLVER_SOURCE_IO_ERROR = 11,
+    OCC_MODULE_RESOLVER_PROVIDER_ERROR = 12
 } OccModuleResolverStatus;
 
 typedef enum OccModuleResolverState {
@@ -36,7 +41,52 @@ typedef struct OccModuleResolverConfig {
     size_t max_modules;
     size_t max_edges;
     size_t max_text_bytes;
+    size_t max_source_bytes;
 } OccModuleResolverConfig;
+
+typedef enum OccModuleSourceProviderStatus {
+    OCC_MODULE_SOURCE_PROVIDER_OK = 0,
+    OCC_MODULE_SOURCE_PROVIDER_NOT_FOUND = 1,
+    OCC_MODULE_SOURCE_PROVIDER_DENIED = 2,
+    OCC_MODULE_SOURCE_PROVIDER_AMBIGUOUS = 3,
+    OCC_MODULE_SOURCE_PROVIDER_IO_ERROR = 4,
+    OCC_MODULE_SOURCE_PROVIDER_ERROR = 5
+} OccModuleSourceProviderStatus;
+
+/* A provider request is one AST_USE item, not a filesystem path. */
+typedef struct OccModuleSourceRequest {
+    const char* requested_path;       /* Original dotted USE spelling. */
+    const char* importer_identity;    /* Canonical identity; optional for root imports. */
+    const OccSourceSpan* use_span;    /* Exact AST_USE source span; required. */
+} OccModuleSourceRequest;
+
+/*
+ * Provider-owned view. All pointers remain valid until release() is called.
+ * content_fingerprint is computed by the resolver and must be treated as output.
+ */
+typedef struct OccModuleSourceView {
+    const char* canonical_identity;
+    const uint8_t* source_bytes;
+    size_t source_length;
+    uint64_t content_fingerprint;
+    void* provider_cookie;
+} OccModuleSourceView;
+
+typedef OccModuleSourceProviderStatus (*OccModuleSourceResolveFn)(
+    void* provider_context,
+    const OccModuleSourceRequest* request,
+    OccModuleSourceView* out_source
+);
+typedef void (*OccModuleSourceReleaseFn)(
+    void* provider_context,
+    OccModuleSourceView* source
+);
+
+typedef struct OccModuleSourceProvider {
+    void* context;
+    OccModuleSourceResolveFn resolve;
+    OccModuleSourceReleaseFn release;
+} OccModuleSourceProvider;
 
 typedef struct OccModuleResolverNode {
     uint32_t module_id;             /* Stable, 1-based within this graph. */
@@ -63,6 +113,7 @@ typedef struct OccModuleResolver {
     size_t max_modules;
     size_t max_edges;
     size_t max_text_bytes;
+    size_t max_source_bytes;
     size_t text_bytes;
 } OccModuleResolver;
 
@@ -72,6 +123,29 @@ OccModuleResolverStatus occ_module_resolver_init(
     const OccModuleResolverConfig* config
 );
 void occ_module_resolver_destroy(OccModuleResolver* resolver);
+
+/*
+ * Resolve one dotted USE request through a host-owned provider. This core
+ * performs no filesystem access and does not interpret OCF paths. The provider
+ * enforces project/include/dependency policy and returns a canonical identity
+ * plus source bytes. The returned view must be released exactly once.
+ */
+OccModuleResolverStatus occ_module_resolver_resolve_source(
+    const OccModuleResolver* resolver,
+    const OccModuleSourceProvider* provider,
+    const OccModuleSourceRequest* request,
+    OccModuleSourceView* out_source
+);
+void occ_module_resolver_release_source(
+    const OccModuleSourceProvider* provider,
+    OccModuleSourceView* source
+);
+
+/* Stable non-cryptographic content fingerprint used only for cache consistency. */
+uint64_t occ_module_resolver_fingerprint_source(
+    const uint8_t* source_bytes,
+    size_t source_length
+);
 
 /*
  * Register a provider-resolved identity. Re-registering the same canonical
