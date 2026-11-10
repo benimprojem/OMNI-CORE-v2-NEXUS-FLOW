@@ -162,3 +162,18 @@ The default-module policy is a program-level decision, not a Parser filesystem o
 - `coremodule` is OS-independent; its automatic/manual loading policy remains an open language decision.
 
 Do not rename the compiler's internal `src/c/core` subsystem: these names refer to Nexus Flow standard-library modules, not the OCC compiler's own core implementation directory.
+
+
+## 13. Predefined library source layout
+
+Predefined Nexus Flow standard modules live under `omnicore-sdk/occ/libs/`:
+
+- `osmodule.nxf`: OS-dependent standard module source; implicitly scheduled unless the root program contains `no: osmodule;`.
+- `coremodule.nxf`: OS-independent general-purpose module source; its automatic/default loading policy remains undecided.
+- `.exf` files are reserved for external function declarations and external object/library linkage metadata; they are not the primary source format for these standard modules.
+
+The two `.nxf` files currently contain only starter comments. The previous mixed `stdlib/osmodule.exf` draft was moved out of the active lookup path to `temp/legacy-stdlib/osmodule.exf` for later review; none of its API is treated as implemented.
+
+The package-root `omnicore-sdk/occ.ocf` uses `./occ/libs`. The runtime copy `omnicore-sdk/src/c/occ.ocf` is placed beside the `bin/occ` executable and uses `../occ/libs`; CMake stages the source `occ/` directory at the build root, avoiding a collision between the executable file `bin/occ` and a same-named directory. CTest `occ_predefined_standard_libraries_staged_for_runtime` verifies the staged files and runtime config path.
+
+**Integration boundary:** the current C host reads the runtime OCF for its language setting only; it does not yet consume `[include]` to resolve source modules. A real project-config reader/provider must be implemented before the resolver can locate `occ/libs/osmodule.nxf` or user modules.
