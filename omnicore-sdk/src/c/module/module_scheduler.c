@@ -89,6 +89,18 @@ static OccModuleSchedulerStatus scheduler_map_resolver(
         return OCC_MODULE_SCHEDULER_OUT_OF_MEMORY;
     if (status == OCC_MODULE_RESOLVER_CYCLE)
         return OCC_MODULE_SCHEDULER_CYCLE;
+    if (status == OCC_MODULE_RESOLVER_NOT_FOUND)
+        return OCC_MODULE_SCHEDULER_SOURCE_NOT_FOUND;
+    if (status == OCC_MODULE_RESOLVER_SOURCE_DENIED)
+        return OCC_MODULE_SCHEDULER_SOURCE_DENIED;
+    if (status == OCC_MODULE_RESOLVER_SOURCE_AMBIGUOUS)
+        return OCC_MODULE_SCHEDULER_SOURCE_AMBIGUOUS;
+    if (status == OCC_MODULE_RESOLVER_SOURCE_IO_ERROR)
+        return OCC_MODULE_SCHEDULER_SOURCE_IO_ERROR;
+    if (status == OCC_MODULE_RESOLVER_LIMIT_EXCEEDED)
+        return OCC_MODULE_SCHEDULER_RESOURCE_LIMIT;
+    if (status == OCC_MODULE_RESOLVER_PROVIDER_ERROR)
+        return OCC_MODULE_SCHEDULER_PROVIDER_ERROR;
     return OCC_MODULE_SCHEDULER_RESOLVER_ERROR;
 }
 
@@ -368,6 +380,12 @@ const char* occ_module_scheduler_status_string(OccModuleSchedulerStatus status) 
         case OCC_MODULE_SCHEDULER_AST_ERROR: return "invalid AST";
         case OCC_MODULE_SCHEDULER_CYCLE: return "dependency cycle";
         case OCC_MODULE_SCHEDULER_SEMANTIC_ERROR: return "semantic error";
+        case OCC_MODULE_SCHEDULER_SOURCE_NOT_FOUND: return "module source not found";
+        case OCC_MODULE_SCHEDULER_SOURCE_DENIED: return "module source denied";
+        case OCC_MODULE_SCHEDULER_SOURCE_AMBIGUOUS: return "ambiguous module source";
+        case OCC_MODULE_SCHEDULER_SOURCE_IO_ERROR: return "module source I/O error";
+        case OCC_MODULE_SCHEDULER_RESOURCE_LIMIT: return "resource limit exceeded";
+        case OCC_MODULE_SCHEDULER_PROVIDER_ERROR: return "source provider error";
         default: return "unknown scheduler status";
     }
 }
