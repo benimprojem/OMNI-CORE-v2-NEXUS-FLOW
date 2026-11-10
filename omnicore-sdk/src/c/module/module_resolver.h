@@ -50,7 +50,8 @@ typedef enum OccModuleSourceProviderStatus {
     OCC_MODULE_SOURCE_PROVIDER_DENIED = 2,
     OCC_MODULE_SOURCE_PROVIDER_AMBIGUOUS = 3,
     OCC_MODULE_SOURCE_PROVIDER_IO_ERROR = 4,
-    OCC_MODULE_SOURCE_PROVIDER_ERROR = 5
+    OCC_MODULE_SOURCE_PROVIDER_ERROR = 5,
+    OCC_MODULE_SOURCE_PROVIDER_LIMIT_EXCEEDED = 6
 } OccModuleSourceProviderStatus;
 
 /* A provider request is one AST_USE item, not a filesystem path. */
