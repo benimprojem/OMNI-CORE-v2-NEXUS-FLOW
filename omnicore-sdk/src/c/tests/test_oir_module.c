@@ -1,4 +1,5 @@
 #include "oir_module.h"
+#include "oir_module_opcode.h"
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -31,6 +32,28 @@ int main(void) {
     OirModuleInstruction decoded;
     uint8_t payload[512], legacy_payload[512];
     size_t written = 0, legacy_written = 0;
+
+    /* Bitwise opcode IDs are stable wire identifiers with explicit shapes. */
+    {
+        const uint32_t binary_kinds[] = { OIR_OPERAND_VALUE, OIR_OPERAND_VALUE };
+        const uint32_t unary_kinds[] = { OIR_OPERAND_VALUE };
+        const OirOpcodeDescriptor* bit_and = oir_opcode_lookup(OIR_OP_BIT_AND);
+        const OirOpcodeDescriptor* bit_or = oir_opcode_lookup(OIR_OP_BIT_OR);
+        const OirOpcodeDescriptor* bit_xor = oir_opcode_lookup(OIR_OP_BIT_XOR);
+        const OirOpcodeDescriptor* bit_not = oir_opcode_lookup(OIR_OP_BIT_NOT);
+        assert(OIR_OPCODE_REGISTRY_MAJOR == 1u && OIR_OPCODE_REGISTRY_MINOR == 1u);
+        assert(bit_and && strcmp(bit_and->name, "bit.and") == 0);
+        assert(bit_or && strcmp(bit_or->name, "bit.or") == 0);
+        assert(bit_xor && strcmp(bit_xor->name, "bit.xor") == 0);
+        assert(bit_not && strcmp(bit_not->name, "bit.not") == 0);
+        assert(oir_opcode_lookup_name("bit.xor") == bit_xor);
+        assert(oir_opcode_validate_shape(OIR_OP_BIT_AND, binary_kinds, 2u, 1));
+        assert(oir_opcode_validate_shape(OIR_OP_BIT_OR, binary_kinds, 2u, 1));
+        assert(oir_opcode_validate_shape(OIR_OP_BIT_XOR, binary_kinds, 2u, 1));
+        assert(oir_opcode_validate_shape(OIR_OP_BIT_NOT, unary_kinds, 1u, 1));
+        assert(!oir_opcode_validate_shape(OIR_OP_BIT_NOT, binary_kinds, 2u, 1));
+        assert(!oir_opcode_validate_shape(OIR_OP_BIT_AND, unary_kinds, 1u, 1));
+    }
 
     memset(&input, 0, sizeof(input));
     input.types = types; input.type_count = 8u;
