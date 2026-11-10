@@ -3478,10 +3478,86 @@ static int test_enum_payload_rejects_malformed_fields(void) {
     return 1;
 }
 
+static int test_no_osmodule_program_directive(void) {
+    static const char source[] = "no: osmodule;\\nf:main() {}";
+    static const char* const invalid_sources[] = {
+        "no: coremodule;",
+        "no: osmodule; no: osmodule;",
+        "f:main() { no: osmodule; }",
+        "no: osmodule"
+    };
+    const size_t directive_length = sizeof("no: osmodule;") - 1u;
+    ParserContext* parser = parser_init_source(
+        "no-osmodule-directive.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTProgram* program;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    size_t i;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK || parser->error_count != 0 ||
+        !parser->ast_root || !ast_validate((ASTNode*)parser->ast_root, NULL))
+        goto done;
+    program = (ASTProgram*)parser->ast_root;
+    if (program->base.type != AST_PROGRAM || !program->disable_osmodule ||
+        !program->disable_osmodule_span.has_location ||
+        program->disable_osmodule_span.start_offset != 0u ||
+        program->disable_osmodule_span.end_offset != directive_length ||
+        program->disable_osmodule_span.start_line != 1u ||
+        program->disable_osmodule_span.start_column != 1u ||
+        program->disable_osmodule_span.end_line != 1u ||
+        program->disable_osmodule_span.end_column != directive_length + 1u)
+        goto done;
+
+    stream = tmpfile();
+    if (!stream || !ast_serialize((ASTNode*)program, stream) ||
+        fseek(stream, 0L, SEEK_SET) != 0)
+        goto done;
+    decoded = ast_deserialize(stream);
+    if (!decoded || !ast_validate(decoded, NULL) ||
+        decoded->type != AST_PROGRAM ||
+        !((ASTProgram*)decoded)->disable_osmodule ||
+        ((ASTProgram*)decoded)->disable_osmodule_span.start_offset != 0u ||
+        ((ASTProgram*)decoded)->disable_osmodule_span.end_offset != directive_length ||
+        ((ASTProgram*)decoded)->disable_osmodule_span.end_column != directive_length + 1u)
+        goto done;
+    valid = 1;
+
+done:
+    if (decoded) ast_destroy(decoded);
+    if (stream) fclose(stream);
+    parser_destroy(parser);
+    if (!valid) {
+        fprintf(stderr, "no: osmodule AST/codec test failed.\\n");
+        return 0;
+    }
+
+    for (i = 0u; i < sizeof(invalid_sources) / sizeof(invalid_sources[0]); ++i) {
+        ParserContext* invalid = parser_init_source(
+            "invalid-no-directive.nxf",
+            (const uint8_t*)invalid_sources[i], strlen(invalid_sources[i]));
+        int rejected;
+        if (!invalid) return 0;
+        rejected = parser_run(invalid) == PARSER_STATUS_SYNTAX_ERROR &&
+            parser_get_status(invalid) == PARSER_STATUS_SYNTAX_ERROR &&
+            invalid->error_count > 0;
+        parser_destroy(invalid);
+        if (!rejected) {
+            fprintf(stderr, "Invalid no: directive %lu was accepted.\\n",
+                (unsigned long)i);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
     if (!test_m_immutable_value_ast()) return 1;
+    if (!test_no_osmodule_program_directive()) return 1;
 
     if (!test_canonical_loop_and_jump_call_forms()) return 1;
     if (!test_dotted_module_use_path()) return 1;
