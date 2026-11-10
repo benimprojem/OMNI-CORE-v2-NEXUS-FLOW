@@ -451,6 +451,31 @@ static int scan_numeric_digit_tail(ParserContext* ctx, unsigned base) {
     return previous_digit;
 }
 
+static OmniTokenType numeric_width_type(const char* start, size_t width_length,
+    const ParserContext* ctx) {
+    const char* suffix;
+    size_t suffix_length;
+    OmniTokenType type = TOKEN_ERROR;
+    if (!start || !ctx || ctx->pos > ctx->source_len) return TOKEN_ERROR;
+    if (width_length == 1u && start[0] == '8') { type = TOKEN_TYPE_8BIT; suffix = "bit"; }
+    else if (width_length == 2u && memcmp(start, "16", 2u) == 0) { type = TOKEN_TYPE_16BIT; suffix = "bit"; }
+    else if (width_length == 2u && memcmp(start, "32", 2u) == 0) { type = TOKEN_TYPE_32BIT; suffix = "bit"; }
+    else if (width_length == 2u && memcmp(start, "64", 2u) == 0) { type = TOKEN_TYPE_64BIT; suffix = "bit"; }
+    else if (width_length == 3u && memcmp(start, "128", 3u) == 0) { type = TOKEN_TYPE_128BIT; suffix = "bit"; }
+    else if (width_length == 1u && start[0] == '1') { type = TOKEN_TYPE_1BYTE; suffix = "byte"; }
+    else if (width_length == 1u && start[0] == '2') { type = TOKEN_TYPE_2BYTE; suffix = "byte"; }
+    else if (width_length == 1u && start[0] == '4') { type = TOKEN_TYPE_4BYTE; suffix = "byte"; }
+    else if (width_length == 1u && start[0] == '8') { type = TOKEN_TYPE_8BYTE; suffix = "byte"; }
+    else if (width_length == 2u && memcmp(start, "16", 2u) == 0) { type = TOKEN_TYPE_16BYTE; suffix = "byte"; }
+    else return TOKEN_ERROR;
+    suffix_length = strlen(suffix);
+    if (suffix_length > ctx->source_len - ctx->pos ||
+        memcmp(ctx->source_buffer + ctx->pos, suffix, suffix_length) != 0 ||
+        (ctx->pos + suffix_length < ctx->source_len &&
+         (isalnum((unsigned char)ctx->source_buffer[ctx->pos + suffix_length]) ||
+          ctx->source_buffer[ctx->pos + suffix_length] == '_'))) return TOKEN_ERROR;
+    return type;
+}
 static void consume_numeric_suffix(ParserContext* ctx) {
     while (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_') advance(ctx);
 }
@@ -561,7 +586,26 @@ Token lexer_next_token(ParserContext* ctx) {
                 peek(ctx) == 'm' && peek_next(ctx, 1u) == 's' &&
                 !isalnum((unsigned char)peek_next(ctx, 2u)) &&
                 peek_next(ctx, 2u) != '_';
-            if (!is_millisecond_unit &&
+            /*
+         * Width-qualified representation types are lexed as type tokens,
+         * not numeric literals with suffixes. They are valid only as plain
+         * decimal integer spellings with an exact supported width.
+         */
+        if (!is_radix && !has_fraction && !has_exponent) {
+            size_t width_length = (size_t)(&ctx->source_buffer[ctx->pos] - start);
+            OmniTokenType width_type = numeric_width_type(start, width_length, ctx);
+            if (width_type != TOKEN_ERROR) {
+                size_t suffix_length = width_type == TOKEN_TYPE_1BYTE ||
+                    width_type == TOKEN_TYPE_2BYTE || width_type == TOKEN_TYPE_4BYTE ||
+                    width_type == TOKEN_TYPE_8BYTE || width_type == TOKEN_TYPE_16BYTE
+                    ? 4u : 3u;
+                size_t length = width_length + suffix_length;
+                while (suffix_length--) advance(ctx);
+                return make_token(ctx, width_type, start, length);
+            }
+        }
+
+        if (!is_millisecond_unit &&
                 (isalnum((unsigned char)peek(ctx)) || peek(ctx) == '_')) {
                 consume_numeric_suffix(ctx);
                 return error_token(ctx, "Unsupported numeric literal suffix");
@@ -780,6 +824,18 @@ const char* token_type_to_string(OmniTokenType type) {
         case TOKEN_BIT_AND_EQ: return "&=";
         case TOKEN_BIT_OR_EQ: return "|=";
         case TOKEN_BIT_XOR_EQ: return "^=";
+        case TOKEN_TYPE_BIT: return "BIT";
+        case TOKEN_TYPE_BYTE: return "BYTE";
+        case TOKEN_TYPE_8BIT: return "8BIT";
+        case TOKEN_TYPE_16BIT: return "16BIT";
+        case TOKEN_TYPE_32BIT: return "32BIT";
+        case TOKEN_TYPE_64BIT: return "64BIT";
+        case TOKEN_TYPE_128BIT: return "128BIT";
+        case TOKEN_TYPE_1BYTE: return "1BYTE";
+        case TOKEN_TYPE_2BYTE: return "2BYTE";
+        case TOKEN_TYPE_4BYTE: return "4BYTE";
+        case TOKEN_TYPE_8BYTE: return "8BYTE";
+        case TOKEN_TYPE_16BYTE: return "16BYTE";
         case TOKEN_KW_LOOP: return "LOOP";
         default: return "TOKEN";
     }
