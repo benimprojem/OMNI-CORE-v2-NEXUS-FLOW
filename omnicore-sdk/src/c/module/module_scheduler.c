@@ -83,7 +83,13 @@ static int scheduler_collect_use(
     item = &entry->uses[entry->use_count];
     memset(item, 0, sizeof(*item));
     item->requested_path = scheduler_strdup(use->module_name);
-    if (!item->requested_path) {
+    item->alias = use->alias ? scheduler_strdup(use->alias) : NULL;
+    item->namespace_name = use->namespace_name ? scheduler_strdup(use->namespace_name) : NULL;
+    if (!item->requested_path || (use->alias && !item->alias) ||
+        (use->namespace_name && !item->namespace_name)) {
+        free(item->requested_path);
+        free(item->alias);
+        free(item->namespace_name);
         collector->failed = 1;
         return 0;
     }
@@ -371,6 +377,48 @@ done:
     return status;
 }
 
+
+OccModuleSchedulerStatus occ_module_scheduler_get_import_binding(
+    const OccModuleScheduler* scheduler,
+    uint32_t importer_module_id,
+    uint32_t use_ordinal,
+    OccModuleImportBinding* out_binding
+) {
+    const OccModuleSchedulerEntry* entry;
+    const OccModuleSchedulerUse* use = NULL;
+    size_t i;
+    if (!scheduler || !scheduler->initialized || !out_binding ||
+        importer_module_id == 0u || use_ordinal == 0u ||
+        (size_t)importer_module_id > scheduler->entry_capacity)
+        return OCC_MODULE_SCHEDULER_INVALID_ARGUMENT;
+    memset(out_binding, 0, sizeof(*out_binding));
+    entry = &scheduler->entries[importer_module_id - 1u];
+    for (i = 0u; i < entry->use_count; ++i) {
+        if (entry->uses[i].ordinal == use_ordinal) {
+            use = &entry->uses[i];
+            break;
+        }
+    }
+    if (!use) return OCC_MODULE_SCHEDULER_INVALID_ARGUMENT;
+    for (i = 0u; i < scheduler->resolver.edge_count; ++i) {
+        const OccModuleResolverEdge* edge =
+            occ_module_resolver_get_edge(&scheduler->resolver, i);
+        if (edge && edge->kind == OCC_MODULE_EDGE_EXPLICIT_USE &&
+            edge->importer_module_id == importer_module_id &&
+            edge->ast_use_node_id == use_ordinal) {
+            out_binding->importer_module_id = importer_module_id;
+            out_binding->dependency_module_id = edge->dependency_module_id;
+            out_binding->use_ordinal = use_ordinal;
+            out_binding->requested_path = use->requested_path;
+            out_binding->alias = use->alias;
+            out_binding->namespace_name = use->namespace_name;
+            out_binding->span = use->span;
+            return OCC_MODULE_SCHEDULER_OK;
+        }
+    }
+    return OCC_MODULE_SCHEDULER_RESOLVER_ERROR;
+}
+
 void occ_module_scheduler_destroy(OccModuleScheduler* scheduler) {
     size_t i, j;
     if (!scheduler) return;
@@ -378,8 +426,11 @@ void occ_module_scheduler_destroy(OccModuleScheduler* scheduler) {
         for (i = 0u; i < scheduler->entry_capacity; ++i) {
             if (scheduler->entries[i].program)
                 ast_destroy(scheduler->entries[i].program);
-            for (j = 0u; j < scheduler->entries[i].use_count; ++j)
+            for (j = 0u; j < scheduler->entries[i].use_count; ++j) {
                 free(scheduler->entries[i].uses[j].requested_path);
+                free(scheduler->entries[i].uses[j].alias);
+                free(scheduler->entries[i].uses[j].namespace_name);
+            }
             free(scheduler->entries[i].uses);
         }
     }
