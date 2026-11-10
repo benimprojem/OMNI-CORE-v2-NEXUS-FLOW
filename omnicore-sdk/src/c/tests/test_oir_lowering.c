@@ -512,7 +512,7 @@ int main(int argc, char** argv) {
         static const uint8_t if_elsif_else_source[] =
             "f:main() !i32 { v:x!i32 = 42; "
             "if (x < 0) { ret 0; } elsif (x > 50) { ret 1; } els { ret x; } }";
-        static const uint8_t bitwise_source[] = "f:main() !i32 { ret 5 & 3; }";
+        static const uint8_t bitwise_source[] = "f:main() !i32 { v:a!i32 = 5; v:b!i32 = 3; ret a & b; }";
         assert(test_real_frontend_to_module(&stage_module, literal_source, sizeof(literal_source)-1u, 0));
         assert(test_real_frontend_to_module(&stage_module, arithmetic_source, sizeof(arithmetic_source)-1u, 1));
         assert(test_real_frontend_to_module(&stage_module, local_source, sizeof(local_source)-1u, 2));
