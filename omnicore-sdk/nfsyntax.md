@@ -154,7 +154,7 @@ f:inspect_flags() {
     v:flags!8bit;
     v:first!bit = flags[0];  # LSB
     v:last!bit = flags[7];   # MSB
-    v:one!bit;
+    v:one!bit = 1;
     flags[0] = one;          # LSB'yi güncelle
 }
 
