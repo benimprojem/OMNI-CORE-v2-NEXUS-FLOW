@@ -1545,3 +1545,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - `[dependencies]` is intentionally opaque to this reader. OCM owns dependency declaration syntax and the centralized `occ/dsplibs/` package store. No project-local dependency copies are created.
 - Added CTest coverage for include parsing, quoted paths, duplicate removal, ignoring dependency/other sections, malformed quote rejection and missing-file handling.
 - **CI pending** for this new C component and its tests. Filesystem provider, canonical path security checks and recursive scheduling remain unimplemented.
+
+
+### CI doğrulaması — bounded OCF include reader
+
+- Run [42799442668](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42799442668), commit `f1693de3de91a66f7704c1b5cbbc377236f751cd`: **5/5 iş başarılı** — Ubuntu, Windows, macOS, ASan/UBSan ve Valgrind.
+- Her işte CTest **63/63 başarılı**; Valgrind MemCheck de 63/63 testte geçti.
+- Yeni test `occ_project_config_bounded_include_parsing`: include listesi, quoted path/space, duplicate eleme, dependency/diğer section'ları yorumlamama, hatalı quote ve missing config durumlarını doğruluyor.
+- OCM merkezi dependency manager için `docs/OCM_DESIGN.md` taslağı eklendi. Paket metadata, registry, sürüm/lockfile ve CLI syntax açık karar olarak bırakıldı; uygulama varmış gibi gösterilmiyor.
+- Sıradaki adım: bu config API'sini host proje keşfine bağlamak ve filesystem source-provider sözleşmesini (importer-relative arama, include roots, standard libs, dsplibs, canonical identity, ambiguity ve path confinement) testlerle tanımlamak. Recursive module scheduler henüz uygulanmadı.
