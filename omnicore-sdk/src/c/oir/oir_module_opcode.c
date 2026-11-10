@@ -31,6 +31,15 @@ static const OirOpcodeDescriptor g_opcodes[] = {
     { OIR_OP_NEG, "neg", 1u, 1u, OIR_OPCODE_RESULT_REQUIRED, 0u,
       OIR_OPCODE_FLAG_PURE, { VALUE, 0u, 0u }, 0u },
 
+    { OIR_OP_BIT_AND, "bit.and", 2u, 2u, OIR_OPCODE_RESULT_REQUIRED, 0u,
+      OIR_OPCODE_FLAG_PURE, { VALUE, VALUE, 0u }, 0u },
+    { OIR_OP_BIT_OR, "bit.or", 2u, 2u, OIR_OPCODE_RESULT_REQUIRED, 0u,
+      OIR_OPCODE_FLAG_PURE, { VALUE, VALUE, 0u }, 0u },
+    { OIR_OP_BIT_XOR, "bit.xor", 2u, 2u, OIR_OPCODE_RESULT_REQUIRED, 0u,
+      OIR_OPCODE_FLAG_PURE, { VALUE, VALUE, 0u }, 0u },
+    { OIR_OP_BIT_NOT, "bit.not", 1u, 1u, OIR_OPCODE_RESULT_REQUIRED, 0u,
+      OIR_OPCODE_FLAG_PURE, { VALUE, 0u, 0u }, 0u },
+
     { OIR_OP_CMP_EQ, "cmp.eq", 2u, 2u, OIR_OPCODE_RESULT_REQUIRED, 0u,
       OIR_OPCODE_FLAG_PURE, { VALUE, VALUE, 0u }, 0u },
     { OIR_OP_CMP_NE, "cmp.ne", 2u, 2u, OIR_OPCODE_RESULT_REQUIRED, 0u,
