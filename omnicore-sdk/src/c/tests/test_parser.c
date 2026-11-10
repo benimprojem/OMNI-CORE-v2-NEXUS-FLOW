@@ -2768,7 +2768,7 @@ static int test_use_path_malformed_and_exact_spans(void) {
 
 static int test_use_alias_and_namespace_ast_codec(void) {
     static const char source[] =
-        "use db.mysql.sql as connector ns sql, db.mysql ns mysql, legacy as _, plain, db.mysql.sql ns _;\\n";
+        "use db.mysql.sql as connector ns sql, db.mysql ns mysql, legacy as _, plain, db.mysql.sql ns _;\n";
     static const char* invalid_sources[] = {
         "use db.mysql ns ;",
         "use db.mysql ns mysql ns sql;",
