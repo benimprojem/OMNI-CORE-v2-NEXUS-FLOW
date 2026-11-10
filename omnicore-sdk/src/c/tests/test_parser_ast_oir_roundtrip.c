@@ -197,7 +197,7 @@ done:
 
 static int test_m_immutable_value_oir_roundtrip(void) {
     static const char source[] =
-        "m:pi = 3.141592653589793;\\n"
+        "m:pi = 3.141592653589793;\n"
         "f:main() { m:limit = 64; echo(pi); echo(limit); }";
     ParserContext* parser=parser_init_source("immutable-value-oir.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
