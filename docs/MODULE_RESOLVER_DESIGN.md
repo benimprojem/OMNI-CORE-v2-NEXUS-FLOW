@@ -311,7 +311,7 @@ Isolated C tests cover single-file dotted-name mapping, path traversal rejection
 
 ### 14.9 Semantic module interface snapshot
 
-The first C interface-snapshot layer is implemented in `module/module_interface.h/.c`. It consumes a finalized `SemanticResult` and creates an independently owned, immutable-by-convention snapshot for later importer Semantic work.
+The first C interface-snapshot layer is implemented in `module/module_interface.h/.c`. It consumes a finalized `SemanticResult` and creates an independently owned snapshot for later importer Semantic work.
 
 - The snapshot retains canonical module identity and a versioned schema marker (1.0).
 - A declaration is included as a publication candidate when its SemanticResult symbol flags contain either `PUBLIC` or `EXPORTED`. Both bits are preserved verbatim; the snapshot does not collapse their meaning or decide whether a particular importer may access the declaration.
@@ -320,9 +320,23 @@ The first C interface-snapshot layer is implemented in `module/module_interface.
 - Relations are copied only when their owner is published; relations with a nonzero related-symbol ID are retained only when that related symbol is also published. This preserves visible Group membership and method/type relation metadata without leaking private related declarations.
 - The snapshot owns every copied string and table and is released with `occ_module_interface_destroy()`. It requires a finalized and structurally populated SemanticResult.
 
-This is a data-transfer foundation, not yet the final serialized OIR interface contract. Alias and namespace bindings remain importer-side data sourced from each AST_USE (`module_name`, `alias`, and `namespace_name` are distinct). The importing Semantic stage must apply the language's exact PUBLIC/EXPORTED rules, detect local and alias collisions, resolve namespace selection, and validate Group/type access. No imported symbol is injected into the local AST or silently treated as a local declaration.
+Tests cover exported Group + public member publication, preservation of source IDs and type/relation metadata, omission of an unmarked private symbol, and rejection of non-finalized semantic input.
 
-Tests currently cover exported Group + public member publication, preservation of source IDs and type/relation metadata, omission of an unmarked private symbol, and rejection of non-finalized semantic input. The snapshot is not yet consumed by the Semantic DLL and is not yet encoded as an OIR artifact.
+### 14.10 Import binding preservation
+
+The scheduler retains each top-level USE declaration's three independent source-level values: dotted `module_name`, optional `alias`, and optional `namespace_name`. It exposes `occ_module_scheduler_get_import_binding()`, keyed by importer module ID and the visitor's 1-based USE ordinal. The returned view includes the resolved dependency module ID and original source span; string fields are borrowed from the scheduler and remain valid until scheduler destruction.
+
+In particular, `as _` and `ns _` remain distinguishable because the original alias and namespace fields are not merged or normalized. This accessor is the bridge between dependency graph resolution and later importer Semantic binding. It does not yet implement visibility or namespace lookup rules.
+
+### 14.11 Serialized Module Interface OIR artifact
+
+The in-memory snapshot has a dedicated OIR transport artifact. The generic OIR artifact-kind registry adds `OIR_KIND_MODULE_INTERFACE = 10`; earlier numeric artifact kinds and the SEMANTIC_AST section registry are unchanged.
+
+The artifact uses one required OIR payload section (version 1) containing the `OMI1` payload schema 1.0. Its fixed-width little-endian records encode canonical module identity, publication-candidate symbols, the referenced type closure, and retained relations. Strings are length-prefixed and are not serialized as host pointers or C structs.
+
+The writer accepts only a structurally consistent `OccModuleInterface`. The reader validates the outer OIR envelope, requires a valid Semantic- or Verifier-produced artifact, validates payload schema and record limits, rejects embedded NUL bytes and duplicate source IDs, and checks that symbol/type/relation references that must be part of the published snapshot are present. Type referenced-symbol IDs remain source-module-local and may point to non-published declarations; importer Semantic must enforce visibility before exposing such references.
+
+The reader materializes an owned `OccModuleInterface` and the caller releases it through `oir_module_interface_artifact_destroy()`. The codec is a standalone C library and is tested by a snapshot → OIR → decoded snapshot round-trip. It is not yet connected to Semantic DLL output or the scheduler's imported-interface input.
 
 ### 14.12 Independent Module Interface Verifier DLL
 
@@ -331,33 +345,3 @@ A separate `occ_module_interface_verify_stage` C DLL validates the serialized Mo
 The stage follows the normal OCC module ABI, including output-buffer retry without duplicated diagnostics. A dynamic-loader CTest checks the descriptor, invocation/retry path, job identity, artifact kind and verified producer stamp. The artifact reader accepts both Semantic and Verifier producer stamps so the verified artifact can be reopened downstream.
 
 This gate validates transport integrity and structural consistency only. It does not decide PUBLIC versus EXPORTED access, namespace selection, alias binding, local collisions, or imported type semantics; those remain the importing Semantic stage's responsibility.
-
-
-The in-memory snapshot now has a dedicated OIR transport artifact. The generic OIR artifact-kind registry adds `OIR_KIND_MODULE_INTERFACE = 10`; earlier numeric artifact kinds and the SEMANTIC_AST section registry are unchanged.
-
-The artifact uses one required OIR payload section (version 1) containing the `OMI1` payload schema 1.0. Its fixed-width little-endian records encode canonical module identity, publication-candidate symbols, the referenced type closure, and retained relations. Strings are length-prefixed and are not serialized as host pointers or C structs.
-
-The writer accepts only a structurally consistent `OccModuleInterface`. The reader validates the outer OIR envelope, requires Semantic producer stage + valid artifact state, validates payload schema and record limits, rejects embedded NUL bytes and duplicate source IDs, and checks that symbol/type/relation references that must be part of the published snapshot are present. Type referenced-symbol IDs remain source-module-local and may point to non-published declarations; importer Semantic must enforce visibility before exposing such references.
-
-The reader materializes an owned `OccModuleInterface` and the caller releases it through `oir_module_interface_artifact_destroy()`. The codec is a standalone C library and is tested by a snapshot → OIR → decoded snapshot round-trip. This does not yet connect the artifact to Semantic DLL output or the scheduler's imported-interface input, and does not replace independent Verifier-stage validation.
-
-### 14.10 Import binding preservation
-
-The scheduler now retains each top-level USE declaration's three independent source-level values: dotted `module_name`, optional `alias`, and optional `namespace_name`. It exposes `occ_module_scheduler_get_import_binding()`, keyed by importer module ID and the visitor's 1-based USE ordinal. The returned view includes the resolved dependency module ID and original source span; string fields are borrowed from the scheduler and remain valid until scheduler destruction.
-
-This accessor is the bridge between dependency graph resolution and later importer Semantic binding. In particular, `as _` and `ns _` remain distinguishable because the original alias and namespace fields are not merged or normalized. A C regression test checks the independent values and dependency identity. This does not yet implement the language's visibility or namespace lookup rules.
-
-
-The in-memory snapshot now has a dedicated OIR transport artifact. The generic OIR artifact-kind registry adds `OIR_KIND_MODULE_INTERFACE = 10`; earlier numeric artifact kinds and the SEMANTIC_AST section registry are unchanged.
-
-The artifact uses one required OIR payload section (version 1) containing the `OMI1` payload schema 1.0. Its fixed-width little-endian records encode canonical module identity, publication-candidate symbols, the referenced type closure, and retained relations. Strings are length-prefixed and are not serialized as host pointers or C structs.
-
-The writer accepts only a structurally consistent `OccModuleInterface`. The reader validates the outer OIR envelope, requires Semantic producer stage + valid artifact state, validates payload schema and record limits, rejects embedded NUL bytes and duplicate source IDs, and checks that symbol/type/relation references that must be part of the published snapshot are present. Type referenced-symbol IDs remain source-module-local and may point to non-published declarations; importer Semantic must enforce visibility before exposing such references.
-
-The reader materializes an owned `OccModuleInterface` and the caller releases it through `oir_module_interface_artifact_destroy()`. The codec is a standalone C library and is tested by a snapshot → OIR → decoded snapshot round-trip. This does not yet connect the artifact to Semantic DLL output or the scheduler's imported-interface input, and does not replace independent Verifier-stage validation.
-
-### 14.10 Import binding preservation
-
-The scheduler now retains each top-level USE declaration's three independent source-level values: dotted `module_name`, optional `alias`, and optional `namespace_name`. It exposes `occ_module_scheduler_get_import_binding()`, keyed by importer module ID and the visitor's 1-based USE ordinal. The returned view includes the resolved dependency module ID and original source span; string fields are borrowed from the scheduler and remain valid until scheduler destruction.
-
-This accessor is the bridge between dependency graph resolution and later importer Semantic binding. In particular, `as _` and `ns _` remain distinguishable because the original alias and namespace fields are not merged or normalized. A C regression test checks the independent values and dependency identity. This does not yet implement the language's visibility or namespace lookup rules.
