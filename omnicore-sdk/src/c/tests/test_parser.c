@@ -3947,8 +3947,7 @@ named_args_done:
         static const char* invalid_sources[] = {
             "f:main() { target(a:1, a:2); }",
             "f:main() { target(a:1, 2); }",
-            "f:main() { target(a:); }",
-            "f:main() { m:CoreModule = \"CoreModule.nxf\"; }"
+            "f:main() { target(a:); }"
         };
         size_t index;
         for (index = 0u; index < sizeof(invalid_sources) / sizeof(invalid_sources[0]); ++index) {
@@ -3968,17 +3967,17 @@ named_args_done:
         }
     }
 
-    /* MUST dependency declarations remain distinct from ordinary imports. */
+    /* Immutable m: values remain a distinct AST declaration, not a USE import. */
     {
         static const char source[] =
-            "m:CoreModule = \"CoreModule.nxf\"; "
+            "m:CoreValue = 5; "
             "f:main() { ret 0; }";
-        ParserContext* parser = parser_init_source("must-dependency.nxf",
+        ParserContext* parser = parser_init_source("immutable-value.nxf",
             (const uint8_t*)source, sizeof(source) - 1u);
         ASTNode* decoded = NULL;
         FILE* stream = NULL;
         int valid = 0;
-        if (!parser) goto must_dependency_done;
+        if (!parser) goto immutable_value_done;
         {
             int parse_status = parser_run(parser);
             if (parse_status != PARSER_STATUS_OK || !parser->ast_root) {
@@ -4002,10 +4001,9 @@ named_args_done:
             ASTProgram* program = (ASTProgram*)parser->ast_root;
             ASTMustDecl* must = (ASTMustDecl*)program->declarations;
             if (!must || must->base.type != AST_MUST_DECL ||
-                strcmp(must->name, "CoreModule") != 0 ||
+                strcmp(must->name, "CoreValue") != 0 ||
                 !must->source || must->source->type != AST_LITERAL ||
-                strcmp(((ASTLiteral*)must->source)->string_value,
-                    "\"CoreModule.nxf\"") != 0 ||
+                strcmp(((ASTLiteral*)must->source)->string_value, "5") != 0 ||
                 !must->base.next || must->base.next->type != AST_FUNC_DECL)
                 goto must_dependency_done;
         }
