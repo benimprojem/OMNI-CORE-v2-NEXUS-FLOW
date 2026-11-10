@@ -110,6 +110,9 @@ static void test_put_u32(uint8_t* p, uint32_t v) {
     p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8);
     p[2] = (uint8_t)(v >> 16); p[3] = (uint8_t)(v >> 24);
 }
+static void test_put_u16(uint8_t* p, uint16_t v) {
+    p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8);
+}
 
 static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int variant) {
     int diamond = variant == 1;
@@ -281,11 +284,11 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         size_t operands_offset = instructions_offset +
             (size_t)instruction_count * 24u;
         /* Reuse the simple two-block fixture to exercise typed bitwise checks. */
-        test_put_u32(module_bytes + instructions_offset + 2u * 24u + 4u,
+        test_put_u16(module_bytes + instructions_offset + 2u * 24u + 8u,
             OIR_OP_BIT_AND);
         if (variant == 18) {
             /* Produce a bool input, then incorrectly claim an integer result. */
-            test_put_u32(module_bytes + instructions_offset + 4u, OIR_OP_CONST_BOOL);
+            test_put_u16(module_bytes + instructions_offset + 8u, OIR_OP_CONST_BOOL);
             test_put_u32(module_bytes + values_offset + 4u, 2u);
             test_put_u32(module_bytes + operands_offset + 8u, 1u);
         }
