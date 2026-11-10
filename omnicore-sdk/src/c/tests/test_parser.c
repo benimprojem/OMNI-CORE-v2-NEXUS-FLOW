@@ -3623,6 +3623,10 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Parser context initialization/early destruction test failed.\n");
         return 1;
     }
+    if (!test_parser_allocation_failure_injection()) {
+        fprintf(stderr, "Parser allocation-failure injection test failed.\n");
+        return 1;
+    }
     if (!test_function_parameter_type_separator_forms()) {
         fprintf(stderr, "Function parameter type separator forms were not parsed consistently.\n");
         return 1;
