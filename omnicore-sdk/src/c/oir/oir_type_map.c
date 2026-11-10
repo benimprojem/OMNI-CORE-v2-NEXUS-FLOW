@@ -20,7 +20,19 @@ static const OirPrimitiveMapEntry g_primitive_types[] = {
     { "u64", OIR_MODULE_TYPE_INTEGER, 64u, 0u },
     { "f32", OIR_MODULE_TYPE_FLOAT,   32u, 0u },
     { "f64", OIR_MODULE_TYPE_FLOAT,   64u, 0u },
-    { "bool",OIR_MODULE_TYPE_BOOLEAN, 1u,  0u }
+    { "bool",OIR_MODULE_TYPE_BOOLEAN, 1u,  0u },
+    { "bit", OIR_MODULE_TYPE_BIT, 1u, 0u },
+    { "byte", OIR_MODULE_TYPE_BYTE, 8u, 0u },
+    { "8bit", OIR_MODULE_TYPE_BIT_VECTOR, 8u, 0u },
+    { "16bit", OIR_MODULE_TYPE_BIT_VECTOR, 16u, 0u },
+    { "32bit", OIR_MODULE_TYPE_BIT_VECTOR, 32u, 0u },
+    { "64bit", OIR_MODULE_TYPE_BIT_VECTOR, 64u, 0u },
+    { "128bit", OIR_MODULE_TYPE_BIT_VECTOR, 128u, 0u },
+    { "1byte", OIR_MODULE_TYPE_BYTE_BLOCK, 8u, 0u },
+    { "2byte", OIR_MODULE_TYPE_BYTE_BLOCK, 16u, 0u },
+    { "4byte", OIR_MODULE_TYPE_BYTE_BLOCK, 32u, 0u },
+    { "8byte", OIR_MODULE_TYPE_BYTE_BLOCK, 64u, 0u },
+    { "16byte", OIR_MODULE_TYPE_BYTE_BLOCK, 128u, 0u }
 };
 
 OirStatus oir_type_map_primitive(
