@@ -1479,7 +1479,7 @@ f:main() {
 ```
 
 
-## Bölüm 14. ÇEKİRDEK FONKSİYONLAR (CORE - KÜTÜPHANESİZ)
+## Bölüm 14. COREMODULE — OS BAĞIMSIZ GENEL FONKSİYONLAR
 
 ### 14.0.1 Modül rolleri ve varsayılan yükleme
 
