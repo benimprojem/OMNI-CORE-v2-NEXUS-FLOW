@@ -38,7 +38,7 @@ The provider contract is expected to:
 - keep file I/O and platform path handling in the host;
 - guarantee the returned buffer lifetime for the complete resolution operation.
 
-This keeps Windows/Linux/macOS path behavior outside the portable resolver core and prevents source text from granting arbitrary path access. Exact project manifest/search-path rules and file-extension policy remain open until the repository's project configuration contract is reviewed. The current Parser represents `m:Name = source;` as `AST_MUST_DECL` with a name and source expression, but Semantic has no `AST_MUST_DECL` handler; the checked-in `[dependencies]` sections are empty. Therefore `m:` is not yet an implemented module resolver contract and must not be conflated with `use`.
+This keeps Windows/Linux/macOS path behavior outside the portable resolver core and prevents source text from granting arbitrary path access. Exact project manifest/search-path rules and file-extension policy remain open until the repository's project configuration contract is reviewed. `m:` is unrelated to this mechanism: it declares an immutable value initialized by an expression, while `use` is the only source/module import mechanism described here.
 
 ## 4. Module identity and graph
 
@@ -106,7 +106,7 @@ A failed dependency prevents the importing module from receiving a valid Semanti
 
 ## 8. Implementation gates
 
-1. Review project configuration; separately specify `m:` compile-time dependency semantics (currently Parser-only) and define canonical module identity/source-provider policy for `use`.
+1. Define canonical module identity and source-provider policy for `use`; keep immutable `m:` value semantics in the Semantic declaration path, outside Module Resolver.
 2. [x] Add the first portable C resolver graph API: canonical-identity registration/cache reuse, provider fingerprint consistency, owned dependency edges, source-span retention, bounded graph growth, lifecycle transitions, and DFS back-edge cycle reporting. Host provider callback integration and deterministic allocation-failure injection remain open.
 3. Test cache reuse, aliases not affecting cache keys, missing/denied/ambiguous sources, nested dependencies, cycles, exact USE spans, and OOM cleanup.
 4. Define a versioned OIR dependency/interface artifact and independent validator.
@@ -128,3 +128,8 @@ The first C implementation is in `omnicore-sdk/src/c/module/module_resolver.h/.c
 - `test_module_resolver.c` covers identity cache reuse, inconsistent fingerprints, edge payload/span preservation, duplicate AST_USE edge rejection, cycle reporting, state transitions, failed dependency rejection, and configured limits.
 
 This graph core does not yet call a source provider, parse dependency modules, compute fingerprints, schedule recursive pipeline invocations, serialize dependency interfaces, or populate Semantic imported symbols. Those are explicit next gates.
+
+
+## 10. Explicit separation from `m:`
+
+Nexus Flow `m:name = expression;` declares an immutable value. Its initializer is an expression, its type is inferred by Semantic, and the resulting symbol is constant for assignment/update checks. It does not inspect file existence, load source, or create a dependency edge. Source/module loading is performed by `use` and the host-owned source provider described in this document. The AST enum/payload name `AST_MUST_DECL` is retained for append-only compatibility; it is not a module/dependency declaration.
