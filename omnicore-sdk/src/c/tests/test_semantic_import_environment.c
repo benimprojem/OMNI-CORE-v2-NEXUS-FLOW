@@ -93,6 +93,22 @@ int main(void) {
     assert(binding.use_ordinal == 2u);
     assert(strcmp(binding.namespace_name, "core") == 0);
 
+    {
+        size_t binding_index = 99u;
+        assert(occ_semantic_import_environment_find_alias(
+            &environment, "m", &binding_index) == OCC_SEMANTIC_IMPORT_ENV_OK);
+        assert(binding_index == 0u);
+        assert(occ_semantic_import_environment_find_namespace(
+            &environment, "core", &binding_index) == OCC_SEMANTIC_IMPORT_ENV_OK);
+        assert(binding_index == 1u);
+        assert(occ_semantic_import_environment_find_alias(
+            &environment, "missing", &binding_index) == OCC_SEMANTIC_IMPORT_ENV_NOT_FOUND);
+        assert(occ_semantic_import_environment_find_alias(
+            &environment, "_", &binding_index) == OCC_SEMANTIC_IMPORT_ENV_INVALID_ARGUMENT);
+        assert(occ_semantic_import_environment_find_namespace(
+            &environment, "_", &binding_index) == OCC_SEMANTIC_IMPORT_ENV_INVALID_ARGUMENT);
+    }
+
     assert(occ_semantic_import_environment_find_symbol(
         &environment, 0u, "average", &symbol) == OCC_SEMANTIC_IMPORT_ENV_OK);
     assert(symbol.source_symbol_id == 5u);
