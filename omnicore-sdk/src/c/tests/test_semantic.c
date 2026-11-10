@@ -297,6 +297,12 @@ static int check_array_type_semantics(void) {
         "f:take(values:i32[1]) {} f:main() { take([1.5]); }";
     const char* valid_index =
         "f:main() { v:items[4]!i32; v:x = items[1+2]; items[0] = x; }";
+    const char* valid_inferred_array_index =
+        "f:main() { v:items = [1,2]; v:first = items[0]; }";
+    const char* undefined_index_expression =
+        "f:main() { v:items[4]!i32; v:x = items[missing]; }";
+    const char* non_integer_index_variable =
+        "f:main() { v:items[4]!i32; v:index!f64 = 1.0; v:x = items[index]; }";
     const char* invalid_index_target = "f:main() { v:x!i32 = 2; v:y = x[0]; }";
     const char* invalid_index_type = "f:main() { v:x!i32 = 2; v:y = x[1.5]; }";
     const char* const_array_index_write = "f:main() { c:items[2]!i32 = [1,2]; items[0] = 3; }";
@@ -319,6 +325,9 @@ static int check_array_type_semantics(void) {
         check_source(call_literal_valid,0) &&
         check_source(call_literal_element_mismatch,1) &&
         check_source(valid_index,0) &&
+        check_source(valid_inferred_array_index,0) &&
+        check_source(undefined_index_expression,1) &&
+        check_source(non_integer_index_variable,1) &&
         check_source(invalid_index_target,1) &&
         check_source(invalid_index_type,2) &&
         check_source(const_array_index_write,1) &&
