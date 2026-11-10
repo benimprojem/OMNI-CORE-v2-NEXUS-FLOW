@@ -1367,3 +1367,13 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Added the normative `USE` import contract to `nexus docs/Group Metodu — Formal Specification.md` §8.5.1. It separates Parser payload production from Semantic symbol/visibility validation and Module Resolver dependency loading, namespace construction and dependency-cycle checks. This explicitly preserves the architecture boundary; no fake local-only module resolution is claimed.
 - CI run `42770341740` for commit `abb7cd2`: Ubuntu, macOS, Windows and ASan/UBSan jobs passed; Valgrind was still running at the time of this update.
 - CI run `42770341740` completed successfully on commit `abb7cd2`: Windows, macOS, Ubuntu, ASan/UBSan and Valgrind all passed. This verifies the USE Parser/AST/OIR regression suite and current repository test matrix for that commit. The later documentation/progress-only commits are not represented by that exact run.
+
+
+## 2026-11-10 — Module Resolver boundary and architecture contract
+
+- Inspected the current Semantic implementation and stage boundary. `AST_USE` is still a no-op in `semantic_check()`; the Semantic DLL currently accepts exactly one AST artifact and has no project/module context. Imported-symbol resolution is therefore not implemented and must not be represented as completed.
+- Added `docs/MODULE_RESOLVER_DESIGN.md` as a draft architecture contract. It separates portable module identity/dependency-graph logic from host-owned source lookup, keeps Parser free of filesystem access, and keeps imported-symbol/type/visibility checks in Semantic.
+- Defined the intended host source-provider boundary: project-root/search-path policy and platform file I/O remain host responsibilities; the resolver receives canonical identities and bounded source data. Exact manifest/search-path and extension policy are intentionally open pending review of project configuration and existing `m:` required-dependency semantics.
+- Defined dependency graph states, canonical-identity cache reuse, alias/namespace independence from cache keys, deterministic initial cycle rejection, exact AST_USE source-span diagnostics, and the future validated OIR imported-interface handoff.
+- No resolver C API, dependency artifact, or Semantic import behavior is claimed implemented yet. Next implementation gate: inspect project configuration and `m:` semantics, then specify the portable C resolver core API and its ownership/failure contract before coding the graph.
+- Codegen remains blocked; no downstream stage was advanced by this architecture work.
