@@ -363,3 +363,12 @@ This artifact is the transport contract between host scheduling and the importin
 The host-produced `OIR_KIND_MODULE_IMPORTS` artifact has its own `occ_module_imports_verify_stage` C DLL. It accepts only a valid host-produced manifest for the active job, validates the complete `OIM1` payload through the dedicated reader, and republishes the same sections with producer stage `OCC_STAGE_OIR_VERIFY`. The reader accepts both host and verifier producer stamps so downstream Semantic can reopen the verified manifest.
 
 A dynamic-loader CTest exercises the module ABI and verified artifact round-trip. This is a structural transport gate only; it does not apply alias/namespace lookup or imported-symbol visibility rules.
+
+
+### 14.15 Semantic import bundle matching boundary
+
+`occ_module_import_bundle_bind()` joins one decoded `OIM1` manifest to the verified Module Interface artifacts supplied for that importer. It requires the expected importer canonical identity to match, requires both artifact families to carry the `OCC_STAGE_OIR_VERIFY` producer stamp and valid status, and requires all interfaces to share the manifest's job ID.
+
+Every manifest dependency identity must match exactly one supplied Module Interface. Multiple USE records may reference the same decoded interface; duplicate interface artifacts, missing dependency interfaces, unreferenced extra interfaces and importer identity mismatches are rejected. The returned binding views borrow the decoded manifest and interface objects; destroying the bundle releases only its mapping array.
+
+This is a structural association boundary, not a visibility or name-resolution implementation. It deliberately preserves each binding's alias, namespace selector and source span without deciding how the language resolves them. Semantic DLL input wiring and imported expression/type lookup remain pending.
