@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #define _POSIX_C_SOURCE 200809L
 #include "filesystem_module_provider.h"
 
@@ -49,6 +50,11 @@ OccModuleResolverStatus occ_filesystem_module_name_to_filename(
     if (out_capacity < 5u || n > out_capacity - 5u)
         return OCC_MODULE_RESOLVER_LIMIT_EXCEEDED;
     if (fs_is_absolute(module_name)) return OCC_MODULE_RESOLVER_SOURCE_DENIED;
+    for (i = 0u; i < n; ++i) {
+        if (module_name[i] == '/' || module_name[i] == '\\' ||
+            module_name[i] == ':')
+            return OCC_MODULE_RESOLVER_SOURCE_DENIED;
+    }
     for (i = 0u; i < n; ++i) {
         unsigned char ch = (unsigned char)module_name[i];
         if (ch == '.') {
