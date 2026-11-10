@@ -250,7 +250,9 @@ static int check_compound_assignment_semantics(void) {
     const char* valid_representation_indexing =
         "f:main() { v:flags!16bit; v:one!bit; "
         "v:read!bit = flags[0]; flags[15] = one; "
-        "v:data!4byte; v:raw!byte = data[2]; data[3] = raw; }";
+        "v:flags8!8bit; v:lsb!bit = flags8[0]; v:msb!bit = flags8[7]; "
+        "v:second_byte_lsb!bit = flags[8]; "
+        "v:data!4byte; v:raw!byte = data[0]; data[3] = raw; }";
     const char* invalid_representation_index_type =
         "f:main() { v:flags!8bit; v:read = flags[1.5]; }";
     const char* invalid_bit_vector_index_range =
