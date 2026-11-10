@@ -54,6 +54,32 @@ Tüm temel tip anahtar kelimeleri parser tarafından tanınmakta ve analizöre d
 - **Oyun/Grafik (SIMD):** `Vec2`, `Vec3`, `Vec4`
 - **Koleksiyonlar:** Dinamik Array `[]`, Statik Array `[N]`, Harita `map str, i32`
 
+### Bit ve byte türleri
+
+Bit ve byte ailesi, sayısal tamsayı türlerinden ayrı tutulur:
+
+| Tür ailesi | Anlamı | Kullanım |
+|---|---|---|
+| `bit` | Tek bitlik değer | Tek flag / ikili durum |
+| `byte` | Ham 8-bit saklama birimi | Bellek, dosya ve protokol verisi |
+| `8bit`, `16bit`, `32bit`, `64bit`, `128bit` | Sabit genişlikli bit dizisi | Maskeleme, flag alanları ve bitwise işlemler |
+| `1byte`, `2byte`, `4byte`, `8byte`, `16byte` | Sabit byte genişliğinde ham veri | Bellek/veri blokları |
+
+`u8` sayısal tamsayı olmaya devam eder; `byte` ve `8bit` ile örtük olarak birbirine dönüştürülmez. Açık dönüşüm `!` ile yazılır; dönüşümün genişlik ve değer aralığı Semantic tarafından doğrulanmalıdır.
+
+Bit ailesinin hedeflenen işlemleri:
+
+- `&`, `|`, `^`, `~`: bitwise maskeleme ve birleştirme.
+- `==`, `!=`: aynı genişlikte bit dizisi karşılaştırması.
+- `<<`, `>>`: bit kaydırma; Nexus Flow'daki mevcut akış/zone anlamlarıyla çakışma denetimi tamamlanmadan bu operatörlere bit kaydırma anlamı verilmez.
+- `&=`, `|=`, `^=`: bitwise bileşik atama.
+- Tek bit ayarlama, temizleme ve tersleme sırasıyla `flags | mask`, `flags & ~mask`, `flags ^ mask` kalıplarıyla yapılabilir.
+- Flag kontrolü `(flags & mask) != 0` kalıbıyla yapılır.
+
+`sizeof(value)` nesnenin bellekte kapladığı byte sayısını döndürür; bit genişliği türün özelliğidir. Örneğin `sizeof` sonucu bir `8bit` değer için 1 byte olabilir. `1byte` ve `8bit` aynı fiziksel genişlikte olsa da farklı tip niyeti taşır.
+
+**Uygulama durumu:** Lexer'ın `bit` ve `byte` tokenları ve Semantic'teki bitwise bileşik atama desteği mevcuttur. `8bit`–`128bit` ve `1byte`–`16byte` yazımlarının Lexer → Parser → AST → Semantic → OIR zincirindeki uygulaması henüz tamamlanmamıştır; bu aile tamamlanmış syntax olarak kabul edilmez.
+
 ---
 
 ## 3. Akış ve Handler Operatörleri ("The 15 Keys")
