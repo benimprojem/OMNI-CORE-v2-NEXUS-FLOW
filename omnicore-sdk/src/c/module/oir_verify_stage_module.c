@@ -80,6 +80,14 @@ static int type_is_numeric(const OirModuleType* t) {
         return t->bit_width == 32u || t->bit_width == 64u;
     return 0;
 }
+static int type_is_bitwise(const OirModuleType* t) {
+    if (!t) return 0;
+    return t->kind == OIR_MODULE_TYPE_INTEGER ||
+        t->kind == OIR_MODULE_TYPE_BIT ||
+        t->kind == OIR_MODULE_TYPE_BYTE ||
+        t->kind == OIR_MODULE_TYPE_BIT_VECTOR ||
+        t->kind == OIR_MODULE_TYPE_BYTE_BLOCK;
+}
 /* Shared local type contracts for constant and arithmetic instructions.
    This subset is record-local once the type and SSA value tables are valid. */
 static int validate_instruction_type_contract(const OirModuleView* m, const OirModuleInstruction* ins) {
@@ -99,6 +107,19 @@ static int validate_instruction_type_contract(const OirModuleView* m, const OirM
             return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && type_is_numeric(&rt) && get_value_operand(m, ins, 0u, &a) && get_value_operand(m, ins, 1u, &b) && a.type_id == result.type_id && b.type_id == result.type_id && (ins->opcode_id != OIR_OP_REM || rt.kind == OIR_MODULE_TYPE_INTEGER);
         case OIR_OP_NEG:
             return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && type_is_numeric(&rt) && get_value_operand(m, ins, 0u, &a) && a.type_id == result.type_id;
+        case OIR_OP_BIT_AND: case OIR_OP_BIT_OR: case OIR_OP_BIT_XOR:
+            return ins->result_value_id != 0u &&
+                get_value(m, ins->result_value_id, &result) &&
+                get_type(m, result.type_id, &rt) && type_is_bitwise(&rt) &&
+                get_value_operand(m, ins, 0u, &a) &&
+                get_value_operand(m, ins, 1u, &b) &&
+                a.type_id == result.type_id && b.type_id == result.type_id;
+        case OIR_OP_BIT_NOT:
+            return ins->result_value_id != 0u &&
+                get_value(m, ins->result_value_id, &result) &&
+                get_type(m, result.type_id, &rt) && type_is_bitwise(&rt) &&
+                get_value_operand(m, ins, 0u, &a) &&
+                a.type_id == result.type_id;
         case OIR_OP_CMP_EQ: case OIR_OP_CMP_NE: case OIR_OP_CMP_LT:
         case OIR_OP_CMP_LE: case OIR_OP_CMP_GT: case OIR_OP_CMP_GE:
             return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && rt.kind == OIR_MODULE_TYPE_BOOLEAN && get_value_operand(m, ins, 0u, &a) && get_value_operand(m, ins, 1u, &b) && a.type_id == b.type_id;
