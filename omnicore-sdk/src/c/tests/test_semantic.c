@@ -225,6 +225,16 @@ static int check_compound_assignment_semantics(void) {
         "f:main() { v:a!bit; v:b!bit; a += b; }";
     const char* invalid_byte_arithmetic =
         "f:main() { v:a!byte; v:b!byte; a += b; }";
+    const char* valid_fixed_bit_widths =
+        "f:main() { v:a!8bit; v:b!8bit; a |= b; a &= b; a ^= b; "
+        "v:c!16bit; v:d!32bit; v:e!64bit; v:f!128bit; }";
+    const char* valid_fixed_byte_widths =
+        "f:main() { v:a!1byte; v:b!2byte; v:c!4byte; "
+        "v:d!8byte; v:e!16byte; a!1byte; }";
+    const char* invalid_fixed_bit_arithmetic =
+        "f:main() { v:a!8bit; v:b!8bit; a += b; }";
+    const char* invalid_fixed_width_mismatch =
+        "f:main() { v:a!8bit; v:b!16bit; a |= b; }";
     const char* valid_decimal_widths =
         "f:main() { v:decimal32!d32; v:decimal64!d64; decimal32 += decimal32; decimal64 *= decimal64; }";
     const char* immutable_compound =
@@ -250,6 +260,10 @@ static int check_compound_assignment_semantics(void) {
         check_source(valid_bitwise_byte,0) &&
         check_source(invalid_bit_arithmetic,1) &&
         check_source(invalid_byte_arithmetic,1) &&
+        check_source(valid_fixed_bit_widths,0) &&
+        check_source(valid_fixed_byte_widths,0) &&
+        check_source(invalid_fixed_bit_arithmetic,1) &&
+        check_source(invalid_fixed_width_mismatch,1) &&
         check_source(valid_decimal_widths,0) &&
         check_source(immutable_compound,1) &&
         check_source(valid_string_append,0) &&
