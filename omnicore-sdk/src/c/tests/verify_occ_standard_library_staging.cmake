@@ -16,8 +16,8 @@ foreach(_required IN ITEMS "${_occ_config}" "${_osmodule}" "${_coremodule}" "${_
 endforeach()
 
 file(READ "${_occ_config}" _config_text)
-if(NOT _config_text MATCHES "\\.\/libs" OR NOT _config_text MATCHES "\\.\/dsplibs")
-    message(FATAL_ERROR "Packaged occ.ocf must include ./libs and ./dsplibs")
+if(NOT _config_text MATCHES "\\.\/libs")
+    message(FATAL_ERROR "Packaged occ.ocf must include ./libs")
 endif()
 
 file(READ "${_osmodule}" _osmodule_text)
