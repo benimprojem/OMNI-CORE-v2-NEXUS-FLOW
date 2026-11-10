@@ -1459,3 +1459,11 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - The former OS-independent `Core` / `Core.nxf` source file is not present in the active repository tree. No empty or fabricated replacement was added.
 - The renamed `osmodule.exf` still contains mixed utility groups (including Array, String, Math, Crypto, Mem and Flow). Their OS dependency and Group `default` behavior must be audited before moving any group into `coremodule`; the source-level split is not complete yet.
 - `coremodule` remains the agreed name and OS-independence contract, but its source library has not yet been created/located. The default auto-load policy for `coremodule` remains open.
+
+
+### CI doğrulaması — `no: osmodule;` AST/Parser değişikliği
+
+- Commit `176527fd9d4c33d70abad19fcc4eb3622d4c778e` için GitHub Actions run `42787304556` beş işin tamamında başarılı oldu: Ubuntu, macOS, Windows, ASan/UBSan ve Valgrind.
+- Ubuntu CTest: **61/61 geçti**; Parser regression testi `parser_accepts_and_rejects_sources` dahil.
+- Bu doğrulama ASTProgram alanı, AST codec v6, Parser bildirimi ve eklenen no-directive regresyon testlerini kapsar.
+- Sonraki commit'ler yalnızca stdlib dosya adı ve dokümantasyon güncellemeleri içerir; bunların push CI çalışmaları ayrıca izleniyor.
