@@ -2766,6 +2766,36 @@ static int test_use_path_malformed_and_exact_spans(void) {
     return 1;
 }
 
+static int test_use_comma_list_spans(void) {
+    static const char source[] = "use alpha as a, beta.gamma as b;\\n";
+    ParserContext* parser = parser_init_source("use-list.nxf",
+        (const uint8_t*)source, sizeof(source)-1u);
+    ASTUse* first;
+    ASTUse* second;
+    int valid = 0;
+    if (!parser) return 0;
+    if (parser_run(parser)==PARSER_STATUS_OK && parser->error_count==0 &&
+        parser->ast_root && ((ASTNode*)parser->ast_root)->type==AST_PROGRAM) {
+        first=(ASTUse*)((ASTProgram*)parser->ast_root)->declarations;
+        second=first?(ASTUse*)first->base.next:NULL;
+        valid=first && second && !second->base.next &&
+            strcmp(first->module_name,"alpha")==0 && strcmp(first->alias,"a")==0 &&
+            strcmp(second->module_name,"beta.gamma")==0 && strcmp(second->alias,"b")==0 &&
+            first->base.source_span.has_location &&
+            first->base.source_span.start_offset==4u &&
+            first->base.source_span.end_offset==11u &&
+            second->base.source_span.has_location &&
+            second->base.source_span.start_offset==14u &&
+            second->base.source_span.end_offset==31u &&
+            first->base.source_span.start_line==1u &&
+            second->base.source_span.start_line==1u &&
+            ast_validate((ASTNode*)parser->ast_root,NULL);
+    }
+    parser_destroy(parser);
+    if(!valid) fprintf(stderr,"USE comma-list ownership/span test failed.\\n");
+    return valid;
+}
+
 static int test_pointer_reference_type_declarators(void) {
     static const char source[] =
         "nt:CharPtr = *char; "
@@ -3369,6 +3399,7 @@ int main(int argc, char** argv) {
     if (!test_canonical_loop_and_jump_call_forms()) return 1;
     if (!test_dotted_module_use_path()) return 1;
     if (!test_use_path_malformed_and_exact_spans()) return 1;
+    if (!test_use_comma_list_spans()) return 1;
     if (!test_pointer_reference_type_declarators()) return 1;
     if (!test_function_type_alias_and_callback_parameter()) return 1;
     if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\\n"); return 1; }
