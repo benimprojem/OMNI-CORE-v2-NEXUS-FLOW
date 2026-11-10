@@ -1595,3 +1595,14 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Parser regression testleri `db.mysql.sql`, alias, namespace seçimi, `as _`, `ns _`, AST codec round-trip ve malformed biçimleri zaten kapsıyor (`test_use_alias_and_namespace_ast_codec`, `test_use_path_malformed_and_exact_spans`).
 - Parser/AST syntax tarafı mevcut testlerle korunuyor. Import yükleme, namespace-prefix uygulaması, alias sembol bağlama ve görünürlük Semantic/Resolver entegrasyonunda hâlâ açık; `AST_USE` Semantic traversal şu an no-op ve bunu tamamlandı saymıyoruz.
 - Belge commit: `51b1f67c`.
+
+
+## 2026-11-10 — Module Resolver dependency schedule ve yükleme ağacı belgesi
+
+- `docs/MODULE_RESOLVER_DESIGN.md` bölüm 14'e modül yükleme ağacı, recursive discovery algoritması ve discovery/Semantic iki-pass modeli eklendi.
+- Belge açıkça mevcut graph core ile hedef host scheduler'ı ayırıyor; filesystem provider, AST_USE tarayııcı ve DLL çağrıları henüz uygulanmış sayılmıyor.
+- `module_resolver.h/.c` içine `occ_module_resolver_dependency_order()` API'si eklendi. Deterministik DFS ile dependency-first modül sırası üretir; kapasite hatasında veya cycle durumunda `out_count=0` olur.
+- `test_module_resolver.c` bağımlılık sırası (B → A → Root), yetersiz kapasite ve cycle rejection testlerini içeriyor.
+- Commit'ler: `4dd2fcaf` API, `a79714f0` implementasyon, `60c9d460` test, `294a86dc` test temizliği, `597ca704` cycle testi, `6266a97f` resolver tasarım belgesi.
+- **CI durumu:** Bu değişikliklerin CI run'ları başlatıldı; sonuçlar henüz bekleniyor. Testler tamamlanmadan bu API doğrulanmış/entegrasyon hazır olarak işaretlenmeyecek.
+- **Sonraki iş:** Host scheduler için AST_USE traversal ve Parser DLL recursive invocation sözleşmesi; ardından filesystem provider ve Semantic imported-interface handoff.
