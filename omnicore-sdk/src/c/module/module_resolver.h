@@ -55,9 +55,9 @@ typedef enum OccModuleSourceProviderStatus {
 
 /* A provider request is one AST_USE item, not a filesystem path. */
 typedef struct OccModuleSourceRequest {
-    const char* requested_path;       /* Original dotted USE spelling. */
+    const char* requested_path;       /* Dotted USE spelling or implicit standard module name. */
     const char* importer_identity;    /* Canonical identity; optional for root imports. */
-    const OccSourceSpan* use_span;    /* Exact AST_USE source span; required. */
+    const OccSourceSpan* use_span;    /* Origin span: AST_USE or program root; required. */
 } OccModuleSourceRequest;
 
 /*
@@ -97,12 +97,18 @@ typedef struct OccModuleResolverNode {
     OccModuleResolverState state;
 } OccModuleResolverNode;
 
+typedef enum OccModuleResolverEdgeKind {
+    OCC_MODULE_EDGE_EXPLICIT_USE = 1,
+    OCC_MODULE_EDGE_IMPLICIT_OSMODULE = 2
+} OccModuleResolverEdgeKind;
+
 typedef struct OccModuleResolverEdge {
     uint32_t importer_module_id;
     uint32_t dependency_module_id;
-    uint32_t ast_use_node_id;
-    OccSourceSpan use_span;
-    char* requested_path;           /* Original dotted spelling; graph-owned. */
+    uint32_t ast_use_node_id;       /* 0 only for implicit standard-module edges. */
+    OccSourceSpan use_span;         /* AST_USE span or root-program span. */
+    char* requested_path;           /* Dotted spelling / standard module name; graph-owned. */
+    OccModuleResolverEdgeKind kind; /* Appended to preserve the existing field prefix. */
 } OccModuleResolverEdge;
 
 typedef struct OccModuleResolver {
@@ -189,6 +195,18 @@ OccModuleResolverStatus occ_module_resolver_add_dependency(
     const char* requested_path,
     uint32_t ast_use_node_id,
     const OccSourceSpan* use_span
+);
+
+/*
+ * Record the implicit default osmodule dependency. The host calls this only
+ * when ASTProgram.disable_osmodule is false, using the root program span.
+ * No AST_USE node exists for this edge, so ast_use_node_id is stored as zero.
+ */
+OccModuleResolverStatus occ_module_resolver_add_implicit_osmodule(
+    OccModuleResolver* resolver,
+    uint32_t importer_module_id,
+    uint32_t osmodule_module_id,
+    const OccSourceSpan* program_span
 );
 
 /* Returned records are borrowed and valid until graph mutation/destruction. */
