@@ -412,6 +412,29 @@ Kütüphane desteği, Group AST'sini doğrudan runtime nesnesine çevirmek deği
 4. **OIR:** Çözülmüş sembol kimliklerini ve çağrı hedeflerini taşır; kaynak modül adını runtime'da tekrar aramaz.
 5. **Codegen/Linker:** Export edilen sembolleri hedef ABI'ye göre üretir/bağlar. Linker'ın ayrı modül olması kararı korunur.
 
+
+### 8.5.1 USE alias ve namespace seçimi (Normative)
+
+Bir `use` girdisi, seçilen modül/Group yolunu, isteğe bağlı yerel alias'ı ve isteğe bağlı namespace kökünü birbirinden ayrı taşır:
+
+```nxf
+use db.mysql.sql ns sql;
+use db.mysql ns mysql;
+use db.mysql.sql as mysql_sql ns sql;
+use db.mysql.sql ns _;
+```
+
+- `as name`, seçilen import öğesinin yerel alias adıdır. Namespace kökünü kendiliğinden değiştirmez.
+- `ns name`, seçilen Group'un üyelerinin import eden kapsamda hangi namespace köküyle sunulacağını belirler.
+- `ns _`, namespace kök ön ekinin kaldırılması ve üyelerin doğrudan import eden kapsamda sunulması isteğidir.
+- `as _` özel bir namespace işlemi değildir; normal alias `_` değeridir.
+- Her virgülle ayrılmış USE girdisi kendi alias ve namespace seçimini taşır.
+- Bir girdide seçenek sırası `as` ardından `ns` şeklindedir; her ikisi de isteğe bağlıdır.
+- Namespace/alias çakışmaları, seçilen Group'un varlığı, dışa açık üyeler ve import kapsamına aktarılabilecek semboller Semantic/Module Resolver sınırında doğrulanır.
+- Parser yalnızca bildirimi kayıpsız AST'ye taşır. Parser'ın `module_name`, `alias` ve `namespace_name` alanlarını üretmesi, dependency'nin yüklendiği veya sembollerin görünür olduğu anlamına gelmez.
+
+Module Resolver; dotted path'i gerçek dependency/modül kaynağına bağlar, seçilen Group namespace kökünü kurar ve dependency graph/cycle denetimini yürütür. Semantic ise çözülmüş import sembollerini normal sembol, Group üyeliği ve görünürlük kurallarıyla denetler. Bu sorumluluklar Parser içine veya Codegen'e taşınmaz.
+
 **Uygulama durumu:** Bu bölüm tasarım kontratını tanımlar; Semantic/Module Resolver/ABI tamamlandı iddiası değildir. Kütüphane ve Group semantic testleri kapanmadan Group tamamlanmış sayılmaz.
 ## 9. Group-Owned Type Scope (Normative)
 
