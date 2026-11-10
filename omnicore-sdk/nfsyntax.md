@@ -94,6 +94,41 @@ import "NetModule";
 
 ---
 
+## 5.1 Use ile namespace ön ekini kaldırma (import)
+
+Bir modül normalde kendi namespace'iyle erişilir; `as` modül için yerel bir ad
+(alias) belirler. Namespace ön eki kullanılmasını istemediğimiz durumda **`_` özel
+alias'ı** kullanılabilir:
+
+```nxf
+group db {
+    group mysql {
+        group sql {
+            query => f:(text) { /* ... */ }
+        }
+    }
+}
+
+// Namespace korunur: db.mysql.sql.query(...)
+use db.mysql.sql as sql;
+
+// Modülün namespace ön eki kaldırılır; üyeler doğrudan kapsamdan çözülür.
+use db.mysql.sql as _;
+
+// Örneğin yukarıdaki importtan sonra:
+query("SELECT 1");
+```
+
+- `as _`, modül yolunu (ör. `db.mysql.sql`) çağrı adının önüne eklemez.
+- Bu biçim modülün üyelerini mevcut isim çözümleme kapsamına açar; isim çakışmaları
+  Semantic aşamasında normal sembol/visibility kurallarıyla denetlenir.
+- `as sql` gibi normal alias'lar namespace erişimini korur.
+- `_` yalnızca `use ... as _` bağlamında özel anlam taşır; genel identifier değildir.
+
+**Uygulama durumu:** Parser'ın `_` alias'ını AST'ye taşıması test edilir. Modül üyelerinin
+scope'a aktarılması ve çakışma kontrolü Semantic/import-resolution işi olarak ayrıca
+doğrulanmalıdır; Parser testi bunu tamamlanmış saymaz.
+
 ## 6. Döngüler (Unified Loop)
 Tek bir `loop` anahtar kelimesi altında 5 farklı varyasyon parser tarafından ayrıştırılır:
 ```nxf
