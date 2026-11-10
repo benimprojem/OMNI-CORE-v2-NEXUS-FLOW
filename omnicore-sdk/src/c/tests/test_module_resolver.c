@@ -52,6 +52,14 @@ static int test_source_provider_boundary(void) {
     FakeSourceProvider fake;
     OccSourceSpan span;
     uint32_t module_id = 0u;
+    int resolver_initialized = 0;
+    int ok = 0;
+#define PROVIDER_CHECK(condition) do { \
+    if (!(condition)) { \
+        fprintf(stderr, "PROVIDER_CHECK failed line %d: %s\\n", __LINE__, #condition); \
+        goto done; \
+    } \
+} while (0)
     memset(&resolver, 0, sizeof(resolver));
     memset(&request, 0, sizeof(request));
     memset(&source, 0, sizeof(source));
@@ -69,61 +77,67 @@ static int test_source_provider_boundary(void) {
     provider.release = fake_source_release;
     fake.status = OCC_MODULE_SOURCE_PROVIDER_OK;
 
-    CHECK(occ_module_resolver_init(&resolver, &config) == OCC_MODULE_RESOLVER_OK);
-    CHECK(occ_module_resolver_resolve_source(
+    PROVIDER_CHECK(occ_module_resolver_init(&resolver, &config) == OCC_MODULE_RESOLVER_OK);
+    resolver_initialized = 1;
+    PROVIDER_CHECK(occ_module_resolver_resolve_source(
         &resolver, &provider, &request, &source) == OCC_MODULE_RESOLVER_OK);
-    CHECK(source.canonical_identity != NULL);
-    CHECK(strcmp(source.canonical_identity, "project://lib/db.nxf") == 0);
-    CHECK(source.source_bytes == fake_module_source);
-    CHECK(source.source_length == sizeof(fake_module_source) - 1u);
-    CHECK(source.content_fingerprint ==
+    PROVIDER_CHECK(source.canonical_identity != NULL);
+    PROVIDER_CHECK(strcmp(source.canonical_identity, "project://lib/db.nxf") == 0);
+    PROVIDER_CHECK(source.source_bytes == fake_module_source);
+    PROVIDER_CHECK(source.source_length == sizeof(fake_module_source) - 1u);
+    PROVIDER_CHECK(source.content_fingerprint ==
         occ_module_resolver_fingerprint_source(fake_module_source,
             sizeof(fake_module_source) - 1u));
-    CHECK(occ_module_resolver_register(&resolver, source.canonical_identity,
+    PROVIDER_CHECK(occ_module_resolver_register(&resolver, source.canonical_identity,
         source.content_fingerprint, &module_id) == OCC_MODULE_RESOLVER_OK);
-    CHECK(module_id == 1u);
+    PROVIDER_CHECK(module_id == 1u);
     occ_module_resolver_release_source(&provider, &source);
-    CHECK(fake.release_calls == 1u);
-    CHECK(source.canonical_identity == NULL && source.source_bytes == NULL);
+    PROVIDER_CHECK(fake.release_calls == 1u);
+    PROVIDER_CHECK(source.canonical_identity == NULL && source.source_bytes == NULL);
 
     fake.status = OCC_MODULE_SOURCE_PROVIDER_NOT_FOUND;
-    CHECK(occ_module_resolver_resolve_source(
+    PROVIDER_CHECK(occ_module_resolver_resolve_source(
         &resolver, &provider, &request, &source) == OCC_MODULE_RESOLVER_NOT_FOUND);
-    CHECK(source.canonical_identity == NULL);
+    PROVIDER_CHECK(source.canonical_identity == NULL);
     fake.status = OCC_MODULE_SOURCE_PROVIDER_DENIED;
-    CHECK(occ_module_resolver_resolve_source(
+    PROVIDER_CHECK(occ_module_resolver_resolve_source(
         &resolver, &provider, &request, &source) == OCC_MODULE_RESOLVER_SOURCE_DENIED);
     fake.status = OCC_MODULE_SOURCE_PROVIDER_AMBIGUOUS;
-    CHECK(occ_module_resolver_resolve_source(
+    PROVIDER_CHECK(occ_module_resolver_resolve_source(
         &resolver, &provider, &request, &source) == OCC_MODULE_RESOLVER_SOURCE_AMBIGUOUS);
     fake.status = OCC_MODULE_SOURCE_PROVIDER_IO_ERROR;
-    CHECK(occ_module_resolver_resolve_source(
+    PROVIDER_CHECK(occ_module_resolver_resolve_source(
         &resolver, &provider, &request, &source) == OCC_MODULE_RESOLVER_SOURCE_IO_ERROR);
-    CHECK(fake.release_calls == 1u);
+    PROVIDER_CHECK(fake.release_calls == 1u);
 
     fake.status = OCC_MODULE_SOURCE_PROVIDER_OK;
     fake.malformed_success = 1;
-    CHECK(occ_module_resolver_resolve_source(
+    PROVIDER_CHECK(occ_module_resolver_resolve_source(
         &resolver, &provider, &request, &source) == OCC_MODULE_RESOLVER_PROVIDER_ERROR);
-    CHECK(fake.release_calls == 2u);
-    CHECK(source.canonical_identity == NULL && source.source_bytes == NULL);
+    PROVIDER_CHECK(fake.release_calls == 2u);
+    PROVIDER_CHECK(source.canonical_identity == NULL && source.source_bytes == NULL);
     occ_module_resolver_destroy(&resolver);
+    resolver_initialized = 0;
 
     /* A source exceeding the configured byte budget is released and rejected. */
     {
         OccModuleResolverConfig small = {2u, 2u, 128u, 4u};
-        CHECK(occ_module_resolver_init(&resolver, &small) == OCC_MODULE_RESOLVER_OK);
+        PROVIDER_CHECK(occ_module_resolver_init(&resolver, &small) == OCC_MODULE_RESOLVER_OK);
+        resolver_initialized = 1;
         fake.malformed_success = 0;
-        CHECK(occ_module_resolver_resolve_source(
+        PROVIDER_CHECK(occ_module_resolver_resolve_source(
             &resolver, &provider, &request, &source) == OCC_MODULE_RESOLVER_LIMIT_EXCEEDED);
-        CHECK(fake.release_calls == 3u);
-        occ_module_resolver_destroy(&resolver);
+        PROVIDER_CHECK(fake.release_calls == 3u);
     }
-    return 1;
+    ok = 1;
+done:
+    if (resolver_initialized) occ_module_resolver_destroy(&resolver);
+#undef PROVIDER_CHECK
+    return ok;
 }
 
 int main(void) {
-    CHECK(test_source_provider_boundary());
+    if (!test_source_provider_boundary()) return 1;
     OccModuleResolver resolver;
     OccModuleResolverConfig config = {8u, 16u, 1024u, 4096u};
     OccSourceSpan span;
