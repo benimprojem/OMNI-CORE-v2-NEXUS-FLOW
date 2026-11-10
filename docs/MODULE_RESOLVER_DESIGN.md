@@ -323,3 +323,9 @@ The first C interface-snapshot layer is implemented in `module/module_interface.
 This is a data-transfer foundation, not yet the final serialized OIR interface contract. Alias and namespace bindings remain importer-side data sourced from each AST_USE (`module_name`, `alias`, and `namespace_name` are distinct). The importing Semantic stage must apply the language's exact PUBLIC/EXPORTED rules, detect local and alias collisions, resolve namespace selection, and validate Group/type access. No imported symbol is injected into the local AST or silently treated as a local declaration.
 
 Tests currently cover exported Group + public member publication, preservation of source IDs and type/relation metadata, omission of an unmarked private symbol, and rejection of non-finalized semantic input. The snapshot is not yet consumed by the Semantic DLL and is not yet encoded as an OIR artifact.
+
+### 14.10 Import binding preservation
+
+The scheduler now retains each top-level USE declaration's three independent source-level values: dotted `module_name`, optional `alias`, and optional `namespace_name`. It exposes `occ_module_scheduler_get_import_binding()`, keyed by importer module ID and the visitor's 1-based USE ordinal. The returned view includes the resolved dependency module ID and original source span; string fields are borrowed from the scheduler and remain valid until scheduler destruction.
+
+This accessor is the bridge between dependency graph resolution and later importer Semantic binding. In particular, `as _` and `ns _` remain distinguishable because the original alias and namespace fields are not merged or normalized. A C regression test checks the independent values and dependency identity. This does not yet implement the language's visibility or namespace lookup rules.
