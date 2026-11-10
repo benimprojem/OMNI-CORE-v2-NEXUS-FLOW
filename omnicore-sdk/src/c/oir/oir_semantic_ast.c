@@ -520,7 +520,8 @@ static OirStatus validate_symbol_values(
         kind > OIR_SEMANTIC_SYMBOL_GROUP ||
         ((flags & OIR_SEMANTIC_SYMBOL_FLAG_IMMUTABLE) != 0u &&
             (kind != OIR_SEMANTIC_SYMBOL_VARIABLE ||
-             (flags & OIR_SEMANTIC_SYMBOL_FLAG_CONST) != 0u)) ||
+             (flags & (OIR_SEMANTIC_SYMBOL_FLAG_CONST |
+                       OIR_SEMANTIC_SYMBOL_FLAG_IMPLICIT)) != 0u)) ||
         (flags & ~(OIR_SEMANTIC_SYMBOL_FLAG_CONST |
             OIR_SEMANTIC_SYMBOL_FLAG_PUBLIC |
             OIR_SEMANTIC_SYMBOL_FLAG_EXPORTED |
