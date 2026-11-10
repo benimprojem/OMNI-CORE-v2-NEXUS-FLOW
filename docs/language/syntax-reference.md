@@ -148,7 +148,7 @@ v:sonuc = topla(a:10, b:20);
 - Sayısal literal: şu an ondalık tam sayı ve ondalık kesir biçimleri desteklenir (ör. `12`, `3.14`).
 - String literal çift tırnakla yazılır: `"metin"`.
 - Karakter literal tek tırnakla yazılır: `'A'`.
-- String içinde ters eğik çizgi (`\\`) kendisinden sonraki karakterin kapanış tırnağı olarak yorumlanmasını engeller. Örneğin `"a\\\"b"` tek bir string tokenıdır.
+- String içinde ters eğik çizgi (`\`) kendisinden sonraki karakterin kapanış tırnağı olarak yorumlanmasını engeller. Örneğin `"a\\\"b"` tek bir string tokenıdır.
 - Karakter literalinde ters eğik çizgi, sonraki karakteri kaçışlı karakter olarak tüketir. Eksik literal veya EOF ile biten kaçış Lexer hatasıdır.
 - Lexer şu aşamada literal içeriğini ham yazımıyla AST'ye aktarır; kaçış dizilerinin çalışma zamanı değerine dönüştürülmesi bu sözdizimi kuralından ayrı bir aşamadır.
 
@@ -291,18 +291,18 @@ Bu tablo mevcut C Parser üretim sırasını yansıtır. `&&` `||`'dan daha yük
 
 #### 2.6 Bit düzeyinde işlemler ve indeks erişimi
 
-Bitwise işlemler \`bit\`, \`byte\`, sabit genişlikli \`Nbit\` ve \`Nbyte\` temsil türlerinde; ayrıca Semantic'in izin verdiği tamsayı türlerinde uygulanır. İki operandlı işlemlerde operand türleri aynı olmalı; genişlik veya temsil türü farklıysa örtük dönüşüm yapılmaz. Gerekli dönüşüm açık \`!\` zorlamasıyla yazılır.
+Bitwise işlemler `bit`, `byte`, sabit genişlikli `Nbit` ve `Nbyte` temsil türlerinde; ayrıca Semantic'in izin verdiği tamsayı türlerinde uygulanır. İki operandlı işlemlerde operand türleri aynı olmalı; genişlik veya temsil türü farklıysa örtük dönüşüm yapılmaz. Gerekli dönüşüm açık `!` zorlamasıyla yazılır.
 
 | Operatör | İşlem | Kural |
 |---|---|---|
-| \`&\` | Bitwise AND | İki eş tür operand |
-| \`|\` | Bitwise OR | İki eş tür operand |
-| \`^\` | Bitwise XOR | İki eş tür operand |
-| \`~\` | Bitwise NOT | Tek bitwise-capable operand; aynı tür/genişlikte sonuç |
-| \`&=\`, \`|=\`, \`^=\` | Bitwise bileşik atama | Lvalue ve sağ operand uyumlu/eş tür olmalı |
-| \`==\`, \`!=\` | Eşitlik | Aynı temsil türü ve genişlikte karşılaştırma |
+| `&` | Bitwise AND | İki eş tür operand |
+| `|` | Bitwise OR | İki eş tür operand |
+| `^` | Bitwise XOR | İki eş tür operand |
+| `~` | Bitwise NOT | Tek bitwise-capable operand; aynı tür/genişlikte sonuç |
+| `&=`, `|=`, `^=` | Bitwise bileşik atama | Lvalue ve sağ operand uyumlu/eş tür olmalı |
+| `==`, `!=` | Eşitlik | Aynı temsil türü ve genişlikte karşılaştırma |
 
-\`\`\`nxf
+```nxf
 f:update_flags() {
     v:flags!8bit = 0;
     v:mask!8bit = 0x05;
@@ -313,11 +313,11 @@ f:update_flags() {
 
     v:has_flag!bool = (flags & mask) != 0;
 }
-\`\`\`
+```
 
-\`Nbit[index]\` erişimi tek bir \`bit\` okur veya yazar. İndeks 0 tabanlı ve LSB-first'tir. \`Nbyte[index]\` erişimi bir \`byte\` okur veya yazar; indeks 0 ilk byte'tır.
+`Nbit[index]` erişimi tek bir `bit` okur veya yazar. İndeks 0 tabanlı ve LSB-first'tir. `Nbyte[index]` erişimi bir `byte` okur veya yazar; indeks 0 ilk byte'tır.
 
-\`\`\`nxf
+```nxf
 f:inspect() {
     v:flags!16bit = 0;
     v:enabled!bit = 1;
@@ -328,11 +328,11 @@ f:inspect() {
     v:first!byte = data[0];
     v:last!byte = data[3];
 }
-\`\`\`
+```
 
 Sabit olarak hesaplanabilen negatif veya sınır dışı indeks Semantic hatasıdır. Dinamik indeks için çalışma zamanı sınır kontrolü henüz OIR/Verifier/runtime sözleşmesinde tamamlanmamıştır. Bit/byte indeksleme OIR lowering kapsamına henüz alınmamıştır.
 
-**Önemli:** \`<<\` ve \`>>\` Nexus Flow'un Zone Write / Flow Feed akış operatörleridir; bit kaydırma işlemi değildir. Bu işaretlere sayısal shift anlamı yüklenmez.
+**Önemli:** `<<` ve `>>` Nexus Flow'un Zone Write / Flow Feed akış operatörleridir; bit kaydırma işlemi değildir. Bu işaretlere sayısal shift anlamı yüklenmez.
 
 ####  2.7 Özel Operatörler**
 
