@@ -1436,3 +1436,17 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Module Resolver source-provider callback tests (including the fail-closed test harness correction) passed all five CI jobs in run `42775933125`.
 
 - OCF follow-up audit: all four checked-in `occ.ocf` examples use `[include] ./lib` and empty `[dependencies]`; the root example also has package metadata, flags, default macros and default libraries. C/OCE comments propose automatic `coremodule` loading and `no:coremodule;` opt-out, but the normative syntax reference explicitly says `no:CoreModule` is not recognized by the current Lexer/Parser. This remains an unresolved config/default-module proposal, not active syntax. Current Parser `use` accepts dotted identifiers, not quoted filename strings; corrected the SDK example to `use CoreModule as core;`. Recorded these boundaries in `docs/MODULE_RESOLVER_DESIGN.md`.
+
+
+## 2026-11-10 — `coremodule` / `osmodule` ayrımı ve `no:` Parser/AST desteği
+
+- Dil modülü adları netleştirildi: eski OS bağımlı `coremodule` rolü `osmodule` olarak adlandırılır; eski OS bağımsız `core` rolü `coremodule` olur.
+- `osmodule`, file/print/echo/input gibi OS servislerine bağlı standart fonksiyonları taşır ve normalde otomatik yüklenir. `coremodule` OS bağımsız genel fonksiyon kütüphanesidir.
+- `no:` genel modül kapatma mekanizması değildir; yalnızca program kapsamındaki `no: osmodule;` otomatik osmodule yüklemesini kapatır. `no: coremodule;`, tekrar bildirim, eksik noktalı virgül ve iç içe kapsam kullanımı reddedilir.
+- `ASTProgram` payload'ına append-only alanlar eklendi: `disable_osmodule` ve `disable_osmodule_span`. Yeni AST kind/ID eklenmedi.
+- AST factory size, printer, destructor, graph validator ve stream codec güncellendi. AST stream v6 yazılır; v1-v5 okuma yolları korunur. Directive span alanları ABI bağımlı ham struct olarak değil, tek tek wire alanları olarak yazılır.
+- Parser testleri eklendi: başarılı directive, tam byte/line/column span, v6 serialize/deserialize round-trip, geçersiz hedef, duplicate, nested-scope ve eksik semicolon.
+- SDK syntax reference, normatif language syntax reference, AST/Parser üretim matrisi ve Module Resolver tasarım belgesi güncellendi. OCF örneklerindeki eski `no:coremodule;` yorumları `no: osmodule;` olarak düzeltildi.
+- **Doğrulama bekliyor:** Bu oturumda yerel C build/CTest çalıştırılmadı. Parser/AST testleri ve Windows/macOS/Ubuntu/ASan-UBSan/Valgrind CI geçmeden özellik doğrulanmış sayılmayacak.
+- **Entegrasyon açığı:** Host scheduler henüz ASTProgram bayrağını okuyup implicit `osmodule` bağımlılığını ekleme/atlama işlemini yapmıyor. Resolver graph API şu an explicit `AST_USE` edge modelinde; implicit dependency edge sözleşmesi ve host entegrasyonu sonraki adım.
+- `coremodule` için otomatik mi yoksa açık `use` ile mi yükleneceği kararı açık bırakıldı.
