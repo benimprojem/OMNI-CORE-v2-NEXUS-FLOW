@@ -16,7 +16,8 @@ foreach(_required IN ITEMS "${_occ_config}" "${_osmodule}" "${_coremodule}" "${_
 endforeach()
 
 file(READ "${_occ_config}" _config_text)
-if(NOT _config_text MATCHES "\\.\/libs")
+string(FIND "${_config_text}" "./libs" _libs_index)
+if(_libs_index EQUAL -1)
     message(FATAL_ERROR "Packaged occ.ocf must include ./libs")
 endif()
 
