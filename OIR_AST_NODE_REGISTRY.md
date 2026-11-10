@@ -243,7 +243,7 @@ Field IDs are scoped to a node kind. Unless noted otherwise, nullable pointers a
 | AST_NAMED_ARG | 1 | name | STRING_REF |
 | AST_NAMED_ARG | 2 | value | NODE_REF |
 | AST_MUST_DECL | 1 | name | STRING_REF |
-| AST_MUST_DECL | 2 | source | NODE_REF |
+| AST_MUST_DECL | 2 | initializer expression (legacy field name: source) | NODE_REF |
 | AST_VARIADIC_PARAM | — | Final variadic marker; no node-specific fields | — |
 | AST_FASTEXEC_BLOCK | 1 | ordered statements | NODE_REF |
 | AST_ASM_LABEL | 1 | label | STRING_REF |
