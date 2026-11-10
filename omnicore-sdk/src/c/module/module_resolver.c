@@ -276,13 +276,14 @@ OccModuleResolverStatus occ_module_resolver_fail(
     return resolver_transition(resolver, module_id, OCC_MODULE_STATE_FAILED);
 }
 
-OccModuleResolverStatus occ_module_resolver_add_dependency(
+static OccModuleResolverStatus resolver_add_dependency(
     OccModuleResolver* resolver,
     uint32_t importer_module_id,
     uint32_t dependency_module_id,
     const char* requested_path,
     uint32_t ast_use_node_id,
-    const OccSourceSpan* use_span
+    const OccSourceSpan* use_span,
+    OccModuleResolverEdgeKind kind
 ) {
     OccModuleResolverNode* importer;
     const OccModuleResolverNode* dependency;
@@ -290,8 +291,11 @@ OccModuleResolverStatus occ_module_resolver_add_dependency(
     char* path_copy;
     OccModuleResolverStatus result = OCC_MODULE_RESOLVER_OK;
     OccModuleResolverEdge* edge;
-    if (!resolver || !requested_path || !requested_path[0] ||
-        ast_use_node_id == 0u || !use_span)
+    if (!resolver || !requested_path || !requested_path[0] || !use_span ||
+        (kind == OCC_MODULE_EDGE_EXPLICIT_USE && ast_use_node_id == 0u) ||
+        (kind == OCC_MODULE_EDGE_IMPLICIT_OSMODULE && ast_use_node_id != 0u) ||
+        (kind != OCC_MODULE_EDGE_EXPLICIT_USE &&
+         kind != OCC_MODULE_EDGE_IMPLICIT_OSMODULE))
         return OCC_MODULE_RESOLVER_INVALID_ARGUMENT;
     importer = resolver_find_mutable(resolver, importer_module_id);
     dependency = resolver_find(resolver, dependency_module_id);
@@ -306,7 +310,12 @@ OccModuleResolverStatus occ_module_resolver_add_dependency(
     for (i = 0u; i < resolver->edge_count; ++i) {
         const OccModuleResolverEdge* existing = &resolver->edges[i];
         if (existing->importer_module_id == importer_module_id &&
-            existing->ast_use_node_id == ast_use_node_id)
+            ((kind == OCC_MODULE_EDGE_EXPLICIT_USE &&
+              existing->kind == OCC_MODULE_EDGE_EXPLICIT_USE &&
+              existing->ast_use_node_id == ast_use_node_id) ||
+             (kind == OCC_MODULE_EDGE_IMPLICIT_OSMODULE &&
+              existing->kind == OCC_MODULE_EDGE_IMPLICIT_OSMODULE &&
+              strcmp(existing->requested_path, requested_path) == 0)))
             return OCC_MODULE_RESOLVER_INVALID_ARGUMENT;
     }
     length = strlen(requested_path);
@@ -330,11 +339,36 @@ OccModuleResolverStatus occ_module_resolver_add_dependency(
     edge->ast_use_node_id = ast_use_node_id;
     edge->use_span = *use_span;
     edge->requested_path = path_copy;
+    edge->kind = kind;
     resolver->text_bytes += length;
     if (dependency_module_id == importer_module_id ||
         dependency->state == OCC_MODULE_STATE_RESOLVING)
         result = OCC_MODULE_RESOLVER_CYCLE;
     return result;
+}
+
+OccModuleResolverStatus occ_module_resolver_add_dependency(
+    OccModuleResolver* resolver,
+    uint32_t importer_module_id,
+    uint32_t dependency_module_id,
+    const char* requested_path,
+    uint32_t ast_use_node_id,
+    const OccSourceSpan* use_span
+) {
+    return resolver_add_dependency(resolver, importer_module_id,
+        dependency_module_id, requested_path, ast_use_node_id, use_span,
+        OCC_MODULE_EDGE_EXPLICIT_USE);
+}
+
+OccModuleResolverStatus occ_module_resolver_add_implicit_osmodule(
+    OccModuleResolver* resolver,
+    uint32_t importer_module_id,
+    uint32_t osmodule_module_id,
+    const OccSourceSpan* program_span
+) {
+    return resolver_add_dependency(resolver, importer_module_id,
+        osmodule_module_id, "osmodule", 0u, program_span,
+        OCC_MODULE_EDGE_IMPLICIT_OSMODULE);
 }
 
 const OccModuleResolverNode* occ_module_resolver_get_module(
