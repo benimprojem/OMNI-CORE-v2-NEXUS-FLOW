@@ -417,6 +417,23 @@ set_target_properties(occ_module_import_bundle PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
+# Read-only Semantic import catalog over verified OIR import/interface bundles.
+add_library(occ_semantic_import_environment STATIC
+    "${C_SOURCE_DIR}/semantic/semantic_import_environment.c"
+)
+target_include_directories(occ_semantic_import_environment PUBLIC
+    "${C_SOURCE_DIR}/semantic"
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+)
+target_link_libraries(occ_semantic_import_environment PUBLIC
+    occ_module_import_bundle
+)
+set_target_properties(occ_semantic_import_environment PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
+
 
 target_include_directories(occ_oir_module_interface_artifact PUBLIC
     "${C_SOURCE_DIR}/oir"
@@ -1045,6 +1062,21 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME module_scheduler_dependency_first_semantic_order
         COMMAND test_module_scheduler)
+
+    add_executable(test_semantic_import_environment
+        "${C_SOURCE_DIR}/tests/test_semantic_import_environment.c"
+    )
+    target_link_libraries(test_semantic_import_environment PRIVATE
+        occ_semantic_import_environment
+    )
+    if(MSVC)
+        target_compile_options(test_semantic_import_environment PRIVATE /W4)
+    else()
+        target_compile_options(test_semantic_import_environment PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME semantic_import_environment_binding_and_source_local_lookup
+        COMMAND test_semantic_import_environment
+    )
 
     add_executable(test_module_import_bundle
         "${C_SOURCE_DIR}/tests/test_module_import_bundle.c"
