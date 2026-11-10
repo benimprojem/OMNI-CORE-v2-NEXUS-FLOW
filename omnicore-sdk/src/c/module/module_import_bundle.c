@@ -48,12 +48,16 @@ OccModuleImportBundleStatus occ_module_import_bundle_bind(
         return OCC_MODULE_IMPORT_BUNDLE_INVALID_ARGUMENT;
     memset(out_bundle,0,sizeof(*out_bundle));
     imports=&imports_artifact->imports;
-    if(imports->record_count>OIR_MODULE_IMPORTS_MAX_RECORDS ||
+    if(imports->schema_major!=OIR_MODULE_IMPORTS_SCHEMA_MAJOR ||
+       imports->schema_minor>OIR_MODULE_IMPORTS_SCHEMA_MINOR ||
+       imports->record_count>OIR_MODULE_IMPORTS_MAX_RECORDS ||
        (imports->record_count && !imports->records))
         return OCC_MODULE_IMPORT_BUNDLE_INVALID_ARGUMENT;
     if(imports_artifact->envelope.header.artifact_kind!=OIR_KIND_MODULE_IMPORTS ||
        imports_artifact->envelope.header.producer_stage_id!=OCC_STAGE_OIR_VERIFY ||
-       imports_artifact->envelope.header.validity!=OIR_VALIDITY_VALID)
+       imports_artifact->envelope.header.validity!=OIR_VALIDITY_VALID ||
+       imports_artifact->envelope.header.payload_schema_major!=1u ||
+       imports_artifact->envelope.header.payload_schema_minor!=0u)
         return OCC_MODULE_IMPORT_BUNDLE_INVALID_ARGUMENT;
     if(strcmp(expected_importer_identity,imports->importer_identity)!=0)
         return OCC_MODULE_IMPORT_BUNDLE_IMPORTER_MISMATCH;
@@ -78,6 +82,8 @@ OccModuleImportBundleStatus occ_module_import_bundle_bind(
            interfaces[i].envelope.header.artifact_kind!=OIR_KIND_MODULE_INTERFACE ||
            interfaces[i].envelope.header.producer_stage_id!=OCC_STAGE_OIR_VERIFY ||
            interfaces[i].envelope.header.validity!=OIR_VALIDITY_VALID ||
+           interfaces[i].envelope.header.payload_schema_major!=1u ||
+           interfaces[i].envelope.header.payload_schema_minor!=0u ||
            interfaces[i].envelope.header.job_id!=imports_artifact->envelope.header.job_id) {
             free(slots); free(matched); return OCC_MODULE_IMPORT_BUNDLE_INVALID_ARGUMENT;
         }
