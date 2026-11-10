@@ -77,7 +77,7 @@ int main(int argc,char** argv) {
     OccModuleArtifactInputV1 input,import_inputs[3]; OccDiagnosticCollector diagnostics;
     OccModuleImportBinding import_binding;
     OirModuleImports module_imports;
-    OirModuleInterface module_interface;
+    OccModuleInterface module_interface;
     OccLoadedStageModule loaded; char loader_error[512];
     uint32_t* incoming=NULL,*owner_scope=NULL; uint8_t* visited=NULL;
     OirAstGraphStackEntry* stack=NULL; OirSemanticAstArtifactView view;
