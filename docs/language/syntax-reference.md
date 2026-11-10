@@ -67,7 +67,7 @@ Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY
 
 - **Hard-Lock (`!`):** `v:sayi!u64 = 50`. Veri "50" 8 bit olsa bile 64-bit yer ayrılır.
 
-**Tipler:** `bit`, `byte` (u8), `hex`, `char`, `f32`, `f64`, `i8..i64`, `u8..u64`, `bool`. `d32` ve `d64` mevcut yerleşik tipler değildir.
+**Tipler:** `bit`, `byte` (u8), `hex`, `char`, `f32`, `f64`, `d32`, `d64`, `i8..i64`, `u8..u64`, `bool`. `d32` ve `d64`, Decimal (ondalık) numeric tipleridir; Semantic numeric işlem ve compound assignment kontrollerinde tanınırlar. `d128`, `i128`, `u128`, `f128` gibi daha geniş tipler ileride eklenebilir; henüz desteklenmez.
 **Oyun/Grafik:** `Vec2`, `Vec3`, `Vec4` (SIMD Destekli).
 
 ---
