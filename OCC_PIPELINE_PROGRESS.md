@@ -1635,3 +1635,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - **Entegrasyon sınırı:** Bu commit seti Scheduler koordinatör çekirdeğini sağlar; gerçek filesystem/OCF include provider'ı, Lexer/Parser/Semantic DLL callback adapter'ları ve `main.c` bağlantısı henüz yapılmadı. Mevcut main pipeline hâlâ tek root modül için Parser'dan hemen sonra Semantic çalıştırıyor. Bu nedenle çok dosyalı USE yüklemesi henüz uçtan uca çalışır olarak işaretlenmiyor.
 - **CI:** Bu yeni commit setinin CI sonuçları henüz alınmadı. Platform, sanitizer ve Valgrind kontrolleri yeşile dönmeden doğrulanmış kabul edilmeyecek.
 - **Sonraki adım:** OCF + include + `occ/libs` politikasıyla somut C source provider'ı oluşturmak; ardından main pipeline'ı önce tüm modülleri parse/discover edecek, sonra dependency-first Semantic çalıştıracak şekilde refactor etmek. Semantic imported-interface handoff bu sırada ayrı API olarak ele alınacak.
+
+
+### Module Scheduler CI ara doğrulaması
+
+- Fixture düzeltmesinden sonraki commit `c72ba77a` için CI run [42813278689](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42813278689) **5/5 başarılı**: Ubuntu CTest 65/65, macOS, Windows, ASan/UBSan ve Valgrind.
+- Bu run, scheduler'ın dependency-first ve cycle testlerinin çalıştığını doğruluyor.
+- Sonraki ek güvenlik sınırı commit'i `b663a9f5` AST_USE kopyalama/collection aşamasını Resolver'ın `max_edges` ve `max_text_bytes` limitleriyle sınırlıyor; bu commit'in ayrı CI run'ı [42813616875](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42813616875) henüz devam ediyor. Bu nedenle son kod durumu için 5/5 sonucu henüz ilan edilmiyor.
