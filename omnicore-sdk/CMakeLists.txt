@@ -726,6 +726,18 @@ if(BUILD_TESTING)
         COMMAND test_ast_deserialize "${AST_INVALID_OUTPUT_DIR}/output.oir"
     )
 
+    add_executable(test_ast_use_visit
+        "${C_SOURCE_DIR}/tests/test_ast_use_visit.c"
+    )
+    target_include_directories(test_ast_use_visit PRIVATE "${C_PARSER_DIR}")
+    target_link_libraries(test_ast_use_visit PRIVATE occ_frontend)
+    if(MSVC)
+        target_compile_options(test_ast_use_visit PRIVATE /W4)
+    else()
+        target_compile_options(test_ast_use_visit PRIVATE -Wall -Wextra)
+    endif()
+    add_test(NAME ast_top_level_use_visitor COMMAND test_ast_use_visit)
+
     # Validate known target descriptors and reject malformed or unsupported profiles.
     add_executable(test_target_parser
         "${C_CODEGEN_DIR}/target_parser.c"
