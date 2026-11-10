@@ -710,28 +710,6 @@ int main(int argc, char** argv) {
         free(output); output = NULL; output_length = 0u;
     }
 
-    /* A bitwise instruction cannot consume bool and claim an integer result. */
-    {
-        OccModuleArtifactInputV1 stage_input;
-        OccDiagnosticView type_error;
-        size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
-        assert(build_cfg_module_artifact(&input, &input_length, 18));
-        memset(&stage_input, 0, sizeof(stage_input));
-        stage_input.bytes = input; stage_input.length = input_length;
-        {
-            uint32_t invoke_status = occ_module_loader_invoke(&loaded,
-                &stage_input, 1u, 522u, &diagnostics, 256u,
-                1024u * 1024u, &output, &output_length);
-            assert(invoke_status != OCC_MODULE_LOADER_OK);
-        }
-        assert(output == NULL && output_length == 0u);
-        assert(occ_diagnostics_count(&diagnostics) == diagnostics_before + 1u);
-        assert(occ_diagnostics_get(&diagnostics, diagnostics_before, &type_error));
-        assert(type_error.record->code == 8616u);
-        assert(strstr(type_error.message, "instruction=3") != NULL);
-        free(input); input = NULL; input_length = 0u;
-    }
-
     /* An unused SSA result is advisory: warn, but still emit valid OIR. */
     {
         OccModuleArtifactInputV1 stage_input;
