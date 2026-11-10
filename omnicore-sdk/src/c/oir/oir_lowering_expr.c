@@ -30,6 +30,8 @@
 #define T_BIT_AND 118u
 #define T_BIT_OR 119u
 #define T_BIT_XOR 120u
+#define T_BIT_SHL 165u
+#define T_BIT_SHR 166u
 
 static uint16_t u16(const uint8_t* p) {
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
@@ -349,6 +351,7 @@ static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
     OirStatus s;
     int comparison = 0;
     int bitwise = 0;
+    int shift = 0;
     if (depth >= OIR_AST_NODE_DEPTH_MAX) return OIR_STATUS_INVALID_SECTION;
     if ((s = token(&st->artifact->ast, n->node_id, 1u, &tok)) != OIR_STATUS_OK)
         return s;
@@ -367,6 +370,8 @@ static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
         case T_BIT_AND: opcode = OIR_OP_BIT_AND; bitwise = 1; break;
         case T_BIT_OR: opcode = OIR_OP_BIT_OR; bitwise = 1; break;
         case T_BIT_XOR: opcode = OIR_OP_BIT_XOR; bitwise = 1; break;
+        case T_BIT_SHL: opcode = OIR_OP_BIT_SHL; shift = 1; break;
+        case T_BIT_SHR: opcode = OIR_OP_BIT_SHR; shift = 1; break;
         default: return OIR_STATUS_INVALID_SECTION;
     }
 
@@ -379,7 +384,11 @@ static OirStatus lower_binary(ExprState* st, const OirAstNodeRecord* n,
     } else {
         if ((s = check_type(st, n->node_id)) != OIR_STATUS_OK)
             return s;
-        if (bitwise) {
+        if (shift) {
+            /* This lowering slice uses one configured scalar type for all values. */
+            if (ty->kind != OIR_MODULE_TYPE_INTEGER)
+                return OIR_STATUS_INVALID_SECTION;
+        } else if (bitwise) {
             if (ty->kind != OIR_MODULE_TYPE_INTEGER &&
                 ty->kind != OIR_MODULE_TYPE_BIT &&
                 ty->kind != OIR_MODULE_TYPE_BYTE &&

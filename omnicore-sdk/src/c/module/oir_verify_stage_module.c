@@ -120,6 +120,16 @@ static int validate_instruction_type_contract(const OirModuleView* m, const OirM
                 get_type(m, result.type_id, &rt) && type_is_bitwise(&rt) &&
                 get_value_operand(m, ins, 0u, &a) &&
                 a.type_id == result.type_id;
+        case OIR_OP_BIT_SHL: case OIR_OP_BIT_SHR:
+            return ins->result_value_id != 0u &&
+                get_value(m, ins->result_value_id, &result) &&
+                get_type(m, result.type_id, &rt) &&
+                rt.kind == OIR_MODULE_TYPE_INTEGER &&
+                get_value_operand(m, ins, 0u, &a) &&
+                get_value_operand(m, ins, 1u, &b) &&
+                a.type_id == result.type_id &&
+                get_type(m, b.type_id, &rt) &&
+                rt.kind == OIR_MODULE_TYPE_INTEGER;
         case OIR_OP_CMP_EQ: case OIR_OP_CMP_NE: case OIR_OP_CMP_LT:
         case OIR_OP_CMP_LE: case OIR_OP_CMP_GT: case OIR_OP_CMP_GE:
             return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && rt.kind == OIR_MODULE_TYPE_BOOLEAN && get_value_operand(m, ins, 0u, &a) && get_value_operand(m, ins, 1u, &b) && a.type_id == b.type_id;

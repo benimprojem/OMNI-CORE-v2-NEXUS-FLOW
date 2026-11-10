@@ -349,7 +349,9 @@ left: u8 = v <<< 2;    // 00000001 -> 00000100
 right: u8 = left >>> 1; // 00000100 -> 00000010
 ```
 
-Kaydırma işaretli türlerde de yalnızca bit dizisini işler; işaret biti özel korunmaz. Boşalan bitler sıfırla doldurulur, genişlik dışına çıkan bitler atılır. Kaydırma miktarı tür genişliğine eşit veya büyükse sonuç sıfırdır. Sonuç türü sol operandın türüdür. `Nbit` bit vektörleri kaydırılabilir; `Nbyte` ham bloklarında bit kaydırma doğrudan tanımlı değildir.
+Kaydırma işaretli türlerde de yalnızca bit dizisini işler; işaret biti özel korunmaz. Boşalan bitler sıfırla doldurulur, genişlik dışına çıkan bitler atılır. Kaydırma miktarı tür genişliğine eşit veya büyükse sonuç sıfırdır. Sonuç türü sol operandın türüdür. İki operand da integer olmalıdır; kaydırma miktarının integer türü sol operanddan farklı olabilir. Sabit negatif miktar Semantic hatasıdır; dinamik negatif miktar çalışma zamanında trap üretir. `Nbit` bit vektörleri kaydırılabilir; `Nbyte` ham bloklarında bit kaydırma doğrudan tanımlı değildir.
+
+OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Bağımsız Verifier, sol operand/sonuç türlerinin aynı integer türü olmasını ve kaydırma miktarının integer olmasını doğrular. İlk lowering dilimi tek yapılandırılmış scalar türle sınırlıdır; farklı genişlikte sağ operandın genel lowering desteği henüz tamamlanmamıştır.
 
 
 

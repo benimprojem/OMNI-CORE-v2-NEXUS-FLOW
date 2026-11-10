@@ -2325,6 +2325,21 @@ static void semantic_check_node(
                 }
             }
 
+            if (bin->op == TOKEN_BIT_SHL || bin->op == TOKEN_BIT_SHR) {
+                const char* left_type = get_expr_type(ctx, bin->left);
+                const char* right_type = get_expr_type(ctx, bin->right);
+                int64_t shift_amount;
+                if ((left_type && !is_integer_primitive_type(left_type)) ||
+                    (right_type && !is_integer_primitive_type(right_type))) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Bit shifts require integer operands.");
+                } else if (semantic_eval_integer_constant(bin->right, &shift_amount) &&
+                           shift_amount < 0) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Bit shift amount cannot be negative.");
+                }
+            }
+
             if (bin->op == TOKEN_BIT_AND || bin->op == TOKEN_BIT_OR ||
                 bin->op == TOKEN_BIT_XOR) {
                 const char* left_type=get_expr_type(ctx,bin->left);

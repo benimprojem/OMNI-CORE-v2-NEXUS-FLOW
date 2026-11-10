@@ -41,16 +41,26 @@ int main(void) {
         const OirOpcodeDescriptor* bit_or = oir_opcode_lookup(OIR_OP_BIT_OR);
         const OirOpcodeDescriptor* bit_xor = oir_opcode_lookup(OIR_OP_BIT_XOR);
         const OirOpcodeDescriptor* bit_not = oir_opcode_lookup(OIR_OP_BIT_NOT);
-        assert(OIR_OPCODE_REGISTRY_MAJOR == 1u && OIR_OPCODE_REGISTRY_MINOR == 1u);
+        const OirOpcodeDescriptor* bit_shl = oir_opcode_lookup(OIR_OP_BIT_SHL);
+        const OirOpcodeDescriptor* bit_shr = oir_opcode_lookup(OIR_OP_BIT_SHR);
+        assert(OIR_OPCODE_REGISTRY_MAJOR == 1u && OIR_OPCODE_REGISTRY_MINOR == 2u);
         assert(bit_and && strcmp(bit_and->name, "bit.and") == 0);
         assert(bit_or && strcmp(bit_or->name, "bit.or") == 0);
         assert(bit_xor && strcmp(bit_xor->name, "bit.xor") == 0);
         assert(bit_not && strcmp(bit_not->name, "bit.not") == 0);
+        assert(bit_shl && strcmp(bit_shl->name, "bit.shl") == 0);
+        assert(bit_shr && strcmp(bit_shr->name, "bit.shr") == 0);
+        assert((bit_shl->flags & OIR_OPCODE_FLAG_MAY_TRAP) != 0u);
+        assert((bit_shr->flags & OIR_OPCODE_FLAG_MAY_TRAP) != 0u);
+        assert(oir_opcode_lookup_name("bit.shl") == bit_shl);
+        assert(oir_opcode_lookup_name("bit.shr") == bit_shr);
         assert(oir_opcode_lookup_name("bit.xor") == bit_xor);
         assert(oir_opcode_validate_shape(OIR_OP_BIT_AND, binary_kinds, 2u, 1));
         assert(oir_opcode_validate_shape(OIR_OP_BIT_OR, binary_kinds, 2u, 1));
         assert(oir_opcode_validate_shape(OIR_OP_BIT_XOR, binary_kinds, 2u, 1));
         assert(oir_opcode_validate_shape(OIR_OP_BIT_NOT, unary_kinds, 1u, 1));
+        assert(oir_opcode_validate_shape(OIR_OP_BIT_SHL, binary_kinds, 2u, 1));
+        assert(oir_opcode_validate_shape(OIR_OP_BIT_SHR, binary_kinds, 2u, 1));
         assert(!oir_opcode_validate_shape(OIR_OP_BIT_NOT, binary_kinds, 2u, 1));
         assert(!oir_opcode_validate_shape(OIR_OP_BIT_AND, unary_kinds, 1u, 1));
     }
