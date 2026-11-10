@@ -675,8 +675,8 @@ if(BUILD_TESTING)
         COMMAND ${CMAKE_COMMAND}
             -DOCC_PACKAGE_DIR=${CMAKE_BINARY_DIR}
             -P "${C_SOURCE_DIR}/tests/verify_occ_standard_library_staging.cmake")
-    # A second executable copy proves that config and language assets are
-    # resolved beside the executable and that language is read after sections.
+    # A second executable copy proves that package-root config/language assets
+    # are resolved from the parent of bin/ and language is read after sections.
     set(C_LOCALE_TEST_DIR "${CMAKE_BINARY_DIR}/locale-tr")
     file(MAKE_DIRECTORY "${C_LOCALE_TEST_DIR}/bin")
     file(WRITE "${C_LOCALE_TEST_DIR}/occ.ocf"
