@@ -943,14 +943,14 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 const char* begin = target_type + 6u;
                 const char* end = strchr(begin, '[');
                 size_t length = end ? (size_t)(end - begin) : strlen(begin);
-                if (length > 0u && length < 64u) {
-                    if (length < sizeof(indexed_element_type_buffer)) {
-                        memcpy(indexed_element_type_buffer, begin, length);
-                        indexed_element_type_buffer[length] = '\0';
-                        element_type = indexed_element_type_buffer;
-                    }
+                if (length > 0u && length < sizeof(indexed_element_type_buffer)) {
+                    memcpy(indexed_element_type_buffer, begin, length);
+                    indexed_element_type_buffer[length] = '\0';
+                    element_type = indexed_element_type_buffer;
                 }
             }
+            semantic_record_annotation(
+                ctx, node, NULL, element_type, SEMANTIC_RESULT_VALUE_LVALUE);
             return element_type;
         }
         case AST_ARRAY_LITERAL: {
@@ -2813,6 +2813,26 @@ static void semantic_check_node(
             semantic_record_annotation(
                 ctx, node, struct_slot, struct_slot->name,
                 SEMANTIC_RESULT_VALUE_RVALUE);
+            break;
+        }
+
+        case AST_INDEX_ACCESS: {
+            ASTIndexAccess* access = (ASTIndexAccess*)node;
+            const char* target_type;
+            const char* index_type;
+            if (access->target) semantic_check_node(ctx, access->target, 0);
+            if (access->index) semantic_check_node(ctx, access->index, 0);
+            target_type = get_expr_type(ctx, access->target);
+            index_type = get_expr_type(ctx, access->index);
+            if (target_type && strncmp(target_type, "array|", 6u) != 0) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Index access requires an array target.");
+            }
+            if (index_type && !is_integer_primitive_type(index_type)) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Array index expression must have an integer type.");
+            }
+            (void)get_expr_type(ctx, node);
             break;
         }
 
