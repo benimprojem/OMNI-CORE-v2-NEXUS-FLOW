@@ -1024,7 +1024,10 @@ if(BUILD_TESTING)
     add_executable(test_module_scheduler
         "${C_SOURCE_DIR}/tests/test_module_scheduler.c"
     )
-    target_link_libraries(test_module_scheduler PRIVATE occ_module_scheduler)
+    target_link_libraries(test_module_scheduler PRIVATE
+        occ_module_scheduler
+        occ_oir_module_imports_artifact
+    )
     if(MSVC)
         target_compile_options(test_module_scheduler PRIVATE /W4)
         target_compile_options(occ_module_scheduler PRIVATE /W4)
