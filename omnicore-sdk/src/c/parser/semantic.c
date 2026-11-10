@@ -274,7 +274,9 @@ static Slot* find_slot(SemanticContext* ctx, const char* name) {
 static int is_primitive_type_for_result(const char* name) {
     static const char* const names[] = {
         "i32", "u8", "str", "bool", "f64", "i64", "u64", "u32",
-        "u16", "i16", "i8", "f32", "d32", "d64", "char", "bit", "byte", "void", "any"
+        "u16", "i16", "i8", "f32", "d32", "d64", "char", "bit", "byte",
+        "8bit", "16bit", "32bit", "64bit", "128bit",
+        "1byte", "2byte", "4byte", "8byte", "16byte", "void", "any"
     };
     size_t i;
     for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
