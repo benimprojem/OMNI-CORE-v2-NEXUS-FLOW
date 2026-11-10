@@ -315,6 +315,7 @@ The following are tokenized by the C Lexer but have no explicit Parser consumpti
 | Lexed form | Syntax-reference meaning | Current Parser state | Next action |
 |---|---|---|---|
 | `no:` / `TOKEN_KW_NO` | Dependency/OS-adapter exclusion directive (e.g. `no:CoreModule;`) | No token consumption; no AST node/directive representation | Specify directive scope and artifact representation; then implement parser + semantic/module-resolution test |
+| `c:` / `TOKEN_PRE_CONST` | Compile-time constant declaration | `AST_VAR_DECL` with `is_const`; Semantic emits `CONST` symbol flag | Compile-time expression validation/evaluation/folding remains a separate Semantic gap; do not conflate with `m:`'s runtime immutable binding |
 | `m:` / `TOKEN_PRE_MUST` | Immutable value declaration; initializer expression required | `AST_MUST_DECL` (legacy append-only kind), Parser accepts program/block scope | Semantic infers initializer type, creates an `IMMUTABLE` symbol (distinct from `c:`'s `CONST` flag) and rejects assignment/update; `use` alone handles module/source imports |
 | `r:`, `t:`, `o:` | Reserved prefixes | Deliberately reserved in syntax reference | Keep rejected/reserved; no AST node needed until activated |
 | `...` / `TOKEN_ELLIPSIS` | Variadic function parameter marker (documented as trailing marker in signatures) | No Parser consumption; `ASTFuncDecl` has no variadic field | Add explicit function signature flag/AST codec + OIR field contract and tests before accepting |
