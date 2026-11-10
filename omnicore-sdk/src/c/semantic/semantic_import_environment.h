@@ -63,6 +63,20 @@ OccSemanticImportEnvironmentStatus occ_semantic_import_environment_init(
     OccSemanticImportEnvironment* out_environment
 );
 
+/* Resolve only an explicitly written alias/namespace selector.
+ * NULL, empty, and "_" selectors are intentionally not implicit bindings. */
+OccSemanticImportEnvironmentStatus occ_semantic_import_environment_find_alias(
+    const OccSemanticImportEnvironment* environment,
+    const char* alias,
+    size_t* out_binding_index
+);
+
+OccSemanticImportEnvironmentStatus occ_semantic_import_environment_find_namespace(
+    const OccSemanticImportEnvironment* environment,
+    const char* namespace_name,
+    size_t* out_binding_index
+);
+
 OccSemanticImportEnvironmentStatus occ_semantic_import_environment_get_binding(
     const OccSemanticImportEnvironment* environment,
     size_t binding_index,
