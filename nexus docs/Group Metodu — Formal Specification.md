@@ -354,14 +354,14 @@ Aynı isimli API üyelerinin aynı Group içinde çakışması Semantic aşamas�
 
 Public olmak otomatik olarak export edilmek anlamına gelmez. Export edilen sembolün API görünürlüğü ve ABI kararı Semantic/Module çözümleme aşamasında doğrulanmalıdır. Mevcut pup/exp anlamları genişletilmeden, Group üyelerinin görünürlüğü AST ve Semantic katmanlarında temsil edilmelidir.
 
-### 8.3 m: bağımlılık bildirimi ile use erişimi
+### 8.3 m: değiştirilemez değer ve use ile modül erişimi
 
 İki mekanizma farklı sorumluluk taşır:
 
-- **m:Name = "source";** zorunlu bağımlılığı bildirir. Kaynak çözümlenemez/yüklenemezse derleme başarısız olur.
-- **use Name; / use path.segment;** modül adını/üyelerini mevcut kaynak kapsamına açma talebidir. Parser dotted path'i AST_USE içinde tek modül yolu olarak korur; gerçek çözümleme ve yükleme Semantic/Module Resolver sorumluluğudur.
+- **m:name = expression;** initializer ifadesiyle normal bir değer tanımlar. Değer okunabilir ve diğer ifadelerde kullanılabilir; ancak tanımlandıktan sonra bu isim üzerinden yeniden atama, bileşik atama veya artırma/azaltma yapılamaz. Örneğin `m:a = 5;` ve `m:pi = 3.141592653589793;`. Tür, initializer ifadesinden Semantic aşamasında çıkarılır.
+- **use Name; / use path.segment;** modül/kaynak yükleme ve import talebidir. Parser dotted path'i AST_USE içinde korur; kaynak bulma/yükleme host source-provider ve Module Resolver sorumluluğudur. Gerçek import kapsamı ve sembol görünürlüğü Semantic tarafından doğrulanır.
 
-Bunlar birbirinin yerine kullanılmaz. use ifadesi kendi başına dosya yolu veya paket indirme garantisi değildir; dependency resolver'ın kaynak politikası uygulanır.
+`m:` dosya varlığını kontrol etmez, kaynak yüklemez ve dependency edge oluşturmaz. `use` ile birbirinin yerine kullanılamaz. AST'deki `AST_MUST_DECL` adı append-only AST kimlik uyumluluğu için korunur; dil anlamı immutable value declaration'dır.
 
 ### 8.4 Namespace çözümleme ve erişim
 
@@ -406,7 +406,7 @@ Bu kuralların Semantic sonucu, Group kimliği, bağlı nominal tür kimliği, G
 
 Kütüphane desteği, Group AST'sini doğrudan runtime nesnesine çevirmek değildir. Modüler sorumluluklar:
 
-1. **Parser/AST:** Group, nested Group, member ve use / m: syntax ağacını kayıpsız üretir.
+1. **Parser/AST:** Group, nested Group, member, immutable `m:` value ve `use` syntax ağacını kayıpsız üretir.
 2. **Semantic:** Group scope, üye isim çakışması, tür/Struct eşleşmesi, self, constructor, default ve visibility kontrolü.
 3. **Module Resolver:** Dependency kaynağını bulur, modül kimliğini ve import kapsamını oluşturur; dependency graph/cycle ve sürüm/ABI metadata kontrolünü yürütür.
 4. **OIR:** Çözülmüş sembol kimliklerini ve çağrı hedeflerini taşır; kaynak modül adını runtime'da tekrar aramaz.
