@@ -230,7 +230,7 @@ static int check_compound_assignment_semantics(void) {
         "v:c!16bit; v:d!32bit; v:e!64bit; v:f!128bit; }";
     const char* valid_fixed_byte_widths =
         "f:main() { v:a!1byte; v:b!2byte; v:c!4byte; "
-        "v:d!8byte; v:e!16byte; a!1byte; }";
+        "v:d!8byte; v:e!16byte; }";
     const char* invalid_fixed_bit_arithmetic =
         "f:main() { v:a!8bit; v:b!8bit; a += b; }";
     const char* invalid_fixed_width_mismatch =
