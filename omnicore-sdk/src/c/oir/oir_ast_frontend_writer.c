@@ -227,6 +227,7 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
     uint16_t last = 0u;
     OirStatus s = OIR_STATUS_OK;
 #define STR(id, value) do { s = emit_string(c, &last, (id), (value)); if (s != OIR_STATUS_OK) return s; } while (0)
+#define OPTSTR(id, value) do { s = emit_optional_string(c, &last, (id), (value)); if (s != OIR_STATUS_OK) return s; } while (0)
 #define REF(id, value) do { s = emit_node_ref(c, &last, (id), (const ASTNode*)(value)); if (s != OIR_STATUS_OK) return s; } while (0)
 #define BOOL(id, value) do { s = emit_bool(c, &last, (id), (value)); if (s != OIR_STATUS_OK) return s; } while (0)
 #define I32(id, value) do { s = emit_i32(c, &last, (id), (int64_t)(value)); if (s != OIR_STATUS_OK) return s; } while (0)
@@ -410,7 +411,7 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
         }
         case AST_USE: {
             const ASTUse* n = (const ASTUse*)node;
-            STR(1,n->module_name); STR(2,n->alias); break;
+            STR(1,n->module_name); STR(2,n->alias); OPTSTR(3,n->namespace_name); break;
         }
         case AST_SELECT: { const ASTSelect* n=(const ASTSelect*)node; REF(1,n->selector); REF(2,n->arms); break; }
         case AST_SELECT_ARM: { const ASTSelectArm* n=(const ASTSelectArm*)node; REF(1,n->pattern); REF(2,n->body); BOOL(3,n->is_default); break; }
@@ -432,6 +433,7 @@ static OirStatus emit_node_fields(AstEmitContext* c, const ASTNode* node) {
         default: return OIR_STATUS_INVALID_SECTION;
     }
 #undef STR
+#undef OPTSTR
 #undef REF
 #undef BOOL
 #undef I32
