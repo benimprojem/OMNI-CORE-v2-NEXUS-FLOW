@@ -169,6 +169,8 @@ OccModuleInterfaceStatus occ_module_interface_build(
         if (relation->owner_symbol_id == 0u ||
             relation->owner_symbol_id > semantic_result->symbol_count ||
             !selected_symbols[relation->owner_symbol_id]) continue;
+        if (relation->related_symbol_id > semantic_result->symbol_count)
+            goto invalid_semantic_result;
         if (relation->related_symbol_id != 0u &&
             !selected_symbols[relation->related_symbol_id]) continue;
         status = append_relation(relation, out_interface);
@@ -182,6 +184,8 @@ OccModuleInterfaceStatus occ_module_interface_build(
     free(selected_types);
     return OCC_MODULE_INTERFACE_OK;
 
+invalid_semantic_result:
+    status = OCC_MODULE_INTERFACE_INVALID_SEMANTIC_RESULT;
 fail:
     free(selected_symbols);
     free(selected_types);
