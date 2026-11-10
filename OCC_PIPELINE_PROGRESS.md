@@ -1493,9 +1493,17 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Canonical path: `omnicore-sdk/occ/libs/`.
 - Added `osmodule.nxf` and `coremodule.nxf` as comment-only starter files. No unverified functions or API declarations were carried into the new sources.
 - Moved the previous mixed `.exf` draft out of the active lookup path to `temp/legacy-stdlib/osmodule.exf` for later reference.
-- Updated both package configuration copies to include `./occ/libs`; updated SDK README and standard-library/OS bridge documentation.
+- Updated package configuration paths: source-root `omnicore-sdk/occ.ocf` uses `./occ/libs`; runtime `src/c/occ.ocf` uses `../occ/libs` because the executable is `bin/occ`. Updated SDK README and standard-library/OS bridge documentation.
 - `.nxf` is the standard module source format; `.exf` is reserved for external function/object linkage declarations.
 - No compiler C source or parser semantics changed in this layout correction. The existing CI result does not constitute a runtime module-search test; package include resolution still needs a dedicated test when the host loader is integrated.
 
 
-- **CMake staging adjustment:** the first CI run exposed a path collision: the runtime executable is `bin/occ`, so creating `bin/occ/` for libraries is invalid. The canonical source remains `omnicore-sdk/occ/libs/`; CMake now stages that directory at the build root as `build/occ/libs/`, and the runtime config resolves it via `../occ/libs`. The staging test checks this sibling layout.
+- **CMake staging adjustment:** the first CI run exposed a path collision: the runtime executable is `bin/occ`, so creating `bin/occ/` for libraries is invalid. The canonical source remains `omnicore-sdk/occ/libs/`; CMake now stages that directory at `${CMAKE_BINARY_DIR}/occ/libs/`, and the runtime config resolves it via `../occ/libs`. The staging test checks this sibling layout.
+
+
+### CI verification — canonical `occ/libs` staging
+
+- GitHub Actions run [42791692984](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42791692984) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- Ubuntu CTest: **62/62 passed**. The new `occ_predefined_standard_libraries_staged_for_runtime` test confirms that `occ.ocf`, `occ/libs/osmodule.nxf` and `occ/libs/coremodule.nxf` are staged into the expected build layout and that the runtime include path matches.
+- Valgrind CTest: **62/62 passed**.
+- This validates packaging/staging only. It does not claim that the C host has started resolving/importing Nexus Flow modules; the host provider and recursive module scheduler remain the next integration task.
