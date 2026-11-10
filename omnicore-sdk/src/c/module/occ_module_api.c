@@ -4,7 +4,7 @@
 #include <string.h>
 
 static int valid_artifact_kind(uint32_t kind) {
-    return kind >= OIR_KIND_SOURCE_UNIT && kind <= OIR_KIND_LINK_INPUT;
+    return kind >= OIR_KIND_SOURCE_UNIT && kind <= OIR_KIND_MODULE_INTERFACE;
 }
 
 #define OCC_MODULE_CAPABILITY_MASK_V1 ( \
