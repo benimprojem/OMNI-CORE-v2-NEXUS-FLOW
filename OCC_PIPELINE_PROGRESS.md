@@ -1696,3 +1696,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - The writer validates the in-memory snapshot before serialization and does not modify caller output on validation/allocation failure; OIR container write still enforces caller capacity.
 - Added CTest coverage for snapshot → OIR bytes → decoded snapshot round-trip, source identity/job ID, visibility flags, type and Group relation preservation, private symbol exclusion, and invalid/non-finalized input rejection.
 - This is the transport codec and structural validation layer only. It is not yet wired into the Semantic DLL or host scheduler; importer visibility/collision/namespace rules and the independent verifier DLL's dedicated MODULE_INTERFACE validation remain next integration work.
+
+
+### Independent Module Interface Verifier DLL — 2026-11-10
+
+- Added `occ_module_interface_verify_stage`, a separate C shared-library stage for OIR Module Interface artifacts. It does not alter or weaken the existing OIR_MODULE verifier contract.
+- The stage accepts exactly one Semantic-produced, valid Module Interface artifact for the current job, validates it through the dedicated OIR Module Interface reader, and republishes the same sections with producer stage `OCC_STAGE_OIR_VERIFY`.
+- Output-buffer negotiation is side-effect free: it reports the exact required capacity before emitting output or diagnostics. Invalid artifacts produce stable stage diagnostics.
+- The Module Interface artifact reader now accepts both Semantic-produced input and Verifier-stamped output, allowing downstream consumers to re-open the verified artifact.
+- Added a dynamic DLL test using the host module loader. It checks descriptor validation, retry/output sizing, artifact identity/job preservation, verifier producer stamping and clean diagnostic behavior.
+- This verifier is an independent validation gate for module-interface transport; it does not perform importer visibility, alias, namespace, collision or type-binding semantics.
