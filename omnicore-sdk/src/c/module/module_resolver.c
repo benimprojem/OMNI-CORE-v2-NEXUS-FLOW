@@ -119,6 +119,8 @@ static OccModuleResolverStatus resolver_map_provider_status(
             return OCC_MODULE_RESOLVER_SOURCE_AMBIGUOUS;
         case OCC_MODULE_SOURCE_PROVIDER_IO_ERROR:
             return OCC_MODULE_RESOLVER_SOURCE_IO_ERROR;
+        case OCC_MODULE_SOURCE_PROVIDER_LIMIT_EXCEEDED:
+            return OCC_MODULE_RESOLVER_LIMIT_EXCEEDED;
         case OCC_MODULE_SOURCE_PROVIDER_ERROR:
         default:
             return OCC_MODULE_RESOLVER_PROVIDER_ERROR;
