@@ -2766,23 +2766,84 @@ static int test_use_path_malformed_and_exact_spans(void) {
     return 1;
 }
 
-static int test_use_namespace_prefix_suppression_alias(void) {
-    static const char source[] = "use db.mysql.sql as _;\n";
-    ParserContext* parser = parser_init_source("use-prefix-drop.nxf",
+static int test_use_alias_and_namespace_ast_codec(void) {
+    static const char source[] =
+        "use db.mysql.sql as connector ns sql, db.mysql ns mysql, legacy as _;\\n"
+        "use plain;\\n";
+    static const char* invalid_sources[] = {
+        "use db.mysql ns ;",
+        "use db.mysql ns mysql ns sql;",
+        "use db.mysql as ;"
+    };
+    ParserContext* parser = parser_init_source("use-alias-namespace.nxf",
         (const uint8_t*)source, sizeof(source)-1u);
-    ASTUse* use_node;
+    ASTUse* first;
+    ASTUse* second;
+    ASTUse* third;
+    ASTUse* fourth;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
     int valid = 0;
+    size_t i;
     if (!parser) return 0;
     if (parser_run(parser)==PARSER_STATUS_OK && parser->error_count==0 &&
         parser->ast_root && ((ASTNode*)parser->ast_root)->type==AST_PROGRAM) {
-        use_node=(ASTUse*)((ASTProgram*)parser->ast_root)->declarations;
-        valid=use_node && use_node->module_name &&
-            strcmp(use_node->module_name,"db.mysql.sql")==0 &&
-            use_node->alias && strcmp(use_node->alias,"_")==0 &&
-            ast_validate((ASTNode*)parser->ast_root);
+        first=(ASTUse*)((ASTProgram*)parser->ast_root)->declarations;
+        second=first?(ASTUse*)first->base.next:NULL;
+        third=second?(ASTUse*)second->base.next:NULL;
+        fourth=third?(ASTUse*)third->base.next:NULL;
+        valid=first && second && third && fourth && !fourth->base.next &&
+            strcmp(first->module_name,"db.mysql.sql")==0 &&
+            strcmp(first->alias,"connector")==0 &&
+            strcmp(first->namespace_name,"sql")==0 &&
+            strcmp(second->module_name,"db.mysql")==0 &&
+            second->alias==NULL && strcmp(second->namespace_name,"mysql")==0 &&
+            strcmp(third->module_name,"legacy")==0 &&
+            strcmp(third->alias,"_")==0 && third->namespace_name==NULL &&
+            strcmp(fourth->module_name,"plain")==0 &&
+            fourth->alias==NULL && fourth->namespace_name==NULL &&
+            first->base.source_span.has_location &&
+            first->base.source_span.start_offset==4u &&
+            first->base.source_span.end_offset==
+                (uint64_t)(strstr(source,"sql,")-source+3u) &&
+            second->base.source_span.end_offset==
+                (uint64_t)(strstr(source,"ns mysql")-source+8u) &&
+            ast_validate((ASTNode*)parser->ast_root,NULL);
+        if (valid) {
+            stream=tmpfile();
+            valid=stream && ast_serialize((ASTNode*)parser->ast_root,stream);
+            if(valid) {
+                rewind(stream);
+                decoded=ast_deserialize(stream);
+                valid=decoded && ast_validate(decoded,NULL);
+            }
+            if(valid) {
+                ASTUse* roundtrip=(ASTUse*)((ASTProgram*)decoded)->declarations;
+                valid=roundtrip && roundtrip->namespace_name &&
+                    strcmp(roundtrip->namespace_name,"sql")==0 &&
+                    roundtrip->alias && strcmp(roundtrip->alias,"connector")==0;
+            }
+        }
     }
-    parser_free(parser);
-    return valid;
+    if(decoded) ast_destroy(decoded);
+    if(stream) fclose(stream);
+    parser_destroy(parser);
+    if(!valid) {
+        fprintf(stderr,"USE alias/namespace AST, span or codec test failed.\\n");
+        return 0;
+    }
+    for(i=0;i<sizeof(invalid_sources)/sizeof(invalid_sources[0]);++i) {
+        parser=parser_init_source("use-namespace-invalid.nxf",
+            (const uint8_t*)invalid_sources[i],strlen(invalid_sources[i]));
+        if(!parser) return 0;
+        if(parser_run(parser)==PARSER_STATUS_OK || parser->error_count==0) {
+            fprintf(stderr,"Malformed USE namespace accepted: %s\\n",invalid_sources[i]);
+            parser_destroy(parser);
+            return 0;
+        }
+        parser_destroy(parser);
+    }
+    return 1;
 }
 
 static int test_use_comma_list_spans(void) {
@@ -3419,7 +3480,7 @@ int main(int argc, char** argv) {
     if (!test_dotted_module_use_path()) return 1;
     if (!test_use_path_malformed_and_exact_spans()) return 1;
     if (!test_use_comma_list_spans()) return 1;
-    if (!test_use_namespace_prefix_suppression_alias()) { fprintf(stderr, "Use namespace-prefix suppression alias test failed.\\n"); return 1; }
+    if (!test_use_alias_and_namespace_ast_codec()) { fprintf(stderr, "USE alias/namespace AST codec test failed.\\n"); return 1; }
     if (!test_pointer_reference_type_declarators()) return 1;
     if (!test_function_type_alias_and_callback_parameter()) return 1;
     if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\\n"); return 1; }
