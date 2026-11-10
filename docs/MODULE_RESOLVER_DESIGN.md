@@ -123,7 +123,7 @@ No Codegen work is authorized by this plan. AST/Parser gates and Semantic import
 
 ## 9. C graph-core implementation status
 
-The first C implementation is in `omnicore-sdk/src/c/module/module_resolver.h/.c` and is built as the independent static target `occ_module_resolver`. It intentionally has no filesystem dependency and does not depend on Parser internals.
+The first C implementation is in `omnicore-sdk/src/c/module/module_resolver.h/.c` and is built as the independent static target `occ_module_resolver`. It intentionally has no filesystem dependency and does not depend on Parser internals. This is the portable graph/provider-contract core, not yet a pipeline DLL: a separate resolver-stage DLL wrapper and its input/output artifact ABI must wait for the versioned dependency/interface artifact and host scheduler contract.
 
 - The provider supplies a canonical identity and borrowed source bytes; the resolver computes a stable 64-bit FNV-1a content fingerprint. Identical identity+fingerprint reuses the stable 1-based module ID, while identity with different content is rejected. The fingerprint is not cryptographic.
 - The graph owns canonical identity and original dotted import-path strings. Each dependency edge retains importer/dependency IDs, AST_USE node ID, and the complete `OccSourceSpan`.
