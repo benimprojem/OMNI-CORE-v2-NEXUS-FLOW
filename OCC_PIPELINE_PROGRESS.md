@@ -1734,3 +1734,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - The reader now permits both host-produced and verifier-stamped manifests, while still rejecting any other producer stage.
 - Added a dynamic module-loader CTest for ABI descriptor, invocation, job preservation, verifier stamp and clean diagnostics.
 - This verifies transport integrity only; the importing Semantic DLL has not yet consumed the manifest.
+
+
+### Semantic import bundle matcher — 2026-11-10
+
+- Added `occ_module_import_bundle_bind()` as a C-side boundary validator between verified host imports and verified Module Interface artifacts.
+- It requires the expected importer canonical identity to match the manifest, requires verifier-stamped valid OIR artifacts, and requires every interface artifact to share the manifest job ID.
+- It maps each import record to exactly one matching dependency canonical identity. Repeated USE declarations of one module share the same decoded interface; duplicate interface artifacts, missing dependencies, unused extra interfaces and importer mismatches are rejected.
+- Returned binding views borrow the decoded manifest/interface storage; destroy frees only the mapping array.
+- Added tests for repeated dependency mapping, independent alias/namespace retention, importer mismatch, missing interface and duplicate interface rejection.
+- Still pending: Semantic DLL must accept and pass the verified manifest/interface set into this matcher, then apply the language's visibility and binding rules. This matcher does not itself expose symbols to expressions.
