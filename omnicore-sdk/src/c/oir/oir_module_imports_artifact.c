@@ -233,7 +233,8 @@ OirStatus oir_module_imports_artifact_open(const uint8_t* bytes,size_t length,
     if(st!=OIR_STATUS_OK) return st;
     if(out->envelope.section_count!=1u ||
        out->envelope.header.artifact_kind!=OIR_KIND_MODULE_IMPORTS ||
-       out->envelope.header.producer_stage_id!=OCC_STAGE_OCC_HOST ||
+       (out->envelope.header.producer_stage_id!=OCC_STAGE_OCC_HOST &&
+        out->envelope.header.producer_stage_id!=OCC_STAGE_OIR_VERIFY) ||
        out->envelope.header.validity!=OIR_VALIDITY_VALID ||
        out->envelope.header.payload_schema_major!=1u ||
        out->envelope.header.payload_schema_minor!=0u) return OIR_STATUS_INVALID_HEADER;
