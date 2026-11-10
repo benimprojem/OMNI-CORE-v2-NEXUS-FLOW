@@ -2876,8 +2876,13 @@ static int test_use_comma_list_spans(void) {
             ast_validate((ASTNode*)parser->ast_root,NULL);
     }
     if(!valid) {
+        Error* diagnostic;
         fprintf(stderr,"USE comma-list ownership/span test failed (errors=%d, status=%d).\\n",
             parser->error_count,(int)parser_get_status(parser));
+        for(diagnostic=parser->error_head;diagnostic;diagnostic=diagnostic->next)
+            fprintf(stderr,"  parser error %d at %d:%d: %s\\n",
+                diagnostic->code,diagnostic->line,diagnostic->col,
+                diagnostic->message?diagnostic->message:"(null)");
         if(first) fprintf(stderr," first path=%s alias=%s span=%llu..%llu loc=%u\\n",
             first->module_name?first->module_name:"(null)",
             first->alias?first->alias:"(null)",
