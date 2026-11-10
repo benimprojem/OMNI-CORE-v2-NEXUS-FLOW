@@ -39,6 +39,13 @@ typedef struct OirModuleImportsArtifactView {
 /* Build an owned manifest from scheduler bindings. The importer identity and
  * each resolved dependency identity are canonical identities, not paths to
  * be re-resolved by Semantic. */
+OirStatus oir_module_imports_build_from_scheduler(
+    const OccModuleScheduler* scheduler,
+    uint32_t importer_module_id,
+    const char* importer_identity,
+    OirModuleImports* out_imports
+);
+
 OirStatus oir_module_imports_build(
     const char* importer_identity,
     const OccModuleImportBinding* bindings,
