@@ -9,10 +9,10 @@ static void p64(uint8_t*p,uint64_t v){p32(p,(uint32_t)v);p32(p+4,(uint32_t)(v>>3
 static int utf8(const uint8_t*s,uint32_t n){uint32_t i=0;while(i<n){uint8_t a=s[i];uint32_t cp,k,j;if(!a)return 0;if(a<128){i++;continue;}if(a>=194&&a<=223){cp=a&31;k=1;}else if(a>=224&&a<=239){cp=a&15;k=2;}else if(a>=240&&a<=244){cp=a&7;k=3;}else return 0;if(k>n-i-1)return 0;for(j=1;j<=k;j++){uint8_t b=s[i+j];if((b&192)!=128)return 0;cp=(cp<<6)|(b&63);}if((k==1&&cp<128)||(k==2&&cp<2048)||(k==3&&cp<65536)||(cp>=55296&&cp<=57343)||cp>1114111)return 0;i+=k+1;}return 1;}
 static int range(uint32_t a,uint32_t n,uint32_t max){return a<=max&&n<=max-a;}
 OirStatus oir_module_open(const uint8_t*p,size_t n,OirModuleView*v){
- uint32_t z[7],i,j;uint64_t need=36;const uint8_t*q;
+ uint32_t z[7],i,j;uint16_t schema_minor;uint64_t need=36;const uint8_t*q;
  if(!p||!v)return OIR_STATUS_INVALID_ARGUMENT;memset(v,0,sizeof(*v));
  if(n<36)return OIR_STATUS_INVALID_HEADER;
- if(g16(p)!=OIR_MODULE_SCHEMA_MAJOR||g16(p+2)!=OIR_MODULE_SCHEMA_MINOR||g32(p+4)!=0)return OIR_STATUS_UNSUPPORTED_VERSION;
+ schema_minor=g16(p+2);if(g16(p)!=OIR_MODULE_SCHEMA_MAJOR||schema_minor<1u||schema_minor>OIR_MODULE_SCHEMA_MINOR||g32(p+4)!=0)return OIR_STATUS_UNSUPPORTED_VERSION;
  for(i=0;i<7;i++){z[i]=g32(p+8+4*i);if(z[i]>OIR_MODULE_TABLE_COUNT_MAX&&i<6)return OIR_STATUS_INVALID_HEADER;}
  if(z[6]>OIR_MODULE_STRING_BYTES_MAX)return OIR_STATUS_INVALID_HEADER;
  need+=(uint64_t)z[0]*12+(uint64_t)z[1]*20+(uint64_t)z[2]*16+(uint64_t)z[3]*16+(uint64_t)z[4]*24+(uint64_t)z[5]*16+z[6];
@@ -21,7 +21,7 @@ OirStatus oir_module_open(const uint8_t*p,size_t n,OirModuleView*v){
  v->block_count=z[2];v->blocks=q;q+=(size_t)z[2]*16;v->value_count=z[3];v->values=q;q+=(size_t)z[3]*16;
  v->instruction_count=z[4];v->instructions=q;q+=(size_t)z[4]*24;v->operand_count=z[5];v->operands=q;q+=(size_t)z[5]*16;
  v->strings=q;v->strings_length=z[6];if(z[6]&&!utf8(q,z[6]))return OIR_STATUS_INVALID_SECTION;
- for(i=0;i<z[0];i++){const uint8_t*x=v->types+i*12;uint16_t kind=g16(x+4),width=g16(x+6);uint32_t flags=g32(x+8);if(g32(x)!=i+1||kind<1||kind>4||(flags&~OIR_MODULE_TYPE_KNOWN_FLAGS)!=0u||((kind==OIR_MODULE_TYPE_FUNCTION)?(width!=0||flags!=0):(!width))||(kind!=OIR_MODULE_TYPE_INTEGER&&(flags&OIR_MODULE_TYPE_FLAG_SIGNED)!=0u))return OIR_STATUS_INVALID_SECTION;}
+ for(i=0;i<z[0];i++){const uint8_t*x=v->types+i*12;uint16_t kind=g16(x+4),width=g16(x+6);uint32_t flags=g32(x+8);if(g32(x)!=i+1||kind<1||kind>(schema_minor>=2u?8u:4u)||(flags&~OIR_MODULE_TYPE_KNOWN_FLAGS)!=0u||((kind==OIR_MODULE_TYPE_FUNCTION)?(width!=0||flags!=0):(!width))||(kind!=OIR_MODULE_TYPE_INTEGER&&(flags&OIR_MODULE_TYPE_FLAG_SIGNED)!=0u))return OIR_STATUS_INVALID_SECTION;if((kind==OIR_MODULE_TYPE_BIT&&width!=1u)||(kind==OIR_MODULE_TYPE_BYTE&&width!=8u)||((kind==OIR_MODULE_TYPE_BIT_VECTOR||kind==OIR_MODULE_TYPE_BYTE_BLOCK)&&width!=8u&&width!=16u&&width!=32u&&width!=64u&&width!=128u))return OIR_STATUS_INVALID_SECTION;}
  for(i=0;i<z[1];i++){const uint8_t*x=v->functions+i*20;uint32_t a=g32(x+4),b=g32(x+8);if(g32(x)!=i+1||!b||!range(a,b,z[6])||!utf8(v->strings+a,b)||!g32(x+12)||g32(x+12)>z[0]||!g32(x+16)||g32(x+16)>z[2])return OIR_STATUS_INVALID_SECTION;}
  for(i=0;i<z[2];i++){const uint8_t*x=v->blocks+i*16;if(g32(x)!=i+1||!g32(x+4)||g32(x+4)>z[1]||!range(g32(x+8),g32(x+12),z[4]))return OIR_STATUS_INVALID_SECTION;}
  for(i=0;i<z[3];i++){const uint8_t*x=v->values+i*16;if(g32(x)!=i+1||!g32(x+4)||g32(x+4)>z[0]||g32(x+8)>z[4]||g32(x+12))return OIR_STATUS_INVALID_SECTION;}
