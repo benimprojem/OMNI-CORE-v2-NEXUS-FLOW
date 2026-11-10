@@ -177,3 +177,81 @@ The two `.nxf` files currently contain only starter comments. The previous mixed
 The package-root `omnicore-sdk/occ.ocf` uses `./occ/libs`. The runtime copy `omnicore-sdk/src/c/occ.ocf` is placed beside the `bin/occ` executable and uses `../occ/libs`; CMake stages the source `occ/` directory at the build root, avoiding a collision between the executable file `bin/occ` and a same-named directory. CTest `occ_predefined_standard_libraries_staged_for_runtime` verifies the staged files and runtime config path.
 
 **Integration boundary:** the current C host reads the runtime OCF for its language setting only; it does not yet consume `[include]` to resolve source modules. A real project-config reader/provider must be implemented before the resolver can locate `occ/libs/osmodule.nxf` or user modules.
+
+
+## 14. Dependency loading tree and host scheduler (implementation progress)
+
+The intended loading tree is a recursive graph walk, not a flat list of source files. Each node represents one canonical module identity; each edge represents one explicit `use` or the root's implicit `osmodule` dependency. Alias (`as`) and namespace (`ns`) are edge-local Semantic bindings and do not create additional module nodes.
+
+### 14.1 Loading tree
+
+```text
+Compilation Job
+└─ Root Module (main.nxf)
+   ├─ implicit osmodule [unless no: osmodule;]
+   ├─ use db.mysql as db
+   │  └─ db.mysql
+   │     ├─ use db.types
+   │     │  └─ db.types
+   │     └─ use db.driver
+   │        └─ db.driver
+   └─ use math.vector ns vec
+      └─ math.vector
+```
+
+The diagram is illustrative: actual edges and module names come from the source-provider's canonical identity and the AST_USE records. A repeated canonical identity is one graph node even when reached through multiple paths or imported with different aliases/namespaces.
+
+### 14.2 Recursive scheduler algorithm
+
+1. Register the root using its canonical identity and content fingerprint; mark it `RESOLVING`.
+2. Run Lexer and Parser for that module and retain its AST artifact for the job.
+3. Walk the module AST's top-level `AST_USE` declarations. Preserve each node ID, dotted request, alias, namespace and source span.
+4. For each USE, call the host source provider. The provider applies project-root, `[include]`, standard-library and package policy; it returns canonical identity and borrowed source bytes. The portable resolver itself never opens paths.
+5. Register/reuse the canonical graph node by identity + fingerprint. Add the importer→dependency edge with the originating USE node ID/span.
+6. If the dependency is `RESOLVED`, reuse its retained AST/interface. If `RESOLVING`, report a cycle at the current USE span. If `DISCOVERED`, recursively Lexer/Parser it and scan its USE declarations.
+7. After all outgoing dependencies have been discovered successfully, mark that module `RESOLVED` in the discovery graph. A parse/provider failure marks it `FAILED`; it cannot publish a valid interface.
+8. Once discovery is complete, obtain a dependency-first schedule and run Semantic on dependencies before importers. Publish an interface only after that module's Semantic result is valid.
+9. Give each importer its validated dependency interfaces plus its own AST to Semantic. The root's valid result is the compilation's Semantic output.
+
+### 14.3 Dependency-first schedule API
+
+The portable graph now exposes:
+
+```c
+OccModuleResolverStatus occ_module_resolver_dependency_order(
+    const OccModuleResolver* resolver,
+    uint32_t* out_module_ids,
+    size_t out_capacity,
+    size_t* out_count
+);
+```
+
+The API performs deterministic DFS ordering: dependencies precede importers and each node appears once. It rejects insufficient output capacity and cycles; on failure `out_count` is zero, so callers must not consume a partial order. The host scheduler still must ensure all nodes have completed source/Parser discovery before requesting the final order.
+
+### 14.4 Discovery versus Semantic execution
+
+Discovery and Semantic are separate passes:
+
+- **Discovery pass:** provider lookup → Lexer/Parser → AST_USE scan → graph edges → cycle/failure detection.
+- **Semantic pass:** dependency-first schedule → per-module Semantic → validated exported interface → importer Semantic.
+
+This prevents a module from being marked semantically usable merely because its source parsed. It also keeps imported symbol visibility, Group ownership, alias/namespace collision and type checking in Semantic—not in the Resolver.
+
+### 14.5 Current implementation boundary
+
+Implemented in the portable graph core:
+- canonical module registration/cache identity and edge storage;
+- provider callback contract and source budget checks;
+- implicit `osmodule` edge representation;
+- dependency-first ordering API and cycle rejection.
+
+Still not implemented:
+- filesystem/package source provider;
+- recursive host scheduler invoking Lexer/Parser DLLs;
+- AST_USE scanner that converts AST nodes into resolver requests;
+- retained per-module AST artifact/job store;
+- dependency OIR interface artifact and validator;
+- Semantic DLL imported-interface input and symbol binding;
+- end-to-end integration tests.
+
+The tree above is the normative intended behavior, not a claim that module loading is operational end-to-end yet.
