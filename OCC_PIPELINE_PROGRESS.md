@@ -1360,3 +1360,5 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 
 - Follow-up OIR bridge parity: frontend writer emits optional AST_USE field 3, reader restores/frees `namespace_name`, and field schema accepts the optional string while preserving compatibility with older payloads that contain only fields 1–2. Added `test_use_namespace_oir_roundtrip()` for Parser → OIR AST payload → AST → canonical payload byte equality. CI remains unverified.
 - AST stream regression updated to assert newly written v5 headers and successful reading of a legacy v4 stream. The v4 fixture uses an AST kind whose payload layout is unchanged; old AST_USE nodes remain decoded without a namespace value.
+
+- CI run `42769028209` / commit `189cb9c` exposed one failing existing USE path span assertion in the Parser CTest (59/60 other tests passed in the ASan/UBSan run). The fixture expected end offset 23 for `use alpha.beta.gamma as mod;`, but the parser correctly spans through the alias token: exclusive byte end 27, end column 28. Corrected the test expectation in `c6155d4`; rerun is pending. This was a test expectation correction, not a parser grammar change.
