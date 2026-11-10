@@ -1641,4 +1641,7 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 - Fixture düzeltmesinden sonraki commit `c72ba77a` için CI run [42813278689](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42813278689) **5/5 başarılı**: Ubuntu CTest 65/65, macOS, Windows, ASan/UBSan ve Valgrind.
 - Bu run, scheduler'ın dependency-first ve cycle testlerinin çalıştığını doğruluyor.
-- Sonraki ek güvenlik sınırı commit'i `b663a9f5` AST_USE kopyalama/collection aşamasını Resolver'ın `max_edges` ve `max_text_bytes` limitleriyle sınırlıyor; bu commit'in ayrı CI run'ı [42813616875](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42813616875) henüz devam ediyor. Bu nedenle son kod durumu için 5/5 sonucu henüz ilan edilmiyor.
+- Sonraki güvenlik sınırı commit'i `b663a9f5` AST_USE kopyalama/collection aşamasını Resolver'ın `max_edges` ve `max_text_bytes` limitleriyle sınırlıyor. Bu commit'in CI run'ı [42813616875](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42813616875) **5/5 başarılı** oldu: Ubuntu, macOS, Windows, ASan/UBSan ve Valgrind.
+
+
+- Ek regresyon: `e85b4586` ile AST_USE path metninin `max_text_bytes` sınırını aşması durumunda Scheduler'ın Semantic aşamasına geçmeden `RESOURCE_LIMIT` döndürdüğü test eklendi. Bu son test commit'inin CI run'ı [42813781295](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42813781295) devam ediyor; Ubuntu CTest 65/65 ve ASan/UBSan başarılı, macOS/Windows/Valgrind sonuçları bekleniyor.
