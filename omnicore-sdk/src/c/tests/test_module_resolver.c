@@ -230,7 +230,7 @@ static int test_dependency_first_schedule(void) {
     ORDER_CHECK(occ_module_resolver_dependency_order(&resolver, order, 3u, &count) == OCC_MODULE_RESOLVER_OK);
     ORDER_CHECK(count == 3u && order[0] == b && order[1] == a && order[2] == root);
     count = 99u;
-    ORDER_CHECK(occ_module_resolver_dependency_order(&resolver, order, 2u, &count) == OCC_MODULE_RESOLVER_LIMIT_EXCEEDED);
+    ORDER_CHECK(occ_module_resolver_dependency_order(&resolver, order, 2u, &count) == OCC_MODULE_RESOLVER_INVALID_ARGUMENT);
     ORDER_CHECK(count == 0u);
     occ_module_resolver_destroy(&resolver);
     ok = 1;
