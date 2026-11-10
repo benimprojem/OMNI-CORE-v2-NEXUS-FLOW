@@ -457,7 +457,7 @@ static int test_use_alias_and_namespace_binding_preserved(void) {
     CHECK(binding.importer_module_id == 1u);
     CHECK(binding.dependency_module_id == 2u);
     CHECK(binding.dependency_identity != NULL);
-    CHECK(strcmp(binding.dependency_identity, "file:///modules/a.nxf") == 0);
+    CHECK(strcmp(binding.dependency_identity, "test://a") == 0);
     CHECK(strcmp(binding.requested_path, "a") == 0);
     CHECK(binding.alias && strcmp(binding.alias, "math") == 0);
     CHECK(binding.namespace_name &&
