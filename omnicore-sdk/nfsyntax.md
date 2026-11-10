@@ -113,7 +113,7 @@ f:isim_getir(self)> self.ad;
 
 **Modül İçe Aktarma (Imports):**
 ```nxf
-use "CoreModule.nxf" as core;
+use CoreModule as core;
 import "NetModule";
 ```
 
