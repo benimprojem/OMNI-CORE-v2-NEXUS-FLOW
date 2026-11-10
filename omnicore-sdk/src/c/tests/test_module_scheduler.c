@@ -16,12 +16,19 @@ typedef struct FakePipeline {
     size_t semantic_count;
     int cycle_mode;
     int long_import_mode;
+    int duplicate_import_mode;
+    int implicit_osmodule_mode;
+    int parse_root_count;
+    int parse_a_count;
+    int parse_b_count;
+    int parse_osmodule_count;
 } FakePipeline;
 
 static const char* fake_source_for(const char* path, int cycle_mode) {
     if (strcmp(path, "root") == 0) return "root";
     if (strcmp(path, "a") == 0) return "a";
     if (strcmp(path, "b") == 0) return "b";
+    if (strcmp(path, "osmodule") == 0) return "osmodule";
     (void)cycle_mode;
     return NULL;
 }
@@ -43,6 +50,8 @@ static OccModuleSourceProviderStatus fake_resolve(
         identity = "test://a";
     else if (strcmp(request->requested_path, "b") == 0)
         identity = "test://b";
+    else if (strcmp(request->requested_path, "osmodule") == 0)
+        identity = "test://osmodule";
     else return OCC_MODULE_SOURCE_PROVIDER_NOT_FOUND;
     out_source->canonical_identity = identity;
     out_source->source_bytes = (const uint8_t*)bytes;
@@ -92,7 +101,9 @@ static int fake_parse(void* context, const OccModuleSourceView* source,
     name = (const char*)source->source_bytes;
     program = ast_create(AST_PROGRAM);
     if (!program) return 0;
-    ((ASTProgram*)program)->disable_osmodule = 1u;
+    ((ASTProgram*)program)->disable_osmodule =
+        (strcmp(name, "root") == 0 && ((FakePipeline*)context)->implicit_osmodule_mode)
+            ? 0u : 1u;
     ((ASTProgram*)program)->disable_osmodule_span.has_location = 1u;
     ((ASTProgram*)program)->disable_osmodule_span.start_line = 1u;
     ((ASTProgram*)program)->disable_osmodule_span.start_column = 1u;
@@ -107,20 +118,27 @@ static int fake_parse(void* context, const OccModuleSourceView* source,
     program->source_span.end_column = 1u;
     if (strcmp(name, "root") == 0) {
         FakePipeline* pipeline = (FakePipeline*)context;
+        ++pipeline->parse_root_count;
         if (pipeline->long_import_mode) {
             if (!append_use(program, "module_name_that_exceeds_limit")) {
                 ast_destroy(program); return 0;
             }
         } else if (!append_use(program, "a") ||
+            (pipeline->duplicate_import_mode && !append_use(program, "a")) ||
             (!pipeline->cycle_mode && !append_use(program, "b"))) {
             ast_destroy(program); return 0;
         }
     } else if (strcmp(name, "a") == 0) {
+        ++((FakePipeline*)context)->parse_a_count;
         if (!append_use(program, ((FakePipeline*)context)->cycle_mode ? "root" : "b")) {
             ast_destroy(program); return 0;
         }
     } else if (strcmp(name, "b") == 0) {
+        ++((FakePipeline*)context)->parse_b_count;
         /* leaf */
+    } else if (strcmp(name, "osmodule") == 0) {
+        ++((FakePipeline*)context)->parse_osmodule_count;
+        /* Standard module opts out of its own implicit dependency. */
     } else {
         ast_destroy(program); return 0;
     }
@@ -135,7 +153,8 @@ static int fake_semantic(void* context, uint32_t module_id,
     if (!pipeline || !identity || pipeline->semantic_count >= 8u) return 0;
     if ((strcmp(identity, "test://b") == 0 && module_id != 3u) ||
         (strcmp(identity, "test://a") == 0 && module_id != 2u) ||
-        (strcmp(identity, "test://root") == 0 && module_id != 1u))
+        (strcmp(identity, "test://root") == 0 && module_id != 1u) ||
+        (strcmp(identity, "test://osmodule") == 0 && module_id != 2u))
         return 0;
     pipeline->semantic_order[pipeline->semantic_count++] = module_id;
     return 1;
@@ -183,6 +202,7 @@ static int test_dependency_first_semantic_schedule(void) {
         pipeline.semantic_order[0] != 3u ||
         pipeline.semantic_order[1] != 2u ||
         pipeline.semantic_order[2] != 1u ||
+        pipeline.parse_a_count != 1 || pipeline.parse_b_count != 1 ||
         fake_provider.release_count != 4) {
         occ_module_scheduler_destroy(&scheduler);
         return 0;
@@ -277,8 +297,103 @@ static int test_dependency_cycle_is_reported(void) {
     return 1;
 }
 
+
+static int test_duplicate_import_reuses_one_module(void) {
+    OccModuleScheduler scheduler;
+    OccModuleResolverConfig config = {8u, 16u, 1024u, 4096u};
+    OccModuleSourceProvider provider;
+    OccModuleSchedulerCallbacks callbacks;
+    OccModuleSourceRequest root_request;
+    OccSourceSpan root_span;
+    FakeProvider fake_provider;
+    FakePipeline pipeline;
+    OccModuleSchedulerStatus status;
+    memset(&scheduler, 0, sizeof(scheduler));
+    memset(&provider, 0, sizeof(provider));
+    memset(&callbacks, 0, sizeof(callbacks));
+    memset(&root_request, 0, sizeof(root_request));
+    memset(&root_span, 0, sizeof(root_span));
+    memset(&fake_provider, 0, sizeof(fake_provider));
+    memset(&pipeline, 0, sizeof(pipeline));
+    pipeline.duplicate_import_mode = 1;
+    provider.context = &fake_provider;
+    provider.resolve = fake_resolve;
+    provider.release = fake_release;
+    callbacks.context = &pipeline;
+    callbacks.parse = fake_parse;
+    callbacks.semantic = fake_semantic;
+    root_span.has_location = 1u;
+    root_span.start_line = 1u;
+    root_span.start_column = 1u;
+    root_request.requested_path = "root";
+    root_request.use_span = &root_span;
+    CHECK(occ_module_scheduler_init(&scheduler, &config, &provider,
+        &callbacks) == OCC_MODULE_SCHEDULER_OK);
+    status = occ_module_scheduler_run(&scheduler, &root_request);
+    if (status != OCC_MODULE_SCHEDULER_OK ||
+        pipeline.semantic_count != 3u ||
+        pipeline.parse_a_count != 1 || pipeline.parse_b_count != 1 ||
+        fake_provider.release_count != 5) {
+        fprintf(stderr, "duplicate import test returned %s (%d)\n",
+            occ_module_scheduler_status_string(status), (int)status);
+        occ_module_scheduler_destroy(&scheduler);
+        return 0;
+    }
+    occ_module_scheduler_destroy(&scheduler);
+    return 1;
+}
+
+static int test_implicit_osmodule_is_dependency_first(void) {
+    OccModuleScheduler scheduler;
+    OccModuleResolverConfig config = {8u, 16u, 1024u, 4096u};
+    OccModuleSourceProvider provider;
+    OccModuleSchedulerCallbacks callbacks;
+    OccModuleSourceRequest root_request;
+    OccSourceSpan root_span;
+    FakeProvider fake_provider;
+    FakePipeline pipeline;
+    OccModuleSchedulerStatus status;
+    memset(&scheduler, 0, sizeof(scheduler));
+    memset(&provider, 0, sizeof(provider));
+    memset(&callbacks, 0, sizeof(callbacks));
+    memset(&root_request, 0, sizeof(root_request));
+    memset(&root_span, 0, sizeof(root_span));
+    memset(&fake_provider, 0, sizeof(fake_provider));
+    memset(&pipeline, 0, sizeof(pipeline));
+    pipeline.implicit_osmodule_mode = 1;
+    provider.context = &fake_provider;
+    provider.resolve = fake_resolve;
+    provider.release = fake_release;
+    callbacks.context = &pipeline;
+    callbacks.parse = fake_parse;
+    callbacks.semantic = fake_semantic;
+    root_span.has_location = 1u;
+    root_span.start_line = 1u;
+    root_span.start_column = 1u;
+    root_request.requested_path = "root";
+    root_request.use_span = &root_span;
+    CHECK(occ_module_scheduler_init(&scheduler, &config, &provider,
+        &callbacks) == OCC_MODULE_SCHEDULER_OK);
+    status = occ_module_scheduler_run(&scheduler, &root_request);
+    if (status != OCC_MODULE_SCHEDULER_OK ||
+        pipeline.semantic_count != 2u ||
+        pipeline.semantic_order[0] != 2u ||
+        pipeline.semantic_order[1] != 1u ||
+        pipeline.parse_osmodule_count != 1 ||
+        fake_provider.release_count != 2) {
+        fprintf(stderr, "implicit osmodule test returned %s (%d)\n",
+            occ_module_scheduler_status_string(status), (int)status);
+        occ_module_scheduler_destroy(&scheduler);
+        return 0;
+    }
+    occ_module_scheduler_destroy(&scheduler);
+    return 1;
+}
+
 int main(void) {
     if (!test_dependency_first_semantic_schedule()) return 1;
+    if (!test_duplicate_import_reuses_one_module()) return 1;
+    if (!test_implicit_osmodule_is_dependency_first()) return 1;
     if (!test_dependency_cycle_is_reported()) return 1;
     if (!test_use_collection_resource_limit()) return 1;
     return 0;
