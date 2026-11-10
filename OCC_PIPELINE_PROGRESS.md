@@ -1662,3 +1662,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 
 - Son provider test/CI düzeltme commit'i: `ccf78e13` (traversal reddi + POSIX realpath bildirimi), `2aaa8921` (erişim reddi statüsü), `189815d1` (platformlar arası satır sonu testi). Son CI tüm kontrollerde yeşil.
+
+### Module Scheduler ek regresyon kapsamı — 2026-11-10
+
+- Scheduler testlerine aynı modülün birden fazla top-level use ile istenmesi durumu eklendi. Beklenen davranış: canonical identity tek graph node olarak kalır, Parser callback modülü yalnızca bir kez çalıştırır, Semantic callback de modülü yalnızca bir kez işler.
+- ASTProgram.disable_osmodule == 0 durumu için ayrı test eklendi. Root modülün implicit osmodule bağımlılığı explicit importlardan bağımsız kaydedilir ve Semantic sırası osmodule → root olur. Test fixture'ında osmodule kendi implicit bağımlılığını disable_osmodule ile kapatır.
+- Mevcut testler cycle, resource limit, dependency-first sıralama ve provider view release sayısını da korur.
+- **CI:** Test genişletme commit'leri için Actions çalışıyor; tüm platformlar, ASan/UBSan ve Valgrind sonuçları tamamlanmadan yeni kapsam doğrulanmış sayılmayacak.
