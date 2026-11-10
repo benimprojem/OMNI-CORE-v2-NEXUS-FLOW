@@ -1130,6 +1130,30 @@ static const char* semantic_representation_element_type(const char* type_name) {
         if (strcmp(type_name, byte_blocks[i]) == 0) return "byte";
     return NULL;
 }
+
+static int semantic_representation_index_limit(
+    const char* type_name, uint64_t* limit_out
+) {
+    static const struct {
+        const char* name;
+        uint64_t count;
+    } indexed_types[] = {
+        { "8bit", 8u }, { "16bit", 16u }, { "32bit", 32u },
+        { "64bit", 64u }, { "128bit", 128u },
+        { "1byte", 1u }, { "2byte", 2u }, { "4byte", 4u },
+        { "8byte", 8u }, { "16byte", 16u }
+    };
+    size_t i;
+    if (!type_name || !limit_out) return 0;
+    if (type_name[0] == '!') ++type_name;
+    for (i = 0u; i < sizeof(indexed_types) / sizeof(indexed_types[0]); ++i) {
+        if (strcmp(type_name, indexed_types[i].name) == 0) {
+            *limit_out = indexed_types[i].count;
+            return 1;
+        }
+    }
+    return 0;
+}
 static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     if (!type_name) return 1; // Infer type or void
     if (type_name[0] == '!') type_name++; // Skip hard-type prefix
@@ -2038,6 +2062,19 @@ static void semantic_check_node(
                 !is_integer_primitive_type(index_type)) {
                 report_error(ctx, access->index, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Index expression must have an integer type.");
+            } else {
+                uint64_t index_limit = 0u;
+                int64_t constant_index = 0;
+                if (semantic_representation_index_limit(
+                        target_type, &index_limit) &&
+                    semantic_eval_integer_constant(
+                        access->index, &constant_index) &&
+                    (constant_index < 0 ||
+                     (uint64_t)constant_index >= index_limit)) {
+                    report_error(ctx, access->index,
+                        ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Bit-vector or byte-block index is out of bounds.");
+                }
             }
             semantic_record_annotation(ctx, node, NULL,
                 get_expr_type(ctx, node), SEMANTIC_RESULT_VALUE_LVALUE);
