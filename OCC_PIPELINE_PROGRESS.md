@@ -1357,3 +1357,5 @@ Syntax sözleşmesi `docs/language/syntax-reference.md` Bölüm 15'e eklendi.
 - Added Parser/AST regression coverage for combined alias+namespace, namespace-only, ordinary alias `_`, unqualified `ns _`, comma-separated imports, malformed selectors, per-item spans, graph validation and v5 codec round-trip.
 - Updated `omnicore-sdk/nfsyntax.md` and `docs/AST_PARSER_PRODUCTION_MATRIX.md`.
 - Semantic Group/member import resolution is not claimed complete. OIR frontend payload mapping for the appended namespace field, USE allocation-failure injection, and end-to-end resolver tests remain open. CI must validate the commits before this Parser/AST addition is marked verified.
+
+- Follow-up OIR bridge parity: frontend writer emits optional AST_USE field 3, reader restores/frees `namespace_name`, and field schema accepts the optional string while preserving compatibility with older payloads that contain only fields 1–2. Added `test_use_namespace_oir_roundtrip()` for Parser → OIR AST payload → AST → canonical payload byte equality. CI remains unverified.
