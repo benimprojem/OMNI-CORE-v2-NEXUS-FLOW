@@ -1,0 +1,4 @@
+# osmodule.nxf
+# OCC standard library module.
+# OS-dependent functions will be implemented here.
+# Automatically loaded unless the source declares: no: osmodule;
