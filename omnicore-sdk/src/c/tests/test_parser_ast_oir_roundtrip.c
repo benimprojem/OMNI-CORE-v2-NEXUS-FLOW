@@ -725,8 +725,8 @@ static int test_fixed_width_representation_type_oir_roundtrip(void) {
     ASTBlock* body;
     ASTNode* declaration;
     static const char* const expected[]={
-        "!8bit","!16bit","!32bit","!64bit","!128bit",
-        "!1byte","!2byte","!4byte","!8byte","!16byte"
+        "8bit","16bit","32bit","64bit","128bit",
+        "1byte","2byte","4byte","8byte","16byte"
     };
     size_t index=0u;
     int ok=0,stage=0;
@@ -760,9 +760,11 @@ static int test_fixed_width_representation_type_oir_roundtrip(void) {
             goto done;
         }
         variable=(ASTVarDecl*)declaration;
-        if(!variable->type_name || strcmp(variable->type_name,expected[index])!=0) {
-            fprintf(stderr,"Fixed-width OIR declaration index=%zu expected=%s actual=%s\\n",
-                index,expected[index],variable->type_name?variable->type_name:"(null)");
+        if(!variable->type_name || strcmp(variable->type_name,expected[index])!=0 ||
+            !variable->is_hard_typed) {
+            fprintf(stderr,"Fixed-width OIR declaration index=%zu expected=%s actual=%s hard=%d\\n",
+                index,expected[index],variable->type_name?variable->type_name:"(null)",
+                variable->is_hard_typed);
             goto done;
         }
         declaration=declaration->next;
