@@ -2824,7 +2824,7 @@ static void semantic_check_node(
             if (access->index) semantic_check_node(ctx, access->index, 0);
             target_type = get_expr_type(ctx, access->target);
             index_type = get_expr_type(ctx, access->index);
-            if (target_type && strncmp(target_type, "array|", 6u) != 0) {
+            if (target_type && !semantic_is_array_type_name(target_type)) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Index access requires an array target.");
             }
