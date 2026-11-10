@@ -1454,11 +1454,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 ### 2026-11-10 — Standard library source rename follow-up
 
-- Confirmed in the repository tree that the existing `omnicore-sdk/stdlib/CoreModule.exf` is the OS-dependent standard module source. Renamed it to `omnicore-sdk/stdlib/osmodule.exf`; header, filename references and `no:` comment now use the lowercase `osmodule` name.
-- Updated the normative and SDK import examples from the legacy `CoreModule` name to `osmodule`, and synchronized both OS Bridge / StdLib documents.
-- The former OS-independent `Core` / `Core.nxf` source file is not present in the active repository tree. No empty or fabricated replacement was added.
-- The renamed `osmodule.exf` still contains mixed utility groups (including Array, String, Math, Crypto, Mem and Flow). Their OS dependency and Group `default` behavior must be audited before moving any group into `coremodule`; the source-level split is not complete yet.
-- `coremodule` remains the agreed name and OS-independence contract, but its source library has not yet been created/located. The default auto-load policy for `coremodule` remains open.
+- Önceki standart modül taslağının yeri yanlıştı; kullanıcı kararıyla kanonik önceden tanımlı modül dizini `omnicore-sdk/occ/libs/` olarak düzeltildi.
+- `occ/libs/osmodule.nxf` ve `occ/libs/coremodule.nxf` başlangıç dosyaları oluşturuldu. İkisi de bilinçli olarak yalnızca açıklama başlığı içeriyor; gerçek API/uygulama daha sonra yazılacak.
+- Eski karışık `omnicore-sdk/stdlib/osmodule.exf` taslağı `temp/legacy-stdlib/osmodule.exf` konumuna arşivlendi ve aktif `stdlib/` yolundan kaldırıldı.
+- Her iki `occ.ocf` kopyasındaki include yolu `./occ/libs` olarak değiştirildi.
+- `.nxf` standart Nexus Flow kaynak modülüdür. `.exf` harici fonksiyon/nesne dosyası bağlantı tanımları için ayrılmıştır; standart modülün ana kaynak dosyası olarak kullanılmayacaktır.
+- `osmodule` varsayılan otomatik yükleme kapsamındadır; `no: osmodule;` bunu kapatır. `coremodule` için otomatik yükleme politikası henüz karara bağlanmadı.
 
 
 ### CI doğrulaması — `no: osmodule;` AST/Parser değişikliği
@@ -1484,4 +1485,14 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - CI run: [42788198833](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/42788198833) — Ubuntu, macOS, Windows, ASan/UBSan ve Valgrind **5/5 başarılı**.
 - Ubuntu CTest: **61/61 başarılı**.
 - Doğrulanan yeni kapsam: `no: osmodule;` program kapsamı ve exact span, AST v6 encode/decode, v1-v5 uyumluluk (özellikle v5 AST_PROGRAM payload), implicit osmodule resolver edge, explicit USE edge ayrımı.
-- Açık kalan: host scheduler ASTProgram bayrağını okuyup `osmodule` provider çözümlemesini/otomatik bağımlılık eklemeyi henüz yapmıyor. `coremodule` kaynak dosyası repo içinde yok; mevcut osmodule kaynak gruplarının bağımlılık denetimi ve ayrıştırılması sürüyor.
+- Açık kalan: host scheduler ASTProgram bayrağını okuyup `osmodule` provider çözümlemesini/otomatik bağımlılık eklemeyi henüz yapmıyor. `coremodule.nxf` ve `osmodule.nxf` başlangıç iskeletleri `occ/libs/` altında mevcut; içerik ve API tasarımı henüz yazılmadı.
+
+
+### 2026-11-10 — Canonical standard library location
+
+- Canonical path: `omnicore-sdk/occ/libs/`.
+- Added `osmodule.nxf` and `coremodule.nxf` as comment-only starter files. No unverified functions or API declarations were carried into the new sources.
+- Moved the previous mixed `.exf` draft out of the active lookup path to `temp/legacy-stdlib/osmodule.exf` for later reference.
+- Updated both package configuration copies to include `./occ/libs`; updated SDK README and standard-library/OS bridge documentation.
+- `.nxf` is the standard module source format; `.exf` is reserved for external function/object linkage declarations.
+- No compiler C source or parser semantics changed in this layout correction. The existing CI result does not constitute a runtime module-search test; package include resolution still needs a dedicated test when the host loader is integrated.
