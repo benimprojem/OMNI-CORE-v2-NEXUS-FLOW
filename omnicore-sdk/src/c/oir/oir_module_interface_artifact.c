@@ -66,7 +66,8 @@ static char* read_string(const uint8_t* payload, size_t length, size_t* offset,
     if (*offset > length || (size_t)string_length > length - *offset)
         return NULL;
     if (string_length == 0u) return NULL;
-    if (memchr(payload + *offset, 0, string_length) != NULL) return NULL;
+    if ((uint64_t)string_length >= (uint64_t)SIZE_MAX ||
+        memchr(payload + *offset, 0, string_length) != NULL) return NULL;
     value = (char*)malloc((size_t)string_length + 1u);
     if (!value) return NULL;
     memcpy(value, payload + *offset, string_length);
