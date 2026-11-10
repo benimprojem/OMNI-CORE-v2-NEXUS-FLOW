@@ -3479,7 +3479,7 @@ static int test_enum_payload_rejects_malformed_fields(void) {
 }
 
 static int test_no_osmodule_program_directive(void) {
-    static const char source[] = "no: osmodule;\\nf:main() {}";
+    static const char source[] = "no: osmodule; f:main() {}";
     static const char* const invalid_sources[] = {
         "no: coremodule;",
         "no: osmodule; no: osmodule;",
