@@ -2851,7 +2851,7 @@ static int test_use_alias_and_namespace_ast_codec(void) {
 }
 
 static int test_use_comma_list_spans(void) {
-    static const char source[] = "use alpha as a, beta.gamma as b;\\n";
+    static const char source[] = "use alpha as a, beta.gamma as b;\n";
     ParserContext* parser = parser_init_source("use-list.nxf",
         (const uint8_t*)source, sizeof(source)-1u);
     ASTUse* first = NULL;
