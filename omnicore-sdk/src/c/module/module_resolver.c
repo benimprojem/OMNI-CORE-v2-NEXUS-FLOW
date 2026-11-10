@@ -188,10 +188,6 @@ OccModuleResolverStatus occ_module_resolver_resolve_source(
     }
     out_source->content_fingerprint = occ_module_resolver_fingerprint_source(
         out_source->source_bytes, out_source->source_length);
-    if (out_source->content_fingerprint == 0u) {
-        occ_module_resolver_release_source(provider, out_source);
-        return OCC_MODULE_RESOLVER_PROVIDER_ERROR;
-    }
     return OCC_MODULE_RESOLVER_OK;
 }
 
