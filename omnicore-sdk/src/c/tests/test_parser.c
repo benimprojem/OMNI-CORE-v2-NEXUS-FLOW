@@ -4021,6 +4021,54 @@ done:
     return 1;
 }
 
+static int test_increment_decrement_parser_forms(void) {
+    static const char source[] = "f:main() { ++a; --b; a++; b--; }";
+    const char* starts[] = { "++a", "--b", "a++", "b--" };
+    const OmniTokenType operators[] = {
+        TOKEN_INC, TOKEN_DEC, TOKEN_INC, TOKEN_DEC
+    };
+    const ASTNodeType node_types[] = {
+        AST_UNARY_EXPR, AST_UNARY_EXPR, AST_POSTFIX_EXPR, AST_POSTFIX_EXPR
+    };
+    ParserContext* ctx = parser_init_source(
+        "increment-decrement-parser.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTNode* statement;
+    size_t i;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root ||
+        !ast_validate(ctx->ast_root)) goto done;
+    function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK)
+        goto done;
+    statement = ((ASTBlock*)function->body)->statements;
+    for (i = 0u; i < sizeof(operators) / sizeof(operators[0]); ++i) {
+        const char* end = starts[i] + strlen(starts[i]);
+        ASTUnaryExpr* unary;
+        if (!statement || statement->type != node_types[i]) goto done;
+        unary = (ASTUnaryExpr*)statement;
+        if (unary->op != operators[i] || !unary->operand ||
+            unary->operand->type != AST_IDENTIFIER ||
+            !unary->base.source_span.has_location ||
+            unary->base.source_span.start_offset != (uint64_t)(starts[i] - source) ||
+            unary->base.source_span.end_offset != (uint64_t)(end - source) ||
+            unary->base.source_span.start_column != (uint32_t)(starts[i] - source) + 1u ||
+            unary->base.source_span.end_column != (uint32_t)(end - source) + 1u)
+            goto done;
+        statement = statement->next;
+    }
+    if (statement) goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    return ok;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -4057,6 +4105,10 @@ int main(int argc, char** argv) {
     }
     if (!test_numeric_and_flow_shift_operators()) {
         fprintf(stderr, "Numeric/Flow shift distinction or shift-chain bound test failed.\\n");
+        return 1;
+    }
+    if (!test_increment_decrement_parser_forms()) {
+        fprintf(stderr, "Prefix/postfix increment/decrement AST/source-span test failed.\\n");
         return 1;
     }
     if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
