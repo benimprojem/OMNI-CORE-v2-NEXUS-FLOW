@@ -2395,6 +2395,17 @@ static int test_group_method_ast(void) {
     ASTFuncDecl* implementation;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
+    const char* group_start = strstr(source, "group Pair");
+    const char* group_end_marker = group_start ? strstr(group_start, "ret value; } }") : NULL;
+    const char* group_end = group_end_marker
+        ? group_end_marker + strlen("ret value; } }") : NULL;
+    const char* field_start = strstr(source, "v:value!i32;");
+    const char* field_end = field_start ? field_start + strlen("v:value!i32;") : NULL;
+    const char* method_start = strstr(source, "get =>");
+    const char* method_end_marker = method_start ? strstr(method_start, "ret value; }") : NULL;
+    const char* method_end = method_end_marker
+        ? method_end_marker + strlen("ret value; }") : NULL;
+    const char* implementation_start = method_start ? strstr(method_start, "f:get") : NULL;
     int valid = 0;
     if (!parser) return 0;
     if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
@@ -2411,7 +2422,21 @@ static int test_group_method_ast(void) {
             implementation && implementation->base.type == AST_FUNC_DECL &&
             implementation->name && strcmp(implementation->name, "get") == 0 &&
             implementation->return_type && strcmp(implementation->return_type, "!i32") == 0 &&
-            implementation->body && implementation->body->type == AST_BLOCK;
+            implementation->body && implementation->body->type == AST_BLOCK &&
+            group_start && group_end && field_start && field_end &&
+            method_start && method_end && implementation_start &&
+            group->base.source_span.has_location &&
+            group->base.source_span.start_offset == (uint64_t)(group_start - source) &&
+            group->base.source_span.end_offset == (uint64_t)(group_end - source) &&
+            member->source_span.has_location &&
+            member->source_span.start_offset == (uint64_t)(field_start - source) &&
+            member->source_span.end_offset == (uint64_t)(field_end - source) &&
+            method->base.source_span.has_location &&
+            method->base.source_span.start_offset == (uint64_t)(method_start - source) &&
+            method->base.source_span.end_offset == (uint64_t)(method_end - source) &&
+            implementation->base.source_span.has_location &&
+            implementation->base.source_span.start_offset == (uint64_t)(implementation_start - source) &&
+            implementation->base.source_span.end_offset == (uint64_t)(method_end - source);
     }
     if (valid) {
         stream = tmpfile();
