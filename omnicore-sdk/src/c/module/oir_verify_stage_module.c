@@ -409,7 +409,10 @@ static int validate_instructions(const OirModuleView* m,
         if (!oir_opcode_validate_shape(ins.opcode_id, operand_kinds,
             ins.operand_count, ins.result_value_id != 0u)) return 0;
         if (failure) failure->code = OIR_VERIFY_DIAG_OPCODE_TYPE;
-        if (!validate_instruction_type_contract(m, &ins)) return 0;
+        if (!validate_instruction_type_contract(m, &ins)) {
+            fprintf(stderr, "instruction contract fail: ins=%u opcode=%u\\n", ins.id, ins.opcode_id);
+            return 0;
+        }
         if (ins.result_value_id && (!get_value(m, ins.result_value_id, &result) ||
             !get_type(m, result.type_id, &rt))) return 0;
         if (!ins.result_value_id) memset(&rt, 0, sizeof(rt));
