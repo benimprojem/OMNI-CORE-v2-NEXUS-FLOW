@@ -2201,12 +2201,32 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             op = p->previous.type;
         }
 
-        ASTNode* right = parse_bitwise_or(p);
-        if (!right) {
-            ast_destroy(expr);
-            return NULL;
+        ASTNode* right = NULL;
+        if (check(p, TOKEN_ERR_HANDLER)) {
+            Token handler_token = p->current;
+            ASTIdentifier* handler = (ASTIdentifier*)parser_ast_create(p, AST_IDENTIFIER);
+            if (!handler) {
+                ast_destroy(expr);
+                return NULL;
+            }
+            handler->base.line = handler_token.line;
+            handler->base.col = handler_token.col;
+            handler->name = parser_strdup(p, "e");
+            if (!handler->name) {
+                ast_destroy((ASTNode*)handler);
+                ast_destroy(expr);
+                return NULL;
+            }
+            parser_stamp_node_token(p, (ASTNode*)handler, &handler_token);
+            right = (ASTNode*)handler;
+        } else {
+            right = parse_bitwise_or(p);
+            if (!right) {
+                ast_destroy(expr);
+                return NULL;
+            }
         }
-        
+
         if (op == TOKEN_RELOCATE) {
             ASTRelocate* relocate = (ASTRelocate*)parser_ast_create(p, AST_RELOCATE);
             if (!relocate) { ast_destroy(expr); ast_destroy(right); return NULL; }
@@ -2253,6 +2273,12 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         if (expr->type == AST_NEXUS_FLOW || expr->type == AST_NEXUS_PIPE) {
             ASTNexusFlow* flow = (ASTNexusFlow*)expr;
             flow->catch_block = parse_block(p);
+            if (!flow->catch_block) {
+                ast_destroy(expr);
+                return NULL;
+            }
+            parser_stamp_node_child_range((ASTNode*)flow, flow->left,
+                flow->catch_block);
         } else {
              error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN, "Hata yakalayıcı (e) sadece akış (flow) operatörlerinden sonra gelebilir.");
         }

@@ -4206,6 +4206,76 @@ done:
         sizeof("f:main() { v:x = !; }") - 1u);
 }
 
+static int test_nexus_flow_catch_fallback_ignore_forms(void) {
+    static const char source[] =
+        "f:main() { "
+        "v:caught = operation() ?-> (e) { echo(e); }; "
+        "v:fallback = operation() ?=> (data); "
+        "v:ignored = operation() !-> continue_flow(); "
+        "}";
+    const char* spans[] = {
+        "operation() ?-> (e) { echo(e); }",
+        "operation() ?=> (data)",
+        "operation() !-> continue_flow()"
+    };
+    const char* names[] = { "caught", "fallback", "ignored" };
+    const OmniTokenType operators[] = {
+        TOKEN_ELSE_FLOW, TOKEN_FALLBACK, TOKEN_IGNORE
+    };
+    ParserContext* ctx = parser_init_source(
+        "nexus-flow-error-operators.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTNode* statement;
+    size_t i;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root ||
+        !ast_validate(ctx->ast_root)) goto done;
+    function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK)
+        goto done;
+    statement = ((ASTBlock*)function->body)->statements;
+    for (i = 0u; i < sizeof(operators) / sizeof(operators[0]); ++i) {
+        ASTVarDecl* variable;
+        ASTNexusFlow* flow;
+        const char* start = strstr(source, spans[i]);
+        const char* end = start ? start + strlen(spans[i]) : NULL;
+        if (!statement || statement->type != AST_VAR_DECL) goto done;
+        variable = (ASTVarDecl*)statement;
+        if (!variable->name || strcmp(variable->name, names[i]) != 0 ||
+            !variable->initializer || variable->initializer->type != AST_NEXUS_FLOW)
+            goto done;
+        flow = (ASTNexusFlow*)variable->initializer;
+        if (flow->op != operators[i] || !flow->left || !flow->right ||
+            flow->right->type != AST_IDENTIFIER || !start || !end ||
+            !flow->base.source_span.has_location ||
+            flow->base.source_span.start_offset != (uint64_t)(start - source) ||
+            flow->base.source_span.end_offset != (uint64_t)(end - source))
+            goto done;
+        if (i == 0u) {
+            if (strcmp(((ASTIdentifier*)flow->right)->name, "e") != 0 ||
+                !flow->catch_block || flow->catch_block->type != AST_BLOCK)
+                goto done;
+        } else if (flow->catch_block) {
+            goto done;
+        }
+        statement = statement->next;
+    }
+    if (statement) goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    if (!ok) return 0;
+    return parser_source_reports_syntax_error(
+        "nexus-flow-catch-missing-block.nxf",
+        "f:main() { v:x = operation() ?-> (e); }",
+        sizeof("f:main() { v:x = operation() ?-> (e); }") - 1u);
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -4254,6 +4324,10 @@ int main(int argc, char** argv) {
     }
     if (!test_relational_and_unary_operator_parser_forms()) {
         fprintf(stderr, "Relational/unary operator AST/source-span Parser test failed.\\n");
+        return 1;
+    }
+    if (!test_nexus_flow_catch_fallback_ignore_forms()) {
+        fprintf(stderr, "Nexus Flow catch/fallback/ignore Parser test failed.\\n");
         return 1;
     }
     if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
