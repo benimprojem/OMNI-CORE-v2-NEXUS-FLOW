@@ -192,3 +192,17 @@ Geliştirme sırası kullanıcı tarafından sabitlenmiştir. Her aşama kendi k
 - [OIR Verifier Specification](OIR_VERIFIER_SPEC.md)
 
 **Güncelleme kuralı:** Bu dashboard'daki bir hücre yalnızca ilgili kaynak kodu, test ve CI kanıtı incelendikten sonra ✓ yapılır. Bir syntax satırının tamamı ancak gerekli tüm aşamalar kapanınca tamamlanmış sayılır.
+
+## P — Parser tamamlanma kontrolü
+
+Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR ve Verifier sütunlarının durumunu değiştirmez.
+
+| Parser alt kapsamı | Güncel doğrulama | Durum |
+|---|---|---|
+| Operatör AST üretimi | `.=` , `==`, `!=`, `===`, `==!`, `>=`, `<=`, `!`, `~`, postfix `++/--`, `<<< / >>>` ve `<< / >>` için AST/operand/span fixture'ları eklendi | CI bekliyor |
+| Flow ve koşullu kontrol | `?->`, `?=>`, `!->`, `(e){...}`, `(condition) ? action [: alternative]`, normal `->` pipe ve rolling-retry ayrımı için fixture'lar eklendi | CI bekliyor |
+| Bildirim ve payload kaynak aralıkları | Fonksiyon imzası/parametreler, EXF, pointer/reference, implicit type, Group/method/nested default, literal ve modulo düğümleri için exact-span assertion'ları genişletildi | CI bekliyor |
+| Eski/ertelenmiş syntax sınırı | `...>`, `=?>`, `<--`, `@`, `??`, prefix `++/--` ve eski `(condition)->action` biçimleri negatif Parser fixture'larıyla reddediliyor | CI bekliyor |
+| Tüm aktif üretimlerin son taraması | Her aktif syntax satırının pozitif/negatif fixture ve exact source-span kanıtı son kez çapraz kontrol edilecek | Açık |
+
+**Doğrulama notu:** Son Parser değişiklikleri aktif dalda; GitHub Actions işleri henüz kuyruğa alınmış durumda. Bu nedenle yeni fixture'lar başarılı test olarak işaretlenmedi. CI tamamlanınca bu tablo ve ana P sütunu sonuçlara göre güncellenecek.
