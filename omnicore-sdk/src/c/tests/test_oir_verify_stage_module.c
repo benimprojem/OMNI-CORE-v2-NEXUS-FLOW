@@ -79,9 +79,6 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     input.instructions = instructions; input.instruction_count = 4u;
     input.operands = operands; input.operand_count = 5u;
     input.strings = strings; input.strings_length = 4u;
-    if (variant == 19 || variant == 20 || variant == 22)
-        instructions[2].opcode_id = variant == 19 ? OIR_OP_BIT_AND :
-            (variant == 20 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR);
     assert(oir_module_write(module_bytes, sizeof(module_bytes), &input,
         &module_length) == OIR_STATUS_OK);
 
@@ -275,6 +272,9 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     input.operands = operands; input.operand_count = operand_count;
     input.strings = strings; input.strings_length =
         (variant == 2 || variant == 3) ? 9u : 4u;
+    if (variant == 19 || variant == 20 || variant == 22)
+        instructions[2].opcode_id = variant == 19 ? OIR_OP_BIT_AND :
+            (variant == 20 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR);
     assert(oir_module_write(module_bytes, sizeof(module_bytes), &input,
         &module_length) == OIR_STATUS_OK);
 
