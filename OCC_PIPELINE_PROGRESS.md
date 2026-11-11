@@ -1870,3 +1870,11 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Initial CI exposed two test-isolation issues: a C comment typo (fixed) and the test DLL's output name colliding with the production verifier DLL. The latter caused unrelated CLI and direct-verifier tests to load the rejecting fixture; the fixture now has a unique output name and is copied under the production name only inside the isolated test package.
 - CI run `43072785755` for commit `3332b4253dda61d495242b94a164dd35d0bf4e0e` passed all five jobs: Ubuntu build/CTest, Windows build/CTest, macOS build/CTest, Ubuntu ASan/UBSan and Ubuntu Valgrind. The isolated host verifier-gate test is now CI-verified on the full matrix.
 - This closes the dedicated host gate regression gap, not the OIR Verifier stage itself. The next task remains the requirement-by-requirement audit of opcode descriptors, operand/result types, SSA, CFG, cross-table references, diagnostics and adversarial artifact bounds.
+
+
+### OIR Verifier complexity audit — 2026-11-11
+
+- Reviewed the independent verifier's opcode contracts, validation pass ordering, CFG/SSA checks and resource bounds against the current implementation.
+- Corrected `OIR_OPCODE_REGISTRY.md` from stale registry 1.1 to the implemented registry 1.2 and documented stable shift IDs 26/27, integer operand requirements, mixed-width count allowance, PURE/MAY_TRAP flags and zero result for counts at or above the left width.
+- Removed a redundant full block-table scan for every function in `validate_structure()`. A function's entry block is already range-checked and its ownership is checked against the precomputed block-owner table; that single condition proves the function owns a block. This removes an unnecessary O(function_count × block_count) scan without weakening the invariant.
+- Existing verifier fixtures cover valid function entry ownership and reject an entry block owned by another function. The code change is awaiting the full CI matrix; do not treat it as verified until CI completes.
