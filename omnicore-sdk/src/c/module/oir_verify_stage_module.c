@@ -160,6 +160,8 @@ static uint32_t validate_instruction_type_records(const OirModuleView* m, OirVer
     for (i = 0u; i < m->instruction_count; ++i) {
         OirModuleInstruction ins;
         if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK || !validate_instruction_type_contract(m, &ins)) {
+            fprintf(stderr, "preflight opcode contract: index=%u id=%u opcode=%u result=%u operands=%u\\n",
+                i, ins.id, ins.opcode_id, ins.result_value_id, ins.operand_count);
             if (count < capacity) {
                 memset(&failures[count], 0, sizeof(failures[count]));
                 failures[count].code = OIR_VERIFY_DIAG_OPCODE_TYPE;
