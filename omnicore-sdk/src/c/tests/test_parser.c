@@ -3652,7 +3652,7 @@ done:
 }
 
 static int test_expression_body_function_source_spans(void) {
-    static const char source[] = "f:identity(value!i32)!i32 > value\n";
+    static const char source[] = "f:identity(value!i32) > value\n";
     ParserContext* parser = parser_init_source("expression-body-function.nxf",
         (const uint8_t*)source, sizeof(source) - 1u);
     ASTFuncDecl* function;
