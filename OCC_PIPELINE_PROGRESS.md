@@ -1890,3 +1890,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Son Verifier karmaşıklık/çalışma alanı değişikliklerinin CI run 43073952941 sonucu kontrol edildi: Ubuntu, Windows, macOS, ASan/UBSan ve Valgrind 5/5 başarılı.
 - Bu CI sonucu yalnızca ilgili değişiklikleri doğrular; OIR Verifier aşaması hâlâ gereksinim bazlı tam denetim bekliyor.
 - Dashboard dosyası: `NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md`.
+
+
+### AST structural inventory audit — 2026-11-11
+
+- Compared the active `ASTNodeType` enum directly with `get_node_size`, `ast_destroy_recursive`, `ast_print_recursive`, `ast_serialize_recursive`, `ast_deserialize_recursive` and `ast_validate`: all **108/108 unique tags** have explicit dispatch in all six paths.
+- `test_ast_deserialize.c` iterates through `AST_TYPE_EXPR` (the current final tag) in the all-tag codec fixture. `test_ast_validator.c` covers graph ownership, sibling/ancestor cycles, required children and source-span invariants.
+- This closes the AST structural lifecycle/tag-dispatch inventory only. It does not close Parser production/span tests, Semantic rules, OIR lowering or Verifier contracts.
+- Initial Parser source-span audit found no reason to mark helper-level absence as a defect when the enclosing `parse_statement` / group parser stamps the completed production (for example variable, defer, immutable and thread declarations). Production-by-production span assertion coverage remains open; dedicated coverage currently exists for 26 parser test functions, with additional syntax families still needing explicit exact-range assertions.
+- Next AST gate: close the exact source-span fixture matrix for remaining active syntax productions, then audit OIR optional span TLVs. Keep Semantic and Codegen expansion gated.
+- Detailed view: `NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md`; structural ownership reference: `AST_NODE_FIELD_OWNERSHIP.md`.
