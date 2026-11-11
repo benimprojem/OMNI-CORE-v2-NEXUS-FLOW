@@ -120,15 +120,21 @@ static int validate_instruction_type_contract(const OirModuleView* m, const OirM
                 get_value_operand(m, ins, 0u, &a) &&
                 a.type_id == result.type_id;
         case OIR_OP_BIT_SHL: case OIR_OP_BIT_SHR: {
-            OirModuleType result_type, rhs_type;
-            if (ins->result_value_id == 0u ||
-                !get_value(m, ins->result_value_id, &result) ||
-                !get_type(m, result.type_id, &result_type) ||
+            OirModuleOperand lhs_op, rhs_op;
+            OirModuleValue lhs_value, rhs_value, result_value;
+            OirModuleType lhs_type, rhs_type, result_type;
+            if (!ins->result_value_id ||
+                !get_value(m, ins->result_value_id, &result_value) ||
+                !get_type(m, result_value.type_id, &result_type) ||
                 result_type.kind != OIR_MODULE_TYPE_INTEGER ||
-                !get_value_operand(m, ins, 0u, &a) ||
-                a.type_id != result.type_id ||
-                !get_value_operand(m, ins, 1u, &b) ||
-                !get_type(m, b.type_id, &rhs_type) ||
+                !get_operand(m, ins, 0u, &lhs_op) || lhs_op.kind != OIR_OPERAND_VALUE ||
+                !get_operand(m, ins, 1u, &rhs_op) || rhs_op.kind != OIR_OPERAND_VALUE ||
+                !get_value(m, lhs_op.reference_id, &lhs_value) ||
+                !get_value(m, rhs_op.reference_id, &rhs_value) ||
+                lhs_value.type_id != result_value.type_id ||
+                !get_type(m, lhs_value.type_id, &lhs_type) ||
+                !get_type(m, rhs_value.type_id, &rhs_type) ||
+                lhs_type.kind != OIR_MODULE_TYPE_INTEGER ||
                 rhs_type.kind != OIR_MODULE_TYPE_INTEGER)
                 return 0;
             return 1;
