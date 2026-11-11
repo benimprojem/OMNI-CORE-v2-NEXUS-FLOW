@@ -388,12 +388,14 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 | **11** | `(e){}`| **Error Block** | Saptırılan hatanın işlendiği son durak. |
 | **12** | `?;` / `}?;` | **Halt** | `?;` tek kaynağı/masayı kapatır; blok sonundaki `}?;` blokta kalan kaynakları topluca kapatır. |
 | **13** | `!!`  | **Panic** | Kritik durdurma. |
-| **14** | `@`   | **Intent** | Derleyiciye niyet bildirimi. |
+| **14** | `@`   | **Reserved / Deferred** | Intent tasarımı etkinleştirilene kadar Core Parser tarafından kabul edilmez. |
 | **15** | `!!=` | **Directive** | .target sistemi ve derleyici talimatları. |
 
 > `!!=` tokenı mevcut Parser'da infix assignment düğümü olarak da tüketilir. `!!=[target = ...] { ... }` biçimindeki prefix target-directive örnekleri normal Parser'ın tamamlanmış grameri değildir; Directive/Target katmanı sözleşmesi ayrıca kapanmalıdır.
 >
 > `??` AI-logic tokenı/AST ailesi olarak ayrılmıştır; sorgu payload'ı, bağlamı ve Semantic davranışı normatif olarak tanımlanmamıştır.
+>
+> `=?>` ve `<--` eski Flow token yazımlarıdır; güncel Core Parser gramerinde yer almaz. Koşullu statement kontrolü `(koşul) ? ...` biçimini, foreach döngüsü ise `loop(item in collection)` biçimini kullanır.
 
 ---
 
