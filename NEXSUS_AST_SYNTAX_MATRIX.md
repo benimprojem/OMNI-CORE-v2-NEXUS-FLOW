@@ -1,7 +1,7 @@
 # NEXSUS Flow Syntax ↔ AST Coverage Matrix
 
 **Branch:** `refactor/c-core-roadmap`  
-**Status:** AST source-span field/validator, versioned legacy codec, context-aware graph validation (incoming owner-edge checks), and deterministic AST factory/validator/decoder allocation-failure tests are implemented. FASTEXEC/ASM and Struct literal AST nodes, raw Lexer token, Parser productions and OIR node bridges 101–107 are present. Parser source-span stamping still requires per-production closure; OIR optional span TLVs and FASTEXEC Semantic validation remain open. Existing semantic/lowering gaps remain gated.  
+**Status:** 108 AST node tags are currently inventoried. AST source-span field/validator, versioned legacy codec, context-aware graph validation (incoming owner-edge checks), and deterministic AST factory/validator/decoder allocation-failure tests are implemented. FASTEXEC/ASM and Struct literal AST nodes, raw Lexer token, Parser productions and OIR node bridges 101–107 are present. Parser source-span stamping still requires per-production closure; OIR optional span TLVs and FASTEXEC Semantic validation remain open. Existing semantic/lowering gaps remain gated.  
 **Gate:** This matrix must be complete before Codegen expansion.
 
 ## Comparison rule
@@ -81,8 +81,8 @@ The syntax reference lists the language's designed operator inventory. The C Lex
 | Logical `&&`, `||` | Parser now consumes `&&` in `parse_logical_and()` and `||` in `parse_logical_or()`; AST uses `AST_BINARY_EXPR`; `&&` binds tighter than `||` | Semantic bool-operand checks are present and tested; short-circuit execution must be verified in OIR/lowering |
 | Unary logical not `!` | Consumed by `parse_unary()` | Boolean operand/type rule |
 | Unary bitwise not `~` | Consumed by `parse_unary()` | Integer operand/type rule |
-| Binary bitwise `&`, `|`, `^` | Parser productions; precedence AND > XOR > OR; AST_BINARY_EXPR | Parser fixture added | Semantic matching integer operand validation is present/tested; shift-count range/width and OIR lowering remain open |
-| Shift `<<`, `>>` | Consumed by Nexus Flow expression/flow parsing as flow operators; not implemented as bit-shift arithmetic | Resolve the existing language-level collision before adding bit-shift expression semantics |
+| Binary bitwise `&`, `|`, `^` | Parser productions; precedence AND > XOR > OR; AST_BINARY_EXPR | Parser fixture added | Semantic matching integer operand validation is present/tested |
+| Flow Feed / Zone Write `<<`, `>>` | Nexus Flow flow operators; represented by `AST_NEXUS_PIPE` / `AST_NEXUS_FLOW` | Keep distinct from numeric shifts; Flow operand grammar and semantic contract remain to be closed |
 | Prefix/postfix `++`, `--` | Consumed by unary/postfix parsing | Lvalue and numeric semantic checks |
 | Compound assignment `+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=` | `AST_ASSIGNMENT` keeps the original operator token; parser fixture covers `+=` and `&=` | Parser production/test added | Semantic lvalue + equivalence checks |
 | String append `.=` | `AST_ASSIGNMENT` keeps `TOKEN_STRING_APPEND` | Parser production added; dedicated fixture/semantic test still needed |
@@ -103,13 +103,13 @@ This table is an implementation audit, not a change to the language design. Unsu
 
 ## AST structural audit findings (updated 2026-11-04)
 
-- **All 107 current ASTNodeType values have explicit Graph Validator dispatch.** The validator's default branch now fails closed with AST_VALIDATE_INVALID_KIND; a future appended node cannot silently pass as a childless leaf. The populated codec round-trip fixtures also pass through `ast_validate()` because serialization validates before writing.
+- **All 108 current ASTNodeType values have explicit Graph Validator dispatch.** The validator's default branch now fails closed with AST_VALIDATE_INVALID_KIND; a future appended node cannot silently pass as a childless leaf. The populated codec round-trip fixtures also pass through `ast_validate()` because serialization validates before writing.
 - **Source spans are implemented but not complete end-to-end.** `ASTNode` now stores `OccSourceSpan`; the graph validator checks byte-offset and line/column monotonicity plus `line/col` mirrors. Parser stamping covers program root, blocks/Halt, literals/identifiers, unary/binary/assignment/postfix/call/index/tuple/array/array dimensions, declarations/parameters, if/loop/select/scan, Nexus Flow capture/jump and several aggregate/intrinsic forms. Exact tests cover UTF-8 byte columns and multiline endpoints. The AST binary codec writes `OCCAST` version 1 with fieldwise spans and reads legacy unprefixed streams (including non-seekable streams via replay buffer). **Remaining:** finish per-production parser audit, then implement OIR optional span TLVs (`0xFFF0`–`0xFFF3`) and round-trip/backward-compatibility tests. Do not mark the full source-span column complete yet.
 - **Block-scoped Halt representation added.** `AST_BLOCK_HALT` is a payload-free final child of its owning block; parser and graph validator enforce the placement contract. OIR uses append-only kind ID 100. Semantic cleanup ordering and lowering are not part of this AST change.
 - **FASTEXEC/Inline ASM AST and Parser path is implemented but not complete as a pipeline feature.** `AST_FASTEXEC_BLOCK` and `AST_ASM_LABEL` have owned payloads, graph validation, AST stream codec and OIR 104–105 mapping; `TOKEN_ASM_BODY` preserves raw text and Parser builds the nodes. `AST_ASM_BLOCK` remains legacy kind 29. Semantic scope checks for asmcall/asmjmp and hardware primitives, placeholder/register/clobber analysis, target capability and ABI checks remain open.
 - **Normative syntax document path reconciled.** The active branch now uses `docs/language/syntax-reference.md` as the single normative reference. The duplicate `omnicore-sdk/docs/syntax.md` was removed. `main` was read-only and remains untouched.
 
-## AST node payload/codec audit (all 107 current enum tags)
+## AST node payload/codec audit (all 108 current enum tags)
 
 Every AST enum tag must be covered in all columns below. Shared payload is acceptable only when explicit and semantically valid.
 
@@ -349,7 +349,7 @@ This section separates **missing AST representation** from syntax that can legit
 | `elsif` and conditional action | Nested `AST_IF` and canonical `AST_IF` | **Existing representation** | Explicit parser/codec shape tests; no new node required |
 | `select/scan when`, scan `else` | Arm body wrapper `AST_IF`; null pattern only final scan else | **Existing representation** | Subject-aware constructor typing remains Semantic gap |
 | `T[]`, `T[n]`, `T[m][n]` | `AST_ARRAY_TYPE` + ordered `AST_ARRAY_DIMENSION` | **Existing representation** | Keep current parser/codec; lowering later |
-| `<<` / `>>` bit shifts vs Flow operations | Current parser maps these to Flow pipe node only | **Missing numeric shift AST production** | Resolve grammar by operand productions/context, then produce `AST_BINARY_EXPR` for numeric shift and `AST_NEXUS_PIPE` for Flow; no token-only heuristic |
+| Numeric shifts `<<<` / `>>>` vs Flow `<<` / `>>` | Numeric shift is represented by `AST_BINARY_EXPR` and OIR opcodes 26/27; Flow operators retain `AST_NEXUS_PIPE` | **Parser/AST/OIR shift path present; Semantic/lowering remains partial** | Close negative/dynamic count rules, full scalar lowering, Nbit/bit-vector support and shift-specific end-to-end tests |
 
 ### Audit conclusion
 
@@ -357,7 +357,7 @@ Confirmed AST representation gaps (not just parser gaps): **dedicated function-t
 
 Some syntax can reuse existing AST shapes without a new enum tag (`elsif`, conditional action, array declarators, select/scan guard); these remain subject to lossless round-trip and semantic contract tests. `import(path)` is provisionally representable as a call expression but must carry an explicit import/resource kind to preserve its runtime ownership and DLL semantics.
 
-**Ordering:** complete remaining AST payload contracts (dedicated function-type representation decision; directives/macro/import/export; map Semantic contract; vector typing; numeric-shift/Flow grammar resolution), finish the FASTEXEC Lexer/Parser edge-case audit and OIR source-span TLVs, then Semantic. Codegen stays blocked.
+**Ordering:** complete remaining AST payload contracts (dedicated function-type representation decision; directives/macro/import/export; map Semantic contract; vector typing; numeric-shift Semantic/lowering and Nbit support), finish the FASTEXEC Lexer/Parser edge-case audit and OIR source-span TLVs, then Semantic. Codegen stays blocked.
 
 
 ## AST contract — variadic and named arguments (implemented; OIR/Semantic pending, 2026-11-04)
@@ -405,13 +405,13 @@ This defines CLI argument *delivery*, not the full `main` return/exit-code conve
 
 ## Parser/AST symbol audit (2026-11-04)
 
-The latest C AST inventory contains 107 node tags. FASTEXEC/Inline ASM now has a dedicated `AST_FASTEXEC_BLOCK` and `AST_ASM_LABEL` payload, explicit lifecycle/graph validation, legacy AST codec support, a dedicated `TOKEN_ASM_BODY` Lexer token (stable OIR token ID 164), Parser productions, and OIR AST bridge IDs 104–105. Existing `AST_ASM_BLOCK` kind 29 remains untouched. `asmcall` and `asmjmp` intentionally remain `AST_FUNC_CALL` nodes with intrinsic callee names.
+The latest C AST inventory contains 108 node tags. FASTEXEC/Inline ASM now has a dedicated `AST_FASTEXEC_BLOCK` and `AST_ASM_LABEL` payload, explicit lifecycle/graph validation, legacy AST codec support, a dedicated `TOKEN_ASM_BODY` Lexer token (stable OIR token ID 164), Parser productions, and OIR AST bridge IDs 104–105. Existing `AST_ASM_BLOCK` kind 29 remains untouched. `asmcall` and `asmjmp` intentionally remain `AST_FUNC_CALL` nodes with intrinsic callee names.
 
 - `AST_ZONE_SYNC`, `AST_ZONE_VIEW` and `AST_ZONE_LOCK` remain reserved AST kinds without matching productions in the current normative syntax reference; they are not treated as parser defects until a language rule defines them.
 - The OIR frontend bridge includes `AST_VARIADIC_PARAM`, `AST_NAMED_ARG`, `AST_MUST_DECL` (101–103), FASTEXEC/ASM (104–105), and Struct literal nodes (106–107).
 - The raw ASM body is preserved exactly; Parser does not parse target instructions as Nexus Flow. Lexer balances nested braces and ignores brace characters inside quoted strings/chars with backslash escapes. Target comment syntax is opaque, so unmatched braces in comments still participate in delimiter balancing.
 
-**AST remains open:** finish the full Parser source-span audit and OIR optional source-span TLVs; complete remaining AST gaps (function types/callbacks, macro/directive metadata, map Semantic contract, vector typing, numeric shift/Flow grammar resolution). Semantic FASTEXEC checks for calls/primitives, labels, variable placeholders, register/clobber, ABI and control flow remain blocked until AST/Parser validation passes. Codegen remains blocked.
+**AST remains open:** finish the full Parser source-span audit and OIR optional source-span TLVs; complete remaining AST gaps (function types/callbacks, macro/directive metadata, map Semantic contract, vector typing, numeric shift Semantic/lowering and Nbit support). Semantic FASTEXEC checks for calls/primitives, labels, variable placeholders, register/clobber, ABI and control flow remain blocked until AST/Parser validation passes. Codegen remains blocked.
 
 
 ## AST representation audit cross-reference — 2026-11-05
@@ -476,7 +476,7 @@ The language comparison and prioritized gap inventory is maintained in `docs/lan
 
 ### AST tag-to-Parser audit — 2026-11-07
 
-- Active `ASTNodeType` enum count: 105 (append-only IDs).
+- Active `ASTNodeType` enum count: 108 (append-only IDs; IDs 106–108 are Struct literal/field-init and recursive type-expression additions).
 - Intentionally not emitted by the core Parser: `AST_SPAWN` (legacy; Thread module owns spawn), `AST_ASM_BLOCK` (legacy; current syntax uses FASTEXEC/ASM_LABEL), and `AST_ZONE_SYNC/VIEW/LOCK` (reserved; member-call syntax currently produces generic call nodes).
 - These are reserved/legacy tags, not missing Parser productions to be filled blindly. Keep their IDs and serialization compatibility.
 
