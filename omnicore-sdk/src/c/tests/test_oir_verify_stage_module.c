@@ -250,6 +250,7 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         instructions[2].id = 3u;
         instructions[2].block_id = 1u;
         instructions[2].opcode_id = OIR_OP_BRANCH;
+        instructions[2].result_value_id = 0u;
         instructions[2].first_operand = 2u;
         instructions[2].operand_count = 1u;
         instructions[3].id = 4u;
