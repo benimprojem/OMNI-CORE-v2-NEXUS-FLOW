@@ -89,7 +89,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Struct field initialization/access | Struct literal + Semantic field relation | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Aggregate instance layout, field address/value ve Verifier checks |
 | Address/length `addr`, `len` | `AST_ADDR`, `AST_LEN` | ✓ | ✓ | ✓ | ? | ? | ? | Signature, result type, pointer lifetime ve lowering |
 | Memory access `peek`, `poke` | `AST_PEEK`, `AST_POKE` | ✓ | ✓ | ✓ | ? | ? | ? | Address/value width, alignment, bounds ve target effects |
-| Map / Vec indexing and operations | Generic member/index representation | ✓ | ~ | ✓ | ~ | ? | ? | Container-specific typing, key/index constraints ve runtime representation |
+| Map / Vec indexing and operations | Generic member/index representation | ✓ | ✓ | ✓ | ~ | ? | ? | Map index-read and capture-write Parser forms are covered; Vec/container-specific typing and Semantic constraints remain open |
 | Packed bit storage `bit`, `Nbit`, byte-backed access | Scalar/array type payloads | ✓ | ~ | ~ | ~ | ~ | ~ | LSB-first bit indexing, bounds, read-modify-write ve bit-vector OIR contract |
 
 ## 5. Kontrol akışı, döngüler ve fonksiyon çıkışı

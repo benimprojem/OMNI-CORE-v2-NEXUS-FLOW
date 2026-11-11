@@ -3701,6 +3701,59 @@ static int test_expression_body_function_source_spans(void) {
     return valid;
 }
 
+static int test_indexed_capture_assignment_ast(void) {
+    static const char source[] =
+        "f:main() { v:score = notlar[\"Ali\"]; notlar[\"Ali\"]<-score; }";
+    ParserContext* parser = parser_init_source("indexed-capture.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTVarDecl* variable;
+    ASTBinaryExpr* assignment;
+    ASTIndexAccess* target;
+    const char* capture_start = strstr(source, "notlar[\"Ali\"]<-");
+    const char* capture_end = capture_start
+        ? capture_start + strlen("notlar[\"Ali\"]<-score") : NULL;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        parser->ast_root && ast_validate(parser->ast_root, NULL)) {
+        function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        body = function && function->body && function->body->type == AST_BLOCK
+            ? (ASTBlock*)function->body : NULL;
+        variable = body ? (ASTVarDecl*)body->statements : NULL;
+        assignment = variable ? (ASTBinaryExpr*)variable->base.next : NULL;
+        target = assignment && assignment->left &&
+            assignment->left->type == AST_INDEX_ACCESS
+                ? (ASTIndexAccess*)assignment->left : NULL;
+        valid = variable && variable->initializer &&
+            variable->initializer->type == AST_INDEX_ACCESS &&
+            assignment && assignment->base.type == AST_ASSIGNMENT &&
+            assignment->op == TOKEN_CAPTURE && target && target->target &&
+            target->target->type == AST_IDENTIFIER &&
+            strcmp(((ASTIdentifier*)target->target)->name, "notlar") == 0 &&
+            target->index && target->index->type == AST_LITERAL &&
+            assignment->right && assignment->right->type == AST_IDENTIFIER &&
+            strcmp(((ASTIdentifier*)assignment->right)->name, "score") == 0 &&
+            capture_start && capture_end &&
+            assignment->base.source_span.has_location &&
+            assignment->base.source_span.start_offset ==
+                (uint64_t)(capture_start - source) &&
+            assignment->base.source_span.end_offset ==
+                (uint64_t)(capture_end - source);
+    }
+    if (parser) parser_destroy(parser);
+    if (!valid) {
+        fprintf(stderr, "Indexed capture assignment Parser AST/span test failed.\\n");
+        return 0;
+    }
+    return parser_source_reports_syntax_error(
+        "invalid-capture-target.nxf",
+        "f:main() { 1 <- score; }",
+        sizeof("f:main() { 1 <- score; }") - 1u) == 0;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -6082,6 +6135,11 @@ generic_type_done:
 
     if (!test_expression_body_function_source_spans()) {
         fprintf(stderr, "Expression-body function Parser coverage failed.\\n");
+        return 1;
+    }
+
+    if (!test_indexed_capture_assignment_ast()) {
+        fprintf(stderr, "Indexed capture assignment Parser coverage failed.\\n");
         return 1;
     }
 

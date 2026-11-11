@@ -2267,12 +2267,39 @@ static ASTNode* parse_assignment(Parser* p) {
     if (!expr) return NULL;
 
     if (match(p, TOKEN_CAPTURE)) {
-        // Nexus Capture: left <- right
+        // A bare identifier is a handler capture. An indexed/member target
+        // is retained as a general capture assignment for Semantic validation.
         if (expr->type != AST_IDENTIFIER) {
-             error_at(p, &p->previous, ERR_PARSER_INVALID_VAR, msg_get(MSG_INVALID_CAPTURE));
-             return expr;
+            ASTNode* right;
+            ASTBinaryExpr* assign;
+            if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
+                error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                    "Maximum parser nesting depth exceeded.");
+                ast_destroy(expr);
+                return NULL;
+            }
+            ++p->nesting_depth;
+            right = parse_assignment(p);
+            --p->nesting_depth;
+            if (!right) {
+                ast_destroy(expr);
+                return NULL;
+            }
+            assign = (ASTBinaryExpr*)parser_ast_create(p, AST_ASSIGNMENT);
+            if (!assign) {
+                ast_destroy(expr);
+                ast_destroy(right);
+                return NULL;
+            }
+            assign->base.line = expr->line;
+            assign->base.col = expr->col;
+            assign->op = TOKEN_CAPTURE;
+            assign->left = expr;
+            assign->right = right;
+            parser_stamp_node_child_range((ASTNode*)assign, expr, right);
+            return (ASTNode*)assign;
         }
-        
+
         ASTNexusCapture* capture = (ASTNexusCapture*)parser_ast_create(p, AST_NEXUS_CAPTURE);
         if (!capture) {
             ast_destroy(expr);
