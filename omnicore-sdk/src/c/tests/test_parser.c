@@ -3859,6 +3859,63 @@ static int test_copy_intrinsic_uses_generic_call_ast(void) {
     return valid;
 }
 
+static int test_string_append_assignment_ast(void) {
+    static const char source[] = "f:main() { text .= \"x\"; }";
+    const char* append_start = strstr(source, "text .= \"x\"");
+    const char* append_end = append_start
+        ? append_start + strlen("text .= \"x\"") : NULL;
+    ParserContext* ctx = parser_init_source(
+        "string-append-assignment.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTBinaryExpr* assignment;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root ||
+        !ast_validate(ctx->ast_root)) goto done;
+
+    function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    if (!function || function->base.type != AST_FUNC_DECL ||
+        !function->body || function->body->type != AST_BLOCK) goto done;
+    body = (ASTBlock*)function->body;
+    if (!body->statements || body->statements->type != AST_ASSIGNMENT ||
+        body->statements->next) goto done;
+
+    assignment = (ASTBinaryExpr*)body->statements;
+    if (assignment->op != TOKEN_STRING_APPEND ||
+        !assignment->left || assignment->left->type != AST_IDENTIFIER ||
+        strcmp(((ASTIdentifier*)assignment->left)->name, "text") != 0 ||
+        !assignment->right || assignment->right->type != AST_LITERAL ||
+        ((ASTLiteral*)assignment->right)->type != TOKEN_STRING ||
+        !append_start || !append_end ||
+        !assignment->base.source_span.has_location ||
+        assignment->base.source_span.start_offset != (uint64_t)(append_start - source) ||
+        assignment->base.source_span.end_offset != (uint64_t)(append_end - source) ||
+        assignment->base.source_span.start_column != (uint32_t)(append_start - source) + 1u ||
+        assignment->base.source_span.end_column != (uint32_t)(append_end - source) + 1u)
+        goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    if (!ok) return 0;
+
+    {
+        static const char invalid_source[] = "f:main() { text .= ; }";
+        ParserContext* invalid = parser_init_source(
+            "string-append-assignment-invalid.nxf",
+            (const uint8_t*)invalid_source, sizeof(invalid_source) - 1u);
+        int rejected = invalid &&
+            (parser_run(invalid) != PARSER_STATUS_OK || invalid->error_count != 0);
+        if (invalid) parser_destroy(invalid);
+        if (!rejected) return 0;
+    }
+    return 1;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -3889,6 +3946,10 @@ int main(int argc, char** argv) {
     if (!test_function_array_return_ast()) { fprintf(stderr, "Function array-return parser/codec test failed.\n"); return 1; }
     if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
     if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\n"); return 1; }
+    if (!test_string_append_assignment_ast()) {
+        fprintf(stderr, "String append assignment AST/source-span parser test failed.\\n");
+        return 1;
+    }
     if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
     if (!test_extern_linkname_association_and_codec()) { fprintf(stderr, "EXF linkname association/codec test failed.\n"); return 1; }
     if (!test_extern_echo_and_listen_keywords()) { fprintf(stderr, "extern/echo/listen keyword parser test failed.\n"); return 1; }
