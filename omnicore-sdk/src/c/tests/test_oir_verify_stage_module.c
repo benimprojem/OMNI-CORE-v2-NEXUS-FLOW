@@ -118,7 +118,7 @@ static void test_put_u16(uint8_t* p, uint16_t v) {
 static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int variant) {
     int diamond = variant == 1;
     static const uint8_t strings[] = "mainother";
-    OirModuleType types[3];
+    OirModuleType types[4];
     OirModuleFunction functions[2];
     OirModuleBlock blocks[4];
     OirModuleValue values[4];
@@ -130,9 +130,9 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     uint8_t module_bytes[4096];
     uint8_t* artifact;
     uint32_t block_count = variant == 5 ? 1u : (diamond ? 4u : 2u);
-    uint32_t value_count = variant == 5 ? 2u : (diamond ? 4u : 2u);
-    uint32_t instruction_count = variant == 5 ? 2u : (diamond ? 8u : 4u);
-    uint32_t operand_count = variant == 5 ? 2u : (diamond ? 11u : 5u);
+    uint32_t value_count = variant == 5 ? 2u : (variant == 23 ? 3u : (diamond ? 4u : 2u));
+    uint32_t instruction_count = variant == 5 ? 2u : (variant == 23 ? 5u : (diamond ? 8u : 4u));
+    uint32_t operand_count = variant == 5 ? 2u : (variant == 23 ? 6u : (diamond ? 11u : 5u));
     size_t module_length = 0u, artifact_capacity;
 
     memset(types, 0, sizeof(types));
@@ -141,6 +141,8 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     types[1].id = 2u; types[1].kind = OIR_MODULE_TYPE_BOOLEAN;
     types[1].bit_width = 1u;
     types[2].id = 3u; types[2].kind = OIR_MODULE_TYPE_FUNCTION;
+    types[3].id = 4u; types[3].kind = OIR_MODULE_TYPE_INTEGER;
+    types[3].bit_width = 64u; types[3].flags = OIR_MODULE_TYPE_FLAG_UNSIGNED;
 
     memset(functions, 0, sizeof(functions));
     functions[0].id = 1u; functions[0].name_length = 4u;
@@ -231,6 +233,44 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         operands[9].kind = OIR_OPERAND_VALUE; operands[9].reference_id = 3u;
         operands[10].kind = OIR_OPERAND_VALUE; operands[10].reference_id = 4u;
     }
+    if (variant == 23) {
+        /* SHR uses an i32 left/result and an independent u64 shift-count value. */
+        blocks[0].instruction_count = 3u;
+        blocks[1].first_instruction = 3u;
+        values[1].type_id = 4u;
+        values[1].defining_instruction_id = 2u;
+        values[2].id = 3u;
+        values[2].type_id = 1u;
+        values[2].defining_instruction_id = 4u;
+        instructions[1].id = 2u;
+        instructions[1].opcode_id = OIR_OP_CONST_INT;
+        instructions[1].result_value_id = 2u;
+        instructions[1].first_operand = 1u;
+        instructions[1].operand_count = 1u;
+        instructions[2].id = 3u;
+        instructions[2].opcode_id = OIR_OP_BRANCH;
+        instructions[2].first_operand = 2u;
+        instructions[2].operand_count = 1u;
+        instructions[3].id = 4u;
+        instructions[3].opcode_id = OIR_OP_BIT_SHR;
+        instructions[3].result_value_id = 3u;
+        instructions[3].first_operand = 3u;
+        instructions[3].operand_count = 2u;
+        instructions[4].id = 5u;
+        instructions[4].opcode_id = OIR_OP_RETURN;
+        instructions[4].first_operand = 5u;
+        instructions[4].operand_count = 1u;
+        operands[1].kind = OIR_OPERAND_INTEGER_IMMEDIATE;
+        operands[1].immediate = 2u;
+        operands[2].kind = OIR_OPERAND_BLOCK;
+        operands[2].reference_id = 2u;
+        operands[3].kind = OIR_OPERAND_VALUE;
+        operands[3].reference_id = 1u;
+        operands[4].kind = OIR_OPERAND_VALUE;
+        operands[4].reference_id = 2u;
+        operands[5].kind = OIR_OPERAND_VALUE;
+        operands[5].reference_id = 3u;
+    }
     if (variant == 10) {
         /* Return value 1 instead of ADD result 2; value 2 is now unused. */
         operands[4].reference_id = 1u;
@@ -263,7 +303,7 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     }
 
     memset(&input, 0, sizeof(input));
-    input.types = types; input.type_count = 3u;
+    input.types = types; input.type_count = variant == 23 ? 4u : 3u;
     input.functions = functions; input.function_count =
         (variant == 2 || variant == 3) ? 2u : 1u;
     input.blocks = blocks; input.block_count = block_count;
@@ -277,28 +317,31 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
             (variant == 20 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR);
     assert(oir_module_write(module_bytes, sizeof(module_bytes), &input,
         &module_length) == OIR_STATUS_OK);
-    if (variant == 19 || variant == 20 || variant == 22) {
+    if (variant == 19 || variant == 20 || variant == 22 || variant == 23) {
         OirModuleView opcode_check;
         OirModuleInstruction opcode_instruction;
+        uint32_t opcode_index = variant == 23 ? 3u : 2u;
         assert(oir_module_open(module_bytes, module_length, &opcode_check) == OIR_STATUS_OK);
-        assert(oir_module_get_instruction(&opcode_check, 2u, &opcode_instruction) == OIR_STATUS_OK);
+        assert(oir_module_get_instruction(&opcode_check, opcode_index, &opcode_instruction) == OIR_STATUS_OK);
         assert(opcode_instruction.opcode_id == (variant == 19 ? OIR_OP_BIT_AND :
             (variant == 20 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR)));
-        if (variant == 22) {
+        if (variant == 22 || variant == 23) {
             OirModuleOperand shift_lhs, shift_rhs;
             OirModuleValue lhs_value, rhs_value, shift_result;
-            assert(opcode_instruction.result_value_id == 2u);
-            assert(opcode_instruction.first_operand == 2u &&
+            uint32_t lhs_index = variant == 23 ? 3u : 2u;
+            uint32_t rhs_index = variant == 23 ? 4u : 3u;
+            assert(opcode_instruction.result_value_id == (variant == 23 ? 3u : 2u));
+            assert(opcode_instruction.first_operand == lhs_index &&
                 opcode_instruction.operand_count == 2u);
-            assert(oir_module_get_operand(&opcode_check, 2u, &shift_lhs) == OIR_STATUS_OK);
-            assert(oir_module_get_operand(&opcode_check, 3u, &shift_rhs) == OIR_STATUS_OK);
+            assert(oir_module_get_operand(&opcode_check, lhs_index, &shift_lhs) == OIR_STATUS_OK);
+            assert(oir_module_get_operand(&opcode_check, rhs_index, &shift_rhs) == OIR_STATUS_OK);
             assert(shift_lhs.kind == OIR_OPERAND_VALUE && shift_lhs.reference_id == 1u);
-            assert(shift_rhs.kind == OIR_OPERAND_VALUE && shift_rhs.reference_id == 1u);
+            assert(shift_rhs.kind == OIR_OPERAND_VALUE && shift_rhs.reference_id == (variant == 23 ? 2u : 1u));
             assert(oir_module_get_value(&opcode_check, 0u, &lhs_value) == OIR_STATUS_OK);
-            assert(oir_module_get_value(&opcode_check, 1u, &shift_result) == OIR_STATUS_OK);
+            assert(oir_module_get_value(&opcode_check, variant == 23 ? 2u : 1u, &shift_result) == OIR_STATUS_OK);
             assert(lhs_value.type_id == 1u && shift_result.type_id == 1u);
-            assert(oir_module_get_value(&opcode_check, 0u, &rhs_value) == OIR_STATUS_OK);
-            assert(rhs_value.type_id == 1u);
+            assert(oir_module_get_value(&opcode_check, variant == 23 ? 1u : 0u, &rhs_value) == OIR_STATUS_OK);
+            assert(rhs_value.type_id == (variant == 23 ? 4u : 1u));
         }
     }
 
