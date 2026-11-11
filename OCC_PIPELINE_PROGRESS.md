@@ -1867,4 +1867,4 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - The test asserts the host reports the verifier's diagnostic and emits no OIR_MODULE publication, OIR_ASSEMBLY, stage assembly or legacy Codegen output.
 - Added the OIR Verifier DLL to the production `occ` target's explicit build dependencies, so a non-test build also produces the required stage module.
 - Scope note: this proves the host gate stops downstream consumers when the independent verifier rejects. The Verifier's own invalid-SSA/type/CFG rejection remains covered by its direct stage tests; this host test does not claim to inject a semantically malformed lowering artifact.
-- CI has not yet run for this change.
+- Initial CI build caught a C comment-syntax typo in the test fixture; corrected immediately. The first run did not reach CTest, so no integration-test result is claimed yet.

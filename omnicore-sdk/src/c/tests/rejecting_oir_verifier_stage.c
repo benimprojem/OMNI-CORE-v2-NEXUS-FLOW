@@ -1,4 +1,4 @@
-# Test-only verifier replacement used to prove the host stops before Codegen.
+/* Test-only verifier replacement used to prove the host stops before Codegen. */
 #include "occ_module_api.h"
 
 #include <string.h>
