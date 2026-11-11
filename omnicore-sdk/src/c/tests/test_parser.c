@@ -3571,6 +3571,86 @@ done:
     return 1;
 }
 
+static int test_separated_variable_declarations_and_declaration_spans(void) {
+    static const char source[] =
+        "f:main() {\n"
+        "  v: separated!i32 = 7;\n"
+        "  c: fixed!u8 = 3;\n"
+        "}\n";
+    ParserContext* parser = parser_init_source("separated-declarations.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTVarDecl* variable;
+    ASTVarDecl* constant;
+    const char* function_start = strstr(source, "f:main()");
+    const char* function_end = strrchr(source, '}');
+    const char* variable_start = strstr(source, "v: separated");
+    const char* variable_end = variable_start ? strchr(variable_start, ';') : NULL;
+    const char* constant_start = strstr(source, "c: fixed");
+    const char* constant_end = constant_start ? strchr(constant_start, ';') : NULL;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK || parser->error_count != 0 ||
+        !parser->ast_root || !ast_validate(parser->ast_root, NULL))
+        goto done;
+
+    function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    body = function && function->body && function->body->type == AST_BLOCK
+        ? (ASTBlock*)function->body : NULL;
+    variable = body ? (ASTVarDecl*)body->statements : NULL;
+    constant = variable ? (ASTVarDecl*)variable->base.next : NULL;
+
+    valid = function && function->name && strcmp(function->name, "main") == 0 &&
+        function_start && function_end &&
+        function->base.source_span.has_location &&
+        function->base.source_span.start_offset ==
+            (uint64_t)(function_start - source) &&
+        function->base.source_span.end_offset ==
+            (uint64_t)(function_end + 1 - source) &&
+        body && body->base.source_span.has_location &&
+        variable && variable->name && strcmp(variable->name, "separated") == 0 &&
+        variable->type_name && strcmp(variable->type_name, "!i32") == 0 &&
+        variable->is_hard_typed && !variable->is_const &&
+        variable->initializer && variable->initializer->type == AST_LITERAL &&
+        variable_start && variable_end &&
+        variable->base.source_span.has_location &&
+        variable->base.source_span.start_offset ==
+            (uint64_t)(variable_start - source) &&
+        variable->base.source_span.end_offset ==
+            (uint64_t)(variable_end + 1 - source) &&
+        variable->base.source_span.start_line == 2u &&
+        constant && constant->name && strcmp(constant->name, "fixed") == 0 &&
+        constant->type_name && strcmp(constant->type_name, "!u8") == 0 &&
+        constant->is_hard_typed && constant->is_const &&
+        constant->initializer && constant->initializer->type == AST_LITERAL &&
+        constant_start && constant_end &&
+        constant->base.source_span.has_location &&
+        constant->base.source_span.start_offset ==
+            (uint64_t)(constant_start - source) &&
+        constant->base.source_span.end_offset ==
+            (uint64_t)(constant_end + 1 - source) &&
+        constant->base.source_span.start_line == 3u &&
+        constant->base.next == NULL;
+
+done:
+    if (!valid) {
+        Error* error;
+        fprintf(stderr, "Separated variable declaration/source-span Parser test failed.\\n");
+        for (error = parser->error_head; error; error = error->next)
+            fprintf(stderr, "  %d:%d %s\\n", error->line, error->col,
+                error->message ? error->message : "");
+    }
+    parser_destroy(parser);
+    if (!valid) return 0;
+
+    return parser_source_reports_syntax_error(
+        "separated-variable-missing-name.nxf",
+        "f:main() { v: !i32 = 1; }",
+        sizeof("f:main() { v: !i32 = 1; }") - 1u);
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -5943,6 +6023,11 @@ generic_type_done:
             fprintf(stderr,"Shift precedence/AST construction test failed.\\n");
             return 1;
         }
+    }
+
+    if (!test_separated_variable_declarations_and_declaration_spans()) {
+        fprintf(stderr, "Separated declaration Parser coverage failed.\\n");
+        return 1;
     }
 
     return 0;

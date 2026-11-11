@@ -30,8 +30,8 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| Program ve blok | `AST_PROGRAM`, `AST_BLOCK` | ✓ | ~ | ~ | ~ | ~ | ~ | Tüm üretimlerde span/ownership kapanışı; OIR span metadata |
-| Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ~ | ~ | ~ | ~ | ~ | Modifier, export/inline, initializer ve type annotation matrisi |
+| Program ve blok | `AST_PROGRAM`, `AST_BLOCK` | ✓ | ✓ | ~ | ~ | ~ | ~ | Parser root/block production ve kaynak span testleri mevcut; AST ownership/codec ve OIR span metadata ayrı aşamalarda açık |
+| Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ✓ | ~ | ~ | ~ | ~ | Parser ayrı/bitişik önek, hard type, initializer ve exact declaration span testleri mevcut; AST payload/codec ve Semantic kuralları açık |
 | Immutable `m:` | `AST_MUST_DECL` (103) | ✓ | ✓ | ✓ | ✓ | D | — | Derleme zamanı/sabit değer sınırları; runtime lowering gerektirmeyen karar korunmalı |
 | NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ~ | ~ | ~ | ? | ? | Nominal type, target type ve Semantic type identity |
 | Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ~ | ~ | ~ | ? | ? | Alan yerleşimi, packed layout ve aggregate lowering |
@@ -48,7 +48,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| Fonksiyon `f:name(...)` | `AST_FUNC_DECL` | ✓ | ~ | ~ | ~ | ~ | ~ | Parametre/default/named arg, return ve ABI sözleşmesinin tamamı |
+| Fonksiyon `f:name(...)` | `AST_FUNC_DECL` | ✓ | ✓ | ~ | ~ | ~ | ~ | Parser parametre biçimleri, callback türleri, extern ve function span testleri mevcut; AST payload/codec, Semantic ve ABI sözleşmesi açık |
 | Extern `exf:` | `AST_EXTERN_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | External signature, symbol/linkname ve calling convention |
 | Lambda / anonymous function | `AST_LAMBDA` (94) | ✓ | ✓ | ✓ | ~ | ~ | ? | Capture, closure conversion, return inference ve ABI |
 | Callback/function type `f:(...)!R` | `AST_TYPE_EXPR` (108) ve recursive type payload | ✓ | ✓ | ✓ | ~ | ? | ? | Callback compatibility, function value call ve function-pointer ABI |
