@@ -7,7 +7,7 @@
 
 > Bu belge yaşayan takip tablosudur. Durumlar tahmini yüzde değildir; kod, belge ve test kanıtına göre güncellenir. Bir enum, AST tag'i veya DLL dosyasının bulunması tek başına özelliğin tamamlandığı anlamına gelmez.
 
-## 1. Durum anahtarı
+> **Kullanıcıya dönük genel görünüm:** [NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu](NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md). Ayrıntılı node envanteri bu dosyada, sekiz başlıklı toplu durum ve öncelik sırası dashboard'dadır.\n\n## 1. Durum anahtarı
 
 | İşaret | Anlamı |
 |---|---|
@@ -1880,3 +1880,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Existing verifier fixtures cover valid function entry ownership and reject an entry block owned by another function. The code change is awaiting the full CI matrix; do not treat it as verified until CI completes.
 
 - Dominance analysis previously allocated and freed a temporary bitset for every reachable non-entry block on every fixed-point iteration. Replaced that repeated heap traffic with a fixed-size stack scratch row bounded by the verifier's 8,192-block limit (129 64-bit words maximum). This also removes an allocation-failure path that was being reported as a dominance invariant error instead of an infrastructure workspace error. Existing CFG/dominance fixtures exercise the same algorithm; full CI is pending for the combined verifier audit changes.
+
+
+### 2026-11-11 — Sekiz başlıklı syntax/AST görünürlük tablosu ve Verifier CI kapanışı
+
+- Nexus Flow syntax envanteri sekiz başlık altında ayrı bir kullanıcı görünümüne taşındı: bildirim/tür, fonksiyon/modül, ifadeler/operatörler, aggregate/bellek, kontrol akışı, pattern/ruleset, Nexus Flow/intrinsics, concurrency/ASM/deferred syntax.
+- Her satır Lexer, Parser, AST+Codec, Semantic, OIR Lowering ve bağımsız Verifier sütunlarında ayrı durumlandırıldı. Parser veya AST desteği, sonraki aşama tamamlandı gibi gösterilmiyor.
+- Öncelik sırası AST sözleşmesi ve Parser/span/codec kapanışından başlayıp Semantic, ownership/effect, Semantic artifact validator, lowering, Verifier ve pipeline entegrasyonuna kadar sıralandı. Codegen genişletmesi son kapı olarak kaldı.
+- Son Verifier karmaşıklık/çalışma alanı değişikliklerinin CI run 43073952941 sonucu kontrol edildi: Ubuntu, Windows, macOS, ASan/UBSan ve Valgrind 5/5 başarılı.
+- Bu CI sonucu yalnızca ilgili değişiklikleri doğrular; OIR Verifier aşaması hâlâ gereksinim bazlı tam denetim bekliyor.
+- Dashboard dosyası: `NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md`.
