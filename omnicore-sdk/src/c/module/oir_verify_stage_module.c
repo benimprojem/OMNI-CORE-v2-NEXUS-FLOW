@@ -1,6 +1,7 @@
 #include "occ_module_api.h"
 #include "oir_module.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
