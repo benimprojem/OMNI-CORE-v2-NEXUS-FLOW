@@ -37,6 +37,7 @@ typedef struct Slot {
     uint32_t symbol_id;
     uint32_t scope_id;
     const ASTNode* group_owner; /* Non-owning Group declaration that owns private nominal types. */
+    const ASTNode* fast_exec_owner; /* Non-owning FASTEXEC block that owns ASM labels. */
     uint32_t type_id;
     struct Slot* next;
 } Slot;
@@ -64,6 +65,7 @@ typedef struct {
     SemanticResultStatus result_status;
     uint32_t current_scope_id;
     const ASTNode* current_group_owner; /* Active lexical Group; NULL outside a Group. */
+    const ASTNode* current_fast_exec_owner; /* Active FASTEXEC lexical scope. */
     const char* current_method_receiver_type;
     const char* current_method_public_name;
     uint32_t current_method_receiver_type_id;

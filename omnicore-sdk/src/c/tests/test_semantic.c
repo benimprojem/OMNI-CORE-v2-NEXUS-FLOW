@@ -667,7 +667,42 @@ static int check_m_immutable_value_semantics(void) {
         check_source("f:main() { m:value = 5; m:value = 6; }", 1);
 }
 
+static int check_fast_exec_asm_semantics(void) {
+    const char* valid_forward_labels =
+        "f:main() { fastexec { v:x!i32 = 10; "
+        "asmcall(\"FORWARD\"); asmjmp(\"EXIT\"); "
+        "asm: FORWARD { mov rax, %x:reg } asm: EXIT { ret } } ret; }";
+    const char* call_outside =
+        "f:main() { asmcall(\"OUTSIDE\"); }";
+    const char* missing_label =
+        "f:main() { fastexec { asmcall(\"MISSING\"); } }";
+    const char* duplicate_label =
+        "f:main() { fastexec { asm: SAME { nop } asm: SAME { ret } } }";
+    const char* missing_argument =
+        "f:main() { fastexec { asmcall(); asm: TARGET { nop } } }";
+    const char* non_string_argument =
+        "f:main() { fastexec { asmjmp(TARGET); asm: TARGET { nop } } }";
+    const char* fast_exec_scope_leak =
+        "f:main() { fastexec { v:inside!i32 = 1; } "
+        "v:outside!i32 = inside; }";
+    const char* nested_scope_valid =
+        "f:main() { fastexec { v:outer!i32 = 1; "
+        "{ v:inner!i32 = outer + 1; } } }";
+    return check_source(valid_forward_labels, 0) &&
+        check_source(call_outside, 1) &&
+        check_source(missing_label, 1) &&
+        check_source(duplicate_label, 1) &&
+        check_source(missing_argument, 1) &&
+        check_source(non_string_argument, 1) &&
+        check_source(fast_exec_scope_leak, 1) &&
+        check_source(nested_scope_valid, 0);
+}
+
 int main(int argc, char** argv) {
+    if (!check_fast_exec_asm_semantics()) {
+        fprintf(stderr, "FASTEXEC/ASM semantic checks failed.\\n");
+        return 1;
+    }
     if (!check_m_immutable_value_semantics()) {
         fprintf(stderr, "Immutable m: value semantic checks failed.\\n");
         return 1;

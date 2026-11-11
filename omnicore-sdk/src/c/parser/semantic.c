@@ -614,6 +614,7 @@ static Slot* add_slot(
     s->is_packed = is_packed;
     s->scope_id = ctx->current_scope_id;
     s->group_owner = ctx->current_group_owner;
+    s->fast_exec_owner = ctx->current_fast_exec_owner;
     s->type_id = semantic_type_id(ctx, type_name, is_hard);
 
     if (ctx->result_enabled &&
@@ -902,6 +903,13 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             Slot* slot = NULL;
             if (call->callee && call->callee->type == AST_IDENTIFIER) {
                 ASTIdentifier* id = (ASTIdentifier*)call->callee;
+                if (id->name &&
+                    (strcmp(id->name, "asmcall") == 0 ||
+                     strcmp(id->name, "asmjmp") == 0)) {
+                    semantic_record_annotation(
+                        ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
+                    return "void";
+                }
                 slot = find_slot(ctx, id->name);
             } else if (call->callee &&
                 call->callee->type == AST_MEMBER_ACCESS) {
@@ -1995,6 +2003,83 @@ static void semantic_validate_group_member_names(
         }
     }
 }
+static void semantic_register_fast_exec_labels(
+    SemanticContext* ctx,
+    ASTNode* statements
+) {
+    ASTNode* current;
+    for (current = statements; current; current = current->next) {
+        ASTAsmLabel* label;
+        Slot* existing;
+        Slot* slot;
+        if (current->type != AST_ASM_LABEL) continue;
+        label = (ASTAsmLabel*)current;
+        if (!label->label || !label->label[0]) {
+            report_error(ctx, current, ERR_SEMANTIC_TYPE_MISMATCH,
+                "ASM label name cannot be empty.");
+            continue;
+        }
+        existing = find_slot(ctx, label->label);
+        if (existing && existing->kind == SLOT_LABEL &&
+            existing->fast_exec_owner == ctx->current_fast_exec_owner) {
+            char message[256];
+            snprintf(message, sizeof(message),
+                "ASM label '%s' is declared more than once in this FASTEXEC block.",
+                label->label);
+            report_error(ctx, current, ERR_SEMANTIC_REDEFINED, message);
+            continue;
+        }
+        slot = add_slot(ctx, label->label, SLOT_LABEL, 0, NULL,
+            current, 0, 0, 0, 0u);
+        if (slot) {
+            semantic_record_annotation(
+                ctx, current, slot, NULL, SEMANTIC_RESULT_VALUE_UNSPECIFIED);
+        }
+    }
+}
+
+static int semantic_check_asm_intrinsic(
+    SemanticContext* ctx,
+    ASTNode* node,
+    ASTCall* call
+) {
+    const char* intrinsic_name;
+    ASTLiteral* argument;
+    Slot* label_slot;
+    if (!call || !call->callee || call->callee->type != AST_IDENTIFIER)
+        return 0;
+    intrinsic_name = ((ASTIdentifier*)call->callee)->name;
+    if (!intrinsic_name ||
+        (strcmp(intrinsic_name, "asmcall") != 0 &&
+         strcmp(intrinsic_name, "asmjmp") != 0))
+        return 0;
+
+    if (!ctx->current_fast_exec_owner) {
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "asmcall/asmjmp may only be used inside a FASTEXEC block.");
+    } else if (!call->args || call->args->type != AST_LITERAL ||
+        ((ASTLiteral*)call->args)->type != TOKEN_STRING ||
+        !((ASTLiteral*)call->args)->string_value ||
+        call->args->next != NULL) {
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "asmcall/asmjmp requires exactly one string-literal ASM label name.");
+    } else {
+        argument = (ASTLiteral*)call->args;
+        label_slot = find_slot(ctx, argument->string_value);
+        if (!label_slot || label_slot->kind != SLOT_LABEL ||
+            label_slot->fast_exec_owner != ctx->current_fast_exec_owner) {
+            char message[256];
+            snprintf(message, sizeof(message),
+                "ASM label '%s' is not declared in the current FASTEXEC block.",
+                argument->string_value);
+            report_error(ctx, node, ERR_SEMANTIC_UNDEFINED, message);
+        }
+    }
+    semantic_record_annotation(
+        ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
+    return 1;
+}
+
 static void semantic_check_node(SemanticContext* ctx, ASTNode* node, int follow_siblings);
 
 static void semantic_check_node(
@@ -3121,8 +3206,32 @@ static void semantic_check_node(
                 "Inline assembly blocks are not enabled in the semantic pipeline.");
             break;
 
+        case AST_FASTEXEC_BLOCK: {
+            ASTFastExecBlock* fast = (ASTFastExecBlock*)node;
+            const ASTNode* previous_fast_exec_owner =
+                ctx->current_fast_exec_owner;
+            enter_scope(ctx, node);
+            ctx->current_fast_exec_owner = node;
+            semantic_register_fast_exec_labels(ctx, fast->statements);
+            semantic_check(ctx, fast->statements);
+            ctx->current_fast_exec_owner = previous_fast_exec_owner;
+            exit_scope(ctx);
+            break;
+        }
+
+        case AST_ASM_LABEL:
+            if (!ctx->current_fast_exec_owner) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "ASM labels may only be declared inside a FASTEXEC block.");
+            }
+            break;
+
         case AST_FUNC_CALL: {
             ASTCall* call = (ASTCall*)node;
+            if (semantic_check_asm_intrinsic(ctx, node, call)) {
+                if (call->args) semantic_check(ctx, call->args);
+                break;
+            }
             if (call->callee && call->callee->type == AST_MEMBER_ACCESS) {
                 ASTMemberAccess* access = (ASTMemberAccess*)call->callee;
                 Slot* method_slot;
