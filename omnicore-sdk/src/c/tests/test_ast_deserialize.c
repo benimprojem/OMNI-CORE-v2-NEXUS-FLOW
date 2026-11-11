@@ -62,6 +62,47 @@ static ASTNode* make_literal_fixture(void) {
     return (ASTNode*)node;
 }
 
+static ASTNode* make_type_expr_fixture(void) {
+    ASTTypeExpr* qualified = (ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    ASTTypeExpr* pointer = (ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    ASTTypeExpr* named = (ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    if (!qualified || !pointer || !named) {
+        ast_destroy((ASTNode*)qualified);
+        ast_destroy((ASTNode*)pointer);
+        ast_destroy((ASTNode*)named);
+        return NULL;
+    }
+    qualified->kind = AST_TYPE_QUALIFIED;
+    qualified->flags = AST_TYPE_FLAG_HARD_TYPED;
+    qualified->child = (ASTNode*)pointer;
+    pointer->kind = AST_TYPE_POINTER;
+    pointer->child = (ASTNode*)named;
+    named->kind = AST_TYPE_NAMED;
+    named->name = duplicate_text("i32");
+    if (!named->name) {
+        ast_destroy((ASTNode*)qualified);
+        return NULL;
+    }
+    return (ASTNode*)qualified;
+}
+
+static ASTNode* make_array_type_fixture(void) {
+    ASTArrayType* array = (ASTArrayType*)ast_create(AST_ARRAY_TYPE);
+    ASTArrayDimension* dimension = (ASTArrayDimension*)ast_create(AST_ARRAY_DIMENSION);
+    if (!array || !dimension) {
+        ast_destroy((ASTNode*)array);
+        ast_destroy((ASTNode*)dimension);
+        return NULL;
+    }
+    array->dimensions = (ASTNode*)dimension;
+    dimension->length = make_literal_fixture();
+    if (!dimension->length) {
+        ast_destroy((ASTNode*)array);
+        return NULL;
+    }
+    return (ASTNode*)array;
+}
+
 static ASTNode* make_variable_fixture(void) {
     ASTVarDecl* node = (ASTVarDecl*)ast_create(AST_VAR_DECL);
     if (!node) return NULL;
@@ -76,7 +117,8 @@ static ASTNode* make_variable_fixture(void) {
     node->is_exported = 1;
     node->initializer = make_literal_fixture();
     node->inline_type = make_identifier_fixture("FixtureType");
-    if (!node->initializer || !node->inline_type) {
+    node->type_expr = make_type_expr_fixture();
+    if (!node->initializer || !node->inline_type || !node->type_expr) {
         ast_destroy((ASTNode*)node);
         return NULL;
     }
@@ -96,7 +138,12 @@ static ASTNode* make_function_fixture(ASTNodeType type) {
     node->is_exported = 1;
     node->params = make_identifier_fixture("fixture_argument");
     node->body = ast_create(AST_BLOCK);
-    if (!node->params || !node->body) {
+    node->return_array_type = make_array_type_fixture();
+    node->return_type_expr = make_type_expr_fixture();
+    if (type == AST_EXTERN_DECL) node->linkname = duplicate_text("fixture_external_symbol");
+    if (!node->params || !node->body || !node->return_array_type ||
+        !node->return_type_expr ||
+        (type == AST_EXTERN_DECL && !node->linkname)) {
         ast_destroy((ASTNode*)node);
         return NULL;
     }
@@ -129,7 +176,20 @@ static int populate_ast_fixture(ASTNode* node) {
     node->col = 19;
 
     switch (node->type) {
-        case AST_PROGRAM:
+        case AST_PROGRAM: {
+            ASTProgram* program = (ASTProgram*)node;
+            program->declarations = make_identifier_fixture("program_declaration");
+            program->disable_osmodule = 1u;
+            program->disable_osmodule_span.source_id = 7u;
+            program->disable_osmodule_span.start_offset = 4u;
+            program->disable_osmodule_span.end_offset = 16u;
+            program->disable_osmodule_span.start_line = 1u;
+            program->disable_osmodule_span.start_column = 5u;
+            program->disable_osmodule_span.end_line = 1u;
+            program->disable_osmodule_span.end_column = 17u;
+            program->disable_osmodule_span.has_location = 1u;
+            return program->declarations != NULL;
+        }
         case AST_BLOCK:
         case AST_ASM_BLOCK:
             ((ASTBlock*)node)->statements = make_identifier_fixture("block_statement");
@@ -148,6 +208,7 @@ static int populate_ast_fixture(ASTNode* node) {
             destination->is_exported = source->is_exported;
             destination->initializer = source->initializer; source->initializer = NULL;
             destination->inline_type = source->inline_type; source->inline_type = NULL;
+            destination->type_expr = source->type_expr; source->type_expr = NULL;
             ast_destroy(fixture);
             return 1;
         }
@@ -165,6 +226,9 @@ static int populate_ast_fixture(ASTNode* node) {
             destination->is_exported = source->is_exported;
             destination->params = source->params; source->params = NULL;
             destination->body = source->body; source->body = NULL;
+            destination->return_array_type = source->return_array_type; source->return_array_type = NULL;
+            destination->linkname = source->linkname; source->linkname = NULL;
+            destination->return_type_expr = source->return_type_expr; source->return_type_expr = NULL;
             ast_destroy(fixture);
             return 1;
         }
@@ -196,7 +260,7 @@ static int populate_ast_fixture(ASTNode* node) {
         case AST_BINARY_EXPR:
         case AST_ASSIGNMENT: {
             ASTBinaryExpr* value = (ASTBinaryExpr*)node;
-            value->op = TOKEN_PLUS;
+            value->op = node->type == AST_ASSIGNMENT ? TOKEN_STRING_APPEND : TOKEN_PLUS;
             value->left = make_identifier_fixture("left_operand");
             value->right = make_identifier_fixture("right_operand");
             return value->left && value->right;
@@ -332,7 +396,8 @@ static int populate_ast_fixture(ASTNode* node) {
         case AST_USE: {
             ASTUse* value = (ASTUse*)node;
             return assign_text(&value->module_name, "fixture_module") &&
-                assign_text(&value->alias, "fm");
+                assign_text(&value->alias, "fm") &&
+                assign_text(&value->namespace_name, "fixture_namespace");
         }
 
         case AST_DEFER:
@@ -364,8 +429,10 @@ static int populate_ast_fixture(ASTNode* node) {
 
         case AST_NEWTYPE_DECL: {
             ASTNewTypeDecl* value = (ASTNewTypeDecl*)node;
-            return assign_text(&value->name, "FixtureId") &&
-                assign_text(&value->target_type, "u64");
+            if (!assign_text(&value->name, "FixtureId") ||
+                !assign_text(&value->target_type, "u64")) return 0;
+            value->target_type_expr = make_type_expr_fixture();
+            return value->target_type_expr != NULL;
         }
 
         case AST_NEXUS_CAPTURE:
