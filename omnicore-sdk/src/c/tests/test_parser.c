@@ -3637,6 +3637,37 @@ static int test_separated_variable_declarations_and_declaration_spans(void) {
 done:
     if (!valid) {
         Error* error;
+        fprintf(stderr,
+            "Separated declaration diagnostics: function=%p body=%p variable=%p constant=%p\\n",
+            (void*)function, (void*)body, (void*)variable, (void*)constant);
+        if (function) fprintf(stderr,
+            "  function span=%u %llu..%llu expected=0..%llu\\n",
+            (unsigned)function->base.source_span.has_location,
+            (unsigned long long)function->base.source_span.start_offset,
+            (unsigned long long)function->base.source_span.end_offset,
+            (unsigned long long)(function_end ? (function_end + 1 - source) : 0));
+        if (variable) fprintf(stderr,
+            "  variable=%s type=%s hard=%u const=%u span=%u %llu..%llu expected=%llu..%llu line=%u\\n",
+            variable->name ? variable->name : "(null)",
+            variable->type_name ? variable->type_name : "(null)",
+            (unsigned)variable->is_hard_typed, (unsigned)variable->is_const,
+            (unsigned)variable->base.source_span.has_location,
+            (unsigned long long)variable->base.source_span.start_offset,
+            (unsigned long long)variable->base.source_span.end_offset,
+            (unsigned long long)(variable_start ? variable_start-source : 0),
+            (unsigned long long)(variable_end ? variable_end+1-source : 0),
+            (unsigned)variable->base.source_span.start_line);
+        if (constant) fprintf(stderr,
+            "  constant=%s type=%s hard=%u const=%u span=%u %llu..%llu expected=%llu..%llu line=%u next=%p\\n",
+            constant->name ? constant->name : "(null)",
+            constant->type_name ? constant->type_name : "(null)",
+            (unsigned)constant->is_hard_typed, (unsigned)constant->is_const,
+            (unsigned)constant->base.source_span.has_location,
+            (unsigned long long)constant->base.source_span.start_offset,
+            (unsigned long long)constant->base.source_span.end_offset,
+            (unsigned long long)(constant_start ? constant_start-source : 0),
+            (unsigned long long)(constant_end ? constant_end+1-source : 0),
+            (unsigned)constant->base.source_span.start_line, (void*)constant->base.next);
         fprintf(stderr, "Separated variable declaration/source-span Parser test failed.\\n");
         for (error = parser->error_head; error; error = error->next)
             fprintf(stderr, "  %d:%d %s\\n", error->line, error->col,
