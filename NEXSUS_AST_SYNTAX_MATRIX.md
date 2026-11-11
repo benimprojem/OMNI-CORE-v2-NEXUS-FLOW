@@ -349,7 +349,7 @@ This section separates **missing AST representation** from syntax that can legit
 | `elsif` and conditional action | Nested `AST_IF` and canonical `AST_IF` | **Existing representation** | Explicit parser/codec shape tests; no new node required |
 | `select/scan when`, scan `else` | Arm body wrapper `AST_IF`; null pattern only final scan else | **Existing representation** | Subject-aware constructor typing remains Semantic gap |
 | `T[]`, `T[n]`, `T[m][n]` | `AST_ARRAY_TYPE` + ordered `AST_ARRAY_DIMENSION` | **Existing representation** | Keep current parser/codec; lowering later |
-| Numeric shifts `<<<` / `>>>` vs Flow `<<` / `>>` | Numeric shift is represented by `AST_BINARY_EXPR` and OIR opcodes 26/27; Flow operators retain `AST_NEXUS_PIPE` | **Parser/AST/OIR shift path present; Semantic/lowering remains partial** | Close negative/dynamic count rules, full scalar lowering, Nbit/bit-vector support and shift-specific end-to-end tests |
+| Numeric shifts `<<<` / `>>>` vs Flow `<<` / `>>` | Numeric shifts produce `AST_BINARY_EXPR(TOKEN_BIT_SHL/TOKEN_BIT_SHR)`; Flow shifts produce `AST_NEXUS_PIPE(TOKEN_LSHIFT/TOKEN_RSHIFT)` | Dedicated Parser fixtures verify both numeric directions, left associativity, Flow-token distinction, AST graph validity and the 32-operator shift-chain limit | Negative/dynamic count rules, full scalar lowering, Nbit/bit-vector support and shift-specific OIR/Verifier tests remain later-stage work |
 
 ### Audit conclusion
 
