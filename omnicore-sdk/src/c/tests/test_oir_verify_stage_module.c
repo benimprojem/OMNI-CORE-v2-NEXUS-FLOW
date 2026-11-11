@@ -277,6 +277,14 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
             (variant == 20 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR);
     assert(oir_module_write(module_bytes, sizeof(module_bytes), &input,
         &module_length) == OIR_STATUS_OK);
+    if (variant == 19 || variant == 20 || variant == 22) {
+        OirModuleView opcode_check;
+        OirModuleInstruction opcode_instruction;
+        assert(oir_module_open(module_bytes, module_length, &opcode_check) == OIR_STATUS_OK);
+        assert(oir_module_get_instruction(&opcode_check, 2u, &opcode_instruction) == OIR_STATUS_OK);
+        assert(opcode_instruction.opcode_id == (variant == 19 ? OIR_OP_BIT_AND :
+            (variant == 20 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR)));
+    }
 
     /* Patch only after the codec writer has emitted a valid wire payload.
        These malformed semantic relationships belong to the independent verifier. */
