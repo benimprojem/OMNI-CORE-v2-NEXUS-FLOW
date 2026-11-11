@@ -894,7 +894,7 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
         input.header.validity != OIR_VALIDITY_VALID ||
         input.header.job_id != invocation->job_id)
         return report_verify_error(invocation, result, 8601u,
-            "OIR Verifier requires a valid OIR_MODULE 1.1 artifact from the lowering stage.", NULL);
+            "OIR Verifier requires a valid OIR_MODULE 1.2 artifact from the lowering stage.", NULL);
 
     for (i = 0u; i < input.section_count; ++i) {
         OirSectionView section;

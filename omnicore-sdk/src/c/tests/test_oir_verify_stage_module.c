@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_ssa) {
+static int build_module_artifact(uint8_t** out, size_t* out_length, int test_variant) {
     static const uint8_t strings[] = "main";
     static const uint8_t metadata[] = "verifier-payload-preservation";
     OirModuleType types[6];
@@ -67,7 +67,7 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     memset(operands, 0, sizeof(operands));
     operands[0].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[0].immediate = 7u;
     operands[1].kind = OIR_OPERAND_VALUE; operands[1].reference_id = 1u;
-    operands[2].kind = OIR_OPERAND_VALUE; operands[2].reference_id = invalid_ssa ? 2u : 1u;
+    operands[2].kind = OIR_OPERAND_VALUE; operands[2].reference_id = test_variant == 1 ? 2u : 1u;
     operands[3].kind = OIR_OPERAND_INTEGER_IMMEDIATE; operands[3].immediate = 9u;
     operands[4].kind = OIR_OPERAND_VALUE; operands[4].reference_id = 3u;
 
@@ -91,7 +91,7 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     header.container_minor = OIR_CONTAINER_MINOR;
     header.artifact_kind = OIR_KIND_MODULE;
     header.payload_schema_major = OIR_MODULE_SCHEMA_MAJOR;
-    header.payload_schema_minor = OIR_MODULE_SCHEMA_MINOR;
+    header.payload_schema_minor = test_variant == 2 ? 1u : OIR_MODULE_SCHEMA_MINOR;
     header.producer_stage_id = OCC_STAGE_OIR_LOWERING;
     header.validity = OIR_VALIDITY_VALID;
     header.job_id = 501u;
@@ -542,6 +542,20 @@ int main(int argc, char** argv) {
     assert(artifact.header.validity == OIR_VALIDITY_VALID);
     assert(artifact.header.job_id == 501u);
     free(output); output = NULL; output_length = 0u;
+    free(input); input = NULL; input_length = 0u;
+
+    /* Reject the previous payload schema with an explicit active-schema diagnostic. */
+    assert(build_module_artifact(&input, &input_length, 2));
+    {
+        OccModuleArtifactInputV1 stage_input;
+        memset(&stage_input, 0, sizeof(stage_input));
+        stage_input.bytes = input; stage_input.length = input_length;
+        assert(occ_module_loader_invoke(&loaded, &stage_input, 1u, 501u,
+            &diagnostics, 256u, 1024u * 1024u, &output, &output_length) ==
+            OCC_MODULE_LOADER_INVOKE_FAILED);
+    }
+    assert(output == NULL && output_length == 0u);
+    assert_last_diagnostic_code(&diagnostics, 8601u, "OIR_MODULE 1.2");
     free(input); input = NULL; input_length = 0u;
 
     /* The wire codec accepts the record shape, but the SSA use precedes its
