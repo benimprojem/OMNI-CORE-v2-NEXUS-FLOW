@@ -1,6 +1,7 @@
 #include "occ_module_api.h"
 #include "oir_module.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -1015,10 +1016,15 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                     return OCC_MODULE_STATUS_FAILED;
                 }
             }
-            if (!validate_module(&module, &failure, &unused_value_counts))
+            if (!validate_module(&module, &failure, &unused_value_counts)) {
+                (void)fprintf(stderr,
+                    "OIR verifier module validation failed: code=%u function=%u block=%u instruction=%u value=%u type=%u\\n",
+                    failure.code, failure.function_id, failure.block_id,
+                    failure.instruction_id, failure.value_id, failure.type_id);
                 return report_verify_error(invocation, result,
                     failure.code ? failure.code : 8603u,
                     "OIR_MODULE validation failed.", &failure);
+            }
         }
     }
     if (payload_count != 1u || !find_sections(&input, &sections)) {
