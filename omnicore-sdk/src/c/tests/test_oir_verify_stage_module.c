@@ -79,6 +79,9 @@ static int build_module_artifact(uint8_t** out, size_t* out_length, int invalid_
     input.instructions = instructions; input.instruction_count = 4u;
     input.operands = operands; input.operand_count = 5u;
     input.strings = strings; input.strings_length = 4u;
+    if (variant == 19 || variant == 20 || variant == 22)
+        instructions[2].opcode_id = variant == 19 ? OIR_OP_BIT_AND :
+            (variant == 20 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR);
     assert(oir_module_write(module_bytes, sizeof(module_bytes), &input,
         &module_length) == OIR_STATUS_OK);
 
@@ -282,10 +285,7 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
             (size_t)block_count * 16u;
         size_t instructions_offset = values_offset +
             (size_t)value_count * 16u;
-        /* Reuse the two-block fixture for independent bit-op type contracts. */
-        test_put_u16(module_bytes + instructions_offset + 2u * 24u + 8u,
-            variant == 19 ? OIR_OP_BIT_AND :
-                (variant == 20 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR));
+        /* Opcode variants are assigned to the in-memory record before serialization. */
         if (variant == 21) {
             /* Result type differs from the integer left operand. */
             test_put_u32(module_bytes + values_offset + 16u + 4u, 2u);
