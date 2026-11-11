@@ -682,11 +682,18 @@ static int parser_looks_like_conditional_control(Parser* p) {
             if (nested_parens == 0u) {
                 Token question = parser_next_token(&lookahead);
                 Token arm = parser_next_token(&lookahead);
-                if (question.type != TOKEN_QMARK || arm.type == TOKEN_LPAREN ||
+                if (question.type != TOKEN_QMARK ||
                     arm.type == TOKEN_EOF || arm.type == TOKEN_ERROR ||
                     arm.type == TOKEN_SEMICOLON || arm.type == TOKEN_COLON ||
                     arm.type == TOKEN_RPAREN || arm.type == TOKEN_RBRACE)
                     return 0;
+                if (arm.type == TOKEN_LPAREN) {
+                    Token retry_count = parser_next_token(&lookahead);
+                    Token retry_separator = parser_next_token(&lookahead);
+                    if (retry_count.type == TOKEN_NUMBER &&
+                        retry_separator.type == TOKEN_COMMA)
+                        return 0; /* Rolling retry suffix: ?(count, delay). */
+                }
                 return 1;
             }
             --nested_parens;

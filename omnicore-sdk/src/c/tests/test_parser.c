@@ -4350,6 +4350,35 @@ static int test_deferred_intent_ai_syntax_is_rejected(void) {
         "deferred-ai-logic.nxf", ai_source, sizeof(ai_source) - 1u);
 }
 
+static int test_parenthesized_rolling_retry_disambiguation(void) {
+    static const char source[] =
+        "f:main() { v:retry = (source)?(2, 100ms)->target; }";
+    ParserContext* ctx = parser_init_source(
+        "parenthesized-rolling-retry.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTVarDecl* variable;
+    ASTNexusFlow* flow;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) == PARSER_STATUS_OK && ctx->error_count == 0 &&
+        ctx->ast_root) {
+        function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+        variable = function && function->body && function->body->type == AST_BLOCK
+            ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+        flow = variable && variable->initializer &&
+            variable->initializer->type == AST_NEXUS_FLOW
+                ? (ASTNexusFlow*)variable->initializer : NULL;
+        ok = flow && flow->retry_count == 2 && flow->retry_delay == 100 &&
+            flow->op == TOKEN_PIPE && flow->left && flow->right &&
+            flow->right->type == AST_IDENTIFIER &&
+            strcmp(((ASTIdentifier*)flow->right)->name, "target") == 0;
+    }
+    parser_destroy(ctx);
+    return ok;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -4434,6 +4463,10 @@ int main(int argc, char** argv) {
     }
     if (!test_conditional_control_question_disambiguation()) {
         fprintf(stderr, "Question-mark conditional control was confused with a Nexus pipe.\n");
+        return 1;
+    }
+    if (!test_parenthesized_rolling_retry_disambiguation()) {
+        fprintf(stderr, "Parenthesized rolling retry was misclassified as conditional control.\\n");
         return 1;
     }
     if (!test_legacy_unpack_operator_is_rejected()) {
