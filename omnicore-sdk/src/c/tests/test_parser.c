@@ -4559,6 +4559,9 @@ static int test_parenthesized_rolling_retry_disambiguation(void) {
     ASTFuncDecl* function;
     ASTBlock* body;
     ASTNexusFlow* flow;
+    const char* flow_start = strstr(source, "source)?");
+    const char* flow_end_marker = strstr(source, "->target");
+    const char* flow_end = flow_end_marker ? flow_end_marker + strlen("->target") : NULL;
     int ok = 0;
 
     if (!ctx) return 0;
@@ -4573,7 +4576,11 @@ static int test_parenthesized_rolling_retry_disambiguation(void) {
         ok = flow && flow->retry_count == 2 && flow->retry_delay == 100 &&
             flow->op == TOKEN_PIPE && flow->left && flow->right &&
             flow->right->type == AST_IDENTIFIER &&
-            strcmp(((ASTIdentifier*)flow->right)->name, "target") == 0;
+            strcmp(((ASTIdentifier*)flow->right)->name, "target") == 0 &&
+            flow_start && flow_end && flow->base.source_span.has_location &&
+            flow->base.source_span.start_offset == (uint64_t)(flow_start - source) &&
+            flow->base.source_span.end_offset == (uint64_t)(flow_end - source) &&
+            ast_validate(ctx->ast_root, NULL);
     }
     parser_destroy(ctx);
     return ok;
