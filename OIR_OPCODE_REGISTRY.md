@@ -1,6 +1,6 @@
 # OIR_MODULE Opcode Registry
 
-**Registry:** 1.1 (bitwise opcode extension)  
+**Registry:** 1.2 (integer bit-shift opcode extension)  
 **Status:** Initial stable wire-ID assignment; type/effect verification remains in the module verifier  
 **Implementation:** `src/c/oir/oir_module_opcode.h/.c`
 
@@ -40,6 +40,8 @@ The registry currently validates structural shape only. It does not replace modu
 | 23 | `OIR_OP_BIT_OR` | `bit.or` | value, value | Required | Pure |
 | 24 | `OIR_OP_BIT_XOR` | `bit.xor` | value, value | Required | Pure |
 | 25 | `OIR_OP_BIT_NOT` | `bit.not` | value | Required | Pure |
+| 26 | `OIR_OP_BIT_SHL` | `bit.shl` | value, value | Required | Pure, may trap |
+| 27 | `OIR_OP_BIT_SHR` | `bit.shr` | value, value | Required | Pure, may trap |
 | 32–37 | `OIR_OP_CMP_*` | `cmp.eq/ne/lt/le/gt/ge` | value, value | Required | Pure |
 | 48 | `OIR_OP_CAST` | `cast` | value, type | Required | Pure |
 | 64 | `OIR_OP_CALL` | `call` | function, zero or more values | Optional | May trap |
@@ -61,6 +63,6 @@ The comparison family uses consecutive IDs: 32 equality, 33 inequality, 34 less-
 - `load` and `store` are explicit memory operations. Address space, alignment, volatility, atomic ordering and ownership constraints require additional typed metadata and are not inferred by this initial registry.
 - `branch`, `cond.branch`, `return` and `unreachable` terminate a basic block. A block must not contain another instruction after its terminator.
 
-The 1.1 extension adds bitwise AND/OR/XOR/NOT with stable IDs 22–25. The independent verifier accepts integer and bit/byte representation types only when operand and result type IDs match exactly; bool and floating-point values are rejected. The current Semantic-to-OIR expression lowerer does not yet emit these instructions, and 128-bit constant payload encoding is not defined by the current immediate record.
+The 1.1 extension adds bitwise AND/OR/XOR/NOT with stable IDs 22–25. The 1.2 extension adds integer left/right shifts with stable IDs 26–27. Shift operands are both integer values; the left operand type must exactly match the result type, while the shift-count integer type may differ. The shift opcodes are marked PURE and MAY_TRAP because a negative dynamic count is a runtime trap under the language contract. Counts greater than or equal to the left operand width produce zero. Bitwise AND/OR/XOR/NOT accept integer and bit/byte representation types only when operand and result type IDs match exactly; bool and floating-point values are rejected. The current Semantic-to-OIR expression lowerer has a limited scalar configuration and does not yet provide general mixed-width operand lowering; 128-bit constant payload encoding is not defined by the current immediate record.
 
-This set still supports only the scalar-function foundation and the newly registered bitwise instruction contracts. Switch, phi/block-parameter incoming-edge records, allocation/lifetime operations, aggregate operations, exceptions, NEXSUS Flow ownership operations and concurrency/hardware intrinsics are intentionally not registered until their semantics are specified.
+This set still supports only the scalar-function foundation, bitwise instruction contracts and integer shift contracts. Switch, phi/block-parameter incoming-edge records, allocation/lifetime operations, aggregate operations, exceptions, NEXSUS Flow ownership operations and concurrency/hardware intrinsics are intentionally not registered until their semantics are specified.
