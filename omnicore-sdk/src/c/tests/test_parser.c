@@ -3825,6 +3825,40 @@ done:
     return valid;
 }
 
+static int test_copy_intrinsic_uses_generic_call_ast(void) {
+    static const char source[] = "f:main() { v:copied = copy(value); }";
+    ParserContext* parser = parser_init_source("copy-generic-call.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTVarDecl* variable;
+    ASTCall* call;
+    const char* call_start = strstr(source, "copy(value)");
+    const char* call_end = call_start ? call_start + strlen("copy(value)") : NULL;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        parser->ast_root && ast_validate(parser->ast_root, NULL)) {
+        function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        variable = function && function->body && function->body->type == AST_BLOCK
+            ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+        call = variable && variable->initializer &&
+            variable->initializer->type == AST_FUNC_CALL
+                ? (ASTCall*)variable->initializer : NULL;
+        valid = variable && variable->name && strcmp(variable->name, "copied") == 0 &&
+            call && call->callee && call->callee->type == AST_IDENTIFIER &&
+            strcmp(((ASTIdentifier*)call->callee)->name, "copy") == 0 &&
+            call->args && call->args->type == AST_IDENTIFIER &&
+            strcmp(((ASTIdentifier*)call->args)->name, "value") == 0 &&
+            call_start && call_end && call->base.source_span.has_location &&
+            call->base.source_span.start_offset == (uint64_t)(call_start - source) &&
+            call->base.source_span.end_offset == (uint64_t)(call_end - source);
+    }
+    if (parser) parser_destroy(parser);
+    if (!valid) fprintf(stderr, "copy() generic-call Parser AST/span test failed.\\n");
+    return valid;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -6216,6 +6250,11 @@ generic_type_done:
 
     if (!test_vector_and_bit_byte_type_parser_coverage()) {
         fprintf(stderr, "Vector/bit/byte type Parser coverage failed.\\n");
+        return 1;
+    }
+
+    if (!test_copy_intrinsic_uses_generic_call_ast()) {
+        fprintf(stderr, "copy() generic-call Parser coverage failed.\\n");
         return 1;
     }
 
