@@ -947,7 +947,7 @@ static int test_conditional_control_question_disambiguation(void) {
     const char* first_start = strstr(source, "(a == b) ? break;");
     const char* first_end = first_start ? first_start + strlen("(a == b) ? break;") : NULL;
     const char* block_start = strstr(source, "(g == h) ? {");
-    const char* block_end_marker = block_start ? strstr(block_start, "} a == b") : NULL;
+    const char* block_end_marker = block_start ? strstr(block_start, "} (h == i)") : NULL;
     const char* block_end = block_end_marker ? block_end_marker + 1 : NULL;
     const char* pipe_start = strstr(source, "a == b -> target");
     const char* pipe_target = pipe_start ? strstr(pipe_start, "target") : NULL;
