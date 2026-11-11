@@ -927,6 +927,8 @@ static int test_conditional_control_question_disambiguation(void) {
         " ((c != d)) ? continue;"
         " (e == f) ? ret 1;"
         " (g == h) ? { echo(\"yes\"); } : { echo(\"no\"); }"
+        " (h == i) ? process(h);"
+        " (j == k) ? process(j) : process(k);"
         " a == b -> target;"
         "}";
     ParserContext* ctx = parser_init_source(
@@ -939,6 +941,8 @@ static int test_conditional_control_question_disambiguation(void) {
     ASTIf* continue_action;
     ASTIf* return_action;
     ASTIf* block_action;
+    ASTIf* expression_action;
+    ASTIf* expression_alternative_action;
     ASTNexusFlow* ordinary_pipe;
     const char* first_start = strstr(source, "(a == b) ? break;");
     const char* first_end = first_start ? first_start + strlen("(a == b) ? break;") : NULL;
@@ -991,7 +995,23 @@ static int test_conditional_control_question_disambiguation(void) {
         block_action->base.source_span.end_offset != (uint64_t)(block_end - source))
         goto done;
 
-    ordinary_pipe = (ASTNexusFlow*)block_action->base.next;
+    expression_action = (ASTIf*)block_action->base.next;
+    if (!expression_action || expression_action->base.type != AST_IF ||
+        !expression_action->then_branch ||
+        expression_action->then_branch->type != AST_FUNC_CALL ||
+        expression_action->else_branch != NULL)
+        goto done;
+
+    expression_alternative_action = (ASTIf*)expression_action->base.next;
+    if (!expression_alternative_action ||
+        expression_alternative_action->base.type != AST_IF ||
+        !expression_alternative_action->then_branch ||
+        expression_alternative_action->then_branch->type != AST_FUNC_CALL ||
+        !expression_alternative_action->else_branch ||
+        expression_alternative_action->else_branch->type != AST_FUNC_CALL)
+        goto done;
+
+    ordinary_pipe = (ASTNexusFlow*)expression_alternative_action->base.next;
     if (!ordinary_pipe || ordinary_pipe->base.type != AST_NEXUS_PIPE ||
         ordinary_pipe->op != TOKEN_PIPE || !ordinary_pipe->left ||
         !ordinary_pipe->right || ordinary_pipe->right->type != AST_IDENTIFIER ||
