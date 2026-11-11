@@ -3617,6 +3617,12 @@ static int test_nested_group_and_default_ast(void) {
         ? strstr(nested_method_start, "ret; }") : NULL;
     const char* nested_method_end = nested_method_end_marker
         ? nested_method_end_marker + strlen("ret; }") : NULL;
+    const char* nested_default_start = strstr(source, "default { echo(1); }");
+    const char* nested_default_end = nested_default_start
+        ? nested_default_start + strlen("default { echo(1); }") : NULL;
+    const char* outer_default_start = strstr(source, "default { echo(2); }");
+    const char* outer_default_end = outer_default_start
+        ? outer_default_start + strlen("default { echo(2); }") : NULL;
     int valid = 0;
     if (!parser) return 0;
     if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
@@ -3658,7 +3664,15 @@ static int test_nested_group_and_default_ast(void) {
             nested->base.source_span.end_offset == (uint64_t)(nested_end - source) &&
             nested_method->base.source_span.has_location &&
             nested_method->base.source_span.start_offset == (uint64_t)(nested_method_start - source) &&
-            nested_method->base.source_span.end_offset == (uint64_t)(nested_method_end - source);
+            nested_method->base.source_span.end_offset == (uint64_t)(nested_method_end - source) &&
+            nested_default_start && nested_default_end &&
+            nested_default->base.source_span.has_location &&
+            nested_default->base.source_span.start_offset == (uint64_t)(nested_default_start - source) &&
+            nested_default->base.source_span.end_offset == (uint64_t)(nested_default_end - source) &&
+            outer_default_start && outer_default_end &&
+            outer_default->base.source_span.has_location &&
+            outer_default->base.source_span.start_offset == (uint64_t)(outer_default_start - source) &&
+            outer_default->base.source_span.end_offset == (uint64_t)(outer_default_end - source);
     }
     if (valid) {
         stream = tmpfile();
