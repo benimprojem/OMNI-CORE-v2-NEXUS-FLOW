@@ -1900,3 +1900,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Initial Parser source-span audit found no reason to mark helper-level absence as a defect when the enclosing `parse_statement` / group parser stamps the completed production (for example variable, defer, immutable and thread declarations). Production-by-production span assertion coverage remains open; dedicated coverage currently exists for 26 parser test functions, with additional syntax families still needing explicit exact-range assertions.
 - Next AST gate: close the exact source-span fixture matrix for remaining active syntax productions, then audit OIR optional span TLVs. Keep Semantic and Codegen expansion gated.
 - Detailed view: `NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md`; structural ownership reference: `AST_NODE_FIELD_OWNERSHIP.md`.
+
+
+### Parser source-span regression fixtures — 2026-11-11
+
+- Added exact source-range assertions for `AST_PANIC` and ordinary `AST_NEXUS_PIPE` to the existing Parser suite. The checks include byte offsets and invoke `ast_validate()` on the resulting graph.
+- CI run 43076506449 for commit `3dd54b1fc6f95fa42944dca2e25bd78943704c4a` passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- Continued Parser production audit found a higher-priority unresolved case: `TOKEN_UNPACK` allocates `AST_UNPACK`, then recursively parses and returns the continuation without attaching/returning the wrapper. The allocated node/subtree is therefore lost on a successful continuation; no dedicated Parser test exists, and `...>` is absent from the normative syntax reference. It remains incomplete pending a precise postfix-vs-target grammar decision; do not mark it complete.
