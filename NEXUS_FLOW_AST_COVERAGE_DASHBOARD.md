@@ -129,6 +129,7 @@
 | Reflection `typeof/sizeof/is_*` | Matching intrinsic AST tags | ✓ | ~ | ✓ | ~ | ? | ? | Compile-time/runtime distinction, type result and lowering |
 | Date/time/clock/free | Matching intrinsic AST tags | ✓ | ~ | ✓ | ? | ? | ? | Signature, platform service and effect contract |
 | Zone sync/view/lock member calls | Generic member/call AST; reserved dedicated tags | ✓ | ✓ | ✓ | ? | ? | ? | Intrinsic registry; do not count reserved tags as active productions |
+| Intrinsic AST inventory (exit/swap/option checks/date/time/clock/free/zone) | `AST_EXIT`, `AST_SWAP`, `AST_IS_OK`, `AST_IS_ERR`, `AST_IS_SOME`, `AST_IS_NONE`, `AST_IS_NULL`, `AST_DATE`, `AST_DATENOW`, `AST_TIME`, `AST_CLOCK`, `AST_FREE`, `AST_ZONE` | ✓ | ~ | ✓ | ? | ? | ? | Central signature/effect registry, compile-time/runtime distinction and per-intrinsic type/effect tests |
 | Ownership/copy/move and cleanup | Existing capture/relocate/unpack/defer/halt nodes | ~ | ~ | ~ | ~ | ? | ? | Unified ownership/effect model and explicit SemanticResult annotations |
 
 ## 8. Concurrency, FASTEXEC/ASM ve ertelenmiş syntax
