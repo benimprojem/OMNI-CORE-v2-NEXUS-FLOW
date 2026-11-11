@@ -284,6 +284,22 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         assert(oir_module_get_instruction(&opcode_check, 2u, &opcode_instruction) == OIR_STATUS_OK);
         assert(opcode_instruction.opcode_id == (variant == 19 ? OIR_OP_BIT_AND :
             (variant == 20 ? OIR_OP_BIT_SHL : OIR_OP_BIT_SHR)));
+        if (variant == 22) {
+            OirModuleOperand shift_lhs, shift_rhs;
+            OirModuleValue lhs_value, rhs_value, shift_result;
+            assert(opcode_instruction.result_value_id == 2u);
+            assert(opcode_instruction.first_operand == 2u &&
+                opcode_instruction.operand_count == 2u);
+            assert(oir_module_get_operand(&opcode_check, 2u, &shift_lhs) == OIR_STATUS_OK);
+            assert(oir_module_get_operand(&opcode_check, 3u, &shift_rhs) == OIR_STATUS_OK);
+            assert(shift_lhs.kind == OIR_OPERAND_VALUE && shift_lhs.reference_id == 1u);
+            assert(shift_rhs.kind == OIR_OPERAND_VALUE && shift_rhs.reference_id == 1u);
+            assert(oir_module_get_value(&opcode_check, 0u, &lhs_value) == OIR_STATUS_OK);
+            assert(oir_module_get_value(&opcode_check, 1u, &shift_result) == OIR_STATUS_OK);
+            assert(lhs_value.type_id == 1u && shift_result.type_id == 1u);
+            assert(oir_module_get_value(&opcode_check, 0u, &rhs_value) == OIR_STATUS_OK);
+            assert(rhs_value.type_id == 1u);
+        }
     }
 
     /* Patch only after the codec writer has emitted a valid wire payload.
