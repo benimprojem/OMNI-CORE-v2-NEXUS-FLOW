@@ -3010,6 +3010,12 @@ static int test_pointer_reference_type_declarators(void) {
     ASTNode* ret_node;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
+    const char* function_start = strstr(source, "f:ptrs");
+    const char* function_end_text = function_start ? strstr(function_start, "ret p; }") : NULL;
+    const char* function_end = function_end_text
+        ? function_end_text + strlen("ret p; }") : NULL;
+    const char* parameter_text[] = { "p:*char", "pp!**u8", "ref:&Point" };
+    ASTVarDecl* parameters[3];
     int valid = 0;
 
     if (!parser) return 0;
@@ -3054,6 +3060,9 @@ static int test_pointer_reference_type_declarators(void) {
         ASTArrayType* dynamic_dims = dynamic_array && dynamic_array->kind == AST_TYPE_ARRAY
             ? (ASTArrayType*)dynamic_array->dimensions : NULL;
 
+        parameters[0] = p;
+        parameters[1] = pp;
+        parameters[2] = ref_param;
         valid = alias_node && alias_node->type == AST_NEWTYPE_DECL &&
             strcmp(((ASTNewTypeDecl*)alias_node)->target_type, "*char") == 0 &&
             ((ASTNewTypeDecl*)alias_node)->target_type_expr &&
@@ -3076,8 +3085,32 @@ static int test_pointer_reference_type_declarators(void) {
             strcmp(((ASTVarDecl*)local_node)->type_name, "*char") == 0 &&
             ((ASTVarDecl*)local_node)->type_expr &&
             ret_node && ret_node->type == AST_RETURN &&
+            function_start && function_end &&
+            function->base.source_span.has_location &&
+            function->base.source_span.start_offset == (uint64_t)(function_start - source) &&
+            function->base.source_span.end_offset == (uint64_t)(function_end - source) &&
+            local_node->source_span.has_location &&
+            local_node->source_span.start_offset == (uint64_t)(strstr(source, "v:local!*char;") - source) &&
+            local_node->source_span.end_offset == (uint64_t)(strstr(source, "v:local!*char;") + strlen("v:local!*char;") - source) &&
+            ret_node->source_span.has_location &&
+            ret_node->source_span.start_offset == (uint64_t)(strstr(source, "ret p;") - source) &&
+            ret_node->source_span.end_offset == (uint64_t)(strstr(source, "ret p;") + strlen("ret p;") - source) &&
             ast_validate((ASTNode*)parser->ast_root, NULL);
 
+        if (valid) {
+            for (size_t span_i = 0u; span_i < 3u; ++span_i) {
+                const char* span_start = strstr(source, parameter_text[span_i]);
+                const char* span_end = span_start
+                    ? span_start + strlen(parameter_text[span_i]) : NULL;
+                if (!span_start || !span_end ||
+                    !parameters[span_i]->base.source_span.has_location ||
+                    parameters[span_i]->base.source_span.start_offset != (uint64_t)(span_start - source) ||
+                    parameters[span_i]->base.source_span.end_offset != (uint64_t)(span_end - source)) {
+                    valid = 0;
+                    break;
+                }
+            }
+        }
         if (valid) {
             stream = tmpfile();
             valid = stream != NULL &&
@@ -3469,6 +3502,10 @@ static int test_implicit_type_variable_spelling(void) {
     ASTVarDecl* b;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
+    const char* function_start = strstr(source, "f:sum");
+    const char* function_end = strrchr(source, '}');
+    const char* parameter_text[] = { "a!t", "b!t" };
+    ASTVarDecl* parameters[2];
     int valid = 0;
 
     if (!parser) return 0;
@@ -3479,14 +3516,33 @@ static int test_implicit_type_variable_spelling(void) {
             ? (ASTFuncDecl*)function_node : NULL;
         a = function ? (ASTVarDecl*)function->params : NULL;
         b = a ? (ASTVarDecl*)a->base.next : NULL;
+        parameters[0] = a;
+        parameters[1] = b;
         valid = function && function->return_type &&
             strcmp(function->return_type, "!t") == 0 &&
             a && strcmp(a->name, "a") == 0 &&
             strcmp(a->type_name, "!t") == 0 &&
             b && strcmp(b->name, "b") == 0 &&
             strcmp(b->type_name, "!t") == 0 &&
-            !b->base.next &&
+            !b->base.next && function_start && function_end &&
+            function->base.source_span.has_location &&
+            function->base.source_span.start_offset == (uint64_t)(function_start - source) &&
+            function->base.source_span.end_offset == (uint64_t)(function_end + 1 - source) &&
             ast_validate((ASTNode*)parser->ast_root, NULL);
+        if (valid) {
+            for (size_t span_i = 0u; span_i < 2u; ++span_i) {
+                const char* span_start = strstr(source, parameter_text[span_i]);
+                const char* span_end = span_start
+                    ? span_start + strlen(parameter_text[span_i]) : NULL;
+                if (!span_start || !span_end ||
+                    !parameters[span_i]->base.source_span.has_location ||
+                    parameters[span_i]->base.source_span.start_offset != (uint64_t)(span_start - source) ||
+                    parameters[span_i]->base.source_span.end_offset != (uint64_t)(span_end - source)) {
+                    valid = 0;
+                    break;
+                }
+            }
+        }
         if (valid) {
             stream = tmpfile();
             valid = stream != NULL &&
