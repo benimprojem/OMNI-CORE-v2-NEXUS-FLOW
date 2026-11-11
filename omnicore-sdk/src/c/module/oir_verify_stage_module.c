@@ -2,6 +2,7 @@
 #include "oir_module.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #define OIR_VERIFY_MAX_BLOCKS 8192u
