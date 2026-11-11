@@ -2,6 +2,7 @@
 #include "oir_module.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #define OIR_VERIFY_MAX_BLOCKS 8192u
@@ -390,7 +391,8 @@ static int validate_instructions(const OirModuleView* m,
         if (failure) { failure->block_id = ins.block_id; failure->function_id = block_function[ins.block_id]; }
         uint32_t operand_kinds[255];
         desc = oir_opcode_lookup(ins.opcode_id);
-        if (!desc || ins.operand_count > 255u) return 0;
+        if (ins.opcode_id == OIR_OP_BIT_SHR) fprintf(stderr, "SHR validate start id=%u result=%u block=%u ops=%u first=%u desc=%p\\n", ins.id, ins.result_value_id, ins.block_id, ins.operand_count, ins.first_operand, (void*)desc);
+        if (!desc || ins.operand_count > 255u) { if (ins.opcode_id == OIR_OP_BIT_SHR) fprintf(stderr, "SHR fail desc/count\\n"); return 0; }
         for (j = 0u; j < ins.operand_count; ++j) {
             OirModuleOperand operand;
             if (!get_operand(m, &ins, j, &operand)) return 0;
@@ -398,9 +400,10 @@ static int validate_instructions(const OirModuleView* m,
         }
         if (failure) failure->code = OIR_VERIFY_DIAG_OPCODE_SHAPE;
         if (!oir_opcode_validate_shape(ins.opcode_id, operand_kinds,
-            ins.operand_count, ins.result_value_id != 0u)) return 0;
+            ins.operand_count, ins.result_value_id != 0u)) { if (ins.opcode_id == OIR_OP_BIT_SHR) fprintf(stderr, "SHR fail shape kinds=%u,%u\\n", operand_kinds[0], operand_kinds[1]); return 0; }
         if (failure) failure->code = OIR_VERIFY_DIAG_OPCODE_TYPE;
-        if (!validate_instruction_type_contract(m, &ins)) return 0;
+        if (!validate_instruction_type_contract(m, &ins)) { if (ins.opcode_id == OIR_OP_BIT_SHR) fprintf(stderr, "SHR fail contract\\n"); return 0; }
+        if (ins.opcode_id == OIR_OP_BIT_SHR) fprintf(stderr, "SHR passes shape+contract\\n");
         if (ins.result_value_id && (!get_value(m, ins.result_value_id, &result) ||
             !get_type(m, result.type_id, &rt))) return 0;
         if (!ins.result_value_id) memset(&rt, 0, sizeof(rt));
