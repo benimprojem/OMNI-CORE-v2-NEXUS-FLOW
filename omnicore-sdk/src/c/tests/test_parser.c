@@ -4508,6 +4508,10 @@ static int test_legacy_flow_spellings_are_rejected(void) {
     ParserContext* current = parser_init_source(
         "canonical-foreach-in.nxf", (const uint8_t*)current_foreach,
         sizeof(current_foreach) - 1u);
+    const char* foreach_start = strstr(current_foreach, "loop(item in items)");
+    const char* foreach_end_marker = strstr(current_foreach, "echo(item); }");
+    const char* foreach_end = foreach_end_marker
+        ? foreach_end_marker + strlen("echo(item); }") : NULL;
     int accepted = 0;
 
     if (current) {
@@ -4519,7 +4523,12 @@ static int test_legacy_flow_spellings_are_rejected(void) {
                 function->body->type == AST_BLOCK
                     ? (ASTLoop*)((ASTBlock*)function->body)->statements : NULL;
             accepted = loop && loop->base.type == AST_LOOP &&
-                loop->loop_type == 3 && loop->variable && loop->collection;
+                loop->loop_type == 3 && loop->variable && loop->collection &&
+                foreach_start && foreach_end &&
+                loop->base.source_span.has_location &&
+                loop->base.source_span.start_offset == (uint64_t)(foreach_start - current_foreach) &&
+                loop->base.source_span.end_offset == (uint64_t)(foreach_end - current_foreach) &&
+                ast_validate(current->ast_root, NULL);
         }
         parser_destroy(current);
     }
