@@ -393,6 +393,7 @@ static int validate_instructions(const OirModuleView* m,
         if (failure) { failure->block_id = ins.block_id; failure->function_id = block_function[ins.block_id]; }
         uint32_t operand_kinds[255];
         desc = oir_opcode_lookup(ins.opcode_id);
+        if (ins.opcode_id == OIR_OP_BIT_SHR) fprintf(stderr, "SHR pass3: id=%u desc=%p count=%u result=%u contract=%d\\n", ins.id, (void*)desc, ins.operand_count, ins.result_value_id, validate_instruction_type_contract(m, &ins));
         if (!desc || ins.operand_count > 255u) return 0;
         for (j = 0u; j < ins.operand_count; ++j) {
             OirModuleOperand operand;
