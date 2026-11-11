@@ -6,6 +6,7 @@
 #include <string.h>
 
 #define OIR_VERIFY_MAX_BLOCKS 8192u
+#define OIR_VERIFY_MAX_DOM_WORDS ((OIR_VERIFY_MAX_BLOCKS + 64u) / 64u)
 #define OIR_VERIFY_MAX_RECORDS 1000000u
 #define OIR_VERIFY_MAX_UNUSED_WARNINGS 32u
 #define OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS 32u
@@ -499,6 +500,9 @@ static int validate_dominance(const OirModuleView* m,
     uint8_t* reachable, uint32_t* queue, size_t words,
     OirVerifyFailure* failure) {
     uint32_t f, j;
+    /* 8192 blocks require at most 129 words; keep the scratch row bounded
+       and avoid heap allocation inside the iterative fixed-point loop. */
+    uint64_t temp[OIR_VERIFY_MAX_DOM_WORDS];
 
     /* Per-function reachability and iterative dominators for SSA use validation. */
     for (f = 0u; f < m->function_count; ++f) {
@@ -554,13 +558,10 @@ static int validate_dominance(const OirModuleView* m,
             for (b = 1u; b <= m->block_count; ++b) {
                 uint64_t* row = dom + (size_t)b * words;
                 uint64_t* pred_row;
-                uint64_t* temp;
                 int have_pred = 0;
                 if (block_function[b] != fn.id || b == fn.entry_block_id || !reachable[b]) continue;
                 if (failure) failure->block_id = b;
-                temp = (uint64_t*)malloc(words * sizeof(uint64_t));
-                if (!temp) return 0;
-                for (j = 0u; j < words; ++j) temp[j] = UINT64_MAX;
+                memset(temp, 0xFF, words * sizeof(uint64_t));
                 pred_row = pred + (size_t)b * words;
                 for (j = 1u; j <= m->block_count; ++j) {
                     if (bit_get(pred_row, j) && reachable[j]) {
@@ -570,13 +571,12 @@ static int validate_dominance(const OirModuleView* m,
                         have_pred = 1;
                     }
                 }
-                if (!have_pred) { free(temp); return 0; }
+                if (!have_pred) return 0;
                 bit_set(temp, b);
                 if (memcmp(row, temp, words * sizeof(uint64_t)) != 0) {
                     memcpy(row, temp, words * sizeof(uint64_t));
                     changed = 1;
                 }
-                free(temp);
             }
         }
     }
