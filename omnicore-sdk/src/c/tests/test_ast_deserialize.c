@@ -890,6 +890,69 @@ static int roundtrips_assignment_operator_payloads(void) {
     return 0;
 }
 
+static int roundtrips_bit_byte_type_payloads(void) {
+    static const char* const names[] = {
+        "bit", "byte", "8bit", "16bit", "32bit", "64bit", "128bit",
+        "1byte", "2byte", "4byte", "8byte", "16byte"
+    };
+    ASTProgram* original = (ASTProgram*)ast_create(AST_PROGRAM);
+    ASTNode** tail;
+    ASTNode* decoded = NULL;
+    FILE* first = NULL;
+    FILE* second = NULL;
+    ASTNode* node;
+    size_t i;
+    int valid = 0;
+    if (!original) return 0;
+    tail = &original->declarations;
+    for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
+        ASTVarDecl* variable = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+        char name[32];
+        if (!variable) goto done;
+        if (snprintf(name, sizeof(name), "type_%zu", i) < 0 ||
+            !assign_text(&variable->name, name) ||
+            !assign_text(&variable->type_name, names[i])) {
+            ast_destroy((ASTNode*)variable);
+            goto done;
+        }
+        variable->is_hard_typed = 1;
+        *tail = (ASTNode*)variable;
+        tail = &variable->base.next;
+    }
+    if (!ast_validate((ASTNode*)original, NULL)) goto done;
+    first = tmpfile();
+    second = tmpfile();
+    if (!first || !second || !ast_serialize((ASTNode*)original, first) ||
+        fseek(first, 0L, SEEK_SET) != 0)
+        goto done;
+    decoded = ast_deserialize(first);
+    if (!decoded || !ast_validate(decoded, NULL) || !ast_serialize(decoded, second))
+        goto done;
+    node = ((ASTProgram*)decoded)->declarations;
+    valid = 1;
+    for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
+        ASTVarDecl* variable = node && node->type == AST_VAR_DECL
+            ? (ASTVarDecl*)node : NULL;
+        char expected_name[32];
+        if (snprintf(expected_name, sizeof(expected_name), "type_%zu", i) < 0 ||
+            !variable || !variable->name || strcmp(variable->name, expected_name) != 0 ||
+            !variable->type_name || strcmp(variable->type_name, names[i]) != 0 ||
+            !variable->is_hard_typed) {
+            valid = 0;
+            break;
+        }
+        node = node->next;
+    }
+    valid = valid && node == NULL && streams_equal(first, second);
+done:
+    if (first) fclose(first);
+    if (second) fclose(second);
+    ast_destroy(decoded);
+    ast_destroy((ASTNode*)original);
+    if (!valid) fprintf(stderr, "Bit/byte type payload round-trip failed.\\n");
+    return valid;
+}
+
 static int roundtrips_struct_literal_nodes(void) {
     ASTStructLiteral* literal=(ASTStructLiteral*)ast_create(AST_STRUCT_LITERAL);
     ASTStructFieldInit* field=(ASTStructFieldInit*)ast_create(AST_STRUCT_FIELD_INIT);
@@ -1762,6 +1825,7 @@ int main(int argc, char** argv) {
     if (roundtrips_all_node_type_tags() != 0) { fprintf(stderr, "roundtrips_all_node_type_tags failed.\\n"); return 8; }
     if (roundtrips_all_type_expr_kinds() != 0) { fprintf(stderr, "roundtrips_all_type_expr_kinds failed.\\n"); return 27; }
     { int assignment_result=roundtrips_assignment_operator_payloads(); if (assignment_result != 0) { fprintf(stderr, "roundtrips_assignment_operator_payloads failed at stage %d.\\n",assignment_result); return 28; } }
+    if (!roundtrips_bit_byte_type_payloads()) { fprintf(stderr, "roundtrips_bit_byte_type_payloads failed.\\n"); return 29; }
     if (roundtrips_struct_literal_nodes() != 0) { fprintf(stderr, "roundtrips_struct_literal_nodes failed.\\n"); return 19; }
     if (roundtrips_block_halt_tag() != 0) { fprintf(stderr, "roundtrips_block_halt_tag failed.\\n"); return 14; }
     if (roundtrips_extern_decl() != 0) { fprintf(stderr, "roundtrips_extern_decl failed.\\n"); return 7; }
