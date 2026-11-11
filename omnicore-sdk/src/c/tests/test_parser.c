@@ -4071,6 +4071,70 @@ done:
     return 1;
 }
 
+static int test_equality_operator_parser_forms(void) {
+    static const char source[] =
+        "f:main() { "
+        "v:eq = a == b; "
+        "v:neq = a != b; "
+        "v:strict = a === b; "
+        "v:forced = a ==! b; "
+        "}";
+    const char* expressions[] = {
+        "a == b", "a != b", "a === b", "a ==! b"
+    };
+    const OmniTokenType operators[] = {
+        TOKEN_EQ, TOKEN_NEQ, TOKEN_STRICT_EQ, TOKEN_FORCE_EQ
+    };
+    const char* names[] = { "eq", "neq", "strict", "forced" };
+    ParserContext* ctx = parser_init_source(
+        "equality-operator-forms.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTNode* statement;
+    size_t i;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root ||
+        !ast_validate(ctx->ast_root)) goto done;
+    function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK)
+        goto done;
+    statement = ((ASTBlock*)function->body)->statements;
+    for (i = 0u; i < sizeof(operators) / sizeof(operators[0]); ++i) {
+        ASTVarDecl* variable;
+        ASTBinaryExpr* binary;
+        const char* start = strstr(source, expressions[i]);
+        const char* end = start ? start + strlen(expressions[i]) : NULL;
+        if (!statement || statement->type != AST_VAR_DECL) goto done;
+        variable = (ASTVarDecl*)statement;
+        if (!variable->name || strcmp(variable->name, names[i]) != 0 ||
+            !variable->initializer || variable->initializer->type != AST_BINARY_EXPR)
+            goto done;
+        binary = (ASTBinaryExpr*)variable->initializer;
+        if (binary->op != operators[i] || !binary->left ||
+            binary->left->type != AST_IDENTIFIER || !binary->right ||
+            binary->right->type != AST_IDENTIFIER || !start || !end ||
+            !binary->base.source_span.has_location ||
+            binary->base.source_span.start_offset != (uint64_t)(start - source) ||
+            binary->base.source_span.end_offset != (uint64_t)(end - source) ||
+            binary->base.source_span.start_column != (uint32_t)(start - source) + 1u ||
+            binary->base.source_span.end_column != (uint32_t)(end - source) + 1u)
+            goto done;
+        statement = statement->next;
+    }
+    if (statement) goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    if (!ok) return 0;
+    return parser_source_reports_syntax_error(
+        "equality-missing-rhs.nxf", "f:main() { v:x = a === ; }",
+        sizeof("f:main() { v:x = a === ; }") - 1u);
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -4111,6 +4175,10 @@ int main(int argc, char** argv) {
     }
     if (!test_increment_decrement_parser_forms()) {
         fprintf(stderr, "Prefix/postfix increment/decrement AST/source-span test failed.\\n");
+        return 1;
+    }
+    if (!test_equality_operator_parser_forms()) {
+        fprintf(stderr, "Equality operator AST/source-span Parser test failed.\\n");
         return 1;
     }
     if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
