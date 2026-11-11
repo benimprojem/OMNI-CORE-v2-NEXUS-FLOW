@@ -726,12 +726,8 @@ int main(int argc, char** argv) {
             stage_input.bytes = input; stage_input.length = input_length;
             {
                 uint32_t verify_status = occ_module_loader_invoke(&loaded, &stage_input, 1u,
-                    521u + (uint32_t)k, &diagnostics, 256u, 1024u * 1024u,
+                    502u + (uint32_t)variants[k], &diagnostics, 256u, 1024u * 1024u,
                     &output, &output_length);
-                if (verify_status != OCC_MODULE_LOADER_OK)
-                    fprintf(stderr, "shift fixture variant=%d status=%u diagnostics_before=%zu diagnostics_after=%zu\\n",
-                        variants[k], verify_status, diagnostics_before,
-                        occ_diagnostics_count(&diagnostics));
                 assert(verify_status == OCC_MODULE_LOADER_OK);
             }
             assert(output != NULL && output_length != 0u);

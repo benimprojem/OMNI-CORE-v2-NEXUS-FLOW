@@ -1,7 +1,6 @@
 #include "occ_module_api.h"
 #include "oir_module.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -874,8 +873,6 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
     uint32_t rc = OCC_MODULE_STATUS_FAILED;
 
     memset(&failure, 0, sizeof(failure));
-    if (invocation && invocation->job_id >= 521u && invocation->job_id <= 523u)
-        (void)fprintf(stderr, "OIRTRACE job=%u start\\n", (unsigned)invocation->job_id);
     result->bytes_written = 0u; result->required_output_capacity = 0u;
     result->output_validity = OIR_VALIDITY_NONE; result->failure_code = 0u;
     result->diagnostics_count = 0u;
@@ -898,8 +895,6 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
         return report_verify_error(invocation, result, 8601u,
             "OIR Verifier requires a valid OIR_MODULE 1.1 artifact from the lowering stage.", NULL);
 
-    if (invocation->job_id >= 521u && invocation->job_id <= 523u)
-        (void)fprintf(stderr, "OIRTRACE job=%u artifact-open sections=%u\\n", (unsigned)invocation->job_id, input.section_count);
     for (i = 0u; i < input.section_count; ++i) {
         OirSectionView section;
         if (oir_artifact_get_section(&input, i, &section) != OIR_STATUS_OK) {
@@ -921,8 +916,6 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                 uint32_t type_error_count = validate_type_records(&module,
                     type_failures, OIR_VERIFY_MAX_TYPE_ERRORS, &omitted_type_errors);
                 uint32_t type_error_index;
-                if (invocation->job_id >= 521u && invocation->job_id <= 523u)
-                    (void)fprintf(stderr, "OIRTRACE job=%u type-records errors=%u omitted=%u\\n", (unsigned)invocation->job_id, type_error_count, omitted_type_errors);
                 if (type_error_count != 0u || omitted_type_errors != 0u) {
                     for (type_error_index = 0u; type_error_index < type_error_count;
                         ++type_error_index)
@@ -947,8 +940,6 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                     ssa_failures, OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS,
                     &omitted_ssa_errors);
                 uint32_t ssa_error_index;
-                if (invocation->job_id >= 521u && invocation->job_id <= 523u)
-                    (void)fprintf(stderr, "OIRTRACE job=%u ssa-records errors=%u omitted=%u\\n", (unsigned)invocation->job_id, ssa_error_count, omitted_ssa_errors);
                 if (ssa_error_count != 0u || omitted_ssa_errors != 0u) {
                     for (ssa_error_index = 0u; ssa_error_index < ssa_error_count;
                         ++ssa_error_index)
@@ -976,8 +967,6 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                     OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS,
                     &omitted_instruction_errors);
                 uint32_t instruction_error_index;
-                if (invocation->job_id >= 521u && invocation->job_id <= 523u)
-                    (void)fprintf(stderr, "OIRTRACE job=%u result-records errors=%u omitted=%u\\n", (unsigned)invocation->job_id, instruction_error_count, omitted_instruction_errors);
                 if (instruction_error_count != 0u || omitted_instruction_errors != 0u) {
                     for (instruction_error_index = 0u;
                         instruction_error_index < instruction_error_count;
@@ -1005,8 +994,6 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                     &module, type_failures, OIR_VERIFY_MAX_SSA_DEFINITION_ERRORS,
                     &omitted_instruction_type_errors);
                 uint32_t type_error_index;
-                if (invocation->job_id >= 521u && invocation->job_id <= 523u)
-                    (void)fprintf(stderr, "OIRTRACE job=%u instruction-types errors=%u omitted=%u\\n", (unsigned)invocation->job_id, instruction_type_error_count, omitted_instruction_type_errors);
                 if (instruction_type_error_count != 0u ||
                     omitted_instruction_type_errors != 0u) {
                     for (type_error_index = 0u;
@@ -1028,13 +1015,7 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
                     return OCC_MODULE_STATUS_FAILED;
                 }
             }
-            if (invocation->job_id >= 521u && invocation->job_id <= 523u)
-                (void)fprintf(stderr, "OIRTRACE job=%u pre-module-passes-ok\\n", (unsigned)invocation->job_id);
             if (!validate_module(&module, &failure, &unused_value_counts)) {
-                (void)fprintf(stderr,
-                    "OIR verifier module validation failed: code=%u function=%u block=%u instruction=%u value=%u type=%u\\n",
-                    failure.code, failure.function_id, failure.block_id,
-                    failure.instruction_id, failure.value_id, failure.type_id);
                 return report_verify_error(invocation, result,
                     failure.code ? failure.code : 8603u,
                     "OIR_MODULE validation failed.", &failure);
@@ -1063,8 +1044,6 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
         return OCC_MODULE_STATUS_NEED_OUTPUT_BUFFER;
     }
 
-    if (invocation->job_id >= 521u && invocation->job_id <= 523u)
-        (void)fprintf(stderr, "OIRTRACE job=%u module-valid output-required=%zu\\n", (unsigned)invocation->job_id, required);
     /* Publish advisory diagnostics only after the output buffer is sufficient;
        NEED_OUTPUT_BUFFER retries must not duplicate or leak diagnostics. */
     if (!report_unused_value_warnings(invocation, result,
@@ -1075,8 +1054,6 @@ static uint32_t OCC_MODULE_CALL oir_verify_process(
     }
     free(unused_value_counts);
     unused_value_counts = NULL;
-    if (invocation->job_id >= 521u && invocation->job_id <= 523u)
-        (void)fprintf(stderr, "OIRTRACE job=%u warning-pass-ok\\n", (unsigned)invocation->job_id);
 
     header = input.header;
     header.producer_stage_id = OCC_STAGE_OIR_VERIFY;
