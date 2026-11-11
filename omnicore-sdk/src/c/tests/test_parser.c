@@ -3602,6 +3602,21 @@ static int test_nested_group_and_default_ast(void) {
     ASTMethod* outer_default;
     FILE* stream = NULL;
     ASTNode* decoded = NULL;
+    const char* outer_start = strstr(source, "group db");
+    const char* outer_end_marker = outer_start
+        ? strstr(outer_start, "default { echo(2); } }") : NULL;
+    const char* outer_end = outer_end_marker
+        ? outer_end_marker + strlen("default { echo(2); } }") : NULL;
+    const char* nested_start = strstr(source, "nosql => group");
+    const char* nested_end_marker = nested_start
+        ? strstr(nested_start, "default { echo(1); } }") : NULL;
+    const char* nested_end = nested_end_marker
+        ? nested_end_marker + strlen("default { echo(1); } }") : NULL;
+    const char* nested_method_start = strstr(source, "open =>");
+    const char* nested_method_end_marker = nested_method_start
+        ? strstr(nested_method_start, "ret; }") : NULL;
+    const char* nested_method_end = nested_method_end_marker
+        ? nested_method_end_marker + strlen("ret; }") : NULL;
     int valid = 0;
     if (!parser) return 0;
     if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
@@ -3632,7 +3647,18 @@ static int test_nested_group_and_default_ast(void) {
             outer_default && outer_default->public_name &&
             strcmp(outer_default->public_name, "default") == 0 &&
             outer_default->implementation &&
-            outer_default->implementation->type == AST_BLOCK;
+            outer_default->implementation->type == AST_BLOCK &&
+            outer_start && outer_end && nested_start && nested_end &&
+            nested_method_start && nested_method_end &&
+            outer->base.source_span.has_location &&
+            outer->base.source_span.start_offset == (uint64_t)(outer_start - source) &&
+            outer->base.source_span.end_offset == (uint64_t)(outer_end - source) &&
+            nested->base.source_span.has_location &&
+            nested->base.source_span.start_offset == (uint64_t)(nested_start - source) &&
+            nested->base.source_span.end_offset == (uint64_t)(nested_end - source) &&
+            nested_method->base.source_span.has_location &&
+            nested_method->base.source_span.start_offset == (uint64_t)(nested_method_start - source) &&
+            nested_method->base.source_span.end_offset == (uint64_t)(nested_method_end - source);
     }
     if (valid) {
         stream = tmpfile();
