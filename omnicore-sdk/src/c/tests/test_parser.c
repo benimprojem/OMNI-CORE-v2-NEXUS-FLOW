@@ -4250,16 +4250,19 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
             goto done;
         flow = (ASTNexusFlow*)variable->initializer;
         if (flow->op != operators[i] || !flow->left || !flow->right ||
-            flow->right->type != AST_IDENTIFIER || !start || !end ||
-            !flow->base.source_span.has_location ||
+            !start || !end || !flow->base.source_span.has_location ||
             flow->base.source_span.start_offset != (uint64_t)(start - source) ||
             flow->base.source_span.end_offset != (uint64_t)(end - source))
             goto done;
         if (i == 0u) {
-            if (strcmp(((ASTIdentifier*)flow->right)->name, "e") != 0 ||
+            if (flow->right->type != AST_IDENTIFIER ||
+                strcmp(((ASTIdentifier*)flow->right)->name, "e") != 0 ||
                 !flow->catch_block || flow->catch_block->type != AST_BLOCK)
                 goto done;
-        } else if (flow->catch_block) {
+        } else if (i == 1u) {
+            if (flow->right->type != AST_IDENTIFIER || flow->catch_block)
+                goto done;
+        } else if (flow->right->type != AST_FUNC_CALL || flow->catch_block) {
             goto done;
         }
         statement = statement->next;
