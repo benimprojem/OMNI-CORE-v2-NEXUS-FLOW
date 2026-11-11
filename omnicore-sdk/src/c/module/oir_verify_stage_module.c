@@ -147,6 +147,15 @@ static uint32_t validate_instruction_type_records(const OirModuleView* m, OirVer
     for (i = 0u; i < m->instruction_count; ++i) {
         OirModuleInstruction ins;
         if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK || !validate_instruction_type_contract(m, &ins)) {
+            if (ins.opcode_id == OIR_OP_BIT_SHR) {
+                OirModuleValue rv, av, bv; OirModuleOperand ao, bo; OirModuleType rt, at, bt;
+                int gr=get_value(m,ins.result_value_id,&rv), ga=get_value_operand(m,&ins,0u,&av), gb=get_value_operand(m,&ins,1u,&bv);
+                int tr=gr&&get_type(m,rv.type_id,&rt), ta=ga&&get_type(m,av.type_id,&at), tb=gb&&get_type(m,bv.type_id,&bt);
+                get_operand(m,&ins,0u,&ao); get_operand(m,&ins,1u,&bo);
+                fprintf(stderr,"SHR DEBUG: ok=0 id=%u result=%u type=%u gr=%d tr=%d kind=%u lhs=%u ga=%d ta=%d rhs=%u gb=%d tb=%d\\n",
+                    ins.id,ins.result_value_id,gr?rv.type_id:0u,gr,tr,tr?rt.kind:0u,ga?av.type_id:0u,ga,ta,gb?bv.type_id:0u,gb,tb);
+                fprintf(stderr,"SHR operands kinds=%u/%u refs=%u/%u\\n",ao.kind,bo.kind,ao.reference_id,bo.reference_id);
+            }
             if (count < capacity) {
                 memset(&failures[count], 0, sizeof(failures[count]));
                 failures[count].code = OIR_VERIFY_DIAG_OPCODE_TYPE;
