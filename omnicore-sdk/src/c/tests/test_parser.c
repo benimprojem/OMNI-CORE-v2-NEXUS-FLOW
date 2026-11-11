@@ -4022,14 +4022,9 @@ done:
 }
 
 static int test_increment_decrement_parser_forms(void) {
-    static const char source[] = "f:main() { ++a; --b; a++; b--; }";
-    const char* starts[] = { "++a", "--b", "a++", "b--" };
-    const OmniTokenType operators[] = {
-        TOKEN_INC, TOKEN_DEC, TOKEN_INC, TOKEN_DEC
-    };
-    const ASTNodeType node_types[] = {
-        AST_UNARY_EXPR, AST_UNARY_EXPR, AST_POSTFIX_EXPR, AST_POSTFIX_EXPR
-    };
+    static const char source[] = "f:main() { a++; b--; }";
+    const char* starts[] = { "a++", "b--" };
+    const OmniTokenType operators[] = { TOKEN_INC, TOKEN_DEC };
     ParserContext* ctx = parser_init_source(
         "increment-decrement-parser.nxf",
         (const uint8_t*)source, sizeof(source) - 1u);
@@ -4049,7 +4044,7 @@ static int test_increment_decrement_parser_forms(void) {
     for (i = 0u; i < sizeof(operators) / sizeof(operators[0]); ++i) {
         const char* end = starts[i] + strlen(starts[i]);
         ASTUnaryExpr* unary;
-        if (!statement || statement->type != node_types[i]) goto done;
+        if (!statement || statement->type != AST_POSTFIX_EXPR) goto done;
         unary = (ASTUnaryExpr*)statement;
         if (unary->op != operators[i] || !unary->operand ||
             unary->operand->type != AST_IDENTIFIER ||
@@ -4066,7 +4061,14 @@ static int test_increment_decrement_parser_forms(void) {
 
 done:
     parser_destroy(ctx);
-    return ok;
+    if (!ok) return 0;
+    if (!parser_source_reports_syntax_error(
+        "prefix-increment-invalid.nxf", "f:main() { ++a; }",
+        sizeof("f:main() { ++a; }") - 1u)) return 0;
+    if (!parser_source_reports_syntax_error(
+        "prefix-decrement-invalid.nxf", "f:main() { --b; }",
+        sizeof("f:main() { --b; }") - 1u)) return 0;
+    return 1;
 }
 
 int main(int argc, char** argv) {
