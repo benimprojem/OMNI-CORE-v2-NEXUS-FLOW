@@ -128,7 +128,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Flow pipe / zone operators `-> >> <<` | `AST_NEXUS_FLOW`, `AST_NEXUS_PIPE` | ✓ | ✓ | ✓ | ~ | ? | ? | Pipe/zone semantics, payload and execution lowering |
 | Handler capture `(h)<-expr` | `AST_NEXUS_CAPTURE` | ✓ | ~ | ✓ | ~ | ? | ? | Occupancy, ownership, move/copy and lifetime |
 | Relocate `_>` | `AST_RELOCATE` (95) | ✓ | ✓ | ✓ | ~ | ? | ? | Source invalidation, destination initialization and explicit move effect |
-| Unpack `...>` | `AST_UNPACK` (38) | ✓ | ~ | ✓ | ? | ? | ? | Target/value compatibility, ownership and destructuring |
+| Unpack `...>` | `AST_UNPACK` (38) | ✓ | ~ | ~ | ? | ? | ? | **Parser defect found:** wrapper is allocated but recursive continuation discards it; syntax is absent from normative reference. Decide postfix-vs-target grammar, then preserve AST ownership and test Semantic/destructuring |
 | `area / zone` | `AST_AREA`, `AST_ZONE` | ✓ | ~ | ✓ | ? | ? | ? | Region typing, access permissions and target mapping |
 | I/O `echo/prnt/prmt/write/fwrite` | Matching intrinsic AST tags | ✓ | ~ | ✓ | ? | ? | ? | Central intrinsic signature/effect registry and OS module lowering |
 | Port I/O `inb/outb`, interrupt `irq/intr`, register `reg` | Matching intrinsic AST tags | ✓ | ~ | ✓ | ? | ? | ? | Target capability, privilege, width and effect validation |
