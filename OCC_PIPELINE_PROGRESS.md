@@ -1843,3 +1843,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Follow-up coverage added in commit `7ece065`: variant 23 constructs a separate `u64` shift-count SSA value while the SHR left operand and result remain `i32`; the fixture asserts the serialized operand/value type relationships and invokes the independent OIR Verifier. The fixture also exercises cross-block dominance for both operands. CI run `43069499665` passed all five jobs (Ubuntu build/CTest, macOS, Windows, ASan/UBSan and Valgrind).
 - Existing Verifier regression coverage also exercises block/function ownership, overlapping instruction ranges, function entry ownership, missing terminators, type-record rejection, invalid runtime value types, reverse SSA result links, opcode-local type contracts, CFG edges, diamond dominance, local/cross-block SSA uses, duplicate SSA definitions and advisory unused-value warnings.
 - The shift-count width fixture closes that specific coverage gap; the OIR Verifier stage remains open pending a full requirement-by-requirement audit and any missing tests/documentation. Do not treat this focused CI closure as stage completion.
+
+
+### OIR Verifier schema and host-gate audit — 2026-11-11
+
+- Added the missing independent OIR Verifier regression for a mixed-width shift count: SHR left/result are i32 while the count is a separate u64 SSA value. The serialized fixture is inspected before invoking the verifier. Commit: 7ece065.
+- CI run 43069499665 passed all five jobs: Ubuntu build/CTest, Windows, macOS, ASan/UBSan and Valgrind.
+- Corrected OIR_VERIFIER_SPEC.md references from OIR_MODULE 1.1 to the active 1.2 schema. The verifier's input contract and implemented-status list now describe the current representation type records.
+- Audited the host pipeline in omnicore-sdk/src/c/main.c: the verifier is loaded and invoked after lowering; its output is host-validated before it is returned as the module artifact. Any verifier load, invocation or output-validation failure takes the cleanup path. The downstream Codegen dispatch is reached only after the pipeline function succeeds.
+- Remaining verification gap: add a dedicated negative end-to-end host-pipeline test that proves an invalid OIR artifact cannot reach Codegen/Optimizer. The source-level gate is present, but this dedicated negative integration test is not yet implemented. The OIR Verifier stage remains in progress.
