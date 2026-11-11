@@ -732,11 +732,14 @@ int main(int argc, char** argv) {
                     OccDiagnosticView failure_view;
                     fprintf(stderr, "shift verifier fixture variant=%d status=%u diagnostics=%zu\\n",
                         variants[k], verify_status, occ_diagnostics_count(&diagnostics));
-                    if (occ_diagnostics_count(&diagnostics) &&
-                        occ_diagnostics_get(&diagnostics,
-                            occ_diagnostics_count(&diagnostics) - 1u, &failure_view))
-                        fprintf(stderr, "shift verifier diagnostic code=%u message=%s\\n",
-                            failure_view.record->code, failure_view.message);
+                    {
+                        size_t di;
+                        for (di = diagnostics_before; di < occ_diagnostics_count(&diagnostics); ++di) {
+                            if (occ_diagnostics_get(&diagnostics, di, &failure_view))
+                                fprintf(stderr, "new diagnostic[%zu] code=%u message=%s\\n",
+                                    di, failure_view.record->code, failure_view.message);
+                        }
+                    }
                     assert(verify_status == OCC_MODULE_LOADER_OK);
                 }
             }
