@@ -793,6 +793,10 @@ static int test_function_parameter_type_separator_forms(void) {
     ASTVarDecl* a;
     ASTVarDecl* b;
     ASTVarDecl* c;
+    const char* function_start = strstr(source, "f:forms");
+    const char* function_end = strrchr(source, '}');
+    const char* parameter_text[] = { "a:f32", "b!f32", "d:!f32" };
+    ASTVarDecl* parameters[3];
     int ok = 0;
 
     if (!ctx) return 0;
@@ -807,13 +811,30 @@ static int test_function_parameter_type_separator_forms(void) {
     a = (ASTVarDecl*)function->params;
     b = (ASTVarDecl*)a->base.next;
     c = b ? (ASTVarDecl*)b->base.next : NULL;
+    parameters[0] = a;
+    parameters[1] = b;
+    parameters[2] = c;
     if (!b || !c || c->base.next ||
         strcmp(a->name, "a") != 0 || strcmp(a->type_name, "f32") != 0 ||
         a->is_hard_typed ||
         strcmp(b->name, "b") != 0 || strcmp(b->type_name, "!f32") != 0 ||
         !b->is_hard_typed ||
         strcmp(c->name, "d") != 0 || strcmp(c->type_name, "!f32") != 0 ||
-        !c->is_hard_typed) goto done;
+        !c->is_hard_typed || !function_start || !function_end ||
+        !function->base.source_span.has_location ||
+        function->base.source_span.start_offset != (uint64_t)(function_start - source) ||
+        function->base.source_span.end_offset != (uint64_t)(function_end + 1 - source))
+        goto done;
+    for (size_t i = 0u; i < 3u; ++i) {
+        const char* parameter_start = strstr(source, parameter_text[i]);
+        const char* parameter_end = parameter_start
+            ? parameter_start + strlen(parameter_text[i]) : NULL;
+        if (!parameter_start || !parameter_end ||
+            !parameters[i]->base.source_span.has_location ||
+            parameters[i]->base.source_span.start_offset != (uint64_t)(parameter_start - source) ||
+            parameters[i]->base.source_span.end_offset != (uint64_t)(parameter_end - source))
+            goto done;
+    }
     ok = 1;
 
 done:
@@ -2035,6 +2056,10 @@ static int test_extern_linkname_association_and_codec(void) {
     ASTProgram* program;
     ASTFuncDecl* add;
     ASTFuncDecl* sub;
+    const char* add_start = strstr(source, "exf:add");
+    const char* add_end = add_start ? add_start + strlen("exf:add(a!i32, b!i32)!i32;") : NULL;
+    const char* sub_start = strstr(source, "exf:sub");
+    const char* sub_end = sub_start ? sub_start + strlen("exf:sub(a!i32, b!i32)!i32;") : NULL;
     FILE* stream = NULL;
     ASTNode* decoded = NULL;
     int ok = 0;
@@ -2048,6 +2073,12 @@ static int test_extern_linkname_association_and_codec(void) {
         !sub || sub->base.type != AST_EXTERN_DECL || sub->base.next ||
         !add->linkname || strcmp(add->linkname, "math.obj") != 0 ||
         !sub->linkname || strcmp(sub->linkname, "math.obj") != 0 ||
+        !add_start || !add_end || !sub_start || !sub_end ||
+        !add->base.source_span.has_location || !sub->base.source_span.has_location ||
+        add->base.source_span.start_offset != (uint64_t)(add_start - source) ||
+        add->base.source_span.end_offset != (uint64_t)(add_end - source) ||
+        sub->base.source_span.start_offset != (uint64_t)(sub_start - source) ||
+        sub->base.source_span.end_offset != (uint64_t)(sub_end - source) ||
         !ast_validate((ASTNode*)program, NULL)) goto done;
 
     stream = tmpfile();
@@ -2121,6 +2152,9 @@ static int test_modulo_expression_ast(void) {
     ASTNode* statement;
     ASTNode* decoded = NULL;
     FILE* stream = NULL;
+    const char* expression_start = strstr(source, "17 % 5 * 2");
+    const char* expression_end = expression_start
+        ? expression_start + strlen("17 % 5 * 2") : NULL;
     int ok = 0;
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
@@ -2132,10 +2166,19 @@ static int test_modulo_expression_ast(void) {
     {
         ASTNode* expression = ((ASTVarDecl*)statement)->initializer;
         if (!expression || expression->type != AST_BINARY_EXPR ||
-            ((ASTBinaryExpr*)expression)->op != TOKEN_STAR) goto done;
+            ((ASTBinaryExpr*)expression)->op != TOKEN_STAR ||
+            !expression_start || !expression_end ||
+            !expression->source_span.has_location ||
+            expression->source_span.start_offset != (uint64_t)(expression_start - source) ||
+            expression->source_span.end_offset != (uint64_t)(expression_end - source))
+            goto done;
         expression = ((ASTBinaryExpr*)expression)->left;
         if (!expression || expression->type != AST_BINARY_EXPR ||
-            ((ASTBinaryExpr*)expression)->op != TOKEN_PERCENT) goto done;
+            ((ASTBinaryExpr*)expression)->op != TOKEN_PERCENT ||
+            !expression->source_span.has_location ||
+            expression->source_span.start_offset != (uint64_t)(expression_start - source) ||
+            expression->source_span.end_offset != (uint64_t)(strstr(source, "17 % 5") + strlen("17 % 5") - source))
+            goto done;
     }
 
     statement = statement->next;
@@ -3381,9 +3424,16 @@ static int test_null_and_numeric_literal_ast(void) {
             ASTLiteral* literal = declaration && declaration->initializer &&
                 declaration->initializer->type == AST_LITERAL
                 ? (ASTLiteral*)declaration->initializer : NULL;
+            const char* literal_start = strstr(source, expected[i]);
+            const char* literal_end = literal_start
+                ? literal_start + strlen(expected[i]) : NULL;
             valid = literal && literal->type == expected_types[i] &&
                 literal->string_value &&
-                strcmp(literal->string_value, expected[i]) == 0;
+                strcmp(literal->string_value, expected[i]) == 0 &&
+                literal_start && literal_end &&
+                literal->base.source_span.has_location &&
+                literal->base.source_span.start_offset == (uint64_t)(literal_start - source) &&
+                literal->base.source_span.end_offset == (uint64_t)(literal_end - source);
             statement = statement ? statement->next : NULL;
         }
         valid = valid && statement && statement->type == AST_RETURN &&
