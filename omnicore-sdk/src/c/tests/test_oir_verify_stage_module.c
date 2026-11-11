@@ -283,8 +283,6 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     if (variant == 19 || variant == 20 || variant == 21 || variant == 22) {
         size_t values_offset = 36u + 3u * 12u + 20u +
             (size_t)block_count * 16u;
-        size_t instructions_offset = values_offset +
-            (size_t)value_count * 16u;
         /* Opcode variants are assigned to the in-memory record before serialization. */
         if (variant == 21) {
             /* Result type differs from the integer left operand. */
