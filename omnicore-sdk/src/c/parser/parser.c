@@ -3301,8 +3301,10 @@ static ASTNode* parse_func_decl(Parser* p) {
 
     consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
 
-    /* Lambda body: > expression */
+    /* Expression body: > expression. The synthetic return/block nodes
+     * retain the expression span, while the function covers the full form. */
     if (match(p, TOKEN_GT)) {
+        Token expression_start = p->current;
         ASTNode* expr = parse_expression(p);
         ASTBlock* block;
         ASTUnaryExpr* ret;
@@ -3323,14 +3325,17 @@ static ASTNode* parse_func_decl(Parser* p) {
             ast_destroy((ASTNode*)func);
             return NULL;
         }
-        block->base.line = func->base.line;
-        block->base.col = func->base.col;
-        ret->base.line = func->base.line;
-        ret->base.col = func->base.col;
+        block->base.line = expression_start.line;
+        block->base.col = expression_start.col;
+        ret->base.line = expression_start.line;
+        ret->base.col = expression_start.col;
         ret->op = TOKEN_KW_RET;
         ret->operand = expr;
+        parser_stamp_node_tokens(p, (ASTNode*)ret, &expression_start, &p->previous);
+        parser_stamp_node_tokens(p, (ASTNode*)block, &expression_start, &p->previous);
         block->statements = (ASTNode*)ret;
         func->body = (ASTNode*)block;
+        parser_stamp_node_tokens(p, (ASTNode*)func, &function_start, &p->previous);
         return (ASTNode*)func;
     }
 

@@ -3651,6 +3651,56 @@ done:
         sizeof("f:main() { v: !i32 = 1; }") - 1u);
 }
 
+static int test_expression_body_function_source_spans(void) {
+    static const char source[] = "f:identity(value!i32)!i32 > value\n";
+    ParserContext* parser = parser_init_source("expression-body-function.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTUnaryExpr* ret;
+    const char* expression_start = strstr(source, "> value");
+    const char* value_start = expression_start ? strchr(expression_start, ' ') + 1 : NULL;
+    const char* value_end = value_start ? value_start + strlen("value") : NULL;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->error_count == 0 &&
+        parser->ast_root && ast_validate(parser->ast_root, NULL)) {
+        function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        body = function && function->body && function->body->type == AST_BLOCK
+            ? (ASTBlock*)function->body : NULL;
+        ret = body && body->statements && body->statements->type == AST_RETURN
+            ? (ASTUnaryExpr*)body->statements : NULL;
+        valid = function && function->name &&
+            strcmp(function->name, "identity") == 0 &&
+            function->base.source_span.has_location &&
+            function->base.source_span.start_offset == 0u &&
+            function->base.source_span.end_offset ==
+                (uint64_t)(value_end - source) &&
+            body && body->base.source_span.has_location &&
+            body->base.source_span.start_offset ==
+                (uint64_t)(value_start - source) &&
+            body->base.source_span.end_offset ==
+                (uint64_t)(value_end - source) &&
+            ret && ret->base.source_span.has_location &&
+            ret->base.source_span.start_offset ==
+                (uint64_t)(value_start - source) &&
+            ret->base.source_span.end_offset ==
+                (uint64_t)(value_end - source) &&
+            ret->operand && ret->operand->type == AST_IDENTIFIER &&
+            strcmp(((ASTIdentifier*)ret->operand)->name, "value") == 0;
+    }
+    if (!valid && parser) {
+        Error* error;
+        fprintf(stderr, "Expression-body function source-span Parser test failed.\\n");
+        for (error = parser->error_head; error; error = error->next)
+            fprintf(stderr, "  %d:%d %s\\n", error->line, error->col,
+                error->message ? error->message : "");
+    }
+    if (parser) parser_destroy(parser);
+    return valid;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -6027,6 +6077,11 @@ generic_type_done:
 
     if (!test_separated_variable_declarations_and_declaration_spans()) {
         fprintf(stderr, "Separated declaration Parser coverage failed.\\n");
+        return 1;
+    }
+
+    if (!test_expression_body_function_source_spans()) {
+        fprintf(stderr, "Expression-body function Parser coverage failed.\\n");
         return 1;
     }
 
