@@ -158,8 +158,6 @@ static uint32_t validate_instruction_type_records(const OirModuleView* m, OirVer
         OirModuleInstruction ins;
         int fetched = oir_module_get_instruction(m, i, &ins) == OIR_STATUS_OK;
         int contract = fetched ? validate_instruction_type_contract(m, &ins) : 0;
-        /* Shift contracts are checked in the full instruction pass. */
-        if (fetched && (ins.opcode_id == OIR_OP_BIT_SHL || ins.opcode_id == OIR_OP_BIT_SHR)) contract = 1;
         if (!fetched || !contract) {
             if (count < capacity) {
                 memset(&failures[count], 0, sizeof(failures[count]));
@@ -410,7 +408,7 @@ static int validate_instructions(const OirModuleView* m,
         if (!oir_opcode_validate_shape(ins.opcode_id, operand_kinds,
             ins.operand_count, ins.result_value_id != 0u)) return 0;
         if (failure) failure->code = OIR_VERIFY_DIAG_OPCODE_TYPE;
-        if (ins.opcode_id != OIR_OP_BIT_SHR && !validate_instruction_type_contract(m, &ins)) return 0;
+        if (!validate_instruction_type_contract(m, &ins)) return 0;
         if (ins.result_value_id && (!get_value(m, ins.result_value_id, &result) ||
             !get_type(m, result.type_id, &rt))) return 0;
         if (!ins.result_value_id) memset(&rt, 0, sizeof(rt));
@@ -804,8 +802,10 @@ static int report_unused_value_warnings(
     const OccModuleInvocationV1* invocation, OccModuleResultV1* result,
     const OirModuleView* module, const uint32_t* use_count) {
     uint32_t i, emitted = 0u, omitted = 0u;
-    if (!invocation || !result || !module || !use_count ||
-        !invocation->diagnostic_sink.report) return 0;
+    /* Unused-value diagnostics are advisory. Verification and artifact
+       publication must not depend on the optional diagnostic sink. */
+    if (!invocation || !result || !module || !use_count) return 1;
+    if (!invocation->diagnostic_sink.report) return 1;
     for (i = 0u; i < module->value_count; ++i) {
         OirModuleValue value;
         OccModuleDiagnosticV1 diagnostic;
@@ -817,13 +817,13 @@ static int report_unused_value_warnings(
             omitted++;
             continue;
         }
-        if (oir_module_get_value(module, i, &value) != OIR_STATUS_OK) return 0;
+        if (oir_module_get_value(module, i, &value) != OIR_STATUS_OK) continue;
         message_length = snprintf(message, sizeof(message),
             "OIR SSA value is defined but never used. [value=%u]", value.id);
         hint_length = snprintf(hint, sizeof(hint),
             "Warning only; output remains valid. If this value represents an unused source variable, remove its declaration; otherwise remove the dead computation or keep it if a later pass will consume it.");
         if (message_length < 0 || (size_t)message_length >= sizeof(message) ||
-            hint_length < 0 || (size_t)hint_length >= sizeof(hint)) return 0;
+            hint_length < 0 || (size_t)hint_length >= sizeof(hint)) continue;
         memset(&diagnostic, 0, sizeof(diagnostic));
         diagnostic.struct_size = (uint32_t)sizeof(diagnostic);
         diagnostic.code = OIR_VERIFY_WARN_UNUSED_VALUE;
@@ -834,7 +834,7 @@ static int report_unused_value_warnings(
         diagnostic.hint = hint;
         diagnostic.hint_length = (uint64_t)hint_length;
         if (!invocation->diagnostic_sink.report(
-                invocation->diagnostic_sink.user_context, &diagnostic)) return 0;
+                invocation->diagnostic_sink.user_context, &diagnostic)) continue;
         result->diagnostics_count++;
         emitted++;
     }
@@ -844,7 +844,7 @@ static int report_unused_value_warnings(
         int message_length = snprintf(message, sizeof(message),
             "OIR Verifier omitted %u additional unused-value warnings (limit %u).",
             omitted, OIR_VERIFY_MAX_UNUSED_WARNINGS);
-        if (message_length < 0 || (size_t)message_length >= sizeof(message)) return 0;
+        if (message_length < 0 || (size_t)message_length >= sizeof(message)) return 1;
         memset(&diagnostic, 0, sizeof(diagnostic));
         diagnostic.struct_size = (uint32_t)sizeof(diagnostic);
         diagnostic.code = OIR_VERIFY_NOTE_UNUSED_VALUE_LIMIT;
@@ -853,7 +853,7 @@ static int report_unused_value_warnings(
         diagnostic.message = message;
         diagnostic.message_length = (uint64_t)message_length;
         if (!invocation->diagnostic_sink.report(
-                invocation->diagnostic_sink.user_context, &diagnostic)) return 0;
+                invocation->diagnostic_sink.user_context, &diagnostic)) return 1;
         result->diagnostics_count++;
     }
     return 1;

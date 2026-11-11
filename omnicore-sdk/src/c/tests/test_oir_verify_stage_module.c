@@ -728,20 +728,7 @@ int main(int argc, char** argv) {
                 uint32_t verify_status = occ_module_loader_invoke(&loaded, &stage_input, 1u,
                     521u + (uint32_t)k, &diagnostics, 256u, 1024u * 1024u,
                     &output, &output_length);
-                if (verify_status != OCC_MODULE_LOADER_OK) {
-                    OccDiagnosticView failure_view;
-                    fprintf(stderr, "shift verifier fixture variant=%d status=%u before=%zu after=%zu\\n",
-                        variants[k], verify_status, diagnostics_before, occ_diagnostics_count(&diagnostics));
-                    {
-                        size_t di;
-                        for (di = diagnostics_before; di < occ_diagnostics_count(&diagnostics); ++di) {
-                            if (occ_diagnostics_get(&diagnostics, di, &failure_view))
-                                fprintf(stderr, "new diagnostic[%zu] code=%u message=%s\\n",
-                                    di, failure_view.record->code, failure_view.message);
-                        }
-                    }
-                    assert(verify_status == OCC_MODULE_LOADER_OK);
-                }
+                assert(verify_status == OCC_MODULE_LOADER_OK);
             }
             assert(output != NULL && output_length != 0u);
             assert(occ_diagnostics_count(&diagnostics) == diagnostics_before);
