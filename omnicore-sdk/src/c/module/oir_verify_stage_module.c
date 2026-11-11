@@ -147,6 +147,10 @@ static uint32_t validate_instruction_type_records(const OirModuleView* m, OirVer
     if (omitted) *omitted = 0u;
     for (i = 0u; i < m->instruction_count; ++i) {
         OirModuleInstruction ins;
+        if (oir_module_get_instruction(m, i, &ins) == OIR_STATUS_OK && ins.opcode_id == OIR_OP_BIT_SHR)
+            fprintf(stderr, "SHR preflight: id=%u contract=%d result=%u first=%u count=%u\\n",
+                ins.id, validate_instruction_type_contract(m, &ins), ins.result_value_id,
+                ins.first_operand, ins.operand_count);
         if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK || !validate_instruction_type_contract(m, &ins)) {
             if (ins.opcode_id == OIR_OP_BIT_SHR) {
                 OirModuleValue rv, av, bv; OirModuleOperand ao, bo; OirModuleType rt, at, bt;
