@@ -4172,8 +4172,13 @@ static int test_numeric_and_flow_shift_operators(void) {
         if (!variable->name || !value) goto done;
 
         if (strcmp(variable->name, "left") == 0) {
+            const char* span_start = strstr(source, "a <<< b");
+            const char* span_end = span_start ? span_start + strlen("a <<< b") : NULL;
             if (value->type != AST_BINARY_EXPR ||
-                ((ASTBinaryExpr*)value)->op != TOKEN_BIT_SHL) goto done;
+                ((ASTBinaryExpr*)value)->op != TOKEN_BIT_SHL ||
+                !span_start || !span_end || !value->source_span.has_location ||
+                value->source_span.start_offset != (uint64_t)(span_start - source) ||
+                value->source_span.end_offset != (uint64_t)(span_end - source)) goto done;
             seen |= 1;
         } else if (strcmp(variable->name, "right") == 0) {
             if (value->type != AST_BINARY_EXPR ||
@@ -4196,8 +4201,13 @@ static int test_numeric_and_flow_shift_operators(void) {
                 ((ASTBinaryExpr*)root->left)->op != TOKEN_BIT_SHR) goto done;
             seen |= 8;
         } else if (strcmp(variable->name, "stream_in") == 0) {
+            const char* span_start = strstr(source, "a << b");
+            const char* span_end = span_start ? span_start + strlen("a << b") : NULL;
             if (value->type != AST_NEXUS_PIPE ||
-                ((ASTNexusFlow*)value)->op != TOKEN_LSHIFT) goto done;
+                ((ASTNexusFlow*)value)->op != TOKEN_LSHIFT ||
+                !span_start || !span_end || !value->source_span.has_location ||
+                value->source_span.start_offset != (uint64_t)(span_start - source) ||
+                value->source_span.end_offset != (uint64_t)(span_end - source)) goto done;
             seen |= 16;
         } else if (strcmp(variable->name, "stream_out") == 0) {
             if (value->type != AST_NEXUS_PIPE ||
