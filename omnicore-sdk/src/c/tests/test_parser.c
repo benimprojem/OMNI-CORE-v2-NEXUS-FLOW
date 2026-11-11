@@ -4352,12 +4352,12 @@ static int test_deferred_intent_ai_syntax_is_rejected(void) {
 
 static int test_parenthesized_rolling_retry_disambiguation(void) {
     static const char source[] =
-        "f:main() { v:retry = (source)?(2, 100ms)->target; }";
+        "f:main() { (source)?(2, 100ms)->target; }";
     ParserContext* ctx = parser_init_source(
         "parenthesized-rolling-retry.nxf",
         (const uint8_t*)source, sizeof(source) - 1u);
     ASTFuncDecl* function;
-    ASTVarDecl* variable;
+    ASTBlock* body;
     ASTNexusFlow* flow;
     int ok = 0;
 
@@ -4365,11 +4365,11 @@ static int test_parenthesized_rolling_retry_disambiguation(void) {
     if (parser_run(ctx) == PARSER_STATUS_OK && ctx->error_count == 0 &&
         ctx->ast_root) {
         function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
-        variable = function && function->body && function->body->type == AST_BLOCK
-            ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
-        flow = variable && variable->initializer &&
-            variable->initializer->type == AST_NEXUS_FLOW
-                ? (ASTNexusFlow*)variable->initializer : NULL;
+        body = function && function->body && function->body->type == AST_BLOCK
+            ? (ASTBlock*)function->body : NULL;
+        flow = body && body->statements &&
+            body->statements->type == AST_NEXUS_FLOW
+                ? (ASTNexusFlow*)body->statements : NULL;
         ok = flow && flow->retry_count == 2 && flow->retry_delay == 100 &&
             flow->op == TOKEN_PIPE && flow->left && flow->right &&
             flow->right->type == AST_IDENTIFIER &&
