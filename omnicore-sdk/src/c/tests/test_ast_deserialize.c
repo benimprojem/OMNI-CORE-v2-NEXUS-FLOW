@@ -1020,8 +1020,17 @@ static int roundtrips_all_node_type_tags(void) {
         }
         root=wrap_contextual_fixture((ASTNodeType)raw_type,original);
         if(!root) { ast_destroy(original); return 1; }
-        original->line = 100 + raw_type;
-        original->col = 200 + raw_type;
+        {
+            OccSourceSpan span = original->source_span;
+            span.start_line = (uint32_t)(100 + raw_type);
+            span.start_column = (uint32_t)(200 + raw_type);
+            span.end_line = span.start_line;
+            span.end_column = span.start_column + 19u;
+            if (!ast_set_source_span(original, &span)) {
+                ast_destroy(root);
+                return 1;
+            }
+        }
         sibling = ast_create(AST_IDENTIFIER);
         if (!sibling) { ast_destroy(root); return 1; }
         ((ASTIdentifier*)sibling)->name = duplicate_text("sibling-node");
