@@ -138,12 +138,7 @@ static ASTNode* make_function_fixture(ASTNodeType type) {
     node->is_exported = 1;
     node->params = make_identifier_fixture("fixture_argument");
     node->body = ast_create(AST_BLOCK);
-    node->return_array_type = make_array_type_fixture();
-    node->return_type_expr = make_type_expr_fixture();
-    if (type == AST_EXTERN_DECL) node->linkname = duplicate_text("fixture_external_symbol");
-    if (!node->params || !node->body || !node->return_array_type ||
-        !node->return_type_expr ||
-        (type == AST_EXTERN_DECL && !node->linkname)) {
+    if (!node->params || !node->body) {
         ast_destroy((ASTNode*)node);
         return NULL;
     }
@@ -226,11 +221,13 @@ static int populate_ast_fixture(ASTNode* node) {
             destination->is_exported = source->is_exported;
             destination->params = source->params; source->params = NULL;
             destination->body = source->body; source->body = NULL;
-            destination->return_array_type = source->return_array_type; source->return_array_type = NULL;
-            destination->linkname = source->linkname; source->linkname = NULL;
-            destination->return_type_expr = source->return_type_expr; source->return_type_expr = NULL;
+            destination->return_array_type = make_array_type_fixture();
+            destination->return_type_expr = make_type_expr_fixture();
+            if (node->type == AST_EXTERN_DECL)
+                destination->linkname = duplicate_text("fixture_external_symbol");
             ast_destroy(fixture);
-            return 1;
+            return destination->return_array_type && destination->return_type_expr &&
+                (node->type != AST_EXTERN_DECL || destination->linkname != NULL);
         }
 
         case AST_STRUCT_DECL:
