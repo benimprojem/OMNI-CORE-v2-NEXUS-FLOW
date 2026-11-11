@@ -264,16 +264,14 @@ static int validate_structure(const OirModuleView* m,
         OirModuleFunction fn;
         if (failure) { memset(failure, 0, sizeof(*failure)); failure->code = OIR_VERIFY_DIAG_FUNCTION_ENTRY; failure->function_id = f + 1u; }
         OirModuleType ft;
-        int owns_block = 0;
         if (oir_module_get_function(m, f, &fn) != OIR_STATUS_OK ||
             fn.id != f + 1u || !get_type(m, fn.function_type_id, &ft) ||
             ft.kind != OIR_MODULE_TYPE_FUNCTION || fn.entry_block_id == 0u ||
             fn.entry_block_id > m->block_count ||
             block_function[fn.entry_block_id] != fn.id) return 0;
+        /* A valid owned entry block already proves that this function owns
+           at least one block. Avoid rescanning the full block table per function. */
         if (failure) failure->block_id = fn.entry_block_id;
-        for (i = 1u; i <= m->block_count; ++i)
-            if (block_function[i] == fn.id) owns_block = 1;
-        if (!owns_block) return 0;
     }
 
     return 1;
