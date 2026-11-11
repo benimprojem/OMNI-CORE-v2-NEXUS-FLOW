@@ -42,7 +42,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
 | Implicit type variable `t` | Type-name string / `AST_TYPE_EXPR` | ✓ | ✓ | ✓ | ~ | D | — | Type-variable scope, binding, unification ve inference |
 | Map | Adlandırılmış type-name | ✓ | ✓ | ✓ | ~ | ? | ? | Key/value generic sözleşmesi, key constraints ve runtime davranışı |
-| Vec | Adlandırılmış type-name | ✓ | ~ | ✓ | ~ | ? | ? | Element type, kapasite/uzunluk ve operasyon semantiği |
+| Vec / SIMD `Vec2`, `Vec3`, `Vec4` | Adlandırılmış type-name | ✓ | ✓ | ✓ | ~ | ? | ? | Parser type-name ve exact declaration span testleri mevcut; element type, kapasite/uzunluk ve operasyon semantiği açık |
 
 ## 2. Fonksiyonlar, callback'ler ve modüller
 
@@ -90,7 +90,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Address/length `addr`, `len` | `AST_ADDR`, `AST_LEN` | ✓ | ✓ | ✓ | ? | ? | ? | Signature, result type, pointer lifetime ve lowering |
 | Memory access `peek`, `poke` | `AST_PEEK`, `AST_POKE` | ✓ | ✓ | ✓ | ? | ? | ? | Address/value width, alignment, bounds ve target effects |
 | Map / Vec indexing and operations | Generic member/index representation | ✓ | ✓ | ✓ | ~ | ? | ? | Map index-read and capture-write Parser forms are covered; Vec/container-specific typing and Semantic constraints remain open |
-| Packed bit storage `bit`, `Nbit`, byte-backed access | Scalar/array type payloads | ✓ | ~ | ~ | ~ | ~ | ~ | LSB-first bit indexing, bounds, read-modify-write ve bit-vector OIR contract |
+| Packed bit storage `bit`, width-qualified bit/byte types | Scalar/array type payloads | ✓ | ✓ | ~ | ~ | ~ | ~ | Parser accepts `bit`, `byte`, `8bit`…`128bit` and `1byte`…`16byte`; LSB-first indexing, bounds, read-modify-write and bit-vector OIR contract remain open |
 
 ## 5. Kontrol akışı, döngüler ve fonksiyon çıkışı
 

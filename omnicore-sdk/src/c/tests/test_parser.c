@@ -3754,6 +3754,77 @@ static int test_indexed_capture_assignment_ast(void) {
         sizeof("f:main() { 1 <- score; }") - 1u) == 0;
 }
 
+static int test_vector_and_bit_byte_type_parser_coverage(void) {
+    static const char source[] =
+        "f:main() {\n"
+        "  v:vec2!Vec2;\n"
+        "  v:vec3!Vec3;\n"
+        "  v:vec4!Vec4;\n"
+        "  v:enabled!bit;\n"
+        "  v:raw!byte;\n"
+        "  v:flags8!8bit;\n"
+        "  v:flags16!16bit;\n"
+        "  v:flags32!32bit;\n"
+        "  v:flags64!64bit;\n"
+        "  v:flags128!128bit;\n"
+        "  v:one!1byte;\n"
+        "  v:two!2byte;\n"
+        "  v:four!4byte;\n"
+        "  v:eight!8byte;\n"
+        "  v:sixteen!16byte;\n"
+        "}\n";
+    static const char* const names[] = {
+        "vec2", "vec3", "vec4", "enabled", "raw", "flags8", "flags16",
+        "flags32", "flags64", "flags128", "one", "two", "four", "eight",
+        "sixteen"
+    };
+    static const char* const types[] = {
+        "Vec2", "Vec3", "Vec4", "bit", "byte", "8bit", "16bit", "32bit",
+        "64bit", "128bit", "1byte", "2byte", "4byte", "8byte", "16byte"
+    };
+    ParserContext* parser = parser_init_source("vector-bit-byte-types.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTBlock* body;
+    ASTNode* node;
+    size_t i;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK || parser->error_count != 0 ||
+        !parser->ast_root || !ast_validate(parser->ast_root, NULL))
+        goto done;
+    function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    body = function && function->body && function->body->type == AST_BLOCK
+        ? (ASTBlock*)function->body : NULL;
+    node = body ? body->statements : NULL;
+    valid = body != NULL;
+    for (i = 0u; valid && i < sizeof(names) / sizeof(names[0]); ++i) {
+        ASTVarDecl* variable = node && node->type == AST_VAR_DECL
+            ? (ASTVarDecl*)node : NULL;
+        char spelling[64];
+        const char* start;
+        const char* end;
+        int length = snprintf(spelling, sizeof(spelling), "v:%s", names[i]);
+        start = length > 0 && (size_t)length < sizeof(spelling)
+            ? strstr(source, spelling) : NULL;
+        end = start ? strchr(start, ';') : NULL;
+        valid = variable && variable->name && strcmp(variable->name, names[i]) == 0 &&
+            variable->type_name && strcmp(variable->type_name, types[i]) == 0 &&
+            variable->is_hard_typed && !variable->initializer &&
+            variable->base.source_span.has_location && start && end &&
+            variable->base.source_span.start_offset == (uint64_t)(start - source) &&
+            variable->base.source_span.end_offset == (uint64_t)(end + 1 - source);
+        node = node ? node->next : NULL;
+    }
+    valid = valid && node == NULL;
+done:
+    if (!valid)
+        fprintf(stderr, "Vec2/3/4 and bit/byte width type Parser coverage failed.\\n");
+    parser_destroy(parser);
+    return valid;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -6140,6 +6211,11 @@ generic_type_done:
 
     if (!test_indexed_capture_assignment_ast()) {
         fprintf(stderr, "Indexed capture assignment Parser coverage failed.\\n");
+        return 1;
+    }
+
+    if (!test_vector_and_bit_byte_type_parser_coverage()) {
+        fprintf(stderr, "Vector/bit/byte type Parser coverage failed.\\n");
         return 1;
     }
 
