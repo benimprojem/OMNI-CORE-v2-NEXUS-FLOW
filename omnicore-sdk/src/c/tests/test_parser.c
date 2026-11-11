@@ -46,6 +46,8 @@ static int test_cast_and_panic_ast(void) {
     int ok = 0;
     const char* cast_start = strstr(source, "cast");
     const char* cast_end = cast_start ? strstr(cast_start, "i32)") : NULL;
+    const char* panic_start = strstr(source, "panic");
+    const char* panic_end = panic_start ? strchr(panic_start, ')') : NULL;
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK || parser_get_status(ctx) != PARSER_STATUS_OK || ctx->error_count != 0 || !ctx->ast_root) goto done;
     program = (ASTProgram*)ctx->ast_root;
@@ -65,7 +67,10 @@ static int test_cast_and_panic_ast(void) {
         cast->base.source_span.end_offset != (uint64_t)(cast_end + 4 - source)) goto done;
     panic = (ASTPanic*)variable->base.next;
     if (!panic || panic->base.type != AST_PANIC ||
-        !panic->message || strcmp(panic->message, "\"boom\"") != 0) goto done;
+        !panic->message || strcmp(panic->message, "\"boom\"") != 0 ||
+        !panic_start || !panic_end || !panic->base.source_span.has_location ||
+        panic->base.source_span.start_offset != (uint64_t)(panic_start - source) ||
+        panic->base.source_span.end_offset != (uint64_t)(panic_end + 1 - source)) goto done;
     ok = 1;
 done:
     parser_destroy(ctx);
@@ -926,6 +931,8 @@ static int test_conditional_action_arrow_disambiguation(void) {
     ASTIf* continue_action;
     ASTIf* return_action;
     ASTNexusFlow* ordinary_pipe;
+    const char* pipe_start = strstr(source, "a == b -> target");
+    const char* pipe_target = pipe_start ? strstr(pipe_start, "target") : NULL;
     int ok = 0;
 
     if (!ctx) return 0;
@@ -959,7 +966,11 @@ static int test_conditional_action_arrow_disambiguation(void) {
     ordinary_pipe = (ASTNexusFlow*)return_action->base.next;
     if (!ordinary_pipe || ordinary_pipe->base.type != AST_NEXUS_PIPE ||
         ordinary_pipe->op != TOKEN_PIPE || !ordinary_pipe->left ||
-        !ordinary_pipe->right || ordinary_pipe->right->type != AST_IDENTIFIER) goto done;
+        !ordinary_pipe->right || ordinary_pipe->right->type != AST_IDENTIFIER ||
+        !pipe_start || !pipe_target || !ordinary_pipe->base.source_span.has_location ||
+        ordinary_pipe->base.source_span.start_offset != (uint64_t)(pipe_start - source) ||
+        ordinary_pipe->base.source_span.end_offset != (uint64_t)(pipe_target + strlen("target") - source) ||
+        !ast_validate(ctx->ast_root, NULL)) goto done;
     ok = 1;
 
 done:
