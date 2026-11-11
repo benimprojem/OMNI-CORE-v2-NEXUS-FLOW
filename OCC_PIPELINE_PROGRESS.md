@@ -1859,3 +1859,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Corrected the independent Verifier's envelope-rejection diagnostic: it now names the active OIR_MODULE 1.2 schema instead of stale 1.1 wording.
 - Added a regression fixture that supplies a schema-1.1 artifact and asserts rejection code 8601 plus the active-schema diagnostic text.
 - This is a verifier-stage regression only. The separate negative host-pipeline integration test (invalid lowered OIR must not reach Codegen/Optimizer) remains open; no end-to-end gate coverage is claimed by this change.
+
+
+### Host verifier gate negative integration coverage — 2026-11-11
+
+- Added a test-only rejecting OIR Verifier DLL and an isolated-runtime CTest scenario. The normal lexer, parser, semantic and lowering stages run; the substituted verifier deliberately rejects the module.
+- The test asserts the host reports the verifier's diagnostic and emits no OIR_MODULE publication, OIR_ASSEMBLY, stage assembly or legacy Codegen output.
+- Added the OIR Verifier DLL to the production `occ` target's explicit build dependencies, so a non-test build also produces the required stage module.
+- Scope note: this proves the host gate stops downstream consumers when the independent verifier rejects. The Verifier's own invalid-SSA/type/CFG rejection remains covered by its direct stage tests; this host test does not claim to inject a semantically malformed lowering artifact.
+- CI has not yet run for this change.

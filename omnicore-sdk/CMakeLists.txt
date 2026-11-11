@@ -784,6 +784,7 @@ add_dependencies(occ
     occ_lexer_stage
     occ_semantic_stage
     occ_oir_lowering_stage
+    occ_oir_verify_stage
     occ_codegen_stage
 )
 
@@ -978,6 +979,44 @@ if(BUILD_TESTING)
             "-DSOURCE_FILE=${C_SOURCE_DIR}/tests/test_oir_lowering_cli.nxf"
             "-DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/occ_lowering_pipeline_test"
             -P "${C_SOURCE_DIR}/tests/verify_occ_lowering_pipeline.cmake"
+    )
+    # Exercise the host's mandatory verifier gate with a deliberately rejecting
+    # verifier DLL in an isolated runtime package. Codegen outputs must stay absent.
+    add_library(occ_test_rejecting_verifier SHARED
+        "${C_SOURCE_DIR}/tests/rejecting_oir_verifier_stage.c"
+    )
+    target_compile_definitions(occ_test_rejecting_verifier PRIVATE OCC_BUILD_MODULE)
+    target_include_directories(occ_test_rejecting_verifier PRIVATE
+        "${C_SOURCE_DIR}/module"
+        "${C_SOURCE_DIR}/oir"
+        "${C_SOURCE_DIR}/core"
+    )
+    target_link_libraries(occ_test_rejecting_verifier PRIVATE occ_module_abi)
+    set_target_properties(occ_test_rejecting_verifier PROPERTIES
+        OUTPUT_NAME "occ_oir_verify_stage"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test_modules"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test_modules"
+    )
+    if(MSVC)
+        target_compile_options(occ_test_rejecting_verifier PRIVATE /W4)
+        set(OCC_TEST_VERIFIER_FILENAME "occ_oir_verify_stage.dll")
+    elseif(APPLE)
+        target_compile_options(occ_test_rejecting_verifier PRIVATE -Wall -Wextra)
+        set(OCC_TEST_VERIFIER_FILENAME "libocc_oir_verify_stage.dylib")
+    else()
+        target_compile_options(occ_test_rejecting_verifier PRIVATE -Wall -Wextra)
+        set(OCC_TEST_VERIFIER_FILENAME "libocc_oir_verify_stage.so")
+    endif()
+    add_dependencies(occ_test_rejecting_verifier occ_oir_verify_stage)
+    add_test(NAME occ_host_verifier_failure_blocks_codegen
+        COMMAND ${CMAKE_COMMAND}
+            "-DOCC_EXE=$<TARGET_FILE:occ>"
+            "-DOCC_RUNTIME_DIR=${C_RUNTIME_DIR}"
+            "-DREJECTING_VERIFIER=$<TARGET_FILE:occ_test_rejecting_verifier>"
+            "-DVERIFIER_FILENAME=${OCC_TEST_VERIFIER_FILENAME}"
+            "-DSOURCE_FILE=${C_SOURCE_DIR}/tests/test_oir_lowering_cli.nxf"
+            "-DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/occ_verifier_gate_test"
+            -P "${C_SOURCE_DIR}/tests/verify_occ_verifier_gate.cmake"
     )
 
     set(OCC_INVALID_PARSER_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/occ_invalid_parser_stage.nxf")
