@@ -787,6 +787,109 @@ static int roundtrips_populated_ast_types(void) {
     return 0;
 }
 
+static int roundtrips_type_expr_kind(uint32_t kind) {
+    ASTTypeExpr* original = (ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+    FILE* first = NULL;
+    FILE* second = NULL;
+    ASTNode* decoded = NULL;
+    int valid = 0;
+    if (!original) return 0;
+    original->kind = kind;
+    if (kind == AST_TYPE_NAMED) {
+        original->name = duplicate_text("i32");
+        if (!original->name) goto done;
+    } else {
+        original->child = make_type_expr_fixture();
+        if (!original->child) goto done;
+    }
+    if (kind == AST_TYPE_QUALIFIED) original->flags = AST_TYPE_FLAG_HARD_TYPED;
+    if (kind == AST_TYPE_ARRAY) {
+        ASTArrayDimension* dimension =
+            (ASTArrayDimension*)ast_create(AST_ARRAY_DIMENSION);
+        if (!dimension) goto done;
+        dimension->length = make_literal_fixture();
+        if (!dimension->length) {
+            ast_destroy((ASTNode*)dimension);
+            goto done;
+        }
+        original->dimensions = (ASTNode*)dimension;
+    }
+    if (kind == AST_TYPE_FUNCTION) {
+        original->params = make_type_expr_fixture();
+        if (!original->params) goto done;
+    }
+    if (!ast_validate((ASTNode*)original, NULL)) goto done;
+    first = tmpfile();
+    second = tmpfile();
+    if (!first || !second || !ast_serialize((ASTNode*)original, first) ||
+        fseek(first, 0L, SEEK_SET) != 0)
+        goto done;
+    decoded = ast_deserialize(first);
+    if (!decoded || !ast_validate(decoded, NULL) ||
+        ((ASTTypeExpr*)decoded)->kind != kind ||
+        ((ASTTypeExpr*)decoded)->flags != original->flags ||
+        !ast_serialize(decoded, second))
+        goto done;
+    valid = streams_equal(first, second);
+done:
+    if (first) fclose(first);
+    if (second) fclose(second);
+    ast_destroy(decoded);
+    ast_destroy((ASTNode*)original);
+    return valid;
+}
+
+static int roundtrips_all_type_expr_kinds(void) {
+    uint32_t kind;
+    for (kind = AST_TYPE_NAMED; kind <= AST_TYPE_QUALIFIED; ++kind) {
+        if (!roundtrips_type_expr_kind(kind)) {
+            fprintf(stderr, "AST_TYPE_EXPR kind %u round-trip failed.\\n",
+                (unsigned)kind);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int roundtrips_assignment_operator(OmniTokenType op) {
+    ASTBinaryExpr* original = (ASTBinaryExpr*)ast_create(AST_ASSIGNMENT);
+    FILE* first = NULL;
+    FILE* second = NULL;
+    ASTNode* decoded = NULL;
+    int valid = 0;
+    if (!original) return 0;
+    original->op = op;
+    original->left = make_identifier_fixture("assignment_target");
+    original->right = make_identifier_fixture("assignment_value");
+    if (!original->left || !original->right ||
+        !ast_validate((ASTNode*)original, NULL))
+        goto done;
+    first = tmpfile();
+    second = tmpfile();
+    if (!first || !second || !ast_serialize((ASTNode*)original, first) ||
+        fseek(first, 0L, SEEK_SET) != 0)
+        goto done;
+    decoded = ast_deserialize(first);
+    if (!decoded || decoded->type != AST_ASSIGNMENT ||
+        ((ASTBinaryExpr*)decoded)->op != op ||
+        !ast_serialize(decoded, second))
+        goto done;
+    valid = streams_equal(first, second);
+done:
+    if (first) fclose(first);
+    if (second) fclose(second);
+    ast_destroy(decoded);
+    ast_destroy((ASTNode*)original);
+    return valid;
+}
+
+static int roundtrips_assignment_operator_payloads(void) {
+    if (!roundtrips_assignment_operator(TOKEN_CAPTURE)) return 1;
+    if (!roundtrips_assignment_operator(TOKEN_FORCE_ASSIGN)) return 2;
+    if (!roundtrips_assignment_operator(TOKEN_STRING_APPEND)) return 3;
+    return 0;
+}
+
 static int roundtrips_struct_literal_nodes(void) {
     ASTStructLiteral* literal=(ASTStructLiteral*)ast_create(AST_STRUCT_LITERAL);
     ASTStructFieldInit* field=(ASTStructFieldInit*)ast_create(AST_STRUCT_FIELD_INIT);
@@ -1657,6 +1760,8 @@ int main(int argc, char** argv) {
     if (rejects_all_truncated_ast_payload_prefixes() != 0) { fprintf(stderr, "rejects_all_truncated_ast_payload_prefixes failed.\\n"); return 20; }
     if (roundtrips_populated_ast_types() != 0) { fprintf(stderr, "roundtrips_populated_ast_types failed.\\n"); return 11; }
     if (roundtrips_all_node_type_tags() != 0) { fprintf(stderr, "roundtrips_all_node_type_tags failed.\\n"); return 8; }
+    if (roundtrips_all_type_expr_kinds() != 0) { fprintf(stderr, "roundtrips_all_type_expr_kinds failed.\\n"); return 27; }
+    { int assignment_result=roundtrips_assignment_operator_payloads(); if (assignment_result != 0) { fprintf(stderr, "roundtrips_assignment_operator_payloads failed at stage %d.\\n",assignment_result); return 28; } }
     if (roundtrips_struct_literal_nodes() != 0) { fprintf(stderr, "roundtrips_struct_literal_nodes failed.\\n"); return 19; }
     if (roundtrips_block_halt_tag() != 0) { fprintf(stderr, "roundtrips_block_halt_tag failed.\\n"); return 14; }
     if (roundtrips_extern_decl() != 0) { fprintf(stderr, "roundtrips_extern_decl failed.\\n"); return 7; }
