@@ -166,9 +166,18 @@ static ASTNode* make_enum_variant_fixture(void) {
 }
 
 static int populate_ast_fixture(ASTNode* node) {
+    OccSourceSpan span;
     if (!node) return 0;
-    node->line = 37;
-    node->col = 19;
+    memset(&span, 0, sizeof(span));
+    span.source_id = 3u;
+    span.start_offset = 120u;
+    span.end_offset = 139u;
+    span.start_line = 37u;
+    span.start_column = 19u;
+    span.end_line = 37u;
+    span.end_column = 38u;
+    span.has_location = 1u;
+    if (!ast_set_source_span(node, &span)) return 0;
 
     switch (node->type) {
         case AST_PROGRAM: {
