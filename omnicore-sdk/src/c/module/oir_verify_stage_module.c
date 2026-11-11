@@ -2,7 +2,6 @@
 #include "oir_module.h"
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
 #define OIR_VERIFY_MAX_BLOCKS 8192u
@@ -152,8 +151,6 @@ static uint32_t validate_instruction_type_records(const OirModuleView* m, OirVer
     for (i = 0u; i < m->instruction_count; ++i) {
         OirModuleInstruction ins;
         if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK || !validate_instruction_type_contract(m, &ins)) {
-            fprintf(stderr, "TYPEFAIL idx=%u opcode=%u result=%u first=%u n=%u\\n",
-                i, ins.opcode_id, ins.result_value_id, ins.first_operand, ins.operand_count);
             if (count < capacity) {
                 memset(&failures[count], 0, sizeof(failures[count]));
                 failures[count].code = OIR_VERIFY_DIAG_OPCODE_TYPE;
@@ -393,7 +390,6 @@ static int validate_instructions(const OirModuleView* m,
         if (failure) { failure->block_id = ins.block_id; failure->function_id = block_function[ins.block_id]; }
         uint32_t operand_kinds[255];
         desc = oir_opcode_lookup(ins.opcode_id);
-        if (ins.opcode_id == OIR_OP_BIT_SHR) fprintf(stderr, "SHR pass3: id=%u desc=%p count=%u result=%u contract=%d\\n", ins.id, (void*)desc, ins.operand_count, ins.result_value_id, validate_instruction_type_contract(m, &ins));
         if (!desc || ins.operand_count > 255u) return 0;
         for (j = 0u; j < ins.operand_count; ++j) {
             OirModuleOperand operand;
