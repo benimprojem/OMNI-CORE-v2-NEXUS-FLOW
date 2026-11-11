@@ -30,15 +30,15 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| Program ve blok | `AST_PROGRAM`, `AST_BLOCK` | ✓ | ✓ | ~ | ~ | ~ | ~ | Parser root/block production ve kaynak span testleri mevcut; AST ownership/codec ve OIR span metadata ayrı aşamalarda açık |
-| Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ✓ | ~ | ~ | ~ | ~ | Parser ayrı/bitişik önek, hard type, initializer ve exact declaration span testleri mevcut; AST payload/codec ve Semantic kuralları açık |
+| Program ve blok | `AST_PROGRAM`, `AST_BLOCK` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Program declaration chain, `no:osmodule` policy/span ve ortak node source-span codec round-trip; OIR span metadata ayrı aşamada |
+| Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ✓ | ✓ | ~ | ~ | ~ | name/type/flags, initializer, inline_type, recursive type_expr ve ortak source-span payload round-trip; Semantic kuralları açık |
 | Immutable `m:` | `AST_MUST_DECL` (103) | ✓ | ✓ | ✓ | ✓ | D | — | Derleme zamanı/sabit değer sınırları; runtime lowering gerektirmeyen karar korunmalı |
-| NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ~ | ~ | ? | ? | Nominal type, target type ve Semantic type identity |
-| Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ~ | ~ | ? | ? | Alan yerleşimi, packed layout ve aggregate lowering |
+| NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | name, target_type ve recursive target_type_expr payload round-trip; Semantic type identity açık |
+| Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | name, packed/visibility/export flags ve ordered field chain round-trip; layout ve lowering açık |
 | Struct literal | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` (106–107) | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Instance initialization/layout lowering ve Verifier invariant'ları |
 | Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Discriminant, payload type, constructor resolution ve exhaustiveness |
-| Union | `AST_UNION_DECL` | ✓ | ✓ | ~ | ~ | ? | ? | Union layout, aktif üye ve güvenli erişim kuralları |
-| Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ~ | ~ | ? | ? | Receiver/dispatch, visibility, method call ve lowering |
+| Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | union flags ve field chain round-trip; active member ve safe access Semantic kuralları açık |
+| Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | members, method public_name/implementation ve flags round-trip; receiver/dispatch Semantic kuralları açık |
 | Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
 | Implicit type variable `t` | Type-name string / `AST_TYPE_EXPR` | ✓ | ✓ | ✓ | ~ | D | — | Type-variable scope, binding, unification ve inference |
 | Map | Adlandırılmış type-name | ✓ | ✓ | ✓ | ~ | ? | ? | Key/value generic sözleşmesi, key constraints ve runtime davranışı |
@@ -48,16 +48,16 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| Fonksiyon `f:name(...)` | `AST_FUNC_DECL` | ✓ | ✓ | ~ | ~ | ~ | ~ | Parser parametre biçimleri, callback türleri, extern ve function span testleri mevcut; AST payload/codec, Semantic ve ABI sözleşmesi açık |
+| Fonksiyon `f:name(...)` | `AST_FUNC_DECL` | ✓ | ✓ | ✓ | ~ | ~ | ~ | params/body, return array, recursive return type, EXF linkname ve source-span payload round-trip; Semantic/ABI açık |
 | Extern `exf:` | `AST_EXTERN_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | External signature, symbol/linkname ve calling convention |
 | Lambda / anonymous function | `AST_LAMBDA` (94) | ✓ | ✓ | ✓ | ~ | ~ | ? | Capture, closure conversion, return inference ve ABI |
 | Callback/function type `f:(...)!R` | `AST_TYPE_EXPR` (108) ve recursive type payload | ✓ | ✓ | ✓ | ~ | ? | ? | Callback compatibility, function value call ve function-pointer ABI |
 | Variadic parameter `...` | `AST_VARIADIC_PARAM` (101) | ✓ | ✓ | ✓ | ~ | D | — | Variadic ABI ve call validation; OIR bridge tek başına yeterli değil |
-| Named argument | `AST_NAMED_ARG` (102) | ✓ | ✓ | ~ | ~ | D | — | Parametre eşleme, duplicate/unknown arg ve default binding |
+| Named argument | `AST_NAMED_ARG` (102) | ✓ | ✓ | ✓ | ~ | D | — | name/value payload ve source-span round-trip; Semantic parameter binding açık |
 | Default parameter | `AST_VAR_DECL.initializer` | ✓ | ✓ | ✓ | ~ | ? | ? | Default expression evaluation ve çağrı argümanı üretimi |
 | Fonksiyon çağrısı | `AST_FUNC_CALL` | ✓ | ✓ | ✓ | ~ | ? | ? | Target resolution, overload/arity/type ve call lowering |
 | Module import `use` / alias / dotted path | `AST_USE` | ✓ | ✓ | ✓ | ~ | D | — | Arama sırası, module resolution, import graph ve diagnostics |
-| Link directive / external symbol metadata | Mevcut directive/extern alanları | ✓ | ✓ | ~ | ~ | ? | ? | Build/link katmanı ile core Parser sınırını netleştir; eksik directive üretimini fail-closed tut |
+| Link directive / external symbol metadata | Mevcut directive/extern alanları | ✓ | ✓ | ✓ | ~ | ? | ? | EXTERN linkname string ve AST payload round-trip; build/link integration AST dışı sorumluluk |
 
 ## 3. İfadeler, operatörler ve temel değerler
 
@@ -72,7 +72,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Bitwise `& | ^ ~` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Width/promotion ve tüm operand kombinasyonları |
 | Shift `<<< >>>` | `AST_BINARY_EXPR`; OIR 26/27 | ✓ | ✓ | ✓ | ~ | ~ | ✓ | Scalar lowering sınırlarını genişlet; negatif dinamik count trap ve genişlik kuralları |
 | Assignment / compound assignment | `AST_ASSIGNMENT` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Lvalue, compound equivalence, mutation effects ve opcode lowering |
-| String append `.=` | `AST_ASSIGNMENT` | ✓ | ✓ | ~ | ~ | ? | ? | Dedicated fixture, string type rule ve runtime concat |
+| String append `.=` | `AST_ASSIGNMENT` | ✓ | ✓ | ✓ | ~ | ? | ? | AST_ASSIGNMENT operator token `.=` round-trip; Semantic string type ve runtime concat açık |
 | Cast | `AST_CAST` | ✓ | ✓ | ✓ | ~ | ? | ? | Conversion legality, truncation/sign/float behavior ve lowering |
 | Tuple | `AST_TUPLE` | ✓ | ✓ | ✓ | ? | ? | ? | Tuple type, destructuring, member/index ve lowering |
 | Member access | `AST_MEMBER_ACCESS` | ✓ | ✓ | ✓ | ~ | ? | ? | Field/method resolution, visibility ve address/value category |
@@ -90,7 +90,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Address/length `addr`, `len` | `AST_ADDR`, `AST_LEN` | ✓ | ✓ | ✓ | ? | ? | ? | Signature, result type, pointer lifetime ve lowering |
 | Memory access `peek`, `poke` | `AST_PEEK`, `AST_POKE` | ✓ | ✓ | ✓ | ? | ? | ? | Address/value width, alignment, bounds ve target effects |
 | Map / Vec indexing and operations | Generic member/index representation | ✓ | ✓ | ✓ | ~ | ? | ? | Map index-read and capture-write Parser forms are covered; Vec/container-specific typing and Semantic constraints remain open |
-| Packed bit storage `bit`, width-qualified bit/byte types | Scalar/array type payloads | ✓ | ✓ | ~ | ~ | ~ | ~ | Parser accepts `bit`, `byte`, `8bit`…`128bit` and `1byte`…`16byte`; LSB-first indexing, bounds, read-modify-write and bit-vector OIR contract remain open |
+| Packed bit storage `bit`, width-qualified bit/byte types | Scalar/array type payloads | ✓ | ✓ | ✓ | ~ | ~ | ~ | bit/byte width type strings round-trip; packed indexing, LSB-first bounds/read-modify-write ve OIR contract açık |
 
 ## 5. Kontrol akışı, döngüler ve fonksiyon çıkışı
 
@@ -104,7 +104,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Conditional action `(cond)->...` | Canonical `AST_IF` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Loop context, action legality ve round-trip |
 | Labels / jump `label:>`, `?>(label)`, `jump(label)` | `AST_NEXUS_LABEL`, `AST_NEXUS_JUMP` | ✓ | ✓ | ✓ | ~ | ? | ? | Label identity/scope, duplicate/missing target ve CFG lowering |
 | Targeted/targetless halt `?;` | `AST_NEXUS_HALT` | ✓ | ✓ | ✓ | ? | ? | ? | Cleanup ordering, target resolution ve terminal CFG behavior |
-| Block cleanup `} ?;` | `AST_BLOCK_HALT` (100) | ✓ | ✓ | ~ | ? | ? | ? | End-to-end OIR regression, cleanup order ve lowering |
+| Block cleanup `} ?;` | `AST_BLOCK_HALT` (100) | ✓ | ✓ | ✓ | ? | ? | ? | AST_BLOCK_HALT payload-free header/source span ve legal block ownership validation; OIR cleanup order açık |
 | `defer` | `AST_DEFER` (69) | ✓ | ✓ | ✓ | ? | ? | ? | Scope exit ordering, unwind and cleanup lowering |
 | `panic(...)` | `AST_PANIC` (39) | ✓ | ✓ | ✓ | ~ | ? | ? | Message restriction tests, trap/abort semantics ve lowering |
 
@@ -136,7 +136,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Date/time/clock/free | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ? | ? | ? | Signature, platform service and effect contract |
 | Zone sync/view/lock member calls | Generic member/call AST; reserved dedicated tags | ✓ | ✓ | ✓ | ? | ? | ? | Intrinsic registry; do not count reserved tags as active productions |
 | Intrinsic AST inventory (exit/swap/option checks/date/time/clock/free/zone) | `AST_EXIT`, `AST_SWAP`, `AST_IS_OK`, `AST_IS_ERR`, `AST_IS_SOME`, `AST_IS_NONE`, `AST_IS_NULL`, `AST_DATE`, `AST_DATENOW`, `AST_TIME`, `AST_CLOCK`, `AST_FREE`, `AST_ZONE` | ✓ | ✓ | ✓ | ? | ? | ? | Central signature/effect registry, compile-time/runtime distinction and per-intrinsic type/effect tests |
-| Ownership/copy/move and cleanup | Capture/relocate/defer/halt nodes; `copy()` is a generic call | ✓ | ✓ | ~ | ~ | ? | ? | Parser covers handler/index capture, relocate, generic `copy()` call, defer and both halt forms; ownership/effect model and SemanticResult annotations remain open |
+| Ownership/copy/move and cleanup | Capture/relocate/defer/halt nodes; `copy()` is a generic call | ✓ | ✓ | ✓ | ~ | ? | ? | capture, relocate, defer, halt ve capture-assignment operator payload round-trip; Semantic ownership/effect açık |
 
 ## 8. Concurrency, FASTEXEC/ASM ve ertelenmiş syntax
 
@@ -145,8 +145,8 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Thread block `(name)>{...}` | `AST_THREAD_BLOCK` (70) | ✓ | ✓ | ✓ | ? | ? | ? | mode/timeout, scheduling, capture/lifetime, cancel/sync |
 | `spawn` | Legacy `AST_SPAWN` (40) | D | X | ✓ | D | D | — | Core Parser üretmez; Thread modülünün grammar/runtime sözleşmesi ayrı tanımlanmalı |
 | Listen/send/receive/done | Matching AST tags (41–45) | ✓ | ✓ | ✓ | ? | ? | ? | Thread/event payload, synchronization, effects ve lowering |
-| FASTEXEC block | `AST_FASTEXEC_BLOCK` (104) | ✓ | ✓ | ~ | ~ | D | — | Parser span/codec kapanışı; Semantic target/capability doğrulaması |
-| ASM label/raw body | `AST_ASM_LABEL` (105), opaque ASM token | ✓ | ✓ | ~ | ~ | D | — | asmcall/asmjmp, placeholders, register/clobber, ABI ve target checks |
+| FASTEXEC block | `AST_FASTEXEC_BLOCK` (104) | ✓ | ✓ | ✓ | ~ | D | — | ordered statement payload ve node source-span round-trip; target/capability Semantic checks açık |
+| ASM label/raw body | `AST_ASM_LABEL` (105), opaque ASM token | ✓ | ✓ | ✓ | ~ | D | — | label/source_text/source_length ve source-span payload round-trip; asmcall/jmp placeholders, register/clobber, ABI ve target checks açık |
 | Intent `@` | `AST_NEXUS_INTENT` (36) | D | D | ✓ | D | D | — | Tasarım aktif edilene kadar davranış eklenmeyecek |
 | AI logic `??` | `AST_AI_LOGIC` (37) | D | D | ✓ | D | D | — | Payload ve semantics tasarlanmadan uygulanmayacak |
 | Legacy generic ASM block | `AST_ASM_BLOCK` (29) | D | X | ✓ | D | D | — | ID/codec uyumluluğu korunur; güncel syntax FASTEXEC/ASM |
@@ -168,10 +168,11 @@ Geliştirme sırası kullanıcı tarafından sabitlenmiştir. Her aşama kendi k
 | 5 | **O — OIR** | Semantic AST → OIR lowering, opcode/type/effect/memory/CFG sözleşmeleri | Her executable özellik desteklenir veya konumlu fail-closed diagnostic ile açıkça ertelenir; lowering testleri geçer. |
 | 6 | **V — Verifier** | OIR schema, structural/type/SSA/CFG/ownership/resource invariants ve pipeline gate | Geçerli artifact kabul edilir; bozuk/adversarial artifact reddedilir; host downstream aşamaları durdurur; CI matrisi geçer. |
 
-**Çalışma kuralı:** Aktif syntax envanterinde L (Lexer) ve P (Parser) kapıları tamamlandı. `X` ve `D` satırları bilinçli olarak aktif Core Parser kapsamı dışındadır; bunlar eksik üretim sayılmaz. Sıradaki aşama **A — AST + Payload**; ardından S, O ve V sırası korunacaktır. Her aşama kendi test ve sözleşmeleriyle kapanmadan sonraki aşamaya geçilmez.
+**Çalışma kuralı:** L (Lexer) ve P (Parser) kapıları tamamlandı. A (AST + Payload) kapsamındaki tüm aktif payload aileleri artık round-trip, kaynak aralığı ve sahiplik doğrulamasıyla kapatılmıştır. `X` ve `D` satırları bilinçli olarak aktif kapsam dışındadır. Sıradaki aşama **S — Semantic**; ardından O ve V sırası korunacaktır. Her aşama kendi test ve sözleşmeleriyle kapanmadan sonraki aşamaya geçilmez.
 
 ## Mevcut doğrulanmış ilerleme
 
+**A kapanış kanıtı (2026-11-11):** 108 AST tag için lifecycle dispatch ve canonical round-trip; her tag için source-span round-trip; `ASTProgram` policy/span, variable/function/newtype recursive type payloads, EXF linkname, USE namespace, assignment operator variants, six recursive type-expression kinds, bit/byte type strings, FASTEXEC/ASM payloads ve ownership/cleanup nodes test fixture'larında dolu alanlarla doğrulandı. CI run `43088573355` 5/5 başarılı (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind).
 **L/P kapanış kanıtı (2026-11-11):** Aktif Lexer tokenları ve Parser üretimleri test kapsamıyla eşleştirildi. Parser testleri ayrı/bitişik declaration öneklerini, expression-body function span'lerini, indexed capture assignment, Vec2/3/4 ve tüm tanımlı bit/byte width type yazımlarını, copy() generic call biçimini kapsar. `...>` aktif operatör değildir; `spawn`, legacy ASM ve diğer `D/X` satırları açık kapsam sınırlarıdır.
 
 **Parser kanıtı:** Bu satırlardaki P=✓ işareti, ilgili üretimin aktif Parser fixture'ı ve AST/source-span doğrulaması bulunduğunu gösterir; Semantic/OIR/Verifier tamamlandığı anlamına gelmez.
