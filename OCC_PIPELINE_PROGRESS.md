@@ -1830,3 +1830,14 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - OIR registry assertions now require both shift descriptors to be PURE and MAY_TRAP. Dynamic negative-count execution remains a runtime/backend behavior; current tests verify opcode metadata and verifier contract, not an executed runtime trap.
 - Mixed-width shift-count Semantic acceptance is covered, but general mixed-width OIR lowering remains unsupported by the current single-configured-scalar-type lowering slice.
 - CI verification is pending for the follow-up commits. Do not mark the shift package complete until the full matrix passes.
+
+
+### OIR shift verifier fixture and CI closure — 2026-11-11
+
+- The OIR Verifier's BIT_SHL and BIT_SHR instructions now pass through the same shared instruction type-contract validation path as the other typed opcodes; the earlier shift-specific bypasses are removed.
+- The contract requires an integer result and integer left/right operands, with the left operand type exactly matching the result type. The shift-count integer type may differ by design. The regression fixtures accept valid BIT_AND, BIT_SHL and BIT_SHR, and reject a shift whose result and left operand types disagree.
+- The initially missing SHR diagnostic was traced to the test harness: the artifact header job ID and module invocation job ID differed. The fixture invocation now derives its job ID from the variant, matching the artifact header. The verifier itself was not bypassing the type check.
+- Unused SSA result reporting is advisory: warning-sink/formatting failures do not invalidate otherwise verified OIR or suppress output.
+- Temporary diagnostic tracing was removed. The required standard I/O include remains because the warning formatter uses snprintf.
+- CI run 43066571877 passed all five jobs: Ubuntu build/CTest, macOS build/CTest, Windows build/CTest, Ubuntu ASan/UBSan and Ubuntu Valgrind. The run is tied to commit b94b52c8f7bc9dd7258ef93b0cf3a0950b3b5fe2.
+- Remaining focused coverage: add an independent OIR fixture where the shift-count value has a different integer type from the left/result value. Semantic mixed-width count acceptance exists, but this specific OIR Verifier fixture is not yet present. This update closes the discovered fixture/job-ID defect only; it does not mark the OIR Verifier stage complete.
