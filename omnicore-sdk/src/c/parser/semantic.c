@@ -2038,6 +2038,29 @@ static void semantic_register_fast_exec_labels(
     }
 }
 
+static Slot* semantic_find_fast_exec_label_literal(
+    SemanticContext* ctx,
+    const char* quoted_name
+) {
+    size_t length;
+    Slot* current;
+    if (!ctx || !ctx->current_fast_exec_owner || !quoted_name) return NULL;
+    length = strlen(quoted_name);
+    if (length < 3u || quoted_name[0] != '"' ||
+        quoted_name[length - 1u] != '"' ||
+        memchr(quoted_name + 1u, '\\', length - 2u) != NULL ||
+        memchr(quoted_name + 1u, '"', length - 2u) != NULL)
+        return NULL;
+    for (current = ctx->head; current; current = current->next) {
+        if (current->kind == SLOT_LABEL &&
+            current->fast_exec_owner == ctx->current_fast_exec_owner &&
+            current->name && strlen(current->name) == length - 2u &&
+            memcmp(current->name, quoted_name + 1u, length - 2u) == 0)
+            return current;
+    }
+    return NULL;
+}
+
 static int semantic_check_asm_intrinsic(
     SemanticContext* ctx,
     ASTNode* node,
@@ -2065,12 +2088,12 @@ static int semantic_check_asm_intrinsic(
             "asmcall/asmjmp requires exactly one string-literal ASM label name.");
     } else {
         argument = (ASTLiteral*)call->args;
-        label_slot = find_slot(ctx, argument->string_value);
-        if (!label_slot || label_slot->kind != SLOT_LABEL ||
-            label_slot->fast_exec_owner != ctx->current_fast_exec_owner) {
+        label_slot = semantic_find_fast_exec_label_literal(
+            ctx, argument->string_value);
+        if (!label_slot) {
             char message[256];
             snprintf(message, sizeof(message),
-                "ASM label '%s' is not declared in the current FASTEXEC block.",
+                "ASM label %s is not declared in the current FASTEXEC block.",
                 argument->string_value);
             report_error(ctx, node, ERR_SEMANTIC_UNDEFINED, message);
         }
