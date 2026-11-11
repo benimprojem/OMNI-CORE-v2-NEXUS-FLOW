@@ -248,6 +248,7 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         instructions[1].first_operand = 1u;
         instructions[1].operand_count = 1u;
         instructions[2].id = 3u;
+        instructions[2].block_id = 1u;
         instructions[2].opcode_id = OIR_OP_BRANCH;
         instructions[2].first_operand = 2u;
         instructions[2].operand_count = 1u;
@@ -257,6 +258,7 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
         instructions[3].first_operand = 3u;
         instructions[3].operand_count = 2u;
         instructions[4].id = 5u;
+        instructions[4].block_id = 2u;
         instructions[4].opcode_id = OIR_OP_RETURN;
         instructions[4].first_operand = 5u;
         instructions[4].operand_count = 1u;
