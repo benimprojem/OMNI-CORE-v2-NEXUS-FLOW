@@ -651,7 +651,6 @@ static int parser_is_statement_start(OmniTokenType type) {
         case TOKEN_KW_BREAK:
         case TOKEN_KW_CONTINUE:
         case TOKEN_HALT:
-        case TOKEN_INTENT:
         case TOKEN_FORCE:
         case TOKEN_JUMP:
             return 1;
@@ -1220,32 +1219,6 @@ static ASTNode* parse_primary(Parser* p) {
         return (ASTNode*)tuple;
     }
 
-    if (match(p, TOKEN_AI)) {
-        Token ai_start = p->previous;
-        ASTAiLogic* ai = (ASTAiLogic*)parser_ast_create(p, AST_AI_LOGIC);
-        if (!ai) return NULL;
-        ai->base.line = p->previous.line;
-        ai->base.col = p->previous.col;
-        if (p->current.type == TOKEN_STRING || p->current.type == TOKEN_IDENTIFIER) {
-            Token t = p->current;
-            ai->query = parser_malloc(p, (size_t)t.length + 1u);
-            if (!ai->query) {
-                ast_destroy((ASTNode*)ai);
-                return NULL;
-            }
-            memcpy(ai->query, t.start, (size_t)t.length);
-            ai->query[t.length] = '\0';
-            advance(p);
-        } else {
-            ai->query = parser_strdup(p, "auto");
-            if (!ai->query) {
-                ast_destroy((ASTNode*)ai);
-                return NULL;
-            }
-        }
-        parser_stamp_node_tokens(p, (ASTNode*)ai, &ai_start, &p->previous);
-        return (ASTNode*)ai;
-    }
 
     error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION, msg_get(ERR_PARSER_EXPECTED_EXPRESSION));
     return NULL;
@@ -5025,34 +4998,6 @@ static ASTNode* parse_statement(Parser* p) {
         return (ASTNode*)halt;
     }
 
-    if (match(p, TOKEN_INTENT)) {
-        Token intent_start = p->previous;
-        ASTIntent* in = (ASTIntent*)parser_ast_create(p, AST_NEXUS_INTENT);
-        if (!in) return NULL;
-        in->base.line = p->previous.line;
-        in->base.col = p->previous.col;
-        if (match(p, TOKEN_IDENTIFIER)) {
-            Token t = p->previous;
-            in->intent_name = (char*)parser_malloc(p, (size_t)t.length + 1u);
-            if (!in->intent_name) {
-                ast_destroy((ASTNode*)in);
-                return NULL;
-            }
-            memcpy(in->intent_name, t.start, (size_t)t.length);
-            in->intent_name[t.length] = '\0';
-        }
-        if (match(p, TOKEN_LPAREN)) {
-            in->target = parse_expression(p);
-            if (!in->target) {
-                ast_destroy((ASTNode*)in);
-                return NULL;
-            }
-            consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
-        }
-        if (match(p, TOKEN_SEMICOLON)) {} // Opsiyonel ;
-        parser_stamp_node_tokens(p, (ASTNode*)in, &intent_start, &p->previous);
-        return (ASTNode*)in;
-    }
 
     if (match(p, TOKEN_FORCE)) {
         Token panic_start = p->previous;

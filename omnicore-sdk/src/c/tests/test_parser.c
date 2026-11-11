@@ -4311,6 +4311,16 @@ static int test_legacy_flow_spellings_are_rejected(void) {
         "legacy-iterate-operator.nxf", old_iterate, sizeof(old_iterate) - 1u);
 }
 
+static int test_deferred_intent_ai_syntax_is_rejected(void) {
+    static const char intent_source[] = "f:main() { @parallel; }";
+    static const char ai_source[] = "f:main() { v:q = ?? \"query\"; }";
+    if (!parser_source_reports_syntax_error(
+        "deferred-intent.nxf", intent_source, sizeof(intent_source) - 1u))
+        return 0;
+    return parser_source_reports_syntax_error(
+        "deferred-ai-logic.nxf", ai_source, sizeof(ai_source) - 1u);
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -4367,6 +4377,10 @@ int main(int argc, char** argv) {
     }
     if (!test_legacy_flow_spellings_are_rejected()) {
         fprintf(stderr, "Legacy Flow token spellings were not rejected or canonical foreach failed.\\n");
+        return 1;
+    }
+    if (!test_deferred_intent_ai_syntax_is_rejected()) {
+        fprintf(stderr, "Deferred Intent/AI syntax was accepted by the Core Parser.\\n");
         return 1;
     }
     if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
