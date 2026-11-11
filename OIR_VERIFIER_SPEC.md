@@ -66,7 +66,7 @@ Every public ABI structure follows the common ABI versioning and `struct_size` r
 Exactly one OIR container carrying:
 
 - Artifact kind: `OIR_KIND_MODULE` (stable kind ID 5)
-- Payload schema: OIR_MODULE 1.1 for the currently implemented verifier
+- Payload schema: OIR_MODULE 1.2 for the currently implemented verifier
 - Validity: `VALID`
 - Matching compilation job identity
 
@@ -201,7 +201,7 @@ The implementation must reject out-of-bound inputs before unsafe allocation or i
 Implemented and tested:
 
 - Independent `occ_oir_verify_stage` shared module using the common stage ABI
-- OIR_MODULE 1.1 envelope and payload validation
+- OIR_MODULE 1.2 envelope and payload validation, including the schema-1.2 bit/byte representation type records
 - Function/block ownership and entry-block validation
 - Complete non-overlapping instruction-range validation
 - Dependency-ordered internal validation passes: independent type-record validation, independent SSA value-record validation, structural records, SSA definition cross-checks, opcode/type plus CFG-edge checks, terminators, dominance/reachability and SSA uses
@@ -269,7 +269,7 @@ Optimization must preserve observable program behavior. The OIR Verifier runs af
 - Input immutability / output payload preservation
 - Windows, Linux and macOS builds
 - ASan/UBSan and Valgrind where available
-- OCC pipeline test proving invalid OIR cannot reach Optimizer or Codegen
+- OCC pipeline test proving invalid OIR cannot reach Optimizer or Codegen (not yet covered by a dedicated negative end-to-end test)
 - Optimizer integration test proving post-pass verification is mandatory and accepts only the registered Optimizer producer stage
 
 ## 12. Evolution rule
