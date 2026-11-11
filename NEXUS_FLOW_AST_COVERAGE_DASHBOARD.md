@@ -57,7 +57,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Default parameter | `AST_VAR_DECL.initializer` | ✓ | ✓ | ✓ | ~ | ? | ? | Default expression evaluation ve çağrı argümanı üretimi |
 | Fonksiyon çağrısı | `AST_FUNC_CALL` | ✓ | ✓ | ✓ | ~ | ? | ? | Target resolution, overload/arity/type ve call lowering |
 | Module import `use` / alias / dotted path | `AST_USE` | ✓ | ✓ | ✓ | ~ | D | — | Arama sırası, module resolution, import graph ve diagnostics |
-| Link directive / external symbol metadata | Mevcut directive/extern alanları | ~ | ✓ | ~ | ~ | ? | ? | Build/link katmanı ile core Parser sınırını netleştir; eksik directive üretimini fail-closed tut |
+| Link directive / external symbol metadata | Mevcut directive/extern alanları | ✓ | ✓ | ~ | ~ | ? | ? | Build/link katmanı ile core Parser sınırını netleştir; eksik directive üretimini fail-closed tut |
 
 ## 3. İfadeler, operatörler ve temel değerler
 
@@ -136,7 +136,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Date/time/clock/free | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ? | ? | ? | Signature, platform service and effect contract |
 | Zone sync/view/lock member calls | Generic member/call AST; reserved dedicated tags | ✓ | ✓ | ✓ | ? | ? | ? | Intrinsic registry; do not count reserved tags as active productions |
 | Intrinsic AST inventory (exit/swap/option checks/date/time/clock/free/zone) | `AST_EXIT`, `AST_SWAP`, `AST_IS_OK`, `AST_IS_ERR`, `AST_IS_SOME`, `AST_IS_NONE`, `AST_IS_NULL`, `AST_DATE`, `AST_DATENOW`, `AST_TIME`, `AST_CLOCK`, `AST_FREE`, `AST_ZONE` | ✓ | ✓ | ✓ | ? | ? | ? | Central signature/effect registry, compile-time/runtime distinction and per-intrinsic type/effect tests |
-| Ownership/copy/move and cleanup | Capture/relocate/defer/halt nodes; `copy()` is a generic call | ~ | ✓ | ~ | ~ | ? | ? | Parser covers handler/index capture, relocate, generic `copy()` call, defer and both halt forms; ownership/effect model and SemanticResult annotations remain open |
+| Ownership/copy/move and cleanup | Capture/relocate/defer/halt nodes; `copy()` is a generic call | ✓ | ✓ | ~ | ~ | ? | ? | Parser covers handler/index capture, relocate, generic `copy()` call, defer and both halt forms; ownership/effect model and SemanticResult annotations remain open |
 
 ## 8. Concurrency, FASTEXEC/ASM ve ertelenmiş syntax
 
@@ -168,9 +168,11 @@ Geliştirme sırası kullanıcı tarafından sabitlenmiştir. Her aşama kendi k
 | 5 | **O — OIR** | Semantic AST → OIR lowering, opcode/type/effect/memory/CFG sözleşmeleri | Her executable özellik desteklenir veya konumlu fail-closed diagnostic ile açıkça ertelenir; lowering testleri geçer. |
 | 6 | **V — Verifier** | OIR schema, structural/type/SSA/CFG/ownership/resource invariants ve pipeline gate | Geçerli artifact kabul edilir; bozuk/adversarial artifact reddedilir; host downstream aşamaları durdurur; CI matrisi geçer. |
 
-**Çalışma kuralı:** Şu an L aşamasının son kontrolündeyiz; ana çalışma P aşamasıdır. P kapanınca A, sonra S, O ve V sırasıyla ele alınacaktır. Bir satırın L sütununun ✓ olması P/A/S/O/V sütunlarını otomatik tamamlamaz.
+**Çalışma kuralı:** Aktif syntax envanterinde L (Lexer) ve P (Parser) kapıları tamamlandı. `X` ve `D` satırları bilinçli olarak aktif Core Parser kapsamı dışındadır; bunlar eksik üretim sayılmaz. Sıradaki aşama **A — AST + Payload**; ardından S, O ve V sırası korunacaktır. Her aşama kendi test ve sözleşmeleriyle kapanmadan sonraki aşamaya geçilmez.
 
 ## Mevcut doğrulanmış ilerleme
+
+**L/P kapanış kanıtı (2026-11-11):** Aktif Lexer tokenları ve Parser üretimleri test kapsamıyla eşleştirildi. Parser testleri ayrı/bitişik declaration öneklerini, expression-body function span'lerini, indexed capture assignment, Vec2/3/4 ve tüm tanımlı bit/byte width type yazımlarını, copy() generic call biçimini kapsar. `...>` aktif operatör değildir; `spawn`, legacy ASM ve diğer `D/X` satırları açık kapsam sınırlarıdır.
 
 **Parser kanıtı:** Bu satırlardaki P=✓ işareti, ilgili üretimin aktif Parser fixture'ı ve AST/source-span doğrulaması bulunduğunu gösterir; Semantic/OIR/Verifier tamamlandığı anlamına gelmez.
 
