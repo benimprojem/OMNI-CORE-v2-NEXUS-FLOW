@@ -76,7 +76,7 @@ The syntax reference lists the language's designed operator inventory. The C Lex
 | Arithmetic `*`, `/` | Consumed by `parse_term()` | Division-by-zero and numeric semantic rules |
 | Modulo `%` | Consumed by `parse_term()` at the same precedence as `*` and `/`; AST uses `AST_BINARY_EXPR` | Integer-only semantic rule; parser AST/codec regression covers expression and array extent |
 | Exponentiation `^^` | `parse_power()` consumes `TOKEN_POWER`; right-associative (`right=parse_unary()`), precedence tighter than multiplicative and unary minus is applied outside power (`-2^^2` parses as `-(2^^2)`) | Parser production exists; confirm precedence/associativity with explicit AST-shape fixtures and ensure semantic/lowering coverage remains gated |
-| Comparison `<`, `<=`, `>`, `>=` | Consumed by `parse_comparison()` | Semantic comparability rules |
+| Comparison `<`, `<=`, `>`, `>=` | `parse_comparison()` emits `AST_BINARY_EXPR` with original operator token | Parser fixture verifies `>=` / `<=`, unary `!` / `~`, operand shapes, exact source spans and malformed unary rejection |
 | Equality `==`, `!=`, `===`, `==!` | `parse_equality()` emits `AST_BINARY_EXPR` with the original token | Dedicated Parser fixture verifies all four token forms, operand ASTs, exact source spans and missing-RHS rejection |
 | Logical `&&`, `||` | Parser now consumes `&&` in `parse_logical_and()` and `||` in `parse_logical_or()`; AST uses `AST_BINARY_EXPR`; `&&` binds tighter than `||` | Semantic bool-operand checks are present and tested; short-circuit execution must be verified in OIR/lowering |
 | Unary logical not `!` | Consumed by `parse_unary()` | Boolean operand/type rule |

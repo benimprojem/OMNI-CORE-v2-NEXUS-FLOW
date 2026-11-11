@@ -4135,6 +4135,77 @@ done:
         sizeof("f:main() { v:x = a === ; }") - 1u);
 }
 
+static int test_relational_and_unary_operator_parser_forms(void) {
+    static const char source[] =
+        "f:main() { "
+        "v:gte = a >= b; "
+        "v:lte = a <= b; "
+        "v:logical_not = !flag; "
+        "v:bitwise_not = ~bits; "
+        "}";
+    const char* expressions[] = { "a >= b", "a <= b", "!flag", "~bits" };
+    const char* names[] = { "gte", "lte", "logical_not", "bitwise_not" };
+    const OmniTokenType operators[] = {
+        TOKEN_GTE, TOKEN_LTE, TOKEN_NOT, TOKEN_BIT_NOT
+    };
+    const ASTNodeType node_types[] = {
+        AST_BINARY_EXPR, AST_BINARY_EXPR, AST_UNARY_EXPR, AST_UNARY_EXPR
+    };
+    ParserContext* ctx = parser_init_source(
+        "relational-unary-operators.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTNode* statement;
+    size_t i;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root ||
+        !ast_validate(ctx->ast_root)) goto done;
+    function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK)
+        goto done;
+    statement = ((ASTBlock*)function->body)->statements;
+    for (i = 0u; i < sizeof(operators) / sizeof(operators[0]); ++i) {
+        ASTVarDecl* variable;
+        ASTNode* expression;
+        const char* start = strstr(source, expressions[i]);
+        const char* end = start ? start + strlen(expressions[i]) : NULL;
+        if (!statement || statement->type != AST_VAR_DECL) goto done;
+        variable = (ASTVarDecl*)statement;
+        expression = variable->initializer;
+        if (!variable->name || strcmp(variable->name, names[i]) != 0 ||
+            !expression || expression->type != node_types[i] ||
+            !start || !end || !expression->source_span.has_location ||
+            expression->source_span.start_offset != (uint64_t)(start - source) ||
+            expression->source_span.end_offset != (uint64_t)(end - source) ||
+            expression->source_span.start_column != (uint32_t)(start - source) + 1u ||
+            expression->source_span.end_column != (uint32_t)(end - source) + 1u)
+            goto done;
+        if (node_types[i] == AST_BINARY_EXPR) {
+            ASTBinaryExpr* binary = (ASTBinaryExpr*)expression;
+            if (binary->op != operators[i] || !binary->left || !binary->right ||
+                binary->left->type != AST_IDENTIFIER ||
+                binary->right->type != AST_IDENTIFIER) goto done;
+        } else {
+            ASTUnaryExpr* unary = (ASTUnaryExpr*)expression;
+            if (unary->op != operators[i] || !unary->operand ||
+                unary->operand->type != AST_IDENTIFIER) goto done;
+        }
+        statement = statement->next;
+    }
+    if (statement) goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    if (!ok) return 0;
+    return parser_source_reports_syntax_error(
+        "unary-missing-operand.nxf", "f:main() { v:x = !; }",
+        sizeof("f:main() { v:x = !; }") - 1u);
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -4179,6 +4250,10 @@ int main(int argc, char** argv) {
     }
     if (!test_equality_operator_parser_forms()) {
         fprintf(stderr, "Equality operator AST/source-span Parser test failed.\\n");
+        return 1;
+    }
+    if (!test_relational_and_unary_operator_parser_forms()) {
+        fprintf(stderr, "Relational/unary operator AST/source-span Parser test failed.\\n");
         return 1;
     }
     if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
