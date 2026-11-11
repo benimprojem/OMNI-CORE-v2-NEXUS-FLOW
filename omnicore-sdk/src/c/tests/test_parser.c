@@ -4279,6 +4279,38 @@ done:
         sizeof("f:main() { v:x = operation() ?-> (e); }") - 1u);
 }
 
+static int test_legacy_flow_spellings_are_rejected(void) {
+    static const char old_if_flow[] = "f:main() { v:x = a =?> b; }";
+    static const char old_iterate[] =
+        "f:main() { loop(item <-- items) { echo(item); } }";
+    static const char current_foreach[] =
+        "f:main() { loop(item in items) { echo(item); } }";
+    ParserContext* current = parser_init_source(
+        "canonical-foreach-in.nxf", (const uint8_t*)current_foreach,
+        sizeof(current_foreach) - 1u);
+    int accepted = 0;
+
+    if (current) {
+        if (parser_run(current) == PARSER_STATUS_OK &&
+            current->error_count == 0 && current->ast_root) {
+            ASTFuncDecl* function =
+                (ASTFuncDecl*)((ASTProgram*)current->ast_root)->declarations;
+            ASTLoop* loop = function && function->body &&
+                function->body->type == AST_BLOCK
+                    ? (ASTLoop*)((ASTBlock*)function->body)->statements : NULL;
+            accepted = loop && loop->base.type == AST_LOOP &&
+                loop->loop_type == 3 && loop->variable && loop->collection;
+        }
+        parser_destroy(current);
+    }
+    if (!accepted) return 0;
+    if (!parser_source_reports_syntax_error(
+        "legacy-if-flow-operator.nxf", old_if_flow, sizeof(old_if_flow) - 1u))
+        return 0;
+    return parser_source_reports_syntax_error(
+        "legacy-iterate-operator.nxf", old_iterate, sizeof(old_iterate) - 1u);
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -4331,6 +4363,10 @@ int main(int argc, char** argv) {
     }
     if (!test_nexus_flow_catch_fallback_ignore_forms()) {
         fprintf(stderr, "Nexus Flow catch/fallback/ignore Parser test failed.\\n");
+        return 1;
+    }
+    if (!test_legacy_flow_spellings_are_rejected()) {
+        fprintf(stderr, "Legacy Flow token spellings were not rejected or canonical foreach failed.\\n");
         return 1;
     }
     if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }

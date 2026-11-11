@@ -985,8 +985,9 @@ static ASTNode* parse_primary(Parser* p) {
             return NULL;
         }
 
-        if (match(p, TOKEN_ITERATE) ||
-            (p->current.type == TOKEN_IDENTIFIER && parser_identifier_is(&p->current, "in") && (advance(p), 1))) {
+        if (p->current.type == TOKEN_IDENTIFIER &&
+            parser_identifier_is(&p->current, "in")) {
+            advance(p);
             loop->loop_type = 3;
             loop->variable = first;
             loop->collection = parse_expression(p);
@@ -2135,7 +2136,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
     if (!expr) return NULL;
     
         if (match(p, TOKEN_ELSE_FLOW) || match(p, TOKEN_PIPE) || 
-            match(p, TOKEN_IGNORE) || match(p, TOKEN_IF_FLOW) || 
+            match(p, TOKEN_IGNORE) ||
             match(p, TOKEN_FALLBACK) || match(p, TOKEN_RELOCATE) ||
             match(p, TOKEN_LSHIFT) || match(p, TOKEN_RSHIFT) ||
             p->current.type == TOKEN_QMARK) {
