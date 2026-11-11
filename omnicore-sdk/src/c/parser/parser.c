@@ -659,23 +659,17 @@ static int parser_is_statement_start(OmniTokenType type) {
     }
 }
 
-/* A parenthesized condition followed by -> and a statement-only action
- * is conditional control flow, not a value/data pipeline. Expression RHS forms
- * (identifiers, calls, literals and blocks) remain ordinary Nexus pipe syntax.
+/* A parenthesized condition followed by '?' starts statement-level
+ * conditional control. Rolling retry also uses '?', but is recognized only
+ * after an expression and begins with a parenthesized retry-count tuple.
  */
-static int parser_is_conditional_action_start(OmniTokenType type) {
-    if (type == TOKEN_LBRACE) return 0; /* -> { ... } remains a Nexus pipe body. */
-    return parser_is_statement_start(type);
-}
-
-static int parser_looks_like_conditional_action(Parser* p) {
+static int parser_looks_like_conditional_control(Parser* p) {
     ParserContext lookahead;
     Token token;
     unsigned int nested_parens = 0u;
 
     if (!p || !p->ctx || p->current.type != TOKEN_LPAREN) return 0;
 
-    /* Scan a private cursor copy: lookahead must not move the live lexer/token stream. */
     lookahead = *p->ctx;
     for (;;) {
         token = parser_next_token(&lookahead);
@@ -686,10 +680,14 @@ static int parser_looks_like_conditional_action(Parser* p) {
             ++nested_parens;
         } else if (token.type == TOKEN_RPAREN) {
             if (nested_parens == 0u) {
-                Token arrow = parser_next_token(&lookahead);
-                Token action = parser_next_token(&lookahead);
-                return arrow.type == TOKEN_PIPE &&
-                    parser_is_conditional_action_start(action.type);
+                Token question = parser_next_token(&lookahead);
+                Token arm = parser_next_token(&lookahead);
+                if (question.type != TOKEN_QMARK || arm.type == TOKEN_LPAREN ||
+                    arm.type == TOKEN_EOF || arm.type == TOKEN_ERROR ||
+                    arm.type == TOKEN_SEMICOLON || arm.type == TOKEN_COLON ||
+                    arm.type == TOKEN_RPAREN || arm.type == TOKEN_RBRACE)
+                    return 0;
+                return 1;
             }
             --nested_parens;
         }
@@ -4176,7 +4174,7 @@ static ASTNode* parse_if_branch(Parser* p) {
     return parse_statement(p);
 }
 
-static ASTNode* parse_conditional_action(Parser* p) {
+static ASTNode* parse_conditional_control(Parser* p) {
     Token opening = p->current;
     ASTNode* condition;
     ASTIf* node;
@@ -4191,9 +4189,9 @@ static ASTNode* parse_conditional_action(Parser* p) {
         return NULL;
     }
     advance(p); /* ')' */
-    if (!match(p, TOKEN_PIPE)) {
+    if (!match(p, TOKEN_QMARK)) {
         ast_destroy(condition);
-        return NULL; /* Lookahead made this unreachable unless input changed. */
+        return NULL;
     }
 
     node = (ASTIf*)parser_ast_create(p, AST_IF);
@@ -4204,11 +4202,18 @@ static ASTNode* parse_conditional_action(Parser* p) {
     node->base.line = opening.line;
     node->base.col = opening.col;
     node->condition = condition;
-    node->then_branch = parse_statement(p);
+    node->then_branch = parse_if_branch(p);
     node->else_branch = NULL;
     if (!node->then_branch) {
         ast_destroy((ASTNode*)node);
         return NULL;
+    }
+    if (match(p, TOKEN_COLON)) {
+        node->else_branch = parse_if_branch(p);
+        if (!node->else_branch) {
+            ast_destroy((ASTNode*)node);
+            return NULL;
+        }
     }
     parser_stamp_node_tokens(p, (ASTNode*)node, &opening, &p->previous);
     return (ASTNode*)node;
@@ -5027,8 +5032,8 @@ static ASTNode* parse_statement(Parser* p) {
     }
     
     /* Conditional action shorthand: (condition) -> break/continue/statement. */
-    if (parser_looks_like_conditional_action(p)) {
-        return parse_conditional_action(p);
+    if (parser_looks_like_conditional_control(p)) {
+        return parse_conditional_control(p);
     }
 
     // Expression Statement

@@ -920,16 +920,17 @@ done:
     return ok;
 }
 
-static int test_conditional_action_arrow_disambiguation(void) {
+static int test_conditional_control_question_disambiguation(void) {
     static const char source[] =
         "f:main() {"
-        " (a == b) -> break;"
-        " ((c != d)) -> continue;"
-        " (e == f) -> ret 1;"
+        " (a == b) ? break;"
+        " ((c != d)) ? continue;"
+        " (e == f) ? ret 1;"
+        " (g == h) ? { echo(\"yes\"); } : { echo(\"no\"); }"
         " a == b -> target;"
         "}";
     ParserContext* ctx = parser_init_source(
-        "conditional-action-arrow.nxf",
+        "conditional-control-question.nxf",
         (const uint8_t*)source, sizeof(source) - 1u);
     ASTProgram* program;
     ASTFuncDecl* function;
@@ -937,7 +938,13 @@ static int test_conditional_action_arrow_disambiguation(void) {
     ASTIf* break_action;
     ASTIf* continue_action;
     ASTIf* return_action;
+    ASTIf* block_action;
     ASTNexusFlow* ordinary_pipe;
+    const char* first_start = strstr(source, "(a == b) ? break;");
+    const char* first_end = first_start ? first_start + strlen("(a == b) ? break;") : NULL;
+    const char* block_start = strstr(source, "(g == h) ? {");
+    const char* block_end_marker = block_start ? strstr(block_start, "} a == b") : NULL;
+    const char* block_end = block_end_marker ? block_end_marker + 1 : NULL;
     const char* pipe_start = strstr(source, "a == b -> target");
     const char* pipe_target = pipe_start ? strstr(pipe_start, "target") : NULL;
     int ok = 0;
@@ -956,7 +963,11 @@ static int test_conditional_action_arrow_disambiguation(void) {
     if (!break_action || break_action->base.type != AST_IF ||
         !break_action->condition || !break_action->then_branch ||
         break_action->then_branch->type != AST_BREAK ||
-        break_action->else_branch != NULL) goto done;
+        break_action->else_branch != NULL || !first_start || !first_end ||
+        !break_action->base.source_span.has_location ||
+        break_action->base.source_span.start_offset != (uint64_t)(first_start - source) ||
+        break_action->base.source_span.end_offset != (uint64_t)(first_end - source))
+        goto done;
 
     continue_action = (ASTIf*)break_action->base.next;
     if (!continue_action || continue_action->base.type != AST_IF ||
@@ -970,7 +981,17 @@ static int test_conditional_action_arrow_disambiguation(void) {
         return_action->then_branch->type != AST_RETURN ||
         return_action->else_branch != NULL) goto done;
 
-    ordinary_pipe = (ASTNexusFlow*)return_action->base.next;
+    block_action = (ASTIf*)return_action->base.next;
+    if (!block_action || block_action->base.type != AST_IF ||
+        !block_action->then_branch || block_action->then_branch->type != AST_BLOCK ||
+        !block_action->else_branch || block_action->else_branch->type != AST_BLOCK ||
+        !block_start || !block_end ||
+        !block_action->base.source_span.has_location ||
+        block_action->base.source_span.start_offset != (uint64_t)(block_start - source) ||
+        block_action->base.source_span.end_offset != (uint64_t)(block_end - source))
+        goto done;
+
+    ordinary_pipe = (ASTNexusFlow*)block_action->base.next;
     if (!ordinary_pipe || ordinary_pipe->base.type != AST_NEXUS_PIPE ||
         ordinary_pipe->op != TOKEN_PIPE || !ordinary_pipe->left ||
         !ordinary_pipe->right || ordinary_pipe->right->type != AST_IDENTIFIER ||
@@ -982,7 +1003,15 @@ static int test_conditional_action_arrow_disambiguation(void) {
 
 done:
     parser_destroy(ctx);
-    return ok;
+    if (!ok) return 0;
+    if (!parser_source_reports_syntax_error(
+        "conditional-control-missing-arm.nxf",
+        "f:main() { (a == b) ? ; }",
+        sizeof("f:main() { (a == b) ? ; }") - 1u)) return 0;
+    return parser_source_reports_syntax_error(
+        "legacy-arrow-conditional-control.nxf",
+        "f:main() { (a == b) -> break; }",
+        sizeof("f:main() { (a == b) -> break; }") - 1u);
 }
 
 static int test_select_scan_ast(void) {
@@ -4403,8 +4432,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Structured if/elsif/els parser test failed.\n");
         return 1;
     }
-    if (!test_conditional_action_arrow_disambiguation()) {
-        fprintf(stderr, "Conditional action arrow was confused with a Nexus pipe.\n");
+    if (!test_conditional_control_question_disambiguation()) {
+        fprintf(stderr, "Question-mark conditional control was confused with a Nexus pipe.\n");
         return 1;
     }
     if (!test_legacy_unpack_operator_is_rejected()) {
