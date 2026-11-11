@@ -993,7 +993,7 @@ if(BUILD_TESTING)
     )
     target_link_libraries(occ_test_rejecting_verifier PRIVATE occ_module_abi)
     set_target_properties(occ_test_rejecting_verifier PROPERTIES
-        OUTPUT_NAME "occ_oir_verify_stage"
+        OUTPUT_NAME "occ_rejecting_verifier_fixture"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test_modules"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test_modules"
     )
