@@ -1,7 +1,6 @@
 #include "occ_module_api.h"
 #include "oir_module.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -120,8 +119,8 @@ static int validate_instruction_type_contract(const OirModuleView* m, const OirM
                 get_type(m, result.type_id, &rt) && type_is_bitwise(&rt) &&
                 get_value_operand(m, ins, 0u, &a) &&
                 a.type_id == result.type_id;
-        case OIR_OP_BIT_SHL: case OIR_OP_BIT_SHR: {
-            int ok = ins->result_value_id != 0u &&
+        case OIR_OP_BIT_SHL: case OIR_OP_BIT_SHR:
+            return ins->result_value_id != 0u &&
                 get_value(m, ins->result_value_id, &result) &&
                 get_type(m, result.type_id, &rt) &&
                 rt.kind == OIR_MODULE_TYPE_INTEGER &&
@@ -130,18 +129,6 @@ static int validate_instruction_type_contract(const OirModuleView* m, const OirM
                 a.type_id == result.type_id &&
                 get_type(m, b.type_id, &rt) &&
                 rt.kind == OIR_MODULE_TYPE_INTEGER;
-            if (!ok && ins->opcode_id == OIR_OP_BIT_SHR) {
-                int gr = ins->result_value_id && get_value(m, ins->result_value_id, &result);
-                int tr = gr && get_type(m, result.type_id, &rt);
-                int ga = get_value_operand(m, ins, 0u, &a);
-                int gb = get_value_operand(m, ins, 1u, &b);
-                int tb = gb && get_type(m, b.type_id, &rt);
-                fprintf(stderr, "SHR contract: result=%u gr=%d resultType=%u tr=%d lhs=%u ga=%d rhs=%u gb=%d tb=%d\\n",
-                    ins->result_value_id, gr, gr ? result.type_id : 0u, tr,
-                    ga ? a.type_id : 0u, ga, gb ? b.type_id : 0u, gb, tb);
-            }
-            return ok;
-        }
         case OIR_OP_CMP_EQ: case OIR_OP_CMP_NE: case OIR_OP_CMP_LT:
         case OIR_OP_CMP_LE: case OIR_OP_CMP_GT: case OIR_OP_CMP_GE:
             return ins->result_value_id != 0u && get_value(m, ins->result_value_id, &result) && get_type(m, result.type_id, &rt) && rt.kind == OIR_MODULE_TYPE_BOOLEAN && get_value_operand(m, ins, 0u, &a) && get_value_operand(m, ins, 1u, &b) && a.type_id == b.type_id;
@@ -160,8 +147,6 @@ static uint32_t validate_instruction_type_records(const OirModuleView* m, OirVer
     for (i = 0u; i < m->instruction_count; ++i) {
         OirModuleInstruction ins;
         if (oir_module_get_instruction(m, i, &ins) != OIR_STATUS_OK || !validate_instruction_type_contract(m, &ins)) {
-            fprintf(stderr, "preflight opcode contract: index=%u id=%u opcode=%u result=%u operands=%u\\n",
-                i, ins.id, ins.opcode_id, ins.result_value_id, ins.operand_count);
             if (count < capacity) {
                 memset(&failures[count], 0, sizeof(failures[count]));
                 failures[count].code = OIR_VERIFY_DIAG_OPCODE_TYPE;
@@ -411,10 +396,7 @@ static int validate_instructions(const OirModuleView* m,
         if (!oir_opcode_validate_shape(ins.opcode_id, operand_kinds,
             ins.operand_count, ins.result_value_id != 0u)) return 0;
         if (failure) failure->code = OIR_VERIFY_DIAG_OPCODE_TYPE;
-        if (!validate_instruction_type_contract(m, &ins)) {
-            fprintf(stderr, "instruction contract fail: ins=%u opcode=%u\\n", ins.id, ins.opcode_id);
-            return 0;
-        }
+        if (!validate_instruction_type_contract(m, &ins)) return 0;
         if (ins.result_value_id && (!get_value(m, ins.result_value_id, &result) ||
             !get_type(m, result.type_id, &rt))) return 0;
         if (!ins.result_value_id) memset(&rt, 0, sizeof(rt));
