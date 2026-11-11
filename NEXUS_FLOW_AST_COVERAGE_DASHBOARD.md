@@ -128,7 +128,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Flow pipe / zone operators `-> >> <<` | `AST_NEXUS_FLOW`, `AST_NEXUS_PIPE` | ✓ | ✓ | ✓ | ~ | ? | ? | Pipe/zone semantics, payload and execution lowering |
 | Handler capture `(h)<-expr` | `AST_NEXUS_CAPTURE` | ✓ | ~ | ✓ | ~ | ? | ? | Occupancy, ownership, move/copy and lifetime |
 | Relocate `_>` | `AST_RELOCATE` (95) | ✓ | ✓ | ✓ | ~ | ? | ? | Source invalidation, destination initialization and explicit move effect |
-| Unpack `...>` | `AST_UNPACK` (38) | ✓ | ~ | ~ | ? | ? | ? | **Parser defect found:** wrapper is allocated but recursive continuation discards it; syntax is absent from normative reference. Decide postfix-vs-target grammar, then preserve AST ownership and test Semantic/destructuring |
+| Legacy unpack spelling `...>` | Reserved `AST_UNPACK` (38); no active production | ✓ (legacy token) | X | ✓ (reserved codec tag) | D | D | — | Infix operator is rejected by Core Parser. When needed, expose decoding as an ordinary `coremodule.unpack(data)` function after its input/output and error contract is specified; file I/O and normalization remain separate operations |
 | `area / zone` | `AST_AREA`, `AST_ZONE` | ✓ | ~ | ✓ | ? | ? | ? | Region typing, access permissions and target mapping |
 | I/O `echo/prnt/prmt/write/fwrite` | Matching intrinsic AST tags | ✓ | ~ | ✓ | ? | ? | ? | Central intrinsic signature/effect registry and OS module lowering |
 | Port I/O `inb/outb`, interrupt `irq/intr`, register `reg` | Matching intrinsic AST tags | ✓ | ~ | ✓ | ? | ? | ? | Target capability, privilege, width and effect validation |
@@ -157,18 +157,18 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 
 ## Öncelik sırası — bundan sonra neyi bitireceğiz?
 
-Aşağıdaki sıra, önceki AST → Semantic → OIR → Verifier geliştirme kapılarını korur. Öncelik hem mimari bağımlılığa hem de kaç özelliği bloke ettiğine göre verilmiştir.
+Geliştirme sırası kullanıcı tarafından sabitlenmiştir. Her aşama kendi kapsamı, testleri ve belgeleriyle kapatılmadan sonraki aşamaya geçilmez:
 
-| Öncelik | İş paketi | Neden önce? | Kapanış ölçütü |
+| Sıra | Aşama | Kapsam | Aşamayı kapatma ölçütü |
 |---:|---|---|---|
-| 1 | **AST sözleşmesi + Parser/span/codec bütünlüğü** | Üst katmanların güvenilir girdisi; 108 AST tag'inin payload/ownership/parser ilişkisi görünür olmalı | Her aktif tag için parser kaynağı, payload alanları, child ownership, span, codec round-trip ve negatif/OOM testi |
-| 2 | **Lexer + Parser syntax envanteri** | Dil referansındaki her aktif syntax'ın gerçek üretimi ve token davranışı kanıtlanmalı | Normatif syntax satırı ↔ token ↔ parser fonksiyonu ↔ pozitif/negatif fixture |
-| 3 | **Semantic type/scope/function/control-flow** | AST doğru olsa da anlamı henüz tam doğrulanmayan geniş alanlar var | Type promotion, callback, tuple, enum patterns, function/member, lvalue, return/control-flow |
-| 4 | **Ownership/effect/intrinsic sözleşmesi** | Nexus Flow'un handler, move/copy, memory ve OS/target işlemleri burada birleşiyor | SemanticResult annotation/relation/effect kayıtları ve negatif testler |
-| 5 | **Semantic AST artifact validator** | Lowering'e eksik/bozuk Semantic AST geçmesini önler | Zorunlu annotation, ID/reference, cross-table ve malformed artifact testleri |
-| 6 | **OIR lowering coverage** | Her executable AST yapısının OIR'a açık ve deterministik karşılığı olmalı | Her tag: supported + fixture veya konumlu fail-closed diagnostic |
-| 7 | **OIR Verifier tam denetimi** | Yalnızca gerçek lowering çıktısı değil, adversarial artifact da güvenli doğrulanmalı | Opcode/type/SSA/CFG/ownership/cross-table/resource-bound invariant matrisi |
-| 8 | **Pipeline integration ve Codegen kapısı** | Tüm önceki aşamalar kapanmadan backend genişletilmemeli | Valid artifact geçer, invalid artifact downstream'e ulaşmaz, platform CI ve parity testleri |
+| 1 | **L — Lexer** | Token envanteri, spelling, longest-match, literal/escape, source span ve hata davranışı | Normatif syntax/token envanteri eşleşir; pozitif/negatif Lexer testleri geçer. Mevcut durum büyük ölçüde tamam; yalnızca kalan farklar kapatılır. |
+| 2 | **P — Parser** | Her aktif syntax için grammar production, precedence/associativity, ambiguity, recovery ve exact source span | Her aktif satır parser fonksiyonu ve pozitif/negatif fixture ile kanıtlanır; ertelenen/ret edilen syntax açıkça işaretlenir. |
+| 3 | **A — AST + Payload** | Node payload alanları, child/list/sibling, ownership, lifecycle, source span ve codec | Her aktif üretim doğru AST'yi üretir; field-level round-trip, malformed input, OOM ve graph validation testleri geçer. |
+| 4 | **S — Semantic** | Symbol/scope/type/conversion/value category/ownership/effect/control-flow | Aktif syntax'ın anlam kuralları pozitif/negatif testlerle kapanır; Semantic AST artifact zorunlu annotation ve referansları doğrulanır. |
+| 5 | **O — OIR** | Semantic AST → OIR lowering, opcode/type/effect/memory/CFG sözleşmeleri | Her executable özellik desteklenir veya konumlu fail-closed diagnostic ile açıkça ertelenir; lowering testleri geçer. |
+| 6 | **V — Verifier** | OIR schema, structural/type/SSA/CFG/ownership/resource invariants ve pipeline gate | Geçerli artifact kabul edilir; bozuk/adversarial artifact reddedilir; host downstream aşamaları durdurur; CI matrisi geçer. |
+
+**Çalışma kuralı:** Şu an L aşamasının son kontrolündeyiz; ana çalışma P aşamasıdır. P kapanınca A, sonra S, O ve V sırasıyla ele alınacaktır. Bir satırın L sütununun ✓ olması P/A/S/O/V sütunlarını otomatik tamamlamaz.
 
 ## Mevcut doğrulanmış ilerleme
 

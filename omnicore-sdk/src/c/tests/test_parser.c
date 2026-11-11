@@ -147,6 +147,13 @@ static int parser_source_reports_syntax_error(
     return ok;
 }
 
+static int test_legacy_unpack_operator_is_rejected(void) {
+    static const char source[] =
+        "f:main() { v:result = data ...> target; }";
+    return parser_source_reports_syntax_error(
+        "legacy-unpack-operator.nxf", source, sizeof(source) - 1u);
+}
+
 static int test_parser_bounds_recursive_expression_forms(void) {
     enum { DEPTH = 300 };
     char unary_source[DEPTH + 32];
@@ -3616,6 +3623,10 @@ int main(int argc, char** argv) {
     }
     if (!test_conditional_action_arrow_disambiguation()) {
         fprintf(stderr, "Conditional action arrow was confused with a Nexus pipe.\n");
+        return 1;
+    }
+    if (!test_legacy_unpack_operator_is_rejected()) {
+        fprintf(stderr, "Legacy ...> unpack operator was unexpectedly accepted.\\n");
         return 1;
     }
     if (!test_parser_rejects_excessive_expression_nesting()) {

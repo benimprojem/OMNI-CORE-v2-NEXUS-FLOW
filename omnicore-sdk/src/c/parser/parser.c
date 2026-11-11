@@ -2250,30 +2250,6 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         }
     }
 
-    if (match(p, TOKEN_UNPACK)) {
-        ASTUnpack* unpack = (ASTUnpack*)parser_ast_create(p, AST_UNPACK);
-        if (!unpack) {
-            ast_destroy(expr);
-            return NULL;
-        }
-        unpack->base.line = p->previous.line;
-        unpack->base.col = p->previous.col;
-        unpack->expr = expr;
-        parser_stamp_node_child_to_token(p, (ASTNode*)unpack, expr, &p->previous);
-        expr = (ASTNode*)unpack;
-        if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
-            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
-                "Maximum parser nesting depth exceeded.");
-            ast_destroy(expr);
-            return NULL;
-        }
-        ++p->nesting_depth;
-        ASTNode* unpacked = parse_nexus_flow(p);
-        --p->nesting_depth;
-        if (!unpacked) ast_destroy(expr);
-        return unpacked;
-    }
-
     if (match(p, TOKEN_ERR_HANDLER)) {
         if (expr->type == AST_NEXUS_FLOW || expr->type == AST_NEXUS_PIPE) {
             ASTNexusFlow* flow = (ASTNexusFlow*)expr;
