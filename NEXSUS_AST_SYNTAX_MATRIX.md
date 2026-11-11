@@ -82,7 +82,7 @@ The syntax reference lists the language's designed operator inventory. The C Lex
 | Unary logical not `!` | Consumed by `parse_unary()` | Boolean operand/type rule |
 | Unary bitwise not `~` | Consumed by `parse_unary()` | Integer operand/type rule |
 | Binary bitwise `&`, `|`, `^` | Parser productions; precedence AND > XOR > OR; AST_BINARY_EXPR | Parser fixture added | Semantic matching integer operand validation is present/tested |
-| Flow Feed / Zone Write `<<`, `>>` | Nexus Flow flow operators; represented by `AST_NEXUS_PIPE` / `AST_NEXUS_FLOW` | Keep distinct from numeric shifts; Flow operand grammar and semantic contract remain to be closed |
+| Flow Feed / Zone Write `<<`, `>>` | `AST_NEXUS_PIPE` with `TOKEN_LSHIFT` / `TOKEN_RSHIFT` | Dedicated Parser fixture verifies both stream operators remain distinct from numeric `<<<` / `>>>`; numeric shift left-associativity and the 32-operator Parser bound are also tested |
 | Prefix/postfix `++`, `--` | Consumed by unary/postfix parsing | Lvalue and numeric semantic checks |
 | Compound assignment `+=`, `-=`, `*=`, `/=`, `|=`, `&=`, `^=` | `AST_ASSIGNMENT` keeps the original operator token; parser fixture covers `+=` and `&=` | Parser production/test added | Semantic lvalue + equivalence checks |
 | String append `.=` | `AST_ASSIGNMENT` keeps `TOKEN_STRING_APPEND` | Parser fixture verifies operator token, identifier lhs, string-literal rhs, exact source span, AST validation, and malformed RHS rejection |

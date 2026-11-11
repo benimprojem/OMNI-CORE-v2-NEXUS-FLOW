@@ -3916,6 +3916,111 @@ done:
     return 1;
 }
 
+static int test_numeric_and_flow_shift_operators(void) {
+    static const char source[] =
+        "f:main() { "
+        "v:left = a <<< b; "
+        "v:right = a >>> b; "
+        "v:chain_left = a <<< b <<< c; "
+        "v:chain_right = a >>> b >>> c; "
+        "v:stream_in = a << b; "
+        "v:stream_out = a >> b; "
+        "}";
+    ParserContext* ctx = parser_init_source(
+        "numeric-flow-shift-operators.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTNode* statement;
+    int seen = 0;
+    int ok = 0;
+
+    if (!ctx) return 0;
+    if (parser_run(ctx) != PARSER_STATUS_OK ||
+        ctx->error_count != 0 || !ctx->ast_root ||
+        !ast_validate(ctx->ast_root)) goto done;
+
+    function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK)
+        goto done;
+    statement = ((ASTBlock*)function->body)->statements;
+    while (statement) {
+        ASTVarDecl* variable;
+        ASTNode* value;
+        if (statement->type != AST_VAR_DECL) goto done;
+        variable = (ASTVarDecl*)statement;
+        value = variable->initializer;
+        if (!variable->name || !value) goto done;
+
+        if (strcmp(variable->name, "left") == 0) {
+            if (value->type != AST_BINARY_EXPR ||
+                ((ASTBinaryExpr*)value)->op != TOKEN_BIT_SHL) goto done;
+            seen |= 1;
+        } else if (strcmp(variable->name, "right") == 0) {
+            if (value->type != AST_BINARY_EXPR ||
+                ((ASTBinaryExpr*)value)->op != TOKEN_BIT_SHR) goto done;
+            seen |= 2;
+        } else if (strcmp(variable->name, "chain_left") == 0) {
+            ASTBinaryExpr* root;
+            if (value->type != AST_BINARY_EXPR) goto done;
+            root = (ASTBinaryExpr*)value;
+            if (root->op != TOKEN_BIT_SHL || !root->left ||
+                root->left->type != AST_BINARY_EXPR ||
+                ((ASTBinaryExpr*)root->left)->op != TOKEN_BIT_SHL) goto done;
+            seen |= 4;
+        } else if (strcmp(variable->name, "chain_right") == 0) {
+            ASTBinaryExpr* root;
+            if (value->type != AST_BINARY_EXPR) goto done;
+            root = (ASTBinaryExpr*)value;
+            if (root->op != TOKEN_BIT_SHR || !root->left ||
+                root->left->type != AST_BINARY_EXPR ||
+                ((ASTBinaryExpr*)root->left)->op != TOKEN_BIT_SHR) goto done;
+            seen |= 8;
+        } else if (strcmp(variable->name, "stream_in") == 0) {
+            if (value->type != AST_NEXUS_PIPE ||
+                ((ASTNexusFlow*)value)->op != TOKEN_LSHIFT) goto done;
+            seen |= 16;
+        } else if (strcmp(variable->name, "stream_out") == 0) {
+            if (value->type != AST_NEXUS_PIPE ||
+                ((ASTNexusFlow*)value)->op != TOKEN_RSHIFT) goto done;
+            seen |= 32;
+        } else {
+            goto done;
+        }
+        statement = statement->next;
+    }
+    if (seen != 63) goto done;
+    ok = 1;
+
+done:
+    parser_destroy(ctx);
+    if (!ok) return 0;
+
+    {
+        enum { OPERATORS = 33 };
+        char long_source[7u + OPERATORS * 4u + 2u];
+        size_t offset = 0u;
+        ParserContext* excessive;
+        int rejected;
+
+        memcpy(long_source + offset, "v:x = a", 7u);
+        offset += 7u;
+        for (int i = 0; i < OPERATORS; ++i) {
+            memcpy(long_source + offset, "<<<a", 4u);
+            offset += 4u;
+        }
+        long_source[offset++] = ';';
+        excessive = parser_init_source(
+            "excessive-shift-chain.nxf",
+            (const uint8_t*)long_source, offset);
+        if (!excessive) return 0;
+        rejected = parser_run(excessive) == PARSER_STATUS_SYNTAX_ERROR &&
+            excessive->error_count > 0;
+        parser_destroy(excessive);
+        if (!rejected) return 0;
+    }
+    return 1;
+}
+
 int main(int argc, char** argv) {
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
     if (!test_main_cli_parameter_ast()) return 1;
@@ -3948,6 +4053,10 @@ int main(int argc, char** argv) {
     if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\n"); return 1; }
     if (!test_string_append_assignment_ast()) {
         fprintf(stderr, "String append assignment AST/source-span parser test failed.\\n");
+        return 1;
+    }
+    if (!test_numeric_and_flow_shift_operators()) {
+        fprintf(stderr, "Numeric/Flow shift distinction or shift-chain bound test failed.\\n");
         return 1;
     }
     if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
