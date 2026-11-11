@@ -142,7 +142,7 @@ static int build_cfg_module_artifact(uint8_t** out, size_t* out_length, int vari
     types[1].bit_width = 1u;
     types[2].id = 3u; types[2].kind = OIR_MODULE_TYPE_FUNCTION;
     types[3].id = 4u; types[3].kind = OIR_MODULE_TYPE_INTEGER;
-    types[3].bit_width = 64u; types[3].flags = OIR_MODULE_TYPE_FLAG_UNSIGNED;
+    types[3].bit_width = 64u;
 
     memset(functions, 0, sizeof(functions));
     functions[0].id = 1u; functions[0].name_length = 4u;
@@ -761,9 +761,9 @@ int main(int argc, char** argv) {
 
     /* The verifier accepts well-typed bitwise and integer shift instructions. */
     {
-        const int variants[] = {19, 20, 22};
+        const int variants[] = {19, 20, 22, 23};
         size_t k;
-        for (k = 0u; k < 3u; ++k) {
+        for (k = 0u; k < 4u; ++k) {
             OccModuleArtifactInputV1 stage_input;
             size_t diagnostics_before = occ_diagnostics_count(&diagnostics);
             assert(build_cfg_module_artifact(&input, &input_length, variants[k]));
