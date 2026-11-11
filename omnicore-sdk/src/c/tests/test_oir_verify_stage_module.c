@@ -730,8 +730,8 @@ int main(int argc, char** argv) {
                     &output, &output_length);
                 if (verify_status != OCC_MODULE_LOADER_OK) {
                     OccDiagnosticView failure_view;
-                    fprintf(stderr, "shift verifier fixture variant=%d status=%u diagnostics=%zu\\n",
-                        variants[k], verify_status, occ_diagnostics_count(&diagnostics));
+                    fprintf(stderr, "shift verifier fixture variant=%d status=%u before=%zu after=%zu\\n",
+                        variants[k], verify_status, diagnostics_before, occ_diagnostics_count(&diagnostics));
                     {
                         size_t di;
                         for (di = diagnostics_before; di < occ_diagnostics_count(&diagnostics); ++di) {
