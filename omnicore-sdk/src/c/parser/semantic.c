@@ -2381,7 +2381,8 @@ static void semantic_check_node(
             semantic_check(ctx, access->target);
             semantic_check(ctx, access->index);
             target_type = get_expr_type(ctx, access->target);
-            if (target_type && !semantic_is_array_type_name(target_type) &&
+            if (target_type && strcmp(target_type,"tuple") != 0 &&
+                !semantic_is_array_type_name(target_type) &&
                 !semantic_representation_element_type(target_type)) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Index target must be an array, bit vector, or byte block.");
