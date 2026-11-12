@@ -6332,7 +6332,15 @@ static void semantic_check_node(
         case AST_REG: {
             ASTCall* call = (ASTCall*)node;
             if (call->callee) semantic_check(ctx, call->callee);
-            if (call->args) semantic_check(ctx, call->args);
+            if (node->type == AST_REG) {
+                ASTNode* write_value = call->args && call->args->next &&
+                    call->args->next->next
+                    ? semantic_intrinsic_argument_value(call->args->next->next)
+                    : NULL;
+                if (write_value) semantic_check(ctx, write_value);
+            } else if (call->args) {
+                semantic_check(ctx, call->args);
+            }
             semantic_validate_intrinsic_callee(ctx, node, call);
             if (node->type == AST_ADDR || node->type == AST_LEN ||
                 node->type == AST_PEEK || node->type == AST_POKE)
