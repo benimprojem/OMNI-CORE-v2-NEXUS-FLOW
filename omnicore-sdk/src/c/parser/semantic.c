@@ -2517,7 +2517,8 @@ static void semantic_check_node(
                 }
             }
 
-            if (decl->inline_type) semantic_check(ctx, decl->inline_type);
+            if (decl->inline_type && !decl->type_expr)
+                semantic_check(ctx, decl->inline_type);
             if (decl->type_expr) semantic_check(ctx, decl->type_expr);
             if (declared_slot &&
                 decl->inline_type && decl->inline_type->type == AST_ARRAY_TYPE) {
