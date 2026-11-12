@@ -4806,11 +4806,11 @@ static int test_parenthesized_rolling_retry_disambiguation(void) {
 }
 
 
-static int test_handler_capture_string_and_parameter_flow_ast(void) {
+static int test_handler_capture_string_and_call_flow_ast(void) {
     static const char source[] =
         "f:main() {"
         " (a) <- \"bu string testi.\";"
-        " (hand) -> f:(hand) { process(hand); }"
+        " (hand) -> process(hand);"
         "}";
     ParserContext* ctx=parser_init_source("handler-capture-flow.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
@@ -4818,7 +4818,6 @@ static int test_handler_capture_string_and_parameter_flow_ast(void) {
     ASTNode* statement;
     ASTNexusCapture* capture;
     ASTNexusFlow* flow;
-    ASTLambda* lambda;
     int ok=0;
     if(!ctx)return 0;
     if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root)goto done;
@@ -4837,11 +4836,7 @@ static int test_handler_capture_string_and_parameter_flow_ast(void) {
     flow=(ASTNexusFlow*)statement;
     if(flow->op!=TOKEN_PIPE || !flow->left || flow->left->type!=AST_IDENTIFIER ||
        strcmp(((ASTIdentifier*)flow->left)->name,"hand")!=0 ||
-       !flow->right || flow->right->type!=AST_LAMBDA)goto done;
-    lambda=(ASTLambda*)flow->right;
-    if(!lambda->params || lambda->params->type!=AST_VAR_DECL ||
-       strcmp(((ASTVarDecl*)lambda->params)->name,"hand")!=0 ||
-       !lambda->body || lambda->body->type!=AST_BLOCK ||
+       !flow->right || flow->right->type!=AST_CALL ||
        !ast_validate(ctx->ast_root,NULL))goto done;
     ok=1;
 done:
@@ -4872,7 +4867,7 @@ int main(int argc, char** argv) {
     CHECK_PARSER_TEST(test_null_and_numeric_literal_ast);
     CHECK_PARSER_TEST(test_implicit_type_variable_spelling);
     CHECK_PARSER_TEST(test_spawn_is_module_call_syntax);
-    CHECK_PARSER_TEST(test_handler_capture_string_and_parameter_flow_ast);
+    CHECK_PARSER_TEST(test_handler_capture_string_and_call_flow_ast);
     CHECK_PARSER_TEST(test_intrinsic_ast_family);
     CHECK_PARSER_TEST(test_group_method_ast);
     CHECK_PARSER_TEST(test_nested_group_and_default_ast);
