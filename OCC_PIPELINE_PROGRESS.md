@@ -1934,3 +1934,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Added a nested block + `}?;` Semantic fixture.
 - Commits: `5db1589f` (implementation), `3eece891` (test), `35b0bd87` (coverage dashboard).
 - CI is still running for prior Parser-span fixture correction and new Semantic slices; final green matrix not yet confirmed.
+
+
+### Semantic checkpoint — implicit type variable `t` — 2026-11-12
+
+- `t` is accepted as a type variable and interned as `SEMANTIC_RESULT_TYPE_INFERRED`; generic compatibility treats it as a unification placeholder.
+- Generic call expression return `t` resolves to the first argument's concrete type for the present identity/sum cases. Arithmetic over matching `t` parameters is accepted.
+- Added `identity(value!t)!t` and `sum(a!t,b!t)!t` positive Semantic cases instantiated with `i32`.
+- This is a bounded implicit inference slice, not full generic constraints/unification. Multiple type variables, nested callback/array generic composition and constrained type parameters remain open.
+- Commits: `1a8f8765` Semantic; `18583bf6` tests; `f12592b2` dashboard.
