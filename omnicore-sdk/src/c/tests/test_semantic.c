@@ -1343,6 +1343,41 @@ static int check_enum_constructor_semantics(void) {
         check_enum_constructor_case(6,0);
 }
 
+static int check_enum_discriminant_resolved_values(void) {
+    static const char source[] =
+        "nt:enum: State { First, Explicit = 4, AfterExplicit, "
+        "Expression = 8 + 1, AfterExpression }";
+    ParserContext* parser = parser_init_source(
+        "enum-discriminant-values.nxf", (const uint8_t*)source,
+        sizeof(source) - 1u);
+    SemanticContext semantic;
+    ASTEnumDecl* declaration;
+    ASTEnumVariant* variant;
+    static const int64_t expected[] = { 0, 4, 5, 9, 10 };
+    size_t index = 0u;
+    int ok = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK || !parser->ast_root)
+        goto done_parser;
+    semantic_init(&semantic, "enum-discriminant-values.nxf", NULL);
+    semantic_check(&semantic, parser->ast_root);
+    declaration = (ASTEnumDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    variant = declaration ? (ASTEnumVariant*)declaration->variants : NULL;
+    ok = semantic.error_count == 0;
+    while (ok && variant && index < sizeof(expected) / sizeof(expected[0])) {
+        ok = variant->has_resolved_discriminant &&
+            variant->discriminant_value == expected[index];
+        variant = (ASTEnumVariant*)variant->base.next;
+        ++index;
+    }
+    ok = ok && index == sizeof(expected) / sizeof(expected[0]) &&
+        variant == NULL;
+    semantic_destroy(&semantic);
+done_parser:
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_enum_discriminant_semantics(void) {
     const char* valid_implicit_explicit =
         "f:main() { enum:State { Idle, Running = 4, Done } }";
@@ -1360,7 +1395,7 @@ static int check_enum_discriminant_semantics(void) {
         "f:main() { enum:State { Max = 9223372036854775807, Next } }";
     const char* explicit_reset_after_max =
         "f:main() { enum:State { Max = 9223372036854775807, Reset = 0, Next } }";
-    return check_source(valid_implicit_explicit, 0) &&
+    return check_enum_discriminant_resolved_values() &&\n        check_source(valid_implicit_explicit, 0) &&
         check_source(valid_negative_and_expression, 0) &&
         check_source(duplicate_explicit, 1) &&
         check_source(duplicate_implicit_after_explicit, 1) &&
