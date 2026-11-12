@@ -437,7 +437,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 
 ### Semantic checkpoint — Map indexing and dynamic values — 2026-11-12
 
-- Aligned Map indexing with the normative syntax examples: string and scalar keys are accepted for Map reads and writes; Map is no longer rejected by the generic array-index validator.
+- Aligned Map indexing with the normative syntax examples: documented string-key reads/writes are accepted, and an integer-key case is covered by tests. No key-type whitelist is imposed while the syntax reference leaves key constraints open.
 - Map values are intentionally heterogeneous/dynamic in the current language contract, so indexed reads retain the conservative `any` type and indexed writes do not invent a fixed key/value type pair. Key hashability/allowed-type constraints are deliberately left open because the syntax reference does not yet define them.
 - Constant-container indexed writes now use a container-neutral diagnostic. Map access no longer receives the array-only integer-index restriction.
 - Added positive tests for string-key read/write and integer-key access; no unsupported Map key restriction is introduced.
@@ -447,6 +447,6 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 ### Semantic checkpoint — Vec2/Vec3/Vec4 initializer and arithmetic rules — 2026-11-12
 
 - Implemented the documented fixed dimensions for Vec2, Vec3 and Vec4 array-literal initializers; each component must be numeric and the literal must contain exactly 2, 3 or 4 values respectively.
-- Enabled the documented component-wise vector addition/subtraction contract for matching vector dimensions. Mixed dimensions and currently undocumented vector subtraction/multiplication/division/power operations are rejected with explicit diagnostics.
-- Added positive Vec3 initialization/addition tests and negative dimension, mixed-vector, and unsupported-operation tests; the dimension diagnostic asserts the expected and actual component counts and source line.
+- Enabled the documented component-wise vector addition contract for matching vector dimensions. Mixed dimensions and currently undocumented vector subtraction/multiplication/division/power operations are rejected with explicit diagnostics.
+- Added positive Vec2/Vec3/Vec4 initializer and Vec3 addition tests, plus negative dimension, non-numeric component, mixed-vector and unsupported-operation tests. The dimension diagnostic asserts expected/actual component counts and source line.
 - Test execution and CI for this checkpoint remain pending; implementation and fixtures are not represented as a green test result.
