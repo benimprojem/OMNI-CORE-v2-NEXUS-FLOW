@@ -196,7 +196,7 @@ int main(void) {
     static const char postfix_constant_invalid[] =
         "f:main() { c:x = 1; x++; }";
     static const char postfix_non_numeric_invalid[] =
-        "f:main() { v:s = \\\"text\\\"; s++; }";
+        "f:main() { v:s = \"text\"; s++; }";
     static const char postfix_literal_invalid[] =
         "f:main() { 1++; }";
     static const char postfix_array_element_valid[] =
