@@ -213,9 +213,9 @@ int main(void) {
         "v:r8!8bit = a8 <<< 7; v:r16!16bit = a16 >>> 15; "
         "v:r32!32bit = a32 <<< 31; v:r64!64bit = a64 >>> 63; "
         "v:r128!128bit = a128 <<< 127; "
-        "v:r1!1byte = b1 <<< 7; v:r2!2byte = b2 >>> 15; "
-        "v:r4!4byte = b4 <<< 31; v:r8!8byte = b8 >>> 63; "
-        "v:r16!16byte = b16 <<< 127; }";
+        "v:rb1!1byte = b1 <<< 7; v:rb2!2byte = b2 >>> 15; "
+        "v:rb4!4byte = b4 <<< 31; v:rb8!8byte = b8 >>> 63; "
+        "v:rb16!16byte = b16 <<< 127; }";
     static const char shift_128bit_valid_boundary[] =
         "f:main(a!128bit) !128bit { ret a <<< 127; }";
     static const char shift_128bit_out_of_range[] =
