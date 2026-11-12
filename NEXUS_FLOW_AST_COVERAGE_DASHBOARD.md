@@ -74,7 +74,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Struct literal | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` (106–107) | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Instance initialization/layout lowering ve Verifier invariant'ları |
 | Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Variant/payload and scan/constructor checks ✓; optional discriminant expression AST ownership, graph validation, parser production and AST stream v7 codec implemented; Semantic resolves implicit/explicit signed-i64 values, rejects duplicates/non-constant/non-integer values and implicit overflow; regression tests added but build/CI pending; recursive payload type-expression compatibility and OIR/Verifier enum representation open |
 | Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | C-like shared-storage contract selected: no active-member tracking; cross-member reads are permitted as target-ABI-dependent reinterpretation; field/type/member diagnostics and regression fixtures added, CI pending; union layout/ABI and OIR lowering open |
-| Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | Group member uniqueness, self receiver inference/validation, instance/static dispatch ve argument checks mevcut; malformed method name/implementation guards eklendi; receiver visibility/overload ve complete signature contract açık |
+| Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | Group member/public alias uniqueness, implementation symbol collision, self receiver inference/validation, instance/static dispatch ve argument checks için regression fixtures mevcut; CI doğrulaması bekleniyor; receiver visibility/overload ve complete signature contract açık |
 | Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
 | Implicit type variable `t` | Type-name string / `AST_TYPE_EXPR` | ✓ | ✓ | ✓ | ~ | D | — | Type-variable scope, binding, unification ve inference |
 | Map | Adlandırılmış type-name | ✓ | ✓ | ✓ | ~ | ? | ? | Key/value generic sözleşmesi, key constraints ve runtime davranışı |
@@ -770,3 +770,10 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added checks for unknown variants, argument count, payload type compatibility, unknown named fields, duplicate named fields and omitted named fields. The call and callee receive SemanticResult annotations as enum-valued constructor expressions.
 - Added direct AST regression fixtures for valid positional/named construction and invalid variant, arity, payload type and named-field cases. Enum Semantic remains partial for discriminant representation and recursive payload type-expression compatibility.
 - Fixtures are committed but have not been compiled or executed in this workspace; CI remains unverified.
+
+
+### Semantic checkpoint — Group method uniqueness regressions — 2026-11-12
+
+- Added source regressions for duplicate public method aliases, duplicate implementation function names across aliases, and a method implementation name colliding with a direct Group function.
+- Existing coverage also exercises inferred/explicit `self`, static versus instance dispatch, calls before declaration, external-scope Group-qualified calls, unknown methods, argument count/type, and malformed method AST payloads.
+- Group / method Semantic remains partial (`~`) until the updated C test suite passes CI. Receiver visibility/overload and complete signature contract remain open; no overload behavior is inferred from duplicate-name rejection.
