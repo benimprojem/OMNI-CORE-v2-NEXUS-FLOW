@@ -1843,3 +1843,12 @@ Dimension order follows the normal array declarator rules. An empty `[]` represe
 - `ret` yalnızca bir fonksiyon gövdesi içinde kullanılabilir; modül/kök kapsamındaki `ret` Semantic hatasıdır.
 - `ret` değeri, fonksiyonun bildirilmiş dönüş tipiyle uyumlu olmalıdır. Değer verilmeden kullanılan `ret;` yalnızca `void` dönüşlü fonksiyonlarda geçerlidir.
 - İç içe tanımlanan fonksiyonlar kendi dönüş tipi ve fonksiyon kapsamı içinde değerlendirilir; dış fonksiyonun dönüş tipi iç fonksiyonun `ret` kontrolüne taşınmaz.
+
+
+### Semantic AST integrity — functions, labels, defer and thread blocks
+
+- A function declaration must carry a non-empty name; a normal AST_FUNC_DECL must also carry a body. Method implementations may continue to obtain their public name from the enclosing method context.
+- Nexus label declarations and jump nodes require non-empty label names. Forward jump target resolution remains a later control-flow validation responsibility.
+- defer requires its statement or block body.
+- thread_block requires both a non-empty block name and a body; its body remains isolated in its own Semantic scope.
+- These checks validate malformed AST input and do not change the accepted source grammar.
