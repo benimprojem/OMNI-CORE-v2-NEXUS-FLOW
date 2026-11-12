@@ -2635,15 +2635,32 @@ static void semantic_check_node(
                 const char* left_type = get_expr_type(ctx, bin->left);
                 const char* right_type = get_expr_type(ctx, bin->right);
                 int64_t shift_amount;
-                if ((left_type && !is_integer_primitive_type(left_type)) ||
-                    (right_type && !is_integer_primitive_type(right_type))) {
+                uint64_t value_width = 0u;
+                int value_is_unsigned = 0;
+                int operands_valid =
+                    (!left_type || is_integer_primitive_type(left_type)) &&
+                    (!right_type || is_integer_primitive_type(right_type));
+                if (!operands_valid) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Bit shifts require integer operands.");
-                } else if (semantic_eval_integer_constant(bin->right, &shift_amount) &&
-                           shift_amount < 0) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Bit shift amount cannot be negative.");
+                } else if (left_type &&
+                           semantic_integer_type_width(left_type, &value_width,
+                                                      &value_is_unsigned) &&
+                           semantic_eval_integer_constant(bin->right, &shift_amount)) {
+                    (void)value_is_unsigned;
+                    if (shift_amount < 0) {
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Bit shift amount cannot be negative.");
+                    } else if ((uint64_t)shift_amount >= value_width) {
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Bit shift amount must be smaller than the left operand width.");
+                    }
                 }
+                /*
+                 * A non-constant shift count is accepted here. The OIR/runtime
+                 * contract must trap or otherwise define counts >= value width;
+                 * Semantic cannot prove a dynamic value's range.
+                 */
             }
 
             if (bin->op == TOKEN_BIT_AND || bin->op == TOKEN_BIT_OR ||
