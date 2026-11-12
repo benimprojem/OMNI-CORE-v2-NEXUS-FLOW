@@ -141,6 +141,16 @@ int main(void) {
         "f:main(a!u8) !u8 { ret a <<< 7; }";
     static const char shift_i64_valid_boundary[] =
         "f:main(a!i64) !i64 { ret a >>> 63; }";
+    static const char range_valid[] =
+        "f:main() { v:r = 0..10; }";
+    static const char range_mixed_numeric_invalid[] =
+        "f:main() { v:r = 0..2.5; }";
+    static const char range_non_numeric_invalid[] =
+        "f:main() { v:r = 0..\\\"end\\\"; }";
+    static const char range_loop_valid[] =
+        "f:main() { loop (0..10) { echo(it); } }";
+    static const char range_loop_mixed_invalid[] =
+        "f:main() { loop (0..2.5) { echo(it); } }";
     static const char logical_valid[] =
         "f:main() !bool { ret (1 < 2) && (3 < 4) || false; }";
     static const char logical_invalid[] =
@@ -190,6 +200,11 @@ int main(void) {
     if (!check_source(shift_u8_equal_width, 1)) return 1;
     if (!check_source(shift_u8_valid_boundary, 0)) return 1;
     if (!check_source(shift_i64_valid_boundary, 0)) return 1;
+    if (!check_source(range_valid, 0)) return 1;
+    if (!check_source(range_mixed_numeric_invalid, 1)) return 1;
+    if (!check_source(range_non_numeric_invalid, 1)) return 1;
+    if (!check_source(range_loop_valid, 0)) return 1;
+    if (!check_source(range_loop_mixed_invalid, 1)) return 1;
     if (!check_source(logical_valid, 0)) return 1;
     if (!check_source(logical_invalid, 1)) return 1;
     if (!check_source(unary_not_valid, 0)) return 1;
