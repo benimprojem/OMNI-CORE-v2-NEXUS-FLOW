@@ -3727,6 +3727,23 @@ static void semantic_check_node(
                         }
                     }
                     semantic_check(ctx, loop->condition);
+                    if (loop->condition->type == AST_BINARY_EXPR &&
+                        ((ASTBinaryExpr*)loop->condition)->op == TOKEN_RANGE) {
+                        ASTBinaryExpr* range=(ASTBinaryExpr*)loop->condition;
+                        const char* begin_type=get_expr_type(ctx,range->left);
+                        const char* end_type=get_expr_type(ctx,range->right);
+                        if (begin_type && end_type &&
+                            (!are_types_compatible(begin_type,end_type) ||
+                             !is_numeric_primitive_type(begin_type))) {
+                            report_error(ctx,loop->condition,
+                                ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Loop range bounds must have compatible numeric types.");
+                        }
+                    } else if (!semantic_is_boolean_condition(ctx,loop->condition)) {
+                        report_error(ctx,loop->condition,
+                            ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Loop condition must have bool type or be a numeric range.");
+                    }
                 }
                 if (loop->increment) semantic_check(ctx, loop->increment);
             }
