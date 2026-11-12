@@ -206,7 +206,7 @@ int main(void) {
         "Operator '+'", "i32", 2)) return 1;
     if (!check_error_detail(
         "f:main(a!f32, b!i32) !f32 {\n    ret a <<< b;\n}",
-        "Operator '<<'", "f32", 2)) return 1;
+        "Operator '<<<'", "f32", 2)) return 1;
     if (!check_error_detail(
         "f:main(a!i32, b!bool) !bool {\n    ret a && b;\n}",
         "Operator '&&'", "i32", 2)) return 1;
