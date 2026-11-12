@@ -1212,6 +1212,29 @@ static int check_m_immutable_value_semantics(void) {
         check_source("f:main() { m:value = 5; m:value = 6; }", 1);
 }
 
+
+static int check_c_compile_time_constant_semantics(void) {
+    const char* valid_literals_and_expressions =
+        "c:PI = 3.14159; c:DOUBLE_PI = PI * 2.0; "
+        "c:LIMIT!i32 = 2 + 3 * 4;";
+    const char* valid_aggregate_constant =
+        "c:VALUES = [1, 2, 3]; c:PAIR = (1, \"two\");";
+    const char* missing_initializer = "c:missing!i32;";
+    const char* runtime_call =
+        "f:get_value()!i32 { ret 7; } c:value = get_value();";
+    const char* mutable_read =
+        "v:mutable_value!i32 = 1; c:value = mutable_value;";
+    const char* immutable_runtime_read =
+        "f:get_value()!i32 { ret 7; } "
+        "m:runtime_value = get_value(); c:value = runtime_value;";
+    return check_source(valid_literals_and_expressions, 0) &&
+        check_source(valid_aggregate_constant, 0) &&
+        check_source(missing_initializer, 1) &&
+        check_source(runtime_call, 1) &&
+        check_source(mutable_read, 1) &&
+        check_source(immutable_runtime_read, 1);
+}
+
 static int check_fast_exec_asm_semantics(void) {
     const char* valid_forward_labels =
         "f:main() { fastexec { v:x!i32 = 10; "
@@ -1355,6 +1378,10 @@ int main(int argc, char** argv) {
     }
     if (!check_intrinsic_semantics()) {
         fprintf(stderr, "Memory/port/allocation intrinsic semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_c_compile_time_constant_semantics()) {
+        fprintf(stderr, "c: compile-time constant semantic checks failed.\\n");
         return 1;
     }
     if (!check_fast_exec_asm_semantics()) {
