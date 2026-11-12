@@ -382,7 +382,9 @@ static int check_os_thread_call_identity_ast(void) {
     static const struct { ASTNodeType type; const char* name; } cases[] = {
         { AST_ECHO, "echo" }, { AST_SPAWN, "spawn" },
         { AST_SEND, "send" }, { AST_RECEIVE, "receive" },
-        { AST_DONE, "done" }
+        { AST_DONE, "done" }, { AST_PRNT, "prnt" },
+        { AST_PRMT, "prmt" }, { AST_WRITE, "write" },
+        { AST_FWRITE, "fwrite" }
     };
     size_t i;
     for (i = 0; i < sizeof(cases)/sizeof(cases[0]); ++i) {
@@ -402,6 +404,28 @@ static int check_os_thread_call_identity_ast(void) {
         semantic_destroy(&semantic);
         ast_destroy(node);
         if (!ok) return 0;
+    }
+    {
+        ASTNode* node = ast_create(AST_FWRITE);
+        SemanticContext semantic;
+        int rejected;
+        if (!node) return 0;
+        ((ASTCall*)node)->callee = ast_create(AST_IDENTIFIER);
+        if (!((ASTCall*)node)->callee) { ast_destroy(node); return 0; }
+        ((ASTIdentifier*)((ASTCall*)node)->callee)->name = (char*)malloc(5u);
+        if (!((ASTIdentifier*)((ASTCall*)node)->callee)->name) {
+            ast_destroy(node);
+            return 0;
+        }
+        strcpy(((ASTIdentifier*)((ASTCall*)node)->callee)->name, "write");
+        semantic_init(&semantic, "semantic-wrong-io-callee.nxf", NULL);
+        semantic_check(&semantic, node);
+        rejected = semantic.error_count > 0 && semantic.error_head &&
+            strstr(semantic.error_head->message,
+                "Intrinsic AST callee must be 'fwrite'") != NULL;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if (!rejected) return 0;
     }
     return check_source("f:main() { echo(\\"semantic\\"); }", 0);
 }
