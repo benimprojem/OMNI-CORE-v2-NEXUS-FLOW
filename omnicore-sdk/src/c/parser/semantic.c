@@ -470,6 +470,24 @@ static int semantic_eval_integer_constant(
     if (expression->type == AST_UNARY_EXPR) {
         const ASTUnaryExpr* unary = (const ASTUnaryExpr*)expression;
         int64_t operand;
+        if (unary->op == TOKEN_MINUS && unary->operand &&
+            unary->operand->type == AST_LITERAL) {
+            uint64_t magnitude = 0u;
+            int overflow = 0;
+            if (semantic_parse_unsigned_integer_literal(
+                    (const ASTLiteral*)unary->operand,
+                    &magnitude, &overflow) && !overflow) {
+                if (magnitude == (uint64_t)INT64_MAX + 1u) {
+                    *value_out = INT64_MIN;
+                    return 1;
+                }
+                if (magnitude <= (uint64_t)INT64_MAX) {
+                    *value_out = -(int64_t)magnitude;
+                    return 1;
+                }
+                return 0;
+            }
+        }
         if (!semantic_eval_integer_constant(unary->operand, &operand))
             return 0;
         if (unary->op == TOKEN_PLUS) {
