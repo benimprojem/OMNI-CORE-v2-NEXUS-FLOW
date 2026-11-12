@@ -4071,7 +4071,7 @@ static void semantic_check_node(
             int target_valid = nt->target_type && nt->target_type[0] != '\0';
             int errors_before_target = ctx->error_count;
             if (!nt->name || nt->name[0] == '\0') {
-                report_error(ctx, node, ERR_SEMANTIC_INVALID_AST,
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "NewType declaration requires a non-empty type name.");
                 break;
             }
