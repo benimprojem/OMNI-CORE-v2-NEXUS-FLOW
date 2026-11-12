@@ -201,6 +201,22 @@ int main(void) {
         "f:main(a!u8) !u8 { ret a <<< 7; }";
     static const char shift_i64_valid_boundary[] =
         "f:main(a!i64) !i64 { ret a >>> 63; }";
+    static const char shift_128bit_valid_boundary[] =
+        "f:main(a!128bit) !128bit { ret a <<< 127; }";
+    static const char shift_128bit_out_of_range[] =
+        "f:main(a!128bit) !128bit { ret a <<< 128; }";
+    static const char shift_16byte_valid_boundary[] =
+        "f:main(a!16byte) !16byte { ret a >>> 127; }";
+    static const char shift_16byte_out_of_range[] =
+        "f:main(a!16byte) !16byte { ret a >>> 128; }";
+    static const char shift_scalar_bit_zero_valid[] =
+        "f:main(a!bit) !bit { ret a <<< 0; }";
+    static const char shift_scalar_bit_one_invalid[] =
+        "f:main(a!bit) !bit { ret a <<< 1; }";
+    static const char shift_scalar_byte_valid[] =
+        "f:main(a!byte) !byte { ret a <<< 7; }";
+    static const char shift_scalar_byte_invalid[] =
+        "f:main(a!byte) !byte { ret a <<< 8; }";
     static const char shift_hex_out_of_range[] =
         "f:main(a!i32) !i32 { ret a <<< 0x20; }";
     static const char shift_binary_out_of_range[] =
@@ -341,6 +357,14 @@ int main(void) {
     if (!check_source(shift_u8_equal_width, 1)) return 1;
     if (!check_source(shift_u8_valid_boundary, 0)) return 1;
     if (!check_source(shift_i64_valid_boundary, 0)) return 1;
+    if (!check_source(shift_128bit_valid_boundary, 0)) return 1;
+    if (!check_source(shift_128bit_out_of_range, 1)) return 1;
+    if (!check_source(shift_16byte_valid_boundary, 0)) return 1;
+    if (!check_source(shift_16byte_out_of_range, 1)) return 1;
+    if (!check_source(shift_scalar_bit_zero_valid, 0)) return 1;
+    if (!check_source(shift_scalar_bit_one_invalid, 1)) return 1;
+    if (!check_source(shift_scalar_byte_valid, 0)) return 1;
+    if (!check_source(shift_scalar_byte_invalid, 1)) return 1;
     if (!check_source(shift_hex_out_of_range, 1)) return 1;
     if (!check_source(shift_binary_out_of_range, 1)) return 1;
     if (!check_source(shift_octal_out_of_range, 1)) return 1;
@@ -394,6 +418,12 @@ int main(void) {
     if (!check_error_detail(
         "f:main(a!u8) !u8 {\n    ret a <<< 8;\n}",
         "8-bit width", "0..7", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!128bit) !128bit {\n    ret a <<< 128;\n}",
+        "128-bit width", "0..127", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!bit) !bit {\n    ret a <<< 1;\n}",
+        "1-bit width", "0..0", 2)) return 1;
     if (!check_error_detail(
         "f:main(a!i32) !i32 {\n    ret a <<< 0x20;\n}",
         "Bit shift amount (32)", "0..31", 2)) return 1;
