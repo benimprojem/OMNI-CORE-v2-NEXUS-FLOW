@@ -323,18 +323,18 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 ### Semantic test suite checkpoint — 2026-11-12
 
 - On the `aa81d9ae` CI head, Semantic tests (including generic inference, tuple indexing/bounds, NewType, variadic, named args, cleanup marker, loop condition and array homogeneity) passed; the CTest matrix reached 72/73.
-- Remaining failure in that run is isolated to `parser_accepts_and_rejects_sources` / Nexus Flow catch-fallback-ignore Parser fixture. Semantic suite is green in that run; whole CI is not green yet.
+- The historical `aa81d9ae` run had one Parser fixture failure. This was subsequently corrected; current branch-head CI run #4269 passes the full matrix.
 
 
-- Named-argument follow-up: duplicate parameter binding and positional-after-named forms now produce Semantic diagnostics. Added regression fixtures. Commits `3f86c6da` Semantic, `cfb75499` tests; CI pending.
+- Named-argument follow-up: duplicate parameter binding and positional-after-named forms now produce Semantic diagnostics. Added regression fixtures. Commits `3f86c6da` Semantic, `cfb75499` tests; included in green branch-head CI run #4269.
 
 
 ### Lexer/Parser correction — contextual `(e)` catch handler — 2026-11-12
 
 - Lexer no longer collapses every literal `(e)` into a special token. That tokenization broke ordinary expressions such as `echo(e)` inside a catch body.
 - Parser now recognizes `(e)` contextually only after `?->`, constructs the handler identifier and consumes its parentheses, then attaches the following block.
-- This restores normal call/group tokenization while preserving the catch syntax. Added Parser diagnostic tracing; verify exact fixture and cross-platform CI next.
-- Commits: `81f1da3e` (Lexer), `76176c20` (Parser). CI pending.
+- This restores normal call/group tokenization while preserving the catch syntax. Added Parser diagnostic tracing; the exact fixture and cross-platform matrix pass in branch-head CI run #4269.
+- Commits: `81f1da3e` (Lexer), `76176c20` (Parser).
 
 
 - Ownership split correction: duplicate named labels and positional-after-named are already rejected by Parser (and covered in its variadic/named argument regression); removed those parser-invalid sources from Semantic's `check_source` fixtures. Semantic coverage remains reordered named-argument type checking and unknown-name diagnostics, with defensive duplicate/order checks for externally constructed ASTs.
@@ -347,7 +347,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Semantic errors are attached to the binary shift AST node's source span; the collector carries file/line/column, and the legacy Error record retains line/column. i32 shifts by 32/33 and u8 shifts by 8 now produce Semantic errors; boundary-valid u8 << 7 and i64 >> 63 remain accepted.
 - Dynamic shift counts remain accepted at Semantic time because their value is not statically known; OIR/runtime must define fail-safe behavior for counts at or above the value width (trap/diagnostic rather than undefined host behavior).
 - Added boundary fixtures to test_semantic_arithmetic.c.
-- Commits: b1852e7e (Semantic), f0114097 (diagnostic clarity), c6d64269 (tests). CI pending; not marked verified.
+- Commits: b1852e7e (Semantic), f0114097 (diagnostic clarity), c6d64269 (tests). Branch-head CI run #4269 passed Linux, Windows, macOS, ASan/UBSan and Valgrind.
 
 
 ### Semantic diagnostics and conditional-control parser correction — 2026-11-12
@@ -384,7 +384,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Range endpoints are now checked for compatible numeric types in every expression context, not only when the range is used as a loop condition.
 - Loop range iterator `it` now inherits the lower endpoint's inferred type rather than being hard-coded to i32.
 - Added valid/invalid standalone range tests, loop range tests, iterator type-inference coverage, and a source-located diagnostic assertion naming both endpoint types.
-- Linux CTest and ASan/UBSan passed on the preceding range checkpoint; full matrix for the latest follow-up is pending.
+- The latest range follow-up is included in branch-head CI run #4269, which passed Linux, Windows, macOS, ASan/UBSan and Valgrind.
 
 
 ### Semantic checkpoint — recursive AST type-expression validation — 2026-11-12
@@ -403,4 +403,4 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - `if`/`elsif` and non-range `loop` conditions now report the actual operand type when it is not `bool`; unknown-name and unary/logical operand diagnostics are not redundantly repeated.
 - Array indexing infers an element type from an array-literal initializer, enabling typed indexed operations. Constant negative and out-of-range indices are rejected with the index, array length and valid range; fixed dimensions are checked when available.
 - Added tests for identifier/member/index postfix operations, constness, non-numeric operands, if/loop condition types, array element inference and bounds diagnostics.
-- Linux CTest and ASan/UBSan passed for this checkpoint. macOS, Windows and Valgrind results remain pending.
+- This checkpoint is included in branch-head CI run #4269; Linux, Windows, macOS, ASan/UBSan and Valgrind all passed.
