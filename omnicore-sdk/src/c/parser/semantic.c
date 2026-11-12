@@ -1378,6 +1378,8 @@ static int are_types_compatible(const char* type1, const char* type2) {
     return semantic_array_signatures_compatible(t1, t2);
 }
 
+static int is_numeric_primitive_type(const char* type_name);
+
 static int semantic_vector_dimension(
     const char* type_name, size_t* dimension_out
 ) {
