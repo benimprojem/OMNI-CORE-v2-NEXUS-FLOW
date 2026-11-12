@@ -219,6 +219,10 @@ int main(void) {
         "f:main(a!u8) !u8 { ret a <<< 18446744073709551616; }";
     static const char shift_negative_radix_invalid[] =
         "f:main(a!i32) !i32 { ret a <<< -0x1; }";
+    static const char shift_radix_constant_expression_invalid[] =
+        "f:main(a!i32) !i32 { ret a <<< (0x10 * 2); }";
+    static const char shift_radix_constant_expression_valid[] =
+        "f:main(a!u8) !u8 { ret a <<< (0x3 + 4); }";
     static const char range_valid[] =
         "f:main() { v:r = 0..10; }";
     static const char range_mixed_numeric_invalid[] =
@@ -346,6 +350,8 @@ int main(void) {
     if (!check_source(shift_unsigned_64_max_invalid, 1)) return 1;
     if (!check_source(shift_unsigned_64_overflow_invalid, 1)) return 1;
     if (!check_source(shift_negative_radix_invalid, 1)) return 1;
+    if (!check_source(shift_radix_constant_expression_invalid, 1)) return 1;
+    if (!check_source(shift_radix_constant_expression_valid, 0)) return 1;
     if (!check_source(range_valid, 0)) return 1;
     if (!check_source(range_mixed_numeric_invalid, 1)) return 1;
     if (!check_source(range_non_numeric_invalid, 1)) return 1;
