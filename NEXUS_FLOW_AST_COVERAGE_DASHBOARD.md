@@ -324,3 +324,6 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 
 - On the `aa81d9ae` CI head, Semantic tests (including generic inference, tuple indexing/bounds, NewType, variadic, named args, cleanup marker, loop condition and array homogeneity) passed; the CTest matrix reached 72/73.
 - Remaining failure in that run is isolated to `parser_accepts_and_rejects_sources` / Nexus Flow catch-fallback-ignore Parser fixture. Semantic suite is green in that run; whole CI is not green yet.
+
+
+- Named-argument follow-up: duplicate parameter binding and positional-after-named forms now produce Semantic diagnostics. Added regression fixtures. Commits `3f86c6da` Semantic, `cfb75499` tests; CI pending.
