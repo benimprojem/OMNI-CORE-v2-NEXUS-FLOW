@@ -191,6 +191,16 @@ int main(void) {
         "f:main() !i32 { ret ~1; }";
     static const char unary_bit_not_invalid[] =
         "f:main() !f64 { ret ~1.0; }";
+    static const char postfix_identifier_valid[] =
+        "f:main() { v:x = 1; x++; x--; }";
+    static const char postfix_constant_invalid[] =
+        "f:main() { c:x = 1; x++; }";
+    static const char postfix_non_numeric_invalid[] =
+        "f:main() { v:s = \\\"text\\\"; s++; }";
+    static const char postfix_literal_invalid[] =
+        "f:main() { 1++; }";
+    static const char postfix_array_element_valid[] =
+        "f:main() { v:arr!i32[4] = [1,2,3,4]; arr[0]++; }";
     if (!check_source(integer_expression, 0)) return 1;
     if (!check_source(float_expression, 0)) return 1;
     if (!check_source(mismatched_operands, 1)) return 1;
@@ -238,6 +248,11 @@ int main(void) {
     if (!check_source(unary_minus_invalid, 1)) return 1;
     if (!check_source(unary_bit_not_valid, 0)) return 1;
     if (!check_source(unary_bit_not_invalid, 1)) return 1;
+    if (!check_source(postfix_identifier_valid, 0)) return 1;
+    if (!check_source(postfix_constant_invalid, 1)) return 1;
+    if (!check_source(postfix_non_numeric_invalid, 1)) return 1;
+    if (!check_source(postfix_literal_invalid, 1)) return 1;
+    if (!check_source(postfix_array_element_valid, 0)) return 1;
     if (!check_error_detail(
         "f:main(a!u8) !u8 {\n    ret a <<< 8;\n}",
         "8-bit width", "0..7", 2)) return 1;
