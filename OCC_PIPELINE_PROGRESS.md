@@ -2187,3 +2187,12 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added negative tests for direct access and malformed copy arity, plus repeated-copy deduplication and durable SemanticResult flag coverage.
 - `listen` and `done` result export/consumption remain Thread module responsibilities under the existing runtime spec. No scheduler, IPC or runtime code was added to Core.
 - Tests are committed; local execution and CI are still pending.
+
+
+### 2026-11-12 — Thread payload explicit-copy implementation closure update
+
+- The earlier implicit by-value capture draft was corrected to match the explicit copy/move ownership model. A thread payload may not directly read/write an outer `SLOT_VAR`; an outer value must be referenced inside `copy(...)`.
+- Core Semantic recognizes `copy(...)` only while validating an active thread payload, requires exactly one source expression, records unique outer symbols and marks their identifier annotations with `SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE`. Payload-local identifiers are not marked.
+- Added source tests for valid repeated copies, direct outer access rejection, and zero/multiple copy arguments. SemanticResult integration checks explicit capture annotations and local non-capture. OIR artifact tests verify the flag survives annotation serialization/validation; unknown flag bits remain rejected.
+- `listen` and `done` output transfer/consumption remain Thread module rules already present in the runtime specification. Core changes are limited to front-end payload validation and capture metadata; no scheduler/IPC behavior was introduced.
+- Latest test additions are committed. CI has not reported a workflow/status, so execution remains pending.
