@@ -2491,8 +2491,19 @@ static void semantic_check_pattern_bindings(
         if (current->type==AST_PATTERN_BINDING) {
             ASTPatternBinding* binding=(ASTPatternBinding*)current;
             /* A bare enum variant is a tag match, not a new local variable. */
-            if (enum_slot && binding->name &&
-                semantic_find_enum_variant(enum_slot,binding->name)) continue;
+            if (enum_slot && binding->name) {
+                ASTEnumVariant* bare_variant =
+                    semantic_find_enum_variant(enum_slot,binding->name);
+                if (bare_variant && !bare_variant->data) continue;
+                if (bare_variant && bare_variant->data) {
+                    char message[256];
+                    (void)snprintf(message,sizeof(message),
+                        "Enum variant '%s' carries payload and requires a constructor pattern.",
+                        binding->name);
+                    report_error(ctx,current,ERR_SEMANTIC_ARG_TYPE,message);
+                    continue;
+                }
+            }
             semantic_add_pattern_binding(
                 ctx,current,binding->name,binding_type);
         } else if (current->type==AST_PATTERN_CONSTRUCTOR) {
@@ -2506,9 +2517,11 @@ static void semantic_check_pattern_bindings(
                 continue;
             }
             if(!enum_slot) {
-                report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
+                char message[256];
+                (void)snprintf(message,sizeof(message),
                     "Constructor pattern requires an enum subject; got '%s'.",
                     binding_type);
+                report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,message);
                 continue;
             }
             variant=semantic_find_enum_variant(enum_slot,constructor->name);
