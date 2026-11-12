@@ -143,7 +143,7 @@ static int parser_source_reports_syntax_error(
     ok = result == PARSER_STATUS_SYNTAX_ERROR &&
         parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
         ctx->ast_root != NULL && ctx->error_count > 0;
-    if (!ok) fprintf(stderr,"syntax rejection debug: file=%s result=%d status=%d errors=%d\\n",
+    if (!ok) fprintf(stderr,"syntax rejection debug: file=%s result=%d status=%d errors=%d\n",
         filename,result,parser_get_status(ctx),ctx->error_count);
     parser_destroy(ctx);
     return ok;
@@ -709,7 +709,7 @@ static int test_parser_allocation_failure_injection(void) {
             break;
         }
         fprintf(stderr,
-            "OOM injection mismatch at allocation %zu (observed %zu, status %d, result %d).\\n",
+            "OOM injection mismatch at allocation %zu (observed %zu, status %d, result %d).\n",
             fail_at,ctx->test_allocation_count,(int)status,result);
         parser_destroy(ctx);
         return 0;
@@ -777,7 +777,7 @@ static int test_struct_literal_parser_source_spans(void) {
         }
         if (parser) parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Struct literal parser AST test failed.\\n");
+            fprintf(stderr, "Struct literal parser AST test failed.\n");
             return 0;
         }
     }
@@ -1725,11 +1725,11 @@ static int test_expression_precedence_and_associativity_ast(void) {
     int ok = 0;
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
-        ctx->error_count != 0 || !ctx->ast_root) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        ctx->error_count != 0 || !ctx->ast_root) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = ((ASTBlock*)((ASTFuncDecl*)
         ((ASTProgram*)ctx->ast_root)->declarations)->body)->statements;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_OR ||
@@ -1737,159 +1737,159 @@ static int test_expression_precedence_and_associativity_ast(void) {
         expression->source_span.start_offset!=(uint64_t)(guard_start-source) ||
         expression->source_span.end_offset!=(uint64_t)(guard_end-source) ||
         expression->source_span.start_column!=(uint32_t)(guard_start-source)+1u ||
-        expression->source_span.end_column!=(uint32_t)(guard_end-source)+1u) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        expression->source_span.end_column!=(uint32_t)(guard_end-source)+1u) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     {
         ASTNode* and_expr = ((ASTBinaryExpr*)expression)->left;
         ASTNode* compare_right = ((ASTBinaryExpr*)expression)->right;
         if (!and_expr || and_expr->type != AST_BINARY_EXPR ||
             ((ASTBinaryExpr*)and_expr)->op != TOKEN_AND ||
             !compare_right || compare_right->type != AST_BINARY_EXPR ||
-            ((ASTBinaryExpr*)compare_right)->op != TOKEN_EQ) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+            ((ASTBinaryExpr*)compare_right)->op != TOKEN_EQ) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
         if (((ASTBinaryExpr*)and_expr)->left->type != AST_BINARY_EXPR ||
             ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->left)->op != TOKEN_GT ||
             ((ASTBinaryExpr*)and_expr)->right->type != AST_BINARY_EXPR ||
-            ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->right)->op != TOKEN_GT) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+            ((ASTBinaryExpr*)((ASTBinaryExpr*)and_expr)->right)->op != TOKEN_GT) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
         !((ASTBinaryExpr*)expression)->right ||
         ((ASTBinaryExpr*)expression)->right->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->right)->op != TOKEN_BIT_OR)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_LT ||
         !((ASTBinaryExpr*)expression)->right ||
         ((ASTBinaryExpr*)expression)->right->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->right)->op != TOKEN_BIT_OR)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_LT ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_MINUS ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_MINUS)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_SLASH ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_SLASH)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_LT ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_LT)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_EQ ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_EQ)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_BIT_OR ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_OR)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_BIT_XOR ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_XOR)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_BIT_AND ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_BIT_AND)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_AND ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_AND)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_OR ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)((ASTBinaryExpr*)expression)->left)->op != TOKEN_OR)
-        { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     statement = statement->next;
-    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+    if (!statement || statement->type != AST_VAR_DECL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     expression = ((ASTVarDecl*)statement)->initializer;
     if (!expression || expression->type != AST_BINARY_EXPR ||
         ((ASTBinaryExpr*)expression)->op != TOKEN_RANGE ||
         !((ASTBinaryExpr*)expression)->left ||
         ((ASTBinaryExpr*)expression)->left->type != AST_LITERAL ||
         !((ASTBinaryExpr*)expression)->right ||
-        ((ASTBinaryExpr*)expression)->right->type != AST_LITERAL) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        ((ASTBinaryExpr*)expression)->right->type != AST_LITERAL) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
 
     {
         static const char* invalid_ranges[] = {
@@ -1906,13 +1906,13 @@ static int test_expression_precedence_and_associativity_ast(void) {
                 (parser_run(chained_range) != PARSER_STATUS_OK ||
                  chained_range->error_count != 0);
             if (chained_range) parser_destroy(chained_range);
-            if (!rejected) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+            if (!rejected) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
         }
     }
 
     stream = tmpfile();
     if (!stream || !ast_serialize(ctx->ast_root, stream) ||
-        fseek(stream, 0, SEEK_SET) != 0) { fprintf(stderr, "precedence fixture fail at line %d\\n", __LINE__); goto done; }
+        fseek(stream, 0, SEEK_SET) != 0) { fprintf(stderr, "precedence fixture fail at line %d\n", __LINE__); goto done; }
     decoded = ast_deserialize(stream);
     ok = decoded && decoded->type == AST_PROGRAM;
 done:
@@ -2649,7 +2649,7 @@ static int test_intrinsic_ast_family(void) {
         if (stream) fclose(stream);
         parser_destroy(parser);
         if (!valid) {
-            fprintf(stderr, "Intrinsic AST/codec mapping failed at index %lu.\\n",
+            fprintf(stderr, "Intrinsic AST/codec mapping failed at index %lu.\n",
                 (unsigned long)i);
             return 0;
         }
@@ -2953,7 +2953,7 @@ static int test_use_alias_and_namespace_ast_codec(void) {
     if(stream) fclose(stream);
     parser_destroy(parser);
     if(!valid) {
-        fprintf(stderr,"USE alias/namespace AST, span or codec test failed.\\n");
+        fprintf(stderr,"USE alias/namespace AST, span or codec test failed.\n");
         return 0;
     }
     for(i=0;i<sizeof(invalid_sources)/sizeof(invalid_sources[0]);++i) {
@@ -2961,7 +2961,7 @@ static int test_use_alias_and_namespace_ast_codec(void) {
             (const uint8_t*)invalid_sources[i],strlen(invalid_sources[i]));
         if(!parser) return 0;
         if(parser_run(parser)==PARSER_STATUS_OK || parser->error_count==0) {
-            fprintf(stderr,"Malformed USE namespace accepted: %s\\n",invalid_sources[i]);
+            fprintf(stderr,"Malformed USE namespace accepted: %s\n",invalid_sources[i]);
             parser_destroy(parser);
             return 0;
         }
@@ -2997,19 +2997,19 @@ static int test_use_comma_list_spans(void) {
     }
     if(!valid) {
         Error* diagnostic;
-        fprintf(stderr,"USE comma-list ownership/span test failed (errors=%d, status=%d).\\n",
+        fprintf(stderr,"USE comma-list ownership/span test failed (errors=%d, status=%d).\n",
             parser->error_count,(int)parser_get_status(parser));
         for(diagnostic=parser->error_head;diagnostic;diagnostic=diagnostic->next)
-            fprintf(stderr,"  parser error %d at %d:%d: %s\\n",
+            fprintf(stderr,"  parser error %d at %d:%d: %s\n",
                 diagnostic->code,diagnostic->line,diagnostic->col,
                 diagnostic->message?diagnostic->message:"(null)");
-        if(first) fprintf(stderr," first path=%s alias=%s span=%llu..%llu loc=%u\\n",
+        if(first) fprintf(stderr," first path=%s alias=%s span=%llu..%llu loc=%u\n",
             first->module_name?first->module_name:"(null)",
             first->alias?first->alias:"(null)",
             (unsigned long long)first->base.source_span.start_offset,
             (unsigned long long)first->base.source_span.end_offset,
             (unsigned)first->base.source_span.has_location);
-        if(second) fprintf(stderr," second path=%s alias=%s span=%llu..%llu loc=%u\\n",
+        if(second) fprintf(stderr," second path=%s alias=%s span=%llu..%llu loc=%u\n",
             second->module_name?second->module_name:"(null)",
             second->alias?second->alias:"(null)",
             (unsigned long long)second->base.source_span.start_offset,
@@ -3314,7 +3314,7 @@ static int test_function_type_alias_and_callback_parameter(void) {
     if (stream) fclose(stream);
     parser_destroy(parser);
     if (!valid) {
-        fprintf(stderr, "Function-type/callback AST contract failed.\\n");
+        fprintf(stderr, "Function-type/callback AST contract failed.\n");
         return 0;
     }
 
@@ -3686,7 +3686,7 @@ static int test_nested_group_and_default_ast(void) {
     if (stream) fclose(stream);
     if (decoded) ast_destroy(decoded);
     parser_destroy(parser);
-    if (!valid) fprintf(stderr, "Nested group/default AST parser+codec test failed.\\n");
+    if (!valid) fprintf(stderr, "Nested group/default AST parser+codec test failed.\n");
     return valid;
 }
 
@@ -3708,7 +3708,7 @@ static int test_enum_payload_rejects_malformed_fields(void) {
         if(result==PARSER_STATUS_OK ||
            parser_get_status(parser)!=PARSER_STATUS_SYNTAX_ERROR ||
            parser->error_count==0u) {
-            fprintf(stderr,"Malformed Enum payload %lu was not rejected.\\n",
+            fprintf(stderr,"Malformed Enum payload %lu was not rejected.\n",
                 (unsigned long)i);
             parser_destroy(parser);
             return 0;
@@ -3859,9 +3859,9 @@ static int test_separated_variable_declarations_and_declaration_spans(void) {
 done:
     if (!valid) {
         Error* error;
-        fprintf(stderr, "Separated variable declaration/source-span Parser test failed.\\n");
+        fprintf(stderr, "Separated variable declaration/source-span Parser test failed.\n");
         for (error = parser->error_head; error; error = error->next)
-            fprintf(stderr, "  %d:%d %s\\n", error->line, error->col,
+            fprintf(stderr, "  %d:%d %s\n", error->line, error->col,
                 error->message ? error->message : "");
     }
     parser_destroy(parser);
@@ -3914,9 +3914,9 @@ static int test_expression_body_function_source_spans(void) {
     }
     if (!valid && parser) {
         Error* error;
-        fprintf(stderr, "Expression-body function source-span Parser test failed.\\n");
+        fprintf(stderr, "Expression-body function source-span Parser test failed.\n");
         for (error = parser->error_head; error; error = error->next)
-            fprintf(stderr, "  %d:%d %s\\n", error->line, error->col,
+            fprintf(stderr, "  %d:%d %s\n", error->line, error->col,
                 error->message ? error->message : "");
     }
     if (parser) parser_destroy(parser);
@@ -3967,7 +3967,7 @@ static int test_indexed_capture_assignment_ast(void) {
     }
     if (parser) parser_destroy(parser);
     if (!valid) {
-        fprintf(stderr, "Indexed capture assignment Parser AST/span test failed.\\n");
+        fprintf(stderr, "Indexed capture assignment Parser AST/span test failed.\n");
         return 0;
     }
     return parser_source_reports_syntax_error(
@@ -4042,7 +4042,7 @@ static int test_vector_and_bit_byte_type_parser_coverage(void) {
     valid = valid && node == NULL;
 done:
     if (!valid)
-        fprintf(stderr, "Vec2/3/4 and bit/byte width type Parser coverage failed.\\n");
+        fprintf(stderr, "Vec2/3/4 and bit/byte width type Parser coverage failed.\n");
     parser_destroy(parser);
     return valid;
 }
@@ -4077,7 +4077,7 @@ static int test_copy_intrinsic_uses_generic_call_ast(void) {
             call->base.source_span.end_offset == (uint64_t)(call_end - source);
     }
     if (parser) parser_destroy(parser);
-    if (!valid) fprintf(stderr, "copy() generic-call Parser AST/span test failed.\\n");
+    if (!valid) fprintf(stderr, "copy() generic-call Parser AST/span test failed.\n");
     return valid;
 }
 
@@ -4270,7 +4270,7 @@ static int test_increment_decrement_parser_forms(void) {
         int parse_result=parser_run(ctx);
         if (parse_result != PARSER_STATUS_OK || ctx->error_count != 0 ||
             !ctx->ast_root || !ast_validate(ctx->ast_root,NULL)) {
-            fprintf(stderr,"flow test parse gate: result=%d errors=%d root=%p valid=%d\\n",
+            fprintf(stderr,"flow test parse gate: result=%d errors=%d root=%p valid=%d\n",
                 parse_result,ctx->error_count,(void*)ctx->ast_root,
                 ctx->ast_root?ast_validate(ctx->ast_root,NULL):0);
             goto done;
@@ -4298,7 +4298,7 @@ static int test_increment_decrement_parser_forms(void) {
         statement = statement->next;
     }
     if (statement) {
-        fprintf(stderr,"flow test: unexpected trailing statement kind=%d\\n",
+        fprintf(stderr,"flow test: unexpected trailing statement kind=%d\n",
             (int)statement->type);
         goto done;
     }
@@ -4480,29 +4480,31 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         ctx->error_count != 0 || !ctx->ast_root ||
         !ast_validate(ctx->ast_root, NULL)) goto done;
-    stage=2;\n    function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    stage=2;
+    function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK)
         goto done;
-    stage=3;\n    statement = ((ASTBlock*)function->body)->statements;
+    stage=3;
+    statement = ((ASTBlock*)function->body)->statements;
     for (i = 0u; i < sizeof(operators) / sizeof(operators[0]); ++i) {
         ASTVarDecl* variable;
         ASTNexusFlow* flow;
         const char* start = strstr(source, spans[i]);
         const char* end = start ? start + strlen(spans[i]) : NULL;
         if (!statement || statement->type != AST_VAR_DECL) {
-            fprintf(stderr,"flow test arm %zu: statement kind mismatch\\n",i); goto done;
+            fprintf(stderr,"flow test arm %zu: statement kind mismatch\n",i); goto done;
         }
         variable = (ASTVarDecl*)statement;
         if (!variable->name || strcmp(variable->name, names[i]) != 0 ||
             !variable->initializer || variable->initializer->type != AST_NEXUS_FLOW) {
-            fprintf(stderr,"flow test arm %zu: name/initializer mismatch\\n",i); goto done;
+            fprintf(stderr,"flow test arm %zu: name/initializer mismatch\n",i); goto done;
         }
         flow = (ASTNexusFlow*)variable->initializer;
         if (flow->op != operators[i] || !flow->left || !flow->right ||
             !start || !end || !flow->base.source_span.has_location ||
             flow->base.source_span.start_offset != (uint64_t)(start - source) ||
             flow->base.source_span.end_offset != (uint64_t)(end - source)) {
-            fprintf(stderr,"flow span debug arm=%zu op=%d expected=%llu-%llu actual=%u:%llu-%llu\\n",
+            fprintf(stderr,"flow span debug arm=%zu op=%d expected=%llu-%llu actual=%u:%llu-%llu\n",
                 i,(int)flow->op,
                 (unsigned long long)(start ? start-source : 0),
                 (unsigned long long)(end ? end-source : 0),
@@ -4515,16 +4517,16 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
             if (flow->right->type != AST_IDENTIFIER ||
                 strcmp(((ASTIdentifier*)flow->right)->name, "e") != 0 ||
                 !flow->catch_block || flow->catch_block->type != AST_BLOCK) {
-                fprintf(stderr,"flow test arm 0: right/catch mismatch type=%d catch=%d\\n",
+                fprintf(stderr,"flow test arm 0: right/catch mismatch type=%d catch=%d\n",
                     (int)flow->right->type,flow->catch_block?(int)flow->catch_block->type:0); goto done;
             }
         } else if (i == 1u) {
             if (flow->right->type != AST_IDENTIFIER || flow->catch_block) {
-                fprintf(stderr,"flow test arm 1: right/catch mismatch type=%d catch=%p\\n",
+                fprintf(stderr,"flow test arm 1: right/catch mismatch type=%d catch=%p\n",
                     (int)flow->right->type,(void*)flow->catch_block); goto done;
             }
         } else if (flow->right->type != AST_FUNC_CALL || flow->catch_block) {
-            fprintf(stderr,"flow test arm 2: right/catch mismatch type=%d catch=%p\\n",
+            fprintf(stderr,"flow test arm 2: right/catch mismatch type=%d catch=%p\n",
                 (int)flow->right->type,(void*)flow->catch_block); goto done;
         }
         statement = statement->next;
@@ -4638,11 +4640,11 @@ int main(int argc, char** argv) {
     if (!test_dotted_module_use_path()) return 1;
     if (!test_use_path_malformed_and_exact_spans()) return 1;
     if (!test_use_comma_list_spans()) return 1;
-    if (!test_use_alias_and_namespace_ast_codec()) { fprintf(stderr, "USE alias/namespace AST codec test failed.\\n"); return 1; }
+    if (!test_use_alias_and_namespace_ast_codec()) { fprintf(stderr, "USE alias/namespace AST codec test failed.\n"); return 1; }
     if (!test_pointer_reference_type_declarators()) return 1;
     if (!test_function_type_alias_and_callback_parameter()) return 1;
-    if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\\n"); return 1; }
-    if (!test_callback_parameter_exact_source_spans()) { fprintf(stderr, "Callback parameter exact source-span test failed.\\n"); return 1; }
+    if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\n"); return 1; }
+    if (!test_callback_parameter_exact_source_spans()) { fprintf(stderr, "Callback parameter exact source-span test failed.\n"); return 1; }
     if (!test_null_and_numeric_literal_ast()) return 1;
     if (!test_implicit_type_variable_spelling()) return 1;
     if (!test_spawn_is_outside_core_parser()) return 1;
@@ -4659,35 +4661,35 @@ int main(int argc, char** argv) {
     if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
     if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\n"); return 1; }
     if (!test_string_append_assignment_ast()) {
-        fprintf(stderr, "String append assignment AST/source-span parser test failed.\\n");
+        fprintf(stderr, "String append assignment AST/source-span parser test failed.\n");
         return 1;
     }
     if (!test_numeric_and_flow_shift_operators()) {
-        fprintf(stderr, "Numeric/Flow shift distinction or shift-chain bound test failed.\\n");
+        fprintf(stderr, "Numeric/Flow shift distinction or shift-chain bound test failed.\n");
         return 1;
     }
     if (!test_increment_decrement_parser_forms()) {
-        fprintf(stderr, "Prefix/postfix increment/decrement AST/source-span test failed.\\n");
+        fprintf(stderr, "Prefix/postfix increment/decrement AST/source-span test failed.\n");
         return 1;
     }
     if (!test_equality_operator_parser_forms()) {
-        fprintf(stderr, "Equality operator AST/source-span Parser test failed.\\n");
+        fprintf(stderr, "Equality operator AST/source-span Parser test failed.\n");
         return 1;
     }
     if (!test_relational_and_unary_operator_parser_forms()) {
-        fprintf(stderr, "Relational/unary operator AST/source-span Parser test failed.\\n");
+        fprintf(stderr, "Relational/unary operator AST/source-span Parser test failed.\n");
         return 1;
     }
     if (!test_nexus_flow_catch_fallback_ignore_forms()) {
-        fprintf(stderr, "Nexus Flow catch/fallback/ignore Parser test failed.\\n");
+        fprintf(stderr, "Nexus Flow catch/fallback/ignore Parser test failed.\n");
         return 1;
     }
     if (!test_legacy_flow_spellings_are_rejected()) {
-        fprintf(stderr, "Legacy Flow token spellings were not rejected or canonical foreach failed.\\n");
+        fprintf(stderr, "Legacy Flow token spellings were not rejected or canonical foreach failed.\n");
         return 1;
     }
     if (!test_deferred_intent_ai_syntax_is_rejected()) {
-        fprintf(stderr, "Deferred Intent/AI syntax was accepted by the Core Parser.\\n");
+        fprintf(stderr, "Deferred Intent/AI syntax was accepted by the Core Parser.\n");
         return 1;
     }
     if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
@@ -4715,11 +4717,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!test_parenthesized_rolling_retry_disambiguation()) {
-        fprintf(stderr, "Parenthesized rolling retry was misclassified as conditional control.\\n");
+        fprintf(stderr, "Parenthesized rolling retry was misclassified as conditional control.\n");
         return 1;
     }
     if (!test_legacy_unpack_operator_is_rejected()) {
-        fprintf(stderr, "Legacy ...> unpack operator was unexpectedly accepted.\\n");
+        fprintf(stderr, "Legacy ...> unpack operator was unexpectedly accepted.\n");
         return 1;
     }
     if (!test_parser_rejects_excessive_expression_nesting()) {
@@ -4763,7 +4765,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!test_nested_block_exact_source_spans()) {
-        fprintf(stderr, "Nested block exact source-span test failed.\\n");
+        fprintf(stderr, "Nested block exact source-span test failed.\n");
         return 1;
     }
     if (!test_parser_nested_block_recovery()) {
@@ -4787,7 +4789,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!test_enum_payload_rejects_malformed_fields()) {
-        fprintf(stderr, "Malformed Enum payload forms were accepted.\\n");
+        fprintf(stderr, "Malformed Enum payload forms were accepted.\n");
         return 1;
     }
     if (argc != 4) return 2;
@@ -6543,7 +6545,7 @@ generic_type_done:
         if(decoded) ast_destroy(decoded);
         if(parser) parser_destroy(parser);
         if(!valid) {
-            fprintf(stderr,"Default parameter AST/span/codec checks failed.\\n");
+            fprintf(stderr,"Default parameter AST/span/codec checks failed.\n");
             return 1;
         }
     }
@@ -6644,7 +6646,7 @@ generic_type_done:
                     error->message?error->message:"");
         }
         if(parser && (!parser->ast_root || parser->error_count!=0))
-            fprintf(stderr,"Enum fixture parse failed: status=%d errors=%u\\n",
+            fprintf(stderr,"Enum fixture parse failed: status=%d errors=%u\n",
                 (int)parser->status,(unsigned)parser->error_count);
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
@@ -6799,7 +6801,7 @@ generic_type_done:
                 ASTValidationError validation_error;
                 int graph_ok=ast_validate(parser->ast_root,&validation_error);
                 fprintf(stderr,
-                    "Group AST shape mismatch db=%s open=%s default=%s nested=%s query=%s graph=%d code=%d field=%s node=%d spans[g=%llu..%llu o=%llu..%llu d=%llu..%llu n=%llu..%llu q=%llu..%llu]\\n",
+                    "Group AST shape mismatch db=%s open=%s default=%s nested=%s query=%s graph=%d code=%d field=%s node=%d spans[g=%llu..%llu o=%llu..%llu d=%llu..%llu n=%llu..%llu q=%llu..%llu]\n",
                     group&&group->name?group->name:"<null>",
                     open&&open->public_name?open->public_name:"<null>",
                     default_method&&default_method->public_name?default_method->public_name:"<null>",
@@ -6819,29 +6821,29 @@ generic_type_done:
                     (unsigned long long)(query?query->base.source_span.end_offset:0));
             }
             stream=tmpfile();
-            if(!stream) { fprintf(stderr,"Group AST tmpfile failed\\n"); valid=0; }
+            if(!stream) { fprintf(stderr,"Group AST tmpfile failed\n"); valid=0; }
             else if(valid && !ast_serialize(parser->ast_root,stream)) {
-                fprintf(stderr,"Group AST serialization failed\\n"); valid=0;
+                fprintf(stderr,"Group AST serialization failed\n"); valid=0;
             } else if(valid && fseek(stream,0L,SEEK_SET)!=0) {
-                fprintf(stderr,"Group AST rewind failed\\n"); valid=0;
+                fprintf(stderr,"Group AST rewind failed\n"); valid=0;
             } else if(valid) {
                 decoded=ast_deserialize(stream);
-                if(!decoded) { fprintf(stderr,"Group AST deserialization failed\\n"); valid=0; }
+                if(!decoded) { fprintf(stderr,"Group AST deserialization failed\n"); valid=0; }
                 else if(!ast_validate(decoded,NULL)) {
-                    fprintf(stderr,"Group AST decoded graph invalid\\n"); valid=0;
+                    fprintf(stderr,"Group AST decoded graph invalid\n"); valid=0;
                 }
             }
         } else if(parser) {
             Error* error;
-            fprintf(stderr,"Group AST parse/validation failed status=%d errors=%d\\n",
+            fprintf(stderr,"Group AST parse/validation failed status=%d errors=%d\n",
                 (int)parser_get_status(parser),parser->error_count);
             for(error=parser->error_head;error;error=error->next)
-                fprintf(stderr,"  %d:%d %s\\n",error->line,error->col,
+                fprintf(stderr,"  %d:%d %s\n",error->line,error->col,
                     error->message?error->message:"");
             if(parser->ast_root) ast_print((ASTNode*)parser->ast_root);
         }
         if(!valid && parser && !parser->ast_root)
-            fprintf(stderr,"Group AST parser produced no root\\n");
+            fprintf(stderr,"Group AST parser produced no root\n");
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
         if(parser) parser_destroy(parser);
@@ -6884,44 +6886,44 @@ generic_type_done:
                 flag_field && strcmp(flag_field->name,"flag")==0 &&
                 flag_field->value && flag_field->value->type==AST_LITERAL &&
                 flag_field->base.next==NULL;
-            if(!valid) fprintf(stderr,"Nested Struct literal parsed shape assertion failed\\n");
+            if(!valid) fprintf(stderr,"Nested Struct literal parsed shape assertion failed\n");
             stream=tmpfile();
             if(!stream) {
-                fprintf(stderr,"Nested Struct literal tmpfile failed\\n");
+                fprintf(stderr,"Nested Struct literal tmpfile failed\n");
                 valid=0;
             } else if(valid && !ast_serialize(parser->ast_root,stream)) {
-                fprintf(stderr,"Nested Struct literal serialization failed\\n");
+                fprintf(stderr,"Nested Struct literal serialization failed\n");
                 valid=0;
             } else if(valid && fseek(stream,0L,SEEK_SET)!=0) {
-                fprintf(stderr,"Nested Struct literal stream rewind failed\\n");
+                fprintf(stderr,"Nested Struct literal stream rewind failed\n");
                 valid=0;
             } else if(valid) {
                 decoded=ast_deserialize(stream);
                 if(!decoded) {
-                    fprintf(stderr,"Nested Struct literal deserialization failed\\n");
+                    fprintf(stderr,"Nested Struct literal deserialization failed\n");
                     valid=0;
                 } else if(!ast_validate(decoded,NULL)) {
-                    fprintf(stderr,"Nested Struct literal decoded graph invalid\\n");
+                    fprintf(stderr,"Nested Struct literal decoded graph invalid\n");
                     valid=0;
                 }
             }
         } else if(parser) {
             Error* error;
-            fprintf(stderr,"Nested Struct literal parse failed status=%d errors=%d\\n",
+            fprintf(stderr,"Nested Struct literal parse failed status=%d errors=%d\n",
                 (int)parser_get_status(parser),parser->error_count);
             for(error=parser->error_head;error;error=error->next)
-                fprintf(stderr,"  %d:%d %s\\n",error->line,error->col,
+                fprintf(stderr,"  %d:%d %s\n",error->line,error->col,
                     error->message?error->message:"");
         }
         if(!valid && parser && parser->ast_root) {
-            fprintf(stderr,"Nested Struct literal AST shape dump follows:\\n");
+            fprintf(stderr,"Nested Struct literal AST shape dump follows:\n");
             ast_print((ASTNode*)parser->ast_root);
         }
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
         if(parser) parser_destroy(parser);
         if(!valid) {
-            fprintf(stderr,"Nested Struct literal AST/codec test failed.\\n");
+            fprintf(stderr,"Nested Struct literal AST/codec test failed.\n");
             return 1;
         }
     }
@@ -6960,7 +6962,7 @@ generic_type_done:
                 body->base.source_span.end_column==(uint32_t)(close_brace+1-source)+1u &&
                 ast_validate(root,NULL);
             if(!valid) fprintf(stderr,
-                "AST_PROGRAM root span actual type=%d has=%u offsets=%llu..%llu lines=%u..%u cols=%u..%u node=%d:%d expected_end=%zu\\n",
+                "AST_PROGRAM root span actual type=%d has=%u offsets=%llu..%llu lines=%u..%u cols=%u..%u node=%d:%d expected_end=%zu\n",
                 (int)root->type,(unsigned)root->source_span.has_location,
                 (unsigned long long)root->source_span.start_offset,
                 (unsigned long long)root->source_span.end_offset,
@@ -6969,15 +6971,15 @@ generic_type_done:
                 root->line,root->col,sizeof(source)-1u);
             stream=tmpfile();
             if(!stream) {
-                fprintf(stderr,"AST_PROGRAM span test tmpfile failed\\n");
+                fprintf(stderr,"AST_PROGRAM span test tmpfile failed\n");
                 valid=0;
             } else if(!valid) {
                 valid=0;
             } else if(!ast_serialize(root,stream)) {
-                fprintf(stderr,"AST_PROGRAM span test serialization failed\\n");
+                fprintf(stderr,"AST_PROGRAM span test serialization failed\n");
                 valid=0;
             } else if(fseek(stream,0L,SEEK_SET)!=0) {
-                fprintf(stderr,"AST_PROGRAM span test rewind failed\\n");
+                fprintf(stderr,"AST_PROGRAM span test rewind failed\n");
                 valid=0;
             } else {
                 decoded=ast_deserialize(stream);
@@ -6987,21 +6989,21 @@ generic_type_done:
                     decoded->source_span.end_line==1u &&
                     decoded->source_span.end_column==(uint32_t)sizeof(source) &&
                     ast_validate(decoded,NULL);
-                if(!valid) fprintf(stderr,"AST_PROGRAM decoded span missing or mismatched\\n");
+                if(!valid) fprintf(stderr,"AST_PROGRAM decoded span missing or mismatched\n");
             }
         } else if(parser) {
             Error* error;
-            fprintf(stderr,"AST_PROGRAM span parse failed status=%d errors=%d\\n",
+            fprintf(stderr,"AST_PROGRAM span parse failed status=%d errors=%d\n",
                 (int)parser_get_status(parser),parser->error_count);
             for(error=parser->error_head;error;error=error->next)
-                fprintf(stderr,"  %d:%d %s\\n",error->line,error->col,
+                fprintf(stderr,"  %d:%d %s\n",error->line,error->col,
                     error->message?error->message:"");
         }
         if(stream) fclose(stream);
         if(decoded) ast_destroy(decoded);
         if(parser) parser_destroy(parser);
         if(!valid) {
-            fprintf(stderr,"AST_PROGRAM full-source span/codec test failed.\\n");
+            fprintf(stderr,"AST_PROGRAM full-source span/codec test failed.\n");
             return 1;
         }
     }
@@ -7033,33 +7035,33 @@ generic_type_done:
         }
         if(parser) parser_destroy(parser);
         if(!valid) {
-            fprintf(stderr,"Shift precedence/AST construction test failed.\\n");
+            fprintf(stderr,"Shift precedence/AST construction test failed.\n");
             return 1;
         }
     }
 
     if (!test_separated_variable_declarations_and_declaration_spans()) {
-        fprintf(stderr, "Separated declaration Parser coverage failed.\\n");
+        fprintf(stderr, "Separated declaration Parser coverage failed.\n");
         return 1;
     }
 
     if (!test_expression_body_function_source_spans()) {
-        fprintf(stderr, "Expression-body function Parser coverage failed.\\n");
+        fprintf(stderr, "Expression-body function Parser coverage failed.\n");
         return 1;
     }
 
     if (!test_indexed_capture_assignment_ast()) {
-        fprintf(stderr, "Indexed capture assignment Parser coverage failed.\\n");
+        fprintf(stderr, "Indexed capture assignment Parser coverage failed.\n");
         return 1;
     }
 
     if (!test_vector_and_bit_byte_type_parser_coverage()) {
-        fprintf(stderr, "Vector/bit/byte type Parser coverage failed.\\n");
+        fprintf(stderr, "Vector/bit/byte type Parser coverage failed.\n");
         return 1;
     }
 
     if (!test_copy_intrinsic_uses_generic_call_ast()) {
-        fprintf(stderr, "copy() generic-call Parser coverage failed.\\n");
+        fprintf(stderr, "copy() generic-call Parser coverage failed.\n");
         return 1;
     }
 
