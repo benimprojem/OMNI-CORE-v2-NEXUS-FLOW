@@ -529,7 +529,7 @@ static int check_extended_ast_semantics(void) {
     const char* invalid_recursive_union_field =
         "f:main() { union:Choice { v:payload!*MissingType } }";
     const char* invalid_recursive_enum_payload =
-        "f:main() { nt:enum: Result { Ok(value!*MissingType) } }";
+        "nt:enum: Result { Ok(value!*MissingType) } f:main() {}";
     const char* invalid_function_decl_return_type_with_value =
         "f:main() !MissingType { ret 1; }";
     const char* valid_inferred_array =
