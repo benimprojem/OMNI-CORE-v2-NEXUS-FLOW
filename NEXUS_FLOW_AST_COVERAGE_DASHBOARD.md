@@ -30,8 +30,8 @@
 
 ## OS / Thread / I/O intrinsic identity checkpoint — 2026-11-12
 
-- `echo`, `spawn`, `send`, `receive`, `done` identity checks remain in the shared intrinsic validator.
-- `prnt`, `prmt`, `write`, `fwrite` now use the same exact AST callee-name validation; malformed/missing/non-identifier callees produce Semantic diagnostics.
+- `echo` remains a Core/OS intrinsic identity check. `spawn`, `listen`, `send`, `receive` and `done` are generic Thread module calls; Core does not impose their module signatures or runtime identity rules.
+- `prnt`, `prmt`, `write`, `fwrite` use their existing exact AST callee-name validation; malformed/missing/non-identifier callees produce Semantic diagnostics.
 - `intr` is also mapped to its exact intrinsic AST callee name; direct AST regression coverage includes the `AST_INTR` tag.
 - Direct AST fixtures cover all four accepted identities and a mismatched `fwrite` callee; existing `echo` source fixture remains.
 - This validates only front-end AST identity. It does not impose I/O provider, stream, device, file-system, or Thread runtime behavior.
@@ -178,9 +178,9 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| Thread block `(name)>{...}` | `AST_THREAD_BLOCK` (70) | ✓ | ✓ | ✓ | ? | ? | ? | mode/timeout, scheduling, capture/lifetime, cancel/sync |
-| `spawn` | Legacy `AST_SPAWN` (40) | D | X | ✓ | D | D | — | Core Parser üretmez; Thread modülünün grammar/runtime sözleşmesi ayrı tanımlanmalı |
-| Listen/send/receive/done | Matching AST tags (41–45) | ✓ | ✓ | ✓ | ? | ? | ? | Thread/event payload, synchronization, effects ve lowering |
+| Thread block `(name)>{...}` | `AST_THREAD_BLOCK` (70) | ✓ | ✓ | ✓ | ~ | ? | ? | by-value capture metadata eklendi; runtime snapshot/transfer, lifetime ve cancel/sync |
+| `spawn(name)` | `AST_FUNC_CALL(identifier)` | ✓ | ✓ | ✓ | ~ | ? | ? | Semantic named-payload lookup/arity/type validation; Thread runtime create/schedule/transfer |
+| `listen/send/receive/done` | `AST_FUNC_CALL(identifier)` | ✓ | ✓ | ✓ | ? | ? | ? | Thread module signatures, payload/event effects, synchronization ve lowering |
 | FASTEXEC block | `AST_FASTEXEC_BLOCK` (104) | ✓ | ✓ | ✓ | ~ | D | — | ordered statement payload ve node source-span round-trip; target/capability Semantic checks açık |
 | ASM label/raw body | `AST_ASM_LABEL` (105), opaque ASM token | ✓ | ✓ | ✓ | ~ | D | — | label/source_text/source_length ve source-span payload round-trip; asmcall/jmp placeholders, register/clobber, ABI ve target checks açık |
 | Intent `@` | `AST_NEXUS_INTENT` (36) | D | D | ✓ | D | D | — | Tasarım aktif edilene kadar davranış eklenmeyecek |
@@ -599,7 +599,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 | AST_NEXUS_JUMP (34) | Boş hedef adı reddi; forward target çözümü ayrı CFG işi | ✓ | ✓ | ? |
 | AST_NEXUS_HALT (35) | Payload/cleanup ve terminal control-flow sözleşmesi açık | ~ | ~ | ? |
 | AST_DEFER (69) | Eksik body reddi; unwind/cleanup sıralaması OIR işi | ✓ | ✓ | ? |
-| AST_THREAD_BLOCK (70) | Boş isim, eksik/yanlış body reddi; nested thread payload reddi; child AST_BLOCK tek lexical scope sahibi | ✓ | ✓ | ? |
+| AST_THREAD_BLOCK (70) | Boş isim, eksik/yanlış body, nested/duplicate payload reddi; outer SLOT_VAR by-value capture listesi; child AST_BLOCK tek lexical scope sahibi | ✓ | ✓ | ? |
 | AST_AI_LOGIC (37, reserved) | Parser üretimi yok; dışarıdan gelen reserved AST fail-closed | ✓ | ✓ | ? |
 
 
@@ -619,8 +619,8 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 | `AST_PRNT` / `prnt(...)` | ~ (genel call traversal) | Runtime output sink (tasarım açık) | UART/framebuffer/debug/host callback ortak ABI henüz yok |
 | `AST_PRMT` / `prmt(...)` | ~ (genel call traversal) | Runtime input/prompt sink (tasarım açık) | Bare-metal provider arayüzü kararlaştırılmalı |
 | `AST_WRITE` / `AST_FWRITE` | ~ (genel call traversal) | File/stream module | Filesystem/stream provider'a bağlı |
-| `AST_SPAWN` (legacy tag) | ✓ fail-closed/identity checkpoint | Thread module | Yeni spawn syntax core parser'a ait değil |
-| `listen/send/receive/done` | ~ (AST structural only) | Thread module | Scheduler, IPC, handle/lifetime Semantic'i Thread modülünde |
+| `spawn(name)` generic call | ✓ (named payload registry + argument validation) | Thread module | Scheduler, transfer ve thread lifetime Core dışında |
+| `listen/send/receive/done` generic calls | ~ (AST call traversal only) | Thread module | API signatures, IPC, handle/lifetime Semantic'i Thread modülünde |
 
 > OS ve Thread modülü ayrımı syntax reference'a işlendi. Bu checkpoint, modül API imzalarını veya bare-metal driver ABI'sini tamamlamaz; ana Semantic sütunları `~` kalır. Test/CI pending.
 
@@ -630,10 +630,9 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 | AST | Structural kontrol | Regression fixture | CI |
 |---|:---:|:---:|:---:|
 | AST_ECHO | callee identifier zorunlu ve adı `echo` | ✓ | ? |
-| AST_SPAWN (legacy) | callee identifier zorunlu ve adı `spawn` | ✓ | ? |
-| AST_SEND | callee identifier zorunlu ve adı `send` | ✓ | ? |
-| AST_RECEIVE | callee identifier zorunlu ve adı `receive` | ✓ | ? |
-| AST_DONE | callee identifier zorunlu ve adı `done` | ✓ | ? |
+| Legacy AST_SPAWN / AST_SEND / AST_RECEIVE / AST_DONE | Codec compatibility tags only; new Parser emits generic AST_FUNC_CALL | ✓ | ? |
+| `spawn(name)` | One identifier argument must resolve in the thread payload registry | ✓ | ? |
+| `listen/send/receive/done` | Generic module calls; Core does not validate Thread module signatures | ✓ | ? |
 
 Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün scheduler/IPC/handle sözleşmesi core Semantic kapsamına alınmadı. `prnt/prmt` ve `write/fwrite` genel call traversal aşamasında; API imza kuralları sağlayıcı modülünde tanımlanacak.
 
@@ -643,7 +642,7 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Core Semantic now requires `thread_block.body` to be an actual `AST_BLOCK`, not merely a non-NULL node. Malformed externally supplied ASTs fail with an explicit diagnostic.
 - Removed the extra scope previously opened by `AST_THREAD_BLOCK`. Its child `AST_BLOCK` is the single owner of lexical scope creation and cleanup; this avoids a redundant SemanticResult scope level while preserving local isolation.
 - Added regression fixtures for a non-block body, a valid local reference inside the block, and rejection of a local variable referenced after the thread block.
-- Thread names remain structural labels; no uniqueness rule or scheduler/IPC semantics was invented.
+- Thread names are unique registry keys. Outer variable references are collected as by-value captures; scheduler/IPC semantics remain outside Core.
 - Implementation and fixture commits are recorded separately; CI remains pending until a workflow reports a result.
 
 
@@ -673,3 +672,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added a regression fixture that verifies one outer variable is captured exactly once while payload-local variables are excluded.
 - `listen`/`done` result transport remains owned by the Thread module and is not reimplemented in Core Semantic. Runtime spec documents the done payload kinds and listen consumer behavior.
 - Tests are committed but not executed here; CI remains pending.
+
+
+### Semantic checkpoint — thread payload capture refinement — 2026-11-12
+
+- Outer `SLOT_VAR` references inside a named payload are collected once by symbol identity. Payload-local declarations, including nested lexical-block locals, are excluded from capture metadata.
+- Capture metadata records the variable's type, source scope/depth, declaration and first-use node. The regression fixture references the same outer variable twice and verifies it is captured only once.
+- Capture is a value snapshot at spawn time. Pointer values are copied shallowly; the pointed-to allocation is not deep-copied. `done`/`listen` output transport remains governed by the Thread runtime specification.
+- Earlier dashboard statements claiming thread names had no uniqueness rule or that Core performed `spawn` callee-identity validation are superseded by the current registry implementation above.
+- Tests added; execution and CI remain pending.
