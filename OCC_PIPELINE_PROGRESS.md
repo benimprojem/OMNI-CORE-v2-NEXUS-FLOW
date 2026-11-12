@@ -2013,3 +2013,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 
 - Array literal diagnostic deduplication: element homogeneity was already enforced in `get_expr_type`; removed a duplicate check from AST_ARRAY_LITERAL traversal so a malformed literal produces one Semantic error. Commit `aa81d9ae`; dashboard `40bf0b6a`.
+
+
+### Semantic test suite checkpoint — 2026-11-12
+
+- CI run for `aa81d9ae` passed the Semantic test target (including the new generic, tuple, NewType, variadic, named argument, block cleanup, loop-condition and array checks). CTest was 72/73.
+- Remaining single failure was Parser test `parser_accepts_and_rejects_sources` / catch-fallback-ignore fixture; the Semantic target itself passed. Overall cross-platform CI is still pending.
+- Dashboard checkpoint: `4ead5149`.
