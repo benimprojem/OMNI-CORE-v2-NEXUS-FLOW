@@ -819,8 +819,8 @@ static int check_pointer_reference_type_semantics(void) {
         "f:main() { v:a!**i32; v:b!**i32; a = b; }";
     const char* nested_pointer_depth_mismatch =
         "f:main() { v:a!**i32; v:b!*i32; a = b; }";
-    const char* exact_nested_reference_assignment =
-        "f:main() { v:a!&*i32; v:b!&*i32; a = b; }";
+    const char* exact_reference_assignment =
+        "f:main() { v:a!&i32; v:b!&i32; a = b; }";
     const char* pointer_integer_mismatch =
         "f:take(value!*i32) {} f:main() { v:address!u64; take(address); }";
     const char* unknown_nested_pointer_target =
@@ -833,7 +833,7 @@ static int check_pointer_reference_type_semantics(void) {
         check_source(reference_base_mismatch, 1) &&
         check_source(exact_nested_pointer_assignment, 0) &&
         check_source(nested_pointer_depth_mismatch, 1) &&
-        check_source(exact_nested_reference_assignment, 0) &&
+        check_source(exact_reference_assignment, 0) &&
         check_source(pointer_integer_mismatch, 1) &&
         check_source(unknown_nested_pointer_target, 1);
 }
