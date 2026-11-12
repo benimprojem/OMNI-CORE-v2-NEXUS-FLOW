@@ -370,6 +370,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added positive/negative tests for unary operators, 8bit representation operations, mixed representation/integer operands, and compound &=, |=, ^= operations.
 - Added collector assertions for Semantic stage ID, complete source range, and line/column reporting.
 - Fixed malformed multi-character C character constants in pointer/reference type validation (`'\\0'` → `'\0'`), parser newline coordinate mapping (`'\\n'` → `'\n'`), and diagnostic test line handling. This also removes compiler warnings and restores the intended terminator/newline checks.
+- Valgrind exposed an uninitialized `SemanticContext.current_fast_exec_owner` read in FASTEXEC intrinsic validation. `semantic_init()` now initializes that scope pointer and the reserved `Language` state; regression coverage already exercises `asmcall`/`asmjmp` both inside and outside FASTEXEC.
 - After the character-constant corrections, the latest CI run passed all Linux CTest tests, ASan/UBSan, and macOS. Windows and Valgrind are still running; Semantic is not marked complete until the full matrix is green.
 
 
