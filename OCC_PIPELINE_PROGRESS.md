@@ -1961,3 +1961,6 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 
 - Tuple's former fail-closed test was updated after Semantic support landed: `AST_TUPLE` is no longer expected to reject; `AST_ASM_BLOCK` remains the pending fail-closed node. Commit `bd041149`; dashboard `b3b974b1`.
+
+
+- Tuple index follow-up: identifier-based tuple indexing now follows the declaration's tuple initializer to resolve element types and bounds (direct tuple-expression-only resolution was insufficient). Semantic fix `45752564`, dashboard `9be8efac`; CI pending.
