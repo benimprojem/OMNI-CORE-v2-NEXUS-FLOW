@@ -1683,7 +1683,9 @@ static void semantic_check_boolean_condition(
         return;
     }
     type_name = get_expr_type(ctx, node);
-    if (!type_name || semantic_is_boolean_condition(ctx, node)) return;
+    if (!type_name) return;
+    if (type_name[0] == '!') ++type_name;
+    if (strcmp(type_name, "bool") == 0) return;
     {
         char message[320];
         (void)snprintf(message, sizeof(message),
