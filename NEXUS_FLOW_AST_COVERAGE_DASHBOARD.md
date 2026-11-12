@@ -503,3 +503,15 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added a direct malformed-AST regression using an unsupported pattern node.
 - Semantic commit: `4d1f4dc6`; test commit: `fa23a52d`.
 - CI verification: pending; no test-pass claim is made.
+
+
+### Semantic checkpoint — Multi-Rule Engine AST integrity — 2026-11-12
+
+- RuleSet declarations now require a non-empty name and validate that every parameter node is an AST variable declaration before signature registration. Invalid parameter nodes are not cast as variable declarations.
+- Rule barriers require both a boolean condition and a diagnostic message; the message must be `str`. Trigger rules require a boolean condition and an action/event name. `always` and `default` require their action/event node.
+- `apply rules` requires a RuleSet name. `on` blocks require RuleSet name, event name, and body before name/event resolution.
+- Duplicate trigger event names now produce an explicit Semantic diagnostic instead of being silently discarded during event registration.
+- Added direct malformed-AST fixtures for missing RuleSet/barrier/trigger/always/default/apply/on fields, plus a source-level duplicate-event fixture.
+- Corrected the syntax reference to match the actual Parser AST tags and current grammar: `always`/`default` block syntax is not currently parsed; only the arrow form is supported.
+- Semantic commit: `b4c070f3` and parameter safety follow-up: `54614fc9`; test commits: `60ae71b3` and `228e25b3`; syntax reference: `ea1008e7`.
+- CI and local execution are not available in this workspace; this checkpoint remains unverified and is not marked test-passing.
