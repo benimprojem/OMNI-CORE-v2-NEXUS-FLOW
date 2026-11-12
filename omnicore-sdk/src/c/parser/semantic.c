@@ -1752,6 +1752,123 @@ static void semantic_check_boolean_condition(
     }
 }
 
+static ASTNode* semantic_intrinsic_argument_value(ASTNode* argument) {
+    if (!argument) return NULL;
+    if (argument->type == AST_NAMED_ARG)
+        return ((ASTNamedArg*)argument)->value;
+    return argument;
+}
+
+static size_t semantic_intrinsic_argument_count(const ASTCall* call) {
+    const ASTNode* argument;
+    size_t count = 0u;
+    if (!call) return 0u;
+    for (argument = call->args; argument; argument = argument->next) {
+        if (count == SIZE_MAX) return SIZE_MAX;
+        ++count;
+    }
+    return count;
+}
+
+static int semantic_is_integer_or_address_type(
+    SemanticContext* ctx, const char* type_name
+) {
+    const char* current = type_name;
+    unsigned int depth;
+    for (depth = 0u; current && depth < 16u; ++depth) {
+        Slot* slot;
+        if (*current == '!') ++current;
+        if (*current == '*' || *current == '&') return 1;
+        if (is_integer_primitive_type(current)) return 1;
+        slot = find_slot(ctx, current);
+        if (!slot || slot->kind != SLOT_NEWTYPE || !slot->type_name)
+            return 0;
+        current = slot->type_name;
+    }
+    return 0;
+}
+
+static int semantic_is_lengthable_type(const char* type_name) {
+    const char* type = type_name;
+    if (!type) return 0;
+    if (*type == '!') ++type;
+    if (semantic_is_array_type_name(type)) return 1;
+    if (strcmp(type, "str") == 0 || strcmp(type, "string") == 0 ||
+        strcmp(type, "buffer") == 0 || strcmp(type, "Buffer") == 0 ||
+        strcmp(type, "map") == 0 || strcmp(type, "Map") == 0 ||
+        strcmp(type, "vec") == 0 || strcmp(type, "Vec") == 0)
+        return 1;
+    return 0;
+}
+
+static void semantic_validate_memory_intrinsic(
+    SemanticContext* ctx, ASTNode* node
+) {
+    ASTCall* call = (ASTCall*)node;
+    size_t count = semantic_intrinsic_argument_count(call);
+    ASTNode* first = semantic_intrinsic_argument_value(call->args);
+    ASTNode* second = call->args && call->args->next
+        ? semantic_intrinsic_argument_value(call->args->next) : NULL;
+    const char* first_type = first ? get_expr_type(ctx, first) : NULL;
+    const char* second_type = second ? get_expr_type(ctx, second) : NULL;
+    size_t expected = (node->type == AST_POKE) ? 2u : 1u;
+    const char* name = node->type == AST_ADDR ? "addr" :
+        node->type == AST_LEN ? "len" :
+        node->type == AST_PEEK ? "peek" : "poke";
+    if (count != expected) {
+        char message[192];
+        (void)snprintf(message, sizeof(message),
+            "%s() expects exactly %u argument%s; received %llu.",
+            name, (unsigned int)expected, expected == 1u ? "" : "s",
+            (unsigned long long)count);
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        return;
+    }
+    if (node->type == AST_ADDR) {
+        if (first_type && !semantic_is_lvalue(ctx, first)) {
+            char message[256];
+            (void)snprintf(message, sizeof(message),
+                "addr() requires an addressable variable, field, or indexed element; got '%s'.",
+                first_type);
+            report_error(ctx, first, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        }
+    } else if (node->type == AST_LEN) {
+        if (first_type && !semantic_is_lengthable_type(first_type)) {
+            char message[256];
+            (void)snprintf(message, sizeof(message),
+                "len() requires a collection, string, or buffer; got '%s'.",
+                first_type);
+            report_error(ctx, first, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        }
+    } else if (node->type == AST_PEEK) {
+        if (first_type && strcmp(first_type, "any") != 0 &&
+            !semantic_is_integer_or_address_type(ctx, first_type)) {
+            char message[256];
+            (void)snprintf(message, sizeof(message),
+                "peek() address must be an integer or pointer value; got '%s'.",
+                first_type);
+            report_error(ctx, first, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        }
+    } else if (node->type == AST_POKE) {
+        if (first_type && strcmp(first_type, "any") != 0 &&
+            !semantic_is_integer_or_address_type(ctx, first_type)) {
+            char message[256];
+            (void)snprintf(message, sizeof(message),
+                "poke() address must be an integer or pointer value; got '%s'.",
+                first_type);
+            report_error(ctx, first, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        }
+        if (second_type && strcmp(second_type, "any") != 0 &&
+            !is_integer_primitive_type(second_type)) {
+            char message[256];
+            (void)snprintf(message, sizeof(message),
+                "poke() value must be an integer or byte value; got '%s'.",
+                second_type);
+            report_error(ctx, second, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        }
+    }
+}
+
 static void semantic_check_pattern_bindings(
     SemanticContext* ctx, ASTNode* pattern, const char* subject_type
 ) {
@@ -4547,6 +4664,9 @@ static void semantic_check_node(
             ASTCall* call = (ASTCall*)node;
             if (call->callee) semantic_check(ctx, call->callee);
             if (call->args) semantic_check(ctx, call->args);
+            if (node->type == AST_ADDR || node->type == AST_LEN ||
+                node->type == AST_PEEK || node->type == AST_POKE)
+                semantic_validate_memory_intrinsic(ctx, node);
             break;
         }
 
