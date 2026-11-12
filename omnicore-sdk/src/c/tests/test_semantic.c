@@ -384,7 +384,7 @@ static int check_os_thread_call_identity_ast(void) {
         { AST_SEND, "send" }, { AST_RECEIVE, "receive" },
         { AST_DONE, "done" }, { AST_PRNT, "prnt" },
         { AST_PRMT, "prmt" }, { AST_WRITE, "write" },
-        { AST_FWRITE, "fwrite" }
+        { AST_FWRITE, "fwrite" }, { AST_INTR, "intr" }
     };
     size_t i;
     for (i = 0; i < sizeof(cases)/sizeof(cases[0]); ++i) {
