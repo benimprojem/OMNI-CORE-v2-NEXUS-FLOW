@@ -210,7 +210,7 @@ int main(void) {
     static const char postfix_literal_invalid[] =
         "f:main() { 1++; }";
     static const char postfix_array_element_valid[] =
-        "f:main() { v:arr!i32[] = [1,2,3,4]; arr[0]++; }";
+        "f:main() { v:arr = [1,2,3,4]; arr[0]++; }";
     static const char postfix_struct_field_valid[] =
         "f:main() { struct:Point { v:x!i32 } v:p!Point = Point { x = 1 }; p.x++; }";
     static const char postfix_const_struct_field_invalid[] =
