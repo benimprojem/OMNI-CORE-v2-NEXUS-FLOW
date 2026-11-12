@@ -1819,6 +1819,16 @@ static int check_group_method_dispatch_semantics(void) {
         "run => f:run_impl(self) { v:other!Storage = self; other.store_value(); ret; } "
         "store_value => f:store_value_impl(self,value!i32) { ret; } "
         "struct:Storage { v:value!i32 } } }";
+    const char* named_method_argument_after_implicit_self =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.store_value(value:7); ret; } "
+        "store_value => f:store_value_impl(self,value!i32) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* named_implicit_self_argument_is_hidden =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.store_value(self:other,value:7); ret; } "
+        "store_value => f:store_value_impl(self,value!i32) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
     const char* unknown_group_method =
         "f:main() { group Storage { "
         "run => f:run_impl(self) { v:other!Storage = self; other.no_such_method(); ret; } "
@@ -1856,6 +1866,8 @@ static int check_group_method_dispatch_semantics(void) {
         check_source(type_call_to_instance_method, 1) &&
         check_source(wrong_method_argument_type, 1) &&
         check_source(wrong_method_argument_count, 1) &&
+        check_source(named_method_argument_after_implicit_self, 0) &&
+        check_source(named_implicit_self_argument_is_hidden, 1) &&
         check_source(unknown_group_method, 1) &&
         check_source(duplicate_public_method_alias, 1) &&
         check_source(duplicate_method_implementation_name, 1) &&
