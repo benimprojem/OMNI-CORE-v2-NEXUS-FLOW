@@ -201,6 +201,10 @@ int main(void) {
         "f:main() { 1++; }";
     static const char postfix_array_element_valid[] =
         "f:main() { v:arr!i32[4] = [1,2,3,4]; arr[0]++; }";
+    static const char postfix_struct_field_valid[] =
+        "f:main() { struct:Point { v:x!i32 } v:p!Point = Point { x = 1 }; p.x++; }";
+    static const char postfix_const_struct_field_invalid[] =
+        "f:main() { struct:Point { c:x!i32 } v:p!Point = Point { x = 1 }; p.x++; }";
     if (!check_source(integer_expression, 0)) return 1;
     if (!check_source(float_expression, 0)) return 1;
     if (!check_source(mismatched_operands, 1)) return 1;
@@ -253,6 +257,8 @@ int main(void) {
     if (!check_source(postfix_non_numeric_invalid, 1)) return 1;
     if (!check_source(postfix_literal_invalid, 1)) return 1;
     if (!check_source(postfix_array_element_valid, 0)) return 1;
+    if (!check_source(postfix_struct_field_valid, 0)) return 1;
+    if (!check_source(postfix_const_struct_field_invalid, 1)) return 1;
     if (!check_error_detail(
         "f:main(a!u8) !u8 {\n    ret a <<< 8;\n}",
         "8-bit width", "0..7", 2)) return 1;
@@ -302,6 +308,12 @@ int main(void) {
     if (!check_error_detail(
         "nt:Bad = *MissingType;\nf:main() {}",
         "Unknown type 'MissingType'", "recursive type expression", 1)) return 1;
+    if (!check_error_detail(
+        "f:main() {\n    c:x = 1; x++;\n}",
+        "immutable lvalue 'x'", "Postfix increment/decrement", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() {\n    v:s = \"text\"; s++;\n}",
+        "numeric lvalue", "str", 2)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
