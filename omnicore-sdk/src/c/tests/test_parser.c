@@ -4474,15 +4474,16 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
     ASTNode* statement;
     size_t i;
     int ok = 0;
+    int stage = 0;
 
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         ctx->error_count != 0 || !ctx->ast_root ||
         !ast_validate(ctx->ast_root, NULL)) goto done;
-    function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+    stage=2;\n    function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK)
         goto done;
-    statement = ((ASTBlock*)function->body)->statements;
+    stage=3;\n    statement = ((ASTBlock*)function->body)->statements;
     for (i = 0u; i < sizeof(operators) / sizeof(operators[0]); ++i) {
         ASTVarDecl* variable;
         ASTNexusFlow* flow;
