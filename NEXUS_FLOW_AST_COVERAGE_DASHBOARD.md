@@ -29,6 +29,13 @@
 - CTest result: 73/73 passed on the Ubuntu test job. The sanitizer and Valgrind jobs also completed successfully.
 - This green result supersedes earlier checkpoint notes in this document that say CI is pending for the same committed fixtures. It does not close any remaining design, OIR or Verifier work.
 
+## Group / method Semantic closure — 2026-11-12
+
+- Group method integrity, public alias and implementation-symbol uniqueness, Group-bound nominal type visibility, inferred/explicit `self`, static/instance dispatch and external-scope Group-qualified calls are covered by source and malformed-AST regressions.
+- Instance receivers are implicit: callers cannot supply `self`; remaining positional/named arguments are matched against explicit parameters, with excess, unknown, duplicate and positionally conflicting arguments rejected. Static methods require Group/type-qualified calls; instance methods require an instance receiver.
+- Duplicate public names reject overloads; method implementation symbols cannot be shared by aliases or collide with direct Group functions. The normative syntax reference documents this contract.
+- GitHub Actions run [43305008261](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43305008261) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. Group / method Semantic is closed; OIR lowering and independent Verifier remain open.
+
 ## Thread module boundary checkpoint — 2026-11-12
 
 - `spawn`, `listen`, `send`, `receive` and `done` now parse as ordinary identifier callees and produce generic `AST_FUNC_CALL` nodes; their runtime/API semantics belong to the Thread library.
@@ -83,7 +90,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Struct literal | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` (106–107) | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Instance initialization/layout lowering ve Verifier invariant'ları |
 | Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ✓ | ? | ? | Variant/payload validation, recursive payload type checks, constructor resolution/argument binding, scan payload binding/exhaustiveness and signed-i64 discriminants covered by Semantic regressions; full CI verified; OIR/Verifier enum representation remains open |
 | Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | C-like shared-storage contract: no active-member tracking; cross-member reads are permitted as target-ABI-dependent reinterpretation; field/type/member diagnostics and regression fixtures pass full CI; union layout/ABI and OIR lowering remain open |
-| Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | Public alias/implementation symbol uniqueness; Group-bound Struct visibility; inferred/explicit `self`; static/instance dispatch; receiver hariç named/positional argüman eşleştirmesi testlerle kapsanıyor; CI bekleniyor; overload desteklenmiyor (public ad benzersiz); tam signature sözleşmesinin kalan ayrıntıları açık |
+| Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ✓ | ? | ? | Public alias/implementation symbol uniqueness; Group-bound nominal type visibility; inferred/explicit `self`; static/instance dispatch; implicit receiver exclusion; positional/named argument binding, duplicate/unknown/conflicting argument rejection and malformed AST validation pass full CI; overload desteklenmiyor (public ad benzersiz); OIR/Verifier ayrı aşamalar |
 | Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
 | Implicit type variable `t` | Type-name string / `AST_TYPE_EXPR` | ✓ | ✓ | ✓ | ~ | D | — | Type-variable scope, binding, unification ve inference |
 | Map | Adlandırılmış type-name | ✓ | ✓ | ✓ | ~ | ? | ? | Key/value generic sözleşmesi, key constraints ve runtime davranışı |
