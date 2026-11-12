@@ -1825,3 +1825,10 @@ Dimension order follows the normal array declarator rules. An empty `[]` represe
 - Calling convention, ABI lowering, and target-specific function-pointer representation are later backend/linker concerns.
 - A function type is not an `AST_LAMBDA` expression and does not carry an executable body.
 
+
+
+### Return statement (`ret`) — Semantic scope rule
+
+- `ret` yalnızca bir fonksiyon gövdesi içinde kullanılabilir; modül/kök kapsamındaki `ret` Semantic hatasıdır.
+- `ret` değeri, fonksiyonun bildirilmiş dönüş tipiyle uyumlu olmalıdır. Değer verilmeden kullanılan `ret;` yalnızca `void` dönüşlü fonksiyonlarda geçerlidir.
+- İç içe tanımlanan fonksiyonlar kendi dönüş tipi ve fonksiyon kapsamı içinde değerlendirilir; dış fonksiyonun dönüş tipi iç fonksiyonun `ret` kontrolüne taşınmaz.
