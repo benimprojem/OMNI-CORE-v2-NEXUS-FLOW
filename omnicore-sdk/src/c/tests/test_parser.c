@@ -3767,6 +3767,66 @@ static int test_nested_group_and_default_ast(void) {
     return valid;
 }
 
+static int test_enum_discriminant_parser_codec(void) {
+    static const char source[] =
+        "nt:enum: State { Idle = 0, Running(pid!u32) = 4, Done = 2 + 3 }";
+    ParserContext* parser = parser_init_source(
+        "enum-discriminant.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
+    int ok = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK || parser->error_count != 0 ||
+        !parser->ast_root || !ast_validate(parser->ast_root, NULL))
+        goto done;
+    {
+        ASTEnumDecl* declaration =
+            (ASTEnumDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        ASTEnumVariant* idle = declaration
+            ? (ASTEnumVariant*)declaration->variants : NULL;
+        ASTEnumVariant* running = idle
+            ? (ASTEnumVariant*)idle->base.next : NULL;
+        ASTEnumVariant* done = running
+            ? (ASTEnumVariant*)running->base.next : NULL;
+        if (!declaration || !idle || !running || !done ||
+            !idle->discriminant_expr ||
+            idle->discriminant_expr->type != AST_LITERAL ||
+            ((ASTLiteral*)idle->discriminant_expr)->int_value != 0 ||
+            !running->data || !running->discriminant_expr ||
+            running->discriminant_expr->type != AST_LITERAL ||
+            ((ASTLiteral*)running->discriminant_expr)->int_value != 4 ||
+            !done->discriminant_expr ||
+            done->discriminant_expr->type != AST_BINARY_EXPR ||
+            done->base.next != NULL)
+            goto done;
+    }
+    stream = tmpfile();
+    if (!stream || !ast_serialize(parser->ast_root, stream) ||
+        fseek(stream, 0L, SEEK_SET) != 0)
+        goto done;
+    decoded = ast_deserialize(stream);
+    if (!decoded || !ast_validate(decoded, NULL)) goto done;
+    {
+        ASTEnumDecl* declaration =
+            (ASTEnumDecl*)((ASTProgram*)decoded)->declarations;
+        ASTEnumVariant* idle = declaration
+            ? (ASTEnumVariant*)declaration->variants : NULL;
+        ASTEnumVariant* running = idle
+            ? (ASTEnumVariant*)idle->base.next : NULL;
+        ASTEnumVariant* done = running
+            ? (ASTEnumVariant*)running->base.next : NULL;
+        ok = idle && idle->discriminant_expr &&
+            running && running->discriminant_expr &&
+            done && done->discriminant_expr &&
+            done->discriminant_expr->type == AST_BINARY_EXPR;
+    }
+done:
+    if (stream) fclose(stream);
+    if (decoded) ast_destroy(decoded);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int test_enum_payload_rejects_malformed_fields(void) {
     static const char* const invalid_sources[] = {
         "nt:enum: Broken { Value(x) }",
@@ -4883,6 +4943,10 @@ int main(int argc, char** argv) {
     }
     if (!test_struct_literal_parser_source_spans()) {
         fprintf(stderr, "Struct literal parser source-span fixture failed.\n");
+        FAIL_PARSER_TEST();
+    }
+    if (!test_enum_discriminant_parser_codec()) {
+        fprintf(stderr, "Enum discriminant Parser/AST codec test failed.\n");
         FAIL_PARSER_TEST();
     }
     if (!test_enum_payload_rejects_malformed_fields()) {
