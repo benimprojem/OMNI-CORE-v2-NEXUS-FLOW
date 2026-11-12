@@ -20,6 +20,15 @@
 **Sütunlar:** L = Lexer, P = Parser, A = AST payload + lifecycle + codec, S = Semantic, O = OIR lowering, V = bağımsız OIR Verifier.  
 **Önemli:** Verifier ham AST almaz. AST'den Semantic AST'ye, oradan OIR'a indirgenen yürütülebilir davranışı doğrular. Bu nedenle O sütunu kapanmadan V sütunu da o syntax özelliği için kapanmış sayılamaz.
 
+## CI verification checkpoint — 2026-11-12
+
+- Branch: `refactor/c-core-roadmap`
+- Verified commit: `2c7f11b652919c71a2811b65928e1ceda91a8649`
+- GitHub Actions run: `43287142976`
+- Result: all five jobs passed — Ubuntu build/tests, Windows build/tests, macOS build/tests, ASan/UBSan and Valgrind.
+- CTest result: 73/73 passed on the Ubuntu test job. The sanitizer and Valgrind jobs also completed successfully.
+- This green result supersedes earlier checkpoint notes in this document that say CI is pending for the same committed fixtures. It does not close any remaining design, OIR or Verifier work.
+
 ## Thread module boundary checkpoint — 2026-11-12
 
 - `spawn`, `listen`, `send`, `receive` and `done` now parse as ordinary identifier callees and produce generic `AST_FUNC_CALL` nodes; their runtime/API semantics belong to the Thread library.
@@ -72,8 +81,8 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Nominal type identity, alias-chain target validation, assignment/call/return compatibility ve recursive target validation Semantic ✓; target_type_expr payload round-trip ve OIR/Verifier açık |
 | Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Name/duplicate field/type/visibility/export/packed metadata Semantic ✓; ordered field payload round-trip, physical layout and lowering açık |
 | Struct literal | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` (106–107) | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Instance initialization/layout lowering ve Verifier invariant'ları |
-| Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Variant/payload and scan/constructor checks ✓; optional discriminant expression AST ownership, graph validation, parser production and AST stream v7 codec implemented; Semantic resolves implicit/explicit signed-i64 values, rejects duplicates/non-constant/non-integer values and implicit overflow; regression tests added but build/CI pending; recursive payload type-expression compatibility and OIR/Verifier enum representation open |
-| Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | C-like shared-storage contract selected: no active-member tracking; cross-member reads are permitted as target-ABI-dependent reinterpretation; field/type/member diagnostics and regression fixtures added, CI pending; union layout/ABI and OIR lowering open |
+| Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ✓ | ? | ? | Variant/payload validation, recursive payload type checks, constructor resolution/argument binding, scan payload binding/exhaustiveness and signed-i64 discriminants covered by Semantic regressions; full CI verified; OIR/Verifier enum representation remains open |
+| Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | C-like shared-storage contract: no active-member tracking; cross-member reads are permitted as target-ABI-dependent reinterpretation; field/type/member diagnostics and regression fixtures pass full CI; union layout/ABI and OIR lowering remain open |
 | Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | Public alias/implementation symbol uniqueness; Group-bound Struct visibility; inferred/explicit `self`; static/instance dispatch; receiver hariç named/positional argüman eşleştirmesi testlerle kapsanıyor; CI bekleniyor; overload desteklenmiyor (public ad benzersiz); tam signature sözleşmesinin kalan ayrıntıları açık |
 | Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
 | Implicit type variable `t` | Type-name string / `AST_TYPE_EXPR` | ✓ | ✓ | ✓ | ~ | D | — | Type-variable scope, binding, unification ve inference |
