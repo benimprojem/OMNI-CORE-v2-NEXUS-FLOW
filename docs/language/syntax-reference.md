@@ -1199,6 +1199,7 @@ nt:enum: State {
 - The front-end semantic range is signed 64-bit (`INT64_MIN` through `INT64_MAX`). An implicit increment after `INT64_MAX` is an error; a subsequent explicit value may reset the sequence.
 - AST preserves the optional expression and the resolved signed value. The eventual OIR/target ABI defines the physical enum representation; signed 64-bit is not a storage-width requirement.
 - Diagnostics identify non-constant/non-integer values, duplicate discriminants and implicit-value overflow.
+
 ####  7.3 `union` (Ortak Bellek Alanı)**
 
 Kernel ve Driver yazarken aynı bellek alanına farklı tiplerle bakmak gerekir.
