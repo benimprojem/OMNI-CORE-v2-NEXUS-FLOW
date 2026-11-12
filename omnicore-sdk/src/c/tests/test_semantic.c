@@ -478,6 +478,17 @@ static int check_extended_ast_semantics(void) {
         "nt:Callback = f:(id!u32)!bool; f:main() { v:callback!Callback = null; }";
     const char* invalid_newtype_target =
         "nt:Bad = MissingType; f:main() {}";
+    const char* valid_recursive_type_exprs =
+        "nt:Pointer = *i32; nt:Reference = &i32; "
+        "nt:Callback = f:(id!u32)!bool; f:main() {}";
+    const char* invalid_recursive_pointer_type =
+        "nt:BadPointer = *MissingType; f:main() {}";
+    const char* invalid_recursive_function_parameter =
+        "nt:BadCallback = f:(id!MissingType)!bool; f:main() {}";
+    const char* invalid_recursive_function_return =
+        "nt:BadReturn = f:(id!u32)!MissingType; f:main() {}";
+    const char* invalid_recursive_variable_type =
+        "f:main(value!*MissingType) {}";
     const char* valid_inferred_array =
         "f:main() { v:items = [1,2,3]; }";
     const char* invalid_heterogeneous_array =
@@ -520,6 +531,11 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_variadic_missing_fixed,1) &&
         check_source(valid_callback_newtype,0) &&
         check_source(invalid_newtype_target,1) &&
+        check_source(valid_recursive_type_exprs,0) &&
+        check_source(invalid_recursive_pointer_type,1) &&
+        check_source(invalid_recursive_function_parameter,1) &&
+        check_source(invalid_recursive_function_return,1) &&
+        check_source(invalid_recursive_variable_type,1) &&
         check_source(valid_inferred_array,0) &&
         check_source(invalid_heterogeneous_array,1) &&
         check_source(valid_tuple_indexing,0) &&
