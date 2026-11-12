@@ -2013,6 +2013,11 @@ static int semantic_is_lengthable_type(const char* type_name) {
 
 static const char* semantic_intrinsic_expected_name(ASTNodeType type) {
     switch (type) {
+        case AST_ECHO: return "echo";
+        case AST_SPAWN: return "spawn";
+        case AST_SEND: return "send";
+        case AST_RECEIVE: return "receive";
+        case AST_DONE: return "done";
         case AST_ADDR: return "addr";
         case AST_LEN: return "len";
         case AST_PEEK: return "peek";
