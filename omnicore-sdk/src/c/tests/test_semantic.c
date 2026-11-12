@@ -325,6 +325,30 @@ static int check_malformed_function_and_control_ast(void) {
     return 1;
 }
 
+static int check_malformed_nexus_and_argument_ast(void) {
+    static const struct { ASTNodeType type; const char* message; } cases[] = {
+        { AST_NEXUS_CAPTURE, "Nexus capture requires a non-empty handler name and source expression" },
+        { AST_NEXUS_PIPE, "Nexus pipe requires both left and right operands" },
+        { AST_NAMED_ARG, "Named argument requires a non-empty name and value expression" },
+        { AST_LISTEN, "listen requires a non-empty handler name" }
+    };
+    size_t i;
+    for(i=0;i<sizeof(cases)/sizeof(cases[0]);++i) {
+        ASTNode* node=ast_create(cases[i].type);
+        SemanticContext semantic;
+        int ok;
+        if(!node)return 0;
+        semantic_init(&semantic,"semantic-malformed-nexus-argument.nxf",NULL);
+        semantic_check(&semantic,node);
+        ok=semantic.error_count==1 && semantic.error_head &&
+            strstr(semantic.error_head->message,cases[i].message)!=NULL;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if(!ok)return 0;
+    }
+    return 1;
+}
+
 static int check_unnamed_declaration_ast(void) {
     static const struct {
         ASTNodeType type;
@@ -1127,6 +1151,10 @@ int main(int argc, char** argv) {
     }
     if (!check_malformed_expression_and_loop_ast()) {
         fprintf(stderr, "Malformed expression/loop AST checks failed.\n");
+        return 1;
+    }
+    if (!check_malformed_nexus_and_argument_ast()) {
+        fprintf(stderr, "Malformed Nexus/argument AST checks failed.\\n");
         return 1;
     }
     if (!check_malformed_function_and_control_ast()) {
