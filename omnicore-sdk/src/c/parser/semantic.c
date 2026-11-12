@@ -3361,6 +3361,7 @@ static void semantic_validate_call_arguments(
     ASTNode* arguments, uint32_t parameter_offset
 ) {
     uint32_t argument_count = 0u;
+    uint32_t positional_count = 0u;
     uint32_t expected_count;
     ASTNode* argument;
     uint32_t argument_index = 0u;
@@ -3371,6 +3372,7 @@ static void semantic_validate_call_arguments(
     for (argument = arguments; argument; argument = argument->next) {
         ++argument_count;
         if (argument->type == AST_NAMED_ARG) has_named_arguments = 1;
+        else ++positional_count;
     }
 
     if (function_slot->param_count < (int)parameter_offset) {
@@ -3382,7 +3384,7 @@ static void semantic_validate_call_arguments(
     if ((function_slot->is_variadic && argument_count < expected_count) ||
         (!function_slot->is_variadic &&
          (argument_count < expected_count ||
-          (argument_count > expected_count && !has_named_arguments)))) {
+          positional_count > expected_count))) {
         char message[256];
         snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_COUNT),
             function_slot->name, (int)expected_count, (int)argument_count);
