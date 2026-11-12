@@ -549,3 +549,19 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - AST_AI_LOGIC had an empty Semantic case despite having no active Parser production or defined query validation. It now emits an explicit Semantic diagnostic when encountered in a supplied/legacy AST.
 - Extended fail-closed regression coverage for AST_AI_LOGIC alongside the existing raw inline-ASM case. Active source grammar is unchanged.
 - Local build/test and CI verification remain pending.
+
+
+## Semantic alt-kapsam tikleri — 2026-11-12
+
+> Bu tikler ilgili Semantic AST yapısal kontrolünün kodda bulunup regression fixture ile temsil edildiğini gösterir. Ana tabloda S=~ kalır; çünkü fonksiyon ABI/return-flow, label hedef çözümü, defer unwind ve thread scheduling/lifetime gibi tam Semantic sözleşmeleri henüz kapanmadı. CI bu yeni commit için henüz doğrulanmadı.
+
+| AST / özellik | Kontrol edilen alt sözleşme | Kod | Regression fixture | CI |
+|---|---|:---:|:---:|:---:|
+| AST_FUNC_DECL (4) | Boş isim ve normal fonksiyonda eksik body reddi; method public-name fallback korunur | ✓ | ✓ | ? |
+| AST_EXTERN_DECL (12) | Önceki signature/linkname Semantic işleri mevcut; calling convention/ABI tamamlanmadı | ~ | ~ | ? |
+| AST_NEXUS_LABEL (33) | Boş label adı reddi | ✓ | ✓ | ? |
+| AST_NEXUS_JUMP (34) | Boş hedef adı reddi; forward target çözümü ayrı CFG işi | ✓ | ✓ | ? |
+| AST_NEXUS_HALT (35) | Payload/cleanup ve terminal control-flow sözleşmesi açık | ~ | ~ | ? |
+| AST_DEFER (69) | Eksik body reddi; unwind/cleanup sıralaması OIR işi | ✓ | ✓ | ? |
+| AST_THREAD_BLOCK (70) | Eksik isim/body reddi; scope yalnızca geçerli node'da açılır | ✓ | ✓ | ? |
+| AST_AI_LOGIC (37, reserved) | Parser üretimi yok; dışarıdan gelen reserved AST fail-closed | ✓ | ✓ | ? |
