@@ -59,6 +59,10 @@ Each stage consumes a defined artifact and produces the next stage's input. The 
 
 A system C linker may be used during early experiments. It is **not** the intended final linker.
 
+## Phase 1 progress — NEXUS Flow AST
+
+The live Phase 1 AST coverage dashboard is available at [NEXUS Flow AST Coverage Dashboard](NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md). It tracks Lexer, Parser, AST/Payload, Semantic, OIR lowering and Verifier coverage, including open work and evidence checkpoints. Status marks are evidence-based; partial or unverified work is not treated as complete.
+
 ## Current engineering focus
 
 Recent specification work has concentrated on control flow and reliable scope cleanup:
