@@ -302,3 +302,6 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Call validation resolves each named argument against the declared parameter name, uses that parameter's type for compatibility, and reports unknown names instead of silently skipping the wrapper.
 - Added reordered named-argument success and unknown-name failure fixtures.
 - Commits: `e20b2624` (argument mapping), `da982f2a` (node checking/annotation), `24c0cd38` (tests). CI pending.
+
+
+- Tuple bounds diagnostics were initially emitted both during type inference and during AST index checking. Moved the diagnostic to the dedicated index-check pass so an invalid constant index produces exactly one error. Commit `9ce304ae`; CI pending.
