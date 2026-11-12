@@ -458,3 +458,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - The reference explicitly states equal-dimension requirements, rejects scalar/vector mixing pending a language-level broadcast decision, and distinguishes Semantic acceptance from future SIMD Codegen behavior.
 - Extended arithmetic regression fixtures so Vec2 and Vec4, like the existing Vec3 fixtures, exercise all six binary arithmetic operators, unary minus and all four documented compound assignments.
 - CI status remains pending until a branch-head workflow confirms the expanded test matrix.
+
+
+### Semantic checkpoint — return statement function context — 2026-11-12
+
+- SemanticContext now tracks function-body nesting independently from the declared return-type pointer. This avoids confusing an invalid/unresolved function return type with being outside a function.
+- `ret` at module scope is rejected with an explicit diagnostic; nested/local function bodies establish and restore their own function context naturally.
+- Added a module-scope negative fixture and nested-function positive fixture. Syntax reference now documents scope and return-type rules.
+- CI remains pending until the updated branch head is tested.
