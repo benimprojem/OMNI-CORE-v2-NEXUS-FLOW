@@ -291,7 +291,7 @@ static int is_primitive_type_for_result(const char* name) {
         "i32", "u8", "str", "bool", "f64", "i64", "u64", "u32",
         "u16", "i16", "i8", "f32", "d32", "d64", "char", "bit", "byte",
         "8bit", "16bit", "32bit", "64bit", "128bit",
-        "1byte", "2byte", "4byte", "8byte", "16byte", "void", "any"
+        "1byte", "2byte", "4byte", "8byte", "16byte", "Vec2", "Vec3", "Vec4", "void", "any"
     };
     size_t i;
     for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
@@ -1865,7 +1865,9 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
         strcmp(type_name, "128bit") == 0 || strcmp(type_name, "1byte") == 0 ||
         strcmp(type_name, "2byte") == 0 || strcmp(type_name, "4byte") == 0 ||
         strcmp(type_name, "8byte") == 0 || strcmp(type_name, "16byte") == 0 ||
-        strcmp(type_name, "void") == 0 || strcmp(type_name, "any") == 0) {
+        strcmp(type_name, "Vec2") == 0 || strcmp(type_name, "Vec3") == 0 ||
+        strcmp(type_name, "Vec4") == 0 || strcmp(type_name, "void") == 0 ||
+        strcmp(type_name, "any") == 0) {
         return 1;
     }
 
