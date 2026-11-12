@@ -2304,3 +2304,11 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Existing Group/Method fixtures cover inferred and explicit `self`, invalid receiver declarations, namespace/static calls, object/instance calls, method visibility through Group-qualified lookup, unknown methods, argument count/type, and malformed AST guards.
 - The first CI run exposed two literal `\\n` sequences accidentally inserted into `test_semantic.c` outside C string literals; corrected them in commit `578a819cb7bf41953d4e2e3e9a8b7c1b1f165f90`.
 - Updated Group uniqueness tests are in commit `e0655d389d2e49f9b2e805ecc528f9938859249a`. CI is pending; Group Semantic and the preceding Union/Enum checkpoints are not marked complete until the full C workflow passes.
+
+
+## 2026-11-12 — Group method implicit receiver argument mapping
+
+- Corrected named-argument resolution for instance methods: parameter-name lookup now excludes the implicit first `self` receiver, while type checking retains the full declaration index.
+- Added valid named-argument regression (`instance.store_value(value: 7)`) and invalid explicit `self:` named-argument regression.
+- Updated the normative syntax reference to define implicit receiver omission, static/object dispatch, and Group-owned nominal type visibility.
+- CI has not yet verified the change; Group / Method and earlier Enum/Union Semantic rows remain uncompleted in the dashboard until the C workflow passes.
