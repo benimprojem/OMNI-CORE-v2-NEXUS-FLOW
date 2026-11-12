@@ -1089,6 +1089,11 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
         case AST_LITERAL: {
             ASTLiteral* lit = (ASTLiteral*)node;
             const char* type_name = NULL;
+            if (!lit->string_value) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Literal AST is missing its string value.");
+                return NULL;
+            }
             switch (lit->type) {
                 case TOKEN_NUMBER:
                     type_name = (strchr(lit->string_value, '.') ||
