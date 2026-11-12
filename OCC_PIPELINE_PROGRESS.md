@@ -2279,11 +2279,12 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Group/Method Semantic remains partial; receiver/visibility and complete signature policy still need review. Tests have not been executed in this workspace and CI is unverified.
 
 
-### Enum discriminant design checkpoint — 2026-11-12
+### Enum discriminant implementation — 2026-11-12
 
-- Reviewed the active C implementation: `ASTEnumVariant` currently stores only its name and payload; `parse_enum_decl()` has no discriminant production; Semantic validates variant/payload structure and constructor/pattern behavior but does not resolve discriminant values.
-- Decided discriminants are useful for stable enum identity and future OIR/target ABI mapping, so the language should support optional explicit integral values (for example `Idle = 0`, `Running(pid!u32) = 4`).
-- Proposed implicit assignment: first omitted value is 0; each later omitted value is previous resolved value + 1; an explicit value resets the next implicit value to explicit + 1.
-- Semantic contract: per-enum uniqueness, compile-time integral values only, signed 64-bit semantic domain and increment-overflow diagnostics. Physical enum width remains a later OIR/target ABI decision; the front end does not force 64-bit storage.
-- AST design: preserve the optional discriminant as an expression child, not only a scalar integer, so source spans, codec round-trip and constant-expression diagnostics remain lossless.
-- Documentation and coverage matrix updated. **Implementation is not complete:** AST ownership/factory/destructor/printer/codec/graph validation, Parser grammar, Semantic constant evaluation and duplicate/range tests remain required. No test or CI result is claimed for this design-only checkpoint.
+- Extended `ASTEnumVariant` with an owned optional `discriminant_expr`, a resolved signed 64-bit value and an explicit resolved-state flag. The new fields are appended to preserve the existing struct prefix.
+- Updated AST printer, destructor, graph validator and stream codec. AST stream format advanced from v6 to v7; deserialization continues to accept legacy v1–v6 streams and reads the new enum fields only for v7.
+- Parser now accepts an optional `= expression` after a variant name or payload, and the variant source span includes the discriminant.
+- Semantic resolves omitted values as 0 / previous+1 and explicit values as compile-time integer arithmetic. It rejects duplicate values, identifiers/runtime expressions, floating-point values and implicit increment overflow. Signed `INT64_MIN` and `INT64_MAX` boundaries are handled; an explicit value can reset the implicit sequence after the maximum.
+- Added Parser/AST codec regression coverage and Semantic cases for implicit/explicit sequencing, negative values, arithmetic expressions, duplicate values, non-constant values, floating-point values and signed-range overflow.
+- Updated Syntax Reference, AST Syntax Matrix and Coverage Dashboard. OIR/target physical enum representation remains deferred to the OIR stage; recursive payload type-expression compatibility remains open.
+- **Verification status:** code and tests have been committed, but no local build or CI result has yet been observed. Keep the dashboard Semantic status partial until the C test suite passes.
