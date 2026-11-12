@@ -67,10 +67,10 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | Program ve blok | `AST_PROGRAM`, `AST_BLOCK` | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Program declaration chain için AST graph/codec doğrulaması, `no:osmodule` policy/span ve ortak node source-span codec round-trip; OIR span metadata ayrı aşamada |
-| Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ✓ | ✓ | ~ | ~ | ~ | `c:` initializer zorunluluğu ve compile-time constant-expression kontrolü ✓; `v:` inference/type_expr uyumu, recursive type payload ve ortak source-span round-trip açık |
+| Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ✓ | ✓ | ✓ | ~ | ~ | `c:` compile-time initializer; `v:` inference, declared-type compatibility, inline array/vector and recursive type validation Semantic ✓; inline_type/type_expr payload round-trip ve ortak source-span codec açık |
 | Immutable `m:` | `AST_MUST_DECL` (103) | ✓ | ✓ | ✓ | ✓ | D | — | Derleme zamanı/sabit değer sınırları; runtime lowering gerektirmeyen karar korunmalı |
-| NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | name, target_type ve recursive target_type_expr payload round-trip; Semantic type identity açık |
-| Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | name, packed/visibility/export flags ve ordered field chain round-trip; layout ve lowering açık |
+| NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Nominal type identity, alias-chain target validation, assignment/call/return compatibility ve recursive target validation Semantic ✓; target_type_expr payload round-trip ve OIR/Verifier açık |
+| Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Name/duplicate field/type/visibility/export/packed metadata Semantic ✓; ordered field payload round-trip, physical layout and lowering açık |
 | Struct literal | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` (106–107) | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Instance initialization/layout lowering ve Verifier invariant'ları |
 | Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Discriminant, payload type, constructor resolution ve exhaustiveness |
 | Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | union flags ve field chain round-trip; active member ve safe access Semantic kuralları açık |
@@ -715,3 +715,13 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added positive and negative source fixtures for literals, arithmetic, prior-constant references, aggregate constants, missing initializers, runtime calls, mutable reads and `m:` reads.
 - Updated the normative syntax reference. The declaration row remains partial because inferred `v:` typing, recursive `type_expr` integration and source-span payload coverage are still open.
 - Test source and implementation are committed; local execution and CI remain pending.
+
+
+### Semantic review — Variable, NewType and Struct declarations — 2026-11-12
+
+- Closed the remaining `c:` constant-initializer gap: compile-time constants require a value and reject runtime calls, mutable reads and `m:` values.
+- Reviewed the existing `v:` path: initializer inference, declared-type checks, inline array dimensions/initializer validation, vector component count/type validation and recursive `type_expr` validation are already present and covered by Semantic fixtures.
+- Reviewed NewType semantics: target resolution, recursive target validation, nominal identity, alias chains, and assignment/function argument/function return compatibility are covered by positive and negative fixtures.
+- Reviewed Struct semantics: name/duplicate field/type checks, packed/public/exported metadata, field visibility and aggregate access/literal checks are covered by Semantic implementation and fixtures.
+- Marked only the Semantic column complete for these rows. AST payload round-trip, physical aggregate layout, OIR lowering and Verifier remain open.
+- CI for the new `c:` fixtures is still pending/unreported; these marks describe implementation plus committed regression coverage, not a verified test run.
