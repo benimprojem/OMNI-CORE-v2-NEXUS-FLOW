@@ -2002,6 +2002,7 @@ static void semantic_validate_call_arguments(
 
     {
         uint32_t positional_index = 0u;
+        int named_arguments_started = 0;
         for (argument = arguments; argument; argument = argument->next,
              ++argument_index) {
             ASTNode* argument_value=argument;
@@ -2037,8 +2038,30 @@ static void semantic_validate_call_arguments(
                     report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,message);
                     continue;
                 }
+                {
+                    ASTNode* previous;
+                    int duplicate=0;
+                    for(previous=arguments;previous!=argument;previous=previous->next) {
+                        if(previous->type==AST_NAMED_ARG) {
+                            ASTNamedArg* prior=(ASTNamedArg*)previous;
+                            if(prior->name && named->name &&
+                               strcmp(prior->name,named->name)==0) duplicate=1;
+                        }
+                    }
+                    if(named_index<positional_index) duplicate=1;
+                    if(duplicate) {
+                        report_error(ctx,argument,ERR_SEMANTIC_REDEFINED,
+                            "A function parameter cannot receive more than one argument.");
+                        continue;
+                    }
+                }
+                named_arguments_started=1;
                 parameter_index=named_index+parameter_offset;
             } else {
+                if(named_arguments_started) {
+                    report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,
+                        "Positional arguments cannot follow named arguments.");
+                }
                 parameter_index=positional_index++ + parameter_offset;
             }
             argument_type=get_expr_type(ctx,argument_value);
