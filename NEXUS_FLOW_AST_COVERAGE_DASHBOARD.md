@@ -73,7 +73,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Name/duplicate field/type/visibility/export/packed metadata Semantic ✓; ordered field payload round-trip, physical layout and lowering açık |
 | Struct literal | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` (106–107) | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Instance initialization/layout lowering ve Verifier invariant'ları |
 | Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Variant/payload isim benzersizliği ve açık payload type validation Semantic ✓; constructor resolution, payload argument binding, discriminant model and exhaustiveness open |
-| Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | union flags ve field chain round-trip; active member ve safe access Semantic kuralları açık |
+| Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | Typed/unique field declaration and member-type resolution Semantic ✓; active-member tracking and safe-read contract need a language decision; union flags/field payload round-trip and lowering open |
 | Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | members, method public_name/implementation ve flags round-trip; receiver/dispatch Semantic kuralları açık |
 | Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
 | Implicit type variable `t` | Type-name string / `AST_TYPE_EXPR` | ✓ | ✓ | ✓ | ~ | D | — | Type-variable scope, binding, unification ve inference |
@@ -734,3 +734,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added direct AST regressions for valid payload declarations, malformed variant/payload node kinds, missing enum/variant names, duplicate variant names, duplicate payload field names and missing payload types.
 - Updated the normative syntax reference with the enforced name/type rules and explicitly left constructor resolution, payload argument binding and exhaustiveness open.
 - Semantic remains partial for the enum row because constructor and pattern/exhaustiveness relations are not complete. Test execution and CI are pending.
+
+
+### Semantic checkpoint — Struct/Union field declaration validation — 2026-11-12
+
+- Struct and Union fields now require an explicit type unless a recursive `type_expr` supplies it. Missing field types produce a source diagnostic.
+- Hardened both named and inline aggregate field walks: non-`AST_VAR_DECL` payload nodes are skipped after the shared validator reports them, rather than being blindly cast.
+- Added direct AST regressions for untyped Struct fields, untyped Union fields and malformed aggregate field node kinds. Existing source fixtures cover duplicate names, unknown types and member type compatibility.
+- Struct Semantic remains ✓. Union Semantic remains partial only for active-member tracking/safe-read rules, which are not defined by the current language contract; no implicit policy has been invented.
+- Updated the normative syntax reference to document this boundary. Tests and CI remain pending.
