@@ -428,7 +428,43 @@ static int check_thread_api_is_module_call(void) {
         check_source(
             "f:main() { spawn(1); }", 1) &&
         check_source(
-            "f:main() { (worker)>{ } (worker)>{ } }", 1);
+            "f:main() { (worker)>{ } (worker)>{ } }", 1) &&
+        check_thread_block_value_captures();
+}
+
+static int check_thread_block_value_captures(void) {
+    const char* source =
+        "f:main() { v:outside!i32 = 7; "
+        "(worker)>{ v:inside!i32 = outside; "
+        "{ v:inner!i32 = inside; } } spawn(worker); }";
+    ParserContext* parser = parser_init_source(
+        "semantic-thread-capture.nxf",
+        (const uint8_t*)source, strlen(source));
+    SemanticContext semantic;
+    ThreadBlockEntry* block;
+    ThreadBlockCapture* capture;
+    int ok = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    semantic_init(&semantic, "semantic-thread-capture.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    block = semantic.thread_blocks;
+    capture = block ? block->captures : NULL;
+    ok = semantic.error_count == 0 &&
+        block && strcmp(block->name, "worker") == 0 &&
+        block->capture_count == 1u && capture &&
+        strcmp(capture->name, "outside") == 0 &&
+        strcmp(capture->type_name, "i32") == 0 &&
+        capture->source_scope_id != 0u &&
+        capture->first_use != NULL &&
+        capture->source_declaration != NULL &&
+        capture->next == NULL;
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
 }
 
 static int check_unnamed_declaration_ast(void) {
