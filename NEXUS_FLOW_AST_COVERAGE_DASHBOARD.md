@@ -565,3 +565,10 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 | AST_DEFER (69) | Eksik body reddi; unwind/cleanup sıralaması OIR işi | ✓ | ✓ | ? |
 | AST_THREAD_BLOCK (70) | Eksik isim/body reddi; scope yalnızca geçerli node'da açılır | ✓ | ✓ | ? |
 | AST_AI_LOGIC (37, reserved) | Parser üretimi yok; dışarıdan gelen reserved AST fail-closed | ✓ | ✓ | ? |
+
+
+### Semantic checkpoint — Nexus/argument AST structural integrity — 2026-11-12
+
+- Added fail-closed validation for AST_NEXUS_CAPTURE (handler + expression), AST_NEXUS_PIPE (both operands), AST_NAMED_ARG (name + value) and AST_LISTEN (handler name before scope entry).
+- Added direct malformed-AST regression fixtures. Full handler/event lifetime, pipe effects and listen runtime semantics remain open.
+- Dashboard alt-coverage checkmarks represent implementation + fixture presence; CI is pending.
