@@ -1558,6 +1558,20 @@ static int semantic_integer_type_width(
 }
 
 /*
+ * Shift operations accept ordinary integer values and the Nexus fixed-width
+ * bit/byte representations. Representation types retain their exact width:
+ * bit=1, byte=8, Nbit=N, Nbyte=8*N.
+ */
+static int semantic_shift_value_width(
+    const char* type_name, uint64_t* width_out
+) {
+    int is_unsigned = 0;
+    if (!type_name || !width_out) return 0;
+    if (semantic_representation_bit_width(type_name, width_out)) return 1;
+    return semantic_integer_type_width(type_name, width_out, &is_unsigned);
+}
+
+/*
  * Return 1 for a proven-safe explicit representation conversion, 0 when
  * the source/target categories are not convertible, -1 for a constant value
  * outside the target range, and -2 when a runtime range check is required.
@@ -3394,12 +3408,12 @@ static void semantic_check_node(
                 int shift_status = semantic_eval_shift_count(
                     bin->right, &shift_amount);
                 int operands_valid =
-                    (!left_type || is_integer_primitive_type(left_type)) &&
-                    (!right_type || is_integer_primitive_type(right_type));
+                    left_type && is_bitwise_primitive_type(left_type) &&
+                    right_type && is_integer_primitive_type(right_type);
                 if (!operands_valid) {
                     char message[320];
                     (void)snprintf(message, sizeof(message),
-                        "Operator '%s' requires integer operands; got '%s' and '%s'.",
+                        "Operator '%s' requires a bitwise-capable left operand and an integer shift count; got '%s' and '%s'.",
                         semantic_binary_operator_name(bin->op),
                         left_type ? left_type : "<unknown>",
                         right_type ? right_type : "<unknown>");
@@ -3427,9 +3441,7 @@ static void semantic_check_node(
                             ? literal->string_value : "<constant>");
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                 } else if (shift_status == 1 && left_type &&
-                           semantic_integer_type_width(left_type, &value_width,
-                                                      &value_is_unsigned)) {
-                    (void)value_is_unsigned;
+                           semantic_shift_value_width(left_type, &value_width)) {
                     if (shift_amount >= value_width) {
                         char shift_message[192];
                         (void)snprintf(shift_message, sizeof(shift_message),
