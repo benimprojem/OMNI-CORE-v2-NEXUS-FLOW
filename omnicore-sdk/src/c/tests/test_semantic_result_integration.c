@@ -232,7 +232,7 @@ static int test_thread_payload_capture_annotations(void) {
     ASTBlock* payload_body;
     ASTNexusCapture* first_capture;
     ASTVarDecl *inside, *local_copy;
-    const SemanticResultAnnotation *outer_use, *local_use;
+    const SemanticResultAnnotation *outer_use = NULL, *local_use = NULL;
     uint32_t node_count = 0u;
     int semantic_initialized = 0;
     int ok = 0;
@@ -292,6 +292,18 @@ static int test_thread_payload_capture_annotations(void) {
         (outer_use->flags & SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE) != 0u &&
         (local_use->flags & SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE) == 0u;
 done:
+    if (!ok) {
+        fprintf(stderr,
+            "Thread capture debug: initialized=%d errors=%d result_status=%d "
+            "capture_count=%u outer_flags=%u local_flags=%u\n",
+            semantic_initialized,
+            semantic_initialized ? semantic.error_count : -1,
+            semantic_initialized ? (int)semantic.result_status : -1,
+            semantic_initialized && semantic.thread_blocks
+                ? semantic.thread_blocks->capture_count : 0u,
+            outer_use ? outer_use->flags : 0u,
+            local_use ? local_use->flags : 0u);
+    }
     if (semantic_initialized) semantic_destroy(&semantic);
     parser_destroy(parser);
     return ok;
