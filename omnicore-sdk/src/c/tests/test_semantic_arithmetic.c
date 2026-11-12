@@ -388,11 +388,11 @@ int main(void) {
         "f:main() {\n    v:arr = [1,2,3]; v:value = arr[3];\n}",
         "Array index 3 is out of bounds", "length 3", 2)) return 1;
     if (!check_error_detail(
-        "f:main() {\\n    v:length = len(1);\\n}",
-        "len() requires a collection, string, or buffer", "i32", 2)) return 1;
+        "f:main() { v:length = len(1); }",
+        "len() requires a collection, string, or buffer", "i32", 1)) return 1;
     if (!check_error_detail(
-        "f:main() {\\n    v:ptr = addr(1);\\n}",
-        "addr() requires an addressable", "i32", 2)) return 1;
+        "f:main() { v:ptr = addr(1); }",
+        "addr() requires an addressable", "i32", 1)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
