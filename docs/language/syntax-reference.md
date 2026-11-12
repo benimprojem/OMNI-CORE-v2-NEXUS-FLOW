@@ -1869,13 +1869,13 @@ Dimension order follows the normal array declarator rules. An empty `[]` represe
 - This does not disable any active Nexus Flow source syntax; Parser has no AST_AI_LOGIC production.
 
 
-### Semantic AST integrity — capture, pipe, named argument and listen
+### Semantic AST integrity — capture, pipe and named argument
 
 - Nexus capture nodes require a non-empty handler name and a source expression before registering a handler symbol.
 - Nexus pipe nodes require both operands; malformed nodes no longer pass through null child checks silently.
 - Named argument AST nodes require a non-empty parameter name and a value expression.
-- Listen AST nodes require a non-empty handler name before opening their listener scope.
-- These are malformed-AST guards; source grammar is unchanged.
+- `AST_LISTEN` is a legacy serialized Thread tag and is rejected by current Semantic validation; Thread listening is expressed through the normal `listen(...)` module call.
+- These are malformed-AST guards and module-boundary checks; current source grammar uses ordinary function-call syntax for Thread APIs.
 
 
 ## Runtime modül sınırları: I/O ve Thread
