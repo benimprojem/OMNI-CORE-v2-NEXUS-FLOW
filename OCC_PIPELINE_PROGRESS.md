@@ -2010,3 +2010,6 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 
 - Tuple index semantic checker build fix: declared its local `int64_t constant_index` used for static bounds validation. Commit `48ab91cf`; dashboard `1b6b0870`.
+
+
+- Array literal diagnostic deduplication: element homogeneity was already enforced in `get_expr_type`; removed a duplicate check from AST_ARRAY_LITERAL traversal so a malformed literal produces one Semantic error. Commit `aa81d9ae`; dashboard `40bf0b6a`.
