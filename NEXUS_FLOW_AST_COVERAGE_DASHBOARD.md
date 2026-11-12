@@ -542,3 +542,10 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - defer rejects a missing body. thread_block rejects missing names and bodies before entering its local scope.
 - Added direct malformed-AST regression fixtures for each required field and missing function/thread bodies.
 - Local build/test and CI evidence remain pending.
+
+
+### Semantic checkpoint — reserved AI logic node fails closed — 2026-11-12
+
+- AST_AI_LOGIC had an empty Semantic case despite having no active Parser production or defined query validation. It now emits an explicit Semantic diagnostic when encountered in a supplied/legacy AST.
+- Extended fail-closed regression coverage for AST_AI_LOGIC alongside the existing raw inline-ASM case. Active source grammar is unchanged.
+- Local build/test and CI verification remain pending.
