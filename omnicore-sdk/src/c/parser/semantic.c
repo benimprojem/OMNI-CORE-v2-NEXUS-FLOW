@@ -3433,9 +3433,9 @@ static void semantic_check_node(
                                    &(size_t){0}) &&
                                semantic_vector_dimension(right_type,
                                    &(size_t){0})) {
-                        if (bin->op != TOKEN_PLUS && bin->op != TOKEN_MINUS) {
+                        if (bin->op != TOKEN_PLUS) {
                             (void)snprintf(message, sizeof(message),
-                                "Vector operator '%s' is not supported; Vec2/Vec3/Vec4 currently support '+' and '-'.",
+                                "Vector operator '%s' is not supported; Vec2/Vec3/Vec4 currently support only '+'.",
                                 operator_name);
                             report_error(ctx, node,
                                 ERR_SEMANTIC_TYPE_MISMATCH, message);
