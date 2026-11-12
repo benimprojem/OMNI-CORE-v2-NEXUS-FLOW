@@ -25,7 +25,7 @@
 - `spawn`, `listen`, `send`, `receive` and `done` now parse as ordinary identifier callees and produce generic `AST_FUNC_CALL` nodes; their runtime/API semantics belong to the Thread library.
 - Core Semantic no longer assigns Thread-specific intrinsic identity or scheduler/IPC/lifetime behavior. Legacy serialized `AST_SPAWN`, `AST_SEND`, `AST_RECEIVE`, `AST_DONE` tags are retained for codec compatibility and traversed without new Thread rules; legacy `AST_LISTEN` is rejected rather than treated as an active core construct.
 - The old `!(listen): ...` special form is no longer part of the active Parser grammar; use `listen(...)` from the Thread module.
-- `AST_THREAD_BLOCK` is core syntax for a complete named payload. Core validates its structure, uniqueness and isolated lexical scope; Semantic collects outer-variable by-value captures and marks their identifier annotations. Core does not create or schedule a thread.
+- `AST_THREAD_BLOCK` is core syntax for a complete named payload. Core validates its structure, uniqueness and isolated lexical scope; Semantic collects only explicit copy(...) captures and marks their identifier annotations; direct outer-variable access is rejected. Core does not create or schedule a thread.
 - Parser/Semantic regression fixture covers all five ordinary API call spellings and legacy AST_LISTEN rejection. Tests are committed but not executed here; CI remains unverified.
 
 ## OS / Thread / I/O intrinsic identity checkpoint — 2026-11-12
@@ -599,7 +599,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 | AST_NEXUS_JUMP (34) | Boş hedef adı reddi; forward target çözümü ayrı CFG işi | ✓ | ✓ | ? |
 | AST_NEXUS_HALT (35) | Payload/cleanup ve terminal control-flow sözleşmesi açık | ~ | ~ | ? |
 | AST_DEFER (69) | Eksik body reddi; unwind/cleanup sıralaması OIR işi | ✓ | ✓ | ? |
-| AST_THREAD_BLOCK (70) | Boş isim, eksik/yanlış body, nested/duplicate payload reddi; outer SLOT_VAR by-value capture listesi; child AST_BLOCK tek lexical scope sahibi | ✓ | ✓ | ? |
+| AST_THREAD_BLOCK (70) | Boş isim, eksik/yanlış body, nested/duplicate payload reddi; explicit copy(...) dış SLOT_VAR capture listesi; direct access reddi; child AST_BLOCK tek lexical scope sahibi | ✓ | ✓ | ? |
 | AST_AI_LOGIC (37, reserved) | Parser üretimi yok; dışarıdan gelen reserved AST fail-closed | ✓ | ✓ | ? |
 
 
@@ -642,7 +642,7 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Core Semantic now requires `thread_block.body` to be an actual `AST_BLOCK`, not merely a non-NULL node. Malformed externally supplied ASTs fail with an explicit diagnostic.
 - Removed the extra scope previously opened by `AST_THREAD_BLOCK`. Its child `AST_BLOCK` is the single owner of lexical scope creation and cleanup; this avoids a redundant SemanticResult scope level while preserving local isolation.
 - Added regression fixtures for a non-block body, a valid local reference inside the block, and rejection of a local variable referenced after the thread block.
-- Thread names are unique registry keys. Outer variable references are collected as by-value captures; scheduler/IPC semantics remain outside Core.
+- Thread names are unique registry keys. Only outer variable references inside explicit copy(...) calls are captured by value; direct access is rejected. Scheduler/IPC semantics remain outside Core.
 - Implementation and fixture commits are recorded separately; CI remains pending until a workflow reports a result.
 
 
@@ -664,12 +664,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - CI/local execution remains pending; tests are committed but not reported as executed.
 
 
-### Semantic checkpoint — thread payload by-value capture — 2026-11-12
+### Semantic checkpoint — thread payload explicit-copy capture — 2026-11-12
 
-- `ThreadBlockEntry` now records a deduplicated capture list for outer-scope variable symbols referenced by the payload. Each record stores symbol identity, type, source scope/depth, declaration and first-use AST references; owned names/types are released with the registry.
-- Capture collection is active only while checking the payload. Symbols declared inside the payload (including nested lexical blocks) are not captured. Function/type/group symbols are not value captures.
-- Capture means copying the variable value into the spawned payload at spawn time. It does not copy the caller's stack address. Capturing a pointer copies the pointer value only; pointed-to storage is not implicitly deep-copied. Actual snapshot/transfer is a Thread runtime and OIR/Codegen responsibility.
-- Added a regression fixture that verifies one outer variable is captured exactly once while payload-local variables are excluded.
+- `ThreadBlockEntry` now records a deduplicated capture list only for outer-scope variable symbols referenced inside explicit copy(...) arguments. Each record stores symbol identity, type, source scope/depth, declaration and first-use AST references; owned names/types are released with the registry.
+- Capture collection is active only while checking explicit copy(...) arguments in the payload. Direct outer-variable references are rejected. Symbols declared inside the payload (including nested lexical blocks) are not captured. Function/type/group symbols are not value captures.
+- Explicit copy capture means copying the variable value into the spawned payload at spawn time. It does not copy the caller's stack address. Capturing a pointer copies the pointer value only; pointed-to storage is not implicitly deep-copied. Actual snapshot/transfer is a Thread runtime and OIR/Codegen responsibility.
+- Added regression fixtures that verify explicit copy captures one outer variable exactly once, direct outer access is rejected, and payload-local variables are excluded.
 - `listen`/`done` result transport remains owned by the Thread module and is not reimplemented in Core Semantic. Runtime spec documents the done payload kinds and listen consumer behavior.
 - Tests are committed but not executed here; CI remains pending.
 
