@@ -525,3 +525,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added direct malformed-AST fixtures for binary expression, Nexus Flow operation, loop body, foreach fields, cast and reserved unpack.
 - Semantic commit: `b6779629`; tests: `b100fd6d`; syntax reference: `f455bd5c`.
 - Local build/test and branch CI remain unavailable/pending; these fixtures are not marked passed.
+
+
+### Semantic checkpoint — declaration identity validation — 2026-11-12
+
+- Semantic now rejects empty/missing names on immutable `m:`, variable, and `group` declarations before symbol lookup/registration.
+- Added direct malformed-AST regression fixtures for all three declaration kinds.
+- Semantic commit: `f21111ea`; tests: `29e1b532`; syntax reference: `2e0ae0d7`.
+- CI/local test execution remains pending; no test-pass claim is made.
