@@ -1982,3 +1982,11 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - NewType target resolution now validates the target name/signature and reports unknown targets; callback NewType targets are accepted.
 - Added valid callback NewType and invalid unresolved target tests.
 - Commits: `88997965` Semantic, `5f287a01` test, `51011f5d` dashboard. CI pending.
+
+
+### Semantic checkpoint — variadic signature and calls — 2026-11-12
+
+- Added `Slot.is_variadic`; fixed parameter count/type array excludes `AST_VARIADIC_PARAM`. Signature relation generation handles the marker without unsafe ASTVarDecl casts.
+- Call validation enforces all fixed parameters and allows extra arguments only when variadic; fixed argument types still undergo compatibility checks.
+- Added variadic positive call and missing fixed argument negative fixture.
+- Commits: `f081c798` header, `2bfddd11` signature, `f1d1940a` argument count, `0cf7f812` SemanticResult relations, `115ac855` tests, `1022a4ad` dashboard. CI pending.
