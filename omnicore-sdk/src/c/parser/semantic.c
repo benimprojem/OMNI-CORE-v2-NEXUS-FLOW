@@ -4068,27 +4068,42 @@ static void semantic_check_node(
 
         case AST_NEWTYPE_DECL: {
             ASTNewTypeDecl* nt = (ASTNewTypeDecl*)node;
-            if (nt->target_type && !is_type_defined(ctx,nt->target_type) &&
-                !nt->target_type_expr) {
-                char message[256];
-                snprintf(message,sizeof(message),msg_get(ERR_SEMANTIC_UNKNOWN_TYPE),
-                    nt->target_type);
-                report_error(ctx,node,ERR_SEMANTIC_UNKNOWN_TYPE,message);
+            int target_valid = nt->target_type && nt->target_type[0] != '\0';
+            int errors_before_target = ctx->error_count;
+            if (!nt->name || nt->name[0] == '\0') {
+                report_error(ctx, node, ERR_SEMANTIC_INVALID_AST,
+                    "NewType declaration requires a non-empty type name.");
+                break;
             }
-            if (nt->target_type_expr)
+            if (nt->target_type_expr) {
                 semantic_check(ctx, nt->target_type_expr);
+                if (ctx->error_count != errors_before_target) target_valid = 0;
+            } else if (!target_valid || !is_type_defined(ctx, nt->target_type)) {
+                char message[320];
+                (void)snprintf(message, sizeof(message),
+                    nt->target_type && nt->target_type[0]
+                        ? "NewType '%s' references undefined target type '%s'."
+                        : "NewType '%s' requires a target type (got '%s').",
+                    nt->name, nt->target_type ? nt->target_type : "<missing>");
+                report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
+                target_valid = 0;
+            }
             if (find_slot(ctx, nt->name)) {
-                char buf[256];
-                snprintf(buf, sizeof(buf), "Type '%s' already defined.", nt->name);
-                report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
-            } else {
+                char message[256];
+                (void)snprintf(message, sizeof(message),
+                    "Type '%s' is already defined in the visible scope.", nt->name);
+                report_error(ctx, node, ERR_SEMANTIC_REDEFINED, message);
+            } else if (target_valid) {
                 Slot* newtype_slot = add_slot(
-                    ctx, nt->name, SLOT_NEWTYPE, 1, nt->target_type, node, 0, 0, 0, 0u);
-                semantic_define_named_type(
-                    ctx, newtype_slot, nt->name, nt->target_type);
-                semantic_record_annotation(
-                    ctx, node, newtype_slot, nt->name,
-                    SEMANTIC_RESULT_VALUE_UNSPECIFIED);
+                    ctx, nt->name, SLOT_NEWTYPE, 1, nt->target_type,
+                    node, 0, 0, 0, 0u);
+                if (newtype_slot) {
+                    semantic_define_named_type(
+                        ctx, newtype_slot, nt->name, nt->target_type);
+                    semantic_record_annotation(
+                        ctx, node, newtype_slot, nt->name,
+                        SEMANTIC_RESULT_VALUE_UNSPECIFIED);
+                }
             }
             break;
         }
