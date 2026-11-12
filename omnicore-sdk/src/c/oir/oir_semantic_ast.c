@@ -786,7 +786,8 @@ static OirStatus validate_annotation_records(
         if (node_id == 0u || node_id <= previous_node_id ||
             scope_id == 0u ||
             value_category > OIR_SEMANTIC_VALUE_FUNCTION_DESIGNATOR ||
-            (flags & (uint16_t)~OIR_SEMANTIC_ANNOTATION_FLAG_ADDRESS_RECEIVER) != 0u) {
+            (flags & (uint16_t)~(OIR_SEMANTIC_ANNOTATION_FLAG_ADDRESS_RECEIVER |
+                OIR_SEMANTIC_ANNOTATION_FLAG_THREAD_CAPTURE)) != 0u) {
             return OIR_STATUS_INVALID_SECTION;
         }
         previous_node_id = node_id;
@@ -897,7 +898,8 @@ OirStatus oir_semantic_annotations_write(
             annotation->node_id <= previous_node_id ||
             annotation->scope_id == 0u ||
             annotation->value_category > OIR_SEMANTIC_VALUE_FUNCTION_DESIGNATOR ||
-            (annotation->flags & (uint16_t)~OIR_SEMANTIC_ANNOTATION_FLAG_ADDRESS_RECEIVER) != 0u) {
+            (annotation->flags & (uint16_t)~(OIR_SEMANTIC_ANNOTATION_FLAG_ADDRESS_RECEIVER |
+                OIR_SEMANTIC_ANNOTATION_FLAG_THREAD_CAPTURE)) != 0u) {
             return OIR_STATUS_INVALID_SECTION;
         }
         previous_node_id = annotation->node_id;
