@@ -1859,7 +1859,7 @@ Dimension order follows the normal array declarator rules. An empty `[]` represe
 - A function declaration must carry a non-empty name; a normal AST_FUNC_DECL must also carry a body. Method implementations may continue to obtain their public name from the enclosing method context.
 - Nexus label declarations and jump nodes require non-empty label names. Forward jump target resolution remains a later control-flow validation responsibility.
 - defer requires its statement or block body.
-- thread_block requires both a non-empty block name and a body; its body remains isolated in its own Semantic scope.
+- thread_block requires a non-empty name and an AST_BLOCK body. The AST_BLOCK itself owns the lexical scope; Core does not add a redundant wrapper scope or attach scheduler/runtime semantics to the named container. Names are structural labels only unless a future language rule explicitly defines uniqueness.
 - These checks validate malformed AST input and do not change the accepted source grammar.
 
 
