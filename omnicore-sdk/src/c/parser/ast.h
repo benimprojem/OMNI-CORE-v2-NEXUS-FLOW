@@ -315,6 +315,11 @@ typedef struct {
     ASTNode base;
     char* name;
     ASTNode* data; // Opsiyonel veri (Struct gibi)
+    /* Optional explicit source discriminant expression; owned by this variant. */
+    ASTNode* discriminant_expr;
+    /* Filled by Semantic after constant evaluation; signed 64-bit front-end domain. */
+    int64_t discriminant_value;
+    uint8_t has_resolved_discriminant;
 } ASTEnumVariant;
 
 typedef struct {
