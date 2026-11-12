@@ -267,6 +267,32 @@ static int check_malformed_expression_and_loop_ast(void) {
     return 1;
 }
 
+static int check_unnamed_declaration_ast(void) {
+    static const struct {
+        ASTNodeType type;
+        const char* message;
+    } cases[] = {
+        { AST_MUST_DECL, "immutable m: declaration requires a non-empty name" },
+        { AST_VAR_DECL, "Variable declaration requires a non-empty name" },
+        { AST_GROUP_DECL, "Group declaration requires a non-empty name" }
+    };
+    size_t i;
+    for(i=0;i<sizeof(cases)/sizeof(cases[0]);++i) {
+        ASTNode* node=ast_create(cases[i].type);
+        SemanticContext semantic;
+        int ok;
+        if(!node) return 0;
+        semantic_init(&semantic,"semantic-unnamed-declaration.nxf",NULL);
+        semantic_check(&semantic,node);
+        ok=semantic.error_count==1 && semantic.error_head &&
+            strstr(semantic.error_head->message,cases[i].message)!=NULL;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if(!ok) return 0;
+    }
+    return 1;
+}
+
 static int rejects_semantic_pending_node(ASTNodeType type) {
     ASTNode* node = ast_create(type);
     SemanticContext semantic;
@@ -1042,6 +1068,10 @@ int main(int argc, char** argv) {
     }
     if (!check_malformed_expression_and_loop_ast()) {
         fprintf(stderr, "Malformed expression/loop AST checks failed.\n");
+        return 1;
+    }
+    if (!check_unnamed_declaration_ast()) {
+        fprintf(stderr, "Unnamed declaration AST checks failed.\n");
         return 1;
     }
     if (!check_semantic_fail_closed_nodes()) {
