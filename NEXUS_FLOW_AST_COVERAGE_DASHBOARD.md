@@ -312,3 +312,6 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Inferred array literals now semantically visit elements, annotate as `array`, and require a compatible common element type. Heterogeneous inferred arrays no longer silently pass.
 - Added homogeneous positive and heterogeneous negative fixtures.
 - Commits: `7017200b` Semantic, `8102116e` tests. CI pending.
+
+
+- CI compile caught a missing local `int64_t constant_index` declaration in the tuple AST index checker; added it before the next run. Commit `48ab91cf`. No behavior change.
