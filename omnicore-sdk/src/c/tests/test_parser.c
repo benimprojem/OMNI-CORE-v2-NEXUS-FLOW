@@ -4266,9 +4266,16 @@ static int test_increment_decrement_parser_forms(void) {
     int ok = 0;
 
     if (!ctx) return 0;
-    if (parser_run(ctx) != PARSER_STATUS_OK ||
-        ctx->error_count != 0 || !ctx->ast_root ||
-        !ast_validate(ctx->ast_root, NULL)) goto done;
+    {
+        int parse_result=parser_run(ctx);
+        if (parse_result != PARSER_STATUS_OK || ctx->error_count != 0 ||
+            !ctx->ast_root || !ast_validate(ctx->ast_root,NULL)) {
+            fprintf(stderr,"flow test parse gate: result=%d errors=%d root=%p valid=%d\\n",
+                parse_result,ctx->error_count,(void*)ctx->ast_root,
+                ctx->ast_root?ast_validate(ctx->ast_root,NULL):0);
+            goto done;
+        }
+    }
     function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK)
         goto done;
