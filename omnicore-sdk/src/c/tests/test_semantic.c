@@ -688,7 +688,7 @@ static int check_extended_ast_semantics(void) {
         check_source(unknown_handler,1) &&
         check_source(unknown_event,1) &&
         check_source(duplicate_rule_event,1) &&
-        check_source(duplicate_pattern,1)
+        check_source(duplicate_pattern,1) &&
         check_source(invalid_guard,1) &&
         check_source(select_default_not_last,1) && 
         check_source(valid_scan_else_last,0) &&
