@@ -27,6 +27,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->current_fast_exec_owner = NULL;
     ctx->thread_blocks = NULL;
     ctx->thread_block_tail = NULL;
+    ctx->active_thread_block = NULL;
     ctx->thread_block_depth = 0u;
     memset(&ctx->lang, 0, sizeof(ctx->lang));
     ctx->current_method_receiver_type = NULL;
@@ -3253,6 +3254,55 @@ static int semantic_register_thread_block(
     return 1;
 }
 
+static int semantic_register_thread_capture(
+    SemanticContext* ctx, Slot* source, ASTNode* use_node
+) {
+    ThreadBlockEntry* block;
+    ThreadBlockCapture* capture;
+    if (!ctx || !source || !use_node ||
+        !(block = ctx->active_thread_block)) return 1;
+    if (source->kind != SLOT_VAR ||
+        source->depth > block->capture_base_depth) return 1;
+
+    for (capture = block->captures; capture; capture = capture->next) {
+        if ((source->symbol_id != 0u &&
+             capture->symbol_id == source->symbol_id) ||
+            (source->symbol_id == 0u &&
+             capture->source_declaration == source->declaration_node))
+            return 1;
+    }
+
+    capture = (ThreadBlockCapture*)semantic_callocate(ctx, 1u, sizeof(*capture));
+    if (!capture) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        report_error(ctx, use_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Unable to record thread_block value capture: out of memory.");
+        return 0;
+    }
+    capture->name = semantic_duplicate(ctx, source->name ? source->name : "");
+    capture->type_name = semantic_duplicate(
+        ctx, source->type_name ? source->type_name : "");
+    if (!capture->name || !capture->type_name) {
+        free(capture->name);
+        free(capture->type_name);
+        free(capture);
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        report_error(ctx, use_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Unable to copy thread_block capture metadata: out of memory.");
+        return 0;
+    }
+    capture->symbol_id = source->symbol_id;
+    capture->source_scope_id = source->scope_id;
+    capture->source_depth = (uint32_t)source->depth;
+    capture->first_use = use_node;
+    capture->source_declaration = source->declaration_node;
+    if (block->capture_tail) block->capture_tail->next = capture;
+    else block->captures = capture;
+    block->capture_tail = capture;
+    ++block->capture_count;
+    return 1;
+}
+
 static void semantic_validate_spawn_call(
     SemanticContext* ctx, ASTNode* node, ASTCall* call
 ) {
@@ -3652,6 +3702,9 @@ static void semantic_check_node(
                 } else {
                     report_issue(ctx, node, ERR_SEMANTIC_UNDEFINED, buf, NULL, "Değişken tanımlanmamış. 'v:' ile tanımlamayı deneyin.", 0, 0);
                 }
+            } else if (!semantic_register_thread_capture(
+                    ctx, resolved, node)) {
+                break;
             } else if (resolved->kind == SLOT_GROUP &&
                 !ctx->suppress_group_default_dispatch) {
                 const ASTGroupDecl* group =
@@ -5803,9 +5856,20 @@ static void semantic_check_node(
             if (!semantic_register_thread_block(ctx, tb)) break;
             /* The named block is one complete thread payload. Nested
                payloads are rejected; the child AST_BLOCK owns its scope. */
-            ++ctx->thread_block_depth;
-            semantic_check(ctx, tb->body);
-            --ctx->thread_block_depth;
+            {
+                ThreadBlockEntry* active_block =
+                    semantic_find_thread_block(ctx, tb->name);
+                ThreadBlockEntry* previous_block = ctx->active_thread_block;
+                if (active_block) {
+                    active_block->capture_base_depth =
+                        (uint32_t)ctx->current_depth;
+                    ctx->active_thread_block = active_block;
+                }
+                ++ctx->thread_block_depth;
+                semantic_check(ctx, tb->body);
+                --ctx->thread_block_depth;
+                ctx->active_thread_block = previous_block;
+            }
             break;
         }
 
@@ -5871,6 +5935,14 @@ void semantic_destroy(SemanticContext* ctx) {
     ThreadBlockEntry* thread_block = ctx->thread_blocks;
     while (thread_block) {
         ThreadBlockEntry* next = thread_block->next;
+        ThreadBlockCapture* capture = thread_block->captures;
+        while (capture) {
+            ThreadBlockCapture* capture_next = capture->next;
+            free(capture->name);
+            free(capture->type_name);
+            free(capture);
+            capture = capture_next;
+        }
         free(thread_block->name);
         free(thread_block);
         thread_block = next;
