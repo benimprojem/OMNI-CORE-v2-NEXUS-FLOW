@@ -936,7 +936,7 @@ static int check_extended_ast_semantics(void) {
     const char* invalid_guard =
         "nt:enum: Choice { Range(start!i32, end!i32), Other }"
         "f:main() { v:choice!Choice = Choice.Range(1, 2); "
-        "scan(choice) { Range(a,b) when 1 -> { } Other -> { } } }";
+        "scan(choice) { Range(a,b) when 1 -> { } else -> { } } }";
     const char* select_default_not_last =
         "f:main() { v:choice = 1; select(choice) { default -> { } 1 -> { } } }";
     const char* valid_scan_else_last =
