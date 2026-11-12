@@ -2332,8 +2332,8 @@ static void semantic_validate_irq_intrinsic(
     } else if (handler->type == AST_IDENTIFIER) {
         ASTIdentifier* id = (ASTIdentifier*)handler;
         Slot* slot = id->name ? find_slot(ctx, id->name) : NULL;
-        if (!slot || slot->kind != SLOT_FUNC) {
-            report_error(ctx, handler, ERR_SEMANTIC_UNDEFINED,
+        if (slot && slot->kind != SLOT_FUNC) {
+            report_error(ctx, handler, ERR_SEMANTIC_TYPE_MISMATCH,
                 "irq() handler identifier must resolve to a declared function.");
         }
     }
