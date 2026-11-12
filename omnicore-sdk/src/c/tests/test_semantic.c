@@ -2036,7 +2036,7 @@ static int check_intrinsic_semantics(void) {
     const char* invalid_poke_value =
         "f:main() { poke(1, \"text\"); }";
     const char* valid_ports =
-        "f:main() { v:p!u16 = 0x3f8; v:b!u8 = inb(p); outb(p, b); }";
+        "f:main(p!u16) { v:b!u8 = inb(p); outb(p, b); }";
     const char* invalid_inb =
         "f:main() { v:b = inb(\"port\"); }";
     const char* invalid_outb =
