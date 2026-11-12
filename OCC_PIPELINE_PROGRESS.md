@@ -2178,3 +2178,12 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added integration coverage for explicit-copy semantic marking and artifact round-trip, while preserving legacy schema 1.0 behavior when annotation flags are zero.
 - This is artifact compatibility work required by Semantic output; OIR lowering/Verifier phase has not started.
 - Tests are committed but not executed in this workspace; CI remains pending.
+
+
+### 2026-11-12 — Explicit copy-only capture validation
+
+- Corrected the capture rule to preserve Nexus Flow's explicit copy/move ownership model: direct access to an outer `SLOT_VAR` inside a thread payload is rejected; an outer value must appear within `copy(...)`.
+- `copy(...)` in a thread payload is checked for exactly one source expression. Captures are deduplicated by source symbol; nested payload-local variables remain local and do not become captures.
+- Added negative tests for direct access and malformed copy arity, plus repeated-copy deduplication and durable SemanticResult flag coverage.
+- `listen` and `done` result export/consumption remain Thread module responsibilities under the existing runtime spec. No scheduler, IPC or runtime code was added to Core.
+- Tests are committed; local execution and CI are still pending.
