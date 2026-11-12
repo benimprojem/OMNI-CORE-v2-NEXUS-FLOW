@@ -116,6 +116,50 @@ static int check_control_flow_semantics(void) {
         check_source(invalid_conditional_actions, 2);
 }
 
+
+static int check_malformed_conditional_ast(void) {
+    ASTIf* missing_condition = (ASTIf*)ast_create(AST_IF);
+    ASTIf* missing_primary_branch = (ASTIf*)ast_create(AST_IF);
+    SemanticContext semantic;
+    int ok = 1;
+    if (!missing_condition || !missing_primary_branch) {
+        ast_destroy((ASTNode*)missing_condition);
+        ast_destroy((ASTNode*)missing_primary_branch);
+        return 0;
+    }
+
+    missing_condition->then_branch = ast_create(AST_BLOCK);
+    if (!missing_condition->then_branch) ok = 0;
+    if (ok) {
+        semantic_init(&semantic, "semantic-malformed-if.nxf", NULL);
+        semantic_check(&semantic, (ASTNode*)missing_condition);
+        ok = semantic.error_count == 1 &&
+            semantic.error_head &&
+            strstr(semantic.error_head->message,
+                "if statement is missing its condition expression") != NULL;
+        semantic_destroy(&semantic);
+    }
+
+    if (ok) {
+        /* A non-null condition is required; the missing branch must be diagnosed. */
+        missing_primary_branch->condition = ast_create(AST_LITERAL);
+        if (!missing_primary_branch->condition) ok = 0;
+        else {
+            semantic_init(&semantic, "semantic-malformed-if.nxf", NULL);
+            semantic_check(&semantic, (ASTNode*)missing_primary_branch);
+            ok = semantic.error_count > 0 &&
+                semantic.error_head &&
+                strstr(semantic.error_head->message,
+                    "if statement is missing its primary branch") != NULL;
+            semantic_destroy(&semantic);
+        }
+    }
+
+    ast_destroy((ASTNode*)missing_condition);
+    ast_destroy((ASTNode*)missing_primary_branch);
+    return ok;
+}
+
 static int rejects_semantic_pending_node(ASTNodeType type) {
     ASTNode* node = ast_create(type);
     SemanticContext semantic;
@@ -868,6 +912,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    if (!check_malformed_conditional_ast()) {
+        fprintf(stderr, "Malformed conditional AST checks failed.\n");
+        return 1;
+    }
     if (!check_semantic_fail_closed_nodes()) {
         fprintf(stderr, "Semantic pending AST nodes were not rejected.\n");
         return 1;
