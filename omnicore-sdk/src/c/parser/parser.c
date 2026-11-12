@@ -2287,6 +2287,12 @@ static ASTNode* parse_nexus_flow(Parser* p) {
     if (error_handler || match(p, TOKEN_ERR_HANDLER)) {
         if (expr->type == AST_NEXUS_FLOW || expr->type == AST_NEXUS_PIPE) {
             ASTNexusFlow* flow = (ASTNexusFlow*)expr;
+            if(!match(p,TOKEN_LBRACE)) {
+                error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,
+                    msg_get(MSG_EXPECT_LBRACE_BLOCK));
+                ast_destroy(expr);
+                return NULL;
+            }
             flow->catch_block = parse_block(p);
             fprintf(stderr,"nexus catch block: %p current=%d errors=%d\\n",
                 (void*)flow->catch_block,(int)p->current.type,p->ctx->error_count);
