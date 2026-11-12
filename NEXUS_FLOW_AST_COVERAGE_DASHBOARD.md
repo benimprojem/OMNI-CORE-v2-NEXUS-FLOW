@@ -395,3 +395,12 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Invalid NewType targets are not registered in the symbol table. Alias chains and nominal assignment identity are covered: same-NewType assignment is valid, base-type and sibling-NewType assignment are rejected.
 - Unknown type diagnostics now name the missing type and its declaration/recursive-type context instead of relying on an untranslated message lookup.
 - CI run #4228 (`1628fcda`) passed Ubuntu, macOS, Windows, ASan/UBSan and Valgrind. Semantic remains open for remaining AST families and complete SemanticResult type identity coverage.
+
+
+### Semantic checkpoint — postfix lvalues, control-flow conditions and array indexing — 2026-11-12
+
+- Postfix increment/decrement now accepts mutable numeric identifiers, aggregate fields and indexed elements; constant/immutable lvalues and non-numeric operands are rejected with operator-specific diagnostics.
+- `if`/`elsif` and non-range `loop` conditions now report the actual operand type when it is not `bool`; unknown-name and unary/logical operand diagnostics are not redundantly repeated.
+- Array indexing infers an element type from an array-literal initializer, enabling typed indexed operations. Constant negative and out-of-range indices are rejected with the index, array length and valid range; fixed dimensions are checked when available.
+- Added tests for identifier/member/index postfix operations, constness, non-numeric operands, if/loop condition types, array element inference and bounds diagnostics.
+- Linux CTest and ASan/UBSan passed for this checkpoint. macOS, Windows and Valgrind results remain pending.
