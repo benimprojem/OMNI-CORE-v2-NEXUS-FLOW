@@ -4483,9 +4483,14 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
         int ast_valid=ctx->ast_root?ast_validate(ctx->ast_root,NULL):0;
         if(parse_result!=PARSER_STATUS_OK || ctx->error_count!=0 ||
            !ctx->ast_root || !ast_valid) {
+            Error* parse_error;
             fprintf(stderr,"flow parse status: result=%d status=%d errors=%d root=%p valid=%d\\n",
                 parse_result,parser_get_status(ctx),ctx->error_count,
                 (void*)ctx->ast_root,ast_valid);
+            for(parse_error=ctx->error_head;parse_error;parse_error=parse_error->next)
+                fprintf(stderr,"flow parse error: code=%d at=%d:%d msg=%s\\n",
+                    (int)parse_error->code,parse_error->line,parse_error->col,
+                    parse_error->message?parse_error->message:"");
             goto done;
         }
     }
