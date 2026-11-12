@@ -1476,7 +1476,8 @@ static void semantic_validate_type_expr(SemanticContext* ctx, ASTNode* node) {
             } else if (!is_type_defined(ctx, type->name)) {
                 char message[256];
                 (void)snprintf(message, sizeof(message),
-                    msg_get(ERR_SEMANTIC_UNKNOWN_TYPE), type->name);
+                    "Unknown type '%s' in recursive type expression.",
+                    type->name);
                 report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
             }
             break;
@@ -1552,7 +1553,7 @@ static void semantic_validate_type_expr(SemanticContext* ctx, ASTNode* node) {
                                !is_type_defined(ctx, declaration->type_name)) {
                         char message[256];
                         (void)snprintf(message, sizeof(message),
-                            msg_get(ERR_SEMANTIC_UNKNOWN_TYPE),
+                            "Function type parameter '%s' references an unknown type.",
                             declaration->type_name ? declaration->type_name : "<missing>");
                         report_error(ctx, parameter, ERR_SEMANTIC_UNKNOWN_TYPE, message);
                     }
@@ -2517,7 +2518,9 @@ static void semantic_check_node(
 
                 if (decl->type_name && !valid_type && !decl->type_expr) {
                     char buf[256];
-                    snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_UNKNOWN_TYPE),
+                    (void)snprintf(buf, sizeof(buf),
+                        "Declaration '%s' uses unknown type '%s'.",
+                        decl->name ? decl->name : "<unnamed>",
                         element_type ? element_type : decl->type_name);
                     report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                 }
