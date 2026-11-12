@@ -1271,6 +1271,78 @@ static int check_enum_ast_case(
     return ok;
 }
 
+
+static int check_enum_constructor_case(int test_case,int expected_errors) {
+    SemanticContext semantic;
+    ASTEnumDecl* decl=(ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    ASTEnumVariant* variant=(ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    ASTVarDecl* field=(ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTVarDecl* arg_decl=(ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTCall* call=(ASTCall*)ast_create(AST_FUNC_CALL);
+    ASTMemberAccess* callee=(ASTMemberAccess*)ast_create(AST_MEMBER_ACCESS);
+    ASTIdentifier* type_id=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    ASTIdentifier* arg=(ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    ASTNamedArg* named=NULL;
+    int ok=0, initialized=0;
+    if(!decl||!variant||!field||!arg_decl||!call||!callee||!type_id||!arg)goto done;
+    decl->name=semantic_test_copy_text("BuildState");
+    variant->name=semantic_test_copy_text("Running");
+    field->name=semantic_test_copy_text("value");
+    field->type_name=semantic_test_copy_text("i32");
+    arg_decl->name=semantic_test_copy_text("actual");
+    arg_decl->type_name=semantic_test_copy_text(test_case==4?"f64":"i32");
+    type_id->name=semantic_test_copy_text("BuildState");
+    arg->name=semantic_test_copy_text("actual");
+    callee->member_name=semantic_test_copy_text(test_case==1?"Missing":"Running");
+    if(!decl->name||!variant->name||!field->name||!field->type_name||
+       !arg_decl->name||!arg_decl->type_name||!type_id->name||!arg->name||
+       !callee->member_name)goto done;
+    variant->data=(ASTNode*)field;field=NULL;
+    decl->variants=(ASTNode*)variant;variant=NULL;
+    callee->object=(ASTNode*)type_id;type_id=NULL;
+    call->callee=(ASTNode*)callee;callee=NULL;
+    if(test_case==2) {
+        /* Missing payload is the arity-negative fixture. */
+    } else if(test_case==3) {
+        ASTLiteral* literal=(ASTLiteral*)ast_create(AST_LITERAL);
+        if(!literal)goto done;
+        literal->type=TOKEN_STRING;literal->lit_type=2;
+        literal->string_value=semantic_test_copy_text("\"wrong\"");
+        if(!literal->string_value){ast_destroy((ASTNode*)literal);goto done;}
+        call->args=(ASTNode*)literal;
+    } else if(test_case==5||test_case==6) {
+        named=(ASTNamedArg*)ast_create(AST_NAMED_ARG);
+        if(!named)goto done;
+        named->name=semantic_test_copy_text(test_case==5?"unknown":"value");
+        named->value=(ASTNode*)arg;arg=NULL;
+        if(!named->name)goto done;
+        call->args=(ASTNode*)named;named=NULL;
+    } else { call->args=(ASTNode*)arg;arg=NULL; }
+    semantic_init(&semantic,"semantic-enum-constructor.nxf",NULL);
+    initialized=1;
+    semantic_check(&semantic,(ASTNode*)decl);
+    semantic_check(&semantic,(ASTNode*)arg_decl);
+    semantic_check(&semantic,(ASTNode*)call);
+    ok=semantic.error_count==expected_errors;
+done:
+    if(initialized)semantic_destroy(&semantic);
+    ast_destroy((ASTNode*)decl);ast_destroy((ASTNode*)variant);
+    ast_destroy((ASTNode*)field);ast_destroy((ASTNode*)arg_decl);
+    ast_destroy((ASTNode*)call);ast_destroy((ASTNode*)callee);
+    ast_destroy((ASTNode*)type_id);ast_destroy((ASTNode*)arg);
+    ast_destroy((ASTNode*)named);
+    return ok;
+}
+static int check_enum_constructor_semantics(void) {
+    return check_enum_constructor_case(0,0)&&
+        check_enum_constructor_case(1,1)&&
+        check_enum_constructor_case(2,1)&&
+        check_enum_constructor_case(3,1)&&
+        check_enum_constructor_case(4,1)&&
+        check_enum_constructor_case(5,1)&&
+        check_enum_constructor_case(6,0);
+}
+
 static int check_enum_declaration_semantics(void) {
     ASTEnumDecl* valid = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
     ASTEnumVariant* ok_variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
@@ -1849,6 +1921,10 @@ int main(int argc, char** argv) {
     }
     if (!check_enum_scan_pattern_semantics()) {
         fprintf(stderr, "Enum scan constructor pattern semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_enum_constructor_semantics()) {
+        fprintf(stderr, "Enum constructor call semantic checks failed.\n");
         return 1;
     }
     if (!check_enum_declaration_semantics()) {
