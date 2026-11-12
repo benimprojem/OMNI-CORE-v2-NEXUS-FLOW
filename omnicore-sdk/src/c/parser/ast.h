@@ -118,7 +118,7 @@ typedef enum {
     AST_ARRAY_LITERAL,
     AST_ARRAY_TYPE,
     AST_ARRAY_DIMENSION,
-    /* Block-scope resource cleanup marker emitted by the closing `}?;`. */
+    /* Global active-resource Halt marker emitted by the closing `}?;` form. */
     AST_BLOCK_HALT,
     /* Append-only: variadic parameter-list marker and named call argument. */
     AST_VARIADIC_PARAM,
