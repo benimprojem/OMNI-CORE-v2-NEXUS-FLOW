@@ -4836,7 +4836,7 @@ static int test_handler_capture_string_and_call_flow_ast(void) {
     flow=(ASTNexusFlow*)statement;
     if(flow->op!=TOKEN_PIPE || !flow->left || flow->left->type!=AST_IDENTIFIER ||
        strcmp(((ASTIdentifier*)flow->left)->name,"hand")!=0 ||
-       !flow->right || flow->right->type!=AST_CALL ||
+       !flow->right || flow->right->type!=AST_FUNC_CALL ||
        !ast_validate(ctx->ast_root,NULL))goto done;
     ok=1;
 done:
