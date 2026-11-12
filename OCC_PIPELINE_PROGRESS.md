@@ -1907,3 +1907,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Added exact source-range assertions for `AST_PANIC` and ordinary `AST_NEXUS_PIPE` to the existing Parser suite. The checks include byte offsets and invoke `ast_validate()` on the resulting graph.
 - CI run 43076506449 for commit `3dd54b1fc6f95fa42944dca2e25bd78943704c4a` passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
 - Continued Parser production audit found a higher-priority unresolved case: `TOKEN_UNPACK` allocates `AST_UNPACK`, then recursively parses and returns the continuation without attaching/returning the wrapper. The allocated node/subtree is therefore lost on a successful continuation; no dedicated Parser test exists, and `...>` is absent from the normative syntax reference. It remains incomplete pending a precise postfix-vs-target grammar decision; do not mark it complete.
+
+
+### Semantic checkpoint — Select/Scan subject type propagation — 2026-11-12
+
+- **Implementation:** Select/Scan now analyze the selector/subject expression first, then visit each arm in its own scope while passing the subject type into pattern binding creation.
+- Pattern bindings no longer default to `any` when the subject type is known. Their local Symbol slot, SemanticResult type ID, and AST annotation carry the inferred subject type. Constructor pattern recursion currently propagates the subject type as a conservative baseline; enum payload field mapping remains pending.
+- **Regression coverage:** added positive and negative cases for both Select and Scan. `i32` subject → binding assigned to `i32` succeeds; assigning the inferred binding to `str` fails.
+- Commits: implementation `92f43cbb5166891aedec098babcb3714c0820686`; tests `2af1952e54cb84acc1f33e8e62935690fe07752c`; dashboard update `4939686935405b8067d0a7b486e0c0ff092279c1`.
+- CI was triggered by the implementation commit; test commit followed while the first run was active. Recheck the latest run after the documentation commit before marking this checkpoint verified.
+- Remaining Semantic priorities: enum-aware constructor patterns and payload types; exhaustive Select/Scan; tuple typing/destructuring; function/callback signature compatibility and return-flow; import environment/type exports; ownership/effects and full AST annotation/reference validation. No OIR work starts until Semantic closure.
