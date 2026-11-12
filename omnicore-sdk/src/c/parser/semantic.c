@@ -6342,7 +6342,7 @@ static void semantic_check_node(
         case AST_IRQ:
         case AST_REG: {
             ASTCall* call = (ASTCall*)node;
-            if (call->callee) semantic_check(ctx, call->callee);
+            /* Dedicated intrinsic callee is identity metadata, not a variable use. */
             if (node->type == AST_REG) {
                 ASTNode* write_value = call->args && call->args->next &&
                     call->args->next->next
