@@ -2011,6 +2011,46 @@ static int semantic_is_lengthable_type(const char* type_name) {
     return 0;
 }
 
+static const char* semantic_intrinsic_expected_name(ASTNodeType type) {
+    switch (type) {
+        case AST_ADDR: return "addr";
+        case AST_LEN: return "len";
+        case AST_PEEK: return "peek";
+        case AST_POKE: return "poke";
+        case AST_INB: return "inb";
+        case AST_OUTB: return "outb";
+        case AST_AREA: return "area";
+        case AST_ZONE: return "zone";
+        case AST_FREE: return "free";
+        default: return NULL;
+    }
+}
+
+static void semantic_validate_intrinsic_callee(
+    SemanticContext* ctx, ASTNode* node, const ASTCall* call
+) {
+    const char* expected = semantic_intrinsic_expected_name(node->type);
+    ASTIdentifier* identifier;
+    if (!expected) return;
+    if (!call || !call->callee) {
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Intrinsic AST is missing its callee identifier.");
+        return;
+    }
+    if (call->callee->type != AST_IDENTIFIER) {
+        report_error(ctx, call->callee, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Intrinsic callee must be an identifier node.");
+        return;
+    }
+    identifier = (ASTIdentifier*)call->callee;
+    if (!identifier->name || strcmp(identifier->name, expected) != 0) {
+        char message[192];
+        (void)snprintf(message, sizeof(message),
+            "Intrinsic AST callee must be '%s'.", expected);
+        report_error(ctx, call->callee, ERR_SEMANTIC_TYPE_MISMATCH, message);
+    }
+}
+
 static void semantic_validate_memory_intrinsic(
     SemanticContext* ctx, ASTNode* node
 ) {
@@ -5297,6 +5337,7 @@ static void semantic_check_node(
             ASTCall* call = (ASTCall*)node;
             if (call->callee) semantic_check(ctx, call->callee);
             if (call->args) semantic_check(ctx, call->args);
+            semantic_validate_intrinsic_callee(ctx, node, call);
             if (node->type == AST_ADDR || node->type == AST_LEN ||
                 node->type == AST_PEEK || node->type == AST_POKE)
                 semantic_validate_memory_intrinsic(ctx, node);
