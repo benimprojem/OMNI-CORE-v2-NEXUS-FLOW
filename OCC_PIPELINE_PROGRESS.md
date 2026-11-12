@@ -2232,3 +2232,12 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added direct malformed/valid AST fixtures and updated the normative syntax reference plus the AST coverage dashboard.
 - Enum Semantic remains partial: constructor lookup/argument binding and exhaustive pattern analysis are not complete. No OIR work has started.
 - CI/local test execution is pending; no pass claim is made.
+
+
+### Semantic checkpoint — Struct/Union field declaration validation — 2026-11-12
+
+- Added required-type validation for Struct and Union fields, while allowing a valid recursive `type_expr` to supply the type.
+- Hardened named and inline aggregate field traversal against malformed child node kinds; malformed nodes are diagnosed by the shared field validator and are not cast as `ASTVarDecl`.
+- Added direct AST tests for missing Struct/Union field types and malformed field nodes. Existing aggregate tests cover duplicate field names, unknown types, and member compatibility.
+- Struct Semantic remains closed. Union field declaration/type resolution is implemented, but active-member tracking and safe-read behavior remain open pending a language decision. This policy was not invented.
+- Updated the syntax reference and coverage dashboard. Local tests and CI remain unverified.
