@@ -1089,6 +1089,132 @@ static int check_aggregate_field_type_semantics(void) {
     return 1;
 }
 
+
+static int check_enum_scan_pattern_case(
+    int test_case, int expected_errors, const char* expected_binding_type
+) {
+    SemanticContext semantic;
+    ASTEnumDecl* enum_decl = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    ASTEnumVariant* payload_variant =
+        (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    ASTEnumVariant* empty_variant =
+        (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    ASTVarDecl* payload_field = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTVarDecl* subject_decl = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTScan* scan = (ASTScan*)ast_create(AST_SCAN);
+    ASTScanArm* arm = (ASTScanArm*)ast_create(AST_SCAN_ARM);
+    ASTIdentifier* subject = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
+    ASTPatternConstructor* constructor =
+        (ASTPatternConstructor*)ast_create(AST_PATTERN_CONSTRUCTOR);
+    ASTPatternBinding* binding_a =
+        (ASTPatternBinding*)ast_create(AST_PATTERN_BINDING);
+    ASTPatternBinding* binding_b = NULL;
+    ASTNode* owned_scan;
+    int ok = 0;
+    if (test_case == 2)
+        binding_b = (ASTPatternBinding*)ast_create(AST_PATTERN_BINDING);
+    if (!enum_decl || !payload_variant || !empty_variant || !payload_field ||
+        !subject_decl || !scan || !arm || !subject || !constructor ||
+        !binding_a || (test_case == 2 && !binding_b)) goto cleanup;
+
+    enum_decl->name = semantic_test_copy_text("ScanResult");
+    payload_variant->name = semantic_test_copy_text("Ok");
+    empty_variant->name = semantic_test_copy_text("Empty");
+    payload_field->name = semantic_test_copy_text("value");
+    payload_field->type_name = semantic_test_copy_text("i32");
+    subject_decl->name = semantic_test_copy_text("scan_value");
+    subject_decl->type_name = semantic_test_copy_text("ScanResult");
+    subject->name = semantic_test_copy_text("scan_value");
+    constructor->name = semantic_test_copy_text(
+        test_case == 1 ? "Missing" : "Ok");
+    binding_a->name = semantic_test_copy_text("captured");
+    if (!enum_decl->name || !payload_variant->name || !empty_variant->name ||
+        !payload_field->name || !payload_field->type_name ||
+        !subject_decl->name || !subject_decl->type_name || !subject->name ||
+        !constructor->name || !binding_a->name) goto cleanup;
+
+    payload_variant->data = (ASTNode*)payload_field;
+    payload_field = NULL;
+    payload_variant->base.next = (ASTNode*)empty_variant;
+    empty_variant = NULL;
+    enum_decl->variants = (ASTNode*)payload_variant;
+    payload_variant = NULL;
+
+    if (test_case == 3) {
+        /* Bare matching of a payload-bearing variant is not a valid pattern. */
+        ASTPatternBinding* bare =
+            (ASTPatternBinding*)ast_create(AST_PATTERN_BINDING);
+        if (!bare) goto cleanup;
+        bare->name = semantic_test_copy_text("Ok");
+        if (!bare->name) { ast_destroy((ASTNode*)bare); goto cleanup; }
+        arm->pattern = (ASTNode*)bare;
+    } else {
+        if (test_case == 2) {
+            binding_b = (ASTPatternBinding*)ast_create(AST_PATTERN_BINDING);
+            if (!binding_b) goto cleanup;
+            binding_b->name = semantic_test_copy_text("extra");
+            if (!binding_b->name) goto cleanup;
+            binding_a->base.next = (ASTNode*)binding_b;
+            binding_b = NULL;
+        }
+        constructor->bindings = (ASTNode*)binding_a;
+        binding_a = NULL;
+        arm->pattern = (ASTNode*)constructor;
+        constructor = NULL;
+    }
+    subject_decl = subject_decl;
+    scan->subject = (ASTNode*)subject;
+    subject = NULL;
+    arm->body = ast_create(AST_BLOCK);
+    if (!arm->body) goto cleanup;
+    scan->arms = (ASTNode*)arm;
+    arm = NULL;
+    owned_scan = (ASTNode*)scan;
+    scan = NULL;
+
+    semantic_init(&semantic,"semantic-enum-scan-pattern.nxf",NULL);
+    semantic_check(&semantic,(ASTNode*)enum_decl);
+    semantic_check(&semantic,(ASTNode*)subject_decl);
+    semantic_check(&semantic,owned_scan);
+    ok = semantic.error_count == expected_errors;
+    if (expected_binding_type) {
+        Slot* slot;
+        int found = 0;
+        for (slot=semantic.head;slot;slot=slot->next) {
+            if (slot->name && strcmp(slot->name,"captured")==0 &&
+                slot->type_name &&
+                strcmp(slot->type_name,expected_binding_type)==0) found=1;
+        }
+        ok = ok && found;
+    }
+    semantic_destroy(&semantic);
+    ast_destroy((ASTNode*)enum_decl);
+    ast_destroy((ASTNode*)subject_decl);
+    ast_destroy(owned_scan);
+    return ok;
+
+cleanup:
+    ast_destroy((ASTNode*)enum_decl);
+    ast_destroy((ASTNode*)payload_variant);
+    ast_destroy((ASTNode*)empty_variant);
+    ast_destroy((ASTNode*)payload_field);
+    ast_destroy((ASTNode*)subject_decl);
+    ast_destroy((ASTNode*)scan);
+    ast_destroy((ASTNode*)arm);
+    ast_destroy((ASTNode*)subject);
+    ast_destroy((ASTNode*)constructor);
+    ast_destroy((ASTNode*)binding_a);
+    ast_destroy((ASTNode*)binding_b);
+    return 0;
+}
+
+static int check_enum_scan_pattern_semantics(void) {
+    return check_enum_scan_pattern_case(0,0,"i32") &&
+        check_enum_scan_pattern_case(1,1,NULL) &&
+        check_enum_scan_pattern_case(2,1,NULL) &&
+        check_enum_scan_pattern_case(3,1,NULL);
+}
+
 static int check_enum_ast_case(
     ASTNode* node, int expected_errors, const char* expected_message
 ) {
@@ -1685,6 +1811,10 @@ int main(int argc, char** argv) {
     }
     if (!check_aggregate_field_type_semantics()) {
         fprintf(stderr, "Aggregate field type semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_enum_scan_pattern_semantics()) {
+        fprintf(stderr, "Enum scan constructor pattern semantic checks failed.\\n");
         return 1;
     }
     if (!check_enum_declaration_semantics()) {
