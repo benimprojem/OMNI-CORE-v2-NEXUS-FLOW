@@ -418,7 +418,17 @@ static int check_thread_api_is_module_call(void) {
     ast_destroy(legacy);
     if (!rejected) return 0;
     return check_source(
-        "f:main() { spawn(1); listen(1); send(1); receive(); done(); }", 0);
+        "f:main() { listen(1); send(1); receive(); done(); }", 0) &&
+        check_source(
+            "f:main() { (worker)>{ v:x!i32 = 1; } spawn(worker); }", 0) &&
+        check_source(
+            "f:main() { spawn(missing_worker); }", 1) &&
+        check_source(
+            "f:main() { (worker)>{ } spawn(worker, worker); }", 1) &&
+        check_source(
+            "f:main() { spawn(1); }", 1) &&
+        check_source(
+            "f:main() { (worker)>{ } (worker)>{ } }", 1);
 }
 
 static int check_unnamed_declaration_ast(void) {
