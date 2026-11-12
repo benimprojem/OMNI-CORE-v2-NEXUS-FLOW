@@ -487,6 +487,18 @@ static int check_extended_ast_semantics(void) {
     const char* invalid_distinct_newtype_assignment =
         "nt:UserId = u64; nt:OrderId = u64; "
         "f:main() { v:user!UserId; v:order!OrderId = user; }";
+    const char* valid_newtype_function_argument =
+        "nt:UserId = u64; f:accept(id!UserId)!void { ret; } "
+        "f:main() { v:id!UserId; accept(id); }";
+    const char* invalid_newtype_base_function_argument =
+        "nt:UserId = u64; f:accept(id!UserId)!void { ret; } "
+        "f:main() { v:raw!u64; accept(raw); }";
+    const char* valid_newtype_function_return =
+        "nt:UserId = u64; f:make() !UserId { v:id!UserId; ret id; } "
+        "f:main() { v:id!UserId = make(); }";
+    const char* invalid_newtype_base_function_return =
+        "nt:UserId = u64; f:make() !UserId { v:raw!u64; ret raw; } "
+        "f:main() {}";
     const char* invalid_newtype_target_not_registered =
         "nt:Bad = MissingType; f:main() { v:value!Bad; }";
     const char* valid_recursive_type_exprs =
@@ -556,6 +568,10 @@ static int check_extended_ast_semantics(void) {
         check_source(valid_newtype_identity_assignment,0) &&
         check_source(invalid_newtype_base_assignment,1) &&
         check_source(invalid_distinct_newtype_assignment,1) &&
+        check_source(valid_newtype_function_argument,0) &&
+        check_source(invalid_newtype_base_function_argument,1) &&
+        check_source(valid_newtype_function_return,0) &&
+        check_source(invalid_newtype_base_function_return,1) &&
         check_source(invalid_newtype_target_not_registered,2) &&
         check_source(valid_recursive_type_exprs,0) &&
         check_source(invalid_recursive_pointer_type,1) &&
