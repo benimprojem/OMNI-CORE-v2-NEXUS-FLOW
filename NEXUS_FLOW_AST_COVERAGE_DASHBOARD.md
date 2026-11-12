@@ -327,3 +327,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 
 
 - Named-argument follow-up: duplicate parameter binding and positional-after-named forms now produce Semantic diagnostics. Added regression fixtures. Commits `3f86c6da` Semantic, `cfb75499` tests; CI pending.
+
+
+### Lexer/Parser correction — contextual `(e)` catch handler — 2026-11-12
+
+- Lexer no longer collapses every literal `(e)` into a special token. That tokenization broke ordinary expressions such as `echo(e)` inside a catch body.
+- Parser now recognizes `(e)` contextually only after `?->`, constructs the handler identifier and consumes its parentheses, then attaches the following block.
+- This restores normal call/group tokenization while preserving the catch syntax. Added Parser diagnostic tracing; verify exact fixture and cross-platform CI next.
+- Commits: `81f1da3e` (Lexer), `76176c20` (Parser). CI pending.
