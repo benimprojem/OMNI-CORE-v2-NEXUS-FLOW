@@ -488,7 +488,7 @@ static int parser_map_function_type_range(
     line = 1u;
     column = 1u;
     for (i = 0u; i < mapped_start; ++i) {
-        if (p->ctx->source_buffer[i] == '\\n') {
+        if (p->ctx->source_buffer[i] == '\n') {
             if (line == UINT32_MAX) return 0;
             ++line;
             column = 1u;
