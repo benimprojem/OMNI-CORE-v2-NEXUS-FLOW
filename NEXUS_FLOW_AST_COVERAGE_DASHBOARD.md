@@ -591,3 +591,18 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added fail-closed validation for AST_NEXUS_CAPTURE (handler + expression), AST_NEXUS_PIPE (both operands), AST_NAMED_ARG (name + value) and AST_LISTEN (handler name before scope entry).
 - Added direct malformed-AST regression fixtures. Full handler/event lifetime, pipe effects and listen runtime semantics remain open.
 - Dashboard alt-coverage checkmarks represent implementation + fixture presence; CI is pending.
+
+
+### Semantic checkpoint — OS I/O ve Thread module sınırı — 2026-11-12
+
+| AST/API | Core Semantic | Sahip modül | Not |
+|---|:---:|---|---|
+| `AST_ECHO` / `echo(...)` | ✓ (callee identity + AST traversal) | OS module | Terminal/console bağımlılığı; bare-metal garantisi yok |
+| `input(...)` | — | OS module / target input driver | AST özel intrinsic değil; module API olarak çözülür |
+| `AST_PRNT` / `prnt(...)` | ~ (genel call traversal) | Runtime output sink (tasarım açık) | UART/framebuffer/debug/host callback ortak ABI henüz yok |
+| `AST_PRMT` / `prmt(...)` | ~ (genel call traversal) | Runtime input/prompt sink (tasarım açık) | Bare-metal provider arayüzü kararlaştırılmalı |
+| `AST_WRITE` / `AST_FWRITE` | ~ (genel call traversal) | File/stream module | Filesystem/stream provider'a bağlı |
+| `AST_SPAWN` (legacy tag) | ✓ fail-closed/identity checkpoint | Thread module | Yeni spawn syntax core parser'a ait değil |
+| `listen/send/receive/done` | ~ (AST structural only) | Thread module | Scheduler, IPC, handle/lifetime Semantic'i Thread modülünde |
+
+> OS ve Thread modülü ayrımı syntax reference'a işlendi. Bu checkpoint, modül API imzalarını veya bare-metal driver ABI'sini tamamlamaz; ana Semantic sütunları `~` kalır. Test/CI pending.
