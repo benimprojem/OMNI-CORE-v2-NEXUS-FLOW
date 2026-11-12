@@ -604,9 +604,9 @@ static int check_aggregate_member_semantics(void) {
     const char* duplicate_union_field =
         "f:main() { union: Choice { v:value!i32, v:value!f64 } }";
     const char* valid_union_cross_member_read =
-        "f:main() { union: Register { v:word!u32, v:octet!u8 } "
+        "f:main() { union: Register { v:word!i32, v:octet!u8 } "
         "v:r!Register; r.word = 0x12345678; v:part!u8 = r.octet; "
-        "r.octet = 0x12; v:whole!u32 = r.word; }";
+        "v:whole!i32 = r.word; }";
     const char* unknown_union_member =
         "f:main() { union: Register { v:word!u32 } "
         "v:r!Register; v:bad = r.missing; }";
