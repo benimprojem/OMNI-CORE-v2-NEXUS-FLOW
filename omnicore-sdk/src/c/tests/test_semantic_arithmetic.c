@@ -30,6 +30,39 @@ static int check_source(const char* source, int expect_error) {
     return ok;
 }
 
+
+static int check_error_detail(const char* source, const char* required_a,
+    const char* required_b, int expected_line) {
+    ParserContext* parser = parser_init_source(
+        "semantic-diagnostic.nxf", (const uint8_t*)source, strlen(source));
+    SemanticContext semantic;
+    Error* error;
+    int ok = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK ||
+        parser_get_status(parser) != PARSER_STATUS_OK || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    semantic_init(&semantic, "semantic-diagnostic.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    error = semantic.error_head;
+    if (error && error->message && error->line == expected_line &&
+        error->col > 0 && strstr(error->message, required_a) &&
+        (!required_b || strstr(error->message, required_b))) {
+        ok = 1;
+    } else {
+        fprintf(stderr,
+            "Diagnostic detail mismatch: line=%d col=%d message='%s' expected line=%d text='%s'/'%s'\n",
+            error ? error->line : 0, error ? error->col : 0,
+            error && error->message ? error->message : "<none>",
+            expected_line, required_a, required_b ? required_b : "<none>");
+    }
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 int main(void) {
     static const char integer_expression[] =
         "f:main() !i32 { ret 10 + 20 * 3; }";
@@ -107,6 +140,12 @@ int main(void) {
     if (!check_source(shift_i64_valid_boundary, 0)) return 1;
     if (!check_source(logical_valid, 0)) return 1;
     if (!check_source(logical_invalid, 1)) return 1;
+    if (!check_error_detail(
+        "f:main(a!u8) !u8 {\\n    ret a <<< 8;\\n}",
+        "8-bit width", "0..7", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() !f32 {\\n    ret 7.0 & 3.0;\\n}",
+        "Operator '&'", "f32", 2)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
