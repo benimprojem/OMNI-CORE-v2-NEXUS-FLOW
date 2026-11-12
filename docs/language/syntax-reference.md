@@ -1293,7 +1293,7 @@ v:check = f:(value!u32)!bool > (value > 0);
 >**KURAL:** 
 > Bir `group`, bir `struct`, `enum`, `union` 'a metot ekleyecekse, isimleri **BİREBİR AYNI** olmalıdır.
 > (Struct) Yapı Group içerisinde tanımlanır ise dışarıdan erişilemez. Sadece group metotları kullanılarak ulaşılabilir.
-> Nesne metodu için implementation fonksiyonunun ilk parametresi `self` olmalıdır. `self` çağrı noktasında örtük receiver olarak aktarılır; kullanıcı argüman listesinde yer almaz ve named argument olarak verilemez. `self` dışındaki parametreler positional veya named argument ile eşleştirilir. İlk parametresi `self` olmayan metot statiktir ve Group/type adı üzerinden çağrılır; instance üzerinden çağrılamaz.
+> Nesne metodu için implementation fonksiyonunun ilk parametresi `self` olmalıdır. `self` çağrı noktasında örtük receiver olarak aktarılır; kullanıcı argüman listesinde yer almaz ve named argument olarak verilemez. `self` dışındaki parametreler positional veya named argument ile eşleştirilir. İlk parametresi `self` olmayan metot statiktir ve Group/type adı üzerinden çağrılır; instance üzerinden çağrılamaz. Aynı Group içinde public metot adı benzersizdir; aynı adla overload tanımları desteklenmez.
 
 
 ```
@@ -1975,4 +1975,5 @@ Semantic resolves the qualifier to an enum declaration and the member to one of 
 - For an object method, the implementation's first parameter must be named `self`. Semantic infers its type from the Group-bound Struct when omitted, or verifies an explicit type against that Struct. A Group without its same-name Struct cannot declare an object receiver.
 - The `self` parameter is an implicit receiver at an instance call site: callers do not supply it positionally or by name. Positional and named arguments are matched only against the remaining declared parameters. Unknown, duplicate, or positionally conflicting named arguments are rejected.
 - A method whose implementation does not begin with `self` is static and must be called through the Group/type name. Instance calls to static methods and type-qualified calls to object methods are rejected.
+- Public Group member names are unique within a Group. Method overloading by repeating a public method name is not supported; duplicate names are rejected during Semantic validation.
 - Group-owned nominal types are visible within their owning Group (including its methods), but are not visible to sibling Groups or enclosing/outside scopes.
