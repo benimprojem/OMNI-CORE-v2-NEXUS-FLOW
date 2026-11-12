@@ -345,6 +345,9 @@ static int check_malformed_function_and_control_ast(void) {
     if (!check_source(
             "f:main() { (worker)>{ v:inside!i32 = 1; } "
             "v:outside!i32 = inside; }", 1)) return 0;
+    if (!check_source(
+            "f:main() { (outer)>{ v:x!i32 = 1; "
+            "(inner)>{ v:y!i32 = x; } } }", 1)) return 0;
     return 1;
 }
 
