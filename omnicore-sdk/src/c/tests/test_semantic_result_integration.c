@@ -217,7 +217,8 @@ static const SemanticResultAnnotation* find_annotation_by_node(
 static int test_thread_payload_capture_annotations(void) {
     static const char source[] =
         "f:main() { v:outside!i32 = 7; "
-        "(worker)>{ v:inside!i32 = outside; v:local_copy!i32 = inside; } "
+        "(worker)>{ (h) <- copy(outside); (h2) <- copy(outside); "
+        "v:inside!i32 = 1; v:local_copy!i32 = inside; } "
         "spawn(worker); }";
     ParserContext* parser = parser_init_source(
         "thread-payload-capture-result.nxf",
@@ -229,6 +230,7 @@ static int test_thread_payload_capture_annotations(void) {
     ASTBlock* main_body;
     ASTThreadBlock* thread_block;
     ASTBlock* payload_body;
+    ASTNexusCapture* first_capture;
     ASTVarDecl *inside, *local_copy;
     const SemanticResultAnnotation *outer_use, *local_use;
     uint32_t node_count = 0u;
@@ -253,14 +255,22 @@ static int test_thread_payload_capture_annotations(void) {
     if (!thread_block || !thread_block->body ||
         thread_block->body->type != AST_BLOCK) goto done;
     payload_body = (ASTBlock*)thread_block->body;
-    inside = payload_body->statements &&
-        payload_body->statements->type == AST_VAR_DECL
-            ? (ASTVarDecl*)payload_body->statements : NULL;
+    first_capture = payload_body->statements &&
+        payload_body->statements->type == AST_NEXUS_CAPTURE
+            ? (ASTNexusCapture*)payload_body->statements : NULL;
+    inside = first_capture && first_capture->base.next &&
+        first_capture->base.next->base.type == AST_NEXUS_CAPTURE &&
+        first_capture->base.next->next &&
+        first_capture->base.next->next->type == AST_VAR_DECL
+            ? (ASTVarDecl*)first_capture->base.next->next : NULL;
     local_copy = inside && inside->base.next &&
         inside->base.next->type == AST_VAR_DECL
             ? (ASTVarDecl*)inside->base.next : NULL;
-    if (!inside || !inside->initializer ||
-        inside->initializer->type != AST_IDENTIFIER ||
+    if (!first_capture || !first_capture->expr ||
+        first_capture->expr->type != AST_FUNC_CALL ||
+        !((ASTCall*)first_capture->expr)->args ||
+        ((ASTCall*)first_capture->expr)->args->type != AST_IDENTIFIER ||
+        !inside || !inside->initializer ||
         !local_copy || !local_copy->initializer ||
         local_copy->initializer->type != AST_IDENTIFIER) goto done;
 
@@ -275,7 +285,7 @@ static int test_thread_payload_capture_annotations(void) {
         semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK)
         goto done;
     outer_use = find_annotation_by_node(
-        &semantic.result, resolve_node_id(&resolver, inside->initializer));
+        &semantic.result, resolve_node_id(&resolver, ((ASTCall*)first_capture->expr)->args));
     local_use = find_annotation_by_node(
         &semantic.result, resolve_node_id(&resolver, local_copy->initializer));
     ok = outer_use && local_use &&
