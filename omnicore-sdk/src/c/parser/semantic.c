@@ -1664,11 +1664,19 @@ static int semantic_populate_function_signature(
     int parameter_count = 0;
     ASTNode* parameter;
     if (!ctx || !function_slot || !function) return 0;
-    if (function_slot->param_count != 0 || function_slot->param_types)
-        return 1;
+    if (function_slot->param_count != 0 || function_slot->param_types ||
+        function_slot->is_variadic) return 1;
 
-    for (parameter = function->params; parameter; parameter = parameter->next)
-        ++parameter_count;
+    for (parameter = function->params; parameter; parameter = parameter->next) {
+        if (parameter->type == AST_VARIADIC_PARAM) {
+            function_slot->is_variadic = 1;
+        } else if (parameter->type == AST_VAR_DECL) {
+            ++parameter_count;
+        } else {
+            semantic_set_result_error(ctx,SEMANTIC_RESULT_INVALID_DATA);
+            return 0;
+        }
+    }
     function_slot->param_count = parameter_count;
     if (parameter_count == 0) return 1;
 
@@ -1683,31 +1691,37 @@ static int semantic_populate_function_signature(
     {
         int index = 0;
         while (parameter) {
-            ASTVarDecl* variable = (ASTVarDecl*)parameter;
-            if (variable->type_name || (variable->inline_type &&
-                variable->inline_type->type == AST_ARRAY_TYPE)) {
-                if (variable->inline_type &&
-                    variable->inline_type->type == AST_ARRAY_TYPE) {
-                    char array_signature[256];
-                    if (!semantic_format_array_signature(
-                        variable, array_signature, sizeof(array_signature))) {
+            if (parameter->type == AST_VARIADIC_PARAM) {
+                parameter = parameter->next;
+                continue;
+            }
+            {
+                ASTVarDecl* variable = (ASTVarDecl*)parameter;
+                if (variable->type_name || (variable->inline_type &&
+                    variable->inline_type->type == AST_ARRAY_TYPE)) {
+                    if (variable->inline_type &&
+                        variable->inline_type->type == AST_ARRAY_TYPE) {
+                        char array_signature[256];
+                        if (!semantic_format_array_signature(
+                            variable, array_signature, sizeof(array_signature))) {
+                            semantic_set_result_error(
+                                ctx, SEMANTIC_RESULT_INVALID_DATA);
+                            return 0;
+                        }
+                        function_slot->param_types[index] =
+                            semantic_duplicate(ctx, array_signature);
+                    } else {
+                        function_slot->param_types[index] =
+                            semantic_duplicate(ctx, variable->type_name);
+                    }
+                    if (!function_slot->param_types[index]) {
                         semantic_set_result_error(
-                            ctx, SEMANTIC_RESULT_INVALID_DATA);
+                            ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                         return 0;
                     }
-                    function_slot->param_types[index] =
-                        semantic_duplicate(ctx, array_signature);
-                } else {
-                    function_slot->param_types[index] =
-                        semantic_duplicate(ctx, variable->type_name);
                 }
-                if (!function_slot->param_types[index]) {
-                    semantic_set_result_error(
-                        ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
-                    return 0;
-                }
+                ++index;
             }
-            ++index;
             parameter = parameter->next;
         }
     }
