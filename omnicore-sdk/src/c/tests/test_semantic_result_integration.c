@@ -371,10 +371,20 @@ static int test_extended_semantic_scopes(void) {
     semantic_check(&semantic,(ASTNode*)parser->ast_root);
     if(semantic.error_count!=0 || semantic.result_status!=SEMANTIC_RESULT_OK ||
        semantic.current_scope_id!=1u || semantic.current_depth!=0) {
+        Error* detail;
+        fprintf(stderr,
+            "Extended scope semantic state: errors=%d result_status=%d scope=%u depth=%d\n",
+            semantic.error_count, (int)semantic.result_status,
+            semantic.current_scope_id, semantic.current_depth);
+        for(detail=semantic.error_head;detail;detail=detail->next)
+            fprintf(stderr,"  semantic error at %d:%d: %s\n",
+                detail->line,detail->col,detail->message?detail->message:"<none>");
         semantic_destroy(&semantic);
         goto done;
     }
     if(semantic_finalize_result(&semantic,node_count)!=SEMANTIC_RESULT_OK) {
+        fprintf(stderr,"Extended scope SemanticResult finalize failed: status=%d\n",
+            (int)semantic.result_status);
         semantic_destroy(&semantic);
         goto done;
     }
