@@ -489,6 +489,10 @@ static int check_extended_ast_semantics(void) {
         "nt:BadReturn = f:(id!u32)!MissingType; f:main() {}";
     const char* invalid_recursive_variable_type =
         "f:main(value!*MissingType) {}";
+    const char* invalid_recursive_array_element =
+        "f:main(value!MissingType[4]) {}";
+    const char* invalid_recursive_function_return =
+        "f:main() !MissingType { ret; }";
     const char* valid_inferred_array =
         "f:main() { v:items = [1,2,3]; }";
     const char* invalid_heterogeneous_array =
@@ -536,6 +540,8 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_recursive_function_parameter,1) &&
         check_source(invalid_recursive_function_return,1) &&
         check_source(invalid_recursive_variable_type,1) &&
+        check_source(invalid_recursive_array_element,1) &&
+        check_source(invalid_recursive_function_return,1) &&
         check_source(valid_inferred_array,0) &&
         check_source(invalid_heterogeneous_array,1) &&
         check_source(valid_tuple_indexing,0) &&
