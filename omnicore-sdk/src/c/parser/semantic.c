@@ -967,12 +967,27 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             const char* element_type = "any";
             const char* representation_element =
                 semantic_representation_element_type(target_type);
-            if (target_type && strcmp(target_type, "tuple") == 0 &&
-                access->target && access->target->type == AST_TUPLE) {
+            if (target_type && strcmp(target_type, "tuple") == 0) {
+                const ASTTuple* tuple_expr = NULL;
                 int64_t tuple_index;
-                if (semantic_eval_integer_constant(access->index,&tuple_index)) {
-                    const ASTNode* item =
-                        ((const ASTTuple*)access->target)->elements;
+                if (access->target && access->target->type == AST_TUPLE) {
+                    tuple_expr=(const ASTTuple*)access->target;
+                } else if (access->target &&
+                    access->target->type == AST_IDENTIFIER) {
+                    const ASTIdentifier* id=(const ASTIdentifier*)access->target;
+                    Slot* tuple_slot=find_slot(ctx,id->name);
+                    if (tuple_slot && tuple_slot->declaration_node &&
+                        tuple_slot->declaration_node->type == AST_VAR_DECL) {
+                        const ASTVarDecl* tuple_decl=
+                            (const ASTVarDecl*)tuple_slot->declaration_node;
+                        if (tuple_decl->initializer &&
+                            tuple_decl->initializer->type == AST_TUPLE)
+                            tuple_expr=(const ASTTuple*)tuple_decl->initializer;
+                    }
+                }
+                if (tuple_expr &&
+                    semantic_eval_integer_constant(access->index,&tuple_index)) {
+                    const ASTNode* item = tuple_expr->elements;
                     if (tuple_index < 0) {
                         report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                             "Tuple index cannot be negative.");
