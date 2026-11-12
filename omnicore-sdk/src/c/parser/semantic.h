@@ -47,9 +47,24 @@ typedef uint32_t (*SemanticNodeIdResolver)(
     void* user_context, const ASTNode* node
 );
 
+typedef struct ThreadBlockCapture {
+    char* name;
+    char* type_name;
+    uint32_t symbol_id;
+    uint32_t source_scope_id;
+    uint32_t source_depth;
+    ASTNode* first_use; /* Borrowed from the AST. */
+    ASTNode* source_declaration; /* Borrowed from the AST. */
+    struct ThreadBlockCapture* next;
+} ThreadBlockCapture;
+
 typedef struct ThreadBlockEntry {
     char* name;
     ASTNode* declaration; /* Borrowed from the AST; owned by the Parser/AST. */
+    uint32_t capture_base_depth;
+    ThreadBlockCapture* captures;
+    ThreadBlockCapture* capture_tail;
+    size_t capture_count;
     struct ThreadBlockEntry* next;
 } ThreadBlockEntry;
 
@@ -88,6 +103,7 @@ typedef struct {
     /* Registry of complete named payloads available to spawn() calls. */
     ThreadBlockEntry* thread_blocks;
     ThreadBlockEntry* thread_block_tail;
+    ThreadBlockEntry* active_thread_block;
 
     /* Deterministic allocation-failure injection for semantic tests; zero disables. */
     uint32_t test_allocation_fail_at;
