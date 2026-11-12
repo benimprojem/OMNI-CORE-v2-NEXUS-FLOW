@@ -1103,6 +1103,8 @@ static int check_enum_scan_pattern_case(
     ASTVarDecl* subject_decl = (ASTVarDecl*)ast_create(AST_VAR_DECL);
     ASTScan* scan = (ASTScan*)ast_create(AST_SCAN);
     ASTScanArm* arm = (ASTScanArm*)ast_create(AST_SCAN_ARM);
+    ASTScanArm* empty_arm = (ASTScanArm*)ast_create(AST_SCAN_ARM);
+    ASTPatternBinding* empty_pattern = (ASTPatternBinding*)ast_create(AST_PATTERN_BINDING);
     ASTIdentifier* subject = (ASTIdentifier*)ast_create(AST_IDENTIFIER);
     ASTPatternConstructor* constructor =
         (ASTPatternConstructor*)ast_create(AST_PATTERN_CONSTRUCTOR);
@@ -1112,7 +1114,7 @@ static int check_enum_scan_pattern_case(
     ASTNode* owned_scan;
     int ok = 0;
     if (!enum_decl || !payload_variant || !empty_variant || !payload_field ||
-        !subject_decl || !scan || !arm || !subject || !constructor ||
+        !subject_decl || !scan || !arm || !empty_arm || !empty_pattern || !subject || !constructor ||
         !binding_a) goto cleanup;
 
     enum_decl->name = semantic_test_copy_text("ScanResult");
@@ -1124,13 +1126,14 @@ static int check_enum_scan_pattern_case(
     subject_decl->type_name = semantic_test_copy_text(
         test_case == 4 ? "i32" : "ScanResult");
     subject->name = semantic_test_copy_text("scan_value");
+    empty_pattern->name = semantic_test_copy_text("Empty");
     constructor->name = semantic_test_copy_text(
         test_case == 1 ? "Missing" : "Ok");
     binding_a->name = semantic_test_copy_text("captured");
     if (!enum_decl->name || !payload_variant->name || !empty_variant->name ||
         !payload_field->name || !payload_field->type_name ||
         !subject_decl->name || !subject_decl->type_name || !subject->name ||
-        !constructor->name || !binding_a->name) goto cleanup;
+        !constructor->name || !binding_a->name || !empty_pattern->name) goto cleanup;
 
     payload_variant->data = (ASTNode*)payload_field;
     payload_field = NULL;
@@ -1164,7 +1167,34 @@ static int check_enum_scan_pattern_case(
     scan->subject = (ASTNode*)subject;
     subject = NULL;
     arm->body = ast_create(AST_BLOCK);
-    if (!arm->body) goto cleanup;
+    empty_arm->pattern = (ASTNode*)empty_pattern;
+    empty_pattern = NULL;
+    empty_arm->body = ast_create(AST_BLOCK);
+    if (!arm->body || !empty_arm->body) goto cleanup;
+    if(test_case==5) {
+        ASTScanArm* duplicate_arm=(ASTScanArm*)ast_create(AST_SCAN_ARM);
+        ASTPatternBinding* duplicate_pattern=(ASTPatternBinding*)ast_create(AST_PATTERN_BINDING);
+        if(!duplicate_arm || !duplicate_pattern) {
+            ast_destroy((ASTNode*)duplicate_arm);
+            ast_destroy((ASTNode*)duplicate_pattern);
+            goto cleanup;
+        }
+        duplicate_pattern->name=semantic_test_copy_text("Empty");
+        duplicate_arm->pattern=(ASTNode*)duplicate_pattern;
+        duplicate_arm->body=ast_create(AST_BLOCK);
+        if(!duplicate_pattern->name || !duplicate_arm->body) {
+            ast_destroy((ASTNode*)duplicate_arm);
+            goto cleanup;
+        }
+        empty_arm->base.next=(ASTNode*)duplicate_arm;
+    }
+    if(test_case==6) empty_arm->has_guard=1;
+    if(test_case==7) {
+        ast_destroy(empty_arm->pattern);
+        empty_arm->pattern=NULL;
+    }
+    arm->base.next=(ASTNode*)empty_arm;
+    empty_arm=NULL;
     scan->arms = (ASTNode*)arm;
     arm = NULL;
     owned_scan = (ASTNode*)scan;
@@ -1199,6 +1229,8 @@ cleanup:
     ast_destroy((ASTNode*)subject_decl);
     ast_destroy((ASTNode*)scan);
     ast_destroy((ASTNode*)arm);
+    ast_destroy((ASTNode*)empty_arm);
+    ast_destroy((ASTNode*)empty_pattern);
     ast_destroy((ASTNode*)subject);
     ast_destroy((ASTNode*)constructor);
     ast_destroy((ASTNode*)binding_a);
@@ -1211,7 +1243,10 @@ static int check_enum_scan_pattern_semantics(void) {
         check_enum_scan_pattern_case(1,1,NULL) &&
         check_enum_scan_pattern_case(2,1,NULL) &&
         check_enum_scan_pattern_case(3,1,NULL) &&
-        check_enum_scan_pattern_case(4,1,NULL);
+        check_enum_scan_pattern_case(4,1,NULL) &&
+        check_enum_scan_pattern_case(5,1,NULL) &&
+        check_enum_scan_pattern_case(6,1,NULL) &&
+        check_enum_scan_pattern_case(7,0,NULL);
 }
 
 static int check_enum_ast_case(
