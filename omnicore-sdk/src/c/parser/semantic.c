@@ -5612,10 +5612,16 @@ static void semantic_check_node(
                     }
                 }
             } else if (call->callee) {
-                int is_spawn_api = call->callee->type == AST_IDENTIFIER &&
-                    ((ASTIdentifier*)call->callee)->name &&
-                    strcmp(((ASTIdentifier*)call->callee)->name, "spawn") == 0;
-                if (!is_spawn_api && !is_thread_copy_call) {
+                const char* callee_name = call->callee->type == AST_IDENTIFIER
+                    ? ((ASTIdentifier*)call->callee)->name : NULL;
+                int is_spawn_api = callee_name && strcmp(callee_name, "spawn") == 0;
+                int is_thread_module_api = callee_name &&
+                    (strcmp(callee_name, "listen") == 0 ||
+                     strcmp(callee_name, "send") == 0 ||
+                     strcmp(callee_name, "receive") == 0 ||
+                     strcmp(callee_name, "done") == 0);
+                if (!is_spawn_api && !is_thread_copy_call &&
+                    !is_thread_module_api) {
                     semantic_check(ctx, call->callee);
                     if (call->callee->type == AST_IDENTIFIER) {
                         ASTIdentifier* id = (ASTIdentifier*)call->callee;
