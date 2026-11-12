@@ -3062,6 +3062,13 @@ static void semantic_check_node(
             break;
         }
 
+        case AST_BLOCK_HALT:
+            /* Cleanup marker is a typed, zero-value semantic instruction.
+               Its ordering/lowering is owned by the later OIR cleanup pass. */
+            semantic_record_annotation(
+                ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
+            break;
+
         case AST_RETURN: {
             ASTUnaryExpr* ret = (ASTUnaryExpr*)node;
             if (ret->operand) semantic_check(ctx, ret->operand);
