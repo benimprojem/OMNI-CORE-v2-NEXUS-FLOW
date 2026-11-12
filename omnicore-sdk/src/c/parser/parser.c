@@ -4255,7 +4255,21 @@ static ASTNode* parse_conditional_control(Parser* p) {
     node->base.line = opening.line;
     node->base.col = opening.col;
     node->condition = condition;
-    node->then_branch = parse_if_branch(p);
+    /*
+     * Expression arms may be followed directly by ':' to introduce the
+     * alternative arm (e.g. '? process(a) : process(b);'). The ordinary
+     * expression-statement parser requires ';', so defer that terminator
+     * only when the next top-level token is the conditional separator.
+     */
+    if (!parser_is_statement_start(p->current.type)) {
+        node->then_branch = parse_expression(p);
+        if (node->then_branch && !check(p, TOKEN_COLON)) {
+            consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON,
+                MSG_EXPECT_SEMICOLON_EXPR);
+        }
+    } else {
+        node->then_branch = parse_if_branch(p);
+    }
     node->else_branch = NULL;
     if (!node->then_branch) {
         ast_destroy((ASTNode*)node);
