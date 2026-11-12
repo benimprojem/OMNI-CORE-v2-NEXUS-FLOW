@@ -669,12 +669,9 @@ Token lexer_next_token(ParserContext* ctx) {
 
     // --- Operatörler ---
     switch (c) {
-        case '(': 
-            if (peek(ctx) == 'e' && peek_next(ctx, 1) == ')') {
-                advance(ctx); // e
-                advance(ctx); // )
-                return make_token(ctx, TOKEN_ERR_HANDLER, start, 3);
-            }
+        case '(':
+            /* Keep (e) contextual: it is also a normal call/group expression
+               (for example echo(e)). Parser recognizes handlers after ?->. */
             return make_token(ctx, TOKEN_LPAREN, start, 1);
         case ')': return make_token(ctx, TOKEN_RPAREN, start, 1);
         case '{': return make_token(ctx, TOKEN_LBRACE, start, 1);
