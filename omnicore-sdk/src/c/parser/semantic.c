@@ -3064,21 +3064,33 @@ static void semantic_check_node(
                 ASTNode* parameter_node = func->params;
                 uint32_t ordinal = 0u;
                 while (parameter_node) {
-                    ASTVarDecl* parameter = (ASTVarDecl*)parameter_node;
-                    Slot* parameter_slot = find_slot(ctx, parameter->name);
+                    const char* parameter_name = "...";
+                    Slot* parameter_slot = NULL;
                     uint32_t parameter_node_id =
                         semantic_node_id(ctx, parameter_node);
-                    SemanticResultStatus status = semantic_result_add_relation(
-                        &ctx->result,
-                        function_slot->symbol_id,
-                        SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
-                        ordinal++,
-                        parameter_slot ? parameter_slot->symbol_id : 0u,
-                        parameter_node_id,
-                        parameter->name,
-                        parameter_slot ? parameter_slot->type_id :
-                            semantic_declared_type_id(ctx, parameter));
-                    semantic_set_result_error(ctx, status);
+                    uint32_t parameter_type_id = 0u;
+                    if (parameter_node->type == AST_VAR_DECL) {
+                        ASTVarDecl* parameter=(ASTVarDecl*)parameter_node;
+                        parameter_name=parameter->name;
+                        parameter_slot=find_slot(ctx,parameter->name);
+                        parameter_type_id=parameter_slot ? parameter_slot->type_id :
+                            semantic_declared_type_id(ctx,parameter);
+                    } else if (parameter_node->type != AST_VARIADIC_PARAM) {
+                        semantic_set_result_error(ctx,SEMANTIC_RESULT_INVALID_DATA);
+                        break;
+                    }
+                    {
+                        SemanticResultStatus status = semantic_result_add_relation(
+                            &ctx->result,
+                            function_slot->symbol_id,
+                            SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
+                            ordinal++,
+                            parameter_slot ? parameter_slot->symbol_id : 0u,
+                            parameter_node_id,
+                            parameter_name,
+                            parameter_type_id);
+                        semantic_set_result_error(ctx,status);
+                    }
                     parameter_node = parameter_node->next;
                 }
             }
