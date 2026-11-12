@@ -318,3 +318,9 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 
 
 - Array literal compatibility was already centralized in `get_expr_type`; the first implementation duplicated its diagnostic path. Removed the duplicate Semantic traversal check and retained the single authoritative element compatibility/type annotation path. Commit `aa81d9ae`.
+
+
+### Semantic test suite checkpoint — 2026-11-12
+
+- On the `aa81d9ae` CI head, Semantic tests (including generic inference, tuple indexing/bounds, NewType, variadic, named args, cleanup marker, loop condition and array homogeneity) passed; the CTest matrix reached 72/73.
+- Remaining failure in that run is isolated to `parser_accepts_and_rejects_sources` / Nexus Flow catch-fallback-ignore Parser fixture. Semantic suite is green in that run; whole CI is not green yet.
