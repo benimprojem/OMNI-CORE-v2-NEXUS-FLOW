@@ -3925,7 +3925,7 @@ static void semantic_check_node(
                             }
                         }
 
-                        if (v->type_name && !valid_type) {
+                        if (v->type_name && !valid_type && !v->type_expr) {
                             char buf[256];
                             (void)snprintf(buf, sizeof(buf),
                                 "Field '%s' uses unknown type '%s'.",
@@ -3933,9 +3933,9 @@ static void semantic_check_node(
                             report_error(ctx, (ASTNode*)v, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                         }
                         
-                        if (v->inline_type) {
+                        if (v->inline_type && !v->type_expr)
                             semantic_check(ctx, v->inline_type);
-                        }
+                        if (v->type_expr) semantic_check(ctx, v->type_expr);
 
                         if (ctx->result_enabled && s && s->symbol_id != 0u) {
                             SemanticResultStatus relation_status =
@@ -3990,7 +3990,7 @@ static void semantic_check_node(
                         }
                     }
 
-                    if (v->type_name && !valid_type) {
+                    if (v->type_name && !valid_type && !v->type_expr) {
                         char buf[256];
                         (void)snprintf(buf, sizeof(buf),
                             "Field '%s' uses unknown type '%s'.",
@@ -3998,9 +3998,9 @@ static void semantic_check_node(
                         report_error(ctx, (ASTNode*)v, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                     }
                     
-                    if (v->inline_type) {
+                    if (v->inline_type && !v->type_expr)
                         semantic_check(ctx, v->inline_type);
-                    }
+                    if (v->type_expr) semantic_check(ctx, v->type_expr);
 
                     field_node = field_node->next;
                 }
@@ -4051,7 +4051,7 @@ static void semantic_check_node(
                                 }
                             }
 
-                            if (fdecl->type_name && !valid_type) {
+                            if (fdecl->type_name && !valid_type && !fdecl->type_expr) {
                                 char buf[256];
                                 (void)snprintf(buf, sizeof(buf),
                                     "Field '%s' uses unknown type '%s'.",
@@ -4059,9 +4059,10 @@ static void semantic_check_node(
                                     fdecl->type_name);
                                 report_error(ctx, (ASTNode*)fdecl, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                             }
-                            if (fdecl->inline_type) {
+                            if (fdecl->inline_type && !fdecl->type_expr)
                                 semantic_check(ctx, fdecl->inline_type);
-                            }
+                            if (fdecl->type_expr)
+                                semantic_check(ctx, fdecl->type_expr);
                             if (ctx->result_enabled && s && s->symbol_id != 0u) {
                                 SemanticResultStatus relation_status =
                                     semantic_result_add_relation(
