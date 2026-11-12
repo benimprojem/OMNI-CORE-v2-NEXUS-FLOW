@@ -1990,3 +1990,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Call validation enforces all fixed parameters and allows extra arguments only when variadic; fixed argument types still undergo compatibility checks.
 - Added variadic positive call and missing fixed argument negative fixture.
 - Commits: `f081c798` header, `2bfddd11` signature, `f1d1940a` argument count, `0cf7f812` SemanticResult relations, `115ac855` tests, `1022a4ad` dashboard. CI pending.
+
+
+### Semantic checkpoint — named argument resolution — 2026-11-12
+
+- Named argument nodes now recursively check/annotate their value and call validation maps argument names to function parameter declarations, checking the selected parameter's type.
+- Unknown parameter names emit an explicit Semantic diagnostic; reordered named arguments are covered.
+- Commits: `e20b2624`, `da982f2a` Semantic; `24c0cd38` tests; `971d847d` dashboard. CI pending.
