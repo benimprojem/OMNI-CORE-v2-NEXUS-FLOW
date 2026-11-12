@@ -257,3 +257,6 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Static tuple indexing now returns the selected element's inferred type; negative and out-of-range constant indexes emit Semantic diagnostics. Dynamic tuple indexes remain `any` (runtime dispatch/bounds belongs to OIR).
 - Added heterogeneous tuple inference/index positive cases and out-of-range negative case.
 - Commits: `37c87fea`, `0b06e621` (Semantic), `cd3795d9` (tests). CI pending.
+
+
+- Tuple implementation also moved `AST_TUPLE` out of the Semantic fail-closed regression list; `AST_ASM_BLOCK` remains intentionally rejected pending its explicit semantic/ABI contract. The earlier CI failure was a stale test expectation, not a tuple implementation failure.
