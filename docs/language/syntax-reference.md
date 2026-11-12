@@ -1175,7 +1175,10 @@ Enum semantic rules:
 - Variant names must be non-empty and unique within the enum.
 - Payload field names must be non-empty and unique within their variant.
 - Every payload field must declare a type; unknown named types and invalid recursive type expressions are rejected.
-- Constructor resolution, payload argument binding and exhaustive `scan` checking are separate Semantic items and are not yet claimed complete.
+- In an enum `scan`, constructor patterns resolve against the subject enum; unknown variants are rejected.
+- Constructor payload bindings are positional and inherit the corresponding declared payload field type. A wrong binding count, non-binding payload pattern, or bare match of a payload-bearing variant is rejected.
+- A bare variant name matches only a variant with no payload. Pattern guards do not change the binding types.
+- Exhaustive enum `scan` checking, duplicate-variant arm detection and constructor expression argument binding remain open Semantic items.
 
 ####  7.3 `union` (Ortak Bellek Alanı)**
 
