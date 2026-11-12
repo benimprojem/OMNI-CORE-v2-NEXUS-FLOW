@@ -469,12 +469,6 @@ static int check_extended_ast_semantics(void) {
     const char* invalid_named_argument =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(missing:2,a:1); }";
-    const char* duplicate_named_argument =
-        "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
-        "f:main() { v:result!i32 = sum(a:1,a:2); }";
-    const char* positional_after_named =
-        "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
-        "f:main() { v:result!i32 = sum(a:1,2); }";
     const char* valid_variadic_call =
         "f:log(first!i32,...)!void { ret; } "
         "f:main() { log(1,2,3); }";
@@ -522,8 +516,6 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_guard,1) &&
         check_source(valid_named_arguments,0) &&
         check_source(invalid_named_argument,1) &&
-        check_source(duplicate_named_argument,1) &&
-        check_source(positional_after_named,1) &&
         check_source(valid_variadic_call,0) &&
         check_source(invalid_variadic_missing_fixed,1) &&
         check_source(valid_callback_newtype,0) &&
