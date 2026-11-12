@@ -869,6 +869,62 @@ static const char* semantic_lvalue_description(ASTNode* node) {
     return "<expression>";
 }
 
+static int semantic_array_known_length(
+    SemanticContext* ctx, ASTNode* target, uint64_t* out_length
+) {
+    const ASTNode* array_expression = NULL;
+    const ASTArrayType* array_type = NULL;
+    if (!ctx || !target || !out_length) return 0;
+    if (target->type == AST_ARRAY_LITERAL) {
+        array_expression = target;
+    } else if (target->type == AST_IDENTIFIER) {
+        Slot* slot = find_slot(ctx, ((ASTIdentifier*)target)->name);
+        if (slot && slot->declaration_node &&
+            slot->declaration_node->type == AST_VAR_DECL) {
+            const ASTVarDecl* declaration =
+                (const ASTVarDecl*)slot->declaration_node;
+            if (declaration->initializer &&
+                declaration->initializer->type == AST_ARRAY_LITERAL) {
+                array_expression = declaration->initializer;
+            } else if (declaration->inline_type &&
+                       declaration->inline_type->type == AST_ARRAY_TYPE) {
+                array_type = (const ASTArrayType*)declaration->inline_type;
+            } else if (declaration->type_expr &&
+                       declaration->type_expr->type == AST_TYPE_EXPR) {
+                const ASTTypeExpr* type_expr =
+                    (const ASTTypeExpr*)declaration->type_expr;
+                while (type_expr && type_expr->kind == AST_TYPE_QUALIFIED)
+                    type_expr = type_expr->child
+                        ? (const ASTTypeExpr*)type_expr->child : NULL;
+                if (type_expr && type_expr->kind == AST_TYPE_ARRAY &&
+                    type_expr->dimensions &&
+                    type_expr->dimensions->type == AST_ARRAY_TYPE) {
+                    array_type = (const ASTArrayType*)type_expr->dimensions;
+                }
+            }
+        }
+    }
+    if (array_expression) {
+        const ASTNode* element =
+            ((const ASTArrayLiteral*)array_expression)->elements;
+        uint64_t count = 0u;
+        for (; element; element = element->next) {
+            if (count == UINT64_MAX) return 0;
+            ++count;
+        }
+        *out_length = count;
+        return 1;
+    }
+    if (array_type && array_type->dimensions &&
+        array_type->dimensions->type == AST_ARRAY_DIMENSION) {
+        const ASTArrayDimension* dimension =
+            (const ASTArrayDimension*)array_type->dimensions;
+        if (dimension->length)
+            return semantic_array_dimension_value(dimension->length, out_length);
+    }
+    return 0;
+}
+
 static int semantic_lvalue_is_const(SemanticContext* ctx, ASTNode* node) {
     if (!node) return 0;
     if (node->type == AST_IDENTIFIER) {
@@ -2837,6 +2893,28 @@ static void semantic_check_node(
                     report_error(ctx, access->index,
                         ERR_SEMANTIC_TYPE_MISMATCH,
                         "Bit-vector or byte-block index is out of bounds.");
+                } else if (target_type && semantic_is_array_type_name(target_type) &&
+                    semantic_eval_integer_constant(access->index, &constant_index)) {
+                    uint64_t array_length = 0u;
+                    if (semantic_array_known_length(
+                            ctx, access->target, &array_length) &&
+                        (constant_index < 0 ||
+                         (uint64_t)constant_index >= array_length)) {
+                        char message[256];
+                        if (constant_index < 0) {
+                            (void)snprintf(message, sizeof(message),
+                                "Array index %lld cannot be negative.",
+                                (long long)constant_index);
+                        } else {
+                            (void)snprintf(message, sizeof(message),
+                                "Array index %llu is out of bounds for an array of length %llu; valid range is 0..%llu.",
+                                (unsigned long long)constant_index,
+                                (unsigned long long)array_length,
+                                (unsigned long long)(array_length ? array_length - 1u : 0u));
+                        }
+                        report_error(ctx, access->index,
+                            ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    }
                 }
             }
             semantic_record_annotation(ctx, node, NULL,
