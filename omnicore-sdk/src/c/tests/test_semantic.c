@@ -322,6 +322,29 @@ static int check_malformed_function_and_control_ast(void) {
         ast_destroy(node);
         if (!ok) return 0;
     }
+    {
+        ASTNode* node = ast_create(AST_THREAD_BLOCK);
+        SemanticContext semantic;
+        int ok;
+        if (!node) return 0;
+        ((ASTThreadBlock*)node)->name = "worker";
+        ((ASTThreadBlock*)node)->body = ast_create(AST_LITERAL);
+        if (!((ASTThreadBlock*)node)->body) { ast_destroy(node); return 0; }
+        semantic_init(&semantic, "semantic-invalid-thread-body-kind.nxf", NULL);
+        semantic_check(&semantic, node);
+        ok = semantic.error_count == 1 && semantic.error_head &&
+            strstr(semantic.error_head->message,
+                "thread_block body must be an AST_BLOCK node") != NULL;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if (!ok) return 0;
+    }
+    if (!check_source(
+            "f:main() { (worker)>{ v:inside!i32 = 1; "
+            "echo(inside); } }", 0)) return 0;
+    if (!check_source(
+            "f:main() { (worker)>{ v:inside!i32 = 1; } "
+            "v:outside!i32 = inside; }", 1)) return 0;
     return 1;
 }
 
