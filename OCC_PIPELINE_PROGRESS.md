@@ -1997,3 +1997,6 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Named argument nodes now recursively check/annotate their value and call validation maps argument names to function parameter declarations, checking the selected parameter's type.
 - Unknown parameter names emit an explicit Semantic diagnostic; reordered named arguments are covered.
 - Commits: `e20b2624`, `da982f2a` Semantic; `24c0cd38` tests; `971d847d` dashboard. CI pending.
+
+
+- Tuple index bound checking now emits its diagnostic only in AST_INDEX_ACCESS validation; expression-type inference is side-effect-free for invalid indexes. This prevents duplicate errors for a single out-of-range access. Semantic commit `9ce304ae`, dashboard `a463c32e`.
