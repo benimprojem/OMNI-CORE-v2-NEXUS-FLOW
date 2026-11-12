@@ -211,6 +211,12 @@ int main(void) {
         "f:main() { 1++; }";
     static const char postfix_array_element_valid[] =
         "f:main() { v:arr = [1,2,3,4]; arr[0]++; }";
+    static const char valid_array_literal_index[] =
+        "f:main() { v:arr = [1,2,3]; v:value!i32 = arr[2]; }";
+    static const char invalid_array_literal_index[] =
+        "f:main() { v:arr = [1,2,3]; v:value = arr[3]; }";
+    static const char invalid_negative_array_literal_index[] =
+        "f:main() { v:arr = [1,2,3]; v:value = arr[-1]; }";
     static const char postfix_struct_field_valid[] =
         "f:main() { struct:Point { v:x!i32 } v:p!Point = Point { x = 1 }; p.x++; }";
     static const char postfix_const_struct_field_invalid[] =
@@ -267,6 +273,9 @@ int main(void) {
     if (!check_source(postfix_non_numeric_invalid, 1)) return 1;
     if (!check_source(postfix_literal_invalid, 1)) return 1;
     if (!check_source(postfix_array_element_valid, 0)) return 1;
+    if (!check_source(valid_array_literal_index, 0)) return 1;
+    if (!check_source(invalid_array_literal_index, 1)) return 1;
+    if (!check_source(invalid_negative_array_literal_index, 1)) return 1;
     if (!check_source(postfix_struct_field_valid, 0)) return 1;
     if (!check_source(postfix_const_struct_field_invalid, 1)) return 1;
     if (!check_error_detail(
@@ -330,6 +339,9 @@ int main(void) {
     if (!check_error_detail(
         "f:main() {\n    loop (1) { ret; }\n}",
         "Loop condition requires bool", "i32", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() {\n    v:arr = [1,2,3]; v:value = arr[3];\n}",
+        "Array index 3 is out of bounds", "length 3", 2)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
