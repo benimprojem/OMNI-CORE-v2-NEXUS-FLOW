@@ -1925,3 +1925,22 @@ scan(result) {
 ```
 
 An `else -> ...` arm may replace explicit coverage of remaining enum variants. A guard-only match cannot make an enum scan exhaustive.
+
+
+### Enum constructor expressions
+
+A payload-bearing enum variant is constructed by calling its qualified variant name. The enum type name is the qualifier; it is not a runtime value:
+
+```nexus
+enum:State {
+    Ready(value:i32),
+    Failed(code:u32, message:string),
+    Empty
+}
+
+v:state!State = State.Ready(1024);
+v:error!State = State.Failed(code:7, message:"device unavailable");
+v:empty!State = State.Empty();
+```
+
+Semantic resolves the qualifier to an enum declaration and the member to one of its variants. Positional payload arguments follow declaration order; named arguments use payload field names. Argument count, unknown variant/field names, duplicate named fields and argument type compatibility are checked. A no-payload variant is constructed with an empty call. Constructor expression support currently validates declared `type_name` payload fields; recursive payload type-expression compatibility remains part of the remaining enum Semantic work.
