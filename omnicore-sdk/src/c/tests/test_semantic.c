@@ -478,6 +478,10 @@ static int check_extended_ast_semantics(void) {
         "nt:Callback = f:(id!u32)!bool; f:main() { v:callback!Callback = null; }";
     const char* invalid_newtype_target =
         "nt:Bad = MissingType; f:main() {}";
+    const char* valid_newtype_alias_chain =
+        "nt:Base = u64; nt:Alias = Base; f:main() { v:value!Alias; }";
+    const char* invalid_newtype_target_not_registered =
+        "nt:Bad = MissingType; f:main() { v:value!Bad; }";
     const char* valid_recursive_type_exprs =
         "nt:Pointer = *i32; nt:Reference = &i32; "
         "nt:Callback = f:(id!u32)!bool; f:main() {}";
@@ -535,6 +539,8 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_variadic_missing_fixed,1) &&
         check_source(valid_callback_newtype,0) &&
         check_source(invalid_newtype_target,1) &&
+        check_source(valid_newtype_alias_chain,0) &&
+        check_source(invalid_newtype_target_not_registered,2) &&
         check_source(valid_recursive_type_exprs,0) &&
         check_source(invalid_recursive_pointer_type,1) &&
         check_source(invalid_recursive_function_parameter,1) &&
