@@ -231,3 +231,13 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Semantic explicitly treats the node as a valid cleanup instruction; execution/unwind ordering remains an OIR cleanup contract and is not claimed implemented here.
 - Added a valid nested-block cleanup Semantic fixture.
 - Commits: `5db1589f` (Semantic annotation), `3eece891` (test). CI pending.
+
+
+### Semantic checkpoint — implicit `t` generic inference — 2026-11-12
+
+- `t` is now recognized as the language's implicit type-variable marker and represented by `SEMANTIC_RESULT_TYPE_INFERRED` rather than an unknown named type.
+- Type compatibility treats `t` as a unification placeholder. Generic function calls whose return is `t` infer the call expression's result from the first actual argument (the current minimal inference rule).
+- Numeric validation permits arithmetic on matching `t` operands inside generic bodies; concrete call-site constraints beyond argument/return compatibility remain limited.
+- Added generic identity and generic sum Semantic fixtures with concrete `i32` call sites.
+- Commits: `1a8f8765` (Semantic), `18583bf6` (tests). CI pending.
+- Limit explicitly retained: no general multi-parameter type-variable unification or constrained generic type system yet.
