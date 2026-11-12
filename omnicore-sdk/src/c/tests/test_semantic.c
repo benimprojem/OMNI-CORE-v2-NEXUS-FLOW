@@ -1351,15 +1351,19 @@ static int check_enum_discriminant_resolved_values(void) {
         "enum-discriminant-values.nxf", (const uint8_t*)source,
         sizeof(source) - 1u);
     SemanticContext semantic;
+    ASTNode* decoded = NULL;
+    FILE* stream = NULL;
     ASTEnumDecl* declaration;
     ASTEnumVariant* variant;
     static const int64_t expected[] = { 0, 4, 5, 9, 10 };
     size_t index = 0u;
+    int semantic_initialized = 0;
     int ok = 0;
     if (!parser) return 0;
     if (parser_run(parser) != PARSER_STATUS_OK || !parser->ast_root)
-        goto done_parser;
+        goto done;
     semantic_init(&semantic, "enum-discriminant-values.nxf", NULL);
+    semantic_initialized = 1;
     semantic_check(&semantic, parser->ast_root);
     declaration = (ASTEnumDecl*)((ASTProgram*)parser->ast_root)->declarations;
     variant = declaration ? (ASTEnumVariant*)declaration->variants : NULL;
@@ -1372,8 +1376,31 @@ static int check_enum_discriminant_resolved_values(void) {
     }
     ok = ok && index == sizeof(expected) / sizeof(expected[0]) &&
         variant == NULL;
-    semantic_destroy(&semantic);
-done_parser:
+    if (!ok) goto done;
+    stream = tmpfile();
+    if (!stream || !ast_serialize(parser->ast_root, stream) ||
+        fseek(stream, 0L, SEEK_SET) != 0)
+        { ok = 0; goto done; }
+    decoded = ast_deserialize(stream);
+    if (!decoded || !ast_validate(decoded, NULL)) { ok = 0; goto done; }
+    declaration = (ASTEnumDecl*)((ASTProgram*)decoded)->declarations;
+    variant = declaration ? (ASTEnumVariant*)declaration->variants : NULL;
+    index = 0u;
+    while (variant && index < sizeof(expected) / sizeof(expected[0])) {
+        if (!variant->has_resolved_discriminant ||
+            variant->discriminant_value != expected[index]) {
+            ok = 0;
+            break;
+        }
+        variant = (ASTEnumVariant*)variant->base.next;
+        ++index;
+    }
+    ok = ok && index == sizeof(expected) / sizeof(expected[0]) &&
+        variant == NULL;
+done:
+    if (stream) fclose(stream);
+    if (decoded) ast_destroy(decoded);
+    if (semantic_initialized) semantic_destroy(&semantic);
     parser_destroy(parser);
     return ok;
 }
