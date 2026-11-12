@@ -2312,3 +2312,5 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added valid named-argument regression (`instance.store_value(value: 7)`) and invalid explicit `self:` named-argument regression.
 - Updated the normative syntax reference to define implicit receiver omission, static/object dispatch, and Group-owned nominal type visibility.
 - CI has not yet verified the change; Group / Method and earlier Enum/Union Semantic rows remain uncompleted in the dashboard until the C workflow passes.
+
+- Clarified that Group public method names are unique and method overloading is not supported by the current language contract; duplicate public aliases are rejected.
