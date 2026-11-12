@@ -478,6 +478,10 @@ static int check_extended_ast_semantics(void) {
         "nt:Callback = f:(id!u32)!bool; f:main() { v:callback!Callback = null; }";
     const char* invalid_newtype_target =
         "nt:Bad = MissingType; f:main() {}";
+    const char* valid_inferred_array =
+        "f:main() { v:items = [1,2,3]; }";
+    const char* invalid_heterogeneous_array =
+        "f:main() { v:items = [1,\"x\"]; }";
     const char* valid_tuple_indexing =
         "f:main() { v:pair = (1, \"x\"); "
         "v:first!i32 = pair[0]; v:second!str = pair[1]; }";
@@ -516,6 +520,8 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_variadic_missing_fixed,1) &&
         check_source(valid_callback_newtype,0) &&
         check_source(invalid_newtype_target,1) &&
+        check_source(valid_inferred_array,0) &&
+        check_source(invalid_heterogeneous_array,1) &&
         check_source(valid_tuple_indexing,0) &&
         check_source(invalid_tuple_index,1) &&
         check_source(inferred_generic_identity,0) &&
