@@ -371,3 +371,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added collector assertions for Semantic stage ID, complete source range, and line/column reporting.
 - Fixed malformed multi-character C character constants in pointer/reference type validation (`'\\0'` → `'\0'`), parser newline coordinate mapping (`'\\n'` → `'\n'`), and diagnostic test line handling. This also removes compiler warnings and restores the intended terminator/newline checks.
 - After the character-constant corrections, the latest CI run passed all Linux CTest tests, ASan/UBSan, and macOS. Windows and Valgrind are still running; Semantic is not marked complete until the full matrix is green.
+
+
+### Semantic checkpoint — Range expression validation and iterator inference — 2026-11-12
+
+- Range endpoints are now checked for compatible numeric types in every expression context, not only when the range is used as a loop condition.
+- Loop range iterator `it` now inherits the lower endpoint's inferred type rather than being hard-coded to i32.
+- Added valid/invalid standalone range tests, loop range tests, iterator type-inference coverage, and a source-located diagnostic assertion naming both endpoint types.
+- Linux CTest and ASan/UBSan passed on the preceding range checkpoint; full matrix for the latest follow-up is pending.
