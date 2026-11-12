@@ -2436,9 +2436,23 @@ static void semantic_check_node(
             break;
         }
 
-        case AST_ARRAY_LITERAL:
-            semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
+        case AST_ARRAY_LITERAL: {
+            ASTNode* element=((ASTArrayLiteral*)node)->elements;
+            const char* element_type=NULL;
+            semantic_check(ctx,element);
+            if(element) element_type=get_expr_type(ctx,element);
+            for(element=element?element->next:NULL;element;element=element->next) {
+                const char* current_type=get_expr_type(ctx,element);
+                if(element_type && current_type &&
+                   !are_types_compatible(element_type,current_type)) {
+                    report_error(ctx,element,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Array literal elements must have a compatible common type.");
+                }
+            }
+            semantic_record_annotation(ctx,node,NULL,"array",
+                SEMANTIC_RESULT_VALUE_RVALUE);
             break;
+        }
         case AST_NAMED_ARG:
             semantic_check(ctx,((ASTNamedArg*)node)->value);
             (void)get_expr_type(ctx,node);
