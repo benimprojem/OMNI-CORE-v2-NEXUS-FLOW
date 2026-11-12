@@ -491,6 +491,10 @@ static int check_extended_ast_semantics(void) {
         "nt:BadCallback = f:(id!MissingType)!bool; f:main() {}";
     const char* invalid_recursive_function_return =
         "nt:BadReturn = f:(id!u32)!MissingType; f:main() {}";
+    const char* duplicate_recursive_function_parameter =
+        "nt:BadCallback = f:(value!i32,value!u32)!bool; f:main() {}";
+    const char* non_final_recursive_variadic_parameter =
+        "nt:BadVariadic = f:(...,value!i32)!bool; f:main() {}";
     const char* invalid_recursive_variable_type =
         "f:main(value!*MissingType) {}";
     const char* invalid_recursive_array_element =
@@ -548,6 +552,8 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_recursive_variable_type,1) &&
         check_source(invalid_recursive_array_element,1) &&
         check_source(invalid_recursive_function_return,1) &&
+        check_source(duplicate_recursive_function_parameter,1) &&
+        check_source(non_final_recursive_variadic_parameter,1) &&
         check_source(valid_inferred_array,0) &&
         check_source(invalid_heterogeneous_array,1) &&
         check_source(valid_tuple_indexing,0) &&
