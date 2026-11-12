@@ -40,6 +40,10 @@ typedef struct Slot {
     const ASTNode* group_owner; /* Non-owning Group declaration that owns private nominal types. */
     const ASTNode* fast_exec_owner; /* Non-owning FASTEXEC block that owns ASM labels. */
     uint32_t type_id;
+    /* Handler ownership state; ordinary symbols leave these flags clear. */
+    uint8_t is_handler;
+    uint8_t handler_is_empty;
+    uint8_t handler_is_moved;
     struct Slot* next;
 } Slot;
 
