@@ -259,7 +259,7 @@ static int test_thread_payload_capture_annotations(void) {
         payload_body->statements->type == AST_NEXUS_CAPTURE
             ? (ASTNexusCapture*)payload_body->statements : NULL;
     inside = first_capture && first_capture->base.next &&
-        first_capture->base.next->base.type == AST_NEXUS_CAPTURE &&
+        first_capture->base.next->type == AST_NEXUS_CAPTURE &&
         first_capture->base.next->next &&
         first_capture->base.next->next->type == AST_VAR_DECL
             ? (ASTVarDecl*)first_capture->base.next->next : NULL;
