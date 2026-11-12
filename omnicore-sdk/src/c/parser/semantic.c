@@ -819,16 +819,24 @@ static void semantic_record_annotation(
         semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
         return;
     }
-    status = semantic_result_set_annotation(
-        &ctx->result,
-        node_id,
-        ctx->current_scope_id,
-        slot ? slot->symbol_id : 0u,
-        type_id,
-        value_category,
-        (uint16_t)((ctx->current_method_is_object && slot &&
+    {
+        uint16_t annotation_flags = 0u;
+        if (ctx->current_method_is_object && slot &&
             slot->name && strcmp(slot->name, "self") == 0)
-            ? SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER : 0u));
+            annotation_flags |= SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER;
+        if (ctx->active_thread_block && slot &&
+            slot->kind == SLOT_VAR &&
+            slot->depth <= (int)ctx->active_thread_block->capture_base_depth)
+            annotation_flags |= SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE;
+        status = semantic_result_set_annotation(
+            &ctx->result,
+            node_id,
+            ctx->current_scope_id,
+            slot ? slot->symbol_id : 0u,
+            type_id,
+            value_category,
+            annotation_flags);
+    }
     semantic_set_result_error(ctx, status);
 }
 
