@@ -146,7 +146,7 @@ int main(void) {
     static const char range_mixed_numeric_invalid[] =
         "f:main() { v:r = 0..2.5; }";
     static const char range_non_numeric_invalid[] =
-        "f:main() { v:r = 0..\\\"end\\\"; }";
+        "f:main() { v:r = 0..\"end\"; }";
     static const char range_loop_valid[] =
         "f:main() { loop (0..10) { echo(it); } }";
     static const char range_loop_mixed_invalid[] =
