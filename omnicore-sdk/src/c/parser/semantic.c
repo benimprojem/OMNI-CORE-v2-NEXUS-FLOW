@@ -356,6 +356,10 @@ static uint32_t semantic_type_id(
 
     if (strcmp(name, "array") == 0) {
         kind = SEMANTIC_RESULT_TYPE_AGGREGATE;
+    } else if (strcmp(name, "tuple") == 0) {
+        kind = SEMANTIC_RESULT_TYPE_TUPLE;
+    } else if (strcmp(name, "t") == 0) {
+        kind = SEMANTIC_RESULT_TYPE_INFERRED;
     } else if (is_primitive_type_for_result(name)) {
         kind = SEMANTIC_RESULT_TYPE_PRIMITIVE;
     } else {
@@ -901,6 +905,7 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
         case AST_FUNC_CALL: {
             ASTCall* call = (ASTCall*)node;
             Slot* slot = NULL;
+            const char* result_type = NULL;
             if (call->callee && call->callee->type == AST_IDENTIFIER) {
                 ASTIdentifier* id = (ASTIdentifier*)call->callee;
                 if (id->name &&
@@ -918,10 +923,18 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     ctx, (ASTMemberAccess*)call->callee,
                     &is_instance_call, 0);
             }
+            result_type = slot ? slot->type_name : NULL;
+            if (result_type &&
+                (strcmp(result_type, "t") == 0 ||
+                 (result_type[0] == '!' && strcmp(result_type + 1, "t") == 0)) &&
+                call->args) {
+                const char* inferred = get_expr_type(ctx, call->args);
+                if (inferred) result_type = inferred;
+            }
             semantic_record_annotation(
-                ctx, node, slot, slot ? slot->type_name : NULL,
+                ctx, node, slot, result_type,
                 SEMANTIC_RESULT_VALUE_RVALUE);
-            return slot ? slot->type_name : NULL;
+            return result_type;
         }
         case AST_BINARY_EXPR:
         case AST_ASSIGNMENT: {
@@ -1057,6 +1070,9 @@ static int are_types_compatible(const char* type1, const char* type2) {
     t1 = (type1[0] == '!') ? type1 + 1 : type1;
     t2 = (type2[0] == '!') ? type2 + 1 : type2;
     if (strcmp(t1, t2) == 0) return 1;
+    /* `t` is the language's implicit type variable; call-site inference
+       binds it to the concrete argument/initializer type. */
+    if (strcmp(t1, "t") == 0 || strcmp(t2, "t") == 0) return 1;
     if (strcmp(t1, "array") == 0 &&
         semantic_is_array_type_name(t2)) return 1;
     if (strcmp(t2, "array") == 0 &&
@@ -1073,6 +1089,7 @@ static int is_numeric_primitive_type(const char* type_name) {
     size_t i;
     if (!type_name) return 0;
     if (type_name[0] == '!') ++type_name;
+    if (strcmp(type_name, "t") == 0) return 1;
     for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
         if (strcmp(type_name, names[i]) == 0) return 1;
     }
@@ -1316,7 +1333,9 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     }
 
     // Generic and structurally typed array aggregates.
-    if (semantic_is_array_type_name(type_name)) return 1;
+    if (semantic_is_array_type_name(type_name) ||
+        strcmp(type_name, "tuple") == 0 || strcmp(type_name, "t") == 0)
+        return 1;
 
     // Primitives
     if (strcmp(type_name, "i32") == 0 || strcmp(type_name, "u8") == 0 ||
