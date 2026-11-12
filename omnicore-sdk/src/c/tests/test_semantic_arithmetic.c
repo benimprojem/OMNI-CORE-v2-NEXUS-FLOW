@@ -186,6 +186,15 @@ int main(void) {
     if (!check_error_detail(
         "f:main() !f32 {\n    ret 7.0 & 3.0;\n}",
         "Operator '&'", "f64", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!i32, b!f64) !f64 {\n    ret a + b;\n}",
+        "Operator '+'", "i32", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!f32, b!i32) !f32 {\n    ret a <<< b;\n}",
+        "Operator '<<'", "f32", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!i32, b!bool) !bool {\n    ret a && b;\n}",
+        "Operator '&&'", "i32", 2)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
