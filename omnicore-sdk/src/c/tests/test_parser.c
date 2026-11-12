@@ -4297,7 +4297,11 @@ static int test_increment_decrement_parser_forms(void) {
             goto done;
         statement = statement->next;
     }
-    if (statement) goto done;
+    if (statement) {
+        fprintf(stderr,"flow test: unexpected trailing statement kind=%d\\n",
+            (int)statement->type);
+        goto done;
+    }
     ok = 1;
 
 done:
