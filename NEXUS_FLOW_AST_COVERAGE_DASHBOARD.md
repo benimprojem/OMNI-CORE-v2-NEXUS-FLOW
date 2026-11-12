@@ -305,3 +305,10 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 
 
 - Tuple bounds diagnostics were initially emitted both during type inference and during AST index checking. Moved the diagnostic to the dedicated index-check pass so an invalid constant index produces exactly one error. Commit `9ce304ae`; CI pending.
+
+
+### Semantic checkpoint — inferred array literal element compatibility — 2026-11-12
+
+- Inferred array literals now semantically visit elements, annotate as `array`, and require a compatible common element type. Heterogeneous inferred arrays no longer silently pass.
+- Added homogeneous positive and heterogeneous negative fixtures.
+- Commits: `7017200b` Semantic, `8102116e` tests. CI pending.
