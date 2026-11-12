@@ -7,7 +7,14 @@
 
 > Bu belge yaşayan takip tablosudur. Durumlar tahmini yüzde değildir; kod, belge ve test kanıtına göre güncellenir. Bir enum, AST tag'i veya DLL dosyasının bulunması tek başına özelliğin tamamlandığı anlamına gelmez.
 
-> **Kullanıcıya dönük genel görünüm:** [NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu](NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md). Ayrıntılı node envanteri bu dosyada, sekiz başlıklı toplu durum ve öncelik sırası dashboard'dadır.\n\n## Semantic intrinsic audit checkpoint — 2026-11-12
+> **Kullanıcıya dönük genel görünüm:** [NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu](NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md). Ayrıntılı node envanteri bu dosyada, sekiz başlıklı toplu durum ve öncelik sırası dashboard'dadır.\n\n## IRQ / register Semantic checkpoint — 2026-11-12
+
+- `irq(number, handler)`: exact two args, integer number, handler identifier/callable; identifier must resolve to declared function. Tests include valid and malformed cases.
+- `reg(r, "name")` and `reg(w, "name", value)`: operation, arity, non-empty string literal register name, and integer/address write value checks; regression tests added.
+- Syntax reference records the semantic contract and explicitly separates target whitelist/privilege/ABI from front-end validation.
+- Not yet executed in CI/workspace. Target register whitelist, IRQ bounds, privilege and handler ABI remain open; `intr` still requires audit.
+
+## Semantic intrinsic audit checkpoint — 2026-11-12
 
 - `addr/len/peek/poke`: argument count and known-type constraints validated; `addr` requires an lvalue, `len` a lengthable value, `peek/poke` integer-or-address and integer-value rules.
 - `inb/outb`: exact arity and integer argument checks.
