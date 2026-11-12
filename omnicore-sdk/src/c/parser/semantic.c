@@ -5250,27 +5250,47 @@ static void semantic_check_node(
                     FieldInfo* last_field = NULL;
                     uint32_t field_ordinal = 0u;
                     while (field_node) {
-                        ASTVarDecl* v = (ASTVarDecl*)field_node;
-                        
-                        // Alan tipini kontrol et
-                        int is_inline_field = (v->inline_type != NULL);
+                        ASTVarDecl* v;
+                        int is_inline_field;
                         int valid_type = 0;
-                        if (v->type_name) {
+                        if (field_node->type != AST_VAR_DECL) {
+                            /* The aggregate-name validator already reported this node. */
+                            field_node = field_node->next;
+                            continue;
+                        }
+                        v = (ASTVarDecl*)field_node;
+                        if (!v->name || !v->name[0]) {
+                            field_node = field_node->next;
+                            continue;
+                        }
+
+                        is_inline_field = v->inline_type != NULL;
+                        if (v->type_name && v->type_name[0]) {
                             if (is_type_defined(ctx, v->type_name)) valid_type = 1;
                             else if (is_inline_field) {
-                                const char* t = (v->type_name[0] == '!') ? v->type_name + 1 : v->type_name;
-                                if (strcmp(t, "struct") == 0 || strcmp(t, "union") == 0) valid_type = 1;
+                                const char* t = v->type_name[0] == '!'
+                                    ? v->type_name + 1 : v->type_name;
+                                if (strcmp(t, "struct") == 0 ||
+                                    strcmp(t, "union") == 0) valid_type = 1;
                             }
                         }
 
-                        if (v->type_name && !valid_type && !v->type_expr) {
+                        if ((!v->type_name || !v->type_name[0]) && !v->type_expr) {
+                            char message[256];
+                            (void)snprintf(message, sizeof(message),
+                                "Aggregate field '%s' requires an explicit type.",
+                                v->name);
+                            report_error(ctx, field_node,
+                                ERR_SEMANTIC_TYPE_MISMATCH, message);
+                        } else if (v->type_name && !valid_type && !v->type_expr) {
                             char buf[256];
                             (void)snprintf(buf, sizeof(buf),
                                 "Field '%s' uses unknown type '%s'.",
-                                v->name ? v->name : "<unnamed>", v->type_name);
-                            report_error(ctx, (ASTNode*)v, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
+                                v->name, v->type_name);
+                            report_error(ctx, field_node,
+                                ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                         }
-                        
+
                         if (v->inline_type && !v->type_expr)
                             semantic_check(ctx, v->inline_type);
                         if (v->type_expr) semantic_check(ctx, v->type_expr);
@@ -5318,26 +5338,45 @@ static void semantic_check_node(
                     ctx, NULL, sdecl->fields);
                 ASTNode* field_node = sdecl->fields;
                 while (field_node) {
-                    ASTVarDecl* v = (ASTVarDecl*)field_node;
-                    
-                    int is_inline_field = (v->inline_type != NULL);
+                    ASTVarDecl* v;
+                    int is_inline_field;
                     int valid_type = 0;
-                    if (v->type_name) {
+                    if (field_node->type != AST_VAR_DECL) {
+                        /* The aggregate-name validator already reported this node. */
+                        field_node = field_node->next;
+                        continue;
+                    }
+                    v = (ASTVarDecl*)field_node;
+                    if (!v->name || !v->name[0]) {
+                        field_node = field_node->next;
+                        continue;
+                    }
+                    is_inline_field = v->inline_type != NULL;
+                    if (v->type_name && v->type_name[0]) {
                         if (is_type_defined(ctx, v->type_name)) valid_type = 1;
                         else if (is_inline_field) {
-                            const char* t = (v->type_name[0] == '!') ? v->type_name + 1 : v->type_name;
-                            if (strcmp(t, "struct") == 0 || strcmp(t, "union") == 0) valid_type = 1;
+                            const char* t = v->type_name[0] == '!'
+                                ? v->type_name + 1 : v->type_name;
+                            if (strcmp(t, "struct") == 0 ||
+                                strcmp(t, "union") == 0) valid_type = 1;
                         }
                     }
 
-                    if (v->type_name && !valid_type && !v->type_expr) {
+                    if ((!v->type_name || !v->type_name[0]) && !v->type_expr) {
+                        char message[256];
+                        (void)snprintf(message, sizeof(message),
+                            "Aggregate field '%s' requires an explicit type.",
+                            v->name);
+                        report_error(ctx, field_node,
+                            ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    } else if (v->type_name && !valid_type && !v->type_expr) {
                         char buf[256];
                         (void)snprintf(buf, sizeof(buf),
                             "Field '%s' uses unknown type '%s'.",
-                            v->name ? v->name : "<unnamed>", v->type_name);
-                        report_error(ctx, (ASTNode*)v, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
+                            v->name, v->type_name);
+                        report_error(ctx, field_node, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                     }
-                    
+
                     if (v->inline_type && !v->type_expr)
                         semantic_check(ctx, v->inline_type);
                     if (v->type_expr) semantic_check(ctx, v->type_expr);
