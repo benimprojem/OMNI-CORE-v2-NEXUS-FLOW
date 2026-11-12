@@ -961,6 +961,9 @@ Semantic AST bütünlük kuralları:
 - `always` / `default` düğümlerinde aksiyon/olay adı zorunludur. Aynı RuleSet içinde trigger olay adları yinelenemez.
 - `apply rules` bir RuleSet adı taşımalıdır. `on` bloğu RuleSet adı, olay adı ve gövde gerektirir.
 - Bu yapısal koşullar dışarıdan üretilmiş AST'lerde de Semantic tarafından doğrulanır; eksik alanlar sessizce atlanmaz.
+- İkili ifadeler ve Nexus Flow operatörleri iki operand gerektirir; eksik sol/sağ düğüm dışarıdan oluşturulmuş AST'de de reddedilir.
+- Döngü AST'si geçerli bir döngü türü ve gövde gerektirir. Foreach biçimi iterator ile collection alanlarının ikisini de taşımalıdır; koşullu döngü koşulsuz bırakılamaz.
+- Cast düğümü kaynak değer ve hedef tip düğümünün ikisini de gerektirir. Reserved `AST_UNPACK` düğümü Parser tarafından üretilmez; geriye dönük AST uyumluluğunda kaynak ifadesi zorunludur.
 
 OIR Builder, her bariyer için koşul dallanması ve hata biriktirme adımı üretir. Tüm bariyerler test edildikten sonra hata listesi boş değilse bütün kayıtlar raporlanır ve ayrı bir `RuleSetFailureExit` yoluna gidilir; bu yol normal `RETURN` ile aynı değildir. Hata yoksa bütün normal trigger koşulları birer kez değerlendirilir ve sonuçları SSA boolean değerleri olarak saklanır. Ardından eşleşen `on` handler'ları kaynak sırasıyla koşullu bloklar halinde yürütülür. Sonrasında varsa `always`, normal trigger eşleşmemişse varsa `default` aşaması çalışır. Canlı başarılı yollar `ApplyContinue` bloğunda birleştirilir.
 
