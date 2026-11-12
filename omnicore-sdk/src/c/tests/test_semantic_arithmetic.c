@@ -26,6 +26,7 @@ static int check_source(const char* source, int expect_error) {
             expect_error, semantic.error_count, source);
     }
     semantic_destroy(&semantic);
+    occ_diagnostics_destroy(&diagnostics);
     parser_destroy(parser);
     return ok;
 }
@@ -36,6 +37,8 @@ static int check_error_detail(const char* source, const char* required_a,
     ParserContext* parser = parser_init_source(
         "semantic-diagnostic.nxf", (const uint8_t*)source, strlen(source));
     SemanticContext semantic;
+    OccDiagnosticCollector diagnostics;
+    OccDiagnosticView diagnostic;
     Error* error;
     int ok = 0;
     if (!parser) return 0;
@@ -54,12 +57,21 @@ static int check_error_detail(const char* source, const char* required_a,
             return 0;
         }
     }
+    occ_diagnostics_init(&diagnostics);
     semantic_init(&semantic, "semantic-diagnostic.nxf", NULL);
+    semantic_attach_diagnostics(&semantic, &diagnostics, OCC_STAGE_SEMANTIC);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
     error = semantic.error_head;
     if (error && error->message && error->line == expected_line &&
         error->col > 0 && strstr(error->message, required_a) &&
-        (!required_b || strstr(error->message, required_b))) {
+        (!required_b || strstr(error->message, required_b)) &&
+        occ_diagnostics_get(&diagnostics, 0u, &diagnostic) &&
+        diagnostic.record->stage_id == OCC_STAGE_SEMANTIC &&
+        diagnostic.record->span.has_location &&
+        diagnostic.record->span.start_line == (uint32_t)expected_line &&
+        diagnostic.record->span.end_line == (uint32_t)expected_line &&
+        diagnostic.record->span.end_offset > diagnostic.record->span.start_offset &&
+        strstr(diagnostic.message, required_a)) {
         ok = 1;
     } else {
         fprintf(stderr,
