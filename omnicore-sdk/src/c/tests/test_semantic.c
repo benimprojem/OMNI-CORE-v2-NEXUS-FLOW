@@ -1339,7 +1339,7 @@ static int check_enum_constructor_semantics(void) {
         check_enum_constructor_case(2,1)&&
         check_enum_constructor_case(3,1)&&
         check_enum_constructor_case(4,1)&&
-        check_enum_constructor_case(5,1)&&
+        check_enum_constructor_case(5,2)&&
         check_enum_constructor_case(6,0);
 }
 
