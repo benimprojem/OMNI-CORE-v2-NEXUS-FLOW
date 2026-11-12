@@ -1703,18 +1703,25 @@ cleanup:
 
 static int check_malformed_group_method_ast(void) {
     ASTMethod* missing_name = (ASTMethod*)ast_create(AST_METHOD);
+    ASTMethod* empty_name = (ASTMethod*)ast_create(AST_METHOD);
     ASTMethod* missing_implementation = (ASTMethod*)ast_create(AST_METHOD);
     ASTMethod* invalid_implementation = (ASTMethod*)ast_create(AST_METHOD);
     SemanticContext semantic;
     int ok = 0;
-    if (!missing_name || !missing_implementation || !invalid_implementation)
-        goto cleanup;
+    if (!missing_name || !empty_name || !missing_implementation ||
+        !invalid_implementation) goto cleanup;
     missing_name->implementation = ast_create(AST_FUNC_DECL);
     if (!missing_name->implementation) goto cleanup;
     ((ASTFuncDecl*)missing_name->implementation)->name = semantic_test_copy_text("implementation");
     ((ASTFuncDecl*)missing_name->implementation)->body = ast_create(AST_BLOCK);
     if (!((ASTFuncDecl*)missing_name->implementation)->name ||
         !((ASTFuncDecl*)missing_name->implementation)->body) goto cleanup;
+    empty_name->public_name = semantic_test_copy_text("");
+    empty_name->implementation = ast_create(AST_FUNC_DECL);
+    if (!empty_name->implementation) goto cleanup;
+    ((ASTFuncDecl*)empty_name->implementation)->body = ast_create(AST_BLOCK);
+    if (!empty_name->public_name ||
+        !((ASTFuncDecl*)empty_name->implementation)->body) goto cleanup;
     missing_implementation->public_name = semantic_test_copy_text("open");
     invalid_implementation->public_name = semantic_test_copy_text("open");
     invalid_implementation->implementation = ast_create(AST_BLOCK);
@@ -1723,6 +1730,13 @@ static int check_malformed_group_method_ast(void) {
 
     semantic_init(&semantic, "semantic-group-method-ast.nxf", NULL);
     semantic_check(&semantic, (ASTNode*)missing_name);
+    ok = semantic.error_count == 1 && semantic.error_head &&
+        strstr(semantic.error_head->message, "non-empty public name") != NULL;
+    semantic_destroy(&semantic);
+    if (!ok) goto cleanup;
+
+    semantic_init(&semantic, "semantic-group-method-ast.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)empty_name);
     ok = semantic.error_count == 1 && semantic.error_head &&
         strstr(semantic.error_head->message, "non-empty public name") != NULL;
     semantic_destroy(&semantic);
@@ -1743,6 +1757,7 @@ static int check_malformed_group_method_ast(void) {
 
 cleanup:
     ast_destroy((ASTNode*)missing_name);
+    ast_destroy((ASTNode*)empty_name);
     ast_destroy((ASTNode*)missing_implementation);
     ast_destroy((ASTNode*)invalid_implementation);
     return ok;
