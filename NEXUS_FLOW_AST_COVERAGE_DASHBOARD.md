@@ -43,7 +43,7 @@
 - Handler tables `(h)` belong only to their defining block. `(h) _> (hand)` transfers ownership to the target table; the source table becomes invalid and is removed from the previous scope's cleanup ownership.
 - Both `?;` and block-end `}?;` are defined as global active-resource Halt forms for the current execution context. Their difference is syntactic placement, not cleanup scope.
 - The normative syntax reference records these decisions. This is a design/documentation checkpoint only: Semantic ownership/borrow tracking, Halt control-flow effects, OIR metadata/lowering and independent Verifier checks remain open. No dashboard completion mark is granted.
-- Pointer/reference regression fixture was corrected to avoid unsupported `&*T` syntax. CI verification is pending for the updated branch head.
+- Pointer/reference regression fixture was corrected to avoid unsupported `&*T` syntax. GitHub Actions run [43309269784](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43309269784) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. This verifies the corrected type-compatibility fixtures, not ownership/lifetime Semantic completion.
 
 ## Thread module boundary checkpoint — 2026-11-12
 
@@ -165,7 +165,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Conditional control `(cond) ? action [: alternative]` | Canonical `AST_IF` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Parser follows normative `?` grammar for control-transfer, expression and block arms; `->` remains data Flow pipe; loop context, action legality ve round-trip remain later-stage work |
 | Labels / jump `label:>`, `?>(label)`, `jump(label)` | `AST_NEXUS_LABEL`, `AST_NEXUS_JUMP` | ✓ | ✓ | ✓ | ~ | ? | ? | Label identity/scope, duplicate/missing target ve CFG lowering |
 | Global Halt `?;` | `AST_NEXUS_HALT` | ✓ | ✓ | ✓ | ? | ? | ? | Global active-resource cleanup, defer ordering and terminal CFG behavior |
-| Block cleanup `} ?;` | `AST_BLOCK_HALT` (100) | ✓ | ✓ | ✓ | ? | ? | ? | AST_BLOCK_HALT payload-free header/source span ve legal block ownership validation; OIR cleanup order açık |
+| Block-end global Halt `}?;` | `AST_BLOCK_HALT` (100) | ✓ | ✓ | ✓ | ? | ? | ? | Parser requires block-end placement; Semantic global cleanup effect, defer ordering, OIR cleanup lowering and Verifier invariants remain open |
 | `defer` | `AST_DEFER` (69) | ✓ | ✓ | ✓ | ? | ? | ? | Scope exit ordering, unwind and cleanup lowering |
 | `panic(...)` | `AST_PANIC` (39) | ✓ | ✓ | ✓ | ~ | ? | ? | Message restriction tests, trap/abort semantics ve lowering |
 
