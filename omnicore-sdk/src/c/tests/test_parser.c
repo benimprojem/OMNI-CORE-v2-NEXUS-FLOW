@@ -2645,7 +2645,7 @@ static int test_intrinsic_ast_family(void) {
         AST_DATENOW, AST_DATE, AST_TIME, AST_PRNT, AST_PRMT, AST_WRITE,
         AST_FWRITE, AST_EXIT, AST_SWAP, AST_PEEK, AST_POKE, AST_INB,
         AST_OUTB, AST_IRQ, AST_INTR, AST_REG, AST_AREA, AST_ZONE,
-        AST_FREE, AST_SEND, AST_RECEIVE, AST_DONE
+        AST_FREE, AST_FUNC_CALL, AST_FUNC_CALL, AST_FUNC_CALL
     };
     size_t i;
     if (sizeof(sources) / sizeof(sources[0]) !=
