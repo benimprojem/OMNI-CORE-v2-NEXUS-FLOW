@@ -592,7 +592,7 @@ static int check_aggregate_member_semantics(void) {
         " struct: Outer { v:inner!Inner } v:o!Outer;"
         " v:a!i32 = o.inner.x; o.inner.x = 3; }";
     const char* constant_object =
-        "f:main() { struct: Point { v:x!i32 } c:p!Point; p.x = 2; }";
+        "f:main() { struct: Point { v:x!i32 } c:p!Point = Point { x = 1 }; p.x = 2; }";
     const char* incompatible =
         "f:main() { struct: Point { v:x!i32 } v:p!Point; p.x = \"bad\"; }";
     const char* unknown_member =
