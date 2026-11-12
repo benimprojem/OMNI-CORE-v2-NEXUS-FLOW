@@ -1425,14 +1425,32 @@ static int check_enum_discriminant_semantics(void) {
         "f:main() { enum:State { Max = 9223372036854775807, Reset = 0, Next } }";
     const char* signed_minimum =
         "f:main() { enum:State { Min = -9223372036854775808, Reset = 0, Next } }";
+    const char* valid_division_remainder =
+        "f:main() { enum:State { Divided = 21 / 3, Remainder = 17 % 5, Next } }";
+    const char* valid_hexadecimal =
+        "f:main() { enum:State { Hex = 0x2A, Next } }";
+    const char* arithmetic_overflow =
+        "f:main() { enum:State { Overflow = 9223372036854775807 + 1 } }";
+    const char* multiplication_overflow =
+        "f:main() { enum:State { Overflow = 3037000500 * 3037000500 } }";
+    const char* division_by_zero =
+        "f:main() { enum:State { Invalid = 1 / 0 } }";
+    const char* signed_division_overflow =
+        "f:main() { enum:State { Invalid = -9223372036854775808 / -1 } }";
     return check_enum_discriminant_resolved_values() &&
         check_source(valid_implicit_explicit, 0) &&
         check_source(valid_negative_and_expression, 0) &&
+        check_source(valid_division_remainder, 0) &&
+        check_source(valid_hexadecimal, 0) &&
         check_source(duplicate_explicit, 1) &&
         check_source(duplicate_implicit_after_explicit, 1) &&
         check_source(non_constant, 1) &&
         check_source(non_integer, 1) &&
         check_source(implicit_overflow, 1) &&
+        check_source(arithmetic_overflow, 1) &&
+        check_source(multiplication_overflow, 1) &&
+        check_source(division_by_zero, 1) &&
+        check_source(signed_division_overflow, 1) &&
         check_source(explicit_reset_after_max, 0) &&
         check_source(signed_minimum, 0);
 }
