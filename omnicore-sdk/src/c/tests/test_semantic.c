@@ -1296,7 +1296,11 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Malformed intrinsic AST checks failed.\n");
         return 1;
     }
-    if (!check_thread_api_is_module_call()) {\n        fprintf(stderr, "Thread module call boundary checks failed.\\n");\n        return 1;\n    }\n    if (!check_unnamed_declaration_ast()) {
+    if (!check_thread_api_is_module_call()) {
+        fprintf(stderr, "Thread module call boundary checks failed.\n");
+        return 1;
+    }
+    if (!check_unnamed_declaration_ast()) {
         fprintf(stderr, "Unnamed declaration AST checks failed.\n");
         return 1;
     }
