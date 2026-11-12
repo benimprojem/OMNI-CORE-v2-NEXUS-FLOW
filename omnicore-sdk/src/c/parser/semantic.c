@@ -2461,6 +2461,7 @@ static void semantic_check_node(
             ASTIndexAccess* access = (ASTIndexAccess*)node;
             const char* target_type;
             const char* index_type;
+            int64_t constant_index=0;
             if (!access->target || !access->index) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Array indexing requires both target and index.");
