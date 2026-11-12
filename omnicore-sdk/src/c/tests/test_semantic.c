@@ -526,6 +526,10 @@ static int check_extended_ast_semantics(void) {
         "f:main() { struct:Box { v:value!*i32 } }";
     const char* invalid_recursive_aggregate_field =
         "f:main() { struct:Box { v:value!*MissingType } }";
+    const char* invalid_recursive_union_field =
+        "f:main() { union:Choice { v:payload!*MissingType } }";
+    const char* invalid_recursive_enum_payload =
+        "f:main() { nt:enum: Result { Ok(value!*MissingType) } }";
     const char* invalid_function_decl_return_type_with_value =
         "f:main() !MissingType { ret 1; }";
     const char* valid_inferred_array =
@@ -587,6 +591,8 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_recursive_array_element,1) &&
         check_source(valid_recursive_aggregate_field,0) &&
         check_source(invalid_recursive_aggregate_field,1) &&
+        check_source(invalid_recursive_union_field,1) &&
+        check_source(invalid_recursive_enum_payload,1) &&
         check_source(invalid_recursive_function_return,1) &&
         check_source(duplicate_recursive_function_parameter,1) &&
         check_source(valid_inferred_array,0) &&
