@@ -156,6 +156,22 @@ int main(void) {
     static const char bitwise_representation_mismatch[] =
         "f:main(a!8bit, b!u8) !8bit { ret a | b; }";
     static const char bitwise_float[] = "f:main() !f32 { ret 7.0 & 3.0; }";
+    static const char bitwise_representation_matrix_valid[] =
+        "f:main(bit_a!bit, bit_b!bit, byte_a!byte, byte_b!byte, "
+        "b8a!8bit, b8b!8bit, b16a!16bit, b16b!16bit, "
+        "b32a!32bit, b32b!32bit, b64a!64bit, b64b!64bit, "
+        "b128a!128bit, b128b!128bit, "
+        "y1a!1byte, y1b!1byte, y2a!2byte, y2b!2byte, "
+        "y4a!4byte, y4b!4byte, y8a!8byte, y8b!8byte, "
+        "y16a!16byte, y16b!16byte) { "
+        "v:r_bit!bit = bit_a ^ bit_b; "
+        "v:r_byte!byte = byte_a & byte_b; "
+        "v:r8!8bit = b8a | b8b; v:r16!16bit = b16a ^ b16b; "
+        "v:r32!32bit = b32a & b32b; v:r64!64bit = b64a | b64b; "
+        "v:r128!128bit = b128a ^ b128b; "
+        "v:r1!1byte = y1a & y1b; v:r2!2byte = y2a | y2b; "
+        "v:r4!4byte = y4a ^ y4b; v:r8byte!8byte = y8a & y8b; "
+        "v:r16byte!16byte = y16a | y16b; }";
     static const char bitwise_128_valid[] =
         "f:main(a!128bit, b!128bit) !128bit { ret a ^ b; }";
     static const char bitwise_byte_block_valid[] =
@@ -287,6 +303,7 @@ int main(void) {
     if (!check_source(bitwise_not_representation_valid, 0)) return 1;
     if (!check_source(bitwise_representation_mismatch, 1)) return 1;
     if (!check_source(bitwise_float, 1)) return 1;
+    if (!check_source(bitwise_representation_matrix_valid, 0)) return 1;
     if (!check_source(bitwise_128_valid, 0)) return 1;
     if (!check_source(bitwise_byte_block_valid, 0)) return 1;
     if (!check_source(bitwise_single_bit_valid, 0)) return 1;
