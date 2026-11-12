@@ -457,6 +457,18 @@ static int check_extended_ast_semantics(void) {
         "f:main() { v:choice = 1; select(choice) { Range(s,s) -> { } } }";
     const char* invalid_guard =
         "f:main() { v:choice = 1; scan(choice) { Range(a,b) when 1 -> { } } }";
+    const char* inferred_select_binding =
+        "f:main() { v:choice!i32 = 1; select(choice) { captured -> { "
+        "v:copy!i32 = captured; } } }";
+    const char* mismatched_select_binding =
+        "f:main() { v:choice!i32 = 1; select(choice) { captured -> { "
+        "v:copy!str = captured; } } }";
+    const char* inferred_scan_binding =
+        "f:main() { v:choice!i32 = 1; scan(choice) { captured -> { "
+        "v:copy!i32 = captured; } } }";
+    const char* mismatched_scan_binding =
+        "f:main() { v:choice!i32 = 1; scan(choice) { captured -> { "
+        "v:copy!str = captured; } } }";
     const char* relocate_type_mismatch =
         "f:main() { v:src!i32 = 1; v:dst!str = \"x\"; v:moved = src _> dst; }";
     return check_source(valid,0) &&
@@ -466,6 +478,10 @@ static int check_extended_ast_semantics(void) {
         check_source(unknown_event,1) &&
         check_source(duplicate_pattern,1) &&
         check_source(invalid_guard,1) &&
+        check_source(inferred_select_binding,0) &&
+        check_source(mismatched_select_binding,1) &&
+        check_source(inferred_scan_binding,0) &&
+        check_source(mismatched_scan_binding,1) &&
         check_source(relocate_type_mismatch,1);
 }
 
