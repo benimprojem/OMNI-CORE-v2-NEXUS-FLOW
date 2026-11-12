@@ -979,6 +979,18 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     : SEMANTIC_RESULT_VALUE_LVALUE);
             return slot ? slot->type_name : NULL;
         }
+        case AST_AREA:
+            semantic_record_annotation(
+                ctx, node, NULL, "area", SEMANTIC_RESULT_VALUE_RVALUE);
+            return "area";
+        case AST_ZONE:
+            semantic_record_annotation(
+                ctx, node, NULL, "zone", SEMANTIC_RESULT_VALUE_RVALUE);
+            return "zone";
+        case AST_FREE:
+            semantic_record_annotation(
+                ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
+            return "void";
         case AST_ADDR:
         case AST_LEN:
             semantic_record_annotation(
@@ -1939,6 +1951,53 @@ static void semantic_validate_port_intrinsic(
         }
         argument = argument->next;
         ++index;
+    }
+}
+
+static void semantic_validate_allocation_intrinsic(
+    SemanticContext* ctx, ASTNode* node
+) {
+    ASTCall* call = (ASTCall*)node;
+    size_t count = semantic_intrinsic_argument_count(call);
+    ASTNode* argument = semantic_intrinsic_argument_value(call->args);
+    const char* argument_type = argument ? get_expr_type(ctx, argument) : NULL;
+    if (count != 1u) {
+        char message[160];
+        const char* name = node->type == AST_AREA ? "area" :
+            node->type == AST_ZONE ? "zone" : "free";
+        (void)snprintf(message, sizeof(message),
+            "%s() expects exactly one argument; received %llu.",
+            name, (unsigned long long)count);
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        return;
+    }
+    if (node->type == AST_AREA || node->type == AST_ZONE) {
+        const char* name = node->type == AST_AREA ? "area" : "zone";
+        int64_t constant_size;
+        if (argument_type && strcmp(argument_type, "any") != 0 &&
+            !semantic_is_integer_value_type(ctx, argument_type)) {
+            char message[256];
+            (void)snprintf(message, sizeof(message),
+                "%s() size must have an integer type; got '%s'.",
+                name, argument_type);
+            report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        } else if (semantic_eval_integer_constant(argument, &constant_size) &&
+                   constant_size <= 0) {
+            char message[192];
+            (void)snprintf(message, sizeof(message),
+                "%s() size must be greater than zero; got %lld.",
+                name, (long long)constant_size);
+            report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        }
+    } else if (argument_type && strcmp(argument_type, "any") != 0 &&
+               strcmp(argument_type, "area") != 0 &&
+               strcmp(argument_type, "zone") != 0 &&
+               !semantic_is_integer_or_address_type(ctx, argument_type)) {
+        char message[256];
+        (void)snprintf(message, sizeof(message),
+            "free() requires an area/zone handle or address value; got '%s'.",
+            argument_type);
+        report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH, message);
     }
 }
 
@@ -4726,6 +4785,8 @@ static void semantic_check_node(
         case AST_RECEIVE:
         case AST_DONE:
         case AST_AREA:
+        case AST_ZONE:
+        case AST_FREE:
         case AST_ADDR:
         case AST_LEN:
         case AST_PEEK:
@@ -4742,6 +4803,9 @@ static void semantic_check_node(
                 semantic_validate_memory_intrinsic(ctx, node);
             else if (node->type == AST_INB || node->type == AST_OUTB)
                 semantic_validate_port_intrinsic(ctx, node);
+            else if (node->type == AST_AREA || node->type == AST_ZONE ||
+                     node->type == AST_FREE)
+                semantic_validate_allocation_intrinsic(ctx, node);
             break;
         }
 
