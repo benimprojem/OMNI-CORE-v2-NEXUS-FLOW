@@ -2000,3 +2000,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 
 - Tuple index bound checking now emits its diagnostic only in AST_INDEX_ACCESS validation; expression-type inference is side-effect-free for invalid indexes. This prevents duplicate errors for a single out-of-range access. Semantic commit `9ce304ae`, dashboard `a463c32e`.
+
+
+### Semantic checkpoint — inferred array literal element types — 2026-11-12
+
+- Inferred array literals now visit all elements, receive an `array` SemanticResult annotation, and check element type compatibility. Heterogeneous inferred array values report a mismatch rather than being accepted as untyped.
+- Added `[1,2,3]` positive and `[1,"x"]` negative tests.
+- Commits: `7017200b` Semantic, `8102116e` test, `4feb7d81` dashboard. CI pending.
