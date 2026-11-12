@@ -2329,7 +2329,6 @@ static ASTMethod* semantic_group_default_handler(
 
 static void semantic_validate_aggregate_field_names(
     SemanticContext* ctx,
-    const ASTNode* owner,
     const char* aggregate_name,
     ASTNode* fields
 ) {
@@ -2358,11 +2357,15 @@ static void semantic_validate_aggregate_field_names(
             earlier = (ASTVarDecl*)previous;
             if (earlier->name && strcmp(earlier->name, field->name) == 0) {
                 char message[320];
-                (void)snprintf(message, sizeof(message),
-                    "%s '%s' declares field '%s' more than once.",
-                    aggregate_name ? "Aggregate" : "Anonymous aggregate",
-                    aggregate_name ? aggregate_name : "",
-                    field->name);
+                if (aggregate_name) {
+                    (void)snprintf(message, sizeof(message),
+                        "Aggregate '%s' declares field '%s' more than once.",
+                        aggregate_name, field->name);
+                } else {
+                    (void)snprintf(message, sizeof(message),
+                        "Anonymous aggregate declares field '%s' more than once.",
+                        field->name);
+                }
                 report_error(ctx, current, ERR_SEMANTIC_REDEFINED, message);
                 break;
             }
@@ -3971,7 +3974,7 @@ static void semantic_check_node(
                         SEMANTIC_RESULT_VALUE_UNSPECIFIED);
 
                     semantic_validate_aggregate_field_names(
-                        ctx, node, sdecl->name, sdecl->fields);
+                        ctx, sdecl->name, sdecl->fields);
                     // Alanları kaydet
                     ASTNode* field_node = sdecl->fields;
                     FieldInfo* last_field = NULL;
@@ -4042,7 +4045,7 @@ static void semantic_check_node(
             } else {
                 // Anonymous struct (inline) - Just check fields
                 semantic_validate_aggregate_field_names(
-                    ctx, node, NULL, sdecl->fields);
+                    ctx, NULL, sdecl->fields);
                 ASTNode* field_node = sdecl->fields;
                 while (field_node) {
                     ASTVarDecl* v = (ASTVarDecl*)field_node;
