@@ -5023,12 +5023,13 @@ static void semantic_check_node(
             }
             semantic_validate_spawn_call(ctx, node, call);
             if (call->args) {
-                int is_spawn_identifier = call->callee &&
+                int is_spawn_api = call->callee &&
                     call->callee->type == AST_IDENTIFIER &&
                     ((ASTIdentifier*)call->callee)->name &&
-                    strcmp(((ASTIdentifier*)call->callee)->name, "spawn") == 0 &&
-                    call->args->type == AST_IDENTIFIER && !call->args->next;
-                if (!is_spawn_identifier) semantic_check(ctx, call->args);
+                    strcmp(((ASTIdentifier*)call->callee)->name, "spawn") == 0;
+                /* The payload registry validator owns spawn argument shape;
+                   don't also resolve the payload key as a normal variable. */
+                if (!is_spawn_api) semantic_check(ctx, call->args);
             }
             break;
         }
