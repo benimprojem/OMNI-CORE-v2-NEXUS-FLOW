@@ -274,7 +274,7 @@ int main(void) {
     if (!check_malformed_assignment()) return 1;
     if (!check_error_detail(
         "f:main(a!i32, b!u32) {\n    a &= b;\n}",
-        "Bitwise compound assignment", "u32", 2)) return 1;
+        "Operator '&='", "u32", 2)) return 1;
     if (!check_error_detail(
         "f:main(a!i32, b!f64) {\n    v:r = a..b;\n}",
         "Range operator '..'", "!f64", 2)) return 1;
