@@ -992,6 +992,14 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             semantic_record_annotation(
                 ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
             return "void";
+        case AST_INB:
+            semantic_record_annotation(
+                ctx, node, NULL, "u8", SEMANTIC_RESULT_VALUE_RVALUE);
+            return "u8";
+        case AST_OUTB:
+            semantic_record_annotation(
+                ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
+            return "void";
         case AST_STRUCT_LITERAL: {
             ASTStructLiteral* literal = (ASTStructLiteral*)node;
             Slot* type_slot = literal->type_name
@@ -1783,6 +1791,23 @@ static size_t semantic_intrinsic_argument_count(const ASTCall* call) {
     return count;
 }
 
+static int semantic_is_integer_value_type(
+    SemanticContext* ctx, const char* type_name
+) {
+    const char* current = type_name;
+    unsigned int depth;
+    for (depth = 0u; current && depth < 16u; ++depth) {
+        Slot* slot;
+        if (*current == '!') ++current;
+        if (is_integer_primitive_type(current)) return 1;
+        slot = find_slot(ctx, current);
+        if (!slot || slot->kind != SLOT_NEWTYPE || !slot->type_name)
+            return 0;
+        current = slot->type_name;
+    }
+    return 0;
+}
+
 static int semantic_is_integer_or_address_type(
     SemanticContext* ctx, const char* type_name
 ) {
@@ -1872,13 +1897,48 @@ static void semantic_validate_memory_intrinsic(
             report_error(ctx, first, ERR_SEMANTIC_TYPE_MISMATCH, message);
         }
         if (second_type && strcmp(second_type, "any") != 0 &&
-            !is_integer_primitive_type(second_type)) {
+            !semantic_is_integer_value_type(ctx, second_type)) {
             char message[256];
             (void)snprintf(message, sizeof(message),
                 "poke() value must be an integer or byte value; got '%s'.",
                 second_type);
             report_error(ctx, second, ERR_SEMANTIC_TYPE_MISMATCH, message);
         }
+    }
+}
+
+static void semantic_validate_port_intrinsic(
+    SemanticContext* ctx, ASTNode* node
+) {
+    ASTCall* call = (ASTCall*)node;
+    size_t count = semantic_intrinsic_argument_count(call);
+    size_t expected = node->type == AST_OUTB ? 2u : 1u;
+    ASTNode* argument = call->args;
+    size_t index = 0u;
+    if (count != expected) {
+        char message[160];
+        (void)snprintf(message, sizeof(message),
+            "%s() expects exactly %u integer argument%s; received %llu.",
+            node->type == AST_INB ? "inb" : "outb",
+            (unsigned int)expected, expected == 1u ? "" : "s",
+            (unsigned long long)count);
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        return;
+    }
+    while (argument && index < expected) {
+        ASTNode* value = semantic_intrinsic_argument_value(argument);
+        const char* value_type = value ? get_expr_type(ctx, value) : NULL;
+        if (value_type && strcmp(value_type, "any") != 0 &&
+            !semantic_is_integer_value_type(ctx, value_type)) {
+            char message[256];
+            (void)snprintf(message, sizeof(message),
+                "%s() argument %llu must have an integer type; got '%s'.",
+                node->type == AST_INB ? "inb" : "outb",
+                (unsigned long long)(index + 1u), value_type);
+            report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        }
+        argument = argument->next;
+        ++index;
     }
 }
 
@@ -4680,6 +4740,8 @@ static void semantic_check_node(
             if (node->type == AST_ADDR || node->type == AST_LEN ||
                 node->type == AST_PEEK || node->type == AST_POKE)
                 semantic_validate_memory_intrinsic(ctx, node);
+            else if (node->type == AST_INB || node->type == AST_OUTB)
+                semantic_validate_port_intrinsic(ctx, node);
             break;
         }
 
