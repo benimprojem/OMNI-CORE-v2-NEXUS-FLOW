@@ -437,18 +437,7 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 - **Borrow:** Başka bir bloktan gelen ödünç kaynak, açık sahiplik devri olmadan iç blok tarafından serbest bırakılamaz veya sahiplenilemez.
 - **Use-after-move / use-after-halt:** Taşınmış ya da sonlandırılmış masa üzerinden sonraki erişim Semantic hatasıdır.
 
-Örnek:
-
-```nexus
-{
-    (h1) <- acquire_resource();
-    {
-        (hand) _> (h1); # Bu örnek yalnızca yönü göstermek içindir; hedef masa boş olmalıdır.
-    }
-}
-```
-
-Gerçek transferde kaynak masa ve hedef masa adları kullanılır; örneğin `(h) _> (hand)`. Devir tamamlandığında eski `(h)` artık kullanılamaz, kaynak yalnızca `(hand)` üzerinden erişilir.
+Transfer yazımı kaynak masadan hedef masaya doğrudur: `(h) _> (hand)`. Kaynak ve hedef, transfer noktasında erişilebilir ve hedef masa boş olmalıdır. Devir tamamlandığında eski `(h)` artık kullanılamaz; kaynak yalnızca `(hand)` üzerinden erişilir.
 
 ### 4.1.2 Halt: Etkin Kaynakların Toplu Sonlandırılması
 
@@ -691,7 +680,7 @@ out:> {
 - `jump` aynı lexical scope içinde başka bir basic block'a gidiyorsa scope hâlâ aktiftir. Daha sonra aynı scope içindeki önceki bir etikete geri dönmek de mümkündür; bu durumda scope'a ait masalar ve kaynaklar erken temizlenmez.
 - `jump` bir veya daha fazla lexical scope'tan çıkıyorsa, terk edilen scope'ların yaşam süresi sona erer. Bu scope'lara ait otomatik kaynak temizliği, normal scope çıkışıyla aynı şekilde çalıştırılmalıdır.
 - Daha sonra terk edilmiş bir scope'un içindeki etikete yeniden girilerek eski kaynak aktivasyonunun sürdürülmesine izin verilmez. Yeni bir scope aktivasyonu ancak normal scope giriş yoluyla oluşturulabilir.
-- `}?;` blok kapsamındaki masaların/kaynakların toplu kapatılması için kullanılır. Yalın `?;` Halt/sonlandırma davranışıdır; bir kaynak/masa/DLL hedefine uygulanmış biçimi (ör. `(Optimizer)?;`) o hedefi serbest bırakır. Bu hedefli kullanım, `jump` için genel bir cleanup komutu yerine geçmez.
+- `?;` ve `}?;` yürütme bağlamındaki bütün etkin masa/kaynak sahipliklerini sonlandırır. `}?;` blok kapanışında yazılan biçimdir; yalnızca o bloğun kaynaklarıyla sınırlı değildir. Tekil kaynak bırakma işlemi ilgili close/free/release API ile yapılır.
 - Kaynağın `_>` ile başka bir scope'a taşınması halinde sahiplik transferi kuralları geçerlidir; eski scope aynı kaynağı ikinci kez serbest bırakamaz.
 
 Bu kuralların OIR karşılığı ve negatif/pozitif testleri, Multi-Rule OIR test **MR-OIR-016** içinde tanımlanır.
@@ -1735,7 +1724,7 @@ Donanım erişimi hedef mimariye ve çalışma ayrıcalıklarına bağlıdır; a
 2. Kayıt, bulunduğu lexical scope aktivasyonuna aittir. Aynı scope içindeki basic block geçişleri ve geri jump kayıtları silmez.
 3. Scope normal akışla veya `break`, `continue`, `ret` ya da scope dışına çıkan `jump(label)` nedeniyle terk edildiğinde kayıtlı defer blokları çalıştırılır.
 4. Aynı scope aktivasyonunda birden fazla defer kaydedilmişse son kaydedilen ilk çalışır (LIFO).
-5. Defer blokları, aynı scope'a ait otomatik `}?;` kaynak/masa temizliğinden önce çalışır. Böylece defer gövdesi, otomatik serbest bırakma başlamadan önce hâlâ sahip olunan kaynakları kullanabilir.
+5. Normal scope çıkışında defer blokları, o scope'a ait otomatik kaynak/masa temizliğinden önce çalışır. Global `?;` veya `}?;` Halt durumunda etkin scope'ların defer kayıtları içten dışa scope sırasıyla ve her scope içinde LIFO çalıştırılır; ardından etkin sahiplikler sonlandırılır.
 6. Scope aktivasyonu sona erdiğinde o aktivasyona ait defer kayıtları tüketilir. Yeni ve geçerli bir scope aktivasyonu yeni kayıt listesi oluşturur.
 7. Defer gövdesi, kendisini kaydeden scope'un dışına `jump`, `ret`, `break` veya `continue` ile kontrol aktaramaz.
 8. Bu sürümde defer gövdesi içinde yeni defer kaydı oluşturulması desteklenmez; Analyzer bunu reddeder.
@@ -1972,12 +1961,28 @@ v:empty!State = State.Empty();
 
 Semantic resolves the qualifier to an enum declaration and the member to one of its variants. Positional payload arguments follow declaration order; named arguments use payload field names. Argument count, unknown variant/field names, duplicate named fields and argument type compatibility are checked. A no-payload variant is constructed with an empty call. Constructor expression support currently validates declared `type_name` payload fields; recursive payload type-expression compatibility remains part of the remaining enum Semantic work.
 
-### Pointer / reference Semantic type compatibility
+### Pointer / reference, ownership ve lifetime sözleşmesi
 
-- `*T`, `**T` and `&T` are distinct structural type layers. The base type and every pointer/reference layer must match for assignment, parameter and return compatibility; pointer and reference types are not interchangeable.
-- Nested pointer/reference targets are recursively resolved. An unknown base type is rejected, including when nested under multiple pointer layers.
-- Pointer/reference values do not implicitly convert to integer types. Integer-or-address acceptance by low-level memory intrinsics is a separate intrinsic signature rule, not a general assignment conversion.
-- These checks establish type identity and compatibility only. Dereference semantics, mutable/immutable borrow rules, nullability, aliasing, lifetime/ownership and target ABI remain explicitly unresolved and must not be inferred from the type spelling alone.
+**Tür kimliği ve uyumluluk**
+- `*T`, `**T` ve `&T` ayrı yapısal tür katmanlarıdır. Atama, parametre ve dönüş uyumluluğunda taban türü ve her katman eşleşmelidir; pointer ile reference birbirine örtük dönüştürülemez.
+- İç içe pointer hedefleri recursive çözülür. Bilinmeyen taban türü, birden fazla pointer katmanının altında olsa bile reddedilir.
+- Pointer/reference değerleri integer türlerine örtük dönüştürülmez. Düşük seviyeli bellek intrinsic'lerinin integer veya adres kabul etmesi ayrı bir imza kuralıdır.
+
+**Ownership**
+- Sahiplik taşıyan her değer/kaynak için tek bir owner bulunur. Aynı kaynak aynı anda iki owner tarafından sahiplenilemez.
+- Sahiplik devri kopyalama değildir. Atama, fonksiyon argümanı/dönüşü veya Handler masa transferi sahipliği devrediyorsa kaynak owner'dan çıkar; eski isim üzerinden sonraki kullanım Semantic hatasıdır.
+- Açık kopyalama `copy(value)` ile yapılır. Kopyalanabilirliği olmayan kaynaklar örtük kopyalanamaz; tiplerin değer-kopyalama niteliği ayrıca belirlenir.
+- `(h)` Handler masaları da aynı tek-sahip ve lexical lifetime modeline tabidir. `(h) _> (hand)` başarılı olduğunda kaynak yalnızca hedef masaya aittir.
+
+**Borrow ve lifetime**
+- `&T` paylaşımlı, immutable borrow'dur. Aynı owner üzerinde birden fazla shared borrow bulunabilir.
+- Mutable borrow tasarımında `&mut T` exclusive borrow'dur: etkin olduğu sürece aynı owner üzerinde başka shared veya mutable borrow bulunamaz. Mevcut C Parser `&mut T` biçimini henüz kabul etmez; bu yazım, Parser/AST desteği eklenene kadar tasarım sözleşmesidir, aktif syntax garantisi değildir.
+- Reference owner'dan daha uzun yaşayamaz. Lexical scope sonunda borrow sona erer; yerel owner'a bağlı reference fonksiyon dışına döndürülemez.
+- Fonksiyon parametresine alınan borrow çağrı süresi boyunca geçerlidir. Struct/Group alanlarında tutulan reference için de owner'ın alanı içeren nesneden daha uzun yaşaması gerekir.
+- İlk sürümde explicit lifetime annotation yoktur; Semantic lifetime'ı lexical scope ve owner ilişkilerinden çıkarır.
+- `*T` raw pointer'dır; otomatik borrow/lifetime güvenliği sağlamaz. Raw pointer kullanımı güvenli reference kurallarını atlatmak için genel bir dönüşüm yolu değildir.
+
+Bu sözleşmenin Semantic uygulaması, AST/Parser'ın gerçekten desteklediği biçimlerden başlayarak yapılır. SemanticResult ownership/borrow ilişkilerini ve scope bilgilerini OIR'a aktarır; bağımsız OIR Verifier bu kayıtların tutarlılığını doğrular. Bu tasarım kaydı, Semantic, OIR lowering veya Verifier uygulamasının tamamlandığı anlamına gelmez. Nullability, target ABI ve kaynak türlerinin özel destructor protokolü ayrıca tanımlanacaktır.
 
 ### Group method Semantic integrity
 
