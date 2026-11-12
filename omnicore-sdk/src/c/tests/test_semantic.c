@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+static char* semantic_test_copy_text(const char* value);
+
 static int check_file(const char* path, int expect_error, ErrorCode expected_code) {
     ParserContext* parser = parser_init(path);
     if (!parser) {
