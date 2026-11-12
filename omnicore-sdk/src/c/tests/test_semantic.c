@@ -404,6 +404,8 @@ static int check_malformed_intrinsic_ast(void) {
     return ok;
 }
 
+static int check_thread_block_value_captures(void);
+
 static int check_thread_api_is_module_call(void) {
     ASTNode* legacy = ast_create(AST_LISTEN);
     SemanticContext semantic;
