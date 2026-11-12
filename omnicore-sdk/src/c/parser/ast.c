@@ -2196,7 +2196,7 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
             V(((ASTEnumVariant*)n)->data,"data");
             V(((ASTEnumVariant*)n)->discriminant_expr,"discriminant_expr");
             if (((ASTEnumVariant*)n)->has_resolved_discriminant > 1u)
-                return ast_validation_fail(s,AST_VALIDATE_INVALID_VALUE,n,"has_resolved_discriminant");
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"has_resolved_discriminant");
             break;
         case AST_NEWTYPE_DECL:
             if(!ast_validation_required_text(s,n,((ASTNewTypeDecl*)n)->name,"name") ||
