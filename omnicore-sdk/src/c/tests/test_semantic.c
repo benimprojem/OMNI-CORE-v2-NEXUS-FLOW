@@ -431,6 +431,11 @@ static int check_thread_api_is_module_call(void) {
             "f:main() { v:outside!i32 = 1; "
             "(worker)>{ v:inside!i32 = outside; } }", 1) &&
         check_source(
+            "f:main() { (worker)>{ (h) <- copy(); } }", 1) &&
+        check_source(
+            "f:main() { v:x!i32 = 1; "
+            "(worker)>{ (h) <- copy(x, x); } }", 1) &&
+        check_source(
             "f:main() { (worker)>{ } (worker)>{ } }", 1) &&
         check_thread_block_value_captures();
 }
