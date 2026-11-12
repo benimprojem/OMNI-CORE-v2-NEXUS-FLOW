@@ -1451,7 +1451,7 @@ static const char* semantic_binary_operator_name(OmniTokenType op) {
         case TOKEN_STAR: return "*";
         case TOKEN_SLASH: return "/";
         case TOKEN_PERCENT: return "%";
-        case TOKEN_POWER: return "**";
+        case TOKEN_POWER: return "^^";
         case TOKEN_ASSIGN: return "=";
         case TOKEN_FORCE_ASSIGN: return "!!=";
         case TOKEN_PLUS_EQ: return "+=";
@@ -3433,13 +3433,12 @@ static void semantic_check_node(
                                    &(size_t){0}) &&
                                semantic_vector_dimension(right_type,
                                    &(size_t){0})) {
-                        if (bin->op != TOKEN_PLUS) {
-                            (void)snprintf(message, sizeof(message),
-                                "Vector operator '%s' is not supported; Vec2/Vec3/Vec4 currently support only '+'.",
-                                operator_name);
-                            report_error(ctx, node,
-                                ERR_SEMANTIC_TYPE_MISMATCH, message);
-                        }
+                        /*
+                         * Vec2/Vec3/Vec4 use component-wise arithmetic.
+                         * are_types_compatible() above enforces equal
+                         * dimensions; every arithmetic binary operator is
+                         * admitted here, including power and modulo.
+                         */
                     } else if (!is_numeric_primitive_type(left_type) ||
                                !is_numeric_primitive_type(right_type)) {
                         (void)snprintf(message, sizeof(message),
@@ -3710,13 +3709,20 @@ static void semantic_check_node(
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                     }
                 } else if (numeric_compound || bitwise_compound) {
+                    int left_is_vector = left_type &&
+                        semantic_vector_dimension(left_type, &(size_t){0});
+                    int right_is_vector = right_type &&
+                        semantic_vector_dimension(right_type, &(size_t){0});
                     int invalid_types = left_type && right_type &&
                         (!are_types_compatible(left_type, right_type) ||
                          (bitwise_compound
                             ? (!is_bitwise_primitive_type(left_type) ||
                                !is_bitwise_primitive_type(right_type))
-                            : (!is_numeric_primitive_type(left_type) ||
-                               !is_numeric_primitive_type(right_type))));
+                            : (!(is_numeric_primitive_type(left_type) ||
+                                 left_is_vector) ||
+                               !(is_numeric_primitive_type(right_type) ||
+                                 right_is_vector) ||
+                               (left_is_vector != right_is_vector))));
                     if (invalid_types) {
                         char message[320];
                         if (bitwise_compound) {
@@ -3726,7 +3732,7 @@ static void semantic_check_node(
                                 left_type, right_type);
                         } else {
                             (void)snprintf(message, sizeof(message),
-                                "Operator '%s' requires matching numeric types; got '%s' and '%s'.",
+                                "Operator '%s' requires matching numeric types or same-dimension vector operands; got '%s' and '%s'.",
                                 semantic_binary_operator_name(assign->op),
                                 left_type, right_type);
                         }
@@ -4254,10 +4260,11 @@ static void semantic_check_node(
                     operand_type);
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
             } else if (operand_type && unary->op == TOKEN_MINUS &&
-                       !is_numeric_primitive_type(operand_type)) {
+                       !is_numeric_primitive_type(operand_type) &&
+                       !semantic_vector_dimension(operand_type, &(size_t){0})) {
                 char message[256];
                 (void)snprintf(message, sizeof(message),
-                    "Unary minus requires a numeric operand; got '%s'.",
+                    "Unary minus requires a numeric or Vec2/Vec3/Vec4 operand; got '%s'.",
                     operand_type);
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
             } else if (operand_type && unary->op == TOKEN_BIT_NOT &&
