@@ -3938,6 +3938,7 @@ static void semantic_check_node(
         case AST_RULESET_DECL: {
             ASTRulesetDecl* ruleset=(ASTRulesetDecl*)node;
             ASTNode* current;
+            int params_valid=1;
             Slot* existing;
             Slot* slot=NULL;
             if(!ruleset->name || !ruleset->name[0]) {
@@ -3949,6 +3950,7 @@ static void semantic_check_node(
                 if(current->type!=AST_VAR_DECL) {
                     report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
                         "Ruleset parameter list contains an unsupported AST node.");
+                    params_valid=0;
                     break;
                 }
             }
@@ -3967,7 +3969,8 @@ static void semantic_check_node(
                     "Ruleset is already declared in this scope.");
             } else {
                 slot=add_slot(ctx,ruleset->name,SLOT_FUNC,1,NULL,node,0,0,0,0u);
-                semantic_register_rule_signature(ctx,slot,ruleset->params);
+                if(params_valid)
+                    semantic_register_rule_signature(ctx,slot,ruleset->params);
                 semantic_register_rule_events(ctx,slot,ruleset->rules);
             }
             enter_scope(ctx,node);
