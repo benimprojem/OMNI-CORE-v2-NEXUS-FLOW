@@ -1014,6 +1014,150 @@ static int check_extended_ast_semantics(void) {
         check_source(relocate_type_mismatch,1);
 }
 
+
+static char* semantic_test_copy_text(const char* value) {
+    size_t length;
+    char* copy;
+    if (!value) return NULL;
+    length = strlen(value);
+    copy = (char*)malloc(length + 1u);
+    if (copy) memcpy(copy, value, length + 1u);
+    return copy;
+}
+
+static int check_enum_ast_case(
+    ASTNode* node, int expected_errors, const char* expected_message
+) {
+    SemanticContext semantic;
+    int ok;
+    if (!node) return 0;
+    semantic_init(&semantic, "semantic-enum-validation.nxf", NULL);
+    semantic_check(&semantic, node);
+    ok = semantic.error_count == expected_errors;
+    if (expected_message) {
+        int found = 0;
+        Error* error;
+        for (error = semantic.error_head; error; error = error->next) {
+            if (strstr(error->message, expected_message) != NULL) found = 1;
+        }
+        ok = ok && found;
+    }
+    semantic_destroy(&semantic);
+    ast_destroy(node);
+    return ok;
+}
+
+static int check_enum_declaration_semantics(void) {
+    ASTEnumDecl* valid = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    ASTEnumVariant* ok_variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    ASTEnumVariant* error_variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    ASTVarDecl* ok_payload = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTVarDecl* error_payload = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTEnumDecl* duplicate = NULL;
+    ASTEnumVariant* duplicate_a = NULL;
+    ASTEnumVariant* duplicate_b = NULL;
+    ASTEnumDecl* malformed_variant = NULL;
+    ASTEnumDecl* malformed_payload = NULL;
+    ASTEnumVariant* payload_variant = NULL;
+    ASTVarDecl* payload_a = NULL;
+    ASTVarDecl* payload_b = NULL;
+    ASTEnumDecl* missing_type = NULL;
+    ASTEnumVariant* missing_type_variant = NULL;
+    ASTVarDecl* untyped_payload = NULL;
+    int ok = 0;
+
+    if (!valid || !ok_variant || !error_variant || !ok_payload || !error_payload)
+        goto cleanup_valid;
+    valid->name = semantic_test_copy_text("Result");
+    ok_variant->name = semantic_test_copy_text("Ok");
+    error_variant->name = semantic_test_copy_text("Error");
+    ok_payload->name = semantic_test_copy_text("value");
+    ok_payload->type_name = semantic_test_copy_text("i32");
+    error_payload->name = semantic_test_copy_text("message");
+    error_payload->type_name = semantic_test_copy_text("str");
+    if (!valid->name || !ok_variant->name || !error_variant->name ||
+        !ok_payload->name || !ok_payload->type_name ||
+        !error_payload->name || !error_payload->type_name) goto cleanup_valid;
+    ok_variant->data = (ASTNode*)ok_payload;
+    error_variant->data = (ASTNode*)error_payload;
+    ok_variant->base.next = (ASTNode*)error_variant;
+    valid->variants = (ASTNode*)ok_variant;
+    if (!check_enum_ast_case((ASTNode*)valid, 0, NULL)) return 0;
+    valid = NULL;
+    ok_variant = NULL;
+    error_variant = NULL;
+    ok_payload = NULL;
+    error_payload = NULL;
+    ok = 1;
+
+    duplicate = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    duplicate_a = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    duplicate_b = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    if (!duplicate || !duplicate_a || !duplicate_b) goto cleanup;
+    duplicate->name = semantic_test_copy_text("State");
+    duplicate_a->name = semantic_test_copy_text("Ready");
+    duplicate_b->name = semantic_test_copy_text("Ready");
+    if (!duplicate->name || !duplicate_a->name || !duplicate_b->name) goto cleanup;
+    duplicate_a->base.next = (ASTNode*)duplicate_b;
+    duplicate->variants = (ASTNode*)duplicate_a;
+    if (!check_enum_ast_case((ASTNode*)duplicate, 1,
+            "declares variant 'Ready' more than once")) goto cleanup;
+    duplicate = NULL;
+    duplicate_a = NULL;
+    duplicate_b = NULL;
+
+    malformed_variant = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    if (!malformed_variant) goto cleanup;
+    malformed_variant->name = semantic_test_copy_text("State");
+    malformed_variant->variants = ast_create(AST_LITERAL);
+    if (!malformed_variant->name || !malformed_variant->variants) goto cleanup;
+    if (!check_enum_ast_case((ASTNode*)malformed_variant, 1,
+            "non-variant AST node")) goto cleanup;
+    malformed_variant = NULL;
+
+    malformed_payload = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    payload_variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    if (!malformed_payload || !payload_variant) goto cleanup;
+    malformed_payload->name = semantic_test_copy_text("Result");
+    payload_variant->name = semantic_test_copy_text("Ok");
+    payload_variant->data = ast_create(AST_LITERAL);
+    malformed_payload->variants = (ASTNode*)payload_variant;
+    if (!malformed_payload->name || !payload_variant->name ||
+        !payload_variant->data) goto cleanup;
+    if (!check_enum_ast_case((ASTNode*)malformed_payload, 1,
+            "non-field AST node")) goto cleanup;
+    malformed_payload = NULL;
+    payload_variant = NULL;
+
+    missing_type = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    missing_type_variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    untyped_payload = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    if (!missing_type || !missing_type_variant || !untyped_payload) goto cleanup;
+    missing_type->name = semantic_test_copy_text("Result");
+    missing_type_variant->name = semantic_test_copy_text("Ok");
+    untyped_payload->name = semantic_test_copy_text("value");
+    missing_type_variant->data = (ASTNode*)untyped_payload;
+    missing_type->variants = (ASTNode*)missing_type_variant;
+    if (!missing_type->name || !missing_type_variant->name ||
+        !untyped_payload->name) goto cleanup;
+    if (!check_enum_ast_case((ASTNode*)missing_type, 1,
+            "payload field requires an explicit type")) goto cleanup;
+    missing_type = NULL;
+    missing_type_variant = NULL;
+    untyped_payload = NULL;
+
+    return ok;
+
+cleanup_valid:
+    ast_destroy((ASTNode*)valid);
+cleanup:
+    ast_destroy((ASTNode*)duplicate);
+    ast_destroy((ASTNode*)malformed_variant);
+    ast_destroy((ASTNode*)malformed_payload);
+    ast_destroy((ASTNode*)missing_type);
+    return 0;
+}
+
 static int check_group_self_receiver_semantics(void) {
     const char* inferred_self_before_struct =
         "f:main() { group Storage { "
@@ -1390,6 +1534,10 @@ int main(int argc, char** argv) {
     }
     if (!check_m_immutable_value_semantics()) {
         fprintf(stderr, "Immutable m: value semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_enum_declaration_semantics()) {
+        fprintf(stderr, "Enum declaration and payload semantic checks failed.\\n");
         return 1;
     }
     if (!check_group_self_receiver_semantics()) {
