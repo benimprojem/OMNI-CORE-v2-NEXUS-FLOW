@@ -170,3 +170,6 @@ It owns:
 Source diagnostics do not force a transition to FAILED: a running job may complete all eligible stages while diagnostics accumulate. Final publication is a separate decision, allowed only for a COMPLETED job whose diagnostic collector passes the strict gate. Failed/cancelled jobs cannot publish.
 
 This is the initial context skeleton. Source manager, artifact registry, module invocation context, cancellation propagation and checkpoint metadata remain to be added. It is not yet the frozen cross-DLL ABI.
+
+
+Control-flow condition diagnostics must name the construct (`if/elsif` or `loop`) and actual non-boolean type. Postfix mutation diagnostics must identify the mutable-lvalue requirement, the actual non-numeric type, or the immutable lvalue name. Constant array-index diagnostics must include the offending index and known array length/range; dynamic bounds remain a later runtime/OIR responsibility.
