@@ -3062,7 +3062,13 @@ static void semantic_check_node(
 
         case AST_MUST_DECL: {
             ASTMustDecl* immutable = (ASTMustDecl*)node;
-            Slot* existing = find_slot(ctx, immutable->name);
+            Slot* existing;
+            if (!immutable->name || !immutable->name[0]) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "An immutable m: declaration requires a non-empty name.");
+                break;
+            }
+            existing = find_slot(ctx, immutable->name);
             Slot* declared_slot = NULL;
             const char* value_type = NULL;
             if (immutable->source) {
@@ -3113,7 +3119,13 @@ static void semantic_check_node(
         case AST_VAR_DECL: {
             ASTVarDecl* decl = (ASTVarDecl*)node;
             Slot* declared_slot = NULL;
-            Slot* existing = find_slot(ctx, decl->name);
+            Slot* existing;
+            if (!decl->name || !decl->name[0]) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Variable declaration requires a non-empty name.");
+                break;
+            }
+            existing = find_slot(ctx, decl->name);
             int is_array = (decl->inline_type &&
                 decl->inline_type->type == AST_ARRAY_TYPE);
             int is_inline = (decl->inline_type != NULL && !is_array);
@@ -5256,7 +5268,13 @@ static void semantic_check_node(
             ASTGroupDecl* g = (ASTGroupDecl*)node;
             const ASTNode* previous_group_owner = ctx->current_group_owner;
             Slot* group_slot = NULL;
-            Slot* existing_group = find_slot(ctx, g->name);
+            Slot* existing_group;
+            if (!g->name || !g->name[0]) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Group declaration requires a non-empty name.");
+                break;
+            }
+            existing_group = find_slot(ctx, g->name);
             uint32_t member_ordinal = 0u;
             uint32_t method_ordinal = 0u;
             const ASTNode* member;
