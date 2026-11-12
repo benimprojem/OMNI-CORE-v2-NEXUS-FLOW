@@ -316,6 +316,16 @@ int main(void) {
         "f:main() { 1++; }";
     static const char postfix_array_element_valid[] =
         "f:main() { v:arr = [1,2,3,4]; arr[0]++; }";
+    static const char valid_vec3_initializer[] =
+        "f:main() { v:point!Vec3 = [1.0, 2.0, 3.0]; }";
+    static const char valid_vec3_addition[] =
+        "f:main(a!Vec3, b!Vec3) { v:result = a + b; }";
+    static const char invalid_vec3_dimension[] =
+        "f:main() { v:point!Vec3 = [1.0, 2.0]; }";
+    static const char invalid_vec_mixed_dimensions[] =
+        "f:main(a!Vec2, b!Vec3) { v:result = a + b; }";
+    static const char invalid_vec_multiply[] =
+        "f:main(a!Vec3, b!Vec3) { v:result = a * b; }";
     static const char valid_map_index_read_write[] =
         "f:main() { v:notes!map; notes[\"Ali\"] = 90; "
         "v:score = notes[\"Ali\"]; notes[\"Veli\"] = score; }";
@@ -427,6 +437,11 @@ int main(void) {
     if (!check_source(postfix_non_numeric_invalid, 1)) return 1;
     if (!check_source(postfix_literal_invalid, 1)) return 1;
     if (!check_source(postfix_array_element_valid, 0)) return 1;
+    if (!check_source(valid_vec3_initializer, 0)) return 1;
+    if (!check_source(valid_vec3_addition, 0)) return 1;
+    if (!check_source(invalid_vec3_dimension, 1)) return 1;
+    if (!check_source(invalid_vec_mixed_dimensions, 1)) return 1;
+    if (!check_source(invalid_vec_multiply, 1)) return 1;
     if (!check_source(valid_map_index_read_write, 0)) return 1;
     if (!check_source(valid_map_numeric_key, 0)) return 1;
     if (!check_source(invalid_map_aggregate_key, 1)) return 1;
@@ -511,6 +526,9 @@ int main(void) {
     if (!check_error_detail(
         "f:main() {\n    loop (1) { ret; }\n}",
         "Loop condition requires bool", "i32", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() {\n    v:point!Vec3 = [1.0, 2.0];\n}",
+        "Vec3 initializer requires exactly 3 numeric components", "received 2", 2)) return 1;
     if (!check_error_detail(
         "f:main() {\n    v:items!map; v:point!Vec3; v:value = items[point];\n}",
         "Map key must be a scalar key type", "Vec3", 2)) return 1;
