@@ -18,6 +18,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->error_tail = NULL;
     ctx->current_depth = 0;
     ctx->loop_depth = 0u;
+    ctx->function_depth = 0u;
     ctx->current_func_return_type = NULL;
     ctx->diagnostics = NULL;
     ctx->diagnostic_stage_id = OCC_STAGE_SEMANTIC;
@@ -4170,7 +4171,11 @@ static void semantic_check_node(
             {
                 uint8_t method_context_for_function = ctx->current_method_context;
                 ctx->current_method_context = 0u;
-                if (func->body) semantic_check(ctx, func->body);
+                if (func->body) {
+                    ++ctx->function_depth;
+                    semantic_check(ctx, func->body);
+                    --ctx->function_depth;
+                }
                 ctx->current_method_context = method_context_for_function;
             }
             exit_scope(ctx);
@@ -4234,6 +4239,11 @@ static void semantic_check_node(
 
         case AST_RETURN: {
             ASTUnaryExpr* ret = (ASTUnaryExpr*)node;
+            if (ctx->function_depth == 0u) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "ret may only be used inside a function body.");
+                break;
+            }
             if (ret->operand) semantic_check(ctx, ret->operand);
             
             if (ctx->current_func_return_type) {
