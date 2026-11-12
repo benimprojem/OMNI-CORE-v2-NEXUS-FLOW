@@ -30,7 +30,8 @@ typedef struct Slot {
     int depth; // Scope derinliği
     char* type_name;      // Değişken tipi, Fonksiyon dönüş tipi veya NewType hedefi
     ASTNode* declaration_node; // Non-owning AST declaration for signature validation
-    int param_count;      // Fonksiyon parametre sayısı
+    int param_count;      // Fixed function parameter count
+    int is_variadic;       // Final AST_VARIADIC_PARAM permits additional arguments
     char** param_types;   // Fonksiyon parametre tipleri
     FieldInfo* fields;    // Struct alanları veya Enum varyantları
     int is_packed;        // Struct packed durumu
