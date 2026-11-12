@@ -1376,7 +1376,7 @@ static int roundtrips_versioned_source_spans(void) {
         fread(magic, 1u, sizeof(magic), stream) != sizeof(magic) ||
         fread(&version, sizeof(version), 1u, stream) != 1u ||
         memcmp(magic, "OCCAST\r\n", sizeof(magic)) != 0 ||
-        version != 6u) {
+        version != 7u) {
         fclose(stream);
         ast_destroy((ASTNode*)original);
         return 1;
@@ -1430,7 +1430,7 @@ static int reads_v5_program_stream_without_module_policy_payload(void) {
         fflush(current) != 0 || fseek(current, 0L, SEEK_END) != 0)
         goto done;
     end = ftell(current);
-    /* v6 appends one policy byte + the eight serialized span fields (38 bytes)
+    /* v6/v7 append one policy byte + the eight serialized span fields (38 bytes)
        immediately before the root sibling terminator. */
     if (end < (long)(sizeof(uint32_t) + 38u) ||
         fseek(current, 0L, SEEK_SET) != 0)
