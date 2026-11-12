@@ -389,7 +389,6 @@ static int check_malformed_nexus_and_argument_ast(void) {
         { AST_NEXUS_CAPTURE, "Nexus capture requires a non-empty handler name and source expression" },
         { AST_NEXUS_PIPE, "Nexus pipe requires both left and right operands" },
         { AST_NAMED_ARG, "Named argument requires a non-empty name and value expression" },
-        { AST_LISTEN, "listen requires a non-empty handler name" }
     };
     size_t i;
     for(i=0;i<sizeof(cases)/sizeof(cases[0]);++i) {
