@@ -763,7 +763,7 @@ static int check_compound_assignment_semantics(void) {
     const char* valid_member_compound =
         "f:main() { struct:Point { v:x!i32 } v:p!Point; p.x += 1; }";
     const char* constant_member_compound =
-        "f:main() { struct:Point { v:x!i32 } c:p!Point; p.x += 1; }";
+        "f:main() { struct:Point { v:x!i32 } c:p!Point = Point { x = 1 }; p.x += 1; }";
 
     return check_source(valid_numeric,0) &&
         check_source(invalid_numeric,1) &&
