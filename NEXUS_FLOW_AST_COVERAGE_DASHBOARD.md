@@ -358,6 +358,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Arithmetic, shift, comparison, and logical-operator diagnostics now include the operator spelling and offending operand types; `%` explicitly reports its integer-only requirement.
 - Unary logical negation and bitwise complement diagnostics identify the rejected operand type. Bitwise regression coverage now includes fixed-width `8bit` operands, mixed representation/integer operands, and compound-assignment diagnostics.
 - Assignment validation now fails safely for malformed ASTs with missing target/value children. Compound numeric, bitwise and string-append diagnostics report the exact assignment operator and both operand types.
+- Direct variable, indexed-element and aggregate-field assignment mismatches now identify the assignment operator, destination, expected type and supplied value type.
 - Added diagnostic regressions for mismatched arithmetic types, invalid shift operand types, and non-boolean logical operands. Linux and ASan/UBSan passed on the previous checkpoint; full cross-platform verification for the latest diagnostic changes is pending.
 - Conditional-control expression arms can now be followed directly by the alternative separator, e.g. `(j == k) ? process(j) : process(k);`; the first expression arm defers its semicolon only when the separator follows.
 - Corrected the Parser allocation-failure fixture: it had included the deferred-AI token `??` in a source expected to parse successfully. The fixture now uses the valid halt form `?;`.
