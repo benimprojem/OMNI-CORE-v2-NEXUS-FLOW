@@ -2296,3 +2296,11 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added Semantic source fixtures for cross-member read/write, unknown member, incompatible member write and unknown member type. Existing tests cover duplicate fields and missing field types.
 - Updated the normative syntax reference, AST coverage dashboard and AST syntax matrix. Union layout, alignment, physical representation and OIR mapping remain deferred to their proper later phase.
 - **Verification:** test source and documentation are committed; CI run `43253848909` is still queued and the new Union test additions have not yet been executed. Union Semantic remains partial until the C test suite passes.
+
+
+## 2026-11-12 — Group method uniqueness regression checkpoint
+
+- Added Semantic source fixtures for duplicate Group method public aliases, duplicate implementation function names across aliases, and collisions between a method implementation name and a direct Group function.
+- Existing Group/Method fixtures cover inferred and explicit `self`, invalid receiver declarations, namespace/static calls, object/instance calls, method visibility through Group-qualified lookup, unknown methods, argument count/type, and malformed AST guards.
+- The first CI run exposed two literal `\\n` sequences accidentally inserted into `test_semantic.c` outside C string literals; corrected them in commit `578a819cb7bf41953d4e2e3e9a8b7c1b1f165f90`.
+- Updated Group uniqueness tests are in commit `e0655d389d2e49f9b2e805ecc528f9938859249a`. CI is pending; Group Semantic and the preceding Union/Enum checkpoints are not marked complete until the full C workflow passes.
