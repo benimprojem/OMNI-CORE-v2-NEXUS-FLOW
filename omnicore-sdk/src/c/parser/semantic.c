@@ -2480,6 +2480,105 @@ static void semantic_add_pattern_binding(
         SEMANTIC_RESULT_VALUE_LVALUE);
 }
 
+static const char* semantic_pattern_enum_variant_name(
+    SemanticContext* ctx, ASTNode* pattern, const char* subject_type
+) {
+    Slot* enum_slot = semantic_pattern_enum_slot(ctx,subject_type);
+    ASTNode* current;
+    if(!enum_slot) return NULL;
+    for(current=pattern;current;current=current->next) {
+        if(current->type==AST_PATTERN_CONSTRUCTOR) {
+            ASTPatternConstructor* constructor=(ASTPatternConstructor*)current;
+            if(constructor->name &&
+               semantic_find_enum_variant(enum_slot,constructor->name))
+                return constructor->name;
+        } else if(current->type==AST_PATTERN_BINDING) {
+            ASTPatternBinding* binding=(ASTPatternBinding*)current;
+            ASTEnumVariant* variant=binding->name
+                ? semantic_find_enum_variant(enum_slot,binding->name) : NULL;
+            if(variant && !variant->data) return binding->name;
+        }
+    }
+    return NULL;
+}
+
+static int semantic_scan_arm_is_guarded(const ASTScanArm* arm) {
+    return arm && arm->has_guard != 0;
+}
+
+static void semantic_check_enum_scan_coverage(
+    SemanticContext* ctx, ASTScan* scan, const char* subject_type
+) {
+    Slot* enum_slot=semantic_pattern_enum_slot(ctx,subject_type);
+    ASTNode* arm_node;
+    ASTNode* prior;
+    ASTNode* variant_node;
+    int has_else=0;
+    if(!enum_slot || !scan ||
+       !enum_slot->declaration_node ||
+       enum_slot->declaration_node->type!=AST_ENUM_DECL) return;
+
+    for(arm_node=scan->arms;arm_node;arm_node=arm_node->next) {
+        ASTScanArm* arm;
+        const char* current_name;
+        if(arm_node->type!=AST_SCAN_ARM) continue;
+        arm=(ASTScanArm*)arm_node;
+        if(!arm->pattern) { has_else=1; continue; }
+        if(semantic_scan_arm_is_guarded(arm)) continue;
+        current_name=semantic_pattern_enum_variant_name(
+            ctx,arm->pattern,subject_type);
+        if(!current_name) continue;
+        for(prior=scan->arms;prior && prior!=arm_node;prior=prior->next) {
+            ASTScanArm* prior_arm;
+            const char* prior_name;
+            if(prior->type!=AST_SCAN_ARM) continue;
+            prior_arm=(ASTScanArm*)prior;
+            if(!prior_arm->pattern || semantic_scan_arm_is_guarded(prior_arm))
+                continue;
+            prior_name=semantic_pattern_enum_variant_name(
+                ctx,prior_arm->pattern,subject_type);
+            if(prior_name && strcmp(prior_name,current_name)==0) {
+                char message[256];
+                (void)snprintf(message,sizeof(message),
+                    "Enum variant '%s' is matched more than once in this scan.",
+                    current_name);
+                report_error(ctx,arm_node,ERR_SEMANTIC_REDEFINED,message);
+                break;
+            }
+        }
+    }
+
+    if(has_else) return;
+    for(variant_node=((ASTEnumDecl*)enum_slot->declaration_node)->variants;
+        variant_node;variant_node=variant_node->next) {
+        ASTEnumVariant* variant;
+        int covered=0;
+        if(variant_node->type!=AST_ENUM_VARIANT) continue;
+        variant=(ASTEnumVariant*)variant_node;
+        if(!variant->name || !variant->name[0]) continue;
+        for(arm_node=scan->arms;arm_node;arm_node=arm_node->next) {
+            ASTScanArm* arm;
+            const char* matched;
+            if(arm_node->type!=AST_SCAN_ARM) continue;
+            arm=(ASTScanArm*)arm_node;
+            if(!arm->pattern || semantic_scan_arm_is_guarded(arm)) continue;
+            matched=semantic_pattern_enum_variant_name(
+                ctx,arm->pattern,subject_type);
+            if(matched && strcmp(matched,variant->name)==0) {
+                covered=1;
+                break;
+            }
+        }
+        if(!covered) {
+            char message[256];
+            (void)snprintf(message,sizeof(message),
+                "Non-exhaustive scan for enum '%s': missing variant '%s' or an else arm.",
+                enum_slot->name,variant->name);
+            report_error(ctx,(ASTNode*)variant,ERR_SEMANTIC_TYPE_MISMATCH,message);
+        }
+    }
+}
+
 static void semantic_check_pattern_bindings(
     SemanticContext* ctx, ASTNode* pattern, const char* subject_type
 ) {
@@ -4451,6 +4550,7 @@ static void semantic_check_node(
                 semantic_check(ctx,arm->body);
                 exit_scope(ctx);
             }
+            semantic_check_enum_scan_coverage(ctx,scan,subject_type);
             break;
         }
 
