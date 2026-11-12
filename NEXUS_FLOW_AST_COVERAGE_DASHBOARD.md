@@ -447,6 +447,6 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 ### Semantic checkpoint — Vec2/Vec3/Vec4 initializer and arithmetic rules — 2026-11-12
 
 - Implemented the documented fixed dimensions for Vec2, Vec3 and Vec4 array-literal initializers; each component must be numeric and the literal must contain exactly 2, 3 or 4 values respectively.
-- Enabled the documented component-wise vector addition contract for matching vector dimensions. Mixed dimensions and currently undocumented vector subtraction/multiplication/division/power operations are rejected with explicit diagnostics.
-- Added positive Vec2/Vec3/Vec4 initializer and Vec3 addition tests, plus negative dimension, non-numeric component, mixed-vector and unsupported-operation tests. The dimension diagnostic asserts expected/actual component counts and source line.
+- Enabled component-wise vector arithmetic for matching Vec2/Vec3/Vec4 dimensions: `+`, `-`, `*`, `/`, `%`, and `^^`; unary minus and compound `+=`, `-=`, `*=`, `/=` are also accepted. Mixed dimensions and vector/scalar mixing remain rejected until a scalar-broadcast rule is specified.
+- Added positive Vec2/Vec3/Vec4 initializer tests and Vec3 coverage for every binary arithmetic operator, unary minus and compound arithmetic; negative tests cover dimension mismatch, non-numeric components and vector/scalar mixing. The dimension diagnostic asserts expected/actual component counts and source line.
 - Test execution and CI for this checkpoint remain pending; implementation and fixtures are not represented as a green test result.
