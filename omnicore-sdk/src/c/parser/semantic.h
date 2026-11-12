@@ -104,6 +104,7 @@ typedef struct {
     ThreadBlockEntry* thread_blocks;
     ThreadBlockEntry* thread_block_tail;
     ThreadBlockEntry* active_thread_block;
+    uint8_t thread_capture_copy_depth;
 
     /* Deterministic allocation-failure injection for semantic tests; zero disables. */
     uint32_t test_allocation_fail_at;
