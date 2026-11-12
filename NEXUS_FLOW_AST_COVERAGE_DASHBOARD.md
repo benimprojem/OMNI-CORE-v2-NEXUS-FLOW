@@ -481,4 +481,4 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - AST_IF now fails closed when its condition expression or primary branch is absent. Missing condition and missing primary branch produce explicit Semantic diagnostics rather than silently skipping the malformed node.
 - Added direct malformed-AST regression fixtures to `test_semantic.c`, covering both missing-condition and missing-primary-branch cases. Existing source fixtures continue to cover boolean conditions, elsif/else chains, and conditional break/continue behavior.
 - Syntax reference records the required AST shape and optional else branch. Branch-head CI is not available yet; tests are committed but not marked passed.
-- Semantic implementation: `3a538992`; tests: `869da568`.
+- Semantic implementation: `3a538992`; tests: `df8d2bcd`.
