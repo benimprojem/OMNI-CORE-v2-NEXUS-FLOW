@@ -26,7 +26,6 @@ static int check_source(const char* source, int expect_error) {
             expect_error, semantic.error_count, source);
     }
     semantic_destroy(&semantic);
-    occ_diagnostics_destroy(&diagnostics);
     parser_destroy(parser);
     return ok;
 }
@@ -81,6 +80,7 @@ static int check_error_detail(const char* source, const char* required_a,
             expected_line, required_a, required_b ? required_b : "<none>");
     }
     semantic_destroy(&semantic);
+    occ_diagnostics_destroy(&diagnostics);
     parser_destroy(parser);
     return ok;
 }
