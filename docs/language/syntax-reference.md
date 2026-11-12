@@ -595,6 +595,10 @@ Koşulun sonucuna göre tek bir kontrol veya işlem seçilir. Bu yapı ternary k
 - `:` ve alternatif kol zorunlu değildir.
 - Her iki kolda da normal ifadeler, bloklar veya kontrol aktarımı bulunabilir.
 - `break` ve `continue` yalnızca geçerli bir loop kapsamı içindeyken kullanılabilir.
+- İç içe döngülerde her iki komut da en yakın etkin döngü kapsamına uygulanır; iç döngüden çıkış dış döngünün kapsamını kapatmaz.
+- Bir fonksiyon gövdesi kendi kontrol kapsamını başlatır. Döngü içinde tanımlanan iç fonksiyon, tanımlandığı dış döngünün `break`/`continue` yetkisini devralmaz.
+- Döngü tamamlandıktan sonra `loop` kapsamı kapatılır; sonraki `break` veya `continue` geçerli değildir.
+- `if` / `elsif` / `els` dalları yeni bir döngü kapsamı oluşturmaz; bir döngü içinde bulunuyorlarsa dallardaki `break` ve `continue` geçerlidir.
 - Bu operatör, Bölüm 3'teki veri/işlem akışı için kullanılan `->` operatöründen ayrıdır.
 - Tek satırlı kollar bir statement olmalı ve `;` ile biter. Blok kolları `{ ... }` ile biter.
 - Koşul parantezli yazılır; böylece `?` işareti Rolling (`?(n,ms)`) ve Halt (`?;`) kullanımlarından parser tarafından ayırt edilir.
