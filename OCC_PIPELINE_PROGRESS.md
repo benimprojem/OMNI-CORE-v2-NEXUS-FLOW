@@ -2067,3 +2067,16 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - AST_AI_LOGIC had an empty Semantic case despite having no active Parser production or defined query validation. It now emits an explicit Semantic diagnostic when encountered in a supplied/legacy AST.
 - Extended fail-closed regression coverage for AST_AI_LOGIC alongside the existing raw inline-ASM case. Active source grammar is unchanged.
 - Local build/test and CI verification remain pending.
+
+
+### Semantic AST integrity audit — 2026-11-12 (alt kapsam)
+
+| Kontrol | Semantic kod | Regression fixture | Durum |
+|---|:---:|:---:|:---:|
+| Function name/body structural validation | ✓ | ✓ | CI pending |
+| Nexus label/jump non-empty identity | ✓ | ✓ | CI pending |
+| defer body required | ✓ | ✓ | CI pending |
+| thread_block name/body before scope entry | ✓ | ✓ | CI pending |
+| Reserved AST_AI_LOGIC fails closed | ✓ | ✓ | CI pending |
+
+Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID satırlarının Semantic sütunu, tüm type/scope/effect/control-flow kuralları tamamlanmadığı için ~ kalır.
