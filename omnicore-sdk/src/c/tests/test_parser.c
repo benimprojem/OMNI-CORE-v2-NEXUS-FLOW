@@ -4475,11 +4475,14 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
         ASTNexusFlow* flow;
         const char* start = strstr(source, spans[i]);
         const char* end = start ? start + strlen(spans[i]) : NULL;
-        if (!statement || statement->type != AST_VAR_DECL) goto done;
+        if (!statement || statement->type != AST_VAR_DECL) {
+            fprintf(stderr,"flow test arm %zu: statement kind mismatch\\n",i); goto done;
+        }
         variable = (ASTVarDecl*)statement;
         if (!variable->name || strcmp(variable->name, names[i]) != 0 ||
-            !variable->initializer || variable->initializer->type != AST_NEXUS_FLOW)
-            goto done;
+            !variable->initializer || variable->initializer->type != AST_NEXUS_FLOW) {
+            fprintf(stderr,"flow test arm %zu: name/initializer mismatch\\n",i); goto done;
+        }
         flow = (ASTNexusFlow*)variable->initializer;
         if (flow->op != operators[i] || !flow->left || !flow->right ||
             !start || !end || !flow->base.source_span.has_location ||
@@ -4497,13 +4500,18 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
         if (i == 0u) {
             if (flow->right->type != AST_IDENTIFIER ||
                 strcmp(((ASTIdentifier*)flow->right)->name, "e") != 0 ||
-                !flow->catch_block || flow->catch_block->type != AST_BLOCK)
-                goto done;
+                !flow->catch_block || flow->catch_block->type != AST_BLOCK) {
+                fprintf(stderr,"flow test arm 0: right/catch mismatch type=%d catch=%d\\n",
+                    (int)flow->right->type,flow->catch_block?(int)flow->catch_block->type:0); goto done;
+            }
         } else if (i == 1u) {
-            if (flow->right->type != AST_IDENTIFIER || flow->catch_block)
-                goto done;
+            if (flow->right->type != AST_IDENTIFIER || flow->catch_block) {
+                fprintf(stderr,"flow test arm 1: right/catch mismatch type=%d catch=%p\\n",
+                    (int)flow->right->type,(void*)flow->catch_block); goto done;
+            }
         } else if (flow->right->type != AST_FUNC_CALL || flow->catch_block) {
-            goto done;
+            fprintf(stderr,"flow test arm 2: right/catch mismatch type=%d catch=%p\\n",
+                (int)flow->right->type,(void*)flow->catch_block); goto done;
         }
         statement = statement->next;
     }
