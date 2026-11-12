@@ -2243,7 +2243,9 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             flow->retry_delay = retry_delay;
             flow->left = expr;
             flow->right = right;
-            parser_stamp_node_child_range((ASTNode*)flow, expr, right);
+            /* The right operand may be parenthesized; its AST child span
+               excludes grouping delimiters, but the flow production owns them. */
+            parser_stamp_node_child_to_token(p,(ASTNode*)flow,expr,&p->previous);
             expr = (ASTNode*)flow;
         }
     }
