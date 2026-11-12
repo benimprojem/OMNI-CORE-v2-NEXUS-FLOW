@@ -1652,6 +1652,15 @@ Bu bildirim `use` ile yapılan açık import sözdiziminin yerine geçmez. Açı
 - `write()`: Bir içeriği alıp bellekte buffer'a  yazar.
 - `fwrite()`: Buffer'dan alıp bir dosyaya yazar.
 
+### 14.3 Donanım intrinsic imzaları ve Semantic kısıtları
+
+Donanım erişimi hedef mimariye ve çalışma ayrıcalıklarına bağlıdır; aşağıdaki Semantic kontrolleri yalnızca AST/signature doğrulamasıdır, erişim izni veya güvenli donanım işlemi garantisi değildir.
+
+- `irq(number, handler)`: iki argüman. `number` integer; `handler` tanımlı fonksiyon identifier veya callable expression olmalıdır.
+- `reg(r, "register-name")`: register okuma; `reg(w, "register-name", value)`: register yazma. İşlem `r`/`w`, ad boş olmayan string literal, yazma değeri integer/address.
+- Register adı ve IRQ numarasının hedef CPU/OS tarafından desteklenmesi, privilege kontrolü ve handler ABI doğrulaması backend/target aşamasında ayrıca yapılır.
+- `intr(n)` ayrı interrupt çağırma intrinsic'idir; henüz burada IRQ handler tanımlama ile aynı işlem kabul edilmez.
+
 ### 14.2 Meta ve Yansıma (Reflection)
 
 - `typeof(v)`: Verinin aktif tipini döndürür.
