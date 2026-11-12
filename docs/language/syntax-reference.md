@@ -1858,3 +1858,12 @@ Dimension order follows the normal array declarator rules. An empty `[]` represe
 
 - AST_AI_LOGIC is currently a reserved AST tag and is not emitted by the active Parser. Semantic rejects manually supplied AST_AI_LOGIC nodes instead of silently accepting a node whose query semantics are not implemented.
 - This does not disable any active Nexus Flow source syntax; Parser has no AST_AI_LOGIC production.
+
+
+### Semantic AST integrity — capture, pipe, named argument and listen
+
+- Nexus capture nodes require a non-empty handler name and a source expression before registering a handler symbol.
+- Nexus pipe nodes require both operands; malformed nodes no longer pass through null child checks silently.
+- Named argument AST nodes require a non-empty parameter name and a value expression.
+- Listen AST nodes require a non-empty handler name before opening their listener scope.
+- These are malformed-AST guards; source grammar is unchanged.
