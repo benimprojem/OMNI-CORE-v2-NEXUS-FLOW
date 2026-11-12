@@ -4529,7 +4529,7 @@ static ASTNode* parse_select_scan(Parser* p, int is_scan) {
         if(is_scan) {
             ASTScanArm* n=(ASTScanArm*)parser_ast_create(p,AST_SCAN_ARM);
             if(!n){ast_destroy(pattern);ast_destroy(body);ast_destroy(root);ast_destroy(arms);return NULL;}
-            n->base.line=keyword.line; n->base.col=keyword.col; n->pattern=pattern; n->body=body; arm=(ASTNode*)n;
+            n->base.line=keyword.line; n->base.col=keyword.col; n->pattern=pattern; n->body=body; n->has_guard=(guard!=NULL); arm=(ASTNode*)n;
         } else {
             ASTSelectArm* n=(ASTSelectArm*)parser_ast_create(p,AST_SELECT_ARM);
             if(!n){ast_destroy(pattern);ast_destroy(body);ast_destroy(root);ast_destroy(arms);return NULL;}
