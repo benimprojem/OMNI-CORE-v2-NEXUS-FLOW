@@ -1974,3 +1974,11 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Loop conditions now require `bool`; range expressions are the explicit exception and require compatible numeric endpoints.
 - Added `loop(1)` negative Semantic regression; canonical Boolean loop fixture retained.
 - Commits: `2f8d4e50` Semantic, `040fdccd` test, `74a42571` dashboard. CI pending.
+
+
+### Semantic checkpoint — callback type and NewType validation — 2026-11-12
+
+- Function-type signatures beginning `f:(...` are recognized by Semantic type resolution and assigned the existing FUNCTION type kind.
+- NewType target resolution now validates the target name/signature and reports unknown targets; callback NewType targets are accepted.
+- Added valid callback NewType and invalid unresolved target tests.
+- Commits: `88997965` Semantic, `5f287a01` test, `51011f5d` dashboard. CI pending.
