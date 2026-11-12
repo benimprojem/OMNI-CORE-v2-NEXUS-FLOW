@@ -1192,6 +1192,10 @@ union:Register32 {
 
 ```
 
+Union semantic boundary:
+- Union fields require non-empty, unique names and an explicit declared type, just like Struct fields.
+- Semantic resolves a selected member's declared type, but the current language contract does not yet track which member is active or guarantee that reading an inactive member is safe. Active-member selection and safe-read rules remain an explicit design item.
+
 ####  7.4 `nt:` (NewType)(Typedef)**
 
 Karmaşık tipleri kısaltmak veya semantik isimler vermek için kullanılır.
