@@ -878,6 +878,24 @@ static ASTNode* parse_struct_literal(Parser* p, const Token* type_token) {
 }
 
 // Primary: Literals, Identifiers, Grouping
+static ASTNode* parse_thread_api_identifier(Parser* p, const char* name) {
+    Token token = p->previous;
+    ASTIdentifier* identifier = (ASTIdentifier*)parser_ast_create(p, AST_IDENTIFIER);
+    size_t length;
+    if (!identifier || !name) return NULL;
+    length = strlen(name);
+    identifier->base.line = token.line;
+    identifier->base.col = token.col;
+    parser_stamp_node_token(p, (ASTNode*)identifier, &token);
+    identifier->name = (char*)parser_malloc(p, length + 1u);
+    if (!identifier->name) {
+        ast_destroy((ASTNode*)identifier);
+        return NULL;
+    }
+    memcpy(identifier->name, name, length + 1u);
+    return (ASTNode*)identifier;
+}
+
 static ASTNode* parse_primary(Parser* p) {
     if (match(p, TOKEN_NUMBER) || match(p, TOKEN_STRING) || match(p, TOKEN_CHAR)) {
         Token token = p->previous;
@@ -1165,21 +1183,12 @@ static ASTNode* parse_primary(Parser* p) {
     if (match(p, TOKEN_KW_TIME)) return parse_intrinsic_call(p, AST_TIME);
     if (match(p, TOKEN_KW_CLOCK)) return parse_intrinsic_call(p, AST_CLOCK);
     if (match(p, TOKEN_KW_FREE)) return parse_intrinsic_call(p, AST_FREE);
-    if (check(p, TOKEN_KW_SPAWN)) {
-        Token spawn_token = p->current;
-        OccSourceSpan span;
-        parser_make_token_span(p->ctx, &spawn_token, &span);
-        p->panic_mode = 1;
-        parser_add_issue(p->ctx, ERR_PARSER_UNEXPECTED_TOKEN,
-            spawn_token.line, spawn_token.col,
-            "'spawn' belongs to the separate Thread module and is not a core AST intrinsic.",
-            NULL, NULL, 0, 0, &span);
-        p->had_error = 1;
-        return NULL;
-    }
-    if (match(p, TOKEN_KW_SEND)) return parse_intrinsic_call(p, AST_SEND);
-    if (match(p, TOKEN_KW_RECEIVE)) return parse_intrinsic_call(p, AST_RECEIVE);
-    if (match(p, TOKEN_KW_DONE)) return parse_intrinsic_call(p, AST_DONE);
+    /* Thread operations are ordinary module calls, not core AST intrinsics. */
+    if (match(p, TOKEN_KW_SPAWN)) return parse_thread_api_identifier(p, "spawn");
+    if (match(p, TOKEN_KW_LISTEN)) return parse_thread_api_identifier(p, "listen");
+    if (match(p, TOKEN_KW_SEND)) return parse_thread_api_identifier(p, "send");
+    if (match(p, TOKEN_KW_RECEIVE)) return parse_thread_api_identifier(p, "receive");
+    if (match(p, TOKEN_KW_DONE)) return parse_thread_api_identifier(p, "done");
     if (match(p, TOKEN_KW_LEN)) return parse_intrinsic_call(p, AST_LEN);
 
     // Support for { expr, expr } (Struct Init / Tuple)
@@ -4935,35 +4944,7 @@ static ASTNode* parse_statement(Parser* p) {
             return packed; // !struct (Packed)
         }
 
-        // Check for !(listen)
-        if (p->current.type == TOKEN_LPAREN) {
-            Token lookahead = peek_token(p);
-            if (lookahead.type == TOKEN_KW_LISTEN ||
-                (lookahead.type == TOKEN_IDENTIFIER && strncmp(lookahead.start, "listen", 6) == 0)) {
-                advance(p); // (
-                advance(p); // listen
-                consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_EXPR);
-                consume(p, TOKEN_COLON, ERR_PARSER_UNEXPECTED_TOKEN, MSG_EXPECT_COLON_VAR);
-                
-                ASTNexusCapture* listen = (ASTNexusCapture*)parser_ast_create(p, AST_LISTEN);
-                if (!listen) return NULL;
-                listen->base.line = not_start.line;
-                listen->base.col = not_start.col;
-                listen->handler_name = parser_strdup(p, "global_listener");
-                if (!listen->handler_name) {
-                    ast_destroy((ASTNode*)listen);
-                    return NULL;
-                }
-                if (match(p, TOKEN_LBRACE)) listen->expr = parse_block(p);
-                else listen->expr = parse_statement(p);
-                if (!listen->expr) {
-                    ast_destroy((ASTNode*)listen);
-                    return NULL;
-                }
-                parser_stamp_node_tokens(p, (ASTNode*)listen, &not_start, &p->previous);
-                return (ASTNode*)listen;
-            }
-        }
+        /* Thread listen is an ordinary module call: listen(...). */
     }
     if (match(p, TOKEN_KW_ENUM) || match(p, TOKEN_PRE_ENUM)) {
         Token start = p->previous;
