@@ -3363,11 +3363,14 @@ static void semantic_validate_call_arguments(
     uint32_t expected_count;
     ASTNode* argument;
     uint32_t argument_index = 0u;
+    int has_named_arguments = 0;
     ASTFuncDecl* declaration = NULL;
 
     if (!ctx || !function_slot) return;
-    for (argument = arguments; argument; argument = argument->next)
+    for (argument = arguments; argument; argument = argument->next) {
         ++argument_count;
+        if (argument->type == AST_NAMED_ARG) has_named_arguments = 1;
+    }
 
     if (function_slot->param_count < (int)parameter_offset) {
         report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
@@ -3376,7 +3379,9 @@ static void semantic_validate_call_arguments(
     }
     expected_count = (uint32_t)function_slot->param_count - parameter_offset;
     if ((function_slot->is_variadic && argument_count < expected_count) ||
-        (!function_slot->is_variadic && argument_count != expected_count)) {
+        (!function_slot->is_variadic &&
+         (argument_count < expected_count ||
+          (argument_count > expected_count && !has_named_arguments)))) {
         char message[256];
         snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_COUNT),
             function_slot->name, (int)expected_count, (int)argument_count);
