@@ -4272,16 +4272,18 @@ static int test_increment_decrement_parser_forms(void) {
         goto done;
     statement = ((ASTBlock*)function->body)->statements;
     for (i = 0u; i < sizeof(operators) / sizeof(operators[0]); ++i) {
-        const char* end = starts[i] + strlen(starts[i]);
+        const char* start = strstr(source, starts[i]);
+        const char* end = start ? start + strlen(starts[i]) : NULL;
         ASTUnaryExpr* unary;
-        if (!statement || statement->type != AST_POSTFIX_EXPR) goto done;
+        if (!statement || statement->type != AST_POSTFIX_EXPR ||
+            !start || !end) goto done;
         unary = (ASTUnaryExpr*)statement;
         if (unary->op != operators[i] || !unary->operand ||
             unary->operand->type != AST_IDENTIFIER ||
             !unary->base.source_span.has_location ||
-            unary->base.source_span.start_offset != (uint64_t)(starts[i] - source) ||
+            unary->base.source_span.start_offset != (uint64_t)(start - source) ||
             unary->base.source_span.end_offset != (uint64_t)(end - source) ||
-            unary->base.source_span.start_column != (uint32_t)(starts[i] - source) + 1u ||
+            unary->base.source_span.start_column != (uint32_t)(start - source) + 1u ||
             unary->base.source_span.end_column != (uint32_t)(end - source) + 1u)
             goto done;
         statement = statement->next;
@@ -4290,23 +4292,6 @@ static int test_increment_decrement_parser_forms(void) {
     ok = 1;
 
 done:
-    if (!ok && ctx->ast_root) {
-        ASTFuncDecl* debug_function =
-            (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
-        ASTNode* debug_statement = debug_function && debug_function->body &&
-            debug_function->body->type == AST_BLOCK
-            ? ((ASTBlock*)debug_function->body)->statements : NULL;
-        for (; debug_statement; debug_statement = debug_statement->next) {
-            ASTUnaryExpr* debug_post = (ASTUnaryExpr*)debug_statement;
-            fprintf(stderr, "postfix debug: kind=%d op=%d span=%u %llu-%llu expected=%llu-%llu\\n",
-                (int)debug_statement->type, (int)debug_post->op,
-                (unsigned)debug_post->base.source_span.has_location,
-                (unsigned long long)debug_post->base.source_span.start_offset,
-                (unsigned long long)debug_post->base.source_span.end_offset,
-                (unsigned long long)(starts[0] - source),
-                (unsigned long long)(starts[0] - source + strlen(starts[0])));
-        }
-    }
     parser_destroy(ctx);
     if (!ok) return 0;
     if (!parser_source_reports_syntax_error(
