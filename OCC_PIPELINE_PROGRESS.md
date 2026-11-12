@@ -2277,3 +2277,13 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Invalid implementation node kinds are rejected before receiver inference or implementation traversal.
 - Added direct malformed-AST fixtures for missing method name, missing implementation and invalid implementation node kind. Existing source fixtures continue to cover inferred/explicit self, static/instance dispatch, forward method resolution, method argument count/type and default-handler behavior.
 - Group/Method Semantic remains partial; receiver/visibility and complete signature policy still need review. Tests have not been executed in this workspace and CI is unverified.
+
+
+### Enum discriminant design checkpoint — 2026-11-12
+
+- Reviewed the active C implementation: `ASTEnumVariant` currently stores only its name and payload; `parse_enum_decl()` has no discriminant production; Semantic validates variant/payload structure and constructor/pattern behavior but does not resolve discriminant values.
+- Decided discriminants are useful for stable enum identity and future OIR/target ABI mapping, so the language should support optional explicit integral values (for example `Idle = 0`, `Running(pid!u32) = 4`).
+- Proposed implicit assignment: first omitted value is 0; each later omitted value is previous resolved value + 1; an explicit value resets the next implicit value to explicit + 1.
+- Semantic contract: per-enum uniqueness, compile-time integral values only, signed 64-bit semantic domain and increment-overflow diagnostics. Physical enum width remains a later OIR/target ABI decision; the front end does not force 64-bit storage.
+- AST design: preserve the optional discriminant as an expression child, not only a scalar integer, so source spans, codec round-trip and constant-expression diagnostics remain lossless.
+- Documentation and coverage matrix updated. **Implementation is not complete:** AST ownership/factory/destructor/printer/codec/graph validation, Parser grammar, Semantic constant evaluation and duplicate/range tests remain required. No test or CI result is claimed for this design-only checkpoint.
