@@ -681,3 +681,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Capture is a value snapshot at spawn time. Pointer values are copied shallowly; the pointed-to allocation is not deep-copied. `done`/`listen` output transport remains governed by the Thread runtime specification.
 - Earlier dashboard statements claiming thread names had no uniqueness rule or that Core performed `spawn` callee-identity validation are superseded by the current registry implementation above.
 - Tests added; execution and CI remain pending.
+
+
+### SemanticResult / OIR artifact capture-flag compatibility — 2026-11-12
+
+- Added `SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE` and its OIR annotation flag counterpart. The OIR Semantic AST annotation reader/writer now accepts this defined flag while continuing to reject unknown bits.
+- Added SemanticResult integration coverage proving outer references are marked and payload-local references are not. Added artifact-level annotation round-trip coverage for the capture flag; legacy schema 1.0 remains readable with zero annotation flags.
+- Artifact serialization copies annotation flags field-for-field, so no AST payload schema version bump was needed (current Semantic AST schema minor is already 4).
+- CI/local execution remains pending.
