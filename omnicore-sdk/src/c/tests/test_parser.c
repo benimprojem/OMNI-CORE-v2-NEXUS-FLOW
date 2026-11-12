@@ -100,6 +100,8 @@ static int test_parser_rejects_excessive_expression_nesting(void) {
     ok = result == PARSER_STATUS_SYNTAX_ERROR &&
         parser_get_status(ctx) == PARSER_STATUS_SYNTAX_ERROR &&
         ctx->ast_root != NULL && ctx->error_count > 0;
+    if (!ok) fprintf(stderr,"syntax rejection debug: file=%s result=%d status=%d errors=%d\\n",
+        filename,result,parser_get_status(ctx),ctx->error_count);
     parser_destroy(ctx);
     return ok;
 }
