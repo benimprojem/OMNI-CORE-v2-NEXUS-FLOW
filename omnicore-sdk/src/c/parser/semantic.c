@@ -2154,6 +2154,93 @@ static void semantic_validate_port_intrinsic(
     }
 }
 
+static void semantic_validate_irq_intrinsic(
+    SemanticContext* ctx, ASTNode* node
+) {
+    ASTCall* call = (ASTCall*)node;
+    size_t count = semantic_intrinsic_argument_count(call);
+    ASTNode* number = semantic_intrinsic_argument_value(call->args);
+    ASTNode* handler = call->args && call->args->next
+        ? semantic_intrinsic_argument_value(call->args->next) : NULL;
+    const char* number_type = number ? get_expr_type(ctx, number) : NULL;
+    if (count != 2u) {
+        char message[160];
+        (void)snprintf(message, sizeof(message),
+            "irq() expects exactly 2 arguments (interrupt number, handler); received %llu.",
+            (unsigned long long)count);
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        return;
+    }
+    if (number_type && strcmp(number_type, "any") != 0 &&
+        !semantic_is_integer_value_type(ctx, number_type)) {
+        report_error(ctx, number, ERR_SEMANTIC_TYPE_MISMATCH,
+            "irq() interrupt number must be an integer.");
+    }
+    if (!handler || (handler->type != AST_IDENTIFIER &&
+                     handler->type != AST_FUNC_CALL)) {
+        report_error(ctx, handler ? handler : node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "irq() handler must be a function identifier or callable expression.");
+    } else if (handler->type == AST_IDENTIFIER) {
+        ASTIdentifier* id = (ASTIdentifier*)handler;
+        Slot* slot = id->name ? find_slot(ctx, id->name) : NULL;
+        if (!slot || (slot->kind != SLOT_FUNC && slot->kind != SLOT_EXTERN)) {
+            report_error(ctx, handler, ERR_SEMANTIC_UNDEFINED,
+                "irq() handler identifier must resolve to a declared function.");
+        }
+    }
+}
+
+static void semantic_validate_reg_intrinsic(
+    SemanticContext* ctx, ASTNode* node
+) {
+    ASTCall* call = (ASTCall*)node;
+    size_t count = semantic_intrinsic_argument_count(call);
+    ASTNode* operation = semantic_intrinsic_argument_value(call->args);
+    ASTNode* name = call->args && call->args->next
+        ? semantic_intrinsic_argument_value(call->args->next) : NULL;
+    ASTNode* value = call->args && call->args->next &&
+        call->args->next->next
+        ? semantic_intrinsic_argument_value(call->args->next->next) : NULL;
+    if (count < 2u || count > 3u) {
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "reg() expects 2 or 3 arguments: operation, register name, optional value.");
+        return;
+    }
+    if (!operation || operation->type != AST_IDENTIFIER ||
+        !((ASTIdentifier*)operation)->name ||
+        (strcmp(((ASTIdentifier*)operation)->name, "r") != 0 &&
+         strcmp(((ASTIdentifier*)operation)->name, "w") != 0)) {
+        report_error(ctx, operation ? operation : node,
+            ERR_SEMANTIC_TYPE_MISMATCH,
+            "reg() operation must be identifier 'r' (read) or 'w' (write).");
+        return;
+    }
+    {
+        int write = strcmp(((ASTIdentifier*)operation)->name, "w") == 0;
+        if ((write && count != 3u) || (!write && count != 2u)) {
+            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "reg.r() requires operation/name; reg.w() requires operation/name/value.");
+            return;
+        }
+    }
+    if (!name || name->type != AST_LITERAL ||
+        ((ASTLiteral*)name)->literal_type != LITERAL_STRING ||
+        !((ASTLiteral*)name)->value.string_value ||
+        !((ASTLiteral*)name)->value.string_value[0]) {
+        report_error(ctx, name ? name : node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "reg() register name must be a non-empty string literal.");
+    }
+    if (value) {
+        const char* type = get_expr_type(ctx, value);
+        if (type && strcmp(type, "any") != 0 &&
+            !semantic_is_integer_value_type(ctx, type) &&
+            !semantic_is_integer_or_address_type(ctx, type)) {
+            report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
+                "reg.w() value must be an integer or address value.");
+        }
+    }
+}
+
 static void semantic_validate_allocation_intrinsic(
     SemanticContext* ctx, ASTNode* node
 ) {
@@ -5346,6 +5433,10 @@ static void semantic_check_node(
             else if (node->type == AST_AREA || node->type == AST_ZONE ||
                      node->type == AST_FREE)
                 semantic_validate_allocation_intrinsic(ctx, node);
+            else if (node->type == AST_IRQ)
+                semantic_validate_irq_intrinsic(ctx, node);
+            else if (node->type == AST_REG)
+                semantic_validate_reg_intrinsic(ctx, node);
             break;
         }
 
