@@ -378,6 +378,34 @@ static int check_malformed_intrinsic_ast(void) {
     return ok;
 }
 
+static int check_os_thread_call_identity_ast(void) {
+    static const struct { ASTNodeType type; const char* name; } cases[] = {
+        { AST_ECHO, "echo" }, { AST_SPAWN, "spawn" },
+        { AST_SEND, "send" }, { AST_RECEIVE, "receive" },
+        { AST_DONE, "done" }
+    };
+    size_t i;
+    for (i = 0; i < sizeof(cases)/sizeof(cases[0]); ++i) {
+        ASTNode* node = ast_create(cases[i].type);
+        SemanticContext semantic;
+        int ok;
+        if (!node) return 0;
+        ((ASTCall*)node)->callee = ast_create(AST_IDENTIFIER);
+        if (!((ASTCall*)node)->callee) { ast_destroy(node); return 0; }
+        ((ASTIdentifier*)((ASTCall*)node)->callee)->name =
+            (char*)malloc(strlen(cases[i].name)+1u);
+        if (!((ASTIdentifier*)((ASTCall*)node)->callee)->name) { ast_destroy(node); return 0; }
+        strcpy(((ASTIdentifier*)((ASTCall*)node)->callee)->name, cases[i].name);
+        semantic_init(&semantic, "semantic-os-thread-call.nxf", NULL);
+        semantic_check(&semantic, node);
+        ok = semantic.error_count == 0;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if (!ok) return 0;
+    }
+    return check_source("f:main() { echo(\\"semantic\\"); }", 0);
+}
+
 static int check_unnamed_declaration_ast(void) {
     static const struct {
         ASTNodeType type;
@@ -1279,7 +1307,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Malformed intrinsic AST checks failed.\n");
         return 1;
     }
-    if (!check_unnamed_declaration_ast()) {
+    if (!check_os_thread_call_identity_ast()) {\n        fprintf(stderr, "OS/Thread call identity checks failed.\\n");\n        return 1;\n    }\n    if (!check_unnamed_declaration_ast()) {
         fprintf(stderr, "Unnamed declaration AST checks failed.\n");
         return 1;
     }
