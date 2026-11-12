@@ -320,19 +320,31 @@ int main(void) {
         "f:main() { v:point!Vec3 = [1.0, 2.0, 3.0]; }";
     static const char valid_vec3_addition[] =
         "f:main(a!Vec3, b!Vec3) { v:result = a + b; }";
+    static const char valid_vec3_subtraction[] =
+        "f:main(a!Vec3, b!Vec3) { v:result = a - b; }";
+    static const char valid_vec3_multiplication[] =
+        "f:main(a!Vec3, b!Vec3) { v:result = a * b; }";
+    static const char valid_vec3_division[] =
+        "f:main(a!Vec3, b!Vec3) { v:result = a / b; }";
+    static const char valid_vec3_modulo[] =
+        "f:main(a!Vec3, b!Vec3) { v:result = a % b; }";
+    static const char valid_vec3_power[] =
+        "f:main(a!Vec3, b!Vec3) { v:result = a ^^ b; }";
+    static const char valid_vec3_unary_minus[] =
+        "f:main(a!Vec3) { v:result = -a; }";
+    static const char valid_vec3_compound_arithmetic[] =
+        "f:main(a!Vec3, b!Vec3) { a += b; a -= b; a *= b; a /= b; }";
+    static const char invalid_vec_scalar_mix[] =
+        "f:main(a!Vec3, b!f32) { v:result = a + b; }";
     static const char valid_vec2_vec4_initializers[] =
         "f:main() { v:p!Vec2 = [1.0, 2.0]; "
         "v:q!Vec4 = [1.0, 2.0, 3.0, 4.0]; }";
     static const char invalid_vec_non_numeric_component[] =
         "f:main() { v:p!Vec2 = [1.0, \"bad\"]; }";
-    static const char invalid_vec_subtraction[] =
-        "f:main(a!Vec3, b!Vec3) { v:result = a - b; }";
     static const char invalid_vec3_dimension[] =
         "f:main() { v:point!Vec3 = [1.0, 2.0]; }";
     static const char invalid_vec_mixed_dimensions[] =
         "f:main(a!Vec2, b!Vec3) { v:result = a + b; }";
-    static const char invalid_vec_multiply[] =
-        "f:main(a!Vec3, b!Vec3) { v:result = a * b; }";
     static const char valid_map_index_read_write[] =
         "f:main() { v:notes!map; notes[\"Ali\"] = 90; "
         "v:score = notes[\"Ali\"]; notes[\"Veli\"] = score; }";
@@ -444,12 +456,18 @@ int main(void) {
     if (!check_source(postfix_array_element_valid, 0)) return 1;
     if (!check_source(valid_vec3_initializer, 0)) return 1;
     if (!check_source(valid_vec3_addition, 0)) return 1;
+    if (!check_source(valid_vec3_subtraction, 0)) return 1;
+    if (!check_source(valid_vec3_multiplication, 0)) return 1;
+    if (!check_source(valid_vec3_division, 0)) return 1;
+    if (!check_source(valid_vec3_modulo, 0)) return 1;
+    if (!check_source(valid_vec3_power, 0)) return 1;
+    if (!check_source(valid_vec3_unary_minus, 0)) return 1;
+    if (!check_source(valid_vec3_compound_arithmetic, 0)) return 1;
+    if (!check_source(invalid_vec_scalar_mix, 1)) return 1;
     if (!check_source(valid_vec2_vec4_initializers, 0)) return 1;
     if (!check_source(invalid_vec_non_numeric_component, 1)) return 1;
-    if (!check_source(invalid_vec_subtraction, 1)) return 1;
     if (!check_source(invalid_vec3_dimension, 1)) return 1;
     if (!check_source(invalid_vec_mixed_dimensions, 1)) return 1;
-    if (!check_source(invalid_vec_multiply, 1)) return 1;
     if (!check_source(valid_map_index_read_write, 0)) return 1;
     if (!check_source(valid_map_numeric_key, 0)) return 1;
     if (!check_source(valid_array_literal_index, 0)) return 1;
