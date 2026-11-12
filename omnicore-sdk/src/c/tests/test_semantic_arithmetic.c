@@ -201,6 +201,15 @@ int main(void) {
         "f:main(a!u8) !u8 { ret a <<< 7; }";
     static const char shift_i64_valid_boundary[] =
         "f:main(a!i64) !i64 { ret a >>> 63; }";
+    static const char shift_all_representation_widths_valid[] =
+        "f:main(a8!8bit, a16!16bit, a32!32bit, a64!64bit, a128!128bit, "
+        "b1!1byte, b2!2byte, b4!4byte, b8!8byte, b16!16byte) { "
+        "v:r8!8bit = a8 <<< 7; v:r16!16bit = a16 >>> 15; "
+        "v:r32!32bit = a32 <<< 31; v:r64!64bit = a64 >>> 63; "
+        "v:r128!128bit = a128 <<< 127; "
+        "v:r1!1byte = b1 <<< 7; v:r2!2byte = b2 >>> 15; "
+        "v:r4!4byte = b4 <<< 31; v:r8!8byte = b8 >>> 63; "
+        "v:r16!16byte = b16 <<< 127; }";
     static const char shift_128bit_valid_boundary[] =
         "f:main(a!128bit) !128bit { ret a <<< 127; }";
     static const char shift_128bit_out_of_range[] =
@@ -357,6 +366,7 @@ int main(void) {
     if (!check_source(shift_u8_equal_width, 1)) return 1;
     if (!check_source(shift_u8_valid_boundary, 0)) return 1;
     if (!check_source(shift_i64_valid_boundary, 0)) return 1;
+    if (!check_source(shift_all_representation_widths_valid, 0)) return 1;
     if (!check_source(shift_128bit_valid_boundary, 0)) return 1;
     if (!check_source(shift_128bit_out_of_range, 1)) return 1;
     if (!check_source(shift_16byte_valid_boundary, 0)) return 1;
