@@ -606,3 +606,16 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 | `listen/send/receive/done` | ~ (AST structural only) | Thread module | Scheduler, IPC, handle/lifetime Semantic'i Thread modülünde |
 
 > OS ve Thread modülü ayrımı syntax reference'a işlendi. Bu checkpoint, modül API imzalarını veya bare-metal driver ABI'sini tamamlamaz; ana Semantic sütunları `~` kalır. Test/CI pending.
+
+
+### Semantic alt-kapsam — OS / Thread AST call identity — 2026-11-12
+
+| AST | Structural kontrol | Regression fixture | CI |
+|---|:---:|:---:|:---:|
+| AST_ECHO | callee identifier zorunlu ve adı `echo` | ✓ | ? |
+| AST_SPAWN (legacy) | callee identifier zorunlu ve adı `spawn` | ✓ | ? |
+| AST_SEND | callee identifier zorunlu ve adı `send` | ✓ | ? |
+| AST_RECEIVE | callee identifier zorunlu ve adı `receive` | ✓ | ? |
+| AST_DONE | callee identifier zorunlu ve adı `done` | ✓ | ? |
+
+Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün scheduler/IPC/handle sözleşmesi core Semantic kapsamına alınmadı. `prnt/prmt` ve `write/fwrite` genel call traversal aşamasında; API imza kuralları sağlayıcı modülünde tanımlanacak.
