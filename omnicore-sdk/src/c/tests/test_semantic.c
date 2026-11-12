@@ -558,6 +558,18 @@ static int check_aggregate_member_semantics(void) {
         "f:main() { struct: Point { v:x!i32, v:x!f64 } }";
     const char* duplicate_union_field =
         "f:main() { union: Choice { v:value!i32, v:value!f64 } }";
+    const char* valid_union_cross_member_read =
+        "f:main() { union: Register { v:word!u32, v:byte!u8 } "
+        "v:r!Register; r.word = 0x12345678; v:part!u8 = r.byte; "
+        "r.byte = 0x12; v:whole!u32 = r.word; }";
+    const char* unknown_union_member =
+        "f:main() { union: Register { v:word!u32 } "
+        "v:r!Register; v:bad = r.missing; }";
+    const char* incompatible_union_member_write =
+        "f:main() { union: Register { v:word!u32 } "
+        "v:r!Register; r.word = \"not-a-number\"; }";
+    const char* unknown_union_field_type =
+        "f:main() { union: Register { v:word!MissingType } }";
     return check_source(valid, 0) &&
         check_source(nested, 0) &&
         check_source(constant_object, 1) &&
@@ -565,7 +577,11 @@ static int check_aggregate_member_semantics(void) {
         check_source(unknown_member, 1) &&
         check_source(non_aggregate, 1) &&
         check_source(duplicate_struct_field, 1) &&
-        check_source(duplicate_union_field, 1);
+        check_source(duplicate_union_field, 1) &&
+        check_source(valid_union_cross_member_read, 0) &&
+        check_source(unknown_union_member, 1) &&
+        check_source(incompatible_union_member_write, 1) &&
+        check_source(unknown_union_field_type, 1);
 }
 
 static int check_struct_literal_semantics(void) {
