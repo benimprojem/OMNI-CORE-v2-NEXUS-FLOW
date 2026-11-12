@@ -2670,6 +2670,21 @@ static void semantic_check_node(
                 }
             }
 
+            if (bin->op == TOKEN_RANGE) {
+                const char* begin_type = get_expr_type(ctx, bin->left);
+                const char* end_type = get_expr_type(ctx, bin->right);
+                if (begin_type && end_type &&
+                    (!are_types_compatible(begin_type, end_type) ||
+                     !is_numeric_primitive_type(begin_type) ||
+                     !is_numeric_primitive_type(end_type))) {
+                    char message[320];
+                    (void)snprintf(message, sizeof(message),
+                        "Range operator '..' requires compatible numeric endpoints; got '%s' and '%s'.",
+                        begin_type, end_type);
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                }
+            }
+
             if (bin->op == TOKEN_BIT_SHL || bin->op == TOKEN_BIT_SHR) {
                 const char* left_type = get_expr_type(ctx, bin->left);
                 const char* right_type = get_expr_type(ctx, bin->right);
@@ -3978,30 +3993,18 @@ static void semantic_check_node(
                 }
                 
                 if (loop->condition) {
-                    // Range Loop Check for 'it'
-                    if (loop->condition->type == AST_BINARY_EXPR) {
-                        ASTBinaryExpr* bin = (ASTBinaryExpr*)loop->condition;
-                        if (bin->op == TOKEN_RANGE) {
-                             if (!find_slot(ctx, "it")) {
-                                add_slot(ctx, "it", SLOT_VAR, 0, "i32", node, 1, 0, 0, 0u);
-                            }
-                        }
-                    }
                     semantic_check(ctx, loop->condition);
                     if (loop->condition->type == AST_BINARY_EXPR &&
                         ((ASTBinaryExpr*)loop->condition)->op == TOKEN_RANGE) {
-                        ASTBinaryExpr* range=(ASTBinaryExpr*)loop->condition;
-                        const char* begin_type=get_expr_type(ctx,range->left);
-                        const char* end_type=get_expr_type(ctx,range->right);
-                        if (begin_type && end_type &&
-                            (!are_types_compatible(begin_type,end_type) ||
-                             !is_numeric_primitive_type(begin_type))) {
-                            report_error(ctx,loop->condition,
-                                ERR_SEMANTIC_TYPE_MISMATCH,
-                                "Loop range bounds must have compatible numeric types.");
+                        ASTBinaryExpr* range = (ASTBinaryExpr*)loop->condition;
+                        const char* begin_type = get_expr_type(ctx, range->left);
+                        if (!find_slot(ctx, "it")) {
+                            add_slot(ctx, "it", SLOT_VAR, 0,
+                                begin_type ? begin_type : "any",
+                                node, 1, 0, 0, 0u);
                         }
-                    } else if (!semantic_is_boolean_condition(ctx,loop->condition)) {
-                        report_error(ctx,loop->condition,
+                    } else if (!semantic_is_boolean_condition(ctx, loop->condition)) {
+                        report_error(ctx, loop->condition,
                             ERR_SEMANTIC_TYPE_MISMATCH,
                             "Loop condition must have bool type or be a numeric range.");
                     }
