@@ -422,3 +422,5 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Shift validation now distinguishes negative constants, in-range unsigned constants, values outside the left operand width, constants exceeding the 64-bit count representation, and genuinely dynamic expressions. Dynamic counts remain deferred to the OIR/runtime trap contract.
 - Added positive/negative tests for hexadecimal, binary, octal, digit separators, negative radix counts, `UINT64_MAX`, and values above `UINT64_MAX`; diagnostic tests assert the offending count/range and exact source line.
 - Implementation commit: `d074c887`; regression tests: `bdc45c55`. CI verification: pending; do not mark the new cases green until the branch-head run completes.
+
+- Follow-up tests also verify that arithmetic constant expressions containing radix literals are folded for shift-range validation (`0x10 * 2` rejected for i32, `0x3 + 4` accepted for u8). Updated test commit: `d39719dc`.
