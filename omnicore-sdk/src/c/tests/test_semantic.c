@@ -898,8 +898,9 @@ static int check_array_type_semantics(void) {
 
 static int check_extended_ast_semantics(void) {
     const char* valid =
+        "nt:enum: Choice { Range(start!i32, end!i32), Other }"
         "f:main() {"
-        " v:choice = 1;"
+        " v:choice!Choice = Choice.Range(1, 2);"
         " select(choice) { Range(s,e) when s == e -> { v:seen = s; } default -> { } }"
         " scan(choice) { Range(a,b) when a == b && b == a -> { v:seen2 = b; } else -> { } }"
         " rules PrimeBorders(n) {"
@@ -917,7 +918,9 @@ static int check_extended_ast_semantics(void) {
         " v:src!i32 = 1; v:dst!i32 = 2; v:moved = src _> dst;"
         "}";
     const char* leaked_pattern =
-        "f:main() { v:choice = 1; select(choice) { Range(s,e) -> { } } v:leak = s; }";
+        "nt:enum: Choice { Range(start!i32, end!i32), Other }"
+        "f:main() { v:choice!Choice = Choice.Range(1, 2); "
+        "select(choice) { Range(s,e) -> { } Other -> { } } v:leak = s; }";
     const char* unknown_apply =
         "f:main() { apply rules(Missing(1)); }";
     const char* unknown_handler =
@@ -927,13 +930,19 @@ static int check_extended_ast_semantics(void) {
     const char* duplicate_rule_event =
         "f:main() { rules R() { true -> Same; false -> Same; } }";
     const char* duplicate_pattern =
-        "f:main() { v:choice = 1; select(choice) { Range(s,s) -> { } } }";
+        "nt:enum: Choice { Range(start!i32, end!i32), Other }"
+        "f:main() { v:choice!Choice = Choice.Range(1, 2); "
+        "select(choice) { Range(s,s) -> { } Other -> { } } }";
     const char* invalid_guard =
-        "f:main() { v:choice = 1; scan(choice) { Range(a,b) when 1 -> { } } }";
+        "nt:enum: Choice { Range(start!i32, end!i32), Other }"
+        "f:main() { v:choice!Choice = Choice.Range(1, 2); "
+        "scan(choice) { Range(a,b) when 1 -> { } Other -> { } } }";
     const char* select_default_not_last =
         "f:main() { v:choice = 1; select(choice) { default -> { } 1 -> { } } }";
     const char* valid_scan_else_last =
-        "f:main() { v:choice = 1; scan(choice) { Range(a,b) -> { } else -> { } } }";
+        "nt:enum: Choice { Range(start!i32, end!i32), Other }"
+        "f:main() { v:choice!Choice = Choice.Range(1, 2); "
+        "scan(choice) { Range(a,b) -> { } else -> { } } }";
     const char* valid_named_arguments =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(b:2,a:1); }";
