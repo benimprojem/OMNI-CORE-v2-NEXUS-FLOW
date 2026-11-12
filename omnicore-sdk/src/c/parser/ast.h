@@ -215,7 +215,7 @@ typedef struct { ASTNode base; char* name; ASTNode* bindings; } ASTPatternConstr
 typedef struct { ASTNode base; ASTNode* selector; ASTNode* arms; } ASTSelect;
 typedef struct { ASTNode base; ASTNode* pattern; ASTNode* body; int is_default; } ASTSelectArm;
 typedef struct { ASTNode base; ASTNode* subject; ASTNode* arms; } ASTScan;
-typedef struct { ASTNode base; ASTNode* pattern; ASTNode* body; } ASTScanArm;
+typedef struct { ASTNode base; ASTNode* pattern; ASTNode* body; int has_guard; } ASTScanArm;
 typedef struct { ASTNode base; char* name; ASTNode* params; ASTNode* rules; } ASTRulesetDecl;
 typedef struct { ASTNode base; ASTNode* condition; ASTNode* message; } ASTRuleBarrier;
 typedef struct { ASTNode base; ASTNode* condition; ASTNode* action; } ASTRuleTrigger;
