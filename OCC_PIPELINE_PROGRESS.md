@@ -2249,6 +2249,6 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Constructor patterns now resolve the variant within that enum and validate payload arity. Positional pattern bindings inherit the declared payload field type and are registered as typed arm-local variables.
 - Rejects unknown enum variants, constructor patterns against non-enum subjects, malformed payload binding nodes, incorrect payload counts and bare matching of payload-bearing variants.
 - Bare enum variant patterns are accepted as tag matches only for no-payload variants.
-- Added direct Semantic AST tests for a valid typed capture and the four invalid paths (unknown variant, wrong arity, bare payload variant, plus non-enum subject validation is handled by the same branch; explicit fixture coverage is pending).
+- Added direct Semantic AST tests for valid typed capture and invalid paths: unknown variant, wrong payload arity, bare payload-bearing variant and constructor pattern on a non-enum subject.
 - Updated `docs/language/syntax-reference.md` and `NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md`.
 - Still open: constructor expression call/argument binding, duplicate scan arm coverage, exhaustive enum scan analysis, non-enum structural pattern semantics, and discriminant model. CI/test execution has not been confirmed; no pass claim is made.
