@@ -2153,3 +2153,11 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Clarified the language model: each named `thread_block` is a complete independent payload; Thread module `spawn(worker)` transfers the named payload to a newly created thread. The payload is not also executed in the caller's flow.
 - Nested thread blocks are now rejected by Semantic, including manually supplied AST trees via a context depth guard.
 - Updated the normative syntax reference and AST coverage dashboard. Runtime payload lookup/transfer and thread-only execution remain Thread runtime / later OIR-Codegen integration work, not Core Semantic claims.
+
+
+### 2026-11-12 — Thread payload registry / spawn name validation
+
+- SemanticContext now owns a named thread payload registry populated from valid AST_THREAD_BLOCK nodes.
+- spawn(name) resolves only through this registry; exactly one identifier argument is required. Unknown names, malformed arguments and duplicate payload names are rejected with source diagnostics.
+- Thread module boundaries remain intact: scheduler, IPC, handle/lifetime and actual payload transfer/execution are not implemented in Core Semantic.
+- Registry cleanup and explicit initialization are included. Regression fixtures were added; CI and local test execution are pending.
