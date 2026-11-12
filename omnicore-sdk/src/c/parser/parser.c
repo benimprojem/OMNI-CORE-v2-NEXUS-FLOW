@@ -2282,8 +2282,6 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         }
     }
 
-    fprintf(stderr,"nexus catch trace: flag=%d current=%d expr=%d\\n",
-        error_handler,(int)p->current.type,(int)expr->type);
     if (error_handler || match(p, TOKEN_ERR_HANDLER)) {
         if (expr->type == AST_NEXUS_FLOW || expr->type == AST_NEXUS_PIPE) {
             ASTNexusFlow* flow = (ASTNexusFlow*)expr;
@@ -2294,8 +2292,6 @@ static ASTNode* parse_nexus_flow(Parser* p) {
                 return NULL;
             }
             flow->catch_block = parse_block(p);
-            fprintf(stderr,"nexus catch block: %p current=%d errors=%d\\n",
-                (void*)flow->catch_block,(int)p->current.type,p->ctx->error_count);
             if (!flow->catch_block) {
                 ast_destroy(expr);
                 return NULL;
