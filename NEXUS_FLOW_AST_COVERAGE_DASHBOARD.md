@@ -404,3 +404,12 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Array indexing infers an element type from an array-literal initializer, enabling typed indexed operations. Constant negative and out-of-range indices are rejected with the index, array length and valid range; fixed dimensions are checked when available.
 - Added tests for identifier/member/index postfix operations, constness, non-numeric operands, if/loop condition types, array element inference and bounds diagnostics.
 - This checkpoint is included in branch-head CI run #4269; Linux, Windows, macOS, ASan/UBSan and Valgrind all passed.
+
+
+### Semantic checkpoint — bit/byte representation operator matrix — 2026-11-12
+
+- Expanded the Semantic arithmetic regression matrix to cover every currently documented bit-vector width (`8bit`, `16bit`, `32bit`, `64bit`, `128bit`), every byte-block width (`1byte`, `2byte`, `4byte`, `8byte`, `16byte`), and scalar `bit` / `byte` operands.
+- Added positive binary-operation cases for the full representation matrix, plus focused `128bit`, `16byte`, scalar-bit complement, and compound byte-operation cases.
+- Added negative cases for decimal `d64` bitwise operands and incompatible `128bit` / `16byte` representations. Existing diagnostic tests continue to assert operator and actual operand type reporting with exact source locations.
+- No Semantic implementation behavior was changed in this checkpoint; the current rule remains that both operands must be bitwise-capable and type-compatible. This closes a coverage gap, not the Semantic phase.
+- Test commit: `dad4b6df`. CI verification: pending; do not mark this matrix green until the new branch-head run completes.
