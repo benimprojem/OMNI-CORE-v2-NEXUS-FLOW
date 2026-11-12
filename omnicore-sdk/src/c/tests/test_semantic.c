@@ -365,8 +365,9 @@ static int rejects_semantic_pending_node(ASTNodeType type) {
 }
 
 static int check_semantic_fail_closed_nodes(void) {
-    /* Tuple is now supported; inline ASM remains fail-closed. */
-    return rejects_semantic_pending_node(AST_ASM_BLOCK);
+    /* Tuple is supported; raw ASM and reserved AI logic remain fail-closed. */
+    return rejects_semantic_pending_node(AST_ASM_BLOCK) &&
+        rejects_semantic_pending_node(AST_AI_LOGIC);
 }
 
 static int check_postfix_semantics(void) {
