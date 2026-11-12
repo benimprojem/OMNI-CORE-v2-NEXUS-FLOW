@@ -23,6 +23,8 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->diagnostic_stage_id = OCC_STAGE_SEMANTIC;
     ctx->current_scope_id = 1u;
     ctx->current_group_owner = NULL;
+    ctx->current_fast_exec_owner = NULL;
+    memset(&ctx->lang, 0, sizeof(ctx->lang));
     ctx->current_method_receiver_type = NULL;
     ctx->current_method_public_name = NULL;
     ctx->current_method_receiver_type_id = 0u;
