@@ -1,3 +1,11 @@
+## Thread module boundary checkpoint — 2026-11-12
+
+- `spawn`, `listen`, `send`, `receive` and `done` now parse as ordinary identifier callees and produce generic `AST_FUNC_CALL` nodes; their runtime/API semantics belong to the Thread library.
+- Core Semantic no longer assigns Thread-specific intrinsic identity or scheduler/IPC/lifetime behavior. Legacy serialized `AST_SPAWN`, `AST_SEND`, `AST_RECEIVE`, `AST_DONE` tags are retained for codec compatibility and traversed without new Thread rules; legacy `AST_LISTEN` is rejected rather than treated as an active core construct.
+- The old `!(listen): ...` special form is no longer part of the active Parser grammar; use `listen(...)` from the Thread module.
+- `AST_THREAD_BLOCK` remains core syntax as a named structural container. Core checks non-empty name/body and analyzes the body in an isolated lexical scope only; it does not create or schedule a thread.
+- Parser/Semantic regression fixture covers all five ordinary API call spellings and legacy AST_LISTEN rejection. Tests are committed but not executed here; CI remains unverified.
+
 ## OS / Thread / I/O intrinsic identity checkpoint — 2026-11-12
 
 - `echo`, `spawn`, `send`, `receive`, `done` identity checks remain in the shared intrinsic validator.
