@@ -433,11 +433,11 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 - **Lexical scope:** Her `(h)` yalnızca tanımlandığı bloğun üyesidir. Başka bir bloktan doğrudan adla erişilemez; dışarı sızan masa referansı geçersizdir.
 - **Lifetime:** Masa, sahibi olduğu blok aktivasyonundan uzun yaşayamaz. Blok normal yoldan terk edildiğinde hâlâ o bloğa ait kaynaklar otomatik cleanup kapsamındadır.
 - **Ownership:** Her dolu masa/kaynak için tek sahip bulunur. Aynı kaynak iki masanın eşzamanlı sahibi olamaz.
-- **Transfer:** `(h1) _> (h2)` sahipliği `h1` masasından `h2` masasına taşır. Hedef masa geçerli ve boş olmalıdır. İşlem kopyalama değildir; başarılı devirden sonra `h1` boş/geçersiz duruma geçer ve tekrar kullanılamaz. Kaynak, hedef masanın ait olduğu blok aktivasyonunun cleanup listesine kaydedilir.
+- **Transfer:** `(h1) _> (h2)` sahipliği önceden tanımlanmış `h1` masasından önceden tanımlanmış `h2` masasına taşır. `_>` hedef masa oluşturmaz; iki masa da transfer noktasında mevcut olmalıdır. İşlem kopyalama değildir; başarılı devirden sonra `h1` geçersiz olur ve tekrar kullanılamaz. Kaynak, hedef masanın ait olduğu blok aktivasyonunun cleanup listesine kaydedilir. Hedefte mevcut sahiplik varsa onun kaybolmasına izin verilmez; overwrite/replace davranışı ayrıca tanımlanmadan bu işlem geçersizdir.
 - **Borrow:** Başka bir bloktan gelen ödünç kaynak, açık sahiplik devri olmadan iç blok tarafından serbest bırakılamaz veya sahiplenilemez.
 - **Use-after-move / use-after-halt:** Taşınmış ya da sonlandırılmış masa üzerinden sonraki erişim Semantic hatasıdır.
 
-Transfer yazımı kaynak masadan hedef masaya doğrudur: `(h) _> (hand)`. Kaynak ve hedef, transfer noktasında erişilebilir ve hedef masa boş olmalıdır. Devir tamamlandığında eski `(h)` artık kullanılamaz; kaynak yalnızca `(hand)` üzerinden erişilir.
+Transfer yazımı kaynak masadan önceden var olan hedef masaya doğrudur: `(h) _> (hand)`. `(hand)` daha önce tanımlanmış olmalıdır; `_>` yeni masa oluşturmaz. Devir tamamlandığında eski `(h)` artık kullanılamaz; kaynak yalnızca `(hand)` üzerinden erişilir.
 
 ### 4.1.2 Halt: Etkin Kaynakların Toplu Sonlandırılması
 
