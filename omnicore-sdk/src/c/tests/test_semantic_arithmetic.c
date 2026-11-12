@@ -185,6 +185,26 @@ int main(void) {
         "f:main(a!u8, b!u8) { loop (a..b) { v:x!u8 = it; } }";
     static const char range_loop_mixed_invalid[] =
         "f:main() { loop (0..2.5) { echo(it); } }";
+    static const char valid_len_string[] =
+        "f:main() !u64 { ret len(\\"text\\"); }";
+    static const char valid_len_array[] =
+        "f:main() !u64 { ret len([1,2,3]); }";
+    static const char invalid_len_scalar[] =
+        "f:main() !u64 { ret len(1); }";
+    static const char valid_addr_variable[] =
+        "f:main(value!i32) !u64 { ret addr(value); }";
+    static const char invalid_addr_literal[] =
+        "f:main() !u64 { ret addr(1); }";
+    static const char valid_peek[] =
+        "f:main() !u8 { ret peek(1024); }";
+    static const char invalid_peek_string[] =
+        "f:main() !u8 { ret peek(\\"address\\"); }";
+    static const char valid_poke[] =
+        "f:main() { poke(1024, 7); }";
+    static const char invalid_poke_arity[] =
+        "f:main() { poke(1024); }";
+    static const char invalid_poke_value[] =
+        "f:main() { poke(1024, \\"text\\"); }";
     static const char logical_valid[] =
         "f:main() !bool { ret (1 < 2) && (3 < 4) || false; }";
     static const char logical_invalid[] =
@@ -260,6 +280,16 @@ int main(void) {
     if (!check_source(range_loop_valid, 0)) return 1;
     if (!check_source(range_loop_inferred_type_valid, 0)) return 1;
     if (!check_source(range_loop_mixed_invalid, 1)) return 1;
+    if (!check_source(valid_len_string, 0)) return 1;
+    if (!check_source(valid_len_array, 0)) return 1;
+    if (!check_source(invalid_len_scalar, 1)) return 1;
+    if (!check_source(valid_addr_variable, 0)) return 1;
+    if (!check_source(invalid_addr_literal, 1)) return 1;
+    if (!check_source(valid_peek, 0)) return 1;
+    if (!check_source(invalid_peek_string, 1)) return 1;
+    if (!check_source(valid_poke, 0)) return 1;
+    if (!check_source(invalid_poke_arity, 1)) return 1;
+    if (!check_source(invalid_poke_value, 1)) return 1;
     if (!check_source(logical_valid, 0)) return 1;
     if (!check_source(logical_invalid, 1)) return 1;
     if (!check_source(unary_not_valid, 0)) return 1;
@@ -342,6 +372,12 @@ int main(void) {
     if (!check_error_detail(
         "f:main() {\n    v:arr = [1,2,3]; v:value = arr[3];\n}",
         "Array index 3 is out of bounds", "length 3", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() !u64 {\\n    ret len(1);\\n}",
+        "len() requires a collection, string, or buffer", "i32", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() !u64 {\\n    ret addr(1);\\n}",
+        "addr() requires an addressable", "i32", 2)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
