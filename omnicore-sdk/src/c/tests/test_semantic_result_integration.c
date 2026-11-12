@@ -203,6 +203,90 @@ done:
     return ok;
 }
 
+static const SemanticResultAnnotation* find_annotation_by_node(
+    const SemanticResult* result, uint32_t node_id
+) {
+    uint32_t i;
+    if (!result || node_id == 0u) return NULL;
+    for (i = 0u; i < result->annotation_count; ++i)
+        if (result->annotations[i].node_id == node_id)
+            return &result->annotations[i];
+    return NULL;
+}
+
+static int test_thread_payload_capture_annotations(void) {
+    static const char source[] =
+        "f:main() { v:outside!i32 = 7; "
+        "(worker)>{ v:inside!i32 = outside; v:local_copy!i32 = inside; } "
+        "spawn(worker); }";
+    ParserContext* parser = parser_init_source(
+        "thread-payload-capture-result.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    OirAstPointerIndexEntry index[128];
+    ResolverContext resolver;
+    SemanticContext semantic;
+    ASTFuncDecl* function;
+    ASTBlock* main_body;
+    ASTThreadBlock* thread_block;
+    ASTBlock* payload_body;
+    ASTVarDecl *inside, *local_copy;
+    const SemanticResultAnnotation *outer_use, *local_use;
+    uint32_t node_count = 0u;
+    int semantic_initialized = 0;
+    int ok = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK ||
+        parser->error_count != 0 || !parser->ast_root) goto done;
+    memset(index, 0, sizeof(index));
+    if (oir_ast_frontend_index_build(
+            (ASTNode*)parser->ast_root, index, 128u, &node_count) != OIR_STATUS_OK)
+        goto done;
+    resolver.entries = index;
+    resolver.capacity = 128u;
+    function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    if (!function || !function->body || function->body->type != AST_BLOCK)
+        goto done;
+    main_body = (ASTBlock*)function->body;
+    thread_block = main_body->statements && main_body->statements->next &&
+        main_body->statements->next->type == AST_THREAD_BLOCK
+            ? (ASTThreadBlock*)main_body->statements->next : NULL;
+    if (!thread_block || !thread_block->body ||
+        thread_block->body->type != AST_BLOCK) goto done;
+    payload_body = (ASTBlock*)thread_block->body;
+    inside = payload_body->statements &&
+        payload_body->statements->type == AST_VAR_DECL
+            ? (ASTVarDecl*)payload_body->statements : NULL;
+    local_copy = inside && inside->base.next &&
+        inside->base.next->type == AST_VAR_DECL
+            ? (ASTVarDecl*)inside->base.next : NULL;
+    if (!inside || !inside->initializer ||
+        inside->initializer->type != AST_IDENTIFIER ||
+        !local_copy || !local_copy->initializer ||
+        local_copy->initializer->type != AST_IDENTIFIER) goto done;
+
+    semantic_init(&semantic, "thread-payload-capture-result.nxf", NULL);
+    semantic_initialized = 1;
+    semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    if (semantic.error_count != 0 ||
+        semantic.result_status != SEMANTIC_RESULT_OK ||
+        semantic.thread_blocks == NULL ||
+        semantic.thread_blocks->capture_count != 1u ||
+        semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK)
+        goto done;
+    outer_use = find_annotation_by_node(
+        &semantic.result, resolve_node_id(&resolver, inside->initializer));
+    local_use = find_annotation_by_node(
+        &semantic.result, resolve_node_id(&resolver, local_copy->initializer));
+    ok = outer_use && local_use &&
+        (outer_use->flags & SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE) != 0u &&
+        (local_use->flags & SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE) == 0u;
+done:
+    if (semantic_initialized) semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int test_extended_semantic_scopes(void) {
     static const char source[] =
         "f:main() {"
@@ -1098,6 +1182,10 @@ done:
 int main(void) {
     if (!test_bit_byte_semantic_conversion_records()) {
         fprintf(stderr, "Bit/byte SemanticResult conversion records failed.\\n");
+        return 1;
+    }
+    if (!test_thread_payload_capture_annotations()) {
+        fprintf(stderr, "Thread payload by-value capture annotations failed.\\n");
         return 1;
     }
     if(!test_immutable_vs_compile_time_constant_flags()) {
