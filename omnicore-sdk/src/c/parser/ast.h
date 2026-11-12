@@ -411,7 +411,10 @@ typedef struct {
     ASTNode* right;     // Sağ taraf (Block veya ifade)
     int retry_count;    // Rolling için tekrar sayısı (0 ise yok)
     int retry_delay;    // Rolling için bekleme süresi (ms)
-    ASTNode* catch_block; // !-> catch bloğu
+    union {
+        ASTNode* catch_block;  // ?-> / !-> hata bloğu (legacy field name)
+        ASTNode* target_block; // -> işlem hedefinin bağlı bloğu
+    };
 } ASTNexusFlow;
 
 typedef struct {
