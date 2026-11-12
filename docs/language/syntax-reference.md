@@ -437,7 +437,7 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 - **Borrow:** Başka bir bloktan gelen ödünç kaynak, açık sahiplik devri olmadan iç blok tarafından serbest bırakılamaz veya sahiplenilemez.
 - **Use-after-move / use-after-halt:** Taşınmış ya da sonlandırılmış masa üzerinden sonraki erişim Semantic hatasıdır.
 
-Relocate yazımı kaynak masadan ileri hedefe doğrudur: `(h) _> (hand)`. `(hand)` kaynak noktadan sonra, kendi gerçek kapsamı ve kod konumunda `(hand) -> f:() { ... }` biçiminde tanımlanabilir. Bu bildirim hedef masayı o kod konumunda oluşturur/etkinleştirir; önceden `_>` ile yönlendirilmiş veri ve sahiplik masaya bağlanır. Bu durumda hedef için yeniden bir `<- expression` ile kaynak üretilmez. Eski `(h)` üzerinden aynı kaynağı kullanmak mümkün değildir.
+Relocate yazımı kaynak masadan ileri hedefe doğrudur: `(h) _> (hand)`. `(hand)` kaynak noktadan sonra, kendi gerçek kapsamı ve kod konumunda `(hand) -> f:(hand) { ... }` biçiminde tanımlanabilir. Bu bildirim hedef masayı o kod konumunda oluşturur/etkinleştirir; önceden `_>` ile yönlendirilmiş veri ve sahiplik masaya bağlanır. Bu durumda hedef için yeniden bir `<- expression` ile kaynak üretilmez. Eski `(h)` üzerinden aynı kaynağı kullanmak mümkün değildir.
 
 Yeni kaynak üretilecekse masa `(h) <- expression` ile oluşturulur. Sağ taraftaki ifade doğrudan bir değer de olabilir: `(a) <- "bu string testi.";` örneğinde `a`, string verisinin adresini tutan masadır. Başarılı üretimden sonra `(h) -> process(h);` biçimiyle masa bir işlem/akışa verilebilir. Bu kullanım, önceden `_>` ile yönlendirilmiş bir hedef masanın etkinleştirilmesinden farklıdır.
 
@@ -458,14 +458,14 @@ f:main() {
     {
         # Hedef masa kendi gerçek kod konumunda etkinleşir.
         # Önceden yönlendirilmiş kaynak hand tarafından devralınır.
-        (hand) -> f:() {
+        (hand) -> f:(hand) {
             process(hand);
         }
     }
 }
 ```
 
-`_>` satırı `prepare_environment()` veya hedef bloğu erkenden çalıştırmaz. Kod normal sırayla ilerler; yalnızca veri ve sahiplik, ilerideki `(hand)` masasına yönlendirilmiş olur. Hedef noktadaki `(hand) -> f:() { ... }` bildirimi, yönlendirilmiş masayı etkinleştirip işlemi yürütür; yeni bir kaynak ifadesi değerlendirmez.
+`_>` satırı `prepare_environment()` veya hedef bloğu erkenden çalıştırmaz. Kod normal sırayla ilerler; yalnızca veri ve sahiplik, ilerideki `(hand)` masasına yönlendirilmiş olur. Hedef noktadaki `(hand) -> f:(hand) { ... }` akışı, yönlendirilmiş masayı `f` fonksiyonunun `hand` parametresine aktararak işlemi yürütür; yeni bir kaynak ifadesi değerlendirmez.
 
 ### 4.1.2 Halt: Etkin Kaynakların Toplu Sonlandırılması
 
