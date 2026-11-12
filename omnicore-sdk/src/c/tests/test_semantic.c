@@ -222,6 +222,51 @@ static int check_malformed_rule_ast(void) {
     return 1;
 }
 
+static int check_malformed_expression_and_loop_ast(void) {
+    static const struct {
+        ASTNodeType type;
+        const char* message;
+    } cases[] = {
+        { AST_BINARY_EXPR, "Binary expression requires both left and right operands" },
+        { AST_NEXUS_FLOW, "Nexus Flow operation requires both left and right operands" },
+        { AST_LOOP, "Loop is missing its body" },
+        { AST_UNPACK, "Reserved unpack AST node is missing its source expression" },
+        { AST_CAST, "cast() is missing its source value expression" }
+    };
+    size_t i;
+    for(i=0;i<sizeof(cases)/sizeof(cases[0]);++i) {
+        ASTNode* node=ast_create(cases[i].type);
+        SemanticContext semantic;
+        int ok;
+        if(!node) return 0;
+        semantic_init(&semantic,"semantic-malformed-expression.nxf",NULL);
+        semantic_check(&semantic,node);
+        ok=semantic.error_count==1 && semantic.error_head &&
+            strstr(semantic.error_head->message,cases[i].message)!=NULL;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if(!ok) return 0;
+    }
+    {
+        ASTNode* node=ast_create(AST_LOOP);
+        SemanticContext semantic;
+        int ok;
+        if(!node) return 0;
+        ((ASTLoop*)node)->loop_type=3;
+        ((ASTLoop*)node)->body=ast_create(AST_BLOCK);
+        if(!((ASTLoop*)node)->body) { ast_destroy(node); return 0; }
+        semantic_init(&semantic,"semantic-malformed-foreach.nxf",NULL);
+        semantic_check(&semantic,node);
+        ok=semantic.error_count==1 && semantic.error_head &&
+            strstr(semantic.error_head->message,
+                "Foreach loop requires both an iterator and a collection")!=NULL;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if(!ok) return 0;
+    }
+    return 1;
+}
+
 static int rejects_semantic_pending_node(ASTNodeType type) {
     ASTNode* node = ast_create(type);
     SemanticContext semantic;
@@ -993,6 +1038,10 @@ int main(int argc, char** argv) {
     }
     if (!check_malformed_rule_ast()) {
         fprintf(stderr, "Malformed rule AST checks failed.\n");
+        return 1;
+    }
+    if (!check_malformed_expression_and_loop_ast()) {
+        fprintf(stderr, "Malformed expression/loop AST checks failed.\n");
         return 1;
     }
     if (!check_semantic_fail_closed_nodes()) {
