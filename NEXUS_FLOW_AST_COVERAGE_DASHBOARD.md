@@ -315,3 +315,6 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 
 
 - CI compile caught a missing local `int64_t constant_index` declaration in the tuple AST index checker; added it before the next run. Commit `48ab91cf`. No behavior change.
+
+
+- Array literal compatibility was already centralized in `get_expr_type`; the first implementation duplicated its diagnostic path. Removed the duplicate Semantic traversal check and retained the single authoritative element compatibility/type annotation path. Commit `aa81d9ae`.
