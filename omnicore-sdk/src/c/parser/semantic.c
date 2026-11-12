@@ -1987,7 +1987,8 @@ static void semantic_validate_call_arguments(
         return;
     }
     expected_count = (uint32_t)function_slot->param_count - parameter_offset;
-    if (argument_count != expected_count) {
+    if ((function_slot->is_variadic && argument_count < expected_count) ||
+        (!function_slot->is_variadic && argument_count != expected_count)) {
         char message[256];
         snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_COUNT),
             function_slot->name, (int)expected_count, (int)argument_count);
