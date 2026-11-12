@@ -4647,27 +4647,28 @@ static int test_parenthesized_rolling_retry_disambiguation(void) {
 }
 
 int main(int argc, char** argv) {
+#define CHECK_PARSER_TEST(fn) do { if (!(fn)()) { fprintf(stderr, "Parser test failed: %s\\n", #fn); return 1; } } while (0)
     if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
-    if (!test_main_cli_parameter_ast()) return 1;
-    if (!test_m_immutable_value_ast()) return 1;
-    if (!test_no_osmodule_program_directive()) return 1;
+    CHECK_PARSER_TEST(test_main_cli_parameter_ast);
+    CHECK_PARSER_TEST(test_m_immutable_value_ast);
+    CHECK_PARSER_TEST(test_no_osmodule_program_directive);
 
-    if (!test_canonical_loop_and_jump_call_forms()) return 1;
-    if (!test_dotted_module_use_path()) return 1;
-    if (!test_use_path_malformed_and_exact_spans()) return 1;
-    if (!test_use_comma_list_spans()) return 1;
+    CHECK_PARSER_TEST(test_canonical_loop_and_jump_call_forms);
+    CHECK_PARSER_TEST(test_dotted_module_use_path);
+    CHECK_PARSER_TEST(test_use_path_malformed_and_exact_spans);
+    CHECK_PARSER_TEST(test_use_comma_list_spans);
     if (!test_use_alias_and_namespace_ast_codec()) { fprintf(stderr, "USE alias/namespace AST codec test failed.\n"); return 1; }
-    if (!test_pointer_reference_type_declarators()) return 1;
-    if (!test_function_type_alias_and_callback_parameter()) return 1;
+    CHECK_PARSER_TEST(test_pointer_reference_type_declarators);
+    CHECK_PARSER_TEST(test_function_type_alias_and_callback_parameter);
     if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\n"); return 1; }
     if (!test_callback_parameter_exact_source_spans()) { fprintf(stderr, "Callback parameter exact source-span test failed.\n"); return 1; }
-    if (!test_null_and_numeric_literal_ast()) return 1;
-    if (!test_implicit_type_variable_spelling()) return 1;
-    if (!test_spawn_is_outside_core_parser()) return 1;
-    if (!test_intrinsic_ast_family()) return 1;
-    if (!test_group_method_ast()) return 1;
-    if (!test_nested_group_and_default_ast()) return 1;
-    if (!test_thread_block_ast()) return 1;
+    CHECK_PARSER_TEST(test_null_and_numeric_literal_ast);
+    CHECK_PARSER_TEST(test_implicit_type_variable_spelling);
+    CHECK_PARSER_TEST(test_spawn_is_outside_core_parser);
+    CHECK_PARSER_TEST(test_intrinsic_ast_family);
+    CHECK_PARSER_TEST(test_group_method_ast);
+    CHECK_PARSER_TEST(test_nested_group_and_default_ast);
+    CHECK_PARSER_TEST(test_thread_block_ast);
     if (!test_ast_create_rejects_invalid_node_kinds()) {
         fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\n");
         return 1;
