@@ -330,7 +330,8 @@ static int check_malformed_function_and_control_ast(void) {
         SemanticContext semantic;
         int ok;
         if (!node) return 0;
-        ((ASTFuncDecl*)node)->name = "present";
+        ((ASTFuncDecl*)node)->name = semantic_test_copy_text("present");
+        if (!((ASTFuncDecl*)node)->name) { ast_destroy(node); return 0; }
         semantic_init(&semantic, "semantic-missing-function-body.nxf", NULL);
         semantic_check(&semantic, node);
         ok = semantic.error_count == 1 && semantic.error_head &&
@@ -345,7 +346,8 @@ static int check_malformed_function_and_control_ast(void) {
         SemanticContext semantic;
         int ok;
         if (!node) return 0;
-        ((ASTThreadBlock*)node)->name = "worker";
+        ((ASTThreadBlock*)node)->name = semantic_test_copy_text("worker");
+        if (!((ASTThreadBlock*)node)->name) { ast_destroy(node); return 0; }
         semantic_init(&semantic, "semantic-missing-thread-body.nxf", NULL);
         semantic_check(&semantic, node);
         ok = semantic.error_count == 1 && semantic.error_head &&
