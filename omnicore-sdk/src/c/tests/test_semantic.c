@@ -1144,6 +1144,13 @@ static int check_fast_exec_asm_semantics(void) {
         check_source(nested_scope_valid, 0);
 }
 
+static int check_intr_semantics(void) {
+    return check_source("f:main() { intr(4); }", 0) &&
+        check_source("f:main() { intr(); }", 1) &&
+        check_source("f:main() { intr(\"irq\"); }", 1) &&
+        check_source("f:main() { intr(1, 2); }", 1);
+}
+
 static int check_irq_reg_semantics(void) {
     const char* valid_irq = "f:handler() {} f:main() { irq(3, handler); }";
     const char* invalid_irq_count = "f:main() { irq(1); }";
@@ -1211,6 +1218,10 @@ static int check_intrinsic_semantics(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!check_intr_semantics()) {
+        fprintf(stderr, "INTR semantic checks failed.\n");
+        return 1;
+    }
     if (!check_irq_reg_semantics()) {
         fprintf(stderr, "IRQ/register semantic checks failed.\n");
         return 1;
