@@ -20,6 +20,14 @@
 **Sütunlar:** L = Lexer, P = Parser, A = AST payload + lifecycle + codec, S = Semantic, O = OIR lowering, V = bağımsız OIR Verifier.  
 **Önemli:** Verifier ham AST almaz. AST'den Semantic AST'ye, oradan OIR'a indirgenen yürütülebilir davranışı doğrular. Bu nedenle O sütunu kapanmadan V sütunu da o syntax özelliği için kapanmış sayılamaz.
 
+## IRQ / register intrinsic audit — 2026-11-12
+
+| AST intrinsic | Semantic signature checkpoint | Tests | Remaining |
+|---|:---:|:---:|---|
+| `AST_IRQ` / `irq(number, handler)` | ✓ | ✓ | target IRQ range, privilege, handler ABI/callable resolution |
+| `AST_REG` / `reg(r/w,...)` | ✓ | ✓ | architecture register whitelist, read/write availability, privilege and width |
+| Intrinsic callee identity (`irq`, `reg`) | ✓ | ✓ | generic malformed AST argument payload audit remains |
+
 ## Semantic intrinsic signature audit — 2026-11-12
 
 Intrinsic signature checks and parser-source regression fixtures have been added for the following subset. This is a focused audit checkpoint, not completion of intrinsic semantics; hardware effects, target capability, privilege, memory safety and lowering remain open.
@@ -142,7 +150,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Legacy unpack spelling `...>` | Reserved `AST_UNPACK` (38); no active production | ✓ (legacy token) | X | ✓ (reserved codec tag) | D | D | — | Infix operator is rejected by Core Parser. When needed, expose decoding as an ordinary `coremodule.unpack(data)` function after its input/output and error contract is specified; file I/O and normalization remain separate operations |
 | `area / zone` | `AST_AREA`, `AST_ZONE` | ✓ | ✓ | ✓ | ~ | ? | ? | Size/type checks ✓; region ownership and target mapping open |
 | I/O `echo/prnt/prmt/write/fwrite` | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ? | ? | ? | Central intrinsic signature/effect registry and OS module lowering |
-| Port I/O `inb/outb`, interrupt `irq/intr`, register `reg` | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ~ | ? | ? | `inb/outb` arity/type tests ✓; irq/intr/reg and target capability open |
+| Port I/O `inb/outb`, interrupt `irq/intr`, register `reg` | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ~ | ? | ? | `inb/outb` + `irq/reg` signature tests ✓; `intr` and target capability/privilege open |
 | Reflection `typeof/sizeof/is_*` | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ~ | ? | ? | Compile-time/runtime distinction, type result and lowering |
 | Date/time/clock/free | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ? | ? | ? | Signature, platform service and effect contract |
 | Zone sync/view/lock member calls | Generic member/call AST; reserved dedicated tags | ✓ | ✓ | ✓ | ? | ? | ? | Intrinsic registry; do not count reserved tags as active productions |
