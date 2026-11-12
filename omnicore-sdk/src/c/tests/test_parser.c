@@ -995,11 +995,17 @@ static int test_conditional_control_question_disambiguation(void) {
     const char* pipe_target = pipe_start ? strstr(pipe_start, "target") : NULL;
     int ok = 0;
     int stage = 0;
+    int saved_parse_result = -1;
+    int saved_parse_status = -1;
+    int saved_error_count = -1;
 
     if (!ctx) return 0;
     stage = 1;
     {
         int parse_result = parser_run(ctx);
+        saved_parse_result = parse_result;
+        saved_parse_status = parser_get_status(ctx);
+        saved_error_count = ctx->error_count;
         if (parse_result != PARSER_STATUS_OK ||
             parser_get_status(ctx) != PARSER_STATUS_OK ||
             ctx->error_count != 0 || !ctx->ast_root) {
@@ -1086,8 +1092,16 @@ static int test_conditional_control_question_disambiguation(void) {
     ok = 1;
 
 done:
+    if (!ok) {
+        Error* diagnostic;
+        fprintf(stderr, "conditional-control test failed at stage %d; parse_result=%d status=%d errors=%d\\n",
+            stage, saved_parse_result, saved_parse_status, saved_error_count);
+        if (ctx) for (diagnostic = ctx->error_head; diagnostic; diagnostic = diagnostic->next)
+            fprintf(stderr, "  diagnostic %d:%d: %s\\n", diagnostic->line,
+                diagnostic->col, diagnostic->message ? diagnostic->message : "<none>");
+    }
     parser_destroy(ctx);
-    if (!ok) { fprintf(stderr, "conditional-control test failed at stage %d\\n", stage); return 0; }
+    if (!ok) return 0;
     if (!parser_source_reports_syntax_error(
         "conditional-control-missing-arm.nxf",
         "f:main() { (a == b) ? ; }",
