@@ -1950,3 +1950,11 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Fixed `AST_NEXUS_FLOW` source stamping to use the final consumed token rather than the inner AST child end. This includes closing parentheses in grouped right operands such as `?=> (data)`.
 - Kept the exact-range test including `)`; this is a production span correction, not a syntax change.
 - Commit: `5d301071f0ea056aa92850e8d5cf0feea1995628`; coverage record `2d4c6d6f`. CI pending.
+
+
+### Semantic checkpoint — tuple typing/indexing — 2026-11-12
+
+- `AST_TUPLE` now semantically checks all elements and receives a `tuple` rvalue annotation. The persistent SemanticResult type interner uses its existing `SEMANTIC_RESULT_TYPE_TUPLE` kind.
+- Constant tuple indexing resolves the selected element type; negative/out-of-range indexes are diagnosed. Dynamic indexes intentionally remain `any` until runtime lowering.
+- Tests cover heterogeneous tuple inference, `i32`/`str` element indexing and a statically out-of-range index.
+- Commits: `37c87fea`, `0b06e621` Semantic; `cd3795d9` test; `64cbef9d` dashboard. CI pending.
