@@ -3398,9 +3398,11 @@ static void semantic_validate_call_arguments(
                 int found=0;
                 argument_value=named->value;
                 if (declaration) {
+                    uint32_t declaration_index = 0u;
                     for(parameter_node=declaration->params;parameter_node;
                         parameter_node=parameter_node->next) {
                         if(parameter_node->type==AST_VARIADIC_PARAM) break;
+                        if(declaration_index++ < parameter_offset) continue;
                         if(parameter_node->type==AST_VAR_DECL &&
                            ((ASTVarDecl*)parameter_node)->name && named->name &&
                            strcmp(((ASTVarDecl*)parameter_node)->name,named->name)==0) {
