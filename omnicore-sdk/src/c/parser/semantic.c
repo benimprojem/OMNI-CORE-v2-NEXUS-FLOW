@@ -1167,6 +1167,8 @@ static const char* semantic_binary_operator_name(OmniTokenType op) {
         case TOKEN_SLASH: return "/";
         case TOKEN_PERCENT: return "%";
         case TOKEN_POWER: return "**";
+        case TOKEN_ASSIGN: return "=";
+        case TOKEN_FORCE_ASSIGN: return "!!=";
         case TOKEN_PLUS_EQ: return "+=";
         case TOKEN_MINUS_EQ: return "-=";
         case TOKEN_STAR_EQ: return "*=";
@@ -2846,10 +2848,12 @@ static void semantic_check_node(
                 if (slot && slot->type_name) {
                     const char* right_type = get_expr_type(ctx, assign->right);
                     if (right_type && !are_types_compatible(slot->type_name, right_type)) {
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
-                            slot->type_name, right_type);
-                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf);
+                        char message[320];
+                        (void)snprintf(message, sizeof(message),
+                            "Operator '%s' cannot assign value of type '%s' to '%s' of type '%s'.",
+                            semantic_binary_operator_name(assign->op), right_type,
+                            id->name, slot->type_name);
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                     }
                 }
             } else if (assign->left->type == AST_INDEX_ACCESS) {
@@ -2861,10 +2865,12 @@ static void semantic_check_node(
                 }
                 if (element_type && right_type &&
                     !are_types_compatible(element_type, right_type)) {
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
-                        element_type, right_type);
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf);
+                    char message[320];
+                    (void)snprintf(message, sizeof(message),
+                        "Operator '%s' cannot assign value of type '%s' to an indexed element of type '%s'.",
+                        semantic_binary_operator_name(assign->op), right_type,
+                        element_type);
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                 }
             } else if (assign->left->type == AST_MEMBER_ACCESS) {
                 FieldInfo* field = semantic_resolve_member(ctx, assign->left, 0);
@@ -2877,10 +2883,17 @@ static void semantic_check_node(
                         const char* right_type = get_expr_type(ctx, assign->right);
                         if (right_type &&
                             !are_types_compatible(field->type_name, right_type)) {
-                            char buf[256];
-                            snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
-                                field->type_name, right_type);
-                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, buf);
+                            char message[320];
+                            const char* object_type =
+                                get_expr_type(ctx, ((ASTMemberAccess*)assign->left)->object);
+                            (void)snprintf(message, sizeof(message),
+                                "Operator '%s' cannot assign value of type '%s' to field '%s.%s' of type '%s'.",
+                                semantic_binary_operator_name(assign->op), right_type,
+                                object_type ? object_type : "<aggregate>",
+                                ((ASTMemberAccess*)assign->left)->member_name
+                                    ? ((ASTMemberAccess*)assign->left)->member_name : "<unknown>",
+                                field->type_name);
+                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                         }
                     }
                 }
