@@ -740,6 +740,8 @@ Bu örnekte:
 
 `1 | 2` iki ayrı branch anlamına gelmez; aynı gövdeye yönlenen çoklu değer pattern'idir. `default` isteğe bağlıdır. Yazılmamışsa eşleşme bulunmayan durumda bu `select` için ek bir branch çalışmaz.
 
+**Branch yapısı ve Semantic doğrulaması:** `select` içindeki `default` kolu en fazla bir kez bulunabilir ve son kol olmalıdır. `scan` içindeki `else` kolu en fazla bir kez bulunabilir ve son kol olmalıdır. Parser `scan else` sırasını doğrudan reddeder; Semantic ayrıca dışarıdan üretilmiş AST'lerde bu kuralı savunmacı olarak doğrular. Her iki yapının subject/selector ifadesi ve her kolun gövdesi zorunludur; normal eşleşme kolları pattern içermelidir. `select default` pattern içermez. Eksik veya bozuk AST kolları açık Semantic tanıları üretir.
+
 #### B) SCAN — Tür ve yapı pattern eşleştirmesi
 
 `scan`, subject değerinin türünü/varyantını inceler. Enum ve sealed type varyantları eşleştirilebilir; pattern içindeki parametreler yerel değişkenlere bağlanabilir. Struct pattern'leri de aynı pattern mekanizmasının kapsamındadır.
