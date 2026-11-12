@@ -316,6 +316,13 @@ int main(void) {
         "f:main() { 1++; }";
     static const char postfix_array_element_valid[] =
         "f:main() { v:arr = [1,2,3,4]; arr[0]++; }";
+    static const char valid_map_index_read_write[] =
+        "f:main() { v:notes!map; notes[\"Ali\"] = 90; "
+        "v:score = notes[\"Ali\"]; notes[\"Veli\"] = score; }";
+    static const char valid_map_numeric_key[] =
+        "f:main() { v:items!map; items[42] = true; v:flag = items[42]; }";
+    static const char invalid_map_aggregate_key[] =
+        "f:main() { v:items!map; v:point!Vec3; v:value = items[point]; }";
     static const char valid_array_literal_index[] =
         "f:main() { v:arr = [1,2,3]; v:value!i32 = arr[2]; }";
     static const char invalid_array_literal_index[] =
@@ -420,6 +427,9 @@ int main(void) {
     if (!check_source(postfix_non_numeric_invalid, 1)) return 1;
     if (!check_source(postfix_literal_invalid, 1)) return 1;
     if (!check_source(postfix_array_element_valid, 0)) return 1;
+    if (!check_source(valid_map_index_read_write, 0)) return 1;
+    if (!check_source(valid_map_numeric_key, 0)) return 1;
+    if (!check_source(invalid_map_aggregate_key, 1)) return 1;
     if (!check_source(valid_array_literal_index, 0)) return 1;
     if (!check_source(invalid_array_literal_index, 1)) return 1;
     if (!check_source(invalid_negative_array_literal_index, 1)) return 1;
@@ -501,6 +511,9 @@ int main(void) {
     if (!check_error_detail(
         "f:main() {\n    loop (1) { ret; }\n}",
         "Loop condition requires bool", "i32", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() {\n    v:items!map; v:point!Vec3; v:value = items[point];\n}",
+        "Map key must be a scalar key type", "Vec3", 2)) return 1;
     if (!check_error_detail(
         "f:main() {\n    v:arr = [1,2,3]; v:value = arr[3];\n}",
         "Array index 3 is out of bounds", "length 3", 2)) return 1;
