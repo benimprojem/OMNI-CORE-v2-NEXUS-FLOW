@@ -260,3 +260,6 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 
 
 - Tuple implementation also moved `AST_TUPLE` out of the Semantic fail-closed regression list; `AST_ASM_BLOCK` remains intentionally rejected pending its explicit semantic/ABI contract. The earlier CI failure was a stale test expectation, not a tuple implementation failure.
+
+
+- Follow-up test exposed that constant tuple indexing through an identifier initially lacked access to the initializer's tuple shape. Semantic now follows the identifier's declaration to its tuple initializer before resolving the element; this fixes both element-type inference and static out-of-range diagnostics. Commit `45752564`; CI pending.
