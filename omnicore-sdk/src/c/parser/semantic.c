@@ -2649,11 +2649,26 @@ static void semantic_check_node(
                            semantic_eval_integer_constant(bin->right, &shift_amount)) {
                     (void)value_is_unsigned;
                     if (shift_amount < 0) {
+                        {
+                        char shift_message[128];
+                        (void)snprintf(shift_message, sizeof(shift_message),
+                            "Bit shift amount (%lld) cannot be negative.",
+                            (long long)shift_amount);
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Bit shift amount cannot be negative.");
+                            shift_message);
+                    }
                     } else if ((uint64_t)shift_amount >= value_width) {
+                        {
+                        char shift_message[160];
+                        (void)snprintf(shift_message, sizeof(shift_message),
+                            "Bit shift amount (%llu) is out of range for %s (%llu-bit width); valid range is 0..%llu.",
+                            (unsigned long long)shift_amount,
+                            left_type,
+                            (unsigned long long)value_width,
+                            (unsigned long long)(value_width - 1u));
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Bit shift amount must be smaller than the left operand width.");
+                            shift_message);
+                    }
                     }
                 }
                 /*
