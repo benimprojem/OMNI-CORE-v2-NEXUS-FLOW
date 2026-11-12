@@ -77,6 +77,8 @@ typedef struct {
     SemanticNodeIdResolver node_id_resolver;
     void* node_id_context;
     uint8_t result_enabled;
+    /* Non-zero while validating a thread payload; nested payloads are invalid. */
+    uint8_t thread_block_depth;
 
     /* Deterministic allocation-failure injection for semantic tests; zero disables. */
     uint32_t test_allocation_fail_at;
