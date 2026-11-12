@@ -4840,7 +4840,7 @@ static int test_handler_capture_string_and_call_flow_ast(void) {
        !ast_validate(ctx->ast_root,NULL))goto done;
     ok=1;
 done:
-    if(!ok)fprintf(stderr,"Handler string capture / parameter flow AST test failed.\n");
+    if(!ok)fprintf(stderr,"Handler string capture / function-call flow AST test failed.\n");
     parser_destroy(ctx);
     return ok;
 }
