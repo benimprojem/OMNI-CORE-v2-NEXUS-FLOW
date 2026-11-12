@@ -979,6 +979,19 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     : SEMANTIC_RESULT_VALUE_LVALUE);
             return slot ? slot->type_name : NULL;
         }
+        case AST_ADDR:
+        case AST_LEN:
+            semantic_record_annotation(
+                ctx, node, NULL, "u64", SEMANTIC_RESULT_VALUE_RVALUE);
+            return "u64";
+        case AST_PEEK:
+            semantic_record_annotation(
+                ctx, node, NULL, "u8", SEMANTIC_RESULT_VALUE_RVALUE);
+            return "u8";
+        case AST_POKE:
+            semantic_record_annotation(
+                ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
+            return "void";
         case AST_STRUCT_LITERAL: {
             ASTStructLiteral* literal = (ASTStructLiteral*)node;
             Slot* type_slot = literal->type_name
