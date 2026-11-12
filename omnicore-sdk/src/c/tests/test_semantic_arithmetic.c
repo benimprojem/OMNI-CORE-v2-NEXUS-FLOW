@@ -195,6 +195,12 @@ int main(void) {
     if (!check_error_detail(
         "f:main(a!i32, b!bool) !bool {\n    ret a && b;\n}",
         "Operator '&&'", "i32", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() !bool {\n    ret !1;\n}",
+        "Logical negation '!'", "i32", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() !f64 {\n    ret ~1.0;\n}",
+        "Bitwise complement '~'", "f64", 2)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
