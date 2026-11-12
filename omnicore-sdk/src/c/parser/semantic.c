@@ -3274,10 +3274,17 @@ static void semantic_check_node(
                get_expr_type(); do not run that diagnostic path twice here. */
             semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
             break;
-        case AST_NAMED_ARG:
-            semantic_check(ctx,((ASTNamedArg*)node)->value);
+        case AST_NAMED_ARG: {
+            ASTNamedArg* named=(ASTNamedArg*)node;
+            if (!named->name || !named->name[0] || !named->value) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Named argument requires a non-empty name and value expression.");
+                break;
+            }
+            semantic_check(ctx,named->value);
             (void)get_expr_type(ctx,node);
             break;
+        }
         case AST_INDEX_ACCESS: {
             ASTIndexAccess* access = (ASTIndexAccess*)node;
             const char* target_type;
@@ -3789,6 +3796,12 @@ static void semantic_check_node(
         case AST_NEXUS_CAPTURE: {
             ASTNexusCapture* capture = (ASTNexusCapture*)node;
             // (h) <- expr : Handler tanımlanıyor
+            if (!capture->handler_name || !capture->handler_name[0] ||
+                !capture->expr) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Nexus capture requires a non-empty handler name and source expression.");
+                break;
+            }
             if (find_slot(ctx, capture->handler_name)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_REDEFINED), capture->handler_name); // Handler için de REDEFINED kullanabiliriz veya yeni kod
@@ -3805,6 +3818,11 @@ static void semantic_check_node(
 
         case AST_NEXUS_PIPE: {
             ASTNexusFlow* pipe = (ASTNexusFlow*)node;
+            if (!pipe->left || !pipe->right) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Nexus pipe requires both left and right operands.");
+                break;
+            }
             semantic_check(ctx, pipe->left);
             semantic_check(ctx, pipe->right);
             if (pipe->catch_block) semantic_check(ctx, pipe->catch_block);
@@ -5244,6 +5262,11 @@ static void semantic_check_node(
 
         case AST_LISTEN: {
             ASTNexusCapture* listen = (ASTNexusCapture*)node;
+            if (!listen->handler_name || !listen->handler_name[0]) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "listen requires a non-empty handler name.");
+                break;
+            }
             // Listen bloğu içinde 'global_listener' slotu veya benzeri bir kapsam açılabilir
             enter_scope(ctx, node);
             Slot* listen_slot = add_slot(
