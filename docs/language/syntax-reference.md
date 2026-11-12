@@ -1047,7 +1047,9 @@ db  # default çalıştır.
 
 ```
 
-### 5.5 - 5: `_>` (Relocate)
+### 5.5 Relocate (`_>`)
+
+Relocate operatörünün normatif davranışı Bölüm 4.1.1'de tanımlanır. `_>` kaynak kod konumundan ilerideki başka bir kapsamda tanımlanacak Handler masasına veri ve sahiplik yönlendirir; yürütme sırasını değiştirmez.
 
 ### 5.6 Named Thread Block
 
@@ -1072,18 +1074,7 @@ Nexus Flow'da isimlendirilmiş thread çalışma gövdesi şu biçimdedir:
 
 
 
-* **Stratejik Konum:** Bir veri masaya yakalandıktan (`<-`) ve paket açıldıktan (`expand`) hemen sonra, 
-* eğer o verinin başka bir bellek bölgesinde işlenmesi gerekiyorsa (örneğin GPU belleğine taşıma veya başka bir thread handler'ına devretme), 
-* bu işlem tüm mantıksal kararlardan (`?`, `->`, `>>`) önce yapılmalıdır.
 
-```
-(h1) <- ...........;
-(h1) -> expand(data) _>(h2);
-....
-....
-(h2) -> process >> final_output;
-```
-*(H1 masasına veriyi yakala, paketi aç, komple H2 masasına transfer et, sonra işleyip nihai hedefe akıt.)*
 
 ---
 
