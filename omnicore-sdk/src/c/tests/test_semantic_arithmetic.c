@@ -201,6 +201,24 @@ int main(void) {
         "f:main(a!u8) !u8 { ret a <<< 7; }";
     static const char shift_i64_valid_boundary[] =
         "f:main(a!i64) !i64 { ret a >>> 63; }";
+    static const char shift_hex_out_of_range[] =
+        "f:main(a!i32) !i32 { ret a <<< 0x20; }";
+    static const char shift_binary_out_of_range[] =
+        "f:main(a!i32) !i32 { ret a <<< 0b100000; }";
+    static const char shift_octal_out_of_range[] =
+        "f:main(a!i32) !i32 { ret a <<< 0o40; }";
+    static const char shift_separator_out_of_range[] =
+        "f:main(a!u8) !u8 { ret a <<< 1_000; }";
+    static const char shift_hex_valid_boundary[] =
+        "f:main(a!u8) !u8 { ret a <<< 0x7; }";
+    static const char shift_binary_valid_boundary[] =
+        "f:main(a!u8) !u8 { ret a <<< 0b111; }";
+    static const char shift_unsigned_64_max_invalid[] =
+        "f:main(a!u8) !u8 { ret a <<< 18446744073709551615; }";
+    static const char shift_unsigned_64_overflow_invalid[] =
+        "f:main(a!u8) !u8 { ret a <<< 18446744073709551616; }";
+    static const char shift_negative_radix_invalid[] =
+        "f:main(a!i32) !i32 { ret a <<< -0x1; }";
     static const char range_valid[] =
         "f:main() { v:r = 0..10; }";
     static const char range_mixed_numeric_invalid[] =
@@ -319,6 +337,15 @@ int main(void) {
     if (!check_source(shift_u8_equal_width, 1)) return 1;
     if (!check_source(shift_u8_valid_boundary, 0)) return 1;
     if (!check_source(shift_i64_valid_boundary, 0)) return 1;
+    if (!check_source(shift_hex_out_of_range, 1)) return 1;
+    if (!check_source(shift_binary_out_of_range, 1)) return 1;
+    if (!check_source(shift_octal_out_of_range, 1)) return 1;
+    if (!check_source(shift_separator_out_of_range, 1)) return 1;
+    if (!check_source(shift_hex_valid_boundary, 0)) return 1;
+    if (!check_source(shift_binary_valid_boundary, 0)) return 1;
+    if (!check_source(shift_unsigned_64_max_invalid, 1)) return 1;
+    if (!check_source(shift_unsigned_64_overflow_invalid, 1)) return 1;
+    if (!check_source(shift_negative_radix_invalid, 1)) return 1;
     if (!check_source(range_valid, 0)) return 1;
     if (!check_source(range_mixed_numeric_invalid, 1)) return 1;
     if (!check_source(range_non_numeric_invalid, 1)) return 1;
@@ -361,6 +388,15 @@ int main(void) {
     if (!check_error_detail(
         "f:main(a!u8) !u8 {\n    ret a <<< 8;\n}",
         "8-bit width", "0..7", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!i32) !i32 {\n    ret a <<< 0x20;\n}",
+        "Bit shift amount (32)", "0..31", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!u8) !u8 {\n    ret a <<< 18446744073709551615;\n}",
+        "Bit shift amount (18446744073709551615)", "8-bit width", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!u8) !u8 {\n    ret a <<< 18446744073709551616;\n}",
+        "exceeds the supported 64-bit unsigned count range", "18446744073709551616", 2)) return 1;
     if (!check_error_detail(
         "f:main() !f32 {\n    ret 7.0 & 3.0;\n}",
         "Operator '&'", "f64", 2)) return 1;
