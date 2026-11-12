@@ -450,3 +450,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Enabled component-wise vector arithmetic for matching Vec2/Vec3/Vec4 dimensions: `+`, `-`, `*`, `/`, `%`, and `^^`; unary minus and compound `+=`, `-=`, `*=`, `/=` are also accepted. Mixed dimensions and vector/scalar mixing remain rejected until a scalar-broadcast rule is specified.
 - Added positive Vec2/Vec3/Vec4 initializer tests and Vec3 coverage for every binary arithmetic operator, unary minus and compound arithmetic; negative tests cover dimension mismatch, non-numeric components and vector/scalar mixing. The dimension diagnostic asserts expected/actual component counts and source line.
 - Test execution and CI for this checkpoint remain pending; implementation and fixtures are not represented as a green test result.
+
+
+### Semantic checkpoint — Vector arithmetic syntax and dimension matrix — 2026-11-12
+
+- Normative syntax reference now documents the complete current Vec2/Vec3/Vec4 arithmetic contract: `+`, `-`, `*`, `/`, `%`, `^^`; unary negation; and `+=`, `-=`, `*=`, `/=`.
+- The reference explicitly states equal-dimension requirements, rejects scalar/vector mixing pending a language-level broadcast decision, and distinguishes Semantic acceptance from future SIMD Codegen behavior.
+- Extended arithmetic regression fixtures so Vec2 and Vec4, like the existing Vec3 fixtures, exercise all six binary arithmetic operators, unary minus and all four documented compound assignments.
+- CI status remains pending until a branch-head workflow confirms the expanded test matrix.
