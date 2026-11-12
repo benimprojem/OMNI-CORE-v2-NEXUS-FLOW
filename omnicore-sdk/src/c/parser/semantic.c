@@ -3286,11 +3286,25 @@ static void semantic_check_node(
             ASTFuncDecl* func = (ASTFuncDecl*)node;
             Slot* function_slot = NULL;
             const char* function_name = func->name;
+            int return_type_valid = 1;
+            int errors_before_return_type = ctx->error_count;
             if ((!function_name || !*function_name) &&
                 ctx->current_method_context)
                 function_name = ctx->current_method_public_name;
-            if (func->return_type_expr)
+            if (func->return_type_expr) {
                 semantic_check(ctx, func->return_type_expr);
+                if (ctx->error_count != errors_before_return_type)
+                    return_type_valid = 0;
+            } else if (func->return_type &&
+                       !is_type_defined(ctx, func->return_type)) {
+                char message[320];
+                (void)snprintf(message, sizeof(message),
+                    "Function '%s' declares undefined return type '%s'.",
+                    function_name ? function_name : "<anonymous>",
+                    func->return_type);
+                report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
+                return_type_valid = 0;
+            }
             if (function_name && *function_name) {
                 Slot* existing = find_slot(ctx, function_name);
                 if (existing && existing->declaration_node == node &&
@@ -3322,7 +3336,10 @@ static void semantic_check_node(
             const char* prev_return_type = ctx->current_func_return_type;
             unsigned int prev_loop_depth = ctx->loop_depth;
             ctx->loop_depth = 0u;
-            ctx->current_func_return_type = func->return_type;
+            /* Suppress dependent return-value mismatches when the declared
+             * return type already failed validation. */
+            ctx->current_func_return_type =
+                return_type_valid ? func->return_type : NULL;
             enter_scope(ctx, node);
             if (func->params) semantic_check(ctx, func->params);
 
