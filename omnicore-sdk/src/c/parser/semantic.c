@@ -3404,7 +3404,6 @@ static void semantic_check_node(
                 const char* right_type = get_expr_type(ctx, bin->right);
                 uint64_t shift_amount = 0u;
                 uint64_t value_width = 0u;
-                int value_is_unsigned = 0;
                 int shift_status = semantic_eval_shift_count(
                     bin->right, &shift_amount);
                 int operands_valid =
