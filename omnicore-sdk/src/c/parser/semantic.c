@@ -2527,6 +2527,19 @@ static int semantic_check_enum_constructor_call(
                 report_error(ctx,argument,ERR_SEMANTIC_TYPE_MISMATCH,message);
                 continue;
             }
+            {
+                ASTNode* previous_argument;
+                for(previous_argument=call->args;previous_argument!=argument;
+                    previous_argument=previous_argument->next) {
+                    if(previous_argument->type==AST_NAMED_ARG &&
+                       ((ASTNamedArg*)previous_argument)->name &&
+                       strcmp(((ASTNamedArg*)previous_argument)->name,named->name)==0) {
+                        report_error(ctx,argument,ERR_SEMANTIC_REDEFINED,
+                            "Enum constructor payload field is supplied more than once.");
+                        break;
+                    }
+                }
+            }
             actual_type=get_expr_type(ctx,named->value);
             if(matched_field->type_name && actual_type &&
                !are_types_compatible(matched_field->type_name,actual_type)) {
@@ -2535,6 +2548,28 @@ static int semantic_check_enum_constructor_call(
                     "Enum payload '%s' expects '%s', but got '%s'.",
                     matched_field->name,matched_field->type_name,actual_type);
                 report_error(ctx,named->value,ERR_SEMANTIC_ARG_TYPE,message);
+            }
+        }
+        for(field_node=variant->data;field_node;field_node=field_node->next) {
+            ASTVarDecl* required_field;
+            ASTNode* supplied;
+            int found=0;
+            if(field_node->type!=AST_VAR_DECL) continue;
+            required_field=(ASTVarDecl*)field_node;
+            for(supplied=call->args;supplied;supplied=supplied->next) {
+                if(supplied->type==AST_NAMED_ARG &&
+                   ((ASTNamedArg*)supplied)->name && required_field->name &&
+                   strcmp(((ASTNamedArg*)supplied)->name,required_field->name)==0) {
+                    found=1;break;
+                }
+            }
+            if(!found) {
+                char message[256];
+                (void)snprintf(message,sizeof(message),
+                    "Enum constructor '%s.%s' is missing payload field '%s'.",
+                    enum_slot->name,variant->name,
+                    required_field->name ? required_field->name : "<unnamed>");
+                report_error(ctx,call_node,ERR_SEMANTIC_ARG_COUNT,message);
             }
         }
     } else {
