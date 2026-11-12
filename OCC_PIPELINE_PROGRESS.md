@@ -2223,3 +2223,12 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Reviewed Struct field name/type/duplicate validation, packed/public/exported symbol metadata, aggregate member access and literal completeness.
 - Updated the AST coverage dashboard: Semantic columns for `AST_VAR_DECL`, `AST_NEWTYPE_DECL` and `AST_STRUCT_DECL` are now ✓. AST payload round-trip, layout, OIR and Verifier work remain open.
 - Implementation and test fixtures are committed. CI has not reported a status/workflow for the current commits; no test pass is claimed.
+
+
+### Semantic checkpoint — Enum variant and payload validation — 2026-11-12
+
+- Hardened `AST_ENUM_DECL` Semantic handling: validates enum name, variant node kind, non-empty/unique variant names, payload field node kind, non-empty/unique field names and explicit payload field types.
+- Unknown named payload types and malformed recursive type expressions are diagnosed; malformed AST payload chains no longer get blindly cast to `ASTVarDecl`.
+- Added direct malformed/valid AST fixtures and updated the normative syntax reference plus the AST coverage dashboard.
+- Enum Semantic remains partial: constructor lookup/argument binding and exhaustive pattern analysis are not complete. No OIR work has started.
+- CI/local test execution is pending; no pass claim is made.
