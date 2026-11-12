@@ -4290,6 +4290,23 @@ static int test_increment_decrement_parser_forms(void) {
     ok = 1;
 
 done:
+    if (!ok && ctx->ast_root) {
+        ASTFuncDecl* debug_function =
+            (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
+        ASTNode* debug_statement = debug_function && debug_function->body &&
+            debug_function->body->type == AST_BLOCK
+            ? ((ASTBlock*)debug_function->body)->statements : NULL;
+        for (; debug_statement; debug_statement = debug_statement->next) {
+            ASTUnaryExpr* debug_post = (ASTUnaryExpr*)debug_statement;
+            fprintf(stderr, "postfix debug: kind=%d op=%d span=%u %llu-%llu expected=%llu-%llu\\n",
+                (int)debug_statement->type, (int)debug_post->op,
+                (unsigned)debug_post->base.source_span.has_location,
+                (unsigned long long)debug_post->base.source_span.start_offset,
+                (unsigned long long)debug_post->base.source_span.end_offset,
+                (unsigned long long)(starts[0] - source),
+                (unsigned long long)(starts[0] - source + strlen(starts[0])));
+        }
+    }
     parser_destroy(ctx);
     if (!ok) return 0;
     if (!parser_source_reports_syntax_error(
