@@ -295,7 +295,7 @@ done:
     if (!ok) {
         fprintf(stderr,
             "Thread capture debug: initialized=%d errors=%d result_status=%d "
-            "capture_count=%u outer_flags=%u local_flags=%u\n",
+            "capture_count=%zu outer_flags=%u local_flags=%u\n",
             semantic_initialized,
             semantic_initialized ? semantic.error_count : -1,
             semantic_initialized ? (int)semantic.result_status : -1,
