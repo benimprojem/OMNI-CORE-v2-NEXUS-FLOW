@@ -827,9 +827,9 @@ static void semantic_record_annotation(
             annotation_flags |= SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER;
         if (ctx->active_thread_block && slot &&
             slot->kind == SLOT_VAR &&
-            slot->depth <= (int)ctx->active_thread_block->capture_base_depth)
-            ctx->thread_capture_copy_depth != 0u &&
-            (annotation_flags |= SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE);
+            slot->depth <= (int)ctx->active_thread_block->capture_base_depth &&
+            ctx->thread_capture_copy_depth != 0u)
+            annotation_flags |= SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE;
         status = semantic_result_set_annotation(
             &ctx->result,
             node_id,
