@@ -1944,3 +1944,9 @@ v:empty!State = State.Empty();
 ```
 
 Semantic resolves the qualifier to an enum declaration and the member to one of its variants. Positional payload arguments follow declaration order; named arguments use payload field names. Argument count, unknown variant/field names, duplicate named fields and argument type compatibility are checked. A no-payload variant is constructed with an empty call. Constructor expression support currently validates declared `type_name` payload fields; recursive payload type-expression compatibility remains part of the remaining enum Semantic work.
+
+### Group method Semantic integrity
+
+- Every AST_METHOD requires a non-empty public method name and an implementation node.
+- Ordinary methods must use an AST_FUNC_DECL or AST_EXTERN_DECL implementation. The special default handler may also use an AST_BLOCK body.
+- A malformed implementation node is rejected before receiver inference or method-body checking. This is an AST/Semantic integrity rule; it does not alter valid method call syntax.
