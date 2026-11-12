@@ -1407,6 +1407,91 @@ static int semantic_vector_dimension(
     return 1;
 }
 
+static int semantic_is_compile_time_constant_expression_depth(
+    SemanticContext* ctx, const ASTNode* node, unsigned int depth
+) {
+    const ASTNode* current;
+    if (!ctx || !node || depth > 128u) return 0;
+    switch (node->type) {
+        case AST_LITERAL:
+            return 1;
+
+        case AST_IDENTIFIER: {
+            const Slot* slot = find_slot(ctx,
+                ((const ASTIdentifier*)node)->name);
+            const ASTVarDecl* declaration;
+            if (!slot || !slot->is_const || !slot->declaration_node ||
+                slot->declaration_node->type != AST_VAR_DECL)
+                return 0;
+            declaration = (const ASTVarDecl*)slot->declaration_node;
+            return declaration->is_const && declaration->initializer &&
+                semantic_is_compile_time_constant_expression_depth(
+                    ctx, declaration->initializer, depth + 1u);
+        }
+
+        case AST_UNARY_EXPR: {
+            const ASTUnaryExpr* unary = (const ASTUnaryExpr*)node;
+            if (unary->op != TOKEN_PLUS && unary->op != TOKEN_MINUS &&
+                unary->op != TOKEN_NOT && unary->op != TOKEN_BIT_NOT)
+                return 0;
+            return semantic_is_compile_time_constant_expression_depth(
+                ctx, unary->operand, depth + 1u);
+        }
+
+        case AST_BINARY_EXPR: {
+            const ASTBinaryExpr* binary = (const ASTBinaryExpr*)node;
+            return binary->left && binary->right &&
+                semantic_is_compile_time_constant_expression_depth(
+                    ctx, binary->left, depth + 1u) &&
+                semantic_is_compile_time_constant_expression_depth(
+                    ctx, binary->right, depth + 1u);
+        }
+
+        case AST_ARRAY_LITERAL:
+            for (current = ((const ASTArrayLiteral*)node)->elements;
+                 current; current = current->next) {
+                if (!semantic_is_compile_time_constant_expression_depth(
+                        ctx, current, depth + 1u)) return 0;
+            }
+            return 1;
+
+        case AST_TUPLE:
+            for (current = ((const ASTTuple*)node)->elements;
+                 current; current = current->next) {
+                if (!semantic_is_compile_time_constant_expression_depth(
+                        ctx, current, depth + 1u)) return 0;
+            }
+            return 1;
+
+        case AST_STRUCT_LITERAL:
+            for (current = ((const ASTStructLiteral*)node)->fields;
+                 current; current = current->next) {
+                const ASTStructFieldInit* field;
+                if (current->type != AST_STRUCT_FIELD_INIT) return 0;
+                field = (const ASTStructFieldInit*)current;
+                if (!field->value ||
+                    !semantic_is_compile_time_constant_expression_depth(
+                        ctx, field->value, depth + 1u)) return 0;
+            }
+            return 1;
+
+        case AST_CAST:
+            return semantic_is_compile_time_constant_expression_depth(
+                ctx, ((const ASTCast*)node)->value, depth + 1u);
+
+        default:
+            /* Calls, mutable reads, assignments, I/O and control flow are
+               runtime behavior and cannot initialize a c: declaration. */
+            return 0;
+    }
+}
+
+static int semantic_is_compile_time_constant_expression(
+    SemanticContext* ctx, const ASTNode* node
+) {
+    return semantic_is_compile_time_constant_expression_depth(ctx, node, 0u);
+}
+
 static void semantic_validate_vector_initializer(
     SemanticContext* ctx, ASTNode* declaration_node,
     const char* vector_type, ASTNode* initializer
@@ -3487,9 +3572,20 @@ static void semantic_check_node(
                 }
             }
 
+            if (decl->is_const && !decl->initializer) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "A c: compile-time constant requires an initializer expression.");
+            }
+
             if (decl->initializer) {
                 const char* init_type;
                 semantic_check(ctx, decl->initializer);
+                if (decl->is_const &&
+                    !semantic_is_compile_time_constant_expression(
+                        ctx, decl->initializer)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Initializer for c: must be a compile-time constant expression; runtime calls and non-constant values are not allowed.");
+                }
                 init_type = get_expr_type(ctx, decl->initializer);
                 if (is_array && decl->initializer &&
                     decl->initializer->type == AST_ARRAY_LITERAL) {
