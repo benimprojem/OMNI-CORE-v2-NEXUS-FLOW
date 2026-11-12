@@ -3808,11 +3808,16 @@ static int test_enum_discriminant_parser_codec(void) {
             !done->discriminant_expr ||
             done->discriminant_expr->type != AST_BINARY_EXPR ||
             done->base.next != NULL) {
-            fprintf(stderr, "Enum discriminant AST fields invalid: declaration=%p idle=%p running=%p done=%p idle_expr=%p running_expr=%p done_expr=%p done_next=%p\n",
+            fprintf(stderr, "Enum discriminant AST fields invalid: declaration=%p idle=%p running=%p done=%p data=%p idle_type=%d idle_value=%lld running_type=%d running_value=%lld done_type=%d done_next=%p\n",
                 (void*)declaration, (void*)idle, (void*)running, (void*)done,
-                idle ? (void*)idle->discriminant_expr : NULL,
-                running ? (void*)running->discriminant_expr : NULL,
-                done ? (void*)done->discriminant_expr : NULL,
+                running ? (void*)running->data : NULL,
+                idle && idle->discriminant_expr ? (int)idle->discriminant_expr->type : -1,
+                idle && idle->discriminant_expr && idle->discriminant_expr->type == AST_LITERAL
+                    ? (long long)((ASTLiteral*)idle->discriminant_expr)->int_value : -1LL,
+                running && running->discriminant_expr ? (int)running->discriminant_expr->type : -1,
+                running && running->discriminant_expr && running->discriminant_expr->type == AST_LITERAL
+                    ? (long long)((ASTLiteral*)running->discriminant_expr)->int_value : -1LL,
+                done && done->discriminant_expr ? (int)done->discriminant_expr->type : -1,
                 done ? (void*)done->base.next : NULL);
             goto done;
         }
