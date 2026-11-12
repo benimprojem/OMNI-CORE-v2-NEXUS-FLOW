@@ -1545,6 +1545,10 @@ static int check_malformed_group_method_ast(void) {
     int ok = 0;
     if (!missing_name || !missing_implementation || !invalid_implementation)
         goto cleanup;
+    missing_name->implementation = ast_create(AST_FUNC_DECL);
+    if (!missing_name->implementation) goto cleanup;
+    ((ASTFuncDecl*)missing_name->implementation)->body = ast_create(AST_BLOCK);
+    if (!((ASTFuncDecl*)missing_name->implementation)->body) goto cleanup;
     missing_implementation->public_name = "open";
     invalid_implementation->public_name = "open";
     invalid_implementation->implementation = ast_create(AST_BLOCK);
