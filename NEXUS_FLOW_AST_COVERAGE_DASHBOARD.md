@@ -369,4 +369,5 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Unary diagnostics identify the operator and actual operand type. Binary and compound bitwise diagnostics identify the operator and both actual operand types.
 - Added positive/negative tests for unary operators, 8bit representation operations, mixed representation/integer operands, and compound &=, |=, ^= operations.
 - Added collector assertions for Semantic stage ID, complete source range, and line/column reporting.
-- On the latest completed Linux test job for the previous checkpoint, all 73 CTest tests passed; ASan/UBSan and macOS also passed. Windows and Valgrind verification remain pending; Semantic is not marked complete yet.
+- Fixed malformed multi-character C character constants in pointer/reference type validation (`'\\0'` → `'\0'`), parser newline coordinate mapping (`'\\n'` → `'\n'`), and diagnostic test line handling. This also removes compiler warnings and restores the intended terminator/newline checks.
+- After the character-constant corrections, the latest CI run passed all Linux CTest tests, ASan/UBSan, and macOS. Windows and Valgrind are still running; Semantic is not marked complete until the full matrix is green.
