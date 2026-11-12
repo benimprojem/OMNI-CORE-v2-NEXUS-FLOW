@@ -1180,15 +1180,25 @@ Enum semantic rules:
 - A bare variant name matches only a variant with no payload. Pattern guards do not change the binding types.
 - Exhaustive enum `scan` checking, duplicate-variant arm detection and constructor expression argument binding remain open Semantic items.
 
-**Enum discriminant contract — design checkpoint (not yet active Parser syntax):**
+**Enum discriminants:** A variant may declare an optional explicit integer value after its name or payload. Omitted values are assigned automatically.
 
-- A variant may optionally declare an explicit integral discriminant after its payload/name: `Idle = 0`, `Running(pid!u32) = 4`.
-- A variant without an explicit value receives `0` when it is the first variant, otherwise the previous variant's resolved discriminant plus one. An explicit value resets the next implicit value to explicit value plus one.
-- Discriminants are unique within one enum. Duplicate values, non-integral values, non-constant expressions and increment overflow are Semantic errors.
-- The Semantic model uses a signed 64-bit integer domain for deterministic front-end validation. The eventual OIR/target ABI chooses and validates the physical representation; this does not force every target enum to occupy 64 bits.
-- The AST should preserve the optional discriminant as an expression child (rather than only a parsed integer) so source spans, codec round-trip and compile-time constant diagnostics remain available. The AST owner/codec/validator and Parser production must be extended together before this syntax is considered active.
-- Until those implementation and regression-test steps land, examples above describe the planned contract only; existing enum syntax and behavior remain unchanged.
+```
+nt:enum: State {
+    Idle,                  # 0
+    Running(pid!u32) = 4,  # 4
+    Paused,                # 5
+    Finished = 10,         # 10
+    Failed                 # 11
+}
+```
 
+- The first implicit discriminant is `0`; each following implicit value is the previous resolved value plus one.
+- An explicit value becomes the new sequence base; the next implicit value is explicit value plus one.
+- Values must be unique within their enum.
+- The current Semantic constant evaluator accepts integer literals and compile-time arithmetic using unary `+`/`-` and binary `+`, `-`, `*`, `/`, `%`. Identifiers, floating-point values and runtime expressions are rejected.
+- The front-end semantic range is signed 64-bit (`INT64_MIN` through `INT64_MAX`). An implicit increment after `INT64_MAX` is an error; a subsequent explicit value may reset the sequence.
+- AST preserves the optional expression and the resolved signed value. The eventual OIR/target ABI defines the physical enum representation; signed 64-bit is not a storage-width requirement.
+- Diagnostics identify non-constant/non-integer values, duplicate discriminants and implicit-value overflow.
 ####  7.3 `union` (Ortak Bellek Alanı)**
 
 Kernel ve Driver yazarken aynı bellek alanına farklı tiplerle bakmak gerekir.
