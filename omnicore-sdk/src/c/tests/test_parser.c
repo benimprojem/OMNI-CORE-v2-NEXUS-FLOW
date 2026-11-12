@@ -4811,7 +4811,7 @@ int main(int argc, char** argv) {
     if (!test_callback_parameter_exact_source_spans()) { fprintf(stderr, "Callback parameter exact source-span test failed.\n"); FAIL_PARSER_TEST(); }
     CHECK_PARSER_TEST(test_null_and_numeric_literal_ast);
     CHECK_PARSER_TEST(test_implicit_type_variable_spelling);
-    CHECK_PARSER_TEST(test_spawn_is_outside_core_parser);
+    CHECK_PARSER_TEST(test_spawn_is_module_call_syntax);
     CHECK_PARSER_TEST(test_intrinsic_ast_family);
     CHECK_PARSER_TEST(test_group_method_ast);
     CHECK_PARSER_TEST(test_nested_group_and_default_ast);
