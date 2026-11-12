@@ -626,6 +626,13 @@ static int semantic_format_array_signature(
     return 1;
 }
 
+static int semantic_is_map_type_name(const char* type_name) {
+    if (!type_name) return 0;
+    if (type_name[0] == '!') ++type_name;
+    return strcmp(type_name, "map") == 0 ||
+        strcmp(type_name, "Map") == 0;
+}
+
 static int semantic_is_array_type_name(const char* type_name) {
     return type_name &&
         (strcmp(type_name, "array") == 0 ||
@@ -1465,6 +1472,17 @@ static int is_bitwise_primitive_type(const char* type_name) {
  * The source spelling is retained in the AST; this helper only determines
  * the semantic element type and does not prescribe host integer endianness.
  */
+static int semantic_is_map_key_type(const char* type_name) {
+    if (!type_name) return 0;
+    if (type_name[0] == '!') ++type_name;
+    if (strcmp(type_name, "str") == 0 ||
+        strcmp(type_name, "string") == 0 ||
+        strcmp(type_name, "char") == 0 ||
+        strcmp(type_name, "bool") == 0) return 1;
+    return is_numeric_primitive_type(type_name) ||
+        is_bitwise_primitive_type(type_name);
+}
+
 static const char* semantic_representation_element_type(const char* type_name) {
     static const char* const bit_vectors[] = {
         "8bit", "16bit", "32bit", "64bit", "128bit"
@@ -3229,12 +3247,23 @@ static void semantic_check_node(
             }
             if (target_type && strcmp(target_type,"tuple") != 0 &&
                 !semantic_is_array_type_name(target_type) &&
-                !semantic_representation_element_type(target_type)) {
+                !semantic_representation_element_type(target_type) &&
+                !semantic_is_map_type_name(target_type)) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Index target must be an array, bit vector, or byte block.");
+                    "Index target must be an array, map, tuple, bit vector, or byte block.");
             }
             index_type = get_expr_type(ctx, access->index);
-            if (index_type && strcmp(index_type, "any") != 0 &&
+            if (semantic_is_map_type_name(target_type)) {
+                if (index_type && strcmp(index_type, "any") != 0 &&
+                    !semantic_is_map_key_type(index_type)) {
+                    char message[256];
+                    (void)snprintf(message, sizeof(message),
+                        "Map key must be a scalar key type (string, char, bool, integer, or bit/byte value); got '%s'.",
+                        index_type);
+                    report_error(ctx, access->index,
+                        ERR_SEMANTIC_TYPE_MISMATCH, message);
+                }
+            } else if (index_type && strcmp(index_type, "any") != 0 &&
                 !is_integer_primitive_type(index_type)) {
                 report_error(ctx, access->index, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Index expression must have an integer type.");
@@ -3572,9 +3601,10 @@ static void semantic_check_node(
                 const char* right_type = get_expr_type(ctx, assign->right);
                 if (semantic_lvalue_is_const(ctx, assign->left)) {
                     report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
-                        "Cannot assign through an index of a constant array.");
+                        "Cannot assign through an index of a constant container.");
                 }
                 if (element_type && right_type &&
+                    strcmp(element_type, "any") != 0 &&
                     !are_types_compatible(element_type, right_type)) {
                     char message[320];
                     (void)snprintf(message, sizeof(message),
