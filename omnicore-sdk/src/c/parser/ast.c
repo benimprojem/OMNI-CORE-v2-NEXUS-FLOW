@@ -508,8 +508,13 @@ static void ast_print_recursive(ASTNode* node, int level) {
             }
             case AST_ENUM_VARIANT: {
                 ASTEnumVariant* v = (ASTEnumVariant*)node;
-                printf("VARIANT: %s\n", v->name);
+                printf("VARIANT: %s", v->name);
+                if (v->has_resolved_discriminant)
+                    printf(" = %lld", (long long)v->discriminant_value);
+                printf("\n");
                 if (v->data) ast_print_recursive(v->data, level + 1);
+                if (v->discriminant_expr)
+                    ast_print_recursive(v->discriminant_expr, level + 1);
                 break;
             }
             case AST_NEWTYPE_DECL: {
