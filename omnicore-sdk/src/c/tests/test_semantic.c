@@ -1025,6 +1025,70 @@ static char* semantic_test_copy_text(const char* value) {
     return copy;
 }
 
+
+static int check_aggregate_field_ast_case(
+    ASTNode* node, int expected_errors, const char* expected_message
+) {
+    SemanticContext semantic;
+    int ok;
+    if (!node) return 0;
+    semantic_init(&semantic, "semantic-aggregate-fields.nxf", NULL);
+    semantic_check(&semantic, node);
+    ok = semantic.error_count == expected_errors;
+    if (expected_message) {
+        int found = 0;
+        Error* error;
+        for (error = semantic.error_head; error; error = error->next) {
+            if (strstr(error->message, expected_message) != NULL) found = 1;
+        }
+        ok = ok && found;
+    }
+    semantic_destroy(&semantic);
+    ast_destroy(node);
+    return ok;
+}
+
+static int check_aggregate_field_type_semantics(void) {
+    ASTStructDecl* structure = (ASTStructDecl*)ast_create(AST_STRUCT_DECL);
+    ASTVarDecl* struct_field = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTStructDecl* union_node = (ASTStructDecl*)ast_create(AST_UNION_DECL);
+    ASTVarDecl* union_field = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    ASTStructDecl* malformed = (ASTStructDecl*)ast_create(AST_STRUCT_DECL);
+    ASTNode* malformed_field = ast_create(AST_LITERAL);
+    if (!structure || !struct_field || !union_node || !union_field ||
+        !malformed || !malformed_field) {
+        ast_destroy((ASTNode*)structure);
+        ast_destroy((ASTNode*)struct_field);
+        ast_destroy((ASTNode*)union_node);
+        ast_destroy((ASTNode*)union_field);
+        ast_destroy((ASTNode*)malformed);
+        ast_destroy(malformed_field);
+        return 0;
+    }
+
+    structure->name = semantic_test_copy_text("UntypedStruct");
+    struct_field->name = semantic_test_copy_text("value");
+    structure->fields = (ASTNode*)struct_field;
+    if (!structure->name || !struct_field->name ||
+        !check_aggregate_field_ast_case((ASTNode*)structure, 1,
+            "Aggregate field 'value' requires an explicit type")) return 0;
+
+    union_node->name = semantic_test_copy_text("UntypedUnion");
+    union_node->is_union = 1;
+    union_field->name = semantic_test_copy_text("value");
+    union_node->fields = (ASTNode*)union_field;
+    if (!union_node->name || !union_field->name ||
+        !check_aggregate_field_ast_case((ASTNode*)union_node, 1,
+            "Aggregate field 'value' requires an explicit type")) return 0;
+
+    malformed->name = semantic_test_copy_text("MalformedAggregate");
+    malformed->fields = malformed_field;
+    if (!malformed->name ||
+        !check_aggregate_field_ast_case((ASTNode*)malformed, 1,
+            "Aggregate field list contains a non-variable declaration node")) return 0;
+    return 1;
+}
+
 static int check_enum_ast_case(
     ASTNode* node, int expected_errors, const char* expected_message
 ) {
@@ -1617,6 +1681,10 @@ int main(int argc, char** argv) {
     }
     if (!check_m_immutable_value_semantics()) {
         fprintf(stderr, "Immutable m: value semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_aggregate_field_type_semantics()) {
+        fprintf(stderr, "Aggregate field type semantic checks failed.\\n");
         return 1;
     }
     if (!check_enum_declaration_semantics()) {
