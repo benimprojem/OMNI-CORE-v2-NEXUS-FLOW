@@ -156,12 +156,18 @@ static int check_aggregate_member_semantics(void) {
         "f:main() { struct: Point { v:x!i32 } v:p!Point; v:a = p.missing; }";
     const char* non_aggregate =
         "f:main() { v:value!i32 = 1; v:bad = value.member; }";
+    const char* duplicate_struct_field =
+        "f:main() { struct: Point { v:x!i32, v:x!f64 } }";
+    const char* duplicate_union_field =
+        "f:main() { union: Choice { v:value!i32, v:value!f64 } }";
     return check_source(valid, 0) &&
         check_source(nested, 0) &&
         check_source(constant_object, 1) &&
         check_source(incompatible, 1) &&
         check_source(unknown_member, 1) &&
-        check_source(non_aggregate, 1);
+        check_source(non_aggregate, 1) &&
+        check_source(duplicate_struct_field, 1) &&
+        check_source(duplicate_union_field, 1);
 }
 
 static int check_struct_literal_semantics(void) {
