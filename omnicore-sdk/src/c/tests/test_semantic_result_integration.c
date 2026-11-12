@@ -311,8 +311,9 @@ done:
 
 static int test_extended_semantic_scopes(void) {
     static const char source[] =
+        "nt:enum: Choice { Range(start!i32, end!i32), Other }"
         "f:main() {"
-        " v:choice = 1;"
+        " v:choice!Choice = Choice.Range(1, 2);"
         " select(choice) { Range(s,e) -> { v:seen = s; } default -> { } }"
         " scan(choice) { Range(a,b) -> { v:seen2 = b; } }"
         " rules PrimeBorders(n) { n < 2 :=> \"out of range\"; n == 2 -> Success; always -> true; default -> false; }"
@@ -351,7 +352,17 @@ static int test_extended_semantic_scopes(void) {
     memset(index,0,sizeof(index));
     if(oir_ast_frontend_index_build((ASTNode*)parser->ast_root,index,1024u,&node_count)!=OIR_STATUS_OK)goto done;
     resolver.entries=index;resolver.capacity=1024u;
-    function=(ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+    {
+        ASTNode* top;
+        function=NULL;
+        for(top=((ASTProgram*)parser->ast_root)->declarations;top;top=top->next) {
+            if(top->type==AST_FUNC_DECL && ((ASTFuncDecl*)top)->name &&
+               strcmp(((ASTFuncDecl*)top)->name,"main")==0) {
+                function=(ASTFuncDecl*)top;
+                break;
+            }
+        }
+    }
     if(!function || !function->body || function->body->type!=AST_BLOCK)goto done;
     body=(ASTBlock*)function->body;
     select_node=(ASTSelect*)body->statements->next;
