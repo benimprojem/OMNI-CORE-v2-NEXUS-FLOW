@@ -1341,12 +1341,22 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             return "array";
         }
         case AST_RELOCATE: {
-            const char* type_name = get_expr_type(ctx, ((ASTRelocate*)node)->source);
-            semantic_record_annotation(
-                ctx, node, NULL, type_name ? type_name : "any",
-                SEMANTIC_RESULT_VALUE_RVALUE);
-            return type_name ? type_name : "any";
+            ASTRelocate* relocate=(ASTRelocate*)node;
+            const char* source_type;
+            const char* target_type;
+            semantic_check(ctx,relocate->source);
+            semantic_check(ctx,relocate->target);
+            source_type=get_expr_type(ctx,relocate->source);
+            target_type=get_expr_type(ctx,relocate->target);
+            if(source_type && target_type &&
+               !are_types_compatible(source_type,target_type))
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Relocate source and destination types must match.");
+            semantic_record_annotation(ctx,node,NULL,
+                source_type?source_type:"any",SEMANTIC_RESULT_VALUE_RVALUE);
+            break;
         }
+
         case AST_LAMBDA:
             semantic_record_annotation(
                 ctx, node, NULL, "any", SEMANTIC_RESULT_VALUE_RVALUE);
@@ -4245,18 +4255,6 @@ static void semantic_check_node(
                 } else {
                     report_issue(ctx, node, ERR_SEMANTIC_UNDEFINED, buf, NULL, "Değişken tanımlanmamış. 'v:' ile tanımlamayı deneyin.", 0, 0);
                 }
-            } else if (resolved->is_handler && resolved->handler_is_moved) {
-                char message[256];
-                snprintf(message, sizeof(message),
-                    "Handler '%s' was moved and can no longer be used.", id->name);
-                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
-            } else if (resolved->is_handler &&
-                       resolved->depth != ctx->current_depth) {
-                char message[256];
-                snprintf(message, sizeof(message),
-                    "Handler '%s' is only accessible in the block where it was declared; use _> to transfer ownership.",
-                    id->name);
-                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
             } else if (!semantic_register_thread_capture(
                     ctx, resolved, node)) {
                 break;
@@ -4633,49 +4631,24 @@ static void semantic_check_node(
 
         case AST_NEXUS_CAPTURE: {
             ASTNexusCapture* capture = (ASTNexusCapture*)node;
-            const char* captured_type = NULL;
-            int is_empty_handler;
-            Slot* handler_slot = NULL;
+            // (h) <- expr : Handler tanımlanıyor
             if (!capture->handler_name || !capture->handler_name[0] ||
                 !capture->expr) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Nexus capture requires a non-empty handler name and source expression.");
                 break;
             }
-            is_empty_handler = capture->expr->type == AST_LITERAL &&
-                ((ASTLiteral*)capture->expr)->type == TOKEN_NULL;
-            semantic_check(ctx, capture->expr);
-            captured_type = get_expr_type(ctx, capture->expr);
             if (find_slot(ctx, capture->handler_name)) {
                 char buf[256];
-                snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_REDEFINED),
-                    capture->handler_name);
+                snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_REDEFINED), capture->handler_name); // Handler için de REDEFINED kullanabiliriz veya yeni kod
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                handler_slot = add_slot(
-                    ctx, capture->handler_name, SLOT_VAR, 0,
-                    captured_type, node, 1, 0, 0, 0u);
-                if (handler_slot) {
-                    handler_slot->is_handler = 1u;
-                    handler_slot->handler_is_empty = (uint8_t)is_empty_handler;
-                }
+                Slot* handler_slot = add_slot(
+                    ctx, capture->handler_name, SLOT_VAR, 0, NULL, node, 1, 0, 0, 0u);
                 semantic_record_annotation(
-                    ctx, node, handler_slot, captured_type,
-                    SEMANTIC_RESULT_VALUE_LVALUE);
+                    ctx, node, handler_slot, NULL, SEMANTIC_RESULT_VALUE_LVALUE);
             }
-            break;
-        }
-
-        case AST_NEXUS_PIPE: {
-            ASTNexusFlow* pipe = (ASTNexusFlow*)node;
-            if (!pipe->left || !pipe->right) {
-                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Nexus pipe requires both left and right operands.");
-                break;
-            }
-            semantic_check(ctx, pipe->left);
-            semantic_check(ctx, pipe->right);
-            if (pipe->catch_block) semantic_check(ctx, pipe->catch_block);
+            if (capture->expr) semantic_check(ctx, capture->expr);
             break;
         }
 
