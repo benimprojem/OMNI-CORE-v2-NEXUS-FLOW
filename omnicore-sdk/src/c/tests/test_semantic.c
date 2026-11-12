@@ -192,6 +192,36 @@ static int check_malformed_pattern_ast(void) {
     return ok;
 }
 
+static int check_malformed_rule_ast(void) {
+    static const struct {
+        ASTNodeType type;
+        const char* message;
+    } cases[] = {
+        { AST_RULE_BARRIER, "Rule barrier is missing its condition expression" },
+        { AST_RULE_TRIGGER, "Rule trigger is missing its condition expression" },
+        { AST_RULE_ALWAYS, "Always rule is missing its action or event name" },
+        { AST_RULE_DEFAULT, "Default rule is missing its action or event name" },
+        { AST_APPLY_RULES, "apply rules is missing its ruleset name" },
+        { AST_ON_BLOCK, "on-block is missing its ruleset name" },
+        { AST_RULESET_DECL, "Ruleset declaration is missing its name" }
+    };
+    size_t i;
+    for(i=0;i<sizeof(cases)/sizeof(cases[0]);++i) {
+        ASTNode* node=ast_create(cases[i].type);
+        SemanticContext semantic;
+        int ok;
+        if(!node) return 0;
+        semantic_init(&semantic,"semantic-malformed-rules.nxf",NULL);
+        semantic_check(&semantic,node);
+        ok=semantic.error_count==1 && semantic.error_head &&
+            strstr(semantic.error_head->message,cases[i].message)!=NULL;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if(!ok) return 0;
+    }
+    return 1;
+}
+
 static int rejects_semantic_pending_node(ASTNodeType type) {
     ASTNode* node = ast_create(type);
     SemanticContext semantic;
@@ -550,6 +580,8 @@ static int check_extended_ast_semantics(void) {
         "f:main() { on Missing.Success { } }";
     const char* unknown_event =
         "f:main() { rules R() { true -> Success; } on R.Missing { } }";
+    const char* duplicate_rule_event =
+        "f:main() { rules R() { true -> Same; false -> Same; } }";
     const char* duplicate_pattern =
         "f:main() { v:choice = 1; select(choice) { Range(s,s) -> { } } }";
     const char* invalid_guard =
@@ -655,7 +687,8 @@ static int check_extended_ast_semantics(void) {
         check_source(unknown_apply,1) &&
         check_source(unknown_handler,1) &&
         check_source(unknown_event,1) &&
-        check_source(duplicate_pattern,1) &&
+        check_source(duplicate_rule_event,1) &&
+        check_source(duplicate_pattern,1)
         check_source(invalid_guard,1) &&
         check_source(select_default_not_last,1) && 
         check_source(valid_scan_else_last,0) &&
@@ -956,6 +989,10 @@ int main(int argc, char** argv) {
     }
     if (!check_malformed_pattern_ast()) {
         fprintf(stderr, "Malformed pattern AST checks failed.\n");
+        return 1;
+    }
+    if (!check_malformed_rule_ast()) {
+        fprintf(stderr, "Malformed rule AST checks failed.\n");
         return 1;
     }
     if (!check_semantic_fail_closed_nodes()) {
