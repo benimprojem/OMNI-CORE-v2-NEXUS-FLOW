@@ -663,3 +663,13 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added source fixtures for a valid registered payload, unknown payload names, invalid argument count/type, and duplicate declarations. Existing Thread module calls (listen/send/receive/done) remain ordinary calls and are not assigned Core runtime semantics.
 - Current lookup follows Semantic AST traversal order: the payload declaration must be encountered before its spawn use. Forward-reference collection has not been added yet. This ordering is recorded as current implementation behavior, not as a finalized language-wide declaration-order decision.
 - CI/local execution remains pending; tests are committed but not reported as executed.
+
+
+### Semantic checkpoint — thread payload by-value capture — 2026-11-12
+
+- `ThreadBlockEntry` now records a deduplicated capture list for outer-scope variable symbols referenced by the payload. Each record stores symbol identity, type, source scope/depth, declaration and first-use AST references; owned names/types are released with the registry.
+- Capture collection is active only while checking the payload. Symbols declared inside the payload (including nested lexical blocks) are not captured. Function/type/group symbols are not value captures.
+- Capture means copying the variable value into the spawned payload at spawn time. It does not copy the caller's stack address. Capturing a pointer copies the pointer value only; pointed-to storage is not implicitly deep-copied. Actual snapshot/transfer is a Thread runtime and OIR/Codegen responsibility.
+- Added a regression fixture that verifies one outer variable is captured exactly once while payload-local variables are excluded.
+- `listen`/`done` result transport remains owned by the Thread module and is not reimplemented in Core Semantic. Runtime spec documents the done payload kinds and listen consumer behavior.
+- Tests are committed but not executed here; CI remains pending.
