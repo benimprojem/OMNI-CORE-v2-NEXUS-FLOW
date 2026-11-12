@@ -857,6 +857,18 @@ static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
     return 0;
 }
 
+static const char* semantic_lvalue_description(ASTNode* node) {
+    if (!node) return "<missing>";
+    if (node->type == AST_IDENTIFIER)
+        return ((ASTIdentifier*)node)->name
+            ? ((ASTIdentifier*)node)->name : "<unnamed>";
+    if (node->type == AST_MEMBER_ACCESS)
+        return ((ASTMemberAccess*)node)->member_name
+            ? ((ASTMemberAccess*)node)->member_name : "<member>";
+    if (node->type == AST_INDEX_ACCESS) return "indexed element";
+    return "<expression>";
+}
+
 static int semantic_lvalue_is_const(SemanticContext* ctx, ASTNode* node) {
     if (!node) return 0;
     if (node->type == AST_IDENTIFIER) {
@@ -3703,8 +3715,11 @@ static void semantic_check_node(
                         "Postfix increment/decrement requires a mutable variable, field, or indexed element.");
                 }
             } else if (semantic_lvalue_is_const(ctx, postfix->operand)) {
-                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Postfix increment/decrement cannot modify a constant or immutable field.");
+                char message[256];
+                (void)snprintf(message, sizeof(message),
+                    "Postfix increment/decrement cannot modify immutable lvalue '%s'.",
+                    semantic_lvalue_description(postfix->operand));
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
             } else if (!operand_type || !is_numeric_primitive_type(operand_type)) {
                 char message[256];
                 (void)snprintf(message, sizeof(message),
