@@ -133,6 +133,18 @@ int main(void) {
         "f:main() !bool { ret (1 < 2) && (3 < 4) || false; }";
     static const char logical_invalid[] =
         "f:main() !bool { ret 1 && true; }";
+    static const char unary_not_valid[] =
+        "f:main() !bool { ret !true; }";
+    static const char unary_not_invalid[] =
+        "f:main() !bool { ret !1; }";
+    static const char unary_minus_valid[] =
+        "f:main() !i32 { ret -1; }";
+    static const char unary_minus_invalid[] =
+        "f:main() !i32 { ret -\\\"text\\\"; }";
+    static const char unary_bit_not_valid[] =
+        "f:main() !i32 { ret ~1; }";
+    static const char unary_bit_not_invalid[] =
+        "f:main() !f64 { ret ~1.0; }";
     if (!check_source(integer_expression, 0)) return 1;
     if (!check_source(float_expression, 0)) return 1;
     if (!check_source(mismatched_operands, 1)) return 1;
@@ -162,6 +174,12 @@ int main(void) {
     if (!check_source(shift_i64_valid_boundary, 0)) return 1;
     if (!check_source(logical_valid, 0)) return 1;
     if (!check_source(logical_invalid, 1)) return 1;
+    if (!check_source(unary_not_valid, 0)) return 1;
+    if (!check_source(unary_not_invalid, 1)) return 1;
+    if (!check_source(unary_minus_valid, 0)) return 1;
+    if (!check_source(unary_minus_invalid, 1)) return 1;
+    if (!check_source(unary_bit_not_valid, 0)) return 1;
+    if (!check_source(unary_bit_not_invalid, 1)) return 1;
     if (!check_error_detail(
         "f:main(a!u8) !u8 {\n    ret a <<< 8;\n}",
         "8-bit width", "0..7", 2)) return 1;
