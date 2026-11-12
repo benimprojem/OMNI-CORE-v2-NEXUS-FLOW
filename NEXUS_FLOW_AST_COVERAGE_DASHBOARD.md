@@ -67,7 +67,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | Program ve blok | `AST_PROGRAM`, `AST_BLOCK` | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Program declaration chain için AST graph/codec doğrulaması, `no:osmodule` policy/span ve ortak node source-span codec round-trip; OIR span metadata ayrı aşamada |
-| Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ✓ | ✓ | ~ | ~ | ~ | name/type/flags, initializer, inline_type, recursive type_expr ve ortak source-span payload round-trip; Semantic kuralları açık |
+| Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ✓ | ✓ | ~ | ~ | ~ | `c:` initializer zorunluluğu ve compile-time constant-expression kontrolü ✓; `v:` inference/type_expr uyumu, recursive type payload ve ortak source-span round-trip açık |
 | Immutable `m:` | `AST_MUST_DECL` (103) | ✓ | ✓ | ✓ | ✓ | D | — | Derleme zamanı/sabit değer sınırları; runtime lowering gerektirmeyen karar korunmalı |
 | NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | name, target_type ve recursive target_type_expr payload round-trip; Semantic type identity açık |
 | Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | name, packed/visibility/export flags ve ordered field chain round-trip; layout ve lowering açık |
@@ -706,3 +706,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added source-level regression fixtures for global-to-function visibility, duplicate global declarations, nested shadowing, nested-block leakage and sibling-block isolation.
 - Program/block Semantic scope is marked complete in the dashboard. Program declaration-chain AST graph/codec validation, `no:osmodule` policy/source-span handling and OIR span metadata remain separate open work.
 - Test fixtures are committed; execution and CI status have not yet been verified.
+
+
+### Semantic checkpoint — `c:` compile-time constant rules — 2026-11-12
+
+- `c:` declarations now require an initializer. Semantic accepts literal expressions, pure unary/binary constant expressions, constant array/tuple/struct literals, casts of constant values and references to previously declared `c:` values.
+- Runtime function calls, mutable variable reads and `m:` runtime-immutable values are rejected as `c:` initializers. The distinction is preserved: `m:` remains an immutable binding whose initializer may execute at runtime.
+- Added positive and negative source fixtures for literals, arithmetic, prior-constant references, aggregate constants, missing initializers, runtime calls, mutable reads and `m:` reads.
+- Updated the normative syntax reference. The declaration row remains partial because inferred `v:` typing, recursive `type_expr` integration and source-span payload coverage are still open.
+- Test source and implementation are committed; local execution and CI remain pending.
