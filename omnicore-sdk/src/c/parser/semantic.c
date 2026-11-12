@@ -2328,7 +2328,7 @@ static void semantic_validate_irq_intrinsic(
     } else if (handler->type == AST_IDENTIFIER) {
         ASTIdentifier* id = (ASTIdentifier*)handler;
         Slot* slot = id->name ? find_slot(ctx, id->name) : NULL;
-        if (!slot || (slot->kind != SLOT_FUNC && slot->kind != SLOT_EXTERN)) {
+        if (!slot || slot->kind != SLOT_FUNC) {
             report_error(ctx, handler, ERR_SEMANTIC_UNDEFINED,
                 "irq() handler identifier must resolve to a declared function.");
         }
@@ -2369,9 +2369,9 @@ static void semantic_validate_reg_intrinsic(
         }
     }
     if (!name || name->type != AST_LITERAL ||
-        ((ASTLiteral*)name)->literal_type != LITERAL_STRING ||
-        !((ASTLiteral*)name)->value.string_value ||
-        !((ASTLiteral*)name)->value.string_value[0]) {
+        ((ASTLiteral*)name)->type != TOKEN_STRING ||
+        !((ASTLiteral*)name)->string_value ||
+        !((ASTLiteral*)name)->string_value[0]) {
         report_error(ctx, name ? name : node, ERR_SEMANTIC_TYPE_MISMATCH,
             "reg() register name must be a non-empty string literal.");
     }
@@ -3819,7 +3819,7 @@ static void semantic_validate_spawn_call(
         snprintf(message, sizeof(message),
             "spawn references unknown thread_block '%s'. Declare the named thread block before calling spawn.",
             name ? name : "<unnamed>");
-        report_error(ctx, argument, ERR_SEMANTIC_UNKNOWN_SYMBOL, message);
+        report_error(ctx, argument, ERR_SEMANTIC_UNDEFINED, message);
     }
 }
 
