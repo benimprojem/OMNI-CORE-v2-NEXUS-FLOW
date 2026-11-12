@@ -1115,7 +1115,54 @@ static int check_fast_exec_asm_semantics(void) {
         check_source(nested_scope_valid, 0);
 }
 
+static int check_intrinsic_semantics(void) {
+    const char* valid_memory =
+        "f:main() { v:x!i32 = 1; v:p = addr(x); v:n!u64 = len(\"abc\"); "
+        "v:b!u8 = peek(p); poke(p, b); }";
+    const char* invalid_addr =
+        "f:main() { v:p = addr(1 + 2); }";
+    const char* invalid_len =
+        "f:main() { v:n = len(42); }";
+    const char* invalid_peek =
+        "f:main() { v:b = peek(\"address\"); }";
+    const char* invalid_poke_value =
+        "f:main() { poke(1, \"text\"); }";
+    const char* valid_ports =
+        "f:main() { v:p!u16 = 0x3f8; v:b!u8 = inb(p); outb(p, b); }";
+    const char* invalid_inb =
+        "f:main() { v:b = inb(\"port\"); }";
+    const char* invalid_outb =
+        "f:main() { outb(1, \"value\"); }";
+    const char* valid_alloc =
+        "f:main() { v:a = area(64); v:z = zone(128); free(a); free(z); }";
+    const char* invalid_area =
+        "f:main() { v:a = area(0); }";
+    const char* invalid_zone_type =
+        "f:main() { v:a = zone(\"size\"); }";
+    const char* invalid_free =
+        "f:main() { free(\"not a handle\"); }";
+    const char* invalid_count =
+        "f:main() { peek(); poke(1); inb(); outb(1); area(); zone(1, 2); free(); }";
+    return check_source(valid_memory, 0) &&
+        check_source(invalid_addr, 1) &&
+        check_source(invalid_len, 1) &&
+        check_source(invalid_peek, 1) &&
+        check_source(invalid_poke_value, 1) &&
+        check_source(valid_ports, 0) &&
+        check_source(invalid_inb, 1) &&
+        check_source(invalid_outb, 1) &&
+        check_source(valid_alloc, 0) &&
+        check_source(invalid_area, 1) &&
+        check_source(invalid_zone_type, 1) &&
+        check_source(invalid_free, 1) &&
+        check_source(invalid_count, 7);
+}
+
 int main(int argc, char** argv) {
+    if (!check_intrinsic_semantics()) {
+        fprintf(stderr, "Memory/port/allocation intrinsic semantic checks failed.\\n");
+        return 1;
+    }
     if (!check_fast_exec_asm_semantics()) {
         fprintf(stderr, "FASTEXEC/ASM semantic checks failed.\\n");
         return 1;
