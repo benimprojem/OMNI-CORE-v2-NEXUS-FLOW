@@ -1943,3 +1943,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Added `identity(value!t)!t` and `sum(a!t,b!t)!t` positive Semantic cases instantiated with `i32`.
 - This is a bounded implicit inference slice, not full generic constraints/unification. Multiple type variables, nested callback/array generic composition and constrained type parameters remain open.
 - Commits: `1a8f8765` Semantic; `18583bf6` tests; `f12592b2` dashboard.
+
+
+### Parser source-span audit — grouped Nexus Flow right operands — 2026-11-12
+
+- Fixed `AST_NEXUS_FLOW` source stamping to use the final consumed token rather than the inner AST child end. This includes closing parentheses in grouped right operands such as `?=> (data)`.
+- Kept the exact-range test including `)`; this is a production span correction, not a syntax change.
+- Commit: `5d301071f0ea056aa92850e8d5cf0feea1995628`; coverage record `2d4c6d6f`. CI pending.
