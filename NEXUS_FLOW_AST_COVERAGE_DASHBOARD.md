@@ -25,7 +25,7 @@
 - `spawn`, `listen`, `send`, `receive` and `done` now parse as ordinary identifier callees and produce generic `AST_FUNC_CALL` nodes; their runtime/API semantics belong to the Thread library.
 - Core Semantic no longer assigns Thread-specific intrinsic identity or scheduler/IPC/lifetime behavior. Legacy serialized `AST_SPAWN`, `AST_SEND`, `AST_RECEIVE`, `AST_DONE` tags are retained for codec compatibility and traversed without new Thread rules; legacy `AST_LISTEN` is rejected rather than treated as an active core construct.
 - The old `!(listen): ...` special form is no longer part of the active Parser grammar; use `listen(...)` from the Thread module.
-- `AST_THREAD_BLOCK` remains core syntax as a named structural container. Core checks non-empty name/body and analyzes the body in an isolated lexical scope only; it does not create or schedule a thread.
+- `AST_THREAD_BLOCK` is core syntax for a complete named payload. Core validates its structure, uniqueness and isolated lexical scope; Semantic collects outer-variable by-value captures and marks their identifier annotations. Core does not create or schedule a thread.
 - Parser/Semantic regression fixture covers all five ordinary API call spellings and legacy AST_LISTEN rejection. Tests are committed but not executed here; CI remains unverified.
 
 ## OS / Thread / I/O intrinsic identity checkpoint — 2026-11-12
@@ -677,7 +677,7 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 ### Semantic checkpoint — thread payload capture refinement — 2026-11-12
 
 - Outer `SLOT_VAR` references inside a named payload are collected once by symbol identity. Payload-local declarations, including nested lexical-block locals, are excluded from capture metadata.
-- Capture metadata records the variable's type, source scope/depth, declaration and first-use node. The regression fixture references the same outer variable twice and verifies it is captured only once.
+- Capture metadata records the variable's type, source scope/depth, declaration and first-use node. Each outer identifier annotation also receives `SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE`, making the capture signal durable in the SemanticResult artifact. The regression fixture checks the flag and verifies payload-local references are not marked; another fixture verifies duplicate uses are captured once.
 - Capture is a value snapshot at spawn time. Pointer values are copied shallowly; the pointed-to allocation is not deep-copied. `done`/`listen` output transport remains governed by the Thread runtime specification.
 - Earlier dashboard statements claiming thread names had no uniqueness rule or that Core performed `spawn` callee-identity validation are superseded by the current registry implementation above.
 - Tests added; execution and CI remain pending.
