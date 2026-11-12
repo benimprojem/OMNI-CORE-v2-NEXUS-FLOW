@@ -348,3 +348,13 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Dynamic shift counts remain accepted at Semantic time because their value is not statically known; OIR/runtime must define fail-safe behavior for counts at or above the value width (trap/diagnostic rather than undefined host behavior).
 - Added boundary fixtures to test_semantic_arithmetic.c.
 - Commits: b1852e7e (Semantic), f0114097 (diagnostic clarity), c6d64269 (tests). CI pending; not marked verified.
+
+
+### Semantic diagnostics and conditional-control parser correction — 2026-11-12
+
+- Semantic diagnostics now copy the complete AST source span into the shared collector; legacy Error line/column fields fall back to the AST span when compatibility mirrors are absent.
+- Shift diagnostics identify the offending count, left operand type and width, and valid range. Bitwise and compound-bitwise diagnostics identify the operator and actual operand types.
+- Added regression assertions for diagnostic message content and exact source line/column.
+- Conditional-control expression arms can now be followed directly by the alternative separator, e.g. `(j == k) ? process(j) : process(k);`; the first expression arm defers its semicolon only when the separator follows.
+- Corrected the Parser allocation-failure fixture: it had included the deferred-AI token `??` in a source expected to parse successfully. The fixture now uses the valid halt form `?;`.
+- CI verification is pending for the current branch head; do not mark Semantic complete until the full matrix is green.
