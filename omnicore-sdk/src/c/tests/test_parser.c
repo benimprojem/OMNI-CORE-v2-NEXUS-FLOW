@@ -4648,7 +4648,8 @@ static int test_parenthesized_rolling_retry_disambiguation(void) {
 
 int main(int argc, char** argv) {
 #define CHECK_PARSER_TEST(fn) do { if (!(fn)()) { fprintf(stderr, "Parser test failed: %s\\n", #fn); return 1; } } while (0)
-    if (!test_fast_exec_raw_asm_ast() || !test_fast_exec_asm_token_stream()) return 1;
+    CHECK_PARSER_TEST(test_fast_exec_raw_asm_ast);
+    CHECK_PARSER_TEST(test_fast_exec_asm_token_stream);
     CHECK_PARSER_TEST(test_main_cli_parameter_ast);
     CHECK_PARSER_TEST(test_m_immutable_value_ast);
     CHECK_PARSER_TEST(test_no_osmodule_program_directive);
