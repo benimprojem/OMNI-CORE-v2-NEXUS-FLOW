@@ -533,3 +533,12 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added direct malformed-AST regression fixtures for all three declaration kinds.
 - Semantic commit: `f21111ea`; tests: `29e1b532`; syntax reference: `2e0ae0d7`.
 - CI/local test execution remains pending; no test-pass claim is made.
+
+
+### Semantic checkpoint — function/control AST structural integrity — 2026-11-12
+
+- Function declarations now reject missing names; ordinary function nodes reject missing bodies while method implementation naming remains supported through the enclosing method context.
+- Nexus label and jump nodes reject missing/empty label names; forward target resolution is deliberately deferred to control-flow validation.
+- defer rejects a missing body. thread_block rejects missing names and bodies before entering its local scope.
+- Added direct malformed-AST regression fixtures for each required field and missing function/thread bodies.
+- Local build/test and CI evidence remain pending.
