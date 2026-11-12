@@ -1969,11 +1969,11 @@ Semantic resolves the qualifier to an enum declaration and the member to one of 
 
 ### Group method Semantic integrity
 
-- Every AST_METHOD requires a non-empty public method name and an implementation node.
-- Ordinary methods must use an AST_FUNC_DECL or AST_EXTERN_DECL implementation. The special default handler may also use an AST_BLOCK body.
+- Every AST_METHOD requires a non-empty public method name and an implementation node. Both a missing name and an empty-string name are invalid, including externally constructed AST input.
+- Ordinary methods must use an AST_FUNC_DECL or AST_EXTERN_DECL implementation. The special `default` handler may also use an AST_BLOCK body.
 - A malformed implementation node is rejected before receiver inference or method-body checking. This is an AST/Semantic integrity rule; it does not alter valid method call syntax.
 - For an object method, the implementation's first parameter must be named `self`. Semantic infers its type from the Group-bound Struct when omitted, or verifies an explicit type against that Struct. A Group without its same-name Struct cannot declare an object receiver.
 - The `self` parameter is an implicit receiver at an instance call site: callers do not supply it positionally or by name. Positional and named arguments are matched only against the remaining declared parameters. Unknown, duplicate, or positionally conflicting named arguments are rejected.
 - A method whose implementation does not begin with `self` is static and must be called through the Group/type name. Instance calls to static methods and type-qualified calls to object methods are rejected.
-- Public Group member names are unique within a Group. Method overloading by repeating a public method name is not supported; duplicate names are rejected during Semantic validation.
-- Group-owned nominal types are visible within their owning Group (including its methods), but are not visible to sibling Groups or enclosing/outside scopes.
+- Public Group member names are unique within a Group. Method overloading by repeating a public method name is not supported; duplicate names are rejected during Semantic validation. The implementation function symbol must also be unique: aliases cannot share one implementation symbol, and a method implementation cannot collide with a direct Group function.
+- Group-owned nominal types are visible within their owning Group (including its methods), but are not visible to sibling Groups or enclosing/outside scopes. Nested Groups own separate nominal-type scopes; parent Group types do not implicitly leak into a nested Group.
