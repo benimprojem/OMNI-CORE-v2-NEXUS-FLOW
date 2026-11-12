@@ -371,7 +371,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added collector assertions for Semantic stage ID, complete source range, and line/column reporting.
 - Fixed malformed multi-character C character constants in pointer/reference type validation (`'\\0'` → `'\0'`), parser newline coordinate mapping (`'\\n'` → `'\n'`), and diagnostic test line handling. This also removes compiler warnings and restores the intended terminator/newline checks.
 - Valgrind exposed an uninitialized `SemanticContext.current_fast_exec_owner` read in FASTEXEC intrinsic validation. `semantic_init()` now initializes that scope pointer and the reserved `Language` state; regression coverage already exercises `asmcall`/`asmjmp` both inside and outside FASTEXEC.
-- After the SemanticContext initialization fix, the latest CI run passed all Linux CTest tests, ASan/UBSan, macOS, and Valgrind (including the FASTEXEC semantic test). Windows is still running; Semantic is not marked complete until the full matrix is green.
+- After the SemanticContext initialization fix, the latest CI run passed all Linux CTest tests, ASan/UBSan, macOS, and Valgrind (including the FASTEXEC semantic test). Windows also passed; the full CI matrix is green for this checkpoint. This validates the listed changes but does not close the broader Semantic phase.
 
 
 ### Semantic checkpoint — Range expression validation and iterator inference — 2026-11-12
