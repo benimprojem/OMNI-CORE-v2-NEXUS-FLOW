@@ -38,7 +38,8 @@ int main(void) {
         OIR_SEMANTIC_SCOPE_RECORD_SIZE];
     uint8_t types[OIR_SEMANTIC_TYPES_HEADER_SIZE];
     uint8_t symbols[OIR_SEMANTIC_SYMBOLS_HEADER_SIZE];
-    uint8_t annotations[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE];
+    uint8_t annotations[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE +
+        OIR_SEMANTIC_ANNOTATION_RECORD_SIZE];
     uint8_t relations[OIR_SEMANTIC_RELATIONS_HEADER_SIZE];
     uint8_t conversions[OIR_SEMANTIC_CONVERSIONS_HEADER_SIZE];
     uint8_t artifact[2048];
@@ -51,6 +52,11 @@ int main(void) {
     OirSectionInput sections[7];
     OirSemanticScope root_scope = { 1u, 0u, 0u, 0u, 0u };
     OirSemanticAstArtifactView view;
+    OirSemanticAnnotation capture_annotation = {
+        1u, 1u, 0u, 0u, OIR_SEMANTIC_VALUE_LVALUE,
+        OIR_SEMANTIC_ANNOTATION_FLAG_THREAD_CAPTURE
+    };
+    OirSemanticAnnotation decoded_annotation;
     uint32_t incoming[1], owner_scope[2];
     uint8_t visited[1];
     OirAstGraphStackEntry stack[1];
@@ -79,7 +85,7 @@ int main(void) {
     CHECK(oir_semantic_symbols_write(symbols, sizeof(symbols),
         NULL, 0u, NULL, 0u, &symbol_written) == OIR_STATUS_OK);
     CHECK(oir_semantic_annotations_write(annotations, sizeof(annotations),
-        NULL, 0u, &annotation_written) == OIR_STATUS_OK);
+        &capture_annotation, 1u, &annotation_written) == OIR_STATUS_OK);
     CHECK(oir_semantic_relations_write(relations, sizeof(relations),
         NULL, 0u, NULL, 0u, &relation_written) == OIR_STATUS_OK);
     CHECK(oir_semantic_conversions_write(conversions, sizeof(conversions),
@@ -118,10 +124,19 @@ int main(void) {
     CHECK(view.envelope.header.job_id == 42u &&
         view.ast.node_count == 1u && view.scopes.record_count == 1u &&
         view.types.record_count == 0u && view.symbols.record_count == 0u &&
-        view.annotations.record_count == 0u && view.relations.record_count == 0u &&
+        view.annotations.record_count == 1u && view.relations.record_count == 0u &&
         view.has_conversions == 0u);
+    CHECK(oir_semantic_annotations_get(
+        &view.annotations, 0u, &decoded_annotation) == OIR_STATUS_OK);
+    CHECK(decoded_annotation.node_id == 1u &&
+        decoded_annotation.flags == OIR_SEMANTIC_ANNOTATION_FLAG_THREAD_CAPTURE);
 
-    /* Schema 1.0 remains readable when no 1.1 Group records are present. */
+    /* Schema 1.0 remains readable when no 1.1 Group records or annotation flags are present. */
+    capture_annotation.flags = 0u;
+    CHECK(oir_semantic_annotations_write(annotations, sizeof(annotations),
+        &capture_annotation, 1u, &annotation_written) == OIR_STATUS_OK);
+    sections[4].data = annotations;
+    sections[4].length = annotation_written;
     header.payload_schema_minor = 0u;
     CHECK(oir_artifact_write(artifact, sizeof(artifact), &header,
         sections, 6u, &artifact_written) == OIR_STATUS_OK);
