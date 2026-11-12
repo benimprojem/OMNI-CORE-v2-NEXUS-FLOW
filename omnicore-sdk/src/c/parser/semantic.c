@@ -1347,7 +1347,6 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 SEMANTIC_RESULT_VALUE_RVALUE);
             return type_name ? type_name : "any";
         }
-
         case AST_LAMBDA:
             semantic_record_annotation(
                 ctx, node, NULL, "any", SEMANTIC_RESULT_VALUE_RVALUE);
@@ -4643,6 +4642,19 @@ static void semantic_check_node(
             break;
         }
 
+        case AST_NEXUS_PIPE: {
+            ASTNexusFlow* pipe = (ASTNexusFlow*)node;
+            if (!pipe->left || !pipe->right) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Nexus pipe requires both left and right operands.");
+                break;
+            }
+            semantic_check(ctx, pipe->left);
+            semantic_check(ctx, pipe->right);
+            if (pipe->catch_block) semantic_check(ctx, pipe->catch_block);
+            break;
+        }
+
         case AST_NEXUS_FLOW: {
             ASTNexusFlow* flow = (ASTNexusFlow*)node;
             if (!flow->left || !flow->right) {
@@ -4973,81 +4985,6 @@ static void semantic_check_node(
             ASTRelocate* relocate=(ASTRelocate*)node;
             const char* source_type;
             const char* target_type;
-            Slot* source_handler = NULL;
-            Slot* target_handler = NULL;
-            if (relocate->source && relocate->source->type == AST_IDENTIFIER)
-                source_handler = find_slot(ctx,
-                    ((ASTIdentifier*)relocate->source)->name);
-            if (relocate->target && relocate->target->type == AST_IDENTIFIER)
-                target_handler = find_slot(ctx,
-                    ((ASTIdentifier*)relocate->target)->name);
-
-            if (source_handler && source_handler->is_handler &&
-                target_handler && target_handler->is_handler) {
-                const char* source_name =
-                    ((ASTIdentifier*)relocate->source)->name;
-                const char* target_name =
-                    ((ASTIdentifier*)relocate->target)->name;
-                if (source_handler == target_handler) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Relocate source and destination handlers must be different.");
-                    break;
-                }
-                if (source_handler->handler_is_moved) {
-                    report_error(ctx, relocate->source,
-                        ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Relocate source handler was already moved.");
-                    break;
-                }
-                if (source_handler->handler_is_empty) {
-                    report_error(ctx, relocate->source,
-                        ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Relocate source handler is empty; there is no ownership to transfer.");
-                    break;
-                }
-                if (target_handler->handler_is_moved ||
-                    !target_handler->handler_is_empty) {
-                    report_error(ctx, relocate->target,
-                        ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Relocate destination must be a declared, empty handler.");
-                    break;
-                }
-                if (!source_handler->type_name ||
-                    !source_handler->type_name[0]) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Relocate source handler has no resolved payload type.");
-                    break;
-                }
-                {
-                    char* moved_type = semantic_duplicate(
-                        ctx, source_handler->type_name);
-                    if (!moved_type) {
-                        semantic_set_result_error(
-                            ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
-                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Could not record relocated handler payload type.");
-                        break;
-                    }
-                    free(target_handler->type_name);
-                    target_handler->type_name = moved_type;
-                    target_handler->type_id = semantic_type_id(
-                        ctx, moved_type, 0);
-                }
-                source_handler->handler_is_moved = 1u;
-                target_handler->handler_is_empty = 0u;
-                semantic_record_annotation(ctx, relocate->source,
-                    source_handler, source_handler->type_name,
-                    SEMANTIC_RESULT_VALUE_LVALUE);
-                semantic_record_annotation(ctx, relocate->target,
-                    target_handler, target_handler->type_name,
-                    SEMANTIC_RESULT_VALUE_LVALUE);
-                semantic_record_annotation(ctx, node, target_handler,
-                    target_handler->type_name, SEMANTIC_RESULT_VALUE_RVALUE);
-                (void)source_name;
-                (void)target_name;
-                break;
-            }
-
             semantic_check(ctx,relocate->source);
             semantic_check(ctx,relocate->target);
             source_type=get_expr_type(ctx,relocate->source);
