@@ -812,7 +812,8 @@ SemanticResultStatus semantic_result_finalize(
             annotation->resolved_symbol_id > result->symbol_count ||
             annotation->resolved_type_id > result->type_count ||
             annotation->value_category > SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR ||
-            (annotation->flags & (uint16_t)~SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER) != 0u) {
+            (annotation->flags & (uint16_t)~(SEMANTIC_RESULT_ANNOTATION_FLAG_ADDRESS_RECEIVER |
+                SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE)) != 0u) {
             return SEMANTIC_RESULT_INVALID_DATA;
         }
         if ((annotation->flags &
