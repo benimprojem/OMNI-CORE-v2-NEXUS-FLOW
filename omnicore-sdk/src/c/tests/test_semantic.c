@@ -1823,6 +1823,21 @@ static int check_group_method_dispatch_semantics(void) {
         "f:main() { group Storage { "
         "run => f:run_impl(self) { v:other!Storage = self; other.no_such_method(); ret; } "
         "struct:Storage { v:value!i32 } } }";
+    const char* duplicate_public_method_alias =
+        "f:main() { group Storage { "
+        "open => f:first_impl(self) { ret; } "
+        "open => f:second_impl(self) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* duplicate_method_implementation_name =
+        "f:main() { group Storage { "
+        "open => f:shared_impl(self) { ret; } "
+        "close => f:shared_impl(self) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* method_implementation_collides_with_direct_function =
+        "f:main() { group Storage { "
+        "open => f:shared_impl(self) { ret; } "
+        "f:shared_impl(value!i32) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
 
     return check_source(instance_call_to_later_method, 0) &&
         check_source(anonymous_instance_method_implementation, 0) &&
@@ -1841,7 +1856,10 @@ static int check_group_method_dispatch_semantics(void) {
         check_source(type_call_to_instance_method, 1) &&
         check_source(wrong_method_argument_type, 1) &&
         check_source(wrong_method_argument_count, 1) &&
-        check_source(unknown_group_method, 1);
+        check_source(unknown_group_method, 1) &&
+        check_source(duplicate_public_method_alias, 1) &&
+        check_source(duplicate_method_implementation_name, 1) &&
+        check_source(method_implementation_collides_with_direct_function, 1);
 }
 
 static int check_group_type_scope_semantics(void) {
