@@ -451,7 +451,7 @@ int main(void) {
             annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
 
         memcpy(annotation_bad, annotation_bytes, annotation_written);
-        annotation_bad[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE + 18u] = 2u;
+        annotation_bad[OIR_SEMANTIC_ANNOTATIONS_HEADER_SIZE + 18u] = 4u;
         assert(oir_semantic_annotations_open(annotation_bad,
             annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
 
