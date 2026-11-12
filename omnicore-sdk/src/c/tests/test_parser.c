@@ -4095,7 +4095,7 @@ static int test_string_append_assignment_ast(void) {
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         ctx->error_count != 0 || !ctx->ast_root ||
-        !ast_validate(ctx->ast_root)) goto done;
+        !ast_validate(ctx->ast_root, NULL)) goto done;
 
     function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if (!function || function->base.type != AST_FUNC_DECL ||
@@ -4157,7 +4157,7 @@ static int test_numeric_and_flow_shift_operators(void) {
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         ctx->error_count != 0 || !ctx->ast_root ||
-        !ast_validate(ctx->ast_root)) goto done;
+        !ast_validate(ctx->ast_root, NULL)) goto done;
 
     function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK)
@@ -4266,7 +4266,7 @@ static int test_increment_decrement_parser_forms(void) {
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         ctx->error_count != 0 || !ctx->ast_root ||
-        !ast_validate(ctx->ast_root)) goto done;
+        !ast_validate(ctx->ast_root, NULL)) goto done;
     function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK)
         goto done;
@@ -4327,7 +4327,7 @@ static int test_equality_operator_parser_forms(void) {
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         ctx->error_count != 0 || !ctx->ast_root ||
-        !ast_validate(ctx->ast_root)) goto done;
+        !ast_validate(ctx->ast_root, NULL)) goto done;
     function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK)
         goto done;
@@ -4392,7 +4392,7 @@ static int test_relational_and_unary_operator_parser_forms(void) {
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         ctx->error_count != 0 || !ctx->ast_root ||
-        !ast_validate(ctx->ast_root)) goto done;
+        !ast_validate(ctx->ast_root, NULL)) goto done;
     function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK)
         goto done;
@@ -4463,7 +4463,7 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
     if (!ctx) return 0;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         ctx->error_count != 0 || !ctx->ast_root ||
-        !ast_validate(ctx->ast_root)) goto done;
+        !ast_validate(ctx->ast_root, NULL)) goto done;
     function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK)
         goto done;
