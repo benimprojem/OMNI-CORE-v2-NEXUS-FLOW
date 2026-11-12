@@ -2138,3 +2138,11 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Semantic commit: `b4ddabcc`; test commit: `b035063a`; dashboard: `67e2ee9b`.
 - CI/local C test çalıştırması bu ortamda yürütülmedi; pending olarak kalır.
 - Thread runtime/IPC semantics ve `prnt/prmt` target sink ABI'si açık tasarım işleri olmaya devam ediyor.
+
+
+### 2026-11-12 — thread_block scope ownership correction
+
+- Tightened the AST contract: `thread_block` must contain an `AST_BLOCK`; a non-NULL arbitrary node is not accepted.
+- The child `AST_BLOCK` is now the sole lexical-scope owner. Removed the redundant outer scope from `AST_THREAD_BLOCK`; local declarations remain isolated by ordinary block semantics.
+- Added direct malformed-AST and source-level scope-leak fixtures. Core remains unaware of Thread scheduling, IPC, handles and lifetime.
+- CI/test execution is pending; fixture presence is not a pass claim.
