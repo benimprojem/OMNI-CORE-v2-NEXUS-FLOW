@@ -1022,6 +1022,13 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 ctx, node, NULL, element_type, SEMANTIC_RESULT_VALUE_LVALUE);
             return element_type;
         }
+        case AST_NAMED_ARG: {
+            ASTNamedArg* named=(ASTNamedArg*)node;
+            const char* value_type=get_expr_type(ctx,named->value);
+            semantic_record_annotation(ctx,node,NULL,value_type,
+                SEMANTIC_RESULT_VALUE_RVALUE);
+            return value_type;
+        }
         case AST_TUPLE: {
             ASTNode* element=((ASTTuple*)node)->elements;
             for(;element;element=element->next) {
@@ -2439,6 +2446,10 @@ static void semantic_check_node(
 
         case AST_ARRAY_LITERAL:
             semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
+            break;
+        case AST_NAMED_ARG:
+            semantic_check(ctx,((ASTNamedArg*)node)->value);
+            (void)get_expr_type(ctx,node);
             break;
         case AST_INDEX_ACCESS: {
             ASTIndexAccess* access = (ASTIndexAccess*)node;
