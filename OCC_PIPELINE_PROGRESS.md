@@ -2080,3 +2080,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 | Reserved AST_AI_LOGIC fails closed | ✓ | ✓ | CI pending |
 
 Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID satırlarının Semantic sütunu, tüm type/scope/effect/control-flow kuralları tamamlanmadığı için ~ kalır.
+
+
+### Semantic checkpoint — Nexus/argument AST structural integrity — 2026-11-12
+
+- Added fail-closed validation for AST_NEXUS_CAPTURE (handler + expression), AST_NEXUS_PIPE (both operands), AST_NAMED_ARG (name + value) and AST_LISTEN (handler name before scope entry).
+- Added direct malformed-AST regression fixtures. Full handler/event lifetime, pipe effects and listen runtime semantics remain open.
+- Dashboard alt-coverage checkmarks represent implementation + fixture presence; CI is pending.
