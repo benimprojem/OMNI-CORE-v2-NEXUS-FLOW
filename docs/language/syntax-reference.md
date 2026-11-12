@@ -1659,7 +1659,7 @@ Donanım erişimi hedef mimariye ve çalışma ayrıcalıklarına bağlıdır; a
 - `irq(number, handler)`: iki argüman. `number` integer; `handler` tanımlı fonksiyon identifier veya callable expression olmalıdır.
 - `reg(r, "register-name")`: register okuma; `reg(w, "register-name", value)`: register yazma. İşlem `r`/`w`, ad boş olmayan string literal, yazma değeri integer/address.
 - Register adı ve IRQ numarasının hedef CPU/OS tarafından desteklenmesi, privilege kontrolü ve handler ABI doğrulaması backend/target aşamasında ayrıca yapılır.
-- `intr(n)` ayrı interrupt çağırma intrinsic'idir; henüz burada IRQ handler tanımlama ile aynı işlem kabul edilmez.
+- `intr(n)`: bir integer interrupt numarasıyla interrupt çağırma intrinsic'idir; IRQ handler tanımlama (`irq(n, handler)`) ile aynı işlem değildir.
 
 ### 14.2 Meta ve Yansıma (Reflection)
 
