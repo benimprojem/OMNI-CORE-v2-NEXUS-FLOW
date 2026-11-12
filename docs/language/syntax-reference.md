@@ -115,7 +115,7 @@ v:val = 10E3; # Scientific notation
 # Üslü sayılar.
 v:vall= 10^^15;
 
-`c:` derleme zamanı sabitidir; derleme zamanı değerlendirilebilen ifadelerde kullanılmak üzere tasarlanmıştır. `m:` ise normal bir değer bildirir: initializer çalıştırılır/değerlendirilir, değer okunabilir, ancak isim üzerinden sonradan yeniden atama veya güncelleme yapılamaz. `m:` türünü initializer ifadesinden çıkarır ve program/blok kapsamında kullanılabilir.
+`c:` derleme zamanı sabitidir: initializer zorunludur ve yalnızca derleme zamanında belirlenebilen sabit ifadelerden oluşabilir. Literal'lar, sabit unary/binary işlemler, sabit array/tuple/struct literal'ları, sabit değer üzerinde cast ve daha önce tanımlanmış başka `c:` sabitlerine referans kullanılabilir. Fonksiyon çağrıları, mutable değişken okumaları ve `m:` değerleri `c:` initializer'ında kullanılamaz. `m:` ise normal bir değer bildirir: initializer çalışma zamanında değerlendirilebilir, değer okunabilir, ancak isim üzerinden sonradan yeniden atama veya güncelleme yapılamaz. `m:` türünü initializer ifadesinden çıkarır ve program/blok kapsamında kullanılabilir.
 
 `use` modül/kaynak yükleme ve import işlemidir; `m:` dosya varlığı kontrolü veya dependency bildirimi değildir.
 
