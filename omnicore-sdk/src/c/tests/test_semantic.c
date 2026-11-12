@@ -1064,6 +1064,11 @@ static int check_enum_declaration_semantics(void) {
     ASTEnumDecl* missing_type = NULL;
     ASTEnumVariant* missing_type_variant = NULL;
     ASTVarDecl* untyped_payload = NULL;
+    ASTEnumDecl* missing_enum_name = NULL;
+    ASTEnumDecl* missing_variant_name = NULL;
+    ASTEnumVariant* unnamed_variant = NULL;
+    ASTEnumDecl* duplicate_payload = NULL;
+    ASTEnumVariant* duplicate_payload_variant = NULL;
     int ok = 0;
 
     if (!valid || !ok_variant || !error_variant || !ok_payload || !error_payload)
@@ -1158,6 +1163,58 @@ static int check_enum_declaration_semantics(void) {
                 "payload field requires an explicit type")) goto cleanup;
     }
 
+    missing_enum_name = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    if (!missing_enum_name) goto cleanup;
+    {
+        ASTNode* owned = (ASTNode*)missing_enum_name;
+        missing_enum_name = NULL;
+        if (!check_enum_ast_case(owned, 1,
+                "Enum declaration requires a non-empty type name")) goto cleanup;
+    }
+
+    missing_variant_name = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    unnamed_variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    if (!missing_variant_name || !unnamed_variant) goto cleanup;
+    missing_variant_name->name = semantic_test_copy_text("State");
+    missing_variant_name->variants = (ASTNode*)unnamed_variant;
+    if (!missing_variant_name->name) goto cleanup;
+    {
+        ASTNode* owned = (ASTNode*)missing_variant_name;
+        missing_variant_name = NULL;
+        unnamed_variant = NULL;
+        if (!check_enum_ast_case(owned, 1,
+                "Enum variant requires a non-empty name")) goto cleanup;
+    }
+
+    duplicate_payload = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
+    duplicate_payload_variant =
+        (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
+    payload_a = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    payload_b = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+    if (!duplicate_payload || !duplicate_payload_variant ||
+        !payload_a || !payload_b) goto cleanup;
+    duplicate_payload->name = semantic_test_copy_text("Result");
+    duplicate_payload_variant->name = semantic_test_copy_text("Ok");
+    payload_a->name = semantic_test_copy_text("value");
+    payload_a->type_name = semantic_test_copy_text("i32");
+    payload_b->name = semantic_test_copy_text("value");
+    payload_b->type_name = semantic_test_copy_text("i32");
+    if (!duplicate_payload->name || !duplicate_payload_variant->name ||
+        !payload_a->name || !payload_a->type_name ||
+        !payload_b->name || !payload_b->type_name) goto cleanup;
+    payload_a->base.next = (ASTNode*)payload_b;
+    duplicate_payload_variant->data = (ASTNode*)payload_a;
+    duplicate_payload->variants = (ASTNode*)duplicate_payload_variant;
+    {
+        ASTNode* owned = (ASTNode*)duplicate_payload;
+        duplicate_payload = NULL;
+        duplicate_payload_variant = NULL;
+        payload_a = NULL;
+        payload_b = NULL;
+        if (!check_enum_ast_case(owned, 1,
+                "declares payload field 'value' more than once")) goto cleanup;
+    }
+
     return ok;
 
 cleanup_valid:
@@ -1167,6 +1224,9 @@ cleanup:
     ast_destroy((ASTNode*)malformed_variant);
     ast_destroy((ASTNode*)malformed_payload);
     ast_destroy((ASTNode*)missing_type);
+    ast_destroy((ASTNode*)missing_enum_name);
+    ast_destroy((ASTNode*)missing_variant_name);
+    ast_destroy((ASTNode*)duplicate_payload);
     return 0;
 }
 
