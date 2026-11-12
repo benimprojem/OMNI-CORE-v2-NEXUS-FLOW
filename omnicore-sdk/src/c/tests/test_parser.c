@@ -4447,7 +4447,7 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
         "}";
     const char* spans[] = {
         "operation() ?-> (e) { echo(e); }",
-        "operation() ?=> (data",
+        "operation() ?=> (data)",
         "operation() !-> continue_flow()"
     };
     const char* names[] = { "caught", "fallback", "ignored" };
