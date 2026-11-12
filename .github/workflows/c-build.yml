@@ -75,3 +75,12 @@ jobs:
 
       - name: Run CTest under Valgrind
         run: ctest --test-dir build-valgrind -T memcheck --output-on-failure
+
+      - name: Publish Valgrind diagnostic details
+        if: always()
+        run: |
+          for log in build-valgrind/Testing/Temporary/MemoryChecker.*.log; do
+            [ -f "$log" ] || continue
+            echo "===== $log ====="
+            cat "$log"
+          done
