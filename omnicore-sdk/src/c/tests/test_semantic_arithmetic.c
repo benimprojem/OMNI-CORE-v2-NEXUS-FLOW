@@ -186,7 +186,7 @@ int main(void) {
     static const char range_loop_mixed_invalid[] =
         "f:main() { loop (0..2.5) { echo(it); } }";
     static const char valid_len_string[] =
-        "f:main() !u64 { ret len(\"text\"); }";
+        "f:main() { v:msg = \"text\"; v:length = len(msg); }";
     static const char valid_len_array[] =
         "f:main() { v:items = [1,2,3]; v:length = len(items); }";
     static const char invalid_len_scalar[] =
@@ -198,7 +198,7 @@ int main(void) {
     static const char valid_peek[] =
         "f:main() { v:value = peek(1024); }";
     static const char invalid_peek_string[] =
-        "f:main() !u8 { ret peek(\"address\"); }";
+        "f:main() { v:value = peek(\"address\"); }";
     static const char valid_poke[] =
         "f:main() { poke(1024, 7); }";
     static const char invalid_poke_arity[] =
