@@ -1537,6 +1537,45 @@ cleanup:
     return 0;
 }
 
+static int check_malformed_group_method_ast(void) {
+    ASTMethod* missing_name = (ASTMethod*)ast_create(AST_METHOD);
+    ASTMethod* missing_implementation = (ASTMethod*)ast_create(AST_METHOD);
+    ASTMethod* invalid_implementation = (ASTMethod*)ast_create(AST_METHOD);
+    SemanticContext semantic;
+    int ok = 0;
+    if (!missing_name || !missing_implementation || !invalid_implementation)
+        goto cleanup;
+    missing_implementation->public_name = "open";
+    invalid_implementation->public_name = "open";
+    invalid_implementation->implementation = ast_create(AST_BLOCK);
+    if (!invalid_implementation->implementation) goto cleanup;
+
+    semantic_init(&semantic, "semantic-group-method-ast.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)missing_name);
+    ok = semantic.error_count == 1 && semantic.error_head &&
+        strstr(semantic.error_head->message, "non-empty public name") != NULL;
+    semantic_destroy(&semantic);
+    if (!ok) goto cleanup;
+
+    semantic_init(&semantic, "semantic-group-method-ast.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)missing_implementation);
+    ok = semantic.error_count == 1 && semantic.error_head &&
+        strstr(semantic.error_head->message, "missing its implementation") != NULL;
+    semantic_destroy(&semantic);
+    if (!ok) goto cleanup;
+
+    semantic_init(&semantic, "semantic-group-method-ast.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)invalid_implementation);
+    ok = semantic.error_count == 1 && semantic.error_head &&
+        strstr(semantic.error_head->message, "must be a function or extern declaration") != NULL;
+    semantic_destroy(&semantic);
+
+cleanup:
+    ast_destroy((ASTNode*)missing_name);
+    ast_destroy((ASTNode*)missing_implementation);
+    ast_destroy((ASTNode*)invalid_implementation);
+    return ok;
+}
 static int check_group_self_receiver_semantics(void) {
     const char* inferred_self_before_struct =
         "f:main() { group Storage { "
@@ -1929,6 +1968,10 @@ int main(int argc, char** argv) {
     }
     if (!check_enum_declaration_semantics()) {
         fprintf(stderr, "Enum declaration and payload semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_malformed_group_method_ast()) {
+        fprintf(stderr, "Malformed Group method AST checks failed.\n");
         return 1;
     }
     if (!check_group_self_receiver_semantics()) {
