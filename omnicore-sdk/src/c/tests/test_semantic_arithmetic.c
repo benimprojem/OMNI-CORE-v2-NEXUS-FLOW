@@ -111,6 +111,10 @@ int main(void) {
     static const char power_float[] = "f:main() !f64 { ret 2.0 ^^ 3.0; }";
     static const char power_non_numeric[] = "f:main() !bool { ret true ^^ false; }";
     static const char bitwise_valid[] = "f:main() !i32 { ret 7 & 3 | 2 ^ 1; }";
+    static const char bitwise_representation_valid[] =
+        "f:main(a!8bit, b!8bit) !8bit { ret a & b; }";
+    static const char bitwise_representation_mismatch[] =
+        "f:main(a!8bit, b!u8) !8bit { ret a | b; }";
     static const char bitwise_float[] = "f:main() !f32 { ret 7.0 & 3.0; }";
     static const char shift_valid[] = "f:main() !i32 { ret 7 <<< 2 >>> 1; }";
     static const char shift_mixed_integer_types[] =
@@ -162,6 +166,8 @@ int main(void) {
     if (!check_source(power_float, 0)) return 1;
     if (!check_source(power_non_numeric, 1)) return 1;
     if (!check_source(bitwise_valid, 0)) return 1;
+    if (!check_source(bitwise_representation_valid, 0)) return 1;
+    if (!check_source(bitwise_representation_mismatch, 1)) return 1;
     if (!check_source(bitwise_float, 1)) return 1;
     if (!check_source(shift_valid, 0)) return 1;
     if (!check_source(shift_mixed_integer_types, 0)) return 1;
@@ -201,6 +207,12 @@ int main(void) {
     if (!check_error_detail(
         "f:main() !f64 {\n    ret ~1.0;\n}",
         "Bitwise complement '~'", "f64", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!8bit, b!u8) !8bit {\n    ret a | b;\n}",
+        "Operator '|'", "8bit", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!u8) {\n    v:x!u8 = a;\n    x &= 2.0;\n}",
+        "Bitwise compound assignment", "f64", 3)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
