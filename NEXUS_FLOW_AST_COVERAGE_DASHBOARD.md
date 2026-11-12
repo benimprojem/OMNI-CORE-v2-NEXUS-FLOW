@@ -66,7 +66,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| Program ve blok | `AST_PROGRAM`, `AST_BLOCK` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Program declaration chain, `no:osmodule` policy/span ve ortak node source-span codec round-trip; OIR span metadata ayrı aşamada |
+| Program ve blok | `AST_PROGRAM`, `AST_BLOCK` | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Program declaration chain için AST graph/codec doğrulaması, `no:osmodule` policy/span ve ortak node source-span codec round-trip; OIR span metadata ayrı aşamada |
 | Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ✓ | ✓ | ~ | ~ | ~ | name/type/flags, initializer, inline_type, recursive type_expr ve ortak source-span payload round-trip; Semantic kuralları açık |
 | Immutable `m:` | `AST_MUST_DECL` (103) | ✓ | ✓ | ✓ | ✓ | D | — | Derleme zamanı/sabit değer sınırları; runtime lowering gerektirmeyen karar korunmalı |
 | NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | name, target_type ve recursive target_type_expr payload round-trip; Semantic type identity açık |
@@ -697,3 +697,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Repeated copies of the same outer symbol are deduplicated by symbol identity. Payload-local references remain ordinary local accesses and are not captured.
 - Regression fixtures cover valid repeated copy capture, direct outer access rejection, zero/multiple copy arguments and payload-local non-capture. SemanticResult integration checks the capture annotation flag.
 - Thread module `listen`/`done` behavior is unchanged and remains in the existing runtime specification.
+
+
+### Semantic checkpoint — Program ve block declaration scope — 2026-11-12
+
+- Program-level declarations share the root semantic scope and are visible to function bodies declared in the same program.
+- Each `AST_BLOCK` opens and closes a lexical scope. Nested scopes may shadow outer declarations; declarations do not leak into sibling or enclosing scopes.
+- Added source-level regression fixtures for global-to-function visibility, duplicate global declarations, nested shadowing, nested-block leakage and sibling-block isolation.
+- Program/block Semantic scope is marked complete in the dashboard. Program declaration-chain AST graph/codec validation, `no:osmodule` policy/source-span handling and OIR span metadata remain separate open work.
+- Test fixtures are committed; execution and CI status have not yet been verified.
