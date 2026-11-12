@@ -1157,6 +1157,31 @@ static int is_arithmetic_binary_operator(OmniTokenType op) {
         op == TOKEN_PERCENT || op == TOKEN_POWER;
 }
 
+static const char* semantic_binary_operator_name(OmniTokenType op) {
+    switch (op) {
+        case TOKEN_PLUS: return "+";
+        case TOKEN_MINUS: return "-";
+        case TOKEN_STAR: return "*";
+        case TOKEN_SLASH: return "/";
+        case TOKEN_PERCENT: return "%";
+        case TOKEN_POWER: return "**";
+        case TOKEN_BIT_AND: return "&";
+        case TOKEN_BIT_OR: return "|";
+        case TOKEN_BIT_XOR: return "^";
+        case TOKEN_BIT_SHL: return "<<";
+        case TOKEN_BIT_SHR: return ">>>";
+        case TOKEN_EQ: return "==";
+        case TOKEN_NEQ: return "!=";
+        case TOKEN_GT: return ">";
+        case TOKEN_LT: return "<";
+        case TOKEN_GTE: return ">=";
+        case TOKEN_LTE: return "<=";
+        case TOKEN_AND: return "&&";
+        case TOKEN_OR: return "||";
+        default: return "<unknown>";
+    }
+}
+
 static int is_integer_primitive_type(const char* type_name) {
     static const char* const names[] = {
         "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64"
@@ -2621,18 +2646,26 @@ static void semantic_check_node(
                 const char* right_type = get_expr_type(ctx, bin->right);
 
                 if (left_type && right_type) {
+                    const char* operator_name =
+                        semantic_binary_operator_name(bin->op);
+                    char message[320];
                     if (!are_types_compatible(left_type, right_type)) {
-                        char message[256];
-                        snprintf(message, sizeof(message),
-                            msg_get(ERR_SEMANTIC_TYPE_MISMATCH),
-                            left_type, right_type);
+                        (void)snprintf(message, sizeof(message),
+                            "Operator '%s' requires matching operand types; got '%s' and '%s'.",
+                            operator_name, left_type, right_type);
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                     } else if (!is_numeric_primitive_type(left_type) ||
-                               !is_numeric_primitive_type(right_type) ||
-                               (bin->op == TOKEN_PERCENT &&
-                                !is_integer_primitive_type(left_type))) {
-                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Arithmetic operators require matching numeric operands; remainder requires integer operands.");
+                               !is_numeric_primitive_type(right_type)) {
+                        (void)snprintf(message, sizeof(message),
+                            "Operator '%s' requires numeric operands; got '%s' and '%s'.",
+                            operator_name, left_type, right_type);
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    } else if (bin->op == TOKEN_PERCENT &&
+                               !is_integer_primitive_type(left_type)) {
+                        (void)snprintf(message, sizeof(message),
+                            "Operator '%%' requires integer operands; got '%s' and '%s'.",
+                            left_type, right_type);
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                     }
                 }
             }
@@ -2647,8 +2680,13 @@ static void semantic_check_node(
                     (!left_type || is_integer_primitive_type(left_type)) &&
                     (!right_type || is_integer_primitive_type(right_type));
                 if (!operands_valid) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Bit shifts require integer operands.");
+                    char message[320];
+                    (void)snprintf(message, sizeof(message),
+                        "Operator '%s' requires integer operands; got '%s' and '%s'.",
+                        semantic_binary_operator_name(bin->op),
+                        left_type ? left_type : "<unknown>",
+                        right_type ? right_type : "<unknown>");
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                 } else if (left_type &&
                            semantic_integer_type_width(left_type, &value_width,
                                                       &value_is_unsigned) &&
@@ -2716,13 +2754,19 @@ static void semantic_check_node(
                 const char* right_type = get_expr_type(ctx, bin->right);
                 if (left_type && right_type &&
                     !are_types_compatible(left_type, right_type)) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Comparison operands must have compatible types.");
+                    char message[320];
+                    (void)snprintf(message, sizeof(message),
+                        "Operator '%s' requires compatible operand types; got '%s' and '%s'.",
+                        semantic_binary_operator_name(bin->op), left_type, right_type);
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                 } else if ((bin->op == TOKEN_GT || bin->op == TOKEN_LT ||
                             bin->op == TOKEN_GTE || bin->op == TOKEN_LTE) &&
                            left_type && !is_numeric_primitive_type(left_type)) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Ordered comparisons require numeric operands.");
+                    char message[320];
+                    (void)snprintf(message, sizeof(message),
+                        "Operator '%s' requires numeric operands; got '%s'.",
+                        semantic_binary_operator_name(bin->op), left_type);
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                 }
             } else if (bin->op == TOKEN_AND || bin->op == TOKEN_OR) {
                 if (!semantic_is_boolean_condition(ctx, bin->left) ||
