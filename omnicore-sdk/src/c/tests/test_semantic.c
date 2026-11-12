@@ -349,6 +349,35 @@ static int check_malformed_nexus_and_argument_ast(void) {
     return 1;
 }
 
+static int check_malformed_intrinsic_ast(void) {
+    ASTNode* node = ast_create(AST_PEEK);
+    SemanticContext semantic;
+    int ok;
+    if (!node) return 0;
+    semantic_init(&semantic, "semantic-missing-intrinsic-callee.nxf", NULL);
+    semantic_check(&semantic, node);
+    ok = semantic.error_count >= 1 && semantic.error_head &&
+        strstr(semantic.error_head->message,
+            "Intrinsic AST is missing its callee identifier") != NULL;
+    semantic_destroy(&semantic);
+    ast_destroy(node);
+    if (!ok) return 0;
+
+    node = ast_create(AST_AREA);
+    if (!node) return 0;
+    ((ASTCall*)node)->callee = ast_create(AST_IDENTIFIER);
+    if (!((ASTCall*)node)->callee) { ast_destroy(node); return 0; }
+    ((ASTIdentifier*)((ASTCall*)node)->callee)->name = "zone";
+    semantic_init(&semantic, "semantic-wrong-intrinsic-callee.nxf", NULL);
+    semantic_check(&semantic, node);
+    ok = semantic.error_count >= 1 && semantic.error_head &&
+        strstr(semantic.error_head->message,
+            "Intrinsic AST callee must be 'area'") != NULL;
+    semantic_destroy(&semantic);
+    ast_destroy(node);
+    return ok;
+}
+
 static int check_unnamed_declaration_ast(void) {
     static const struct {
         ASTNodeType type;
@@ -1206,6 +1235,10 @@ int main(int argc, char** argv) {
     }
     if (!check_malformed_function_and_control_ast()) {
         fprintf(stderr, "Malformed function/control AST checks failed.\\n");
+        return 1;
+    }
+    if (!check_malformed_intrinsic_ast()) {
+        fprintf(stderr, "Malformed intrinsic AST checks failed.\n");
         return 1;
     }
     if (!check_unnamed_declaration_ast()) {
