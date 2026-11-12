@@ -460,6 +460,11 @@ static int check_extended_ast_semantics(void) {
         "f:main() { v:choice = 1; select(choice) { Range(s,s) -> { } } }";
     const char* invalid_guard =
         "f:main() { v:choice = 1; scan(choice) { Range(a,b) when 1 -> { } } }";
+    const char* valid_tuple_indexing =
+        "f:main() { v:pair = (1, \"x\"); "
+        "v:first!i32 = pair[0]; v:second!str = pair[1]; }";
+    const char* invalid_tuple_index =
+        "f:main() { v:pair = (1, \"x\"); v:bad = pair[2]; }";
     const char* inferred_generic_identity =
         "f:identity(value!t)!t { ret value; } "
         "f:main() { v:result!i32 = identity(7); }";
@@ -487,6 +492,8 @@ static int check_extended_ast_semantics(void) {
         check_source(unknown_event,1) &&
         check_source(duplicate_pattern,1) &&
         check_source(invalid_guard,1) &&
+        check_source(valid_tuple_indexing,0) &&
+        check_source(invalid_tuple_index,1) &&
         check_source(inferred_generic_identity,0) &&
         check_source(inferred_generic_sum,0) &&
         check_source(inferred_select_binding,0) &&
