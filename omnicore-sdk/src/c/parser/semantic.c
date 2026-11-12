@@ -3407,8 +3407,8 @@ static void semantic_check_node(
                 int shift_status = semantic_eval_shift_count(
                     bin->right, &shift_amount);
                 int operands_valid =
-                    left_type && is_bitwise_primitive_type(left_type) &&
-                    right_type && is_integer_primitive_type(right_type);
+                    (!left_type || is_bitwise_primitive_type(left_type)) &&
+                    (!right_type || is_integer_primitive_type(right_type));
                 if (!operands_valid) {
                     char message[320];
                     (void)snprintf(message, sizeof(message),
