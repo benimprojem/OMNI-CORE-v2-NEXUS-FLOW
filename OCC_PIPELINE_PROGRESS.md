@@ -2213,3 +2213,13 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added positive/negative fixtures covering constant literals/expressions/references/aggregates and the invalid initializer cases; updated the normative syntax reference and coverage dashboard.
 - The `AST_VAR_DECL` dashboard row remains `~`: inferred `v:` typing, recursive `type_expr` integration and common source-span round-trip are not closed.
 - Test source is committed but has not been executed locally. CI status is pending/unreported.
+
+
+### Semantic review — Variable, NewType and Struct declarations — 2026-11-12
+
+- Completed the missing `c:` compile-time initializer rule and added tests for required initializers, pure expressions, prior constant references, aggregate constants, runtime calls, mutable reads and `m:` reads.
+- Reviewed `v:` inference and declared-type compatibility, inline array/vector checks and recursive `type_expr` validation; existing Semantic tests cover valid and invalid cases.
+- Reviewed NewType target/recursive type validation, nominal identity, alias chains and assignment/call/return compatibility; existing fixtures cover these contracts.
+- Reviewed Struct field name/type/duplicate validation, packed/public/exported symbol metadata, aggregate member access and literal completeness.
+- Updated the AST coverage dashboard: Semantic columns for `AST_VAR_DECL`, `AST_NEWTYPE_DECL` and `AST_STRUCT_DECL` are now ✓. AST payload round-trip, layout, OIR and Verifier work remain open.
+- Implementation and test fixtures are committed. CI has not reported a status/workflow for the current commits; no test pass is claimed.
