@@ -249,3 +249,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Parser now stamps the Flow production from its left child through the actual final consumed token, preserving the full grouped operand span.
 - The catch/fallback/ignore exact-span fixture retains the closing `)` and now verifies the complete source production.
 - Commit: `5d301071`. CI pending.
+
+
+### Semantic checkpoint — tuple values and static indexing — 2026-11-12
+
+- Removed the previous fail-closed tuple diagnostic: tuple elements are semantically visited, the tuple expression is annotated as `tuple`, and SemanticResult uses its existing `TYPE_TUPLE` kind.
+- Static tuple indexing now returns the selected element's inferred type; negative and out-of-range constant indexes emit Semantic diagnostics. Dynamic tuple indexes remain `any` (runtime dispatch/bounds belongs to OIR).
+- Added heterogeneous tuple inference/index positive cases and out-of-range negative case.
+- Commits: `37c87fea`, `0b06e621` (Semantic), `cd3795d9` (tests). CI pending.
