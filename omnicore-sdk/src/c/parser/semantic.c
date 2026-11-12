@@ -3365,14 +3365,12 @@ static void semantic_validate_call_arguments(
     uint32_t expected_count;
     ASTNode* argument;
     uint32_t argument_index = 0u;
-    int has_named_arguments = 0;
     ASTFuncDecl* declaration = NULL;
 
     if (!ctx || !function_slot) return;
     for (argument = arguments; argument; argument = argument->next) {
         ++argument_count;
-        if (argument->type == AST_NAMED_ARG) has_named_arguments = 1;
-        else ++positional_count;
+        if (argument->type != AST_NAMED_ARG) ++positional_count;
     }
 
     if (function_slot->param_count < (int)parameter_offset) {
