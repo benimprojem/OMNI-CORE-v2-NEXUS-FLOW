@@ -1180,6 +1180,15 @@ Enum semantic rules:
 - A bare variant name matches only a variant with no payload. Pattern guards do not change the binding types.
 - Exhaustive enum `scan` checking, duplicate-variant arm detection and constructor expression argument binding remain open Semantic items.
 
+**Enum discriminant contract — design checkpoint (not yet active Parser syntax):**
+
+- A variant may optionally declare an explicit integral discriminant after its payload/name: `Idle = 0`, `Running(pid!u32) = 4`.
+- A variant without an explicit value receives `0` when it is the first variant, otherwise the previous variant's resolved discriminant plus one. An explicit value resets the next implicit value to explicit value plus one.
+- Discriminants are unique within one enum. Duplicate values, non-integral values, non-constant expressions and increment overflow are Semantic errors.
+- The Semantic model uses a signed 64-bit integer domain for deterministic front-end validation. The eventual OIR/target ABI chooses and validates the physical representation; this does not force every target enum to occupy 64 bits.
+- The AST should preserve the optional discriminant as an expression child (rather than only a parsed integer) so source spans, codec round-trip and compile-time constant diagnostics remain available. The AST owner/codec/validator and Parser production must be extended together before this syntax is considered active.
+- Until those implementation and regression-test steps land, examples above describe the planned contract only; existing enum syntax and behavior remain unchanged.
+
 ####  7.3 `union` (Ortak Bellek Alanı)**
 
 Kernel ve Driver yazarken aynı bellek alanına farklı tiplerle bakmak gerekir.
