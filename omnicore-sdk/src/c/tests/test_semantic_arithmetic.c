@@ -1,3 +1,4 @@
+#include "ast.h"
 #include "parser.h"
 #include "semantic.h"
 
@@ -30,6 +31,27 @@ static int check_source(const char* source, int expect_error) {
     return ok;
 }
 
+
+
+static int check_malformed_assignment(void) {
+    ASTNode* assignment = ast_create(AST_ASSIGNMENT);
+    SemanticContext semantic;
+    int ok;
+    if (!assignment) return 0;
+    ((ASTBinaryExpr*)assignment)->op = TOKEN_ASSIGN;
+    semantic_init(&semantic, "malformed-assignment.nxf", NULL);
+    semantic_check(&semantic, assignment);
+    ok = semantic.error_count == 1 && semantic.error_head &&
+        semantic.error_head->message &&
+        strstr(semantic.error_head->message, "both a target") != NULL;
+    if (!ok) {
+        fprintf(stderr, "Malformed assignment was not rejected safely. errors=%d\n",
+            semantic.error_count);
+    }
+    semantic_destroy(&semantic);
+    ast_destroy(assignment);
+    return ok;
+}
 
 static int check_error_detail(const char* source, const char* required_a,
     const char* required_b, int expected_line) {
@@ -242,7 +264,14 @@ int main(void) {
         "Operator '|'", "8bit", 2)) return 1;
     if (!check_error_detail(
         "f:main(a!u8) {\n    v:x!u8 = a;\n    x &= 2.0;\n}",
-        "Bitwise compound assignment", "f64", 3)) return 1;
+        "Operator '&='", "f64", 3)) return 1;
+    if (!check_error_detail(
+        "f:main(a!u8, b!f64) {\n    a += b;\n}",
+        "Operator '+='", "u8", 2)) return 1;
+    if (!check_error_detail(
+        "f:main(a!u8) {\n    v:s!str = \"a\";\n    s .= a;\n}",
+        "Operator '.='", "u8", 3)) return 1;
+    if (!check_malformed_assignment()) return 1;
     if (!check_error_detail(
         "f:main(a!i32, b!u32) {\n    a &= b;\n}",
         "Bitwise compound assignment", "u32", 2)) return 1;
