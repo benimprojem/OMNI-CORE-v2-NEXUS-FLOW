@@ -149,6 +149,8 @@ int main(void) {
         "f:main() { v:r = 0..\"end\"; }";
     static const char range_loop_valid[] =
         "f:main() { loop (0..10) { echo(it); } }";
+    static const char range_loop_inferred_type_valid[] =
+        "f:main(a!u8, b!u8) { loop (a..b) { v:x!u8 = it; } }";
     static const char range_loop_mixed_invalid[] =
         "f:main() { loop (0..2.5) { echo(it); } }";
     static const char logical_valid[] =
@@ -204,6 +206,7 @@ int main(void) {
     if (!check_source(range_mixed_numeric_invalid, 1)) return 1;
     if (!check_source(range_non_numeric_invalid, 1)) return 1;
     if (!check_source(range_loop_valid, 0)) return 1;
+    if (!check_source(range_loop_inferred_type_valid, 0)) return 1;
     if (!check_source(range_loop_mixed_invalid, 1)) return 1;
     if (!check_source(logical_valid, 0)) return 1;
     if (!check_source(logical_invalid, 1)) return 1;
