@@ -1458,6 +1458,109 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
     return 0;
 }
 
+static void semantic_validate_type_expr(SemanticContext* ctx, ASTNode* node) {
+    ASTTypeExpr* type;
+    ASTNode* parameter;
+    if (!ctx || !node) return;
+    if (node->type != AST_TYPE_EXPR) {
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Recursive type expression contains a node that is not a type expression.");
+        return;
+    }
+    type = (ASTTypeExpr*)node;
+    switch (type->kind) {
+        case AST_TYPE_NAMED:
+            if (!type->name || !type->name[0]) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Named type expression requires a non-empty type name.");
+            } else if (!is_type_defined(ctx, type->name)) {
+                char message[256];
+                (void)snprintf(message, sizeof(message),
+                    msg_get(ERR_SEMANTIC_UNKNOWN_TYPE), type->name);
+                report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
+            }
+            break;
+
+        case AST_TYPE_POINTER:
+        case AST_TYPE_REFERENCE:
+            if (!type->child) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    type->kind == AST_TYPE_POINTER
+                        ? "Pointer type expression requires a target type."
+                        : "Reference type expression requires a target type.");
+            } else {
+                semantic_validate_type_expr(ctx, type->child);
+            }
+            break;
+
+        case AST_TYPE_ARRAY:
+            if (!type->child) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Array type expression requires an element type.");
+            } else {
+                semantic_validate_type_expr(ctx, type->child);
+            }
+            if (!type->dimensions ||
+                type->dimensions->type != AST_ARRAY_TYPE) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Array type expression requires an array dimension descriptor.");
+            } else {
+                semantic_check(ctx, type->dimensions);
+            }
+            break;
+
+        case AST_TYPE_FUNCTION:
+            if (!type->child) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Function type expression requires a return type.");
+            } else {
+                semantic_validate_type_expr(ctx, type->child);
+            }
+            for (parameter = type->params; parameter; parameter = parameter->next) {
+                if (parameter->type == AST_VARIADIC_PARAM) {
+                    if (parameter->next) {
+                        report_error(ctx, parameter, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Variadic function type marker must be the final parameter.");
+                    }
+                } else if (parameter->type == AST_VAR_DECL) {
+                    ASTVarDecl* declaration = (ASTVarDecl*)parameter;
+                    if (declaration->type_expr) {
+                        semantic_validate_type_expr(ctx, declaration->type_expr);
+                    } else if (!declaration->type_name ||
+                               !is_type_defined(ctx, declaration->type_name)) {
+                        char message[256];
+                        (void)snprintf(message, sizeof(message),
+                            msg_get(ERR_SEMANTIC_UNKNOWN_TYPE),
+                            declaration->type_name ? declaration->type_name : "<missing>");
+                        report_error(ctx, parameter, ERR_SEMANTIC_UNKNOWN_TYPE, message);
+                    }
+                } else {
+                    report_error(ctx, parameter, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Function type parameters must be typed declarations or a final variadic marker.");
+                }
+            }
+            break;
+
+        case AST_TYPE_QUALIFIED:
+            if ((type->flags & ~AST_TYPE_FLAG_HARD_TYPED) != 0u) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Type expression contains unsupported qualifier flags.");
+            }
+            if (!type->child) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Qualified type expression requires an underlying type.");
+            } else {
+                semantic_validate_type_expr(ctx, type->child);
+            }
+            break;
+
+        default:
+            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Unknown recursive type expression kind.");
+            break;
+    }
+}
+
 static int semantic_is_boolean_condition(SemanticContext* ctx, ASTNode* node) {
     const char* type_name;
     if (!node) return 0;
@@ -2390,7 +2493,7 @@ static void semantic_check_node(
                          strcmp(element_type, "union") == 0)) valid_type = 1;
                 }
 
-                if (decl->type_name && !valid_type) {
+                if (decl->type_name && !valid_type && !decl->type_expr) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_UNKNOWN_TYPE),
                         element_type ? element_type : decl->type_name);
@@ -2415,6 +2518,7 @@ static void semantic_check_node(
             }
 
             if (decl->inline_type) semantic_check(ctx, decl->inline_type);
+            if (decl->type_expr) semantic_check(ctx, decl->type_expr);
             if (declared_slot &&
                 decl->inline_type && decl->inline_type->type == AST_ARRAY_TYPE) {
                 uint32_t array_type_id = semantic_declared_type_id(ctx, decl);
@@ -2584,6 +2688,10 @@ static void semantic_check_node(
                 get_expr_type(ctx, node), SEMANTIC_RESULT_VALUE_LVALUE);
             break;
         }
+        case AST_TYPE_EXPR:
+            semantic_validate_type_expr(ctx, node);
+            break;
+
         case AST_ARRAY_TYPE:
             semantic_check(ctx,((ASTArrayType*)node)->dimensions);
             break;
@@ -3180,6 +3288,8 @@ static void semantic_check_node(
             if ((!function_name || !*function_name) &&
                 ctx->current_method_context)
                 function_name = ctx->current_method_public_name;
+            if (func->return_type_expr)
+                semantic_check(ctx, func->return_type_expr);
             if (function_name && *function_name) {
                 Slot* existing = find_slot(ctx, function_name);
                 if (existing && existing->declaration_node == node &&
@@ -3957,12 +4067,15 @@ static void semantic_check_node(
 
         case AST_NEWTYPE_DECL: {
             ASTNewTypeDecl* nt = (ASTNewTypeDecl*)node;
-            if (nt->target_type && !is_type_defined(ctx,nt->target_type)) {
+            if (nt->target_type && !is_type_defined(ctx,nt->target_type) &&
+                !nt->target_type_expr) {
                 char message[256];
                 snprintf(message,sizeof(message),msg_get(ERR_SEMANTIC_UNKNOWN_TYPE),
                     nt->target_type);
                 report_error(ctx,node,ERR_SEMANTIC_UNKNOWN_TYPE,message);
             }
+            if (nt->target_type_expr)
+                semantic_check(ctx, nt->target_type_expr);
             if (find_slot(ctx, nt->name)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "Type '%s' already defined.", nt->name);
