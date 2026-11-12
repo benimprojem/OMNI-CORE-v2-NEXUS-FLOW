@@ -55,6 +55,7 @@ typedef struct {
     Error* error_tail;
     int current_depth;
     unsigned int loop_depth;
+    unsigned int function_depth;
     const char* current_func_return_type;
     Language lang;
     /* Optional job-owned collector shared with the parser stage. */
