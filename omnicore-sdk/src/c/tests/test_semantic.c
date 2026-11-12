@@ -1121,7 +1121,8 @@ static int check_enum_scan_pattern_case(
     payload_field->name = semantic_test_copy_text("value");
     payload_field->type_name = semantic_test_copy_text("i32");
     subject_decl->name = semantic_test_copy_text("scan_value");
-    subject_decl->type_name = semantic_test_copy_text("ScanResult");
+    subject_decl->type_name = semantic_test_copy_text(
+        test_case == 4 ? "i32" : "ScanResult");
     subject->name = semantic_test_copy_text("scan_value");
     constructor->name = semantic_test_copy_text(
         test_case == 1 ? "Missing" : "Ok");
@@ -1209,7 +1210,8 @@ static int check_enum_scan_pattern_semantics(void) {
     return check_enum_scan_pattern_case(0,0,"i32") &&
         check_enum_scan_pattern_case(1,1,NULL) &&
         check_enum_scan_pattern_case(2,1,NULL) &&
-        check_enum_scan_pattern_case(3,1,NULL);
+        check_enum_scan_pattern_case(3,1,NULL) &&
+        check_enum_scan_pattern_case(4,1,NULL);
 }
 
 static int check_enum_ast_case(
