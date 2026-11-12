@@ -586,6 +586,9 @@ f:send_packets() {
 
 ### 5.2 - 6: Dallanma (If / Elsif / Els)
 
+
+**AST / Semantic bütünlük kuralı:** `if` düğümü bir koşul ifadesi ve birincil (then) statement/blok içermelidir. `els` kolu isteğe bağlıdır. Parser dışından gelen veya bozulmuş AST'de koşul ya da birincil kol eksikse Semantic açık hata üretir; eksik düğüm sessizce kabul edilmez.
+
 #### Koşullu Kontrol Operatörü `? :`
 
 Koşulun sonucuna göre tek bir kontrol veya işlem seçilir. Bu yapı ternary kontrol mantığıyla çalışır; değer döndürmek zorunda değildir.
