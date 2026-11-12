@@ -88,6 +88,12 @@ static int check_control_flow_semantics(void) {
     const char* valid_loop = "f:main() { loop (true) { break; continue; } }";
     const char* nested_function_break =
         "f:main() { loop (true) { f:nested() { break; } break; } }";
+    const char* nested_function_continue =
+        "f:main() { loop (true) { f:nested() { continue; } break; } }";
+    const char* nested_loops =
+        "f:main() { loop (true) { loop (true) { break; continue; } break; continue; } }";
+    const char* loop_scope_restored =
+        "f:main() { loop (true) { break; } break; continue; }";
     const char* valid_conditional_actions =
         "f:main() { loop (true) { (true) ? break; (false) ? continue; } }";
     const char* invalid_loop_condition =
@@ -100,7 +106,10 @@ static int check_control_flow_semantics(void) {
         check_source(invalid_condition, 1) &&
         check_source(invalid_break, 2) &&
         check_source(valid_loop, 0) &&
+        check_source(nested_loops, 0) &&
+        check_source(loop_scope_restored, 2) &&
         check_source(nested_function_break, 1) &&
+        check_source(nested_function_continue, 1) &&
         check_source(valid_conditional_actions, 0) &&
         check_source(invalid_loop_condition, 1) &&
         check_source(valid_block_cleanup, 0) &&
