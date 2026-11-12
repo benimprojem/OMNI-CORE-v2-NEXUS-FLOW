@@ -112,8 +112,8 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| `select` / arms | `AST_SELECT`, `AST_SELECT_ARM` (81–82) | ✓ | ✓ | ✓ | ~ | ? | ? | Closed-enum constructor/type resolution, exhaustiveness ve lowering |
-| `scan` / arms | `AST_SCAN`, `AST_SCAN_ARM` (83–84) | ✓ | ✓ | ✓ | ~ | ? | ? | Subject-aware binding inference, exhaustiveness/else ve execution lowering |
+| `select` / arms | `AST_SELECT`, `AST_SELECT_ARM` (81–82) | ✓ | ✓ | ✓ | ~ | ? | ? | Subject expression type now propagates into arm bindings; closed-enum constructor/type resolution, exhaustiveness ve lowering |
+| `scan` / arms | `AST_SCAN`, `AST_SCAN_ARM` (83–84) | ✓ | ✓ | ✓ | ~ | ? | ? | Subject expression type now propagates into arm bindings; constructor payload typing, exhaustiveness/else ve execution lowering |
 | Pattern binding | `AST_PATTERN_BINDING` (85) | ✓ | ✓ | ✓ | ~ | ? | ? | Subject type propagation, payload type ve binding lifetime |
 | Constructor pattern | `AST_PATTERN_CONSTRUCTOR` (86) | ✓ | ✓ | ✓ | ~ | ? | ? | Enum/variant identity, payload arity/type ve exhaustiveness |
 | `when` guard | Arm body içindeki canonical `AST_IF` | ✓ | ✓ | ✓ | ~ | ? | ? | Pattern binding type inference ve guard evaluation lowering |
@@ -206,3 +206,13 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 | Tüm aktif üretimlerin son taraması | Her aktif syntax satırının pozitif/negatif fixture ve exact source-span kanıtı son kez çapraz kontrol edilecek | Açık |
 
 **Doğrulama notu:** Son Parser değişiklikleri aktif dalda; GitHub Actions işleri henüz kuyruğa alınmış durumda. Bu nedenle yeni fixture'lar başarılı test olarak işaretlenmedi. CI tamamlanınca bu tablo ve ana P sütunu sonuçlara göre güncellenecek.
+
+
+### Semantic checkpoint — subject-aware Select/Scan binding — 2026-11-12
+
+- Select selector and Scan subject are semantically checked before their arm scopes are analyzed.
+- Pattern binding slots inherit the checked subject expression type instead of unconditional `any`; recursive constructor-pattern bindings currently inherit that same subject type until enum payload-specific mapping is implemented.
+- SemanticResult symbol type IDs are updated for inferred arm bindings, and durable annotations use the inferred type.
+- Added positive and negative Semantic tests for Select/Scan binding inference (`i32` binding accepted, incompatible `str` assignment rejected).
+- Commits: `92f43cbb` (implementation), `2af1952e` (tests). CI result pending at checkpoint.
+- This is a focused Semantic improvement, not closure of pattern matching: constructor payload-specific typing, enum variant validation, exhaustiveness, and lowering remain open.
