@@ -1380,8 +1380,12 @@ static int semantic_is_boolean_condition(SemanticContext* ctx, ASTNode* node) {
     return type_name && strcmp(type_name[0] == '!' ? type_name + 1 : type_name, "bool") == 0;
 }
 
-static void semantic_check_pattern_bindings(SemanticContext* ctx, ASTNode* pattern) {
+static void semantic_check_pattern_bindings(
+    SemanticContext* ctx, ASTNode* pattern, const char* subject_type
+) {
     ASTNode* current;
+    const char* binding_type = subject_type && *subject_type
+        ? subject_type : "any";
     for (current=pattern; current; current=current->next) {
         if (current->type==AST_PATTERN_BINDING) {
             ASTPatternBinding* binding=(ASTPatternBinding*)current;
@@ -1390,14 +1394,24 @@ static void semantic_check_pattern_bindings(SemanticContext* ctx, ASTNode* patte
                 report_error(ctx,current,ERR_SEMANTIC_REDEFINED,
                     "Pattern binding is duplicated in the same arm.");
             } else {
-                Slot* slot=add_slot(ctx,binding->name,SLOT_VAR,0,"any",
+                Slot* slot=add_slot(ctx,binding->name,SLOT_VAR,0,binding_type,
                     current,1,0,0,0u);
-                semantic_record_annotation(ctx,current,slot,"any",
+                if (slot && binding_type != NULL) {
+                    slot->type_id = semantic_type_id(ctx,binding_type,0);
+                    if (ctx->result_enabled && slot->symbol_id != 0u &&
+                        slot->type_id != 0u) {
+                        SemanticResultStatus type_status =
+                            semantic_result_set_symbol_type(
+                                &ctx->result,slot->symbol_id,slot->type_id);
+                        semantic_set_result_error(ctx,type_status);
+                    }
+                }
+                semantic_record_annotation(ctx,current,slot,binding_type,
                     SEMANTIC_RESULT_VALUE_LVALUE);
             }
         } else if (current->type==AST_PATTERN_CONSTRUCTOR) {
             semantic_check_pattern_bindings(ctx,
-                ((ASTPatternConstructor*)current)->bindings);
+                ((ASTPatternConstructor*)current)->bindings,binding_type);
         }
     }
 }
@@ -2629,20 +2643,42 @@ static void semantic_check_node(
             if (flow->catch_block) semantic_check(ctx, flow->catch_block);
             break;
         }
-        case AST_SELECT:
-            semantic_check(ctx,((ASTSelect*)node)->selector);
-            semantic_check(ctx,((ASTSelect*)node)->arms);
+        case AST_SELECT: {
+            ASTSelect* select=(ASTSelect*)node;
+            ASTNode* arm_node;
+            const char* subject_type;
+            semantic_check(ctx,select->selector);
+            subject_type=get_expr_type(ctx,select->selector);
+            for(arm_node=select->arms;arm_node;arm_node=arm_node->next) {
+                ASTSelectArm* arm=(ASTSelectArm*)arm_node;
+                enter_scope(ctx,arm_node);
+                semantic_check_pattern_bindings(ctx,arm->pattern,subject_type);
+                semantic_check(ctx,arm->body);
+                exit_scope(ctx);
+            }
             break;
+        }
 
-        case AST_SCAN:
-            semantic_check(ctx,((ASTScan*)node)->subject);
-            semantic_check(ctx,((ASTScan*)node)->arms);
+        case AST_SCAN: {
+            ASTScan* scan=(ASTScan*)node;
+            ASTNode* arm_node;
+            const char* subject_type;
+            semantic_check(ctx,scan->subject);
+            subject_type=get_expr_type(ctx,scan->subject);
+            for(arm_node=scan->arms;arm_node;arm_node=arm_node->next) {
+                ASTScanArm* arm=(ASTScanArm*)arm_node;
+                enter_scope(ctx,arm_node);
+                semantic_check_pattern_bindings(ctx,arm->pattern,subject_type);
+                semantic_check(ctx,arm->body);
+                exit_scope(ctx);
+            }
             break;
+        }
 
         case AST_SELECT_ARM: {
             ASTSelectArm* arm=(ASTSelectArm*)node;
             enter_scope(ctx,node);
-            semantic_check_pattern_bindings(ctx,arm->pattern);
+            semantic_check_pattern_bindings(ctx,arm->pattern,NULL);
             semantic_check(ctx,arm->body);
             exit_scope(ctx);
             break;
@@ -2651,7 +2687,7 @@ static void semantic_check_node(
         case AST_SCAN_ARM: {
             ASTScanArm* arm=(ASTScanArm*)node;
             enter_scope(ctx,node);
-            semantic_check_pattern_bindings(ctx,arm->pattern);
+            semantic_check_pattern_bindings(ctx,arm->pattern,NULL);
             semantic_check(ctx,arm->body);
             exit_scope(ctx);
             break;
