@@ -2001,40 +2001,78 @@ static void semantic_validate_call_arguments(
         declaration = (ASTFuncDecl*)function_slot->declaration_node;
     }
 
-    for (argument = arguments; argument; argument = argument->next,
-         ++argument_index) {
-        uint32_t parameter_index = argument_index + parameter_offset;
-        const char* argument_type = get_expr_type(ctx, argument);
-        const char* expected_type =
-            function_slot->param_types &&
-            parameter_index < (uint32_t)function_slot->param_count
-                ? function_slot->param_types[parameter_index] : NULL;
-        ASTVarDecl* parameter = NULL;
+    {
+        uint32_t positional_index = 0u;
+        for (argument = arguments; argument; argument = argument->next,
+             ++argument_index) {
+            ASTNode* argument_value=argument;
+            uint32_t parameter_index;
+            const char* argument_type;
+            const char* expected_type;
+            ASTVarDecl* parameter = NULL;
+            ASTNode* parameter_node = NULL;
 
-        if (declaration) {
-            ASTNode* parameter_node = declaration->params;
-            uint32_t current_index = 0u;
-            while (parameter_node && current_index < parameter_index) {
-                parameter_node = parameter_node->next;
-                ++current_index;
+            if (argument->type == AST_NAMED_ARG) {
+                ASTNamedArg* named=(ASTNamedArg*)argument;
+                uint32_t named_index=0u;
+                int found=0;
+                argument_value=named->value;
+                if (declaration) {
+                    for(parameter_node=declaration->params;parameter_node;
+                        parameter_node=parameter_node->next) {
+                        if(parameter_node->type==AST_VARIADIC_PARAM) break;
+                        if(parameter_node->type==AST_VAR_DECL &&
+                           ((ASTVarDecl*)parameter_node)->name && named->name &&
+                           strcmp(((ASTVarDecl*)parameter_node)->name,named->name)==0) {
+                            found=1;
+                            break;
+                        }
+                        ++named_index;
+                    }
+                }
+                if(!found) {
+                    char message[256];
+                    snprintf(message,sizeof(message),
+                        "Named argument '%s' does not match a parameter of '%s'.",
+                        named->name?named->name:"",function_slot->name);
+                    report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,message);
+                    continue;
+                }
+                parameter_index=named_index+parameter_offset;
+            } else {
+                parameter_index=positional_index++ + parameter_offset;
             }
-            if (parameter_node && parameter_node->type == AST_VAR_DECL)
-                parameter = (ASTVarDecl*)parameter_node;
-        }
+            argument_type=get_expr_type(ctx,argument_value);
+            expected_type=function_slot->param_types &&
+                parameter_index<(uint32_t)function_slot->param_count
+                    ? function_slot->param_types[parameter_index] : NULL;
 
-        if (argument_type && expected_type &&
-            !are_types_compatible(expected_type, argument_type)) {
-            char message[256];
-            snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_TYPE),
-                (int)(parameter_index + 1u), expected_type, argument_type);
-            report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE, message);
-        } else if (parameter && parameter->inline_type &&
-            parameter->inline_type->type == AST_ARRAY_TYPE &&
-            argument->type == AST_ARRAY_LITERAL) {
-            semantic_validate_array_initializer(
-                ctx, argument,
-                ((ASTArrayType*)parameter->inline_type)->dimensions,
-                parameter->type_name);
+            if(declaration) {
+                uint32_t current_index=0u;
+                for(parameter_node=declaration->params;parameter_node;
+                    parameter_node=parameter_node->next) {
+                    if(parameter_node->type==AST_VARIADIC_PARAM) continue;
+                    if(current_index==parameter_index) break;
+                    ++current_index;
+                }
+                if(parameter_node && parameter_node->type==AST_VAR_DECL)
+                    parameter=(ASTVarDecl*)parameter_node;
+            }
+
+            if(argument_type && expected_type &&
+               !are_types_compatible(expected_type,argument_type)) {
+                char message[256];
+                snprintf(message,sizeof(message),msg_get(ERR_SEMANTIC_ARG_TYPE),
+                    (int)(parameter_index+1u),expected_type,argument_type);
+                report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,message);
+            } else if(parameter && parameter->inline_type &&
+                parameter->inline_type->type==AST_ARRAY_TYPE &&
+                argument_value && argument_value->type==AST_ARRAY_LITERAL) {
+                semantic_validate_array_initializer(
+                    ctx,argument_value,
+                    ((ASTArrayType*)parameter->inline_type)->dimensions,
+                    parameter->type_name);
+            }
         }
     }
 }
