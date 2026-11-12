@@ -3159,11 +3159,7 @@ static void semantic_predeclare_group_callables(
              (existing->kind == SLOT_FUNC &&
               existing->group_owner == ctx->current_group_owner &&
               existing->scope_id == ctx->current_scope_id))) {
-            char message[256];
-            snprintf(message, sizeof(message),
-                msg_get(ERR_SEMANTIC_FUNC_REDEFINED), implementation_name);
-            report_error(ctx, implementation_node,
-                ERR_SEMANTIC_FUNC_REDEFINED, message);
+            /* The implementation declaration emits the single duplicate-name diagnostic. */
             continue;
         } else {
             function_slot = add_slot(
