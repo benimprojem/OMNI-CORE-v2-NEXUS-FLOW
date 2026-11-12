@@ -1060,8 +1060,10 @@ static int check_aggregate_field_ast_case(
         for (error = semantic.error_head; error; error = error->next) {
             if (strstr(error->message, expected_message) != NULL) found = 1;
         }
+        if (!found) fprintf(stderr, "Enum scan fixture %d: expected binding '%s' type '%s' not found\\n", test_case, "captured", expected_binding_type);
         ok = ok && found;
     }
+    if (!ok) fprintf(stderr, "Enum scan fixture %d final check failed (errors=%d expected=%d)\\n", test_case, semantic.error_count, expected_errors);
     semantic_destroy(&semantic);
     ast_destroy(node);
     return ok;
