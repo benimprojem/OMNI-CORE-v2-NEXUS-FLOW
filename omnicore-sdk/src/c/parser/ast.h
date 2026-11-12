@@ -57,11 +57,11 @@ typedef enum {
     AST_UNPACK,         // ...>
     AST_PANIC,          // !!
     AST_SPAWN,          // Legacy serialized tag; new spawn syntax belongs to the Thread module
-    AST_LISTEN,         // !(listen)
+    AST_LISTEN,         // Legacy serialized Thread listener tag; new Parser emits AST_FUNC_CALL
     AST_ECHO,           // echo()
-    AST_SEND,           // send()
-    AST_RECEIVE,        // receive()
-    AST_DONE,           // done()
+    AST_SEND,           // Legacy serialized Thread API tag; new Parser emits AST_FUNC_CALL
+    AST_RECEIVE,        // Legacy serialized Thread API tag; new Parser emits AST_FUNC_CALL
+    AST_DONE,           // Legacy serialized Thread API tag; new Parser emits AST_FUNC_CALL
     AST_AREA,           // area()
     AST_ADDR,           // addr()
     AST_LEN,            // len()
