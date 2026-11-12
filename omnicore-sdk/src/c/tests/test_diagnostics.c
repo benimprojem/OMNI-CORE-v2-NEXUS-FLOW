@@ -197,7 +197,7 @@ int main(void) {
         char* message = (char*)malloc((size_t)OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES + 2u);
         CHECK(message != NULL, "message-boundary test allocation should succeed");
         memset(message, 'm', (size_t)OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES + 1u);
-        message[OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES + 1u] = '\\0';
+        message[OCC_DIAGNOSTICS_MAX_MESSAGE_BYTES + 1u] = '\0';
         occ_diagnostics_init(&bounded);
         memset(&input, 0, sizeof(input));
         input.code = 9007;
@@ -225,7 +225,7 @@ int main(void) {
         size_t i;
         CHECK(message != NULL, "total-text-budget test allocation should succeed");
         memset(message, 't', message_length);
-        message[message_length] = '\\0';
+        message[message_length] = '\0';
         occ_diagnostics_init(&bounded);
         memset(&input, 0, sizeof(input));
         input.code = 9008;
