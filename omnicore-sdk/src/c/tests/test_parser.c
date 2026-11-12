@@ -4478,9 +4478,17 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
 
     if (!ctx) return 0;
     stage=1;
-    if (parser_run(ctx) != PARSER_STATUS_OK ||
-        ctx->error_count != 0 || !ctx->ast_root ||
-        !ast_validate(ctx->ast_root, NULL)) goto done;
+    {
+        int parse_result=parser_run(ctx);
+        int ast_valid=ctx->ast_root?ast_validate(ctx->ast_root,NULL):0;
+        if(parse_result!=PARSER_STATUS_OK || ctx->error_count!=0 ||
+           !ctx->ast_root || !ast_valid) {
+            fprintf(stderr,"flow parse status: result=%d status=%d errors=%d root=%p valid=%d\\n",
+                parse_result,parser_get_status(ctx),ctx->error_count,
+                (void*)ctx->ast_root,ast_valid);
+            goto done;
+        }
+    }
     stage=2;
     function = (ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK)
