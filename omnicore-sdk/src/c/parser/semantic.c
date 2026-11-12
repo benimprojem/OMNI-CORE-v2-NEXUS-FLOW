@@ -1648,6 +1648,31 @@ static int semantic_is_boolean_condition(SemanticContext* ctx, ASTNode* node) {
     return type_name && strcmp(type_name[0] == '!' ? type_name + 1 : type_name, "bool") == 0;
 }
 
+static void semantic_check_boolean_condition(
+    SemanticContext* ctx, ASTNode* node, const char* construct_name
+) {
+    const char* type_name;
+    if (!ctx || !node) return;
+    /* These operators already report their own operand-level diagnostics. */
+    if ((node->type == AST_UNARY_EXPR &&
+         ((ASTUnaryExpr*)node)->op == TOKEN_NOT) ||
+        (node->type == AST_BINARY_EXPR &&
+         (((ASTBinaryExpr*)node)->op == TOKEN_AND ||
+          ((ASTBinaryExpr*)node)->op == TOKEN_OR))) {
+        return;
+    }
+    type_name = get_expr_type(ctx, node);
+    if (!type_name || semantic_is_boolean_condition(ctx, node)) return;
+    {
+        char message[320];
+        (void)snprintf(message, sizeof(message),
+            "%s condition requires bool; got '%s'.",
+            construct_name ? construct_name : "Control-flow",
+            type_name);
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+    }
+}
+
 static void semantic_check_pattern_bindings(
     SemanticContext* ctx, ASTNode* pattern, const char* subject_type
 ) {
@@ -3608,10 +3633,8 @@ static void semantic_check_node(
             ASTIf* conditional = (ASTIf*)node;
             if (conditional->condition) {
                 semantic_check(ctx, conditional->condition);
-                if (!semantic_is_boolean_condition(ctx, conditional->condition)) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "if/elsif condition must have bool type.");
-                }
+                semantic_check_boolean_condition(
+                    ctx, conditional->condition, "if/elsif");
             }
             if (conditional->then_branch) {
                 if (conditional->then_branch->type == AST_BLOCK) {
@@ -4307,10 +4330,9 @@ static void semantic_check_node(
                                 begin_type ? begin_type : "any",
                                 node, 1, 0, 0, 0u);
                         }
-                    } else if (!semantic_is_boolean_condition(ctx, loop->condition)) {
-                        report_error(ctx, loop->condition,
-                            ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Loop condition must have bool type or be a numeric range.");
+                    } else {
+                        semantic_check_boolean_condition(
+                            ctx, loop->condition, "Loop");
                     }
                 }
                 if (loop->increment) semantic_check(ctx, loop->increment);
