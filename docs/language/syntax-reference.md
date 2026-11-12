@@ -1168,8 +1168,14 @@ enum:State {
 
 # Kullanım:
 v:current = State.Running(1024);
-
 ```
+
+Enum semantic rules:
+- Enum type names must be non-empty and unique in the visible declaration scope.
+- Variant names must be non-empty and unique within the enum.
+- Payload field names must be non-empty and unique within their variant.
+- Every payload field must declare a type; unknown named types and invalid recursive type expressions are rejected.
+- Constructor resolution, payload argument binding and exhaustive `scan` checking are separate Semantic items and are not yet claimed complete.
 
 ####  7.3 `union` (Ortak Bellek Alanı)**
 
