@@ -2581,34 +2581,27 @@ done:
     return valid;
 }
 
-static int test_spawn_is_outside_core_parser(void) {
-    static const char source[] = "f:main() { spawn(worker); }";
-    ParserContext* parser = parser_init_source("spawn-core-boundary.nxf",
-        (const uint8_t*)source, sizeof(source) - 1u);
-    OccDiagnosticCollector diagnostics;
-    OccDiagnosticView view;
+static int test_spawn_is_module_call_syntax(void) {
+    static const char* sources[] = {
+        "f:worker() { } f:main() { spawn(worker); }",
+        "f:main() { (worker)>{ } spawn(worker); }"
+    };
     size_t i;
-    int saw_boundary_diagnostic = 0;
-    int valid;
-    if (!parser) return 0;
-    occ_diagnostics_init(&diagnostics);
-    parser_attach_diagnostics(parser, &diagnostics, OCC_STAGE_PARSER);
-    valid = parser_run(parser) == PARSER_STATUS_SYNTAX_ERROR &&
-        parser_get_status(parser) == PARSER_STATUS_SYNTAX_ERROR &&
-        parser->error_count > 0;
-    for (i = 0u; i < occ_diagnostics_count(&diagnostics); ++i) {
-        if (occ_diagnostics_get(&diagnostics, i, &view) &&
-            view.record->stage_id == OCC_STAGE_PARSER &&
-            view.message && strstr(view.message, "Thread module")) {
-            saw_boundary_diagnostic = 1;
-            break;
+    for (i = 0u; i < sizeof(sources) / sizeof(sources[0]); ++i) {
+        ParserContext* parser = parser_init_source("spawn-module-call.nxf",
+            (const uint8_t*)sources[i], strlen(sources[i]));
+        int valid;
+        if (!parser) return 0;
+        valid = parser_run(parser) == PARSER_STATUS_OK &&
+            parser_get_status(parser) == PARSER_STATUS_OK &&
+            parser->error_count == 0 && parser->ast_root != NULL;
+        parser_destroy(parser);
+        if (!valid) {
+            fprintf(stderr, "Parser rejected spawn function/block module-call syntax: %s\\n", sources[i]);
+            return 0;
         }
     }
-    valid = valid && saw_boundary_diagnostic;
-    parser_destroy(parser);
-    occ_diagnostics_destroy(&diagnostics);
-    if (!valid) fprintf(stderr, "Core Parser accepted spawn or omitted the Thread-module boundary diagnostic.\n");
-    return valid;
+    return 1;
 }
 
 static int test_intrinsic_ast_family(void) {
