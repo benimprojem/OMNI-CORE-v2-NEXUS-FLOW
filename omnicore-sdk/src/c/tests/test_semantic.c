@@ -179,6 +179,15 @@ static int check_malformed_pattern_ast(void) {
         return 0;
     }
     ((ASTLiteral*)selector)->type=TOKEN_NUMBER;
+    ((ASTLiteral*)selector)->string_value=semantic_test_copy_text("1");
+    if (!((ASTLiteral*)selector)->string_value) {
+        ast_destroy((ASTNode*)select_node);
+        ast_destroy((ASTNode*)arm);
+        ast_destroy(selector);
+        ast_destroy(invalid_pattern);
+        ast_destroy(body);
+        return 0;
+    }
     select_node->selector=selector;
     select_node->arms=(ASTNode*)arm;
     arm->pattern=invalid_pattern;
