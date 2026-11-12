@@ -205,6 +205,16 @@ int main(void) {
         "f:main() { poke(1024); }";
     static const char invalid_poke_value[] =
         "f:main() { poke(1024, \"text\"); }";
+    static const char valid_inb[] =
+        "f:main() !u8 { ret inb(100); }";
+    static const char invalid_inb_type[] =
+        "f:main() !u8 { ret inb(\"port\"); }";
+    static const char valid_outb[] =
+        "f:main() { outb(100, 7); }";
+    static const char invalid_outb_arity[] =
+        "f:main() { outb(100); }";
+    static const char invalid_outb_value[] =
+        "f:main() { outb(100, 1.0); }";
     static const char logical_valid[] =
         "f:main() !bool { ret (1 < 2) && (3 < 4) || false; }";
     static const char logical_invalid[] =
@@ -290,6 +300,11 @@ int main(void) {
     if (!check_source(valid_poke, 0)) return 1;
     if (!check_source(invalid_poke_arity, 1)) return 1;
     if (!check_source(invalid_poke_value, 1)) return 1;
+    if (!check_source(valid_inb, 0)) return 1;
+    if (!check_source(invalid_inb_type, 1)) return 1;
+    if (!check_source(valid_outb, 0)) return 1;
+    if (!check_source(invalid_outb_arity, 1)) return 1;
+    if (!check_source(invalid_outb_value, 1)) return 1;
     if (!check_source(logical_valid, 0)) return 1;
     if (!check_source(logical_invalid, 1)) return 1;
     if (!check_source(unary_not_valid, 0)) return 1;
