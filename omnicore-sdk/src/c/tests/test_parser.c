@@ -3784,8 +3784,11 @@ static int test_enum_discriminant_parser_codec(void) {
     int ok = 0;
     if (!parser) return 0;
     if (parser_run(parser) != PARSER_STATUS_OK || parser->error_count != 0 ||
-        !parser->ast_root || !ast_validate(parser->ast_root, NULL))
+        !parser->ast_root || !ast_validate(parser->ast_root, NULL)) {
+        fprintf(stderr, "Enum discriminant source parse/validation failed: status=%d errors=%u root=%p\n",
+            parser_get_status(parser), parser->error_count, (void*)parser->ast_root);
         goto done;
+    }
     {
         ASTEnumDecl* declaration =
             (ASTEnumDecl*)((ASTProgram*)parser->ast_root)->declarations;
@@ -3804,8 +3807,15 @@ static int test_enum_discriminant_parser_codec(void) {
             ((ASTLiteral*)running->discriminant_expr)->int_value != 4 ||
             !done->discriminant_expr ||
             done->discriminant_expr->type != AST_BINARY_EXPR ||
-            done->base.next != NULL)
+            done->base.next != NULL) {
+            fprintf(stderr, "Enum discriminant AST fields invalid: declaration=%p idle=%p running=%p done=%p idle_expr=%p running_expr=%p done_expr=%p done_next=%p\n",
+                (void*)declaration, (void*)idle, (void*)running, (void*)done,
+                idle ? (void*)idle->discriminant_expr : NULL,
+                running ? (void*)running->discriminant_expr : NULL,
+                done ? (void*)done->discriminant_expr : NULL,
+                done ? (void*)done->base.next : NULL);
             goto done;
+        }
     }
     stream = tmpfile();
     if (!stream || !ast_serialize(parser->ast_root, stream) ||
