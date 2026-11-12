@@ -2033,3 +2033,13 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 
 - Named-argument ownership note: Parser already rejects duplicate labels and positional-after-named (its variadic/named argument tests cover these). Removed these invalid parser inputs from Semantic fixtures; Semantic tests continue to cover reordered argument typing and unknown parameter names. Commit `a8e6ce41`, dashboard `8a458bfd`.
+
+
+### Semantic checkpoint — expression, cast and loop AST integrity — 2026-11-12
+
+- Binary expression and Nexus Flow operation nodes now reject missing left/right operands with explicit Semantic diagnostics.
+- Loop nodes reject unsupported loop kinds and missing bodies. Foreach requires both iterator and collection; conditional loop kind requires a condition.
+- Cast nodes require both source value and target type. The reserved legacy AST_UNPACK node requires its source expression even though Parser does not emit it.
+- Added direct malformed-AST fixtures for binary expression, Nexus Flow operation, loop body, foreach fields, cast and reserved unpack.
+- Semantic commit: `b6779629`; tests: `b100fd6d`; syntax reference: `f455bd5c`.
+- Local build/test and branch CI remain unavailable/pending; these fixtures are not marked passed.
