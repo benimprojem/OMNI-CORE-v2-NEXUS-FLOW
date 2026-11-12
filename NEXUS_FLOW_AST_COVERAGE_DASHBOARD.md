@@ -278,3 +278,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Range endpoints must have compatible numeric types; invalid scalar conditions and incompatible/non-numeric ranges emit Semantic diagnostics.
 - Added a negative fixture for `loop(1)`; canonical Boolean loops remain valid.
 - Commits: `2f8d4e50` (Semantic), `040fdccd` (tests). CI pending.
+
+
+### Semantic checkpoint — function type / NewType target validation — 2026-11-12
+
+- Recursive callback/function signature spellings `f:(...)` are now recognized as Semantic function types and interned as `SEMANTIC_RESULT_TYPE_FUNCTION`.
+- NewType declarations validate their target type instead of silently accepting unresolved names; callback aliases remain valid targets.
+- Added positive callback NewType and negative unknown NewType target fixtures.
+- Commits: `88997965` Semantic, `5f287a01` tests. CI pending.
