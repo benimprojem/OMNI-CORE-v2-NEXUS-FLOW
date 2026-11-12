@@ -2158,14 +2158,14 @@ done:
 static int test_extern_echo_and_listen_keywords(void) {
     static const char source[] =
         "exf:external(a!i32)!i32 { ret a; }"
-        "f:main() { echo(\"hello\"); !(listen): { echo(\"event\"); } "
+        "f:main() { echo(\"hello\"); listen(\"event\"); "
         "!struct:Packed { v:a!u8, v:b!u32 } }";
     ParserContext* ctx=parser_init_source("extern-echo-listen.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
     ASTProgram* program;ASTFuncDecl* external;ASTFuncDecl* main_fn;ASTBlock* body;
     ASTNode* echo_node;ASTNode* listen_node;ASTNode* packed_node;
-    const char* listen_start=strstr(source,"!(listen)");
-    const char* listen_body_end=listen_start?strstr(listen_start,"echo(\"event\"); }"):NULL;
+    const char* listen_start=strstr(source,"listen(\"event\")");
+    const char* listen_end=listen_start?strchr(listen_start,';'):NULL;
     const char* packed_start=strstr(source,"!struct:Packed");
     const char* packed_close=packed_start?strchr(packed_start,'}'):NULL;
     int ok=0;
@@ -2180,11 +2180,11 @@ static int test_extern_echo_and_listen_keywords(void) {
     echo_node=body->statements;
     if(!echo_node||echo_node->type!=AST_ECHO)goto done;
     listen_node=echo_node->next;
-    if(!listen_node||listen_node->type!=AST_LISTEN ||
-       !listen_start || !listen_body_end ||
+    if(!listen_node||listen_node->type!=AST_FUNC_CALL ||
+       !listen_start || !listen_end ||
        !listen_node->source_span.has_location ||
        listen_node->source_span.start_offset!=(uint64_t)(listen_start-source) ||
-       listen_node->source_span.end_offset!=(uint64_t)(listen_body_end+strlen("echo(\"event\"); }")-source) ||
+       listen_node->source_span.end_offset!=(uint64_t)(listen_end+1-source) ||
        listen_node->source_span.start_line!=1u ||
        listen_node->source_span.start_column!=(uint32_t)(listen_start-source+1))goto done;
     packed_node=listen_node->next;
