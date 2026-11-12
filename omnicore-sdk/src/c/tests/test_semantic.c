@@ -1655,13 +1655,15 @@ static int check_malformed_group_method_ast(void) {
         goto cleanup;
     missing_name->implementation = ast_create(AST_FUNC_DECL);
     if (!missing_name->implementation) goto cleanup;
-    ((ASTFuncDecl*)missing_name->implementation)->name = "implementation";
+    ((ASTFuncDecl*)missing_name->implementation)->name = semantic_test_copy_text("implementation");
     ((ASTFuncDecl*)missing_name->implementation)->body = ast_create(AST_BLOCK);
-    if (!((ASTFuncDecl*)missing_name->implementation)->body) goto cleanup;
-    missing_implementation->public_name = "open";
-    invalid_implementation->public_name = "open";
+    if (!((ASTFuncDecl*)missing_name->implementation)->name ||
+        !((ASTFuncDecl*)missing_name->implementation)->body) goto cleanup;
+    missing_implementation->public_name = semantic_test_copy_text("open");
+    invalid_implementation->public_name = semantic_test_copy_text("open");
     invalid_implementation->implementation = ast_create(AST_BLOCK);
-    if (!invalid_implementation->implementation) goto cleanup;
+    if (!missing_implementation->public_name || !invalid_implementation->public_name ||
+        !invalid_implementation->implementation) goto cleanup;
 
     semantic_init(&semantic, "semantic-group-method-ast.nxf", NULL);
     semantic_check(&semantic, (ASTNode*)missing_name);
