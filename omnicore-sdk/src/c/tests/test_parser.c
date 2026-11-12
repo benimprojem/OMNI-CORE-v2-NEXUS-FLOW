@@ -3385,6 +3385,29 @@ static int test_function_type_alias_and_callback_parameter(void) {
 }
 
 
+static int test_function_type_variadic_marker_must_be_final(void) {
+    static const char source[] =
+        "nt:BadVariadic = f:(...,value!i32)!bool; f:main() {}";
+    ParserContext* parser = parser_init_source(
+        "non-final-function-type-variadic.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    int result;
+    int ok;
+    if (!parser) return 0;
+    result = parser_run(parser);
+    ok = result == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(parser) == PARSER_STATUS_SYNTAX_ERROR &&
+        parser->error_count > 0;
+    if (!ok) {
+        fprintf(stderr,
+            "Non-final variadic marker was not rejected by Parser (result=%d status=%d errors=%d).\\n",
+            result, parser_get_status(parser), parser->error_count);
+    }
+    parser_destroy(parser);
+    return ok;
+}
+
+
 
 static int test_callback_return_array_and_bad_dimensions(void) {
     static const char source[] = "nt:ReturnArrayCallback = f:(value!u32)!u8[8];";
@@ -4716,6 +4739,7 @@ int main(int argc, char** argv) {
     if (!test_use_alias_and_namespace_ast_codec()) { fprintf(stderr, "USE alias/namespace AST codec test failed.\n"); FAIL_PARSER_TEST(); }
     CHECK_PARSER_TEST(test_pointer_reference_type_declarators);
     CHECK_PARSER_TEST(test_function_type_alias_and_callback_parameter);
+    CHECK_PARSER_TEST(test_function_type_variadic_marker_must_be_final);
     if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\n"); FAIL_PARSER_TEST(); }
     if (!test_callback_parameter_exact_source_spans()) { fprintf(stderr, "Callback parameter exact source-span test failed.\n"); FAIL_PARSER_TEST(); }
     CHECK_PARSER_TEST(test_null_and_numeric_literal_ast);
