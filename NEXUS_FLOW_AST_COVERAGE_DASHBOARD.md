@@ -653,3 +653,13 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Nested `thread_block` declarations are rejected by Core Semantic. A context depth guard ensures the rule also applies to manually constructed ASTs.
 - The payload's child `AST_BLOCK` remains the sole lexical-scope owner. Core does not implement thread creation, scheduling, IPC or execution.
 - Added a source-level regression fixture proving nested payload rejection. CI remains pending; tests have not been reported as executed.
+
+
+### Semantic checkpoint — thread payload registry and spawn resolution — 2026-11-12
+
+- Added a SemanticContext-owned registry for named AST_THREAD_BLOCK payloads. Entries borrow the AST declaration pointer and own only a copied name; the registry is released by semantic_destroy.
+- Duplicate thread-block names are rejected. spawn is validated against this registry and requires exactly one identifier argument that resolves to a registered payload. The payload name is treated as a registry key, not as an ordinary variable/function identifier.
+- Initialized the thread-block depth and registry pointers explicitly in semantic_init.
+- Added source fixtures for a valid registered payload, unknown payload names, invalid argument count/type, and duplicate declarations. Existing Thread module calls (listen/send/receive/done) remain ordinary calls and are not assigned Core runtime semantics.
+- Current lookup follows Semantic AST traversal order: the payload declaration must be encountered before its spawn use. Forward-reference collection has not been added yet. This ordering is recorded as current implementation behavior, not as a finalized language-wide declaration-order decision.
+- CI/local execution remains pending; tests are committed but not reported as executed.
