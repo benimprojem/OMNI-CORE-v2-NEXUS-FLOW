@@ -742,7 +742,7 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Variant payloads reject non-field nodes, empty/duplicate field names, missing field types and unknown named types. Recursive payload type expressions continue through the shared type-expression validator.
 - Added direct AST regressions for valid payload declarations, malformed variant/payload node kinds, missing enum/variant names, duplicate variant names, duplicate payload field names and missing payload types.
 - Updated the normative syntax reference with the enforced name/type rules and explicitly left constructor resolution, payload argument binding and exhaustiveness open.
-- Semantic remains partial for the enum row because constructor and pattern/exhaustiveness relations are not complete. Test execution and CI are pending.
+- Constructor, payload, pattern binding, scan exhaustiveness and discriminant checks are now covered by the green branch-head C workflow (73/73 CTest; ASan/UBSan and Valgrind also green). The Enum Semantic column is closed; OIR representation and independent Verifier work remain open.
 
 
 ### Semantic checkpoint — Struct/Union field declaration validation — 2026-11-12
@@ -751,8 +751,8 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Hardened named and inline aggregate field walks: non-`AST_VAR_DECL` payload nodes are skipped after the shared validator reports them, rather than being blindly cast.
 - Direct AST regressions cover untyped Struct/Union fields and malformed aggregate field node kinds. Source fixtures cover duplicate names, unknown types and member type compatibility.
 - Union now has an explicit C-like shared-storage contract: Semantic does not track an active member and permits reading a different declared member. The resulting reinterpretation is target-ABI-dependent, not a portable conversion or safety guarantee.
-- Added source regressions for cross-member read/write, unknown Union member, incompatible member write and unknown member type. Struct Semantic remains ✓; Union Semantic remains partial until the expanded C test suite is verified. Union layout/ABI and OIR representation remain open.
-- Updated the normative syntax reference and AST syntax matrix. CI remains pending.
+- Added source regressions for cross-member read/write, unknown Union member, incompatible member write and unknown member type. Struct and Union Semantic checks pass the green branch-head C workflow (73/73 CTest; ASan/UBSan and Valgrind also green).
+- Updated the normative syntax reference and AST syntax matrix. Union layout/ABI and OIR representation remain open.
 
 
 ### Semantic checkpoint — Enum scan constructor binding — 2026-11-12
@@ -761,7 +761,7 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Payload bindings are matched positionally to the variant's declared fields; each local binding receives the corresponding field type. Incorrect payload arity, invalid binding node kinds and bare matching of payload-bearing variants are rejected.
 - Bare variant identifiers are treated as tag matches only when the enum variant has no payload; other identifiers remain ordinary pattern bindings.
 - Added direct Semantic AST regressions for valid typed payload binding, unknown variant, wrong payload arity and invalid bare payload-variant matching.
-- Updated the syntax reference and coverage rows. Constructor *expression* calls, duplicate arm coverage, exhaustive scan analysis and non-enum structural pattern semantics remain open. Test execution/CI is pending.
+- Updated the syntax reference and coverage rows. Constructor expression calls and exhaustive enum scan coverage are implemented and pass the green branch-head C workflow. Non-enum structural pattern semantics remain open.
 
 
 ### Semantic checkpoint — Enum scan exhaustiveness — 2026-11-12
@@ -769,7 +769,7 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added an explicit `has_guard` field to `ASTScanArm`; Parser records whether an arm came from a `when` clause instead of relying on ambiguous `AST_IF` body shape.
 - Enum scans now detect repeated unguarded variant arms and report every uncovered declared variant. Guarded arms do not count toward exhaustive coverage; an `else` arm suppresses missing-variant diagnostics.
 - Added Semantic AST fixtures for exhaustive coverage, unknown/malformed patterns, duplicate variants, guard-only coverage and else fallback.
-- Enum Semantic remains partial because constructor expression calls/argument typing and remaining pattern/type rules are not yet complete. CI/test execution is pending.
+- Constructor expression resolution, positional/named payload argument validation and enum SemanticResult annotations are implemented; the complete branch-head C workflow passes. OIR representation and independent Verifier rules remain open.
 
 
 ### Semantic checkpoint — Enum constructor expressions — 2026-11-12
@@ -785,11 +785,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 
 - Added source regressions for duplicate public method aliases, duplicate implementation function names across aliases, and a method implementation name colliding with a direct Group function.
 - Existing coverage also exercises inferred/explicit `self`, static versus instance dispatch, calls before declaration, external-scope Group-qualified calls, unknown methods, argument count/type, and malformed method AST payloads.
-- Group / method Semantic remains partial (`~`) until the updated C test suite passes CI. Receiver visibility/overload and complete signature contract remain open; no overload behavior is inferred from duplicate-name rejection.
+- Group / method Semantic remains partial (`~`): the current C test suite passes, including uniqueness regressions. Receiver visibility and the remaining signature contract are still open; overload behavior is not inferred from duplicate-name rejection.
 
 
 ### Semantic checkpoint — implicit receiver argument mapping — 2026-11-12
 
 - Fixed named-argument parameter lookup for instance methods: the implicit `self` parameter is skipped when resolving caller-supplied names, while the resolved parameter index retains the receiver offset for type validation.
 - Added regressions proving `instance.method(value: 7)` resolves the first explicit parameter and that callers cannot pass `self:` as a named argument.
-- Documented the object/static method contract and Group-owned nominal type visibility. CI is pending; Group / Method remains partial until the full C workflow passes.
+- Documented the object/static method contract and Group-owned nominal type visibility. The green branch-head C workflow verifies the receiver-offset named-argument mapping and rejects caller-supplied `self:`; Group / Method remains partial because other signature-contract details remain open.
