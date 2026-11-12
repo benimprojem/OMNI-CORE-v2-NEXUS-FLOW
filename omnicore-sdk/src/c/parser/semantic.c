@@ -5350,8 +5350,15 @@ static void semantic_check_node(
 
         case AST_ENUM_DECL: {
             ASTEnumDecl* edecl = (ASTEnumDecl*)node;
-            Slot* existing_type = find_slot(ctx, edecl->name);
-            int is_group_binding_name =
+            Slot* existing_type;
+            int is_group_binding_name;
+            if (!edecl->name || !edecl->name[0]) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Enum declaration requires a non-empty type name.");
+                break;
+            }
+            existing_type = find_slot(ctx, edecl->name);
+            is_group_binding_name =
                 existing_type && existing_type->kind == SLOT_GROUP &&
                 ctx->current_group_owner &&
                 existing_type->declaration_node == ctx->current_group_owner &&
@@ -5362,48 +5369,135 @@ static void semantic_check_node(
                 snprintf(buf, sizeof(buf), "Type '%s' already defined.", edecl->name);
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                Slot* s = add_slot(ctx, edecl->name, SLOT_ENUM, 1, NULL, node, 0, 0, 0, 0u);
+                Slot* s = add_slot(ctx, edecl->name, SLOT_ENUM, 1, NULL,
+                    node, 0, 0, 0, 0u);
+                ASTNode* var_node = edecl->variants;
+                FieldInfo* last_var = NULL;
+                uint32_t variant_ordinal = 0u;
+                uint32_t payload_field_ordinal = 0u;
                 if (!s) break;
                 semantic_define_named_type(ctx, s, edecl->name, NULL);
                 semantic_record_annotation(
                     ctx, node, s, edecl->name, SEMANTIC_RESULT_VALUE_UNSPECIFIED);
 
-                ASTNode* var_node = edecl->variants;
-                FieldInfo* last_var = NULL;
-                uint32_t variant_ordinal = 0u;
-                uint32_t payload_field_ordinal = 0u;
                 while (var_node) {
-                    ASTEnumVariant* v = (ASTEnumVariant*)var_node;
+                    ASTEnumVariant* variant;
+                    ASTNode* previous_variant;
+                    int variant_name_valid = 1;
 
-                    // Varyant içindeki tipleri kontrol et
-                    if (v->data) {
-                        ASTNode* field_node = v->data;
-                        while(field_node) {
-                            ASTVarDecl* fdecl = (ASTVarDecl*)field_node;
-                            
-                            int is_inline_field = (fdecl->inline_type != NULL);
-                            int valid_type = 0;
-                            if (fdecl->type_name) {
-                                if (is_type_defined(ctx, fdecl->type_name)) valid_type = 1;
-                                else if (is_inline_field) {
-                                    const char* t = (fdecl->type_name[0] == '!') ? fdecl->type_name + 1 : fdecl->type_name;
-                                    if (strcmp(t, "struct") == 0 || strcmp(t, "union") == 0) valid_type = 1;
+                    if (var_node->type != AST_ENUM_VARIANT) {
+                        report_error(ctx, var_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Enum variant list contains a non-variant AST node.");
+                        var_node = var_node->next;
+                        continue;
+                    }
+                    variant = (ASTEnumVariant*)var_node;
+                    if (!variant->name || !variant->name[0]) {
+                        report_error(ctx, var_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Enum variant requires a non-empty name.");
+                        variant_name_valid = 0;
+                    } else {
+                        for (previous_variant = edecl->variants;
+                             previous_variant && previous_variant != var_node;
+                             previous_variant = previous_variant->next) {
+                            if (previous_variant->type == AST_ENUM_VARIANT) {
+                                const ASTEnumVariant* earlier =
+                                    (const ASTEnumVariant*)previous_variant;
+                                if (earlier->name &&
+                                    strcmp(earlier->name, variant->name) == 0) {
+                                    char message[256];
+                                    (void)snprintf(message, sizeof(message),
+                                        "Enum '%s' declares variant '%s' more than once.",
+                                        edecl->name, variant->name);
+                                    report_error(ctx, var_node,
+                                        ERR_SEMANTIC_REDEFINED, message);
+                                    variant_name_valid = 0;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (variant->data) {
+                        ASTNode* field_node = variant->data;
+                        while (field_node) {
+                            ASTVarDecl* field;
+                            ASTNode* previous_field;
+                            int field_name_valid = 1;
+                            int field_type_valid = 0;
+                            int inline_field;
+
+                            if (field_node->type != AST_VAR_DECL) {
+                                report_error(ctx, field_node,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Enum variant payload contains a non-field AST node.");
+                                field_node = field_node->next;
+                                continue;
+                            }
+                            field = (ASTVarDecl*)field_node;
+                            if (!field->name || !field->name[0]) {
+                                report_error(ctx, field_node,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Enum variant payload fields require non-empty names.");
+                                field_name_valid = 0;
+                            } else {
+                                for (previous_field = variant->data;
+                                     previous_field && previous_field != field_node;
+                                     previous_field = previous_field->next) {
+                                    if (previous_field->type == AST_VAR_DECL) {
+                                        const ASTVarDecl* earlier =
+                                            (const ASTVarDecl*)previous_field;
+                                        if (earlier->name &&
+                                            strcmp(earlier->name, field->name) == 0) {
+                                            char message[320];
+                                            (void)snprintf(message, sizeof(message),
+                                                "Enum variant '%s' declares payload field '%s' more than once.",
+                                                variant->name ? variant->name : "<unnamed>",
+                                                field->name);
+                                            report_error(ctx, field_node,
+                                                ERR_SEMANTIC_REDEFINED, message);
+                                            field_name_valid = 0;
+                                            break;
+                                        }
+                                    }
                                 }
                             }
 
-                            if (fdecl->type_name && !valid_type && !fdecl->type_expr) {
-                                char buf[256];
-                                (void)snprintf(buf, sizeof(buf),
-                                    "Field '%s' uses unknown type '%s'.",
-                                    fdecl->name ? fdecl->name : "<unnamed>",
-                                    fdecl->type_name);
-                                report_error(ctx, (ASTNode*)fdecl, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
+                            inline_field = field->inline_type != NULL;
+                            if (field->type_name && field->type_name[0]) {
+                                if (is_type_defined(ctx, field->type_name))
+                                    field_type_valid = 1;
+                                else if (inline_field) {
+                                    const char* normalized = field->type_name[0] == '!'
+                                        ? field->type_name + 1 : field->type_name;
+                                    if (strcmp(normalized, "struct") == 0 ||
+                                        strcmp(normalized, "union") == 0)
+                                        field_type_valid = 1;
+                                }
                             }
-                            if (fdecl->inline_type && !fdecl->type_expr)
-                                semantic_check(ctx, fdecl->inline_type);
-                            if (fdecl->type_expr)
-                                semantic_check(ctx, fdecl->type_expr);
-                            if (ctx->result_enabled && s && s->symbol_id != 0u) {
+                            if ((!field->type_name || !field->type_name[0]) &&
+                                !field->type_expr) {
+                                report_error(ctx, field_node,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Enum variant payload field requires an explicit type.");
+                            } else if (field->type_name && !field_type_valid &&
+                                       !field->type_expr) {
+                                char message[256];
+                                (void)snprintf(message, sizeof(message),
+                                    "Enum payload field '%s' uses unknown type '%s'.",
+                                    field->name ? field->name : "<unnamed>",
+                                    field->type_name);
+                                report_error(ctx, field_node,
+                                    ERR_SEMANTIC_UNKNOWN_TYPE, message);
+                            }
+
+                            if (field->inline_type && !field->type_expr)
+                                semantic_check(ctx, field->inline_type);
+                            if (field->type_expr)
+                                semantic_check(ctx, field->type_expr);
+
+                            if (ctx->result_enabled && s->symbol_id != 0u &&
+                                field_name_valid) {
                                 SemanticResultStatus relation_status =
                                     semantic_result_add_relation(
                                         &ctx->result,
@@ -5412,44 +5506,50 @@ static void semantic_check_node(
                                         payload_field_ordinal++,
                                         0u,
                                         semantic_node_id(ctx, field_node),
-                                        fdecl->name,
-                                        semantic_type_id(ctx, fdecl->type_name, fdecl->is_hard_typed));
+                                        field->name,
+                                        semantic_type_id(ctx, field->type_name,
+                                            field->is_hard_typed));
                                 semantic_set_result_error(ctx, relation_status);
                             }
                             field_node = field_node->next;
                         }
                     }
 
-                    if (ctx->result_enabled && s && s->symbol_id != 0u) {
-                        SemanticResultStatus relation_status =
-                            semantic_result_add_relation(
-                                &ctx->result,
-                                s->symbol_id,
-                                SEMANTIC_RESULT_RELATION_ENUM_VARIANT,
-                                variant_ordinal++,
-                                0u,
-                                semantic_node_id(ctx, var_node),
-                                v->name,
-                                s->type_id);
-                        semantic_set_result_error(ctx, relation_status);
-                    }
+                    if (variant_name_valid) {
+                        if (ctx->result_enabled && s->symbol_id != 0u) {
+                            SemanticResultStatus relation_status =
+                                semantic_result_add_relation(
+                                    &ctx->result,
+                                    s->symbol_id,
+                                    SEMANTIC_RESULT_RELATION_ENUM_VARIANT,
+                                    variant_ordinal++,
+                                    0u,
+                                    semantic_node_id(ctx, var_node),
+                                    variant->name,
+                                    s->type_id);
+                            semantic_set_result_error(ctx, relation_status);
+                        }
 
-                    FieldInfo* f = (FieldInfo*)semantic_callocate(ctx, 1u, sizeof(FieldInfo));
-                    if (!f) {
-                        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
-                        break;
+                        {
+                            FieldInfo* entry = (FieldInfo*)semantic_callocate(
+                                ctx, 1u, sizeof(FieldInfo));
+                            if (!entry) {
+                                semantic_set_result_error(
+                                    ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                                break;
+                            }
+                            entry->name = semantic_duplicate(ctx, variant->name);
+                            if (!entry->name) {
+                                free(entry);
+                                semantic_set_result_error(
+                                    ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                                break;
+                            }
+                            if (last_var) last_var->next = entry;
+                            else s->fields = entry;
+                            last_var = entry;
+                        }
                     }
-                    f->name = semantic_duplicate(ctx, v->name ? v->name : "");
-                    if (!f->name) {
-                        free(f);
-                        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
-                        break;
-                    }
-
-                    if (last_var) last_var->next = f;
-                    else s->fields = f; // Reusing fields for variants
-                    last_var = f;
-                    
                     var_node = var_node->next;
                 }
             }
