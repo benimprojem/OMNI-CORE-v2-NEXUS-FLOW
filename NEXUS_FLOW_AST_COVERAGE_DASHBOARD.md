@@ -270,3 +270,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - The normative `?-> (error) { handler }` catch form now requires its handler block; `?-> (error);` no longer parses as a valid catch flow.
 - This closes a parser regression fixture that previously passed only because the grammar accepted a missing handler. It is a grammar enforcement correction; Semantic still handles arm/catch scope/effects separately.
 - Commit: `4c057072`; CI pending.
+
+
+### Semantic checkpoint — Loop condition and range validation — 2026-11-12
+
+- Loop conditions are now required to be Boolean unless represented as the language's range form.
+- Range endpoints must have compatible numeric types; invalid scalar conditions and incompatible/non-numeric ranges emit Semantic diagnostics.
+- Added a negative fixture for `loop(1)`; canonical Boolean loops remain valid.
+- Commits: `2f8d4e50` (Semantic), `040fdccd` (tests). CI pending.
