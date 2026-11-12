@@ -680,7 +680,7 @@ static int test_parser_allocation_failure_injection(void) {
         " group db { open => f:(path!str) { ret; } default { ret; } }"
         " v:casted = cast(1, i32);"
         " panic(\"boom\");"
-        " ?? \"inspect\";"
+        " ?;"
         " ret;"
         "}";
     size_t fail_at;
@@ -714,7 +714,7 @@ static int test_parser_allocation_failure_injection(void) {
         {
             Error* parse_error;
             for (parse_error = ctx->error_head; parse_error; parse_error = parse_error->next)
-                fprintf(stderr, "  parser error at %d:%d: %s\\n",
+                fprintf(stderr, "  parser error at %d:%d: %s\n",
                     parse_error->line, parse_error->col,
                     parse_error->message ? parse_error->message : "<none>");
         }
@@ -815,10 +815,10 @@ static int test_function_parameter_type_separator_forms(void) {
             parser_get_status(ctx) != PARSER_STATUS_OK ||
             ctx->error_count != 0 || !ctx->ast_root) {
             Error* parse_error;
-            fprintf(stderr, "conditional-control parse failed: result=%d status=%d errors=%d\\n",
+            fprintf(stderr, "conditional-control parse failed: result=%d status=%d errors=%d\n",
                 parse_result, parser_get_status(ctx), ctx->error_count);
             for (parse_error = ctx->error_head; parse_error; parse_error = parse_error->next)
-                fprintf(stderr, "  parser error at %d:%d: %s\\n",
+                fprintf(stderr, "  parser error at %d:%d: %s\n",
                     parse_error->line, parse_error->col,
                     parse_error->message ? parse_error->message : "<none>");
             goto done;
@@ -1010,10 +1010,10 @@ static int test_conditional_control_question_disambiguation(void) {
             parser_get_status(ctx) != PARSER_STATUS_OK ||
             ctx->error_count != 0 || !ctx->ast_root) {
             Error* parse_error;
-            fprintf(stderr, "conditional-control parse failed: result=%d status=%d errors=%d\\n",
+            fprintf(stderr, "conditional-control parse failed: result=%d status=%d errors=%d\n",
                 parse_result, parser_get_status(ctx), ctx->error_count);
             for (parse_error = ctx->error_head; parse_error; parse_error = parse_error->next)
-                fprintf(stderr, "  parser error at %d:%d: %s\\n",
+                fprintf(stderr, "  parser error at %d:%d: %s\n",
                     parse_error->line, parse_error->col,
                     parse_error->message ? parse_error->message : "<none>");
             goto done;
@@ -1094,10 +1094,10 @@ static int test_conditional_control_question_disambiguation(void) {
 done:
     if (!ok) {
         Error* diagnostic;
-        fprintf(stderr, "conditional-control test failed at stage %d; parse_result=%d status=%d errors=%d\\n",
+        fprintf(stderr, "conditional-control test failed at stage %d; parse_result=%d status=%d errors=%d\n",
             stage, saved_parse_result, saved_parse_status, saved_error_count);
         if (ctx) for (diagnostic = ctx->error_head; diagnostic; diagnostic = diagnostic->next)
-            fprintf(stderr, "  diagnostic %d:%d: %s\\n", diagnostic->line,
+            fprintf(stderr, "  diagnostic %d:%d: %s\n", diagnostic->line,
                 diagnostic->col, diagnostic->message ? diagnostic->message : "<none>");
     }
     parser_destroy(ctx);
@@ -4539,11 +4539,11 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
         if(parse_result!=PARSER_STATUS_OK || ctx->error_count!=0 ||
            !ctx->ast_root || !ast_valid) {
             Error* parse_error;
-            fprintf(stderr,"flow parse status: result=%d status=%d errors=%d root=%p valid=%d\\n",
+            fprintf(stderr,"flow parse status: result=%d status=%d errors=%d root=%p valid=%d\n",
                 parse_result,parser_get_status(ctx),ctx->error_count,
                 (void*)ctx->ast_root,ast_valid);
             for(parse_error=ctx->error_head;parse_error;parse_error=parse_error->next)
-                fprintf(stderr,"flow parse error: code=%d at=%d:%d msg=%s\\n",
+                fprintf(stderr,"flow parse error: code=%d at=%d:%d msg=%s\n",
                     (int)parse_error->code,parse_error->line,parse_error->col,
                     parse_error->message?parse_error->message:"");
             if(ctx->ast_root) ast_print((ASTNode*)ctx->ast_root);
@@ -4605,7 +4605,7 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
     ok = 1;
 
 done:
-    if(!ok) fprintf(stderr,"flow test stage=%d\\n",stage);
+    if(!ok) fprintf(stderr,"flow test stage=%d\n",stage);
     parser_destroy(ctx);
     if (!ok) return 0;
     return parser_source_reports_syntax_error(
@@ -4702,8 +4702,8 @@ static int test_parenthesized_rolling_retry_disambiguation(void) {
 }
 
 int main(int argc, char** argv) {
-#define FAIL_PARSER_TEST() do { fprintf(stderr, "Parser aggregate failed at source line %d\\n", __LINE__); return 1; } while (0)
-#define CHECK_PARSER_TEST(fn) do { if (!(fn)()) { fprintf(stderr, "Parser test failed: %s\\n", #fn); return 1; } } while (0)
+#define FAIL_PARSER_TEST() do { fprintf(stderr, "Parser aggregate failed at source line %d\n", __LINE__); return 1; } while (0)
+#define CHECK_PARSER_TEST(fn) do { if (!(fn)()) { fprintf(stderr, "Parser test failed: %s\n", #fn); return 1; } } while (0)
     CHECK_PARSER_TEST(test_fast_exec_raw_asm_ast);
     CHECK_PARSER_TEST(test_fast_exec_asm_token_stream);
     CHECK_PARSER_TEST(test_main_cli_parameter_ast);
