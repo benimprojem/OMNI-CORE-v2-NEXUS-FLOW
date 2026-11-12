@@ -284,6 +284,9 @@ int main(void) {
     if (!check_error_detail(
         "f:main(a!i32, b!f64) {\n    v:r = a..b;\n}",
         "Range operator '..'", "!f64", 2)) return 1;
+    if (!check_error_detail(
+        "nt:Bad = *MissingType;\nf:main() {}",
+        "Unknown type 'MissingType'", "recursive type expression", 1)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
