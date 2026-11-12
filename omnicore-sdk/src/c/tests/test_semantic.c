@@ -163,6 +163,27 @@ static int check_malformed_conditional_ast(void) {
 }
 
 static int check_malformed_pattern_ast(void) {
+    {
+        ASTSelect* malformed=(ASTSelect*)ast_create(AST_SELECT);
+        ASTLiteral* literal=(ASTLiteral*)ast_create(AST_LITERAL);
+        SemanticContext malformed_semantic;
+        int malformed_ok;
+        if(!malformed||!literal) {
+            ast_destroy((ASTNode*)malformed);ast_destroy((ASTNode*)literal);
+            return 0;
+        }
+        literal->type=TOKEN_NUMBER;
+        malformed->selector=(ASTNode*)literal;
+        semantic_init(&malformed_semantic,"semantic-missing-literal-text.nxf",NULL);
+        semantic_check(&malformed_semantic,(ASTNode*)malformed);
+        malformed_ok=malformed_semantic.error_count==1 &&
+            malformed_semantic.error_head &&
+            strstr(malformed_semantic.error_head->message,
+                "Literal AST is missing its string value")!=NULL;
+        semantic_destroy(&malformed_semantic);
+        ast_destroy((ASTNode*)malformed);
+        if(!malformed_ok)return 0;
+    }
     ASTSelect* select_node=(ASTSelect*)ast_create(AST_SELECT);
     ASTSelectArm* arm=(ASTSelectArm*)ast_create(AST_SELECT_ARM);
     ASTNode* selector=ast_create(AST_LITERAL);
