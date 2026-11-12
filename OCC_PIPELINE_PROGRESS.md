@@ -2020,3 +2020,6 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - CI run for `aa81d9ae` passed the Semantic test target (including the new generic, tuple, NewType, variadic, named argument, block cleanup, loop-condition and array checks). CTest was 72/73.
 - Remaining single failure was Parser test `parser_accepts_and_rejects_sources` / catch-fallback-ignore fixture; the Semantic target itself passed. Overall cross-platform CI is still pending.
 - Dashboard checkpoint: `4ead5149`.
+
+
+- Named argument follow-up: reject duplicate parameter assignment (including positional/named collisions) and positional arguments after named arguments. Added duplicate-name and ordering negative tests. Commits `3f86c6da` Semantic, `cfb75499` tests, `20236581` dashboard. CI pending.
