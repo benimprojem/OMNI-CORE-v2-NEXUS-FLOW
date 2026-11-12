@@ -4811,6 +4811,7 @@ static int test_handler_capture_string_and_call_flow_ast(void) {
         "f:main() {"
         " (a) <- \"bu string testi.\";"
         " (hand) -> process(hand);"
+        " (hand) -> process(hand) { process(hand); }"
         "}";
     ParserContext* ctx=parser_init_source("handler-capture-flow.nxf",
         (const uint8_t*)source,sizeof(source)-1u);
@@ -4837,6 +4838,14 @@ static int test_handler_capture_string_and_call_flow_ast(void) {
     if(flow->op!=TOKEN_PIPE || !flow->left || flow->left->type!=AST_IDENTIFIER ||
        strcmp(((ASTIdentifier*)flow->left)->name,"hand")!=0 ||
        !flow->right || flow->right->type!=AST_FUNC_CALL ||
+       !ast_validate(ctx->ast_root,NULL))goto done;
+    statement=statement->next;
+    if(!statement || statement->type!=AST_NEXUS_PIPE)goto done;
+    flow=(ASTNexusFlow*)statement;
+    if(flow->op!=TOKEN_PIPE || !flow->right ||
+       flow->right->type!=AST_FUNC_CALL ||
+       !flow->target_block || flow->target_block->type!=AST_BLOCK ||
+       !flow->catch_block ||
        !ast_validate(ctx->ast_root,NULL))goto done;
     ok=1;
 done:
