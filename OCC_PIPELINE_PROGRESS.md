@@ -13,7 +13,7 @@
 - `inb/outb`: exact arity and integer argument checks.
 - `area/zone/free`: exact arity, integer positive constant size checks (when statically evaluable), and accepted handle/address type checks.
 - Added source-level positive/negative regression cases in `test_semantic.c`. The fixture is committed but not executed in this GitHub workspace; CI status is not inferred.
-- Still open: direct malformed `ASTCall` fixtures (null callee/argument, malformed named arg), target capability/privilege, memory width/alignment/bounds, region ownership/lifetime and effect model.
+- Direct malformed AST: dedicated intrinsic tags now reject missing or mismatched callee identifiers; regression fixtures cover both. Still open: null argument and malformed named-arg payload, target capability/privilege, memory width/alignment/bounds, region ownership/lifetime and effect model.
 
 ## 1. Durum anahtarı
 
