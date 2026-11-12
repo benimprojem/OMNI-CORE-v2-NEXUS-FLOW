@@ -2288,3 +2288,11 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added Parser/AST codec regression coverage and Semantic cases for implicit/explicit sequencing, negative values, arithmetic expressions, duplicate values, non-constant values, floating-point values and signed-range overflow.
 - Updated Syntax Reference, AST Syntax Matrix and Coverage Dashboard. OIR/target physical enum representation remains deferred to the OIR stage; recursive payload type-expression compatibility remains open.
 - **Verification status:** code and tests have been committed, but no local build or CI result has yet been observed. Keep the dashboard Semantic status partial until the C test suite passes.
+
+### Semantic checkpoint — C-like Union shared storage — 2026-11-12
+
+- Confirmed the language contract: Union members share storage; Semantic does not track an active member and does not reject reads solely because another member was written most recently.
+- Cross-member reads are permitted as target-ABI-dependent reinterpretation, not as a portable conversion or a universal safety guarantee.
+- Added Semantic source fixtures for cross-member read/write, unknown member, incompatible member write and unknown member type. Existing tests cover duplicate fields and missing field types.
+- Updated the normative syntax reference, AST coverage dashboard and AST syntax matrix. Union layout, alignment, physical representation and OIR mapping remain deferred to their proper later phase.
+- **Verification:** test source and documentation are committed; CI run `43253848909` is still queued and the new Union test additions have not yet been executed. Union Semantic remains partial until the C test suite passes.
