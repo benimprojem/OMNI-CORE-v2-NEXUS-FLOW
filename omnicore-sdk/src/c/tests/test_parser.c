@@ -802,9 +802,21 @@ static int test_function_parameter_type_separator_forms(void) {
     int ok = 0;
 
     if (!ctx) return 0;
-    if (parser_run(ctx) != PARSER_STATUS_OK ||
-        parser_get_status(ctx) != PARSER_STATUS_OK ||
-        ctx->error_count != 0 || !ctx->ast_root) goto done;
+    {
+        int parse_result = parser_run(ctx);
+        if (parse_result != PARSER_STATUS_OK ||
+            parser_get_status(ctx) != PARSER_STATUS_OK ||
+            ctx->error_count != 0 || !ctx->ast_root) {
+            Error* parse_error;
+            fprintf(stderr, "conditional-control parse failed: result=%d status=%d errors=%d\\n",
+                parse_result, parser_get_status(ctx), ctx->error_count);
+            for (parse_error = ctx->error_head; parse_error; parse_error = parse_error->next)
+                fprintf(stderr, "  parser error at %d:%d: %s\\n",
+                    parse_error->line, parse_error->col,
+                    parse_error->message ? parse_error->message : "<none>");
+            goto done;
+        }
+    }
 
     program = (ASTProgram*)ctx->ast_root;
     function = (ASTFuncDecl*)program->declarations;
