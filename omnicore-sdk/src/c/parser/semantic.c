@@ -5193,7 +5193,8 @@ static void semantic_check_node(
         }
 
         case AST_AI_LOGIC: {
-            // AI query validation could go here
+            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "AST_AI_LOGIC is reserved and is not supported by the Semantic pipeline.");
             break;
         }
 
