@@ -1907,3 +1907,21 @@ Nexus Flow core AST/Semantic katmanı, işletim sistemi veya thread scheduler AP
 - `write` / `fwrite` dosya/stream sağlayıcısına bağlı API'lerdir; dosya sistemi veya stream modülü yoksa bare-metal hedefte otomatik kullanılabilir sayılmaz.
 
 Bu bölüm API sağlayıcısının nerede olduğunu açıklar; fonksiyon imzaları ve modül ABI'si ayrıca ilgili modül sözleşmesinde tanımlanır.
+
+
+### Enum scan exhaustiveness and guarded arms
+
+For an enum-valued `scan`, every declared variant must be covered by an unguarded arm, unless a final `else` arm is present. Payload-bearing variants use constructor patterns (for example `Ready(value)`); variants without payload use their bare variant name. A `when` guard is conditional and therefore does not count as exhaustive coverage. Repeating the same unguarded variant arm is a Semantic error. The Parser preserves guard presence explicitly in the scan-arm AST so Semantic does not need to infer it from the arm body shape.
+
+Example:
+
+```nexus
+scan(result) {
+    Ready(value) when value > 0 -> echo(value),
+    Ready(value) -> echo(value),
+    Empty -> echo("empty"),
+    Failed(code) -> echo(code)
+}
+```
+
+An `else -> ...` arm may replace explicit coverage of remaining enum variants. A guard-only match cannot make an enum scan exhaustive.
