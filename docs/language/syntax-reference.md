@@ -1852,3 +1852,9 @@ Dimension order follows the normal array declarator rules. An empty `[]` represe
 - defer requires its statement or block body.
 - thread_block requires both a non-empty block name and a body; its body remains isolated in its own Semantic scope.
 - These checks validate malformed AST input and do not change the accepted source grammar.
+
+
+### Reserved AST nodes and Semantic acceptance
+
+- AST_AI_LOGIC is currently a reserved AST tag and is not emitted by the active Parser. Semantic rejects manually supplied AST_AI_LOGIC nodes instead of silently accepting a node whose query semantics are not implemented.
+- This does not disable any active Nexus Flow source syntax; Parser has no AST_AI_LOGIC production.
