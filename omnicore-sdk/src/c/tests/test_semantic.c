@@ -1719,8 +1719,11 @@ static int check_malformed_group_method_ast(void) {
     empty_name->public_name = semantic_test_copy_text("");
     empty_name->implementation = ast_create(AST_FUNC_DECL);
     if (!empty_name->implementation) goto cleanup;
+    ((ASTFuncDecl*)empty_name->implementation)->name =
+        semantic_test_copy_text("empty_name_impl");
     ((ASTFuncDecl*)empty_name->implementation)->body = ast_create(AST_BLOCK);
     if (!empty_name->public_name ||
+        !((ASTFuncDecl*)empty_name->implementation)->name ||
         !((ASTFuncDecl*)empty_name->implementation)->body) goto cleanup;
     missing_implementation->public_name = semantic_test_copy_text("open");
     invalid_implementation->public_name = semantic_test_copy_text("open");
