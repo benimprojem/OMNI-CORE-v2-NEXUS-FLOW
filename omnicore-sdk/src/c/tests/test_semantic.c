@@ -415,6 +415,15 @@ static int check_malformed_intrinsic_ast(void) {
     SemanticContext semantic;
     int ok;
     if (!node) return 0;
+    ((ASTCall*)node)->args = ast_create(AST_LITERAL);
+    if (!((ASTCall*)node)->args) { ast_destroy(node); return 0; }
+    ((ASTLiteral*)((ASTCall*)node)->args)->type = TOKEN_NUMBER;
+    ((ASTLiteral*)((ASTCall*)node)->args)->string_value =
+        semantic_test_copy_text("1");
+    if (!((ASTLiteral*)((ASTCall*)node)->args)->string_value) {
+        ast_destroy(node);
+        return 0;
+    }
     semantic_init(&semantic, "semantic-implicit-intrinsic-identity.nxf", NULL);
     semantic_check(&semantic, node);
     ok = semantic.error_count == 0;
