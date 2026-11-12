@@ -2905,12 +2905,16 @@ static void semantic_check_node(
                             (void)snprintf(message, sizeof(message),
                                 "Array index %lld cannot be negative.",
                                 (long long)constant_index);
+                        } else if (array_length == 0u) {
+                            (void)snprintf(message, sizeof(message),
+                                "Array index %llu is invalid because the target array is empty.",
+                                (unsigned long long)constant_index);
                         } else {
                             (void)snprintf(message, sizeof(message),
                                 "Array index %llu is out of bounds for an array of length %llu; valid range is 0..%llu.",
                                 (unsigned long long)constant_index,
                                 (unsigned long long)array_length,
-                                (unsigned long long)(array_length ? array_length - 1u : 0u));
+                                (unsigned long long)(array_length - 1u));
                         }
                         report_error(ctx, access->index,
                             ERR_SEMANTIC_TYPE_MISMATCH, message);
