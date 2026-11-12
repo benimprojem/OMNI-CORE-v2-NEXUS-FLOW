@@ -3908,6 +3908,17 @@ static ASTNode* parse_enum_decl(Parser* p, char* name) {
             var->data = data_head;
             consume(p, TOKEN_RPAREN, ERR_PARSER_EXPECTED_PAREN, MSG_EXPECT_RPAREN_PARAMS);
         }
+        if (match(p, TOKEN_ASSIGN)) {
+            Token equals_token = p->previous;
+            var->discriminant_expr = parse_expression(p);
+            if (!var->discriminant_expr) {
+                error_at(p, &equals_token, ERR_PARSER_EXPECTED_EXPRESSION,
+                    "Expected an integer constant expression after enum discriminant '='.");
+                ast_destroy(head);
+                ast_destroy((ASTNode*)decl);
+                return NULL;
+            }
+        }
         parser_stamp_node_tokens(p, (ASTNode*)var, &vt, &p->previous);
         if (match(p, TOKEN_COMMA)) {}
     }
