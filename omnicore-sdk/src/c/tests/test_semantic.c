@@ -161,6 +161,37 @@ static int check_malformed_conditional_ast(void) {
     return ok;
 }
 
+static int check_malformed_pattern_ast(void) {
+    ASTSelect* select_node=(ASTSelect*)ast_create(AST_SELECT);
+    ASTSelectArm* arm=(ASTSelectArm*)ast_create(AST_SELECT_ARM);
+    ASTNode* selector=ast_create(AST_LITERAL);
+    ASTNode* invalid_pattern=ast_create(AST_IDENTIFIER);
+    ASTNode* body=ast_create(AST_BLOCK);
+    SemanticContext semantic;
+    int ok=0;
+    if(!select_node || !arm || !selector || !invalid_pattern || !body) {
+        ast_destroy((ASTNode*)select_node);
+        ast_destroy((ASTNode*)arm);
+        ast_destroy(selector);
+        ast_destroy(invalid_pattern);
+        ast_destroy(body);
+        return 0;
+    }
+    ((ASTLiteral*)selector)->type=TOKEN_NUMBER;
+    select_node->selector=selector;
+    select_node->arms=(ASTNode*)arm;
+    arm->pattern=invalid_pattern;
+    arm->body=body;
+    semantic_init(&semantic,"semantic-malformed-pattern.nxf",NULL);
+    semantic_check(&semantic,(ASTNode*)select_node);
+    ok=semantic.error_count==1 && semantic.error_head &&
+        strstr(semantic.error_head->message,
+            "Pattern contains an unsupported AST node")!=NULL;
+    semantic_destroy(&semantic);
+    ast_destroy((ASTNode*)select_node);
+    return ok;
+}
+
 static int rejects_semantic_pending_node(ASTNodeType type) {
     ASTNode* node = ast_create(type);
     SemanticContext semantic;
@@ -921,6 +952,10 @@ int main(int argc, char** argv) {
 
     if (!check_malformed_conditional_ast()) {
         fprintf(stderr, "Malformed conditional AST checks failed.\n");
+        return 1;
+    }
+    if (!check_malformed_pattern_ast()) {
+        fprintf(stderr, "Malformed pattern AST checks failed.\n");
         return 1;
     }
     if (!check_semantic_fail_closed_nodes()) {
