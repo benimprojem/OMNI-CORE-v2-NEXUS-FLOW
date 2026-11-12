@@ -334,6 +334,14 @@ int main(void) {
         "f:main(a!Vec3) { v:result = -a; }";
     static const char valid_vec3_compound_arithmetic[] =
         "f:main(a!Vec3, b!Vec3) { a += b; a -= b; a *= b; a /= b; }";
+    static const char valid_vec2_full_arithmetic[] =
+        "f:main(a!Vec2, b!Vec2) { v:r1 = a + b; v:r2 = a - b; "
+        "v:r3 = a * b; v:r4 = a / b; v:r5 = a % b; v:r6 = a ^^ b; "
+        "v:r7 = -a; a += b; a -= b; a *= b; a /= b; }";
+    static const char valid_vec4_full_arithmetic[] =
+        "f:main(a!Vec4, b!Vec4) { v:r1 = a + b; v:r2 = a - b; "
+        "v:r3 = a * b; v:r4 = a / b; v:r5 = a % b; v:r6 = a ^^ b; "
+        "v:r7 = -a; a += b; a -= b; a *= b; a /= b; }";
     static const char invalid_vec_scalar_mix[] =
         "f:main(a!Vec3, b!f32) { v:result = a + b; }";
     static const char valid_vec2_vec4_initializers[] =
@@ -463,6 +471,8 @@ int main(void) {
     if (!check_source(valid_vec3_power, 0)) return 1;
     if (!check_source(valid_vec3_unary_minus, 0)) return 1;
     if (!check_source(valid_vec3_compound_arithmetic, 0)) return 1;
+    if (!check_source(valid_vec2_full_arithmetic, 0)) return 1;
+    if (!check_source(valid_vec4_full_arithmetic, 0)) return 1;
     if (!check_source(invalid_vec_scalar_mix, 1)) return 1;
     if (!check_source(valid_vec2_vec4_initializers, 0)) return 1;
     if (!check_source(invalid_vec_non_numeric_component, 1)) return 1;
