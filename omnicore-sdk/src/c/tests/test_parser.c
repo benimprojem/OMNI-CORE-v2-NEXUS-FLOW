@@ -4819,6 +4819,8 @@ static int test_handler_capture_string_and_call_flow_ast(void) {
     ASTNode* statement;
     ASTNexusCapture* capture;
     ASTNexusFlow* flow;
+    ASTNode* roundtrip=NULL;
+    FILE* ast_file=NULL;
     int ok=0;
     int stage=1;
     if(!ctx)return 0;
