@@ -141,10 +141,10 @@ int main(void) {
     if (!check_source(logical_valid, 0)) return 1;
     if (!check_source(logical_invalid, 1)) return 1;
     if (!check_error_detail(
-        "f:main(a!u8) !u8 {\\n    ret a <<< 8;\\n}",
+        "f:main(a!u8) !u8 {\n    ret a <<< 8;\n}",
         "8-bit width", "0..7", 2)) return 1;
     if (!check_error_detail(
-        "f:main() !f32 {\\n    ret 7.0 & 3.0;\\n}",
+        "f:main() !f32 {\n    ret 7.0 & 3.0;\n}",
         "Operator '&'", "f32", 2)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
