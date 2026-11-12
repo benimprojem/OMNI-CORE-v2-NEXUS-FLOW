@@ -2007,3 +2007,6 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Inferred array literals now visit all elements, receive an `array` SemanticResult annotation, and check element type compatibility. Heterogeneous inferred array values report a mismatch rather than being accepted as untyped.
 - Added `[1,2,3]` positive and `[1,"x"]` negative tests.
 - Commits: `7017200b` Semantic, `8102116e` test, `4feb7d81` dashboard. CI pending.
+
+
+- Tuple index semantic checker build fix: declared its local `int64_t constant_index` used for static bounds validation. Commit `48ab91cf`; dashboard `1b6b0870`.
