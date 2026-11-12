@@ -286,3 +286,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - NewType declarations validate their target type instead of silently accepting unresolved names; callback aliases remain valid targets.
 - Added positive callback NewType and negative unknown NewType target fixtures.
 - Commits: `88997965` Semantic, `5f287a01` tests. CI pending.
+
+
+### Semantic checkpoint — variadic function parameters — 2026-11-12
+
+- Semantic function signatures now separate fixed parameters from the final `AST_VARIADIC_PARAM` marker. Fixed parameter type slots no longer cast the marker as an `ASTVarDecl`.
+- Variadic calls enforce the minimum fixed argument count and accept extra arguments; fixed arguments remain type-checked. SemanticResult function-parameter relations safely emit a marker relation with no fake variable symbol.
+- Added positive variadic call and missing-fixed-argument negative tests.
+- Commits: `f081c798` (Slot contract), `2bfddd11`, `f1d1940a`, `0cf7f812` (Semantic), `115ac855` (tests). CI pending.
