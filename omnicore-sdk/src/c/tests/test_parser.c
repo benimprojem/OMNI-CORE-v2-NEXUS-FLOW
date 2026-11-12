@@ -711,6 +711,13 @@ static int test_parser_allocation_failure_injection(void) {
         fprintf(stderr,
             "OOM injection mismatch at allocation %zu (observed %zu, status %d, result %d).\n",
             fail_at,ctx->test_allocation_count,(int)status,result);
+        {
+            Error* parse_error;
+            for (parse_error = ctx->error_head; parse_error; parse_error = parse_error->next)
+                fprintf(stderr, "  parser error at %d:%d: %s\\n",
+                    parse_error->line, parse_error->col,
+                    parse_error->message ? parse_error->message : "<none>");
+        }
         parser_destroy(ctx);
         return 0;
     }
