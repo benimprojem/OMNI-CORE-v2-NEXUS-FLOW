@@ -156,6 +156,18 @@ int main(void) {
     static const char bitwise_representation_mismatch[] =
         "f:main(a!8bit, b!u8) !8bit { ret a | b; }";
     static const char bitwise_float[] = "f:main() !f32 { ret 7.0 & 3.0; }";
+    static const char bitwise_128_valid[] =
+        "f:main(a!128bit, b!128bit) !128bit { ret a ^ b; }";
+    static const char bitwise_byte_block_valid[] =
+        "f:main(a!16byte, b!16byte) !16byte { ret a | b; }";
+    static const char bitwise_single_bit_valid[] =
+        "f:main(a!bit, b!bit) !bit { ret ~a & b; }";
+    static const char bitwise_decimal_invalid[] =
+        "f:main(a!d64, b!d64) !d64 { ret a & b; }";
+    static const char bitwise_width_representation_mismatch[] =
+        "f:main(a!128bit, b!16byte) { v:x = a & b; }";
+    static const char compound_bitwise_byte_valid[] =
+        "f:main(a!16byte, b!16byte) { a ^= b; }";
     static const char shift_valid[] = "f:main() !i32 { ret 7 <<< 2 >>> 1; }";
     static const char shift_mixed_integer_types[] =
         "f:main(a!u8, b!u16) { v:c!u8 = a <<< b; }";
@@ -275,6 +287,12 @@ int main(void) {
     if (!check_source(bitwise_not_representation_valid, 0)) return 1;
     if (!check_source(bitwise_representation_mismatch, 1)) return 1;
     if (!check_source(bitwise_float, 1)) return 1;
+    if (!check_source(bitwise_128_valid, 0)) return 1;
+    if (!check_source(bitwise_byte_block_valid, 0)) return 1;
+    if (!check_source(bitwise_single_bit_valid, 0)) return 1;
+    if (!check_source(bitwise_decimal_invalid, 1)) return 1;
+    if (!check_source(bitwise_width_representation_mismatch, 1)) return 1;
+    if (!check_source(compound_bitwise_byte_valid, 0)) return 1;
     if (!check_source(shift_valid, 0)) return 1;
     if (!check_source(shift_mixed_integer_types, 0)) return 1;
     if (!check_source(shift_float_invalid, 1)) return 1;
