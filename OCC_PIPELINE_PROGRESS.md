@@ -2269,3 +2269,11 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Constructor call checks validate payload count and declared `type_name` compatibility; constructor call and callee AST nodes receive enum type/function-designator annotations.
 - Added direct AST regression fixtures for valid positional/named constructors, unknown variant, missing payload, incompatible payload type and unknown named payload field.
 - Updated syntax reference and AST coverage dashboard. Enum Semantic remains partial for discriminant model and recursive payload type-expression compatibility. Tests and CI are not yet verified.
+
+### Semantic checkpoint — Group method AST integrity — 2026-11-12
+
+- Hardened AST_METHOD: a method now requires a non-empty public name and an implementation node.
+- Ordinary methods accept only function or extern implementation nodes. The special default handler may also use a block body, matching the existing group-default syntax.
+- Invalid implementation node kinds are rejected before receiver inference or implementation traversal.
+- Added direct malformed-AST fixtures for missing method name, missing implementation and invalid implementation node kind. Existing source fixtures continue to cover inferred/explicit self, static/instance dispatch, forward method resolution, method argument count/type and default-handler behavior.
+- Group/Method Semantic remains partial; receiver/visibility and complete signature policy still need review. Tests have not been executed in this workspace and CI is unverified.
