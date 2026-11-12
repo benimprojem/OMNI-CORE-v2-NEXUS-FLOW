@@ -839,6 +839,24 @@ static FieldInfo* semantic_resolve_member(
     return NULL;
 }
 
+static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
+    if (!ctx || !node) return 0;
+    if (node->type == AST_IDENTIFIER) {
+        Slot* slot = find_slot(ctx, ((ASTIdentifier*)node)->name);
+        return slot && slot->kind == SLOT_VAR;
+    }
+    if (node->type == AST_MEMBER_ACCESS) {
+        ASTMemberAccess* access = (ASTMemberAccess*)node;
+        return semantic_resolve_member(ctx, node, 0) != NULL &&
+            semantic_is_lvalue(ctx, access->object);
+    }
+    if (node->type == AST_INDEX_ACCESS) {
+        ASTIndexAccess* access = (ASTIndexAccess*)node;
+        return semantic_is_lvalue(ctx, access->target);
+    }
+    return 0;
+}
+
 static int semantic_lvalue_is_const(SemanticContext* ctx, ASTNode* node) {
     if (!node) return 0;
     if (node->type == AST_IDENTIFIER) {
@@ -3630,21 +3648,23 @@ static void semantic_check_node(
                 semantic_check(ctx, postfix->operand);
                 operand_type = get_expr_type(ctx, postfix->operand);
             }
-            if (!postfix->operand || postfix->operand->type != AST_IDENTIFIER) {
+            if (!postfix->operand) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Postfix increment/decrement currently requires a variable identifier.");
-            } else {
-                Slot* operand_slot = find_slot(ctx,
-                    ((ASTIdentifier*)postfix->operand)->name);
-                if (!operand_slot) {
-                    /* Identifier resolution already emitted the undefined-name diagnostic. */
-                } else if (operand_slot->is_const) {
+                    "Postfix increment/decrement requires an operand.");
+            } else if (!semantic_is_lvalue(ctx, postfix->operand)) {
+                if (operand_type) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Postfix increment/decrement cannot modify a constant.");
-                } else if (!operand_type || !is_numeric_primitive_type(operand_type)) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Postfix increment/decrement requires a numeric variable.");
+                        "Postfix increment/decrement requires a mutable variable, field, or indexed element.");
                 }
+            } else if (semantic_lvalue_is_const(ctx, postfix->operand)) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Postfix increment/decrement cannot modify a constant or immutable field.");
+            } else if (!operand_type || !is_numeric_primitive_type(operand_type)) {
+                char message[256];
+                (void)snprintf(message, sizeof(message),
+                    "Postfix increment/decrement requires a numeric lvalue; got '%s'.",
+                    operand_type ? operand_type : "<unknown>");
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
             }
             if (operand_type) semantic_record_annotation(
                 ctx, node, NULL, operand_type, SEMANTIC_RESULT_VALUE_RVALUE);
