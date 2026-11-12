@@ -506,6 +506,10 @@ static int check_extended_ast_semantics(void) {
         "f:main(value!*MissingType) {}";
     const char* invalid_recursive_array_element =
         "f:main(value!MissingType[4]) {}";
+    const char* valid_recursive_aggregate_field =
+        "f:main() { struct:Box { v:value!*i32 } }";
+    const char* invalid_recursive_aggregate_field =
+        "f:main() { struct:Box { v:value!*MissingType } }";
     const char* invalid_recursive_function_decl_return =
         "f:main() !MissingType { ret; }";
     const char* valid_inferred_array =
@@ -561,6 +565,8 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_recursive_function_decl_return,1) &&
         check_source(invalid_recursive_variable_type,1) &&
         check_source(invalid_recursive_array_element,1) &&
+        check_source(valid_recursive_aggregate_field,0) &&
+        check_source(invalid_recursive_aggregate_field,1) &&
         check_source(invalid_recursive_function_return,1) &&
         check_source(duplicate_recursive_function_parameter,1) &&
         check_source(non_final_recursive_variadic_parameter,1) &&
