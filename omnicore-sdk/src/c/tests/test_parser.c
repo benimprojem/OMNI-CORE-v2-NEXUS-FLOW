@@ -4477,6 +4477,7 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
     int stage = 0;
 
     if (!ctx) return 0;
+    stage=1;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         ctx->error_count != 0 || !ctx->ast_root ||
         !ast_validate(ctx->ast_root, NULL)) goto done;
@@ -4535,6 +4536,7 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
     ok = 1;
 
 done:
+    if(!ok) fprintf(stderr,"flow test stage=%d\\n",stage);
     parser_destroy(ctx);
     if (!ok) return 0;
     return parser_source_reports_syntax_error(
