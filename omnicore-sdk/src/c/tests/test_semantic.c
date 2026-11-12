@@ -1111,11 +1111,9 @@ static int check_enum_scan_pattern_case(
     ASTPatternBinding* binding_b = NULL;
     ASTNode* owned_scan;
     int ok = 0;
-    if (test_case == 2)
-        binding_b = (ASTPatternBinding*)ast_create(AST_PATTERN_BINDING);
     if (!enum_decl || !payload_variant || !empty_variant || !payload_field ||
         !subject_decl || !scan || !arm || !subject || !constructor ||
-        !binding_a || (test_case == 2 && !binding_b)) goto cleanup;
+        !binding_a) goto cleanup;
 
     enum_decl->name = semantic_test_copy_text("ScanResult");
     payload_variant->name = semantic_test_copy_text("Ok");
@@ -1162,7 +1160,6 @@ static int check_enum_scan_pattern_case(
         arm->pattern = (ASTNode*)constructor;
         constructor = NULL;
     }
-    subject_decl = subject_decl;
     scan->subject = (ASTNode*)subject;
     subject = NULL;
     arm->body = ast_create(AST_BLOCK);
