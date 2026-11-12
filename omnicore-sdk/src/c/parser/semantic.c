@@ -5003,7 +5003,6 @@ static void semantic_check_node(
         case AST_EXIT:
         case AST_SWAP:
         case AST_INTR:
-        case AST_FREE:
         case AST_DATE:
         case AST_DATENOW:
         case AST_TIME:
