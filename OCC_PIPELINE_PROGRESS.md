@@ -1917,3 +1917,11 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Commits: implementation `92f43cbb5166891aedec098babcb3714c0820686`; tests `2af1952e54cb84acc1f33e8e62935690fe07752c`; dashboard update `4939686935405b8067d0a7b486e0c0ff092279c1`.
 - CI was triggered by the implementation commit; test commit followed while the first run was active. Recheck the latest run after the documentation commit before marking this checkpoint verified.
 - Remaining Semantic priorities: enum-aware constructor patterns and payload types; exhaustive Select/Scan; tuple typing/destructuring; function/callback signature compatibility and return-flow; import environment/type exports; ownership/effects and full AST annotation/reference validation. No OIR work starts until Semantic closure.
+
+
+### CI feedback — Semantic fixture and Parser test corrections — 2026-11-12
+
+- The first new Semantic test run compiled the updated Semantic source and `test_semantic`, but CTest caught two stale test-harness issues: conditional-control tests still used retired `(condition) -> action` spelling, and six Parser AST validation assertions omitted the required `ASTValidationError*` argument.
+- Updated conditional fixtures to `(condition) ? action` and supplied `NULL` to the six validation calls. No production syntax was loosened.
+- Commits: `51f8370f` (Parser validation call fixes), `2e5f1c9d` (Semantic fixture syntax correction), `ba52c43d` (dashboard log).
+- Full CI for the corrected head is pending; no green status claimed yet.
