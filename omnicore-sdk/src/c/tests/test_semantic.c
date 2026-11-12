@@ -523,6 +523,12 @@ static int check_extended_ast_semantics(void) {
         "f:main() { v:choice = 1; select(choice) { Range(s,s) -> { } } }";
     const char* invalid_guard =
         "f:main() { v:choice = 1; scan(choice) { Range(a,b) when 1 -> { } } }";
+    const char* select_default_not_last =
+        "f:main() { v:choice = 1; select(choice) { default -> { } 1 -> { } } }";
+    const char* valid_scan_else_last =
+        "f:main() { v:choice = 1; scan(choice) { Range(a,b) -> { } else -> { } } }";
+    const char* scan_else_not_last =
+        "f:main() { v:choice = 1; scan(choice) { else -> { } Range(a,b) -> { } } }";
     const char* valid_named_arguments =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(b:2,a:1); }";
@@ -622,6 +628,9 @@ static int check_extended_ast_semantics(void) {
         check_source(unknown_event,1) &&
         check_source(duplicate_pattern,1) &&
         check_source(invalid_guard,1) &&
+        check_source(select_default_not_last,1) &&
+        check_source(valid_scan_else_last,0) &&
+        check_source(scan_else_not_last,1) &&
         check_source(valid_named_arguments,0) &&
         check_source(invalid_named_argument,1) &&
         check_source(valid_variadic_call,0) &&
