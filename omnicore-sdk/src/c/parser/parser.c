@@ -2111,6 +2111,7 @@ static ASTNode* parse_logical_or(Parser* p) {
 
 static ASTNode* parse_nexus_flow(Parser* p) {
     ASTNode* expr = parse_logical_or(p);
+    int error_handler = 0;
     if (!expr) return NULL;
     
         if (match(p, TOKEN_ELSE_FLOW) || match(p, TOKEN_PIPE) || 
@@ -2123,7 +2124,6 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         int retry_count = 0;
         int retry_delay = 0;
         int is_rolling = 0;
-        int error_handler = 0;
 
         // Rolling Check: ?(n,ms)->
         if (p->current.type == TOKEN_QMARK) {
@@ -2200,7 +2200,8 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             parser_stamp_node_token(p, (ASTNode*)handler, &handler_token);
             right = (ASTNode*)handler;
         } else if (check(p,TOKEN_LPAREN) &&
-            parser_identifier_is(&peek_token(p),"e") &&
+            peek_token(p).type==TOKEN_IDENTIFIER &&
+            peek_token(p).length==1 && peek_token(p).start[0]=='e' &&
             peek_token_ahead(p,2).type==TOKEN_RPAREN) {
             Token handler_open=p->current;
             Token handler_name_token;
