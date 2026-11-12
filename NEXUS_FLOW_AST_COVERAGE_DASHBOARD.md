@@ -29,7 +29,7 @@ Intrinsic signature checks and parser-source regression fixtures have been added
 | `addr`, `len`, `peek`, `poke` | ✓ | ✓ | pointer validity/lifetime, bounds/alignment, access width/effects |
 | `inb`, `outb` | ✓ | ✓ | target capability, privilege and port width |
 | `area`, `zone`, `free` | ✓ | ✓ | ownership/region lifetime, allocation failure, target mapping |
-| Intrinsic AST direct malformed fixtures | ? | ? | ASTCall null callee/args and malformed named-argument payload audit remains |
+| Intrinsic AST direct malformed fixtures | ✓ | ✓ | Missing/wrong callee identifier regression ✓; null argument and named-arg payload audit remains |
 
 ## AST structural audit checkpoint — 2026-11-11
 
