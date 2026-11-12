@@ -6578,6 +6578,7 @@ static void semantic_check_node(
             if (call->callee) semantic_check(ctx, call->callee);
             if (call->args) semantic_check(ctx, call->args);
             semantic_validate_intrinsic_callee(ctx, node, call);
+            if (node->type == AST_INTR) semantic_validate_intr_intrinsic(ctx, node);
             break;
         }
 
