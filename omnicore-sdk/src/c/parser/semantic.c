@@ -356,6 +356,8 @@ static uint32_t semantic_type_id(
 
     if (strcmp(name, "array") == 0) {
         kind = SEMANTIC_RESULT_TYPE_AGGREGATE;
+    } else if (strncmp(name, "f:(", 3u) == 0) {
+        kind = SEMANTIC_RESULT_TYPE_FUNCTION;
     } else if (strcmp(name, "tuple") == 0) {
         kind = SEMANTIC_RESULT_TYPE_TUPLE;
     } else if (strcmp(name, "t") == 0) {
@@ -1380,9 +1382,10 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
         return *type_name != '\\0' && is_type_defined(ctx, type_name);
     }
 
-    // Generic and structurally typed array aggregates.
+    // Generic, recursive array and function types are represented in AST.
     if (semantic_is_array_type_name(type_name) ||
-        strcmp(type_name, "tuple") == 0 || strcmp(type_name, "t") == 0)
+        strcmp(type_name, "tuple") == 0 || strcmp(type_name, "t") == 0 ||
+        strncmp(type_name, "f:(", 3u) == 0)
         return 1;
 
     // Primitives
@@ -3652,6 +3655,12 @@ static void semantic_check_node(
 
         case AST_NEWTYPE_DECL: {
             ASTNewTypeDecl* nt = (ASTNewTypeDecl*)node;
+            if (nt->target_type && !is_type_defined(ctx,nt->target_type)) {
+                char message[256];
+                snprintf(message,sizeof(message),msg_get(ERR_SEMANTIC_UNKNOWN_TYPE),
+                    nt->target_type);
+                report_error(ctx,node,ERR_SEMANTIC_UNKNOWN_TYPE,message);
+            }
             if (find_slot(ctx, nt->name)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "Type '%s' already defined.", nt->name);
