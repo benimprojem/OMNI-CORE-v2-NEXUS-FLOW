@@ -20,6 +20,17 @@
 **Sütunlar:** L = Lexer, P = Parser, A = AST payload + lifecycle + codec, S = Semantic, O = OIR lowering, V = bağımsız OIR Verifier.  
 **Önemli:** Verifier ham AST almaz. AST'den Semantic AST'ye, oradan OIR'a indirgenen yürütülebilir davranışı doğrular. Bu nedenle O sütunu kapanmadan V sütunu da o syntax özelliği için kapanmış sayılamaz.
 
+## Semantic intrinsic signature audit — 2026-11-12
+
+Intrinsic signature checks and parser-source regression fixtures have been added for the following subset. This is a focused audit checkpoint, not completion of intrinsic semantics; hardware effects, target capability, privilege, memory safety and lowering remain open.
+
+| Intrinsic family | Structural/signature checks | Regression cases | Remaining |
+|---|:---:|:---:|---|
+| `addr`, `len`, `peek`, `poke` | ✓ | ✓ | pointer validity/lifetime, bounds/alignment, access width/effects |
+| `inb`, `outb` | ✓ | ✓ | target capability, privilege and port width |
+| `area`, `zone`, `free` | ✓ | ✓ | ownership/region lifetime, allocation failure, target mapping |
+| Intrinsic AST direct malformed fixtures | ? | ? | ASTCall null callee/args and malformed named-argument payload audit remains |
+
 ## AST structural audit checkpoint — 2026-11-11
 
 A direct source comparison found **108/108 unique AST tags** with explicit dispatch in the factory-size table, destructor, printer, serializer, deserializer and graph validator. The all-tag codec fixture iterates through the current final tag, `AST_TYPE_EXPR`. This is a structural/lifecycle closure only: it does not imply that all 108 tags are active Parser productions, semantically complete, lowerable to OIR or covered by Verifier.
@@ -87,8 +98,8 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Array type `T[]`, `T[n]`, `T[m][n]` | `AST_ARRAY_TYPE` (98), `AST_ARRAY_DIMENSION` (99), `AST_TYPE_EXPR` (108) | ✓ | ✓ | ✓ | ~ | ? | ? | Type compatibility tamamlanmış dilimlerinin lowering'i ve bounds/runtime layout |
 | Array index / indexed assignment | `AST_INDEX_ACCESS` (21) | ✓ | ✓ | ✓ | ✓ | ? | ? | Bounds check, multidimensional flattening, load/store lowering |
 | Struct field initialization/access | Struct literal + Semantic field relation | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Aggregate instance layout, field address/value ve Verifier checks |
-| Address/length `addr`, `len` | `AST_ADDR`, `AST_LEN` | ✓ | ✓ | ✓ | ? | ? | ? | Signature, result type, pointer lifetime ve lowering |
-| Memory access `peek`, `poke` | `AST_PEEK`, `AST_POKE` | ✓ | ✓ | ✓ | ? | ? | ? | Address/value width, alignment, bounds ve target effects |
+| Address/length `addr`, `len` | `AST_ADDR`, `AST_LEN` | ✓ | ✓ | ✓ | ~ | ? | ? | Signature checks/tests ✓; pointer lifetime ve lowering açık |
+| Memory access `peek`, `poke` | `AST_PEEK`, `AST_POKE` | ✓ | ✓ | ✓ | ~ | ? | ? | Arity/type tests ✓; width, alignment, bounds ve target effects açık |
 | Map / Vec indexing and operations | Generic member/index representation | ✓ | ✓ | ✓ | ~ | ? | ? | Map index-read and capture-write Parser forms are covered; Vec/container-specific typing and Semantic constraints remain open |
 | Packed bit storage `bit`, width-qualified bit/byte types | Scalar/array type payloads | ✓ | ✓ | ✓ | ~ | ~ | ~ | bit/byte width type strings round-trip; packed indexing, LSB-first bounds/read-modify-write ve OIR contract açık |
 
@@ -129,9 +140,9 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Handler capture `(h)<-expr` | `AST_NEXUS_CAPTURE` | ✓ | ✓ | ✓ | ~ | ? | ? | Occupancy, ownership, move/copy and lifetime |
 | Relocate `_>` | `AST_RELOCATE` (95) | ✓ | ✓ | ✓ | ~ | ? | ? | Source invalidation, destination initialization and explicit move effect |
 | Legacy unpack spelling `...>` | Reserved `AST_UNPACK` (38); no active production | ✓ (legacy token) | X | ✓ (reserved codec tag) | D | D | — | Infix operator is rejected by Core Parser. When needed, expose decoding as an ordinary `coremodule.unpack(data)` function after its input/output and error contract is specified; file I/O and normalization remain separate operations |
-| `area / zone` | `AST_AREA`, `AST_ZONE` | ✓ | ✓ | ✓ | ? | ? | ? | Region typing, access permissions and target mapping |
+| `area / zone` | `AST_AREA`, `AST_ZONE` | ✓ | ✓ | ✓ | ~ | ? | ? | Size/type checks ✓; region ownership and target mapping open |
 | I/O `echo/prnt/prmt/write/fwrite` | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ? | ? | ? | Central intrinsic signature/effect registry and OS module lowering |
-| Port I/O `inb/outb`, interrupt `irq/intr`, register `reg` | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ? | ? | ? | Target capability, privilege, width and effect validation |
+| Port I/O `inb/outb`, interrupt `irq/intr`, register `reg` | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ~ | ? | ? | `inb/outb` arity/type tests ✓; irq/intr/reg and target capability open |
 | Reflection `typeof/sizeof/is_*` | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ~ | ? | ? | Compile-time/runtime distinction, type result and lowering |
 | Date/time/clock/free | Matching intrinsic AST tags | ✓ | ✓ | ✓ | ? | ? | ? | Signature, platform service and effect contract |
 | Zone sync/view/lock member calls | Generic member/call AST; reserved dedicated tags | ✓ | ✓ | ✓ | ? | ? | ? | Intrinsic registry; do not count reserved tags as active productions |
