@@ -140,7 +140,7 @@ int main(void) {
     static const char unary_minus_valid[] =
         "f:main() !i32 { ret -1; }";
     static const char unary_minus_invalid[] =
-        "f:main() !i32 { ret -\\\"text\\\"; }";
+        "f:main() !i32 { ret -\"text\"; }";
     static const char unary_bit_not_valid[] =
         "f:main() !i32 { ret ~1; }";
     static const char unary_bit_not_invalid[] =
