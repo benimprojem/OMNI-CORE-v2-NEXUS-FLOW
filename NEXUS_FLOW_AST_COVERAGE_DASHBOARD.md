@@ -40,9 +40,9 @@
 
 - The user approved a single-owner, explicit-transfer ownership model with lexical lifetimes. `copy(value)` is the explicit copy operation; moved-from names become invalid.
 - `&T` is the shared immutable borrow design; `&mut T` is the exclusive mutable borrow design, but the current Parser does not yet accept `&mut T`. Raw `*T` remains outside automatic borrow/lifetime guarantees.
-- Handler tables `(h)` belong only to their defining block. `(h) _> (hand)` transfers ownership to the target table; the source table becomes invalid and is removed from the previous scope's cleanup ownership.
+- Handler tables `(h)` belong to their defining block. `_>` is a forward relocation: it routes data and ownership from a source handler to a target handler declared later in source order and in another scope. It does not jump execution or run the target scope early; the target handler is created at its own code position and receives the routed ownership.
 - Both `?;` and block-end `}?;` are defined as global active-resource Halt forms for the current execution context. Their difference is syntactic placement, not cleanup scope.
-- The normative syntax reference records these decisions. This is a design/documentation checkpoint only: Semantic ownership/borrow tracking, Halt control-flow effects, OIR metadata/lowering and independent Verifier checks remain open. No dashboard completion mark is granted.
+- The normative syntax reference records these decisions and includes a forward cross-scope relocation example. This is a design/documentation checkpoint only: forward target resolution, Semantic ownership/borrow tracking, Halt control-flow effects, OIR metadata/lowering and independent Verifier checks remain open. No dashboard completion mark is granted.
 - Pointer/reference regression fixture was corrected to avoid unsupported `&*T` syntax. GitHub Actions run [43309269784](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43309269784) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. This verifies the corrected type-compatibility fixtures, not ownership/lifetime Semantic completion.
 
 ## Thread module boundary checkpoint — 2026-11-12
