@@ -36,6 +36,15 @@
 - Duplicate public names reject overloads; method implementation symbols cannot be shared by aliases or collide with direct Group functions. The normative syntax reference documents this contract.
 - GitHub Actions run [43305008261](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43305008261) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. Group / method Semantic is closed; OIR lowering and independent Verifier remain open.
 
+## Ownership / Handler / Halt design checkpoint — 2026-11-12
+
+- The user approved a single-owner, explicit-transfer ownership model with lexical lifetimes. `copy(value)` is the explicit copy operation; moved-from names become invalid.
+- `&T` is the shared immutable borrow design; `&mut T` is the exclusive mutable borrow design, but the current Parser does not yet accept `&mut T`. Raw `*T` remains outside automatic borrow/lifetime guarantees.
+- Handler tables `(h)` belong only to their defining block. `(h) _> (hand)` transfers ownership to the target table; the source table becomes invalid and is removed from the previous scope's cleanup ownership.
+- Both `?;` and block-end `}?;` are defined as global active-resource Halt forms for the current execution context. Their difference is syntactic placement, not cleanup scope.
+- The normative syntax reference records these decisions. This is a design/documentation checkpoint only: Semantic ownership/borrow tracking, Halt control-flow effects, OIR metadata/lowering and independent Verifier checks remain open. No dashboard completion mark is granted.
+- Pointer/reference regression fixture was corrected to avoid unsupported `&*T` syntax. CI verification is pending for the updated branch head.
+
 ## Thread module boundary checkpoint — 2026-11-12
 
 - `spawn`, `listen`, `send`, `receive` and `done` now parse as ordinary identifier callees and produce generic `AST_FUNC_CALL` nodes; their runtime/API semantics belong to the Thread library.
@@ -91,7 +100,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ✓ | ? | ? | Variant/payload validation, recursive payload type checks, constructor resolution/argument binding, scan payload binding/exhaustiveness and signed-i64 discriminants covered by Semantic regressions; full CI verified; OIR/Verifier enum representation remains open |
 | Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | C-like shared-storage contract: no active-member tracking; cross-member reads are permitted as target-ABI-dependent reinterpretation; field/type/member diagnostics and regression fixtures pass full CI; union layout/ABI and OIR lowering remain open |
 | Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ✓ | ? | ? | Public alias/implementation symbol uniqueness; Group-bound nominal type visibility; inferred/explicit `self`; static/instance dispatch; implicit receiver exclusion; positional/named argument binding, duplicate/unknown/conflicting argument rejection and malformed AST validation pass full CI; overload desteklenmiyor (public ad benzersiz); OIR/Verifier ayrı aşamalar |
-| Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
+| Pointer / reference `*T`, `**T`, `&T` | Type-name string + SemanticResult type layers | ✓ | ✓ | ✓ | ~ | ? | ? | Approved: single owner, explicit move, `copy()`, lexical lifetime, `&T` shared borrow, planned `&mut T` exclusive borrow; Semantic enforcement, raw-pointer boundary, nullability and ABI remain open |
 | Implicit type variable `t` | Type-name string / `AST_TYPE_EXPR` | ✓ | ✓ | ✓ | ~ | D | — | Type-variable scope, binding, unification ve inference |
 | Map | Adlandırılmış type-name | ✓ | ✓ | ✓ | ~ | ? | ? | Key/value generic sözleşmesi, key constraints ve runtime davranışı |
 | Vec / SIMD `Vec2`, `Vec3`, `Vec4` | Adlandırılmış type-name | ✓ | ✓ | ✓ | ~ | ? | ? | Parser type-name ve exact declaration span testleri mevcut; element type, kapasite/uzunluk ve operasyon semantiği açık |
@@ -155,7 +164,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Return `ret` | `AST_RETURN` (26) | ✓ | ✓ | ✓ | ~ | ~ | ~ | Return type, all-path return ve terminator contract |
 | Conditional control `(cond) ? action [: alternative]` | Canonical `AST_IF` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Parser follows normative `?` grammar for control-transfer, expression and block arms; `->` remains data Flow pipe; loop context, action legality ve round-trip remain later-stage work |
 | Labels / jump `label:>`, `?>(label)`, `jump(label)` | `AST_NEXUS_LABEL`, `AST_NEXUS_JUMP` | ✓ | ✓ | ✓ | ~ | ? | ? | Label identity/scope, duplicate/missing target ve CFG lowering |
-| Targeted/targetless halt `?;` | `AST_NEXUS_HALT` | ✓ | ✓ | ✓ | ? | ? | ? | Cleanup ordering, target resolution ve terminal CFG behavior |
+| Global Halt `?;` | `AST_NEXUS_HALT` | ✓ | ✓ | ✓ | ? | ? | ? | Global active-resource cleanup, defer ordering and terminal CFG behavior |
 | Block cleanup `} ?;` | `AST_BLOCK_HALT` (100) | ✓ | ✓ | ✓ | ? | ? | ? | AST_BLOCK_HALT payload-free header/source span ve legal block ownership validation; OIR cleanup order açık |
 | `defer` | `AST_DEFER` (69) | ✓ | ✓ | ✓ | ? | ? | ? | Scope exit ordering, unwind and cleanup lowering |
 | `panic(...)` | `AST_PANIC` (39) | ✓ | ✓ | ✓ | ~ | ? | ? | Message restriction tests, trap/abort semantics ve lowering |
