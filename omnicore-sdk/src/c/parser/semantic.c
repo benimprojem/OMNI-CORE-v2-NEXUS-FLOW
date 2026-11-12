@@ -3388,10 +3388,27 @@ static void semantic_check_node(
             const char* operand_type;
             semantic_check(ctx, unary->operand);
             operand_type = get_expr_type(ctx, unary->operand);
-            if (unary->op == TOKEN_BIT_NOT && operand_type &&
-                !is_bitwise_primitive_type(operand_type)) {
-                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Bitwise complement requires a bitwise-capable operand.");
+            if (operand_type && unary->op == TOKEN_NOT &&
+                !semantic_is_boolean_condition(ctx, unary->operand)) {
+                char message[256];
+                (void)snprintf(message, sizeof(message),
+                    "Logical negation '!' requires a bool operand; got '%s'.",
+                    operand_type);
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+            } else if (operand_type && unary->op == TOKEN_MINUS &&
+                       !is_numeric_primitive_type(operand_type)) {
+                char message[256];
+                (void)snprintf(message, sizeof(message),
+                    "Unary minus requires a numeric operand; got '%s'.",
+                    operand_type);
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+            } else if (operand_type && unary->op == TOKEN_BIT_NOT &&
+                       !is_bitwise_primitive_type(operand_type)) {
+                char message[256];
+                (void)snprintf(message, sizeof(message),
+                    "Bitwise complement '~' does not support operand type '%s'; use an integer or bit-representation type.",
+                    operand_type);
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
             }
             break;
         }
