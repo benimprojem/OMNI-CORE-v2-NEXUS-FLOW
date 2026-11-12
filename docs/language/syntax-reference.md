@@ -1486,7 +1486,7 @@ dllexp: run_optimizer(*oir_path, *nxir_path, *target) {....}
 # 'Optimizer' masası artık içindeki fonksiyonları bir 'group' gibi sunar.
 v:sonuc = Optimizer.run_optimizer(oir_path, nxir_path, target_info);
 
-(Optimizer)?; # Serbest bırak. Yüklenen dll yi kaldır.
+# Yüklenen DLL'yi bırakmak için modülün kaynak-release API'si çağrılır; Halt bunun yerine geçmez.
 ```
 
 ---
