@@ -1215,9 +1215,11 @@ union:Register32 {
 
 ```
 
-Union semantic boundary:
+Union semantic contract (C-like shared-storage behavior):
 - Union fields require non-empty, unique names and an explicit declared type, just like Struct fields.
-- Semantic resolves a selected member's declared type, but the current language contract does not yet track which member is active or guarantee that reading an inactive member is safe. Active-member selection and safe-read rules remain an explicit design item.
+- All members share the same storage. Writing one member overwrites the shared storage; Semantic resolves reads and writes using the selected member's declared type.
+- Semantic does not track an active member and does not reject a read merely because a different member was written most recently. Reading another member reinterprets the shared object representation; the resulting value/layout is target-ABI dependent and is not a portable conversion guarantee.
+- This is an intentional low-level facility for systems, kernel and driver code. It does not promise that every cross-member interpretation is meaningful or safe on every target. Physical size, alignment, padding and representation belong to the target ABI/OIR contract.
 
 ####  7.4 `nt:` (NewType)(Typedef)**
 
