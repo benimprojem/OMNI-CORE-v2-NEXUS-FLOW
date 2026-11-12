@@ -1406,10 +1406,10 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
 
     /* Pointer/reference wrappers are valid only when their base type resolves. */
     if (type_name[0] == '&')
-        return type_name[1] != '\\0' && is_type_defined(ctx, type_name + 1);
+        return type_name[1] != '\0' && is_type_defined(ctx, type_name + 1);
     if (type_name[0] == '*') {
         while (*type_name == '*') ++type_name;
-        return *type_name != '\\0' && is_type_defined(ctx, type_name);
+        return *type_name != '\0' && is_type_defined(ctx, type_name);
     }
 
     // Generic, recursive array and function types are represented in AST.
