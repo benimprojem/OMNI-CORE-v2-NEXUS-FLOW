@@ -233,13 +233,33 @@ f:listele_legacy(a!map, ...) { ... }
 *   `Vec3`: `[x, y, z]` 
 *   `Vec4`: `[x, y, z, w]` 
 
-``` nxf
-    v:v1!Vec3 = [1.0, 2.0, 3.0];
-    v:v2!Vec3 = [4.0, 5.0, 6.0];
-    v:sonuc = v1 + v2; # [5.0, 7.0, 9.0] - otomatik toplanır.
-    
-    f:vec_process(a!Vec3, ...) { ... }
+```nxf
+v:a!Vec2 = [1.0, 2.0];
+v:b!Vec2 = [3.0, 4.0];
+v:sum2 = a + b;             # [4.0, 6.0]
+v:diff2 = a - b;            # [-2.0, -2.0]
+
+v:c!Vec3 = [1.0, 2.0, 3.0];
+v:d!Vec3 = [2.0, 3.0, 4.0];
+v:product3 = c * d;         # [2.0, 6.0, 12.0]
+v:negative3 = -c;            # [-1.0, -2.0, -3.0]
+c += d;                      # [3.0, 5.0, 7.0]
+
+v:e!Vec4 = [1.0, 2.0, 3.0, 4.0];
+v:f!Vec4 = [2.0, 2.0, 2.0, 2.0];
+v:quotient4 = e / f;         # [0.5, 1.0, 1.5, 2.0]
+
+f:vec_process(a!Vec3, ...) { ... }
 ```
+
+**Vektör aritmetiği (Semantic sözleşmesi):**
+- `Vec2`, `Vec3` ve `Vec4` aynı boyuttaki iki vektör arasında bileşen bazında `+`, `-`, `*`, `/`, `%` ve `^^` işlemlerini destekler.
+- Unary `-` vektörün her bileşeninin işaretini değiştirir.
+- `+=`, `-=`, `*=`, `/=` bileşik atamaları aynı boyuttaki vektörlerde desteklenir.
+- Operand boyutları eşleşmelidir. `Vec2` ile `Vec3` gibi farklı boyutlar Semantic hatasıdır.
+- Vektör ile skalerin karıştırılması şu an desteklenmez; skaler yayılımı/broadcast için dil kuralı henüz tanımlanmamıştır.
+- Başlatıcı tam olarak vektör boyutu kadar sayısal bileşen içermelidir. Örneğin `Vec3` üç bileşen ister.
+- Bu maddeler Semantic kabul sözleşmesidir; SIMD kod üretimi ve çalışma zamanı davranışı Codegen/backend aşamasına aittir.
 
 ---
 
