@@ -338,3 +338,12 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 
 
 - Ownership split correction: duplicate named labels and positional-after-named are already rejected by Parser (and covered in its variadic/named argument regression); removed those parser-invalid sources from Semantic's `check_source` fixtures. Semantic coverage remains reordered named-argument type checking and unknown-name diagnostics, with defensive duplicate/order checks for externally constructed ASTs.
+
+
+### Semantic checkpoint — shift count operand-width validation — 2026-11-12
+
+- Constant shift counts are now validated against the left operand's integer width: count < width is required.
+- Negative counts remain rejected. i32 shifts by 32/33 and u8 shifts by 8 now produce Semantic errors; boundary-valid u8 << 7 and i64 >> 63 remain accepted.
+- Dynamic shift counts remain accepted at Semantic time because their value is not statically known; OIR/runtime must define fail-safe behavior for counts at or above the value width (trap/diagnostic rather than undefined host behavior).
+- Added boundary fixtures to test_semantic_arithmetic.c.
+- Commits: b1852e7e (Semantic), c6d64269 (tests). CI pending; not marked verified.
