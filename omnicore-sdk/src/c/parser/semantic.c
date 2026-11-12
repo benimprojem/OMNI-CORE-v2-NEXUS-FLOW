@@ -2415,55 +2415,161 @@ static void semantic_validate_allocation_intrinsic(
     }
 }
 
+static Slot* semantic_pattern_enum_slot(
+    SemanticContext* ctx, const char* subject_type
+) {
+    const char* type_name = subject_type;
+    Slot* slot;
+    if (!ctx || !type_name || !*type_name) return NULL;
+    if (*type_name == '!') ++type_name;
+    slot = find_slot(ctx, type_name);
+    return slot && slot->kind == SLOT_ENUM ? slot : NULL;
+}
+
+static ASTEnumVariant* semantic_find_enum_variant(
+    Slot* enum_slot, const char* variant_name
+) {
+    ASTNode* current;
+    const ASTEnumDecl* declaration;
+    if (!enum_slot || !variant_name || !*variant_name ||
+        !enum_slot->declaration_node ||
+        enum_slot->declaration_node->type != AST_ENUM_DECL) return NULL;
+    declaration = (const ASTEnumDecl*)enum_slot->declaration_node;
+    for (current = declaration->variants; current; current = current->next) {
+        ASTEnumVariant* variant;
+        if (current->type != AST_ENUM_VARIANT) continue;
+        variant = (ASTEnumVariant*)current;
+        if (variant->name && strcmp(variant->name, variant_name) == 0)
+            return variant;
+    }
+    return NULL;
+}
+
+static void semantic_add_pattern_binding(
+    SemanticContext* ctx, ASTNode* node, const char* name,
+    const char* binding_type
+) {
+    Slot* existing;
+    Slot* slot;
+    if (!name || !name[0]) {
+        report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+            "Pattern binding is missing its identifier.");
+        return;
+    }
+    existing=find_slot(ctx,name);
+    if(existing && existing->depth==ctx->current_depth) {
+        report_error(ctx,node,ERR_SEMANTIC_REDEFINED,
+            "Pattern binding is duplicated in the same arm.");
+        return;
+    }
+    slot=add_slot(ctx,name,SLOT_VAR,0,
+        binding_type && *binding_type ? binding_type : "any",
+        node,1,0,0,0u);
+    if (slot && slot->type_name) {
+        slot->type_id = semantic_type_id(ctx,slot->type_name,0);
+        if (ctx->result_enabled && slot->symbol_id != 0u &&
+            slot->type_id != 0u) {
+            SemanticResultStatus type_status =
+                semantic_result_set_symbol_type(
+                    &ctx->result,slot->symbol_id,slot->type_id);
+            semantic_set_result_error(ctx,type_status);
+        }
+    }
+    semantic_record_annotation(ctx,node,slot,
+        slot ? slot->type_name : binding_type,
+        SEMANTIC_RESULT_VALUE_LVALUE);
+}
+
 static void semantic_check_pattern_bindings(
     SemanticContext* ctx, ASTNode* pattern, const char* subject_type
 ) {
     ASTNode* current;
     const char* binding_type = subject_type && *subject_type
         ? subject_type : "any";
+    Slot* enum_slot = semantic_pattern_enum_slot(ctx,subject_type);
     for (current=pattern; current; current=current->next) {
         if (current->type==AST_PATTERN_BINDING) {
             ASTPatternBinding* binding=(ASTPatternBinding*)current;
-            Slot* existing;
-            if(!binding->name || !binding->name[0]) {
-                report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Pattern binding is missing its identifier.");
-                continue;
-            }
-            existing=find_slot(ctx,binding->name);
-            if(existing && existing->depth==ctx->current_depth) {
-                report_error(ctx,current,ERR_SEMANTIC_REDEFINED,
-                    "Pattern binding is duplicated in the same arm.");
-            } else {
-                Slot* slot=add_slot(ctx,binding->name,SLOT_VAR,0,binding_type,
-                    current,1,0,0,0u);
-                if (slot && binding_type != NULL) {
-                    slot->type_id = semantic_type_id(ctx,binding_type,0);
-                    if (ctx->result_enabled && slot->symbol_id != 0u &&
-                        slot->type_id != 0u) {
-                        SemanticResultStatus type_status =
-                            semantic_result_set_symbol_type(
-                                &ctx->result,slot->symbol_id,slot->type_id);
-                        semantic_set_result_error(ctx,type_status);
-                    }
-                }
-                semantic_record_annotation(ctx,current,slot,binding_type,
-                    SEMANTIC_RESULT_VALUE_LVALUE);
-            }
+            /* A bare enum variant is a tag match, not a new local variable. */
+            if (enum_slot && binding->name &&
+                semantic_find_enum_variant(enum_slot,binding->name)) continue;
+            semantic_add_pattern_binding(
+                ctx,current,binding->name,binding_type);
         } else if (current->type==AST_PATTERN_CONSTRUCTOR) {
             ASTPatternConstructor* constructor=(ASTPatternConstructor*)current;
+            ASTEnumVariant* variant;
+            ASTNode* field_node;
+            ASTNode* binding_node;
             if(!constructor->name || !constructor->name[0]) {
                 report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
                     "Constructor pattern is missing its name.");
                 continue;
             }
-            if(!constructor->bindings) {
+            if(!enum_slot) {
                 report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Constructor pattern requires at least one binding.");
+                    "Constructor pattern requires an enum subject; got '%s'.",
+                    binding_type);
                 continue;
             }
-            semantic_check_pattern_bindings(ctx,constructor->bindings,binding_type);
-        } else if(current->type!=AST_LITERAL) {
+            variant=semantic_find_enum_variant(enum_slot,constructor->name);
+            if(!variant) {
+                char message[256];
+                (void)snprintf(message,sizeof(message),
+                    "Enum '%s' has no variant named '%s'.",
+                    enum_slot->name,constructor->name);
+                report_error(ctx,current,ERR_SEMANTIC_UNKNOWN_TYPE,message);
+                continue;
+            }
+            field_node=variant->data;
+            binding_node=constructor->bindings;
+            while(field_node && binding_node) {
+                ASTVarDecl* field;
+                ASTPatternBinding* binding;
+                if(field_node->type!=AST_VAR_DECL) {
+                    report_error(ctx,field_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Enum payload contains an invalid field declaration.");
+                    field_node=field_node->next;
+                    binding_node=binding_node->next;
+                    continue;
+                }
+                if(binding_node->type!=AST_PATTERN_BINDING) {
+                    report_error(ctx,binding_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Enum constructor payload patterns must be simple bindings.");
+                    field_node=field_node->next;
+                    binding_node=binding_node->next;
+                    continue;
+                }
+                field=(ASTVarDecl*)field_node;
+                binding=(ASTPatternBinding*)binding_node;
+                semantic_add_pattern_binding(
+                    ctx,binding_node,binding->name,
+                    field->type_name && field->type_name[0]
+                        ? field->type_name : "any");
+                field_node=field_node->next;
+                binding_node=binding_node->next;
+            }
+            if(field_node || binding_node) {
+                char message[256];
+                size_t expected=0u, actual=0u;
+                ASTNode* item;
+                for(item=variant->data;item;item=item->next) ++expected;
+                for(item=constructor->bindings;item;item=item->next) ++actual;
+                (void)snprintf(message,sizeof(message),
+                    "Enum variant '%s' expects %lu payload binding(s), but pattern provides %lu.",
+                    constructor->name,(unsigned long)expected,(unsigned long)actual);
+                report_error(ctx,current,ERR_SEMANTIC_ARG_TYPE,message);
+            }
+        } else if(current->type==AST_LITERAL) {
+            const char* literal_type=get_expr_type(ctx,current);
+            if(subject_type && literal_type &&
+               !are_types_compatible(subject_type,literal_type)) {
+                char message[256];
+                (void)snprintf(message,sizeof(message),
+                    "Pattern literal type '%s' is incompatible with subject type '%s'.",
+                    literal_type,subject_type);
+                report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,message);
+            }
+        } else {
             report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
                 "Pattern contains an unsupported AST node.");
         }
