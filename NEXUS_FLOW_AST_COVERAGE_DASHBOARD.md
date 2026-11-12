@@ -474,3 +474,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Extended the dedicated `test_semantic.c` control-flow suite with nested-loop success, post-loop scope restoration (both `break` and `continue` rejected), and nested-function `continue` rejection. Existing tests already cover loop-external transfers, conditional transfers, invalid loop conditions, and nested-function `break` rejection.
 - No Semantic implementation change was necessary: the inspected scope handling already enforces these rules. New fixtures and normative syntax text were committed; CI remains pending.
 - Test commit: `bd3a3ebc`.
+
+
+### Semantic checkpoint — conditional AST structural validation — 2026-11-12
+
+- AST_IF now fails closed when its condition expression or primary branch is absent. Missing condition and missing primary branch produce explicit Semantic diagnostics rather than silently skipping the malformed node.
+- Added direct malformed-AST regression fixtures to `test_semantic.c`, covering both missing-condition and missing-primary-branch cases. Existing source fixtures continue to cover boolean conditions, elsif/else chains, and conditional break/continue behavior.
+- Syntax reference records the required AST shape and optional else branch. Branch-head CI is not available yet; tests are committed but not marked passed.
+- Semantic implementation: `3a538992`; tests: `869da568`.
