@@ -3927,7 +3927,9 @@ static void semantic_check_node(
 
                         if (v->type_name && !valid_type) {
                             char buf[256];
-                            snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_UNKNOWN_TYPE), v->type_name);
+                            (void)snprintf(buf, sizeof(buf),
+                                "Field '%s' uses unknown type '%s'.",
+                                v->name ? v->name : "<unnamed>", v->type_name);
                             report_error(ctx, (ASTNode*)v, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                         }
                         
@@ -3990,7 +3992,9 @@ static void semantic_check_node(
 
                     if (v->type_name && !valid_type) {
                         char buf[256];
-                        snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_UNKNOWN_TYPE), v->type_name);
+                        (void)snprintf(buf, sizeof(buf),
+                            "Field '%s' uses unknown type '%s'.",
+                            v->name ? v->name : "<unnamed>", v->type_name);
                         report_error(ctx, (ASTNode*)v, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                     }
                     
@@ -4049,7 +4053,10 @@ static void semantic_check_node(
 
                             if (fdecl->type_name && !valid_type) {
                                 char buf[256];
-                                snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_UNKNOWN_TYPE), fdecl->type_name);
+                                (void)snprintf(buf, sizeof(buf),
+                                    "Field '%s' uses unknown type '%s'.",
+                                    fdecl->name ? fdecl->name : "<unnamed>",
+                                    fdecl->type_name);
                                 report_error(ctx, (ASTNode*)fdecl, ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                             }
                             if (fdecl->inline_type) {
@@ -4277,8 +4284,8 @@ static void semantic_check_node(
                 const char* target_name = ((ASTIdentifier*)cast->target_type)->name;
                 if (target_name && !is_type_defined(ctx, target_name)) {
                     char message[256];
-                    snprintf(message, sizeof(message),
-                        msg_get(ERR_SEMANTIC_UNKNOWN_TYPE), target_name);
+                    (void)snprintf(message, sizeof(message),
+                        "cast() target type '%s' is not declared.", target_name);
                     report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
                 }
             } else {
