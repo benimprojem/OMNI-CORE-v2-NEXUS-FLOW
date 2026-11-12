@@ -424,3 +424,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Implementation commit: `d074c887`; regression tests: `bdc45c55`. CI verification: pending; do not mark the new cases green until the branch-head run completes.
 
 - Follow-up tests also verify that arithmetic constant expressions containing radix literals are folded for shift-range validation (`0x10 * 2` rejected for i32, `0x3 + 4` accepted for u8). Updated test commit: `d39719dc`.
+
+
+### Semantic checkpoint — shifts on fixed-width bit/byte values — 2026-11-12
+
+- Found a Semantic mismatch: binary bitwise operators accepted fixed-width representations, but shift validation still required both operands to be ordinary integer primitives. This incorrectly rejected shifts on `bit`, `byte`, `Nbit`, and `Nbyte` values.
+- Split the shift contract: the left operand must be bitwise-capable; the shift count must remain an integer primitive. Width validation now uses the exact representation width (`bit`=1, `byte`=8, `Nbit`=N, `Nbyte`=8×N) as well as ordinary integer widths.
+- Diagnostics now explain the distinct left-value and count requirements and retain the actual operand types. Added boundary coverage for every documented bit-vector and byte-block width, plus scalar `bit`/`byte`, including out-of-range cases and exact source-line diagnostics.
+- Implementation commits: `8421f4c8`, `504ff486`; tests: `35156308`, `cc8fd0e7`. CI verification pending; no green status is claimed until a branch-head workflow confirms the tests.
