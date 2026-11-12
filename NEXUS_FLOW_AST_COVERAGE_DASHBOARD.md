@@ -72,7 +72,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Nominal type identity, alias-chain target validation, assignment/call/return compatibility ve recursive target validation Semantic ✓; target_type_expr payload round-trip ve OIR/Verifier açık |
 | Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Name/duplicate field/type/visibility/export/packed metadata Semantic ✓; ordered field payload round-trip, physical layout and lowering açık |
 | Struct literal | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` (106–107) | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Instance initialization/layout lowering ve Verifier invariant'ları |
-| Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Variant/payload names and declared field types ✓; scan constructor lookup, positional payload binding/type propagation and arity checks ✓; constructor expression arguments, discriminant model and exhaustiveness open |
+| Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Variant/payload declaration checks ✓; scan constructor patterns, typed bindings, duplicate/exhaustive coverage ✓; `Enum.Variant(...)` constructor resolution, positional/named payload binding, arity and declared type checks ✓; discriminant model and recursive payload type-expression compatibility open |
 | Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | Typed/unique field declaration and member-type resolution Semantic ✓; active-member tracking and safe-read contract need a language decision; union flags/field payload round-trip and lowering open |
 | Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | members, method public_name/implementation ve flags round-trip; receiver/dispatch Semantic kuralları açık |
 | Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
@@ -760,3 +760,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Enum scans now detect repeated unguarded variant arms and report every uncovered declared variant. Guarded arms do not count toward exhaustive coverage; an `else` arm suppresses missing-variant diagnostics.
 - Added Semantic AST fixtures for exhaustive coverage, unknown/malformed patterns, duplicate variants, guard-only coverage and else fallback.
 - Enum Semantic remains partial because constructor expression calls/argument typing and remaining pattern/type rules are not yet complete. CI/test execution is pending.
+
+
+### Semantic checkpoint — Enum constructor expressions — 2026-11-12
+
+- Calls shaped as `EnumType.Variant(...)` are now resolved before Group method dispatch, preventing the enum type qualifier from being misdiagnosed as a runtime value/member receiver.
+- Constructor resolution verifies that the enum exists and the variant belongs to it. Positional payloads follow declaration order; named payloads resolve by declared field name.
+- Added checks for unknown variants, argument count, payload type compatibility, unknown named fields, duplicate named fields and omitted named fields. The call and callee receive SemanticResult annotations as enum-valued constructor expressions.
+- Added direct AST regression fixtures for valid positional/named construction and invalid variant, arity, payload type and named-field cases. Enum Semantic remains partial for discriminant representation and recursive payload type-expression compatibility.
+- Fixtures are committed but have not been compiled or executed in this workspace; CI remains unverified.
