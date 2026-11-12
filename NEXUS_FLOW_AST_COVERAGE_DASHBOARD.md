@@ -599,7 +599,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 | AST_NEXUS_JUMP (34) | Boş hedef adı reddi; forward target çözümü ayrı CFG işi | ✓ | ✓ | ? |
 | AST_NEXUS_HALT (35) | Payload/cleanup ve terminal control-flow sözleşmesi açık | ~ | ~ | ? |
 | AST_DEFER (69) | Eksik body reddi; unwind/cleanup sıralaması OIR işi | ✓ | ✓ | ? |
-| AST_THREAD_BLOCK (70) | Eksik isim/body reddi; scope yalnızca geçerli node'da açılır | ✓ | ✓ | ? |
+| AST_THREAD_BLOCK (70) | Boş isim, eksik body ve AST_BLOCK dışı body reddi; lexical scope'u child AST_BLOCK yönetir (redundant wrapper scope yok) | ✓ | ✓ | ? |
 | AST_AI_LOGIC (37, reserved) | Parser üretimi yok; dışarıdan gelen reserved AST fail-closed | ✓ | ✓ | ? |
 
 
@@ -636,3 +636,12 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 | AST_DONE | callee identifier zorunlu ve adı `done` | ✓ | ? |
 
 Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün scheduler/IPC/handle sözleşmesi core Semantic kapsamına alınmadı. `prnt/prmt` ve `write/fwrite` genel call traversal aşamasında; API imza kuralları sağlayıcı modülünde tanımlanacak.
+
+
+### Semantic checkpoint — thread_block AST body and lexical-scope ownership — 2026-11-12
+
+- Core Semantic now requires `thread_block.body` to be an actual `AST_BLOCK`, not merely a non-NULL node. Malformed externally supplied ASTs fail with an explicit diagnostic.
+- Removed the extra scope previously opened by `AST_THREAD_BLOCK`. Its child `AST_BLOCK` is the single owner of lexical scope creation and cleanup; this avoids a redundant SemanticResult scope level while preserving local isolation.
+- Added regression fixtures for a non-block body, a valid local reference inside the block, and rejection of a local variable referenced after the thread block.
+- Thread names remain structural labels; no uniqueness rule or scheduler/IPC semantics was invented.
+- Implementation and fixture commits are recorded separately; CI remains pending until a workflow reports a result.
