@@ -2146,3 +2146,10 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - The child `AST_BLOCK` is now the sole lexical-scope owner. Removed the redundant outer scope from `AST_THREAD_BLOCK`; local declarations remain isolated by ordinary block semantics.
 - Added direct malformed-AST and source-level scope-leak fixtures. Core remains unaware of Thread scheduling, IPC, handles and lifetime.
 - CI/test execution is pending; fixture presence is not a pass claim.
+
+
+### 2026-11-12 — thread_block independent payload model
+
+- Clarified the language model: each named `thread_block` is a complete independent payload; Thread module `spawn(worker)` transfers the named payload to a newly created thread. The payload is not also executed in the caller's flow.
+- Nested thread blocks are now rejected by Semantic, including manually supplied AST trees via a context depth guard.
+- Updated the normative syntax reference and AST coverage dashboard. Runtime payload lookup/transfer and thread-only execution remain Thread runtime / later OIR-Codegen integration work, not Core Semantic claims.
