@@ -71,9 +71,9 @@ int main(void) {
     static const char shift_u8_equal_width[] =
         "f:main(a!u8) !u8 { ret a <<< 8; }";
     static const char shift_u8_valid_boundary[] =
-        "f:main(a!u8) !u8 { ret a <<< 7; }"";
+        "f:main(a!u8) !u8 { ret a <<< 7; }";
     static const char shift_i64_valid_boundary[] =
-        "f:main(a!i64) !i64 { ret a >>> 63; }"";
+        "f:main(a!i64) !i64 { ret a >>> 63; }";
     static const char logical_valid[] =
         "f:main() !bool { ret (1 < 2) && (3 < 4) || false; }";
     static const char logical_invalid[] =
