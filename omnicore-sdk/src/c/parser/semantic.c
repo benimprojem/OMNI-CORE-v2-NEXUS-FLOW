@@ -2269,7 +2269,11 @@ static void semantic_register_rule_events(
             for(existing=slot->fields;existing;existing=existing->next)
                 if(existing->name && name && strcmp(existing->name,name)==0)
                     duplicate=1;
-            if(duplicate)continue;
+            if(duplicate) {
+                report_error(ctx,rule,ERR_SEMANTIC_REDEFINED,
+                    "Ruleset contains a duplicate trigger event name.");
+                continue;
+            }
             field=(FieldInfo*)semantic_callocate(ctx,1u,sizeof(*field));
             if(!field) {
                 semantic_set_result_error(ctx,SEMANTIC_RESULT_OUT_OF_MEMORY);
@@ -3933,8 +3937,31 @@ static void semantic_check_node(
 
         case AST_RULESET_DECL: {
             ASTRulesetDecl* ruleset=(ASTRulesetDecl*)node;
-            Slot* existing=find_slot(ctx,ruleset->name?ruleset->name:"");
+            ASTNode* current;
+            Slot* existing;
             Slot* slot=NULL;
+            if(!ruleset->name || !ruleset->name[0]) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Ruleset declaration is missing its name.");
+                break;
+            }
+            for(current=ruleset->params;current;current=current->next) {
+                if(current->type!=AST_VAR_DECL) {
+                    report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Ruleset parameter list contains an unsupported AST node.");
+                    break;
+                }
+            }
+            for(current=ruleset->rules;current;current=current->next) {
+                if(current->type!=AST_RULE_BARRIER &&
+                   current->type!=AST_RULE_TRIGGER &&
+                   current->type!=AST_RULE_ALWAYS &&
+                   current->type!=AST_RULE_DEFAULT) {
+                    report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Ruleset contains an unsupported rule AST node.");
+                }
+            }
+            existing=find_slot(ctx,ruleset->name);
             if(existing && existing->depth==ctx->current_depth) {
                 report_error(ctx,node,ERR_SEMANTIC_FUNC_REDEFINED,
                     "Ruleset is already declared in this scope.");
@@ -3952,16 +3979,23 @@ static void semantic_check_node(
 
         case AST_RULE_BARRIER: {
             ASTRuleBarrier* rule=(ASTRuleBarrier*)node;
-            if(rule->condition) {
-                semantic_check(ctx,rule->condition);
-                if(!semantic_is_boolean_condition(ctx,rule->condition))
-                    report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Rule barrier condition must have bool type.");
+            if(!rule->condition) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Rule barrier is missing its condition expression.");
+                break;
             }
-            if(rule->message) {
-                const char* message_type;
-                semantic_check(ctx,rule->message);
-                message_type=get_expr_type(ctx,rule->message);
+            if(!rule->message) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Rule barrier is missing its diagnostic message.");
+                break;
+            }
+            semantic_check(ctx,rule->condition);
+            if(!semantic_is_boolean_condition(ctx,rule->condition))
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Rule barrier condition must have bool type.");
+            semantic_check(ctx,rule->message);
+            {
+                const char* message_type=get_expr_type(ctx,rule->message);
                 if(message_type && strcmp(message_type,"str")!=0)
                     report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                         "Rule barrier message must have str type.");
@@ -3971,29 +4005,57 @@ static void semantic_check_node(
 
         case AST_RULE_TRIGGER: {
             ASTRuleTrigger* rule=(ASTRuleTrigger*)node;
-            if(rule->condition) {
-                semantic_check(ctx,rule->condition);
-                if(!semantic_is_boolean_condition(ctx,rule->condition))
-                    report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Rule trigger condition must have bool type.");
+            if(!rule->condition) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Rule trigger is missing its condition expression.");
+                break;
             }
+            if(!rule->action) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Rule trigger is missing its action or event name.");
+                break;
+            }
+            semantic_check(ctx,rule->condition);
+            if(!semantic_is_boolean_condition(ctx,rule->condition))
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Rule trigger condition must have bool type.");
             /* A bare identifier is an event label, not a variable reference. */
-            if(rule->action && rule->action->type!=AST_IDENTIFIER)
+            if(rule->action->type!=AST_IDENTIFIER)
                 semantic_check(ctx,rule->action);
             break;
         }
 
-        case AST_RULE_ALWAYS:
-            semantic_check(ctx,((ASTRuleAlways*)node)->action);
+        case AST_RULE_ALWAYS: {
+            ASTRuleAlways* rule=(ASTRuleAlways*)node;
+            if(!rule->action) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Always rule is missing its action or event name.");
+                break;
+            }
+            semantic_check(ctx,rule->action);
             break;
+        }
 
-        case AST_RULE_DEFAULT:
-            semantic_check(ctx,((ASTRuleDefault*)node)->action);
+        case AST_RULE_DEFAULT: {
+            ASTRuleDefault* rule=(ASTRuleDefault*)node;
+            if(!rule->action) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Default rule is missing its action or event name.");
+                break;
+            }
+            semantic_check(ctx,rule->action);
             break;
+        }
 
         case AST_APPLY_RULES: {
             ASTApplyRules* apply=(ASTApplyRules*)node;
-            Slot* slot=find_slot(ctx,apply->ruleset_name?apply->ruleset_name:"");
+            Slot* slot;
+            if(!apply->ruleset_name || !apply->ruleset_name[0]) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "apply rules is missing its ruleset name.");
+                break;
+            }
+            slot=find_slot(ctx,apply->ruleset_name);
             semantic_check_rule_arguments(ctx,node,apply->ruleset_name,
                 apply->args,slot);
             break;
@@ -4001,17 +4063,32 @@ static void semantic_check_node(
 
         case AST_ON_BLOCK: {
             ASTOnBlock* handler=(ASTOnBlock*)node;
-            Slot* ruleset=find_slot(ctx,handler->ruleset_name?handler->ruleset_name:"");
+            Slot* ruleset;
+            if(!handler->ruleset_name || !handler->ruleset_name[0]) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "on-block is missing its ruleset name.");
+                break;
+            }
+            if(!handler->event_name || !handler->event_name[0]) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "on-block is missing its event name.");
+                break;
+            }
+            if(!handler->body) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "on-block is missing its body.");
+                break;
+            }
+            ruleset=find_slot(ctx,handler->ruleset_name);
             if(!ruleset || ruleset->kind!=SLOT_FUNC) {
                 char message[256];
                 snprintf(message,sizeof(message),"Unknown ruleset '%s' in on-block.",
-                    handler->ruleset_name?handler->ruleset_name:"");
+                    handler->ruleset_name);
                 report_error(ctx,node,ERR_SEMANTIC_UNDEFINED,message);
             } else if(!semantic_rule_has_event(ruleset,handler->event_name)) {
                 char message[256];
                 snprintf(message,sizeof(message),"Unknown event '%s' for ruleset '%s'.",
-                    handler->event_name?handler->event_name:"",
-                    handler->ruleset_name?handler->ruleset_name:"");
+                    handler->event_name,handler->ruleset_name);
                 report_error(ctx,node,ERR_SEMANTIC_UNDEFINED,message);
             }
             enter_scope(ctx,node);
