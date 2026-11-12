@@ -2264,6 +2264,12 @@ static ASTNode* parse_nexus_flow(Parser* p) {
              error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN, "Hata yakalayıcı (e) sadece akış (flow) operatörlerinden sonra gelebilir.");
         }
     }
+    if (expr->type == AST_NEXUS_FLOW &&
+        ((ASTNexusFlow*)expr)->op == TOKEN_ELSE_FLOW &&
+        !((ASTNexusFlow*)expr)->catch_block) {
+        error_at(p, &p->previous, ERR_PARSER_EXPECTED_BRACE,
+            "The ?-> catch flow requires a handler block.");
+    }
 
     return expr;
 }
