@@ -466,3 +466,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - `ret` at module scope is rejected with an explicit diagnostic; nested/local function bodies establish and restore their own function context naturally.
 - Added a module-scope negative fixture and nested-function positive fixture. Syntax reference now documents scope and return-type rules.
 - CI remains pending until the updated branch head is tested.
+
+
+### Semantic checkpoint — nested loop control-flow scope — 2026-11-12
+
+- Confirmed the existing Semantic implementation increments/decrements loop depth around each loop body and resets the inherited loop depth while checking a nested function body, preventing a nested function from borrowing its enclosing loop's control-transfer context.
+- Extended the dedicated `test_semantic.c` control-flow suite with nested-loop success, post-loop scope restoration (both `break` and `continue` rejected), and nested-function `continue` rejection. Existing tests already cover loop-external transfers, conditional transfers, invalid loop conditions, and nested-function `break` rejection.
+- No Semantic implementation change was necessary: the inspected scope handling already enforces these rules. New fixtures and normative syntax text were committed; CI remains pending.
+- Test commit: `bd3a3ebc`.
