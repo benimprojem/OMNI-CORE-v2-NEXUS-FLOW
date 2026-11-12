@@ -1343,6 +1343,33 @@ static int check_enum_constructor_semantics(void) {
         check_enum_constructor_case(6,0);
 }
 
+static int check_enum_discriminant_semantics(void) {
+    const char* valid_implicit_explicit =
+        "f:main() { enum:State { Idle, Running = 4, Done } }";
+    const char* valid_negative_and_expression =
+        "f:main() { enum:State { Before = -3, Current = 2 + 3, Next } }";
+    const char* duplicate_explicit =
+        "f:main() { enum:State { A = 7, B = 7 } }";
+    const char* duplicate_implicit_after_explicit =
+        "f:main() { enum:State { A = 1, B, C = 2 } }";
+    const char* non_constant =
+        "f:main() { enum:State { A = missing } }";
+    const char* non_integer =
+        "f:main() { enum:State { A = 1.5 } }";
+    const char* implicit_overflow =
+        "f:main() { enum:State { Max = 9223372036854775807, Next } }";
+    const char* explicit_reset_after_max =
+        "f:main() { enum:State { Max = 9223372036854775807, Reset = 0, Next } }";
+    return check_source(valid_implicit_explicit, 0) &&
+        check_source(valid_negative_and_expression, 0) &&
+        check_source(duplicate_explicit, 1) &&
+        check_source(duplicate_implicit_after_explicit, 1) &&
+        check_source(non_constant, 1) &&
+        check_source(non_integer, 1) &&
+        check_source(implicit_overflow, 1) &&
+        check_source(explicit_reset_after_max, 0);
+}
+
 static int check_enum_declaration_semantics(void) {
     ASTEnumDecl* valid = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
     ASTEnumVariant* ok_variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
@@ -1969,6 +1996,10 @@ int main(int argc, char** argv) {
     }
     if (!check_enum_constructor_semantics()) {
         fprintf(stderr, "Enum constructor call semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_enum_discriminant_semantics()) {
+        fprintf(stderr, "Enum discriminant Semantic tests failed.\n");
         return 1;
     }
     if (!check_enum_declaration_semantics()) {
