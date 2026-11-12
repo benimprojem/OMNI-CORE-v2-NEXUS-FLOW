@@ -2161,3 +2161,11 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - spawn(name) resolves only through this registry; exactly one identifier argument is required. Unknown names, malformed arguments and duplicate payload names are rejected with source diagnostics.
 - Thread module boundaries remain intact: scheduler, IPC, handle/lifetime and actual payload transfer/execution are not implemented in Core Semantic.
 - Registry cleanup and explicit initialization are included. Regression fixtures were added; CI and local test execution are pending.
+
+
+### 2026-11-12 — Thread payload capture semantics
+
+- Adopted by-value capture for outer-scope variables referenced inside a named thread payload. Captures are snapshotted when the payload is spawned; caller stack addresses are not shared implicitly.
+- SemanticContext records unique external variable captures with symbol/type/scope and AST provenance. Payload-local variables are excluded. Pointer captures copy only the pointer value, not the pointed-to allocation.
+- Thread result export remains `done(...)` and result consumption remains `listen(...)` / target-specific listener behavior, as specified by the Thread runtime documents. Core does not implement their runtime behavior.
+- Added metadata regression coverage. Test execution and CI remain pending.
