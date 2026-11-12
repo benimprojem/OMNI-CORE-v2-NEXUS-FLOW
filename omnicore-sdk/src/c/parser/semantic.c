@@ -1047,6 +1047,27 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     indexed_element_type_buffer[length] = '\0';
                     element_type = indexed_element_type_buffer;
                 }
+            } else if (target_type && strcmp(target_type, "array") == 0) {
+                const ASTNode* array_expression = NULL;
+                if (access->target->type == AST_ARRAY_LITERAL) {
+                    array_expression = access->target;
+                } else if (access->target->type == AST_IDENTIFIER) {
+                    Slot* array_slot = find_slot(ctx,
+                        ((ASTIdentifier*)access->target)->name);
+                    if (array_slot && array_slot->declaration_node &&
+                        array_slot->declaration_node->type == AST_VAR_DECL) {
+                        const ASTVarDecl* array_decl =
+                            (const ASTVarDecl*)array_slot->declaration_node;
+                        if (array_decl->initializer &&
+                            array_decl->initializer->type == AST_ARRAY_LITERAL)
+                            array_expression = array_decl->initializer;
+                    }
+                }
+                if (array_expression) {
+                    const ASTNode* first =
+                        ((const ASTArrayLiteral*)array_expression)->elements;
+                    if (first) element_type = get_expr_type(ctx, (ASTNode*)first);
+                }
             }
             semantic_record_annotation(
                 ctx, node, NULL, element_type, SEMANTIC_RESULT_VALUE_LVALUE);
