@@ -2204,3 +2204,12 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added regression fixtures for global declaration visibility inside functions, duplicate program-level declarations, legal nested shadowing, and rejection of nested/sibling block scope leakage.
 - Updated `NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md`: Program/block Semantic column is now ✓. AST declaration-chain validation, `no:osmodule` source policy/span and OIR span metadata remain open and are not counted as Semantic work.
 - Test source is committed. No local build is available in this workspace; CI has not yet been checked for the new commit.
+
+
+### Semantic checkpoint — `c:` compile-time constant rules — 2026-11-12
+
+- Added a bounded constant-expression classifier to Semantic. It permits literals, pure unary/binary expressions, constant array/tuple/struct literals, casts of constant values and references to earlier `c:` declarations.
+- `c:` now requires an initializer and rejects runtime calls, mutable variable reads and `m:` values. `m:` remains a runtime-capable immutable binding.
+- Added positive/negative fixtures covering constant literals/expressions/references/aggregates and the invalid initializer cases; updated the normative syntax reference and coverage dashboard.
+- The `AST_VAR_DECL` dashboard row remains `~`: inferred `v:` typing, recursive `type_expr` integration and common source-span round-trip are not closed.
+- Test source is committed but has not been executed locally. CI status is pending/unreported.
