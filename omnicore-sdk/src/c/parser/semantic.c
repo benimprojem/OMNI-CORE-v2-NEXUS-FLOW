@@ -1524,6 +1524,28 @@ static void semantic_validate_type_expr(SemanticContext* ctx, ASTNode* node) {
                     }
                 } else if (parameter->type == AST_VAR_DECL) {
                     ASTVarDecl* declaration = (ASTVarDecl*)parameter;
+                    ASTNode* previous;
+                    if (!declaration->name || !declaration->name[0]) {
+                        report_error(ctx, parameter, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Function type parameter requires a non-empty name.");
+                    } else {
+                        for (previous = type->params; previous != parameter;
+                             previous = previous->next) {
+                            if (previous->type == AST_VAR_DECL) {
+                                ASTVarDecl* earlier = (ASTVarDecl*)previous;
+                                if (earlier->name &&
+                                    strcmp(earlier->name, declaration->name) == 0) {
+                                    char message[256];
+                                    (void)snprintf(message, sizeof(message),
+                                        "Function type parameter '%s' is declared more than once.",
+                                        declaration->name);
+                                    report_error(ctx, parameter,
+                                        ERR_SEMANTIC_REDEFINED, message);
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     if (declaration->type_expr) {
                         semantic_validate_type_expr(ctx, declaration->type_expr);
                     } else if (!declaration->type_name ||
