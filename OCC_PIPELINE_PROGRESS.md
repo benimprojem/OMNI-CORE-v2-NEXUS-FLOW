@@ -1958,3 +1958,6 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Constant tuple indexing resolves the selected element type; negative/out-of-range indexes are diagnosed. Dynamic indexes intentionally remain `any` until runtime lowering.
 - Tests cover heterogeneous tuple inference, `i32`/`str` element indexing and a statically out-of-range index.
 - Commits: `37c87fea`, `0b06e621` Semantic; `cd3795d9` test; `64cbef9d` dashboard. CI pending.
+
+
+- Tuple's former fail-closed test was updated after Semantic support landed: `AST_TUPLE` is no longer expected to reject; `AST_ASM_BLOCK` remains the pending fail-closed node. Commit `bd041149`; dashboard `b3b974b1`.
