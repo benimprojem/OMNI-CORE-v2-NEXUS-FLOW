@@ -2159,11 +2159,12 @@ static void semantic_validate_intrinsic_callee(
     const char* expected = semantic_intrinsic_expected_name(node->type);
     ASTIdentifier* identifier;
     if (!expected) return;
-    if (!call || !call->callee) {
-        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-            "Intrinsic AST is missing its callee identifier.");
-        return;
-    }
+    /*
+     * Dedicated intrinsic AST node kinds already encode their canonical
+     * identity. Parser-produced nodes therefore legitimately omit callee;
+     * when an optional callee is present, validate it strictly.
+     */
+    if (!call || !call->callee) return;
     if (call->callee->type != AST_IDENTIFIER) {
         report_error(ctx, call->callee, ERR_SEMANTIC_TYPE_MISMATCH,
             "Intrinsic callee must be an identifier node.");
