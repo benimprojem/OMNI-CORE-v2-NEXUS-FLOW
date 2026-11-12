@@ -3436,6 +3436,11 @@ static void semantic_check_node(
 
         case AST_BINARY_EXPR: {
             ASTBinaryExpr* bin = (ASTBinaryExpr*)node;
+            if (!bin->left || !bin->right) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Binary expression requires both left and right operands.");
+                break;
+            }
 
             semantic_check(ctx, bin->left);
             semantic_check(ctx, bin->right);
@@ -3796,6 +3801,11 @@ static void semantic_check_node(
 
         case AST_NEXUS_FLOW: {
             ASTNexusFlow* flow = (ASTNexusFlow*)node;
+            if (!flow->left || !flow->right) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Nexus Flow operation requires both left and right operands.");
+                break;
+            }
             semantic_check(ctx, flow->left);
             semantic_check(ctx, flow->right);
             if (flow->catch_block) semantic_check(ctx, flow->catch_block);
@@ -5025,6 +5035,26 @@ static void semantic_check_node(
         
         case AST_LOOP: {
             ASTLoop* loop = (ASTLoop*)node;
+            if (loop->loop_type < 0 || loop->loop_type > 3) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Loop contains an unsupported loop kind.");
+                break;
+            }
+            if (!loop->body) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Loop is missing its body.");
+                break;
+            }
+            if (loop->loop_type == 3 && (!loop->variable || !loop->collection)) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Foreach loop requires both an iterator and a collection.");
+                break;
+            }
+            if (loop->loop_type == 1 && !loop->condition) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Conditional loop is missing its condition expression.");
+                break;
+            }
             enter_scope(ctx, node);
             ++ctx->loop_depth;
 
@@ -5137,13 +5167,28 @@ static void semantic_check_node(
 
         case AST_UNPACK: {
             ASTUnpack* u = (ASTUnpack*)node;
+            if (!u->expr) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Reserved unpack AST node is missing its source expression.");
+                break;
+            }
             semantic_check(ctx, u->expr);
             break;
         }
 
         case AST_CAST: {
             ASTCast* cast = (ASTCast*)node;
-            if (cast->value) semantic_check(ctx, cast->value);
+            if (!cast->value) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "cast() is missing its source value expression.");
+                break;
+            }
+            if (!cast->target_type) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "cast() is missing its target type.");
+                break;
+            }
+            semantic_check(ctx, cast->value);
             /* The target is a type designator, not a runtime value expression. */
             if (cast->target_type && cast->target_type->type == AST_IDENTIFIER) {
                 const char* target_name = ((ASTIdentifier*)cast->target_type)->name;
