@@ -4820,12 +4820,15 @@ static int test_handler_capture_string_and_call_flow_ast(void) {
     ASTNexusCapture* capture;
     ASTNexusFlow* flow;
     int ok=0;
+    int stage=1;
     if(!ctx)return 0;
     if(parser_run(ctx)!=PARSER_STATUS_OK || ctx->error_count!=0 || !ctx->ast_root)goto done;
+    stage=2;
     function=(ASTFuncDecl*)((ASTProgram*)ctx->ast_root)->declarations;
     if(!function || !function->body || function->body->type!=AST_BLOCK)goto done;
     statement=((ASTBlock*)function->body)->statements;
     if(!statement || statement->type!=AST_NEXUS_CAPTURE)goto done;
+    stage=3;
     capture=(ASTNexusCapture*)statement;
     if(!capture->handler_name || strcmp(capture->handler_name,"a")!=0 ||
        !capture->expr || capture->expr->type!=AST_LITERAL ||
@@ -4834,11 +4837,13 @@ static int test_handler_capture_string_and_call_flow_ast(void) {
        strcmp(((ASTLiteral*)capture->expr)->string_value,"\"bu string testi.\"")!=0)goto done;
     statement=statement->next;
     if(!statement || statement->type!=AST_NEXUS_PIPE)goto done;
+    stage=4;
     flow=(ASTNexusFlow*)statement;
     if(flow->op!=TOKEN_PIPE || !flow->left || flow->left->type!=AST_IDENTIFIER ||
        strcmp(((ASTIdentifier*)flow->left)->name,"hand")!=0 ||
        !flow->right || flow->right->type!=AST_FUNC_CALL ||
        !ast_validate(ctx->ast_root,NULL))goto done;
+    stage=5;
     statement=statement->next;
     if(!statement || statement->type!=AST_NEXUS_PIPE)goto done;
     flow=(ASTNexusFlow*)statement;
@@ -4847,9 +4852,10 @@ static int test_handler_capture_string_and_call_flow_ast(void) {
        !flow->target_block || flow->target_block->type!=AST_BLOCK ||
        !flow->catch_block ||
        !ast_validate(ctx->ast_root,NULL))goto done;
+    stage=6;
     ok=1;
 done:
-    if(!ok)fprintf(stderr,"Handler string capture / function-call flow AST test failed.\n");
+    if(!ok)fprintf(stderr,"Handler string capture / function-call flow AST test failed at stage %d (parser errors=%d).\n",stage,ctx->error_count);
     parser_destroy(ctx);
     return ok;
 }
