@@ -1167,6 +1167,14 @@ static const char* semantic_binary_operator_name(OmniTokenType op) {
         case TOKEN_SLASH: return "/";
         case TOKEN_PERCENT: return "%";
         case TOKEN_POWER: return "**";
+        case TOKEN_PLUS_EQ: return "+=";
+        case TOKEN_MINUS_EQ: return "-=";
+        case TOKEN_STAR_EQ: return "*=";
+        case TOKEN_SLASH_EQ: return "/=";
+        case TOKEN_BIT_AND_EQ: return "&=";
+        case TOKEN_BIT_OR_EQ: return "|=";
+        case TOKEN_BIT_XOR_EQ: return "^=";
+        case TOKEN_STRING_APPEND: return ".=";
         case TOKEN_BIT_AND: return "&";
         case TOKEN_BIT_OR: return "|";
         case TOKEN_BIT_XOR: return "^";
@@ -2815,7 +2823,12 @@ static void semantic_check_node(
 
         case AST_ASSIGNMENT: {
             ASTBinaryExpr* assign = (ASTBinaryExpr*)node;
-            
+            if (!assign->left || !assign->right) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Assignment requires both a target expression and a value expression.");
+                break;
+            }
+
             if (assign->op != TOKEN_ASSIGN && assign->op != TOKEN_FORCE_ASSIGN &&
                 semantic_lvalue_is_const(ctx, assign->left)) {
                 report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
@@ -2889,11 +2902,16 @@ static void semantic_check_node(
                     assign->op==TOKEN_SLASH_EQ;
                 int bitwise_compound=assign->op==TOKEN_BIT_AND_EQ||
                     assign->op==TOKEN_BIT_OR_EQ||assign->op==TOKEN_BIT_XOR_EQ;
-                if(assign->op==TOKEN_STRING_APPEND) {
-                    if((left_type&&strcmp(left_type,"str")!=0)||
-                       (right_type&&strcmp(right_type,"str")!=0))
-                        report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                            "String append (.=) requires str operands.");
+                if (assign->op == TOKEN_STRING_APPEND) {
+                    if ((left_type && strcmp(left_type, "str") != 0) ||
+                        (right_type && strcmp(right_type, "str") != 0)) {
+                        char message[320];
+                        (void)snprintf(message, sizeof(message),
+                            "Operator '.=' requires str operands; got '%s' and '%s'.",
+                            left_type ? left_type : "<unknown>",
+                            right_type ? right_type : "<unknown>");
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    }
                 } else if (numeric_compound || bitwise_compound) {
                     int invalid_types = left_type && right_type &&
                         (!are_types_compatible(left_type, right_type) ||
@@ -2906,11 +2924,13 @@ static void semantic_check_node(
                         char message[320];
                         if (bitwise_compound) {
                             (void)snprintf(message, sizeof(message),
-                                "Bitwise compound assignment requires matching bitwise-capable types; got '%s' and '%s'.",
+                                "Operator '%s' requires matching bitwise-capable types; got '%s' and '%s'.",
+                                semantic_binary_operator_name(assign->op),
                                 left_type, right_type);
                         } else {
                             (void)snprintf(message, sizeof(message),
-                                "Numeric compound assignment requires matching numeric types; got '%s' and '%s'.",
+                                "Operator '%s' requires matching numeric types; got '%s' and '%s'.",
+                                semantic_binary_operator_name(assign->op),
                                 left_type, right_type);
                         }
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
