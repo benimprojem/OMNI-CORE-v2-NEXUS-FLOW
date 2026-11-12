@@ -2154,6 +2154,28 @@ static void semantic_validate_port_intrinsic(
     }
 }
 
+static void semantic_validate_intr_intrinsic(
+    SemanticContext* ctx, ASTNode* node
+) {
+    ASTCall* call = (ASTCall*)node;
+    size_t count = semantic_intrinsic_argument_count(call);
+    ASTNode* number = semantic_intrinsic_argument_value(call->args);
+    const char* type = number ? get_expr_type(ctx, number) : NULL;
+    if (count != 1u) {
+        char message[144];
+        (void)snprintf(message, sizeof(message),
+            "intr() expects exactly one integer argument; received %llu.",
+            (unsigned long long)count);
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        return;
+    }
+    if (type && strcmp(type, "any") != 0 &&
+        !semantic_is_integer_value_type(ctx, type)) {
+        report_error(ctx, number, ERR_SEMANTIC_TYPE_MISMATCH,
+            "intr() interrupt number must be an integer.");
+    }
+}
+
 static void semantic_validate_irq_intrinsic(
     SemanticContext* ctx, ASTNode* node
 ) {
