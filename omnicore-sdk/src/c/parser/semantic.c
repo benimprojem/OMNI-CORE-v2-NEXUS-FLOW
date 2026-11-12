@@ -28,6 +28,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->thread_blocks = NULL;
     ctx->thread_block_tail = NULL;
     ctx->active_thread_block = NULL;
+    ctx->thread_capture_copy_depth = 0u;
     ctx->thread_block_depth = 0u;
     memset(&ctx->lang, 0, sizeof(ctx->lang));
     ctx->current_method_receiver_type = NULL;
@@ -827,7 +828,8 @@ static void semantic_record_annotation(
         if (ctx->active_thread_block && slot &&
             slot->kind == SLOT_VAR &&
             slot->depth <= (int)ctx->active_thread_block->capture_base_depth)
-            annotation_flags |= SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE;
+            ctx->thread_capture_copy_depth != 0u &&
+            (annotation_flags |= SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE);
         status = semantic_result_set_annotation(
             &ctx->result,
             node_id,
@@ -3271,6 +3273,15 @@ static int semantic_register_thread_capture(
         !(block = ctx->active_thread_block)) return 1;
     if (source->kind != SLOT_VAR ||
         source->depth > block->capture_base_depth) return 1;
+    if (ctx->thread_capture_copy_depth == 0u) {
+        char message[256];
+        (void)snprintf(message, sizeof(message),
+            "Thread block cannot directly access outer variable '%s'; capture its value explicitly with copy(%s).",
+            source->name ? source->name : "<unnamed>",
+            source->name ? source->name : "<unnamed>");
+        report_error(ctx, use_node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        return 0;
+    }
 
     for (capture = block->captures; capture; capture = capture->next) {
         if ((source->symbol_id != 0u &&
@@ -5021,6 +5032,10 @@ static void semantic_check_node(
 
         case AST_FUNC_CALL: {
             ASTCall* call = (ASTCall*)node;
+            int is_thread_copy_call = ctx->active_thread_block &&
+                call->callee && call->callee->type == AST_IDENTIFIER &&
+                ((ASTIdentifier*)call->callee)->name &&
+                strcmp(((ASTIdentifier*)call->callee)->name, "copy") == 0;
             if (semantic_check_asm_intrinsic(ctx, node, call)) {
                 if (call->args) semantic_check(ctx, call->args);
                 break;
@@ -5071,7 +5086,7 @@ static void semantic_check_node(
                 int is_spawn_api = call->callee->type == AST_IDENTIFIER &&
                     ((ASTIdentifier*)call->callee)->name &&
                     strcmp(((ASTIdentifier*)call->callee)->name, "spawn") == 0;
-                if (!is_spawn_api) {
+                if (!is_spawn_api && !is_thread_copy_call) {
                     semantic_check(ctx, call->callee);
                     if (call->callee->type == AST_IDENTIFIER) {
                         ASTIdentifier* id = (ASTIdentifier*)call->callee;
@@ -5083,7 +5098,16 @@ static void semantic_check_node(
                 }
             }
             semantic_validate_spawn_call(ctx, node, call);
-            if (call->args) {
+            if (is_thread_copy_call) {
+                if (!call->args || call->args->next) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "copy() inside a thread_block requires exactly one source expression.");
+                } else {
+                    ++ctx->thread_capture_copy_depth;
+                    semantic_check(ctx, call->args);
+                    --ctx->thread_capture_copy_depth;
+                }
+            } else if (call->args) {
                 int is_spawn_api = call->callee &&
                     call->callee->type == AST_IDENTIFIER &&
                     ((ASTIdentifier*)call->callee)->name &&
