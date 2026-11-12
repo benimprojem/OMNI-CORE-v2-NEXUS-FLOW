@@ -1967,3 +1967,10 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 
 - Catch-flow parser regression: `?-> (error)` without a handler block was being accepted. Parser now requires the canonical `?-> (error) { ... }` block form. Commit `4c057072`; dashboard `fdbf8a29`; CI pending.
+
+
+### Semantic checkpoint — loop condition typing — 2026-11-12
+
+- Loop conditions now require `bool`; range expressions are the explicit exception and require compatible numeric endpoints.
+- Added `loop(1)` negative Semantic regression; canonical Boolean loop fixture retained.
+- Commits: `2f8d4e50` Semantic, `040fdccd` test, `74a42571` dashboard. CI pending.
