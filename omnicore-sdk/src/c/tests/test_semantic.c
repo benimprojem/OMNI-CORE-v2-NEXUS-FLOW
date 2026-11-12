@@ -267,6 +267,64 @@ static int check_malformed_expression_and_loop_ast(void) {
     return 1;
 }
 
+static int check_malformed_function_and_control_ast(void) {
+    static const struct {
+        ASTNodeType type;
+        const char* message;
+    } cases[] = {
+        { AST_FUNC_DECL, "Function declaration requires a non-empty name" },
+        { AST_NEXUS_LABEL, "Nexus label declaration requires a non-empty label name" },
+        { AST_NEXUS_JUMP, "Nexus jump requires a non-empty target label name" },
+        { AST_DEFER, "defer requires a statement or block body" },
+        { AST_THREAD_BLOCK, "thread_block requires a non-empty block name" }
+    };
+    size_t i;
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+        ASTNode* node = ast_create(cases[i].type);
+        SemanticContext semantic;
+        int ok;
+        if (!node) return 0;
+        semantic_init(&semantic, "semantic-malformed-function-control.nxf", NULL);
+        semantic_check(&semantic, node);
+        ok = semantic.error_count == 1 && semantic.error_head &&
+            strstr(semantic.error_head->message, cases[i].message) != NULL;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if (!ok) return 0;
+    }
+    {
+        ASTNode* node = ast_create(AST_FUNC_DECL);
+        SemanticContext semantic;
+        int ok;
+        if (!node) return 0;
+        ((ASTFuncDecl*)node)->name = "present";
+        semantic_init(&semantic, "semantic-missing-function-body.nxf", NULL);
+        semantic_check(&semantic, node);
+        ok = semantic.error_count == 1 && semantic.error_head &&
+            strstr(semantic.error_head->message,
+                "Function declaration is missing its body") != NULL;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if (!ok) return 0;
+    }
+    {
+        ASTNode* node = ast_create(AST_THREAD_BLOCK);
+        SemanticContext semantic;
+        int ok;
+        if (!node) return 0;
+        ((ASTThreadBlock*)node)->name = "worker";
+        semantic_init(&semantic, "semantic-missing-thread-body.nxf", NULL);
+        semantic_check(&semantic, node);
+        ok = semantic.error_count == 1 && semantic.error_head &&
+            strstr(semantic.error_head->message,
+                "thread_block is missing its body") != NULL;
+        semantic_destroy(&semantic);
+        ast_destroy(node);
+        if (!ok) return 0;
+    }
+    return 1;
+}
+
 static int check_unnamed_declaration_ast(void) {
     static const struct {
         ASTNodeType type;
@@ -1068,6 +1126,10 @@ int main(int argc, char** argv) {
     }
     if (!check_malformed_expression_and_loop_ast()) {
         fprintf(stderr, "Malformed expression/loop AST checks failed.\n");
+        return 1;
+    }
+    if (!check_malformed_function_and_control_ast()) {
+        fprintf(stderr, "Malformed function/control AST checks failed.\\n");
         return 1;
     }
     if (!check_unnamed_declaration_ast()) {
