@@ -1925,3 +1925,12 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Updated conditional fixtures to `(condition) ? action` and supplied `NULL` to the six validation calls. No production syntax was loosened.
 - Commits: `51f8370f` (Parser validation call fixes), `2e5f1c9d` (Semantic fixture syntax correction), `ba52c43d` (dashboard log).
 - Full CI for the corrected head is pending; no green status claimed yet.
+
+
+### Semantic checkpoint — AST_BLOCK_HALT annotation — 2026-11-12
+
+- Added explicit SemanticResult annotation for the payload-free `AST_BLOCK_HALT` cleanup marker (`void`, rvalue) rather than silently ignoring the active AST node.
+- Semantic accepts the cleanup marker; scope unwinding/defer ordering and executable cleanup remain OIR responsibilities.
+- Added a nested block + `}?;` Semantic fixture.
+- Commits: `5db1589f` (implementation), `3eece891` (test), `35b0bd87` (coverage dashboard).
+- CI is still running for prior Parser-span fixture correction and new Semantic slices; final green matrix not yet confirmed.
