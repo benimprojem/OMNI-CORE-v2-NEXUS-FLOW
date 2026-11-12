@@ -184,11 +184,15 @@ static void report_issue(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
         input.stage_id = ctx->diagnostic_stage_id ? ctx->diagnostic_stage_id : OCC_STAGE_SEMANTIC;
         input.severity = is_warning ? OCC_DIAG_WARNING : OCC_DIAG_ERROR;
         if (node) {
-            input.span.start_line = node->line > 0 ? (uint32_t)node->line : 0u;
-            input.span.start_column = node->col > 0 ? (uint32_t)node->col : 0u;
-            input.span.end_line = input.span.start_line;
-            input.span.end_column = input.span.start_column;
-            input.span.has_location = (uint8_t)(node->line > 0 && node->col > 0);
+            /* Preserve the complete parser-provided range, not only its start. */
+            input.span = node->source_span;
+            if (!input.span.has_location && node->line > 0 && node->col > 0) {
+                input.span.start_line = (uint32_t)node->line;
+                input.span.start_column = (uint32_t)node->col;
+                input.span.end_line = input.span.start_line;
+                input.span.end_column = input.span.start_column;
+                input.span.has_location = 1u;
+            }
         }
         input.message = msg ? msg : "";
         input.message_length = strlen(input.message);
@@ -206,8 +210,10 @@ static void report_issue(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
 
     err->code = code;
     err->filename = semantic_duplicate(ctx, ctx->filename ? ctx->filename : "<unknown>");
-    err->line = node ? node->line : 0;
-    err->col = node ? node->col : 0;
+    err->line = node ? (node->line > 0 ? node->line :
+        (node->source_span.has_location ? (int)node->source_span.start_line : 0)) : 0;
+    err->col = node ? (node->col > 0 ? node->col :
+        (node->source_span.has_location ? (int)node->source_span.start_column : 0)) : 0;
     err->message = semantic_duplicate(ctx, msg ? msg : "");
     err->suggestion = suggestion ? semantic_duplicate(ctx, suggestion) : NULL;
     err->hint = hint ? semantic_duplicate(ctx, hint) : NULL;
