@@ -2018,6 +2018,10 @@ static const char* semantic_intrinsic_expected_name(ASTNodeType type) {
         case AST_SEND: return "send";
         case AST_RECEIVE: return "receive";
         case AST_DONE: return "done";
+        case AST_PRNT: return "prnt";
+        case AST_PRMT: return "prmt";
+        case AST_WRITE: return "write";
+        case AST_FWRITE: return "fwrite";
         case AST_ADDR: return "addr";
         case AST_LEN: return "len";
         case AST_PEEK: return "peek";
@@ -5677,6 +5681,7 @@ static void semantic_check_node(
             ASTCall* call = (ASTCall*)node;
             if (call->callee) semantic_check(ctx, call->callee);
             if (call->args) semantic_check(ctx, call->args);
+            semantic_validate_intrinsic_callee(ctx, node, call);
             break;
         }
 
