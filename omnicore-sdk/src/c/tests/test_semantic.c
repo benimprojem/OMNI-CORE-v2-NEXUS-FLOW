@@ -394,7 +394,9 @@ static int check_malformed_intrinsic_ast(void) {
     if (!node) return 0;
     ((ASTCall*)node)->callee = ast_create(AST_IDENTIFIER);
     if (!((ASTCall*)node)->callee) { ast_destroy(node); return 0; }
-    ((ASTIdentifier*)((ASTCall*)node)->callee)->name = (char*)malloc(5u);\n    if (!((ASTIdentifier*)((ASTCall*)node)->callee)->name) { ast_destroy(node); return 0; }\n    memcpy(((ASTIdentifier*)((ASTCall*)node)->callee)->name, "zone", 5u);
+    ((ASTIdentifier*)((ASTCall*)node)->callee)->name = (char*)malloc(5u);
+    if (!((ASTIdentifier*)((ASTCall*)node)->callee)->name) { ast_destroy(node); return 0; }
+    memcpy(((ASTIdentifier*)((ASTCall*)node)->callee)->name, "zone", 5u);
     semantic_init(&semantic, "semantic-wrong-intrinsic-callee.nxf", NULL);
     semantic_check(&semantic, node);
     ok = semantic.error_count >= 1 && semantic.error_head &&
