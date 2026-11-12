@@ -4186,11 +4186,19 @@ static void semantic_check_node(
 
         case AST_IF: {
             ASTIf* conditional = (ASTIf*)node;
-            if (conditional->condition) {
-                semantic_check(ctx, conditional->condition);
-                semantic_check_boolean_condition(
-                    ctx, conditional->condition, "if/elsif");
+            if (!conditional->condition) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "if statement is missing its condition expression.");
+                break;
             }
+            if (!conditional->then_branch) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "if statement is missing its primary branch.");
+                break;
+            }
+            semantic_check(ctx, conditional->condition);
+            semantic_check_boolean_condition(
+                ctx, conditional->condition, "if/elsif");
             if (conditional->then_branch) {
                 if (conditional->then_branch->type == AST_BLOCK) {
                     semantic_check(ctx, conditional->then_branch);
