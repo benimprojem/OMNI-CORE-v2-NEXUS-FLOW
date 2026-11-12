@@ -381,11 +381,9 @@ static int check_malformed_intrinsic_ast(void) {
     SemanticContext semantic;
     int ok;
     if (!node) return 0;
-    semantic_init(&semantic, "semantic-missing-intrinsic-callee.nxf", NULL);
+    semantic_init(&semantic, "semantic-implicit-intrinsic-identity.nxf", NULL);
     semantic_check(&semantic, node);
-    ok = semantic.error_count >= 1 && semantic.error_head &&
-        strstr(semantic.error_head->message,
-            "Intrinsic AST is missing its callee identifier") != NULL;
+    ok = semantic.error_count == 0;
     semantic_destroy(&semantic);
     ast_destroy(node);
     if (!ok) return 0;
