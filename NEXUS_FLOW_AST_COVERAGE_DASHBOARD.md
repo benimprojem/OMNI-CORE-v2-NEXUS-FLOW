@@ -1,7 +1,7 @@
 # NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu
 
 **Dal:** `refactor/c-core-roadmap`  
-**Güncelleme:** 2026-11-11  
+**Güncelleme:** 2026-11-12  
 **Amaç:** Dil referansında kayıtlı syntax yapılarını sekiz başlıkta görünür kılmak; her yapının Lexer, Parser, AST/Codec, Semantic, OIR Lowering ve bağımsız Verifier aşamalarında nerede olduğunu göstermek.
 
 > Bu belge bir tamamlanma ilanı değildir. Durumlar aktif C dalındaki syntax referansı, syntax/AST matrisi, AST düğüm envanteri, OIR kayıtları, ilerleme kaydı ve mevcut test kanıtları birlikte değerlendirilerek verilmiştir. Bir aşamanın tamamlanması sonraki aşamaları otomatik olarak tamamlamaz.
@@ -19,6 +19,14 @@
 
 **Sütunlar:** L = Lexer, P = Parser, A = AST payload + lifecycle + codec, S = Semantic, O = OIR lowering, V = bağımsız OIR Verifier.  
 **Önemli:** Verifier ham AST almaz. AST'den Semantic AST'ye, oradan OIR'a indirgenen yürütülebilir davranışı doğrular. Bu nedenle O sütunu kapanmadan V sütunu da o syntax özelliği için kapanmış sayılamaz.
+
+## OS / Thread / I/O intrinsic identity checkpoint — 2026-11-12
+
+- `echo`, `spawn`, `send`, `receive`, `done` identity checks remain in the shared intrinsic validator.
+- `prnt`, `prmt`, `write`, `fwrite` now use the same exact AST callee-name validation; malformed/missing/non-identifier callees produce Semantic diagnostics.
+- Direct AST fixtures cover all four accepted identities and a mismatched `fwrite` callee; existing `echo` source fixture remains.
+- This validates only front-end AST identity. It does not impose I/O provider, stream, device, file-system, or Thread runtime behavior.
+- Tests are committed but not executed in this GitHub workspace; CI status must be checked independently.
 
 ## IRQ / register intrinsic audit — 2026-11-12
 
