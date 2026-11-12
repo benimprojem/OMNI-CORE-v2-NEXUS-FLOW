@@ -3782,10 +3782,46 @@ static void semantic_check_node(
             ASTSelect* select=(ASTSelect*)node;
             ASTNode* arm_node;
             const char* subject_type;
+            int seen_default=0;
+            if(!select->selector) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "select statement is missing its selector expression.");
+                break;
+            }
             semantic_check(ctx,select->selector);
             subject_type=get_expr_type(ctx,select->selector);
             for(arm_node=select->arms;arm_node;arm_node=arm_node->next) {
-                ASTSelectArm* arm=(ASTSelectArm*)arm_node;
+                ASTSelectArm* arm;
+                if(arm_node->type!=AST_SELECT_ARM) {
+                    report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "select contains an invalid arm node.");
+                    continue;
+                }
+                arm=(ASTSelectArm*)arm_node;
+                if(!arm->body) {
+                    report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "select arm is missing its body.");
+                    continue;
+                }
+                if(arm->is_default) {
+                    if(arm->pattern) {
+                        report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                            "select default arm must not contain a match pattern.");
+                    }
+                    if(seen_default) {
+                        report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                            "select may contain only one default arm.");
+                    }
+                    seen_default=1;
+                    if(arm_node->next) {
+                        report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                            "select default arm must be the final arm.");
+                    }
+                } else if(!arm->pattern) {
+                    report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "select match arm is missing its pattern.");
+                    continue;
+                }
                 enter_scope(ctx,arm_node);
                 semantic_check_pattern_bindings(ctx,arm->pattern,subject_type);
                 semantic_check(ctx,arm->body);
@@ -3798,10 +3834,38 @@ static void semantic_check_node(
             ASTScan* scan=(ASTScan*)node;
             ASTNode* arm_node;
             const char* subject_type;
+            int seen_else=0;
+            if(!scan->subject) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "scan statement is missing its subject expression.");
+                break;
+            }
             semantic_check(ctx,scan->subject);
             subject_type=get_expr_type(ctx,scan->subject);
             for(arm_node=scan->arms;arm_node;arm_node=arm_node->next) {
-                ASTScanArm* arm=(ASTScanArm*)arm_node;
+                ASTScanArm* arm;
+                if(arm_node->type!=AST_SCAN_ARM) {
+                    report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "scan contains an invalid arm node.");
+                    continue;
+                }
+                arm=(ASTScanArm*)arm_node;
+                if(!arm->body) {
+                    report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "scan arm is missing its body.");
+                    continue;
+                }
+                if(!arm->pattern) {
+                    if(seen_else) {
+                        report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                            "scan may contain only one else arm.");
+                    }
+                    seen_else=1;
+                    if(arm_node->next) {
+                        report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
+                            "scan else arm must be the final arm.");
+                    }
+                }
                 enter_scope(ctx,arm_node);
                 semantic_check_pattern_bindings(ctx,arm->pattern,subject_type);
                 semantic_check(ctx,arm->body);
