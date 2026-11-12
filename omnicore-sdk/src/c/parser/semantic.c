@@ -4245,6 +4245,18 @@ static void semantic_check_node(
                 } else {
                     report_issue(ctx, node, ERR_SEMANTIC_UNDEFINED, buf, NULL, "Değişken tanımlanmamış. 'v:' ile tanımlamayı deneyin.", 0, 0);
                 }
+            } else if (resolved->is_handler && resolved->handler_is_moved) {
+                char message[256];
+                snprintf(message, sizeof(message),
+                    "Handler '%s' was moved and can no longer be used.", id->name);
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+            } else if (resolved->is_handler &&
+                       resolved->depth != ctx->current_depth) {
+                char message[256];
+                snprintf(message, sizeof(message),
+                    "Handler '%s' is only accessible in the block where it was declared; use _> to transfer ownership.",
+                    id->name);
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
             } else if (!semantic_register_thread_capture(
                     ctx, resolved, node)) {
                 break;
@@ -4621,24 +4633,36 @@ static void semantic_check_node(
 
         case AST_NEXUS_CAPTURE: {
             ASTNexusCapture* capture = (ASTNexusCapture*)node;
-            // (h) <- expr : Handler tanımlanıyor
+            const char* captured_type = NULL;
+            int is_empty_handler;
+            Slot* handler_slot = NULL;
             if (!capture->handler_name || !capture->handler_name[0] ||
                 !capture->expr) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Nexus capture requires a non-empty handler name and source expression.");
                 break;
             }
+            is_empty_handler = capture->expr->type == AST_LITERAL &&
+                ((ASTLiteral*)capture->expr)->type == TOKEN_NULL;
+            semantic_check(ctx, capture->expr);
+            captured_type = get_expr_type(ctx, capture->expr);
             if (find_slot(ctx, capture->handler_name)) {
                 char buf[256];
-                snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_REDEFINED), capture->handler_name); // Handler için de REDEFINED kullanabiliriz veya yeni kod
+                snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_REDEFINED),
+                    capture->handler_name);
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
             } else {
-                Slot* handler_slot = add_slot(
-                    ctx, capture->handler_name, SLOT_VAR, 0, NULL, node, 1, 0, 0, 0u);
+                handler_slot = add_slot(
+                    ctx, capture->handler_name, SLOT_VAR, 0,
+                    captured_type, node, 1, 0, 0, 0u);
+                if (handler_slot) {
+                    handler_slot->is_handler = 1u;
+                    handler_slot->handler_is_empty = (uint8_t)is_empty_handler;
+                }
                 semantic_record_annotation(
-                    ctx, node, handler_slot, NULL, SEMANTIC_RESULT_VALUE_LVALUE);
+                    ctx, node, handler_slot, captured_type,
+                    SEMANTIC_RESULT_VALUE_LVALUE);
             }
-            if (capture->expr) semantic_check(ctx, capture->expr);
             break;
         }
 
@@ -4985,6 +5009,81 @@ static void semantic_check_node(
             ASTRelocate* relocate=(ASTRelocate*)node;
             const char* source_type;
             const char* target_type;
+            Slot* source_handler = NULL;
+            Slot* target_handler = NULL;
+            if (relocate->source && relocate->source->type == AST_IDENTIFIER)
+                source_handler = find_slot(ctx,
+                    ((ASTIdentifier*)relocate->source)->name);
+            if (relocate->target && relocate->target->type == AST_IDENTIFIER)
+                target_handler = find_slot(ctx,
+                    ((ASTIdentifier*)relocate->target)->name);
+
+            if (source_handler && source_handler->is_handler &&
+                target_handler && target_handler->is_handler) {
+                const char* source_name =
+                    ((ASTIdentifier*)relocate->source)->name;
+                const char* target_name =
+                    ((ASTIdentifier*)relocate->target)->name;
+                if (source_handler == target_handler) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocate source and destination handlers must be different.");
+                    break;
+                }
+                if (source_handler->handler_is_moved) {
+                    report_error(ctx, relocate->source,
+                        ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocate source handler was already moved.");
+                    break;
+                }
+                if (source_handler->handler_is_empty) {
+                    report_error(ctx, relocate->source,
+                        ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocate source handler is empty; there is no ownership to transfer.");
+                    break;
+                }
+                if (target_handler->handler_is_moved ||
+                    !target_handler->handler_is_empty) {
+                    report_error(ctx, relocate->target,
+                        ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocate destination must be a declared, empty handler.");
+                    break;
+                }
+                if (!source_handler->type_name ||
+                    !source_handler->type_name[0]) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocate source handler has no resolved payload type.");
+                    break;
+                }
+                {
+                    char* moved_type = semantic_duplicate(
+                        ctx, source_handler->type_name);
+                    if (!moved_type) {
+                        semantic_set_result_error(
+                            ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Could not record relocated handler payload type.");
+                        break;
+                    }
+                    free(target_handler->type_name);
+                    target_handler->type_name = moved_type;
+                    target_handler->type_id = semantic_type_id(
+                        ctx, moved_type, 0);
+                }
+                source_handler->handler_is_moved = 1u;
+                target_handler->handler_is_empty = 0u;
+                semantic_record_annotation(ctx, relocate->source,
+                    source_handler, source_handler->type_name,
+                    SEMANTIC_RESULT_VALUE_LVALUE);
+                semantic_record_annotation(ctx, relocate->target,
+                    target_handler, target_handler->type_name,
+                    SEMANTIC_RESULT_VALUE_LVALUE);
+                semantic_record_annotation(ctx, node, target_handler,
+                    target_handler->type_name, SEMANTIC_RESULT_VALUE_RVALUE);
+                (void)source_name;
+                (void)target_name;
+                break;
+            }
+
             semantic_check(ctx,relocate->source);
             semantic_check(ctx,relocate->target);
             source_type=get_expr_type(ctx,relocate->source);
