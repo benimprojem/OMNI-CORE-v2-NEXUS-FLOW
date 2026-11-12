@@ -320,6 +320,13 @@ int main(void) {
         "f:main() { v:point!Vec3 = [1.0, 2.0, 3.0]; }";
     static const char valid_vec3_addition[] =
         "f:main(a!Vec3, b!Vec3) { v:result = a + b; }";
+    static const char valid_vec2_vec4_initializers[] =
+        "f:main() { v:p!Vec2 = [1.0, 2.0]; "
+        "v:q!Vec4 = [1.0, 2.0, 3.0, 4.0]; }";
+    static const char invalid_vec_non_numeric_component[] =
+        "f:main() { v:p!Vec2 = [1.0, \"bad\"]; }";
+    static const char invalid_vec_subtraction[] =
+        "f:main(a!Vec3, b!Vec3) { v:result = a - b; }";
     static const char invalid_vec3_dimension[] =
         "f:main() { v:point!Vec3 = [1.0, 2.0]; }";
     static const char invalid_vec_mixed_dimensions[] =
@@ -437,6 +444,9 @@ int main(void) {
     if (!check_source(postfix_array_element_valid, 0)) return 1;
     if (!check_source(valid_vec3_initializer, 0)) return 1;
     if (!check_source(valid_vec3_addition, 0)) return 1;
+    if (!check_source(valid_vec2_vec4_initializers, 0)) return 1;
+    if (!check_source(invalid_vec_non_numeric_component, 1)) return 1;
+    if (!check_source(invalid_vec_subtraction, 1)) return 1;
     if (!check_source(invalid_vec3_dimension, 1)) return 1;
     if (!check_source(invalid_vec_mixed_dimensions, 1)) return 1;
     if (!check_source(invalid_vec_multiply, 1)) return 1;
