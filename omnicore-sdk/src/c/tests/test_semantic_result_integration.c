@@ -315,7 +315,7 @@ static int test_extended_semantic_scopes(void) {
         "f:main() {"
         " v:choice!Choice = Choice.Range(1, 2);"
         " select(choice) { Range(s,e) -> { v:seen = s; } default -> { } }"
-        " scan(choice) { Range(a,b) -> { v:seen2 = b; } }"
+        " scan(choice) { Range(a,b) -> { v:seen2 = b; } Other -> { } }"
         " rules PrimeBorders(n) { n < 2 :=> \"out of range\"; n == 2 -> Success; always -> true; default -> false; }"
         " apply rules(PrimeBorders(2));"
         " on PrimeBorders.Success { v:handled = true; }"
