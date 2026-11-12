@@ -1224,6 +1224,14 @@ static int check_enum_scan_pattern_case(
     semantic_check(&semantic,(ASTNode*)subject_decl);
     semantic_check(&semantic,owned_scan);
     ok = semantic.error_count == expected_errors;
+    if (!ok) {
+        Error* detail;
+        fprintf(stderr, "Enum scan fixture %d: expected %d errors, got %d\\n",
+            test_case, expected_errors, semantic.error_count);
+        for (detail=semantic.error_head;detail;detail=detail->next)
+            fprintf(stderr, "  %d:%d %s\\n", detail->line, detail->col,
+                detail->message ? detail->message : "<none>");
+    }
     if (expected_binding_type) {
         Slot* slot;
         int found = 0;
