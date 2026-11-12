@@ -4647,6 +4647,7 @@ static int test_parenthesized_rolling_retry_disambiguation(void) {
 }
 
 int main(int argc, char** argv) {
+#define FAIL_PARSER_TEST() do { fprintf(stderr, "Parser aggregate failed at source line %d\\n", __LINE__); return 1; } while (0)
 #define CHECK_PARSER_TEST(fn) do { if (!(fn)()) { fprintf(stderr, "Parser test failed: %s\\n", #fn); return 1; } } while (0)
     CHECK_PARSER_TEST(test_fast_exec_raw_asm_ast);
     CHECK_PARSER_TEST(test_fast_exec_asm_token_stream);
@@ -4658,11 +4659,11 @@ int main(int argc, char** argv) {
     CHECK_PARSER_TEST(test_dotted_module_use_path);
     CHECK_PARSER_TEST(test_use_path_malformed_and_exact_spans);
     CHECK_PARSER_TEST(test_use_comma_list_spans);
-    if (!test_use_alias_and_namespace_ast_codec()) { fprintf(stderr, "USE alias/namespace AST codec test failed.\n"); return 1; }
+    if (!test_use_alias_and_namespace_ast_codec()) { fprintf(stderr, "USE alias/namespace AST codec test failed.\n"); FAIL_PARSER_TEST(); }
     CHECK_PARSER_TEST(test_pointer_reference_type_declarators);
     CHECK_PARSER_TEST(test_function_type_alias_and_callback_parameter);
-    if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\n"); return 1; }
-    if (!test_callback_parameter_exact_source_spans()) { fprintf(stderr, "Callback parameter exact source-span test failed.\n"); return 1; }
+    if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\n"); FAIL_PARSER_TEST(); }
+    if (!test_callback_parameter_exact_source_spans()) { fprintf(stderr, "Callback parameter exact source-span test failed.\n"); FAIL_PARSER_TEST(); }
     CHECK_PARSER_TEST(test_null_and_numeric_literal_ast);
     CHECK_PARSER_TEST(test_implicit_type_variable_spelling);
     CHECK_PARSER_TEST(test_spawn_is_outside_core_parser);
@@ -4672,143 +4673,143 @@ int main(int argc, char** argv) {
     CHECK_PARSER_TEST(test_thread_block_ast);
     if (!test_ast_create_rejects_invalid_node_kinds()) {
         fprintf(stderr, "AST factory accepted an invalid node kind or rejected a boundary kind.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
-    if (!test_array_type_declarators()) { fprintf(stderr, "Array type declarator parser/codec test failed.\n"); return 1; }
-    if (!test_function_array_return_ast()) { fprintf(stderr, "Function array-return parser/codec test failed.\n"); return 1; }
-    if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); return 1; }
-    if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\n"); return 1; }
+    if (!test_array_type_declarators()) { fprintf(stderr, "Array type declarator parser/codec test failed.\n"); FAIL_PARSER_TEST(); }
+    if (!test_function_array_return_ast()) { fprintf(stderr, "Function array-return parser/codec test failed.\n"); FAIL_PARSER_TEST(); }
+    if (!test_array_index_access_ast()) { fprintf(stderr, "Array index access parser/codec test failed.\n"); FAIL_PARSER_TEST(); }
+    if (!test_power_bitwise_and_compound_assignment()) { fprintf(stderr, "Power/bitwise/compound assignment parser test failed.\n"); FAIL_PARSER_TEST(); }
     if (!test_string_append_assignment_ast()) {
         fprintf(stderr, "String append assignment AST/source-span parser test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_numeric_and_flow_shift_operators()) {
         fprintf(stderr, "Numeric/Flow shift distinction or shift-chain bound test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_increment_decrement_parser_forms()) {
         fprintf(stderr, "Prefix/postfix increment/decrement AST/source-span test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_equality_operator_parser_forms()) {
         fprintf(stderr, "Equality operator AST/source-span Parser test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_relational_and_unary_operator_parser_forms()) {
         fprintf(stderr, "Relational/unary operator AST/source-span Parser test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_nexus_flow_catch_fallback_ignore_forms()) {
         fprintf(stderr, "Nexus Flow catch/fallback/ignore Parser test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_legacy_flow_spellings_are_rejected()) {
         fprintf(stderr, "Legacy Flow token spellings were not rejected or canonical foreach failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_deferred_intent_ai_syntax_is_rejected()) {
         fprintf(stderr, "Deferred Intent/AI syntax was accepted by the Core Parser.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
-    if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); return 1; }
-    if (!test_extern_linkname_association_and_codec()) { fprintf(stderr, "EXF linkname association/codec test failed.\n"); return 1; }
-    if (!test_extern_echo_and_listen_keywords()) { fprintf(stderr, "extern/echo/listen keyword parser test failed.\n"); return 1; }
-    if (!test_modulo_expression_ast()) { fprintf(stderr, "Modulo expression/array extent parser test failed.\n"); return 1; }
-    if (!test_expression_precedence_and_associativity_ast()) { fprintf(stderr, "Logical operator precedence parser test failed.\n"); return 1; }
+    if (!test_extern_semicolon_declaration()) { fprintf(stderr, "EXF semicolon declaration parser test failed.\n"); FAIL_PARSER_TEST(); }
+    if (!test_extern_linkname_association_and_codec()) { fprintf(stderr, "EXF linkname association/codec test failed.\n"); FAIL_PARSER_TEST(); }
+    if (!test_extern_echo_and_listen_keywords()) { fprintf(stderr, "extern/echo/listen keyword parser test failed.\n"); FAIL_PARSER_TEST(); }
+    if (!test_modulo_expression_ast()) { fprintf(stderr, "Modulo expression/array extent parser test failed.\n"); FAIL_PARSER_TEST(); }
+    if (!test_expression_precedence_and_associativity_ast()) { fprintf(stderr, "Logical operator precedence parser test failed.\n"); FAIL_PARSER_TEST(); }
 
-    if (!test_array_literal_ast()) { fprintf(stderr, "Array literal parser/codec test failed.\n"); return 1; }
+    if (!test_array_literal_ast()) { fprintf(stderr, "Array literal parser/codec test failed.\n"); FAIL_PARSER_TEST(); }
     if (!test_retry_metadata_rejects_overflow()) {
         fprintf(stderr, "Rolling retry count overflow was not rejected.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_rules_lambda_relocate_unroll_ast()) {
         fprintf(stderr, "Rules/lambda/relocate/unroll AST parser test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
-    if (!test_select_scan_ast()) { fprintf(stderr, "select/scan AST parser and codec test failed.\n"); return 1; }
+    if (!test_select_scan_ast()) { fprintf(stderr, "select/scan AST parser and codec test failed.\n"); FAIL_PARSER_TEST(); }
     if (!test_structured_if_elsif_els_ast()) {
         fprintf(stderr, "Structured if/elsif/els parser test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_conditional_control_question_disambiguation()) {
         fprintf(stderr, "Question-mark conditional control was confused with a Nexus pipe.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parenthesized_rolling_retry_disambiguation()) {
         fprintf(stderr, "Parenthesized rolling retry was misclassified as conditional control.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_legacy_unpack_operator_is_rejected()) {
         fprintf(stderr, "Legacy ...> unpack operator was unexpectedly accepted.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parser_rejects_excessive_expression_nesting()) {
         fprintf(stderr, "Parser did not safely reject excessive expression nesting.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parser_rejects_excessive_operator_chain()) {
         fprintf(stderr, "Parser did not safely reject an excessive operator chain.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parser_bounds_recursive_expression_forms()) {
         fprintf(stderr, "Parser did not bound recursive unary/assignment/postfix forms.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parser_context_initialization()) {
         fprintf(stderr, "Parser context initialization/early destruction test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parser_allocation_failure_injection()) {
         fprintf(stderr, "Parser allocation-failure injection test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_function_parameter_type_separator_forms()) {
         fprintf(stderr, "Function parameter type separator forms were not parsed consistently.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_cast_and_panic_ast()) {
         fprintf(stderr, "CAST/PANIC AST payload test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_aggregate_declaration_ast()) {
         fprintf(stderr, "Aggregate declaration AST ownership test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_rejects_invalid_aggregate_members()) {
         fprintf(stderr, "Invalid aggregate members were silently accepted.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parser_panic_mode_recovers_at_statement_boundaries()) {
         fprintf(stderr, "Parser panic-mode recovery did not preserve later valid statements.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_nested_block_exact_source_spans()) {
         fprintf(stderr, "Nested block exact source-span test failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parser_nested_block_recovery()) {
         fprintf(stderr, "Parser did not recover inside a nested block and preserve following statements.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parser_malformed_function_recovery()) {
         fprintf(stderr, "Parser did not recover after a malformed function declaration.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parser_preserves_lexer_errors_during_recovery()) {
         fprintf(stderr, "Lexer diagnostics were lost during parser panic-mode recovery.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_parser_allocation_failure_injection()) {
         fprintf(stderr, "Parser allocation failure injection did not preserve OOM status/cleanup.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_struct_literal_parser_source_spans()) {
         fprintf(stderr, "Struct literal parser source-span fixture failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (!test_enum_payload_rejects_malformed_fields()) {
         fprintf(stderr, "Malformed Enum payload forms were accepted.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
     if (argc != 4) return 2;
 
@@ -4816,7 +4817,7 @@ int main(int argc, char** argv) {
     occ_diagnostics_init(&diagnostics);
 
     ParserContext* valid = parser_init(argv[1]);
-    if (!valid) return 1;
+    if (!valid) FAIL_PARSER_TEST();
     parser_attach_diagnostics(valid, &diagnostics, OCC_STAGE_PARSER);
     int valid_result = parser_run(valid);
     int valid_ok = valid_result == 0 && valid->ast_root != NULL &&
@@ -4824,12 +4825,12 @@ int main(int argc, char** argv) {
     parser_destroy(valid);
     if (!valid_ok) {
         fprintf(stderr, "Parser rejected a valid source or failed to produce a program AST.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
 
-    if (!write_invalid_source(argv[2])) return 1;
+    if (!write_invalid_source(argv[2])) FAIL_PARSER_TEST();
     ParserContext* invalid = parser_init(argv[2]);
-    if (!invalid) return 1;
+    if (!invalid) FAIL_PARSER_TEST();
     parser_attach_diagnostics(invalid, &diagnostics, OCC_STAGE_PARSER);
     int invalid_result = parser_run(invalid);
     OccDiagnosticView parser_diagnostic;
@@ -4844,7 +4845,7 @@ int main(int argc, char** argv) {
     occ_diagnostics_destroy(&diagnostics);
     if (!invalid_ok) {
         fprintf(stderr, "Parser did not report invalid syntax or retain its partial AST for cleanup.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
 
     {
@@ -4853,9 +4854,9 @@ int main(int argc, char** argv) {
         ParserContext* second_line;
         int line_ok;
         occ_diagnostics_init(&line_diagnostics);
-        if (!write_invalid_second_line_source(argv[2])) return 1;
+        if (!write_invalid_second_line_source(argv[2])) FAIL_PARSER_TEST();
         second_line = parser_init(argv[2]);
-        if (!second_line) return 1;
+        if (!second_line) FAIL_PARSER_TEST();
         parser_attach_diagnostics(second_line, &line_diagnostics, OCC_STAGE_PARSER);
         (void)parser_run(second_line);
         line_ok = occ_diagnostics_get(&line_diagnostics, 0, &diagnostic) &&
@@ -4870,7 +4871,7 @@ int main(int argc, char** argv) {
         occ_diagnostics_destroy(&line_diagnostics);
         if (!line_ok) {
             fprintf(stderr, "Parser diagnostic did not preserve the exact second-line token span.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -4883,7 +4884,7 @@ int main(int argc, char** argv) {
         occ_diagnostics_init(&memory_diagnostics);
         memory_parser = parser_init_source("memory-test.nxf",
             (const uint8_t*)memory_source, sizeof(memory_source) - 1u);
-        if (!memory_parser) return 1;
+        if (!memory_parser) FAIL_PARSER_TEST();
         memory_source[6] = '1'; /* The parser must retain its own source copy. */
         parser_attach_diagnostics(memory_parser, &memory_diagnostics, OCC_STAGE_PARSER);
         (void)parser_run(memory_parser);
@@ -4897,16 +4898,16 @@ int main(int argc, char** argv) {
         occ_diagnostics_destroy(&memory_diagnostics);
         if (!memory_ok) {
             fprintf(stderr, "In-memory parser did not retain source bytes and exact diagnostic location.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
-    if (!write_invalid_lexical_source(argv[3])) return 1;
+    if (!write_invalid_lexical_source(argv[3])) FAIL_PARSER_TEST();
     {
         OccDiagnosticCollector lexical_diagnostics;
         OccDiagnosticView diagnostic;
         ParserContext* lexical = parser_init(argv[3]);
-        if (!lexical) return 1;
+        if (!lexical) FAIL_PARSER_TEST();
         occ_diagnostics_init(&lexical_diagnostics);
         parser_attach_diagnostics(lexical, &lexical_diagnostics, OCC_STAGE_PARSER);
         (void)parser_run(lexical);
@@ -4918,7 +4919,7 @@ int main(int argc, char** argv) {
         occ_diagnostics_destroy(&lexical_diagnostics);
         if (!lexical_ok) {
             fprintf(stderr, "Lexer error was not forwarded with its stage and source location.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -4933,7 +4934,7 @@ int main(int argc, char** argv) {
             invalid_lexical_source, sizeof(invalid_lexical_source) - 1u);
         if (!failed_lexer) {
             occ_diagnostics_destroy(&failed_diagnostics);
-            return 1;
+            FAIL_PARSER_TEST();
         }
         parser_attach_diagnostics(failed_lexer, &failed_diagnostics, OCC_STAGE_PARSER);
         failed_result = parser_run(failed_lexer);
@@ -4944,7 +4945,7 @@ int main(int argc, char** argv) {
         occ_diagnostics_destroy(&failed_diagnostics);
         if (!failed_ok) {
             fprintf(stderr, "Lexer diagnostic allocation failure was not propagated as OOM.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -4956,12 +4957,12 @@ int main(int argc, char** argv) {
         Token tokens[2];
         Token invalid_tokens[2];
         int token_ok;
-        if (!token_parser) return 1;
+        if (!token_parser) FAIL_PARSER_TEST();
         tokens[0] = lexer_next_token(token_parser);
         tokens[1] = lexer_next_token(token_parser);
         if (tokens[0].type != TOKEN_ERROR || tokens[1].type != TOKEN_EOF) {
             parser_destroy(token_parser);
-            return 1;
+            FAIL_PARSER_TEST();
         }
         /* A stale/nonexistent upstream diagnostic index must not hide this error. */
         tokens[0].diagnostic_id = 1u;
@@ -4974,12 +4975,12 @@ int main(int argc, char** argv) {
             parser_destroy(token_parser);
             occ_diagnostics_destroy(&token_diagnostics);
             fprintf(stderr, "Malformed token source span was accepted.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
         if (!parser_attach_token_stream(token_parser, tokens, 2u)) {
             parser_destroy(token_parser);
             occ_diagnostics_destroy(&token_diagnostics);
-            return 1;
+            FAIL_PARSER_TEST();
         }
         (void)parser_run(token_parser);
         token_ok = parser_get_status(token_parser) == PARSER_STATUS_SYNTAX_ERROR &&
@@ -4988,7 +4989,7 @@ int main(int argc, char** argv) {
         occ_diagnostics_destroy(&token_diagnostics);
         if (!token_ok) {
             fprintf(stderr, "Invalid token diagnostic reference suppressed a lexer error.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -4998,7 +4999,7 @@ int main(int argc, char** argv) {
             source_text, sizeof(source_text) - 1u);
         Token tokens[2];
         int rejected;
-        if (!text_parser) return 1;
+        if (!text_parser) FAIL_PARSER_TEST();
         tokens[0] = lexer_next_token(text_parser);
         tokens[1] = lexer_next_token(text_parser);
         tokens[0].start = "y";
@@ -5006,7 +5007,7 @@ int main(int argc, char** argv) {
         parser_destroy(text_parser);
         if (!rejected) {
             fprintf(stderr, "Token text that differs from its source span was accepted.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5022,7 +5023,7 @@ int main(int argc, char** argv) {
             invalid_source, sizeof(invalid_source) - 1u);
         if (!limited_parser) {
             occ_diagnostics_destroy(&limited);
-            return 1;
+            FAIL_PARSER_TEST();
         }
         parser_attach_diagnostics(limited_parser, &limited, OCC_STAGE_PARSER);
         limited_result = parser_run(limited_parser);
@@ -5034,7 +5035,7 @@ int main(int argc, char** argv) {
             occ_diagnostics_destroy(&limited);
             if (!limit_ok) {
                 fprintf(stderr, "Parser diagnostic budget exhaustion was not reported distinctly.\n");
-                return 1;
+                FAIL_PARSER_TEST();
             }
         }
     }
@@ -5054,7 +5055,7 @@ int main(int argc, char** argv) {
         if (!parser || parser_run(parser) != PARSER_STATUS_OK) {
             if (parser) parser_destroy(parser);
             fprintf(stderr, "block-scoped Halt syntax failed to parse\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
         root = parser->ast_root;
         fn = root ? ((ASTProgram*)root)->declarations : NULL;
@@ -5076,7 +5077,7 @@ int main(int argc, char** argv) {
             !ast_validate(root, NULL)) {
             fprintf(stderr, "block-scoped Halt was not preserved as final AST child\n");
             parser_destroy(parser);
-            return 1;
+            FAIL_PARSER_TEST();
         }
         parser_destroy(parser);
     }
@@ -5153,7 +5154,7 @@ named_args_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Variadic/named argument parser or AST codec test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5169,14 +5170,14 @@ named_args_done:
             ParserContext* parser = parser_init_source("invalid-named-args.nxf",
                 (const uint8_t*)invalid_sources[index], strlen(invalid_sources[index]));
             int status;
-            if (!parser) return 1;
+            if (!parser) FAIL_PARSER_TEST();
             status = parser_run(parser);
             if (status != PARSER_STATUS_SYNTAX_ERROR ||
                 parser_get_status(parser) != PARSER_STATUS_SYNTAX_ERROR) {
                 fprintf(stderr, "Invalid named-argument form was accepted: %s\n",
                     invalid_sources[index]);
                 parser_destroy(parser);
-                return 1;
+                FAIL_PARSER_TEST();
             }
             parser_destroy(parser);
         }
@@ -5237,7 +5238,7 @@ immutable_value_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "m: immutable-value parser/AST codec test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5278,7 +5279,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Generic type-variable signature preservation test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5318,7 +5319,7 @@ generic_type_done:
         occ_source_files_destroy(&files);
         if (!valid) {
             fprintf(stderr, "Parser diagnostic source identity test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5415,7 +5416,7 @@ generic_type_done:
         occ_source_files_destroy(&files);
         if (!valid) {
             fprintf(stderr, "Parser leaf AST source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5448,7 +5449,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Unary expression source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5507,7 +5508,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Postfix/call source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5540,7 +5541,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Conditional AST source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5584,7 +5585,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Array/loop AST source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5616,7 +5617,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Nexus Flow AST source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5662,7 +5663,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Select AST source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5704,7 +5705,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Array type/dimension source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5744,7 +5745,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Nexus jump source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5775,7 +5776,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Tuple AST source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5808,7 +5809,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Thread block AST source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5840,7 +5841,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "UTF-8 byte source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5885,7 +5886,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Multiline AST source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5913,7 +5914,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Nexus capture source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5945,7 +5946,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Function parameter source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -5978,7 +5979,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Expression lambda source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6011,7 +6012,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Block lambda source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6039,7 +6040,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Nexus label source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6072,7 +6073,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Group AST source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6098,7 +6099,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Targetless Halt source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6137,7 +6138,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Inline newtype aggregate source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6175,7 +6176,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "asmcall/asmjmp AST source-span test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6235,7 +6236,7 @@ generic_type_done:
         if (!valid) {
             if (parser) parser_destroy(parser);
             fprintf(stderr, "use alias/defer AST ownership test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
         if (parser) parser_destroy(parser);
     }
@@ -6299,7 +6300,7 @@ generic_type_done:
         if (!valid || !legacy_rejected || !generic_not_yet_supported) {
             fprintf(stderr, "Map fixture: valid=%d legacy=%d generic=%d\n",
                 valid, legacy_rejected, generic_not_yet_supported);
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6327,7 +6328,7 @@ generic_type_done:
         if (parser) parser_destroy(parser);
         if (!valid) {
             fprintf(stderr, "Default parameter AST test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6418,7 +6419,7 @@ generic_type_done:
         if (invalid) parser_destroy(invalid);
         if (!valid) {
             fprintf(stderr, "Lambda expression/block AST contract test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6499,7 +6500,7 @@ generic_type_done:
         if (invalid) parser_destroy(invalid);
         if (!valid) {
             fprintf(stderr, "Return/break/continue AST contract test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6564,7 +6565,7 @@ generic_type_done:
         if(parser) parser_destroy(parser);
         if(!valid) {
             fprintf(stderr,"Default parameter AST/span/codec checks failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6671,7 +6672,7 @@ generic_type_done:
         if(parser) parser_destroy(parser);
         if(!valid) {
             fprintf(stderr,"Enum variant/payload AST span and codec test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6753,7 +6754,7 @@ generic_type_done:
         if(parser) parser_destroy(parser);
         if(!valid) {
             fprintf(stderr,"Struct/packed Struct/Union AST shape, span and codec test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6867,7 +6868,7 @@ generic_type_done:
         if(parser) parser_destroy(parser);
         if(!valid) {
             fprintf(stderr,"Group method/default/nested-group AST span and codec test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -6942,7 +6943,7 @@ generic_type_done:
         if(parser) parser_destroy(parser);
         if(!valid) {
             fprintf(stderr,"Nested Struct literal AST/codec test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -7022,7 +7023,7 @@ generic_type_done:
         if(parser) parser_destroy(parser);
         if(!valid) {
             fprintf(stderr,"AST_PROGRAM full-source span/codec test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
@@ -7054,33 +7055,33 @@ generic_type_done:
         if(parser) parser_destroy(parser);
         if(!valid) {
             fprintf(stderr,"Shift precedence/AST construction test failed.\n");
-            return 1;
+            FAIL_PARSER_TEST();
         }
     }
 
     if (!test_separated_variable_declarations_and_declaration_spans()) {
         fprintf(stderr, "Separated declaration Parser coverage failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
 
     if (!test_expression_body_function_source_spans()) {
         fprintf(stderr, "Expression-body function Parser coverage failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
 
     if (!test_indexed_capture_assignment_ast()) {
         fprintf(stderr, "Indexed capture assignment Parser coverage failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
 
     if (!test_vector_and_bit_byte_type_parser_coverage()) {
         fprintf(stderr, "Vector/bit/byte type Parser coverage failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
 
     if (!test_copy_intrinsic_uses_generic_call_ast()) {
         fprintf(stderr, "copy() generic-call Parser coverage failed.\n");
-        return 1;
+        FAIL_PARSER_TEST();
     }
 
     return 0;
