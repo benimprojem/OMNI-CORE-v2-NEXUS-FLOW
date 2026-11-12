@@ -406,7 +406,7 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 | **9** | `<<`  | **Zone Write** | Veriyi atomik olarak paylaşımlı belleğe yazar. |
 | **10** | `>>`  | **Flow Feed** | Veriyi atomik olarak akışa besler. |
 | **11** | `(e){}`| **Error Block** | Saptırılan hatanın işlendiği son durak. |
-| **12** | `?;` / `}?;` | **Halt** | `?;` tek kaynağı/masayı kapatır; blok sonundaki `}?;` blokta kalan kaynakları topluca kapatır. |
+| **12** | `?;` / `}?;` | **Halt** | Her iki biçim de yürütme bağlamındaki bütün etkin masa/kaynak sahipliklerini sonlandırır; `}?;` blok kapanışına yazılan biçimdir, kapsamı daraltmaz. |
 | **13** | `!!`  | **Panic** | Kritik durdurma. |
 | **14** | `@`   | **Reserved / Deferred** | Intent tasarımı etkinleştirilene kadar Core Parser tarafından kabul edilmez. |
 | **15** | `!!=` | **Directive** | .target sistemi ve derleyici talimatları. |
@@ -423,67 +423,72 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 ## Bölüm 4. MASA (HANDLER) VE SAHİPLİK MEKANİZMASI
 
 ### 4.1 Masa Kuralları
-- **Table Occupied:** `(h)` doluysa ve `<-` ile yeni veri yazılmaya çalışılırsa derleyici hata verir. Masa boşaltılmalıdır.
-- **Move-on-Flow:** `(h) -> write()` işlemi veriyi kopyalamaz, **taşır**. İşlem sonunda `(h)` sıfırlanır (Nulled).
-- **Zero-Cost Handover:** Masalar arası transfer sadece adres etiketinin değişimidir.
 
+- **Table Occupied:** `(h)` doluysa ve `<-` ile yeni veri yazılmaya çalışılırsa masa önce geçerli biçimde boşaltılmalıdır; dolu masanın üzerine yazmak Semantic hatasıdır.
+- **Move-on-Flow:** Masa üzerinden işleme/akış veriyi kopyalamaz; sahiplik kurallarına göre aynı depolama nesnesini kullanır. Kaynak masa bir hedefe devredilmişse eski masa geçersiz olur.
+- **Zero-Cost Handover:** Masalar arası transfer, veriyi çoğaltmak yerine sahiplik/adres kaydını hedef masaya aktarır.
 
 ### 4.1.1 `(h)` Masa (Handler) Yaşam Döngüsü
 
-* **Scope:** `(h)` sadece tanımlandığı blokta geçerlidir. Başka bloklardan doğrudan erişilemez.
-* **Ömür (Lifetime):** `?;` herhangi bir uygun noktada belirtilen tek kaynak/masayı kapatır. `}?;` blok kapanışına eklenir ve o blokta açılmış, hâlâ o bloğa ait tüm açık kaynakları topluca kapatır.
-* **Transfer:** Başka bloğa taşımak için `_>` kullanılır. Taşındığında orijinal masa **silinir**.
-* **Güvenlik Etkisi:**
+- **Lexical scope:** Her `(h)` yalnızca tanımlandığı bloğun üyesidir. Başka bir bloktan doğrudan adla erişilemez; dışarı sızan masa referansı geçersizdir.
+- **Lifetime:** Masa, sahibi olduğu blok aktivasyonundan uzun yaşayamaz. Blok normal yoldan terk edildiğinde hâlâ o bloğa ait kaynaklar otomatik cleanup kapsamındadır.
+- **Ownership:** Her dolu masa/kaynak için tek sahip bulunur. Aynı kaynak iki masanın eşzamanlı sahibi olamaz.
+- **Transfer:** `(h1) _> (h2)` sahipliği `h1` masasından `h2` masasına taşır. Hedef masa geçerli ve boş olmalıdır. İşlem kopyalama değildir; başarılı devirden sonra `h1` boş/geçersiz duruma geçer ve tekrar kullanılamaz. Kaynak, hedef masanın ait olduğu blok aktivasyonunun cleanup listesine kaydedilir.
+- **Borrow:** Başka bir bloktan gelen ödünç kaynak, açık sahiplik devri olmadan iç blok tarafından serbest bırakılamaz veya sahiplenilemez.
+- **Use-after-move / use-after-halt:** Taşınmış ya da sonlandırılmış masa üzerinden sonraki erişim Semantic hatasıdır.
 
-  * Ömrü garanti altındadır → dangling pointer riskini minimize eder.
-  * Başka bloklar `(h)`'yi okuyamaz → izinsiz erişim yok.
-
-
----
-
-### 4.1.2 Halt: Tekil Kaynak ve Blok Kapsamlı Temizlik
-
-Halt iki ayrı operatör değildir; aynı `?;` işleminin hedef kapsamı farklıdır:
-
-- **Tekil Halt — `(resource)?;`:** Herhangi bir uygun statement noktasında kullanılabilir. İlgili kaynak/masa kapatılır veya temizlenir. Örnekler: açık dosyayı kapatmak, geçici tabloyu temizlemek, yüklenmiş DLL'yi kaldırmak.
-- **Blok Halt — `}?;`:** Bir bloğun kapanışına eklenir. O blok içinde açılmış ve hâlâ o bloğun sahipliğinde bulunan tüm açık kaynakları tek tek kapatma gerektirmeden topluca sonlandırır.
-
-Örnekler:
+Örnek:
 
 ```nexus
-(file) <- file.open("data.bin", r);
-file.read(file);
-(file)?;                 # Yalnızca bu dosya kaynağını kapat.
-
-(table) <- table.create();
-table.insert(table, row);
-(table)?;                # Yalnızca bu tabloyu temizle.
-
-(Optimizer) <- dll.load("optimizer.dll");
-Optimizer.run(Optimizer);
-(Optimizer)?;                  # Yüklenen DLL kaynağını kaldır.
+{
+    (h1) <- acquire_resource();
+    {
+        (hand) _> (h1); # Bu örnek yalnızca yönü göstermek içindir; hedef masa boş olmalıdır.
+    }
+}
 ```
 
-Blok kapsamlı kapatma:
+Gerçek transferde kaynak masa ve hedef masa adları kullanılır; örneğin `(h) _> (hand)`. Devir tamamlandığında eski `(h)` artık kullanılamaz, kaynak yalnızca `(hand)` üzerinden erişilir.
+
+### 4.1.2 Halt: Etkin Kaynakların Toplu Sonlandırılması
+
+Halt, tek bir masayı seçip kapatma işlemi değildir. `?;` ve `}?;` yürütme bağlamındaki bütün etkin masa/kaynak sahipliklerini sonlandırır. Aralarındaki fark yazım konumudur; temizleme kapsamı farklı değildir:
+
+- **Statement Halt — `?;`:** Bir statement noktasında yazılır. O anda etkin olan bütün masalar ve sahip olunan kaynaklar sonlandırılır; devam eden normal akış sona erer.
+- **Block-end Halt — `}?;`:** Blok kapanışına yazılır. Aynı global etkin-kaynak sonlandırma davranışını uygular. Yalnızca son bloğun kaynaklarını temizleyen yerel bir kısaltma değildir.
+- Her iki biçim de blok normal biçimde kapanmış olsun veya olmasın, o yürütme bağlamında etkin kalan tüm sahiplikleri kapsar.
+- Tek bir kaynağı serbest bırakmak için Halt kullanılmaz; ilgili kaynağın kendi close/free/release API'si çağrılır.
+
+Örnek:
 
 ```nexus
 {
     (input)  <- file.open("input.bin", r);
     (output) <- file.open("output.bin", w);
-    (socket) <- net.connect(endpoint);
-    process(input, output, socket);
-}?; # Blokta kalan üç kaynağın tamamını kapat.
+    {
+        (socket) <- net.connect(endpoint);
+        process(input, output, socket);
+        ?; # İç blokta olsa da bütün etkin masaları/kaynakları sonlandırır.
+    }
+}
 ```
 
-**Sahiplik sınırları:**
-- Blok Halt yalnızca o blokta oluşturulmuş ve hâlâ o bloğa ait kaynakları kapatır.
-- `_>` ile başka kapsama taşınmış kaynak artık eski bloğun temizleme listesinde değildir.
-- Dış kapsamdan ödünç alınmış kaynak, açık bir sahiplik devri olmadan iç blok tarafından kapatılamaz.
-- Tekil Halt sonrası kaynak/handler geçersiz duruma geçer; sonraki kullanım semantik hata olmalıdır.
-- Temizleme deterministik olmalı; her kaynak en fazla bir kez sonlandırılmalıdır.
-- Kaynak kapatma hatalarının cleanup sırası ve hata birleştirme davranışı runtime sözleşmesinde ayrıca tanımlanmalıdır.
+```nexus
+{
+    (input)  <- file.open("input.bin", r);
+    (output) <- file.open("output.bin", w);
+    process(input, output);
+}?; # Blok kapanışında yazılır; etkin tüm masaları/kaynakları sonlandırır.
+```
 
-Bu bölüm hedeflenen dil semantiğidir. C Parser tekil kaynak Halt için `AST_NEXUS_HALT`, blok kapanışındaki `}?;` için ayrı `AST_BLOCK_HALT` düğümü üretir. `AST_BLOCK_HALT` yalnızca ait olduğu bloğun son çocuğu olabilir. Kaynakların sahiplik listesine kaydı, cleanup sırası ve hata politikası Semantic/OIR lowering aşamalarında ayrıca uygulanmalıdır; bu AST temsili tek başına çalıştırılabilir cleanup garantisi vermez.
+**Sahiplik ve cleanup sınırları:**
+- `_>` ile devredilmiş kaynak eski masanın ve eski bloğun cleanup kaydından çıkar; hedef masanın sahipliğine geçer.
+- Normal blok çıkışında yalnızca o blok aktivasyonuna ait ve başka yere devredilmemiş kaynaklar otomatik temizlenir.
+- `?;` veya `}?;` çalıştığında etkin yürütme bağlamındaki tüm sahiplik kayıtları bir kez temizlenir; sonraki normal kullanım mümkün değildir.
+- Temizleme deterministiktir. Her kaynak en fazla bir kez sonlandırılır.
+- Cleanup sırasında hata oluşsa bile kalan cleanup işlemleri tamamlanır; hata birleştirme ve birincil hata politikası defer/runtime cleanup sözleşmesiyle aynıdır.
+
+C Parser statement Halt için `AST_NEXUS_HALT`, blok kapanışındaki `}?;` için `AST_BLOCK_HALT` üretir. AST biçimleri farklı olsa da Semantic/OIR sözleşmesinde ikisi de aynı etkin-kaynak sonlandırma işlemini temsil etmelidir. `AST_BLOCK_HALT` yalnızca ait olduğu bloğun son çocuğu olabilir. Bu syntax tanımı, cleanup lowering ve bağımsız OIR Verifier işlerinin tamamlandığı anlamına gelmez.
 
 ---
 
