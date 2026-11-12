@@ -2141,7 +2141,8 @@ static const char* semantic_intrinsic_expected_name(ASTNodeType type) {
         case AST_POKE: return "poke";
         case AST_INB: return "inb";
         case AST_OUTB: return "outb";
-        case AST_INTR: return "intr";
+        /* AST_INTR is a dedicated hardware interrupt node; unlike ordinary
+           named intrinsics it intentionally has no callee identifier. */
         case AST_AREA: return "area";
         case AST_ZONE: return "zone";
         case AST_FREE: return "free";
