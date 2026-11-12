@@ -324,6 +324,12 @@ int main(void) {
     if (!check_error_detail(
         "f:main() {\n    v:s = \"text\"; s++;\n}",
         "numeric lvalue", "str", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() {\n    if (1) { ret; }\n}",
+        "if/elsif condition requires bool", "i32", 2)) return 1;
+    if (!check_error_detail(
+        "f:main() {\n    loop (1) { ret; }\n}",
+        "Loop condition requires bool", "i32", 2)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
