@@ -5007,17 +5007,29 @@ static void semantic_check_node(
                     }
                 }
             } else if (call->callee) {
-                semantic_check(ctx, call->callee);
-                if (call->callee->type == AST_IDENTIFIER) {
-                    ASTIdentifier* id = (ASTIdentifier*)call->callee;
-                    Slot* function_slot = find_slot(ctx, id->name);
-                    if (function_slot)
-                        semantic_validate_call_arguments(
-                            ctx, node, function_slot, call->args, 0u);
+                int is_spawn_api = call->callee->type == AST_IDENTIFIER &&
+                    ((ASTIdentifier*)call->callee)->name &&
+                    strcmp(((ASTIdentifier*)call->callee)->name, "spawn") == 0;
+                if (!is_spawn_api) {
+                    semantic_check(ctx, call->callee);
+                    if (call->callee->type == AST_IDENTIFIER) {
+                        ASTIdentifier* id = (ASTIdentifier*)call->callee;
+                        Slot* function_slot = find_slot(ctx, id->name);
+                        if (function_slot)
+                            semantic_validate_call_arguments(
+                                ctx, node, function_slot, call->args, 0u);
+                    }
                 }
             }
             semantic_validate_spawn_call(ctx, node, call);
-            if (call->args) semantic_check(ctx, call->args);
+            if (call->args) {
+                int is_spawn_identifier = call->callee &&
+                    call->callee->type == AST_IDENTIFIER &&
+                    ((ASTIdentifier*)call->callee)->name &&
+                    strcmp(((ASTIdentifier*)call->callee)->name, "spawn") == 0 &&
+                    call->args->type == AST_IDENTIFIER && !call->args->next;
+                if (!is_spawn_identifier) semantic_check(ctx, call->args);
+            }
             break;
         }
 
