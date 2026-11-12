@@ -3816,11 +3816,31 @@ static void semantic_validate_spawn_call(
         return;
     }
     name = ((ASTIdentifier*)argument)->name;
-    if (!name || !semantic_find_thread_block(ctx, name)) {
+    if (!name) {
+        report_error(ctx, argument, ERR_SEMANTIC_UNDEFINED,
+            "spawn requires a named thread_block or a declared zero-argument function.");
+        return;
+    }
+    /* spawn accepts either a named AST_THREAD_BLOCK payload or a function
+       entry point. The parser intentionally treats both as module API calls. */
+    if (semantic_find_thread_block(ctx, name)) return;
+    {
+        Slot* target = find_slot(ctx, name);
+        if (target && target->kind == SLOT_FUNC) {
+            ASTNode* declaration = target->declaration_node;
+            ASTFuncDecl* function = declaration && declaration->type == AST_FUNC_DECL
+                ? (ASTFuncDecl*)declaration : NULL;
+            if (function && !function->params) return;
+            report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH,
+                "spawn function entry must have zero parameters; pass arguments through an explicit Thread payload or API.");
+            return;
+        }
+    }
+    {
         char message[256];
         snprintf(message, sizeof(message),
-            "spawn references unknown thread_block '%s'. Declare the named thread block before calling spawn.",
-            name ? name : "<unnamed>");
+            "spawn target '%s' is neither a declared thread_block nor a zero-argument function.",
+            name);
         report_error(ctx, argument, ERR_SEMANTIC_UNDEFINED, message);
     }
 }
