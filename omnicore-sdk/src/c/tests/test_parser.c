@@ -4491,6 +4491,7 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
                 fprintf(stderr,"flow parse error: code=%d at=%d:%d msg=%s\\n",
                     (int)parse_error->code,parse_error->line,parse_error->col,
                     parse_error->message?parse_error->message:"");
+            if(ctx->ast_root) ast_print((ASTNode*)ctx->ast_root);
             goto done;
         }
     }
