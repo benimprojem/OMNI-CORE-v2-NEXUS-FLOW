@@ -480,6 +480,13 @@ static int check_extended_ast_semantics(void) {
         "nt:Bad = MissingType; f:main() {}";
     const char* valid_newtype_alias_chain =
         "nt:Base = u64; nt:Alias = Base; f:main() { v:value!Alias; }";
+    const char* valid_newtype_identity_assignment =
+        "nt:UserId = u64; f:main() { v:first!UserId; v:second!UserId = first; }";
+    const char* invalid_newtype_base_assignment =
+        "nt:UserId = u64; f:main() { v:raw!u64; v:id!UserId = raw; }";
+    const char* invalid_distinct_newtype_assignment =
+        "nt:UserId = u64; nt:OrderId = u64; "
+        "f:main() { v:user!UserId; v:order!OrderId = user; }";
     const char* invalid_newtype_target_not_registered =
         "nt:Bad = MissingType; f:main() { v:value!Bad; }";
     const char* valid_recursive_type_exprs =
@@ -544,6 +551,9 @@ static int check_extended_ast_semantics(void) {
         check_source(valid_callback_newtype,0) &&
         check_source(invalid_newtype_target,1) &&
         check_source(valid_newtype_alias_chain,0) &&
+        check_source(valid_newtype_identity_assignment,0) &&
+        check_source(invalid_newtype_base_assignment,1) &&
+        check_source(invalid_distinct_newtype_assignment,1) &&
         check_source(invalid_newtype_target_not_registered,2) &&
         check_source(valid_recursive_type_exprs,0) &&
         check_source(invalid_recursive_pointer_type,1) &&
