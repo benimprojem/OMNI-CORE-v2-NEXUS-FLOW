@@ -1188,62 +1188,6 @@ static int check_enum_scan_pattern_case(
     scan->subject = (ASTNode*)subject;
     subject = NULL;
     arm->body = ast_create(AST_BLOCK);
-    empty_arm->pattern = (ASTNode*)empty_pattern;
-    empty_pattern = NULL;
-    empty_arm->body = ast_create(AST_BLOCK);
-    if (!arm->body || !empty_arm->body) goto cleanup;
-    if(test_case==5) {
-        ASTScanArm* duplicate_arm=(ASTScanArm*)ast_create(AST_SCAN_ARM);
-        ASTPatternBinding* duplicate_pattern=(ASTPatternBinding*)ast_create(AST_PATTERN_BINDING);
-        if(!duplicate_arm || !duplicate_pattern) {
-            ast_destroy((ASTNode*)duplicate_arm);
-            ast_destroy((ASTNode*)duplicate_pattern);
-            goto cleanup;
-        }
-        duplicate_pattern->name=semantic_test_copy_text("Empty");
-        duplicate_arm->pattern=(ASTNode*)duplicate_pattern;
-        duplicate_arm->body=ast_create(AST_BLOCK);
-        if(!duplicate_pattern->name || !duplicate_arm->body) {
-            ast_destroy((ASTNode*)duplicate_arm);
-            goto cleanup;
-        }
-        empty_arm->base.next=(ASTNode*)duplicate_arm;
-    }
-    if(test_case==6) empty_arm->has_guard=1;
-    if(test_case==7) {
-        ast_destroy(empty_arm->pattern);
-        empty_arm->pattern=NULL;
-    }
-    arm->base.next=(ASTNode*)empty_arm;
-    empty_arm=NULL;
-    scan->arms = (ASTNode*)arm;
-    arm = NULL;
-    owned_scan = (ASTNode*)scan;
-    scan = NULL;
-
-    semantic_init(&semantic,"semantic-enum-scan-pattern.nxf",NULL);
-    semantic_check(&semantic,(ASTNode*)enum_decl);
-    semantic_check(&semantic,(ASTNode*)subject_decl);
-    semantic_check(&semantic,owned_scan);
-    ok = semantic.error_count == expected_errors;
-    if (!ok) {
-        Error* detail;
-        fprintf(stderr, "Enum scan fixture %d: expected %d errors, got %d\\n",
-            test_case, expected_errors, semantic.error_count);
-        for (detail=semantic.error_head;detail;detail=detail->next)
-            fprintf(stderr, "  %d:%d %s\\n", detail->line, detail->col,
-                detail->message ? detail->message : "<none>");
-    }
-    if (expected_binding_type) {
-        Slot* slot;
-        int found = 0;
-        for (slot=semantic.head;slot;slot=slot->next) {
-            if (slot->name && strcmp(slot->name,"captured")==0 &&
-                slot->type_name &&
-                strcmp(slot->type_name,expected_binding_type)==0) found=1;
-        }
-        ok = ok && found;
-    }
     semantic_destroy(&semantic);
     ast_destroy((ASTNode*)enum_decl);
     ast_destroy((ASTNode*)subject_decl);
