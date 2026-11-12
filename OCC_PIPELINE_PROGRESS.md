@@ -7,7 +7,15 @@
 
 > Bu belge yaşayan takip tablosudur. Durumlar tahmini yüzde değildir; kod, belge ve test kanıtına göre güncellenir. Bir enum, AST tag'i veya DLL dosyasının bulunması tek başına özelliğin tamamlandığı anlamına gelmez.
 
-> **Kullanıcıya dönük genel görünüm:** [NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu](NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md). Ayrıntılı node envanteri bu dosyada, sekiz başlıklı toplu durum ve öncelik sırası dashboard'dadır.\n\n## 1. Durum anahtarı
+> **Kullanıcıya dönük genel görünüm:** [NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu](NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md). Ayrıntılı node envanteri bu dosyada, sekiz başlıklı toplu durum ve öncelik sırası dashboard'dadır.\n\n## Semantic intrinsic audit checkpoint — 2026-11-12
+
+- `addr/len/peek/poke`: argument count and known-type constraints validated; `addr` requires an lvalue, `len` a lengthable value, `peek/poke` integer-or-address and integer-value rules.
+- `inb/outb`: exact arity and integer argument checks.
+- `area/zone/free`: exact arity, integer positive constant size checks (when statically evaluable), and accepted handle/address type checks.
+- Added source-level positive/negative regression cases in `test_semantic.c`. The fixture is committed but not executed in this GitHub workspace; CI status is not inferred.
+- Still open: direct malformed `ASTCall` fixtures (null callee/argument, malformed named arg), target capability/privilege, memory width/alignment/bounds, region ownership/lifetime and effect model.
+
+## 1. Durum anahtarı
 
 | İşaret | Anlamı |
 |---|---|
