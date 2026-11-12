@@ -1144,6 +1144,29 @@ static int check_fast_exec_asm_semantics(void) {
         check_source(nested_scope_valid, 0);
 }
 
+static int check_irq_reg_semantics(void) {
+    const char* valid_irq = "f:handler() {} f:main() { irq(3, handler); }";
+    const char* invalid_irq_count = "f:main() { irq(1); }";
+    const char* invalid_irq_number = "f:handler() {} f:main() { irq(\"x\", handler); }";
+    const char* invalid_irq_handler = "f:main() { irq(2, missing_handler); }";
+    const char* valid_reg_read = "f:main() { v:x = reg(r, \"rax\"); }";
+    const char* valid_reg_write = "f:main() { reg(w, \"rax\", 1); }";
+    const char* invalid_reg_op = "f:main() { reg(q, \"rax\"); }";
+    const char* invalid_reg_name = "f:main() { reg(r, 42); }";
+    const char* invalid_reg_count = "f:main() { reg(r); reg(w, \"rax\"); }";
+    const char* invalid_reg_value = "f:main() { reg(w, \"rax\", \"bad\"); }";
+    return check_source(valid_irq, 0) &&
+        check_source(invalid_irq_count, 1) &&
+        check_source(invalid_irq_number, 1) &&
+        check_source(invalid_irq_handler, 1) &&
+        check_source(valid_reg_read, 0) &&
+        check_source(valid_reg_write, 0) &&
+        check_source(invalid_reg_op, 1) &&
+        check_source(invalid_reg_name, 1) &&
+        check_source(invalid_reg_count, 2) &&
+        check_source(invalid_reg_value, 1);
+}
+
 static int check_intrinsic_semantics(void) {
     const char* valid_memory =
         "f:main() { v:x!i32 = 1; v:p = addr(x); v:n!u64 = len(\"abc\"); "
@@ -1188,6 +1211,10 @@ static int check_intrinsic_semantics(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!check_irq_reg_semantics()) {
+        fprintf(stderr, "IRQ/register semantic checks failed.\n");
+        return 1;
+    }
     if (!check_intrinsic_semantics()) {
         fprintf(stderr, "Memory/port/allocation intrinsic semantic checks failed.\\n");
         return 1;
