@@ -495,7 +495,7 @@ static int check_extended_ast_semantics(void) {
         "f:main(value!*MissingType) {}";
     const char* invalid_recursive_array_element =
         "f:main(value!MissingType[4]) {}";
-    const char* invalid_recursive_function_return =
+    const char* invalid_recursive_function_decl_return =
         "f:main() !MissingType { ret; }";
     const char* valid_inferred_array =
         "f:main() { v:items = [1,2,3]; }";
@@ -544,7 +544,7 @@ static int check_extended_ast_semantics(void) {
         check_source(valid_recursive_type_exprs,0) &&
         check_source(invalid_recursive_pointer_type,1) &&
         check_source(invalid_recursive_function_parameter,1) &&
-        check_source(invalid_recursive_function_return,1) &&
+        check_source(invalid_recursive_function_decl_return,1) &&
         check_source(invalid_recursive_variable_type,1) &&
         check_source(invalid_recursive_array_element,1) &&
         check_source(invalid_recursive_function_return,1) &&
