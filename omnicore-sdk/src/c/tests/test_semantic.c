@@ -460,6 +460,12 @@ static int check_extended_ast_semantics(void) {
         "f:main() { v:choice = 1; select(choice) { Range(s,s) -> { } } }";
     const char* invalid_guard =
         "f:main() { v:choice = 1; scan(choice) { Range(a,b) when 1 -> { } } }";
+    const char* inferred_generic_identity =
+        "f:identity(value!t)!t { ret value; } "
+        "f:main() { v:result!i32 = identity(7); }";
+    const char* inferred_generic_sum =
+        "f:sum(a!t,b!t)!t { ret a + b; } "
+        "f:main() { v:result!i32 = sum(2,3); }";
     const char* inferred_select_binding =
         "f:main() { v:choice!i32 = 1; select(choice) { captured -> { "
         "v:copy!i32 = captured; } } }";
@@ -481,6 +487,8 @@ static int check_extended_ast_semantics(void) {
         check_source(unknown_event,1) &&
         check_source(duplicate_pattern,1) &&
         check_source(invalid_guard,1) &&
+        check_source(inferred_generic_identity,0) &&
+        check_source(inferred_generic_sum,0) &&
         check_source(inferred_select_binding,0) &&
         check_source(mismatched_select_binding,1) &&
         check_source(inferred_scan_binding,0) &&
