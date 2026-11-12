@@ -2,7 +2,8 @@
 #include "ast.h"
 #include "semantic.h"
 
-#include <stdio.h>\n#include <stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static int check_file(const char* path, int expect_error, ErrorCode expected_code) {
