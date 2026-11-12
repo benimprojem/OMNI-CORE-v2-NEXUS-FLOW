@@ -1047,7 +1047,7 @@ Nexus Flow'da isimlendirilmiş thread çalışma gövdesi şu biçimdedir:
 - Capture kopyası değişkenin değeridir. Pointer değişkeni capture edilirse pointer değeri kopyalanır; pointer'ın gösterdiği bellek otomatik olarak deep-copy edilmez. Paylaşımlı bellek veya sahiplik aktarımı gerekiyorsa ilgili memory/Thread API sözleşmesi kullanılmalıdır. Capture set'i Semantic sembol çözümlemelerinden çıkarılır; her dış identifier annotation'ı SemanticResult içinde `SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE` ile işaretlenir. Gerçek snapshot ve payload'a yerleştirme Thread runtime/OIR-Codegen sorumluluğundadır.
 - Her isimli thread bloğu listeye bir kez kaydedilir; aynı isimle ikinci tanım Semantic hatasıdır. `spawn` tam olarak tek bir thread-block adı (identifier) almalı ve bu ad daha önce tanımlanmış listede bulunmalıdır. Bilinmeyen ad, hatalı argüman türü veya hatalı argüman sayısı Semantic hatasıdır.
 - Thread bloğu bağımsız payload'dır; başka bir `thread_block` içinde tanımlanamaz. İç içe thread blokları Semantic hatasıdır.
-- Parser bunu `AST_THREAD_BLOCK` düğümüne dönüştürür; isim ve gövde AST'de korunur. Gövdenin lexical scope'unu kendi `AST_BLOCK` düğümü yönetir.
+- Thread payload'ın lexical scope'unu kendi child `AST_BLOCK` düğümü yönetir; Core `AST_THREAD_BLOCK` için ikinci bir scope açmaz.
 - `spawn(worker)` normal Thread modül API çağrısıdır; Core özel spawn intrinsic'i üretmez. İsimli payload'ın çözülmesi, thread oluşturma, payload aktarımı, scheduling ve yürütme garantisi Thread runtime/ilerideki OIR-Codegen entegrasyonunun sorumluluğundadır.
 - `mode` ve `timeout` AST alanları şimdilik ayrılmıştır ve Parser bunları `NULL` bırakır. Bu alanlara ait syntax henüz tanımlanmamıştır.
 
