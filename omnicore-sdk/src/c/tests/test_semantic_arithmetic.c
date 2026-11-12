@@ -573,6 +573,8 @@ int main(void) {
     if (!check_error_detail(
         "f:main() { v:ptr = addr(1); }",
         "addr() requires an addressable", "i32", 1)) return 1;
+    if (!check_error_detail("ret;", "ret may only be used inside a function body", NULL, 1)) return 1;
+    if (!check_source("f:main() { f:inner() { ret; } ret; }", 0)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
