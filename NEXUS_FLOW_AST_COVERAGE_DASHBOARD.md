@@ -360,7 +360,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added diagnostic regressions for mismatched arithmetic types, invalid shift operand types, and non-boolean logical operands. Linux and ASan/UBSan passed on the previous checkpoint; full cross-platform verification for the latest diagnostic changes is pending.
 - Conditional-control expression arms can now be followed directly by the alternative separator, e.g. `(j == k) ? process(j) : process(k);`; the first expression arm defers its semicolon only when the separator follows.
 - Corrected the Parser allocation-failure fixture: it had included the deferred-AI token `??` in a source expected to parse successfully. The fixture now uses the valid halt form `?;`.
-- CI verification is pending for the current branch head; do not mark Semantic complete until the full matrix is green.
+- CI run #4195 (`91a7b6e3`) passed the full platform/sanitizer/Valgrind matrix. Semantic as a whole remains open; this checkpoint closes only the documented diagnostic and conditional-control corrections.
 
 
 ### Semantic checkpoint — unary and bitwise operator validation — 2026-11-12
