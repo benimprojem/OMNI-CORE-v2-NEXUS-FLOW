@@ -967,7 +967,29 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             const char* element_type = "any";
             const char* representation_element =
                 semantic_representation_element_type(target_type);
-            if (representation_element) {
+            if (target_type && strcmp(target_type, "tuple") == 0 &&
+                access->target && access->target->type == AST_TUPLE) {
+                int64_t tuple_index;
+                if (semantic_eval_integer_constant(access->index,&tuple_index)) {
+                    const ASTNode* item =
+                        ((const ASTTuple*)access->target)->elements;
+                    if (tuple_index < 0) {
+                        report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Tuple index cannot be negative.");
+                    } else {
+                        while (item && tuple_index > 0) {
+                            item=item->next;
+                            --tuple_index;
+                        }
+                        if (!item) {
+                            report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Tuple index is outside the tuple element range.");
+                        } else {
+                            element_type=get_expr_type(ctx,(ASTNode*)item);
+                        }
+                    }
+                }
+            } else if (representation_element) {
                 element_type = representation_element;
             } else if (target_type && strncmp(target_type, "array|", 6u) == 0) {
                 const char* begin = target_type + 6u;
@@ -982,6 +1004,17 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             semantic_record_annotation(
                 ctx, node, NULL, element_type, SEMANTIC_RESULT_VALUE_LVALUE);
             return element_type;
+        }
+        case AST_TUPLE: {
+            ASTNode* element=((ASTTuple*)node)->elements;
+            for(;element;element=element->next) {
+                if(!get_expr_type(ctx,element)) {
+                    /* Unknown element expressions keep their own diagnostics. */
+                }
+            }
+            semantic_record_annotation(
+                ctx,node,NULL,"tuple",SEMANTIC_RESULT_VALUE_RVALUE);
+            return "tuple";
         }
         case AST_ARRAY_LITERAL: {
             ASTNode* element=((ASTArrayLiteral*)node)->elements;
@@ -3282,8 +3315,7 @@ static void semantic_check_node(
 
         case AST_TUPLE:
             semantic_check(ctx, ((ASTTuple*)node)->elements);
-            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                "Tuple values are not enabled until tuple typing is implemented.");
+            (void)get_expr_type(ctx,node);
             break;
 
         case AST_ASM_BLOCK:
