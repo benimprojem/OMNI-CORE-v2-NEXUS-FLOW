@@ -2165,8 +2165,8 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 
 ### 2026-11-12 — Thread payload capture semantics
 
-- Adopted by-value capture for outer-scope variables referenced inside a named thread payload. Captures are snapshotted when the payload is spawned; caller stack addresses are not shared implicitly.
-- SemanticContext records unique external variable captures with symbol/type/scope and AST provenance. Payload-local variables are excluded. Pointer captures copy only the pointer value, not the pointed-to allocation.
+- Adopted explicit by-value capture for outer-scope variables referenced inside a named thread payload: only `copy(...)` arguments capture an outer variable; direct outer-variable access is a Semantic error. Captures are snapshotted when the payload is spawned; caller stack addresses are not shared implicitly.
+- SemanticContext records unique external variable captures used inside explicit `copy(...)` arguments, with symbol/type/scope and AST provenance. Direct outer references are rejected; payload-local variables are excluded. Pointer captures copy only the pointer value, not the pointed-to allocation.
 - Thread result export remains `done(...)` and result consumption remains `listen(...)` / target-specific listener behavior, as specified by the Thread runtime documents. Core does not implement their runtime behavior.
 - Added metadata regression coverage. Test execution and CI remain pending.
 
@@ -2175,6 +2175,6 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 
 - Added `SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE` to identifier-use annotations for outer variable references in active thread payloads.
 - Confirmed the Semantic AST artifact writer copies annotation flags; extended the OIR annotation schema's accepted mask with the corresponding `OIR_SEMANTIC_ANNOTATION_FLAG_THREAD_CAPTURE` bit.
-- Added integration coverage for semantic marking and artifact round-trip, while preserving legacy schema 1.0 behavior when annotation flags are zero.
+- Added integration coverage for explicit-copy semantic marking and artifact round-trip, while preserving legacy schema 1.0 behavior when annotation flags are zero.
 - This is artifact compatibility work required by Semantic output; OIR lowering/Verifier phase has not started.
 - Tests are committed but not executed in this workspace; CI remains pending.
