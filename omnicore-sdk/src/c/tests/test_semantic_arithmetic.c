@@ -33,8 +33,14 @@ static int check_source(const char* source, int expect_error) {
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
     ok = expect_error ? semantic.error_count > 0 : semantic.error_count == 0;
     if (!ok) {
+        Error* detail;
         fprintf(stderr, "Unexpected semantic result (expected_error=%d, errors=%d): %s\n",
             expect_error, semantic.error_count, source);
+        for (detail = semantic.error_head; detail; detail = detail->next) {
+            fprintf(stderr, "  semantic error at %d:%d: %s\n",
+                detail->line, detail->col,
+                detail->message ? detail->message : "<none>");
+        }
     }
     semantic_destroy(&semantic);
     parser_destroy(parser);
