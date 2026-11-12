@@ -241,3 +241,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added generic identity and generic sum Semantic fixtures with concrete `i32` call sites.
 - Commits: `1a8f8765` (Semantic), `18583bf6` (tests). CI pending.
 - Limit explicitly retained: no general multi-parameter type-variable unification or constrained generic type system yet.
+
+
+### Parser span correction — parenthesized Nexus Flow right operand — 2026-11-12
+
+- `AST_NEXUS_FLOW` source range previously ended at the inner right-expression token when the right operand was parenthesized (for example `operation() ?=> (data)`), excluding the closing grouping delimiter.
+- Parser now stamps the Flow production from its left child through the actual final consumed token, preserving the full grouped operand span.
+- The catch/fallback/ignore exact-span fixture retains the closing `)` and now verifies the complete source production.
+- Commit: `5d301071`. CI pending.
