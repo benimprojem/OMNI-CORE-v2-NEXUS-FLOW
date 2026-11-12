@@ -12,11 +12,21 @@ static int check_source(const char* source, int expect_error) {
     SemanticContext semantic;
     int ok;
     if (!parser) return 0;
-    if (parser_run(parser) != PARSER_STATUS_OK ||
-        parser_get_status(parser) != PARSER_STATUS_OK ||
-        !parser->ast_root) {
-        parser_destroy(parser);
-        return 0;
+    {
+        int parse_result = parser_run(parser);
+        if (parse_result != PARSER_STATUS_OK ||
+            parser_get_status(parser) != PARSER_STATUS_OK ||
+            !parser->ast_root) {
+            Error* parse_error;
+            fprintf(stderr, "Semantic fixture parse failed: result=%d status=%d source=%s\\n",
+                parse_result, parser_get_status(parser), source);
+            for (parse_error = parser->error_head; parse_error; parse_error = parse_error->next)
+                fprintf(stderr, "  parser error at %d:%d: %s\\n",
+                    parse_error->line, parse_error->col,
+                    parse_error->message ? parse_error->message : "<none>");
+            parser_destroy(parser);
+            return 0;
+        }
     }
 
     semantic_init(&semantic, "semantic-arithmetic.nxf", NULL);
