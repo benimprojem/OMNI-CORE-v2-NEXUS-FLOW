@@ -216,3 +216,10 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added positive and negative Semantic tests for Select/Scan binding inference (`i32` binding accepted, incompatible `str` assignment rejected).
 - Commits: `92f43cbb` (implementation), `2af1952e` (tests). CI result pending at checkpoint.
 - This is a focused Semantic improvement, not closure of pattern matching: constructor payload-specific typing, enum variant validation, exhaustiveness, and lowering remain open.
+
+
+### Semantic/Parser CI correction — 2026-11-12
+
+- First checkpoint CI exposed stale Semantic control-flow fixtures using the retired `(condition) -> action` spelling. Updated them to the normative `(condition) ? action` syntax; parser remains strict and does not revive the old form.
+- Parser regression fixture had six `ast_validate(root)` calls missing the required diagnostic-output argument; corrected them to `ast_validate(root, NULL)`.
+- These are test-harness corrections, not new language syntax. Re-run CI and only mark Semantic checkpoint verified after the latest commit matrix passes.
