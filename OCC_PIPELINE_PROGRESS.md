@@ -2,6 +2,7 @@
 
 - `echo`, `spawn`, `send`, `receive`, `done` identity checks remain in the shared intrinsic validator.
 - `prnt`, `prmt`, `write`, `fwrite` now use the same exact AST callee-name validation; malformed/missing/non-identifier callees produce Semantic diagnostics.
+- `intr` is also mapped to its exact intrinsic AST callee name; direct AST regression coverage includes the `AST_INTR` tag.
 - Direct AST fixtures cover all four accepted identities and a mismatched `fwrite` callee; existing `echo` source fixture remains.
 - This validates only front-end AST identity. It does not impose I/O provider, stream, device, file-system, or Thread runtime behavior.
 - Tests are committed but not executed in this GitHub workspace; CI status must be checked independently.
