@@ -1100,20 +1100,26 @@ static int check_enum_declaration_semantics(void) {
     if (!duplicate->name || !duplicate_a->name || !duplicate_b->name) goto cleanup;
     duplicate_a->base.next = (ASTNode*)duplicate_b;
     duplicate->variants = (ASTNode*)duplicate_a;
-    if (!check_enum_ast_case((ASTNode*)duplicate, 1,
-            "declares variant 'Ready' more than once")) goto cleanup;
-    duplicate = NULL;
-    duplicate_a = NULL;
-    duplicate_b = NULL;
+    {
+        ASTNode* owned = (ASTNode*)duplicate;
+        duplicate = NULL;
+        duplicate_a = NULL;
+        duplicate_b = NULL;
+        if (!check_enum_ast_case(owned, 1,
+                "declares variant 'Ready' more than once")) goto cleanup;
+    }
 
     malformed_variant = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
     if (!malformed_variant) goto cleanup;
     malformed_variant->name = semantic_test_copy_text("State");
     malformed_variant->variants = ast_create(AST_LITERAL);
     if (!malformed_variant->name || !malformed_variant->variants) goto cleanup;
-    if (!check_enum_ast_case((ASTNode*)malformed_variant, 1,
-            "non-variant AST node")) goto cleanup;
-    malformed_variant = NULL;
+    {
+        ASTNode* owned = (ASTNode*)malformed_variant;
+        malformed_variant = NULL;
+        if (!check_enum_ast_case(owned, 1,
+                "non-variant AST node")) goto cleanup;
+    }
 
     malformed_payload = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
     payload_variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
@@ -1124,10 +1130,13 @@ static int check_enum_declaration_semantics(void) {
     malformed_payload->variants = (ASTNode*)payload_variant;
     if (!malformed_payload->name || !payload_variant->name ||
         !payload_variant->data) goto cleanup;
-    if (!check_enum_ast_case((ASTNode*)malformed_payload, 1,
-            "non-field AST node")) goto cleanup;
-    malformed_payload = NULL;
-    payload_variant = NULL;
+    {
+        ASTNode* owned = (ASTNode*)malformed_payload;
+        malformed_payload = NULL;
+        payload_variant = NULL;
+        if (!check_enum_ast_case(owned, 1,
+                "non-field AST node")) goto cleanup;
+    }
 
     missing_type = (ASTEnumDecl*)ast_create(AST_ENUM_DECL);
     missing_type_variant = (ASTEnumVariant*)ast_create(AST_ENUM_VARIANT);
@@ -1140,11 +1149,14 @@ static int check_enum_declaration_semantics(void) {
     missing_type->variants = (ASTNode*)missing_type_variant;
     if (!missing_type->name || !missing_type_variant->name ||
         !untyped_payload->name) goto cleanup;
-    if (!check_enum_ast_case((ASTNode*)missing_type, 1,
-            "payload field requires an explicit type")) goto cleanup;
-    missing_type = NULL;
-    missing_type_variant = NULL;
-    untyped_payload = NULL;
+    {
+        ASTNode* owned = (ASTNode*)missing_type;
+        missing_type = NULL;
+        missing_type_variant = NULL;
+        untyped_payload = NULL;
+        if (!check_enum_ast_case(owned, 1,
+                "payload field requires an explicit type")) goto cleanup;
+    }
 
     return ok;
 
