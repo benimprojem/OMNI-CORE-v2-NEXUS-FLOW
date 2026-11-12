@@ -90,6 +90,8 @@ static int check_control_flow_semantics(void) {
         "f:main() { loop (true) { f:nested() { break; } break; } }";
     const char* valid_conditional_actions =
         "f:main() { loop (true) { (true) ? break; (false) ? continue; } }";
+    const char* valid_block_cleanup =
+        "f:main() { { v:resource!i32 = 1; } ?; }";
     const char* invalid_conditional_actions =
         "f:main() { (true) ? break; (false) ? continue; }";
     return check_source(valid_if, 0) &&
@@ -98,6 +100,7 @@ static int check_control_flow_semantics(void) {
         check_source(valid_loop, 0) &&
         check_source(nested_function_break, 1) &&
         check_source(valid_conditional_actions, 0) &&
+        check_source(valid_block_cleanup, 0) &&
         check_source(invalid_conditional_actions, 2);
 }
 
