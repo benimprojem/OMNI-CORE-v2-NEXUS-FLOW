@@ -2688,12 +2688,24 @@ static void semantic_check_node(
                 bin->op == TOKEN_BIT_XOR) {
                 const char* left_type=get_expr_type(ctx,bin->left);
                 const char* right_type=get_expr_type(ctx,bin->right);
-                if(left_type&&right_type&&
-                   (!are_types_compatible(left_type,right_type)||
-                    !is_bitwise_primitive_type(left_type)||
-                    !is_bitwise_primitive_type(right_type))) {
-                    report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Bitwise operators require matching bitwise-capable operands.");
+                if (left_type && right_type &&
+                    (!are_types_compatible(left_type, right_type) ||
+                     !is_bitwise_primitive_type(left_type) ||
+                     !is_bitwise_primitive_type(right_type))) {
+                    const char* operator_name = bin->op == TOKEN_BIT_AND ? "&" :
+                        (bin->op == TOKEN_BIT_OR ? "|" : "^");
+                    char message[320];
+                    if (!is_bitwise_primitive_type(left_type) ||
+                        !is_bitwise_primitive_type(right_type)) {
+                        (void)snprintf(message, sizeof(message),
+                            "Operator '%s' does not support operand types '%s' and '%s'; use matching integer or bit-representation types.",
+                            operator_name, left_type, right_type);
+                    } else {
+                        (void)snprintf(message, sizeof(message),
+                            "Operator '%s' requires matching operand types; got '%s' and '%s'.",
+                            operator_name, left_type, right_type);
+                    }
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                 }
             }
 
