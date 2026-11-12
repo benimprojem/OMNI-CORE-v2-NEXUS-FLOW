@@ -2123,6 +2123,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         int retry_count = 0;
         int retry_delay = 0;
         int is_rolling = 0;
+        int error_handler = 0;
 
         // Rolling Check: ?(n,ms)->
         if (p->current.type == TOKEN_QMARK) {
@@ -2198,6 +2199,36 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             }
             parser_stamp_node_token(p, (ASTNode*)handler, &handler_token);
             right = (ASTNode*)handler;
+        } else if (check(p,TOKEN_LPAREN) &&
+            parser_identifier_is(&peek_token(p),"e") &&
+            peek_token_ahead(p,2).type==TOKEN_RPAREN) {
+            Token handler_open=p->current;
+            Token handler_name_token;
+            Token handler_close;
+            ASTIdentifier* handler;
+            advance(p); /* opening parenthesis */
+            handler_name_token=p->current;
+            advance(p); /* e */
+            if(!match(p,TOKEN_RPAREN)) {
+                error_at(p,&p->current,ERR_PARSER_EXPECTED_PAREN,
+                    msg_get(MSG_EXPECT_RPAREN_EXPR));
+                ast_destroy(expr);
+                return NULL;
+            }
+            handler_close=p->previous;
+            handler=(ASTIdentifier*)parser_ast_create(p,AST_IDENTIFIER);
+            if(!handler) { ast_destroy(expr); return NULL; }
+            handler->base.line=handler_name_token.line;
+            handler->base.col=handler_name_token.col;
+            handler->name=parser_strdup(p,"e");
+            if(!handler->name) {
+                ast_destroy((ASTNode*)handler);
+                ast_destroy(expr);
+                return NULL;
+            }
+            parser_stamp_node_tokens(p,(ASTNode*)handler,&handler_open,&handler_close);
+            right=(ASTNode*)handler;
+            error_handler=1;
         } else {
             right = parse_bitwise_or(p);
             if (!right) {
@@ -2250,7 +2281,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         }
     }
 
-    if (match(p, TOKEN_ERR_HANDLER)) {
+    if (error_handler || match(p, TOKEN_ERR_HANDLER)) {
         if (expr->type == AST_NEXUS_FLOW || expr->type == AST_NEXUS_PIPE) {
             ASTNexusFlow* flow = (ASTNexusFlow*)expr;
             flow->catch_block = parse_block(p);
