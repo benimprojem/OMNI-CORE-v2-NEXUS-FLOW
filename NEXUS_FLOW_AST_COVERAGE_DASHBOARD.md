@@ -384,3 +384,13 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Loop range iterator `it` now inherits the lower endpoint's inferred type rather than being hard-coded to i32.
 - Added valid/invalid standalone range tests, loop range tests, iterator type-inference coverage, and a source-located diagnostic assertion naming both endpoint types.
 - Linux CTest and ASan/UBSan passed on the preceding range checkpoint; full matrix for the latest follow-up is pending.
+
+
+### Semantic checkpoint — recursive AST type-expression validation — 2026-11-12
+
+- Recursive type expressions are now semantically validated for named, pointer, reference, array, function and qualified forms.
+- Validation is wired into variable declarations, function parameters and return types, NewType targets, and Struct/Enum/Union fields. Unknown nested type names and malformed type-expression shapes report diagnostics at their own AST source spans.
+- Function type parameter names must be unique; a variadic marker must be final. The Parser owns rejection of non-final variadic syntax, with a dedicated Parser regression fixture; Semantic retains defensive validation for externally constructed ASTs.
+- Invalid NewType targets are not registered in the symbol table. Alias chains and nominal assignment identity are covered: same-NewType assignment is valid, base-type and sibling-NewType assignment are rejected.
+- Unknown type diagnostics now name the missing type and its declaration/recursive-type context instead of relying on an untranslated message lookup.
+- CI run #4228 (`1628fcda`) passed Ubuntu, macOS, Windows, ASan/UBSan and Valgrind. Semantic remains open for remaining AST families and complete SemanticResult type identity coverage.
