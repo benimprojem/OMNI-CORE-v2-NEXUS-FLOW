@@ -5188,7 +5188,8 @@ static ASTNode* parse_statement(Parser* p) {
     }
 
     // Loop, If (Nexus Flow), Label gibi yapılar noktalı virgül gerektirmez
-    if (expr->type != AST_LOOP && expr->type != AST_NEXUS_FLOW && expr->type != AST_NEXUS_LABEL &&\n        !(expr->type == AST_NEXUS_PIPE && ((ASTNexusFlow*)expr)->target_block)) {
+    if (expr->type != AST_LOOP && expr->type != AST_NEXUS_FLOW && expr->type != AST_NEXUS_LABEL &&
+        !(expr->type == AST_NEXUS_PIPE && ((ASTNexusFlow*)expr)->target_block)) {
         consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON, MSG_EXPECT_SEMICOLON_EXPR);
     }
     return expr;
