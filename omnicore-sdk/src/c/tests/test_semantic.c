@@ -435,7 +435,7 @@ static int check_thread_api_is_module_call(void) {
 static int check_thread_block_value_captures(void) {
     const char* source =
         "f:main() { v:outside!i32 = 7; "
-        "(worker)>{ v:inside!i32 = outside; "
+        "(worker)>{ v:inside!i32 = outside + outside; "
         "{ v:inner!i32 = inside; } } spawn(worker); }";
     ParserContext* parser = parser_init_source(
         "semantic-thread-capture.nxf",
