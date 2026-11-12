@@ -107,6 +107,8 @@ int main(void) {
     static const char compound_bitwise_float[] = "f:main() { v:x = 1; x &= 2.0; }";
     static const char compound_bitwise_valid[] =
         "f:main(a!u8, b!u8) { a &= b; a |= b; a ^= b; }";
+    static const char compound_bitwise_representation_valid[] =
+        "f:main(a!8bit, b!8bit) { a &= b; a |= b; a ^= b; }";
     static const char compound_bitwise_mismatch[] =
         "f:main(a!i32, b!u32) { a &= b; }";
     static const char append_non_string[] = "f:main() { v:x = 1; x .= \"b\"; }";
@@ -167,6 +169,7 @@ int main(void) {
     if (!check_source(compound_float, 1)) return 1;
     if (!check_source(compound_bitwise_float, 1)) return 1;
     if (!check_source(compound_bitwise_valid, 0)) return 1;
+    if (!check_source(compound_bitwise_representation_valid, 0)) return 1;
     if (!check_source(compound_bitwise_mismatch, 1)) return 1;
     if (!check_source(append_non_string, 1)) return 1;
     if (!check_source(invalid_lvalue, 1)) return 1;
