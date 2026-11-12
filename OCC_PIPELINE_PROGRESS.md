@@ -2030,3 +2030,6 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 - Root cause of catch-flow Parser regression: Lexer emitted a special `TOKEN_ERR_HANDLER` for every `(e)`, so ordinary `echo(e)` in the catch block lost its parenthesis/identifier tokens.
 - Lexer now always emits ordinary parenthesis tokens; Parser recognizes the `(e)` handler only in the `?->` operator context and attaches the following block.
 - Commits: `81f1da3e` Lexer, `76176c20` Parser, `0ae26a9d` dashboard. CI pending.
+
+
+- Named-argument ownership note: Parser already rejects duplicate labels and positional-after-named (its variadic/named argument tests cover these). Removed these invalid parser inputs from Semantic fixtures; Semantic tests continue to cover reordered argument typing and unknown parameter names. Commit `a8e6ce41`, dashboard `8a458bfd`.
