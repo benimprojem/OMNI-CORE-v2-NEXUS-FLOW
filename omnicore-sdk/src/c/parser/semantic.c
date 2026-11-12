@@ -1341,20 +1341,11 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             return "array";
         }
         case AST_RELOCATE: {
-            ASTRelocate* relocate=(ASTRelocate*)node;
-            const char* source_type;
-            const char* target_type;
-            semantic_check(ctx,relocate->source);
-            semantic_check(ctx,relocate->target);
-            source_type=get_expr_type(ctx,relocate->source);
-            target_type=get_expr_type(ctx,relocate->target);
-            if(source_type && target_type &&
-               !are_types_compatible(source_type,target_type))
-                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Relocate source and destination types must match.");
-            semantic_record_annotation(ctx,node,NULL,
-                source_type?source_type:"any",SEMANTIC_RESULT_VALUE_RVALUE);
-            break;
+            const char* type_name = get_expr_type(ctx, ((ASTRelocate*)node)->source);
+            semantic_record_annotation(
+                ctx, node, NULL, type_name ? type_name : "any",
+                SEMANTIC_RESULT_VALUE_RVALUE);
+            return type_name ? type_name : "any";
         }
 
         case AST_LAMBDA:
