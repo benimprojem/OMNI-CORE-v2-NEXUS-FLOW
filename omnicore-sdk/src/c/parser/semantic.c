@@ -6382,6 +6382,27 @@ static void semantic_check_node(
 
         case AST_METHOD: {
             ASTMethod* m = (ASTMethod*)node;
+            int is_default_handler = m->public_name &&
+                strcmp(m->public_name, "default") == 0;
+            if (!m->public_name || !m->public_name[0]) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Group method requires a non-empty public name.");
+            }
+            if (!m->implementation) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Group method is missing its implementation.");
+                break;
+            }
+            if (m->implementation->type != AST_FUNC_DECL &&
+                m->implementation->type != AST_EXTERN_DECL &&
+                !(is_default_handler && m->implementation->type == AST_BLOCK)) {
+                report_error(ctx, m->implementation,
+                    ERR_SEMANTIC_TYPE_MISMATCH,
+                    is_default_handler
+                        ? "The default handler implementation must be a function, extern declaration, or block."
+                        : "Group method implementation must be a function or extern declaration.");
+                break;
+            }
             const char* previous_receiver_type = ctx->current_method_receiver_type;
             const char* previous_method_public_name = ctx->current_method_public_name;
             uint32_t previous_receiver_type_id = ctx->current_method_receiver_type_id;
