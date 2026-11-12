@@ -1964,3 +1964,6 @@ The earlier 2026-11-04/2026-11-10 notes describing `m:` as a compile-time depend
 
 
 - Tuple index follow-up: identifier-based tuple indexing now follows the declaration's tuple initializer to resolve element types and bounds (direct tuple-expression-only resolution was insufficient). Semantic fix `45752564`, dashboard `9be8efac`; CI pending.
+
+
+- Catch-flow parser regression: `?-> (error)` without a handler block was being accepted. Parser now requires the canonical `?-> (error) { ... }` block form. Commit `4c057072`; dashboard `fdbf8a29`; CI pending.
