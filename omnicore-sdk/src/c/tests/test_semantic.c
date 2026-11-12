@@ -428,6 +428,9 @@ static int check_thread_api_is_module_call(void) {
         check_source(
             "f:main() { spawn(1); }", 1) &&
         check_source(
+            "f:main() { v:outside!i32 = 1; "
+            "(worker)>{ v:inside!i32 = outside; } }", 1) &&
+        check_source(
             "f:main() { (worker)>{ } (worker)>{ } }", 1) &&
         check_thread_block_value_captures();
 }
@@ -435,8 +438,8 @@ static int check_thread_api_is_module_call(void) {
 static int check_thread_block_value_captures(void) {
     const char* source =
         "f:main() { v:outside!i32 = 7; "
-        "(worker)>{ v:inside!i32 = outside + outside; "
-        "{ v:inner!i32 = inside; } } spawn(worker); }";
+        "(worker)>{ (h) <- copy(outside); (h2) <- copy(outside); "
+        "v:inside!i32 = 1; v:inner!i32 = inside; } spawn(worker); }";
     ParserContext* parser = parser_init_source(
         "semantic-thread-capture.nxf",
         (const uint8_t*)source, strlen(source));
