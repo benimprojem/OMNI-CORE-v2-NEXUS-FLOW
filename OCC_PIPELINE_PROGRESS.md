@@ -2112,3 +2112,12 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - `write` / `fwrite` file/stream provider'a bağlı olarak belgelendi.
 - Normatif syntax reference commit: `d8268b7f`; dashboard commit: `c7695712`.
 - Bu not dokümantasyon checkpoint'idir; AST intrinsic signature testleri ve Thread modül implementasyonu tamamlanmış sayılmaz. CI pending.
+
+
+### Semantic AST checkpoint — OS / Thread call identity — 2026-11-12
+
+- `AST_ECHO`, legacy `AST_SPAWN`, `AST_SEND`, `AST_RECEIVE`, `AST_DONE` özel call tag'leri için Semantic intrinsic callee kimliği denetimi eklendi. Eksik callee veya yanlış identifier adı mevcut açık diagnostic mekanizmasına düşer.
+- Regression testleri: beş AST tag için doğru callee doğrudan AST fixture'ı ve `echo("semantic")` kaynak testi eklendi.
+- Semantic commit: `b4ddabcc`; test commit: `b035063a`; dashboard: `67e2ee9b`.
+- CI/local C test çalıştırması bu ortamda yürütülmedi; pending olarak kalır.
+- Thread runtime/IPC semantics ve `prnt/prmt` target sink ABI'si açık tasarım işleri olmaya devam ediyor.
