@@ -2291,6 +2291,22 @@ static ASTNode* parse_nexus_flow(Parser* p) {
         }
     }
 
+    /* A pipe target may own an ordinary processing block. Keep it
+       distinct from the error/catch block, while sharing the serialized
+       optional-block slot in ASTNexusFlow. */
+    if (expr->type == AST_NEXUS_PIPE &&
+        ((ASTNexusFlow*)expr)->op == TOKEN_PIPE &&
+        match(p, TOKEN_LBRACE)) {
+        ASTNexusFlow* pipe=(ASTNexusFlow*)expr;
+        pipe->target_block=parse_block(p);
+        if(!pipe->target_block) {
+            ast_destroy(expr);
+            return NULL;
+        }
+        parser_stamp_node_child_range((ASTNode*)pipe,pipe->left,
+            pipe->target_block);
+    }
+
     if (error_handler || match(p, TOKEN_ERR_HANDLER)) {
         if (expr->type == AST_NEXUS_FLOW || expr->type == AST_NEXUS_PIPE) {
             ASTNexusFlow* flow = (ASTNexusFlow*)expr;
