@@ -2445,6 +2445,126 @@ static ASTEnumVariant* semantic_find_enum_variant(
     return NULL;
 }
 
+
+/* Enum constructors use the type-qualified call form: Type.Variant(...). */
+static int semantic_check_enum_constructor_call(
+    SemanticContext* ctx, ASTNode* call_node, ASTCall* call
+) {
+    ASTMemberAccess* access;
+    ASTIdentifier* type_identifier;
+    Slot* enum_slot;
+    ASTEnumVariant* variant;
+    ASTNode* field_node;
+    ASTNode* argument;
+    unsigned int expected_count=0u, actual_count=0u;
+    int named_arguments=0;
+    if(!ctx || !call || !call->callee ||
+       call->callee->type!=AST_MEMBER_ACCESS) return 0;
+    access=(ASTMemberAccess*)call->callee;
+    if(!access->object || access->object->type!=AST_IDENTIFIER ||
+       !access->member_name) return 0;
+    type_identifier=(ASTIdentifier*)access->object;
+    if(!type_identifier->name) return 0;
+    enum_slot=find_slot(ctx,type_identifier->name);
+    if(!enum_slot || enum_slot->kind!=SLOT_ENUM) return 0;
+
+    variant=semantic_find_enum_variant(enum_slot,access->member_name);
+    if(!variant) {
+        char message[256];
+        (void)snprintf(message,sizeof(message),
+            "Enum '%s' has no variant named '%s'.",
+            enum_slot->name,access->member_name);
+        report_error(ctx,call_node,ERR_SEMANTIC_TYPE_MISMATCH,message);
+        return 1;
+    }
+
+    for(field_node=variant->data;field_node;field_node=field_node->next) {
+        if(field_node->type==AST_VAR_DECL) ++expected_count;
+    }
+    for(argument=call->args;argument;argument=argument->next) {
+        ++actual_count;
+        if(argument->type==AST_NAMED_ARG) named_arguments=1;
+    }
+    if(actual_count!=expected_count) {
+        char message[256];
+        (void)snprintf(message,sizeof(message),
+            "Enum constructor '%s.%s' expects %u payload argument(s), but got %u.",
+            enum_slot->name,variant->name,expected_count,actual_count);
+        report_error(ctx,call_node,ERR_SEMANTIC_ARG_COUNT,message);
+    }
+
+    if(named_arguments) {
+        for(argument=call->args;argument;argument=argument->next) {
+            ASTNamedArg* named;
+            ASTNode* candidate;
+            ASTVarDecl* matched_field=NULL;
+            const char* actual_type;
+            if(argument->type!=AST_NAMED_ARG) {
+                report_error(ctx,argument,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Enum constructor arguments must be either all positional or all named.");
+                continue;
+            }
+            named=(ASTNamedArg*)argument;
+            if(!named->name || !named->value) {
+                report_error(ctx,argument,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Enum constructor named argument requires a field name and value.");
+                continue;
+            }
+            for(candidate=variant->data;candidate;candidate=candidate->next) {
+                ASTVarDecl* field;
+                if(candidate->type!=AST_VAR_DECL) continue;
+                field=(ASTVarDecl*)candidate;
+                if(field->name && strcmp(field->name,named->name)==0) {
+                    matched_field=field;
+                    break;
+                }
+            }
+            if(!matched_field) {
+                char message[256];
+                (void)snprintf(message,sizeof(message),
+                    "Enum variant '%s' has no payload field named '%s'.",
+                    variant->name,named->name);
+                report_error(ctx,argument,ERR_SEMANTIC_TYPE_MISMATCH,message);
+                continue;
+            }
+            actual_type=get_expr_type(ctx,named->value);
+            if(matched_field->type_name && actual_type &&
+               !are_types_compatible(matched_field->type_name,actual_type)) {
+                char message[256];
+                (void)snprintf(message,sizeof(message),
+                    "Enum payload '%s' expects '%s', but got '%s'.",
+                    matched_field->name,matched_field->type_name,actual_type);
+                report_error(ctx,named->value,ERR_SEMANTIC_ARG_TYPE,message);
+            }
+        }
+    } else {
+        ASTNode* field=variant->data;
+        for(argument=call->args;argument;argument=argument->next) {
+            ASTVarDecl* payload_field=NULL;
+            const char* actual_type;
+            while(field && field->type!=AST_VAR_DECL) field=field->next;
+            if(!field) break;
+            payload_field=(ASTVarDecl*)field;
+            actual_type=get_expr_type(ctx,argument);
+            if(payload_field->type_name && actual_type &&
+               !are_types_compatible(payload_field->type_name,actual_type)) {
+                char message[256];
+                (void)snprintf(message,sizeof(message),
+                    "Enum payload '%s' expects '%s', but got '%s'.",
+                    payload_field->name ? payload_field->name : "<unnamed>",
+                    payload_field->type_name,actual_type);
+                report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,message);
+            }
+            field=field->next;
+        }
+    }
+    semantic_record_annotation(ctx,call->callee,enum_slot,enum_slot->name,
+        SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR);
+    semantic_record_annotation(ctx,call_node,enum_slot,enum_slot->name,
+        SEMANTIC_RESULT_VALUE_RVALUE);
+    return 1;
+}
+
 static void semantic_add_pattern_binding(
     SemanticContext* ctx, ASTNode* node, const char* name,
     const char* binding_type
@@ -5353,6 +5473,10 @@ static void semantic_check_node(
                 strcmp(((ASTIdentifier*)call->callee)->name, "copy") == 0;
             if (semantic_check_asm_intrinsic(ctx, node, call)) {
                 if (call->args) semantic_check(ctx, call->args);
+                break;
+            }
+            if (semantic_check_enum_constructor_call(ctx,node,call)) {
+                if (call->args) semantic_check(ctx,call->args);
                 break;
             }
             if (call->callee && call->callee->type == AST_MEMBER_ACCESS) {
