@@ -4178,6 +4178,16 @@ static void semantic_check_node(
             if ((!function_name || !*function_name) &&
                 ctx->current_method_context)
                 function_name = ctx->current_method_public_name;
+            if (!function_name || !*function_name) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Function declaration requires a non-empty name.");
+                break;
+            }
+            if (node->type == AST_FUNC_DECL && !func->body) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Function declaration is missing its body.");
+                break;
+            }
             if (func->return_type_expr) {
                 semantic_check(ctx, func->return_type_expr);
                 if (ctx->error_count != errors_before_return_type)
@@ -5140,6 +5150,11 @@ static void semantic_check_node(
 
         case AST_NEXUS_LABEL: {
             ASTNexusLabel* lbl = (ASTNexusLabel*)node;
+            if (!lbl->label_name || !lbl->label_name[0]) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Nexus label declaration requires a non-empty label name.");
+                break;
+            }
             if (find_slot(ctx, lbl->label_name)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "Label '%s' already defined.", lbl->label_name);
@@ -5156,7 +5171,12 @@ static void semantic_check_node(
 
         case AST_NEXUS_JUMP: {
             ASTNexusJump* jmp = (ASTNexusJump*)node;
-            // İleriye dönük atlamalar (forward jump) olabileceği için burada kesin varlık kontrolü yapmıyoruz
+            if (!jmp->label_name || !jmp->label_name[0]) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Nexus jump requires a non-empty target label name.");
+                break;
+            }
+            /* Forward targets are resolved by the later control-flow validation pass. */
             break;
         }
 
@@ -5483,12 +5503,28 @@ static void semantic_check_node(
         }
 
         case AST_DEFER: {
-            semantic_check(ctx, ((ASTDefer*)node)->body);
+            ASTDefer* defer = (ASTDefer*)node;
+            if (!defer->body) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "defer requires a statement or block body.");
+                break;
+            }
+            semantic_check(ctx, defer->body);
             break;
         }
 
         case AST_THREAD_BLOCK: {
             ASTThreadBlock* tb = (ASTThreadBlock*)node;
+            if (!tb->name || !tb->name[0]) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "thread_block requires a non-empty block name.");
+                break;
+            }
+            if (!tb->body) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "thread_block is missing its body.");
+                break;
+            }
             enter_scope(ctx, node);
             semantic_check(ctx, tb->body);
             exit_scope(ctx);
