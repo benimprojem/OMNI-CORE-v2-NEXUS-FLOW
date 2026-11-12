@@ -145,6 +145,7 @@ static int check_malformed_conditional_ast(void) {
         missing_primary_branch->condition = ast_create(AST_LITERAL);
         if (!missing_primary_branch->condition) ok = 0;
         else {
+            ((ASTLiteral*)missing_primary_branch->condition)->type = TOKEN_TRUE;
             semantic_init(&semantic, "semantic-malformed-if.nxf", NULL);
             semantic_check(&semantic, (ASTNode*)missing_primary_branch);
             ok = semantic.error_count > 0 &&
