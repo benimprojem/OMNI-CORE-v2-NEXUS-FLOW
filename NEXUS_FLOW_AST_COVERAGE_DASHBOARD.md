@@ -599,7 +599,7 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 | AST_NEXUS_JUMP (34) | Boş hedef adı reddi; forward target çözümü ayrı CFG işi | ✓ | ✓ | ? |
 | AST_NEXUS_HALT (35) | Payload/cleanup ve terminal control-flow sözleşmesi açık | ~ | ~ | ? |
 | AST_DEFER (69) | Eksik body reddi; unwind/cleanup sıralaması OIR işi | ✓ | ✓ | ? |
-| AST_THREAD_BLOCK (70) | Boş isim, eksik body ve AST_BLOCK dışı body reddi; lexical scope'u child AST_BLOCK yönetir (redundant wrapper scope yok) | ✓ | ✓ | ? |
+| AST_THREAD_BLOCK (70) | Boş isim, eksik/yanlış body reddi; nested thread payload reddi; child AST_BLOCK tek lexical scope sahibi | ✓ | ✓ | ? |
 | AST_AI_LOGIC (37, reserved) | Parser üretimi yok; dışarıdan gelen reserved AST fail-closed | ✓ | ✓ | ? |
 
 
@@ -645,3 +645,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added regression fixtures for a non-block body, a valid local reference inside the block, and rejection of a local variable referenced after the thread block.
 - Thread names remain structural labels; no uniqueness rule or scheduler/IPC semantics was invented.
 - Implementation and fixture commits are recorded separately; CI remains pending until a workflow reports a result.
+
+
+### Semantic checkpoint — independent thread payload boundary — 2026-11-12
+
+- `thread_block` represents one complete payload to be transferred by the Thread module's `spawn(worker)` API to a newly created thread. It is not an ordinary nested execution block in the caller's flow.
+- Nested `thread_block` declarations are rejected by Core Semantic. A context depth guard ensures the rule also applies to manually constructed ASTs.
+- The payload's child `AST_BLOCK` remains the sole lexical-scope owner. Core does not implement thread creation, scheduling, IPC or execution.
+- Added a source-level regression fixture proving nested payload rejection. CI remains pending; tests have not been reported as executed.
