@@ -689,3 +689,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added SemanticResult integration coverage proving explicit-copy outer references are marked, direct outer references are rejected, and payload-local references are not marked. Added artifact-level annotation round-trip coverage for the capture flag; legacy schema 1.0 remains readable with zero annotation flags.
 - Artifact serialization copies annotation flags field-for-field, so no AST payload schema version bump was needed (current Semantic AST schema minor is already 4).
 - CI/local execution remains pending.
+
+
+### Explicit-copy capture validation refinement — 2026-11-12
+
+- Thread payloads now reject direct references to outer `SLOT_VAR` symbols with a location-aware Semantic error. An outer value is admitted only inside `copy(...)` in the payload; that call requires exactly one source expression.
+- Repeated copies of the same outer symbol are deduplicated by symbol identity. Payload-local references remain ordinary local accesses and are not captured.
+- Regression fixtures cover valid repeated copy capture, direct outer access rejection, zero/multiple copy arguments and payload-local non-capture. SemanticResult integration checks the capture annotation flag.
+- Thread module `listen`/`done` behavior is unchanged and remains in the existing runtime specification.
