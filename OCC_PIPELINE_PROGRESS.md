@@ -2196,3 +2196,11 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added source tests for valid repeated copies, direct outer access rejection, and zero/multiple copy arguments. SemanticResult integration checks explicit capture annotations and local non-capture. OIR artifact tests verify the flag survives annotation serialization/validation; unknown flag bits remain rejected.
 - `listen` and `done` output transfer/consumption remain Thread module rules already present in the runtime specification. Core changes are limited to front-end payload validation and capture metadata; no scheduler/IPC behavior was introduced.
 - Latest test additions are committed. CI has not reported a workflow/status, so execution remains pending.
+
+
+### Semantic checkpoint — Program and block declaration scope — 2026-11-12
+
+- Confirmed the existing semantic scope behavior: program declarations share the root scope; each block owns a nested lexical scope.
+- Added regression fixtures for global declaration visibility inside functions, duplicate program-level declarations, legal nested shadowing, and rejection of nested/sibling block scope leakage.
+- Updated `NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md`: Program/block Semantic column is now ✓. AST declaration-chain validation, `no:osmodule` source policy/span and OIR span metadata remain open and are not counted as Semantic work.
+- Test source is committed. No local build is available in this workspace; CI has not yet been checked for the new commit.
