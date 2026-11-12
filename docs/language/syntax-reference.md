@@ -1042,8 +1042,9 @@ Nexus Flow'da isimlendirilmiş thread çalışma gövdesi şu biçimdedir:
 
 - `worker` blok kimliğidir; `>{` özel tokenı thread bloğunu açar.
 - Parser bunu `AST_THREAD_BLOCK` düğümüne dönüştürür; isim ve gövde AST'de korunur.
-- `worker`, Thread modülünün `spawn(worker)` çağrısıyla devredebileceği tam çalışma gövdesinin kimliğidir. Spawn işlemi bu gövdenin tamamını yeni thread'in yürütme bağlamına aktarır; gövde ana akışta ayrıca yürütülmez.
-- Thread bloğu bir kez tanımlanan bağımsız payload'dır; başka bir `thread_block` içinde tanımlanamaz. İç içe thread blokları Semantic hatasıdır.
+- `worker`, Semantic aşamasında tutulan thread payload listesinde kayıtlı kimliktir. `spawn(worker)` bu listeden tam gövdeyi çözer; Thread modülü gövdenin tamamını yeni thread'in yürütme bağlamına aktarır. Gövde ana akışta ayrıca yürütülmez.
+- Her isimli thread bloğu listeye bir kez kaydedilir; aynı isimle ikinci tanım Semantic hatasıdır. `spawn` tam olarak tek bir thread-block adı (identifier) almalı ve bu ad daha önce tanımlanmış listede bulunmalıdır. Bilinmeyen ad, hatalı argüman türü veya hatalı argüman sayısı Semantic hatasıdır.
+- Thread bloğu bağımsız payload'dır; başka bir `thread_block` içinde tanımlanamaz. İç içe thread blokları Semantic hatasıdır.
 - Parser bunu `AST_THREAD_BLOCK` düğümüne dönüştürür; isim ve gövde AST'de korunur. Gövdenin lexical scope'unu kendi `AST_BLOCK` düğümü yönetir.
 - `spawn(worker)` normal Thread modül API çağrısıdır; Core özel spawn intrinsic'i üretmez. İsimli payload'ın çözülmesi, thread oluşturma, payload aktarımı, scheduling ve yürütme garantisi Thread runtime/ilerideki OIR-Codegen entegrasyonunun sorumluluğundadır.
 - `mode` ve `timeout` AST alanları şimdilik ayrılmıştır ve Parser bunları `NULL` bırakır. Bu alanlara ait syntax henüz tanımlanmamıştır.
