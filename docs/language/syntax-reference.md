@@ -956,6 +956,7 @@ Parser; `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_AL
 
 Semantic AST bütünlük kuralları:
 - RuleSet adı zorunludur; parametre listesi yalnızca değişken bildirimlerinden oluşur.
+- `m:` immutable, değişken ve `group` bildirimleri boş/eksik isim taşıyamaz; bu kural harici AST girdileri için de Semantic tarafından uygulanır.
 - Bariyer düğümünde koşul ve tanı mesajı; trigger düğümünde koşul ve aksiyon/olay adı zorunludur.
 - Bariyer ve trigger koşulları bool olmalıdır; bariyer mesajı `str` olmalıdır.
 - `always` / `default` düğümlerinde aksiyon/olay adı zorunludur. Aynı RuleSet içinde trigger olay adları yinelenemez.
