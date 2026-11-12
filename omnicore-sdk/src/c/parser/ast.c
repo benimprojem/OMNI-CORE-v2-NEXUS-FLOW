@@ -718,6 +718,7 @@ static void ast_destroy_recursive(ASTNode* node) {
             ASTEnumVariant* v = (ASTEnumVariant*)node;
             if (v->name) free(v->name);
             if (v->data) ast_destroy_recursive(v->data);
+            if (v->discriminant_expr) ast_destroy_recursive(v->discriminant_expr);
             break;
         }
         case AST_NEWTYPE_DECL: {
@@ -1002,7 +1003,7 @@ typedef struct {
 
 #define AST_STREAM_MAGIC "OCCAST\r\n"
 #define AST_STREAM_MAGIC_SIZE 8u
-#define AST_STREAM_VERSION 6u
+#define AST_STREAM_VERSION 7u
 
 
 static void ast_write_exact(ASTWriter* writer, const void* source, size_t size) {
@@ -1417,6 +1418,11 @@ static void ast_serialize_recursive(ASTNode* node, ASTWriter* writer) {
             ASTEnumVariant* v = (ASTEnumVariant*)node;
             write_string(writer, v->name);
             ast_serialize_recursive(v->data, writer);
+            if (writer->format_version >= 7u) {
+                ast_serialize_recursive(v->discriminant_expr, writer);
+                ast_write_exact(writer, &v->discriminant_value, sizeof(v->discriminant_value));
+                ast_write_exact(writer, &v->has_resolved_discriminant, sizeof(v->has_resolved_discriminant));
+            }
             break;
         }
         case AST_NEWTYPE_DECL: {
@@ -1808,6 +1814,12 @@ static ASTNode* ast_deserialize_one(ASTReader* reader, int type_val) {
             ASTEnumVariant* v = (ASTEnumVariant*)node;
             v->name = read_string(reader);
             v->data = ast_deserialize_recursive(reader);
+            if (reader->format_version >= 7u) {
+                v->discriminant_expr = ast_deserialize_recursive(reader);
+                if (!reader->failed && !ast_read_exact(reader, &v->discriminant_value, sizeof(v->discriminant_value))) goto fail;
+                if (!reader->failed && !ast_read_exact(reader, &v->has_resolved_discriminant, sizeof(v->has_resolved_discriminant))) goto fail;
+                if (v->has_resolved_discriminant > 1u) reader->failed = 1;
+            }
             break;
         }
         case AST_NEWTYPE_DECL: {
@@ -1917,7 +1929,7 @@ ASTNode* ast_deserialize(FILE* in) {
         if (got == sizeof(prefix) && memcmp(prefix, AST_STREAM_MAGIC, sizeof(prefix)) == 0) {
             uint32_t version = 0u;
             if (fread(&version, sizeof(version), 1u, in) != 1u ||
-                (version != 1u && version != 2u && version != 3u && version != 4u && version != 5u && version != AST_STREAM_VERSION)) return NULL;
+                (version != 1u && version != 2u && version != 3u && version != 4u && version != 5u && version != 6u && version != AST_STREAM_VERSION)) return NULL;
             reader.format_version = version;
         } else {
             if (ferror(in)) return NULL;
@@ -2181,7 +2193,11 @@ static int ast_validation_chain(ASTValidationState*s,const ASTNode*n,const char*
                strcmp(s->active_fields[s->active_count-1u],"variants")!=0)
                 return ast_validation_fail(s,AST_VALIDATE_INVALID_KIND,n,"enum_variant_owner");
             if(!ast_validation_required_text(s,n,((ASTEnumVariant*)n)->name,"name")) return 0;
-            V(((ASTEnumVariant*)n)->data,"data"); break;
+            V(((ASTEnumVariant*)n)->data,"data");
+            V(((ASTEnumVariant*)n)->discriminant_expr,"discriminant_expr");
+            if (((ASTEnumVariant*)n)->has_resolved_discriminant > 1u)
+                return ast_validation_fail(s,AST_VALIDATE_INVALID_VALUE,n,"has_resolved_discriminant");
+            break;
         case AST_NEWTYPE_DECL:
             if(!ast_validation_required_text(s,n,((ASTNewTypeDecl*)n)->name,"name") ||
                !ast_validation_required_text(s,n,((ASTNewTypeDecl*)n)->target_type,"target_type")) return 0;
