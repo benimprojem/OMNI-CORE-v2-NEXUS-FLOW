@@ -2165,7 +2165,7 @@ static int test_extern_echo_and_listen_keywords(void) {
     ASTProgram* program;ASTFuncDecl* external;ASTFuncDecl* main_fn;ASTBlock* body;
     ASTNode* echo_node;ASTNode* listen_node;ASTNode* packed_node;
     const char* listen_start=strstr(source,"listen(\"event\")");
-    const char* listen_end=listen_start?strchr(listen_start,';'):NULL;
+    const char* listen_end=listen_start?strchr(listen_start,')'):NULL;
     const char* packed_start=strstr(source,"!struct:Packed");
     const char* packed_close=packed_start?strchr(packed_start,'}'):NULL;
     int ok=0;
