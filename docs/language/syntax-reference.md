@@ -433,11 +433,36 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 - **Lexical scope:** Her `(h)` yalnızca tanımlandığı bloğun üyesidir. Başka bir bloktan doğrudan adla erişilemez; dışarı sızan masa referansı geçersizdir.
 - **Lifetime:** Masa, sahibi olduğu blok aktivasyonundan uzun yaşayamaz. Blok normal yoldan terk edildiğinde hâlâ o bloğa ait kaynaklar otomatik cleanup kapsamındadır.
 - **Ownership:** Her dolu masa/kaynak için tek sahip bulunur. Aynı kaynak iki masanın eşzamanlı sahibi olamaz.
-- **Transfer:** `(h1) _> (h2)` sahipliği önceden tanımlanmış `h1` masasından önceden tanımlanmış `h2` masasına taşır. `_>` hedef masa oluşturmaz; iki masa da transfer noktasında mevcut olmalıdır. İşlem kopyalama değildir; başarılı devirden sonra `h1` geçersiz olur ve tekrar kullanılamaz. Kaynak, hedef masanın ait olduğu blok aktivasyonunun cleanup listesine kaydedilir. Hedefte mevcut sahiplik varsa onun kaybolmasına izin verilmez; overwrite/replace davranışı ayrıca tanımlanmadan bu işlem geçersizdir.
+- **Forward Relocate:** `(h1) _> (h2)` veriyi ve sahipliği kaynak masadan, kodun ilerleyen bölümünde ve başka bir kapsamda tanımlanacak hedef masaya yönlendirir. Hedef masa `_>` noktasında henüz oluşturulmuş olmak zorunda değildir; kendi kaynak kod konumuna gelindiğinde normal biçimde oluşturulur ve yönlendirilmiş sahipliği devralır. `_>` yürütme sırasını değiştirmez, hedef bloğa atlamaz ve hedef kapsamı erkenden çalıştırmaz. İşlem kopyalama değildir; başarılı yönlendirmeden sonra kaynak masa aynı kaynağı kullanamaz. Hedefin başka bir etkin sahipliği varsa çakışma Semantic hatasıdır.
 - **Borrow:** Başka bir bloktan gelen ödünç kaynak, açık sahiplik devri olmadan iç blok tarafından serbest bırakılamaz veya sahiplenilemez.
 - **Use-after-move / use-after-halt:** Taşınmış ya da sonlandırılmış masa üzerinden sonraki erişim Semantic hatasıdır.
 
-Transfer yazımı kaynak masadan önceden var olan hedef masaya doğrudur: `(h) _> (hand)`. `(hand)` daha önce tanımlanmış olmalıdır; `_>` yeni masa oluşturmaz. Devir tamamlandığında eski `(h)` artık kullanılamaz; kaynak yalnızca `(hand)` üzerinden erişilir.
+Relocate yazımı kaynak masadan ileri hedefe doğrudur: `(h) _> (hand)`. `(hand)` kaynak noktadan sonra, kendi gerçek kapsamı ve kod konumunda tanımlanabilir. Yönlendirme, o noktaya gelindiğinde hedef masanın oluşturulmasına engel olmaz; hedef masa oluşturulduğunda veri ve sahiplik ona bağlanır. Eski `(h)` üzerinden aynı kaynağı kullanmak mümkün değildir.
+
+
+**İleri kapsam yönlendirme örneği**
+
+```nexus
+f:main() {
+    (h) <- acquire_resource();
+
+    # Veri burada hazır; ancak hedef kapsamın öncesinde yapılması
+    # gereken işler henüz tamamlanmadı.
+    (h) _> (hand);
+
+    prepare_environment();
+    validate_configuration();
+
+    {
+        # Hedef masa kendi kod konumunda ve kendi kapsamında oluşur.
+        # Önceden yönlendirilmiş kaynak bu masanın sahipliğine bağlanır.
+        (hand) <- target_arrival();
+        process(hand);
+    }
+}
+```
+
+`_>` satırı `prepare_environment()` veya hedef bloğu erkenden çalıştırmaz. Kod normal sırayla ilerler; yalnızca veri ve sahiplik, ilerideki `(hand)` masasına yönlendirilmiş olur. Bu örnek forward relocation sözleşmesini gösterir; hedef masanın capture/arrival ifadesinin kesin grameri Parser/AST uyumluluk aşamasında ayrıca doğrulanacaktır.
 
 ### 4.1.2 Halt: Etkin Kaynakların Toplu Sonlandırılması
 
