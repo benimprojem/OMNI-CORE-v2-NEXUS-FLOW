@@ -397,23 +397,67 @@ static uint32_t semantic_type_id(
     return status == SEMANTIC_RESULT_OK ? type_id : 0u;
 }
 
+static int semantic_parse_unsigned_integer_literal(
+    const ASTLiteral* literal, uint64_t* value_out, int* overflow_out
+) {
+    const char* cursor;
+    unsigned base = 10u;
+    uint64_t value = 0u;
+    int have_digit = 0;
+    int overflow = 0;
+
+    if (!literal || literal->type != TOKEN_NUMBER ||
+        !literal->string_value || !literal->string_value[0] ||
+        !value_out || !overflow_out) return 0;
+
+    cursor = literal->string_value;
+    if (cursor[0] == '0' && cursor[1] != '\0') {
+        if (cursor[1] == 'x' || cursor[1] == 'X') {
+            base = 16u;
+            cursor += 2;
+        } else if (cursor[1] == 'b' || cursor[1] == 'B') {
+            base = 2u;
+            cursor += 2;
+        } else if (cursor[1] == 'o' || cursor[1] == 'O') {
+            base = 8u;
+            cursor += 2;
+        }
+    }
+
+    for (; *cursor; ++cursor) {
+        unsigned digit;
+        unsigned char ch = (unsigned char)*cursor;
+        if (ch == '_') continue;
+        if (ch >= '0' && ch <= '9') digit = (unsigned)(ch - '0');
+        else if (ch >= 'a' && ch <= 'f') digit = 10u + (unsigned)(ch - 'a');
+        else if (ch >= 'A' && ch <= 'F') digit = 10u + (unsigned)(ch - 'A');
+        else return 0;
+        if (digit >= base) return 0;
+        have_digit = 1;
+        if (!overflow) {
+            if (value > (UINT64_MAX - (uint64_t)digit) / (uint64_t)base)
+                overflow = 1;
+            else
+                value = value * (uint64_t)base + (uint64_t)digit;
+        }
+    }
+
+    if (!have_digit) return 0;
+    *value_out = value;
+    *overflow_out = overflow;
+    return 1;
+}
+
 static int semantic_eval_integer_constant(
     const ASTNode* expression, int64_t* value_out
 ) {
     if (!expression || !value_out) return 0;
     if (expression->type == AST_LITERAL) {
-        const ASTLiteral* literal = (const ASTLiteral*)expression;
-        const char* cursor;
-        char* end = NULL;
-        long long value;
-        if (literal->type != TOKEN_NUMBER || !literal->string_value ||
-            !literal->string_value[0]) return 0;
-        for (cursor = literal->string_value; *cursor; ++cursor) {
-            if (*cursor < '0' || *cursor > '9') return 0;
-        }
-        errno = 0;
-        value = strtoll(literal->string_value, &end, 10);
-        if (errno == ERANGE || !end || *end != '\0') return 0;
+        uint64_t value = 0u;
+        int overflow = 0;
+        if (!semantic_parse_unsigned_integer_literal(
+                (const ASTLiteral*)expression, &value, &overflow) ||
+            overflow || value > (uint64_t)INT64_MAX) return 0;
         *value_out = (int64_t)value;
         return 1;
     }
@@ -480,6 +524,56 @@ static int semantic_eval_integer_constant(
             default:
                 return 0;
         }
+    }
+    return 0;
+}
+
+/*
+ * Shift counts accept the complete unsigned 64-bit literal range.
+ * Return values: 1 = non-negative constant, -1 = negative constant,
+ * -2 = literal exceeds uint64_t, 0 = not statically known.
+ */
+static int semantic_eval_shift_count(
+    const ASTNode* expression, uint64_t* value_out
+) {
+    int64_t signed_value;
+    if (!expression || !value_out) return 0;
+
+    if (expression->type == AST_LITERAL) {
+        int overflow = 0;
+        if (!semantic_parse_unsigned_integer_literal(
+                (const ASTLiteral*)expression, value_out, &overflow))
+            return 0;
+        return overflow ? -2 : 1;
+    }
+
+    if (expression->type == AST_UNARY_EXPR) {
+        const ASTUnaryExpr* unary = (const ASTUnaryExpr*)expression;
+        if (unary->op == TOKEN_PLUS)
+            return semantic_eval_shift_count(unary->operand, value_out);
+        if (unary->op == TOKEN_MINUS) {
+            if (unary->operand && unary->operand->type == AST_LITERAL) {
+                int overflow = 0;
+                if (semantic_parse_unsigned_integer_literal(
+                        (const ASTLiteral*)unary->operand,
+                        value_out, &overflow)) {
+                    if (!overflow && *value_out == 0u) return 1;
+                    return -1;
+                }
+            }
+            if (semantic_eval_integer_constant(expression, &signed_value)) {
+                if (signed_value < 0) return -1;
+                *value_out = (uint64_t)signed_value;
+                return 1;
+            }
+            return 0;
+        }
+    }
+
+    if (semantic_eval_integer_constant(expression, &signed_value)) {
+        if (signed_value < 0) return -1;
+        *value_out = (uint64_t)signed_value;
+        return 1;
     }
     return 0;
 }
@@ -3294,9 +3388,11 @@ static void semantic_check_node(
             if (bin->op == TOKEN_BIT_SHL || bin->op == TOKEN_BIT_SHR) {
                 const char* left_type = get_expr_type(ctx, bin->left);
                 const char* right_type = get_expr_type(ctx, bin->right);
-                int64_t shift_amount;
+                uint64_t shift_amount = 0u;
                 uint64_t value_width = 0u;
                 int value_is_unsigned = 0;
+                int shift_status = semantic_eval_shift_count(
+                    bin->right, &shift_amount);
                 int operands_valid =
                     (!left_type || is_integer_primitive_type(left_type)) &&
                     (!right_type || is_integer_primitive_type(right_type));
@@ -3308,23 +3404,34 @@ static void semantic_check_node(
                         left_type ? left_type : "<unknown>",
                         right_type ? right_type : "<unknown>");
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
-                } else if (left_type &&
-                           semantic_integer_type_width(left_type, &value_width,
-                                                      &value_is_unsigned) &&
-                           semantic_eval_integer_constant(bin->right, &shift_amount)) {
-                    (void)value_is_unsigned;
-                    if (shift_amount < 0) {
-                        {
-                        char shift_message[128];
-                        (void)snprintf(shift_message, sizeof(shift_message),
+                } else if (shift_status == -1) {
+                    int64_t signed_shift = 0;
+                    char message[192];
+                    if (semantic_eval_integer_constant(bin->right, &signed_shift)) {
+                        (void)snprintf(message, sizeof(message),
                             "Bit shift amount (%lld) cannot be negative.",
-                            (long long)shift_amount);
-                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                            shift_message);
+                            (long long)signed_shift);
+                    } else {
+                        (void)snprintf(message, sizeof(message),
+                            "Bit shift amount expression cannot be negative.");
                     }
-                    } else if ((uint64_t)shift_amount >= value_width) {
-                        {
-                        char shift_message[160];
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                } else if (shift_status == -2) {
+                    char message[320];
+                    const ASTLiteral* literal =
+                        bin->right && bin->right->type == AST_LITERAL
+                            ? (const ASTLiteral*)bin->right : NULL;
+                    (void)snprintf(message, sizeof(message),
+                        "Bit shift amount '%s' exceeds the supported 64-bit unsigned count range.",
+                        literal && literal->string_value
+                            ? literal->string_value : "<constant>");
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                } else if (shift_status == 1 && left_type &&
+                           semantic_integer_type_width(left_type, &value_width,
+                                                      &value_is_unsigned)) {
+                    (void)value_is_unsigned;
+                    if (shift_amount >= value_width) {
+                        char shift_message[192];
                         (void)snprintf(shift_message, sizeof(shift_message),
                             "Bit shift amount (%llu) is out of range for %s (%llu-bit width); valid range is 0..%llu.",
                             (unsigned long long)shift_amount,
@@ -3333,7 +3440,6 @@ static void semantic_check_node(
                             (unsigned long long)(value_width - 1u));
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                             shift_message);
-                    }
                     }
                 }
                 /*
