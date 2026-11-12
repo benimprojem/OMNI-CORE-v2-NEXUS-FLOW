@@ -1967,6 +1967,13 @@ v:empty!State = State.Empty();
 
 Semantic resolves the qualifier to an enum declaration and the member to one of its variants. Positional payload arguments follow declaration order; named arguments use payload field names. Argument count, unknown variant/field names, duplicate named fields and argument type compatibility are checked. A no-payload variant is constructed with an empty call. Constructor expression support currently validates declared `type_name` payload fields; recursive payload type-expression compatibility remains part of the remaining enum Semantic work.
 
+### Pointer / reference Semantic type compatibility
+
+- `*T`, `**T`, `***T` and `&T` are distinct structural type layers. The base type and every pointer/reference layer must match for assignment, parameter and return compatibility; pointer and reference types are not interchangeable.
+- Nested pointer/reference targets are recursively resolved. An unknown base type is rejected, including when nested under multiple pointer layers.
+- Pointer/reference values do not implicitly convert to integer types. Integer-or-address acceptance by low-level memory intrinsics is a separate intrinsic signature rule, not a general assignment conversion.
+- These checks establish type identity and compatibility only. Dereference semantics, mutable/immutable borrow rules, nullability, aliasing, lifetime/ownership and target ABI remain explicitly unresolved and must not be inferred from the type spelling alone.
+
 ### Group method Semantic integrity
 
 - Every AST_METHOD requires a non-empty public method name and an implementation node. Both a missing name and an empty-string name are invalid, including externally constructed AST input.
