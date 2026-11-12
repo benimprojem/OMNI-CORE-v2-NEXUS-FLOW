@@ -752,3 +752,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Bare variant identifiers are treated as tag matches only when the enum variant has no payload; other identifiers remain ordinary pattern bindings.
 - Added direct Semantic AST regressions for valid typed payload binding, unknown variant, wrong payload arity and invalid bare payload-variant matching.
 - Updated the syntax reference and coverage rows. Constructor *expression* calls, duplicate arm coverage, exhaustive scan analysis and non-enum structural pattern semantics remain open. Test execution/CI is pending.
+
+
+### Semantic checkpoint — Enum scan exhaustiveness — 2026-11-12
+
+- Added an explicit `has_guard` field to `ASTScanArm`; Parser records whether an arm came from a `when` clause instead of relying on ambiguous `AST_IF` body shape.
+- Enum scans now detect repeated unguarded variant arms and report every uncovered declared variant. Guarded arms do not count toward exhaustive coverage; an `else` arm suppresses missing-variant diagnostics.
+- Added Semantic AST fixtures for exhaustive coverage, unknown/malformed patterns, duplicate variants, guard-only coverage and else fallback.
+- Enum Semantic remains partial because constructor expression calls/argument typing and remaining pattern/type rules are not yet complete. CI/test execution is pending.
