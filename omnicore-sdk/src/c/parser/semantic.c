@@ -25,6 +25,9 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->current_scope_id = 1u;
     ctx->current_group_owner = NULL;
     ctx->current_fast_exec_owner = NULL;
+    ctx->thread_blocks = NULL;
+    ctx->thread_block_tail = NULL;
+    ctx->thread_block_depth = 0u;
     memset(&ctx->lang, 0, sizeof(ctx->lang));
     ctx->current_method_receiver_type = NULL;
     ctx->current_method_public_name = NULL;
@@ -3203,6 +3206,78 @@ static int semantic_check_asm_intrinsic(
     return 1;
 }
 
+static ThreadBlockEntry* semantic_find_thread_block(
+    const SemanticContext* ctx, const char* name
+) {
+    ThreadBlockEntry* entry = ctx ? ctx->thread_blocks : NULL;
+    if (!name) return NULL;
+    while (entry) {
+        if (entry->name && strcmp(entry->name, name) == 0) return entry;
+        entry = entry->next;
+    }
+    return NULL;
+}
+
+static int semantic_register_thread_block(
+    SemanticContext* ctx, ASTThreadBlock* block
+) {
+    ThreadBlockEntry* entry;
+    if (!ctx || !block || !block->name || !block->name[0]) return 0;
+    if (semantic_find_thread_block(ctx, block->name)) {
+        char message[256];
+        snprintf(message, sizeof(message),
+            "Thread block '%s' is already declared; thread block names must be unique.",
+            block->name);
+        report_error(ctx, (ASTNode*)block, ERR_SEMANTIC_REDEFINED, message);
+        return 0;
+    }
+    entry = (ThreadBlockEntry*)semantic_callocate(ctx, 1u, sizeof(*entry));
+    if (!entry) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        report_error(ctx, (ASTNode*)block, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Unable to register thread_block: out of memory.");
+        return 0;
+    }
+    entry->name = semantic_duplicate(ctx, block->name);
+    if (!entry->name) {
+        free(entry);
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        report_error(ctx, (ASTNode*)block, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Unable to copy thread_block name: out of memory.");
+        return 0;
+    }
+    entry->declaration = (ASTNode*)block;
+    if (ctx->thread_block_tail) ctx->thread_block_tail->next = entry;
+    else ctx->thread_blocks = entry;
+    ctx->thread_block_tail = entry;
+    return 1;
+}
+
+static void semantic_validate_spawn_call(
+    SemanticContext* ctx, ASTNode* node, ASTCall* call
+) {
+    ASTNode* argument;
+    const char* name;
+    if (!ctx || !call || !call->callee ||
+        call->callee->type != AST_IDENTIFIER) return;
+    name = ((ASTIdentifier*)call->callee)->name;
+    if (!name || strcmp(name, "spawn") != 0) return;
+    argument = call->args;
+    if (!argument || argument->next || argument->type != AST_IDENTIFIER) {
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "spawn requires exactly one identifier naming a declared thread_block.");
+        return;
+    }
+    name = ((ASTIdentifier*)argument)->name;
+    if (!name || !semantic_find_thread_block(ctx, name)) {
+        char message[256];
+        snprintf(message, sizeof(message),
+            "spawn references unknown thread_block '%s'. Declare the named thread block before calling spawn.",
+            name ? name : "<unnamed>");
+        report_error(ctx, argument, ERR_SEMANTIC_UNKNOWN_SYMBOL, message);
+    }
+}
+
 static void semantic_check_node(SemanticContext* ctx, ASTNode* node, int follow_siblings);
 
 static void semantic_check_node(
@@ -4941,6 +5016,7 @@ static void semantic_check_node(
                             ctx, node, function_slot, call->args, 0u);
                 }
             }
+            semantic_validate_spawn_call(ctx, node, call);
             if (call->args) semantic_check(ctx, call->args);
             break;
         }
@@ -5709,6 +5785,9 @@ static void semantic_check_node(
                     "thread_block body must be an AST_BLOCK node.");
                 break;
             }
+            /* Register before checking the payload so later spawn() calls
+               can resolve this complete named payload. */
+            if (!semantic_register_thread_block(ctx, tb)) break;
             /* The named block is one complete thread payload. Nested
                payloads are rejected; the child AST_BLOCK owns its scope. */
             ++ctx->thread_block_depth;
@@ -5775,6 +5854,16 @@ void semantic_destroy(SemanticContext* ctx) {
         current = next;
     }
     ctx->head = NULL;
+
+    ThreadBlockEntry* thread_block = ctx->thread_blocks;
+    while (thread_block) {
+        ThreadBlockEntry* next = thread_block->next;
+        free(thread_block->name);
+        free(thread_block);
+        thread_block = next;
+    }
+    ctx->thread_blocks = NULL;
+    ctx->thread_block_tail = NULL;
 
     Error* err = ctx->error_head;
     while (err) {
