@@ -361,3 +361,12 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Conditional-control expression arms can now be followed directly by the alternative separator, e.g. `(j == k) ? process(j) : process(k);`; the first expression arm defers its semicolon only when the separator follows.
 - Corrected the Parser allocation-failure fixture: it had included the deferred-AI token `??` in a source expected to parse successfully. The fixture now uses the valid halt form `?;`.
 - CI verification is pending for the current branch head; do not mark Semantic complete until the full matrix is green.
+
+
+### Semantic checkpoint — unary and bitwise operator validation — 2026-11-12
+
+- Unary logical negation now requires a boolean condition; unary minus requires a numeric operand; bitwise complement requires an integer or supported bit-representation operand.
+- Unary diagnostics identify the operator and actual operand type. Binary and compound bitwise diagnostics identify the operator and both actual operand types.
+- Added positive/negative tests for unary operators, 8bit representation operations, mixed representation/integer operands, and compound &=, |=, ^= operations.
+- Added collector assertions for Semantic stage ID, complete source range, and line/column reporting.
+- On the latest completed Linux test job for the previous checkpoint, all 73 CTest tests passed; ASan/UBSan and macOS also passed. Windows and Valgrind verification remain pending; Semantic is not marked complete yet.
