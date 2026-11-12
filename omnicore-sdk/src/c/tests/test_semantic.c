@@ -362,7 +362,8 @@ static int check_malformed_function_and_control_ast(void) {
         SemanticContext semantic;
         int ok;
         if (!node) return 0;
-        ((ASTThreadBlock*)node)->name = "worker";
+        ((ASTThreadBlock*)node)->name = semantic_test_copy_text("worker");
+        if (!((ASTThreadBlock*)node)->name) { ast_destroy(node); return 0; }
         ((ASTThreadBlock*)node)->body = ast_create(AST_LITERAL);
         if (!((ASTThreadBlock*)node)->body) { ast_destroy(node); return 0; }
         semantic_init(&semantic, "semantic-invalid-thread-body-kind.nxf", NULL);
