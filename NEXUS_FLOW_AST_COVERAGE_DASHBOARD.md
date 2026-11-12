@@ -178,7 +178,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| Thread block `(name)>{...}` | `AST_THREAD_BLOCK` (70) | ✓ | ✓ | ✓ | ~ | ? | ? | by-value capture metadata eklendi; runtime snapshot/transfer, lifetime ve cancel/sync |
+| Thread block `(name)>{...}` | `AST_THREAD_BLOCK` (70) | ✓ | ✓ | ✓ | ~ | ? | ? | explicit-copy capture metadata eklendi; runtime snapshot/transfer, lifetime ve cancel/sync |
 | `spawn(name)` | `AST_FUNC_CALL(identifier)` | ✓ | ✓ | ✓ | ~ | ? | ? | Semantic named-payload lookup/arity/type validation; Thread runtime create/schedule/transfer |
 | `listen/send/receive/done` | `AST_FUNC_CALL(identifier)` | ✓ | ✓ | ✓ | ? | ? | ? | Thread module signatures, payload/event effects, synchronization ve lowering |
 | FASTEXEC block | `AST_FASTEXEC_BLOCK` (104) | ✓ | ✓ | ✓ | ~ | D | — | ordered statement payload ve node source-span round-trip; target/capability Semantic checks açık |
@@ -676,9 +676,9 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 
 ### Semantic checkpoint — thread payload capture refinement — 2026-11-12
 
-- Outer `SLOT_VAR` references inside a named payload are collected once by symbol identity. Payload-local declarations, including nested lexical-block locals, are excluded from capture metadata.
+- Outer `SLOT_VAR` references inside a named payload are rejected unless they occur within an explicit `copy(...)` argument. Explicit captures are collected once by symbol identity. Payload-local declarations, including nested lexical-block locals, are excluded from capture metadata.
 - Capture metadata records the variable's type, source scope/depth, declaration and first-use node. Each outer identifier annotation also receives `SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE`, making the capture signal durable in the SemanticResult artifact. The regression fixture checks the flag and verifies payload-local references are not marked; another fixture verifies duplicate uses are captured once.
-- Capture is a value snapshot at spawn time. Pointer values are copied shallowly; the pointed-to allocation is not deep-copied. `done`/`listen` output transport remains governed by the Thread runtime specification.
+- Capture is explicit through `copy(...)` and becomes a value snapshot at spawn time. Direct outer-variable access is rejected. Pointer values are copied shallowly; the pointed-to allocation is not deep-copied. `done`/`listen` output transport remains governed by the Thread runtime specification.
 - Earlier dashboard statements claiming thread names had no uniqueness rule or that Core performed `spawn` callee-identity validation are superseded by the current registry implementation above.
 - Tests added; execution and CI remain pending.
 
@@ -686,6 +686,6 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 ### SemanticResult / OIR artifact capture-flag compatibility — 2026-11-12
 
 - Added `SEMANTIC_RESULT_ANNOTATION_FLAG_THREAD_CAPTURE` and its OIR annotation flag counterpart. The OIR Semantic AST annotation reader/writer now accepts this defined flag while continuing to reject unknown bits.
-- Added SemanticResult integration coverage proving outer references are marked and payload-local references are not. Added artifact-level annotation round-trip coverage for the capture flag; legacy schema 1.0 remains readable with zero annotation flags.
+- Added SemanticResult integration coverage proving explicit-copy outer references are marked, direct outer references are rejected, and payload-local references are not marked. Added artifact-level annotation round-trip coverage for the capture flag; legacy schema 1.0 remains readable with zero annotation flags.
 - Artifact serialization copies annotation flags field-for-field, so no AST payload schema version bump was needed (current Semantic AST schema minor is already 4).
 - CI/local execution remains pending.
