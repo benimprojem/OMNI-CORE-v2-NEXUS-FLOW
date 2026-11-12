@@ -4484,8 +4484,16 @@ static int test_nexus_flow_catch_fallback_ignore_forms(void) {
         if (flow->op != operators[i] || !flow->left || !flow->right ||
             !start || !end || !flow->base.source_span.has_location ||
             flow->base.source_span.start_offset != (uint64_t)(start - source) ||
-            flow->base.source_span.end_offset != (uint64_t)(end - source))
+            flow->base.source_span.end_offset != (uint64_t)(end - source)) {
+            fprintf(stderr,"flow span debug arm=%zu op=%d expected=%llu-%llu actual=%u:%llu-%llu\\n",
+                i,(int)flow->op,
+                (unsigned long long)(start ? start-source : 0),
+                (unsigned long long)(end ? end-source : 0),
+                (unsigned)flow->base.source_span.has_location,
+                (unsigned long long)flow->base.source_span.start_offset,
+                (unsigned long long)flow->base.source_span.end_offset);
             goto done;
+        }
         if (i == 0u) {
             if (flow->right->type != AST_IDENTIFIER ||
                 strcmp(((ASTIdentifier*)flow->right)->name, "e") != 0 ||
