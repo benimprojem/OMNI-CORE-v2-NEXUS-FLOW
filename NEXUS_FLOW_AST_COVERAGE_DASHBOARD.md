@@ -72,7 +72,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Nominal type identity, alias-chain target validation, assignment/call/return compatibility ve recursive target validation Semantic ✓; target_type_expr payload round-trip ve OIR/Verifier açık |
 | Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Name/duplicate field/type/visibility/export/packed metadata Semantic ✓; ordered field payload round-trip, physical layout and lowering açık |
 | Struct literal | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` (106–107) | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Instance initialization/layout lowering ve Verifier invariant'ları |
-| Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Variant/payload isim benzersizliği ve açık payload type validation Semantic ✓; constructor resolution, payload argument binding, discriminant model and exhaustiveness open |
+| Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Variant/payload names and declared field types ✓; scan constructor lookup, positional payload binding/type propagation and arity checks ✓; constructor expression arguments, discriminant model and exhaustiveness open |
 | Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | Typed/unique field declaration and member-type resolution Semantic ✓; active-member tracking and safe-read contract need a language decision; union flags/field payload round-trip and lowering open |
 | Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | members, method public_name/implementation ve flags round-trip; receiver/dispatch Semantic kuralları açık |
 | Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
@@ -149,9 +149,9 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | `select` / arms | `AST_SELECT`, `AST_SELECT_ARM` (81–82) | ✓ | ✓ | ✓ | ~ | ? | ? | Subject expression type now propagates into arm bindings; closed-enum constructor/type resolution, exhaustiveness ve lowering |
-| `scan` / arms | `AST_SCAN`, `AST_SCAN_ARM` (83–84) | ✓ | ✓ | ✓ | ~ | ? | ? | Subject expression type now propagates into arm bindings; constructor payload typing, exhaustiveness/else ve execution lowering |
-| Pattern binding | `AST_PATTERN_BINDING` (85) | ✓ | ✓ | ✓ | ~ | ? | ? | Subject type propagation, payload type ve binding lifetime |
-| Constructor pattern | `AST_PATTERN_CONSTRUCTOR` (86) | ✓ | ✓ | ✓ | ~ | ? | ? | Enum/variant identity, payload arity/type ve exhaustiveness |
+| `scan` / arms | `AST_SCAN`, `AST_SCAN_ARM` (83–84) | ✓ | ✓ | ✓ | ~ | ? | ? | Enum constructor lookup, payload binding types/arity and invalid bare payload variant checks ✓; duplicate arm detection, exhaustiveness and non-enum structural patterns open |
+| Pattern binding | `AST_PATTERN_BINDING` (85) | ✓ | ✓ | ✓ | ~ | ? | ? | Enum payload field type propagation and bare no-payload variant tags ✓; duplicate pattern binding and binding lifetime constraints open |
+| Constructor pattern | `AST_PATTERN_CONSTRUCTOR` (86) | ✓ | ✓ | ✓ | ~ | ? | ? | Enum/variant identity, positional payload arity/type validation and typed binding ✓; duplicate coverage, exhaustive scan and constructor expression validation open |
 | `when` guard | Arm body içindeki canonical `AST_IF` | ✓ | ✓ | ✓ | ~ | ? | ? | Pattern binding type inference ve guard evaluation lowering |
 | Ruleset / barrier / trigger / always / default | `AST_RULESET_DECL` + rule nodes (87–91) | ✓ | ✓ | ✓ | ~ | ? | ? | Ordering, termination, effects, event dispatch ve lowering |
 | Rule application `apply` | `AST_APPLY_RULES` (92) | ✓ | ✓ | ✓ | ~ | ? | ? | Active apply context, injected effects ve lowering |
@@ -743,3 +743,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added direct AST regressions for untyped Struct fields, untyped Union fields and malformed aggregate field node kinds. Existing source fixtures cover duplicate names, unknown types and member type compatibility.
 - Struct Semantic remains ✓. Union Semantic remains partial only for active-member tracking/safe-read rules, which are not defined by the current language contract; no implicit policy has been invented.
 - Updated the normative syntax reference to document this boundary. Tests and CI remain pending.
+
+
+### Semantic checkpoint — Enum scan constructor binding — 2026-11-12
+
+- `scan` constructor patterns now resolve against the enum type of the subject expression. Unknown variants and constructor patterns on non-enum subjects produce diagnostics.
+- Payload bindings are matched positionally to the variant's declared fields; each local binding receives the corresponding field type. Incorrect payload arity, invalid binding node kinds and bare matching of payload-bearing variants are rejected.
+- Bare variant identifiers are treated as tag matches only when the enum variant has no payload; other identifiers remain ordinary pattern bindings.
+- Added direct Semantic AST regressions for valid typed payload binding, unknown variant, wrong payload arity and invalid bare payload-variant matching.
+- Updated the syntax reference and coverage rows. Constructor *expression* calls, duplicate arm coverage, exhaustive scan analysis and non-enum structural pattern semantics remain open. Test execution/CI is pending.
