@@ -492,3 +492,14 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - The SCAN non-final-else rejection remains Parser-owned and is intentionally not duplicated as a Semantic source fixture.
 - Semantic implementation commit: `26f2659e`; regression test commits: `6e9195ac`, `2954d695`.
 - CI verification: pending; no test-pass claim is made.
+
+
+### Semantic checkpoint — pattern AST fail-closed validation — 2026-11-12
+
+- Pattern binding nodes now require a non-empty identifier.
+- Constructor patterns require a non-empty constructor name and at least one binding, matching Parser's accepted syntax.
+- Pattern lists accept only binding, constructor, and literal nodes; unsupported external AST nodes now emit a Semantic diagnostic instead of being silently ignored.
+- Standalone SELECT/SCAN arm nodes now reject missing bodies; SELECT arms enforce default/pattern consistency.
+- Added a direct malformed-AST regression using an unsupported pattern node.
+- Semantic commit: `4d1f4dc6`; test commit: `fa23a52d`.
+- CI verification: pending; no test-pass claim is made.
