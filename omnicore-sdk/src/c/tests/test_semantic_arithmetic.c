@@ -105,6 +105,10 @@ int main(void) {
     static const char compound_valid[] = "f:main() { v:x = 1; x += 2; v:s = \"a\"; s .= \"b\"; }";
     static const char compound_float[] = "f:main() { v:x = 1; x += 2.0; }";
     static const char compound_bitwise_float[] = "f:main() { v:x = 1; x &= 2.0; }";
+    static const char compound_bitwise_valid[] =
+        "f:main(a!u8, b!u8) { a &= b; a |= b; a ^= b; }";
+    static const char compound_bitwise_mismatch[] =
+        "f:main(a!i32, b!u32) { a &= b; }";
     static const char append_non_string[] = "f:main() { v:x = 1; x .= \"b\"; }";
     static const char invalid_lvalue[] = "f:main() { 1 = 2; }";
     static const char power_integer[] = "f:main() !i32 { ret 2 ^^ 3; }";
@@ -113,6 +117,8 @@ int main(void) {
     static const char bitwise_valid[] = "f:main() !i32 { ret 7 & 3 | 2 ^ 1; }";
     static const char bitwise_representation_valid[] =
         "f:main(a!8bit, b!8bit) !8bit { ret a & b; }";
+    static const char bitwise_not_representation_valid[] =
+        "f:main(a!8bit) !8bit { ret ~a; }";
     static const char bitwise_representation_mismatch[] =
         "f:main(a!8bit, b!u8) !8bit { ret a | b; }";
     static const char bitwise_float[] = "f:main() !f32 { ret 7.0 & 3.0; }";
@@ -160,6 +166,8 @@ int main(void) {
     if (!check_source(compound_valid, 0)) return 1;
     if (!check_source(compound_float, 1)) return 1;
     if (!check_source(compound_bitwise_float, 1)) return 1;
+    if (!check_source(compound_bitwise_valid, 0)) return 1;
+    if (!check_source(compound_bitwise_mismatch, 1)) return 1;
     if (!check_source(append_non_string, 1)) return 1;
     if (!check_source(invalid_lvalue, 1)) return 1;
     if (!check_source(power_integer, 0)) return 1;
@@ -167,6 +175,7 @@ int main(void) {
     if (!check_source(power_non_numeric, 1)) return 1;
     if (!check_source(bitwise_valid, 0)) return 1;
     if (!check_source(bitwise_representation_valid, 0)) return 1;
+    if (!check_source(bitwise_not_representation_valid, 0)) return 1;
     if (!check_source(bitwise_representation_mismatch, 1)) return 1;
     if (!check_source(bitwise_float, 1)) return 1;
     if (!check_source(shift_valid, 0)) return 1;
@@ -213,6 +222,9 @@ int main(void) {
     if (!check_error_detail(
         "f:main(a!u8) {\n    v:x!u8 = a;\n    x &= 2.0;\n}",
         "Bitwise compound assignment", "f64", 3)) return 1;
+    if (!check_error_detail(
+        "f:main(a!i32, b!u32) {\n    a &= b;\n}",
+        "Bitwise compound assignment", "u32", 2)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
 }
