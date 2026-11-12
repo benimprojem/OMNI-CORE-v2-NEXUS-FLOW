@@ -818,7 +818,7 @@ static int check_pointer_reference_type_semantics(void) {
     const char* exact_nested_pointer_assignment =
         "f:main() { v:a!**i32; v:b!**i32; a = b; }";
     const char* nested_pointer_depth_mismatch =
-        "f:main() { v:a!**i32; v:b!**i32; a = b; }";
+        "f:main() { v:a!**i32; v:b!*i32; a = b; }";
     const char* exact_nested_reference_assignment =
         "f:main() { v:a!&*i32; v:b!&*i32; a = b; }";
     const char* pointer_integer_mismatch =
