@@ -3801,10 +3801,10 @@ static int test_enum_discriminant_parser_codec(void) {
         if (!declaration || !idle || !running || !done ||
             !idle->discriminant_expr ||
             idle->discriminant_expr->type != AST_LITERAL ||
-            ((ASTLiteral*)idle->discriminant_expr)->int_value != 0 ||
+            strcmp(((ASTLiteral*)idle->discriminant_expr)->string_value, "0") != 0 ||
             !running->data || !running->discriminant_expr ||
             running->discriminant_expr->type != AST_LITERAL ||
-            ((ASTLiteral*)running->discriminant_expr)->int_value != 4 ||
+            strcmp(((ASTLiteral*)running->discriminant_expr)->string_value, "4") != 0 ||
             !done->discriminant_expr ||
             done->discriminant_expr->type != AST_BINARY_EXPR ||
             done->base.next != NULL) {
