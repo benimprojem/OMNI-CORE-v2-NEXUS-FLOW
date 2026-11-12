@@ -990,20 +990,12 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 if (tuple_expr &&
                     semantic_eval_integer_constant(access->index,&tuple_index)) {
                     const ASTNode* item = tuple_expr->elements;
-                    if (tuple_index < 0) {
-                        report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Tuple index cannot be negative.");
-                    } else {
+                    if (tuple_index >= 0) {
                         while (item && tuple_index > 0) {
                             item=item->next;
                             --tuple_index;
                         }
-                        if (!item) {
-                            report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                                "Tuple index is outside the tuple element range.");
-                        } else {
-                            element_type=get_expr_type(ctx,(ASTNode*)item);
-                        }
+                        if (item) element_type=get_expr_type(ctx,(ASTNode*)item);
                     }
                 }
             } else if (representation_element) {
@@ -2463,6 +2455,37 @@ static void semantic_check_node(
             semantic_check(ctx, access->target);
             semantic_check(ctx, access->index);
             target_type = get_expr_type(ctx, access->target);
+            if (target_type && strcmp(target_type,"tuple") == 0 &&
+                semantic_eval_integer_constant(access->index,&constant_index)) {
+                const ASTTuple* tuple_expr=NULL;
+                const ASTNode* item;
+                if(access->target->type==AST_TUPLE) {
+                    tuple_expr=(const ASTTuple*)access->target;
+                } else if(access->target->type==AST_IDENTIFIER) {
+                    Slot* tuple_slot=find_slot(ctx,
+                        ((ASTIdentifier*)access->target)->name);
+                    if(tuple_slot && tuple_slot->declaration_node &&
+                       tuple_slot->declaration_node->type==AST_VAR_DECL) {
+                        ASTVarDecl* tuple_decl=(ASTVarDecl*)tuple_slot->declaration_node;
+                        if(tuple_decl->initializer &&
+                           tuple_decl->initializer->type==AST_TUPLE)
+                            tuple_expr=(const ASTTuple*)tuple_decl->initializer;
+                    }
+                }
+                item=tuple_expr?tuple_expr->elements:NULL;
+                if(constant_index<0) {
+                    report_error(ctx,access->index,ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Tuple index cannot be negative.");
+                } else {
+                    while(item && constant_index>0) {
+                        item=item->next;
+                        --constant_index;
+                    }
+                    if(!item) report_error(ctx,access->index,
+                        ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Tuple index is outside the tuple element range.");
+                }
+            }
             if (target_type && strcmp(target_type,"tuple") != 0 &&
                 !semantic_is_array_type_name(target_type) &&
                 !semantic_representation_element_type(target_type)) {
