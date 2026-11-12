@@ -1179,6 +1179,8 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     return "void";
                 }
                 slot = find_slot(ctx, id->name);
+                if (id->name && strcmp(id->name, "intr") == 0)
+                    semantic_validate_intr_intrinsic(ctx, node);
             } else if (call->callee &&
                 call->callee->type == AST_MEMBER_ACCESS) {
                 int is_instance_call = 0;
