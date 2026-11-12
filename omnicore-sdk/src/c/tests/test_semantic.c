@@ -1316,7 +1316,35 @@ static int check_intrinsic_semantics(void) {
         check_source(invalid_count, 7);
 }
 
+
+static int check_program_and_block_scope_semantics(void) {
+    const char* global_visible_to_function =
+        "v:global_value!i32 = 7; "
+        "f:main() { v:local_value!i32 = global_value; }";
+    const char* nested_block_does_not_leak =
+        "f:main() { { v:inner_value!i32 = 1; } "
+        "v:outer_value!i32 = inner_value; }";
+    const char* sibling_blocks_are_isolated =
+        "f:main() { { v:private_value!i32 = 1; } "
+        "{ v:use_value!i32 = private_value; } }";
+    const char* nested_scope_shadowing =
+        "f:main() { v:value!i32 = 1; "
+        "{ v:value!i32 = 2; v:inner_read!i32 = value; } "
+        "v:outer_read!i32 = value; }";
+    const char* duplicate_program_declaration =
+        "v:global_value!i32 = 1; v:global_value!i32 = 2;";
+    return check_source(global_visible_to_function, 0) &&
+        check_source(nested_block_does_not_leak, 1) &&
+        check_source(sibling_blocks_are_isolated, 1) &&
+        check_source(nested_scope_shadowing, 0) &&
+        check_source(duplicate_program_declaration, 1);
+}
+
 int main(int argc, char** argv) {
+    if (!check_program_and_block_scope_semantics()) {
+        fprintf(stderr, "Program/block declaration scope checks failed.\\n");
+        return 1;
+    }
     if (!check_intr_semantics()) {
         fprintf(stderr, "INTR semantic checks failed.\n");
         return 1;
