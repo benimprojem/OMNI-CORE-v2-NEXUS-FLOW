@@ -188,15 +188,15 @@ int main(void) {
     static const char valid_len_string[] =
         "f:main() !u64 { ret len(\"text\"); }";
     static const char valid_len_array[] =
-        "f:main() !u64 { ret len([1,2,3]); }";
+        "f:main() { v:items = [1,2,3]; v:length = len(items); }";
     static const char invalid_len_scalar[] =
-        "f:main() !u64 { ret len(1); }";
+        "f:main() { v:length = len(1); }";
     static const char valid_addr_variable[] =
-        "f:main(value!i32) !u64 { ret addr(value); }";
+        "f:main(value!i32) { v:ptr = addr(value); }";
     static const char invalid_addr_literal[] =
-        "f:main() !u64 { ret addr(1); }";
+        "f:main() { v:ptr = addr(1); }";
     static const char valid_peek[] =
-        "f:main() !u8 { ret peek(1024); }";
+        "f:main() { v:value = peek(1024); }";
     static const char invalid_peek_string[] =
         "f:main() !u8 { ret peek(\"address\"); }";
     static const char valid_poke[] =
@@ -388,10 +388,10 @@ int main(void) {
         "f:main() {\n    v:arr = [1,2,3]; v:value = arr[3];\n}",
         "Array index 3 is out of bounds", "length 3", 2)) return 1;
     if (!check_error_detail(
-        "f:main() !u64 {\\n    ret len(1);\\n}",
+        "f:main() {\\n    v:length = len(1);\\n}",
         "len() requires a collection, string, or buffer", "i32", 2)) return 1;
     if (!check_error_detail(
-        "f:main() !u64 {\\n    ret addr(1);\\n}",
+        "f:main() {\\n    v:ptr = addr(1);\\n}",
         "addr() requires an addressable", "i32", 2)) return 1;
     puts("Arithmetic semantic operand validation passed.");
     return 0;
