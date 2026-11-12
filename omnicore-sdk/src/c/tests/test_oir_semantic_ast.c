@@ -423,7 +423,8 @@ int main(void) {
             memcmp(annotation_bytes, annotation_second, annotation_written) == 0);
 
         memcpy(annotation_bad, annotation_bytes, annotation_written);
-        write_u32(annotation_bad + 4u, 24u);
+        write_u32(annotation_bad + 4u,
+            OIR_SEMANTIC_ANNOTATION_RECORD_SIZE + 1u);
         assert(oir_semantic_annotations_open(annotation_bad,
             annotation_written, &annotation_view) == OIR_STATUS_INVALID_SECTION);
 
