@@ -5792,6 +5792,8 @@ static void semantic_check_node(
                 FieldInfo* last_var = NULL;
                 uint32_t variant_ordinal = 0u;
                 uint32_t payload_field_ordinal = 0u;
+                int64_t next_discriminant = 0;
+                int next_discriminant_valid = 1;
                 if (!s) break;
                 semantic_define_named_type(ctx, s, edecl->name, NULL);
                 semantic_record_annotation(
@@ -5832,6 +5834,65 @@ static void semantic_check_node(
                                     break;
                                 }
                             }
+                        }
+                    }
+
+                    /*
+                     * Resolve each enum tag before payload processing. Explicit
+                     * values must be integer constant expressions in the signed
+                     * 64-bit semantic domain. Implicit values start at zero and
+                     * continue from the previously resolved tag.
+                     */
+                    {
+                        int64_t resolved_value = 0;
+                        int value_valid = 1;
+                        if (variant->discriminant_expr) {
+                            if (!semantic_eval_integer_constant(
+                                    variant->discriminant_expr, &resolved_value)) {
+                                report_error(ctx, variant->discriminant_expr,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Enum discriminant must be a compile-time integer constant expression representable as signed 64-bit.");
+                                value_valid = 0;
+                            }
+                        } else if (next_discriminant_valid) {
+                            resolved_value = next_discriminant;
+                        } else {
+                            report_error(ctx, var_node,
+                                ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Implicit enum discriminant overflows signed 64-bit; provide an explicit smaller value.");
+                            value_valid = 0;
+                        }
+
+                        if (value_valid) {
+                            for (previous_variant = edecl->variants;
+                                 previous_variant && previous_variant != var_node;
+                                 previous_variant = previous_variant->next) {
+                                if (previous_variant->type == AST_ENUM_VARIANT) {
+                                    const ASTEnumVariant* earlier =
+                                        (const ASTEnumVariant*)previous_variant;
+                                    if (earlier->has_resolved_discriminant &&
+                                        earlier->discriminant_value == resolved_value) {
+                                        char message[320];
+                                        (void)snprintf(message, sizeof(message),
+                                            "Enum '%s' assigns discriminant value %lld more than once (variant '%s').",
+                                            edecl->name, (long long)resolved_value,
+                                            variant->name ? variant->name : "<unnamed>");
+                                        report_error(ctx, var_node,
+                                            ERR_SEMANTIC_REDEFINED, message);
+                                        break;
+                                    }
+                                }
+                            }
+                            variant->discriminant_value = resolved_value;
+                            variant->has_resolved_discriminant = 1u;
+                            if (resolved_value == INT64_MAX) {
+                                next_discriminant_valid = 0;
+                            } else {
+                                next_discriminant = resolved_value + 1;
+                                next_discriminant_valid = 1;
+                            }
+                        } else {
+                            variant->has_resolved_discriminant = 0u;
                         }
                     }
 
