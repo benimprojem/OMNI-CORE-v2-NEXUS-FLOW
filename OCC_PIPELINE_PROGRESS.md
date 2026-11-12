@@ -1,3 +1,11 @@
+## CI verification checkpoint — 2026-11-12
+
+- Verified branch-head commit: `2c7f11b652919c71a2811b65928e1ceda91a8649` (`refactor/c-core-roadmap`).
+- GitHub Actions run `43287142976`: all five jobs passed — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- Ubuntu CTest: **73/73 passed**. Sanitizer and Valgrind jobs passed.
+- This result supersedes older checkpoint notes below that say the same committed tests are pending/unverified. It does not mean the entire Semantic DLL, AST coverage, OIR or Verifier stages are complete.
+- Dashboard updated: Enum and Union Semantic rows are now ✓. Group/Method remains ~ because signature-contract work is still open.
+
 ## Thread module boundary checkpoint — 2026-11-12
 
 - `spawn`, `listen`, `send`, `receive` and `done` now parse as ordinary identifier callees and produce generic `AST_FUNC_CALL` nodes; their runtime/API semantics belong to the Thread library.
