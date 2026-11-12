@@ -1395,6 +1395,8 @@ static int check_enum_discriminant_semantics(void) {
         "f:main() { enum:State { Max = 9223372036854775807, Next } }";
     const char* explicit_reset_after_max =
         "f:main() { enum:State { Max = 9223372036854775807, Reset = 0, Next } }";
+    const char* signed_minimum =
+        "f:main() { enum:State { Min = -9223372036854775808, Reset = 0, Next } }";
     return check_enum_discriminant_resolved_values() &&\n        check_source(valid_implicit_explicit, 0) &&
         check_source(valid_negative_and_expression, 0) &&
         check_source(duplicate_explicit, 1) &&
@@ -1402,7 +1404,7 @@ static int check_enum_discriminant_semantics(void) {
         check_source(non_constant, 1) &&
         check_source(non_integer, 1) &&
         check_source(implicit_overflow, 1) &&
-        check_source(explicit_reset_after_max, 0);
+        check_source(explicit_reset_after_max, 0) &&\n        check_source(signed_minimum, 0);
 }
 
 static int check_enum_declaration_semantics(void) {
