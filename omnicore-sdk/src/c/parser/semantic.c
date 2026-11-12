@@ -1378,6 +1378,48 @@ static int are_types_compatible(const char* type1, const char* type2) {
     return semantic_array_signatures_compatible(t1, t2);
 }
 
+static int semantic_vector_dimension(
+    const char* type_name, size_t* dimension_out
+) {
+    if (!type_name || !dimension_out) return 0;
+    if (type_name[0] == '!') ++type_name;
+    if (strcmp(type_name, "Vec2") == 0) *dimension_out = 2u;
+    else if (strcmp(type_name, "Vec3") == 0) *dimension_out = 3u;
+    else if (strcmp(type_name, "Vec4") == 0) *dimension_out = 4u;
+    else return 0;
+    return 1;
+}
+
+static void semantic_validate_vector_initializer(
+    SemanticContext* ctx, ASTNode* declaration_node,
+    const char* vector_type, ASTNode* initializer
+) {
+    size_t expected = 0u, count = 0u;
+    ASTNode* element;
+    if (!semantic_vector_dimension(vector_type, &expected) ||
+        !initializer || initializer->type != AST_ARRAY_LITERAL) return;
+    for (element = ((ASTArrayLiteral*)initializer)->elements;
+         element; element = element->next) {
+        const char* element_type = get_expr_type(ctx, element);
+        ++count;
+        if (element_type && !is_numeric_primitive_type(element_type)) {
+            char message[256];
+            (void)snprintf(message, sizeof(message),
+                "%s components must be numeric; element %llu has type '%s'.",
+                vector_type, (unsigned long long)count, element_type);
+            report_error(ctx, element, ERR_SEMANTIC_TYPE_MISMATCH, message);
+        }
+    }
+    if (count != expected) {
+        char message[256];
+        (void)snprintf(message, sizeof(message),
+            "%s initializer requires exactly %llu numeric components; received %llu.",
+            vector_type, (unsigned long long)expected,
+            (unsigned long long)count);
+        report_error(ctx, declaration_node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+    }
+}
+
 static int is_numeric_primitive_type(const char* type_name) {
     static const char* const names[] = {
         "i8", "i16", "i32", "i64",
@@ -3137,7 +3179,15 @@ static void semantic_check_node(
                             "Array declarators require an array initializer.");
                     }
                 } else if (decl->type_name) {
-                    if (init_type && !are_types_compatible(decl->type_name, init_type)) {
+                    size_t vector_dimension = 0u;
+                    if (semantic_vector_dimension(decl->type_name,
+                            &vector_dimension) &&
+                        decl->initializer &&
+                        decl->initializer->type == AST_ARRAY_LITERAL) {
+                        semantic_validate_vector_initializer(
+                            ctx, node, decl->type_name, decl->initializer);
+                    } else if (init_type &&
+                        !are_types_compatible(decl->type_name, init_type)) {
                         int coercion_status =
                             semantic_hard_representation_coercion_status(
                                 decl, init_type);
@@ -3397,10 +3447,21 @@ static void semantic_check_node(
                             "Operator '%s' requires matching operand types; got '%s' and '%s'.",
                             operator_name, left_type, right_type);
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    } else if (semantic_vector_dimension(left_type,
+                                   &(size_t){0}) &&
+                               semantic_vector_dimension(right_type,
+                                   &(size_t){0})) {
+                        if (bin->op != TOKEN_PLUS && bin->op != TOKEN_MINUS) {
+                            (void)snprintf(message, sizeof(message),
+                                "Vector operator '%s' is not supported; Vec2/Vec3/Vec4 currently support '+' and '-'.",
+                                operator_name);
+                            report_error(ctx, node,
+                                ERR_SEMANTIC_TYPE_MISMATCH, message);
+                        }
                     } else if (!is_numeric_primitive_type(left_type) ||
                                !is_numeric_primitive_type(right_type)) {
                         (void)snprintf(message, sizeof(message),
-                            "Operator '%s' requires numeric operands; got '%s' and '%s'.",
+                            "Operator '%s' requires matching numeric operands or compatible vector operands; got '%s' and '%s'.",
                             operator_name, left_type, right_type);
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                     } else if (bin->op == TOKEN_PERCENT &&
