@@ -2014,10 +2014,6 @@ static int semantic_is_lengthable_type(const char* type_name) {
 static const char* semantic_intrinsic_expected_name(ASTNodeType type) {
     switch (type) {
         case AST_ECHO: return "echo";
-        case AST_SPAWN: return "spawn";
-        case AST_SEND: return "send";
-        case AST_RECEIVE: return "receive";
-        case AST_DONE: return "done";
         case AST_PRNT: return "prnt";
         case AST_PRMT: return "prmt";
         case AST_WRITE: return "write";
@@ -5420,28 +5416,12 @@ static void semantic_check_node(
         }
 
         case AST_LISTEN: {
-            ASTNexusCapture* listen = (ASTNexusCapture*)node;
-            if (!listen->handler_name || !listen->handler_name[0]) {
-                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "listen requires a non-empty handler name.");
-                break;
-            }
-            // Listen bloğu içinde 'global_listener' slotu veya benzeri bir kapsam açılabilir
-            enter_scope(ctx, node);
-            Slot* listen_slot = add_slot(
-                ctx, listen->handler_name, SLOT_VAR, 1, "any", node, 1, 0, 0, 0u);
-            semantic_record_annotation(
-                ctx, node, listen_slot, "any", SEMANTIC_RESULT_VALUE_LVALUE);
-            if (listen->expr) semantic_check(ctx, listen->expr);
-            exit_scope(ctx);
+            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Legacy AST_LISTEN is not emitted by the core Parser; use the Thread module listen(...) API.");
             break;
         }
 
         case AST_ECHO:
-        case AST_SPAWN:
-        case AST_SEND:
-        case AST_RECEIVE:
-        case AST_DONE:
         case AST_AREA:
         case AST_ZONE:
         case AST_FREE:
@@ -5658,6 +5638,11 @@ static void semantic_check_node(
             break;
         }
 
+        /* Legacy serialized Thread call tags: recurse only; new Parser emits AST_FUNC_CALL. */
+        case AST_SPAWN:
+        case AST_SEND:
+        case AST_RECEIVE:
+        case AST_DONE:
         case AST_PRNT:
         case AST_PRMT:
         case AST_WRITE:
