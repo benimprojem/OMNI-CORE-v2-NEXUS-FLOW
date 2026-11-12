@@ -214,7 +214,7 @@ int main(void) {
     static const char postfix_struct_field_valid[] =
         "f:main() { struct:Point { v:x!i32 } v:p!Point = Point { x = 1 }; p.x++; }";
     static const char postfix_const_struct_field_invalid[] =
-        "f:main() { struct:Point { c:x!i32 } v:p!Point = Point { x = 1 }; p.x++; }";
+        "f:main() { struct:Point { v:x!i32 } c:p!Point = Point { x = 1 }; p.x++; }";
     if (!check_source(integer_expression, 0)) return 1;
     if (!check_source(float_expression, 0)) return 1;
     if (!check_source(mismatched_operands, 1)) return 1;
