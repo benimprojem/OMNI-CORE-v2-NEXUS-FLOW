@@ -975,17 +975,21 @@ static int test_conditional_control_question_disambiguation(void) {
     const char* pipe_start = strstr(source, "a == b -> target");
     const char* pipe_target = pipe_start ? strstr(pipe_start, "target") : NULL;
     int ok = 0;
+    int stage = 0;
 
     if (!ctx) return 0;
+    stage = 1;
     if (parser_run(ctx) != PARSER_STATUS_OK ||
         parser_get_status(ctx) != PARSER_STATUS_OK ||
         ctx->error_count != 0 || !ctx->ast_root) goto done;
 
+    stage = 2;
     program = (ASTProgram*)ctx->ast_root;
     function = (ASTFuncDecl*)program->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK) goto done;
     body = (ASTBlock*)function->body;
 
+    stage = 3;
     break_action = (ASTIf*)body->statements;
     if (!break_action || break_action->base.type != AST_IF ||
         !break_action->condition || !break_action->then_branch ||
@@ -996,18 +1000,21 @@ static int test_conditional_control_question_disambiguation(void) {
         break_action->base.source_span.end_offset != (uint64_t)(first_end - source))
         goto done;
 
+    stage = 4;
     continue_action = (ASTIf*)break_action->base.next;
     if (!continue_action || continue_action->base.type != AST_IF ||
         !continue_action->condition || !continue_action->then_branch ||
         continue_action->then_branch->type != AST_CONTINUE ||
         continue_action->else_branch != NULL) goto done;
 
+    stage = 5;
     return_action = (ASTIf*)continue_action->base.next;
     if (!return_action || return_action->base.type != AST_IF ||
         !return_action->condition || !return_action->then_branch ||
         return_action->then_branch->type != AST_RETURN ||
         return_action->else_branch != NULL) goto done;
 
+    stage = 6;
     block_action = (ASTIf*)return_action->base.next;
     if (!block_action || block_action->base.type != AST_IF ||
         !block_action->then_branch || block_action->then_branch->type != AST_BLOCK ||
@@ -1018,6 +1025,7 @@ static int test_conditional_control_question_disambiguation(void) {
         block_action->base.source_span.end_offset != (uint64_t)(block_end - source))
         goto done;
 
+    stage = 7;
     expression_action = (ASTIf*)block_action->base.next;
     if (!expression_action || expression_action->base.type != AST_IF ||
         !expression_action->then_branch ||
@@ -1025,6 +1033,7 @@ static int test_conditional_control_question_disambiguation(void) {
         expression_action->else_branch != NULL)
         goto done;
 
+    stage = 8;
     expression_alternative_action = (ASTIf*)expression_action->base.next;
     if (!expression_alternative_action ||
         expression_alternative_action->base.type != AST_IF ||
@@ -1034,6 +1043,7 @@ static int test_conditional_control_question_disambiguation(void) {
         expression_alternative_action->else_branch->type != AST_FUNC_CALL)
         goto done;
 
+    stage = 9;
     ordinary_pipe = (ASTNexusFlow*)expression_alternative_action->base.next;
     if (!ordinary_pipe || ordinary_pipe->base.type != AST_NEXUS_PIPE ||
         ordinary_pipe->op != TOKEN_PIPE || !ordinary_pipe->left ||
@@ -1046,7 +1056,7 @@ static int test_conditional_control_question_disambiguation(void) {
 
 done:
     parser_destroy(ctx);
-    if (!ok) return 0;
+    if (!ok) { fprintf(stderr, "conditional-control test failed at stage %d\\n", stage); return 0; }
     if (!parser_source_reports_syntax_error(
         "conditional-control-missing-arm.nxf",
         "f:main() { (a == b) ? ; }",
