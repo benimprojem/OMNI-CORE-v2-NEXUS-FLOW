@@ -413,3 +413,12 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added negative cases for decimal `d64` bitwise operands and incompatible `128bit` / `16byte` representations. Existing diagnostic tests continue to assert operator and actual operand type reporting with exact source locations.
 - No Semantic implementation behavior was changed in this checkpoint; the current rule remains that both operands must be bitwise-capable and type-compatible. This closes a coverage gap, not the Semantic phase.
 - Test commit: `dad4b6df`. CI verification: pending; do not mark this matrix green until the new branch-head run completes.
+
+
+### Semantic checkpoint — radix and wide shift-count constants — 2026-11-12
+
+- Closed a constant-evaluation hole in shift validation: the prior signed decimal-only evaluator treated radix-prefixed (`0x`, `0b`, `0o`) and underscore-separated integer literals as non-constant, allowing out-of-width counts to bypass the static range check. Values above `INT64_MAX` could also be mistaken for dynamic counts.
+- Added a bounded unsigned-literal parser for decimal/radix forms and digit separators, with explicit `uint64_t` overflow detection. The signed constant evaluator now reuses it for representable non-negative integer literals.
+- Shift validation now distinguishes negative constants, in-range unsigned constants, values outside the left operand width, constants exceeding the 64-bit count representation, and genuinely dynamic expressions. Dynamic counts remain deferred to the OIR/runtime trap contract.
+- Added positive/negative tests for hexadecimal, binary, octal, digit separators, negative radix counts, `UINT64_MAX`, and values above `UINT64_MAX`; diagnostic tests assert the offending count/range and exact source line.
+- Implementation commit: `d074c887`; regression tests: `bdc45c55`. CI verification: pending; do not mark the new cases green until the branch-head run completes.
