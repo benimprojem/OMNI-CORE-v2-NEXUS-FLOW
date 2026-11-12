@@ -6313,7 +6313,12 @@ static void semantic_check_node(
             break;
         }
 
-        case AST_ECHO:
+        case AST_ECHO: {
+            ASTCall* call = (ASTCall*)node;
+            if (call->args) semantic_check(ctx, call->args);
+            break;
+        }
+
         case AST_AREA:
         case AST_ZONE:
         case AST_FREE:
