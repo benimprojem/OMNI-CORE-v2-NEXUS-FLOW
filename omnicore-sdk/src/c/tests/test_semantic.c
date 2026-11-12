@@ -465,10 +465,10 @@ static int check_extended_ast_semantics(void) {
         "f:main() { v:choice = 1; scan(choice) { Range(a,b) when 1 -> { } } }";
     const char* valid_named_arguments =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
-        "f:main() { v:result!i32 = sum(b=2,a=1); }";
+        "f:main() { v:result!i32 = sum(b:2,a:1); }";
     const char* invalid_named_argument =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
-        "f:main() { v:result!i32 = sum(missing=2,a=1); }";
+        "f:main() { v:result!i32 = sum(missing:2,a:1); }";
     const char* valid_variadic_call =
         "f:log(first!i32,...)!void { ret; } "
         "f:main() { log(1,2,3); }";
