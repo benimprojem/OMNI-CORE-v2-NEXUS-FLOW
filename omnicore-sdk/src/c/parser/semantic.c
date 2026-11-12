@@ -2356,9 +2356,14 @@ static void semantic_validate_aggregate_field_names(
         field = (ASTVarDecl*)current;
         if (!field->name || !field->name[0]) {
             char message[256];
-            (void)snprintf(message, sizeof(message),
-                "%s requires every field to have a non-empty name.",
-                aggregate_name ? aggregate_name : "Aggregate");
+            if (aggregate_name) {
+                (void)snprintf(message, sizeof(message),
+                    "Aggregate '%s' requires every field to have a non-empty name.",
+                    aggregate_name);
+            } else {
+                (void)snprintf(message, sizeof(message),
+                    "Anonymous aggregate requires every field to have a non-empty name.");
+            }
             report_error(ctx, current, ERR_SEMANTIC_TYPE_MISMATCH, message);
             continue;
         }
