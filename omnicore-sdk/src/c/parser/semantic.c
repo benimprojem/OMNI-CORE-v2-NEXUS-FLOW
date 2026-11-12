@@ -2771,8 +2771,15 @@ static void semantic_check_node(
             } else if (bin->op == TOKEN_AND || bin->op == TOKEN_OR) {
                 if (!semantic_is_boolean_condition(ctx, bin->left) ||
                     !semantic_is_boolean_condition(ctx, bin->right)) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Logical operators require bool operands.");
+                    const char* left_type = get_expr_type(ctx, bin->left);
+                    const char* right_type = get_expr_type(ctx, bin->right);
+                    char message[320];
+                    (void)snprintf(message, sizeof(message),
+                        "Operator '%s' requires bool operands; got '%s' and '%s'.",
+                        semantic_binary_operator_name(bin->op),
+                        left_type ? left_type : "<unknown>",
+                        right_type ? right_type : "<unknown>");
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                 }
             }
 
