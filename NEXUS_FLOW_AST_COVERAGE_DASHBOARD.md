@@ -294,3 +294,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Variadic calls enforce the minimum fixed argument count and accept extra arguments; fixed arguments remain type-checked. SemanticResult function-parameter relations safely emit a marker relation with no fake variable symbol.
 - Added positive variadic call and missing-fixed-argument negative tests.
 - Commits: `f081c798` (Slot contract), `2bfddd11`, `f1d1940a`, `0cf7f812` (Semantic), `115ac855` (tests). CI pending.
+
+
+### Semantic checkpoint — named call arguments — 2026-11-12
+
+- `AST_NAMED_ARG` values now receive Semantic checking and rvalue type annotations.
+- Call validation resolves each named argument against the declared parameter name, uses that parameter's type for compatibility, and reports unknown names instead of silently skipping the wrapper.
+- Added reordered named-argument success and unknown-name failure fixtures.
+- Commits: `e20b2624` (argument mapping), `da982f2a` (node checking/annotation), `24c0cd38` (tests). CI pending.
