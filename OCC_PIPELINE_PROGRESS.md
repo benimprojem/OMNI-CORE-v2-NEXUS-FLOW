@@ -2260,3 +2260,12 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Semantic validates enum scan exhaustiveness, ignores guarded arms for coverage, detects duplicate unguarded variant matches and accepts a final else arm as fallback.
 - Added direct Semantic fixtures for duplicate coverage, guarded non-coverage and else fallback; existing constructor pattern tests now include the other enum variant so coverage diagnostics do not mask their intended assertions.
 - Updated the normative syntax reference and AST coverage dashboard. No OIR work started. Test execution and CI remain pending/unverified.
+
+
+### Semantic checkpoint — enum constructor calls — 2026-11-12
+
+- Added enum constructor-call resolution for the `EnumType.Variant(...)` AST form, distinct from instance member and Group method dispatch.
+- Positional arguments bind to payload fields by declaration order. Named arguments bind by field name and reject unknown, duplicate or omitted fields.
+- Constructor call checks validate payload count and declared `type_name` compatibility; constructor call and callee AST nodes receive enum type/function-designator annotations.
+- Added direct AST regression fixtures for valid positional/named constructors, unknown variant, missing payload, incompatible payload type and unknown named payload field.
+- Updated syntax reference and AST coverage dashboard. Enum Semantic remains partial for discriminant model and recursive payload type-expression compatibility. Tests and CI are not yet verified.
