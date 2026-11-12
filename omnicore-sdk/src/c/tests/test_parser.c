@@ -3767,6 +3767,20 @@ static int test_nested_group_and_default_ast(void) {
     return valid;
 }
 
+static int test_enum_discriminant_requires_value(void) {
+    static const char source[] = "nt:enum: State { Invalid = }";
+    ParserContext* parser = parser_init_source(
+        "enum-discriminant-missing-value.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    int rejected;
+    if (!parser) return 0;
+    rejected = parser_run(parser) == PARSER_STATUS_SYNTAX_ERROR &&
+        parser_get_status(parser) == PARSER_STATUS_SYNTAX_ERROR &&
+        parser->error_count > 0;
+    parser_destroy(parser);
+    return rejected;
+}
+
 static int test_enum_discriminant_parser_codec(void) {
     static const char source[] =
         "nt:enum: State { Idle = 0, Running(pid!u32) = 4, Done = 2 + 3 }";
@@ -3824,7 +3838,7 @@ done:
     if (stream) fclose(stream);
     if (decoded) ast_destroy(decoded);
     parser_destroy(parser);
-    return ok;
+    return ok && test_enum_discriminant_requires_value();
 }
 
 static int test_enum_payload_rejects_malformed_fields(void) {
