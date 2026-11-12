@@ -2170,7 +2170,13 @@ static void semantic_check_pattern_bindings(
     for (current=pattern; current; current=current->next) {
         if (current->type==AST_PATTERN_BINDING) {
             ASTPatternBinding* binding=(ASTPatternBinding*)current;
-            Slot* existing=find_slot(ctx,binding->name ? binding->name : "");
+            Slot* existing;
+            if(!binding->name || !binding->name[0]) {
+                report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Pattern binding is missing its identifier.");
+                continue;
+            }
+            existing=find_slot(ctx,binding->name);
             if(existing && existing->depth==ctx->current_depth) {
                 report_error(ctx,current,ERR_SEMANTIC_REDEFINED,
                     "Pattern binding is duplicated in the same arm.");
@@ -2191,8 +2197,21 @@ static void semantic_check_pattern_bindings(
                     SEMANTIC_RESULT_VALUE_LVALUE);
             }
         } else if (current->type==AST_PATTERN_CONSTRUCTOR) {
-            semantic_check_pattern_bindings(ctx,
-                ((ASTPatternConstructor*)current)->bindings,binding_type);
+            ASTPatternConstructor* constructor=(ASTPatternConstructor*)current;
+            if(!constructor->name || !constructor->name[0]) {
+                report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Constructor pattern is missing its name.");
+                continue;
+            }
+            if(!constructor->bindings) {
+                report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Constructor pattern requires at least one binding.");
+                continue;
+            }
+            semantic_check_pattern_bindings(ctx,constructor->bindings,binding_type);
+        } else if(current->type!=AST_LITERAL) {
+            report_error(ctx,current,ERR_SEMANTIC_TYPE_MISMATCH,
+                "Pattern contains an unsupported AST node.");
         }
     }
 }
@@ -3876,6 +3895,21 @@ static void semantic_check_node(
 
         case AST_SELECT_ARM: {
             ASTSelectArm* arm=(ASTSelectArm*)node;
+            if(!arm->body) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "select arm is missing its body.");
+                break;
+            }
+            if(arm->is_default && arm->pattern) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "select default arm must not contain a match pattern.");
+                break;
+            }
+            if(!arm->is_default && !arm->pattern) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "select match arm is missing its pattern.");
+                break;
+            }
             enter_scope(ctx,node);
             semantic_check_pattern_bindings(ctx,arm->pattern,NULL);
             semantic_check(ctx,arm->body);
@@ -3885,6 +3919,11 @@ static void semantic_check_node(
 
         case AST_SCAN_ARM: {
             ASTScanArm* arm=(ASTScanArm*)node;
+            if(!arm->body) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "scan arm is missing its body.");
+                break;
+            }
             enter_scope(ctx,node);
             semantic_check_pattern_bindings(ctx,arm->pattern,NULL);
             semantic_check(ctx,arm->body);
