@@ -2826,18 +2826,27 @@ static void semantic_check_node(
                        (right_type&&strcmp(right_type,"str")!=0))
                         report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                             "String append (.=) requires str operands.");
-                } else if(numeric_compound||bitwise_compound) {
-                    if(left_type&&right_type&&
-                       (!are_types_compatible(left_type,right_type)||
-                        (bitwise_compound
-                            ? (!is_bitwise_primitive_type(left_type)||
+                } else if (numeric_compound || bitwise_compound) {
+                    int invalid_types = left_type && right_type &&
+                        (!are_types_compatible(left_type, right_type) ||
+                         (bitwise_compound
+                            ? (!is_bitwise_primitive_type(left_type) ||
                                !is_bitwise_primitive_type(right_type))
-                            : (!is_numeric_primitive_type(left_type)||
-                               !is_numeric_primitive_type(right_type)))))
-                        report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                            bitwise_compound?
-                            "Bitwise compound assignment requires matching bitwise-capable operands.":
-                            "Numeric compound assignment requires matching numeric operands.");
+                            : (!is_numeric_primitive_type(left_type) ||
+                               !is_numeric_primitive_type(right_type))));
+                    if (invalid_types) {
+                        char message[320];
+                        if (bitwise_compound) {
+                            (void)snprintf(message, sizeof(message),
+                                "Bitwise compound assignment requires matching bitwise-capable types; got '%s' and '%s'.",
+                                left_type, right_type);
+                        } else {
+                            (void)snprintf(message, sizeof(message),
+                                "Numeric compound assignment requires matching numeric types; got '%s' and '%s'.",
+                                left_type, right_type);
+                        }
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    }
                 }
             }
             semantic_check(ctx, assign->left);
