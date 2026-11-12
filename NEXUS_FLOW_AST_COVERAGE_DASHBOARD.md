@@ -223,3 +223,11 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - First checkpoint CI exposed stale Semantic control-flow fixtures using the retired `(condition) -> action` spelling. Updated them to the normative `(condition) ? action` syntax; parser remains strict and does not revive the old form.
 - Parser regression fixture had six `ast_validate(root)` calls missing the required diagnostic-output argument; corrected them to `ast_validate(root, NULL)`.
 - These are test-harness corrections, not new language syntax. Re-run CI and only mark Semantic checkpoint verified after the latest commit matrix passes.
+
+
+### Semantic checkpoint — block cleanup marker — 2026-11-12
+
+- `AST_BLOCK_HALT` (`}?;`) now receives a SemanticResult annotation as a `void` rvalue cleanup marker instead of falling through silently.
+- Semantic explicitly treats the node as a valid cleanup instruction; execution/unwind ordering remains an OIR cleanup contract and is not claimed implemented here.
+- Added a valid nested-block cleanup Semantic fixture.
+- Commits: `5db1589f` (Semantic annotation), `3eece891` (test). CI pending.
