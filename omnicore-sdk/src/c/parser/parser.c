@@ -2289,7 +2289,7 @@ static ASTNode* parse_nexus_flow(Parser* p) {
             ASTNexusFlow* flow = (ASTNexusFlow*)expr;
             if(!match(p,TOKEN_LBRACE)) {
                 error_at(p,&p->current,ERR_PARSER_EXPECTED_BRACE,
-                    msg_get(MSG_EXPECT_LBRACE_BLOCK));
+                    "Expected '{' before catch handler block.");
                 ast_destroy(expr);
                 return NULL;
             }
