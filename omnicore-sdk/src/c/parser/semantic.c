@@ -5699,9 +5699,15 @@ static void semantic_check_node(
                     "thread_block is missing its body.");
                 break;
             }
-            enter_scope(ctx, node);
+            if (tb->body->type != AST_BLOCK) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "thread_block body must be an AST_BLOCK node.");
+                break;
+            }
+            /* AST_BLOCK owns the lexical scope. Do not create a redundant
+               wrapper scope here; the named thread container has no runtime
+               or independent symbol-table semantics in Core. */
             semantic_check(ctx, tb->body);
-            exit_scope(ctx);
             break;
         }
 
