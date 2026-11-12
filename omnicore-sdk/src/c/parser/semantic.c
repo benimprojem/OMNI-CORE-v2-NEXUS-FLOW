@@ -369,7 +369,8 @@ static uint32_t semantic_type_id(
         return status == SEMANTIC_RESULT_OK ? type_id : 0u;
     }
 
-    if (strcmp(name, "array") == 0) {
+    if (strcmp(name, "array") == 0 || strcmp(name, "map") == 0 ||
+        strcmp(name, "Map") == 0) {
         kind = SEMANTIC_RESULT_TYPE_AGGREGATE;
     } else if (strncmp(name, "f:(", 3u) == 0) {
         kind = SEMANTIC_RESULT_TYPE_FUNCTION;
@@ -1866,7 +1867,8 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
         strcmp(type_name, "2byte") == 0 || strcmp(type_name, "4byte") == 0 ||
         strcmp(type_name, "8byte") == 0 || strcmp(type_name, "16byte") == 0 ||
         strcmp(type_name, "Vec2") == 0 || strcmp(type_name, "Vec3") == 0 ||
-        strcmp(type_name, "Vec4") == 0 || strcmp(type_name, "void") == 0 ||
+        strcmp(type_name, "Vec4") == 0 || strcmp(type_name, "map") == 0 ||
+        strcmp(type_name, "Map") == 0 || strcmp(type_name, "void") == 0 ||
         strcmp(type_name, "any") == 0) {
         return 1;
     }
