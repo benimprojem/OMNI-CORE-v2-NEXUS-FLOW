@@ -947,23 +947,20 @@ default -> Success;
 
 - `always -> LogMetrics;`: Bariyer aşaması başarılı olan her uygulamada `LogMetrics` trigger'ını üretir.
 - `default -> Success;`: Hiçbir normal trigger eşleşmediğinde `Success` trigger'ını üretir. Bu trigger, `on RuleName.Success { ... }` ile yakalanabilir.
-- Doğrudan aksiyon çalıştırmak için blok biçimi kullanılır:
-
-```nexus
-always {
-    writeMetrics();
-}
-
-default {
-    applyStandardSettings();
-}
-```
-
-Blok biçiminde aksiyon doğrudan yürütülür. `always` ve `default` tanımları yoksa otomatik bir işlem oluşmaz.
+- Mevcut Parser gramerinde `always` ve `default` yalnızca ok biçimini kabul eder; sağ taraf tek bir statement olarak ayrıştırılır. Blok biçimindeki `always { ... }` / `default { ... }` kullanımı henüz desteklenmez.
+- `always` ve `default` tanımları isteğe bağlıdır; ikisi de yoksa otomatik bir işlem oluşmaz.
 
 #### 6. Derleyici temsili
 
-Parser; `AST_RULESET`, `AST_BARRIER`, `AST_TRIGGER`, `AST_APPLY_RULES` ve `AST_ON` düğümlerini oluşturur. Analyzer isim çözümlemesi, argüman/tip uyumu, yinelenen trigger adları ve handler eşleşmelerini doğrular.
+Parser; `AST_RULESET_DECL`, `AST_RULE_BARRIER`, `AST_RULE_TRIGGER`, `AST_RULE_ALWAYS`, `AST_RULE_DEFAULT`, `AST_APPLY_RULES` ve `AST_ON_BLOCK` düğümlerini oluşturur. Analyzer isim çözümlemesi, argüman/tip uyumu, yinelenen trigger adları ve handler eşleşmelerini doğrular.
+
+Semantic AST bütünlük kuralları:
+- RuleSet adı zorunludur; parametre listesi yalnızca değişken bildirimlerinden oluşur.
+- Bariyer düğümünde koşul ve tanı mesajı; trigger düğümünde koşul ve aksiyon/olay adı zorunludur.
+- Bariyer ve trigger koşulları bool olmalıdır; bariyer mesajı `str` olmalıdır.
+- `always` / `default` düğümlerinde aksiyon/olay adı zorunludur. Aynı RuleSet içinde trigger olay adları yinelenemez.
+- `apply rules` bir RuleSet adı taşımalıdır. `on` bloğu RuleSet adı, olay adı ve gövde gerektirir.
+- Bu yapısal koşullar dışarıdan üretilmiş AST'lerde de Semantic tarafından doğrulanır; eksik alanlar sessizce atlanmaz.
 
 OIR Builder, her bariyer için koşul dallanması ve hata biriktirme adımı üretir. Tüm bariyerler test edildikten sonra hata listesi boş değilse bütün kayıtlar raporlanır ve ayrı bir `RuleSetFailureExit` yoluna gidilir; bu yol normal `RETURN` ile aynı değildir. Hata yoksa bütün normal trigger koşulları birer kez değerlendirilir ve sonuçları SSA boolean değerleri olarak saklanır. Ardından eşleşen `on` handler'ları kaynak sırasıyla koşullu bloklar halinde yürütülür. Sonrasında varsa `always`, normal trigger eşleşmemişse varsa `default` aşaması çalışır. Canlı başarılı yollar `ApplyContinue` bloğunda birleştirilir.
 
