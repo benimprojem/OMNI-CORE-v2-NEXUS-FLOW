@@ -5689,6 +5689,11 @@ static void semantic_check_node(
 
         case AST_THREAD_BLOCK: {
             ASTThreadBlock* tb = (ASTThreadBlock*)node;
+            if (ctx->thread_block_depth != 0u) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Nested thread_block declarations are not allowed; each thread_block must be a complete, independent thread payload.");
+                break;
+            }
             if (!tb->name || !tb->name[0]) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "thread_block requires a non-empty block name.");
@@ -5704,10 +5709,11 @@ static void semantic_check_node(
                     "thread_block body must be an AST_BLOCK node.");
                 break;
             }
-            /* AST_BLOCK owns the lexical scope. Do not create a redundant
-               wrapper scope here; the named thread container has no runtime
-               or independent symbol-table semantics in Core. */
+            /* The named block is one complete thread payload. Nested
+               payloads are rejected; the child AST_BLOCK owns its scope. */
+            ++ctx->thread_block_depth;
             semantic_check(ctx, tb->body);
+            --ctx->thread_block_depth;
             break;
         }
 
