@@ -263,3 +263,10 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 
 
 - Follow-up test exposed that constant tuple indexing through an identifier initially lacked access to the initializer's tuple shape. Semantic now follows the identifier's declaration to its tuple initializer before resolving the element; this fixes both element-type inference and static out-of-range diagnostics. Commit `45752564`; CI pending.
+
+
+### Parser semantic grammar closure — catch-flow handler block — 2026-11-12
+
+- The normative `?-> (error) { handler }` catch form now requires its handler block; `?-> (error);` no longer parses as a valid catch flow.
+- This closes a parser regression fixture that previously passed only because the grammar accepted a missing handler. It is a grammar enforcement correction; Semantic still handles arm/catch scope/effects separately.
+- Commit: `4c057072`; CI pending.
