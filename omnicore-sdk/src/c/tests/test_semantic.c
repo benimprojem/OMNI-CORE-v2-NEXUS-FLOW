@@ -1240,9 +1240,9 @@ cleanup:
 
 static int check_enum_scan_pattern_semantics(void) {
     return check_enum_scan_pattern_case(0,0,"i32") &&
-        check_enum_scan_pattern_case(1,1,NULL) &&
+        check_enum_scan_pattern_case(1,2,NULL) &&
         check_enum_scan_pattern_case(2,1,NULL) &&
-        check_enum_scan_pattern_case(3,1,NULL) &&
+        check_enum_scan_pattern_case(3,2,NULL) &&
         check_enum_scan_pattern_case(4,1,NULL) &&
         check_enum_scan_pattern_case(5,1,NULL) &&
         check_enum_scan_pattern_case(6,1,NULL) &&
