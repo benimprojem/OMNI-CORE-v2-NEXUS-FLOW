@@ -1168,7 +1168,7 @@ static const char* semantic_binary_operator_name(OmniTokenType op) {
         case TOKEN_BIT_AND: return "&";
         case TOKEN_BIT_OR: return "|";
         case TOKEN_BIT_XOR: return "^";
-        case TOKEN_BIT_SHL: return "<<";
+        case TOKEN_BIT_SHL: return "<<<";
         case TOKEN_BIT_SHR: return ">>>";
         case TOKEN_EQ: return "==";
         case TOKEN_NEQ: return "!=";
