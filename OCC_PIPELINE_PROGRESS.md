@@ -2252,3 +2252,11 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added direct Semantic AST tests for valid typed capture and invalid paths: unknown variant, wrong payload arity, bare payload-bearing variant and constructor pattern on a non-enum subject.
 - Updated `docs/language/syntax-reference.md` and `NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md`.
 - Still open: constructor expression call/argument binding, duplicate scan arm coverage, exhaustive enum scan analysis, non-enum structural pattern semantics, and discriminant model. CI/test execution has not been confirmed; no pass claim is made.
+
+
+### Semantic checkpoint — enum scan coverage — 2026-11-12
+
+- Parser/AST now retain explicit scan-arm guard metadata (`ASTScanArm.has_guard`).
+- Semantic validates enum scan exhaustiveness, ignores guarded arms for coverage, detects duplicate unguarded variant matches and accepts a final else arm as fallback.
+- Added direct Semantic fixtures for duplicate coverage, guarded non-coverage and else fallback; existing constructor pattern tests now include the other enum variant so coverage diagnostics do not mask their intended assertions.
+- Updated the normative syntax reference and AST coverage dashboard. No OIR work started. Test execution and CI remain pending/unverified.
