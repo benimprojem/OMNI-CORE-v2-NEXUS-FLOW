@@ -482,3 +482,13 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Added direct malformed-AST regression fixtures to `test_semantic.c`, covering both missing-condition and missing-primary-branch cases. Existing source fixtures continue to cover boolean conditions, elsif/else chains, and conditional break/continue behavior.
 - Syntax reference records the required AST shape and optional else branch. Branch-head CI is not available yet; tests are committed but not marked passed.
 - Semantic implementation: `3a538992`; tests: `df8d2bcd`.
+
+
+### Semantic checkpoint — SELECT/SCAN branch structure — 2026-11-12
+
+- Semantic now validates required selector/subject expressions and arm bodies, rejects invalid arm node kinds, and checks that non-default SELECT arms carry a pattern while the default arm does not.
+- SELECT default is unique and final. SCAN else is unique and final; Parser already rejects a non-final SCAN else, while Semantic now defensively validates externally constructed ASTs.
+- Added regressions for SELECT default ordering and valid SCAN else placement. Existing fixtures cover boolean guard validation, pattern-binding visibility inside guards, duplicate pattern bindings, and arm-local binding scope.
+- The SCAN non-final-else rejection remains Parser-owned and is intentionally not duplicated as a Semantic source fixture.
+- Semantic implementation commit: `26f2659e`; regression test commits: `6e9195ac`, `2954d695`.
+- CI verification: pending; no test-pass claim is made.
