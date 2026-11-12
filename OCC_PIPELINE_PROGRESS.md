@@ -2102,3 +2102,13 @@ Bu tikler yalnızca yukarıdaki AST integrity kontrollerini kapatır. AST ID sat
 - Added fail-closed validation for AST_NEXUS_CAPTURE (handler + expression), AST_NEXUS_PIPE (both operands), AST_NAMED_ARG (name + value) and AST_LISTEN (handler name before scope entry).
 - Added direct malformed-AST regression fixtures. Full handler/event lifetime, pipe effects and listen runtime semantics remain open.
 - Dashboard alt-coverage checkmarks represent implementation + fixture presence; CI is pending.
+
+
+### Semantic sınır checkpoint — OS I/O / Thread modülü — 2026-11-12
+
+- Kullanıcı kararı netleştirildi: `echo` ve `input` OS module kapsamındadır; core dilin bare-metal garantisi değildir.
+- `spawn`, `listen`, `send`, `receive`, `done` ayrı Thread modülü/runtime alanıdır. Core Semantic scheduler/IPC/lifetime uygulamaz; AST structural doğrulaması ile modül API sözleşmesi ayrıdır. Legacy `AST_SPAWN` tag'i yeni syntax olarak değerlendirilmez.
+- Bare-metal `prnt` / `prmt` için çözüm önerisi: terminal çağrısı yerine target/runtime sink abstraction (UART, framebuffer console, debug channel veya host callback). Ortak ABI ve sürücü seçimi henüz kararlaştırılmadı; şimdilik Semantic bunlara target yeteneği varsayımı eklemiyor.
+- `write` / `fwrite` file/stream provider'a bağlı olarak belgelendi.
+- Normatif syntax reference commit: `d8268b7f`; dashboard commit: `c7695712`.
+- Bu not dokümantasyon checkpoint'idir; AST intrinsic signature testleri ve Thread modül implementasyonu tamamlanmış sayılmaz. CI pending.
