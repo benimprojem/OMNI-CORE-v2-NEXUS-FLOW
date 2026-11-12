@@ -335,3 +335,6 @@ Bu bölüm yalnızca Parser kapsamını izler. Lexer, AST payload, Semantic, OIR
 - Parser now recognizes `(e)` contextually only after `?->`, constructs the handler identifier and consumes its parentheses, then attaches the following block.
 - This restores normal call/group tokenization while preserving the catch syntax. Added Parser diagnostic tracing; verify exact fixture and cross-platform CI next.
 - Commits: `81f1da3e` (Lexer), `76176c20` (Parser). CI pending.
+
+
+- Ownership split correction: duplicate named labels and positional-after-named are already rejected by Parser (and covered in its variadic/named argument regression); removed those parser-invalid sources from Semantic's `check_source` fixtures. Semantic coverage remains reordered named-argument type checking and unknown-name diagnostics, with defensive duplicate/order checks for externally constructed ASTs.
