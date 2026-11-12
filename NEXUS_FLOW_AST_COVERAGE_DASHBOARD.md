@@ -72,7 +72,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Nominal type identity, alias-chain target validation, assignment/call/return compatibility ve recursive target validation Semantic ✓; target_type_expr payload round-trip ve OIR/Verifier açık |
 | Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Name/duplicate field/type/visibility/export/packed metadata Semantic ✓; ordered field payload round-trip, physical layout and lowering açık |
 | Struct literal | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` (106–107) | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Instance initialization/layout lowering ve Verifier invariant'ları |
-| Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Discriminant, payload type, constructor resolution ve exhaustiveness |
+| Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Variant/payload isim benzersizliği ve açık payload type validation Semantic ✓; constructor resolution, payload argument binding, discriminant model and exhaustiveness open |
 | Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | union flags ve field chain round-trip; active member ve safe access Semantic kuralları açık |
 | Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | members, method public_name/implementation ve flags round-trip; receiver/dispatch Semantic kuralları açık |
 | Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
@@ -725,3 +725,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Reviewed Struct semantics: name/duplicate field/type checks, packed/public/exported metadata, field visibility and aggregate access/literal checks are covered by Semantic implementation and fixtures.
 - Marked only the Semantic column complete for these rows. AST payload round-trip, physical aggregate layout, OIR lowering and Verifier remain open.
 - CI for the new `c:` fixtures is still pending/unreported; these marks describe implementation plus committed regression coverage, not a verified test run.
+
+
+### Semantic checkpoint — Enum variant and payload validation — 2026-11-12
+
+- Enum declarations now reject missing type names; variant lists reject non-variant nodes, empty names and duplicate variant names.
+- Variant payloads reject non-field nodes, empty/duplicate field names, missing field types and unknown named types. Recursive payload type expressions continue through the shared type-expression validator.
+- Added direct AST regressions for valid payload declarations, malformed variant/payload node kinds, missing enum/variant names, duplicate variant names, duplicate payload field names and missing payload types.
+- Updated the normative syntax reference with the enforced name/type rules and explicitly left constructor resolution, payload argument binding and exhaustiveness open.
+- Semantic remains partial for the enum row because constructor and pattern/exhaustiveness relations are not complete. Test execution and CI are pending.
