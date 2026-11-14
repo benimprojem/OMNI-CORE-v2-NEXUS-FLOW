@@ -1118,7 +1118,7 @@ static int check_extended_ast_semantics(void) {
         "f:main() { v:result!i32 = sum(2,3); }";
     const char* mismatched_generic_sum =
         "f:sum(a!t,b!t)!t { ret a + b; } "
-        "f:main() { v:result = sum(2,\\"wrong\\"); }";
+        "f:main() { v:result = sum(2,\"wrong\"); }";
     const char* inferred_select_binding =
         "f:main() { v:choice!i32 = 1; select(choice) { captured -> { "
         "v:copy!i32 = captured; } } }";
