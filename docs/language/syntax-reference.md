@@ -74,6 +74,18 @@ v:deep_value!i32 = **double;
 - `&T` shared reference değiştirilemezdir: `*r = value` ve `*r += value` gibi normal/bileşik yazma işlemleri Semantic hatasıdır. `*T` raw pointer hedefinde bileşik atama, hedef türü uyumluysa kabul edilir; raw pointer güvenlik/lifetime garantisi sağlamaz.
 - Bu işlem raw pointer erişimidir. Null, dangling pointer, bounds veya lifetime güvenliği sağlamaz; bunlar otomatik olarak doğrulanmış kabul edilmez.
 - Binary çarpma `a * b` ile unary dereference `*p`, konumlarına göre ayrı ayrıştırılır.
+
+**Borrow construction design (approved; implementation pending):** Güvenli referans oluşturma ifadeleri `&value` (shared immutable borrow) ve `&mut value` (exclusive mutable borrow) olacaktır. `&T` ve `&mut T` aynı referans ailesinin farklı mutability kurallarıdır; `&mut T` yalnızca tekil ve değiştirilebilir erişim sağlar. Shared borrow'lar birlikte bulunabilir; aktif shared borrow varken hedefe doğrudan yazılamaz. Aktif mutable borrow varken başka shared/mutable borrow veya owner üzerinden erişim yapılamaz. Borrow, kaynağın lexical lifetime sınırını aşamaz; döndürülen veya dışarı taşınan referansın kaynağı daha uzun yaşamalıdır. Derleyici bu kuralları statik olarak doğrulayamadığında güvenli referans üretimini kabul etmemelidir.
+
+Raw `*T` ise C benzeri düşük seviyeli pointer olarak kalır: pointer dereference ve ham adres işlemleri otomatik borrow/lifetime garantisi almaz. Raw pointer kullanımı güvenli referans kurallarını devre dışı bırakmaz; yalnızca açıkça ayrı bir düşük seviyeli erişim yolu sunar. Pointer arithmetic, nullability sözleşmesi, unsafe bölge sözdizimi ve ABI kuralları ayrıca tasarlanacaktır.
+
+```nxf
+v:value!i32 = 10;
+v:read_only!&i32 = &value;
+v:exclusive!&mut i32 = &mut value;
+```
+
+> Bu bölüm onaylanmış dil tasarımını kaydeder. Mevcut Parser henüz `&value` / `&mut value` borrow ifadelerini üretmez; AST temsili, borrow provenance, alias/conflict ve escape/lifetime Semantic kontrolleri uygulanıp test edilene kadar özellik tamamlanmış sayılmaz.
 ---
 
 ###  2.2 Tipler **
