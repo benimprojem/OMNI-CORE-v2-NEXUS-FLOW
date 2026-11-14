@@ -1857,9 +1857,15 @@ static ASTNode* parse_power(Parser* p) {
 
 static ASTNode* parse_unary(Parser* p) {
     if (match(p, TOKEN_NOT) || match(p, TOKEN_MINUS) ||
-        match(p, TOKEN_BIT_NOT) || match(p, TOKEN_STAR)) {
+        match(p, TOKEN_BIT_NOT) || match(p, TOKEN_STAR) ||
+        match(p, TOKEN_BIT_AND)) {
         Token operator_token = p->previous;
         OmniTokenType op = operator_token.type;
+        if (op == TOKEN_BIT_AND && p->current.type == TOKEN_IDENTIFIER &&
+            p->current.length == 3 && memcmp(p->current.start, "mut", 3u) == 0) {
+            advance(p);
+            op = TOKEN_BORROW_MUT;
+        }
         ASTNode* operand;
         if (p->nesting_depth >= PARSER_MAX_NESTING_DEPTH) {
             error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
@@ -2591,7 +2597,7 @@ static int parser_is_type_start(Parser* p) {
 /* Preserve pointer/reference prefixes and callback signatures in AST type-name fields. */
 static int parser_parse_type_name(Parser* p, char** out,
     int include_hard_marker, int is_hard_typed) {
-    char prefix[2];
+    char prefix[5];
     size_t prefix_length = 0u;
     size_t type_length;
     size_t total_length;
@@ -2628,6 +2634,12 @@ static int parser_parse_type_name(Parser* p, char** out,
         if (match(p, TOKEN_STAR)) prefix[prefix_length++] = '*';
     } else if (match(p, TOKEN_BIT_AND)) {
         prefix[prefix_length++] = '&';
+        if (p->current.type == TOKEN_IDENTIFIER && p->current.length == 3 &&
+            memcmp(p->current.start, "mut", 3u) == 0) {
+            advance(p);
+            memcpy(prefix + prefix_length, "mut", 3u);
+            prefix_length += 3u;
+        }
     }
 
     if (!((p->current.type >= TOKEN_TYPE_U8 &&
@@ -2677,6 +2689,7 @@ static ASTNode* parser_build_type_expr(
     size_t offset=0u;
     size_t pointer_depth=0u;
     int is_reference=0;
+    int is_mutable_reference=0;
     ASTNode* root=NULL;
     ASTTypeExpr* named=NULL;
 
@@ -2688,7 +2701,14 @@ static ASTNode* parser_build_type_expr(
         goto apply_qualifier;
     }
     while(spelling[offset]=='*') { ++pointer_depth; ++offset; }
-    if(spelling[offset]=='&') { is_reference=1; ++offset; }
+    if(strncmp(spelling+offset, "&mut", 4u)==0) {
+        is_reference=1;
+        is_mutable_reference=1;
+        offset+=4u;
+    } else if(spelling[offset]=='&') {
+        is_reference=1;
+        ++offset;
+    }
     if(!spelling[offset]) return NULL;
 
     /* Parse a compact fixed/dynamic array suffix in recursive type spelling.
@@ -2790,6 +2810,8 @@ static ASTNode* parser_build_type_expr(
         ASTTypeExpr* wrapper=(ASTTypeExpr*)parser_ast_create(p,AST_TYPE_EXPR);
         if(!wrapper) { ast_destroy(root); return NULL; }
         wrapper->kind=AST_TYPE_REFERENCE;
+        if(is_mutable_reference)
+            wrapper->flags=AST_TYPE_FLAG_MUTABLE_REFERENCE;
         wrapper->child=root;
         wrapper->base.line=first->line;
         wrapper->base.col=first->col;
