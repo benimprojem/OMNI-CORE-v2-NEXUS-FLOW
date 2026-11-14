@@ -31,6 +31,7 @@ typedef struct Slot {
     char* type_name;      // Değişken tipi, Fonksiyon dönüş tipi veya NewType hedefi
     ASTNode* declaration_node; // Non-owning AST declaration for signature validation
     int param_count;      // Fixed function parameter count
+    int required_param_count; // Parameters before the trailing default-value suffix
     int is_variadic;       // Final AST_VARIADIC_PARAM permits additional arguments
     char** param_types;   // Fonksiyon parametre tipleri
     FieldInfo* fields;    // Struct alanları veya Enum varyantları
