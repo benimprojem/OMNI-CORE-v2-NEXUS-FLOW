@@ -57,6 +57,22 @@ Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY
 
  > `&&T` mevcut Nexus Flow type syntax'ında tanımlı değildir ve reserved kabul edilir. `**T`, pointer katmanlarının iç içe geçmesini ifade eder; `&T` referans türüdür.
  > Pointer/reference türleri `*T`, `**T` ve `&T` biçimlerinde Parser tarafından local variable, function parameter, return type ve `nt:` hedef tipi bağlamlarında kabul edilir. SemanticResult bunları katman başına ayrı type ID ve `base_type_id` ilişkisiyle temsil eder; `**T` iki Pointer kaydı, `&T` Reference kaydı üretir. Bu yapısal kayıt pointer validity, mutability, nullability, aliasing ve borrow/lifetime kurallarının tamamlandığı anlamına gelmez.
+
+**Raw pointer dereference (expression):** Bir pointer ifadesinin başına unary `*` konularak hedef değere erişilir. İç içe pointer katmanları için her katman ayrı dereference edilir:
+
+```nxf
+v:single!*i32;
+v:double!**i32;
+v:value!i32 = *single;
+v:inner!*i32 = *double;
+v:deep_value!i32 = **double;
+*single = 42;
+```
+
+- Unary `*` yalnızca pointer türündeki operandı kabul eder; `*integer` Semantic hatasıdır.
+- Dereference edilen hedef, atama sol tarafında kullanılabilir; atanan değer hedef pointee türüyle uyumlu olmalıdır.
+- Bu işlem raw pointer erişimidir. Null, dangling pointer, bounds veya lifetime güvenliği sağlamaz; bunlar otomatik olarak doğrulanmış kabul edilmez.
+- Binary çarpma `a * b` ile unary dereference `*p`, konumlarına göre ayrı ayrıştırılır.
 ---
 
 ###  2.2 Tipler **
