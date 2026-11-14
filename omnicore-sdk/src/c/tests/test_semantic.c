@@ -1203,7 +1203,7 @@ static int check_extended_ast_semantics(void) {
         check_source(valid_tuple_indexing,0) &&
         check_source(invalid_tuple_index,1) &&
         check_source(valid_map_dynamic_values,0) &&
-        check_source(invalid_map_const_write,1) &&
+        check_source(invalid_map_const_write,2) &&
         check_source(inferred_generic_identity,0) &&
         check_source(inferred_generic_second_parameter,0) &&
         check_source(inferred_generic_named_parameter,0) &&
