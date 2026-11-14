@@ -3055,6 +3055,8 @@ static int semantic_populate_function_signature(
     SemanticContext* ctx, Slot* function_slot, ASTFuncDecl* function
 ) {
     int parameter_count = 0;
+    int required_parameter_count = 0;
+    int saw_default_parameter = 0;
     ASTNode* parameter;
     if (!ctx || !function_slot || !function) return 0;
     if (function_slot->param_count != 0 || function_slot->param_types ||
@@ -3062,15 +3064,29 @@ static int semantic_populate_function_signature(
 
     for (parameter = function->params; parameter; parameter = parameter->next) {
         if (parameter->type == AST_VARIADIC_PARAM) {
+            if (parameter->next) {
+                report_error(ctx, parameter, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Variadic parameter must be the final function parameter.");
+            }
             function_slot->is_variadic = 1;
         } else if (parameter->type == AST_VAR_DECL) {
+            ASTVarDecl* variable = (ASTVarDecl*)parameter;
             ++parameter_count;
+            if (variable->initializer) {
+                saw_default_parameter = 1;
+            } else if (saw_default_parameter) {
+                report_error(ctx, parameter, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Required parameters cannot follow parameters with default values.");
+            } else {
+                ++required_parameter_count;
+            }
         } else {
             semantic_set_result_error(ctx,SEMANTIC_RESULT_INVALID_DATA);
             return 0;
         }
     }
     function_slot->param_count = parameter_count;
+    function_slot->required_param_count = required_parameter_count;
     if (parameter_count == 0) return 1;
 
     function_slot->param_types = (char**)semantic_callocate(
@@ -3363,6 +3379,7 @@ static void semantic_validate_call_arguments(
     uint32_t argument_count = 0u;
     uint32_t positional_count = 0u;
     uint32_t expected_count;
+    uint32_t minimum_count;
     ASTNode* argument;
     uint32_t argument_index = 0u;
     ASTFuncDecl* declaration = NULL;
@@ -3379,10 +3396,10 @@ static void semantic_validate_call_arguments(
         return;
     }
     expected_count = (uint32_t)function_slot->param_count - parameter_offset;
-    if ((function_slot->is_variadic && argument_count < expected_count) ||
-        (!function_slot->is_variadic &&
-         (argument_count < expected_count ||
-          positional_count > expected_count))) {
+    minimum_count = (uint32_t)function_slot->required_param_count > parameter_offset
+        ? (uint32_t)function_slot->required_param_count - parameter_offset : 0u;
+    if (argument_count < minimum_count ||
+        (!function_slot->is_variadic && argument_count > expected_count)) {
         char message[256];
         snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_COUNT),
             function_slot->name, (int)expected_count, (int)argument_count);
