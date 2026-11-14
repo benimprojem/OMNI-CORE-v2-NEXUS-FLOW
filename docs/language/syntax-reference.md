@@ -1083,57 +1083,72 @@ Ayrıntılı AST, Analyzer ve OIR semantiği: [Multi-Rule Engine Formal Specific
 
 ---
 
-### 5.4 Group Metodu
+### 5.4 Group ve Group Metotları
 
-*Group Fonksiyonu (Metodu) Birbirlerine benzeyen veya belirli bir grup içerisinde, benzer bir amaca hizmet eden fonksiyonları bir araya getirmektir.*
-*Özellikle Kütüphane yazımını ve kullanımını kolaylaştırmak için oluşturulmuştur.*
-```
-# db Grubu.
-group db{
-    # nosql Alt grup oluşturma.
-    nosql => group{
-        open => f:(...){....}
+`group Name { ... }`, ilişkili fonksiyonları, metot takma adlarını, Group'a ait nominal türleri ve iç Group'ları tek bir ad alanında toplar. Group bir sınıf/nesne allocation mekanizması değildir; instance dispatch yalnızca Group içinde tanımlanan nominal tür ile ilişkilendirilen metotlarda oluşur.
 
-        close => f:(...) {....}
+**Temel sözdizimi:**
 
-        new => f:(...){....}
-        
-        qurey => f:(...){....}
-        
-        help =>f:(){.....}
-        # default opsiyonel
-        default { echo("Yardım için "db.nosql.help" kullanın."); }
+```nxf
+group Storage {
+    struct:Storage {
+        v:value!i32
     }
-    # sqlite Alt grup oluşturma.
-    sqlite => group{
-        # Alt group fonksiyonları.
-        open => f:(...){....}
 
-        close => f:(...) {....}
-
-        new => f:(...){....}
-        
-        qurey => f:(...){....}
-        
-        help =>f:(){.....}
-        # default opsiyonel
-        default { echo("Yardım için "db.sqlite.help" kullanın."); }
+    # Instance method: ilk parametre self olmalıdır.
+    open => f:open_impl(self) {
+        self.value = 1;
+        ret;
     }
-    # default opsiyonel
-    default { echo("Yardım için "db.sqlite.help yada db.nosql.help" kullanın."); }
+
+    # Static method: self parametresi yoktur.
+    parse => f:parse_impl(text!str) {
+        ret;
+    }
+
+    # Group'a doğrudan ait fonksiyon (method alias değildir).
+    f:version()!u32 { ret 1; }
+
+    default {
+        echo("Storage default action");
+    }
 }
-# Kullanım:
-db.nosql.open("category.db");
-db.sqlite.open("product.db");
-db.sqlite # default çalıştır.
-db  # default çalıştır.
 
-# Olanaklar çoktur. Örnek: file grubu, file ile ilgili tüm fonksiyonları aynı yerde toplar.
-# (f) <- file.open("test.txt",rw)?->(e){echo("Dosya Açılamadı.");};
-#  .....
-# file.close(f);
-
+v:storage!Storage;
+storage.open();
+Storage.parse("config");
+Storage.version();
+Storage; # default metodu çağırır
 ```
+
+**Metot eşleştirme ve çağrı kuralları:**
+- `public_name => f:implementation(...) { ... }` biçiminde sol taraf çağrılan metot adıdır; sağ taraf gerçek fonksiyon implementation'ıdır.
+- Instance method için ilk parametre `self` olmalıdır. `self` türü, Group'a ait nominal Struct tanımından çıkarılabilir veya açıkça `self!Storage` yazılabilir. `self` ilk sırada değilse ya da açık tür Group türüyle uyuşmuyorsa Semantic hatasıdır.
+- Static method `self` parametresi içermez. Instance üzerinden static method çağrısı ve tür/Group adı üzerinden instance method çağrısı reddedilir.
+- Çağıran `self` argümanını vermez; receiver otomatik geçirilir. Named argüman eşleştirmesi `self` sonrasındaki ilk açık parametreden başlar; `self:` adı çağırana açık değildir.
+- Positional ve named argümanlar parametre sayısı, isim, tekrar, çakışma ve tür uyumu açısından denetlenir. Fazla positional argüman ve bilinmeyen/tekrarlanan named argüman reddedilir.
+- Public method alias adları benzersizdir. Implementation function adı başka alias'la veya Group içindeki doğrudan fonksiyonla çakışamaz. Overload desteklenmez.
+- Group içindeki Struct/Enum/Union türleri Group scope'una aittir. Dış scope ve nested Group bu türleri otomatik olarak devralmaz; nested Group kendi türlerini tanımlar.
+- `default { ... }` Group'ın varsayılan dispatch gövdesidir. Bare Group expression `Storage;` bu metodu çağırır; `default` yoksa bare Group dispatch hatadır.
+- `child => group { ... }` nested Group tanımlar; `Storage.child.method(...)` biçiminde erişilir.
+
+**Nested Group örneği:**
+
+```nxf
+group Database {
+    sql => group {
+        connect => f:connect_impl(self, path!str) { ret; }
+    }
+    memory => group {
+        clear => f:clear_impl() { ret; }
+    }
+}
+
+Database.sql.connect("app.db");
+Database.memory.clear();
+```
+
+**Uygulama sınırı:** Parser; Group, nested Group, method alias, direct function, nominal type ve default gövdesi için AST üretir. Semantic; alias/implementation uniqueness, Group type scope, `self`, static/instance dispatch ve temel positional/named argument kontrollerini uygular. Receiver visibility ve kalan signature sözleşmesinin tamamı henüz kapanmadığından Group Semantic durumu kısmi (`~`) kalır. OIR/Verifier ve runtime dispatch sonraki aşamalardır.
 
 ### 5.5 Relocate (`_>`)
 
@@ -1255,35 +1270,58 @@ struct:Point {
 
 ```
 
-####  7.2 `enum` (Seçenekler)**
+#### 7.2 `enum` — Varyantlar, payload ve discriminant
 
-Enum'lar nxf'de sadece sayı dizisi değildir; her bir seçenek kendi verisini de taşıyabilir (Rust tarzı Algebraic Data Types).
+Enum, adlandırılmış varyantlardan oluşan bir türdür. Varyant payload taşıyabilir veya yalnızca bir tag olabilir. Enum türü `enum:Name` bildirimiyle tanımlanır; `nt:enum: Name` biçimi de NewType önekli enum bildirimidir.
 
-```
-enum:State {
+```nxf
+enum:Task {
     Idle,
     Running(pid!u32),
-    Error(code!u16)
+    Failed(code!u16),
+    Finished
 }
 
-# Kullanım:
-v:current = State.Running(1024);
+v:current!Task = Task.Running(1024);
 ```
 
-Enum semantic rules:
-- Enum type names must be non-empty and unique in the visible declaration scope.
-- Variant names must be non-empty and unique within the enum.
-- Payload field names must be non-empty and unique within their variant.
-- Every payload field must declare a type; unknown named types and invalid recursive type expressions are rejected.
-- In an enum `scan`, constructor patterns resolve against the subject enum; unknown variants are rejected.
-- Constructor payload bindings are positional and inherit the corresponding declared payload field type. A wrong binding count, non-binding payload pattern, or bare match of a payload-bearing variant is rejected.
-- A bare variant name matches only a variant with no payload. Pattern guards do not change the binding types.
-- Exhaustive enum `scan` checking, duplicate-variant arm detection and constructor expression argument binding remain open Semantic items.
+**Declaration ve payload kuralları:**
+- Enum tür adı boş olamaz; görünür scope içinde tür adı benzersiz olmalıdır.
+- Variant adları enum içinde boş olamaz ve benzersiz olmalıdır.
+- Payload alan adları ilgili variant içinde boş olamaz ve benzersiz olmalıdır; her payload alanı bir tür taşımalıdır.
+- Bilinmeyen adlandırılmış türler ve geçersiz recursive type expression'lar reddedilir.
+- Constructor çağrısı `EnumType.Variant(...)` biçimindedir. Positional payload alanları bildirim sırasına, named payload alanları alan adına göre eşleştirilir. Bilinmeyen/tekrarlanan alan, eksik alan, fazla argüman veya tür uyuşmazlığı Semantic hatasıdır.
 
-**Enum discriminants:** A variant may declare an optional explicit integer value after its name or payload. Omitted values are assigned automatically.
+**Enum `scan` kuralları:**
+- Constructor pattern, subject ifadesinin enum türüne göre çözülür; bilinmeyen variant veya enum olmayan subject üzerinde enum constructor pattern reddedilir.
+- `Variant(a,b)` payload binding'leri alanların bildirim sırasındaki türlerini alır. Yanlış binding sayısı veya payload taşıyan variant'ın payload'sız eşleştirilmesi reddedilir.
+- Payload taşımayan variant yalnızca yalın `Variant` biçiminde eşleştirilebilir.
+- Aynı unguarded variant arm'ının yinelenmesi hatadır. `when` guard'ı bulunan arm, exhaustive coverage hesabında variant'ı tek başına kapatmaz.
+- Bütün variant'lar unguarded biçimde kapsanmalı veya bir `else` arm bulunmalıdır. Eksik variant'lar Semantic tanısıyla bildirilir.
 
+```nxf
+enum:Task {
+    IO(file!str),
+    Compute(a!i32, b!i32),
+    Network(url!str),
+    Cleanup
+}
+
+v:task!Task = Task.Compute(10, 20);
+
+scan task {
+    IO(file) -> { echo(file); }
+    Compute(a, b) when a > 0 && b > 0 -> { echo(a + b); }
+    Compute(a, b) -> { echo(a + b); }
+    Network(url) -> { echo(url); }
+    Cleanup -> { echo("cleanup"); }
+}
 ```
-nt:enum: State {
+
+**Discriminant:** Her variant isteğe bağlı explicit integer discriminant alabilir. İlk implicit değer `0`'dır; sonraki implicit değer önceki çözülmüş değerin bir fazlasıdır. Explicit değer sonraki implicit değer için yeni taban olur.
+
+```nxf
+enum:State {
     Idle,                  # 0
     Running(pid!u32) = 4,  # 4
     Paused,                # 5
@@ -1292,34 +1330,36 @@ nt:enum: State {
 }
 ```
 
-- The first implicit discriminant is `0`; each following implicit value is the previous resolved value plus one.
-- An explicit value becomes the new sequence base; the next implicit value is explicit value plus one.
-- Values must be unique within their enum.
-- The current Semantic constant evaluator accepts integer literals and compile-time arithmetic using unary `+`/`-` and binary `+`, `-`, `*`, `/`, `%`. Identifiers, floating-point values and runtime expressions are rejected.
-- The front-end semantic range is signed 64-bit (`INT64_MIN` through `INT64_MAX`). An implicit increment after `INT64_MAX` is an error; a subsequent explicit value may reset the sequence.
-- AST preserves the optional expression and the resolved signed value. The eventual OIR/target ABI defines the physical enum representation; signed 64-bit is not a storage-width requirement.
-- Diagnostics identify non-constant/non-integer values, duplicate discriminants and implicit-value overflow.
+- Discriminant değerleri enum içinde benzersiz olmalıdır.
+- Semantic constant evaluator integer literal ve compile-time unary `+`/`-`, binary `+`, `-`, `*`, `/`, `%` ifadelerini kabul eder; identifier, float ve runtime expression reddedilir.
+- Çözümleme aralığı signed 64-bit (`INT64_MIN..INT64_MAX`) değeridir. `INT64_MAX` sonrasındaki implicit increment hatadır; sonraki explicit değer diziyi yeniden başlatabilir.
+- AST hem optional expression'ı hem de çözülmüş signed değeri korur. Bu, enum'un fiziksel storage width'ünün 64-bit olduğu anlamına gelmez; layout/representation OIR ve target ABI sorumluluğudur.
+- Bu declaration, constructor, payload binding, exhaustiveness ve discriminant Semantic kuralları regression testleriyle doğrulanmıştır. OIR representation ve bağımsız Verifier kuralları sonraki aşamadır.
 
-####  7.3 `union` (Ortak Bellek Alanı)**
+#### 7.3 `union` — C benzeri ortak bellek
 
-Kernel ve Driver yazarken aynı bellek alanına farklı tiplerle bakmak gerekir.
+Union üyeleri aynı storage alanını paylaşır. Bu yapı özellikle ABI, sistem, kernel ve driver kodunda düşük seviyeli veri yorumlama için kullanılır.
 
-```
-union:Register32 {
-    v:full!u32,
-    v:parts!struct {
-        v:low!u16,
-        v:high!u16
-    }
+```nxf
+union:Word {
+    v:whole!u32,
+    v:low!u16
 }
 
+v:word!Word;
+word.whole = 0x12345678;
+v:low_part!u16 = word.low; # aynı storage farklı üye türüyle okunur
 ```
 
-Union semantic contract (C-like shared-storage behavior):
-- Union fields require non-empty, unique names and an explicit declared type, just like Struct fields.
-- All members share the same storage. Writing one member overwrites the shared storage; Semantic resolves reads and writes using the selected member's declared type.
-- Semantic does not track an active member and does not reject a read merely because a different member was written most recently. Reading another member reinterprets the shared object representation; the resulting value/layout is target-ABI dependent and is not a portable conversion guarantee.
-- This is an intentional low-level facility for systems, kernel and driver code. It does not promise that every cross-member interpretation is meaningful or safe on every target. Physical size, alignment, padding and representation belong to the target ABI/OIR contract.
+**Union Semantic sözleşmesi:**
+- Union adı ve üye adları boş olamaz; üye adları benzersiz olmalıdır.
+- Her üye açık bir tür taşımalıdır; bilinmeyen tür ve geçersiz recursive type expression reddedilir.
+- Bütün üyeler aynı storage alanını paylaşır. Bir üyeye yazma ortak storage'ı değiştirir.
+- Semantic aktif üye takibi yapmaz. Başka bir üyeyi okumak, son yazılan üyenin türüne göre engellenmez; seçilen üyenin bildirilen türüyle yorumlanır.
+- Üyeler arası okuma portable tür dönüşümü değildir. Sonuç object representation, endianness, alignment, padding ve target ABI'ye bağlıdır; her hedefte anlamlı veya güvenli olduğu garanti edilmez.
+- Struct'tan farklı olarak Union için her üye ayrı bir instance alanı değildir. Fiziksel boyut, alignment ve OIR layout sonraki aşamaların sorumluluğudur.
+
+Bu C-like shared-storage Semantic sözleşmesi ve geçersiz üye/tür kontrolleri regression testleriyle doğrulanmıştır. Fiziksel layout, ABI ve OIR lowering henüz tamamlanmamıştır.
 
 ####  7.4 `nt:` (NewType)(Typedef)**
 
