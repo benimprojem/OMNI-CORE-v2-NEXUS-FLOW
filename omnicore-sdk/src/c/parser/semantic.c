@@ -5058,9 +5058,12 @@ static void semantic_check_node(
                 source_slot=find_slot(ctx,((ASTIdentifier*)relocate->source)->name);
             if(relocate->target && relocate->target->type==AST_IDENTIFIER)
                 target_slot=find_slot(ctx,((ASTIdentifier*)relocate->target)->name);
-            if(!source_slot || !target_slot) {
+            if(!relocate->source || relocate->source->type!=AST_IDENTIFIER ||
+               !relocate->target || relocate->target->type!=AST_IDENTIFIER) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Relocation requires declared source and destination identifiers.");
+                    "Relocation requires identifier source and destination operands.");
+            } else if(!source_slot || !target_slot) {
+                /* Identifier resolution already reports the undefined name. */
             } else if(source_slot==target_slot) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                     "Relocation source and destination must be different variables.");
