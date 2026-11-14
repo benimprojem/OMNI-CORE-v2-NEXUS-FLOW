@@ -1,7 +1,7 @@
 # NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu
 
 **Dal:** `refactor/c-core-roadmap`  
-**Güncelleme:** 2026-11-12  
+**Güncelleme:** 2026-11-15  
 **Amaç:** Dil referansında kayıtlı syntax yapılarını sekiz başlıkta görünür kılmak; her yapının Lexer, Parser, AST/Codec, Semantic, OIR Lowering ve bağımsız Verifier aşamalarında nerede olduğunu göstermek.
 
 > Bu belge bir tamamlanma ilanı değildir. Durumlar aktif C dalındaki syntax referansı, syntax/AST matrisi, AST düğüm envanteri, OIR kayıtları, ilerleme kaydı ve mevcut test kanıtları birlikte değerlendirilerek verilmiştir. Bir aşamanın tamamlanması sonraki aşamaları otomatik olarak tamamlamaz.
@@ -20,6 +20,49 @@
 **Sütunlar:** L = Lexer, P = Parser, A = AST payload + lifecycle + codec, S = Semantic, O = OIR lowering, V = bağımsız OIR Verifier.  
 **Önemli:** Verifier ham AST almaz. AST'den Semantic AST'ye, oradan OIR'a indirgenen yürütülebilir davranışı doğrular. Bu nedenle O sütunu kapanmadan V sütunu da o syntax özelliği için kapanmış sayılamaz.
 
+## CI verification checkpoint — 2026-11-12
+
+- Branch: `refactor/c-core-roadmap`
+- Verified commit: `2c7f11b652919c71a2811b65928e1ceda91a8649`
+- GitHub Actions run: `43287142976`
+- Result: all five jobs passed — Ubuntu build/tests, Windows build/tests, macOS build/tests, ASan/UBSan and Valgrind.
+- CTest result: 73/73 passed on the Ubuntu test job. The sanitizer and Valgrind jobs also completed successfully.
+- This green result supersedes earlier checkpoint notes in this document that say CI is pending for the same committed fixtures. It does not close any remaining design, OIR or Verifier work.
+
+## Group / method Semantic closure — 2026-11-12
+
+- Group method integrity, public alias and implementation-symbol uniqueness, Group-bound nominal type visibility, inferred/explicit `self`, static/instance dispatch and external-scope Group-qualified calls are covered by source and malformed-AST regressions.
+- Instance receivers are implicit: callers cannot supply `self`; remaining positional/named arguments are matched against explicit parameters, with excess, unknown, duplicate and positionally conflicting arguments rejected. Static methods require Group/type-qualified calls; instance methods require an instance receiver.
+- Duplicate public names reject overloads; method implementation symbols cannot be shared by aliases or collide with direct Group functions. The normative syntax reference documents this contract.
+- GitHub Actions run [43305008261](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43305008261) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. Group / method Semantic is closed; OIR lowering and independent Verifier remain open.
+
+## Ownership / Handler / Halt design checkpoint — 2026-11-12
+
+- The user approved a single-owner, explicit-transfer ownership model with lexical lifetimes. `copy(value)` is the explicit copy operation; moved-from names become invalid.
+- `&T` is the shared immutable borrow design; `&mut T` is the exclusive mutable borrow design, but the current Parser does not yet accept `&mut T`. Raw `*T` remains outside automatic borrow/lifetime guarantees.
+- Handler tables `(h)` belong to their defining block. Fresh tables are created by `(h) <- expression`; the expression may be a direct value (for example, a string literal whose address is held by the table). `(h) -> ...` passes an active table into a processing flow; the target is not restricted to a lambda. Valid target spellings may include a function/call expression such as `(hand) -> process(hand)` and a block-bearing callable form such as `(hand) -> process(hand) { ... }`; `(hand) -> f:(hand) { ... }` is another possible spelling, not a mandatory grammar shape. `_>` is a forward relocation: it routes data and ownership from a source handler to a target handler declared later in source order and in another scope. At the target's own code position, the activated target table is passed onward to its processing target; it does not evaluate a second source-producing `<- expression`. `_>` does not jump execution or run the target scope early. Parser regression `test_handler_capture_string_and_call_flow_ast` covers direct string capture, a plain function-call target, a function-call target with an attached ordinary block, and AST serialize/deserialize preservation of that block. `ASTNexusFlow` exposes `target_block` as an alias of the legacy optional serialized block slot, keeping processing blocks distinct in the API from catch blocks without changing the serialized layout. GitHub Actions run [43320604680](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43320604680) passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan and Valgrind). Parser regression coverage for capture, call targets, attached processing blocks and AST codec round-trip is verified. Semantic ownership and forward target resolution remain open; this does not close Handler Semantic.
+- Both `?;` and block-end `}?;` are defined as global active-resource Halt forms for the current execution context. Their difference is syntactic placement, not cleanup scope.
+- The normative syntax reference records these decisions, fresh-table creation, processing-flow activation, and a forward cross-scope relocation example. This is a design/documentation checkpoint only: forward target resolution, Semantic ownership/borrow tracking, Halt control-flow effects, OIR metadata/lowering and independent Verifier checks remain open. No dashboard completion mark is granted.
+- Pointer/reference regression fixture was corrected to avoid unsupported `&*T` syntax. GitHub Actions run [43309269784](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43309269784) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. This verifies the corrected type-compatibility fixtures, not ownership/lifetime Semantic completion.
+
+## Relocation Semantic checkpoint — 2026-11-15
+
+- Added `Slot.is_moved` ownership state and negative regression cases for use-after-move, source==destination, unknown target and type mismatch. Initial implementation placed transfer handling in `AST_BINARY_EXPR`, but Parser emits `AST_RELOCATE`; CI exposed the mismatch (use-after-move expected 1 diagnostic, got 0).
+- Corrected ownership transfer to the actual `AST_RELOCATE` Semantic branch, added a valid relocation regression, and suppressed duplicate diagnostics when an operand is unresolved. GitHub Actions run [43644983426](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43644983426) passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan and Valgrind). Variable-level relocation tests are now verified; this is **not** full ownership completion. Forward `(h) _> (hand)` Handler target pre-resolution, branch/loop route validation, borrow/lifetime, and cleanup remain open.
+- Commits: `7568545c425e588806db4f8164e9ca038fa87f1d`, `3cd9803991e02e80c785d52d5411c1a80149ab4c`, `b82c12f65eb0e4d3f5f965491d6e5c38b480e3c9`, `90ccc4633fbfac2d9d313dffdf2c3586edd1752e`.
+- Latest branch-head verification: GitHub Actions run [43645518307](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43645518307) passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan and Valgrind), including the valid destination-read and double-move regressions. Variable-level relocation is CI-verified; the broader ownership/Handler Semantic row remains open.
+## Function default-parameter Semantic checkpoint — 2026-11-15
+
+- Function signature registration now distinguishes total fixed parameters from required parameters. Default initializers must form a trailing suffix; required parameters after a default are diagnosed. Call arity accepts omission only for that suffix while still checking explicitly supplied arguments.
+- Regression cases cover omitted and explicit defaults, missing required arguments and invalid required-after-default order. The normative syntax reference now records this contract; default-expression synthesis at call sites remains OIR/lowering work.
+- Implementation commits: `b61c3f90644b4db697924fc143f3d15064ed47ff`, `92c299d5b3a5115743e07a7f4f401ad6f6d9be98`, `becad7d3cdc2a499cade70907d576f9c3701dc62`; tests: `28a8549b9bd7dda7bdf98199ea93fb928b16a5ae`.
+- CI run 43642220852: Ubuntu, Windows, macOS and ASan/UBSan green; Valgrind still running. Dashboard Semantic cell is not marked complete until the run is fully green.
+## Handler Semantic source-binding checkpoint — 2026-11-15
+
+- Handler capture now evaluates its source expression before introducing the destination symbol, preventing self-capture from resolving to the newly created, uninitialized Handler.
+- Capture slots now retain the source expression's inferred type instead of being registered as untyped. Added Semantic regressions for captured-string type preservation, self-capture rejection and duplicate Handler declarations.
+- Commits: `62812e3866906813aa0591cd84f2157dd4af08eb` (Semantic implementation), `8dcb417a4c41ff4aa3addf714e50d31bb7f6e736` (fixture escaping fix; tests included).
+- GitHub Actions run [43642004210](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43642004210) passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan and Valgrind). The capture-binding regressions are verified. This is a narrow capture-binding improvement, not ownership/move/lifetime completion; Handler Semantic remains open.
 ## Thread module boundary checkpoint — 2026-11-12
 
 - `spawn`, `listen`, `send`, `receive` and `done` now parse as ordinary identifier callees and produce generic `AST_FUNC_CALL` nodes; their runtime/API semantics belong to the Thread library.
@@ -72,13 +115,13 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Nominal type identity, alias-chain target validation, assignment/call/return compatibility ve recursive target validation Semantic ✓; target_type_expr payload round-trip ve OIR/Verifier açık |
 | Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Name/duplicate field/type/visibility/export/packed metadata Semantic ✓; ordered field payload round-trip, physical layout and lowering açık |
 | Struct literal | `AST_STRUCT_LITERAL`, `AST_STRUCT_FIELD_INIT` (106–107) | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Instance initialization/layout lowering ve Verifier invariant'ları |
-| Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ~ | ? | ? | Variant/payload declaration checks ✓; scan constructor patterns, typed bindings, duplicate/exhaustive coverage ✓; `Enum.Variant(...)` constructor resolution, positional/named payload binding, arity and declared type checks ✓; discriminant model and recursive payload type-expression compatibility open |
-| Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | Typed/unique field declaration and member-type resolution Semantic ✓; active-member tracking and safe-read contract need a language decision; union flags/field payload round-trip and lowering open |
-| Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | Group member uniqueness, self receiver inference/validation, instance/static dispatch ve argument checks mevcut; malformed method name/implementation guards eklendi; receiver visibility/overload ve complete signature contract açık |
-| Pointer / reference `*T`, `**T`, `&T` | Şimdilik type-name string alanları | ✓ | ✓ | ✓ | ~ | ? | ? | Borrow/ownership, mutability, nullability, lifetime ve ABI |
-| Implicit type variable `t` | Type-name string / `AST_TYPE_EXPR` | ✓ | ✓ | ✓ | ~ | D | — | Type-variable scope, binding, unification ve inference |
-| Map | Adlandırılmış type-name | ✓ | ✓ | ✓ | ~ | ? | ? | Key/value generic sözleşmesi, key constraints ve runtime davranışı |
-| Vec / SIMD `Vec2`, `Vec3`, `Vec4` | Adlandırılmış type-name | ✓ | ✓ | ✓ | ~ | ? | ? | Parser type-name ve exact declaration span testleri mevcut; element type, kapasite/uzunluk ve operasyon semantiği açık |
+| Enum / variant / payload | `AST_ENUM_DECL`, `AST_ENUM_VARIANT` | ✓ | ✓ | ✓ | ✓ | ? | ? | Variant/payload validation, recursive payload type checks, constructor resolution/argument binding, scan payload binding/exhaustiveness and signed-i64 discriminants covered by Semantic regressions; full CI verified; OIR/Verifier enum representation remains open |
+| Union | `AST_UNION_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | C-like shared-storage contract: no active-member tracking; cross-member reads are permitted as target-ABI-dependent reinterpretation; field/type/member diagnostics and regression fixtures pass full CI; union layout/ABI and OIR lowering remain open |
+| Group / method | `AST_GROUP_DECL`, `AST_METHOD` | ✓ | ✓ | ✓ | ~ | ? | ? | Public alias/implementation symbol uniqueness; Group-bound nominal type visibility; inferred/explicit `self`; static/instance dispatch; implicit receiver exclusion; positional/named argument binding and malformed AST validation have regression coverage. Semantic remains partial: receiver visibility and remaining signature contract still open; overload desteklenmiyor (public ad benzersiz). OIR/Verifier ayrı aşamalar |
+| Pointer / reference `*T`, `**T`, `&T`, planned `&mut T` | Type-name string + SemanticResult type layers | ✓ | ✓ | ✓ | ~ | ? | ? | Approved: single owner, explicit move, `copy()`, lexical lifetime, `&T` shared borrow and `&mut T` exclusive borrow construction (`&value`, `&mut value`) as design; raw dereference (`*p`, `**p`), reference dereference (`*r`), immutable-reference write rejection (plain and compound assignment) and pointee type mismatch implemented with regression tests; expanded compound operators `+=`, `-=`, `*=`, `/=`, `&=` are covered for `&T`, with raw-pointer `+=` and `&=` positive cases; CI run [43649444956](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43649444956) passed 5/5 (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). This verifies only the listed cases. Borrow provenance/owner tracking, lifetime escape checks, nullability and ABI remain open |
+| Implicit type variable `t` | Type-name string / `AST_TYPE_EXPR` | ✓ | ✓ | ✓ | ~ | D | — | Repeated standalone `t` parameters unify per call; return `t` is inferred from the argument mapped to the first `t` parameter (positional/named); incompatible arguments are rejected and covered by CI run [43650163515](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43650163515). Nested forms (`*t`, `&t`, generic aggregate elements), broader type-variable scopes and constraints remain open |
+| Map | Adlandırılmış type-name | ✓ | ✓ | ✓ | ~ | ? | ? | Static Semantic contract verified: indexed read yields `any`, heterogeneous values are accepted, string/numeric keys and Map parameters are tested, and writes through a constant Map binding are rejected; CI run [43650535595](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43650535595) passed 5/5. Key-type whitelist/hashability, generic `map<...>`, runtime storage/ownership/copy remain open |
+| Vec / SIMD `Vec2`, `Vec3`, `Vec4` | Adlandırılmış type-name | ✓ | ✓ | ✓ | ✓ | ? | ? | Fixed dimensions, numeric initializer components, component-wise `+`, `-`, `*`, `/`, `%`, `^^`, unary `-`, and same-dimension `+=`, `-=`, `*=`, `/=` are covered; scalar mixing, dimension mismatch and invalid compound combinations are rejected. CI run [43650721958](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43650721958) passed 5/5. OIR/SIMD backend representation and lowering remain open |
 
 ## 2. Fonksiyonlar, callback'ler ve modüller
 
@@ -139,8 +182,8 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Return `ret` | `AST_RETURN` (26) | ✓ | ✓ | ✓ | ~ | ~ | ~ | Return type, all-path return ve terminator contract |
 | Conditional control `(cond) ? action [: alternative]` | Canonical `AST_IF` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Parser follows normative `?` grammar for control-transfer, expression and block arms; `->` remains data Flow pipe; loop context, action legality ve round-trip remain later-stage work |
 | Labels / jump `label:>`, `?>(label)`, `jump(label)` | `AST_NEXUS_LABEL`, `AST_NEXUS_JUMP` | ✓ | ✓ | ✓ | ~ | ? | ? | Label identity/scope, duplicate/missing target ve CFG lowering |
-| Targeted/targetless halt `?;` | `AST_NEXUS_HALT` | ✓ | ✓ | ✓ | ? | ? | ? | Cleanup ordering, target resolution ve terminal CFG behavior |
-| Block cleanup `} ?;` | `AST_BLOCK_HALT` (100) | ✓ | ✓ | ✓ | ? | ? | ? | AST_BLOCK_HALT payload-free header/source span ve legal block ownership validation; OIR cleanup order açık |
+| Global Halt `?;` | `AST_NEXUS_HALT` | ✓ | ✓ | ✓ | ? | ? | ? | Global active-resource cleanup, defer ordering and terminal CFG behavior |
+| Block-end global Halt `}?;` | `AST_BLOCK_HALT` (100) | ✓ | ✓ | ✓ | ? | ? | ? | Parser requires block-end placement; Semantic global cleanup effect, defer ordering, OIR cleanup lowering and Verifier invariants remain open |
 | `defer` | `AST_DEFER` (69) | ✓ | ✓ | ✓ | ? | ? | ? | Scope exit ordering, unwind and cleanup lowering |
 | `panic(...)` | `AST_PANIC` (39) | ✓ | ✓ | ✓ | ~ | ? | ? | Message restriction tests, trap/abort semantics ve lowering |
 
@@ -733,16 +776,17 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Variant payloads reject non-field nodes, empty/duplicate field names, missing field types and unknown named types. Recursive payload type expressions continue through the shared type-expression validator.
 - Added direct AST regressions for valid payload declarations, malformed variant/payload node kinds, missing enum/variant names, duplicate variant names, duplicate payload field names and missing payload types.
 - Updated the normative syntax reference with the enforced name/type rules and explicitly left constructor resolution, payload argument binding and exhaustiveness open.
-- Semantic remains partial for the enum row because constructor and pattern/exhaustiveness relations are not complete. Test execution and CI are pending.
+- Constructor, payload, pattern binding, scan exhaustiveness and discriminant checks are now covered by the green branch-head C workflow (73/73 CTest; ASan/UBSan and Valgrind also green). The Enum Semantic column is closed; OIR representation and independent Verifier work remain open.
 
 
 ### Semantic checkpoint — Struct/Union field declaration validation — 2026-11-12
 
-- Struct and Union fields now require an explicit type unless a recursive `type_expr` supplies it. Missing field types produce a source diagnostic.
-- Hardened both named and inline aggregate field walks: non-`AST_VAR_DECL` payload nodes are skipped after the shared validator reports them, rather than being blindly cast.
-- Added direct AST regressions for untyped Struct fields, untyped Union fields and malformed aggregate field node kinds. Existing source fixtures cover duplicate names, unknown types and member type compatibility.
-- Struct Semantic remains ✓. Union Semantic remains partial only for active-member tracking/safe-read rules, which are not defined by the current language contract; no implicit policy has been invented.
-- Updated the normative syntax reference to document this boundary. Tests and CI remain pending.
+- Struct and Union fields require an explicit type unless a recursive `type_expr` supplies it. Missing field types produce a source diagnostic.
+- Hardened named and inline aggregate field walks: non-`AST_VAR_DECL` payload nodes are skipped after the shared validator reports them, rather than being blindly cast.
+- Direct AST regressions cover untyped Struct/Union fields and malformed aggregate field node kinds. Source fixtures cover duplicate names, unknown types and member type compatibility.
+- Union now has an explicit C-like shared-storage contract: Semantic does not track an active member and permits reading a different declared member. The resulting reinterpretation is target-ABI-dependent, not a portable conversion or safety guarantee.
+- Added source regressions for cross-member read/write, unknown Union member, incompatible member write and unknown member type. Struct and Union Semantic checks pass the green branch-head C workflow (73/73 CTest; ASan/UBSan and Valgrind also green).
+- Updated the normative syntax reference and AST syntax matrix. Union layout/ABI and OIR representation remain open.
 
 
 ### Semantic checkpoint — Enum scan constructor binding — 2026-11-12
@@ -751,7 +795,7 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Payload bindings are matched positionally to the variant's declared fields; each local binding receives the corresponding field type. Incorrect payload arity, invalid binding node kinds and bare matching of payload-bearing variants are rejected.
 - Bare variant identifiers are treated as tag matches only when the enum variant has no payload; other identifiers remain ordinary pattern bindings.
 - Added direct Semantic AST regressions for valid typed payload binding, unknown variant, wrong payload arity and invalid bare payload-variant matching.
-- Updated the syntax reference and coverage rows. Constructor *expression* calls, duplicate arm coverage, exhaustive scan analysis and non-enum structural pattern semantics remain open. Test execution/CI is pending.
+- Updated the syntax reference and coverage rows. Constructor expression calls and exhaustive enum scan coverage are implemented and pass the green branch-head C workflow. Non-enum structural pattern semantics remain open.
 
 
 ### Semantic checkpoint — Enum scan exhaustiveness — 2026-11-12
@@ -759,7 +803,7 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added an explicit `has_guard` field to `ASTScanArm`; Parser records whether an arm came from a `when` clause instead of relying on ambiguous `AST_IF` body shape.
 - Enum scans now detect repeated unguarded variant arms and report every uncovered declared variant. Guarded arms do not count toward exhaustive coverage; an `else` arm suppresses missing-variant diagnostics.
 - Added Semantic AST fixtures for exhaustive coverage, unknown/malformed patterns, duplicate variants, guard-only coverage and else fallback.
-- Enum Semantic remains partial because constructor expression calls/argument typing and remaining pattern/type rules are not yet complete. CI/test execution is pending.
+- Constructor expression resolution, positional/named payload argument validation and enum SemanticResult annotations are implemented; the complete branch-head C workflow passes. OIR representation and independent Verifier rules remain open.
 
 
 ### Semantic checkpoint — Enum constructor expressions — 2026-11-12
@@ -769,3 +813,59 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added checks for unknown variants, argument count, payload type compatibility, unknown named fields, duplicate named fields and omitted named fields. The call and callee receive SemanticResult annotations as enum-valued constructor expressions.
 - Added direct AST regression fixtures for valid positional/named construction and invalid variant, arity, payload type and named-field cases. Enum Semantic remains partial for discriminant representation and recursive payload type-expression compatibility.
 - Fixtures are committed but have not been compiled or executed in this workspace; CI remains unverified.
+
+
+### Semantic checkpoint — Group method uniqueness regressions — 2026-11-12
+
+- Added source regressions for duplicate public method aliases, duplicate implementation function names across aliases, and a method implementation name colliding with a direct Group function.
+- Existing coverage also exercises inferred/explicit `self`, static versus instance dispatch, calls before declaration, external-scope Group-qualified calls, unknown methods, argument count/type, and malformed method AST payloads.
+- Group / method Semantic remains partial (`~`): the current C test suite passes, including uniqueness regressions. Receiver visibility and the remaining signature contract are still open; overload behavior is not inferred from duplicate-name rejection.
+
+
+### Semantic checkpoint — implicit receiver argument mapping — 2026-11-12
+
+- Fixed named-argument parameter lookup for instance methods: the implicit `self` parameter is skipped when resolving caller-supplied names, while the resolved parameter index retains the receiver offset for type validation.
+- Added regressions proving `instance.method(value: 7)` resolves the first explicit parameter and that callers cannot pass `self:` as a named argument.
+- Documented the object/static method contract and Group-owned nominal type visibility. The green branch-head C workflow verifies the receiver-offset named-argument mapping and rejects caller-supplied `self:`; Group / Method remains partial because other signature-contract details remain open.
+
+
+### Pointer/reference Semantic regression checkpoint — 2026-11-14
+- Corrected the nested-reference test fixture: `&*T` is not an active source type spelling in the current grammar (`*T`, `**T`, and `&T` are the supported forms). The fixture was removed rather than silently broadening the language grammar.
+- The remaining supported-form tests verify pointer/reference distinction, base/depth compatibility, function parameter/return compatibility, pointer and reference dereference, rejection of dereferencing a non-pointer, raw-pointer pointee assignment, immutable shared-reference write rejection, and pointee assignment type mismatch.
+- GitHub Actions run [43647987014](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43647987014) passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan and Valgrind).
+- This is a verified regression checkpoint only. Borrow provenance and owner tracking, shared-borrow conflict enforcement, local-reference escape/lifetime checks, `&mut T`, nullability, and target ABI remain incomplete. The Pointer/reference Semantic row stays partial.
+
+
+### Pointer/reference model decision — 2026-11-15
+
+- Approved a two-level model: C-like raw `*T` remains available for explicit low-level memory access, while safe references use `&T` (shared immutable) and `&mut T` (exclusive mutable).
+- Approved borrow-expression spellings: `&value` and `&mut value`. Shared borrows may coexist; writes through the owner are blocked while shared borrows are active. A mutable borrow is exclusive: no simultaneous shared/mutable borrow or owner access is allowed.
+- Safe references must not outlive their source owner's lexical lifetime. References escaping a scope or returned from a function require source-lifetime validation; invalid/unknown provenance must not be accepted as safe.
+- Raw pointers do not receive automatic null, bounds, aliasing or lifetime guarantees. Pointer arithmetic, nullability contract, unsafe-region syntax and target ABI remain separate design items.
+- This is a language-design approval only. The current Parser still does not produce borrow expressions; AST representation, provenance tracking, conflict checks and escape/lifetime diagnostics are pending. The Pointer/reference Semantic row remains partial and must not be ticked yet.
+
+## Pointer/reference Semantic checkpoint — compound assignment — 2026-11-15
+
+- Compound writes through unary dereference now apply the same immutable shared-reference restriction as ordinary assignment. `*r += 1` is rejected for `&T`; `*p += 1` remains accepted for raw `*T`.
+- Regression fixtures cover ordinary and compound assignment through immutable references and compound assignment through raw pointers.
+- The first test run exposed that the compound-assignment path did not enforce the immutable-reference rule. The Semantic check was added to the compound-assignment branch; this was a genuine semantic fix, not a test expectation adjustment.
+- GitHub Actions run [43649025246](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43649025246) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- Expanded the regression matrix to `-=`, `*=`, `/=` and `&=` through immutable references, plus `&=` through raw pointers. The syntax-reference documentation and dashboard updates each passed their own five-job workflows ([43649382891](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43649382891), [43649367036](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43649367036)); the expanded test commit passed all five jobs in [43649444956](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43649444956).
+- Pointer/reference Semantic remains partial. The current grammar declares `&T` types but does not yet provide a source expression that creates a borrow from an owner; `addr()` returns `u64`. Borrow provenance, shared/exclusive conflict checks, local-reference escape/lifetime validation, `&mut T`, nullability and target ABI must remain open until the language-level borrow construction contract and AST representation are specified.
+
+### Semantic checkpoint — implicit function type variable `t` — 2026-11-15
+
+- The standalone type placeholder `t` is distinct from the reserved declaration prefix `t:`. The normative syntax reference now records this distinction and the current function-signature rule.
+- Repeated standalone `t` parameters in one signature share one call-site binding. The first argument corresponding to a `t` parameter establishes the concrete type; subsequent `t` arguments must be compatible.
+- A function return type `t` is inferred from the argument corresponding to the first `t` parameter, rather than blindly from the first call argument. Positional and named argument mapping are covered.
+- Regression cases cover valid `identity(7)`, valid `sum(2, 3)`, rejection of `sum(2, "wrong")`, and return inference from a later `t` parameter using positional and named arguments.
+- GitHub Actions run [43650163515](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43650163515) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- Semantic remains partial: only standalone `t` is covered. Nested pointer/reference type variables, aggregate element variables, generic scope constraints and broader unification remain open.
+
+### Semantic checkpoint — Map and Vec types — 2026-11-15
+
+- Map index reads retain the conservative `any` type; writes permit heterogeneous values. Regression tests cover Map parameter compatibility, string and numeric keys, heterogeneous writes/reads, and rejection of writes through a constant Map binding.
+- Map key-type restrictions/hashability remain deliberately open: the normative syntax reference does not define a whitelist. `map<...>` generic syntax and runtime storage, ownership and copy behavior are not claimed complete.
+- Vec2/Vec3/Vec4 Semantic validation now has regression coverage for fixed initializer dimension, numeric components, same-dimension component-wise arithmetic (`+`, `-`, `*`, `/`, `%`, `^^`), unary negation, and compound arithmetic (`+=`, `-=`, `*=`, `/=`). Scalar mixing, cross-dimension operations and invalid compound assignments are rejected.
+- Map test coverage passed all five CI jobs in [43650535595](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43650535595); normative Map documentation passed [43650735582](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43650735582). Expanded Vec negative regressions passed all five jobs in [43650721958](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43650721958).
+- Vec Semantic is closed for the documented fixed-size component-wise contract; OIR/SIMD representation and backend lowering remain later-stage work. Map Semantic remains partial because key constraints are not yet defined.
