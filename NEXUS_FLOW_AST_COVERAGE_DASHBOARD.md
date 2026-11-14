@@ -45,6 +45,12 @@
 - The normative syntax reference records these decisions, fresh-table creation, processing-flow activation, and a forward cross-scope relocation example. This is a design/documentation checkpoint only: forward target resolution, Semantic ownership/borrow tracking, Halt control-flow effects, OIR metadata/lowering and independent Verifier checks remain open. No dashboard completion mark is granted.
 - Pointer/reference regression fixture was corrected to avoid unsupported `&*T` syntax. GitHub Actions run [43309269784](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43309269784) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. This verifies the corrected type-compatibility fixtures, not ownership/lifetime Semantic completion.
 
+## Handler Semantic source-binding checkpoint — 2026-11-15
+
+- Handler capture now evaluates its source expression before introducing the destination symbol, preventing self-capture from resolving to the newly created, uninitialized Handler.
+- Capture slots now retain the source expression's inferred type instead of being registered as untyped. Added Semantic regressions for captured-string type preservation, self-capture rejection and duplicate Handler declarations.
+- Commits: `62812e3866906813aa0591cd84f2157dd4af08eb` (Semantic implementation), `8dcb417a4c41ff4aa3addf714e50d31bb7f6e736` (fixture escaping fix; tests included).
+- CI is pending for these changes. This is a narrow capture-binding improvement, not ownership/move/lifetime completion; Handler Semantic remains open.
 ## Thread module boundary checkpoint — 2026-11-12
 
 - `spawn`, `listen`, `send`, `receive` and `done` now parse as ordinary identifier callees and produce generic `AST_FUNC_CALL` nodes; their runtime/API semantics belong to the Thread library.
