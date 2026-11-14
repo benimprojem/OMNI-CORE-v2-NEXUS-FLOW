@@ -3204,6 +3204,54 @@ static int test_pointer_reference_type_declarators(void) {
 }
 
 
+static int test_shared_and_mutable_borrow_parser_ast(void) {
+    static const char source[] =
+        "f:borrow(p!i32)!void { "
+        "v:shared!&i32 = &p; "
+        "v:exclusive!&muti32 = &mut p; "
+        "}";
+    ParserContext* parser = parser_init_source(
+        "borrow-expressions.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+    ASTFuncDecl* function;
+    ASTVarDecl* shared;
+    ASTVarDecl* exclusive;
+    ASTUnaryExpr* shared_borrow;
+    ASTUnaryExpr* mutable_borrow;
+    ASTTypeExpr* shared_type;
+    ASTTypeExpr* mutable_type;
+    int valid = 0;
+
+    if (!parser) return 0;
+    if (parser_run(parser) == PARSER_STATUS_OK && parser->ast_root &&
+        ((ASTNode*)parser->ast_root)->type == AST_PROGRAM) {
+        function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
+        shared = function && function->body && function->body->type == AST_BLOCK
+            ? (ASTVarDecl*)((ASTBlock*)function->body)->statements : NULL;
+        exclusive = shared ? (ASTVarDecl*)shared->base.next : NULL;
+        shared_borrow = shared && shared->initializer &&
+            shared->initializer->type == AST_UNARY_EXPR
+            ? (ASTUnaryExpr*)shared->initializer : NULL;
+        mutable_borrow = exclusive && exclusive->initializer &&
+            exclusive->initializer->type == AST_UNARY_EXPR
+            ? (ASTUnaryExpr*)exclusive->initializer : NULL;
+        shared_type = shared ? (ASTTypeExpr*)shared->type_expr : NULL;
+        mutable_type = exclusive ? (ASTTypeExpr*)exclusive->type_expr : NULL;
+        valid = function && shared && exclusive && !exclusive->base.next &&
+            shared_borrow && shared_borrow->op == TOKEN_BIT_AND &&
+            shared_borrow->operand && shared_borrow->operand->type == AST_IDENTIFIER &&
+            mutable_borrow && mutable_borrow->op == TOKEN_BORROW_MUT &&
+            mutable_borrow->operand && mutable_borrow->operand->type == AST_IDENTIFIER &&
+            shared_type && shared_type->kind == AST_TYPE_REFERENCE &&
+            !(shared_type->flags & AST_TYPE_FLAG_MUTABLE_REFERENCE) &&
+            mutable_type && mutable_type->kind == AST_TYPE_REFERENCE &&
+            (mutable_type->flags & AST_TYPE_FLAG_MUTABLE_REFERENCE) != 0u &&
+            ast_validate((ASTNode*)parser->ast_root, NULL);
+    }
+    parser_destroy(parser);
+    if (!valid) fprintf(stderr, "Shared/mutable borrow Parser AST contract failed.\\n");
+    return valid;
+}
+
 static int test_function_type_alias_and_callback_parameter(void) {
     static const char source[] =
         "nt:Callback = f:(id!u32)!bool; "
@@ -4877,6 +4925,7 @@ int main(int argc, char** argv) {
     CHECK_PARSER_TEST(test_use_comma_list_spans);
     if (!test_use_alias_and_namespace_ast_codec()) { fprintf(stderr, "USE alias/namespace AST codec test failed.\n"); FAIL_PARSER_TEST(); }
     CHECK_PARSER_TEST(test_pointer_reference_type_declarators);
+    CHECK_PARSER_TEST(test_shared_and_mutable_borrow_parser_ast);
     CHECK_PARSER_TEST(test_function_type_alias_and_callback_parameter);
     CHECK_PARSER_TEST(test_function_type_variadic_marker_must_be_final);
     if (!test_callback_return_array_and_bad_dimensions()) { fprintf(stderr, "Callback return-array and malformed dimension test failed.\n"); FAIL_PARSER_TEST(); }
