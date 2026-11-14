@@ -1225,7 +1225,25 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
             return type_name;
         }
-        case AST_UNARY_EXPR:
+        case AST_UNARY_EXPR: {
+            ASTUnaryExpr* unary = (ASTUnaryExpr*)node;
+            const char* operand_type = get_expr_type(ctx, unary->operand);
+            const char* type_name = operand_type;
+            if (unary->op == TOKEN_STAR) {
+                const char* raw_type = operand_type &&
+                    operand_type[0] == '!' ? operand_type + 1 : operand_type;
+                if (!raw_type || raw_type[0] != '*') {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Pointer dereference requires a pointer operand.");
+                    type_name = NULL;
+                } else {
+                    type_name = raw_type + 1;
+                }
+            }
+            semantic_record_annotation(
+                ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
+            return type_name;
+        }
         case AST_POSTFIX_EXPR: {
             const char* type_name =
                 get_expr_type(ctx, ((ASTUnaryExpr*)node)->operand);
