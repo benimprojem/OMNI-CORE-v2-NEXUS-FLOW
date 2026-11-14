@@ -4257,8 +4257,6 @@ static void semantic_check_node(
                     "Use of '%s' after ownership was transferred is invalid.",
                     id->name ? id->name : "<unnamed>");
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, moved_message);
-                semantic_record_annotation(ctx, node, resolved,
-                    resolved->type_name, SEMANTIC_RESULT_VALUE_INVALID);
             } else if (!resolved) {
                 int score = 0;
                 Slot* best = find_best_suggestion(ctx, id->name, &score);
