@@ -86,6 +86,21 @@ v:deep_value!i32 = **double;
 
 **Tipler:** `bit`, `byte` (u8), `hex`, `char`, `f32`, `f64`, `d32`, `d64`, `i8..i64`, `u8..u64`, `bool`. `d32` ve `d64`, Decimal (ondalık) numeric tipleridir; Semantic numeric işlem ve compound assignment kontrollerinde tanınırlar. `d128`, `i128`, `u128`, `f128` gibi daha geniş tipler ileride eklenebilir; henüz desteklenmez.
 
+**Implicit function type variable (`t`):** `t` is a type placeholder used in function parameter and return type positions. This is distinct from the declaration prefix `t:`, which remains reserved. Repeated standalone `t` parameter types in one function signature share one call-site type binding: the first corresponding argument infers the type, and later `t` arguments must be compatible with it. A `t` return type is inferred from the argument corresponding to the first `t` parameter (including named arguments).
+
+```nxf
+f:identity(value!t)!t { ret value; }
+f:sum(a!t,b!t)!t { ret a + b; }
+
+f:main() {
+    v:number!i32 = identity(7);
+    v:total!i32 = sum(2, 3);
+    # sum(2, "wrong") is a Semantic type error: both parameters share t.
+}
+```
+
+Current implementation covers standalone `t` parameter unification and return inference. Nested generic forms such as `*t`, `&t`, or generic aggregate element types are not implied by this rule and remain open.
+
 **Bit/byte temsil türleri (C compiler branch):** `bit` tek bitlik veri, `byte` ham 8-bit saklama birimidir. `bool` mantıksal doğruluk türü; `u8` ise aritmetik işaretsiz tamsayıdır. Aynı fiziksel genişlik, türlerin örtük olarak birbirine dönüştürülebileceği anlamına gelmez.
 
 | Tür ailesi | Desteklenen yazımlar | Anlam |
