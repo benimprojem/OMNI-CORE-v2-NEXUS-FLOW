@@ -58,7 +58,34 @@ Ayrıntı ve açık kararlar: [AREA_ZONE_MEMORY_MODEL.md](../../AREA_ZONE_MEMORY
  > `&&T` mevcut Nexus Flow type syntax'ında tanımlı değildir ve reserved kabul edilir. `**T`, pointer katmanlarının iç içe geçmesini ifade eder; `&T` referans türüdür.
  > Pointer/reference türleri `*T`, `**T` ve `&T` biçimlerinde Parser tarafından local variable, function parameter, return type ve `nt:` hedef tipi bağlamlarında kabul edilir. SemanticResult bunları katman başına ayrı type ID ve `base_type_id` ilişkisiyle temsil eder; `**T` iki Pointer kaydı, `&T` Reference kaydı üretir. Bu yapısal kayıt pointer validity, mutability, nullability, aliasing ve borrow/lifetime kurallarının tamamlandığı anlamına gelmez.
 
-**Raw pointer dereference (expression):** Bir pointer ifadesinin başına unary `*` konularak hedef değere erişilir. İç içe pointer katmanları için her katman ayrı dereference edilir:
+### 2.1.1 Pointer ve Referans Modeli
+
+Nexus Flow iki ayrı bellek erişim katmanı kullanır:
+
+1. **Raw pointer (`*T`, `**T`)** — C benzeri düşük seviyeli adres erişimi. Otomatik null, bounds, aliasing veya lifetime garantisi vermez. Güvenli referans kurallarını sağlamaz; bu yüzden yalnızca açıkça yönetilen düşük seviyeli kod için düşünülmelidir.
+2. **Safe reference (`&T`, `&mut T`)** — Derleyicinin sahiplik, erişim çakışması ve yaşam süresi kurallarıyla denetlemesi gereken referans. `&T` paylaşımlı/değiştirilemez; `&mut T` tekil/değiştirilebilir erişimdir.
+
+#### Tür ve erişim tablosu
+
+| Yazım | Kategori | Anlam | Hedefe yazma | Güvenlik durumu |
+|---|---|---|---|---|
+| `*T` | Raw pointer | Bir ham adres üzerinden `T` nesnesine erişim | Raw pointer kurallarına göre mümkün | Otomatik null/lifetime/bounds/alias garantisi yok |
+| `**T` | Raw pointer katmanı | Pointer'a işaret eden pointer (`*(*T)`) | Her katman ayrı dereference edilir | Her katmanda raw pointer riskleri geçerli |
+| `&T` | Shared reference | `T` nesnesine paylaşımlı, salt-okunur erişim | Hayır | Borrow/lifetime/alias kontrolleri zorunlu; kaynak ömrünü aşamaz |
+| `&mut T` | Exclusive reference | `T` nesnesine tekil, değiştirilebilir erişim | Evet | Aynı anda başka shared/exclusive erişim ve owner üzerinden erişim yasak |
+
+#### Kurallar
+
+- Raw pointer ile safe reference aynı tür değildir; `*T` otomatik olarak `&T`'ye dönüşmez ve tersi de geçerli değildir.
+- Raw pointer dereference işlemi unary `*` ile yapılır. `**p`, iki pointer katmanını art arda açar. `*integer` gibi pointer olmayan operandlar Semantic hatasıdır.
+- Raw pointer hedefi tür uyumluysa atanabilir ve bileşik atama alabilir. Bu kabul, pointer'ın geçerli veya güvenli olduğunu kanıtlamaz.
+- `&T` paylaşımlı referansları birden fazla bulunabilir; aktif shared borrow varken owner üzerinden yazma yapılamaz.
+- `&mut T` tekil borrow'dur. Aktif olduğu sürece başka shared/mutable borrow oluşturulamaz ve owner üzerinden doğrudan okuma/yazma yapılamaz.
+- Borrow kaynağının yaşam süresi referansın kullanılabildiği süreden kısa olamaz. Yerel değişkene ait referans blok dışına kaçamaz; fonksiyondan döndürülen referansın kaynağı çağrı sonrasında yaşamaya devam etmelidir.
+- Derleyici referansın kaynağını veya yaşam süresini kanıtlayamıyorsa safe reference oluşturmayı reddetmelidir. Raw pointer bu kontrolleri atlamak için örtük bir dönüşüm değildir.
+- Raw pointer için nullability, pointer arithmetic, explicit unsafe-region syntax ve target ABI kuralları ayrıca tanımlanacaktır; bu başlıklar mevcut sözleşmede tamamlanmış değildir.
+
+#### Raw pointer kullanımı — mevcut sözdizimi
 
 ```nxf
 v:single!*i32;
@@ -69,23 +96,35 @@ v:deep_value!i32 = **double;
 *single = 42;
 ```
 
-- Unary `*` yalnızca pointer türündeki operandı kabul eder; `*integer` Semantic hatasıdır.
-- Dereference edilen hedef, atama sol tarafında kullanılabilir; atanan değer hedef pointee türüyle uyumlu olmalıdır.
-- `&T` shared reference değiştirilemezdir: `*r = value` ve `*r += value` gibi normal/bileşik yazma işlemleri Semantic hatasıdır. `*T` raw pointer hedefinde bileşik atama, hedef türü uyumluysa kabul edilir; raw pointer güvenlik/lifetime garantisi sağlamaz.
-- Bu işlem raw pointer erişimidir. Null, dangling pointer, bounds veya lifetime güvenliği sağlamaz; bunlar otomatik olarak doğrulanmış kabul edilmez.
-- Binary çarpma `a * b` ile unary dereference `*p`, konumlarına göre ayrı ayrıştırılır.
+- `*single` bir pointer katmanını, `**double` iki katmanı dereference eder.
+- `*single = 42` hedef `i32` ise geçerlidir; `*single = "text"` tür uyuşmazlığıdır.
+- `*r = value` ve `*r += value` gibi yazmalar `&T` shared reference için reddedilir. Aynı hedefe raw `*T` üzerinden yazma mevcut Semantic sözleşmesinde kabul edilebilir.
+- `a * b` binary çarpma, `*p` unary dereference'tir; Parser bunları konumlarına göre ayırır.
 
-**Borrow construction design (approved; implementation pending):** Güvenli referans oluşturma ifadeleri `&value` (shared immutable borrow) ve `&mut value` (exclusive mutable borrow) olacaktır. `&T` ve `&mut T` aynı referans ailesinin farklı mutability kurallarıdır; `&mut T` yalnızca tekil ve değiştirilebilir erişim sağlar. Shared borrow'lar birlikte bulunabilir; aktif shared borrow varken hedefe doğrudan yazılamaz. Aktif mutable borrow varken başka shared/mutable borrow veya owner üzerinden erişim yapılamaz. Borrow, kaynağın lexical lifetime sınırını aşamaz; döndürülen veya dışarı taşınan referansın kaynağı daha uzun yaşamalıdır. Derleyici bu kuralları statik olarak doğrulayamadığında güvenli referans üretimini kabul etmemelidir.
+#### Safe borrow kullanımı — onaylanmış dil tasarımı
 
-Raw `*T` ise C benzeri düşük seviyeli pointer olarak kalır: pointer dereference ve ham adres işlemleri otomatik borrow/lifetime garantisi almaz. Raw pointer kullanımı güvenli referans kurallarını devre dışı bırakmaz; yalnızca açıkça ayrı bir düşük seviyeli erişim yolu sunar. Pointer arithmetic, nullability sözleşmesi, unsafe bölge sözdizimi ve ABI kuralları ayrıca tasarlanacaktır.
+Borrow oluşturma ifadelerinin normatif biçimi:
 
 ```nxf
 v:value!i32 = 10;
-v:read_only!&i32 = &value;
-v:exclusive!&mut i32 = &mut value;
+v:read_only!&i32 = &value;       # shared, salt-okunur borrow
+v:another_read!&i32 = &value;    # ikinci shared borrow serbest
+
+v:editable!&mut i32 = &mut value; # tekil mutable borrow
+# editable aktifken value veya başka bir reference üzerinden erişim yasak
 ```
 
-> Bu bölüm onaylanmış dil tasarımını kaydeder. Mevcut Parser henüz `&value` / `&mut value` borrow ifadelerini üretmez; AST temsili, borrow provenance, alias/conflict ve escape/lifetime Semantic kontrolleri uygulanıp test edilene kadar özellik tamamlanmış sayılmaz.
+| İşlem | `&T` shared borrow | `&mut T` exclusive borrow |
+|---|---|---|
+| Aynı kaynağa ikinci borrow | İzinli | İzinli değil |
+| Kaynak üzerinden doğrudan okuma | İzinli | Borrow aktifken yasak |
+| Kaynak üzerinden doğrudan yazma | Yasak | Borrow aktifken yasak |
+| Referans üzerinden okuma | İzinli | İzinli |
+| Referans üzerinden yazma | Yasak | İzinli |
+| Borrow kaynağının scope dışına taşınması | Yasak | Yasak |
+
+**Uygulama durumu:** `*T`, `**T`, `&T` tür katmanları, raw/reference dereference ve `&T` üzerinden yazma reddi Parser/Semantic testleriyle doğrulanmıştır. `&value` ve `&mut value` borrow ifadeleri ile `&mut T` henüz aktif Parser/AST üretimi değildir; yukarıdaki örnekler onaylanmış hedef sözdizimini gösterir, bugünkü derleyicide çalışır örnek olarak değerlendirilmemelidir. Borrow provenance, owner/alias takibi, çakışma denetimi ve scope/lifetime escape kontrolleri uygulanıp test edilmeden safe borrow desteği tamamlanmış sayılmaz.
+
 ---
 
 ###  2.2 Tipler **
