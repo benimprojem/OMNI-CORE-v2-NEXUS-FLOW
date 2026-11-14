@@ -45,6 +45,12 @@
 - The normative syntax reference records these decisions, fresh-table creation, processing-flow activation, and a forward cross-scope relocation example. This is a design/documentation checkpoint only: forward target resolution, Semantic ownership/borrow tracking, Halt control-flow effects, OIR metadata/lowering and independent Verifier checks remain open. No dashboard completion mark is granted.
 - Pointer/reference regression fixture was corrected to avoid unsupported `&*T` syntax. GitHub Actions run [43309269784](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43309269784) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. This verifies the corrected type-compatibility fixtures, not ownership/lifetime Semantic completion.
 
+## Relocation Semantic checkpoint — 2026-11-15
+
+- Added `Slot.is_moved` ownership state. `TOKEN_RELOCATE` (`_>`) now requires distinct declared identifier source/destination operands, checks source/destination type compatibility, marks the source moved, and rejects subsequent identifier use through the moved source.
+- Added negative regression cases for use-after-move, source==destination, unknown target and type mismatch. This covers the currently parsed variable relocation expression; it does **not** yet implement forward `(h) _> (hand)` Handler target pre-resolution, branch/loop route validation, borrow/lifetime, or cleanup.
+- Commits: `7568545c425e588806db4f8164e9ca038fa87f1d`, `3cd9803991e02e80c785d52d5411c1a80149ab4c`, `b82c12f65eb0e4d3f5f965491d6e5c38b480e3c9`, `90ccc4633fbfac2d9d313dffdf2c3586edd1752e`.
+- CI run [43644135951](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43644135951) is in progress. Keep Semantic coverage open until all jobs pass.
 ## Function default-parameter Semantic checkpoint — 2026-11-15
 
 - Function signature registration now distinguishes total fixed parameters from required parameters. Default initializers must form a trailing suffix; required parameters after a default are diagnosed. Call arity accepts omission only for that suffix while still checking explicitly supplied arguments.
