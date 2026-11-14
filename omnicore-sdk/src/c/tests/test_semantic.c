@@ -1112,11 +1112,11 @@ static int check_extended_ast_semantics(void) {
         "f:main() { v:pair = (1, \"x\"); v:bad = pair[2]; }";
     const char* valid_map_dynamic_values =
         "f:consume(values:map) {} "
-        "f:main() { v:records!map; records[\\"number\\"] = 7; "
-        "records[\\"label\\"] = \\"seven\\"; "
-        "v:first!any = records[\\"number\\"]; consume(records); }";
+        "f:main() { v:records!map; records[\"number\"] = 7; "
+        "records[\"label\"] = \"seven\"; "
+        "v:first!any = records[\"number\"]; consume(records); }";
     const char* invalid_map_const_write =
-        "f:main() { v:records!map; c:alias!map = records; alias[\\"key\\"] = 1; }";
+        "f:main() { v:records!map; c:alias!map = records; alias[\"key\"] = 1; }";
     const char* inferred_generic_identity =
         "f:identity(value!t)!t { ret value; } "
         "f:main() { v:result!i32 = identity(7); }";
