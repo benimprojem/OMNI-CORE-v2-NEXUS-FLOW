@@ -935,6 +935,9 @@ static void exit_scope(SemanticContext* ctx) {
 static int are_types_compatible(const char* type1, const char* type2);
 
 static const char* get_expr_type(SemanticContext* ctx, ASTNode* node);
+static ASTNode* semantic_find_type_variable_argument(
+    Slot* function_slot, ASTNode* arguments, uint32_t parameter_offset
+);
 static Slot* semantic_resolve_group_callable(
     SemanticContext* ctx, ASTMemberAccess* access,
     int* out_is_instance_call, int report_diagnostics);
@@ -1188,6 +1191,7 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             ASTCall* call = (ASTCall*)node;
             Slot* slot = NULL;
             const char* result_type = NULL;
+            uint32_t parameter_offset = 0u;
             if (call->callee && call->callee->type == AST_IDENTIFIER) {
                 ASTIdentifier* id = (ASTIdentifier*)call->callee;
                 if (id->name &&
@@ -1206,14 +1210,20 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 slot = semantic_resolve_group_callable(
                     ctx, (ASTMemberAccess*)call->callee,
                     &is_instance_call, 0);
+                if (is_instance_call) parameter_offset = 1u;
             }
             result_type = slot ? slot->type_name : NULL;
-            if (result_type &&
-                (strcmp(result_type, "t") == 0 ||
-                 (result_type[0] == '!' && strcmp(result_type + 1, "t") == 0)) &&
-                call->args) {
-                const char* inferred = get_expr_type(ctx, call->args);
-                if (inferred) result_type = inferred;
+            if (result_type) {
+                const char* normalized_result_type = result_type;
+                while (*normalized_result_type == '!')
+                    ++normalized_result_type;
+                if (strcmp(normalized_result_type, "t") == 0) {
+                    ASTNode* inferred_argument = semantic_find_type_variable_argument(
+                        slot, call->args, parameter_offset);
+                    const char* inferred = inferred_argument
+                        ? get_expr_type(ctx, inferred_argument) : NULL;
+                    if (inferred) result_type = inferred;
+                }
             }
             semantic_record_annotation(
                 ctx, node, slot, result_type,
@@ -3570,6 +3580,59 @@ static void semantic_validate_call_arguments(
             }
         }
     }
+}
+
+static ASTNode* semantic_find_type_variable_argument(
+    Slot* function_slot, ASTNode* arguments, uint32_t parameter_offset
+) {
+    uint32_t parameter_index;
+    ASTFuncDecl* declaration = NULL;
+    ASTNode* parameter_node = NULL;
+    const char* parameter_name = NULL;
+    uint32_t positional_index = 0u;
+    ASTNode* argument;
+
+    if (!function_slot || !function_slot->param_types || !arguments ||
+        function_slot->param_count < (int)parameter_offset) return NULL;
+
+    for (parameter_index = parameter_offset;
+         parameter_index < (uint32_t)function_slot->param_count;
+         ++parameter_index) {
+        const char* expected_type = function_slot->param_types[parameter_index];
+        while (expected_type && *expected_type == '!') ++expected_type;
+        if (expected_type && strcmp(expected_type, "t") == 0) break;
+    }
+    if (parameter_index >= (uint32_t)function_slot->param_count) return NULL;
+
+    if (function_slot->declaration_node &&
+        (function_slot->declaration_node->type == AST_FUNC_DECL ||
+         function_slot->declaration_node->type == AST_EXTERN_DECL)) {
+        declaration = (ASTFuncDecl*)function_slot->declaration_node;
+    }
+    if (declaration) {
+        uint32_t current_index = 0u;
+        for (parameter_node = declaration->params; parameter_node;
+             parameter_node = parameter_node->next) {
+            if (parameter_node->type == AST_VARIADIC_PARAM) continue;
+            if (current_index++ == parameter_index) break;
+        }
+        if (parameter_node && parameter_node->type == AST_VAR_DECL)
+            parameter_name = ((ASTVarDecl*)parameter_node)->name;
+    }
+
+    for (argument = arguments; argument; argument = argument->next) {
+        if (argument->type == AST_NAMED_ARG) {
+            ASTNamedArg* named = (ASTNamedArg*)argument;
+            if (parameter_name && named->name &&
+                strcmp(parameter_name, named->name) == 0)
+                return named->value;
+        } else {
+            if (positional_index == parameter_index - parameter_offset)
+                return argument;
+            ++positional_index;
+        }
+    }
+    return NULL;
 }
 
 static const char* semantic_group_member_name(const ASTNode* member) {
