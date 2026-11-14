@@ -845,6 +845,12 @@ static int check_pointer_reference_type_semantics(void) {
         "f:identity(value!&i32)!&i32 { ret value; } f:main() {}";
     const char* reference_return_base_mismatch =
         "f:identity(value!&i32)!&f32 { ret value; } f:main() {}";
+    const char* pointer_dereference =
+        "f:main() { v:p!*i32; v:value!i32 = *p; }";
+    const char* nested_pointer_dereference =
+        "f:main() { v:p!**i32; v:q!*i32 = *p; v:value!i32 = **p; }";
+    const char* non_pointer_dereference =
+        "f:main() { v:value!i32 = 4; v:bad!i32 = *value; }";
     return check_source(exact_pointer, 0) &&
         check_source(pointer_base_mismatch, 1) &&
         check_source(pointer_depth_mismatch, 1) &&
@@ -859,7 +865,10 @@ static int check_pointer_reference_type_semantics(void) {
         check_source(exact_pointer_return, 0) &&
         check_source(pointer_return_base_mismatch, 1) &&
         check_source(exact_reference_return, 0) &&
-        check_source(reference_return_base_mismatch, 1);
+        check_source(reference_return_base_mismatch, 1) &&
+        check_source(pointer_dereference, 0) &&
+        check_source(nested_pointer_dereference, 0) &&
+        check_source(non_pointer_dereference, 1);
 }
 
 static int check_array_type_semantics(void) {
