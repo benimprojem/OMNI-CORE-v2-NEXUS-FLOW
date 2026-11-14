@@ -827,6 +827,7 @@ const char* token_type_to_string(OmniTokenType type) {
         case TOKEN_RSHIFT: return "STREAM_OUT (>>)";
         case TOKEN_BIT_SHL: return "BIT_SHIFT_LEFT (<<<)";
         case TOKEN_BIT_SHR: return "BIT_SHIFT_RIGHT (>>>)";
+        case TOKEN_BORROW_MUT: return "MUTABLE_BORROW (&mut)";
         case TOKEN_UNPACK: return "UNPACK (...>)";
         case TOKEN_RELOCATE: return "RELOCATE (_>)";
         case TOKEN_KW_FN: return "FN (f:)";
