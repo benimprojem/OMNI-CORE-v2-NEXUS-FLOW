@@ -1116,6 +1116,9 @@ static int check_extended_ast_semantics(void) {
     const char* inferred_generic_sum =
         "f:sum(a!t,b!t)!t { ret a + b; } "
         "f:main() { v:result!i32 = sum(2,3); }";
+    const char* mismatched_generic_sum =
+        "f:sum(a!t,b!t)!t { ret a + b; } "
+        "f:main() { v:result = sum(2,\\"wrong\\"); }";
     const char* inferred_select_binding =
         "f:main() { v:choice!i32 = 1; select(choice) { captured -> { "
         "v:copy!i32 = captured; } } }";
@@ -1188,6 +1191,7 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_tuple_index,1) &&
         check_source(inferred_generic_identity,0) &&
         check_source(inferred_generic_sum,0) &&
+        check_source(mismatched_generic_sum,1) &&
         check_source(relocate_valid,0) &&
         check_source(relocate_double_move,1) &&
         check_source(relocate_type_mismatch,1) &&
