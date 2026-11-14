@@ -47,8 +47,8 @@
 
 ## Relocation Semantic checkpoint — 2026-11-15
 
-- Added `Slot.is_moved` ownership state. `TOKEN_RELOCATE` (`_>`) now requires distinct declared identifier source/destination operands, checks source/destination type compatibility, marks the source moved, and rejects subsequent identifier use through the moved source.
-- Added negative regression cases for use-after-move, source==destination, unknown target and type mismatch. This covers the currently parsed variable relocation expression; it does **not** yet implement forward `(h) _> (hand)` Handler target pre-resolution, branch/loop route validation, borrow/lifetime, or cleanup.
+- Added `Slot.is_moved` ownership state and negative regression cases for use-after-move, source==destination, unknown target and type mismatch. Initial implementation placed transfer handling in `AST_BINARY_EXPR`, but Parser emits `AST_RELOCATE`; CI exposed the mismatch (use-after-move expected 1 diagnostic, got 0).
+- Corrected ownership transfer to the actual `AST_RELOCATE` Semantic branch and added a valid relocation regression. Commits `e397f69c` (implementation) and `203df0a8` (test) are awaiting GitHub Actions. Do not mark this checkpoint verified until the matrix is green. Forward `(h) _> (hand)` Handler target pre-resolution, branch/loop route validation, borrow/lifetime, and cleanup remain open.
 - Commits: `7568545c425e588806db4f8164e9ca038fa87f1d`, `3cd9803991e02e80c785d52d5411c1a80149ab4c`, `b82c12f65eb0e4d3f5f965491d6e5c38b480e3c9`, `90ccc4633fbfac2d9d313dffdf2c3586edd1752e`.
 - CI run [43644135951](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43644135951) is in progress. Keep Semantic coverage open until all jobs pass.
 ## Function default-parameter Semantic checkpoint — 2026-11-15
