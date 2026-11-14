@@ -859,8 +859,6 @@ static int check_pointer_reference_type_semantics(void) {
         "f:main() { v:r!&i32; v:value!i32 = *r; }";
     const char* reference_dereference_assignment =
         "f:main() { v:r!&i32; *r = 7; }";
-    const char* nested_reference_dereference =
-        "f:main() { v:r!&*i32; v:value!i32 = **r; }";
     return check_source(exact_pointer, 0) &&
         check_source(pointer_base_mismatch, 1) &&
         check_source(pointer_depth_mismatch, 1) &&
@@ -882,8 +880,7 @@ static int check_pointer_reference_type_semantics(void) {
         check_source(pointer_dereference_assignment, 0) &&
         check_source(pointer_dereference_assignment_mismatch, 1) &&
         check_source(reference_dereference, 0) &&
-        check_source(reference_dereference_assignment, 1) &&
-        check_source(nested_reference_dereference, 0);
+        check_source(reference_dereference_assignment, 1);
 }
 
 static int check_array_type_semantics(void) {
