@@ -5436,6 +5436,13 @@ static void semantic_check_node(
                     "Logical negation '!' requires a bool operand; got '%s'.",
                     operand_type);
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+            } else if (unary->op == TOKEN_STAR) {
+                const char* raw_type = operand_type &&
+                    operand_type[0] == '!' ? operand_type + 1 : operand_type;
+                if (!raw_type || raw_type[0] != '*') {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Pointer dereference requires a pointer operand.");
+                }
             } else if (operand_type && unary->op == TOKEN_MINUS &&
                        !is_numeric_primitive_type(operand_type) &&
                        !semantic_vector_dimension(operand_type, &(size_t){0})) {
