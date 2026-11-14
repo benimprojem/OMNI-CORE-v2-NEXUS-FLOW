@@ -972,6 +972,17 @@ static int check_extended_ast_semantics(void) {
     const char* valid_named_arguments =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(b:2,a:1); }";
+    const char* valid_default_parameter_omitted =
+        "f:sum(a!i32,b:2)!i32 { ret a+b; } "
+        "f:main() !i32 { ret sum(1); }";
+    const char* valid_default_parameter_explicit =
+        "f:sum(a!i32,b:2)!i32 { ret a+b; } "
+        "f:main() !i32 { ret sum(1,3); }";
+    const char* invalid_default_parameter_missing_required =
+        "f:sum(a!i32,b:2)!i32 { ret a+b; } "
+        "f:main() { v:result = sum(); }";
+    const char* invalid_required_after_default =
+        "f:bad(a:1,b!i32)!i32 { ret b; } f:main() {}";
     const char* invalid_named_argument =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(missing:2,a:1); }";
@@ -1075,6 +1086,10 @@ static int check_extended_ast_semantics(void) {
         check_source(select_default_not_last,1) && 
         check_source(valid_scan_else_last,0) &&
         check_source(valid_named_arguments,0) &&
+        check_source(valid_default_parameter_omitted,0) &&
+        check_source(valid_default_parameter_explicit,0) &&
+        check_source(invalid_default_parameter_missing_required,1) &&
+        check_source(invalid_required_after_default,1) &&
         check_source(invalid_named_argument,1) &&
         check_source(invalid_mixed_extra_positional,2) &&
         check_source(valid_variadic_call,0) &&
