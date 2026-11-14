@@ -3236,6 +3236,10 @@ static int test_shared_and_mutable_borrow_parser_ast(void) {
             ? (ASTUnaryExpr*)exclusive->initializer : NULL;
         shared_type = shared ? (ASTTypeExpr*)shared->type_expr : NULL;
         mutable_type = exclusive ? (ASTTypeExpr*)exclusive->type_expr : NULL;
+        if (shared_type && shared_type->kind == AST_TYPE_QUALIFIED)
+            shared_type = (ASTTypeExpr*)shared_type->child;
+        if (mutable_type && mutable_type->kind == AST_TYPE_QUALIFIED)
+            mutable_type = (ASTTypeExpr*)mutable_type->child;
         valid = function && shared && exclusive && !exclusive->base.next &&
             shared_borrow && shared_borrow->op == TOKEN_BIT_AND &&
             shared_borrow->operand && shared_borrow->operand->type == AST_IDENTIFIER &&
