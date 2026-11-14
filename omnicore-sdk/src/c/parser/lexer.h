@@ -161,7 +161,10 @@ typedef enum {
 
     /* Integer bit shifts; appended to preserve existing frontend token ordinals. */
     TOKEN_BIT_SHL,         // <<< logical left shift
-    TOKEN_BIT_SHR          // >>> logical right shift
+    TOKEN_BIT_SHR,         // >>> logical right shift
+
+    /* AST-only unary operator marker; source spelling is '&mut value'. */
+    TOKEN_BORROW_MUT
 
 } OmniTokenType;
 
