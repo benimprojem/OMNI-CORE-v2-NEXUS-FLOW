@@ -836,6 +836,15 @@ static int check_pointer_reference_type_semantics(void) {
         "f:take(value!*i32) {} f:main() { v:address!u64; take(address); }";
     const char* unknown_nested_pointer_target =
         "f:take(value!**MissingType) {} f:main() {}";
+    const char* exact_pointer_return =
+        "f:identity(value!*i32)!*i32 { ret value; } "
+        "f:main() { v:p!*i32; v:q!*i32 = identity(p); }";
+    const char* pointer_return_base_mismatch =
+        "f:identity(value!*i32)!*f32 { ret value; } f:main() {}";
+    const char* exact_reference_return =
+        "f:identity(value!&i32)!&i32 { ret value; } f:main() {}";
+    const char* reference_return_base_mismatch =
+        "f:identity(value!&i32)!&f32 { ret value; } f:main() {}";
     return check_source(exact_pointer, 0) &&
         check_source(pointer_base_mismatch, 1) &&
         check_source(pointer_depth_mismatch, 1) &&
@@ -846,7 +855,11 @@ static int check_pointer_reference_type_semantics(void) {
         check_source(nested_pointer_depth_mismatch, 1) &&
         check_source(exact_reference_assignment, 0) &&
         check_source(pointer_integer_mismatch, 1) &&
-        check_source(unknown_nested_pointer_target, 1);
+        check_source(unknown_nested_pointer_target, 1) &&
+        check_source(exact_pointer_return, 0) &&
+        check_source(pointer_return_base_mismatch, 1) &&
+        check_source(exact_reference_return, 0) &&
+        check_source(reference_return_base_mismatch, 1);
 }
 
 static int check_array_type_semantics(void) {
