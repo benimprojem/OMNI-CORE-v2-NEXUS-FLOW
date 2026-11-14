@@ -1113,6 +1113,9 @@ static int check_extended_ast_semantics(void) {
     const char* inferred_generic_identity =
         "f:identity(value!t)!t { ret value; } "
         "f:main() { v:result!i32 = identity(7); }";
+    const char* inferred_generic_second_parameter =
+        "f:second(a!i32,b!t)!t { ret b; } "
+        "f:main() { v:result!str = second(1,\\"ok\\"); }";
     const char* inferred_generic_sum =
         "f:sum(a!t,b!t)!t { ret a + b; } "
         "f:main() { v:result!i32 = sum(2,3); }";
@@ -1190,6 +1193,7 @@ static int check_extended_ast_semantics(void) {
         check_source(valid_tuple_indexing,0) &&
         check_source(invalid_tuple_index,1) &&
         check_source(inferred_generic_identity,0) &&
+        check_source(inferred_generic_second_parameter,0) &&
         check_source(inferred_generic_sum,0) &&
         check_source(mismatched_generic_sum,1) &&
         check_source(relocate_valid,0) &&
