@@ -1116,6 +1116,9 @@ static int check_extended_ast_semantics(void) {
     const char* inferred_generic_second_parameter =
         "f:second(a!i32,b!t)!t { ret b; } "
         "f:main() { v:result!str = second(1,\"ok\"); }";
+    const char* inferred_generic_named_parameter =
+        "f:second(a!i32,b!t)!t { ret b; } "
+        "f:main() { v:result!str = second(b:\\"ok\\",a:1); }";
     const char* inferred_generic_sum =
         "f:sum(a!t,b!t)!t { ret a + b; } "
         "f:main() { v:result!i32 = sum(2,3); }";
@@ -1194,6 +1197,7 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_tuple_index,1) &&
         check_source(inferred_generic_identity,0) &&
         check_source(inferred_generic_second_parameter,0) &&
+        check_source(inferred_generic_named_parameter,0) &&
         check_source(inferred_generic_sum,0) &&
         check_source(mismatched_generic_sum,1) &&
         check_source(relocate_valid,0) &&
