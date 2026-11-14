@@ -1074,7 +1074,9 @@ static int check_extended_ast_semantics(void) {
         "f:main() { v:choice!i32 = 1; scan(choice) { captured -> { "
         "v:copy!str = captured; } } }";
     const char* relocate_valid =
-        "f:main() { v:src!i32 = 1; v:dst!i32 = 0; v:moved = src _> dst; }";
+        "f:main() { v:src!i32 = 1; v:dst!i32 = 0; v:moved = src _> dst; v:read!i32 = dst; }";
+    const char* relocate_double_move =
+        "f:main() { v:src!i32 = 1; v:dst!i32 = 0; v:dst2!i32 = 0; v:moved = src _> dst; v:again = src _> dst2; }";
     const char* relocate_type_mismatch =
         "f:main() { v:src!i32 = 1; v:dst!str = \"x\"; v:moved = src _> dst; }";
     const char* relocate_use_after_move =
@@ -1132,6 +1134,7 @@ static int check_extended_ast_semantics(void) {
         check_source(inferred_generic_identity,0) &&
         check_source(inferred_generic_sum,0) &&
         check_source(relocate_valid,0) &&
+        check_source(relocate_double_move,1) &&
         check_source(relocate_type_mismatch,1) &&
         check_source(relocate_use_after_move,1) &&
         check_source(relocate_same_source_target,1) &&
