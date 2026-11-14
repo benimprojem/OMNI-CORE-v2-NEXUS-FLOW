@@ -4678,6 +4678,23 @@ static void semantic_check_node(
                     "Assignment target must be a mutable identifier, member, index, or pointer dereference.");
             }
             if (assign->op != TOKEN_ASSIGN && assign->op != TOKEN_FORCE_ASSIGN) {
+                /*
+                 * Compound assignment writes through its target just like
+                 * ordinary assignment. Preserve immutable shared-reference
+                 * semantics for every compound operator, not only '='.
+                 */
+                if (assign->left->type == AST_UNARY_EXPR &&
+                    ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR) {
+                    int is_shared_reference = 0;
+                    (void)semantic_dereference_target_type(
+                        get_expr_type(ctx,
+                            ((ASTUnaryExpr*)assign->left)->operand),
+                        &is_shared_reference);
+                    if (is_shared_reference) {
+                        report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                            "Cannot modify a value through an immutable shared reference.");
+                    }
+                }
                 const char* left_type=get_expr_type(ctx,assign->left);
                 const char* right_type=get_expr_type(ctx,assign->right);
                 int numeric_compound=assign->op==TOKEN_PLUS_EQ||
