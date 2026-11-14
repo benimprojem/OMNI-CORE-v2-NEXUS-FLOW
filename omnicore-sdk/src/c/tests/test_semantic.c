@@ -863,6 +863,16 @@ static int check_pointer_reference_type_semantics(void) {
         "f:main() { v:r!&i32; *r += 1; }";
     const char* pointer_compound_assignment =
         "f:main() { v:p!*i32; *p += 1; }";
+    const char* reference_subtract_assignment =
+        "f:main() { v:r!&i32; *r -= 1; }";
+    const char* reference_multiply_assignment =
+        "f:main() { v:r!&i32; *r *= 2; }";
+    const char* reference_divide_assignment =
+        "f:main() { v:r!&i32; *r /= 2; }";
+    const char* reference_bitwise_assignment =
+        "f:main() { v:r!&i32; *r &= 1; }";
+    const char* pointer_bitwise_assignment =
+        "f:main() { v:p!*i32; *p &= 1; }";
     return check_source(exact_pointer, 0) &&
         check_source(pointer_base_mismatch, 1) &&
         check_source(pointer_depth_mismatch, 1) &&
@@ -886,7 +896,12 @@ static int check_pointer_reference_type_semantics(void) {
         check_source(reference_dereference, 0) &&
         check_source(reference_dereference_assignment, 1) &&
         check_source(reference_compound_assignment, 1) &&
-        check_source(pointer_compound_assignment, 0);
+        check_source(pointer_compound_assignment, 0) &&
+        check_source(reference_subtract_assignment, 1) &&
+        check_source(reference_multiply_assignment, 1) &&
+        check_source(reference_divide_assignment, 1) &&
+        check_source(reference_bitwise_assignment, 1) &&
+        check_source(pointer_bitwise_assignment, 0);
 }
 
 static int check_array_type_semantics(void) {
