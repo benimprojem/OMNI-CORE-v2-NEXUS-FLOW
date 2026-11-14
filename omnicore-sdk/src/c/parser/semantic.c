@@ -1240,14 +1240,9 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             const char* operand_type = get_expr_type(ctx, unary->operand);
             const char* type_name = operand_type;
             if (unary->op == TOKEN_STAR) {
-                const char* raw_type = operand_type &&
-                    operand_type[0] == '!' ? operand_type + 1 : operand_type;
-                if (!raw_type || raw_type[0] != '*') {
-                    /* semantic_check_node owns the single diagnostic. */
-                    type_name = NULL;
-                } else {
-                    type_name = raw_type + 1;
-                }
+                type_name = semantic_dereference_target_type(
+                    operand_type, NULL);
+                /* semantic_check_node owns the single diagnostic. */
             }
             semantic_record_annotation(
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
@@ -1428,6 +1423,21 @@ static int semantic_array_signatures_compatible(
         if (actual_dim && *actual_dim != '[') return 0;
     }
     return expected_dim == NULL && actual_dim == NULL;
+}
+
+static const char* semantic_dereference_target_type(
+    const char* type_name, int* is_shared_reference
+) {
+    const char* raw_type = type_name;
+    if (is_shared_reference) *is_shared_reference = 0;
+    if (!raw_type) return NULL;
+    if (raw_type[0] == '!') ++raw_type;
+    if (raw_type[0] == '&') {
+        if (is_shared_reference) *is_shared_reference = 1;
+        return raw_type + 1;
+    }
+    if (raw_type[0] == '*') return raw_type + 1;
+    return NULL;
 }
 
 static int are_types_compatible(const char* type1, const char* type2) {
@@ -4611,6 +4621,15 @@ static void semantic_check_node(
                        ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR) {
                 const char* target_type = get_expr_type(ctx, assign->left);
                 const char* right_type = get_expr_type(ctx, assign->right);
+                int is_shared_reference = 0;
+                (void)semantic_dereference_target_type(
+                    get_expr_type(ctx,
+                        ((ASTUnaryExpr*)assign->left)->operand),
+                    &is_shared_reference);
+                if (is_shared_reference) {
+                    report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                        "Cannot assign through an immutable shared reference.");
+                }
                 if (target_type && right_type &&
                     !are_types_compatible(target_type, right_type)) {
                     char message[320];
@@ -5460,11 +5479,10 @@ static void semantic_check_node(
                     operand_type);
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
             } else if (unary->op == TOKEN_STAR) {
-                const char* raw_type = operand_type &&
-                    operand_type[0] == '!' ? operand_type + 1 : operand_type;
-                if (!raw_type || raw_type[0] != '*') {
+                if (!semantic_dereference_target_type(
+                        operand_type, NULL)) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Pointer dereference requires a pointer operand.");
+                        "Dereference requires a pointer or reference operand.");
                 }
             } else if (operand_type && unary->op == TOKEN_MINUS &&
                        !is_numeric_primitive_type(operand_type) &&
