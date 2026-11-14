@@ -238,6 +238,8 @@ f:matrisAl(veri:f64[2][2]) { ... }
 
 Map tek bir sabit key/value tür çiftiyle sınırlandırılmak zorunda değildir. Anahtarlar çoğunlukla string olabilir; değerlerin türleri map içindeki kayıt/öğe bazında tutulabilir. Bu nedenle `map<str, i32>` biçimini zorunlu kılmıyoruz. Bu generic yazımın gelecekte isteğe bağlı bir kısıtlama olarak desteklenip desteklenmeyeceği henüz kararlaştırılmamıştır; mevcut Parser bu yazımı henüz desteklemez.
 
+**Mevcut Semantic sözleşmesi:** Map index read sonucu `any` türündedir; aynı Map içinde farklı türde değerler saklanabilir ve bu değerlerin yazılması tek bir value type kuralına bağlanmaz. String ve numeric key kullanımı regression testleriyle doğrulanmıştır; henüz bir key-type whitelist/hashability kuralı uygulanmaz. `c:` ile bağlanmış Map değeri index üzerinden değiştirilemez. Bunlar static Semantic kontrolleridir; runtime storage, hashing, ownership ve copy davranışını tek başına tanımlamaz.
+
 ```nxf
 v:notlar!map;
   notlar["Ali"] = 90;
