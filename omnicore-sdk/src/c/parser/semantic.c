@@ -1092,6 +1092,8 @@ static int semantic_lvalue_is_const(SemanticContext* ctx, ASTNode* node) {
 
 static int is_integer_primitive_type(const char* type_name);
 static const char* semantic_representation_element_type(const char* type_name);
+static const char* semantic_dereference_target_type(
+    const char* type_name, int* is_shared_reference);
 
 static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
     if (!node) return NULL;
