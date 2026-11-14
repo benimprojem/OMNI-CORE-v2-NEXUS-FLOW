@@ -261,24 +261,6 @@ static int semantic_slot_is_nominal_type(const Slot* slot) {
         slot->kind == SLOT_ENUM);
 }
 
-/* Handler names have their own forward-resolution pass. A transfer may
-   target a declaration later in the same function/block tree, but never a
-   symbol outside the current function activation. */
-typedef struct HandlerTransferRecord {
-    ASTNode* transfer_node;
-    ASTNode* target_capture;
-    const char* source_name;
-    const char* target_name;
-    uint32_t source_scope_id;
-    uint32_t target_scope_id;
-    struct HandlerTransferRecord* next;
-} HandlerTransferRecord;
-
-static int semantic_is_handler_transfer(const ASTNode* node) {
-    return node && node->type == AST_BINARY_EXPR &&
-        ((const ASTBinaryExpr*)node)->op == TOKEN_RELOCATE;
-}
-
 static Slot* find_slot(SemanticContext* ctx, const char* name) {
     Slot* current = ctx ? ctx->head : NULL;
     if (!name) return NULL;
