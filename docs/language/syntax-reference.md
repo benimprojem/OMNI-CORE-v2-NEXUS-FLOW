@@ -71,6 +71,7 @@ v:deep_value!i32 = **double;
 
 - Unary `*` yalnızca pointer türündeki operandı kabul eder; `*integer` Semantic hatasıdır.
 - Dereference edilen hedef, atama sol tarafında kullanılabilir; atanan değer hedef pointee türüyle uyumlu olmalıdır.
+- `&T` shared reference değiştirilemezdir: `*r = value` ve `*r += value` gibi normal/bileşik yazma işlemleri Semantic hatasıdır. `*T` raw pointer hedefinde bileşik atama, hedef türü uyumluysa kabul edilir; raw pointer güvenlik/lifetime garantisi sağlamaz.
 - Bu işlem raw pointer erişimidir. Null, dangling pointer, bounds veya lifetime güvenliği sağlamaz; bunlar otomatik olarak doğrulanmış kabul edilmez.
 - Binary çarpma `a * b` ile unary dereference `*p`, konumlarına göre ayrı ayrıştırılır.
 ---
