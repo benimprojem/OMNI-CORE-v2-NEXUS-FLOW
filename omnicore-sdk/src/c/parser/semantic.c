@@ -5046,18 +5046,36 @@ static void semantic_check_node(
 
         case AST_RELOCATE: {
             ASTRelocate* relocate=(ASTRelocate*)node;
+            Slot* source_slot=NULL;
+            Slot* target_slot=NULL;
             const char* source_type;
             const char* target_type;
             semantic_check(ctx,relocate->source);
             semantic_check(ctx,relocate->target);
             source_type=get_expr_type(ctx,relocate->source);
             target_type=get_expr_type(ctx,relocate->target);
-            if(source_type && target_type &&
-               !are_types_compatible(source_type,target_type))
+            if(relocate->source && relocate->source->type==AST_IDENTIFIER)
+                source_slot=find_slot(ctx,((ASTIdentifier*)relocate->source)->name);
+            if(relocate->target && relocate->target->type==AST_IDENTIFIER)
+                target_slot=find_slot(ctx,((ASTIdentifier*)relocate->target)->name);
+            if(!source_slot || !target_slot) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Relocation requires declared source and destination identifiers.");
+            } else if(source_slot==target_slot) {
+                report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Relocation source and destination must be different variables.");
+            } else if(source_slot->is_moved) {
+                report_error(ctx,relocate->source,ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Relocation source has already been moved.");
+            } else if(source_type && target_type &&
+                      !are_types_compatible(source_type,target_type)) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                     "Relocate source and destination types must match.");
-            semantic_record_annotation(ctx,node,NULL,
-                source_type?source_type:"any",SEMANTIC_RESULT_VALUE_RVALUE);
+            } else {
+                source_slot->is_moved=1;
+                semantic_record_annotation(ctx,node,target_slot,
+                    target_type?target_type:"any",SEMANTIC_RESULT_VALUE_RVALUE);
+            }
             break;
         }
 
