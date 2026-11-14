@@ -27,6 +27,7 @@ typedef struct Slot {
     char* name;
     SlotKind kind;
     int is_const;
+    int is_moved;          /* Ownership transferred by TOKEN_RELOCATE. */
     int depth; // Scope derinliği
     char* type_name;      // Değişken tipi, Fonksiyon dönüş tipi veya NewType hedefi
     ASTNode* declaration_node; // Non-owning AST declaration for signature validation
