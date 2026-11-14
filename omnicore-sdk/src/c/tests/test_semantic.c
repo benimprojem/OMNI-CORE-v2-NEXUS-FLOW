@@ -1118,7 +1118,7 @@ static int check_extended_ast_semantics(void) {
         "f:main() { v:result!str = second(1,\"ok\"); }";
     const char* inferred_generic_named_parameter =
         "f:second(a!i32,b!t)!t { ret b; } "
-        "f:main() { v:result!str = second(b:\\"ok\\",a:1); }";
+        "f:main() { v:result!str = second(b:\"ok\",a:1); }";
     const char* inferred_generic_sum =
         "f:sum(a!t,b!t)!t { ret a + b; } "
         "f:main() { v:result!i32 = sum(2,3); }";
