@@ -387,6 +387,17 @@ static int check_malformed_function_and_control_ast(void) {
     return 1;
 }
 
+static int check_handler_capture_semantics(void) {
+    const char* captured_type_is_preserved =
+        "f:main() { (text) <- \\"handler-data\\"; v:copy!str = text; }";
+    const char* self_capture_is_undefined =
+        "f:main() { (self) <- self; }";
+    const char* duplicate_handler_capture =
+        "f:main() { (h) <- 1; (h) <- 2; }";
+    return check_source(captured_type_is_preserved, 0) &&
+        check_source(self_capture_is_undefined, 1) &&
+        check_source(duplicate_handler_capture, 1);
+}
 static int check_malformed_nexus_and_argument_ast(void) {
     static const struct { ASTNodeType type; const char* message; } cases[] = {
         { AST_NEXUS_CAPTURE, "Nexus capture requires a non-empty handler name and source expression" },
@@ -2246,6 +2257,9 @@ int main(int argc, char** argv) {
     if (!check_malformed_expression_and_loop_ast()) {
         fprintf(stderr, "Malformed expression/loop AST checks failed.\n");
         return 1;
+    }
+    if (!check_handler_capture_semantics()) {
+        fprintf(stderr, "Handler capture semantic tests failed.\\n"); return 1;
     }
     if (!check_malformed_nexus_and_argument_ast()) {
         fprintf(stderr, "Malformed Nexus/argument AST checks failed.\\n");
