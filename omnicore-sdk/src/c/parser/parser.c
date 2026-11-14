@@ -1856,7 +1856,8 @@ static ASTNode* parse_power(Parser* p) {
 }
 
 static ASTNode* parse_unary(Parser* p) {
-    if (match(p, TOKEN_NOT) || match(p, TOKEN_MINUS) || match(p, TOKEN_BIT_NOT)) {
+    if (match(p, TOKEN_NOT) || match(p, TOKEN_MINUS) ||
+        match(p, TOKEN_BIT_NOT) || match(p, TOKEN_STAR)) {
         Token operator_token = p->previous;
         OmniTokenType op = operator_token.type;
         ASTNode* operand;
