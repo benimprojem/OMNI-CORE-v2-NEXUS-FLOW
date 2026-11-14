@@ -1243,8 +1243,7 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 const char* raw_type = operand_type &&
                     operand_type[0] == '!' ? operand_type + 1 : operand_type;
                 if (!raw_type || raw_type[0] != '*') {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Pointer dereference requires a pointer operand.");
+                    /* semantic_check_node owns the single diagnostic. */
                     type_name = NULL;
                 } else {
                     type_name = raw_type + 1;
