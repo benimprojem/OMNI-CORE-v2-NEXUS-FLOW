@@ -45,6 +45,12 @@
 - The normative syntax reference records these decisions, fresh-table creation, processing-flow activation, and a forward cross-scope relocation example. This is a design/documentation checkpoint only: forward target resolution, Semantic ownership/borrow tracking, Halt control-flow effects, OIR metadata/lowering and independent Verifier checks remain open. No dashboard completion mark is granted.
 - Pointer/reference regression fixture was corrected to avoid unsupported `&*T` syntax. GitHub Actions run [43309269784](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43309269784) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. This verifies the corrected type-compatibility fixtures, not ownership/lifetime Semantic completion.
 
+## Function default-parameter Semantic checkpoint — 2026-11-15
+
+- Function signature registration now distinguishes total fixed parameters from required parameters. Default initializers must form a trailing suffix; required parameters after a default are diagnosed. Call arity accepts omission only for that suffix while still checking explicitly supplied arguments.
+- Regression cases cover omitted and explicit defaults, missing required arguments and invalid required-after-default order. The normative syntax reference now records this contract; default-expression synthesis at call sites remains OIR/lowering work.
+- Implementation commits: `b61c3f90644b4db697924fc143f3d15064ed47ff`, `92c299d5b3a5115743e07a7f4f401ad6f6d9be98`, `becad7d3cdc2a499cade70907d576f9c3701dc62`; tests: `28a8549b9bd7dda7bdf98199ea93fb928b16a5ae`.
+- CI run 43642220852: Ubuntu, Windows, macOS and ASan/UBSan green; Valgrind still running. Dashboard Semantic cell is not marked complete until the run is fully green.
 ## Handler Semantic source-binding checkpoint — 2026-11-15
 
 - Handler capture now evaluates its source expression before introducing the destination symbol, preventing self-capture from resolving to the newly created, uninitialized Handler.
