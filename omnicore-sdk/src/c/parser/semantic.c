@@ -3422,6 +3422,7 @@ static void semantic_validate_call_arguments(
     ASTNode* argument;
     uint32_t argument_index = 0u;
     ASTFuncDecl* declaration = NULL;
+    const char* inferred_type_variable = NULL;
 
     if (!ctx || !function_slot) return;
     for (argument = arguments; argument; argument = argument->next) {
@@ -3534,12 +3535,31 @@ static void semantic_validate_call_arguments(
                     parameter=(ASTVarDecl*)parameter_node;
             }
 
-            if(argument_type && expected_type &&
-               !are_types_compatible(expected_type,argument_type)) {
-                char message[256];
-                snprintf(message,sizeof(message),msg_get(ERR_SEMANTIC_ARG_TYPE),
-                    (int)(parameter_index+1u),expected_type,argument_type);
-                report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,message);
+            if (argument_type && expected_type) {
+                const char* normalized_expected_type = expected_type;
+                while (*normalized_expected_type == '!') ++normalized_expected_type;
+                if (strcmp(normalized_expected_type, "t") == 0) {
+                    if (!inferred_type_variable) {
+                        const char* normalized_argument_type = argument_type;
+                        while (*normalized_argument_type == '!')
+                            ++normalized_argument_type;
+                        if (strcmp(normalized_argument_type, "t") != 0)
+                            inferred_type_variable = argument_type;
+                    } else if (!are_types_compatible(
+                                   inferred_type_variable, argument_type)) {
+                        char message[320];
+                        (void)snprintf(message, sizeof(message),
+                            "Type variable 't' was inferred as '%s', but argument %u has incompatible type '%s'.",
+                            inferred_type_variable, (unsigned)(parameter_index + 1u),
+                            argument_type);
+                        report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE, message);
+                    }
+                } else if (!are_types_compatible(expected_type, argument_type)) {
+                    char message[256];
+                    snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_TYPE),
+                        (int)(parameter_index+1u),expected_type,argument_type);
+                    report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,message);
+                }
             } else if(parameter && parameter->inline_type &&
                 parameter->inline_type->type==AST_ARRAY_TYPE &&
                 argument_value && argument_value->type==AST_ARRAY_LITERAL) {
