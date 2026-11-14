@@ -3570,11 +3570,12 @@ static void semantic_validate_call_arguments(
                         (int)(parameter_index+1u),expected_type,argument_type);
                     report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,message);
                 }
-            } else if(parameter && parameter->inline_type &&
-                parameter->inline_type->type==AST_ARRAY_TYPE &&
-                argument_value && argument_value->type==AST_ARRAY_LITERAL) {
+            }
+            if (parameter && parameter->inline_type &&
+                parameter->inline_type->type == AST_ARRAY_TYPE &&
+                argument_value && argument_value->type == AST_ARRAY_LITERAL) {
                 semantic_validate_array_initializer(
-                    ctx,argument_value,
+                    ctx, argument_value,
                     ((ASTArrayType*)parameter->inline_type)->dimensions,
                     parameter->type_name);
             }
