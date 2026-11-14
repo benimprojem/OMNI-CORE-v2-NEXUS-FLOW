@@ -389,7 +389,7 @@ static int check_malformed_function_and_control_ast(void) {
 
 static int check_handler_capture_semantics(void) {
     const char* captured_type_is_preserved =
-        "f:main() { (text) <- \\"handler-data\\"; v:copy!str = text; }";
+        "f:main() { (text) <- \"handler-data\"; v:copy!str = text; }";
     const char* self_capture_is_undefined =
         "f:main() { (self) <- self; }";
     const char* duplicate_handler_capture =
