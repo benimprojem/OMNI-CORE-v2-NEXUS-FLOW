@@ -4621,24 +4621,36 @@ static void semantic_check_node(
 
         case AST_NEXUS_CAPTURE: {
             ASTNexusCapture* capture = (ASTNexusCapture*)node;
-            // (h) <- expr : Handler tanımlanıyor
+            Slot* handler_slot;
+            const char* captured_type;
+
+            /* Evaluate source before introducing destination name.
+               This prevents self-reference to an uninitialized Handler. */
             if (!capture->handler_name || !capture->handler_name[0] ||
                 !capture->expr) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Nexus capture requires a non-empty handler name and source expression.");
                 break;
             }
+            semantic_check(ctx, capture->expr);
+            captured_type = get_expr_type(ctx, capture->expr);
+
             if (find_slot(ctx, capture->handler_name)) {
                 char buf[256];
-                snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_REDEFINED), capture->handler_name); // Handler için de REDEFINED kullanabiliriz veya yeni kod
+                snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_REDEFINED),
+                    capture->handler_name);
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
-            } else {
-                Slot* handler_slot = add_slot(
-                    ctx, capture->handler_name, SLOT_VAR, 0, NULL, node, 1, 0, 0, 0u);
-                semantic_record_annotation(
-                    ctx, node, handler_slot, NULL, SEMANTIC_RESULT_VALUE_LVALUE);
+                break;
             }
-            if (capture->expr) semantic_check(ctx, capture->expr);
+
+            handler_slot = add_slot(
+                ctx, capture->handler_name, SLOT_VAR, 0, captured_type,
+                node, 1, 0, 0, 0u);
+            if (handler_slot) {
+                semantic_record_annotation(
+                    ctx, node, handler_slot, handler_slot->type_name,
+                    SEMANTIC_RESULT_VALUE_LVALUE);
+            }
             break;
         }
 
