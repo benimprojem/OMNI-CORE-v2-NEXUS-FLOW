@@ -1099,6 +1099,8 @@ Nexus Flow'da isimlendirilmiş thread çalışma gövdesi şu biçimdedir:
 
 **Parametre ayrımı:** Fonksiyon bildirimindeki `a:10` bir varsayılan parametre değeridir. Çağrıdaki `topla(a:10, b:20)` ise isimli argümanlardır. Bunlar aynı token biçimini kullansa da farklı Parser bağlamlarında farklı AST düğümleri üretir. Fonksiyonlar şu an tek bir dönüş tipi taşır; çoklu dönüş tipi grameri tanımlı değildir.
 
+**Default parametre Semantic kontratı:** Varsayılan initializer'ı olan parametreler, parametre listesinin sonunda kesintisiz bir suffix oluşturmalıdır; zorunlu parametre default parametreden sonra gelemez. Çağrıda bu suffix'ten parametreler atlanabilir, ancak default öncesindeki zorunlu parametreler sağlanmalıdır. Açıkça verilen değerler normal parametre türü kontrolünden geçer. Default ifadelerinin çağrı noktasında üretilmesi OIR/lowering sorumluluğudur.
+
 **Pointer/reference örnekleri:**
 
 ```nexus
