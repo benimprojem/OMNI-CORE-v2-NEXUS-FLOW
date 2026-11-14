@@ -2122,7 +2122,7 @@ Semantic resolves the qualifier to an enum declaration and the member to one of 
 
 **Borrow ve lifetime**
 - `&T` paylaşımlı, immutable borrow'dur. Aynı owner üzerinde birden fazla shared borrow bulunabilir.
-- Mutable borrow tasarımında `&mut T` exclusive borrow'dur: etkin olduğu sürece aynı owner üzerinde başka shared veya mutable borrow bulunamaz. Mevcut C Parser `&mut T` biçimini henüz kabul etmez; bu yazım, Parser/AST desteği eklenene kadar tasarım sözleşmesidir, aktif syntax garantisi değildir.
+- Mutable borrow tasarımında `&mut T` exclusive borrow'dur: etkin olduğu sürece aynı owner üzerinde başka shared veya mutable borrow bulunamaz. Parser artık `&mut T` türünü `AST_TYPE_REFERENCE` + `AST_TYPE_FLAG_MUTABLE_REFERENCE`, `&mut value` ifadesini de `AST_UNARY_EXPR` + `TOKEN_BORROW_MUT` olarak üretir. Bu yalnızca Parser/AST desteğidir; Semantic borrow tipi, owner/provenance, çakışma ve lifetime denetimleri henüz tamamlanmamıştır.
 - Reference owner'dan daha uzun yaşayamaz. Lexical scope sonunda borrow sona erer; yerel owner'a bağlı reference fonksiyon dışına döndürülemez.
 - Fonksiyon parametresine alınan borrow çağrı süresi boyunca geçerlidir. Struct/Group alanlarında tutulan reference için de owner'ın alanı içeren nesneden daha uzun yaşaması gerekir.
 - İlk sürümde explicit lifetime annotation yoktur; Semantic lifetime'ı lexical scope ve owner ilişkilerinden çıkarır.
