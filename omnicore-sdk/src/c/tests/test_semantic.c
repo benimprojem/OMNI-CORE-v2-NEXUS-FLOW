@@ -1075,6 +1075,12 @@ static int check_extended_ast_semantics(void) {
         "v:copy!str = captured; } } }";
     const char* relocate_type_mismatch =
         "f:main() { v:src!i32 = 1; v:dst!str = \"x\"; v:moved = src _> dst; }";
+    const char* relocate_use_after_move =
+        "f:main() { v:src!i32 = 1; v:dst!i32 = 0; v:moved = src _> dst; v:again!i32 = src; }";
+    const char* relocate_same_source_target =
+        "f:main() { v:src!i32 = 1; v:moved = src _> src; }";
+    const char* relocate_unknown_target =
+        "f:main() { v:src!i32 = 1; v:moved = src _> missing; }";
     return check_source(valid,0) &&
         check_source(leaked_pattern,1) &&
         check_source(unknown_apply,1) &&
@@ -1123,6 +1129,10 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_tuple_index,1) &&
         check_source(inferred_generic_identity,0) &&
         check_source(inferred_generic_sum,0) &&
+        check_source(relocate_type_mismatch,1) &&
+        check_source(relocate_use_after_move,1) &&
+        check_source(relocate_same_source_target,1) &&
+        check_source(relocate_unknown_target,1) &&
         check_source(inferred_select_binding,0) &&
         check_source(mismatched_select_binding,1) &&
         check_source(inferred_scan_binding,0) &&
