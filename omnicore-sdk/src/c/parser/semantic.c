@@ -5067,9 +5067,6 @@ static void semantic_check_node(
             } else if(source_slot==target_slot) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                     "Relocation source and destination must be different variables.");
-            } else if(source_slot->is_moved) {
-                report_error(ctx,relocate->source,ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Relocation source has already been moved.");
             } else if(source_type && target_type &&
                       !are_types_compatible(source_type,target_type)) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
