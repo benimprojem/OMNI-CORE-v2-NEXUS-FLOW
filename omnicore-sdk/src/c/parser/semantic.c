@@ -4269,7 +4269,15 @@ static void semantic_check_node(
         case AST_IDENTIFIER: {
             ASTIdentifier* id = (ASTIdentifier*)node;
             Slot* resolved = find_slot(ctx, id->name);
-            if (!resolved) {
+            if (resolved && resolved->is_moved) {
+                char moved_message[256];
+                (void)snprintf(moved_message, sizeof(moved_message),
+                    "Use of '%s' after ownership was transferred is invalid.",
+                    id->name ? id->name : "<unnamed>");
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, moved_message);
+                semantic_record_annotation(ctx, node, resolved,
+                    resolved->type_name, SEMANTIC_RESULT_VALUE_INVALID);
+            } else if (!resolved) {
                 int score = 0;
                 Slot* best = find_best_suggestion(ctx, id->name, &score);
                 char buf[256], suggest_buf[256];
@@ -4361,6 +4369,34 @@ static void semantic_check_node(
                             left_type, right_type);
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                     }
+                }
+            }
+
+            if (bin->op == TOKEN_RELOCATE) {
+                Slot* source_slot = NULL;
+                Slot* target_slot = NULL;
+                if (bin->left->type == AST_IDENTIFIER)
+                    source_slot = find_slot(ctx, ((ASTIdentifier*)bin->left)->name);
+                if (bin->right->type == AST_IDENTIFIER)
+                    target_slot = find_slot(ctx, ((ASTIdentifier*)bin->right)->name);
+                if (!source_slot || !target_slot) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation requires declared source and destination identifiers.");
+                } else if (source_slot == target_slot) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation source and destination must be different variables.");
+                } else if (source_slot->is_moved) {
+                    report_error(ctx, bin->left, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation source has already been moved.");
+                } else if (source_slot->type_name && target_slot->type_name &&
+                    !are_types_compatible(source_slot->type_name,
+                        target_slot->type_name)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation source and destination types are incompatible.");
+                } else {
+                    source_slot->is_moved = 1;
+                    semantic_record_annotation(ctx, node, target_slot,
+                        target_slot->type_name, SEMANTIC_RESULT_VALUE_RVALUE);
                 }
             }
 
