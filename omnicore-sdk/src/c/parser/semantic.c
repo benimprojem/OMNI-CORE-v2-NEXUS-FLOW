@@ -4607,6 +4607,18 @@ static void semantic_check_node(
                         element_type);
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                 }
+            } else if (assign->left->type == AST_UNARY_EXPR &&
+                       ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR) {
+                const char* target_type = get_expr_type(ctx, assign->left);
+                const char* right_type = get_expr_type(ctx, assign->right);
+                if (target_type && right_type &&
+                    !are_types_compatible(target_type, right_type)) {
+                    char message[320];
+                    (void)snprintf(message, sizeof(message),
+                        "Cannot assign value of type '%s' through pointer to '%s'.",
+                        right_type, target_type);
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                }
             } else if (assign->left->type == AST_MEMBER_ACCESS) {
                 FieldInfo* field = semantic_resolve_member(ctx, assign->left, 0);
                 if (field) {
@@ -4638,9 +4650,11 @@ static void semantic_check_node(
             if (assign->left &&
                 assign->left->type != AST_IDENTIFIER &&
                 assign->left->type != AST_MEMBER_ACCESS &&
-                assign->left->type != AST_INDEX_ACCESS) {
+                assign->left->type != AST_INDEX_ACCESS &&
+                !(assign->left->type == AST_UNARY_EXPR &&
+                  ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR)) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Assignment target must be a mutable identifier, member, or index.");
+                    "Assignment target must be a mutable identifier, member, index, or pointer dereference.");
             }
             if (assign->op != TOKEN_ASSIGN && assign->op != TOKEN_FORCE_ASSIGN) {
                 const char* left_type=get_expr_type(ctx,assign->left);
