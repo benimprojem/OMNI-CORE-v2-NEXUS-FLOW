@@ -237,7 +237,10 @@ typedef enum {
     AST_TYPE_NAMED = 1, AST_TYPE_POINTER = 2, AST_TYPE_REFERENCE = 3,
     AST_TYPE_ARRAY = 4, AST_TYPE_FUNCTION = 5, AST_TYPE_QUALIFIED = 6
 } ASTTypeExprKind;
-enum { AST_TYPE_FLAG_HARD_TYPED = 1u << 0 };
+enum {
+    AST_TYPE_FLAG_HARD_TYPED = 1u << 0,
+    AST_TYPE_FLAG_MUTABLE_REFERENCE = 1u << 1
+};
 typedef struct {
     ASTNode base;
     uint32_t kind;
