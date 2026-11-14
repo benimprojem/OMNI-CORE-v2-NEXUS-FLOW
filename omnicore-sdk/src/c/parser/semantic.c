@@ -990,6 +990,16 @@ static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
         ASTIndexAccess* access = (ASTIndexAccess*)node;
         return semantic_is_lvalue(ctx, access->target);
     }
+    if (node->type == AST_UNARY_EXPR) {
+        ASTUnaryExpr* unary = (ASTUnaryExpr*)node;
+        const char* operand_type;
+        const char* raw_type;
+        if (unary->op != TOKEN_STAR || !unary->operand) return 0;
+        operand_type = get_expr_type(ctx, unary->operand);
+        raw_type = operand_type && operand_type[0] == '!'
+            ? operand_type + 1 : operand_type;
+        return raw_type && raw_type[0] == '*';
+    }
     return 0;
 }
 
