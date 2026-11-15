@@ -299,6 +299,8 @@ static void report_error(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
     report_issue(ctx, node, code, msg, NULL, NULL, 0, 0);
 }
 
+static int semantic_borrow_paths_overlap(const char* left, const char* right);
+
 /* Borrow diagnostics identify both the rejected operation and the binding
    that keeps the conflicting borrow alive. The node span points at the
    rejected expression; the hint explains the least surprising repair. */
