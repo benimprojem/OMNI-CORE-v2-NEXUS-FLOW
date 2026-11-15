@@ -111,6 +111,12 @@ typedef struct {
     uint8_t result_enabled;
     /* Non-zero while validating a thread payload; nested payloads are invalid. */
     uint8_t thread_block_depth;
+    /* Borrow-expression operands are not ordinary owner reads. */
+    uint32_t borrow_operand_depth;
+    /* Assignment targets are writes; do not diagnose their identifier walk as a read. */
+    uint32_t assignment_target_depth;
+    /* Avoid a duplicate read diagnostic when the same borrowed owner is also the assignment target. */
+    Slot* assignment_borrow_guard_owner;
     /* Registry of complete named payloads available to spawn() calls. */
     /* Expression-derived reference type spellings live until semantic_destroy. */
     SemanticTypeName* expression_type_names;

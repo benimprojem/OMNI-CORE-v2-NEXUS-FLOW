@@ -4510,6 +4510,12 @@ static void semantic_check_node(
                     "Use of '%s' after ownership was transferred is invalid.",
                     id->name ? id->name : "<unnamed>");
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, moved_message);
+            } else if (resolved && resolved->mutable_borrow_active &&
+                ctx->borrow_operand_depth == 0u &&
+                ctx->assignment_target_depth == 0u &&
+                ctx->assignment_borrow_guard_owner != resolved) {
+                report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                    "Cannot access an owner while an exclusive mutable borrow is active.");
             } else if (!resolved) {
                 int score = 0;
                 Slot* best = find_best_suggestion(ctx, id->name, &score);
@@ -4966,8 +4972,20 @@ static void semantic_check_node(
                     }
                 }
             }
-            semantic_check(ctx, assign->left);
-            semantic_check(ctx, assign->right);
+            {
+                Slot* previous_guard_owner = ctx->assignment_borrow_guard_owner;
+                Slot* target_owner = semantic_lvalue_root_slot(ctx, assign->left);
+                ++ctx->assignment_target_depth;
+                semantic_check(ctx, assign->left);
+                --ctx->assignment_target_depth;
+                if (target_owner &&
+                    (target_owner->mutable_borrow_active ||
+                     target_owner->shared_borrow_count != 0u)) {
+                    ctx->assignment_borrow_guard_owner = target_owner;
+                }
+                semantic_check(ctx, assign->right);
+                ctx->assignment_borrow_guard_owner = previous_guard_owner;
+            }
             break;
         }
 
@@ -5710,7 +5728,14 @@ static void semantic_check_node(
         case AST_UNARY_EXPR: {
             ASTUnaryExpr* unary = (ASTUnaryExpr*)node;
             const char* operand_type;
-            semantic_check(ctx, unary->operand);
+            if (unary->op == TOKEN_BIT_AND ||
+                unary->op == TOKEN_BORROW_MUT) {
+                ++ctx->borrow_operand_depth;
+                semantic_check(ctx, unary->operand);
+                --ctx->borrow_operand_depth;
+            } else {
+                semantic_check(ctx, unary->operand);
+            }
             operand_type = get_expr_type(ctx, unary->operand);
             if (operand_type && unary->op == TOKEN_NOT &&
                 !semantic_is_boolean_condition(ctx, unary->operand)) {

@@ -950,6 +950,30 @@ static int check_borrow_overlap_and_scope_semantics(void) {
         check_source(borrow_released_at_scope_exit, 0);
 }
 
+static int check_mutable_borrow_owner_access_semantics(void) {
+    const char* owner_read_during_mutable_borrow =
+        "f:main() { v:owner!i32 = 1; v:reference!&muti32 = &mut owner; "
+        "v:copy!i32 = owner; }";
+    const char* owner_read_during_shared_borrow =
+        "f:main() { v:owner!i32 = 1; v:reference!&i32 = &owner; "
+        "v:copy!i32 = owner; }";
+    const char* member_read_during_mutable_borrow =
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; v:reference!&muti32 = &mut point.x; "
+        "v:copy!i32 = point.y; }";
+    const char* index_read_during_mutable_borrow =
+        "f:main() { v:items[2]!i32 = [1,2]; "
+        "v:reference!&muti32 = &mut items[0]; v:copy!i32 = items[1]; }";
+    const char* assignment_target_read_does_not_duplicate =
+        "f:main() { v:owner!i32 = 1; v:reference!&muti32 = &mut owner; "
+        "owner = owner + 1; }";
+    return check_source(owner_read_during_mutable_borrow, 1) &&
+        check_source(owner_read_during_shared_borrow, 0) &&
+        check_source(member_read_during_mutable_borrow, 1) &&
+        check_source(index_read_during_mutable_borrow, 1) &&
+        check_source(assignment_target_read_does_not_duplicate, 1);
+}
+
 static int check_borrow_aggregate_provenance_semantics(void) {
     const char* shared_index_conflicts_with_mutable_other_index =
         "f:main() { v:items[2]!i32 = [1,2]; "
@@ -2498,6 +2522,10 @@ int main(int argc, char** argv) {
     }
     if (!check_borrow_overlap_and_scope_semantics()) {
         fprintf(stderr, "Borrow overlap/scope Semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_mutable_borrow_owner_access_semantics()) {
+        fprintf(stderr, "Exclusive borrow owner-access checks failed.\\n");
         return 1;
     }
     if (!check_borrow_aggregate_provenance_semantics()) {
