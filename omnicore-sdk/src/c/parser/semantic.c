@@ -1148,7 +1148,7 @@ static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
 
 /* Build a stable projection path for a statically identifiable lvalue.
    Empty string denotes the whole root; dynamic indexes use [*]. */
-static char* semantic_lvalue_path(const ASTNode* node) {
+static char* semantic_lvalue_path(SemanticContext* ctx, const ASTNode* node) {
     char* parent;
     char index_suffix[48];
     const char* suffix;
@@ -1165,25 +1165,41 @@ static char* semantic_lvalue_path(const ASTNode* node) {
         size_t member_length;
         char* member_suffix;
         if (!member->member_name || !member->member_name[0]) return NULL;
-        parent = semantic_lvalue_path(member->object);
+        parent = semantic_lvalue_path(ctx, member->object);
         if (!parent) return NULL;
-        member_length = strlen(member->member_name);
-        if (member_length > SIZE_MAX - 2u) {
-            free(parent);
-            return NULL;
+        {
+            const char* object_type = get_expr_type(ctx, member->object);
+            const char* aggregate_name = object_type && object_type[0] == '!'
+                ? object_type + 1 : object_type;
+            Slot* aggregate = aggregate_name
+                ? find_slot(ctx, aggregate_name) : NULL;
+            int is_union_projection = aggregate &&
+                aggregate->kind == SLOT_UNION;
+            member_length = is_union_projection ? 1u
+                : strlen(member->member_name);
+            if (member_length > SIZE_MAX - 2u) {
+                free(parent);
+                return NULL;
+            }
+            member_suffix = (char*)malloc(member_length + 2u);
+            if (!member_suffix) {
+                free(parent);
+                return NULL;
+            }
+            member_suffix[0] = '.';
+            if (is_union_projection) {
+                member_suffix[1] = '*';
+                member_suffix[2] = '\\0';
+            } else {
+                memcpy(member_suffix + 1u, member->member_name,
+                    member_length + 1u);
+            }
+            suffix = member_suffix;
         }
-        member_suffix = (char*)malloc(member_length + 2u);
-        if (!member_suffix) {
-            free(parent);
-            return NULL;
-        }
-        member_suffix[0] = '.';
-        memcpy(member_suffix + 1u, member->member_name, member_length + 1u);
-        suffix = member_suffix;
     } else if (node->type == AST_INDEX_ACCESS) {
         const ASTIndexAccess* index = (const ASTIndexAccess*)node;
         int64_t constant_index;
-        parent = semantic_lvalue_path(index->target);
+        parent = semantic_lvalue_path(ctx, index->target);
         if (!parent) return NULL;
         if (semantic_eval_integer_constant(index->index, &constant_index))
             (void)snprintf(index_suffix, sizeof(index_suffix), "[%lld]",
@@ -3905,7 +3921,7 @@ static void semantic_validate_call_arguments(
                 if (borrow->op == TOKEN_BIT_AND ||
                     borrow->op == TOKEN_BORROW_MUT) {
                     Slot* owner = semantic_lvalue_root_slot(ctx, borrow->operand);
-                    char* borrow_path = semantic_lvalue_path(borrow->operand);
+                    char* borrow_path = semantic_lvalue_path(ctx, borrow->operand);
                     int is_mutable = borrow->op == TOKEN_BORROW_MUT;
                     int expected_mutable =
                         semantic_is_mut_reference_type_name(expected_type);
@@ -4637,7 +4653,7 @@ static int semantic_bind_returned_call_reference(
         if (borrow->op != TOKEN_BIT_AND && borrow->op != TOKEN_BORROW_MUT)
             return 0;
         owner = semantic_lvalue_root_slot(ctx, borrow->operand);
-        borrow_path = semantic_lvalue_path(borrow->operand);
+        borrow_path = semantic_lvalue_path(ctx, borrow->operand);
         is_mutable = borrow->op == TOKEN_BORROW_MUT;
     } else {
         return 0;
@@ -4716,7 +4732,7 @@ static void semantic_register_borrow_binding(
     if (!semantic_is_lvalue(ctx, borrow->operand)) return;
     owner = semantic_lvalue_root_slot(ctx, borrow->operand);
     {
-        char* projection_path = semantic_lvalue_path(borrow->operand);
+        char* projection_path = semantic_lvalue_path(ctx, borrow->operand);
         if (!projection_path) {
             report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
                 "Safe borrow requires a statically identifiable storage path; pointer dereferences and computed lvalues are rejected.");
@@ -4736,7 +4752,7 @@ static void semantic_register_borrow_binding(
         return;
     }
     {
-        char* projection_path = semantic_lvalue_path(borrow->operand);
+        char* projection_path = semantic_lvalue_path(ctx, borrow->operand);
         if (!projection_path) {
             report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
                 "Unable to allocate borrow projection metadata.");
@@ -5087,7 +5103,7 @@ static void semantic_check_node(
             semantic_check(ctx, access->index);
             {
                 Slot* owner = semantic_lvalue_root_slot(ctx, node);
-                char* path = semantic_lvalue_path(node);
+                char* path = semantic_lvalue_path(ctx, node);
                 if (owner && ctx->borrow_operand_depth == 0u &&
                     ctx->assignment_target_depth == 0u &&
                     (!path ||
@@ -5512,7 +5528,7 @@ static void semantic_check_node(
             }
             {
                 Slot* owner_slot = semantic_lvalue_root_slot(ctx, assign->left);
-                char* target_path = semantic_lvalue_path(assign->left);
+                char* target_path = semantic_lvalue_path(ctx, assign->left);
                 if (owner_slot && (!target_path ||
                     semantic_borrow_conflicts(
                         ctx, owner_slot, target_path, 1, NULL))) {
@@ -5690,7 +5706,7 @@ static void semantic_check_node(
                 semantic_check(ctx, assign->left);
                 --ctx->assignment_target_depth;
                 {
-                    char* target_path = semantic_lvalue_path(assign->left);
+                    char* target_path = semantic_lvalue_path(ctx, assign->left);
                     if (target_owner && (!target_path ||
                         semantic_borrow_conflicts(
                             ctx, target_owner, target_path, 1, NULL))) {
@@ -6720,7 +6736,7 @@ static void semantic_check_node(
             }
             {
                 Slot* owner = semantic_lvalue_root_slot(ctx, node);
-                char* path = semantic_lvalue_path(node);
+                char* path = semantic_lvalue_path(ctx, node);
                 if (owner && ctx->borrow_operand_depth == 0u &&
                     ctx->assignment_target_depth == 0u &&
                     (!path ||
