@@ -1047,6 +1047,13 @@ static int check_reference_initializer_provenance_semantics(void) {
         "f:main() { v:owner!i32 = 1; "
         "v:copy!&i32 = identity(&owner); "
         "v:edit!&muti32 = &mut owner; }";
+    const char* group_instance_method_return_origin_is_preserved =
+        "f:main() { group Storage { "
+        "identity => f:identity_impl(self,value!&i32)!&i32 { ret value; } "
+        "run => f:run_impl(self) { v:owner!i32 = 1; "
+        "v:copy!&i32 = self.identity(&owner); "
+        "v:edit!&muti32 = &mut owner; ret; } "
+        "struct:Storage { v:value!i32 } } }";
     return check_source(shared_reference_initializer_copy_tracks_owner, 1) &&
         check_source(exclusive_reference_initializer_copy_is_rejected, 1) &&
         check_source(returned_reference_parameter_preserves_origin, 1) &&
@@ -1055,7 +1062,8 @@ static int check_reference_initializer_provenance_semantics(void) {
         check_source(call_return_reference_without_verified_origin_is_rejected, 2) &&
         check_source(named_return_parameter_maps_to_correct_argument, 1) &&
         check_source(inconsistent_return_origins_are_rejected, 1) &&
-        check_source(consistent_branch_return_origin_is_preserved, 1);
+        check_source(consistent_branch_return_origin_is_preserved, 1) &&
+        check_source(group_instance_method_return_origin_is_preserved, 1);
 }
 
 static int check_safe_reference_return_lifetime_semantics(void) {
