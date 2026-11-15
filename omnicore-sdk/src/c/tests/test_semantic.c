@@ -1235,6 +1235,11 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         "struct: Container { v:value!Bits, v:guard!i32 } "
         "v:container!Container; v:first!&muti32 = &mut container.value.word; "
         "v:second!&muti32 = &mut container.guard; }";
+    const char* nested_union_member_borrows_conflict =
+        "f:main() { union: Bits { v:word!i32, v:octet!u8 } "
+        "struct: Container { v:value!Bits, v:guard!i32 } "
+        "v:container!Container; v:first!&muti32 = &mut container.value.word; "
+        "v:second!&mutu8 = &mut container.value.octet; }";
     return check_source(shared_index_and_mutable_other_index_are_independent, 0) &&
         check_source(mutable_index_allows_other_index_write, 0) &&
         check_source(shared_index_allows_other_index_write, 0) &&
@@ -1248,7 +1253,8 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         check_source(same_member_mutable_borrows_conflict, 1) &&
         check_source(two_shared_member_borrows_are_allowed, 0) &&
         check_source(distinct_union_member_mutable_borrows_conflict, 1) &&
-        check_source(union_member_and_outer_sibling_are_independent, 0);
+        check_source(union_member_and_outer_sibling_are_independent, 0) &&
+        check_source(nested_union_member_borrows_conflict, 1);
 }
 
 static int check_array_type_semantics(void) {
