@@ -1032,9 +1032,9 @@ static int check_reference_initializer_provenance_semantics(void) {
         "f:make()!&i32 { ret null; } "
         "f:main() { v:copy!&i32 = make(); }";
     const char* named_return_parameter_maps_to_correct_argument =
-        "f:second(left!&i32,right!&i32)!&i32 { ret right; } "
+        "f:pick_ref(left!&i32,right!&i32)!&i32 { ret right; } "
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:copy!&i32 = second(right:&second,left:&first); "
+        "v:copy!&i32 = pick_ref(right:&second,left:&first); "
         "v:edit!&muti32 = &mut second; }";
     const char* inconsistent_return_origins_are_rejected =
         "f:choose(left!&i32,right!&i32)!&i32 { "
