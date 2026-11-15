@@ -4089,6 +4089,9 @@ static void semantic_register_borrow_binding(
     borrow = (ASTUnaryExpr*)initializer;
     if (borrow->op != TOKEN_BIT_AND && borrow->op != TOKEN_BORROW_MUT)
         return;
+    /* The unary-borrow validator owns the diagnostic for non-lvalue operands.
+       Only lvalues proceed to the separate provenance check below. */
+    if (!semantic_is_lvalue(ctx, borrow->operand)) return;
     owner = semantic_lvalue_root_slot(ctx, borrow->operand);
     if (!owner) {
         report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
