@@ -2667,7 +2667,7 @@ on CNC_Safety.Unknown { }          # Tanımlanmamış trigger.
 
 ## 33. Modül kullanımı
 
-Modül, yeniden kullanılabilir Nexus Flow kaynak/API birimidir. use bildirimi programın modül bağımlılığını açıkça belirtir.
+Modül, yeniden kullanılabilir Nexus Flow kaynak/API birimidir. `use` bildirimi programın modül bağımlılığını açıkça belirtir.
 
 ### 33.1 use bildirimi
 
@@ -2676,17 +2676,15 @@ use osmodule;
 use coremodule;
 ~~~
 
-use module_name; biçimi modülü programa dahil eder. Modül adı açıkça yazılır ve noktalı virgülle sonlandırılır.
+`use module_name;` biçimi modülü programa dahil eder. Modül adı açıkça yazılır ve noktalı virgülle sonlandırılır.
 
 ### 33.2 Birden fazla modül adı
 
 ~~~nxf
-use osmodule;
-use coremodule;
-use thread;
+use io, sys, cpu;
 ~~~
 
-Birden fazla modül ayrı use bildirimiyle yazılır. Tek use satırında virgülle çoklu modül biçimi burada geçerli syntax olarak tanımlanmamıştır.
+Tek bir `use` bildiriminde modül adları virgülle ayrılabilir. Modüller ayrı `use` bildirimleriyle de yazılabilir.
 
 ### 33.3 Dotted module path
 
@@ -2701,11 +2699,47 @@ Alt modül yolu nokta ile belirtilebilir. Path'in dosya/klasör eşlemesi modül
 
 ~~~nxf
 use graphics.window as window;
+use math as m;
 ~~~
 
-as modül için yerel alias tanımlar. Alias çakışmaları ve re-export davranışının tüm ayrıntıları **kısmen tanımlıdır**.
+`as` modül için yerel alias tanımlar. Alias, modül adının yerine kullanılacak kısa addır.
 
-### 33.5 Modül örnekleri
+### 33.5 Namespace seçimi: ns
+
+`ns`, modül alias'ından ayrı olarak namespace prefix seçimini belirtir. Alias ve namespace aynı bildirimin içinde birlikte kullanılabilir:
+
+~~~nxf
+use db.mysql.sql as connector ns sql;
+~~~
+
+Burada `connector` modül alias'ı, `sql` ise seçilen namespace köküdür.
+
+Namespace seçimi tek başına da yazılabilir:
+
+~~~nxf
+use db.mysql ns mysql;
+~~~
+
+Otomatik namespace prefix'ini bastırmak için `ns _` kullanılır:
+
+~~~nxf
+use db.mysql.sql ns _;
+~~~
+
+**Önemli ayrım:**
+
+- `as _`, modül alias'ını `_` yapar.
+- `ns _`, namespace-prefix seçimini bastırır.
+- Bunlar birbirinin yerine geçmez; ayrı bildirim alanlarıdır.
+
+~~~nxf
+use legacy as _;       # Alias "_" olur; ns seçimi değildir.
+use legacy.module ns _; # Namespace prefix bastırılır.
+~~~
+
+Modülün yüklenmesi, alias ve namespace sembollerinin bağlanması ve import görünürlüğünün tüm çözümleme kuralları **kısmen tanımlıdır**. Sözdiziminin kabul edilmesi, resolver ve Semantic entegrasyonunun tamamlandığı anlamına gelmez.
+
+### 33.6 Modül örnekleri
 
 ~~~nxf
 use osmodule;
@@ -2715,11 +2749,11 @@ f:main() {
 }
 ~~~
 
-osmodule OS bağımlı I/O işlevleri sağlar. OS hizmeti olmayan hedeflerde bu işlevlerin bulunması garanti edilmez.
+`osmodule` OS bağımlı I/O işlevleri sağlar. OS hizmeti olmayan hedeflerde bu işlevlerin bulunması garanti edilmez.
 
-### 33.6 no: osmodule;
+### 33.7 no: osmodule;
 
-no: osmodule; otomatik yüklenen osmodule modülünü devre dışı bırakır. Genel modül kapatma mekanizması değildir; yalnızca osmodule için tanımlıdır.
+`no: osmodule;` otomatik yüklenen `osmodule` modülünü devre dışı bırakır. Genel modül kapatma mekanizması değildir; yalnızca `osmodule` için tanımlıdır.
 
 ~~~nxf
 no: osmodule;
@@ -2732,7 +2766,7 @@ f:main() {
 Kurallar:
 - Programın en üst seviyesinde yazılır.
 - Fonksiyon veya iç içe blokta kullanılamaz.
-- Yalnızca osmodule hedeflenebilir.
+- Yalnızca `osmodule` hedeflenebilir.
 - Bir programda en fazla bir kez yazılır.
 - Noktalı virgül zorunludur.
 
@@ -2745,7 +2779,7 @@ f:main() {
 }
 ~~~
 
-**Durum:** use ve no: osmodule; temel kullanımı tanımlı; resolver arama sırası ve alias edge-case'leri kısmen tanımlı.
+**Durum:** `use`, çoklu modül listesi, dotted path, `as` alias, `ns` namespace seçimi ve `no: osmodule;` yazımları tanımlı; resolver arama sırası, sembol bağlama ve görünürlük edge-case'leri kısmen tanımlı.
 
 ## 34. Inline assembly
 
