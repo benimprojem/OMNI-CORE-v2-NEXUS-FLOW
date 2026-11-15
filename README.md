@@ -26,9 +26,7 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [FRONTEND_COMPLETENESS_AUDIT — Lexer, Parser, AST ve Semantic tamlık denetimi](FRONTEND_COMPLETENESS_AUDIT.md)
 - [NEXSUS syntax ↔ AST coverage matrix](NEXSUS_AST_SYNTAX_MATRIX.md)
 - [AST representation gaps & design decisions](docs/AST_REPRESENTATION_GAPS.md)
-- [AST representation gaps & design decisions](docs/AST_REPRESENTATION_GAPS.md)
 - [OmniCore SDK documentation index](omnicore-sdk/docs/README.md)
-- [NEXUS Flow Syntax Reference](omnicore-sdk/docs/syntax.md)
 - [OIR SOURCE_UNIT, TOKEN_STREAM ve DIAGNOSTICS payload şemaları](OIR_PAYLOAD_SCHEMAS.md)
 - [OIR token ID registry](OIR_TOKEN_REGISTRY.md)
 - [OIR AST node ve field ID registry](OIR_AST_NODE_REGISTRY.md)
@@ -45,8 +43,12 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 
 ## Nexus Flow dil belgeleri
 
-Nexus Flow sözdizimi ve dil-semantik kuralları tek bir başvuru belgesinde tutulur: [NEXUS FLOW — Syntax Reference Guide](omnicore-sdk/docs/syntax.md).
+Yeni, baştan düzenlenen dil referansı: [NEXUS FLOW — Language Reference Manual](NEXUS-FLOW-REFERENCE.md).
 
-Bu README proje tanımı, OCC mimarisi, geliştirme durumu ve yol haritası için kullanılır. Dil referansı burada kopya olarak tutulmaz; böylece README ile syntax belgesi arasında zamanla farklılaşan iki ayrı normatif kaynak oluşmaz.
+Bu manuel yalnızca Nexus Flow kaynak dilinin sözdizimini ve dil seviyesindeki kullanım kurallarını kapsar. Her bölüm; kurallar, kapsam, örnekler, geçersiz kullanımlar, hata/uyarı açıklamaları ve özellik olgunluk durumuyla birlikte yazılacaktır. Tasarım aşamasındaki veya kısmen tanımlı konular açıkça işaretlenecektir.
+
+Önceki kapsamlı belge, yeni manuel tamamlanana kadar değiştirilmeden eski referans olarak korunur: [Eski Syntax Reference](docs/language/syntax-reference.md).
+
+Bu README proje tanımı, OCC mimarisi, geliştirme durumu ve yol haritası için kullanılır. Dil referansı burada kopya olarak tutulmaz.
 
 Compiler geliştirme sırası AST → Parser → Lexer → Semantic → OIR → Verifier olarak korunur. Codegen, önceki aşamaların gereksinimleri ve doğrulamaları kapanmadan genişletilmez.
