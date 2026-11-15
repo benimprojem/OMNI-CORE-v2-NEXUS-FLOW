@@ -1220,6 +1220,85 @@ static Slot* semantic_lvalue_root_slot(SemanticContext* ctx, ASTNode* node) {
     }
 }
 
+/* Projection paths are tokenized as member (.name) and index ([N]) steps.
+   A wildcard index overlaps every index; a common prefix overlaps descendants. */
+static int semantic_borrow_paths_overlap(const char* left, const char* right) {
+    size_t li = 0u, ri = 0u;
+    if (!left || !right) return 1; /* Unknown provenance is conservative. */
+    while (left[li] && right[ri]) {
+        size_t lend = li, rend = ri;
+        int left_index, right_index;
+        if (left[li] == '.') {
+            ++lend;
+            while (left[lend] && left[lend] != '.' && left[lend] != '[') ++lend;
+        } else if (left[li] == '[') {
+            ++lend;
+            while (left[lend] && left[lend] != ']') ++lend;
+            if (left[lend] == ']') ++lend;
+        } else return 1;
+        if (right[ri] == '.') {
+            ++rend;
+            while (right[rend] && right[rend] != '.' && right[rend] != '[') ++rend;
+        } else if (right[ri] == '[') {
+            ++rend;
+            while (right[rend] && right[rend] != ']') ++rend;
+            if (right[rend] == ']') ++rend;
+        } else return 1;
+        left_index = left[li] == '[';
+        right_index = right[ri] == '[';
+        if (left_index != right_index) return 0;
+        if (left_index) {
+            size_t llen = lend - li, rlen = rend - ri;
+            int left_wild = llen == 3u && left[li + 1u] == '*';
+            int right_wild = rlen == 3u && right[ri + 1u] == '*';
+            if (!left_wild && !right_wild &&
+                (llen != rlen || memcmp(left + li, right + ri, llen) != 0))
+                return 0;
+        } else {
+            size_t llen = lend - li, rlen = rend - ri;
+            if (llen != rlen || memcmp(left + li, right + ri, llen) != 0)
+                return 0;
+        }
+        li = lend;
+        ri = rend;
+    }
+    /* A root or ancestor path overlaps all descendants. */
+    return left[li] == '\0' || right[ri] == '\0';
+}
+
+static int semantic_borrow_conflicts(
+    const SemanticContext* ctx, const Slot* owner, const char* path,
+    int requested_mutable, const Slot* excluded
+) {
+    const Slot* current;
+    if (!ctx || !owner) return 0;
+    for (current = ctx->head; current; current = current->next) {
+        if (current == excluded || current->borrowed_from != owner ||
+            current->borrow_kind == 0u) continue;
+        if (semantic_borrow_paths_overlap(
+                path, current->borrow_path) &&
+            (requested_mutable || current->borrow_kind == 2u))
+            return 1;
+    }
+    return 0;
+}
+
+static uint32_t semantic_shared_borrows_on_path(
+    const SemanticContext* ctx, const Slot* owner, const char* path,
+    const Slot* excluded
+) {
+    const Slot* current;
+    uint32_t count = 0u;
+    if (!ctx || !owner) return 0u;
+    for (current = ctx->head; current; current = current->next) {
+        if (current == excluded || current->borrowed_from != owner ||
+            current->borrow_kind != 1u) continue;
+        if (semantic_borrow_paths_overlap(path, current->borrow_path) &&
+            count < UINT32_MAX) ++count;
+    }
+    return count;
+}
+
 static int semantic_is_reference_type_name(const char* type_name) {
     if (!type_name) return 0;
     if (*type_name == '!') ++type_name;
@@ -4563,9 +4642,10 @@ static int semantic_bind_returned_call_reference(
         free(borrow_path);
         return 0;
     }
-    if (owner->mutable_borrow_active ||
-        (is_mutable && owner->shared_borrow_count != 0u) ||
-        (!is_mutable && owner->shared_borrow_count == UINT32_MAX)) {
+    if (semantic_borrow_conflicts(
+            ctx, owner, borrow_path, is_mutable, borrower) ||
+        (!is_mutable && semantic_shared_borrows_on_path(
+            ctx, owner, borrow_path, borrower) == UINT32_MAX)) {
         free(borrow_path);
         return 0;
     }
@@ -4649,45 +4729,31 @@ static void semantic_register_borrow_binding(
         return;
     }
     {
-        uint32_t effective_shared_count = owner->shared_borrow_count;
-        int effective_mutable_active = owner->mutable_borrow_active != 0u;
-        if (borrower->borrowed_from == owner) {
-            if (borrower->borrow_kind == 1u && effective_shared_count > 0u)
-                --effective_shared_count;
-            else if (borrower->borrow_kind == 2u)
-                effective_mutable_active = 0;
-        }
-        if (effective_mutable_active ||
-            (is_mutable && effective_shared_count != 0u)) {
-            report_borrow_conflict(
-                ctx, (ASTNode*)borrow, owner, is_mutable,
-                is_mutable ? "create an exclusive mutable borrow of"
-                           : "create a shared borrow of");
-            return;
-        }
-        if (!is_mutable && effective_shared_count == UINT32_MAX) {
-            report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
-                "Shared borrow count exceeds the supported semantic limit.");
-            return;
-        }
-    }
-
-    /* Validation succeeded. Capture the projection before replacing the old binding. */
-    {
         char* projection_path = semantic_lvalue_path(borrow->operand);
         if (!projection_path) {
             report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
                 "Unable to allocate borrow projection metadata.");
             return;
         }
+        if (semantic_borrow_conflicts(
+                ctx, owner, projection_path, is_mutable, borrower) ||
+            (!is_mutable && semantic_shared_borrows_on_path(
+                ctx, owner, projection_path, borrower) == UINT32_MAX)) {
+            free(projection_path);
+            report_borrow_conflict(
+                ctx, (ASTNode*)borrow, owner, is_mutable,
+                is_mutable ? "create an exclusive mutable borrow of"
+                           : "create a shared borrow of");
+            return;
+        }
         semantic_release_borrow_binding(borrower);
-    if (is_mutable) {
-        owner->mutable_borrow_active = 1u;
-        borrower->borrow_kind = 2u;
-    } else {
-        ++owner->shared_borrow_count;
-        borrower->borrow_kind = 1u;
-    }
+        if (is_mutable) {
+            owner->mutable_borrow_active = 1u;
+            borrower->borrow_kind = 2u;
+        } else {
+            ++owner->shared_borrow_count;
+            borrower->borrow_kind = 1u;
+        }
         borrower->borrowed_from = owner;
         borrower->borrow_path = projection_path;
     }
@@ -4728,17 +4794,14 @@ static void semantic_copy_shared_reference_binding(
         semantic_release_borrow_binding(target);
         return;
     }
-    effective_shared_count = owner->shared_borrow_count;
-    if (target->borrowed_from == owner &&
-        target->borrow_kind == 1u && effective_shared_count > 0u) {
-        --effective_shared_count;
-    }
-    if (owner->mutable_borrow_active ||
+    effective_shared_count = semantic_shared_borrows_on_path(
+        ctx, owner, copied_path, target);
+    if (semantic_borrow_conflicts(
+            ctx, owner, copied_path, 0, target) ||
         effective_shared_count == UINT32_MAX) {
         report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
-            owner->mutable_borrow_active
-                ? "Cannot copy a shared reference while its owner has an exclusive mutable borrow."
-                : "Shared reference count exceeds the supported semantic limit.");
+            "Cannot copy this shared reference because an overlapping exclusive borrow is active or the path borrow limit was reached.");
+        free(copied_path);
         return;
     }
     semantic_release_borrow_binding(target);
