@@ -952,6 +952,44 @@ static int check_call_temporary_borrow_semantics(void) {
         check_source(call_temporary_borrow_is_released, 0);
 }
 
+static int check_borrow_diagnostic_guidance(void) {
+    const char* source =
+        "f:main() {\\n"
+        "  v:owner!i32 = 1;\\n"
+        "  v:a!&i32 = &owner;\\n"
+        "  v:b!&muti32 = &mut owner;\\n"
+        "}";
+    ParserContext* parser = parser_init_source(
+        "borrow-diagnostic.nxf", (const uint8_t*)source, strlen(source));
+    SemanticContext semantic;
+    Error* error;
+    int ok;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    semantic_init(&semantic, "borrow-diagnostic.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    error = semantic.error_head;
+    ok = semantic.error_count == 1 && error &&
+        error->line == 4 && error->col > 0 &&
+        error->message && strstr(error->message, "reference 'a'") != NULL &&
+        strstr(error->message, "exclusive mutable borrow") == NULL &&
+        error->suggestion && strstr(error->suggestion, "End the scope") != NULL;
+    if (!ok) {
+        fprintf(stderr,
+            "Borrow diagnostic guidance mismatch: count=%d line=%d col=%d message=%s suggestion=%s\\n",
+            semantic.error_count, error ? error->line : 0,
+            error ? error->col : 0,
+            error && error->message ? error->message : "(null)",
+            error && error->suggestion ? error->suggestion : "(null)");
+    }
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_borrow_overlap_and_scope_semantics(void) {
     const char* multiple_shared =
         "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; v:b!&i32 = &owner; }";
@@ -2674,6 +2712,10 @@ int main(int argc, char** argv) {
     }
     if (!check_call_temporary_borrow_semantics()) {
         fprintf(stderr, "Call temporary borrow checks failed.\\n"); return 1;
+    }
+    if (!check_borrow_diagnostic_guidance()) {
+        fprintf(stderr, "Borrow diagnostic guidance checks failed.\\n");
+        return 1;
     }
     if (!check_borrow_overlap_and_scope_semantics()) {
         fprintf(stderr, "Borrow overlap/scope Semantic checks failed.\n");

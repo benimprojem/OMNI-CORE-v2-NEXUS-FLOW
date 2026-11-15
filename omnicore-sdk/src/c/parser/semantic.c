@@ -299,6 +299,59 @@ static void report_error(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
     report_issue(ctx, node, code, msg, NULL, NULL, 0, 0);
 }
 
+/* Borrow diagnostics identify both the rejected operation and the binding
+   that keeps the conflicting borrow alive. The node span points at the
+   rejected expression; the hint explains the least surprising repair. */
+static const Slot* semantic_find_active_borrower(
+    const SemanticContext* ctx, const Slot* owner
+) {
+    const Slot* current;
+    if (!ctx || !owner) return NULL;
+    for (current = ctx->head; current; current = current->next) {
+        if (current->borrowed_from == owner && current->borrow_kind != 0u)
+            return current;
+    }
+    return NULL;
+}
+
+static void report_borrow_conflict(
+    SemanticContext* ctx, ASTNode* node, Slot* owner, int requested_mutable,
+    const char* operation
+) {
+    const Slot* active = semantic_find_active_borrower(ctx, owner);
+    const char* active_name = active && active->name
+        ? active->name : "<temporary call argument>";
+    const char* active_kind = active && active->borrow_kind == 2u
+        ? "exclusive mutable" : "shared";
+    char message[512];
+    char suggestion[512];
+    const char* owner_name = owner && owner->name ? owner->name : "<unknown>";
+    if (requested_mutable) {
+        (void)snprintf(message, sizeof(message),
+            "Cannot %s '%s': %s borrow '%s' is still active on this owner; "
+            "a new exclusive mutable borrow would overlap it.",
+            operation ? operation : "borrow", owner_name, active_kind, active_name);
+        (void)snprintf(suggestion, sizeof(suggestion),
+            "End the scope of reference '%s' (or reassign it to a different valid "
+            "owner) before borrowing '%s' mutably. If the accesses are independent "
+            "struct fields or fixed array elements, path-sensitive borrow checking "
+            "is not implemented yet, so this version conservatively treats the "
+            "whole owner as one borrow region.",
+            active_name, owner_name);
+    } else {
+        (void)snprintf(message, sizeof(message),
+            "Cannot %s '%s': exclusive mutable borrow '%s' is still active; "
+            "shared access would overlap the mutable reference.",
+            operation ? operation : "borrow", owner_name, active_name);
+        (void)snprintf(suggestion, sizeof(suggestion),
+            "Use reference '%s' for the access, or end its scope before creating "
+            "a shared reference to '%s'.",
+            active_name, owner_name);
+    }
+    report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+        message, suggestion, suggestion, 0, 0);
+}
+
 static int semantic_slot_is_nominal_type(const Slot* slot) {
     return slot && (slot->kind == SLOT_STRUCT || slot->kind == SLOT_UNION ||
         slot->kind == SLOT_ENUM);
@@ -4505,10 +4558,10 @@ static void semantic_register_borrow_binding(
         }
         if (effective_mutable_active ||
             (is_mutable && effective_shared_count != 0u)) {
-            report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
-                is_mutable
-                    ? "Exclusive mutable borrow conflicts with an active borrow of the same owner."
-                    : "Shared borrow conflicts with an active exclusive mutable borrow.");
+            report_borrow_conflict(
+                ctx, (ASTNode*)borrow, owner, is_mutable,
+                is_mutable ? "create an exclusive mutable borrow of"
+                           : "create a shared borrow of");
             return;
         }
         if (!is_mutable && effective_shared_count == UINT32_MAX) {
