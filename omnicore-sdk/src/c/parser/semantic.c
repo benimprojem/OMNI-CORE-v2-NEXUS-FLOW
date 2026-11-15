@@ -4776,6 +4776,15 @@ static void semantic_check_node(
                 report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
                     "Cannot modify a constant or immutable value with compound assignment.");
             }
+            if (assign->left->type == AST_IDENTIFIER) {
+                ASTIdentifier* owner_id = (ASTIdentifier*)assign->left;
+                Slot* owner_slot = find_slot(ctx, owner_id->name);
+                if (owner_slot && (owner_slot->mutable_borrow_active ||
+                                   owner_slot->shared_borrow_count != 0u)) {
+                    report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                        "Cannot modify an owner while a shared or exclusive borrow is active.");
+                }
+            }
             if (assign->op == TOKEN_ASSIGN || assign->op == TOKEN_FORCE_ASSIGN) {
             if (assign->left->type == AST_IDENTIFIER) {
                 ASTIdentifier* id = (ASTIdentifier*)assign->left;
@@ -4784,11 +4793,6 @@ static void semantic_check_node(
                     char buf[256];
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_CONST_ASSIGN), id->name);
                     report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN, buf);
-                }
-                if (slot && (slot->mutable_borrow_active ||
-                             slot->shared_borrow_count != 0u)) {
-                    report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
-                        "Cannot modify an owner while a shared or exclusive borrow is active.");
                 }
                 if (slot && slot->type_name) {
                     const char* right_type = get_expr_type(ctx, assign->right);
