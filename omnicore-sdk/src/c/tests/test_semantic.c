@@ -954,10 +954,10 @@ static int check_call_temporary_borrow_semantics(void) {
 
 static int check_borrow_diagnostic_guidance(void) {
     const char* source =
-        "f:main() {\\n"
-        "  v:owner!i32 = 1;\\n"
-        "  v:a!&i32 = &owner;\\n"
-        "  v:b!&muti32 = &mut owner;\\n"
+        "f:main() {\n"
+        "  v:owner!i32 = 1;\n"
+        "  v:a!&i32 = &owner;\n"
+        "  v:b!&muti32 = &mut owner;\n"
         "}";
     ParserContext* parser = parser_init_source(
         "borrow-diagnostic.nxf", (const uint8_t*)source, strlen(source));
@@ -978,7 +978,7 @@ static int check_borrow_diagnostic_guidance(void) {
         error->suggestion && strstr(error->suggestion, "End the scope") != NULL;
     if (!ok) {
         fprintf(stderr,
-            "Borrow diagnostic guidance mismatch: count=%d line=%d col=%d message=%s suggestion=%s\\n",
+            "Borrow diagnostic guidance mismatch: count=%d line=%d col=%d message=%s suggestion=%s\n",
             semantic.error_count, error ? error->line : 0,
             error ? error->col : 0,
             error && error->message ? error->message : "(null)",
