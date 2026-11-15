@@ -3564,6 +3564,12 @@ static void semantic_validate_call_arguments(
     uint32_t argument_index = 0u;
     ASTFuncDecl* declaration = NULL;
     const char* inferred_type_variable = NULL;
+    typedef struct {
+        Slot* owner;
+        uint8_t is_mutable;
+    } SemanticCallBorrow;
+    SemanticCallBorrow* temporary_borrows = NULL;
+    uint32_t temporary_borrow_count = 0u;
 
     if (!ctx || !function_slot) return;
     for (argument = arguments; argument; argument = argument->next) {
@@ -3585,6 +3591,16 @@ static void semantic_validate_call_arguments(
         snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_COUNT),
             function_slot->name, (int)expected_count, (int)argument_count);
         report_error(ctx, call_node, ERR_SEMANTIC_ARG_COUNT, message);
+    }
+
+    if (argument_count) {
+        temporary_borrows = (SemanticCallBorrow*)calloc(
+            argument_count, sizeof(*temporary_borrows));
+        if (!temporary_borrows) {
+            report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Unable to allocate temporary call-borrow tracking state.");
+            return;
+        }
     }
 
     if (function_slot->declaration_node &&
@@ -3664,6 +3680,60 @@ static void semantic_validate_call_arguments(
                 parameter_index<(uint32_t)function_slot->param_count
                     ? function_slot->param_types[parameter_index] : NULL;
 
+            /* A direct &owner / &mut owner argument borrows for the duration
+               of this call. Reference identifiers already carry a binding. */
+            if (expected_type && argument_value &&
+                argument_value->type == AST_UNARY_EXPR &&
+                semantic_is_reference_type_name(expected_type)) {
+                ASTUnaryExpr* borrow = (ASTUnaryExpr*)argument_value;
+                if (borrow->op == TOKEN_BIT_AND ||
+                    borrow->op == TOKEN_BORROW_MUT) {
+                    Slot* owner = semantic_lvalue_root_slot(ctx, borrow->operand);
+                    int is_mutable = borrow->op == TOKEN_BORROW_MUT;
+                    int expected_mutable =
+                        semantic_is_mut_reference_type_name(expected_type);
+                    int conflict = 0;
+                    uint32_t k;
+                    if (!owner || !semantic_is_lvalue(ctx, borrow->operand)) {
+                        report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Temporary call borrow requires a safe storage lvalue with known provenance.");
+                        conflict = 1;
+                    } else if (is_mutable != expected_mutable) {
+                        report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
+                            "Borrow mutability does not match the reference parameter.");
+                        conflict = 1;
+                    } else if (owner->mutable_borrow_active ||
+                               (is_mutable && owner->shared_borrow_count != 0u)) {
+                        report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH,
+                            is_mutable
+                                ? "Temporary exclusive call borrow conflicts with an active borrow."
+                                : "Temporary shared call borrow conflicts with an active exclusive borrow.");
+                        conflict = 1;
+                    }
+                    for (k = 0u; !conflict && k < temporary_borrow_count; ++k) {
+                        if (temporary_borrows[k].owner == owner &&
+                            (is_mutable || temporary_borrows[k].is_mutable)) {
+                            report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Arguments in this call contain overlapping shared/exclusive borrows.");
+                            conflict = 1;
+                        }
+                    }
+                    if (!conflict) {
+                        if (!is_mutable && owner->shared_borrow_count == UINT32_MAX) {
+                            report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Temporary shared borrow count exceeds the supported limit.");
+                        } else {
+                            if (is_mutable) owner->mutable_borrow_active = 1u;
+                            else ++owner->shared_borrow_count;
+                            temporary_borrows[temporary_borrow_count].owner = owner;
+                            temporary_borrows[temporary_borrow_count].is_mutable =
+                                (uint8_t)is_mutable;
+                            ++temporary_borrow_count;
+                        }
+                    }
+                }
+            }
+
             if(declaration) {
                 uint32_t current_index=0u;
                 for(parameter_node=declaration->params;parameter_node;
@@ -3712,6 +3782,16 @@ static void semantic_validate_call_arguments(
             }
         }
     }
+
+    /* Release in reverse acquisition order, including after argument errors. */
+    while (temporary_borrow_count > 0u) {
+        SemanticCallBorrow* borrow =
+            &temporary_borrows[--temporary_borrow_count];
+        if (borrow->is_mutable) borrow->owner->mutable_borrow_active = 0u;
+        else if (borrow->owner->shared_borrow_count > 0u)
+            --borrow->owner->shared_borrow_count;
+    }
+    free(temporary_borrows);
 }
 
 static ASTNode* semantic_find_type_variable_argument(
