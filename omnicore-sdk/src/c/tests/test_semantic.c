@@ -980,11 +980,11 @@ static int check_safe_reference_return_lifetime_semantics(void) {
     const char* returning_local_reference_binding_is_rejected =
         "f:get()!&i32 { v:owner!i32 = 1; "
         "v:reference!&i32 = &owner; ret reference; }";
-    const char* returning_reference_parameter_is_rejected_without_lifetime_contract =
+    const char* returning_reference_parameter_preserves_forwarding =
         "f:identity(value!&i32)!&i32 { ret value; }";
     return check_source(returning_local_reference_is_rejected, 1) &&
         check_source(returning_local_reference_binding_is_rejected, 1) &&
-        check_source(returning_reference_parameter_is_rejected_without_lifetime_contract, 1);
+        check_source(returning_reference_parameter_preserves_forwarding, 0);
 }
 
 static int check_reference_reassignment_and_lifetime_semantics(void) {

@@ -1106,6 +1106,30 @@ static int semantic_is_mut_reference_type_name(const char* type_name) {
     return strncmp(type_name, "&mut", 4u) == 0;
 }
 
+static int semantic_reference_return_has_stable_origin(
+    SemanticContext* ctx, ASTNode* operand
+) {
+    Slot* slot;
+    if (!ctx || !operand) return 0;
+    if (operand->type == AST_IDENTIFIER) {
+        slot = find_slot(ctx, ((ASTIdentifier*)operand)->name);
+        if (!slot) return 0;
+        if (slot->is_parameter &&
+            semantic_is_reference_type_name(slot->type_name)) return 1;
+        if (slot->depth == 0) return 1;
+        return slot->borrowed_from && slot->borrowed_from->depth == 0;
+    }
+    if (operand->type == AST_UNARY_EXPR) {
+        ASTUnaryExpr* unary = (ASTUnaryExpr*)operand;
+        Slot* owner;
+        if (unary->op != TOKEN_BIT_AND &&
+            unary->op != TOKEN_BORROW_MUT) return 0;
+        owner = semantic_lvalue_root_slot(ctx, unary->operand);
+        return owner && owner->depth == 0;
+    }
+    return 0;
+}
+
 static const char* semantic_lvalue_description(ASTNode* node) {
     if (!node) return "<missing>";
     if (node->type == AST_IDENTIFIER)
@@ -5611,7 +5635,18 @@ static void semantic_check_node(
             ctx->current_func_return_type =
                 return_type_valid ? func->return_type : NULL;
             enter_scope(ctx, node);
-            if (func->params) semantic_check(ctx, func->params);
+            if (func->params) {
+                ASTNode* parameter_node;
+                semantic_check(ctx, func->params);
+                for (parameter_node = func->params; parameter_node;
+                     parameter_node = parameter_node->next) {
+                    if (parameter_node->type == AST_VAR_DECL) {
+                        Slot* parameter_slot = semantic_find_slot_by_declaration(
+                            ctx, parameter_node);
+                        if (parameter_slot) parameter_slot->is_parameter = 1u;
+                    }
+                }
+            }
 
             if (ctx->current_method_context) {
                 ASTNode* parameter_node = func->params;
@@ -5844,9 +5879,11 @@ static void semantic_check_node(
 
             if (ret->operand) {
                 const char* returned_type = get_expr_type(ctx, ret->operand);
-                if (semantic_is_reference_type_name(returned_type)) {
+                if (semantic_is_reference_type_name(returned_type) &&
+                    !semantic_reference_return_has_stable_origin(
+                        ctx, ret->operand)) {
                     report_error(ctx, node, ERR_SEMANTIC_RETURN_MISMATCH,
-                        "Returning a safe reference is not supported until the function return lifetime can be proven.");
+                        "Returning a safe reference to local storage is not supported; return a reference parameter or static/global storage.");
                 }
             }
 

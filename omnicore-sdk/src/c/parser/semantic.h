@@ -31,6 +31,7 @@ typedef struct Slot {
     uint32_t shared_borrow_count;
     uint8_t mutable_borrow_active;
     uint8_t borrow_kind;    /* 0 none, 1 shared, 2 exclusive. */
+    uint8_t is_parameter;   /* Function parameter storage; may carry a returned reference. */
     struct Slot* borrowed_from;
     int depth; // Scope derinliği
     char* type_name;      // Değişken tipi, Fonksiyon dönüş tipi veya NewType hedefi
