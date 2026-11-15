@@ -114,15 +114,84 @@ v:editable!&mut i32 = &mut value; # tekil mutable borrow
 # editable aktifken value veya başka bir reference üzerinden erişim yasak
 ```
 
-| İşlem | `&T` shared borrow | `&mut T` exclusive borrow |
+| İşlem | **&T** shared borrow | **&mut T** exclusive borrow |
 |---|---|---|
-| Aynı kaynağa ikinci borrow | İzinli | İzinli değil |
-| Kaynak üzerinden doğrudan okuma | İzinli | Borrow aktifken yasak |
-| Kaynak üzerinden doğrudan yazma | Yasak | Borrow aktifken yasak |
+| Aynı veya çakışan projection için ikinci borrow | Shared/shared izinli | Çakışan ikinci borrow yasak |
+| Birbirinden bağımsız struct alanları | Shared/shared izinli | Ayrı alanlara ayrı mutable borrow izinli |
+| Farklı sabit array indeksleri | Shared/shared izinli | Farklı sabit indekslere ayrı mutable borrow izinli |
+| Kaynak/projection üzerinden doğrudan okuma | İzinli; çakışan exclusive borrow varsa yasak | Çakışan borrow süresince yasak |
+| Kaynak/projection üzerinden doğrudan yazma | Çakışan shared veya exclusive borrow süresince yasak | Çakışan borrow süresince yasak |
 | Referans üzerinden okuma | İzinli | İzinli |
 | Referans üzerinden yazma | Yasak | İzinli |
 | Borrow kaynağının scope dışına taşınması | Yasak | Yasak |
 
+#### Projection (alan/eleman) bazlı borrow kuralları
+
+Borrow takibi yalnızca değişkenin tamamına göre değil, bilinen lvalue erişim yoluna göre yapılır. Yol, kök değişkene göre sıralı alan ve indeks adımlarından oluşur:
+
+- Kök değişken: boş yol (""), yani tüm nesne.
+- Struct alanı: **.field**; iç içe alanlar birleştirilir (ör. **.position.x**).
+- Sabit array indeksi: **[N]**; farklı sabit indeksler bağımsız kabul edilir.
+- Çalışma zamanında belirlenen indeks: **[*]**; tüm indekslerle çakışır.
+- Union alanı: **.\***; aynı union içindeki tüm üyeler aynı depolamayı paylaştığı için üyeler birbirleriyle çakışır.
+- Kök veya ortak üst yol, altındaki bütün yollarla çakışır. Örneğin **.position**, **.position.x** ile çakışır; **.position.x** ve **.position.y** ise ayrı struct alanlarıdır.
+- Raw-pointer dereference veya kökü güvenilir biçimde belirlenemeyen hesaplanmış lvalue için yol bilinmez. Güvenli tarafta kalmak için bilinmeyen provenance çakışıyor kabul edilir; böyle bir ifade güvenli borrow kaynağı olarak kabul edilmez.
+
+Struct alanları ve sabit indeksler için örnek:
+
+~~~nxf
+struct: Point { v:x!i32, v:y!i32 }
+f:main() {
+    v:point!Point;
+    v:x_ref!&muti32 = &mut point.x;
+    v:y_ref!&muti32 = &mut point.y; # Ayrı struct alanları: izinli
+    # v:again!&muti32 = &mut point.x; # Aynı alan: çakışma hatası
+
+    v:items[3]!i32 = [10, 20, 30];
+    v:first!&muti32 = &mut items[0];
+    v:second!&muti32 = &mut items[1]; # Farklı sabit indeks: izinli
+    # v:dynamic!&muti32 = &mut items[index]; # Dinamik indeks: mevcut borrow ile çakışabilir
+}
+~~~
+
+Union ve iç içe aggregate örneği:
+
+~~~nxf
+union: Bits { v:word!i32, v:octet!u8 }
+struct: Container { v:value!Bits, v:guard!i32 }
+
+f:main() {
+    v:data!Container;
+    v:word_ref!&muti32 = &mut data.value.word;
+    # v:octet_ref!&mutu8 = &mut data.value.octet; # Union ortak depolaması: çakışma
+    v:guard_ref!&muti32 = &mut data.guard; # Kardeş struct alanı: bağımsız
+}
+~~~
+
+Bu ayrım, bellekte gerçek bir fiziksel ayrıştırma veya runtime bounds garantisi değildir. Sabit indeks ayrımı yalnızca Semantic'in bildiği sabit indeksler için geçerlidir; dinamik indeksler ve bilinmeyen pointer kökenleri konservatif değerlendirilir. Union üyeleri için aktif üye takibi yapılmaz; borrow güvenliği açısından tüm üyeler aynı storage projection kabul edilir.
+
+#### Fonksiyon çağrısı ve geçici borrow
+
+Fonksiyon argümanında doğrudan oluşturulan **&owner** / **&mut owner** borrow'u çağrı süresi boyunca geçici kabul edilir. Semantic bu borrow'u:
+1. Owner üzerindeki hâlihazırda etkin referanslarla,
+2. Aynı çağrının daha önce kontrol edilmiş argümanlarıyla
+karşılaştırır. Shared/shared çakışmasına izin verilir; shared/exclusive ve exclusive/exclusive çakışmaları reddedilir. Birbirinden bağımsız alan veya sabit indeks borrow'ları aynı çağrıda birlikte kullanılabilir. Geçici borrow çağrı kontrolü tamamlandıktan sonra bırakılır.
+
+~~~nxf
+f:edit(a!&muti32, b!&muti32) {}
+f:main() {
+    struct: Point { v:x!i32, v:y!i32 }
+    v:point!Point;
+    edit(&mut point.x, &mut point.y); # İzinli
+    # edit(&mut point.x, &mut point.x); # Çakışma hatası
+}
+~~~
+
+#### Borrow çakışması tanıları
+
+Çakışma tanısı istenen owner ve projection yolunu, etkin referansın adını/türünü ve onun yolunu bildirir. Öneri; ilgili referansın scope'unu bitirmeyi veya geçerli başka bir owner'a yeniden bağlamayı söyler. Ayrı struct alanları ve farklı sabit indeksler bağımsız olabilir; dinamik indeks ve bilinmeyen pointer kökeni konservatif değerlendirilir. Hata konumu, borrow ifadesinin kaynak konumundan alınır.
+
+**Uygulama durumu:** **\*T**, **\*\*T**, **&T** ve **&mut T** tür yazımları ile **&value** / **&mut value** borrow ifadeleri Parser/AST tarafından üretilir; mutable-reference AST flag'i codec round-trip içinde korunur. Semantic lvalue ve const-owner kontrollerini; alan/indeks projection yollarını; shared/exclusive çakışmalarını; owner üzerinden projection-aware erişimi; reference reassignment ve lexical owner lifetime kontrollerini uygular. Struct alanları, sabit/dinamik array indeksleri, union üyeleri, iç içe union yolları ve fonksiyon çağrısı geçici borrow'ları regresyon testleriyle doğrulanmıştır. Doğrudan isimle çağrılan fonksiyonlarda ve Group instance method'larında, desteklenen bütün return yollarının aynı reference parametresini döndürdüğü kanıtlanırsa çağrı argümanının owner/borrow kökeni yeni reference binding'ine aktarılır; positional/named eşleme ve örtük **self** dışlama kuralları test edilmiştir. Bilinmeyen veya tutarsız return kökenleri fail-closed davranır. Bu kapsam fonksiyon değerleri üzerinden çağrıyı ve aggregate içinde saklanan reference kökenlerini kapsamaz. Raw-pointer alias/provenance analizi, explicit lifetime annotation, nullability ve target ABI açık olduğundan pointer/reference Semantic tamamlanmış sayılmaz.
 **Uygulama durumu:** `*T`, `**T`, `&T` ve `&mut T` tür yazımları ile `&value` / `&mut value` borrow ifadeleri Parser/AST tarafından üretilir; mutable reference AST flag'i codec round-trip içinde korunur. Semantic `&value` ifadesini `&T`, `&mut value` ifadesini `&mutT` olarak tiplendirir; lvalue, const owner, borrow çakışması, owner erişimi, aggregate-root provenance, reassignment ve lexical lifetime kontrollerini uygular. Call-scoped temporary borrow'lar fonksiyon argümanlarında doğrulanır. Doğrudan isimle çağrılan fonksiyonlarda, desteklenen return yollarının aynı reference parametresini döndürdüğü kanıtlanırsa, çağrı argümanının owner/borrow kökeni yeni reference binding'ine aktarılır; positional ve named argüman eşlemesi ile shared/exclusive sonuçlar test edilmiştir. Bu kapsam fonksiyon değerlerini kapsamaz; Group instance method çağrıları desteklenir ve örtük `self` parametresi açık argüman eşlemesinden çıkarılır. Alan/eleman granular provenance, raw-pointer alias/provenance, explicit lifetime, aggregate-contained reference, nullability ve target ABI hâlâ açık olduğundan safe borrow desteği tamamlanmış sayılmaz.
 
 ---
