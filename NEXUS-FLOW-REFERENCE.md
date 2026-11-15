@@ -78,7 +78,7 @@ Bu bölüm hata mesajlarının OCC iç uygulamasını değil, dil referansındak
 
 ## 0.7 Sürümleme ve değişiklik
 
-Yeni bir sözdizimi, aktif Parser ve AST karşılığı doğrulanmadan bu manuelde geçerli özellik olarak yayımlanmaz. Eski biçimler kaldırılacaksa uyumluluk etkisi ve geçiş biçimi ayrıca belgelenir.
+Yeni bir sözdizimi, aktif Parser ve AST karşılığı doğrulanmadan bu manuelde geçerli özellik olarak yayımlanmaz. Macro sözdizimi henüz uygulanmadığından ana gramer bölümlerine alınmaz; gelecekteki özellikler listesinde en sonda tutulur. Eski biçimler kaldırılacaksa uyumluluk etkisi ve geçiş biçimi ayrıca belgelenir.
 
 ---
 
@@ -286,65 +286,339 @@ Lexer'ın tanımadığı karakter dizileri geçerli token değildir. Hatalı lit
 
 # Part II — Bildirimler ve tipler
 
-## 4. Tanımlayıcılar ve isim konumları
-### 4.1 Değişken isimleri
-### 4.2 Fonksiyon isimleri
-### 4.3 Tip, alan ve üye isimleri
-### 4.4 Group ve method isimleri
-### 4.5 Modül isimleri ve alias biçimi
-### 4.6 Ayrılmış önekler ve isimler
+# 4. Tanımlayıcılar ve isim konumları
 
-## 5. Değer bildirimleri
-### 5.1 `v:` değişken bildirimi
-### 5.2 `c:` sabit işaretli bildirim
-### 5.3 `m:` immutable değer bildirimi
-### 5.4 Başlatıcılı ve başlatıcısız bildirim
-### 5.5 Açık tip belirtimi ve `!`
-### 5.6 Bildirimlerin blok içindeki konumu
-### 5.7 Geçersiz bildirim örnekleri
+Tanımlayıcılar değişken, fonksiyon, tip, alan, enum seçeneği ve modül/Group isimlerini belirtir. Lexer normal isimleri `TOKEN_IDENTIFIER` olarak üretir; bazı önekli isimler tek token olarak okunur.
 
-## 6. Tip yazımı
-### 6.1 İsimlendirilmiş tipler
-### 6.2 Açık tip zorlaması: `!Type`
-### 6.3 Tip çıkarımlı bildirimler
-### 6.4 Pointer tipleri: `*T`, `**T`
-### 6.5 Reference tipleri: `&T`, `&mut T`
-### 6.6 Array tipleri: `T[]`, `T[n]`, çok boyutlu biçimler
-### 6.7 Function type ifadeleri
-### 6.8 Qualified type biçimleri
-### 6.9 Desteklenmeyen/henüz doğrulanmamış tip biçimleri
+```nxf
+v:counter = 0;
+f:calculate() {}
+struct: Point { v:x!i32, v:y!i32 }
+```
 
-## 7. İlkel tipler ve literal'lar
-### 7.1 Tamsayı tipleri
-### 7.2 Kayan noktalı tipler
-### 7.3 `bool`, `char`, `str`
-### 7.4 `bit`, `byte`, `hex`
-### 7.5 Sayısal literal biçimleri
-### 7.6 String ve character literal'ları
-### 7.7 Boolean ve null literal'ları
-### 7.8 Literal-tip uyumu için kaynak yazımı
+`v:counter` / `v: counter` ve `struct:Point` / `struct: Point` gibi bitişik ve ayrık önek biçimleri Parser tarafından desteklenir.
 
-## 8. Array ve tuple
-### 8.1 Array literal: `[a, b, ...]`
-### 8.2 Boş ve iç içe array literal'ları
-### 8.3 Array type declarator
-### 8.4 Sabit ve dinamik boyut yazımı
-### 8.5 Çok boyutlu array yazımı
-### 8.6 Tuple ifadeleri
-### 8.7 İndeks erişimi
-### 8.8 Geçersiz array/tuple biçimleri
+| İsim konumu | AST temsili |
+|---|---|
+| `v:name` / `c:name` | `AST_VAR_DECL.name`; `c:` için `is_const` |
+| `m:name` | `AST_MUST_DECL.name` |
+| `f:name` | `AST_FUNC_DECL.name` |
+| `struct: Name` / `union: Name` | `AST_STRUCT_DECL` / `AST_UNION_DECL` |
+| `enum: Name` | `AST_ENUM_DECL.name` |
+| `nt:Name` | `AST_NEWTYPE_DECL.name` |
+| Struct alanı | `AST_VAR_DECL.name` |
+| Enum seçeneği | `AST_ENUM_VARIANT.name` |
 
-## 9. Kullanıcı tanımlı tipler
-### 9.1 Struct bildirimi
-### 9.2 Struct alanları
-### 9.3 Struct literal ve alan başlatma
-### 9.4 Enum ve variant bildirimi
-### 9.5 Enum payload ve discriminant yazımı
-### 9.6 Union bildirimi
-### 9.7 NewType: `nt:`
-### 9.8 İç içe tip bildirimleri ve sınırlar
+Tam identifier karakter grameri (Unicode, harf duyarlılığı, ilk karakter, alt çizgi) bu denetimde Lexer testleriyle bütünüyle doğrulanmadığından kesin EBNF ilan edilmez. `r:`, `t:` ve `o:` tokenları tanınsa da bu manuelde aktif tamamlanmış bildirim biçimleri olarak sunulmaz.
+
+```nxf
+v: = 10;       # İsim eksik.
+f:() {}        # Fonksiyon adı eksik.
+struct: { }    # Struct adı eksik.
+nt:UserId;     # Hedef tip eksik.
+```
+
+**Durum:** İsim konumları Parser/AST doğrulandı; karakter grameri kısmen tanımlı.
 
 ---
+
+# 5. Değer bildirimleri
+
+## 5.1 Bildirim aileleri
+
+| Önek | Rol | AST | Kural |
+|---|---|---|---|
+| `v:` | Değişken | `AST_VAR_DECL` | Başlatıcı isteğe bağlı; `!Type` ve array suffix kullanılabilir. |
+| `c:` | Sabit işaretli değişken | `AST_VAR_DECL` | `v:` ile aynı gramer; `is_const` işaretlenir. |
+| `m:` | Immutable değer | `AST_MUST_DECL` | `= expression` zorunludur. |
+
+`c:` ile `m:` aynı değildir. `c:` değişken bildirim düğümünün sabit işaretli biçimidir; `m:` ayrı AST düğümü oluşturur. Compile-time değerlendirme ve değiştirilemezliğin tüm Semantic kuralları syntax tanımından ayrıdır.
+
+## 5.2 `v:` ve `c:` bildirimleri
+
+```ebnf
+variable-declaration = ("v:" | "c:") identifier { "[" [expression] "]" } ["!" type] ["=" expression] ";" ;
+```
+
+```nxf
+v:count = 10;
+v:message!str = "hello";
+v:buffer[256]!u8;
+c:maximum = 100;
+c:version!u16 = 3;
+c:table[4]!u32 = [16, 32, 64, 128];
+v: separated!i32 = 7;
+```
+
+İsim zorunludur. `!Type` isteğe bağlıdır. Başlatıcı isteğe bağlıdır. Array boyutları isimden sonra, açık tipten önce yazılır. `c:` Parser tarafından `AST_VAR_DECL.is_const` işaretli oluşturulur.
+
+```nxf
+v: = 1;          # İsim eksik.
+v:value! = 1;    # Tip adı eksik.
+v:items[4 = 1;   # ] eksik.
+v:value = ;      # Başlatıcı expression eksik.
+```
+
+## 5.3 `m:` immutable değer bildirimi
+
+```ebnf
+immutable-declaration = "m:" identifier "=" expression ";" ;
+```
+
+```nxf
+m:limit = 64;
+m:welcome = "Welcome";
+m:ratio = 1.25;
+```
+
+İsim, `=` ve başlatıcı expression zorunludur. Bu Parser üretiminde `!Type` veya array suffix tanımlı değildir.
+
+```nxf
+m:limit;       # = ve initializer eksik.
+m:limit = ;    # Expression eksik.
+m: = 10;       # İsim eksik.
+```
+
+## 5.4 Alan bildirimi ve kapsam
+
+Parser'ın Struct/Union gövde üretimi yalnızca `v:` alan bildirimi tüketir; `c:` ve `m:` alanları bu üretimde yoktur. Normal bildirimler statement bağlamında, örneğin fonksiyon/blok gövdesinde kullanılabilir.
+
+**Durum:** `v:`, `c:` ve `m:` kaynak biçimleri Parser/AST doğrulandı.
+
+---
+
+# 6. Tip yazımı
+
+## 6.1 İsimlendirilmiş ve açık tipler
+
+Tip konumunda Lexer'ın tanıdığı tip tokenı veya Parser'ın kabul ettiği identifier kullanılabilir. `!` açık tip işaretidir:
+
+```nxf
+v:count!i32 = 10;
+v:label!str = "Nexus";
+v:entity!Entity;
+```
+
+`!` tip adının parçası değildir. `v:`/`c:` bildirimlerinde tip atlanırsa başlatıcı expression saklanır; tip çıkarımı Semantic konusudur.
+
+## 6.2 Pointer ve reference tipleri
+
+Parser tip adından önce en fazla iki `*` önekini veya `&` / `&mut` önekini tanır:
+
+```nxf
+v:ptr!*i32;
+v:ptrptr!**u8;
+v:shared!&i32;
+v:mutable!&mut i32;
+```
+
+Daha derin pointer zincirleri bu üretimde doğrulanmış değildir. Pointer/reference oluşturma, dereference, borrow ve yaşam süresi kuralları Bölüm 23–25'tedir.
+
+## 6.3 Array declarator
+
+Array boyutları tip adının sonuna değil, değişken adına eklenir:
+
+```nxf
+v:dynamic[]!u8;
+v:fixed[64]!u8;
+v:matrix[4][8]!f32;
+```
+
+Her `[...]` içinde boş veya bir expression bulunabilir. Birden fazla suffix sırasıyla ayrı boyutlar oluşturur; AST karşılığı `AST_ARRAY_TYPE` / `AST_ARRAY_DIMENSION` düğümleridir. `v:bytes!u8[16]` kanonik değildir; doğru sıralama `v:bytes[16]!u8` şeklindedir.
+
+## 6.4 Function type ve doğrulanmamış biçimler
+
+Parser, tip konumunda `f:` ile başlayan function-type imzası için özel üretime sahiptir; tüm parametre/dönüş varyantları bağımsız örnek matrisiyle doğrulanmadığından ayrıntılı EBNF kısmen tanımlıdır. Dotted/qualified tip adları, generic parametre listeleri ve `map key, value` birleşik biçimi bu denetimde kesin Parser grameri olarak doğrulanmamıştır; normatif gramer olarak sunulmaz.
+
+```nxf
+v:value! = 1;   # Tip adı eksik.
+v:ptr!*;        # Pointer hedef tipi eksik.
+v:ref!&;        # Reference hedef tipi eksik.
+v:array!u8[8];  # Array suffix yanlış konumda.
+```
+
+**Durum:** İsimlendirilmiş, pointer, reference ve array declarator Parser/AST doğrulandı; function type kısmen tanımlı.
+
+---
+
+# 7. İlkel tipler ve literal'lar
+
+Lexer/Parser kaynaklarında görülen tip aileleri:
+
+- İşaretli tamsayı: `i8`, `i16`, `i32`, `i64`.
+- İşaretsiz tamsayı: `u8`, `u16`, `u32`, `u64`.
+- Kayan nokta: `f32`, `f64`.
+- Geniş hassasiyet: `d32`, `d64`.
+- Mantıksal/karakter/metin: `bool`, `char`, `str`.
+- Temsil odaklı: `bit`, `byte`, `hex` ve Lexer'da tanınan bit/byte genişlik tipleri.
+
+Bu liste tip konumunda tanınan adları özetler; tüm işlemlerin, ABI yerleşiminin veya runtime davranışlarının tamamlandığı anlamına gelmez.
+
+```nxf
+v:enabled = true;
+v:disabled = false;
+v:empty = null;
+v:positive = 42;
+v:negative = -42;
+v:ratio = 3.5;
+v:greeting = "hello";
+v:marker = 'A';
+v:flag!bit;
+v:raw!byte;
+v:mask!8bit;
+v:wide_mask!128bit;
+```
+
+`true`, `false` ve `null` özel literal tokenlarıdır. Sayısal literal `TOKEN_NUMBER`; string ve character literal'ları ayrı token türleri olarak `AST_LITERAL` düğümüne aktarılır. Negatif işaret ayrı unary operatördür.
+
+Ondalık/üs/hex/binary biçimler, digit separator, escape dizileri, çok satırlı string ve Unicode kodlama ayrıntıları için tam Lexer matrisi henüz normatif olarak tamamlanmamıştır. `bit`, `byte`, `hex` ve genişlik türlerinin fiziksel yerleşimi/işlem kuralları yalnızca syntax'tan çıkarılamaz.
+
+**Durum:** Literal sınıfları Parser/AST doğrulandı; alt literal gramerleri kısmen tanımlı.
+
+---
+
+# 8. Array ve tuple
+
+## 8.1 Array literal ve declarator
+
+```nxf
+v:values = [1, 2, 3];
+v:matrix = [[1, 2], [3, 4]];
+v:empty = [];
+v:items[10]!i32;
+v:dynamic_items[]!str;
+v:grid[3][3]!f32;
+```
+
+Array literal `AST_ARRAY_LITERAL` üretir ve iç içe literal desteklenir. Array declarator ise bildirimde isimden sonra gelen boyut suffix'leridir; boyut içeriği boş veya expression olabilir. İkisi farklı yapılardır.
+
+```ebnf
+array-literal = "[" [ expression { "," expression } ] "]" ;
+array-suffix = { "[" [expression] "]" } ;
+```
+
+## 8.2 İndeks erişimi
+
+```nxf
+v:first = values[0];
+v:cell = matrix[1][2];
+```
+
+İndeks erişimi postfix expression biçimidir. İndeks türü ve sınır kontrolü Semantic/runtime kurallarıdır.
+
+## 8.3 Tuple expression
+
+```nxf
+v:point = (10, 20);
+v:record = (1, "ready", true);
+```
+
+Parser `AST_TUPLE` üretir; Parser testinde `(1,2)` biçimi doğrulanmıştır. Tek öğeli tuple ayrımı ve tuple type declarator bu sürümde kesin gramer olarak ilan edilmez.
+
+```nxf
+v:bad = [1, 2;  # ] eksik.
+v:bad = (1, 2;  # ) eksik.
+v:bad[4!i32;    # Array boyutunun ] ayracı eksik.
+```
+
+**Durum:** Array literal, declarator, indeks erişimi ve tuple expression Parser/AST doğrulandı; tuple type ve tüm trailing-comma varyantları kısmen tanımlı.
+
+---
+
+# 9. Kullanıcı tanımlı tipler
+
+## 9.1 Struct ve Union
+
+```nxf
+struct: Point {
+    v:x!i32,
+    v:y!i32
+}
+
+union: Register32 {
+    v:full!u32,
+    v:low!u16
+}
+```
+
+Struct `AST_STRUCT_DECL`, Union ayrı `AST_UNION_DECL` üretir. Her iki gövdede de alanlar `v:` ile başlar. Parser virgül tüketebilir; `;` zorunlu alan ayıracı değildir.
+
+```nxf
+struct: Invalid {
+    x!i32
+}
+```
+
+Çıplak alan adı geçersizdir; Parser `v:` alan önekini bekler.
+
+## 9.2 Enum ve payload
+
+```nxf
+enum: ProcessState {
+    Idle,
+    Running(pid!u32),
+    Failed(code!i32, message!str)
+}
+```
+
+Parser `AST_ENUM_DECL` ve `AST_ENUM_VARIANT` üretir. Variant payload alanları isim ve zorunlu `!Type` ile yazılır; alanlar `AST_VAR_DECL` olarak saklanır.
+
+```nxf
+enum: Invalid {
+    Running(pid)
+}
+```
+
+Payload alanında `!Type` eksiktir.
+
+## 9.3 Enum discriminant
+
+```nxf
+enum: StatusCode {
+    Ok = 0,
+    NotFound = 404,
+    Failed = 500
+}
+```
+
+Parser `=` sonrasındaki expression'ı `discriminant_expr` alanına aktarır. Integer constant expression olma şartı Semantic doğrulamasıdır. `=` sonrasında expression bulunmaması Parser hatasıdır.
+
+## 9.4 NewType ve aggregate varyantı
+
+```nxf
+nt:UserId = u64;
+nt:FileHandle = i32;
+```
+
+Temel NewType biçimi `nt:Name = Type;` olup `AST_NEWTYPE_DECL` üretir. Parser ayrıca `nt:` tokenı içinde `struct:`, `enum:` veya `union:` devamı gördüğünde ilgili aggregate parser yoluna yönlendirir; tüm birleşik yazım varyantları için fixture matrisi tamamlanmadığından bu özel biçimler kısmen tanımlıdır.
+
+## 9.5 Struct literal
+
+```nxf
+v:point = Point {
+    x = 10,
+    y = 20
+};
+```
+
+Parser `AST_STRUCT_LITERAL` ve alan başlatmaları için `AST_STRUCT_FIELD_INIT` üretir. Literal alan başlatıcısı `=` kullanır; declaration alanı ise `v:field!Type` biçimindedir.
+
+```nxf
+v:point = Point { x: 10 };
+```
+
+Geçersizdir: Struct literal alan başlatıcısı `:` değil `=` bekler.
+
+| Yapı | AST | Durum |
+|---|---|---|
+| Struct / alan | `AST_STRUCT_DECL` / `AST_VAR_DECL` | Parser/AST doğrulandı |
+| Union | `AST_UNION_DECL` | Parser/AST doğrulandı |
+| Enum / variant | `AST_ENUM_DECL` / `AST_ENUM_VARIANT` | Parser/AST doğrulandı |
+| Enum payload | `AST_VAR_DECL` | Parser/AST doğrulandı |
+| Enum discriminant | `discriminant_expr` | Parser expression'ı saklar; sabit tamsayı kuralı Semantic |
+| NewType | `AST_NEWTYPE_DECL` | Parser/AST doğrulandı |
+| Struct literal | `AST_STRUCT_LITERAL` | Parser/AST doğrulandı |
+| `nt:` aggregate varyantları | İlgili aggregate AST | Kısmen tanımlı |
 
 # Part III — İfadeler ve operatörler
 
@@ -596,6 +870,43 @@ Lexer'ın tanımadığı karakter dizileri geçerli token değildir. Hatalı lit
 ### 33.4 Alias: `as`
 ### 33.5 Modül bildirimi örnekleri
 
+### 33.6 §no: osmodule;§ — otomatik OS modülü yüklemesini kapatma
+
+§no:§ genel bir modül kapatma mekanizması değildir. Parser yalnızca program seviyesinde tek bir §no: osmodule;§ bildirimini kabul eder. Bu bildirim varsayılan olarak otomatik yüklenen §osmodule§'ün yüklenmesini engeller; OS servisi bulunmayan bare-metal programlar için kullanılır.
+
+§§§nxf
+no: osmodule;
+
+f:main() {
+    # Bare-metal başlangıç kodu
+}
+§§§
+
+Kurallar:
+- Program kökünde bulunmalıdır; fonksiyon veya iç içe blokta kullanılamaz.
+- Yalnızca §osmodule§ hedefi desteklenir; §no: coremodule;§ geçersizdir.
+- Bir programda en fazla bir kez yazılabilir.
+- §;§ zorunludur.
+- Ayrı statement düğümü üretmez; §ASTProgram.disable_osmodule§ politika alanı ve kaynak aralığı kaydedilir.
+- Otomatik modül yükleme entegrasyonu bu syntax kuralından ayrıdır.
+
+§§§nxf
+no: coremodule;       # Desteklenmeyen hedef.
+no: osmodule          # ; eksik.
+no: osmodule;
+no: osmodule;         # Yinelenen bildirim.
+
+f:main() {
+    no: osmodule;     # Yanlış kapsam.
+}
+§§§
+
+Parser bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelenen bildirim ve yanlış kapsam olarak ayırır.
+
+**Durum:** Parser/AST doğrulandı. Parser testi program-kökü biçimini ve negatif durumları kontrol eder.
+
+---
+
 ## 34. Inline assembly kaynak biçimi
 ### 34.1 `fastexec` block
 ### 34.2 `asm: LABEL { ... }`
@@ -691,6 +1002,11 @@ Lexer'ın tanımadığı karakter dizileri geçerli token değildir. Hatalı lit
 ## K. Değişiklik günlüğü
 ## L. Terimler sözlüğü
 ## M. Eski referanslar ve kaynak belgeler
+## N. İleride eklenecek dil özellikleri (aktif gramer değildir)
+
+### N.1 Macro sözdizimi
+
+Macro sistemi henüz Nexus Flow Parser/AST tarafından desteklenen bir kaynak özelliği değildir. Bu nedenle Bölüm 0–42 arasındaki normatif gramerin parçası değildir. Macro tasarımı ve uygulanması tamamlandıktan, AST/Parser karşılığı ve testleri doğrulandıktan sonra bu manuelin en sonunda ayrı bir bölüm olarak ele alınacaktır.
 
 ---
 
