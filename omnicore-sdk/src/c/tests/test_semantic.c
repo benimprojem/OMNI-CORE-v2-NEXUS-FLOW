@@ -942,6 +942,14 @@ static int check_call_temporary_borrow_semantics(void) {
     const char* call_temporary_borrow_is_released =
         "f:edit(value!&muti32) {} f:main() { v:owner!i32 = 1; "
         "edit(&mut owner); v:read!&i32 = &owner; }";
+    const char* disjoint_temporary_mutable_member_borrows =
+        "f:edit(a!&muti32, b!&muti32) {} "
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; edit(&mut point.x, &mut point.y); }";
+    const char* overlapping_temporary_member_borrows =
+        "f:edit(a!&muti32, b!&muti32) {} "
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; edit(&mut point.x, &mut point.x); }";
     return check_source(shared_call_conflicts_with_active_mutable, 1) &&
         check_source(mutable_call_conflicts_with_active_shared, 1) &&
         check_source(two_shared_call_arguments_are_allowed, 0) &&
@@ -949,7 +957,9 @@ static int check_call_temporary_borrow_semantics(void) {
         check_source(named_temporary_shared_borrow, 0) &&
         check_source(named_temporary_mutable_borrow, 0) &&
         check_source(call_borrow_mutability_mismatch, 2) &&
-        check_source(call_temporary_borrow_is_released, 0);
+        check_source(call_temporary_borrow_is_released, 0) &&
+        check_source(disjoint_temporary_mutable_member_borrows, 0) &&
+        check_source(overlapping_temporary_member_borrows, 1);
 }
 
 static int check_borrow_diagnostic_guidance(void) {
