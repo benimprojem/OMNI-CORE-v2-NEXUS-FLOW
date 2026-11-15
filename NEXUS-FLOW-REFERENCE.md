@@ -1460,150 +1460,164 @@ Hata mesajı mümkün olduğunda çağrı konumunu, beklenen parametreyi ve veri
 
 ---
 
-# 20. Lambda ve callable ifadeler
+# 20. Lambda ve anonim fonksiyon
 
-Lambda, bir fonksiyon gövdesini değer olarak ifade etmeye yarar. Nexus Flow'da lambda ile normal isimli fonksiyon bildirimi birbirinden farklıdır: lambda bir ifade bağlamında yazılır, `f:name(...)` ise isimli fonksiyon tanımlar.
+Nexus Flow lambda biçimi **`f:(parametreler) > ifade`** veya blok gövdeli **`f:(parametreler) { ... }`** şeklindedir. `=>` lambda operatörü olarak kullanılmaz; Group içindeki method alias bildiriminin parçasıdır.
 
-## 20.1 Expression-body lambda
+## 20.1 İfade gövdeli lambda
 
 ~~~nxf
-v:double = (x!i32) => x * 2;
+v:carp = f:(a, b) > a * b;
+v:kare = f:(a) > a * a;
 ~~~
 
-Expression-body biçiminde `=>` sonrasında tek bir ifade bulunur. Bu ifadenin sonucu lambda sonucudur.
+`>` sonrasındaki tek ifade lambda'nın gövdesi ve dönüş değeridir. Bu kısa biçimde `ret` yazılmaz.
 
-## 20.2 Block-body lambda
+## 20.2 Blok gövdeli anonim fonksiyon
 
 ~~~nxf
-v:handler = (value!i32) => {
+v:handler = f:(value!i32) {
     v:result = value + 1;
     ret result;
 };
 ~~~
 
-Block-body lambda süslü parantezle gövde oluşturur. Gövde içinde statement'lar ve `ret` kullanılabilir.
+Blok gövdeli lambda normal statement'lar içerir. Değer döndürmesi gerekiyorsa gövde içinde açık `ret` kullanılır.
 
 ## 20.3 Parametreler
 
 ~~~nxf
-v:combine = (left!i32, right!i32) => left + right;
+v:combine = f:(left!i32, right!i32) > left + right;
 ~~~
 
-Lambda parametreleri normal fonksiyon parametreleri gibi isim ve tip taşıyabilir. Parametre isimleri benzersiz olmalıdır.
+Parametreler normal fonksiyon parametreleri gibi ad ve tip bildirimi taşır. Parametre listesi boş da olabilir: `f:() > expression`.
 
-## 20.4 Lambda kullanımı
-
-~~~nxf
-v:transform = (value!i32) => value * 3;
-v:result = transform(10);
-~~~
-
-Lambda bir değişkene bağlandıktan sonra callable olarak kullanılabilir olduğu durumda çağrı biçimi normal fonksiyon çağrısına benzer. Callable değerlerin tüm tip çıkarımı ve atama kuralları henüz eksiksiz belgelenmemiştir.
-
-## 20.5 Fonksiyon ile lambda ayrımı
+## 20.4 Lambda ile isimli fonksiyon farkı
 
 ~~~nxf
 f:triple(value!i32)!i32 {
     ret value * 3;
 }
 
-v:triple_value = (value!i32) => value * 3;
+v:triple_value = f:(value!i32) > value * 3;
 ~~~
 
-İlk biçim isimli fonksiyon tanımlar. İkinci biçim lambda ifadesi oluşturur. İsimli fonksiyonun gövdesi bildirim içinde; lambda gövdesi bir ifade içinde yer alır.
+İlk biçim isimli fonksiyon tanımlar; ikinci biçim lambda ifadesidir. Lambda bir değişkene bağlanabilir ve callable bağlamında kullanılabilir.
 
-## 20.6 Capture
+## 20.5 Capture
 
-Lambda dış kapsamdan değer veya referans yakalama biçimlerinin kesin sözdizimi ve yaşam süresi kuralları henüz tamamlanmamıştır. Capture listesi veya örtük capture biçimi tahmin edilerek kullanılmamalıdır.
+Lambda'nın dış kapsamdan değer/reference capture sözdizimi ve yaşam süresi kuralları tamamlanmamıştır. Capture listesi veya örtük capture biçimi uydurulmamalıdır.
 
-**Durum:** Temel lambda yazımı tanımlı; callable tip uyumu ve capture ayrıntıları kısmen tanımlı.
+**Durum:** İfade ve blok gövdeli lambda yazımı eski referansla uyumlu. Callable tip uyumu ve capture ayrıntıları kısmen tanımlı.
 
 ---
 
-# 21. Group ve method
+# 21. Group ve Group metotları
 
-Group, alanları ve bu alanlar üzerinde çalışan method'ları bir arada tanımlamak için kullanılır. Group içindeki method'lar receiver üzerinden group verisine erişebilir.
+`group Name { ... }`, ilişkili fonksiyonları, method alias'larını, Group'a ait nominal türleri ve iç Group'ları tek bir ad alanında toplar. Group, tek başına nesne allocation mekanizması değildir; instance dispatch Group içindeki nominal tür ile ilişkilendirilen method'larda oluşur.
 
 ## 21.1 Group bildirimi
 
 ~~~nxf
-group:Counter {
-    v:value!i32;
-
-    f:increment() {
-        self.value += 1;
+group Storage {
+    struct:Storage {
+        v:value!i32
     }
 
-    f:get()!i32 {
-        ret self.value;
+    open => f:open_impl(self) {
+        self.value = 1;
+        ret;
     }
-}
-~~~
 
-Group adı zorunludur. Alanlar `v:` ile, method'lar `f:` ile tanımlanır. Group gövdesi süslü parantez içinde yazılır.
+    parse => f:parse_impl(text!str) {
+        ret;
+    }
 
-## 21.2 Group alanları
+    f:version()!u32 {
+        ret 1;
+    }
 
-~~~nxf
-group:Point {
-    v:x!f32;
-    v:y!f32;
-}
-~~~
-
-Group alanları isim ve tip bildirimi taşır. Alan adları aynı group içinde benzersiz olmalıdır. Alanların başlangıç değerleri ve otomatik oluşturma kuralları, kullanılan group oluşturma biçimine bağlıdır.
-
-## 21.3 Method tanımı
-
-~~~nxf
-group:Counter {
-    v:value!i32;
-
-    f:add(amount!i32) {
-        self.value += amount;
+    default {
+        echo("Storage default action");
     }
 }
 ~~~
 
-Method, group gövdesinde normal `f:` bildirimiyle yazılır. Method parametreleri normal fonksiyon parametre kurallarını izler.
+- `group Storage` Group adını tanımlar.
+- `struct:Storage` Group'a ait nominal türü tanımlar.
+- `open => f:open_impl(...)` public method alias'ı ile implementation fonksiyonunu eşler.
+- `parse => f:parse_impl(...)` static method alias örneğidir.
+- `f:version()` Group'a doğrudan ait fonksiyondur; method alias değildir.
+- `default { ... }` Group'ın varsayılan dispatch gövdesidir.
 
-## 21.4 Receiver ve self
+## 21.2 Instance method ve self
 
-Group method içinde `self` mevcut group örneğini/receiver'ı ifade eder:
+Instance method'un ilk implementation parametresi `self` olmalıdır:
 
 ~~~nxf
-f:set(value!i32) {
-    self.value = value;
+open => f:open_impl(self) {
+    self.value = 1;
+    ret;
 }
 ~~~
 
-`self` method'un receiver erişimidir; normal bir kullanıcı parametresi olarak yeniden tanımlanmaz. Method çağrısında receiver ayrıca aktarılır ve method'un argüman sayısına kullanıcı tarafından yazılan parametreler esas alınır.
+`self`, çağıran tarafından ayrıca argüman olarak verilmez; receiver otomatik aktarılır. Açık tür belirtimi gerekiyorsa `self!Storage` yazılabilir. `self` ilk sırada değilse veya türü Group nominal türüyle uyuşmuyorsa hata oluşur.
 
-## 21.5 Method çağrısı
+## 21.3 Static method
 
-~~~nxf
-counter.increment();
-v:value = counter.get();
-counter.add(5);
-~~~
-
-Method çağrısı receiver, nokta ve method adıyla yazılır. Parametreler method adından sonra parantez içinde verilir.
-
-## 21.6 Receiver ile fonksiyon biçimi
-
-Receiver'ı açıkça bir parametre/argüman akışı içinde aktarmak gerektiğinde normal fonksiyon çağrısı biçimi kullanılabilir:
+Static method implementation'ında `self` parametresi bulunmaz:
 
 ~~~nxf
-(counter) -> process(counter);
+parse => f:parse_impl(text!str) {
+    ret;
+}
 ~~~
 
-Bu biçim lambda zorunluluğu değildir; receiver veya değer aktarımını ifade eden akış biçimidir. Kullanımın ayrıntıları Bölüm 26'da ele alınır.
+Static method Group adı üzerinden çağrılır; instance method ise instance/receiver üzerinden çağrılır. Bu iki çağrı biçimi birbirinin yerine kullanılamaz.
 
-## 21.7 Group kullanım sınırları
+## 21.4 Method çağrısı
 
-Group oluşturma, alanların başlangıç değerleri, kopyalama/taşıma ve method receiver yaşam süresi kuralları bu kılavuzun ilgili type ve ownership bölümleriyle birlikte değerlendirilmelidir.
+~~~nxf
+v:storage!Storage;
+storage.open();
+Storage.parse("config");
+Storage.version();
+Storage;
+~~~
 
-**Durum:** Group alanları, method, `self` ve method çağrısı tanımlı. Oluşturma ve yaşam süresi ayrıntıları ilgili bölümlerde tamamlanacaktır.
+- `storage.open()`: instance method çağrısı.
+- `Storage.parse(...)`: static method çağrısı.
+- `Storage.version()`: Group'a doğrudan ait fonksiyon çağrısı.
+- `Storage;`: Group default gövdesini çağırır; default yoksa bu kullanım geçersizdir.
+
+## 21.5 Nested Group
+
+~~~nxf
+group Database {
+    sql => group {
+        connect => f:connect_impl(self, path!str) { ret; }
+    }
+    memory => group {
+        clear => f:clear_impl() { ret; }
+    }
+}
+
+Database.sql.connect("app.db");
+Database.memory.clear();
+~~~
+
+`child => group { ... }` nested Group tanımlar; noktalı erişimle kullanılır.
+
+## 21.6 Metot eşleştirme ve sınırlar
+
+- Public alias adları benzersiz olmalıdır; overload desteklenmez.
+- Implementation adı başka alias veya Group içindeki doğrudan fonksiyonla çakışamaz.
+- Group içindeki Struct/Enum/Union türleri Group scope'una aittir; dış ve nested Group scope'ları otomatik devralmaz.
+- Positional/named argümanlar parametre sayısı, isim, tekrar ve tür uyumu açısından denetlenir; `self` çağıranın argüman listesine dahil değildir.
+- `default` yoksa bare Group dispatch yapılamaz.
+- Group oluşturma, field initialization ve receiver yaşam süresi ayrıntıları ilgili type/ownership kurallarıyla birlikte değerlendirilmelidir.
+
+**Durum:** Group/method temel yazımı eski referansla eşitlendi. Receiver visibility ve kalan signature ayrıntıları kısmen tanımlı.
 
 ---
 
