@@ -905,6 +905,17 @@ static void semantic_record_annotation(
 static void destroy_slot(Slot* slot) {
     if (!slot) return;
 
+    if (slot->borrowed_from) {
+        if (slot->borrow_kind == 1u &&
+            slot->borrowed_from->shared_borrow_count > 0u) {
+            --slot->borrowed_from->shared_borrow_count;
+        } else if (slot->borrow_kind == 2u) {
+            slot->borrowed_from->mutable_borrow_active = 0u;
+        }
+        slot->borrowed_from = NULL;
+        slot->borrow_kind = 0u;
+    }
+
     free(slot->name);
     free(slot->type_name);
 
@@ -4047,6 +4058,50 @@ static void semantic_validate_spawn_call(
     }
 }
 
+static void semantic_register_borrow_binding(
+    SemanticContext* ctx, Slot* borrower, ASTNode* initializer
+) {
+    ASTUnaryExpr* borrow;
+    Slot* owner;
+    ASTIdentifier* identifier;
+    int is_mutable;
+    if (!ctx || !borrower || !initializer ||
+        initializer->type != AST_UNARY_EXPR) return;
+    borrow = (ASTUnaryExpr*)initializer;
+    if (borrow->op != TOKEN_BIT_AND && borrow->op != TOKEN_BORROW_MUT)
+        return;
+    if (!borrow->operand || borrow->operand->type != AST_IDENTIFIER) {
+        report_error(ctx, borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Borrow binding currently requires a direct identifier owner.");
+        return;
+    }
+    identifier = (ASTIdentifier*)borrow->operand;
+    owner = find_slot(ctx, identifier->name);
+    if (!owner) return;
+    is_mutable = borrow->op == TOKEN_BORROW_MUT;
+    if (owner->mutable_borrow_active ||
+        (is_mutable && owner->shared_borrow_count != 0u)) {
+        report_error(ctx, borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+            is_mutable
+                ? "Exclusive mutable borrow conflicts with an active borrow of the same owner."
+                : "Shared borrow conflicts with an active exclusive mutable borrow.");
+        return;
+    }
+    if (is_mutable) {
+        owner->mutable_borrow_active = 1u;
+        borrower->borrow_kind = 2u;
+    } else {
+        if (owner->shared_borrow_count == UINT32_MAX) {
+            report_error(ctx, borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Shared borrow count exceeds the supported semantic limit.");
+            return;
+        }
+        ++owner->shared_borrow_count;
+        borrower->borrow_kind = 1u;
+    }
+    borrower->borrowed_from = owner;
+}
+
 static void semantic_check_node(SemanticContext* ctx, ASTNode* node, int follow_siblings);
 
 static void semantic_check_node(
@@ -4107,6 +4162,14 @@ static void semantic_check_node(
                         "The initializer of an immutable m: value must have a determinable type.");
                 }
             }
+            if (declared_slot && decl->initializer &&
+                decl->initializer->type == AST_UNARY_EXPR &&
+                (((ASTUnaryExpr*)decl->initializer)->op == TOKEN_BIT_AND ||
+                 ((ASTUnaryExpr*)decl->initializer)->op == TOKEN_BORROW_MUT)) {
+                semantic_register_borrow_binding(
+                    ctx, declared_slot, decl->initializer);
+            }
+
             if (declared_slot) {
                 semantic_record_annotation(
                     ctx, node, declared_slot, declared_slot->type_name,
@@ -4721,6 +4784,11 @@ static void semantic_check_node(
                     char buf[256];
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_CONST_ASSIGN), id->name);
                     report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN, buf);
+                }
+                if (slot && (slot->mutable_borrow_active ||
+                             slot->shared_borrow_count != 0u)) {
+                    report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                        "Cannot modify an owner while a shared or exclusive borrow is active.");
                 }
                 if (slot && slot->type_name) {
                     const char* right_type = get_expr_type(ctx, assign->right);
