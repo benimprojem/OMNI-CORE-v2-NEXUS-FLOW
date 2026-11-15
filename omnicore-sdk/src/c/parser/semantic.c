@@ -1189,7 +1189,7 @@ static char* semantic_lvalue_path(SemanticContext* ctx, const ASTNode* node) {
             member_suffix[0] = '.';
             if (is_union_projection) {
                 member_suffix[1] = '*';
-                member_suffix[2] = '\\0';
+                member_suffix[2] = '\0';
             } else {
                 memcpy(member_suffix + 1u, member->member_name,
                     member_length + 1u);
