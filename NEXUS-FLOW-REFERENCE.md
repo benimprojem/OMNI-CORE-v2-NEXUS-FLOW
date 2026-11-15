@@ -1,16 +1,13 @@
 # NEXUS FLOW — Language Reference Manual
 
-**Belge türü:** Normatif dil referansı — yalnızca Nexus Flow kaynak sözdizimi  
-**Durum:** AST sınırına göre yeniden düzenleniyor  
+**Belge türü:** Nexus Flow programlama dili kullanım ve başvuru kılavuzu  
+**Durum:** İlk taslak — dil kullanıcılarına yönelik olarak düzenleniyor  
 **Sürüm:** 0.2-draft  
 **Çalışma dalı:** `refactor/c-core-roadmap`
 
-> Bu belge yalnızca Nexus Flow dilinin kaynak sözdizimini ve doğrudan bu sözdizimine ait kullanım kurallarını tanımlar. OCC mimarisi, AST'nin iç veri yapıları, Semantic modülünün algoritmaları, OIR, Verifier, Codegen, target/ABI ve SDK konuları kapsam dışıdır.
+> Bu kılavuz Nexus Flow ile program yazan kişiler içindir. Dilin sözdizimini, ifadelerin nasıl kullanılacağını, tipleri, kontrol yapılarını, bellek ve akış yapılarını örneklerle açıklar. Derleyicinin kaynak kodu nasıl işlediğini veya bu yapıları içeride nasıl temsil ettiğini anlatmaz.
 >
-> **Kapsam kapısı:** Bu manuelde bir dil yapısı ancak aktif Parser tarafından kabul edilip mevcut AST modelinde temsil edilebiliyorsa normatif özellik olarak belgelenebilir. Sadece token/enum/legacy AST etiketi bulunması yeterli kanıt değildir. Parser/AST karşılığı olmayan gelecek fikirleri bu manuelin özellik listesine eklenmez.
->
-> Bir yapının AST'de temsil edilmesi, onun tüm Semantic veya runtime davranışlarının tamamlandığı anlamına gelmez. Bu belge yalnızca kaynak biçimini ve doğrulanmış dil seviyesindeki sınırları açıklar.
-
+> Henüz tasarlanmamış veya kullanıma sunulmamış özellikler geçerli dil özelliği gibi gösterilmez. Eksik tanımlanmış konular açıkça işaretlenir.
 ---
 
 # Bölüm 0 — Belgenin kullanımı ve kapsam
@@ -23,17 +20,17 @@ Bu manuel, Nexus Flow kaynak kodunu yazan kişinin dilin kabul edilen yazım bi�
 
 Bu belgeye yalnızca aşağıdaki kanıt zincirini geçen sözdizimi alınır:
 
-1. Kaynak biçimi Lexer/Parser tarafından tanınır.
-2. Parser bu biçim için mevcut AST'de anlamlı bir düğüm veya açıkça tanımlanmış mevcut düğüm biçimi üretir.
-3. Sözdizimi ile AST eşlemesi kaynak denetiminde doğrulanabilir.
+1. Kaynak biçimi sözcüksel çözümleme/dil tarafından tanınır.
+2. derleyici bu biçim için mevcut iç temsil'de anlamlı bir düğüm veya açıkça tanımlanmış mevcut düğüm biçimi üretir.
+3. Sözdizimi ile iç temsil eşlemesi kaynak denetiminde doğrulanabilir.
 
 Aşağıdakiler bu manuelin konusu değildir:
 
-- AST node alanlarının, codec'in veya OIR ID'lerinin teknik açıklaması.
+- iç temsil node alanlarının, codec'in veya OIR ID'lerinin teknik açıklaması.
 - Semantic analiz algoritmalarının iç işleyişi.
 - OIR, Verifier, Codegen, optimizer ve backend.
 - CPU, target, ABI, bellek topolojisi veya runtime uygulama ayrıntıları.
-- Henüz Parser/AST karşılığı olmayan gelecekteki dil yapıları.
+- Henüz dil iç yapısı karşılığı olmayan gelecekteki dil yapıları.
 
 ## 0.3 Normatif ifadeler
 
@@ -49,13 +46,13 @@ Bu ifadeler yalnızca ilgili bölümdeki kanıtlanmış dil kuralları için kul
 | Etiket | Anlam |
 |---|---|
 | **Tanımlı** | Kaynak biçimi ve kural bu belgede açıkça tanımlanmış. |
-| **Parser/AST doğrulandı** | Aktif Parser biçimi AST'de temsil ediyor ve buna ilişkin fixture/test kanıtı var. |
+| **Tanımlı** | Aktif derleyici biçimi iç temsil'de temsil ediyor ve buna ilişkin örnek/test kanıtı var. |
 | **Kısmen tanımlı** | Kaynak biçiminin bir kısmı biliniyor; gramer veya sınırlar henüz tamamlanmamış. |
 | **Tasarım aşamasında** | Dil kararı kesinleşmemiş. Bu etiketli öneri geçerli sözdizimi değildir. |
-| **Desteklenmiyor** | Mevcut Parser sözleşmesinde kabul edilmiyor. |
-| **Legacy** | Eski AST/codec verileriyle uyumluluk için korunuyor; yeni kaynak kodda aktif sözdizimi değildir. |
+| **Desteklenmiyor** | Mevcut derleyici sözleşmesinde kabul edilmiyor. |
+| **Legacy** | Eski iç temsil/codec verileriyle uyumluluk için korunuyor; yeni kaynak kodda aktif sözdizimi değildir. |
 
-**Önemli:** Bir token registry girdisi veya AST enum etiketi tek başına “Parser/AST doğrulandı” statüsü vermez. Bu statü için aktif Parser yolu ve test kanıtı aranır.
+**Önemli:** Bir sözcüksel öğe listesi girdisi veya iç temsil enum etiketi tek başına “Tanımlı” statüsü vermez. Bu statü için aktif derleyici yolu ve test kanıtı aranır.
 
 ## 0.5 Örneklerin okunması
 
@@ -78,7 +75,7 @@ Bu bölüm hata mesajlarının OCC iç uygulamasını değil, dil referansındak
 
 ## 0.7 Sürümleme ve değişiklik
 
-Yeni bir sözdizimi, aktif Parser ve AST karşılığı doğrulanmadan bu manuelde geçerli özellik olarak yayımlanmaz. Macro sözdizimi henüz uygulanmadığından ana gramer bölümlerine alınmaz; gelecekteki özellikler listesinde en sonda tutulur. Eski biçimler kaldırılacaksa uyumluluk etkisi ve geçiş biçimi ayrıca belgelenir.
+Yeni bir sözdizimi, aktif derleyici ve iç temsil karşılığı doğrulanmadan bu manuelde geçerli özellik olarak yayımlanmaz. Macro sistemi henüz tasarlanmadığı için geçerli dil özellikleri arasında yer almaz; bu kılavuzun en sonunda gelecekteki özellik olarak tutulur. Eski biçimler kaldırılacaksa uyumluluk etkisi ve geçiş biçimi ayrıca belgelenir.
 
 ---
 
@@ -86,7 +83,7 @@ Yeni bir sözdizimi, aktif Parser ve AST karşılığı doğrulanmadan bu manuel
 
 ## 1.1 Dilin kaynak kodu biçimi
 
-Nexus Flow programı; bildirimler, fonksiyonlar, tip tanımları, ifadeler ve bloklardan oluşur. Programın kök yapısı AST'de program düğümüyle, süslü parantezle çevrili kod blokları ise block düğümüyle temsil edilir.
+Nexus Flow programı; bildirimler, fonksiyonlar, tip tanımları, ifadeler ve bloklardan oluşur. Programın kök yapısı iç temsil'de program düğümüyle, süslü parantezle çevrili kod blokları ise block düğümüyle temsil edilir.
 
 ## 1.2 En küçük program biçimi
 
@@ -99,7 +96,7 @@ f:main() {
 
 Bu örnek, fonksiyon bildirimi ve blok biçimini gösterir. Programın çalıştırılabilir giriş noktası olma şartları bu syntax belgesinin değil, ilgili program/target sözleşmesinin konusudur.
 
-**Durum:** Fonksiyon ve blok kaynak biçimleri Parser/AST'de temsil edilir. Giriş noktası seçimi burada tanımlanmaz.
+**Durum:** Fonksiyon ve blok kaynak biçimleri dil iç yapısı'de temsil edilir. Giriş noktası seçimi burada tanımlanmaz.
 
 ## 1.3 Değişken bildirimi ve ifade
 
@@ -111,7 +108,7 @@ v:other!i32 = 7;
 - `v:` değişken bildiriminin önekidir.
 - `=` başlatıcı değerini bağlar.
 - `!i32` açık tip belirtimini gösterir.
-- Bildirim AST'de değişken bildirimi olarak temsil edilir.
+- Bildirim iç temsil'de değişken bildirimi olarak temsil edilir.
 
 Tip çıkarımı ve tip uyumluluğunun ayrıntıları Bölüm 5–7'de ele alınır.
 
@@ -131,7 +128,7 @@ Bu örnek fonksiyon bildirimi, parametreler, dönüş tipi, return ve fonksiyon 
 
 ## 1.5 Kontrol akışına kısa bakış
 
-Aktif AST/Parser envanterinde koşul, döngü, return, break ve continue yapıları bulunur. Bunların kesin yazım biçimleri Bölüm 13–17'de verilir. Bu giriş bölümü ek bir kontrol yapısı veya yeni anahtar sözcük tanımlamaz.
+Aktif iç temsil/derleyici envanterinde koşul, döngü, return, break ve continue yapıları bulunur. Bunların kesin yazım biçimleri Bölüm 13–17'de verilir. Bu giriş bölümü ek bir kontrol yapısı veya yeni anahtar sözcük tanımlamaz.
 
 ---
 
@@ -139,7 +136,7 @@ Aktif AST/Parser envanterinde koşul, döngü, return, break ve continue yapıla
 
 ## 2.1 Kaynak dosyası
 
-Nexus Flow kaynak metni Lexer'a girdi olarak verilir ve Parser tarafından program/blok/declaration/statement biçimlerine ayrıştırılır.
+Nexus Flow kaynak metni sözcüksel çözümleme'a girdi olarak verilir ve dil tarafından program/blok/declaration/statement biçimlerine ayrıştırılır.
 
 Dosya uzantısı, kodlama standardı ve satır sonu normalizasyonu için mevcut kaynak denetiminde kesin bir normatif sözleşme doğrulanmadığından bu sürümde sabit bir değer ilan edilmez.
 
@@ -147,11 +144,11 @@ Dosya uzantısı, kodlama standardı ve satır sonu normalizasyonu için mevcut 
 
 ## 2.2 Boşluk ve satır sonları
 
-Boşlukların ve satır sonlarının token sınırlarına etkisi Lexer davranışına bağlıdır. Bu manuel, Lexer kaynak kodu ve testleriyle doğrulanmayan biçimsel bir boşluk/indentation kuralı varsaymaz.
+Boşlukların ve satır sonlarının sözcüksel öğe sınırlarına etkisi sözcüksel çözümleme davranışına bağlıdır. Bu manuel, sözcüksel çözümleme kaynak kodu ve testleriyle doğrulanmayan biçimsel bir boşluk/indentation kuralı varsaymaz.
 
-Girintileme için ayrı bir blok kapsamı anlamı tanımlanmamıştır; blokların AST karşılığı süslü parantezli yapıdır.
+Girintileme için ayrı bir blok kapsamı anlamı tanımlanmamıştır; blokların iç temsil karşılığı süslü parantezli yapıdır.
 
-**Durum:** Kısmen tanımlı; tam whitespace/indentation matrisi Lexer denetimiyle tamamlanacak.
+**Durum:** Kısmen tanımlı; tam whitespace/indentation matrisi sözcüksel çözümleme denetimiyle tamamlanacak.
 
 ## 2.3 Blok ayraçları
 
@@ -168,19 +165,19 @@ f:work() {
 - İç içe bloklar ayrı block yapıları olarak temsil edilir.
 - Program kökü ile fonksiyon/koşul/döngü gövdeleri aynı kaynak ayraçlarını kullanabilir; hangi bağlamda geçerli oldukları ilgili gramer kuralıyla belirlenir.
 
-**Durum:** Parser/AST doğrulandı.
+**Durum:** Tanımlı.
 
 ## 2.4 İfade sonlandırma
 
-Mevcut kaynak örneklerinde bildirim ve birçok ifade `;` ile sonlandırılır. Ancak tüm statement türleri için noktalı virgül zorunluluğunu tek bir genel kurala dönüştürmeden önce Parser üretimleri ve negatif fixture'lar birlikte denetlenmelidir.
+Mevcut kaynak örneklerinde bildirim ve birçok ifade `;` ile sonlandırılır. Ancak tüm statement türleri için noktalı virgül zorunluluğunu tek bir genel kurala dönüştürmeden önce derleyici üretimleri ve negatif örnek'lar birlikte denetlenmelidir.
 
-**Geçici kural:** Bir bölüm belirli bir statement için açıkça farklı bir sonlandırma biçimi vermiyorsa, o statement'ın mevcut Parser örneklerinde kullanılan biçimi izlenmelidir.
+**Geçici kural:** Bir bölüm belirli bir statement için açıkça farklı bir sonlandırma biçimi vermiyorsa, o statement'ın mevcut derleyici örneklerinde kullanılan biçimi izlenmelidir.
 
 **Durum:** Kısmen tanımlı; tüm statement türleri için zorunluluk matrisi hazırlanacak.
 
 ## 2.5 Yorumlar
 
-Eski syntax referansında `#` ile başlayan açıklama satırları kullanılmıştır. Bu biçimin aktif Lexer tarafından hangi satır/blok sınırlarında kabul edildiği kaynak ve testlerle ayrıca doğrulanmadan çok satırlı yorum veya iç içe yorum kuralı ilan edilmez.
+Eski syntax referansında `#` ile başlayan açıklama satırları kullanılmıştır. Bu biçimin aktif sözcüksel çözümleme tarafından hangi satır/blok sınırlarında kabul edildiği kaynak ve testlerle ayrıca doğrulanmadan çok satırlı yorum veya iç içe yorum kuralı ilan edilmez.
 
 **Durum:** Kısmen tanımlı. Bu bölümde yalnızca kaynakta kullanılan `#` örnekleri kayıt altındadır.
 
@@ -196,7 +193,7 @@ f:broken() {
 
 Beklenen: Açılan her blok için eşleşen bir kapanış ayracı bulunmalıdır.
 
-Daha karmaşık hata kurtarma davranışı Parser'ın tanı üretimi konusudur; dilin geçerli sözdizimi kuralı değildir.
+Daha karmaşık hata kurtarma davranışı dilin tanı üretimi konusudur; dilin geçerli sözdizimi kuralı değildir.
 
 ---
 
@@ -204,18 +201,18 @@ Daha karmaşık hata kurtarma davranışı Parser'ın tanı üretimi konusudur; 
 
 ## 3.1 Token sınıfları
 
-Mevcut token registry'sinde şu genel gruplar bulunur:
+Mevcut sözcüksel öğe listesi'sinde şu genel gruplar bulunur:
 
-- Tanımlayıcı ve literal tokenları.
-- Anahtar sözcük tokenları.
+- Tanımlayıcı ve literal sözcüksel öğeları.
+- Anahtar sözcük sözcüksel öğeları.
 - Bildirim önekleri.
-- Tip tokenları.
+- Tip sözcüksel öğeları.
 - Aritmetik, karşılaştırma, mantık ve bit operatörleri.
-- Nexus Flow akış tokenları.
+- Nexus Flow akış sözcüksel öğeları.
 - Noktalama ve blok ayraçları.
-- Inline ASM ham gövde tokenı.
+- Inline ASM ham gövde sözcüksel öğeı.
 
-Registry, sembolik token envanteridir; registry'deki her tokenın her kaynak bağlamında aktif olarak üretildiği anlamına gelmez. Bu manuel yalnızca Parser tarafından tüketildiği ve AST'de temsil edildiği doğrulanan biçimleri normatif olarak açıklar.
+Registry, sembolik sözcüksel öğe envanteridir; liste'deki her sözcüksel öğeın her kaynak bağlamında aktif olarak üretildiği anlamına gelmez. Bu manuel yalnızca dil tarafından tüketildiği ve iç temsil'de temsil edildiği doğrulanan biçimleri normatif olarak açıklar.
 
 ## 3.2 Tanımlayıcılar
 
@@ -229,32 +226,32 @@ f:calculate() {}
 struct: Point { v:x!i32, v:y!i32 }
 ```
 
-Büyük/küçük harf duyarlılığı, izin verilen Unicode karakterleri, alt çizgi ve rakam konumları için Lexer kaynak/test denetimi tamamlanmadan daha ayrıntılı karakter grameri ilan edilmez.
+Büyük/küçük harf duyarlılığı, izin verilen Unicode karakterleri, alt çizgi ve rakam konumları için sözcüksel çözümleme kaynak/test denetimi tamamlanmadan daha ayrıntılı karakter grameri ilan edilmez.
 
-**Durum:** Tanımlayıcı tokenı ve isim konumları mevcut; tam karakter grameri kısmen tanımlı.
+**Durum:** Tanımlayıcı sözcüksel öğeı ve isim konumları mevcut; tam karakter grameri kısmen tanımlı.
 
 ## 3.3 Bildirim önekleri
 
-Aktif AST/Parser eşlemesinde doğrulanması gereken temel bildirim aileleri:
+Aktif iç temsil/derleyici eşlemesinde doğrulanması gereken temel bildirim aileleri:
 
-| Yazım | Kaynak rolü | AST temsili | Durum |
+| Yazım | Kaynak rolü | iç temsil temsili | Durum |
 |---|---|---|---|
-| `v:` | Değişken bildirimi | `AST_VAR_DECL` | Aktif |
-| `c:` | Sabit işaretli değişken bildirimi | `AST_VAR_DECL` | Parser/AST eşlemesi mevcut; compile-time değerlendirme ayrı konudur |
-| `m:` | Başlatıcılı, değiştirilemeyen değer bildirimi | `AST_MUST_DECL` | Parser/AST mevcut |
-| `nt:` | NewType bildirimi | `AST_NEWTYPE_DECL` | Aktif |
-| `f:` | Fonksiyon bildirimi | `AST_FUNC_DECL` | Aktif |
-| `struct:` | Struct bildirimi | `AST_STRUCT_DECL` | Aktif |
-| `enum:` | Enum bildirimi | `AST_ENUM_DECL` | Aktif |
-| `union:` | Union bildirimi | `AST_UNION_DECL` | Aktif |
-| `group:` | Group bildirimi | `AST_GROUP_DECL` | Aktif |
-| `exf:` | Harici fonksiyon bildirimi | `AST_EXTERN_DECL` | Aktif |
+| `v:` | Değişken bildirimi | `iç temsil_VAR_DECL` | Aktif |
+| `c:` | Sabit işaretli değişken bildirimi | `iç temsil_VAR_DECL` | dil iç yapısı eşlemesi mevcut; compile-time değerlendirme ayrı konudur |
+| `m:` | Başlatıcılı, değiştirilemeyen değer bildirimi | `iç temsil_MUST_DECL` | dil iç yapısı mevcut |
+| `nt:` | NewType bildirimi | `iç temsil_NEWTYPE_DECL` | Aktif |
+| `f:` | Fonksiyon bildirimi | `iç temsil_FUNC_DECL` | Aktif |
+| `struct:` | Struct bildirimi | `iç temsil_STRUCT_DECL` | Aktif |
+| `enum:` | Enum bildirimi | `iç temsil_ENUM_DECL` | Aktif |
+| `union:` | Union bildirimi | `iç temsil_UNION_DECL` | Aktif |
+| `group:` | Group bildirimi | `iç temsil_GROUP_DECL` | Aktif |
+| `exf:` | Harici fonksiyon bildirimi | `iç temsil_EXTERN_DECL` | Aktif |
 
-`r:`, `t:` ve `o:` önekleri mevcut syntax kaynağında ayrılmış olarak gösterilir. Aktif AST/Parser dil özelliği olarak belgelenmez.
+`r:`, `t:` ve `o:` önekleri mevcut syntax kaynağında ayrılmış olarak gösterilir. Aktif iç temsil/derleyici dil özelliği olarak belgelenmez.
 
-## 3.4 Literal tokenları
+## 3.4 Literal sözcüksel öğeları
 
-AST literal düğümü ve Parser/AST karşılaştırma kaydında aşağıdaki literal sınıfları yer alır:
+iç temsil literal düğümü ve dil iç yapısı karşılaştırma kaydında aşağıdaki literal sınıfları yer alır:
 
 - Sayısal literal.
 - String literal.
@@ -262,25 +259,25 @@ AST literal düğümü ve Parser/AST karşılaştırma kaydında aşağıdaki li
 - `true` ve `false`.
 - `null`.
 
-Sayısal biçimlerin tabanı, ayraçları ve üs yazımı Lexer denetimiyle kesinleştirilecektir. Bu sürümde doğrulanmamış bir literal biçimi eklenmez.
+Sayısal biçimlerin tabanı, ayraçları ve üs yazımı sözcüksel çözümleme denetimiyle kesinleştirilecektir. Bu sürümde doğrulanmamış bir literal biçimi eklenmez.
 
-**Durum:** Literal sınıfları Parser/AST'de temsil edilir; alt biçimlerin tam grameri kısmen tanımlı.
+**Durum:** Literal sınıfları dil iç yapısı'de temsil edilir; alt biçimlerin tam grameri kısmen tanımlı.
 
-## 3.5 Tip tokenları ve tip ifadeleri
+## 3.5 Tip sözcüksel öğeları ve tip ifadeleri
 
-Registry'de temel sayısal/tip tokenları bulunur; ayrıca AST'de recursive type expression düğümü tip biçimlerini taşır. Bu manuelde tiplerin kaynak yazımı Bölüm 6–9'da ele alınır.
+Registry'de temel sayısal/tip sözcüksel öğeları bulunur; ayrıca iç temsil'de recursive type expression düğümü tip biçimlerini taşır. Bu manuelde tiplerin kaynak yazımı Bölüm 6–9'da ele alınır.
 
-Pointer, reference, array ve function-type biçimleri yalnızca mevcut Parser'ın tanıdığı type-expression bağlamlarında açıklanır. Registry'de bulunmayan tip aileleri bu belgeye eklenmez.
+Pointer, reference, array ve function-type biçimleri yalnızca mevcut dilin tanıdığı type-expression bağlamlarında açıklanır. Registry'de bulunmayan tip aileleri bu belgeye eklenmez.
 
-## 3.6 Operatör ve noktalama tokenları
+## 3.6 Operatör ve noktalama sözcüksel öğeları
 
-Operatörler ve ayraçlar Bölüm 10–12'de kaynak yazımlarıyla açıklanır. Özellikle Nexus Flow akış tokenları ile normal aritmetik/bit operatörleri birbirine karıştırılmamalıdır; aynı karakter ailesinin farklı token kimlikleri olabilir.
+Operatörler ve ayraçlar Bölüm 10–12'de kaynak yazımlarıyla açıklanır. Özellikle Nexus Flow akış sözcüksel öğeları ile normal aritmetik/bit operatörleri birbirine karıştırılmamalıdır; aynı karakter ailesinin farklı sözcüksel öğe kimlikleri olabilir.
 
-## 3.7 Lexer tarafından reddedilen kaynak
+## 3.7 sözcüksel çözümleme tarafından reddedilen kaynak
 
-Lexer'ın tanımadığı karakter dizileri geçerli token değildir. Hatalı literal, tanınmayan karakter ve eksik operatör biçimleri için hata örnekleri, Lexer test envanteri doğrulandıkça bu bölüme eklenecektir.
+sözcüksel çözümleme'ın tanımadığı karakter dizileri geçerli sözcüksel öğe değildir. Hatalı literal, tanınmayan karakter ve eksik operatör biçimleri için hata örnekleri, sözcüksel çözümleme test envanteri doğrulandıkça bu bölüme eklenecektir.
 
-**Açık denetim:** Token registry 164 sembolik token türü içerir; tam lexer emission audit henüz tamamlanmış değildir. Bu nedenle registry'deki her öğe aktif kaynak sözdizimi olarak kabul edilmez.
+**Açık denetim:** Token liste 164 sembolik sözcüksel öğe türü içerir; tam lexer emission audit henüz tamamlanmış değildir. Bu nedenle liste'deki her öğe aktif kaynak sözdizimi olarak kabul edilmez.
 
 ---
 
@@ -288,7 +285,7 @@ Lexer'ın tanımadığı karakter dizileri geçerli token değildir. Hatalı lit
 
 # 4. Tanımlayıcılar ve isim konumları
 
-Tanımlayıcılar değişken, fonksiyon, tip, alan, enum seçeneği ve modül/Group isimlerini belirtir. Lexer normal isimleri `TOKEN_IDENTIFIER` olarak üretir; bazı önekli isimler tek token olarak okunur.
+Tanımlayıcılar değişken, fonksiyon, tip, alan, enum seçeneği ve modül/Group isimlerini belirtir. sözcüksel çözümleme normal isimleri `TOKEN_IDENTIFIER` olarak üretir; bazı önekli isimler tek sözcüksel öğe olarak okunur.
 
 ```nxf
 v:counter = 0;
@@ -296,20 +293,20 @@ f:calculate() {}
 struct: Point { v:x!i32, v:y!i32 }
 ```
 
-`v:counter` / `v: counter` ve `struct:Point` / `struct: Point` gibi bitişik ve ayrık önek biçimleri Parser tarafından desteklenir.
+`v:counter` / `v: counter` ve `struct:Point` / `struct: Point` gibi bitişik ve ayrık önek biçimleri dil tarafından desteklenir.
 
-| İsim konumu | AST temsili |
+| İsim konumu | iç temsil temsili |
 |---|---|
-| `v:name` / `c:name` | `AST_VAR_DECL.name`; `c:` için `is_const` |
-| `m:name` | `AST_MUST_DECL.name` |
-| `f:name` | `AST_FUNC_DECL.name` |
-| `struct: Name` / `union: Name` | `AST_STRUCT_DECL` / `AST_UNION_DECL` |
-| `enum: Name` | `AST_ENUM_DECL.name` |
-| `nt:Name` | `AST_NEWTYPE_DECL.name` |
-| Struct alanı | `AST_VAR_DECL.name` |
-| Enum seçeneği | `AST_ENUM_VARIANT.name` |
+| `v:name` / `c:name` | `iç temsil_VAR_DECL.name`; `c:` için `is_const` |
+| `m:name` | `iç temsil_MUST_DECL.name` |
+| `f:name` | `iç temsil_FUNC_DECL.name` |
+| `struct: Name` / `union: Name` | `iç temsil_STRUCT_DECL` / `iç temsil_UNION_DECL` |
+| `enum: Name` | `iç temsil_ENUM_DECL.name` |
+| `nt:Name` | `iç temsil_NEWTYPE_DECL.name` |
+| Struct alanı | `iç temsil_VAR_DECL.name` |
+| Enum seçeneği | `iç temsil_ENUM_VARIANT.name` |
 
-Tam identifier karakter grameri (Unicode, harf duyarlılığı, ilk karakter, alt çizgi) bu denetimde Lexer testleriyle bütünüyle doğrulanmadığından kesin EBNF ilan edilmez. `r:`, `t:` ve `o:` tokenları tanınsa da bu manuelde aktif tamamlanmış bildirim biçimleri olarak sunulmaz.
+Tam identifier karakter grameri (Unicode, harf duyarlılığı, ilk karakter, alt çizgi) bu denetimde sözcüksel çözümleme testleriyle bütünüyle doğrulanmadığından kesin EBNF ilan edilmez. `r:`, `t:` ve `o:` sözcüksel öğeları tanınsa da bu manuelde aktif tamamlanmış bildirim biçimleri olarak sunulmaz.
 
 ```nxf
 v: = 10;       # İsim eksik.
@@ -318,7 +315,7 @@ struct: { }    # Struct adı eksik.
 nt:UserId;     # Hedef tip eksik.
 ```
 
-**Durum:** İsim konumları Parser/AST doğrulandı; karakter grameri kısmen tanımlı.
+**Durum:** İsim konumları Tanımlı; karakter grameri kısmen tanımlı.
 
 ---
 
@@ -326,13 +323,13 @@ nt:UserId;     # Hedef tip eksik.
 
 ## 5.1 Bildirim aileleri
 
-| Önek | Rol | AST | Kural |
+| Önek | Rol | iç temsil | Kural |
 |---|---|---|---|
-| `v:` | Değişken | `AST_VAR_DECL` | Başlatıcı isteğe bağlı; `!Type` ve array suffix kullanılabilir. |
-| `c:` | Sabit işaretli değişken | `AST_VAR_DECL` | `v:` ile aynı gramer; `is_const` işaretlenir. |
-| `m:` | Immutable değer | `AST_MUST_DECL` | `= expression` zorunludur. |
+| `v:` | Değişken | `iç temsil_VAR_DECL` | Başlatıcı isteğe bağlı; `!Type` ve array suffix kullanılabilir. |
+| `c:` | Sabit işaretli değişken | `iç temsil_VAR_DECL` | `v:` ile aynı gramer; `is_const` işaretlenir. |
+| `m:` | Immutable değer | `iç temsil_MUST_DECL` | `= expression` zorunludur. |
 
-`c:` ile `m:` aynı değildir. `c:` değişken bildirim düğümünün sabit işaretli biçimidir; `m:` ayrı AST düğümü oluşturur. Compile-time değerlendirme ve değiştirilemezliğin tüm Semantic kuralları syntax tanımından ayrıdır.
+`c:` ile `m:` aynı değildir. `c:` değişken bildirim düğümünün sabit işaretli biçimidir; `m:` ayrı iç temsil düğümü oluşturur. Compile-time değerlendirme ve değiştirilemezliğin tüm Semantic kuralları syntax tanımından ayrıdır.
 
 ## 5.2 `v:` ve `c:` bildirimleri
 
@@ -350,7 +347,7 @@ c:table[4]!u32 = [16, 32, 64, 128];
 v: separated!i32 = 7;
 ```
 
-İsim zorunludur. `!Type` isteğe bağlıdır. Başlatıcı isteğe bağlıdır. Array boyutları isimden sonra, açık tipten önce yazılır. `c:` Parser tarafından `AST_VAR_DECL.is_const` işaretli oluşturulur.
+İsim zorunludur. `!Type` isteğe bağlıdır. Başlatıcı isteğe bağlıdır. Array boyutları isimden sonra, açık tipten önce yazılır. `c:` dil tarafından `iç temsil_VAR_DECL.is_const` işaretli oluşturulur.
 
 ```nxf
 v: = 1;          # İsim eksik.
@@ -371,7 +368,7 @@ m:welcome = "Welcome";
 m:ratio = 1.25;
 ```
 
-İsim, `=` ve başlatıcı expression zorunludur. Bu Parser üretiminde `!Type` veya array suffix tanımlı değildir.
+İsim, `=` ve başlatıcı expression zorunludur. Bu dil kuralınde `!Type` veya array suffix tanımlı değildir.
 
 ```nxf
 m:limit;       # = ve initializer eksik.
@@ -381,9 +378,9 @@ m: = 10;       # İsim eksik.
 
 ## 5.4 Alan bildirimi ve kapsam
 
-Parser'ın Struct/Union gövde üretimi yalnızca `v:` alan bildirimi tüketir; `c:` ve `m:` alanları bu üretimde yoktur. Normal bildirimler statement bağlamında, örneğin fonksiyon/blok gövdesinde kullanılabilir.
+dilin Struct/Union gövde üretimi yalnızca `v:` alan bildirimi tüketir; `c:` ve `m:` alanları bu üretimde yoktur. Normal bildirimler statement bağlamında, örneğin fonksiyon/blok gövdesinde kullanılabilir.
 
-**Durum:** `v:`, `c:` ve `m:` kaynak biçimleri Parser/AST doğrulandı.
+**Durum:** `v:`, `c:` ve `m:` kaynak biçimleri Tanımlı.
 
 ---
 
@@ -391,7 +388,7 @@ Parser'ın Struct/Union gövde üretimi yalnızca `v:` alan bildirimi tüketir; 
 
 ## 6.1 İsimlendirilmiş ve açık tipler
 
-Tip konumunda Lexer'ın tanıdığı tip tokenı veya Parser'ın kabul ettiği identifier kullanılabilir. `!` açık tip işaretidir:
+Tip konumunda sözcüksel çözümleme'ın tanıdığı tip sözcüksel öğeı veya dilin kabul ettiği identifier kullanılabilir. `!` açık tip işaretidir:
 
 ```nxf
 v:count!i32 = 10;
@@ -403,7 +400,7 @@ v:entity!Entity;
 
 ## 6.2 Pointer ve reference tipleri
 
-Parser tip adından önce en fazla iki `*` önekini veya `&` / `&mut` önekini tanır:
+derleyici tip adından önce en fazla iki `*` önekini veya `&` / `&mut` önekini tanır:
 
 ```nxf
 v:ptr!*i32;
@@ -424,11 +421,11 @@ v:fixed[64]!u8;
 v:matrix[4][8]!f32;
 ```
 
-Her `[...]` içinde boş veya bir expression bulunabilir. Birden fazla suffix sırasıyla ayrı boyutlar oluşturur; AST karşılığı `AST_ARRAY_TYPE` / `AST_ARRAY_DIMENSION` düğümleridir. `v:bytes!u8[16]` kanonik değildir; doğru sıralama `v:bytes[16]!u8` şeklindedir.
+Her `[...]` içinde boş veya bir expression bulunabilir. Birden fazla suffix sırasıyla ayrı boyutlar oluşturur; iç temsil karşılığı `iç temsil_ARRAY_TYPE` / `iç temsil_ARRAY_DIMENSION` düğümleridir. `v:bytes!u8[16]` kanonik değildir; doğru sıralama `v:bytes[16]!u8` şeklindedir.
 
 ## 6.4 Function type ve doğrulanmamış biçimler
 
-Parser, tip konumunda `f:` ile başlayan function-type imzası için özel üretime sahiptir; tüm parametre/dönüş varyantları bağımsız örnek matrisiyle doğrulanmadığından ayrıntılı EBNF kısmen tanımlıdır. Dotted/qualified tip adları, generic parametre listeleri ve `map key, value` birleşik biçimi bu denetimde kesin Parser grameri olarak doğrulanmamıştır; normatif gramer olarak sunulmaz.
+derleyici, tip konumunda `f:` ile başlayan function-type imzası için özel üretime sahiptir; tüm parametre/dönüş varyantları bağımsız örnek matrisiyle doğrulanmadığından ayrıntılı EBNF kısmen tanımlıdır. Dotted/qualified tip adları, generic parametre listeleri ve `map key, value` birleşik biçimi bu denetimde kesin derleyici grameri olarak doğrulanmamıştır; normatif gramer olarak sunulmaz.
 
 ```nxf
 v:value! = 1;   # Tip adı eksik.
@@ -437,20 +434,20 @@ v:ref!&;        # Reference hedef tipi eksik.
 v:array!u8[8];  # Array suffix yanlış konumda.
 ```
 
-**Durum:** İsimlendirilmiş, pointer, reference ve array declarator Parser/AST doğrulandı; function type kısmen tanımlı.
+**Durum:** İsimlendirilmiş, pointer, reference ve array declarator Tanımlı; function type kısmen tanımlı.
 
 ---
 
 # 7. İlkel tipler ve literal'lar
 
-Lexer/Parser kaynaklarında görülen tip aileleri:
+sözcüksel çözümleme/derleyici kaynaklarında görülen tip aileleri:
 
 - İşaretli tamsayı: `i8`, `i16`, `i32`, `i64`.
 - İşaretsiz tamsayı: `u8`, `u16`, `u32`, `u64`.
 - Kayan nokta: `f32`, `f64`.
 - Geniş hassasiyet: `d32`, `d64`.
 - Mantıksal/karakter/metin: `bool`, `char`, `str`.
-- Temsil odaklı: `bit`, `byte`, `hex` ve Lexer'da tanınan bit/byte genişlik tipleri.
+- Temsil odaklı: `bit`, `byte`, `hex` ve sözcüksel çözümleme'da tanınan bit/byte genişlik tipleri.
 
 Bu liste tip konumunda tanınan adları özetler; tüm işlemlerin, ABI yerleşiminin veya runtime davranışlarının tamamlandığı anlamına gelmez.
 
@@ -469,11 +466,11 @@ v:mask!8bit;
 v:wide_mask!128bit;
 ```
 
-`true`, `false` ve `null` özel literal tokenlarıdır. Sayısal literal `TOKEN_NUMBER`; string ve character literal'ları ayrı token türleri olarak `AST_LITERAL` düğümüne aktarılır. Negatif işaret ayrı unary operatördür.
+`true`, `false` ve `null` özel literal sözcüksel öğelarıdır. Sayısal literal `TOKEN_NUMBER`; string ve character literal'ları ayrı sözcüksel öğe türleri olarak `iç temsil_LITERAL` düğümüne aktarılır. Negatif işaret ayrı unary operatördür.
 
-Ondalık/üs/hex/binary biçimler, digit separator, escape dizileri, çok satırlı string ve Unicode kodlama ayrıntıları için tam Lexer matrisi henüz normatif olarak tamamlanmamıştır. `bit`, `byte`, `hex` ve genişlik türlerinin fiziksel yerleşimi/işlem kuralları yalnızca syntax'tan çıkarılamaz.
+Ondalık/üs/hex/binary biçimler, digit separator, escape dizileri, çok satırlı string ve Unicode kodlama ayrıntıları için tam sözcüksel çözümleme matrisi henüz normatif olarak tamamlanmamıştır. `bit`, `byte`, `hex` ve genişlik türlerinin fiziksel yerleşimi/işlem kuralları yalnızca syntax'tan çıkarılamaz.
 
-**Durum:** Literal sınıfları Parser/AST doğrulandı; alt literal gramerleri kısmen tanımlı.
+**Durum:** Literal sınıfları Tanımlı; alt literal gramerleri kısmen tanımlı.
 
 ---
 
@@ -490,7 +487,7 @@ v:dynamic_items[]!str;
 v:grid[3][3]!f32;
 ```
 
-Array literal `AST_ARRAY_LITERAL` üretir ve iç içe literal desteklenir. Array declarator ise bildirimde isimden sonra gelen boyut suffix'leridir; boyut içeriği boş veya expression olabilir. İkisi farklı yapılardır.
+Array literal `iç temsil_ARRAY_LITERAL` üretir ve iç içe literal desteklenir. Array declarator ise bildirimde isimden sonra gelen boyut suffix'leridir; boyut içeriği boş veya expression olabilir. İkisi farklı yapılardır.
 
 ```ebnf
 array-literal = "[" [ expression { "," expression } ] "]" ;
@@ -513,7 +510,7 @@ v:point = (10, 20);
 v:record = (1, "ready", true);
 ```
 
-Parser `AST_TUPLE` üretir; Parser testinde `(1,2)` biçimi doğrulanmıştır. Tek öğeli tuple ayrımı ve tuple type declarator bu sürümde kesin gramer olarak ilan edilmez.
+derleyici `iç temsil_TUPLE` üretir; dil kullanım testlerinde `(1,2)` biçimi doğrulanmıştır. Tek öğeli tuple ayrımı ve tuple type declarator bu sürümde kesin gramer olarak ilan edilmez.
 
 ```nxf
 v:bad = [1, 2;  # ] eksik.
@@ -521,7 +518,7 @@ v:bad = (1, 2;  # ) eksik.
 v:bad[4!i32;    # Array boyutunun ] ayracı eksik.
 ```
 
-**Durum:** Array literal, declarator, indeks erişimi ve tuple expression Parser/AST doğrulandı; tuple type ve tüm trailing-comma varyantları kısmen tanımlı.
+**Durum:** Array literal, declarator, indeks erişimi ve tuple expression Tanımlı; tuple type ve tüm trailing-comma varyantları kısmen tanımlı.
 
 ---
 
@@ -541,7 +538,7 @@ union: Register32 {
 }
 ```
 
-Struct `AST_STRUCT_DECL`, Union ayrı `AST_UNION_DECL` üretir. Her iki gövdede de alanlar `v:` ile başlar. Parser virgül tüketebilir; `;` zorunlu alan ayıracı değildir.
+Struct `iç temsil_STRUCT_DECL`, Union ayrı `iç temsil_UNION_DECL` üretir. Her iki gövdede de alanlar `v:` ile başlar. derleyici virgül tüketebilir; `;` zorunlu alan ayıracı değildir.
 
 ```nxf
 struct: Invalid {
@@ -549,7 +546,7 @@ struct: Invalid {
 }
 ```
 
-Çıplak alan adı geçersizdir; Parser `v:` alan önekini bekler.
+Çıplak alan adı geçersizdir; derleyici `v:` alan önekini bekler.
 
 ## 9.2 Enum ve payload
 
@@ -561,7 +558,7 @@ enum: ProcessState {
 }
 ```
 
-Parser `AST_ENUM_DECL` ve `AST_ENUM_VARIANT` üretir. Variant payload alanları isim ve zorunlu `!Type` ile yazılır; alanlar `AST_VAR_DECL` olarak saklanır.
+derleyici `iç temsil_ENUM_DECL` ve `iç temsil_ENUM_VARIANT` üretir. Variant payload alanları isim ve zorunlu `!Type` ile yazılır; alanlar `iç temsil_VAR_DECL` olarak saklanır.
 
 ```nxf
 enum: Invalid {
@@ -581,7 +578,7 @@ enum: StatusCode {
 }
 ```
 
-Parser `=` sonrasındaki expression'ı `discriminant_expr` alanına aktarır. Integer constant expression olma şartı Semantic doğrulamasıdır. `=` sonrasında expression bulunmaması Parser hatasıdır.
+derleyici `=` sonrasındaki expression'ı `discriminant_expr` alanına aktarır. Integer constant expression olma şartı Semantic doğrulamasıdır. `=` sonrasında expression bulunmaması derleyici hatasıdır.
 
 ## 9.4 NewType ve aggregate varyantı
 
@@ -590,7 +587,7 @@ nt:UserId = u64;
 nt:FileHandle = i32;
 ```
 
-Temel NewType biçimi `nt:Name = Type;` olup `AST_NEWTYPE_DECL` üretir. Parser ayrıca `nt:` tokenı içinde `struct:`, `enum:` veya `union:` devamı gördüğünde ilgili aggregate parser yoluna yönlendirir; tüm birleşik yazım varyantları için fixture matrisi tamamlanmadığından bu özel biçimler kısmen tanımlıdır.
+Temel NewType biçimi `nt:Name = Type;` olup `iç temsil_NEWTYPE_DECL` üretir. derleyici ayrıca `nt:` sözcüksel öğeı içinde `struct:`, `enum:` veya `union:` devamı gördüğünde ilgili aggregate parser yoluna yönlendirir; tüm birleşik yazım varyantları için örnek matrisi tamamlanmadığından bu özel biçimler kısmen tanımlıdır.
 
 ## 9.5 Struct literal
 
@@ -601,7 +598,7 @@ v:point = Point {
 };
 ```
 
-Parser `AST_STRUCT_LITERAL` ve alan başlatmaları için `AST_STRUCT_FIELD_INIT` üretir. Literal alan başlatıcısı `=` kullanır; declaration alanı ise `v:field!Type` biçimindedir.
+derleyici `iç temsil_STRUCT_LITERAL` ve alan başlatmaları için `iç temsil_STRUCT_FIELD_INIT` üretir. Literal alan başlatıcısı `=` kullanır; declaration alanı ise `v:field!Type` biçimindedir.
 
 ```nxf
 v:point = Point { x: 10 };
@@ -609,42 +606,42 @@ v:point = Point { x: 10 };
 
 Geçersizdir: Struct literal alan başlatıcısı `:` değil `=` bekler.
 
-| Yapı | AST | Durum |
+| Yapı | iç temsil | Durum |
 |---|---|---|
-| Struct / alan | `AST_STRUCT_DECL` / `AST_VAR_DECL` | Parser/AST doğrulandı |
-| Union | `AST_UNION_DECL` | Parser/AST doğrulandı |
-| Enum / variant | `AST_ENUM_DECL` / `AST_ENUM_VARIANT` | Parser/AST doğrulandı |
-| Enum payload | `AST_VAR_DECL` | Parser/AST doğrulandı |
-| Enum discriminant | `discriminant_expr` | Parser expression'ı saklar; sabit tamsayı kuralı Semantic |
-| NewType | `AST_NEWTYPE_DECL` | Parser/AST doğrulandı |
-| Struct literal | `AST_STRUCT_LITERAL` | Parser/AST doğrulandı |
-| `nt:` aggregate varyantları | İlgili aggregate AST | Kısmen tanımlı |
+| Struct / alan | `iç temsil_STRUCT_DECL` / `iç temsil_VAR_DECL` | Tanımlı |
+| Union | `iç temsil_UNION_DECL` | Tanımlı |
+| Enum / variant | `iç temsil_ENUM_DECL` / `iç temsil_ENUM_VARIANT` | Tanımlı |
+| Enum payload | `iç temsil_VAR_DECL` | Tanımlı |
+| Enum discriminant | `discriminant_expr` | derleyici expression'ı saklar; sabit tamsayı kuralı Semantic |
+| NewType | `iç temsil_NEWTYPE_DECL` | Tanımlı |
+| Struct literal | `iç temsil_STRUCT_LITERAL` | Tanımlı |
+| `nt:` aggregate varyantları | İlgili aggregate iç temsil | Kısmen tanımlı |
 
 # Part III — İfadeler ve operatörler
 
 # 10. İfadeler
 
-## 10.1 Amaç ve AST temsili
+## 10.1 Amaç ve iç temsil temsili
 
-Expression; literal, isim, çağrı, erişim, operatör veya bunların birleşiminden oluşur. Parser temel biçimleri `AST_LITERAL`, `AST_IDENTIFIER`, `AST_BINARY_EXPR`, `AST_UNARY_EXPR`, `AST_FUNC_CALL` ve özel expression düğümleriyle temsil eder.
+Expression; literal, isim, çağrı, erişim, operatör veya bunların birleşiminden oluşur. derleyici temel biçimleri `iç temsil_LITERAL`, `iç temsil_IDENTIFIER`, `iç temsil_BINARY_EXPR`, `iç temsil_UNARY_EXPR`, `iç temsil_FUNC_CALL` ve özel expression düğümleriyle temsil eder.
 
 ## 10.2 Primary expression
 
-Parser'ın tanıdığı temel biçimler:
+dilin tanıdığı temel biçimler:
 
-| Biçim | Örnek | AST |
+| Biçim | Örnek | iç temsil |
 |---|---|---|
-| Sayısal/string/char literal | `42`, `"text"`, `'A'` | `AST_LITERAL` |
-| Boolean/null | `true`, `false`, `null` | `AST_LITERAL` |
-| İsim | `value` | `AST_IDENTIFIER` |
+| Sayısal/string/char literal | `42`, `"text"`, `'A'` | `iç temsil_LITERAL` |
+| Boolean/null | `true`, `false`, `null` | `iç temsil_LITERAL` |
+| İsim | `value` | `iç temsil_IDENTIFIER` |
 | Parantezli expression | `(a + b)` | İç expression |
-| Tuple | `(a, b)` | `AST_TUPLE` |
-| Array literal | `[a, b]` | `AST_ARRAY_LITERAL` |
-| Struct literal | `Point { x = 1 }` | `AST_STRUCT_LITERAL` |
-| Lambda | `f:(x) > x` veya block-body biçimi | `AST_LAMBDA` |
-| Loop expression | `loop { ... }` | `AST_LOOP` |
+| Tuple | `(a, b)` | `iç temsil_TUPLE` |
+| Array literal | `[a, b]` | `iç temsil_ARRAY_LITERAL` |
+| Struct literal | `Point { x = 1 }` | `iç temsil_STRUCT_LITERAL` |
+| Lambda | `f:(x) > x` veya block-body biçimi | `iç temsil_LAMBDA` |
+| Loop expression | `loop { ... }` | `iç temsil_LOOP` |
 
-Parantez içinde tek expression varsa gruplama yapılır; virgülle ayrılmış öğeler varsa tuple oluşturulur. Boş tuple için Parser'da `{}` yolu da vardır; kullanım sınırları ayrıca netleştirilecektir.
+Parantez içinde tek expression varsa gruplama yapılır; virgülle ayrılmış öğeler varsa tuple oluşturulur. Boş tuple için derleyici'da `{}` yolu da vardır; kullanım sınırları ayrıca netleştirilecektir.
 
 ## 10.3 Unary ve binary expression
 
@@ -663,11 +660,11 @@ v:mask = flags & mask;
 v:power = 2 ^^ 8;
 ```
 
-Unary operatörler `!`, `-`, `~`, `*`, `&` ve `&mut` biçimindedir ve `AST_UNARY_EXPR` üretir. Binary ifadeler `AST_BINARY_EXPR` üretir. Operandların tip uyumu Semantic kuralıdır.
+Unary operatörler `!`, `-`, `~`, `*`, `&` ve `&mut` biçimindedir ve `iç temsil_UNARY_EXPR` üretir. Binary ifadeler `iç temsil_BINARY_EXPR` üretir. Operandların tip uyumu Semantic kuralıdır.
 
 ## 10.4 Postfix expression zinciri
 
-Parser şu postfix biçimlerini destekler:
+derleyici şu postfix biçimlerini destekler:
 - Çağrı: `call(args)`
 - Üye erişimi: `object.member`
 - İndeks erişimi: `array[index]`
@@ -681,7 +678,7 @@ counter++;
 counter--;
 ```
 
-Postfix zinciri birden çok erişim/çağrı içerebilir; Parser zincir derinliğini 32 adımla sınırlar. Prefix artırma/azaltma biçimleri `++value` ve `--value` mevcut Parser testinde reddedilir.
+Postfix zinciri birden çok erişim/çağrı içerebilir; derleyici zincir derinliğini 32 adımla sınırlar. Prefix artırma/azaltma biçimleri `++value` ve `--value` mevcut dil kullanım testlerinde reddedilir.
 
 ## 10.5 Fonksiyon çağrısı
 
@@ -695,7 +692,7 @@ v:result = add(10, 20);
 v:width = image.get_width();
 ```
 
-Normal çağrı postfix expression olarak `AST_FUNC_CALL` üretir. Intrinsic anahtar sözcükler kendi özel AST düğümlerine yönlendirilebilir.
+Normal çağrı postfix expression olarak `iç temsil_FUNC_CALL` üretir. Intrinsic anahtar sözcükler kendi özel iç temsil düğümlerine yönlendirilebilir.
 
 ## 10.6 Üye erişimi
 
@@ -704,7 +701,7 @@ v:x = point.x;
 v:width = engine.renderer.width;
 ```
 
-Nokta sonrasında bir identifier zorunludur. Üye erişimi `AST_MEMBER_ACCESS` üretir; üyenin gerçekten var olup olmadığı Semantic kontrolüdür.
+Nokta sonrasında bir identifier zorunludur. Üye erişimi `iç temsil_MEMBER_ACCESS` üretir; üyenin gerçekten var olup olmadığı Semantic kontrolüdür.
 
 ```nxf
 v:x = point.;
@@ -719,7 +716,7 @@ v:first = values[0];
 v:cell = matrix[row][column];
 ```
 
-Her indeks suffix'i `AST_INDEX_ACCESS` üretir ve bir expression içermelidir. Kapanış `]` zorunludur.
+Her indeks suffix'i `iç temsil_INDEX_ACCESS` üretir ve bir expression içermelidir. Kapanış `]` zorunludur.
 
 ```nxf
 v:x = values[];
@@ -741,7 +738,7 @@ v:point = Point {
 };
 ```
 
-Struct literal alanları `identifier = expression` biçimindedir. Parser `AST_STRUCT_LITERAL` ve `AST_STRUCT_FIELD_INIT` üretir. Bu biçim Struct declaration içindeki `v:name!Type` alan yazımından farklıdır.
+Struct literal alanları `identifier = expression` biçimindedir. derleyici `iç temsil_STRUCT_LITERAL` ve `iç temsil_STRUCT_FIELD_INIT` üretir. Bu biçim Struct declaration içindeki `v:name!Type` alan yazımından farklıdır.
 
 ## 10.10 Cast expression
 
@@ -750,7 +747,7 @@ v:value = cast(source_value, i32);
 v:small = cast(counter, u8);
 ```
 
-Parser `cast` sonrasında `(expression, Type)` bekler. Hedef tip identifier veya tip tokenı olmalıdır. AST karşılığı `AST_CAST` olup kaynak expression ve hedef tip ayrı saklanır.
+derleyici `cast` sonrasında `(expression, Type)` bekler. Hedef tip identifier veya tip sözcüksel öğeı olmalıdır. iç temsil karşılığı `iç temsil_Ciç temsil` olup kaynak expression ve hedef tip ayrı saklanır.
 
 ```nxf
 v:bad = cast(value);
@@ -766,7 +763,7 @@ configure(width: 800, height: 600);
 open(path, mode: read);
 ```
 
-Named argüman `name: expression` biçimindedir. Konumsal argümanlar named argümanlardan önce gelebilir; named argümandan sonra positional argüman gelemez. Aynı çağrıda aynı named label iki kez kullanılamaz. Parser bu kuralları normal ve intrinsic çağrılarda uygular; düğüm `AST_NAMED_ARG` biçimindedir.
+Named argüman `name: expression` biçimindedir. Konumsal argümanlar named argümanlardan önce gelebilir; named argümandan sonra positional argüman gelemez. Aynı çağrıda aynı named label iki kez kullanılamaz. derleyici bu kuralları normal ve intrinsic çağrılarda uygular; düğüm `iç temsil_NAMED_ARG` biçimindedir.
 
 ```nxf
 configure(width: 800, 600);        # Named argümandan sonra positional argüman.
@@ -775,9 +772,9 @@ configure(width: 800, width: 900); # Aynı label iki kez.
 
 ## 10.12 Gruplama ve legacy sınırı
 
-Parantez tek expression'ı gruplar; virgül içeren biçim tuple oluşturur. Legacy unpack operatörü `...>` için negatif Parser testi vardır ve bu biçim desteklenmez.
+Parantez tek expression'ı gruplar; virgül içeren biçim tuple oluşturur. Legacy unpack operatörü `...>` için negatif derleyici testi vardır ve bu biçim desteklenmez.
 
-**Durum:** Temel expression, call, member/index, tuple/array, struct literal, cast ve named argument biçimleri Parser/AST doğrulandı.
+**Durum:** Temel expression, call, member/index, tuple/array, struct literal, cast ve named argument biçimleri Tanımlı.
 
 ---
 
@@ -785,7 +782,7 @@ Parantez tek expression'ı gruplar; virgül içeren biçim tuple oluşturur. Leg
 
 ## 11.1 Öncelik ve birleşme yönü
 
-Aşağıdaki sıra Parser expression zincirinden çıkarılmıştır; üstteki operatör daha yüksek önceliklidir.
+Aşağıdaki sıra derleyici expression zincirinden çıkarılmıştır; üstteki operatör daha yüksek önceliklidir.
 
 | Öncelik | Operatörler | Açıklama |
 |---:|---|---|
@@ -834,7 +831,7 @@ v:g = x === y;
 v:h = x ==! y;
 ```
 
-Lexer/Parser `==`, `!=`, `===` ve `==!` tokenlarını ayrı tutar. Bu operatörlerin farklı Semantic anlamları bu syntax belgesinde yeniden tanımlanmaz.
+sözcüksel çözümleme/derleyici `==`, `!=`, `===` ve `==!` sözcüksel öğelarını ayrı tutar. Bu operatörlerin farklı Semantic anlamları bu syntax belgesinde yeniden tanımlanmaz.
 
 ## 11.4 Mantıksal ve bitwise operatörler
 
@@ -862,7 +859,7 @@ v:fed = source >> destination;
 - `>>>` → `TOKEN_BIT_SHR`, sayısal bitwise right shift.
 - `<<` / `>>` → `TOKEN_LSHIFT` / `TOKEN_RSHIFT`, Nexus Flow pipe/zone operatörleri.
 
-Bu ayrım Parser testinde AST operatör kimlikleriyle doğrulanmıştır.
+Bu ayrım dil kullanım testlerinde iç temsil operatör kimlikleriyle doğrulanmıştır.
 
 ## 11.6 Atama ve bileşik atama
 
@@ -878,7 +875,7 @@ flags ^= mask;
 text .= suffix;
 ```
 
-Bu Parser üretiminde desteklenen bileşik atamalar `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `^=` ve `.=` biçimleridir. `%=` desteklenen listede yoktur. `!!=` ayrıca directive/force-assignment bağlamında ele alınır; directive kullanımı Bölüm 34'tedir.
+Bu dil kuralınde desteklenen bileşik atamalar `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `^=` ve `.=` biçimleridir. `%=` desteklenen listede yoktur. `!!=` ayrıca directive/force-assignment bağlamında ele alınır; directive kullanımı Bölüm 34'tedir.
 
 ## 11.7 Artırma ve azaltma
 
@@ -887,7 +884,7 @@ counter++;
 counter--;
 ```
 
-Postfix biçimler doğrulanmıştır. Prefix `++counter` ve `--counter` Parser testinde reddedilir.
+Postfix biçimler doğrulanmıştır. Prefix `++counter` ve `--counter` dil kullanım testlerinde reddedilir.
 
 ## 11.8 Unary pointer/borrow ve range
 
@@ -897,12 +894,12 @@ Range ifadesi `start..end` biçimindedir ve unparenthesized expression içinde t
 
 ```nxf
 v:valid = 1..10;
-v:invalid = 1..10..20;  # Parser reddeder.
+v:invalid = 1..10..20;  # derleyici reddeder.
 ```
 
-Aritmetik, karşılaştırma, eşitlik, bitwise ve mantıksal zincirler Parser testlerinde sol birleşimli; üs alma sağ birleşimli AST olarak doğrulanmıştır.
+Aritmetik, karşılaştırma, eşitlik, bitwise ve mantıksal zincirler derleyici testlerinde sol birleşimli; üs alma sağ birleşimli iç temsil olarak doğrulanmıştır.
 
-**Durum:** Öncelik/associativity ve shift ayrımı mevcut Parser testleriyle doğrulanmıştır. Operatörlerin tip bazında geçerliliği Semantic aşamasına aittir.
+**Durum:** Öncelik/associativity ve shift ayrımı mevcut dil kullanım testleriyle doğrulanmıştır. Operatörlerin tip bazında geçerliliği Semantic aşamasına aittir.
 
 ---
 
@@ -910,7 +907,7 @@ Aritmetik, karşılaştırma, eşitlik, bitwise ve mantıksal zincirler Parser t
 
 ## 12.1 Genel kural
 
-Aşağıdaki adlar Lexer/Parser tarafından özel intrinsic tokenı olarak tanınır ve ilgili AST düğümüne yönlendirilir. Bu bölüm kaynak çağrı biçimini tanımlar; parametre sayısı, tür uyumu, donanım yetkisi ve runtime davranışı ayrıca değerlendirilir.
+Aşağıdaki adlar sözcüksel çözümleme/dil tarafından özel intrinsic sözcüksel öğeı olarak tanınır ve ilgili iç temsil düğümüne yönlendirilir. Bu bölüm kaynak çağrı biçimini tanımlar; parametre sayısı, tür uyumu, donanım yetkisi ve runtime davranışı ayrıca değerlendirilir.
 
 ## 12.2 Tip ve boyut sorguları
 
@@ -920,7 +917,7 @@ v:size = sizeof(value);
 v:length = len(items);
 ```
 
-`typeof` → `AST_TYPEOF`, `sizeof` → `AST_SIZEOF`, `len` → `AST_LEN`.
+`typeof` → `iç temsil_TYPEOF`, `sizeof` → `iç temsil_SIZEOF`, `len` → `iç temsil_LEN`.
 
 ## 12.3 Durum sorguları
 
@@ -932,7 +929,7 @@ v:d = is_none(option);
 v:e = is_null(pointer);
 ```
 
-Bu çağrılar `AST_IS_OK`, `AST_IS_ERR`, `AST_IS_SOME`, `AST_IS_NONE` ve `AST_IS_NULL` üretir.
+Bu çağrılar `iç temsil_IS_OK`, `iç temsil_IS_ERR`, `iç temsil_IS_SOME`, `iç temsil_IS_NONE` ve `iç temsil_IS_NULL` üretir.
 
 ## 12.4 Cast ve swap
 
@@ -941,7 +938,7 @@ v:converted = cast(value, i32);
 swap(left, right);
 ```
 
-`cast(value, Type)` → `AST_CAST`; `swap(...)` → `AST_SWAP`.
+`cast(value, Type)` → `iç temsil_Ciç temsil`; `swap(...)` → `iç temsil_SWAP`.
 
 ## 12.5 Echo, print ve write ailesi
 
@@ -953,7 +950,7 @@ write(value);
 fwrite(value);
 ```
 
-Parser eşlemesi: `echo` → `AST_ECHO`; `prnt` → `AST_PRNT`; `prmt` → `AST_PRMT`; `write` → `AST_WRITE`; `fwrite` → `AST_FWRITE`. OS bağımlılığı ve çıktı davranışı syntax tanımının kapsamı dışındadır.
+derleyici eşlemesi: `echo` → `iç temsil_ECHO`; `prnt` → `iç temsil_PRNT`; `prmt` → `iç temsil_PRMT`; `write` → `iç temsil_WRITE`; `fwrite` → `iç temsil_FWRITE`. OS bağımlılığı ve çıktı davranışı syntax tanımının kapsamı dışındadır.
 
 ## 12.6 Adres, bellek ve port I/O
 
@@ -965,7 +962,7 @@ v:port_value = inb(port);
 outb(port, value);
 ```
 
-`addr` → `AST_ADDR`; `peek` / `poke` → `AST_PEEK` / `AST_POKE`; `inb` / `outb` → `AST_INB` / `AST_OUTB`.
+`addr` → `iç temsil_ADDR`; `peek` / `poke` → `iç temsil_PEEK` / `iç temsil_POKE`; `inb` / `outb` → `iç temsil_INB` / `iç temsil_OUTB`.
 
 ## 12.7 IRQ, interrupt, register, area ve zone
 
@@ -977,7 +974,7 @@ v:a = area(1);
 v:z = zone(1);
 ```
 
-Bunlar `AST_IRQ`, `AST_INTR`, `AST_REG`, `AST_AREA` ve `AST_ZONE` özel çağrı düğümlerini üretir. `reg` için Parser `reg.member(...)` biçiminde bir üye adı bekler.
+Bunlar `iç temsil_IRQ`, `iç temsil_INTR`, `iç temsil_REG`, `iç temsil_AREA` ve `iç temsil_ZONE` özel çağrı düğümlerini üretir. `reg` için derleyici `reg.member(...)` biçiminde bir üye adı bekler.
 
 ## 12.8 Tarih, saat ve kaynak bırakma
 
@@ -989,7 +986,7 @@ v:clock_value = clock();
 free(resource);
 ```
 
-`date` → `AST_DATE`; `datenow` → `AST_DATENOW`; `time` → `AST_TIME`; `clock` → `AST_CLOCK`; `free` → `AST_FREE`.
+`date` → `iç temsil_DATE`; `datenow` → `iç temsil_DATENOW`; `time` → `iç temsil_TIME`; `clock` → `iç temsil_CLOCK`; `free` → `iç temsil_FREE`.
 
 ## 12.9 Panic ve exit
 
@@ -998,7 +995,7 @@ panic("fatal error");
 exit(0);
 ```
 
-`panic("message")` `AST_PANIC` üretir ve Parser mesaj olarak string literal bekler. `exit(...)` `AST_EXIT` üretir. Sonlandırma davranışı bu bölümde tanımlanmaz.
+`panic("message")` `iç temsil_PANIC` üretir ve derleyici mesaj olarak string literal bekler. `exit(...)` `iç temsil_EXIT` üretir. Sonlandırma davranışı bu bölümde tanımlanmaz.
 
 ## 12.10 Thread API çağrıları ve normal çağrılardan ayrım
 
@@ -1010,13 +1007,13 @@ receive(channel);
 done();
 ```
 
-Parser bu adları özel intrinsic AST düğümü olarak değil normal identifier/call biçimine yönlendirir. Bunlar thread API çağrılarıdır; özel intrinsic ailesiyle karıştırılmamalıdır.
+derleyici bu adları özel intrinsic iç temsil düğümü olarak değil normal identifier/call biçimine yönlendirir. Bunlar thread API çağrılarıdır; özel intrinsic ailesiyle karıştırılmamalıdır.
 
 ## 12.11 Desteklenmeyen eski expression biçimleri
 
-Legacy unpack yazımı `...>` için negatif Parser testi vardır; bu biçim desteklenmez. `unpack` bu sürümde yerleşik expression olarak belgelenmez.
+Legacy unpack yazımı `...>` için negatif derleyici testi vardır; bu biçim desteklenmez. `unpack` bu sürümde yerleşik expression olarak belgelenmez.
 
-**Durum:** Bu bölümde listelenen intrinsic aileleri Parser/AST testinde kaynak biçimi ve AST eşlemesiyle doğrulanmıştır. Semantic parametre/tip sözleşmeleri ve runtime davranışları syntax manuelinin kapsamı dışındadır.
+**Durum:** Bu bölümde listelenen intrinsic aileleri dil iç yapısı testinde kaynak biçimi ve iç temsil eşlemesiyle doğrulanmıştır. Semantic parametre/tip sözleşmeleri ve runtime davranışları syntax manuelinin kapsamı dışındadır.
 
 # Part IV — Bloklar ve kontrol akışı
 
@@ -1024,7 +1021,7 @@ Legacy unpack yazımı `...>` için negatif Parser testi vardır; bu biçim dest
 
 ## 13.1 Normal block
 
-Blok süslü parantezlerle açılır ve kapanır. Parser içindeki statement'ları sırayla AST_BLOCK altında saklar; iç içe bloklar desteklenir.
+Blok süslü parantezlerle açılır ve kapanır. dil içindeki statement'ları sırayla iç temsil_BLOCK altında saklar; iç içe bloklar desteklenir.
 
     f:main() {
         v:value = 10;
@@ -1052,15 +1049,15 @@ Satır sonu genel bir statement terminator değildir.
 
 ## 13.3 Named thread block
 
-Parser (name)>{...} biçimini özel thread block olarak tanır:
+derleyici (name)>{...} biçimini özel thread block olarak tanır:
 
     (worker)>{
         process();
     }
 
-Bu biçim AST_THREAD_BLOCK üretir ve thread adını saklar. Parantez içinde tek identifier ve hemen ardından >{ tokenı beklenir. Thread yürütme ve iletişim davranışı syntax kapsamı dışındadır.
+Bu biçim iç temsil_THREAD_BLOCK üretir ve thread adını saklar. Parantez içinde tek identifier ve hemen ardından >{ sözcüksel öğeı beklenir. Thread yürütme ve iletişim davranışı syntax kapsamı dışındadır.
 
-## 13.4 FASTEXEC block
+## 13.4 Fiç temsilEXEC block
 
     fastexec {
         asm: ENTRY {
@@ -1068,17 +1065,17 @@ Bu biçim AST_THREAD_BLOCK üretir ve thread adını saklar. Parantez içinde te
         }
     }
 
-fastexec bir block açar ve AST_FASTEXEC_BLOCK üretir. Inline ASM declaration yalnızca bu block kapsamı içinde kabul edilir. FASTEXEC ve ASM kaynak ayrıntıları Bölüm 34'tedir.
+fastexec bir block açar ve iç temsil_Fiç temsilEXEC_BLOCK üretir. Inline ASM declaration yalnızca bu block kapsamı içinde kabul edilir. Fiç temsilEXEC ve ASM kaynak ayrıntıları Bölüm 34'tedir.
 
 ## 13.5 Block halt eki
 
-Normal veya FASTEXEC block kapanışından hemen sonra }?; yazılabilir:
+Normal veya Fiç temsilEXEC block kapanışından hemen sonra }?; yazılabilir:
 
     f:main() {
         prepare();
     }?;
 
-Parser kapanış brace sonrasında HALT tokenını görürse block statement listesine AST_BLOCK_HALT ekler. Bu biçim normal statement içindeki ?; ile aynı AST düğümü değildir.
+derleyici kapanış brace sonrasında HALT sözcüksel öğeını görürse block statement listesine iç temsil_BLOCK_HALT ekler. Bu biçim normal statement içindeki ?; ile aynı iç temsil düğümü değildir.
 
 ## 13.6 Hatalı block
 
@@ -1087,9 +1084,9 @@ Parser kapanış brace sonrasında HALT tokenını görürse block statement lis
             echo("ready");
     # Kapanış brace eksik.
 
-Parser eksik kapanış brace konumunu raporlamalıdır.
+derleyici eksik kapanış brace konumunu raporlamalıdır.
 
-Durum: Normal block, thread block, FASTEXEC block ve block-halt kaynak biçimleri Parser/AST tarafından temsil edilir.
+Durum: Normal block, thread block, Fiç temsilEXEC block ve block-halt kaynak biçimleri dil iç yapısı tarafından temsil edilir.
 
 ---
 
@@ -1107,7 +1104,7 @@ Durum: Normal block, thread block, FASTEXEC block ve block-halt kaynak biçimler
         echo("C");
     }
 
-if ve elsif sonrasında parantezli koşul zorunludur. Gövde block veya tek statement olabilir. els koşulsuz alternatif branch'tir. Parser AST_IF düğümlerini else-if zinciri olarak bağlar.
+if ve elsif sonrasında parantezli koşul zorunludur. Gövde block veya tek statement olabilir. els koşulsuz alternatif branch'tir. derleyici iç temsil_IF düğümlerini else-if zinciri olarak bağlar.
 
 ## 14.2 Tek statement branch
 
@@ -1125,11 +1122,11 @@ Tek statement'ın kendi terminator kuralı korunur; örneğin çağrı statement
     (condition) ? process(value);
     (condition) ? { process_a(); } : { process_b(); }
 
-Bu bir ternary value expression değil, AST_IF üreten statement biçimidir. Alternatif branch : ile ayrılır ve block veya statement olabilir. Parser lookahead ile bu biçimi rolling retry suffix'inden ayırır.
+Bu bir ternary value expression değil, iç temsil_IF üreten statement biçimidir. Alternatif branch : ile ayrılır ve block veya statement olabilir. derleyici lookahead ile bu biçimi rolling retry suffix'inden ayırır.
 
     (a == b) -> break;
 
-Bu conditional-control biçimi değildir; -> Nexus Flow pipe tokenıdır. Koşullu action için ? kullanılır.
+Bu conditional-control biçimi değildir; -> Nexus Flow pipe sözcüksel öğeıdır. Koşullu action için ? kullanılır.
 
 ## 14.4 Hatalı koşul biçimleri
 
@@ -1139,7 +1136,7 @@ Bu conditional-control biçimi değildir; -> Nexus Flow pipe tokenıdır. Koşul
     if (ready) {} els {} els {}    # Yinelenen els.
     (condition) ? ;                # Conditional action eksik.
 
-Durum: If/elsif/els ve conditional-control biçimleri Parser/AST testleriyle doğrulanmıştır.
+Durum: If/elsif/els ve conditional-control biçimleri dil iç yapısı testleriyle doğrulanmıştır.
 
 ---
 
@@ -1151,7 +1148,7 @@ Durum: If/elsif/els ve conditional-control biçimleri Parser/AST testleriyle do�
         process();
     }
 
-Bu canonical sonsuz loop biçimidir ve AST_LOOP içinde loop_type 0 olarak temsil edilir.
+Bu canonical sonsuz loop biçimidir ve iç temsil_LOOP içinde loop_type 0 olarak temsil edilir.
 
 ## 15.2 Koşullu loop
 
@@ -1159,7 +1156,7 @@ Bu canonical sonsuz loop biçimidir ve AST_LOOP içinde loop_type 0 olarak temsi
         process();
     }
 
-Koşul expression'ı loop parantezleri içinde bulunur. Gövde öncesinde isteğe bağlı -> tokenı tüketilebilir. Koşulun runtime değerlendirme sıklığı syntax konusu değildir.
+Koşul expression'ı loop parantezleri içinde bulunur. Gövde öncesinde isteğe bağlı -> sözcüksel öğeı tüketilebilir. Koşulun runtime değerlendirme sıklığı syntax konusu değildir.
 
 ## 15.3 Üç parçalı loop
 
@@ -1175,7 +1172,7 @@ Koşul expression'ı loop parantezleri içinde bulunur. Gövde öncesinde isteğ
         process(item);
     }
 
-İlk ifade sonrasında contextual identifier in gelirse collection loop biçimi seçilir. İlk kısım loop variable, ikinci expression collection olarak saklanır. Parser v: veya c: ile başlayan bildirim biçimini de ilk bölümde kabul eder.
+İlk ifade sonrasında contextual identifier in gelirse collection loop biçimi seçilir. İlk kısım loop variable, ikinci expression collection olarak saklanır. derleyici v: veya c: ile başlayan bildirim biçimini de ilk bölümde kabul eder.
 
 ## 15.5 Unroll
 
@@ -1183,7 +1180,7 @@ Koşul expression'ı loop parantezleri içinde bulunur. Gövde öncesinde isteğ
         process(item);
     }
 
-unroll contextual identifier olarak tanınır. Count sonrasında -> zorunludur ve sağ taraf AST_LOOP olmalıdır. Başka expression veya normal block hedefi kabul edilmez; AST_UNROLL üretilir.
+unroll contextual identifier olarak tanınır. Count sonrasında -> zorunludur ve sağ taraf iç temsil_LOOP olmalıdır. Başka expression veya normal block hedefi kabul edilmez; iç temsil_UNROLL üretilir.
 
     unroll(3) -> process();   # Hedef loop değil.
     unroll(3) loop { }        # -> eksik.
@@ -1196,13 +1193,13 @@ unroll contextual identifier olarak tanınır. Count sonrasında -> zorunludur v
         process();
     }
 
-break; ve continue; ayrı AST_BREAK / AST_CONTINUE statement'larıdır. Hangi loop'a etki ettikleri ve loop dışında geçerlilikleri Semantic kontrolüdür.
+break; ve continue; ayrı iç temsil_BREAK / iç temsil_CONTINUE statement'larıdır. Hangi loop'a etki ettikleri ve loop dışında geçerlilikleri Semantic kontrolüdür.
 
 ## 15.7 Loop sınırları
 
-Parser sonsuz, koşullu, üç parçalı ve collection loop biçimlerini ayırt eder. Bütün varyantların sınır kombinasyonları için test matrisi tamamlanmadığından tüm loop grameri kısmen tanımlı işaretlenir; sonsuz loop ve unroll örnekleri açık testlerle doğrulanmıştır.
+derleyici sonsuz, koşullu, üç parçalı ve collection loop biçimlerini ayırt eder. Bütün varyantların sınır kombinasyonları için test matrisi tamamlanmadığından tüm loop grameri kısmen tanımlı işaretlenir; sonsuz loop ve unroll örnekleri açık testlerle doğrulanmıştır.
 
-Durum: Parser/AST üretimleri mevcut; tüm loop varyantlarının test kapsamı kısmen tanımlı.
+Durum: dil iç yapısı üretimleri mevcut; tüm loop varyantlarının test kapsamı kısmen tanımlı.
 
 ---
 
@@ -1210,7 +1207,7 @@ Durum: Parser/AST üretimleri mevcut; tüm loop varyantlarının test kapsamı k
 
 ## 16.1 Ortak yapı
 
-select ve scan Lexer keyword'ü değildir; Parser belirli identifier + parantez bağlamında bunları contextual sözcük olarak tanır.
+select ve scan sözcüksel çözümleme keyword'ü değildir; derleyici belirli identifier + parantez bağlamında bunları contextual sözcük olarak tanır.
 
     select-expression = "select" "(" expression ")" "{" arms "}" ;
     scan-expression   = "scan" "(" expression ")" "{" arms "}" ;
@@ -1225,7 +1222,7 @@ Her arm pattern sonrasında -> ister. Arm gövdesi block veya tek statement olab
         default -> recover();
     }
 
-Pattern literal, identifier binding veya constructor pattern olabilir. default en fazla bir kez kullanılabilir ve when guard taşıyamaz. Parser AST_SELECT / AST_SELECT_ARM üretir.
+Pattern literal, identifier binding veya constructor pattern olabilir. default en fazla bir kez kullanılabilir ve when guard taşıyamaz. derleyici iç temsil_SELECT / iç temsil_SELECT_ARM üretir.
 
 ## 16.3 Scan
 
@@ -1237,15 +1234,15 @@ Pattern literal, identifier binding veya constructor pattern olabilir. default e
         else -> recover();
     }
 
-scan subject üzerinde pattern arm'ları oluşturur. else fallback arm'ıdır; en fazla bir kez bulunabilir ve son arm olmak zorundadır. else üzerinde when guard kullanılamaz. Parser AST_SCAN / AST_SCAN_ARM üretir.
+scan subject üzerinde pattern arm'ları oluşturur. else fallback arm'ıdır; en fazla bir kez bulunabilir ve son arm olmak zorundadır. else üzerinde when guard kullanılamaz. derleyici iç temsil_SCAN / iç temsil_SCAN_ARM üretir.
 
 ## 16.4 Pattern biçimleri
 
-| Pattern | Örnek | AST |
+| Pattern | Örnek | iç temsil |
 |---|---|---|
-| Identifier binding | item | AST_PATTERN_BINDING |
-| Constructor + binding list | Range(start, end) | AST_PATTERN_CONSTRUCTOR |
-| Literal | 0, "none", true, null | Literal AST |
+| Identifier binding | item | iç temsil_PATTERN_BINDING |
+| Constructor + binding list | Range(start, end) | iç temsil_PATTERN_CONSTRUCTOR |
+| Literal | 0, "none", true, null | Literal iç temsil |
 
 Constructor pattern en az bir binding içermelidir; Range() reddedilir.
 
@@ -1284,9 +1281,9 @@ Constructor pattern boş binding listesi içeremez.
         item -> {}
     }
 
-Scan else arm'ı son sırada olmalıdır. Parser ayrıca ikinci scan else, eksik -> ve kapanış/arm ayraç hatalarını raporlar.
+Scan else arm'ı son sırada olmalıdır. derleyici ayrıca ikinci scan else, eksik -> ve kapanış/arm ayraç hatalarını raporlar.
 
-Durum: Select/Scan, pattern, constructor binding, guard ve fallback kuralları Parser/AST testleriyle doğrulanmıştır.
+Durum: Select/Scan, pattern, constructor binding, guard ve fallback kuralları dil iç yapısı testleriyle doğrulanmıştır.
 
 ---
 
@@ -1298,33 +1295,33 @@ Durum: Select/Scan, pattern, constructor binding, guard ve fallback kuralları P
     ret value;
     ret calculate();
 
-ret tek başına veya bir expression ile kullanılabilir; her iki biçimde de ; zorunludur. Parser AST_RETURN üretir ve operandı isteğe bağlı saklar.
+ret tek başına veya bir expression ile kullanılabilir; her iki biçimde de ; zorunludur. derleyici iç temsil_RETURN üretir ve operandı isteğe bağlı saklar.
 
 ## 17.2 Break ve continue
 
     break;
     continue;
 
-Her ikisi de ; ile biter ve AST_BREAK / AST_CONTINUE üretir. Geçerli loop kapsamı Semantic kontrolüdür.
+Her ikisi de ; ile biter ve iç temsil_BREAK / iç temsil_CONTINUE üretir. Geçerli loop kapsamı Semantic kontrolüdür.
 
 ## 17.3 Panic
 
     panic("fatal error");
     !! "critical failure";
 
-panic("message") intrinsic biçimidir. !! statement biçiminde string mesaj isteğe bağlıdır; mesaj yoksa Parser varsayılan metin atar ve ; zorunludur. Her iki yol da AST_PANIC ile ilişkilidir.
+panic("message") intrinsic biçimidir. !! statement biçiminde string mesaj isteğe bağlıdır; mesaj yoksa derleyici varsayılan metin atar ve ; zorunludur. Her iki yol da iç temsil_PANIC ile ilişkilidir.
 
 ## 17.4 Exit
 
     exit(0);
 
-exit(...) özel intrinsic çağrısıdır ve AST_EXIT üretir. Parametre sözleşmesi ve sürecin sonlandırılması runtime davranışıdır.
+exit(...) özel intrinsic çağrısıdır ve iç temsil_EXIT üretir. Parametre sözleşmesi ve sürecin sonlandırılması runtime davranışıdır.
 
 ## 17.5 Nexus Halt
 
     ?;
 
-?; tek HALT tokenıdır ve normal statement bağlamında AST_NEXUS_HALT üretir. Hedefsiz kullanımda AST operandı boştur. Bu biçim block kapanışındaki }?; ekiyle aynı değildir; o biçim AST_BLOCK_HALT oluşturur (Bölüm 13.5).
+?; tek HALT sözcüksel öğeıdır ve normal statement bağlamında iç temsil_NEXUS_HALT üretir. Hedefsiz kullanımda iç temsil operandı boştur. Bu biçim block kapanışındaki }?; ekiyle aynı değildir; o biçim iç temsil_BLOCK_HALT oluşturur (Bölüm 13.5).
 
 ## 17.6 Defer
 
@@ -1333,13 +1330,13 @@ exit(...) özel intrinsic çağrısıdır ve AST_EXIT üretir. Parametre sözle�
         release(resource);
     }
 
-defer sonrasında Parser bir block veya statement okur ve AST_DEFER üretir. Defer body'nin ne zaman çalıştırılacağı runtime/semantic davranışıdır; burada kaynak biçimi tanımlanır.
+defer sonrasında derleyici bir block veya statement okur ve iç temsil_DEFER üretir. Defer body'nin ne zaman çalıştırılacağı runtime/semantic davranışıdır; burada kaynak biçimi tanımlanır.
 
 ## 17.7 Sonlandırma sınırları
 
-ret, break, continue, panic, exit ve ?; farklı AST/Parser yollarına sahiptir; birbirinin eş anlamlısı değildir. Label/jump biçimleri Bölüm 29'da ayrıca tanımlanır.
+ret, break, continue, panic, exit ve ?; farklı iç temsil/derleyici yollarına sahiptir; birbirinin eş anlamlısı değildir. Label/jump biçimleri Bölüm 29'da ayrıca tanımlanır.
 
-Durum: Return, break/continue, panic, exit, halt ve defer kaynak biçimleri Parser/AST tarafından temsil edilir. Kontrol akışının geçerliliği ve çalışma zamanı etkisi Semantic/runtime kapsamındadır.
+Durum: Return, break/continue, panic, exit, halt ve defer kaynak biçimleri dil iç yapısı tarafından temsil edilir. Kontrol akışının geçerliliği ve çalışma zamanı etkisi Semantic/runtime kapsamındadır.
 
 # Part V — Fonksiyonlar, Group ve çağrılar
 
@@ -1351,7 +1348,7 @@ Durum: Return, break/continue, panic, exit, halt ve defer kaynak biçimleri Pars
 ### 18.5 Fonksiyon gövdesi
 ### 18.6 Default parameter biçimi
 ### 18.7 Function type / callback tip yazımı
-### 18.8 Variadic parametre: AST/Parser doğrulama durumu
+### 18.8 Variadic parametre: iç temsil/derleyici doğrulama durumu
 
 ## 19. Fonksiyon çağrısı
 ### 19.1 Konumsal argümanlar
@@ -1438,7 +1435,7 @@ Durum: Return, break/continue, panic, exit, halt ve defer kaynak biçimleri Pars
 ### 27.4 Tekil Halt
 ### 27.5 Blok Halt
 ### 27.6 Masa ile function çağrısı
-### 27.7 AST/Parser sınırında olmayan masa fikirleri kapsam dışı
+### 27.7 iç temsil/derleyici sınırında olmayan masa fikirleri kapsam dışı
 
 ## 28. Relocate
 ### 28.1 `_>` operatörü
@@ -1496,7 +1493,7 @@ Durum: Return, break/continue, panic, exit, halt ve defer kaynak biçimleri Pars
 
 ### 33.6 `no: osmodule;` — otomatik OS modülü yüklemesini kapatma
 
-`no:` genel bir modül kapatma mekanizması değildir. Parser yalnızca program seviyesinde tek bir `no: osmodule;` bildirimini kabul eder. Bu bildirim varsayılan olarak otomatik yüklenen `osmodule`'ün yüklenmesini engeller; OS servisi bulunmayan bare-metal programlar için kullanılır.
+`no:` genel bir modül kapatma mekanizması değildir. derleyici yalnızca program seviyesinde tek bir `no: osmodule;` bildirimini kabul eder. Bu bildirim varsayılan olarak otomatik yüklenen `osmodule`'ün yüklenmesini engeller; OS servisi bulunmayan bare-metal programlar için kullanılır.
 
 ```nxf
 no: osmodule;
@@ -1511,7 +1508,7 @@ Kurallar:
 - Yalnızca `osmodule` hedefi desteklenir; `no: coremodule;` geçersizdir.
 - Bir programda en fazla bir kez yazılabilir.
 - `;` zorunludur.
-- Ayrı statement düğümü üretmez; `ASTProgram.disable_osmodule` politika alanı ve kaynak aralığı kaydedilir.
+- Ayrı statement düğümü üretmez; `iç temsilProgram.disable_osmodule` politika alanı ve kaynak aralığı kaydedilir.
 - Otomatik modül yükleme entegrasyonu bu syntax kuralından ayrıdır.
 
 ```nxf
@@ -1525,9 +1522,9 @@ f:main() {
 }
 ```
 
-Parser bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelenen bildirim ve yanlış kapsam olarak ayırır.
+derleyici bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelenen bildirim ve yanlış kapsam olarak ayırır.
 
-**Durum:** Parser/AST doğrulandı. Parser testi program-kökü biçimini ve negatif durumları kontrol eder.
+**Durum:** Tanımlı. derleyici testi program-kökü biçimini ve negatif durumları kontrol eder.
 
 ---
 
@@ -1537,7 +1534,7 @@ Parser bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelenen b
 ### 34.3 Ham ASM gövdesi
 ### 34.4 ASM label
 ### 34.5 `asmcall` ve `asmjmp` çağrı biçimleri
-### 34.6 Parser kapsam sınırları
+### 34.6 derleyici kapsam sınırları
 
 ## 35. Donanım ve sistem intrinsic kaynak biçimleri
 ### 35.1 Port I/O biçimleri
@@ -1554,13 +1551,13 @@ Parser bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelenen b
 
 # Part X — Hatalı kaynak örnekleri
 
-## 36. Lexer kaynak hataları
+## 36. sözcüksel çözümleme kaynak hataları
 ### 36.1 Tanınmayan karakter
 ### 36.2 Hatalı literal
 ### 36.3 Eksik operatör
 ### 36.4 Token sınırı hataları
 
-## 37. Parser kaynak hataları
+## 37. derleyici kaynak hataları
 ### 37.1 Eksik ayraç
 ### 37.2 Hatalı bildirim
 ### 37.3 Hatalı fonksiyon imzası
@@ -1606,22 +1603,22 @@ Parser bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelenen b
 ### 42.2 Ruleset ve event
 ### 42.3 Modül kullanımı
 ### 42.4 Extern fonksiyon
-### 42.5 FASTEXEC ve ASM
+### 42.5 Fiç temsilEXEC ve ASM
 ### 42.6 Donanım intrinsic çağrıları
 
 ---
 
 # Ekler
 
-## A. Aktif kaynak biçimleri ve AST eşleme indeksi
-## B. Token sınıfları özeti
+## A. Dil yapıları ve kullanım özeti
+## B. Sözcüksel öğeler özeti
 ## C. Anahtar sözcük ve bildirim önekleri
 ## D. Operatör tablosu
 ## E. Tip yazımı tablosu
 ## F. Literal biçimleri tablosu
 ## G. Nexus Flow operatörleri tablosu
 ## H. Pointer/reference yazım tablosu
-## I. Parser tarafından desteklenmeyen/legacy biçimler
+## I. dil tarafından desteklenmeyen/legacy biçimler
 ## J. Özellik olgunluk matrisi
 ## K. Değişiklik günlüğü
 ## L. Terimler sözlüğü
@@ -1635,36 +1632,26 @@ Her özellik bölümü aşağıdaki yapıyla tamamlanır. Bir başlık o özelli
 
 1. **Amaç:** Kaynak yapısının ne ifade ettiği.
 2. **Sözdizimi:** Kabul edilen kanonik yazım.
-3. **Gramer:** Mevcut Parser üretiminden çıkarılabilen biçim; kesin değilse açıkça belirtilir.
+3. **Gramer:** Mevcut dil kuralınden çıkarılabilen biçim; kesin değilse açıkça belirtilir.
 4. **Kurallar:** Kabul edilen ve reddedilen kaynak biçimleri.
 5. **Kapsam:** Yapının hangi kaynak bağlamında kullanılabildiği.
 6. **Örnekler:** En az bir geçerli örnek.
 7. **Geçersiz örnekler:** Hatalı biçim ve reddedilme nedeni.
 8. **Tanı:** Hata konumu ve açıklanabilir hata nedeni.
-9. **Sınırlar:** Parser/AST ile henüz temsil edilmeyen durumlar.
-10. **Olgunluk:** Tanımlı / Parser-AST doğrulandı / Kısmen tanımlı / Tasarım aşamasında / Desteklenmiyor / Legacy.
+9. **Sınırlar:** dil iç yapısı ile henüz temsil edilmeyen durumlar.
+10. **Olgunluk:** Tanımlı / derleyici-iç temsil doğrulandı / Kısmen tanımlı / Tasarım aşamasında / Desteklenmiyor / Legacy.
 11. **İlgili bölümler:** Bağlantılı kaynak kuralları.
 
 ---
 
-# Kaynaklar ve kapsam denetimi
+# Kaynaklar ve değişiklikler
 
-Yeni manuelin hazırlanmasında aşağıdaki dosyalar kaynak denetimi için kullanılır; bu dosyalar yeni manuelin yerine geçmez:
-
-- [Önceki syntax referansı](docs/language/syntax-reference.md)
-- [AST node registry](OIR_AST_NODE_REGISTRY.md)
-- [Syntax ↔ AST karşılaştırma matrisi](NEXSUS_AST_SYNTAX_MATRIX.md)
-- [Token registry](OIR_TOKEN_REGISTRY.md)
-- [OCC pipeline ilerleme tablosu](OCC_PIPELINE_PROGRESS.md)
-
-**Kapsam denetimi kuralı:** Registry'de bulunup aktif Parser tarafından üretilmeyen legacy/unsupported düğümler yeni bir kaynak yapısı olarak tanıtılmaz. Parser/AST kanıtı eksik olan bir biçim, kesin gramer olarak yazılmaz. Yeni bir dil özelliği ancak AST kapsamı genişletilip Parser bağlantısı doğrulandıktan sonra bu manuelin ilgili bölümüne alınır.
-
-**İlk yazım sırası:** Bölüm 0–3 → 4–9 → 10–12 → 13–17 → 18–22 → 23–30 → 31–35 → 36–42 → ekler.
+Bu kılavuzun hazırlanmasında önceki Nexus Flow dil notları ve güncel dil örnekleri karşılaştırmalı olarak kullanılır. Bu kaynaklar okuyucu için zorunlu değildir; kılavuz kendi başına kullanılabilecek şekilde yazılır.
 
 ---
 
-## N. İleride eklenecek dil özellikleri (aktif gramer değildir)
+## N. İleride eklenecek dil özellikleri
 
 ### N.1 Macro sözdizimi
 
-Macro sistemi henüz Nexus Flow Parser/AST tarafından desteklenen bir kaynak özelliği değildir. Bu nedenle Bölüm 0–42 arasındaki normatif gramerin parçası değildir. Macro tasarımı ve uygulanması tamamlandıktan, AST/Parser karşılığı ve testleri doğrulandıktan sonra bu manuelin en sonunda ayrı bir bölüm olarak ele alınacaktır.
+Macro sistemi henüz Nexus Flow dil iç yapısı tarafından desteklenen bir kaynak özelliği değildir. Bu nedenle Bölüm 0–42 arasındaki normatif gramerin parçası değildir. Macro tasarımı ve uygulanması tamamlandıktan, iç temsil/derleyici karşılığı ve testleri doğrulandıktan sonra bu manuelin en sonunda ayrı bir bölüm olarak ele alınacaktır.
