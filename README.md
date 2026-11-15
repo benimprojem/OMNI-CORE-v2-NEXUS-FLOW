@@ -119,4 +119,4 @@ The repository includes the custom **NexusFlow Alt Yapı ve Derleyici Lisansı (
 
 ---
 
-For language rules, start with the [NEXUS Flow Syntax Reference](docs/language/syntax-reference.md). For compiler internals, start with the [OIR specification](docs/oir/occ-oir-specification.md) and [compiler documentation](docs/compiler/README.md).
+For the complete NEXUS Flow language rules, start with the [NEXUS Flow Syntax Reference — main snapshot](NEXUS-FLOW-SYNTAX-REFERENCE.md). This root-level copy is synchronized from `refactor/c-core-roadmap/docs/language/syntax-reference.md`; the active development source remains on that branch. For compiler internals, start with the [OIR specification](docs/oir/occ-oir-specification.md) and [compiler documentation](docs/compiler/README.md).
