@@ -1057,6 +1057,26 @@ static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
     return 0;
 }
 
+/* Resolve the containing storage owner for identifier/member/index lvalues.
+   Fields and elements intentionally share one conservative borrow unit until
+   field-level provenance is represented in SemanticResult. */
+static Slot* semantic_lvalue_root_slot(SemanticContext* ctx, ASTNode* node) {
+    if (!ctx || !node) return NULL;
+    switch (node->type) {
+        case AST_IDENTIFIER:
+            return find_slot(ctx, ((ASTIdentifier*)node)->name);
+        case AST_MEMBER_ACCESS:
+            return semantic_lvalue_root_slot(
+                ctx, ((ASTMemberAccess*)node)->object);
+        case AST_INDEX_ACCESS:
+            return semantic_lvalue_root_slot(
+                ctx, ((ASTIndexAccess*)node)->target);
+        default:
+            /* Computed/raw-pointer lvalues do not prove a safe owner. */
+            return NULL;
+    }
+}
+
 static const char* semantic_lvalue_description(ASTNode* node) {
     if (!node) return "<missing>";
     if (node->type == AST_IDENTIFIER)
@@ -4063,18 +4083,18 @@ static void semantic_register_borrow_binding(
 ) {
     ASTUnaryExpr* borrow;
     Slot* owner;
-    ASTIdentifier* identifier;
     int is_mutable;
     if (!ctx || !borrower || !initializer ||
         initializer->type != AST_UNARY_EXPR) return;
     borrow = (ASTUnaryExpr*)initializer;
     if (borrow->op != TOKEN_BIT_AND && borrow->op != TOKEN_BORROW_MUT)
         return;
-    if (!borrow->operand || borrow->operand->type != AST_IDENTIFIER)
-        return; /* The unary-borrow checker reports non-lvalue operands once. */
-    identifier = (ASTIdentifier*)borrow->operand;
-    owner = find_slot(ctx, identifier->name);
-    if (!owner) return;
+    owner = semantic_lvalue_root_slot(ctx, borrow->operand);
+    if (!owner) {
+        report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Safe borrow requires a local storage owner with statically known provenance; raw-pointer and computed lvalues are not supported.");
+        return;
+    }
     is_mutable = borrow->op == TOKEN_BORROW_MUT;
     if (owner->mutable_borrow_active ||
         (is_mutable && owner->shared_borrow_count != 0u)) {
@@ -4773,13 +4793,12 @@ static void semantic_check_node(
                 report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
                     "Cannot modify a constant or immutable value with compound assignment.");
             }
-            if (assign->left->type == AST_IDENTIFIER) {
-                ASTIdentifier* owner_id = (ASTIdentifier*)assign->left;
-                Slot* owner_slot = find_slot(ctx, owner_id->name);
+            {
+                Slot* owner_slot = semantic_lvalue_root_slot(ctx, assign->left);
                 if (owner_slot && (owner_slot->mutable_borrow_active ||
                                    owner_slot->shared_borrow_count != 0u)) {
                     report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
-                        "Cannot modify an owner while a shared or exclusive borrow is active.");
+                        "Cannot modify an aggregate owner while a shared or exclusive borrow is active.");
                 }
             }
             if (assign->op == TOKEN_ASSIGN || assign->op == TOKEN_FORCE_ASSIGN) {

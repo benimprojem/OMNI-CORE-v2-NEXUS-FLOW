@@ -950,6 +950,48 @@ static int check_borrow_overlap_and_scope_semantics(void) {
         check_source(borrow_released_at_scope_exit, 0);
 }
 
+static int check_borrow_aggregate_provenance_semantics(void) {
+    const char* shared_index_conflicts_with_mutable_other_index =
+        "f:main() { v:items[2]!i32 = [1,2]; "
+        "v:first!&i32 = &items[0]; "
+        "v:second!&muti32 = &mut items[1]; }";
+    const char* mutable_index_blocks_other_index_write =
+        "f:main() { v:items[2]!i32 = [1,2]; "
+        "v:first!&muti32 = &mut items[0]; items[1] = 3; }";
+    const char* shared_index_blocks_other_index_write =
+        "f:main() { v:items[2]!i32 = [1,2]; "
+        "v:first!&i32 = &items[0]; items[1] = 3; }";
+    const char* two_mutable_index_borrows_conflict =
+        "f:main() { v:items[2]!i32 = [1,2]; "
+        "v:first!&muti32 = &mut items[0]; "
+        "v:second!&muti32 = &mut items[1]; }";
+    const char* raw_pointer_dereference_borrow_has_no_provenance =
+        "f:main() { v:pointer!*i32; v:reference!&i32 = &*pointer; }";
+    const char* shared_member_blocks_other_member_write =
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; v:first!&i32 = &point.x; point.y = 3; }";
+    const char* mutable_member_blocks_other_member_write =
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; v:first!&muti32 = &mut point.x; point.y = 3; }";
+    const char* two_mutable_member_borrows_conflict =
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; v:first!&muti32 = &mut point.x; "
+        "v:second!&muti32 = &mut point.y; }";
+    const char* two_shared_member_borrows_are_allowed =
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; v:first!&i32 = &point.x; "
+        "v:second!&i32 = &point.y; }";
+    return check_source(shared_index_conflicts_with_mutable_other_index, 1) &&
+        check_source(mutable_index_blocks_other_index_write, 1) &&
+        check_source(shared_index_blocks_other_index_write, 1) &&
+        check_source(two_mutable_index_borrows_conflict, 1) &&
+        check_source(raw_pointer_dereference_borrow_has_no_provenance, 1) &&
+        check_source(shared_member_blocks_other_member_write, 1) &&
+        check_source(mutable_member_blocks_other_member_write, 1) &&
+        check_source(two_mutable_member_borrows_conflict, 1) &&
+        check_source(two_shared_member_borrows_are_allowed, 0);
+}
+
 static int check_array_type_semantics(void) {
     const char* valid_params = "f:consume(a![], b!i32[], third:i32[5]) {}";
     const char* valid_matrix_param = "f:consume_matrix(matrix_data:f64[2][2]) {}";
@@ -2456,6 +2498,10 @@ int main(int argc, char** argv) {
     }
     if (!check_borrow_overlap_and_scope_semantics()) {
         fprintf(stderr, "Borrow overlap/scope Semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_borrow_aggregate_provenance_semantics()) {
+        fprintf(stderr, "Aggregate/member/index borrow provenance checks failed.\\n");
         return 1;
     }
     if (!check_array_type_semantics()) {
