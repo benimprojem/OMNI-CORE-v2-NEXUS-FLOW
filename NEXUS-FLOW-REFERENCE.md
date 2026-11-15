@@ -33,7 +33,7 @@ Aşağıdakiler bu manuelin konusu değildir:
 - Semantic analiz algoritmalarının iç işleyişi.
 - OIR, Verifier, Codegen, optimizer ve backend.
 - CPU, target, ABI, bellek topolojisi veya runtime uygulama ayrıntıları.
-- Henüz Parser/AST karşılığı olmayan macro, attribute, compile-time directive veya benzeri gelecek dil özellikleri.
+- Henüz Parser/AST karşılığı olmayan gelecekteki dil yapıları.
 
 ## 0.3 Normatif ifadeler
 
