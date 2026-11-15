@@ -935,6 +935,10 @@ static int check_call_temporary_borrow_semantics(void) {
         "f:edit(a!&muti32, b!&i32) {} f:main() { v:owner!i32 = 1; edit(&mut owner, &owner); }";
     const char* named_temporary_shared_borrow =
         "f:read(value!&i32) {} f:main() { v:owner!i32 = 1; read(value:&owner); }";
+    const char* named_temporary_mutable_borrow =
+        "f:edit(value!&muti32) {} f:main() { v:owner!i32 = 1; edit(value:&mut owner); }";
+    const char* call_borrow_mutability_mismatch =
+        "f:read(value!&i32) {} f:main() { v:owner!i32 = 1; read(&mut owner); }";
     const char* call_temporary_borrow_is_released =
         "f:edit(value!&muti32) {} f:main() { v:owner!i32 = 1; "
         "edit(&mut owner); v:read!&i32 = &owner; }";
@@ -943,6 +947,8 @@ static int check_call_temporary_borrow_semantics(void) {
         check_source(two_shared_call_arguments_are_allowed, 0) &&
         check_source(conflicting_call_arguments_are_rejected, 1) &&
         check_source(named_temporary_shared_borrow, 0) &&
+        check_source(named_temporary_mutable_borrow, 0) &&
+        check_source(call_borrow_mutability_mismatch, 1) &&
         check_source(call_temporary_borrow_is_released, 0);
 }
 
