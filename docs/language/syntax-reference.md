@@ -123,7 +123,7 @@ v:editable!&mut i32 = &mut value; # tekil mutable borrow
 | Referans üzerinden yazma | Yasak | İzinli |
 | Borrow kaynağının scope dışına taşınması | Yasak | Yasak |
 
-**Uygulama durumu:** `*T`, `**T`, `&T` ve `&mut T` tür yazımları ile `&value` / `&mut value` borrow ifadeleri Parser/AST tarafından üretilir; mutable reference AST flag'i codec round-trip içinde korunur. Bu Parser/AST kapsamıdır, henüz tam safe-borrow Semantic desteği değildir. Borrow tipi propagation, provenance/owner/alias takibi, shared/exclusive çakışma denetimi ve scope/lifetime escape kontrolleri uygulanıp test edilmeden safe borrow desteği tamamlanmış sayılmaz.
+**Uygulama durumu:** `*T`, `**T`, `&T` ve `&mut T` tür yazımları ile `&value` / `&mut value` borrow ifadeleri Parser/AST tarafından üretilir; mutable reference AST flag'i codec round-trip içinde korunur. Bu Parser/AST kapsamıdır, henüz tam safe-borrow Semantic desteği değildir. Semantic artık `&value` ifadesini `&T`, `&mut value` ifadesini `&mutT` olarak tiplendirir; borrow operandının lvalue olmasını ve mutable borrow kaynağının immutable olmamasını denetler. `*(&mutT)` üzerinden yazma kabul edilir, shared `&T` üzerinden yazma reddedilir. Owner/provenance/alias takibi, eşzamanlı shared/exclusive çakışma denetimi ve scope/lifetime escape kontrolleri henüz açık olduğundan safe borrow desteği tamamlanmış sayılmaz.
 
 ---
 
