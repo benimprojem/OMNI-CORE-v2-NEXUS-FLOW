@@ -4678,8 +4678,11 @@ static int semantic_bind_returned_call_reference(
                 !semantic_is_reference_type_name(borrower->type_name))
                 return 0;
             if (borrower->depth < origin->depth) {
-                report_error(ctx, initializer, ERR_SEMANTIC_RETURN_MISMATCH,
-                    "Returned reference would outlive the parameter or global reference from which it originates.");
+                report_issue(ctx, initializer, ERR_SEMANTIC_RETURN_MISMATCH,
+                    "Returned reference would outlive the parameter or global reference from which it originates.",
+                    "Keep the returned reference in a scope no longer-lived than its argument origin; do not store it in global or outer-scope state.",
+                    "Keep the returned reference in a scope no longer-lived than its argument origin; do not store it in global or outer-scope state.",
+                    0, 0);
                 return 1;
             }
             semantic_release_borrow_binding(borrower);
@@ -4872,7 +4875,10 @@ static void semantic_copy_shared_reference_binding(
                 target->name ? target->name : "<reference>",
                 origin->name ? origin->name : "<origin>",
                 origin->depth);
-            report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH, message);
+            report_issue(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH, message,
+                "Keep this reference in a binding whose lifetime does not exceed its parameter or global origin. Do not store a parameter-derived reference in global or outer-scope state.",
+                "Keep this reference in a binding whose lifetime does not exceed its parameter or global origin. Do not store a parameter-derived reference in global or outer-scope state.",
+                0, 0);
             return;
         }
         semantic_release_borrow_binding(target);

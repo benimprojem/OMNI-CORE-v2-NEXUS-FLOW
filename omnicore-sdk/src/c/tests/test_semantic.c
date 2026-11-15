@@ -1020,6 +1020,44 @@ static int check_borrow_diagnostic_guidance(void) {
     return ok;
 }
 
+static int check_reference_parameter_escape_diagnostic(void) {
+    const char* source =
+        "v:global_ref!&i32;\n"
+        "f:store(value!&i32) {\n"
+        "  global_ref = value;\n"
+        "}";
+    ParserContext* parser = parser_init_source(
+        "reference-escape.nxf", (const uint8_t*)source, strlen(source));
+    SemanticContext semantic;
+    Error* error;
+    int ok;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    semantic_init(&semantic, "reference-escape.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    error = semantic.error_head;
+    ok = semantic.error_count == 1 && error &&
+        error->line == 3 && error->col > 0 &&
+        error->message &&
+        strstr(error->message, "longer-lived binding 'global_ref'") != NULL &&
+        error->suggestion &&
+        strstr(error->suggestion, "Do not store") != NULL;
+    if (!ok) {
+        fprintf(stderr,
+            "Reference escape diagnostic mismatch: count=%d line=%d col=%d message=%s suggestion=%s\n",
+            semantic.error_count, error ? error->line : 0,
+            error ? error->col : 0,
+            error && error->message ? error->message : "(null)",
+            error && error->suggestion ? error->suggestion : "(null)");
+    }
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_borrow_overlap_and_scope_semantics(void) {
     const char* multiple_shared =
         "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; v:b!&i32 = &owner; }";
@@ -2806,6 +2844,10 @@ int main(int argc, char** argv) {
     }
     if (!check_borrow_diagnostic_guidance()) {
         fprintf(stderr, "Borrow diagnostic guidance checks failed.\\n");
+        return 1;
+    }
+    if (!check_reference_parameter_escape_diagnostic()) {
+        fprintf(stderr, "Reference parameter escape diagnostic checks failed.\\n");
         return 1;
     }
     if (!check_borrow_overlap_and_scope_semantics()) {
