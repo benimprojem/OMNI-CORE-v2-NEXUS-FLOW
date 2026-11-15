@@ -974,6 +974,35 @@ static int check_mutable_borrow_owner_access_semantics(void) {
         check_source(assignment_target_read_does_not_duplicate, 1);
 }
 
+static int check_reference_reassignment_and_lifetime_semantics(void) {
+    const char* reassignment_releases_previous_owner =
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "v:reference!&i32 = &first; reference = &second; "
+        "v:edit!&muti32 = &mut first; }";
+    const char* reassignment_tracks_new_owner =
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "v:reference!&i32 = &first; reference = &second; "
+        "v:edit!&muti32 = &mut second; }";
+    const char* copying_reference_binding_is_rejected =
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "v:a!&i32 = &first; v:b!&i32 = &second; a = b; }";
+    const char* outer_reference_cannot_escape_inner_owner =
+        "f:main() { v:reference!&i32; "
+        "{ v:inner!i32 = 1; reference = &inner; } }";
+    const char* later_declared_owner_cleanup_is_safe =
+        "f:main() { v:reference!&i32; v:owner!i32 = 1; reference = &owner; }";
+    const char* mutable_reassignment_releases_old_owner =
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "v:reference!&muti32 = &mut first; reference = &mut second; "
+        "v:read!&i32 = &first; }";
+    return check_source(reassignment_releases_previous_owner, 0) &&
+        check_source(reassignment_tracks_new_owner, 1) &&
+        check_source(copying_reference_binding_is_rejected, 1) &&
+        check_source(outer_reference_cannot_escape_inner_owner, 1) &&
+        check_source(later_declared_owner_cleanup_is_safe, 0) &&
+        check_source(mutable_reassignment_releases_old_owner, 0);
+}
+
 static int check_borrow_aggregate_provenance_semantics(void) {
     const char* shared_index_conflicts_with_mutable_other_index =
         "f:main() { v:items[2]!i32 = [1,2]; "
@@ -2526,6 +2555,10 @@ int main(int argc, char** argv) {
     }
     if (!check_mutable_borrow_owner_access_semantics()) {
         fprintf(stderr, "Exclusive borrow owner-access checks failed.\\n");
+        return 1;
+    }
+    if (!check_reference_reassignment_and_lifetime_semantics()) {
+        fprintf(stderr, "Reference reassignment/lifetime checks failed.\\n");
         return 1;
     }
     if (!check_borrow_aggregate_provenance_semantics()) {

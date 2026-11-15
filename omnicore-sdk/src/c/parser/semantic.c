@@ -905,19 +905,23 @@ static void semantic_record_annotation(
     semantic_set_result_error(ctx, status);
 }
 
+static void semantic_release_borrow_binding(Slot* borrower) {
+    Slot* owner;
+    if (!borrower || !borrower->borrowed_from) return;
+    owner = borrower->borrowed_from;
+    if (borrower->borrow_kind == 1u) {
+        if (owner->shared_borrow_count > 0u)
+            --owner->shared_borrow_count;
+    } else if (borrower->borrow_kind == 2u) {
+        owner->mutable_borrow_active = 0u;
+    }
+    borrower->borrowed_from = NULL;
+    borrower->borrow_kind = 0u;
+}
+
 static void destroy_slot(Slot* slot) {
     if (!slot) return;
-
-    if (slot->borrowed_from) {
-        if (slot->borrow_kind == 1u &&
-            slot->borrowed_from->shared_borrow_count > 0u) {
-            --slot->borrowed_from->shared_borrow_count;
-        } else if (slot->borrow_kind == 2u) {
-            slot->borrowed_from->mutable_borrow_active = 0u;
-        }
-        slot->borrowed_from = NULL;
-        slot->borrow_kind = 0u;
-    }
+    semantic_release_borrow_binding(slot);
 
     free(slot->name);
     free(slot->type_name);
@@ -965,6 +969,16 @@ static void enter_scope(SemanticContext* ctx, ASTNode* owner_node) {
 
 static void exit_scope(SemanticContext* ctx) {
     if (!ctx) return;
+
+    /* Release every borrow in this scope before freeing any owner Slot.
+       Declaration order must not affect cleanup safety. */
+    {
+        Slot* current;
+        for (current = ctx->head; current; current = current->next) {
+            if (current->depth == ctx->current_depth)
+                semantic_release_borrow_binding(current);
+        }
+    }
 
     Slot** link = &ctx->head;
     while (*link) {
@@ -1078,6 +1092,12 @@ static Slot* semantic_lvalue_root_slot(SemanticContext* ctx, ASTNode* node) {
             /* Computed/raw-pointer lvalues do not prove a safe owner. */
             return NULL;
     }
+}
+
+static int semantic_is_reference_type_name(const char* type_name) {
+    if (!type_name) return 0;
+    if (*type_name == '!') ++type_name;
+    return type_name[0] == '&' && type_name[1] != '\0';
 }
 
 static const char* semantic_lvalue_description(ASTNode* node) {
@@ -4102,23 +4122,41 @@ static void semantic_register_borrow_binding(
         return;
     }
     is_mutable = borrow->op == TOKEN_BORROW_MUT;
-    if (owner->mutable_borrow_active ||
-        (is_mutable && owner->shared_borrow_count != 0u)) {
+    if (borrower->depth < owner->depth) {
         report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
-            is_mutable
-                ? "Exclusive mutable borrow conflicts with an active borrow of the same owner."
-                : "Shared borrow conflicts with an active exclusive mutable borrow.");
+            "Reference binding cannot outlive its borrowed owner; the owner must be in the same or an outer scope.");
         return;
     }
-    if (is_mutable) {
-        owner->mutable_borrow_active = 1u;
-        borrower->borrow_kind = 2u;
-    } else {
-        if (owner->shared_borrow_count == UINT32_MAX) {
+    {
+        uint32_t effective_shared_count = owner->shared_borrow_count;
+        int effective_mutable_active = owner->mutable_borrow_active != 0u;
+        if (borrower->borrowed_from == owner) {
+            if (borrower->borrow_kind == 1u && effective_shared_count > 0u)
+                --effective_shared_count;
+            else if (borrower->borrow_kind == 2u)
+                effective_mutable_active = 0;
+        }
+        if (effective_mutable_active ||
+            (is_mutable && effective_shared_count != 0u)) {
+            report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+                is_mutable
+                    ? "Exclusive mutable borrow conflicts with an active borrow of the same owner."
+                    : "Shared borrow conflicts with an active exclusive mutable borrow.");
+            return;
+        }
+        if (!is_mutable && effective_shared_count == UINT32_MAX) {
             report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
                 "Shared borrow count exceeds the supported semantic limit.");
             return;
         }
+    }
+
+    /* Validation succeeded. Release the previous owner only now, then bind. */
+    semantic_release_borrow_binding(borrower);
+    if (is_mutable) {
+        owner->mutable_borrow_active = 1u;
+        borrower->borrow_kind = 2u;
+    } else {
         ++owner->shared_borrow_count;
         borrower->borrow_kind = 1u;
     }
@@ -4988,6 +5026,32 @@ static void semantic_check_node(
                 }
                 semantic_check(ctx, assign->right);
                 ctx->assignment_borrow_guard_owner = previous_guard_owner;
+            }
+            if (assign->left->type == AST_IDENTIFIER) {
+                ASTIdentifier* target_id = (ASTIdentifier*)assign->left;
+                Slot* target_slot = find_slot(ctx, target_id->name);
+                if (target_slot &&
+                    semantic_is_reference_type_name(target_slot->type_name)) {
+                    const char* source_type = get_expr_type(ctx, assign->right);
+                    if (source_type && target_slot->type_name &&
+                        are_types_compatible(target_slot->type_name, source_type)) {
+                        if (assign->right->type == AST_UNARY_EXPR &&
+                            (((ASTUnaryExpr*)assign->right)->op == TOKEN_BIT_AND ||
+                             ((ASTUnaryExpr*)assign->right)->op == TOKEN_BORROW_MUT)) {
+                            semantic_register_borrow_binding(
+                                ctx, target_slot, assign->right);
+                        } else {
+                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Safe reference reassignment requires a new borrow expression; copying or moving reference bindings is not supported yet.");
+                        }
+                    }
+                }
+            } else {
+                const char* target_type = get_expr_type(ctx, assign->left);
+                if (semantic_is_reference_type_name(target_type)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Reassigning a stored reference through a member, index, or pointer dereference is not supported; use a local reference binding.");
+                }
             }
             break;
         }
@@ -7152,7 +7216,11 @@ void semantic_print_errors(SemanticContext* ctx) {
 void semantic_destroy(SemanticContext* ctx) {
     if (!ctx) return;
 
-    Slot* current = ctx->head;
+    Slot* current;
+    /* Release all cross-Slot links before destroying any Slot. */
+    for (current = ctx->head; current; current = current->next)
+        semantic_release_borrow_binding(current);
+    current = ctx->head;
     while (current) {
         Slot* next = current->next;
         destroy_slot(current);
