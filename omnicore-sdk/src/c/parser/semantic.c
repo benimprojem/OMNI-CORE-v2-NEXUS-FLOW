@@ -3771,6 +3771,7 @@ static void semantic_validate_call_arguments(
     const char* inferred_type_variable = NULL;
     typedef struct {
         Slot* owner;
+        char* path;
         uint8_t is_mutable;
     } SemanticCallBorrow;
     SemanticCallBorrow* temporary_borrows = NULL;
@@ -3894,6 +3895,7 @@ static void semantic_validate_call_arguments(
                 if (borrow->op == TOKEN_BIT_AND ||
                     borrow->op == TOKEN_BORROW_MUT) {
                     Slot* owner = semantic_lvalue_root_slot(ctx, borrow->operand);
+                    char* borrow_path = semantic_lvalue_path(borrow->operand);
                     int is_mutable = borrow->op == TOKEN_BORROW_MUT;
                     int expected_mutable =
                         semantic_is_mut_reference_type_name(expected_type);
@@ -3907,16 +3909,17 @@ static void semantic_validate_call_arguments(
                         report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
                             "Borrow mutability does not match the reference parameter.");
                         conflict = 1;
-                    } else if (owner->mutable_borrow_active ||
-                               (is_mutable && owner->shared_borrow_count != 0u)) {
+                    } else if (!borrow_path ||
+                               semantic_borrow_conflicts(
+                                   ctx, owner, borrow_path, is_mutable, NULL)) {
                         report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH,
-                            is_mutable
-                                ? "Temporary exclusive call borrow conflicts with an active borrow."
-                                : "Temporary shared call borrow conflicts with an active exclusive borrow.");
+                            "Temporary call borrow has unknown provenance or overlaps an active reference.");
                         conflict = 1;
                     }
                     for (k = 0u; !conflict && k < temporary_borrow_count; ++k) {
                         if (temporary_borrows[k].owner == owner &&
+                            semantic_borrow_paths_overlap(
+                                borrow_path, temporary_borrows[k].path) &&
                             (is_mutable || temporary_borrows[k].is_mutable)) {
                             report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH,
                                 "Arguments in this call contain overlapping shared/exclusive borrows.");
@@ -3924,18 +3927,14 @@ static void semantic_validate_call_arguments(
                         }
                     }
                     if (!conflict) {
-                        if (!is_mutable && owner->shared_borrow_count == UINT32_MAX) {
-                            report_error(ctx, argument, ERR_SEMANTIC_TYPE_MISMATCH,
-                                "Temporary shared borrow count exceeds the supported limit.");
-                        } else {
-                            if (is_mutable) owner->mutable_borrow_active = 1u;
-                            else ++owner->shared_borrow_count;
-                            temporary_borrows[temporary_borrow_count].owner = owner;
-                            temporary_borrows[temporary_borrow_count].is_mutable =
-                                (uint8_t)is_mutable;
-                            ++temporary_borrow_count;
-                        }
+                        temporary_borrows[temporary_borrow_count].owner = owner;
+                        temporary_borrows[temporary_borrow_count].path = borrow_path;
+                        temporary_borrows[temporary_borrow_count].is_mutable =
+                            (uint8_t)is_mutable;
+                        borrow_path = NULL;
+                        ++temporary_borrow_count;
                     }
+                    free(borrow_path);
                 }
             }
 
@@ -3992,9 +3991,7 @@ static void semantic_validate_call_arguments(
     while (temporary_borrow_count > 0u) {
         SemanticCallBorrow* borrow =
             &temporary_borrows[--temporary_borrow_count];
-        if (borrow->is_mutable) borrow->owner->mutable_borrow_active = 0u;
-        else if (borrow->owner->shared_borrow_count > 0u)
-            --borrow->owner->shared_borrow_count;
+        free(borrow->path);
     }
     free(temporary_borrows);
 }
