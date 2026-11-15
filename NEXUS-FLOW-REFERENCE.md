@@ -1002,11 +1002,6 @@ Parser bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelenen b
 ## K. Değişiklik günlüğü
 ## L. Terimler sözlüğü
 ## M. Eski referanslar ve kaynak belgeler
-## N. İleride eklenecek dil özellikleri (aktif gramer değildir)
-
-### N.1 Macro sözdizimi
-
-Macro sistemi henüz Nexus Flow Parser/AST tarafından desteklenen bir kaynak özelliği değildir. Bu nedenle Bölüm 0–42 arasındaki normatif gramerin parçası değildir. Macro tasarımı ve uygulanması tamamlandıktan, AST/Parser karşılığı ve testleri doğrulandıktan sonra bu manuelin en sonunda ayrı bir bölüm olarak ele alınacaktır.
 
 ---
 
@@ -1041,3 +1036,11 @@ Yeni manuelin hazırlanmasında aşağıdaki dosyalar kaynak denetimi için kull
 **Kapsam denetimi kuralı:** Registry'de bulunup aktif Parser tarafından üretilmeyen legacy/unsupported düğümler yeni bir kaynak yapısı olarak tanıtılmaz. Parser/AST kanıtı eksik olan bir biçim, kesin gramer olarak yazılmaz. Yeni bir dil özelliği ancak AST kapsamı genişletilip Parser bağlantısı doğrulandıktan sonra bu manuelin ilgili bölümüne alınır.
 
 **İlk yazım sırası:** Bölüm 0–3 → 4–9 → 10–12 → 13–17 → 18–22 → 23–30 → 31–35 → 36–42 → ekler.
+
+---
+
+## N. İleride eklenecek dil özellikleri (aktif gramer değildir)
+
+### N.1 Macro sözdizimi
+
+Macro sistemi henüz Nexus Flow Parser/AST tarafından desteklenen bir kaynak özelliği değildir. Bu nedenle Bölüm 0–42 arasındaki normatif gramerin parçası değildir. Macro tasarımı ve uygulanması tamamlandıktan, AST/Parser karşılığı ve testleri doğrulandıktan sonra bu manuelin en sonunda ayrı bir bölüm olarak ele alınacaktır.
