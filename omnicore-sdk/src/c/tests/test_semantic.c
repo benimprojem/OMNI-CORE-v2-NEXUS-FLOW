@@ -984,7 +984,8 @@ static int check_borrow_diagnostic_guidance(void) {
     error = semantic.error_head;
     ok = semantic.error_count == 1 && error &&
         error->line == 4 && error->col > 0 &&
-        error->message && strstr(error->message, "borrow 'a' is still active") != NULL &&
+        error->message && strstr(error->message, "borrow 'a' at path '<whole value>' is still active") != NULL &&
+        error->message && strstr(error->message, "path '<whole value>'") != NULL &&
         error->suggestion && strstr(error->suggestion, "End the scope") != NULL;
     if (!ok) {
         fprintf(stderr,
