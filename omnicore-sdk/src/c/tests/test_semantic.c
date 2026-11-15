@@ -2615,7 +2615,10 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Shared/mutable borrow Semantic checks failed.\n");
         return 1;
     }
-    if (!check_call_temporary_borrow_semantics()) {\n        fprintf(stderr, "Call temporary borrow checks failed.\\n"); return 1;\n    }\n    if (!check_borrow_overlap_and_scope_semantics()) {
+    if (!check_call_temporary_borrow_semantics()) {
+        fprintf(stderr, "Call temporary borrow checks failed.\\n"); return 1;
+    }
+    if (!check_borrow_overlap_and_scope_semantics()) {
         fprintf(stderr, "Borrow overlap/scope Semantic checks failed.\n");
         return 1;
     }
