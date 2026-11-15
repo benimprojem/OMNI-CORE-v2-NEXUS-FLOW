@@ -5071,8 +5071,20 @@ static void semantic_check_node(
                     "Array indexing requires both target and index.");
                 break;
             }
+            ++ctx->borrow_operand_depth;
             semantic_check(ctx, access->target);
+            --ctx->borrow_operand_depth;
             semantic_check(ctx, access->index);
+            {
+                Slot* owner = semantic_lvalue_root_slot(ctx, node);
+                char* path = semantic_lvalue_path(node);
+                if (owner && (!path ||
+                    semantic_borrow_conflicts(ctx, owner, path, 0, NULL))) {
+                    report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                        "Cannot read this indexed element while an overlapping exclusive mutable borrow is active.");
+                }
+                free(path);
+            }
             target_type = get_expr_type(ctx, access->target);
             if (target_type && strcmp(target_type,"tuple") == 0 &&
                 semantic_eval_integer_constant(access->index,&constant_index)) {
@@ -5193,12 +5205,13 @@ static void semantic_check_node(
                     "Use of '%s' after ownership was transferred is invalid.",
                     id->name ? id->name : "<unnamed>");
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, moved_message);
-            } else if (resolved && resolved->mutable_borrow_active &&
+            } else if (resolved &&
                 ctx->borrow_operand_depth == 0u &&
                 ctx->assignment_target_depth == 0u &&
-                ctx->assignment_borrow_guard_owner != resolved) {
+                ctx->assignment_borrow_guard_owner != resolved &&
+                semantic_borrow_conflicts(ctx, resolved, "", 0, NULL)) {
                 report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
-                    "Cannot access an owner while an exclusive mutable borrow is active.");
+                    "Cannot read this owner while an overlapping exclusive mutable borrow is active.");
             } else if (!resolved) {
                 int score = 0;
                 Slot* best = find_best_suggestion(ctx, id->name, &score);
@@ -6683,13 +6696,25 @@ static void semantic_check_node(
         case AST_MEMBER_ACCESS: {
             FieldInfo* field;
             const char* type_name;
-            if (((ASTMemberAccess*)node)->object) {
+            ASTMemberAccess* access = (ASTMemberAccess*)node;
+            if (access->object) {
                 uint8_t previous_suppression =
                     ctx->suppress_group_default_dispatch;
+                ++ctx->borrow_operand_depth;
                 ctx->suppress_group_default_dispatch = 1u;
-                semantic_check_node(
-                    ctx, ((ASTMemberAccess*)node)->object, 0);
+                semantic_check_node(ctx, access->object, 0);
                 ctx->suppress_group_default_dispatch = previous_suppression;
+                --ctx->borrow_operand_depth;
+            }
+            {
+                Slot* owner = semantic_lvalue_root_slot(ctx, node);
+                char* path = semantic_lvalue_path(node);
+                if (owner && (!path ||
+                    semantic_borrow_conflicts(ctx, owner, path, 0, NULL))) {
+                    report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                        "Cannot read this member while an overlapping exclusive mutable borrow is active.");
+                }
+                free(path);
             }
             field = semantic_resolve_member(ctx, node, 1);
             type_name = field ? field->type_name : NULL;
