@@ -933,10 +933,17 @@ static int check_call_temporary_borrow_semantics(void) {
         "f:read(a!&i32, b!&i32) {} f:main() { v:owner!i32 = 1; read(&owner, &owner); }";
     const char* conflicting_call_arguments_are_rejected =
         "f:edit(a!&muti32, b!&i32) {} f:main() { v:owner!i32 = 1; edit(&mut owner, &owner); }";
+    const char* named_temporary_shared_borrow =
+        "f:read(value!&i32) {} f:main() { v:owner!i32 = 1; read(value:&owner); }";
+    const char* call_temporary_borrow_is_released =
+        "f:edit(value!&muti32) {} f:main() { v:owner!i32 = 1; "
+        "edit(&mut owner); v:read!&i32 = &owner; }";
     return check_source(shared_call_conflicts_with_active_mutable, 1) &&
         check_source(mutable_call_conflicts_with_active_shared, 1) &&
         check_source(two_shared_call_arguments_are_allowed, 0) &&
-        check_source(conflicting_call_arguments_are_rejected, 1);
+        check_source(conflicting_call_arguments_are_rejected, 1) &&
+        check_source(named_temporary_shared_borrow, 0) &&
+        check_source(call_temporary_borrow_is_released, 0);
 }
 
 static int check_borrow_overlap_and_scope_semantics(void) {
