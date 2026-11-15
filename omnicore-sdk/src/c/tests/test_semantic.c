@@ -1031,13 +1031,22 @@ static int check_mutable_borrow_owner_access_semantics(void) {
     const char* index_read_during_mutable_borrow =
         "f:main() { v:items[2]!i32 = [1,2]; "
         "v:reference!&muti32 = &mut items[0]; v:copy!i32 = items[1]; }";
+    const char* overlapping_member_read_during_mutable_borrow =
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; v:reference!&muti32 = &mut point.x; "
+        "v:copy!i32 = point.x; }";
+    const char* overlapping_index_read_during_mutable_borrow =
+        "f:main() { v:items[2]!i32 = [1,2]; "
+        "v:reference!&muti32 = &mut items[0]; v:copy!i32 = items[0]; }";
     const char* assignment_target_read_does_not_duplicate =
         "f:main() { v:owner!i32 = 1; v:reference!&muti32 = &mut owner; "
         "owner = owner + 1; }";
     return check_source(owner_read_during_mutable_borrow, 1) &&
         check_source(owner_read_during_shared_borrow, 0) &&
-        check_source(member_read_during_mutable_borrow, 1) &&
-        check_source(index_read_during_mutable_borrow, 1) &&
+        check_source(member_read_during_mutable_borrow, 0) &&
+        check_source(index_read_during_mutable_borrow, 0) &&
+        check_source(overlapping_member_read_during_mutable_borrow, 1) &&
+        check_source(overlapping_index_read_during_mutable_borrow, 1) &&
         check_source(assignment_target_read_does_not_duplicate, 1);
 }
 
