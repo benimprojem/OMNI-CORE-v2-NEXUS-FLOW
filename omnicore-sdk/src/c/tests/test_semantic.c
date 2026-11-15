@@ -904,6 +904,24 @@ static int check_pointer_reference_type_semantics(void) {
         check_source(pointer_bitwise_assignment, 0);
 }
 
+static int check_borrow_expression_semantics(void) {
+    const char* shared_borrow =
+        "f:main() { v:value!i32 = 1; v:read_only!&i32 = &value; v:copy!i32 = *read_only; }";
+    const char* mutable_borrow =
+        "f:main() { v:value!i32 = 1; v:editable!&muti32 = &mut value; *editable = 7; }";
+    const char* mutable_borrow_const =
+        "f:main() { c:value!i32 = 1; v:editable!&muti32 = &mut value; }";
+    const char* borrow_temporary =
+        "f:main() { v:read_only!&i32 = &(1 + 2); }";
+    const char* shared_borrow_write =
+        "f:main() { v:value!i32 = 1; v:read_only!&i32 = &value; *read_only = 7; }";
+    return check_source(shared_borrow, 0) &&
+        check_source(mutable_borrow, 0) &&
+        check_source(mutable_borrow_const, 1) &&
+        check_source(borrow_temporary, 1) &&
+        check_source(shared_borrow_write, 1);
+}
+
 static int check_array_type_semantics(void) {
     const char* valid_params = "f:consume(a![], b!i32[], third:i32[5]) {}";
     const char* valid_matrix_param = "f:consume_matrix(matrix_data:f64[2][2]) {}";
@@ -2402,6 +2420,10 @@ int main(int argc, char** argv) {
     }
     if (!check_pointer_reference_type_semantics()) {
         fprintf(stderr, "Pointer/reference compatibility checks failed.\n");
+        return 1;
+    }
+    if (!check_borrow_expression_semantics()) {
+        fprintf(stderr, "Shared/mutable borrow Semantic checks failed.\n");
         return 1;
     }
     if (!check_array_type_semantics()) {
