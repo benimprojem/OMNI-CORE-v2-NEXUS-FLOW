@@ -191,6 +191,18 @@ f:main() {
 }
 ~~~
 
+#### Reference parameter kökeni ve scope kaçışı
+
+Bir fonksiyonun **&T** parametresi, çağıranın sağladığı referansın yaşam süresi kökenini taşır. Bu köken, aynı fonksiyon içindeki shared-reference yerel alias'larına ve desteklenen bir çağrının aynı reference parametresini döndürmesiyle oluşan sonuç binding'ine aktarılır.
+
+- Parametreden türetilen shared reference, yalnızca kaynak parametrenin yaşam süresini aşmayan bir scope içinde tutulabilir.
+- Parametre kökenli referansı global veya kaynak parametreden daha uzun ömürlü bir outer-scope binding'e kopyalamak Semantic hatasıdır. Tanı kaynak referansı, hedef binding'i ve scope kaçışını bildirir; öneri referansı yerel scope'ta tutmayı söyler.
+- Fonksiyon dönüş kökeni analizi, aynı reference parametresinin doğrudan döndürüldüğü desteklenen yolları tanır. Yerel alias üzerinden dönüş henüz call-return analizinde eşleştirilmediğinden fail-closed reddedilir.
+- Global/static ömürlü bir reference binding doğrudan döndürülebilir. Bilinmeyen veya tutarsız köken kabul edilmez.
+- Mutable reference kopyalanamaz. Kökeni izlenemeyen mutable parameter alias'ını başka bir çağrı üzerinden çoğaltmak desteklenmez; doğrudan **&mut owner** argümanları ve desteklenen return-origin yolları ayrı olarak denetlenir.
+
+Bu kurallar, parametre referansının geçerli bir çağrı içinde kullanılmasını engellemez; yalnızca referansın onu sağlayan kaynağın ömrünü aşmasını engeller.
+
 #### Borrow çakışması tanıları
 
 Çakışma tanısı istenen owner ve projection yolunu, etkin referansın adını/türünü ve onun yolunu bildirir. Öneri; ilgili referansın scope'unu bitirmeyi veya geçerli başka bir owner'a yeniden bağlamayı söyler. Ayrı struct alanları ve farklı sabit indeksler bağımsız olabilir; dinamik indeks ve bilinmeyen pointer kökeni konservatif değerlendirilir. Hata konumu, borrow ifadesinin kaynak konumundan alınır.
