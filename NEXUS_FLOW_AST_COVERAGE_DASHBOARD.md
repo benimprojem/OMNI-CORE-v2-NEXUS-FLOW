@@ -862,7 +862,7 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Safe borrows rooted in raw-pointer dereferences or computed lvalues without a statically known owner are rejected with a Semantic diagnostic rather than silently accepted without provenance.
 - Added nine regression cases covering array-index conflicts, writes through other indices, Struct-member conflicts, multiple shared member borrows, and fail-closed raw-pointer dereference borrowing.
 - Implementation commit: c37853cf563dee45fbd68c1d2c60337afb2941f4.
-- Verification status: no workflow run is currently associated with this commit; CI has not been verified. Keep the Pointer/reference Semantic row partial (~) until the full CI matrix passes. No completion mark is granted.
+- Initial CI run [43667759390](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43667759390) built successfully on all platforms but failed one Semantic test (72/73): a non-lvalue borrow received both the existing lvalue diagnostic and the new provenance diagnostic. Corrected this by allowing the unary-borrow validator to own non-lvalue diagnostics; fix commit: `bae218a6202dbda93005c8df654529e9fe46bd39`. Follow-up CI run [43667995370](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43667995370) is queued. Keep the Pointer/reference Semantic row partial (~) until all five CI jobs pass. No completion mark is granted.
 
 ## Semantic checkpoint — implicit function type variable `t` — 2026-11-15
 
