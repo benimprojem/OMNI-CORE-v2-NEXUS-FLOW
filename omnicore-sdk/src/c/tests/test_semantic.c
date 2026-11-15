@@ -1031,13 +1031,25 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
         "v:reference!&muti32 = &mut first; reference = &mut second; "
         "v:read!&i32 = &first; }";
+    const char* failed_reassignment_preserves_old_borrow =
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "v:reference!&i32 = &first; reference = second; "
+        "v:edit!&muti32 = &mut first; }";
+    const char* stored_reference_member_reassignment_is_rejected =
+        "struct: Box { v:reference!&i32 } "
+        "f:main() { v:first!i32 = 1; v:box!Box; box.reference = &first; }";
+    const char* stored_reference_index_reassignment_is_rejected =
+        "f:main() { v:first!i32 = 1; v:refs[1]!&i32; refs[0] = &first; }";
     return check_source(reassignment_releases_previous_owner, 0) &&
         check_source(reassignment_tracks_new_owner, 1) &&
         check_source(copying_shared_reference_tracks_owner, 1) &&
         check_source(copying_exclusive_reference_is_rejected, 1) &&
         check_source(outer_reference_cannot_escape_inner_owner, 1) &&
         check_source(later_declared_owner_cleanup_is_safe, 0) &&
-        check_source(mutable_reassignment_releases_old_owner, 0);
+        check_source(mutable_reassignment_releases_old_owner, 0) &&
+        check_source(failed_reassignment_preserves_old_borrow, 1) &&
+        check_source(stored_reference_member_reassignment_is_rejected, 1) &&
+        check_source(stored_reference_index_reassignment_is_rejected, 1);
 }
 
 static int check_borrow_aggregate_provenance_semantics(void) {
