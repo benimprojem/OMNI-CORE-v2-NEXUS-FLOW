@@ -6991,8 +6991,11 @@ static void semantic_check_node(
                                 "Aggregate '%s' field '%s' contains safe reference type '%s'; aggregate-contained reference ownership and lifetime tracking are not implemented.",
                                 sdecl->name ? sdecl->name : "<anonymous>",
                                 v->name, v->type_name);
-                            report_error(ctx, field_node,
-                                ERR_SEMANTIC_TYPE_MISMATCH, message);
+                            report_issue(ctx, field_node,
+                                ERR_SEMANTIC_TYPE_MISMATCH, message,
+                                "Keep the safe reference in a local reference binding until aggregate field ownership and lifetime tracking are implemented. Raw pointers are a separate unsafe storage contract.",
+                                "Keep the safe reference in a local reference binding until aggregate field ownership and lifetime tracking are implemented. Raw pointers are a separate unsafe storage contract.",
+                                0, 0);
                         }
 
                         if (v->inline_type && !v->type_expr)
