@@ -1354,7 +1354,7 @@ static int semantic_type_contains_safe_reference(
     if (type_slot->kind == SLOT_NEWTYPE)
         return semantic_type_contains_safe_reference(
             ctx, type_slot->type_name, depth + 1u);
-    if (type_slot->kind != SLOT_STRUCT) return 0;
+    if (type_slot->kind != SLOT_STRUCT && type_slot->kind != SLOT_UNION) return 0;
     for (field = type_slot->fields; field; field = field->next) {
         if (semantic_type_contains_safe_reference(
                 ctx, field->type_name, depth + 1u)) return 1;

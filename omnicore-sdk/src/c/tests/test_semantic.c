@@ -647,9 +647,13 @@ static int check_aggregate_reference_field_rejection_semantics(void) {
         "struct: Holder { v:reference!&muti32 } f:main() {}";
     const char* newtype_reference_field_is_rejected =
         "nt:Ref = &i32; struct: Holder { v:reference!Ref } f:main() {}";
+    const char* nested_union_reference_field_is_rejected =
+        "union: RefUnion { v:reference!&i32, v:raw!u64 } "
+        "struct: Wrapper { v:inner!RefUnion } f:main() {}";
     return check_source(shared_reference_field_is_rejected, 1) &&
         check_source(mutable_reference_field_is_rejected, 1) &&
-        check_source(newtype_reference_field_is_rejected, 1);
+        check_source(newtype_reference_field_is_rejected, 1) &&
+        check_source(nested_union_reference_field_is_rejected, 2);
 }
 
 static int check_struct_literal_semantics(void) {
