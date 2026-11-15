@@ -1652,32 +1652,447 @@ exf:read_data(!i32);          # Parametre adı eksik.
 ---
 
 # 23. Pointer
-### 23.1 Pointer tipi: *T
-### 23.2 Çok katmanlı pointer: **T
-### 23.3 Pointer bildirimi
-### 23.4 Dereference: *value
-### 23.5 Pointer ile atama
-### 23.6 Pointer'ın fonksiyon imzasında kullanımı
-### 23.7 Raw pointer sınırları
 
-## 24. Reference
-### 24.1 Shared reference: &T
-### 24.2 Mutable reference: &mut T
-### 24.3 Reference oluşturma
-### 24.4 Reference değişkeni
-### 24.5 Reference parametresi
-### 24.6 Reference dönüş tipi
-### 24.7 Alan ve indeks referansları
-### 24.8 Hatalı reference biçimleri
+Pointer, bir nesnenin bellekteki adresini taşıyan düşük seviyeli erişim türüdür. Nexus Flow'da raw pointer ile safe reference farklı kavramlardır: pointer doğrudan adres erişimi sağlar; reference ise borrow ve yaşam süresi kurallarına tabidir.
 
-## 25. Borrow ve ownership
-### 25.1 Borrow oluşturma
-### 25.2 Shared ve mutable borrow
-### 25.3 Reference kullanım kapsamı
-### 25.4 Alan ve indeks üzerinden borrow
-### 25.5 Fonksiyon çağrısında borrow argümanları
-### 25.6 Kaynak aktarımı ve borrow farkı
-### 25.7 Kullanım örnekleri ve hatalar
+**Önemli:** Raw pointer null, sınır, alias veya yaşam süresi güvenliği sağlamaz. Pointer kullanırken adresin geçerli olduğundan ve hedef nesnenin hâlâ yaşadığından programcı sorumludur.
+
+## 23.1 Pointer tipi: `*T`
+
+`*T`, T tipindeki bir nesneye işaret eden raw pointer türüdür:
+
+~~~nxf
+v:number_ptr!*i32;
+v:byte_ptr!*u8;
+~~~
+
+`!` açık tip belirtiminin parçasıdır; pointer katmanı tipteki `*` ile gösterilir.
+
+## 23.2 Çok katmanlı pointer: `**T`
+
+~~~nxf
+v:ptr!*i32;
+v:ptrptr!**i32;
+~~~
+
+`**T`, T'ye işaret eden pointer'a işaret eden pointer'dır. Her pointer katmanı ayrı dereference edilir.
+
+## 23.3 Pointer bildirimi ve değer atama
+
+~~~nxf
+v:value!i32 = 10;
+v:pointer!*i32 = &value;
+~~~
+
+Burada `&value` adres/borrow oluşturma ifadesidir. Bu örnek pointer ile safe reference arasında örtük dönüşüm garantisi vermez; raw pointer üretimi ve adres türü uyumluluğu hedef/semantik kurallarına tabidir.
+
+Raw pointer değişkenine tür uyumlu pointer değeri atanabilir:
+
+~~~nxf
+v:first!*i32;
+v:second!*i32;
+first = second;
+~~~
+
+Pointer değişkeninin kendisine yapılan atama, işaret ettiği nesneye yazma değildir. Hedef nesneye yazmak için dereference gerekir.
+
+## 23.4 Dereference: `*value`
+
+Unary `*` pointer'ın gösterdiği değere erişir:
+
+~~~nxf
+v:ptr!*i32;
+v:value!i32 = *ptr;
+~~~
+
+İki katmanlı pointer:
+
+~~~nxf
+v:outer!**i32;
+v:inner!*i32 = *outer;
+v:value!i32 = **outer;
+~~~
+
+- `*outer`: pointer'ın gösterdiği pointer değerini alır.
+- `**outer`: iki katmanı dereference ederek son hedefe ulaşır.
+- Pointer olmayan bir değeri dereference etmek geçersizdir.
+
+~~~nxf
+v:number!i32 = 10;
+v:invalid!i32 = *number; # number pointer değil.
+~~~
+
+## 23.5 Pointer üzerinden yazma
+
+Dereference edilmiş hedef bir lvalue olduğunda ona atama yapılabilir:
+
+~~~nxf
+v:ptr!*i32;
+*ptr = 42;
+*ptr += 1;
+~~~
+
+Bu işlem pointer değişkenini değil, pointer'ın gösterdiği nesneyi değiştirir. Hedefin geçerli, yazılabilir ve uygun tipte olması gerekir.
+
+~~~nxf
+*ptr = "text"; # Hedef i32 ise tip uyuşmazlığı.
+~~~
+
+## 23.6 Pointer ile fonksiyon parametresi
+
+~~~nxf
+f:write_value(ptr!*i32, value!i32) {
+    *ptr = value;
+}
+
+f:main() {
+    v:number!i32 = 10;
+    v:pointer!*i32 = &number;
+    write_value(pointer, 25);
+}
+~~~
+
+Pointer parametresi adresi taşır. Fonksiyonun hedef nesneye yazabilmesi, pointer'ın geçerli ve yazılabilir bir adrese işaret etmesine bağlıdır.
+
+## 23.7 Raw pointer sınırları
+
+Raw pointer için bu sürümde otomatik olarak sağlanmayan garantiler:
+
+- Null pointer kontrolü.
+- Pointer'ın geçerli belleğe işaret ettiğinin doğrulanması.
+- Array sınır kontrolü.
+- Pointer arithmetic kuralları.
+- Alias/provenance doğrulaması.
+- Hedef nesnenin yaşam süresinin pointer kullanımını kapsaması.
+
+Raw pointer ile safe reference arasında örtük dönüşüm varsaymayın. Pointer güvenliği gereken kodda adresin kaynağını, hedef tipini, yazılabilirliğini ve yaşam süresini açıkça yönetin.
+
+**Durum:** `*T`, `**T`, dereference ve pointer assignment biçimleri tanımlı. Nullability, pointer arithmetic ve raw pointer provenance kuralları kısmen tanımlı.
+
+---
+
+# 24. Reference
+
+Reference, bir nesneye borrow üzerinden erişim sağlar. Raw pointer'dan farklı olarak reference, kaynağın yaşam süresi ve erişim çakışması kurallarıyla denetlenir.
+
+## 24.1 Shared reference: `&T`
+
+`&T` paylaşımlı ve salt-okunur erişimdir:
+
+~~~nxf
+v:value!i32 = 10;
+v:read_only!&i32 = &value;
+v:another_read!&i32 = &value;
+~~~
+
+Aynı nesne için birden fazla shared reference oluşturulabilir. Shared reference üzerinden hedefe yazılamaz.
+
+~~~nxf
+*read_only = 20; # Shared reference üzerinden yazma geçersiz.
+~~~
+
+## 24.2 Mutable reference: `&mut T`
+
+`&mut T` tekil ve değiştirilebilir borrow'dur:
+
+~~~nxf
+v:value!i32 = 10;
+v:editable!&mut i32 = &mut value;
+*editable = 20;
+~~~
+
+Mutable reference aktifken aynı kaynak üzerinde başka shared/mutable borrow oluşturulamaz ve owner üzerinden doğrudan erişim yapılamaz. Bu kısıt borrow'un geçerli olduğu kapsam boyunca sürer.
+
+## 24.3 Reference oluşturma
+
+Shared borrow:
+
+~~~nxf
+v:read!&i32 = &value;
+~~~
+
+Mutable borrow:
+
+~~~nxf
+v:write!&mut i32 = &mut value;
+~~~
+
+`&value` shared borrow, `&mut value` mutable borrow oluşturur. Reference türü açık bildirimde `!&T` veya `!&mut T` biçiminde belirtilir.
+
+## 24.4 Reference değişkeni ve erişim
+
+Reference binding, referansın kendisini taşır. Hedef nesneye erişmek için dereference kullanılır:
+
+~~~nxf
+v:read!&i32 = &value;
+v:copy!i32 = *read;
+
+v:write!&mut i32 = &mut value;
+*write = 30;
+~~~
+
+Reference değişkenini yeniden atamak, hedef nesneye değer atamakla aynı işlem değildir. Mutable reference kopyalanamaz; shared reference ise borrow kuralları içinde paylaşılabilir.
+
+## 24.5 Reference parametresi
+
+~~~nxf
+f:inspect(value!&i32)!i32 {
+    ret *value;
+}
+
+f:update(value!&mut i32, next!i32) {
+    *value = next;
+}
+~~~
+
+- `&T` parametresi salt-okunur erişim sağlar.
+- `&mut T` parametresi tekil değiştirilebilir erişim sağlar.
+- Çağrı sırasında doğrudan `&owner` veya `&mut owner` ile geçici borrow oluşturulabilir.
+
+~~~nxf
+v:number!i32 = 10;
+inspect(&number);
+update(&mut number, 20);
+~~~
+
+Geçici borrow çağrı boyunca geçerlidir. Çağrı sonrasında borrow bırakılır; fonksiyonun referansı daha uzun süre saklaması veya döndürmesi ayrıca yaşam süresi kurallarına uymalıdır.
+
+## 24.6 Reference dönüş tipi
+
+Bir fonksiyon reference döndürebilir; ancak döndürülen referansın kaynağı çağrı sona erdikten sonra yaşamaya devam etmelidir.
+
+~~~nxf
+f:identity_ref(value!&i32)!&i32 {
+    ret value;
+}
+~~~
+
+Parametreden gelen reference'ın doğrudan geri döndürülmesi desteklenen return-origin biçimidir. Yerel bir değişkene ait reference'ı döndürmek, kaynak fonksiyon sona erdiğinde yaşam süresini aşacağı için geçersizdir.
+
+~~~nxf
+f:invalid_ref()!&i32 {
+    v:local!i32 = 10;
+    v:reference!&i32 = &local;
+    ret reference; # local fonksiyon sonunda yaşamını bitirir.
+}
+~~~
+
+## 24.7 Alan ve indeks referansları
+
+Borrow, aggregate içindeki belirli bir alan veya sabit indeks için oluşturulabilir:
+
+~~~nxf
+struct:Point {
+    v:x!i32,
+    v:y!i32
+}
+
+f:main() {
+    v:point!Point;
+    v:x_ref!&mut i32 = &mut point.x;
+    v:y_ref!&mut i32 = &mut point.y;
+}
+~~~
+
+Ayrı struct alanları bağımsız borrow edilebilir. Aynı alanın iki mutable borrow'u çakışır.
+
+Array'de farklı sabit indeksler ayrı projection kabul edilir:
+
+~~~nxf
+v:items[3]!i32 = [10, 20, 30];
+v:first!&mut i32 = &mut items[0];
+v:second!&mut i32 = &mut items[1];
+~~~
+
+Dinamik indeksler birbirinden bağımsız olduğu kanıtlanamadığından aynı array üzerindeki borrow'larla çakışabilir.
+
+## 24.8 Hatalı reference biçimleri
+
+~~~nxf
+v:bad!&mut;                # Referans hedef tipi eksik.
+v:bad!&&i32;               # Reference-to-reference türü tanımlı değil.
+v:bad!&mut i32 = &value;   # Mutable reference için mutable borrow gerekir.
+v:bad!&i32 = &mut value;  # Mutable borrow shared türüne örtük çevrilmez.
+~~~
+
+Safe reference alanlarını struct/union içinde saklamak bu sürümde desteklenmez. Reference'ı yerel binding olarak tutun; aggregate içi saklama için henüz tamamlanmamış provenance/lifetime kurallarını varsaymayın.
+
+**Durum:** `&T`, `&mut T`, borrow oluşturma, dereference, parametre, doğrudan reference dönüşü ve projection kuralları tanımlı. Aggregate içinde reference saklama ve bütün return-origin varyantları kısmen tanımlı.
+
+---
+
+# 25. Borrow ve ownership
+
+Borrow, bir nesnenin sahipliğini devretmeden ona geçici veya kapsamla sınırlı erişim sağlar. Ownership ise nesnenin hangi kapsamda yaşadığını ve ne zaman bırakılacağını belirler.
+
+## 25.1 Borrow oluşturma
+
+~~~nxf
+v:data!i32 = 10;
+v:shared!&i32 = &data;
+v:exclusive!&mut i32 = &mut data;
+~~~
+
+- `&data`: shared borrow.
+- `&mut data`: exclusive/mutable borrow.
+- Borrow oluşturmak nesnenin ownership'ini reference değişkenine taşımaz.
+
+## 25.2 Shared ve mutable borrow
+
+Aynı kaynak üzerinde birden fazla shared borrow birlikte bulunabilir:
+
+~~~nxf
+v:data!i32 = 10;
+v:first!&i32 = &data;
+v:second!&i32 = &data;
+~~~
+
+Mutable borrow tekildir:
+
+~~~nxf
+v:data!i32 = 10;
+v:edit!&mut i32 = &mut data;
+# edit aktifken data veya aynı kaynağa başka reference üzerinden erişim yasaktır.
+~~~
+
+Aynı projection için shared ve mutable borrow aynı anda bulunamaz. Ayrı struct alanları ve farklı sabit array indeksleri bağımsız borrow edilebilir.
+
+## 25.3 Reference kullanım kapsamı
+
+Reference, kaynağından daha uzun yaşayamaz:
+
+~~~nxf
+f:work() {
+    v:owner!i32 = 10;
+    v:reference!&i32 = &owner;
+    echo(*reference);
+}
+~~~
+
+Reference yerel owner'ın kapsamı içinde kullanılabilir. Owner kapsamı sona erdiğinde ona bağlı reference da geçersiz hale gelir; reference dış kapsama taşınamaz.
+
+## 25.4 Alan ve indeks üzerinden borrow
+
+~~~nxf
+struct:Position {
+    v:x!i32,
+    v:y!i32
+}
+
+f:main() {
+    v:position!Position;
+    v:x!&mut i32 = &mut position.x;
+    v:y!&mut i32 = &mut position.y;
+}
+~~~
+
+Projection kuralları:
+
+- `position.x` ve `position.y` ayrı alanlardır.
+- `position` tüm alanlarla çakışır.
+- `position.x` ile `position.x` çakışır.
+- `items[0]` ve `items[1]` farklı sabit indekslerdir.
+- Dinamik indeksler `items[*]` gibi tüm indekslerle çakışan bir erişim olarak değerlendirilir.
+- Union üyeleri aynı depolamayı paylaştığından birbirleriyle çakışır.
+
+## 25.5 Fonksiyon çağrısında borrow argümanları
+
+~~~nxf
+f:edit_pair(a!&mut i32, b!&mut i32) {
+    *a += 1;
+    *b += 1;
+}
+
+f:main() {
+    struct:Pair { v:left!i32, v:right!i32 }
+    v:pair!Pair;
+    edit_pair(&mut pair.left, &mut pair.right);
+}
+~~~
+
+Aynı çağrıda bağımsız alanlar için mutable borrow kullanılabilir. Aynı alanı iki kez mutable borrow etmek geçersizdir:
+
+~~~nxf
+edit_pair(&mut pair.left, &mut pair.left); # Borrow çakışması.
+~~~
+
+Shared/shared argüman borrow'ları izinlidir. Shared/exclusive veya exclusive/exclusive çakışmaları reddedilir.
+
+## 25.6 Kaynak aktarımı ve borrow farkı
+
+Borrow kaynak nesnenin ownership'ini değiştirmez. Nexus Flow'daki relocate `_>` ise sahiplik/kaynak aktarımıdır; borrow ile aynı işlem değildir.
+
+~~~nxf
+v:source!Resource;
+v:borrow!&Resource = &source;
+~~~
+
+Bu örnekte source sahibi olmaya devam eder; borrow yalnızca erişim sağlar. Relocate kullanıldığında kaynak sahipliği aktarım kurallarına göre değişir (Bölüm 28).
+
+## 25.7 Borrow hataları ve düzeltme
+
+**Mutable borrow çakışması**
+
+~~~nxf
+v:data!i32 = 10;
+v:first!&mut i32 = &mut data;
+v:second!&mut i32 = &mut data; # Hata: ikinci exclusive borrow.
+~~~
+
+Düzeltme: İlk reference'ın kullanım kapsamını bitirin veya aynı anda yalnızca bir mutable reference kullanın.
+
+**Shared borrow varken owner üzerinden yazma**
+
+~~~nxf
+v:data!i32 = 10;
+v:read!&i32 = &data;
+data = 20; # Hata: aktif shared borrow.
+~~~
+
+Düzeltme: Shared reference'ın kullanımını bitirin; ardından owner üzerinden yazın.
+
+**Mutable borrow varken owner üzerinden erişme**
+
+~~~nxf
+v:data!i32 = 10;
+v:edit!&mut i32 = &mut data;
+v:copy!i32 = data; # Hata: exclusive borrow aktif.
+~~~
+
+Düzeltme: Değeri `*edit` üzerinden okuyun veya mutable borrow kapsamını bitirin.
+
+**Scope dışına reference kaçırma**
+
+~~~nxf
+f:invalid()!&i32 {
+    v:local!i32 = 10;
+    ret &local; # Hata: yerel owner sona eriyor.
+}
+~~~
+
+Düzeltme: Çağıranın yaşam süresini aşmayan bir kaynaktan reference döndürün veya değeri kopyalayarak döndürün.
+
+**Aggregate içine reference saklama**
+
+~~~nxf
+struct:Holder {
+    v:reference!&i32
+}
+~~~
+
+Bu sürümde safe reference alanı desteklenmez. Reference'ı ayrı yerel binding olarak tutun.
+
+## 25.8 Borrow tanılarının okunması
+
+Borrow hatasında tanı şu bilgileri vermelidir:
+
+- Borrow oluşturulan kaynak ve projection yolu (ör. `point.x`).
+- Çakışan aktif reference'ın adı ve türü.
+- Çakışmanın shared/exclusive niteliği.
+- Hatanın kaynak konumu.
+- Mümkünse düzeltme önerisi: önceki borrow kapsamını bitirmek, ayrı alan kullanmak veya owner erişimini borrow sonrasına taşımak.
+
+**Durum:** Shared/exclusive borrow, projection çakışmaları, çağrı argümanları ve lexical owner lifetime kuralları tanımlı. Aggregate reference saklama, bütün alias/return-origin biçimleri ve raw-pointer provenance güvenliği tamamlanmamıştır.
 
 ---
 
