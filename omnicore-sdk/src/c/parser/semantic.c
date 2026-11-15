@@ -303,12 +303,13 @@ static void report_error(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
    that keeps the conflicting borrow alive. The node span points at the
    rejected expression; the hint explains the least surprising repair. */
 static const Slot* semantic_find_active_borrower(
-    const SemanticContext* ctx, const Slot* owner
+    const SemanticContext* ctx, const Slot* owner, const char* requested_path
 ) {
     const Slot* current;
     if (!ctx || !owner) return NULL;
     for (current = ctx->head; current; current = current->next) {
-        if (current->borrowed_from == owner && current->borrow_kind != 0u)
+        if (current->borrowed_from == owner && current->borrow_kind != 0u &&
+            semantic_borrow_paths_overlap(requested_path, current->borrow_path))
             return current;
     }
     return NULL;
@@ -316,37 +317,44 @@ static const Slot* semantic_find_active_borrower(
 
 static void report_borrow_conflict(
     SemanticContext* ctx, ASTNode* node, Slot* owner, int requested_mutable,
-    const char* operation
+    const char* requested_path, const char* operation
 ) {
-    const Slot* active = semantic_find_active_borrower(ctx, owner);
+    const Slot* active = semantic_find_active_borrower(
+        ctx, owner, requested_path);
     const char* active_name = active && active->name
         ? active->name : "<temporary call argument>";
     const char* active_kind = active && active->borrow_kind == 2u
         ? "exclusive mutable" : "shared";
-    char message[512];
+    const char* active_path = active && active->borrow_path &&
+        active->borrow_path[0] ? active->borrow_path : "<whole value>";
+    const char* requested = requested_path && requested_path[0]
+        ? requested_path : "<whole value>";
+    char message[640];
     char suggestion[512];
     const char* owner_name = owner && owner->name ? owner->name : "<unknown>";
     if (requested_mutable) {
         (void)snprintf(message, sizeof(message),
-            "Cannot %s '%s': %s borrow '%s' is still active on this owner; "
-            "a new exclusive mutable borrow would overlap it.",
-            operation ? operation : "borrow", owner_name, active_kind, active_name);
+            "Cannot %s '%s' at path '%s': %s borrow '%s' at path '%s' "
+            "is still active; the two projections overlap.",
+            operation ? operation : "borrow", owner_name, requested,
+            active_kind, active_name, active_path);
         (void)snprintf(suggestion, sizeof(suggestion),
-            "End the scope of reference '%s' (or reassign it to a different valid "
-            "owner) before borrowing '%s' mutably. If the accesses are independent "
-            "struct fields or fixed array elements, path-sensitive borrow checking "
-            "is not implemented yet, so this version conservatively treats the "
-            "whole owner as one borrow region.",
-            active_name, owner_name);
+            "End the scope of reference '%s' (or reassign it to a different "
+            "valid owner) before borrowing this overlapping path mutably. "
+            "Disjoint struct fields and distinct constant array indexes may "
+            "be borrowed independently; dynamic indexes and unknown pointer "
+            "provenance are treated conservatively.",
+            active_name);
     } else {
         (void)snprintf(message, sizeof(message),
-            "Cannot %s '%s': exclusive mutable borrow '%s' is still active; "
-            "shared access would overlap the mutable reference.",
-            operation ? operation : "borrow", owner_name, active_name);
+            "Cannot %s '%s' at path '%s': exclusive mutable borrow '%s' "
+            "at path '%s' is still active; shared access would overlap it.",
+            operation ? operation : "borrow", owner_name, requested,
+            active_name, active_path);
         (void)snprintf(suggestion, sizeof(suggestion),
-            "Use reference '%s' for the access, or end its scope before creating "
-            "a shared reference to '%s'.",
-            active_name, owner_name);
+            "Use reference '%s' for this access, or end its scope before "
+            "accessing the overlapping path '%s'.",
+            active_name, requested);
     }
     report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
         message, suggestion, suggestion, 0, 0);
@@ -4738,7 +4746,7 @@ static void semantic_register_borrow_binding(
                 ctx, owner, projection_path, borrower) == UINT32_MAX)) {
             free(projection_path);
             report_borrow_conflict(
-                ctx, (ASTNode*)borrow, owner, is_mutable,
+                ctx, (ASTNode*)borrow, owner, is_mutable, projection_path,
                 is_mutable ? "create an exclusive mutable borrow of"
                            : "create a shared borrow of");
             return;
