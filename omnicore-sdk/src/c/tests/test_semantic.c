@@ -1036,7 +1036,7 @@ static int check_reference_initializer_provenance_semantics(void) {
         check_source(returned_reference_parameter_preserves_origin, 1) &&
         check_source(returned_reference_binding_preserves_origin, 1) &&
         check_source(returned_mutable_reference_parameter_preserves_origin, 1) &&
-        check_source(call_return_reference_without_verified_origin_is_rejected, 1);
+        check_source(call_return_reference_without_verified_origin_is_rejected, 2);
 }
 
 static int check_safe_reference_return_lifetime_semantics(void) {
