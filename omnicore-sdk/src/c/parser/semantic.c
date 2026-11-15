@@ -4070,11 +4070,8 @@ static void semantic_register_borrow_binding(
     borrow = (ASTUnaryExpr*)initializer;
     if (borrow->op != TOKEN_BIT_AND && borrow->op != TOKEN_BORROW_MUT)
         return;
-    if (!borrow->operand || borrow->operand->type != AST_IDENTIFIER) {
-        report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
-            "Borrow binding currently requires a direct identifier owner.");
-        return;
-    }
+    if (!borrow->operand || borrow->operand->type != AST_IDENTIFIER)
+        return; /* The unary-borrow checker reports non-lvalue operands once. */
     identifier = (ASTIdentifier*)borrow->operand;
     owner = find_slot(ctx, identifier->name);
     if (!owner) return;
