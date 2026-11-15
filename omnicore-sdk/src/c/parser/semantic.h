@@ -28,6 +28,10 @@ typedef struct Slot {
     SlotKind kind;
     int is_const;
     int is_moved;          /* Ownership transferred by TOKEN_RELOCATE. */
+    uint32_t shared_borrow_count;
+    uint8_t mutable_borrow_active;
+    uint8_t borrow_kind;    /* 0 none, 1 shared, 2 exclusive. */
+    struct Slot* borrowed_from;
     int depth; // Scope derinliği
     char* type_name;      // Değişken tipi, Fonksiyon dönüş tipi veya NewType hedefi
     ASTNode* declaration_node; // Non-owning AST declaration for signature validation
