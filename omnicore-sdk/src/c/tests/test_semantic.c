@@ -1031,12 +1031,31 @@ static int check_reference_initializer_provenance_semantics(void) {
     const char* call_return_reference_without_verified_origin_is_rejected =
         "f:make()!&i32 { ret null; } "
         "f:main() { v:copy!&i32 = make(); }";
+    const char* named_return_parameter_maps_to_correct_argument =
+        "f:second(left!&i32,right!&i32)!&i32 { ret right; } "
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "v:copy!&i32 = second(right:&second,left:&first); "
+        "v:edit!&muti32 = &mut second; }";
+    const char* inconsistent_return_origins_are_rejected =
+        "f:choose(left!&i32,right!&i32)!&i32 { "
+        "if (true) { ret left; } els { ret right; } } "
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "v:copy!&i32 = choose(&first,&second); }";
+    const char* consistent_branch_return_origin_is_preserved =
+        "f:identity(value!&i32)!&i32 { "
+        "if (true) { ret value; } els { ret value; } } "
+        "f:main() { v:owner!i32 = 1; "
+        "v:copy!&i32 = identity(&owner); "
+        "v:edit!&muti32 = &mut owner; }";
     return check_source(shared_reference_initializer_copy_tracks_owner, 1) &&
         check_source(exclusive_reference_initializer_copy_is_rejected, 1) &&
         check_source(returned_reference_parameter_preserves_origin, 1) &&
         check_source(returned_reference_binding_preserves_origin, 1) &&
         check_source(returned_mutable_reference_parameter_preserves_origin, 1) &&
-        check_source(call_return_reference_without_verified_origin_is_rejected, 2);
+        check_source(call_return_reference_without_verified_origin_is_rejected, 2) &&
+        check_source(named_return_parameter_maps_to_correct_argument, 1) &&
+        check_source(inconsistent_return_origins_are_rejected, 1) &&
+        check_source(consistent_branch_return_origin_is_preserved, 1);
 }
 
 static int check_safe_reference_return_lifetime_semantics(void) {
