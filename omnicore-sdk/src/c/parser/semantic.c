@@ -4746,11 +4746,11 @@ static void semantic_register_borrow_binding(
                 ctx, owner, projection_path, is_mutable, borrower) ||
             (!is_mutable && semantic_shared_borrows_on_path(
                 ctx, owner, projection_path, borrower) == UINT32_MAX)) {
-            free(projection_path);
             report_borrow_conflict(
                 ctx, (ASTNode*)borrow, owner, is_mutable, projection_path,
                 is_mutable ? "create an exclusive mutable borrow of"
                            : "create a shared borrow of");
+            free(projection_path);
             return;
         }
         semantic_release_borrow_binding(borrower);
