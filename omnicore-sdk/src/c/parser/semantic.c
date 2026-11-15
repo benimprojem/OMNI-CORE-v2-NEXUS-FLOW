@@ -5078,8 +5078,10 @@ static void semantic_check_node(
             {
                 Slot* owner = semantic_lvalue_root_slot(ctx, node);
                 char* path = semantic_lvalue_path(node);
-                if (owner && (!path ||
-                    semantic_borrow_conflicts(ctx, owner, path, 0, NULL))) {
+                if (owner && ctx->borrow_operand_depth == 0u &&
+                    ctx->assignment_target_depth == 0u &&
+                    (!path ||
+                     semantic_borrow_conflicts(ctx, owner, path, 0, NULL))) {
                     report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
                         "Cannot read this indexed element while an overlapping exclusive mutable borrow is active.");
                 }
@@ -6709,8 +6711,10 @@ static void semantic_check_node(
             {
                 Slot* owner = semantic_lvalue_root_slot(ctx, node);
                 char* path = semantic_lvalue_path(node);
-                if (owner && (!path ||
-                    semantic_borrow_conflicts(ctx, owner, path, 0, NULL))) {
+                if (owner && ctx->borrow_operand_depth == 0u &&
+                    ctx->assignment_target_depth == 0u &&
+                    (!path ||
+                     semantic_borrow_conflicts(ctx, owner, path, 0, NULL))) {
                     report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
                         "Cannot read this member while an overlapping exclusive mutable borrow is active.");
                 }
