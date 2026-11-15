@@ -1268,52 +1268,390 @@ defer bir statement veya blok biçimindeki işlemi ertelenmiş işlem olarak tan
 # Bölüm V — Fonksiyonlar, Group ve çağrılar
 
 ## 18. Fonksiyon bildirimi
-### 18.1 f:name(...) biçimi
-### 18.2 Parametre bildirimi
-### 18.3 Parametre tipleri
-### 18.4 Dönüş tipi
-### 18.5 Fonksiyon gövdesi
-### 18.6 Varsayılan parametreler
-### 18.7 Fonksiyon tipi ve callback
-### 18.8 Variadic parametreler
 
-## 19. Fonksiyon çağrısı
-### 19.1 Konumsal argümanlar
-### 19.2 İsimli argümanlar
-### 19.3 Konumsal ve isimli argümanların sırası
-### 19.4 İç içe çağrılar
-### 19.5 Argüman ayraçları
-### 19.6 Hatalı çağrı örnekleri
+Fonksiyonlar `f:` önekiyle tanımlanır. Fonksiyon adı, parametre listesi ve isteğe bağlı dönüş tipi imzasını oluşturur; gövde süslü parantez içinde yazılır.
 
-## 20. Lambda ve callable ifadeler
-### 20.1 Expression-body lambda
-### 20.2 Block-body lambda
-### 20.3 Lambda parametreleri
-### 20.4 Lambda kullanımı
-### 20.5 Fonksiyon tipi ile lambda ayrımı
-### 20.6 Capture biçimleri
+## 18.1 Temel biçim
 
-## 21. Group ve method
-### 21.1 Group bildirimi
-### 21.2 Group alanları
-### 21.3 Method tanımı
-### 21.4 Instance method ve receiver
-### 21.5 Static method
-### 21.6 Method çağrısı
-### 21.7 Group içinde tip ve method kullanımı
+~~~nxf
+f:add(a!i32, b!i32)!i32 {
+    ret a + b;
+}
 
-## 22. Harici fonksiyon bildirimi
-### 22.1 exf: bildirimi
-### 22.2 Harici fonksiyon imzası
-### 22.3 Link name
-### 22.4 Parametre ve dönüş tipi
-### 22.5 Hatalı extern bildirimleri
+f:log(message!str) {
+    echo(message);
+}
+~~~
+
+Genel biçim:
+
+~~~text
+f:name(parameter_list)!return_type {
+    statements
+}
+~~~
+
+- `f:` fonksiyon bildirimini başlatır.
+- Parametreler parantez içinde virgülle ayrılır.
+- Parametre tipi `!Type` ile açıkça yazılabilir.
+- `!ReturnType` dönüş tipini belirtir.
+- Dönüş tipi yazılmadığında fonksiyonun dönüş sözleşmesi ayrıca değerlendirilir; değer döndüren fonksiyonlarda dönüş tipini açık yazmak önerilir.
+
+## 18.2 Parametre bildirimi
+
+Parametre adı ve tipi şu biçimde yazılır:
+
+~~~nxf
+f:scale(value!f32, factor!f32)!f32 {
+    ret value * factor;
+}
+~~~
+
+Parametre adı zorunludur. Aynı parametre listesinde isimler benzersiz olmalıdır.
+
+~~~nxf
+f:invalid(value!i32, value!i32) {}
+~~~
+
+Bu örnekte `value` iki kez tanımlandığı için parametre adı çakışır.
+
+## 18.3 Parametre tipleri
+
+Parametreler ilkel tip, kullanıcı tanımlı tip, pointer veya reference tipi taşıyabilir:
+
+~~~nxf
+f:print_point(point!Point) {
+    echo(point.x);
+}
+
+f:read_value(ptr!*i32)!i32 {
+    ret *ptr;
+}
+~~~
+
+Pointer ve reference parametrelerinin erişim, geçerlilik ve yaşam süresi kuralları Bölüm 23–25'te açıklanır. Parametreye tip yazmak, çağrı sırasında verilen argümanın bu tipe uygun olmasını gerektirir.
+
+## 18.4 Dönüş tipi
+
+Dönüş tipi fonksiyon imzasında parametre listesinden sonra `!Type` ile belirtilir:
+
+~~~nxf
+f:sum(a!i32, b!i32)!i32 {
+    ret a + b;
+}
+~~~
+
+Değer döndüren fonksiyon `ret expression;` kullanır. Değer döndürmeyen fonksiyon `ret;` ile sonlandırılabilir.
+
+~~~nxf
+f:reset() {
+    clear_state();
+    ret;
+}
+~~~
+
+Dönüş tipi ile `ret` ifadesinin uyumlu olması gerekir. Her yürütme yolunda dönüş değeri gerektiren bir fonksiyonun uygun değer döndürmesi gerekir.
+
+## 18.5 Fonksiyon gövdesi
+
+Fonksiyon gövdesi normal blok kurallarını izler. Yerel bildirimler, koşullar, döngüler ve başka fonksiyon çağrıları kullanılabilir:
+
+~~~nxf
+f:calculate(input!i32)!i32 {
+    v:result = input * 2;
+    if (result > 100) {
+        ret 100;
+    }
+    ret result;
+}
+~~~
+
+Fonksiyon içindeki yerel isimler fonksiyonun ve iç blokların kapsam kurallarına tabidir.
+
+## 18.6 Varsayılan parametreler
+
+Varsayılan parametre değerlerinin tam yazım biçimi ve değerlendirme kuralları bu sürümde kesinleştirilmemiştir.
+
+**Durum:** Kısmen tanımlı. Kesinleşmemiş bir default-parametre biçimi geçerli Nexus Flow sözdizimi olarak kullanılmamalıdır.
+
+## 18.7 Fonksiyon tipi ve callback
+
+Fonksiyon tipi/callback kullanımının tüm imza, atama ve dönüş varyantları henüz tek bir kesin sözleşme halinde belgelenmemiştir. Fonksiyon adıyla çağrı yapmak ile callable bir değeri çağırmak aynı şey varsayılmamalıdır.
+
+**Durum:** Kısmen tanımlı.
+
+## 18.8 Variadic parametreler
+
+Variadic fonksiyon parametrelerinin yazımı ve argüman toplama kuralları henüz tanımlanmamıştır.
+
+**Durum:** Tasarım ayrıntısı bekleniyor.
 
 ---
 
-# Bölüm VI — Pointer, reference ve kaynak akışı
+# 19. Fonksiyon çağrısı
 
-## 23. Pointer
+Fonksiyon, adı ve ardından parantez içindeki argüman listesiyle çağrılır.
+
+## 19.1 Konumsal argümanlar
+
+~~~nxf
+v:result = add(10, 20);
+log("started");
+~~~
+
+Konumsal argümanlar parametre sırasına göre eşleşir. Argüman sayısı ve tipleri fonksiyon imzasıyla uyumlu olmalıdır.
+
+## 19.2 İsimli argümanlar
+
+~~~nxf
+configure(width: 800, height: 600);
+open(path, mode: read);
+~~~
+
+İsimli argüman `name: expression` biçimindedir. İsim, fonksiyonun parametre adıyla eşleşmelidir.
+
+## 19.3 Argüman sırası
+
+Konumsal argümanlar isimli argümanlardan önce yazılır. İsimli argüman başladıktan sonra konumsal argüman yazılmaz.
+
+~~~nxf
+configure(800, height: 600);       # Geçerli sıra
+configure(width: 800, 600);         # Hatalı: isimli argümandan sonra konumsal
+~~~
+
+Aynı isimli parametre bir çağrıda iki kez verilemez:
+
+~~~nxf
+configure(width: 800, width: 1024); # Hatalı: width yineleniyor
+~~~
+
+## 19.4 İç içe çağrılar
+
+~~~nxf
+v:result = add(read_left(), read_right());
+print(format(result));
+~~~
+
+Bir argüman başka bir fonksiyon çağrısı olabilir. Parantezlerin ve virgüllerin doğru eşleştirilmesi gerekir.
+
+## 19.5 Argüman ayraçları
+
+Argümanlar virgülle ayrılır. Son argümandan sonra fazladan virgül kullanımı bu sürümde geçerli biçim olarak belgelenmemiştir.
+
+~~~nxf
+add(1, 2);      # Doğru
+add(1 2);       # Hatalı: virgül eksik
+add(, 2);       # Hatalı: ilk argüman eksik
+add(1,);        # Hatalı/henüz desteklenmiyor: boş son argüman
+~~~
+
+## 19.6 Çağrı hataları
+
+~~~nxf
+add(1);                 # Parametre eksik
+add(1, 2, 3);           # Fazla argüman
+add(a: 1);              # İsim imzada yoksa geçersiz
+add(value: 1, value: 2);# Parametre adı yineleniyor
+~~~
+
+Hata mesajı mümkün olduğunda çağrı konumunu, beklenen parametreyi ve verilen argümanı belirtmelidir. İsimli argümanlarda parametre adıyla eşleşme kontrol edilir.
+
+**Durum:** Konumsal/isimli çağrı ve argüman sırası tanımlı.
+
+---
+
+# 20. Lambda ve callable ifadeler
+
+Lambda, bir fonksiyon gövdesini değer olarak ifade etmeye yarar. Nexus Flow'da lambda ile normal isimli fonksiyon bildirimi birbirinden farklıdır: lambda bir ifade bağlamında yazılır, `f:name(...)` ise isimli fonksiyon tanımlar.
+
+## 20.1 Expression-body lambda
+
+~~~nxf
+v:double = (x!i32) => x * 2;
+~~~
+
+Expression-body biçiminde `=>` sonrasında tek bir ifade bulunur. Bu ifadenin sonucu lambda sonucudur.
+
+## 20.2 Block-body lambda
+
+~~~nxf
+v:handler = (value!i32) => {
+    v:result = value + 1;
+    ret result;
+};
+~~~
+
+Block-body lambda süslü parantezle gövde oluşturur. Gövde içinde statement'lar ve `ret` kullanılabilir.
+
+## 20.3 Parametreler
+
+~~~nxf
+v:combine = (left!i32, right!i32) => left + right;
+~~~
+
+Lambda parametreleri normal fonksiyon parametreleri gibi isim ve tip taşıyabilir. Parametre isimleri benzersiz olmalıdır.
+
+## 20.4 Lambda kullanımı
+
+~~~nxf
+v:transform = (value!i32) => value * 3;
+v:result = transform(10);
+~~~
+
+Lambda bir değişkene bağlandıktan sonra callable olarak kullanılabilir olduğu durumda çağrı biçimi normal fonksiyon çağrısına benzer. Callable değerlerin tüm tip çıkarımı ve atama kuralları henüz eksiksiz belgelenmemiştir.
+
+## 20.5 Fonksiyon ile lambda ayrımı
+
+~~~nxf
+f:triple(value!i32)!i32 {
+    ret value * 3;
+}
+
+v:triple_value = (value!i32) => value * 3;
+~~~
+
+İlk biçim isimli fonksiyon tanımlar. İkinci biçim lambda ifadesi oluşturur. İsimli fonksiyonun gövdesi bildirim içinde; lambda gövdesi bir ifade içinde yer alır.
+
+## 20.6 Capture
+
+Lambda dış kapsamdan değer veya referans yakalama biçimlerinin kesin sözdizimi ve yaşam süresi kuralları henüz tamamlanmamıştır. Capture listesi veya örtük capture biçimi tahmin edilerek kullanılmamalıdır.
+
+**Durum:** Temel lambda yazımı tanımlı; callable tip uyumu ve capture ayrıntıları kısmen tanımlı.
+
+---
+
+# 21. Group ve method
+
+Group, alanları ve bu alanlar üzerinde çalışan method'ları bir arada tanımlamak için kullanılır. Group içindeki method'lar receiver üzerinden group verisine erişebilir.
+
+## 21.1 Group bildirimi
+
+~~~nxf
+group:Counter {
+    v:value!i32;
+
+    f:increment() {
+        self.value += 1;
+    }
+
+    f:get()!i32 {
+        ret self.value;
+    }
+}
+~~~
+
+Group adı zorunludur. Alanlar `v:` ile, method'lar `f:` ile tanımlanır. Group gövdesi süslü parantez içinde yazılır.
+
+## 21.2 Group alanları
+
+~~~nxf
+group:Point {
+    v:x!f32;
+    v:y!f32;
+}
+~~~
+
+Group alanları isim ve tip bildirimi taşır. Alan adları aynı group içinde benzersiz olmalıdır. Alanların başlangıç değerleri ve otomatik oluşturma kuralları, kullanılan group oluşturma biçimine bağlıdır.
+
+## 21.3 Method tanımı
+
+~~~nxf
+group:Counter {
+    v:value!i32;
+
+    f:add(amount!i32) {
+        self.value += amount;
+    }
+}
+~~~
+
+Method, group gövdesinde normal `f:` bildirimiyle yazılır. Method parametreleri normal fonksiyon parametre kurallarını izler.
+
+## 21.4 Receiver ve self
+
+Group method içinde `self` mevcut group örneğini/receiver'ı ifade eder:
+
+~~~nxf
+f:set(value!i32) {
+    self.value = value;
+}
+~~~
+
+`self` method'un receiver erişimidir; normal bir kullanıcı parametresi olarak yeniden tanımlanmaz. Method çağrısında receiver ayrıca aktarılır ve method'un argüman sayısına kullanıcı tarafından yazılan parametreler esas alınır.
+
+## 21.5 Method çağrısı
+
+~~~nxf
+counter.increment();
+v:value = counter.get();
+counter.add(5);
+~~~
+
+Method çağrısı receiver, nokta ve method adıyla yazılır. Parametreler method adından sonra parantez içinde verilir.
+
+## 21.6 Receiver ile fonksiyon biçimi
+
+Receiver'ı açıkça bir parametre/argüman akışı içinde aktarmak gerektiğinde normal fonksiyon çağrısı biçimi kullanılabilir:
+
+~~~nxf
+(counter) -> process(counter);
+~~~
+
+Bu biçim lambda zorunluluğu değildir; receiver veya değer aktarımını ifade eden akış biçimidir. Kullanımın ayrıntıları Bölüm 26'da ele alınır.
+
+## 21.7 Group kullanım sınırları
+
+Group oluşturma, alanların başlangıç değerleri, kopyalama/taşıma ve method receiver yaşam süresi kuralları bu kılavuzun ilgili type ve ownership bölümleriyle birlikte değerlendirilmelidir.
+
+**Durum:** Group alanları, method, `self` ve method çağrısı tanımlı. Oluşturma ve yaşam süresi ayrıntıları ilgili bölümlerde tamamlanacaktır.
+
+---
+
+# 22. Harici fonksiyon bildirimi
+
+Harici fonksiyonlar `exf:` önekiyle bildirilir. Bu bildirim, program içinde çağrılacak ancak gövdesi Nexus Flow kaynak dosyasında bulunmayan bir fonksiyonun imzasını tanımlar.
+
+## 22.1 Temel biçim
+
+~~~nxf
+exf:external_name(arg!i32)!i32;
+~~~
+
+Harici fonksiyon bildirimi bir imza tanımlar ve noktalı virgülle biter; fonksiyon gövdesi içermez.
+
+## 22.2 Parametre ve dönüş tipi
+
+~~~nxf
+exf:read_data(buffer!*u8, length!u32)!i32;
+~~~
+
+Parametreler normal fonksiyon parametreleri gibi yazılır. Dönüş tipi varsa parametre listesinden sonra `!Type` ile belirtilir.
+
+## 22.3 Harici isim ve bağlantı
+
+Harici fonksiyonun gerçek sembol adı, bağlantı sistemi ve platform ABI'si ile uyumlu olmalıdır. Nexus Flow bildiriminin tek başına harici sembolün varlığını veya bağlantının başarılı olacağını garanti etmediği unutulmamalıdır.
+
+## 22.4 Çağrı
+
+~~~nxf
+v:status = external_name( buffer, length );
+~~~
+
+Harici fonksiyon çağrısı normal fonksiyon çağrısı biçimindedir. Argüman tipleri ve ABI sözleşmesi harici fonksiyonla uyumlu olmalıdır.
+
+## 22.5 Hatalı bildirimler
+
+~~~nxf
+exf:read_data(buffer!u8) { }  # Harici bildirim gövde taşımaz.
+exf:read_data(buffer!u8)      # İmza sonlandırıcısı eksik.
+exf:read_data(!i32);          # Parametre adı eksik.
+~~~
+
+**Durum:** Temel `exf:` imza bildirimi tanımlı; harici sembol adı eşleme, calling convention ve ABI ayrıntıları kısmen tanımlı.
+
+---
+
+# 23. Pointer
 ### 23.1 Pointer tipi: *T
 ### 23.2 Çok katmanlı pointer: **T
 ### 23.3 Pointer bildirimi
