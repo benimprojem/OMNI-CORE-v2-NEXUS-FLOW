@@ -622,46 +622,401 @@ Geçersizdir: Struct literal alan başlatıcısı `:` değil `=` bekler.
 
 # Part III — İfadeler ve operatörler
 
-## 10. İfadeler
-### 10.1 Literal ve identifier ifadeleri
-### 10.2 Unary ifadeler
-### 10.3 Binary ifadeler
-### 10.4 Postfix ifadeler
-### 10.5 Fonksiyon çağrısı
-### 10.6 Member erişimi
-### 10.7 Index erişimi
-### 10.8 Tuple ve array ifadeleri
-### 10.9 Struct literal ifadeleri
-### 10.10 Cast ifadesi
-### 10.11 Named argument yazımı
-### 10.12 İfade gruplama
+# 10. İfadeler
 
-## 11. Operatörler
-### 11.1 Aritmetik operatörler
-### 11.2 Üs alma: `^^`
-### 11.3 Karşılaştırma operatörleri
-### 11.4 Mantıksal operatörler
-### 11.5 Bit düzeyinde operatörler
-### 11.6 Sayısal bit kaydırma operatörleri
-### 11.7 Atama ve bileşik atama
-### 11.8 Artırma ve azaltma
-### 11.9 Unary pointer dereference
-### 11.10 Operatör önceliği ve birleşme yönü
-### 11.11 Nexus Flow operatörleriyle ayrım
+## 10.1 Amaç ve AST temsili
 
-## 12. Yerleşik ifade biçimleri
-### 12.1 `cast(...)`
-### 12.2 `typeof(...)`
-### 12.3 `sizeof(...)`
-### 12.4 `len(...)`
-### 12.5 `is_ok`, `is_err`, `is_some`, `is_none`, `is_null`
-### 12.6 `area` ve `zone` kaynak biçimleri
-### 12.7 `addr` ve bellek erişim ifadeleri
-### 12.8 Tarih, saat ve clock ifadeleri
-### 12.9 `swap`, `unpack` ve diğer AST-backed ifadeler
-### 12.10 Echo ve diğer I/O çağrı biçimleri
+Expression; literal, isim, çağrı, erişim, operatör veya bunların birleşiminden oluşur. Parser temel biçimleri `AST_LITERAL`, `AST_IDENTIFIER`, `AST_BINARY_EXPR`, `AST_UNARY_EXPR`, `AST_FUNC_CALL` ve özel expression düğümleriyle temsil eder.
+
+## 10.2 Primary expression
+
+Parser'ın tanıdığı temel biçimler:
+
+| Biçim | Örnek | AST |
+|---|---|---|
+| Sayısal/string/char literal | `42`, `"text"`, `'A'` | `AST_LITERAL` |
+| Boolean/null | `true`, `false`, `null` | `AST_LITERAL` |
+| İsim | `value` | `AST_IDENTIFIER` |
+| Parantezli expression | `(a + b)` | İç expression |
+| Tuple | `(a, b)` | `AST_TUPLE` |
+| Array literal | `[a, b]` | `AST_ARRAY_LITERAL` |
+| Struct literal | `Point { x = 1 }` | `AST_STRUCT_LITERAL` |
+| Lambda | `f:(x) > x` veya block-body biçimi | `AST_LAMBDA` |
+| Loop expression | `loop { ... }` | `AST_LOOP` |
+
+Parantez içinde tek expression varsa gruplama yapılır; virgülle ayrılmış öğeler varsa tuple oluşturulur. Boş tuple için Parser'da `{}` yolu da vardır; kullanım sınırları ayrıca netleştirilecektir.
+
+## 10.3 Unary ve binary expression
+
+```nxf
+v:a = !ready;
+v:b = -value;
+v:c = ~mask;
+v:d = *pointer;
+v:r = &value;
+v:mr = &mut value;
+
+v:sum = a + b;
+v:equal = a == b;
+v:valid = ready && connected;
+v:mask = flags & mask;
+v:power = 2 ^^ 8;
+```
+
+Unary operatörler `!`, `-`, `~`, `*`, `&` ve `&mut` biçimindedir ve `AST_UNARY_EXPR` üretir. Binary ifadeler `AST_BINARY_EXPR` üretir. Operandların tip uyumu Semantic kuralıdır.
+
+## 10.4 Postfix expression zinciri
+
+Parser şu postfix biçimlerini destekler:
+- Çağrı: `call(args)`
+- Üye erişimi: `object.member`
+- İndeks erişimi: `array[index]`
+- Postfix artırma/azaltma: `value++` / `value--`
+
+```nxf
+v:result = service.calculate(input);
+v:first = values[0];
+v:width = image.width;
+counter++;
+counter--;
+```
+
+Postfix zinciri birden çok erişim/çağrı içerebilir; Parser zincir derinliğini 32 adımla sınırlar. Prefix artırma/azaltma biçimleri `++value` ve `--value` mevcut Parser testinde reddedilir.
+
+## 10.5 Fonksiyon çağrısı
+
+```ebnf
+call = expression "(" [ argument { "," argument } ] ")" ;
+argument = expression | identifier ":" expression ;
+```
+
+```nxf
+v:result = add(10, 20);
+v:width = image.get_width();
+```
+
+Normal çağrı postfix expression olarak `AST_FUNC_CALL` üretir. Intrinsic anahtar sözcükler kendi özel AST düğümlerine yönlendirilebilir.
+
+## 10.6 Üye erişimi
+
+```nxf
+v:x = point.x;
+v:width = engine.renderer.width;
+```
+
+Nokta sonrasında bir identifier zorunludur. Üye erişimi `AST_MEMBER_ACCESS` üretir; üyenin gerçekten var olup olmadığı Semantic kontrolüdür.
+
+```nxf
+v:x = point.;
+```
+
+Nokta sonrasında üye adı eksiktir.
+
+## 10.7 İndeks erişimi
+
+```nxf
+v:first = values[0];
+v:cell = matrix[row][column];
+```
+
+Her indeks suffix'i `AST_INDEX_ACCESS` üretir ve bir expression içermelidir. Kapanış `]` zorunludur.
+
+```nxf
+v:x = values[];
+v:y = values[0;
+```
+
+İlk örnekte indeks expression'ı, ikincide kapanış ayracı eksiktir.
+
+## 10.8 Array ve tuple expression
+
+Array literal `[expression, ...]`; tuple expression `(expression, expression, ...)` biçimindedir. Array/tuple yazım kuralları Bölüm 8'de açıklanır.
+
+## 10.9 Struct literal
+
+```nxf
+v:point = Point {
+    x = 10,
+    y = 20
+};
+```
+
+Struct literal alanları `identifier = expression` biçimindedir. Parser `AST_STRUCT_LITERAL` ve `AST_STRUCT_FIELD_INIT` üretir. Bu biçim Struct declaration içindeki `v:name!Type` alan yazımından farklıdır.
+
+## 10.10 Cast expression
+
+```nxf
+v:value = cast(source_value, i32);
+v:small = cast(counter, u8);
+```
+
+Parser `cast` sonrasında `(expression, Type)` bekler. Hedef tip identifier veya tip tokenı olmalıdır. AST karşılığı `AST_CAST` olup kaynak expression ve hedef tip ayrı saklanır.
+
+```nxf
+v:bad = cast(value);
+v:bad = cast(value,);
+```
+
+İlk örnekte virgül/hedef tip, ikincide hedef tip eksiktir.
+
+## 10.11 Named argument
+
+```nxf
+configure(width: 800, height: 600);
+open(path, mode: read);
+```
+
+Named argüman `name: expression` biçimindedir. Konumsal argümanlar named argümanlardan önce gelebilir; named argümandan sonra positional argüman gelemez. Aynı çağrıda aynı named label iki kez kullanılamaz. Parser bu kuralları normal ve intrinsic çağrılarda uygular; düğüm `AST_NAMED_ARG` biçimindedir.
+
+```nxf
+configure(width: 800, 600);        # Named argümandan sonra positional argüman.
+configure(width: 800, width: 900); # Aynı label iki kez.
+```
+
+## 10.12 Gruplama ve legacy sınırı
+
+Parantez tek expression'ı gruplar; virgül içeren biçim tuple oluşturur. Legacy unpack operatörü `...>` için negatif Parser testi vardır ve bu biçim desteklenmez.
+
+**Durum:** Temel expression, call, member/index, tuple/array, struct literal, cast ve named argument biçimleri Parser/AST doğrulandı.
 
 ---
+
+# 11. Operatörler
+
+## 11.1 Öncelik ve birleşme yönü
+
+Aşağıdaki sıra Parser expression zincirinden çıkarılmıştır; üstteki operatör daha yüksek önceliklidir.
+
+| Öncelik | Operatörler | Açıklama |
+|---:|---|---|
+| 1 | Çağrı `()`, üye `.`, indeks `[]`, postfix `++ --` | Postfix |
+| 2 | `^^` | Üs alma; sağ birleşimli |
+| 3 | Unary `! - ~ * & &mut` | Unary |
+| 4 | `* / %` | Çarpma/bölme/kalan |
+| 5 | `+ -` | Toplama/çıkarma |
+| 6 | `<<< >>>` | Sayısal bit kaydırma |
+| 7 | `&` | Bitwise AND |
+| 8 | `^` | Bitwise XOR |
+| 9 | `|` | Bitwise OR |
+| 10 | `< <= > >=` | İlişkisel |
+| 11 | `== != === ==!` | Eşitlik |
+| 12 | `..` | Range |
+| 13 | `&&` | Mantıksal AND |
+| 14 | `||` | Mantıksal OR |
+| 15 | `-> << >> ?-> ?=> !-> _> ?(…)` | Nexus Flow |
+| 16 | `<- = += -= *= /= &= |= ^= .=` | Capture/assignment |
+
+`<<` ve `>>` sayısal shift değildir; Nexus Flow pipe/zone operatörleridir. Sayısal kaydırma `<<<` ve `>>>` ile yapılır.
+
+## 11.2 Aritmetik ve üs alma
+
+```nxf
+v:add = a + b;
+v:sub = a - b;
+v:mul = a * b;
+v:div = a / b;
+v:rem = a % b;
+v:pow = 2 ^^ 8;
+```
+
+`^^` sağ birleşimlidir. `2 ^^ 3 ^^ 2` sağdaki üs alma önce gruplanacak şekilde parse edilir. Unary eksi üs alma işleminden daha düşük önceliklidir.
+
+## 11.3 Karşılaştırma ve eşitlik
+
+```nxf
+v:a = x < y;
+v:b = x <= y;
+v:c = x > y;
+v:d = x >= y;
+v:e = x == y;
+v:f = x != y;
+v:g = x === y;
+v:h = x ==! y;
+```
+
+Lexer/Parser `==`, `!=`, `===` ve `==!` tokenlarını ayrı tutar. Bu operatörlerin farklı Semantic anlamları bu syntax belgesinde yeniden tanımlanmaz.
+
+## 11.4 Mantıksal ve bitwise operatörler
+
+```nxf
+v:ready = connected && authenticated;
+v:available = local || remote;
+v:and_mask = flags & mask;
+v:xor_mask = flags ^ mask;
+v:or_mask = flags | mask;
+v:inverted = ~flags;
+```
+
+`&&` / `||` mantıksal AND/OR; `&` / `^` / `|` bitwise AND/XOR/OR; `~` unary bitwise NOT'tur. `&` unary konumda borrow/reference operatörü olarak da kullanılır.
+
+## 11.5 Sayısal shift ve Nexus Flow ayrımı
+
+```nxf
+v:left = value <<< amount;
+v:right = value >>> amount;
+v:streamed = source << destination;
+v:fed = source >> destination;
+```
+
+- `<<<` → `TOKEN_BIT_SHL`, sayısal bitwise left shift.
+- `>>>` → `TOKEN_BIT_SHR`, sayısal bitwise right shift.
+- `<<` / `>>` → `TOKEN_LSHIFT` / `TOKEN_RSHIFT`, Nexus Flow pipe/zone operatörleri.
+
+Bu ayrım Parser testinde AST operatör kimlikleriyle doğrulanmıştır.
+
+## 11.6 Atama ve bileşik atama
+
+```nxf
+value = next;
+value += amount;
+value -= amount;
+value *= factor;
+value /= divisor;
+flags &= mask;
+flags |= mask;
+flags ^= mask;
+text .= suffix;
+```
+
+Bu Parser üretiminde desteklenen bileşik atamalar `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `^=` ve `.=` biçimleridir. `%=` desteklenen listede yoktur. `!!=` ayrıca directive/force-assignment bağlamında ele alınır; directive kullanımı Bölüm 34'tedir.
+
+## 11.7 Artırma ve azaltma
+
+```nxf
+counter++;
+counter--;
+```
+
+Postfix biçimler doğrulanmıştır. Prefix `++counter` ve `--counter` Parser testinde reddedilir.
+
+## 11.8 Unary pointer/borrow ve range
+
+`*value` dereference, `&value` shared borrow/reference, `&mut value` mutable borrow biçimidir. Ayrıntılar Bölüm 23–25'tedir.
+
+Range ifadesi `start..end` biçimindedir ve unparenthesized expression içinde tek bir `..` kabul edilir:
+
+```nxf
+v:valid = 1..10;
+v:invalid = 1..10..20;  # Parser reddeder.
+```
+
+Aritmetik, karşılaştırma, eşitlik, bitwise ve mantıksal zincirler Parser testlerinde sol birleşimli; üs alma sağ birleşimli AST olarak doğrulanmıştır.
+
+**Durum:** Öncelik/associativity ve shift ayrımı mevcut Parser testleriyle doğrulanmıştır. Operatörlerin tip bazında geçerliliği Semantic aşamasına aittir.
+
+---
+
+# 12. Yerleşik ifade biçimleri
+
+## 12.1 Genel kural
+
+Aşağıdaki adlar Lexer/Parser tarafından özel intrinsic tokenı olarak tanınır ve ilgili AST düğümüne yönlendirilir. Bu bölüm kaynak çağrı biçimini tanımlar; parametre sayısı, tür uyumu, donanım yetkisi ve runtime davranışı ayrıca değerlendirilir.
+
+## 12.2 Tip ve boyut sorguları
+
+```nxf
+v:type = typeof(value);
+v:size = sizeof(value);
+v:length = len(items);
+```
+
+`typeof` → `AST_TYPEOF`, `sizeof` → `AST_SIZEOF`, `len` → `AST_LEN`.
+
+## 12.3 Durum sorguları
+
+```nxf
+v:a = is_ok(result);
+v:b = is_err(result);
+v:c = is_some(option);
+v:d = is_none(option);
+v:e = is_null(pointer);
+```
+
+Bu çağrılar `AST_IS_OK`, `AST_IS_ERR`, `AST_IS_SOME`, `AST_IS_NONE` ve `AST_IS_NULL` üretir.
+
+## 12.4 Cast ve swap
+
+```nxf
+v:converted = cast(value, i32);
+swap(left, right);
+```
+
+`cast(value, Type)` → `AST_CAST`; `swap(...)` → `AST_SWAP`.
+
+## 12.5 Echo, print ve write ailesi
+
+```nxf
+echo("hello");
+prnt(value);
+prmt(value);
+write(value);
+fwrite(value);
+```
+
+Parser eşlemesi: `echo` → `AST_ECHO`; `prnt` → `AST_PRNT`; `prmt` → `AST_PRMT`; `write` → `AST_WRITE`; `fwrite` → `AST_FWRITE`. OS bağımlılığı ve çıktı davranışı syntax tanımının kapsamı dışındadır.
+
+## 12.6 Adres, bellek ve port I/O
+
+```nxf
+v:address = addr(value);
+v:read_value = peek(address);
+poke(address, value);
+v:port_value = inb(port);
+outb(port, value);
+```
+
+`addr` → `AST_ADDR`; `peek` / `poke` → `AST_PEEK` / `AST_POKE`; `inb` / `outb` → `AST_INB` / `AST_OUTB`.
+
+## 12.7 IRQ, interrupt, register, area ve zone
+
+```nxf
+irq(1);
+intr(1);
+reg.r(0);
+v:a = area(1);
+v:z = zone(1);
+```
+
+Bunlar `AST_IRQ`, `AST_INTR`, `AST_REG`, `AST_AREA` ve `AST_ZONE` özel çağrı düğümlerini üretir. `reg` için Parser `reg.member(...)` biçiminde bir üye adı bekler.
+
+## 12.8 Tarih, saat ve kaynak bırakma
+
+```nxf
+v:today = date();
+v:now = datenow();
+v:time_value = time();
+v:clock_value = clock();
+free(resource);
+```
+
+`date` → `AST_DATE`; `datenow` → `AST_DATENOW`; `time` → `AST_TIME`; `clock` → `AST_CLOCK`; `free` → `AST_FREE`.
+
+## 12.9 Panic ve exit
+
+```nxf
+panic("fatal error");
+exit(0);
+```
+
+`panic("message")` `AST_PANIC` üretir ve Parser mesaj olarak string literal bekler. `exit(...)` `AST_EXIT` üretir. Sonlandırma davranışı bu bölümde tanımlanmaz.
+
+## 12.10 Thread API çağrıları ve normal çağrılardan ayrım
+
+```nxf
+spawn(task);
+listen(channel);
+send(message);
+receive(channel);
+done();
+```
+
+Parser bu adları özel intrinsic AST düğümü olarak değil normal identifier/call biçimine yönlendirir. Bunlar thread API çağrılarıdır; özel intrinsic ailesiyle karıştırılmamalıdır.
+
+## 12.11 Desteklenmeyen eski expression biçimleri
+
+Legacy unpack yazımı `...>` için negatif Parser testi vardır; bu biçim desteklenmez. `unpack` bu sürümde yerleşik expression olarak belgelenmez.
+
+**Durum:** Bu bölümde listelenen intrinsic aileleri Parser/AST testinde kaynak biçimi ve AST eşlemesiyle doğrulanmıştır. Semantic parametre/tip sözleşmeleri ve runtime davranışları syntax manuelinin kapsamı dışındadır.
 
 # Part IV — Bloklar ve kontrol akışı
 
