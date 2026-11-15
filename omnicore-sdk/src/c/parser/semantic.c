@@ -4261,9 +4261,57 @@ static int semantic_scan_returned_reference_parameter(
                 !semantic_scan_returned_reference_parameter(
                     branch->else_branch, params, selected, saw_return)) return 0;
         } else if (current->type == AST_LOOP) {
+            const ASTLoop* loop = (const ASTLoop*)current;
             if (!semantic_scan_returned_reference_parameter(
-                    ((const ASTLoop*)current)->body,
+                    loop->body, params, selected, saw_return)) return 0;
+        } else if (current->type == AST_SELECT) {
+            const ASTNode* arm;
+            for (arm = ((const ASTSelect*)current)->arms; arm; arm = arm->next) {
+                if (arm->type != AST_SELECT_ARM ||
+                    !semantic_scan_returned_reference_parameter(
+                        ((const ASTSelectArm*)arm)->body,
+                        params, selected, saw_return)) return 0;
+            }
+        } else if (current->type == AST_SCAN) {
+            const ASTNode* arm;
+            for (arm = ((const ASTScan*)current)->arms; arm; arm = arm->next) {
+                if (arm->type != AST_SCAN_ARM ||
+                    !semantic_scan_returned_reference_parameter(
+                        ((const ASTScanArm*)arm)->body,
+                        params, selected, saw_return)) return 0;
+            }
+        } else if (current->type == AST_NEXUS_FLOW) {
+            const ASTNexusFlow* flow = (const ASTNexusFlow*)current;
+            if (!semantic_scan_returned_reference_parameter(
+                    flow->right, params, selected, saw_return)) return 0;
+        } else if (current->type == AST_DEFER) {
+            if (!semantic_scan_returned_reference_parameter(
+                    ((const ASTDefer*)current)->body,
                     params, selected, saw_return)) return 0;
+        } else if (current->type == AST_ON_BLOCK) {
+            if (!semantic_scan_returned_reference_parameter(
+                    ((const ASTOnBlock*)current)->body,
+                    params, selected, saw_return)) return 0;
+        } else if (current->type == AST_THREAD_BLOCK) {
+            if (!semantic_scan_returned_reference_parameter(
+                    ((const ASTThreadBlock*)current)->body,
+                    params, selected, saw_return)) return 0;
+        } else if (current->type == AST_UNROLL) {
+            if (!semantic_scan_returned_reference_parameter(
+                    ((const ASTUnroll*)current)->loop,
+                    params, selected, saw_return)) return 0;
+        } else if (current->type == AST_FUNC_DECL ||
+                   current->type == AST_LAMBDA) {
+            /* A nested function/lambda owns its own return statements. */
+            continue;
+        } else if (current->type == AST_RULESET_DECL ||
+                   current->type == AST_RULE_TRIGGER ||
+                   current->type == AST_RULE_ALWAYS ||
+                   current->type == AST_RULE_DEFAULT ||
+                   current->type == AST_RULE_BARRIER) {
+            /* Rule bodies are separate execution contexts; do not infer
+               the enclosing function's return origin from their actions. */
+            continue;
         }
     }
     return 1;
