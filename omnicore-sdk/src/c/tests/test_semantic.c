@@ -1164,7 +1164,8 @@ static int check_safe_reference_return_lifetime_semantics(void) {
     const char* returned_call_reference_cannot_escape_to_global =
         "v:global_ref!&i32; "
         "f:identity(value!&i32)!&i32 { ret value; } "
-        "f:store(value!&i32) { global_ref = identity(value); }";
+        "f:store(value!&i32) { v:local!&i32 = identity(value); "
+        "global_ref = local; }";
     return check_source(returning_local_reference_is_rejected, 1) &&
         check_source(returning_local_reference_binding_is_rejected, 1) &&
         check_source(returning_reference_parameter_preserves_forwarding, 0) &&
