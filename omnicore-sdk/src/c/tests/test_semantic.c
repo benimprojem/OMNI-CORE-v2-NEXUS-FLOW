@@ -935,6 +935,8 @@ static int check_borrow_overlap_and_scope_semantics(void) {
         "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; owner = 2; }";
     const char* owner_write_during_mutable =
         "f:main() { v:owner!i32 = 1; v:a!&muti32 = &mut owner; owner = 2; }";
+    const char* owner_compound_write_during_borrow =
+        "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; owner += 1; }";
     const char* borrow_released_at_scope_exit =
         "f:main() { v:owner!i32 = 1; { v:a!&muti32 = &mut owner; } "
         "v:b!&muti32 = &mut owner; }";
@@ -944,6 +946,7 @@ static int check_borrow_overlap_and_scope_semantics(void) {
         check_source(two_mutable, 1) &&
         check_source(owner_write_during_shared, 1) &&
         check_source(owner_write_during_mutable, 1) &&
+        check_source(owner_compound_write_during_borrow, 1) &&
         check_source(borrow_released_at_scope_exit, 0);
 }
 
