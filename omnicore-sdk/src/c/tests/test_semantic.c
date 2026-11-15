@@ -1164,44 +1164,59 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
 }
 
 static int check_borrow_aggregate_provenance_semantics(void) {
-    const char* shared_index_conflicts_with_mutable_other_index =
+    const char* shared_index_and_mutable_other_index_are_independent =
         "f:main() { v:items[2]!i32 = [1,2]; "
         "v:first!&i32 = &items[0]; "
         "v:second!&muti32 = &mut items[1]; }";
-    const char* mutable_index_blocks_other_index_write =
+    const char* mutable_index_allows_other_index_write =
         "f:main() { v:items[2]!i32 = [1,2]; "
         "v:first!&muti32 = &mut items[0]; items[1] = 3; }";
-    const char* shared_index_blocks_other_index_write =
+    const char* shared_index_allows_other_index_write =
         "f:main() { v:items[2]!i32 = [1,2]; "
         "v:first!&i32 = &items[0]; items[1] = 3; }";
-    const char* two_mutable_index_borrows_conflict =
+    const char* two_mutable_index_borrows_are_independent =
         "f:main() { v:items[2]!i32 = [1,2]; "
         "v:first!&muti32 = &mut items[0]; "
         "v:second!&muti32 = &mut items[1]; }";
+    const char* same_index_mutable_borrows_conflict =
+        "f:main() { v:items[2]!i32 = [1,2]; "
+        "v:first!&muti32 = &mut items[0]; "
+        "v:second!&muti32 = &mut items[0]; }";
+    const char* dynamic_index_borrows_are_conservative =
+        "f:main() { v:items[2]!i32 = [1,2]; v:i!i32 = 0; v:j!i32 = 1; "
+        "v:first!&muti32 = &mut items[i]; "
+        "v:second!&muti32 = &mut items[j]; }";
     const char* raw_pointer_dereference_borrow_has_no_provenance =
         "f:main() { v:pointer!*i32; v:reference!&i32 = &*pointer; }";
-    const char* shared_member_blocks_other_member_write =
+    const char* shared_member_allows_other_member_write =
         "f:main() { struct: Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:first!&i32 = &point.x; point.y = 3; }";
-    const char* mutable_member_blocks_other_member_write =
+    const char* mutable_member_allows_other_member_write =
         "f:main() { struct: Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:first!&muti32 = &mut point.x; point.y = 3; }";
-    const char* two_mutable_member_borrows_conflict =
+    const char* two_mutable_member_borrows_are_independent =
         "f:main() { struct: Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:first!&muti32 = &mut point.x; "
         "v:second!&muti32 = &mut point.y; }";
+    const char* same_member_mutable_borrows_conflict =
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; v:first!&muti32 = &mut point.x; "
+        "v:second!&muti32 = &mut point.x; }";
     const char* two_shared_member_borrows_are_allowed =
         "f:main() { struct: Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:first!&i32 = &point.x; "
         "v:second!&i32 = &point.y; }";
-    return check_source(shared_index_conflicts_with_mutable_other_index, 1) &&
-        check_source(mutable_index_blocks_other_index_write, 1) &&
-        check_source(shared_index_blocks_other_index_write, 1) &&
-        check_source(two_mutable_index_borrows_conflict, 1) &&
+    return check_source(shared_index_and_mutable_other_index_are_independent, 0) &&
+        check_source(mutable_index_allows_other_index_write, 0) &&
+        check_source(shared_index_allows_other_index_write, 0) &&
+        check_source(two_mutable_index_borrows_are_independent, 0) &&
+        check_source(same_index_mutable_borrows_conflict, 1) &&
+        check_source(dynamic_index_borrows_are_conservative, 1) &&
         check_source(raw_pointer_dereference_borrow_has_no_provenance, 1) &&
-        check_source(shared_member_blocks_other_member_write, 1) &&
-        check_source(mutable_member_blocks_other_member_write, 1) &&
-        check_source(two_mutable_member_borrows_conflict, 1) &&
+        check_source(shared_member_allows_other_member_write, 0) &&
+        check_source(mutable_member_allows_other_member_write, 0) &&
+        check_source(two_mutable_member_borrows_are_independent, 0) &&
+        check_source(same_member_mutable_borrows_conflict, 1) &&
         check_source(two_shared_member_borrows_are_allowed, 0);
 }
 
