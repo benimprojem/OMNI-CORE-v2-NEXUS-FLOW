@@ -1375,9 +1375,6 @@ static int semantic_reference_return_has_stable_origin(
         if (slot->is_parameter &&
             semantic_is_reference_type_name(slot->type_name)) return 1;
         if (slot->depth == 0) return 1;
-        if (slot->borrow_origin &&
-            (slot->borrow_origin->is_parameter ||
-             slot->borrow_origin->depth == 0)) return 1;
         return slot->borrowed_from && slot->borrowed_from->depth == 0;
     }
     if (operand->type == AST_UNARY_EXPR) {
