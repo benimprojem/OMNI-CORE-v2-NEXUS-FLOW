@@ -384,7 +384,8 @@ Lexer'ın tanımadığı karakter dizileri geçerli token değildir. Hatalı lit
 ### 12.6 `area` ve `zone` kaynak biçimleri
 ### 12.7 `addr` ve bellek erişim ifadeleri
 ### 12.8 Tarih, saat ve clock ifadeleri
-### 12.9 Diğer AST-backed intrinsic biçimleri
+### 12.9 `swap`, `unpack` ve diğer AST-backed ifadeler
+### 12.10 Echo ve diğer I/O çağrı biçimleri
 
 ---
 
@@ -594,7 +595,6 @@ Lexer'ın tanımadığı karakter dizileri geçerli token değildir. Hatalı lit
 ### 33.3 Dotted module path
 ### 33.4 Alias: `as`
 ### 33.5 Modül bildirimi örnekleri
-### 33.6 `no:` biçiminin Parser/AST durumu
 
 ## 34. Inline assembly kaynak biçimi
 ### 34.1 `fastexec` block
@@ -611,7 +611,9 @@ Lexer'ın tanımadığı karakter dizileri geçerli token değildir. Hatalı lit
 ### 35.4 Print/write biçimleri
 ### 35.5 Date/time/clock biçimleri
 ### 35.6 Area/zone biçimleri
-### 35.7 Kaynak çağrı biçimi ile platform davranışının ayrımı
+### 35.7 Kaynak bırakma: `free` ve `defer` biçimleri
+### 35.8 Zone sync, view ve lock biçimleri
+### 35.9 Kaynak çağrı biçimi ile platform davranışının ayrımı
 
 ---
 
