@@ -4215,6 +4215,166 @@ static void semantic_copy_shared_reference_binding(
     SemanticContext* ctx, Slot* target, Slot* source, ASTNode* assignment
 );
 
+/* Resolve a conservative returned-reference contract: every reachable
+   return in the supported statement forms must return the same ref parameter. */
+static int semantic_scan_returned_reference_parameter(
+    const ASTNode* node, const ASTNode* params, int* selected, int* saw_return
+) {
+    const ASTNode* current;
+    if (!node) return 1;
+    for (current = node; current; current = current->next) {
+        if (current->type == AST_RETURN) {
+            const ASTUnaryExpr* ret = (const ASTUnaryExpr*)current;
+            const char* returned_name;
+            const ASTNode* parameter;
+            int index = 0;
+            int matched = -1;
+            if (!ret->operand || ret->operand->type != AST_IDENTIFIER)
+                return 0;
+            returned_name = ((const ASTIdentifier*)ret->operand)->name;
+            for (parameter = params; parameter; parameter = parameter->next) {
+                if (parameter->type == AST_VAR_DECL) {
+                    const ASTVarDecl* decl = (const ASTVarDecl*)parameter;
+                    if (decl->name && returned_name &&
+                        strcmp(decl->name, returned_name) == 0 &&
+                        semantic_is_reference_type_name(decl->type_name)) {
+                        matched = index;
+                        break;
+                    }
+                    ++index;
+                } else if (parameter->type != AST_VARIADIC_PARAM) {
+                    return 0;
+                }
+            }
+            if (matched < 0 || (*saw_return && *selected != matched))
+                return 0;
+            *selected = matched;
+            *saw_return = 1;
+        } else if (current->type == AST_BLOCK) {
+            if (!semantic_scan_returned_reference_parameter(
+                    ((const ASTBlock*)current)->statements,
+                    params, selected, saw_return)) return 0;
+        } else if (current->type == AST_IF) {
+            const ASTIf* branch = (const ASTIf*)current;
+            if (!semantic_scan_returned_reference_parameter(
+                    branch->then_branch, params, selected, saw_return) ||
+                !semantic_scan_returned_reference_parameter(
+                    branch->else_branch, params, selected, saw_return)) return 0;
+        } else if (current->type == AST_LOOP) {
+            if (!semantic_scan_returned_reference_parameter(
+                    ((const ASTLoop*)current)->body,
+                    params, selected, saw_return)) return 0;
+        }
+    }
+    return 1;
+}
+
+static int semantic_returned_reference_parameter(
+    const ASTFuncDecl* declaration
+) {
+    int selected = -1;
+    int saw_return = 0;
+    if (!declaration || !declaration->body ||
+        !semantic_scan_returned_reference_parameter(
+            declaration->body, declaration->params, &selected, &saw_return) ||
+        !saw_return) return -1;
+    return selected;
+}
+
+static ASTNode* semantic_call_argument_for_parameter(
+    const ASTCall* call, const ASTFuncDecl* declaration, uint32_t parameter_index
+) {
+    const ASTNode* parameter;
+    ASTNode* argument;
+    uint32_t index = 0u;
+    if (!call || !declaration) return NULL;
+    for (parameter = declaration->params; parameter; parameter = parameter->next) {
+        const char* parameter_name = NULL;
+        if (parameter->type == AST_VARIADIC_PARAM) continue;
+        if (parameter->type == AST_VAR_DECL)
+            parameter_name = ((const ASTVarDecl*)parameter)->name;
+        if (index++ != parameter_index) continue;
+        for (argument = call->args; argument; argument = argument->next) {
+            if (argument->type == AST_NAMED_ARG) {
+                ASTNamedArg* named = (ASTNamedArg*)argument;
+                if (named->name && parameter_name &&
+                    strcmp(named->name, parameter_name) == 0) return named->value;
+            } else {
+                uint32_t positional = 0u;
+                ASTNode* scan;
+                for (scan = call->args; scan && scan != argument; scan = scan->next)
+                    if (scan->type != AST_NAMED_ARG) ++positional;
+                if (positional == parameter_index) return argument;
+            }
+        }
+        return NULL;
+    }
+    return NULL;
+}
+
+static int semantic_bind_returned_call_reference(
+    SemanticContext* ctx, Slot* borrower, ASTNode* initializer
+) {
+    ASTCall* call;
+    Slot* function;
+    ASTFuncDecl* declaration;
+    ASTNode* source_argument;
+    ASTNode* argument_value;
+    Slot* owner = NULL;
+    int parameter_index;
+    int is_mutable;
+    if (!ctx || !borrower || !initializer ||
+        initializer->type != AST_FUNC_CALL) return 0;
+    call = (ASTCall*)initializer;
+    if (!call->callee || call->callee->type != AST_IDENTIFIER) return 0;
+    function = find_slot(ctx, ((ASTIdentifier*)call->callee)->name);
+    if (!function || function->kind != SLOT_FUNC ||
+        !function->declaration_node ||
+        function->declaration_node->type != AST_FUNC_DECL) return 0;
+    declaration = (ASTFuncDecl*)function->declaration_node;
+    parameter_index = semantic_returned_reference_parameter(declaration);
+    if (parameter_index < 0) return 0;
+    source_argument = semantic_call_argument_for_parameter(
+        call, declaration, (uint32_t)parameter_index);
+    argument_value = source_argument;
+    if (argument_value && argument_value->type == AST_NAMED_ARG)
+        argument_value = ((ASTNamedArg*)argument_value)->value;
+    if (!argument_value) return 0;
+
+    if (argument_value->type == AST_IDENTIFIER) {
+        Slot* source = find_slot(ctx, ((ASTIdentifier*)argument_value)->name);
+        if (!source || !source->borrowed_from ||
+            !semantic_is_reference_type_name(source->type_name)) return 0;
+        owner = source->borrowed_from;
+        is_mutable = source->borrow_kind == 2u;
+    } else if (argument_value->type == AST_UNARY_EXPR) {
+        ASTUnaryExpr* borrow = (ASTUnaryExpr*)argument_value;
+        if (borrow->op != TOKEN_BIT_AND && borrow->op != TOKEN_BORROW_MUT)
+            return 0;
+        owner = semantic_lvalue_root_slot(ctx, borrow->operand);
+        is_mutable = borrow->op == TOKEN_BORROW_MUT;
+    } else {
+        return 0;
+    }
+    if (!owner || !semantic_is_reference_type_name(borrower->type_name) ||
+        is_mutable != semantic_is_mut_reference_type_name(borrower->type_name) ||
+        borrower->depth < owner->depth) return 0;
+    if (owner->mutable_borrow_active ||
+        (is_mutable && owner->shared_borrow_count != 0u) ||
+        (!is_mutable && owner->shared_borrow_count == UINT32_MAX)) return 0;
+
+    semantic_release_borrow_binding(borrower);
+    if (is_mutable) {
+        owner->mutable_borrow_active = 1u;
+        borrower->borrow_kind = 2u;
+    } else {
+        ++owner->shared_borrow_count;
+        borrower->borrow_kind = 1u;
+    }
+    borrower->borrowed_from = owner;
+    return 1;
+}
+
 static void semantic_register_borrow_binding(
     SemanticContext* ctx, Slot* borrower, ASTNode* initializer
 ) {
@@ -4238,11 +4398,18 @@ static void semantic_register_borrow_binding(
         }
         return;
     }
+    if (initializer->type == AST_FUNC_CALL) {
+        if (semantic_bind_returned_call_reference(ctx, borrower, initializer))
+            return;
+        report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Reference-returning call has no supported, consistent reference-parameter origin; computed and unknown origins are rejected.");
+        return;
+    }
     if (initializer->type != AST_UNARY_EXPR) {
         const char* initializer_type = get_expr_type(ctx, initializer);
         if (semantic_is_reference_type_name(initializer_type)) {
             report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
-                "Reference initialization requires a direct borrow or a tracked shared-reference binding; computed and call-produced origins are not supported.");
+                "Reference initialization requires a direct borrow, a tracked shared-reference binding, or a call with a verified reference-parameter return origin.");
         }
         return;
     }
