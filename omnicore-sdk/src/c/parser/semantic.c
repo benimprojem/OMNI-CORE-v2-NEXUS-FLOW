@@ -1140,7 +1140,8 @@ static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
    Empty string denotes the whole root; dynamic indexes use [*]. */
 static char* semantic_lvalue_path(const ASTNode* node) {
     char* parent;
-    char suffix[96];
+    char index_suffix[48];
+    const char* suffix;
     size_t parent_length, suffix_length;
     char* result;
     if (!node) return NULL;
@@ -1151,20 +1152,35 @@ static char* semantic_lvalue_path(const ASTNode* node) {
     }
     if (node->type == AST_MEMBER_ACCESS) {
         const ASTMemberAccess* member = (const ASTMemberAccess*)node;
+        size_t member_length;
+        char* member_suffix;
         if (!member->member_name || !member->member_name[0]) return NULL;
         parent = semantic_lvalue_path(member->object);
         if (!parent) return NULL;
-        (void)snprintf(suffix, sizeof(suffix), ".%s", member->member_name);
+        member_length = strlen(member->member_name);
+        if (member_length > SIZE_MAX - 2u) {
+            free(parent);
+            return NULL;
+        }
+        member_suffix = (char*)malloc(member_length + 2u);
+        if (!member_suffix) {
+            free(parent);
+            return NULL;
+        }
+        member_suffix[0] = '.';
+        memcpy(member_suffix + 1u, member->member_name, member_length + 1u);
+        suffix = member_suffix;
     } else if (node->type == AST_INDEX_ACCESS) {
         const ASTIndexAccess* index = (const ASTIndexAccess*)node;
         int64_t constant_index;
         parent = semantic_lvalue_path(index->target);
         if (!parent) return NULL;
         if (semantic_eval_integer_constant(index->index, &constant_index))
-            (void)snprintf(suffix, sizeof(suffix), "[%lld]",
+            (void)snprintf(index_suffix, sizeof(index_suffix), "[%lld]",
                 (long long)constant_index);
         else
-            (void)snprintf(suffix, sizeof(suffix), "[*]");
+            (void)snprintf(index_suffix, sizeof(index_suffix), "[*]");
+        suffix = index_suffix;
     } else {
         /* Pointer dereferences and computed expressions have unknown provenance. */
         return NULL;
@@ -1173,6 +1189,7 @@ static char* semantic_lvalue_path(const ASTNode* node) {
     suffix_length = strlen(suffix);
     if (parent_length > SIZE_MAX - suffix_length - 1u) {
         free(parent);
+        if (node->type == AST_MEMBER_ACCESS) free((void*)suffix);
         return NULL;
     }
     result = (char*)malloc(parent_length + suffix_length + 1u);
@@ -1181,6 +1198,7 @@ static char* semantic_lvalue_path(const ASTNode* node) {
         memcpy(result + parent_length, suffix, suffix_length + 1u);
     }
     free(parent);
+    if (node->type == AST_MEMBER_ACCESS) free((void*)suffix);
     return result;
 }
 
