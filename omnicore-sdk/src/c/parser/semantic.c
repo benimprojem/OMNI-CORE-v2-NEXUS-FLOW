@@ -1337,6 +1337,31 @@ static int semantic_is_mut_reference_type_name(const char* type_name) {
     return strncmp(type_name, "&mut", 4u) == 0;
 }
 
+/* Aggregate-contained safe references need field-level owner/lifetime metadata.
+   Until that representation exists, reject direct references and aggregates
+   (including NewType aliases) that recursively contain them. */
+static int semantic_type_contains_safe_reference(
+    SemanticContext* ctx, const char* type_name, unsigned int depth
+) {
+    const char* raw_type = type_name;
+    Slot* type_slot;
+    FieldInfo* field;
+    if (!ctx || !raw_type || depth > 64u) return 0;
+    while (*raw_type == '!') ++raw_type;
+    if (semantic_is_reference_type_name(raw_type)) return 1;
+    type_slot = find_slot(ctx, raw_type);
+    if (!type_slot) return 0;
+    if (type_slot->kind == SLOT_NEWTYPE)
+        return semantic_type_contains_safe_reference(
+            ctx, type_slot->type_name, depth + 1u);
+    if (type_slot->kind != SLOT_STRUCT) return 0;
+    for (field = type_slot->fields; field; field = field->next) {
+        if (semantic_type_contains_safe_reference(
+                ctx, field->type_name, depth + 1u)) return 1;
+    }
+    return 0;
+}
+
 static int semantic_reference_return_has_stable_origin(
     SemanticContext* ctx, ASTNode* operand
 ) {
@@ -6956,6 +6981,18 @@ static void semantic_check_node(
                                 v->name, v->type_name);
                             report_error(ctx, field_node,
                                 ERR_SEMANTIC_UNKNOWN_TYPE, buf);
+                        }
+
+                        if (v->type_name &&
+                            semantic_type_contains_safe_reference(
+                                ctx, v->type_name, 0u)) {
+                            char message[384];
+                            (void)snprintf(message, sizeof(message),
+                                "Aggregate '%s' field '%s' contains safe reference type '%s'; aggregate-contained reference ownership and lifetime tracking are not implemented.",
+                                sdecl->name ? sdecl->name : "<anonymous>",
+                                v->name, v->type_name);
+                            report_error(ctx, field_node,
+                                ERR_SEMANTIC_TYPE_MISMATCH, message);
                         }
 
                         if (v->inline_type && !v->type_expr)

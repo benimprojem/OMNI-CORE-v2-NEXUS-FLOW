@@ -640,6 +640,18 @@ static int check_aggregate_member_semantics(void) {
         check_source(unknown_union_field_type, 1);
 }
 
+static int check_aggregate_reference_field_rejection_semantics(void) {
+    const char* shared_reference_field_is_rejected =
+        "struct: Holder { v:reference!&i32 } f:main() {}";
+    const char* mutable_reference_field_is_rejected =
+        "struct: Holder { v:reference!&muti32 } f:main() {}";
+    const char* newtype_reference_field_is_rejected =
+        "nt:Ref = &i32; struct: Holder { v:reference!Ref } f:main() {}";
+    return check_source(shared_reference_field_is_rejected, 1) &&
+        check_source(mutable_reference_field_is_rejected, 1) &&
+        check_source(newtype_reference_field_is_rejected, 1);
+}
+
 static int check_struct_literal_semantics(void) {
     const char* valid_reordered =
         "f:main() { struct: Point { v:x!i32, v:y!i32 } "
@@ -2798,6 +2810,10 @@ int main(int argc, char** argv) {
     }
     if (!check_aggregate_member_semantics()) {
         fprintf(stderr, "Aggregate member semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_aggregate_reference_field_rejection_semantics()) {
+        fprintf(stderr, "Aggregate safe-reference field rejection tests failed.\\n");
         return 1;
     }
     if (!check_struct_literal_semantics()) {
