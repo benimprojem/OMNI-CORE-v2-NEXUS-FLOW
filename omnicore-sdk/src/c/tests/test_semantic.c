@@ -974,6 +974,19 @@ static int check_mutable_borrow_owner_access_semantics(void) {
         check_source(assignment_target_read_does_not_duplicate, 1);
 }
 
+static int check_safe_reference_return_lifetime_semantics(void) {
+    const char* returning_local_reference_is_rejected =
+        "f:get()!&i32 { v:owner!i32 = 1; ret &owner; }";
+    const char* returning_local_reference_binding_is_rejected =
+        "f:get()!&i32 { v:owner!i32 = 1; "
+        "v:reference!&i32 = &owner; ret reference; }";
+    const char* returning_reference_parameter_is_rejected_without_lifetime_contract =
+        "f:identity(value!&i32)!&i32 { ret value; }";
+    return check_source(returning_local_reference_is_rejected, 1) &&
+        check_source(returning_local_reference_binding_is_rejected, 1) &&
+        check_source(returning_reference_parameter_is_rejected_without_lifetime_contract, 1);
+}
+
 static int check_reference_reassignment_and_lifetime_semantics(void) {
     const char* reassignment_releases_previous_owner =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
@@ -2561,6 +2574,10 @@ int main(int argc, char** argv) {
     }
     if (!check_mutable_borrow_owner_access_semantics()) {
         fprintf(stderr, "Exclusive borrow owner-access checks failed.\\n");
+        return 1;
+    }
+    if (!check_safe_reference_return_lifetime_semantics()) {
+        fprintf(stderr, "Safe-reference return lifetime checks failed.\\n");
         return 1;
     }
     if (!check_reference_reassignment_and_lifetime_semantics()) {

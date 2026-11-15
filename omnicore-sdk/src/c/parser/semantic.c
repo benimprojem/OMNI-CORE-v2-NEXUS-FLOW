@@ -5841,7 +5841,15 @@ static void semantic_check_node(
                 break;
             }
             if (ret->operand) semantic_check(ctx, ret->operand);
-            
+
+            if (ret->operand) {
+                const char* returned_type = get_expr_type(ctx, ret->operand);
+                if (semantic_is_reference_type_name(returned_type)) {
+                    report_error(ctx, node, ERR_SEMANTIC_RETURN_MISMATCH,
+                        "Returning a safe reference is not supported until the function return lifetime can be proven.");
+                }
+            }
+
             if (ctx->current_func_return_type) {
                 const char* actual_type = ret->operand ? get_expr_type(ctx, ret->operand) : "void";
                 if (!are_types_compatible(ctx->current_func_return_type, actual_type)) {
