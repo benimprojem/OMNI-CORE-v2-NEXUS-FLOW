@@ -5487,11 +5487,14 @@ static void semantic_check_node(
             }
             {
                 Slot* owner_slot = semantic_lvalue_root_slot(ctx, assign->left);
-                if (owner_slot && (owner_slot->mutable_borrow_active ||
-                                   owner_slot->shared_borrow_count != 0u)) {
+                char* target_path = semantic_lvalue_path(assign->left);
+                if (owner_slot && (!target_path ||
+                    semantic_borrow_conflicts(
+                        ctx, owner_slot, target_path, 1, NULL))) {
                     report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
-                        "Cannot modify an aggregate owner while a shared or exclusive borrow is active.");
+                        "Cannot modify this storage path while an overlapping shared or exclusive borrow is active.");
                 }
+                free(target_path);
             }
             if (assign->op == TOKEN_ASSIGN || assign->op == TOKEN_FORCE_ASSIGN) {
             if (assign->left->type == AST_IDENTIFIER) {
@@ -5661,10 +5664,14 @@ static void semantic_check_node(
                 ++ctx->assignment_target_depth;
                 semantic_check(ctx, assign->left);
                 --ctx->assignment_target_depth;
-                if (target_owner &&
-                    (target_owner->mutable_borrow_active ||
-                     target_owner->shared_borrow_count != 0u)) {
-                    ctx->assignment_borrow_guard_owner = target_owner;
+                {
+                    char* target_path = semantic_lvalue_path(assign->left);
+                    if (target_owner && (!target_path ||
+                        semantic_borrow_conflicts(
+                            ctx, target_owner, target_path, 1, NULL))) {
+                        ctx->assignment_borrow_guard_owner = target_owner;
+                    }
+                    free(target_path);
                 }
                 semantic_check(ctx, assign->right);
                 ctx->assignment_borrow_guard_owner = previous_guard_owner;
