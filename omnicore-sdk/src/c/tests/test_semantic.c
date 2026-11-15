@@ -983,9 +983,14 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
         "v:reference!&i32 = &first; reference = &second; "
         "v:edit!&muti32 = &mut second; }";
-    const char* copying_reference_binding_is_rejected =
+    const char* copying_shared_reference_tracks_owner =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:a!&i32 = &first; v:b!&i32 = &second; a = b; }";
+        "v:a!&i32 = &first; v:b!&i32 = &second; a = b; "
+        "v:old_edit!&muti32 = &mut first; "
+        "v:new_edit!&muti32 = &mut second; }";
+    const char* copying_exclusive_reference_is_rejected =
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "v:a!&muti32 = &mut first; v:b!&muti32 = &mut second; a = b; }";
     const char* outer_reference_cannot_escape_inner_owner =
         "f:main() { v:reference!&i32; "
         "{ v:inner!i32 = 1; reference = &inner; } }";
@@ -997,7 +1002,8 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         "v:read!&i32 = &first; }";
     return check_source(reassignment_releases_previous_owner, 0) &&
         check_source(reassignment_tracks_new_owner, 1) &&
-        check_source(copying_reference_binding_is_rejected, 1) &&
+        check_source(copying_shared_reference_tracks_owner, 1) &&
+        check_source(copying_exclusive_reference_is_rejected, 1) &&
         check_source(outer_reference_cannot_escape_inner_owner, 1) &&
         check_source(later_declared_owner_cleanup_is_safe, 0) &&
         check_source(mutable_reassignment_releases_old_owner, 0);

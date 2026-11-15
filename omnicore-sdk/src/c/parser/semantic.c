@@ -1100,6 +1100,12 @@ static int semantic_is_reference_type_name(const char* type_name) {
     return type_name[0] == '&' && type_name[1] != '\0';
 }
 
+static int semantic_is_mut_reference_type_name(const char* type_name) {
+    if (!type_name) return 0;
+    if (*type_name == '!') ++type_name;
+    return strncmp(type_name, "&mut", 4u) == 0;
+}
+
 static const char* semantic_lvalue_description(ASTNode* node) {
     if (!node) return "<missing>";
     if (node->type == AST_IDENTIFIER)
@@ -4163,6 +4169,48 @@ static void semantic_register_borrow_binding(
     borrower->borrowed_from = owner;
 }
 
+static void semantic_copy_shared_reference_binding(
+    SemanticContext* ctx, Slot* target, Slot* source, ASTNode* assignment
+) {
+    Slot* owner;
+    uint32_t effective_shared_count;
+    if (!ctx || !target || !source || !assignment || target == source) return;
+    if (semantic_is_mut_reference_type_name(target->type_name)) {
+        report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
+            "An exclusive mutable reference cannot be copied; transfer or reborrow semantics are required.");
+        return;
+    }
+    if (source->borrow_kind == 2u && source->borrowed_from) {
+        report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
+            "An exclusive mutable reference cannot be copied into another binding.");
+        return;
+    }
+    owner = source->borrow_kind == 1u ? source->borrowed_from : NULL;
+    if (!owner) {
+        /* Preserve type-level assignment for untracked reference parameters;
+           their external lifetime/provenance contract remains a separate task. */
+        semantic_release_borrow_binding(target);
+        return;
+    }
+    effective_shared_count = owner->shared_borrow_count;
+    if (target->borrowed_from == owner &&
+        target->borrow_kind == 1u && effective_shared_count > 0u) {
+        --effective_shared_count;
+    }
+    if (owner->mutable_borrow_active ||
+        effective_shared_count == UINT32_MAX) {
+        report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
+            owner->mutable_borrow_active
+                ? "Cannot copy a shared reference while its owner has an exclusive mutable borrow."
+                : "Shared reference count exceeds the supported semantic limit.");
+        return;
+    }
+    semantic_release_borrow_binding(target);
+    ++owner->shared_borrow_count;
+    target->borrowed_from = owner;
+    target->borrow_kind = 1u;
+}
+
 static void semantic_check_node(SemanticContext* ctx, ASTNode* node, int follow_siblings);
 
 static void semantic_check_node(
@@ -5040,9 +5088,22 @@ static void semantic_check_node(
                              ((ASTUnaryExpr*)assign->right)->op == TOKEN_BORROW_MUT)) {
                             semantic_register_borrow_binding(
                                 ctx, target_slot, assign->right);
+                        } else if (assign->right->type == AST_IDENTIFIER) {
+                            ASTIdentifier* source_id = (ASTIdentifier*)assign->right;
+                            Slot* source_slot = find_slot(ctx, source_id->name);
+                            if (source_slot &&
+                                semantic_is_reference_type_name(source_slot->type_name) &&
+                                !semantic_is_mut_reference_type_name(source_slot->type_name) &&
+                                !semantic_is_mut_reference_type_name(target_slot->type_name)) {
+                                semantic_copy_shared_reference_binding(
+                                    ctx, target_slot, source_slot, node);
+                            } else {
+                                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Only shared references may be copied; exclusive mutable references cannot be duplicated.");
+                            }
                         } else {
                             report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                                "Safe reference reassignment requires a new borrow expression; copying or moving reference bindings is not supported yet.");
+                                "Safe reference reassignment requires a borrow expression or a copyable shared-reference binding.");
                         }
                     }
                 }
