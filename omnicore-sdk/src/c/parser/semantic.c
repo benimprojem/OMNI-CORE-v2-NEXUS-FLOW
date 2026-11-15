@@ -32,6 +32,9 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->active_thread_block = NULL;
     ctx->thread_capture_copy_depth = 0u;
     ctx->thread_block_depth = 0u;
+    ctx->borrow_operand_depth = 0u;
+    ctx->assignment_target_depth = 0u;
+    ctx->assignment_borrow_guard_owner = NULL;
     memset(&ctx->lang, 0, sizeof(ctx->lang));
     ctx->current_method_receiver_type = NULL;
     ctx->current_method_public_name = NULL;
