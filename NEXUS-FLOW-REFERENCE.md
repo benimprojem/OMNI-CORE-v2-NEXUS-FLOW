@@ -2481,34 +2481,207 @@ Retry hedefi geçerli bir masa/akış hedefi olmalıdır. Deneme sayısı poziti
 # Bölüm VIII — Ruleset ve event
 
 ## 31. Ruleset bildirimi
+
+Ruleset, fonksiyon ön koşullarını topluca kontrol etmek ve koşullara bağlı trigger adları üretmek için kullanılan isimli kural kümesidir. Tanım rules anahtar sözcüğüyle yapılır.
+
 ### 31.1 Ruleset adı ve parametreleri
+
+~~~nxf
+rules CNC_Safety(w, h, tool) {
+    w > 2800 :=> "Genişlik sınırı aşıldı";
+    h > 2100 :=> "Yükseklik sınırı aşıldı";
+
+    (w == h) -> SquareMode;
+    tool == "Diamond" -> HighSpeed;
+
+    always -> LogMetrics;
+    default -> StandardSettings;
+}
+~~~
+
+- rules tanımı bir isim ve parametre listesi alır.
+- Parametre adları ruleset gövdesindeki koşullarda kullanılabilir.
+- Gövde bariyerler ve trigger kurallarından oluşur.
+- Ruleset, apply rules(...) ile fonksiyon akışına uygulanır.
+
 ### 31.2 Barrier
+
+Bariyer biçimi: koşul :=> "mesaj";
+
+~~~nxf
+width > 2800 :=> "Genişlik sınırı aşıldı";
+height > 2100 :=> "Yükseklik sınırı aşıldı";
+~~~
+
+Koşulu doğru olan her bariyerin mesajı hata listesine eklenir. Bütün bariyerler değerlendirilir; ilk hatada durulmaz. En az bir bariyer hatası varsa mesajlar birlikte raporlanır ve ilgili ruleset'in trigger/handler aşaması ile çağıran fonksiyonun normal akışı çalışmaz.
+
 ### 31.3 Trigger
+
+~~~nxf
+(w == h) -> SquareMode;
+tool == "Diamond" -> HighSpeed;
+~~~
+
+Trigger koşulu doğru olduğunda trigger adı üretilir. Bütün normal trigger koşulları değerlendirilir; birden fazla eşleşme korunur.
+
 ### 31.4 Always
+
+~~~nxf
+always -> LogMetrics;
+~~~
+
+always koşulsuz trigger kuralıdır; bariyerler başarılı olduğunda değerlendirilir.
+
 ### 31.5 Default
+
+~~~nxf
+default -> StandardSettings;
+~~~
+
+default varsayılan trigger kuralıdır. Normal trigger eşleşmesi olmadığında varsayılan davranış olarak kullanılır. Birden fazla default kuralı ve bütün öncelik kombinasyonları **kısmen tanımlıdır**.
+
 ### 31.6 Kural gövdesi ve sıralama
 
+- Bariyerler topluca kontrol edilir.
+- Bariyer hatası varsa trigger ve on handler'ları çalışmaz.
+- Başarıda normal trigger koşulları değerlendirilir.
+- Birden çok trigger eşleşmesi korunur.
+- always ve default isteğe bağlıdır.
+- Handler'lar kaynak sırasıyla yürütülür.
+- Handler tanımlanmayan trigger tek başına hata değildir.
+
+**Durum:** Temel Ruleset/barrier/trigger/always/default kullanımı tanımlı; default öncelik kombinasyonları kısmen tanımlı.
+
+---
+
 ## 32. Ruleset kullanımı
+
 ### 32.1 apply rules(...)
+
+~~~nxf
+f:buildPart(w, h, tool) {
+    apply rules(CNC_Safety(w, h, tool));
+
+    on CNC_Safety.SquareMode {
+        v:angle = 90;
+    }
+
+    on CNC_Safety.HighSpeed {
+        v:rpm = 18000;
+    }
+
+    cut(rpm, mode, angle);
+}
+~~~
+
+apply rules verilen ruleset'i argümanlarla değerlendirir. Başarılı değerlendirmede eşleşen trigger'lar ilgili on bloklarıyla ilişkilendirilir.
+
 ### 32.2 Argüman yazımı
+
+~~~nxf
+apply rules(CNC_Safety(1200, 800, "Diamond"));
+~~~
+
+Argümanlar ruleset parametre sırasına göre verilir; sayı ve tip uyumu sağlanmalıdır. Ruleset çağrısında named argument grameri **kısmen tanımlıdır**; positional biçim esas alınır.
+
 ### 32.3 on Rule.Event
+
+~~~nxf
+on CNC_Safety.SquareMode {
+    setAngle(90);
+}
+~~~
+
+on Ruleset.Trigger biçimi belirli trigger için handler tanımlar. Ruleset ve trigger adı nokta ile birleştirilir.
+
 ### 32.4 Handler gövdesi
+
+Handler normal bir bloktur. Birden fazla eşleşen trigger'ın handler'ları kaynak sırasına göre çalışır. Handler tanımlanmaması tek başına ruleset hatası değildir.
+
 ### 32.5 Örnekler ve hatalar
+
+~~~nxf
+rules Positive(value) {
+    value <= 0 :=> "value pozitif olmalı";
+    value > 0 -> Valid;
+}
+
+f:main(value) {
+    apply rules(Positive(value));
+    on Positive.Valid {
+        echo("valid");
+    }
+}
+~~~
+
+~~~nxf
+apply rules();                    # Ruleset eksik.
+apply rules(Unknown(value));      # Tanımlanmamış ruleset.
+on CNC_Safety { }                 # Trigger adı eksik.
+on CNC_Safety.Unknown { }          # Tanımlanmamış trigger.
+~~~
+
+**Durum:** Ruleset uygulama ve trigger handler temel biçimleri tanımlı.
 
 ---
 
 # Bölüm IX — Modüller ve düşük seviyeli kaynak yapıları
 
 ## 33. Modül kullanımı
+
+Modül, yeniden kullanılabilir Nexus Flow kaynak/API birimidir. use bildirimi programın modül bağımlılığını açıkça belirtir.
+
 ### 33.1 use bildirimi
+
+~~~nxf
+use osmodule;
+use coremodule;
+~~~
+
+use module_name; biçimi modülü programa dahil eder. Modül adı açıkça yazılır ve noktalı virgülle sonlandırılır.
+
 ### 33.2 Birden fazla modül adı
+
+~~~nxf
+use osmodule;
+use coremodule;
+use thread;
+~~~
+
+Birden fazla modül ayrı use bildirimiyle yazılır. Tek use satırında virgülle çoklu modül biçimi burada geçerli syntax olarak tanımlanmamıştır.
+
 ### 33.3 Dotted module path
+
+~~~nxf
+use graphics.window;
+use network.http;
+~~~
+
+Alt modül yolu nokta ile belirtilebilir. Path'in dosya/klasör eşlemesi modül çözümleme kurallarına bağlıdır.
+
 ### 33.4 Alias: as
+
+~~~nxf
+use graphics.window as window;
+~~~
+
+as modül için yerel alias tanımlar. Alias çakışmaları ve re-export davranışının tüm ayrıntıları **kısmen tanımlıdır**.
+
 ### 33.5 Modül örnekleri
+
+~~~nxf
+use osmodule;
+
+f:main() {
+    echo("Hello");
+}
+~~~
+
+osmodule OS bağımlı I/O işlevleri sağlar. OS hizmeti olmayan hedeflerde bu işlevlerin bulunması garanti edilmez.
 
 ### 33.6 no: osmodule;
 
-no: osmodule; varsayılan olarak yüklenen osmodule'ün otomatik yüklenmesini engeller. Bare-metal ve OS servisi bulunmayan programlarda kullanılır. Bu genel bir modül kapatma mekanizması değildir; yalnızca osmodule için tanımlıdır.
+no: osmodule; otomatik yüklenen osmodule modülünü devre dışı bırakır. Genel modül kapatma mekanizması değildir; yalnızca osmodule için tanımlıdır.
 
 ~~~nxf
 no: osmodule;
@@ -2520,44 +2693,208 @@ f:main() {
 
 Kurallar:
 - Programın en üst seviyesinde yazılır.
-- Fonksiyon veya iç içe blok içinde kullanılamaz.
+- Fonksiyon veya iç içe blokta kullanılamaz.
 - Yalnızca osmodule hedeflenebilir.
 - Bir programda en fazla bir kez yazılır.
 - Noktalı virgül zorunludur.
 
-Hatalı örnekler:
-
 ~~~nxf
 no: coremodule;       # Desteklenmeyen hedef.
 no: osmodule          # Noktalı virgül eksik.
-no: osmodule;
-no: osmodule;         # Yinelenen bildirim.
 
 f:main() {
     no: osmodule;     # Yanlış kapsam.
 }
 ~~~
 
-**Durum:** Tanımlı.
+**Durum:** use ve no: osmodule; temel kullanımı tanımlı; resolver arama sırası ve alias edge-case'leri kısmen tanımlı.
 
 ## 34. Inline assembly
+
+Inline assembly, hedef işlemci assembly metnini Nexus Flow kodunun içinde FASTEXEC kapsamına yerleştirir. Normal Nexus Flow ifadeleriyle ham assembly gövdesi farklıdır.
+
 ### 34.1 fastexec bloğu
+
+~~~nxf
+f:main() {
+    fastexec {
+        v:a!i32 = 10;
+        v:b!i32 = 20;
+        v:result!i32 = 0;
+    }
+}
+~~~
+
+fastexec { ... } düşük seviyeli yürütme kapsamıdır. ASM bildirimi, asmcall ve asmjmp bu kapsam içinde kullanılmalıdır; kapsam dışında kullanımları geçerli değildir.
+
 ### 34.2 asm: LABEL { ... }
+
+~~~nxf
+fastexec {
+    asm: ADD_VALUES {
+        mov eax, %a
+        add eax, %b
+        mov %result, eax
+    }
+}
+~~~
+
+asm: LABEL { ... } isimli ham assembly bloğu tanımlar. Label boş olamaz; _, - veya $ gibi işaretlerle başlamamalıdır. Assembly gövdesi target assembler diline aittir.
+
 ### 34.3 Ham assembly gövdesi
+
+- ASM gövdesi Nexus Flow ifadeleri gibi ayrıştırılmaz; ham assembly metni olarak korunur.
+- Dış {} gövde sınırıdır. İç brace'ler dengelenir; tırnak içindeki brace ve escape karakterleri delimiter sayılmaz.
+- Assembly comment biçimleri hedef assembler'a aittir; comment içindeki brace karakterleri ham sınır sayımına katılabilir.
+- Instruction seçimi ve register adları hedef mimariye bağlıdır.
+
 ### 34.4 Assembly label
+
+Label, asm: LABEL { ... } bildiriminin adıdır. Aynı FASTEXEC kapsamındaki assembly çağrı/jump işlemleriyle hedeflenir. Label adları kapsam içinde benzersiz olmalıdır.
+
 ### 34.5 asmcall ve asmjmp
+
+~~~nxf
+fastexec {
+    asmcall("ADD_VALUES");
+    asmjmp("EXIT_LABEL");
+}
+~~~
+
+- asmcall("LABEL") tanımlı ASM label'ına call aktarımı ister.
+- asmjmp("LABEL") tanımlı ASM label'ına koşulsuz jump aktarımı ister.
+- Hedef label aynı FASTEXEC kapsamındaki ASM bildirimi olmalıdır.
+- Label argümanı string literal olarak yazılır.
+
 ### 34.6 Kullanım örnekleri ve sınırlar
 
+~~~nxf
+fastexec {
+    v:value!i32 = 5;
+    asm: DOUBLE_VALUE {
+        mov eax, %value
+        add eax, eax
+        mov %value, eax
+    }
+    asmcall("DOUBLE_VALUE");
+}
+~~~
+
+Operand bağlama biçimleri:
+- %variable: Nexus Flow değişkenini ASM operandına bağlar.
+- %variable:register: değişkeni belirtilen register ile eşler (ör. %value:rcx).
+- # clobber: rax, rbx: ASM tarafından değiştirilecek register'ları bildirir.
+
+**Güvenlik sınırı:** Ham assembly'nin bellek erişimi, register yan etkileri, ABI, stack hizalaması ve hedef CPU uyumluluğu programcı sorumluluğundadır. FASTEXEC/ASM otomatik güvenli bellek veya taşınabilirlik garantisi vermez.
+
+**Durum:** FASTEXEC, ASM label, asmcall/asmjmp ve operand biçimleri tanımlı; register/clobber ve hedef assembler ayrıntıları hedefe bağlıdır.
+
 ## 35. Donanım ve sistem işlemleri
+
+Bu bölüm OS bağımsız veya target/runtime tarafından sağlanan düşük seviyeli çağrıları açıklar. Syntax'ın tanımlı olması, çağrının her OS/CPU üzerinde izinli olduğu anlamına gelmez.
+
 ### 35.1 Port I/O
+
+~~~nxf
+v:status!u8 = inb(port);
+outb(port, value);
+~~~
+
+- inb(port) porttan byte okuma isteğidir.
+- outb(port, value) porta byte yazma isteğidir.
+- Port erişimi CPU/target ve privilege seviyesine bağlıdır; kullanıcı modunda erişim reddedilebilir.
+
 ### 35.2 Memory peek/poke
+
+~~~nxf
+v:value!u32 = peek(address);
+poke(address, value);
+~~~
+
+- peek(address) adres üzerinden bellek değeri okur.
+- poke(address, value) adrese değer yazma isteğidir.
+- Adres erişilebilirliği, hizalama, genişlik ve izin kontrolü target/runtime sözleşmesine bağlıdır. Geçersiz adres güvenli kabul edilmez.
+
 ### 35.3 IRQ ve register
+
+~~~nxf
+irq(irq_number, handler);
+intr(irq_number);
+v:register_value = reg.r("rax");
+reg.w("rax", value);
+~~~
+
+- irq(number, handler) interrupt handler kaydı/tanımıdır.
+- intr(number) interrupt çağırma isteğidir; handler tanımıyla aynı değildir.
+- reg.r(name) register okur; reg.w(name, value) register yazar.
+- Register adı, IRQ numarası, handler ABI ve privilege gereksinimi target'a bağlıdır.
+
 ### 35.4 Print ve write
+
+- echo(...) OS module tarafından sağlanan çıktı kolaylığıdır; terminal/console gerektirir.
+- prnt ve prmt için ortak OS bağımsız sink ABI'si kesinleşmemiştir; target/runtime output/input sink'e bağlıdır.
+- write(...) buffer/sağlayıcıya yazma; fwrite(...) buffer içeriğini dosya/stream'e yazma amacı taşır. Dosya/stream sağlayıcısı olmadan kullanılabilir varsayılmamalıdır.
+
 ### 35.5 Date, time ve clock
+
+~~~nxf
+v:now = time();
+v:ticks = clock();
+~~~
+
+time() ve clock() adları tanımlıdır; dönüş tipi, epoch/origin, birim, monotonicity ve hedefler arası kesin kontrat tamamlanmamıştır.
+
+**Durum:** Kısmen tanımlı.
+
 ### 35.6 Area ve zone
+
+~~~nxf
+v:memory = area(size);
+v:shared = zone(size);
+~~~
+
+- area yerel/çekirdeğe yakın bellek alanı niyetini ifade eder.
+- zone daha geniş paylaşım alanı niyetini ifade eder.
+- Bunlar belirli CPU cache seviyeleri veya fiziksel RAM bölgeleri garantisi değildir.
+- Tahsis, hizalama, paylaşım, fiziksel eşleme ve cleanup target/runtime bellek modeline bağlıdır.
+
 ### 35.7 free ve defer
+
+~~~nxf
+free(resource);
+
+defer {
+    release(resource);
+}
+~~~
+
+- free(resource) kaynak serbest bırakma isteğidir; kaynak türünün serbest bırakılabilir olması gerekir.
+- defer { ... } kapsamdan çıkışta çalıştırılacak cleanup gövdesini tanımlar.
+- Birden fazla defer'in LIFO/FIFO davranışı ve panic/jump/ret durumlarındaki ayrıntılar kısmen tanımlıdır. Cleanup ile ownership kuralları çelişmemelidir.
+
 ### 35.8 Zone sync, view ve lock
+
+~~~nxf
+zone.sync();
+v:local_view = zone.view();
+zone.lock();
+~~~
+
+- zone.sync() zone verisini senkronize etme isteğidir.
+- zone.view() zone içeriğine salt-okunur view/map oluşturma isteğidir.
+- zone.lock() manuel kritik bölge/lock isteğidir.
+
+**Kısmen tanımlı:** Bu çağrılar genel member-call biçiminde yazılabilir; runtime etkisi, lock bırakma/RAII, deadlock, memory-order ve target destek matrisi normatif olarak tamamlanmamıştır.
+
 ### 35.9 Hedefe bağlı kullanım kuralları
+
+- Port, IRQ ve register işlemleri yalnızca hedefin desteklediği privilege/CPU koşullarında çalışır.
+- peek/poke güvenli pointer veya bounds denetimi yerine geçmez.
+- OS module fonksiyonları bare-metal hedefte otomatik bulunmaz.
+- ASM, raw memory ve register işlemleri taşınabilirlik/güvenlik garantisi vermez.
+- Kullanıcı bu işlemleri hedef/runtime dokümantasyonuyla birlikte değerlendirmelidir.
+
+**Durum:** Temel çağrı adları ve kullanım amaçları tanımlı; ABI, runtime etkileri, izinler ve hedef uyumluluğu kısmen tanımlı.
 
 ---
 
