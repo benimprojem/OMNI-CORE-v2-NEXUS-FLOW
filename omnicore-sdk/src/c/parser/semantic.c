@@ -26,6 +26,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->current_scope_id = 1u;
     ctx->current_group_owner = NULL;
     ctx->current_fast_exec_owner = NULL;
+    ctx->expression_type_names = NULL;
     ctx->thread_blocks = NULL;
     ctx->thread_block_tail = NULL;
     ctx->active_thread_block = NULL;
