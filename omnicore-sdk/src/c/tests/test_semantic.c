@@ -922,6 +922,31 @@ static int check_borrow_expression_semantics(void) {
         check_source(shared_borrow_write, 1);
 }
 
+static int check_borrow_overlap_and_scope_semantics(void) {
+    const char* multiple_shared =
+        "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; v:b!&i32 = &owner; }";
+    const char* shared_then_mutable =
+        "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; v:b!&muti32 = &mut owner; }";
+    const char* mutable_then_shared =
+        "f:main() { v:owner!i32 = 1; v:a!&muti32 = &mut owner; v:b!&i32 = &owner; }";
+    const char* two_mutable =
+        "f:main() { v:owner!i32 = 1; v:a!&muti32 = &mut owner; v:b!&muti32 = &mut owner; }";
+    const char* owner_write_during_shared =
+        "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; owner = 2; }";
+    const char* owner_write_during_mutable =
+        "f:main() { v:owner!i32 = 1; v:a!&muti32 = &mut owner; owner = 2; }";
+    const char* borrow_released_at_scope_exit =
+        "f:main() { v:owner!i32 = 1; { v:a!&muti32 = &mut owner; } "
+        "v:b!&muti32 = &mut owner; }";
+    return check_source(multiple_shared, 0) &&
+        check_source(shared_then_mutable, 1) &&
+        check_source(mutable_then_shared, 1) &&
+        check_source(two_mutable, 1) &&
+        check_source(owner_write_during_shared, 1) &&
+        check_source(owner_write_during_mutable, 1) &&
+        check_source(borrow_released_at_scope_exit, 0);
+}
+
 static int check_array_type_semantics(void) {
     const char* valid_params = "f:consume(a![], b!i32[], third:i32[5]) {}";
     const char* valid_matrix_param = "f:consume_matrix(matrix_data:f64[2][2]) {}";
@@ -2424,6 +2449,10 @@ int main(int argc, char** argv) {
     }
     if (!check_borrow_expression_semantics()) {
         fprintf(stderr, "Shared/mutable borrow Semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_borrow_overlap_and_scope_semantics()) {
+        fprintf(stderr, "Borrow overlap/scope Semantic checks failed.\n");
         return 1;
     }
     if (!check_array_type_semantics()) {
