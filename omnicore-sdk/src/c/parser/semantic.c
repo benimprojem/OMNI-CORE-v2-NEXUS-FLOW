@@ -140,6 +140,45 @@ static uint32_t semantic_node_id(
     return ctx->node_id_resolver(ctx->node_id_context, node);
 }
 
+static const char* semantic_intern_expression_type(
+    SemanticContext* ctx, const char* prefix, const char* target_type
+) {
+    size_t prefix_length;
+    size_t target_length;
+    size_t length;
+    SemanticTypeName* entry;
+    char* name;
+    if (!ctx || !prefix || !target_type) return NULL;
+    if (target_type[0] == '!') ++target_type;
+    prefix_length = strlen(prefix);
+    target_length = strlen(target_type);
+    if (target_length > SIZE_MAX - prefix_length - 1u) return NULL;
+    length = prefix_length + target_length;
+    for (entry = ctx->expression_type_names; entry; entry = entry->next) {
+        if (strlen(entry->name) == length &&
+            memcmp(entry->name, prefix, prefix_length) == 0 &&
+            memcmp(entry->name + prefix_length, target_type, target_length) == 0)
+            return entry->name;
+    }
+    entry = (SemanticTypeName*)semantic_allocate(ctx, sizeof(*entry));
+    if (!entry) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return NULL;
+    }
+    name = (char*)semantic_allocate(ctx, length + 1u);
+    if (!name) {
+        free(entry);
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return NULL;
+    }
+    memcpy(name, prefix, prefix_length);
+    memcpy(name + prefix_length, target_type, target_length + 1u);
+    entry->name = name;
+    entry->next = ctx->expression_type_names;
+    ctx->expression_type_names = entry;
+    return name;
+}
+
 static int levenshtein(const char* s1, const char* s2) {
     size_t input_len1 = strlen(s1), input_len2 = strlen(s2);
     int len1 = (int)(input_len1 > 127u ? 127u : input_len1);
@@ -1255,6 +1294,12 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 type_name = semantic_dereference_target_type(
                     operand_type, NULL);
                 /* semantic_check_node owns the single diagnostic. */
+            } else if (unary->op == TOKEN_BIT_AND) {
+                type_name = semantic_intern_expression_type(
+                    ctx, "&", operand_type);
+            } else if (unary->op == TOKEN_BORROW_MUT) {
+                type_name = semantic_intern_expression_type(
+                    ctx, "&mut", operand_type);
             }
             semantic_record_annotation(
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
@@ -1444,6 +1489,7 @@ static const char* semantic_dereference_target_type(
     if (is_shared_reference) *is_shared_reference = 0;
     if (!raw_type) return NULL;
     if (raw_type[0] == '!') ++raw_type;
+    if (strncmp(raw_type, "&mut", 4u) == 0) return raw_type + 4;
     if (raw_type[0] == '&') {
         if (is_shared_reference) *is_shared_reference = 1;
         return raw_type + 1;
@@ -5587,6 +5633,16 @@ static void semantic_check_node(
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Dereference requires a pointer or reference operand.");
                 }
+            } else if (unary->op == TOKEN_BIT_AND ||
+                       unary->op == TOKEN_BORROW_MUT) {
+                if (!unary->operand || !semantic_is_lvalue(ctx, unary->operand)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Borrow operator requires an addressable lvalue.");
+                } else if (unary->op == TOKEN_BORROW_MUT &&
+                           semantic_lvalue_is_const(ctx, unary->operand)) {
+                    report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
+                        "Cannot create an exclusive mutable borrow from an immutable value.");
+                }
             } else if (operand_type && unary->op == TOKEN_MINUS &&
                        !is_numeric_primitive_type(operand_type) &&
                        !semantic_vector_dimension(operand_type, &(size_t){0})) {
@@ -6983,6 +7039,15 @@ void semantic_destroy(SemanticContext* ctx) {
         current = next;
     }
     ctx->head = NULL;
+
+    SemanticTypeName* expression_type = ctx->expression_type_names;
+    while (expression_type) {
+        SemanticTypeName* next = expression_type->next;
+        free(expression_type->name);
+        free(expression_type);
+        expression_type = next;
+    }
+    ctx->expression_type_names = NULL;
 
     ThreadBlockEntry* thread_block = ctx->thread_blocks;
     while (thread_block) {
