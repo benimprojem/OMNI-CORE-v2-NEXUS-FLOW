@@ -1020,57 +1020,326 @@ Legacy unpack yazımı `...>` için negatif Parser testi vardır; bu biçim dest
 
 # Part IV — Bloklar ve kontrol akışı
 
-## 13. Bloklar ve kapsam
-### 13.1 Program ve block biçimi
-### 13.2 İç içe bloklar
-### 13.3 Blok içinde bildirimler
-### 13.4 Thread block kaynak biçimi
-### 13.5 FASTEXEC block kaynak biçimi
-### 13.6 Blok sonlandırma: `}?;`
-### 13.7 Blok içinde geçersiz yapı örnekleri
+# 13. Bloklar ve kapsam
 
-## 14. Koşullu akış
-### 14.1 `if`
-### 14.2 `elsif`
-### 14.3 `els`
-### 14.4 Koşullu kontrol biçimi
-### 14.5 Koşul gövdeleri ve iç içe koşullar
-### 14.6 Geçersiz koşul biçimleri
+## 13.1 Normal block
 
-## 15. Döngüler
-### 15.1 `loop` temel biçimi
-### 15.2 Sonsuz döngü
-### 15.3 Koşullu döngü
-### 15.4 Range/count biçimleri
-### 15.5 Foreach ve `in`
-### 15.6 `break` ve `continue`
-### 15.7 `unroll(count)->loop`
-### 15.8 Rolling retry kaynak biçimi
-### 15.9 Döngü sözdizimi hata örnekleri
+Blok süslü parantezlerle açılır ve kapanır. Parser içindeki statement'ları sırayla AST_BLOCK altında saklar; iç içe bloklar desteklenir.
 
-## 16. Select ve Scan
-### 16.1 `select` temel biçimi
-### 16.2 Select arm
-### 16.3 Default arm
-### 16.4 `scan` temel biçimi
-### 16.5 Binding pattern
-### 16.6 Constructor pattern
-### 16.7 `when` guard
-### 16.8 Scan catch-all arm
-### 16.9 İç içe select/scan
-### 16.10 Pattern biçimlerinin sınırları
+    f:main() {
+        v:value = 10;
+        if (value > 0) {
+            echo(value);
+        }
+    }
 
-## 17. Return, break, continue ve sonlandırma
-### 17.1 `ret`
-### 17.2 `break`
-### 17.3 `continue`
-### 17.4 `panic`
-### 17.5 `exit`
-### 17.6 Tekil Halt biçimi
-### 17.7 Blok Halt biçimi
-### 17.8 Sonlandırma ifadelerinin kaynak konumu
+Blokların isim görünürlüğü, shadowing ve yaşam süresi Semantic kapsamındadır; burada yalnızca kaynak sınırları tanımlanır.
+
+## 13.2 Statement sonlandırma
+
+| Statement | Sonlandırma |
+|---|---|
+| v: / c: bildirimi | ; zorunlu |
+| m: bildirimi | ; zorunlu |
+| ret | ; zorunlu |
+| break / continue | ; zorunlu |
+| Expression statement | ; zorunlu |
+| Function/Struct/Enum/Union/Group gövdesi | Kapanış } |
+| If/loop/select/scan gövdesi | Kendi block/statement sınırı |
+| Boş statement | Tek başına ; kabul edilir |
+
+Satır sonu genel bir statement terminator değildir.
+
+## 13.3 Named thread block
+
+Parser (name)>{...} biçimini özel thread block olarak tanır:
+
+    (worker)>{
+        process();
+    }
+
+Bu biçim AST_THREAD_BLOCK üretir ve thread adını saklar. Parantez içinde tek identifier ve hemen ardından >{ tokenı beklenir. Thread yürütme ve iletişim davranışı syntax kapsamı dışındadır.
+
+## 13.4 FASTEXEC block
+
+    fastexec {
+        asm: ENTRY {
+            nop
+        }
+    }
+
+fastexec bir block açar ve AST_FASTEXEC_BLOCK üretir. Inline ASM declaration yalnızca bu block kapsamı içinde kabul edilir. FASTEXEC ve ASM kaynak ayrıntıları Bölüm 34'tedir.
+
+## 13.5 Block halt eki
+
+Normal veya FASTEXEC block kapanışından hemen sonra }?; yazılabilir:
+
+    f:main() {
+        prepare();
+    }?;
+
+Parser kapanış brace sonrasında HALT tokenını görürse block statement listesine AST_BLOCK_HALT ekler. Bu biçim normal statement içindeki ?; ile aynı AST düğümü değildir.
+
+## 13.6 Hatalı block
+
+    f:main() {
+        if (ready) {
+            echo("ready");
+    # Kapanış brace eksik.
+
+Parser eksik kapanış brace konumunu raporlamalıdır.
+
+Durum: Normal block, thread block, FASTEXEC block ve block-halt kaynak biçimleri Parser/AST tarafından temsil edilir.
 
 ---
+
+# 14. Koşullu akış
+
+## 14.1 If / elsif / els
+
+    if (score >= 90) {
+        echo("A");
+    }
+    elsif (score >= 70) {
+        echo("B");
+    }
+    els {
+        echo("C");
+    }
+
+if ve elsif sonrasında parantezli koşul zorunludur. Gövde block veya tek statement olabilir. els koşulsuz alternatif branch'tir. Parser AST_IF düğümlerini else-if zinciri olarak bağlar.
+
+## 14.2 Tek statement branch
+
+    if (ready) start();
+    elsif (waiting) wait();
+    els stop();
+
+Tek statement'ın kendi terminator kuralı korunur; örneğin çağrı statement'ı ; ile biter.
+
+## 14.3 Conditional-control shorthand
+
+    (condition) ? break;
+    (condition) ? continue;
+    (condition) ? ret 1;
+    (condition) ? process(value);
+    (condition) ? { process_a(); } : { process_b(); }
+
+Bu bir ternary value expression değil, AST_IF üreten statement biçimidir. Alternatif branch : ile ayrılır ve block veya statement olabilir. Parser lookahead ile bu biçimi rolling retry suffix'inden ayırır.
+
+    (a == b) -> break;
+
+Bu conditional-control biçimi değildir; -> Nexus Flow pipe tokenıdır. Koşullu action için ? kullanılır.
+
+## 14.4 Hatalı koşul biçimleri
+
+    if ready { start(); }          # Koşul parantezleri eksik.
+    if (ready)                     # Branch eksik.
+    if (ready) {} elsif (false)    # elsif branch eksik.
+    if (ready) {} els {} els {}    # Yinelenen els.
+    (condition) ? ;                # Conditional action eksik.
+
+Durum: If/elsif/els ve conditional-control biçimleri Parser/AST testleriyle doğrulanmıştır.
+
+---
+
+# 15. Döngüler
+
+## 15.1 Sonsuz loop
+
+    loop {
+        process();
+    }
+
+Bu canonical sonsuz loop biçimidir ve AST_LOOP içinde loop_type 0 olarak temsil edilir.
+
+## 15.2 Koşullu loop
+
+    loop(keep_running) {
+        process();
+    }
+
+Koşul expression'ı loop parantezleri içinde bulunur. Gövde öncesinde isteğe bağlı -> tokenı tüketilebilir. Koşulun runtime değerlendirme sıklığı syntax konusu değildir.
+
+## 15.3 Üç parçalı loop
+
+    loop(init, condition, increment) {
+        process();
+    }
+
+İlk ifade init, ikinci condition, üçüncü increment alanına aktarılır. Ayırıcı virgüller zorunludur; C tarzı noktalı virgül kullanan for-loop yazımı bu gramer değildir.
+
+## 15.4 Collection loop
+
+    loop(item in items) {
+        process(item);
+    }
+
+İlk ifade sonrasında contextual identifier in gelirse collection loop biçimi seçilir. İlk kısım loop variable, ikinci expression collection olarak saklanır. Parser v: veya c: ile başlayan bildirim biçimini de ilk bölümde kabul eder.
+
+## 15.5 Unroll
+
+    unroll(3) -> loop(item in items) {
+        process(item);
+    }
+
+unroll contextual identifier olarak tanınır. Count sonrasında -> zorunludur ve sağ taraf AST_LOOP olmalıdır. Başka expression veya normal block hedefi kabul edilmez; AST_UNROLL üretilir.
+
+    unroll(3) -> process();   # Hedef loop değil.
+    unroll(3) loop { }        # -> eksik.
+
+## 15.6 Loop kontrolü
+
+    loop {
+        if (finished) break;
+        if (skip_item) continue;
+        process();
+    }
+
+break; ve continue; ayrı AST_BREAK / AST_CONTINUE statement'larıdır. Hangi loop'a etki ettikleri ve loop dışında geçerlilikleri Semantic kontrolüdür.
+
+## 15.7 Loop sınırları
+
+Parser sonsuz, koşullu, üç parçalı ve collection loop biçimlerini ayırt eder. Bütün varyantların sınır kombinasyonları için test matrisi tamamlanmadığından tüm loop grameri kısmen tanımlı işaretlenir; sonsuz loop ve unroll örnekleri açık testlerle doğrulanmıştır.
+
+Durum: Parser/AST üretimleri mevcut; tüm loop varyantlarının test kapsamı kısmen tanımlı.
+
+---
+
+# 16. Select ve Scan
+
+## 16.1 Ortak yapı
+
+select ve scan Lexer keyword'ü değildir; Parser belirli identifier + parantez bağlamında bunları contextual sözcük olarak tanır.
+
+    select-expression = "select" "(" expression ")" "{" arms "}" ;
+    scan-expression   = "scan" "(" expression ")" "{" arms "}" ;
+
+Her arm pattern sonrasında -> ister. Arm gövdesi block veya tek statement olabilir. Arm'lar virgül veya noktalı virgülle ayrılabilir.
+
+## 16.2 Select
+
+    select(state) {
+        Ready -> start();
+        Running when active -> process();
+        default -> recover();
+    }
+
+Pattern literal, identifier binding veya constructor pattern olabilir. default en fazla bir kez kullanılabilir ve when guard taşıyamaz. Parser AST_SELECT / AST_SELECT_ARM üretir.
+
+## 16.3 Scan
+
+    scan(value) {
+        Range(start, end) when start < end && end > 0 -> {
+            process(start, end);
+        }
+        item -> process(item);
+        else -> recover();
+    }
+
+scan subject üzerinde pattern arm'ları oluşturur. else fallback arm'ıdır; en fazla bir kez bulunabilir ve son arm olmak zorundadır. else üzerinde when guard kullanılamaz. Parser AST_SCAN / AST_SCAN_ARM üretir.
+
+## 16.4 Pattern biçimleri
+
+| Pattern | Örnek | AST |
+|---|---|---|
+| Identifier binding | item | AST_PATTERN_BINDING |
+| Constructor + binding list | Range(start, end) | AST_PATTERN_CONSTRUCTOR |
+| Literal | 0, "none", true, null | Literal AST |
+
+Constructor pattern en az bir binding içermelidir; Range() reddedilir.
+
+## 16.5 Guard
+
+    scan(value) {
+        item when item > 0 -> process(item);
+        else -> recover();
+    }
+
+Normal pattern arm'ına when expression guard eklenebilir. default ve else fallback arm'larında guard yasaktır.
+
+## 16.6 Hatalı select/scan örnekleri
+
+    select(x) {
+        default when true -> {}
+    }
+
+default guard taşıyamaz.
+
+    select(x) {
+        default -> {}
+        default -> {}
+    }
+
+Select içinde ikinci default yasaktır.
+
+    scan(x) {
+        Range() -> {}
+    }
+
+Constructor pattern boş binding listesi içeremez.
+
+    scan(x) {
+        else -> {}
+        item -> {}
+    }
+
+Scan else arm'ı son sırada olmalıdır. Parser ayrıca ikinci scan else, eksik -> ve kapanış/arm ayraç hatalarını raporlar.
+
+Durum: Select/Scan, pattern, constructor binding, guard ve fallback kuralları Parser/AST testleriyle doğrulanmıştır.
+
+---
+
+# 17. Return, break, continue ve sonlandırma
+
+## 17.1 Return
+
+    ret;
+    ret value;
+    ret calculate();
+
+ret tek başına veya bir expression ile kullanılabilir; her iki biçimde de ; zorunludur. Parser AST_RETURN üretir ve operandı isteğe bağlı saklar.
+
+## 17.2 Break ve continue
+
+    break;
+    continue;
+
+Her ikisi de ; ile biter ve AST_BREAK / AST_CONTINUE üretir. Geçerli loop kapsamı Semantic kontrolüdür.
+
+## 17.3 Panic
+
+    panic("fatal error");
+    !! "critical failure";
+
+panic("message") intrinsic biçimidir. !! statement biçiminde string mesaj isteğe bağlıdır; mesaj yoksa Parser varsayılan metin atar ve ; zorunludur. Her iki yol da AST_PANIC ile ilişkilidir.
+
+## 17.4 Exit
+
+    exit(0);
+
+exit(...) özel intrinsic çağrısıdır ve AST_EXIT üretir. Parametre sözleşmesi ve sürecin sonlandırılması runtime davranışıdır.
+
+## 17.5 Nexus Halt
+
+    ?;
+
+?; tek HALT tokenıdır ve normal statement bağlamında AST_NEXUS_HALT üretir. Hedefsiz kullanımda AST operandı boştur. Bu biçim block kapanışındaki }?; ekiyle aynı değildir; o biçim AST_BLOCK_HALT oluşturur (Bölüm 13.5).
+
+## 17.6 Defer
+
+    defer cleanup();
+    defer {
+        release(resource);
+    }
+
+defer sonrasında Parser bir block veya statement okur ve AST_DEFER üretir. Defer body'nin ne zaman çalıştırılacağı runtime/semantic davranışıdır; burada kaynak biçimi tanımlanır.
+
+## 17.7 Sonlandırma sınırları
+
+ret, break, continue, panic, exit ve ?; farklı AST/Parser yollarına sahiptir; birbirinin eş anlamlısı değildir. Label/jump biçimleri Bölüm 29'da ayrıca tanımlanır.
+
+Durum: Return, break/continue, panic, exit, halt ve defer kaynak biçimleri Parser/AST tarafından temsil edilir. Kontrol akışının geçerliliği ve çalışma zamanı etkisi Semantic/runtime kapsamındadır.
 
 # Part V — Fonksiyonlar, Group ve çağrılar
 
