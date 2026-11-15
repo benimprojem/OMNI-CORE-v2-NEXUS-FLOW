@@ -1047,7 +1047,7 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         check_source(outer_reference_cannot_escape_inner_owner, 1) &&
         check_source(later_declared_owner_cleanup_is_safe, 0) &&
         check_source(mutable_reassignment_releases_old_owner, 0) &&
-        check_source(failed_reassignment_preserves_old_borrow, 1) &&
+        check_source(failed_reassignment_preserves_old_borrow, 2) &&
         check_source(stored_reference_member_reassignment_is_rejected, 1) &&
         check_source(stored_reference_index_reassignment_is_rejected, 1);
 }
