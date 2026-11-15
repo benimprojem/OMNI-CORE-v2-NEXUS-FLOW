@@ -976,6 +976,7 @@ static void semantic_release_borrow_binding(Slot* borrower) {
         free(borrower->borrow_path);
         borrower->borrow_path = NULL;
         borrower->borrow_kind = 0u;
+        borrower->borrow_origin = NULL;
         return;
     }
     if (borrower->borrow_kind == 1u) {
@@ -985,6 +986,7 @@ static void semantic_release_borrow_binding(Slot* borrower) {
         owner->mutable_borrow_active = 0u;
     }
     borrower->borrowed_from = NULL;
+    borrower->borrow_origin = NULL;
     borrower->borrow_kind = 0u;
     free(borrower->borrow_path);
     borrower->borrow_path = NULL;
@@ -1373,6 +1375,9 @@ static int semantic_reference_return_has_stable_origin(
         if (slot->is_parameter &&
             semantic_is_reference_type_name(slot->type_name)) return 1;
         if (slot->depth == 0) return 1;
+        if (slot->borrow_origin &&
+            (slot->borrow_origin->is_parameter ||
+             slot->borrow_origin->depth == 0)) return 1;
         return slot->borrowed_from && slot->borrowed_from->depth == 0;
     }
     if (operand->type == AST_UNARY_EXPR) {
@@ -4660,8 +4665,30 @@ static int semantic_bind_returned_call_reference(
 
     if (argument_value->type == AST_IDENTIFIER) {
         Slot* source = find_slot(ctx, ((ASTIdentifier*)argument_value)->name);
-        if (!source || !source->borrowed_from ||
+        Slot* origin;
+        if (!source ||
             !semantic_is_reference_type_name(source->type_name)) return 0;
+        if (!source->borrowed_from) {
+            origin = source->borrow_origin;
+            if (!origin && (source->is_parameter || source->depth == 0))
+                origin = source;
+            /* Returning a shared reference identifier preserves its caller
+               lifetime anchor. Duplicating an untracked exclusive reference
+               is not safe and remains fail-closed. */
+            if (!origin ||
+                semantic_is_mut_reference_type_name(source->type_name) ||
+                semantic_is_mut_reference_type_name(borrower->type_name) ||
+                !semantic_is_reference_type_name(borrower->type_name))
+                return 0;
+            if (borrower->depth < origin->depth) {
+                report_error(ctx, initializer, ERR_SEMANTIC_RETURN_MISMATCH,
+                    "Returned reference would outlive the parameter or global reference from which it originates.");
+                return 1;
+            }
+            semantic_release_borrow_binding(borrower);
+            borrower->borrow_origin = origin;
+            return 1;
+        }
         owner = source->borrowed_from;
         if (source->borrow_path) {
             size_t source_path_length = strlen(source->borrow_path);
@@ -4837,9 +4864,22 @@ static void semantic_copy_shared_reference_binding(
         }
     }
     if (!owner) {
-        /* Preserve type-level assignment for untracked reference parameters;
-           their external lifetime/provenance contract remains a separate task. */
+        Slot* origin = source->borrow_origin;
+        if (!origin && (source->is_parameter || source->depth == 0))
+            origin = source;
+        if (origin && target->depth < origin->depth) {
+            char message[320];
+            (void)snprintf(message, sizeof(message),
+                "Cannot store reference '%s' into longer-lived binding '%s': its origin '%s' is scoped at depth %d.",
+                source->name ? source->name : "<reference>",
+                target->name ? target->name : "<reference>",
+                origin->name ? origin->name : "<origin>",
+                origin->depth);
+            report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH, message);
+            return;
+        }
         semantic_release_borrow_binding(target);
+        target->borrow_origin = origin;
         return;
     }
     effective_shared_count = semantic_shared_borrows_on_path(
@@ -6286,7 +6326,12 @@ static void semantic_check_node(
                     if (parameter_node->type == AST_VAR_DECL) {
                         Slot* parameter_slot = semantic_find_slot_by_declaration(
                             ctx, parameter_node);
-                        if (parameter_slot) parameter_slot->is_parameter = 1u;
+                        if (parameter_slot) {
+                            parameter_slot->is_parameter = 1u;
+                            if (semantic_is_reference_type_name(
+                                    parameter_slot->type_name))
+                                parameter_slot->borrow_origin = parameter_slot;
+                        }
                     }
                 }
             }

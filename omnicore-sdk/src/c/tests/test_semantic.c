@@ -1151,9 +1151,23 @@ static int check_safe_reference_return_lifetime_semantics(void) {
         "v:reference!&i32 = &owner; ret reference; }";
     const char* returning_reference_parameter_preserves_forwarding =
         "f:identity(value!&i32)!&i32 { ret value; }";
+    const char* returning_local_alias_of_reference_parameter_is_allowed =
+        "f:identity(value!&i32)!&i32 { v:local!&i32 = value; ret local; }";
+    const char* forwarding_call_preserves_parameter_origin =
+        "f:identity(value!&i32)!&i32 { ret value; } "
+        "f:forward(value!&i32)!&i32 { v:local!&i32 = identity(value); ret local; }";
+    const char* parameter_reference_cannot_escape_to_global =
+        "v:global_ref!&i32; f:store(value!&i32) { global_ref = value; }";
+    const char* local_alias_of_parameter_cannot_escape_to_global =
+        "v:global_ref!&i32; f:store(value!&i32) { "
+        "v:local!&i32 = value; global_ref = local; }";
     return check_source(returning_local_reference_is_rejected, 1) &&
         check_source(returning_local_reference_binding_is_rejected, 1) &&
-        check_source(returning_reference_parameter_preserves_forwarding, 0);
+        check_source(returning_reference_parameter_preserves_forwarding, 0) &&
+        check_source(returning_local_alias_of_reference_parameter_is_allowed, 0) &&
+        check_source(forwarding_call_preserves_parameter_origin, 0) &&
+        check_source(parameter_reference_cannot_escape_to_global, 1) &&
+        check_source(local_alias_of_parameter_cannot_escape_to_global, 1);
 }
 
 static int check_reference_reassignment_and_lifetime_semantics(void) {
