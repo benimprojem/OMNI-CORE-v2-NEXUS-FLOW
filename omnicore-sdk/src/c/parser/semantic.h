@@ -49,6 +49,11 @@ typedef uint32_t (*SemanticNodeIdResolver)(
     void* user_context, const ASTNode* node
 );
 
+typedef struct SemanticTypeName {
+    char* name;
+    struct SemanticTypeName* next;
+} SemanticTypeName;
+
 typedef struct ThreadBlockCapture {
     char* name;
     char* type_name;
@@ -103,6 +108,8 @@ typedef struct {
     /* Non-zero while validating a thread payload; nested payloads are invalid. */
     uint8_t thread_block_depth;
     /* Registry of complete named payloads available to spawn() calls. */
+    /* Expression-derived reference type spellings live until semantic_destroy. */
+    SemanticTypeName* expression_type_names;
     ThreadBlockEntry* thread_blocks;
     ThreadBlockEntry* thread_block_tail;
     ThreadBlockEntry* active_thread_block;
