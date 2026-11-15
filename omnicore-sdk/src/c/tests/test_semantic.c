@@ -974,6 +974,24 @@ static int check_mutable_borrow_owner_access_semantics(void) {
         check_source(assignment_target_read_does_not_duplicate, 1);
 }
 
+static int check_reference_initializer_provenance_semantics(void) {
+    const char* shared_reference_initializer_copy_tracks_owner =
+        "f:main() { v:owner!i32 = 1; "
+        "v:reference!&i32 = &owner; v:copy!&i32 = reference; "
+        "v:edit!&muti32 = &mut owner; }";
+    const char* exclusive_reference_initializer_copy_is_rejected =
+        "f:main() { v:owner!i32 = 1; "
+        "v:reference!&muti32 = &mut owner; "
+        "v:copy!&muti32 = reference; }";
+    const char* call_return_reference_initializer_without_provenance_is_rejected =
+        "f:identity(value!&i32)!&i32 { ret value; } "
+        "f:main() { v:owner!i32 = 1; v:reference!&i32 = &owner; "
+        "v:copy!&i32 = identity(reference); }";
+    return check_source(shared_reference_initializer_copy_tracks_owner, 1) &&
+        check_source(exclusive_reference_initializer_copy_is_rejected, 1) &&
+        check_source(call_return_reference_initializer_without_provenance_is_rejected, 1);
+}
+
 static int check_safe_reference_return_lifetime_semantics(void) {
     const char* returning_local_reference_is_rejected =
         "f:get()!&i32 { v:owner!i32 = 1; ret &owner; }";
@@ -2574,6 +2592,10 @@ int main(int argc, char** argv) {
     }
     if (!check_mutable_borrow_owner_access_semantics()) {
         fprintf(stderr, "Exclusive borrow owner-access checks failed.\\n");
+        return 1;
+    }
+    if (!check_reference_initializer_provenance_semantics()) {
+        fprintf(stderr, "Reference initializer provenance checks failed.\\n");
         return 1;
     }
     if (!check_safe_reference_return_lifetime_semantics()) {

@@ -4131,6 +4131,10 @@ static void semantic_validate_spawn_call(
     }
 }
 
+static void semantic_copy_shared_reference_binding(
+    SemanticContext* ctx, Slot* target, Slot* source, ASTNode* assignment
+);
+
 static void semantic_register_borrow_binding(
     SemanticContext* ctx, Slot* borrower, ASTNode* initializer
 ) {
@@ -4138,7 +4142,30 @@ static void semantic_register_borrow_binding(
     Slot* owner;
     int is_mutable;
     if (!ctx || !borrower || !initializer ||
-        initializer->type != AST_UNARY_EXPR) return;
+        !semantic_is_reference_type_name(borrower->type_name)) return;
+
+    if (initializer->type == AST_IDENTIFIER) {
+        ASTIdentifier* source_id = (ASTIdentifier*)initializer;
+        Slot* source = find_slot(ctx, source_id->name);
+        if (source && source != borrower &&
+            semantic_is_reference_type_name(source->type_name) &&
+            are_types_compatible(borrower->type_name, source->type_name)) {
+            semantic_copy_shared_reference_binding(
+                ctx, borrower, source, initializer);
+        } else if (source == borrower) {
+            report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
+                "A reference binding cannot be initialized from itself.");
+        }
+        return;
+    }
+    if (initializer->type != AST_UNARY_EXPR) {
+        const char* initializer_type = get_expr_type(ctx, initializer);
+        if (semantic_is_reference_type_name(initializer_type)) {
+            report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Reference initialization requires a direct borrow or a tracked shared-reference binding; computed and call-produced origins are not supported.");
+        }
+        return;
+    }
     borrow = (ASTUnaryExpr*)initializer;
     if (borrow->op != TOKEN_BIT_AND && borrow->op != TOKEN_BORROW_MUT)
         return;
@@ -4459,10 +4486,7 @@ static void semantic_check_node(
                 }
             }
 
-            if (declared_slot && decl->initializer &&
-                decl->initializer->type == AST_UNARY_EXPR &&
-                (((ASTUnaryExpr*)decl->initializer)->op == TOKEN_BIT_AND ||
-                 ((ASTUnaryExpr*)decl->initializer)->op == TOKEN_BORROW_MUT)) {
+            if (declared_slot && decl->initializer) {
                 semantic_register_borrow_binding(
                     ctx, declared_slot, decl->initializer);
             }
