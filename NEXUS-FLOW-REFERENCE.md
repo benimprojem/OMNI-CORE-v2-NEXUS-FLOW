@@ -870,27 +870,27 @@ Geçersizdir: Struct literal alan başlatıcısı `:` değil `=` bekler.
 ### 33.4 Alias: `as`
 ### 33.5 Modül bildirimi örnekleri
 
-### 33.6 §no: osmodule;§ — otomatik OS modülü yüklemesini kapatma
+### 33.6 `no: osmodule;` — otomatik OS modülü yüklemesini kapatma
 
-§no:§ genel bir modül kapatma mekanizması değildir. Parser yalnızca program seviyesinde tek bir §no: osmodule;§ bildirimini kabul eder. Bu bildirim varsayılan olarak otomatik yüklenen §osmodule§'ün yüklenmesini engeller; OS servisi bulunmayan bare-metal programlar için kullanılır.
+`no:` genel bir modül kapatma mekanizması değildir. Parser yalnızca program seviyesinde tek bir `no: osmodule;` bildirimini kabul eder. Bu bildirim varsayılan olarak otomatik yüklenen `osmodule`'ün yüklenmesini engeller; OS servisi bulunmayan bare-metal programlar için kullanılır.
 
-§§§nxf
+```nxf
 no: osmodule;
 
 f:main() {
     # Bare-metal başlangıç kodu
 }
-§§§
+```
 
 Kurallar:
 - Program kökünde bulunmalıdır; fonksiyon veya iç içe blokta kullanılamaz.
-- Yalnızca §osmodule§ hedefi desteklenir; §no: coremodule;§ geçersizdir.
+- Yalnızca `osmodule` hedefi desteklenir; `no: coremodule;` geçersizdir.
 - Bir programda en fazla bir kez yazılabilir.
-- §;§ zorunludur.
-- Ayrı statement düğümü üretmez; §ASTProgram.disable_osmodule§ politika alanı ve kaynak aralığı kaydedilir.
+- `;` zorunludur.
+- Ayrı statement düğümü üretmez; `ASTProgram.disable_osmodule` politika alanı ve kaynak aralığı kaydedilir.
 - Otomatik modül yükleme entegrasyonu bu syntax kuralından ayrıdır.
 
-§§§nxf
+```nxf
 no: coremodule;       # Desteklenmeyen hedef.
 no: osmodule          # ; eksik.
 no: osmodule;
@@ -899,7 +899,7 @@ no: osmodule;         # Yinelenen bildirim.
 f:main() {
     no: osmodule;     # Yanlış kapsam.
 }
-§§§
+```
 
 Parser bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelenen bildirim ve yanlış kapsam olarak ayırır.
 
