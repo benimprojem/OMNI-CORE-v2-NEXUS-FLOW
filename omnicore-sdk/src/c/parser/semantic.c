@@ -1146,7 +1146,7 @@ static char* semantic_lvalue_path(const ASTNode* node) {
     if (!node) return NULL;
     if (node->type == AST_IDENTIFIER) {
         result = (char*)malloc(1u);
-        if (result) result[0] = '\\0';
+        if (result) result[0] = '\0';
         return result;
     }
     if (node->type == AST_MEMBER_ACCESS) {
@@ -4518,9 +4518,15 @@ static int semantic_bind_returned_call_reference(
         if (!source || !source->borrowed_from ||
             !semantic_is_reference_type_name(source->type_name)) return 0;
         owner = source->borrowed_from;
-        borrow_path = source->borrow_path
-            ? _strdup(source->borrow_path) : (char*)malloc(1u);
-        if (borrow_path && !source->borrow_path) borrow_path[0] = '\\0';
+        if (source->borrow_path) {
+            size_t source_path_length = strlen(source->borrow_path);
+            borrow_path = (char*)malloc(source_path_length + 1u);
+            if (borrow_path)
+                memcpy(borrow_path, source->borrow_path, source_path_length + 1u);
+        } else {
+            borrow_path = (char*)malloc(1u);
+            if (borrow_path) borrow_path[0] = '\0';
+        }
         is_mutable = source->borrow_kind == 2u;
     } else if (argument_value->type == AST_UNARY_EXPR) {
         ASTUnaryExpr* borrow = (ASTUnaryExpr*)argument_value;
