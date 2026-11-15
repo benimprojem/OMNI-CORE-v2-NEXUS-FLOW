@@ -1038,7 +1038,31 @@ if (ready) {} els {} els {}    # Yinelenen els.
 
 # 15. Döngüler
 
-## 15.1 Sonsuz loop
+## 15.8 Range loop
+
+Range loop, iki uç değeri de kapsayan `..` aralığı üzerinde yinelenir:
+
+~~~nxf
+loop(1..10) {
+    echo(it);
+}
+~~~
+
+Bu örnek `1, 2, 3, …, 10` değerlerini üretir; **başlangıç ve bitiş dahildir**. Range döngüsünde geçerli öğe `it` adıyla kullanılabilir.
+
+Range operatörünün kuralları:
+
+- `a..b` iki uç değeri kapsar.
+- Tek range ifadesinde ikinci bir `..` ile zincirleme aralık yazılamaz.
+- `..` aralık operatörüdür; `...` variadic parametre işaretinden farklıdır.
+- Negatif aralık, ters yönde ilerleme ve özel adım değeri davranışları ayrıca tanımlı değildir; bunları varsaymayın.
+
+~~~nxf
+loop(1..10) { echo(it); }       # Geçerli: 1 ve 10 dahil
+loop(1..10..20) { echo(it); }   # Geçersiz: range zincirlenemez
+~~~
+
+## 15.8 Sonsuz loop
 
 ~~~nxf
 loop {
@@ -1048,7 +1072,7 @@ loop {
 
 Koşul belirtilmeyen loop sürekli yinelenen döngüdür. Döngüden çıkmak için break veya uygun bir kontrol akışı kullanılmalıdır.
 
-## 15.2 Koşullu loop
+## 15.8 Koşullu loop
 
 ~~~nxf
 loop(keep_running) {
@@ -1058,7 +1082,7 @@ loop(keep_running) {
 
 Parantez içindeki ifade döngünün koşulunu belirtir.
 
-## 15.3 Üç parçalı loop
+## 15.8 Üç parçalı loop
 
 ~~~nxf
 loop(init, condition, increment) {
@@ -1068,7 +1092,7 @@ loop(init, condition, increment) {
 
 Bu biçimde ilk ifade başlangıç, ikinci ifade koşul, üçüncü ifade artış/güncelleme bölümüdür. Bölümler virgülle ayrılır.
 
-## 15.4 Collection loop
+## 15.8 Collection loop
 
 ~~~nxf
 loop(item in items) {
@@ -1078,7 +1102,7 @@ loop(item in items) {
 
 in biçimi bir koleksiyonun öğeleri üzerinde yineleme yapar. Döngü değişkeni her adımda ilgili öğeyi temsil eder.
 
-## 15.5 Unroll
+## 15.8 Unroll
 
 ~~~nxf
 unroll(3) -> loop(item in items) {
@@ -1093,7 +1117,7 @@ unroll(3) -> process();   # Hedef loop değil.
 unroll(3) loop { }        # -> eksik.
 ~~~
 
-## 15.6 break ve continue
+## 15.8 break ve continue
 
 ~~~nxf
 loop {
@@ -1105,7 +1129,7 @@ loop {
 
 break geçerli döngüden çıkar. continue mevcut yinelemenin kalanını atlayıp sonraki yinelemeye geçer.
 
-## 15.7 Rolling retry
+## 15.8 Rolling retry
 
 Rolling retry, bir işlemi belirli sayıda yeniden denemek için kullanılan akış biçimidir. Ayrıntılı yazım Bölüm 30'da açıklanır.
 
