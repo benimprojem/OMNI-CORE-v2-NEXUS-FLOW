@@ -1,120 +1,84 @@
-# NEXUS FLOW — Language Reference Manual
+# NEXUS FLOW — Dil Referans Kılavuzu
 
-**Belge türü:** Nexus Flow programlama dili kullanım ve başvuru kılavuzu  
-**Durum:** İlk taslak — dil kullanıcılarına yönelik olarak düzenleniyor  
-**Sürüm:** 0.2-draft  
-**Çalışma dalı:** `refactor/c-core-roadmap`
+**Belge türü:** Programcılar için dil kullanım ve başvuru kılavuzu  
+**Sürüm:** 0.3-draft  
+**Dal:** refactor/c-core-roadmap
 
-> Bu kılavuz Nexus Flow ile program yazan kişiler içindir. Dilin sözdizimini, ifadelerin nasıl kullanılacağını, tipleri, kontrol yapılarını, bellek ve akış yapılarını örneklerle açıklar. Derleyicinin kaynak kodu nasıl işlediğini veya bu yapıları içeride nasıl temsil ettiğini anlatmaz.
->
-> Henüz tasarlanmamış veya kullanıma sunulmamış özellikler geçerli dil özelliği gibi gösterilmez. Eksik tanımlanmış konular açıkça işaretlenir.
+Bu belge Nexus Flow ile program yazan kişiler içindir. Dilin yazım biçimini, kurallarını, kapsamını ve kullanımını örneklerle açıklar. Derleyicinin iç işleyişini, veri yapılarını veya kod üretimini anlatmaz.
+
+Bu kılavuzda yalnızca mevcut Nexus Flow dilinde kullanılabilen özellikler geçerli özellik olarak açıklanır. Henüz tasarlanmamış özellikler geçerli sözdizimi gibi sunulmaz. Eksik tanımlanmış konular açıkça işaretlenir.
+
 ---
 
-# Bölüm 0 — Belgenin kullanımı ve kapsam
+# Bölüm 0 — Bu kılavuz nasıl kullanılır?
 
 ## 0.1 Amaç
 
-Bu manuel, Nexus Flow kaynak kodunu yazan kişinin dilin kabul edilen yazım biçimlerini, ifade ve bildirim kurallarını, blok/kapsam yapısını ve mevcut dil operatörlerini tek bir yerde bulabilmesi için hazırlanır.
+Kılavuz, Nexus Flow öğrenen veya program yazarken dil kurallarına başvurmak isteyen kullanıcılar için hazırlanmıştır. Konular basitten karmaşığa doğru sıralanır.
 
-## 0.2 Kapsam sınırı
+## 0.2 Kapsam
 
-Bu belgeye yalnızca aşağıdaki kanıt zincirini geçen sözdizimi alınır:
+Bu belge yalnızca Nexus Flow dilini kapsar: bildirimler, tipler, ifadeler, operatörler, bloklar, kontrol akışı, fonksiyonlar, pointer/reference, akış yapıları, modüller ve düşük seviyeli dil kullanımları. Derleyici mimarisi ve geliştirme ayrıntıları kapsam dışıdır.
 
-1. Kaynak biçimi sözcüksel çözümleme/dil tarafından tanınır.
-2. derleyici bu biçim için mevcut iç temsil'de anlamlı bir düğüm veya açıkça tanımlanmış mevcut düğüm biçimi üretir.
-3. Sözdizimi ile iç temsil eşlemesi kaynak denetiminde doğrulanabilir.
+## 0.3 Kural ifadeleri
 
-Aşağıdakiler bu manuelin konusu değildir:
+- **Zorunludur:** Geçerli program bu kurala uymalıdır.
+- **Yasaktır:** Bu kullanım geçerli değildir.
+- **Önerilir:** Daha açık ve güvenilir kod için tercih edilmelidir.
+- **İsteğe bağlıdır:** Kullanıcı ihtiyacına göre kullanılabilir.
 
-- iç temsil node alanlarının, codec'in veya OIR ID'lerinin teknik açıklaması.
-- Semantic analiz algoritmalarının iç işleyişi.
-- OIR, Verifier, Codegen, optimizer ve backend.
-- CPU, target, ABI, bellek topolojisi veya runtime uygulama ayrıntıları.
-- Henüz dil iç yapısı karşılığı olmayan gelecekteki dil yapıları.
+## 0.4 Özellik durumu
 
-## 0.3 Normatif ifadeler
+- **Tanımlı:** Yazım ve kullanım kuralı bu kılavuzda açıklanmıştır.
+- **Kısmen tanımlı:** Temel biçim bilinir, bazı ayrıntılar henüz kesinleşmemiştir.
+- **Tasarım aşamasında:** Henüz kullanılabilir bir dil özelliği değildir.
+- **Desteklenmiyor:** Bu sürümde geçerli kullanım değildir.
+- **Eski kullanım:** Önceki sürümlerden kalmıştır; yeni kodda kullanılmamalıdır.
 
-- **ZORUNLUDUR (MUST):** Geçerli kaynak kod bu kurala uymalıdır.
-- **YASAKTIR (MUST NOT):** Bu biçim mevcut dil sözleşmesinde kabul edilmez.
-- **ÖNERİLİR (SHOULD):** Kodun açık ve taşınabilir olması için tercih edilmelidir.
-- **OLABİLİR (MAY):** Dilin izin verdiği isteğe bağlı biçimdir.
+## 0.5 Örnekler
 
-Bu ifadeler yalnızca ilgili bölümdeki kanıtlanmış dil kuralları için kullanılır. Tasarım önerisi normatif kural gibi yazılmaz.
+Kod blokları Nexus Flow kaynak kodudur. Hatalı örneklerin yanında hata nedeni belirtilir; mümkün olduğunda doğru kullanım da gösterilir. Bir yazım biçiminin doğru olması, her tip veya çalışma ortamında kullanılabileceği anlamına gelmez.
 
-## 0.4 Özellik durum etiketleri
+## 0.6 Eksik tanımlar
 
-| Etiket | Anlam |
-|---|---|
-| **Tanımlı** | Kaynak biçimi ve kural bu belgede açıkça tanımlanmış. |
-| **Tanımlı** | Aktif derleyici biçimi iç temsil'de temsil ediyor ve buna ilişkin örnek/test kanıtı var. |
-| **Kısmen tanımlı** | Kaynak biçiminin bir kısmı biliniyor; gramer veya sınırlar henüz tamamlanmamış. |
-| **Tasarım aşamasında** | Dil kararı kesinleşmemiş. Bu etiketli öneri geçerli sözdizimi değildir. |
-| **Desteklenmiyor** | Mevcut derleyici sözleşmesinde kabul edilmiyor. |
-| **Legacy** | Eski iç temsil/codec verileriyle uyumluluk için korunuyor; yeni kaynak kodda aktif sözdizimi değildir. |
+Henüz kesinleşmemiş ayrıntılar tahminle doldurulmaz. İlgili konu kısmen tanımlı olarak işaretlenir.
 
-**Önemli:** Bir sözcüksel öğe listesi girdisi veya iç temsil enum etiketi tek başına “Tanımlı” statüsü vermez. Bu statü için aktif derleyici yolu ve test kanıtı aranır.
+## 0.7 Gelecekteki özellikler
 
-## 0.5 Örneklerin okunması
-
-- Kod örnekleri Nexus Flow kaynak kodudur.
-- Açıklama satırları örneğin parçası değilse ayrıca belirtilir.
-- Geçersiz örnekler, hangi dil kuralını ihlal ettikleriyle birlikte gösterilir.
-- Bir örneğin sözdizimsel olarak parse edilebilmesi, Semantic olarak geçerli olduğu anlamına gelmeyebilir; ayrım açıkça yazılır.
-
-## 0.6 Hata açıklama biçimi
-
-Bir sözdizimi kuralının hata örneklerinde mümkün olduğunda şu bilgiler verilir:
-
-1. Hatalı kaynak bölümü.
-2. Hatanın bulunduğu konum veya ifade.
-3. İhlal edilen sözdizimi kuralı.
-4. Beklenen biçim.
-5. Düzeltilmiş örnek.
-
-Bu bölüm hata mesajlarının OCC iç uygulamasını değil, dil referansındaki açıklama standardını belirler.
-
-## 0.7 Sürümleme ve değişiklik
-
-Yeni bir sözdizimi, aktif derleyici ve iç temsil karşılığı doğrulanmadan bu manuelde geçerli özellik olarak yayımlanmaz. Macro sistemi henüz tasarlanmadığı için geçerli dil özellikleri arasında yer almaz; bu kılavuzun en sonunda gelecekteki özellik olarak tutulur. Eski biçimler kaldırılacaksa uyumluluk etkisi ve geçiş biçimi ayrıca belgelenir.
+Yeni özellikler kullanılabilir hale geldiklerinde ilgili bölümlere eklenir. Macro sistemi henüz tasarlanmadığından bu kılavuzun en sonunda gelecekte eklenecek özellik olarak tutulur.
 
 ---
 
 # Bölüm 1 — Nexus Flow'a giriş
 
-## 1.1 Dilin kaynak kodu biçimi
+## 1.1 Programın temel yapısı
 
-Nexus Flow programı; bildirimler, fonksiyonlar, tip tanımları, ifadeler ve bloklardan oluşur. Programın kök yapısı iç temsil'de program düğümüyle, süslü parantezle çevrili kod blokları ise block düğümüyle temsil edilir.
+Nexus Flow programları bildirimlerden, fonksiyonlardan, tip tanımlarından, ifadelerden ve bloklardan oluşur. Kod blokları süslü parantezlerle yazılır.
 
-## 1.2 En küçük program biçimi
+## 1.2 En küçük program
 
-Mevcut kaynak örneklerinde kullanılan temel giriş fonksiyonu biçimi:
-
-```nxf
+~~~nxf
 f:main() {
 }
-```
+~~~
 
-Bu örnek, fonksiyon bildirimi ve blok biçimini gösterir. Programın çalıştırılabilir giriş noktası olma şartları bu syntax belgesinin değil, ilgili program/target sözleşmesinin konusudur.
+Bu örnek parametresiz bir main fonksiyonu tanımlar. Programın başlangıç noktası olarak kullanılması program türüne ve hedef ortama ilişkin kurallara bağlıdır.
 
-**Durum:** Fonksiyon ve blok kaynak biçimleri dil iç yapısı'de temsil edilir. Giriş noktası seçimi burada tanımlanmaz.
+## 1.3 Değişken ve tip
 
-## 1.3 Değişken bildirimi ve ifade
-
-```nxf
+~~~nxf
 v:number = 42;
 v:other!i32 = 7;
-```
+~~~
 
-- `v:` değişken bildiriminin önekidir.
-- `=` başlatıcı değerini bağlar.
-- `!i32` açık tip belirtimini gösterir.
-- Bildirim iç temsil'de değişken bildirimi olarak temsil edilir.
+- v: bir değişken tanımlar.
+- = başlangıç değerini verir.
+- !i32 açık tip belirtir.
+- Tipin açıkça belirtilmediği durumlar Bölüm 5–7'de açıklanır.
 
-Tip çıkarımı ve tip uyumluluğunun ayrıntıları Bölüm 5–7'de ele alınır.
+## 1.4 Fonksiyon tanımı ve çağrısı
 
-## 1.4 Fonksiyon bildirimi ve çağrısı
-
-```nxf
+~~~nxf
 f:add(a!i32, b!i32)!i32 {
     ret a + b;
 }
@@ -122,13 +86,13 @@ f:add(a!i32, b!i32)!i32 {
 f:main() {
     v:result = add(10, 20);
 }
-```
+~~~
 
-Bu örnek fonksiyon bildirimi, parametreler, dönüş tipi, return ve fonksiyon çağrısı biçimlerini gösterir. Parametre eşleştirme ve dönüş tipi kuralları ilgili bölümlerde ayrıca tanımlanır.
+Fonksiyonlar parametre alabilir, dönüş tipi belirtebilir ve başka fonksiyonlardan çağrılabilir.
 
-## 1.5 Kontrol akışına kısa bakış
+## 1.5 Kontrol akışı
 
-Aktif iç temsil/derleyici envanterinde koşul, döngü, return, break ve continue yapıları bulunur. Bunların kesin yazım biçimleri Bölüm 13–17'de verilir. Bu giriş bölümü ek bir kontrol yapısı veya yeni anahtar sözcük tanımlamaz.
+Koşullar if, elsif ve els; döngüler loop ile yazılır. Fonksiyonlardan ret, döngülerden break ve continue ile çıkılır.
 
 ---
 
@@ -136,691 +100,615 @@ Aktif iç temsil/derleyici envanterinde koşul, döngü, return, break ve contin
 
 ## 2.1 Kaynak dosyası
 
-Nexus Flow kaynak metni sözcüksel çözümleme'a girdi olarak verilir ve dil tarafından program/blok/declaration/statement biçimlerine ayrıştırılır.
-
-Dosya uzantısı, kodlama standardı ve satır sonu normalizasyonu için mevcut kaynak denetiminde kesin bir normatif sözleşme doğrulanmadığından bu sürümde sabit bir değer ilan edilmez.
+Kaynak dosyasının uzantısı, karakter kodlaması ve satır sonu standardı bu sürümde kesin olarak belgelenmemiştir.
 
 **Durum:** Kısmen tanımlı.
 
 ## 2.2 Boşluk ve satır sonları
 
-Boşlukların ve satır sonlarının sözcüksel öğe sınırlarına etkisi sözcüksel çözümleme davranışına bağlıdır. Bu manuel, sözcüksel çözümleme kaynak kodu ve testleriyle doğrulanmayan biçimsel bir boşluk/indentation kuralı varsaymaz.
+Girintileme kodun okunmasını kolaylaştırır ancak blok sınırlarını belirlemez. Blokları süslü parantezler belirler. Boşluk ve satır sonlarının bütün sözcüksel öğelere etkisi henüz eksiksiz belgelenmemiştir.
 
-Girintileme için ayrı bir blok kapsamı anlamı tanımlanmamıştır; blokların iç temsil karşılığı süslü parantezli yapıdır.
-
-**Durum:** Kısmen tanımlı; tam whitespace/indentation matrisi sözcüksel çözümleme denetimiyle tamamlanacak.
+**Durum:** Kısmen tanımlı.
 
 ## 2.3 Blok ayraçları
 
-Bloklar süslü parantezlerle yazılır:
-
-```nxf
+~~~nxf
 f:work() {
     v:value = 1;
 }
-```
+~~~
 
-- Açılış ayracı: `{`
-- Kapanış ayracı: `}`
-- İç içe bloklar ayrı block yapıları olarak temsil edilir.
-- Program kökü ile fonksiyon/koşul/döngü gövdeleri aynı kaynak ayraçlarını kullanabilir; hangi bağlamda geçerli oldukları ilgili gramer kuralıyla belirlenir.
+- { bir blok başlatır.
+- } bloğu bitirir.
+- Bloklar iç içe kullanılabilir.
 
-**Durum:** Tanımlı.
+## 2.4 Noktalı virgül
 
-## 2.4 İfade sonlandırma
-
-Mevcut kaynak örneklerinde bildirim ve birçok ifade `;` ile sonlandırılır. Ancak tüm statement türleri için noktalı virgül zorunluluğunu tek bir genel kurala dönüştürmeden önce derleyici üretimleri ve negatif örnek'lar birlikte denetlenmelidir.
-
-**Geçici kural:** Bir bölüm belirli bir statement için açıkça farklı bir sonlandırma biçimi vermiyorsa, o statement'ın mevcut derleyici örneklerinde kullanılan biçimi izlenmelidir.
-
-**Durum:** Kısmen tanımlı; tüm statement türleri için zorunluluk matrisi hazırlanacak.
+Değişken ve değer bildirimleri, ret, break, continue ve expression statement'ları noktalı virgülle sonlandırılır. Fonksiyon, koşul ve döngü bloklarının kapanışından sonra genel olarak ayrıca noktalı virgül yazılmaz. Özel blok sonlandırma biçimleri ilgili bölümlerde açıklanır.
 
 ## 2.5 Yorumlar
 
-Eski syntax referansında `#` ile başlayan açıklama satırları kullanılmıştır. Bu biçimin aktif sözcüksel çözümleme tarafından hangi satır/blok sınırlarında kabul edildiği kaynak ve testlerle ayrıca doğrulanmadan çok satırlı yorum veya iç içe yorum kuralı ilan edilmez.
+# ile başlayan satır yorumları kullanılır:
 
-**Durum:** Kısmen tanımlı. Bu bölümde yalnızca kaynakta kullanılan `#` örnekleri kayıt altındadır.
+~~~nxf
+v:count = 10; # başlangıç değeri
+~~~
 
-## 2.6 Hatalı blok ve ayraç kullanımı
+Çok satırlı yorum ve yorumların iç içe kullanımı henüz kesin olarak tanımlanmamıştır.
 
-Aşağıdaki durumlar yapısal olarak hatalıdır:
+## 2.6 Eksik blok
 
-```nxf
+~~~nxf
 f:broken() {
     v:x = 1;
-# Eksik kapanış ayracı
-```
+# kapanış } eksik
+~~~
 
-Beklenen: Açılan her blok için eşleşen bir kapanış ayracı bulunmalıdır.
+Her açılan blok kapatılmalıdır.
 
-Daha karmaşık hata kurtarma davranışı dilin tanı üretimi konusudur; dilin geçerli sözdizimi kuralı değildir.
-
----
-
-# Bölüm 3 — Tokenlar ve sözcüksel öğeler
-
-## 3.1 Token sınıfları
-
-Mevcut sözcüksel öğe listesi'sinde şu genel gruplar bulunur:
-
-- Tanımlayıcı ve literal sözcüksel öğeları.
-- Anahtar sözcük sözcüksel öğeları.
-- Bildirim önekleri.
-- Tip sözcüksel öğeları.
-- Aritmetik, karşılaştırma, mantık ve bit operatörleri.
-- Nexus Flow akış sözcüksel öğeları.
-- Noktalama ve blok ayraçları.
-- Inline ASM ham gövde sözcüksel öğeı.
-
-Registry, sembolik sözcüksel öğe envanteridir; liste'deki her sözcüksel öğeın her kaynak bağlamında aktif olarak üretildiği anlamına gelmez. Bu manuel yalnızca dil tarafından tüketildiği ve iç temsil'de temsil edildiği doğrulanan biçimleri normatif olarak açıklar.
-
-## 3.2 Tanımlayıcılar
-
-Tanımlayıcılar değişken, fonksiyon, tip, alan, Group, method ve modül adları gibi isim konumlarında kullanılır.
-
-Örnekler:
-
-```nxf
-v:counter = 0;
-f:calculate() {}
-struct: Point { v:x!i32, v:y!i32 }
-```
-
-Büyük/küçük harf duyarlılığı, izin verilen Unicode karakterleri, alt çizgi ve rakam konumları için sözcüksel çözümleme kaynak/test denetimi tamamlanmadan daha ayrıntılı karakter grameri ilan edilmez.
-
-**Durum:** Tanımlayıcı sözcüksel öğeı ve isim konumları mevcut; tam karakter grameri kısmen tanımlı.
-
-## 3.3 Bildirim önekleri
-
-Aktif iç temsil/derleyici eşlemesinde doğrulanması gereken temel bildirim aileleri:
-
-| Yazım | Kaynak rolü | iç temsil temsili | Durum |
-|---|---|---|---|
-| `v:` | Değişken bildirimi | `iç temsil_VAR_DECL` | Aktif |
-| `c:` | Sabit işaretli değişken bildirimi | `iç temsil_VAR_DECL` | dil iç yapısı eşlemesi mevcut; compile-time değerlendirme ayrı konudur |
-| `m:` | Başlatıcılı, değiştirilemeyen değer bildirimi | `iç temsil_MUST_DECL` | dil iç yapısı mevcut |
-| `nt:` | NewType bildirimi | `iç temsil_NEWTYPE_DECL` | Aktif |
-| `f:` | Fonksiyon bildirimi | `iç temsil_FUNC_DECL` | Aktif |
-| `struct:` | Struct bildirimi | `iç temsil_STRUCT_DECL` | Aktif |
-| `enum:` | Enum bildirimi | `iç temsil_ENUM_DECL` | Aktif |
-| `union:` | Union bildirimi | `iç temsil_UNION_DECL` | Aktif |
-| `group:` | Group bildirimi | `iç temsil_GROUP_DECL` | Aktif |
-| `exf:` | Harici fonksiyon bildirimi | `iç temsil_EXTERN_DECL` | Aktif |
-
-`r:`, `t:` ve `o:` önekleri mevcut syntax kaynağında ayrılmış olarak gösterilir. Aktif iç temsil/derleyici dil özelliği olarak belgelenmez.
-
-## 3.4 Literal sözcüksel öğeları
-
-iç temsil literal düğümü ve dil iç yapısı karşılaştırma kaydında aşağıdaki literal sınıfları yer alır:
-
-- Sayısal literal.
-- String literal.
-- Character literal.
-- `true` ve `false`.
-- `null`.
-
-Sayısal biçimlerin tabanı, ayraçları ve üs yazımı sözcüksel çözümleme denetimiyle kesinleştirilecektir. Bu sürümde doğrulanmamış bir literal biçimi eklenmez.
-
-**Durum:** Literal sınıfları dil iç yapısı'de temsil edilir; alt biçimlerin tam grameri kısmen tanımlı.
-
-## 3.5 Tip sözcüksel öğeları ve tip ifadeleri
-
-Registry'de temel sayısal/tip sözcüksel öğeları bulunur; ayrıca iç temsil'de recursive type expression düğümü tip biçimlerini taşır. Bu manuelde tiplerin kaynak yazımı Bölüm 6–9'da ele alınır.
-
-Pointer, reference, array ve function-type biçimleri yalnızca mevcut dilin tanıdığı type-expression bağlamlarında açıklanır. Registry'de bulunmayan tip aileleri bu belgeye eklenmez.
-
-## 3.6 Operatör ve noktalama sözcüksel öğeları
-
-Operatörler ve ayraçlar Bölüm 10–12'de kaynak yazımlarıyla açıklanır. Özellikle Nexus Flow akış sözcüksel öğeları ile normal aritmetik/bit operatörleri birbirine karıştırılmamalıdır; aynı karakter ailesinin farklı sözcüksel öğe kimlikleri olabilir.
-
-## 3.7 sözcüksel çözümleme tarafından reddedilen kaynak
-
-sözcüksel çözümleme'ın tanımadığı karakter dizileri geçerli sözcüksel öğe değildir. Hatalı literal, tanınmayan karakter ve eksik operatör biçimleri için hata örnekleri, sözcüksel çözümleme test envanteri doğrulandıkça bu bölüme eklenecektir.
-
-**Açık denetim:** Token liste 164 sembolik sözcüksel öğe türü içerir; tam lexer emission audit henüz tamamlanmış değildir. Bu nedenle liste'deki her öğe aktif kaynak sözdizimi olarak kabul edilmez.
+**Durum:** Blok ve temel sonlandırma biçimleri tanımlı; dosya biçimi ve tüm boşluk/yorum ayrıntıları kısmen tanımlı.
 
 ---
 
-# Part II — Bildirimler ve tipler
+# Bölüm 3 — Sözcüksel öğeler
 
-# 4. Tanımlayıcılar ve isim konumları
+## 3.1 İsimler ve özel sözcükler
 
-Tanımlayıcılar değişken, fonksiyon, tip, alan, enum seçeneği ve modül/Group isimlerini belirtir. sözcüksel çözümleme normal isimleri `TOKEN_IDENTIFIER` olarak üretir; bazı önekli isimler tek sözcüksel öğe olarak okunur.
+Nexus Flow'da değişken, fonksiyon, tip, alan ve modül adları kullanılır. Bazı sözcükler belirli dil yapılarında özel anlam taşır. İsimlerin izin verilen karakterleri ve büyük/küçük harf duyarlılığı henüz tam olarak belgelenmemiştir.
 
-```nxf
-v:counter = 0;
-f:calculate() {}
-struct: Point { v:x!i32, v:y!i32 }
-```
+## 3.2 Bildirim önekleri
 
-`v:counter` / `v: counter` ve `struct:Point` / `struct: Point` gibi bitişik ve ayrık önek biçimleri dil tarafından desteklenir.
-
-| İsim konumu | iç temsil temsili |
+| Yazım | Kullanım |
 |---|---|
-| `v:name` / `c:name` | `iç temsil_VAR_DECL.name`; `c:` için `is_const` |
-| `m:name` | `iç temsil_MUST_DECL.name` |
-| `f:name` | `iç temsil_FUNC_DECL.name` |
-| `struct: Name` / `union: Name` | `iç temsil_STRUCT_DECL` / `iç temsil_UNION_DECL` |
-| `enum: Name` | `iç temsil_ENUM_DECL.name` |
-| `nt:Name` | `iç temsil_NEWTYPE_DECL.name` |
-| Struct alanı | `iç temsil_VAR_DECL.name` |
-| Enum seçeneği | `iç temsil_ENUM_VARIANT.name` |
+| v: | Değişken bildirimi |
+| c: | Sabit işaretli değişken bildirimi |
+| m: | Değiştirilemez değer bildirimi |
+| nt: | Yeni tip bildirimi |
+| f: | Fonksiyon bildirimi |
+| struct: | Struct tipi |
+| enum: | Enum tipi |
+| union: | Union tipi |
+| group: | Group bildirimi |
+| exf: | Harici fonksiyon bildirimi |
 
-Tam identifier karakter grameri (Unicode, harf duyarlılığı, ilk karakter, alt çizgi) bu denetimde sözcüksel çözümleme testleriyle bütünüyle doğrulanmadığından kesin EBNF ilan edilmez. `r:`, `t:` ve `o:` sözcüksel öğeları tanınsa da bu manuelde aktif tamamlanmış bildirim biçimleri olarak sunulmaz.
+## 3.3 Literal değerler
 
-```nxf
-v: = 10;       # İsim eksik.
+~~~nxf
+v:count = 42;
+v:ratio = 3.5;
+v:title = "Nexus Flow";
+v:letter = 'N';
+v:enabled = true;
+v:disabled = false;
+v:empty = null;
+~~~
+
+Kaynak kodunda sayısal, metin, karakter, mantıksal ve null değerleri kullanılabilir. Sayı tabanları, kaçış dizileri ve literal biçimlerinin ayrıntıları Bölüm 7'de açıklanır.
+
+## 3.4 Operatörler ve ayraçlar
+
+Operatörler değerler üzerinde işlem yapar veya Nexus Flow akış yapılarını kurar. Nokta, virgül, iki nokta, noktalı virgül, parantezler ve süslü parantezler kaynak yapısını düzenler.
+
+---
+
+# Bölüm II — Bildirimler ve tipler
+
+# 4. İsimler ve tanımlayıcılar
+
+Tanımlayıcılar değişkenleri, fonksiyonları, tipleri, alanları, enum seçeneklerini ve modülleri adlandırır.
+
+~~~nxf
+v:counter = 0;
+f:calculate() {}
+struct: Point {
+    v:x!i32,
+    v:y!i32
+}
+~~~
+
+Bildirim önekleri isimle bitişik veya aralarında boşluk olacak şekilde yazılabilir:
+
+~~~nxf
+v:counter = 0;
+v: counter = 0;
+struct:Point {}
+struct: Point {}
+~~~
+
+İsim zorunludur. Boş isim kullanılamaz:
+
+~~~nxf
+v: = 10;       # Değişken adı eksik.
 f:() {}        # Fonksiyon adı eksik.
-struct: { }    # Struct adı eksik.
-nt:UserId;     # Hedef tip eksik.
-```
+struct: { }    # Tip adı eksik.
+~~~
 
-**Durum:** İsim konumları Tanımlı; karakter grameri kısmen tanımlı.
+Tanımlayıcıların izin verilen karakter kümesi ve Unicode kuralları henüz tam olarak belgelenmemiştir.
+
+**Durum:** Bildirimlerde isim kullanımı tanımlı; karakter kümesinin tüm ayrıntıları kısmen tanımlı.
 
 ---
 
 # 5. Değer bildirimleri
 
-## 5.1 Bildirim aileleri
+## 5.1 Bildirim türleri
 
-| Önek | Rol | iç temsil | Kural |
-|---|---|---|---|
-| `v:` | Değişken | `iç temsil_VAR_DECL` | Başlatıcı isteğe bağlı; `!Type` ve array suffix kullanılabilir. |
-| `c:` | Sabit işaretli değişken | `iç temsil_VAR_DECL` | `v:` ile aynı gramer; `is_const` işaretlenir. |
-| `m:` | Immutable değer | `iç temsil_MUST_DECL` | `= expression` zorunludur. |
+| Yazım | Kullanım |
+|---|---|
+| v:name | Değişken |
+| c:name | Sabit işaretli değişken |
+| m:name | Değiştirilemez değer |
 
-`c:` ile `m:` aynı değildir. `c:` değişken bildirim düğümünün sabit işaretli biçimidir; `m:` ayrı iç temsil düğümü oluşturur. Compile-time değerlendirme ve değiştirilemezliğin tüm Semantic kuralları syntax tanımından ayrıdır.
+c: ve m: aynı anlama gelmez. c: değişken bildirim biçiminin sabit işaretli halidir; m: ayrı bir değer bildirimidir.
 
-## 5.2 `v:` ve `c:` bildirimleri
+## 5.2 Değişken bildirimi: v:
 
-```ebnf
-variable-declaration = ("v:" | "c:") identifier { "[" [expression] "]" } ["!" type] ["=" expression] ";" ;
-```
-
-```nxf
+~~~nxf
 v:count = 10;
 v:message!str = "hello";
 v:buffer[256]!u8;
-c:maximum = 100;
-c:version!u16 = 3;
-c:table[4]!u32 = [16, 32, 64, 128];
-v: separated!i32 = 7;
-```
+v:table[4]!u32 = [16, 32, 64, 128];
+~~~
 
-İsim zorunludur. `!Type` isteğe bağlıdır. Başlatıcı isteğe bağlıdır. Array boyutları isimden sonra, açık tipten önce yazılır. `c:` dil tarafından `iç temsil_VAR_DECL.is_const` işaretli oluşturulur.
+Genel yazım:
 
-```nxf
+~~~text
+v:name[optional_dimensions]!optional_type = optional_expression;
+~~~
+
+- İsim zorunludur.
+- Tip !Type ile açıkça belirtilebilir.
+- Başlangıç değeri = ile verilir.
+- Array boyutları isimden sonra, açık tipten önce yazılır.
+- Başlangıç değeri verilmeden tanımlanan değişkenlerin kullanım koşulları tip ve yaşam süresi kurallarına bağlıdır.
+
+Hatalı örnekler:
+
+~~~nxf
 v: = 1;          # İsim eksik.
 v:value! = 1;    # Tip adı eksik.
 v:items[4 = 1;   # ] eksik.
-v:value = ;      # Başlatıcı expression eksik.
-```
+v:value = ;      # Başlangıç ifadesi eksik.
+~~~
 
-## 5.3 `m:` immutable değer bildirimi
+## 5.3 Sabit işaretli değişken: c:
 
-```ebnf
-immutable-declaration = "m:" identifier "=" expression ";" ;
-```
+~~~nxf
+c:maximum = 100;
+c:version!u16 = 3;
+c:table[4]!u32 = [16, 32, 64, 128];
+~~~
 
-```nxf
+c: değişken bildirimiyle aynı temel yazım biçimini kullanır; bildirime sabit niteliği verir.
+
+## 5.4 Değiştirilemez değer: m:
+
+~~~nxf
 m:limit = 64;
 m:welcome = "Welcome";
 m:ratio = 1.25;
-```
+~~~
 
-İsim, `=` ve başlatıcı expression zorunludur. Bu dil kuralınde `!Type` veya array suffix tanımlı değildir.
+Genel yazım:
 
-```nxf
-m:limit;       # = ve initializer eksik.
-m:limit = ;    # Expression eksik.
+~~~text
+m:name = expression;
+~~~
+
+İsim ve başlangıç ifadesi zorunludur. Bu bildirim biçiminde açık tip ve array suffix kullanımı tanımlı değildir.
+
+~~~nxf
+m:limit;       # Başlangıç değeri eksik.
+m:limit = ;    # İfade eksik.
 m: = 10;       # İsim eksik.
-```
+~~~
 
-## 5.4 Alan bildirimi ve kapsam
+## 5.5 Alan bildirimi
 
-dilin Struct/Union gövde üretimi yalnızca `v:` alan bildirimi tüketir; `c:` ve `m:` alanları bu üretimde yoktur. Normal bildirimler statement bağlamında, örneğin fonksiyon/blok gövdesinde kullanılabilir.
+Struct ve Union alanları v: ile bildirilir. Alan bildirimleri Bölüm 9'da açıklanır.
 
-**Durum:** `v:`, `c:` ve `m:` kaynak biçimleri Tanımlı.
+**Durum:** v:, c: ve m: bildirimlerinin temel yazım biçimleri tanımlı.
 
 ---
 
 # 6. Tip yazımı
 
-## 6.1 İsimlendirilmiş ve açık tipler
+## 6.1 Açık tip belirtimi
 
-Tip konumunda sözcüksel çözümleme'ın tanıdığı tip sözcüksel öğeı veya dilin kabul ettiği identifier kullanılabilir. `!` açık tip işaretidir:
+! işareti değişkenin tipini açıkça belirtir:
 
-```nxf
+~~~nxf
 v:count!i32 = 10;
 v:label!str = "Nexus";
 v:entity!Entity;
-```
+~~~
 
-`!` tip adının parçası değildir. `v:`/`c:` bildirimlerinde tip atlanırsa başlatıcı expression saklanır; tip çıkarımı Semantic konusudur.
+Tip adı ! işaretinden sonra yazılır. Tip belirtilmediğinde tipin nasıl çıkarılacağı kullanılan başlangıç değerine ve tip kurallarına bağlıdır.
 
 ## 6.2 Pointer ve reference tipleri
 
-derleyici tip adından önce en fazla iki `*` önekini veya `&` / `&mut` önekini tanır:
-
-```nxf
+~~~nxf
 v:ptr!*i32;
 v:ptrptr!**u8;
 v:shared!&i32;
 v:mutable!&mut i32;
-```
+~~~
 
-Daha derin pointer zincirleri bu üretimde doğrulanmış değildir. Pointer/reference oluşturma, dereference, borrow ve yaşam süresi kuralları Bölüm 23–25'tedir.
+Pointer ve reference tipleri Bölüm 23–25'te ayrıntılı olarak açıklanır.
 
-## 6.3 Array declarator
+## 6.3 Array tip bildirimi
 
-Array boyutları tip adının sonuna değil, değişken adına eklenir:
+Array boyutları tip adından sonra değil, değişken adından sonra yazılır:
 
-```nxf
+~~~nxf
 v:dynamic[]!u8;
 v:fixed[64]!u8;
 v:matrix[4][8]!f32;
-```
+~~~
 
-Her `[...]` içinde boş veya bir expression bulunabilir. Birden fazla suffix sırasıyla ayrı boyutlar oluşturur; iç temsil karşılığı `iç temsil_ARRAY_TYPE` / `iç temsil_ARRAY_DIMENSION` düğümleridir. `v:bytes!u8[16]` kanonik değildir; doğru sıralama `v:bytes[16]!u8` şeklindedir.
+Her köşeli parantez bir boyut belirtir. Boyut boş bırakılabilir veya bir ifade içerebilir.
 
-## 6.4 Function type ve doğrulanmamış biçimler
+~~~nxf
+v:bytes!u8[16];  # Boyut yanlış konumda.
+~~~
 
-derleyici, tip konumunda `f:` ile başlayan function-type imzası için özel üretime sahiptir; tüm parametre/dönüş varyantları bağımsız örnek matrisiyle doğrulanmadığından ayrıntılı EBNF kısmen tanımlıdır. Dotted/qualified tip adları, generic parametre listeleri ve `map key, value` birleşik biçimi bu denetimde kesin derleyici grameri olarak doğrulanmamıştır; normatif gramer olarak sunulmaz.
+Doğru biçim:
 
-```nxf
-v:value! = 1;   # Tip adı eksik.
-v:ptr!*;        # Pointer hedef tipi eksik.
-v:ref!&;        # Reference hedef tipi eksik.
-v:array!u8[8];  # Array suffix yanlış konumda.
-```
+~~~nxf
+v:bytes[16]!u8;
+~~~
 
-**Durum:** İsimlendirilmiş, pointer, reference ve array declarator Tanımlı; function type kısmen tanımlı.
+## 6.4 Fonksiyon tipleri
+
+Fonksiyon tiplerinin f: ile başlayan yazımı bulunur. Parametre ve dönüş tipi varyantlarının tamamı henüz tek bir kesin gramer halinde belgelenmemiştir.
+
+**Durum:** İsimlendirilmiş tip, pointer, reference ve array yazımı tanımlı; fonksiyon tipi ayrıntıları kısmen tanımlı.
 
 ---
 
-# 7. İlkel tipler ve literal'lar
+# 7. İlkel tipler ve literal değerler
 
-sözcüksel çözümleme/derleyici kaynaklarında görülen tip aileleri:
+## 7.1 Sayısal tip aileleri
 
-- İşaretli tamsayı: `i8`, `i16`, `i32`, `i64`.
-- İşaretsiz tamsayı: `u8`, `u16`, `u32`, `u64`.
-- Kayan nokta: `f32`, `f64`.
-- Geniş hassasiyet: `d32`, `d64`.
-- Mantıksal/karakter/metin: `bool`, `char`, `str`.
-- Temsil odaklı: `bit`, `byte`, `hex` ve sözcüksel çözümleme'da tanınan bit/byte genişlik tipleri.
+Mevcut tip adları arasında şunlar bulunur:
 
-Bu liste tip konumunda tanınan adları özetler; tüm işlemlerin, ABI yerleşiminin veya runtime davranışlarının tamamlandığı anlamına gelmez.
+- İşaretli tamsayılar: i8, i16, i32, i64.
+- İşaretsiz tamsayılar: u8, u16, u32, u64.
+- Kayan nokta: f32, f64.
+- Geniş hassasiyet: d32, d64.
+- Mantıksal, karakter ve metin: bool, char, str.
+- Temsil odaklı tipler: bit, byte, hex ve genişlik belirten bit/byte tipleri.
 
-```nxf
-v:enabled = true;
-v:disabled = false;
-v:empty = null;
+Tip adının mevcut olması, her işlem veya hedef ortamda aynı davranışın garanti edildiği anlamına gelmez. Geniş tiplerin ayrıntılı işlem ve yerleşim kuralları ayrıca tanımlanacaktır.
+
+## 7.2 Literal örnekleri
+
+~~~nxf
 v:positive = 42;
 v:negative = -42;
 v:ratio = 3.5;
 v:greeting = "hello";
 v:marker = 'A';
+v:enabled = true;
+v:disabled = false;
+v:empty = null;
 v:flag!bit;
 v:raw!byte;
 v:mask!8bit;
 v:wide_mask!128bit;
-```
+~~~
 
-`true`, `false` ve `null` özel literal sözcüksel öğelarıdır. Sayısal literal `TOKEN_NUMBER`; string ve character literal'ları ayrı sözcüksel öğe türleri olarak `iç temsil_LITERAL` düğümüne aktarılır. Negatif işaret ayrı unary operatördür.
+## 7.3 Henüz tam tanımlanmamış literal ayrıntıları
 
-Ondalık/üs/hex/binary biçimler, digit separator, escape dizileri, çok satırlı string ve Unicode kodlama ayrıntıları için tam sözcüksel çözümleme matrisi henüz normatif olarak tamamlanmamıştır. `bit`, `byte`, `hex` ve genişlik türlerinin fiziksel yerleşimi/işlem kuralları yalnızca syntax'tan çıkarılamaz.
+Sayı tabanları, üs gösterimi, basamak ayırıcıları, escape dizileri, çok satırlı string ve Unicode ayrıntıları bu sürümde tam olarak belgelenmemiştir.
 
-**Durum:** Literal sınıfları Tanımlı; alt literal gramerleri kısmen tanımlı.
+**Durum:** Temel literal sınıfları tanımlı; alt yazım kuralları kısmen tanımlı.
 
 ---
 
 # 8. Array ve tuple
 
-## 8.1 Array literal ve declarator
+## 8.1 Array oluşturma
 
-```nxf
+~~~nxf
 v:values = [1, 2, 3];
 v:matrix = [[1, 2], [3, 4]];
 v:empty = [];
+~~~
+
+Array literal köşeli parantez içinde virgülle ayrılmış ifadelerden oluşur. İç içe array kullanılabilir.
+
+## 8.2 Array bildirimi
+
+~~~nxf
 v:items[10]!i32;
 v:dynamic_items[]!str;
 v:grid[3][3]!f32;
-```
+~~~
 
-Array literal `iç temsil_ARRAY_LITERAL` üretir ve iç içe literal desteklenir. Array declarator ise bildirimde isimden sonra gelen boyut suffix'leridir; boyut içeriği boş veya expression olabilir. İkisi farklı yapılardır.
+Boyut suffix'leri değişken adından sonra gelir. Birden fazla suffix çok boyutlu bildirim oluşturur.
 
-```ebnf
-array-literal = "[" [ expression { "," expression } ] "]" ;
-array-suffix = { "[" [expression] "]" } ;
-```
+## 8.3 İndeks erişimi
 
-## 8.2 İndeks erişimi
-
-```nxf
+~~~nxf
 v:first = values[0];
 v:cell = matrix[1][2];
-```
+~~~
 
-İndeks erişimi postfix expression biçimidir. İndeks türü ve sınır kontrolü Semantic/runtime kurallarıdır.
+İndeks erişimi köşeli parantezle yapılır. İndeks ifadesi boş bırakılamaz ve her açılan köşeli parantez kapatılmalıdır.
 
-## 8.3 Tuple expression
+## 8.4 Tuple
 
-```nxf
+~~~nxf
 v:point = (10, 20);
 v:record = (1, "ready", true);
-```
+~~~
 
-derleyici `iç temsil_TUPLE` üretir; dil kullanım testlerinde `(1,2)` biçimi doğrulanmıştır. Tek öğeli tuple ayrımı ve tuple type declarator bu sürümde kesin gramer olarak ilan edilmez.
+Tuple, parantez içinde virgülle ayrılmış öğelerden oluşur. Tek öğeli tuple ve tuple tip bildiriminin ayrıntıları kısmen tanımlıdır.
 
-```nxf
+~~~nxf
 v:bad = [1, 2;  # ] eksik.
 v:bad = (1, 2;  # ) eksik.
-v:bad[4!i32;    # Array boyutunun ] ayracı eksik.
-```
+~~~
 
-**Durum:** Array literal, declarator, indeks erişimi ve tuple expression Tanımlı; tuple type ve tüm trailing-comma varyantları kısmen tanımlı.
+**Durum:** Array literal, array bildirimi, indeks erişimi ve temel tuple kullanımı tanımlı.
 
 ---
 
 # 9. Kullanıcı tanımlı tipler
 
-## 9.1 Struct ve Union
+## 9.1 Struct
 
-```nxf
+~~~nxf
 struct: Point {
     v:x!i32,
     v:y!i32
 }
+~~~
 
+Struct, birden fazla isimlendirilmiş alanı tek bir tip altında toplar. Alanlar v: ile bildirilir.
+
+Hatalı örnek:
+
+~~~nxf
+struct: Invalid {
+    x!i32
+}
+~~~
+
+Alan bildirimi v: önekiyle yapılmalıdır.
+
+## 9.2 Union
+
+~~~nxf
 union: Register32 {
     v:full!u32,
     v:low!u16
 }
-```
+~~~
 
-Struct `iç temsil_STRUCT_DECL`, Union ayrı `iç temsil_UNION_DECL` üretir. Her iki gövdede de alanlar `v:` ile başlar. derleyici virgül tüketebilir; `;` zorunlu alan ayıracı değildir.
+Union, aynı bellek alanını paylaşan alternatif alanları tanımlar. Alanlar v: ile bildirilir. Bellek yerleşimi ve alan erişim kuralları ilgili tip kurallarına bağlıdır.
 
-```nxf
-struct: Invalid {
-    x!i32
-}
-```
+## 9.3 Enum
 
-Çıplak alan adı geçersizdir; derleyici `v:` alan önekini bekler.
-
-## 9.2 Enum ve payload
-
-```nxf
+~~~nxf
 enum: ProcessState {
     Idle,
     Running(pid!u32),
     Failed(code!i32, message!str)
 }
-```
+~~~
 
-derleyici `iç temsil_ENUM_DECL` ve `iç temsil_ENUM_VARIANT` üretir. Variant payload alanları isim ve zorunlu `!Type` ile yazılır; alanlar `iç temsil_VAR_DECL` olarak saklanır.
+Enum, isimlendirilmiş seçeneklerden oluşur. Seçenekler payload içerebilir; payload alanları isim ve tip ile yazılır.
 
-```nxf
+~~~nxf
 enum: Invalid {
     Running(pid)
 }
-```
+~~~
 
-Payload alanında `!Type` eksiktir.
+Payload alanında tip belirtimi eksiktir.
 
-## 9.3 Enum discriminant
+## 9.4 Enum değerleri
 
-```nxf
+~~~nxf
 enum: StatusCode {
     Ok = 0,
     NotFound = 404,
     Failed = 500
 }
-```
+~~~
 
-derleyici `=` sonrasındaki expression'ı `discriminant_expr` alanına aktarır. Integer constant expression olma şartı Semantic doğrulamasıdır. `=` sonrasında expression bulunmaması derleyici hatasıdır.
+Enum seçeneklerine açık değer atanabilir. Atanan değerin sabit ve uygun tipte olması gerekir.
 
-## 9.4 NewType ve aggregate varyantı
+## 9.5 NewType
 
-```nxf
+~~~nxf
 nt:UserId = u64;
 nt:FileHandle = i32;
-```
+~~~
 
-Temel NewType biçimi `nt:Name = Type;` olup `iç temsil_NEWTYPE_DECL` üretir. derleyici ayrıca `nt:` sözcüksel öğeı içinde `struct:`, `enum:` veya `union:` devamı gördüğünde ilgili aggregate parser yoluna yönlendirir; tüm birleşik yazım varyantları için örnek matrisi tamamlanmadığından bu özel biçimler kısmen tanımlıdır.
+NewType mevcut bir temel tipten yeni bir isimlendirilmiş tip oluşturur. Aggregate tabanlı NewType biçimlerinin tüm varyantları henüz tam belgelenmemiştir.
 
-## 9.5 Struct literal
+## 9.6 Struct literal
 
-```nxf
+~~~nxf
 v:point = Point {
     x = 10,
     y = 20
 };
-```
+~~~
 
-derleyici `iç temsil_STRUCT_LITERAL` ve alan başlatmaları için `iç temsil_STRUCT_FIELD_INIT` üretir. Literal alan başlatıcısı `=` kullanır; declaration alanı ise `v:field!Type` biçimindedir.
+Struct değeri oluşturulurken alanlar alan_adı = ifade biçiminde başlatılır. Struct tanımındaki alan bildirimiyle literal alan başlatımı birbirinden farklıdır.
 
-```nxf
-v:point = Point { x: 10 };
-```
+**Durum:** Struct, Union, Enum, temel NewType ve Struct literal biçimleri tanımlı; bazı aggregate NewType varyantları kısmen tanımlı.
 
-Geçersizdir: Struct literal alan başlatıcısı `:` değil `=` bekler.
+---
 
-| Yapı | iç temsil | Durum |
-|---|---|---|
-| Struct / alan | `iç temsil_STRUCT_DECL` / `iç temsil_VAR_DECL` | Tanımlı |
-| Union | `iç temsil_UNION_DECL` | Tanımlı |
-| Enum / variant | `iç temsil_ENUM_DECL` / `iç temsil_ENUM_VARIANT` | Tanımlı |
-| Enum payload | `iç temsil_VAR_DECL` | Tanımlı |
-| Enum discriminant | `discriminant_expr` | derleyici expression'ı saklar; sabit tamsayı kuralı Semantic |
-| NewType | `iç temsil_NEWTYPE_DECL` | Tanımlı |
-| Struct literal | `iç temsil_STRUCT_LITERAL` | Tanımlı |
-| `nt:` aggregate varyantları | İlgili aggregate iç temsil | Kısmen tanımlı |
-
-# Part III — İfadeler ve operatörler
+# Bölüm III — İfadeler ve operatörler
 
 # 10. İfadeler
 
-## 10.1 Amaç ve iç temsil temsili
+Bir ifade değer üretir veya bir işlem tanımlar. Değişken başlangıçlarında, fonksiyon argümanlarında, koşullarda ve başka ifadelerin içinde kullanılabilir.
 
-Expression; literal, isim, çağrı, erişim, operatör veya bunların birleşiminden oluşur. derleyici temel biçimleri `iç temsil_LITERAL`, `iç temsil_IDENTIFIER`, `iç temsil_BINARY_EXPR`, `iç temsil_UNARY_EXPR`, `iç temsil_FUNC_CALL` ve özel expression düğümleriyle temsil eder.
+## 10.1 Temel ifadeler
 
-## 10.2 Primary expression
+~~~nxf
+v:number = 42;
+v:name = "Nexus";
+v:enabled = true;
+v:empty = null;
+v:result = calculate();
+~~~
 
-dilin tanıdığı temel biçimler:
+## 10.2 Aritmetik ve mantıksal ifadeler
 
-| Biçim | Örnek | iç temsil |
-|---|---|---|
-| Sayısal/string/char literal | `42`, `"text"`, `'A'` | `iç temsil_LITERAL` |
-| Boolean/null | `true`, `false`, `null` | `iç temsil_LITERAL` |
-| İsim | `value` | `iç temsil_IDENTIFIER` |
-| Parantezli expression | `(a + b)` | İç expression |
-| Tuple | `(a, b)` | `iç temsil_TUPLE` |
-| Array literal | `[a, b]` | `iç temsil_ARRAY_LITERAL` |
-| Struct literal | `Point { x = 1 }` | `iç temsil_STRUCT_LITERAL` |
-| Lambda | `f:(x) > x` veya block-body biçimi | `iç temsil_LAMBDA` |
-| Loop expression | `loop { ... }` | `iç temsil_LOOP` |
-
-Parantez içinde tek expression varsa gruplama yapılır; virgülle ayrılmış öğeler varsa tuple oluşturulur. Boş tuple için derleyici'da `{}` yolu da vardır; kullanım sınırları ayrıca netleştirilecektir.
-
-## 10.3 Unary ve binary expression
-
-```nxf
-v:a = !ready;
-v:b = -value;
-v:c = ~mask;
-v:d = *pointer;
-v:r = &value;
-v:mr = &mut value;
-
+~~~nxf
 v:sum = a + b;
-v:equal = a == b;
 v:valid = ready && connected;
 v:mask = flags & mask;
 v:power = 2 ^^ 8;
-```
+~~~
 
-Unary operatörler `!`, `-`, `~`, `*`, `&` ve `&mut` biçimindedir ve `iç temsil_UNARY_EXPR` üretir. Binary ifadeler `iç temsil_BINARY_EXPR` üretir. Operandların tip uyumu Semantic kuralıdır.
+## 10.3 Fonksiyon çağrısı
 
-## 10.4 Postfix expression zinciri
-
-derleyici şu postfix biçimlerini destekler:
-- Çağrı: `call(args)`
-- Üye erişimi: `object.member`
-- İndeks erişimi: `array[index]`
-- Postfix artırma/azaltma: `value++` / `value--`
-
-```nxf
-v:result = service.calculate(input);
-v:first = values[0];
-v:width = image.width;
-counter++;
-counter--;
-```
-
-Postfix zinciri birden çok erişim/çağrı içerebilir; derleyici zincir derinliğini 32 adımla sınırlar. Prefix artırma/azaltma biçimleri `++value` ve `--value` mevcut dil kullanım testlerinde reddedilir.
-
-## 10.5 Fonksiyon çağrısı
-
-```ebnf
-call = expression "(" [ argument { "," argument } ] ")" ;
-argument = expression | identifier ":" expression ;
-```
-
-```nxf
+~~~nxf
 v:result = add(10, 20);
 v:width = image.get_width();
-```
+~~~
 
-Normal çağrı postfix expression olarak `iç temsil_FUNC_CALL` üretir. Intrinsic anahtar sözcükler kendi özel iç temsil düğümlerine yönlendirilebilir.
+Fonksiyon çağrısında argümanlar parantez içinde virgülle ayrılır. Argümanlar konumsal veya isimli olabilir.
 
-## 10.6 Üye erişimi
+## 10.4 Üye erişimi
 
-```nxf
+~~~nxf
 v:x = point.x;
 v:width = engine.renderer.width;
-```
+~~~
 
-Nokta sonrasında bir identifier zorunludur. Üye erişimi `iç temsil_MEMBER_ACCESS` üretir; üyenin gerçekten var olup olmadığı Semantic kontrolüdür.
+Nokta operatörü bir değerin üyesine erişir. Birden fazla nokta kullanılarak erişim zinciri kurulabilir.
 
-```nxf
-v:x = point.;
-```
+~~~nxf
+v:x = point.; # Üye adı eksik.
+~~~
 
-Nokta sonrasında üye adı eksiktir.
+Nokta sonrasında üye adı yazılmalıdır.
 
-## 10.7 İndeks erişimi
+## 10.5 İndeks erişimi
 
-```nxf
+~~~nxf
 v:first = values[0];
 v:cell = matrix[row][column];
-```
+~~~
 
-Her indeks suffix'i `iç temsil_INDEX_ACCESS` üretir ve bir expression içermelidir. Kapanış `]` zorunludur.
+Köşeli parantezler array veya indekslenebilir bir değerin elemanına erişir. İndeks ifadesi boş bırakılamaz.
 
-```nxf
-v:x = values[];
-v:y = values[0;
-```
+## 10.6 Tuple ve array ifadeleri
 
-İlk örnekte indeks expression'ı, ikincide kapanış ayracı eksiktir.
+~~~nxf
+v:point = (10, 20);
+v:values = [1, 2, 3];
+~~~
 
-## 10.8 Array ve tuple expression
+Tuple ve array oluşturma biçimleri Bölüm 8'de açıklanır.
 
-Array literal `[expression, ...]`; tuple expression `(expression, expression, ...)` biçimindedir. Array/tuple yazım kuralları Bölüm 8'de açıklanır.
+## 10.7 Struct oluşturma
 
-## 10.9 Struct literal
-
-```nxf
+~~~nxf
 v:point = Point {
     x = 10,
     y = 20
 };
-```
+~~~
 
-Struct literal alanları `identifier = expression` biçimindedir. derleyici `iç temsil_STRUCT_LITERAL` ve `iç temsil_STRUCT_FIELD_INIT` üretir. Bu biçim Struct declaration içindeki `v:name!Type` alan yazımından farklıdır.
+Struct literal alanları alan_adı = ifade biçiminde başlatılır.
 
-## 10.10 Cast expression
+## 10.8 Tür dönüştürme
 
-```nxf
+~~~nxf
 v:value = cast(source_value, i32);
 v:small = cast(counter, u8);
-```
+~~~
 
-derleyici `cast` sonrasında `(expression, Type)` bekler. Hedef tip identifier veya tip sözcüksel öğeı olmalıdır. iç temsil karşılığı `iç temsil_Ciç temsil` olup kaynak expression ve hedef tip ayrı saklanır.
+cast(ifade, Tip) bir değeri belirtilen tipe dönüştürme isteğini ifade eder. Hedef tip yazılmalıdır.
 
-```nxf
-v:bad = cast(value);
-v:bad = cast(value,);
-```
+~~~nxf
+v:bad = cast(value);   # Hedef tip eksik.
+v:bad = cast(value,);  # Hedef tip eksik.
+~~~
 
-İlk örnekte virgül/hedef tip, ikincide hedef tip eksiktir.
+## 10.9 İsimli argümanlar
 
-## 10.11 Named argument
-
-```nxf
+~~~nxf
 configure(width: 800, height: 600);
 open(path, mode: read);
-```
+~~~
 
-Named argüman `name: expression` biçimindedir. Konumsal argümanlar named argümanlardan önce gelebilir; named argümandan sonra positional argüman gelemez. Aynı çağrıda aynı named label iki kez kullanılamaz. derleyici bu kuralları normal ve intrinsic çağrılarda uygular; düğüm `iç temsil_NAMED_ARG` biçimindedir.
+İsimli argüman isim: ifade biçimindedir. Konumsal argümanlar isimli argümanlardan önce yazılmalıdır. İsimli argümanlardan sonra yeni bir konumsal argüman eklenemez; aynı argüman adı bir çağrıda iki kez kullanılamaz.
 
-```nxf
-configure(width: 800, 600);        # Named argümandan sonra positional argüman.
-configure(width: 800, width: 900); # Aynı label iki kez.
-```
+~~~nxf
+configure(width: 800, 600);        # İsimli argümandan sonra konumsal argüman.
+configure(width: 800, width: 900); # Aynı argüman adı iki kez.
+~~~
 
-## 10.12 Gruplama ve legacy sınırı
+## 10.10 Gruplama
 
-Parantez tek expression'ı gruplar; virgül içeren biçim tuple oluşturur. Legacy unpack operatörü `...>` için negatif derleyici testi vardır ve bu biçim desteklenmez.
+Parantezler bir ifadeyi gruplayabilir. Virgülle ayrılmış birden fazla öğe tuple oluşturur.
 
-**Durum:** Temel expression, call, member/index, tuple/array, struct literal, cast ve named argument biçimleri Tanımlı.
+~~~nxf
+v:value = (a + b) * c;
+v:pair = (a, b);
+~~~
+
+Eski unpack yazımı ...> bu sürümde geçerli bir ifade biçimi değildir.
+
+**Durum:** Temel ifade, çağrı, üye/indeks erişimi, tuple/array, struct literal, cast ve isimli argüman kullanımları tanımlı.
 
 ---
 
 # 11. Operatörler
 
-## 11.1 Öncelik ve birleşme yönü
+Operatörler değerler üzerinde işlem yapar. Nexus Flow'da aritmetik ve mantıksal işlemlerin yanında akış ve kaynak aktarım operatörleri de bulunur.
 
-Aşağıdaki sıra derleyici expression zincirinden çıkarılmıştır; üstteki operatör daha yüksek önceliklidir.
+## 11.1 Operatör önceliği
 
-| Öncelik | Operatörler | Açıklama |
+Üst sıralar daha yüksek önceliğe sahiptir. Karmaşık ifadelerde parantez kullanılması önerilir.
+
+| Öncelik | Operatörler | Kullanım |
 |---:|---|---|
-| 1 | Çağrı `()`, üye `.`, indeks `[]`, postfix `++ --` | Postfix |
-| 2 | `^^` | Üs alma; sağ birleşimli |
-| 3 | Unary `! - ~ * & &mut` | Unary |
-| 4 | `* / %` | Çarpma/bölme/kalan |
-| 5 | `+ -` | Toplama/çıkarma |
-| 6 | `<<< >>>` | Sayısal bit kaydırma |
-| 7 | `&` | Bitwise AND |
-| 8 | `^` | Bitwise XOR |
-| 9 | `|` | Bitwise OR |
-| 10 | `< <= > >=` | İlişkisel |
-| 11 | `== != === ==!` | Eşitlik |
-| 12 | `..` | Range |
-| 13 | `&&` | Mantıksal AND |
-| 14 | `||` | Mantıksal OR |
-| 15 | `-> << >> ?-> ?=> !-> _> ?(…)` | Nexus Flow |
-| 16 | `<- = += -= *= /= &= |= ^= .=` | Capture/assignment |
+| 1 | (), ., [], postfix ++ -- | Çağrı ve erişim |
+| 2 | ^^ | Üs alma |
+| 3 | Unary ! - ~ * & &mut | Tek operandlı işlemler |
+| 4 | * / % | Çarpma, bölme, kalan |
+| 5 | + - | Toplama, çıkarma |
+| 6 | <<< >>> | Sayısal bit kaydırma |
+| 7 | & | Bitwise AND |
+| 8 | ^ | Bitwise XOR |
+| 9 | \| | Bitwise OR |
+| 10 | < <= > >= | Karşılaştırma |
+| 11 | == != === ==! | Eşitlik karşılaştırmaları |
+| 12 | .. | Aralık |
+| 13 | && | Mantıksal AND |
+| 14 | \|\| | Mantıksal OR |
+| 15 | -> << >> ?-> ?=> !-> _> ?(...) | Nexus Flow akış işlemleri |
+| 16 | <- = += -= *= /= &= \|= ^= .= | Capture ve atama |
 
-`<<` ve `>>` sayısal shift değildir; Nexus Flow pipe/zone operatörleridir. Sayısal kaydırma `<<<` ve `>>>` ile yapılır.
+Üs alma ^^ sağdan birleşir. Diğer ikili işlem gruplarında soldan sağa değerlendirme kullanılır. Anlamın karışabileceği ifadelerde parantez tercih edilmelidir.
 
-## 11.2 Aritmetik ve üs alma
+## 11.2 Aritmetik
 
-```nxf
+~~~nxf
 v:add = a + b;
 v:sub = a - b;
 v:mul = a * b;
 v:div = a / b;
 v:rem = a % b;
 v:pow = 2 ^^ 8;
-```
+~~~
 
-`^^` sağ birleşimlidir. `2 ^^ 3 ^^ 2` sağdaki üs alma önce gruplanacak şekilde parse edilir. Unary eksi üs alma işleminden daha düşük önceliklidir.
+## 11.3 Karşılaştırma
 
-## 11.3 Karşılaştırma ve eşitlik
-
-```nxf
+~~~nxf
 v:a = x < y;
 v:b = x <= y;
 v:c = x > y;
@@ -829,41 +717,41 @@ v:e = x == y;
 v:f = x != y;
 v:g = x === y;
 v:h = x ==! y;
-```
+~~~
 
-sözcüksel çözümleme/derleyici `==`, `!=`, `===` ve `==!` sözcüksel öğelarını ayrı tutar. Bu operatörlerin farklı Semantic anlamları bu syntax belgesinde yeniden tanımlanmaz.
+==, !=, === ve ==! ayrı karşılaştırma operatörleridir. Anlamları birbirinin yerine kullanılabilecek şekilde varsayılmamalıdır.
 
-## 11.4 Mantıksal ve bitwise operatörler
+## 11.4 Mantıksal ve bit düzeyinde işlemler
 
-```nxf
+~~~nxf
 v:ready = connected && authenticated;
 v:available = local || remote;
 v:and_mask = flags & mask;
 v:xor_mask = flags ^ mask;
 v:or_mask = flags | mask;
 v:inverted = ~flags;
-```
+~~~
 
-`&&` / `||` mantıksal AND/OR; `&` / `^` / `|` bitwise AND/XOR/OR; `~` unary bitwise NOT'tur. `&` unary konumda borrow/reference operatörü olarak da kullanılır.
+- && ve || mantıksal işlemlerdir.
+- &, ^ ve | bit düzeyinde işlemlerdir.
+- ~ bit düzeyinde tersleme yapar.
+- & ayrıca unary konumda reference/borrow oluşturmak için kullanılır.
 
-## 11.5 Sayısal shift ve Nexus Flow ayrımı
+## 11.5 Bit kaydırma ve akış operatörleri
 
-```nxf
+~~~nxf
 v:left = value <<< amount;
 v:right = value >>> amount;
-v:streamed = source << destination;
-v:fed = source >> destination;
-```
 
-- `<<<` → `TOKEN_BIT_SHL`, sayısal bitwise left shift.
-- `>>>` → `TOKEN_BIT_SHR`, sayısal bitwise right shift.
-- `<<` / `>>` → `TOKEN_LSHIFT` / `TOKEN_RSHIFT`, Nexus Flow pipe/zone operatörleri.
+source << destination;
+source >> destination;
+~~~
 
-Bu ayrım dil kullanım testlerinde iç temsil operatör kimlikleriyle doğrulanmıştır.
+<<< ve >>> sayısal bit kaydırma operatörleridir. << ve >> Nexus Flow akış/zone işlemlerinde kullanılır; birbirlerinin yerine yazılmazlar.
 
-## 11.6 Atama ve bileşik atama
+## 11.6 Atama
 
-```nxf
+~~~nxf
 value = next;
 value += amount;
 value -= amount;
@@ -873,270 +761,278 @@ flags &= mask;
 flags |= mask;
 flags ^= mask;
 text .= suffix;
-```
+~~~
 
-Bu dil kuralınde desteklenen bileşik atamalar `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `^=` ve `.=` biçimleridir. `%=` desteklenen listede yoktur. `!!=` ayrıca directive/force-assignment bağlamında ele alınır; directive kullanımı Bölüm 34'tedir.
+Bileşik atama, işlem sonucunu sol taraftaki değere geri yazar. %= bu sürümde desteklenen bileşik atama biçimleri arasında değildir.
 
 ## 11.7 Artırma ve azaltma
 
-```nxf
+~~~nxf
 counter++;
 counter--;
-```
+~~~
 
-Postfix biçimler doğrulanmıştır. Prefix `++counter` ve `--counter` dil kullanım testlerinde reddedilir.
+Artırma ve azaltma postfix biçimde yazılır. ++counter ve --counter biçimleri geçerli değildir.
 
-## 11.8 Unary pointer/borrow ve range
+## 11.8 Pointer, reference ve range operatörleri
 
-`*value` dereference, `&value` shared borrow/reference, `&mut value` mutable borrow biçimidir. Ayrıntılar Bölüm 23–25'tedir.
+*value pointer dereference; &value shared reference/borrow; &mut value mutable reference/borrow biçimidir. Ayrıntılar Bölüm 23–25'tedir.
 
-Range ifadesi `start..end` biçimindedir ve unparenthesized expression içinde tek bir `..` kabul edilir:
+Aralık ifadesi başlangıç..bitiş biçimindedir:
 
-```nxf
+~~~nxf
 v:valid = 1..10;
-v:invalid = 1..10..20;  # derleyici reddeder.
-```
+~~~
 
-Aritmetik, karşılaştırma, eşitlik, bitwise ve mantıksal zincirler derleyici testlerinde sol birleşimli; üs alma sağ birleşimli iç temsil olarak doğrulanmıştır.
+Bir aralık ifadesinde birden fazla .. operatörü kullanılması geçerli değildir.
 
-**Durum:** Öncelik/associativity ve shift ayrımı mevcut dil kullanım testleriyle doğrulanmıştır. Operatörlerin tip bazında geçerliliği Semantic aşamasına aittir.
+**Durum:** Operatörlerin yazımı ve öncelik tablosu tanımlı. Tip bazındaki geçerlilik ilgili tip ve işlem kurallarına bağlıdır.
 
 ---
 
-# 12. Yerleşik ifade biçimleri
+# 12. Yerleşik işlemler
 
-## 12.1 Genel kural
+Nexus Flow, sık kullanılan bazı işlemler için özel adlar sunar. Bu işlemler çağrı biçiminde yazılır.
 
-Aşağıdaki adlar sözcüksel çözümleme/dil tarafından özel intrinsic sözcüksel öğeı olarak tanınır ve ilgili iç temsil düğümüne yönlendirilir. Bu bölüm kaynak çağrı biçimini tanımlar; parametre sayısı, tür uyumu, donanım yetkisi ve runtime davranışı ayrıca değerlendirilir.
+## 12.1 Tip, boyut ve uzunluk sorguları
 
-## 12.2 Tip ve boyut sorguları
-
-```nxf
+~~~nxf
 v:type = typeof(value);
 v:size = sizeof(value);
 v:length = len(items);
-```
+~~~
 
-`typeof` → `iç temsil_TYPEOF`, `sizeof` → `iç temsil_SIZEOF`, `len` → `iç temsil_LEN`.
+- typeof(value) bir değerin tipini sorgular.
+- sizeof(value) bir değerin veya tipin boyutunu sorgular.
+- len(value) bir koleksiyonun veya metnin uzunluğunu sorgular.
 
-## 12.3 Durum sorguları
+## 12.2 Sonuç ve null sorguları
 
-```nxf
+~~~nxf
 v:a = is_ok(result);
 v:b = is_err(result);
 v:c = is_some(option);
 v:d = is_none(option);
 v:e = is_null(pointer);
-```
+~~~
 
-Bu çağrılar `iç temsil_IS_OK`, `iç temsil_IS_ERR`, `iç temsil_IS_SOME`, `iç temsil_IS_NONE` ve `iç temsil_IS_NULL` üretir.
+Bu işlemler sonuç, option ve null durumlarını sınamak için kullanılır.
 
-## 12.4 Cast ve swap
+## 12.3 Dönüştürme ve değer değiştirme
 
-```nxf
+~~~nxf
 v:converted = cast(value, i32);
 swap(left, right);
-```
+~~~
 
-`cast(value, Type)` → `iç temsil_Ciç temsil`; `swap(...)` → `iç temsil_SWAP`.
+cast(value, Type) tip dönüşümü ister. swap(a, b) iki değerin yerini değiştirmek için kullanılır.
 
-## 12.5 Echo, print ve write ailesi
+## 12.4 Çıktı işlemleri
 
-```nxf
+~~~nxf
 echo("hello");
 prnt(value);
 prmt(value);
 write(value);
 fwrite(value);
-```
+~~~
 
-derleyici eşlemesi: `echo` → `iç temsil_ECHO`; `prnt` → `iç temsil_PRNT`; `prmt` → `iç temsil_PRMT`; `write` → `iç temsil_WRITE`; `fwrite` → `iç temsil_FWRITE`. OS bağımlılığı ve çıktı davranışı syntax tanımının kapsamı dışındadır.
+Bu adlar çıktı/yazma işlemlerini ifade eder. Kullanılabilirlikleri ve çıktı hedefleri çalışma ortamına bağlı olabilir.
 
-## 12.6 Adres, bellek ve port I/O
+## 12.5 Adres ve bellek işlemleri
 
-```nxf
+~~~nxf
 v:address = addr(value);
 v:read_value = peek(address);
 poke(address, value);
+~~~
+
+addr bir değerin adresini alır. peek adresteki değeri okur; poke adrese değer yazar. Geçerli adres, erişim genişliği ve bellek güvenliği ayrıca dikkate alınmalıdır.
+
+## 12.6 Port, IRQ ve register işlemleri
+
+~~~nxf
 v:port_value = inb(port);
 outb(port, value);
-```
-
-`addr` → `iç temsil_ADDR`; `peek` / `poke` → `iç temsil_PEEK` / `iç temsil_POKE`; `inb` / `outb` → `iç temsil_INB` / `iç temsil_OUTB`.
-
-## 12.7 IRQ, interrupt, register, area ve zone
-
-```nxf
 irq(1);
 intr(1);
 reg.r(0);
+~~~
+
+Bunlar düşük seviyeli sistem işlemleridir. Kullanılabilirlikleri hedef donanım ve çalışma ortamına bağlıdır.
+
+## 12.7 Area ve zone
+
+~~~nxf
 v:a = area(1);
 v:z = zone(1);
-```
+~~~
 
-Bunlar `iç temsil_IRQ`, `iç temsil_INTR`, `iç temsil_REG`, `iç temsil_AREA` ve `iç temsil_ZONE` özel çağrı düğümlerini üretir. `reg` için derleyici `reg.member(...)` biçiminde bir üye adı bekler.
+area ve zone Nexus Flow'un alan/zone kavramlarıyla birlikte kullanılır. Ayrıntılı akış kuralları Bölüm 26–27'de ele alınır.
 
-## 12.8 Tarih, saat ve kaynak bırakma
+## 12.8 Tarih ve zaman
 
-```nxf
+~~~nxf
 v:today = date();
 v:now = datenow();
 v:time_value = time();
 v:clock_value = clock();
+~~~
+
+Bu çağrılar tarih, güncel zaman veya saat sayacı bilgisi almak için kullanılır. Birim ve platform davranışı ilgili çalışma ortamına bağlıdır.
+
+## 12.9 Kaynak bırakma ve sonlandırma
+
+~~~nxf
 free(resource);
-```
-
-`date` → `iç temsil_DATE`; `datenow` → `iç temsil_DATENOW`; `time` → `iç temsil_TIME`; `clock` → `iç temsil_CLOCK`; `free` → `iç temsil_FREE`.
-
-## 12.9 Panic ve exit
-
-```nxf
 panic("fatal error");
 exit(0);
-```
+~~~
 
-`panic("message")` `iç temsil_PANIC` üretir ve derleyici mesaj olarak string literal bekler. `exit(...)` `iç temsil_EXIT` üretir. Sonlandırma davranışı bu bölümde tanımlanmaz.
+free bir kaynağı serbest bırakma isteğini ifade eder. panic hata nedeniyle yürütmeyi durdurma; exit programdan çıkma amacıyla kullanılır.
 
-## 12.10 Thread API çağrıları ve normal çağrılardan ayrım
+## 12.10 Thread işlemleri
 
-```nxf
+~~~nxf
 spawn(task);
 listen(channel);
 send(message);
 receive(channel);
 done();
-```
+~~~
 
-derleyici bu adları özel intrinsic iç temsil düğümü olarak değil normal identifier/call biçimine yönlendirir. Bunlar thread API çağrılarıdır; özel intrinsic ailesiyle karıştırılmamalıdır.
+Bu adlar thread ve iletişim API'leri olarak kullanılır. İlgili thread kütüphanesi ve kullanım kuralları geçerli olmalıdır.
 
-## 12.11 Desteklenmeyen eski expression biçimleri
+**Durum:** Çağrı biçimleri tanımlı. Parametrelerin ayrıntılı tip sözleşmeleri ve hedefe bağlı davranışlar ilgili API/çalışma ortamı belgeleriyle tamamlanacaktır.
 
-Legacy unpack yazımı `...>` için negatif derleyici testi vardır; bu biçim desteklenmez. `unpack` bu sürümde yerleşik expression olarak belgelenmez.
+---
 
-**Durum:** Bu bölümde listelenen intrinsic aileleri dil iç yapısı testinde kaynak biçimi ve iç temsil eşlemesiyle doğrulanmıştır. Semantic parametre/tip sözleşmeleri ve runtime davranışları syntax manuelinin kapsamı dışındadır.
-
-# Part IV — Bloklar ve kontrol akışı
+# Bölüm IV — Bloklar ve kontrol akışı
 
 # 13. Bloklar ve kapsam
 
-## 13.1 Normal block
+## 13.1 Normal blok
 
-Blok süslü parantezlerle açılır ve kapanır. dil içindeki statement'ları sırayla iç temsil_BLOCK altında saklar; iç içe bloklar desteklenir.
+Blok süslü parantezlerle açılır ve kapanır. Bloklar iç içe kullanılabilir.
 
-    f:main() {
-        v:value = 10;
-        if (value > 0) {
-            echo(value);
-        }
+~~~nxf
+f:main() {
+    v:value = 10;
+    if (value > 0) {
+        echo(value);
     }
+}
+~~~
 
-Blokların isim görünürlüğü, shadowing ve yaşam süresi Semantic kapsamındadır; burada yalnızca kaynak sınırları tanımlanır.
+Bir blok içinde tanımlanan isimlerin görünürlüğü ve yaşam süresi kapsam kurallarına bağlıdır.
 
 ## 13.2 Statement sonlandırma
 
-| Statement | Sonlandırma |
-|---|---|
-| v: / c: bildirimi | ; zorunlu |
-| m: bildirimi | ; zorunlu |
-| ret | ; zorunlu |
-| break / continue | ; zorunlu |
-| Expression statement | ; zorunlu |
-| Function/Struct/Enum/Union/Group gövdesi | Kapanış } |
-| If/loop/select/scan gövdesi | Kendi block/statement sınırı |
-| Boş statement | Tek başına ; kabul edilir |
-
-Satır sonu genel bir statement terminator değildir.
+Bildirimler, ret, break, continue ve expression statement'ları noktalı virgülle biter. Fonksiyon, struct, enum, union, group, if ve loop gövdeleri kendi kapanış ayraçlarıyla biter.
 
 ## 13.3 Named thread block
 
-derleyici (name)>{...} biçimini özel thread block olarak tanır:
+~~~nxf
+(worker)>{
+    process();
+}
+~~~
 
-    (worker)>{
-        process();
+Parantez içindeki isim thread bloğunu adlandırır. Thread'in çalıştırılma ve iletişim kuralları ilgili thread özellikleriyle birlikte değerlendirilir.
+
+## 13.4 FASTEXEC block
+
+~~~nxf
+fastexec {
+    asm: ENTRY {
+        nop
     }
+}
+~~~
 
-Bu biçim iç temsil_THREAD_BLOCK üretir ve thread adını saklar. Parantez içinde tek identifier ve hemen ardından >{ sözcüksel öğeı beklenir. Thread yürütme ve iletişim davranışı syntax kapsamı dışındadır.
-
-## 13.4 Fiç temsilEXEC block
-
-    fastexec {
-        asm: ENTRY {
-            nop
-        }
-    }
-
-fastexec bir block açar ve iç temsil_Fiç temsilEXEC_BLOCK üretir. Inline ASM declaration yalnızca bu block kapsamı içinde kabul edilir. Fiç temsilEXEC ve ASM kaynak ayrıntıları Bölüm 34'tedir.
+fastexec düşük seviyeli hızlı yürütme/assembly içeriği için ayrılmış bir blok biçimidir. Ayrıntılar Bölüm 34'tedir.
 
 ## 13.5 Block halt eki
 
-Normal veya Fiç temsilEXEC block kapanışından hemen sonra }?; yazılabilir:
+~~~nxf
+f:main() {
+    prepare();
+}?;
+~~~
 
-    f:main() {
-        prepare();
-    }?;
+}?; bir blok kapanışına eklenerek o blok için halt davranışı belirtir. Normal statement biçimindeki ?; ile aynı kullanım değildir.
 
-derleyici kapanış brace sonrasında HALT sözcüksel öğeını görürse block statement listesine iç temsil_BLOCK_HALT ekler. Bu biçim normal statement içindeki ?; ile aynı iç temsil düğümü değildir.
+## 13.6 Hatalı blok
 
-## 13.6 Hatalı block
+~~~nxf
+f:main() {
+    if (ready) {
+        echo("ready");
+~~~
 
-    f:main() {
-        if (ready) {
-            echo("ready");
-    # Kapanış brace eksik.
+Açılan bloklar kapatılmalıdır. Eksik kapanış ayracı ilgili blok yapısını tamamlanmamış bırakır.
 
-derleyici eksik kapanış brace konumunu raporlamalıdır.
-
-Durum: Normal block, thread block, Fiç temsilEXEC block ve block-halt kaynak biçimleri dil iç yapısı tarafından temsil edilir.
+**Durum:** Normal blok, named thread block, FASTEXEC block ve block-halt yazımları tanımlı.
 
 ---
 
 # 14. Koşullu akış
 
-## 14.1 If / elsif / els
+## 14.1 if, elsif ve els
 
-    if (score >= 90) {
-        echo("A");
-    }
-    elsif (score >= 70) {
-        echo("B");
-    }
-    els {
-        echo("C");
-    }
+~~~nxf
+if (score >= 90) {
+    echo("A");
+}
+elsif (score >= 70) {
+    echo("B");
+}
+els {
+    echo("C");
+}
+~~~
 
-if ve elsif sonrasında parantezli koşul zorunludur. Gövde block veya tek statement olabilir. els koşulsuz alternatif branch'tir. derleyici iç temsil_IF düğümlerini else-if zinciri olarak bağlar.
+if ve elsif sonrasında parantezli koşul yazılır. els koşulsuz alternatif daldır. Her dal bir blok veya tek statement olabilir.
 
-## 14.2 Tek statement branch
+## 14.2 Tek statement dalı
 
-    if (ready) start();
-    elsif (waiting) wait();
-    els stop();
+~~~nxf
+if (ready) start();
+elsif (waiting) wait();
+els stop();
+~~~
 
-Tek statement'ın kendi terminator kuralı korunur; örneğin çağrı statement'ı ; ile biter.
+Tek statement kullanıldığında statement'ın kendi sonlandırma kuralı geçerlidir.
 
-## 14.3 Conditional-control shorthand
+## 14.3 Koşullu kontrol biçimi
 
-    (condition) ? break;
-    (condition) ? continue;
-    (condition) ? ret 1;
-    (condition) ? process(value);
-    (condition) ? { process_a(); } : { process_b(); }
+~~~nxf
+(condition) ? break;
+(condition) ? continue;
+(condition) ? ret 1;
+(condition) ? process(value);
+(condition) ? { process_a(); } : { process_b(); }
+~~~
 
-Bu bir ternary value expression değil, iç temsil_IF üreten statement biçimidir. Alternatif branch : ile ayrılır ve block veya statement olabilir. derleyici lookahead ile bu biçimi rolling retry suffix'inden ayırır.
+Koşullu kontrol biçiminde parantezli koşuldan sonra ? ve çalıştırılacak işlem yazılır. İsteğe bağlı alternatif dal : ile ayrılır. Bu kullanım değer seçen ternary ifade değildir; koşullu statement biçimidir.
 
-    (a == b) -> break;
+~~~nxf
+(a == b) -> break;
+~~~
 
-Bu conditional-control biçimi değildir; -> Nexus Flow pipe sözcüksel öğeıdır. Koşullu action için ? kullanılır.
+Bu örnek koşullu kontrol biçimi değildir. Koşullu kontrol için ? kullanılır.
 
 ## 14.4 Hatalı koşul biçimleri
 
-    if ready { start(); }          # Koşul parantezleri eksik.
-    if (ready)                     # Branch eksik.
-    if (ready) {} elsif (false)    # elsif branch eksik.
-    if (ready) {} els {} els {}    # Yinelenen els.
-    (condition) ? ;                # Conditional action eksik.
+~~~nxf
+if ready { start(); }          # Koşul parantezleri eksik.
+if (ready)                     # Dal eksik.
+if (ready) {} elsif (false)    # elsif dalı eksik.
+if (ready) {} els {} els {}    # Yinelenen els.
+(condition) ? ;                # Koşullu işlem eksik.
+~~~
 
-Durum: If/elsif/els ve conditional-control biçimleri dil iç yapısı testleriyle doğrulanmıştır.
+**Durum:** if/elsif/els ve koşullu kontrol biçimleri tanımlı.
 
 ---
 
@@ -1144,146 +1040,167 @@ Durum: If/elsif/els ve conditional-control biçimleri dil iç yapısı testleriy
 
 ## 15.1 Sonsuz loop
 
-    loop {
-        process();
-    }
+~~~nxf
+loop {
+    process();
+}
+~~~
 
-Bu canonical sonsuz loop biçimidir ve iç temsil_LOOP içinde loop_type 0 olarak temsil edilir.
+Koşul belirtilmeyen loop sürekli yinelenen döngüdür. Döngüden çıkmak için break veya uygun bir kontrol akışı kullanılmalıdır.
 
 ## 15.2 Koşullu loop
 
-    loop(keep_running) {
-        process();
-    }
+~~~nxf
+loop(keep_running) {
+    process();
+}
+~~~
 
-Koşul expression'ı loop parantezleri içinde bulunur. Gövde öncesinde isteğe bağlı -> sözcüksel öğeı tüketilebilir. Koşulun runtime değerlendirme sıklığı syntax konusu değildir.
+Parantez içindeki ifade döngünün koşulunu belirtir.
 
 ## 15.3 Üç parçalı loop
 
-    loop(init, condition, increment) {
-        process();
-    }
+~~~nxf
+loop(init, condition, increment) {
+    process();
+}
+~~~
 
-İlk ifade init, ikinci condition, üçüncü increment alanına aktarılır. Ayırıcı virgüller zorunludur; C tarzı noktalı virgül kullanan for-loop yazımı bu gramer değildir.
+Bu biçimde ilk ifade başlangıç, ikinci ifade koşul, üçüncü ifade artış/güncelleme bölümüdür. Bölümler virgülle ayrılır.
 
 ## 15.4 Collection loop
 
-    loop(item in items) {
-        process(item);
-    }
+~~~nxf
+loop(item in items) {
+    process(item);
+}
+~~~
 
-İlk ifade sonrasında contextual identifier in gelirse collection loop biçimi seçilir. İlk kısım loop variable, ikinci expression collection olarak saklanır. derleyici v: veya c: ile başlayan bildirim biçimini de ilk bölümde kabul eder.
+in biçimi bir koleksiyonun öğeleri üzerinde yineleme yapar. Döngü değişkeni her adımda ilgili öğeyi temsil eder.
 
 ## 15.5 Unroll
 
-    unroll(3) -> loop(item in items) {
-        process(item);
-    }
+~~~nxf
+unroll(3) -> loop(item in items) {
+    process(item);
+}
+~~~
 
-unroll contextual identifier olarak tanınır. Count sonrasında -> zorunludur ve sağ taraf iç temsil_LOOP olmalıdır. Başka expression veya normal block hedefi kabul edilmez; iç temsil_UNROLL üretilir.
+unroll parantez içindeki sayı kadar açılım/tekrar isteğini belirtir ve ardından loop biçimi gelmelidir.
 
-    unroll(3) -> process();   # Hedef loop değil.
-    unroll(3) loop { }        # -> eksik.
+~~~nxf
+unroll(3) -> process();   # Hedef loop değil.
+unroll(3) loop { }        # -> eksik.
+~~~
 
-## 15.6 Loop kontrolü
+## 15.6 break ve continue
 
-    loop {
-        if (finished) break;
-        if (skip_item) continue;
-        process();
-    }
+~~~nxf
+loop {
+    if (finished) break;
+    if (skip_item) continue;
+    process();
+}
+~~~
 
-break; ve continue; ayrı iç temsil_BREAK / iç temsil_CONTINUE statement'larıdır. Hangi loop'a etki ettikleri ve loop dışında geçerlilikleri Semantic kontrolüdür.
+break geçerli döngüden çıkar. continue mevcut yinelemenin kalanını atlayıp sonraki yinelemeye geçer.
 
-## 15.7 Loop sınırları
+## 15.7 Rolling retry
 
-derleyici sonsuz, koşullu, üç parçalı ve collection loop biçimlerini ayırt eder. Bütün varyantların sınır kombinasyonları için test matrisi tamamlanmadığından tüm loop grameri kısmen tanımlı işaretlenir; sonsuz loop ve unroll örnekleri açık testlerle doğrulanmıştır.
+Rolling retry, bir işlemi belirli sayıda yeniden denemek için kullanılan akış biçimidir. Ayrıntılı yazım Bölüm 30'da açıklanır.
 
-Durum: dil iç yapısı üretimleri mevcut; tüm loop varyantlarının test kapsamı kısmen tanımlı.
+**Durum:** Sonsuz, koşullu, üç parçalı ve collection loop biçimleri tanımlı; tüm sınır durumları kısmen tanımlı.
 
 ---
 
 # 16. Select ve Scan
 
-## 16.1 Ortak yapı
+## 16.1 Genel kullanım
 
-select ve scan sözcüksel çözümleme keyword'ü değildir; derleyici belirli identifier + parantez bağlamında bunları contextual sözcük olarak tanır.
-
-    select-expression = "select" "(" expression ")" "{" arms "}" ;
-    scan-expression   = "scan" "(" expression ")" "{" arms "}" ;
-
-Her arm pattern sonrasında -> ister. Arm gövdesi block veya tek statement olabilir. Arm'lar virgül veya noktalı virgülle ayrılabilir.
+select ve scan bir değere veya duruma göre birden fazla pattern kolundan uygun olanı seçmek için kullanılır. Her kolun pattern bölümünden sonra -> yazılır.
 
 ## 16.2 Select
 
-    select(state) {
-        Ready -> start();
-        Running when active -> process();
-        default -> recover();
-    }
+~~~nxf
+select(state) {
+    Ready -> start();
+    Running when active -> process();
+    default -> recover();
+}
+~~~
 
-Pattern literal, identifier binding veya constructor pattern olabilir. default en fazla bir kez kullanılabilir ve when guard taşıyamaz. derleyici iç temsil_SELECT / iç temsil_SELECT_ARM üretir.
+select bir değeri olası seçeneklerle karşılaştırır. default hiçbir özel kol eşleşmediğinde kullanılan varsayılan daldır. default en fazla bir kez yazılabilir ve when koşulu taşımaz.
 
 ## 16.3 Scan
 
-    scan(value) {
-        Range(start, end) when start < end && end > 0 -> {
-            process(start, end);
-        }
-        item -> process(item);
-        else -> recover();
+~~~nxf
+scan(value) {
+    Range(start, end) when start < end && end > 0 -> {
+        process(start, end);
     }
+    item -> process(item);
+    else -> recover();
+}
+~~~
 
-scan subject üzerinde pattern arm'ları oluşturur. else fallback arm'ıdır; en fazla bir kez bulunabilir ve son arm olmak zorundadır. else üzerinde when guard kullanılamaz. derleyici iç temsil_SCAN / iç temsil_SCAN_ARM üretir.
+scan pattern eşleştirme ve koşullu guard kullanımına izin verir. else son ve en fazla bir kez kullanılabilen fallback dalıdır.
 
 ## 16.4 Pattern biçimleri
 
-| Pattern | Örnek | iç temsil |
-|---|---|---|
-| Identifier binding | item | iç temsil_PATTERN_BINDING |
-| Constructor + binding list | Range(start, end) | iç temsil_PATTERN_CONSTRUCTOR |
-| Literal | 0, "none", true, null | Literal iç temsil |
+- İsim bağlama: item
+- Constructor pattern: Range(start, end)
+- Literal pattern: 0, "none", true, null
 
-Constructor pattern en az bir binding içermelidir; Range() reddedilir.
+Constructor pattern içinde en az bir binding bulunmalıdır.
 
-## 16.5 Guard
+## 16.5 when guard
 
-    scan(value) {
-        item when item > 0 -> process(item);
-        else -> recover();
-    }
+~~~nxf
+scan(value) {
+    item when item > 0 -> process(item);
+    else -> recover();
+}
+~~~
 
-Normal pattern arm'ına when expression guard eklenebilir. default ve else fallback arm'larında guard yasaktır.
+when, pattern eşleşmesine ek bir koşul getirir. default ve else fallback dallarında when kullanılamaz.
 
 ## 16.6 Hatalı select/scan örnekleri
 
-    select(x) {
-        default when true -> {}
-    }
+~~~nxf
+select(x) {
+    default when true -> {}
+}
+~~~
 
 default guard taşıyamaz.
 
-    select(x) {
-        default -> {}
-        default -> {}
-    }
+~~~nxf
+select(x) {
+    default -> {}
+    default -> {}
+}
+~~~
 
 Select içinde ikinci default yasaktır.
 
-    scan(x) {
-        Range() -> {}
-    }
+~~~nxf
+scan(x) {
+    Range() -> {}
+}
+~~~
 
 Constructor pattern boş binding listesi içeremez.
 
-    scan(x) {
-        else -> {}
-        item -> {}
-    }
+~~~nxf
+scan(x) {
+    else -> {}
+    item -> {}
+}
+~~~
 
-Scan else arm'ı son sırada olmalıdır. derleyici ayrıca ikinci scan else, eksik -> ve kapanış/arm ayraç hatalarını raporlar.
+Scan else dalı son sırada olmalıdır.
 
-Durum: Select/Scan, pattern, constructor binding, guard ve fallback kuralları dil iç yapısı testleriyle doğrulanmıştır.
+**Durum:** Select/Scan, pattern, guard ve fallback biçimleri tanımlı.
 
 ---
 
@@ -1291,273 +1208,279 @@ Durum: Select/Scan, pattern, constructor binding, guard ve fallback kuralları d
 
 ## 17.1 Return
 
-    ret;
-    ret value;
-    ret calculate();
+~~~nxf
+ret;
+ret value;
+ret calculate();
+~~~
 
-ret tek başına veya bir expression ile kullanılabilir; her iki biçimde de ; zorunludur. derleyici iç temsil_RETURN üretir ve operandı isteğe bağlı saklar.
+ret fonksiyondan çıkmak için kullanılır. İsteğe bağlı bir dönüş değeri taşıyabilir. Her iki biçimde de noktalı virgül zorunludur.
 
 ## 17.2 Break ve continue
 
-    break;
-    continue;
+~~~nxf
+break;
+continue;
+~~~
 
-Her ikisi de ; ile biter ve iç temsil_BREAK / iç temsil_CONTINUE üretir. Geçerli loop kapsamı Semantic kontrolüdür.
+break döngüyü bitirir. continue geçerli döngünün sonraki yinelemesine geçer. Bu ifadeler döngü bağlamında kullanılmalıdır.
 
 ## 17.3 Panic
 
-    panic("fatal error");
-    !! "critical failure";
+~~~nxf
+panic("fatal error");
+!! "critical failure";
+~~~
 
-panic("message") intrinsic biçimidir. !! statement biçiminde string mesaj isteğe bağlıdır; mesaj yoksa derleyici varsayılan metin atar ve ; zorunludur. Her iki yol da iç temsil_PANIC ile ilişkilidir.
+panic hata nedeniyle yürütmeyi durdurmak için kullanılır. !! biçimi mesajlı veya mesajsız panic statement biçimidir; noktalı virgülle sonlandırılır.
 
 ## 17.4 Exit
 
-    exit(0);
+~~~nxf
+exit(0);
+~~~
 
-exit(...) özel intrinsic çağrısıdır ve iç temsil_EXIT üretir. Parametre sözleşmesi ve sürecin sonlandırılması runtime davranışıdır.
+exit programdan çıkmak için kullanılır. Parametrenin anlamı çalışma ortamına bağlıdır.
 
 ## 17.5 Nexus Halt
 
-    ?;
+~~~nxf
+?;
+~~~
 
-?; tek HALT sözcüksel öğeıdır ve normal statement bağlamında iç temsil_NEXUS_HALT üretir. Hedefsiz kullanımda iç temsil operandı boştur. Bu biçim block kapanışındaki }?; ekiyle aynı değildir; o biçim iç temsil_BLOCK_HALT oluşturur (Bölüm 13.5).
+?; Nexus Flow halt biçimidir. Blok kapanışına eklenen }?; ile karıştırılmamalıdır; block-halt biçimi Bölüm 13.5'te açıklanır.
 
 ## 17.6 Defer
 
-    defer cleanup();
-    defer {
-        release(resource);
-    }
+~~~nxf
+defer cleanup();
+defer {
+    release(resource);
+}
+~~~
 
-defer sonrasında derleyici bir block veya statement okur ve iç temsil_DEFER üretir. Defer body'nin ne zaman çalıştırılacağı runtime/semantic davranışıdır; burada kaynak biçimi tanımlanır.
+defer bir statement veya blok biçimindeki işlemi ertelenmiş işlem olarak tanımlar. İşlemin hangi koşulda ve hangi sırada yürütüleceği kaynak yaşam süresi kurallarıyla birlikte değerlendirilir.
 
-## 17.7 Sonlandırma sınırları
+**Durum:** ret, break, continue, panic, exit, halt ve defer yazımları tanımlı.
 
-ret, break, continue, panic, exit ve ?; farklı iç temsil/derleyici yollarına sahiptir; birbirinin eş anlamlısı değildir. Label/jump biçimleri Bölüm 29'da ayrıca tanımlanır.
+---
 
-Durum: Return, break/continue, panic, exit, halt ve defer kaynak biçimleri dil iç yapısı tarafından temsil edilir. Kontrol akışının geçerliliği ve çalışma zamanı etkisi Semantic/runtime kapsamındadır.
-
-# Part V — Fonksiyonlar, Group ve çağrılar
+# Bölüm V — Fonksiyonlar, Group ve çağrılar
 
 ## 18. Fonksiyon bildirimi
-### 18.1 `f:name(...)` biçimi
+### 18.1 f:name(...) biçimi
 ### 18.2 Parametre bildirimi
 ### 18.3 Parametre tipleri
 ### 18.4 Dönüş tipi
 ### 18.5 Fonksiyon gövdesi
-### 18.6 Default parameter biçimi
-### 18.7 Function type / callback tip yazımı
-### 18.8 Variadic parametre: iç temsil/derleyici doğrulama durumu
+### 18.6 Varsayılan parametreler
+### 18.7 Fonksiyon tipi ve callback
+### 18.8 Variadic parametreler
 
 ## 19. Fonksiyon çağrısı
 ### 19.1 Konumsal argümanlar
-### 19.2 Named argument: `name:value`
-### 19.3 Konumsal ve named argüman ayrımı
+### 19.2 İsimli argümanlar
+### 19.3 Konumsal ve isimli argümanların sırası
 ### 19.4 İç içe çağrılar
-### 19.5 Argüman listesi ve ayraçlar
-### 19.6 Geçersiz çağrı biçimleri
+### 19.5 Argüman ayraçları
+### 19.6 Hatalı çağrı örnekleri
 
 ## 20. Lambda ve callable ifadeler
 ### 20.1 Expression-body lambda
 ### 20.2 Block-body lambda
 ### 20.3 Lambda parametreleri
-### 20.4 Lambda'nın ifade içindeki yeri
-### 20.5 Function type ile lambda ayrımı
-### 20.6 Henüz tanımlanmamış capture biçimleri
+### 20.4 Lambda kullanımı
+### 20.5 Fonksiyon tipi ile lambda ayrımı
+### 20.6 Capture biçimleri
 
 ## 21. Group ve method
 ### 21.1 Group bildirimi
 ### 21.2 Group alanları
 ### 21.3 Method tanımı
-### 21.4 Instance method ve receiver biçimi
-### 21.5 Static method biçimi
+### 21.4 Instance method ve receiver
+### 21.5 Static method
 ### 21.6 Method çağrısı
 ### 21.7 Group içinde tip ve method kullanımı
 
 ## 22. Harici fonksiyon bildirimi
-### 22.1 `exf:` bildirimi
+### 22.1 exf: bildirimi
 ### 22.2 Harici fonksiyon imzası
-### 22.3 Link name biçimi
-### 22.4 Parametre ve dönüş tipi yazımı
-### 22.5 Geçersiz extern bildirimleri
+### 22.3 Link name
+### 22.4 Parametre ve dönüş tipi
+### 22.5 Hatalı extern bildirimleri
 
 ---
 
-# Part VI — Pointer, reference ve kaynak akışı
+# Bölüm VI — Pointer, reference ve kaynak akışı
 
-## 23. Pointer sözdizimi
-### 23.1 Pointer tip yazımı: `*T`
-### 23.2 Çok katmanlı pointer: `**T`
+## 23. Pointer
+### 23.1 Pointer tipi: *T
+### 23.2 Çok katmanlı pointer: **T
 ### 23.3 Pointer bildirimi
-### 23.4 Dereference: `*value`
+### 23.4 Dereference: *value
 ### 23.5 Pointer ile atama
-### 23.6 Pointer tipinin fonksiyon imzasında kullanımı
-### 23.7 Raw pointer kaynak biçiminin sınırları
+### 23.6 Pointer'ın fonksiyon imzasında kullanımı
+### 23.7 Raw pointer sınırları
 
-## 24. Reference sözdizimi
-### 24.1 Shared reference: `&T`
-### 24.2 Mutable reference: `&mut T`
+## 24. Reference
+### 24.1 Shared reference: &T
+### 24.2 Mutable reference: &mut T
 ### 24.3 Reference oluşturma
-### 24.4 Reference değişkeni bildirimi
+### 24.4 Reference değişkeni
 ### 24.5 Reference parametresi
 ### 24.6 Reference dönüş tipi
-### 24.7 Reference ve alan/indeks ifadeleri
-### 24.8 Geçersiz reference biçimleri
+### 24.7 Alan ve indeks referansları
+### 24.8 Hatalı reference biçimleri
 
-## 25. Borrow ve ownership ile ilişkili kaynak kuralları
-### 25.1 Borrow oluşturma yazımı
-### 25.2 Shared ve mutable biçimlerin ayrımı
+## 25. Borrow ve ownership
+### 25.1 Borrow oluşturma
+### 25.2 Shared ve mutable borrow
 ### 25.3 Reference kullanım kapsamı
-### 25.4 Alan ve indeks üzerinden borrow örnekleri
+### 25.4 Alan ve indeks üzerinden borrow
 ### 25.5 Fonksiyon çağrısında borrow argümanları
-### 25.6 Kaynak aktarımı ile borrow ayrımı
-### 25.7 Sözdizimi ile Semantic kuralın ayrıldığı noktalar
+### 25.6 Kaynak aktarımı ve borrow farkı
+### 25.7 Kullanım örnekleri ve hatalar
 
 ---
 
-# Part VII — Nexus Flow akış yapıları
+# Bölüm VII — Nexus Flow akış yapıları
 
-## 26. Nexus Flow akış operatörleri
-### 26.1 Akış operatörleri genel bakış
-### 26.2 Capture biçimi
-### 26.3 Pipe / flow biçimi
-### 26.4 Error handler biçimi
-### 26.5 Fallback biçimi
-### 26.6 Ignore biçimi
-### 26.7 Shift ve numeric shift ayrımı
-### 26.8 Operatör zinciri ve parantezleme
+## 26. Akış operatörleri
+### 26.1 Genel bakış
+### 26.2 Capture
+### 26.3 Pipe ve flow
+### 26.4 Error handler
+### 26.5 Fallback
+### 26.6 Ignore
+### 26.7 Shift ve sayısal shift farkı
+### 26.8 Zincirleme ve parantezleme
 
 ## 27. Masa ve kaynak bağlama
-### 27.1 Masa/capture kaynak biçimi
+### 27.1 Masa oluşturma ve capture
 ### 27.2 Masa adı ve bağlama
 ### 27.3 Masa üzerinden akış
 ### 27.4 Tekil Halt
 ### 27.5 Blok Halt
-### 27.6 Masa ile function çağrısı
-### 27.7 iç temsil/derleyici sınırında olmayan masa fikirleri kapsam dışı
+### 27.6 Masa ile fonksiyon çağrısı
 
 ## 28. Relocate
-### 28.1 `_>` operatörü
+### 28.1 _> operatörü
 ### 28.2 Kaynak ve hedef ifadeleri
-### 28.3 Relocate ifadesinin statement bağlamı
-### 28.4 Geçersiz relocate biçimleri
-### 28.5 Kaynak biçimi ile ownership sonucu ayrımı
+### 28.3 Relocate kullanım kapsamı
+### 28.4 Hatalı relocate biçimleri
+### 28.5 Relocate ve ownership ilişkisi
 
 ## 29. Label ve jump
-### 29.1 Label bildirimi: `label:>`
-### 29.2 Operator jump biçimi
-### 29.3 `jump(label)` biçimi
+### 29.1 Label bildirimi: label:>
+### 29.2 Operator jump
+### 29.3 jump(label)
 ### 29.4 Hedef yazımı
-### 29.5 Geçersiz label/jump örnekleri
+### 29.5 Hatalı label/jump örnekleri
 
 ## 30. Hata saptırmalı akış ve retry
 ### 30.1 Error-handler operatörü
 ### 30.2 Error binding block
-### 30.3 Fallback operatörü
-### 30.4 Ignore operatörü
-### 30.5 Rolling retry: `?(count, delay)->target`
+### 30.3 Fallback
+### 30.4 Ignore
+### 30.5 Rolling retry: ?(count, delay)->target
 ### 30.6 Retry delay yazımı
 ### 30.7 Akış operatörlerinin birleşimi
-### 30.8 Sözdizimsel ve çalışma zamanı sınırları
+### 30.8 Örnekler ve hatalar
 
 ---
 
-# Part VIII — Ruleset ve event biçimleri
+# Bölüm VIII — Ruleset ve event
 
 ## 31. Ruleset bildirimi
 ### 31.1 Ruleset adı ve parametreleri
-### 31.2 Barrier kuralı
-### 31.3 Trigger kuralı
-### 31.4 Always kuralı
-### 31.5 Default kuralı
+### 31.2 Barrier
+### 31.3 Trigger
+### 31.4 Always
+### 31.5 Default
 ### 31.6 Kural gövdesi ve sıralama
 
 ## 32. Ruleset kullanımı
-### 32.1 `apply rules(...)`
+### 32.1 apply rules(...)
 ### 32.2 Argüman yazımı
-### 32.3 Event handler: `on Rule.Event`
+### 32.3 on Rule.Event
 ### 32.4 Handler gövdesi
-### 32.5 Ruleset ve event kaynak biçimi sınırları
+### 32.5 Örnekler ve hatalar
 
 ---
 
-# Part IX — Modüller ve düşük seviyeli kaynak yapıları
+# Bölüm IX — Modüller ve düşük seviyeli kaynak yapıları
 
 ## 33. Modül kullanımı
-### 33.1 `use` bildirimi
+### 33.1 use bildirimi
 ### 33.2 Birden fazla modül adı
 ### 33.3 Dotted module path
-### 33.4 Alias: `as`
-### 33.5 Modül bildirimi örnekleri
+### 33.4 Alias: as
+### 33.5 Modül örnekleri
 
-### 33.6 `no: osmodule;` — otomatik OS modülü yüklemesini kapatma
+### 33.6 no: osmodule;
 
-`no:` genel bir modül kapatma mekanizması değildir. derleyici yalnızca program seviyesinde tek bir `no: osmodule;` bildirimini kabul eder. Bu bildirim varsayılan olarak otomatik yüklenen `osmodule`'ün yüklenmesini engeller; OS servisi bulunmayan bare-metal programlar için kullanılır.
+no: osmodule; varsayılan olarak yüklenen osmodule'ün otomatik yüklenmesini engeller. Bare-metal ve OS servisi bulunmayan programlarda kullanılır. Bu genel bir modül kapatma mekanizması değildir; yalnızca osmodule için tanımlıdır.
 
-```nxf
+~~~nxf
 no: osmodule;
 
 f:main() {
     # Bare-metal başlangıç kodu
 }
-```
+~~~
 
 Kurallar:
-- Program kökünde bulunmalıdır; fonksiyon veya iç içe blokta kullanılamaz.
-- Yalnızca `osmodule` hedefi desteklenir; `no: coremodule;` geçersizdir.
-- Bir programda en fazla bir kez yazılabilir.
-- `;` zorunludur.
-- Ayrı statement düğümü üretmez; `iç temsilProgram.disable_osmodule` politika alanı ve kaynak aralığı kaydedilir.
-- Otomatik modül yükleme entegrasyonu bu syntax kuralından ayrıdır.
+- Programın en üst seviyesinde yazılır.
+- Fonksiyon veya iç içe blok içinde kullanılamaz.
+- Yalnızca osmodule hedeflenebilir.
+- Bir programda en fazla bir kez yazılır.
+- Noktalı virgül zorunludur.
 
-```nxf
+Hatalı örnekler:
+
+~~~nxf
 no: coremodule;       # Desteklenmeyen hedef.
-no: osmodule          # ; eksik.
+no: osmodule          # Noktalı virgül eksik.
 no: osmodule;
 no: osmodule;         # Yinelenen bildirim.
 
 f:main() {
     no: osmodule;     # Yanlış kapsam.
 }
-```
+~~~
 
-derleyici bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelenen bildirim ve yanlış kapsam olarak ayırır.
+**Durum:** Tanımlı.
 
-**Durum:** Tanımlı. derleyici testi program-kökü biçimini ve negatif durumları kontrol eder.
+## 34. Inline assembly
+### 34.1 fastexec bloğu
+### 34.2 asm: LABEL { ... }
+### 34.3 Ham assembly gövdesi
+### 34.4 Assembly label
+### 34.5 asmcall ve asmjmp
+### 34.6 Kullanım örnekleri ve sınırlar
 
----
-
-## 34. Inline assembly kaynak biçimi
-### 34.1 `fastexec` block
-### 34.2 `asm: LABEL { ... }`
-### 34.3 Ham ASM gövdesi
-### 34.4 ASM label
-### 34.5 `asmcall` ve `asmjmp` çağrı biçimleri
-### 34.6 derleyici kapsam sınırları
-
-## 35. Donanım ve sistem intrinsic kaynak biçimleri
-### 35.1 Port I/O biçimleri
-### 35.2 Memory peek/poke biçimleri
-### 35.3 IRQ ve register biçimleri
-### 35.4 Print/write biçimleri
-### 35.5 Date/time/clock biçimleri
-### 35.6 Area/zone biçimleri
-### 35.7 Kaynak bırakma: `free` ve `defer` biçimleri
-### 35.8 Zone sync, view ve lock biçimleri
-### 35.9 Kaynak çağrı biçimi ile platform davranışının ayrımı
+## 35. Donanım ve sistem işlemleri
+### 35.1 Port I/O
+### 35.2 Memory peek/poke
+### 35.3 IRQ ve register
+### 35.4 Print ve write
+### 35.5 Date, time ve clock
+### 35.6 Area ve zone
+### 35.7 free ve defer
+### 35.8 Zone sync, view ve lock
+### 35.9 Hedefe bağlı kullanım kuralları
 
 ---
 
-# Part X — Hatalı kaynak örnekleri
+# Bölüm X — Hatalı kaynak örnekleri
 
-## 36. sözcüksel çözümleme kaynak hataları
+## 36. Sözcüksel hatalar
 ### 36.1 Tanınmayan karakter
 ### 36.2 Hatalı literal
 ### 36.3 Eksik operatör
-### 36.4 Token sınırı hataları
+### 36.4 İsim ve ayraç hataları
 
-## 37. derleyici kaynak hataları
+## 37. Sözdizimi hataları
 ### 37.1 Eksik ayraç
 ### 37.2 Hatalı bildirim
 ### 37.3 Hatalı fonksiyon imzası
@@ -1565,17 +1488,17 @@ derleyici bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelene
 ### 37.5 Hatalı blok
 ### 37.6 Hatalı akış operatörü kullanımı
 
-## 38. Dil kuralı hataları
+## 38. Dil kullanım hataları
 ### 38.1 Yanlış argüman biçimi
 ### 38.2 Yanlış tip yazımı
-### 38.3 Yanlış pointer/reference biçimi
+### 38.3 Yanlış pointer/reference kullanımı
 ### 38.4 Yanlış kapsamda kontrol ifadesi
 ### 38.5 Hatalı label/jump
-### 38.6 Hatalı select/scan arm
+### 38.6 Hatalı select/scan kolu
 
 ---
 
-# Part XI — Örnekler
+# Bölüm XI — Örnek programlar
 
 ## 39. Başlangıç örnekleri
 ### 39.1 En küçük fonksiyon
@@ -1598,60 +1521,51 @@ derleyici bu dört hatayı desteklenmeyen hedef, eksik sonlandırıcı, yinelene
 ### 41.5 Relocate ve Halt
 ### 41.6 Error handler ve retry
 
-## 42. İleri kaynak örnekleri
+## 42. İleri örnekler
 ### 42.1 Select ve scan
 ### 42.2 Ruleset ve event
 ### 42.3 Modül kullanımı
-### 42.4 Extern fonksiyon
-### 42.5 Fiç temsilEXEC ve ASM
-### 42.6 Donanım intrinsic çağrıları
+### 42.4 Harici fonksiyon
+### 42.5 FASTEXEC ve assembly
+### 42.6 Donanım işlemleri
 
 ---
 
 # Ekler
 
-## A. Dil yapıları ve kullanım özeti
-## B. Sözcüksel öğeler özeti
-## C. Anahtar sözcük ve bildirim önekleri
-## D. Operatör tablosu
-## E. Tip yazımı tablosu
-## F. Literal biçimleri tablosu
-## G. Nexus Flow operatörleri tablosu
-## H. Pointer/reference yazım tablosu
-## I. dil tarafından desteklenmeyen/legacy biçimler
-## J. Özellik olgunluk matrisi
-## K. Değişiklik günlüğü
-## L. Terimler sözlüğü
-## M. Eski referanslar ve kaynak belgeler
+## A. Dil yapıları özeti
+## B. Bildirim önekleri ve özel sözcükler
+## C. Operatör tablosu
+## D. Tip yazımı tablosu
+## E. Literal biçimleri
+## F. Nexus Flow akış operatörleri
+## G. Pointer ve reference özeti
+## H. Desteklenmeyen ve eski yazım biçimleri
+## I. Özellik durumu tablosu
+## J. Değişiklik günlüğü
+## K. Terimler sözlüğü
 
 ---
 
 # Bölüm yazım standardı
 
-Her özellik bölümü aşağıdaki yapıyla tamamlanır. Bir başlık o özellik için geçerli değilse “Uygulanmaz” denir; tasarım aşamasındaki kurallar geçerliymiş gibi yazılmaz.
+Her özellik bölümü programcıya yönelik olarak şu soruları yanıtlamalıdır:
 
-1. **Amaç:** Kaynak yapısının ne ifade ettiği.
-2. **Sözdizimi:** Kabul edilen kanonik yazım.
-3. **Gramer:** Mevcut dil kuralınden çıkarılabilen biçim; kesin değilse açıkça belirtilir.
-4. **Kurallar:** Kabul edilen ve reddedilen kaynak biçimleri.
-5. **Kapsam:** Yapının hangi kaynak bağlamında kullanılabildiği.
-6. **Örnekler:** En az bir geçerli örnek.
-7. **Geçersiz örnekler:** Hatalı biçim ve reddedilme nedeni.
-8. **Tanı:** Hata konumu ve açıklanabilir hata nedeni.
-9. **Sınırlar:** dil iç yapısı ile henüz temsil edilmeyen durumlar.
-10. **Olgunluk:** Tanımlı / derleyici-iç temsil doğrulandı / Kısmen tanımlı / Tasarım aşamasında / Desteklenmiyor / Legacy.
-11. **İlgili bölümler:** Bağlantılı kaynak kuralları.
+1. Bu özellik ne işe yarar?
+2. Nasıl yazılır?
+3. Hangi kurallar geçerlidir?
+4. Hangi kapsamda kullanılabilir?
+5. Doğru kullanım örnekleri nelerdir?
+6. Hangi yazımlar geçersizdir ve neden?
+7. Hata nasıl düzeltilir?
+8. Hangi ayrıntılar henüz tanımlanmamıştır?
 
----
-
-# Kaynaklar ve değişiklikler
-
-Bu kılavuzun hazırlanmasında önceki Nexus Flow dil notları ve güncel dil örnekleri karşılaştırmalı olarak kullanılır. Bu kaynaklar okuyucu için zorunlu değildir; kılavuz kendi başına kullanılabilecek şekilde yazılır.
+Derleyici iç yapıları, modül isimleri, veri yapıları ve uygulama ayrıntıları bu bölümlere eklenmez.
 
 ---
 
-## N. İleride eklenecek dil özellikleri
+# Gelecekte eklenecek özellikler
 
-### N.1 Macro sözdizimi
+## Macro sistemi
 
-Macro sistemi henüz Nexus Flow dil iç yapısı tarafından desteklenen bir kaynak özelliği değildir. Bu nedenle Bölüm 0–42 arasındaki normatif gramerin parçası değildir. Macro tasarımı ve uygulanması tamamlandıktan, iç temsil/derleyici karşılığı ve testleri doğrulandıktan sonra bu manuelin en sonunda ayrı bir bölüm olarak ele alınacaktır.
+Macro sistemi henüz tasarlanıp kullanıma sunulmadığından mevcut Nexus Flow dilinin parçası değildir. Tasarımı tamamlandığında bu kılavuzun en sonunda ayrı bir bölüm olarak eklenecektir.
