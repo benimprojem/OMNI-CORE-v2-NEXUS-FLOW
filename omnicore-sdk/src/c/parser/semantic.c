@@ -4330,32 +4330,36 @@ static int semantic_returned_reference_parameter(
 }
 
 static ASTNode* semantic_call_argument_for_parameter(
-    const ASTCall* call, const ASTFuncDecl* declaration, uint32_t parameter_index
+    const ASTCall* call, const ASTFuncDecl* declaration,
+    uint32_t parameter_index, uint32_t parameter_offset
 ) {
     const ASTNode* parameter;
     ASTNode* argument;
     uint32_t index = 0u;
-    if (!call || !declaration) return NULL;
+    uint32_t visible_index;
+    const char* parameter_name = NULL;
+    if (!call || !declaration || parameter_index < parameter_offset)
+        return NULL;
+    visible_index = parameter_index - parameter_offset;
     for (parameter = declaration->params; parameter; parameter = parameter->next) {
-        const char* parameter_name = NULL;
         if (parameter->type == AST_VARIADIC_PARAM) continue;
-        if (parameter->type == AST_VAR_DECL)
+        if (index++ == parameter_index && parameter->type == AST_VAR_DECL) {
             parameter_name = ((const ASTVarDecl*)parameter)->name;
-        if (index++ != parameter_index) continue;
+            break;
+        }
+    }
+    if (!parameter_name) return NULL;
+    {
+        uint32_t positional = 0u;
         for (argument = call->args; argument; argument = argument->next) {
             if (argument->type == AST_NAMED_ARG) {
                 ASTNamedArg* named = (ASTNamedArg*)argument;
-                if (named->name && parameter_name &&
+                if (named->name &&
                     strcmp(named->name, parameter_name) == 0) return named->value;
-            } else {
-                uint32_t positional = 0u;
-                ASTNode* scan;
-                for (scan = call->args; scan && scan != argument; scan = scan->next)
-                    if (scan->type != AST_NAMED_ARG) ++positional;
-                if (positional == parameter_index) return argument;
+            } else if (positional++ == visible_index) {
+                return argument;
             }
         }
-        return NULL;
     }
     return NULL;
 }
@@ -4371,19 +4375,30 @@ static int semantic_bind_returned_call_reference(
     Slot* owner = NULL;
     int parameter_index;
     int is_mutable;
+    uint32_t parameter_offset = 0u;
     if (!ctx || !borrower || !initializer ||
         initializer->type != AST_FUNC_CALL) return 0;
     call = (ASTCall*)initializer;
-    if (!call->callee || call->callee->type != AST_IDENTIFIER) return 0;
-    function = find_slot(ctx, ((ASTIdentifier*)call->callee)->name);
+    if (!call->callee) return 0;
+    if (call->callee->type == AST_IDENTIFIER) {
+        function = find_slot(ctx, ((ASTIdentifier*)call->callee)->name);
+    } else if (call->callee->type == AST_MEMBER_ACCESS) {
+        int is_instance_call = 0;
+        function = semantic_resolve_group_callable(
+            ctx, (ASTMemberAccess*)call->callee, &is_instance_call, 0);
+        if (is_instance_call) parameter_offset = 1u;
+    } else {
+        return 0;
+    }
     if (!function || function->kind != SLOT_FUNC ||
         !function->declaration_node ||
         function->declaration_node->type != AST_FUNC_DECL) return 0;
     declaration = (ASTFuncDecl*)function->declaration_node;
     parameter_index = semantic_returned_reference_parameter(declaration);
-    if (parameter_index < 0) return 0;
+    if (parameter_index < 0 || (uint32_t)parameter_index < parameter_offset)
+        return 0;
     source_argument = semantic_call_argument_for_parameter(
-        call, declaration, (uint32_t)parameter_index);
+        call, declaration, (uint32_t)parameter_index, parameter_offset);
     argument_value = source_argument;
     if (argument_value && argument_value->type == AST_NAMED_ARG)
         argument_value = ((ASTNamedArg*)argument_value)->value;
