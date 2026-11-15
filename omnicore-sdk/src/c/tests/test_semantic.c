@@ -922,6 +922,23 @@ static int check_borrow_expression_semantics(void) {
         check_source(shared_borrow_write, 1);
 }
 
+static int check_call_temporary_borrow_semantics(void) {
+    const char* shared_call_conflicts_with_active_mutable =
+        "f:read(value!&i32) {} f:main() { v:owner!i32 = 1; "
+        "v:edit!&muti32 = &mut owner; read(&owner); }";
+    const char* mutable_call_conflicts_with_active_shared =
+        "f:edit(value!&muti32) {} f:main() { v:owner!i32 = 1; "
+        "v:read_only!&i32 = &owner; edit(&mut owner); }";
+    const char* two_shared_call_arguments_are_allowed =
+        "f:read(a!&i32, b!&i32) {} f:main() { v:owner!i32 = 1; read(&owner, &owner); }";
+    const char* conflicting_call_arguments_are_rejected =
+        "f:edit(a!&muti32, b!&i32) {} f:main() { v:owner!i32 = 1; edit(&mut owner, &owner); }";
+    return check_source(shared_call_conflicts_with_active_mutable, 1) &&
+        check_source(mutable_call_conflicts_with_active_shared, 1) &&
+        check_source(two_shared_call_arguments_are_allowed, 0) &&
+        check_source(conflicting_call_arguments_are_rejected, 1);
+}
+
 static int check_borrow_overlap_and_scope_semantics(void) {
     const char* multiple_shared =
         "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; v:b!&i32 = &owner; }";
@@ -2598,7 +2615,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Shared/mutable borrow Semantic checks failed.\n");
         return 1;
     }
-    if (!check_borrow_overlap_and_scope_semantics()) {
+    if (!check_call_temporary_borrow_semantics()) {\n        fprintf(stderr, "Call temporary borrow checks failed.\\n"); return 1;\n    }\n    if (!check_borrow_overlap_and_scope_semantics()) {
         fprintf(stderr, "Borrow overlap/scope Semantic checks failed.\n");
         return 1;
     }
