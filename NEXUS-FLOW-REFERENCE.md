@@ -2099,46 +2099,382 @@ Borrow hatasında tanı şu bilgileri vermelidir:
 # Bölüm VII — Nexus Flow akış yapıları
 
 ## 26. Akış operatörleri
-### 26.1 Genel bakış
-### 26.2 Capture
-### 26.3 Pipe ve flow
-### 26.4 Error handler
-### 26.5 Fallback
-### 26.6 Ignore
-### 26.7 Shift ve sayısal shift farkı
-### 26.8 Zincirleme ve parantezleme
 
-## 27. Masa ve kaynak bağlama
-### 27.1 Masa oluşturma ve capture
-### 27.2 Masa adı ve bağlama
-### 27.3 Masa üzerinden akış
-### 27.4 Tekil Halt
-### 27.5 Blok Halt
-### 27.6 Masa ile fonksiyon çağrısı
+Nexus Flow akış operatörleri, bir kaynağın sonucını sonraki işlem, masa, hata kolu veya alternatif akışa bağlar. Bunlar sayısal operatörlerden farklıdır: `<<<` ve `>>>` bit kaydırma yaparken `<<` ve `>>` flow/zone aktarımında kullanılır.
 
-## 28. Relocate
-### 28.1 _> operatörü
-### 28.2 Kaynak ve hedef ifadeleri
-### 28.3 Relocate kullanım kapsamı
-### 28.4 Hatalı relocate biçimleri
-### 28.5 Relocate ve ownership ilişkisi
+## 26.1 Genel bakış
 
-## 29. Label ve jump
-### 29.1 Label bildirimi: label:>
-### 29.2 Operator jump
-### 29.3 jump(label)
-### 29.4 Hedef yazımı
-### 29.5 Hatalı label/jump örnekleri
+| Operatör | Ad | Kullanım amacı |
+|---|---|---|
+| `<-` | Capture | Sonucu masa/handler'a bağlamak |
+| `->` | Success flow | Veriyi sonraki işlem veya bloğa aktarmak |
+| `?->` | Catch | Hata durumunu error block'a yönlendirmek |
+| `?=>` | Fallback | Hata/boş sonuç için alternatif değer sağlamak |
+| `!->` | Ignore | Hata sonucunu akışta görmezden gelmek |
+| `<<` | Zone write | Zone'a veri yazmak |
+| `>>` | Flow feed | Akışa veri beslemek |
+| `_>` | Relocate | Sahipliği başka masaya devretmek |
+| `?(count, delay)` | Rolling | Başarısız işlemi sınırlı sayıda yeniden denemek |
 
-## 30. Hata saptırmalı akış ve retry
-### 30.1 Error-handler operatörü
-### 30.2 Error binding block
-### 30.3 Fallback
-### 30.4 Ignore
-### 30.5 Rolling retry: ?(count, delay)->target
-### 30.6 Retry delay yazımı
-### 30.7 Akış operatörlerinin birleşimi
-### 30.8 Örnekler ve hatalar
+Bu operatörlerin anlamları birbirinin yerine geçmez. Özellikle hata yakalama, fallback ve ignore farklı davranışlardır.
+
+## 26.2 Capture: `<-`
+
+Capture, bir ifadenin sonucunu masa/handler'a bağlar:
+
+~~~nxf
+(h) <- file.open("data.txt", r);
+~~~
+
+Capture edilen kaynak, masa üzerinden sonraki işlemlere aktarılabilir. Masa doluyken tekrar capture yapılması sahiplik/masa kurallarına göre geçersizdir.
+
+## 26.3 Pipe ve success flow: `->`
+
+~~~nxf
+(h) -> process(h);
+(value) -> consume(value);
+~~~
+
+`->` veriyi sonraki işleme veya akış bloğuna taşır. Bir masa üzerinden akış, veriyi sıradan bir kopya gibi çoğaltmaz; kaynak sahipliği ve masa yaşam döngüsü kuralları geçerlidir.
+
+Birden fazla değer blok biçiminde aktarılabilir:
+
+~~~nxf
+(in, out) -> {
+    v:data <- file.read(in);
+    file.write(out, data);
+};
+~~~
+
+## 26.4 Error handler: `?->`
+
+~~~nxf
+(h) <- file.open("data.txt", r) ?-> (e) {
+    echo(e);
+};
+~~~
+
+İşlem başarısız olduğunda hata `(e)` error binding'ine yönlendirilir ve error block çalışır. Başarılı akışta hata bloğu çalıştırılmaz.
+
+Error block hatayı ele almak, raporlamak veya uygun bir sonlandırma yapmak için kullanılabilir:
+
+~~~nxf
+(h) <- file.open(path, r) ?-> (e) {
+    echo(e);
+    panic("file open failed");
+};
+~~~
+
+## 26.5 Fallback: `?=>`
+
+Fallback, hata veya boş/null sonuç durumunda alternatif değer/akış sağlamaya yarar:
+
+~~~nxf
+v:config <- load_config() ?=> default_config;
+~~~
+
+Fallback, error block ile aynı değildir: `?->` hatayı işleme bloğuna yönlendirir; `?=>` alternatif sonuç sağlar. Fallback ifadesinin null/empty kapsamı kullanılan işlem ve tür sözleşmesine bağlıdır.
+
+## 26.6 Ignore: `!->`
+
+~~~nxf
+send(message) !-> continue_work();
+~~~
+
+Ignore biçimi hata sonucunu akışın devamı için bastırır. Hatanın başarılı hale geldiği anlamına gelmez; hata bilgisi yok sayılmış olur. Kritik veya kaynak bırakma hatalarında ignore kullanmak önerilmez.
+
+## 26.7 Shift ve sayısal shift farkı
+
+~~~nxf
+value <<< amount; # Sayısal bit kaydırma
+value >>> amount; # Sayısal bit kaydırma
+
+source << zone;   # Zone write/flow aktarımı
+source >> target;# Flow feed
+~~~
+
+`<<<` ve `>>>` sayısal bit kaydırma operatörleridir. `<<` ve `>>` Nexus Flow kaynak/zone aktarım operatörleridir.
+
+## 26.8 Zincirleme ve parantezleme
+
+~~~nxf
+(h) <- acquire() ?-> (e) { report(e); };
+(h) -> process(h);
+~~~
+
+Akışın her aşamasını ayrı satırda yazmak, hata kolunu ve kaynak sahipliğini açıkça göstermeyi kolaylaştırır. Zincirleme ifadelerde operatörlerin önceliğine güvenmek yerine parantez veya ayrı statement kullanın.
+
+**Durum:** Capture, success, catch, fallback, ignore ve flow/zone operatörlerinin temel biçimleri tanımlı; tüm operatör zincirlerinin precedence ve sonuç türü sözleşmeleri kısmen tanımlı.
+
+---
+
+# 27. Masa ve kaynak bağlama
+
+Masa/handler, bir kaynak veya sonucu belirli bir kapsamda tutan ve akış boyunca aktaran bağlama noktasıdır. Masa adı parantez içinde yazılır.
+
+## 27.1 Capture ile masa oluşturma
+
+~~~nxf
+(h) <- file.open("input.txt", r);
+~~~
+
+Bu biçim `h` adlı masa için kaynak capture eder. Masa adı, kendi lexical scope'unda kullanılabilir.
+
+## 27.2 Masa adı ve bağlama
+
+Standart masa adları kullanım amacını açıklaştırabilir:
+
+- `(h)`: genel handle/header.
+- `(e)`: hata binding'i.
+- `(ok)`: kontrol/result bağlamı.
+- `(v)`: ham değer.
+- `(it)`: iterator bağlamı.
+
+Bu adlar kullanım konvansiyonudur; özel masa türü veya otomatik dönüşüm anlamına gelmez.
+
+## 27.3 Masa üzerinden akış
+
+~~~nxf
+(h) -> process(h);
+~~~
+
+Masa üzerinden akış kaynağı sonraki işleme aktarır. Başarılı sahiplik aktarımından sonra eski masa aynı kaynak üzerinde kullanılamaz.
+
+## 27.4 Tekil Halt: `?;`
+
+~~~nxf
+(in, out) -> {
+    v:data <- file.read(in);
+    file.write(out, data);
+}?; 
+~~~
+
+`?;` yürütme bağlamındaki etkin masa/kaynak sahipliklerini sonlandıran halt biçimidir. Normal bir statement olarak yazılır.
+
+## 27.5 Block Halt: `}?;`
+
+~~~nxf
+(in, out) -> {
+    process(in, out);
+}?; 
+~~~
+
+`}?;` blok kapanışına eklenen halt biçimidir. Normal `?;` ile aynı halt davranışını blok kapanışında ifade eder; lexical scope'u daraltan yeni bir blok oluşturmaz.
+
+## 27.6 Masa ile fonksiyon çağrısı
+
+~~~nxf
+(h) <- open_resource(path);
+(h) -> process(h);
+~~~
+
+Capture ile alınan kaynak fonksiyona veya flow işlemine aktarılır. Fonksiyonun parametre ve kaynak sözleşmesiyle masa türü uyumlu olmalıdır.
+
+## 27.7 Masa yaşam süresi
+
+- Masa yalnızca tanımlandığı lexical block içinde kullanılabilir.
+- Masa sahibi olduğu block activation'dan uzun yaşayamaz.
+- Her kaynak için tek sahip bulunur.
+- Dolu masaya tekrar capture yapılmaz; önce mevcut sahiplik geçerli biçimde tüketilmeli veya aktarılmalıdır.
+- Relocate hedefi kaynak kodda daha ileride olabilir; relocate yürütme sırasını değiştirmez.
+
+**Durum:** Capture, masa adı, flow, halt ve temel masa yaşam süresi tanımlı.
+
+---
+
+# 28. Relocate
+
+Relocate `_>` operatörü, bir masa/kaynak sahipliğini başka bir masa veya kaynak bağlama noktasına aktarır. Relocate bir jump değildir ve kaynak kodunun yürütme sırasını değiştirmez.
+
+## 28.1 `_>` operatörü
+
+~~~nxf
+(source) _> (destination);
+~~~
+
+Bu biçim sahipliği source masasından destination masasına yönlendirir. Hedef masa daha sonra etkinleşebilir.
+
+## 28.2 Kaynak ve hedef
+
+~~~nxf
+(input) <- open_input();
+(input) _> (worker_input);
+~~~
+
+Relocate kaynak masayı devreder. Aktarım başarılı olduğunda source aynı kaynak üzerinde kullanılmaya devam edemez; destination devralır.
+
+## 28.3 İleri relocate ve kapsam
+
+~~~nxf
+(input) _> (worker_input);
+
+(worker_input) -> process(worker_input);
+~~~
+
+Hedefin kaynak kodunda daha ileride tanımlanması, hedef bloğa atlama anlamına gelmez. Program normal sırayla yürür; hedef konumuna geldiğinde yönlendirilmiş kaynak devralınır.
+
+## 28.4 Hatalı relocate
+
+~~~nxf
+(input) _> ;                 # Hedef eksik.
+(input) _> (input);          # Kaynak ve hedef aynı.
+(unknown) _> (destination);   # Kaynak masa tanımlı değil.
+~~~
+
+Hedefin başka bir aktif sahip tarafından kullanılması veya kaynak sahipliğinin bulunmaması da geçersiz aktarım durumudur.
+
+## 28.5 Relocate ve ownership
+
+Relocate, borrow oluşturmaz ve kaynak veriyi kopyalamaz. Ownership aktarımıdır:
+
+- Kaynak sahipliği bir hedefe devredilir.
+- Eski sahip kaynak üzerinde geçersiz hale gelir.
+- Hedefin yaşam süresi kaynak yaşam süresiyle uyumlu olmalıdır.
+- Borrow aktifken sahiplik aktarımı borrow/lifetime kurallarına uymalıdır.
+- Relocate kontrol akışında jump veya branch oluşturmaz.
+
+**Durum:** `_>` ile masa sahipliği aktarımı ve ileri hedefin yürütme sırasını değiştirmemesi tanımlı.
+
+---
+
+# 29. Label ve jump
+
+Label, fonksiyon içinde isimli bir kontrol akışı hedefi tanımlar. Jump, yürütmeyi bu hedefe aktarır. Jump veri veya masa sahipliği taşıma operatörü değildir.
+
+## 29.1 Label bildirimi: `label:>`
+
+~~~nxf
+out:> {
+    process();
+}
+~~~
+
+Label adı zorunludur ve `:>` ile tanımlanır. Label bir blok girişini işaret eder.
+
+## 29.2 Jump: `jump(label)`
+
+~~~nxf
+jump(out);
+
+out:> {
+    process();
+}
+~~~
+
+`jump(out)` kontrolü `out` label'ının girişine aktarır. Hedef kaynak kodda ileri veya geri olabilir.
+
+## 29.3 Operator jump
+
+~~~nxf
+?>(out);
+~~~
+
+`?>(label)` label hedefli jump biçimidir. `jump(label)` ile aynı hedef aktarım amacına sahiptir.
+
+## 29.4 Hedef yazımı ve kapsam
+
+- Label adı fonksiyon içinde tanımlı olmalıdır.
+- Jump hedefi aynı fonksiyon içindeki geçerli bir label olmalıdır.
+- Jump hedefi lexical scope güvenliğini ihlal edemez.
+- Jump bir basic block'u sonlandırır; hedef block girişine aktarır.
+- Label'a birden fazla jump kaynağından ulaşılabilir.
+
+## 29.5 Hatalı label/jump
+
+~~~nxf
+jump(missing);       # Label bulunamadı.
+jump();              # Hedef adı eksik.
+out:> out();         # Label block biçimi eksik.
+~~~
+
+Jump, başka fonksiyondaki label'a veya geçersiz bir scope içine atlayamaz.
+
+**Durum:** Label bildirimi, `jump(label)` ve `?>(label)` yazımı tanımlı; bütün lexical scope geçiş sınırları ilgili kontrol akışı kurallarıyla değerlendirilir.
+
+---
+
+# 30. Hata saptırmalı akış ve retry
+
+Bu bölüm, işlem başarısız olduğunda hatayı yakalama, alternatif değer üretme, hatayı görmezden gelme veya işlemi tekrar deneme yollarını açıklar.
+
+## 30.1 Error-handler operatörü
+
+~~~nxf
+(h) <- open(path) ?-> (e) {
+    report(e);
+};
+~~~
+
+`?->` başarısız sonucu error binding'e yönlendirir. Error block hatayı işleyebilir veya başka bir kontrol akışıyla sonlandırabilir.
+
+## 30.2 Error binding block
+
+~~~nxf
+(h) <- read_file(path) ?-> (e) {
+    echo(e);
+    ret;
+};
+~~~
+
+`(e){...}` hata binding'i ve error block biçimidir. `e` hata bilgisini temsil eder; normal başarı sonucu değildir.
+
+## 30.3 Fallback
+
+~~~nxf
+v:settings <- load_settings() ?=> default_settings;
+~~~
+
+`?=>` başarısız/boş sonuçta alternatif değer sağlar. Fallback ile error block aynı değildir; fallback alternatif sonuç seçer, error block hata işleme kodunu çalıştırır.
+
+## 30.4 Ignore
+
+~~~nxf
+send(message) !-> continue_work();
+~~~
+
+`!->` hatayı akıştan bastırıp devam etmeyi ifade eder. Hata durumunun ortadan kalktığı veya işlemin başarılı olduğu anlamına gelmez.
+
+## 30.5 Rolling retry: `?(count, delay)->target`
+
+~~~nxf
+?(5, 500)->(new_http);
+~~~
+
+Rolling, hedef işlem başarısız olduğunda sınırlı sayıda yeniden deneme isteğidir. İlk parametre deneme sayısını, ikinci parametre bekleme süresini belirtir. Delay sayısal süre değeridir; `ms`, `us`, `s` ve `m` gibi birimler desteklenen süre yazımlarıdır.
+
+## 30.6 Retry delay
+
+~~~nxf
+?(5, 500ms)->(new_http);
+?(3, 250us)->(fast_task);
+?(2, 1s)->(slow_task);
+~~~
+
+Süre değeri bir sayı ve isteğe bağlı birimle yazılır. Birim verilmediğinde değer, süre metadata'sında milisaniye cinsinden kayıt anlamındadır. `500ms` biçimi açık birim gösterir; `500` ile aynı milisaniye değerini ifade eder.
+
+## 30.7 Akış operatörlerinin birleşimi
+
+~~~nxf
+(h) <- connect(address)
+    ?(3, 500ms)->(retry_target)
+    ?-> (e) { report(e); }
+    ?=> fallback_connection;
+~~~
+
+Akış operatörlerini birleştirirken her hata yolunun açık olması önerilir. Retry, catch, fallback ve ignore davranışları birbirinin yerine kullanılmamalıdır. Zincirin tam değerlendirme sırası ve bütün birleşimlerin tür sözleşmesi henüz kısmen tanımlıdır.
+
+## 30.8 Örnekler ve hatalar
+
+~~~nxf
+?(5)->(target);             # Delay eksik.
+?(, 500ms)->(target);       # Deneme sayısı eksik.
+?(5, 500ms);                # Retry hedefi eksik.
+?(5, 500ms)->target;        # Hedef masa parantezi eksik.
+~~~
+
+Retry hedefi geçerli bir masa/akış hedefi olmalıdır. Deneme sayısı pozitif ve açık olmalıdır; sıfır/negatif değerler geçerli retry isteği değildir.
+
+**Durum:** Catch, fallback, ignore ve rolling temel yazımları tanımlı. Retry'nin hata türleriyle etkileşimi, tüm operatör zincirlerinin sıralaması ve edge-case davranışları kısmen tanımlıdır.
 
 ---
 
