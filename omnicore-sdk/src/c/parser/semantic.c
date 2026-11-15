@@ -4071,7 +4071,7 @@ static void semantic_register_borrow_binding(
     if (borrow->op != TOKEN_BIT_AND && borrow->op != TOKEN_BORROW_MUT)
         return;
     if (!borrow->operand || borrow->operand->type != AST_IDENTIFIER) {
-        report_error(ctx, borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+        report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
             "Borrow binding currently requires a direct identifier owner.");
         return;
     }
@@ -4081,7 +4081,7 @@ static void semantic_register_borrow_binding(
     is_mutable = borrow->op == TOKEN_BORROW_MUT;
     if (owner->mutable_borrow_active ||
         (is_mutable && owner->shared_borrow_count != 0u)) {
-        report_error(ctx, borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+        report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
             is_mutable
                 ? "Exclusive mutable borrow conflicts with an active borrow of the same owner."
                 : "Shared borrow conflicts with an active exclusive mutable borrow.");
@@ -4092,7 +4092,7 @@ static void semantic_register_borrow_binding(
         borrower->borrow_kind = 2u;
     } else {
         if (owner->shared_borrow_count == UINT32_MAX) {
-            report_error(ctx, borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+            report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
                 "Shared borrow count exceeds the supported semantic limit.");
             return;
         }
@@ -4162,14 +4162,6 @@ static void semantic_check_node(
                         "The initializer of an immutable m: value must have a determinable type.");
                 }
             }
-            if (declared_slot && decl->initializer &&
-                decl->initializer->type == AST_UNARY_EXPR &&
-                (((ASTUnaryExpr*)decl->initializer)->op == TOKEN_BIT_AND ||
-                 ((ASTUnaryExpr*)decl->initializer)->op == TOKEN_BORROW_MUT)) {
-                semantic_register_borrow_binding(
-                    ctx, declared_slot, decl->initializer);
-            }
-
             if (declared_slot) {
                 semantic_record_annotation(
                     ctx, node, declared_slot, declared_slot->type_name,
@@ -4332,6 +4324,14 @@ static void semantic_check_node(
                         declared_slot->type_id = inferred_type_id;
                     }
                 }
+            }
+
+            if (declared_slot && decl->initializer &&
+                decl->initializer->type == AST_UNARY_EXPR &&
+                (((ASTUnaryExpr*)decl->initializer)->op == TOKEN_BIT_AND ||
+                 ((ASTUnaryExpr*)decl->initializer)->op == TOKEN_BORROW_MUT)) {
+                semantic_register_borrow_binding(
+                    ctx, declared_slot, decl->initializer);
             }
 
             if (declared_slot) {
