@@ -948,7 +948,7 @@ static int check_call_temporary_borrow_semantics(void) {
         check_source(conflicting_call_arguments_are_rejected, 1) &&
         check_source(named_temporary_shared_borrow, 0) &&
         check_source(named_temporary_mutable_borrow, 0) &&
-        check_source(call_borrow_mutability_mismatch, 1) &&
+        check_source(call_borrow_mutability_mismatch, 2) &&
         check_source(call_temporary_borrow_is_released, 0);
 }
 
