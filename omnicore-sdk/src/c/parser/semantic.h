@@ -33,6 +33,7 @@ typedef struct Slot {
     uint8_t borrow_kind;    /* 0 none, 1 shared, 2 exclusive. */
     uint8_t is_parameter;   /* Function parameter storage; may carry a returned reference. */
     struct Slot* borrowed_from;
+    char* borrow_path;       /* Projection path relative to borrowed_from. */
     int depth; // Scope derinliği
     char* type_name;      // Değişken tipi, Fonksiyon dönüş tipi veya NewType hedefi
     ASTNode* declaration_node; // Non-owning AST declaration for signature validation

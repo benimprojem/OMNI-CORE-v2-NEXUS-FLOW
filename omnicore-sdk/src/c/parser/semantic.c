@@ -960,8 +960,14 @@ static void semantic_record_annotation(
 
 static void semantic_release_borrow_binding(Slot* borrower) {
     Slot* owner;
-    if (!borrower || !borrower->borrowed_from) return;
+    if (!borrower) return;
     owner = borrower->borrowed_from;
+    if (!owner) {
+        free(borrower->borrow_path);
+        borrower->borrow_path = NULL;
+        borrower->borrow_kind = 0u;
+        return;
+    }
     if (borrower->borrow_kind == 1u) {
         if (owner->shared_borrow_count > 0u)
             --owner->shared_borrow_count;
@@ -970,6 +976,8 @@ static void semantic_release_borrow_binding(Slot* borrower) {
     }
     borrower->borrowed_from = NULL;
     borrower->borrow_kind = 0u;
+    free(borrower->borrow_path);
+    borrower->borrow_path = NULL;
 }
 
 static void destroy_slot(Slot* slot) {
@@ -978,6 +986,7 @@ static void destroy_slot(Slot* slot) {
 
     free(slot->name);
     free(slot->type_name);
+    free(slot->borrow_path);
 
     if (slot->param_types) {
         for (int i = 0; i < slot->param_count; ++i) {
@@ -1127,9 +1136,55 @@ static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
     return 0;
 }
 
-/* Resolve the containing storage owner for identifier/member/index lvalues.
-   Fields and elements intentionally share one conservative borrow unit until
-   field-level provenance is represented in SemanticResult. */
+/* Build a stable projection path for a statically identifiable lvalue.
+   Empty string denotes the whole root; dynamic indexes use [*]. */
+static char* semantic_lvalue_path(const ASTNode* node) {
+    char* parent;
+    char suffix[96];
+    size_t parent_length, suffix_length;
+    char* result;
+    if (!node) return NULL;
+    if (node->type == AST_IDENTIFIER) {
+        result = (char*)malloc(1u);
+        if (result) result[0] = '\\0';
+        return result;
+    }
+    if (node->type == AST_MEMBER_ACCESS) {
+        const ASTMemberAccess* member = (const ASTMemberAccess*)node;
+        if (!member->member_name || !member->member_name[0]) return NULL;
+        parent = semantic_lvalue_path(member->object);
+        if (!parent) return NULL;
+        (void)snprintf(suffix, sizeof(suffix), ".%s", member->member_name);
+    } else if (node->type == AST_INDEX_ACCESS) {
+        const ASTIndexAccess* index = (const ASTIndexAccess*)node;
+        int64_t constant_index;
+        parent = semantic_lvalue_path(index->target);
+        if (!parent) return NULL;
+        if (semantic_eval_integer_constant(index->index, &constant_index))
+            (void)snprintf(suffix, sizeof(suffix), "[%lld]",
+                (long long)constant_index);
+        else
+            (void)snprintf(suffix, sizeof(suffix), "[*]");
+    } else {
+        /* Pointer dereferences and computed expressions have unknown provenance. */
+        return NULL;
+    }
+    parent_length = strlen(parent);
+    suffix_length = strlen(suffix);
+    if (parent_length > SIZE_MAX - suffix_length - 1u) {
+        free(parent);
+        return NULL;
+    }
+    result = (char*)malloc(parent_length + suffix_length + 1u);
+    if (result) {
+        memcpy(result, parent, parent_length);
+        memcpy(result + parent_length, suffix, suffix_length + 1u);
+    }
+    free(parent);
+    return result;
+}
+
+/* Resolve the containing storage owner for identifier/member/index lvalues. */
 static Slot* semantic_lvalue_root_slot(SemanticContext* ctx, ASTNode* node) {
     if (!ctx || !node) return NULL;
     switch (node->type) {
@@ -4426,6 +4481,7 @@ static int semantic_bind_returned_call_reference(
     ASTNode* source_argument;
     ASTNode* argument_value;
     Slot* owner = NULL;
+    char* borrow_path = NULL;
     int parameter_index;
     int is_mutable;
     uint32_t parameter_offset = 0u;
@@ -4462,22 +4518,33 @@ static int semantic_bind_returned_call_reference(
         if (!source || !source->borrowed_from ||
             !semantic_is_reference_type_name(source->type_name)) return 0;
         owner = source->borrowed_from;
+        borrow_path = source->borrow_path
+            ? _strdup(source->borrow_path) : (char*)malloc(1u);
+        if (borrow_path && !source->borrow_path) borrow_path[0] = '\\0';
         is_mutable = source->borrow_kind == 2u;
     } else if (argument_value->type == AST_UNARY_EXPR) {
         ASTUnaryExpr* borrow = (ASTUnaryExpr*)argument_value;
         if (borrow->op != TOKEN_BIT_AND && borrow->op != TOKEN_BORROW_MUT)
             return 0;
         owner = semantic_lvalue_root_slot(ctx, borrow->operand);
+        borrow_path = semantic_lvalue_path(borrow->operand);
         is_mutable = borrow->op == TOKEN_BORROW_MUT;
     } else {
         return 0;
     }
-    if (!owner || !semantic_is_reference_type_name(borrower->type_name) ||
+    if (!owner || !borrow_path ||
+        !semantic_is_reference_type_name(borrower->type_name) ||
         is_mutable != semantic_is_mut_reference_type_name(borrower->type_name) ||
-        borrower->depth < owner->depth) return 0;
+        borrower->depth < owner->depth) {
+        free(borrow_path);
+        return 0;
+    }
     if (owner->mutable_borrow_active ||
         (is_mutable && owner->shared_borrow_count != 0u) ||
-        (!is_mutable && owner->shared_borrow_count == UINT32_MAX)) return 0;
+        (!is_mutable && owner->shared_borrow_count == UINT32_MAX)) {
+        free(borrow_path);
+        return 0;
+    }
 
     semantic_release_borrow_binding(borrower);
     if (is_mutable) {
@@ -4488,6 +4555,7 @@ static int semantic_bind_returned_call_reference(
         borrower->borrow_kind = 1u;
     }
     borrower->borrowed_from = owner;
+    borrower->borrow_path = borrow_path;
     return 1;
 }
 
@@ -4536,6 +4604,15 @@ static void semantic_register_borrow_binding(
        Only lvalues proceed to the separate provenance check below. */
     if (!semantic_is_lvalue(ctx, borrow->operand)) return;
     owner = semantic_lvalue_root_slot(ctx, borrow->operand);
+    {
+        char* projection_path = semantic_lvalue_path(borrow->operand);
+        if (!projection_path) {
+            report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Safe borrow requires a statically identifiable storage path; pointer dereferences and computed lvalues are rejected.");
+            return;
+        }
+        free(projection_path);
+    }
     if (!owner) {
         report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
             "Safe borrow requires a local storage owner with statically known provenance; raw-pointer and computed lvalues are not supported.");
@@ -4571,8 +4648,15 @@ static void semantic_register_borrow_binding(
         }
     }
 
-    /* Validation succeeded. Release the previous owner only now, then bind. */
-    semantic_release_borrow_binding(borrower);
+    /* Validation succeeded. Capture the projection before replacing the old binding. */
+    {
+        char* projection_path = semantic_lvalue_path(borrow->operand);
+        if (!projection_path) {
+            report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Unable to allocate borrow projection metadata.");
+            return;
+        }
+        semantic_release_borrow_binding(borrower);
     if (is_mutable) {
         owner->mutable_borrow_active = 1u;
         borrower->borrow_kind = 2u;
@@ -4580,7 +4664,9 @@ static void semantic_register_borrow_binding(
         ++owner->shared_borrow_count;
         borrower->borrow_kind = 1u;
     }
-    borrower->borrowed_from = owner;
+        borrower->borrowed_from = owner;
+        borrower->borrow_path = projection_path;
+    }
 }
 
 static void semantic_copy_shared_reference_binding(
@@ -4588,6 +4674,7 @@ static void semantic_copy_shared_reference_binding(
 ) {
     Slot* owner;
     uint32_t effective_shared_count;
+    char* copied_path = NULL;
     if (!ctx || !target || !source || !assignment || target == source) return;
     if (semantic_is_mut_reference_type_name(target->type_name)) {
         report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
@@ -4600,6 +4687,17 @@ static void semantic_copy_shared_reference_binding(
         return;
     }
     owner = source->borrow_kind == 1u ? source->borrowed_from : NULL;
+    if (owner) {
+        const char* source_path = source->borrow_path ? source->borrow_path : "";
+        size_t path_length = strlen(source_path);
+        copied_path = (char*)malloc(path_length + 1u);
+        if (copied_path) memcpy(copied_path, source_path, path_length + 1u);
+        if (!copied_path) {
+            report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Unable to copy shared-reference projection metadata.");
+            return;
+        }
+    }
     if (!owner) {
         /* Preserve type-level assignment for untracked reference parameters;
            their external lifetime/provenance contract remains a separate task. */
@@ -4623,6 +4721,7 @@ static void semantic_copy_shared_reference_binding(
     ++owner->shared_borrow_count;
     target->borrowed_from = owner;
     target->borrow_kind = 1u;
+    target->borrow_path = copied_path;
 }
 
 static void semantic_check_node(SemanticContext* ctx, ASTNode* node, int follow_siblings);
