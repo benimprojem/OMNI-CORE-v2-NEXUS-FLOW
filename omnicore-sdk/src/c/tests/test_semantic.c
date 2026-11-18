@@ -951,7 +951,7 @@ static int check_named_function_callback_value_semantics(void) {
         "f:main(id!u32) { v:callback!Callback = first; callback = second; callback(id); }";
     const char* lambda_assignment_fails_closed =
         "nt:Callback = f:(id!u32)!bool; "
-        "f:main() { v:callback!Callback = >(id!u32) { ret true; }; }";
+        "f:main() { v:callback!Callback = f:(id!u32)!bool > (id > 0); }";
     return check_source(exact_named_function_value, 0) &&
         check_source(exact_direct_callback_value, 0) &&
         check_source(mismatched_parameter_type, 1) &&
