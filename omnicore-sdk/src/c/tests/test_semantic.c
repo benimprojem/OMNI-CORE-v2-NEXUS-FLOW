@@ -1106,6 +1106,30 @@ static int check_nested_type_variable_semantics(void) {
         check_source(unbound_generic_return_type_is_rejected, 1);
 }
 
+static int check_map_key_type_semantics(void) {
+    const char* map_scalar_keys =
+        "f:main() { v:values!map; values[1]; values[1.5]; "
+        "values[true]; values['x']; values[\"name\"]; }";
+    const char* map_enum_key =
+        "enum:Mode { Read, Write } "
+        "f:main(mode!Mode) { v:values!map; values[mode]; }";
+    const char* map_newtype_scalar_key =
+        "nt:UserId = u64; f:main(id!UserId) { v:values!map; values[id]; }";
+    const char* map_aggregate_key_rejected =
+        "struct:Point { v:x!i32 } "
+        "f:main(point!Point) { v:values!map; values[point]; }";
+    const char* map_safe_reference_key_rejected =
+        "f:main(owner!i32) { v:values!map; values[&owner]; }";
+    const char* map_null_key_rejected =
+        "f:main() { v:values!map; values[null]; }";
+    return check_source(map_scalar_keys, 0) &&
+        check_source(map_enum_key, 0) &&
+        check_source(map_newtype_scalar_key, 0) &&
+        check_source(map_aggregate_key_rejected, 1) &&
+        check_source(map_safe_reference_key_rejected, 1) &&
+        check_source(map_null_key_rejected, 1);
+}
+
 static int check_nested_pointer_and_reference_type_variable_semantics(void) {
     const char* raw_pointer_type_variable =
         "f:identity(value!*t)!*t { ret value; } "
@@ -3292,6 +3316,10 @@ int main(int argc, char** argv) {
     }
     if (!check_nested_type_variable_semantics()) {
         fprintf(stderr, "Nested type-variable checks failed.\\n");
+        return 1;
+    }
+    if (!check_map_key_type_semantics()) {
+        fprintf(stderr, "Map key type checks failed.\\n");
         return 1;
     }
     if (!check_nested_pointer_and_reference_type_variable_semantics()) {

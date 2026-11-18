@@ -786,6 +786,35 @@ static int semantic_format_array_signature(
     return 1;
 }
 
+
+static int is_numeric_primitive_type(const char* type_name);
+
+static int semantic_is_map_key_type_depth(
+    SemanticContext* ctx, const char* type_name, unsigned int depth
+) {
+    Slot* type_slot;
+    if (!type_name || depth > 32u) return 0;
+    if (*type_name == '!') ++type_name;
+    if (is_numeric_primitive_type(type_name) ||
+        strcmp(type_name, "str") == 0 ||
+        strcmp(type_name, "char") == 0 ||
+        strcmp(type_name, "bool") == 0) return 1;
+    type_slot = find_slot(ctx, type_name);
+    if (type_slot && type_slot->kind == SLOT_ENUM) return 1;
+    if (type_slot && type_slot->kind == SLOT_NEWTYPE &&
+        type_slot->type_name) {
+        return semantic_is_map_key_type_depth(
+            ctx, type_slot->type_name, depth + 1u);
+    }
+    return 0;
+}
+
+static int semantic_is_map_key_type(
+    SemanticContext* ctx, const char* type_name
+) {
+    return semantic_is_map_key_type_depth(ctx, type_name, 0u);
+}
+
 static int semantic_is_map_type_name(const char* type_name) {
     if (!type_name) return 0;
     if (type_name[0] == '!') ++type_name;
@@ -6466,7 +6495,14 @@ static void semantic_check_node(
                     "Index target must be an array, map, tuple, bit vector, or byte block.");
             }
             index_type = get_expr_type(ctx, access->index);
-            if (!semantic_is_map_type_name(target_type) &&
+            if (semantic_is_map_type_name(target_type) &&
+                index_type && !semantic_is_map_key_type(ctx, index_type)) {
+                report_issue(ctx, access->index, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Map key type is not hashable under the Nexus Flow Map contract.",
+                    "Use a numeric scalar, string, char, bool, enum, or a NewType whose underlying type is one of those.",
+                    "Use a numeric scalar, string, char, bool, enum, or a NewType whose underlying type is one of those.",
+                    0, 0);
+            } else if (!semantic_is_map_type_name(target_type) &&
                 index_type && strcmp(index_type, "any") != 0 &&
                 !is_integer_primitive_type(index_type)) {
                 report_error(ctx, access->index, ERR_SEMANTIC_TYPE_MISMATCH,
