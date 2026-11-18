@@ -5022,6 +5022,7 @@ static void semantic_validate_call_arguments(
                         "Pass this required parameter positionally or by its declared name; only parameters with defaults may be omitted.",
                         "Pass this required parameter positionally or by its declared name; only parameters with defaults may be omitted.",
                         0, 0);
+                    break;
                 }
             }
         }
