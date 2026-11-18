@@ -1669,6 +1669,94 @@ static void semantic_refine_nullable_binding_from_condition(
     slot->is_nullable = (uint8_t)!should_be_nonnull;
 }
 
+
+static int semantic_statement_contains_break(const ASTNode* node) {
+    const ASTNode* current;
+    if (!node) return 0;
+    if (node->type == AST_BREAK) return 1;
+    /* A nested loop owns its own break statements. */
+    if (node->type == AST_LOOP) return 0;
+    if (node->type == AST_BLOCK) {
+        return semantic_statement_contains_break(
+            ((const ASTBlock*)node)->statements);
+    }
+    if (node->type == AST_IF) {
+        const ASTIf* branch = (const ASTIf*)node;
+        return semantic_statement_contains_break(branch->then_branch) ||
+            semantic_statement_contains_break(branch->else_branch);
+    }
+    if (node->type == AST_SELECT) {
+        for (current = ((const ASTSelect*)node)->arms; current;
+             current = current->next) {
+            if (current->type == AST_SELECT_ARM &&
+                semantic_statement_contains_break(
+                    ((const ASTSelectArm*)current)->body)) return 1;
+        }
+    } else if (node->type == AST_SCAN) {
+        for (current = ((const ASTScan*)node)->arms; current;
+             current = current->next) {
+            if (current->type == AST_SCAN_ARM &&
+                semantic_statement_contains_break(
+                    ((const ASTScanArm*)current)->body)) return 1;
+        }
+    }
+    return 0;
+}
+
+/* True when every path through a statement either returns a value or
+   diverges (panic/exit/infinite loop). */
+static int semantic_function_statement_terminates(const ASTNode* node) {
+    const ASTNode* current;
+    if (!node) return 0;
+    if (node->type == AST_RETURN || node->type == AST_PANIC ||
+        node->type == AST_EXIT) return 1;
+    if (node->type == AST_BLOCK) {
+        for (current = ((const ASTBlock*)node)->statements; current;
+             current = current->next) {
+            if (semantic_function_statement_terminates(current)) return 1;
+        }
+        return 0;
+    }
+    if (node->type == AST_IF) {
+        const ASTIf* branch = (const ASTIf*)node;
+        return branch->else_branch &&
+            semantic_function_statement_terminates(branch->then_branch) &&
+            semantic_function_statement_terminates(branch->else_branch);
+    }
+    if (node->type == AST_SELECT) {
+        const ASTSelect* select = (const ASTSelect*)node;
+        int has_default = 0;
+        if (!select->arms) return 0;
+        for (current = select->arms; current; current = current->next) {
+            const ASTSelectArm* arm;
+            if (current->type != AST_SELECT_ARM) return 0;
+            arm = (const ASTSelectArm*)current;
+            if (arm->is_default) has_default = 1;
+            if (!semantic_function_statement_terminates(arm->body)) return 0;
+        }
+        return has_default;
+    }
+    if (node->type == AST_SCAN) {
+        const ASTScan* scan = (const ASTScan*)node;
+        int has_else = 0;
+        if (!scan->arms) return 0;
+        for (current = scan->arms; current; current = current->next) {
+            const ASTScanArm* arm;
+            if (current->type != AST_SCAN_ARM) return 0;
+            arm = (const ASTScanArm*)current;
+            if (!arm->pattern) has_else = 1;
+            if (!semantic_function_statement_terminates(arm->body)) return 0;
+        }
+        return has_else;
+    }
+    if (node->type == AST_LOOP) {
+        const ASTLoop* loop = (const ASTLoop*)node;
+        return loop->loop_type == 0 &&
+            !semantic_statement_contains_break(loop->body);
+    }
+    return 0;
+}
+
 static int semantic_branch_terminates_flow(const ASTNode* branch) {
     const ASTNode* statement;
     if (!branch) return 0;
@@ -7820,6 +7908,26 @@ static void semantic_check_node(
                     ++ctx->function_depth;
                     semantic_check(ctx, func->body);
                     --ctx->function_depth;
+                    if (return_type_valid && func->return_type) {
+                        const char* normalized_return = func->return_type;
+                        while (normalized_return &&
+                               (*normalized_return == '!' ||
+                                *normalized_return == '>'))
+                            ++normalized_return;
+                        if (normalized_return && *normalized_return &&
+                            strcmp(normalized_return, "void") != 0 &&
+                            !semantic_function_statement_terminates(func->body)) {
+                            char message[320];
+                            (void)snprintf(message, sizeof(message),
+                                "Function '%s' can reach its end without returning a value of type '%s'.",
+                                function_name, func->return_type);
+                            report_issue(ctx, node,
+                                ERR_SEMANTIC_RETURN_MISMATCH, message,
+                                "Return a value on every control-flow path, add a complete else/default arm, or make the function return type void.",
+                                "Return a value on every control-flow path, add a complete else/default arm, or make the function return type void.",
+                                0, 0);
+                        }
+                    }
                 }
                 ctx->current_method_context = method_context_for_function;
             }

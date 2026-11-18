@@ -1019,6 +1019,37 @@ static int check_named_callback_reference_return_origin_semantics(void) {
         check_source(unknown_callback_reference_return_fails_closed, 1);
 }
 
+static int check_function_all_path_return_semantics(void) {
+    const char* missing_return =
+        "f:missing()!i32 { v:value!i32 = 1; }";
+    const char* both_if_paths_return =
+        "f:choose(flag!bool)!i32 { "
+        "if (flag) { ret 1; } els { ret 2; } }";
+    const char* one_if_path_missing =
+        "f:partial(flag!bool)!i32 { if (flag) { ret 1; } }";
+    const char* select_default_all_return =
+        "f:choose(value!bool)!i32 { select(value) { "
+        "true -> { ret 1; } default -> { ret 2; } } }";
+    const char* select_without_default_missing_path =
+        "f:choose(value!bool)!i32 { select(value) { "
+        "true -> { ret 1; } } }";
+    const char* scan_else_all_return =
+        "f:choose(value!i32)!i32 { scan(value) { "
+        "1 -> { ret 1; } else -> { ret 2; } } }";
+    const char* void_function_may_fall_through =
+        "f:work()!void { v:value!i32 = 1; }";
+    const char* infinite_loop_diverges =
+        "f:wait()!i32 { loop { v:value!i32 = 1; } }";
+    return check_source(missing_return, 1) &&
+        check_source(both_if_paths_return, 0) &&
+        check_source(one_if_path_missing, 1) &&
+        check_source(select_default_all_return, 0) &&
+        check_source(select_without_default_missing_path, 1) &&
+        check_source(scan_else_all_return, 0) &&
+        check_source(void_function_may_fall_through, 0) &&
+        check_source(infinite_loop_diverges, 0);
+}
+
 static int check_callback_function_type_semantics(void) {
     const char* direct_callback_parameter =
         "f:apply(callback!f:(id!u32)!bool,id!u32)!bool { ret callback(id); }";
@@ -3209,6 +3240,10 @@ int main(int argc, char** argv) {
     }
     if (!check_named_callback_reference_return_origin_semantics()) {
         fprintf(stderr, "Named callback reference-return origin checks failed.\\n");
+        return 1;
+    }
+    if (!check_function_all_path_return_semantics()) {
+        fprintf(stderr, "Function all-path return checks failed.\\n");
         return 1;
     }
     if (!check_callback_function_type_semantics()) {
