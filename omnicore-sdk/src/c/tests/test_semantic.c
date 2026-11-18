@@ -977,7 +977,7 @@ static int check_callback_nullability_semantics(void) {
     const char* callback_null_initializer_is_allowed =
         "nt:Callback = f:(id!u32)!bool; f:main() { v:callback!Callback = null; }";
     const char* callback_null_cannot_be_invoked =
-        "nt:Callback = f:(id!u32)!bool; "
+        "nt:Callback = f:(id!i32)!bool; "
         "f:main() { v:callback!Callback = null; callback(1); }";
     const char* callback_alias_copy_preserves_non_null_state =
         "nt:Callback = f:(id!u32)!bool; "
