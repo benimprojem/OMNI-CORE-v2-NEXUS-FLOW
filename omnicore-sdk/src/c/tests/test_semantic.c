@@ -1840,8 +1840,12 @@ static int check_extended_ast_semantics(void) {
     const char* invalid_named_missing_required =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(b:2); }";
-    const char* invalid_default_parameter_type =
-        "f:sum(a!i32,b!i32:\"wrong\")!i32 { ret a; } f:main() {}";
+    const char* invalid_default_parameter_call_type =
+        "f:sum(a!i32,b:\"wrong\")!i32 { ret a; } "
+        "f:main() { v:result!i32 = sum(1,b:2); }";
+    const char* valid_omitted_default_parameter =
+        "f:sum(a!i32,b:\"fallback\")!i32 { ret a; } "
+        "f:main() { v:result!i32 = sum(1); }";
     const char* valid_callback_named_arguments =
         "nt:Callback = f:(id!u32,flag!bool)!bool; "
         "f:main(callback!Callback,id!u32,flag!bool) { "
@@ -1983,7 +1987,8 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_named_argument,1) &&
         check_source(invalid_positional_named_collision,1) &&
         check_source(invalid_named_missing_required,1) &&
-        check_source(invalid_default_parameter_type,1) &&
+        check_source(invalid_default_parameter_call_type,1) &&
+        check_source(valid_omitted_default_parameter,0) &&
         check_source(valid_callback_named_arguments,0) &&
         check_source(invalid_callback_unknown_named_argument,1) &&
         check_source(invalid_mixed_extra_positional,2) &&
