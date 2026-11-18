@@ -1385,8 +1385,7 @@ static int semantic_expression_may_be_null(
     }
     if (expression->type == AST_FUNC_CALL) {
         const char* result_type = get_expr_type(ctx, (ASTNode*)expression);
-        return semantic_is_raw_pointer_type_name(result_type) ||
-            semantic_is_function_type_name(ctx, result_type);
+        return semantic_is_raw_pointer_type_name(result_type);
     }
     return 0;
 }
@@ -1523,6 +1522,37 @@ static void semantic_reference_init_snapshot_merge(
             slot->is_nullable = left->entries[index].is_nullable;
         }
     }
+}
+
+static void semantic_refine_nullable_binding_from_condition(
+    SemanticContext* ctx, const ASTNode* condition, int truth_value
+) {
+    const ASTBinaryExpr* comparison;
+    const ASTIdentifier* identifier = NULL;
+    const ASTLiteral* literal = NULL;
+    Slot* slot;
+    int nonnull_when_true;
+    int should_be_nonnull;
+    if (!ctx || !condition || condition->type != AST_BINARY_EXPR) return;
+    comparison = (const ASTBinaryExpr*)condition;
+    if (comparison->op != TOKEN_EQ && comparison->op != TOKEN_NEQ) return;
+    if (comparison->left && comparison->left->type == AST_IDENTIFIER &&
+        comparison->right && comparison->right->type == AST_LITERAL) {
+        identifier = (const ASTIdentifier*)comparison->left;
+        literal = (const ASTLiteral*)comparison->right;
+    } else if (comparison->right && comparison->right->type == AST_IDENTIFIER &&
+               comparison->left && comparison->left->type == AST_LITERAL) {
+        identifier = (const ASTIdentifier*)comparison->right;
+        literal = (const ASTLiteral*)comparison->left;
+    }
+    if (!identifier || !literal || literal->token_type != TOKEN_NULL) return;
+    slot = find_slot(ctx, identifier->name);
+    if (!slot || slot->kind != SLOT_VAR ||
+        (!semantic_is_raw_pointer_type_name(slot->type_name) &&
+         !semantic_is_function_type_name(ctx, slot->type_name))) return;
+    nonnull_when_true = comparison->op == TOKEN_NEQ;
+    should_be_nonnull = truth_value ? nonnull_when_true : !nonnull_when_true;
+    slot->is_nullable = (uint8_t)!should_be_nonnull;
 }
 
 static int semantic_branch_terminates_flow(const ASTNode* branch) {
@@ -4442,11 +4472,21 @@ static void semantic_validate_call_arguments(
                             argument_type);
                         report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE, message);
                     }
-                } else if (!are_types_compatible(expected_type, argument_type)) {
-                    char message[256];
+                } else {
+                    if (semantic_is_function_type_name(ctx, expected_type) &&
+                        semantic_expression_may_be_null(ctx, argument_value)) {
+                        report_issue(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
+                            "A nullable callback value cannot be passed to a non-null callback parameter.",
+                            "Check the callback against null before passing it, or initialize it from a non-null callback value.",
+                            "Check the callback against null before passing it, or initialize it from a non-null callback value.",
+                            0, 0);
+                    }
+                    if (!are_types_compatible(expected_type, argument_type)) {
+                        char message[256];
                     snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_TYPE),
                         (int)(parameter_index+1u),expected_type,argument_type);
-                    report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,message);
+                        report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,message);
+                    }
                 }
             }
             if (parameter && parameter->inline_type &&
@@ -7287,6 +7327,8 @@ static void semantic_check_node(
                 ctx, conditional->condition, "if/elsif");
             before_captured = semantic_reference_init_snapshot_capture(
                 ctx, &before_state);
+            semantic_refine_nullable_binding_from_condition(
+                ctx, conditional->condition, 1);
             if (conditional->then_branch) {
                 if (conditional->then_branch->type == AST_BLOCK) {
                     semantic_check(ctx, conditional->then_branch);
@@ -7303,6 +7345,8 @@ static void semantic_check_node(
                 conditional->then_branch);
             if (before_captured)
                 semantic_reference_init_snapshot_restore(&before_state);
+            semantic_refine_nullable_binding_from_condition(
+                ctx, conditional->condition, 0);
             if (conditional->else_branch) {
                 if (conditional->else_branch->type == AST_BLOCK) {
                     semantic_check(ctx, conditional->else_branch);
@@ -7330,8 +7374,24 @@ static void semantic_check_node(
                     semantic_reference_init_snapshot_restore(&before_state);
                 }
             } else if (before_captured) {
-                /* Without an else path, the condition may be false. */
-                semantic_reference_init_snapshot_restore(&before_state);
+                /* With no else, the false path always continues. If the true
+                   branch terminates, only the refined false path survives. */
+                if (then_captured && then_terminates) {
+                    /* The false refinement is already active. */
+                } else if (then_captured) {
+                    SemanticReferenceInitSnapshot false_state = {0};
+                    if (semantic_reference_init_snapshot_capture(
+                            ctx, &false_state)) {
+                        semantic_reference_init_snapshot_merge(
+                            &then_state, &false_state);
+                        semantic_reference_init_snapshot_restore(&then_state);
+                    } else {
+                        semantic_reference_init_snapshot_restore(&before_state);
+                    }
+                    semantic_reference_init_snapshot_destroy(&false_state);
+                } else {
+                    semantic_reference_init_snapshot_restore(&before_state);
+                }
             }
             semantic_reference_init_snapshot_destroy(&before_state);
             semantic_reference_init_snapshot_destroy(&then_state);
@@ -7385,6 +7445,15 @@ static void semantic_check_node(
 
             if (ctx->current_func_return_type) {
                 const char* actual_type = ret->operand ? get_expr_type(ctx, ret->operand) : "void";
+                if (semantic_is_function_type_name(
+                        ctx, ctx->current_func_return_type) &&
+                    semantic_expression_may_be_null(ctx, ret->operand)) {
+                    report_issue(ctx, node, ERR_SEMANTIC_RETURN_MISMATCH,
+                        "A function returning a callback value must return a non-null function value.",
+                        "Return a valid callback binding or change the return contract to an explicitly nullable callback type.",
+                        "Return a valid callback binding or change the return contract to an explicitly nullable callback type.",
+                        0, 0);
+                }
                 if (!are_types_compatible(ctx->current_func_return_type, actual_type)) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_RETURN_MISMATCH), ctx->current_func_return_type, actual_type);

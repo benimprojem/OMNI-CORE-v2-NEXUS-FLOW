@@ -946,6 +946,33 @@ static int check_callback_function_type_semantics(void) {
         check_source(non_callable_value, 1);
 }
 
+static int check_callback_null_refinement_semantics(void) {
+    const char* not_null_branch_allows_call =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:apply(callback!Callback,id!u32)!bool { "
+        "if (callback != null) { ret callback(id); } els { ret false; } }";
+    const char* null_guard_return_allows_call_after_if =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:apply(callback!Callback,id!u32)!bool { "
+        "if (callback == null) { ret false; } ret callback(id); }";
+    const char* nullable_callback_argument_requires_guard =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:pass(callback!Callback) {} "
+        "f:main() { v:local!Callback = null; pass(local); }";
+    const char* guarded_callback_argument_is_allowed =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:pass(callback!Callback) {} "
+        "f:main(callback!Callback) { "
+        "if (callback != null) { pass(callback); } }";
+    const char* callback_null_return_is_rejected =
+        "nt:Callback = f:(id!u32)!bool; f:make()!Callback { ret null; }";
+    return check_source(not_null_branch_allows_call, 0) &&
+        check_source(null_guard_return_allows_call_after_if, 0) &&
+        check_source(nullable_callback_argument_requires_guard, 1) &&
+        check_source(guarded_callback_argument_is_allowed, 0) &&
+        check_source(callback_null_return_is_rejected, 1);
+}
+
 static int check_callback_nullability_semantics(void) {
     const char* callback_null_initializer_is_allowed =
         "nt:Callback = f:(id!u32)!bool; f:main() { v:callback!Callback = null; }";
@@ -2993,6 +3020,10 @@ int main(int argc, char** argv) {
     }
     if (!check_callback_function_type_semantics()) {
         fprintf(stderr, "Callback function-type Semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_callback_null_refinement_semantics()) {
+        fprintf(stderr, "Callback null-refinement checks failed.\\n");
         return 1;
     }
     if (!check_callback_nullability_semantics()) {
