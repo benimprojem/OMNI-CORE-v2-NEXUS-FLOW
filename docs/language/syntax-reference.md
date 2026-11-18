@@ -1213,7 +1213,7 @@ Storage; # default metodu çağırır
 - Instance method için ilk parametre `self` olmalıdır. `self` türü, Group'a ait nominal Struct tanımından çıkarılabilir veya açıkça `self!Storage` yazılabilir. `self` ilk sırada değilse ya da açık tür Group türüyle uyuşmuyorsa Semantic hatasıdır.
 - Static method `self` parametresi içermez. Instance üzerinden static method çağrısı ve tür/Group adı üzerinden instance method çağrısı reddedilir.
 - Çağıran `self` argümanını vermez; receiver otomatik geçirilir. Named argüman eşleştirmesi `self` sonrasındaki ilk açık parametreden başlar; `self:` adı çağırana açık değildir.
-- Positional ve named argümanlar parametre sayısı, isim, tekrar, çakışma ve tür uyumu açısından denetlenir. Fazla positional argüman ve bilinmeyen/tekrarlanan named argüman reddedilir.
+- Positional ve named argümanlar parametre sayısı, isim, tekrar, çakışma ve tür uyumu açısından denetlenir. Fazla positional argüman ve bilinmeyen/tekrarlanan named argüman reddedilir. Default parametreler eksik bırakılabilir; default değerinin türü parametre türüyle eşleşmelidir. Variadic `...` son parametredir; safe reference ve safe reference içeren değerler variadic tail'e geçirilemez.
 - Public method alias adları benzersizdir. Implementation function adı başka alias'la veya Group içindeki doğrudan fonksiyonla çakışamaz. Overload desteklenmez.
 - Group içindeki Struct/Enum/Union türleri Group scope'una aittir. Dış scope ve nested Group bu türleri otomatik olarak devralmaz; nested Group kendi türlerini tanımlar.
 - `default { ... }` Group'ın varsayılan dispatch gövdesidir. Bare Group expression `Storage;` bu metodu çağırır; `default` yoksa bare Group dispatch hatadır.
@@ -1235,7 +1235,7 @@ Database.sql.connect("app.db");
 Database.memory.clear();
 ```
 
-**Uygulama sınırı:** Parser; Group, nested Group, method alias, direct function, nominal type ve default gövdesi için AST üretir. Semantic; alias/implementation uniqueness, Group type scope, `self`, static/instance dispatch ve temel positional/named argument kontrollerini uygular. Receiver visibility ve kalan signature sözleşmesinin tamamı henüz kapanmadığından Group Semantic durumu kısmi (`~`) kalır. OIR/Verifier ve runtime dispatch sonraki aşamalardır.
+**Semantic sözleşmesi:** Parser; Group, nested Group, method alias, direct function, nominal type ve default gövdesi için AST üretir. Semantic; alias/implementation uniqueness, Group type scope, `self` receiver visibility/type/order, static/instance dispatch, hidden receiver exclusion, positional/named/default/variadic argument binding ve tür uyumunu doğrular. Overload desteklenmez; public alias adları benzersizdir. OIR/Verifier ve target ABI/runtime dispatch sonraki aşamalardır.
 
 ### 5.5 Relocate (`_>`)
 
