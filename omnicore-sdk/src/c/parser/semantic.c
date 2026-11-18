@@ -5409,7 +5409,7 @@ static void semantic_check_node(
                     "Use of '%s' after ownership was transferred is invalid.",
                     id->name ? id->name : "<unnamed>");
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, moved_message);
-            } else if (resolved &&
+            } else if (resolved && resolved->kind == SLOT_VAR &&
                 semantic_is_reference_type_name(resolved->type_name) &&
                 !resolved->is_initialized &&
                 ctx->assignment_target_depth == 0u) {
