@@ -2854,6 +2854,28 @@ static int check_group_method_dispatch_semantics(void) {
         "open => f:shared_impl(self) { ret; } "
         "f:shared_impl(value!i32) { ret; } "
         "struct:Storage { v:value!i32 } } }";
+    const char* self_is_not_visible_outside_method =
+        "f:main() { v:value!i32 = self; }";
+    const char* method_named_default_argument =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.store(mode:\"fast\",value:7); ret; } "
+        "store => f:store_impl(self,value!i32,mode:\"safe\") { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* method_named_missing_required_argument =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.store(mode:\"fast\"); ret; } "
+        "store => f:store_impl(self,value!i32,mode:\"safe\") { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* variadic_instance_method_values =
+        "f:main() { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.log(1,2,3); ret; } "
+        "log => f:log_impl(self,first!i32,...) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
+    const char* variadic_instance_method_rejects_safe_reference =
+        "f:main(owner!i32) { group Storage { "
+        "run => f:run_impl(self) { v:other!Storage = self; other.log(1,&owner); ret; } "
+        "log => f:log_impl(self,first!i32,...) { ret; } "
+        "struct:Storage { v:value!i32 } } }";
 
     return check_source(instance_call_to_later_method, 0) &&
         check_source(anonymous_instance_method_implementation, 0) &&
@@ -2878,7 +2900,12 @@ static int check_group_method_dispatch_semantics(void) {
         check_source(unknown_group_method, 1) &&
         check_source(duplicate_public_method_alias, 1) &&
         check_source(duplicate_method_implementation_name, 1) &&
-        check_source(method_implementation_collides_with_direct_function, 1);
+        check_source(method_implementation_collides_with_direct_function, 1) &&
+        check_source(self_is_not_visible_outside_method, 1) &&
+        check_source(method_named_default_argument, 0) &&
+        check_source(method_named_missing_required_argument, 1) &&
+        check_source(variadic_instance_method_values, 0) &&
+        check_source(variadic_instance_method_rejects_safe_reference, 1);
 }
 
 static int check_group_type_scope_semantics(void) {
