@@ -1364,6 +1364,98 @@ static int semantic_type_contains_safe_reference(
     return 0;
 }
 
+typedef struct SemanticReferenceInitEntry {
+    Slot* slot;
+    uint8_t is_initialized;
+} SemanticReferenceInitEntry;
+
+typedef struct SemanticReferenceInitSnapshot {
+    SemanticReferenceInitEntry* entries;
+    size_t count;
+} SemanticReferenceInitSnapshot;
+
+/* Safe-reference bindings are usable only after a valid initializer or
+   assignment. Branch snapshots implement a conservative must-initialize
+   merge: a binding is initialized after an if only when every path is. */
+static int semantic_reference_init_snapshot_capture(
+    SemanticContext* ctx, SemanticReferenceInitSnapshot* snapshot
+) {
+    Slot* slot;
+    size_t count = 0u;
+    size_t index = 0u;
+    if (!ctx || !snapshot) return 0;
+    snapshot->entries = NULL;
+    snapshot->count = 0u;
+    for (slot = ctx->head; slot; slot = slot->next) {
+        if (slot->kind == SLOT_VAR &&
+            semantic_is_reference_type_name(slot->type_name)) {
+            if (count == SIZE_MAX) {
+                semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                return 0;
+            }
+            ++count;
+        }
+    }
+    if (count == 0u) return 1;
+    if (count > SIZE_MAX / sizeof(*snapshot->entries)) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return 0;
+    }
+    snapshot->entries = (SemanticReferenceInitEntry*)semantic_callocate(
+        ctx, count, sizeof(*snapshot->entries));
+    if (!snapshot->entries) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return 0;
+    }
+    snapshot->count = count;
+    for (slot = ctx->head; slot; slot = slot->next) {
+        if (slot->kind == SLOT_VAR &&
+            semantic_is_reference_type_name(slot->type_name)) {
+            snapshot->entries[index].slot = slot;
+            snapshot->entries[index].is_initialized = slot->is_initialized;
+            ++index;
+        }
+    }
+    return 1;
+}
+
+static void semantic_reference_init_snapshot_restore(
+    const SemanticReferenceInitSnapshot* snapshot
+) {
+    size_t index;
+    if (!snapshot) return;
+    for (index = 0u; index < snapshot->count; ++index) {
+        if (snapshot->entries[index].slot)
+            snapshot->entries[index].slot->is_initialized =
+                snapshot->entries[index].is_initialized;
+    }
+}
+
+static void semantic_reference_init_snapshot_merge(
+    const SemanticReferenceInitSnapshot* left,
+    const SemanticReferenceInitSnapshot* right
+) {
+    size_t index;
+    if (!left || !right || left->count != right->count) return;
+    for (index = 0u; index < left->count; ++index) {
+        Slot* slot = left->entries[index].slot;
+        if (slot && slot == right->entries[index].slot) {
+            slot->is_initialized = (uint8_t)(
+                left->entries[index].is_initialized &&
+                right->entries[index].is_initialized);
+        }
+    }
+}
+
+static void semantic_reference_init_snapshot_destroy(
+    SemanticReferenceInitSnapshot* snapshot
+) {
+    if (!snapshot) return;
+    free(snapshot->entries);
+    snapshot->entries = NULL;
+    snapshot->count = 0u;
+}
+
 static int semantic_reference_return_has_stable_origin(
     SemanticContext* ctx, ASTNode* operand
 ) {
@@ -4984,6 +5076,7 @@ static void semantic_check_node(
                 decl->inline_type->type == AST_ARRAY_TYPE);
             int is_inline = (decl->inline_type != NULL && !is_array);
             int valid_type = 0;
+            int initializer_error_baseline = ctx->error_count;
             const char* element_type = decl->type_name;
             if (element_type && element_type[0] == '!') ++element_type;
             if (existing && existing->depth == ctx->current_depth) {
@@ -5047,6 +5140,7 @@ static void semantic_check_node(
                     "A c: compile-time constant requires an initializer expression.");
             }
 
+            initializer_error_baseline = ctx->error_count;
             if (decl->initializer) {
                 const char* init_type;
                 semantic_check(ctx, decl->initializer);
@@ -5129,6 +5223,20 @@ static void semantic_check_node(
             if (declared_slot && decl->initializer) {
                 semantic_register_borrow_binding(
                     ctx, declared_slot, decl->initializer);
+            }
+
+            if (declared_slot &&
+                semantic_is_reference_type_name(declared_slot->type_name)) {
+                if (decl->initializer &&
+                    ctx->error_count == initializer_error_baseline) {
+                    declared_slot->is_initialized = 1u;
+                } else if (!decl->initializer && declared_slot->depth == 0) {
+                    report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Global safe reference declaration requires an initializer; global reference storage cannot begin with an unbound value.",
+                        "Initialize the global reference from a valid global/static owner. Local safe references may be declared first and assigned before their first read.",
+                        "Initialize the global reference from a valid global/static owner. Local safe references may be declared first and assigned before their first read.",
+                        0, 0);
+                }
             }
 
             if (declared_slot) {
@@ -5301,6 +5409,18 @@ static void semantic_check_node(
                     "Use of '%s' after ownership was transferred is invalid.",
                     id->name ? id->name : "<unnamed>");
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, moved_message);
+            } else if (resolved &&
+                semantic_is_reference_type_name(resolved->type_name) &&
+                !resolved->is_initialized &&
+                ctx->assignment_target_depth == 0u) {
+                char message[320];
+                (void)snprintf(message, sizeof(message),
+                    "Safe reference '%s' is read before it has been initialized.",
+                    id->name ? id->name : "<unnamed>");
+                report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message,
+                    "Assign a valid borrow or supported reference-returning call to this binding before reading, dereferencing, passing, or returning it.",
+                    "Assign a valid borrow or supported reference-returning call to this binding before reading, dereferencing, passing, or returning it.",
+                    0, 0);
             } else if (resolved &&
                 ctx->borrow_operand_depth == 0u &&
                 ctx->assignment_target_depth == 0u &&
@@ -5589,6 +5709,7 @@ static void semantic_check_node(
                 break;
             }
 
+            int assignment_error_baseline = ctx->error_count;
             if (assign->op != TOKEN_ASSIGN && assign->op != TOKEN_FORCE_ASSIGN &&
                 semantic_lvalue_is_const(ctx, assign->left)) {
                 report_error(ctx, node, ERR_SEMANTIC_CONST_ASSIGN,
@@ -5815,6 +5936,8 @@ static void semantic_check_node(
                             report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                                 "Safe reference reassignment requires a borrow expression or a copyable shared-reference binding.");
                         }
+                        if (ctx->error_count == assignment_error_baseline)
+                            target_slot->is_initialized = 1u;
                     }
                 }
             } else {
@@ -5941,6 +6064,8 @@ static void semantic_check_node(
 
         case AST_SCAN: {
             ASTScan* scan=(ASTScan*)node;
+            SemanticReferenceInitSnapshot before_arms = {0};
+            int arms_captured = 0;
             ASTNode* arm_node;
             const char* subject_type;
             int seen_else=0;
@@ -5951,7 +6076,11 @@ static void semantic_check_node(
             }
             semantic_check(ctx,scan->subject);
             subject_type=get_expr_type(ctx,scan->subject);
+            arms_captured = semantic_reference_init_snapshot_capture(
+                ctx, &before_arms);
             for(arm_node=scan->arms;arm_node;arm_node=arm_node->next) {
+                if (arms_captured)
+                    semantic_reference_init_snapshot_restore(&before_arms);
                 ASTScanArm* arm;
                 if(arm_node->type!=AST_SCAN_ARM) {
                     report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
@@ -5980,6 +6109,9 @@ static void semantic_check_node(
                 semantic_check(ctx,arm->body);
                 exit_scope(ctx);
             }
+            if (arms_captured)
+                semantic_reference_init_snapshot_restore(&before_arms);
+            semantic_reference_init_snapshot_destroy(&before_arms);
             semantic_check_enum_scan_coverage(ctx,scan,subject_type);
             break;
         }
@@ -6331,6 +6463,7 @@ static void semantic_check_node(
                             ctx, parameter_node);
                         if (parameter_slot) {
                             parameter_slot->is_parameter = 1u;
+                            parameter_slot->is_initialized = 1u;
                             if (semantic_is_reference_type_name(
                                     parameter_slot->type_name))
                                 parameter_slot->borrow_origin = parameter_slot;
@@ -6500,6 +6633,12 @@ static void semantic_check_node(
 
         case AST_IF: {
             ASTIf* conditional = (ASTIf*)node;
+            SemanticReferenceInitSnapshot before_state = {0};
+            SemanticReferenceInitSnapshot then_state = {0};
+            SemanticReferenceInitSnapshot else_state = {0};
+            int before_captured = 0;
+            int then_captured = 0;
+            int else_captured = 0;
             if (!conditional->condition) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "if statement is missing its condition expression.");
@@ -6513,6 +6652,8 @@ static void semantic_check_node(
             semantic_check(ctx, conditional->condition);
             semantic_check_boolean_condition(
                 ctx, conditional->condition, "if/elsif");
+            before_captured = semantic_reference_init_snapshot_capture(
+                ctx, &before_state);
             if (conditional->then_branch) {
                 if (conditional->then_branch->type == AST_BLOCK) {
                     semantic_check(ctx, conditional->then_branch);
@@ -6522,6 +6663,11 @@ static void semantic_check_node(
                     exit_scope(ctx);
                 }
             }
+            if (before_captured)
+                then_captured = semantic_reference_init_snapshot_capture(
+                    ctx, &then_state);
+            if (before_captured)
+                semantic_reference_init_snapshot_restore(&before_state);
             if (conditional->else_branch) {
                 if (conditional->else_branch->type == AST_BLOCK) {
                     semantic_check(ctx, conditional->else_branch);
@@ -6530,7 +6676,21 @@ static void semantic_check_node(
                     semantic_check(ctx, conditional->else_branch);
                     exit_scope(ctx);
                 }
+                if (before_captured)
+                    else_captured = semantic_reference_init_snapshot_capture(
+                        ctx, &else_state);
+                if (before_captured && then_captured && else_captured)
+                    semantic_reference_init_snapshot_merge(
+                        &then_state, &else_state);
+                else if (before_captured)
+                    semantic_reference_init_snapshot_restore(&before_state);
+            } else if (before_captured) {
+                /* Without an else path, the condition may be false. */
+                semantic_reference_init_snapshot_restore(&before_state);
             }
+            semantic_reference_init_snapshot_destroy(&before_state);
+            semantic_reference_init_snapshot_destroy(&then_state);
+            semantic_reference_init_snapshot_destroy(&else_state);
             break;
         }
 
@@ -7540,7 +7700,17 @@ static void semantic_check_node(
                 if (loop->increment) semantic_check(ctx, loop->increment);
             }
 
-            if (loop->body) semantic_check(ctx, loop->body);
+            {
+                SemanticReferenceInitSnapshot before_body = {0};
+                int captured = semantic_reference_init_snapshot_capture(
+                    ctx, &before_body);
+                if (loop->body) semantic_check(ctx, loop->body);
+                /* A loop may execute zero times; body-only assignments do
+                   not definitely initialize an outer reference afterward. */
+                if (captured)
+                    semantic_reference_init_snapshot_restore(&before_body);
+                semantic_reference_init_snapshot_destroy(&before_body);
+            }
             if (ctx->loop_depth > 0u) --ctx->loop_depth;
             exit_scope(ctx);
             break;

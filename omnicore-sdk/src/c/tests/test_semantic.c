@@ -843,15 +843,15 @@ static int check_pointer_reference_type_semantics(void) {
     const char* pointer_reference_mismatch =
         "f:take(value!&i32) {} f:main() { v:a!*i32; take(a); }";
     const char* exact_reference =
-        "f:take(value!&i32) {} f:main() { v:a!&i32; take(a); }";
+        "f:take(value!&i32) {} f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; take(a); }";
     const char* reference_base_mismatch =
-        "f:take(value!&i32) {} f:main() { v:a!&f32; take(a); }";
+        "f:take(value!&i32) {} f:main(owner!f32) { v:a!&f32 = &owner; take(a); }";
     const char* exact_nested_pointer_assignment =
         "f:main() { v:a!**i32; v:b!**i32; a = b; }";
     const char* nested_pointer_depth_mismatch =
         "f:main() { v:a!**i32; v:b!*i32; a = b; }";
     const char* exact_reference_assignment =
-        "f:main() { v:a!&i32; v:b!&i32; a = b; }";
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; v:a!&i32 = &first; v:b!&i32 = &second; a = b; }";
     const char* pointer_integer_mismatch =
         "f:take(value!*i32) {} f:main() { v:address!u64; take(address); }";
     const char* unknown_nested_pointer_target =
@@ -876,21 +876,21 @@ static int check_pointer_reference_type_semantics(void) {
     const char* pointer_dereference_assignment_mismatch =
         "f:main() { v:p!*i32; *p = \"wrong\"; }";
     const char* reference_dereference =
-        "f:main() { v:r!&i32; v:value!i32 = *r; }";
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; v:value!i32 = *r; }";
     const char* reference_dereference_assignment =
-        "f:main() { v:r!&i32; *r = 7; }";
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r = 7; }";
     const char* reference_compound_assignment =
-        "f:main() { v:r!&i32; *r += 1; }";
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r += 1; }";
     const char* pointer_compound_assignment =
         "f:main() { v:p!*i32; *p += 1; }";
     const char* reference_subtract_assignment =
-        "f:main() { v:r!&i32; *r -= 1; }";
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r -= 1; }";
     const char* reference_multiply_assignment =
-        "f:main() { v:r!&i32; *r *= 2; }";
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r *= 2; }";
     const char* reference_divide_assignment =
-        "f:main() { v:r!&i32; *r /= 2; }";
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r /= 2; }";
     const char* reference_bitwise_assignment =
-        "f:main() { v:r!&i32; *r &= 1; }";
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r &= 1; }";
     const char* pointer_bitwise_assignment =
         "f:main() { v:p!*i32; *p &= 1; }";
     return check_source(exact_pointer, 0) &&
@@ -922,6 +922,37 @@ static int check_pointer_reference_type_semantics(void) {
         check_source(reference_divide_assignment, 1) &&
         check_source(reference_bitwise_assignment, 1) &&
         check_source(pointer_bitwise_assignment, 0);
+}
+
+static int check_safe_reference_definite_initialization_semantics(void) {
+    const char* uninitialized_dereference =
+        "f:main() { v:reference!&i32; v:value!i32 = *reference; }";
+    const char* uninitialized_call_argument =
+        "f:read(value!&i32) {} f:main() { v:reference!&i32; read(reference); }";
+    const char* assigned_before_read =
+        "f:main() { v:owner!i32 = 1; v:reference!&i32; "
+        "reference = &owner; v:value!i32 = *reference; }";
+    const char* both_if_paths_initialize =
+        "f:main() { v:owner!i32 = 1; v:reference!&i32; "
+        "if (true) { reference = &owner; } els { reference = &owner; } "
+        "v:value!i32 = *reference; }";
+    const char* one_if_path_initializes =
+        "f:main() { v:owner!i32 = 1; v:reference!&i32; "
+        "if (true) { reference = &owner; } "
+        "v:value!i32 = *reference; }";
+    const char* invalid_assignment_does_not_initialize =
+        "f:main() { v:reference!&i32; reference = 7; "
+        "v:value!i32 = *reference; }";
+    const char* parameter_is_initialized =
+        "f:read(value!&i32) { v:copy!i32 = *value; } "
+        "f:main() { v:owner!i32 = 1; read(&owner); }";
+    return check_source(uninitialized_dereference, 1) &&
+        check_source(uninitialized_call_argument, 1) &&
+        check_source(assigned_before_read, 0) &&
+        check_source(both_if_paths_initialize, 0) &&
+        check_source(one_if_path_initializes, 1) &&
+        check_source(invalid_assignment_does_not_initialize, 2) &&
+        check_source(parameter_is_initialized, 0);
 }
 
 static int check_borrow_expression_semantics(void) {
@@ -1022,7 +1053,8 @@ static int check_borrow_diagnostic_guidance(void) {
 
 static int check_reference_parameter_escape_diagnostic(void) {
     const char* source =
-        "v:global_ref!&i32;\n"
+        "v:global_owner!i32 = 0;\n"
+        "v:global_ref!&i32 = &global_owner;\n"
         "f:store(value!&i32) {\n"
         "  global_ref = value;\n"
         "}";
@@ -1040,7 +1072,7 @@ static int check_reference_parameter_escape_diagnostic(void) {
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
     error = semantic.error_head;
     ok = semantic.error_count == 1 && error &&
-        error->line == 3 && error->col > 0 &&
+        error->line == 4 && error->col > 0 &&
         error->message &&
         strstr(error->message, "longer-lived binding 'global_ref'") != NULL &&
         error->suggestion &&
@@ -1195,7 +1227,7 @@ static int check_safe_reference_return_lifetime_semantics(void) {
         "f:identity(value!&i32)!&i32 { ret value; } "
         "f:forward(value!&i32) { v:local!&i32 = identity(value); }";
     const char* parameter_reference_cannot_escape_to_global =
-        "v:global_ref!&i32; f:store(value!&i32) { global_ref = value; }";
+        "v:global_owner!i32 = 0; v:global_ref!&i32 = &global_owner; f:store(value!&i32) { global_ref = value; }";
     const char* local_alias_of_parameter_cannot_escape_to_global =
         "v:global_ref!&i32; f:store(value!&i32) { "
         "v:local!&i32 = value; global_ref = local; }";
@@ -2833,6 +2865,10 @@ int main(int argc, char** argv) {
     }
     if (!check_pointer_reference_type_semantics()) {
         fprintf(stderr, "Pointer/reference compatibility checks failed.\n");
+        return 1;
+    }
+    if (!check_safe_reference_definite_initialization_semantics()) {
+        fprintf(stderr, "Safe-reference definite-initialization checks failed.\\n");
         return 1;
     }
     if (!check_borrow_expression_semantics()) {
