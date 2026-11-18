@@ -40,6 +40,7 @@ typedef struct Slot {
     int depth; // Scope derinliği
     char* type_name;      // Değişken tipi, Fonksiyon dönüş tipi veya NewType hedefi
     ASTNode* declaration_node; // Non-owning AST declaration for signature validation
+    ASTNode* callable_declaration; // Known callback target; non-owning AST reference
     int param_count;      // Fixed function parameter count
     int required_param_count; // Parameters before the trailing default-value suffix
     int is_variadic;       // Final AST_VARIADIC_PARAM permits additional arguments

@@ -972,6 +972,27 @@ static int check_variadic_argument_safety_semantics(void) {
         check_source(variadic_mutable_reference_is_rejected, 1);
 }
 
+static int check_named_callback_reference_return_origin_semantics(void) {
+    const char* named_callback_reference_return =
+        "nt:RefGetter = f:(value!&i32)!&i32; "
+        "f:identity(value!&i32)!&i32 { ret value; } "
+        "f:main(owner!i32) { v:callback!RefGetter = identity; "
+        "v:result!&i32 = callback(&owner); v:copy!i32 = *result; }";
+    const char* copied_callback_preserves_return_origin =
+        "nt:RefGetter = f:(value!&i32)!&i32; "
+        "f:identity(value!&i32)!&i32 { ret value; } "
+        "f:main(owner!i32) { v:first!RefGetter = identity; "
+        "v:second!RefGetter = first; v:result!&i32 = second(&owner); "
+        "v:copy!i32 = *result; }";
+    const char* unknown_callback_reference_return_fails_closed =
+        "nt:RefGetter = f:(value!&i32)!&i32; "
+        "f:use(callback!RefGetter, owner!i32) { "
+        "v:result!&i32 = callback(&owner); }";
+    return check_source(named_callback_reference_return, 0) &&
+        check_source(copied_callback_preserves_return_origin, 0) &&
+        check_source(unknown_callback_reference_return_fails_closed, 1);
+}
+
 static int check_callback_function_type_semantics(void) {
     const char* direct_callback_parameter =
         "f:apply(callback!f:(id!u32)!bool,id!u32)!bool { ret callback(id); }";
@@ -3125,6 +3146,10 @@ int main(int argc, char** argv) {
     }
     if (!check_variadic_argument_safety_semantics()) {
         fprintf(stderr, "Variadic argument safety checks failed.\\n");
+        return 1;
+    }
+    if (!check_named_callback_reference_return_origin_semantics()) {
+        fprintf(stderr, "Named callback reference-return origin checks failed.\\n");
         return 1;
     }
     if (!check_callback_function_type_semantics()) {

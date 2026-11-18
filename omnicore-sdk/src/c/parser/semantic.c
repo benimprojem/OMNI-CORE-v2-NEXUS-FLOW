@@ -1531,6 +1531,7 @@ typedef struct SemanticReferenceInitEntry {
     Slot* slot;
     uint8_t is_initialized;
     uint8_t is_nullable;
+    ASTNode* callable_declaration;
 } SemanticReferenceInitEntry;
 
 typedef struct SemanticReferenceInitSnapshot {
@@ -1582,6 +1583,8 @@ static int semantic_reference_init_snapshot_capture(
             snapshot->entries[index].slot = slot;
             snapshot->entries[index].is_initialized = slot->is_initialized;
             snapshot->entries[index].is_nullable = slot->is_nullable;
+            snapshot->entries[index].callable_declaration =
+                slot->callable_declaration;
             ++index;
         }
     }
@@ -1600,6 +1603,9 @@ static void semantic_reference_init_snapshot_restore(
         if (snapshot->entries[index].slot)
             snapshot->entries[index].slot->is_nullable =
                 snapshot->entries[index].is_nullable;
+        if (snapshot->entries[index].slot)
+            snapshot->entries[index].slot->callable_declaration =
+                snapshot->entries[index].callable_declaration;
     }
 }
 
@@ -1620,6 +1626,14 @@ static void semantic_reference_init_snapshot_merge(
                 left->entries[index].is_nullable ||
                 right->entries[index].is_nullable);
             slot->is_nullable = left->entries[index].is_nullable;
+            if (left->entries[index].callable_declaration !=
+                right->entries[index].callable_declaration) {
+                left->entries[index].callable_declaration = NULL;
+                slot->callable_declaration = NULL;
+            } else {
+                slot->callable_declaration =
+                    left->entries[index].callable_declaration;
+            }
         }
     }
 }
@@ -5588,11 +5602,17 @@ static int semantic_bind_returned_call_reference(
     }
     if (function && function->kind == SLOT_VAR &&
         semantic_is_reference_type_name(
-            semantic_callback_return_type(ctx, function))) return 1;
-    if (!function || function->kind != SLOT_FUNC ||
-        !function->declaration_node ||
-        function->declaration_node->type != AST_FUNC_DECL) return 0;
-    declaration = (ASTFuncDecl*)function->declaration_node;
+            semantic_callback_return_type(ctx, function))) {
+        if (!function->callable_declaration ||
+            function->callable_declaration->type != AST_FUNC_DECL)
+            return 1;
+        declaration = (ASTFuncDecl*)function->callable_declaration;
+    } else {
+        if (!function || function->kind != SLOT_FUNC ||
+            !function->declaration_node ||
+            function->declaration_node->type != AST_FUNC_DECL) return 0;
+        declaration = (ASTFuncDecl*)function->declaration_node;
+    }
     parameter_index = semantic_returned_reference_parameter(declaration);
     if (parameter_index < 0 || (uint32_t)parameter_index < parameter_offset)
         return 0;
@@ -6058,6 +6078,13 @@ static void semantic_check_node(
                                     "Use a function whose complete signature matches the callback type, including parameter names used by named calls.",
                                     "Use a function whose complete signature matches the callback type, including parameter names used by named calls.",
                                     0, 0);
+                            } else if (function_slot->depth > declared_slot->depth) {
+                                report_issue(ctx, decl->initializer,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Callback target is declared in a shorter-lived lexical scope than the callback binding.",
+                                    "Keep the callback binding within the function declaration's scope, or move the function declaration to an outer scope.",
+                                    "Keep the callback binding within the function declaration's scope, or move the function declaration to an outer scope.",
+                                    0, 0);
                             }
                         }
                     }
@@ -6154,21 +6181,28 @@ static void semantic_check_node(
                     declared_slot->is_nullable =
                         (uint8_t)semantic_expression_may_be_null(
                             ctx, decl->initializer);
+                    declared_slot->callable_declaration = NULL;
+                    if (decl->initializer->type == AST_IDENTIFIER) {
+                        Slot* source_callback = find_slot(ctx,
+                            ((ASTIdentifier*)decl->initializer)->name);
+                        if (source_callback && source_callback->kind == SLOT_FUNC &&
+                            semantic_function_matches_callback_type(
+                                ctx, declared_slot, source_callback) &&
+                            source_callback->depth <= declared_slot->depth) {
+                            declared_slot->callable_declaration =
+                                source_callback->declaration_node;
+                        } else if (source_callback &&
+                            source_callback->kind == SLOT_VAR &&
+                            semantic_is_function_type_name(
+                                ctx, source_callback->type_name)) {
+                            declared_slot->callable_declaration =
+                                source_callback->callable_declaration;
+                        }
+                    }
                 } else if (!decl->initializer && declared_slot->depth == 0) {
                     declared_slot->is_initialized = 1u;
                     declared_slot->is_nullable = 1u;
-                }
-            } else if (declared_slot &&
-                semantic_is_function_type_name(ctx, declared_slot->type_name)) {
-                if (decl->initializer &&
-                    ctx->error_count == initializer_error_baseline) {
-                    declared_slot->is_initialized = 1u;
-                    declared_slot->is_nullable =
-                        (uint8_t)semantic_expression_may_be_null(
-                            ctx, decl->initializer);
-                } else if (!decl->initializer && declared_slot->depth == 0) {
-                    declared_slot->is_initialized = 1u;
-                    declared_slot->is_nullable = 1u;
+                    declared_slot->callable_declaration = NULL;
                 }
             }
 
@@ -6961,6 +6995,24 @@ static void semantic_check_node(
                         target_slot->is_nullable =
                             (uint8_t)semantic_expression_may_be_null(
                                 ctx, assign->right);
+                        target_slot->callable_declaration = NULL;
+                        if (assign->right->type == AST_IDENTIFIER) {
+                            Slot* source_callback = find_slot(ctx,
+                                ((ASTIdentifier*)assign->right)->name);
+                            if (source_callback && source_callback->kind == SLOT_FUNC &&
+                                semantic_function_matches_callback_type(
+                                    ctx, target_slot, source_callback) &&
+                                source_callback->depth <= target_slot->depth) {
+                                target_slot->callable_declaration =
+                                    source_callback->declaration_node;
+                            } else if (source_callback &&
+                                source_callback->kind == SLOT_VAR &&
+                                semantic_is_function_type_name(
+                                    ctx, source_callback->type_name)) {
+                                target_slot->callable_declaration =
+                                    source_callback->callable_declaration;
+                            }
+                        }
                     }
                 }
             } else {
@@ -8305,12 +8357,16 @@ static void semantic_check_node(
                                 semantic_validate_call_arguments(
                                     ctx, node, &callback_view, call->args, 0u);
                                 if (semantic_is_reference_type_name(
-                                        semantic_callback_return_type(ctx, function_slot))) {
+                                        semantic_callback_return_type(ctx, function_slot)) &&
+                                    (!function_slot->callable_declaration ||
+                                     function_slot->callable_declaration->type != AST_FUNC_DECL ||
+                                     semantic_returned_reference_parameter(
+                                        (ASTFuncDecl*)function_slot->callable_declaration) < 0)) {
                                     report_issue(ctx, node,
                                         ERR_SEMANTIC_TYPE_MISMATCH,
-                                        "Function-value callback returns a safe reference but its signature does not identify the originating parameter; the result has unknown borrow provenance.",
-                                        "Use a direct function or Group method with a verifiable reference-parameter return origin, or change the callback result to a value type.",
-                                        "Use a direct function or Group method with a verifiable reference-parameter return origin, or change the callback result to a value type.",
+                                        "Function-value callback returns a safe reference but its target has no verifiable, consistent reference-parameter return origin.",
+                                        "Assign a named function with a consistent reference-parameter return origin, or change the callback result to a value type.",
+                                        "Assign a named function with a consistent reference-parameter return origin, or change the callback result to a value type.",
                                         0, 0);
                                 }
                                 semantic_destroy_callback_parameter_types(
