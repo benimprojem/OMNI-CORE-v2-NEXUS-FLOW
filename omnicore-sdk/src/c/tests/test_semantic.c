@@ -946,6 +946,36 @@ static int check_callback_function_type_semantics(void) {
         check_source(non_callable_value, 1);
 }
 
+static int check_reference_initialization_control_flow_semantics(void) {
+    const char* return_branch_does_not_block_other_path =
+        "f:main(owner!i32, condition!bool) { v:reference!&i32; "
+        "if (condition) { ret; } els { reference = &owner; } "
+        "v:value!i32 = *reference; }";
+    const char* select_default_initializes_all_paths =
+        "f:main(choice!i32, owner!i32) { v:reference!&i32; "
+        "select(choice) { 1 -> { reference = &owner; } "
+        "default -> { reference = &owner; } } "
+        "v:value!i32 = *reference; }";
+    const char* select_without_default_does_not_initialize =
+        "f:main(choice!i32, owner!i32) { v:reference!&i32; "
+        "select(choice) { 1 -> { reference = &owner; } } "
+        "v:value!i32 = *reference; }";
+    const char* scan_else_initializes_all_paths =
+        "f:main(choice!i32, owner!i32) { v:reference!&i32; "
+        "scan(choice) { 1 -> { reference = &owner; } "
+        "else -> { reference = &owner; } } "
+        "v:value!i32 = *reference; }";
+    const char* scan_without_else_does_not_initialize =
+        "f:main(choice!i32, owner!i32) { v:reference!&i32; "
+        "scan(choice) { 1 -> { reference = &owner; } } "
+        "v:value!i32 = *reference; }";
+    return check_source(return_branch_does_not_block_other_path, 0) &&
+        check_source(select_default_initializes_all_paths, 0) &&
+        check_source(select_without_default_does_not_initialize, 1) &&
+        check_source(scan_else_initializes_all_paths, 0) &&
+        check_source(scan_without_else_does_not_initialize, 1);
+}
+
 static int check_raw_pointer_initialization_and_nullability_semantics(void) {
     const char* uninitialized_pointer_read =
         "f:main() { v:pointer!*i32; v:value!i32 = *pointer; }";
@@ -1365,7 +1395,7 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         check_source(later_declared_owner_cleanup_is_safe, 0) &&
         check_source(mutable_reassignment_releases_old_owner, 0) &&
         check_source(failed_reassignment_preserves_old_borrow, 2) &&
-        check_source(stored_reference_member_reassignment_is_rejected, 2) &&
+        check_source(stored_reference_member_reassignment_is_rejected, 3) &&
         check_source(stored_reference_index_reassignment_is_rejected, 2);
 }
 
@@ -2945,6 +2975,10 @@ int main(int argc, char** argv) {
     }
     if (!check_callback_function_type_semantics()) {
         fprintf(stderr, "Callback function-type Semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_reference_initialization_control_flow_semantics()) {
+        fprintf(stderr, "Reference initialization control-flow checks failed.\\n");
         return 1;
     }
     if (!check_raw_pointer_initialization_and_nullability_semantics()) {
