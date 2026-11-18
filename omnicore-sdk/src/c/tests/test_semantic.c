@@ -958,10 +958,19 @@ static int check_nested_type_variable_semantics(void) {
         "f:main(pointer!*i32, value!u32) { combine(pointer, value); }";
     const char* nested_type_variable_shape_mismatch =
         "f:consume(pointer!*t) {} f:main(value!i32) { consume(value); }";
+    const char* dynamic_array_type_variable_return =
+        "f:first(values!t[])!t { ret values[0]; } "
+        "f:main(values!i32[2]) { v:result!i32 = first(values); }";
+    const char* fixed_array_type_variable_shape_mismatch =
+        "f:first(values!t[2])!t { ret values[0]; } "
+        "f:main(values!i32[3]) { v:result!i32 = first(values); }";
+
     return check_source(pointer_type_variable_return, 0) &&
         check_source(reference_type_variable_return, 0) &&
         check_source(nested_type_variable_base_conflict, 1) &&
-        check_source(nested_type_variable_shape_mismatch, 1);
+        check_source(nested_type_variable_shape_mismatch, 1) &&
+        check_source(dynamic_array_type_variable_return, 0) &&
+        check_source(fixed_array_type_variable_shape_mismatch, 1);
 }
 
 static int check_callback_null_refinement_semantics(void) {

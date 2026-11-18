@@ -4367,7 +4367,8 @@ static int semantic_unify_type_pattern(
         pattern_dimensions = strchr(pattern + 6u, '[');
         actual_dimensions = strchr(actual + 6u, '[');
         if (!pattern_dimensions || !actual_dimensions ||
-            strcmp(pattern_dimensions, actual_dimensions) != 0) return 0;
+            (strcmp(pattern_dimensions, "[]") != 0 &&
+             strcmp(pattern_dimensions, actual_dimensions) != 0)) return 0;
         pattern_length = (size_t)(pattern_dimensions - (pattern + 6u));
         actual_length = (size_t)(actual_dimensions - (actual + 6u));
         if (pattern_length == 0u || actual_length == 0u ||
