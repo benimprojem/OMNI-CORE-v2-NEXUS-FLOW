@@ -183,6 +183,34 @@ static const char* semantic_intern_expression_type(
     return name;
 }
 
+static const char* semantic_intern_full_expression_type(
+    SemanticContext* ctx, const char* value
+) {
+    SemanticTypeName* entry;
+    size_t length;
+    if (!ctx || !value) return NULL;
+    length = strlen(value);
+    for (entry = ctx->expression_type_names; entry; entry = entry->next) {
+        if (entry->name && strlen(entry->name) == length &&
+            memcmp(entry->name, value, length) == 0) return entry->name;
+    }
+    entry = (SemanticTypeName*)semantic_allocate(ctx, sizeof(*entry));
+    if (!entry) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return NULL;
+    }
+    entry->name = (char*)semantic_allocate(ctx, length + 1u);
+    if (!entry->name) {
+        free(entry);
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return NULL;
+    }
+    memcpy(entry->name, value, length + 1u);
+    entry->next = ctx->expression_type_names;
+    ctx->expression_type_names = entry;
+    return entry->name;
+}
+
 static int levenshtein(const char* s1, const char* s2) {
     size_t input_len1 = strlen(s1), input_len2 = strlen(s2);
     int len1 = (int)(input_len1 > 127u ? 127u : input_len1);
@@ -1828,12 +1856,21 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 const char* normalized_result_type = result_type;
                 while (*normalized_result_type == '!')
                     ++normalized_result_type;
-                if (strcmp(normalized_result_type, "t") == 0) {
+                if (semantic_type_pattern_contains_variable(
+                        normalized_result_type)) {
+                    const char* parameter_pattern = NULL;
                     ASTNode* inferred_argument = semantic_find_type_variable_argument(
-                        slot, call->args, parameter_offset);
-                    const char* inferred = inferred_argument
+                        slot, call->args, parameter_offset, &parameter_pattern);
+                    const char* actual_argument_type = inferred_argument
                         ? get_expr_type(ctx, inferred_argument) : NULL;
-                    if (inferred) result_type = inferred;
+                    const char* inferred_base_type = NULL;
+                    if (parameter_pattern && actual_argument_type &&
+                        semantic_unify_type_pattern(
+                            ctx, parameter_pattern, actual_argument_type,
+                            &inferred_base_type) && inferred_base_type) {
+                        result_type = semantic_substitute_type_variable(
+                            ctx, result_type, inferred_base_type);
+                    }
                 }
             }
             semantic_record_annotation(
@@ -4260,6 +4297,136 @@ static void semantic_destroy_callback_parameter_types(
     free(parameter_types);
 }
 
+static int semantic_is_type_identifier_char(char value) {
+    return (value >= 'a' && value <= 'z') ||
+        (value >= 'A' && value <= 'Z') ||
+        (value >= '0' && value <= '9') || value == '_';
+}
+
+static int semantic_type_pattern_contains_variable(const char* pattern) {
+    const char* current;
+    if (!pattern) return 0;
+    while (*pattern == '!') ++pattern;
+    for (current = pattern; *current; ++current) {
+        if (*current == 't' &&
+            (current == pattern ||
+             !semantic_is_type_identifier_char(current[-1])) &&
+            !semantic_is_type_identifier_char(current[1])) return 1;
+    }
+    return 0;
+}
+
+static int semantic_unify_type_pattern(
+    SemanticContext* ctx, const char* pattern, const char* actual,
+    const char** inferred_type
+) {
+    const char* pattern_dimensions;
+    const char* actual_dimensions;
+    char pattern_element[256];
+    char actual_element[256];
+    size_t pattern_length;
+    size_t actual_length;
+    if (!pattern || !actual || !inferred_type) return 0;
+    while (*pattern == '!') ++pattern;
+    while (*actual == '!') ++actual;
+    if (strcmp(pattern, "t") == 0) {
+        if (strcmp(actual, "t") == 0 || strcmp(actual, "null") == 0)
+            return 0;
+        if (!*inferred_type) {
+            *inferred_type = actual;
+            return 1;
+        }
+        return are_types_compatible(ctx, *inferred_type, actual);
+    }
+    if (pattern[0] == '*') {
+        return actual[0] == '*' &&
+            semantic_unify_type_pattern(
+                ctx, pattern + 1, actual + 1, inferred_type);
+    }
+    if (strncmp(pattern, "&mut", 4u) == 0) {
+        return strncmp(actual, "&mut", 4u) == 0 &&
+            semantic_unify_type_pattern(
+                ctx, pattern + 4, actual + 4, inferred_type);
+    }
+    if (pattern[0] == '&') {
+        return actual[0] == '&' && strncmp(actual, "&mut", 4u) != 0 &&
+            semantic_unify_type_pattern(
+                ctx, pattern + 1, actual + 1, inferred_type);
+    }
+    if (strncmp(pattern, "array|", 6u) == 0) {
+        if (strncmp(actual, "array|", 6u) != 0) return 0;
+        pattern_dimensions = strchr(pattern + 6u, '[');
+        actual_dimensions = strchr(actual + 6u, '[');
+        if (!pattern_dimensions || !actual_dimensions ||
+            strcmp(pattern_dimensions, actual_dimensions) != 0) return 0;
+        pattern_length = (size_t)(pattern_dimensions - (pattern + 6u));
+        actual_length = (size_t)(actual_dimensions - (actual + 6u));
+        if (pattern_length == 0u || actual_length == 0u ||
+            pattern_length >= sizeof(pattern_element) ||
+            actual_length >= sizeof(actual_element)) return 0;
+        memcpy(pattern_element, pattern + 6u, pattern_length);
+        pattern_element[pattern_length] = '\0';
+        memcpy(actual_element, actual + 6u, actual_length);
+        actual_element[actual_length] = '\0';
+        return semantic_unify_type_pattern(
+            ctx, pattern_element, actual_element, inferred_type);
+    }
+    if (semantic_type_pattern_contains_variable(pattern)) return 0;
+    return are_types_compatible(ctx, pattern, actual);
+}
+
+static const char* semantic_substitute_type_variable(
+    SemanticContext* ctx, const char* pattern, const char* inferred_type
+) {
+    size_t pattern_length;
+    size_t inferred_length;
+    size_t occurrence_count = 0u;
+    size_t output_length;
+    size_t read_index;
+    size_t write_index = 0u;
+    char* output;
+    const char* result;
+    if (!ctx || !pattern || !inferred_type) return NULL;
+    while (*inferred_type == '!') ++inferred_type;
+    pattern_length = strlen(pattern);
+    inferred_length = strlen(inferred_type);
+    if (!inferred_length) return NULL;
+    for (read_index = 0u; read_index < pattern_length; ++read_index) {
+        if (pattern[read_index] == 't' &&
+            (read_index == 0u ||
+             !semantic_is_type_identifier_char(pattern[read_index - 1u])) &&
+            !semantic_is_type_identifier_char(pattern[read_index + 1u]))
+            ++occurrence_count;
+    }
+    if (!occurrence_count) return pattern;
+    if (inferred_length > SIZE_MAX / occurrence_count ||
+        pattern_length > SIZE_MAX - occurrence_count * inferred_length)
+        return NULL;
+    output_length = pattern_length +
+        occurrence_count * (inferred_length - 1u);
+    output = (char*)semantic_allocate(ctx, output_length + 1u);
+    if (!output) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return NULL;
+    }
+    for (read_index = 0u; read_index < pattern_length;) {
+        if (pattern[read_index] == 't' &&
+            (read_index == 0u ||
+             !semantic_is_type_identifier_char(pattern[read_index - 1u])) &&
+            !semantic_is_type_identifier_char(pattern[read_index + 1u])) {
+            memcpy(output + write_index, inferred_type, inferred_length);
+            write_index += inferred_length;
+            ++read_index;
+        } else {
+            output[write_index++] = pattern[read_index++];
+        }
+    }
+    output[write_index] = '\0';
+    result = semantic_intern_full_expression_type(ctx, output);
+    free(output);
+    return result;
+}
+
 static void semantic_validate_call_arguments(
     SemanticContext* ctx, ASTNode* call_node, Slot* function_slot,
     ASTNode* arguments, uint32_t parameter_offset
@@ -4454,23 +4621,32 @@ static void semantic_validate_call_arguments(
             }
 
             if (argument_type && expected_type) {
-                const char* normalized_expected_type = expected_type;
-                while (*normalized_expected_type == '!') ++normalized_expected_type;
-                if (strcmp(normalized_expected_type, "t") == 0) {
-                    if (!inferred_type_variable) {
-                        const char* normalized_argument_type = argument_type;
-                        while (*normalized_argument_type == '!')
-                            ++normalized_argument_type;
-                        if (strcmp(normalized_argument_type, "t") != 0)
-                            inferred_type_variable = argument_type;
-                    } else if (!are_types_compatible(ctx, 
-                                   inferred_type_variable, argument_type)) {
-                        char message[320];
+                if (semantic_type_pattern_contains_variable(expected_type)) {
+                    const char* inferred_base_type = NULL;
+                    if (!semantic_unify_type_pattern(
+                            ctx, expected_type, argument_type,
+                            &inferred_base_type)) {
+                        char message[384];
                         (void)snprintf(message, sizeof(message),
-                            "Type variable 't' was inferred as '%s', but argument %u has incompatible type '%s'.",
-                            inferred_type_variable, (unsigned)(parameter_index + 1u),
+                            "Type variable pattern '%s' cannot match argument %u type '%s'.",
+                            expected_type, (unsigned)(parameter_index + 1u),
                             argument_type);
                         report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE, message);
+                    } else if (inferred_base_type) {
+                        if (!inferred_type_variable)
+                            inferred_type_variable = inferred_base_type;
+                        else if (!are_types_compatible(
+                                     ctx, inferred_type_variable,
+                                     inferred_base_type)) {
+                            char message[384];
+                            (void)snprintf(message, sizeof(message),
+                                "Type variable 't' was inferred as '%s', but argument %u requires incompatible base type '%s'.",
+                                inferred_type_variable,
+                                (unsigned)(parameter_index + 1u),
+                                inferred_base_type);
+                            report_error(ctx, argument,
+                                ERR_SEMANTIC_ARG_TYPE, message);
+                        }
                     }
                 } else {
                     if (semantic_is_function_type_name(ctx, expected_type) &&
@@ -4483,8 +4659,8 @@ static void semantic_validate_call_arguments(
                     }
                     if (!are_types_compatible(ctx, expected_type, argument_type)) {
                         char message[256];
-                    snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_TYPE),
-                        (int)(parameter_index+1u),expected_type,argument_type);
+                        snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_TYPE),
+                            (int)(parameter_index+1u),expected_type,argument_type);
                         report_error(ctx,argument,ERR_SEMANTIC_ARG_TYPE,message);
                     }
                 }
@@ -4510,7 +4686,8 @@ static void semantic_validate_call_arguments(
 }
 
 static ASTNode* semantic_find_type_variable_argument(
-    Slot* function_slot, ASTNode* arguments, uint32_t parameter_offset
+    Slot* function_slot, ASTNode* arguments, uint32_t parameter_offset,
+    const char** out_pattern
 ) {
     uint32_t parameter_index;
     ASTFuncDecl* declaration = NULL;
@@ -4519,6 +4696,7 @@ static ASTNode* semantic_find_type_variable_argument(
     uint32_t positional_index = 0u;
     ASTNode* argument;
 
+    if (out_pattern) *out_pattern = NULL;
     if (!function_slot || !function_slot->param_types || !arguments ||
         function_slot->param_count < (int)parameter_offset) return NULL;
 
@@ -4527,7 +4705,12 @@ static ASTNode* semantic_find_type_variable_argument(
          ++parameter_index) {
         const char* expected_type = function_slot->param_types[parameter_index];
         while (expected_type && *expected_type == '!') ++expected_type;
-        if (expected_type && strcmp(expected_type, "t") == 0) break;
+        if (expected_type &&
+            semantic_type_pattern_contains_variable(expected_type)) {
+            if (out_pattern)
+                *out_pattern = function_slot->param_types[parameter_index];
+            break;
+        }
     }
     if (parameter_index >= (uint32_t)function_slot->param_count) return NULL;
 

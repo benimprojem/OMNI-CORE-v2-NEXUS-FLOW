@@ -946,6 +946,24 @@ static int check_callback_function_type_semantics(void) {
         check_source(non_callable_value, 1);
 }
 
+static int check_nested_type_variable_semantics(void) {
+    const char* pointer_type_variable_return =
+        "f:identity(value!*t)!*t { ret value; } "
+        "f:main(value!*i32) { v:result!*i32 = identity(value); }";
+    const char* reference_type_variable_return =
+        "f:identity(value!&t)!&t { ret value; } "
+        "f:main(value!&i32) { v:result!&i32 = identity(value); }";
+    const char* nested_type_variable_base_conflict =
+        "f:combine(pointer!*t, value!t) {} "
+        "f:main(pointer!*i32, value!u32) { combine(pointer, value); }";
+    const char* nested_type_variable_shape_mismatch =
+        "f:consume(pointer!*t) {} f:main(value!i32) { consume(value); }";
+    return check_source(pointer_type_variable_return, 0) &&
+        check_source(reference_type_variable_return, 0) &&
+        check_source(nested_type_variable_base_conflict, 1) &&
+        check_source(nested_type_variable_shape_mismatch, 1);
+}
+
 static int check_callback_null_refinement_semantics(void) {
     const char* not_null_branch_allows_call =
         "nt:Callback = f:(id!u32)!bool; "
@@ -3020,6 +3038,10 @@ int main(int argc, char** argv) {
     }
     if (!check_callback_function_type_semantics()) {
         fprintf(stderr, "Callback function-type Semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_nested_type_variable_semantics()) {
+        fprintf(stderr, "Nested type-variable checks failed.\\n");
         return 1;
     }
     if (!check_callback_null_refinement_semantics()) {
