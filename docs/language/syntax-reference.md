@@ -1499,6 +1499,8 @@ f:run_test(test!Predicate, handler!PredicateHandler)!bool {
 
 İç içe imzalar aynı fonksiyon türü gramerini tekrar kullanır. Parametre listesi içindeki virgüller, iç içe parantez derinliği dikkate alınarak ayrıştırılır.
 
+- **İç içe callback tür değişkenleri:** Callback parametre ve dönüş imzaları iç içe fonksiyon türü içeriyorsa `t` değişkenleri aynı çağrıdaki tüm katmanlarda ortak bağlanır. Parametre adları ve variadic şekli eşleşmelidir; farklı nested callback şekilleri veya çelişen `t` bağları reddedilir.
+
 **4. Fonksiyon türü ile lambda arasındaki fark**
 
 ```nexus

@@ -1017,6 +1017,25 @@ static int check_nested_type_variable_semantics(void) {
         check_source(unbound_generic_return_type_is_rejected, 1);
 }
 
+static int check_nested_callback_type_variable_semantics(void) {
+    const char* nested_callback_parameter_unifies =
+        "f:apply(handler!f:(test!f:(value!t)!bool)!bool, "
+        "callback!f:(value!i32)!bool)!bool { ret handler(callback); } "
+        "f:main(handler!f:(test!f:(value!i32)!bool)!bool, "
+        "callback!f:(value!i32)!bool)!bool { ret apply(handler, callback); }";
+    const char* nested_callback_return_unifies =
+        "f:invoke(callback!f:(value!t)!bool,value!t)!bool { ret callback(value); } "
+        "f:main(callback!f:(value!i32)!bool)!bool { ret invoke(callback, 1); }";
+    const char* nested_callback_shape_mismatch =
+        "f:apply(handler!f:(test!f:(value!t)!bool)!bool, "
+        "callback!f:(value!i32)!bool)!bool { ret handler(callback); } "
+        "f:main(handler!f:(test!f:(value!i32)!bool)!bool, "
+        "callback!f:(value!u32)!bool)!bool { ret apply(handler, callback); }";
+    return check_source(nested_callback_parameter_unifies, 0) &&
+        check_source(nested_callback_return_unifies, 0) &&
+        check_source(nested_callback_shape_mismatch, 1);
+}
+
 static int check_callback_null_refinement_semantics(void) {
     const char* not_null_branch_allows_call =
         "nt:Callback = f:(id!u32)!bool; "
@@ -3099,6 +3118,10 @@ int main(int argc, char** argv) {
     }
     if (!check_nested_type_variable_semantics()) {
         fprintf(stderr, "Nested type-variable checks failed.\\n");
+        return 1;
+    }
+    if (!check_nested_callback_type_variable_semantics()) {
+        fprintf(stderr, "Nested callback type-variable checks failed.\\n");
         return 1;
     }
     if (!check_callback_null_refinement_semantics()) {

@@ -4388,6 +4388,104 @@ static int semantic_type_pattern_contains_variable(const char* pattern) {
     return 0;
 }
 
+
+static int semantic_unify_function_type_pattern(
+    SemanticContext* ctx, const char* pattern, const char* actual,
+    const char** inferred_type
+) {
+    const char* p_signature = semantic_function_type_text(ctx, pattern);
+    const char* a_signature = semantic_function_type_text(ctx, actual);
+    const char* p_cursor;
+    const char* a_cursor;
+    const char* p_close;
+    const char* a_close;
+    size_t p_depth = 1u;
+    size_t a_depth = 1u;
+    if (!p_signature || !a_signature) return 0;
+    p_cursor = p_signature + 3u;
+    a_cursor = a_signature + 3u;
+    p_close = p_cursor;
+    a_close = a_cursor;
+    while (*p_close && p_depth) {
+        if (*p_close == '(') ++p_depth;
+        else if (*p_close == ')') --p_depth;
+        if (p_depth) ++p_close;
+    }
+    while (*a_close && a_depth) {
+        if (*a_close == '(') ++a_depth;
+        else if (*a_close == ')') --a_depth;
+        if (a_depth) ++a_close;
+    }
+    if (p_depth || a_depth || *p_close != ')' || *a_close != ')')
+        return 0;
+    while (p_cursor < p_close || a_cursor < a_close) {
+        const char* p_end = p_cursor;
+        const char* a_end = a_cursor;
+        const char* p_marker = NULL;
+        const char* a_marker = NULL;
+        size_t p_nested = 0u;
+        size_t a_nested = 0u;
+        size_t p_name_length;
+        size_t a_name_length;
+        char p_type[512];
+        char a_type[512];
+        size_t p_type_length;
+        size_t a_type_length;
+        if (p_cursor == p_close || a_cursor == a_close) return 0;
+        while (p_end < p_close) {
+            if (*p_end == '(') ++p_nested;
+            else if (*p_end == ')' && p_nested) --p_nested;
+            else if (*p_end == ',' && p_nested == 0u) break;
+            ++p_end;
+        }
+        while (a_end < a_close) {
+            if (*a_end == '(') ++a_nested;
+            else if (*a_end == ')' && a_nested) --a_nested;
+            else if (*a_end == ',' && a_nested == 0u) break;
+            ++a_end;
+        }
+        if ((size_t)(p_end - p_cursor) == 3u &&
+            memcmp(p_cursor, "...", 3u) == 0) {
+            if ((size_t)(a_end - a_cursor) != 3u ||
+                memcmp(a_cursor, "...", 3u) != 0) return 0;
+        } else {
+            const char* scan;
+            for (scan = p_cursor; scan < p_end; ++scan)
+                if (*scan == '!' || *scan == ':') { p_marker = scan; break; }
+            for (scan = a_cursor; scan < a_end; ++scan)
+                if (*scan == '!' || *scan == ':') { a_marker = scan; break; }
+            if (!p_marker || !a_marker) return 0;
+            p_name_length = (size_t)(p_marker - p_cursor);
+            a_name_length = (size_t)(a_marker - a_cursor);
+            if (p_name_length != a_name_length ||
+                memcmp(p_cursor, a_cursor, p_name_length) != 0) return 0;
+            p_type_length = (size_t)(p_end - (p_marker + 1));
+            a_type_length = (size_t)(a_end - (a_marker + 1));
+            if (p_type_length == 0u || a_type_length == 0u ||
+                p_type_length >= sizeof(p_type) ||
+                a_type_length >= sizeof(a_type)) return 0;
+            memcpy(p_type, p_marker + 1, p_type_length);
+            p_type[p_type_length] = '\0';
+            memcpy(a_type, a_marker + 1, a_type_length);
+            a_type[a_type_length] = '\0';
+            if (!semantic_unify_type_pattern(
+                    ctx, p_type, a_type, inferred_type)) return 0;
+        }
+        p_cursor = p_end < p_close ? p_end + 1 : p_close;
+        a_cursor = a_end < a_close ? a_end + 1 : a_close;
+    }
+    if (p_cursor != p_close || a_cursor != a_close) return 0;
+    {
+        const char* p_return = p_close + 1;
+        const char* a_return = a_close + 1;
+        if (*p_return == '!' || *p_return == '>') ++p_return;
+        if (*a_return == '!' || *a_return == '>') ++a_return;
+        if (!*p_return || !*a_return) return 0;
+        return semantic_unify_type_pattern(
+            ctx, p_return, a_return, inferred_type);
+    }
+}
+
 static int semantic_unify_type_pattern(
     SemanticContext* ctx, const char* pattern, const char* actual,
     const char** inferred_type
@@ -4401,6 +4499,13 @@ static int semantic_unify_type_pattern(
     if (!pattern || !actual || !inferred_type) return 0;
     while (*pattern == '!') ++pattern;
     while (*actual == '!') ++actual;
+    if (strncmp(pattern, "f:(", 3u) == 0 ||
+        semantic_function_type_text(ctx, pattern)) {
+        if (!(strncmp(actual, "f:(", 3u) == 0 ||
+              semantic_function_type_text(ctx, actual))) return 0;
+        return semantic_unify_function_type_pattern(
+            ctx, pattern, actual, inferred_type);
+    }
     if (strcmp(pattern, "t") == 0) {
         if (strcmp(actual, "t") == 0 || strcmp(actual, "null") == 0 ||
             semantic_type_contains_safe_reference(ctx, actual, 0u))
