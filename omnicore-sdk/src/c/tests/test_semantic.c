@@ -1841,7 +1841,7 @@ static int check_extended_ast_semantics(void) {
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(b:2); }";
     const char* invalid_default_parameter_type =
-        "f:sum(a!i32,b:\"wrong\")!i32 { ret a; } f:main() {}";
+        "f:sum(a!i32,b!i32:\"wrong\")!i32 { ret a; } f:main() {}";
     const char* valid_callback_named_arguments =
         "nt:Callback = f:(id!u32,flag!bool)!bool; "
         "f:main(callback!Callback,id!u32,flag!bool) { "
