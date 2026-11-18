@@ -1351,6 +1351,46 @@ static int semantic_is_raw_pointer_type_name(const char* type_name) {
     return type_name[0] == '*' && type_name[1] != '\0';
 }
 
+static const char* semantic_function_type_text(
+    SemanticContext* ctx, const char* type_name
+) {
+    Slot* alias;
+    while (type_name && *type_name == '!') ++type_name;
+    if (!type_name || !*type_name) return NULL;
+    if (strncmp(type_name, "f:(", 3u) == 0) return type_name;
+    alias = find_slot(ctx, type_name);
+    if (alias && alias->kind == SLOT_NEWTYPE) {
+        const char* target = alias->type_name;
+        while (target && *target == '!') ++target;
+        if (target && strncmp(target, "f:(", 3u) == 0) return target;
+    }
+    return NULL;
+}
+
+static int semantic_is_function_type_name(
+    SemanticContext* ctx, const char* type_name
+) {
+    return semantic_function_type_text(ctx, type_name) != NULL;
+}
+
+static int semantic_expression_may_be_null(
+    SemanticContext* ctx, const ASTNode* expression
+) {
+    if (!expression) return 0;
+    if (expression->type == AST_LITERAL)
+        return ((const ASTLiteral*)expression)->token_type == TOKEN_NULL;
+    if (expression->type == AST_IDENTIFIER) {
+        Slot* source = find_slot(ctx, ((const ASTIdentifier*)expression)->name);
+        return source && source->is_nullable;
+    }
+    if (expression->type == AST_FUNC_CALL) {
+        const char* result_type = get_expr_type(ctx, (ASTNode*)expression);
+        return semantic_is_raw_pointer_type_name(result_type) ||
+            semantic_is_function_type_name(ctx, result_type);
+    }
+    return 0;
+}
+
 /* Aggregate-contained safe references need field-level owner/lifetime metadata.
    Until that representation exists, reject direct references and aggregates
    (including NewType aliases) that recursively contain them. */
@@ -1391,6 +1431,7 @@ static int semantic_type_contains_safe_reference(
 typedef struct SemanticReferenceInitEntry {
     Slot* slot;
     uint8_t is_initialized;
+    uint8_t is_nullable;
 } SemanticReferenceInitEntry;
 
 typedef struct SemanticReferenceInitSnapshot {
@@ -1413,7 +1454,8 @@ static int semantic_reference_init_snapshot_capture(
     for (slot = ctx->head; slot; slot = slot->next) {
         if (slot->kind == SLOT_VAR &&
             (semantic_is_reference_type_name(slot->type_name) ||
-             semantic_is_raw_pointer_type_name(slot->type_name))) {
+             semantic_is_raw_pointer_type_name(slot->type_name) ||
+             semantic_is_function_type_name(ctx, slot->type_name))) {
             if (count == SIZE_MAX) {
                 semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                 return 0;
@@ -1436,9 +1478,11 @@ static int semantic_reference_init_snapshot_capture(
     for (slot = ctx->head; slot; slot = slot->next) {
         if (slot->kind == SLOT_VAR &&
             (semantic_is_reference_type_name(slot->type_name) ||
-             semantic_is_raw_pointer_type_name(slot->type_name))) {
+             semantic_is_raw_pointer_type_name(slot->type_name) ||
+             semantic_is_function_type_name(ctx, slot->type_name))) {
             snapshot->entries[index].slot = slot;
             snapshot->entries[index].is_initialized = slot->is_initialized;
+            snapshot->entries[index].is_nullable = slot->is_nullable;
             ++index;
         }
     }
@@ -1454,6 +1498,9 @@ static void semantic_reference_init_snapshot_restore(
         if (snapshot->entries[index].slot)
             snapshot->entries[index].slot->is_initialized =
                 snapshot->entries[index].is_initialized;
+        if (snapshot->entries[index].slot)
+            snapshot->entries[index].slot->is_nullable =
+                snapshot->entries[index].is_nullable;
     }
 }
 
@@ -1470,6 +1517,10 @@ static void semantic_reference_init_snapshot_merge(
                 left->entries[index].is_initialized &&
                 right->entries[index].is_initialized);
             slot->is_initialized = left->entries[index].is_initialized;
+            left->entries[index].is_nullable = (uint8_t)(
+                left->entries[index].is_nullable ||
+                right->entries[index].is_nullable);
+            slot->is_nullable = left->entries[index].is_nullable;
         }
     }
 }
@@ -2000,8 +2051,15 @@ static int are_types_compatible(const char* type1, const char* type2) {
     /* `t` is the language's implicit type variable; call-site inference
        binds it to the concrete argument/initializer type. */
     if (strcmp(t1, "t") == 0 || strcmp(t2, "t") == 0) return 1;
-    if (semantic_is_raw_pointer_type_name(t1) && strcmp(t2, "null") == 0)
-        return 1;
+    if ((semantic_is_raw_pointer_type_name(t1) ||
+         semantic_is_function_type_name(ctx, t1)) &&
+        strcmp(t2, "null") == 0) return 1;
+    {
+        const char* function_t1 = semantic_function_type_text(ctx, t1);
+        const char* function_t2 = semantic_function_type_text(ctx, t2);
+        if (function_t1 && function_t2)
+            return strcmp(function_t1, function_t2) == 0;
+    }
     if (strcmp(t1, "array") == 0 &&
         semantic_is_array_type_name(t2)) return 1;
     if (strcmp(t2, "array") == 0 &&
@@ -5646,8 +5704,24 @@ static void semantic_check_node(
                 if (decl->initializer &&
                     ctx->error_count == initializer_error_baseline) {
                     declared_slot->is_initialized = 1u;
+                    declared_slot->is_nullable =
+                        (uint8_t)semantic_expression_may_be_null(
+                            ctx, decl->initializer);
                 } else if (!decl->initializer && declared_slot->depth == 0) {
                     declared_slot->is_initialized = 1u;
+                    declared_slot->is_nullable = 1u;
+                }
+            } else if (declared_slot &&
+                semantic_is_function_type_name(ctx, declared_slot->type_name)) {
+                if (decl->initializer &&
+                    ctx->error_count == initializer_error_baseline) {
+                    declared_slot->is_initialized = 1u;
+                    declared_slot->is_nullable =
+                        (uint8_t)semantic_expression_may_be_null(
+                            ctx, decl->initializer);
+                } else if (!decl->initializer && declared_slot->depth == 0) {
+                    declared_slot->is_initialized = 1u;
+                    declared_slot->is_nullable = 1u;
                 }
             }
 
@@ -5835,7 +5909,8 @@ static void semantic_check_node(
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, moved_message);
             } else if (resolved && resolved->kind == SLOT_VAR &&
                 (semantic_is_reference_type_name(resolved->type_name) ||
-                 semantic_is_raw_pointer_type_name(resolved->type_name)) &&
+                 semantic_is_raw_pointer_type_name(resolved->type_name) ||
+                 semantic_is_function_type_name(ctx, resolved->type_name)) &&
                 !resolved->is_initialized &&
                 ctx->assignment_target_depth == 0u) {
                 char message[320];
@@ -6388,6 +6463,21 @@ static void semantic_check_node(
                         are_types_compatible(target_slot->type_name, source_type) &&
                         ctx->error_count == assignment_error_baseline)
                         target_slot->is_initialized = 1u;
+                    if (ctx->error_count == assignment_error_baseline)
+                        target_slot->is_nullable =
+                            (uint8_t)semantic_expression_may_be_null(
+                                ctx, assign->right);
+                } else if (target_slot &&
+                    semantic_is_function_type_name(ctx, target_slot->type_name)) {
+                    const char* source_type = get_expr_type(ctx, assign->right);
+                    if (source_type &&
+                        are_types_compatible(target_slot->type_name, source_type) &&
+                        ctx->error_count == assignment_error_baseline) {
+                        target_slot->is_initialized = 1u;
+                        target_slot->is_nullable =
+                            (uint8_t)semantic_expression_may_be_null(
+                                ctx, assign->right);
+                    }
                 }
             } else {
                 const char* target_type = get_expr_type(ctx, assign->left);
@@ -7002,6 +7092,9 @@ static void semantic_check_node(
                         if (parameter_slot) {
                             parameter_slot->is_parameter = 1u;
                             parameter_slot->is_initialized = 1u;
+                            parameter_slot->is_nullable =
+                                (uint8_t)semantic_is_raw_pointer_type_name(
+                                    parameter_slot->type_name);
                             if (semantic_is_reference_type_name(
                                     parameter_slot->type_name))
                                 parameter_slot->borrow_origin = parameter_slot;
@@ -7669,6 +7762,14 @@ static void semantic_check_node(
                                     &callback_parameter_types)) {
                                 callback_parameter_count =
                                     (uint32_t)callback_view.param_count;
+                                if (function_slot->is_nullable) {
+                                    report_issue(ctx, node,
+                                        ERR_SEMANTIC_TYPE_MISMATCH,
+                                        "Callback value may be null and cannot be invoked without a non-null check.",
+                                        "Guard the callback with a comparison against null, or initialize it from a non-null callback value before calling it.",
+                                        "Guard the callback with a comparison against null, or initialize it from a non-null callback value before calling it.",
+                                        0, 0);
+                                }
                                 semantic_validate_call_arguments(
                                     ctx, node, &callback_view, call->args, 0u);
                                 if (semantic_is_reference_type_name(

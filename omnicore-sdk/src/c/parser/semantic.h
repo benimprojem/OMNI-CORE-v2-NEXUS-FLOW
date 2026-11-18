@@ -32,7 +32,8 @@ typedef struct Slot {
     uint8_t mutable_borrow_active;
     uint8_t borrow_kind;    /* 0 none, 1 shared, 2 exclusive. */
     uint8_t is_parameter;   /* Function parameter storage; may carry a returned reference. */
-    uint8_t is_initialized; /* Definite initialization state for safe reference bindings. */
+    uint8_t is_initialized; /* Definite initialization state for pointer/reference/callback bindings. */
+    uint8_t is_nullable;    /* Binding may currently contain null (pointer/callback values). */
     struct Slot* borrowed_from;
     struct Slot* borrow_origin; /* Non-owning parameter/global anchor for untracked reference provenance. */
     char* borrow_path;       /* Projection path relative to borrowed_from. */

@@ -946,6 +946,21 @@ static int check_callback_function_type_semantics(void) {
         check_source(non_callable_value, 1);
 }
 
+static int check_callback_nullability_semantics(void) {
+    const char* callback_null_initializer_is_allowed =
+        "nt:Callback = f:(id!u32)!bool; f:main() { v:callback!Callback = null; }";
+    const char* callback_null_cannot_be_invoked =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:main() { v:callback!Callback = null; callback(1); }";
+    const char* callback_alias_copy_preserves_non_null_state =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:apply(callback!Callback,id!u32)!bool { "
+        "v:local!Callback = callback; ret local(id); }";
+    return check_source(callback_null_initializer_is_allowed, 0) &&
+        check_source(callback_null_cannot_be_invoked, 1) &&
+        check_source(callback_alias_copy_preserves_non_null_state, 0);
+}
+
 static int check_reference_initialization_control_flow_semantics(void) {
     const char* return_branch_does_not_block_other_path =
         "f:main(owner!i32, condition!bool) { v:reference!&i32; "
@@ -2978,6 +2993,10 @@ int main(int argc, char** argv) {
     }
     if (!check_callback_function_type_semantics()) {
         fprintf(stderr, "Callback function-type Semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_callback_nullability_semantics()) {
+        fprintf(stderr, "Callback nullability checks failed.\\n");
         return 1;
     }
     if (!check_reference_initialization_control_flow_semantics()) {
