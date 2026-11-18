@@ -1074,7 +1074,7 @@ static void exit_scope(SemanticContext* ctx) {
     ctx->current_depth--;
 }
 
-static int are_types_compatible(const char* type1, const char* type2);
+static int are_types_compatible(SemanticContext* ctx, const char* type1, const char* type2);
 
 static const ASTTypeExpr* semantic_callback_type_from_slot(
     SemanticContext* ctx, const Slot* slot
@@ -1378,7 +1378,7 @@ static int semantic_expression_may_be_null(
 ) {
     if (!expression) return 0;
     if (expression->type == AST_LITERAL)
-        return ((const ASTLiteral*)expression)->token_type == TOKEN_NULL;
+        return ((const ASTLiteral*)expression)->type == TOKEN_NULL;
     if (expression->type == AST_IDENTIFIER) {
         Slot* source = find_slot(ctx, ((const ASTIdentifier*)expression)->name);
         return source && source->is_nullable;
@@ -1545,7 +1545,7 @@ static void semantic_refine_nullable_binding_from_condition(
         identifier = (const ASTIdentifier*)comparison->right;
         literal = (const ASTLiteral*)comparison->left;
     }
-    if (!identifier || !literal || literal->token_type != TOKEN_NULL) return;
+    if (!identifier || !literal || literal->type != TOKEN_NULL) return;
     slot = find_slot(ctx, identifier->name);
     if (!slot || slot->kind != SLOT_VAR ||
         (!semantic_is_raw_pointer_type_name(slot->type_name) &&
@@ -1982,7 +1982,7 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 const char* current_type=get_expr_type(ctx,element);
                 if(!current_type) continue;
                 if(!element_type) element_type=current_type;
-                else if(!are_types_compatible(element_type,current_type)) {
+                else if(!are_types_compatible(ctx, element_type,current_type)) {
                     report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                         "Array literal elements must have compatible types.");
                     return NULL;
@@ -2071,7 +2071,7 @@ static const char* semantic_dereference_target_type(
     return NULL;
 }
 
-static int are_types_compatible(const char* type1, const char* type2) {
+static int are_types_compatible(SemanticContext* ctx, const char* type1, const char* type2) {
     const char* t1;
     const char* t2;
     if (!type1 || !type2) return 0;
@@ -3251,7 +3251,7 @@ static int semantic_check_enum_constructor_call(
             }
             actual_type=get_expr_type(ctx,named->value);
             if(matched_field->type_name && actual_type &&
-               !are_types_compatible(matched_field->type_name,actual_type)) {
+               !are_types_compatible(ctx, matched_field->type_name,actual_type)) {
                 char message[256];
                 (void)snprintf(message,sizeof(message),
                     "Enum payload '%s' expects '%s', but got '%s'.",
@@ -3291,7 +3291,7 @@ static int semantic_check_enum_constructor_call(
             payload_field=(ASTVarDecl*)field;
             actual_type=get_expr_type(ctx,argument);
             if(payload_field->type_name && actual_type &&
-               !are_types_compatible(payload_field->type_name,actual_type)) {
+               !are_types_compatible(ctx, payload_field->type_name,actual_type)) {
                 char message[256];
                 (void)snprintf(message,sizeof(message),
                     "Enum payload '%s' expects '%s', but got '%s'.",
@@ -3538,7 +3538,7 @@ static void semantic_check_pattern_bindings(
         } else if(current->type==AST_LITERAL) {
             const char* literal_type=get_expr_type(ctx,current);
             if(subject_type && literal_type &&
-               !are_types_compatible(subject_type,literal_type)) {
+               !are_types_compatible(ctx, subject_type,literal_type)) {
                 char message[256];
                 (void)snprintf(message,sizeof(message),
                     "Pattern literal type '%s' is incompatible with subject type '%s'.",
@@ -3667,7 +3667,7 @@ static void semantic_check_rule_arguments(
         arg=arg->next,++index) {
         const char* actual=get_expr_type(ctx,arg);
         const char* expected=slot->param_types[index];
-        if(actual && expected && !are_types_compatible(expected,actual)) {
+        if(actual && expected && !are_types_compatible(ctx, expected,actual)) {
             report_error(ctx,arg,ERR_SEMANTIC_ARG_TYPE,
                 "Ruleset argument type does not match its parameter type.");
         }
@@ -3710,7 +3710,7 @@ static void semantic_validate_array_initializer(
                 "Array initializer has more dimensions than declared.");
         } else if (element_type) {
             const char* actual_type = get_expr_type(ctx, item);
-            if (actual_type && !are_types_compatible(element_type, actual_type)) {
+            if (actual_type && !are_types_compatible(ctx, element_type, actual_type)) {
                 report_error(ctx, item, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Array initializer element does not match the declared element type.");
             }
@@ -4463,7 +4463,7 @@ static void semantic_validate_call_arguments(
                             ++normalized_argument_type;
                         if (strcmp(normalized_argument_type, "t") != 0)
                             inferred_type_variable = argument_type;
-                    } else if (!are_types_compatible(
+                    } else if (!are_types_compatible(ctx, 
                                    inferred_type_variable, argument_type)) {
                         char message[320];
                         (void)snprintf(message, sizeof(message),
@@ -4481,7 +4481,7 @@ static void semantic_validate_call_arguments(
                             "Check the callback against null before passing it, or initialize it from a non-null callback value.",
                             0, 0);
                     }
-                    if (!are_types_compatible(expected_type, argument_type)) {
+                    if (!are_types_compatible(ctx, expected_type, argument_type)) {
                         char message[256];
                     snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_TYPE),
                         (int)(parameter_index+1u),expected_type,argument_type);
@@ -5320,7 +5320,7 @@ static void semantic_register_borrow_binding(
         Slot* source = find_slot(ctx, source_id->name);
         if (source && source != borrower &&
             semantic_is_reference_type_name(source->type_name) &&
-            are_types_compatible(borrower->type_name, source->type_name)) {
+            are_types_compatible(ctx, borrower->type_name, source->type_name)) {
             semantic_copy_shared_reference_binding(
                 ctx, borrower, source, initializer);
         } else if (source == borrower) {
@@ -5675,7 +5675,7 @@ static void semantic_check_node(
                         semantic_validate_vector_initializer(
                             ctx, node, decl->type_name, decl->initializer);
                     } else if (init_type &&
-                        !are_types_compatible(decl->type_name, init_type)) {
+                        !are_types_compatible(ctx, decl->type_name, init_type)) {
                         int coercion_status =
                             semantic_hard_representation_coercion_status(
                                 decl, init_type);
@@ -6032,7 +6032,7 @@ static void semantic_check_node(
                     const char* operator_name =
                         semantic_binary_operator_name(bin->op);
                     char message[320];
-                    if (!are_types_compatible(left_type, right_type)) {
+                    if (!are_types_compatible(ctx, left_type, right_type)) {
                         (void)snprintf(message, sizeof(message),
                             "Operator '%s' requires matching operand types; got '%s' and '%s'.",
                             operator_name, left_type, right_type);
@@ -6080,7 +6080,7 @@ static void semantic_check_node(
                     report_error(ctx, bin->left, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation source has already been moved.");
                 } else if (source_slot->type_name && target_slot->type_name &&
-                    !are_types_compatible(source_slot->type_name,
+                    !are_types_compatible(ctx, source_slot->type_name,
                         target_slot->type_name)) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation source and destination types are incompatible.");
@@ -6095,7 +6095,7 @@ static void semantic_check_node(
                 const char* begin_type = get_expr_type(ctx, bin->left);
                 const char* end_type = get_expr_type(ctx, bin->right);
                 if (begin_type && end_type &&
-                    (!are_types_compatible(begin_type, end_type) ||
+                    (!are_types_compatible(ctx, begin_type, end_type) ||
                      !is_numeric_primitive_type(begin_type) ||
                      !is_numeric_primitive_type(end_type))) {
                     char message[320];
@@ -6172,7 +6172,7 @@ static void semantic_check_node(
                 const char* left_type=get_expr_type(ctx,bin->left);
                 const char* right_type=get_expr_type(ctx,bin->right);
                 if (left_type && right_type &&
-                    (!are_types_compatible(left_type, right_type) ||
+                    (!are_types_compatible(ctx, left_type, right_type) ||
                      !is_bitwise_primitive_type(left_type) ||
                      !is_bitwise_primitive_type(right_type))) {
                     const char* operator_name = bin->op == TOKEN_BIT_AND ? "&" :
@@ -6198,7 +6198,7 @@ static void semantic_check_node(
                 const char* left_type = get_expr_type(ctx, bin->left);
                 const char* right_type = get_expr_type(ctx, bin->right);
                 if (left_type && right_type &&
-                    !are_types_compatible(left_type, right_type)) {
+                    !are_types_compatible(ctx, left_type, right_type)) {
                     char message[320];
                     (void)snprintf(message, sizeof(message),
                         "Operator '%s' requires compatible operand types; got '%s' and '%s'.",
@@ -6277,7 +6277,7 @@ static void semantic_check_node(
                 }
                 if (slot && slot->type_name) {
                     const char* right_type = get_expr_type(ctx, assign->right);
-                    if (right_type && !are_types_compatible(slot->type_name, right_type)) {
+                    if (right_type && !are_types_compatible(ctx, slot->type_name, right_type)) {
                         char message[320];
                         (void)snprintf(message, sizeof(message),
                             "Operator '%s' cannot assign value of type '%s' to '%s' of type '%s'.",
@@ -6295,7 +6295,7 @@ static void semantic_check_node(
                 }
                 if (element_type && right_type &&
                     strcmp(element_type, "any") != 0 &&
-                    !are_types_compatible(element_type, right_type)) {
+                    !are_types_compatible(ctx, element_type, right_type)) {
                     char message[320];
                     (void)snprintf(message, sizeof(message),
                         "Operator '%s' cannot assign value of type '%s' to an indexed element of type '%s'.",
@@ -6317,7 +6317,7 @@ static void semantic_check_node(
                         "Cannot assign through an immutable shared reference.");
                 }
                 if (target_type && right_type &&
-                    !are_types_compatible(target_type, right_type)) {
+                    !are_types_compatible(ctx, target_type, right_type)) {
                     char message[320];
                     (void)snprintf(message, sizeof(message),
                         "Cannot assign value of type '%s' through pointer to '%s'.",
@@ -6334,7 +6334,7 @@ static void semantic_check_node(
                     if (field->type_name) {
                         const char* right_type = get_expr_type(ctx, assign->right);
                         if (right_type &&
-                            !are_types_compatible(field->type_name, right_type)) {
+                            !are_types_compatible(ctx, field->type_name, right_type)) {
                             char message[320];
                             const char* object_type =
                                 get_expr_type(ctx, ((ASTMemberAccess*)assign->left)->object);
@@ -6419,7 +6419,7 @@ static void semantic_check_node(
                     int right_is_vector = right_type &&
                         semantic_vector_dimension(right_type, &(size_t){0});
                     int invalid_types = left_type && right_type &&
-                        (!are_types_compatible(left_type, right_type) ||
+                        (!are_types_compatible(ctx, left_type, right_type) ||
                          (bitwise_compound
                             ? (!is_bitwise_primitive_type(left_type) ||
                                !is_bitwise_primitive_type(right_type))
@@ -6470,7 +6470,7 @@ static void semantic_check_node(
                     semantic_is_reference_type_name(target_slot->type_name)) {
                     const char* source_type = get_expr_type(ctx, assign->right);
                     if (source_type && target_slot->type_name &&
-                        are_types_compatible(target_slot->type_name, source_type)) {
+                        are_types_compatible(ctx, target_slot->type_name, source_type)) {
                         if (assign->right->type == AST_UNARY_EXPR &&
                             (((ASTUnaryExpr*)assign->right)->op == TOKEN_BIT_AND ||
                              ((ASTUnaryExpr*)assign->right)->op == TOKEN_BORROW_MUT)) {
@@ -6500,7 +6500,7 @@ static void semantic_check_node(
                     semantic_is_raw_pointer_type_name(target_slot->type_name)) {
                     const char* source_type = get_expr_type(ctx, assign->right);
                     if (source_type &&
-                        are_types_compatible(target_slot->type_name, source_type) &&
+                        are_types_compatible(ctx, target_slot->type_name, source_type) &&
                         ctx->error_count == assignment_error_baseline)
                         target_slot->is_initialized = 1u;
                     if (ctx->error_count == assignment_error_baseline)
@@ -6511,7 +6511,7 @@ static void semantic_check_node(
                     semantic_is_function_type_name(ctx, target_slot->type_name)) {
                     const char* source_type = get_expr_type(ctx, assign->right);
                     if (source_type &&
-                        are_types_compatible(target_slot->type_name, source_type) &&
+                        are_types_compatible(ctx, target_slot->type_name, source_type) &&
                         ctx->error_count == assignment_error_baseline) {
                         target_slot->is_initialized = 1u;
                         target_slot->is_nullable =
@@ -7007,7 +7007,7 @@ static void semantic_check_node(
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                     "Relocation source and destination must be different variables.");
             } else if(source_type && target_type &&
-                      !are_types_compatible(source_type,target_type)) {
+                      !are_types_compatible(ctx, source_type,target_type)) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                     "Relocate source and destination types must match.");
             } else {
@@ -7454,7 +7454,7 @@ static void semantic_check_node(
                         "Return a valid callback binding or change the return contract to an explicitly nullable callback type.",
                         0, 0);
                 }
-                if (!are_types_compatible(ctx->current_func_return_type, actual_type)) {
+                if (!are_types_compatible(ctx, ctx->current_func_return_type, actual_type)) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), msg_get(ERR_SEMANTIC_RETURN_MISMATCH), ctx->current_func_return_type, actual_type);
                     report_error(ctx, node, ERR_SEMANTIC_RETURN_MISMATCH, buf);
@@ -7642,7 +7642,7 @@ static void semantic_check_node(
                 }
 
                 if (actual_type && field->type_name &&
-                    !are_types_compatible(field->type_name, actual_type)) {
+                    !are_types_compatible(ctx, field->type_name, actual_type)) {
                     char message[256];
                     snprintf(message, sizeof(message),
                         "Initializer for field '%s' has type '%s'; expected '%s'.",
