@@ -961,7 +961,7 @@ static int check_safe_reference_container_storage_rejection_semantics(void) {
     return check_source(array_of_safe_references, 1) &&
         check_source(newtype_alias_binding, 1) &&
         check_source(map_safe_reference_value, 1) &&
-        check_source(any_member_safe_reference_value, 1) &&
+        check_source(any_member_safe_reference_value, 2) &&
         check_source(inferred_array_of_safe_references, 1);
 }
 

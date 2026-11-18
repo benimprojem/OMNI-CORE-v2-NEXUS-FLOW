@@ -4699,7 +4699,7 @@ static int semantic_register_thread_capture(
     if (!ctx || !source || !use_node ||
         !(block = ctx->active_thread_block)) return 1;
     if (source->kind != SLOT_VAR ||
-        source->depth > block->capture_base_depth) return 1;
+        (uint32_t)source->depth > block->capture_base_depth) return 1;
     if (ctx->thread_capture_copy_depth == 0u) {
         char message[256];
         (void)snprintf(message, sizeof(message),
