@@ -964,13 +964,20 @@ static int check_nested_type_variable_semantics(void) {
     const char* fixed_array_type_variable_shape_mismatch =
         "f:first(values!t[2])!t { ret values[0]; } "
         "f:main(values!i32[3]) { v:result!i32 = first(values); }";
+    const char* direct_t_reference_inference_is_rejected =
+        "f:identity(value!t)!t { ret value; } "
+        "f:main(owner!i32) { v:result!&i32 = identity(&owner); }";
+    const char* unbound_generic_return_type_is_rejected =
+        "f:make()!t { ret 1; }";
 
     return check_source(pointer_type_variable_return, 0) &&
         check_source(reference_type_variable_return, 0) &&
         check_source(nested_type_variable_base_conflict, 1) &&
         check_source(nested_type_variable_shape_mismatch, 1) &&
         check_source(dynamic_array_type_variable_return, 0) &&
-        check_source(fixed_array_type_variable_shape_mismatch, 1);
+        check_source(fixed_array_type_variable_shape_mismatch, 1) &&
+        check_source(direct_t_reference_inference_is_rejected, 1) &&
+        check_source(unbound_generic_return_type_is_rejected, 1);
 }
 
 static int check_callback_null_refinement_semantics(void) {

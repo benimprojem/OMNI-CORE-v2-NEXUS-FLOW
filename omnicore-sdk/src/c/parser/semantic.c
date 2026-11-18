@@ -4339,7 +4339,8 @@ static int semantic_unify_type_pattern(
     while (*pattern == '!') ++pattern;
     while (*actual == '!') ++actual;
     if (strcmp(pattern, "t") == 0) {
-        if (strcmp(actual, "t") == 0 || strcmp(actual, "null") == 0)
+        if (strcmp(actual, "t") == 0 || strcmp(actual, "null") == 0 ||
+            semantic_type_contains_safe_reference(ctx, actual, 0u))
             return 0;
         if (!*inferred_type) {
             *inferred_type = semantic_intern_full_expression_type(ctx, actual);
@@ -7259,6 +7260,25 @@ static void semantic_check_node(
                     func->return_type);
                 report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
                 return_type_valid = 0;
+            }
+            if (func->return_type &&
+                semantic_type_pattern_contains_variable(func->return_type)) {
+                ASTNode* generic_parameter;
+                int return_variable_is_bound = 0;
+                for (generic_parameter = func->params; generic_parameter;
+                     generic_parameter = generic_parameter->next) {
+                    if (generic_parameter->type == AST_VAR_DECL &&
+                        semantic_type_pattern_contains_variable(
+                            ((ASTVarDecl*)generic_parameter)->type_name)) {
+                        return_variable_is_bound = 1;
+                        break;
+                    }
+                }
+                if (!return_variable_is_bound) {
+                    report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE,
+                        "Function return type contains unbound type variable 't'; no parameter supplies an inference source.");
+                    return_type_valid = 0;
+                }
             }
             if (func->return_type &&
                 !semantic_is_reference_type_name(func->return_type) &&
