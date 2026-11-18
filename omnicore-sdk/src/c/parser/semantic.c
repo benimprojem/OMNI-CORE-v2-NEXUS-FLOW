@@ -4016,6 +4016,18 @@ static int semantic_populate_function_signature(
                             ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                         return 0;
                     }
+                } else if (variable->initializer) {
+                    const char* inferred_parameter_type =
+                        get_expr_type(ctx, variable->initializer);
+                    if (inferred_parameter_type && *inferred_parameter_type) {
+                        function_slot->param_types[index] =
+                            semantic_duplicate(ctx, inferred_parameter_type);
+                        if (!function_slot->param_types[index]) {
+                            semantic_set_result_error(
+                                ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                            return 0;
+                        }
+                    }
                 }
                 ++index;
             }
@@ -7796,12 +7808,25 @@ static void semantic_check_node(
             enter_scope(ctx, node);
             if (func->params) {
                 ASTNode* parameter_node;
+                uint32_t parameter_index = 0u;
                 semantic_check(ctx, func->params);
                 for (parameter_node = func->params; parameter_node;
                      parameter_node = parameter_node->next) {
+                    if (parameter_node->type == AST_VARIADIC_PARAM) continue;
                     if (parameter_node->type == AST_VAR_DECL) {
                         Slot* parameter_slot = semantic_find_slot_by_declaration(
                             ctx, parameter_node);
+                        if (function_slot && function_slot->param_types &&
+                            parameter_index < (uint32_t)function_slot->param_count &&
+                            !function_slot->param_types[parameter_index] &&
+                            parameter_slot && parameter_slot->type_name) {
+                            function_slot->param_types[parameter_index] =
+                                semantic_duplicate(ctx, parameter_slot->type_name);
+                            if (!function_slot->param_types[parameter_index])
+                                semantic_set_result_error(
+                                    ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                        }
+                        ++parameter_index;
                         if (parameter_slot) {
                             parameter_slot->is_parameter = 1u;
                             parameter_slot->is_initialized = 1u;
