@@ -946,6 +946,27 @@ static int check_callback_function_type_semantics(void) {
         check_source(non_callable_value, 1);
 }
 
+static int check_raw_pointer_initialization_and_nullability_semantics(void) {
+    const char* uninitialized_pointer_read =
+        "f:main() { v:pointer!*i32; v:value!i32 = *pointer; }";
+    const char* uninitialized_pointer_write =
+        "f:main() { v:pointer!*i32; *pointer = 1; }";
+    const char* null_pointer_initializer_and_assignment =
+        "f:main() { v:pointer!*i32 = null; pointer = null; }";
+    const char* null_pointer_comparison =
+        "f:main() { v:pointer!*i32 = null; v:empty!bool = pointer == null; }";
+    const char* safe_reference_rejects_null =
+        "f:main() { v:reference!&i32 = null; }";
+    const char* raw_pointer_parameter_accepts_null =
+        "f:take(pointer!*i32) {} f:main() { take(null); }";
+    return check_source(uninitialized_pointer_read, 1) &&
+        check_source(uninitialized_pointer_write, 1) &&
+        check_source(null_pointer_initializer_and_assignment, 0) &&
+        check_source(null_pointer_comparison, 0) &&
+        check_source(safe_reference_rejects_null, 1) &&
+        check_source(raw_pointer_parameter_accepts_null, 0);
+}
+
 static int check_safe_reference_container_storage_rejection_semantics(void) {
     const char* array_of_safe_references =
         "f:main() { v:refs[1]!&i32; }";
@@ -2924,6 +2945,10 @@ int main(int argc, char** argv) {
     }
     if (!check_callback_function_type_semantics()) {
         fprintf(stderr, "Callback function-type Semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_raw_pointer_initialization_and_nullability_semantics()) {
+        fprintf(stderr, "Raw-pointer initialization/nullability checks failed.\\n");
         return 1;
     }
     if (!check_safe_reference_container_storage_rejection_semantics()) {

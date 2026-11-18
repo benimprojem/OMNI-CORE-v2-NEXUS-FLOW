@@ -1345,6 +1345,12 @@ static int semantic_is_mut_reference_type_name(const char* type_name) {
     return strncmp(type_name, "&mut", 4u) == 0;
 }
 
+static int semantic_is_raw_pointer_type_name(const char* type_name) {
+    if (!type_name) return 0;
+    while (*type_name == '!') ++type_name;
+    return type_name[0] == '*' && type_name[1] != '\0';
+}
+
 /* Aggregate-contained safe references need field-level owner/lifetime metadata.
    Until that representation exists, reject direct references and aggregates
    (including NewType aliases) that recursively contain them. */
@@ -1406,7 +1412,8 @@ static int semantic_reference_init_snapshot_capture(
     snapshot->count = 0u;
     for (slot = ctx->head; slot; slot = slot->next) {
         if (slot->kind == SLOT_VAR &&
-            semantic_is_reference_type_name(slot->type_name)) {
+            (semantic_is_reference_type_name(slot->type_name) ||
+             semantic_is_raw_pointer_type_name(slot->type_name))) {
             if (count == SIZE_MAX) {
                 semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                 return 0;
@@ -1428,7 +1435,8 @@ static int semantic_reference_init_snapshot_capture(
     snapshot->count = count;
     for (slot = ctx->head; slot; slot = slot->next) {
         if (slot->kind == SLOT_VAR &&
-            semantic_is_reference_type_name(slot->type_name)) {
+            (semantic_is_reference_type_name(slot->type_name) ||
+             semantic_is_raw_pointer_type_name(slot->type_name))) {
             snapshot->entries[index].slot = slot;
             snapshot->entries[index].is_initialized = slot->is_initialized;
             ++index;
@@ -1612,6 +1620,7 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                     break;
                 case TOKEN_STRING: type_name = "str"; break;
                 case TOKEN_CHAR: type_name = "char"; break;
+                case TOKEN_NULL: type_name = "null"; break;
                 case TOKEN_TRUE:
                 case TOKEN_FALSE: type_name = "bool"; break;
                 default: break;
@@ -1969,6 +1978,8 @@ static int are_types_compatible(const char* type1, const char* type2) {
     /* `t` is the language's implicit type variable; call-site inference
        binds it to the concrete argument/initializer type. */
     if (strcmp(t1, "t") == 0 || strcmp(t2, "t") == 0) return 1;
+    if (semantic_is_raw_pointer_type_name(t1) && strcmp(t2, "null") == 0)
+        return 1;
     if (strcmp(t1, "array") == 0 &&
         semantic_is_array_type_name(t2)) return 1;
     if (strcmp(t2, "array") == 0 &&
@@ -5608,6 +5619,14 @@ static void semantic_check_node(
                         "Initialize the global reference from a valid global/static owner. Local safe references may be declared first and assigned before their first read.",
                         0, 0);
                 }
+            } else if (declared_slot &&
+                semantic_is_raw_pointer_type_name(declared_slot->type_name)) {
+                if (decl->initializer &&
+                    ctx->error_count == initializer_error_baseline) {
+                    declared_slot->is_initialized = 1u;
+                } else if (!decl->initializer && declared_slot->depth == 0) {
+                    declared_slot->is_initialized = 1u;
+                }
             }
 
             if (declared_slot) {
@@ -5781,16 +5800,17 @@ static void semantic_check_node(
                     id->name ? id->name : "<unnamed>");
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, moved_message);
             } else if (resolved && resolved->kind == SLOT_VAR &&
-                semantic_is_reference_type_name(resolved->type_name) &&
+                (semantic_is_reference_type_name(resolved->type_name) ||
+                 semantic_is_raw_pointer_type_name(resolved->type_name)) &&
                 !resolved->is_initialized &&
                 ctx->assignment_target_depth == 0u) {
                 char message[320];
                 (void)snprintf(message, sizeof(message),
-                    "Safe reference '%s' is read before it has been initialized.",
+                    "Pointer/reference binding '%s' is read before it has been initialized.",
                     id->name ? id->name : "<unnamed>");
                 report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message,
-                    "Assign a valid borrow or supported reference-returning call to this binding before reading, dereferencing, passing, or returning it.",
-                    "Assign a valid borrow or supported reference-returning call to this binding before reading, dereferencing, passing, or returning it.",
+                    "Assign a valid pointer/reference value before reading, dereferencing, passing, or returning this binding.",
+                    "Assign a valid pointer/reference value before reading, dereferencing, passing, or returning this binding.",
                     0, 0);
             } else if (resolved &&
                 ctx->borrow_operand_depth == 0u &&
@@ -6327,6 +6347,13 @@ static void semantic_check_node(
                         if (ctx->error_count == assignment_error_baseline)
                             target_slot->is_initialized = 1u;
                     }
+                } else if (target_slot &&
+                    semantic_is_raw_pointer_type_name(target_slot->type_name)) {
+                    const char* source_type = get_expr_type(ctx, assign->right);
+                    if (source_type &&
+                        are_types_compatible(target_slot->type_name, source_type) &&
+                        ctx->error_count == assignment_error_baseline)
+                        target_slot->is_initialized = 1u;
                 }
             } else {
                 const char* target_type = get_expr_type(ctx, assign->left);
@@ -7165,6 +7192,22 @@ static void semantic_check_node(
                 --ctx->borrow_operand_depth;
             } else {
                 semantic_check(ctx, unary->operand);
+            }
+            if (unary->op == TOKEN_STAR && ctx->assignment_target_depth > 0u &&
+                unary->operand && unary->operand->type == AST_IDENTIFIER) {
+                Slot* pointer_slot = find_slot(
+                    ctx, ((ASTIdentifier*)unary->operand)->name);
+                if (pointer_slot && pointer_slot->kind == SLOT_VAR &&
+                    (semantic_is_reference_type_name(pointer_slot->type_name) ||
+                     semantic_is_raw_pointer_type_name(pointer_slot->type_name)) &&
+                    !pointer_slot->is_initialized) {
+                    report_issue(ctx, unary->operand,
+                        ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Dereference assignment reads a pointer/reference binding before it has been initialized.",
+                        "Initialize the pointer/reference before writing through the dereference.",
+                        "Initialize the pointer/reference before writing through the dereference.",
+                        0, 0);
+                }
             }
             operand_type = get_expr_type(ctx, unary->operand);
             if (operand_type && unary->op == TOKEN_NOT &&
