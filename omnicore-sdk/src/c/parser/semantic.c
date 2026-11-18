@@ -5637,11 +5637,23 @@ static void semantic_check_node(
             break;
         }
 
-        case AST_ARRAY_LITERAL:
-            /* Element homogeneity and the array annotation are centralized in
-               get_expr_type(); do not run that diagnostic path twice here. */
+        case AST_ARRAY_LITERAL: {
+            ASTNode* element;
+            for (element = ((ASTArrayLiteral*)node)->elements;
+                 element; element = element->next) {
+                const char* element_type = get_expr_type(ctx, element);
+                if (semantic_type_contains_safe_reference(
+                        ctx, element_type, 0u)) {
+                    report_issue(ctx, element, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Array literal element contains a safe reference or an aggregate with safe-reference storage; container-held reference provenance is unsupported.",
+                        "Keep safe references in local bindings rather than storing them in array elements.",
+                        "Keep safe references in local bindings rather than storing them in array elements.",
+                        0, 0);
+                }
+            }
             semantic_check(ctx,((ASTArrayLiteral*)node)->elements);
             break;
+        }
         case AST_NAMED_ARG: {
             ASTNamedArg* named=(ASTNamedArg*)node;
             if (!named->name || !named->name[0] || !named->value) {

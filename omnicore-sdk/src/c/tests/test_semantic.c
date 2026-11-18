@@ -835,7 +835,7 @@ static int check_compound_assignment_semantics(void) {
 
 static int check_pointer_reference_type_semantics(void) {
     const char* exact_pointer =
-        "f:take(value!*i32) {} f:main() { v:a!*i32; v:b!*i32; a = b; take(a); }";
+        "f:take(value!*i32) {} f:main() { v:a!*i32 = null; v:b!*i32 = null; a = b; take(a); }";
     const char* pointer_base_mismatch =
         "f:take(value!*i32) {} f:main() { v:a!*f32; take(a); }";
     const char* pointer_depth_mismatch =
@@ -1393,7 +1393,7 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         "v:first!&muti32 = &mut items[i]; "
         "v:second!&muti32 = &mut items[j]; }";
     const char* raw_pointer_dereference_borrow_has_no_provenance =
-        "f:main() { v:pointer!*i32; v:reference!&i32 = &*pointer; }";
+        "f:main() { v:pointer!*i32 = null; v:reference!&i32 = &*pointer; }";
     const char* shared_member_allows_other_member_write =
         "f:main() { struct: Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:first!&i32 = &point.x; point.y = 3; }";
