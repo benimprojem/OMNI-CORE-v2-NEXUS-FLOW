@@ -1259,6 +1259,8 @@ int main(void) {
     ASTLiteral literal;
     ASTVarDecl shadowed;
     ASTIdentifier shadowed_reference;
+    ASTUnaryExpr return_statement;
+    ASTIdentifier return_operand;
 
     OirAstPointerIndexEntry ast_index[32];
     OirAstFrontendRequirements ast_requirements;
@@ -1296,6 +1298,8 @@ int main(void) {
     memset(&literal, 0, sizeof(literal));
     memset(&shadowed, 0, sizeof(shadowed));
     memset(&shadowed_reference, 0, sizeof(shadowed_reference));
+    memset(&return_statement, 0, sizeof(return_statement));
+    memset(&return_operand, 0, sizeof(return_operand));
     memset(ast_index, 0, sizeof(ast_index));
 
     program.base.type = AST_PROGRAM;
@@ -1349,10 +1353,21 @@ int main(void) {
     shadowed_reference.base.line = 4;
     shadowed_reference.base.col = 10;
     shadowed_reference.name = "input";
+    shadowed.base.next = (ASTNode*)&return_statement;
+
+    return_statement.base.type = AST_RETURN;
+    return_statement.base.line = 5;
+    return_statement.base.col = 3;
+    return_statement.operand = (ASTNode*)&return_operand;
+
+    return_operand.base.type = AST_IDENTIFIER;
+    return_operand.base.line = 5;
+    return_operand.base.col = 7;
+    return_operand.name = "copy";
 
     assert(oir_ast_frontend_index_build(
         (ASTNode*)&program, ast_index, 32u, &ast_node_count) == OIR_STATUS_OK);
-    assert(ast_node_count == 8u);
+    assert(ast_node_count == 10u);
     assert(oir_ast_frontend_measure(
         (ASTNode*)&program, ast_index, 32u, ast_node_count,
         &ast_requirements) == OIR_STATUS_OK);

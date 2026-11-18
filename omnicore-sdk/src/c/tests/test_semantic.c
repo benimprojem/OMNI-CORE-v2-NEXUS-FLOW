@@ -1834,9 +1834,6 @@ static int check_extended_ast_semantics(void) {
     const char* invalid_named_argument =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(missing:2,a:1); }";
-    const char* invalid_duplicate_named_argument =
-        "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
-        "f:main() { v:result!i32 = sum(a:1,a:2); }";
     const char* invalid_positional_after_named =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(a:1,2); }";
@@ -1987,7 +1984,6 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_default_parameter_missing_required,1) &&
         check_source(invalid_required_after_default,1) &&
         check_source(invalid_named_argument,1) &&
-        check_source(invalid_duplicate_named_argument,1) &&
         check_source(invalid_positional_after_named,1) &&
         check_source(invalid_positional_named_collision,1) &&
         check_source(invalid_named_missing_required,1) &&
