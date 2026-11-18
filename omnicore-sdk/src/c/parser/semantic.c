@@ -1357,6 +1357,17 @@ static int semantic_type_contains_safe_reference(
     if (!ctx || !raw_type || depth > 64u) return 0;
     while (*raw_type == '!') ++raw_type;
     if (semantic_is_reference_type_name(raw_type)) return 1;
+    if (strncmp(raw_type, "array|", 6u) == 0) {
+        const char* element_start = raw_type + 6u;
+        size_t element_length = strcspn(element_start, "[");
+        char element_type[256];
+        if (element_length == 0u) return 0;
+        if (element_length >= sizeof(element_type)) return 1;
+        memcpy(element_type, element_start, element_length);
+        element_type[element_length] = '\0';
+        return semantic_type_contains_safe_reference(
+            ctx, element_type, depth + 1u);
+    }
     type_slot = find_slot(ctx, raw_type);
     if (!type_slot) return 0;
     if (type_slot->kind == SLOT_NEWTYPE)
@@ -5454,6 +5465,24 @@ static void semantic_check_node(
             if (decl->inline_type && !decl->type_expr)
                 semantic_check(ctx, decl->inline_type);
             if (decl->type_expr) semantic_check(ctx, decl->type_expr);
+            if (declared_slot && is_array &&
+                semantic_type_contains_safe_reference(
+                    ctx, decl->type_name, 0u)) {
+                report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Array element type contains a safe reference or an aggregate that contains one; array-held safe references have no element-level owner/lifetime metadata.",
+                    "Keep safe references in local bindings. Use a value element type, or use a raw pointer only when the program explicitly accepts its unsafe lifetime contract.",
+                    "Keep safe references in local bindings. Use a value element type, or use a raw pointer only when the program explicitly accepts its unsafe lifetime contract.",
+                    0, 0);
+            } else if (declared_slot &&
+                !semantic_is_reference_type_name(declared_slot->type_name) &&
+                semantic_type_contains_safe_reference(
+                    ctx, declared_slot->type_name, 0u)) {
+                report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "This binding's NewType or aggregate contains safe-reference storage, but standalone alias/aggregate reference ownership is not implemented.",
+                    "Use a direct local safe-reference binding, or redesign the stored value so the reference remains outside the aggregate/container.",
+                    "Use a direct local safe-reference binding, or redesign the stored value so the reference remains outside the aggregate/container.",
+                    0, 0);
+            }
             if (declared_slot &&
                 decl->inline_type && decl->inline_type->type == AST_ARRAY_TYPE) {
                 uint32_t array_type_id = semantic_declared_type_id(ctx, decl);
@@ -5484,6 +5513,14 @@ static void semantic_check_node(
                         "Initializer for c: must be a compile-time constant expression; runtime calls and non-constant values are not allowed.");
                 }
                 init_type = get_expr_type(ctx, decl->initializer);
+                if (!is_array && semantic_is_array_type_name(init_type) &&
+                    semantic_type_contains_safe_reference(ctx, init_type, 0u)) {
+                    report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Inferred array initializer contains safe references; array-held reference provenance is not supported.",
+                        "Keep each safe reference in a local binding instead of storing references inside an inferred array.",
+                        "Keep each safe reference in a local binding instead of storing references inside an inferred array.",
+                        0, 0);
+                }
                 if (is_array && decl->initializer &&
                     decl->initializer->type == AST_ARRAY_LITERAL) {
                     const ASTNode* dimensions =
@@ -6145,6 +6182,23 @@ static void semantic_check_node(
             }
             }
 
+            if ((assign->op == TOKEN_ASSIGN ||
+                 assign->op == TOKEN_FORCE_ASSIGN) &&
+                (assign->left->type == AST_MEMBER_ACCESS ||
+                 assign->left->type == AST_INDEX_ACCESS ||
+                 (assign->left->type == AST_UNARY_EXPR &&
+                  ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR))) {
+                const char* stored_type = get_expr_type(ctx, assign->right);
+                const char* target_type = get_expr_type(ctx, assign->left);
+                if (semantic_type_contains_safe_reference(ctx, stored_type, 0u) &&
+                    !semantic_type_contains_safe_reference(ctx, target_type, 0u)) {
+                    report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Safe references cannot be stored through this member/index/pointer target because its storage does not track reference owner and lifetime provenance.",
+                        "Keep the reference in a local binding. Do not store it in Map/Vec/any fields or through a raw pointer.",
+                        "Keep the reference in a local binding. Do not store it in Map/Vec/any fields or through a raw pointer.",
+                        0, 0);
+                }
+            }
             if (assign->left &&
                 assign->left->type != AST_IDENTIFIER &&
                 assign->left->type != AST_MEMBER_ACCESS &&
@@ -6748,6 +6802,24 @@ static void semantic_check_node(
                     function_name ? function_name : "<anonymous>",
                     func->return_type);
                 report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
+                return_type_valid = 0;
+            }
+            if (func->return_type &&
+                !semantic_is_reference_type_name(func->return_type) &&
+                semantic_type_contains_safe_reference(
+                    ctx, func->return_type, 0u)) {
+                report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Function return type hides safe-reference storage inside a NewType, aggregate, or array; the return-origin contract cannot represent it.",
+                    "Return a direct safe-reference type with a verifiable parameter/global origin, or return a value type.",
+                    "Return a direct safe-reference type with a verifiable parameter/global origin, or return a value type.",
+                    0, 0);
+                return_type_valid = 0;
+            }
+            if (func->return_array_type && func->return_type &&
+                semantic_type_contains_safe_reference(
+                    ctx, func->return_type, 0u)) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Array return elements cannot contain safe references because element-level owner/lifetime metadata is unavailable.");
                 return_type_valid = 0;
             }
             if (function_name && *function_name) {

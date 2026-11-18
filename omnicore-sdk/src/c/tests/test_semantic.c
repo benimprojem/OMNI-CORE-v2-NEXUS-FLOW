@@ -946,6 +946,25 @@ static int check_callback_function_type_semantics(void) {
         check_source(non_callable_value, 1);
 }
 
+static int check_safe_reference_container_storage_rejection_semantics(void) {
+    const char* array_of_safe_references =
+        "f:main() { v:refs[1]!&i32; }";
+    const char* newtype_alias_binding =
+        "nt:Ref = &i32; f:main() { v:reference!Ref; }";
+    const char* map_safe_reference_value =
+        "f:main(owner!i32) { v:items!map; items[\"ref\"] = &owner; }";
+    const char* any_member_safe_reference_value =
+        "struct:Box { v:value!any } "
+        "f:main(owner!i32) { v:box!Box; box.value = &owner; }";
+    const char* inferred_array_of_safe_references =
+        "f:main(owner!i32) { v:refs = [&owner]; }";
+    return check_source(array_of_safe_references, 1) &&
+        check_source(newtype_alias_binding, 1) &&
+        check_source(map_safe_reference_value, 1) &&
+        check_source(any_member_safe_reference_value, 1) &&
+        check_source(inferred_array_of_safe_references, 1);
+}
+
 static int check_safe_reference_definite_initialization_semantics(void) {
     const char* uninitialized_dereference =
         "f:main() { v:reference!&i32; v:value!i32 = *reference; }";
@@ -1326,7 +1345,7 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         check_source(mutable_reassignment_releases_old_owner, 0) &&
         check_source(failed_reassignment_preserves_old_borrow, 2) &&
         check_source(stored_reference_member_reassignment_is_rejected, 2) &&
-        check_source(stored_reference_index_reassignment_is_rejected, 1);
+        check_source(stored_reference_index_reassignment_is_rejected, 2);
 }
 
 static int check_borrow_aggregate_provenance_semantics(void) {
@@ -2905,6 +2924,10 @@ int main(int argc, char** argv) {
     }
     if (!check_callback_function_type_semantics()) {
         fprintf(stderr, "Callback function-type Semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_safe_reference_container_storage_rejection_semantics()) {
+        fprintf(stderr, "Safe-reference container-storage rejection checks failed.\\n");
         return 1;
     }
     if (!check_safe_reference_definite_initialization_semantics()) {
