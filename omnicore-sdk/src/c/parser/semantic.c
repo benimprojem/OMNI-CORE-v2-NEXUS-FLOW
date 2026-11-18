@@ -1076,6 +1076,12 @@ static void exit_scope(SemanticContext* ctx) {
 
 static int are_types_compatible(const char* type1, const char* type2);
 
+static const ASTTypeExpr* semantic_callback_type_from_slot(
+    SemanticContext* ctx, const Slot* slot
+);
+static const char* semantic_callback_return_type(
+    SemanticContext* ctx, const Slot* slot
+);
 static const char* get_expr_type(SemanticContext* ctx, ASTNode* node);
 static ASTNode* semantic_find_type_variable_argument(
     Slot* function_slot, ASTNode* arguments, uint32_t parameter_offset
