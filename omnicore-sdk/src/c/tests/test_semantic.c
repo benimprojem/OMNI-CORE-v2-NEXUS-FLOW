@@ -1803,6 +1803,28 @@ static int check_extended_ast_semantics(void) {
     const char* invalid_named_argument =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(missing:2,a:1); }";
+    const char* invalid_duplicate_named_argument =
+        "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
+        "f:main() { v:result!i32 = sum(a:1,a:2); }";
+    const char* invalid_positional_after_named =
+        "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
+        "f:main() { v:result!i32 = sum(a:1,2); }";
+    const char* invalid_positional_named_collision =
+        "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
+        "f:main() { v:result!i32 = sum(1,a:2); }";
+    const char* invalid_named_missing_required =
+        "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
+        "f:main() { v:result!i32 = sum(b:2); }";
+    const char* invalid_default_parameter_type =
+        "f:sum(a!i32,b:"wrong")!i32 { ret a; } f:main() {}";
+    const char* valid_callback_named_arguments =
+        "nt:Callback = f:(id!u32,flag!bool)!bool; "
+        "f:main(callback!Callback,id!u32,flag!bool) { "
+        "callback(flag:flag,id:id); }";
+    const char* invalid_callback_unknown_named_argument =
+        "nt:Callback = f:(id!u32,flag!bool)!bool; "
+        "f:main(callback!Callback,id!u32,flag!bool) { "
+        "callback(missing:id,flag:flag); }";
     const char* invalid_mixed_extra_positional =
         "f:sum(a!i32,b!i32)!i32 { ret a+b; } "
         "f:main() { v:result!i32 = sum(1,2,3,missing:4); }";
@@ -1934,6 +1956,13 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_default_parameter_missing_required,1) &&
         check_source(invalid_required_after_default,1) &&
         check_source(invalid_named_argument,1) &&
+        check_source(invalid_duplicate_named_argument,1) &&
+        check_source(invalid_positional_after_named,1) &&
+        check_source(invalid_positional_named_collision,1) &&
+        check_source(invalid_named_missing_required,1) &&
+        check_source(invalid_default_parameter_type,1) &&
+        check_source(valid_callback_named_arguments,0) &&
+        check_source(invalid_callback_unknown_named_argument,1) &&
         check_source(invalid_mixed_extra_positional,2) &&
         check_source(valid_variadic_call,0) &&
         check_source(invalid_variadic_missing_fixed,1) &&

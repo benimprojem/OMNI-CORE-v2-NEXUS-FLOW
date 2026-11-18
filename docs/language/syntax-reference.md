@@ -550,6 +550,7 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 * `.(nokta)` :  Grup/Namespace çözümleyici.Üye erişimi (Metot veya özellik).
 * `..` : Aralık (Range) belirtme; iki uç da dahildir (`1..10` = 1, 2, …, 10; toplam 10 değer). Tek bir aralık ifadesinde ikinci `..` kullanılamaz; aralık zincirleme yazımı geçersizdir.
 * `...` : Fonksiyonlar için çoklu prametre
+- **Named argument bağlama:** İsimler görünür parametrelerle birebir eşleşir; aynı parametreye positional ve named yoldan iki kez değer verilemez; duplicate, unknown name, eksik required parametre ve named argümandan sonra positional argüman reddedilir. Default parametreler eksik bırakılabilir ve açıkça verilebilir; default expression türü parametre türüyle uyumlu olmalıdır. Callback ve instance method çağrıları aynı görünür parametre eşleştirme kurallarını uygular; `self` named argument listesinde görünmez.
 - **Variadic güvenlik sınırı:** `...` yalnızca ABI tarafından tanımlanan düz değerleri ve açıkça yönetilen raw pointer'ları kabul eder. Safe reference (`&T`, `&mut T`) veya içinde safe reference taşıyan bir değer variadic argüman olarak geçirilemez; variadic imzada parametreye özgü borrow/lifetime sözleşmesi bulunmaz. Safe reference gerekiyorsa typed parameter kullanılmalıdır.
 * `.=` : String birleştirme operatörü. Mevcut string'e yeni string ekler.
 
