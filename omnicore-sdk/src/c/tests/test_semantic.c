@@ -928,10 +928,10 @@ static int check_named_function_callback_value_semantics(void) {
     const char* exact_named_function_value =
         "nt:Callback = f:(id!u32)!bool; "
         "f:is_even(id!u32)!bool { ret true; } "
-        "f:main() { v:callback!Callback = is_even; callback(2); }";
+        "f:main(id!u32) { v:callback!Callback = is_even; callback(id); }";
     const char* exact_direct_callback_value =
         "f:check(id!u32)!bool { ret true; } "
-        "f:main() { v:callback!f:(id!u32)!bool = check; callback(2); }";
+        "f:main(id!u32) { v:callback!f:(id!u32)!bool = check; callback(id); }";
     const char* mismatched_parameter_type =
         "nt:Callback = f:(id!u32)!bool; "
         "f:check(id!i32)!bool { ret true; } "
@@ -948,7 +948,7 @@ static int check_named_function_callback_value_semantics(void) {
         "nt:Callback = f:(id!u32)!bool; "
         "f:first(id!u32)!bool { ret true; } "
         "f:second(id!u32)!bool { ret false; } "
-        "f:main() { v:callback!Callback = first; callback = second; callback(3); }";
+        "f:main(id!u32) { v:callback!Callback = first; callback = second; callback(id); }";
     const char* lambda_assignment_fails_closed =
         "nt:Callback = f:(id!u32)!bool; "
         "f:main() { v:callback!Callback = >(id!u32) { ret true; }; }";
