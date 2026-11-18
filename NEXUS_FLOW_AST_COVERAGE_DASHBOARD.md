@@ -130,7 +130,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Fonksiyon `f:name(...)` | `AST_FUNC_DECL` | ✓ | ✓ | ✓ | ~ | ~ | ~ | params/body, return array, recursive return type, EXF linkname ve source-span payload round-trip; Semantic/ABI açık |
 | Extern `exf:` | `AST_EXTERN_DECL` | ✓ | ✓ | ✓ | ~ | ? | ? | External signature, symbol/linkname ve calling convention |
 | Lambda / anonymous function | `AST_LAMBDA` (94) | ✓ | ✓ | ✓ | ~ | ~ | ? | Capture, closure conversion, return inference ve ABI |
-| Callback/function type `f:(...)!R` | `AST_TYPE_EXPR` (108) ve recursive type payload | ✓ | ✓ | ✓ | ~ | ? | ? | Callback compatibility, function value call ve function-pointer ABI |
+| Callback/function type `f:(...)!R` | `AST_TYPE_EXPR` (108) ve recursive type payload | ✓ | ✓ | ✓ | ~ | ? | ? | Direct callback parametreleri ve NewType alias'ları için call arity/named/type/variadic/return kontrolleri eklendi; callback safe-reference return origin belirsiz olduğunda fail-closed. Function-value assignment/capture compatibility, nested callback unification ve target function-pointer ABI hâlâ açık |
 | Variadic parameter `...` | `AST_VARIADIC_PARAM` (101) | ✓ | ✓ | ✓ | ~ | D | — | Variadic ABI ve call validation; OIR bridge tek başına yeterli değil |
 | Named argument | `AST_NAMED_ARG` (102) | ✓ | ✓ | ✓ | ~ | D | — | name/value payload ve source-span round-trip; Semantic parameter binding açık |
 | Default parameter | `AST_VAR_DECL.initializer` | ✓ | ✓ | ✓ | ~ | ? | ? | Default expression evaluation ve çağrı argümanı üretimi |

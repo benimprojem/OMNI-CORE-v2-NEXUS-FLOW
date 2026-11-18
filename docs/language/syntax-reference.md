@@ -2102,6 +2102,7 @@ nt:CallbackMatrix = f:(callbacks!f:(row!u32)!bool[4][4])!bool;
 
 Dimension order follows the normal array declarator rules. An empty `[]` represents an unspecified/dynamic dimension; a numeric dimension is fixed-size syntax. Array shape and callback signature compatibility belong to AST/Semantic validation, not Codegen. Parser tests cover parameter arrays, return arrays, malformed dimension spellings, and AST codec round-trip.
 
+- **Callback çağrıları:** \`f:(...)!R\` türündeki doğrudan ve NewType alias callback parametreleri çağrılabilir. Semantic, parametre adlarını, sırasını, türlerini, variadic işaretini, argüman sayısını ve dönüş türünü imzadan doğrular. Function-value callback dönüşü safe reference ise imza hangi parametrenin owner/origin olduğunu belirtmediğinden sonuç fail-closed reddedilir; direct named function/Group method için mevcut doğrulanabilir return-origin eşlemesi korunur.
 ### 16.6 AST and semantic boundary
 
 - AST retains the function type, its ordered parameter list, return type, qualifiers, and any array dimensions without reducing it to a plain named type.

@@ -1687,6 +1687,10 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 if (is_instance_call) parameter_offset = 1u;
             }
             result_type = slot ? slot->type_name : NULL;
+            if (slot && slot->kind == SLOT_VAR &&
+                semantic_callback_type_from_slot(ctx, slot)) {
+                result_type = semantic_callback_return_type(ctx, slot);
+            }
             if (result_type) {
                 const char* normalized_result_type = result_type;
                 while (*normalized_result_type == '!')
@@ -1700,8 +1704,9 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 }
             }
             semantic_record_annotation(
-                ctx, node, slot, result_type,
-                SEMANTIC_RESULT_VALUE_RVALUE);
+                ctx, node,
+                slot && slot->kind == SLOT_VAR ? NULL : slot,
+                result_type, SEMANTIC_RESULT_VALUE_RVALUE);
             return result_type;
         }
         case AST_BINARY_EXPR:
@@ -3902,6 +3907,217 @@ static int semantic_group_method_has_implicit_receiver(
     return 0;
 }
 
+static const ASTTypeExpr* semantic_unwrap_type_qualifiers(
+    const ASTTypeExpr* type
+) {
+    while (type && type->kind == AST_TYPE_QUALIFIED)
+        type = type->child && type->child->type == AST_TYPE_EXPR
+            ? (const ASTTypeExpr*)type->child : NULL;
+    return type;
+}
+
+static const ASTTypeExpr* semantic_callback_type_from_expr(
+    SemanticContext* ctx, const ASTTypeExpr* type, unsigned int depth
+) {
+    Slot* alias;
+    const ASTNewTypeDecl* declaration;
+    type = semantic_unwrap_type_qualifiers(type);
+    if (!ctx || !type || depth > 32u) return NULL;
+    if (type->kind == AST_TYPE_FUNCTION) return type;
+    if (type->kind != AST_TYPE_NAMED || !type->name) return NULL;
+    alias = find_slot(ctx, type->name);
+    if (!alias || alias->kind != SLOT_NEWTYPE ||
+        !alias->declaration_node ||
+        alias->declaration_node->type != AST_NEWTYPE_DECL) return NULL;
+    declaration = (const ASTNewTypeDecl*)alias->declaration_node;
+    if (declaration->target_type_expr &&
+        declaration->target_type_expr->type == AST_TYPE_EXPR) {
+        return semantic_callback_type_from_expr(
+            ctx, (const ASTTypeExpr*)declaration->target_type_expr,
+            depth + 1u);
+    }
+    return NULL;
+}
+
+static const ASTTypeExpr* semantic_callback_type_from_slot(
+    SemanticContext* ctx, const Slot* slot
+) {
+    const ASTVarDecl* variable;
+    const ASTNewTypeDecl* newtype;
+    const ASTTypeExpr* type = NULL;
+    const char* raw_type;
+    Slot* alias;
+    if (!ctx || !slot) return NULL;
+    if (slot->declaration_node &&
+        slot->declaration_node->type == AST_VAR_DECL) {
+        variable = (const ASTVarDecl*)slot->declaration_node;
+        if (variable->type_expr &&
+            variable->type_expr->type == AST_TYPE_EXPR) {
+            type = semantic_callback_type_from_expr(
+                ctx, (const ASTTypeExpr*)variable->type_expr, 0u);
+            if (type) return type;
+        }
+    }
+    raw_type = slot->type_name;
+    while (raw_type && *raw_type == '!') ++raw_type;
+    if (!raw_type || !*raw_type) return NULL;
+    if (strncmp(raw_type, "f:(", 3u) == 0) {
+        if (slot->declaration_node &&
+            slot->declaration_node->type == AST_NEWTYPE_DECL) {
+            newtype = (const ASTNewTypeDecl*)slot->declaration_node;
+            if (newtype->target_type_expr &&
+                newtype->target_type_expr->type == AST_TYPE_EXPR)
+                return semantic_callback_type_from_expr(
+                    ctx, (const ASTTypeExpr*)newtype->target_type_expr, 0u);
+        }
+        return NULL;
+    }
+    alias = find_slot(ctx, raw_type);
+    if (alias && alias->kind == SLOT_NEWTYPE &&
+        alias->declaration_node &&
+        alias->declaration_node->type == AST_NEWTYPE_DECL) {
+        newtype = (const ASTNewTypeDecl*)alias->declaration_node;
+        if (newtype->target_type_expr &&
+            newtype->target_type_expr->type == AST_TYPE_EXPR)
+            return semantic_callback_type_from_expr(
+                ctx, (const ASTTypeExpr*)newtype->target_type_expr, 0u);
+    }
+    return NULL;
+}
+
+static const char* semantic_callback_signature_text(
+    SemanticContext* ctx, const Slot* slot
+) {
+    const char* raw_type;
+    Slot* alias;
+    if (!ctx || !slot) return NULL;
+    raw_type = slot->type_name;
+    while (raw_type && *raw_type == '!') ++raw_type;
+    if (!raw_type) return NULL;
+    if (strncmp(raw_type, "f:(", 3u) == 0) return raw_type;
+    alias = find_slot(ctx, raw_type);
+    if (alias && alias->kind == SLOT_NEWTYPE) {
+        raw_type = alias->type_name;
+        while (raw_type && *raw_type == '!') ++raw_type;
+        if (raw_type && strncmp(raw_type, "f:(", 3u) == 0)
+            return raw_type;
+    }
+    return NULL;
+}
+
+static const char* semantic_callback_return_type(
+    SemanticContext* ctx, const Slot* slot
+) {
+    const char* signature = semantic_callback_signature_text(ctx, slot);
+    const char* cursor;
+    size_t depth = 0u;
+    if (!signature || strncmp(signature, "f:(", 3u) != 0) return NULL;
+    cursor = signature + 2u;
+    for (; *cursor; ++cursor) {
+        if (*cursor == '(') ++depth;
+        else if (*cursor == ')') {
+            if (depth == 1u) break;
+            if (depth > 1u) --depth;
+        }
+    }
+    if (*cursor != ')') return NULL;
+    ++cursor;
+    if (*cursor == '!' || *cursor == '>') ++cursor;
+    return *cursor ? cursor : NULL;
+}
+
+/* Build a non-owning AST signature view for a function-valued binding.
+   The parameter type strings are owned temporarily by the caller. */
+static int semantic_prepare_callback_signature(
+    SemanticContext* ctx, Slot* source, Slot* callback_view,
+    ASTFuncDecl* callback_declaration, char*** owned_parameter_types
+) {
+    const ASTTypeExpr* function_type;
+    ASTNode* parameter;
+    uint32_t count = 0u;
+    uint32_t required = 0u;
+    uint32_t index = 0u;
+    char** parameter_types = NULL;
+    if (owned_parameter_types) *owned_parameter_types = NULL;
+    if (!ctx || !source || !callback_view || !callback_declaration ||
+        !owned_parameter_types) return 0;
+    function_type = semantic_callback_type_from_slot(ctx, source);
+    if (!function_type) return 0;
+    for (parameter = function_type->params; parameter; parameter = parameter->next) {
+        if (parameter->type == AST_VARIADIC_PARAM) {
+            if (parameter->next) {
+                report_error(ctx, parameter, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Variadic callback parameter must be the final parameter.");
+            }
+        } else if (parameter->type == AST_VAR_DECL) {
+            const ASTVarDecl* variable = (const ASTVarDecl*)parameter;
+            if (count == UINT32_MAX) return 0;
+            ++count;
+            if (!variable->initializer) ++required;
+        } else {
+            report_error(ctx, parameter, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Callback signature contains an unsupported parameter node.");
+            return 0;
+        }
+    }
+    if (count != 0u) {
+        parameter_types = (char**)semantic_callocate(
+            ctx, (size_t)count, sizeof(*parameter_types));
+        if (!parameter_types) {
+            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+            return 0;
+        }
+    }
+    for (parameter = function_type->params; parameter; parameter = parameter->next) {
+        if (parameter->type == AST_VARIADIC_PARAM) continue;
+        {
+            const ASTVarDecl* variable = (const ASTVarDecl*)parameter;
+            if (!variable->type_name || !variable->type_name[0]) {
+                uint32_t i;
+                for (i = 0u; i < index; ++i) free(parameter_types[i]);
+                free(parameter_types);
+                report_error(ctx, parameter, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Callback parameter is missing its resolved type name.");
+                return 0;
+            }
+            parameter_types[index] = semantic_duplicate(ctx, variable->type_name);
+            if (!parameter_types[index]) {
+                uint32_t i;
+                for (i = 0u; i < index; ++i) free(parameter_types[i]);
+                free(parameter_types);
+                semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                return 0;
+            }
+            ++index;
+        }
+    }
+    memset(callback_declaration, 0, sizeof(*callback_declaration));
+    callback_declaration->base.type = AST_FUNC_DECL;
+    callback_declaration->params = function_type->params;
+    *callback_view = *source;
+    callback_view->kind = SLOT_FUNC;
+    callback_view->declaration_node = (ASTNode*)callback_declaration;
+    callback_view->param_count = (int)count;
+    callback_view->required_param_count = (int)required;
+    callback_view->is_variadic = 0;
+    for (parameter = function_type->params; parameter; parameter = parameter->next) {
+        if (parameter->type == AST_VARIADIC_PARAM)
+            callback_view->is_variadic = 1;
+    }
+    callback_view->param_types = parameter_types;
+    *owned_parameter_types = parameter_types;
+    return 1;
+}
+
+static void semantic_destroy_callback_parameter_types(
+    char** parameter_types, uint32_t count
+) {
+    uint32_t index;
+    if (!parameter_types) return;
+    for (index = 0u; index < count; ++index) free(parameter_types[index]);
+    free(parameter_types);
+}
+
 static void semantic_validate_call_arguments(
     SemanticContext* ctx, ASTNode* call_node, Slot* function_slot,
     ASTNode* arguments, uint32_t parameter_offset
@@ -4738,6 +4954,9 @@ static int semantic_bind_returned_call_reference(
     } else {
         return 0;
     }
+    if (function && function->kind == SLOT_VAR &&
+        semantic_is_reference_type_name(
+            semantic_callback_return_type(ctx, function))) return 1;
     if (!function || function->kind != SLOT_FUNC ||
         !function->declaration_node ||
         function->declaration_node->type != AST_FUNC_DECL) return 0;
@@ -7087,9 +7306,47 @@ static void semantic_check_node(
                     if (call->callee->type == AST_IDENTIFIER) {
                         ASTIdentifier* id = (ASTIdentifier*)call->callee;
                         Slot* function_slot = find_slot(ctx, id->name);
-                        if (function_slot)
+                        if (function_slot && function_slot->kind == SLOT_FUNC) {
                             semantic_validate_call_arguments(
                                 ctx, node, function_slot, call->args, 0u);
+                        } else if (function_slot && function_slot->kind == SLOT_VAR) {
+                            Slot callback_view;
+                            ASTFuncDecl callback_declaration;
+                            char** callback_parameter_types = NULL;
+                            uint32_t callback_parameter_count = 0u;
+                            if (semantic_prepare_callback_signature(
+                                    ctx, function_slot, &callback_view,
+                                    &callback_declaration,
+                                    &callback_parameter_types)) {
+                                callback_parameter_count =
+                                    (uint32_t)callback_view.param_count;
+                                semantic_validate_call_arguments(
+                                    ctx, node, &callback_view, call->args, 0u);
+                                if (semantic_is_reference_type_name(
+                                        semantic_callback_return_type(ctx, function_slot))) {
+                                    report_issue(ctx, node,
+                                        ERR_SEMANTIC_TYPE_MISMATCH,
+                                        "Function-value callback returns a safe reference but its signature does not identify the originating parameter; the result has unknown borrow provenance.",
+                                        "Use a direct function or Group method with a verifiable reference-parameter return origin, or change the callback result to a value type.",
+                                        "Use a direct function or Group method with a verifiable reference-parameter return origin, or change the callback result to a value type.",
+                                        0, 0);
+                                }
+                                semantic_destroy_callback_parameter_types(
+                                    callback_parameter_types,
+                                    callback_parameter_count);
+                            } else {
+                                char message[256];
+                                (void)snprintf(message, sizeof(message),
+                                    "Value '%s' is not callable; expected a function type or a function declaration.",
+                                    id->name ? id->name : "<unnamed>");
+                                report_error(ctx, node,
+                                    ERR_SEMANTIC_TYPE_MISMATCH, message);
+                            }
+                        } else if (function_slot) {
+                            /* Preserve existing Group/default-dispatch call handling. */
+                            semantic_validate_call_arguments(
+                                ctx, node, function_slot, call->args, 0u);
+                        }
                     }
                 }
             }

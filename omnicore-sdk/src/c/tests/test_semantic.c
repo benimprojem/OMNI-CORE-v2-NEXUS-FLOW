@@ -924,6 +924,28 @@ static int check_pointer_reference_type_semantics(void) {
         check_source(pointer_bitwise_assignment, 0);
 }
 
+static int check_callback_function_type_semantics(void) {
+    const char* direct_callback_parameter =
+        "f:apply(callback!f:(id!u32)!bool,id!u32)!bool { ret callback(id); }";
+    const char* callback_newtype_alias =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:apply(callback!Callback,id!u32)!bool { ret callback(id); }";
+    const char* callback_wrong_argument_type =
+        "f:apply(callback!f:(id!u32)!bool,id!i32)!bool { ret callback(id); }";
+    const char* callback_wrong_argument_count =
+        "f:apply(callback!f:(id!u32)!bool)!bool { ret callback(); }";
+    const char* callback_reference_result_has_no_origin =
+        "f:apply(callback!f:(id!i32)!&i32,id!i32) { callback(id); }";
+    const char* non_callable_value =
+        "f:main() { v:value!i32 = 1; value(); }";
+    return check_source(direct_callback_parameter, 0) &&
+        check_source(callback_newtype_alias, 0) &&
+        check_source(callback_wrong_argument_type, 1) &&
+        check_source(callback_wrong_argument_count, 1) &&
+        check_source(callback_reference_result_has_no_origin, 1) &&
+        check_source(non_callable_value, 1);
+}
+
 static int check_safe_reference_definite_initialization_semantics(void) {
     const char* uninitialized_dereference =
         "f:main() { v:reference!&i32; v:value!i32 = *reference; }";
@@ -2865,6 +2887,10 @@ int main(int argc, char** argv) {
     }
     if (!check_pointer_reference_type_semantics()) {
         fprintf(stderr, "Pointer/reference compatibility checks failed.\n");
+        return 1;
+    }
+    if (!check_callback_function_type_semantics()) {
+        fprintf(stderr, "Callback function-type Semantic checks failed.\\n");
         return 1;
     }
     if (!check_safe_reference_definite_initialization_semantics()) {
