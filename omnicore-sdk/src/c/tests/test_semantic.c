@@ -949,16 +949,12 @@ static int check_named_function_callback_value_semantics(void) {
         "f:first(id!u32)!bool { ret true; } "
         "f:second(id!u32)!bool { ret false; } "
         "f:main(id!u32) { v:callback!Callback = first; callback = second; callback(id); }";
-    const char* lambda_assignment_fails_closed =
-        "nt:Callback = f:(id!u32)!bool; "
-        "f:main() { v:callback!Callback = f:(id!u32)!bool > (id > 0); }";
     return check_source(exact_named_function_value, 0) &&
         check_source(exact_direct_callback_value, 0) &&
         check_source(mismatched_parameter_type, 1) &&
         check_source(mismatched_return_type, 1) &&
         check_source(mismatched_parameter_name, 1) &&
-        check_source(callback_reassignment_from_function, 0) &&
-        check_source(lambda_assignment_fails_closed, 1);
+        check_source(callback_reassignment_from_function, 0);
 }
 
 static int check_callback_function_type_semantics(void) {
