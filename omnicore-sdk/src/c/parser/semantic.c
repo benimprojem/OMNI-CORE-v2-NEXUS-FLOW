@@ -1163,6 +1163,69 @@ static FieldInfo* semantic_resolve_member(
     return NULL;
 }
 
+/* A named function may be stored in a callback binding only when its full
+   callable contract matches. Parameter names are part of the callback API
+   because call sites may use named arguments. */
+static int semantic_function_matches_callback_type(
+    SemanticContext* ctx, const Slot* callback_slot,
+    const Slot* function_slot
+) {
+    const ASTTypeExpr* callback_type;
+    const ASTFuncDecl* function;
+    const ASTNode* callback_parameter;
+    const ASTNode* function_parameter;
+    const char* callback_return;
+    const char* function_return;
+    if (!ctx || !callback_slot || !function_slot ||
+        function_slot->kind != SLOT_FUNC ||
+        !function_slot->declaration_node ||
+        (function_slot->declaration_node->type != AST_FUNC_DECL &&
+         function_slot->declaration_node->type != AST_EXTERN_DECL))
+        return 0;
+    callback_type = semantic_callback_type_from_slot(ctx, callback_slot);
+    if (!callback_type) return 0;
+    function = (const ASTFuncDecl*)function_slot->declaration_node;
+    callback_return = semantic_callback_return_type(ctx, callback_slot);
+    function_return = function->return_type ? function->return_type : "void";
+    if (!callback_return || !function_return ||
+        !are_types_compatible(ctx, callback_return, function_return) ||
+        !are_types_compatible(ctx, function_return, callback_return))
+        return 0;
+    callback_parameter = callback_type->params;
+    function_parameter = function->params;
+    while (callback_parameter && function_parameter) {
+        if (callback_parameter->type == AST_VARIADIC_PARAM ||
+            function_parameter->type == AST_VARIADIC_PARAM) {
+            if (callback_parameter->type != AST_VARIADIC_PARAM ||
+                function_parameter->type != AST_VARIADIC_PARAM ||
+                callback_parameter->next || function_parameter->next)
+                return 0;
+            callback_parameter = callback_parameter->next;
+            function_parameter = function_parameter->next;
+            break;
+        }
+        if (callback_parameter->type != AST_VAR_DECL ||
+            function_parameter->type != AST_VAR_DECL) return 0;
+        {
+            const ASTVarDecl* expected =
+                (const ASTVarDecl*)callback_parameter;
+            const ASTVarDecl* actual =
+                (const ASTVarDecl*)function_parameter;
+            if (!expected->name || !actual->name ||
+                strcmp(expected->name, actual->name) != 0 ||
+                !expected->type_name || !actual->type_name ||
+                !are_types_compatible(ctx, expected->type_name, actual->type_name) ||
+                !are_types_compatible(ctx, actual->type_name, expected->type_name) ||
+                (!!expected->initializer != !!actual->initializer))
+                return 0;
+        }
+        callback_parameter = callback_parameter->next;
+        function_parameter = function_parameter->next;
+    }
+    return callback_parameter == NULL && function_parameter == NULL;
+}
+
+
 static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
     if (!ctx || !node) return 0;
     if (node->type == AST_IDENTIFIER) {
