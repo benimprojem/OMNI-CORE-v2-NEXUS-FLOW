@@ -1243,8 +1243,17 @@ static int check_safe_reference_return_lifetime_semantics(void) {
         "v:reference!&i32 = &owner; ret reference; }";
     const char* returning_reference_parameter_preserves_forwarding =
         "f:identity(value!&i32)!&i32 { ret value; }";
-    const char* returning_local_alias_of_reference_parameter_is_rejected =
+    const char* returning_local_alias_of_reference_parameter_is_supported =
         "f:identity(value!&i32)!&i32 { v:local!&i32 = value; ret local; }";
+    const char* returning_local_alias_chain_of_reference_parameter_is_supported =
+        "f:identity(value!&i32)!&i32 { v:first!&i32 = value; "
+        "v:second!&i32 = first; ret second; }";
+    const char* returning_rebound_local_alias_is_rejected =
+        "f:identity(value!&i32, other!&i32)!&i32 { "
+        "v:local!&i32 = value; local = other; ret local; }";
+    const char* forwarding_local_alias_return_preserves_origin =
+        "f:identity(value!&i32)!&i32 { v:local!&i32 = value; ret local; } "
+        "f:forward(value!&i32) { v:copy!&i32 = identity(value); }";
     const char* forwarding_call_preserves_parameter_origin =
         "f:identity(value!&i32)!&i32 { ret value; } "
         "f:forward(value!&i32) { v:local!&i32 = identity(value); }";
@@ -1261,7 +1270,10 @@ static int check_safe_reference_return_lifetime_semantics(void) {
     return check_source(returning_local_reference_is_rejected, 1) &&
         check_source(returning_local_reference_binding_is_rejected, 1) &&
         check_source(returning_reference_parameter_preserves_forwarding, 0) &&
-        check_source(returning_local_alias_of_reference_parameter_is_rejected, 1) &&
+        check_source(returning_local_alias_of_reference_parameter_is_supported, 0) &&
+        check_source(returning_local_alias_chain_of_reference_parameter_is_supported, 0) &&
+        check_source(returning_rebound_local_alias_is_rejected, 1) &&
+        check_source(forwarding_local_alias_return_preserves_origin, 0) &&
         check_source(forwarding_call_preserves_parameter_origin, 0) &&
         check_source(parameter_reference_cannot_escape_to_global, 1) &&
         check_source(local_alias_of_parameter_cannot_escape_to_global, 1) &&
