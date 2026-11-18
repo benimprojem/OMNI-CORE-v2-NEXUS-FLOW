@@ -4878,16 +4878,14 @@ static int semantic_scan_returned_reference_parameter(
                 assignment->left->type == AST_IDENTIFIER) {
                 const char* assigned_name =
                     ((const ASTIdentifier*)assignment->left)->name;
-                SemanticReturnedReferenceAlias** link = aliases;
-                while (*link) {
-                    if ((*link)->name && assigned_name &&
-                        strcmp((*link)->name, assigned_name) == 0) {
-                        SemanticReturnedReferenceAlias* removed = *link;
-                        *link = removed->next;
-                        free(removed);
-                        break;
+                const SemanticReturnedReferenceAlias* alias;
+                for (alias = *aliases; alias; alias = alias->next) {
+                    if (alias->name && assigned_name &&
+                        strcmp(alias->name, assigned_name) == 0) {
+                        /* Rebinding changes the origin; without a full CFG
+                           merge this function's returned-origin inference fails closed. */
+                        return 0;
                     }
-                    link = &(*link)->next;
                 }
             }
         } else if (current->type == AST_BLOCK) {

@@ -1250,7 +1250,9 @@ static int check_safe_reference_return_lifetime_semantics(void) {
         "v:second!&i32 = first; ret second; }";
     const char* returning_rebound_local_alias_is_rejected =
         "f:identity(value!&i32, other!&i32)!&i32 { "
-        "v:local!&i32 = value; local = other; ret local; }";
+        "v:local!&i32 = value; local = other; ret local; } "
+        "f:main(value!&i32, other!&i32) { "
+        "v:copy!&i32 = identity(value, other); }";
     const char* forwarding_local_alias_return_preserves_origin =
         "f:identity(value!&i32)!&i32 { v:local!&i32 = value; ret local; } "
         "f:forward(value!&i32) { v:copy!&i32 = identity(value); }";
