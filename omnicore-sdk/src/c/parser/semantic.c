@@ -4342,8 +4342,8 @@ static int semantic_unify_type_pattern(
         if (strcmp(actual, "t") == 0 || strcmp(actual, "null") == 0)
             return 0;
         if (!*inferred_type) {
-            *inferred_type = actual;
-            return 1;
+            *inferred_type = semantic_intern_full_expression_type(ctx, actual);
+            return *inferred_type != NULL;
         }
         return are_types_compatible(ctx, *inferred_type, actual);
     }
