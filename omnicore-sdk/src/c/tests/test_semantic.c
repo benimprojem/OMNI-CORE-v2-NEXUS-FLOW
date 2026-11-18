@@ -1106,6 +1106,22 @@ static int check_nested_type_variable_semantics(void) {
         check_source(unbound_generic_return_type_is_rejected, 1);
 }
 
+static int check_nested_pointer_and_reference_type_variable_semantics(void) {
+    const char* raw_pointer_type_variable =
+        "f:identity(value!*t)!*t { ret value; } "
+        "f:main(pointer!*i32) { v:copy!*i32 = identity(pointer); }";
+    const char* safe_reference_type_variable =
+        "f:identity(value!&t)!&t { ret value; } "
+        "f:main(owner!i32) { v:copy!&i32 = identity(&owner); "
+        "v:read!i32 = *copy; }";
+    const char* repeated_pointer_type_variable_mismatch =
+        "f:pair(first!*t,second!*t)!*t { ret first; } "
+        "f:main(first!*i32,second!*u32) { v:copy!*i32 = pair(first,second); }";
+    return check_source(raw_pointer_type_variable, 0) &&
+        check_source(safe_reference_type_variable, 0) &&
+        check_source(repeated_pointer_type_variable_mismatch, 1);
+}
+
 static int check_nested_callback_type_variable_semantics(void) {
     const char* nested_callback_parameter_unifies =
         "f:apply(handler!f:(test!f:(value!t)!bool)!bool, "
@@ -3276,6 +3292,10 @@ int main(int argc, char** argv) {
     }
     if (!check_nested_type_variable_semantics()) {
         fprintf(stderr, "Nested type-variable checks failed.\\n");
+        return 1;
+    }
+    if (!check_nested_pointer_and_reference_type_variable_semantics()) {
+        fprintf(stderr, "Nested pointer/reference type-variable checks failed.\\n");
         return 1;
     }
     if (!check_nested_callback_type_variable_semantics()) {
