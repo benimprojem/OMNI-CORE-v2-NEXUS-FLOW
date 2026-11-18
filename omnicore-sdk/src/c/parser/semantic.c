@@ -1112,7 +1112,8 @@ static const char* semantic_callback_return_type(
 );
 static const char* get_expr_type(SemanticContext* ctx, ASTNode* node);
 static ASTNode* semantic_find_type_variable_argument(
-    Slot* function_slot, ASTNode* arguments, uint32_t parameter_offset
+    Slot* function_slot, ASTNode* arguments, uint32_t parameter_offset,
+    const char** out_pattern
 );
 static Slot* semantic_resolve_group_callable(
     SemanticContext* ctx, ASTMemberAccess* access,
