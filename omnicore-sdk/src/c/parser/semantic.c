@@ -7167,10 +7167,16 @@ static void semantic_check_node(
                 }
             }
             if (before_captured) {
-                if (seen_default && merged_captured && all_arms_captured)
+                if (merged_captured && all_arms_captured) {
+                    /* Without a default, no arm may match; include the
+                       unchanged incoming state as an additional control path. */
+                    if (!seen_default)
+                        semantic_reference_init_snapshot_merge(
+                            &merged_arms, &before_arms);
                     semantic_reference_init_snapshot_restore(&merged_arms);
-                else
+                } else {
                     semantic_reference_init_snapshot_restore(&before_arms);
+                }
             }
             semantic_reference_init_snapshot_destroy(&before_arms);
             semantic_reference_init_snapshot_destroy(&merged_arms);
@@ -7250,10 +7256,16 @@ static void semantic_check_node(
                 }
             }
             if (before_captured) {
-                if (seen_else && merged_captured && all_arms_captured)
+                if (merged_captured && all_arms_captured) {
+                    /* Without else, a value may match no arm; include the
+                       unchanged incoming state as an additional path. */
+                    if (!seen_else)
+                        semantic_reference_init_snapshot_merge(
+                            &merged_arms, &before_arms);
                     semantic_reference_init_snapshot_restore(&merged_arms);
-                else
+                } else {
                     semantic_reference_init_snapshot_restore(&before_arms);
+                }
             }
             semantic_reference_init_snapshot_destroy(&before_arms);
             semantic_reference_init_snapshot_destroy(&merged_arms);
@@ -8997,14 +9009,26 @@ static void semantic_check_node(
 
             {
                 SemanticReferenceInitSnapshot before_body = {0};
+                SemanticReferenceInitSnapshot after_body = {0};
                 int captured = semantic_reference_init_snapshot_capture(
                     ctx, &before_body);
+                int after_captured = 0;
                 if (loop->body) semantic_check(ctx, loop->body);
-                /* A loop may execute zero times; body-only assignments do
-                   not definitely initialize an outer reference afterward. */
+                /* A loop may execute zero or more times. Merge the body
+                   state with the incoming state so callback target provenance
+                   cannot be mistaken for a value that survived every path. */
                 if (captured)
+                    after_captured = semantic_reference_init_snapshot_capture(
+                        ctx, &after_body);
+                if (captured && after_captured) {
+                    semantic_reference_init_snapshot_merge(
+                        &after_body, &before_body);
+                    semantic_reference_init_snapshot_restore(&after_body);
+                } else if (captured) {
                     semantic_reference_init_snapshot_restore(&before_body);
+                }
                 semantic_reference_init_snapshot_destroy(&before_body);
+                semantic_reference_init_snapshot_destroy(&after_body);
             }
             if (ctx->loop_depth > 0u) --ctx->loop_depth;
             exit_scope(ctx);

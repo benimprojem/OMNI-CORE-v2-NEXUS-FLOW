@@ -972,6 +972,32 @@ static int check_variadic_argument_safety_semantics(void) {
         check_source(variadic_mutable_reference_is_rejected, 1);
 }
 
+static int check_callback_target_control_flow_merge_semantics(void) {
+    const char* both_if_paths_keep_same_target =
+        "nt:RefGetter = f:(value!&i32)!&i32; "
+        "f:first(value!&i32)!&i32 { ret value; } "
+        "f:main(owner!i32, flag!bool) { v:callback!RefGetter = first; "
+        "if (flag) { callback = first; } els { callback = first; } "
+        "v:result!&i32 = callback(&owner); }";
+    const char* if_paths_choose_different_targets =
+        "nt:RefGetter = f:(value!&i32)!&i32; "
+        "f:first(value!&i32)!&i32 { ret value; } "
+        "f:second(value!&i32)!&i32 { ret value; } "
+        "f:main(owner!i32, flag!bool) { v:callback!RefGetter = first; "
+        "if (flag) { callback = first; } els { callback = second; } "
+        "v:result!&i32 = callback(&owner); }";
+    const char* missing_else_keeps_unknown_target =
+        "nt:RefGetter = f:(value!&i32)!&i32; "
+        "f:first(value!&i32)!&i32 { ret value; } "
+        "f:second(value!&i32)!&i32 { ret value; } "
+        "f:main(owner!i32, flag!bool) { v:callback!RefGetter = first; "
+        "if (flag) { callback = second; } "
+        "v:result!&i32 = callback(&owner); }";
+    return check_source(both_if_paths_keep_same_target, 0) &&
+        check_source(if_paths_choose_different_targets, 1) &&
+        check_source(missing_else_keeps_unknown_target, 1);
+}
+
 static int check_named_callback_reference_return_origin_semantics(void) {
     const char* named_callback_reference_return =
         "nt:RefGetter = f:(value!&i32)!&i32; "
@@ -3146,6 +3172,10 @@ int main(int argc, char** argv) {
     }
     if (!check_variadic_argument_safety_semantics()) {
         fprintf(stderr, "Variadic argument safety checks failed.\\n");
+        return 1;
+    }
+    if (!check_callback_target_control_flow_merge_semantics()) {
+        fprintf(stderr, "Callback target control-flow merge checks failed.\\n");
         return 1;
     }
     if (!check_named_callback_reference_return_origin_semantics()) {
