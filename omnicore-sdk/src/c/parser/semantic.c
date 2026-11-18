@@ -4721,6 +4721,7 @@ static void semantic_validate_call_arguments(
     uint32_t minimum_count;
     ASTNode* argument;
     uint32_t argument_index = 0u;
+    int call_error_baseline;
     ASTFuncDecl* declaration = NULL;
     const char* inferred_type_variable = NULL;
     typedef struct {
@@ -4732,6 +4733,7 @@ static void semantic_validate_call_arguments(
     uint32_t temporary_borrow_count = 0u;
 
     if (!ctx || !function_slot) return;
+    call_error_baseline = ctx->error_count;
     for (argument = arguments; argument; argument = argument->next) {
         ++argument_count;
         if (argument->type != AST_NAMED_ARG) ++positional_count;
@@ -4745,8 +4747,17 @@ static void semantic_validate_call_arguments(
     expected_count = (uint32_t)function_slot->param_count - parameter_offset;
     minimum_count = (uint32_t)function_slot->required_param_count > parameter_offset
         ? (uint32_t)function_slot->required_param_count - parameter_offset : 0u;
-    if (argument_count < minimum_count ||
-        (!function_slot->is_variadic && positional_count > expected_count)) {
+    if (function_slot->declaration_node &&
+        (function_slot->declaration_node->type == AST_FUNC_DECL ||
+         function_slot->declaration_node->type == AST_EXTERN_DECL)) {
+        declaration = (ASTFuncDecl*)function_slot->declaration_node;
+    }
+    if (!function_slot->is_variadic && positional_count > expected_count) {
+        char message[256];
+        snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_COUNT),
+            function_slot->name, (int)expected_count, (int)argument_count);
+        report_error(ctx, call_node, ERR_SEMANTIC_ARG_COUNT, message);
+    } else if (!declaration && argument_count < minimum_count) {
         char message[256];
         snprintf(message, sizeof(message), msg_get(ERR_SEMANTIC_ARG_COUNT),
             function_slot->name, (int)expected_count, (int)argument_count);
@@ -4761,12 +4772,6 @@ static void semantic_validate_call_arguments(
                 "Unable to allocate temporary call-borrow tracking state.");
             return;
         }
-    }
-
-    if (function_slot->declaration_node &&
-        (function_slot->declaration_node->type == AST_FUNC_DECL ||
-         function_slot->declaration_node->type == AST_EXTERN_DECL)) {
-        declaration = (ASTFuncDecl*)function_slot->declaration_node;
     }
 
     {
@@ -4966,6 +4971,58 @@ static void semantic_validate_call_arguments(
                     ctx, argument_value,
                     ((ASTArrayType*)parameter->inline_type)->dimensions,
                     parameter->type_name);
+            }
+        }
+    }
+
+    /* Argument count alone cannot prove that named arguments supplied
+       every required parameter (e.g. f(required, optional=...) called with
+       only optional: value). Verify each required visible parameter by name. */
+    if (declaration && ctx->error_count == call_error_baseline) {
+        uint32_t visible_index;
+        for (visible_index = positional_count;
+             visible_index < minimum_count; ++visible_index) {
+            ASTNode* parameter_node = declaration->params;
+            uint32_t declaration_index = 0u;
+            const char* required_name = NULL;
+            int supplied = 0;
+            while (parameter_node) {
+                if (parameter_node->type == AST_VARIADIC_PARAM) break;
+                if (declaration_index++ >= parameter_offset) {
+                    if (declaration_index - 1u - parameter_offset ==
+                        visible_index) {
+                        if (parameter_node->type == AST_VAR_DECL)
+                            required_name = ((ASTVarDecl*)parameter_node)->name;
+                        break;
+                    }
+                }
+                parameter_node = parameter_node->next;
+            }
+            if (required_name) {
+                ASTNode* supplied_argument;
+                for (supplied_argument = arguments; supplied_argument;
+                     supplied_argument = supplied_argument->next) {
+                    if (supplied_argument->type == AST_NAMED_ARG) {
+                        ASTNamedArg* named = (ASTNamedArg*)supplied_argument;
+                        if (named->name &&
+                            strcmp(named->name, required_name) == 0) {
+                            supplied = 1;
+                            break;
+                        }
+                    }
+                }
+                if (!supplied) {
+                    char message[320];
+                    (void)snprintf(message, sizeof(message),
+                        "Required parameter '%s' is missing from call to '%s'.",
+                        required_name, function_slot->name
+                            ? function_slot->name : "<callable>");
+                    report_issue(ctx, call_node, ERR_SEMANTIC_ARG_COUNT,
+                        message,
+                        "Pass this required parameter positionally or by its declared name; only parameters with defaults may be omitted.",
+                        "Pass this required parameter positionally or by its declared name; only parameters with defaults may be omitted.",
+                        0, 0);
+                }
             }
         }
     }
