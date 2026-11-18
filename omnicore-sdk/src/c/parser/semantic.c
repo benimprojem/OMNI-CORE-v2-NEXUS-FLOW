@@ -6925,8 +6925,24 @@ static void semantic_check_node(
                 } else if (target_slot &&
                     semantic_is_function_type_name(ctx, target_slot->type_name)) {
                     const char* source_type = get_expr_type(ctx, assign->right);
-                    if (source_type &&
-                        are_types_compatible(ctx, target_slot->type_name, source_type) &&
+                    int compatible_function_value = 0;
+                    if (assign->right->type == AST_IDENTIFIER) {
+                        Slot* source_slot = find_slot(ctx,
+                            ((ASTIdentifier*)assign->right)->name);
+                        if (source_slot && source_slot->kind == SLOT_FUNC) {
+                            compatible_function_value =
+                                semantic_function_matches_callback_type(
+                                    ctx, target_slot, source_slot);
+                        } else if (source_slot &&
+                            semantic_is_function_type_name(ctx, source_slot->type_name)) {
+                            compatible_function_value =
+                                are_types_compatible(ctx, target_slot->type_name,
+                                    source_slot->type_name);
+                        }
+                    }
+                    if ((compatible_function_value ||
+                         (source_type && are_types_compatible(
+                            ctx, target_slot->type_name, source_type))) &&
                         ctx->error_count == assignment_error_baseline) {
                         target_slot->is_initialized = 1u;
                         target_slot->is_nullable =
