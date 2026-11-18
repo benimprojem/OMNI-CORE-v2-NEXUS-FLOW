@@ -924,6 +924,43 @@ static int check_pointer_reference_type_semantics(void) {
         check_source(pointer_bitwise_assignment, 0);
 }
 
+static int check_named_function_callback_value_semantics(void) {
+    const char* exact_named_function_value =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:is_even(id!u32)!bool { ret true; } "
+        "f:main() { v:callback!Callback = is_even; callback(2); }";
+    const char* exact_direct_callback_value =
+        "f:check(id!u32)!bool { ret true; } "
+        "f:main() { v:callback!f:(id!u32)!bool = check; callback(2); }";
+    const char* mismatched_parameter_type =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:check(id!i32)!bool { ret true; } "
+        "f:main() { v:callback!Callback = check; }";
+    const char* mismatched_return_type =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:check(id!u32)!i32 { ret 1; } "
+        "f:main() { v:callback!Callback = check; }";
+    const char* mismatched_parameter_name =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:check(value!u32)!bool { ret true; } "
+        "f:main() { v:callback!Callback = check; }";
+    const char* callback_reassignment_from_function =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:first(id!u32)!bool { ret true; } "
+        "f:second(id!u32)!bool { ret false; } "
+        "f:main() { v:callback!Callback = first; callback = second; callback(3); }";
+    const char* lambda_assignment_fails_closed =
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:main() { v:callback!Callback = >(id!u32) { ret true; }; }";
+    return check_source(exact_named_function_value, 0) &&
+        check_source(exact_direct_callback_value, 0) &&
+        check_source(mismatched_parameter_type, 1) &&
+        check_source(mismatched_return_type, 1) &&
+        check_source(mismatched_parameter_name, 1) &&
+        check_source(callback_reassignment_from_function, 0) &&
+        check_source(lambda_assignment_fails_closed, 1);
+}
+
 static int check_callback_function_type_semantics(void) {
     const char* direct_callback_parameter =
         "f:apply(callback!f:(id!u32)!bool,id!u32)!bool { ret callback(id); }";
@@ -3050,6 +3087,10 @@ int main(int argc, char** argv) {
     }
     if (!check_pointer_reference_type_semantics()) {
         fprintf(stderr, "Pointer/reference compatibility checks failed.\n");
+        return 1;
+    }
+    if (!check_named_function_callback_value_semantics()) {
+        fprintf(stderr, "Named function callback value checks failed.\\n");
         return 1;
     }
     if (!check_callback_function_type_semantics()) {

@@ -5924,6 +5924,25 @@ static void semantic_check_node(
                             "Array declarators require an array initializer.");
                     }
                 } else if (decl->type_name) {
+                    int named_function_initializer = 0;
+                    if (declared_slot &&
+                        semantic_is_function_type_name(ctx, declared_slot->type_name) &&
+                        decl->initializer->type == AST_IDENTIFIER) {
+                        Slot* function_slot = find_slot(ctx,
+                            ((ASTIdentifier*)decl->initializer)->name);
+                        if (function_slot && function_slot->kind == SLOT_FUNC) {
+                            named_function_initializer = 1;
+                            if (!semantic_function_matches_callback_type(
+                                    ctx, declared_slot, function_slot)) {
+                                report_issue(ctx, decl->initializer,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Named function does not match the callback parameter names, parameter types, optionality, variadic contract, or return type.",
+                                    "Use a function whose complete signature matches the callback type, including parameter names used by named calls.",
+                                    "Use a function whose complete signature matches the callback type, including parameter names used by named calls.",
+                                    0, 0);
+                            }
+                        }
+                    }
                     size_t vector_dimension = 0u;
                     if (semantic_vector_dimension(decl->type_name,
                             &vector_dimension) &&
@@ -5931,7 +5950,7 @@ static void semantic_check_node(
                         decl->initializer->type == AST_ARRAY_LITERAL) {
                         semantic_validate_vector_initializer(
                             ctx, node, decl->type_name, decl->initializer);
-                    } else if (init_type &&
+                    } else if (!named_function_initializer && init_type &&
                         !are_types_compatible(ctx, decl->type_name, init_type)) {
                         int coercion_status =
                             semantic_hard_representation_coercion_status(
@@ -6535,7 +6554,26 @@ static void semantic_check_node(
                 }
                 if (slot && slot->type_name) {
                     const char* right_type = get_expr_type(ctx, assign->right);
-                    if (right_type && !are_types_compatible(ctx, slot->type_name, right_type)) {
+                    int named_function_assignment = 0;
+                    if (semantic_is_function_type_name(ctx, slot->type_name) &&
+                        assign->right->type == AST_IDENTIFIER) {
+                        Slot* function_slot = find_slot(ctx,
+                            ((ASTIdentifier*)assign->right)->name);
+                        if (function_slot && function_slot->kind == SLOT_FUNC) {
+                            named_function_assignment = 1;
+                            if (!semantic_function_matches_callback_type(
+                                    ctx, slot, function_slot)) {
+                                report_issue(ctx, assign->right,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Named function does not match the callback parameter names, parameter types, optionality, variadic contract, or return type.",
+                                    "Assign a function whose complete signature matches the callback type.",
+                                    "Assign a function whose complete signature matches the callback type.",
+                                    0, 0);
+                            }
+                        }
+                    }
+                    if (!named_function_assignment && right_type &&
+                        !are_types_compatible(ctx, slot->type_name, right_type)) {
                         char message[320];
                         (void)snprintf(message, sizeof(message),
                             "Operator '%s' cannot assign value of type '%s' to '%s' of type '%s'.",

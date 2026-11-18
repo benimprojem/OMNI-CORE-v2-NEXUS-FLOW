@@ -1482,6 +1482,8 @@ f:apply(callback!f:(id!u32)!bool, id!u32)!bool {
 
 `callback`, belirtilen imzaya sahip fonksiyon adresini taşır. Çağrı sırasında fonksiyon gövdesi değil, bu adres üzerinden çağrılabilir hedef kullanılır. Fonksiyon adresinin ABI/calling-convention temsili ve imza uyumluluğu Semantic/ABI aşamalarında doğrulanacaktır.
 
+- **Callback değerleri:** Bir named function, `f:(...)!R` veya aynı imzalı NewType callback binding'ine atanabilir. Parametre sayısı/sırası, parametre adları (named argument çağrıları için), türleri, optional parametre yapısı, variadic konumu ve dönüş türü eşleşmelidir. Function designator'ın ifade türü dönüş türü olarak raporlandığından, atama kontrolü doğrudan function declaration imzasını karşılaştırır. İmzası eşleşmeyen fonksiyon reddedilir. Lambda/closure assignment henüz desteklenmez ve callback türüne atanması fail-closed reddedilir; bu, lambda gövdesinin bağımsız Semantic kontrolünden ayrıdır.
+
 **3. İç içe callback türü**
 
 Bir callback'in parametresi de fonksiyon türü olabilir:
