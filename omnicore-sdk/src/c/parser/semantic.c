@@ -4507,7 +4507,10 @@ static int semantic_unify_type_pattern(
             ctx, pattern, actual, inferred_type);
     }
     if (strcmp(pattern, "t") == 0) {
-        if (strcmp(actual, "t") == 0 || strcmp(actual, "null") == 0 ||
+        /* A generic function may forward an unresolved type variable from one
+           parameter into another callback parameter without binding it yet. */
+        if (strcmp(actual, "t") == 0) return 1;
+        if (strcmp(actual, "null") == 0 ||
             semantic_type_contains_safe_reference(ctx, actual, 0u))
             return 0;
         if (!*inferred_type) {
