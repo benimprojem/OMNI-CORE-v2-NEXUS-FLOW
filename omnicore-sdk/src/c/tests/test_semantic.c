@@ -837,28 +837,28 @@ static int check_pointer_reference_type_semantics(void) {
     const char* exact_pointer =
         "f:take(value!*i32) {} f:main() { v:a!*i32 = null; v:b!*i32 = null; a = b; take(a); }";
     const char* pointer_base_mismatch =
-        "f:take(value!*i32) {} f:main() { v:a!*f32; take(a); }";
+        "f:take(value!*i32) {} f:main(a!*f32) { take(a); }";
     const char* pointer_depth_mismatch =
-        "f:take(value!**i32) {} f:main() { v:a!*i32; take(a); }";
+        "f:take(value!**i32) {} f:main(a!*i32) { take(a); }";
     const char* pointer_reference_mismatch =
-        "f:take(value!&i32) {} f:main() { v:a!*i32; take(a); }";
+        "f:take(value!&i32) {} f:main(a!*i32) { take(a); }";
     const char* exact_reference =
         "f:take(value!&i32) {} f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; take(a); }";
     const char* reference_base_mismatch =
         "f:take(value!&i32) {} f:main(owner!f32) { v:a!&f32 = &owner; take(a); }";
     const char* exact_nested_pointer_assignment =
-        "f:main() { v:a!**i32; v:b!**i32; a = b; }";
+        "f:main(a!**i32, b!**i32) { a = b; }";
     const char* nested_pointer_depth_mismatch =
-        "f:main() { v:a!**i32; v:b!*i32; a = b; }";
+        "f:main(a!**i32, b!*i32) { a = b; }";
     const char* exact_reference_assignment =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; v:a!&i32 = &first; v:b!&i32 = &second; a = b; }";
     const char* pointer_integer_mismatch =
-        "f:take(value!*i32) {} f:main() { v:address!u64; take(address); }";
+        "f:take(value!*i32) {} f:main(address!u64) { take(address); }";
     const char* unknown_nested_pointer_target =
         "f:take(value!**MissingType) {} f:main() {}";
     const char* exact_pointer_return =
         "f:identity(value!*i32)!*i32 { ret value; } "
-        "f:main() { v:p!*i32; v:q!*i32 = identity(p); }";
+        "f:main(p!*i32) { v:q!*i32 = identity(p); }";
     const char* pointer_return_base_mismatch =
         "f:identity(value!*i32)!*f32 { ret value; } f:main() {}";
     const char* exact_reference_return =
@@ -866,15 +866,15 @@ static int check_pointer_reference_type_semantics(void) {
     const char* reference_return_base_mismatch =
         "f:identity(value!&i32)!&f32 { ret value; } f:main() {}";
     const char* pointer_dereference =
-        "f:main() { v:p!*i32; v:value!i32 = *p; }";
+        "f:main(p!*i32) { v:value!i32 = *p; }";
     const char* nested_pointer_dereference =
-        "f:main() { v:p!**i32; v:q!*i32 = *p; v:value!i32 = **p; }";
+        "f:main(p!**i32) { v:q!*i32 = *p; v:value!i32 = **p; }";
     const char* non_pointer_dereference =
         "f:main() { v:value!i32 = 4; v:bad!i32 = *value; }";
     const char* pointer_dereference_assignment =
-        "f:main() { v:p!*i32; *p = 7; }";
+        "f:main(p!*i32) { *p = 7; }";
     const char* pointer_dereference_assignment_mismatch =
-        "f:main() { v:p!*i32; *p = \"wrong\"; }";
+        "f:main(p!*i32) { *p = \"wrong\"; }";
     const char* reference_dereference =
         "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; v:value!i32 = *r; }";
     const char* reference_dereference_assignment =
@@ -882,7 +882,7 @@ static int check_pointer_reference_type_semantics(void) {
     const char* reference_compound_assignment =
         "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r += 1; }";
     const char* pointer_compound_assignment =
-        "f:main() { v:p!*i32; *p += 1; }";
+        "f:main(p!*i32) { *p += 1; }";
     const char* reference_subtract_assignment =
         "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r -= 1; }";
     const char* reference_multiply_assignment =
@@ -892,7 +892,7 @@ static int check_pointer_reference_type_semantics(void) {
     const char* reference_bitwise_assignment =
         "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r &= 1; }";
     const char* pointer_bitwise_assignment =
-        "f:main() { v:p!*i32; *p &= 1; }";
+        "f:main(p!*i32) { *p &= 1; }";
     return check_source(exact_pointer, 0) &&
         check_source(pointer_base_mismatch, 1) &&
         check_source(pointer_depth_mismatch, 1) &&
