@@ -1229,10 +1229,10 @@ static int check_safe_reference_return_lifetime_semantics(void) {
     const char* parameter_reference_cannot_escape_to_global =
         "v:global_owner!i32 = 0; v:global_ref!&i32 = &global_owner; f:store(value!&i32) { global_ref = value; }";
     const char* local_alias_of_parameter_cannot_escape_to_global =
-        "v:global_ref!&i32; f:store(value!&i32) { "
+        "v:global_owner!i32 = 0; v:global_ref!&i32 = &global_owner; f:store(value!&i32) { "
         "v:local!&i32 = value; global_ref = local; }";
     const char* returned_call_reference_cannot_escape_to_global =
-        "v:global_ref!&i32; "
+        "v:global_owner!i32 = 0; v:global_ref!&i32 = &global_owner; "
         "f:identity(value!&i32)!&i32 { ret value; } "
         "f:store(value!&i32) { v:local!&i32 = identity(value); "
         "global_ref = local; }";
