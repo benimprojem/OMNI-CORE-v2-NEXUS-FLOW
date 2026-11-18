@@ -957,6 +957,21 @@ static int check_named_function_callback_value_semantics(void) {
         check_source(callback_reassignment_from_function, 0);
 }
 
+static int check_variadic_argument_safety_semantics(void) {
+    const char* variadic_values_are_allowed =
+        "f:consume(...) {} f:main() { consume(1, 2.0, true, \"text\"); }";
+    const char* variadic_raw_pointer_is_explicitly_allowed =
+        "f:consume(...) {} f:main(pointer!*i32) { consume(pointer); }";
+    const char* variadic_safe_reference_is_rejected =
+        "f:consume(...) {} f:main(owner!i32) { consume(&owner); }";
+    const char* variadic_mutable_reference_is_rejected =
+        "f:consume(...) {} f:main(owner!i32) { consume(&mut owner); }";
+    return check_source(variadic_values_are_allowed, 0) &&
+        check_source(variadic_raw_pointer_is_explicitly_allowed, 0) &&
+        check_source(variadic_safe_reference_is_rejected, 1) &&
+        check_source(variadic_mutable_reference_is_rejected, 1);
+}
+
 static int check_callback_function_type_semantics(void) {
     const char* direct_callback_parameter =
         "f:apply(callback!f:(id!u32)!bool,id!u32)!bool { ret callback(id); }";
@@ -3106,6 +3121,10 @@ int main(int argc, char** argv) {
     }
     if (!check_named_function_callback_value_semantics()) {
         fprintf(stderr, "Named function callback value checks failed.\\n");
+        return 1;
+    }
+    if (!check_variadic_argument_safety_semantics()) {
+        fprintf(stderr, "Variadic argument safety checks failed.\\n");
         return 1;
     }
     if (!check_callback_function_type_semantics()) {

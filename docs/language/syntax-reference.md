@@ -550,6 +550,7 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 * `.(nokta)` :  Grup/Namespace çözümleyici.Üye erişimi (Metot veya özellik).
 * `..` : Aralık (Range) belirtme; iki uç da dahildir (`1..10` = 1, 2, …, 10; toplam 10 değer). Tek bir aralık ifadesinde ikinci `..` kullanılamaz; aralık zincirleme yazımı geçersizdir.
 * `...` : Fonksiyonlar için çoklu prametre
+- **Variadic güvenlik sınırı:** `...` yalnızca ABI tarafından tanımlanan düz değerleri ve açıkça yönetilen raw pointer'ları kabul eder. Safe reference (`&T`, `&mut T`) veya içinde safe reference taşıyan bir değer variadic argüman olarak geçirilemez; variadic imzada parametreye özgü borrow/lifetime sözleşmesi bulunmaz. Safe reference gerekiyorsa typed parameter kullanılmalıdır.
 * `.=` : String birleştirme operatörü. Mevcut string'e yeni string ekler.
 
 **Legacy unpack notu:** Eski `(data) ...> (h)` biçimi aktif Nexus Flow operatörü değildir ve Core Parser tarafından reddedilir. Aynı amaç gerekirse özel sembol yerine normal bir modül fonksiyonu olarak tasarlanacaktır (önerilen ad: `coremodule.unpack(data)`). Bu fonksiyonun veri biçimi, dönüş türü ve hata sözleşmesi tanımlanmadan standart API kabul edilmeyecektir. Dosya açma/okuma, veri çözme ve normalizasyon ayrı sorumluluklardır. `AST_UNPACK` kimliği codec uyumluluğu için ayrılmıştır; Parser bu düğümü üretmez.

@@ -4735,6 +4735,16 @@ static void semantic_validate_call_arguments(
                 parameter_index<(uint32_t)function_slot->param_count
                     ? function_slot->param_types[parameter_index] : NULL;
 
+            if (function_slot->is_variadic &&
+                parameter_index >= (uint32_t)function_slot->param_count &&
+                semantic_type_contains_safe_reference(ctx, argument_type, 0u)) {
+                report_issue(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
+                    "A variadic argument cannot carry a safe reference or a value that contains one; the variadic call contract has no element-level lifetime tracking.",
+                    "Pass a value type or an explicitly managed raw pointer. Use a typed reference parameter when the callee needs a safe reference.",
+                    "Pass a value type or an explicitly managed raw pointer. Use a typed reference parameter when the callee needs a safe reference.",
+                    0, 0);
+            }
+
             /* A direct &owner / &mut owner argument borrows for the duration
                of this call. Reference identifiers already carry a binding. */
             if (expected_type && argument_value &&
