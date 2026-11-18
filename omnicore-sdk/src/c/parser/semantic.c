@@ -1111,6 +1111,14 @@ static const char* semantic_callback_return_type(
     SemanticContext* ctx, const Slot* slot
 );
 static const char* get_expr_type(SemanticContext* ctx, ASTNode* node);
+static int semantic_type_pattern_contains_variable(const char* pattern);
+static int semantic_unify_type_pattern(
+    SemanticContext* ctx, const char* pattern, const char* actual,
+    const char** inferred_type
+);
+static const char* semantic_substitute_type_variable(
+    SemanticContext* ctx, const char* pattern, const char* inferred_type
+);
 static ASTNode* semantic_find_type_variable_argument(
     Slot* function_slot, ASTNode* arguments, uint32_t parameter_offset,
     const char** out_pattern
