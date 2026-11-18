@@ -6145,6 +6145,18 @@ static void semantic_check_node(
                     declared_slot->is_initialized = 1u;
                     declared_slot->is_nullable = 1u;
                 }
+            } else if (declared_slot &&
+                semantic_is_function_type_name(ctx, declared_slot->type_name)) {
+                if (decl->initializer &&
+                    ctx->error_count == initializer_error_baseline) {
+                    declared_slot->is_initialized = 1u;
+                    declared_slot->is_nullable =
+                        (uint8_t)semantic_expression_may_be_null(
+                            ctx, decl->initializer);
+                } else if (!decl->initializer && declared_slot->depth == 0) {
+                    declared_slot->is_initialized = 1u;
+                    declared_slot->is_nullable = 1u;
+                }
             }
 
             if (declared_slot) {
