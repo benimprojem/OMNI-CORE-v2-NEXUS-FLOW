@@ -1354,7 +1354,8 @@ static int semantic_type_contains_safe_reference(
     const char* raw_type = type_name;
     Slot* type_slot;
     FieldInfo* field;
-    if (!ctx || !raw_type || depth > 64u) return 0;
+    if (!ctx || !raw_type) return 0;
+    if (depth > 64u) return 1; /* Cyclic/deep type graphs fail closed. */
     while (*raw_type == '!') ++raw_type;
     if (semantic_is_reference_type_name(raw_type)) return 1;
     if (strncmp(raw_type, "array|", 6u) == 0) {
