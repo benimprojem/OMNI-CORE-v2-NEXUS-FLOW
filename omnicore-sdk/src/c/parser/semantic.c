@@ -5916,7 +5916,8 @@ static void semantic_check_node(
                 }
             }
 
-            if (declared_slot && decl->initializer) {
+            if (declared_slot && decl->initializer &&
+                ctx->error_count == initializer_error_baseline) {
                 semantic_register_borrow_binding(
                     ctx, declared_slot, decl->initializer);
             }
@@ -6668,8 +6669,10 @@ static void semantic_check_node(
                         if (assign->right->type == AST_UNARY_EXPR &&
                             (((ASTUnaryExpr*)assign->right)->op == TOKEN_BIT_AND ||
                              ((ASTUnaryExpr*)assign->right)->op == TOKEN_BORROW_MUT)) {
-                            semantic_register_borrow_binding(
-                                ctx, target_slot, assign->right);
+                            if (ctx->error_count == assignment_error_baseline) {
+                                semantic_register_borrow_binding(
+                                    ctx, target_slot, assign->right);
+                            }
                         } else if (assign->right->type == AST_IDENTIFIER) {
                             ASTIdentifier* source_id = (ASTIdentifier*)assign->right;
                             Slot* source_slot = find_slot(ctx, source_id->name);
