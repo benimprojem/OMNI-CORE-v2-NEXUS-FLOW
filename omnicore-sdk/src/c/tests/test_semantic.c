@@ -961,13 +961,16 @@ static int check_reference_initialization_control_flow_semantics(void) {
         "select(choice) { 1 -> { reference = &owner; } } "
         "v:value!i32 = *reference; }";
     const char* scan_else_initializes_all_paths =
-        "f:main(choice!i32, owner!i32) { v:reference!&i32; "
-        "scan(choice) { 1 -> { reference = &owner; } "
+        "enum:State { Ready, Empty } "
+        "f:main(choice!State, owner!i32) { v:reference!&i32; "
+        "scan(choice) { Ready -> { reference = &owner; }, "
         "else -> { reference = &owner; } } "
         "v:value!i32 = *reference; }";
     const char* scan_without_else_does_not_initialize =
-        "f:main(choice!i32, owner!i32) { v:reference!&i32; "
-        "scan(choice) { 1 -> { reference = &owner; } } "
+        "enum:State { Ready, Empty } "
+        "f:main(choice!State, owner!i32) { v:reference!&i32; "
+        "scan(choice) { Ready -> { reference = &owner; }, "
+        "Empty -> { reference = &owner; } } "
         "v:value!i32 = *reference; }";
     return check_source(return_branch_does_not_block_other_path, 0) &&
         check_source(select_default_initializes_all_paths, 0) &&
