@@ -36,6 +36,17 @@ typedef struct OccSemanticImportedSymbol {
     const char* name;
 } OccSemanticImportedSymbol;
 
+typedef struct OccSemanticImportedRelation {
+    uint32_t owner_source_symbol_id;
+    uint32_t related_source_symbol_id;
+    uint32_t related_node_id;
+    uint32_t type_id;
+    uint32_t ordinal;
+    uint16_t kind;
+    uint16_t flags;
+    const char* name;
+} OccSemanticImportedRelation;
+
 typedef struct OccSemanticImportedType {
     uint32_t source_type_id;
     uint32_t referenced_symbol_id;
@@ -90,6 +101,24 @@ OccSemanticImportEnvironmentStatus occ_semantic_import_environment_find_symbol(
     size_t binding_index,
     const char* name,
     OccSemanticImportedSymbol* out_symbol
+);
+
+/* Bounded read-only enumeration of relations belonging to one imported symbol. */
+OccSemanticImportEnvironmentStatus occ_semantic_import_environment_get_relation_count(
+    const OccSemanticImportEnvironment* environment,
+    size_t binding_index,
+    uint32_t owner_source_symbol_id,
+    uint16_t relation_kind,
+    size_t* out_count
+);
+
+OccSemanticImportEnvironmentStatus occ_semantic_import_environment_get_relation_at(
+    const OccSemanticImportEnvironment* environment,
+    size_t binding_index,
+    uint32_t owner_source_symbol_id,
+    uint16_t relation_kind,
+    size_t relation_index,
+    OccSemanticImportedRelation* out_relation
 );
 
 OccSemanticImportEnvironmentStatus occ_semantic_import_environment_find_type(
