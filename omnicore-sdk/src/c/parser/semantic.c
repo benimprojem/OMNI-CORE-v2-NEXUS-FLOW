@@ -5361,6 +5361,7 @@ static const char* semantic_resolve_imported_call(
             "The imported function has no valid return-type metadata.",
             "Rebuild the module interface from a finalized SemanticResult.");
     result_type = return_type.name;
+    if (!validate_arguments) return result_type;
     if (occ_semantic_import_environment_get_relation_count(
             ctx->import_environment, binding_index, symbol.source_symbol_id,
             SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
