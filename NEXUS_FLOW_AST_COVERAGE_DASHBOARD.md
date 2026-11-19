@@ -1081,3 +1081,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - [ ] Broader unqualified import injection and imported type/value collision policy remain pending.
 - Latest resolver/test commits: `78c92db949baf68a9040e1e59150d03d9fa07082`, `1fe4d59be79650064861c778116fe4fc9feeff64`.
 - No CI result is available for the current head; the checkbox above records code/test addition only, not runtime verification.
+
+
+### Imported reference-return safety — 2026-11-19
+
+- [x] Reject imported functions whose return type is a safe reference or callback contract containing safe references when cross-module return-origin metadata is absent.
+- [x] Recursively inspect imported type base chains and aggregate-field relation metadata; fail closed for missing/unpublished nominal return-type metadata and malformed symbol tables.
+- [x] Added direct regression for an imported `&i32` return.
+- [ ] Run the direct Semantic tests, full platform/sanitizer CI and real Semantic Stage DLL import integration tests. No CI run/status is available for the current branch head; these checkboxes record implementation/test additions only.
