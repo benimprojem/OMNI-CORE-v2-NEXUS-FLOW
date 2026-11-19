@@ -1049,3 +1049,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added a regression that rejects passing a reference-bearing callback contract through any. Existing tests cover the local callback control-flow case and extern callback boundary.
 - Commits: 4b27cc6bed4c44a7416385a45a1eb3bfe5bb92d4, b83088b8a5224b043810796128ee4df78bdf2e74, c927e06f76a12a064df5b84441e8580aeb92a57b, 6f3f1358a6a7715fb6aa957722e08e0f384b382d.
 - This correction is awaiting exact-head CI; Semantic and SEM-001 remain open.
+
+
+### Callback ABI boundary recursion — 2026-11-19
+
+- ABI boundary detection now recursively inspects NewType aliases and aggregate/array members for either safe-reference storage or callback signatures containing safe references. Storage classification remains separate, so a local callback type is not rejected merely because its signature contains &.
+- any arguments retain AST expression traversal (including tuple/aggregate contents) and additionally reject reference-bearing callback contracts.
+- Added aggregate extern regression: a struct containing a callback NewType with a safe-reference parameter cannot cross an extern boundary.
+- Commits: ab83d6a97eadc69e8dd838662855c8835c1c128c; 83fa8fdda04200a24f674e0c42a1b17b43b88158.
+- Exact-head CI remains pending; SEM-001 and Semantic are open.
