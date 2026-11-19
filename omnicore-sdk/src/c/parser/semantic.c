@@ -5282,7 +5282,9 @@ static int semantic_imported_type_contains_safe_reference(
         if (occ_semantic_import_environment_get_binding(
                 environment, binding_index, &binding) !=
                 OCC_SEMANTIC_IMPORT_ENV_OK ||
-            !binding.module_interface)
+            !binding.module_interface ||
+            (binding.module_interface->symbol_count &&
+             !binding.module_interface->symbols))
             return 1;
         for (symbol_index = 0u;
              symbol_index < binding.module_interface->symbol_count;
