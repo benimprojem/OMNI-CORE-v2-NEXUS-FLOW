@@ -95,17 +95,21 @@ static int check_imported_function_call_semantics(void) {
         "use math as m; f:main() { v:sum!i32 = m.add(10, 20); }";
     const char* named_source =
         "use math as m; f:main() { v:sum!i32 = m.add(right:20, left:10); }";
+    const char* namespace_source =
+        "use math ns mathns; f:main() { v:sum!i32 = mathns.add(10, 20); }";
     const char* wrong_type_source =
         "use math as m; f:main() { v:sum!i32 = m.add(10, \"bad\"); }";
     const char* missing_symbol_source =
         "use math as m; f:main() { m.missing(10, 20); }";
     const char* wrong_count_source =
         "use math as m; f:main() { m.add(10); }";
+    const char* hidden_symbol_source =
+        "use math as m; f:main() { m.add(10, 20); }";
     const char* sources[] = {
-        valid_source, named_source, wrong_type_source,
-        missing_symbol_source, wrong_count_source
+        valid_source, named_source, namespace_source, wrong_type_source,
+        missing_symbol_source, wrong_count_source, hidden_symbol_source
     };
-    const int expected_errors[] = {0, 0, 1, 1, 1};
+    const int expected_errors[] = {0, 0, 0, 1, 1, 1, 1};
     size_t source_index;
     memset(&symbol, 0, sizeof(symbol));
     memset(&type, 0, sizeof(type));
@@ -145,6 +149,7 @@ static int check_imported_function_call_semantics(void) {
     binding.requested_path = "math";
     binding.dependency_identity = "file:///lib/math.nxf";
     binding.alias = "m";
+    binding.namespace_name = "mathns";
     binding.module_interface = &module_interface;
     environment.bindings = &binding;
     environment.binding_count = 1u;
@@ -165,6 +170,8 @@ static int check_imported_function_call_semantics(void) {
             return 0;
         }
         semantic_init(&semantic, "semantic-import-call.nxf", NULL);
+        symbol.flags = source_index == 6u
+            ? 0u : SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED;
         semantic_attach_import_environment(&semantic, &environment);
         semantic_check(&semantic, (ASTNode*)parser->ast_root);
         ok = semantic.error_count == expected_errors[source_index];
