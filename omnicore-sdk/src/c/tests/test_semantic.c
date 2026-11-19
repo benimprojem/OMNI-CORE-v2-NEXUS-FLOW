@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "ast.h"
 #include "semantic.h"
+#include "../semantic/semantic_import_environment.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,6 +81,109 @@ static int check_source(const char* source, int expected_errors) {
     semantic_destroy(&semantic);
     parser_destroy(parser);
     return ok;
+}
+
+
+static int check_imported_function_call_semantics(void) {
+    OccModuleInterfaceSymbol symbol;
+    OccModuleInterfaceType type;
+    OccModuleInterfaceRelation relations[2];
+    OccModuleInterface module_interface;
+    OccSemanticImportEnvironmentBinding binding;
+    OccSemanticImportEnvironment environment;
+    const char* valid_source =
+        "use math as m; f:main() { v:sum!i32 = m.add(10, 20); }";
+    const char* named_source =
+        "use math as m; f:main() { v:sum!i32 = m.add(right:20, left:10); }";
+    const char* wrong_type_source =
+        "use math as m; f:main() { v:sum!i32 = m.add(10, \"bad\"); }";
+    const char* missing_symbol_source =
+        "use math as m; f:main() { m.missing(10, 20); }";
+    const char* wrong_count_source =
+        "use math as m; f:main() { m.add(10); }";
+    const char* sources[] = {
+        valid_source, named_source, wrong_type_source,
+        missing_symbol_source, wrong_count_source
+    };
+    const int expected_errors[] = {0, 0, 1, 1, 1};
+    size_t source_index;
+    memset(&symbol, 0, sizeof(symbol));
+    memset(&type, 0, sizeof(type));
+    memset(relations, 0, sizeof(relations));
+    memset(&module_interface, 0, sizeof(module_interface));
+    memset(&binding, 0, sizeof(binding));
+    memset(&environment, 0, sizeof(environment));
+
+    symbol.source_symbol_id = 4u;
+    symbol.type_id = 1u;
+    symbol.kind = SEMANTIC_RESULT_SYMBOL_FUNCTION;
+    symbol.flags = SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED;
+    symbol.name = "add";
+    type.source_type_id = 1u;
+    type.kind = SEMANTIC_RESULT_TYPE_PRIMITIVE;
+    type.name = "i32";
+    relations[0].owner_source_symbol_id = 4u;
+    relations[0].type_id = 1u;
+    relations[0].ordinal = 0u;
+    relations[0].kind = SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER;
+    relations[0].name = "left";
+    relations[1].owner_source_symbol_id = 4u;
+    relations[1].type_id = 1u;
+    relations[1].ordinal = 1u;
+    relations[1].kind = SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER;
+    relations[1].name = "right";
+    module_interface.canonical_identity = "file:///lib/math.nxf";
+    module_interface.schema_major = OCC_MODULE_INTERFACE_SCHEMA_MAJOR;
+    module_interface.schema_minor = OCC_MODULE_INTERFACE_SCHEMA_MINOR;
+    module_interface.symbols = &symbol;
+    module_interface.symbol_count = 1u;
+    module_interface.types = &type;
+    module_interface.type_count = 1u;
+    module_interface.relations = relations;
+    module_interface.relation_count = 2u;
+    binding.use_ordinal = 1u;
+    binding.requested_path = "math";
+    binding.dependency_identity = "file:///lib/math.nxf";
+    binding.alias = "m";
+    binding.module_interface = &module_interface;
+    environment.bindings = &binding;
+    environment.binding_count = 1u;
+
+    for (source_index = 0u;
+         source_index < sizeof(sources) / sizeof(sources[0]);
+         ++source_index) {
+        ParserContext* parser = parser_init_source(
+            "semantic-import-call.nxf",
+            (const uint8_t*)sources[source_index],
+            strlen(sources[source_index]));
+        SemanticContext semantic;
+        int ok;
+        if (!parser || parser_run(parser) != 0 || !parser->ast_root) {
+            fprintf(stderr, "Parser rejected imported-call fixture: %s\n",
+                sources[source_index]);
+            if (parser) parser_destroy(parser);
+            return 0;
+        }
+        semantic_init(&semantic, "semantic-import-call.nxf", NULL);
+        semantic_attach_import_environment(&semantic, &environment);
+        semantic_check(&semantic, (ASTNode*)parser->ast_root);
+        ok = semantic.error_count == expected_errors[source_index];
+        if (!ok) {
+            Error* error;
+            fprintf(stderr,
+                "Imported-call semantic mismatch: expected=%d actual=%d source=%s\n",
+                expected_errors[source_index], semantic.error_count,
+                sources[source_index]);
+            for (error = semantic.error_head; error; error = error->next)
+                fprintf(stderr, "  semantic error %d at %d:%d: %s\n",
+                    error->code, error->line, error->col,
+                    error->message ? error->message : "(null)");
+        }
+        semantic_destroy(&semantic);
+        parser_destroy(parser);
+        if (!ok) return 0;
+    }
+    return 1;
 }
 
 static int check_control_flow_semantics(void) {
@@ -3281,6 +3385,11 @@ static int check_program_and_block_scope_semantics(void) {
 }
 
 int main(int argc, char** argv) {
+    if (!check_imported_function_call_semantics()) {
+        fprintf(stderr, "Qualified imported function call checks failed.\\n");
+        return 1;
+    }
+
     if (!check_program_and_block_scope_semantics()) {
         fprintf(stderr, "Program/block declaration scope checks failed.\\n");
         return 1;
