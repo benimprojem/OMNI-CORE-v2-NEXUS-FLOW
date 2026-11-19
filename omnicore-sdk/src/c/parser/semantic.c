@@ -1542,8 +1542,8 @@ static int semantic_type_contains_safe_reference(
     if (depth > 64u) return 1; /* Cyclic/deep type graphs fail closed. */
     while (*raw_type == '!') ++raw_type;
     if (semantic_is_reference_type_name(raw_type)) return 1;
-    if (strncmp(raw_type, "f:", 2u) == 0 && strchr(raw_type, '&'))
-        return 1; /* Callback signatures containing safe references cross no extern boundary. */
+    if (strncmp(raw_type, "f:", 2u) == 0)
+        return 0; /* A function type describes parameter/return contracts; it does not store those references. */
     if (strncmp(raw_type, "array|", 6u) == 0) {
         const char* element_start = raw_type + 6u;
         size_t element_length = strcspn(element_start, "[");
