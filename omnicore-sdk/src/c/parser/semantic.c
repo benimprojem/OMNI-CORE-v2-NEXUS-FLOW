@@ -4999,8 +4999,10 @@ static void semantic_validate_call_arguments(
                     ? function_slot->param_types[parameter_index] : NULL;
 
             if (expected_type && semantic_type_is_any(ctx, expected_type) &&
-                semantic_type_or_callback_contract_contains_safe_reference(
-                    ctx, argument_type, 0u)) {
+                (semantic_expression_contains_safe_reference(
+                    ctx, argument_value, 0u) ||
+                 semantic_type_or_callback_contract_contains_safe_reference(
+                    ctx, argument_type, 0u))) {
                 report_issue(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
                     "A safe reference cannot be passed through an any parameter because that would erase its owner and lifetime provenance.",
                     "Keep the argument typed as &T/&mut T, or pass an ordinary value/raw pointer when dynamic typing is required.",
