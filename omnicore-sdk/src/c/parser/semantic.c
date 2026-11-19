@@ -1591,7 +1591,7 @@ static int semantic_type_or_callback_contract_contains_safe_reference(
         if (element_length == 0u) return 0;
         if (element_length >= sizeof(element_type)) return 1;
         memcpy(element_type, element_start, element_length);
-        element_type[element_length] = '\\0';
+        element_type[element_length] = '\0';
         return semantic_type_or_callback_contract_contains_safe_reference(
             ctx, element_type, depth + 1u);
     }
