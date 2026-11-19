@@ -5253,6 +5253,53 @@ static void semantic_validate_call_arguments(
     free(temporary_borrows);
 }
  
+/* Imported function return types must not hide safe-reference storage or
+ * callback contracts until the interface carries verified return-origin data. */
+static int semantic_imported_type_contains_safe_reference(
+    const OccSemanticImportEnvironment* environment,
+    size_t binding_index, uint32_t source_type_id, unsigned int depth
+) {
+    OccSemanticImportedType type;
+    size_t relation_count = 0u, i;
+    if (!environment || source_type_id == 0u) return 0;
+    if (depth > 64u) return 1;
+    if (occ_semantic_import_environment_find_type(
+            environment, binding_index, source_type_id, &type) !=
+        OCC_SEMANTIC_IMPORT_ENV_OK)
+        return 1; /* Unknown closure metadata is unsafe at this boundary. */
+    if (type.kind == SEMANTIC_RESULT_TYPE_REFERENCE) return 1;
+    if (type.kind == SEMANTIC_RESULT_TYPE_FUNCTION &&
+        type.name && strchr(type.name, '&'))
+        return 1;
+    if (type.base_type_id &&
+        semantic_imported_type_contains_safe_reference(
+            environment, binding_index, type.base_type_id, depth + 1u))
+        return 1;
+    if (type.referenced_symbol_id &&
+        (type.kind == SEMANTIC_RESULT_TYPE_USER_DEFINED ||
+         type.kind == SEMANTIC_RESULT_TYPE_AGGREGATE)) {
+        if (occ_semantic_import_environment_get_relation_count(
+                environment, binding_index, type.referenced_symbol_id,
+                SEMANTIC_RESULT_RELATION_AGGREGATE_FIELD,
+                &relation_count) != OCC_SEMANTIC_IMPORT_ENV_OK)
+            return 1;
+        for (i = 0u; i < relation_count; ++i) {
+            OccSemanticImportedRelation relation;
+            if (occ_semantic_import_environment_get_relation_at(
+                    environment, binding_index, type.referenced_symbol_id,
+                    SEMANTIC_RESULT_RELATION_AGGREGATE_FIELD,
+                    i, &relation) != OCC_SEMANTIC_IMPORT_ENV_OK)
+                return 1;
+            if (relation.type_id &&
+                semantic_imported_type_contains_safe_reference(
+                    environment, binding_index, relation.type_id,
+                    depth + 1u))
+                return 1;
+        }
+    }
+    return 0;
+}
+
 /* Resolve a qualified module function against the verified import catalog.
  * Temporary AST/Slot records borrow immutable interface metadata only during
  * validation; no imported memory is copied into the local symbol table. */
@@ -5371,6 +5418,12 @@ static const char* semantic_resolve_imported_call(
             "The imported function has no valid return-type metadata.",
             "Rebuild the module interface from a finalized SemanticResult.");
     result_type = return_type.name;
+    if (semantic_imported_type_contains_safe_reference(
+            ctx->import_environment, binding_index,
+            symbol.source_type_id, 0u))
+        IMPORT_CALL_ERROR(
+            "The imported function returns a safe reference or a value containing one, but its cross-module lifetime origin is not represented in the module interface.",
+            "Return an owned value, or extend the module interface with verified reference-return provenance before exposing this function.");
     if (!validate_arguments) return result_type;
     if (occ_semantic_import_environment_get_relation_count(
             ctx->import_environment, binding_index, symbol.source_symbol_id,
