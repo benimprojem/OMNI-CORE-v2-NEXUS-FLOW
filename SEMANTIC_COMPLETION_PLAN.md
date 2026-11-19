@@ -302,3 +302,11 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - `check_safe_reference_type_erasure_semantics()` expected one error for safe-reference storage in `any`, but received two. The intended diagnostic is at 1:37; an extra `Unknown Message` is at 1:21. Investigate the function-parameter/reference diagnostics before modifying code.
 - The imported resolver fixtures are part of the failing aggregate test, so their verification remains pending. Do not advance to OIR.
 - CI runs must be queried by branch/event through the Actions API, not the PR-only workflow-runs tool.
+
+
+### CI diagnostic refinement — 2026-11-20
+
+- The full failing CTest log confirms the extra `Unknown Message` is emitted at the function-parameter declaration (`owner`, 1:21), while the intended type-erasure diagnostic is at the assignment (1:37). Both semantic errors use code `3002`; the extra error is not a separate code path proven yet.
+- The earlier CI notes incorrectly framed this as a type-erasure branch issue. We have narrowed the unexpected diagnostic to a parameter declaration location; inspect parameter validation and diagnostic message catalog/code lookup before changing semantics.
+- The `Unknown Message` text appears repeatedly throughout test 68 output for many AST fixtures, suggesting a broader diagnostic-message resolution issue/noisy output. Those repetitions are not themselves the aggregate failure; the exact count mismatch in the safe-reference fixture is.
+- No code changed in this investigation. SEM-001 remains blocked pending root-cause isolation and green CI.
