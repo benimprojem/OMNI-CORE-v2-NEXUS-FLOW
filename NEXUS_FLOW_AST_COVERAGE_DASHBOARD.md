@@ -1089,3 +1089,18 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - [x] Recursively inspect imported type base chains and aggregate-field relation metadata; fail closed for missing/unpublished nominal return-type metadata and malformed symbol tables.
 - [x] Added direct regression for an imported `&i32` return.
 - [ ] Run the direct Semantic tests, full platform/sanitizer CI and real Semantic Stage DLL import integration tests. No CI run/status is available for the current branch head; these checkboxes record implementation/test additions only.
+
+
+### CI verification correction and current failure — 2026-11-19
+
+- The prior claim that no CI run existed was incorrect: the available workflow-run connector only surfaced PR-triggered runs, while this commit was validated through a push-triggered run.
+- Run **44448590891** for head `abe7fc6a5a8924109304be0bec7a4bde751edb11` (push) completed with failure.
+- Build/configure steps succeeded on Ubuntu, macOS, and Windows; the CTest step failed on all three platforms.
+- ASan/UBSan build succeeded, but its CTest step failed with the same failing test.
+- Valgrind build succeeded; CTest under Valgrind also failed because the same semantic test fails.
+- Failing test: **68 — semantic_checks_valid_and_undefined_symbols**. Summary: **72/73 passed (99%)**, 1 failed.
+- Root diagnostic in the failure: `check_safe_reference_type_erasure_semantics()` expected one error for `f:main(owner!i32) { v:dynamic!any = &owner; }` but received two. Expected diagnostic at 1:37: safe reference cannot be stored in `any`; extra diagnostic at 1:21 is `Unknown Message`. This needs investigation; do not mark CI green or Semantic complete.
+- Valgrind summaries showed no memory errors in sampled individual test logs, but the CTest job itself failed; do not treat the Valgrind job as passing.
+- The imported-call resolver fixtures are included in test 68, so they cannot be considered verified while this aggregate Semantic test fails.
+- **Action-query issue:** use the public Actions API run listing by branch (push event included) rather than the PR-filtered workflow-runs connector for CI status checks. The workflow is triggering normally.
+- Next: isolate the second diagnostic at line 1:21, fix only after source inspection, then rerun CI and review the complete platform/sanitizer results.
