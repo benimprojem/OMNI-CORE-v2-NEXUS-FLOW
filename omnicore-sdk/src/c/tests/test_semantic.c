@@ -86,7 +86,7 @@ static int check_source(const char* source, int expected_errors) {
 
 static int check_imported_function_call_semantics(void) {
     OccModuleInterfaceSymbol symbol;
-    OccModuleInterfaceType type;
+    OccModuleInterfaceType types[2];
     OccModuleInterfaceRelation relations[2];
     OccModuleInterface module_interface;
     OccSemanticImportEnvironmentBinding binding;
@@ -107,15 +107,17 @@ static int check_imported_function_call_semantics(void) {
         "use math as m; f:main() { m.add(10, 20); }";
     const char* local_selector_collision_source =
         "use math as m; f:main() { v:m!i32 = 1; m.add(10, 20); }";
+    const char* safe_reference_return_source =
+        "use math as m; f:main(owner!i32) { v:result!&i32 = m.add(10, 20); }";
     const char* sources[] = {
         valid_source, named_source, namespace_source, wrong_type_source,
         missing_symbol_source, wrong_count_source, hidden_symbol_source,
-        local_selector_collision_source
+        local_selector_collision_source, safe_reference_return_source
     };
-    const int expected_errors[] = {0, 0, 0, 1, 1, 1, 1, 1};
+    const int expected_errors[] = {0, 0, 0, 1, 1, 1, 1, 1, 1};
     size_t source_index;
     memset(&symbol, 0, sizeof(symbol));
-    memset(&type, 0, sizeof(type));
+    memset(types, 0, sizeof(types));
     memset(relations, 0, sizeof(relations));
     memset(&module_interface, 0, sizeof(module_interface));
     memset(&binding, 0, sizeof(binding));
@@ -126,9 +128,13 @@ static int check_imported_function_call_semantics(void) {
     symbol.kind = SEMANTIC_RESULT_SYMBOL_FUNCTION;
     symbol.flags = SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED;
     symbol.name = "add";
-    type.source_type_id = 1u;
-    type.kind = SEMANTIC_RESULT_TYPE_PRIMITIVE;
-    type.name = "i32";
+    types[0].source_type_id = 1u;
+    types[0].kind = SEMANTIC_RESULT_TYPE_PRIMITIVE;
+    types[0].name = "i32";
+    types[1].source_type_id = 2u;
+    types[1].kind = SEMANTIC_RESULT_TYPE_REFERENCE;
+    types[1].base_type_id = 1u;
+    types[1].name = "&i32";
     relations[0].owner_source_symbol_id = 4u;
     relations[0].type_id = 1u;
     relations[0].ordinal = 0u;
@@ -144,8 +150,8 @@ static int check_imported_function_call_semantics(void) {
     module_interface.schema_minor = OCC_MODULE_INTERFACE_SCHEMA_MINOR;
     module_interface.symbols = &symbol;
     module_interface.symbol_count = 1u;
-    module_interface.types = &type;
-    module_interface.type_count = 1u;
+    module_interface.types = types;
+    module_interface.type_count = 2u;
     module_interface.relations = relations;
     module_interface.relation_count = 2u;
     binding.use_ordinal = 1u;
@@ -175,6 +181,7 @@ static int check_imported_function_call_semantics(void) {
         semantic_init(&semantic, "semantic-import-call.nxf", NULL);
         symbol.flags = source_index == 6u
             ? 0u : SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED;
+        symbol.type_id = source_index == 8u ? 2u : 1u;
         semantic_attach_import_environment(&semantic, &environment);
         semantic_check(&semantic, (ASTNode*)parser->ast_root);
         ok = semantic.error_count == expected_errors[source_index];
