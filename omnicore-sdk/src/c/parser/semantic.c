@@ -5298,8 +5298,12 @@ static const char* semantic_resolve_imported_call(
         selector_recognized = 1;
         binding_index = alias_index;
     }
+    if (alias_status == OCC_SEMANTIC_IMPORT_ENV_AMBIGUOUS ||
+        namespace_status == OCC_SEMANTIC_IMPORT_ENV_AMBIGUOUS)
+        selector_recognized = 1;
     if (namespace_status == OCC_SEMANTIC_IMPORT_ENV_OK) {
-        if (selector_recognized && binding_index != namespace_index) {
+        if (selector_recognized && binding_index != namespace_index &&
+            alias_status == OCC_SEMANTIC_IMPORT_ENV_OK) {
             if (validate_arguments)
                 report_issue(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "The selector matches both an import alias and a different namespace binding.",
@@ -5364,7 +5368,8 @@ static const char* semantic_resolve_imported_call(
         IMPORT_CALL_ERROR(
             "The imported function parameter metadata could not be enumerated.",
             "Rebuild the module interface and verify its relation table.");
-    if (relation_count > SIZE_MAX / sizeof(*relations) ||
+    if (relation_count > (size_t)INT_MAX ||
+        relation_count > SIZE_MAX / sizeof(*relations) ||
         relation_count > SIZE_MAX / sizeof(*parameter_types) ||
         relation_count > SIZE_MAX / sizeof(*parameters) ||
         relation_count > SIZE_MAX / sizeof(*ordinal_seen) ||
