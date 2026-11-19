@@ -1,3 +1,12 @@
+
+## Semantic audit note — `exf` declaration order (2026-11-19)
+
+- `exf` semicolon declarations parse as `AST_EXTERN_DECL`; legacy body form remains supported.
+- Semantic processes extern/function declarations in the shared declaration path; call lookup uses `find_slot()`.
+- Top-level declarations are traversed sequentially; no general top-level callable predeclare pass was identified in this source review. Therefore declaration-before-use is likely required, but still awaits test execution.
+- Regression added: call an extern symbol before its later `exf` declaration and expect a Semantic error. Commit `b564e10f2faf36488d5beb52fa585da43e428532`.
+- Validation state: **CI/runtime pending**; not marked complete.
+
 # NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu
 
 **Dal:** `refactor/c-core-roadmap`  
