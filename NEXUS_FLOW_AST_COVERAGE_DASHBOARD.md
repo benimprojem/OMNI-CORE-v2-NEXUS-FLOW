@@ -1040,3 +1040,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Root cause: callback function signatures containing safe-reference parameters/results were misclassified as aggregate storage. Commit 4b27cc6bed4c44a7416385a45a1eb3bfe5bb92d4 changes the classifier so a function signature is not treated as reference storage. Existing callback control-flow test covers the failure.
 - Relation API commits: 92e153a3423b9af16990e419375ae08594d472d3, 5ae53c9e6c610529c7b932ef369cfd7c0d606d69, 48617e2883487053ec42cb867ef02ca9bd45a11a.
 - Latest exact-head CI is still pending. Keep Semantic/SEM-001 open; no completion checkbox is advanced.
+
+
+### Callback type safety refinement — 2026-11-19
+
+- Callback function signatures are no longer misclassified as stored safe references, so a local RefGetter NewType binding can be analyzed by callback target/control-flow rules.
+- Safe-reference callback contracts are still rejected where the contract is erased or crosses an unverified ABI: EXF/extern declarations and calls, variadic arguments, and any-typed arguments. The any check still traverses aggregate/tuple expressions.
+- Added a regression that rejects passing a reference-bearing callback contract through any. Existing tests cover the local callback control-flow case and extern callback boundary.
+- Commits: 4b27cc6bed4c44a7416385a45a1eb3bfe5bb92d4, b83088b8a5224b043810796128ee4df78bdf2e74, c927e06f76a12a064df5b84441e8580aeb92a57b, 6f3f1358a6a7715fb6aa957722e08e0f384b382d.
+- This correction is awaiting exact-head CI; Semantic and SEM-001 remain open.
