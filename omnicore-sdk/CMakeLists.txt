@@ -359,7 +359,11 @@ target_include_directories(occ_frontend PUBLIC
 )
 
 target_compile_definitions(occ_frontend PUBLIC OCC_STATIC)
-target_link_libraries(occ_frontend PUBLIC occ_diagnostics occ_semantic_result)
+target_link_libraries(occ_frontend PUBLIC
+    occ_diagnostics
+    occ_semantic_result
+    occ_semantic_import_environment
+)
 
 # Host-side module scheduler coordinates source resolution, recursive parsing,
 # and dependency-first Semantic invocation without coupling the resolver to AST.
@@ -427,9 +431,8 @@ target_include_directories(occ_semantic_import_environment PUBLIC
     "${C_SOURCE_DIR}/oir"
     "${C_SOURCE_DIR}/core"
 )
-target_link_libraries(occ_semantic_import_environment PUBLIC
-    occ_module_import_bundle
-)
+# This catalog only reads the verified bundle's public data structures;
+# it does not call bundle functions. Avoid a scheduler/frontend link cycle.
 set_target_properties(occ_semantic_import_environment PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
