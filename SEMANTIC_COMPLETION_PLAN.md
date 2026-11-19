@@ -282,3 +282,12 @@ A task may become `VERIFIED` only when all are true:
 - Added a direct Semantic regression fixture for a local `m` declaration colliding with `use math as m`.
 - Commits: resolver collision guard `78c92db949baf68a9040e1e59150d03d9fa07082`; regression test `1fe4d59be79650064861c778116fe4fc9feeff64`.
 - This resolves the qualified-selector/local-name case only. Broader unqualified import injection and imported type/value collision policy remain out of scope and unresolved.
+
+
+### Imported reference-return safety — 2026-11-19
+
+- Imported function return types are now checked through the verified interface type closure before use. Direct safe references, callback function types whose contracts contain `&`, aliases/base-type chains, and aggregate fields represented by `AGGREGATE_FIELD` relations are rejected when they contain safe-reference storage/contracts.
+- The check fails closed when a referenced nominal return type is absent from the published symbol table or the interface type/relation metadata is malformed. This is required because the current interface does not carry cross-module returned-reference origin/lifetime provenance.
+- Added a direct Semantic regression where an imported function returns `&i32`; the call is rejected rather than manufacturing an unverified local borrow origin.
+- Follow-up hardening commits: imported return provenance guard `4fd83f79ee4580238827064059ff4ba0355fff45`; published nominal type closure guard `b4bec1f064bcc29cca68c701767041e2f3e80514`; malformed symbol-table guard `b2df3f81aea46f5f3a56f86c43df8cdcad3a53bc`; test `ecdaa440d686f9c86886c10c082ad03b349c91b4`.
+- CI remains unavailable for the current branch head (no workflow runs or status checks returned). Code and tests are committed but not yet executed; SEM-001 remains open.
