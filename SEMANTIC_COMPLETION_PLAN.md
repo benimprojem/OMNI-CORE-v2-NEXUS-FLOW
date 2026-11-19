@@ -241,3 +241,12 @@ A task may become `VERIFIED` only when all are true:
 - Root cause of test 68 was isolated: semantic_type_contains_safe_reference() treated & inside a function type signature as reference storage. That incorrectly rejected the RefGetter callback NewType before its control-flow merge checks. The classifier now treats f:(...) as a function contract, not an aggregate/container storage type. Existing check_callback_target_control_flow_merge_semantics() is the regression test for this exact source pattern.
 - Commits: relation API header 92e153a3423b9af16990e419375ae08594d472d3; implementation 5ae53c9e6c610529c7b932ef369cfd7c0d606d69; unit test 48617e2883487053ec42cb867ef02ca9bd45a11a; callback classifier fix 4b27cc6bed4c44a7416385a45a1eb3bfe5bb92d4.
 - Verification: these changes have not yet passed exact-head CI. Do not mark the callback regression fixed or relation API verified until the latest branch-head CI is green.
+
+
+### Callback signature vs reference-storage rule refinement — 2026-11-19
+
+- The first classifier correction is now paired with a separate ABI-boundary predicate. Function types do not count as aggregate/container reference storage, but callback signatures containing safe references remain rejected at EXF/extern, variadic and any-erasure boundaries.
+- The any-argument check retains expression-level traversal for tuples/aggregates and additionally checks callback contracts; this avoids regressing tuple-contained references while preventing callback signature erasure.
+- Added regression: passing a RefGetter callback (signature takes/returns safe references) through an any parameter must fail. Existing tests also cover a local RefGetter callback with same-target/different-target control-flow merges and an extern callback signature rejection.
+- Commits: classifier separation 4b27cc6bed4c44a7416385a45a1eb3bfe5bb92d4; ABI-boundary checks b83088b8a5224b043810796128ee4df78bdf2e74; aggregate/tuple any check preservation c927e06f76a12a064df5b84441e8580aeb92a57b; new any-erasure regression 6f3f1358a6a7715fb6aa957722e08e0f384b382d.
+- Exact-head CI remains pending. Do not mark the callback fix verified until all platform, sanitizer and Valgrind jobs pass.
