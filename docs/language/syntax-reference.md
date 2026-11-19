@@ -2246,3 +2246,5 @@ Bu sözleşmenin Semantic uygulaması, AST/Parser'ın gerçekten desteklediği b
 - **Map key contract:** Map keys are limited to numeric scalar types, `str`, `char`, `bool`, enum values and NewType aliases whose underlying type is in that set. Aggregate, raw/safe pointer, reference, `null` and `any` keys are rejected because they do not have a stable hash/equality contract. Map values remain heterogeneous (`any`); generic `map<K,V>` is not currently a Nexus Flow type.
 
 - **SIMD vector indexing:** `Vec2`, `Vec3` and `Vec4` are fixed-width vectors with `f64` scalar components. Indexing requires an integer expression; a constant index is checked against the vector dimension at Semantic time, while a dynamic index remains subject to runtime bounds checking.
+
+- **128-bit numeric types:** `i128`/`u128` are integer and bitwise-capable primitives with 128-bit width; `f128`/`d128` are numeric floating/decimal primitives and are not bitwise-capable. They participate in the same type compatibility and arithmetic validation as the corresponding narrower families. Literal overflow and target-specific lowering remain separate checks.

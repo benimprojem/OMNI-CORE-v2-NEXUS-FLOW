@@ -423,7 +423,7 @@ static Slot* find_slot(SemanticContext* ctx, const char* name) {
 static int is_primitive_type_for_result(const char* name) {
     static const char* const names[] = {
         "i32", "u8", "str", "bool", "f64", "i64", "u64", "u32",
-        "u16", "i16", "i8", "f32", "d32", "d64", "char", "bit", "byte",
+        "u16", "i16", "i8", "i128", "u128", "f32", "f128", "d32", "d64", "d128", "char", "bit", "byte",
         "8bit", "16bit", "32bit", "64bit", "128bit",
         "1byte", "2byte", "4byte", "8byte", "16byte", "Vec2", "Vec3", "Vec4", "void", "any"
     };
@@ -2474,9 +2474,9 @@ static void semantic_validate_vector_initializer(
 
 static int is_numeric_primitive_type(const char* type_name) {
     static const char* const names[] = {
-        "i8", "i16", "i32", "i64",
-        "u8", "u16", "u32", "u64",
-        "f32", "f64", "d32", "d64"
+        "i8", "i16", "i32", "i64", "i128",
+        "u8", "u16", "u32", "u64", "u128",
+        "f32", "f64", "f128", "d32", "d64", "d128"
     };
     size_t i;
     if (!type_name) return 0;
@@ -2531,7 +2531,7 @@ static const char* semantic_binary_operator_name(OmniTokenType op) {
 
 static int is_integer_primitive_type(const char* type_name) {
     static const char* const names[] = {
-        "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64"
+        "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128"
     };
     size_t i;
     if (!type_name) return 0;
@@ -2641,9 +2641,9 @@ static int semantic_integer_type_width(
         int is_unsigned;
     } types[] = {
         { "i8", 8u, 0 }, { "i16", 16u, 0 },
-        { "i32", 32u, 0 }, { "i64", 64u, 0 },
+        { "i32", 32u, 0 }, { "i64", 64u, 0 }, { "i128", 128u, 0 },
         { "u8", 8u, 1 }, { "u16", 16u, 1 },
-        { "u32", 32u, 1 }, { "u64", 64u, 1 }
+        { "u32", 32u, 1 }, { "u64", 64u, 1 }, { "u128", 128u, 1 }
     };
     size_t i;
     if (!type_name || !width_out || !is_unsigned_out) return 0;
@@ -2785,8 +2785,10 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
         strcmp(type_name, "f64") == 0 || strcmp(type_name, "i64") == 0 ||
         strcmp(type_name, "u64") == 0 || strcmp(type_name, "u32") == 0 ||
         strcmp(type_name, "u16") == 0 || strcmp(type_name, "i16") == 0 ||
-        strcmp(type_name, "i8") == 0 || strcmp(type_name, "f32") == 0 ||
-        strcmp(type_name, "d32") == 0 || strcmp(type_name, "d64") == 0 ||
+        strcmp(type_name, "i8") == 0 || strcmp(type_name, "i128") == 0 ||
+        strcmp(type_name, "u128") == 0 || strcmp(type_name, "f32") == 0 ||
+        strcmp(type_name, "f128") == 0 || strcmp(type_name, "d32") == 0 ||
+        strcmp(type_name, "d64") == 0 || strcmp(type_name, "d128") == 0 ||
         strcmp(type_name, "char") == 0 || strcmp(type_name, "bit") == 0 ||
         strcmp(type_name, "byte") == 0 ||
         strcmp(type_name, "8bit") == 0 || strcmp(type_name, "16bit") == 0 ||

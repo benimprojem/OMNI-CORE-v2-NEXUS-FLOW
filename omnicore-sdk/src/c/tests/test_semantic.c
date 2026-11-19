@@ -1129,6 +1129,26 @@ static int check_vector_index_semantics(void) {
         check_source(vector_index_write_type, 1);
 }
 
+static int check_extended_numeric_primitive_semantics(void) {
+    const char* signed_128_type =
+        "f:identity(value!i128)!i128 { ret value; } "
+        "f:main(value!i128) { v:copy!i128 = identity(value); }";
+    const char* unsigned_128_bitwise =
+        "f:main(value!u128) { v:copy!u128 = value; "
+        "v:masked!u128 = value & value; v:shifted!u128 = value <<< 1; }";
+    const char* float_128_arithmetic =
+        "f:main(value!f128) { v:copy!f128 = value + value; }";
+    const char* decimal_128_arithmetic =
+        "f:main(value!d128) { v:copy!d128 = value * value; }";
+    const char* float_128_bitwise_rejected =
+        "f:main(value!f128) { v:copy!f128 = value & value; }";
+    return check_source(signed_128_type, 0) &&
+        check_source(unsigned_128_bitwise, 0) &&
+        check_source(float_128_arithmetic, 0) &&
+        check_source(decimal_128_arithmetic, 0) &&
+        check_source(float_128_bitwise_rejected, 1);
+}
+
 static int check_map_key_type_semantics(void) {
     const char* map_scalar_keys =
         "f:main() { v:values!map; values[1]; values[1.5]; "
@@ -3343,6 +3363,10 @@ int main(int argc, char** argv) {
     }
     if (!check_vector_index_semantics()) {
         fprintf(stderr, "Vector index checks failed.\\n");
+        return 1;
+    }
+    if (!check_extended_numeric_primitive_semantics()) {
+        fprintf(stderr, "Extended numeric primitive checks failed.\\n");
         return 1;
     }
     if (!check_map_key_type_semantics()) {

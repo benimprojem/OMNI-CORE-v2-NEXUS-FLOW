@@ -110,7 +110,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | Program ve blok | `AST_PROGRAM`, `AST_BLOCK` | ✓ | ✓ | ✓ | ✓ | ~ | ~ | Program declaration chain için AST graph/codec doğrulaması, `no:osmodule` policy/span ve ortak node source-span codec round-trip; OIR span metadata ayrı aşamada |
-| Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ✓ | ✓ | ✓ | ~ | ~ | `c:` compile-time initializer; `v:` inference, declared-type compatibility, inline array/vector and recursive type validation Semantic ✓; inline_type/type_expr payload round-trip ve ortak source-span codec açık |
+| Değişken `v:`, sabit `c:` | `AST_VAR_DECL` | ✓ | ✓ | ✓ | ✓ | ~ | ~ | `c:` compile-time initializer; `v:` inference, declared-type compatibility, inline array/vector, recursive type validation and extended numeric primitive recognition Semantic ✓; inline_type/type_expr payload round-trip ve ortak source-span codec açık |
 | Immutable `m:` | `AST_MUST_DECL` (103) | ✓ | ✓ | ✓ | ✓ | D | — | Derleme zamanı/sabit değer sınırları; runtime lowering gerektirmeyen karar korunmalı |
 | NewType `nt:` | `AST_NEWTYPE_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Nominal type identity, alias-chain target validation, assignment/call/return compatibility ve recursive target validation Semantic ✓; target_type_expr payload round-trip ve OIR/Verifier açık |
 | Struct / packed Struct | `AST_STRUCT_DECL` | ✓ | ✓ | ✓ | ✓ | ? | ? | Name/duplicate field/type/visibility/export/packed metadata Semantic ✓; ordered field payload round-trip, physical layout and lowering açık |
@@ -142,7 +142,7 @@ Parser source spans are stored on AST nodes, validated and serialized. Parser st
 
 | Syntax / özellik | AST temsili | L | P | A | S | O | V | Kalan ana iş |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| Sayı/string/char/bool/null literal | `AST_LITERAL` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Numeric overflow/conversion, null compatibility ve literal type inference |
+| Sayı/string/char/bool/null literal | `AST_LITERAL` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Numeric primitive type set now includes i128/u128/f128/d128; overflow/conversion, null compatibility and literal suffix/inference edge cases remain |
 | Identifier / symbol reference | `AST_IDENTIFIER` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Symbol resolution ve Semantic use-site ilişkileri |
 | Unary / postfix (`!`, `~`, `++`, `--`) | `AST_UNARY_EXPR`, `AST_POSTFIX_EXPR` | ✓ | ✓ | ✓ | ~ | ? | ? | Parser fixture verifies postfix `++` / `--`, exact spans and rejects non-normative prefix forms; lvalue, operand type, side effect ve lowering remain later-stage work |
 | Arithmetic `+ - * / % ^^ ` | `AST_BINARY_EXPR` | ✓ | ✓ | ✓ | ~ | ~ | ~ | Promotion, overflow, divide-by-zero ve power opcode/lowering |
