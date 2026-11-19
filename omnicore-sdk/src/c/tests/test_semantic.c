@@ -1163,6 +1163,9 @@ static int check_safe_reference_type_erasure_semantics(void) {
 }
 
 static int check_extern_reference_boundary_semantics(void) {
+    const char* extern_use_before_declaration =
+        "f:main(value!i32) { v:result!i32 = read(value); } "
+        "exf:read(value!i32)!i32;";
     const char* extern_value_signature =
         "exf:read(value!i32)!i32; f:main(value!i32) { v:result!i32 = read(value); }";
     const char* extern_raw_pointer_signature =
@@ -1175,7 +1178,8 @@ static int check_extern_reference_boundary_semantics(void) {
         "exf:invoke(callback!f:(value!&i32)!void); f:main() {}";
     const char* extern_any_safe_reference_argument_rejected =
         "exf:store(value!any); f:main(owner!i32) { store(&owner); }";
-    return check_source(extern_value_signature, 0) &&
+    return check_source(extern_use_before_declaration, 1) &&
+        check_source(extern_value_signature, 0) &&
         check_source(extern_raw_pointer_signature, 0) &&
         check_source(extern_safe_reference_parameter_rejected, 1) &&
         check_source(extern_safe_reference_return_rejected, 1) &&
