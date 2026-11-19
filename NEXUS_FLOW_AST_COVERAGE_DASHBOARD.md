@@ -1006,3 +1006,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Implementation commits: 1d10681d1a046c565305454d6dea5926a24a7beb, 4e1555162d3a38eff18ff295c820435c06aa776a, 2463b2909606ae504e9aaeb376cde9209cb63730.
 - GitHub Actions run [43713558032](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/43713558032) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
 - Pointer/reference Semantic remains partial (~). Aggregate-contained reference storage, function-value return-origin mapping, local-alias return-origin inference, explicit lifetime extensions, nullability and target ABI remain open. Raw-pointer alias/lifetime/null/bounds guarantees are intentionally outside the safe-reference contract; explicit unsafe-region syntax and pointer arithmetic remain separate design items.
+
+
+### EXF / imported external symbol contract — 2026-11-19
+
+- Normative rule clarified: symbols must be known to Semantic before use, either through a preceding explicit `exf:` declaration or a verified imported Module Interface publishing the symbol as PUBLIC/EXPORTED. Imported public symbols do not need duplicate EXF declarations.
+- Linker-only symbol discovery is not Semantic validation. Private symbols stay hidden; alias/namespace qualification, collisions, ambiguity and call signatures are Semantic responsibilities.
+- Current state remains **~ / integration gap**: import bundle is built in the Semantic stage but the Semantic import environment is not attached to the resolver. End-to-end imported-call behavior is not verified.
+- Detailed contract and implementation order: [SEMANTIC_COMPLETION_PLAN.md](SEMANTIC_COMPLETION_PLAN.md), normative syntax: [docs/language/syntax-reference.md](docs/language/syntax-reference.md#15-exf--external-function-declarations-ve-linkage).
