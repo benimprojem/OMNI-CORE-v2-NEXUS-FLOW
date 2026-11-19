@@ -1030,3 +1030,13 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 
 
 - CI checkpoint `2a63c5c7` built and linked the Semantic import environment; import-environment unit test (23) and Semantic stage DLL test (51) passed on Ubuntu. Overall CI is **not green**: CTest/ASan report unrelated test 68 callback/NewType safe-reference merge failure; Windows/Valgrind final state still requires inspection. Imported symbol resolution remains unimplemented.
+
+
+### Correction / latest Semantic checkpoint — 2026-11-19
+
+- The earlier 'import environment not attached' note is historical. Attachment, job-owned initialization/cleanup and DLL linkage are now implemented and were compiled in CI run 44444419211; tests 23 and 51 passed on Ubuntu.
+- Added bounded read-only imported interface relation enumeration for function-parameter metadata. This is groundwork only; no qualified imported function call is yet resolved by Semantic.
+- Run 44444419211 finished with all five jobs failed at the CTest phase. The four platform/sanitizer runs identify test 68 (semantic_checks_valid_and_undefined_symbols) as the callback/NewType safe-reference classifier regression. Valgrind Memcheck log entries show zero reported memory errors, but its CTest step failed and the job is not green.
+- Root cause: callback function signatures containing safe-reference parameters/results were misclassified as aggregate storage. Commit 4b27cc6bed4c44a7416385a45a1eb3bfe5bb92d4 changes the classifier so a function signature is not treated as reference storage. Existing callback control-flow test covers the failure.
+- Relation API commits: 92e153a3423b9af16990e419375ae08594d472d3, 5ae53c9e6c610529c7b932ef369cfd7c0d606d69, 48617e2883487053ec42cb867ef02ca9bd45a11a.
+- Latest exact-head CI is still pending. Keep Semantic/SEM-001 open; no completion checkbox is advanced.
