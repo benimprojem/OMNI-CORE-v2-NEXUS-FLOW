@@ -339,6 +339,23 @@ target_link_libraries(occ_oir_ast_frontend_writer PUBLIC
 )
 set_target_properties(occ_oir_ast_frontend_writer PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Read-only Semantic import catalog over verified OIR import/interface bundles.
+add_library(occ_semantic_import_environment STATIC
+    "${C_SOURCE_DIR}/semantic/semantic_import_environment.c"
+)
+target_include_directories(occ_semantic_import_environment PUBLIC
+    "${C_SOURCE_DIR}/semantic"
+    "${C_SOURCE_DIR}/module"
+    "${C_SOURCE_DIR}/oir"
+    "${C_SOURCE_DIR}/core"
+)
+# This catalog only reads the verified bundle's public data structures;
+# it does not call bundle functions. Avoid a scheduler/frontend link cycle.
+set_target_properties(occ_semantic_import_environment PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
+
+
 # The C frontend is the canonical compiler frontend.
 # parser/main.c is intentionally excluded: it is an obsolete standalone entry point.
 add_library(occ_frontend STATIC
@@ -420,23 +437,6 @@ target_link_libraries(occ_module_import_bundle PUBLIC
 set_target_properties(occ_module_import_bundle PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
-
-# Read-only Semantic import catalog over verified OIR import/interface bundles.
-add_library(occ_semantic_import_environment STATIC
-    "${C_SOURCE_DIR}/semantic/semantic_import_environment.c"
-)
-target_include_directories(occ_semantic_import_environment PUBLIC
-    "${C_SOURCE_DIR}/semantic"
-    "${C_SOURCE_DIR}/module"
-    "${C_SOURCE_DIR}/oir"
-    "${C_SOURCE_DIR}/core"
-)
-# This catalog only reads the verified bundle's public data structures;
-# it does not call bundle functions. Avoid a scheduler/frontend link cycle.
-set_target_properties(occ_semantic_import_environment PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-)
-
 
 target_include_directories(occ_oir_module_interface_artifact PUBLIC
     "${C_SOURCE_DIR}/oir"
