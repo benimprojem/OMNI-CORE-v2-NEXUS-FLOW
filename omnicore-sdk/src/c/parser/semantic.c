@@ -1569,6 +1569,19 @@ static int semantic_type_contains_safe_reference(
 }
 
 
+/* A callback signature is not reference storage, but exposing that
+   signature through an untyped/extern/variadic boundary erases its lifetime
+   contract. Keep that ABI rule separate from aggregate-storage inspection. */
+static int semantic_type_or_callback_contract_contains_safe_reference(
+    SemanticContext* ctx, const char* type_name, unsigned int depth
+) {
+    const char* function_type;
+    if (semantic_type_contains_safe_reference(ctx, type_name, depth))
+        return 1;
+    function_type = semantic_function_type_text(ctx, type_name);
+    return function_type && strchr(function_type, '&') != NULL;
+}
+
 static int semantic_type_is_any_depth(
     SemanticContext* ctx, const char* type_name, unsigned int depth
 ) {
@@ -4986,8 +4999,8 @@ static void semantic_validate_call_arguments(
                     ? function_slot->param_types[parameter_index] : NULL;
 
             if (expected_type && semantic_type_is_any(ctx, expected_type) &&
-                semantic_expression_contains_safe_reference(
-                    ctx, argument_value, 0u)) {
+                semantic_type_or_callback_contract_contains_safe_reference(
+                    ctx, argument_type, 0u)) {
                 report_issue(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
                     "A safe reference cannot be passed through an any parameter because that would erase its owner and lifetime provenance.",
                     "Keep the argument typed as &T/&mut T, or pass an ordinary value/raw pointer when dynamic typing is required.",
@@ -4996,7 +5009,7 @@ static void semantic_validate_call_arguments(
             }
             if (function_slot->declaration_node &&
                 function_slot->declaration_node->type == AST_EXTERN_DECL &&
-                semantic_type_contains_safe_reference(ctx, argument_type, 0u)) {
+                semantic_type_or_callback_contract_contains_safe_reference(ctx, argument_type, 0u)) {
                 report_issue(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
                     "A safe reference or callback signature containing one cannot cross an extern call boundary without an explicit lifetime/ABI contract.",
                     "Pass a value or explicitly managed raw pointer, or wrap the external API with a typed Nexus Flow function that enforces the reference lifetime locally.",
@@ -5005,7 +5018,7 @@ static void semantic_validate_call_arguments(
             }
             if (function_slot->is_variadic &&
                 parameter_index >= (uint32_t)function_slot->param_count &&
-                semantic_type_contains_safe_reference(ctx, argument_type, 0u)) {
+                semantic_type_or_callback_contract_contains_safe_reference(ctx, argument_type, 0u)) {
                 report_issue(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
                     "A variadic argument cannot carry a safe reference or a value that contains one; the variadic call contract has no element-level lifetime tracking.",
                     "Pass a value type or an explicitly managed raw pointer. Use a typed reference parameter when the callee needs a safe reference.",
@@ -7955,7 +7968,7 @@ static void semantic_check_node(
                 return_type_valid = 0;
             }
             if (node->type == AST_EXTERN_DECL && func->return_type &&
-                semantic_type_contains_safe_reference(
+                semantic_type_or_callback_contract_contains_safe_reference(
                     ctx, func->return_type, 0u)) {
                 report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "An extern function cannot return a safe reference or callback type that contains one; the external implementation has no verifiable borrow-origin contract.",
@@ -8017,7 +8030,7 @@ static void semantic_check_node(
                          extern_parameter = extern_parameter->next) {
                         if (extern_parameter->type == AST_VAR_DECL) {
                             ASTVarDecl* parameter = (ASTVarDecl*)extern_parameter;
-                            if (semantic_type_contains_safe_reference(
+                            if (semantic_type_or_callback_contract_contains_safe_reference(
                                     ctx, parameter->type_name, 0u)) {
                                 report_issue(ctx, extern_parameter,
                                     ERR_SEMANTIC_TYPE_MISMATCH,
