@@ -1181,6 +1181,10 @@ static int check_extern_reference_boundary_semantics(void) {
         "exf:get()!&i32; f:main() {}";
     const char* extern_callback_with_safe_reference_rejected =
         "exf:invoke(callback!f:(value!&i32)!void); f:main() {}";
+    const char* extern_aggregate_with_callback_reference_rejected =
+        "nt:RefGetter = f:(value!&i32)!void; "
+        "struct:CallbackBox { v:handler!RefGetter } "
+        "exf:invoke(box!CallbackBox); f:main() {}";
     const char* extern_any_safe_reference_argument_rejected =
         "exf:store(value!any); f:main(owner!i32) { store(&owner); }";
     return check_source(extern_use_before_declaration, 1) &&
@@ -1189,6 +1193,7 @@ static int check_extern_reference_boundary_semantics(void) {
         check_source(extern_safe_reference_parameter_rejected, 1) &&
         check_source(extern_safe_reference_return_rejected, 1) &&
         check_source(extern_callback_with_safe_reference_rejected, 1) &&
+        check_source(extern_aggregate_with_callback_reference_rejected, 1) &&
         check_source(extern_any_safe_reference_argument_rejected, 1);
 }
 
