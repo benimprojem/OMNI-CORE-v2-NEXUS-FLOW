@@ -55,6 +55,8 @@ typedef struct Slot {
     struct Slot* next;
 } Slot;
 
+struct OccSemanticImportEnvironment; /* Borrowed, immutable import catalog. */
+
 typedef uint32_t (*SemanticNodeIdResolver)(
     void* user_context, const ASTNode* node
 );
@@ -114,6 +116,8 @@ typedef struct {
     uint8_t suppress_group_default_dispatch;
     SemanticNodeIdResolver node_id_resolver;
     void* node_id_context;
+    /* Borrowed from the stage/job; valid only until semantic_check completes. */
+    const struct OccSemanticImportEnvironment* import_environment;
     uint8_t result_enabled;
     /* Non-zero while validating a thread payload; nested payloads are invalid. */
     uint8_t thread_block_depth;
@@ -139,6 +143,10 @@ typedef struct {
 OCC_API void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path);
 OCC_API void semantic_attach_diagnostics(
     SemanticContext* ctx, OccDiagnosticCollector* collector, uint32_t stage_id
+);
+OCC_API void semantic_attach_import_environment(
+    SemanticContext* ctx,
+    const struct OccSemanticImportEnvironment* environment
 );
 OCC_API void semantic_attach_node_id_resolver(
     SemanticContext* ctx, SemanticNodeIdResolver resolver, void* user_context
