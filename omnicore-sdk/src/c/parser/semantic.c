@@ -2314,9 +2314,19 @@ static int semantic_expression_contains_safe_reference(
         case AST_RELOCATE:
             return semantic_expression_contains_safe_reference(
                 ctx, ((const ASTRelocate*)expression)->source, depth + 1u);
-        case AST_CAST:
+        case AST_CAST: {
+            const ASTCast* cast = (const ASTCast*)expression;
+            if (cast->target_type &&
+                cast->target_type->type == AST_IDENTIFIER &&
+                semantic_is_raw_pointer_type_name(
+                    ((const ASTIdentifier*)cast->target_type)->name)) {
+                /* An explicit conversion to raw pointer is the language's
+                   unsafe escape hatch; it no longer carries safe provenance. */
+                return 0;
+            }
             return semantic_expression_contains_safe_reference(
-                ctx, ((const ASTCast*)expression)->value, depth + 1u);
+                ctx, cast->value, depth + 1u);
+        }
         default:
             break;
     }
