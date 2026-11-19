@@ -1080,7 +1080,7 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - [x] Reject a qualified import alias/namespace that collides with a local declaration in the active scope chain; added a regression for local `m` versus `use math as m`.
 - [ ] Broader unqualified import injection and imported type/value collision policy remain pending.
 - Latest resolver/test commits: `78c92db949baf68a9040e1e59150d03d9fa07082`, `1fe4d59be79650064861c778116fe4fc9feeff64`.
-- No CI result is available for the current head; the checkbox above records code/test addition only, not runtime verification.
+- CI was later recovered through the public Actions API: run `44448590891` exists for the current checkpoint and failed at CTest (test 68). See the CI correction section below; code/test additions are not verified.
 
 
 ### Imported reference-return safety — 2026-11-19
