@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include "lexer.h"
+#include "../semantic/semantic_import_environment.h"
 
 static int semantic_slot_is_nominal_type(const Slot* slot);
 static void semantic_validate_intr_intrinsic(SemanticContext* ctx, ASTNode* node);
@@ -1166,7 +1167,8 @@ static Slot* semantic_resolve_group_callable(
     SemanticContext* ctx, ASTMemberAccess* access,
     int* out_is_instance_call, int report_diagnostics);
 static const char* semantic_resolve_imported_call(
-    SemanticContext* ctx, ASTNode* call_node, int validate_arguments
+    SemanticContext* ctx, ASTNode* call_node, int validate_arguments,
+    int* out_handled
 );
 
 static FieldInfo* semantic_resolve_member(
@@ -2106,7 +2108,7 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             ASTCall* call = (ASTCall*)node;
             if (call->callee && call->callee->type == AST_MEMBER_ACCESS) {
                 const char* imported_result =
-                    semantic_resolve_imported_call(ctx, node, 0);
+                    semantic_resolve_imported_call(ctx, node, 0, NULL);
                 if (imported_result) {
                     semantic_record_annotation(
                         ctx, node, NULL, imported_result,
@@ -5255,7 +5257,8 @@ static void semantic_validate_call_arguments(
  * Temporary AST/Slot records borrow immutable interface metadata only during
  * validation; no imported memory is copied into the local symbol table. */
 static const char* semantic_resolve_imported_call(
-    SemanticContext* ctx, ASTNode* call_node, int validate_arguments
+    SemanticContext* ctx, ASTNode* call_node, int validate_arguments,
+    int* out_handled
 ) {
     ASTCall* call;
     ASTMemberAccess* access;
@@ -5277,6 +5280,7 @@ static const char* semantic_resolve_imported_call(
     int selector_recognized = 0;
     char* param_type_names[256];
 
+    if (out_handled) *out_handled = 0;
     if (!ctx || !call_node || call_node->type != AST_FUNC_CALL ||
         !ctx->import_environment) return NULL;
     call = (ASTCall*)call_node;
@@ -5309,6 +5313,7 @@ static const char* semantic_resolve_imported_call(
         binding_index = namespace_index;
     }
     if (!selector_recognized) return NULL;
+    if (out_handled) *out_handled = 1;
 
 #define IMPORT_CALL_ERROR(message_text, suggestion_text) do { \
     if (validate_arguments) report_issue(ctx, call_node, \
@@ -8942,10 +8947,12 @@ static void semantic_check_node(
                 if (call->args) semantic_check(ctx,call->args);
                 break;
             }
-            if (call->callee && call->callee->type == AST_MEMBER_ACCESS &&
-                semantic_resolve_imported_call(ctx, node, 1) != NULL) {
-                /* Imported function resolved and checked against its interface signature. */
-            } else if (call->callee && call->callee->type == AST_MEMBER_ACCESS) {
+            {
+                int imported_call_handled = 0;
+                (void)semantic_resolve_imported_call(
+                    ctx, node, 1, &imported_call_handled);
+                if (!imported_call_handled &&
+                    call->callee && call->callee->type == AST_MEMBER_ACCESS) {
                 ASTMemberAccess* access = (ASTMemberAccess*)call->callee;
                 Slot* method_slot;
                 int is_instance_call = 0;
@@ -8986,6 +8993,7 @@ static void semantic_check_node(
                             ctx, node, method_slot, method_slot->type_name,
                             SEMANTIC_RESULT_VALUE_RVALUE);
                     }
+                }
                 }
             } else if (call->callee) {
                 const char* callee_name = call->callee->type == AST_IDENTIFIER
