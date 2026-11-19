@@ -1165,6 +1165,9 @@ static ASTNode* semantic_find_type_variable_argument(
 static Slot* semantic_resolve_group_callable(
     SemanticContext* ctx, ASTMemberAccess* access,
     int* out_is_instance_call, int report_diagnostics);
+static const char* semantic_resolve_imported_call(
+    SemanticContext* ctx, ASTNode* call_node, int validate_arguments
+);
 
 static FieldInfo* semantic_resolve_member(
     SemanticContext* ctx, ASTNode* node, int report_diagnostics
@@ -2101,6 +2104,16 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
         }
         case AST_FUNC_CALL: {
             ASTCall* call = (ASTCall*)node;
+            if (call->callee && call->callee->type == AST_MEMBER_ACCESS) {
+                const char* imported_result =
+                    semantic_resolve_imported_call(ctx, node, 0);
+                if (imported_result) {
+                    semantic_record_annotation(
+                        ctx, node, NULL, imported_result,
+                        SEMANTIC_RESULT_VALUE_RVALUE);
+                    return imported_result;
+                }
+            }
             Slot* slot = NULL;
             const char* result_type = NULL;
             uint32_t parameter_offset = 0u;
@@ -5237,6 +5250,186 @@ static void semantic_validate_call_arguments(
     }
     free(temporary_borrows);
 }
+ 
+/* Resolve a qualified module function against the verified import catalog.
+ * Temporary AST/Slot records borrow immutable interface metadata only during
+ * validation; no imported memory is copied into the local symbol table. */
+static const char* semantic_resolve_imported_call(
+    SemanticContext* ctx, ASTNode* call_node, int validate_arguments
+) {
+    ASTCall* call;
+    ASTMemberAccess* access;
+    ASTIdentifier* selector_node;
+    size_t alias_index = 0u, namespace_index = 0u, binding_index = 0u;
+    OccSemanticImportEnvironmentStatus alias_status, namespace_status;
+    OccSemanticImportedSymbol symbol;
+    OccSemanticImportedType return_type;
+    OccSemanticImportEnvironmentBinding binding;
+    size_t relation_count = 0u, i;
+    OccSemanticImportedRelation relations[256];
+    OccSemanticImportedType parameter_types[256];
+    ASTVarDecl parameters[256];
+    Slot imported_slot;
+    ASTFuncDecl imported_declaration;
+    const char* result_type = NULL;
+    uint8_t ordinal_seen[256];
+    size_t parameter_count = 0u;
+    int selector_recognized = 0;
+    char* param_type_names[256];
+
+    if (!ctx || !call_node || call_node->type != AST_FUNC_CALL ||
+        !ctx->import_environment) return NULL;
+    call = (ASTCall*)call_node;
+    if (!call->callee || call->callee->type != AST_MEMBER_ACCESS) return NULL;
+    access = (ASTMemberAccess*)call->callee;
+    if (!access->object || access->object->type != AST_IDENTIFIER ||
+        !access->member_name || !access->member_name[0]) return NULL;
+    selector_node = (ASTIdentifier*)access->object;
+    if (!selector_node->name || !selector_node->name[0]) return NULL;
+
+    alias_status = occ_semantic_import_environment_find_alias(
+        ctx->import_environment, selector_node->name, &alias_index);
+    namespace_status = occ_semantic_import_environment_find_namespace(
+        ctx->import_environment, selector_node->name, &namespace_index);
+    if (alias_status == OCC_SEMANTIC_IMPORT_ENV_OK) {
+        selector_recognized = 1;
+        binding_index = alias_index;
+    }
+    if (namespace_status == OCC_SEMANTIC_IMPORT_ENV_OK) {
+        if (selector_recognized && binding_index != namespace_index) {
+            if (validate_arguments)
+                report_issue(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "The selector matches both an import alias and a different namespace binding.",
+                    "Use a selector that identifies exactly one imported module.",
+                    "Use a selector that identifies exactly one imported module.",
+                    0, 0);
+            return NULL;
+        }
+        selector_recognized = 1;
+        binding_index = namespace_index;
+    }
+    if (!selector_recognized) return NULL;
+
+#define IMPORT_CALL_ERROR(message_text, suggestion_text) do { \
+    if (validate_arguments) report_issue(ctx, call_node, \
+        ERR_SEMANTIC_TYPE_MISMATCH, (message_text), \
+        (suggestion_text), (suggestion_text), 0, 0); \
+    return NULL; \
+} while (0)
+
+    if (alias_status == OCC_SEMANTIC_IMPORT_ENV_AMBIGUOUS ||
+        namespace_status == OCC_SEMANTIC_IMPORT_ENV_AMBIGUOUS)
+        IMPORT_CALL_ERROR(
+            "The module selector is ambiguous across imported bindings.",
+            "Give each imported module a unique alias and namespace selector.");
+    if (occ_semantic_import_environment_get_binding(
+            ctx->import_environment, binding_index, &binding) !=
+        OCC_SEMANTIC_IMPORT_ENV_OK)
+        IMPORT_CALL_ERROR(
+            "The selected import binding is unavailable.",
+            "Check the module import record and verified interface.");
+    if (occ_semantic_import_environment_find_symbol(
+            ctx->import_environment, binding_index, access->member_name,
+            &symbol) != OCC_SEMANTIC_IMPORT_ENV_OK)
+        IMPORT_CALL_ERROR(
+            "The selected module does not export a unique symbol with this name.",
+            "Check the spelling and ensure the declaration is PUBLIC or EXPORTED.");
+    if ((symbol.flags & (SEMANTIC_RESULT_SYMBOL_FLAG_PUBLIC |
+                         SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED)) == 0u)
+        IMPORT_CALL_ERROR(
+            "The selected module symbol is not marked PUBLIC or EXPORTED.",
+            "Expose the declaration through the module's public interface.");
+    if (symbol.kind != SEMANTIC_RESULT_SYMBOL_FUNCTION)
+        IMPORT_CALL_ERROR(
+            "The selected imported symbol is not a function.",
+            "Call an exported function or use a supported exported value/type.");
+    if (symbol.source_type_id == 0u ||
+        occ_semantic_import_environment_find_type(
+            ctx->import_environment, binding_index, symbol.source_type_id,
+            &return_type) != OCC_SEMANTIC_IMPORT_ENV_OK ||
+        !return_type.name || !return_type.name[0])
+        IMPORT_CALL_ERROR(
+            "The imported function has no valid return-type metadata.",
+            "Rebuild the module interface from a finalized SemanticResult.");
+    result_type = return_type.name;
+    if (occ_semantic_import_environment_get_relation_count(
+            ctx->import_environment, binding_index, symbol.source_symbol_id,
+            SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
+            &relation_count) != OCC_SEMANTIC_IMPORT_ENV_OK ||
+        relation_count > 256u)
+        IMPORT_CALL_ERROR(
+            "The imported function signature is incomplete or exceeds the supported 256-parameter limit.",
+            "Reduce the exported parameter count or rebuild the module interface.");
+    memset(&imported_slot, 0, sizeof(imported_slot));
+    memset(&imported_declaration, 0, sizeof(imported_declaration));
+    memset(parameters, 0, sizeof(parameters));
+    memset(parameter_types, 0, sizeof(parameter_types));
+    memset(ordinal_seen, 0, sizeof(ordinal_seen));
+    memset(param_type_names, 0, sizeof(param_type_names));
+    for (i = 0u; i < relation_count; ++i) {
+        if (occ_semantic_import_environment_get_relation_at(
+                ctx->import_environment, binding_index,
+                symbol.source_symbol_id,
+                SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
+                i, &relations[i]) != OCC_SEMANTIC_IMPORT_ENV_OK)
+            IMPORT_CALL_ERROR(
+                "The imported function parameter metadata could not be read.",
+                "Rebuild the module interface and verify its relation table.");
+        if (relations[i].ordinal >= relation_count ||
+            ordinal_seen[relations[i].ordinal] ||
+            !relations[i].name || !relations[i].name[0] ||
+            relations[i].type_id == 0u ||
+            occ_semantic_import_environment_find_type(
+                ctx->import_environment, binding_index,
+                relations[i].type_id, &parameter_types[i]) !=
+                OCC_SEMANTIC_IMPORT_ENV_OK ||
+            !parameter_types[i].name || !parameter_types[i].name[0])
+            IMPORT_CALL_ERROR(
+                "The imported function has duplicate, missing, or invalid parameter metadata.",
+                "Rebuild the module interface with a complete ordered function signature.");
+        ordinal_seen[relations[i].ordinal] = 1u;
+        parameters[relations[i].ordinal].base.type = AST_VAR_DECL;
+        parameters[relations[i].ordinal].name = (char*)relations[i].name;
+        parameters[relations[i].ordinal].type_name =
+            (char*)parameter_types[i].name;
+        param_type_names[relations[i].ordinal] =
+            (char*)parameter_types[i].name;
+    }
+    for (i = 0u; i < relation_count; ++i) {
+        if (!ordinal_seen[i])
+            IMPORT_CALL_ERROR(
+                "The imported function parameter ordinals are not contiguous.",
+                "Rebuild the module interface with zero-based contiguous parameter ordinals.");
+        if (i + 1u < relation_count)
+            parameters[i].base.next = (ASTNode*)&parameters[i + 1u];
+    }
+    parameter_count = relation_count;
+    imported_declaration.base.type = AST_FUNC_DECL;
+    imported_declaration.name = (char*)symbol.name;
+    imported_declaration.params = relation_count
+        ? (ASTNode*)&parameters[0] : NULL;
+    imported_declaration.return_type = (char*)result_type;
+    imported_slot.name = (char*)symbol.name;
+    imported_slot.kind = SLOT_FUNC;
+    imported_slot.type_name = (char*)result_type;
+    imported_slot.declaration_node = (ASTNode*)&imported_declaration;
+    imported_slot.param_count = (int)parameter_count;
+    imported_slot.required_param_count = (int)parameter_count;
+    imported_slot.param_types = param_type_names;
+    if (validate_arguments) {
+        semantic_validate_call_arguments(
+            ctx, call_node, &imported_slot, call->args, 0u);
+        semantic_record_annotation(
+            ctx, call->callee, NULL, result_type,
+            SEMANTIC_RESULT_VALUE_FUNCTION_DESIGNATOR);
+        semantic_record_annotation(
+            ctx, call_node, NULL, result_type,
+            SEMANTIC_RESULT_VALUE_RVALUE);
+    }
+#undef IMPORT_CALL_ERROR
+    return result_type;
+}
+
 
 static ASTNode* semantic_find_type_variable_argument(
     Slot* function_slot, ASTNode* arguments, uint32_t parameter_offset,
@@ -8749,7 +8942,10 @@ static void semantic_check_node(
                 if (call->args) semantic_check(ctx,call->args);
                 break;
             }
-            if (call->callee && call->callee->type == AST_MEMBER_ACCESS) {
+            if (call->callee && call->callee->type == AST_MEMBER_ACCESS &&
+                semantic_resolve_imported_call(ctx, node, 1) != NULL) {
+                /* Imported function resolved and checked against its interface signature. */
+            } else if (call->callee && call->callee->type == AST_MEMBER_ACCESS) {
                 ASTMemberAccess* access = (ASTMemberAccess*)call->callee;
                 Slot* method_slot;
                 int is_instance_call = 0;
