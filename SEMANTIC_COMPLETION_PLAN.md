@@ -188,3 +188,12 @@ A task may become `VERIFIED` only when all are true:
 |---|---|---|---|
 | 2026-11-19 | SEM-AUDIT-000 | Branch, source, tests and failing CI logs reconciled; broader work-package classification remains open | `df235c71ee09a2af7c76e7a01406bf4ed7ca1e2e`; CI run `44426912953` |
 | 2026-11-19 | SEM-CI-F001 | Fixed nullable `Slot.type_name` dereference; inferred tuple reference-storage guard and regression added; awaiting exact-head CI | Commits `5feba0fe9436333c2463a18f613ca87a7220e5ac`, `22c5ec7930461ab6e3dbcfdc87817c4f19761f7d`, `650097083aae1ebf567316f4d7c84ee3e3abea90` |
+
+
+### SEM-001 audit note — external declaration ordering (`exf`)
+
+- Parser accepts semicolon-form `exf` as an external declaration (`AST_EXTERN_DECL`); legacy body-form remains accepted for compatibility. Evidence: `omnicore-sdk/src/c/parser/parser.c` around 3515–3520.
+- Semantic handles `AST_FUNC_DECL` and `AST_EXTERN_DECL` in the shared function-declaration path. Function-call validation resolves identifier callees via `find_slot()` and validates arguments when a function slot is found. Evidence: `semantic.c` around 7884 onward and 8700 onward.
+- The observed top-level traversal routes `AST_PROGRAM` declarations through `semantic_check()` in sequence; no global top-level function predeclaration pass was found during this audit. This suggests extern declarations must precede their use, but it is not yet confirmed by an executable regression test.
+- Added a regression in `test_semantic.c`: use `read(value)` in `main` before the later `exf:read(value!i32)!i32;` declaration and expect a Semantic error. Commit: `b564e10f2faf36488d5beb52fa585da43e428532`.
+- **Status:** regression committed; runtime/CI validation pending. Do not mark SEM-001 VERIFIED until the test result is confirmed.
