@@ -21,6 +21,14 @@
 **Sütunlar:** L = Lexer, P = Parser, A = AST payload + lifecycle + codec, S = Semantic, O = OIR lowering, V = bağımsız OIR Verifier.  
 **Önemli:** Verifier ham AST almaz. AST'den Semantic AST'ye, oradan OIR'a indirgenen yürütülebilir davranışı doğrular. Bu nedenle O sütunu kapanmadan V sütunu da o syntax özelliği için kapanmış sayılamaz.
 
+## Semantic CI triage — nullable inferred type name — 2026-11-19
+
+- Historical green checkpoint below remains valid only for commit `3e15b23cef36fccb713b629738a48bd7138c77d6` / run `44415847403`; it is not the current branch-head status.
+- Later run `44426912953` failed all five jobs. The concrete crash was `strcmp(declared_slot->type_name, "tuple")` with a null `type_name` at `semantic.c:6341`; it was not an initializer-pointer dereference. The failure appeared in Semantic OOM fault injection and persistent SemanticResult integration, with six Ubuntu CTest failures.
+- Fix commits on `refactor/c-core-roadmap`: `5feba0fe9436333c2463a18f613ca87a7220e5ac` adds the null guard; `22c5ec7930461ab6e3dbcfdc87817c4f19761f7d` includes inferred `AST_TUPLE` initializers in safe-reference container checks; `650097083aae1ebf567316f4d7c84ee3e3abea90` adds a regression for `v:items = (&owner, 1)`.
+- Existing regression coverage remains: `test_semantic_result_integration.c::test_immutable_vs_compile_time_constant_flags` and `test_semantic_oom.c::check_allocation_failures`.
+- **Verification state: pending.** The new exact-head CI result has not yet been confirmed. No Semantic completion status is advanced based on these commits alone.
+
 ## CI verification checkpoint — 2026-11-19
 
 - Branch: `refactor/c-core-roadmap`
