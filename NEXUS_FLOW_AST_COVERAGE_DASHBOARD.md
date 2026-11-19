@@ -1027,3 +1027,6 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - [ ] Imported function relation enumeration and full signature validation.
 - [ ] End-to-end positive/negative import-call tests and exact-head CI.
 - **Status:** attachment only; imported calls are not yet supported/verified.
+
+
+- CI checkpoint `2a63c5c7` built and linked the Semantic import environment; import-environment unit test (23) and Semantic stage DLL test (51) passed on Ubuntu. Overall CI is **not green**: CTest/ASan report unrelated test 68 callback/NewType safe-reference merge failure; Windows/Valgrind final state still requires inspection. Imported symbol resolution remains unimplemented.
