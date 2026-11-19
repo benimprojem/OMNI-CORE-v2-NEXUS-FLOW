@@ -1575,11 +1575,39 @@ static int semantic_type_contains_safe_reference(
 static int semantic_type_or_callback_contract_contains_safe_reference(
     SemanticContext* ctx, const char* type_name, unsigned int depth
 ) {
-    const char* function_type;
-    if (semantic_type_contains_safe_reference(ctx, type_name, depth))
-        return 1;
-    function_type = semantic_function_type_text(ctx, type_name);
-    return function_type && strchr(function_type, '&') != NULL;
+    const char* raw_type = type_name;
+    Slot* type_slot;
+    FieldInfo* field;
+    if (!ctx || !raw_type) return 0;
+    if (depth > 64u) return 1;
+    while (*raw_type == '!') ++raw_type;
+    if (semantic_is_reference_type_name(raw_type)) return 1;
+    if (strncmp(raw_type, "f:", 2u) == 0)
+        return strchr(raw_type, '&') != NULL;
+    if (strncmp(raw_type, "array|", 6u) == 0) {
+        const char* element_start = raw_type + 6u;
+        size_t element_length = strcspn(element_start, "[");
+        char element_type[256];
+        if (element_length == 0u) return 0;
+        if (element_length >= sizeof(element_type)) return 1;
+        memcpy(element_type, element_start, element_length);
+        element_type[element_length] = '\\0';
+        return semantic_type_or_callback_contract_contains_safe_reference(
+            ctx, element_type, depth + 1u);
+    }
+    type_slot = find_slot(ctx, raw_type);
+    if (!type_slot) return 0;
+    if (type_slot->kind == SLOT_NEWTYPE)
+        return semantic_type_or_callback_contract_contains_safe_reference(
+            ctx, type_slot->type_name, depth + 1u);
+    if (type_slot->kind != SLOT_STRUCT && type_slot->kind != SLOT_UNION)
+        return 0;
+    for (field = type_slot->fields; field; field = field->next) {
+        if (semantic_type_or_callback_contract_contains_safe_reference(
+                ctx, field->type_name, depth + 1u))
+            return 1;
+    }
+    return 0;
 }
 
 static int semantic_type_is_any_depth(
