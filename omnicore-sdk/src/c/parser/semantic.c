@@ -5269,16 +5269,15 @@ static const char* semantic_resolve_imported_call(
     OccSemanticImportedType return_type;
     OccSemanticImportEnvironmentBinding binding;
     size_t relation_count = 0u, i;
-    OccSemanticImportedRelation relations[256];
-    OccSemanticImportedType parameter_types[256];
-    ASTVarDecl parameters[256];
+    OccSemanticImportedRelation* relations = NULL;
+    OccSemanticImportedType* parameter_types = NULL;
+    ASTVarDecl* parameters = NULL;
     Slot imported_slot;
     ASTFuncDecl imported_declaration;
     const char* result_type = NULL;
-    uint8_t ordinal_seen[256];
-    size_t parameter_count = 0u;
+    uint8_t* ordinal_seen = NULL;
+    char** param_type_names = NULL;
     int selector_recognized = 0;
-    char* param_type_names[256];
 
     if (out_handled) *out_handled = 0;
     if (!ctx || !call_node || call_node->type != AST_FUNC_CALL ||
@@ -5319,7 +5318,8 @@ static const char* semantic_resolve_imported_call(
     if (validate_arguments) report_issue(ctx, call_node, \
         ERR_SEMANTIC_TYPE_MISMATCH, (message_text), \
         (suggestion_text), (suggestion_text), 0, 0); \
-    return NULL; \
+    result_type = NULL; \
+    goto cleanup; \
 } while (0)
 
     if (alias_status == OCC_SEMANTIC_IMPORT_ENV_AMBIGUOUS ||
@@ -5360,17 +5360,35 @@ static const char* semantic_resolve_imported_call(
     if (occ_semantic_import_environment_get_relation_count(
             ctx->import_environment, binding_index, symbol.source_symbol_id,
             SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
-            &relation_count) != OCC_SEMANTIC_IMPORT_ENV_OK ||
-        relation_count > 256u)
+            &relation_count) != OCC_SEMANTIC_IMPORT_ENV_OK)
         IMPORT_CALL_ERROR(
-            "The imported function signature is incomplete or exceeds the supported 256-parameter limit.",
+            "The imported function parameter metadata could not be enumerated.",
+            "Rebuild the module interface and verify its relation table.");
+    if (relation_count > SIZE_MAX / sizeof(*relations) ||
+        relation_count > SIZE_MAX / sizeof(*parameter_types) ||
+        relation_count > SIZE_MAX / sizeof(*parameters) ||
+        relation_count > SIZE_MAX / sizeof(*ordinal_seen) ||
+        relation_count > SIZE_MAX / sizeof(*param_type_names))
+        IMPORT_CALL_ERROR(
+            "The imported function signature exceeds the host size limit.",
             "Reduce the exported parameter count or rebuild the module interface.");
+    if (relation_count) {
+        relations = (OccSemanticImportedRelation*)calloc(
+            relation_count, sizeof(*relations));
+        parameter_types = (OccSemanticImportedType*)calloc(
+            relation_count, sizeof(*parameter_types));
+        parameters = (ASTVarDecl*)calloc(relation_count, sizeof(*parameters));
+        ordinal_seen = (uint8_t*)calloc(relation_count, sizeof(*ordinal_seen));
+        param_type_names = (char**)calloc(
+            relation_count, sizeof(*param_type_names));
+        if (!relations || !parameter_types || !parameters ||
+            !ordinal_seen || !param_type_names)
+            IMPORT_CALL_ERROR(
+                "Unable to allocate temporary imported function signature metadata.",
+                "Reduce signature complexity or available memory pressure.");
+    }
     memset(&imported_slot, 0, sizeof(imported_slot));
     memset(&imported_declaration, 0, sizeof(imported_declaration));
-    memset(parameters, 0, sizeof(parameters));
-    memset(parameter_types, 0, sizeof(parameter_types));
-    memset(ordinal_seen, 0, sizeof(ordinal_seen));
-    memset(param_type_names, 0, sizeof(param_type_names));
     for (i = 0u; i < relation_count; ++i) {
         if (occ_semantic_import_environment_get_relation_at(
                 ctx->import_environment, binding_index,
@@ -5408,7 +5426,6 @@ static const char* semantic_resolve_imported_call(
         if (i + 1u < relation_count)
             parameters[i].base.next = (ASTNode*)&parameters[i + 1u];
     }
-    parameter_count = relation_count;
     imported_declaration.base.type = AST_FUNC_DECL;
     imported_declaration.name = (char*)symbol.name;
     imported_declaration.params = relation_count
@@ -5418,8 +5435,8 @@ static const char* semantic_resolve_imported_call(
     imported_slot.kind = SLOT_FUNC;
     imported_slot.type_name = (char*)result_type;
     imported_slot.declaration_node = (ASTNode*)&imported_declaration;
-    imported_slot.param_count = (int)parameter_count;
-    imported_slot.required_param_count = (int)parameter_count;
+    imported_slot.param_count = (int)relation_count;
+    imported_slot.required_param_count = (int)relation_count;
     imported_slot.param_types = param_type_names;
     if (validate_arguments) {
         semantic_validate_call_arguments(
@@ -5431,10 +5448,16 @@ static const char* semantic_resolve_imported_call(
             ctx, call_node, NULL, result_type,
             SEMANTIC_RESULT_VALUE_RVALUE);
     }
+
+cleanup:
+    free(relations);
+    free(parameter_types);
+    free(parameters);
+    free(ordinal_seen);
+    free(param_type_names);
 #undef IMPORT_CALL_ERROR
     return result_type;
 }
-
 
 static ASTNode* semantic_find_type_variable_argument(
     Slot* function_slot, ASTNode* arguments, uint32_t parameter_offset,
