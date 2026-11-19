@@ -1,5 +1,13 @@
 # NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu
 
+
+### Imported library symbol lookup — integration gap (2026-11-19)
+
+- The module interface publishes PUBLIC/EXPORTED declarations and type closure; the import bundle validates dependency identity; the Semantic import environment indexes aliases, namespaces, symbols and types.
+- However, `semantic_stage_module.c` currently binds the import bundle and then calls `semantic_check(&sem, root)` without initializing/attaching `OccSemanticImportEnvironment`. The `occ_semantic_stage` target links `occ_module_import_bundle` but not `occ_semantic_import_environment`.
+- Therefore library interface transport is present, but imported declarations are not yet proven to participate in Semantic name resolution. Source-level `exf` remains the only confirmed path at this point.
+- Required follow-up: bridge imported symbol/type lookup into Semantic; enforce visibility, alias/namespace, collision and signature rules; add end-to-end stage tests.
+- Status: **integration gap identified; not implemented or verified**. Details: `SEMANTIC_COMPLETION_PLAN.md`.
 ## Semantic audit note — `exf` declaration order (2026-11-19)
 
 - `exf` semicolon declarations parse as `AST_EXTERN_DECL`; legacy body form remains supported.
