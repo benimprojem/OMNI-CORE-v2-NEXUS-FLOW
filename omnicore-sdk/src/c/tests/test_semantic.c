@@ -1136,6 +1136,10 @@ static int check_safe_reference_type_erasure_semantics(void) {
         "f:main(owner!i32) { v:dynamic!any = 1; dynamic = &owner; }";
     const char* any_parameter_rejected =
         "f:consume(value!any) {} f:main(owner!i32) { consume(&owner); }";
+    const char* callback_reference_contract_erasure_rejected =
+        "nt:RefGetter = f:(value!&i32)!&i32; "
+        "f:consume(value!any) {} "
+        "f:main(callback!RefGetter) { consume(callback); }";
     const char* any_return_rejected =
         "f:escape(owner!i32)!any { ret &owner; }";
     const char* any_array_initializer_rejected =
@@ -1153,6 +1157,7 @@ static int check_safe_reference_type_erasure_semantics(void) {
     return check_source(any_initializer_rejected, 1) &&
         check_source(any_reassignment_rejected, 1) &&
         check_source(any_parameter_rejected, 1) &&
+        check_source(callback_reference_contract_erasure_rejected, 1) &&
         check_source(any_return_rejected, 1) &&
         check_source(any_array_initializer_rejected, 1) &&
         check_source(inferred_tuple_reference_initializer_rejected, 1) &&
