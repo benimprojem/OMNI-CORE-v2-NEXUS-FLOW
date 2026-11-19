@@ -2000,41 +2000,69 @@ Cleanup hata politikası da sabittir: bir defer veya otomatik kaynak temizliği 
 
 ## 15. EXF — External Function Declarations ve Linkage
 
-### 15.1 Dış fonksiyon bildirimi
+### 15.1 Dış sembollerin kaynakları
 
-Nexus Flow, object/library kaynaklarındaki dış fonksiyonları açık bildirimle kullanır. Örnek:
+Nexus Flow dış sembolleri iki doğrulanabilir kaynaktan alır:
+
+1. **İçe aktarılan modül/kütüphane arayüzü:** `use` ile yüklenen modülün doğrulanmış Module Interface kaydı, yalnızca `PUBLIC` veya `EXPORTED` olarak yayımlanan sembolleri ve gerekli tür arayüzünü Semantic'e sunar. Bu arayüzde bulunan bir sembolü kullanmak için aynı sembolü kaynakta tekrar `exf:` ile bildirmek gerekmez.
+2. **Açık EXF bildirimi:** Bir object/library veya başka bir dış ABI kaynağı sembolü modülün Nexus Flow arayüzünde yayımlanmıyorsa, kaynak dosya `exf:` ile sembolün imzasını açıkça bildirir. Bu bildirim çağrıdan önce görünür olmalı ve Semantic tarafından doğrulanmalıdır.
+
+Her iki durumda da yalnızca linker'ın sembolü sonradan bulması yeterli değildir. Çağrıdan önce sembol adı, callable türü, parametreler, dönüş türü ve görünürlük Semantic tarafından biliniyor olmalıdır. Bilinmeyen veya doğrulanmamış sembol çağrısı reddedilir.
+
+### 15.2 Açık EXF bildirimi
 
 ```nxf
 exf:add(a!i32, b!i32)!i32;
 ```
 
-- `exf:` yalnızca belirtilen dış sembolü Nexus Flow programına fonksiyon arayüzü olarak tanıtır.
-- Parametreler normal fonksiyon parametre tipleriyle aynı type-expression altyapısını kullanır.
-- `!i32` dönüş tipini belirtir; dönüş tipi olmayan bildirimler ayrıca dil kuralına göre ele alınır.
-- EXF ile bildirilen fonksiyon, kaynak kodunda yerel fonksiyon çağrısı gibi kullanılabilir; dış sembol çözümlemesi ayrı linkage aşamasına aittir.
+- `exf:` dış fonksiyonun Nexus Flow tarafındaki callable imzasını bildirir.
+- Parametreler normal fonksiyon parametreleriyle aynı type-expression altyapısını kullanır.
+- `!i32` dönüş tipini belirtir.
+- EXF bildirimi, aynı isimli yerel fonksiyon veya başka bir import kaydıyla çakışma/ambiguous resolution oluşturamaz; bu durum Semantic tanısıdır.
+- Mevcut Semantic davranışında top-level bildirimler sıralı işlendiğinden, EXF bildirimi çağrıdan önce yer almalıdır. İleri bildirim/predeclaration davranışı ayrıca uygulanıp test edilmedikçe varsayılmaz.
 
-### 15.2 Linkname bildirimi ve EXF kapsamı
+### 15.3 Modül arayüzünden gelen semboller
+
+```nxf
+use math as m;
+
+f:main() {
+    v:total!i32 = m.sum(10, 20);
+}
+```
+
+Bu örnekte `sum`, `math` modülünün doğrulanmış ve dışarı açılmış interface'inde bulunuyorsa ayrı bir `exf:sum(...);` bildirimi gerekmez. Alias veya namespace seçimi açıkça yazılır; import ortamı ilgili USE kaydına bağlanır. Bir modülün private/internal sembolleri import yoluyla görünür hale gelmez.
+
+- `PUBLIC` / `EXPORTED` erişim kararı Semantic katmanında uygulanır; import index'inin sembolü bulabilmesi tek başına erişim izni değildir.
+- Alias ve namespace ayrı selector türleridir. Selector belirtilmişse yalnızca o USE kaydındaki semboller aranır.
+- Aynı isim birden fazla görünür import kaydında bulunuyorsa çözümleme sessizce ilk eşleşmeyi seçmez; açık qualification yoksa ambiguity tanısı üretir.
+- Yerel bildirim ile import edilen sembolün aynı adla çakışması, dilin açık collision policy'sine göre Semantic tarafından raporlanır; import index sırası öncelik kuralı değildir.
+- İçe aktarılan fonksiyonun imzası, parametre sayısı/türleri ve dönüş türü çağrı noktasında normal fonksiyon çağrısı gibi doğrulanır.
+
+**Uygulama durumu:** Module Interface, Import Bundle ve Semantic Import Environment veri katmanları mevcuttur. Ancak mevcut Semantic stage import bundle'ı bağladıktan sonra import environment'i oluşturup Semantic name resolver'a aktarmamaktadır. Bu nedenle modül arayüzünden gelen sembollerin gerçek kaynak çağrılarında çözümlenmesi henüz uygulanmış veya doğrulanmış değildir. Yukarıdaki sözleşme hedeflenen normatif davranıştır; uygulama/test kapanışı değildir.
+
+### 15.4 Linkname ve dış object/library bağlantısı
 
 ```nxf
 !!=linkname = "math.obj";
 
 exf:add(a!i32, b!i32)!i32;
 exf:sub(a!i32, b!i32)!i32;
-````
+```
 
-- `linkname`, dış bağlantı kaynağını bildirir ve OCL linker için linkage metadata sağlar.
-- `exf:` bildirimleri, bu kaynaktan Nexus Flow'a açılan sembolleri belirler.
-- Linkname verilmesi kütüphanedeki tüm sembolleri otomatik olarak kullanılabilir yapmaz.
-- Yalnızca EXF ile açıkça bildirilen fonksiyonlar Nexus Flow dış-fonksiyon arayüzüne dahil edilir.
-- EXF sembol adı ile gerçek object/library sembol adı gerekirse ayrı tutulabilir; bu eşleştirme linker metadata'sıdır.
+- `linkname`, dış bağlantı kaynağını bildirir ve linker için linkage metadata sağlar.
+- Linkname verilmesi kütüphanedeki tüm sembolleri otomatik olarak Semantic görünürlüğüne açmaz.
+- Bu kaynaktan kullanılacak arayüzler açık EXF bildirimiyle tanımlanır; doğrulanmış bir Nexus Flow Module Interface üzerinden gelen semboller ise import kurallarına tabidir.
+- EXF adı ile gerçek object/library sembol adı farklıysa eşleştirme linker metadata'sıdır.
 - Bir linkname kaynağı birden fazla EXF bildirimiyle ilişkilendirilebilir.
 
-- **Extern güvenlik sınırı:** `exf` imzaları safe reference (`&T`, `&mut T`) parametre/return türlerini ve safe reference içeren callback imzalarını kabul etmez. Extern çağrısına `any` üzerinden türü silinmiş bir safe reference geçirmek de reddedilir. Değerler ve açık raw pointer'lar kullanılabilir; raw pointer güvenliği çağırana aittir. Linkname/symbol resolution ve target ABI OIR/driver aşamasındadır.
-### 15.3 Aşama sınırı
+**Extern güvenlik sınırı:** `exf` imzaları safe reference (`&T`, `&mut T`) parametre/return türlerini ve safe reference içeren callback imzalarını kabul etmez. Extern çağrısına `any` üzerinden türü silinmiş bir safe reference geçirmek de reddedilir. Değerler ve açık raw pointer'lar kullanılabilir; raw pointer güvenliği çağırana aittir.
 
-Bu bölüm dil bildiriminin ve AST'de korunması gereken ilişkinin normatif tanımıdır. Object format çözümleme, ABI/calling-convention doğrulaması, sembol seçimi ve OCL linker uygulaması bu AST işi kapsamında tamamlanmış sayılmaz; ileriki linker aşamasında ele alınacaktır.
+### 15.5 Aşama sınırı ve doğrulama
 
-**AST gereksinimi:** EXF parametre/dönüş tipleri, sembol adı ve linkname ilişkisi kayıpsız taşınmalıdır. Linkname ile EXF arasındaki ilişkiyi temsil etmek için mevcut AST node/metadata modeli incelenir; gereksiz yeni node oluşturulmaz.
+EXF imzasının Parser/AST/Semantic doğrulaması, modül interface sembollerinin Semantic'e aktarılması ve çağrı imzasının kontrolü Semantic sorumluluğudur. Object format çözümleme, gerçek dış sembolün mevcut olup olmadığının kontrolü, ABI/calling-convention uyumu ve nihai symbol binding/link işlemi daha sonraki linker/target aşamasıdır. Linker doğrulaması Semantic isim çözümlemesinin yerine geçmez.
+
+**AST gereksinimi:** EXF parametre/dönüş tipleri, sembol adı ve linkname ilişkisi kayıpsız taşınmalıdır. Import kaynaklı semboller ise import kimliği, kaynak interface kimliği ve yayımlanan sembol kimliğiyle ilişkilendirilmelidir; gereksiz yeni AST node oluşturulmaz.
 
 ## 16. Function Types and Callbacks
 
