@@ -1129,6 +1129,36 @@ static int check_vector_index_semantics(void) {
         check_source(vector_index_write_type, 1);
 }
 
+static int check_safe_reference_type_erasure_semantics(void) {
+    const char* any_initializer_rejected =
+        "f:main(owner!i32) { v:dynamic!any = &owner; }";
+    const char* any_reassignment_rejected =
+        "f:main(owner!i32) { v:dynamic!any = 1; dynamic = &owner; }";
+    const char* any_parameter_rejected =
+        "f:consume(value!any) {} f:main(owner!i32) { consume(&owner); }";
+    const char* any_return_rejected =
+        "f:escape(owner!i32)!any { ret &owner; }";
+    const char* any_array_initializer_rejected =
+        "f:main(owner!i32) { v:items!any[] = [&owner]; }";
+    const char* any_map_value_rejected =
+        "f:main(owner!i32) { v:items!map; items[\"key\"] = &owner; }";
+    const char* cast_any_to_reference_rejected =
+        "f:main(value!any) { v:reference!&i32 = cast(value,&i32); }";
+    const char* cast_raw_pointer_to_reference_rejected =
+        "f:main(value!*i32) { v:reference!&i32 = cast(value,&i32); }";
+    const char* explicit_reference_to_raw_pointer_allowed =
+        "f:main(owner!i32) { v:pointer!*i32 = cast(&owner,*i32); }";
+    return check_source(any_initializer_rejected, 1) &&
+        check_source(any_reassignment_rejected, 1) &&
+        check_source(any_parameter_rejected, 1) &&
+        check_source(any_return_rejected, 1) &&
+        check_source(any_array_initializer_rejected, 1) &&
+        check_source(any_map_value_rejected, 1) &&
+        check_source(cast_any_to_reference_rejected, 1) &&
+        check_source(cast_raw_pointer_to_reference_rejected, 1) &&
+        check_source(explicit_reference_to_raw_pointer_allowed, 0);
+}
+
 static int check_extern_reference_boundary_semantics(void) {
     const char* extern_value_signature =
         "exf:read(value!i32)!i32; f:main(value!i32) { v:result!i32 = read(value); }";
@@ -3384,6 +3414,10 @@ int main(int argc, char** argv) {
     }
     if (!check_vector_index_semantics()) {
         fprintf(stderr, "Vector index checks failed.\\n");
+        return 1;
+    }
+    if (!check_safe_reference_type_erasure_semantics()) {
+        fprintf(stderr, "Safe-reference type-erasure checks failed.\\n");
         return 1;
     }
     if (!check_extern_reference_boundary_semantics()) {

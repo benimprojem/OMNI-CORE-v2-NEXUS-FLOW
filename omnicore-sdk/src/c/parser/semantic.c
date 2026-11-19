@@ -1558,6 +1558,26 @@ static int semantic_type_contains_safe_reference(
     return 0;
 }
 
+
+static int semantic_type_is_any_depth(
+    SemanticContext* ctx, const char* type_name, unsigned int depth
+) {
+    Slot* slot;
+    if (!type_name || depth > 32u) return 0;
+    while (*type_name == '!') ++type_name;
+    if (strcmp(type_name, "any") == 0) return 1;
+    slot = find_slot(ctx, type_name);
+    if (slot && slot->kind == SLOT_NEWTYPE && slot->type_name)
+        return semantic_type_is_any_depth(ctx, slot->type_name, depth + 1u);
+    return 0;
+}
+
+static int semantic_type_is_any(
+    SemanticContext* ctx, const char* type_name
+) {
+    return semantic_type_is_any_depth(ctx, type_name, 0u);
+}
+
 typedef struct SemanticReferenceInitEntry {
     Slot* slot;
     uint8_t is_initialized;
@@ -2254,6 +2274,55 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
         default:
             return NULL;
     }
+}
+
+
+static int semantic_expression_contains_safe_reference(
+    SemanticContext* ctx, const ASTNode* expression, unsigned int depth
+) {
+    const ASTNode* current;
+    const char* expression_type;
+    if (!ctx || !expression) return 0;
+    if (depth > 64u) return 1;
+    switch (expression->type) {
+        case AST_ARRAY_LITERAL:
+            for (current = ((const ASTArrayLiteral*)expression)->elements;
+                 current; current = current->next) {
+                if (semantic_expression_contains_safe_reference(
+                        ctx, current, depth + 1u)) return 1;
+            }
+            return 0;
+        case AST_TUPLE:
+            for (current = ((const ASTTuple*)expression)->elements;
+                 current; current = current->next) {
+                if (semantic_expression_contains_safe_reference(
+                        ctx, current, depth + 1u)) return 1;
+            }
+            return 0;
+        case AST_STRUCT_LITERAL:
+            for (current = ((const ASTStructLiteral*)expression)->fields;
+                 current; current = current->next) {
+                if (current->type == AST_STRUCT_FIELD_INIT &&
+                    semantic_expression_contains_safe_reference(
+                        ctx, ((const ASTStructFieldInit*)current)->value,
+                        depth + 1u)) return 1;
+            }
+            return 0;
+        case AST_NAMED_ARG:
+            return semantic_expression_contains_safe_reference(
+                ctx, ((const ASTNamedArg*)expression)->value, depth + 1u);
+        case AST_RELOCATE:
+            return semantic_expression_contains_safe_reference(
+                ctx, ((const ASTRelocate*)expression)->source, depth + 1u);
+        case AST_CAST:
+            return semantic_expression_contains_safe_reference(
+                ctx, ((const ASTCast*)expression)->value, depth + 1u);
+        default:
+            break;
+    }
+    expression_type = get_expr_type(ctx, (ASTNode*)expression);
+    return semantic_type_contains_safe_reference(
+        ctx, expression_type, 0u);
 }
 
 static int semantic_array_signatures_compatible(
@@ -4896,6 +4965,15 @@ static void semantic_validate_call_arguments(
                 parameter_index<(uint32_t)function_slot->param_count
                     ? function_slot->param_types[parameter_index] : NULL;
 
+            if (expected_type && semantic_type_is_any(ctx, expected_type) &&
+                semantic_expression_contains_safe_reference(
+                    ctx, argument_value, 0u)) {
+                report_issue(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
+                    "A safe reference cannot be passed through an any parameter because that would erase its owner and lifetime provenance.",
+                    "Keep the argument typed as &T/&mut T, or pass an ordinary value/raw pointer when dynamic typing is required.",
+                    "Keep the argument typed as &T/&mut T, or pass an ordinary value/raw pointer when dynamic typing is required.",
+                    0, 0);
+            }
             if (function_slot->declaration_node &&
                 function_slot->declaration_node->type == AST_EXTERN_DECL &&
                 semantic_type_contains_safe_reference(ctx, argument_type, 0u)) {
@@ -6246,6 +6324,22 @@ static void semantic_check_node(
                         "Initializer for c: must be a compile-time constant expression; runtime calls and non-constant values are not allowed.");
                 }
                 init_type = get_expr_type(ctx, decl->initializer);
+                if (((declared_slot && semantic_type_is_any(
+                        ctx, declared_slot->type_name)) ||
+                     (declared_slot && semantic_is_array_type_name(
+                        declared_slot->type_name)) ||
+                     (declared_slot && strcmp(declared_slot->type_name,
+                        "tuple") == 0) ||
+                     (decl->initializer->type == AST_STRUCT_LITERAL)) &&
+                    semantic_expression_contains_safe_reference(
+                        ctx, decl->initializer, 0u)) {
+                    report_issue(ctx, decl->initializer,
+                        ERR_SEMANTIC_TYPE_MISMATCH,
+                        "A safe reference cannot be stored in any, an array, a tuple, or an aggregate initializer because element/field-level borrow provenance is unavailable.",
+                        "Keep the safe reference in a direct local binding; store only values or explicitly managed raw pointers in dynamic/aggregate containers.",
+                        "Keep the safe reference in a direct local binding; store only values or explicitly managed raw pointers in dynamic/aggregate containers.",
+                        0, 0);
+                }
                 if (!is_array && semantic_is_array_type_name(init_type) &&
                     semantic_type_contains_safe_reference(ctx, init_type, 0u)) {
                     report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
@@ -6942,6 +7036,16 @@ static void semantic_check_node(
                 if (slot && slot->type_name) {
                     const char* right_type = get_expr_type(ctx, assign->right);
                     int named_function_assignment = 0;
+                    if (semantic_type_is_any(ctx, slot->type_name) &&
+                        semantic_expression_contains_safe_reference(
+                            ctx, assign->right, 0u)) {
+                        report_issue(ctx, assign->right,
+                            ERR_SEMANTIC_TYPE_MISMATCH,
+                            "A safe reference cannot be assigned to any because its owner and lifetime provenance would be erased.",
+                            "Keep the destination typed as &T/&mut T, or store a value/raw pointer instead.",
+                            "Keep the destination typed as &T/&mut T, or store a value/raw pointer instead.",
+                            0, 0);
+                    }
                     if (semantic_is_function_type_name(ctx, slot->type_name) &&
                         assign->right->type == AST_IDENTIFIER) {
                         Slot* function_slot = find_slot(ctx,
@@ -7043,7 +7147,8 @@ static void semantic_check_node(
                   ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR))) {
                 const char* stored_type = get_expr_type(ctx, assign->right);
                 const char* target_type = get_expr_type(ctx, assign->left);
-                if (semantic_type_contains_safe_reference(ctx, stored_type, 0u) &&
+                if (semantic_expression_contains_safe_reference(
+                        ctx, assign->right, 0u) &&
                     !semantic_type_contains_safe_reference(ctx, target_type, 0u)) {
                     report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Safe references cannot be stored through this member/index/pointer target because its storage does not track reference owner and lifetime provenance.",
@@ -8246,6 +8351,15 @@ static void semantic_check_node(
 
             if (ret->operand) {
                 const char* returned_type = get_expr_type(ctx, ret->operand);
+                if (semantic_type_is_any(ctx, ctx->current_func_return_type) &&
+                    semantic_expression_contains_safe_reference(
+                        ctx, ret->operand, 0u)) {
+                    report_issue(ctx, node, ERR_SEMANTIC_RETURN_MISMATCH,
+                        "A safe reference cannot be returned through any because its borrow origin would be erased.",
+                        "Return the direct safe-reference type and preserve its parameter/global origin, or return a value/raw pointer.",
+                        "Return the direct safe-reference type and preserve its parameter/global origin, or return a value/raw pointer.",
+                        0, 0);
+                }
                 if (semantic_is_reference_type_name(returned_type) &&
                     !semantic_reference_return_has_stable_origin(
                         ctx, ret->operand)) {
@@ -9393,6 +9507,19 @@ static void semantic_check_node(
                 break;
             }
             semantic_check(ctx, cast->value);
+            if (cast->target_type && cast->target_type->type == AST_IDENTIFIER) {
+                const char* target_name = ((ASTIdentifier*)cast->target_type)->name;
+                const char* source_type = get_expr_type(ctx, cast->value);
+                if (semantic_is_reference_type_name(target_name) &&
+                    (semantic_type_is_any(ctx, source_type) ||
+                     semantic_is_raw_pointer_type_name(source_type))) {
+                    report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "cast() cannot create a safe reference from any or a raw pointer because no owner/lifetime provenance is available.",
+                        "Create a safe reference with &owner/&mut owner, or use a raw pointer and keep its unsafe contract explicit.",
+                        "Create a safe reference with &owner/&mut owner, or use a raw pointer and keep its unsafe contract explicit.",
+                        0, 0);
+                }
+            }
             /* The target is a type designator, not a runtime value expression. */
             if (cast->target_type && cast->target_type->type == AST_IDENTIFIER) {
                 const char* target_name = ((ASTIdentifier*)cast->target_type)->name;

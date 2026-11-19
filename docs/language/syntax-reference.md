@@ -2249,3 +2249,5 @@ Bu sözleşmenin Semantic uygulaması, AST/Parser'ın gerçekten desteklediği b
 - **SIMD vector indexing:** `Vec2`, `Vec3` and `Vec4` are fixed-width vectors with `f64` scalar components. Indexing requires an integer expression; a constant index is checked against the vector dimension at Semantic time, while a dynamic index remains subject to runtime bounds checking.
 
 - **128-bit numeric types:** `i128`/`u128` are integer and bitwise-capable primitives with 128-bit width; `f128`/`d128` are numeric floating/decimal primitives and are not bitwise-capable. They participate in the same type compatibility and arithmetic validation as the corresponding narrower families. Literal overflow and target-specific lowering remain separate checks.
+
+- **`any` provenance boundary:** Safe references cannot be stored, returned, passed, or embedded through `any`, arrays, tuples, aggregate initializers or Map values. Casting `any` or a raw pointer into `&T`/`&mut T` is rejected because no owner/lifetime origin can be reconstructed. An explicit cast from a safe reference to a raw pointer is permitted as an unsafe escape hatch.
