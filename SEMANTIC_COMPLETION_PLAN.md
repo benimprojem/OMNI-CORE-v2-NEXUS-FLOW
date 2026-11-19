@@ -291,3 +291,14 @@ A task may become `VERIFIED` only when all are true:
 - Added a direct Semantic regression where an imported function returns `&i32`; the call is rejected rather than manufacturing an unverified local borrow origin.
 - Follow-up hardening commits: imported return provenance guard `4fd83f79ee4580238827064059ff4ba0355fff45`; published nominal type closure guard `b4bec1f064bcc29cca68c701767041e2f3e80514`; malformed symbol-table guard `b2df3f81aea46f5f3a56f86c43df8cdcad3a53bc`; test `ecdaa440d686f9c86886c10c082ad03b349c91b4`.
 - CI remains unavailable for the current branch head (no workflow runs or status checks returned). Code and tests are committed but not yet executed; SEM-001 remains open.
+
+
+### CI run recovery and failure investigation — 2026-11-19
+
+The earlier statement that no CI run existed was inaccurate. The workflow-run connector was PR-only; the branch's push-triggered run was retrieved via the public Actions API.
+
+- Run `44448590891`, commit `abe7fc6a5a8924109304be0bec7a4bde751edb11`: configure and build succeeded on Windows, Ubuntu and macOS; CTest failed on all three.
+- ASan/UBSan build succeeded but tests failed; Valgrind build succeeded but its CTest run failed. The same test is failing: `semantic_checks_valid_and_undefined_symbols` (test 68, 72/73 passed).
+- `check_safe_reference_type_erasure_semantics()` expected one error for safe-reference storage in `any`, but received two. The intended diagnostic is at 1:37; an extra `Unknown Message` is at 1:21. Investigate the function-parameter/reference diagnostics before modifying code.
+- The imported resolver fixtures are part of the failing aggregate test, so their verification remains pending. Do not advance to OIR.
+- CI runs must be queried by branch/event through the Actions API, not the PR-only workflow-runs tool.
