@@ -1073,3 +1073,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - [ ] Resolve imported values and nominal types; implement local/import collision policy and imported type closure checks.
 
 **Current status:** function-call resolver and direct fixtures are committed but unverified by CI. SEM-001 remains open; do not advance to OIR.
+
+
+### Import selector collision guard — 2026-11-19
+
+- [x] Reject a qualified import alias/namespace that collides with a local declaration in the active scope chain; added a regression for local `m` versus `use math as m`.
+- [ ] Broader unqualified import injection and imported type/value collision policy remain pending.
+- Latest resolver/test commits: `78c92db949baf68a9040e1e59150d03d9fa07082`, `1fe4d59be79650064861c778116fe4fc9feeff64`.
+- No CI result is available for the current head; the checkbox above records code/test addition only, not runtime verification.
