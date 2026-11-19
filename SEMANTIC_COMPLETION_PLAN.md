@@ -178,6 +178,7 @@ A task may become `VERIFIED` only when all are true:
 - Branch head at plan creation: `df235c71ee09a2af7c76e7a01406bf4ed7ca1e2e`.
 - Dashboard checkpoint records five green jobs at commit `3e15b23cef36fccb713b629738a48bd7138c77d6`, run `44415847403`, with 73/73 Ubuntu CTest tests. This is historical evidence for that commit, not proof for later commits.
 - The current dashboard already records substantial Semantic coverage, including declarations/types, Group/Method, pointer/reference, enums, unions, Map/Vec and relocation checkpoints. Do not reimplement these wholesale.
+- Latest pre-plan code head `df235c71ee09a2af7c76e7a01406bf4ed7ca1e2e` has a failing CI run `44426912953` (all five jobs fail in tests). The ASan/UBSan trace identifies a null dereference in `omnicore-sdk/src/c/parser/semantic.c:6341` at `decl->initializer->type`; the affected paths include declarations without initializers. The failing tests include Semantic OOM injection and persistent-result integration. This is a pre-existing code failure, not caused by the documentation-only plan commits. Record it as a release blocker and fix it with a regression test before closure.
 - First execution is **SEM-AUDIT-000**: reconcile the latest source, tests, dashboard, syntax reference and CI history; classify every existing row as verified, partial, deferred or unknown; then schedule only the real gaps.
 - The Semantic closure gate remains closed until SEM-001 through SEM-014 meet their acceptance criteria. OIR must not be started as a substitute for unfinished Semantic work.
 
@@ -186,3 +187,4 @@ A task may become `VERIFIED` only when all are true:
 | Date | Task | Result | Evidence |
 |---|---|---|---|
 | 2026-11-19 | SEM-AUDIT-000 | Plan established; source-level reconciliation pending | Branch head `df235c71ee09a2af7c76e7a01406bf4ed7ca1e2e` |
+| 2026-11-19 | SEM-CI-F001 | Null initializer dereference identified at `semantic.c:6341`; fix and regression pending | Failed CI run `44426912953`; ASan/UBSan trace |
