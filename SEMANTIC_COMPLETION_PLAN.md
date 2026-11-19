@@ -217,3 +217,13 @@ A task may become `VERIFIED` only when all are true:
 - Current implementation gap remains: `semantic_stage_module.c` binds `OccModuleImportBundle` but does not initialize/attach `OccSemanticImportEnvironment` before `semantic_check()`; `occ_semantic_stage` also does not link `occ_semantic_import_environment`. No source-level imported-library call is claimed working until an end-to-end stage test proves it.
 - The EXF declaration-before-use regression `b564e10f2faf36488d5beb52fa585da43e428532` remains unverified until CI for the exact branch head passes.
 - Next implementation sequence: (1) define SemanticContext import-environment attachment and ownership/lifetime contract, (2) resolve explicitly qualified imported functions/types in normal name lookup, (3) enforce PUBLIC/EXPORTED and collision/ambiguity rules, (4) test function signatures and negative visibility cases through the Semantic stage DLL, (5) verify exact-head CI. Keep this within SEM-001; do not start OIR.
+
+
+### SEM-001 implementation checkpoint — import environment attachment (2026-11-19)
+
+- Added `SemanticContext.import_environment` as a borrowed, read-only pointer and `semantic_attach_import_environment()`. The SemanticContext does not own or destroy the environment.
+- Semantic stage now initializes `OccSemanticImportEnvironment` from the already verified `OccModuleImportBundle`, attaches it before `semantic_check()`, then destroys it after `semantic_destroy()` and before destroying the bundle/interface artifact views.
+- `occ_semantic_stage` now links `occ_semantic_import_environment`.
+- This checkpoint establishes job-local ownership/lifetime and DLL linkage only. Imported alias/namespace lookup is NOT implemented yet.
+- Interface signature data is present as the exported symbol's `type_id` plus `FUNCTION_PARAMETER` relation records (ordinal, name and type). The import environment currently has no relation enumeration API; add a bounded read-only relation lookup before constructing imported call signatures.
+- Exact-head CI for code checkpoint `2a63c5c7f6caa482312416025c466be900839f22` is run `44444419211` and was observed in progress. Do not mark this checkpoint verified until all jobs finish green; any later branch-head change requires a new exact-head CI check.
