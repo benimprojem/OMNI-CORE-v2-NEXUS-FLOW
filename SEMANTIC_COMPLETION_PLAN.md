@@ -274,3 +274,11 @@ A task may become `VERIFIED` only when all are true:
 - Code commits: resolver `4cec910f7232bb5218c7f9f417c578383fa09803`; handled-state diagnostic correction `191d4b3285f72814ae96bdaa73d516f293428915`; dispatch nesting correction `37e27f3818ae46fe34822baaaecd008eed2ddeef`; dynamic signature storage `ade34a83d9fc0555b6b428d92b1d8486623c732f`; selector/parameter bound correction `0510dafe36058502c30a6d8ca3857c87e70e4a00`.
 - Test commit: `6eef31cdd19cba5ad67c2c0b60986c649f17e1a8`. Build-system commit: `59cde066ecbfd1db437eac380435683598197c79`.
 - Verification: GitHub status/run data is not yet available for the current branch head. These tests are added, not yet executed. Do not mark SEM-001 complete until CI and Semantic Stage integration tests pass.
+
+
+### Import selector collision guard — 2026-11-19
+
+- Qualified imported call resolution now rejects a selector that is also bound to a local declaration in the active scope chain. This prevents `m.add()` from silently choosing an import when `m` is a local variable/Group/type (or vice versa). The diagnostic points at the call and recommends renaming the local binding or selecting a unique import alias/namespace.
+- Added a direct Semantic regression fixture for a local `m` declaration colliding with `use math as m`.
+- Commits: resolver collision guard `78c92db949baf68a9040e1e59150d03d9fa07082`; regression test `1fe4d59be79650064861c778116fe4fc9feeff64`.
+- This resolves the qualified-selector/local-name case only. Broader unqualified import injection and imported type/value collision policy remain out of scope and unresolved.
