@@ -1932,6 +1932,7 @@ static int semantic_lvalue_is_const(SemanticContext* ctx, ASTNode* node) {
 
 static int is_integer_primitive_type(const char* type_name);
 static const char* semantic_representation_element_type(const char* type_name);
+static int semantic_vector_dimension(const char* type_name, size_t* dimension_out);
 static const char* semantic_dereference_target_type(
     const char* type_name, int* is_shared_reference);
 
