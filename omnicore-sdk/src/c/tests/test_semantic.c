@@ -105,11 +105,14 @@ static int check_imported_function_call_semantics(void) {
         "use math as m; f:main() { m.add(10); }";
     const char* hidden_symbol_source =
         "use math as m; f:main() { m.add(10, 20); }";
+    const char* local_selector_collision_source =
+        "use math as m; f:main() { v:m!i32 = 1; m.add(10, 20); }";
     const char* sources[] = {
         valid_source, named_source, namespace_source, wrong_type_source,
-        missing_symbol_source, wrong_count_source, hidden_symbol_source
+        missing_symbol_source, wrong_count_source, hidden_symbol_source,
+        local_selector_collision_source
     };
-    const int expected_errors[] = {0, 0, 0, 1, 1, 1, 1};
+    const int expected_errors[] = {0, 0, 0, 1, 1, 1, 1, 1};
     size_t source_index;
     memset(&symbol, 0, sizeof(symbol));
     memset(&type, 0, sizeof(type));
