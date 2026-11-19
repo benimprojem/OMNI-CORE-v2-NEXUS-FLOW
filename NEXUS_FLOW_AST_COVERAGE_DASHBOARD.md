@@ -4,8 +4,8 @@
 ### Imported library symbol lookup — integration gap (2026-11-19)
 
 - The module interface publishes PUBLIC/EXPORTED declarations and type closure; the import bundle validates dependency identity; the Semantic import environment indexes aliases, namespaces, symbols and types.
-- However, `semantic_stage_module.c` currently binds the import bundle and then calls `semantic_check(&sem, root)` without initializing/attaching `OccSemanticImportEnvironment`. The `occ_semantic_stage` target links `occ_module_import_bundle` but not `occ_semantic_import_environment`.
-- Therefore library interface transport is present, but imported declarations are not yet proven to participate in Semantic name resolution. Source-level `exf` remains the only confirmed path at this point.
+- Historical gap resolved: `semantic_stage_module.c` now initializes and attaches `OccSemanticImportEnvironment` before `semantic_check(&sem, root)`, preserves its borrowed backing lifetime during cleanup, and `occ_semantic_stage` links `occ_semantic_import_environment`.
+- Remaining gap: normal Semantic name resolution does not yet consume the attached environment. Qualified imported declarations are not yet proven callable; source-level `exf` remains the only confirmed external-symbol path.
 - Required follow-up: bridge imported symbol/type lookup into Semantic; enforce visibility, alias/namespace, collision and signature rules; add end-to-end stage tests.
 - Status: **integration gap identified; not implemented or verified**. Details: `SEMANTIC_COMPLETION_PLAN.md`.
 ## Semantic audit note — `exf` declaration order (2026-11-19)
@@ -1024,9 +1024,9 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - [x] Semantic stage links the import-environment library.
 - [ ] Alias/namespace symbol resolution in AST_MEMBER_ACCESS calls.
 - [ ] PUBLIC/EXPORTED access enforcement and local/import ambiguity policy.
-- [ ] Imported function relation enumeration and full signature validation.
+- [~] Bounded imported function-relation enumeration API and unit test added; exact-head CI pending. Full signature validation is not connected.
 - [ ] End-to-end positive/negative import-call tests and exact-head CI.
-- **Status:** attachment only; imported calls are not yet supported/verified.
+- **Status:** environment attachment and relation-enumeration groundwork implemented; resolver integration and imported calls are not yet supported/verified.
 
 
 - CI checkpoint `2a63c5c7` built and linked the Semantic import environment; import-environment unit test (23) and Semantic stage DLL test (51) passed on Ubuntu. Overall CI is **not green**: CTest/ASan report unrelated test 68 callback/NewType safe-reference merge failure; Windows/Valgrind final state still requires inspection. Imported symbol resolution remains unimplemented.
