@@ -250,3 +250,12 @@ A task may become `VERIFIED` only when all are true:
 - Added regression: passing a RefGetter callback (signature takes/returns safe references) through an any parameter must fail. Existing tests also cover a local RefGetter callback with same-target/different-target control-flow merges and an extern callback signature rejection.
 - Commits: classifier separation 4b27cc6bed4c44a7416385a45a1eb3bfe5bb92d4; ABI-boundary checks b83088b8a5224b043810796128ee4df78bdf2e74; aggregate/tuple any check preservation c927e06f76a12a064df5b84441e8580aeb92a57b; new any-erasure regression 6f3f1358a6a7715fb6aa957722e08e0f384b382d.
 - Exact-head CI remains pending. Do not mark the callback fix verified until all platform, sanitizer and Valgrind jobs pass.
+
+
+### Callback ABI boundary recursion — 2026-11-19
+
+- Refined the separate ABI-boundary predicate to recurse through NewType aliases, arrays, structs and unions. It detects both directly stored safe references and callback signatures containing safe references, while the storage-only classifier continues to treat function signatures as non-storage.
+- Preserved expression-level traversal for tuple/aggregate arguments passed to any; callback-contract detection is an additional check rather than a replacement.
+- Added a negative regression for an exported aggregate parameter whose field is a callback NewType containing a safe-reference parameter. Existing tests cover direct extern callback parameters, any-erasure and local callback target control-flow.
+- Latest code/test commits: recursive contract inspection ab83d6a97eadc69e8dd838662855c8835c1c128c; aggregate extern regression 83fa8fdda04200a24f674e0c42a1b17b43b88158.
+- CI for these commits has not yet been observed. No pass/verification claim is made.
