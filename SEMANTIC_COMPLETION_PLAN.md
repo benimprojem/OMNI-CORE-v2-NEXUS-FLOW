@@ -261,3 +261,16 @@ A task may become `VERIFIED` only when all are true:
 - Added a negative regression for an exported aggregate parameter whose field is a callback NewType containing a safe-reference parameter. Existing tests cover direct extern callback parameters, any-erasure and local callback target control-flow.
 - Latest code/test commits: recursive contract inspection ab83d6a97eadc69e8dd838662855c8835c1c128c; aggregate extern regression 83fa8fdda04200a24f674e0c42a1b17b43b88158.
 - CI for these commits has not yet been observed. No pass/verification claim is made.
+
+
+### Qualified imported function resolution — 2026-11-19
+
+- Semantic call dispatch now recognizes `alias.function(...)` and `namespace.function(...)` against the attached verified import catalog. Alias and namespace selectors are resolved independently; collisions that select different bindings and duplicate selectors are diagnosed instead of silently choosing a module.
+- Only symbols carrying PUBLIC or EXPORTED flags are accepted. The selected symbol must be a function. Missing/ambiguous symbols, non-function symbols, invalid return types, missing/duplicate parameter metadata, non-contiguous ordinals, and allocation/size failures produce Semantic diagnostics with suggestions.
+- Imported signatures are exposed to the existing `semantic_validate_call_arguments()` path through temporary borrowed AST/Slot views. Parameter names, ordinal order, types, positional calls, named calls, count checks and normal type compatibility therefore use the same validation logic as local functions. The temporary views are freed before returning and are never inserted into the local Slot table.
+- Added direct Semantic regression fixtures for alias calls, namespace calls, named arguments, argument type mismatch, missing export, argument-count mismatch and a symbol without PUBLIC/EXPORTED flags.
+- CMake now links the import catalog transitively from `occ_frontend`. The catalog target no longer links the bundle library because it only reads the verified bundle's public data structures and calls no bundle functions; this avoids introducing a scheduler/frontend link cycle.
+- Current scope limitation: imported callable metadata currently treats every parameter as required. The current Module Interface relation schema does not preserve default-argument or variadic declaration metadata, so imported defaults/variadics are not claimed supported. Imported value/type resolution and real Semantic Stage end-to-end import tests remain pending.
+- Code commits: resolver `4cec910f7232bb5218c7f9f417c578383fa09803`; handled-state diagnostic correction `191d4b3285f72814ae96bdaa73d516f293428915`; dispatch nesting correction `37e27f3818ae46fe34822baaaecd008eed2ddeef`; dynamic signature storage `ade34a83d9fc0555b6b428d92b1d8486623c732f`; selector/parameter bound correction `0510dafe36058502c30a6d8ca3857c87e70e4a00`.
+- Test commit: `6eef31cdd19cba5ad67c2c0b60986c649f17e1a8`. Build-system commit: `59cde066ecbfd1db437eac380435683598197c79`.
+- Verification: GitHub status/run data is not yet available for the current branch head. These tests are added, not yet executed. Do not mark SEM-001 complete until CI and Semantic Stage integration tests pass.
