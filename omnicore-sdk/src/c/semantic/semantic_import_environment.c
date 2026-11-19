@@ -172,6 +172,78 @@ OccSemanticImportEnvironmentStatus occ_semantic_import_environment_find_type(
     return OCC_SEMANTIC_IMPORT_ENV_OK;
 }
 
+
+OccSemanticImportEnvironmentStatus occ_semantic_import_environment_get_relation_count(
+    const OccSemanticImportEnvironment* environment,
+    size_t binding_index,
+    uint32_t owner_source_symbol_id,
+    uint16_t relation_kind,
+    size_t* out_count
+) {
+    const OccModuleInterface* interface;
+    size_t i;
+    size_t count = 0u;
+    if (!environment || !out_count || owner_source_symbol_id == 0u ||
+        relation_kind == 0u ||
+        (environment->binding_count && !environment->bindings))
+        return OCC_SEMANTIC_IMPORT_ENV_INVALID_ARGUMENT;
+    if (binding_index >= environment->binding_count)
+        return OCC_SEMANTIC_IMPORT_ENV_NOT_FOUND;
+    interface = environment->bindings[binding_index].module_interface;
+    if (!interface || (interface->relation_count && !interface->relations))
+        return OCC_SEMANTIC_IMPORT_ENV_INVALID_ARGUMENT;
+    for (i = 0u; i < interface->relation_count; ++i) {
+        const OccModuleInterfaceRelation* relation = &interface->relations[i];
+        if (relation->owner_source_symbol_id == owner_source_symbol_id &&
+            relation->kind == relation_kind) {
+            if (count == SIZE_MAX)
+                return OCC_SEMANTIC_IMPORT_ENV_LIMIT_EXCEEDED;
+            ++count;
+        }
+    }
+    *out_count = count;
+    return OCC_SEMANTIC_IMPORT_ENV_OK;
+}
+
+OccSemanticImportEnvironmentStatus occ_semantic_import_environment_get_relation_at(
+    const OccSemanticImportEnvironment* environment,
+    size_t binding_index,
+    uint32_t owner_source_symbol_id,
+    uint16_t relation_kind,
+    size_t relation_index,
+    OccSemanticImportedRelation* out_relation
+) {
+    const OccModuleInterface* interface;
+    size_t i;
+    size_t current = 0u;
+    if (!environment || !out_relation || owner_source_symbol_id == 0u ||
+        relation_kind == 0u ||
+        (environment->binding_count && !environment->bindings))
+        return OCC_SEMANTIC_IMPORT_ENV_INVALID_ARGUMENT;
+    if (binding_index >= environment->binding_count)
+        return OCC_SEMANTIC_IMPORT_ENV_NOT_FOUND;
+    interface = environment->bindings[binding_index].module_interface;
+    if (!interface || (interface->relation_count && !interface->relations))
+        return OCC_SEMANTIC_IMPORT_ENV_INVALID_ARGUMENT;
+    for (i = 0u; i < interface->relation_count; ++i) {
+        const OccModuleInterfaceRelation* relation = &interface->relations[i];
+        if (relation->owner_source_symbol_id != owner_source_symbol_id ||
+            relation->kind != relation_kind)
+            continue;
+        if (current++ != relation_index) continue;
+        out_relation->owner_source_symbol_id = relation->owner_source_symbol_id;
+        out_relation->related_source_symbol_id = relation->related_source_symbol_id;
+        out_relation->related_node_id = relation->related_node_id;
+        out_relation->type_id = relation->type_id;
+        out_relation->ordinal = relation->ordinal;
+        out_relation->kind = relation->kind;
+        out_relation->flags = relation->flags;
+        out_relation->name = relation->name;
+        return OCC_SEMANTIC_IMPORT_ENV_OK;
+    }
+    return OCC_SEMANTIC_IMPORT_ENV_NOT_FOUND;
+}
+
 void occ_semantic_import_environment_destroy(
     OccSemanticImportEnvironment* environment
 ) {
