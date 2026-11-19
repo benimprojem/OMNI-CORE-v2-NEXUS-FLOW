@@ -13,6 +13,8 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [OCC pipeline ve 99 AST düğümü ilerleme tablosu](OCC_PIPELINE_PROGRESS.md)
 - [Geliştirme yol haritası](ROADMAP.md)
 - [Güncel görevler](TASKS.md)
+- [Semantic Completion & Verification Plan](SEMANTIC_COMPLETION_PLAN.md)
+- [1. phase progress — Nexus Flow AST coverage dashboard](NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md)
 - [Mimari kararlar](ARCHITECTURE_DECISIONS.md)
 - [AREA / ZONE mantıksal bellek modeli](AREA_ZONE_MEMORY_MODEL.md)
 - [Önerilen klasör yapısı](PROPOSED_LAYOUT.md)
