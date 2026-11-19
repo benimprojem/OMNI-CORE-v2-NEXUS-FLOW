@@ -43,11 +43,21 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->current_method_is_object = 0u;
     ctx->suppress_group_default_dispatch = 0u;
     ctx->node_id_resolver = NULL;
+    ctx->import_environment = NULL;
     ctx->node_id_context = NULL;
     ctx->result_enabled = 0u;
     ctx->result_status = semantic_result_init(&ctx->result);
     ctx->test_allocation_fail_at = 0u;
     ctx->test_allocation_attempts = 0u;
+}
+
+void semantic_attach_import_environment(
+    SemanticContext* ctx,
+    const struct OccSemanticImportEnvironment* environment
+) {
+    if (!ctx) return;
+    /* The caller owns the immutable environment and its backing OIR views. */
+    ctx->import_environment = environment;
 }
 
 // --- Similarity Matching (ULTRA) ---
@@ -10006,5 +10016,6 @@ void semantic_destroy(SemanticContext* ctx) {
     ctx->error_tail = NULL;
     semantic_result_destroy(&ctx->result);
     ctx->result_enabled = 0u;
+    ctx->import_environment = NULL;
     ctx->current_scope_id = 0u;
 }
