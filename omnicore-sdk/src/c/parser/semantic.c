@@ -2129,6 +2129,7 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
             ASTIndexAccess* access = (ASTIndexAccess*)node;
             const char* target_type = get_expr_type(ctx, access->target);
             const char* element_type = "any";
+            size_t vector_dimension = 0u;
             const char* representation_element =
                 semantic_representation_element_type(target_type);
             if (target_type && strcmp(target_type, "tuple") == 0) {
@@ -2162,6 +2163,10 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 }
             } else if (representation_element) {
                 element_type = representation_element;
+            } else if (semantic_vector_dimension(
+                    target_type, &vector_dimension)) {
+                /* Vec2/Vec3/Vec4 components use f64 scalar representation. */
+                element_type = "f64";
             } else if (target_type && strncmp(target_type, "array|", 6u) == 0) {
                 const char* begin = target_type + 6u;
                 const char* end = strchr(begin, '[');
@@ -6487,10 +6492,14 @@ static void semantic_check_node(
                         "Tuple index is outside the tuple element range.");
                 }
             }
+            size_t vector_dimension = 0u;
+            int target_is_vector =
+                semantic_vector_dimension(target_type, &vector_dimension);
             if (target_type && strcmp(target_type,"tuple") != 0 &&
                 !semantic_is_array_type_name(target_type) &&
                 !semantic_representation_element_type(target_type) &&
-                !semantic_is_map_type_name(target_type)) {
+                !semantic_is_map_type_name(target_type) &&
+                !target_is_vector) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Index target must be an array, map, tuple, bit vector, or byte block.");
             }
@@ -6507,6 +6516,12 @@ static void semantic_check_node(
                 !is_integer_primitive_type(index_type)) {
                 report_error(ctx, access->index, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Index expression must have an integer type.");
+            } else if (target_is_vector &&
+                semantic_eval_integer_constant(access->index, &constant_index) &&
+                (constant_index < 0 ||
+                 (uint64_t)constant_index >= (uint64_t)vector_dimension)) {
+                report_error(ctx, access->index, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Vector component index is outside the Vec2/Vec3/Vec4 dimension.");
             } else {
                 uint64_t index_limit = 0u;
                 int64_t constant_index = 0;

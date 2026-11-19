@@ -1106,6 +1106,29 @@ static int check_nested_type_variable_semantics(void) {
         check_source(unbound_generic_return_type_is_rejected, 1);
 }
 
+static int check_vector_index_semantics(void) {
+    const char* vector_constant_indexes =
+        "f:main() { v:value!Vec3 = [1,2,3]; "
+        "v:a!f64 = value[0]; v:b!f64 = value[2]; }";
+    const char* vector_dynamic_integer_index =
+        "f:main(index!i32) { v:value!Vec2 = [1,2]; "
+        "v:component!f64 = value[index]; }";
+    const char* vector_index_out_of_range =
+        "f:main() { v:value!Vec2 = [1,2]; v:component!f64 = value[2]; }";
+    const char* vector_index_negative =
+        "f:main() { v:value!Vec2 = [1,2]; v:component!f64 = value[-1]; }";
+    const char* vector_index_requires_integer =
+        "f:main() { v:value!Vec2 = [1,2]; value[\"x\"]; }";
+    const char* vector_index_write_type =
+        "f:main() { v:value!Vec2 = [1,2]; value[0] = \"bad\"; }";
+    return check_source(vector_constant_indexes, 0) &&
+        check_source(vector_dynamic_integer_index, 0) &&
+        check_source(vector_index_out_of_range, 1) &&
+        check_source(vector_index_negative, 1) &&
+        check_source(vector_index_requires_integer, 1) &&
+        check_source(vector_index_write_type, 1);
+}
+
 static int check_map_key_type_semantics(void) {
     const char* map_scalar_keys =
         "f:main() { v:values!map; values[1]; values[1.5]; "
@@ -3316,6 +3339,10 @@ int main(int argc, char** argv) {
     }
     if (!check_nested_type_variable_semantics()) {
         fprintf(stderr, "Nested type-variable checks failed.\\n");
+        return 1;
+    }
+    if (!check_vector_index_semantics()) {
+        fprintf(stderr, "Vector index checks failed.\\n");
         return 1;
     }
     if (!check_map_key_type_semantics()) {

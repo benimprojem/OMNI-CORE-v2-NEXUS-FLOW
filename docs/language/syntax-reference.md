@@ -2244,3 +2244,5 @@ Bu sözleşmenin Semantic uygulaması, AST/Parser'ın gerçekten desteklediği b
 - Group-owned nominal types are visible within their owning Group (including its methods), but are not visible to sibling Groups or enclosing/outside scopes. Nested Groups own separate nominal-type scopes; parent Group types do not implicitly leak into a nested Group.
 
 - **Map key contract:** Map keys are limited to numeric scalar types, `str`, `char`, `bool`, enum values and NewType aliases whose underlying type is in that set. Aggregate, raw/safe pointer, reference, `null` and `any` keys are rejected because they do not have a stable hash/equality contract. Map values remain heterogeneous (`any`); generic `map<K,V>` is not currently a Nexus Flow type.
+
+- **SIMD vector indexing:** `Vec2`, `Vec3` and `Vec4` are fixed-width vectors with `f64` scalar components. Indexing requires an integer expression; a constant index is checked against the vector dimension at Semantic time, while a dynamic index remains subject to runtime bounds checking.
