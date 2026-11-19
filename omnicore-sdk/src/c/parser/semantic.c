@@ -6340,7 +6340,8 @@ static void semantic_check_node(
                         declared_slot->type_name)) ||
                      (declared_slot && declared_slot->type_name &&
                       strcmp(declared_slot->type_name, "tuple") == 0) ||
-                     (decl->initializer->type == AST_STRUCT_LITERAL)) &&
+                     (decl->initializer->type == AST_STRUCT_LITERAL) ||
+                     (decl->initializer->type == AST_TUPLE)) &&
                     semantic_expression_contains_safe_reference(
                         ctx, decl->initializer, 0u)) {
                     report_issue(ctx, decl->initializer,
