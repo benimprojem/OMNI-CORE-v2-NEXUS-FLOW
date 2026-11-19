@@ -1140,6 +1140,8 @@ static int check_safe_reference_type_erasure_semantics(void) {
         "f:escape(owner!i32)!any { ret &owner; }";
     const char* any_array_initializer_rejected =
         "f:main(owner!i32) { v:items!any[] = [&owner]; }";
+    const char* inferred_tuple_reference_initializer_rejected =
+        "f:main(owner!i32) { v:items = (&owner, 1); }";
     const char* any_map_value_rejected =
         "f:main(owner!i32) { v:items!map; items[\"key\"] = &owner; }";
     const char* cast_any_to_reference_rejected =
@@ -1153,6 +1155,7 @@ static int check_safe_reference_type_erasure_semantics(void) {
         check_source(any_parameter_rejected, 1) &&
         check_source(any_return_rejected, 1) &&
         check_source(any_array_initializer_rejected, 1) &&
+        check_source(inferred_tuple_reference_initializer_rejected, 1) &&
         check_source(any_map_value_rejected, 1) &&
         check_source(cast_any_to_reference_rejected, 1) &&
         check_source(cast_raw_pointer_to_reference_rejected, 1) &&
