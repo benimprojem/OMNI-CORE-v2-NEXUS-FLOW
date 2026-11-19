@@ -1,3 +1,4 @@
+# NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu
 
 ## Semantic audit note — `exf` declaration order (2026-11-19)
 
