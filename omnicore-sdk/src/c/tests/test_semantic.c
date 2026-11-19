@@ -1129,6 +1129,27 @@ static int check_vector_index_semantics(void) {
         check_source(vector_index_write_type, 1);
 }
 
+static int check_extern_reference_boundary_semantics(void) {
+    const char* extern_value_signature =
+        "exf:read(value!i32)!i32; f:main(value!i32) { v:result!i32 = read(value); }";
+    const char* extern_raw_pointer_signature =
+        "exf:write(value!*i32); f:main(pointer!*i32) { write(pointer); }";
+    const char* extern_safe_reference_parameter_rejected =
+        "exf:store(value!&i32); f:main() {}";
+    const char* extern_safe_reference_return_rejected =
+        "exf:get()!&i32; f:main() {}";
+    const char* extern_callback_with_safe_reference_rejected =
+        "exf:invoke(callback!f:(value!&i32)!void); f:main() {}";
+    const char* extern_any_safe_reference_argument_rejected =
+        "exf:store(value!any); f:main(owner!i32) { store(&owner); }";
+    return check_source(extern_value_signature, 0) &&
+        check_source(extern_raw_pointer_signature, 0) &&
+        check_source(extern_safe_reference_parameter_rejected, 1) &&
+        check_source(extern_safe_reference_return_rejected, 1) &&
+        check_source(extern_callback_with_safe_reference_rejected, 1) &&
+        check_source(extern_any_safe_reference_argument_rejected, 1);
+}
+
 static int check_extended_numeric_primitive_semantics(void) {
     const char* signed_128_type =
         "f:identity(value!i128)!i128 { ret value; } "
@@ -3363,6 +3384,10 @@ int main(int argc, char** argv) {
     }
     if (!check_vector_index_semantics()) {
         fprintf(stderr, "Vector index checks failed.\\n");
+        return 1;
+    }
+    if (!check_extern_reference_boundary_semantics()) {
+        fprintf(stderr, "Extern reference boundary checks failed.\\n");
         return 1;
     }
     if (!check_extended_numeric_primitive_semantics()) {

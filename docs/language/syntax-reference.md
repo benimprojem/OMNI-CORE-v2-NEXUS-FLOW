@@ -2029,6 +2029,7 @@ exf:sub(a!i32, b!i32)!i32;
 - EXF sembol adı ile gerçek object/library sembol adı gerekirse ayrı tutulabilir; bu eşleştirme linker metadata'sıdır.
 - Bir linkname kaynağı birden fazla EXF bildirimiyle ilişkilendirilebilir.
 
+- **Extern güvenlik sınırı:** `exf` imzaları safe reference (`&T`, `&mut T`) parametre/return türlerini ve safe reference içeren callback imzalarını kabul etmez. Extern çağrısına `any` üzerinden türü silinmiş bir safe reference geçirmek de reddedilir. Değerler ve açık raw pointer'lar kullanılabilir; raw pointer güvenliği çağırana aittir. Linkname/symbol resolution ve target ABI OIR/driver aşamasındadır.
 ### 15.3 Aşama sınırı
 
 Bu bölüm dil bildiriminin ve AST'de korunması gereken ilişkinin normatif tanımıdır. Object format çözümleme, ABI/calling-convention doğrulaması, sembol seçimi ve OCL linker uygulaması bu AST işi kapsamında tamamlanmış sayılmaz; ileriki linker aşamasında ele alınacaktır.

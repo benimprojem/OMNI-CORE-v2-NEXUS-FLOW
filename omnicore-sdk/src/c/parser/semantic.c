@@ -1532,6 +1532,8 @@ static int semantic_type_contains_safe_reference(
     if (depth > 64u) return 1; /* Cyclic/deep type graphs fail closed. */
     while (*raw_type == '!') ++raw_type;
     if (semantic_is_reference_type_name(raw_type)) return 1;
+    if (strncmp(raw_type, "f:", 2u) == 0 && strchr(raw_type, '&'))
+        return 1; /* Callback signatures containing safe references cross no extern boundary. */
     if (strncmp(raw_type, "array|", 6u) == 0) {
         const char* element_start = raw_type + 6u;
         size_t element_length = strcspn(element_start, "[");
@@ -4894,6 +4896,15 @@ static void semantic_validate_call_arguments(
                 parameter_index<(uint32_t)function_slot->param_count
                     ? function_slot->param_types[parameter_index] : NULL;
 
+            if (function_slot->declaration_node &&
+                function_slot->declaration_node->type == AST_EXTERN_DECL &&
+                semantic_type_contains_safe_reference(ctx, argument_type, 0u)) {
+                report_issue(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
+                    "A safe reference or callback signature containing one cannot cross an extern call boundary without an explicit lifetime/ABI contract.",
+                    "Pass a value or explicitly managed raw pointer, or wrap the external API with a typed Nexus Flow function that enforces the reference lifetime locally.",
+                    "Pass a value or explicitly managed raw pointer, or wrap the external API with a typed Nexus Flow function that enforces the reference lifetime locally.",
+                    0, 0);
+            }
             if (function_slot->is_variadic &&
                 parameter_index >= (uint32_t)function_slot->param_count &&
                 semantic_type_contains_safe_reference(ctx, argument_type, 0u)) {
@@ -7817,6 +7828,16 @@ static void semantic_check_node(
                     0, 0);
                 return_type_valid = 0;
             }
+            if (node->type == AST_EXTERN_DECL && func->return_type &&
+                semantic_type_contains_safe_reference(
+                    ctx, func->return_type, 0u)) {
+                report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "An extern function cannot return a safe reference or callback type that contains one; the external implementation has no verifiable borrow-origin contract.",
+                    "Return a value or raw pointer from the extern declaration. Convert it to a safe reference only inside a Nexus Flow wrapper with a verified owner.",
+                    "Return a value or raw pointer from the extern declaration. Convert it to a safe reference only inside a Nexus Flow wrapper with a verified owner.",
+                    0, 0);
+                return_type_valid = 0;
+            }
             if (func->return_array_type && func->return_type &&
                 semantic_type_contains_safe_reference(
                     ctx, func->return_type, 0u)) {
@@ -7864,6 +7885,24 @@ static void semantic_check_node(
                 ASTNode* parameter_node;
                 uint32_t parameter_index = 0u;
                 semantic_check(ctx, func->params);
+                if (node->type == AST_EXTERN_DECL) {
+                    ASTNode* extern_parameter;
+                    for (extern_parameter = func->params; extern_parameter;
+                         extern_parameter = extern_parameter->next) {
+                        if (extern_parameter->type == AST_VAR_DECL) {
+                            ASTVarDecl* parameter = (ASTVarDecl*)extern_parameter;
+                            if (semantic_type_contains_safe_reference(
+                                    ctx, parameter->type_name, 0u)) {
+                                report_issue(ctx, extern_parameter,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "An extern parameter cannot expose a safe reference or a callback signature containing safe references.",
+                                    "Use a value/raw-pointer parameter, or keep the safe-reference operation inside a typed Nexus Flow wrapper.",
+                                    "Use a value/raw-pointer parameter, or keep the safe-reference operation inside a typed Nexus Flow wrapper.",
+                                    0, 0);
+                            }
+                        }
+                    }
+                }
                 for (parameter_node = func->params; parameter_node;
                      parameter_node = parameter_node->next) {
                     if (parameter_node->type == AST_VARIADIC_PARAM) continue;
