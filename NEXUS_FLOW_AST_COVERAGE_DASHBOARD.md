@@ -1014,3 +1014,16 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Linker-only symbol discovery is not Semantic validation. Private symbols stay hidden; alias/namespace qualification, collisions, ambiguity and call signatures are Semantic responsibilities.
 - Current state remains **~ / integration gap**: import bundle is built in the Semantic stage but the Semantic import environment is not attached to the resolver. End-to-end imported-call behavior is not verified.
 - Detailed contract and implementation order: [SEMANTIC_COMPLETION_PLAN.md](SEMANTIC_COMPLETION_PLAN.md), normative syntax: [docs/language/syntax-reference.md](docs/language/syntax-reference.md#15-exf--external-function-declarations-ve-linkage).
+
+
+### SEM-001 — import environment attachment checkpoint (2026-11-19)
+
+- [x] Borrowed read-only import-environment pointer/API added to SemanticContext.
+- [x] Semantic stage initializes and attaches the job-local environment from the verified import bundle.
+- [x] Cleanup order preserves environment and backing bundle/interface lifetimes.
+- [x] Semantic stage links the import-environment library.
+- [ ] Alias/namespace symbol resolution in AST_MEMBER_ACCESS calls.
+- [ ] PUBLIC/EXPORTED access enforcement and local/import ambiguity policy.
+- [ ] Imported function relation enumeration and full signature validation.
+- [ ] End-to-end positive/negative import-call tests and exact-head CI.
+- **Status:** attachment only; imported calls are not yet supported/verified.
