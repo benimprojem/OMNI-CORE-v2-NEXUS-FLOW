@@ -1058,3 +1058,18 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added aggregate extern regression: a struct containing a callback NewType with a safe-reference parameter cannot cross an extern boundary.
 - Commits: ab83d6a97eadc69e8dd838662855c8835c1c128c; 83fa8fdda04200a24f674e0c42a1b17b43b88158.
 - Exact-head CI remains pending; SEM-001 and Semantic are open.
+
+
+### SEM-001 progress — qualified imported function calls — 2026-11-19
+
+- [x] Semantic resolver path for `alias.function(...)` and `namespace.function(...)` attached to the verified import environment.
+- [x] PUBLIC/EXPORTED flag enforcement and explicit diagnostics for missing/ambiguous/non-function exports.
+- [x] Imported return/parameter type metadata read from interface type/relation records; parameter ordinals checked for uniqueness and contiguous ordering.
+- [x] Reuse of normal local function argument validator through temporary borrowed signature views; no imported symbol is inserted into local Slot storage.
+- [x] Direct Semantic test cases added for alias, namespace, named args, wrong type, missing symbol, wrong count and non-public/exported symbol.
+- [ ] Execute new tests and all platform/sanitizer CI on exact branch head.
+- [ ] Add real Semantic Stage DLL end-to-end tests with actual OIR import/interface artifacts.
+- [ ] Import default-argument/variadic metadata; current interface relation schema does not preserve these declaration properties, so imported calls currently require all fixed parameters.
+- [ ] Resolve imported values and nominal types; implement local/import collision policy and imported type closure checks.
+
+**Current status:** function-call resolver and direct fixtures are committed but unverified by CI. SEM-001 remains open; do not advance to OIR.
