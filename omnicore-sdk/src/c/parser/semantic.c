@@ -5318,6 +5318,15 @@ static const char* semantic_resolve_imported_call(
     }
     if (!selector_recognized) return NULL;
     if (out_handled) *out_handled = 1;
+    if (find_slot(ctx, selector_node->name)) {
+        if (validate_arguments)
+            report_issue(ctx, call_node, ERR_SEMANTIC_REDEFINED,
+                "The import selector conflicts with a local declaration in this scope chain.",
+                "Rename the local declaration or choose a unique import alias/namespace.",
+                "Rename the local declaration or choose a unique import alias/namespace.",
+                0, 0);
+        return NULL;
+    }
 
 #define IMPORT_CALL_ERROR(message_text, suggestion_text) do { \
     if (validate_arguments) report_issue(ctx, call_node, \
