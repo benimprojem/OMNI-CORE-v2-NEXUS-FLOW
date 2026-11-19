@@ -9,6 +9,7 @@
 #include "oir_ast_node_table.h"
 #include "oir_semantic_ast_artifact.h"
 #include "module_import_bundle.h"
+#include "semantic_import_environment.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -207,12 +208,14 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
     OirModuleImportsArtifactView imports_view;
     OirModuleInterfaceArtifactView* interface_views=NULL;
     OccModuleImportBundle import_bundle;
+    OccSemanticImportEnvironment import_environment;
     size_t interface_count=0u,interface_index;
-    int sem_init=0,diag_init=0,imports_open=0,bundle_bound=0;
+    int sem_init=0,diag_init=0,imports_open=0,bundle_bound=0,import_environment_init=0;
     OirStatus st; uint32_t rc=OCC_MODULE_STATUS_FAILED;
     memset(&sem,0,sizeof(sem)); memset(&resolver,0,sizeof(resolver));
     memset(&imports_view,0,sizeof(imports_view));
     memset(&import_bundle,0,sizeof(import_bundle));
+    memset(&import_environment,0,sizeof(import_environment));
     out->bytes_written=0u; out->required_output_capacity=0u; out->output_validity=OIR_VALIDITY_NONE;
     out->failure_code=0u; out->diagnostics_count=0u;
     if(occ_module_validate_invocation_v1(&g_semantic_module.descriptor,inv,out)!=OCC_MODULE_STATUS_OK||inv->input_count<1u)
@@ -285,6 +288,14 @@ static uint32_t OCC_MODULE_CALL semantic_process(const OccModuleInvocationV1* in
     if(sem.result_status!=SEMANTIC_RESULT_OK) goto allocation_failure;
     occ_diagnostics_init(&diags); diag_init=1;
     semantic_attach_diagnostics(&sem,&diags,OCC_STAGE_SEMANTIC);
+    if(bundle_bound) {
+        if(occ_semantic_import_environment_init(
+            &import_bundle,&import_environment)!=OCC_SEMANTIC_IMPORT_ENV_OK) {
+            out->failure_code=8315u; rc=OCC_MODULE_STATUS_FAILED; goto done;
+        }
+        import_environment_init=1;
+        semantic_attach_import_environment(&sem,&import_environment);
+    }
     semantic_attach_node_id_resolver(&sem,resolve_node,&resolver);
     semantic_check(&sem,root);
     out->diagnostics_count=(uint32_t)occ_diagnostics_count(&diags);
@@ -329,6 +340,8 @@ done:
         occ_diagnostics_destroy(&diags);
     }
     if(sem_init) semantic_destroy(&sem);
+    if(import_environment_init)
+        occ_semantic_import_environment_destroy(&import_environment);
     if(bundle_bound) occ_module_import_bundle_destroy(&import_bundle);
     if(interface_views) {
         for(interface_index=0u;interface_index<interface_count;interface_index++)
