@@ -5304,6 +5304,7 @@ static const char* semantic_resolve_imported_call(
     if (namespace_status == OCC_SEMANTIC_IMPORT_ENV_OK) {
         if (selector_recognized && binding_index != namespace_index &&
             alias_status == OCC_SEMANTIC_IMPORT_ENV_OK) {
+            if (out_handled) *out_handled = 1;
             if (validate_arguments)
                 report_issue(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "The selector matches both an import alias and a different namespace binding.",
