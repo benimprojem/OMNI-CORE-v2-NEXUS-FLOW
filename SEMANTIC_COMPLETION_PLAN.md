@@ -290,7 +290,7 @@ A task may become `VERIFIED` only when all are true:
 - The check fails closed when a referenced nominal return type is absent from the published symbol table or the interface type/relation metadata is malformed. This is required because the current interface does not carry cross-module returned-reference origin/lifetime provenance.
 - Added a direct Semantic regression where an imported function returns `&i32`; the call is rejected rather than manufacturing an unverified local borrow origin.
 - Follow-up hardening commits: imported return provenance guard `4fd83f79ee4580238827064059ff4ba0355fff45`; published nominal type closure guard `b4bec1f064bcc29cca68c701767041e2f3e80514`; malformed symbol-table guard `b2df3f81aea46f5f3a56f86c43df8cdcad3a53bc`; test `ecdaa440d686f9c86886c10c082ad03b349c91b4`.
-- CI remains unavailable for the current branch head (no workflow runs or status checks returned). Code and tests are committed but not yet executed; SEM-001 remains open.
+- CI was later recovered through the public Actions API: run `44448590891` exists for the current checkpoint but failed at CTest (test 68). Details are recorded in the CI run recovery section below; SEM-001 remains open.
 
 
 ### CI run recovery and failure investigation — 2026-11-19
