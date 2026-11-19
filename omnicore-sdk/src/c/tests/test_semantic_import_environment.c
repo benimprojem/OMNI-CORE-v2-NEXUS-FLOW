@@ -11,6 +11,7 @@ int main(void) {
     OirModuleImports imports;
     OccModuleInterfaceSymbol symbols[3];
     OccModuleInterfaceType types[1];
+    OccModuleInterfaceRelation relations[2];
     OccModuleInterface interface;
     OccModuleImportBindingView bundle_bindings[2];
     OccModuleImportBundle bundle;
@@ -23,6 +24,7 @@ int main(void) {
     memset(&imports, 0, sizeof(imports));
     memset(symbols, 0, sizeof(symbols));
     memset(types, 0, sizeof(types));
+    memset(relations, 0, sizeof(relations));
     memset(&interface, 0, sizeof(interface));
     memset(bundle_bindings, 0, sizeof(bundle_bindings));
     memset(&bundle, 0, sizeof(bundle));
@@ -71,6 +73,22 @@ int main(void) {
     interface.symbol_count = 3u;
     interface.types = types;
     interface.type_count = 1u;
+    relations[0].owner_source_symbol_id = 4u;
+    relations[0].related_source_symbol_id = 7u;
+    relations[0].related_node_id = 101u;
+    relations[0].type_id = 1u;
+    relations[0].ordinal = 0u;
+    relations[0].kind = SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER;
+    relations[0].name = "left";
+    relations[1].owner_source_symbol_id = 4u;
+    relations[1].related_source_symbol_id = 8u;
+    relations[1].related_node_id = 102u;
+    relations[1].type_id = 1u;
+    relations[1].ordinal = 1u;
+    relations[1].kind = SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER;
+    relations[1].name = "right";
+    interface.relations = relations;
+    interface.relation_count = 2u;
 
     bundle_bindings[0].binding = &records[0];
     bundle_bindings[0].module_interface = &interface;
@@ -118,6 +136,34 @@ int main(void) {
         &environment, 0u, "sum", &symbol) == OCC_SEMANTIC_IMPORT_ENV_AMBIGUOUS);
     assert(occ_semantic_import_environment_find_symbol(
         &environment, 0u, "missing", &symbol) == OCC_SEMANTIC_IMPORT_ENV_NOT_FOUND);
+
+    {
+        size_t relation_count = 0u;
+        OccSemanticImportedRelation relation;
+        assert(occ_semantic_import_environment_get_relation_count(
+            &environment, 0u, 4u,
+            SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
+            &relation_count) == OCC_SEMANTIC_IMPORT_ENV_OK);
+        assert(relation_count == 2u);
+        assert(occ_semantic_import_environment_get_relation_at(
+            &environment, 0u, 4u,
+            SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
+            1u, &relation) == OCC_SEMANTIC_IMPORT_ENV_OK);
+        assert(relation.owner_source_symbol_id == 4u);
+        assert(relation.related_source_symbol_id == 8u);
+        assert(relation.ordinal == 1u);
+        assert(relation.type_id == 1u);
+        assert(strcmp(relation.name, "right") == 0);
+        assert(occ_semantic_import_environment_get_relation_at(
+            &environment, 0u, 4u,
+            SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
+            2u, &relation) == OCC_SEMANTIC_IMPORT_ENV_NOT_FOUND);
+        assert(occ_semantic_import_environment_get_relation_count(
+            &environment, 0u, 99u,
+            SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER,
+            &relation_count) == OCC_SEMANTIC_IMPORT_ENV_OK);
+        assert(relation_count == 0u);
+    }
 
     assert(occ_semantic_import_environment_find_type(
         &environment, 0u, 1u, &type) == OCC_SEMANTIC_IMPORT_ENV_OK);
