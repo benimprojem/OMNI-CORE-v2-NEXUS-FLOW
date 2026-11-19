@@ -8947,12 +8947,11 @@ static void semantic_check_node(
                 if (call->args) semantic_check(ctx,call->args);
                 break;
             }
-            {
-                int imported_call_handled = 0;
+            int imported_call_handled = 0;
+            if (call->callee && call->callee->type == AST_MEMBER_ACCESS) {
                 (void)semantic_resolve_imported_call(
                     ctx, node, 1, &imported_call_handled);
-                if (!imported_call_handled &&
-                    call->callee && call->callee->type == AST_MEMBER_ACCESS) {
+                if (!imported_call_handled) {
                 ASTMemberAccess* access = (ASTMemberAccess*)call->callee;
                 Slot* method_slot;
                 int is_instance_call = 0;
