@@ -197,3 +197,14 @@ A task may become `VERIFIED` only when all are true:
 - The observed top-level traversal routes `AST_PROGRAM` declarations through `semantic_check()` in sequence; no global top-level function predeclaration pass was found during this audit. This suggests extern declarations must precede their use, but it is not yet confirmed by an executable regression test.
 - Added a regression in `test_semantic.c`: use `read(value)` in `main` before the later `exf:read(value!i32)!i32;` declaration and expect a Semantic error. Commit: `b564e10f2faf36488d5beb52fa585da43e428532`.
 - **Status:** regression committed; runtime/CI validation pending. Do not mark SEM-001 VERIFIED until the test result is confirmed.
+
+### SEM-001 audit finding — imported library symbols are not yet connected to Semantic lookup
+
+- `OccModuleInterface` publishes PUBLIC/EXPORTED symbols and referenced type closure; this is the library declaration surface.
+- `OccModuleImportBundle` matches each OIR import record to its exact verified module interface.
+- `OccSemanticImportEnvironment` builds a read-only alias/namespace/symbol/type index over that bundle. Its header explicitly leaves PUBLIC/EXPORTED policy, selector/defaulting, and local-name collision policy to the Semantic layer.
+- The current `semantic_stage_module.c` opens and validates the import manifest and dependency interfaces and binds an `OccModuleImportBundle`, but then initializes `SemanticContext` and calls `semantic_check(&sem, root)` without initializing or attaching `OccSemanticImportEnvironment`.
+- The `occ_semantic_stage` CMake target links `occ_module_import_bundle` but not `occ_semantic_import_environment`.
+- **Finding:** the verified library interface/bundle transport exists, but the inspected Semantic stage does not yet feed imported symbols into Semantic name resolution. Therefore a library-provided declaration cannot yet be considered a proven alternative to source-level `exf` declaration. Do not mark import-backed external symbol resolution complete.
+- Next required work: define the bridge from `OccSemanticImportEnvironment` into Semantic resolver lookup; apply PUBLIC/EXPORTED rules, alias/namespace selectors, local-vs-import collision policy, duplicate/ambiguous imports, and imported callable signature validation. Add end-to-end stage tests with a verified module interface artifact.
+- **Status:** concrete integration gap identified; implementation not started pending completion of SEM-001 audit and language-contract cross-check.
