@@ -5260,7 +5260,9 @@ static int semantic_imported_type_contains_safe_reference(
     size_t binding_index, uint32_t source_type_id, unsigned int depth
 ) {
     OccSemanticImportedType type;
-    size_t relation_count = 0u, i;
+    OccSemanticImportEnvironmentBinding binding;
+    size_t relation_count = 0u, i, symbol_index;
+    int referenced_symbol_is_published = 0;
     if (!environment || source_type_id == 0u) return 0;
     if (depth > 64u) return 1;
     if (occ_semantic_import_environment_find_type(
@@ -5275,6 +5277,25 @@ static int semantic_imported_type_contains_safe_reference(
         semantic_imported_type_contains_safe_reference(
             environment, binding_index, type.base_type_id, depth + 1u))
         return 1;
+    if (type.kind == SEMANTIC_RESULT_TYPE_USER_DEFINED &&
+        type.referenced_symbol_id) {
+        if (occ_semantic_import_environment_get_binding(
+                environment, binding_index, &binding) !=
+                OCC_SEMANTIC_IMPORT_ENV_OK ||
+            !binding.module_interface)
+            return 1;
+        for (symbol_index = 0u;
+             symbol_index < binding.module_interface->symbol_count;
+             ++symbol_index) {
+            if (binding.module_interface->symbols[symbol_index].source_symbol_id ==
+                type.referenced_symbol_id) {
+                referenced_symbol_is_published = 1;
+                break;
+            }
+        }
+        if (!referenced_symbol_is_published)
+            return 1; /* A private nominal type has an incomplete public closure. */
+    }
     if (type.referenced_symbol_id &&
         (type.kind == SEMANTIC_RESULT_TYPE_USER_DEFINED ||
          type.kind == SEMANTIC_RESULT_TYPE_AGGREGATE)) {
