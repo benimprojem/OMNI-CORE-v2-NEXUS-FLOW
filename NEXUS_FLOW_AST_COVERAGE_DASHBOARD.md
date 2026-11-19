@@ -1104,3 +1104,10 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - The imported-call resolver fixtures are included in test 68, so they cannot be considered verified while this aggregate Semantic test fails.
 - **Action-query issue:** use the public Actions API run listing by branch (push event included) rather than the PR-filtered workflow-runs connector for CI status checks. The workflow is triggering normally.
 - Next: isolate the second diagnostic at line 1:21, fix only after source inspection, then rerun CI and review the complete platform/sanitizer results.
+
+
+### CI diagnostic refinement — 2026-11-20
+
+- Extra error located at function parameter `owner` (1:21), not the safe-reference assignment. Expected type-erasure diagnostic remains at 1:37; both use semantic error code `3002`.
+- Root cause still unconfirmed: parameter validation or diagnostic message lookup/catalog needs source inspection. Repeated `Unknown Message` output is noisy but only the two-vs-one mismatch currently blocks test 68.
+- No code change; SEM-001 remains pending and OIR is still gated.
