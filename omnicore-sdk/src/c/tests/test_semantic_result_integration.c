@@ -116,7 +116,6 @@ static int test_bit_byte_semantic_conversion_records(void) {
     if (oir_ast_frontend_index_build(
             (ASTNode*)parser->ast_root, index, 128u, &node_count) != OIR_STATUS_OK)
         goto done;
-    stage = 2;
     resolver.entries = index;
     resolver.capacity = 128u;
     function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
@@ -176,14 +175,12 @@ static int test_bit_byte_semantic_conversion_records(void) {
     semantic_initialized = 1;
     semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
-    stage = 4;
     if (semantic.error_count != 0 ||
         semantic.result_status != SEMANTIC_RESULT_OK ||
         semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
         goto done;
     }
 
-    stage = 5;
     if (oir_ast_frontend_measure((ASTNode*)parser->ast_root, index, 128u,
             node_count, &requirements) != OIR_STATUS_OK) goto done;
     ast_records = (OirAstNodeRecord*)calloc(node_count, sizeof(*ast_records));
@@ -201,7 +198,6 @@ static int test_bit_byte_semantic_conversion_records(void) {
     if (!ast_records || !ast_fields || !ast_strings || !ast_payload || !artifact ||
         !incoming_counts || !visited || !graph_stack || !owner_scope_by_node)
         goto done;
-    stage = 6;
     if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
             index, 128u, node_count, ast_records, node_count,
             ast_fields, requirements.field_data_length,
@@ -313,6 +309,7 @@ static int test_explicit_cast_conversion_record(void) {
     if (oir_ast_frontend_index_build(
             (ASTNode*)parser->ast_root, index, 32u, &node_count) != OIR_STATUS_OK)
         goto done;
+    stage = 2;
     resolver.entries = index;
     resolver.capacity = 32u;
     function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
@@ -328,6 +325,7 @@ static int test_explicit_cast_conversion_record(void) {
     initialized = 1;
     semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    stage = 4;
     if (semantic.error_count != 0 ||
         semantic.result_status != SEMANTIC_RESULT_OK ||
         semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
@@ -352,6 +350,7 @@ static int test_explicit_cast_conversion_record(void) {
         if (semantic.result.conversion_count != 2u ||
             !wide_match || !same_match) goto done;
     }
+    stage = 5;
 
     if (oir_ast_frontend_measure((ASTNode*)parser->ast_root,
             index, 32u, node_count, &requirements) != OIR_STATUS_OK) goto done;
@@ -368,6 +367,7 @@ static int test_explicit_cast_conversion_record(void) {
     owner_scope = (uint32_t*)calloc((size_t)node_count + 1u, sizeof(*owner_scope));
     if (!records || !fields || !strings || !payload || !artifact ||
         !incoming || !visited || !graph_stack || !owner_scope) goto done;
+    stage = 6;
     {
         OirStatus write_status = oir_ast_frontend_write_payload(
             (ASTNode*)parser->ast_root, index, 32u, node_count, records, node_count,
