@@ -703,6 +703,27 @@ static int check_unnamed_declaration_ast(void) {
         ast_destroy(node);
         if(!ok) return 0;
     }
+    {
+        ASTMustDecl* missing_initializer =
+            (ASTMustDecl*)ast_create(AST_MUST_DECL);
+        SemanticContext semantic;
+        int ok;
+        if (!missing_initializer) return 0;
+        missing_initializer->name = (char*)malloc(sizeof("missing"));
+        if (!missing_initializer->name) {
+            ast_destroy((ASTNode*)missing_initializer);
+            return 0;
+        }
+        memcpy(missing_initializer->name, "missing", sizeof("missing"));
+        semantic_init(&semantic, "semantic-missing-immutable-initializer.nxf", NULL);
+        semantic_check(&semantic, (ASTNode*)missing_initializer);
+        ok = semantic.error_count == 1 && semantic.error_head &&
+            strstr(semantic.error_head->message,
+                "An immutable m: value requires an initializer expression.") != NULL;
+        semantic_destroy(&semantic);
+        ast_destroy((ASTNode*)missing_initializer);
+        if (!ok) return 0;
+    }
     return 1;
 }
 
