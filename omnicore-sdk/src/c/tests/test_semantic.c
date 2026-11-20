@@ -1390,6 +1390,62 @@ static int check_extended_numeric_primitive_semantics(void) {
         check_source(invalid_hex_storage_type, 1);
 }
 
+static uint32_t semantic_test_pointer_node_id(
+    void* user_context, const ASTNode* node
+) {
+    uint64_t bits = (uint64_t)(uintptr_t)node;
+    uint32_t id;
+    (void)user_context;
+    id = (uint32_t)(bits ^ (bits >> 32));
+    return id ? id : 1u;
+}
+
+static int check_newtype_result_base_metadata(void) {
+    const char* source =
+        "nt:Base = u64; nt:Alias = Base; f:main() { v:value!Alias; }";
+    ParserContext* parser = parser_init_source(
+        "semantic-newtype-result-metadata.nxf",
+        (const uint8_t*)source, strlen(source));
+    SemanticContext semantic;
+    SemanticResultType *base_type = NULL, *alias_type = NULL, *u64_type = NULL;
+    uint32_t i;
+    int ok;
+    if (!parser || parser_run(parser) != 0 || !parser->ast_root) {
+        if (parser) parser_destroy(parser);
+        return 0;
+    }
+    semantic_init(&semantic, "semantic-newtype-result-metadata.nxf", NULL);
+    semantic_attach_node_id_resolver(
+        &semantic, semantic_test_pointer_node_id, NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    for (i = 0u; i < semantic.result.type_count; ++i) {
+        SemanticResultType* type = &semantic.result.types[i];
+        if (strcmp(type->name, "u64") == 0) u64_type = type;
+        else if (strcmp(type->name, "Base") == 0) base_type = type;
+        else if (strcmp(type->name, "Alias") == 0) alias_type = type;
+    }
+    ok = semantic.error_count == 0 &&
+        semantic.result_status == SEMANTIC_RESULT_OK &&
+        u64_type && base_type && alias_type &&
+        u64_type->kind == SEMANTIC_RESULT_TYPE_PRIMITIVE &&
+        base_type->kind == SEMANTIC_RESULT_TYPE_USER_DEFINED &&
+        alias_type->kind == SEMANTIC_RESULT_TYPE_USER_DEFINED &&
+        base_type->base_type_id == u64_type->type_id &&
+        alias_type->base_type_id == base_type->type_id &&
+        base_type->referenced_symbol_id != 0u &&
+        alias_type->referenced_symbol_id != 0u &&
+        base_type->referenced_symbol_id != alias_type->referenced_symbol_id;
+    if (!ok) {
+        fprintf(stderr,
+            "NewType SemanticResult metadata mismatch: errors=%d status=%d types=%u\n",
+            semantic.error_count, (int)semantic.result_status,
+            semantic.result.type_count);
+    }
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_map_key_type_semantics(void) {
     const char* map_scalar_keys =
         "f:main() { v:values!map; values[1]; values[1.5]; "
@@ -3796,6 +3852,10 @@ int main(int argc, char** argv) {
     }
     if (!check_array_literal_semantics()) {
         fprintf(stderr, "Array literal semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_newtype_result_base_metadata()) {
+        fprintf(stderr, "NewType SemanticResult metadata checks failed.\n");
         return 1;
     }
     if (!check_extended_ast_semantics()) {
