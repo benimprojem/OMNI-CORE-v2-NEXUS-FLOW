@@ -9,10 +9,119 @@
 #include "oir_ast_frontend_index.h"
 #include "oir_ast_node_table.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#include <pthread.h>
+#endif
 
 static const OccStageModuleV1 g_parser_module;
+
+#if defined(_WIN32)
+static INIT_ONCE g_parser_messages_once = INIT_ONCE_STATIC_INIT;
+#else
+static pthread_once_t g_parser_messages_once = PTHREAD_ONCE_INIT;
+#endif
+
+/* Resolve the shared catalog relative to this DLL, never the process CWD. */
+static void parser_stage_load_messages(void) {
+    char module_path[4096], config_path[4096], message_path[4096];
+    char language[16] = "en";
+    FILE* config;
+    char line[256];
+    char* separator;
+#if defined(_WIN32)
+    HMODULE module_handle = NULL;
+    DWORD length;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)(uintptr_t)&parser_stage_load_messages, &module_handle)) return;
+    length = GetModuleFileNameA(module_handle, module_path, (DWORD)sizeof(module_path));
+    if (length == 0u || length >= sizeof(module_path)) return;
+    module_path[length] = '\0';
+#else
+    Dl_info info;
+    if (!dladdr((void*)(uintptr_t)&parser_stage_load_messages, &info) ||
+        !info.dli_fname || strlen(info.dli_fname) >= sizeof(module_path)) return;
+    strcpy(module_path, info.dli_fname);
+#endif
+    separator = strrchr(module_path, '/');
+#if defined(_WIN32)
+    {
+        char* backslash = strrchr(module_path, '\\\\');
+        if (backslash && (!separator || backslash > separator)) separator = backslash;
+    }
+#endif
+    if (!separator) return;
+    *separator = '\0';
+    {
+        int n = snprintf(config_path, sizeof(config_path), "%s/../occ.ocf", module_path);
+        if (n < 0 || (size_t)n >= sizeof(config_path)) return;
+    }
+    config = fopen(config_path, "r");
+    if (config) {
+        while (fgets(line, sizeof(line), config)) {
+            char* p = line;
+            char* end;
+            while (*p == ' ' || *p == '\t') ++p;
+            if (strncmp(p, "language", 8u) != 0) continue;
+            p += 8u;
+            while (*p == ' ' || *p == '\t') ++p;
+            if (*p++ != '=') continue;
+            while (*p == ' ' || *p == '\t') ++p;
+            if (*p++ != '"') continue;
+            end = strchr(p, '"');
+            if (!end) continue;
+            *end = '\0';
+            if (p[0] && strlen(p) < sizeof(language)) {
+                size_t j; int valid = 1;
+                for (j = 0u; p[j] != '\0'; ++j) {
+                    if (!((p[j] >= 'a' && p[j] <= 'z') ||
+                          (p[j] >= 'A' && p[j] <= 'Z') ||
+                          (p[j] >= '0' && p[j] <= '9') ||
+                          p[j] == '_' || p[j] == '-')) {
+                        valid = 0; break;
+                    }
+                }
+                if (valid) strcpy(language, p);
+            }
+            break;
+        }
+        fclose(config);
+    }
+    {
+        int n = snprintf(message_path, sizeof(message_path),
+            "%s/../lang/messages_%s.conf", module_path, language);
+        if (n < 0 || (size_t)n >= sizeof(message_path)) return;
+    }
+    msg_init(message_path);
+}
+
+#if defined(_WIN32)
+static BOOL CALLBACK parser_stage_messages_once(
+    PINIT_ONCE once, PVOID parameter, PVOID* context
+) {
+    (void)once; (void)parameter; (void)context;
+    parser_stage_load_messages();
+    return TRUE;
+}
+static void parser_stage_ensure_messages(void) {
+    (void)InitOnceExecuteOnce(&g_parser_messages_once,
+        parser_stage_messages_once, NULL, NULL);
+}
+#else
+static void parser_stage_messages_once(void) {
+    parser_stage_load_messages();
+}
+static void parser_stage_ensure_messages(void) {
+    (void)pthread_once(&g_parser_messages_once, parser_stage_messages_once);
+}
+#endif
 
 #define PARSER_STAGE_MAX_INDEX_CAPACITY ((size_t)2097152u)
 #define PARSER_STAGE_MAX_TOKEN_COUNT 1000000u
@@ -88,6 +197,7 @@ static uint32_t OCC_MODULE_CALL parser_stage_process(
     size_t i;
     int diagnostics_found=0;
 
+    parser_stage_ensure_messages();
     occ_diagnostics_init(&lexer_diagnostics);
 
     result->bytes_written=0u;
@@ -313,6 +423,20 @@ static const OccStageModuleV1 g_parser_module = {
     },
     parser_stage_process
 };
+
+/* The host must stop invocations before unloading this DLL. */
+#if defined(_WIN32)
+BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
+    (void)instance; (void)reserved;
+    if (reason == DLL_PROCESS_DETACH) msg_destroy();
+    return TRUE;
+}
+#else
+__attribute__((destructor))
+static void parser_stage_unload_messages(void) {
+    msg_destroy();
+}
+#endif
 
 OCC_MODULE_EXPORT const OccStageModuleV1* OCC_MODULE_CALL
 occ_get_stage_module_v1(void) {
