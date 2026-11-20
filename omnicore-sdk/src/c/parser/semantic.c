@@ -1501,6 +1501,19 @@ static int semantic_is_raw_pointer_type_name(const char* type_name) {
     return type_name[0] == '*' && type_name[1] != '\0';
 }
 
+static int semantic_type_is_raw_pointer(
+    SemanticContext* ctx, const char* type_name, unsigned int depth
+) {
+    Slot* alias;
+    while (type_name && *type_name == '!') ++type_name;
+    if (!type_name || !*type_name || depth > 32u) return 0;
+    if (semantic_is_raw_pointer_type_name(type_name)) return 1;
+    alias = find_slot(ctx, type_name);
+    if (alias && alias->kind == SLOT_NEWTYPE && alias->type_name)
+        return semantic_type_is_raw_pointer(ctx, alias->type_name, depth + 1u);
+    return 0;
+}
+
 static const char* semantic_function_type_text(
     SemanticContext* ctx, const char* type_name
 ) {
@@ -10013,7 +10026,7 @@ static void semantic_check_node(
                 }
                 if (semantic_is_reference_type_name(target_name) &&
                     (semantic_type_is_any(ctx, source_type) ||
-                     semantic_is_raw_pointer_type_name(source_type))) {
+                     semantic_type_is_raw_pointer(ctx, source_type, 0u))) {
                     report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "cast() cannot create a safe reference from any or a raw pointer because no owner/lifetime provenance is available.",
                         "Create a safe reference with &owner/&mut owner, or use a raw pointer and keep its unsafe contract explicit.",
@@ -10033,13 +10046,15 @@ static void semantic_check_node(
                     !are_types_compatible(ctx, target_name, source_type) &&
                     !(is_numeric_primitive_type(target_name) &&
                       is_numeric_primitive_type(source_type)) &&
-                    !(semantic_is_raw_pointer_type_name(target_name) &&
-                      (semantic_is_raw_pointer_type_name(source_type) ||
-                       semantic_is_reference_type_name(source_type)))) {
+                    !(semantic_type_is_raw_pointer(ctx, target_name, 0u) &&
+                      (semantic_type_is_raw_pointer(ctx, source_type, 0u) ||
+                       semantic_type_contains_safe_reference(ctx, source_type, 0u)))) {
                     char message[320];
                     (void)snprintf(message, sizeof(message),
-                        "cast() cannot convert source type '%s' to target type '%s'; only compatible values, explicit numeric conversions and raw-pointer escapes are supported.",
-                        source_type, target_name);
+                        "cast() cannot convert source type '%s' to target type '%s'; numeric(source=%d,target=%d), only compatible values, explicit numeric conversions and raw-pointer escapes are supported.",
+                        source_type, target_name,
+                        is_numeric_primitive_type(source_type),
+                        is_numeric_primitive_type(target_name));
                     report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         message,
                         "Choose a compatible target type or use an explicit numeric cast; safe references cannot be reconstructed from erased or raw-pointer values.",
