@@ -6607,6 +6607,7 @@ static void semantic_check_node(
                 decl->inline_type->type == AST_ARRAY_TYPE);
             int is_inline = (decl->inline_type != NULL && !is_array);
             int valid_type = 0;
+            int safe_reference_storage_rejected = 0;
             int initializer_error_baseline = ctx->error_count;
             const char* element_type = decl->type_name;
             if (element_type && element_type[0] == '!') ++element_type;
@@ -6710,6 +6711,7 @@ static void semantic_check_node(
                      (decl->initializer->type == AST_TUPLE)) &&
                     semantic_expression_contains_safe_reference(
                         ctx, decl->initializer, 0u)) {
+                    safe_reference_storage_rejected = 1;
                     report_issue(ctx, decl->initializer,
                         ERR_SEMANTIC_TYPE_MISMATCH,
                         "A safe reference cannot be stored in any, an array, a tuple, or an aggregate initializer because element/field-level borrow provenance is unavailable.",
@@ -6772,7 +6774,8 @@ static void semantic_check_node(
                         decl->initializer->type == AST_ARRAY_LITERAL) {
                         semantic_validate_vector_initializer(
                             ctx, node, decl->type_name, decl->initializer);
-                    } else if (!named_function_initializer && init_type &&
+                    } else if (!named_function_initializer &&
+                        !safe_reference_storage_rejected && init_type &&
                         !are_types_compatible(ctx, decl->type_name, init_type)) {
                         int coercion_status =
                             semantic_hard_representation_coercion_status(
