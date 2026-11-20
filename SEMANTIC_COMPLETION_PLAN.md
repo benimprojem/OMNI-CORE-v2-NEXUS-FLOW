@@ -349,3 +349,18 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 | SEM-002-F02 | Run `44654788912`, Semantic CTest | A weak shadow-initializer fixture did not distinguish outer binding from self binding | Strengthen the fixture to require the outer type to be used; final isolated assignment-type mismatch is tested in `580a0b4` | Run `44655165110`: 74/74 CTests green |
 | SEM-002-F03 | Run `44654997489`, build | Initial restore insertion landed in the immutable-declaration case and referenced out-of-scope locals | Move restoration to the end of the `AST_VAR_DECL` case (`04a2e88`) | Run `44655165110`: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind green |
 | SEM-002-F04 | Run `44655100166`, Semantic CTest | Arithmetic-based fixture intentionally produced two distinct diagnostics while expecting one | Isolate the binding/type mismatch with a simple identifier initializer (`580a0b4`) | Run `44655165110`: 74/74 CTests green |
+
+
+### SEM-002 exact-head verification update — 2026-11-20
+
+- Expanded initializer regressions to cover explicit and inferred `v:` self-reference, `m:` self-reference, `c:` self-reference, legal outer-scope shadow initialization and outer-binding type mismatch.
+- Duplicate follow-on diagnostics are suppressed when an immutable or compile-time constant initializer already has a more specific expression error.
+- Exact branch-head commit: `a288089624009cb5fac4521a95f67f3eded15fbb`; tests were added in `c6d30b62e3e014351fa160ed762175d5229e960d`.
+- CI run [44655601539](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44655601539) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. All platform CTest suites passed 74/74; Valgrind reported zero errors and zero lost bytes.
+- SEM-002 remains **IN_PROGRESS**: declaration matrix audit is not yet complete. General definite-initialization path analysis remains assigned to SEM-010.
+
+#### Additional SEM-002 failure record
+
+| Failure ID | Failed evidence | Finding | Fix | Retest |
+|---|---|---|---|---|
+| SEM-002-F05 | Run `44655518981`, Semantic CTest | An invalid `m:` self-initializer emitted both the specific undefined-name diagnostic and a redundant “type cannot be determined” diagnostic | Gate the secondary diagnostic on no earlier initializer error (`a288089`) | Run `44655601539`: 74/74 CTests and all five CI jobs passed |
