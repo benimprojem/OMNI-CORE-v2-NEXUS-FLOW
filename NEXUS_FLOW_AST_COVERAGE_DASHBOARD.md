@@ -1130,3 +1130,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - `SemanticContext.initializing_slot` is initialized and its lifetime is restored after the complete initializer validation path.
 - Exact-head code/test commit `580a0b461a333c938981847972a8b8fedc495b40`; CI [44655165110](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44655165110) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; 74/74 platform CTests passed; Valgrind error summary is zero.
 - SEM-002 remains **IN_PROGRESS** while inferred/global/local declaration cases and immutable/compile-time binding edge cases are audited. General path-sensitive definite initialization remains in SEM-010.
+
+
+### SEM-002 declaration initializer regression update (2026-11-20)
+
+- Additional negative cases now cover explicit and inferred `v:` self-reference, immutable `m:` self-reference and compile-time `c:` self-reference.
+- Invalid initializers retain the specific underlying diagnostic without an additional redundant “type cannot be determined” message.
+- Valid nested shadowing resolves the outer binding during initializer type checking; the new declaration becomes visible only after initializer validation.
+- Exact-head commit `a288089624009cb5fac4521a95f67f3eded15fbb`; CI [44655601539](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44655601539) passed all five jobs and 74/74 CTests on Windows, Ubuntu and macOS; ASan/UBSan and Valgrind were clean.
+- SEM-002 remains **IN_PROGRESS** pending the remaining declaration/binding audit; no OIR progression is authorized.
