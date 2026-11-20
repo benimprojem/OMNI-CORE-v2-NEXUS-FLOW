@@ -87,6 +87,18 @@ The order below is a dependency order. Audit results may mark an item already im
 - The syntax reference does not currently define a universal runtime arithmetic overflow policy; it explicitly leaves literal overflow and target-specific lowering as separate checks. Semantic does not invent wrapping/saturation/trap behavior here. This remains a documented boundary for the later OIR/target contract.
 - Hard-Lock diagnostics now include source type, target type and a corrective action. The dedicated diagnostic regression passed all five CI jobs in [44738643809](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44738643809).
 - Scope boundary: `!ReturnType` is a function return declaration, not a conversion instruction; no return cast is inferred. Raw-pointer dereference targets have no hard-type/provenance field in the current contract, so no implicit Hard-Lock rule is invented there. Ordinary array element types likewise do not inherit the container's hard flag; the explicit packed `Nbit`/`Nbyte` indexing contract is handled separately.
+
+#### SEM-004 closure matrix
+
+| Area | Status | Evidence / boundary |
+|---|---|---|
+| Numeric promotion and generic inference | Covered | Existing positive/negative Semantic regressions; included in cross-platform CI |
+| Hard bit/byte initializers, assignments, fields and packed indexes | Implemented and CI-verified | Constant range, safe widening, runtime narrowing and SemanticResult/OIR records |
+| Hard signed/unsigned integer conversions | Implemented and CI-verified | Signedness, width, constant range and assignment regressions |
+| Hard float/decimal widening | Implemented and CI-verified | Same-family widening allowed; narrowing requires explicit cast |
+| Explicit casts and conversion metadata | Implemented and CI-verified | Explicit flag, identity/signedness classification and OIR artifact round-trip |
+| Wide integer literals above `INT64_MAX` | Open | Requires defined literal typing and a wider constant representation |
+| Runtime arithmetic overflow | Deferred by language contract | No wrapping/saturation/trap behavior is specified for Semantic to enforce |
 - Explicit numeric casts now produce SemanticResult conversion records with source/target type IDs, conversion classification and the explicit flag. A dedicated SemanticResult → OIR artifact round-trip test passed all five CI jobs in [44740741699](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44740741699). Identity classification now compares the underlying SemanticResult type shape while ignoring only the Hard-Lock flag; tests cover `u8`→`i64` signedness and `u8`→`u8` identity. The fix passed all five CI jobs in [44742242545](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44742242545). The cleaned regression run [44742540343](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44742540343) has Windows, Ubuntu, macOS and ASan/UBSan green; Valgrind is still running.
 - **SEM-004 remains IN_PROGRESS** because wide integer literal typing/range evaluation above signed 64-bit is not yet specified or implemented. Runtime arithmetic overflow is also deliberately left undefined by the current language contract and must not be invented in Semantic. No OIR phase advancement is authorized.
 
