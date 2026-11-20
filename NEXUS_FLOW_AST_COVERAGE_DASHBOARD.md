@@ -1163,3 +1163,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added malformed-AST coverage for missing `m:` initializer and unnamed declarations; source-level coverage includes global/local constants, inference, duplicate bindings, unknown type, invalid self-reference and initializer mismatch.
 - Exact test commit `4aa4401fad8a23e77c5b0980d8b959a3eee803e1`; CI [44656744444](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656744444) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; 74/74 CTests passed, Valgrind zero errors.
 - **SEM-002 VERIFIED. SEM-003 IN_PROGRESS.** OIR remains gated by the remaining Semantic work packages.
+
+
+### SEM-003 recursive type validation — in progress (2026-11-20)
+
+- Semantic now rejects by-value recursive struct/union fields and fixed-array recursive fields, preventing infinite inline type layouts.
+- Raw pointer indirection and dynamic-array storage break the inline cycle and are accepted.
+- Added tests for self-referential NewType, direct recursive struct/union, fixed-array recursion, and valid pointer/dynamic-array recursion.
+- Exact-head code commit `def6d50612a78af44918f3295625ec38166fd06e`; CI [44658186976](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658186976) passed all five jobs and 74/74 CTests; Valgrind reported zero errors.
+- SEM-003 remains **IN_PROGRESS** pending primitive spelling/result mapping, nested type expressions, NewType chain metadata and malformed type-expression audit.
