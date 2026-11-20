@@ -19,6 +19,7 @@ typedef struct FieldInfo {
     char* name;
     char* type_name;
     int is_const;
+    int is_hard_typed;
     struct FieldInfo* next;
 } FieldInfo;
 
