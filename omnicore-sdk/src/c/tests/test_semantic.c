@@ -90,6 +90,8 @@ static int check_imported_function_call_semantics(void) {
     OccModuleInterfaceRelation relations[2];
     OccModuleInterface module_interface;
     OccSemanticImportEnvironmentBinding binding;
+    OccSemanticImportEnvironmentBinding duplicate_binding;
+    OccSemanticImportEnvironmentBinding bindings[2];
     OccSemanticImportEnvironment environment;
     const char* valid_source =
         "use math as m; f:main() { v:sum!i32 = m.add(10, 20); }";
@@ -109,18 +111,28 @@ static int check_imported_function_call_semantics(void) {
         "use math as m; f:main() { v:m!i32 = 1; m.add(10, 20); }";
     const char* safe_reference_return_source =
         "use math as m; f:main(owner!i32) { v:result!&i32 = m.add(10, 20); }";
+    const char* ambiguous_alias_source =
+        "use math as m; f:main() { m.add(10, 20); }";
+    const char* ambiguous_namespace_source =
+        "use math ns mathns; f:main() { mathns.add(10, 20); }";
+    const char* alias_namespace_collision_source =
+        "use math as m; f:main() { m.add(10, 20); }";
     const char* sources[] = {
         valid_source, named_source, namespace_source, wrong_type_source,
         missing_symbol_source, wrong_count_source, hidden_symbol_source,
-        local_selector_collision_source, safe_reference_return_source
+        local_selector_collision_source, safe_reference_return_source,
+        ambiguous_alias_source, ambiguous_namespace_source,
+        alias_namespace_collision_source
     };
-    const int expected_errors[] = {0, 0, 0, 1, 1, 1, 1, 1, 1};
+    const int expected_errors[] = {0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     size_t source_index;
     memset(&symbol, 0, sizeof(symbol));
     memset(types, 0, sizeof(types));
     memset(relations, 0, sizeof(relations));
     memset(&module_interface, 0, sizeof(module_interface));
     memset(&binding, 0, sizeof(binding));
+    memset(&duplicate_binding, 0, sizeof(duplicate_binding));
+    memset(bindings, 0, sizeof(bindings));
     memset(&environment, 0, sizeof(environment));
 
     symbol.source_symbol_id = 4u;
@@ -160,7 +172,15 @@ static int check_imported_function_call_semantics(void) {
     binding.alias = "m";
     binding.namespace_name = "mathns";
     binding.module_interface = &module_interface;
-    environment.bindings = &binding;
+    duplicate_binding.use_ordinal = 2u;
+    duplicate_binding.requested_path = "math_duplicate";
+    duplicate_binding.dependency_identity = "file:///lib/math_duplicate.nxf";
+    duplicate_binding.alias = "other";
+    duplicate_binding.namespace_name = "otherns";
+    duplicate_binding.module_interface = &module_interface;
+    bindings[0] = binding;
+    bindings[1] = duplicate_binding;
+    environment.bindings = bindings;
     environment.binding_count = 1u;
 
     for (source_index = 0u;
@@ -182,6 +202,11 @@ static int check_imported_function_call_semantics(void) {
         symbol.flags = source_index == 6u
             ? 0u : SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED;
         symbol.type_id = source_index == 8u ? 2u : 1u;
+        environment.binding_count = source_index >= 9u ? 2u : 1u;
+        bindings[1] = duplicate_binding;
+        if (source_index == 9u) bindings[1].alias = "m";
+        if (source_index == 10u) bindings[1].namespace_name = "mathns";
+        if (source_index == 11u) bindings[1].namespace_name = "m";
         semantic_attach_import_environment(&semantic, &environment);
         semantic_check(&semantic, (ASTNode*)parser->ast_root);
         ok = semantic.error_count == expected_errors[source_index];
