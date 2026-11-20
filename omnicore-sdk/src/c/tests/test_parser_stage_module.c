@@ -38,7 +38,7 @@ int main(int argc,char** argv) {
     char loader_error[512];
     int exit_code=1;
 
-    if(argc!=2) return 2;
+    if(argc!=2 && argc!=3) return 2;
     memset(&loaded,0,sizeof(loaded));
     occ_diagnostics_init(&collector);
     lexer_context=parser_init_source("parser-stage-test.nxf",
@@ -254,6 +254,9 @@ int main(int argc,char** argv) {
         CHECK(output==NULL && output_capacity==0u);
         CHECK(occ_diagnostics_count(&collector)==1u);
         CHECK(occ_diagnostics_get(&collector,0u,&diagnostic_view));
+        CHECK(diagnostic_view.message != NULL);
+        CHECK(strcmp(diagnostic_view.message, "Unknown Message") != 0);
+        if (argc == 3) CHECK(strcmp(diagnostic_view.message, argv[2]) == 0);
         CHECK(diagnostic_view.record->stage_id==OCC_STAGE_PARSER);
         CHECK(diagnostic_view.record->span.start_offset==6u);
         CHECK(diagnostic_view.record->span.end_offset==7u);
