@@ -285,6 +285,18 @@ int main(void) {
     static const char hard_representation_struct_initializer_runtime_narrowing_rejected[] =
         "f:main(source!u16) { struct:Packet { v:flags!8bit } "
         "v:p!Packet = Packet { flags = source }; }";
+    static const char hard_representation_bit_index_constant_valid[] =
+        "f:main() { v:flags!8bit = 0; flags[0] = 1; }";
+    static const char hard_representation_bit_index_constant_invalid[] =
+        "f:main() { v:flags!8bit = 0; flags[0] = 2; }";
+    static const char hard_representation_byte_index_constant_valid[] =
+        "f:main() { v:data!1byte = 0; data[0] = 255; }";
+    static const char hard_representation_byte_index_constant_invalid[] =
+        "f:main() { v:data!1byte = 0; data[0] = 256; }";
+    static const char hard_representation_byte_index_runtime_unsigned_valid[] =
+        "f:main(source!u8) { v:data!1byte = 0; data[0] = source; }";
+    static const char hard_representation_byte_index_runtime_narrowing_rejected[] =
+        "f:main(source!u16) { v:data!1byte = 0; data[0] = source; }";
     static const char explicit_numeric_cast_widening[] =
         "f:main(value!i8) !i64 { ret cast(value, i64); }";
     static const char integer_promotion_same_sign[] =
@@ -523,6 +535,12 @@ int main(void) {
     if (!check_source(hard_representation_struct_initializer_constant_valid, 0)) return 1;
     if (!check_source(hard_representation_struct_initializer_constant_invalid, 1)) return 1;
     if (!check_source(hard_representation_struct_initializer_runtime_narrowing_rejected, 1)) return 1;
+    if (!check_source(hard_representation_bit_index_constant_valid, 0)) return 1;
+    if (!check_source(hard_representation_bit_index_constant_invalid, 1)) return 1;
+    if (!check_source(hard_representation_byte_index_constant_valid, 0)) return 1;
+    if (!check_source(hard_representation_byte_index_constant_invalid, 1)) return 1;
+    if (!check_source(hard_representation_byte_index_runtime_unsigned_valid, 0)) return 1;
+    if (!check_source(hard_representation_byte_index_runtime_narrowing_rejected, 1)) return 1;
     if (!check_source(integer_promotion_same_sign, 0)) return 1;
     if (!check_source(integer_promotion_mixed_sign_signed_wider, 0)) return 1;
     if (!check_source(integer_promotion_mixed_sign_unsigned_wider, 0)) return 1;
