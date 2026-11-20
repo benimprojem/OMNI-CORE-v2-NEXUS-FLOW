@@ -805,6 +805,7 @@ static int semantic_format_array_signature(
 
 
 static int is_numeric_primitive_type(const char* type_name);
+static int is_arithmetic_binary_operator(OmniTokenType op);
 static int is_bitwise_primitive_type(const char* type_name);
 static const char* semantic_numeric_promotion_type(
     const char* left_type, const char* right_type
