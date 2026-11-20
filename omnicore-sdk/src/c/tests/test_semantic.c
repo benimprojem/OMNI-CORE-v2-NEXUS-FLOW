@@ -2204,6 +2204,15 @@ static int check_extended_ast_semantics(void) {
         "f:main() { struct:Node { v:next!*Node } }";
     const char* valid_newtype_alias_chain =
         "nt:Base = u64; nt:Alias = Base; f:main() { v:value!Alias; }";
+    const char* valid_newtype_chain_identity_assignment =
+        "nt:Base = u64; nt:Alias = Base; "
+        "f:main() { v:first!Alias; v:second!Alias = first; }";
+    const char* invalid_newtype_chain_base_assignment =
+        "nt:Base = u64; nt:Alias = Base; "
+        "f:main() { v:base!Base; v:alias!Alias = base; }";
+    const char* invalid_newtype_chain_reverse_assignment =
+        "nt:Base = u64; nt:Alias = Base; "
+        "f:main() { v:alias!Alias; v:base!Base = alias; }";
     const char* valid_newtype_identity_assignment =
         "nt:UserId = u64; f:main() { v:first!UserId; v:second!UserId = first; }";
     const char* invalid_newtype_base_assignment =
@@ -2339,6 +2348,9 @@ static int check_extended_ast_semantics(void) {
         check_source(valid_dynamic_recursive_array,0) &&
         check_source(valid_pointer_recursive_struct,0) &&
         check_source(valid_newtype_alias_chain,0) &&
+        check_source(valid_newtype_chain_identity_assignment,0) &&
+        check_source(invalid_newtype_chain_base_assignment,1) &&
+        check_source(invalid_newtype_chain_reverse_assignment,1) &&
         check_source(valid_newtype_identity_assignment,0) &&
         check_source(invalid_newtype_base_assignment,1) &&
         check_source(invalid_distinct_newtype_assignment,1) &&
