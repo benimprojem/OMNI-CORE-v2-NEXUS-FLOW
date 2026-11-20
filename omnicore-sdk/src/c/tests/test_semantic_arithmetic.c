@@ -260,6 +260,11 @@ int main(void) {
         "f:main() !i32 { ret cast(\"text\", i32); }";
     static const char invalid_numeric_to_string_cast[] =
         "f:main() !str { ret cast(1, str); }";
+    static const char invalid_any_to_safe_reference_newtype_cast[] =
+        "nt:SafeI32 = &i32; "
+        "f:main(value!any) { v:reference!SafeI32 = cast(value, SafeI32); }";
+    static const char invalid_safe_reference_to_any_cast[] =
+        "f:main(owner!i32) { v:erased!any = cast(&owner, any); }";
     static const char shift_radix_constant_expression_invalid[] =
         "f:main(a!i32) !i32 { ret a <<< (0x10 * 2); }";
     static const char shift_radix_constant_expression_valid[] =
@@ -453,6 +458,8 @@ int main(void) {
     if (!check_source(explicit_numeric_cast_literal, 0)) return 1;
     if (!check_source(invalid_string_to_numeric_cast, 1)) return 1;
     if (!check_source(invalid_numeric_to_string_cast, 1)) return 1;
+    if (!check_source(invalid_any_to_safe_reference_newtype_cast, 1)) return 1;
+    if (!check_source(invalid_safe_reference_to_any_cast, 1)) return 1;
     if (!check_source(shift_radix_constant_expression_invalid, 0)) return 1;
     if (!check_source(shift_radix_constant_expression_valid, 0)) return 1;
     if (!check_source(range_valid, 0)) return 1;
