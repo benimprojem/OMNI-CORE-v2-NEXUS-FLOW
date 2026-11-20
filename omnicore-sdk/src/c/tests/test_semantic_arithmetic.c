@@ -276,6 +276,14 @@ int main(void) {
         "f:main(source!i8) { v:value!u16 = source; }";
     static const char hard_integer_runtime_narrowing_rejected[] =
         "f:main(source!u16) { v:value!u8 = source; }";
+    static const char hard_float_widening[] =
+        "f:main(source!f32) { v:value!f64 = source; }";
+    static const char hard_decimal_widening[] =
+        "f:main(source!d32) { v:value!d64 = source; }";
+    static const char hard_float_narrowing_rejected[] =
+        "f:main(source!f64) { v:value!f32 = source; }";
+    static const char hard_decimal_narrowing_rejected[] =
+        "f:main(source!d64) { v:value!d32 = source; }";
     static const char hard_representation_assignment_constant_in_range[] =
         "f:main() { v:value!8bit = 0; value = 255; }";
     static const char hard_representation_assignment_constant_out_of_range[] =
@@ -552,6 +560,10 @@ int main(void) {
     if (!check_source(hard_integer_unsigned_to_wider_signed, 0)) return 1;
     if (!check_source(hard_integer_signed_to_unsigned_runtime_rejected, 1)) return 1;
     if (!check_source(hard_integer_runtime_narrowing_rejected, 1)) return 1;
+    if (!check_source(hard_float_widening, 0)) return 1;
+    if (!check_source(hard_decimal_widening, 0)) return 1;
+    if (!check_source(hard_float_narrowing_rejected, 1)) return 1;
+    if (!check_source(hard_decimal_narrowing_rejected, 1)) return 1;
     if (!check_source(hard_representation_assignment_constant_in_range, 0)) return 1;
     if (!check_source(hard_representation_assignment_constant_out_of_range, 1)) return 1;
     if (!check_source(hard_representation_assignment_runtime_narrowing_rejected, 1)) return 1;
