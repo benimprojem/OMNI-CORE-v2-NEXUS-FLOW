@@ -219,6 +219,7 @@ Bu kurallar, parametre referansının geçerli bir çağrı içinde kullanılmas
 
 
 - **Hard-Lock (`!`):** `v:sayi!u64 = 50`. Veri "50" 8 bit olsa bile 64-bit yer ayrılır.
+- **Integer literal bağlamı:** `i128` ve `u128` hedef türü açık veya bağlamdan belirlenmişse literal, doğrudan 128-bit integer aralığında çözümlenir. `u128` için `0..2^128-1`, `i128` için `-2^127..2^127-1` sınırları geçerlidir. Bu karar integer literal ve bit/byte temsili aralığıyla sınırlıdır; `f128`/`d128` literal çözümleme ve diğer türlerin 128-bit literal desteği bu aşamada kapsam dışıdır. Büyük integer literal, hedef türü bağlamdan belirlenemediğinde otomatik olarak `u128` varsayılmaz.
 
 **Desteklenen temel tipler (C compiler branch):** `bit`, `byte`, `char`, `bool`, `str`, `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128`, `f32`, `f64`, `f128`, `d32`, `d64`, `d128`. `d32`, `d64` ve `d128` Decimal (ondalık) numeric tipleridir; 128-bit integer/floating/decimal tipleri de Semantic type resolution ve ilgili numeric kontrollerinde desteklenir. `Vec2`, `Vec3`, `Vec4`, `map`, `array`, `any` ve `void` kendi tür/aggregate kurallarıyla ayrıca tanımlanır. `hex` bir storage type değildir; hexadecimal numeric literal yazımı `0x` önekiyle yapılır (ör. `0x2A`).
 
