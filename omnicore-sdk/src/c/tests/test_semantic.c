@@ -617,9 +617,20 @@ static int check_malformed_recursive_type_expression_ast(void) {
         { AST_TYPE_REFERENCE, 1u, 1,
           "Recursive type expression contains a node that is not a type expression." },
         { AST_TYPE_QUALIFIED, AST_TYPE_FLAG_HARD_TYPED | AST_TYPE_FLAG_MUTABLE_REFERENCE, 2,
-          "Type expression contains unsupported qualifier flags." },
+          "Type expression contains flags that are not valid for its kind." },
         { AST_TYPE_FUNCTION, 0u, 3,
-          "Function type expression requires a return type." }
+          "Function type expression requires a return type." },
+        { AST_TYPE_NAMED, AST_TYPE_FLAG_HARD_TYPED, 4,
+          "Type expression contains flags that are not valid for its kind." },
+        { AST_TYPE_POINTER, AST_TYPE_FLAG_HARD_TYPED, 2,
+          "Type expression contains flags that are not valid for its kind." },
+        { AST_TYPE_REFERENCE, AST_TYPE_FLAG_HARD_TYPED, 2,
+          "Type expression contains flags that are not valid for its kind." },
+        { AST_TYPE_ARRAY, AST_TYPE_FLAG_HARD_TYPED, 5,
+          "Type expression contains flags that are not valid for its kind." },
+        { AST_TYPE_FUNCTION, AST_TYPE_FLAG_MUTABLE_REFERENCE, 2,
+          "Type expression contains flags that are not valid for its kind." },
+        { AST_TYPE_REFERENCE, AST_TYPE_FLAG_MUTABLE_REFERENCE, 2, NULL }
     };
     size_t i;
     for (i = 0u; i < sizeof(cases) / sizeof(cases[0]); ++i) {
@@ -635,7 +646,7 @@ static int check_malformed_recursive_type_expression_ast(void) {
                 ast_destroy((ASTNode*)expression);
                 return 0;
             }
-        } else if (cases[i].child_mode == 2) {
+        } else if (cases[i].child_mode == 2 || cases[i].child_mode == 5) {
             expression->child = (ASTNode*)ast_create(AST_TYPE_EXPR);
             if (!expression->child) {
                 ast_destroy((ASTNode*)expression);
@@ -648,11 +659,26 @@ static int check_malformed_recursive_type_expression_ast(void) {
                 ast_destroy((ASTNode*)expression);
                 return 0;
             }
+            if (cases[i].child_mode == 5) {
+                expression->dimensions = ast_create(AST_ARRAY_TYPE);
+                if (!expression->dimensions) {
+                    ast_destroy((ASTNode*)expression);
+                    return 0;
+                }
+            }
+        } else if (cases[i].child_mode == 4) {
+            expression->name = semantic_test_copy_text("i32");
+            if (!expression->name) {
+                ast_destroy((ASTNode*)expression);
+                return 0;
+            }
         }
         semantic_init(&semantic, "semantic-malformed-type-expression.nxf", NULL);
         semantic_check(&semantic, (ASTNode*)expression);
-        ok = semantic.error_count == 1 && semantic.error_head &&
-            strstr(semantic.error_head->message, cases[i].expected) != NULL;
+        ok = cases[i].expected
+            ? semantic.error_count == 1 && semantic.error_head &&
+              strstr(semantic.error_head->message, cases[i].expected) != NULL
+            : semantic.error_count == 0;
         semantic_destroy(&semantic);
         ast_destroy((ASTNode*)expression);
         if (!ok) return 0;
