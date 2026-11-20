@@ -7504,11 +7504,6 @@ static void semantic_check_node(
                         "Range operator '..' requires compatible numeric endpoints; got '%s' and '%s'.",
                         begin_type, end_type);
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
-                } else if (left_type && right_type && promoted_type) {
-                    semantic_record_operator_promotion(
-                        ctx, node, left_type, promoted_type, 0u);
-                    semantic_record_operator_promotion(
-                        ctx, node, right_type, promoted_type, 1u);
                 }
             }
 
@@ -7584,6 +7579,11 @@ static void semantic_check_node(
                             operator_name, left_type, right_type);
                     }
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                } else if (left_type && right_type && promoted_type) {
+                    semantic_record_operator_promotion(
+                        ctx, node, left_type, promoted_type, 0u);
+                    semantic_record_operator_promotion(
+                        ctx, node, right_type, promoted_type, 1u);
                 }
             }
 
