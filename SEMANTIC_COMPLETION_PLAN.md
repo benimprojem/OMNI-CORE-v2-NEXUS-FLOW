@@ -28,7 +28,7 @@ The order below is a dependency order. Audit results may mark an item already im
 | Order | ID | Work package | Initial status | Depends on |
 |---:|---|---|---|---|
 | 1 | SEM-001 | Scope, symbol table and namespace integrity | VERIFIED | AST / Parser baseline |
-| 2 | SEM-002 | Declarations and binding rules | AUDIT_REQUIRED | SEM-001 |
+| 2 | SEM-002 | Declarations and binding rules | IN_PROGRESS | SEM-001 |
 | 3 | SEM-003 | Primitive, named and composite type system | AUDIT_REQUIRED | SEM-001, SEM-002 |
 | 4 | SEM-004 | Type inference, conversion, promotion and forced types | AUDIT_REQUIRED | SEM-003 |
 | 5 | SEM-005 | Pointer, reference, borrow, lifetime and initialization | AUDIT_REQUIRED | SEM-001–004 |
@@ -330,3 +330,22 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Import symbol visibility remains explicit through the resolved alias/namespace selector; no unqualified symbol injection is performed by the Semantic import environment. `as _` and `ns _` remain distinct selector-suppression forms as specified by the language reference.
 - Imported value symbols and nominal-type closure are tracked under SEM-003; imported default/variadic signature metadata is tracked under SEM-007. They are not blockers for the SEM-001 scope/namespace integrity contract.
 - **SEM-001 status: VERIFIED. Next work package: SEM-002 — Declarations and binding rules. OIR remains gated until SEM-001 through SEM-014 pass their required gates.**
+
+
+### SEM-002 progress — initializer binding and shadowing (2026-11-20)
+
+- `AST_VAR_DECL` now hides the declaration being initialized from lexical lookup until initializer type resolution, compatibility checks, borrow registration and initialization metadata are complete. This restores the outer binding when a nested declaration shadows it and rejects self-reference when no outer binding exists.
+- `SemanticContext.initializing_slot` is initialized in `semantic_init`; nested initializer checks preserve and restore the previous slot.
+- Regression cases: valid same-type outer shadow initialization; invalid self-reference; incompatible initializer that must resolve to an outer binding rather than the new declaration.
+- Exact-head code/test commit: `580a0b461a333c938981847972a8b8fedc495b40`. CI [44655165110](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44655165110) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. All platform CTest suites passed 74/74; Valgrind reported zero errors and zero leaked bytes.
+- Path-sensitive definite initialization remains in SEM-010; this change addresses declaration initializer name binding, not general read-before-write analysis.
+- **Status: IN_PROGRESS.** Continue auditing inferred declarations, global/local binding, redeclaration edge cases, immutable `m:` and compile-time `c:` declarations before closure.
+
+#### SEM-002 failure/retest records
+
+| Failure ID | Failed evidence | Finding | Fix | Retest |
+|---|---|---|---|---|
+| SEM-002-F01 | Run `44654533537`, Valgrind, commit `bde7a58` | `find_slot` read uninitialized `SemanticContext.initializing_slot`; 1091 Memcheck errors across 81 contexts | Initialize the field in `semantic_init` (`2cf60d9`), then preserve it through the full initializer-validation window (`04a2e88`) | Run `44655165110`: Valgrind 0 errors, all jobs green |
+| SEM-002-F02 | Run `44654788912`, Semantic CTest | A weak shadow-initializer fixture did not distinguish outer binding from self binding | Strengthen the fixture to require the outer type to be used; final isolated assignment-type mismatch is tested in `580a0b4` | Run `44655165110`: 74/74 CTests green |
+| SEM-002-F03 | Run `44654997489`, build | Initial restore insertion landed in the immutable-declaration case and referenced out-of-scope locals | Move restoration to the end of the `AST_VAR_DECL` case (`04a2e88`) | Run `44655165110`: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind green |
+| SEM-002-F04 | Run `44655100166`, Semantic CTest | Arithmetic-based fixture intentionally produced two distinct diagnostics while expecting one | Isolate the binding/type mismatch with a simple identifier initializer (`580a0b4`) | Run `44655165110`: 74/74 CTests green |
