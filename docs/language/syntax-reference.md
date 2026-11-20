@@ -220,7 +220,7 @@ Bu kurallar, parametre referansının geçerli bir çağrı içinde kullanılmas
 
 - **Hard-Lock (`!`):** `v:sayi!u64 = 50`. Veri "50" 8 bit olsa bile 64-bit yer ayrılır.
 
-**Tipler:** `bit`, `byte` (u8), `hex`, `char`, `f32`, `f64`, `d32`, `d64`, `i8..i64`, `u8..u64`, `bool`. `d32` ve `d64`, Decimal (ondalık) numeric tipleridir; Semantic numeric işlem ve compound assignment kontrollerinde tanınırlar. `d128`, `i128`, `u128`, `f128` gibi daha geniş tipler ileride eklenebilir; henüz desteklenmez.
+**Desteklenen temel tipler (C compiler branch):** `bit`, `byte`, `char`, `bool`, `str`, `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128`, `f32`, `f64`, `f128`, `d32`, `d64`, `d128`. `d32`, `d64` ve `d128` Decimal (ondalık) numeric tipleridir; 128-bit integer/floating/decimal tipleri de Semantic type resolution ve ilgili numeric kontrollerinde desteklenir. `Vec2`, `Vec3`, `Vec4`, `map`, `array`, `any` ve `void` kendi tür/aggregate kurallarıyla ayrıca tanımlanır. `hex` bir storage type değildir; hexadecimal numeric literal yazımı `0x` önekiyle yapılır (ör. `0x2A`).
 
 **Implicit function type variable (`t`):** `t` is a type placeholder used in function parameter and return type positions. This is distinct from the declaration prefix `t:`, which remains reserved. Repeated standalone `t` parameter types in one function signature share one call-site type binding: the first corresponding argument infers the type, and later `t` arguments must be compatible with it. A `t` return type is inferred from the argument corresponding to the first `t` parameter (including named arguments).
 
