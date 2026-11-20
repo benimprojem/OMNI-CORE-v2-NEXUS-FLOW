@@ -1,3 +1,6 @@
+#if !defined(_WIN32)
+#define _GNU_SOURCE
+#endif
 #include "occ_module_api.h"
 #include "parser.h"
 #include "lexer.h"
@@ -53,7 +56,7 @@ static void parser_stage_load_messages(void) {
     separator = strrchr(module_path, '/');
 #if defined(_WIN32)
     {
-        char* backslash = strrchr(module_path, '\\\\');
+        char* backslash = strrchr(module_path, '\\');
         if (backslash && (!separator || backslash > separator)) separator = backslash;
     }
 #endif
