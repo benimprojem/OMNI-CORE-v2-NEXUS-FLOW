@@ -2190,6 +2190,10 @@ static int check_extended_ast_semantics(void) {
         "f:main() { struct:Node { v:next!Node } }";
     const char* invalid_by_value_recursive_union =
         "f:main() { union:Node { v:next!Node } }";
+    const char* invalid_by_value_recursive_array =
+        "f:main() { struct:Node { v:next[1]!Node } }";
+    const char* valid_dynamic_recursive_array =
+        "f:main() { struct:Node { v:next[]!Node } }";
     const char* valid_pointer_recursive_struct =
         "f:main() { struct:Node { v:next!*Node } }";
     const char* valid_newtype_alias_chain =
@@ -2325,6 +2329,8 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_self_referential_newtype,1) &&
         check_source(invalid_by_value_recursive_struct,1) &&
         check_source(invalid_by_value_recursive_union,1) &&
+        check_source(invalid_by_value_recursive_array,1) &&
+        check_source(valid_dynamic_recursive_array,0) &&
         check_source(valid_pointer_recursive_struct,0) &&
         check_source(valid_newtype_alias_chain,0) &&
         check_source(valid_newtype_identity_assignment,0) &&
