@@ -278,7 +278,8 @@ done:
 
 static int test_explicit_cast_conversion_record(void) {
     static const char source[] =
-        "f:main(value!u8) { v:wide!i64 = cast(value, i64); }";
+        "f:main(value!u8) { v:wide!i64 = cast(value, i64); "
+        "v:same!u8 = cast(value, u8); }";
     ParserContext* parser = parser_init_source(
         "explicit-cast-conversion.nxf",
         (const uint8_t*)source, sizeof(source) - 1u);
@@ -286,8 +287,8 @@ static int test_explicit_cast_conversion_record(void) {
     ResolverContext resolver;
     SemanticContext semantic;
     ASTFuncDecl* function;
-    ASTVarDecl* wide;
-    ASTCast* cast_node;
+    ASTVarDecl *wide, *same;
+    ASTCast *cast_node, *same_cast_node;
     uint32_t node_count = 0u;
     OirAstFrontendRequirements requirements;
     OirAstNodeRecord* records = NULL;
@@ -313,6 +314,9 @@ static int test_explicit_cast_conversion_record(void) {
     wide = find_local(((ASTBlock*)function->body)->statements, "wide");
     if (!wide || !wide->initializer || wide->initializer->type != AST_CAST) goto done;
     cast_node = (ASTCast*)wide->initializer;
+    same = find_local(((ASTBlock*)function->body)->statements, "same");
+    if (!same || !same->initializer || same->initializer->type != AST_CAST) goto done;
+    same_cast_node = (ASTCast*)same->initializer;
     semantic_init(&semantic, "explicit-cast-conversion.nxf", NULL);
     initialized = 1;
     semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
@@ -327,10 +331,13 @@ static int test_explicit_cast_conversion_record(void) {
         semantic_print_errors(&semantic);
         goto done;
     }
-    if (semantic.result.conversion_count != 1u ||
+    if (semantic.result.conversion_count != 2u ||
         !conversion_matches(&semantic.result,
             resolve_node_id(&resolver, (ASTNode*)cast_node),
-            "i64", SEMANTIC_RESULT_CONVERSION_SIGNEDNESS)) goto done;
+            "i64", SEMANTIC_RESULT_CONVERSION_SIGNEDNESS) ||
+        !conversion_matches(&semantic.result,
+            resolve_node_id(&resolver, (ASTNode*)same_cast_node),
+            "u8", SEMANTIC_RESULT_CONVERSION_IDENTITY)) goto done;
 
     if (oir_ast_frontend_measure((ASTNode*)parser->ast_root,
             index, 32u, node_count, &requirements) != OIR_STATUS_OK) goto done;
@@ -361,17 +368,22 @@ static int test_explicit_cast_conversion_record(void) {
             graph_stack, node_count, owner_scope,
             (size_t)node_count + 1u) != OIR_STATUS_OK ||
         !artifact_view.has_conversions ||
-        artifact_view.conversions.record_count != 1u) goto done;
+        artifact_view.conversions.record_count != 2u) goto done;
     {
-        OirSemanticConversion encoded;
-        const SemanticResultConversion* original = &semantic.result.conversions[0];
-        if (oir_semantic_conversions_get(
-                &artifact_view.conversions, 0u, &encoded) != OIR_STATUS_OK ||
-            encoded.node_id != original->node_id ||
-            encoded.source_type_id != original->source_type_id ||
-            encoded.destination_type_id != original->destination_type_id ||
-            encoded.kind != original->kind || encoded.flags != original->flags)
-            goto done;
+        uint32_t conversion_index;
+        for (conversion_index = 0u; conversion_index < 2u; ++conversion_index) {
+            OirSemanticConversion encoded;
+            const SemanticResultConversion* original =
+                &semantic.result.conversions[conversion_index];
+            if (oir_semantic_conversions_get(
+                    &artifact_view.conversions, conversion_index, &encoded)
+                    != OIR_STATUS_OK ||
+                encoded.node_id != original->node_id ||
+                encoded.source_type_id != original->source_type_id ||
+                encoded.destination_type_id != original->destination_type_id ||
+                encoded.kind != original->kind || encoded.flags != original->flags)
+                goto done;
+        }
     }
     ok = 1;
 done:
