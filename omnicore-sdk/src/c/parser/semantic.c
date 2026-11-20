@@ -9351,7 +9351,6 @@ static void semantic_check_node(
                         }
 
                         if (v->type_name && !v->inline_type &&
-                            !v->type_expr &&
                             semantic_type_reaches_aggregate_by_value(
                                 ctx, v->type_name, sdecl->name, 0u)) {
                             char message[384];
