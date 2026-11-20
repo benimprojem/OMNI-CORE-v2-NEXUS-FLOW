@@ -435,3 +435,13 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 | Failure ID | Failed evidence | Finding | Fix | Retest |
 |---|---|---|---|---|
 | SEM-003-F04 | Run `44674721333`, Semantic CTest 69 | A malformed reference AST fixture set the hard-typed flag while testing a non-type child; after kind-specific flag validation, this correctly emitted an additional flag diagnostic and invalidated the fixture's one-error expectation | Correct fixture flags to zero so it isolates the invalid child-node case (`bd588a5`) | Run `44674844504`: 74/74 CTests on Windows/Ubuntu/macOS; all five CI jobs green; Valgrind clean |
+
+
+### SEM-003 NewType structural base metadata — verified test evidence (2026-11-20)
+
+- Extended the persistent SemanticResult test beyond primitive-to-NewType chains. It now verifies that NewTypes targeting raw pointers, safe references and callback signatures each retain a nonzero structural `base_type_id` that resolves to the corresponding pointer/reference/function type record.
+- The same test confirms each NewType has its own nonzero referenced symbol identity; a chained NewType points to the immediately preceding nominal NewType rather than flattening its identity to the primitive.
+- Exact code/test head: `803c22f8a92ce01259515fe7942ff7baaefecedc`.
+- CI [44675153773](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675153773) passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan and Valgrind); 74/74 CTests on all three platforms; Valgrind zero errors and zero lost bytes.
+- Cross-check of `is_type_defined` and the SemanticResult primitive registry found matching exact-name sets for supported scalar, fixed-width, vector, map and built-in types. Both use exact comparisons for primitive names; the only prefix checks are intentional structured forms (`array|` and `f:(`), not partial primitive matching.
+- **SEM-003 remains IN_PROGRESS** until the final acceptance checklist and normative-reference comparison are recorded as closed. No OIR work is authorized before SEM-001–SEM-014 closure.
