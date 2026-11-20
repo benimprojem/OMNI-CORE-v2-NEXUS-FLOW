@@ -1264,7 +1264,7 @@ static int check_safe_reference_type_erasure_semantics(void) {
     const char* any_return_rejected =
         "f:escape(owner!i32)!any { ret &owner; }";
     const char* any_array_initializer_rejected =
-        "f:main(owner!i32) { v:items!any[] = [&owner]; }";
+        "f:main(owner!i32) { v:items[]!any = [&owner]; }";
     const char* inferred_tuple_reference_initializer_rejected =
         "f:main(owner!i32) { v:items = (&owner, 1); }";
     const char* any_map_value_rejected =
