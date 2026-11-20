@@ -1189,3 +1189,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Nested `*t`, `&t`, repeated `t` unification and nested callback parameter/return type-variable cases are covered and reflected in the normative reference.
 - Exact test commit `7484b6323f0c74843874c2d492c1a05774165a42`; CI [44658892345](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658892345) passed all five jobs and 74/74 CTests; Valgrind zero errors/zero lost bytes.
 - SEM-003 remains **IN_PROGRESS** for persistent NewType `base_type_id` metadata assertions and malformed nested type-expression coverage.
+
+
+### SEM-003 malformed type-expression validation — verified checkpoint (2026-11-20)
+
+- Direct malformed-AST tests now cover missing pointer/reference targets, non-type child nodes, missing function return type, invalid qualifier combinations and per-kind flag validation.
+- Mutable-reference flag is accepted only on reference type expressions; hard-typed flag is accepted only on qualified type expressions. All other nonzero type-expression flags are rejected.
+- Exact final code/test head: `bd588a5fb673a2981713d3005927133ddcd38ece`.
+- CI [44674844504](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44674844504): Windows, Ubuntu, macOS, ASan/UBSan and Valgrind passed; 74/74 CTests on all three platforms; Valgrind zero errors and zero lost bytes.
+- SEM-003 remains **IN_PROGRESS** pending final type spelling/result mapping and NewType target/metadata cross-check. OIR remains gated.
