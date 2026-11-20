@@ -387,9 +387,6 @@ static int test_explicit_cast_conversion_record(void) {
     }
     ok = 1;
 done:
-    fprintf(stderr, "explicit cast stage=%d ok=%d result=%d conv=%u\\n", stage, ok,
-        initialized ? (int)semantic.result_status : -1,
-        initialized ? semantic.result.conversion_count : 0u);
     if (initialized) semantic_destroy(&semantic);
     parser_destroy(parser);
     free(records); free(fields); free(strings); free(payload); free(artifact);
@@ -1501,7 +1498,7 @@ int main(void) {
         fprintf(stderr, "Numeric promotion SemanticResult conversion records failed.\\n");
         return 1;
     }
-    if (!test_bit_byte_semantic_conversion_records()) {
+    if (!test_hard_type_semantic_conversion_records()) {
         fprintf(stderr, "Hard-type SemanticResult conversion records failed.\\n");
         return 1;
     }
