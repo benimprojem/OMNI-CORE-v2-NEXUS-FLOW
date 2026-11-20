@@ -1154,4 +1154,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Final declaration matrix includes inferred/explicit `v:`, nested shadowing, self-reference, same-scope redeclaration, unknown types, immutable `m:`, compile-time `c:` and malformed AST.
 - Read-before-initialization is separated by responsibility: safe-reference/raw-pointer state belongs to SEM-005; path-sensitive ordinary-variable flow belongs to SEM-010. SEM-002 remains focused on declaration legality and binding.
 - Exact test commit `32177ebfe069c3dc6dfd3aff2be05d2ddf3434eb`; CI [44656453773](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656453773) passed all five jobs, 74/74 CTests and Valgrind with zero errors.
-- SEM-002 remains **IN_PROGRESS** until the declaration-form cross-check against the normative syntax reference is complete.
+- SEM-002 is now **VERIFIED** after the normative syntax cross-check and malformed-AST coverage. SEM-003 — primitive, named and composite type system — is the next active package.
+
+
+### Semantic phase gate — SEM-002 verified (2026-11-20)
+
+- Declaration forms `v:`, `m:` and `c:` are cross-checked against the normative syntax reference, including global/local visibility, nested shadowing, initializer binding, required initializers, immutability and compile-time-only constraints.
+- Added malformed-AST coverage for missing `m:` initializer and unnamed declarations; source-level coverage includes global/local constants, inference, duplicate bindings, unknown type, invalid self-reference and initializer mismatch.
+- Exact test commit `4aa4401fad8a23e77c5b0980d8b959a3eee803e1`; CI [44656744444](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656744444) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; 74/74 CTests passed, Valgrind zero errors.
+- **SEM-002 VERIFIED. SEM-003 IN_PROGRESS.** OIR remains gated by the remaining Semantic work packages.
