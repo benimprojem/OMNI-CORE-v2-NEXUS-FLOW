@@ -1524,6 +1524,12 @@ if(BUILD_TESTING)
     add_dependencies(test_parser_stage_module occ_parser_stage)
     add_test(NAME real_parser_stage_source_token_to_ast_module
         COMMAND test_parser_stage_module "$<TARGET_FILE:occ_parser_stage>")
+    add_test(NAME real_parser_stage_uses_package_turkish_catalog
+        COMMAND test_parser_stage_module
+            "${C_LOCALE_TEST_DIR}/bin/$<TARGET_FILE_NAME:occ_parser_stage>"
+            "İfade bekleniyor.")
+    set_tests_properties(real_parser_stage_uses_package_turkish_catalog PROPERTIES
+        WORKING_DIRECTORY "${C_LOCALE_TEST_DIR}/bin")
 
     add_executable(test_semantic_stage_module
         "${C_SOURCE_DIR}/tests/test_semantic_stage_module.c"
