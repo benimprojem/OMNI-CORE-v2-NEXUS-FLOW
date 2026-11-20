@@ -1544,7 +1544,40 @@ static int check_newtype_result_base_metadata(void) {
     }
     semantic_destroy(&semantic);
     parser_destroy(parser);
-    return ok;
+    if (!ok) return 0;
+    {
+        ASTVarDecl* array_decl = (ASTVarDecl*)ast_create(AST_VAR_DECL);
+        SemanticResultType* encoded_array_type = NULL;
+        int array_ok;
+        if (!array_decl) return 0;
+        array_decl->name = semantic_test_copy_text("encoded_items");
+        array_decl->type_name = semantic_test_copy_text("array|i32[3]");
+        array_decl->is_hard_typed = 1;
+        if (!array_decl->name || !array_decl->type_name) {
+            ast_destroy((ASTNode*)array_decl);
+            return 0;
+        }
+        semantic_init(&semantic, "semantic-encoded-array-result-type.nxf", NULL);
+        semantic_attach_node_id_resolver(
+            &semantic, semantic_test_pointer_node_id, NULL);
+        semantic_check(&semantic, (ASTNode*)array_decl);
+        for (i = 0u; i < semantic.result.type_count; ++i) {
+            SemanticResultType* type = &semantic.result.types[i];
+            if (strcmp(type->name, "array|i32[3]") == 0)
+                encoded_array_type = type;
+        }
+        array_ok = semantic.error_count == 0 && encoded_array_type &&
+            encoded_array_type->kind == SEMANTIC_RESULT_TYPE_AGGREGATE;
+        semantic_destroy(&semantic);
+        ast_destroy((ASTNode*)array_decl);
+        if (!array_ok) {
+            fprintf(stderr,
+                "Encoded array SemanticResult type mismatch: errors=%d\\n",
+                semantic.error_count);
+            return 0;
+        }
+    }
+    return 1;
 }
 
 static int check_map_key_type_semantics(void) {
