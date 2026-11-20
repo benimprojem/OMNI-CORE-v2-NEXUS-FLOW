@@ -529,6 +529,8 @@ target_link_libraries(occ_parser_stage PRIVATE
     occ_oir_token_stream
     occ_oir_diagnostics
     occ_oir_ast_artifact
+    Threads::Threads
+    ${CMAKE_DL_LIBS}
 )
 set_target_properties(occ_parser_stage PROPERTIES
     OUTPUT_NAME "occ_parser_stage"
