@@ -289,6 +289,14 @@ static int test_explicit_cast_conversion_record(void) {
     ASTVarDecl* wide;
     ASTCast* cast_node;
     uint32_t node_count = 0u;
+    OirAstFrontendRequirements requirements;
+    OirAstNodeRecord* records = NULL;
+    uint8_t *fields = NULL, *strings = NULL, *payload = NULL, *artifact = NULL;
+    uint32_t *incoming = NULL, *owner_scope = NULL;
+    uint8_t* visited = NULL;
+    OirAstGraphStackEntry* graph_stack = NULL;
+    OirSemanticAstArtifactView artifact_view;
+    size_t payload_written = 0u, artifact_written = 0u;
     int initialized = 0;
     int ok = 0;
     if (!parser) return 0;
@@ -319,13 +327,58 @@ static int test_explicit_cast_conversion_record(void) {
         semantic_print_errors(&semantic);
         goto done;
     }
-    ok = semantic.result.conversion_count == 1u &&
-        conversion_matches(&semantic.result,
+    if (semantic.result.conversion_count != 1u ||
+        !conversion_matches(&semantic.result,
             resolve_node_id(&resolver, (ASTNode*)cast_node),
-            "i64", SEMANTIC_RESULT_CONVERSION_SIGNEDNESS);
+            "i64", SEMANTIC_RESULT_CONVERSION_SIGNEDNESS)) goto done;
+
+    if (oir_ast_frontend_measure((ASTNode*)parser->ast_root,
+            index, 32u, node_count, &requirements) != OIR_STATUS_OK) goto done;
+    records = (OirAstNodeRecord*)calloc(node_count, sizeof(*records));
+    fields = (uint8_t*)malloc(requirements.field_data_length ?
+        requirements.field_data_length : 1u);
+    strings = (uint8_t*)malloc(requirements.string_table_length ?
+        requirements.string_table_length : 1u);
+    payload = (uint8_t*)malloc(requirements.payload_size);
+    artifact = (uint8_t*)malloc(65536u);
+    incoming = (uint32_t*)calloc(node_count, sizeof(*incoming));
+    visited = (uint8_t*)calloc(node_count, sizeof(*visited));
+    graph_stack = (OirAstGraphStackEntry*)calloc(node_count, sizeof(*graph_stack));
+    owner_scope = (uint32_t*)calloc((size_t)node_count + 1u, sizeof(*owner_scope));
+    if (!records || !fields || !strings || !payload || !artifact ||
+        !incoming || !visited || !graph_stack || !owner_scope) goto done;
+    if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
+            index, 32u, node_count, records, node_count,
+            fields, requirements.field_data_length,
+            strings, requirements.string_table_length,
+            payload, requirements.payload_size, &payload_written,
+            &requirements) != OIR_STATUS_OK ||
+        oir_semantic_ast_artifact_write(payload, payload_written,
+            &semantic.result, 1701u, artifact, 65536u,
+            &artifact_written) != OIR_STATUS_OK ||
+        oir_semantic_ast_artifact_open(artifact, artifact_written,
+            &artifact_view, incoming, node_count, visited, node_count,
+            graph_stack, node_count, owner_scope,
+            (size_t)node_count + 1u) != OIR_STATUS_OK ||
+        !artifact_view.has_conversions ||
+        artifact_view.conversions.record_count != 1u) goto done;
+    {
+        OirSemanticConversion encoded;
+        const SemanticResultConversion* original = &semantic.result.conversions[0];
+        if (oir_semantic_conversions_get(
+                &artifact_view.conversions, 0u, &encoded) != OIR_STATUS_OK ||
+            encoded.node_id != original->node_id ||
+            encoded.source_type_id != original->source_type_id ||
+            encoded.destination_type_id != original->destination_type_id ||
+            encoded.kind != original->kind || encoded.flags != original->flags)
+            goto done;
+    }
+    ok = 1;
 done:
     if (initialized) semantic_destroy(&semantic);
     parser_destroy(parser);
+    free(records); free(fields); free(strings); free(payload); free(artifact);
+    free(incoming); free(visited); free(graph_stack); free(owner_scope);
     return ok;
 }
 
