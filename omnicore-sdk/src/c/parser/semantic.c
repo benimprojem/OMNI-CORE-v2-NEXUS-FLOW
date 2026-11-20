@@ -519,7 +519,8 @@ static uint32_t semantic_type_id(
         return status == SEMANTIC_RESULT_OK ? type_id : 0u;
     }
 
-    if (semantic_is_array_type_name(name) ||
+    if (strcmp(name, "array") == 0 ||
+        strncmp(name, "array|", 6u) == 0 ||
         strcmp(name, "map") == 0 || strcmp(name, "Map") == 0) {
         kind = SEMANTIC_RESULT_TYPE_AGGREGATE;
     } else if (strncmp(name, "f:(", 3u) == 0) {
