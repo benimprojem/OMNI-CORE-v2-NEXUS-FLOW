@@ -7751,10 +7751,10 @@ static void semantic_check_node(
                                 ctx, node, slot, right_type, slot->type_name);
                         } else {
                             char message[320];
-                        (void)snprintf(message, sizeof(message),
-                            "Operator '%s' cannot assign value of type '%s' to '%s' of type '%s'.",
-                            semantic_binary_operator_name(assign->op), right_type,
-                            id->name, slot->type_name);
+                            (void)snprintf(message, sizeof(message),
+                                "Operator '%s' cannot assign value of type '%s' to '%s' of type '%s'.",
+                                semantic_binary_operator_name(assign->op), right_type,
+                                id->name, slot->type_name);
                             report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                         }
                     }
