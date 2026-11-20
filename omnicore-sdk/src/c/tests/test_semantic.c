@@ -1487,7 +1487,7 @@ static int check_extended_numeric_primitive_semantics(void) {
 
 static int check_shift_operator_semantics(void) {
     const char* valid_u8_shift_at_width =
-        "f:main() { v:value!u8 = 1; "
+        "f:main(value!u8) { "
         "v:left!u8 = value <<< 8; v:right!u8 = value >>> 8; }";
     const char* valid_wide_shift_count =
         "f:main(value!u64,count!u32) { "
