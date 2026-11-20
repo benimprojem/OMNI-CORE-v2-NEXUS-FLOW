@@ -487,3 +487,13 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Exact test commit: `69ecb4a4a96b73f64925cff0e16dd922e7c6a557`.
 - CI run [44659320679](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44659320679) completed successfully: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind all green; 74/74 CTests per platform; Valgrind zero errors and zero definitely-lost bytes.
 - SEM-003's prior closure remains **VERIFIED**; this is additional direct metadata evidence, not a scope reopening.
+
+
+### SEM-004 conversion and inference audit — coverage inventory (2026-11-20)
+
+- Rechecked `test_semantic_arithmetic.c`: 145 declared fixtures. Existing coverage includes signed/unsigned integer promotion, mixed-sign promotion, float/decimal width promotion, explicit widening/narrowing casts, invalid casts, bit/byte width mismatches, all declared shift-width boundaries, and vector arithmetic. These are existing tests; this audit does not claim new implementation.
+- Rechecked `test_semantic.c`: generic identity inference, inference from a later parameter, named-argument inference, same-type generic arithmetic, and conflicting generic arithmetic are already exercised with positive/negative cases.
+- The forced bit/byte conversion helper is currently wired to variable initializers and identifier assignments. The assignment implementation has distinct index, dereference and member paths; those paths do not call the helper. This is an explicit audit gap, not an assumed defect: the language contract must establish whether hard representation conversion applies to projected elements/fields before broadening behavior.
+- Function return checking currently uses ordinary type compatibility. The current tests use explicit return type declarations, but the available root reference does not define whether the hard-representation initializer/assignment rule also applies to return expressions. No return conversion behavior is inferred from syntax alone.
+- The project-required `NEXUS-FLOW-SYNTAX-REFERENCE.md` was not found at the repository root during this audit. The existing `NEXUS-FLOW-REFERENCE.md` contains representation examples, but is not substituted for the canonical syntax contract.
+- **SEM-004 remains IN_PROGRESS.** The numeric-promotion, cast and generic-inference test families are present; closure still requires normative confirmation of forced-type contexts, projected assignment behavior, complete conversion-result annotation checks, and CI on any resulting code changes.
