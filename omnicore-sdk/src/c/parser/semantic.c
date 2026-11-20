@@ -3032,23 +3032,34 @@ static int semantic_hard_representation_coercion_status(
     uint64_t source_bits = 0u;
     int target_unsigned = 1;
     int source_unsigned = 1;
-    int target_is_representation;
-    int source_is_representation;
+    int target_is_representation, source_is_representation;
+    int target_is_float, source_is_float;
+    char target_family = 0, source_family = 0;
     int64_t constant_value = 0;
     if (!source_expression || !is_hard_typed || !target_type ||
         !source_type) return 0;
 
     target_is_representation =
         semantic_representation_bit_width(target_type, &target_bits);
-    if (!target_is_representation &&
+    target_is_float =
+        semantic_float_family_width(target_type, &target_family, &target_bits);
+    if (!target_is_representation && !target_is_float &&
         !semantic_integer_type_width(
             target_type, &target_bits, &target_unsigned)) return 0;
 
     source_is_representation =
         semantic_representation_bit_width(source_type, &source_bits);
-    if (!source_is_representation &&
+    source_is_float =
+        semantic_float_family_width(source_type, &source_family, &source_bits);
+    if (!source_is_representation && !source_is_float &&
         !semantic_integer_type_width(
             source_type, &source_bits, &source_unsigned)) return 0;
+
+    if (target_is_float || source_is_float) {
+        if (!target_is_float || !source_is_float ||
+            target_family != source_family) return 0;
+        return source_bits <= target_bits ? 1 : -2;
+    }
 
     if (semantic_eval_integer_constant(
             source_expression, &constant_value)) {
@@ -3112,6 +3123,8 @@ static void semantic_record_representation_conversion(
     uint64_t source_bits = 0u, destination_bits = 0u;
     int source_unsigned = 1, destination_unsigned = 1;
     int source_is_representation, destination_is_representation;
+    int source_is_float, destination_is_float;
+    char source_family = 0, destination_family = 0;
     uint16_t conversion_kind;
     SemanticResultStatus status;
     if (!ctx || !ctx->result_enabled ||
@@ -3130,14 +3143,23 @@ static void semantic_record_representation_conversion(
 
     source_is_representation =
         semantic_representation_bit_width(source_type, &source_bits);
-    if (!source_is_representation &&
+    source_is_float =
+        semantic_float_family_width(source_type, &source_family, &source_bits);
+    if (!source_is_representation && !source_is_float &&
         !semantic_integer_type_width(
             source_type, &source_bits, &source_unsigned)) return;
     destination_is_representation =
         semantic_representation_bit_width(destination_type, &destination_bits);
-    if (!destination_is_representation &&
+    destination_is_float =
+        semantic_float_family_width(
+            destination_type, &destination_family, &destination_bits);
+    if (!destination_is_representation && !destination_is_float &&
         !semantic_integer_type_width(
             destination_type, &destination_bits, &destination_unsigned)) return;
+    if (source_is_float || destination_is_float) {
+        if (!source_is_float || !destination_is_float ||
+            source_family != destination_family) return;
+    }
 
     if (source_bits < destination_bits)
         conversion_kind = SEMANTIC_RESULT_CONVERSION_WIDENING;
