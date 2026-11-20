@@ -29,8 +29,8 @@ The order below is a dependency order. Audit results may mark an item already im
 |---:|---|---|---|---|
 | 1 | SEM-001 | Scope, symbol table and namespace integrity | VERIFIED | AST / Parser baseline |
 | 2 | SEM-002 | Declarations and binding rules | VERIFIED | SEM-001 |
-| 3 | SEM-003 | Primitive, named and composite type system | IN_PROGRESS | SEM-001, SEM-002 |
-| 4 | SEM-004 | Type inference, conversion, promotion and forced types | AUDIT_REQUIRED | SEM-003 |
+| 3 | SEM-003 | Primitive, named and composite type system | VERIFIED | SEM-001, SEM-002 |
+| 4 | SEM-004 | Type inference, conversion, promotion and forced types | IN_PROGRESS | SEM-003 |
 | 5 | SEM-005 | Pointer, reference, borrow, lifetime and initialization | AUDIT_REQUIRED | SEM-001–004 |
 | 6 | SEM-006 | Struct, union, enum, array, Map and Vec semantics | AUDIT_REQUIRED | SEM-003–005 |
 | 7 | SEM-007 | Function, Group, method and call binding | AUDIT_REQUIRED | SEM-001–006 |
@@ -459,3 +459,15 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 | Failure ID | Failed evidence | Finding | Fix | Retest |
 |---|---|---|---|---|
 | SEM-003-F05 | Run `44675522890`, ASan/UBSan and Valgrind build | The first array-classifier patch called `semantic_is_array_type_name` before its static declaration, producing an implicit-declaration/static-redeclaration build error | Use the exact local `array` / `array|` spelling checks at the classifier site, avoiding a forward dependency (`1220aa7`) | Run `44675632586`: all five CI jobs green, 74/74 platform CTests, Valgrind clean |
+
+
+### SEM-003 closure — primitive, named and composite type system (2026-11-20)
+
+- Completed the full supported primitive spelling matrix in a source-level Semantic regression: signed/unsigned integer widths, float and decimal widths, bit/byte representations, `char`, `bool`, `str`, vectors, maps and `any`. `void` is covered through function return signatures rather than as a storage declaration.
+- Verified nested raw-pointer, safe-reference and callback/NewType target forms; fixed-size and dynamic arrays; tuple and callback use; nominal NewType assignment and chain identity; self-recursive NewType rejection; by-value aggregate recursion rejection; malformed recursive type-expression AST rejection.
+- Persistent SemanticResult tests assert nominal symbol identity and primitive/pointer/reference/function base-type links. Encoded `array|...` spellings now produce aggregate result types.
+- Cross-checked primitive lookup and SemanticResult primitive registration. Primitive names use exact comparisons; only intentional structured encodings use prefix recognition (`array|`, `f:(`).
+- Normative syntax reference was corrected for supported 128-bit types and hexadecimal literal notation; type-variable nesting documentation was aligned with implementation.
+- Final verified code/test head: `977a1d42e07c7674b2e4d318cb412e7efadc1d6a`; docs are updated in subsequent commits on the same branch.
+- CI [44675909159](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675909159) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. All three platform suites passed 74/74 CTests; Valgrind reported zero errors and zero lost bytes.
+- **SEM-003: VERIFIED.** Next work package: **SEM-004 — Type inference, conversion, promotion and forced types**. OIR remains gated until SEM-001 through SEM-014 are verified or explicitly deferred by approved design rationale.
