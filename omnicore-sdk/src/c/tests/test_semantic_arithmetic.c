@@ -216,6 +216,10 @@ int main(void) {
         "f:main(a!128bit) !128bit { ret a <<< 127; }";
     static const char shift_128bit_out_of_range[] =
         "f:main(a!128bit) !128bit { ret a <<< 128; }";
+    static const char shift_u128_valid_boundary[] =
+        "f:main(a!u128) !u128 { ret a <<< 127; }";
+    static const char shift_u128_out_of_range[] =
+        "f:main(a!u128) !u128 { ret a <<< 128; }";
     static const char shift_16byte_valid_boundary[] =
         "f:main(a!16byte) !16byte { ret a >>> 127; }";
     static const char shift_16byte_out_of_range[] =
@@ -414,9 +418,11 @@ int main(void) {
     if (!check_source(shift_u8_equal_width, 0)) return 1;
     if (!check_source(shift_u8_valid_boundary, 0)) return 1;
     if (!check_source(shift_i64_valid_boundary, 0)) return 1;
-    if (!check_source(shift_all_representation_widths_valid, 0)) return 1;
-    if (!check_source(shift_128bit_valid_boundary, 0)) return 1;
-    if (!check_source(shift_128bit_out_of_range, 0)) return 1;
+    if (!check_source(shift_all_representation_widths_valid, 1)) return 1;
+    if (!check_source(shift_128bit_valid_boundary, 1)) return 1;
+    if (!check_source(shift_128bit_out_of_range, 1)) return 1;
+    if (!check_source(shift_u128_valid_boundary, 0)) return 1;
+    if (!check_source(shift_u128_out_of_range, 0)) return 1;
     if (!check_source(shift_16byte_valid_boundary, 1)) return 1;
     if (!check_source(shift_16byte_out_of_range, 1)) return 1;
     if (!check_source(shift_scalar_bit_zero_valid, 1)) return 1;
