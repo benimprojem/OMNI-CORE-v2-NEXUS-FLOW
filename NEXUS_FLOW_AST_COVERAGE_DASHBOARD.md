@@ -1172,3 +1172,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added tests for self-referential NewType, direct recursive struct/union, fixed-array recursion, and valid pointer/dynamic-array recursion.
 - Exact-head code commit `def6d50612a78af44918f3295625ec38166fd06e`; CI [44658186976](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658186976) passed all five jobs and 74/74 CTests; Valgrind reported zero errors.
 - SEM-003 remains **IN_PROGRESS** pending primitive spelling/result mapping, nested type expressions, NewType chain metadata and malformed type-expression audit.
+
+
+### SEM-003 primitive type matrix cross-check (2026-11-20)
+
+- Normative type list now matches C Semantic support: signed/unsigned integers through 128-bit, `f32/f64/f128`, `d32/d64/d128`, `bit`, `byte`, `Nbit/Nbyte`, `char`, `bool` and `str`.
+- Corrected stale documentation: 128-bit types are implemented; hexadecimal values use `0x` literals and `hex` is not a storage type.
+- Added tests for valid `char` and rejected `hex` storage type. Existing tests cover 128-bit and decimal arithmetic plus fixed bit/byte representations.
+- CI [44658543349](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658543349) passed all five jobs and 74/74 CTests; Valgrind reported zero errors.
+- SEM-003 remains **IN_PROGRESS** for nested type expressions, NewType identity/base metadata and malformed type-expression validation.
