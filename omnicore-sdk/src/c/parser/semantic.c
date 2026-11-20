@@ -8746,7 +8746,8 @@ static void semantic_check_node(
                         "Return the direct safe-reference type and preserve its parameter/global origin, or return a value/raw pointer.",
                         0, 0);
                 }
-                if (semantic_is_reference_type_name(returned_type) &&
+                if (!semantic_type_is_any(ctx, ctx->current_func_return_type) &&
+                    semantic_is_reference_type_name(returned_type) &&
                     !semantic_reference_return_has_stable_origin(
                         ctx, ret->operand)) {
                     report_error(ctx, node, ERR_SEMANTIC_RETURN_MISMATCH,
