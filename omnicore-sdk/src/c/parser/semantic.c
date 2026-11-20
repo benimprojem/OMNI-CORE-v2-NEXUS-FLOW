@@ -6673,9 +6673,15 @@ static void semantic_check_node(
                 }
             }
 
-            if (decl->inline_type && !decl->type_expr)
-                semantic_check(ctx, decl->inline_type);
-            if (decl->type_expr) semantic_check(ctx, decl->type_expr);
+            {
+                int type_error_baseline = ctx->error_count;
+                if (decl->inline_type && !decl->type_expr)
+                    semantic_check(ctx, decl->inline_type);
+                if (decl->type_expr)
+                    semantic_check(ctx, decl->type_expr);
+                if (ctx->error_count > type_error_baseline)
+                    declared_type_error = 1;
+            }
             if (declared_slot && is_array &&
                 semantic_type_contains_safe_reference(
                     ctx, decl->type_name, 0u)) {
