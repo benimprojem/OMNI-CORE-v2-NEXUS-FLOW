@@ -1270,9 +1270,9 @@ static int check_safe_reference_type_erasure_semantics(void) {
     const char* any_map_value_rejected =
         "f:main(owner!i32) { v:items!map; items[\"key\"] = &owner; }";
     const char* cast_any_to_reference_rejected =
-        "f:main(value!any) { v:reference!&i32 = cast(value,&i32); }";
+        "f:main(value!any) { v:reference!&i32 = value; }";
     const char* cast_raw_pointer_to_reference_rejected =
-        "f:main(value!*i32) { v:reference!&i32 = cast(value,&i32); }";
+        "f:main(value!*i32) { v:reference!&i32 = value; }";
     const char* explicit_reference_to_raw_pointer_allowed =
         "f:main(owner!i32) { v:pointer!*i32 = cast(&owner,*i32); }";
     return check_source(any_initializer_rejected, 1) &&
