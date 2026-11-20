@@ -445,3 +445,17 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - CI [44675153773](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675153773) passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan and Valgrind); 74/74 CTests on all three platforms; Valgrind zero errors and zero lost bytes.
 - Cross-check of `is_type_defined` and the SemanticResult primitive registry found matching exact-name sets for supported scalar, fixed-width, vector, map and built-in types. Both use exact comparisons for primitive names; the only prefix checks are intentional structured forms (`array|` and `f:(`), not partial primitive matching.
 - **SEM-003 remains IN_PROGRESS** until the final acceptance checklist and normative-reference comparison are recorded as closed. No OIR work is authorized before SEM-001–SEM-014 closure.
+
+
+### SEM-003 encoded array type-result mapping (2026-11-20)
+
+- Found that internal array spellings (`array|Element[dimensions]`) were accepted by type validation but fell through the SemanticResult type classifier as unknown types. The classifier now recognizes both the generic `array` form and encoded `array|` forms as `SEMANTIC_RESULT_TYPE_AGGREGATE`.
+- Added a direct AST regression for `array|i32[3]`, verifying the emitted SemanticResult type record is aggregate rather than unknown.
+- Exact final code/test head: `1220aa71934aa1ead091b5e141e43f0ad4e16c13`.
+- CI [44675632586](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675632586) passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan, Valgrind); 74/74 CTests on all three platforms; Valgrind zero errors and zero definitely/indirectly/possibly lost bytes.
+
+#### SEM-003 failure/retest record
+
+| Failure ID | Failed evidence | Finding | Fix | Retest |
+|---|---|---|---|---|
+| SEM-003-F05 | Run `44675522890`, ASan/UBSan and Valgrind build | The first array-classifier patch called `semantic_is_array_type_name` before its static declaration, producing an implicit-declaration/static-redeclaration build error | Use the exact local `array` / `array|` spelling checks at the classifier site, avoiding a forward dependency (`1220aa7`) | Run `44675632586`: all five CI jobs green, 74/74 platform CTests, Valgrind clean |
