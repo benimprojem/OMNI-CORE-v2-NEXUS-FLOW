@@ -9269,12 +9269,29 @@ static void semantic_check_node(
 
                 if (actual_type && field->type_name &&
                     !are_types_compatible(ctx, field->type_name, actual_type)) {
-                    char message[256];
-                    snprintf(message, sizeof(message),
-                        "Initializer for field '%s' has type '%s'; expected '%s'.",
-                        field->name, actual_type, field->type_name);
-                    report_error(ctx, (ASTNode*)init,
-                        ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    int coercion_status =
+                        semantic_hard_representation_coercion_status(
+                            init->value, field->is_hard_typed,
+                            field->type_name, actual_type);
+                    if (coercion_status == -1) {
+                        report_error(ctx, (ASTNode*)init,
+                            ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Explicit bit/byte field initializer is outside the target type range.");
+                    } else if (coercion_status == -2) {
+                        report_error(ctx, (ASTNode*)init,
+                            ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Explicit bit/byte field initializer requires a runtime range check that is not yet available for this source type.");
+                    } else if (coercion_status == 1) {
+                        semantic_record_representation_conversion(
+                            ctx, (ASTNode*)init, NULL, actual_type, field->type_name);
+                    } else {
+                        char message[256];
+                        snprintf(message, sizeof(message),
+                            "Initializer for field '%s' has type '%s'; expected '%s'.",
+                            field->name, actual_type, field->type_name);
+                        report_error(ctx, (ASTNode*)init,
+                            ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    }
                 }
 
                 semantic_record_annotation(
