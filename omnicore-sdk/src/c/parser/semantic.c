@@ -2886,6 +2886,21 @@ static int semantic_float_family_width(
 /* Integer promotion follows C usual arithmetic conversions:
    same-sign operands choose the wider type; mixed-sign operands choose the
    signed type only when it is wider, otherwise the wider unsigned type. */
+static int semantic_fixed_bit_vector_width(
+    const char* type_name, uint64_t* width_out
+) {
+    const char* name = type_name;
+    if (!name || !width_out) return 0;
+    if (*name == '!') ++name;
+    if (strcmp(name, "8bit") == 0) *width_out = 8u;
+    else if (strcmp(name, "16bit") == 0) *width_out = 16u;
+    else if (strcmp(name, "32bit") == 0) *width_out = 32u;
+    else if (strcmp(name, "64bit") == 0) *width_out = 64u;
+    else if (strcmp(name, "128bit") == 0) *width_out = 128u;
+    else return 0;
+    return 1;
+}
+
 static const char* semantic_numeric_promotion_type(
     const char* left_type, const char* right_type
 ) {
@@ -2931,6 +2946,12 @@ static const char* semantic_bitwise_promotion_type(
     if (is_integer_primitive_type(left) &&
         is_integer_primitive_type(right))
         return semantic_numeric_promotion_type(left, right);
+    {
+        uint64_t left_bits = 0u, right_bits = 0u;
+        if (semantic_fixed_bit_vector_width(left, &left_bits) &&
+            semantic_fixed_bit_vector_width(right, &right_bits))
+            return left_bits >= right_bits ? left : right;
+    }
     if (strcmp(left, right) == 0 &&
         is_bitwise_primitive_type(left) &&
         is_bitwise_primitive_type(right)) return left;
