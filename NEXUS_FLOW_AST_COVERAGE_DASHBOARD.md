@@ -1198,3 +1198,13 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Exact final code/test head: `bd588a5fb673a2981713d3005927133ddcd38ece`.
 - CI [44674844504](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44674844504): Windows, Ubuntu, macOS, ASan/UBSan and Valgrind passed; 74/74 CTests on all three platforms; Valgrind zero errors and zero lost bytes.
 - SEM-003 remains **IN_PROGRESS** pending final type spelling/result mapping and NewType target/metadata cross-check. OIR remains gated.
+
+
+### SEM-003 NewType base-type graph verification (2026-11-20)
+
+- Persistent SemanticResult tests now verify NewType base links for primitive aliases, chained nominal aliases, pointer targets, safe-reference targets and callback signatures.
+- Each NewType retains a unique referenced symbol ID; chained aliases preserve immediate nominal identity.
+- Exact code/test head: `803c22f8a92ce01259515fe7942ff7baaefecedc`.
+- CI [44675153773](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675153773) passed all five jobs and 74/74 CTests on Windows, Ubuntu and macOS; ASan/UBSan and Valgrind clean.
+- Primitive type lookup and SemanticResult primitive registry use matching exact-name sets; structured prefix checks are limited to explicit array/function type encodings.
+- SEM-003 remains **IN_PROGRESS** pending formal acceptance checklist closure and normative-reference sign-off.
