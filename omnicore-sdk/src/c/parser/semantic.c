@@ -3025,17 +3025,17 @@ static int semantic_is_shift_value_type(const char* type_name) {
  * outside the target range, and -2 when a runtime range check is required.
  */
 static int semantic_hard_representation_coercion_status(
-    const ASTVarDecl* declaration, const char* source_type
+    ASTNode* source_expression, int is_hard_typed,
+    const char* target_type, const char* source_type
 ) {
     uint64_t target_bits = 0u;
     uint64_t source_bits = 0u;
     uint64_t integer_bits = 0u;
     int source_unsigned = 0;
     int64_t constant_value = 0;
-    if (!declaration || !declaration->is_hard_typed ||
-        !declaration->type_name || !source_type ||
-        !semantic_representation_bit_width(
-            declaration->type_name, &target_bits)) return 0;
+    if (!source_expression || !is_hard_typed || !target_type ||
+        !source_type || !semantic_representation_bit_width(
+            target_type, &target_bits)) return 0;
 
     if (semantic_representation_bit_width(source_type, &source_bits))
         return source_bits <= target_bits ? 1 : -2;
@@ -3044,7 +3044,7 @@ static int semantic_hard_representation_coercion_status(
             source_type, &integer_bits, &source_unsigned)) return 0;
 
     if (semantic_eval_integer_constant(
-            declaration->initializer, &constant_value)) {
+            source_expression, &constant_value)) {
         uint64_t maximum;
         if (constant_value < 0) return -1;
         if (target_bits >= 64u) return 1;
@@ -7057,7 +7057,8 @@ static void semantic_check_node(
                         !are_types_compatible(ctx, decl->type_name, init_type)) {
                         int coercion_status =
                             semantic_hard_representation_coercion_status(
-                                decl, init_type);
+                                decl->initializer, decl->is_hard_typed,
+                                decl->type_name, init_type);
                         if (coercion_status == -1) {
                             report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                                 "Explicit bit/byte coercion value is outside the target type range.");
@@ -7729,12 +7730,33 @@ static void semantic_check_node(
                     }
                     if (!named_function_assignment && right_type &&
                         !are_types_compatible(ctx, slot->type_name, right_type)) {
-                        char message[320];
+                        const ASTVarDecl* destination_declaration =
+                            slot->declaration_node &&
+                            slot->declaration_node->type == AST_VAR_DECL
+                                ? (const ASTVarDecl*)slot->declaration_node : NULL;
+                        int coercion_status =
+                            semantic_hard_representation_coercion_status(
+                                assign->right,
+                                destination_declaration
+                                    ? destination_declaration->is_hard_typed : 0,
+                                slot->type_name, right_type);
+                        if (coercion_status == -1) {
+                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Explicit bit/byte assignment value is outside the target type range.");
+                        } else if (coercion_status == -2) {
+                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Explicit bit/byte assignment requires a runtime range check that is not yet available for this source type.");
+                        } else if (coercion_status == 1) {
+                            semantic_record_representation_conversion(
+                                ctx, node, slot, right_type, slot->type_name);
+                        } else {
+                            char message[320];
                         (void)snprintf(message, sizeof(message),
                             "Operator '%s' cannot assign value of type '%s' to '%s' of type '%s'.",
                             semantic_binary_operator_name(assign->op), right_type,
                             id->name, slot->type_name);
-                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                        }
                     }
                 }
             } else if (assign->left->type == AST_INDEX_ACCESS) {
