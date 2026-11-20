@@ -1527,7 +1527,7 @@ if(BUILD_TESTING)
     add_test(NAME real_parser_stage_uses_package_turkish_catalog
         COMMAND test_parser_stage_module
             "${C_LOCALE_TEST_DIR}/bin/$<TARGET_FILE_NAME:occ_parser_stage>"
-            "İfade bekleniyor.")
+            "Değişken bildiriminden sonra ';' bekleniyor.")
     set_tests_properties(real_parser_stage_uses_package_turkish_catalog PROPERTIES
         WORKING_DIRECTORY "${C_LOCALE_TEST_DIR}/bin")
 
