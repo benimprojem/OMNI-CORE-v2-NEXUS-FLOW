@@ -6717,6 +6717,7 @@ static void semantic_check_node(
                 initializing_slot_active = 1;
                 semantic_check(ctx, decl->initializer);
                 if (decl->is_const &&
+                    ctx->error_count == initializer_error_baseline &&
                     !semantic_is_compile_time_constant_expression(
                         ctx, decl->initializer)) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
