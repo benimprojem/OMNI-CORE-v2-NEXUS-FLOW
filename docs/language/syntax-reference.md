@@ -300,7 +300,7 @@ v:pi!f64 = 3.1415; # '!' operatörüyle tip mühürlenir (Hard-lock).
 
 loop(i, i < 100, i++) -> {
     v:sonuc = i * 2.5; 
-    # 'sonuc' burada 'float' olur, bir sonraki adımda gerekirse 'int'e evrilir.
+    # Mixed integer/float promotion is currently not supported by Semantic; this example is pending a language-contract decision. Do not infer implicit conversion from it yet.
 }
 
 f:hassas_toplam(a:!f64, b:!f64)!f64 {ret a + b }
