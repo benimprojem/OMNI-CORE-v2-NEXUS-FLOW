@@ -3071,12 +3071,11 @@ static void semantic_record_representation_conversion(
     SemanticResultStatus status;
     if (!ctx || !ctx->result_enabled ||
         ctx->result_status != SEMANTIC_RESULT_OK ||
-        !declaration_node || !destination_slot ||
-        !source_type || !destination_type) return;
+        !declaration_node || !source_type || !destination_type) return;
 
     node_id = semantic_node_id(ctx, declaration_node);
     source_type_id = semantic_type_id(ctx, source_type, 0);
-    destination_type_id = destination_slot->type_id
+    destination_type_id = destination_slot && destination_slot->type_id
         ? destination_slot->type_id
         : semantic_type_id(ctx, destination_type, 1);
     if (!node_id || !source_type_id || !destination_type_id) {
@@ -7808,17 +7807,32 @@ static void semantic_check_node(
                         const char* right_type = get_expr_type(ctx, assign->right);
                         if (right_type &&
                             !are_types_compatible(ctx, field->type_name, right_type)) {
-                            char message[320];
-                            const char* object_type =
-                                get_expr_type(ctx, ((ASTMemberAccess*)assign->left)->object);
-                            (void)snprintf(message, sizeof(message),
-                                "Operator '%s' cannot assign value of type '%s' to field '%s.%s' of type '%s'.",
-                                semantic_binary_operator_name(assign->op), right_type,
-                                object_type ? object_type : "<aggregate>",
-                                ((ASTMemberAccess*)assign->left)->member_name
-                                    ? ((ASTMemberAccess*)assign->left)->member_name : "<unknown>",
-                                field->type_name);
-                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                            int coercion_status =
+                                semantic_hard_representation_coercion_status(
+                                    assign->right, field->is_hard_typed,
+                                    field->type_name, right_type);
+                            if (coercion_status == -1) {
+                                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Explicit bit/byte field assignment value is outside the target type range.");
+                            } else if (coercion_status == -2) {
+                                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Explicit bit/byte field assignment requires a runtime range check that is not yet available for this source type.");
+                            } else if (coercion_status == 1) {
+                                semantic_record_representation_conversion(
+                                    ctx, node, NULL, right_type, field->type_name);
+                            } else {
+                                char message[320];
+                                const char* object_type =
+                                    get_expr_type(ctx, ((ASTMemberAccess*)assign->left)->object);
+                                (void)snprintf(message, sizeof(message),
+                                    "Operator '%s' cannot assign value of type '%s' to field '%s.%s' of type '%s'.",
+                                    semantic_binary_operator_name(assign->op), right_type,
+                                    object_type ? object_type : "<aggregate>",
+                                    ((ASTMemberAccess*)assign->left)->member_name
+                                        ? ((ASTMemberAccess*)assign->left)->member_name : "<unknown>",
+                                    field->type_name);
+                                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                            }
                         }
                     }
                 }
@@ -9643,6 +9657,7 @@ static void semantic_check_node(
                         f->name = semantic_duplicate(ctx, v->name ? v->name : "");
                         f->type_name = v->type_name ? semantic_duplicate(ctx, v->type_name) : NULL;
                         f->is_const = v->is_const;
+                        f->is_hard_typed = v->is_hard_typed;
                         if (!f->name || (v->type_name && !f->type_name)) {
                             free(f->name);
                             free(f->type_name);
