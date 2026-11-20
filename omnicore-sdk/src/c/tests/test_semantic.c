@@ -1483,12 +1483,18 @@ static uint32_t semantic_test_pointer_node_id(
 
 static int check_newtype_result_base_metadata(void) {
     const char* source =
-        "nt:Base = u64; nt:Alias = Base; f:main() { v:value!Alias; }";
+        "nt:Base = u64; nt:Alias = Base; "
+        "nt:Pointer = *i32; nt:Reference = &i32; "
+        "nt:Callback = f:(id!u32)!bool; "
+        "f:main() { v:value!Alias; }";
     ParserContext* parser = parser_init_source(
         "semantic-newtype-result-metadata.nxf",
         (const uint8_t*)source, strlen(source));
     SemanticContext semantic;
     SemanticResultType *base_type = NULL, *alias_type = NULL, *u64_type = NULL;
+    SemanticResultType *pointer_alias = NULL, *reference_alias = NULL;
+    SemanticResultType *callback_alias = NULL, *pointer_base = NULL;
+    SemanticResultType *reference_base = NULL, *callback_base = NULL;
     uint32_t i;
     int ok;
     if (!parser || parser_run(parser) != 0 || !parser->ast_root) {
@@ -1504,6 +1510,12 @@ static int check_newtype_result_base_metadata(void) {
         if (strcmp(type->name, "u64") == 0) u64_type = type;
         else if (strcmp(type->name, "Base") == 0) base_type = type;
         else if (strcmp(type->name, "Alias") == 0) alias_type = type;
+        else if (strcmp(type->name, "Pointer") == 0) pointer_alias = type;
+        else if (strcmp(type->name, "Reference") == 0) reference_alias = type;
+        else if (strcmp(type->name, "Callback") == 0) callback_alias = type;
+        if (type->kind == SEMANTIC_RESULT_TYPE_POINTER) pointer_base = type;
+        else if (type->kind == SEMANTIC_RESULT_TYPE_REFERENCE) reference_base = type;
+        else if (type->kind == SEMANTIC_RESULT_TYPE_FUNCTION) callback_base = type;
     }
     ok = semantic.error_count == 0 &&
         semantic.result_status == SEMANTIC_RESULT_OK &&
@@ -1513,8 +1525,16 @@ static int check_newtype_result_base_metadata(void) {
         alias_type->kind == SEMANTIC_RESULT_TYPE_USER_DEFINED &&
         base_type->base_type_id == u64_type->type_id &&
         alias_type->base_type_id == base_type->type_id &&
+        pointer_alias && reference_alias && callback_alias &&
+        pointer_base && reference_base && callback_base &&
+        pointer_alias->base_type_id == pointer_base->type_id &&
+        reference_alias->base_type_id == reference_base->type_id &&
+        callback_alias->base_type_id == callback_base->type_id &&
         base_type->referenced_symbol_id != 0u &&
         alias_type->referenced_symbol_id != 0u &&
+        pointer_alias->referenced_symbol_id != 0u &&
+        reference_alias->referenced_symbol_id != 0u &&
+        callback_alias->referenced_symbol_id != 0u &&
         base_type->referenced_symbol_id != alias_type->referenced_symbol_id;
     if (!ok) {
         fprintf(stderr,
