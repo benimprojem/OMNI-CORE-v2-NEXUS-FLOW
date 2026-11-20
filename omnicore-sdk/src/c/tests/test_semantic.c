@@ -1377,11 +1377,17 @@ static int check_extended_numeric_primitive_semantics(void) {
         "f:main(value!d128) { v:copy!d128 = value * value; }";
     const char* float_128_bitwise_rejected =
         "f:main(value!f128) { v:copy!f128 = value & value; }";
+    const char* valid_char_type =
+        "f:main() { v:letter!char = 'A'; }";
+    const char* invalid_hex_storage_type =
+        "f:main() { v:value!hex = 0x2A; }";
     return check_source(signed_128_type, 0) &&
         check_source(unsigned_128_bitwise, 0) &&
         check_source(float_128_arithmetic, 0) &&
         check_source(decimal_128_arithmetic, 0) &&
-        check_source(float_128_bitwise_rejected, 1);
+        check_source(float_128_bitwise_rejected, 1) &&
+        check_source(valid_char_type, 0) &&
+        check_source(invalid_hex_storage_type, 1);
 }
 
 static int check_map_key_type_semantics(void) {
