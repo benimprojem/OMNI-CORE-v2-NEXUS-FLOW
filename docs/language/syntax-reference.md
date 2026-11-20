@@ -285,6 +285,8 @@ v:vall= 10^^15;
 
 `c:` derleme zamanı sabitidir: initializer zorunludur ve yalnızca derleme zamanında belirlenebilen sabit ifadelerden oluşabilir. Literal'lar, sabit unary/binary işlemler, sabit array/tuple/struct literal'ları, sabit değer üzerinde cast ve daha önce tanımlanmış başka `c:` sabitlerine referans kullanılabilir. Fonksiyon çağrıları, mutable değişken okumaları ve `m:` değerleri `c:` initializer'ında kullanılamaz. `m:` ise normal bir değer bildirir: initializer çalışma zamanında değerlendirilebilir, değer okunabilir, ancak isim üzerinden sonradan yeniden atama veya güncelleme yapılamaz. `m:` türünü initializer ifadesinden çıkarır ve program/blok kapsamında kullanılabilir.
 
+**Initializer name binding:** `v:`, `m:` and `c:` declarations resolve their initializer before the newly declared name becomes visible in its own initializer. A declaration cannot initialize itself by accidentally resolving its own new binding. When an inner block declares a name that shadows an outer binding, the initializer resolves the outer binding; the new binding becomes visible after initializer validation. A same-scope duplicate declaration remains an error. For `c:`, references to earlier compile-time constants are permitted, but self-reference is not.
+
 `use` modül/kaynak yükleme ve import işlemidir; `m:` dosya varlığı kontrolü veya dependency bildirimi değildir.
 
 ```nxf
