@@ -235,7 +235,7 @@ f:main() {
 }
 ```
 
-Current implementation covers standalone `t` parameter unification and return inference. Nested generic forms such as `*t`, `&t`, or generic aggregate element types are not implied by this rule and remain open.
+Current implementation covers standalone `t` parameter unification and return inference, including nested raw-pointer/reference forms (`*t`, `&t`) and nested callback parameter/return signatures. Repeated `t` occurrences unify within the same function signature. Generic aggregate element forms remain outside this contract.
 
 **Bit/byte temsil türleri (C compiler branch):** `bit` tek bitlik veri, `byte` ham 8-bit saklama birimidir. `bool` mantıksal doğruluk türü; `u8` ise aritmetik işaretsiz tamsayıdır. Aynı fiziksel genişlik, türlerin örtük olarak birbirine dönüştürülebileceği anlamına gelmez.
 
