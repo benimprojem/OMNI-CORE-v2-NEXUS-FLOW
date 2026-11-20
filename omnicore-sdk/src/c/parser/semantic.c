@@ -3059,18 +3059,21 @@ static void semantic_record_explicit_cast_conversion(
     destination_is_float = semantic_float_family_width(
         destination_type, &destination_family, &destination_width);
 
-    if (source_is_integer && destination_is_integer) {
+    if (strcmp(source_type, destination_type) == 0) {
+        kind = SEMANTIC_RESULT_CONVERSION_IDENTITY;
+    } else if (source_is_integer && destination_is_integer) {
         if (source_unsigned != destination_unsigned)
             kind = SEMANTIC_RESULT_CONVERSION_SIGNEDNESS;
         else if (source_width > destination_width)
             kind = SEMANTIC_RESULT_CONVERSION_NARROWING;
-        else
+        else if (source_width < destination_width)
             kind = SEMANTIC_RESULT_CONVERSION_WIDENING;
     } else if (source_is_float && destination_is_float &&
         source_family == destination_family) {
-        kind = source_width > destination_width
-            ? SEMANTIC_RESULT_CONVERSION_NARROWING
-            : SEMANTIC_RESULT_CONVERSION_WIDENING;
+        if (source_width > destination_width)
+            kind = SEMANTIC_RESULT_CONVERSION_NARROWING;
+        else if (source_width < destination_width)
+            kind = SEMANTIC_RESULT_CONVERSION_WIDENING;
     }
 
     status = semantic_result_add_conversion(
