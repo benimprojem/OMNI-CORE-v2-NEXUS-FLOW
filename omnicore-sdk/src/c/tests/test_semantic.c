@@ -1462,13 +1462,27 @@ static int check_extended_numeric_primitive_semantics(void) {
         "f:main() { v:letter!char = 'A'; }";
     const char* invalid_hex_storage_type =
         "f:main() { v:value!hex = 0x2A; }";
+    const char* supported_type_spelling_matrix =
+        "f:main() { "
+        "v:a!i8; v:b!i16; v:c!i32; v:d!i64; v:e!i128; "
+        "v:f!u8; v:g!u16; v:h!u32; v:i!u64; v:j!u128; "
+        "v:k!f32; v:l!f64; v:m!f128; "
+        "v:n!d32; v:o!d64; v:p!d128; "
+        "v:q!bit; v:r!byte; v:s!8bit; v:t!16bit; "
+        "v:u!32bit; v:v!64bit; v:w!128bit; "
+        "v:x!1byte; v:y!2byte; v:z!4byte; "
+        "v:aa!8byte; v:ab!16byte; "
+        "v:ac!char; v:ad!bool; v:ae!str; "
+        "v:af!Vec2; v:ag!Vec3; v:ah!Vec4; "
+        "v:ai!map; v:aj!Map; v:ak!any; }";
     return check_source(signed_128_type, 0) &&
         check_source(unsigned_128_bitwise, 0) &&
         check_source(float_128_arithmetic, 0) &&
         check_source(decimal_128_arithmetic, 0) &&
         check_source(float_128_bitwise_rejected, 1) &&
         check_source(valid_char_type, 0) &&
-        check_source(invalid_hex_storage_type, 1);
+        check_source(invalid_hex_storage_type, 1) &&
+        check_source(supported_type_spelling_matrix, 0);
 }
 
 static uint32_t semantic_test_pointer_node_id(
