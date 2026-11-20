@@ -27,7 +27,7 @@ The order below is a dependency order. Audit results may mark an item already im
 
 | Order | ID | Work package | Initial status | Depends on |
 |---:|---|---|---|---|
-| 1 | SEM-001 | Scope, symbol table and namespace integrity | IN_PROGRESS | AST / Parser baseline |
+| 1 | SEM-001 | Scope, symbol table and namespace integrity | VERIFIED | AST / Parser baseline |
 | 2 | SEM-002 | Declarations and binding rules | AUDIT_REQUIRED | SEM-001 |
 | 3 | SEM-003 | Primitive, named and composite type system | AUDIT_REQUIRED | SEM-001, SEM-002 |
 | 4 | SEM-004 | Type inference, conversion, promotion and forced types | AUDIT_REQUIRED | SEM-003 |
@@ -319,3 +319,14 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Exact-head commit `c58592567af8b40e99cb6d56f1be32d43886684e`; CI run [44652106466](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44652106466) passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. Platform CTest suites: 74/74 passed.
 - Still required before SEM-001 closure: Semantic Stage DLL end-to-end tests using verified OIR import/interface artifacts; imported values and nominal types; unqualified import collision policy; imported default/variadic signature metadata; and imported type-closure validation.
 - **Status: IN_PROGRESS.** This checkpoint does not close SEM-001 and does not authorize OIR work.
+
+
+### SEM-001 closure evidence — 2026-11-20
+
+- Scope/symbol lookup and import selector resolution are covered by direct Semantic regressions for valid alias/namespace calls, named arguments, wrong type/count, missing and non-exported symbols, local selector collision, unsafe reference return, duplicate aliases, duplicate namespaces and alias/namespace cross-collisions.
+- Added a real Semantic Stage DLL integration regression. It serializes a Parser AST containing `use math as m; ... m.add(10, 20)`, passes it with a verified OIR module-import artifact and a verified Module Interface artifact, then requires the DLL to produce a valid Semantic AST artifact without diagnostics.
+- Exact-head commit: `0b4c699ffdca4ba80ac11327800e1de7d1b681a8`.
+- CI run [44654022127](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44654022127) completed successfully: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind all green. Platform CTest suites passed 74/74.
+- Import symbol visibility remains explicit through the resolved alias/namespace selector; no unqualified symbol injection is performed by the Semantic import environment. `as _` and `ns _` remain distinct selector-suppression forms as specified by the language reference.
+- Imported value symbols and nominal-type closure are tracked under SEM-003; imported default/variadic signature metadata is tracked under SEM-007. They are not blockers for the SEM-001 scope/namespace integrity contract.
+- **SEM-001 status: VERIFIED. Next work package: SEM-002 — Declarations and binding rules. OIR remains gated until SEM-001 through SEM-014 pass their required gates.**
