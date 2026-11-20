@@ -1492,8 +1492,8 @@ static int check_shift_operator_semantics(void) {
     const char* valid_wide_shift_count =
         "f:main(value!u64,count!u32) { "
         "v:left!u64 = value <<< count; v:right!u64 = value >>> count; }";
-    const char* valid_fixed_bit_vector_shift =
-        "f:main() { v:value!8bit = 1; v:shifted!8bit = value <<< 7; }";
+    const char* invalid_fixed_bit_vector_shift =
+        "f:main(value!8bit) { v:shifted!8bit = value <<< 7; }";
     const char* invalid_negative_shift =
         "f:main(value!u8) { v:shifted!u8 = value <<< -1; }";
     const char* invalid_float_shift_count =
@@ -1506,7 +1506,7 @@ static int check_shift_operator_semantics(void) {
         "f:main(value!2byte) { v:shifted!2byte = value <<< 1; }";
     return check_source(valid_u8_shift_at_width, 0) &&
         check_source(valid_wide_shift_count, 0) &&
-        check_source(valid_fixed_bit_vector_shift, 0) &&
+        check_source(invalid_fixed_bit_vector_shift, 1) &&
         check_source(invalid_negative_shift, 1) &&
         check_source(invalid_float_shift_count, 1) &&
         check_source(invalid_scalar_bit_shift, 1) &&
