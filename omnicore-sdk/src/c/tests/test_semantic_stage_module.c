@@ -328,7 +328,8 @@ int main(int argc,char** argv) {
     interface_artifact[21]=0u; interface_artifact[22]=0u; interface_artifact[23]=0u;
 
     free(semantic_artifact); semantic_artifact=NULL; semantic_len=0u;
-    import_inputs[0].bytes=import_ast_artifact; import_inputs[0].length=import_ast_len;\n    import_inputs[0].flags=0u; import_inputs[0].reserved=0u;
+    import_inputs[0].bytes=import_ast_artifact; import_inputs[0].length=import_ast_len;
+    import_inputs[0].flags=0u; import_inputs[0].reserved=0u;
     import_inputs[1].bytes=imports_artifact; import_inputs[1].length=imports_len;
     import_inputs[2].bytes=interface_artifact; import_inputs[2].length=interface_len;
     CHECK(occ_module_loader_invoke(&loaded,import_inputs,2u,77u,&diagnostics,
