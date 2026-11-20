@@ -1274,7 +1274,7 @@ static int check_safe_reference_type_erasure_semantics(void) {
     const char* cast_raw_pointer_to_reference_rejected =
         "f:main(value!*i32) { v:reference!&i32 = value; }";
     const char* explicit_reference_to_raw_pointer_allowed =
-        "f:main(owner!i32) { v:pointer!*i32 = cast(&owner,*i32); }";
+        "nt:RawI32 = *i32; f:main(owner!i32) { v:pointer!RawI32 = cast(&owner,RawI32); }";
     return check_source(any_initializer_rejected, 1) &&
         check_source(any_reassignment_rejected, 1) &&
         check_source(any_parameter_rejected, 1) &&
