@@ -1146,3 +1146,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - A regression for an unknown declared type exposed a second, redundant initializer mismatch after the primary unknown-type error. Semantic now records errors from type-expression validation and suppresses the generic initializer mismatch when the declared type is already invalid.
 - The final declaration matrix covers inferred and explicit variables, same-scope redeclaration, unknown types, compile-time constant redeclaration, and invalid self-initializers for `v:`, `m:`, and `c:`.
 - Exact-head CI [44656105229](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656105229) passed all five jobs; 74/74 CTests passed and Valgrind reported zero errors.
+
+
+### SEM-002 malformed declaration and initialization gate update (2026-11-20)
+
+- Added malformed-AST coverage for an `m:` declaration whose initializer is missing; the Semantic checker must report the required-initializer error.
+- Final declaration matrix includes inferred/explicit `v:`, nested shadowing, self-reference, same-scope redeclaration, unknown types, immutable `m:`, compile-time `c:` and malformed AST.
+- Read-before-initialization is separated by responsibility: safe-reference/raw-pointer state belongs to SEM-005; path-sensitive ordinary-variable flow belongs to SEM-010. SEM-002 remains focused on declaration legality and binding.
+- Exact test commit `32177ebfe069c3dc6dfd3aff2be05d2ddf3434eb`; CI [44656453773](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656453773) passed all five jobs, 74/74 CTests and Valgrind with zero errors.
+- SEM-002 remains **IN_PROGRESS** until the declaration-form cross-check against the normative syntax reference is complete.
