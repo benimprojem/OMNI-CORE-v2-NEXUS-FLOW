@@ -3030,30 +3030,51 @@ static int semantic_hard_representation_coercion_status(
 ) {
     uint64_t target_bits = 0u;
     uint64_t source_bits = 0u;
-    uint64_t integer_bits = 0u;
-    int source_unsigned = 0;
+    int target_unsigned = 1;
+    int source_unsigned = 1;
+    int target_is_representation;
+    int source_is_representation;
     int64_t constant_value = 0;
     if (!source_expression || !is_hard_typed || !target_type ||
-        !source_type || !semantic_representation_bit_width(
-            target_type, &target_bits)) return 0;
+        !source_type) return 0;
 
-    if (semantic_representation_bit_width(source_type, &source_bits))
-        return source_bits <= target_bits ? 1 : -2;
+    target_is_representation =
+        semantic_representation_bit_width(target_type, &target_bits);
+    if (!target_is_representation &&
+        !semantic_integer_type_width(
+            target_type, &target_bits, &target_unsigned)) return 0;
 
-    if (!semantic_integer_type_width(
-            source_type, &integer_bits, &source_unsigned)) return 0;
+    source_is_representation =
+        semantic_representation_bit_width(source_type, &source_bits);
+    if (!source_is_representation &&
+        !semantic_integer_type_width(
+            source_type, &source_bits, &source_unsigned)) return 0;
 
     if (semantic_eval_integer_constant(
             source_expression, &constant_value)) {
-        uint64_t maximum;
-        if (constant_value < 0) return -1;
-        if (target_bits >= 64u) return 1;
-        maximum = (UINT64_C(1) << target_bits) - UINT64_C(1);
-        return (uint64_t)constant_value <= maximum ? 1 : -1;
+        if (target_unsigned) {
+            uint64_t maximum;
+            if (constant_value < 0) return -1;
+            if (target_bits >= 63u) return 1;
+            maximum = (UINT64_C(1) << target_bits) - UINT64_C(1);
+            return (uint64_t)constant_value <= maximum ? 1 : -1;
+        } else {
+            int64_t minimum, maximum;
+            if (target_bits >= 64u) return 1;
+            minimum = -(INT64_C(1) << (target_bits - 1u));
+            maximum = (INT64_C(1) << (target_bits - 1u)) - 1;
+            return constant_value >= minimum && constant_value <= maximum
+                ? 1 : -1;
+        }
     }
 
-    if (source_unsigned && integer_bits <= target_bits) return 1;
-    return -2;
+    if (target_unsigned) {
+        if (!source_unsigned) return -2;
+        return source_bits <= target_bits ? 1 : -2;
+    }
+    if (source_unsigned)
+        return source_bits < target_bits ? 1 : -2;
+    return source_bits <= target_bits ? 1 : -2;
 }
 
 static void semantic_report_hard_representation_error(
@@ -3089,8 +3110,8 @@ static void semantic_record_representation_conversion(
 ) {
     uint32_t node_id, source_type_id, destination_type_id;
     uint64_t source_bits = 0u, destination_bits = 0u;
-    uint64_t integer_bits = 0u;
-    int source_unsigned = 0;
+    int source_unsigned = 1, destination_unsigned = 1;
+    int source_is_representation, destination_is_representation;
     uint16_t conversion_kind;
     SemanticResultStatus status;
     if (!ctx || !ctx->result_enabled ||
@@ -3107,22 +3128,23 @@ static void semantic_record_representation_conversion(
         return;
     }
 
-    if (semantic_representation_bit_width(source_type, &source_bits)) {
-        /* source is another bit/byte representation type */
-    } else if (semantic_integer_type_width(
-            source_type, &integer_bits, &source_unsigned)) {
-        source_bits = integer_bits;
-    } else {
-        return;
-    }
-    (void)source_unsigned;
-    if (!semantic_representation_bit_width(
-            destination_type, &destination_bits)) return;
+    source_is_representation =
+        semantic_representation_bit_width(source_type, &source_bits);
+    if (!source_is_representation &&
+        !semantic_integer_type_width(
+            source_type, &source_bits, &source_unsigned)) return;
+    destination_is_representation =
+        semantic_representation_bit_width(destination_type, &destination_bits);
+    if (!destination_is_representation &&
+        !semantic_integer_type_width(
+            destination_type, &destination_bits, &destination_unsigned)) return;
 
     if (source_bits < destination_bits)
         conversion_kind = SEMANTIC_RESULT_CONVERSION_WIDENING;
     else if (source_bits > destination_bits)
         conversion_kind = SEMANTIC_RESULT_CONVERSION_NARROWING;
+    else if (source_unsigned != destination_unsigned)
+        conversion_kind = SEMANTIC_RESULT_CONVERSION_SIGNEDNESS;
     else
         conversion_kind = SEMANTIC_RESULT_CONVERSION_EXPLICIT_CAST;
 
