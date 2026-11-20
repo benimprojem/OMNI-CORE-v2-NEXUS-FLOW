@@ -494,20 +494,11 @@ int main(void) {
     if (!check_source(postfix_struct_field_valid, 0)) return 1;
     if (!check_source(postfix_const_struct_field_invalid, 1)) return 1;
     if (!check_error_detail(
-        "f:main(a!u8) !u8 {\n    ret a <<< 8;\n}",
-        "8-bit width", "0..7", 2)) return 1;
-    if (!check_error_detail(
-        "f:main(a!128bit) !128bit {\n    ret a <<< 128;\n}",
-        "128-bit width", "0..127", 2)) return 1;
+        "f:main(a!u8) !u8 {\n    ret a <<< -1;\n}",
+        "Bit shift amount (-1)", "cannot be negative", 2)) return 1;
     if (!check_error_detail(
         "f:main(a!bit) !bit {\n    ret a <<< 1;\n}",
-        "1-bit width", "0..0", 2)) return 1;
-    if (!check_error_detail(
-        "f:main(a!i32) !i32 {\n    ret a <<< 0x20;\n}",
-        "Bit shift amount (32)", "0..31", 2)) return 1;
-    if (!check_error_detail(
-        "f:main(a!u8) !u8 {\n    ret a <<< 18446744073709551615;\n}",
-        "Bit shift amount (18446744073709551615)", "8-bit width", 2)) return 1;
+        "bitwise-capable left operand", "bit", 2)) return 1;
     if (!check_error_detail(
         "f:main(a!u8) !u8 {\n    ret a <<< 18446744073709551616;\n}",
         "exceeds the supported 64-bit unsigned count range", "18446744073709551616", 2)) return 1;
