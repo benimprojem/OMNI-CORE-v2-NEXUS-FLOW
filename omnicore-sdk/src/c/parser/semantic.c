@@ -2221,6 +2221,17 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                  binary->op == TOKEN_GTE || binary->op == TOKEN_LTE ||
                  binary->op == TOKEN_AND || binary->op == TOKEN_OR)) {
                 type_name = "bool";
+            } else if (node->type == AST_BINARY_EXPR &&
+                (is_arithmetic_binary_operator(binary->op) ||
+                 binary->op == TOKEN_BIT_AND ||
+                 binary->op == TOKEN_BIT_OR ||
+                 binary->op == TOKEN_BIT_XOR)) {
+                const char* left_type = get_expr_type(ctx, binary->left);
+                const char* right_type = get_expr_type(ctx, binary->right);
+                type_name = is_arithmetic_binary_operator(binary->op)
+                    ? semantic_numeric_promotion_type(left_type, right_type)
+                    : semantic_bitwise_promotion_type(left_type, right_type);
+                if (!type_name) type_name = left_type;
             } else {
                 type_name = get_expr_type(ctx, binary->left);
             }
@@ -7306,11 +7317,19 @@ static void semantic_check_node(
                     const char* operator_name =
                         semantic_binary_operator_name(bin->op);
                     char message[320];
-                    if (!are_types_compatible(ctx, left_type, right_type)) {
+                    const char* promoted_type =
+                        semantic_numeric_promotion_type(left_type, right_type);
+                    if (!are_types_compatible(ctx, left_type, right_type) &&
+                        !promoted_type) {
                         (void)snprintf(message, sizeof(message),
-                            "Operator '%s' requires matching operand types; got '%s' and '%s'.",
+                            "Operator '%s' requires compatible numeric operands; got '%s' and '%s'.",
                             operator_name, left_type, right_type);
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    } else if (promoted_type) {
+                        semantic_record_operator_promotion(
+                            ctx, node, left_type, promoted_type, 0u);
+                        semantic_record_operator_promotion(
+                            ctx, node, right_type, promoted_type, 1u);
                     } else if (semantic_vector_dimension(left_type,
                                    &(size_t){0}) &&
                                semantic_vector_dimension(right_type,
@@ -7377,6 +7396,11 @@ static void semantic_check_node(
                         "Range operator '..' requires compatible numeric endpoints; got '%s' and '%s'.",
                         begin_type, end_type);
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                } else if (left_type && right_type && promoted_type) {
+                    semantic_record_operator_promotion(
+                        ctx, node, left_type, promoted_type, 0u);
+                    semantic_record_operator_promotion(
+                        ctx, node, right_type, promoted_type, 1u);
                 }
             }
 
@@ -7435,10 +7459,9 @@ static void semantic_check_node(
                 bin->op == TOKEN_BIT_XOR) {
                 const char* left_type=get_expr_type(ctx,bin->left);
                 const char* right_type=get_expr_type(ctx,bin->right);
-                if (left_type && right_type &&
-                    (!are_types_compatible(ctx, left_type, right_type) ||
-                     !is_bitwise_primitive_type(left_type) ||
-                     !is_bitwise_primitive_type(right_type))) {
+                const char* promoted_type =
+                    semantic_bitwise_promotion_type(left_type, right_type);
+                if (left_type && right_type && !promoted_type) {
                     const char* operator_name = bin->op == TOKEN_BIT_AND ? "&" :
                         (bin->op == TOKEN_BIT_OR ? "|" : "^");
                     char message[320];
