@@ -3035,7 +3035,10 @@ static void semantic_record_explicit_cast_conversion(
     int source_unsigned = 0, destination_unsigned = 0;
     int source_is_integer, destination_is_integer;
     int source_is_float, destination_is_float;
+    int same_representation = 0;
     char source_family = 0, destination_family = 0;
+    const SemanticResultType* source_record;
+    const SemanticResultType* destination_record;
     uint16_t kind = SEMANTIC_RESULT_CONVERSION_EXPLICIT_CAST;
     SemanticResultStatus status;
     if (!ctx || !ctx->result_enabled ||
@@ -3059,7 +3062,19 @@ static void semantic_record_explicit_cast_conversion(
     destination_is_float = semantic_float_family_width(
         destination_type, &destination_family, &destination_width);
 
-    if (strcmp(source_type, destination_type) == 0) {
+    source_record = &ctx->result.types[source_type_id - 1u];
+    destination_record = &ctx->result.types[destination_type_id - 1u];
+    same_representation = source_type_id == destination_type_id ||
+        (source_record->kind == destination_record->kind &&
+            (source_record->flags & (uint16_t)~SEMANTIC_RESULT_TYPE_FLAG_HARD) ==
+                (destination_record->flags &
+                    (uint16_t)~SEMANTIC_RESULT_TYPE_FLAG_HARD) &&
+            source_record->referenced_symbol_id ==
+                destination_record->referenced_symbol_id &&
+            source_record->base_type_id == destination_record->base_type_id &&
+            source_record->name && destination_record->name &&
+            strcmp(source_record->name, destination_record->name) == 0);
+    if (same_representation) {
         kind = SEMANTIC_RESULT_CONVERSION_IDENTITY;
     } else if (source_is_integer && destination_is_integer) {
         if (source_unsigned != destination_unsigned)
