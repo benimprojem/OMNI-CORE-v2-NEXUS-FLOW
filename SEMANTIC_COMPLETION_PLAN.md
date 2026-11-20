@@ -402,3 +402,12 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 | SEM-003-F01 | Run `44657256324`, Semantic CTest | By-value self-recursive `struct` was accepted (`expected=1 actual=0`) | Add aggregate field type-graph recursion validation (`bda095c`) | Run `44657534998`: direct recursive struct/union cases passed |
 | SEM-003-F02 | Run `44657455834`, Semantic CTest | Named type expressions were excluded from recursion validation even when their resolved `type_name` was available | Include named recursive type expressions in the field check (`896f803`) | Run `44657534998`: direct recursive type checks passed |
 | SEM-003-F03 | Run `44657858340`, Semantic CTest | Fixed-array recursive fields were accepted because array fields were excluded from by-value layout checks | Check fully fixed array storage while allowing dynamic dimensions to break the cycle (`def6d50`) | Run `44658186976`: 74/74 CTests, all five CI jobs green, Valgrind clean |
+
+
+### SEM-003 primitive type matrix — 2026-11-20
+
+- Cross-checked the C Semantic primitive registry against the normative syntax reference and tests: signed/unsigned integer widths through 128-bit, `f32/f64/f128`, `d32/d64/d128`, `bit`, `byte`, fixed `Nbit/Nbyte` representations, `char`, `bool` and `str`.
+- The syntax reference previously listed `hex` as a storage type and described 128-bit types as unsupported. The C compiler accepts hexadecimal numeric literals using `0x`; `hex` itself is not a storage type. The reference now reflects that and records the implemented 128-bit types.
+- Added Semantic regressions confirming `char` acceptance and rejecting `hex` as an unknown storage type. Existing tests cover decimal widths, 128-bit arithmetic/bitwise constraints and fixed bit/byte widths.
+- Exact test commit `9933c4d7a17f23e2fc8772ecc9aa330dc0d6cfbf`; CI [44658543349](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658543349) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; 74/74 CTests passed and Valgrind reported zero errors/zero lost bytes.
+- **SEM-003 remains IN_PROGRESS.** Remaining audit: nested type expressions, NewType chain identity/base metadata and malformed type-expression payloads.
