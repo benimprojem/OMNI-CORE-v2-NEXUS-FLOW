@@ -2973,6 +2973,7 @@ static int is_type_defined(SemanticContext* ctx, const char* type_name) {
 static void semantic_validate_type_expr(SemanticContext* ctx, ASTNode* node) {
     ASTTypeExpr* type;
     ASTNode* parameter;
+    uint32_t allowed_flags = 0u;
     if (!ctx || !node) return;
     if (node->type != AST_TYPE_EXPR) {
         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
@@ -2980,6 +2981,15 @@ static void semantic_validate_type_expr(SemanticContext* ctx, ASTNode* node) {
         return;
     }
     type = (ASTTypeExpr*)node;
+    if (type->kind == AST_TYPE_REFERENCE) {
+        allowed_flags = AST_TYPE_FLAG_MUTABLE_REFERENCE;
+    } else if (type->kind == AST_TYPE_QUALIFIED) {
+        allowed_flags = AST_TYPE_FLAG_HARD_TYPED;
+    }
+    if ((type->flags & ~allowed_flags) != 0u) {
+        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Type expression contains flags that are not valid for its kind.");
+    }
     switch (type->kind) {
         case AST_TYPE_NAMED:
             if (!type->name || !type->name[0]) {
@@ -3077,10 +3087,6 @@ static void semantic_validate_type_expr(SemanticContext* ctx, ASTNode* node) {
             break;
 
         case AST_TYPE_QUALIFIED:
-            if ((type->flags & ~AST_TYPE_FLAG_HARD_TYPED) != 0u) {
-                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Type expression contains unsupported qualifier flags.");
-            }
             if (!type->child) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Qualified type expression requires an underlying type.");
