@@ -6602,9 +6602,6 @@ static void semantic_check_node(
                         "The initializer of an immutable m: value must have a determinable type.");
                 }
             }
-            if (initializing_slot_active)
-                ctx->initializing_slot = previous_initializing_slot;
-
             if (declared_slot) {
                 semantic_record_annotation(
                     ctx, node, declared_slot, declared_slot->type_name,
@@ -6911,6 +6908,9 @@ static void semantic_check_node(
                     declared_slot->callable_declaration = NULL;
                 }
             }
+
+            if (initializing_slot_active)
+                ctx->initializing_slot = previous_initializing_slot;
 
             if (declared_slot) {
                 semantic_record_annotation(
