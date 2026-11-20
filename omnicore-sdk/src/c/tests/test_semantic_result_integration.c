@@ -343,10 +343,24 @@ static int test_explicit_cast_conversion_record(void) {
         int same_match = conversion_matches(&semantic.result,
             resolve_node_id(&resolver, (ASTNode*)same_cast_node),
             "u8", SEMANTIC_RESULT_CONVERSION_IDENTITY);
+        uint32_t debug_index;
         fprintf(stderr, "explicit cast debug: semantic conversions=%u wide=%d same=%d nodes=%u,%u\\n",
             semantic.result.conversion_count, wide_match, same_match,
             resolve_node_id(&resolver, (ASTNode*)cast_node),
             resolve_node_id(&resolver, (ASTNode*)same_cast_node));
+        for (debug_index = 0u; debug_index < semantic.result.conversion_count; ++debug_index) {
+            const SemanticResultConversion* conversion =
+                &semantic.result.conversions[debug_index];
+            const SemanticResultType* source_result =
+                find_result_type(&semantic.result, conversion->source_type_id);
+            const SemanticResultType* destination_result =
+                find_result_type(&semantic.result, conversion->destination_type_id);
+            fprintf(stderr, "explicit cast record[%u]: node=%u src=%s dst=%s kind=%u flags=%u\\n",
+                debug_index, conversion->node_id,
+                source_result && source_result->name ? source_result->name : "<null>",
+                destination_result && destination_result->name ? destination_result->name : "<null>",
+                conversion->kind, conversion->flags);
+        }
         if (semantic.result.conversion_count != 2u ||
             !wide_match || !same_match) goto done;
     }
