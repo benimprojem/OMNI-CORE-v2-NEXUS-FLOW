@@ -3056,6 +3056,30 @@ static int semantic_hard_representation_coercion_status(
     return -2;
 }
 
+static void semantic_report_hard_representation_error(
+    SemanticContext* ctx,
+    ASTNode* node,
+    const char* source_type,
+    const char* target_type,
+    int coercion_status,
+    const char* context
+) {
+    char message[512];
+    if (!ctx || !node || !source_type || !target_type) return;
+    if (coercion_status == -1) {
+        (void)snprintf(message, sizeof(message),
+            "Cannot use source type '%s' for %s with hard representation target '%s': the constant value is outside the target range. Use an in-range value or choose a wider target representation.",
+            source_type, context ? context : "assignment", target_type);
+    } else if (coercion_status == -2) {
+        (void)snprintf(message, sizeof(message),
+            "Cannot prove source type '%s' fits hard representation target '%s' for %s. Use a source type no wider than the target or perform an explicit runtime range check before the write.",
+            source_type, target_type, context ? context : "assignment");
+    } else {
+        return;
+    }
+    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+}
+
 static void semantic_record_representation_conversion(
     SemanticContext* ctx,
     ASTNode* declaration_node,
@@ -7058,12 +7082,10 @@ static void semantic_check_node(
                             semantic_hard_representation_coercion_status(
                                 decl->initializer, decl->is_hard_typed,
                                 decl->type_name, init_type);
-                        if (coercion_status == -1) {
-                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                                "Explicit bit/byte coercion value is outside the target type range.");
-                        } else if (coercion_status == -2) {
-                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                                "Explicit bit/byte coercion requires a runtime range check that is not yet available for this source type.");
+                        if (coercion_status == -1 || coercion_status == -2) {
+                            semantic_report_hard_representation_error(
+                                ctx, node, init_type, decl->type_name,
+                                coercion_status, "initializer");
                         } else if (coercion_status == 1) {
                             semantic_record_representation_conversion(
                                 ctx, node, declared_slot, init_type, decl->type_name);
@@ -7739,12 +7761,10 @@ static void semantic_check_node(
                                 destination_declaration
                                     ? destination_declaration->is_hard_typed : 0,
                                 slot->type_name, right_type);
-                        if (coercion_status == -1) {
-                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                                "Explicit bit/byte assignment value is outside the target type range.");
-                        } else if (coercion_status == -2) {
-                            report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                                "Explicit bit/byte assignment requires a runtime range check that is not yet available for this source type.");
+                        if (coercion_status == -1 || coercion_status == -2) {
+                            semantic_report_hard_representation_error(
+                                ctx, node, right_type, slot->type_name,
+                                coercion_status, "assignment");
                         } else if (coercion_status == 1) {
                             semantic_record_representation_conversion(
                                 ctx, node, slot, right_type, slot->type_name);
@@ -7776,12 +7796,10 @@ static void semantic_check_node(
                         ? semantic_hard_representation_coercion_status(
                             assign->right, 1, element_type, right_type)
                         : 0;
-                    if (coercion_status == -1) {
-                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Indexed bit/byte representation value is outside the element range.");
-                    } else if (coercion_status == -2) {
-                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Indexed bit/byte representation assignment requires a runtime range check that is not yet available for this source type.");
+                    if (coercion_status == -1 || coercion_status == -2) {
+                        semantic_report_hard_representation_error(
+                            ctx, node, right_type, element_type,
+                            coercion_status, "indexed element write");
                     } else if (coercion_status == 1) {
                         semantic_record_representation_conversion(
                             ctx, node, NULL, right_type, element_type);
@@ -7830,12 +7848,10 @@ static void semantic_check_node(
                                 semantic_hard_representation_coercion_status(
                                     assign->right, field->is_hard_typed,
                                     field->type_name, right_type);
-                            if (coercion_status == -1) {
-                                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                                    "Explicit bit/byte field assignment value is outside the target type range.");
-                            } else if (coercion_status == -2) {
-                                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                                    "Explicit bit/byte field assignment requires a runtime range check that is not yet available for this source type.");
+                            if (coercion_status == -1 || coercion_status == -2) {
+                                semantic_report_hard_representation_error(
+                                    ctx, node, right_type, field->type_name,
+                                    coercion_status, "field assignment");
                             } else if (coercion_status == 1) {
                                 semantic_record_representation_conversion(
                                     ctx, node, NULL, right_type, field->type_name);
@@ -9292,14 +9308,10 @@ static void semantic_check_node(
                         semantic_hard_representation_coercion_status(
                             init->value, field->is_hard_typed,
                             field->type_name, actual_type);
-                    if (coercion_status == -1) {
-                        report_error(ctx, (ASTNode*)init,
-                            ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Explicit bit/byte field initializer is outside the target type range.");
-                    } else if (coercion_status == -2) {
-                        report_error(ctx, (ASTNode*)init,
-                            ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Explicit bit/byte field initializer requires a runtime range check that is not yet available for this source type.");
+                    if (coercion_status == -1 || coercion_status == -2) {
+                        semantic_report_hard_representation_error(
+                            ctx, (ASTNode*)init, actual_type, field->type_name,
+                            coercion_status, "field initializer");
                     } else if (coercion_status == 1) {
                         semantic_record_representation_conversion(
                             ctx, (ASTNode*)init, NULL, actual_type, field->type_name);
