@@ -419,3 +419,19 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Existing recursive type-variable tests cover `*t`, `&t`, repeated type-variable unification and nested callback parameter/return signatures. The normative reference now reflects these supported forms; generic aggregate element types remain outside the contract.
 - Exact test commit `7484b6323f0c74843874c2d492c1a05774165a42`; CI [44658892345](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658892345) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; 74/74 CTests passed, Valgrind zero errors/zero lost bytes.
 - **SEM-003 remains IN_PROGRESS.** Remaining work is to assert persistent SemanticResult NewType `base_type_id`/symbol metadata directly and finish malformed nested type-expression coverage.
+
+
+### SEM-003 malformed type-expression payloads and kind-specific flags (2026-11-20)
+
+- Added direct malformed-AST Semantic regressions for missing pointer/reference targets, non-type child nodes, missing function return types, invalid qualifier combinations, and invalid flag bits on named, pointer, reference, array and function type expressions.
+- Semantic now validates AST type-expression flags against the node kind: `AST_TYPE_REFERENCE` permits only `AST_TYPE_FLAG_MUTABLE_REFERENCE`; `AST_TYPE_QUALIFIED` permits only `AST_TYPE_FLAG_HARD_TYPED`; all other type-expression kinds reject nonzero flags. This preserves parsed `&mut T` while preventing malformed AST metadata from bypassing the type contract.
+- Added a positive direct-AST case for mutable reference flags and retained source-level mutable-reference tests.
+- Exact code commit `c4a6663c2a94cf6b291670c082554856b43fde9c`; exact final fixture/test commit `bd588a5fb673a2981713d3005927133ddcd38ece`.
+- CI [44674844504](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44674844504) passed all five jobs (Windows, Ubuntu, macOS, ASan/UBSan, Valgrind). Each platform passed 74/74 CTests; Valgrind reported zero errors and zero definitely/indirectly/possibly lost bytes.
+- **SEM-003 remains IN_PROGRESS.** The malformed AST and kind-specific flag checks are now verified; remaining closure audit is to finish type spelling/type-result mapping and inspect the NewType target forms/nominal metadata against the normative reference. Do not advance to SEM-004 until this package is formally closed.
+
+#### SEM-003 failure/retest record
+
+| Failure ID | Failed evidence | Finding | Fix | Retest |
+|---|---|---|---|---|
+| SEM-003-F04 | Run `44674721333`, Semantic CTest 69 | A malformed reference AST fixture set the hard-typed flag while testing a non-type child; after kind-specific flag validation, this correctly emitted an additional flag diagnostic and invalidated the fixture's one-error expectation | Correct fixture flags to zero so it isolates the invalid child-node case (`bd588a5`) | Run `44674844504`: 74/74 CTests on Windows/Ubuntu/macOS; all five CI jobs green; Valgrind clean |
