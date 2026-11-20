@@ -127,6 +127,8 @@ typedef struct {
     uint32_t assignment_target_depth;
     /* Avoid a duplicate read diagnostic when the same borrowed owner is also the assignment target. */
     Slot* assignment_borrow_guard_owner;
+    /* The declaration currently being initialized is not visible in its own initializer. */
+    Slot* initializing_slot;
     /* Registry of complete named payloads available to spawn() calls. */
     /* Expression-derived reference type spellings live until semantic_destroy. */
     SemanticTypeName* expression_type_names;
