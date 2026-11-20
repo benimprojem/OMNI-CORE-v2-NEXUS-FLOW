@@ -258,6 +258,12 @@ int main(void) {
         "f:main(source!u8) { v:value!8bit = source; }";
     static const char hard_representation_runtime_narrowing_rejected[] =
         "f:main(source!u16) { v:value!8bit = source; }";
+    static const char hard_representation_assignment_constant_in_range[] =
+        "f:main() { v:value!8bit = 0; value = 255; }";
+    static const char hard_representation_assignment_constant_out_of_range[] =
+        "f:main() { v:value!8bit = 0; value = 256; }";
+    static const char hard_representation_assignment_runtime_narrowing_rejected[] =
+        "f:main(source!u16) { v:value!8bit = 0; value = source; }";
     static const char explicit_numeric_cast_widening[] =
         "f:main(value!i8) !i64 { ret cast(value, i64); }";
     static const char integer_promotion_same_sign[] =
@@ -486,6 +492,9 @@ int main(void) {
     if (!check_source(hard_representation_constant_out_of_range, 1)) return 1;
     if (!check_source(hard_representation_unsigned_source_fits, 0)) return 1;
     if (!check_source(hard_representation_runtime_narrowing_rejected, 1)) return 1;
+    if (!check_source(hard_representation_assignment_constant_in_range, 0)) return 1;
+    if (!check_source(hard_representation_assignment_constant_out_of_range, 1)) return 1;
+    if (!check_source(hard_representation_assignment_runtime_narrowing_rejected, 1)) return 1;
     if (!check_source(integer_promotion_same_sign, 0)) return 1;
     if (!check_source(integer_promotion_mixed_sign_signed_wider, 0)) return 1;
     if (!check_source(integer_promotion_mixed_sign_unsigned_wider, 0)) return 1;
