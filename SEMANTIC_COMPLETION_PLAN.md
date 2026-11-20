@@ -51,8 +51,8 @@ The order below is a dependency order. Audit results may mark an item already im
 ### SEM-002 — Declarations and binding rules
 - Inspect: variable/constant/global/local declarations, initializer ordering, inferred declarations, redeclaration, immutable bindings and compile-time-only declarations.
 - Positive tests: valid initialized and inferred declarations, legal local/global forms, valid constants.
-- Negative tests: missing required initializer, invalid constant expression, duplicate binding, incompatible initializer, read-before-initialization.
-- Accept when: every declaration form has a documented rule, source-level regression and malformed-AST coverage.
+- Negative tests: missing required initializer for `m:`/`c:`, invalid constant expression, duplicate binding, incompatible initializer, invalid self-reference and unknown declared type.
+- Accept when: every declaration form has a documented rule, source-level regression and malformed-AST coverage. Read-before-initialization is owned by SEM-005 for pointer/reference state and SEM-010 for path-sensitive ordinary-variable flow; SEM-002 does not duplicate that control-flow analysis.
 
 ### SEM-003 — Type system
 - Inspect: primitive widths/signs/floats, aliases, NewType nominal identity, pointer/reference layers, arrays, tuples/callback signatures and recursive type validation.
@@ -365,3 +365,12 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 |---|---|---|---|---|
 | SEM-002-F05 | Run `44655518981`, Semantic CTest | An invalid `m:` self-initializer emitted both the specific undefined-name diagnostic and a redundant “type cannot be determined” diagnostic | Gate the secondary diagnostic on no earlier initializer error (`a288089`) | Run `44655601539`: 74/74 CTests and all five CI jobs passed |
 | SEM-002-F06 | Run `44655932761`, Semantic CTest | An unknown named type produced the primary unknown-type diagnostic plus a redundant initializer type-mismatch diagnostic | Track errors from type-expression validation and suppress the generic initializer mismatch when the declared type is already invalid (`f707fb8`) | Run `44656105229`: 74/74 CTests and all five CI jobs passed |
+
+
+### SEM-002 declaration matrix — malformed AST and final CI update (2026-11-20)
+
+- Added malformed-AST coverage for a named `m:` declaration with no initializer; Semantic must emit the required-initializer diagnostic.
+- Declaration tests now cover inferred and explicit `v:` declarations, legal nested shadowing, invalid self-reference, local redeclaration, unknown type, `m:` immutability/self-reference/missing initializer, and `c:` compile-time expression/self-reference/redeclaration.
+- Read-before-initialization has been assigned to the correct flow-analysis gates: SEM-005 for safe references/raw pointers and SEM-010 for path-sensitive ordinary variable analysis. This keeps SEM-002 focused on declaration legality and name binding.
+- Exact test commit `32177ebfe069c3dc6dfd3aff2be05d2ddf3434eb`; CI [44656453773](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656453773) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. All platform CTest suites passed 74/74; Valgrind reported zero errors and zero lost bytes.
+- **SEM-002 remains IN_PROGRESS** pending the final cross-check of every declaration form against the normative syntax reference and malformed AST cases; SEM-003 is not started until SEM-002 is formally verified.
