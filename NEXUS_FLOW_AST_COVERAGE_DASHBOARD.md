@@ -1208,3 +1208,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - CI [44675153773](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675153773) passed all five jobs and 74/74 CTests on Windows, Ubuntu and macOS; ASan/UBSan and Valgrind clean.
 - Primitive type lookup and SemanticResult primitive registry use matching exact-name sets; structured prefix checks are limited to explicit array/function type encodings.
 - SEM-003 remains **IN_PROGRESS** pending formal acceptance checklist closure and normative-reference sign-off.
+
+
+### SEM-003 encoded array type-result mapping (2026-11-20)
+
+- Fixed SemanticResult classification for internal `array|Element[dimensions]` type spellings; they now produce aggregate type records instead of unknown records.
+- Added direct AST regression for encoded array type result classification.
+- Exact final code/test head: `1220aa71934aa1ead091b5e141e43f0ad4e16c13`.
+- CI [44675632586](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675632586): all five jobs passed; 74/74 CTests on Windows, Ubuntu and macOS; ASan/UBSan and Valgrind clean with zero lost bytes.
+- SEM-003 remains **IN_PROGRESS** pending formal checklist closure and normative-reference sign-off.
