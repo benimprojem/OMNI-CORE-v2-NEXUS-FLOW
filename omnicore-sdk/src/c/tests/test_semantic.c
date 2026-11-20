@@ -3338,6 +3338,12 @@ static int check_c_compile_time_constant_semantics(void) {
     const char* valid_aggregate_constant =
         "c:VALUES = [1, 2, 3]; c:PAIR = (1, \"two\");";
     const char* missing_initializer = "c:missing!i32;";
+    const char* global_constant_visible_to_function =
+        "c:GLOBAL!i32 = 7; f:main() { v:copy!i32 = GLOBAL; }";
+    const char* local_constant =
+        "f:main() { c:LOCAL!i32 = 7; v:copy!i32 = LOCAL; }";
+    const char* local_constant_does_not_leak =
+        "f:main() { { c:LOCAL!i32 = 7; } v:copy!i32 = LOCAL; }";
     const char* runtime_call =
         "f:get_value()!i32 { ret 7; } c:value = get_value();";
     const char* mutable_read =
@@ -3348,6 +3354,9 @@ static int check_c_compile_time_constant_semantics(void) {
     return check_source(valid_literals_and_expressions, 0) &&
         check_source(valid_aggregate_constant, 0) &&
         check_source(missing_initializer, 1) &&
+        check_source(global_constant_visible_to_function, 0) &&
+        check_source(local_constant, 0) &&
+        check_source(local_constant_does_not_leak, 1) &&
         check_source(runtime_call, 1) &&
         check_source(mutable_read, 1) &&
         check_source(immutable_runtime_read, 1);
