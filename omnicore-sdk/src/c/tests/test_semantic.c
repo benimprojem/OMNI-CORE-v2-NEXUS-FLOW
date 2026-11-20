@@ -1059,7 +1059,7 @@ static int check_compound_assignment_semantics(void) {
         check_source(valid_bitwise_complement_and_compare,0) &&
         check_source(invalid_bitwise_complement,1) &&
         check_source(valid_fixed_bitwise_binary,0) &&
-        check_source(invalid_fixed_bitwise_binary_width,1) &&
+        check_source(valid_fixed_bitwise_binary_width_promotion,0) &&
         check_source(valid_representation_indexing,0) &&
         check_source(invalid_representation_index_type,1) &&
         check_source(invalid_bit_vector_index_range,1) &&
