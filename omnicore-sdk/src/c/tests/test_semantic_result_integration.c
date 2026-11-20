@@ -180,6 +180,12 @@ static int test_bit_byte_semantic_conversion_records(void) {
     if (semantic.error_count != 0 ||
         semantic.result_status != SEMANTIC_RESULT_OK ||
         semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
+        fprintf(stderr, "conversion integration: errors=%d result_status=%d conversions=%u cast_node=%u\\n",
+            semantic.error_count, (int)semantic.result_status,
+            semantic.result.conversion_count,
+            casted && casted->initializer && casted->initializer->type == AST_CAST
+                ? resolve_node_id(&resolver, casted->initializer) : 0u);
+        semantic_print_errors(&semantic);
         goto done;
     }
 
