@@ -189,8 +189,13 @@ static int test_bit_byte_semantic_conversion_records(void) {
         goto done;
     }
 
+    fprintf(stderr, "cast metadata debug: conversions=%u\\n",
+        semantic.result.conversion_count);
     if (oir_ast_frontend_measure((ASTNode*)parser->ast_root, index, 128u,
-            node_count, &requirements) != OIR_STATUS_OK) goto done;
+            node_count, &requirements) != OIR_STATUS_OK) {
+        fprintf(stderr, "cast metadata debug: frontend measure failed\\n");
+        goto done;
+    }
     ast_records = (OirAstNodeRecord*)calloc(node_count, sizeof(*ast_records));
     ast_fields = (uint8_t*)malloc(requirements.field_data_length ?
         requirements.field_data_length : 1u);
@@ -206,22 +211,29 @@ static int test_bit_byte_semantic_conversion_records(void) {
     if (!ast_records || !ast_fields || !ast_strings || !ast_payload || !artifact ||
         !incoming_counts || !visited || !graph_stack || !owner_scope_by_node)
         goto done;
-    if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
-            index, 128u, node_count, ast_records, node_count,
-            ast_fields, requirements.field_data_length,
-            ast_strings, requirements.string_table_length,
-            ast_payload, requirements.payload_size, &ast_payload_written,
-            &requirements) != OIR_STATUS_OK ||
-        oir_semantic_ast_artifact_write(ast_payload, ast_payload_written,
-            &semantic.result, 1701u, artifact, 262144u,
-            &artifact_written) != OIR_STATUS_OK ||
-        oir_semantic_ast_artifact_open(artifact, artifact_written,
-            &artifact_view, incoming_counts, node_count, visited, node_count,
-            graph_stack, node_count, owner_scope_by_node,
-            (size_t)node_count + 1u) != OIR_STATUS_OK ||
-        !artifact_view.has_conversions ||
-        artifact_view.conversions.record_count != 12u)
-        goto done;
+    {
+        OirStatus write_status = oir_ast_frontend_write_payload(
+            (ASTNode*)parser->ast_root, index, 128u, node_count,
+            ast_records, node_count, ast_fields, requirements.field_data_length,
+            ast_strings, requirements.string_table_length, ast_payload,
+            requirements.payload_size, &ast_payload_written, &requirements);
+        OirStatus artifact_status = write_status == OIR_STATUS_OK
+            ? oir_semantic_ast_artifact_write(ast_payload, ast_payload_written,
+                &semantic.result, 1701u, artifact, 262144u, &artifact_written)
+            : write_status;
+        OirStatus open_status = artifact_status == OIR_STATUS_OK
+            ? oir_semantic_ast_artifact_open(artifact, artifact_written,
+                &artifact_view, incoming_counts, node_count, visited, node_count,
+                graph_stack, node_count, owner_scope_by_node,
+                (size_t)node_count + 1u)
+            : artifact_status;
+        fprintf(stderr, "cast metadata debug: write=%d artifact=%d open=%d count=%u\\n",
+            (int)write_status, (int)artifact_status, (int)open_status,
+            open_status == OIR_STATUS_OK ? artifact_view.conversions.record_count : 0u);
+        if (write_status != OIR_STATUS_OK || artifact_status != OIR_STATUS_OK ||
+            open_status != OIR_STATUS_OK || !artifact_view.has_conversions ||
+            artifact_view.conversions.record_count != 12u) goto done;
+    }
     {
         uint32_t conversion_index;
         for (conversion_index = 0u; conversion_index < 12u; ++conversion_index) {
