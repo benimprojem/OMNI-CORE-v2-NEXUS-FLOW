@@ -6626,6 +6626,7 @@ static void semantic_check_node(
                 decl->inline_type->type == AST_ARRAY_TYPE);
             int is_inline = (decl->inline_type != NULL && !is_array);
             int valid_type = 0;
+            int declared_type_error = 0;
             int safe_reference_storage_rejected = 0;
             int initializer_error_baseline = ctx->error_count;
             Slot* previous_initializing_slot = NULL;
@@ -6647,6 +6648,7 @@ static void semantic_check_node(
 
                 if (decl->type_name && !valid_type && !decl->type_expr) {
                     char buf[256];
+                    declared_type_error = 1;
                     (void)snprintf(buf, sizeof(buf),
                         "Declaration '%s' uses unknown type '%s'.",
                         decl->name ? decl->name : "<unnamed>",
@@ -6801,6 +6803,7 @@ static void semantic_check_node(
                         semantic_validate_vector_initializer(
                             ctx, node, decl->type_name, decl->initializer);
                     } else if (!named_function_initializer &&
+                        !declared_type_error &&
                         !safe_reference_storage_rejected && init_type &&
                         !are_types_compatible(ctx, decl->type_name, init_type)) {
                         int coercion_status =
