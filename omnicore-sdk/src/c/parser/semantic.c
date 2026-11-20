@@ -6602,6 +6602,9 @@ static void semantic_check_node(
                         "The initializer of an immutable m: value must have a determinable type.");
                 }
             }
+            if (initializing_slot_active)
+                ctx->initializing_slot = previous_initializing_slot;
+
             if (declared_slot) {
                 semantic_record_annotation(
                     ctx, node, declared_slot, declared_slot->type_name,
@@ -6626,6 +6629,8 @@ static void semantic_check_node(
             int valid_type = 0;
             int safe_reference_storage_rejected = 0;
             int initializer_error_baseline = ctx->error_count;
+            Slot* previous_initializing_slot = NULL;
+            int initializing_slot_active = 0;
             const char* element_type = decl->type_name;
             if (element_type && element_type[0] == '!') ++element_type;
             if (existing && existing->depth == ctx->current_depth) {
@@ -6710,10 +6715,10 @@ static void semantic_check_node(
             initializer_error_baseline = ctx->error_count;
             if (decl->initializer) {
                 const char* init_type;
-                Slot* previous_initializing_slot = ctx->initializing_slot;
+                previous_initializing_slot = ctx->initializing_slot;
                 ctx->initializing_slot = declared_slot;
+                initializing_slot_active = 1;
                 semantic_check(ctx, decl->initializer);
-                ctx->initializing_slot = previous_initializing_slot;
                 if (decl->is_const &&
                     !semantic_is_compile_time_constant_expression(
                         ctx, decl->initializer)) {
