@@ -7439,11 +7439,6 @@ static void semantic_check_node(
                             "Operator '%s' requires compatible numeric operands; got '%s' and '%s'.",
                             operator_name, left_type, right_type);
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
-                    } else if (promoted_type) {
-                        semantic_record_operator_promotion(
-                            ctx, node, left_type, promoted_type, 0u);
-                        semantic_record_operator_promotion(
-                            ctx, node, right_type, promoted_type, 1u);
                     } else if (semantic_vector_dimension(left_type,
                                    &(size_t){0}) &&
                                semantic_vector_dimension(right_type,
@@ -7461,11 +7456,17 @@ static void semantic_check_node(
                             operator_name, left_type, right_type);
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
                     } else if (bin->op == TOKEN_PERCENT &&
-                               !is_integer_primitive_type(left_type)) {
+                               (!is_integer_primitive_type(left_type) ||
+                                !is_integer_primitive_type(right_type))) {
                         (void)snprintf(message, sizeof(message),
                             "Operator '%%' requires integer operands; got '%s' and '%s'.",
                             left_type, right_type);
                         report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    } else if (promoted_type) {
+                        semantic_record_operator_promotion(
+                            ctx, node, left_type, promoted_type, 0u);
+                        semantic_record_operator_promotion(
+                            ctx, node, right_type, promoted_type, 1u);
                     }
                 }
             }
