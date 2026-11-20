@@ -1226,3 +1226,10 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Persistent SemanticResult tests verify NewType symbol/base-type links and encoded array aggregate classification.
 - Exact code/test head: `977a1d42e07c7674b2e4d318cb412e7efadc1d6a`; CI [44675909159](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675909159) passed all five jobs. Windows, Ubuntu and macOS each passed 74/74 CTests; ASan/UBSan and Valgrind passed with zero errors and zero lost bytes.
 - **SEM-003: VERIFIED.** Next active package: **SEM-004 — inference, conversions, numeric promotion and forced types**. SEM-005 and later remain gated by the ordered plan; OIR remains blocked until all Semantic packages close.
+
+
+### SEM-003 NewType SemanticResult metadata — additional verified evidence (2026-11-20)
+
+- Direct test verifies base-type metadata links for primitive, chained, raw-pointer, safe-reference and callback NewTypes; nominal symbol IDs are nonzero and distinct.
+- Exact test commit `69ecb4a4a96b73f64925cff0e16dd922e7c6a557`; CI [44659320679](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44659320679) passed all five jobs and 74/74 CTests on Windows/Ubuntu/macOS; ASan/UBSan and Valgrind green (zero errors, zero lost bytes).
+- SEM-003 stays **VERIFIED**. No stage advancement beyond the approved Semantic work-package sequence.
