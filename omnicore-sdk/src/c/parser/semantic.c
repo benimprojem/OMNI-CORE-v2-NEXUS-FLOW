@@ -3024,6 +3024,61 @@ static int semantic_is_shift_value_type(const char* type_name) {
  * the source/target categories are not convertible, -1 for a constant value
  * outside the target range, and -2 when a runtime range check is required.
  */
+static void semantic_record_explicit_cast_conversion(
+    SemanticContext* ctx,
+    ASTNode* cast_node,
+    const char* source_type,
+    const char* destination_type
+) {
+    uint32_t node_id, source_type_id, destination_type_id;
+    uint64_t source_width = 0u, destination_width = 0u;
+    int source_unsigned = 0, destination_unsigned = 0;
+    int source_is_integer, destination_is_integer;
+    int source_is_float, destination_is_float;
+    char source_family = 0, destination_family = 0;
+    uint16_t kind = SEMANTIC_RESULT_CONVERSION_EXPLICIT_CAST;
+    SemanticResultStatus status;
+    if (!ctx || !ctx->result_enabled ||
+        ctx->result_status != SEMANTIC_RESULT_OK ||
+        !cast_node || !source_type || !destination_type) return;
+
+    source_type_id = semantic_type_id(ctx, source_type, 0);
+    destination_type_id = semantic_type_id(ctx, destination_type, 0);
+    node_id = semantic_node_id(ctx, cast_node);
+    if (!node_id || !source_type_id || !destination_type_id) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+        return;
+    }
+
+    source_is_integer = semantic_integer_type_width(
+        source_type, &source_width, &source_unsigned);
+    destination_is_integer = semantic_integer_type_width(
+        destination_type, &destination_width, &destination_unsigned);
+    source_is_float = semantic_float_family_width(
+        source_type, &source_family, &source_width);
+    destination_is_float = semantic_float_family_width(
+        destination_type, &destination_family, &destination_width);
+
+    if (source_is_integer && destination_is_integer) {
+        if (source_unsigned != destination_unsigned)
+            kind = SEMANTIC_RESULT_CONVERSION_SIGNEDNESS;
+        else if (source_width > destination_width)
+            kind = SEMANTIC_RESULT_CONVERSION_NARROWING;
+        else
+            kind = SEMANTIC_RESULT_CONVERSION_WIDENING;
+    } else if (source_is_float && destination_is_float &&
+        source_family == destination_family) {
+        kind = source_width > destination_width
+            ? SEMANTIC_RESULT_CONVERSION_NARROWING
+            : SEMANTIC_RESULT_CONVERSION_WIDENING;
+    }
+
+    status = semantic_result_add_conversion(
+        &ctx->result, node_id, 0u, source_type_id, destination_type_id,
+        kind, SEMANTIC_RESULT_CONVERSION_FLAG_EXPLICIT);
+    semantic_set_result_error(ctx, status);
+}
+
 static int semantic_hard_representation_coercion_status(
     ASTNode* source_expression, int is_hard_typed,
     const char* target_type, const char* source_type
@@ -10309,6 +10364,7 @@ static void semantic_check_node(
 
         case AST_CAST: {
             ASTCast* cast = (ASTCast*)node;
+            int cast_error_baseline = ctx->error_count;
             if (!cast->value) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                     "cast() is missing its source value expression.");
@@ -10366,6 +10422,11 @@ static void semantic_check_node(
                         "Choose a compatible target type or use an explicit numeric cast; safe references cannot be reconstructed from erased or raw-pointer values.",
                         "Choose a compatible target type or use an explicit numeric cast; safe references cannot be reconstructed from erased or raw-pointer values.",
                         0, 0);
+                }
+                if (!cast_rejected_for_provenance &&
+                    ctx->error_count == cast_error_baseline) {
+                    semantic_record_explicit_cast_conversion(
+                        ctx, node, source_type, target_name);
                 }
             } else {
                 report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE,
