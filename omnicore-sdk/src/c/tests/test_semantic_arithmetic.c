@@ -250,6 +250,16 @@ int main(void) {
         "f:main(a!u8) !u8 { ret a <<< 18446744073709551616; }";
     static const char shift_negative_radix_invalid[] =
         "f:main(a!i32) !i32 { ret a <<< -0x1; }";
+    static const char explicit_numeric_cast_widening[] =
+        "f:main(value!i8) !i64 { ret cast(value, i64); }";
+    static const char explicit_numeric_cast_narrowing[] =
+        "f:main(value!f64) !i32 { ret cast(value, i32); }";
+    static const char explicit_numeric_cast_literal[] =
+        "f:main() !i32 { ret cast(3.5, i32); }";
+    static const char invalid_string_to_numeric_cast[] =
+        "f:main() !i32 { ret cast(\"text\", i32); }";
+    static const char invalid_numeric_to_string_cast[] =
+        "f:main() !str { ret cast(1, str); }";
     static const char shift_radix_constant_expression_invalid[] =
         "f:main(a!i32) !i32 { ret a <<< (0x10 * 2); }";
     static const char shift_radix_constant_expression_valid[] =
@@ -438,6 +448,11 @@ int main(void) {
     if (!check_source(shift_unsigned_64_max_invalid, 0)) return 1;
     if (!check_source(shift_unsigned_64_overflow_invalid, 1)) return 1;
     if (!check_source(shift_negative_radix_invalid, 1)) return 1;
+    if (!check_source(explicit_numeric_cast_widening, 0)) return 1;
+    if (!check_source(explicit_numeric_cast_narrowing, 0)) return 1;
+    if (!check_source(explicit_numeric_cast_literal, 0)) return 1;
+    if (!check_source(invalid_string_to_numeric_cast, 1)) return 1;
+    if (!check_source(invalid_numeric_to_string_cast, 1)) return 1;
     if (!check_source(shift_radix_constant_expression_invalid, 0)) return 1;
     if (!check_source(shift_radix_constant_expression_valid, 0)) return 1;
     if (!check_source(range_valid, 0)) return 1;
