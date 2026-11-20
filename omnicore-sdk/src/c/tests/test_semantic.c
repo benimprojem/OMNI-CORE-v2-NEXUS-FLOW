@@ -1495,15 +1495,15 @@ static int check_shift_operator_semantics(void) {
     const char* valid_fixed_bit_vector_shift =
         "f:main() { v:value!8bit = 1; v:shifted!8bit = value <<< 7; }";
     const char* invalid_negative_shift =
-        "f:main() { v:value!u8 = 1; v:shifted!u8 = value <<< -1; }";
+        "f:main(value!u8) { v:shifted!u8 = value <<< -1; }";
     const char* invalid_float_shift_count =
-        "f:main() { v:value!u8 = 1; v:shifted!u8 = value <<< 1.5; }";
+        "f:main(value!u8) { v:shifted!u8 = value <<< 1.5; }";
     const char* invalid_scalar_bit_shift =
-        "f:main() { v:value!bit = 1; v:shifted!bit = value <<< 1; }";
+        "f:main(value!bit) { v:shifted!bit = value <<< 1; }";
     const char* invalid_raw_byte_shift =
-        "f:main() { v:value!byte; v:shifted!byte = value <<< 1; }";
+        "f:main(value!byte) { v:shifted!byte = value <<< 1; }";
     const char* invalid_byte_block_shift =
-        "f:main() { v:value!2byte; v:shifted!2byte = value <<< 1; }";
+        "f:main(value!2byte) { v:shifted!2byte = value <<< 1; }";
     return check_source(valid_u8_shift_at_width, 0) &&
         check_source(valid_wide_shift_count, 0) &&
         check_source(valid_fixed_bit_vector_shift, 0) &&
