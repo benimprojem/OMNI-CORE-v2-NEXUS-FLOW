@@ -5669,6 +5669,36 @@ static ASTMethod* semantic_group_default_handler(
     return NULL;
 }
 
+static int semantic_type_reaches_aggregate_by_value(
+    SemanticContext* ctx,
+    const char* type_name,
+    const char* aggregate_name,
+    unsigned depth
+) {
+    Slot* type_slot;
+    FieldInfo* field;
+    const char* name = type_name;
+    if (!ctx || !name || !aggregate_name || depth >= 64u) return 0;
+    if (*name == '!') ++name;
+    /* Indirection breaks a by-value layout cycle. */
+    if (*name == '*' || *name == '&' || strncmp(name, "f:(", 3u) == 0)
+        return 0;
+    if (strcmp(name, aggregate_name) == 0) return 1;
+    type_slot = find_slot(ctx, name);
+    if (!type_slot) return 0;
+    if (type_slot->kind == SLOT_NEWTYPE)
+        return semantic_type_reaches_aggregate_by_value(
+            ctx, type_slot->type_name, aggregate_name, depth + 1u);
+    if (type_slot->kind != SLOT_STRUCT && type_slot->kind != SLOT_UNION)
+        return 0;
+    for (field = type_slot->fields; field; field = field->next) {
+        if (semantic_type_reaches_aggregate_by_value(
+                ctx, field->type_name, aggregate_name, depth + 1u))
+            return 1;
+    }
+    return 0;
+}
+
 static void semantic_validate_aggregate_field_names(
     SemanticContext* ctx,
     const char* aggregate_name,
@@ -9318,6 +9348,19 @@ static void semantic_check_node(
                                 v->name, v->type_name);
                             report_error(ctx, field_node,
                                 ERR_SEMANTIC_UNKNOWN_TYPE, buf);
+                        }
+
+                        if (v->type_name && !v->inline_type &&
+                            !v->type_expr &&
+                            semantic_type_reaches_aggregate_by_value(
+                                ctx, v->type_name, sdecl->name, 0u)) {
+                            char message[384];
+                            (void)snprintf(message, sizeof(message),
+                                "Aggregate '%s' field '%s' recursively contains '%s' by value; use a raw pointer to break the layout cycle.",
+                                sdecl->name ? sdecl->name : "<anonymous>",
+                                v->name, sdecl->name ? sdecl->name : "<anonymous>");
+                            report_error(ctx, field_node,
+                                ERR_SEMANTIC_TYPE_MISMATCH, message);
                         }
 
                         if (v->type_name &&
