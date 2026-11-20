@@ -411,3 +411,11 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Added Semantic regressions confirming `char` acceptance and rejecting `hex` as an unknown storage type. Existing tests cover decimal widths, 128-bit arithmetic/bitwise constraints and fixed bit/byte widths.
 - Exact test commit `9933c4d7a17f23e2fc8772ecc9aa330dc0d6cfbf`; CI [44658543349](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658543349) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; 74/74 CTests passed and Valgrind reported zero errors/zero lost bytes.
 - **SEM-003 remains IN_PROGRESS.** Remaining audit: nested type expressions, NewType chain identity/base metadata and malformed type-expression payloads.
+
+
+### SEM-003 NewType identity and nested type-variable update (2026-11-20)
+
+- Added NewType chain identity regressions: assignments within the same chained NewType are accepted, while assignments between the base NewType and its derived NewType are rejected in both directions.
+- Existing recursive type-variable tests cover `*t`, `&t`, repeated type-variable unification and nested callback parameter/return signatures. The normative reference now reflects these supported forms; generic aggregate element types remain outside the contract.
+- Exact test commit `7484b6323f0c74843874c2d492c1a05774165a42`; CI [44658892345](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658892345) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; 74/74 CTests passed, Valgrind zero errors/zero lost bytes.
+- **SEM-003 remains IN_PROGRESS.** Remaining work is to assert persistent SemanticResult NewType `base_type_id`/symbol metadata directly and finish malformed nested type-expression coverage.
