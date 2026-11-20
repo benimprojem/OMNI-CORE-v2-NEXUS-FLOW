@@ -3277,6 +3277,14 @@ static int check_declaration_initializer_binding_semantics(void) {
         "f:main() { m:value = value; }";
     const char* invalid_constant_self_initializer =
         "c:value!i32 = value;";
+    const char* valid_inferred_declarations =
+        "f:main() { v:answer = 42; v:copy = answer; }";
+    const char* duplicate_local_variable =
+        "f:main() { v:value!i32 = 1; v:value!i32 = 2; }";
+    const char* unknown_declared_type =
+        "f:main() { v:value!UnknownType = 1; }";
+    const char* duplicate_compile_time_constant =
+        "c:VALUE!i32 = 1; c:VALUE!i32 = 2;";
     const char* outer_type_must_be_used =
         "f:main() { v:value!str = \"outer\"; "
         "{ v:value!i32 = value; } }";
@@ -3285,6 +3293,10 @@ static int check_declaration_initializer_binding_semantics(void) {
         check_source(invalid_inferred_self_initializer, 1) &&
         check_source(invalid_immutable_self_initializer, 1) &&
         check_source(invalid_constant_self_initializer, 1) &&
+        check_source(valid_inferred_declarations, 0) &&
+        check_source(duplicate_local_variable, 1) &&
+        check_source(unknown_declared_type, 1) &&
+        check_source(duplicate_compile_time_constant, 1) &&
         check_source(outer_type_must_be_used, 1);
 }
 
