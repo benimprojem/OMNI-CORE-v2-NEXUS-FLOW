@@ -252,6 +252,22 @@ int main(void) {
         "f:main(a!i32) !i32 { ret a <<< -0x1; }";
     static const char explicit_numeric_cast_widening[] =
         "f:main(value!i8) !i64 { ret cast(value, i64); }";
+    static const char integer_promotion_same_sign[] =
+        "f:sum(a!i8,b!i16)!i16 { ret a + b; }";
+    static const char integer_promotion_mixed_sign_signed_wider[] =
+        "f:sum(a!i16,b!u8)!i16 { ret a + b; }";
+    static const char integer_promotion_mixed_sign_unsigned_wider[] =
+        "f:sum(a!i8,b!u16)!u16 { ret a + b; }";
+    static const char integer_promotion_equal_width_mixed_sign[] =
+        "f:sum(a!i16,b!u16)!u16 { ret a + b; }";
+    static const char unsigned_bitwise_width_promotion[] =
+        "f:combine(a!u8,b!u16)!u16 { ret a & b; }";
+    static const char signed_bitwise_width_promotion[] =
+        "f:combine(a!i8,b!u16)!u16 { ret a | b; }";
+    static const char float_width_promotion[] =
+        "f:sum(a!f32,b!f64)!f64 { ret a + b; }";
+    static const char decimal_width_promotion[] =
+        "f:sum(a!d32,b!d64)!d64 { ret a + b; }";
     static const char explicit_numeric_cast_narrowing[] =
         "f:main(value!f64) !i32 { ret cast(value, i32); }";
     static const char explicit_numeric_cast_literal[] =
@@ -454,6 +470,14 @@ int main(void) {
     if (!check_source(shift_unsigned_64_overflow_invalid, 1)) return 1;
     if (!check_source(shift_negative_radix_invalid, 1)) return 1;
     if (!check_source(explicit_numeric_cast_widening, 0)) return 1;
+    if (!check_source(integer_promotion_same_sign, 0)) return 1;
+    if (!check_source(integer_promotion_mixed_sign_signed_wider, 0)) return 1;
+    if (!check_source(integer_promotion_mixed_sign_unsigned_wider, 0)) return 1;
+    if (!check_source(integer_promotion_equal_width_mixed_sign, 0)) return 1;
+    if (!check_source(unsigned_bitwise_width_promotion, 0)) return 1;
+    if (!check_source(signed_bitwise_width_promotion, 0)) return 1;
+    if (!check_source(float_width_promotion, 0)) return 1;
+    if (!check_source(decimal_width_promotion, 0)) return 1;
     if (!check_source(explicit_numeric_cast_narrowing, 0)) return 1;
     if (!check_source(explicit_numeric_cast_literal, 0)) return 1;
     if (!check_source(invalid_string_to_numeric_cast, 1)) return 1;
