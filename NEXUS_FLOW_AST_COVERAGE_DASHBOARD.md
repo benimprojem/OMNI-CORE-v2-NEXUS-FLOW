@@ -1,13 +1,14 @@
 # NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu
 
 
-### Imported library symbol lookup — integration gap (2026-11-19)
+### Imported library symbol lookup — implementation and CI update (2026-11-20)
 
-- The module interface publishes PUBLIC/EXPORTED declarations and type closure; the import bundle validates dependency identity; the Semantic import environment indexes aliases, namespaces, symbols and types.
-- Historical gap resolved: `semantic_stage_module.c` now initializes and attaches `OccSemanticImportEnvironment` before `semantic_check(&sem, root)`, preserves its borrowed backing lifetime during cleanup, and `occ_semantic_stage` links `occ_semantic_import_environment`.
-- Remaining gap: normal Semantic name resolution does not yet consume the attached environment. Qualified imported declarations are not yet proven callable; source-level `exf` remains the only confirmed external-symbol path.
-- Required follow-up: bridge imported symbol/type lookup into Semantic; enforce visibility, alias/namespace, collision and signature rules; add end-to-end stage tests.
-- Status: **integration gap identified; not implemented or verified**. Details: `SEMANTIC_COMPLETION_PLAN.md`.
+- Semantic now consumes the attached `OccSemanticImportEnvironment` for qualified function calls through both import aliases and namespace selectors.
+- The resolver enforces PUBLIC/EXPORTED visibility, rejects missing/ambiguous/non-function symbols, validates imported return and parameter type metadata, checks contiguous unique parameter ordinals, and reuses the local call-argument validator without inserting imported symbols into local Slot storage.
+- Direct Semantic regressions cover alias calls, namespace calls, named arguments, wrong argument types/counts, missing and non-public exports, local selector collisions, unsafe reference returns, duplicate aliases, duplicate namespaces and alias/namespace cross-collisions.
+- Exact-head CI for commit `c58592567af8b40e99cb6d56f1be32d43886684e`, run [44652106466](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44652106466), passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind; 74/74 CTests passed on the platform build jobs.
+- Remaining gaps: real Semantic Stage DLL end-to-end imported-call tests using verified OIR import/interface artifacts; imported values and nominal types; collision policy for unqualified imports; imported default/variadic metadata; and imported type closure.
+- Status: **qualified imported function-call resolution is implemented and CI-verified; SEM-001 remains open**. OIR lowering and independent Verifier remain gated.
 ## Semantic audit note — `exf` declaration order (2026-11-19)
 
 - `exf` semicolon declarations parse as `AST_EXTERN_DECL`; legacy body form remains supported.
@@ -1067,12 +1068,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - [x] Imported return/parameter type metadata read from interface type/relation records; parameter ordinals checked for uniqueness and contiguous ordering.
 - [x] Reuse of normal local function argument validator through temporary borrowed signature views; no imported symbol is inserted into local Slot storage.
 - [x] Direct Semantic test cases added for alias, namespace, named args, wrong type, missing symbol, wrong count and non-public/exported symbol.
-- [ ] Execute new tests and all platform/sanitizer CI on exact branch head.
+- [x] Execute direct Semantic tests and all platform/sanitizer CI on exact branch head; run `44652106466` passed all five jobs and 74/74 CTests.
 - [ ] Add real Semantic Stage DLL end-to-end tests with actual OIR import/interface artifacts.
 - [ ] Import default-argument/variadic metadata; current interface relation schema does not preserve these declaration properties, so imported calls currently require all fixed parameters.
-- [ ] Resolve imported values and nominal types; implement local/import collision policy and imported type closure checks.
+- [ ] Resolve imported values and nominal types; implement unqualified-import collision policy and imported type closure checks.
 
-**Current status:** function-call resolver and direct fixtures are committed but unverified by CI. SEM-001 remains open; do not advance to OIR.
+**Current status:** qualified imported function-call resolver and direct fixtures are CI-verified. SEM-001 remains open; do not advance to OIR.
 
 
 ### Import selector collision guard — 2026-11-19
@@ -1111,3 +1112,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Extra error located at function parameter `owner` (1:21), not the safe-reference assignment. Expected type-erasure diagnostic remains at 1:37; both use semantic error code `3002`.
 - Root cause still unconfirmed: parameter validation or diagnostic message lookup/catalog needs source inspection. Repeated `Unknown Message` output is noisy but only the two-vs-one mismatch currently blocks test 68.
 - No code change; SEM-001 remains pending and OIR is still gated.
+
+
+### Exact-head verification — imported selector collision regressions (2026-11-20)
+
+- Added direct Semantic negative regressions for duplicate import aliases, duplicate namespaces, and alias/namespace cross-collisions. Each malformed selector configuration must produce one actionable Semantic error rather than selecting an arbitrary dependency.
+- Commit: `c58592567af8b40e99cb6d56f1be32d43886684e`.
+- CI run [44652106466](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44652106466) completed successfully: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all green; 74/74 CTests passed.
+- This verifies direct resolver behavior only. Real Stage DLL imported-call artifact integration and the remaining SEM-001 items stay open.
