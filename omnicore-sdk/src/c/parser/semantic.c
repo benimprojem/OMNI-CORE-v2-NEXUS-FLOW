@@ -2831,6 +2831,22 @@ static int semantic_shift_value_width(
     return semantic_integer_type_width(type_name, width_out, &is_unsigned);
 }
 
+/* Shift values may be integer primitives or fixed Nbit vectors. The scalar
+   bit and raw byte/Nbyte storage types require explicit conversion first. */
+static int semantic_is_shift_value_type(const char* type_name) {
+    static const char* const bit_vectors[] = {
+        "8bit", "16bit", "32bit", "64bit", "128bit"
+    };
+    size_t i;
+    if (!type_name) return 0;
+    if (type_name[0] == '!') ++type_name;
+    if (is_integer_primitive_type(type_name)) return 1;
+    for (i = 0u; i < sizeof(bit_vectors) / sizeof(bit_vectors[0]); ++i) {
+        if (strcmp(type_name, bit_vectors[i]) == 0) return 1;
+    }
+    return 0;
+}
+
 /*
  * Return 1 for a proven-safe explicit representation conversion, 0 when
  * the source/target categories are not convertible, -1 for a constant value
@@ -7345,7 +7361,7 @@ static void semantic_check_node(
                 int shift_status = semantic_eval_shift_count(
                     bin->right, &shift_amount);
                 int operands_valid =
-                    (!left_type || is_bitwise_primitive_type(left_type)) &&
+                    (!left_type || semantic_is_shift_value_type(left_type)) &&
                     (!right_type || is_integer_primitive_type(right_type));
                 if (!operands_valid) {
                     char message[320];
@@ -7377,25 +7393,15 @@ static void semantic_check_node(
                         literal && literal->string_value
                             ? literal->string_value : "<constant>");
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
-                } else if (shift_status == 1 && left_type &&
+                } else if (left_type &&
                            semantic_shift_value_width(left_type, &value_width)) {
-                    if (shift_amount >= value_width) {
-                        char shift_message[192];
-                        (void)snprintf(shift_message, sizeof(shift_message),
-                            "Bit shift amount (%llu) is out of range for %s (%llu-bit width); valid range is 0..%llu.",
-                            (unsigned long long)shift_amount,
-                            left_type,
-                            (unsigned long long)value_width,
-                            (unsigned long long)(value_width - 1u));
-                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                            shift_message);
-                    }
+                    /* The left operand determines result width. A shift count
+                       greater than or equal to that width has the defined
+                       zero result; it is not a Semantic error. */
+                    (void)shift_status;
+                    (void)shift_amount;
                 }
-                /*
-                 * A non-constant shift count is accepted here. The OIR/runtime
-                 * contract must trap or otherwise define counts >= value width;
-                 * Semantic cannot prove a dynamic value's range.
-                 */
+                /* Dynamic shift counts follow the same width rule at runtime. */
             }
 
             if (bin->op == TOKEN_BIT_AND || bin->op == TOKEN_BIT_OR ||
