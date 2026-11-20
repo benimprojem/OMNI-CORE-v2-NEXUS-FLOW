@@ -74,7 +74,7 @@ static int conversion_matches(
     return 0;
 }
 
-static int test_bit_byte_semantic_conversion_records(void) {
+static int test_hard_type_semantic_conversion_records(void) {
     static const char source[] =
         "f:main(small!u8,float_source!f32,decimal_source!d32) { "
         "struct:Packet { v:member!8bit } v:one!bit = 1; v:raw!byte = 255; "
@@ -84,7 +84,7 @@ static int test_bit_byte_semantic_conversion_records(void) {
         "v:wide_decimal!d64 = decimal_source; "
         "flags = small; flags[0] = 1; packet.member = 1; }";
     ParserContext* parser = parser_init_source(
-        "bit-byte-conversions.nxf", (const uint8_t*)source, sizeof(source) - 1u);
+        "hard-type-conversions.nxf", (const uint8_t*)source, sizeof(source) - 1u);
     OirAstPointerIndexEntry index[128];
     ResolverContext resolver;
     SemanticContext semantic;
@@ -300,16 +300,13 @@ static int test_explicit_cast_conversion_record(void) {
     size_t payload_written = 0u, artifact_written = 0u;
     int initialized = 0;
     int ok = 0;
-    int stage = 0;
     if (!parser) return 0;
     if (parser_run(parser) != PARSER_STATUS_OK ||
         parser->error_count != 0 || !parser->ast_root) goto done;
-    stage = 1;
     memset(index, 0, sizeof(index));
     if (oir_ast_frontend_index_build(
             (ASTNode*)parser->ast_root, index, 128u, &node_count) != OIR_STATUS_OK)
         goto done;
-    stage = 2;
     resolver.entries = index;
     resolver.capacity = 128u;
     function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
@@ -320,12 +317,10 @@ static int test_explicit_cast_conversion_record(void) {
     same = find_local(((ASTBlock*)function->body)->statements, "same");
     if (!same || !same->initializer || same->initializer->type != AST_CAST) goto done;
     same_cast_node = (ASTCast*)same->initializer;
-    stage = 3;
     semantic_init(&semantic, "explicit-cast-conversion.nxf", NULL);
     initialized = 1;
     semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
-    stage = 4;
     if (semantic.error_count != 0 ||
         semantic.result_status != SEMANTIC_RESULT_OK ||
         semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK) {
@@ -336,35 +331,13 @@ static int test_explicit_cast_conversion_record(void) {
         semantic_print_errors(&semantic);
         goto done;
     }
-    {
-        int wide_match = conversion_matches(&semantic.result,
+    if (semantic.result.conversion_count != 2u ||
+        !conversion_matches(&semantic.result,
             resolve_node_id(&resolver, (ASTNode*)cast_node),
-            "i64", SEMANTIC_RESULT_CONVERSION_SIGNEDNESS);
-        int same_match = conversion_matches(&semantic.result,
+            "i64", SEMANTIC_RESULT_CONVERSION_SIGNEDNESS) ||
+        !conversion_matches(&semantic.result,
             resolve_node_id(&resolver, (ASTNode*)same_cast_node),
-            "u8", SEMANTIC_RESULT_CONVERSION_IDENTITY);
-        uint32_t debug_index;
-        fprintf(stderr, "explicit cast debug: semantic conversions=%u wide=%d same=%d nodes=%u,%u\\n",
-            semantic.result.conversion_count, wide_match, same_match,
-            resolve_node_id(&resolver, (ASTNode*)cast_node),
-            resolve_node_id(&resolver, (ASTNode*)same_cast_node));
-        for (debug_index = 0u; debug_index < semantic.result.conversion_count; ++debug_index) {
-            const SemanticResultConversion* conversion =
-                &semantic.result.conversions[debug_index];
-            const SemanticResultType* source_result =
-                find_result_type(&semantic.result, conversion->source_type_id);
-            const SemanticResultType* destination_result =
-                find_result_type(&semantic.result, conversion->destination_type_id);
-            fprintf(stderr, "explicit cast record[%u]: node=%u src=%s dst=%s kind=%u flags=%u\\n",
-                debug_index, conversion->node_id,
-                source_result && source_result->name ? source_result->name : "<null>",
-                destination_result && destination_result->name ? destination_result->name : "<null>",
-                conversion->kind, conversion->flags);
-        }
-        if (semantic.result.conversion_count != 2u ||
-            !wide_match || !same_match) goto done;
-    }
-    stage = 5;
+            "u8", SEMANTIC_RESULT_CONVERSION_IDENTITY)) goto done;
 
     if (oir_ast_frontend_measure((ASTNode*)parser->ast_root,
             index, 128u, node_count, &requirements) != OIR_STATUS_OK) goto done;
@@ -381,29 +354,21 @@ static int test_explicit_cast_conversion_record(void) {
     owner_scope = (uint32_t*)calloc((size_t)node_count + 1u, sizeof(*owner_scope));
     if (!records || !fields || !strings || !payload || !artifact ||
         !incoming || !visited || !graph_stack || !owner_scope) goto done;
-    stage = 6;
-    {
-        OirStatus write_status = oir_ast_frontend_write_payload(
-            (ASTNode*)parser->ast_root, index, 128u, node_count, records, node_count,
-            fields, requirements.field_data_length, strings,
-            requirements.string_table_length, payload, requirements.payload_size,
-            &payload_written, &requirements);
-        OirStatus artifact_status = write_status == OIR_STATUS_OK
-            ? oir_semantic_ast_artifact_write(payload, payload_written,
-                &semantic.result, 1701u, artifact, 65536u, &artifact_written)
-            : write_status;
-        OirStatus open_status = artifact_status == OIR_STATUS_OK
-            ? oir_semantic_ast_artifact_open(artifact, artifact_written,
-                &artifact_view, incoming, node_count, visited, node_count,
-                graph_stack, node_count, owner_scope, (size_t)node_count + 1u)
-            : artifact_status;
-        fprintf(stderr, "explicit cast debug: write=%d artifact=%d open=%d count=%u\\n",
-            (int)write_status, (int)artifact_status, (int)open_status,
-            open_status == OIR_STATUS_OK ? artifact_view.conversions.record_count : 0u);
-        if (write_status != OIR_STATUS_OK || artifact_status != OIR_STATUS_OK ||
-            open_status != OIR_STATUS_OK || !artifact_view.has_conversions ||
-            artifact_view.conversions.record_count != 2u) goto done;
-    }
+    if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
+            index, 128u, node_count, records, node_count,
+            fields, requirements.field_data_length,
+            strings, requirements.string_table_length,
+            payload, requirements.payload_size, &payload_written,
+            &requirements) != OIR_STATUS_OK ||
+        oir_semantic_ast_artifact_write(payload, payload_written,
+            &semantic.result, 1701u, artifact, 65536u,
+            &artifact_written) != OIR_STATUS_OK ||
+        oir_semantic_ast_artifact_open(artifact, artifact_written,
+            &artifact_view, incoming, node_count, visited, node_count,
+            graph_stack, node_count, owner_scope,
+            (size_t)node_count + 1u) != OIR_STATUS_OK ||
+        !artifact_view.has_conversions ||
+        artifact_view.conversions.record_count != 2u) goto done;
     {
         uint32_t conversion_index;
         for (conversion_index = 0u; conversion_index < 2u; ++conversion_index) {
@@ -421,7 +386,6 @@ static int test_explicit_cast_conversion_record(void) {
         }
     }
     ok = 1;
-    stage = 7;
 done:
     fprintf(stderr, "explicit cast stage=%d ok=%d result=%d conv=%u\\n", stage, ok,
         initialized ? (int)semantic.result_status : -1,
@@ -1538,7 +1502,7 @@ int main(void) {
         return 1;
     }
     if (!test_bit_byte_semantic_conversion_records()) {
-        fprintf(stderr, "Bit/byte SemanticResult conversion records failed.\\n");
+        fprintf(stderr, "Hard-type SemanticResult conversion records failed.\\n");
         return 1;
     }
     if (!test_explicit_cast_conversion_record()) {
