@@ -27,7 +27,7 @@ The order below is a dependency order. Audit results may mark an item already im
 
 | Order | ID | Work package | Initial status | Depends on |
 |---:|---|---|---|---|
-| 1 | SEM-001 | Scope, symbol table and namespace integrity | AUDIT_REQUIRED | AST / Parser baseline |
+| 1 | SEM-001 | Scope, symbol table and namespace integrity | IN_PROGRESS | AST / Parser baseline |
 | 2 | SEM-002 | Declarations and binding rules | AUDIT_REQUIRED | SEM-001 |
 | 3 | SEM-003 | Primitive, named and composite type system | AUDIT_REQUIRED | SEM-001, SEM-002 |
 | 4 | SEM-004 | Type inference, conversion, promotion and forced types | AUDIT_REQUIRED | SEM-003 |
@@ -310,3 +310,12 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - The earlier CI notes incorrectly framed this as a type-erasure branch issue. We have narrowed the unexpected diagnostic to a parameter declaration location; inspect parameter validation and diagnostic message catalog/code lookup before changing semantics.
 - The `Unknown Message` text appears repeatedly throughout test 68 output for many AST fixtures, suggesting a broader diagnostic-message resolution issue/noisy output. Those repetitions are not themselves the aggregate failure; the exact count mismatch in the safe-reference fixture is.
 - No code changed in this investigation. SEM-001 remains blocked pending root-cause isolation and green CI.
+
+
+## Latest verified progress — SEM-001 imported function selectors (2026-11-20)
+
+- Qualified imported function calls through aliases and namespaces are implemented in the Semantic resolver. The resolver checks export visibility, symbol kind, return/parameter metadata, parameter ordinal integrity and normal call argument compatibility.
+- Direct regression coverage includes valid alias/namespace calls, named arguments, invalid type/count, missing/private exports, local selector collisions, unsafe reference returns, duplicate aliases, duplicate namespaces and alias/namespace cross-collisions.
+- Exact-head commit `c58592567af8b40e99cb6d56f1be32d43886684e`; CI run [44652106466](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44652106466) passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. Platform CTest suites: 74/74 passed.
+- Still required before SEM-001 closure: Semantic Stage DLL end-to-end tests using verified OIR import/interface artifacts; imported values and nominal types; unqualified import collision policy; imported default/variadic signature metadata; and imported type-closure validation.
+- **Status: IN_PROGRESS.** This checkpoint does not close SEM-001 and does not authorize OIR work.
