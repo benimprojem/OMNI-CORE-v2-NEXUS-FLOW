@@ -410,6 +410,10 @@ static Slot* find_slot(SemanticContext* ctx, const char* name) {
     Slot* current = ctx ? ctx->head : NULL;
     if (!name) return NULL;
     while (current) {
+        if (current == ctx->initializing_slot) {
+            current = current->next;
+            continue;
+        }
         if (strcmp(current->name, name) == 0) {
             /*
              * A nominal type declared by a Group is visible only while
@@ -6705,7 +6709,10 @@ static void semantic_check_node(
             initializer_error_baseline = ctx->error_count;
             if (decl->initializer) {
                 const char* init_type;
+                Slot* previous_initializing_slot = ctx->initializing_slot;
+                ctx->initializing_slot = declared_slot;
                 semantic_check(ctx, decl->initializer);
+                ctx->initializing_slot = previous_initializing_slot;
                 if (decl->is_const &&
                     !semantic_is_compile_time_constant_expression(
                         ctx, decl->initializer)) {
