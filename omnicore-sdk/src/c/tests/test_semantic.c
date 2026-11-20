@@ -3404,6 +3404,7 @@ static int check_program_and_block_scope_semantics(void) {
 int main(int argc, char** argv) {
     /* CTest runs from the package root where src/c/lang is staged. */
     msg_init("lang/messages_en.conf");
+    (void)atexit(msg_destroy);
     if (!check_imported_function_call_semantics()) {
         fprintf(stderr, "Qualified imported function call checks failed.\\n");
         return 1;
