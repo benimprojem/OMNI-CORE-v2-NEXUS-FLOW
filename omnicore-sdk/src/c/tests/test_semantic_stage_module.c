@@ -59,6 +59,81 @@ static void* semantic_worker_run(void* argument)
 #endif
 }
 
+static int build_ast_input_artifact(const char* source, uint64_t job_id,
+    uint8_t** out_bytes, size_t* out_length) {
+    ParserContext* parser = NULL;
+    OirAstPointerIndexEntry* index = NULL;
+    OirAstNodeRecord* records = NULL;
+    uint8_t *fields = NULL, *strings = NULL, *payload = NULL, *artifact = NULL;
+    uint32_t node_count = 0u;
+    size_t index_capacity = 256u, field_capacity = 0u, string_capacity = 0u;
+    size_t artifact_capacity = 0u, payload_length = 0u;
+    OirAstFrontendRequirements requirements;
+    OirArtifactHeader header;
+    OirSectionInput section;
+    int ok = 0;
+    if (!source || !out_bytes || !out_length) return 0;
+    *out_bytes = NULL;
+    *out_length = 0u;
+    parser = parser_init_source("semantic-import-stage-test.nxf",
+        (const uint8_t*)source, strlen(source));
+    if (!parser || parser_run(parser) != 0 || !parser->ast_root) goto done;
+    index = (OirAstPointerIndexEntry*)calloc(index_capacity, sizeof(*index));
+    if (!index || oir_ast_frontend_index_build((ASTNode*)parser->ast_root,
+        index, index_capacity, &node_count) != OIR_STATUS_OK ||
+        oir_ast_frontend_measure((ASTNode*)parser->ast_root, index,
+        index_capacity, node_count, &requirements) != OIR_STATUS_OK)
+        goto done;
+    field_capacity = requirements.field_data_length;
+    string_capacity = requirements.string_table_length;
+    records = (OirAstNodeRecord*)calloc(node_count, sizeof(*records));
+    fields = field_capacity ? (uint8_t*)malloc(field_capacity) : NULL;
+    strings = string_capacity ? (uint8_t*)malloc(string_capacity) : NULL;
+    payload = (uint8_t*)malloc(requirements.payload_size);
+    artifact_capacity = OIR_HEADER_SIZE + OIR_SECTION_HEADER_SIZE +
+        requirements.payload_size;
+    artifact = (uint8_t*)malloc(artifact_capacity);
+    if (!records || (field_capacity && !fields) ||
+        (string_capacity && !strings) || !payload || !artifact)
+        goto done;
+    if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
+        index, index_capacity, node_count, records, node_count,
+        fields, field_capacity, strings, string_capacity,
+        payload, requirements.payload_size, &payload_length,
+        &requirements) != OIR_STATUS_OK)
+        goto done;
+    memset(&header, 0, sizeof(header));
+    header.container_major = OIR_CONTAINER_MAJOR;
+    header.container_minor = OIR_CONTAINER_MINOR;
+    header.artifact_kind = OIR_KIND_AST;
+    header.payload_schema_major = 1u;
+    header.payload_schema_minor = 0u;
+    header.producer_stage_id = OCC_STAGE_PARSER;
+    header.validity = OIR_VALIDITY_VALID;
+    header.job_id = job_id;
+    memset(&section, 0, sizeof(section));
+    section.type = OIR_SECTION_PAYLOAD;
+    section.version = 1u;
+    section.flags = OIR_SECTION_FLAG_REQUIRED;
+    section.data = payload;
+    section.length = payload_length;
+    if (oir_artifact_write(artifact, artifact_capacity, &header,
+        &section, 1u, out_length) != OIR_STATUS_OK)
+        goto done;
+    *out_bytes = artifact;
+    artifact = NULL;
+    ok = 1;
+done:
+    free(index);
+    free(records);
+    free(fields);
+    free(strings);
+    free(payload);
+    free(artifact);
+    if (parser) parser_destroy(parser);
+    return ok;
+}
+
 #define CHECK(x) do { if(!(x)) { fprintf(stderr,"FAIL line %d: %s\n",__LINE__,#x); goto cleanup; } } while(0)
 
 int main(int argc,char** argv) {
@@ -68,10 +143,10 @@ int main(int argc,char** argv) {
     ParserContext* parser=NULL; ASTNode* root=NULL;
     OirAstPointerIndexEntry* index=NULL; OirAstNodeRecord* records=NULL;
     uint8_t *fields=NULL,*strings=NULL,*ast_payload=NULL,*ast_artifact=NULL,*semantic_artifact=NULL;
-    uint8_t *imports_artifact=NULL,*interface_artifact=NULL;
+    uint8_t *imports_artifact=NULL,*interface_artifact=NULL,*import_ast_artifact=NULL;
     size_t index_cap=256u,field_cap=0u,string_cap=0u,payload_cap=0u,ast_len=0u,artifact_len=0u;
     size_t fields_len=0u,strings_len=0u,semantic_cap=16u*1024u*1024u,semantic_len=0u;
-    size_t imports_len=0u,interface_len=0u;
+    size_t imports_len=0u,interface_len=0u,import_ast_len=0u;
     uint32_t node_count=0u; OirAstFrontendRequirements req;
     OirArtifactHeader header; OirSectionInput section;
     OccModuleArtifactInputV1 input,import_inputs[3]; OccDiagnosticCollector diagnostics;
@@ -206,16 +281,54 @@ int main(int argc,char** argv) {
     imports_artifact[20]=(uint8_t)OCC_STAGE_OIR_VERIFY;
     imports_artifact[21]=0u; imports_artifact[22]=0u; imports_artifact[23]=0u;
 
-    module_interface.canonical_identity="file:///lib/math.nxf";
-    module_interface.schema_major=OCC_MODULE_INTERFACE_SCHEMA_MAJOR;
-    module_interface.schema_minor=OCC_MODULE_INTERFACE_SCHEMA_MINOR;
-    CHECK(oir_module_interface_artifact_write(&module_interface,77u,
-        interface_artifact,4096u,&interface_len)==OIR_STATUS_OK);
+    {
+        static OccModuleInterfaceSymbol imported_symbols[1];
+        static OccModuleInterfaceType imported_types[1];
+        static OccModuleInterfaceRelation imported_relations[2];
+        memset(imported_symbols,0,sizeof(imported_symbols));
+        memset(imported_types,0,sizeof(imported_types));
+        memset(imported_relations,0,sizeof(imported_relations));
+        imported_symbols[0].source_symbol_id=1u;
+        imported_symbols[0].scope_id=1u;
+        imported_symbols[0].declaration_node_id=1u;
+        imported_symbols[0].type_id=1u;
+        imported_symbols[0].kind=SEMANTIC_RESULT_SYMBOL_FUNCTION;
+        imported_symbols[0].flags=SEMANTIC_RESULT_SYMBOL_FLAG_EXPORTED;
+        imported_symbols[0].name="add";
+        imported_types[0].source_type_id=1u;
+        imported_types[0].kind=SEMANTIC_RESULT_TYPE_PRIMITIVE;
+        imported_types[0].name="i32";
+        imported_relations[0].owner_source_symbol_id=1u;
+        imported_relations[0].type_id=1u;
+        imported_relations[0].ordinal=0u;
+        imported_relations[0].kind=SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER;
+        imported_relations[0].name="left";
+        imported_relations[1].owner_source_symbol_id=1u;
+        imported_relations[1].type_id=1u;
+        imported_relations[1].ordinal=1u;
+        imported_relations[1].kind=SEMANTIC_RESULT_RELATION_FUNCTION_PARAMETER;
+        imported_relations[1].name="right";
+        module_interface.canonical_identity="file:///lib/math.nxf";
+        module_interface.schema_major=OCC_MODULE_INTERFACE_SCHEMA_MAJOR;
+        module_interface.schema_minor=OCC_MODULE_INTERFACE_SCHEMA_MINOR;
+        module_interface.symbols=imported_symbols;
+        module_interface.symbol_count=1u;
+        module_interface.types=imported_types;
+        module_interface.type_count=1u;
+        module_interface.relations=imported_relations;
+        module_interface.relation_count=2u;
+        CHECK(oir_module_interface_artifact_write(&module_interface,77u,
+            interface_artifact,4096u,&interface_len)==OIR_STATUS_OK);
+    }
+    CHECK(build_ast_input_artifact(
+        "use math as m; f:main() { v:result!i32 = m.add(10, 20); }",
+        77u,&import_ast_artifact,&import_ast_len));
+
     interface_artifact[20]=(uint8_t)OCC_STAGE_OIR_VERIFY;
     interface_artifact[21]=0u; interface_artifact[22]=0u; interface_artifact[23]=0u;
 
     free(semantic_artifact); semantic_artifact=NULL; semantic_len=0u;
-    import_inputs[0]=input;
+    import_inputs[0].bytes=import_ast_artifact; import_inputs[0].length=import_ast_len;\n    import_inputs[0].flags=0u; import_inputs[0].reserved=0u;
     import_inputs[1].bytes=imports_artifact; import_inputs[1].length=imports_len;
     import_inputs[2].bytes=interface_artifact; import_inputs[2].length=interface_len;
     CHECK(occ_module_loader_invoke(&loaded,import_inputs,2u,77u,&diagnostics,
@@ -284,7 +397,7 @@ int main(int argc,char** argv) {
     exit_code=0; puts("Real semantic stage shared-module test passed.");
 
 cleanup:
-    free(semantic_artifact); free(imports_artifact); free(interface_artifact);
+    free(semantic_artifact); free(imports_artifact); free(interface_artifact); free(import_ast_artifact);
     oir_module_imports_destroy(&module_imports);
     free(index); free(records); free(fields); free(strings);
     free(ast_payload); free(ast_artifact); free(incoming); free(visited); free(stack); free(owner_scope);
