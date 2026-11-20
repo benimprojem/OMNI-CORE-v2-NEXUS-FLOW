@@ -2986,7 +2986,6 @@ static void semantic_record_operator_promotion(
     if (semantic_integer_type_width(source, &source_width, &source_unsigned) &&
         semantic_integer_type_width(destination, &destination_width,
             &destination_unsigned) &&
-        source_width == destination_width &&
         source_unsigned != destination_unsigned) {
         kind = SEMANTIC_RESULT_CONVERSION_SIGNEDNESS;
     } else if (semantic_integer_type_width(source, &source_width,
