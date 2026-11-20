@@ -76,10 +76,13 @@ static int conversion_matches(
 
 static int test_bit_byte_semantic_conversion_records(void) {
     static const char source[] =
-        "f:main(small!u8) { struct:Packet { v:member!8bit } "
-        "v:one!bit = 1; v:raw!byte = 255; v:flags!8bit = 255; "
-        "v:wide!16bit = flags; v:packet!Packet = Packet { member = 255 }; "
-        "v:large!u64 = 50; flags = small; flags[0] = 1; packet.member = 1; }";
+        "f:main(small!u8,float_source!f32,decimal_source!d32) { "
+        "struct:Packet { v:member!8bit } v:one!bit = 1; v:raw!byte = 255; "
+        "v:flags!8bit = 255; v:wide!16bit = flags; "
+        "v:packet!Packet = Packet { member = 255 }; v:large!u64 = 50; "
+        "v:wide_float!f64 = float_source; "
+        "v:wide_decimal!d64 = decimal_source; "
+        "flags = small; flags[0] = 1; packet.member = 1; }";
     ParserContext* parser = parser_init_source(
         "bit-byte-conversions.nxf", (const uint8_t*)source, sizeof(source) - 1u);
     OirAstPointerIndexEntry index[128];
@@ -88,6 +91,7 @@ static int test_bit_byte_semantic_conversion_records(void) {
     ASTFuncDecl* function;
     ASTBlock* body;
     ASTVarDecl *one, *raw, *flags, *wide, *packet, *large;
+    ASTVarDecl *wide_float, *wide_decimal;
     ASTNode* hard_assignment = NULL;
     ASTNode* hard_index_assignment = NULL;
     ASTNode* hard_member_assignment = NULL;
@@ -123,6 +127,8 @@ static int test_bit_byte_semantic_conversion_records(void) {
     wide = find_local(body->statements, "wide");
     packet = find_local(body->statements, "packet");
     large = find_local(body->statements, "large");
+    wide_float = find_local(body->statements, "wide_float");
+    wide_decimal = find_local(body->statements, "wide_decimal");
     if (packet && packet->initializer &&
         packet->initializer->type == AST_STRUCT_LITERAL) {
         ASTNode* field_node;
@@ -160,7 +166,8 @@ static int test_bit_byte_semantic_conversion_records(void) {
             }
         }
     }
-    if (!one || !raw || !flags || !wide || !packet || !large || !hard_assignment ||
+    if (!one || !raw || !flags || !wide || !packet || !large ||
+        !wide_float || !wide_decimal || !hard_assignment ||
         !hard_index_assignment || !hard_member_assignment ||
         !hard_member_initializer) goto done;
 
@@ -205,11 +212,11 @@ static int test_bit_byte_semantic_conversion_records(void) {
             graph_stack, node_count, owner_scope_by_node,
             (size_t)node_count + 1u) != OIR_STATUS_OK ||
         !artifact_view.has_conversions ||
-        artifact_view.conversions.record_count != 9u)
+        artifact_view.conversions.record_count != 11u)
         goto done;
     {
         uint32_t conversion_index;
-        for (conversion_index = 0u; conversion_index < 9u; ++conversion_index) {
+        for (conversion_index = 0u; conversion_index < 11u; ++conversion_index) {
             OirSemanticConversion encoded;
             const SemanticResultConversion* original =
                 &semantic.result.conversions[conversion_index];
@@ -225,7 +232,7 @@ static int test_bit_byte_semantic_conversion_records(void) {
         }
     }
 
-    ok = semantic.result.conversion_count == 9u &&
+    ok = semantic.result.conversion_count == 11u &&
         conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)one),
             "bit", SEMANTIC_RESULT_CONVERSION_NARROWING) &&
         conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)raw),
@@ -247,7 +254,13 @@ static int test_bit_byte_semantic_conversion_records(void) {
             "8bit", SEMANTIC_RESULT_CONVERSION_NARROWING) &&
         conversion_matches(&semantic.result,
             resolve_node_id(&resolver, (ASTNode*)large),
-            "u64", SEMANTIC_RESULT_CONVERSION_WIDENING);
+            "u64", SEMANTIC_RESULT_CONVERSION_WIDENING) &&
+        conversion_matches(&semantic.result,
+            resolve_node_id(&resolver, (ASTNode*)wide_float),
+            "f64", SEMANTIC_RESULT_CONVERSION_WIDENING) &&
+        conversion_matches(&semantic.result,
+            resolve_node_id(&resolver, (ASTNode*)wide_decimal),
+            "d64", SEMANTIC_RESULT_CONVERSION_WIDENING);
     if (!ok) fprintf(stderr, "Bit/byte conversion records: count=%u\n",
         semantic.result.conversion_count);
 done:
