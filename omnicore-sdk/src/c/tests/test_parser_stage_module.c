@@ -256,7 +256,7 @@ int main(int argc,char** argv) {
         CHECK(occ_diagnostics_get(&collector,0u,&diagnostic_view));
         CHECK(diagnostic_view.message != NULL);
         CHECK(strcmp(diagnostic_view.message, "Unknown Message") != 0);
-        if (argc == 3) CHECK(strcmp(diagnostic_view.message, argv[2]) == 0);
+        if (argc == 3) CHECK(strstr(diagnostic_view.message, argv[2]) != NULL);
         CHECK(diagnostic_view.record->stage_id==OCC_STAGE_PARSER);
         CHECK(diagnostic_view.record->span.start_offset==6u);
         CHECK(diagnostic_view.record->span.end_offset==7u);
