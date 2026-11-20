@@ -329,7 +329,7 @@ v:converted = cast(value, i32);
 panic("critical failure");
 ```
 
-- `cast(value, type)`: İlk argüman ifade, ikinci argüman tür adıdır. Tür adı primitive tür tokenı veya tanımlayıcı olabilir.
+- `cast(value, type)`: İlk argüman kaynak ifade, ikinci argüman hedef tür adıdır. Semantic, numeric primitive türler arasında açık dönüşüme ve uyumlu tür dönüşümlerine izin verir; ham pointer'a açık kaçış (`&T` → `*T`) ayrıca desteklenir. Numeric olmayan uyumsuz kategoriler (ör. `str` → `i32`) reddedilir. `any`/raw pointer'dan güvenli referans üretilemez; güvenli referans `any` içine cast edilerek provenance bilgisi kaybedilemez. Cast sonucu hedef türdür. Sayısal daraltma/kesme ve hedef mimariye özgü çalışma zamanı ayrıntıları OIR/backend sözleşmesinde ayrıca tanımlanacaktır.
 - `panic("message")`: Mevcut Parser uygulamasında mesaj string literalidir. Değişken veya genel ifade mesajı henüz desteklenmiş kabul edilmez.
 
 **Desteklenen sayısal yazımlar:** Ondalık tam sayı/ondalık kesir (`12`, `3.14`), hexadecimal (`0xFF`), binary (`0b1010`), octal (`0o17`), bilimsel gösterim (`10E3`, `1e-3`) ve rakam gruplama ayıracı (`1_000`, `1.5_25e-2`). Ayraç yalnızca iki geçerli rakam arasında kullanılabilir. Tür ekleri (`12u8`, `1.5f32`) desteklenmez ve tek bir `TOKEN_ERROR` ile reddedilir. Rolling delay için tanımlı `500ms` biçimi istisnadır: Lexer bunu `TOKEN_NUMBER` + `ms` identifier tokenlarına ayırır; birim Parser tarafından rolling metadata bağlamında tüketilir. `^^` sayısal literal biçimi değil, ayrı bir üs alma operatörüdür. Parser `^^` operatörünü right-associative olarak ayrıştırır; `a^^b^^c`, `a^^(b^^c)` biçimindedir. Üs alma, unary eksi işaretinden daha sıkı bağlanır.
