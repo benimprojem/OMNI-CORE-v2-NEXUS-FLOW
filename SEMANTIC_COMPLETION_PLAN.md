@@ -103,6 +103,13 @@ The order below is a dependency order. Audit results may mark an item already im
 - Explicit numeric casts now produce SemanticResult conversion records with source/target type IDs, conversion classification and the explicit flag. A dedicated SemanticResult → OIR artifact round-trip test passed all five CI jobs in [44740741699](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44740741699). Identity classification now compares the underlying SemanticResult type shape while ignoring only the Hard-Lock flag; tests cover `u8`→`i64` signedness and `u8`→`u8` identity. The fix passed all five CI jobs in [44742242545](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44742242545). The cleaned regression run [44742540343](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44742540343) has Windows, Ubuntu, macOS and ASan/UBSan green; Valgrind is still running.
 - **SEM-004 remains IN_PROGRESS**; wide integer literal evaluation is explicitly deferred to a future portable 128/256-bit utility library. Runtime arithmetic overflow is deliberately left undefined by the current language contract and must not be invented in Semantic. Runtime arithmetic overflow is also deliberately left undefined by the current language contract and must not be invented in Semantic. No OIR phase advancement is authorized.
 
+### SEM-004 audit finding — mixed integer/float promotion (decision pending)
+
+- The Semantic promotion helper currently accepts integer/integer combinations and same-family float/decimal widening, but rejects mixed integer/float operands (e.g. `i32 + f64`).
+- Arithmetic regression tests currently assert that mixed integer/float operands fail. The older syntax example implied that `i * 2.5` produces a floating result, so the documentation was clarified to avoid promising behavior that the implementation does not support.
+- **No language behavior changed in this audit step.** Before implementation, resolve whether mixed numeric families should promote (and define decimal-vs-binary float interactions). Once decided, update promotion helper, conversion metadata, diagnostics and tests together. This remains an SEM-004 closure blocker.
+
+
 ### SEM-005 — Pointer and reference safety
 - Inspect: safe `&T` / `&mut T`, raw `*T`, borrow exclusivity, projection overlap, lifetime origins, initialization, nullability, escape and callback return provenance.
 - Positive tests: independent struct fields/constant indexes, valid shared/exclusive borrow, initialized reference use, valid parameter-origin propagation.
