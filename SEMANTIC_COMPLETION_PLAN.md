@@ -355,8 +355,8 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 
 - Expanded initializer regressions to cover explicit and inferred `v:` self-reference, `m:` self-reference, `c:` self-reference, legal outer-scope shadow initialization and outer-binding type mismatch.
 - Duplicate follow-on diagnostics are suppressed when an immutable or compile-time constant initializer already has a more specific expression error.
-- Exact branch-head commit: `a288089624009cb5fac4521a95f67f3eded15fbb`; tests were added in `c6d30b62e3e014351fa160ed762175d5229e960d`.
-- CI run [44655601539](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44655601539) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. All platform CTest suites passed 74/74; Valgrind reported zero errors and zero lost bytes.
+- Exact branch-head commit: `f707fb87b044a5a7ecf2607f359ffc04f5bec236`; declaration regression matrix was added in `771c2d5080c0a2b7902a0057a8b4d4eb86a9b976`.
+- CI run [44656105229](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656105229) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. All platform CTest suites passed 74/74; Valgrind reported zero errors and zero lost bytes.
 - SEM-002 remains **IN_PROGRESS**: declaration matrix audit is not yet complete. General definite-initialization path analysis remains assigned to SEM-010.
 
 #### Additional SEM-002 failure record
@@ -364,3 +364,4 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 | Failure ID | Failed evidence | Finding | Fix | Retest |
 |---|---|---|---|---|
 | SEM-002-F05 | Run `44655518981`, Semantic CTest | An invalid `m:` self-initializer emitted both the specific undefined-name diagnostic and a redundant “type cannot be determined” diagnostic | Gate the secondary diagnostic on no earlier initializer error (`a288089`) | Run `44655601539`: 74/74 CTests and all five CI jobs passed |
+| SEM-002-F06 | Run `44655932761`, Semantic CTest | An unknown named type produced the primary unknown-type diagnostic plus a redundant initializer type-mismatch diagnostic | Track errors from type-expression validation and suppress the generic initializer mismatch when the declared type is already invalid (`f707fb8`) | Run `44656105229`: 74/74 CTests and all five CI jobs passed |
