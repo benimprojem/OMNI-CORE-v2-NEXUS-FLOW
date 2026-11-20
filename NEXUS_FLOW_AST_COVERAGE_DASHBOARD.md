@@ -1121,3 +1121,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Commit: `c58592567af8b40e99cb6d56f1be32d43886684e`.
 - CI run [44652106466](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44652106466) completed successfully: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all green; 74/74 CTests passed.
 - This verifies direct resolver behavior only. Real Stage DLL imported-call artifact integration and the remaining SEM-001 items stay open.
+
+
+### Semantic declaration binding — SEM-002 in progress (2026-11-20)
+
+- Fixed initializer name lookup for `v:` declarations: the declaration under construction is hidden while its initializer is resolved and type-checked, so an inner shadow can read the outer binding and a declaration cannot resolve itself accidentally.
+- Added positive/negative regressions for valid shadow initialization, self-reference without an outer binding, and an initializer whose type must be resolved from the outer binding.
+- `SemanticContext.initializing_slot` is initialized and its lifetime is restored after the complete initializer validation path.
+- Exact-head code/test commit `580a0b461a333c938981847972a8b8fedc495b40`; CI [44655165110](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44655165110) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; 74/74 platform CTests passed; Valgrind error summary is zero.
+- SEM-002 remains **IN_PROGRESS** while inferred/global/local declaration cases and immutable/compile-time binding edge cases are audited. General path-sensitive definite initialization remains in SEM-010.
