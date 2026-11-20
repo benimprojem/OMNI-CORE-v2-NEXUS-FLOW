@@ -283,7 +283,7 @@ static int test_explicit_cast_conversion_record(void) {
     ParserContext* parser = parser_init_source(
         "explicit-cast-conversion.nxf",
         (const uint8_t*)source, sizeof(source) - 1u);
-    OirAstPointerIndexEntry index[32];
+    OirAstPointerIndexEntry index[128];
     ResolverContext resolver;
     SemanticContext semantic;
     ASTFuncDecl* function;
@@ -307,11 +307,11 @@ static int test_explicit_cast_conversion_record(void) {
     stage = 1;
     memset(index, 0, sizeof(index));
     if (oir_ast_frontend_index_build(
-            (ASTNode*)parser->ast_root, index, 32u, &node_count) != OIR_STATUS_OK)
+            (ASTNode*)parser->ast_root, index, 128u, &node_count) != OIR_STATUS_OK)
         goto done;
     stage = 2;
     resolver.entries = index;
-    resolver.capacity = 32u;
+    resolver.capacity = 128u;
     function = (ASTFuncDecl*)((ASTProgram*)parser->ast_root)->declarations;
     if (!function || !function->body || function->body->type != AST_BLOCK) goto done;
     wide = find_local(((ASTBlock*)function->body)->statements, "wide");
@@ -353,7 +353,7 @@ static int test_explicit_cast_conversion_record(void) {
     stage = 5;
 
     if (oir_ast_frontend_measure((ASTNode*)parser->ast_root,
-            index, 32u, node_count, &requirements) != OIR_STATUS_OK) goto done;
+            index, 128u, node_count, &requirements) != OIR_STATUS_OK) goto done;
     records = (OirAstNodeRecord*)calloc(node_count, sizeof(*records));
     fields = (uint8_t*)malloc(requirements.field_data_length ?
         requirements.field_data_length : 1u);
@@ -370,7 +370,7 @@ static int test_explicit_cast_conversion_record(void) {
     stage = 6;
     {
         OirStatus write_status = oir_ast_frontend_write_payload(
-            (ASTNode*)parser->ast_root, index, 32u, node_count, records, node_count,
+            (ASTNode*)parser->ast_root, index, 128u, node_count, records, node_count,
             fields, requirements.field_data_length, strings,
             requirements.string_table_length, payload, requirements.payload_size,
             &payload_written, &requirements);
