@@ -2868,6 +2868,113 @@ static int semantic_integer_type_width(
  * bit/byte representations. Representation types retain their exact width:
  * bit=1, byte=8, Nbit=N, Nbyte=8*N.
  */
+static int semantic_float_family_width(
+    const char* type_name, char* family_out, uint64_t* width_out
+) {
+    const char* name = type_name;
+    if (!name || !family_out || !width_out) return 0;
+    if (*name == '!') ++name;
+    if ((name[0] != 'f' && name[0] != 'd') || !name[1]) return 0;
+    if (strcmp(name + 1, "32") == 0) *width_out = 32u;
+    else if (strcmp(name + 1, "64") == 0) *width_out = 64u;
+    else if (strcmp(name + 1, "128") == 0) *width_out = 128u;
+    else return 0;
+    *family_out = name[0];
+    return 1;
+}
+
+/* Integer promotion follows C usual arithmetic conversions:
+   same-sign operands choose the wider type; mixed-sign operands choose the
+   signed type only when it is wider, otherwise the wider unsigned type. */
+static const char* semantic_numeric_promotion_type(
+    const char* left_type, const char* right_type
+) {
+    const char* left = left_type;
+    const char* right = right_type;
+    uint64_t left_width = 0u, right_width = 0u;
+    int left_unsigned = 0, right_unsigned = 0;
+    char left_family = 0, right_family = 0;
+    if (!left || !right) return NULL;
+    if (*left == '!') ++left;
+    if (*right == '!') ++right;
+    if (strcmp(left, right) == 0) return left;
+    if (semantic_integer_type_width(left, &left_width, &left_unsigned) &&
+        semantic_integer_type_width(right, &right_width, &right_unsigned)) {
+        if (left_unsigned == right_unsigned)
+            return left_width >= right_width ? left : right;
+        if (!left_unsigned && left_width > right_width) return left;
+        if (!right_unsigned && right_width > left_width) return right;
+        if (left_unsigned && left_width >= right_width) return left;
+        return right;
+    }
+    if (semantic_float_family_width(left, &left_family, &left_width) &&
+        semantic_float_family_width(right, &right_family, &right_width) &&
+        left_family == right_family)
+        return left_width >= right_width ? left : right;
+    return NULL;
+}
+
+static const char* semantic_bitwise_promotion_type(
+    const char* left_type, const char* right_type
+) {
+    const char* left = left_type;
+    const char* right = right_type;
+    if (!left || !right) return NULL;
+    if (*left == '!') ++left;
+    if (*right == '!') ++right;
+    if (is_integer_primitive_type(left) &&
+        is_integer_primitive_type(right))
+        return semantic_numeric_promotion_type(left, right);
+    if (strcmp(left, right) == 0 &&
+        is_bitwise_primitive_type(left) &&
+        is_bitwise_primitive_type(right)) return left;
+    return NULL;
+}
+
+static void semantic_record_operator_promotion(
+    SemanticContext* ctx, ASTNode* operation,
+    const char* source_type, const char* destination_type,
+    uint32_t operand_ordinal
+) {
+    uint32_t node_id, source_id, destination_id;
+    uint64_t source_width = 0u, destination_width = 0u;
+    int source_unsigned = 0, destination_unsigned = 0;
+    uint16_t kind = SEMANTIC_RESULT_CONVERSION_WIDENING;
+    SemanticResultStatus status;
+    const char* source = source_type;
+    const char* destination = destination_type;
+    if (!ctx || !ctx->result_enabled ||
+        ctx->result_status != SEMANTIC_RESULT_OK ||
+        !operation || !source || !destination) return;
+    if (*source == '!') ++source;
+    if (*destination == '!') ++destination;
+    if (strcmp(source, destination) == 0) return;
+    node_id = semantic_node_id(ctx, operation);
+    source_id = semantic_type_id(ctx, source, 0);
+    destination_id = semantic_type_id(ctx, destination, 0);
+    if (!node_id || !source_id || !destination_id) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+        return;
+    }
+    if (semantic_integer_type_width(source, &source_width, &source_unsigned) &&
+        semantic_integer_type_width(destination, &destination_width,
+            &destination_unsigned) &&
+        source_width == destination_width &&
+        source_unsigned != destination_unsigned) {
+        kind = SEMANTIC_RESULT_CONVERSION_SIGNEDNESS;
+    } else if (semantic_integer_type_width(source, &source_width,
+                   &source_unsigned) &&
+               semantic_integer_type_width(destination, &destination_width,
+                   &destination_unsigned) &&
+               source_width > destination_width) {
+        kind = SEMANTIC_RESULT_CONVERSION_NARROWING;
+    }
+    status = semantic_result_add_conversion(
+        &ctx->result, node_id, operand_ordinal, source_id, destination_id,
+        kind, SEMANTIC_RESULT_CONVERSION_FLAG_IMPLICIT);
+    semantic_set_result_error(ctx, status);
+}
+
 static int semantic_shift_value_width(
     const char* type_name, uint64_t* width_out
 ) {
