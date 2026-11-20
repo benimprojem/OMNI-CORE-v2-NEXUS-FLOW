@@ -605,6 +605,61 @@ static int check_malformed_intrinsic_ast(void) {
     return ok;
 }
 
+static int check_malformed_recursive_type_expression_ast(void) {
+    static const struct {
+        uint32_t kind;
+        uint32_t flags;
+        int child_mode;
+        const char* expected;
+    } cases[] = {
+        { AST_TYPE_POINTER, 0u, 0,
+          "Pointer type expression requires a target type." },
+        { AST_TYPE_REFERENCE, 1u, 1,
+          "Recursive type expression contains a node that is not a type expression." },
+        { AST_TYPE_QUALIFIED, AST_TYPE_FLAG_HARD_TYPED | AST_TYPE_FLAG_MUTABLE_REFERENCE, 2,
+          "Type expression contains unsupported qualifier flags." },
+        { AST_TYPE_FUNCTION, 0u, 3,
+          "Function type expression requires a return type." }
+    };
+    size_t i;
+    for (i = 0u; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+        ASTTypeExpr* expression = (ASTTypeExpr*)ast_create(AST_TYPE_EXPR);
+        SemanticContext semantic;
+        int ok;
+        if (!expression) return 0;
+        expression->kind = cases[i].kind;
+        expression->flags = cases[i].flags;
+        if (cases[i].child_mode == 1) {
+            expression->child = ast_create(AST_LITERAL);
+            if (!expression->child) {
+                ast_destroy((ASTNode*)expression);
+                return 0;
+            }
+        } else if (cases[i].child_mode == 2) {
+            expression->child = (ASTNode*)ast_create(AST_TYPE_EXPR);
+            if (!expression->child) {
+                ast_destroy((ASTNode*)expression);
+                return 0;
+            }
+            ((ASTTypeExpr*)expression->child)->kind = AST_TYPE_NAMED;
+            ((ASTTypeExpr*)expression->child)->name =
+                semantic_test_copy_text("i32");
+            if (!((ASTTypeExpr*)expression->child)->name) {
+                ast_destroy((ASTNode*)expression);
+                return 0;
+            }
+        }
+        semantic_init(&semantic, "semantic-malformed-type-expression.nxf", NULL);
+        semantic_check(&semantic, (ASTNode*)expression);
+        ok = semantic.error_count == 1 && semantic.error_head &&
+            strstr(semantic.error_head->message, cases[i].expected) != NULL;
+        semantic_destroy(&semantic);
+        ast_destroy((ASTNode*)expression);
+        if (!ok) return 0;
+    }
+    return 1;
+}
+
 static int check_thread_block_value_captures(void);
 
 static int check_thread_api_is_module_call(void) {
@@ -3693,6 +3748,10 @@ int main(int argc, char** argv) {
     }
     if (!check_thread_api_is_module_call()) {
         fprintf(stderr, "Thread module call boundary checks failed.\n");
+        return 1;
+    }
+    if (!check_malformed_recursive_type_expression_ast()) {
+        fprintf(stderr, "Malformed recursive type-expression AST checks failed.\n");
         return 1;
     }
     if (!check_unnamed_declaration_ast()) {
