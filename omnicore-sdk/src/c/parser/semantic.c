@@ -2831,20 +2831,13 @@ static int semantic_shift_value_width(
     return semantic_integer_type_width(type_name, width_out, &is_unsigned);
 }
 
-/* Shift values may be integer primitives or fixed Nbit vectors. The scalar
-   bit and raw byte/Nbyte storage types require explicit conversion first. */
+/* The core Semantic contract permits integer shift values only.
+   bit/byte storage representations require explicit conversion to an integer;
+   Nbit vector shifting remains gated by its future OIR bit-vector operations. */
 static int semantic_is_shift_value_type(const char* type_name) {
-    static const char* const bit_vectors[] = {
-        "8bit", "16bit", "32bit", "64bit", "128bit"
-    };
-    size_t i;
     if (!type_name) return 0;
     if (type_name[0] == '!') ++type_name;
-    if (is_integer_primitive_type(type_name)) return 1;
-    for (i = 0u; i < sizeof(bit_vectors) / sizeof(bit_vectors[0]); ++i) {
-        if (strcmp(type_name, bit_vectors[i]) == 0) return 1;
-    }
-    return 0;
+    return is_integer_primitive_type(type_name);
 }
 
 /*
