@@ -6710,7 +6710,8 @@ static void semantic_check_node(
                 if (((declared_slot && semantic_type_is_any(
                         ctx, declared_slot->type_name)) ||
                      (declared_slot && semantic_is_array_type_name(
-                        declared_slot->type_name)) ||
+                        declared_slot->type_name) &&
+                      decl->initializer->type != AST_ARRAY_LITERAL) ||
                      (declared_slot && declared_slot->type_name &&
                       strcmp(declared_slot->type_name, "tuple") == 0) ||
                      (decl->initializer->type == AST_STRUCT_LITERAL) ||
