@@ -2471,6 +2471,12 @@ static int are_types_compatible(SemanticContext* ctx, const char* type1, const c
     t1 = (type1[0] == '!') ? type1 + 1 : type1;
     t2 = (type2[0] == '!') ? type2 + 1 : type2;
     if (strcmp(t1, t2) == 0) return 1;
+    /* any is a dynamic value destination: accept ordinary values here.
+       Safe-reference erasure is rejected explicitly at the declaration or
+       assignment site before this compatibility check is applied. A value
+       whose source type is any is not implicitly compatible with a concrete
+       destination because its runtime type is not statically guaranteed. */
+    if (semantic_type_is_any(ctx, t1)) return 1;
     /* `t` is the language's implicit type variable; call-site inference
        binds it to the concrete argument/initializer type. */
     if (strcmp(t1, "t") == 0 || strcmp(t2, "t") == 0) return 1;
