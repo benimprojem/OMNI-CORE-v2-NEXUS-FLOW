@@ -3266,6 +3266,19 @@ static int check_group_type_scope_semantics(void) {
         check_source(method_alias_conflicts_with_function, 1);
 }
 
+static int check_declaration_initializer_binding_semantics(void) {
+    const char* valid_outer_shadow_initializer =
+        "f:main() { v:value!i32 = 7; { v:value!i32 = value; } }";
+    const char* invalid_self_initializer =
+        "f:main() { v:value!i32 = value; }";
+    const char* outer_type_must_be_used =
+        "f:main() { v:value!str = \"outer\"; "
+        "{ v:value!i32 = value; } }";
+    return check_source(valid_outer_shadow_initializer, 0) &&
+        check_source(invalid_self_initializer, 1) &&
+        check_source(outer_type_must_be_used, 1);
+}
+
 static int check_m_immutable_value_semantics(void) {
     return
         check_source("m:answer = 42; f:main() { echo(answer); }", 0) &&
@@ -3457,6 +3470,10 @@ int main(int argc, char** argv) {
     }
     if (!check_fast_exec_asm_semantics()) {
         fprintf(stderr, "FASTEXEC/ASM semantic checks failed.\\n");
+        return 1;
+    }
+    if (!check_declaration_initializer_binding_semantics()) {
+        fprintf(stderr, "Declaration initializer binding checks failed.\n");
         return 1;
     }
     if (!check_m_immutable_value_semantics()) {
