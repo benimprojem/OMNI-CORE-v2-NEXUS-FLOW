@@ -384,3 +384,21 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Read-before-initialization is correctly assigned to SEM-005 for reference/pointer state and SEM-010 for path-sensitive ordinary-variable flow; it is no longer duplicated in SEM-002's declaration-binding acceptance criteria.
 - Exact test commit: `4aa4401fad8a23e77c5b0980d8b959a3eee803e1`; CI [44656744444](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656744444) passed all five jobs: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. Platform CTest suites passed 74/74; Valgrind reported zero errors and zero lost bytes.
 - **SEM-002: VERIFIED.** Next package: **SEM-003 — Primitive, named and composite type system**. OIR remains gated until all Semantic work packages pass.
+
+
+### SEM-003 progress — recursive named and aggregate type validation (2026-11-20)
+
+- Added a bounded Semantic type-graph walk for aggregate fields. By-value recursion through a named struct/union or a NewType alias is rejected with a field-local diagnostic and a raw-pointer correction.
+- Fixed-size array fields participate in by-value recursion checks. A dynamic array dimension and raw pointer indirection break the inline layout cycle and remain valid.
+- Regression cases cover self-referential NewType rejection, direct by-value recursive struct/union rejection, fixed-array recursive field rejection, and valid pointer/dynamic-array recursive fields.
+- Exact-head code commit: `def6d50612a78af44918f3295625ec38166fd06e`; tests are in `fac0515a71548e907510413b1c785dd60157c99d`.
+- CI [44658186976](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658186976) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; 74/74 platform CTests passed and Valgrind reported zero errors and zero lost bytes.
+- **SEM-003 remains IN_PROGRESS.** Remaining audit: complete primitive spelling/type-result mapping cross-check, nested recursive type-expression cases, NewType chain identity/base-type metadata, and malformed type-expression payloads.
+
+#### SEM-003 failure/retest records
+
+| Failure ID | Failed evidence | Finding | Fix | Retest |
+|---|---|---|---|---|
+| SEM-003-F01 | Run `44657256324`, Semantic CTest | By-value self-recursive `struct` was accepted (`expected=1 actual=0`) | Add aggregate field type-graph recursion validation (`bda095c`) | Run `44657534998`: direct recursive struct/union cases passed |
+| SEM-003-F02 | Run `44657455834`, Semantic CTest | Named type expressions were excluded from recursion validation even when their resolved `type_name` was available | Include named recursive type expressions in the field check (`896f803`) | Run `44657534998`: direct recursive type checks passed |
+| SEM-003-F03 | Run `44657858340`, Semantic CTest | Fixed-array recursive fields were accepted because array fields were excluded from by-value layout checks | Check fully fixed array storage while allowing dynamic dimensions to break the cycle (`def6d50`) | Run `44658186976`: 74/74 CTests, all five CI jobs green, Valgrind clean |
