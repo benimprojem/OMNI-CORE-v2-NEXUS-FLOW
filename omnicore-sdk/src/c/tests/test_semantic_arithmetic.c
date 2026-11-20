@@ -661,6 +661,9 @@ int main(void) {
         "f:main() {\n    v:x!i32 = 1;\n    x = 2.0;\n}",
         "Operator '='", "f64", 3)) return 1;
     if (!check_error_detail(
+        "f:main() {\n    v:value!8bit = 256;\n}",
+        "source type 'i32'", "target '8bit'", 2)) return 1;
+    if (!check_error_detail(
         "f:main() {\n    struct: Point { v:x!i32 }\n    v:p!Point;\n    p.x = \"bad\";\n}",
         "field", "str", 4)) return 1;
     if (!check_malformed_assignment()) return 1;
