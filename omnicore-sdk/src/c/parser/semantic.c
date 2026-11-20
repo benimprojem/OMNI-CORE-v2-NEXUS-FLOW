@@ -6565,6 +6565,7 @@ static void semantic_check_node(
             existing = find_slot(ctx, immutable->name);
             Slot* declared_slot = NULL;
             const char* value_type = NULL;
+            int source_error_baseline = ctx->error_count;
             if (immutable->source) {
                 /* Resolve before introducing the name: m:x = x must not
                    accidentally resolve to the declaration itself. */
@@ -6597,7 +6598,8 @@ static void semantic_check_node(
                                 inferred_type_id);
                         semantic_set_result_error(ctx, infer_status);
                     }
-                } else if (declared_slot) {
+                } else if (declared_slot &&
+                    ctx->error_count == source_error_baseline) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "The initializer of an immutable m: value must have a determinable type.");
                 }
