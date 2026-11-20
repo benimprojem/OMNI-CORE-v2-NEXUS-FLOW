@@ -76,8 +76,8 @@ static int conversion_matches(
 
 static int test_bit_byte_semantic_conversion_records(void) {
     static const char source[] =
-        "f:main() { v:one!bit = 1; v:raw!byte = 255; "
-        "v:flags!8bit = 255; v:wide!16bit = flags; }";
+        "f:main(small!u8) { v:one!bit = 1; v:raw!byte = 255; "
+        "v:flags!8bit = 255; v:wide!16bit = flags; flags = small; }";
     ParserContext* parser = parser_init_source(
         "bit-byte-conversions.nxf", (const uint8_t*)source, sizeof(source) - 1u);
     OirAstPointerIndexEntry index[128];
@@ -86,6 +86,8 @@ static int test_bit_byte_semantic_conversion_records(void) {
     ASTFuncDecl* function;
     ASTBlock* body;
     ASTVarDecl *one, *raw, *flags, *wide;
+    ASTNode* hard_assignment = NULL;
+    ASTNode* statement;
     uint32_t node_count = 0u;
     OirAstFrontendRequirements requirements;
     OirAstNodeRecord* ast_records = NULL;
@@ -114,7 +116,18 @@ static int test_bit_byte_semantic_conversion_records(void) {
     raw = find_local(body->statements, "raw");
     flags = find_local(body->statements, "flags");
     wide = find_local(body->statements, "wide");
-    if (!one || !raw || !flags || !wide) goto done;
+    for (statement = body->statements; statement; statement = statement->next) {
+        if (statement->type == AST_ASSIGNMENT) {
+            ASTBinaryExpr* assignment = (ASTBinaryExpr*)statement;
+            if (assignment->left && assignment->left->type == AST_IDENTIFIER &&
+                ((ASTIdentifier*)assignment->left)->name &&
+                strcmp(((ASTIdentifier*)assignment->left)->name, "flags") == 0) {
+                hard_assignment = statement;
+                break;
+            }
+        }
+    }
+    if (!one || !raw || !flags || !wide || !hard_assignment) goto done;
 
     semantic_init(&semantic, "bit-byte-conversions.nxf", NULL);
     semantic_initialized = 1;
@@ -157,11 +170,11 @@ static int test_bit_byte_semantic_conversion_records(void) {
             graph_stack, node_count, owner_scope_by_node,
             (size_t)node_count + 1u) != OIR_STATUS_OK ||
         !artifact_view.has_conversions ||
-        artifact_view.conversions.record_count != 4u)
+        artifact_view.conversions.record_count != 5u)
         goto done;
     {
         uint32_t conversion_index;
-        for (conversion_index = 0u; conversion_index < 4u; ++conversion_index) {
+        for (conversion_index = 0u; conversion_index < 5u; ++conversion_index) {
             OirSemanticConversion encoded;
             const SemanticResultConversion* original =
                 &semantic.result.conversions[conversion_index];
@@ -177,7 +190,7 @@ static int test_bit_byte_semantic_conversion_records(void) {
         }
     }
 
-    ok = semantic.result.conversion_count == 4u &&
+    ok = semantic.result.conversion_count == 5u &&
         conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)one),
             "bit", SEMANTIC_RESULT_CONVERSION_NARROWING) &&
         conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)raw),
@@ -185,7 +198,9 @@ static int test_bit_byte_semantic_conversion_records(void) {
         conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)flags),
             "8bit", SEMANTIC_RESULT_CONVERSION_NARROWING) &&
         conversion_matches(&semantic.result, resolve_node_id(&resolver, (ASTNode*)wide),
-            "16bit", SEMANTIC_RESULT_CONVERSION_WIDENING);
+            "16bit", SEMANTIC_RESULT_CONVERSION_WIDENING) &&
+        conversion_matches(&semantic.result, resolve_node_id(&resolver, hard_assignment),
+            "8bit", SEMANTIC_RESULT_CONVERSION_EXPLICIT_CAST);
     if (!ok) fprintf(stderr, "Bit/byte conversion records: count=%u\n",
         semantic.result.conversion_count);
 done:
