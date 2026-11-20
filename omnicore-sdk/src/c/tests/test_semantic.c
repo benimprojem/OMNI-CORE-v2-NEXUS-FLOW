@@ -614,7 +614,7 @@ static int check_malformed_recursive_type_expression_ast(void) {
     } cases[] = {
         { AST_TYPE_POINTER, 0u, 0,
           "Pointer type expression requires a target type." },
-        { AST_TYPE_REFERENCE, 1u, 1,
+        { AST_TYPE_REFERENCE, 0u, 1,
           "Recursive type expression contains a node that is not a type expression." },
         { AST_TYPE_QUALIFIED, AST_TYPE_FLAG_HARD_TYPED | AST_TYPE_FLAG_MUTABLE_REFERENCE, 2,
           "Type expression contains flags that are not valid for its kind." },
