@@ -1137,5 +1137,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Additional negative cases now cover explicit and inferred `v:` self-reference, immutable `m:` self-reference and compile-time `c:` self-reference.
 - Invalid initializers retain the specific underlying diagnostic without an additional redundant “type cannot be determined” message.
 - Valid nested shadowing resolves the outer binding during initializer type checking; the new declaration becomes visible only after initializer validation.
-- Exact-head commit `a288089624009cb5fac4521a95f67f3eded15fbb`; CI [44655601539](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44655601539) passed all five jobs and 74/74 CTests on Windows, Ubuntu and macOS; ASan/UBSan and Valgrind were clean.
+- Exact-head commit `f707fb87b044a5a7ecf2607f359ffc04f5bec236`; regression matrix `771c2d5080c0a2b7902a0057a8b4d4eb86a9b976`. CI [44656105229](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656105229) passed all five jobs and 74/74 CTests on Windows, Ubuntu and macOS; ASan/UBSan and Valgrind were clean.
 - SEM-002 remains **IN_PROGRESS** pending the remaining declaration/binding audit; no OIR progression is authorized.
+
+
+### SEM-002 diagnostic cascade correction (2026-11-20)
+
+- A regression for an unknown declared type exposed a second, redundant initializer mismatch after the primary unknown-type error. Semantic now records errors from type-expression validation and suppresses the generic initializer mismatch when the declared type is already invalid.
+- The final declaration matrix covers inferred and explicit variables, same-scope redeclaration, unknown types, compile-time constant redeclaration, and invalid self-initializers for `v:`, `m:`, and `c:`.
+- Exact-head CI [44656105229](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656105229) passed all five jobs; 74/74 CTests passed and Valgrind reported zero errors.
