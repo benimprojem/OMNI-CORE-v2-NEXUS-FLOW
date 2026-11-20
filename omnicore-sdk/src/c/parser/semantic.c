@@ -805,6 +805,18 @@ static int semantic_format_array_signature(
 
 
 static int is_numeric_primitive_type(const char* type_name);
+static int is_bitwise_primitive_type(const char* type_name);
+static const char* semantic_numeric_promotion_type(
+    const char* left_type, const char* right_type
+);
+static const char* semantic_bitwise_promotion_type(
+    const char* left_type, const char* right_type
+);
+static void semantic_record_operator_promotion(
+    SemanticContext* ctx, ASTNode* operation,
+    const char* source_type, const char* destination_type,
+    uint32_t operand_ordinal
+);
 
 static int semantic_is_map_key_type_depth(
     SemanticContext* ctx, const char* type_name, unsigned int depth
