@@ -5060,7 +5060,13 @@ static void semantic_validate_call_arguments(
             }
             if (function_slot->declaration_node &&
                 function_slot->declaration_node->type == AST_EXTERN_DECL &&
-                semantic_type_or_callback_contract_contains_safe_reference(ctx, argument_type, 0u)) {
+                !(expected_type && semantic_type_is_any(ctx, expected_type) &&
+                  (semantic_expression_contains_safe_reference(
+                       ctx, argument_value, 0u) ||
+                   semantic_type_or_callback_contract_contains_safe_reference(
+                       ctx, argument_type, 0u))) &&
+                semantic_type_or_callback_contract_contains_safe_reference(
+                    ctx, argument_type, 0u)) {
                 report_issue(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
                     "A safe reference or callback signature containing one cannot cross an extern call boundary without an explicit lifetime/ABI contract.",
                     "Pass a value or explicitly managed raw pointer, or wrap the external API with a typed Nexus Flow function that enforces the reference lifetime locally.",
