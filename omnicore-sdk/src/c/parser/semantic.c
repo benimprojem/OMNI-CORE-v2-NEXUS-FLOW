@@ -9999,9 +9999,18 @@ static void semantic_check_node(
                 break;
             }
             semantic_check(ctx, cast->value);
+            /* The target is a type designator, not a runtime value expression. */
             if (cast->target_type && cast->target_type->type == AST_IDENTIFIER) {
                 const char* target_name = ((ASTIdentifier*)cast->target_type)->name;
                 const char* source_type = get_expr_type(ctx, cast->value);
+                int cast_rejected_for_provenance = 0;
+                if (target_name && !is_type_defined(ctx, target_name)) {
+                    char message[256];
+                    (void)snprintf(message, sizeof(message),
+                        "cast() target type '%s' is not declared.", target_name);
+                    report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
+                    break;
+                }
                 if (semantic_is_reference_type_name(target_name) &&
                     (semantic_type_is_any(ctx, source_type) ||
                      semantic_is_raw_pointer_type_name(source_type))) {
@@ -10010,16 +10019,32 @@ static void semantic_check_node(
                         "Create a safe reference with &owner/&mut owner, or use a raw pointer and keep its unsafe contract explicit.",
                         "Create a safe reference with &owner/&mut owner, or use a raw pointer and keep its unsafe contract explicit.",
                         0, 0);
+                    cast_rejected_for_provenance = 1;
+                } else if (semantic_type_is_any(ctx, target_name) &&
+                    semantic_type_contains_safe_reference(ctx, source_type, 0u)) {
+                    report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "cast() cannot erase a safe reference into any because its owner/lifetime provenance would be lost.",
+                        "Keep the safe reference type, or explicitly convert it to a raw pointer before crossing the any boundary.",
+                        "Keep the safe reference type, or explicitly convert it to a raw pointer before crossing the any boundary.",
+                        0, 0);
+                    cast_rejected_for_provenance = 1;
                 }
-            }
-            /* The target is a type designator, not a runtime value expression. */
-            if (cast->target_type && cast->target_type->type == AST_IDENTIFIER) {
-                const char* target_name = ((ASTIdentifier*)cast->target_type)->name;
-                if (target_name && !is_type_defined(ctx, target_name)) {
-                    char message[256];
+                if (!cast_rejected_for_provenance && source_type &&
+                    !are_types_compatible(ctx, target_name, source_type) &&
+                    !(is_numeric_primitive_type(target_name) &&
+                      is_numeric_primitive_type(source_type)) &&
+                    !(semantic_is_raw_pointer_type_name(target_name) &&
+                      (semantic_is_raw_pointer_type_name(source_type) ||
+                       semantic_is_reference_type_name(source_type)))) {
+                    char message[320];
                     (void)snprintf(message, sizeof(message),
-                        "cast() target type '%s' is not declared.", target_name);
-                    report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
+                        "cast() cannot convert source type '%s' to target type '%s'; only compatible values, explicit numeric conversions and raw-pointer escapes are supported.",
+                        source_type, target_name);
+                    report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        message,
+                        "Choose a compatible target type or use an explicit numeric cast; safe references cannot be reconstructed from erased or raw-pointer values.",
+                        "Choose a compatible target type or use an explicit numeric cast; safe references cannot be reconstructed from erased or raw-pointer values.",
+                        0, 0);
                 }
             } else {
                 report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE,
