@@ -2897,7 +2897,13 @@ static const char* semantic_numeric_promotion_type(
     if (!left || !right) return NULL;
     if (*left == '!') ++left;
     if (*right == '!') ++right;
-    if (strcmp(left, right) == 0) return left;
+    if (strcmp(left, right) == 0) {
+        if (strcmp(left, "t") == 0 ||
+            semantic_integer_type_width(left, &left_width, &left_unsigned) ||
+            semantic_float_family_width(left, &left_family, &left_width))
+            return left;
+        return NULL;
+    }
     if (semantic_integer_type_width(left, &left_width, &left_unsigned) &&
         semantic_integer_type_width(right, &right_width, &right_unsigned)) {
         if (left_unsigned == right_unsigned)
