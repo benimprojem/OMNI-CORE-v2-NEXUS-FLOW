@@ -331,13 +331,20 @@ static int test_explicit_cast_conversion_record(void) {
         semantic_print_errors(&semantic);
         goto done;
     }
-    if (semantic.result.conversion_count != 2u ||
-        !conversion_matches(&semantic.result,
+    {
+        int wide_match = conversion_matches(&semantic.result,
             resolve_node_id(&resolver, (ASTNode*)cast_node),
-            "i64", SEMANTIC_RESULT_CONVERSION_SIGNEDNESS) ||
-        !conversion_matches(&semantic.result,
+            "i64", SEMANTIC_RESULT_CONVERSION_SIGNEDNESS);
+        int same_match = conversion_matches(&semantic.result,
             resolve_node_id(&resolver, (ASTNode*)same_cast_node),
-            "u8", SEMANTIC_RESULT_CONVERSION_IDENTITY)) goto done;
+            "u8", SEMANTIC_RESULT_CONVERSION_IDENTITY);
+        fprintf(stderr, "explicit cast debug: semantic conversions=%u wide=%d same=%d nodes=%u,%u\\n",
+            semantic.result.conversion_count, wide_match, same_match,
+            resolve_node_id(&resolver, (ASTNode*)cast_node),
+            resolve_node_id(&resolver, (ASTNode*)same_cast_node));
+        if (semantic.result.conversion_count != 2u ||
+            !wide_match || !same_match) goto done;
+    }
 
     if (oir_ast_frontend_measure((ASTNode*)parser->ast_root,
             index, 32u, node_count, &requirements) != OIR_STATUS_OK) goto done;
@@ -354,21 +361,28 @@ static int test_explicit_cast_conversion_record(void) {
     owner_scope = (uint32_t*)calloc((size_t)node_count + 1u, sizeof(*owner_scope));
     if (!records || !fields || !strings || !payload || !artifact ||
         !incoming || !visited || !graph_stack || !owner_scope) goto done;
-    if (oir_ast_frontend_write_payload((ASTNode*)parser->ast_root,
-            index, 32u, node_count, records, node_count,
-            fields, requirements.field_data_length,
-            strings, requirements.string_table_length,
-            payload, requirements.payload_size, &payload_written,
-            &requirements) != OIR_STATUS_OK ||
-        oir_semantic_ast_artifact_write(payload, payload_written,
-            &semantic.result, 1701u, artifact, 65536u,
-            &artifact_written) != OIR_STATUS_OK ||
-        oir_semantic_ast_artifact_open(artifact, artifact_written,
-            &artifact_view, incoming, node_count, visited, node_count,
-            graph_stack, node_count, owner_scope,
-            (size_t)node_count + 1u) != OIR_STATUS_OK ||
-        !artifact_view.has_conversions ||
-        artifact_view.conversions.record_count != 2u) goto done;
+    {
+        OirStatus write_status = oir_ast_frontend_write_payload(
+            (ASTNode*)parser->ast_root, index, 32u, node_count, records, node_count,
+            fields, requirements.field_data_length, strings,
+            requirements.string_table_length, payload, requirements.payload_size,
+            &payload_written, &requirements);
+        OirStatus artifact_status = write_status == OIR_STATUS_OK
+            ? oir_semantic_ast_artifact_write(payload, payload_written,
+                &semantic.result, 1701u, artifact, 65536u, &artifact_written)
+            : write_status;
+        OirStatus open_status = artifact_status == OIR_STATUS_OK
+            ? oir_semantic_ast_artifact_open(artifact, artifact_written,
+                &artifact_view, incoming, node_count, visited, node_count,
+                graph_stack, node_count, owner_scope, (size_t)node_count + 1u)
+            : artifact_status;
+        fprintf(stderr, "explicit cast debug: write=%d artifact=%d open=%d count=%u\\n",
+            (int)write_status, (int)artifact_status, (int)open_status,
+            open_status == OIR_STATUS_OK ? artifact_view.conversions.record_count : 0u);
+        if (write_status != OIR_STATUS_OK || artifact_status != OIR_STATUS_OK ||
+            open_status != OIR_STATUS_OK || !artifact_view.has_conversions ||
+            artifact_view.conversions.record_count != 2u) goto done;
+    }
     {
         uint32_t conversion_index;
         for (conversion_index = 0u; conversion_index < 2u; ++conversion_index) {
