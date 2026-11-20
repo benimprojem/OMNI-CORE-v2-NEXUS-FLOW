@@ -28,8 +28,8 @@ The order below is a dependency order. Audit results may mark an item already im
 | Order | ID | Work package | Initial status | Depends on |
 |---:|---|---|---|---|
 | 1 | SEM-001 | Scope, symbol table and namespace integrity | VERIFIED | AST / Parser baseline |
-| 2 | SEM-002 | Declarations and binding rules | IN_PROGRESS | SEM-001 |
-| 3 | SEM-003 | Primitive, named and composite type system | AUDIT_REQUIRED | SEM-001, SEM-002 |
+| 2 | SEM-002 | Declarations and binding rules | VERIFIED | SEM-001 |
+| 3 | SEM-003 | Primitive, named and composite type system | IN_PROGRESS | SEM-001, SEM-002 |
 | 4 | SEM-004 | Type inference, conversion, promotion and forced types | AUDIT_REQUIRED | SEM-003 |
 | 5 | SEM-005 | Pointer, reference, borrow, lifetime and initialization | AUDIT_REQUIRED | SEM-001–004 |
 | 6 | SEM-006 | Struct, union, enum, array, Map and Vec semantics | AUDIT_REQUIRED | SEM-003–005 |
@@ -374,3 +374,13 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Read-before-initialization has been assigned to the correct flow-analysis gates: SEM-005 for safe references/raw pointers and SEM-010 for path-sensitive ordinary variable analysis. This keeps SEM-002 focused on declaration legality and name binding.
 - Exact test commit `32177ebfe069c3dc6dfd3aff2be05d2ddf3434eb`; CI [44656453773](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656453773) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. All platform CTest suites passed 74/74; Valgrind reported zero errors and zero lost bytes.
 - **SEM-002 remains IN_PROGRESS** pending the final cross-check of every declaration form against the normative syntax reference and malformed AST cases; SEM-003 is not started until SEM-002 is formally verified.
+
+
+### SEM-002 closure evidence — 2026-11-20
+
+- Cross-checked `v:`, `m:` and `c:` declarations against the normative syntax reference. The reference now states initializer visibility, self-reference rejection, legal nested shadowing, same-scope duplicate rejection, and program/block visibility.
+- Source-level regressions cover global/local declarations, inferred and explicit `v:`, legal shadowing, self-initialization rejection, incompatible initializer, local/global duplicate binding, unknown declared type, immutable `m:` rules, compile-time `c:` rules, global/local constant visibility and scope leakage.
+- Malformed-AST coverage includes missing `m:` initializer and unnamed `m:`/`v:` declarations. Missing `c:` initializer and invalid compile-time expressions are also covered.
+- Read-before-initialization is correctly assigned to SEM-005 for reference/pointer state and SEM-010 for path-sensitive ordinary-variable flow; it is no longer duplicated in SEM-002's declaration-binding acceptance criteria.
+- Exact test commit: `4aa4401fad8a23e77c5b0980d8b959a3eee803e1`; CI [44656744444](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44656744444) passed all five jobs: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. Platform CTest suites passed 74/74; Valgrind reported zero errors and zero lost bytes.
+- **SEM-002: VERIFIED.** Next package: **SEM-003 — Primitive, named and composite type system**. OIR remains gated until all Semantic work packages pass.
