@@ -3271,11 +3271,20 @@ static int check_declaration_initializer_binding_semantics(void) {
         "f:main() { v:value!i32 = 7; { v:value!i32 = value; } }";
     const char* invalid_self_initializer =
         "f:main() { v:value!i32 = value; }";
+    const char* invalid_inferred_self_initializer =
+        "f:main() { v:value = value; }";
+    const char* invalid_immutable_self_initializer =
+        "f:main() { m:value = value; }";
+    const char* invalid_constant_self_initializer =
+        "c:value!i32 = value;";
     const char* outer_type_must_be_used =
         "f:main() { v:value!str = \"outer\"; "
         "{ v:value!i32 = value; } }";
     return check_source(valid_outer_shadow_initializer, 0) &&
         check_source(invalid_self_initializer, 1) &&
+        check_source(invalid_inferred_self_initializer, 1) &&
+        check_source(invalid_immutable_self_initializer, 1) &&
+        check_source(invalid_constant_self_initializer, 1) &&
         check_source(outer_type_must_be_used, 1);
 }
 
