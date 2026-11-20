@@ -7768,12 +7768,31 @@ static void semantic_check_node(
                 if (element_type && right_type &&
                     strcmp(element_type, "any") != 0 &&
                     !are_types_compatible(ctx, element_type, right_type)) {
-                    char message[320];
-                    (void)snprintf(message, sizeof(message),
-                        "Operator '%s' cannot assign value of type '%s' to an indexed element of type '%s'.",
-                        semantic_binary_operator_name(assign->op), right_type,
-                        element_type);
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    const char* container_type = get_expr_type(
+                        ctx, ((ASTIndexAccess*)assign->left)->target);
+                    int is_hard_representation_index =
+                        semantic_representation_element_type(container_type) != NULL;
+                    int coercion_status = is_hard_representation_index
+                        ? semantic_hard_representation_coercion_status(
+                            assign->right, 1, element_type, right_type)
+                        : 0;
+                    if (coercion_status == -1) {
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Indexed bit/byte representation value is outside the element range.");
+                    } else if (coercion_status == -2) {
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Indexed bit/byte representation assignment requires a runtime range check that is not yet available for this source type.");
+                    } else if (coercion_status == 1) {
+                        semantic_record_representation_conversion(
+                            ctx, node, NULL, right_type, element_type);
+                    } else {
+                        char message[320];
+                        (void)snprintf(message, sizeof(message),
+                            "Operator '%s' cannot assign value of type '%s' to an indexed element of type '%s'.",
+                            semantic_binary_operator_name(assign->op), right_type,
+                            element_type);
+                        report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, message);
+                    }
                 }
             } else if (assign->left->type == AST_UNARY_EXPR &&
                        ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR) {
