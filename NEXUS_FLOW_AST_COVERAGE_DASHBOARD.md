@@ -1,14 +1,15 @@
 # NEXUS Flow — 8 Başlıkta Syntax → AST → Verifier Durum Tablosu
 
 
-### Imported library symbol lookup — implementation and CI update (2026-11-20)
+### Imported library symbol lookup — SEM-001 closure (2026-11-20)
 
-- Semantic now consumes the attached `OccSemanticImportEnvironment` for qualified function calls through both import aliases and namespace selectors.
-- The resolver enforces PUBLIC/EXPORTED visibility, rejects missing/ambiguous/non-function symbols, validates imported return and parameter type metadata, checks contiguous unique parameter ordinals, and reuses the local call-argument validator without inserting imported symbols into local Slot storage.
-- Direct Semantic regressions cover alias calls, namespace calls, named arguments, wrong argument types/counts, missing and non-public exports, local selector collisions, unsafe reference returns, duplicate aliases, duplicate namespaces and alias/namespace cross-collisions.
-- Exact-head CI for commit `c58592567af8b40e99cb6d56f1be32d43886684e`, run [44652106466](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44652106466), passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind; 74/74 CTests passed on the platform build jobs.
-- Remaining gaps: real Semantic Stage DLL end-to-end imported-call tests using verified OIR import/interface artifacts; imported values and nominal types; collision policy for unqualified imports; imported default/variadic metadata; and imported type closure.
-- Status: **qualified imported function-call resolution is implemented and CI-verified; SEM-001 remains open**. OIR lowering and independent Verifier remain gated.
+- Semantic consumes the attached `OccSemanticImportEnvironment` for qualified function calls through import aliases and namespace selectors.
+- The resolver enforces PUBLIC/EXPORTED visibility, rejects missing/ambiguous/non-function symbols, validates imported return/parameter type metadata and parameter ordinal integrity, and reuses the local call-argument validator without inserting imported symbols into local Slot storage.
+- Direct Semantic regressions cover alias and namespace calls, named arguments, wrong argument types/counts, missing and non-public exports, local selector collisions, unsafe reference returns, duplicate aliases, duplicate namespaces and alias/namespace cross-collisions.
+- A real Semantic Stage DLL regression now passes a Parser-produced AST containing `m.add(10, 20)` together with verified OIR import-manifest and Module Interface artifacts. The DLL must emit a valid Semantic AST artifact with no diagnostics.
+- Exact-head CI for commit `0b4c699ffdca4ba80ac11327800e1de7d1b681a8`, run [44654022127](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44654022127), passed all five jobs: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind; platform CTest suites passed 74/74.
+- Imported value/nominal-type closure remains assigned to SEM-003; imported default/variadic signature metadata remains assigned to SEM-007. Semantic import lookup exposes declarations only through resolved alias/namespace selectors; no implicit unqualified symbol injection is performed.
+- Status: **SEM-001 VERIFIED**. Next package: **SEM-002 — Declarations and binding rules**. OIR and Verifier remain gated by the full Semantic plan.
 ## Semantic audit note — `exf` declaration order (2026-11-19)
 
 - `exf` semicolon declarations parse as `AST_EXTERN_DECL`; legacy body form remains supported.
@@ -21,7 +22,7 @@
 
 **Dal:** `refactor/c-core-roadmap`  
 **Semantic görev planı:** [SEMANTIC_COMPLETION_PLAN.md](SEMANTIC_COMPLETION_PLAN.md)  
-**Güncelleme:** 2026-11-19  
+**Güncelleme:** 2026-11-20  
 **Amaç:** Dil referansında kayıtlı syntax yapılarını sekiz başlıkta görünür kılmak; her yapının Lexer, Parser, AST/Codec, Semantic, OIR Lowering ve bağımsız Verifier aşamalarında nerede olduğunu göstermek.
 
 > Bu belge bir tamamlanma ilanı değildir. Durumlar aktif C dalındaki syntax referansı, syntax/AST matrisi, AST düğüm envanteri, OIR kayıtları, ilerleme kaydı ve mevcut test kanıtları birlikte değerlendirilerek verilmiştir. Bir aşamanın tamamlanması sonraki aşamaları otomatik olarak tamamlamaz.
