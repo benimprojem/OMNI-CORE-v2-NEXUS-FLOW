@@ -1181,3 +1181,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added tests for valid `char` and rejected `hex` storage type. Existing tests cover 128-bit and decimal arithmetic plus fixed bit/byte representations.
 - CI [44658543349](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658543349) passed all five jobs and 74/74 CTests; Valgrind reported zero errors.
 - SEM-003 remains **IN_PROGRESS** for nested type expressions, NewType identity/base metadata and malformed type-expression validation.
+
+
+### SEM-003 NewType identity and nested generic types (2026-11-20)
+
+- Added chained NewType identity regressions: same-chain assignment succeeds; base/derived assignment in either direction fails.
+- Nested `*t`, `&t`, repeated `t` unification and nested callback parameter/return type-variable cases are covered and reflected in the normative reference.
+- Exact test commit `7484b6323f0c74843874c2d492c1a05774165a42`; CI [44658892345](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44658892345) passed all five jobs and 74/74 CTests; Valgrind zero errors/zero lost bytes.
+- SEM-003 remains **IN_PROGRESS** for persistent NewType `base_type_id` metadata assertions and malformed nested type-expression coverage.
