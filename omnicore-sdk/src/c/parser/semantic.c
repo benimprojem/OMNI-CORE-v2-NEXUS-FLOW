@@ -5669,6 +5669,24 @@ static ASTMethod* semantic_group_default_handler(
     return NULL;
 }
 
+static int semantic_array_field_has_fixed_storage(const ASTNode* inline_type) {
+    const ASTArrayType* array_type;
+    const ASTNode* dimension;
+    if (!inline_type || inline_type->type != AST_ARRAY_TYPE) return 0;
+    array_type = (const ASTArrayType*)inline_type;
+    if (!array_type->dimensions) return 0;
+    for (dimension = array_type->dimensions; dimension;
+         dimension = dimension->next) {
+        const ASTArrayDimension* item;
+        if (dimension->type != AST_ARRAY_DIMENSION) return 0;
+        item = (const ASTArrayDimension*)dimension;
+        /* A dynamic dimension stores an indirection and breaks the
+           by-value layout cycle. */
+        if (!item->length) return 0;
+    }
+    return 1;
+}
+
 static int semantic_type_reaches_aggregate_by_value(
     SemanticContext* ctx,
     const char* type_name,
@@ -9350,7 +9368,9 @@ static void semantic_check_node(
                                 ERR_SEMANTIC_UNKNOWN_TYPE, buf);
                         }
 
-                        if (v->type_name && !v->inline_type &&
+                        if (v->type_name &&
+                            (!v->inline_type ||
+                             semantic_array_field_has_fixed_storage(v->inline_type)) &&
                             semantic_type_reaches_aggregate_by_value(
                                 ctx, v->type_name, sdecl->name, 0u)) {
                             char message[384];
