@@ -264,6 +264,10 @@ int main(void) {
         "f:combine(a!u8,b!u16)!u16 { ret a & b; }";
     static const char signed_bitwise_width_promotion[] =
         "f:combine(a!i8,b!u16)!u16 { ret a | b; }";
+    static const char fixed_bit_vector_width_promotion[] =
+        "f:combine(a!8bit,b!16bit)!16bit { ret a & b; }";
+    static const char fixed_byte_block_width_mismatch[] =
+        "f:combine(a!8byte,b!16byte)!16byte { ret a & b; }";
     static const char float_width_promotion[] =
         "f:sum(a!f32,b!f64)!f64 { ret a + b; }";
     static const char decimal_width_promotion[] =
@@ -476,6 +480,8 @@ int main(void) {
     if (!check_source(integer_promotion_equal_width_mixed_sign, 0)) return 1;
     if (!check_source(unsigned_bitwise_width_promotion, 0)) return 1;
     if (!check_source(signed_bitwise_width_promotion, 0)) return 1;
+    if (!check_source(fixed_bit_vector_width_promotion, 0)) return 1;
+    if (!check_source(fixed_byte_block_width_mismatch, 1)) return 1;
     if (!check_source(float_width_promotion, 0)) return 1;
     if (!check_source(decimal_width_promotion, 0)) return 1;
     if (!check_source(explicit_numeric_cast_narrowing, 0)) return 1;
