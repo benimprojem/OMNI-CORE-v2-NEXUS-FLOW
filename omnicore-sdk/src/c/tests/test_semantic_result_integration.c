@@ -203,6 +203,86 @@ done:
     return ok;
 }
 
+static int test_numeric_promotion_conversion_records(void) {
+    static const char source[] =
+        "f:add_unsigned(a!u8,b!u16)!u16 { ret a + b; }"
+        "f:add_signed(a!i16,b!u16)!u16 { ret a + b; }"
+        "f:add_float(a!f32,b!f64)!f64 { ret a + b; }"
+        "f:and_bits(a!8bit,b!16bit)!16bit { ret a & b; }";
+    static const char* const source_names[] = { "u8", "i16", "f32", "8bit" };
+    static const char* const destination_names[] = { "u16", "u16", "f64", "16bit" };
+    static const uint16_t conversion_kinds[] = {
+        SEMANTIC_RESULT_CONVERSION_WIDENING,
+        SEMANTIC_RESULT_CONVERSION_SIGNEDNESS,
+        SEMANTIC_RESULT_CONVERSION_WIDENING,
+        SEMANTIC_RESULT_CONVERSION_WIDENING
+    };
+    ParserContext* parser = parser_init_source(
+        "numeric-promotion-conversions.nxf",
+        (const uint8_t*)source, sizeof(source) - 1u);
+    OirAstPointerIndexEntry index[256];
+    ResolverContext resolver;
+    SemanticContext semantic;
+    uint32_t node_count = 0u, i;
+    uint8_t seen[4] = { 0u, 0u, 0u, 0u };
+    int semantic_initialized = 0;
+    int ok = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) != PARSER_STATUS_OK ||
+        parser->error_count != 0 || !parser->ast_root) goto done;
+    memset(index, 0, sizeof(index));
+    if (oir_ast_frontend_index_build(
+            (ASTNode*)parser->ast_root, index, 256u, &node_count) != OIR_STATUS_OK)
+        goto done;
+    resolver.entries = index;
+    resolver.capacity = 256u;
+    semantic_init(&semantic, "numeric-promotion-conversions.nxf", NULL);
+    semantic_initialized = 1;
+    semantic_attach_node_id_resolver(&semantic, resolve_node_id, &resolver);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    if (semantic.error_count != 0 ||
+        semantic.result_status != SEMANTIC_RESULT_OK ||
+        semantic.result.conversion_count != 4u ||
+        semantic_finalize_result(&semantic, node_count) != SEMANTIC_RESULT_OK)
+        goto done;
+    for (i = 0u; i < semantic.result.conversion_count; ++i) {
+        const SemanticResultConversion* conversion =
+            &semantic.result.conversions[i];
+        const SemanticResultType* source_type =
+            find_result_type(&semantic.result, conversion->source_type_id);
+        const SemanticResultType* destination_type =
+            find_result_type(&semantic.result, conversion->destination_type_id);
+        size_t j;
+        int matched = 0;
+        if (!conversion->node_id || conversion->operand_ordinal != 0u ||
+            conversion->flags != SEMANTIC_RESULT_CONVERSION_FLAG_IMPLICIT ||
+            !source_type || !destination_type ||
+            !source_type->name || !destination_type->name) goto done;
+        for (j = 0u; j < 4u; ++j) {
+            if (!seen[j] &&
+                strcmp(source_type->name, source_names[j]) == 0 &&
+                strcmp(destination_type->name, destination_names[j]) == 0 &&
+                conversion->kind == conversion_kinds[j]) {
+                seen[j] = 1u;
+                matched = 1;
+                break;
+            }
+        }
+        if (!matched) goto done;
+    }
+    ok = seen[0] && seen[1] && seen[2] && seen[3];
+done:
+    if (!ok && semantic_initialized) {
+        fprintf(stderr,
+            "Numeric promotion conversion records: errors=%d status=%d conversions=%u\n",
+            semantic.error_count, (int)semantic.result_status,
+            semantic.result.conversion_count);
+    }
+    if (semantic_initialized) semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 static const SemanticResultAnnotation* find_annotation_by_node(
     const SemanticResult* result, uint32_t node_id
 ) {
@@ -1223,6 +1303,10 @@ done:
 }
 
 int main(void) {
+    if (!test_numeric_promotion_conversion_records()) {
+        fprintf(stderr, "Numeric promotion SemanticResult conversion records failed.\\n");
+        return 1;
+    }
     if (!test_bit_byte_semantic_conversion_records()) {
         fprintf(stderr, "Bit/byte SemanticResult conversion records failed.\\n");
         return 1;
