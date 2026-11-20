@@ -1217,3 +1217,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Exact final code/test head: `1220aa71934aa1ead091b5e141e43f0ad4e16c13`.
 - CI [44675632586](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675632586): all five jobs passed; 74/74 CTests on Windows, Ubuntu and macOS; ASan/UBSan and Valgrind clean with zero lost bytes.
 - SEM-003 remains **IN_PROGRESS** pending formal checklist closure and normative-reference sign-off.
+
+
+### SEM-003 closure — VERIFIED; SEM-004 started (2026-11-20)
+
+- Full supported primitive spelling matrix is covered by Semantic source tests, including signed/unsigned widths, float/decimal widths, bit/byte representations, char, bool, str, vectors, maps and any.
+- Nested pointer/reference/function type expressions, arrays, tuples, callback signatures, NewType identity/target validation, recursive aggregate layout checks and malformed type-expression AST payloads have regression coverage.
+- Persistent SemanticResult tests verify NewType symbol/base-type links and encoded array aggregate classification.
+- Exact code/test head: `977a1d42e07c7674b2e4d318cb412e7efadc1d6a`; CI [44675909159](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675909159) passed all five jobs. Windows, Ubuntu and macOS each passed 74/74 CTests; ASan/UBSan and Valgrind passed with zero errors and zero lost bytes.
+- **SEM-003: VERIFIED.** Next active package: **SEM-004 — inference, conversions, numeric promotion and forced types**. SEM-005 and later remain gated by the ordered plan; OIR remains blocked until all Semantic packages close.
