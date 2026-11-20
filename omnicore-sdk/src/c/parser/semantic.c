@@ -10033,7 +10033,7 @@ static void semantic_check_node(
                     report_error(ctx, node, ERR_SEMANTIC_UNKNOWN_TYPE, message);
                     break;
                 }
-                if (semantic_is_reference_type_name(target_name) &&
+                if (semantic_type_contains_safe_reference(ctx, target_name, 0u) &&
                     (semantic_type_is_any(ctx, source_type) ||
                      semantic_type_is_raw_pointer(ctx, source_type, 0u))) {
                     report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
