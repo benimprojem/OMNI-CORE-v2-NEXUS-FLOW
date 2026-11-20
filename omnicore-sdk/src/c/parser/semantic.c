@@ -2190,6 +2190,15 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
                 result_type, SEMANTIC_RESULT_VALUE_RVALUE);
             return result_type;
         }
+        case AST_CAST: {
+            const ASTCast* cast = (const ASTCast*)node;
+            const char* type_name =
+                cast->target_type && cast->target_type->type == AST_IDENTIFIER
+                    ? ((const ASTIdentifier*)cast->target_type)->name : NULL;
+            semantic_record_annotation(
+                ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_RVALUE);
+            return type_name;
+        }
         case AST_BINARY_EXPR:
         case AST_ASSIGNMENT: {
             ASTBinaryExpr* binary = (ASTBinaryExpr*)node;
@@ -10051,10 +10060,8 @@ static void semantic_check_node(
                        semantic_type_contains_safe_reference(ctx, source_type, 0u)))) {
                     char message[320];
                     (void)snprintf(message, sizeof(message),
-                        "cast() cannot convert source type '%s' to target type '%s'; numeric(source=%d,target=%d), only compatible values, explicit numeric conversions and raw-pointer escapes are supported.",
-                        source_type, target_name,
-                        is_numeric_primitive_type(source_type),
-                        is_numeric_primitive_type(target_name));
+                        "cast() cannot convert source type '%s' to target type '%s'; only compatible values, explicit numeric conversions and raw-pointer escapes are supported.",
+                        source_type, target_name);
                     report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         message,
                         "Choose a compatible target type or use an explicit numeric cast; safe references cannot be reconstructed from erased or raw-pointer values.",
