@@ -66,6 +66,14 @@ The order below is a dependency order. Audit results may mark an item already im
 - Negative tests: conflicting inference, implicit unsafe narrowing, invalid forced type, invalid operator/type pair and width mismatch.
 - Accept when: each conversion is explicit in the language contract and diagnostics identify source type, target type and required correction.
 
+### SEM-004 forced bit/byte assignment conversion — CI verified (2026-11-20)
+
+- Refactored hard representation conversion validation to accept the actual source expression, hard-type flag and destination representation. Variable initializers and identifier assignments now share the same range/width decision logic; the assignment path no longer accidentally evaluates the declaration's original initializer.
+- Added assignment regressions for an in-range constant, an out-of-range constant and a runtime narrowing that cannot be proven safe. Existing initializer regressions cover equivalent cases.
+- Exact implementation/test head: `405f9b45baa9ad83b0cbc58ac65bf371d39f213b`.
+- CI run [44700923242](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44700923242) passed all five jobs: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. All platform CTest suites passed 74/74. Valgrind reported zero errors and zero definitely/indirectly lost bytes.
+- **SEM-004 remains IN_PROGRESS.** Remaining closure work is the final audit of inference/unification and promotion/conversion edge cases, forced-type behavior across all supported expression contexts, and consistency between diagnostics and SemanticResult conversion annotations. Function return checking currently compares types but does not record a hard bit/byte conversion; determine from the normative language contract whether return types participate in forced representation conversion before changing that path.
+
 ### SEM-005 — Pointer and reference safety
 - Inspect: safe `&T` / `&mut T`, raw `*T`, borrow exclusivity, projection overlap, lifetime origins, initialization, nullability, escape and callback return provenance.
 - Positive tests: independent struct fields/constant indexes, valid shared/exclusive borrow, initialized reference use, valid parameter-origin propagation.
