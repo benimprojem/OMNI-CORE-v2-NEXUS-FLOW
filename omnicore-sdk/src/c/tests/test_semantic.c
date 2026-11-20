@@ -2184,6 +2184,14 @@ static int check_extended_ast_semantics(void) {
         "nt:Callback = f:(id!u32)!bool; f:main() { v:callback!Callback = null; }";
     const char* invalid_newtype_target =
         "nt:Bad = MissingType; f:main() {}";
+    const char* invalid_self_referential_newtype =
+        "nt:Bad = Bad; f:main() {}";
+    const char* invalid_by_value_recursive_struct =
+        "f:main() { struct:Node { v:next!Node } }";
+    const char* invalid_by_value_recursive_union =
+        "f:main() { union:Node { v:next!Node } }";
+    const char* valid_pointer_recursive_struct =
+        "f:main() { struct:Node { v:next!*Node } }";
     const char* valid_newtype_alias_chain =
         "nt:Base = u64; nt:Alias = Base; f:main() { v:value!Alias; }";
     const char* valid_newtype_identity_assignment =
@@ -2314,6 +2322,10 @@ static int check_extended_ast_semantics(void) {
         check_source(invalid_variadic_missing_fixed,1) &&
         check_source(valid_callback_newtype,0) &&
         check_source(invalid_newtype_target,1) &&
+        check_source(invalid_self_referential_newtype,1) &&
+        check_source(invalid_by_value_recursive_struct,1) &&
+        check_source(invalid_by_value_recursive_union,1) &&
+        check_source(valid_pointer_recursive_struct,0) &&
         check_source(valid_newtype_alias_chain,0) &&
         check_source(valid_newtype_identity_assignment,0) &&
         check_source(invalid_newtype_base_assignment,1) &&
