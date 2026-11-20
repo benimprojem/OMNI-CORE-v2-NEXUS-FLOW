@@ -258,6 +258,24 @@ int main(void) {
         "f:main(source!u8) { v:value!8bit = source; }";
     static const char hard_representation_runtime_narrowing_rejected[] =
         "f:main(source!u16) { v:value!8bit = source; }";
+    static const char hard_integer_constant_in_range[] =
+        "f:main() { v:value!u8 = 255; }";
+    static const char hard_integer_constant_out_of_range[] =
+        "f:main() { v:value!u8 = 256; }";
+    static const char hard_integer_signed_constant_in_range[] =
+        "f:main() { v:value!i8 = -128; }";
+    static const char hard_integer_signed_constant_out_of_range[] =
+        "f:main() { v:value!i8 = 128; }";
+    static const char hard_integer_unsigned_widening[] =
+        "f:main(source!u8) { v:value!u16 = source; }";
+    static const char hard_integer_signed_widening[] =
+        "f:main(source!i8) { v:value!i16 = source; }";
+    static const char hard_integer_unsigned_to_wider_signed[] =
+        "f:main(source!u8) { v:value!i16 = source; }";
+    static const char hard_integer_signed_to_unsigned_runtime_rejected[] =
+        "f:main(source!i8) { v:value!u16 = source; }";
+    static const char hard_integer_runtime_narrowing_rejected[] =
+        "f:main(source!u16) { v:value!u8 = source; }";
     static const char hard_representation_assignment_constant_in_range[] =
         "f:main() { v:value!8bit = 0; value = 255; }";
     static const char hard_representation_assignment_constant_out_of_range[] =
@@ -525,6 +543,15 @@ int main(void) {
     if (!check_source(hard_representation_constant_out_of_range, 1)) return 1;
     if (!check_source(hard_representation_unsigned_source_fits, 0)) return 1;
     if (!check_source(hard_representation_runtime_narrowing_rejected, 1)) return 1;
+    if (!check_source(hard_integer_constant_in_range, 0)) return 1;
+    if (!check_source(hard_integer_constant_out_of_range, 1)) return 1;
+    if (!check_source(hard_integer_signed_constant_in_range, 0)) return 1;
+    if (!check_source(hard_integer_signed_constant_out_of_range, 1)) return 1;
+    if (!check_source(hard_integer_unsigned_widening, 0)) return 1;
+    if (!check_source(hard_integer_signed_widening, 0)) return 1;
+    if (!check_source(hard_integer_unsigned_to_wider_signed, 0)) return 1;
+    if (!check_source(hard_integer_signed_to_unsigned_runtime_rejected, 1)) return 1;
+    if (!check_source(hard_integer_runtime_narrowing_rejected, 1)) return 1;
     if (!check_source(hard_representation_assignment_constant_in_range, 0)) return 1;
     if (!check_source(hard_representation_assignment_constant_out_of_range, 1)) return 1;
     if (!check_source(hard_representation_assignment_runtime_narrowing_rejected, 1)) return 1;
