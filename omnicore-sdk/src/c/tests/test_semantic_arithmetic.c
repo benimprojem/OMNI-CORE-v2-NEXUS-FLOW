@@ -276,6 +276,15 @@ int main(void) {
     static const char hard_representation_member_assignment_unsigned_valid[] =
         "f:main(source!u8) { struct:Packet { v:flags!8bit } "
         "v:p!Packet = Packet { flags = 0 }; p.flags = source; }";
+    static const char hard_representation_struct_initializer_constant_valid[] =
+        "f:main() { struct:Packet { v:flags!8bit } "
+        "v:p!Packet = Packet { flags = 255 }; }";
+    static const char hard_representation_struct_initializer_constant_invalid[] =
+        "f:main() { struct:Packet { v:flags!8bit } "
+        "v:p!Packet = Packet { flags = 256 }; }";
+    static const char hard_representation_struct_initializer_runtime_narrowing_rejected[] =
+        "f:main(source!u16) { struct:Packet { v:flags!8bit } "
+        "v:p!Packet = Packet { flags = source }; }";
     static const char explicit_numeric_cast_widening[] =
         "f:main(value!i8) !i64 { ret cast(value, i64); }";
     static const char integer_promotion_same_sign[] =
@@ -511,6 +520,9 @@ int main(void) {
     if (!check_source(hard_representation_member_assignment_constant_invalid, 1)) return 1;
     if (!check_source(hard_representation_member_assignment_runtime_narrowing_rejected, 1)) return 1;
     if (!check_source(hard_representation_member_assignment_unsigned_valid, 0)) return 1;
+    if (!check_source(hard_representation_struct_initializer_constant_valid, 0)) return 1;
+    if (!check_source(hard_representation_struct_initializer_constant_invalid, 1)) return 1;
+    if (!check_source(hard_representation_struct_initializer_runtime_narrowing_rejected, 1)) return 1;
     if (!check_source(integer_promotion_same_sign, 0)) return 1;
     if (!check_source(integer_promotion_mixed_sign_signed_wider, 0)) return 1;
     if (!check_source(integer_promotion_mixed_sign_unsigned_wider, 0)) return 1;
