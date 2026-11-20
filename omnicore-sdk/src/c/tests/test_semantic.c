@@ -995,7 +995,7 @@ static int check_compound_assignment_semantics(void) {
     const char* valid_fixed_bitwise_binary =
         "f:main() { v:a!8bit; v:b!8bit; "
         "v:masked = a & b; v:merged = a | b; v:toggled = a ^ b; }";
-    const char* invalid_fixed_bitwise_binary_width =
+    const char* valid_fixed_bitwise_binary_width_promotion =
         "f:main() { v:a!8bit; v:b!16bit; v:masked = a & b; }";
     const char* valid_representation_indexing =
         "f:main() { v:flags!16bit; v:one!bit; "
