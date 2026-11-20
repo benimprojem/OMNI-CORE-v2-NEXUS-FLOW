@@ -471,3 +471,11 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Final verified code/test head: `977a1d42e07c7674b2e4d318cb412e7efadc1d6a`; docs are updated in subsequent commits on the same branch.
 - CI [44675909159](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44675909159) passed Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. All three platform suites passed 74/74 CTests; Valgrind reported zero errors and zero lost bytes.
 - **SEM-003: VERIFIED.** Next work package: **SEM-004 — Type inference, conversion, promotion and forced types**. OIR remains gated until SEM-001 through SEM-014 are verified or explicitly deferred by approved design rationale.
+
+
+### SEM-003 final metadata test reinforcement (2026-11-20)
+
+- Extended the direct SemanticResult metadata test to assert the structural base IDs for primitive NewType, chained NewType, raw-pointer NewType, safe-reference NewType, and callback NewType; also asserts distinct nominal symbol IDs.
+- Exact test commit: `69ecb4a4a96b73f64925cff0e16dd922e7c6a557`.
+- CI run [44659320679](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44659320679) completed successfully: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind all green; 74/74 CTests per platform; Valgrind zero errors and zero definitely-lost bytes.
+- SEM-003's prior closure remains **VERIFIED**; this is additional direct metadata evidence, not a scope reopening.
