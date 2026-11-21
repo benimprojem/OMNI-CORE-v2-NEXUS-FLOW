@@ -2129,6 +2129,14 @@ static int check_safe_reference_return_lifetime_semantics(void) {
         "f:identity(value!&i32)!&i32 { ret value; } "
         "f:store(value!&i32) { v:local!&i32 = identity(value); "
         "global_ref = local; }";
+    const char* returned_shared_reference_preserves_branch_origins =
+        "f:identity(value!&i32)!&i32 { ret value; } "
+        "f:main(first!i32, second!i32, third!i32, flag!bool) { "
+        "v:reference!&i32 = &first; "
+        "if (flag) { reference = &second; } els { reference = &third; } "
+        "v:returned!&i32 = identity(reference); "
+        "v:edit_second!&muti32 = &mut second; "
+        "v:edit_third!&muti32 = &mut third; }";
     return check_source(returning_local_reference_is_rejected, 1) &&
         check_source(returning_local_reference_binding_is_rejected, 1) &&
         check_source(returning_reference_parameter_preserves_forwarding, 0) &&
@@ -2139,7 +2147,8 @@ static int check_safe_reference_return_lifetime_semantics(void) {
         check_source(forwarding_call_preserves_parameter_origin, 0) &&
         check_source(parameter_reference_cannot_escape_to_global, 1) &&
         check_source(local_alias_of_parameter_cannot_escape_to_global, 1) &&
-        check_source(returned_call_reference_cannot_escape_to_global, 1);
+        check_source(returned_call_reference_cannot_escape_to_global, 1) &&
+        check_source(returned_shared_reference_preserves_branch_origins, 2);
 }
 
 static int check_reference_reassignment_and_lifetime_semantics(void) {
