@@ -658,3 +658,16 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Re-polled the exact implementation/test head `f550a1b9130374ab7b4ec68839e2a50cd32e2fd4`; all five check-runs completed with `success` (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind).
 - The six focused multi-origin regressions listed above are part of the test commit. This verifies the implemented IF/SELECT/LOOP/termination/returned-shared paths on the tested CI matrix.
 - This does not close SEM-005: source reborrow/projection composition and a dedicated SCAN origin-set regression are still outstanding. Do not advance to SEM-006 or OIR until the ordered Semantic gate is satisfied.
+
+
+### SEM-005 — shared-reference projection reborrow checkpoint (2026-11-22)
+
+- Added reference-target aggregate resolution for safe member reads (r.field when r is a safe reference to a struct/union). Unknown members retain a precise semantic diagnostic.
+- Implemented shared projection reborrow composition for &r.field and &r[index]: the projection suffix is appended to every tracked source BorrowOrigin path. The reference binding itself is never recorded as the storage owner.
+- Projection-origin replacement is atomic: all owner/path records are allocated and conflict-checked before the previous borrower binding is released. Union fields retain the existing wildcard projection semantics; dynamic indexes retain conservative wildcard paths.
+- Mutable projection reborrows are deliberately rejected with an explicit diagnostic until parent-child suspension/resumption and lifetime restoration are implemented. Unknown/external origins and mutable source references are also rejected.
+- Added regressions for valid safe-reference member access, unknown member rejection, overlapping mutable borrow rejection after a shared projection reborrow, and a disjoint-field case where the original shared reference covers only a nested aggregate.
+- Commits: aca3b87 (safe-reference aggregate member resolution), 0882358 (member-resolution tests), 4ce93ae (multi-origin shared projection composition), ea1153b (projection path regressions), 54f6c53 (explicit unsupported mutable-projection diagnostic), and 8da1714 (correct disjoint-owner test setup).
+- CI for aca3b87 and 0882358 passed all five jobs. Initial projection implementation/test runs completed Ubuntu, Windows/macOS, and ASan/UBSan successfully; Valgrind was still running at this checkpoint. Exact latest head 8da1714 CI was queued/in progress when this note was written.
+- SCAN multi-origin regression is covered by commit 70d01b5 and its five-job CI pass; this item is no longer outstanding.
+- Still open: array-index projection test coverage; mutable parent-child suspension/resumption; parameter/external-origin projection policy; lifetime/escape/initialization cross-audit; independent review and exact latest-head CI. SEM-005 remains IN_PROGRESS / VERIFICATION_PENDING.
