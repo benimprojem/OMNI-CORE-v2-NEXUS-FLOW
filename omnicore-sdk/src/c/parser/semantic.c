@@ -1240,6 +1240,8 @@ static const char* semantic_callback_return_type(
     SemanticContext* ctx, const Slot* slot
 );
 static const char* get_expr_type(SemanticContext* ctx, ASTNode* node);
+static const char* semantic_dereference_target_type(
+    const char* type_name, int* is_shared_reference);
 static int semantic_type_pattern_contains_variable(const char* pattern);
 static int semantic_unify_type_pattern(
     SemanticContext* ctx, const char* pattern, const char* actual,
@@ -1274,6 +1276,13 @@ static FieldInfo* semantic_resolve_member(
     object_type = get_expr_type(ctx, access->object);
     if (!object_type) return NULL;
     aggregate_name = object_type[0] == '!' ? object_type + 1 : object_type;
+    /* Member lookup through a safe reference uses its referent aggregate.
+       Raw pointers remain outside this safe-reference member path. */
+    if (aggregate_name[0] == '&') {
+        aggregate_name = semantic_dereference_target_type(
+            aggregate_name, NULL);
+        if (!aggregate_name) return NULL;
+    }
     aggregate = find_slot(ctx, aggregate_name);
     if (!aggregate ||
         (aggregate->kind != SLOT_STRUCT && aggregate->kind != SLOT_UNION)) {
@@ -1427,7 +1436,11 @@ static char* semantic_lvalue_path(SemanticContext* ctx, const ASTNode* node) {
             const char* object_type = get_expr_type(ctx, member->object);
             const char* aggregate_name = object_type && object_type[0] == '!'
                 ? object_type + 1 : object_type;
-            Slot* aggregate = aggregate_name
+            Slot* aggregate;
+            if (aggregate_name && aggregate_name[0] == '&')
+                aggregate_name = semantic_dereference_target_type(
+                    aggregate_name, NULL);
+            aggregate = aggregate_name
                 ? find_slot(ctx, aggregate_name) : NULL;
             int is_union_projection = aggregate && aggregate->kind == SLOT_UNION;
             member_length = is_union_projection ? 1u : strlen(member->member_name);
@@ -7138,6 +7151,17 @@ static void semantic_register_borrow_binding(
     if (!owner) {
         report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
             "Safe borrow requires a local storage owner with statically known provenance; raw-pointer and computed lvalues are not supported.");
+        return;
+    }
+    /* A field reached through a reference is not owned by the reference
+       variable itself. Until projection paths are composed with every
+       BorrowOrigin, reject creating a second reference from that projection
+       rather than recording a false owner. Reading the field is supported. */
+    if (semantic_is_reference_type_name(owner->type_name) &&
+        (borrow->operand->type == AST_MEMBER_ACCESS ||
+         borrow->operand->type == AST_INDEX_ACCESS)) {
+        report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Borrowing a member or index through a reference requires projection-origin tracking, which is not yet available; the reference binding cannot be used as the storage owner.");
         return;
     }
     is_mutable = borrow->op == TOKEN_BORROW_MUT;
