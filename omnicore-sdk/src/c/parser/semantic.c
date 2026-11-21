@@ -6932,33 +6932,93 @@ static void semantic_register_borrow_binding(
 static void semantic_copy_shared_reference_binding(
     SemanticContext* ctx, Slot* target, Slot* source, ASTNode* assignment
 ) {
-    Slot* owner;
+    const BorrowOrigin* source_origin;
+    BorrowOrigin* replacement_head = NULL;
+    BorrowOrigin* replacement_tail = NULL;
+    Slot* legacy_owner = NULL;
+    char* legacy_path = NULL;
     uint32_t effective_shared_count;
-    char* copied_path = NULL;
     if (!ctx || !target || !source || !assignment || target == source) return;
     if (semantic_is_mut_reference_type_name(target->type_name)) {
         report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
             "An exclusive mutable reference cannot be copied; transfer or reborrow semantics are required.");
         return;
     }
-    if (source->borrow_kind == 2u && source->borrowed_from) {
-        report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
-            "An exclusive mutable reference cannot be copied into another binding.");
-        return;
-    }
-    owner = source->borrow_kind == 1u ? source->borrowed_from : NULL;
-    if (owner) {
-        const char* source_path = source->borrow_path ? source->borrow_path : "";
-        size_t path_length = strlen(source_path);
-        copied_path = (char*)malloc(path_length + 1u);
-        if (copied_path) memcpy(copied_path, source_path, path_length + 1u);
-        if (!copied_path) {
+
+    /* Clone every possible shared origin before touching the old target.
+       This keeps reassignment atomic even when a later allocation fails. */
+    if (source->borrow_origins) {
+        for (source_origin = source->borrow_origins; source_origin;
+             source_origin = source_origin->next) {
+            BorrowOrigin* copy;
+            size_t path_length;
+            if (source_origin->kind == 2u) {
+                report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "An exclusive mutable reference cannot be copied into another binding.");
+                goto fail;
+            }
+            if (!source_origin->owner) goto fail;
+            effective_shared_count = semantic_shared_borrows_on_path(
+                ctx, source_origin->owner, source_origin->path, target);
+            if (semantic_borrow_conflicts(
+                    ctx, source_origin->owner, source_origin->path, 0, target) ||
+                effective_shared_count == UINT32_MAX) {
+                report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Cannot copy this shared reference because an overlapping exclusive borrow is active or the path borrow limit was reached.");
+                goto fail;
+            }
+            path_length = strlen(source_origin->path ? source_origin->path : "");
+            copy = (BorrowOrigin*)malloc(sizeof(*copy));
+            if (!copy) goto allocation_failure;
+            copy->path = (char*)malloc(path_length + 1u);
+            if (!copy->path) {
+                free(copy);
+                goto allocation_failure;
+            }
+            memcpy(copy->path,
+                source_origin->path ? source_origin->path : "",
+                path_length + 1u);
+            copy->owner = source_origin->owner;
+            copy->kind = 1u;
+            copy->next = NULL;
+            if (replacement_tail) replacement_tail->next = copy;
+            else replacement_head = copy;
+            replacement_tail = copy;
+        }
+    } else if (source->borrowed_from && source->borrow_kind != 0u) {
+        size_t path_length;
+        BorrowOrigin* copy;
+        if (source->borrow_kind == 2u) {
             report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
-                "Unable to copy shared-reference projection metadata.");
+                "An exclusive mutable reference cannot be copied into another binding.");
             return;
         }
+        effective_shared_count = semantic_shared_borrows_on_path(
+            ctx, source->borrowed_from, source->borrow_path, target);
+        if (semantic_borrow_conflicts(
+                ctx, source->borrowed_from, source->borrow_path, 0, target) ||
+            effective_shared_count == UINT32_MAX) {
+            report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Cannot copy this shared reference because an overlapping exclusive borrow is active or the path borrow limit was reached.");
+            return;
+        }
+        path_length = strlen(source->borrow_path ? source->borrow_path : "");
+        copy = (BorrowOrigin*)malloc(sizeof(*copy));
+        if (!copy) goto allocation_failure;
+        copy->path = (char*)malloc(path_length + 1u);
+        if (!copy->path) {
+            free(copy);
+            goto allocation_failure;
+        }
+        memcpy(copy->path, source->borrow_path ? source->borrow_path : "",
+            path_length + 1u);
+        copy->owner = source->borrowed_from;
+        copy->kind = 1u;
+        copy->next = NULL;
+        replacement_head = replacement_tail = copy;
     }
-    if (!owner) {
+
+    if (!replacement_head) {
         Slot* origin = source->borrow_origin;
         if (!origin && (source->is_parameter || source->depth == 0))
             origin = source;
@@ -6968,8 +7028,7 @@ static void semantic_copy_shared_reference_binding(
                 "Cannot store reference '%s' into longer-lived binding '%s': its origin '%s' is scoped at depth %d.",
                 source->name ? source->name : "<reference>",
                 target->name ? target->name : "<reference>",
-                origin->name ? origin->name : "<origin>",
-                origin->depth);
+                origin->name ? origin->name : "<origin>", origin->depth);
             report_issue(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH, message,
                 "Keep this reference in a binding whose lifetime does not exceed its parameter or global origin. Do not store a parameter-derived reference in global or outer-scope state.",
                 "Keep this reference in a binding whose lifetime does not exceed its parameter or global origin. Do not store a parameter-derived reference in global or outer-scope state.",
@@ -6980,20 +7039,28 @@ static void semantic_copy_shared_reference_binding(
         target->borrow_origin = origin;
         return;
     }
-    effective_shared_count = semantic_shared_borrows_on_path(
-        ctx, owner, copied_path, target);
-    if (semantic_borrow_conflicts(
-            ctx, owner, copied_path, 0, target) ||
-        effective_shared_count == UINT32_MAX) {
-        report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
-            "Cannot copy this shared reference because an overlapping exclusive borrow is active or the path borrow limit was reached.");
-        free(copied_path);
-        return;
+
+    semantic_release_borrow_binding(target);
+    target->borrow_origins = replacement_head;
+    target->borrowed_from = replacement_head->owner;
+    target->borrow_kind = replacement_head->kind;
+    target->borrow_path = replacement_head->path;
+    for (source_origin = replacement_head; source_origin;
+         source_origin = source_origin->next) {
+        if (source_origin->owner->shared_borrow_count < UINT32_MAX)
+            ++source_origin->owner->shared_borrow_count;
     }
-    if (!semantic_install_borrow_origin(target, owner, 1u, copied_path)) {
-        free(copied_path);
-        report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
-            "Unable to allocate shared-reference origin metadata; the previous binding was preserved.");
+    return;
+
+allocation_failure:
+    report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
+        "Unable to allocate shared-reference origin metadata; the previous binding was preserved.");
+fail:
+    while (replacement_head) {
+        BorrowOrigin* next = replacement_head->next;
+        free(replacement_head->path);
+        free(replacement_head);
+        replacement_head = next;
     }
 }
 
