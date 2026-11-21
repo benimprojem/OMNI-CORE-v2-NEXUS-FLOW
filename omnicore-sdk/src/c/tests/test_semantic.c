@@ -1885,12 +1885,18 @@ static int check_reference_member_projection_semantics(void) {
     const char* shared_reference_unknown_member =
         "f:main() { struct:Point { v:x!i32 } "
         "v:point!Point; v:r!&Point = &point; v:value!i32 = r.missing; }";
-    const char* projection_reborrow_fails_closed =
+    const char* shared_projection_reborrow_blocks_overlapping_mutable =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:r!&Point = &point; v:field!&i32 = &r.x; }";
+        "v:point!Point; v:r!&Point = &point; "
+        "v:field!&i32 = &r.x; v:write!&muti32 = &mut point.x; }";
+    const char* shared_projection_reborrow_allows_disjoint_mutable =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; v:r!&Point = &point; "
+        "v:field!&i32 = &r.x; v:write!&muti32 = &mut point.y; }";
     return check_source(shared_reference_member_read, 0) &&
         check_source(shared_reference_unknown_member, 1) &&
-        check_source(projection_reborrow_fails_closed, 1);
+        check_source(shared_projection_reborrow_blocks_overlapping_mutable, 1) &&
+        check_source(shared_projection_reborrow_allows_disjoint_mutable, 0);
 }
 
 static int check_call_temporary_borrow_semantics(void) {
