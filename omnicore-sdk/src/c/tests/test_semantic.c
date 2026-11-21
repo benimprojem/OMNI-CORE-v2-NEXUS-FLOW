@@ -4077,8 +4077,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Shared/mutable borrow Semantic checks failed.\n");
         return 1;
     }
-        if (!check_shared_reborrow_fail_closed_semantics()) {
-        fprintf(stderr, "Unsupported shared reborrow fail-closed checks failed.\\n");
+        if (!check_shared_reborrow_semantics()) {
+        fprintf(stderr, "Shared dereference reborrow checks failed.\\n");
         return 1;
     }
 if (!check_call_temporary_borrow_semantics()) {
