@@ -1878,6 +1878,21 @@ static int check_shared_reborrow_semantics(void) {
         check_source(mutable_reference_cannot_be_shared_reborrowed, 1);
 }
 
+static int check_reference_member_projection_semantics(void) {
+    const char* shared_reference_member_read =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; v:r!&Point = &point; v:value!i32 = r.x; }";
+    const char* shared_reference_unknown_member =
+        "f:main() { struct:Point { v:x!i32 } "
+        "v:point!Point; v:r!&Point = &point; v:value!i32 = r.missing; }";
+    const char* projection_reborrow_fails_closed =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; v:r!&Point = &point; v:field!&i32 = &r.x; }";
+    return check_source(shared_reference_member_read, 0) &&
+        check_source(shared_reference_unknown_member, 1) &&
+        check_source(projection_reborrow_fails_closed, 1);
+}
+
 static int check_call_temporary_borrow_semantics(void) {
     const char* shared_call_conflicts_with_active_mutable =
         "f:read(value!&i32) {} f:main() { v:owner!i32 = 1; "
@@ -4086,7 +4101,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Shared/mutable borrow Semantic checks failed.\n");
         return 1;
     }
-        if (!check_shared_reborrow_semantics()) {
+        if (!check_shared_reborrow_semantics() &&
+        check_reference_member_projection_semantics()) {
         fprintf(stderr, "Shared dereference reborrow checks failed.\\n");
         return 1;
     }
