@@ -6935,8 +6935,6 @@ static void semantic_copy_shared_reference_binding(
     const BorrowOrigin* source_origin;
     BorrowOrigin* replacement_head = NULL;
     BorrowOrigin* replacement_tail = NULL;
-    Slot* legacy_owner = NULL;
-    char* legacy_path = NULL;
     uint32_t effective_shared_count;
     if (!ctx || !target || !source || !assignment || target == source) return;
     if (semantic_is_mut_reference_type_name(target->type_name)) {
