@@ -24,7 +24,16 @@ typedef struct FieldInfo {
 } FieldInfo;
 
 // Masa (Slot) - Sembol Tablosu Kaydı
-typedef struct Slot {
+typedef struct Slot Slot;
+
+typedef struct BorrowOrigin {
+    Slot* owner;             /* Non-owning storage-owner reference. */
+    char* path;              /* Owned projection path relative to owner. */
+    uint8_t kind;             /* 1 shared, 2 exclusive mutable. */
+    struct BorrowOrigin* next;
+} BorrowOrigin;
+
+struct Slot {
     char* name;
     SlotKind kind;
     int is_const;
@@ -35,7 +44,8 @@ typedef struct Slot {
     uint8_t is_parameter;   /* Function parameter storage; may carry a returned reference. */
     uint8_t is_initialized; /* Definite initialization state for pointer/reference/callback bindings. */
     uint8_t is_nullable;    /* Binding may currently contain null (pointer/callback values). */
-    struct Slot* borrowed_from;
+    BorrowOrigin* borrow_origins; /* Conservative set of possible active borrow origins. */
+    struct Slot* borrowed_from; /* Compatibility view of the first origin during migration. */
     struct Slot* borrow_origin; /* Non-owning parameter/global anchor for untracked reference provenance. */
     char* borrow_path;       /* Projection path relative to borrowed_from. */
     int depth; // Scope derinliği
@@ -54,7 +64,7 @@ typedef struct Slot {
     const ASTNode* fast_exec_owner; /* Non-owning FASTEXEC block that owns ASM labels. */
     uint32_t type_id;
     struct Slot* next;
-} Slot;
+};
 
 struct OccSemanticImportEnvironment; /* Borrowed, immutable import catalog. */
 
