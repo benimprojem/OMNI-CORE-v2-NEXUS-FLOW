@@ -7086,9 +7086,13 @@ static int semantic_register_shared_projection_reborrow(
     BorrowOrigin* replacement_tail = NULL;
     if (!ctx || !borrower || !borrow_node || !projection ||
         (projection->type != AST_MEMBER_ACCESS &&
-         projection->type != AST_INDEX_ACCESS) ||
-        semantic_is_mut_reference_type_name(borrower->type_name))
+         projection->type != AST_INDEX_ACCESS))
         return 0;
+    if (semantic_is_mut_reference_type_name(borrower->type_name)) {
+        report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Mutable projection reborrow requires parent-child suspension and resumption tracking; only shared projection reborrows are currently supported.");
+        return 1;
+    }
     while (root && root->type != AST_IDENTIFIER) {
         if (root->type == AST_MEMBER_ACCESS)
             root = ((ASTMemberAccess*)root)->object;
@@ -7100,8 +7104,11 @@ static int semantic_register_shared_projection_reborrow(
     source = find_slot(ctx, ((ASTIdentifier*)root)->name);
     if (!source || source == borrower ||
         !semantic_is_reference_type_name(source->type_name) ||
-        semantic_is_mut_reference_type_name(source->type_name))
-        return 0;
+        semantic_is_mut_reference_type_name(source->type_name)) {
+        report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Projection reborrow requires a distinct tracked shared-reference binding as its base.");
+        return 1;
+    }
     projected_type = get_expr_type(ctx, projection);
     expected_type = semantic_dereference_target_type(borrower->type_name, NULL);
     if (!projected_type || !expected_type ||
