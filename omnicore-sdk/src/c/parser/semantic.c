@@ -1522,12 +1522,21 @@ static int semantic_borrow_conflicts(
     const Slot* current;
     if (!ctx || !owner) return 0;
     for (current = ctx->head; current; current = current->next) {
-        if (current == excluded || current->borrowed_from != owner ||
-            current->borrow_kind == 0u) continue;
-        if (semantic_borrow_paths_overlap(
-                path, current->borrow_path) &&
-            (requested_mutable || current->borrow_kind == 2u))
+        const BorrowOrigin* origin;
+        if (current == excluded) continue;
+        if (current->borrow_origins) {
+            for (origin = current->borrow_origins; origin; origin = origin->next) {
+                if (origin->owner == owner &&
+                    semantic_borrow_paths_overlap(path, origin->path) &&
+                    (requested_mutable || origin->kind == 2u))
+                    return 1;
+            }
+        } else if (current->borrowed_from == owner &&
+                   current->borrow_kind != 0u &&
+                   semantic_borrow_paths_overlap(path, current->borrow_path) &&
+                   (requested_mutable || current->borrow_kind == 2u)) {
             return 1;
+        }
     }
     return 0;
 }
@@ -1540,10 +1549,25 @@ static uint32_t semantic_shared_borrows_on_path(
     uint32_t count = 0u;
     if (!ctx || !owner) return 0u;
     for (current = ctx->head; current; current = current->next) {
-        if (current == excluded || current->borrowed_from != owner ||
-            current->borrow_kind != 1u) continue;
-        if (semantic_borrow_paths_overlap(path, current->borrow_path) &&
-            count < UINT32_MAX) ++count;
+        const BorrowOrigin* origin;
+        int has_shared_match = 0;
+        if (current == excluded) continue;
+        if (current->borrow_origins) {
+            for (origin = current->borrow_origins; origin; origin = origin->next) {
+                if (origin->owner == owner && origin->kind == 1u &&
+                    semantic_borrow_paths_overlap(path, origin->path)) {
+                    has_shared_match = 1;
+                    break;
+                }
+            }
+        } else if (current->borrowed_from == owner &&
+                   current->borrow_kind == 1u &&
+                   semantic_borrow_paths_overlap(path, current->borrow_path)) {
+            has_shared_match = 1;
+        }
+        /* A borrower with several possible origins is still one live
+           reference on any particular incoming control-flow path. */
+        if (has_shared_match && count < UINT32_MAX) ++count;
     }
     return count;
 }
