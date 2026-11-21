@@ -631,6 +631,12 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - **Current disposition:** design checkpoint only; no source implementation has been made. Existing branch regressions remain pending execution. SEM-005 remains **IN_PROGRESS / VERIFICATION_PENDING**.
 
 
+### SEM-005 — reborrow boundary regression (2026-11-22)
+
+- Added negative regression coverage for shared-reference dereference reborrow (`&*r`) and member-projection reborrow (`&r.field`).
+- These cases are intentionally fail-closed in the current implementation; this test addition does **not** implement reborrow support. Test checks rejection, not the precise diagnostic category.
+- CI is pending for commit `89902cb`. SEM-005 remains **IN_PROGRESS / VERIFICATION_PENDING** until the broader borrow/lifetime audit and required checks complete.
+
 ### SEM-005 — multi-origin borrow flow implementation (2026-11-21)
 
 - Added borrower-owned `BorrowOrigin` records to `Slot`, retaining the scalar fields only as a compatibility view of the first record during migration.
