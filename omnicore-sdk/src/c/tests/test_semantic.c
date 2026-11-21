@@ -1890,9 +1890,10 @@ static int check_reference_member_projection_semantics(void) {
         "v:point!Point; v:r!&Point = &point; "
         "v:field!&i32 = &r.x; v:write!&muti32 = &mut point.x; }";
     const char* shared_projection_reborrow_allows_disjoint_mutable =
-        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:r!&Point = &point; "
-        "v:field!&i32 = &r.x; v:write!&muti32 = &mut point.y; }";
+        "f:main() { struct:Inner { v:x!i32, v:y!i32 } "
+        "struct:Outer { v:inner!Inner, v:other!i32 } "
+        "v:outer!Outer; v:r!&Inner = &outer.inner; "
+        "v:field!&i32 = &r.x; v:write!&muti32 = &mut outer.other; }";
     return check_source(shared_reference_member_read, 0) &&
         check_source(shared_reference_unknown_member, 1) &&
         check_source(shared_projection_reborrow_blocks_overlapping_mutable, 1) &&
