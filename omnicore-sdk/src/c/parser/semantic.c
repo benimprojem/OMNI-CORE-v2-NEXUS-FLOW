@@ -2209,6 +2209,13 @@ static int semantic_reference_return_has_stable_origin(
         if (slot->borrow_origin &&
             (slot->borrow_origin->is_parameter ||
              slot->borrow_origin->depth == 0)) return 1;
+        if (slot->borrow_origins) {
+            const BorrowOrigin* origin;
+            for (origin = slot->borrow_origins; origin; origin = origin->next) {
+                if (!origin->owner || origin->owner->depth != 0) return 0;
+            }
+            return 1;
+        }
         return slot->borrowed_from && slot->borrowed_from->depth == 0;
     }
     if (operand->type == AST_UNARY_EXPR) {
@@ -6957,6 +6964,12 @@ static int semantic_bind_returned_call_reference(
         Slot* origin;
         if (!source ||
             !semantic_is_reference_type_name(source->type_name)) return 0;
+        if (source->borrow_origins) {
+            /* Returned-reference propagation currently accepts only a
+               single concrete origin; multi-path sets must not be collapsed
+               to the legacy scalar compatibility view. */
+            if (source->borrow_origins->next) return 0;
+        }
         if (!source->borrowed_from) {
             origin = source->borrow_origin;
             if (!origin && (source->is_parameter || source->depth == 0))
