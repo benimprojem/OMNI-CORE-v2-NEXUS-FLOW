@@ -1747,6 +1747,8 @@ typedef struct SemanticReferenceInitEntry {
     uint8_t is_initialized;
     uint8_t is_nullable;
     ASTNode* callable_declaration;
+    Slot* borrow_origin;
+    BorrowOrigin* borrow_origins;
 } SemanticReferenceInitEntry;
 
 typedef struct SemanticReferenceInitSnapshot {
@@ -1757,6 +1759,118 @@ typedef struct SemanticReferenceInitSnapshot {
 /* Safe-reference bindings are usable only after a valid initializer or
    assignment. Branch snapshots implement a conservative must-initialize
    merge: a binding is initialized after an if only when every path is. */
+static void semantic_snapshot_borrow_origins_destroy(BorrowOrigin* origins) {
+    while (origins) {
+        BorrowOrigin* next = origins->next;
+        free(origins->path);
+        free(origins);
+        origins = next;
+    }
+}
+
+static int semantic_snapshot_borrow_origins_clone(
+    SemanticContext* ctx, const BorrowOrigin* source, BorrowOrigin** output
+) {
+    BorrowOrigin* head = NULL;
+    BorrowOrigin* tail = NULL;
+    if (!output) return 0;
+    *output = NULL;
+    while (source) {
+        BorrowOrigin* copy = (BorrowOrigin*)semantic_callocate(
+            ctx, 1u, sizeof(*copy));
+        if (!copy) goto allocation_failure;
+        copy->path = semantic_duplicate(ctx, source->path ? source->path : "");
+        if (!copy->path) {
+            free(copy);
+            goto allocation_failure;
+        }
+        copy->owner = source->owner;
+        copy->kind = source->kind;
+        if (tail) tail->next = copy;
+        else head = copy;
+        tail = copy;
+        source = source->next;
+    }
+    *output = head;
+    return 1;
+
+allocation_failure:
+    semantic_snapshot_borrow_origins_destroy(head);
+    semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+    return 0;
+}
+
+static int semantic_snapshot_borrow_origins_capture_slot(
+    SemanticContext* ctx, const Slot* slot, BorrowOrigin** output
+) {
+    BorrowOrigin legacy;
+    if (slot->borrow_origins)
+        return semantic_snapshot_borrow_origins_clone(
+            ctx, slot->borrow_origins, output);
+    if (!slot->borrowed_from || slot->borrow_kind == 0u) {
+        *output = NULL;
+        return 1;
+    }
+    memset(&legacy, 0, sizeof(legacy));
+    legacy.owner = slot->borrowed_from;
+    legacy.path = slot->borrow_path;
+    legacy.kind = slot->borrow_kind;
+    return semantic_snapshot_borrow_origins_clone(ctx, &legacy, output);
+}
+
+static int semantic_snapshot_borrow_origins_union(
+    SemanticContext* ctx, const BorrowOrigin* left,
+    const BorrowOrigin* right, BorrowOrigin** output
+) {
+    BorrowOrigin* merged = NULL;
+    BorrowOrigin* tail = NULL;
+    const BorrowOrigin* source;
+    if (!semantic_snapshot_borrow_origins_clone(ctx, left, &merged))
+        return 0;
+    for (tail = merged; tail && tail->next; tail = tail->next) {}
+    for (source = right; source; source = source->next) {
+        const BorrowOrigin* existing;
+        int duplicate = 0;
+        for (existing = merged; existing; existing = existing->next) {
+            if (existing->owner == source->owner &&
+                existing->kind == source->kind &&
+                strcmp(existing->path ? existing->path : "",
+                       source->path ? source->path : "") == 0) {
+                duplicate = 1;
+                break;
+            }
+        }
+        if (duplicate) continue;
+        {
+            BorrowOrigin* copy = (BorrowOrigin*)semantic_callocate(
+                ctx, 1u, sizeof(*copy));
+            if (!copy) goto allocation_failure;
+            copy->path = semantic_duplicate(
+                ctx, source->path ? source->path : "");
+            if (!copy->path) {
+                free(copy);
+                goto allocation_failure;
+            }
+            copy->owner = source->owner;
+            copy->kind = source->kind;
+            if (tail) tail->next = copy;
+            else merged = copy;
+            tail = copy;
+        }
+    }
+    *output = merged;
+    return 1;
+
+allocation_failure:
+    semantic_snapshot_borrow_origins_destroy(merged);
+    semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+    return 0;
+}
+
+static void semantic_reference_init_snapshot_destroy(
+    SemanticReferenceInitSnapshot* snapshot
+);
+
 static int semantic_reference_init_snapshot_capture(
     SemanticContext* ctx, SemanticReferenceInitSnapshot* snapshot
 ) {
@@ -1800,6 +1914,12 @@ static int semantic_reference_init_snapshot_capture(
             snapshot->entries[index].is_nullable = slot->is_nullable;
             snapshot->entries[index].callable_declaration =
                 slot->callable_declaration;
+            snapshot->entries[index].borrow_origin = slot->borrow_origin;
+            if (!semantic_snapshot_borrow_origins_capture_slot(
+                    ctx, slot, &snapshot->entries[index].borrow_origins)) {
+                semantic_reference_init_snapshot_destroy(snapshot);
+                return 0;
+            }
             ++index;
         }
     }
@@ -1807,25 +1927,43 @@ static int semantic_reference_init_snapshot_capture(
 }
 
 static void semantic_reference_init_snapshot_restore(
-    const SemanticReferenceInitSnapshot* snapshot
+    SemanticContext* ctx, const SemanticReferenceInitSnapshot* snapshot
 ) {
     size_t index;
-    if (!snapshot) return;
+    if (!ctx || !snapshot) return;
     for (index = 0u; index < snapshot->count; ++index) {
-        if (snapshot->entries[index].slot)
-            snapshot->entries[index].slot->is_initialized =
-                snapshot->entries[index].is_initialized;
-        if (snapshot->entries[index].slot)
-            snapshot->entries[index].slot->is_nullable =
-                snapshot->entries[index].is_nullable;
-        if (snapshot->entries[index].slot)
-            snapshot->entries[index].slot->callable_declaration =
-                snapshot->entries[index].callable_declaration;
+        Slot* slot = snapshot->entries[index].slot;
+        BorrowOrigin* restored = NULL;
+        const BorrowOrigin* origin;
+        if (!slot) continue;
+        if (!semantic_snapshot_borrow_origins_clone(
+                ctx, snapshot->entries[index].borrow_origins, &restored))
+            return;
+        semantic_release_borrow_binding(slot);
+        slot->borrow_origins = restored;
+        if (restored) {
+            slot->borrowed_from = restored->owner;
+            slot->borrow_kind = restored->kind;
+            slot->borrow_path = restored->path;
+            for (origin = restored; origin; origin = origin->next) {
+                if (!origin->owner) continue;
+                if (origin->kind == 1u &&
+                    origin->owner->shared_borrow_count < UINT32_MAX)
+                    ++origin->owner->shared_borrow_count;
+                else if (origin->kind == 2u)
+                    origin->owner->mutable_borrow_active = 1u;
+            }
+        }
+        slot->borrow_origin = snapshot->entries[index].borrow_origin;
+        slot->is_initialized = snapshot->entries[index].is_initialized;
+        slot->is_nullable = snapshot->entries[index].is_nullable;
+        slot->callable_declaration =
+            snapshot->entries[index].callable_declaration;
     }
 }
 
 static void semantic_reference_init_snapshot_merge(
-    SemanticReferenceInitSnapshot* left,
+                    ctx,     SemanticContext* ctx, SemanticReferenceInitSnapshot* left,
     const SemanticReferenceInitSnapshot* right
 ) {
     size_t index;
@@ -1833,6 +1971,17 @@ static void semantic_reference_init_snapshot_merge(
     for (index = 0u; index < left->count; ++index) {
         Slot* slot = left->entries[index].slot;
         if (slot && slot == right->entries[index].slot) {
+            BorrowOrigin* union_origins = NULL;
+            if (!semantic_snapshot_borrow_origins_union(
+                    ctx, left->entries[index].borrow_origins,
+                    right->entries[index].borrow_origins, &union_origins))
+                return;
+            semantic_snapshot_borrow_origins_destroy(
+                left->entries[index].borrow_origins);
+            left->entries[index].borrow_origins = union_origins;
+            if (left->entries[index].borrow_origin !=
+                right->entries[index].borrow_origin)
+                left->entries[index].borrow_origin = NULL;
             left->entries[index].is_initialized = (uint8_t)(
                 left->entries[index].is_initialized &&
                 right->entries[index].is_initialized);
@@ -1996,7 +2145,11 @@ static int semantic_branch_terminates_flow(const ASTNode* branch) {
 static void semantic_reference_init_snapshot_destroy(
     SemanticReferenceInitSnapshot* snapshot
 ) {
+    size_t index;
     if (!snapshot) return;
+    for (index = 0u; index < snapshot->count; ++index)
+        semantic_snapshot_borrow_origins_destroy(
+            snapshot->entries[index].borrow_origins);
     free(snapshot->entries);
     snapshot->entries = NULL;
     snapshot->count = 0u;
@@ -8425,7 +8578,7 @@ static void semantic_check_node(
             for(arm_node=select->arms;arm_node;arm_node=arm_node->next) {
                 ASTSelectArm* arm;
                 if (before_captured)
-                    semantic_reference_init_snapshot_restore(&before_arms);
+                    semantic_reference_init_snapshot_restore(ctx, &before_arms);
                 if(arm_node->type!=AST_SELECT_ARM) {
                     report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
                         "select contains an invalid arm node.");
