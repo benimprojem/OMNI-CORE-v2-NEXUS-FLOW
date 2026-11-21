@@ -554,3 +554,14 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Found an explicit coverage gap in loop definite-initialization: the loop implementation snapshots incoming reference/pointer initialization state and conservatively merges it with the loop body state (zero-or-more iterations), but no focused regression asserted both outcomes.
 - Added two tests to `omnicore-sdk/src/c/tests/test_semantic.c`: (1) initializing a safe reference only inside a loop must not count as definite initialization after the loop; (2) an already initialized reference remains initialized after a loop that does not rebind it.
 - Test commit: `fcbee19a92e3a36ebc0710ca5be6b9c4b48a1057`. SEM-005 remains **AUDIT_REQUIRED** pending CI and remaining independent coverage checks.
+
+## Multi-agent audit log — SEM-005 mutable reference reassignment
+
+- **Audit focus:** borrow-binding reassignment state consistency.
+- **Architect pass:** preserve old binding on invalid reassignment; release old borrow only after the new borrow has passed conflict/provenance validation; confirm old and new owner tracking.
+- **Implementer/source review:** `semantic_register_borrow_binding()` validates conflict conditions before releasing the target's previous borrow, then records the new owner/path. `semantic_copy_shared_reference_binding()` similarly validates before replacing the binding.
+- **Test review:** existing regressions verify mutable reassignment releases the previous owner and shared reassignment tracks the new owner. A missing complementary assertion was identified: mutable reassignment must keep the new owner exclusively borrowed.
+- **Regression added:** `mutable_reassignment_tracks_new_owner` in `omnicore-sdk/src/c/tests/test_semantic.c` expects a second mutable borrow of the new owner to be rejected.
+- **Independent review status:** source ordering looks consistent with the intended atomic replacement rule; test syntax/runtime has not been independently executed in this environment.
+- **Verification status:** **PENDING**. Commit `65124a7b247630bdb0109cdb2ababa746cd74625` has not yet been confirmed by exact-head CI. SEM-005 remains `AUDIT_REQUIRED`; no status is advanced.
+- **Tooling note:** GitHub code search returned no matches for the targeted phrases; direct source fetch and repository directory listing were used instead. No test execution environment was available in this pass.
