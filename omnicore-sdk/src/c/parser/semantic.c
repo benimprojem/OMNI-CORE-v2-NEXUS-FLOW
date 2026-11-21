@@ -1359,23 +1359,18 @@ static int semantic_function_matches_callback_type(
 }
 
 
-/* A shared borrow may use a dereference of a tracked shared-reference
-   binding as its lvalue. Keep this narrow: it is not general computed lvalue
-   acceptance and mutable-parent reborrow is handled separately. */
+/* Borrow validation admits only the syntactic dereference-of-identifier
+   shape here; semantic_register_borrow_binding performs the tracked-origin,
+   shared-only, and type-compatibility checks. */
 static int semantic_is_shared_dereference_reborrow(
     SemanticContext* ctx, ASTNode* node
 ) {
     ASTUnaryExpr* dereference;
-    ASTIdentifier* reference_id;
-    Slot* source;
-    if (!ctx || !node || node->type != AST_UNARY_EXPR) return 0;
+    (void)ctx;
+    if (!node || node->type != AST_UNARY_EXPR) return 0;
     dereference = (ASTUnaryExpr*)node;
-    if (dereference->op != TOKEN_STAR || !dereference->operand ||
-        dereference->operand->type != AST_IDENTIFIER) return 0;
-    reference_id = (ASTIdentifier*)dereference->operand;
-    source = find_slot(ctx, reference_id->name);
-    return source && semantic_is_reference_type_name(source->type_name) &&
-        !semantic_is_mut_reference_type_name(source->type_name);
+    return dereference->op == TOKEN_STAR && dereference->operand &&
+        dereference->operand->type == AST_IDENTIFIER;
 }
 
 static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
