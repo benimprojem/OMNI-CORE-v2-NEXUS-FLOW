@@ -591,3 +591,13 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - **Build/CI Verifier:** not green / not available. Exact-head workflow lookup returned no workflow runs and combined status returned no status checks for the test commits. The available workflow-run wrapper is PR-filtered; no local build/runtime execution was performed in this pass.
 - **Current disposition:** **IN_PROGRESS / VERIFICATION_PENDING**. The new tests are committed but not proven passing. SEM-005 remains `AUDIT_REQUIRED`.
 - **Current branch head at this checkpoint:** `65cdab6b6c717a7f6db8af3283dc56b1f0aecf85` (documentation commit following test commit `84256bae0a96a9e102d272ab03eed1f2f024d330`).
+
+
+### SEM-005 — conditional mutable-borrow merge regression (2026-11-21)
+
+- **Architect/source audit:** `SemanticReferenceInitSnapshot` captures initialization/nullability/callback-target state only; it does not capture `Slot.borrow_kind`, `borrowed_from`, or `borrow_path`. `AST_IF` restores/merges this snapshot between branches, while reference reassignment mutates borrow bindings immediately.
+- **Risk identified:** when an outer `&mut` binding is reassigned to different owners in the `if` and `else` branches, sequential semantic traversal can leave only the final branch's owner recorded. A later exclusive borrow of the other possible owner may then be incorrectly accepted.
+- **Regression added:** `branch_reassignment_preserves_all_possible_mutable_borrows` rebinds one outer mutable reference to `second` or `third` on mutually exclusive branches, then attempts exclusive borrows of both owners. The test expects both post-merge borrows to be rejected.
+- **Test commit:** `d931458590f20e99b199a589b47ed4efbbd2ce9c`.
+- **Implementation disposition:** no speculative semantic change was made. The current single-owner `Slot` borrow representation may be insufficient for a conservative may-own merge; implementation must first choose a sound representation (e.g. multi-origin borrow set or fail-closed unknown-origin state) and cover branch termination, nested branches, loops, and cleanup.
+- **Verification:** pending. No local C test execution or exact-head CI result is available for this commit. SEM-005 remains **IN_PROGRESS / VERIFICATION_PENDING**; do not mark this regression green or advance to SEM-006.
