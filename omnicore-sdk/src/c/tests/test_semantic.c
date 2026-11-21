@@ -2168,6 +2168,10 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
         "v:reference!&muti32 = &mut first; reference = &mut second; "
         "v:read!&i32 = &first; }";
+    const char* mutable_reassignment_tracks_new_owner =
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "v:reference!&muti32 = &mut first; reference = &mut second; "
+        "v:edit!&muti32 = &mut second; }";
     const char* failed_reassignment_preserves_old_borrow =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
         "v:reference!&i32 = &first; reference = second; "
@@ -2184,6 +2188,7 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         check_source(outer_reference_cannot_escape_inner_owner, 1) &&
         check_source(later_declared_owner_cleanup_is_safe, 0) &&
         check_source(mutable_reassignment_releases_old_owner, 0) &&
+        check_source(mutable_reassignment_tracks_new_owner, 1) &&
         check_source(failed_reassignment_preserves_old_borrow, 2) &&
         check_source(stored_reference_member_reassignment_is_rejected, 3) &&
         check_source(stored_reference_index_reassignment_is_rejected, 2);
