@@ -1359,6 +1359,25 @@ static int semantic_function_matches_callback_type(
 }
 
 
+/* A shared borrow may use a dereference of a tracked shared-reference
+   binding as its lvalue. Keep this narrow: it is not general computed lvalue
+   acceptance and mutable-parent reborrow is handled separately. */
+static int semantic_is_shared_dereference_reborrow(
+    SemanticContext* ctx, ASTNode* node
+) {
+    ASTUnaryExpr* dereference;
+    ASTIdentifier* reference_id;
+    Slot* source;
+    if (!ctx || !node || node->type != AST_UNARY_EXPR) return 0;
+    dereference = (ASTUnaryExpr*)node;
+    if (dereference->op != TOKEN_STAR || !dereference->operand ||
+        dereference->operand->type != AST_IDENTIFIER) return 0;
+    reference_id = (ASTIdentifier*)dereference->operand;
+    source = find_slot(ctx, reference_id->name);
+    return source && semantic_is_reference_type_name(source->type_name) &&
+        !semantic_is_mut_reference_type_name(source->type_name);
+}
+
 static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
     if (!ctx || !node) return 0;
     if (node->type == AST_IDENTIFIER) {
@@ -9651,7 +9670,10 @@ static void semantic_check_node(
                 }
             } else if (unary->op == TOKEN_BIT_AND ||
                        unary->op == TOKEN_BORROW_MUT) {
-                if (!unary->operand || !semantic_is_lvalue(ctx, unary->operand)) {
+                if (!unary->operand ||
+                    (!semantic_is_lvalue(ctx, unary->operand) &&
+                     !(unary->op == TOKEN_BIT_AND &&
+                       semantic_is_shared_dereference_reborrow(ctx, unary->operand)))) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Borrow operator requires an addressable lvalue.");
                 } else if (unary->op == TOKEN_BORROW_MUT &&
