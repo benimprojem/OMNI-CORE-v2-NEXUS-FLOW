@@ -573,3 +573,11 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - **Implementation review:** the assignment path calls `semantic_register_borrow_binding()` only when the assignment has produced no new diagnostics. That helper validates owner, lifetime, path and conflicts before calling `semantic_release_borrow_binding()`. The intended atomic replacement ordering is therefore present; the new test guards it for mutable references.
 - **Commit:** `d3ef70d67dd86624a70b7131555e60e91860c278`.
 - **Independent execution / exact-head CI:** pending. This test has been committed but not run in a local build or confirmed by CI; SEM-005 remains open.
+
+### SEM-005 — conflicting mutable reassignment preserves prior borrow
+
+- **Independent reviewer finding:** type-invalid reassignment alone does not exercise the conflict path where the new borrow expression itself is rejected because another binding already borrows the proposed owner.
+- **Regression added:** `conflicting_mutable_reassignment_preserves_old_borrow` holds a shared borrow on the proposed new owner, attempts to rebind an existing exclusive reference to it, then verifies that the original owner remains exclusively borrowed.
+- **Expected diagnostics:** 2 — one for the conflicting reassignment and one for the subsequent conflicting borrow of the original owner.
+- **Commit:** `84256bae0a96a9e102d272ab03eed1f2f024d330`.
+- **Execution and exact-head CI:** pending; test has not been run locally or confirmed green by CI.
