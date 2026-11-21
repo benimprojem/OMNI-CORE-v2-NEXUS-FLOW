@@ -7070,6 +7070,134 @@ static int semantic_bind_returned_call_reference(
     return 1;
 }
 
+/* Compose a member/index projection with every tracked shared origin.
+   The reference variable is never substituted for its underlying owner. */
+static int semantic_register_shared_projection_reborrow(
+    SemanticContext* ctx, Slot* borrower, ASTNode* borrow_node,
+    ASTNode* projection
+) {
+    Slot* source;
+    ASTNode* root = projection;
+    char* suffix;
+    const char* projected_type;
+    const char* expected_type;
+    const BorrowOrigin* source_origin;
+    BorrowOrigin* replacement_head = NULL;
+    BorrowOrigin* replacement_tail = NULL;
+    if (!ctx || !borrower || !borrow_node || !projection ||
+        (projection->type != AST_MEMBER_ACCESS &&
+         projection->type != AST_INDEX_ACCESS) ||
+        semantic_is_mut_reference_type_name(borrower->type_name))
+        return 0;
+    while (root && root->type != AST_IDENTIFIER) {
+        if (root->type == AST_MEMBER_ACCESS)
+            root = ((ASTMemberAccess*)root)->object;
+        else if (root->type == AST_INDEX_ACCESS)
+            root = ((ASTIndexAccess*)root)->target;
+        else return 0;
+    }
+    if (!root) return 0;
+    source = find_slot(ctx, ((ASTIdentifier*)root)->name);
+    if (!source || source == borrower ||
+        !semantic_is_reference_type_name(source->type_name) ||
+        semantic_is_mut_reference_type_name(source->type_name))
+        return 0;
+    projected_type = get_expr_type(ctx, projection);
+    expected_type = semantic_dereference_target_type(borrower->type_name, NULL);
+    if (!projected_type || !expected_type ||
+        !are_types_compatible(ctx, expected_type, projected_type)) {
+        report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Projection reborrow target type does not match the referenced member or index type.");
+        return 1;
+    }
+    suffix = semantic_lvalue_path(ctx, projection);
+    if (!suffix) {
+        report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Unable to construct a stable member/index projection path for this reborrow.");
+        return 1;
+    }
+    if (!source->borrow_origins &&
+        !(source->borrowed_from && source->borrow_kind == 1u)) {
+        free(suffix);
+        report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Projection reborrow requires tracked shared storage origins; unknown or external provenance is rejected.");
+        return 1;
+    }
+    source_origin = source->borrow_origins;
+    do {
+        Slot* owner = source_origin ? source_origin->owner : source->borrowed_from;
+        const char* base_path = source_origin
+            ? (source_origin->path ? source_origin->path : "")
+            : (source->borrow_path ? source->borrow_path : "");
+        uint8_t kind = source_origin ? source_origin->kind : source->borrow_kind;
+        size_t base_length, suffix_length;
+        char* combined_path;
+        BorrowOrigin* copy;
+        if (!owner || kind != 1u) {
+            report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Projection reborrow currently requires shared origins; mutable-parent suspension is not implemented.");
+            goto fail;
+        }
+        base_length = strlen(base_path);
+        suffix_length = strlen(suffix);
+        if (base_length > SIZE_MAX - suffix_length - 1u) goto allocation_failure;
+        combined_path = (char*)semantic_allocate(
+            ctx, base_length + suffix_length + 1u);
+        if (!combined_path) goto allocation_failure;
+        memcpy(combined_path, base_path, base_length);
+        memcpy(combined_path + base_length, suffix, suffix_length + 1u);
+        if (semantic_borrow_conflicts(ctx, owner, combined_path, 0, borrower) ||
+            semantic_shared_borrows_on_path(ctx, owner, combined_path, borrower) == UINT32_MAX) {
+            report_borrow_conflict(ctx, borrow_node, owner, 0, combined_path,
+                "create a shared projection reborrow of");
+            free(combined_path);
+            goto fail;
+        }
+        copy = (BorrowOrigin*)semantic_callocate(ctx, 1u, sizeof(*copy));
+        if (!copy) {
+            free(combined_path);
+            goto allocation_failure;
+        }
+        copy->owner = owner;
+        copy->path = combined_path;
+        copy->kind = 1u;
+        if (replacement_tail) replacement_tail->next = copy;
+        else replacement_head = copy;
+        replacement_tail = copy;
+        if (source_origin) source_origin = source_origin->next;
+        else break;
+    } while (source_origin);
+    free(suffix);
+    if (!replacement_head) return 0;
+
+    /* Replace the binding only after all origins pass validation. */
+    semantic_release_borrow_binding(borrower);
+    borrower->borrow_origins = replacement_head;
+    borrower->borrowed_from = replacement_head->owner;
+    borrower->borrow_kind = 1u;
+    borrower->borrow_path = replacement_head->path;
+    {
+        BorrowOrigin* origin;
+        for (origin = replacement_head; origin; origin = origin->next)
+            if (origin->owner->shared_borrow_count < UINT32_MAX)
+                ++origin->owner->shared_borrow_count;
+    }
+    return 1;
+
+allocation_failure:
+    report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+        "Unable to allocate projection-origin metadata; the previous reference binding was preserved.");
+fail:
+    free(suffix);
+    while (replacement_head) {
+        BorrowOrigin* next = replacement_head->next;
+        free(replacement_head->path);
+        free(replacement_head);
+        replacement_head = next;
+    }
+    return 1;
+}
+
 static void semantic_register_borrow_binding(
     SemanticContext* ctx, Slot* borrower, ASTNode* initializer
 ) {
@@ -7135,6 +7263,20 @@ static void semantic_register_borrow_binding(
             return;
         }
     }
+    /* Shared-reference member/index reborrow: compose the projection
+       with the original owner paths instead of treating the reference slot
+       as storage. */
+    if (borrow->op == TOKEN_BIT_AND && borrow->operand &&
+        (borrow->operand->type == AST_MEMBER_ACCESS ||
+         borrow->operand->type == AST_INDEX_ACCESS)) {
+        Slot* projection_root = semantic_lvalue_root_slot(ctx, borrow->operand);
+        if (projection_root &&
+            semantic_is_reference_type_name(projection_root->type_name)) {
+            (void)semantic_register_shared_projection_reborrow(
+                ctx, borrower, (ASTNode*)borrow, borrow->operand);
+            return;
+        }
+    }
     /* The unary-borrow validator owns the diagnostic for non-lvalue operands.
        Only lvalues proceed to the separate provenance check below. */
     if (!semantic_is_lvalue(ctx, borrow->operand)) return;
@@ -7151,17 +7293,6 @@ static void semantic_register_borrow_binding(
     if (!owner) {
         report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
             "Safe borrow requires a local storage owner with statically known provenance; raw-pointer and computed lvalues are not supported.");
-        return;
-    }
-    /* A field reached through a reference is not owned by the reference
-       variable itself. Until projection paths are composed with every
-       BorrowOrigin, reject creating a second reference from that projection
-       rather than recording a false owner. Reading the field is supported. */
-    if (semantic_is_reference_type_name(owner->type_name) &&
-        (borrow->operand->type == AST_MEMBER_ACCESS ||
-         borrow->operand->type == AST_INDEX_ACCESS)) {
-        report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
-            "Borrowing a member or index through a reference requires projection-origin tracking, which is not yet available; the reference binding cannot be used as the storage owner.");
         return;
     }
     is_mutable = borrow->op == TOKEN_BORROW_MUT;
