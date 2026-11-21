@@ -1057,7 +1057,30 @@ static void semantic_record_annotation(
 
 static void semantic_release_borrow_binding(Slot* borrower) {
     Slot* owner;
+    BorrowOrigin* origin;
     if (!borrower) return;
+    if (borrower->borrow_origins) {
+        origin = borrower->borrow_origins;
+        while (origin) {
+            BorrowOrigin* next = origin->next;
+            owner = origin->owner;
+            if (owner && origin->kind == 1u) {
+                if (owner->shared_borrow_count > 0u)
+                    --owner->shared_borrow_count;
+            } else if (owner && origin->kind == 2u) {
+                owner->mutable_borrow_active = 0u;
+            }
+            free(origin->path);
+            free(origin);
+            origin = next;
+        }
+        borrower->borrow_origins = NULL;
+        borrower->borrowed_from = NULL;
+        borrower->borrow_origin = NULL;
+        borrower->borrow_kind = 0u;
+        borrower->borrow_path = NULL;
+        return;
+    }
     owner = borrower->borrowed_from;
     if (!owner) {
         free(borrower->borrow_path);
@@ -1085,7 +1108,7 @@ static void destroy_slot(Slot* slot) {
 
     free(slot->name);
     free(slot->type_name);
-    free(slot->borrow_path);
+    /* borrow_path is released by semantic_release_borrow_binding(). */
 
     if (slot->param_types) {
         for (int i = 0; i < slot->param_count; ++i) {
