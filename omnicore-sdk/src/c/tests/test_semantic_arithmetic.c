@@ -132,6 +132,8 @@ int main(void) {
         "f:main() !i32 { ret 10 + 2.5; }";
     static const char non_numeric_operands[] =
         "f:main() !bool { ret true - false; }";
+    static const char mixed_float_decimal_invalid[] =
+        "f:main(a!f32, b!d32) { v:result = a + b; }";
     static const char comparison_condition[] =
         "f:main() !bool { ret 10 < 20; }";
     static const char modulo_integer[] =
@@ -496,6 +498,7 @@ int main(void) {
     if (!check_source(float_expression, 0)) return 1;
     if (!check_source(mismatched_operands, 1)) return 1;
     if (!check_source(non_numeric_operands, 1)) return 1;
+    if (!check_source(mixed_float_decimal_invalid, 1)) return 1;
     if (!check_source(comparison_condition, 0)) return 1;
     if (!check_source(modulo_integer, 0)) return 1;
     if (!check_source(modulo_float, 1)) return 1;
