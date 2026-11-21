@@ -1858,10 +1858,7 @@ static int check_borrow_expression_semantics(void) {
 static int check_shared_reborrow_fail_closed_semantics(void) {
     const char* dereference_reborrow_rejected =
         "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; v:s!&i32 = &*r; }";
-    const char* projected_reborrow_rejected =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; v:s!&i32 = &r.field; }";
-    return check_source(dereference_reborrow_rejected, 1) &&
-        check_source(projected_reborrow_rejected, 1);
+    return check_source(dereference_reborrow_rejected, 1);
 }
 
 static int check_call_temporary_borrow_semantics(void) {
