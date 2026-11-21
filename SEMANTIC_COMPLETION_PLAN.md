@@ -629,3 +629,16 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - **Registration/copy/reborrow migration:** migrate direct borrow initialization, assignment/reassignment, shared-reference copy, returned-reference propagation, source reborrow, conflict diagnostics, path-count checks, stable-return-origin checks, scope exit, and whole-context destruction together. A partial migration that leaves a single-owner consumer is not acceptable.
 - **Implementation order:** (1) add the record type and Slot-owned set with allocation-failure tests; (2) migrate release and conflict/path scans; (3) migrate registration/copy/reborrow with atomic replacement; (4) extend the existing flow snapshot to deep capture/restore/merge; (5) apply the same snapshot to IF/SELECT/SCAN/LOOP; (6) add branch-termination, nested-branch, missing-default, zero-iteration, and scope-cleanup regressions; (7) run C build, semantic tests, and exact-head CI.
 - **Current disposition:** design checkpoint only; no source implementation has been made. Existing branch regressions remain pending execution. SEM-005 remains **IN_PROGRESS / VERIFICATION_PENDING**.
+
+
+### SEM-005 — multi-origin borrow flow implementation (2026-11-21)
+
+- Added borrower-owned `BorrowOrigin` records to `Slot`, retaining the scalar fields only as a compatibility view of the first record during migration.
+- Migrated borrow release and conflict/path scans to enumerate origin sets. Shared-path counting counts a borrower once per queried path even if its set contains multiple alternatives.
+- Direct borrow registration now allocates the replacement record before releasing the previous binding. Shared-reference assignment clones every shared origin, validates the complete replacement, and preserves the previous binding on failure. Mutable-reference copying remains rejected.
+- Extended the existing reference-init snapshot to deep-copy borrow-origin records and path strings. Branch/arm/loop merges now union and deduplicate origin tuples by owner, kind, and path; initialization remains AND, nullability remains OR, and callback identity remains equality-based.
+- Snapshot restore allocates all replacement sets before mutating live Slots, then releases and restores the complete set. Scope cleanup still releases all borrower links before freeing any Slot.
+- Updated IF join handling to restore the merged snapshot after both continuing branches. Without that restore, the merged borrow set existed only in the snapshot and the live Slot retained the last analyzed branch.
+- Borrow diagnostics now identify the exact matching origin/path. Returned-reference stability checks inspect every possible origin; returned-call propagation currently fails closed for multi-origin source sets rather than collapsing them to the first scalar origin.
+- Existing regressions `branch_reassignment_preserves_all_possible_mutable_borrows` and `conditional_mutable_reassignment_keeps_incoming_and_new_borrows` exercise the IF merge cases. They are included in the semantic test executable; exact-head CI is running and must pass before closure.
+- **Remaining migration:** returned-reference propagation for multi-origin sources, source reborrow composition, and dedicated SELECT/SCAN/LOOP origin-set regressions still require completion. SEM-005 remains **IN_PROGRESS / VERIFICATION_PENDING**.
