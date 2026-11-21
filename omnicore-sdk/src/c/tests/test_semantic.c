@@ -1855,6 +1855,15 @@ static int check_borrow_expression_semantics(void) {
         check_source(shared_borrow_write, 1);
 }
 
+static int check_shared_reborrow_fail_closed_semantics(void) {
+    const char* dereference_reborrow_rejected =
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; v:s!&i32 = &*r; }";
+    const char* projected_reborrow_rejected =
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; v:s!&i32 = &r.field; }";
+    return check_source(dereference_reborrow_rejected, 1) &&
+        check_source(projected_reborrow_rejected, 1);
+}
+
 static int check_call_temporary_borrow_semantics(void) {
     const char* shared_call_conflicts_with_active_mutable =
         "f:read(value!&i32) {} f:main() { v:owner!i32 = 1; "
@@ -4063,7 +4072,11 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Shared/mutable borrow Semantic checks failed.\n");
         return 1;
     }
-    if (!check_call_temporary_borrow_semantics()) {
+        if (!check_shared_reborrow_fail_closed_semantics()) {
+        fprintf(stderr, "Unsupported shared reborrow fail-closed checks failed.\\n");
+        return 1;
+    }
+if (!check_call_temporary_borrow_semantics()) {
         fprintf(stderr, "Call temporary borrow checks failed.\\n"); return 1;
     }
     if (!check_borrow_diagnostic_guidance()) {
