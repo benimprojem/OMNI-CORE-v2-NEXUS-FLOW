@@ -631,11 +631,13 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - **Current disposition:** design checkpoint only; no source implementation has been made. Existing branch regressions remain pending execution. SEM-005 remains **IN_PROGRESS / VERIFICATION_PENDING**.
 
 
-### SEM-005 — reborrow rejection test checkpoint (2026-11-22)
+### SEM-005 — shared dereference reborrow implementation checkpoint (2026-11-22)
 
-- Added a negative regression for shared-reference dereference reborrow (`&*r`); current implementation rejects it pending provenance-aware resolution.
-- Removed the `&r.field` test from this checkpoint because the test used no declared aggregate, so it tested invalid member access rather than reborrow behavior.
-- CI for the corrected test commit `88857d0` is pending. SEM-005 remains **IN_PROGRESS / VERIFICATION_PENDING**; no reborrow support is claimed.
+- Implemented a conservative shared reborrow path for `&*r`: when `r` is a tracked shared-reference binding, the new binding copies the complete tracked origin set rather than treating the dereference as an unrelated computed lvalue.
+- Added regressions for: valid shared `&*r`, preserving the owner conflict after reborrow (mutable borrow rejected), and rejecting shared reborrow from a mutable reference.
+- Mutable reborrow parent suspension/resumption, projection reborrow (member/index), and unknown/raw-pointer origins remain unsupported pending separate provenance/lifetime work.
+- Code and test commits: `eb9f368`, `f7f2594`, `5cb5d2b`. CI for `5cb5d2b` is pending. This is not a SEM-005 closure.
+
 
 ### SEM-005 — multi-origin borrow flow implementation (2026-11-21)
 
