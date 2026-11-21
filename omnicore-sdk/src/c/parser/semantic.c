@@ -7084,6 +7084,30 @@ static void semantic_register_borrow_binding(
     borrow = (ASTUnaryExpr*)initializer;
     if (borrow->op != TOKEN_BIT_AND && borrow->op != TOKEN_BORROW_MUT)
         return;
+
+    /* Shared reborrow through dereference: &*r preserves the tracked origins
+       of r. Only shared-reference sources are accepted here; mutable parent
+       suspension/resumption requires separate lifetime tracking. */
+    if (borrow->op == TOKEN_BIT_AND && borrow->operand &&
+        borrow->operand->type == AST_UNARY_EXPR) {
+        ASTUnaryExpr* dereference = (ASTUnaryExpr*)borrow->operand;
+        if (dereference->op == TOKEN_STAR && dereference->operand &&
+            dereference->operand->type == AST_IDENTIFIER) {
+            ASTIdentifier* reference_id = (ASTIdentifier*)dereference->operand;
+            Slot* source = find_slot(ctx, reference_id->name);
+            if (source && source != borrower &&
+                semantic_is_reference_type_name(source->type_name) &&
+                !semantic_is_mut_reference_type_name(source->type_name) &&
+                are_types_compatible(ctx, borrower->type_name, source->type_name)) {
+                semantic_copy_shared_reference_binding(
+                    ctx, borrower, source, initializer);
+                return;
+            }
+            report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
+                "&* reborrow requires a tracked shared-reference source; mutable references and unknown origins are not supported.");
+            return;
+        }
+    }
     /* The unary-borrow validator owns the diagnostic for non-lvalue operands.
        Only lvalues proceed to the separate provenance check below. */
     if (!semantic_is_lvalue(ctx, borrow->operand)) return;
