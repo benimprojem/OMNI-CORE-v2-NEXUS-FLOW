@@ -639,6 +639,14 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Extended the existing reference-init snapshot to deep-copy borrow-origin records and path strings. Branch/arm/loop merges now union and deduplicate origin tuples by owner, kind, and path; initialization remains AND, nullability remains OR, and callback identity remains equality-based.
 - Snapshot restore allocates all replacement sets before mutating live Slots, then releases and restores the complete set. Scope cleanup still releases all borrower links before freeing any Slot.
 - Updated IF join handling to restore the merged snapshot after both continuing branches. Without that restore, the merged borrow set existed only in the snapshot and the live Slot retained the last analyzed branch.
-- Borrow diagnostics now identify the exact matching origin/path. Returned-reference stability checks inspect every possible origin; returned-call propagation currently fails closed for multi-origin source sets rather than collapsing them to the first scalar origin.
-- Existing regressions `branch_reassignment_preserves_all_possible_mutable_borrows` and `conditional_mutable_reassignment_keeps_incoming_and_new_borrows` exercise the IF merge cases. They are included in the semantic test executable; exact-head CI is running and must pass before closure.
-- **Remaining migration:** returned-reference propagation for multi-origin sources, source reborrow composition, and dedicated SELECT/SCAN/LOOP origin-set regressions still require completion. SEM-005 remains **IN_PROGRESS / VERIFICATION_PENDING**.
+- Borrow diagnostics now identify the exact matching origin/path. Returned-reference stability checks inspect every possible origin. Returned-call propagation preserves multi-origin shared sets; sets containing an exclusive origin fail closed rather than collapsing provenance.
+- Regression coverage now includes IF with/without ELSE, SELECT, LOOP zero/one iteration, terminating branches, and returned shared references: `branch_reassignment_preserves_all_possible_mutable_borrows`, `conditional_mutable_reassignment_keeps_incoming_and_new_borrows`, `select_reassignment_preserves_all_possible_mutable_borrows`, `loop_reassignment_preserves_zero_and_one_iteration_borrows`, `terminating_branch_does_not_leak_unreachable_borrow`, and `returned_shared_reference_preserves_branch_origins`.
+- Exact implementation/test head `f550a1b9130374ab7b4ec68839e2a50cd32e2fd4` passed all five CI jobs in run [44944622134](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44944622134): Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
+- **Remaining migration:** source reborrow/projection composition and a dedicated SCAN origin-set regression remain open. SEM-005 remains **IN_PROGRESS / VERIFICATION_PENDING**.
+
+
+### SEM-005 — multi-origin verification update (2026-11-22)
+
+- Re-polled the exact implementation/test head `f550a1b9130374ab7b4ec68839e2a50cd32e2fd4`; all five check-runs completed with `success` (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind).
+- The six focused multi-origin regressions listed above are part of the test commit. This verifies the implemented IF/SELECT/LOOP/termination/returned-shared paths on the tested CI matrix.
+- This does not close SEM-005: source reborrow/projection composition and a dedicated SCAN origin-set regression are still outstanding. Do not advance to SEM-006 or OIR until the ordered Semantic gate is satisfied.
