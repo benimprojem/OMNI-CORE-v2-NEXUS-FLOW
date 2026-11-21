@@ -5953,7 +5953,7 @@ static int semantic_bind_returned_call_reference(
     }
 
     if (!semantic_install_borrow_origin(
-            borrower, owner, (uint8_t)(is_mutable ? 2u : 1u),
+            ctx, borrower, owner, (uint8_t)(is_mutable ? 2u : 1u),
             borrow_path)) {
         free(borrow_path);
         report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
@@ -6047,7 +6047,7 @@ static void semantic_register_borrow_binding(
             return;
         }
         if (!semantic_install_borrow_origin(
-                borrower, owner, (uint8_t)(is_mutable ? 2u : 1u),
+                ctx, borrower, owner, (uint8_t)(is_mutable ? 2u : 1u),
                 projection_path)) {
             free(projection_path);
             report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
