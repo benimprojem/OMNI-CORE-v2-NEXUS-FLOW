@@ -1963,7 +1963,7 @@ static void semantic_reference_init_snapshot_restore(
 }
 
 static void semantic_reference_init_snapshot_merge(
-                    ctx,     SemanticContext* ctx, SemanticReferenceInitSnapshot* left,
+    SemanticContext* ctx, SemanticReferenceInitSnapshot* left,
     const SemanticReferenceInitSnapshot* right
 ) {
     size_t index;
@@ -8628,7 +8628,7 @@ static void semantic_check_node(
                             merged_captured = 1;
                         } else {
                             semantic_reference_init_snapshot_merge(
-                                &merged_arms, &arm_state);
+                            ctx, &merged_arms, &arm_state);
                         }
                     } else {
                         all_arms_captured = 0;
@@ -8642,10 +8642,10 @@ static void semantic_check_node(
                        unchanged incoming state as an additional control path. */
                     if (!seen_default)
                         semantic_reference_init_snapshot_merge(
-                            &merged_arms, &before_arms);
-                    semantic_reference_init_snapshot_restore(&merged_arms);
+                            ctx, &merged_arms, &before_arms);
+                    semantic_reference_init_snapshot_restore(ctx, &merged_arms);
                 } else {
-                    semantic_reference_init_snapshot_restore(&before_arms);
+                    semantic_reference_init_snapshot_restore(ctx, &before_arms);
                 }
             }
             semantic_reference_init_snapshot_destroy(&before_arms);
@@ -8677,7 +8677,7 @@ static void semantic_check_node(
             for(arm_node=scan->arms;arm_node;arm_node=arm_node->next) {
                 ASTScanArm* arm;
                 if (before_captured)
-                    semantic_reference_init_snapshot_restore(&before_arms);
+                    semantic_reference_init_snapshot_restore(ctx, &before_arms);
                 if(arm_node->type!=AST_SCAN_ARM) {
                     report_error(ctx,arm_node,ERR_SEMANTIC_TYPE_MISMATCH,
                         "scan contains an invalid arm node.");
@@ -8717,7 +8717,7 @@ static void semantic_check_node(
                             merged_captured = 1;
                         } else {
                             semantic_reference_init_snapshot_merge(
-                                &merged_arms, &arm_state);
+                            ctx, &merged_arms, &arm_state);
                         }
                     } else {
                         all_arms_captured = 0;
@@ -8731,10 +8731,10 @@ static void semantic_check_node(
                        unchanged incoming state as an additional path. */
                     if (!seen_else)
                         semantic_reference_init_snapshot_merge(
-                            &merged_arms, &before_arms);
-                    semantic_reference_init_snapshot_restore(&merged_arms);
+                            ctx, &merged_arms, &before_arms);
+                    semantic_reference_init_snapshot_restore(ctx, &merged_arms);
                 } else {
-                    semantic_reference_init_snapshot_restore(&before_arms);
+                    semantic_reference_init_snapshot_restore(ctx, &before_arms);
                 }
             }
             semantic_reference_init_snapshot_destroy(&before_arms);
@@ -9402,7 +9402,7 @@ static void semantic_check_node(
             then_terminates = semantic_branch_terminates_flow(
                 conditional->then_branch);
             if (before_captured)
-                semantic_reference_init_snapshot_restore(&before_state);
+                semantic_reference_init_snapshot_restore(ctx, &before_state);
             semantic_refine_nullable_binding_from_condition(
                 ctx, conditional->condition, 0);
             if (conditional->else_branch) {
@@ -9420,16 +9420,16 @@ static void semantic_check_node(
                     conditional->else_branch);
                 if (before_captured && then_captured && else_captured) {
                     if (then_terminates && !else_terminates)
-                        semantic_reference_init_snapshot_restore(&else_state);
+                        semantic_reference_init_snapshot_restore(ctx, &else_state);
                     else if (!then_terminates && else_terminates)
-                        semantic_reference_init_snapshot_restore(&then_state);
+                        semantic_reference_init_snapshot_restore(ctx, &then_state);
                     else if (!then_terminates && !else_terminates)
                         semantic_reference_init_snapshot_merge(
-                            &then_state, &else_state);
+                            ctx, &then_state, &else_state);
                     else
-                        semantic_reference_init_snapshot_restore(&before_state);
+                        semantic_reference_init_snapshot_restore(ctx, &before_state);
                 } else if (before_captured) {
-                    semantic_reference_init_snapshot_restore(&before_state);
+                    semantic_reference_init_snapshot_restore(ctx, &before_state);
                 }
             } else if (before_captured) {
                 /* With no else, the false path always continues. If the true
@@ -9441,14 +9441,14 @@ static void semantic_check_node(
                     if (semantic_reference_init_snapshot_capture(
                             ctx, &false_state)) {
                         semantic_reference_init_snapshot_merge(
-                            &then_state, &false_state);
-                        semantic_reference_init_snapshot_restore(&then_state);
+                            ctx, &then_state, &false_state);
+                        semantic_reference_init_snapshot_restore(ctx, &then_state);
                     } else {
-                        semantic_reference_init_snapshot_restore(&before_state);
+                        semantic_reference_init_snapshot_restore(ctx, &before_state);
                     }
                     semantic_reference_init_snapshot_destroy(&false_state);
                 } else {
-                    semantic_reference_init_snapshot_restore(&before_state);
+                    semantic_reference_init_snapshot_restore(ctx, &before_state);
                 }
             }
             semantic_reference_init_snapshot_destroy(&before_state);
@@ -10596,10 +10596,10 @@ static void semantic_check_node(
                         ctx, &after_body);
                 if (captured && after_captured) {
                     semantic_reference_init_snapshot_merge(
-                        &after_body, &before_body);
-                    semantic_reference_init_snapshot_restore(&after_body);
+                            ctx, &after_body, &before_body);
+                    semantic_reference_init_snapshot_restore(ctx, &after_body);
                 } else if (captured) {
-                    semantic_reference_init_snapshot_restore(&before_body);
+                    semantic_reference_init_snapshot_restore(ctx, &before_body);
                 }
                 semantic_reference_init_snapshot_destroy(&before_body);
                 semantic_reference_init_snapshot_destroy(&after_body);
