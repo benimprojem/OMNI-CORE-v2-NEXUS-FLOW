@@ -94,6 +94,7 @@ The order below is a dependency order. Audit results may mark an item already im
 | Area | Status | Evidence / boundary |
 |---|---|---|
 | Numeric promotion and generic inference | Covered | Existing positive/negative Semantic regressions; included in cross-platform CI |
+| Cross-family binary float/decimal operands | Rejection regression added | `f32 + d32` is rejected; no implicit family conversion is inferred |
 | Hard bit/byte initializers, assignments, fields and packed indexes | Implemented and CI-verified | Constant range, safe widening, runtime narrowing and SemanticResult/OIR records |
 | Hard signed/unsigned integer conversions | Implemented and CI-verified | Signedness, width, constant range and assignment regressions |
 | Hard float/decimal widening | Implemented and CI-verified | Same-family widening allowed; narrowing requires explicit cast |
