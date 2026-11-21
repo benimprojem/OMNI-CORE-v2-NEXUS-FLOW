@@ -1388,7 +1388,8 @@ static int semantic_is_lvalue(SemanticContext* ctx, ASTNode* node) {
 }
 
 /* Build a stable projection path for a statically identifiable lvalue.
-   Empty string denotes the whole root; dynamic indexes use [*]. */
+   Empty string denotes the whole root; dynamic indexes use [*].
+   Pointer dereference remains rejected until provenance-aware composition is added. */
 static char* semantic_lvalue_path(SemanticContext* ctx, const ASTNode* node) {
     char* parent;
     char index_suffix[48];
@@ -1414,10 +1415,8 @@ static char* semantic_lvalue_path(SemanticContext* ctx, const ASTNode* node) {
                 ? object_type + 1 : object_type;
             Slot* aggregate = aggregate_name
                 ? find_slot(ctx, aggregate_name) : NULL;
-            int is_union_projection = aggregate &&
-                aggregate->kind == SLOT_UNION;
-            member_length = is_union_projection ? 1u
-                : strlen(member->member_name);
+            int is_union_projection = aggregate && aggregate->kind == SLOT_UNION;
+            member_length = is_union_projection ? 1u : strlen(member->member_name);
             if (member_length > SIZE_MAX - 2u) {
                 free(parent);
                 return NULL;
@@ -1432,8 +1431,7 @@ static char* semantic_lvalue_path(SemanticContext* ctx, const ASTNode* node) {
                 member_suffix[1] = '*';
                 member_suffix[2] = '\0';
             } else {
-                memcpy(member_suffix + 1u, member->member_name,
-                    member_length + 1u);
+                memcpy(member_suffix + 1u, member->member_name, member_length + 1u);
             }
             suffix = member_suffix;
         }
@@ -1476,11 +1474,9 @@ static Slot* semantic_lvalue_root_slot(SemanticContext* ctx, ASTNode* node) {
         case AST_IDENTIFIER:
             return find_slot(ctx, ((ASTIdentifier*)node)->name);
         case AST_MEMBER_ACCESS:
-            return semantic_lvalue_root_slot(
-                ctx, ((ASTMemberAccess*)node)->object);
+            return semantic_lvalue_root_slot(ctx, ((ASTMemberAccess*)node)->object);
         case AST_INDEX_ACCESS:
-            return semantic_lvalue_root_slot(
-                ctx, ((ASTIndexAccess*)node)->target);
+            return semantic_lvalue_root_slot(ctx, ((ASTIndexAccess*)node)->target);
         default:
             /* Computed/raw-pointer lvalues do not prove a safe owner. */
             return NULL;
