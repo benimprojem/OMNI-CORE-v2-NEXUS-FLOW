@@ -1102,6 +1102,35 @@ static void semantic_release_borrow_binding(Slot* borrower) {
     borrower->borrow_path = NULL;
 }
 
+/* Install a fully allocated replacement before releasing the old binding.
+   The legacy scalar fields mirror the first origin until all consumers migrate. */
+static int semantic_install_borrow_origin(
+    Slot* borrower, Slot* owner, uint8_t kind, char* owned_path
+) {
+    BorrowOrigin* origin;
+    if (!borrower || !owner || !owned_path ||
+        (kind != 1u && kind != 2u)) return 0;
+    origin = (BorrowOrigin*)malloc(sizeof(*origin));
+    if (!origin) return 0;
+    origin->owner = owner;
+    origin->path = owned_path;
+    origin->kind = kind;
+    origin->next = NULL;
+
+    semantic_release_borrow_binding(borrower);
+    borrower->borrow_origins = origin;
+    borrower->borrowed_from = owner;
+    borrower->borrow_kind = kind;
+    borrower->borrow_path = owned_path;
+    if (kind == 1u) {
+        if (owner->shared_borrow_count < UINT32_MAX)
+            ++owner->shared_borrow_count;
+    } else {
+        owner->mutable_borrow_active = 1u;
+    }
+    return 1;
+}
+
 static void destroy_slot(Slot* slot) {
     if (!slot) return;
     semantic_release_borrow_binding(slot);
@@ -6771,16 +6800,14 @@ static int semantic_bind_returned_call_reference(
         return 0;
     }
 
-    semantic_release_borrow_binding(borrower);
-    if (is_mutable) {
-        owner->mutable_borrow_active = 1u;
-        borrower->borrow_kind = 2u;
-    } else {
-        ++owner->shared_borrow_count;
-        borrower->borrow_kind = 1u;
+    if (!semantic_install_borrow_origin(
+            borrower, owner, (uint8_t)(is_mutable ? 2u : 1u),
+            borrow_path)) {
+        free(borrow_path);
+        report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Unable to allocate borrow-origin metadata; the previous reference binding was preserved.");
+        return 1;
     }
-    borrower->borrowed_from = owner;
-    borrower->borrow_path = borrow_path;
     return 1;
 }
 
@@ -6867,16 +6894,14 @@ static void semantic_register_borrow_binding(
             free(projection_path);
             return;
         }
-        semantic_release_borrow_binding(borrower);
-        if (is_mutable) {
-            owner->mutable_borrow_active = 1u;
-            borrower->borrow_kind = 2u;
-        } else {
-            ++owner->shared_borrow_count;
-            borrower->borrow_kind = 1u;
+        if (!semantic_install_borrow_origin(
+                borrower, owner, (uint8_t)(is_mutable ? 2u : 1u),
+                projection_path)) {
+            free(projection_path);
+            report_error(ctx, (ASTNode*)borrow, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Unable to allocate borrow-origin metadata; the previous reference binding was preserved.");
+            return;
         }
-        borrower->borrowed_from = owner;
-        borrower->borrow_path = projection_path;
     }
 }
 
@@ -6941,11 +6966,11 @@ static void semantic_copy_shared_reference_binding(
         free(copied_path);
         return;
     }
-    semantic_release_borrow_binding(target);
-    ++owner->shared_borrow_count;
-    target->borrowed_from = owner;
-    target->borrow_kind = 1u;
-    target->borrow_path = copied_path;
+    if (!semantic_install_borrow_origin(target, owner, 1u, copied_path)) {
+        free(copied_path);
+        report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Unable to allocate shared-reference origin metadata; the previous binding was preserved.");
+    }
 }
 
 static void semantic_check_node(SemanticContext* ctx, ASTNode* node, int follow_siblings);
