@@ -1855,10 +1855,18 @@ static int check_borrow_expression_semantics(void) {
         check_source(shared_borrow_write, 1);
 }
 
-static int check_shared_reborrow_fail_closed_semantics(void) {
-    const char* dereference_reborrow_rejected =
+static int check_shared_reborrow_semantics(void) {
+    const char* shared_dereference_reborrow_allowed =
         "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; v:s!&i32 = &*r; }";
-    return check_source(dereference_reborrow_rejected, 1);
+    const char* shared_reborrow_keeps_owner_conflict =
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; "
+        "v:s!&i32 = &*r; v:edit!&muti32 = &mut owner; }";
+    const char* mutable_reference_cannot_be_shared_reborrowed =
+        "f:main() { v:owner!i32 = 1; v:r!&muti32 = &mut owner; "
+        "v:s!&i32 = &*r; }";
+    return check_source(shared_dereference_reborrow_allowed, 0) &&
+        check_source(shared_reborrow_keeps_owner_conflict, 1) &&
+        check_source(mutable_reference_cannot_be_shared_reborrowed, 1);
 }
 
 static int check_call_temporary_borrow_semantics(void) {
