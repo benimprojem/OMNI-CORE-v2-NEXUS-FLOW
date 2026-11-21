@@ -9463,10 +9463,11 @@ static void semantic_check_node(
                         semantic_reference_init_snapshot_restore(ctx, &else_state);
                     else if (!then_terminates && else_terminates)
                         semantic_reference_init_snapshot_restore(ctx, &then_state);
-                    else if (!then_terminates && !else_terminates)
+                    else if (!then_terminates && !else_terminates) {
                         semantic_reference_init_snapshot_merge(
                             ctx, &then_state, &else_state);
-                    else
+                        semantic_reference_init_snapshot_restore(ctx, &then_state);
+                    } else
                         semantic_reference_init_snapshot_restore(ctx, &before_state);
                 } else if (before_captured) {
                     semantic_reference_init_snapshot_restore(ctx, &before_state);
