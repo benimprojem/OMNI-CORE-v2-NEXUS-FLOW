@@ -13,6 +13,7 @@ Derleyicinin güncel geliştirme yönü ve çalışma durumu aşağıdaki kök b
 - [OCC pipeline ve 99 AST düğümü ilerleme tablosu](OCC_PIPELINE_PROGRESS.md)
 - [Geliştirme yol haritası](ROADMAP.md)
 - [Güncel görevler](TASKS.md)
+- [Multi-Agent Development Workflow — tüm OCC görevleri için zorunlu ajan/review/test döngüsü](MULTI_AGENT_WORKFLOW.md)
 - [Semantic Completion & Verification Plan](SEMANTIC_COMPLETION_PLAN.md)
 - [1. phase progress — Nexus Flow AST coverage dashboard](NEXUS_FLOW_AST_COVERAGE_DASHBOARD.md)
 - [Mimari kararlar](ARCHITECTURE_DECISIONS.md)
