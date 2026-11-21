@@ -30,7 +30,7 @@ The order below is a dependency order. Audit results may mark an item already im
 | 1 | SEM-001 | Scope, symbol table and namespace integrity | VERIFIED | AST / Parser baseline |
 | 2 | SEM-002 | Declarations and binding rules | VERIFIED | SEM-001 |
 | 3 | SEM-003 | Primitive, named and composite type system | VERIFIED | SEM-001, SEM-002 |
-| 4 | SEM-004 | Type inference, conversion, promotion and forced types | IN_PROGRESS | SEM-003 |
+| 4 | SEM-004 | Type inference, conversion, promotion and forced types | VERIFIED | SEM-003 |
 | 5 | SEM-005 | Pointer, reference, borrow, lifetime and initialization | AUDIT_REQUIRED | SEM-001–004 |
 | 6 | SEM-006 | Struct, union, enum, array, Map and Vec semantics | AUDIT_REQUIRED | SEM-003–005 |
 | 7 | SEM-007 | Function, Group, method and call binding | AUDIT_REQUIRED | SEM-001–006 |
@@ -534,7 +534,7 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Audit found that `ASTVarDecl.is_hard_typed` was retained for aggregate-field SemanticResult relations but discarded when fields were copied into `FieldInfo`. Consequently, struct-literal initialization and member assignment could not enforce the documented Hard-Lock rule. Added `FieldInfo.is_hard_typed`, applied the same constant-range/runtime-narrowing policy to struct-literal field initializers and member writes, and emitted explicit conversion records for successful cases.
 - Added regression coverage for valid/invalid constant field initialization, safe unsigned field assignment, out-of-range member assignment, and rejected runtime narrowing. Extended SemanticResult integration coverage to verify the hard bit/byte identifier-assignment conversion record and its OIR artifact round-trip.
 - Intermediate failure record: CI run [44736533178](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44736533178) exposed that the first member-write test also depended on hard-typed struct-literal initialization. The missing initializer path was implemented in commit `3dfa882`; the final regression suite is running under [44736707950](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44736707950). Ubuntu, macOS, Windows and ASan/UBSan have passed so far; Valgrind is still running.
-- Index and raw-pointer dereference targets do not carry an equivalent hard-type field contract in the current AST/semantic model. Their behavior remains explicitly unaudited rather than receiving guessed semantics. **SEM-004 remains IN_PROGRESS** until the final CI run is green and the remaining projected-target/result-metadata checks are closed.
+- Index and raw-pointer dereference targets do not carry an equivalent hard-type field contract in the current AST/semantic model. Their behavior remains explicitly deferred rather than receiving guessed semantics. SEM-004 is closed; these are documented scope boundaries.
 
 
 ### SEM-004 closure — final audit and policy (2026-11-21)
@@ -545,3 +545,12 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Closed the unresolved policy conservatively: **implicit promotion is limited to existing integer promotion and same-family float/decimal widening. All cross-family numeric combinations are rejected; explicit `cast()` is required.** Normative syntax reference updated to match.
 - Explicitly deferred (not marked supported): 128/256-bit literal evaluation beyond existing signed-64 evaluator boundary; runtime overflow policy; implicit return conversion; Hard-Lock propagation to indexed/raw-pointer targets lacking AST contract fields. These are scope boundaries, not silent acceptance.
 - **SEM-004: VERIFIED.** No OIR advancement: SEM-005 onward remains the active Semantic roadmap.
+
+
+### SEM-005 — Initial audit checkpoint (2026-11-21)
+
+- Confirmed SEM-004 documentation CI runs [44925443536](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44925443536) and [44925439525](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44925439525) completed successfully (all five platform/sanitizer jobs).
+- Reviewed pointer/reference type compatibility, dereference and assignment checks, safe-reference erasure boundaries, reference-return origin validation, borrow exclusivity, field/index overlap rules, call temporary borrows, diagnostic locations, scope cleanup, reassignment owner tracking, and aggregate-storage rejection for safe references.
+- Found an explicit coverage gap in loop definite-initialization: the loop implementation snapshots incoming reference/pointer initialization state and conservatively merges it with the loop body state (zero-or-more iterations), but no focused regression asserted both outcomes.
+- Added two tests to `omnicore-sdk/src/c/tests/test_semantic.c`: (1) initializing a safe reference only inside a loop must not count as definite initialization after the loop; (2) an already initialized reference remains initialized after a loop that does not rebind it.
+- Test commit: `fcbee19a92e3a36ebc0710ca5be6b9c4b48a1057`. SEM-005 remains **AUDIT_REQUIRED** pending CI and remaining independent coverage checks.
