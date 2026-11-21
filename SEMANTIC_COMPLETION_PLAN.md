@@ -636,7 +636,7 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Implemented a conservative shared reborrow path for `&*r`: when `r` is a tracked shared-reference binding, the new binding copies the complete tracked origin set rather than treating the dereference as an unrelated computed lvalue.
 - Added regressions for: valid shared `&*r`, preserving the owner conflict after reborrow (mutable borrow rejected), and rejecting shared reborrow from a mutable reference.
 - Mutable reborrow parent suspension/resumption, projection reborrow (member/index), and unknown/raw-pointer origins remain unsupported pending separate provenance/lifetime work.
-- Code and test commits: `eb9f368`, `f7f2594`, `5cb5d2b`. CI for `5cb5d2b` is pending. This is not a SEM-005 closure.
+- Code/test commits: `eb9f368`, `f7f2594`, `5cb5d2b`, with validator correction `6271af8` and final narrow validation fix `aab4212`. The first CI run exposed that unary borrow validation rejected the dereference syntax before provenance checks; the validator now accepts the syntax shape and the registration stage applies tracked-origin/type restrictions. CI for `aab4212` has passed Ubuntu, macOS and ASan/UBSan; Windows and Valgrind are still running at this checkpoint. This is not a SEM-005 closure.
 
 
 ### SEM-005 — multi-origin borrow flow implementation (2026-11-21)
