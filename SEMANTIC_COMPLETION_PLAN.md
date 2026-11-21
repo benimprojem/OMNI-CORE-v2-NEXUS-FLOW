@@ -565,3 +565,11 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - **Independent review status:** source ordering looks consistent with the intended atomic replacement rule; test syntax/runtime has not been independently executed in this environment.
 - **Verification status:** **PENDING**. Commit `65124a7b247630bdb0109cdb2ababa746cd74625` has not yet been confirmed by exact-head CI. SEM-005 remains `AUDIT_REQUIRED`; no status is advanced.
 - **Tooling note:** GitHub code search returned no matches for the targeted phrases; direct source fetch and repository directory listing were used instead. No test execution environment was available in this pass.
+
+### SEM-005 — failed mutable-reference reassignment regression
+
+- **Test Designer finding:** the existing failed-reassignment preservation test exercised only shared `&T`; mutable `&mut T` needed a direct equivalent.
+- **Regression added:** `failed_mutable_reassignment_preserves_old_borrow` attempts an invalid reassignment from a plain value, then attempts a second exclusive borrow of the original owner. The test expects both the invalid assignment diagnostic and the retained-borrow conflict.
+- **Implementation review:** the assignment path calls `semantic_register_borrow_binding()` only when the assignment has produced no new diagnostics. That helper validates owner, lifetime, path and conflicts before calling `semantic_release_borrow_binding()`. The intended atomic replacement ordering is therefore present; the new test guards it for mutable references.
+- **Commit:** `d3ef70d67dd86624a70b7131555e60e91860c278`.
+- **Independent execution / exact-head CI:** pending. This test has been committed but not run in a local build or confirmed by CI; SEM-005 remains open.
