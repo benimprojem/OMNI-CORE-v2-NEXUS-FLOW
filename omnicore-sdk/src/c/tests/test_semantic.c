@@ -2214,6 +2214,13 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         "default -> { reference = &mut third; } } "
         "v:edit_second!&muti32 = &mut second; "
         "v:edit_third!&muti32 = &mut third; }";
+    const char* scan_reassignment_preserves_all_possible_mutable_borrows =
+        "f:main(first!i32, second!i32, third!i32, flag!bool) { "
+        "v:reference!&muti32 = &mut first; "
+        "scan(flag) { true -> { reference = &mut second; } "
+        "else -> { reference = &mut third; } } "
+        "v:edit_second!&muti32 = &mut second; "
+        "v:edit_third!&muti32 = &mut third; }";
     const char* loop_reassignment_preserves_zero_and_one_iteration_borrows =
         "f:main(first!i32, second!i32) { "
         "v:reference!&muti32 = &mut first; "
@@ -2245,6 +2252,7 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         check_source(branch_reassignment_preserves_all_possible_mutable_borrows, 2) &&
         check_source(conditional_mutable_reassignment_keeps_incoming_and_new_borrows, 2) &&
         check_source(select_reassignment_preserves_all_possible_mutable_borrows, 2) &&
+        check_source(scan_reassignment_preserves_all_possible_mutable_borrows, 2) &&
         check_source(loop_reassignment_preserves_zero_and_one_iteration_borrows, 2) &&
         check_source(terminating_branch_does_not_leak_unreachable_borrow, 1) &&
         check_source(stored_reference_member_reassignment_is_rejected, 3) &&
