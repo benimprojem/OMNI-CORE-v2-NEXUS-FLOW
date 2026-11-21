@@ -7172,16 +7172,14 @@ static void semantic_copy_shared_reference_binding(
                 goto fail;
             }
             path_length = strlen(source_origin->path ? source_origin->path : "");
-            copy = (BorrowOrigin*)malloc(sizeof(*copy));
+            copy = (BorrowOrigin*)semantic_callocate(ctx, 1u, sizeof(*copy));
             if (!copy) goto allocation_failure;
-            copy->path = (char*)malloc(path_length + 1u);
+            copy->path = semantic_duplicate(
+                ctx, source_origin->path ? source_origin->path : "");
             if (!copy->path) {
                 free(copy);
                 goto allocation_failure;
             }
-            memcpy(copy->path,
-                source_origin->path ? source_origin->path : "",
-                path_length + 1u);
             copy->owner = source_origin->owner;
             copy->kind = 1u;
             copy->next = NULL;
@@ -7207,15 +7205,14 @@ static void semantic_copy_shared_reference_binding(
             return;
         }
         path_length = strlen(source->borrow_path ? source->borrow_path : "");
-        copy = (BorrowOrigin*)malloc(sizeof(*copy));
+        copy = (BorrowOrigin*)semantic_callocate(ctx, 1u, sizeof(*copy));
         if (!copy) goto allocation_failure;
-        copy->path = (char*)malloc(path_length + 1u);
+        copy->path = semantic_duplicate(
+            ctx, source->borrow_path ? source->borrow_path : "");
         if (!copy->path) {
             free(copy);
             goto allocation_failure;
         }
-        memcpy(copy->path, source->borrow_path ? source->borrow_path : "",
-            path_length + 1u);
         copy->owner = source->borrowed_from;
         copy->kind = 1u;
         copy->next = NULL;
