@@ -72,7 +72,7 @@ The order below is a dependency order. Audit results may mark an item already im
 - Added assignment regressions for an in-range constant, an out-of-range constant and a runtime narrowing that cannot be proven safe. Existing initializer regressions cover equivalent cases.
 - Exact implementation/test head: `405f9b45baa9ad83b0cbc58ac65bf371d39f213b`.
 - CI run [44700923242](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44700923242) passed all five jobs: Windows, Ubuntu, macOS, ASan/UBSan and Valgrind. All platform CTest suites passed 74/74. Valgrind reported zero errors and zero definitely/indirectly lost bytes.
-- **SEM-004 remains IN_PROGRESS.** Remaining closure work is the final audit of inference/unification and promotion/conversion edge cases, forced-type behavior across all supported expression contexts, and consistency between diagnostics and SemanticResult conversion annotations. Function return checking currently compares types but does not record a hard bit/byte conversion; determine from the normative language contract whether return types participate in forced representation conversion before changing that path.
+- **SEM-004 closure decision:** Keep implicit numeric promotion conservative and deterministic. Integer operands follow the existing width/signedness promotion; same-family `f*` and `d*` operands widen by width. Mixed integer/binary-float, integer/decimal, and binary-float/decimal operations are rejected; explicit `cast()` is required for cross-family conversion. `!ReturnType` remains a compatibility check, not a coercion instruction. Return conversion and projected index/raw-pointer Hard-Lock propagation are not specified by the AST/language contract and are explicitly deferred; no semantics are guessed.
 
 
 ### SEM-004 — forced-type context expansion and conversion-result audit (2026-11-20)
@@ -94,7 +94,7 @@ The order below is a dependency order. Audit results may mark an item already im
 | Area | Status | Evidence / boundary |
 |---|---|---|
 | Numeric promotion and generic inference | Covered | Existing positive/negative Semantic regressions; included in cross-platform CI |
-| Cross-family binary float/decimal operands | Rejection regression added | `f32 + d32` is rejected; no implicit family conversion is inferred |
+| Cross-family numeric operands | Verified conservative rejection | `i32 + f64`, `f32 + d32`, and other cross-family mixes are rejected; explicit cast is required |
 | Hard bit/byte initializers, assignments, fields and packed indexes | Implemented and CI-verified | Constant range, safe widening, runtime narrowing and SemanticResult/OIR records |
 | Hard signed/unsigned integer conversions | Implemented and CI-verified | Signedness, width, constant range and assignment regressions |
 | Hard float/decimal widening | Implemented and CI-verified | Same-family widening allowed; narrowing requires explicit cast |
@@ -102,7 +102,7 @@ The order below is a dependency order. Audit results may mark an item already im
 | Wide integer literal evaluation | DEFERRED | Avoid broad Semantic refactor; later portable 128/256-bit utility library |
 | Runtime arithmetic overflow | Deferred by language contract | No wrapping/saturation/trap behavior is specified for Semantic to enforce |
 - Explicit numeric casts now produce SemanticResult conversion records with source/target type IDs, conversion classification and the explicit flag. A dedicated SemanticResult → OIR artifact round-trip test passed all five CI jobs in [44740741699](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44740741699). Identity classification now compares the underlying SemanticResult type shape while ignoring only the Hard-Lock flag; tests cover `u8`→`i64` signedness and `u8`→`u8` identity. The fix passed all five CI jobs in [44742242545](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44742242545). The cleaned regression run [44742540343](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44742540343) has Windows, Ubuntu, macOS and ASan/UBSan green; Valgrind is still running.
-- **SEM-004 remains IN_PROGRESS**; wide integer literal evaluation is explicitly deferred to a future portable 128/256-bit utility library. Runtime arithmetic overflow is deliberately left undefined by the current language contract and must not be invented in Semantic. Runtime arithmetic overflow is also deliberately left undefined by the current language contract and must not be invented in Semantic. No OIR phase advancement is authorized.
+- Wide integer literal evaluation is explicitly deferred to a future portable 128/256-bit utility library. Runtime arithmetic overflow is deliberately left undefined by the current language contract; no overflow behavior is invented here. SEM-004 closure is gated on final CI for the cross-family rejection regression.
 
 ### SEM-004 audit finding — mixed integer/float promotion (decision pending)
 
@@ -535,3 +535,13 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Added regression coverage for valid/invalid constant field initialization, safe unsigned field assignment, out-of-range member assignment, and rejected runtime narrowing. Extended SemanticResult integration coverage to verify the hard bit/byte identifier-assignment conversion record and its OIR artifact round-trip.
 - Intermediate failure record: CI run [44736533178](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44736533178) exposed that the first member-write test also depended on hard-typed struct-literal initialization. The missing initializer path was implemented in commit `3dfa882`; the final regression suite is running under [44736707950](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44736707950). Ubuntu, macOS, Windows and ASan/UBSan have passed so far; Valgrind is still running.
 - Index and raw-pointer dereference targets do not carry an equivalent hard-type field contract in the current AST/semantic model. Their behavior remains explicitly unaudited rather than receiving guessed semantics. **SEM-004 remains IN_PROGRESS** until the final CI run is green and the remaining projected-target/result-metadata checks are closed.
+
+
+### SEM-004 closure — final audit and policy (2026-11-21)
+
+- Confirmed CI run [44923744347](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44923744347) passed all five jobs: Windows, Ubuntu, macOS, ASan/UBSan, and Valgrind.
+- The new `f32 + d32` negative regression is green. Existing arithmetic regressions cover mixed integer/float rejection (`i32 + f64`), integer promotion, same-family float and decimal widening, forced-type constant range/runtime narrowing, explicit casts, shift bounds, bit/byte width checks, and vector operators.
+- Inference/unification tests cover generic identity, inference from later parameters, named-argument inference, same-type generic arithmetic, and conflicting generic arguments. Forced-type conversion metadata is covered by SemanticResult and OIR artifact round-trip tests.
+- Closed the unresolved policy conservatively: **implicit promotion is limited to existing integer promotion and same-family float/decimal widening. All cross-family numeric combinations are rejected; explicit `cast()` is required.** Normative syntax reference updated to match.
+- Explicitly deferred (not marked supported): 128/256-bit literal evaluation beyond existing signed-64 evaluator boundary; runtime overflow policy; implicit return conversion; Hard-Lock propagation to indexed/raw-pointer targets lacking AST contract fields. These are scope boundaries, not silent acceptance.
+- **SEM-004: VERIFIED.** No OIR advancement: SEM-005 onward remains the active Semantic roadmap.
