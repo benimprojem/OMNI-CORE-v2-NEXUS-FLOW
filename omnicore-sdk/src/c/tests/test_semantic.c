@@ -1819,13 +1819,22 @@ static int check_safe_reference_definite_initialization_semantics(void) {
     const char* parameter_is_initialized =
         "f:read(value!&i32) { v:copy!i32 = *value; } "
         "f:main() { v:owner!i32 = 1; read(&owner); }";
+    const char* loop_body_initialization_not_definite =
+        "f:main() { v:owner!i32 = 1; v:reference!&i32; "
+        "loop(true) { reference = &owner; break; } "
+        "v:value!i32 = *reference; }";
+    const char* loop_preserves_prior_initialization =
+        "f:main() { v:owner!i32 = 1; v:reference!&i32 = &owner; "
+        "loop(true) { break; } v:value!i32 = *reference; }";
     return check_source(uninitialized_dereference, 1) &&
         check_source(uninitialized_call_argument, 1) &&
         check_source(assigned_before_read, 0) &&
         check_source(both_if_paths_initialize, 0) &&
         check_source(one_if_path_initializes, 1) &&
         check_source(invalid_assignment_does_not_initialize, 2) &&
-        check_source(parameter_is_initialized, 0);
+        check_source(parameter_is_initialized, 0) &&
+        check_source(loop_body_initialization_not_definite, 1) &&
+        check_source(loop_preserves_prior_initialization, 0);
 }
 
 static int check_borrow_expression_semantics(void) {
