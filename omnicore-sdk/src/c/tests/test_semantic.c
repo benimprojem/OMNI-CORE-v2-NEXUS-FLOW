@@ -1861,11 +1861,20 @@ static int check_shared_reborrow_semantics(void) {
     const char* shared_reborrow_keeps_owner_conflict =
         "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; "
         "v:s!&i32 = &*r; v:edit!&muti32 = &mut owner; }";
+    const char* chained_shared_dereference_reborrow_allowed =
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; "
+        "v:s!&i32 = &*r; v:t!&i32 = &*s; }";
+    const char* chained_shared_reborrow_keeps_owner_conflict =
+        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; "
+        "v:s!&i32 = &*r; v:t!&i32 = &*s; "
+        "v:edit!&muti32 = &mut owner; }";
     const char* mutable_reference_cannot_be_shared_reborrowed =
         "f:main() { v:owner!i32 = 1; v:r!&muti32 = &mut owner; "
         "v:s!&i32 = &*r; }";
     return check_source(shared_dereference_reborrow_allowed, 0) &&
         check_source(shared_reborrow_keeps_owner_conflict, 1) &&
+        check_source(chained_shared_dereference_reborrow_allowed, 0) &&
+        check_source(chained_shared_reborrow_keeps_owner_conflict, 1) &&
         check_source(mutable_reference_cannot_be_shared_reborrowed, 1);
 }
 
