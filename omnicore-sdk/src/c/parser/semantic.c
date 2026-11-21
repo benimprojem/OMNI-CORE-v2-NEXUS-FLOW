@@ -879,16 +879,41 @@ static int semantic_reference_init_snapshot_capture(
 static void semantic_reference_init_snapshot_restore(
     SemanticContext* ctx, const SemanticReferenceInitSnapshot* snapshot
 ) {
+    BorrowOrigin** restored_sets;
     size_t index;
     if (!ctx || !snapshot) return;
+    if (snapshot->count == 0u) return;
+    if (snapshot->count > SIZE_MAX / sizeof(*restored_sets)) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return;
+    }
+    restored_sets = (BorrowOrigin**)semantic_callocate(
+        ctx, snapshot->count, sizeof(*restored_sets));
+    if (!restored_sets) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return;
+    }
+    /* Prepare every replacement first. An allocation failure must not leave
+       half the symbol table restored to a different control-flow path. */
+    for (index = 0u; index < snapshot->count; ++index) {
+        if (!semantic_snapshot_borrow_origins_clone(
+                ctx, snapshot->entries[index].borrow_origins,
+                &restored_sets[index])) {
+            size_t cleanup;
+            for (cleanup = 0u; cleanup < snapshot->count; ++cleanup)
+                semantic_snapshot_borrow_origins_destroy(restored_sets[cleanup]);
+            free(restored_sets);
+            return;
+        }
+    }
     for (index = 0u; index < snapshot->count; ++index) {
         Slot* slot = snapshot->entries[index].slot;
-        BorrowOrigin* restored = NULL;
+        BorrowOrigin* restored = restored_sets[index];
         const BorrowOrigin* origin;
-        if (!slot) continue;
-        if (!semantic_snapshot_borrow_origins_clone(
-                ctx, snapshot->entries[index].borrow_origins, &restored))
-            return;
+        if (!slot) {
+            semantic_snapshot_borrow_origins_destroy(restored);
+            continue;
+        }
         semantic_release_borrow_binding(slot);
         slot->borrow_origins = restored;
         if (restored) {
@@ -910,8 +935,8 @@ static void semantic_reference_init_snapshot_restore(
         slot->callable_declaration =
             snapshot->entries[index].callable_declaration;
     }
+    free(restored_sets);
 }
-
 static void semantic_reference_init_snapshot_merge(
     SemanticContext* ctx, SemanticReferenceInitSnapshot* left,
     const SemanticReferenceInitSnapshot* right
