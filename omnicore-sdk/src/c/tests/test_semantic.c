@@ -1894,10 +1894,18 @@ static int check_reference_member_projection_semantics(void) {
         "struct:Outer { v:inner!Inner, v:other!i32 } "
         "v:outer!Outer; v:r!&Inner = &outer.inner; "
         "v:field!&i32 = &r.x; v:write!&muti32 = &mut outer.other; }";
+    const char* child_projection_keeps_original_origin_after_parent_reassignment =
+        "f:main() { struct:Inner { v:x!i32, v:y!i32 } "
+        "struct:Outer { v:inner!Inner, v:other!i32 } "
+        "v:outer!Outer; v:replacement!Outer; "
+        "v:r!&Inner = &outer.inner; v:field!&i32 = &r.x; "
+        "r = &replacement.inner; "
+        "v:write!&muti32 = &mut outer.inner.x; }";
     return check_source(shared_reference_member_read, 0) &&
         check_source(shared_reference_unknown_member, 1) &&
         check_source(shared_projection_reborrow_blocks_overlapping_mutable, 1) &&
-        check_source(shared_projection_reborrow_allows_disjoint_mutable, 0);
+        check_source(shared_projection_reborrow_allows_disjoint_mutable, 0) &&
+        check_source(child_projection_keeps_original_origin_after_parent_reassignment, 1);
 }
 
 static int check_call_temporary_borrow_semantics(void) {
