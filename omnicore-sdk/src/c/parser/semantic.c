@@ -6964,11 +6964,17 @@ static int semantic_bind_returned_call_reference(
         Slot* origin;
         if (!source ||
             !semantic_is_reference_type_name(source->type_name)) return 0;
-        if (source->borrow_origins) {
-            /* Returned-reference propagation currently accepts only a
-               single concrete origin; multi-path sets must not be collapsed
-               to the legacy scalar compatibility view. */
-            if (source->borrow_origins->next) return 0;
+        if (source->borrow_origins && source->borrow_origins->next) {
+            const BorrowOrigin* possible_origin;
+            for (possible_origin = source->borrow_origins; possible_origin;
+                 possible_origin = possible_origin->next) {
+                if (possible_origin->kind == 2u) return 0;
+            }
+            /* Shared aliases can safely preserve the complete possible-origin
+               set; never collapse it to the first scalar compatibility view. */
+            semantic_copy_shared_reference_binding(
+                ctx, borrower, source, initializer);
+            return 1;
         }
         if (!source->borrowed_from) {
             origin = source->borrow_origin;
