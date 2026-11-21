@@ -2192,6 +2192,12 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         "els { reference = &mut third; } "
         "v:edit_second!&muti32 = &mut second; "
         "v:edit_third!&muti32 = &mut third; }";
+    const char* conditional_mutable_reassignment_keeps_incoming_and_new_borrows =
+        "f:main(first!i32, second!i32, flag!bool) { "
+        "v:reference!&muti32 = &mut first; "
+        "if (flag) { reference = &mut second; } "
+        "v:edit_first!&muti32 = &mut first; "
+        "v:edit_second!&muti32 = &mut second; }";
     const char* stored_reference_member_reassignment_is_rejected =
         "struct: Box { v:reference!&i32 } "
         "f:main() { v:first!i32 = 1; v:box!Box; box.reference = &first; }";
@@ -2209,6 +2215,7 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         check_source(failed_mutable_reassignment_preserves_old_borrow, 2) &&
         check_source(conflicting_mutable_reassignment_preserves_old_borrow, 2) &&
         check_source(branch_reassignment_preserves_all_possible_mutable_borrows, 2) &&
+        check_source(conditional_mutable_reassignment_keeps_incoming_and_new_borrows, 2) &&
         check_source(stored_reference_member_reassignment_is_rejected, 3) &&
         check_source(stored_reference_index_reassignment_is_rejected, 2);
 }
