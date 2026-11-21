@@ -581,3 +581,13 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - **Expected diagnostics:** 2 — one for the conflicting reassignment and one for the subsequent conflicting borrow of the original owner.
 - **Commit:** `84256bae0a96a9e102d272ab03eed1f2f024d330`.
 - **Execution and exact-head CI:** pending; test has not been run locally or confirmed green by CI.
+
+### SEM-005 — reassignment regression review checkpoint (2026-11-21)
+
+- **Controller:** kept the task within SEM-005; no OIR/Verifier work was started.
+- **Implementer:** added two targeted negative regressions: invalid-type mutable reassignment preserves the previous exclusive borrow; conflict-rejected mutable reassignment also preserves the previous exclusive borrow.
+- **Test Designer:** both tests expect two diagnostics, covering the rejected reassignment and the later conflicting borrow against the original owner.
+- **Independent Reviewer:** verified both test declarations are included in `check_reference_reassignment_and_lifetime_semantics()`, and that this test group is referenced by the test runner (two source occurrences: definition + invocation). Reviewed the assignment path and borrow registration ordering: the new binding is validated before the old binding is released.
+- **Build/CI Verifier:** not green / not available. Exact-head workflow lookup returned no workflow runs and combined status returned no status checks for the test commits. The available workflow-run wrapper is PR-filtered; no local build/runtime execution was performed in this pass.
+- **Current disposition:** **IN_PROGRESS / VERIFICATION_PENDING**. The new tests are committed but not proven passing. SEM-005 remains `AUDIT_REQUIRED`.
+- **Current branch head at this checkpoint:** `65cdab6b6c717a7f6db8af3283dc56b1f0aecf85` (documentation commit following test commit `84256bae0a96a9e102d272ab03eed1f2f024d330`).
