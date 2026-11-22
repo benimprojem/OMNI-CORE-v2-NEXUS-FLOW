@@ -1275,3 +1275,14 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - [ ] Enable mutable dereference/projection reborrow syntax only after the above pass.
 
 Status: **IN_PROGRESS**. No feature-completion checkbox or OIR gate is advanced. Details: `docs/semantic/mutable-reborrow-design.md`.
+
+### SEM-005 — stable borrow identity foundation (2026-11-23)
+
+- [x] Add monotonic SemanticContext-local identity to tracked reference-binding Slots.
+- [x] Record borrower and reserved immediate-parent identity in BorrowOrigin.
+- [x] Preserve identity through snapshot clone and branch-origin union.
+- [x] Initialize destination identity for shared-copy and projection-origin construction.
+- [ ] Add parent-child registration, suspension/resumption, and lifecycle-safe release.
+- [ ] Extend snapshot restore/merge semantics and regression tests for relationship graphs.
+
+Status: **IN_PROGRESS**. This foundation does not enable mutable reborrows; both mutable dereference and projection reborrows remain rejected.
