@@ -1073,10 +1073,42 @@ static void semantic_record_annotation(
     semantic_set_result_error(ctx, status);
 }
 
-static void semantic_release_borrow_binding(Slot* borrower) {
+static Slot* semantic_find_borrow_slot_by_identity(
+    const SemanticContext* ctx, uint64_t identity
+) {
+    Slot* current;
+    if (!ctx || identity == 0u) return NULL;
+    for (current = ctx->head; current; current = current->next)
+        if (current->borrow_identity == identity) return current;
+    return NULL;
+}
+
+static void semantic_release_borrow_binding(
+    SemanticContext* ctx, Slot* borrower
+) {
     Slot* owner;
     BorrowOrigin* origin;
     if (!borrower) return;
+
+    /* Release descendants first, independent of Slot list/declaration order. */
+    if (ctx && borrower->borrow_identity != 0u) {
+        Slot* current;
+        for (current = ctx->head; current; current = current->next) {
+            const BorrowOrigin* child_origin;
+            int is_child = 0;
+            if (current == borrower || !current->borrow_origins) continue;
+            for (child_origin = current->borrow_origins; child_origin;
+                 child_origin = child_origin->next) {
+                if (child_origin->parent_identity ==
+                    borrower->borrow_identity) {
+                    is_child = 1;
+                    break;
+                }
+            }
+            if (is_child)
+                semantic_release_borrow_binding(ctx, current);
+        }
+    }
     if (borrower->borrow_origins) {
         origin = borrower->borrow_origins;
         while (origin) {
@@ -1086,7 +1118,17 @@ static void semantic_release_borrow_binding(Slot* borrower) {
                 if (owner->shared_borrow_count > 0u)
                     --owner->shared_borrow_count;
             } else if (owner && origin->kind == 2u) {
-                owner->mutable_borrow_active = 0u;
+                Slot* parent = origin->parent_identity
+                    ? semantic_find_borrow_slot_by_identity(
+                        ctx, origin->parent_identity)
+                    : NULL;
+                if (parent &&
+                    parent->borrow_suspended_by_identity ==
+                        borrower->borrow_identity) {
+                    parent->borrow_suspended_by_identity = 0u;
+                } else if (!parent || origin->parent_identity == 0u) {
+                    owner->mutable_borrow_active = 0u;
+                }
             }
             free(origin->path);
             free(origin);
@@ -1097,6 +1139,7 @@ static void semantic_release_borrow_binding(Slot* borrower) {
         borrower->borrow_origin = NULL;
         borrower->borrow_kind = 0u;
         borrower->borrow_path = NULL;
+        borrower->borrow_suspended_by_identity = 0u;
         return;
     }
     owner = borrower->borrowed_from;
@@ -1113,6 +1156,7 @@ static void semantic_release_borrow_binding(Slot* borrower) {
     } else if (borrower->borrow_kind == 2u) {
         owner->mutable_borrow_active = 0u;
     }
+    borrower->borrow_suspended_by_identity = 0u;
     borrower->borrowed_from = NULL;
     borrower->borrow_origin = NULL;
     borrower->borrow_kind = 0u;
@@ -1151,7 +1195,7 @@ static int semantic_install_borrow_origin(
     origin->kind = kind;
     origin->next = NULL;
 
-    semantic_release_borrow_binding(borrower);
+    semantic_release_borrow_binding(ctx, borrower);
     borrower->borrow_origins = origin;
     borrower->borrowed_from = owner;
     borrower->borrow_kind = kind;
@@ -1165,9 +1209,9 @@ static int semantic_install_borrow_origin(
     return 1;
 }
 
-static void destroy_slot(Slot* slot) {
+static void destroy_slot(SemanticContext* ctx, Slot* slot) {
     if (!slot) return;
-    semantic_release_borrow_binding(slot);
+    semantic_release_borrow_binding(ctx, slot);
 
     free(slot->name);
     free(slot->type_name);
@@ -1223,7 +1267,7 @@ static void exit_scope(SemanticContext* ctx) {
         Slot* current;
         for (current = ctx->head; current; current = current->next) {
             if (current->depth == ctx->current_depth)
-                semantic_release_borrow_binding(current);
+                semantic_release_borrow_binding(ctx, current);
         }
     }
 
@@ -1232,7 +1276,7 @@ static void exit_scope(SemanticContext* ctx) {
         Slot* current = *link;
         if (current->depth == ctx->current_depth) {
             *link = current->next;
-            destroy_slot(current);
+            destroy_slot(ctx, current);
         } else {
             link = &current->next;
         }
@@ -2026,7 +2070,7 @@ static void semantic_reference_init_snapshot_restore(
             semantic_snapshot_borrow_origins_destroy(restored);
             continue;
         }
-        semantic_release_borrow_binding(slot);
+        semantic_release_borrow_binding(ctx, slot);
         slot->borrow_origins = restored;
         if (restored) {
             slot->borrowed_from = restored->owner;
@@ -7056,7 +7100,7 @@ static int semantic_bind_returned_call_reference(
                     0, 0);
                 return 1;
             }
-            semantic_release_borrow_binding(borrower);
+            semantic_release_borrow_binding(ctx, borrower);
             borrower->borrow_origin = origin;
             return 1;
         }
@@ -7219,7 +7263,7 @@ static int semantic_register_shared_projection_reborrow(
     if (!replacement_head) return 0;
 
     /* Replace the binding only after all origins pass validation. */
-    semantic_release_borrow_binding(borrower);
+    semantic_release_borrow_binding(ctx, borrower);
     borrower->borrow_origins = replacement_head;
     borrower->borrowed_from = replacement_head->owner;
     borrower->borrow_kind = 1u;
@@ -7522,14 +7566,14 @@ static void semantic_copy_shared_reference_binding(
                 0, 0);
             return;
         }
-        semantic_release_borrow_binding(target);
+        semantic_release_borrow_binding(ctx, target);
         target->borrow_origin = origin;
         return;
     }
 
     if (!semantic_ensure_borrow_identity(ctx, target))
         goto allocation_failure;
-    semantic_release_borrow_binding(target);
+    semantic_release_borrow_binding(ctx, target);
     target->borrow_origins = replacement_head;
     target->borrowed_from = replacement_head->owner;
     target->borrow_kind = replacement_head->kind;
@@ -11494,11 +11538,11 @@ void semantic_destroy(SemanticContext* ctx) {
     Slot* current;
     /* Release all cross-Slot links before destroying any Slot. */
     for (current = ctx->head; current; current = current->next)
-        semantic_release_borrow_binding(current);
+        semantic_release_borrow_binding(ctx, current);
     current = ctx->head;
     while (current) {
         Slot* next = current->next;
-        destroy_slot(current);
+        destroy_slot(ctx, current);
         current = next;
     }
     ctx->head = NULL;
