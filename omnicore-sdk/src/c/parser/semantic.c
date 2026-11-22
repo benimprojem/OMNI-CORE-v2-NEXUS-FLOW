@@ -7402,6 +7402,11 @@ static void semantic_copy_shared_reference_binding(
     BorrowOrigin* replacement_tail = NULL;
     uint32_t effective_shared_count;
     if (!ctx || !target || !source || !assignment || target == source) return;
+    if (!semantic_ensure_borrow_identity(ctx, target)) {
+        report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Unable to allocate a stable borrow identity; the previous reference binding was preserved.");
+        return;
+    }
     if (semantic_is_mut_reference_type_name(target->type_name)) {
         report_error(ctx, assignment, ERR_SEMANTIC_TYPE_MISMATCH,
             "An exclusive mutable reference cannot be copied; transfer or reborrow semantics are required.");
