@@ -1871,11 +1871,22 @@ static int check_shared_reborrow_semantics(void) {
     const char* mutable_reference_cannot_be_shared_reborrowed =
         "f:main() { v:owner!i32 = 1; v:r!&muti32 = &mut owner; "
         "v:s!&i32 = &*r; }";
+    const char* shared_parameter_dereference_reborrow_allowed =
+        "f:read(r!&i32) { v:s!&i32 = &*r; v:value!i32 = *s; } "
+        "f:main() { v:owner!i32 = 1; read(&owner); }";
+    const char* shared_parameter_reborrow_type_mismatch =
+        "f:read(r!&i32) { v:s!&f64 = &*r; } "
+        "f:main() { v:owner!i32 = 1; read(&owner); }";
+    const char* raw_pointer_dereference_cannot_become_safe_reborrow =
+        "f:main(p!*i32) { v:s!&i32 = &*p; }";
     return check_source(shared_dereference_reborrow_allowed, 0) &&
         check_source(shared_reborrow_keeps_owner_conflict, 1) &&
         check_source(chained_shared_dereference_reborrow_allowed, 0) &&
         check_source(chained_shared_reborrow_keeps_owner_conflict, 1) &&
-        check_source(mutable_reference_cannot_be_shared_reborrowed, 1);
+        check_source(mutable_reference_cannot_be_shared_reborrowed, 1) &&
+        check_source(shared_parameter_dereference_reborrow_allowed, 0) &&
+        check_source(shared_parameter_reborrow_type_mismatch, 1) &&
+        check_source(raw_pointer_dereference_cannot_become_safe_reborrow, 1);
 }
 
 static int check_reference_member_projection_semantics(void) {
