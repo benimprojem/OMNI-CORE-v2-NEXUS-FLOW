@@ -1299,3 +1299,5 @@ Status: **IN_PROGRESS**. This foundation does not enable mutable reborrows; both
 - [ ] Preserve relationship graphs through snapshot restore and branch joins.
 
 Implementation: 7619c4f; tests: 67d55e7, 356035e. Status remains IN_PROGRESS; mutable reborrow is still rejected and OIR remains gated.
+
+- Additional regression: two tracked shared-reference bindings receive distinct nonzero identities and their BorrowOrigin records identify the correct borrower. Test commit: 4d32fd6. CI remains pending.
