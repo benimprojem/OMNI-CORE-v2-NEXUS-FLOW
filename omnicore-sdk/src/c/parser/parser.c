@@ -2049,14 +2049,47 @@ static ASTNode* parse_shift(Parser* p) {
     return left;
 }
 
+/* Detect the declaration-only '&name!Type' prefix without consuming tokens. */
+static int parser_looks_like_reference_declaration(Parser* p) {
+    ParserContext lookahead;
+    Token first;
+    Token second;
+    if (!p || !p->ctx ||
+        (p->current.type != TOKEN_BIT_AND &&
+         p->current.type != TOKEN_BORROW_MUT)) return 0;
+    lookahead = *p->ctx;
+    first = parser_next_token(&lookahead);
+    second = parser_next_token(&lookahead);
+    if (p->current.type == TOKEN_BORROW_MUT)
+        return first.type == TOKEN_IDENTIFIER && second.type == TOKEN_NOT;
+    if (first.type != TOKEN_IDENTIFIER) return 0;
+    if (first.length == 3 && memcmp(first.start, "mut", 3u) == 0) {
+        Token bang = parser_next_token(&lookahead);
+        return second.type == TOKEN_IDENTIFIER && bang.type == TOKEN_NOT;
+    }
+    return second.type == TOKEN_NOT;
+}
+
 static ASTNode* parse_bitwise_and(Parser* p) {
-    unsigned int depth=0u;ASTNode*left=parse_shift(p);if(!left)return NULL;
-    while(match(p,TOKEN_BIT_AND)){
-        ASTNode*right;
-        if(depth++>=32u){error_at(p,&p->previous,ERR_PARSER_UNEXPECTED_TOKEN,"Maximum bitwise chain depth exceeded.");ast_destroy(left);return NULL;}
-        right=parse_shift(p);if(!right){ast_destroy(left);return NULL;}
-        left=parser_make_binary(p,TOKEN_BIT_AND,left,right);if(!left)return NULL;
-    }return left;
+    unsigned int depth = 0u;
+    ASTNode* left = parse_shift(p);
+    if (!left) return NULL;
+    while (check(p, TOKEN_BIT_AND) &&
+        !parser_looks_like_reference_declaration(p)) {
+        ASTNode* right;
+        advance(p);
+        if (depth++ >= 32u) {
+            error_at(p, &p->previous, ERR_PARSER_UNEXPECTED_TOKEN,
+                "Maximum bitwise chain depth exceeded.");
+            ast_destroy(left);
+            return NULL;
+        }
+        right = parse_shift(p);
+        if (!right) { ast_destroy(left); return NULL; }
+        left = parser_make_binary(p, TOKEN_BIT_AND, left, right);
+        if (!left) return NULL;
+    }
+    return left;
 }
 static ASTNode* parse_bitwise_xor(Parser* p) {
     unsigned int depth=0u;ASTNode*left=parse_bitwise_and(p);if(!left)return NULL;
@@ -5016,29 +5049,7 @@ static ASTNode* parse_statement(Parser* p) {
 
     /* '&name!Type' is a declaration only in this exact lookahead shape.
      * Other '&' expressions continue through the ordinary expression parser. */
-    if (p->current.type == TOKEN_BIT_AND ||
-        p->current.type == TOKEN_BORROW_MUT) {
-        /* Copy the lexer context for lookahead. The lightweight peek helper
-         * does not preserve every nested parser/lexer state transition. */
-        ParserContext lookahead = *p->ctx;
-        Token name_or_mut = parser_next_token(&lookahead);
-        Token after_name = parser_next_token(&lookahead);
-        int is_reference_decl = 0;
-        if (p->current.type == TOKEN_BORROW_MUT) {
-            is_reference_decl = name_or_mut.type == TOKEN_IDENTIFIER &&
-                after_name.type == TOKEN_NOT;
-        } else if (name_or_mut.type == TOKEN_IDENTIFIER) {
-            if (name_or_mut.length == 3 &&
-                memcmp(name_or_mut.start, "mut", 3u) == 0) {
-                Token actual_name = after_name;
-                Token bang = parser_next_token(&lookahead);
-                is_reference_decl = actual_name.type == TOKEN_IDENTIFIER &&
-                    bang.type == TOKEN_NOT;
-            } else {
-                is_reference_decl = after_name.type == TOKEN_NOT;
-            }
-        }
-        if (is_reference_decl) {
+    if (parser_looks_like_reference_declaration(p)) {
             Token declaration_start = p->current;
             ASTNode* node;
             advance(p); /* '&' */
@@ -5054,6 +5065,14 @@ static ASTNode* parse_statement(Parser* p) {
         }
     }
     
+    /* A loop is a complete statement. Parse it separately so a following
+     * '&name!Type' declaration cannot be swallowed as the loop expression's
+     * trailing bitwise-AND operand. */
+    if (check(p, TOKEN_KW_LOOP)) {
+        ASTNode* loop = parse_expression(p);
+        return loop;
+    }
+
     if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC) || match(p, TOKEN_KW_EXTERN)) {
         Token declaration_start = p->previous;
         int is_extern = p->previous.type == TOKEN_KW_EXTERN;
