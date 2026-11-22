@@ -1286,3 +1286,16 @@ Status: **IN_PROGRESS**. No feature-completion checkbox or OIR gate is advanced.
 - [ ] Extend snapshot restore/merge semantics and regression tests for relationship graphs.
 
 Status: **IN_PROGRESS**. This foundation does not enable mutable reborrows; both mutable dereference and projection reborrows remain rejected.
+
+
+### SEM-005 — borrow identity initialization audit correction (2026-11-23)
+
+- [x] Reset the monotonic identity counter in semantic_init().
+- [x] Preserve borrower identity in legacy scalar snapshot capture.
+- [x] Assign projection borrower identity before constructing origin records.
+- [x] Add a C regression for counter initialization from a poisoned nonzero value.
+- [ ] Confirm the new regression on the full CI matrix.
+- [ ] Implement parent-child registration, suspension/resumption and lifecycle-safe release.
+- [ ] Preserve relationship graphs through snapshot restore and branch joins.
+
+Implementation: 7619c4f; tests: 67d55e7, 356035e. Status remains IN_PROGRESS; mutable reborrow is still rejected and OIR remains gated.
