@@ -1242,3 +1242,10 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Regression coverage verifies shared/mutable reference declarations, rejection of the legacy local form, post-loop mutable declaration parsing, and array-of-safe-reference storage reaching Semantic rejection rather than being rejected prematurely by Parser.
 - Exact-head commit `3a3ac16ce7cd3e119fe1dbfed508a8b2875f1407`; workflow run [45054907884](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45054907884) passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. All five jobs are green.
 - This checkpoint stabilizes the declaration grammar slice only. **SEM-005 remains IN_PROGRESS**: mutable-parent reborrow suspension/resumption, broader lifetime/escape and flow-merge auditing remain unfinished. No downstream stage advancement is authorized.
+
+
+### SEM-005 — Mutable reborrow state-model checkpoint (2026-11-23)
+
+- New design contract: `docs/semantic/mutable-reborrow-design.md`. It defines explicit relationship-token state, parent-child suspension/resume, owner reservation, atomic lifecycle, scope cleanup, and flow snapshot/merge invariants.
+- Implementation and behavioral tests remain pending; current mutable-parent reborrow is still rejected. No Semantic completion tick or downstream OIR progression is recorded.
+- Design commit: `e519e545968466cf81a4c6aeb1b5aa9c194508bf`.
