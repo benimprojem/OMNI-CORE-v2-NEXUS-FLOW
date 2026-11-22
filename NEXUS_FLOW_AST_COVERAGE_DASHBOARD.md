@@ -1264,3 +1264,14 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Added a dedicated Semantic diagnostic for `&mut *parent` from a mutable reference binding; it no longer falls through to ordinary lvalue handling.
 - Tests cover both dereference and member-projection mutable reborrow rejection.
 - Implementation: `06fb96f`; tests: `c631025`. CI pending; SEM-005 remains in progress.
+
+### SEM-005 — mutable reborrow lifecycle audit (2026-11-23)
+
+- [x] Audited current C borrow-origin install/release and scope cleanup.
+- [x] Audited branch snapshot clone/restore/merge behavior.
+- [x] Confirmed immediate mutable-parent identity/resumption is not represented.
+- [ ] Stable relationship identity and lifecycle integration.
+- [ ] Snapshot/branch-merge relationship preservation and regression tests.
+- [ ] Enable mutable dereference/projection reborrow syntax only after the above pass.
+
+Status: **IN_PROGRESS**. No feature-completion checkbox or OIR gate is advanced. Details: `docs/semantic/mutable-reborrow-design.md`.
