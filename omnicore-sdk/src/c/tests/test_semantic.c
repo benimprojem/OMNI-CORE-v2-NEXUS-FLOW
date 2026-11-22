@@ -4,6 +4,7 @@
 #include "../semantic/semantic_import_environment.h"
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
