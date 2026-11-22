@@ -1890,33 +1890,29 @@ static int check_reference_member_projection_semantics(void) {
         "v:point!Point; v:r!&Point = &point; "
         "v:field!&i32 = &r.x; v:write!&muti32 = &mut point.x; }";
     const char* shared_projection_reborrow_allows_disjoint_mutable =
-        "f:main() { struct: Inner { v:x!i32, v:y!i32 } "
-        "struct: Outer { v:inner!Inner, v:other!i32 } "
-        "v:outer!Outer; v:r!&Inner = &outer.inner; "
-        "v:field!&i32 = &r.x; v:write!&muti32 = &mut outer.other; }";
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:outer!Point; v:r!&Point = &outer; "
+        "v:field!&i32 = &r.x; v:write!&muti32 = &mut outer.y; }";
     const char* child_projection_keeps_original_origin_after_parent_reassignment =
-        "f:main() { struct: Inner { v:x!i32, v:y!i32 } "
-        "struct: Outer { v:inner!Inner, v:other!i32 } "
-        "v:outer!Outer; v:replacement!Outer; "
-        "v:r!&Inner = &outer.inner; v:field!&i32 = &r.x; "
-        "r = &replacement.inner; "
-        "v:write!&muti32 = &mut outer.inner.x; }";
+        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "v:outer!Point; v:replacement!Point; "
+        "v:r!&Point = &outer; v:field!&i32 = &r.x; "
+        "r = &replacement; "
+        "v:write!&muti32 = &mut outer.x; }";
     const char* child_projection_preserves_first_branch_origin =
-        "f:main(flag!bool) { struct: Inner { v:x!i32, v:y!i32 } "
-        "struct: Outer { v:inner!Inner, v:other!i32 } "
-        "v:first!Outer; v:second!Outer; v:replacement!Outer; "
-        "v:r!&Inner = &first.inner; "
-        "if (flag) { r = &first.inner; } else { r = &second.inner; } "
-        "v:field!&i32 = &r.x; r = &replacement.inner; "
-        "v:write!&muti32 = &mut first.inner.x; }";
+        "f:main(flag!bool) { struct: Point { v:x!i32, v:y!i32 } "
+        "v:first!Point; v:second!Point; v:replacement!Point; "
+        "v:r!&Point = &first; "
+        "if (flag) { r = &first; } else { r = &second; } "
+        "v:field!&i32 = &r.x; r = &replacement; "
+        "v:write!&muti32 = &mut first.x; }";
     const char* child_projection_preserves_second_branch_origin =
-        "f:main(flag!bool) { struct: Inner { v:x!i32, v:y!i32 } "
-        "struct: Outer { v:inner!Inner, v:other!i32 } "
-        "v:first!Outer; v:second!Outer; v:replacement!Outer; "
-        "v:r!&Inner = &first.inner; "
-        "if (flag) { r = &first.inner; } else { r = &second.inner; } "
-        "v:field!&i32 = &r.x; r = &replacement.inner; "
-        "v:write!&muti32 = &mut second.inner.x; }";
+        "f:main(flag!bool) { struct: Point { v:x!i32, v:y!i32 } "
+        "v:first!Point; v:second!Point; v:replacement!Point; "
+        "v:r!&Point = &first; "
+        "if (flag) { r = &first; } else { r = &second; } "
+        "v:field!&i32 = &r.x; r = &replacement; "
+        "v:write!&muti32 = &mut second.x; }";
     const char* array_reference_projection_disjoint_index =
         "f:main() { v:items[3]!i32 = [10, 20, 30]; "
         "v:r!&array|i32[3] = &items; "
