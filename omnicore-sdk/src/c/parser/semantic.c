@@ -7330,6 +7330,21 @@ static void semantic_register_borrow_binding(
             }
         }
     }
+    /* Mutable projections through a mutable safe reference are not
+       ordinary owner borrows. Until parent-child suspension is implemented,
+       reject them here rather than letting the generic lvalue path accept
+       them as an independent borrow. */
+    if (borrow->op == TOKEN_BORROW_MUT && borrow->operand &&
+        (borrow->operand->type == AST_MEMBER_ACCESS ||
+         borrow->operand->type == AST_INDEX_ACCESS)) {
+        Slot* projection_root = semantic_lvalue_root_slot(ctx, borrow->operand);
+        if (projection_root &&
+            semantic_is_mut_reference_type_name(projection_root->type_name)) {
+            report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Mutable projection reborrow requires parent-child suspension and resumption tracking; only shared projection reborrows are currently supported.");
+            return;
+        }
+    }
     /* Shared-reference member/index reborrow: compose the projection
        with the original owner paths instead of treating the reference slot
        as storage. */
