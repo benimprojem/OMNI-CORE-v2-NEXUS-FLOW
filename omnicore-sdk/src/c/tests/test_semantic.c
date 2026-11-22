@@ -1914,44 +1914,44 @@ static int check_reference_member_projection_semantics(void) {
     const char* shared_projection_reborrow_blocks_overlapping_mutable =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; &r!Point = &point; "
-        "&field!i32 = &r.x; &mut write!i32 = &mut point.x; }";
+        "&field!i32 = &r.x; &mut write_ref!i32 = &mut point.x; }";
     const char* shared_projection_reborrow_allows_disjoint_mutable =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:outer!Point; v:other!Point; &r!Point = &outer; "
         "&field!i32 = &r.x; r = &other; "
-        "&mut write!i32 = &mut outer.y; }";
+        "&mut write_ref!i32 = &mut outer.y; }";
     const char* child_projection_keeps_original_origin_after_parent_reassignment =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:outer!Point; v:replacement!Point; "
         "&r!Point = &outer; &field!i32 = &r.x; "
         "r = &replacement; "
-        "&mut write!i32 = &mut outer.x; }";
+        "&mut write_ref!i32 = &mut outer.x; }";
     const char* child_projection_preserves_first_branch_origin =
         "f:main(flag!bool) { struct:Point { v:x!i32, v:y!i32 } "
         "v:first!Point; v:second!Point; v:replacement!Point; "
         "&r!Point = &first; "
         "if (flag) { r = &first; } els { r = &second; } "
         "&field!i32 = &r.x; r = &replacement; "
-        "&mut write!i32 = &mut first.x; }";
+        "&mut write_ref!i32 = &mut first.x; }";
     const char* child_projection_preserves_second_branch_origin =
         "f:main(flag!bool) { struct:Point { v:x!i32, v:y!i32 } "
         "v:first!Point; v:second!Point; v:replacement!Point; "
         "&r!Point = &first; "
         "if (flag) { r = &first; } els { r = &second; } "
         "&field!i32 = &r.x; r = &replacement; "
-        "&mut write!i32 = &mut second.x; }";
+        "&mut write_ref!i32 = &mut second.x; }";
     const char* array_element_shared_borrow_disjoint_index =
         "f:main() { v:items[4]!i32 = [10, 20, 30, 40]; "
         "&element!i32 = &items[3]; "
-        "&mut write!i32 = &mut items[0]; }";
+        "&mut write_ref!i32 = &mut items[0]; }";
     const char* array_element_shared_borrow_overlap_index =
         "f:main() { v:items[4]!i32 = [10, 20, 30, 40]; "
         "&element!i32 = &items[3]; "
-        "&mut write!i32 = &mut items[3]; }";
+        "&mut write_ref!i32 = &mut items[3]; }";
     const char* array_element_shared_borrow_dynamic_index =
         "f:main(index!i32) { v:items[4]!i32 = [10, 20, 30, 40]; "
         "&element!i32 = &items[index]; "
-        "&mut write!i32 = &mut items[2]; }";
+        "&mut write_ref!i32 = &mut items[2]; }";
     return check_source(shared_reference_member_read, 0) &&
         check_source(shared_reference_unknown_member, 1) &&
         check_source(shared_projection_reborrow_blocks_overlapping_mutable, 1) &&
