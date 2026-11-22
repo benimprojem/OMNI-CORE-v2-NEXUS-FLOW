@@ -844,22 +844,22 @@ static int check_postfix_semantics(void) {
 
 static int check_aggregate_member_semantics(void) {
     const char* valid =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 }"
+        "f:main() { struct:Point { v:x!i32, v:y!i32 }"
         " v:p!Point; v:a!i32 = p.x; p.y = 2; }";
     const char* nested =
         "f:main() { struct: Inner { v:x!i32 }"
         " struct: Outer { v:inner!Inner } v:o!Outer;"
         " v:a!i32 = o.inner.x; o.inner.x = 3; }";
     const char* constant_object =
-        "f:main() { struct: Point { v:x!i32 } c:p!Point = Point { x = 1 }; p.x = 2; }";
+        "f:main() { struct:Point { v:x!i32 } c:p!Point = Point { x = 1 }; p.x = 2; }";
     const char* incompatible =
-        "f:main() { struct: Point { v:x!i32 } v:p!Point; p.x = \"bad\"; }";
+        "f:main() { struct:Point { v:x!i32 } v:p!Point; p.x = \"bad\"; }";
     const char* unknown_member =
-        "f:main() { struct: Point { v:x!i32 } v:p!Point; v:a = p.missing; }";
+        "f:main() { struct:Point { v:x!i32 } v:p!Point; v:a = p.missing; }";
     const char* non_aggregate =
         "f:main() { v:value!i32 = 1; v:bad = value.member; }";
     const char* duplicate_struct_field =
-        "f:main() { struct: Point { v:x!i32, v:x!f64 } }";
+        "f:main() { struct:Point { v:x!i32, v:x!f64 } }";
     const char* duplicate_union_field =
         "f:main() { union: Choice { v:value!i32, v:value!f64 } }";
     const char* valid_union_cross_member_read =
@@ -910,22 +910,22 @@ static int check_aggregate_reference_field_rejection_semantics(void) {
 
 static int check_struct_literal_semantics(void) {
     const char* valid_reordered =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:p!Point = Point { y = 2, x = 1 }; }";
     const char* unknown_field =
-        "f:main() { struct: Point { v:x!i32 } "
+        "f:main() { struct:Point { v:x!i32 } "
         "v:p!Point = Point { x = 1, missing = 2 }; }";
     const char* duplicate_field =
-        "f:main() { struct: Point { v:x!i32 } "
+        "f:main() { struct:Point { v:x!i32 } "
         "v:p!Point = Point { x = 1, x = 2 }; }";
     const char* missing_field =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:p!Point = Point { x = 1 }; }";
     const char* incompatible_field =
-        "f:main() { struct: Point { v:x!i32 } "
+        "f:main() { struct:Point { v:x!i32 } "
         "v:p!Point = Point { x = \"wrong\" }; }";
     const char* numeric_type_mismatch =
-        "f:main() { struct: Point { v:x!i32 } "
+        "f:main() { struct:Point { v:x!i32 } "
         "v:p!Point = Point { x = 1.0 }; }";
     const char* non_struct_type =
         "f:main() { enum: State { Ready } v:s!State = State { Ready = 1 }; }";
@@ -1890,24 +1890,24 @@ static int check_reference_member_projection_semantics(void) {
         "v:point!Point; v:r!&Point = &point; "
         "v:field!&i32 = &r.x; v:write!&muti32 = &mut point.x; }";
     const char* shared_projection_reborrow_allows_disjoint_mutable =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:outer!Point; v:r!&Point = &outer; "
         "v:field!&i32 = &r.x; v:write!&muti32 = &mut outer.y; }";
     const char* child_projection_keeps_original_origin_after_parent_reassignment =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:outer!Point; v:replacement!Point; "
         "v:r!&Point = &outer; v:field!&i32 = &r.x; "
         "r = &replacement; "
         "v:write!&muti32 = &mut outer.x; }";
     const char* child_projection_preserves_first_branch_origin =
-        "f:main(flag!bool) { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main(flag!bool) { struct:Point { v:x!i32, v:y!i32 } "
         "v:first!Point; v:second!Point; v:replacement!Point; "
         "v:r!&Point = &first; "
         "if (flag) { r = &first; } else { r = &second; } "
         "v:field!&i32 = &r.x; r = &replacement; "
         "v:write!&muti32 = &mut first.x; }";
     const char* child_projection_preserves_second_branch_origin =
-        "f:main(flag!bool) { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main(flag!bool) { struct:Point { v:x!i32, v:y!i32 } "
         "v:first!Point; v:second!Point; v:replacement!Point; "
         "v:r!&Point = &first; "
         "if (flag) { r = &first; } else { r = &second; } "
@@ -1959,11 +1959,11 @@ static int check_call_temporary_borrow_semantics(void) {
         "edit(&mut owner); v:read!&i32 = &owner; }";
     const char* disjoint_temporary_mutable_member_borrows =
         "f:edit(a!&muti32, b!&muti32) {} "
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; edit(&mut point.x, &mut point.y); }";
     const char* overlapping_temporary_member_borrows =
         "f:edit(a!&muti32, b!&muti32) {} "
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; edit(&mut point.x, &mut point.x); }";
     return check_source(shared_call_conflicts_with_active_mutable, 1) &&
         check_source(mutable_call_conflicts_with_active_shared, 1) &&
@@ -2090,14 +2090,14 @@ static int check_mutable_borrow_owner_access_semantics(void) {
         "f:main() { v:owner!i32 = 1; v:reference!&i32 = &owner; "
         "v:copy!i32 = owner; }";
     const char* member_read_during_mutable_borrow =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:reference!&muti32 = &mut point.x; "
         "v:copy!i32 = point.y; }";
     const char* index_read_during_mutable_borrow =
         "f:main() { v:items[2]!i32 = [1,2]; "
         "v:reference!&muti32 = &mut items[0]; v:copy!i32 = items[1]; }";
     const char* overlapping_member_read_during_mutable_borrow =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:reference!&muti32 = &mut point.x; "
         "v:copy!i32 = point.x; }";
     const char* overlapping_index_read_during_mutable_borrow =
@@ -2367,21 +2367,21 @@ static int check_borrow_aggregate_provenance_semantics(void) {
     const char* raw_pointer_dereference_borrow_has_no_provenance =
         "f:main() { v:pointer!*i32 = null; v:reference!&i32 = &*pointer; }";
     const char* shared_member_allows_other_member_write =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:first!&i32 = &point.x; point.y = 3; }";
     const char* mutable_member_allows_other_member_write =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:first!&muti32 = &mut point.x; point.y = 3; }";
     const char* two_mutable_member_borrows_are_independent =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:first!&muti32 = &mut point.x; "
         "v:second!&muti32 = &mut point.y; }";
     const char* same_member_mutable_borrows_conflict =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:first!&muti32 = &mut point.x; "
         "v:second!&muti32 = &mut point.x; }";
     const char* two_shared_member_borrows_are_allowed =
-        "f:main() { struct: Point { v:x!i32, v:y!i32 } "
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; v:first!&i32 = &point.x; "
         "v:second!&i32 = &point.y; }";
     const char* distinct_union_member_mutable_borrows_conflict =
