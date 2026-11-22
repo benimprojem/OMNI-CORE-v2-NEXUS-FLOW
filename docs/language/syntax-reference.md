@@ -127,6 +127,35 @@ v:owner!i32 = 10;
 - `&*p` biçiminde raw pointer dereference sonucundan safe reference üretilemez; raw pointer güvenli provenance/lifetime garantisi sağlamaz.
 - `&*r` üzerinden `&mut T` parent reborrow ve mutable-parent suspension/resumption henüz desteklenmez. `&mut T` kaynağından shared reborrow da mevcut uygulamada reddedilir; bu davranış SEM-005 kapsamında açık bir eksik olarak izlenir.
 
+- `&mut *r` biçiminde mutable-reference üzerinden child mutable reborrow dil tasarımında tanımlıdır; parent, child aktifken askıya alınır ve child'ın lexical scope'u sona erdiğinde yeniden etkinleşir. Bu davranış henüz Semantic tarafından uygulanmadığından şu an geçerli/derlenebilir özellik olarak kabul edilmez.
+
+##### Mutable parent reborrow — normatif hedef, henüz uygulanmamış
+
+Mutable bir safe reference üzerinden yeni bir mutable reference oluşturmak için dereference edilmiş parent kullanılır. Child'ın ömrü parent'ın ömrü içinde kalmalıdır. Parent, child'ın aktif scope'u boyunca doğrudan okunamaz, yazılamaz, yeniden borrow edilemez veya başka bir çağrıya geçirilemez. Child sona erince parent yeniden kullanılabilir.
+
+```nxf
+v:owner!i32 = 10;
+&mut parent!i32 = &mut owner;
+
+{
+    &mut child!i32 = &mut *parent;
+    *child = 20;
+    # *parent = 30;  # Child aktifken parent erişimi yasak
+}
+
+*parent = 40; # Child scope sona erdi; parent yeniden etkin
+```
+
+Kurallar:
+- Child referans parent'ın referans verdiği aynı owner/projection yoluna bağlıdır; parent'ın kökeni child'a aktarılır.
+- Child oluşturulurken parent'ın mutable borrow'u child tarafından geçici olarak devralınır (suspend). Bu sürede parent kullanımı fail-closed reddedilir.
+- Child scope kapanışında child borrow kaldırılır ve parent borrow yeniden etkinleştirilir (resume). Parent'ın scope'u child'dan kısa olamaz.
+- Child aktifken parent'ın reassignment, move/relocate veya yeniden borrow girişimleri reddedilir.
+- İç içe mutable reborrow'lar parent → child → grandchild biçiminde zincirlenebilir; yalnızca en içte aktif child kullanılabilir. Her child kapanışında bir üst parent yeniden etkinleşir.
+- Birden fazla child veya branch merge, aynı anda aktif parent'ı çoğaltamaz; her control-flow yolunda parent-child ilişkisi ve kapanış doğrulanmalıdır.
+
+**Uygulama durumu:** Bu bölüm gelecekteki dil kontratını kaydeder. Parser syntax'i tanıyabilse bile Semantic suspension/resumption, lexical scope cleanup, control-flow merge ve nested reborrow testleri tamamlanmadan özellik desteklenmiş sayılmaz. SEM-005 açık kalır.
+
 Dizi elemanına referans vermek için indeks doğrudan borrow operandının parçasıdır:
 
 ```nxf
