@@ -197,7 +197,7 @@ Bu ayrım, bellekte gerçek bir fiziksel ayrıştırma veya runtime bounds garan
 
 #### Aggregate alanlarında safe reference sınırı
 
-Mevcut Semantic, struct/union alanlarında doğrudan **&T** veya **&mut T** saklanmasına izin vermez. Bu kural NewType referans takma adları ve içinde safe reference alanı bulunan iç içe struct/union türleri için de geçerlidir. Alan seviyesinde owner/projection/lifetime metadata'sı ve aggregate kopyalama/taşıma kuralları henüz tanımlı olmadığından bu tür bildirimler açık hata ve öneriyle reddedilir. Referansı şimdilik yerel bir **&reference!T** veya **v:reference!&mut T** binding'inde tutun. Bu sınır raw pointer alanlarına otomatik güvenlik sağlamaz; raw pointer ayrı, denetlenmeyen düşük seviyeli erişim sözleşmesidir.
+Mevcut Semantic, struct/union alanlarında doğrudan **&T** veya **&mut T** saklanmasına izin vermez. Bu kural NewType referans takma adları ve içinde safe reference alanı bulunan iç içe struct/union türleri için de geçerlidir. Alan seviyesinde owner/projection/lifetime metadata'sı ve aggregate kopyalama/taşıma kuralları henüz tanımlı olmadığından bu tür bildirimler açık hata ve öneriyle reddedilir. Referansı şimdilik yerel bir **&reference!T** veya **&mut reference!T** binding'inde tutun. Bu sınır raw pointer alanlarına otomatik güvenlik sağlamaz; raw pointer ayrı, denetlenmeyen düşük seviyeli erişim sözleşmesidir.
 
 #### Fonksiyon çağrısı ve geçici borrow
 
