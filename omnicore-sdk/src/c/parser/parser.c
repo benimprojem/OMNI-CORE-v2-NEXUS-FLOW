@@ -3255,6 +3255,87 @@ static ASTNode* parse_var_decl(Parser* p) {
     return (ASTNode*)decl;
 }
 
+
+/* Parse the canonical safe-reference declaration: &name!Type or &mut name!Type. */
+static ASTNode* parse_reference_var_decl(Parser* p, Token ampersand) {
+    ASTVarDecl* decl;
+    Token name_token;
+    Token type_start;
+    char* base_type = NULL;
+    const char* modifier = "";
+    size_t modifier_length;
+    size_t base_length;
+    char* reference_type;
+    if (!p) return NULL;
+
+    if (p->current.type == TOKEN_IDENTIFIER &&
+        p->current.length == 3 && memcmp(p->current.start, "mut", 3u) == 0) {
+        modifier = "&mut";
+        advance(p);
+    } else {
+        modifier = "&";
+    }
+
+    if (!match(p, TOKEN_IDENTIFIER)) {
+        error_at(p, &p->current, ERR_PARSER_INVALID_VAR,
+            "Expected a reference variable name after '&'.");
+        return NULL;
+    }
+    name_token = p->previous;
+    decl = (ASTVarDecl*)parser_ast_create(p, AST_VAR_DECL);
+    if (!decl) return NULL;
+    decl->base.line = ampersand.line;
+    decl->base.col = ampersand.col;
+    decl->is_const = 0;
+    decl->is_hard_typed = 1;
+    decl->name = (char*)parser_malloc(p, (size_t)name_token.length + 1u);
+    if (!decl->name) { ast_destroy((ASTNode*)decl); return NULL; }
+    memcpy(decl->name, name_token.start, (size_t)name_token.length);
+    decl->name[name_token.length] = '\0';
+
+    if (!match(p, TOKEN_NOT)) {
+        error_at(p, &p->current, ERR_PARSER_EXPECTED_EXPRESSION,
+            "A safe-reference declaration requires '!Type' after its name.");
+        ast_destroy((ASTNode*)decl);
+        return NULL;
+    }
+    type_start = p->current;
+    if (!parser_is_type_start(p) ||
+        !parser_parse_type_name(p, &base_type, 0, 0)) {
+        ast_destroy((ASTNode*)decl);
+        free(base_type);
+        return NULL;
+    }
+
+    modifier_length = strlen(modifier);
+    base_length = strlen(base_type);
+    reference_type = (char*)parser_malloc(p, modifier_length + base_length + 1u);
+    if (!reference_type) {
+        free(base_type);
+        ast_destroy((ASTNode*)decl);
+        return NULL;
+    }
+    memcpy(reference_type, modifier, modifier_length);
+    memcpy(reference_type + modifier_length, base_type, base_length + 1u);
+    free(base_type);
+    decl->type_name = reference_type;
+    decl->type_expr = parser_build_type_expr(
+        p, decl->type_name, &ampersand, &p->previous, 1);
+    if (!decl->type_expr) {
+        ast_destroy((ASTNode*)decl);
+        return NULL;
+    }
+    if (match(p, TOKEN_ASSIGN)) {
+        decl->initializer = parse_expression(p);
+        if (!decl->initializer) {
+            ast_destroy((ASTNode*)decl);
+            return NULL;
+        }
+    }
+    (void)type_start;
+    return (ASTNode*)decl;
+}
+
 static ASTNode* parse_return_statement(Parser* p) {
     Token return_start = p->previous;
     ASTUnaryExpr* ret = (ASTUnaryExpr*)parser_ast_create(p, AST_RETURN);
@@ -4922,6 +5003,39 @@ static ASTNode* parse_statement(Parser* p) {
         if (p->previous.type == TOKEN_SEMICOLON)
             parser_stamp_node_tokens(p, (ASTNode*)decl, &declaration_start, &p->previous);
         return (ASTNode*)decl;
+    }
+
+    /* '&name!Type' is a declaration only in this exact lookahead shape.
+     * Other '&' expressions continue through the ordinary expression parser. */
+    if (p->current.type == TOKEN_BIT_AND) {
+        Token name_or_mut = peek_token(p);
+        Token after_name = peek_token_ahead(p, 2);
+        int is_reference_decl = 0;
+        if (name_or_mut.type == TOKEN_IDENTIFIER) {
+            if (name_or_mut.length == 3 &&
+                memcmp(name_or_mut.start, "mut", 3u) == 0) {
+                Token actual_name = peek_token_ahead(p, 3);
+                Token bang = peek_token_ahead(p, 4);
+                is_reference_decl = actual_name.type == TOKEN_IDENTIFIER &&
+                    bang.type == TOKEN_NOT;
+            } else {
+                is_reference_decl = after_name.type == TOKEN_NOT;
+            }
+        }
+        if (is_reference_decl) {
+            Token declaration_start = p->current;
+            ASTNode* node;
+            advance(p); /* '&' */
+            node = parse_reference_var_decl(p, declaration_start);
+            if (!node) return NULL;
+            ((ASTVarDecl*)node)->is_public = is_pub;
+            ((ASTVarDecl*)node)->is_exported = is_exp;
+            consume(p, TOKEN_SEMICOLON, ERR_PARSER_EXPECTED_SEMICOLON,
+                MSG_EXPECT_SEMICOLON_VAR);
+            if (p->previous.type == TOKEN_SEMICOLON)
+                parser_stamp_node_tokens(p, node, &declaration_start, &p->previous);
+            return node;
+        }
     }
     
     if (match(p, TOKEN_KW_FN) || match(p, TOKEN_PRE_FUNC) || match(p, TOKEN_KW_EXTERN)) {
