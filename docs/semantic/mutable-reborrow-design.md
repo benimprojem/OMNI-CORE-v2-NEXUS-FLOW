@@ -101,3 +101,5 @@ A follow-up audit found three gaps in the identity foundation and corrected them
 - Shared projection reborrow assigns/validates the destination identity before constructing any BorrowOrigin nodes. Previously the nodes could capture zero before the later identity allocation.
 
 A focused C regression poisons the counter with UINT64_MAX, calls semantic_init(), and verifies that initialization resets it. This validates initialization only; it does not prove identity graph lifecycle or mutable parent suspension. The CTest/CI result for this new regression is still pending.
+
+The regression set also verifies that two simultaneously tracked shared-reference bindings receive distinct nonzero identities and that each origin records the matching borrower identity. Test commit: 4d32fd6; CI has not yet been observed.
