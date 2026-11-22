@@ -1307,6 +1307,9 @@ Implementation: 7619c4f; tests: 67d55e7, 356035e. Status remains IN_PROGRESS; mu
 
 - [x] Restore explicit rejection of `&mut parent.x` when the projection root is a mutable safe-reference binding.
 - [x] Keep `&mut *parent` rejection covered by the same negative test group.
-- [ ] Verify all five CI jobs (Ubuntu, macOS, Windows, ASan/UBSan, Valgrind).
+- [x] Verify all five CI jobs (Ubuntu, macOS, Windows, ASan/UBSan, Valgrind) on fix commit `4d00ef2` — workflow run `45085185651` succeeded.
 
 Root cause: mutable member/index borrows were falling through the generic lvalue path because only shared `TOKEN_BIT_AND` projections were specially handled. Fix commit: `4d00ef2`. First new run: `45085185651`; Ubuntu passed, remaining jobs were pending at documentation time. SEM-005 remains **IN_PROGRESS**; mutable reborrow remains unsupported and OIR remains gated.
+
+
+CI confirmation: run `45085185651` for fix commit `4d00ef2` completed successfully across all five jobs: Ubuntu, macOS, Windows, ASan/UBSan and Valgrind. Earlier red runs are historical failed attempts before this fix; they remain red in GitHub history and are not retroactively rewritten. New pushes should be evaluated independently.
