@@ -1121,27 +1121,28 @@ static void semantic_release_borrow_binding(Slot* borrower) {
 
 /* Install a fully allocated replacement before releasing the old binding.
    The legacy scalar fields mirror the first origin until all consumers migrate. */
+static int semantic_ensure_borrow_identity(
+    SemanticContext* ctx, Slot* borrower
+) {
+    if (!ctx || !borrower) return 0;
+    if (borrower->borrow_identity != 0u) return 1;
+    if (ctx->next_borrow_identity == UINT64_MAX) return 0;
+    ++ctx->next_borrow_identity;
+    if (ctx->next_borrow_identity == 0u) return 0;
+    borrower->borrow_identity = ctx->next_borrow_identity;
+    return 1;
+}
+
 static int semantic_install_borrow_origin(
     SemanticContext* ctx, Slot* borrower, Slot* owner,
     uint8_t kind, char* owned_path
 ) {
     BorrowOrigin* origin;
     if (!ctx || !borrower || !owner || !owned_path ||
-        (kind != 1u && kind != 2u)) return 0;
+        (kind != 1u && kind != 2u) ||
+        !semantic_ensure_borrow_identity(ctx, borrower)) return 0;
     origin = (BorrowOrigin*)semantic_allocate(ctx, sizeof(*origin));
     if (!origin) return 0;
-    if (borrower->borrow_identity == 0u) {
-        if (ctx->next_borrow_identity == UINT64_MAX) {
-            free(origin);
-            return 0;
-        }
-        ++ctx->next_borrow_identity;
-        if (ctx->next_borrow_identity == 0u) {
-            free(origin);
-            return 0;
-        }
-        borrower->borrow_identity = ctx->next_borrow_identity;
-    }
     origin->owner = owner;
     origin->borrower_identity = borrower->borrow_identity;
     origin->parent_identity = 0u;
@@ -7199,6 +7200,8 @@ static int semantic_register_shared_projection_reborrow(
             goto allocation_failure;
         }
         copy->owner = owner;
+        copy->borrower_identity = borrower->borrow_identity;
+        copy->parent_identity = 0u;
         copy->path = combined_path;
         copy->kind = 1u;
         if (replacement_tail) replacement_tail->next = copy;
@@ -7210,6 +7213,8 @@ static int semantic_register_shared_projection_reborrow(
     free(suffix);
     if (!replacement_head) return 0;
 
+    if (!semantic_ensure_borrow_identity(ctx, borrower))
+        goto allocation_failure;
     /* Replace the binding only after all origins pass validation. */
     semantic_release_borrow_binding(borrower);
     borrower->borrow_origins = replacement_head;
@@ -7435,6 +7440,8 @@ static void semantic_copy_shared_reference_binding(
                 goto allocation_failure;
             }
             copy->owner = source_origin->owner;
+            copy->borrower_identity = target->borrow_identity;
+            copy->parent_identity = 0u;
             copy->kind = 1u;
             copy->next = NULL;
             if (replacement_tail) replacement_tail->next = copy;
@@ -7468,6 +7475,8 @@ static void semantic_copy_shared_reference_binding(
             goto allocation_failure;
         }
         copy->owner = source->borrowed_from;
+        copy->borrower_identity = target->borrow_identity;
+        copy->parent_identity = 0u;
         copy->kind = 1u;
         copy->next = NULL;
         replacement_head = replacement_tail = copy;
@@ -7495,6 +7504,8 @@ static void semantic_copy_shared_reference_binding(
         return;
     }
 
+    if (!semantic_ensure_borrow_identity(ctx, target))
+        goto allocation_failure;
     semantic_release_borrow_binding(target);
     target->borrow_origins = replacement_head;
     target->borrowed_from = replacement_head->owner;
