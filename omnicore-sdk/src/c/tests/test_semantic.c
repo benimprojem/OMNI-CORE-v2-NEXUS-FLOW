@@ -1915,15 +1915,15 @@ static int check_reference_member_projection_semantics(void) {
         "v:field!&i32 = &r.x; r = &replacement; "
         "v:write!&muti32 = &mut second.x; }";
     const char* array_element_shared_borrow_disjoint_index =
-        "f:main() { v:items[3]!i32 = [10, 20, 30]; "
-        "v:element!&i32 = &items[1]; "
+        "f:main() { v:items[4]!i32 = [10, 20, 30, 40]; "
+        "v:element!&i32 = &items[3]; "
         "v:write!&muti32 = &mut items[0]; }";
     const char* array_element_shared_borrow_overlap_index =
-        "f:main() { v:items[3]!i32 = [10, 20, 30]; "
-        "v:element!&i32 = &items[1]; "
-        "v:write!&muti32 = &mut items[1]; }";
+        "f:main() { v:items[4]!i32 = [10, 20, 30, 40]; "
+        "v:element!&i32 = &items[3]; "
+        "v:write!&muti32 = &mut items[3]; }";
     const char* array_element_shared_borrow_dynamic_index =
-        "f:main(index!i32) { v:items[3]!i32 = [10, 20, 30]; "
+        "f:main(index!i32) { v:items[4]!i32 = [10, 20, 30, 40]; "
         "v:element!&i32 = &items[index]; "
         "v:write!&muti32 = &mut items[2]; }";
     return check_source(shared_reference_member_read, 0) &&
