@@ -1210,9 +1210,8 @@ static int semantic_install_borrow_origin(
     return 1;
 }
 
-static void destroy_slot(SemanticContext* ctx, Slot* slot) {
+static void destroy_slot(Slot* slot) {
     if (!slot) return;
-    semantic_release_borrow_binding(ctx, slot);
 
     free(slot->name);
     free(slot->type_name);
@@ -1277,7 +1276,7 @@ static void exit_scope(SemanticContext* ctx) {
         Slot* current = *link;
         if (current->depth == ctx->current_depth) {
             *link = current->next;
-            destroy_slot(ctx, current);
+            destroy_slot(current);
         } else {
             link = &current->next;
         }
@@ -11557,7 +11556,7 @@ void semantic_destroy(SemanticContext* ctx) {
     current = ctx->head;
     while (current) {
         Slot* next = current->next;
-        destroy_slot(ctx, current);
+        destroy_slot(current);
         current = next;
     }
     ctx->head = NULL;
