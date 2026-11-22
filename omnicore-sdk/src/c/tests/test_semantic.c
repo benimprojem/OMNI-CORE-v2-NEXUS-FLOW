@@ -3947,6 +3947,37 @@ static int check_borrow_identity_initialization(void) {
     return 1;
 }
 
+static int check_borrow_identity_binding_metadata(void) {
+    const char* source = "v:owner!i32 = 1; &first!i32 = &owner; &second!i32 = &owner;";
+    ParserContext* parser = parser_init_source(
+        "borrow-identity.nxf", (const uint8_t*)source, strlen(source));
+    SemanticContext semantic = {0};
+    Slot* slot;
+    Slot* first = NULL;
+    Slot* second = NULL;
+    int ok;
+    if (!parser || parser_run(parser) != 0 || !parser->ast_root) {
+        if (parser) parser_destroy(parser);
+        return 0;
+    }
+    semantic_init(&semantic, "borrow-identity.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    for (slot = semantic.head; slot; slot = slot->next) {
+        if (slot->name && strcmp(slot->name, "first") == 0) first = slot;
+        if (slot->name && strcmp(slot->name, "second") == 0) second = slot;
+    }
+    ok = semantic.error_count == 0 && first && second &&
+        first->borrow_identity != 0u && second->borrow_identity != 0u &&
+        first->borrow_identity != second->borrow_identity &&
+        first->borrow_origins && second->borrow_origins &&
+        first->borrow_origins->borrower_identity == first->borrow_identity &&
+        second->borrow_origins->borrower_identity == second->borrow_identity;
+    if (!ok) fprintf(stderr, "Tracked reference bindings did not retain distinct stable borrow identities.\\n");
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_program_and_block_scope_semantics(void) {
     const char* global_visible_to_function =
         "v:global_value!i32 = 7; "
@@ -4189,6 +4220,10 @@ int main(int argc, char** argv) {
     }
     if (!check_safe_reference_definite_initialization_semantics()) {
         fprintf(stderr, "Safe-reference definite-initialization checks failed.\\n");
+        return 1;
+    }
+    if (!check_borrow_identity_binding_metadata()) {
+        fprintf(stderr, "Borrow identity binding metadata checks failed.\\n");
         return 1;
     }
     if (!check_borrow_identity_initialization()) {
