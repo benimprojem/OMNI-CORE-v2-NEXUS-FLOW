@@ -748,3 +748,12 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 
 
 - Follow-up regression added: two distinct tracked shared-reference bindings must receive nonzero, distinct Slot identities, and each BorrowOrigin must carry its own borrower's identity. Test commit: 4d32fd6. CI remains unverified.
+
+
+### CI regression — mutable projection reborrow rejection (2026-11-23)
+
+- Root cause: `semantic_register_borrow_binding()` routed only shared `TOKEN_BIT_AND` member/index projections to the projection handler. Mutable `TOKEN_BORROW_MUT` projections fell through to generic lvalue borrow registration, so `&mut parent.x` was incorrectly accepted.
+- Fix: explicitly reject member/index projections whose root Slot is a mutable safe reference until parent-child suspension/resumption exists.
+- Existing negative regression already covers `&mut parent.x` and `&mut *parent`.
+- Fix commit: `4d00ef2`.
+- Workflow run 45085185651: Ubuntu build/test job passed at initial check; macOS, Windows, ASan/UBSan and Valgrind were still running. SEM-005 remains IN_PROGRESS; OIR stays gated.
