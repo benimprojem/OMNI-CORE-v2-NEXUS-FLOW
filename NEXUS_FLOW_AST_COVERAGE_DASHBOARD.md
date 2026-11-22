@@ -1233,3 +1233,12 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - Direct test verifies base-type metadata links for primitive, chained, raw-pointer, safe-reference and callback NewTypes; nominal symbol IDs are nonzero and distinct.
 - Exact test commit `69ecb4a4a96b73f64925cff0e16dd922e7c6a557`; CI [44659320679](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/44659320679) passed all five jobs and 74/74 CTests on Windows/Ubuntu/macOS; ASan/UBSan and Valgrind green (zero errors, zero lost bytes).
 - SEM-003 stays **VERIFIED**. No stage advancement beyond the approved Semantic work-package sequence.
+
+
+## SEM-005 — Reference declaration parser and CI verification checkpoint (2026-11-22)
+
+- Canonical local safe-reference declaration spelling is `&name!T`; mutable references use `&mut name!T`. The older local declaration form `v:name!&T` is rejected, while parameter type spelling and aggregate/array reference element types remain separately parsed for Semantic validation.
+- Parser statement dispatch was corrected so a `loop` expression does not consume the leading `&` of the following reference declaration as a bitwise-AND continuation. The bitwise parser now uses declaration lookahead.
+- Regression coverage verifies shared/mutable reference declarations, rejection of the legacy local form, post-loop mutable declaration parsing, and array-of-safe-reference storage reaching Semantic rejection rather than being rejected prematurely by Parser.
+- Exact-head commit `3a3ac16ce7cd3e119fe1dbfed508a8b2875f1407`; workflow run [45054907884](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45054907884) passed Ubuntu, Windows, macOS, ASan/UBSan and Valgrind. All five jobs are green.
+- This checkpoint stabilizes the declaration grammar slice only. **SEM-005 remains IN_PROGRESS**: mutable-parent reborrow suspension/resumption, broader lifetime/escape and flow-merge auditing remain unfinished. No downstream stage advancement is authorized.
