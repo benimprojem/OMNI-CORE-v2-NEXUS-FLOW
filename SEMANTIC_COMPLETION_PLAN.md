@@ -716,3 +716,12 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - The regression expects Semantic to reject the unsupported operation; it does not enable parent-child suspension/resumption.
 - The regression commit is `7f81d4b786e8cb856bd9d3c8fbbe3e7626bad2dc`.
 - Runtime/CI validation has not yet been observed for this commit. SEM-005 remains **IN_PROGRESS**; OIR remains gated.
+
+
+### SEM-005 — Explicit mutable dereference reborrow rejection (2026-11-23)
+
+- Semantic now detects `&mut *parent` when `parent` is a mutable safe-reference binding and emits a dedicated diagnostic explaining that parent suspension/child resumption is not implemented.
+- This prevents the expression from falling through to ordinary lvalue/provenance handling, where the parent-child relationship would be lost.
+- Regression coverage now includes both `&mut *parent` and `&mut parent.field` rejection.
+- Commits: implementation `06fb96f39360e86e5bcf841de5c05aef3e49497f`; tests `c631025bcb4671fcdbfc75cf6f15d3583ec0696d`.
+- CI has not reported a run yet. No mutable reborrow support is enabled; SEM-005 remains **IN_PROGRESS**.
