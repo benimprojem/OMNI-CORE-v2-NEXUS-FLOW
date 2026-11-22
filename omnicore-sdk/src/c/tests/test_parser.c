@@ -3207,8 +3207,8 @@ static int test_pointer_reference_type_declarators(void) {
 static int test_shared_and_mutable_borrow_parser_ast(void) {
     static const char source[] =
         "f:borrow(p!i32)!void { "
-        "v:shared!&i32 = &p; "
-        "v:exclusive!&muti32 = &mut p; "
+        "&shared!i32 = &p; "
+        "&mut exclusive!i32 = &mut p; "
         "}";
     ParserContext* parser = parser_init_source(
         "borrow-expressions.nxf", (const uint8_t*)source, sizeof(source) - 1u);
@@ -3253,6 +3253,16 @@ static int test_shared_and_mutable_borrow_parser_ast(void) {
     }
     parser_destroy(parser);
     if (!valid) fprintf(stderr, "Shared/mutable borrow Parser AST contract failed.\\n");
+
+    /* The former name-first reference spelling must not remain an alias. */
+    {
+        static const char legacy_source[] = "f:legacy() { v:r!&i32 = &value; }";
+        ParserContext* legacy = parser_init_source("legacy-reference-decl.nxf",
+            (const uint8_t*)legacy_source, sizeof(legacy_source) - 1u);
+        int rejected = legacy && parser_run(legacy) != PARSER_STATUS_OK;
+        if (legacy) parser_destroy(legacy);
+        if (!rejected) valid = 0;
+    }
     return valid;
 }
 
