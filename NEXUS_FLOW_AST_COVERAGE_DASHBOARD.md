@@ -1257,3 +1257,10 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - This asserts current rejection and does not claim parent suspension/resumption support.
 - Commit: `7f81d4b786e8cb856bd9d3c8fbbe3e7626bad2dc`; CI/test result pending.
 - SEM-005 remains in progress; no OIR work is unlocked.
+
+
+### SEM-005 — Mutable dereference reborrow diagnostic and regression (2026-11-23)
+
+- Added a dedicated Semantic diagnostic for `&mut *parent` from a mutable reference binding; it no longer falls through to ordinary lvalue handling.
+- Tests cover both dereference and member-projection mutable reborrow rejection.
+- Implementation: `06fb96f`; tests: `c631025`. CI pending; SEM-005 remains in progress.
