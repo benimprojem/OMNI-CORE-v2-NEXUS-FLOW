@@ -3225,6 +3225,12 @@ static ASTNode* parse_var_decl(Parser* p) {
                      ast_destroy((ASTNode*)decl);
                      return NULL;
                  }
+                 if (decl->type_name && decl->type_name[0] == '&') {
+                     error_at(p, &type_start, ERR_PARSER_UNEXPECTED_TOKEN,
+                         "Reference variables use the '&name!Type' declaration form.");
+                     ast_destroy((ASTNode*)decl);
+                     return NULL;
+                 }
                  if (decl->type_name && (strncmp(decl->type_name,"f:(",3u)!=0 || !strchr(decl->type_name,'[')) &&
                      !(decl->inline_type &&
                        (decl->inline_type->type==AST_STRUCT_DECL || decl->inline_type->type==AST_UNION_DECL))) {
