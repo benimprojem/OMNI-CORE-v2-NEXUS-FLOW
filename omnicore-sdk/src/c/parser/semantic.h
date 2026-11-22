@@ -47,6 +47,7 @@ struct Slot {
     uint8_t is_initialized; /* Definite initialization state for pointer/reference/callback bindings. */
     uint8_t is_nullable;    /* Binding may currently contain null (pointer/callback values). */
     uint64_t borrow_identity; /* Stable for this Slot across rebinding and branch snapshots. */
+    uint64_t borrow_suspended_by_identity; /* Active exclusive child; zero when accessible. */
     BorrowOrigin* borrow_origins; /* Conservative set of possible active borrow origins. */
     struct Slot* borrowed_from; /* Compatibility view of the first origin during migration. */
     struct Slot* borrow_origin; /* Non-owning parameter/global anchor for untracked reference provenance. */
