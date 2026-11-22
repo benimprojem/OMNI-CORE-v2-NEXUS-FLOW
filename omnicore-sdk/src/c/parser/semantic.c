@@ -32,6 +32,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->thread_block_tail = NULL;
     ctx->active_thread_block = NULL;
     ctx->thread_capture_copy_depth = 0u;
+    ctx->next_borrow_identity = 0u;
     ctx->thread_block_depth = 0u;
     ctx->borrow_operand_depth = 0u;
     ctx->assignment_target_depth = 0u;
@@ -1871,6 +1872,8 @@ static int semantic_snapshot_borrow_origins_capture_slot(
     }
     memset(&legacy, 0, sizeof(legacy));
     legacy.owner = slot->borrowed_from;
+    legacy.borrower_identity = slot->borrow_identity;
+    legacy.parent_identity = 0u;
     legacy.path = slot->borrow_path;
     legacy.kind = slot->borrow_kind;
     return semantic_snapshot_borrow_origins_clone(ctx, &legacy, output);
@@ -7164,6 +7167,8 @@ static int semantic_register_shared_projection_reborrow(
             "Projection reborrow requires tracked shared storage origins; unknown or external provenance is rejected.");
         return 1;
     }
+    if (!semantic_ensure_borrow_identity(ctx, borrower))
+        goto allocation_failure;
     source_origin = source->borrow_origins;
     do {
         Slot* owner = source_origin ? source_origin->owner : source->borrowed_from;
@@ -7213,8 +7218,6 @@ static int semantic_register_shared_projection_reborrow(
     free(suffix);
     if (!replacement_head) return 0;
 
-    if (!semantic_ensure_borrow_identity(ctx, borrower))
-        goto allocation_failure;
     /* Replace the binding only after all origins pass validation. */
     semantic_release_borrow_binding(borrower);
     borrower->borrow_origins = replacement_head;
