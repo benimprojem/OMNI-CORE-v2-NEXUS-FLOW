@@ -1904,14 +1904,14 @@ static int check_reference_member_projection_semantics(void) {
         "f:main(flag!bool) { struct:Point { v:x!i32, v:y!i32 } "
         "v:first!Point; v:second!Point; v:replacement!Point; "
         "v:r!&Point = &first; "
-        "if (flag) { r = &first; } else { r = &second; } "
+        "if (flag) { r = &first; } els { r = &second; } "
         "v:field!&i32 = &r.x; r = &replacement; "
         "v:write!&muti32 = &mut first.x; }";
     const char* child_projection_preserves_second_branch_origin =
         "f:main(flag!bool) { struct:Point { v:x!i32, v:y!i32 } "
         "v:first!Point; v:second!Point; v:replacement!Point; "
         "v:r!&Point = &first; "
-        "if (flag) { r = &first; } else { r = &second; } "
+        "if (flag) { r = &first; } els { r = &second; } "
         "v:field!&i32 = &r.x; r = &replacement; "
         "v:write!&muti32 = &mut second.x; }";
     const char* array_reference_projection_disjoint_index =
