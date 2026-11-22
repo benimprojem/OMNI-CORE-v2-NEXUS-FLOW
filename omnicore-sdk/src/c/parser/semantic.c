@@ -2568,7 +2568,20 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
         case AST_INDEX_ACCESS: {
             ASTIndexAccess* access = (ASTIndexAccess*)node;
             const char* target_type = get_expr_type(ctx, access->target);
+            const char* normalized_target_type = target_type;
             const char* element_type = "any";
+            /* Safe references to arrays/vectors are indexable through their
+               referent. Raw pointers deliberately retain their separate rules. */
+            if (normalized_target_type && normalized_target_type[0] == '!') {
+                ++normalized_target_type;
+            }
+            if (normalized_target_type &&
+                (normalized_target_type[0] == '&' ||
+                 strncmp(normalized_target_type, "&mut", 4u) == 0)) {
+                const char* referent_type =
+                    semantic_dereference_target_type(normalized_target_type, NULL);
+                if (referent_type) target_type = referent_type;
+            }
             size_t vector_dimension = 0u;
             const char* representation_element =
                 semantic_representation_element_type(target_type);
