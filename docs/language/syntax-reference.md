@@ -108,10 +108,10 @@ Borrow oluşturma ifadelerinin normatif biçimi:
 
 ```nxf
 v:value!i32 = 10;
-v:read_only!&i32 = &value;       # shared, salt-okunur borrow
-v:another_read!&i32 = &value;    # ikinci shared borrow serbest
+&r!i32 = &value;                 # shared, salt-okunur borrow
+&s!i32 = &value;                 # ikinci shared borrow serbest
 
-v:editable!&mut i32 = &mut value; # tekil mutable borrow
+&mut editable!i32 = &mut value;  # tekil mutable borrow
 # editable aktifken value veya başka bir reference üzerinden erişim yasak
 ```
 
@@ -119,8 +119,8 @@ Paylaşımlı bir safe reference üzerinden dereference edip yeniden borrow olu�
 
 ```nxf
 v:owner!i32 = 10;
-v:r!&i32 = &owner;
-v:s!&i32 = &*r; # aynı hedefe yeni shared reborrow
+&r!i32 = &owner;
+&s!i32 = &*r; # aynı hedefe yeni shared reborrow
 ```
 
 - `&*r`, yalnızca kaynağı Semantic tarafından izlenen `&T` shared reference olduğunda kabul edilir; yeni referans aynı owner/projection kökenini korur.
@@ -131,11 +131,11 @@ Dizi elemanına referans vermek için indeks doğrudan borrow operandının par�
 
 ```nxf
 v:refs[4]!i32 = [10, 20, 30, 40];
-v:fourth!&i32 = &refs[3];       # refs dizisinin dördüncü elemanına referans
-v:first!&mut i32 = &mut refs[0]; # farklı sabit indeks; çakışmayan projection
+&fourth!i32 = &refs[3];         # refs dizisinin dördüncü elemanına referans
+&mut first!i32 = &mut refs[0];  # farklı sabit indeks; çakışmayan projection
 ```
 
-- `&refs[3]` bir **dizi elemanına** referans verir; hedef türü elemanın türüdür (`&i32` gibi).
+- `&refs[3]` bir **dizi elemanına** referans verir; hedef türü elemanın türüdür (bildirimde `&fourth!i32` gibi).
 - `&refs` ise dizinin tamamına referans verme girişimidir ve farklı bir hedef türü (`&i32[4]` benzeri array-reference) gerektirir; bu sözdizimi bu bölümde tanımlı değildir.
 - Sabit ve farklı indeksler ayrı borrow projection'larıdır. Dinamik indeksin hangi elemana karşılık geldiği kanıtlanamıyorsa çakışma denetimi muhafazakâr davranır.
 
