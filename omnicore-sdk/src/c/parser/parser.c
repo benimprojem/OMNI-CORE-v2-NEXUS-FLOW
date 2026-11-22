@@ -5062,7 +5062,6 @@ static ASTNode* parse_statement(Parser* p) {
             if (p->previous.type == TOKEN_SEMICOLON)
                 parser_stamp_node_tokens(p, node, &declaration_start, &p->previous);
             return node;
-        }
     }
     
     /* A loop is a complete statement. Parse it separately so a following
