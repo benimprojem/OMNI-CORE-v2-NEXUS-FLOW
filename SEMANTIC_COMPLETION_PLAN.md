@@ -735,3 +735,13 @@ No semantic behavior was changed. Mutable dereference and projection reborrows r
 ### SEM-005 — stable borrow identity foundation (2026-11-23)
 
 Added a monotonic context-local identity to reference-binding Slots and recorded borrower/parent identity fields in BorrowOrigin. Snapshot cloning and branch-origin union preserve these fields, and shared-copy/projection origin creation initializes the destination identity. Identity exhaustion fails closed. This is preparatory only: no parent-child relation or suspension/resumption is active, and mutable reborrows remain rejected. See `docs/semantic/mutable-reborrow-design.md`.
+
+
+### SEM-005 — borrow identity initialization audit correction (2026-11-23)
+
+- Fixed semantic_init() so the monotonic borrow identity counter always starts at zero.
+- Preserved the Slot identity when legacy scalar borrow metadata is captured into a branch snapshot.
+- Moved shared-projection borrower identity allocation ahead of BorrowOrigin construction so every created origin records a nonzero destination identity.
+- Added a C regression that seeds the counter with UINT64_MAX before initialization and verifies it is reset.
+- Implementation commit: 7619c4f; regression commits: 67d55e7, 356035e.
+- CI has not been verified for these commits. Parent-child registration, suspension/resumption, graph snapshots/joins and their behavioral tests remain open; SEM-005 stays IN_PROGRESS and OIR remains gated.
