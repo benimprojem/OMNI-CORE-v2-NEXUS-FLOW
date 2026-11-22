@@ -690,3 +690,12 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Implementation commit: `f384dc3c478f4f3126b81b593b80a9c503d1b31e`; test commit: `b457100a9ca2d6507aba03204439004e8c651245`.
 - CI run `45029991098` for test commit is currently pending; all five jobs were queued/in progress at checkpoint. No verification claim until it completes.
 - Next audit: parameter/external-origin projection propagation. Current projection helper requires tracked owner-origin metadata and rejects unknown/external provenance; parameter reference initialization may retain `borrow_origin` fallback metadata not yet composed by projection. Inspect lifetime guarantees before extending support.
+
+
+### SEM-005 — Mutable parent reborrow contract documented (2026-11-22)
+
+- Normative syntax reference now records mutable reborrow syntax as `&mut child!T = &mut *parent;` within a child lexical scope.
+- While child is active, parent is suspended: direct read/write, reassignment, move/relocate, reborrow or call-passing is prohibited. At child scope exit, parent resumes.
+- Nested reborrows must suspend only the immediate parent and resume it in reverse lexical order. Flow merges must preserve parent-child state and cannot duplicate active exclusivity.
+- Documentation commit: `8ff1f5eaf278700a0ac4ae1993d74d4b42950ffc`.
+- **Implementation remains pending.** Existing `Slot` and `BorrowOrigin` accounting is rooted at storage owners; current release/snapshot-restore paths independently toggle owner counters. Mutable reborrow cannot be safely implemented by merely relaxing the existing rejection. The next code step is to model suspension ownership explicitly and cover scope cleanup plus branch snapshot/merge before enabling the syntax.
