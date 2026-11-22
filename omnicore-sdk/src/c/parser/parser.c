@@ -5014,14 +5014,17 @@ static ASTNode* parse_statement(Parser* p) {
     /* '&name!Type' is a declaration only in this exact lookahead shape.
      * Other '&' expressions continue through the ordinary expression parser. */
     if (p->current.type == TOKEN_BIT_AND) {
-        Token name_or_mut = peek_token(p);
-        Token after_name = peek_token_ahead(p, 2);
+        /* Copy the lexer context for lookahead. The lightweight peek helper
+         * does not preserve every nested parser/lexer state transition. */
+        ParserContext lookahead = *p->ctx;
+        Token name_or_mut = parser_next_token(&lookahead);
+        Token after_name = parser_next_token(&lookahead);
         int is_reference_decl = 0;
         if (name_or_mut.type == TOKEN_IDENTIFIER) {
             if (name_or_mut.length == 3 &&
                 memcmp(name_or_mut.start, "mut", 3u) == 0) {
-                Token actual_name = peek_token_ahead(p, 2);
-                Token bang = peek_token_ahead(p, 3);
+                Token actual_name = after_name;
+                Token bang = parser_next_token(&lookahead);
                 is_reference_decl = actual_name.type == TOKEN_IDENTIFIER &&
                     bang.type == TOKEN_NOT;
             } else {
