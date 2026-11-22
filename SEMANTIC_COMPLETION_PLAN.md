@@ -708,3 +708,11 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Established an ordered implementation sequence: relationship lifecycle helpers, binding/reassignment integration, scope cleanup, flow snapshots/merges, then narrowly enabling syntax. Minimum positive/negative regression gates are listed.
 - No runtime/compiler behavior changed; `&mut *parent` remains rejected. This is a safety checkpoint, not feature completion. SEM-005 stays IN_PROGRESS; OIR remains blocked.
 - Design commit: `e519e545968466cf81a4c6aeb1b5aa9c194508bf`.
+
+
+### SEM-005 — Mutable projection reborrow fail-closed regression (2026-11-23)
+
+- Added a Semantic regression case for attempting a mutable member projection reborrow from an active mutable reference (`&mut child!i32 = &mut parent.x`).
+- The regression expects Semantic to reject the unsupported operation; it does not enable parent-child suspension/resumption.
+- The regression commit is `7f81d4b786e8cb856bd9d3c8fbbe3e7626bad2dc`.
+- Runtime/CI validation has not yet been observed for this commit. SEM-005 remains **IN_PROGRESS**; OIR remains gated.
