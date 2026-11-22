@@ -5034,9 +5034,10 @@ static ASTNode* parse_statement(Parser* p) {
         Token declaration_start = p->previous;
         ASTVarDecl* decl = (ASTVarDecl*)parse_var_decl(p);
         if (!decl) return NULL;
-        if (decl->type_name && decl->type_name[0] == '&') {
+        if (decl->type_name && decl->type_name[0] == '&' &&
+            !(decl->inline_type && decl->inline_type->type == AST_ARRAY_TYPE)) {
             error_at(p, &declaration_start, ERR_PARSER_UNEXPECTED_TOKEN,
-                "Reference variables use the '&name!Type' declaration form.");
+                "Reference variables use the '&name!Type' declaration form; '&T' remains a type spelling for aggregate element types.");
             ast_destroy((ASTNode*)decl);
             return NULL;
         }
