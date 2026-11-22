@@ -1900,6 +1900,14 @@ static int check_shared_reborrow_semantics(void) {
         check_source(reborrow_preserves_all_branch_merged_origins, 2);
 }
 
+static int check_mutable_projection_reborrow_rejection(void) {
+    const char* mutable_projection_reborrow_rejected =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; &mut parent!Point = &mut point; "
+        "&mut child!i32 = &mut parent.x; }";
+    return check_source(mutable_projection_reborrow_rejected, 1);
+}
+
 static int check_reference_member_projection_semantics(void) {
     const char* shared_reference_member_read =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
@@ -4166,6 +4174,10 @@ int main(int argc, char** argv) {
     }
     if (!check_borrow_expression_semantics()) {
         fprintf(stderr, "Shared/mutable borrow Semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_mutable_projection_reborrow_rejection()) {
+        fprintf(stderr, "Mutable projection reborrow rejection regression failed.\\n");
         return 1;
     }
     if (!check_shared_reborrow_semantics() ||
