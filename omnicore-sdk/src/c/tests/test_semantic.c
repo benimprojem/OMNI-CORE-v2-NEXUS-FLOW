@@ -3933,6 +3933,19 @@ static int check_intrinsic_semantics(void) {
 }
 
 
+static int check_borrow_identity_initialization(void) {
+    SemanticContext semantic = {0};
+    semantic.next_borrow_identity = UINT64_MAX;
+    semantic_init(&semantic, "borrow-identity.nxf", NULL);
+    if (semantic.next_borrow_identity != 0u) {
+        fprintf(stderr, "SemanticContext did not reset the borrow identity counter.\\n");
+        semantic_destroy(&semantic);
+        return 0;
+    }
+    semantic_destroy(&semantic);
+    return 1;
+}
+
 static int check_program_and_block_scope_semantics(void) {
     const char* global_visible_to_function =
         "v:global_value!i32 = 7; "
@@ -4175,6 +4188,10 @@ int main(int argc, char** argv) {
     }
     if (!check_safe_reference_definite_initialization_semantics()) {
         fprintf(stderr, "Safe-reference definite-initialization checks failed.\\n");
+        return 1;
+    }
+    if (!check_borrow_identity_initialization()) {
+        fprintf(stderr, "Borrow identity initialization checks failed.\\n");
         return 1;
     }
     if (!check_borrow_expression_semantics()) {
