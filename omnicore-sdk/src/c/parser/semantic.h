@@ -28,8 +28,10 @@ typedef struct Slot Slot;
 
 typedef struct BorrowOrigin {
     Slot* owner;             /* Non-owning storage-owner reference. */
-    char* path;              /* Owned projection path relative to owner. */
-    uint8_t kind;             /* 1 shared, 2 exclusive mutable. */
+    uint64_t borrower_identity; /* Stable identity of the binding that owns this origin. */
+    uint64_t parent_identity;   /* Immediate parent borrow identity; zero for direct borrows. */
+    char* path;              /* Owned projection path relative to storage owner. */
+    uint8_t kind;            /* 1 shared, 2 exclusive mutable. */
     struct BorrowOrigin* next;
 } BorrowOrigin;
 
@@ -44,6 +46,7 @@ struct Slot {
     uint8_t is_parameter;   /* Function parameter storage; may carry a returned reference. */
     uint8_t is_initialized; /* Definite initialization state for pointer/reference/callback bindings. */
     uint8_t is_nullable;    /* Binding may currently contain null (pointer/callback values). */
+    uint64_t borrow_identity; /* Stable for this Slot across rebinding and branch snapshots. */
     BorrowOrigin* borrow_origins; /* Conservative set of possible active borrow origins. */
     struct Slot* borrowed_from; /* Compatibility view of the first origin during migration. */
     struct Slot* borrow_origin; /* Non-owning parameter/global anchor for untracked reference provenance. */
@@ -147,6 +150,7 @@ typedef struct {
     ThreadBlockEntry* thread_block_tail;
     ThreadBlockEntry* active_thread_block;
     uint32_t thread_capture_copy_depth;
+    uint64_t next_borrow_identity; /* Monotonic SemanticContext-local borrow identity source. */
 
     /* Deterministic allocation-failure injection for semantic tests; zero disables. */
     uint32_t test_allocation_fail_at;
