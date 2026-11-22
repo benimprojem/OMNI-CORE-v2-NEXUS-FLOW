@@ -1890,8 +1890,8 @@ static int check_shared_reborrow_semantics(void) {
         "&r!i32 = &first; "
         "if (flag) { r = &first; } els { r = &second; } "
         "&s!i32 = &*r; r = &replacement; "
-        "&mut edit_first!i32 = &mut first; "
-        "&mut edit_second!i32 = &mut second; }";
+        "&mut first_mut_ref!i32 = &mut first; "
+        "&mut second_mut_ref!i32 = &mut second; }";
     return check_source(shared_dereference_reborrow_allowed, 0) &&
         check_source(shared_reborrow_keeps_owner_conflict, 1) &&
         check_source(chained_shared_dereference_reborrow_allowed, 0) &&
@@ -2244,7 +2244,7 @@ static int check_safe_reference_return_lifetime_semantics(void) {
         "&reference!i32 = &first; "
         "if (flag) { reference = &second; } els { reference = &third; } "
         "&returned!i32 = identity(reference); "
-        "&mut edit_second!i32 = &mut second; "
+        "&mut second_mut_ref!i32 = &mut second; "
         "&mut edit_third!i32 = &mut third; }";
     return check_source(returning_local_reference_is_rejected, 1) &&
         check_source(returning_local_reference_binding_is_rejected, 1) &&
@@ -2308,40 +2308,40 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         "&mut reference!i32 = &mut first; "
         "if (flag) { reference = &mut second; } "
         "els { reference = &mut third; } "
-        "&mut edit_second!i32 = &mut second; "
+        "&mut second_mut_ref!i32 = &mut second; "
         "&mut edit_third!i32 = &mut third; }";
     const char* conditional_mutable_reassignment_keeps_incoming_and_new_borrows =
         "f:main(first!i32, second!i32, flag!bool) { "
         "&mut reference!i32 = &mut first; "
         "if (flag) { reference = &mut second; } "
-        "&mut edit_first!i32 = &mut first; "
-        "&mut edit_second!i32 = &mut second; }";
+        "&mut first_mut_ref!i32 = &mut first; "
+        "&mut second_mut_ref!i32 = &mut second; }";
     const char* select_reassignment_preserves_all_possible_mutable_borrows =
         "f:main(first!i32, second!i32, third!i32, flag!bool) { "
         "&mut reference!i32 = &mut first; "
         "select(flag) { true -> { reference = &mut second; } "
         "default -> { reference = &mut third; } } "
-        "&mut edit_second!i32 = &mut second; "
+        "&mut second_mut_ref!i32 = &mut second; "
         "&mut edit_third!i32 = &mut third; }";
     const char* scan_reassignment_preserves_all_possible_mutable_borrows =
         "f:main(first!i32, second!i32, third!i32, flag!bool) { "
         "&mut reference!i32 = &mut first; "
         "scan(flag) { true -> { reference = &mut second; } "
         "else -> { reference = &mut third; } } "
-        "&mut edit_second!i32 = &mut second; "
+        "&mut second_mut_ref!i32 = &mut second; "
         "&mut edit_third!i32 = &mut third; }";
     const char* loop_reassignment_preserves_zero_and_one_iteration_borrows =
         "f:main(first!i32, second!i32) { "
         "&mut reference!i32 = &mut first; "
         "loop (true) { reference = &mut second; break; } "
-        "&mut edit_first!i32 = &mut first; "
-        "&mut edit_second!i32 = &mut second; }";
+        "&mut first_mut_ref!i32 = &mut first; "
+        "&mut second_mut_ref!i32 = &mut second; }";
     const char* terminating_branch_does_not_leak_unreachable_borrow =
         "f:main(first!i32, second!i32, flag!bool) { "
         "&mut reference!i32 = &mut first; "
         "if (flag) { reference = &mut second; ret; } "
-        "&mut edit_second!i32 = &mut second; "
-        "&mut edit_first!i32 = &mut first; }";
+        "&mut second_mut_ref!i32 = &mut second; "
+        "&mut first_mut_ref!i32 = &mut first; }";
     const char* stored_reference_member_reassignment_is_rejected =
         "struct: Box { &reference!i32 } "
         "f:main() { v:first!i32 = 1; v:box!Box; box.reference = &first; }";
