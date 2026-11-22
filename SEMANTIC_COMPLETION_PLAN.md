@@ -745,3 +745,6 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Added a C regression that seeds the counter with UINT64_MAX before initialization and verifies it is reset.
 - Implementation commit: 7619c4f; regression commits: 67d55e7, 356035e.
 - CI has not been verified for these commits. Parent-child registration, suspension/resumption, graph snapshots/joins and their behavioral tests remain open; SEM-005 stays IN_PROGRESS and OIR remains gated.
+
+
+- Follow-up regression added: two distinct tracked shared-reference bindings must receive nonzero, distinct Slot identities, and each BorrowOrigin must carry its own borrower's identity. Test commit: 4d32fd6. CI remains unverified.
