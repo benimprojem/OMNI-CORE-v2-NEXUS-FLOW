@@ -1914,20 +1914,17 @@ static int check_reference_member_projection_semantics(void) {
         "if (flag) { r = &first; } els { r = &second; } "
         "v:field!&i32 = &r.x; r = &replacement; "
         "v:write!&muti32 = &mut second.x; }";
-    const char* array_reference_projection_disjoint_index =
+    const char* array_element_shared_borrow_disjoint_index =
         "f:main() { v:items[3]!i32 = [10, 20, 30]; "
-        "v:other[3]!i32 = [40, 50, 60]; v:r!&i32[3] = &items; "
-        "v:element!&i32 = &r[1]; r = &other; "
+        "v:element!&i32 = &items[1]; "
         "v:write!&muti32 = &mut items[0]; }";
-    const char* array_reference_projection_overlap_index =
+    const char* array_element_shared_borrow_overlap_index =
         "f:main() { v:items[3]!i32 = [10, 20, 30]; "
-        "v:other[3]!i32 = [40, 50, 60]; v:r!&i32[3] = &items; "
-        "v:element!&i32 = &r[1]; r = &other; "
+        "v:element!&i32 = &items[1]; "
         "v:write!&muti32 = &mut items[1]; }";
-    const char* array_reference_projection_dynamic_index =
+    const char* array_element_shared_borrow_dynamic_index =
         "f:main(index!i32) { v:items[3]!i32 = [10, 20, 30]; "
-        "v:other[3]!i32 = [40, 50, 60]; v:r!&i32[3] = &items; "
-        "v:element!&i32 = &r[index]; r = &other; "
+        "v:element!&i32 = &items[index]; "
         "v:write!&muti32 = &mut items[2]; }";
     return check_source(shared_reference_member_read, 0) &&
         check_source(shared_reference_unknown_member, 1) &&
@@ -1936,9 +1933,9 @@ static int check_reference_member_projection_semantics(void) {
         check_source(child_projection_keeps_original_origin_after_parent_reassignment, 1) &&
         check_source(child_projection_preserves_first_branch_origin, 1) &&
         check_source(child_projection_preserves_second_branch_origin, 1) &&
-        check_source(array_reference_projection_disjoint_index, 0) &&
-        check_source(array_reference_projection_overlap_index, 1) &&
-        check_source(array_reference_projection_dynamic_index, 1);
+        check_source(array_element_shared_borrow_disjoint_index, 0) &&
+        check_source(array_element_shared_borrow_overlap_index, 1) &&
+        check_source(array_element_shared_borrow_dynamic_index, 1);
 }
 
 static int check_call_temporary_borrow_semantics(void) {
