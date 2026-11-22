@@ -1130,7 +1130,21 @@ static int semantic_install_borrow_origin(
         (kind != 1u && kind != 2u)) return 0;
     origin = (BorrowOrigin*)semantic_allocate(ctx, sizeof(*origin));
     if (!origin) return 0;
+    if (borrower->borrow_identity == 0u) {
+        if (ctx->next_borrow_identity == UINT64_MAX) {
+            free(origin);
+            return 0;
+        }
+        ++ctx->next_borrow_identity;
+        if (ctx->next_borrow_identity == 0u) {
+            free(origin);
+            return 0;
+        }
+        borrower->borrow_identity = ctx->next_borrow_identity;
+    }
     origin->owner = owner;
+    origin->borrower_identity = borrower->borrow_identity;
+    origin->parent_identity = 0u;
     origin->path = owned_path;
     origin->kind = kind;
     origin->next = NULL;
@@ -1826,6 +1840,8 @@ static int semantic_snapshot_borrow_origins_clone(
             goto allocation_failure;
         }
         copy->owner = source->owner;
+        copy->borrower_identity = source->borrower_identity;
+        copy->parent_identity = source->parent_identity;
         copy->kind = source->kind;
         if (tail) tail->next = copy;
         else head = copy;
@@ -1874,6 +1890,8 @@ static int semantic_snapshot_borrow_origins_union(
         int duplicate = 0;
         for (existing = merged; existing; existing = existing->next) {
             if (existing->owner == source->owner &&
+                existing->borrower_identity == source->borrower_identity &&
+                existing->parent_identity == source->parent_identity &&
                 existing->kind == source->kind &&
                 strcmp(existing->path ? existing->path : "",
                        source->path ? source->path : "") == 0) {
@@ -1893,6 +1911,8 @@ static int semantic_snapshot_borrow_origins_union(
                 goto allocation_failure;
             }
             copy->owner = source->owner;
+            copy->borrower_identity = source->borrower_identity;
+            copy->parent_identity = source->parent_identity;
             copy->kind = source->kind;
             if (tail) tail->next = copy;
             else merged = copy;
