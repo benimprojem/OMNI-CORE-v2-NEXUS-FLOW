@@ -31,7 +31,7 @@ The order below is a dependency order. Audit results may mark an item already im
 | 2 | SEM-002 | Declarations and binding rules | VERIFIED | SEM-001 |
 | 3 | SEM-003 | Primitive, named and composite type system | VERIFIED | SEM-001, SEM-002 |
 | 4 | SEM-004 | Type inference, conversion, promotion and forced types | VERIFIED | SEM-003 |
-| 5 | SEM-005 | Pointer, reference, borrow, lifetime and initialization | AUDIT_REQUIRED | SEM-001–004 |
+| 5 | SEM-005 | Pointer, reference, borrow, lifetime and initialization | IN_PROGRESS | SEM-001–004 |
 | 6 | SEM-006 | Struct, union, enum, array, Map and Vec semantics | AUDIT_REQUIRED | SEM-003–005 |
 | 7 | SEM-007 | Function, Group, method and call binding | AUDIT_REQUIRED | SEM-001–006 |
 | 8 | SEM-008 | Lambda, callback and function-value semantics | AUDIT_REQUIRED | SEM-005, SEM-007 |
@@ -110,6 +110,15 @@ The order below is a dependency order. Audit results may mark an item already im
 - Arithmetic regression tests currently assert that mixed integer/float operands fail. The older syntax example implied that `i * 2.5` produces a floating result, so the documentation was clarified to avoid promising behavior that the implementation does not support.
 - **No language behavior changed in this audit step.** Before implementation, resolve whether mixed numeric families should promote (and define decimal-vs-binary float interactions). Once decided, update promotion helper, conversion metadata, diagnostics and tests together. This remains an SEM-004 closure blocker.
 
+
+### SEM-005 — Shared dereference reborrow checkpoint (2026-11-22)
+
+- Confirmed and retained the supported form `v:s!&i32 = &*r;` when `r` is a tracked shared safe reference. The reborrow preserves every known owner/projection origin rather than treating the reference variable as storage.
+- Expanded regression cases for chained shared reborrows, shared-reference parameters, referent type mismatch, raw-pointer-to-safe-reference rejection, and conflicts with a later overlapping mutable borrow.
+- Array-element borrow tests now use direct lvalues such as `&items[3]`; they no longer pretend that an array reference is needed to borrow one element. Four-element fixtures explicitly use index 3.
+- Normative syntax reference now states the supported `&*r` boundary and the array-element borrow distinction.
+- **Known limitation:** mutable-parent reborrow is not implemented. `&*r` from `&mut T` is currently rejected because correct support requires suspending the exclusive parent while child borrows are alive and resuming it on child release. Do not relax the rejection without implementing and testing that state transition. Raw-pointer dereference cannot be promoted to a safe reference.
+- Test expansion commit: `1e8e5caa392b492362922db179c72b6fa5eb574d`. Normative documentation commit: `593f87fd20232c896db0f4ba7dc931c046d980b6`. The previous array-element test/documentation CI runs passed; CI evidence for the latest `&*r` test expansion is still pending and this checkpoint is not a closure claim.
 
 ### SEM-005 — Pointer and reference safety
 - Inspect: safe `&T` / `&mut T`, raw `*T`, borrow exclusivity, projection overlap, lifetime origins, initialization, nullability, escape and callback return provenance.
