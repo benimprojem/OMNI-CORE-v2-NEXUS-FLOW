@@ -1916,17 +1916,17 @@ static int check_reference_member_projection_semantics(void) {
         "v:write!&muti32 = &mut second.x; }";
     const char* array_reference_projection_disjoint_index =
         "f:main() { v:items[3]!i32 = [10, 20, 30]; "
-        "v:other[3]!i32 = [40, 50, 60]; v:r!&array|i32[3] = &items; "
+        "v:other[3]!i32 = [40, 50, 60]; v:r!&i32[3] = &items; "
         "v:element!&i32 = &r[1]; r = &other; "
         "v:write!&muti32 = &mut items[0]; }";
     const char* array_reference_projection_overlap_index =
         "f:main() { v:items[3]!i32 = [10, 20, 30]; "
-        "v:other[3]!i32 = [40, 50, 60]; v:r!&array|i32[3] = &items; "
+        "v:other[3]!i32 = [40, 50, 60]; v:r!&i32[3] = &items; "
         "v:element!&i32 = &r[1]; r = &other; "
         "v:write!&muti32 = &mut items[1]; }";
     const char* array_reference_projection_dynamic_index =
         "f:main(index!i32) { v:items[3]!i32 = [10, 20, 30]; "
-        "v:other[3]!i32 = [40, 50, 60]; v:r!&array|i32[3] = &items; "
+        "v:other[3]!i32 = [40, 50, 60]; v:r!&i32[3] = &items; "
         "v:element!&i32 = &r[index]; r = &other; "
         "v:write!&muti32 = &mut items[2]; }";
     return check_source(shared_reference_member_read, 0) &&
