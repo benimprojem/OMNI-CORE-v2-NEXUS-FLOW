@@ -115,6 +115,18 @@ v:editable!&mut i32 = &mut value; # tekil mutable borrow
 # editable aktifken value veya başka bir reference üzerinden erişim yasak
 ```
 
+Paylaşımlı bir safe reference üzerinden dereference edip yeniden borrow oluşturulabilir:
+
+```nxf
+v:owner!i32 = 10;
+v:r!&i32 = &owner;
+v:s!&i32 = &*r; # aynı hedefe yeni shared reborrow
+```
+
+- `&*r`, yalnızca kaynağı Semantic tarafından izlenen `&T` shared reference olduğunda kabul edilir; yeni referans aynı owner/projection kökenini korur.
+- `&*p` biçiminde raw pointer dereference sonucundan safe reference üretilemez; raw pointer güvenli provenance/lifetime garantisi sağlamaz.
+- `&*r` üzerinden `&mut T` parent reborrow ve mutable-parent suspension/resumption henüz desteklenmez. `&mut T` kaynağından shared reborrow da mevcut uygulamada reddedilir; bu davranış SEM-005 kapsamında açık bir eksik olarak izlenir.
+
 Dizi elemanına referans vermek için indeks doğrudan borrow operandının parçasıdır:
 
 ```nxf
