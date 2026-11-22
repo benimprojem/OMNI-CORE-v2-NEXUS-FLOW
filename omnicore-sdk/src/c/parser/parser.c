@@ -5020,8 +5020,8 @@ static ASTNode* parse_statement(Parser* p) {
         if (name_or_mut.type == TOKEN_IDENTIFIER) {
             if (name_or_mut.length == 3 &&
                 memcmp(name_or_mut.start, "mut", 3u) == 0) {
-                Token actual_name = peek_token_ahead(p, 3);
-                Token bang = peek_token_ahead(p, 4);
+                Token actual_name = peek_token_ahead(p, 2);
+                Token bang = peek_token_ahead(p, 3);
                 is_reference_decl = actual_name.type == TOKEN_IDENTIFIER &&
                     bang.type == TOKEN_NOT;
             } else {
