@@ -90,3 +90,14 @@ The C model now has a first identity layer:
 - Identity exhaustion fails conservatively instead of wrapping and reusing an identity.
 
 This is identity scaffolding only: no parent-child edges are created yet, no suspension/resumption behavior is enabled, and mutable reborrow syntax remains rejected. The next step is to associate a child origin with its immediate mutable parent and make release/snapshot/merge operate on that relationship atomically.
+
+
+## 2026-11-23 — identity initialization and snapshot audit correction
+
+A follow-up audit found three gaps in the identity foundation and corrected them:
+
+- semantic_init() now explicitly resets next_borrow_identity to zero. The counter is not allowed to inherit uninitialized or reused stack state.
+- Legacy scalar borrow bindings copied into flow snapshots now carry the Slot's borrow_identity and an explicit zero parent identity.
+- Shared projection reborrow assigns/validates the destination identity before constructing any BorrowOrigin nodes. Previously the nodes could capture zero before the later identity allocation.
+
+A focused C regression poisons the counter with UINT64_MAX, calls semantic_init(), and verifies that initialization resets it. This validates initialization only; it does not prove identity graph lifecycle or mutable parent suspension. The CTest/CI result for this new regression is still pending.
