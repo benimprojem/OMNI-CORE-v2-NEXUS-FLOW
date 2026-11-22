@@ -1249,3 +1249,11 @@ Bu iş yalnızca AST tag/callee bütünlüğünü doğrular; Thread modülünün
 - New design contract: `docs/semantic/mutable-reborrow-design.md`. It defines explicit relationship-token state, parent-child suspension/resume, owner reservation, atomic lifecycle, scope cleanup, and flow snapshot/merge invariants.
 - Implementation and behavioral tests remain pending; current mutable-parent reborrow is still rejected. No Semantic completion tick or downstream OIR progression is recorded.
 - Design commit: `e519e545968466cf81a4c6aeb1b5aa9c194508bf`.
+
+
+### SEM-005 — Mutable projection reborrow regression guard (2026-11-23)
+
+- Added a fail-closed regression in `src/c/tests/test_semantic.c` for mutable member projection reborrow (`&mut child!i32 = &mut parent.x`).
+- This asserts current rejection and does not claim parent suspension/resumption support.
+- Commit: `7f81d4b786e8cb856bd9d3c8fbbe3e7626bad2dc`; CI/test result pending.
+- SEM-005 remains in progress; no OIR work is unlocked.
