@@ -115,6 +115,18 @@ v:editable!&mut i32 = &mut value; # tekil mutable borrow
 # editable aktifken value veya başka bir reference üzerinden erişim yasak
 ```
 
+Dizi elemanına referans vermek için indeks doğrudan borrow operandının parçasıdır:
+
+```nxf
+v:refs[4]!i32 = [10, 20, 30, 40];
+v:fourth!&i32 = &refs[3];       # refs dizisinin dördüncü elemanına referans
+v:first!&mut i32 = &mut refs[0]; # farklı sabit indeks; çakışmayan projection
+```
+
+- `&refs[3]` bir **dizi elemanına** referans verir; hedef türü elemanın türüdür (`&i32` gibi).
+- `&refs` ise dizinin tamamına referans verme girişimidir ve farklı bir hedef türü (`&i32[4]` benzeri array-reference) gerektirir; bu sözdizimi bu bölümde tanımlı değildir.
+- Sabit ve farklı indeksler ayrı borrow projection'larıdır. Dinamik indeksin hangi elemana karşılık geldiği kanıtlanamıyorsa çakışma denetimi muhafazakâr davranır.
+
 | İşlem | **&T** shared borrow | **&mut T** exclusive borrow |
 |---|---|---|
 | Aynı veya çakışan projection için ikinci borrow | Shared/shared izinli | Çakışan ikinci borrow yasak |
