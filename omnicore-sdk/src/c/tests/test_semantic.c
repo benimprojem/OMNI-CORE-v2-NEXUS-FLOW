@@ -1905,7 +1905,12 @@ static int check_mutable_projection_reborrow_rejection(void) {
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; &mut parent!Point = &mut point; "
         "&mut child!i32 = &mut parent.x; }";
-    return check_source(mutable_projection_reborrow_rejected, 1);
+    const char* mutable_dereference_reborrow_rejected =
+        "f:main() { v:owner!i32 = 1; "
+        "&mut parent!i32 = &mut owner; "
+        "&mut child!i32 = &mut *parent; }";
+    return check_source(mutable_projection_reborrow_rejected, 1) &&
+        check_source(mutable_dereference_reborrow_rejected, 1);
 }
 
 static int check_reference_member_projection_semantics(void) {
