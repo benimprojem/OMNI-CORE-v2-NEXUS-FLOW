@@ -59,3 +59,22 @@ A central transition API should own the state changes:
 - Parent/child scope ordering cannot cause dangling relationship references.
 
 Until all these tests and CI pass, mutable reborrow support is **not implemented**.
+
+## 2026-11-23 implementation audit
+
+The current C implementation was re-read before introducing parent/child state. The following existing mechanics are confirmed:
+
+- `BorrowOrigin` contains only the storage-owner `Slot*`, projection path, and borrow kind. It does not identify the immediate reference binding from which a reborrow was created.
+- `semantic_install_borrow_origin()` allocates the replacement origin before releasing the old binding, then updates owner counters. This is the atomic-rebind pattern that must be retained.
+- `semantic_release_borrow_binding()` releases each origin by decrementing the storage owner's shared count or clearing its mutable flag. It has no parent-resume transition.
+- `exit_scope()` releases all bindings at the exiting depth before destroying any slots. The existing depth rule prevents a borrower from outliving its storage owner, but it does not encode nested mutable-reference suspension.
+- Branch snapshots clone only owner/path/kind. `semantic_reference_init_snapshot_restore()` rebuilds owner counters from those cloned origins; the merge unions origins by owner/path/kind. A parent/child relationship would therefore be lost unless snapshot capture, clone, union, restore, and destruction are extended together.
+- Conflict checks enumerate active borrower origins against the storage owner. They cannot distinguish a child borrow from a direct borrow or resume an immediate parent safely.
+
+### Implementation consequence
+
+Do not add a raw parent pointer to `BorrowOrigin` as a partial patch. Snapshot clones and branch unions currently duplicate origin nodes, while slot destruction is scope-driven; a raw parent pointer alone would create ambiguous ownership and restoration behavior.
+
+The implementation must first establish a stable borrower identity and a relationship representation whose lifetime is bounded by the semantic context. Then all origin lifecycle operations (install, release, snapshot clone/restore, branch merge, and scope exit) must preserve that identity and its parent link. Only after those operations are covered by tests may the two mutable reborrow rejection paths be enabled.
+
+No runtime behavior is changed by this audit. Mutable dereference and mutable projection reborrows remain rejected, and SEM-005 remains IN_PROGRESS.
