@@ -725,3 +725,9 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Regression coverage now includes both `&mut *parent` and `&mut parent.field` rejection.
 - Commits: implementation `06fb96f39360e86e5bcf841de5c05aef3e49497f`; tests `c631025bcb4671fcdbfc75cf6f15d3583ec0696d`.
 - CI has not reported a run yet. No mutable reborrow support is enabled; SEM-005 remains **IN_PROGRESS**.
+
+### SEM-005 — C lifecycle audit (2026-11-23)
+
+Audited `BorrowOrigin`, atomic binding replacement, release, scope cleanup, and branch snapshot/restore/merge in `semantic.c`. The current origin model stores only storage-owner/path/kind; it cannot represent the immediate mutable parent or resume it on child release. Snapshot clone/union/restore also preserve only those existing fields. A bare parent `Slot*` addition would be unsafe/incomplete because cloned origins and scope destruction need coordinated identity/lifetime handling.
+
+No semantic behavior was changed. Mutable dereference and projection reborrows remain explicitly rejected. SEM-005 remains IN_PROGRESS; OIR remains gated. Audit details: `docs/semantic/mutable-reborrow-design.md`.
