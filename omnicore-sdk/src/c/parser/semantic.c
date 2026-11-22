@@ -1148,6 +1148,7 @@ static void semantic_release_borrow_binding(
         borrower->borrow_path = NULL;
         borrower->borrow_kind = 0u;
         borrower->borrow_origin = NULL;
+        borrower->borrow_suspended_by_identity = 0u;
         return;
     }
     if (borrower->borrow_kind == 1u) {
