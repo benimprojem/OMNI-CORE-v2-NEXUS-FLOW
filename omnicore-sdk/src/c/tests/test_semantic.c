@@ -1779,8 +1779,12 @@ static int check_raw_pointer_initialization_and_nullability_semantics(void) {
 }
 
 static int check_safe_reference_container_storage_rejection_semantics(void) {
-    const char* array_of_safe_references =
+    static const char array_of_safe_references[] =
         "f:main() { v:refs[1]!&i32; }";
+    ParserContext* array_parser = parser_init_source("reference-array.nxf",
+        (const uint8_t*)array_of_safe_references, sizeof(array_of_safe_references) - 1u);
+    int array_rejected = array_parser && parser_run(array_parser) != PARSER_STATUS_OK;
+    if (array_parser) parser_destroy(array_parser);
     const char* newtype_alias_binding =
         "nt:Ref = &i32; f:main() { v:reference!Ref; }";
     const char* map_safe_reference_value =
@@ -1790,7 +1794,7 @@ static int check_safe_reference_container_storage_rejection_semantics(void) {
         "f:main(owner!i32) { v:box!Box; box.value = &owner; }";
     const char* inferred_array_of_safe_references =
         "f:main(owner!i32) { v:refs = [&owner]; }";
-    return check_source(array_of_safe_references, 1) &&
+    return array_rejected &&
         check_source(newtype_alias_binding, 1) &&
         check_source(map_safe_reference_value, 1) &&
         check_source(any_member_safe_reference_value, 1) &&
