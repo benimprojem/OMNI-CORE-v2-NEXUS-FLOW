@@ -699,3 +699,12 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 - Nested reborrows must suspend only the immediate parent and resume it in reverse lexical order. Flow merges must preserve parent-child state and cannot duplicate active exclusivity.
 - Documentation commit: `8ff1f5eaf278700a0ac4ae1993d74d4b42950ffc`.
 - **Implementation remains pending.** Existing `Slot` and `BorrowOrigin` accounting is rooted at storage owners; current release/snapshot-restore paths independently toggle owner counters. Mutable reborrow cannot be safely implemented by merely relaxing the existing rejection. The next code step is to model suspension ownership explicitly and cover scope cleanup plus branch snapshot/merge before enabling the syntax.
+
+
+### SEM-005 — Mutable reborrow relationship design checkpoint (2026-11-23)
+
+- Added `docs/semantic/mutable-reborrow-design.md` as the implementation contract for explicit borrow-relationship tokens and parent-child suspension/resumption.
+- Defined ten invariants covering immediate parent suspension, owner reservation, reverse-order resume, scope cleanup, dangling-parent prevention, atomic rebinding, branch snapshot/restore/join, and external provenance.
+- Established an ordered implementation sequence: relationship lifecycle helpers, binding/reassignment integration, scope cleanup, flow snapshots/merges, then narrowly enabling syntax. Minimum positive/negative regression gates are listed.
+- No runtime/compiler behavior changed; `&mut *parent` remains rejected. This is a safety checkpoint, not feature completion. SEM-005 stays IN_PROGRESS; OIR remains blocked.
+- Design commit: `e519e545968466cf81a4c6aeb1b5aa9c194508bf`.
