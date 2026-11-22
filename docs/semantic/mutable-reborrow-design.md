@@ -103,3 +103,8 @@ A follow-up audit found three gaps in the identity foundation and corrected them
 A focused C regression poisons the counter with UINT64_MAX, calls semantic_init(), and verifies that initialization resets it. This validates initialization only; it does not prove identity graph lifecycle or mutable parent suspension. The CTest/CI result for this new regression is still pending.
 
 The regression set also verifies that two simultaneously tracked shared-reference bindings receive distinct nonzero identities and that each origin records the matching borrower identity. Test commit: 4d32fd6; CI has not yet been observed.
+
+
+## 2026-11-23 — CI regression fix: mutable projection rejection
+
+The C Compiler Build workflow exposed one repeated Semantic regression beginning at run 5301: the negative test for `&mut parent.x` expected one diagnostic but received none. The implementation only routed `TOKEN_BIT_AND` member/index projections through shared-projection handling; `TOKEN_BORROW_MUT` projections fell through to generic lvalue borrowing and were incorrectly accepted. The initializer binder now detects member/index projections rooted in a mutable safe-reference Slot and emits the existing fail-closed parent-child tracking diagnostic before the generic lvalue path. The existing `check_mutable_projection_reborrow_rejection()` test covers this case plus `&mut *parent`. Fix commit: `4d00ef2`. The new workflow run is being checked across all five jobs; do not infer full-matrix success from the Ubuntu job alone.
