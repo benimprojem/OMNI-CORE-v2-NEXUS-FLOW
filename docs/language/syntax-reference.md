@@ -168,14 +168,14 @@ Struct alanları ve sabit indeksler için örnek:
 struct: Point { v:x!i32, v:y!i32 }
 f:main() {
     v:point!Point;
-    v:x_ref!&muti32 = &mut point.x;
-    v:y_ref!&muti32 = &mut point.y; # Ayrı struct alanları: izinli
-    # v:again!&muti32 = &mut point.x; # Aynı alan: çakışma hatası
+    &mut x_ref!i32 = &mut point.x;
+    &mut y_ref!i32 = &mut point.y; # Ayrı struct alanları: izinli
+    # &mut again!i32 = &mut point.x; # Aynı alan: çakışma hatası
 
     v:items[3]!i32 = [10, 20, 30];
-    v:first!&muti32 = &mut items[0];
-    v:second!&muti32 = &mut items[1]; # Farklı sabit indeks: izinli
-    # v:dynamic!&muti32 = &mut items[index]; # Dinamik indeks: mevcut borrow ile çakışabilir
+    &mut first!i32 = &mut items[0];
+    &mut second!i32 = &mut items[1]; # Farklı sabit indeks: izinli
+    # &mut dynamic!i32 = &mut items[index]; # Dinamik indeks: mevcut borrow ile çakışabilir
 }
 ~~~
 
@@ -187,9 +187,9 @@ struct: Container { v:value!Bits, v:guard!i32 }
 
 f:main() {
     v:data!Container;
-    v:word_ref!&muti32 = &mut data.value.word;
-    # v:octet_ref!&mutu8 = &mut data.value.octet; # Union ortak depolaması: çakışma
-    v:guard_ref!&muti32 = &mut data.guard; # Kardeş struct alanı: bağımsız
+    &mut word_ref!i32 = &mut data.value.word;
+    # &mut octet_ref!u8 = &mut data.value.octet; # Union ortak depolaması: çakışma
+    &mut guard_ref!i32 = &mut data.guard; # Kardeş struct alanı: bağımsız
 }
 ~~~
 
@@ -197,7 +197,7 @@ Bu ayrım, bellekte gerçek bir fiziksel ayrıştırma veya runtime bounds garan
 
 #### Aggregate alanlarında safe reference sınırı
 
-Mevcut Semantic, struct/union alanlarında doğrudan **&T** veya **&mut T** saklanmasına izin vermez. Bu kural NewType referans takma adları ve içinde safe reference alanı bulunan iç içe struct/union türleri için de geçerlidir. Alan seviyesinde owner/projection/lifetime metadata'sı ve aggregate kopyalama/taşıma kuralları henüz tanımlı olmadığından bu tür bildirimler açık hata ve öneriyle reddedilir. Referansı şimdilik yerel bir **v:reference!&T** veya **v:reference!&mut T** binding'inde tutun. Bu sınır raw pointer alanlarına otomatik güvenlik sağlamaz; raw pointer ayrı, denetlenmeyen düşük seviyeli erişim sözleşmesidir.
+Mevcut Semantic, struct/union alanlarında doğrudan **&T** veya **&mut T** saklanmasına izin vermez. Bu kural NewType referans takma adları ve içinde safe reference alanı bulunan iç içe struct/union türleri için de geçerlidir. Alan seviyesinde owner/projection/lifetime metadata'sı ve aggregate kopyalama/taşıma kuralları henüz tanımlı olmadığından bu tür bildirimler açık hata ve öneriyle reddedilir. Referansı şimdilik yerel bir **&reference!T** veya **v:reference!&mut T** binding'inde tutun. Bu sınır raw pointer alanlarına otomatik güvenlik sağlamaz; raw pointer ayrı, denetlenmeyen düşük seviyeli erişim sözleşmesidir.
 
 #### Fonksiyon çağrısı ve geçici borrow
 
@@ -2273,9 +2273,9 @@ Semantic resolves the qualifier to an enum declaration and the member to one of 
 **Borrow ve lifetime**
 - `&T` paylaşımlı, immutable borrow'dur. Aynı owner üzerinde birden fazla shared borrow bulunabilir.
 - `&mut T` exclusive borrow'dur; etkin olduğu sürece aynı owner üzerinde başka shared/mutable borrow bulunamaz. Parser `&mut T` türünü `AST_TYPE_REFERENCE` + `AST_TYPE_FLAG_MUTABLE_REFERENCE`, `&mut value` ifadesini `AST_UNARY_EXPR` + `TOKEN_BORROW_MUT` olarak üretir.
-- **Borrow oluşturma:** `v:r!&T = &owner;` shared, `v:r!&mutT = &mut owner;` exclusive borrow oluşturur. Borrow operandı mutable storage lvalue olmalıdır; const owner'dan mutable borrow reddedilir. Raw-pointer dereference veya provenance'si bilinmeyen computed lvalue üzerinden güvenli borrow oluşturulmaz.
+- **Borrow oluşturma:** `&r!T = &owner;` shared, `&mut r!T = &mut owner;` exclusive borrow oluşturur. Borrow operandı mutable storage lvalue olmalıdır; const owner'dan mutable borrow reddedilir. Raw-pointer dereference veya provenance'si bilinmeyen computed lvalue üzerinden güvenli borrow oluşturulmaz.
 - **Çakışma:** Aynı owner üzerinde shared/shared izinlidir; shared/exclusive ve exclusive/exclusive çakışır. Etkin borrow varken owner'ın kendisi, member/index erişimi veya compound assignment ile yazılamaz. İlk sürüm member ve index'leri aggregate-root düzeyinde muhafazakâr olarak aynı owner kabul eder; field/element granular ayrım henüz yoktur.
-- **Reference binding ve reassignment:** `v:r!&T = &owner;` ve `r = &other;` geçerlidir. Yeni borrow owner/scope/conflict kontrolünden geçmeden eski borrow bırakılmaz. Shared reference kopyası `v:b!&T = a;` veya `a = b;` biçiminde owner provenance/count bilgisini taşır. `&mut T` kopyalanamaz; transfer/reborrow kuralları henüz tanımlı değildir. Stored reference'ın member/index/pointer-dereference üzerinden yeniden atanması fail-closed reddedilir.
+- **Reference binding ve reassignment:** `&r!T = &owner;` ve `r = &other;` geçerlidir. Yeni borrow owner/scope/conflict kontrolünden geçmeden eski borrow bırakılmaz. Shared reference kopyası `&b!T = a;` veya `a = b;` biçiminde owner provenance/count bilgisini taşır. `&mut T` kopyalanamaz; transfer/reborrow kuralları henüz tanımlı değildir. Stored reference'ın member/index/pointer-dereference üzerinden yeniden atanması fail-closed reddedilir.
 - **Container/aggregate storage sınırı:** Safe reference elemanları array, inferred array, Map/Vec/any slot, struct/union alanı veya NewType/aggregate alias arkasında saklanamaz. Semantic bu biçimleri açık hata ile reddeder; çünkü element/field düzeyinde owner ve lifetime provenance kaydı henüz yoktur. Safe reference yerel binding'de tutulmalıdır. Raw pointer depolama ayrı ve güvensiz bir sözleşmedir.
 - **Control-flow initialization:** \`if/els\` merge only paths that can continue; a branch that returns/breaks/continues does not weaken the continuing path. \`select\` and \`scan\` arms are analyzed from the same incoming binding state; only a valid final \`default\`/\`else\` closes the unmatched path and permits the intersection of all arm states to propagate. Without a catch-all, pre-branch initialization state is retained.
 - **Kesin başlatma:** Yerel safe reference (\`&T\` / \`&mutT\`) ilk tanımlandığında henüz atanmadıysa okunamaz, dereference edilemez, argüman olarak geçirilemez veya return edilemez. Daha sonra \`r = &owner;\` ya da desteklenen bir shared-reference kopyasıyla başlatılabilir. Atama ancak tür, borrow, owner ve lifetime kontrolleri başarılıysa binding'i başlatılmış sayar. \`if/els\` sonrasında referans yalnızca her iki dalda da başlatılmışsa kesin başlatılmıştır; \`if\` içinde tek dalda veya yalnızca döngü gövdesinde yapılan atama dışarıya kesin başlatma olarak taşınmaz. Fonksiyon parametreleri çağrı girişinde başlatılmıştır. Global safe reference tanımları geçerli bir initializer gerektirir. Tanı, ilk geçersiz kullanım konumunu ve düzeltme önerisini verir.
