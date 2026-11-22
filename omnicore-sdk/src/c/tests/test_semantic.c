@@ -890,16 +890,16 @@ static int check_aggregate_member_semantics(void) {
 
 static int check_aggregate_reference_field_rejection_semantics(void) {
     const char* shared_reference_field_is_rejected =
-        "struct: Holder { &reference!i32 } f:main() {}";
+        "struct: Holder { v:reference!&i32 } f:main() {}";
     const char* mutable_reference_field_is_rejected =
-        "struct: Holder { &mut reference!i32 } f:main() {}";
+        "struct: Holder { v:reference!&muti32 } f:main() {}";
     const char* newtype_reference_field_is_rejected =
         "nt:Ref = &i32; struct: Holder { v:reference!Ref } f:main() {}";
     const char* nested_union_reference_field_is_rejected =
-        "union: RefUnion { &reference!i32, v:raw!u64 } "
+        "union: RefUnion { v:reference!&i32, v:raw!u64 } "
         "struct: Wrapper { v:inner!RefUnion } f:main() {}";
     const char* nested_struct_reference_field_is_rejected =
-        "struct: RefInner { &reference!i32 } "
+        "struct: RefInner { v:reference!&i32 } "
         "struct: RefOuter { v:inner!RefInner } f:main() {}";
     return check_source(shared_reference_field_is_rejected, 1) &&
         check_source(mutable_reference_field_is_rejected, 1) &&
@@ -2343,7 +2343,7 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
         "&mut second_mut_ref!i32 = &mut second; "
         "&mut first_mut_ref!i32 = &mut first; }";
     const char* stored_reference_member_reassignment_is_rejected =
-        "struct: Box { &reference!i32 } "
+        "struct: Box { v:reference!&i32 } "
         "f:main() { v:first!i32 = 1; v:box!Box; box.reference = &first; }";
     const char* stored_reference_index_reassignment_is_rejected =
         "f:main() { v:first!i32 = 1; v:refs[1]!&i32; refs[0] = &first; }";
