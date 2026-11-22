@@ -78,3 +78,15 @@ Do not add a raw parent pointer to `BorrowOrigin` as a partial patch. Snapshot c
 The implementation must first establish a stable borrower identity and a relationship representation whose lifetime is bounded by the semantic context. Then all origin lifecycle operations (install, release, snapshot clone/restore, branch merge, and scope exit) must preserve that identity and its parent link. Only after those operations are covered by tests may the two mutable reborrow rejection paths be enabled.
 
 No runtime behavior is changed by this audit. Mutable dereference and mutable projection reborrows remain rejected, and SEM-005 remains IN_PROGRESS.
+
+## 2026-11-23 — stable borrow identity foundation
+
+The C model now has a first identity layer:
+
+- Each reference-binding `Slot` receives a monotonic, SemanticContext-local `borrow_identity` when it first acquires a tracked borrow.
+- Each `BorrowOrigin` records the identity of the binding that owns it and reserves `parent_identity` for the immediate parent borrow (zero for the existing direct-borrow paths).
+- Snapshot clone and origin-union operations preserve both identity fields; union equality includes them.
+- Existing shared-reference copy and projection-origin construction assign the destination borrow identity before installing the origin set.
+- Identity exhaustion fails conservatively instead of wrapping and reusing an identity.
+
+This is identity scaffolding only: no parent-child edges are created yet, no suspension/resumption behavior is enabled, and mutable reborrow syntax remains rejected. The next step is to associate a child origin with its immediate mutable parent and make release/snapshot/merge operate on that relationship atomically.
