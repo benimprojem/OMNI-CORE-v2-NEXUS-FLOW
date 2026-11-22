@@ -110,7 +110,7 @@ static int check_imported_function_call_semantics(void) {
     const char* local_selector_collision_source =
         "use math as m; f:main() { v:m!i32 = 1; m.add(10, 20); }";
     const char* safe_reference_return_source =
-        "use math as m; f:main(owner!i32) { v:result!&i32 = m.add(10, 20); }";
+        "use math as m; f:main(owner!i32) { &result!i32 = m.add(10, 20); }";
     const char* ambiguous_alias_source =
         "use math as m; f:main() { m.add(10, 20); }";
     const char* ambiguous_namespace_source =
@@ -890,16 +890,16 @@ static int check_aggregate_member_semantics(void) {
 
 static int check_aggregate_reference_field_rejection_semantics(void) {
     const char* shared_reference_field_is_rejected =
-        "struct: Holder { v:reference!&i32 } f:main() {}";
+        "struct: Holder { &reference!i32 } f:main() {}";
     const char* mutable_reference_field_is_rejected =
-        "struct: Holder { v:reference!&muti32 } f:main() {}";
+        "struct: Holder { &mut reference!i32 } f:main() {}";
     const char* newtype_reference_field_is_rejected =
         "nt:Ref = &i32; struct: Holder { v:reference!Ref } f:main() {}";
     const char* nested_union_reference_field_is_rejected =
-        "union: RefUnion { v:reference!&i32, v:raw!u64 } "
+        "union: RefUnion { &reference!i32, v:raw!u64 } "
         "struct: Wrapper { v:inner!RefUnion } f:main() {}";
     const char* nested_struct_reference_field_is_rejected =
-        "struct: RefInner { v:reference!&i32 } "
+        "struct: RefInner { &reference!i32 } "
         "struct: RefOuter { v:inner!RefInner } f:main() {}";
     return check_source(shared_reference_field_is_rejected, 1) &&
         check_source(mutable_reference_field_is_rejected, 1) &&
@@ -1091,15 +1091,15 @@ static int check_pointer_reference_type_semantics(void) {
     const char* pointer_reference_mismatch =
         "f:take(value!&i32) {} f:main(a!*i32) { take(a); }";
     const char* exact_reference =
-        "f:take(value!&i32) {} f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; take(a); }";
+        "f:take(value!&i32) {} f:main() { v:owner!i32 = 1; &a!i32 = &owner; take(a); }";
     const char* reference_base_mismatch =
-        "f:take(value!&i32) {} f:main(owner!f32) { v:a!&f32 = &owner; take(a); }";
+        "f:take(value!&i32) {} f:main(owner!f32) { &a!f32 = &owner; take(a); }";
     const char* exact_nested_pointer_assignment =
         "f:main(a!**i32, b!**i32) { a = b; }";
     const char* nested_pointer_depth_mismatch =
         "f:main(a!**i32, b!*i32) { a = b; }";
     const char* exact_reference_assignment =
-        "f:main() { v:first!i32 = 1; v:second!i32 = 2; v:a!&i32 = &first; v:b!&i32 = &second; a = b; }";
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; &a!i32 = &first; &b!i32 = &second; a = b; }";
     const char* pointer_integer_mismatch =
         "f:take(value!*i32) {} f:main(address!u64) { take(address); }";
     const char* unknown_nested_pointer_target =
@@ -1124,21 +1124,21 @@ static int check_pointer_reference_type_semantics(void) {
     const char* pointer_dereference_assignment_mismatch =
         "f:main(p!*i32) { *p = \"wrong\"; }";
     const char* reference_dereference =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; v:value!i32 = *r; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; v:value!i32 = *r; }";
     const char* reference_dereference_assignment =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r = 7; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; *r = 7; }";
     const char* reference_compound_assignment =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r += 1; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; *r += 1; }";
     const char* pointer_compound_assignment =
         "f:main(p!*i32) { *p += 1; }";
     const char* reference_subtract_assignment =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r -= 1; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; *r -= 1; }";
     const char* reference_multiply_assignment =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r *= 2; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; *r *= 2; }";
     const char* reference_divide_assignment =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r /= 2; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; *r /= 2; }";
     const char* reference_bitwise_assignment =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; *r &= 1; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; *r &= 1; }";
     const char* pointer_bitwise_assignment =
         "f:main(p!*i32) { *p &= 1; }";
     return check_source(exact_pointer, 0) &&
@@ -1226,21 +1226,21 @@ static int check_callback_target_control_flow_merge_semantics(void) {
         "f:first(value!&i32)!&i32 { ret value; } "
         "f:main(owner!i32, flag!bool) { v:callback!RefGetter = first; "
         "if (flag) { callback = first; } els { callback = first; } "
-        "v:result!&i32 = callback(&owner); }";
+        "&result!i32 = callback(&owner); }";
     const char* if_paths_choose_different_targets =
         "nt:RefGetter = f:(value!&i32)!&i32; "
         "f:first(value!&i32)!&i32 { ret value; } "
         "f:second(value!&i32)!&i32 { ret value; } "
         "f:main(owner!i32, flag!bool) { v:callback!RefGetter = first; "
         "if (flag) { callback = first; } els { callback = second; } "
-        "v:result!&i32 = callback(&owner); }";
+        "&result!i32 = callback(&owner); }";
     const char* missing_else_keeps_unknown_target =
         "nt:RefGetter = f:(value!&i32)!&i32; "
         "f:first(value!&i32)!&i32 { ret value; } "
         "f:second(value!&i32)!&i32 { ret value; } "
         "f:main(owner!i32, flag!bool) { v:callback!RefGetter = first; "
         "if (flag) { callback = second; } "
-        "v:result!&i32 = callback(&owner); }";
+        "&result!i32 = callback(&owner); }";
     return check_source(both_if_paths_keep_same_target, 0) &&
         check_source(if_paths_choose_different_targets, 1) &&
         check_source(missing_else_keeps_unknown_target, 1);
@@ -1251,17 +1251,17 @@ static int check_named_callback_reference_return_origin_semantics(void) {
         "nt:RefGetter = f:(value!&i32)!&i32; "
         "f:identity(value!&i32)!&i32 { ret value; } "
         "f:main(owner!i32) { v:callback!RefGetter = identity; "
-        "v:result!&i32 = callback(&owner); v:copy!i32 = *result; }";
+        "&result!i32 = callback(&owner); v:copy!i32 = *result; }";
     const char* copied_callback_preserves_return_origin =
         "nt:RefGetter = f:(value!&i32)!&i32; "
         "f:identity(value!&i32)!&i32 { ret value; } "
         "f:main(owner!i32) { v:first!RefGetter = identity; "
-        "v:second!RefGetter = first; v:result!&i32 = second(&owner); "
+        "v:second!RefGetter = first; &result!i32 = second(&owner); "
         "v:copy!i32 = *result; }";
     const char* unknown_callback_reference_return_fails_closed =
         "nt:RefGetter = f:(value!&i32)!&i32; "
         "f:use(callback!RefGetter, owner!i32) { "
-        "v:result!&i32 = callback(&owner); }";
+        "&result!i32 = callback(&owner); }";
     return check_source(named_callback_reference_return, 0) &&
         check_source(copied_callback_preserves_return_origin, 0) &&
         check_source(unknown_callback_reference_return_fails_closed, 1);
@@ -1326,7 +1326,7 @@ static int check_nested_type_variable_semantics(void) {
         "f:main(value!*i32) { v:result!*i32 = identity(value); }";
     const char* reference_type_variable_return =
         "f:identity(value!&t)!&t { ret value; } "
-        "f:main(value!&i32) { v:result!&i32 = identity(value); }";
+        "f:main(value!&i32) { &result!i32 = identity(value); }";
     const char* nested_type_variable_base_conflict =
         "f:combine(pointer!*t, value!t) {} "
         "f:main(pointer!*i32, value!u32) { combine(pointer, value); }";
@@ -1340,7 +1340,7 @@ static int check_nested_type_variable_semantics(void) {
         "f:main(values!i32[3]) { v:result!i32 = first(values); }";
     const char* direct_t_reference_inference_is_rejected =
         "f:identity(value!t)!t { ret value; } "
-        "f:main(owner!i32) { v:result!&i32 = identity(&owner); }";
+        "f:main(owner!i32) { &result!i32 = identity(&owner); }";
     const char* unbound_generic_return_type_is_rejected =
         "f:make()!t { ret 1; }";
 
@@ -1397,9 +1397,9 @@ static int check_safe_reference_type_erasure_semantics(void) {
     const char* any_map_value_rejected =
         "f:main(owner!i32) { v:items!map; items[\"key\"] = &owner; }";
     const char* cast_any_to_reference_rejected =
-        "f:main(value!any) { v:reference!&i32 = value; }";
+        "f:main(value!any) { &reference!i32 = value; }";
     const char* cast_raw_pointer_to_reference_rejected =
-        "f:main(value!*i32) { v:reference!&i32 = value; }";
+        "f:main(value!*i32) { &reference!i32 = value; }";
     const char* explicit_reference_to_raw_pointer_allowed =
         "nt:RawI32 = *i32; f:main(owner!i32) { v:pointer!RawI32 = cast(&owner,RawI32); }";
     return check_source(any_initializer_rejected, 1) &&
@@ -1653,7 +1653,7 @@ static int check_nested_pointer_and_reference_type_variable_semantics(void) {
         "f:main(pointer!*i32) { v:copy!*i32 = identity(pointer); }";
     const char* safe_reference_type_variable =
         "f:identity(value!&t)!&t { ret value; } "
-        "f:main(owner!i32) { v:copy!&i32 = identity(&owner); "
+        "f:main(owner!i32) { &copy!i32 = identity(&owner); "
         "v:read!i32 = *copy; }";
     const char* repeated_pointer_type_variable_mismatch =
         "f:pair(first!*t,second!*t)!*t { ret first; } "
@@ -1726,27 +1726,27 @@ static int check_callback_nullability_semantics(void) {
 
 static int check_reference_initialization_control_flow_semantics(void) {
     const char* return_branch_does_not_block_other_path =
-        "f:main(owner!i32, condition!bool) { v:reference!&i32; "
+        "f:main(owner!i32, condition!bool) { &reference!i32; "
         "if (condition) { ret; } els { reference = &owner; } "
         "v:value!i32 = *reference; }";
     const char* select_default_initializes_all_paths =
-        "f:main(choice!i32, owner!i32) { v:reference!&i32; "
+        "f:main(choice!i32, owner!i32) { &reference!i32; "
         "select(choice) { 1 -> { reference = &owner; } "
         "default -> { reference = &owner; } } "
         "v:value!i32 = *reference; }";
     const char* select_without_default_does_not_initialize =
-        "f:main(choice!i32, owner!i32) { v:reference!&i32; "
+        "f:main(choice!i32, owner!i32) { &reference!i32; "
         "select(choice) { 1 -> { reference = &owner; } } "
         "v:value!i32 = *reference; }";
     const char* scan_else_initializes_all_paths =
         "enum:State { Ready, Empty } "
-        "f:main(choice!State, owner!i32) { v:reference!&i32; "
+        "f:main(choice!State, owner!i32) { &reference!i32; "
         "scan(choice) { Ready -> { reference = &owner; }, "
         "else -> { reference = &owner; } } "
         "v:value!i32 = *reference; }";
     const char* scan_without_else_does_not_initialize =
         "enum:State { Ready, Empty } "
-        "f:main(choice!State, owner!i32) { v:reference!&i32; "
+        "f:main(choice!State, owner!i32) { &reference!i32; "
         "scan(choice) { Ready -> { reference = &owner; }, "
         "Empty -> { reference = &owner; } } "
         "v:value!i32 = *reference; }";
@@ -1767,7 +1767,7 @@ static int check_raw_pointer_initialization_and_nullability_semantics(void) {
     const char* null_pointer_comparison =
         "f:main() { v:pointer!*i32 = null; v:empty!bool = pointer == null; }";
     const char* safe_reference_rejects_null =
-        "f:main() { v:reference!&i32 = null; }";
+        "f:main() { &reference!i32 = null; }";
     const char* raw_pointer_parameter_accepts_null =
         "f:take(pointer!*i32) {} f:main() { take(null); }";
     return check_source(uninitialized_pointer_read, 1) &&
@@ -1799,32 +1799,32 @@ static int check_safe_reference_container_storage_rejection_semantics(void) {
 
 static int check_safe_reference_definite_initialization_semantics(void) {
     const char* uninitialized_dereference =
-        "f:main() { v:reference!&i32; v:value!i32 = *reference; }";
+        "f:main() { &reference!i32; v:value!i32 = *reference; }";
     const char* uninitialized_call_argument =
-        "f:read(value!&i32) {} f:main() { v:reference!&i32; read(reference); }";
+        "f:read(value!&i32) {} f:main() { &reference!i32; read(reference); }";
     const char* assigned_before_read =
-        "f:main() { v:owner!i32 = 1; v:reference!&i32; "
+        "f:main() { v:owner!i32 = 1; &reference!i32; "
         "reference = &owner; v:value!i32 = *reference; }";
     const char* both_if_paths_initialize =
-        "f:main() { v:owner!i32 = 1; v:reference!&i32; "
+        "f:main() { v:owner!i32 = 1; &reference!i32; "
         "if (true) { reference = &owner; } els { reference = &owner; } "
         "v:value!i32 = *reference; }";
     const char* one_if_path_initializes =
-        "f:main() { v:owner!i32 = 1; v:reference!&i32; "
+        "f:main() { v:owner!i32 = 1; &reference!i32; "
         "if (true) { reference = &owner; } "
         "v:value!i32 = *reference; }";
     const char* invalid_assignment_does_not_initialize =
-        "f:main() { v:reference!&i32; reference = 7; "
+        "f:main() { &reference!i32; reference = 7; "
         "v:value!i32 = *reference; }";
     const char* parameter_is_initialized =
         "f:read(value!&i32) { v:copy!i32 = *value; } "
         "f:main() { v:owner!i32 = 1; read(&owner); }";
     const char* loop_body_initialization_not_definite =
-        "f:main() { v:owner!i32 = 1; v:reference!&i32; "
+        "f:main() { v:owner!i32 = 1; &reference!i32; "
         "loop(true) { reference = &owner; break; } "
         "v:value!i32 = *reference; }";
     const char* loop_preserves_prior_initialization =
-        "f:main() { v:owner!i32 = 1; v:reference!&i32 = &owner; "
+        "f:main() { v:owner!i32 = 1; &reference!i32 = &owner; "
         "loop(true) { break; } v:value!i32 = *reference; }";
     return check_source(uninitialized_dereference, 1) &&
         check_source(uninitialized_call_argument, 1) &&
@@ -1839,15 +1839,15 @@ static int check_safe_reference_definite_initialization_semantics(void) {
 
 static int check_borrow_expression_semantics(void) {
     const char* shared_borrow =
-        "f:main() { v:value!i32 = 1; v:read_only!&i32 = &value; v:copy!i32 = *read_only; }";
+        "f:main() { v:value!i32 = 1; &read_only!i32 = &value; v:copy!i32 = *read_only; }";
     const char* mutable_borrow =
-        "f:main() { v:value!i32 = 1; v:editable!&muti32 = &mut value; *editable = 7; }";
+        "f:main() { v:value!i32 = 1; &mut editable!i32 = &mut value; *editable = 7; }";
     const char* mutable_borrow_const =
-        "f:main() { c:value!i32 = 1; v:editable!&muti32 = &mut value; }";
+        "f:main() { c:value!i32 = 1; &mut editable!i32 = &mut value; }";
     const char* borrow_temporary =
-        "f:main() { v:read_only!&i32 = &(1 + 2); }";
+        "f:main() { &read_only!i32 = &(1 + 2); }";
     const char* shared_borrow_write =
-        "f:main() { v:value!i32 = 1; v:read_only!&i32 = &value; *read_only = 7; }";
+        "f:main() { v:value!i32 = 1; &read_only!i32 = &value; *read_only = 7; }";
     return check_source(shared_borrow, 0) &&
         check_source(mutable_borrow, 0) &&
         check_source(mutable_borrow_const, 1) &&
@@ -1857,37 +1857,37 @@ static int check_borrow_expression_semantics(void) {
 
 static int check_shared_reborrow_semantics(void) {
     const char* shared_dereference_reborrow_allowed =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; v:s!&i32 = &*r; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; &s!i32 = &*r; }";
     const char* shared_reborrow_keeps_owner_conflict =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; "
-        "v:s!&i32 = &*r; v:edit!&muti32 = &mut owner; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; "
+        "&s!i32 = &*r; &mut edit!i32 = &mut owner; }";
     const char* chained_shared_dereference_reborrow_allowed =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; "
-        "v:s!&i32 = &*r; v:t!&i32 = &*s; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; "
+        "&s!i32 = &*r; &t!i32 = &*s; }";
     const char* chained_shared_reborrow_keeps_owner_conflict =
-        "f:main() { v:owner!i32 = 1; v:r!&i32 = &owner; "
-        "v:s!&i32 = &*r; v:t!&i32 = &*s; "
-        "v:edit!&muti32 = &mut owner; }";
+        "f:main() { v:owner!i32 = 1; &r!i32 = &owner; "
+        "&s!i32 = &*r; &t!i32 = &*s; "
+        "&mut edit!i32 = &mut owner; }";
     const char* mutable_reference_cannot_be_shared_reborrowed =
-        "f:main() { v:owner!i32 = 1; v:r!&muti32 = &mut owner; "
-        "v:s!&i32 = &*r; }";
+        "f:main() { v:owner!i32 = 1; &mut r!i32 = &mut owner; "
+        "&s!i32 = &*r; }";
     const char* shared_parameter_dereference_reborrow_allowed =
-        "f:read(r!&i32) { v:s!&i32 = &*r; v:value!i32 = *s; } "
+        "f:read(r!&i32) { &s!i32 = &*r; v:value!i32 = *s; } "
         "f:main() { v:owner!i32 = 1; read(&owner); }";
     const char* shared_parameter_reborrow_type_mismatch =
-        "f:read(r!&i32) { v:s!&f64 = &*r; } "
+        "f:read(r!&i32) { &s!f64 = &*r; } "
         "f:main() { v:owner!i32 = 1; read(&owner); }";
     const char* raw_pointer_dereference_cannot_become_safe_reborrow =
-        "f:main(p!*i32) { v:s!&i32 = &*p; }";
+        "f:main(p!*i32) { &s!i32 = &*p; }";
     const char* uninitialized_shared_reference_cannot_be_reborrowed =
-        "f:main() { v:r!&i32; v:s!&i32 = &*r; }";
+        "f:main() { &r!i32; &s!i32 = &*r; }";
     const char* reborrow_preserves_all_branch_merged_origins =
         "f:main(first!i32, second!i32, replacement!i32, flag!bool) { "
-        "v:r!&i32 = &first; "
+        "&r!i32 = &first; "
         "if (flag) { r = &first; } els { r = &second; } "
-        "v:s!&i32 = &*r; r = &replacement; "
-        "v:edit_first!&muti32 = &mut first; "
-        "v:edit_second!&muti32 = &mut second; }";
+        "&s!i32 = &*r; r = &replacement; "
+        "&mut edit_first!i32 = &mut first; "
+        "&mut edit_second!i32 = &mut second; }";
     return check_source(shared_dereference_reborrow_allowed, 0) &&
         check_source(shared_reborrow_keeps_owner_conflict, 1) &&
         check_source(chained_shared_dereference_reborrow_allowed, 0) &&
@@ -1903,51 +1903,51 @@ static int check_shared_reborrow_semantics(void) {
 static int check_reference_member_projection_semantics(void) {
     const char* shared_reference_member_read =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:r!&Point = &point; v:value!i32 = r.x; }";
+        "v:point!Point; &r!Point = &point; v:value!i32 = r.x; }";
     const char* shared_reference_unknown_member =
         "f:main() { struct:Point { v:x!i32 } "
-        "v:point!Point; v:r!&Point = &point; v:value!i32 = r.missing; }";
+        "v:point!Point; &r!Point = &point; v:value!i32 = r.missing; }";
     const char* shared_projection_reborrow_blocks_overlapping_mutable =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:r!&Point = &point; "
-        "v:field!&i32 = &r.x; v:write!&muti32 = &mut point.x; }";
+        "v:point!Point; &r!Point = &point; "
+        "&field!i32 = &r.x; &mut write!i32 = &mut point.x; }";
     const char* shared_projection_reborrow_allows_disjoint_mutable =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:outer!Point; v:other!Point; v:r!&Point = &outer; "
-        "v:field!&i32 = &r.x; r = &other; "
-        "v:write!&muti32 = &mut outer.y; }";
+        "v:outer!Point; v:other!Point; &r!Point = &outer; "
+        "&field!i32 = &r.x; r = &other; "
+        "&mut write!i32 = &mut outer.y; }";
     const char* child_projection_keeps_original_origin_after_parent_reassignment =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:outer!Point; v:replacement!Point; "
-        "v:r!&Point = &outer; v:field!&i32 = &r.x; "
+        "&r!Point = &outer; &field!i32 = &r.x; "
         "r = &replacement; "
-        "v:write!&muti32 = &mut outer.x; }";
+        "&mut write!i32 = &mut outer.x; }";
     const char* child_projection_preserves_first_branch_origin =
         "f:main(flag!bool) { struct:Point { v:x!i32, v:y!i32 } "
         "v:first!Point; v:second!Point; v:replacement!Point; "
-        "v:r!&Point = &first; "
+        "&r!Point = &first; "
         "if (flag) { r = &first; } els { r = &second; } "
-        "v:field!&i32 = &r.x; r = &replacement; "
-        "v:write!&muti32 = &mut first.x; }";
+        "&field!i32 = &r.x; r = &replacement; "
+        "&mut write!i32 = &mut first.x; }";
     const char* child_projection_preserves_second_branch_origin =
         "f:main(flag!bool) { struct:Point { v:x!i32, v:y!i32 } "
         "v:first!Point; v:second!Point; v:replacement!Point; "
-        "v:r!&Point = &first; "
+        "&r!Point = &first; "
         "if (flag) { r = &first; } els { r = &second; } "
-        "v:field!&i32 = &r.x; r = &replacement; "
-        "v:write!&muti32 = &mut second.x; }";
+        "&field!i32 = &r.x; r = &replacement; "
+        "&mut write!i32 = &mut second.x; }";
     const char* array_element_shared_borrow_disjoint_index =
         "f:main() { v:items[4]!i32 = [10, 20, 30, 40]; "
-        "v:element!&i32 = &items[3]; "
-        "v:write!&muti32 = &mut items[0]; }";
+        "&element!i32 = &items[3]; "
+        "&mut write!i32 = &mut items[0]; }";
     const char* array_element_shared_borrow_overlap_index =
         "f:main() { v:items[4]!i32 = [10, 20, 30, 40]; "
-        "v:element!&i32 = &items[3]; "
-        "v:write!&muti32 = &mut items[3]; }";
+        "&element!i32 = &items[3]; "
+        "&mut write!i32 = &mut items[3]; }";
     const char* array_element_shared_borrow_dynamic_index =
         "f:main(index!i32) { v:items[4]!i32 = [10, 20, 30, 40]; "
-        "v:element!&i32 = &items[index]; "
-        "v:write!&muti32 = &mut items[2]; }";
+        "&element!i32 = &items[index]; "
+        "&mut write!i32 = &mut items[2]; }";
     return check_source(shared_reference_member_read, 0) &&
         check_source(shared_reference_unknown_member, 1) &&
         check_source(shared_projection_reborrow_blocks_overlapping_mutable, 1) &&
@@ -1963,10 +1963,10 @@ static int check_reference_member_projection_semantics(void) {
 static int check_call_temporary_borrow_semantics(void) {
     const char* shared_call_conflicts_with_active_mutable =
         "f:read(value!&i32) {} f:main() { v:owner!i32 = 1; "
-        "v:edit!&muti32 = &mut owner; read(&owner); }";
+        "&mut edit!i32 = &mut owner; read(&owner); }";
     const char* mutable_call_conflicts_with_active_shared =
         "f:edit(value!&muti32) {} f:main() { v:owner!i32 = 1; "
-        "v:read_only!&i32 = &owner; edit(&mut owner); }";
+        "&read_only!i32 = &owner; edit(&mut owner); }";
     const char* two_shared_call_arguments_are_allowed =
         "f:read(a!&i32, b!&i32) {} f:main() { v:owner!i32 = 1; read(&owner, &owner); }";
     const char* conflicting_call_arguments_are_rejected =
@@ -1979,7 +1979,7 @@ static int check_call_temporary_borrow_semantics(void) {
         "f:read(value!&i32) {} f:main() { v:owner!i32 = 1; read(&mut owner); }";
     const char* call_temporary_borrow_is_released =
         "f:edit(value!&muti32) {} f:main() { v:owner!i32 = 1; "
-        "edit(&mut owner); v:read!&i32 = &owner; }";
+        "edit(&mut owner); &read!i32 = &owner; }";
     const char* disjoint_temporary_mutable_member_borrows =
         "f:edit(a!&muti32, b!&muti32) {} "
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
@@ -2004,8 +2004,8 @@ static int check_borrow_diagnostic_guidance(void) {
     const char* source =
         "f:main() {\n"
         "  v:owner!i32 = 1;\n"
-        "  v:a!&i32 = &owner;\n"
-        "  v:b!&muti32 = &mut owner;\n"
+        "  &a!i32 = &owner;\n"
+        "  &mut b!i32 = &mut owner;\n"
         "}";
     ParserContext* parser = parser_init_source(
         "borrow-diagnostic.nxf", (const uint8_t*)source, strlen(source));
@@ -2041,7 +2041,7 @@ static int check_borrow_diagnostic_guidance(void) {
 static int check_reference_parameter_escape_diagnostic(void) {
     const char* source =
         "v:global_owner!i32 = 0;\n"
-        "v:global_ref!&i32 = &global_owner;\n"
+        "&global_ref!i32 = &global_owner;\n"
         "f:store(value!&i32) {\n"
         "  global_ref = value;\n"
         "}";
@@ -2079,22 +2079,22 @@ static int check_reference_parameter_escape_diagnostic(void) {
 
 static int check_borrow_overlap_and_scope_semantics(void) {
     const char* multiple_shared =
-        "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; v:b!&i32 = &owner; }";
+        "f:main() { v:owner!i32 = 1; &a!i32 = &owner; &b!i32 = &owner; }";
     const char* shared_then_mutable =
-        "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; v:b!&muti32 = &mut owner; }";
+        "f:main() { v:owner!i32 = 1; &a!i32 = &owner; &mut b!i32 = &mut owner; }";
     const char* mutable_then_shared =
-        "f:main() { v:owner!i32 = 1; v:a!&muti32 = &mut owner; v:b!&i32 = &owner; }";
+        "f:main() { v:owner!i32 = 1; &mut a!i32 = &mut owner; &b!i32 = &owner; }";
     const char* two_mutable =
-        "f:main() { v:owner!i32 = 1; v:a!&muti32 = &mut owner; v:b!&muti32 = &mut owner; }";
+        "f:main() { v:owner!i32 = 1; &mut a!i32 = &mut owner; &mut b!i32 = &mut owner; }";
     const char* owner_write_during_shared =
-        "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; owner = 2; }";
+        "f:main() { v:owner!i32 = 1; &a!i32 = &owner; owner = 2; }";
     const char* owner_write_during_mutable =
-        "f:main() { v:owner!i32 = 1; v:a!&muti32 = &mut owner; owner = 2; }";
+        "f:main() { v:owner!i32 = 1; &mut a!i32 = &mut owner; owner = 2; }";
     const char* owner_compound_write_during_borrow =
-        "f:main() { v:owner!i32 = 1; v:a!&i32 = &owner; owner += 1; }";
+        "f:main() { v:owner!i32 = 1; &a!i32 = &owner; owner += 1; }";
     const char* borrow_released_at_scope_exit =
-        "f:main() { v:owner!i32 = 1; { v:a!&muti32 = &mut owner; } "
-        "v:b!&muti32 = &mut owner; }";
+        "f:main() { v:owner!i32 = 1; { &mut a!i32 = &mut owner; } "
+        "&mut b!i32 = &mut owner; }";
     return check_source(multiple_shared, 0) &&
         check_source(shared_then_mutable, 1) &&
         check_source(mutable_then_shared, 1) &&
@@ -2107,27 +2107,27 @@ static int check_borrow_overlap_and_scope_semantics(void) {
 
 static int check_mutable_borrow_owner_access_semantics(void) {
     const char* owner_read_during_mutable_borrow =
-        "f:main() { v:owner!i32 = 1; v:reference!&muti32 = &mut owner; "
+        "f:main() { v:owner!i32 = 1; &mut reference!i32 = &mut owner; "
         "v:copy!i32 = owner; }";
     const char* owner_read_during_shared_borrow =
-        "f:main() { v:owner!i32 = 1; v:reference!&i32 = &owner; "
+        "f:main() { v:owner!i32 = 1; &reference!i32 = &owner; "
         "v:copy!i32 = owner; }";
     const char* member_read_during_mutable_borrow =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:reference!&muti32 = &mut point.x; "
+        "v:point!Point; &mut reference!i32 = &mut point.x; "
         "v:copy!i32 = point.y; }";
     const char* index_read_during_mutable_borrow =
         "f:main() { v:items[2]!i32 = [1,2]; "
-        "v:reference!&muti32 = &mut items[0]; v:copy!i32 = items[1]; }";
+        "&mut reference!i32 = &mut items[0]; v:copy!i32 = items[1]; }";
     const char* overlapping_member_read_during_mutable_borrow =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:reference!&muti32 = &mut point.x; "
+        "v:point!Point; &mut reference!i32 = &mut point.x; "
         "v:copy!i32 = point.x; }";
     const char* overlapping_index_read_during_mutable_borrow =
         "f:main() { v:items[2]!i32 = [1,2]; "
-        "v:reference!&muti32 = &mut items[0]; v:copy!i32 = items[0]; }";
+        "&mut reference!i32 = &mut items[0]; v:copy!i32 = items[0]; }";
     const char* assignment_target_read_does_not_duplicate =
-        "f:main() { v:owner!i32 = 1; v:reference!&muti32 = &mut owner; "
+        "f:main() { v:owner!i32 = 1; &mut reference!i32 = &mut owner; "
         "owner = owner + 1; }";
     return check_source(owner_read_during_mutable_borrow, 1) &&
         check_source(owner_read_during_shared_borrow, 0) &&
@@ -2141,52 +2141,52 @@ static int check_mutable_borrow_owner_access_semantics(void) {
 static int check_reference_initializer_provenance_semantics(void) {
     const char* shared_reference_initializer_copy_tracks_owner =
         "f:main() { v:owner!i32 = 1; "
-        "v:reference!&i32 = &owner; v:copy!&i32 = reference; "
-        "v:edit!&muti32 = &mut owner; }";
+        "&reference!i32 = &owner; &copy!i32 = reference; "
+        "&mut edit!i32 = &mut owner; }";
     const char* exclusive_reference_initializer_copy_is_rejected =
         "f:main() { v:owner!i32 = 1; "
-        "v:reference!&muti32 = &mut owner; "
-        "v:copy!&muti32 = reference; }";
+        "&mut reference!i32 = &mut owner; "
+        "&mut copy!i32 = reference; }";
     const char* returned_reference_parameter_preserves_origin =
         "f:identity(value!&i32)!&i32 { ret value; } "
         "f:main() { v:owner!i32 = 1; "
-        "v:copy!&i32 = identity(&owner); "
-        "v:edit!&muti32 = &mut owner; }";
+        "&copy!i32 = identity(&owner); "
+        "&mut edit!i32 = &mut owner; }";
     const char* returned_reference_binding_preserves_origin =
         "f:identity(value!&i32)!&i32 { ret value; } "
-        "f:main() { v:owner!i32 = 1; v:reference!&i32 = &owner; "
-        "v:copy!&i32 = identity(reference); "
-        "v:edit!&muti32 = &mut owner; }";
+        "f:main() { v:owner!i32 = 1; &reference!i32 = &owner; "
+        "&copy!i32 = identity(reference); "
+        "&mut edit!i32 = &mut owner; }";
     const char* returned_mutable_reference_parameter_preserves_origin =
         "f:identity(value!&muti32)!&muti32 { ret value; } "
         "f:main() { v:owner!i32 = 1; "
-        "v:copy!&muti32 = identity(&mut owner); "
-        "v:read!&i32 = &owner; }";
+        "&mut copy!i32 = identity(&mut owner); "
+        "&read!i32 = &owner; }";
     const char* call_return_reference_without_verified_origin_is_rejected =
         "f:make()!&i32 { ret null; } "
-        "f:main() { v:copy!&i32 = make(); }";
+        "f:main() { &copy!i32 = make(); }";
     const char* named_return_parameter_maps_to_correct_argument =
         "f:pick_ref(left!&i32,right!&i32)!&i32 { ret right; } "
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:copy!&i32 = pick_ref(right:&second,left:&first); "
-        "v:edit!&muti32 = &mut second; }";
+        "&copy!i32 = pick_ref(right:&second,left:&first); "
+        "&mut edit!i32 = &mut second; }";
     const char* inconsistent_return_origins_are_rejected =
         "f:choose(left!&i32,right!&i32)!&i32 { "
         "if (true) { ret left; } els { ret right; } } "
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:copy!&i32 = choose(&first,&second); }";
+        "&copy!i32 = choose(&first,&second); }";
     const char* consistent_branch_return_origin_is_preserved =
         "f:identity(value!&i32)!&i32 { "
         "if (true) { ret value; } els { ret value; } } "
         "f:main() { v:owner!i32 = 1; "
-        "v:copy!&i32 = identity(&owner); "
-        "v:edit!&muti32 = &mut owner; }";
+        "&copy!i32 = identity(&owner); "
+        "&mut edit!i32 = &mut owner; }";
     const char* group_instance_method_return_origin_is_preserved =
         "f:main() { group Storage { "
         "identity => f:identity_impl(self,value!&i32)!&i32 { ret value; } "
         "run => f:run_impl(self) { v:owner!i32 = 1; "
-        "v:copy!&i32 = self.identity(&owner); "
-        "v:edit!&muti32 = &mut owner; ret; } "
+        "&copy!i32 = self.identity(&owner); "
+        "&mut edit!i32 = &mut owner; ret; } "
         "struct:Storage { v:value!i32 } } }";
     return check_source(shared_reference_initializer_copy_tracks_owner, 1) &&
         check_source(exclusive_reference_initializer_copy_is_rejected, 1) &&
@@ -2205,43 +2205,43 @@ static int check_safe_reference_return_lifetime_semantics(void) {
         "f:get()!&i32 { v:owner!i32 = 1; ret &owner; }";
     const char* returning_local_reference_binding_is_rejected =
         "f:get()!&i32 { v:owner!i32 = 1; "
-        "v:reference!&i32 = &owner; ret reference; }";
+        "&reference!i32 = &owner; ret reference; }";
     const char* returning_reference_parameter_preserves_forwarding =
         "f:identity(value!&i32)!&i32 { ret value; }";
     const char* returning_local_alias_of_reference_parameter_is_supported =
-        "f:identity(value!&i32)!&i32 { v:local!&i32 = value; ret local; }";
+        "f:identity(value!&i32)!&i32 { &local!i32 = value; ret local; }";
     const char* returning_local_alias_chain_of_reference_parameter_is_supported =
-        "f:identity(value!&i32)!&i32 { v:first!&i32 = value; "
-        "v:second!&i32 = first; ret second; }";
+        "f:identity(value!&i32)!&i32 { &first!i32 = value; "
+        "&second!i32 = first; ret second; }";
     const char* returning_rebound_local_alias_is_rejected =
         "f:identity(value!&i32, other!&i32)!&i32 { "
-        "v:local!&i32 = value; local = other; ret local; } "
+        "&local!i32 = value; local = other; ret local; } "
         "f:main(value!&i32, other!&i32) { "
-        "v:copy!&i32 = identity(value, other); }";
+        "&copy!i32 = identity(value, other); }";
     const char* forwarding_local_alias_return_preserves_origin =
-        "f:identity(value!&i32)!&i32 { v:local!&i32 = value; ret local; } "
-        "f:forward(value!&i32) { v:copy!&i32 = identity(value); }";
+        "f:identity(value!&i32)!&i32 { &local!i32 = value; ret local; } "
+        "f:forward(value!&i32) { &copy!i32 = identity(value); }";
     const char* forwarding_call_preserves_parameter_origin =
         "f:identity(value!&i32)!&i32 { ret value; } "
-        "f:forward(value!&i32) { v:local!&i32 = identity(value); }";
+        "f:forward(value!&i32) { &local!i32 = identity(value); }";
     const char* parameter_reference_cannot_escape_to_global =
-        "v:global_owner!i32 = 0; v:global_ref!&i32 = &global_owner; f:store(value!&i32) { global_ref = value; }";
+        "v:global_owner!i32 = 0; &global_ref!i32 = &global_owner; f:store(value!&i32) { global_ref = value; }";
     const char* local_alias_of_parameter_cannot_escape_to_global =
-        "v:global_owner!i32 = 0; v:global_ref!&i32 = &global_owner; f:store(value!&i32) { "
-        "v:local!&i32 = value; global_ref = local; }";
+        "v:global_owner!i32 = 0; &global_ref!i32 = &global_owner; f:store(value!&i32) { "
+        "&local!i32 = value; global_ref = local; }";
     const char* returned_call_reference_cannot_escape_to_global =
-        "v:global_owner!i32 = 0; v:global_ref!&i32 = &global_owner; "
+        "v:global_owner!i32 = 0; &global_ref!i32 = &global_owner; "
         "f:identity(value!&i32)!&i32 { ret value; } "
-        "f:store(value!&i32) { v:local!&i32 = identity(value); "
+        "f:store(value!&i32) { &local!i32 = identity(value); "
         "global_ref = local; }";
     const char* returned_shared_reference_preserves_branch_origins =
         "f:identity(value!&i32)!&i32 { ret value; } "
         "f:main(first!i32, second!i32, third!i32, flag!bool) { "
-        "v:reference!&i32 = &first; "
+        "&reference!i32 = &first; "
         "if (flag) { reference = &second; } els { reference = &third; } "
-        "v:returned!&i32 = identity(reference); "
-        "v:edit_second!&muti32 = &mut second; "
-        "v:edit_third!&muti32 = &mut third; }";
+        "&returned!i32 = identity(reference); "
+        "&mut edit_second!i32 = &mut second; "
+        "&mut edit_third!i32 = &mut third; }";
     return check_source(returning_local_reference_is_rejected, 1) &&
         check_source(returning_local_reference_binding_is_rejected, 1) &&
         check_source(returning_reference_parameter_preserves_forwarding, 0) &&
@@ -2259,87 +2259,87 @@ static int check_safe_reference_return_lifetime_semantics(void) {
 static int check_reference_reassignment_and_lifetime_semantics(void) {
     const char* reassignment_releases_previous_owner =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:reference!&i32 = &first; reference = &second; "
-        "v:edit!&muti32 = &mut first; }";
+        "&reference!i32 = &first; reference = &second; "
+        "&mut edit!i32 = &mut first; }";
     const char* reassignment_tracks_new_owner =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:reference!&i32 = &first; reference = &second; "
-        "v:edit!&muti32 = &mut second; }";
+        "&reference!i32 = &first; reference = &second; "
+        "&mut edit!i32 = &mut second; }";
     const char* copying_shared_reference_tracks_owner =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:a!&i32 = &first; v:b!&i32 = &second; a = b; "
-        "v:old_edit!&muti32 = &mut first; "
-        "v:new_edit!&muti32 = &mut second; }";
+        "&a!i32 = &first; &b!i32 = &second; a = b; "
+        "&mut old_edit!i32 = &mut first; "
+        "&mut new_edit!i32 = &mut second; }";
     const char* copying_exclusive_reference_is_rejected =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:a!&muti32 = &mut first; v:b!&muti32 = &mut second; a = b; }";
+        "&mut a!i32 = &mut first; &mut b!i32 = &mut second; a = b; }";
     const char* outer_reference_cannot_escape_inner_owner =
-        "f:main() { v:reference!&i32; "
+        "f:main() { &reference!i32; "
         "{ v:inner!i32 = 1; reference = &inner; } }";
     const char* later_declared_owner_cleanup_is_safe =
-        "f:main() { v:reference!&i32; v:owner!i32 = 1; reference = &owner; }";
+        "f:main() { &reference!i32; v:owner!i32 = 1; reference = &owner; }";
     const char* mutable_reassignment_releases_old_owner =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:reference!&muti32 = &mut first; reference = &mut second; "
-        "v:read!&i32 = &first; }";
+        "&mut reference!i32 = &mut first; reference = &mut second; "
+        "&read!i32 = &first; }";
     const char* mutable_reassignment_tracks_new_owner =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:reference!&muti32 = &mut first; reference = &mut second; "
-        "v:edit!&muti32 = &mut second; }";
+        "&mut reference!i32 = &mut first; reference = &mut second; "
+        "&mut edit!i32 = &mut second; }";
     const char* failed_reassignment_preserves_old_borrow =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:reference!&i32 = &first; reference = second; "
-        "v:edit!&muti32 = &mut first; }";
+        "&reference!i32 = &first; reference = second; "
+        "&mut edit!i32 = &mut first; }";
     const char* failed_mutable_reassignment_preserves_old_borrow =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:reference!&muti32 = &mut first; reference = second; "
-        "v:edit!&muti32 = &mut first; }";
+        "&mut reference!i32 = &mut first; reference = second; "
+        "&mut edit!i32 = &mut first; }";
     const char* conflicting_mutable_reassignment_preserves_old_borrow =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:blocker!&i32 = &second; "
-        "v:reference!&muti32 = &mut first; reference = &mut second; "
-        "v:edit!&muti32 = &mut first; }";
+        "&blocker!i32 = &second; "
+        "&mut reference!i32 = &mut first; reference = &mut second; "
+        "&mut edit!i32 = &mut first; }";
     const char* branch_reassignment_preserves_all_possible_mutable_borrows =
         "f:main(first!i32, second!i32, third!i32, flag!bool) { "
-        "v:reference!&muti32 = &mut first; "
+        "&mut reference!i32 = &mut first; "
         "if (flag) { reference = &mut second; } "
         "els { reference = &mut third; } "
-        "v:edit_second!&muti32 = &mut second; "
-        "v:edit_third!&muti32 = &mut third; }";
+        "&mut edit_second!i32 = &mut second; "
+        "&mut edit_third!i32 = &mut third; }";
     const char* conditional_mutable_reassignment_keeps_incoming_and_new_borrows =
         "f:main(first!i32, second!i32, flag!bool) { "
-        "v:reference!&muti32 = &mut first; "
+        "&mut reference!i32 = &mut first; "
         "if (flag) { reference = &mut second; } "
-        "v:edit_first!&muti32 = &mut first; "
-        "v:edit_second!&muti32 = &mut second; }";
+        "&mut edit_first!i32 = &mut first; "
+        "&mut edit_second!i32 = &mut second; }";
     const char* select_reassignment_preserves_all_possible_mutable_borrows =
         "f:main(first!i32, second!i32, third!i32, flag!bool) { "
-        "v:reference!&muti32 = &mut first; "
+        "&mut reference!i32 = &mut first; "
         "select(flag) { true -> { reference = &mut second; } "
         "default -> { reference = &mut third; } } "
-        "v:edit_second!&muti32 = &mut second; "
-        "v:edit_third!&muti32 = &mut third; }";
+        "&mut edit_second!i32 = &mut second; "
+        "&mut edit_third!i32 = &mut third; }";
     const char* scan_reassignment_preserves_all_possible_mutable_borrows =
         "f:main(first!i32, second!i32, third!i32, flag!bool) { "
-        "v:reference!&muti32 = &mut first; "
+        "&mut reference!i32 = &mut first; "
         "scan(flag) { true -> { reference = &mut second; } "
         "else -> { reference = &mut third; } } "
-        "v:edit_second!&muti32 = &mut second; "
-        "v:edit_third!&muti32 = &mut third; }";
+        "&mut edit_second!i32 = &mut second; "
+        "&mut edit_third!i32 = &mut third; }";
     const char* loop_reassignment_preserves_zero_and_one_iteration_borrows =
         "f:main(first!i32, second!i32) { "
-        "v:reference!&muti32 = &mut first; "
+        "&mut reference!i32 = &mut first; "
         "loop (true) { reference = &mut second; break; } "
-        "v:edit_first!&muti32 = &mut first; "
-        "v:edit_second!&muti32 = &mut second; }";
+        "&mut edit_first!i32 = &mut first; "
+        "&mut edit_second!i32 = &mut second; }";
     const char* terminating_branch_does_not_leak_unreachable_borrow =
         "f:main(first!i32, second!i32, flag!bool) { "
-        "v:reference!&muti32 = &mut first; "
+        "&mut reference!i32 = &mut first; "
         "if (flag) { reference = &mut second; ret; } "
-        "v:edit_second!&muti32 = &mut second; "
-        "v:edit_first!&muti32 = &mut first; }";
+        "&mut edit_second!i32 = &mut second; "
+        "&mut edit_first!i32 = &mut first; }";
     const char* stored_reference_member_reassignment_is_rejected =
-        "struct: Box { v:reference!&i32 } "
+        "struct: Box { &reference!i32 } "
         "f:main() { v:first!i32 = 1; v:box!Box; box.reference = &first; }";
     const char* stored_reference_index_reassignment_is_rejected =
         "f:main() { v:first!i32 = 1; v:refs[1]!&i32; refs[0] = &first; }";
@@ -2367,60 +2367,60 @@ static int check_reference_reassignment_and_lifetime_semantics(void) {
 static int check_borrow_aggregate_provenance_semantics(void) {
     const char* shared_index_and_mutable_other_index_are_independent =
         "f:main() { v:items[2]!i32 = [1,2]; "
-        "v:first!&i32 = &items[0]; "
-        "v:second!&muti32 = &mut items[1]; }";
+        "&first!i32 = &items[0]; "
+        "&mut second!i32 = &mut items[1]; }";
     const char* mutable_index_allows_other_index_write =
         "f:main() { v:items[2]!i32 = [1,2]; "
-        "v:first!&muti32 = &mut items[0]; items[1] = 3; }";
+        "&mut first!i32 = &mut items[0]; items[1] = 3; }";
     const char* shared_index_allows_other_index_write =
         "f:main() { v:items[2]!i32 = [1,2]; "
-        "v:first!&i32 = &items[0]; items[1] = 3; }";
+        "&first!i32 = &items[0]; items[1] = 3; }";
     const char* two_mutable_index_borrows_are_independent =
         "f:main() { v:items[2]!i32 = [1,2]; "
-        "v:first!&muti32 = &mut items[0]; "
-        "v:second!&muti32 = &mut items[1]; }";
+        "&mut first!i32 = &mut items[0]; "
+        "&mut second!i32 = &mut items[1]; }";
     const char* same_index_mutable_borrows_conflict =
         "f:main() { v:items[2]!i32 = [1,2]; "
-        "v:first!&muti32 = &mut items[0]; "
-        "v:second!&muti32 = &mut items[0]; }";
+        "&mut first!i32 = &mut items[0]; "
+        "&mut second!i32 = &mut items[0]; }";
     const char* dynamic_index_borrows_are_conservative =
         "f:main() { v:items[2]!i32 = [1,2]; v:i!i32 = 0; v:j!i32 = 1; "
-        "v:first!&muti32 = &mut items[i]; "
-        "v:second!&muti32 = &mut items[j]; }";
+        "&mut first!i32 = &mut items[i]; "
+        "&mut second!i32 = &mut items[j]; }";
     const char* raw_pointer_dereference_borrow_has_no_provenance =
-        "f:main() { v:pointer!*i32 = null; v:reference!&i32 = &*pointer; }";
+        "f:main() { v:pointer!*i32 = null; &reference!i32 = &*pointer; }";
     const char* shared_member_allows_other_member_write =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:first!&i32 = &point.x; point.y = 3; }";
+        "v:point!Point; &first!i32 = &point.x; point.y = 3; }";
     const char* mutable_member_allows_other_member_write =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:first!&muti32 = &mut point.x; point.y = 3; }";
+        "v:point!Point; &mut first!i32 = &mut point.x; point.y = 3; }";
     const char* two_mutable_member_borrows_are_independent =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:first!&muti32 = &mut point.x; "
-        "v:second!&muti32 = &mut point.y; }";
+        "v:point!Point; &mut first!i32 = &mut point.x; "
+        "&mut second!i32 = &mut point.y; }";
     const char* same_member_mutable_borrows_conflict =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:first!&muti32 = &mut point.x; "
-        "v:second!&muti32 = &mut point.x; }";
+        "v:point!Point; &mut first!i32 = &mut point.x; "
+        "&mut second!i32 = &mut point.x; }";
     const char* two_shared_member_borrows_are_allowed =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:point!Point; v:first!&i32 = &point.x; "
-        "v:second!&i32 = &point.y; }";
+        "v:point!Point; &first!i32 = &point.x; "
+        "&second!i32 = &point.y; }";
     const char* distinct_union_member_mutable_borrows_conflict =
         "f:main() { union: Bits { v:word!i32, v:octet!u8 } "
-        "v:value!Bits; v:first!&muti32 = &mut value.word; "
-        "v:second!&mutu8 = &mut value.octet; }";
+        "v:value!Bits; &mut first!i32 = &mut value.word; "
+        "&mut second!u8 = &mut value.octet; }";
     const char* union_member_and_outer_sibling_are_independent =
         "f:main() { union: Bits { v:word!i32, v:octet!u8 } "
         "struct: Container { v:value!Bits, v:guard!i32 } "
-        "v:container!Container; v:first!&muti32 = &mut container.value.word; "
-        "v:second!&muti32 = &mut container.guard; }";
+        "v:container!Container; &mut first!i32 = &mut container.value.word; "
+        "&mut second!i32 = &mut container.guard; }";
     const char* nested_union_member_borrows_conflict =
         "f:main() { union: Bits { v:word!i32, v:octet!u8 } "
         "struct: Container { v:value!Bits, v:guard!i32 } "
-        "v:container!Container; v:first!&muti32 = &mut container.value.word; "
-        "v:second!&mutu8 = &mut container.value.octet; }";
+        "v:container!Container; &mut first!i32 = &mut container.value.word; "
+        "&mut second!u8 = &mut container.value.octet; }";
     return check_source(shared_index_and_mutable_other_index_are_independent, 0) &&
         check_source(mutable_index_allows_other_index_write, 0) &&
         check_source(shared_index_allows_other_index_write, 0) &&
