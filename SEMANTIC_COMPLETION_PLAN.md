@@ -731,3 +731,7 @@ The earlier statement that no CI run existed was inaccurate. The workflow-run co
 Audited `BorrowOrigin`, atomic binding replacement, release, scope cleanup, and branch snapshot/restore/merge in `semantic.c`. The current origin model stores only storage-owner/path/kind; it cannot represent the immediate mutable parent or resume it on child release. Snapshot clone/union/restore also preserve only those existing fields. A bare parent `Slot*` addition would be unsafe/incomplete because cloned origins and scope destruction need coordinated identity/lifetime handling.
 
 No semantic behavior was changed. Mutable dereference and projection reborrows remain explicitly rejected. SEM-005 remains IN_PROGRESS; OIR remains gated. Audit details: `docs/semantic/mutable-reborrow-design.md`.
+
+### SEM-005 — stable borrow identity foundation (2026-11-23)
+
+Added a monotonic context-local identity to reference-binding Slots and recorded borrower/parent identity fields in BorrowOrigin. Snapshot cloning and branch-origin union preserve these fields, and shared-copy/projection origin creation initializes the destination identity. Identity exhaustion fails closed. This is preparatory only: no parent-child relation or suspension/resumption is active, and mutable reborrows remain rejected. See `docs/semantic/mutable-reborrow-design.md`.
