@@ -1301,3 +1301,12 @@ Status: **IN_PROGRESS**. This foundation does not enable mutable reborrows; both
 Implementation: 7619c4f; tests: 67d55e7, 356035e. Status remains IN_PROGRESS; mutable reborrow is still rejected and OIR remains gated.
 
 - Additional regression: two tracked shared-reference bindings receive distinct nonzero identities and their BorrowOrigin records identify the correct borrower. Test commit: 4d32fd6. CI remains pending.
+
+
+### SEM-005 CI regression correction — 2026-11-23
+
+- [x] Restore explicit rejection of `&mut parent.x` when the projection root is a mutable safe-reference binding.
+- [x] Keep `&mut *parent` rejection covered by the same negative test group.
+- [ ] Verify all five CI jobs (Ubuntu, macOS, Windows, ASan/UBSan, Valgrind).
+
+Root cause: mutable member/index borrows were falling through the generic lvalue path because only shared `TOKEN_BIT_AND` projections were specially handled. Fix commit: `4d00ef2`. First new run: `45085185651`; Ubuntu passed, remaining jobs were pending at documentation time. SEM-005 remains **IN_PROGRESS**; mutable reborrow remains unsupported and OIR remains gated.
