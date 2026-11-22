@@ -7283,6 +7283,25 @@ static void semantic_register_borrow_binding(
             return;
         }
     }
+    /* Mutable dereference reborrows must not fall through to the
+       ordinary lvalue path: doing so would either borrow the reference Slot
+       itself or lose the parent/child lifetime relationship. Keep this
+       operation explicitly rejected until suspension tracking is available. */
+    if (borrow->op == TOKEN_BORROW_MUT && borrow->operand &&
+        borrow->operand->type == AST_UNARY_EXPR) {
+        ASTUnaryExpr* dereference = (ASTUnaryExpr*)borrow->operand;
+        if (dereference->op == TOKEN_STAR && dereference->operand &&
+            dereference->operand->type == AST_IDENTIFIER) {
+            ASTIdentifier* reference_id = (ASTIdentifier*)dereference->operand;
+            Slot* source = find_slot(ctx, reference_id->name);
+            if (source && source != borrower &&
+                semantic_is_mut_reference_type_name(source->type_name)) {
+                report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Mutable &mut *parent reborrow is not supported until parent suspension and child resumption are tracked.");
+                return;
+            }
+        }
+    }
     /* Shared-reference member/index reborrow: compose the projection
        with the original owner paths instead of treating the reference slot
        as storage. */
