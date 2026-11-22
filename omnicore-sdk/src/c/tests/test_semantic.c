@@ -1917,13 +1917,28 @@ static int check_reference_member_projection_semantics(void) {
         "if (flag) { r = &first.inner; } else { r = &second.inner; } "
         "v:field!&i32 = &r.x; r = &replacement.inner; "
         "v:write!&muti32 = &mut second.inner.x; }";
+    const char* array_reference_projection_disjoint_index =
+        "f:main() { v:items[3]!i32 = [10, 20, 30]; "
+        "v:r!&array|i32[3] = &items; "
+        "v:element!&i32 = &r[1]; v:write!&muti32 = &mut items[0]; }";
+    const char* array_reference_projection_overlap_index =
+        "f:main() { v:items[3]!i32 = [10, 20, 30]; "
+        "v:r!&array|i32[3] = &items; "
+        "v:element!&i32 = &r[1]; v:write!&muti32 = &mut items[1]; }";
+    const char* array_reference_projection_dynamic_index =
+        "f:main(index!i32) { v:items[3]!i32 = [10, 20, 30]; "
+        "v:r!&array|i32[3] = &items; "
+        "v:element!&i32 = &r[index]; v:write!&muti32 = &mut items[2]; }";
     return check_source(shared_reference_member_read, 0) &&
         check_source(shared_reference_unknown_member, 1) &&
         check_source(shared_projection_reborrow_blocks_overlapping_mutable, 1) &&
         check_source(shared_projection_reborrow_allows_disjoint_mutable, 0) &&
         check_source(child_projection_keeps_original_origin_after_parent_reassignment, 1) &&
         check_source(child_projection_preserves_first_branch_origin, 1) &&
-        check_source(child_projection_preserves_second_branch_origin, 1);
+        check_source(child_projection_preserves_second_branch_origin, 1) &&
+        check_source(array_reference_projection_disjoint_index, 0) &&
+        check_source(array_reference_projection_overlap_index, 1) &&
+        check_source(array_reference_projection_dynamic_index, 1);
 }
 
 static int check_call_temporary_borrow_semantics(void) {
@@ -4134,8 +4149,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Shared/mutable borrow Semantic checks failed.\n");
         return 1;
     }
-        if (!check_shared_reborrow_semantics() &&
-        check_reference_member_projection_semantics()) {
+    if (!check_shared_reborrow_semantics() ||
+        !check_reference_member_projection_semantics()) {
         fprintf(stderr, "Shared dereference reborrow checks failed.\\n");
         return 1;
     }
