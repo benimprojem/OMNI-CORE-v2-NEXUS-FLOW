@@ -3274,7 +3274,10 @@ static ASTNode* parse_reference_var_decl(Parser* p, Token ampersand) {
     char* reference_type;
     if (!p) return NULL;
 
-    if (p->current.type == TOKEN_IDENTIFIER &&
+    if (ampersand.type == TOKEN_BORROW_MUT) {
+        /* Some token streams may already classify the combined modifier. */
+        modifier = "&mut";
+    } else if (p->current.type == TOKEN_IDENTIFIER &&
         p->current.length == 3 && memcmp(p->current.start, "mut", 3u) == 0) {
         modifier = "&mut";
         advance(p);
@@ -5013,14 +5016,18 @@ static ASTNode* parse_statement(Parser* p) {
 
     /* '&name!Type' is a declaration only in this exact lookahead shape.
      * Other '&' expressions continue through the ordinary expression parser. */
-    if (p->current.type == TOKEN_BIT_AND) {
+    if (p->current.type == TOKEN_BIT_AND ||
+        p->current.type == TOKEN_BORROW_MUT) {
         /* Copy the lexer context for lookahead. The lightweight peek helper
          * does not preserve every nested parser/lexer state transition. */
         ParserContext lookahead = *p->ctx;
         Token name_or_mut = parser_next_token(&lookahead);
         Token after_name = parser_next_token(&lookahead);
         int is_reference_decl = 0;
-        if (name_or_mut.type == TOKEN_IDENTIFIER) {
+        if (p->current.type == TOKEN_BORROW_MUT) {
+            is_reference_decl = name_or_mut.type == TOKEN_IDENTIFIER &&
+                after_name.type == TOKEN_NOT;
+        } else if (name_or_mut.type == TOKEN_IDENTIFIER) {
             if (name_or_mut.length == 3 &&
                 memcmp(name_or_mut.start, "mut", 3u) == 0) {
                 Token actual_name = after_name;
