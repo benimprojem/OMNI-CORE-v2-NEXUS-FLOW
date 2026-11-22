@@ -1849,6 +1849,7 @@ typedef struct SemanticReferenceInitEntry {
     uint8_t is_nullable;
     ASTNode* callable_declaration;
     Slot* borrow_origin;
+    uint64_t borrow_suspended_by_identity;
     BorrowOrigin* borrow_origins;
 } SemanticReferenceInitEntry;
 
@@ -2024,6 +2025,8 @@ static int semantic_reference_init_snapshot_capture(
             snapshot->entries[index].callable_declaration =
                 slot->callable_declaration;
             snapshot->entries[index].borrow_origin = slot->borrow_origin;
+            snapshot->entries[index].borrow_suspended_by_identity =
+                slot->borrow_suspended_by_identity;
             if (!semantic_snapshot_borrow_origins_capture_slot(
                     ctx, slot, &snapshot->entries[index].borrow_origins)) {
                 semantic_reference_init_snapshot_destroy(snapshot);
@@ -2086,6 +2089,8 @@ static void semantic_reference_init_snapshot_restore(
             }
         }
         slot->borrow_origin = snapshot->entries[index].borrow_origin;
+        slot->borrow_suspended_by_identity =
+            snapshot->entries[index].borrow_suspended_by_identity;
         slot->is_initialized = snapshot->entries[index].is_initialized;
         slot->is_nullable = snapshot->entries[index].is_nullable;
         slot->callable_declaration =
@@ -2113,6 +2118,15 @@ static void semantic_reference_init_snapshot_merge(
             if (left->entries[index].borrow_origin !=
                 right->entries[index].borrow_origin)
                 left->entries[index].borrow_origin = NULL;
+            if (left->entries[index].borrow_suspended_by_identity !=
+                right->entries[index].borrow_suspended_by_identity) {
+                report_error(ctx, slot->declaration_node,
+                    ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Mutable reborrow parent/child relationships must match on every control-flow path; end the child borrow before the branch merge.");
+                left->entries[index].borrow_suspended_by_identity = 0u;
+            }
+            slot->borrow_suspended_by_identity =
+                left->entries[index].borrow_suspended_by_identity;
             left->entries[index].is_initialized = (uint8_t)(
                 left->entries[index].is_initialized &&
                 right->entries[index].is_initialized);
