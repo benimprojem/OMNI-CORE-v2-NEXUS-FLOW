@@ -1891,8 +1891,9 @@ static int check_reference_member_projection_semantics(void) {
         "v:field!&i32 = &r.x; v:write!&muti32 = &mut point.x; }";
     const char* shared_projection_reborrow_allows_disjoint_mutable =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
-        "v:outer!Point; v:r!&Point = &outer; "
-        "v:field!&i32 = &r.x; v:write!&muti32 = &mut outer.y; }";
+        "v:outer!Point; v:other!Point; v:r!&Point = &outer; "
+        "v:field!&i32 = &r.x; r = &other; "
+        "v:write!&muti32 = &mut outer.y; }";
     const char* child_projection_keeps_original_origin_after_parent_reassignment =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:outer!Point; v:replacement!Point; "
