@@ -1,8 +1,10 @@
 f:main() {
     v:owner!i32 = 1;
+    v:spare!i32 = 4;
     &mut parent!i32 = &mut owner;
     {
-        &mut child!i32 = &mut *parent;
+        &mut child!i32 = &mut spare;
+        child = &mut *parent;
         *child = 2;
     }
     *parent = 3;
