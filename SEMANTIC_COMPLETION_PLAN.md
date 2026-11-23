@@ -120,6 +120,12 @@ The order below is a dependency order. Audit results may mark an item already im
 - **Known limitation:** mutable-parent reborrow is not implemented. `&*r` from `&mut T` is currently rejected because correct support requires suspending the exclusive parent while child borrows are alive and resuming it on child release. Do not relax the rejection without implementing and testing that state transition. Raw-pointer dereference cannot be promoted to a safe reference.
 - Test expansion commits: `1e8e5caa392b492362922db179c72b6fa5eb574d` and `41599377f39a1c08c888089e1bd6b5fb187609e5` (adds uninitialized-source and branch-merged-origin cases). Normative documentation commit: `593f87fd20232c896db0f4ba7dc931c046d980b6`. The previous array-element test/documentation CI runs passed; CI evidence for the latest `&*r` test expansion is still pending and this checkpoint is not a closure claim.
 
+### SEM-005 — Inline aggregate-array borrow projection regression (2026-11-23)
+
+- Extended `check_borrow_aggregate_provenance_semantics()` with four cases for inline fixed arrays stored in aggregate fields: disjoint constant-index mutable borrows are independent; same-index mutable borrows conflict; a shared borrow of one element permits a write to a distinct element; dynamic indexes conservatively conflict.
+- Test commit: `b9d4e11e6e8277ddcce639113c5ebe9c4822a71f`.
+- Exact-head CI has been triggered; the new tests are not considered passing until all platform, sanitizer and Valgrind jobs complete successfully. If a case fails, investigate whether the issue is array member type projection, lvalue provenance path construction, or conservative overlap handling before changing the implementation.
+
 ### SEM-005 — Pointer and reference safety
 - Inspect: safe `&T` / `&mut T`, raw `*T`, borrow exclusivity, projection overlap, lifetime origins, initialization, nullability, escape and callback return provenance.
 - Positive tests: independent struct fields/constant indexes, valid shared/exclusive borrow, initialized reference use, valid parameter-origin propagation.
