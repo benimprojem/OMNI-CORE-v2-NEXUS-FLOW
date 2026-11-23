@@ -799,3 +799,13 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Workflow run 45091574297 passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74; Valgrind reports zero errors.
 - Test commit `1ea2581`; docs `9fd8b4c`.
 - Remaining: allocation-failure atomicity for child registration and snapshot restoration, broader early-return paths, projection overlap/disjointness matrices, and dangling-origin/lifecycle stress. SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — mutable reborrow OOM atomicity (2026-11-23)
+
+- Added a dedicated OOM fixture that starts with child → spare and attempts to replace it with child → parent.
+- Swept every Semantic allocation site in the fixture. A focused assertion confirms that failures in child reborrow metadata creation preserve the prior child origin, leave the parent unsuspended, and keep both original exclusive reservations active.
+- Mutable reborrow metadata allocation now sets `SEMANTIC_RESULT_OUT_OF_MEMORY`; direct borrow-origin installation also propagates OOM. Borrow identity exhaustion is reported separately as invalid data.
+- Workflow run 45092219887 passed all five jobs; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
+- Commits: OOM propagation `731d773`, direct borrow-origin OOM `a1a39ef`; fixture/CMake `11bdcaf`, `0a3c6ca`, `8e56a75`; atomicity test `acd599e`, persistent-scope fixture correction `b9504e2`.
+- Child-registration OOM atomicity is verified. Snapshot clone/restore OOM atomicity, broader early-return/projection matrices and dangling-origin stress remain open. SEM-005 remains IN_PROGRESS; OIR remains gated.
