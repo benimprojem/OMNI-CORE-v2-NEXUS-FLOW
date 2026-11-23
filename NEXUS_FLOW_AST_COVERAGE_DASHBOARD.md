@@ -1373,7 +1373,8 @@ Implementation: `e2cc0ae`; regression: `462f528`; design: `89d69ec`; plan: `c1e3
 - [x] Verify workflow run 45091574297: all five jobs passed; Ubuntu/ASan 74/74; Valgrind zero errors.
 - [ ] Add allocation-failure atomicity tests for child registration and snapshot restore.
 - [x] Test nested member path composition, disjoint sibling access, and rejection of an overlapping mutable alias.
-- [ ] Expand index/member combinations, dynamic indices, deeper projection overlap/disjointness, early-return, and dangling-origin lifecycle tests.
+- [x] Cover early cleanup via ret, break and continue while a mutable child is active.
+- [ ] Expand index/member combinations, dynamic indices, deeper projection overlap/disjointness, and dangling-origin lifecycle tests.
 
 Tests: `1ea2581`; design: `9fd8b4c`; plan: `d0b0570`. Status: **IN_PROGRESS**. OIR remains gated.
 
@@ -1421,3 +1422,14 @@ Test: `fed89d5`; design: `53cee06`; plan: `5c581af`. Status: **IN_PROGRESS**. OI
 - [ ] Extend to index/member mixtures, dynamic indices and deeper projection trees.
 
 Test: `922fade`; design: `55916fd`; plan: `d991d42`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — early termination cleanup (2026-11-23)
+
+- [x] Verify `ret` while child is active unwinds the child borrow.
+- [x] Verify `break` inside child scope releases the child before parent access.
+- [x] Verify `continue` inside child scope releases the child before the next iteration.
+- [x] Verify workflow run 45093659006: all five jobs passed; Ubuntu/ASan 74/74; Valgrind zero errors.
+- [ ] Extend to panic/defer and all supported nonlocal exit paths; add dangling-origin stress.
+
+Tests: `755ec7f`; design: `558a27e`; plan: `e0ff3fc`. Status: **IN_PROGRESS**. OIR remains gated.
