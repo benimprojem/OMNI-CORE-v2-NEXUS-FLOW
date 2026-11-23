@@ -137,3 +137,14 @@ The regression pair exercises both outcomes: identical mutable child relationshi
 Verification: workflow run [45090600776](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45090600776) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind completed with zero reported errors.
 
 This is direct if/els snapshot/join coverage. Full nested-graph branch combinations, select/scan joins, loop back-edge invariants, and allocation-failure behavior during child registration/restore remain open.
+
+
+## 2026-11-23 — graph-safe snapshot restoration
+
+A restore-order defect was found while exercising nested parent/child chains across if/els branches. The old loop released and restored each Slot in one pass; if a child Slot appeared before its parent in the list, restoring the parent later recursively released the already-restored child. Snapshot restoration now uses two passes: release the entire current graph first, then install all cloned origin sets and suspension identities. After installation, a graph validator checks both directions of every mutable edge: each suspended parent must have its matching live child, and each child must point to a parent that is still suspended by that child and retains the same exclusive storage owner.
+
+The nested branch regression now exercises the full sequence: root → child → grandchild, both if/els paths create the same grandchild relation, the grandchild is written after the join, then scope exit resumes child and root in reverse order. This checks restore, validation and cleanup together.
+
+Verification: workflow run [45090990756](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45090990756) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind completed successfully.
+
+Remaining snapshot coverage: select/scan joins, loop back-edge and early-termination cases, and allocation-failure atomicity during child registration and snapshot restoration.
