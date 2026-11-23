@@ -108,3 +108,21 @@ The regression set also verifies that two simultaneously tracked shared-referenc
 ## 2026-11-23 — CI regression fix: mutable projection rejection
 
 The C Compiler Build workflow exposed one repeated Semantic regression beginning at run 5301: the negative test for `&mut parent.x` expected one diagnostic but received none. The implementation only routed `TOKEN_BIT_AND` member/index projections through shared-projection handling; `TOKEN_BORROW_MUT` projections fell through to generic lvalue borrowing and were incorrectly accepted. The initializer binder now detects member/index projections rooted in a mutable safe-reference Slot and emits the existing fail-closed parent-child tracking diagnostic before the generic lvalue path. The existing `check_mutable_projection_reborrow_rejection()` test covers this case plus `&mut *parent`. Fix commit: `4d00ef2`. The new workflow run is being checked across all five jobs; do not infer full-matrix success from the Ubuntu job alone.
+
+
+## 2026-11-23 — parent/child registration and scoped mutable reborrow
+
+The first behavioral implementation is now present in C:
+
+- A mutable child BorrowOrigin records the immediate parent binding identity as well as the ultimate storage owner and composed projection path.
+- Creating a child sets parent.borrow_suspended_by_identity to the child's stable identity. The parent remains reserved and is not counted as a second independent mutable owner borrow.
+- Identifier access to a suspended parent is rejected, including reads, writes, reassignment, move/relocation and call argument use. Member/index access rooted at a suspended parent is rejected separately because member traversal temporarily suppresses ordinary identifier borrow checks.
+- Releasing a child clears only the matching parent's suspension. It does not release the ultimate owner's mutable reservation. Releasing a parent recursively releases any active descendants before releasing the root owner reservation.
+- The same identity chain supports nested reborrows; release proceeds in reverse nesting order.
+- &mut *parent and mutable member/index projections such as &mut parent.x are now routed through this parent-child registration path. The implementation accepts only one known tracked exclusive origin and fails closed for unknown or branched provenance.
+
+Regression coverage now includes successful dereference and field-projection reborrows, writes through the child, parent use rejection while suspended, parent resumption after child scope exit, nested reverse-order resumption, and parent rebinding rejection.
+
+Verification: branch-head workflow run https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45090068185 passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). Ubuntu CTest and ASan/UBSan each report 74/74 tests passed; Valgrind reports zero errors in all test processes.
+
+This closes the first scoped registration/release slice, not SEM-005. Remaining gates include branch snapshot/restore/join graph consistency tests, allocation-failure atomicity for child registration, early exits and loop/control-flow cleanup, call/move/relocate and projection conflict matrices, and explicit dangling-origin checks. OIR remains gated.
