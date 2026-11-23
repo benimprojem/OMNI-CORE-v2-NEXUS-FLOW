@@ -2028,6 +2028,18 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         "&mut parent!i32 = &mut items[index]; "
         "{ &mut child!i32 = &mut *parent; "
         "&mut alias!i32 = &mut items[1]; } }";
+    const char* mixed_member_index_projection_reborrow_allows_disjoint_sibling =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "struct:Container { v:items[2]!Point } "
+        "v:container!Container; &mut parent!Point = &mut container.items[0]; "
+        "{ &mut child!i32 = &mut parent.x; container.items[0].y = 4; } "
+        "parent.y = 5; }";
+    const char* mixed_member_index_projection_reborrow_rejects_overlap =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "struct:Container { v:items[2]!Point } "
+        "v:container!Container; &mut parent!Point = &mut container.items[0]; "
+        "{ &mut child!i32 = &mut parent.x; "
+        "&mut alias!i32 = &mut container.items[0].x; } }";
     return check_source(mutable_projection_reborrow_and_resume, 0) &&
         check_source(mutable_dereference_reborrow_and_resume, 0) &&
         check_source(suspended_parent_dereference_rejected, 1) &&
@@ -2052,7 +2064,9 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         check_source(child_cannot_outlive_parent_reference_scope, 1) &&
         check_source(indexed_parent_reborrow_preserves_disjoint_element_access, 0) &&
         check_source(indexed_parent_reborrow_rejects_overlapping_alias, 1) &&
-        check_source(dynamic_index_parent_reborrow_is_conservative, 1);
+        check_source(dynamic_index_parent_reborrow_is_conservative, 1) &&
+        check_source(mixed_member_index_projection_reborrow_allows_disjoint_sibling, 0) &&
+        check_source(mixed_member_index_projection_reborrow_rejects_overlap, 1);
 }
 
 static int check_reference_member_projection_semantics(void) {
