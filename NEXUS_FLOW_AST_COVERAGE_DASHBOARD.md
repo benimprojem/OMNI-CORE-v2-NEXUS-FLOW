@@ -1330,3 +1330,17 @@ CI confirmation: run `45085185651` for fix commit `4d00ef2` completed successful
 - [ ] Complete call argument, move/relocate, nested projection and overlapping/disjoint path regression matrix.
 
 Commits: implementation `f68585c`, `ee81654`, `4f44554`, `b3e1612`, `abd51da`; tests `0541025`, `f1a616f`; design `6dc3fa7`; plan `9eb151a`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — mutable borrow graph branch joins (2026-11-23)
+
+- [x] Preserve immediate parent identity and parent suspension identity through branch snapshot clone/restore.
+- [x] Require mutable origin sets to match exactly at if/els joins (owner, borrower, parent, kind and path); do not union divergent mutable graphs.
+- [x] Diagnose divergent mutable child projection paths at the control-flow join.
+- [x] Test equal parent/child relationships on both branches and rejection of differing field projections.
+- [x] Verify workflow run 45090600776: all five jobs passed; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
+- [ ] Extend graph-join tests to nested parent/child chains and select/scan arms.
+- [ ] Verify loop back-edge and early-termination cleanup invariants.
+- [ ] Add allocation-failure atomicity tests for child registration and snapshot restoration.
+
+Implementation: `ceb70cc`; final tests: `6ae2372`; design: `26b4fcb`; plan: `63240df`. Status: **IN_PROGRESS**. OIR remains gated.
