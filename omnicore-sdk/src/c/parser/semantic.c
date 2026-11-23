@@ -8143,7 +8143,10 @@ static void semantic_check_node(
             {
                 Slot* owner = semantic_lvalue_root_slot(ctx, node);
                 char* path = semantic_lvalue_path(ctx, node);
-                if (owner && ctx->borrow_operand_depth == 0u &&
+                if (owner && owner->borrow_suspended_by_identity != 0u) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Cannot access a member or indexed element through a suspended mutable parent reference.");
+                } else if (owner && ctx->borrow_operand_depth == 0u &&
                     ctx->assignment_target_depth == 0u &&
                     (!path ||
                      semantic_borrow_conflicts(ctx, owner, path, 0, NULL))) {
@@ -10291,7 +10294,10 @@ static void semantic_check_node(
             {
                 Slot* owner = semantic_lvalue_root_slot(ctx, node);
                 char* path = semantic_lvalue_path(ctx, node);
-                if (owner && ctx->borrow_operand_depth == 0u &&
+                if (owner && owner->borrow_suspended_by_identity != 0u) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Cannot access a member or indexed element through a suspended mutable parent reference.");
+                } else if (owner && ctx->borrow_operand_depth == 0u &&
                     ctx->assignment_target_depth == 0u &&
                     (!path ||
                      semantic_borrow_conflicts(ctx, owner, path, 0, NULL))) {
