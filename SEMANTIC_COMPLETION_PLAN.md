@@ -809,3 +809,12 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Workflow run 45092219887 passed all five jobs; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
 - Commits: OOM propagation `731d773`, direct borrow-origin OOM `a1a39ef`; fixture/CMake `11bdcaf`, `0a3c6ca`, `8e56a75`; atomicity test `acd599e`, persistent-scope fixture correction `b9504e2`.
 - Child-registration OOM atomicity is verified. Snapshot clone/restore OOM atomicity, broader early-return/projection matrices and dangling-origin stress remain open. SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — snapshot OOM propagation coverage (2026-11-23)
+
+- Added a branch-snapshot fixture with mutable parent/child reborrows on both if/els paths and a post-join child use.
+- The semantic allocation-failure injector sweeps the snapshot workload and requires every injected failure to propagate `SEMANTIC_RESULT_OUT_OF_MEMORY`.
+- Workflow run 45092521356 passed all five jobs; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
+- Fixture `875e910`; CMake registration `a2d799f`; docs `17ac609`.
+- This proves OOM propagation across snapshot allocations, not full restore-state atomicity. A dedicated assertion that failed clone/restore leaves the exact prior graph unchanged remains open. SEM-005 remains IN_PROGRESS; OIR remains gated.
