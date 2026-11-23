@@ -2009,6 +2009,25 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         "&mut parent!i32 = &mut owner; "
         "{ &mut child!i32 = &mut *parent; "
         "&mut target!i32 = &mut spare; v:moved = parent _> target; } }";
+    const char* nested_member_index_reborrow_preserves_disjoint_access =
+        "f:main() { struct:Inner { v:items[3]!i32 } "
+        "struct:Outer { v:inner!Inner, v:spare!i32 } "
+        "v:outer!Outer; &mut parent!Inner = &mut outer.inner; "
+        "{ &mut child!i32 = &mut parent.items[0]; outer.spare = 4; } "
+        "parent.items[1] = 5; }";
+    const char* nested_member_index_reborrow_rejects_overlap =
+        "f:main() { struct:Inner { v:items[3]!i32 } "
+        "struct:Outer { v:inner!Inner, v:spare!i32 } "
+        "v:outer!Outer; &mut parent!Inner = &mut outer.inner; "
+        "{ &mut child!i32 = &mut parent.items[0]; "
+        "&mut alias!i32 = &mut outer.inner.items[0]; } }";
+    const char* dynamic_member_index_reborrow_is_conservative =
+        "f:main() { struct:Inner { v:items[3]!i32 } "
+        "struct:Outer { v:inner!Inner, v:spare!i32 } "
+        "v:outer!Outer; v:index!i32 = 0; "
+        "&mut parent!Inner = &mut outer.inner; "
+        "{ &mut child!i32 = &mut parent.items[index]; "
+        "&mut alias!i32 = &mut outer.inner.items[1]; } }";
     return check_source(mutable_projection_reborrow_and_resume, 0) &&
         check_source(mutable_dereference_reborrow_and_resume, 0) &&
         check_source(suspended_parent_dereference_rejected, 1) &&
@@ -2029,7 +2048,10 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         check_source(break_inside_child_scope_releases_borrow, 0) &&
         check_source(continue_inside_child_scope_releases_borrow, 0) &&
         check_source(suspended_parent_call_argument_rejected, 1) &&
-        check_source(suspended_parent_relocation_rejected, 1);
+        check_source(suspended_parent_relocation_rejected, 1) &&
+        check_source(nested_member_index_reborrow_preserves_disjoint_access, 0) &&
+        check_source(nested_member_index_reborrow_rejects_overlap, 1) &&
+        check_source(dynamic_member_index_reborrow_is_conservative, 1);
 }
 
 static int check_reference_member_projection_semantics(void) {
