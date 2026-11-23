@@ -76,7 +76,7 @@ Nexus Flow iki ayrı bellek erişim katmanı kullanır:
 
 #### Kurallar
 
-- **Raw pointer başlatma/nullability:** Yerel \`*T\` / \`**T\` binding'i ilk kullanımdan önce uyumlu pointer değeriyle atanmalıdır; global/static raw pointer C benzeri zero-init ile \`null\` başlatılır. \`null\` ayrı literal tipidir ve yalnızca raw pointer hedeflerine atanabilir/geçirilebilir; \`&T\` / \`&mutT\` non-null safe reference türleridir ve \`null\` kabul etmez. Raw pointer nullable kalır: Semantic, pointer'ın null olmadığını, hedefinin yaşadığını, bounds veya aliasing güvenliğini garanti etmez. Dereference, bu düşük seviyeli riskleri programın üstlendiği bir işlemdir.
+- **Raw pointer başlatma/nullability:** Yerel \`*T\` / \`**T\` binding'i ilk kullanımdan önce uyumlu pointer değeriyle atanmalıdır; global/static raw pointer C benzeri zero-init ile \`null\` başlatılır. \`null\` ayrı literal tipidir ve yalnızca raw pointer hedeflerine atanabilir/geçirilebilir; \`&T\` / \`&mut T\` non-null safe reference türleridir ve \`null\` kabul etmez. Raw pointer nullable kalır: Semantic, pointer'ın null olmadığını, hedefinin yaşadığını, bounds veya aliasing güvenliğini garanti etmez. Dereference, bu düşük seviyeli riskleri programın üstlendiği bir işlemdir.
 - Raw pointer ile safe reference aynı tür değildir; `*T` otomatik olarak `&T`'ye dönüşmez ve tersi de geçerli değildir.
 - Raw pointer dereference işlemi unary `*` ile yapılır. `**p`, iki pointer katmanını art arda açar. `*integer` gibi pointer olmayan operandlar Semantic hatasıdır.
 - Raw pointer hedefi tür uyumluysa atanabilir ve bileşik atama alabilir. Bu kabul, pointer'ın geçerli veya güvenli olduğunu kanıtlamaz.
