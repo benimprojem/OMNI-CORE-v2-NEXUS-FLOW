@@ -229,3 +229,8 @@ Added fixed- and dynamic-index parent-origin regressions using the canonical arr
 - When the parent origin is `items[index]`, its path is conservatively dynamic (`[*]`); a second mutable borrow of a fixed element is rejected as potentially overlapping.
 
 Verification: workflow run [45094328449](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45094328449) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74; Valgrind reports zero errors.
+
+
+## 2026-11-23 — mixed aggregate/index projection limitation
+
+A new fixture attempted to borrow `container.items[0]` where `items` is a fixed array field inside a struct, then reborrow `parent.x`. Semantic currently rejects array indexing through aggregate fields (`Index target must be an array...`) and subsequent member type resolution fails. The fixture was removed rather than changing the supported language surface or claiming this projection works. Direct array indexing from a standalone array owner is covered; nested member-array indexing and mixed member/index reborrow composition remain unsupported/unverified. This is a Semantic capability gap, not an accepted syntax change.
