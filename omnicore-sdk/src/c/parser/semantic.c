@@ -8290,6 +8290,18 @@ static void semantic_check_node(
                     "Use of '%s' after ownership was transferred is invalid.",
                     id->name ? id->name : "<unnamed>");
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH, moved_message);
+            } else if (resolved &&
+                resolved->borrow_suspended_by_identity != 0u &&
+                ctx->borrow_operand_depth == 0u) {
+                char suspended_message[320];
+                (void)snprintf(suspended_message, sizeof(suspended_message),
+                    "Mutable reference '%s' is suspended by an active child reborrow.",
+                    id->name ? id->name : "<unnamed>");
+                report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    suspended_message,
+                    "End the child reference's scope before reading, writing, moving, passing, or reborrowing its parent.",
+                    "End the child reference's scope before reading, writing, moving, passing, or reborrowing its parent.",
+                    0, 0);
             } else if (resolved && resolved->kind == SLOT_VAR &&
                 (semantic_is_reference_type_name(resolved->type_name) ||
                  semantic_is_raw_pointer_type_name(resolved->type_name) ||
