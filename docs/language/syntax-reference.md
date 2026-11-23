@@ -233,6 +233,9 @@ f:main() {
 
 Bu ayrım, bellekte gerçek bir fiziksel ayrıştırma veya runtime bounds garantisi değildir. Sabit indeks ayrımı yalnızca Semantic'in bildiği sabit indeksler için geçerlidir; dinamik indeksler ve bilinmeyen pointer kökenleri konservatif değerlendirilir. Union üyeleri için aktif üye takibi yapılmaz; borrow güvenliği açısından tüm üyeler aynı storage projection kabul edilir.
 
+**Projection yazma sınırı (regresyonla doğrulanan):** Aktif `&mut` borrow ile çakışan owner/projection yoluna doğrudan yazma reddedilir. Borrow edilen alanın kardeş struct alanına yazma ve farklı sabit array indeksine yazma, yolların ayrık olduğu kanıtlanıyorsa kabul edilir. Inline array içindeki struct alanlarında da aynı hassasiyet geçerlidir: `items[0].left` borrow edilmişken `items[0].left` yazımı reddedilir, `items[0].right` ve `items[1].left` yazımları kabul edilir. Dinamik indeksler ayrık oldukları kanıtlanamadığından konservatif çakışma kuralını izler. Bu davranış, test commit `12929a276b9bc77d00bb452988f25a78dabfa21c` ile eklenen regresyon testleri ve CI ile doğrulanmıştır.
+
+
 #### Aggregate alanlarında safe reference sınırı
 
 Mevcut Semantic, struct/union alanlarında doğrudan **&T** veya **&mut T** saklanmasına izin vermez. Bu kural NewType referans takma adları ve içinde safe reference alanı bulunan iç içe struct/union türleri için de geçerlidir. Alan seviyesinde owner/projection/lifetime metadata'sı ve aggregate kopyalama/taşıma kuralları henüz tanımlı olmadığından bu tür bildirimler açık hata ve öneriyle reddedilir. Referansı şimdilik yerel bir **&reference!T** veya **&mut reference!T** binding'inde tutun. Bu sınır raw pointer alanlarına otomatik güvenlik sağlamaz; raw pointer ayrı, denetlenmeyen düşük seviyeli erişim sözleşmesidir.
