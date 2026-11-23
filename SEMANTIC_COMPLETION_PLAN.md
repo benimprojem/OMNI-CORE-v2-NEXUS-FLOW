@@ -789,3 +789,13 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Workflow run 45090990756 passed all five jobs; Ubuntu and ASan/UBSan 74/74, Valgrind successful.
 - Implementation commit `e2cc0ae`; regression commit `462f528`; design update `89d69ec`.
 - Remaining: select/scan branch joins, loop back-edge and early-termination cleanup, OOM atomicity for child registration and snapshot restoration. SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — select/scan joins and loop lifecycle regressions (2026-11-23)
+
+- Added equal-graph mutable reborrow tests across `select/default` and `scan/else`; the child remains writable after each join.
+- Added loop-body child lifetime tests: a nested child is released on each iteration and after `break`, and the parent is usable after the loop.
+- Added a negative loop back-edge test: rebinding an outer child reference to a parent reborrow changes the mutable relationship graph across zero/one-iteration paths and is rejected.
+- Workflow run 45091574297 passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74; Valgrind reports zero errors.
+- Test commit `1ea2581`; docs `9fd8b4c`.
+- Remaining: allocation-failure atomicity for child registration and snapshot restoration, broader early-return paths, projection overlap/disjointness matrices, and dangling-origin/lifecycle stress. SEM-005 remains IN_PROGRESS; OIR remains gated.
