@@ -873,3 +873,10 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - CI exposed that Semantic does not currently treat array member projections as indexable arrays; it reports `Index target must be an array, map, tuple, bit vector, or byte block`, then member type resolution fails.
 - Removed the unsupported fixture instead of broadening language semantics without implementation/tests. Standalone fixed/dynamic array index borrow tests remain.
 - Status: nested member-array projection and mixed member/index composition are **UNSUPPORTED/UNVERIFIED**. SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — Aggregate inline-array member projection (2026-11-23)
+- `FieldInfo` now keeps the declared nominal element type separately from the encoded inline-array shape. Member resolution returns the array signature for inline array fields, so `container.items[0]` resolves as an array element instead of treating `items` as a scalar.
+- Bounds validation for constant indexes now reads fixed first-dimension extents from aggregate member signatures.
+- Added Semantic regressions for a valid aggregate array member read/write (`container.items[0]`, `[2]`) and out-of-range fixed-array member index `[3]`.
+- Verification: exact-head CI run `45181310995` is in progress; Ubuntu CTest, macOS CTest, and ASan/UBSan have passed so far. Windows and Valgrind remain pending. SEM-005 is not closed.
