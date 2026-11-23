@@ -173,3 +173,12 @@ The mutable reborrow registration path now propagates `SEMANTIC_RESULT_OUT_OF_ME
 Verification: workflow run [45092219887](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45092219887) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind reports zero errors.
 
 Snapshot-clone/restore allocation-failure atomicity remains untested and is still an open SEM-005 gate.
+
+
+## 2026-11-23 — snapshot allocation-failure injection
+
+Added a second OOM fixture that creates a mutable parent/child relation on both if/els paths, then uses the post-join child. The existing semantic allocation injector now sweeps all allocations for this branch-snapshot workload as well as the child-rebind workload. The test requires every injected failure to propagate `SEMANTIC_RESULT_OUT_OF_MEMORY`; the full run also executes under ASan/UBSan and Valgrind.
+
+Verification: workflow run [45092521356](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45092521356) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind reports zero errors.
+
+This verifies OOM status propagation across snapshot capture/restore allocation sites. It does not yet assert that every partially failed restore leaves the exact pre-restore graph unchanged; that stronger state-atomicity assertion remains open.
