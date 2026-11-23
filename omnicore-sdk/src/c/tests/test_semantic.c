@@ -2600,6 +2600,21 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         "f:main(i!i32, j!i32) { struct:Container { v:items[3]!i32 } "
         "v:container!Container; &mut first!i32 = &mut container.items[i]; "
         "&mut second!i32 = &mut container.items[j]; }";
+    const char* inline_array_struct_elements_distinct_fields_are_independent =
+        "f:main() { struct:Item { v:left!i32, v:right!i32 } "
+        "struct:Container { v:items[2]!Item } v:container!Container; "
+        "&mut first!i32 = &mut container.items[0].left; "
+        "&mut second!i32 = &mut container.items[0].right; }";
+    const char* inline_array_struct_elements_same_field_conflict =
+        "f:main() { struct:Item { v:left!i32, v:right!i32 } "
+        "struct:Container { v:items[2]!Item } v:container!Container; "
+        "&mut first!i32 = &mut container.items[0].left; "
+        "&mut second!i32 = &mut container.items[0].left; }";
+    const char* inline_array_struct_elements_different_indexes_independent =
+        "f:main() { struct:Item { v:left!i32, v:right!i32 } "
+        "struct:Container { v:items[2]!Item } v:container!Container; "
+        "&mut first!i32 = &mut container.items[0].left; "
+        "&mut second!i32 = &mut container.items[1].left; }";
     return check_source(shared_index_and_mutable_other_index_are_independent, 0) &&
         check_source(mutable_index_allows_other_index_write, 0) &&
         check_source(shared_index_allows_other_index_write, 0) &&
@@ -2618,7 +2633,10 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         check_source(inline_array_member_distinct_indexes_are_independent, 0) &&
         check_source(inline_array_member_same_index_borrows_conflict, 1) &&
         check_source(inline_array_member_shared_borrow_allows_other_index_write, 0) &&
-        check_source(inline_array_member_dynamic_indexes_are_conservative, 1);
+        check_source(inline_array_member_dynamic_indexes_are_conservative, 1) &&
+        check_source(inline_array_struct_elements_distinct_fields_are_independent, 0) &&
+        check_source(inline_array_struct_elements_same_field_conflict, 1) &&
+        check_source(inline_array_struct_elements_different_indexes_independent, 0);
 }
 
 static int check_array_type_semantics(void) {
