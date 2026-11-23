@@ -865,6 +865,12 @@ static int check_aggregate_member_semantics(void) {
         "f:main() { struct:Point { v:x!i32, v:x!f64 } }";
     const char* duplicate_union_field =
         "f:main() { union: Choice { v:value!i32, v:value!f64 } }";
+    const char* inline_array_member_index_read =
+        "f:main() { struct:Container { v:items[3]!i32 } "
+        "v:c!Container; v:item!i32 = c.items[0]; c.items[2] = item; }";
+    const char* inline_array_member_index_bounds =
+        "f:main() { struct:Container { v:items[3]!i32 } "
+        "v:c!Container; v:item!i32 = c.items[3]; }";
     const char* valid_union_cross_member_read =
         "f:main() { union: Register { v:word!i32, v:octet!u8 } "
         "v:r!Register; r.word = 0x12345678; v:part!u8 = r.octet; "
@@ -888,7 +894,9 @@ static int check_aggregate_member_semantics(void) {
         check_source(valid_union_cross_member_read, 0) &&
         check_source(unknown_union_member, 1) &&
         check_source(incompatible_union_member_write, 1) &&
-        check_source(unknown_union_field_type, 1);
+        check_source(unknown_union_field_type, 1) &&
+        check_source(inline_array_member_index_read, 0) &&
+        check_source(inline_array_member_index_bounds, 1);
 }
 
 static int check_aggregate_reference_field_rejection_semantics(void) {
