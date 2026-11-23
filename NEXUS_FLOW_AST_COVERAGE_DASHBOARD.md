@@ -1313,3 +1313,20 @@ Root cause: mutable member/index borrows were falling through the generic lvalue
 
 
 CI confirmation: run `45085185651` for fix commit `4d00ef2` completed successfully across all five jobs: Ubuntu, macOS, Windows, ASan/UBSan and Valgrind. Earlier red runs are historical failed attempts before this fix; they remain red in GitHub history and are not retroactively rewritten. New pushes should be evaluated independently.
+
+
+### SEM-005 — scoped mutable reborrow parent/child slice (2026-11-23)
+
+- [x] Register a mutable child origin with immediate parent identity and ultimate owner/path provenance.
+- [x] Suspend the parent by child identity while the child is active.
+- [x] Reject direct identifier and member/index access through a suspended parent, including rebinding.
+- [x] Resume the immediate parent when its child ends without releasing the ultimate owner reservation.
+- [x] Recursively release descendants before parent/root cleanup; support nested reverse-order resumption.
+- [x] Enable direct dereference and member/index mutable reborrow paths only through tracked parent-child registration.
+- [x] Add positive/negative tests for child writes, parent suspension/resumption, nested reborrows and parent rebinding.
+- [x] Verify workflow run 45090068185: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed; Ubuntu CTest 74/74, ASan/UBSan 74/74, Valgrind zero errors.
+- [ ] Add branch snapshot/restore/join tests for full relationship graphs and incompatible control-flow paths.
+- [ ] Add child-registration allocation-failure atomicity, early-exit/loop cleanup and dangling-origin tests.
+- [ ] Complete call argument, move/relocate, nested projection and overlapping/disjoint path regression matrix.
+
+Commits: implementation `f68585c`, `ee81654`, `4f44554`, `abd51da`; tests `0541025`, `f1a616f`; design `6dc3fa7`; plan `9eb151a`. Status: **IN_PROGRESS**. OIR remains gated.
