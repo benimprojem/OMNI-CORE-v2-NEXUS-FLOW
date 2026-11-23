@@ -2009,6 +2009,10 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         "&mut parent!i32 = &mut owner; "
         "{ &mut child!i32 = &mut *parent; "
         "&mut target!i32 = &mut spare; v:moved = parent _> target; } }";
+    const char* child_cannot_outlive_parent_reference_scope =
+        "f:main() { v:spare!i32 = 0; &mut child!i32 = &mut spare; "
+        "{ v:owner!i32 = 1; &mut parent!i32 = &mut owner; "
+        "child = &mut *parent; } }";
     const char* indexed_parent_reborrow_preserves_disjoint_element_access =
         "f:main() { v:items[3]!i32 = [1, 2, 3]; "
         "&mut parent!i32 = &mut items[0]; "
@@ -2045,6 +2049,7 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         check_source(continue_inside_child_scope_releases_borrow, 0) &&
         check_source(suspended_parent_call_argument_rejected, 1) &&
         check_source(suspended_parent_relocation_rejected, 1) &&
+        check_source(child_cannot_outlive_parent_reference_scope, 1) &&
         check_source(indexed_parent_reborrow_preserves_disjoint_element_access, 0) &&
         check_source(indexed_parent_reborrow_rejects_overlapping_alias, 1) &&
         check_source(dynamic_index_parent_reborrow_is_conservative, 1);
