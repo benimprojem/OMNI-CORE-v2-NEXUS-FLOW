@@ -162,3 +162,14 @@ The same strict mutable-graph merge is now exercised through the other control-f
 Verification: workflow run [45091574297](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45091574297) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind reports zero errors.
 
 Remaining SEM-005 gates are now concentrated on allocation-failure atomicity for child registration/snapshot restoration, broader early-return/termination paths, projection overlap/disjointness matrices, and additional lifecycle/dangling-origin checks. OIR remains gated.
+
+
+## 2026-11-23 — allocation-failure atomicity
+
+Added a dedicated Semantic OOM fixture that first binds a mutable child to a separate storage owner, then attempts to rebind that same child through `&mut *parent`. The legacy allocation-failure injector now sweeps every Semantic allocation site in this fixture. A focused state assertion checks the failures reported by mutable-child registration: the child still owns its previous origin, the parent is not marked suspended, and both original exclusive owner reservations remain active. This verifies that suffix/path/origin metadata is fully allocated before the previous child binding is released.
+
+The mutable reborrow registration path now propagates `SEMANTIC_RESULT_OUT_OF_MEMORY` for its metadata allocation failures; direct borrow-origin installation also reports OOM instead of silently returning a normal semantic status. Identity exhaustion remains a distinct invalid-data failure.
+
+Verification: workflow run [45092219887](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45092219887) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind reports zero errors.
+
+Snapshot-clone/restore allocation-failure atomicity remains untested and is still an open SEM-005 gate.
