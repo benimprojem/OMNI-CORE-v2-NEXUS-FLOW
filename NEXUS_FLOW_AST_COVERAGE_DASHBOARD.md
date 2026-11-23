@@ -1340,8 +1340,8 @@ Commits: implementation `f68585c`, `ee81654`, `4f44554`, `b3e1612`, `abd51da`; t
 - [x] Test equal parent/child relationships on both branches and rejection of differing field projections.
 - [x] Verify workflow run 45090600776: all five jobs passed; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
 - [x] Extend graph-join tests to nested parent/child chains and verify post-join child writes plus reverse-order scope resumption.
-- [ ] Extend graph-join tests to select/scan arms.
-- [ ] Verify loop back-edge and early-termination cleanup invariants.
+- [x] Test equal mutable parent/child graphs across select/default and scan/else joins.
+- [x] Test per-iteration child release, break cleanup, and rejection of a persistent mutable graph change at the loop back-edge.
 - [ ] Add allocation-failure atomicity tests for child registration and snapshot restoration.
 
 Implementation: `ceb70cc`; final tests: `6ae2372`; design: `26b4fcb`; plan: `63240df`. Status: **IN_PROGRESS**. OIR remains gated.
@@ -1358,3 +1358,17 @@ Implementation: `ceb70cc`; final tests: `6ae2372`; design: `26b4fcb`; plan: `632
 - [ ] Add allocation-failure atomicity tests for child registration and snapshot restore.
 
 Implementation: `e2cc0ae`; regression: `462f528`; design: `89d69ec`; plan: `c1e328d`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — select/scan and loop lifecycle (2026-11-23)
+
+- [x] Verify equal parent/child relations survive select/default joins and child writes remain valid afterward.
+- [x] Verify equal parent/child relations survive scan/else joins and child writes remain valid afterward.
+- [x] Verify nested loop-body child borrows are released on each iteration and parent access resumes after the loop.
+- [x] Verify break exits release child borrows before parent use.
+- [x] Reject outer mutable child relationship changes across loop back-edges.
+- [x] Verify workflow run 45091574297: all five jobs passed; Ubuntu/ASan 74/74; Valgrind zero errors.
+- [ ] Add allocation-failure atomicity tests for child registration and snapshot restore.
+- [ ] Expand early-return, projection overlap/disjointness, and dangling-origin lifecycle tests.
+
+Tests: `1ea2581`; design: `9fd8b4c`; plan: `d0b0570`. Status: **IN_PROGRESS**. OIR remains gated.
