@@ -2038,6 +2038,60 @@ static int semantic_reference_init_snapshot_capture(
     return 1;
 }
 
+static void semantic_validate_borrow_relationships(
+    SemanticContext* ctx
+) {
+    Slot* slot;
+    if (!ctx) return;
+    for (slot = ctx->head; slot; slot = slot->next) {
+        const BorrowOrigin* origin;
+        if (slot->borrow_suspended_by_identity != 0u) {
+            Slot* child = semantic_find_borrow_slot_by_identity(
+                ctx, slot->borrow_suspended_by_identity);
+            int linked = 0;
+            if (child && child != slot && child->borrow_identity != 0u) {
+                for (origin = child->borrow_origins; origin;
+                     origin = origin->next) {
+                    if (origin->parent_identity == slot->borrow_identity &&
+                        origin->kind == 2u) {
+                        linked = 1;
+                        break;
+                    }
+                }
+            }
+            if (!linked) {
+                report_error(ctx, slot->declaration_node,
+                    ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Mutable reference suspension has no matching live child relationship after control-flow restoration.");
+            }
+        }
+        for (origin = slot->borrow_origins; origin; origin = origin->next) {
+            Slot* parent;
+            const BorrowOrigin* parent_origin;
+            int parent_owns_same_storage = 0;
+            if (origin->parent_identity == 0u) continue;
+            parent = semantic_find_borrow_slot_by_identity(
+                ctx, origin->parent_identity);
+            if (parent && parent->borrow_suspended_by_identity ==
+                    slot->borrow_identity) {
+                for (parent_origin = parent->borrow_origins;
+                     parent_origin; parent_origin = parent_origin->next) {
+                    if (parent_origin->kind == 2u &&
+                        parent_origin->owner == origin->owner) {
+                        parent_owns_same_storage = 1;
+                        break;
+                    }
+                }
+            }
+            if (!parent_owns_same_storage) {
+                report_error(ctx, slot->declaration_node,
+                    ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Mutable child borrow refers to a missing, resumed, or incompatible parent after control-flow restoration.");
+            }
+        }
+    }
+}
+
 static void semantic_reference_init_snapshot_restore(
     SemanticContext* ctx, const SemanticReferenceInitSnapshot* snapshot
 ) {
@@ -2065,6 +2119,14 @@ static void semantic_reference_init_snapshot_restore(
             return;
         }
     }
+    /* Tear down the complete current graph before restoring any node.
+       Releasing a parent recursively releases descendants, so interleaving
+       release and restore would otherwise delete children restored earlier
+       in Slot-list order. */
+    for (index = 0u; index < snapshot->count; ++index) {
+        Slot* slot = snapshot->entries[index].slot;
+        if (slot) semantic_release_borrow_binding(ctx, slot);
+    }
     for (index = 0u; index < snapshot->count; ++index) {
         Slot* slot = snapshot->entries[index].slot;
         BorrowOrigin* restored = restored_sets[index];
@@ -2073,7 +2135,6 @@ static void semantic_reference_init_snapshot_restore(
             semantic_snapshot_borrow_origins_destroy(restored);
             continue;
         }
-        semantic_release_borrow_binding(ctx, slot);
         slot->borrow_origins = restored;
         if (restored) {
             slot->borrowed_from = restored->owner;
@@ -2097,6 +2158,7 @@ static void semantic_reference_init_snapshot_restore(
             snapshot->entries[index].callable_declaration;
     }
     free(restored_sets);
+    semantic_validate_borrow_relationships(ctx);
 }
 static int semantic_snapshot_borrow_origins_have_mutable(
     const BorrowOrigin* origins
