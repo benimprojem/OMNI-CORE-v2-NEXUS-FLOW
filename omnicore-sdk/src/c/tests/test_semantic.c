@@ -1947,6 +1947,26 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         "if (true) { grandchild = &mut *child; } "
         "els { grandchild = &mut *child; } "
         "*grandchild = 4; } *child = 5; } *root = 6; }";
+    const char* mutable_reborrow_graph_survives_select_join =
+        "f:main(flag!bool) { v:owner!i32 = 1; v:spare!i32 = 2; "
+        "&mut parent!i32 = &mut owner; &mut child!i32 = &mut spare; "
+        "select(flag) { true -> { child = &mut *parent; } "
+        "default -> { child = &mut *parent; } } *child = 3; }";
+    const char* mutable_reborrow_graph_survives_scan_join =
+        "f:main(flag!bool) { v:owner!i32 = 1; v:spare!i32 = 2; "
+        "&mut parent!i32 = &mut owner; &mut child!i32 = &mut spare; "
+        "scan(flag) { true -> { child = &mut *parent; } "
+        "else -> { child = &mut *parent; } } *child = 3; }";
+    const char* loop_local_mutable_reborrow_releases_each_iteration =
+        "f:main(flag!bool) { v:owner!i32 = 1; "
+        "&mut parent!i32 = &mut owner; "
+        "loop (flag) { { &mut child!i32 = &mut *parent; *child = 2; } } "
+        "*parent = 3; }";
+    const char* loop_break_releases_mutable_child_before_parent_use =
+        "f:main(flag!bool) { v:owner!i32 = 1; "
+        "&mut parent!i32 = &mut owner; "
+        "loop (flag) { { &mut child!i32 = &mut *parent; *child = 2; } break; } "
+        "*parent = 3; }";
     return check_source(mutable_projection_reborrow_and_resume, 0) &&
         check_source(mutable_dereference_reborrow_and_resume, 0) &&
         check_source(suspended_parent_dereference_rejected, 1) &&
@@ -1955,7 +1975,11 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         check_source(suspended_parent_reassignment_rejected, 1) &&
         check_source(identical_mutable_reborrow_graphs_join, 0) &&
         check_source(divergent_mutable_reborrow_graphs_rejected, 1) &&
-        check_source(nested_mutable_graph_survives_branch_restore, 0);
+        check_source(nested_mutable_graph_survives_branch_restore, 0) &&
+        check_source(mutable_reborrow_graph_survives_select_join, 0) &&
+        check_source(mutable_reborrow_graph_survives_scan_join, 0) &&
+        check_source(loop_local_mutable_reborrow_releases_each_iteration, 0) &&
+        check_source(loop_break_releases_mutable_child_before_parent_use, 0);
 }
 
 static int check_reference_member_projection_semantics(void) {
