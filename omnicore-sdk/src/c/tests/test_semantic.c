@@ -1960,12 +1960,12 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
     const char* loop_local_mutable_reborrow_releases_each_iteration =
         "f:main(flag!bool) { v:owner!i32 = 1; "
         "&mut parent!i32 = &mut owner; "
-        "loop (flag) { { &mut child!i32 = &mut *parent; *child = 2; } } "
+        "loop (flag) { { &mut child!i32 = &mut *parent; *child = 2; } }; "
         "*parent = 3; }";
     const char* loop_break_releases_mutable_child_before_parent_use =
         "f:main(flag!bool) { v:owner!i32 = 1; "
         "&mut parent!i32 = &mut owner; "
-        "loop (flag) { { &mut child!i32 = &mut *parent; *child = 2; } break; } "
+        "loop (flag) { { &mut child!i32 = &mut *parent; *child = 2; } break; }; "
         "*parent = 3; }";
     return check_source(mutable_projection_reborrow_and_resume, 0) &&
         check_source(mutable_dereference_reborrow_and_resume, 0) &&
