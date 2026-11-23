@@ -1443,3 +1443,15 @@ Tests: `755ec7f`; design: `558a27e`; plan: `e0ff3fc`. Status: **IN_PROGRESS**. O
 - [ ] Expand to callback/closure/thread capture and all call/transfer forms.
 
 Tests: `11c8302`; design: `503da37`; plan: `029eb6d`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — indexed parent-origin reborrow paths (2026-11-23)
+
+- [x] Reborrow a fixed-index parent origin through `&mut *parent`.
+- [x] Allow a disjoint fixed sibling index while the child is active.
+- [x] Reject an overlapping alias to the same fixed index.
+- [x] Treat a dynamic parent index as potentially overlapping a fixed index.
+- [x] Verify workflow run 45094328449: all five jobs passed; Ubuntu/ASan 74/74; Valgrind zero errors.
+- [ ] Extend to mixed member/index chains, array fields inside aggregates, deeper projection trees and dynamic-index combinations.
+
+Test: `689707c`; design: `9a9d427`; plan: `301efaf`. Status: **IN_PROGRESS**. OIR remains gated.
