@@ -769,3 +769,13 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Verification: workflow run 45090068185 passed 5/5 jobs. Ubuntu CTest 74/74; ASan/UBSan 74/74; Valgrind reports zero errors.
 - Commits: implementation `f68585c`, `ee81654`, `4f44554`, `b3e1612`, `abd51da`; regression tests `0541025`, `f1a616f`; design note `6dc3fa7`.
 - This is a verified SEM-005 implementation slice, not completion. Branch snapshot/restore/join graph tests, OOM atomicity, loop/early-exit cleanup, full call/move/relocate rejection coverage and dangling-origin tests remain open. SEM-005 stays IN_PROGRESS and OIR remains gated.
+
+
+### SEM-005 — mutable borrow branch graph consistency (2026-11-23)
+
+- Mutable BorrowOrigin sets are now joined only when the full relationship records match: owner, borrower identity, immediate parent identity, kind and projection path. They are not unioned across divergent paths.
+- Parent suspension identities must also match at the control-flow join; incompatible relationships produce a Semantic diagnostic and compilation remains blocked.
+- Added if/els regressions: identical parent/child projection graphs survive snapshot restore/join; differing child projection paths are rejected.
+- Workflow run 45090600776 passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind); Ubuntu and ASan/UBSan report 74/74 tests, Valgrind reports zero errors.
+- Implementation commit `ceb70cc`; final regression commit `6ae2372` (an earlier fixture revision used invalid `else` spelling and was corrected to Nexus Flow `els`). Design update `26b4fcb`.
+- This closes direct if/els graph-join coverage only. Nested graph branch cases, select/scan joins, loop back-edge invariants, and allocation-failure/restore atomicity remain open. SEM-005 stays IN_PROGRESS; OIR remains gated.
