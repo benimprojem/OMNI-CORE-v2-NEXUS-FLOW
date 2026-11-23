@@ -1185,10 +1185,16 @@ static int semantic_install_borrow_origin(
 ) {
     BorrowOrigin* origin;
     if (!ctx || !borrower || !owner || !owned_path ||
-        (kind != 1u && kind != 2u) ||
-        !semantic_ensure_borrow_identity(ctx, borrower)) return 0;
+        (kind != 1u && kind != 2u)) return 0;
+    if (!semantic_ensure_borrow_identity(ctx, borrower)) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+        return 0;
+    }
     origin = (BorrowOrigin*)semantic_allocate(ctx, sizeof(*origin));
-    if (!origin) return 0;
+    if (!origin) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return 0;
+    }
     origin->owner = owner;
     origin->borrower_identity = borrower->borrow_identity;
     origin->parent_identity = 0u;
