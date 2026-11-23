@@ -2098,6 +2098,41 @@ static void semantic_reference_init_snapshot_restore(
     }
     free(restored_sets);
 }
+static int semantic_snapshot_borrow_origins_have_mutable(
+    const BorrowOrigin* origins
+) {
+    for (; origins; origins = origins->next)
+        if (origins->kind == 2u) return 1;
+    return 0;
+}
+
+static int semantic_snapshot_borrow_origins_equal(
+    const BorrowOrigin* left, const BorrowOrigin* right
+) {
+    const BorrowOrigin* current;
+    size_t left_count = 0u, right_count = 0u;
+    for (current = left; current; current = current->next) ++left_count;
+    for (current = right; current; current = current->next) ++right_count;
+    if (left_count != right_count) return 0;
+    for (current = left; current; current = current->next) {
+        const BorrowOrigin* candidate;
+        int found = 0;
+        for (candidate = right; candidate; candidate = candidate->next) {
+            if (current->owner == candidate->owner &&
+                current->borrower_identity == candidate->borrower_identity &&
+                current->parent_identity == candidate->parent_identity &&
+                current->kind == candidate->kind &&
+                strcmp(current->path ? current->path : "",
+                       candidate->path ? candidate->path : "") == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) return 0;
+    }
+    return 1;
+}
+
 static void semantic_reference_init_snapshot_merge(
     SemanticContext* ctx, SemanticReferenceInitSnapshot* left,
     const SemanticReferenceInitSnapshot* right
@@ -2108,13 +2143,30 @@ static void semantic_reference_init_snapshot_merge(
         Slot* slot = left->entries[index].slot;
         if (slot && slot == right->entries[index].slot) {
             BorrowOrigin* union_origins = NULL;
-            if (!semantic_snapshot_borrow_origins_union(
-                    ctx, left->entries[index].borrow_origins,
-                    right->entries[index].borrow_origins, &union_origins))
-                return;
-            semantic_snapshot_borrow_origins_destroy(
-                left->entries[index].borrow_origins);
-            left->entries[index].borrow_origins = union_origins;
+            const BorrowOrigin* left_origins =
+                left->entries[index].borrow_origins;
+            const BorrowOrigin* right_origins =
+                right->entries[index].borrow_origins;
+            int has_mutable_origin =
+                semantic_snapshot_borrow_origins_have_mutable(left_origins) ||
+                semantic_snapshot_borrow_origins_have_mutable(right_origins);
+            if (has_mutable_origin) {
+                /* Mutable parent/child graphs are not unionable: a union
+                   could invent a relationship that exists on no single path. */
+                if (!semantic_snapshot_borrow_origins_equal(
+                        left_origins, right_origins)) {
+                    report_error(ctx, slot->declaration_node,
+                        ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Mutable borrow origins and parent-child relationships must be identical on every control-flow path; end the child borrow before the branch merge.");
+                }
+            } else {
+                if (!semantic_snapshot_borrow_origins_union(
+                        ctx, left_origins, right_origins, &union_origins))
+                    return;
+                semantic_snapshot_borrow_origins_destroy(
+                    left->entries[index].borrow_origins);
+                left->entries[index].borrow_origins = union_origins;
+            }
             if (left->entries[index].borrow_origin !=
                 right->entries[index].borrow_origin)
                 left->entries[index].borrow_origin = NULL;
