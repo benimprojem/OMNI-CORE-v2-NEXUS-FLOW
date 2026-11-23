@@ -1235,6 +1235,7 @@ static void destroy_slot(Slot* slot) {
         FieldInfo* next = field->next;
         free(field->name);
         free(field->type_name);
+        free(field->array_type_name);
         free(field);
         field = next;
     }
@@ -2638,7 +2639,9 @@ static const char* get_expr_type(SemanticContext* ctx, ASTNode* node) {
         }
         case AST_MEMBER_ACCESS: {
             FieldInfo* field = semantic_resolve_member(ctx, node, 0);
-            const char* type_name = field ? field->type_name : NULL;
+            const char* type_name = field
+                ? (field->array_type_name ? field->array_type_name : field->type_name)
+                : NULL;
             if (field) semantic_record_annotation(
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_LVALUE);
             return type_name;
@@ -10439,7 +10442,9 @@ static void semantic_check_node(
                 free(path);
             }
             field = semantic_resolve_member(ctx, node, 1);
-            type_name = field ? field->type_name : NULL;
+            type_name = field
+                ? (field->array_type_name ? field->array_type_name : field->type_name)
+                : NULL;
             if (field) semantic_record_annotation(
                 ctx, node, NULL, type_name, SEMANTIC_RESULT_VALUE_LVALUE);
             break;
@@ -10759,9 +10764,20 @@ static void semantic_check_node(
                         }
                         f->name = semantic_duplicate(ctx, v->name ? v->name : "");
                         f->type_name = v->type_name ? semantic_duplicate(ctx, v->type_name) : NULL;
+                        if (v->inline_type && v->inline_type->type == AST_ARRAY_TYPE) {
+                            char array_signature[256];
+                            if (!semantic_format_array_signature(
+                                    v, array_signature, sizeof(array_signature))) {
+                                semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+                            } else {
+                                f->array_type_name = semantic_duplicate(ctx, array_signature);
+                            }
+                        }
                         f->is_const = v->is_const;
                         f->is_hard_typed = v->is_hard_typed;
-                        if (!f->name || (v->type_name && !f->type_name)) {
+                        if (!f->name || (v->type_name && !f->type_name) ||
+                            (v->inline_type && v->inline_type->type == AST_ARRAY_TYPE &&
+                             !f->array_type_name)) {
                             free(f->name);
                             free(f->type_name);
                             free(f);
