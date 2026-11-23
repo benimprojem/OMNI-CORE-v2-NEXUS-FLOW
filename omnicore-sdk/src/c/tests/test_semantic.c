@@ -2675,7 +2675,10 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         check_source(inline_array_struct_dynamic_vs_constant_conflicts, 1) &&
         check_source(inline_array_struct_mut_borrow_blocks_same_field_write, 1) &&
         check_source(inline_array_struct_mut_borrow_allows_sibling_field_write, 0) &&
-        check_source(dynamic_index_mut_borrow_blocks_constant_write, 1) &&\n        check_source(constant_index_mut_borrow_blocks_dynamic_write, 1) &&\n        check_source(dynamic_index_shared_borrow_blocks_constant_write, 1) &&\n        check_source(inline_array_struct_mut_borrow_allows_other_index_write, 0);
+        check_source(dynamic_index_mut_borrow_blocks_constant_write, 1) &&
+        check_source(constant_index_mut_borrow_blocks_dynamic_write, 1) &&
+        check_source(dynamic_index_shared_borrow_blocks_constant_write, 1) &&
+        check_source(inline_array_struct_mut_borrow_allows_other_index_write, 0);
 }
 
 static int check_array_type_semantics(void) {
