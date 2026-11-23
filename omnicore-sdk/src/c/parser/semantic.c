@@ -2069,6 +2069,12 @@ static void semantic_validate_borrow_relationships(
             Slot* parent;
             const BorrowOrigin* parent_origin;
             int parent_owns_same_storage = 0;
+            if (origin->kind == 2u &&
+                origin->borrower_identity != slot->borrow_identity) {
+                report_error(ctx, slot->declaration_node,
+                    ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Mutable borrow origin identity does not match its owning reference binding after control-flow restoration.");
+            }
             if (origin->parent_identity == 0u) continue;
             parent = semantic_find_borrow_slot_by_identity(
                 ctx, origin->parent_identity);
