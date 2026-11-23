@@ -1356,7 +1356,8 @@ Implementation: `ceb70cc`; final tests: `6ae2372`; design: `26b4fcb`; plan: `632
 - [ ] Add select/scan graph-join regressions.
 - [ ] Add loop back-edge and early-termination cleanup regressions.
 - [x] Sweep child-registration OOM sites and verify failed reborrow preserves the prior child origin and parent/owner reservations.
-- [ ] Add allocation-failure atomicity tests for snapshot clone/restore.
+- [x] Inject OOM across mutable borrow branch snapshot/restore allocations and require OOM status propagation.
+- [ ] Assert failed snapshot clone/restore leaves the exact pre-restore relationship graph unchanged.
 
 Implementation: `e2cc0ae`; regression: `462f528`; design: `89d69ec`; plan: `c1e328d`. Status: **IN_PROGRESS**. OIR remains gated.
 
@@ -1386,3 +1387,13 @@ Tests: `1ea2581`; design: `9fd8b4c`; plan: `d0b0570`. Status: **IN_PROGRESS**. O
 - [ ] Expand early-return, projection overlap/disjointness, and dangling-origin lifecycle tests.
 
 Implementation: `731d773`, `a1a39ef`; fixture/CMake: `11bdcaf`, `0a3c6ca`, `8e56a75`; atomicity test: `acd599e`, `b9504e2`; design: `1f2959e`; plan: `a50e4e8`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — snapshot OOM propagation (2026-11-23)
+
+- [x] Add a mutable parent/child if/els snapshot fixture to the Semantic OOM fault-injection sweep.
+- [x] Require every injected Semantic allocation failure in that fixture to report `SEMANTIC_RESULT_OUT_OF_MEMORY`.
+- [x] Verify workflow run 45092521356: all five jobs passed; Ubuntu/ASan 74/74; Valgrind zero errors.
+- [ ] Verify exact graph-state atomicity when snapshot cloning/restoration fails partway through.
+
+Fixture: `875e910`; CMake: `a2d799f`; design: `17ac609`; plan: `0f44883`. Status: **IN_PROGRESS**. OIR remains gated.
