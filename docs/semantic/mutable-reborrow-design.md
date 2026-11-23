@@ -182,3 +182,12 @@ Added a second OOM fixture that creates a mutable parent/child relation on both 
 Verification: workflow run [45092521356](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45092521356) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind reports zero errors.
 
 This verifies OOM status propagation across snapshot capture/restore allocation sites. It does not yet assert that every partially failed restore leaves the exact pre-restore graph unchanged; that stronger state-atomicity assertion remains open.
+
+
+## 2026-11-23 — snapshot OOM graph-integrity assertion
+
+The snapshot OOM harness now also runs the control-flow statements individually so the parent and child Slots remain inspectable after Semantic snapshot processing. For every injected failure, it checks that the resulting graph is structurally valid: a suspended parent resolves to its matching child; a child with a parent identity resolves to a parent suspended by that child and sharing the same storage owner; and a direct child origin does not leave a parent suspended. This complements the OOM-status sweep and the two-pass restore implementation.
+
+Verification: workflow run [45092909275](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45092909275) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74; Valgrind reports zero errors.
+
+The test verifies graph integrity under each injected failure, but does not compare the complete post-failure graph byte-for-byte/identity-for-identity with the pre-restore snapshot. Exact rollback equivalence remains a stricter future test.
