@@ -211,3 +211,10 @@ Added scope-cleanup regressions where control flow terminates while a mutable ch
 - `continue` inside the child scope must release the child before the next loop iteration.
 
 All three fixtures pass. Workflow run [45093659006](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45093659006) passed all five jobs; Ubuntu and ASan/UBSan each passed 74/74 CTest cases, and Valgrind reports zero errors.
+
+
+## 2026-11-23 — suspended-parent transfer rejection
+
+Added negative regressions for two ways of escaping the suspended parent binding: passing it as an `&mut T` call argument and relocating it with `_>`. Both are rejected while the child is active. These complement direct read/write, reassignment and reborrow rejection.
+
+Verification: workflow run [45093904144](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45093904144) passed all five jobs; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
