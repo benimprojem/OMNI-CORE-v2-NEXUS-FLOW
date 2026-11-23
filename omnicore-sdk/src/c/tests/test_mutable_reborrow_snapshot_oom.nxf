@@ -1,0 +1,12 @@
+f:main(flag!bool) {
+    v:owner!i32 = 1;
+    v:spare!i32 = 2;
+    &mut parent!i32 = &mut owner;
+    &mut child!i32 = &mut spare;
+    if (flag) {
+        child = &mut *parent;
+    } els {
+        child = &mut *parent;
+    }
+    *child = 3;
+}
