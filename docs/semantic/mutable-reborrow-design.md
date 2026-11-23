@@ -148,3 +148,17 @@ The nested branch regression now exercises the full sequence: root → child →
 Verification: workflow run [45090990756](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45090990756) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind completed successfully.
 
 Remaining snapshot coverage: select/scan joins, loop back-edge and early-termination cases, and allocation-failure atomicity during child registration and snapshot restoration.
+
+
+## 2026-11-23 — select/scan joins and loop cleanup
+
+The same strict mutable-graph merge is now exercised through the other control-flow constructs that use Semantic snapshots:
+
+- `select` with a default arm and `scan` with an else arm preserve the same parent/child relation on all paths; the child remains usable after the join.
+- A child created inside a nested loop-body block is released at the end of each iteration, allowing the parent to be used after the loop.
+- A `break` after the nested child block also leaves the parent resumed and usable.
+- A loop that rebinds an outer child reference to a mutable reborrow of its parent changes the relationship between the pre-loop and back-edge states; the Semantic join rejects that persistent graph change.
+
+Verification: workflow run [45091574297](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45091574297) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind reports zero errors.
+
+Remaining SEM-005 gates are now concentrated on allocation-failure atomicity for child registration/snapshot restoration, broader early-return/termination paths, projection overlap/disjointness matrices, and additional lifecycle/dangling-origin checks. OIR remains gated.
