@@ -77,7 +77,9 @@ static int check_source(const char* source, int expected_errors) {
     }
     semantic_init(&semantic, "semantic-control.nxf", NULL);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
-    ok = semantic.error_count == expected_errors;
+    ok = expected_errors < 0
+        ? semantic.error_count > 0
+        : semantic.error_count == expected_errors;
     if (!ok) { Error* e; fprintf(stderr, "Semantic test mismatch: expected=%d actual=%d source=%s\\n", expected_errors, semantic.error_count, source); for(e=semantic.error_head;e;e=e->next) fprintf(stderr,"  semantic error %d at %d:%d: %s\\n",e->code,e->line,e->col,e->message?e->message:"(null)"); }
     semantic_destroy(&semantic);
     parser_destroy(parser);
@@ -1967,6 +1969,10 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         "&mut parent!i32 = &mut owner; "
         "loop (flag) { { &mut child!i32 = &mut *parent; *child = 2; } break; }; "
         "*parent = 3; }";
+    const char* loop_back_edge_rejects_persistent_child_relationship_change =
+        "f:main(flag!bool) { v:owner!i32 = 1; v:spare!i32 = 2; "
+        "&mut parent!i32 = &mut owner; &mut child!i32 = &mut spare; "
+        "loop (flag) { child = &mut *parent; }; }";
     return check_source(mutable_projection_reborrow_and_resume, 0) &&
         check_source(mutable_dereference_reborrow_and_resume, 0) &&
         check_source(suspended_parent_dereference_rejected, 1) &&
@@ -1979,7 +1985,8 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         check_source(mutable_reborrow_graph_survives_select_join, 0) &&
         check_source(mutable_reborrow_graph_survives_scan_join, 0) &&
         check_source(loop_local_mutable_reborrow_releases_each_iteration, 0) &&
-        check_source(loop_break_releases_mutable_child_before_parent_use, 0);
+        check_source(loop_break_releases_mutable_child_before_parent_use, 0) &&
+        check_source(loop_back_edge_rejects_persistent_child_relationship_change, -1);
 }
 
 static int check_reference_member_projection_semantics(void) {
