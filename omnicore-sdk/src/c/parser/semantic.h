@@ -18,6 +18,7 @@ typedef enum {
 typedef struct FieldInfo {
     char* name;
     char* type_name;
+    char* array_type_name; /* Encoded inline-array shape, independent of nominal element type. */
     int is_const;
     int is_hard_typed;
     struct FieldInfo* next;
