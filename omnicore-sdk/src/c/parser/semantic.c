@@ -7355,10 +7355,9 @@ static int semantic_register_mutable_reborrow(
     }
     if (!parent->borrow_origins || parent->borrow_origins->next ||
         parent->borrow_origins->kind != 2u ||
-        parent->borrow_origins->parent_identity != 0u ||
         !parent->borrow_origins->owner) {
         report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
-            "Mutable reborrow requires one directly tracked exclusive parent origin; unknown or branched provenance is rejected.");
+            "Mutable reborrow requires one tracked exclusive parent origin; unknown or branched provenance is rejected.");
         return 1;
     }
     if (borrower->depth < parent->depth) {
