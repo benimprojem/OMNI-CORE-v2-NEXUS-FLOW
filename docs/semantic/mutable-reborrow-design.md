@@ -126,3 +126,14 @@ Regression coverage now includes successful dereference and field-projection reb
 Verification: branch-head workflow run https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45090068185 passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind). Ubuntu CTest and ASan/UBSan each report 74/74 tests passed; Valgrind reports zero errors in all test processes.
 
 This closes the first scoped registration/release slice, not SEM-005. Remaining gates include branch snapshot/restore/join graph consistency tests, allocation-failure atomicity for child registration, early exits and loop/control-flow cleanup, call/move/relocate and projection conflict matrices, and explicit dangling-origin checks. OIR remains gated.
+
+
+## 2026-11-23 — branch snapshot and join consistency
+
+Mutable origins are no longer merged by set union. Shared origins retain their existing union behavior, but if either branch snapshot contains a mutable origin, the mutable origin sets must be exactly equal by storage owner, borrower identity, immediate parent identity, borrow kind and projection path. A divergent mutable graph emits a Semantic diagnostic instead of constructing a union that exists on neither path. Parent suspension identities are independently required to match at the join.
+
+The regression pair exercises both outcomes: identical mutable child relationships on both if/els paths survive snapshot restore and join; differing field paths for the same child binding are rejected. The existing snapshot clone/restore path carries parent identities and parent suspension identities.
+
+Verification: workflow run [45090600776](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45090600776) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind completed with zero reported errors.
+
+This is direct if/els snapshot/join coverage. Full nested-graph branch combinations, select/scan joins, loop back-edge invariants, and allocation-failure behavior during child registration/restore remain open.
