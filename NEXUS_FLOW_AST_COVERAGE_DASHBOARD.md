@@ -1372,7 +1372,8 @@ Implementation: `e2cc0ae`; regression: `462f528`; design: `89d69ec`; plan: `c1e3
 - [x] Reject outer mutable child relationship changes across loop back-edges.
 - [x] Verify workflow run 45091574297: all five jobs passed; Ubuntu/ASan 74/74; Valgrind zero errors.
 - [ ] Add allocation-failure atomicity tests for child registration and snapshot restore.
-- [ ] Expand early-return, projection overlap/disjointness, and dangling-origin lifecycle tests.
+- [x] Test nested member path composition, disjoint sibling access, and rejection of an overlapping mutable alias.
+- [ ] Expand index/member combinations, dynamic indices, deeper projection overlap/disjointness, early-return, and dangling-origin lifecycle tests.
 
 Tests: `1ea2581`; design: `9fd8b4c`; plan: `d0b0570`. Status: **IN_PROGRESS**. OIR remains gated.
 
@@ -1409,3 +1410,14 @@ Fixture: `875e910`; CMake: `a2d799f`; design: `17ac609`; plan: `0f44883`. Status
 - [ ] Compare the full graph with the exact pre-restore snapshot after each failed clone/restore (rollback equivalence).
 
 Test: `fed89d5`; design: `53cee06`; plan: `5c581af`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — nested projection overlap/disjointness (2026-11-23)
+
+- [x] Compose parent path `outer.inner` with child path `.left`.
+- [x] Allow disjoint sibling access to `outer.other` while the child is active.
+- [x] Reject a second mutable borrow of overlapping `outer.inner.left`.
+- [x] Verify workflow run 45093228358: all five jobs passed; Ubuntu/ASan 74/74; Valgrind zero errors.
+- [ ] Extend to index/member mixtures, dynamic indices and deeper projection trees.
+
+Test: `922fade`; design: `55916fd`; plan: `d991d42`. Status: **IN_PROGRESS**. OIR remains gated.
