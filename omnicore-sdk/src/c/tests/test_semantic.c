@@ -1901,17 +1901,29 @@ static int check_shared_reborrow_semantics(void) {
         check_source(reborrow_preserves_all_branch_merged_origins, 2);
 }
 
-static int check_mutable_projection_reborrow_rejection(void) {
-    const char* mutable_projection_reborrow_rejected =
+static int check_mutable_reborrow_parent_child_semantics(void) {
+    const char* mutable_projection_reborrow_and_resume =
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; &mut parent!Point = &mut point; "
-        "&mut child!i32 = &mut parent.x; }";
-    const char* mutable_dereference_reborrow_rejected =
+        "{ &mut child!i32 = &mut parent.x; *child = 20; } "
+        "parent.y = 30; }";
+    const char* mutable_dereference_reborrow_and_resume =
         "f:main() { v:owner!i32 = 1; "
         "&mut parent!i32 = &mut owner; "
-        "&mut child!i32 = &mut *parent; }";
-    return check_source(mutable_projection_reborrow_rejected, 1) &&
-        check_source(mutable_dereference_reborrow_rejected, 1);
+        "{ &mut child!i32 = &mut *parent; *child = 20; } "
+        "*parent = 30; }";
+    const char* suspended_parent_dereference_rejected =
+        "f:main() { v:owner!i32 = 1; "
+        "&mut parent!i32 = &mut owner; "
+        "{ &mut child!i32 = &mut *parent; v:value!i32 = *parent; } }";
+    const char* suspended_parent_projection_rejected =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; &mut parent!Point = &mut point; "
+        "{ &mut child!i32 = &mut parent.x; v:value!i32 = parent.y; } }";
+    return check_source(mutable_projection_reborrow_and_resume, 0) &&
+        check_source(mutable_dereference_reborrow_and_resume, 0) &&
+        check_source(suspended_parent_dereference_rejected, 1) &&
+        check_source(suspended_parent_projection_rejected, 1);
 }
 
 static int check_reference_member_projection_semantics(void) {
@@ -4234,8 +4246,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Shared/mutable borrow Semantic checks failed.\n");
         return 1;
     }
-    if (!check_mutable_projection_reborrow_rejection()) {
-        fprintf(stderr, "Mutable projection reborrow rejection regression failed.\\n");
+    if (!check_mutable_reborrow_parent_child_semantics()) {
+        fprintf(stderr, "Mutable reborrow parent/child semantics regression failed.\\n");
         return 1;
     }
     if (!check_shared_reborrow_semantics() ||
