@@ -2481,6 +2481,21 @@ static int semantic_array_known_length(
     if (!ctx || !target || !out_length) return 0;
     if (target->type == AST_ARRAY_LITERAL) {
         array_expression = target;
+    } else if (target->type == AST_MEMBER_ACCESS) {
+        const char* member_type = get_expr_type(ctx, target);
+        if (member_type && semantic_is_array_type_name(member_type)) {
+            const char* extent = strchr(member_type, '[');
+            if (extent && extent[1] && extent[1] != ']') {
+                char* end = NULL;
+                unsigned long long parsed;
+                errno = 0;
+                parsed = strtoull(extent + 1, &end, 10);
+                if (errno == 0 && end && *end == ']' && end != extent + 1) {
+                    *out_length = (uint64_t)parsed;
+                    return 1;
+                }
+            }
+        }
     } else if (target->type == AST_IDENTIFIER) {
         Slot* slot = find_slot(ctx, ((ASTIdentifier*)target)->name);
         if (slot && slot->declaration_node &&
