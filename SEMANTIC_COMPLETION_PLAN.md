@@ -825,6 +825,14 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Child-registration OOM atomicity is verified. Snapshot clone/restore OOM atomicity, broader early-return/projection matrices and dangling-origin stress remain open. SEM-005 remains IN_PROGRESS; OIR remains gated.
 
 
+### SEM-005 — dangling allocation pointer / use-after-free safety requirement (2026-11-24)
+
+- New required invariant: when an `area()`/`zone()` allocation is freed, every pointer alias and projection derived from that allocation must become invalid. Reusing the same address for a later allocation must not revive stale aliases or let an old pointer read/write the new allocation.
+- Syntax reference now states this normative rule, but allocation identity/generation tracking, alias invalidation and use-after-free diagnostics are **not yet implemented/verified**.
+- Required tests: direct handle after free; raw pointer alias after free; pointer to a field/offset inside an allocation; allocation-address reuse simulation; aliases copied through assignment; branch/control-flow merge with freed-vs-live state; fail-closed unknown provenance.
+- SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
 ### SEM-005 — snapshot OOM propagation coverage (2026-11-23)
 
 - Added a branch-snapshot fixture with mutable parent/child reborrows on both if/els paths and a post-join child use.
