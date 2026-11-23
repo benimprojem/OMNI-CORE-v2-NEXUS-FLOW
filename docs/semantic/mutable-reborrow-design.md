@@ -218,3 +218,14 @@ All three fixtures pass. Workflow run [45093659006](https://github.com/benimproj
 Added negative regressions for two ways of escaping the suspended parent binding: passing it as an `&mut T` call argument and relocating it with `_>`. Both are rejected while the child is active. These complement direct read/write, reassignment and reborrow rejection.
 
 Verification: workflow run [45093904144](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45093904144) passed all five jobs; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
+
+
+## 2026-11-23 — indexed owner-path reborrows
+
+Added fixed- and dynamic-index parent-origin regressions using the canonical array declarator form:
+
+- A parent borrowing `items[0]` can be reborrowed through `&mut *parent`; while the child is active, `items[1]` remains a disjoint accessible element, and the parent resumes after child scope exit.
+- A second mutable borrow of `items[0]` while that child is active is rejected.
+- When the parent origin is `items[index]`, its path is conservatively dynamic (`[*]`); a second mutable borrow of a fixed element is rejected as potentially overlapping.
+
+Verification: workflow run [45094328449](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45094328449) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74; Valgrind reports zero errors.
