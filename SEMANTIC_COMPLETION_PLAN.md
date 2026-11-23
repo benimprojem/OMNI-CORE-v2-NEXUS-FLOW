@@ -767,5 +767,5 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Enabled and tested &mut *parent and mutable member/index projection reborrows. Suspended parent identifier and member/index access is rejected; parent access resumes after child scope exit. Parent rebinding while suspended is rejected.
 - Regression coverage includes child writes, direct and projection reborrows, post-scope parent use, nested reborrow release order and suspended parent reassignment.
 - Verification: workflow run 45090068185 passed 5/5 jobs. Ubuntu CTest 74/74; ASan/UBSan 74/74; Valgrind reports zero errors.
-- Commits: implementation `f68585c`, `ee81654`, `4f44554`, `abd51da`; regression tests `0541025`, `f1a616f`; design note `6dc3fa7`.
+- Commits: implementation `f68585c`, `ee81654`, `4f44554`, `b3e1612`, `abd51da`; regression tests `0541025`, `f1a616f`; design note `6dc3fa7`.
 - This is a verified SEM-005 implementation slice, not completion. Branch snapshot/restore/join graph tests, OOM atomicity, loop/early-exit cleanup, full call/move/relocate rejection coverage and dangling-origin tests remain open. SEM-005 stays IN_PROGRESS and OIR remains gated.
