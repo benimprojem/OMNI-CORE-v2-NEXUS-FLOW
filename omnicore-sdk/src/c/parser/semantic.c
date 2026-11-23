@@ -10086,7 +10086,8 @@ static void semantic_check_node(
                        unary->op == TOKEN_BORROW_MUT) {
                 if (!unary->operand ||
                     (!semantic_is_lvalue(ctx, unary->operand) &&
-                     !(unary->op == TOKEN_BIT_AND &&
+                     !((unary->op == TOKEN_BIT_AND ||
+                        unary->op == TOKEN_BORROW_MUT) &&
                        semantic_is_shared_dereference_reborrow(ctx, unary->operand)))) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Borrow operator requires an addressable lvalue.");
