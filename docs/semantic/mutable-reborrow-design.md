@@ -200,3 +200,14 @@ Added a nested storage-owner regression: a mutable parent borrows `outer.inner`,
 Verification: workflow run [45093228358](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45093228358) passed all five jobs. Ubuntu and ASan/UBSan each passed 74/74 CTest cases; Valgrind reports zero errors.
 
 This covers one nested member-projection chain and a disjoint sibling field. Index/member combinations, dynamic indices, deeper nested projections and broader overlap matrices remain open.
+
+
+## 2026-11-23 — early termination cleanup
+
+Added scope-cleanup regressions where control flow terminates while a mutable child is active:
+
+- `ret` inside the child scope must unwind the child borrow without leaving a dangling parent suspension.
+- `break` inside the child scope must release the child before the parent is used after the loop.
+- `continue` inside the child scope must release the child before the next loop iteration.
+
+All three fixtures pass. Workflow run [45093659006](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45093659006) passed all five jobs; Ubuntu and ASan/UBSan each passed 74/74 CTest cases, and Valgrind reports zero errors.
