@@ -1357,6 +1357,7 @@ Implementation: `ceb70cc`; final tests: `6ae2372`; design: `26b4fcb`; plan: `632
 - [ ] Add loop back-edge and early-termination cleanup regressions.
 - [x] Sweep child-registration OOM sites and verify failed reborrow preserves the prior child origin and parent/owner reservations.
 - [x] Inject OOM across mutable borrow branch snapshot/restore allocations and require OOM status propagation.
+- [x] Check parent/child graph integrity after every injected snapshot OOM failure.
 - [ ] Assert failed snapshot clone/restore leaves the exact pre-restore relationship graph unchanged.
 
 Implementation: `e2cc0ae`; regression: `462f528`; design: `89d69ec`; plan: `c1e328d`. Status: **IN_PROGRESS**. OIR remains gated.
@@ -1397,3 +1398,14 @@ Implementation: `731d773`, `a1a39ef`; fixture/CMake: `11bdcaf`, `0a3c6ca`, `8e56
 - [ ] Verify exact graph-state atomicity when snapshot cloning/restoration fails partway through.
 
 Fixture: `875e910`; CMake: `a2d799f`; design: `17ac609`; plan: `0f44883`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — snapshot OOM graph integrity (2026-11-23)
+
+- [x] Keep reference Slots inspectable while injecting OOM through branch snapshot operations.
+- [x] Verify parent suspension ↔ child identity and child parent identity ↔ suspended parent after every failure.
+- [x] Verify child and parent retain the same exclusive storage owner; direct child origins do not leave a suspended parent.
+- [x] Verify workflow run 45092909275: all five jobs passed; Ubuntu/ASan 74/74; Valgrind zero errors.
+- [ ] Compare the full graph with the exact pre-restore snapshot after each failed clone/restore (rollback equivalence).
+
+Test: `fed89d5`; design: `53cee06`; plan: `5c581af`. Status: **IN_PROGRESS**. OIR remains gated.
