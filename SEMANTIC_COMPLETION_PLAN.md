@@ -865,3 +865,11 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Workflow run 45094328449 passed all five jobs; Ubuntu/ASan 74/74; Valgrind zero errors.
 - Test commit `689707c`; design update `9a9d427`.
 - Remaining: mixed member/index projection chains (array fields in aggregates are not covered here), deeper paths, and broader dynamic-index cases. SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — mixed aggregate/index projection gap (2026-11-23)
+
+- Attempted a fixture for `container.items[0]` where `items` is a fixed array field inside a struct, followed by a child field reborrow.
+- CI exposed that Semantic does not currently treat array member projections as indexable arrays; it reports `Index target must be an array, map, tuple, bit vector, or byte block`, then member type resolution fails.
+- Removed the unsupported fixture instead of broadening language semantics without implementation/tests. Standalone fixed/dynamic array index borrow tests remain.
+- Status: nested member-array projection and mixed member/index composition are **UNSUPPORTED/UNVERIFIED**. SEM-005 remains IN_PROGRESS; OIR remains gated.
