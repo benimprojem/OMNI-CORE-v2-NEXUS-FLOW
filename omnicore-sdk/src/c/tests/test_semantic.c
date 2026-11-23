@@ -1929,12 +1929,24 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         "f:main() { v:owner!i32 = 1; v:other!i32 = 2; "
         "&mut parent!i32 = &mut owner; "
         "{ &mut child!i32 = &mut *parent; parent = &mut other; } }";
+    const char* identical_mutable_reborrow_graphs_join =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; &mut parent!Point = &mut point; &mut child!i32; "
+        "if (true) { child = &mut parent.x; } "
+        "else { child = &mut parent.x; } }";
+    const char* divergent_mutable_reborrow_graphs_rejected =
+        "f:main() { struct:Point { v:x!i32, v:y!i32 } "
+        "v:point!Point; &mut parent!Point = &mut point; &mut child!i32; "
+        "if (true) { child = &mut parent.x; } "
+        "else { child = &mut parent.y; } }";
     return check_source(mutable_projection_reborrow_and_resume, 0) &&
         check_source(mutable_dereference_reborrow_and_resume, 0) &&
         check_source(suspended_parent_dereference_rejected, 1) &&
         check_source(suspended_parent_projection_rejected, 1) &&
         check_source(nested_mutable_reborrow_resumes_in_reverse_order, 0) &&
-        check_source(suspended_parent_reassignment_rejected, 1);
+        check_source(suspended_parent_reassignment_rejected, 1) &&
+        check_source(identical_mutable_reborrow_graphs_join, 0) &&
+        check_source(divergent_mutable_reborrow_graphs_rejected, 1);
 }
 
 static int check_reference_member_projection_semantics(void) {
