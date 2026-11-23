@@ -7500,6 +7500,7 @@ static int semantic_register_mutable_reborrow(
     if (projection) {
         suffix = semantic_lvalue_path(ctx, operand);
         if (!suffix) {
+            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
             report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
                 "Unable to construct a stable member/index path for mutable reborrow.");
             return 1;
@@ -7519,8 +7520,10 @@ static int semantic_register_mutable_reborrow(
     memcpy(combined_path + base_length, suffix, suffix_length + 1u);
 
     if (!semantic_ensure_borrow_identity(ctx, borrower) ||
-        !semantic_ensure_borrow_identity(ctx, parent))
-        goto allocation_failure;
+        !semantic_ensure_borrow_identity(ctx, parent)) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+        goto identity_failure;
+    }
     child_origin = (BorrowOrigin*)semantic_callocate(ctx, 1u, sizeof(*child_origin));
     if (!child_origin) goto allocation_failure;
     child_origin->owner = parent->borrow_origins->owner;
@@ -7542,11 +7545,13 @@ static int semantic_register_mutable_reborrow(
     return 1;
 
 allocation_failure:
+    semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+identity_failure:
     free(suffix);
     free(combined_path);
     free(child_origin);
     report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
-        "Unable to allocate mutable reborrow metadata; the previous reference binding was preserved.");
+        "Unable to create mutable reborrow metadata; the previous reference binding was preserved.");
     return 1;
 }
 
