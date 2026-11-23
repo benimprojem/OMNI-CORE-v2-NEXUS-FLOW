@@ -1973,6 +1973,18 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         "f:main(flag!bool) { v:owner!i32 = 1; v:spare!i32 = 2; "
         "&mut parent!i32 = &mut owner; &mut child!i32 = &mut spare; "
         "loop (flag) { child = &mut *parent; }; }";
+    const char* nested_projection_reborrow_preserves_disjoint_owner_access =
+        "f:main() { struct:Pair { v:left!i32, v:right!i32 } "
+        "struct:Outer { v:inner!Pair, v:other!i32 } "
+        "v:outer!Outer; &mut parent!Pair = &mut outer.inner; "
+        "{ &mut child!i32 = &mut parent.left; outer.other = 3; } "
+        "parent.right = 4; }";
+    const char* nested_projection_reborrow_rejects_overlapping_owner_alias =
+        "f:main() { struct:Pair { v:left!i32, v:right!i32 } "
+        "struct:Outer { v:inner!Pair, v:other!i32 } "
+        "v:outer!Outer; &mut parent!Pair = &mut outer.inner; "
+        "{ &mut child!i32 = &mut parent.left; "
+        "&mut alias!i32 = &mut outer.inner.left; } }";
     return check_source(mutable_projection_reborrow_and_resume, 0) &&
         check_source(mutable_dereference_reborrow_and_resume, 0) &&
         check_source(suspended_parent_dereference_rejected, 1) &&
@@ -1986,7 +1998,9 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         check_source(mutable_reborrow_graph_survives_scan_join, 0) &&
         check_source(loop_local_mutable_reborrow_releases_each_iteration, 0) &&
         check_source(loop_break_releases_mutable_child_before_parent_use, 0) &&
-        check_source(loop_back_edge_rejects_persistent_child_relationship_change, -1);
+        check_source(loop_back_edge_rejects_persistent_child_relationship_change, -1) &&
+        check_source(nested_projection_reborrow_preserves_disjoint_owner_access, 0) &&
+        check_source(nested_projection_reborrow_rejects_overlapping_owner_alias, 1);
 }
 
 static int check_reference_member_projection_semantics(void) {
