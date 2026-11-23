@@ -2615,6 +2615,16 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         "struct:Container { v:items[2]!Item } v:container!Container; "
         "&mut first!i32 = &mut container.items[0].left; "
         "&mut second!i32 = &mut container.items[1].left; }";
+    const char* inline_array_struct_dynamic_index_borrows_conservative =
+        "f:main(i!i32, j!i32) { struct:Item { v:left!i32, v:right!i32 } "
+        "struct:Container { v:items[2]!Item } v:container!Container; "
+        "&mut first!i32 = &mut container.items[i].left; "
+        "&mut second!i32 = &mut container.items[j].left; }";
+    const char* inline_array_struct_dynamic_vs_constant_conflicts =
+        "f:main(i!i32) { struct:Item { v:left!i32, v:right!i32 } "
+        "struct:Container { v:items[2]!Item } v:container!Container; "
+        "&mut first!i32 = &mut container.items[i].left; "
+        "&mut second!i32 = &mut container.items[0].left; }";
     return check_source(shared_index_and_mutable_other_index_are_independent, 0) &&
         check_source(mutable_index_allows_other_index_write, 0) &&
         check_source(shared_index_allows_other_index_write, 0) &&
@@ -2636,7 +2646,9 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         check_source(inline_array_member_dynamic_indexes_are_conservative, 1) &&
         check_source(inline_array_struct_elements_distinct_fields_are_independent, 0) &&
         check_source(inline_array_struct_elements_same_field_conflict, 1) &&
-        check_source(inline_array_struct_elements_different_indexes_independent, 0);
+        check_source(inline_array_struct_elements_different_indexes_independent, 0) &&
+        check_source(inline_array_struct_dynamic_index_borrows_conservative, 1) &&
+        check_source(inline_array_struct_dynamic_vs_constant_conflicts, 1);
 }
 
 static int check_array_type_semantics(void) {
