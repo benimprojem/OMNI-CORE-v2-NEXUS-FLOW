@@ -2000,6 +2000,15 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         "&mut parent!i32 = &mut owner; "
         "loop (flag) { { &mut child!i32 = &mut *parent; continue; } }; "
         "*parent = 3; }";
+    const char* suspended_parent_call_argument_rejected =
+        "f:consume(value!&muti32) {} "
+        "f:main() { v:owner!i32 = 1; &mut parent!i32 = &mut owner; "
+        "{ &mut child!i32 = &mut *parent; consume(parent); } }";
+    const char* suspended_parent_relocation_rejected =
+        "f:main() { v:owner!i32 = 1; v:spare!i32 = 2; "
+        "&mut parent!i32 = &mut owner; "
+        "{ &mut child!i32 = &mut *parent; "
+        "&mut target!i32 = &mut spare; v:moved = parent _> target; } }";
     return check_source(mutable_projection_reborrow_and_resume, 0) &&
         check_source(mutable_dereference_reborrow_and_resume, 0) &&
         check_source(suspended_parent_dereference_rejected, 1) &&
@@ -2018,7 +2027,9 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         check_source(nested_projection_reborrow_rejects_overlapping_owner_alias, 1) &&
         check_source(return_inside_child_scope_releases_borrow, 0) &&
         check_source(break_inside_child_scope_releases_borrow, 0) &&
-        check_source(continue_inside_child_scope_releases_borrow, 0);
+        check_source(continue_inside_child_scope_releases_borrow, 0) &&
+        check_source(suspended_parent_call_argument_rejected, 1) &&
+        check_source(suspended_parent_relocation_rejected, 1);
 }
 
 static int check_reference_member_projection_semantics(void) {
