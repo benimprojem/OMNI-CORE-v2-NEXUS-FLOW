@@ -1783,6 +1783,7 @@ if(BUILD_TESTING)
             "${C_SOURCE_DIR}/tests/test3.nxf"
             "${C_SOURCE_DIR}/tests/test_undefined_variable.nxf"
             "${C_SOURCE_DIR}/tests/test_mutable_reborrow_oom.nxf"
+            "${C_SOURCE_DIR}/tests/test_mutable_reborrow_snapshot_oom.nxf"
     )
 
     add_executable(test_semantic_result
