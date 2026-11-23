@@ -836,3 +836,13 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Workflow run 45093228358 passed all five jobs; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
 - Test commit `922fade`; design update `55916fd`.
 - Remaining projection coverage: member/index combinations, dynamic indices, deeper nested paths and a broader overlap/disjointness matrix. SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — early termination cleanup (2026-11-23)
+
+- Added `ret` while a child mutable borrow is active; function-scope unwind must release the child without leaving parent suspension dangling.
+- Added `break` inside a child scope; parent is writable after the loop.
+- Added `continue` inside a child scope; child is released before the next iteration.
+- Workflow run 45093659006 passed all five jobs; Ubuntu/ASan 74/74; Valgrind zero errors.
+- Test commit `755ec7f`; design update `558a27e`.
+- Remaining lifecycle gaps: panic/defer/other early exits, function-call transfer cases and dangling-origin stress. SEM-005 remains IN_PROGRESS; OIR remains gated.
