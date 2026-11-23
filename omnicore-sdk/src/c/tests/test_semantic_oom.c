@@ -65,9 +65,9 @@ static Slot* find_test_slot(SemanticContext* semantic, const char* name) {
 
 static int check_mutable_reborrow_rebind_failure_is_atomic(void) {
     static const char* source =
-        "f:main() { v:owner!i32 = 1; v:spare!i32 = 4; "
+        "v:owner!i32 = 1; v:spare!i32 = 4; "
         "&mut parent!i32 = &mut owner; "
-        "&mut child!i32 = &mut spare; child = &mut *parent; }";
+        "&mut child!i32 = &mut spare; child = &mut *parent;";
     ParserContext* parser = parser_init_source(
         "mutable-reborrow-oom.nxf",
         (const uint8_t*)source, strlen(source));
