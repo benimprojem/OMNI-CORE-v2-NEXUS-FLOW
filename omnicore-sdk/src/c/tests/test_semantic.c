@@ -1940,11 +1940,13 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         "if (true) { child = &mut parent.x; } "
         "els { child = &mut parent.y; } }";
     const char* nested_mutable_graph_survives_branch_restore =
-        "f:main() { v:owner!i32 = 1; v:spare1!i32 = 2; v:spare2!i32 = 3; "
-        "&mut root!i32 = &mut owner; &mut child!i32 = &mut spare1; "
-        "&mut grandchild!i32 = &mut spare2; "
-        "if (true) { child = &mut *root; grandchild = &mut *child; } "
-        "els { child = &mut *root; grandchild = &mut *child; } }";
+        "f:main() { v:owner!i32 = 1; v:spare2!i32 = 3; "
+        "&mut root!i32 = &mut owner; "
+        "{ &mut child!i32 = &mut *root; "
+        "{ &mut grandchild!i32 = &mut spare2; "
+        "if (true) { grandchild = &mut *child; } "
+        "els { grandchild = &mut *child; } "
+        "*grandchild = 4; } *child = 5; } *root = 6; }";
     return check_source(mutable_projection_reborrow_and_resume, 0) &&
         check_source(mutable_dereference_reborrow_and_resume, 0) &&
         check_source(suspended_parent_dereference_rejected, 1) &&
