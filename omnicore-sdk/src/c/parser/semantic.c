@@ -7304,6 +7304,133 @@ fail:
     return 1;
 }
 
+/* Create a child exclusive borrow from an active mutable reference.
+   The owner reservation remains held by the parent; releasing the child only
+   resumes the parent, and releasing the parent recursively releases children. */
+static int semantic_register_mutable_reborrow(
+    SemanticContext* ctx, Slot* borrower, ASTNode* borrow_node,
+    ASTNode* operand
+) {
+    ASTNode* root = operand;
+    Slot* parent;
+    const BorrowOrigin* parent_origin;
+    const char* expected_type;
+    const char* actual_type;
+    const char* base_path;
+    char* suffix = NULL;
+    char* combined_path = NULL;
+    BorrowOrigin* child_origin = NULL;
+    size_t base_length, suffix_length;
+    int projection = 0;
+
+    if (!ctx || !borrower || !borrow_node || !operand) return 0;
+    if (operand->type == AST_UNARY_EXPR &&
+        ((ASTUnaryExpr*)operand)->op == TOKEN_STAR) {
+        root = ((ASTUnaryExpr*)operand)->operand;
+        if (!root || root->type != AST_IDENTIFIER) return 0;
+    } else if (operand->type == AST_MEMBER_ACCESS ||
+               operand->type == AST_INDEX_ACCESS) {
+        projection = 1;
+        while (root && root->type != AST_IDENTIFIER) {
+            if (root->type == AST_MEMBER_ACCESS)
+                root = ((ASTMemberAccess*)root)->object;
+            else if (root->type == AST_INDEX_ACCESS)
+                root = ((ASTIndexAccess*)root)->target;
+            else return 0;
+        }
+        if (!root) return 0;
+    } else {
+        return 0;
+    }
+
+    parent = find_slot(ctx, ((ASTIdentifier*)root)->name);
+    if (!parent || parent == borrower ||
+        !semantic_is_mut_reference_type_name(parent->type_name))
+        return 0;
+
+    if (parent->borrow_suspended_by_identity != 0u) {
+        report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Cannot create a mutable reborrow from a suspended parent reference; its active child must end first.");
+        return 1;
+    }
+    if (!parent->borrow_origins || parent->borrow_origins->next ||
+        parent->borrow_origins->kind != 2u ||
+        parent->borrow_origins->parent_identity != 0u ||
+        !parent->borrow_origins->owner) {
+        report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Mutable reborrow requires one directly tracked exclusive parent origin; unknown or branched provenance is rejected.");
+        return 1;
+    }
+    if (borrower->depth < parent->depth) {
+        report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Mutable child reference cannot outlive its parent reference.");
+        return 1;
+    }
+
+    actual_type = get_expr_type(ctx, operand);
+    expected_type = semantic_dereference_target_type(borrower->type_name, NULL);
+    if (!actual_type || !expected_type ||
+        !are_types_compatible(ctx, expected_type, actual_type)) {
+        report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Mutable reborrow target type does not match the child reference type.");
+        return 1;
+    }
+
+    base_path = parent->borrow_origins->path
+        ? parent->borrow_origins->path : "";
+    if (projection) {
+        suffix = semantic_lvalue_path(ctx, operand);
+        if (!suffix) {
+            report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Unable to construct a stable member/index path for mutable reborrow.");
+            return 1;
+        }
+    } else {
+        suffix = (char*)semantic_allocate(ctx, 1u);
+        if (suffix) suffix[0] = '\0';
+        if (!suffix) goto allocation_failure;
+    }
+
+    base_length = strlen(base_path);
+    suffix_length = strlen(suffix);
+    if (base_length > SIZE_MAX - suffix_length - 1u) goto allocation_failure;
+    combined_path = (char*)semantic_allocate(ctx, base_length + suffix_length + 1u);
+    if (!combined_path) goto allocation_failure;
+    memcpy(combined_path, base_path, base_length);
+    memcpy(combined_path + base_length, suffix, suffix_length + 1u);
+
+    if (!semantic_ensure_borrow_identity(ctx, borrower) ||
+        !semantic_ensure_borrow_identity(ctx, parent))
+        goto allocation_failure;
+    child_origin = (BorrowOrigin*)semantic_callocate(ctx, 1u, sizeof(*child_origin));
+    if (!child_origin) goto allocation_failure;
+    child_origin->owner = parent->borrow_origins->owner;
+    child_origin->borrower_identity = borrower->borrow_identity;
+    child_origin->parent_identity = parent->borrow_identity;
+    child_origin->path = combined_path;
+    child_origin->kind = 2u;
+    child_origin->next = NULL;
+
+    /* The parent already owns the exclusive reservation. Do not acquire a
+       second owner reservation for its child. Publish only after allocation. */
+    semantic_release_borrow_binding(ctx, borrower);
+    borrower->borrow_origins = child_origin;
+    borrower->borrowed_from = child_origin->owner;
+    borrower->borrow_kind = 2u;
+    borrower->borrow_path = child_origin->path;
+    parent->borrow_suspended_by_identity = borrower->borrow_identity;
+    free(suffix);
+    return 1;
+
+allocation_failure:
+    free(suffix);
+    free(combined_path);
+    free(child_origin);
+    report_error(ctx, borrow_node, ERR_SEMANTIC_TYPE_MISMATCH,
+        "Unable to allocate mutable reborrow metadata; the previous reference binding was preserved.");
+    return 1;
+}
+
 static void semantic_register_borrow_binding(
     SemanticContext* ctx, Slot* borrower, ASTNode* initializer
 ) {
@@ -7369,40 +7496,12 @@ static void semantic_register_borrow_binding(
             return;
         }
     }
-    /* Mutable dereference reborrows must not fall through to the
-       ordinary lvalue path: doing so would either borrow the reference Slot
-       itself or lose the parent/child lifetime relationship. Keep this
-       operation explicitly rejected until suspension tracking is available. */
-    if (borrow->op == TOKEN_BORROW_MUT && borrow->operand &&
-        borrow->operand->type == AST_UNARY_EXPR) {
-        ASTUnaryExpr* dereference = (ASTUnaryExpr*)borrow->operand;
-        if (dereference->op == TOKEN_STAR && dereference->operand &&
-            dereference->operand->type == AST_IDENTIFIER) {
-            ASTIdentifier* reference_id = (ASTIdentifier*)dereference->operand;
-            Slot* source = find_slot(ctx, reference_id->name);
-            if (source && source != borrower &&
-                semantic_is_mut_reference_type_name(source->type_name)) {
-                report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Mutable &mut *parent reborrow is not supported until parent suspension and child resumption are tracked.");
-                return;
-            }
-        }
-    }
-    /* Mutable projections through a mutable safe reference are not
-       ordinary owner borrows. Until parent-child suspension is implemented,
-       reject them here rather than letting the generic lvalue path accept
-       them as an independent borrow. */
-    if (borrow->op == TOKEN_BORROW_MUT && borrow->operand &&
-        (borrow->operand->type == AST_MEMBER_ACCESS ||
-         borrow->operand->type == AST_INDEX_ACCESS)) {
-        Slot* projection_root = semantic_lvalue_root_slot(ctx, borrow->operand);
-        if (projection_root &&
-            semantic_is_mut_reference_type_name(projection_root->type_name)) {
-            report_error(ctx, initializer, ERR_SEMANTIC_TYPE_MISMATCH,
-                "Mutable projection reborrow requires parent-child suspension and resumption tracking; only shared projection reborrows are currently supported.");
-            return;
-        }
-    }
+    /* Mutable reborrows are handled as parent/child relations before the
+       generic lvalue path can mistake the reference binding for its owner. */
+    if (borrow->op == TOKEN_BORROW_MUT &&
+        semantic_register_mutable_reborrow(
+            ctx, borrower, (ASTNode*)borrow, borrow->operand))
+        return;
     /* Shared-reference member/index reborrow: compose the projection
        with the original owner paths instead of treating the reference slot
        as storage. */
