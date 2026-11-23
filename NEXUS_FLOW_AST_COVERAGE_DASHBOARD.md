@@ -1433,3 +1433,13 @@ Test: `922fade`; design: `55916fd`; plan: `d991d42`. Status: **IN_PROGRESS**. OI
 - [ ] Extend to panic/defer and all supported nonlocal exit paths; add dangling-origin stress.
 
 Tests: `755ec7f`; design: `558a27e`; plan: `e0ff3fc`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — suspended parent transfer rejection (2026-11-23)
+
+- [x] Reject passing a suspended parent reference as an `&mut T` call argument.
+- [x] Reject relocating a suspended parent with `_>`.
+- [x] Verify workflow run 45093904144: all five jobs passed; Ubuntu/ASan 74/74; Valgrind zero errors.
+- [ ] Expand to callback/closure/thread capture and all call/transfer forms.
+
+Tests: `11c8302`; design: `503da37`; plan: `029eb6d`. Status: **IN_PROGRESS**. OIR remains gated.
