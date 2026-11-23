@@ -1339,8 +1339,22 @@ Commits: implementation `f68585c`, `ee81654`, `4f44554`, `b3e1612`, `abd51da`; t
 - [x] Diagnose divergent mutable child projection paths at the control-flow join.
 - [x] Test equal parent/child relationships on both branches and rejection of differing field projections.
 - [x] Verify workflow run 45090600776: all five jobs passed; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
-- [ ] Extend graph-join tests to nested parent/child chains and select/scan arms.
+- [x] Extend graph-join tests to nested parent/child chains and verify post-join child writes plus reverse-order scope resumption.
+- [ ] Extend graph-join tests to select/scan arms.
 - [ ] Verify loop back-edge and early-termination cleanup invariants.
 - [ ] Add allocation-failure atomicity tests for child registration and snapshot restoration.
 
 Implementation: `ceb70cc`; final tests: `6ae2372`; design: `26b4fcb`; plan: `63240df`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — nested graph-safe snapshot restoration (2026-11-23)
+
+- [x] Restore borrow graphs in two passes: release all current bindings, then install all snapshot clones.
+- [x] Validate restored parent → child and child → parent links, including the shared exclusive storage owner.
+- [x] Test root → child → grandchild across identical if/els paths, post-join grandchild mutation and reverse-order scope resumption.
+- [x] Verify workflow run 45090990756: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed; Ubuntu/ASan 74/74.
+- [ ] Add select/scan graph-join regressions.
+- [ ] Add loop back-edge and early-termination cleanup regressions.
+- [ ] Add allocation-failure atomicity tests for child registration and snapshot restore.
+
+Implementation: `e2cc0ae`; regression: `462f528`; design: `89d69ec`; plan: `c1e328d`. Status: **IN_PROGRESS**. OIR remains gated.
