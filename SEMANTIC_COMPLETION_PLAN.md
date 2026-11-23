@@ -827,3 +827,12 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Workflow run 45092909275 passed all five jobs; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
 - Test commit `fed89d5`; design update `53cee06`.
 - This verifies structural graph integrity under injected OOM, not exact equality with the pre-restore graph snapshot. Exact rollback-equivalence tests remain open. SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — nested projection path composition (2026-11-23)
+
+- Added a parent borrow of `outer.inner` followed by a child reborrow of `parent.left`; the resulting owner path is composed through both projections.
+- Verified disjoint `outer.other` access remains valid while the child is active, while a second mutable borrow of overlapping `outer.inner.left` is rejected.
+- Workflow run 45093228358 passed all five jobs; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
+- Test commit `922fade`; design update `55916fd`.
+- Remaining projection coverage: member/index combinations, dynamic indices, deeper nested paths and a broader overlap/disjointness matrix. SEM-005 remains IN_PROGRESS; OIR remains gated.
