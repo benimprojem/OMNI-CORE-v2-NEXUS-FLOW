@@ -855,3 +855,13 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Workflow run 45093904144 passed all five jobs; Ubuntu/ASan 74/74; Valgrind zero errors.
 - Test commit `11c8302`; design update `503da37`.
 - Remaining transfer/lifecycle gaps include other call forms, closure/thread capture and broader dangling-origin stress. SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — indexed parent-origin reborrow paths (2026-11-23)
+
+- Verified a mutable parent borrowing `items[0]` can be reborrowed through `&mut *parent`; disjoint `items[1]` access remains valid and the parent resumes after child scope exit.
+- Verified overlapping `items[0]` alias creation is rejected while the child is active.
+- Verified a dynamic parent origin `items[index]` conservatively conflicts with a fixed-index alias.
+- Workflow run 45094328449 passed all five jobs; Ubuntu/ASan 74/74; Valgrind zero errors.
+- Test commit `689707c`; design update `9a9d427`.
+- Remaining: mixed member/index projection chains (array fields in aggregates are not covered here), deeper paths, and broader dynamic-index cases. SEM-005 remains IN_PROGRESS; OIR remains gated.
