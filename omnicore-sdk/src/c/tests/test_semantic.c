@@ -2584,6 +2584,22 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         "struct: Container { v:value!Bits, v:guard!i32 } "
         "v:container!Container; &mut first!i32 = &mut container.value.word; "
         "&mut second!u8 = &mut container.value.octet; }";
+    const char* inline_array_member_distinct_indexes_are_independent =
+        "f:main() { struct:Container { v:items[3]!i32 } "
+        "v:container!Container; &mut first!i32 = &mut container.items[0]; "
+        "&mut second!i32 = &mut container.items[2]; }";
+    const char* inline_array_member_same_index_borrows_conflict =
+        "f:main() { struct:Container { v:items[3]!i32 } "
+        "v:container!Container; &mut first!i32 = &mut container.items[1]; "
+        "&mut second!i32 = &mut container.items[1]; }";
+    const char* inline_array_member_shared_borrow_allows_other_index_write =
+        "f:main() { struct:Container { v:items[3]!i32 } "
+        "v:container!Container; &first!i32 = &container.items[0]; "
+        "container.items[2] = 7; }";
+    const char* inline_array_member_dynamic_indexes_are_conservative =
+        "f:main(i!i32, j!i32) { struct:Container { v:items[3]!i32 } "
+        "v:container!Container; &mut first!i32 = &mut container.items[i]; "
+        "&mut second!i32 = &mut container.items[j]; }";
     return check_source(shared_index_and_mutable_other_index_are_independent, 0) &&
         check_source(mutable_index_allows_other_index_write, 0) &&
         check_source(shared_index_allows_other_index_write, 0) &&
@@ -2598,7 +2614,11 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         check_source(two_shared_member_borrows_are_allowed, 0) &&
         check_source(distinct_union_member_mutable_borrows_conflict, 1) &&
         check_source(union_member_and_outer_sibling_are_independent, 0) &&
-        check_source(nested_union_member_borrows_conflict, 1);
+        check_source(nested_union_member_borrows_conflict, 1) &&
+        check_source(inline_array_member_distinct_indexes_are_independent, 0) &&
+        check_source(inline_array_member_same_index_borrows_conflict, 1) &&
+        check_source(inline_array_member_shared_borrow_allows_other_index_write, 0) &&
+        check_source(inline_array_member_dynamic_indexes_are_conservative, 1);
 }
 
 static int check_array_type_semantics(void) {
