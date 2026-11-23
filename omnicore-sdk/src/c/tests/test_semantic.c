@@ -1920,10 +1920,21 @@ static int check_mutable_reborrow_parent_child_semantics(void) {
         "f:main() { struct:Point { v:x!i32, v:y!i32 } "
         "v:point!Point; &mut parent!Point = &mut point; "
         "{ &mut child!i32 = &mut parent.x; v:value!i32 = parent.y; } }";
+    const char* nested_mutable_reborrow_resumes_in_reverse_order =
+        "f:main() { v:owner!i32 = 1; &mut root!i32 = &mut owner; "
+        "{ &mut child!i32 = &mut *root; "
+        "{ &mut grandchild!i32 = &mut *child; *grandchild = 10; } "
+        "*child = 20; } *root = 30; }";
+    const char* suspended_parent_reassignment_rejected =
+        "f:main() { v:owner!i32 = 1; v:other!i32 = 2; "
+        "&mut parent!i32 = &mut owner; "
+        "{ &mut child!i32 = &mut *parent; parent = &mut other; } }";
     return check_source(mutable_projection_reborrow_and_resume, 0) &&
         check_source(mutable_dereference_reborrow_and_resume, 0) &&
         check_source(suspended_parent_dereference_rejected, 1) &&
-        check_source(suspended_parent_projection_rejected, 1);
+        check_source(suspended_parent_projection_rejected, 1) &&
+        check_source(nested_mutable_reborrow_resumes_in_reverse_order, 0) &&
+        check_source(suspended_parent_reassignment_rejected, 1);
 }
 
 static int check_reference_member_projection_semantics(void) {
