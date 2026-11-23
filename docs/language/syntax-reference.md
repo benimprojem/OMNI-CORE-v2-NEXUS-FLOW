@@ -125,13 +125,11 @@ v:owner!i32 = 10;
 
 - `&*r`, yalnızca kaynağı Semantic tarafından izlenen `&T` shared reference olduğunda kabul edilir; yeni referans aynı owner/projection kökenini korur.
 - `&*p` biçiminde raw pointer dereference sonucundan safe reference üretilemez; raw pointer güvenli provenance/lifetime garantisi sağlamaz.
-- `&*r` üzerinden `&mut T` parent reborrow ve mutable-parent suspension/resumption henüz desteklenmez. `&mut T` kaynağından shared reborrow da mevcut uygulamada reddedilir; bu davranış SEM-005 kapsamında açık bir eksik olarak izlenir.
+- `&*r` üzerinden `&mut T` üretimi ve `&mut T` kaynağından shared reborrow mevcut uygulamada reddedilir. Bunlar SEM-005 kapsamındaki ayrı eksiklerdir.
 
-- `&mut *r` biçiminde mutable-reference üzerinden child mutable reborrow dil tasarımında tanımlıdır; parent, child aktifken askıya alınır ve child'ın lexical scope'u sona erdiğinde yeniden etkinleşir. Bu davranış henüz Semantic tarafından uygulanmadığından şu an geçerli/derlenebilir özellik olarak kabul edilmez.
+##### Mutable parent reborrow — desteklenen Semantic davranışı
 
-##### Mutable parent reborrow — normatif hedef, henüz uygulanmamış
-
-Mutable bir safe reference üzerinden yeni bir mutable reference oluşturmak için dereference edilmiş parent kullanılır. Child'ın ömrü parent'ın ömrü içinde kalmalıdır. Parent, child'ın aktif scope'u boyunca doğrudan okunamaz, yazılamaz, yeniden borrow edilemez veya başka bir çağrıya geçirilemez. Child sona erince parent yeniden kullanılabilir.
+Mutable bir safe reference üzerinden yeni bir mutable reference oluşturmak için dereference edilmiş parent veya onun bir member projection'ı kullanılır. Child'ın ömrü parent'ın ömrü içinde kalmalıdır. Parent, child'ın aktif scope'u boyunca doğrudan okunamaz, yazılamaz, yeniden borrow edilemez veya başka bir çağrıya geçirilemez. Child sona erince parent yeniden kullanılabilir.
 
 ```nxf
 v:owner!i32 = 10;
@@ -144,17 +142,28 @@ v:owner!i32 = 10;
 }
 
 *parent = 40; # Child scope sona erdi; parent yeniden etkin
+
+struct:Pair { v:left!i32, v:right!i32 }
+v:pair!Pair;
+&mut pair_ref!Pair = &mut pair;
+{
+    &mut left_ref!i32 = &mut pair_ref.left;
+    *left_ref = 50;
+}
+pair_ref.right = 60;
 ```
 
 Kurallar:
-- Child referans parent'ın referans verdiği aynı owner/projection yoluna bağlıdır; parent'ın kökeni child'a aktarılır.
-- Child oluşturulurken parent'ın mutable borrow'u child tarafından geçici olarak devralınır (suspend). Bu sürede parent kullanımı fail-closed reddedilir.
+- Child referans parent'ın referans verdiği aynı owner/projection yoluna bağlıdır; parent'ın kökeni child'a aktarılır ve projection suffix'i owner yoluna eklenir.
+- Child oluşturulurken parent'ın mutable borrow'u child tarafından geçici olarak devralınır (suspend). Bu sürede parent identifier/member/index erişimi, reassignment, move/relocate, call argümanı olarak geçirme ve yeniden borrow girişimleri fail-closed reddedilir.
 - Child scope kapanışında child borrow kaldırılır ve parent borrow yeniden etkinleştirilir (resume). Parent'ın scope'u child'dan kısa olamaz.
-- Child aktifken parent'ın reassignment, move/relocate veya yeniden borrow girişimleri reddedilir.
 - İç içe mutable reborrow'lar parent → child → grandchild biçiminde zincirlenebilir; yalnızca en içte aktif child kullanılabilir. Her child kapanışında bir üst parent yeniden etkinleşir.
-- Birden fazla child veya branch merge, aynı anda aktif parent'ı çoğaltamaz; her control-flow yolunda parent-child ilişkisi ve kapanış doğrulanmalıdır.
+- Mutable parent-child ilişkileri control-flow snapshot'larında korunur. if/els, select/default ve scan/else yollarında mutable origin, parent identity ve projection path aynı olmalıdır; farklı graph'lar birleştirilmez ve Semantic hatası üretilir.
+- Loop gövdesindeki child, her iteration scope'u kapandığında serbest bırakılmalıdır. Back-edge üzerinde kalıcı child ilişkisi değişikliği güvenli biçimde birleştirilemiyorsa reddedilir.
+- Owner üzerinden parent'ın dışındaki kanıtlanmış disjoint projection erişimi devam edebilir; parent binding'in kendisi child aktifken askıdadır.
+- Uygulama, tek ve izlenebilir exclusive origin gerektirir. Unknown veya branched provenance fail-closed reddedilir. `&mut T` kaynağından shared reborrow henüz desteklenmez.
 
-**Uygulama durumu:** Bu bölüm gelecekteki dil kontratını kaydeder. Parser syntax'i tanıyabilse bile Semantic suspension/resumption, lexical scope cleanup, control-flow merge ve nested reborrow testleri tamamlanmadan özellik desteklenmiş sayılmaz. SEM-005 açık kalır.
+**Uygulama durumu:** C Semantic katmanında doğrudan `&mut *parent`, member projection reborrow, nested parent-child cleanup, control-flow graph eşitliği ve temel OOM hata yayılımı uygulanmış ve test edilmiştir. SEM-005 henüz tamamlanmamıştır: snapshot restore başarısızlığında tam rollback eşitliği, select/scan/loop için daha geniş lifecycle matrisi, index/member karışık ve dinamik projection testleri, erken dönüş/dangling-origin kontrolleri açık kalır. Bu nedenle OIR aşamasına geçilmez.
 
 Dizi elemanına referans vermek için indeks doğrudan borrow operandının parçasıdır:
 
