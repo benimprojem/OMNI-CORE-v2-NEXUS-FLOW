@@ -1329,4 +1329,4 @@ CI confirmation: run `45085185651` for fix commit `4d00ef2` completed successful
 - [ ] Add child-registration allocation-failure atomicity, early-exit/loop cleanup and dangling-origin tests.
 - [ ] Complete call argument, move/relocate, nested projection and overlapping/disjoint path regression matrix.
 
-Commits: implementation `f68585c`, `ee81654`, `4f44554`, `abd51da`; tests `0541025`, `f1a616f`; design `6dc3fa7`; plan `9eb151a`. Status: **IN_PROGRESS**. OIR remains gated.
+Commits: implementation `f68585c`, `ee81654`, `4f44554`, `b3e1612`, `abd51da`; tests `0541025`, `f1a616f`; design `6dc3fa7`; plan `9eb151a`. Status: **IN_PROGRESS**. OIR remains gated.
