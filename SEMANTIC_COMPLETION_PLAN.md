@@ -126,6 +126,14 @@ The order below is a dependency order. Audit results may mark an item already im
 - Test commit: `b9d4e11e6e8277ddcce639113c5ebe9c4822a71f`.
 - Exact-head CI has been triggered; the new tests are not considered passing until all platform, sanitizer and Valgrind jobs complete successfully. If a case fails, investigate whether the issue is array member type projection, lvalue provenance path construction, or conservative overlap handling before changing the implementation.
 
+
+### SEM-005 — Nested array/struct borrow projection tests (2026-11-23)
+
+- Added three nested projection cases for arrays of nominal structs: distinct fields of the same element are independent; overlapping same-field borrows are rejected; the same field at different constant element indices is independent.
+- Added two conservative dynamic-index cases: dynamic/dynamic and dynamic/constant mutable borrows of the same nested field must reject.
+- Nested constant-projection tests commit: `0062a93832194ca7160a8780adbb43cf544dcf4c`; exact-head CI passed all five jobs (Linux, macOS, Windows, ASan/UBSan and Valgrind).
+- Dynamic nested projection tests commit: `7f6b119a60df8554df041fd9a50b9dca72c23659`; exact-head CI run `45256718023` passed all five jobs.
+- These are focused SEM-005 regression checkpoints, not a completion claim.
 ### SEM-005 — Pointer and reference safety
 - Inspect: safe `&T` / `&mut T`, raw `*T`, borrow exclusivity, projection overlap, lifetime origins, initialization, nullability, escape and callback return provenance.
 - Positive tests: independent struct fields/constant indexes, valid shared/exclusive borrow, initialized reference use, valid parameter-origin propagation.
