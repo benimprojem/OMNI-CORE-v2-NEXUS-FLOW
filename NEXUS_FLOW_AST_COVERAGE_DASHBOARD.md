@@ -1455,3 +1455,12 @@ Tests: `11c8302`; design: `503da37`; plan: `029eb6d`. Status: **IN_PROGRESS**. O
 - [ ] Extend to mixed member/index chains, array fields inside aggregates, deeper projection trees and dynamic-index combinations.
 
 Test: `689707c`; design: `9a9d427`; plan: `301efaf`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — mixed aggregate/index projection gap (2026-11-23)
+
+- [ ] Support and test mutable reborrow through an array member inside an aggregate (`container.items[0]`); current Semantic rejects array indexing on aggregate fields.
+- [x] Remove the unsupported fixture after CI exposed the current boundary; keep existing standalone array index tests intact.
+- [ ] Implement aggregate-member array indexing and mixed member/index path composition with positive, overlap, disjoint, and dynamic-index cases.
+
+Status: **IN_PROGRESS**. This is an implementation gap; syntax is not being changed. OIR remains gated.
