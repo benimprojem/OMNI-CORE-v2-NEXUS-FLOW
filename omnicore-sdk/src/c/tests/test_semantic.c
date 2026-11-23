@@ -2625,6 +2625,15 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         "struct:Container { v:items[2]!Item } v:container!Container; "
         "&mut first!i32 = &mut container.items[i].left; "
         "&mut second!i32 = &mut container.items[0].left; }";
+    const char* dynamic_index_mut_borrow_blocks_constant_write =
+        "f:main(i!i32) { v:items[3]!i32 = [1,2,3]; "
+        "&mut first!i32 = &mut items[i]; items[1] = 9; }";
+    const char* constant_index_mut_borrow_blocks_dynamic_write =
+        "f:main(i!i32) { v:items[3]!i32 = [1,2,3]; "
+        "&mut first!i32 = &mut items[1]; items[i] = 9; }";
+    const char* dynamic_index_shared_borrow_blocks_constant_write =
+        "f:main(i!i32) { v:items[3]!i32 = [1,2,3]; "
+        "&first!i32 = &items[i]; items[1] = 9; }";
     const char* inline_array_struct_mut_borrow_blocks_same_field_write =
         "f:main() { struct:Item { v:left!i32, v:right!i32 } "
         "struct:Container { v:items[2]!Item } v:container!Container; "
@@ -2666,7 +2675,7 @@ static int check_borrow_aggregate_provenance_semantics(void) {
         check_source(inline_array_struct_dynamic_vs_constant_conflicts, 1) &&
         check_source(inline_array_struct_mut_borrow_blocks_same_field_write, 1) &&
         check_source(inline_array_struct_mut_borrow_allows_sibling_field_write, 0) &&
-        check_source(inline_array_struct_mut_borrow_allows_other_index_write, 0);
+        check_source(dynamic_index_mut_borrow_blocks_constant_write, 1) &&\n        check_source(constant_index_mut_borrow_blocks_dynamic_write, 1) &&\n        check_source(dynamic_index_shared_borrow_blocks_constant_write, 1) &&\n        check_source(inline_array_struct_mut_borrow_allows_other_index_write, 0);
 }
 
 static int check_array_type_semantics(void) {
