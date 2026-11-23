@@ -779,3 +779,13 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Workflow run 45090600776 passed all five jobs (Ubuntu, Windows, macOS, ASan/UBSan, Valgrind); Ubuntu and ASan/UBSan report 74/74 tests, Valgrind reports zero errors.
 - Implementation commit `ceb70cc`; final regression commit `6ae2372` (an earlier fixture revision used invalid `else` spelling and was corrected to Nexus Flow `els`). Design update `26b4fcb`.
 - This closes direct if/els graph-join coverage only. Nested graph branch cases, select/scan joins, loop back-edge invariants, and allocation-failure/restore atomicity remain open. SEM-005 stays IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — nested graph-safe snapshot restoration (2026-11-23)
+
+- Fixed snapshot restore ordering: the complete current borrow graph is released in a first pass, then all cloned origin sets and suspension identities are installed in a second pass. This prevents a later parent restore from recursively deleting a child restored earlier in Slot-list order.
+- Added post-restore graph validation in both directions: suspended parents must resolve to their active child, and child origins must resolve to a suspended parent with the same exclusive storage owner.
+- Expanded branch regression to preserve root → child → grandchild across both if/els paths, write through the grandchild after the join, then verify child/root resumption in reverse scope order.
+- Workflow run 45090990756 passed all five jobs; Ubuntu and ASan/UBSan 74/74, Valgrind successful.
+- Implementation commit `e2cc0ae`; regression commit `462f528`; design update `89d69ec`.
+- Remaining: select/scan branch joins, loop back-edge and early-termination cleanup, OOM atomicity for child registration and snapshot restoration. SEM-005 remains IN_PROGRESS; OIR remains gated.
