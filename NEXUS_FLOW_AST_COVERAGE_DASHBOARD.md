@@ -1355,7 +1355,8 @@ Implementation: `ceb70cc`; final tests: `6ae2372`; design: `26b4fcb`; plan: `632
 - [x] Verify workflow run 45090990756: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed; Ubuntu/ASan 74/74.
 - [ ] Add select/scan graph-join regressions.
 - [ ] Add loop back-edge and early-termination cleanup regressions.
-- [ ] Add allocation-failure atomicity tests for child registration and snapshot restore.
+- [x] Sweep child-registration OOM sites and verify failed reborrow preserves the prior child origin and parent/owner reservations.
+- [ ] Add allocation-failure atomicity tests for snapshot clone/restore.
 
 Implementation: `e2cc0ae`; regression: `462f528`; design: `89d69ec`; plan: `c1e328d`. Status: **IN_PROGRESS**. OIR remains gated.
 
@@ -1372,3 +1373,16 @@ Implementation: `e2cc0ae`; regression: `462f528`; design: `89d69ec`; plan: `c1e3
 - [ ] Expand early-return, projection overlap/disjointness, and dangling-origin lifecycle tests.
 
 Tests: `1ea2581`; design: `9fd8b4c`; plan: `d0b0570`. Status: **IN_PROGRESS**. OIR remains gated.
+
+
+### SEM-005 — mutable reborrow OOM atomicity (2026-11-23)
+
+- [x] Add a fixture that rebinds an existing mutable child from a spare owner to a parent reborrow.
+- [x] Inject failure at each Semantic allocation site in the fixture.
+- [x] Verify child metadata allocation failure preserves the previous child origin, leaves parent unsuspended, and retains both exclusive owner reservations.
+- [x] Propagate OOM status from mutable child metadata and direct borrow-origin allocation paths.
+- [x] Verify workflow run 45092219887: all five jobs passed; Ubuntu/ASan 74/74; Valgrind zero errors.
+- [ ] Add snapshot clone/restore OOM atomicity tests.
+- [ ] Expand early-return, projection overlap/disjointness, and dangling-origin lifecycle tests.
+
+Implementation: `731d773`, `a1a39ef`; fixture/CMake: `11bdcaf`, `0a3c6ca`, `8e56a75`; atomicity test: `acd599e`, `b9504e2`; design: `1f2959e`; plan: `a50e4e8`. Status: **IN_PROGRESS**. OIR remains gated.
