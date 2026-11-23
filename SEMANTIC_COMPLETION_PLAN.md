@@ -846,3 +846,12 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Workflow run 45093659006 passed all five jobs; Ubuntu/ASan 74/74; Valgrind zero errors.
 - Test commit `755ec7f`; design update `558a27e`.
 - Remaining lifecycle gaps: panic/defer/other early exits, function-call transfer cases and dangling-origin stress. SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — suspended-parent transfer rejection (2026-11-23)
+
+- Added a negative test passing a suspended parent as an `&mut T` call argument.
+- Added a negative test attempting `_>` relocation of the suspended parent.
+- Workflow run 45093904144 passed all five jobs; Ubuntu/ASan 74/74; Valgrind zero errors.
+- Test commit `11c8302`; design update `503da37`.
+- Remaining transfer/lifecycle gaps include other call forms, closure/thread capture and broader dangling-origin stress. SEM-005 remains IN_PROGRESS; OIR remains gated.
