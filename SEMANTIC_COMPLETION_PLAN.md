@@ -818,3 +818,12 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Workflow run 45092521356 passed all five jobs; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
 - Fixture `875e910`; CMake registration `a2d799f`; docs `17ac609`.
 - This proves OOM propagation across snapshot allocations, not full restore-state atomicity. A dedicated assertion that failed clone/restore leaves the exact prior graph unchanged remains open. SEM-005 remains IN_PROGRESS; OIR remains gated.
+
+
+### SEM-005 — snapshot OOM graph-integrity checks (2026-11-23)
+
+- Extended the snapshot OOM harness to process function-body statements individually, keeping parent/child Slots inspectable after branch snapshot operations.
+- Every injected failure now checks graph integrity: parent suspension ↔ child identity, child parent identity ↔ suspended parent, common exclusive storage owner, and no suspended parent when the child is a direct borrow.
+- Workflow run 45092909275 passed all five jobs; Ubuntu and ASan/UBSan 74/74; Valgrind zero errors.
+- Test commit `fed89d5`; design update `53cee06`.
+- This verifies structural graph integrity under injected OOM, not exact equality with the pre-restore graph snapshot. Exact rollback-equivalence tests remain open. SEM-005 remains IN_PROGRESS; OIR remains gated.
