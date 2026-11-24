@@ -11679,7 +11679,15 @@ static void semantic_check_node(
                 ctx->current_method_receiver_type_id = receiver_slot->type_id;
             }
 
-            if (m->implementation) semantic_check_node(ctx, m->implementation, 0);
+            if (m->implementation) {
+                /* A Group method is its own execution context, including the
+                   block-form default handler which has no AST_FUNC_DECL. */
+                ++ctx->function_depth;
+                semantic_check_node(ctx, m->implementation, 0);
+                if (ctx->halted_function_depth == (uint32_t)ctx->function_depth)
+                    ctx->halted_function_depth = UINT32_MAX;
+                --ctx->function_depth;
+            }
 
             ctx->current_method_receiver_type = previous_receiver_type;
             ctx->current_method_receiver_type_id = previous_receiver_type_id;
