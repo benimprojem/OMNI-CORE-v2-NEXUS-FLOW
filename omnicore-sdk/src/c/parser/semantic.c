@@ -1268,6 +1268,11 @@ static void enter_scope(SemanticContext* ctx, ASTNode* owner_node) {
 static void exit_scope(SemanticContext* ctx) {
     if (!ctx) return;
 
+    /* A Halt only terminates its current lexical table; leaving that scope
+       restores traversal in the enclosing table. */
+    if (ctx->halted_depth == (uint32_t)ctx->current_depth)
+        ctx->halted_depth = UINT32_MAX;
+
     /* Release every borrow in this scope before freeing any owner Slot.
        Declaration order must not affect cleanup safety. */
     {
@@ -7864,6 +7869,7 @@ static void semantic_check_node(
     SemanticContext* ctx, ASTNode* node, int follow_siblings
 ) {
     if (!node) return;
+    if (ctx->halted_depth == (uint32_t)ctx->current_depth) return;
 
     switch (node->type) {
         case AST_PROGRAM:
@@ -10135,10 +10141,11 @@ static void semantic_check_node(
         }
 
         case AST_BLOCK_HALT:
-            /* Cleanup marker is a typed, zero-value semantic instruction.
-               Its ordering/lowering is owned by the later OIR cleanup pass. */
+            /* Halt terminates this block's statement flow. Resource lifetime
+               invalidation is handled by the SEM-005 ownership pass. */
             semantic_record_annotation(
                 ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
+            ctx->halted_depth = (uint32_t)ctx->current_depth;
             break;
 
         case AST_RETURN: {
@@ -11323,6 +11330,7 @@ static void semantic_check_node(
         case AST_NEXUS_HALT: {
             ASTHalt* halt = (ASTHalt*)node;
             if (halt->expr) semantic_check(ctx, halt->expr);
+            ctx->halted_depth = (uint32_t)ctx->current_depth;
             break;
         }
 
