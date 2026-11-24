@@ -4147,6 +4147,13 @@ static int check_intrinsic_semantics(void) {
         "f:main() { free(\"not a handle\"); }";
     const char* invalid_count =
         "f:main() { peek(); poke(1); inb(); outb(1); area(); zone(1, 2); free(); }";
+    const char* halt_stops_current_table =
+        "f:main() { ?; v:unreachable = missing_after_halt; }";
+    const char* halt_is_local_to_nested_table =
+        "f:main() { { ?; v:unreachable = missing_after_halt; } "
+        "v:outer!i32 = 1; }";
+    const char* block_halt_is_local_to_nested_table =
+        "f:main() { { v:inside!i32 = 1; }?; v:outer!i32 = 2; }";
     return check_source(valid_memory, 0) &&
         check_source(invalid_addr, 1) &&
         check_source(invalid_len, 1) &&
@@ -4159,7 +4166,10 @@ static int check_intrinsic_semantics(void) {
         check_source(invalid_area, 1) &&
         check_source(invalid_zone_type, 1) &&
         check_source(invalid_free, 1) &&
-        check_source(invalid_count, 7);
+        check_source(invalid_count, 7) &&
+        check_source(halt_stops_current_table, 0) &&
+        check_source(halt_is_local_to_nested_table, 0) &&
+        check_source(block_halt_is_local_to_nested_table, 0);
 }
 
 
