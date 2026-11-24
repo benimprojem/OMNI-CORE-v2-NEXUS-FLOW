@@ -1269,9 +1269,6 @@ static void enter_scope(SemanticContext* ctx, ASTNode* owner_node) {
 static void exit_scope(SemanticContext* ctx) {
     if (!ctx) return;
 
-    /* A Halt only terminates its current lexical table; leaving that scope
-       restores traversal in the enclosing table. */
-    
     /* Release every borrow in this scope before freeing any owner Slot.
        Declaration order must not affect cleanup safety. */
     {
