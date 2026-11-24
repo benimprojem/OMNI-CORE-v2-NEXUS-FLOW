@@ -34,6 +34,8 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->active_thread_block = NULL;
     ctx->thread_capture_copy_depth = 0u;
     ctx->next_borrow_identity = 0u;
+    ctx->active_allocations = NULL;
+    ctx->next_allocation_identity = 0u;
     ctx->thread_block_depth = 0u;
     ctx->borrow_operand_depth = 0u;
     ctx->assignment_target_depth = 0u;
@@ -4357,6 +4359,102 @@ static void semantic_validate_reg_intrinsic(
     }
 }
 
+static ActiveAllocation* semantic_find_active_allocation(
+    const SemanticContext* ctx, uint64_t identity
+) {
+    ActiveAllocation* current;
+    if (!ctx || identity == 0u) return NULL;
+    for (current = ctx->active_allocations; current; current = current->next)
+        if (current->identity == identity) return current;
+    return NULL;
+}
+
+static uint64_t semantic_find_allocation_expression_identity(
+    const SemanticContext* ctx, const ASTNode* origin
+) {
+    ActiveAllocation* current;
+    if (!ctx || !origin) return 0u;
+    for (current = ctx->active_allocations; current; current = current->next)
+        if (current->origin == origin) return current->identity;
+    return 0u;
+}
+
+static uint64_t semantic_register_allocation(
+    SemanticContext* ctx, const ASTNode* origin
+) {
+    ActiveAllocation* entry;
+    uint64_t identity;
+    if (!ctx || !origin) return 0u;
+    identity = semantic_find_allocation_expression_identity(ctx, origin);
+    if (identity != 0u) return identity;
+    if (ctx->next_allocation_identity == UINT64_MAX) {
+        report_error(ctx, (ASTNode*)origin, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Allocation identity space is exhausted; refusing to create a reusable identity.");
+        return 0u;
+    }
+    entry = (ActiveAllocation*)semantic_callocate(ctx, 1u, sizeof(*entry));
+    if (!entry) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        report_error(ctx, (ASTNode*)origin, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Unable to record allocation lifetime metadata.");
+        return 0u;
+    }
+    identity = ++ctx->next_allocation_identity;
+    if (identity == 0u) { /* Defensive: identity zero is permanently reserved. */
+        free(entry);
+        report_error(ctx, (ASTNode*)origin, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Allocation identity generation failed; refusing an ambiguous allocation.");
+        return 0u;
+    }
+    entry->identity = identity;
+    entry->origin = origin;
+    entry->next = ctx->active_allocations;
+    ctx->active_allocations = entry;
+    return identity;
+}
+
+static int semantic_release_allocation(
+    SemanticContext* ctx, uint64_t identity
+) {
+    ActiveAllocation** link;
+    if (!ctx || identity == 0u) return 0;
+    link = &ctx->active_allocations;
+    while (*link) {
+        ActiveAllocation* current = *link;
+        if (current->identity == identity) {
+            *link = current->next;
+            free(current);
+            return 1;
+        }
+        link = &current->next;
+    }
+    return 0;
+}
+
+static void semantic_release_all_allocations(SemanticContext* ctx) {
+    ActiveAllocation* current;
+    if (!ctx) return;
+    current = ctx->active_allocations;
+    ctx->active_allocations = NULL;
+    while (current) {
+        ActiveAllocation* next = current->next;
+        free(current);
+        current = next;
+    }
+}
+
+static uint64_t semantic_expression_allocation_identity(
+    SemanticContext* ctx, ASTNode* expression
+) {
+    Slot* slot;
+    if (!ctx || !expression) return 0u;
+    if (expression->type == AST_IDENTIFIER) {
+        slot = find_slot(ctx, ((ASTIdentifier*)expression)->name);
+        return slot ? slot->allocation_identity : 0u;
+    }
+    return semantic_find_allocation_expression_identity(ctx, expression);
+}
+
 static void semantic_validate_allocation_intrinsic(
     SemanticContext* ctx, ASTNode* node
 ) {
@@ -8052,6 +8150,9 @@ static void semantic_check_node(
                         "Initializer for c: must be a compile-time constant expression; runtime calls and non-constant values are not allowed.");
                 }
                 init_type = get_expr_type(ctx, decl->initializer);
+                if (declared_slot && ctx->error_count == initializer_error_baseline)
+                    declared_slot->allocation_identity =
+                        semantic_expression_allocation_identity(ctx, decl->initializer);
                 if (((declared_slot && semantic_type_is_any(
                         ctx, declared_slot->type_name)) ||
                      (declared_slot && semantic_is_array_type_name(
@@ -8788,6 +8889,8 @@ static void semantic_check_node(
                 }
                 if (slot && slot->type_name) {
                     const char* right_type = get_expr_type(ctx, assign->right);
+                    slot->allocation_identity =
+                        semantic_expression_allocation_identity(ctx, assign->right);
                     int named_function_assignment = 0;
                     if (semantic_type_is_any(ctx, slot->type_name) &&
                         semantic_expression_contains_safe_reference(
@@ -10143,6 +10246,7 @@ static void semantic_check_node(
                invalidation is handled by the SEM-005 ownership pass. */
             semantic_record_annotation(
                 ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
+            semantic_release_all_allocations(ctx);
             ctx->halted_function_depth = (uint32_t)ctx->function_depth;
             break;
 
@@ -11328,6 +11432,7 @@ static void semantic_check_node(
         case AST_NEXUS_HALT: {
             ASTHalt* halt = (ASTHalt*)node;
             if (halt->expr) semantic_check(ctx, halt->expr);
+            semantic_release_all_allocations(ctx);
             ctx->halted_function_depth = (uint32_t)ctx->function_depth;
             break;
         }
@@ -11473,8 +11578,30 @@ static void semantic_check_node(
             else if (node->type == AST_INB || node->type == AST_OUTB)
                 semantic_validate_port_intrinsic(ctx, node);
             else if (node->type == AST_AREA || node->type == AST_ZONE ||
-                     node->type == AST_FREE)
+                     node->type == AST_FREE) {
                 semantic_validate_allocation_intrinsic(ctx, node);
+                if (node->type == AST_AREA || node->type == AST_ZONE) {
+                    if (ctx->error_count == 0 ||
+                        semantic_find_allocation_expression_identity(ctx, node) != 0u)
+                        (void)semantic_register_allocation(ctx, node);
+                } else {
+                    ASTNode* value = semantic_intrinsic_argument_value(call->args);
+                    uint64_t identity = semantic_expression_allocation_identity(ctx, value);
+                    if (identity != 0u) {
+                        if (!semantic_release_allocation(ctx, identity))
+                            report_error(ctx, value ? value : node,
+                                ERR_SEMANTIC_TYPE_MISMATCH,
+                                "free() received an allocation handle that is no longer active.");
+                    } else if (value && value->type == AST_IDENTIFIER) {
+                        Slot* handle = find_slot(ctx, ((ASTIdentifier*)value)->name);
+                        if (handle && handle->type_name &&
+                            (strcmp(handle->type_name, "area") == 0 ||
+                             strcmp(handle->type_name, "zone") == 0))
+                            report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "free() cannot release this handle because its allocation identity is not active.");
+                    }
+                }
+            }
             else if (node->type == AST_IRQ)
                 semantic_validate_irq_intrinsic(ctx, node);
             else if (node->type == AST_REG)
@@ -11843,6 +11970,7 @@ void semantic_destroy(SemanticContext* ctx) {
     if (!ctx) return;
 
     Slot* current;
+    semantic_release_all_allocations(ctx);
     /* Release all cross-Slot links before destroying any Slot. */
     for (current = ctx->head; current; current = current->next)
         semantic_release_borrow_binding(ctx, current);
