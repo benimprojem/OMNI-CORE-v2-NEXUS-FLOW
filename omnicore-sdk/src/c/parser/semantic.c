@@ -19,6 +19,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->error_head = NULL;
     ctx->error_tail = NULL;
     ctx->current_depth = 0;
+    ctx->halted_depth = UINT32_MAX;
     ctx->loop_depth = 0u;
     ctx->function_depth = 0u;
     ctx->current_func_return_type = NULL;
