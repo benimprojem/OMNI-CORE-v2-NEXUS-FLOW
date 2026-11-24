@@ -30,6 +30,7 @@ typedef struct Slot Slot;
 typedef struct ActiveAllocation {
     uint64_t identity;
     const ASTNode* origin; /* Allocation expression identity; never a numeric address. */
+    uint32_t function_depth; /* Halt only invalidates allocations owned by this execution context. */
     struct ActiveAllocation* next;
 } ActiveAllocation;
 
