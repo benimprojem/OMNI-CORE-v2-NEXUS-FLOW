@@ -4146,6 +4146,10 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_old_alias_stays_invalid =
         "f:main() { v:a = area(64); v:old = a; free(a); "
         "v:b = area(64); echo(old); echo(b); }";
+    const char* allocation_address_alias_use_after_free =
+        "f:main() { v:a = area(64); v:p = addr(a); free(a); echo(p); }";
+    const char* allocation_double_free =
+        "f:main() { v:a = area(64); free(a); free(a); }";
     const char* invalid_area =
         "f:main() { v:a = area(0); }";
     const char* invalid_zone_type =
@@ -4173,6 +4177,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_alias_use_after_free, 1) &&
         check_source(allocation_new_identity_after_reuse, 0) &&
         check_source(allocation_old_alias_stays_invalid, 1) &&
+        check_source(allocation_address_alias_use_after_free, 1) &&
+        check_source(allocation_double_free, 1) &&
         check_source(invalid_area, 1) &&
         check_source(invalid_zone_type, 1) &&
         check_source(invalid_free, 1) &&
