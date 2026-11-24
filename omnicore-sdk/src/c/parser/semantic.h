@@ -27,6 +27,12 @@ typedef struct FieldInfo {
 // Masa (Slot) - Sembol Tablosu Kaydı
 typedef struct Slot Slot;
 
+typedef struct ActiveAllocation {
+    uint64_t identity;
+    const ASTNode* origin; /* Allocation expression identity; never a numeric address. */
+    struct ActiveAllocation* next;
+} ActiveAllocation;
+
 typedef struct BorrowOrigin {
     Slot* owner;             /* Non-owning storage-owner reference. */
     uint64_t borrower_identity; /* Stable identity of the binding that owns this origin. */
@@ -48,6 +54,7 @@ struct Slot {
     uint8_t is_initialized; /* Definite initialization state for pointer/reference/callback bindings. */
     uint8_t is_nullable;    /* Binding may currently contain null (pointer/callback values). */
     uint64_t borrow_identity; /* Stable for this Slot across rebinding and branch snapshots. */
+    uint64_t allocation_identity; /* Allocation provenance; zero means no tracked allocation. */
     uint64_t borrow_suspended_by_identity; /* Active exclusive child; zero when accessible. */
     BorrowOrigin* borrow_origins; /* Conservative set of possible active borrow origins. */
     struct Slot* borrowed_from; /* Compatibility view of the first origin during migration. */
@@ -155,6 +162,8 @@ typedef struct {
     ThreadBlockEntry* active_thread_block;
     uint32_t thread_capture_copy_depth;
     uint64_t next_borrow_identity; /* Monotonic SemanticContext-local borrow identity source. */
+    ActiveAllocation* active_allocations; /* Sole source of truth for live allocation identities. */
+    uint64_t next_allocation_identity; /* Monotonic; overflow must fail closed. */
 
     /* Deterministic allocation-failure injection for semantic tests; zero disables. */
     uint32_t test_allocation_fail_at;
