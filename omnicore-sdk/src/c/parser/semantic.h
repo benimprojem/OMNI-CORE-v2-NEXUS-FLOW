@@ -111,7 +111,7 @@ typedef struct {
     Error* error_tail;
     int current_depth;
     /* Scope depth at which Halt terminates statement traversal; UINT32_MAX means active. */
-    uint32_t halted_depth;
+    uint32_t halted_function_depth;
     unsigned int loop_depth;
     unsigned int function_depth;
     const char* current_func_return_type;
