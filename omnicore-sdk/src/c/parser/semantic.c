@@ -11328,7 +11328,7 @@ static void semantic_check_node(
         case AST_NEXUS_HALT: {
             ASTHalt* halt = (ASTHalt*)node;
             if (halt->expr) semantic_check(ctx, halt->expr);
-            ctx->halted_depth = (uint32_t)ctx->current_depth;
+            ctx->halted_function_depth = (uint32_t)ctx->function_depth;
             break;
         }
 
