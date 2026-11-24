@@ -135,6 +135,15 @@ The order below is a dependency order. Audit results may mark an item already im
 - Dynamic nested projection tests commit: `7f6b119a60df8554df041fd9a50b9dca72c23659`; exact-head CI run `45256718023` passed all five jobs.
 - These are focused SEM-005 regression checkpoints, not a completion claim.
 ### SEM-005 — Pointer and reference safety
+#### SEM-005 allocation identity checkpoint (implementation in progress)
+
+- The active-allocation registry is the sole source of truth for allocation liveness. Each successful area()/zone() expression receives a monotonically increasing identity independent of its numeric address.
+- Slot.allocation_identity carries provenance through direct handle aliases. free() removes the identity from the active registry; every alias with that identity then fails the identifier liveness check.
+- Reusing a numeric address does not reuse an identity. A later allocation gets a fresh identity and does not revive older aliases.
+- ?; and }?; currently clear the active registry when recording Halt. This is an initial conservative implementation; execution-context ownership and nested function isolation still require review before this behavior can be accepted.
+- Focused regression sources cover alias use after free, fresh allocation after free, and the continued invalidity of an old alias after a new allocation.
+- Not verified yet: pointer/address-derived aliases (&, addr, dereference, member/index projections), double-free diagnostic cardinality, branch/loop joins, scope/function ownership, and exact-head CI. Keep SEM-005 IN_PROGRESS.
+
 - Inspect: safe `&T` / `&mut T`, raw `*T`, borrow exclusivity, projection overlap, lifetime origins, initialization, nullability, escape and callback return provenance.
 - Positive tests: independent struct fields/constant indexes, valid shared/exclusive borrow, initialized reference use, valid parameter-origin propagation.
 - Negative tests: conflicting borrow, use-before-init, use-after-scope, longer-lived escape, unknown provenance, unsupported safe-reference storage and invalid raw-to-safe conversion.
