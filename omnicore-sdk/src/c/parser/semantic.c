@@ -4443,16 +4443,61 @@ static void semantic_release_all_allocations(SemanticContext* ctx) {
     }
 }
 
-static uint64_t semantic_expression_allocation_identity(
-    SemanticContext* ctx, ASTNode* expression
+static uint64_t semantic_expression_allocation_identity_depth(
+    SemanticContext* ctx, ASTNode* expression, unsigned int depth
 ) {
     Slot* slot;
-    if (!ctx || !expression) return 0u;
+    if (!ctx || !expression || depth > 64u) return 0u;
     if (expression->type == AST_IDENTIFIER) {
         slot = find_slot(ctx, ((ASTIdentifier*)expression)->name);
         return slot ? slot->allocation_identity : 0u;
     }
-    return semantic_find_allocation_expression_identity(ctx, expression);
+    {
+        uint64_t direct = semantic_find_allocation_expression_identity(ctx, expression);
+        if (direct != 0u) return direct;
+    }
+    switch (expression->type) {
+        case AST_ADDR:
+        case AST_LEN:
+        case AST_FREE:
+        case AST_AREA:
+        case AST_ZONE: {
+            ASTNode* argument = semantic_intrinsic_argument_value(
+                ((ASTCall*)expression)->args);
+            if (expression->type == AST_ADDR || expression->type == AST_FREE)
+                return semantic_expression_allocation_identity_depth(
+                    ctx, argument, depth + 1u);
+            return 0u;
+        }
+        case AST_UNARY_EXPR:
+            return semantic_expression_allocation_identity_depth(
+                ctx, ((ASTUnaryExpr*)expression)->operand, depth + 1u);
+        case AST_MEMBER_ACCESS:
+            return semantic_expression_allocation_identity_depth(
+                ctx, ((ASTMemberAccess*)expression)->object, depth + 1u);
+        case AST_INDEX_ACCESS:
+            return semantic_expression_allocation_identity_depth(
+                ctx, ((ASTIndexAccess*)expression)->target, depth + 1u);
+        case AST_CAST:
+            return semantic_expression_allocation_identity_depth(
+                ctx, ((ASTCast*)expression)->value, depth + 1u);
+        case AST_BINARY_EXPR: {
+            ASTBinaryExpr* binary = (ASTBinaryExpr*)expression;
+            uint64_t left = semantic_expression_allocation_identity_depth(
+                ctx, binary->left, depth + 1u);
+            return left != 0u ? left :
+                semantic_expression_allocation_identity_depth(
+                    ctx, binary->right, depth + 1u);
+        }
+        default:
+            return 0u;
+    }
+}
+
+static uint64_t semantic_expression_allocation_identity(
+    SemanticContext* ctx, ASTNode* expression
+) {
+    return semantic_expression_allocation_identity_depth(ctx, expression, 0u);
 }
 
 static void semantic_validate_allocation_intrinsic(
@@ -11599,10 +11644,9 @@ static void semantic_check_node(
                     ASTNode* value = semantic_intrinsic_argument_value(call->args);
                     uint64_t identity = semantic_expression_allocation_identity(ctx, value);
                     if (identity != 0u) {
-                        if (!semantic_release_allocation(ctx, identity))
-                            report_error(ctx, value ? value : node,
-                                ERR_SEMANTIC_TYPE_MISMATCH,
-                                "free() received an allocation handle that is no longer active.");
+                        /* A stale identifier already receives its primary
+                           source-located diagnostic in the argument traversal. */
+                        (void)semantic_release_allocation(ctx, identity);
                     } else if (value && value->type == AST_IDENTIFIER) {
                         Slot* handle = find_slot(ctx, ((ASTIdentifier*)value)->name);
                         if (handle && handle->type_name &&
