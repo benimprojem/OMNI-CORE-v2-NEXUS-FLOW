@@ -8538,7 +8538,18 @@ static void semantic_check_node(
         case AST_IDENTIFIER: {
             ASTIdentifier* id = (ASTIdentifier*)node;
             Slot* resolved = find_slot(ctx, id->name);
-            if (resolved && resolved->is_moved) {
+            if (resolved && resolved->allocation_identity != 0u &&
+                !semantic_find_active_allocation(ctx, resolved->allocation_identity)) {
+                char allocation_message[320];
+                (void)snprintf(allocation_message, sizeof(allocation_message),
+                    "Allocation handle '%s' is no longer valid; its allocation was released or its lifetime was terminated.",
+                    id->name ? id->name : "<unnamed>");
+                report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    allocation_message,
+                    "Create a new allocation and use its new handle; an old alias cannot be revived by reusing the same address.",
+                    "Create a new allocation and use its new handle; an old alias cannot be revived by reusing the same address.",
+                    0, 0);
+            } else if (resolved && resolved->is_moved) {
                 char moved_message[256];
                 (void)snprintf(moved_message, sizeof(moved_message),
                     "Use of '%s' after ownership was transferred is invalid.",
@@ -11579,10 +11590,10 @@ static void semantic_check_node(
                 semantic_validate_port_intrinsic(ctx, node);
             else if (node->type == AST_AREA || node->type == AST_ZONE ||
                      node->type == AST_FREE) {
+                int allocation_error_baseline = ctx->error_count;
                 semantic_validate_allocation_intrinsic(ctx, node);
                 if (node->type == AST_AREA || node->type == AST_ZONE) {
-                    if (ctx->error_count == 0 ||
-                        semantic_find_allocation_expression_identity(ctx, node) != 0u)
+                    if (ctx->error_count == allocation_error_baseline)
                         (void)semantic_register_allocation(ctx, node);
                 } else {
                     ASTNode* value = semantic_intrinsic_argument_value(call->args);
