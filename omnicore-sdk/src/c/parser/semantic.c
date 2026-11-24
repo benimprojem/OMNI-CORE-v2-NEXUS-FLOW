@@ -19,7 +19,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->error_head = NULL;
     ctx->error_tail = NULL;
     ctx->current_depth = 0;
-    ctx->halted_depth = UINT32_MAX;
+    ctx->halted_function_depth = UINT32_MAX;
     ctx->loop_depth = 0u;
     ctx->function_depth = 0u;
     ctx->current_func_return_type = NULL;
@@ -1271,9 +1271,7 @@ static void exit_scope(SemanticContext* ctx) {
 
     /* A Halt only terminates its current lexical table; leaving that scope
        restores traversal in the enclosing table. */
-    if (ctx->halted_depth == (uint32_t)ctx->current_depth)
-        ctx->halted_depth = UINT32_MAX;
-
+    
     /* Release every borrow in this scope before freeing any owner Slot.
        Declaration order must not affect cleanup safety. */
     {
@@ -7870,7 +7868,7 @@ static void semantic_check_node(
     SemanticContext* ctx, ASTNode* node, int follow_siblings
 ) {
     if (!node) return;
-    if (ctx->halted_depth == (uint32_t)ctx->current_depth) return;
+    if (ctx->halted_function_depth == (uint32_t)ctx->function_depth) return;
 
     switch (node->type) {
         case AST_PROGRAM:
@@ -9995,6 +9993,8 @@ static void semantic_check_node(
                 if (func->body) {
                     ++ctx->function_depth;
                     semantic_check(ctx, func->body);
+                    if (ctx->halted_function_depth == (uint32_t)ctx->function_depth)
+                        ctx->halted_function_depth = UINT32_MAX;
                     --ctx->function_depth;
                     if (return_type_valid && func->return_type) {
                         const char* normalized_return = func->return_type;
@@ -10146,7 +10146,7 @@ static void semantic_check_node(
                invalidation is handled by the SEM-005 ownership pass. */
             semantic_record_annotation(
                 ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
-            ctx->halted_depth = (uint32_t)ctx->current_depth;
+            ctx->halted_function_depth = (uint32_t)ctx->function_depth;
             break;
 
         case AST_RETURN: {
