@@ -4151,9 +4151,9 @@ static int check_intrinsic_semantics(void) {
         "f:main() { ?; v:unreachable = missing_after_halt; }";
     const char* halt_is_local_to_nested_table =
         "f:main() { { ?; v:unreachable = missing_after_halt; } "
-        "v:outer!i32 = 1; }";
+        "v:outer = missing_after_halt_too; }";
     const char* block_halt_is_local_to_nested_table =
-        "f:main() { { v:inside!i32 = 1; }?; v:outer!i32 = 2; }";
+        "f:main() { { v:inside!i32 = 1; }?; v:outer = missing_after_block_halt; }";
     return check_source(valid_memory, 0) &&
         check_source(invalid_addr, 1) &&
         check_source(invalid_len, 1) &&
