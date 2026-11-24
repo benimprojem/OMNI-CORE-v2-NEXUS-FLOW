@@ -2301,6 +2301,17 @@ v:empty!State = State.Empty();
 Semantic resolves the qualifier to an enum declaration and the member to one of its variants. Positional payload arguments follow declaration order; named arguments use payload field names. Argument count, unknown variant/field names, duplicate named fields and argument type compatibility are checked. A no-payload variant is constructed with an empty call. Constructor expression support currently validates declared `type_name` payload fields; recursive payload type-expression compatibility remains part of the remaining enum Semantic work.
 
 ### Pointer / reference, ownership ve lifetime sözleşmesi
+### Allocation identity and stale-handle safety
+
+- `area(size)` and `zone(size)` create distinct allocation identities. The identity is semantic provenance, not the numeric address returned by the allocator.
+- Copying an allocation handle copies its allocation identity. All aliases therefore refer to the same allocation lifetime.
+- `free(handle)` ends that identity's lifetime. Every alias carrying that identity becomes invalid immediately; later reads or uses must be rejected by Semantic.
+- If the allocator later reuses the same numeric address, the new allocation receives a fresh identity. The new handle is valid, but no old alias is revived by address equality.
+- `?;` and `}?;` terminate the current execution context and invalidate its active allocation identities. Code after the terminating Halt is unreachable.
+- An allocation identity is never reused during one SemanticContext. Identity-counter exhaustion or metadata-allocation failure must fail closed.
+- The active-allocation registry is the authoritative liveness source. Absence from the registry means the identity is not live; diagnostics may later distinguish never-created, released, and Halt-invalidated cases using optional history, but this distinction is not required for safety.
+- This contract does not yet claim complete tracking for pointer derivation, address arithmetic, aggregate projections, or branch joins. Those paths remain SEM-005 implementation and verification work.
+
 
 **Tür kimliği ve uyumluluk**
 - `*T`, `**T` ve `&T` ayrı yapısal tür katmanlarıdır. Atama, parametre ve dönüş uyumluluğunda taban türü ve her katman eşleşmelidir; pointer ile reference birbirine örtük dönüştürülemez.
