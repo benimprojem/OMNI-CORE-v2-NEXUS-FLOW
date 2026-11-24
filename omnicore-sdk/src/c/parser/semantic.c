@@ -4408,6 +4408,7 @@ static uint64_t semantic_register_allocation(
     }
     entry->identity = identity;
     entry->origin = origin;
+    entry->function_depth = ctx->function_depth;
     entry->next = ctx->active_allocations;
     ctx->active_allocations = entry;
     return identity;
@@ -4440,6 +4441,23 @@ static void semantic_release_all_allocations(SemanticContext* ctx) {
         ActiveAllocation* next = current->next;
         free(current);
         current = next;
+    }
+}
+
+static void semantic_release_function_allocations(
+    SemanticContext* ctx, uint32_t function_depth
+) {
+    ActiveAllocation** link;
+    if (!ctx) return;
+    link = &ctx->active_allocations;
+    while (*link) {
+        ActiveAllocation* current = *link;
+        if (current->function_depth == function_depth) {
+            *link = current->next;
+            free(current);
+        } else {
+            link = &current->next;
+        }
     }
 }
 
@@ -10307,7 +10325,7 @@ static void semantic_check_node(
                invalidation is handled by the SEM-005 ownership pass. */
             semantic_record_annotation(
                 ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
-            semantic_release_all_allocations(ctx);
+            semantic_release_function_allocations(ctx, (uint32_t)ctx->function_depth);
             ctx->halted_function_depth = (uint32_t)ctx->function_depth;
             break;
 
@@ -11493,7 +11511,7 @@ static void semantic_check_node(
         case AST_NEXUS_HALT: {
             ASTHalt* halt = (ASTHalt*)node;
             if (halt->expr) semantic_check(ctx, halt->expr);
-            semantic_release_all_allocations(ctx);
+            semantic_release_function_allocations(ctx, (uint32_t)ctx->function_depth);
             ctx->halted_function_depth = (uint32_t)ctx->function_depth;
             break;
         }
