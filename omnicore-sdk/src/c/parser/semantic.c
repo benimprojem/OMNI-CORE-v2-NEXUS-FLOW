@@ -4469,9 +4469,14 @@ static uint64_t semantic_expression_allocation_identity_depth(
                     ctx, argument, depth + 1u);
             return 0u;
         }
-        case AST_UNARY_EXPR:
-            return semantic_expression_allocation_identity_depth(
-                ctx, ((ASTUnaryExpr*)expression)->operand, depth + 1u);
+        case AST_UNARY_EXPR: {
+            ASTUnaryExpr* unary = (ASTUnaryExpr*)expression;
+            if (unary->op == TOKEN_STAR || unary->op == TOKEN_BIT_AND ||
+                unary->op == TOKEN_BORROW_MUT)
+                return semantic_expression_allocation_identity_depth(
+                    ctx, unary->operand, depth + 1u);
+            return 0u;
+        }
         case AST_MEMBER_ACCESS:
             return semantic_expression_allocation_identity_depth(
                 ctx, ((ASTMemberAccess*)expression)->object, depth + 1u);
