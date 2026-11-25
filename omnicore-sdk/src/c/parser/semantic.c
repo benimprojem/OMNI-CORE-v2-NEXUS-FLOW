@@ -35,6 +35,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->halted_function_depth = UINT32_MAX;
     ctx->loop_depth = 0u;
     ctx->function_depth = 0u;
+    ctx->current_function_slot = NULL;
     ctx->current_func_return_type = NULL;
     ctx->diagnostics = NULL;
     ctx->diagnostic_stage_id = OCC_STAGE_SEMANTIC;
@@ -1341,6 +1342,14 @@ static void destroy_slot(Slot* slot) {
         free(field->array_type_name);
         free(field);
         field = next;
+    }
+    {
+        SemanticFunctionAllocationEffect* effect = slot->allocation_effects;
+        while (effect) {
+            SemanticFunctionAllocationEffect* next = effect->next;
+            free(effect);
+            effect = next;
+        }
     }
 
     free(slot);
