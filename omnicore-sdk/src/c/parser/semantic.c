@@ -12478,13 +12478,8 @@ static void semantic_check_node(
                     ASTNode* value = semantic_intrinsic_argument_value(call->args);
                     uint64_t identity = semantic_expression_allocation_identity(ctx, value);
                     if (identity != 0u) {
-                        ActiveAllocation* active =
-                            semantic_find_active_allocation(ctx, identity);
-                        if (active && active->function_depth != ctx->function_depth) {
-                            report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
-                                "free() must run in the allocation's owning execution context; a function call does not transfer allocation ownership.");
-                        } else if (active &&
-                                   !semantic_expression_allocation_is_base(ctx, value)) {
+                        if (semantic_find_active_allocation(ctx, identity) &&
+                            !semantic_expression_allocation_is_base(ctx, value)) {
                             report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
                                 "free() requires the allocation's base handle/address; an interior or offset pointer cannot release the allocation.");
                         } else {
