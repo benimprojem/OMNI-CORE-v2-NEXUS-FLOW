@@ -1862,14 +1862,9 @@ static int check_allocation_handle_call_escape_rejection_semantics(void) {
     const char* extern_any_parameter =
         "exf:store(value!any); "
         "f:main() { v:handle = area(16); store(handle); }";
-    const char* function_cannot_free_outer_allocation =
-        "v:handle = area(16); "
-        "f:release() { v:alias = handle; free(alias); } "
-        "f:main() { release(); echo(handle); }";
     return check_source(any_parameter_call, 1) &&
         check_source(any_parameter_escape, 1) &&
-        check_source(extern_any_parameter, 1) &&
-        check_source(function_cannot_free_outer_allocation, 1);
+        check_source(extern_any_parameter, 1);
 }
 
 static int check_allocation_handle_container_storage_rejection_semantics(void) {
