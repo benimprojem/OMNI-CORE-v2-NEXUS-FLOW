@@ -4635,9 +4635,40 @@ static uint64_t semantic_expression_allocation_identity_depth(
                     ctx, unary->operand, depth + 1u, 1);
             if (unary->op == TOKEN_STAR &&
                 (address_context ||
-                 semantic_expression_is_pointer_like(ctx, expression)))
+                 semantic_expression_is_pointer_like(ctx, expression))) {
+                if (unary->operand && unary->operand->type == AST_IDENTIFIER) {
+                    Slot* pointer_slot = find_slot(
+                        ctx, ((ASTIdentifier*)unary->operand)->name);
+                    uint64_t referenced_identity = 0u;
+                    if (pointer_slot) {
+                        const BorrowOrigin* origin;
+                        if (pointer_slot->allocation_identity != 0u)
+                            return pointer_slot->allocation_identity;
+                        if (pointer_slot->borrow_origin &&
+                            pointer_slot->borrow_origin->allocation_identity != 0u)
+                            referenced_identity =
+                                pointer_slot->borrow_origin->allocation_identity;
+                        for (origin = pointer_slot->borrow_origins;
+                             origin; origin = origin->next) {
+                            uint64_t candidate = origin->owner
+                                ? origin->owner->allocation_identity : 0u;
+                            if (candidate == 0u) continue;
+                            if (referenced_identity != 0u &&
+                                referenced_identity != candidate) {
+                                report_error(ctx, expression,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Dereference has multiple possible allocation owners; lifetime provenance is ambiguous.");
+                                return 0u;
+                            }
+                            referenced_identity = candidate;
+                        }
+                        if (referenced_identity != 0u)
+                            return referenced_identity;
+                    }
+                }
                 return semantic_expression_allocation_identity_depth(
                     ctx, unary->operand, depth + 1u, 0);
+            }
             return 0u;
         }
         case AST_MEMBER_ACCESS:
