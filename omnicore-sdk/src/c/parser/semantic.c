@@ -12704,7 +12704,11 @@ static void semantic_check_node(
                         ActiveAllocation* active =
                             semantic_find_active_allocation(ctx, identity);
                         if (active &&
-                            !semantic_expression_allocation_is_base(ctx, value)) {
+                            semantic_allocation_has_active_borrows(ctx, identity)) {
+                            report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "free() cannot release an allocation while any live shared, mutable, or reborrow relationship still refers to it.");
+                        } else if (active &&
+                                   !semantic_expression_allocation_is_base(ctx, value)) {
                             report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
                                 "free() requires the allocation's base handle/address; an interior or offset pointer cannot release the allocation.");
                         } else {
