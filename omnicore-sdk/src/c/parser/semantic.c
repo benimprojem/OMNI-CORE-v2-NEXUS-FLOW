@@ -4736,10 +4736,16 @@ static uint64_t semantic_expression_allocation_identity_depth(
             return 0u;
         case AST_CAST: {
             const char* cast_type = get_expr_type(ctx, expression);
+            uint64_t source_identity =
+                semantic_expression_allocation_identity_depth(
+                    ctx, ((ASTCast*)expression)->value, depth + 1u, 0);
+            if (source_identity == 0u) return 0u;
             if (semantic_expression_is_pointer_like(ctx, expression) ||
                 semantic_is_integer_or_address_type(ctx, cast_type))
-                return semantic_expression_allocation_identity_depth(
-                    ctx, ((ASTCast*)expression)->value, depth + 1u, 0);
+                return source_identity;
+            if (cast_type && strcmp(cast_type, "bool") == 0) return 0u;
+            report_error(ctx, expression, ERR_SEMANTIC_TYPE_MISMATCH,
+                "Cast would erase allocation-address provenance; this conversion is not permitted while lifetime tracking is active.");
             return 0u;
         }
         case AST_BINARY_EXPR: {
