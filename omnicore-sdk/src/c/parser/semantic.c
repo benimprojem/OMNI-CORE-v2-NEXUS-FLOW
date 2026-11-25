@@ -4703,6 +4703,9 @@ static uint64_t semantic_expression_allocation_identity_depth(
                 ctx, binary->left, depth + 1u, 0);
             right = semantic_expression_allocation_identity_depth(
                 ctx, binary->right, depth + 1u, 0);
+            /* Pointer subtraction produces a numeric distance, not an alias. */
+            if (binary->op == TOKEN_MINUS && left != 0u && right != 0u)
+                return 0u;
             if (left != 0u && right != 0u && left != right) {
                 report_error(ctx, expression, ERR_SEMANTIC_TYPE_MISMATCH,
                     "Pointer expression combines different allocation identities; its lifetime provenance is ambiguous.");
