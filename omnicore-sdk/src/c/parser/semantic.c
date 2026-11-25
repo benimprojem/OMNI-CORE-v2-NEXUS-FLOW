@@ -10112,13 +10112,16 @@ static void semantic_check_node(
                 ActiveAllocation* target_allocation =
                     semantic_find_active_allocation(
                         ctx, target_slot->allocation_identity);
-                if ((source_slot->type_name &&
-                     (strcmp(source_slot->type_name, "area") == 0 ||
-                      strcmp(source_slot->type_name, "zone") == 0) &&
-                    (!source_allocation || source_allocation_identity == 0u)) ||
-                    (source_allocation_identity != 0u && !source_allocation)) {
+                if (source_allocation_identity != 0u &&
+                    !source_allocation) {
+                    /* The source identifier traversal already reported the
+                       stale allocation identity; avoid a duplicate diagnostic. */
+                } else if (source_slot->type_name &&
+                           (strcmp(source_slot->type_name, "area") == 0 ||
+                            strcmp(source_slot->type_name, "zone") == 0) &&
+                           source_allocation_identity == 0u) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Relocation source carries an allocation identity that is no longer active.");
+                        "Relocation source has no active allocation identity.");
                 } else if (source_allocation &&
                            target_slot->function_depth !=
                                source_allocation->function_depth) {
