@@ -63,6 +63,7 @@ struct Slot {
     struct Slot* borrow_origin; /* Non-owning parameter/global anchor for untracked reference provenance. */
     char* borrow_path;       /* Projection path relative to borrowed_from. */
     int depth; // Scope derinliği
+    uint32_t function_depth; /* Owning execution frame; relocation may transfer it. */
     char* type_name;      // Değişken tipi, Fonksiyon dönüş tipi veya NewType hedefi
     ASTNode* declaration_node; // Non-owning AST declaration for signature validation
     ASTNode* callable_declaration; // Known callback target; non-owning AST reference
