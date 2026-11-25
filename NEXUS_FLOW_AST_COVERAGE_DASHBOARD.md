@@ -1464,3 +1464,17 @@ Test: `689707c`; design: `9a9d427`; plan: `301efaf`. Status: **IN_PROGRESS**. OI
 - [ ] Implement aggregate-member array indexing and mixed member/index path composition with positive, overlap, disjoint, and dynamic-index cases.
 
 Status: **IN_PROGRESS**. This is an implementation gap; syntax is not being changed. OIR remains gated.
+
+
+### SEM-005 — relocation destination consumption warning (2026-11-25)
+
+- [x] Track the original relocation AST node on the destination Slot and preserve it through relocation chains.
+- [x] Mark a relocated value as consumed only on a successful value read; assignment-target writes do not count as consumption.
+- [x] Warn when the destination leaves scope without being read.
+- [x] Warn when an unused relocated destination is overwritten before consumption.
+- [x] Keep warnings separate from Semantic errors: warning diagnostics do not increment `error_count`.
+- [x] Add regressions for unused destination warning, consumed destination without warning, and warning/error severity separation.
+- [x] Verify exact-head commit `9280def87b1ba463cd4317446982e0a1a4a108a4`, workflow run [45539357697](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45539357697): all five jobs passed — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- [ ] Complete forward Handler relocation resolution, target activation and ownership/lifetime cleanup. This warning slice does not close the relocation or Handler Semantic work package.
+
+Status: **VERIFIED — narrow warning slice only**. SEM-005 and OIR remain gated.
