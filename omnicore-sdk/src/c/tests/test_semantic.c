@@ -4209,7 +4209,8 @@ static int check_intrinsic_semantics(void) {
         "f:main() { v:a = area(64); free(a); "
         "a = area(32); echo(a); free(a); }";
     const char* allocation_write_through_stale_pointer_rejected =
-        "f:main() { v:a = area(64); v:p = addr(a); free(a); poke(p, 1); }";
+        "f:main() { v:a = area(64); v:p = addr(a); v:b!u8 = 1; "
+        "free(a); poke(p, b); }";
     const char* allocation_address_alias_use_after_free =
         "f:main() { v:a = area(64); v:p = addr(a); free(a); echo(p); }";
     const char* allocation_pointer_copy_use_after_free =
