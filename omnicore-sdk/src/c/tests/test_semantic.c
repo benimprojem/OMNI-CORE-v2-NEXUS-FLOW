@@ -4269,6 +4269,10 @@ static int check_intrinsic_semantics(void) {
     const char* function_analysis_does_not_consume_global_allocation =
         "v:global_area = area(64); f:cleanup() { free(global_area); } "
         "f:main() { echo(global_area); }";
+    const char* function_analysis_does_not_commit_global_relocation =
+        "v:global_a = area(64); v:global_b = area(32); free(global_b); "
+        "f:move() { v:moved = global_a _> global_b; } "
+        "f:main() { echo(global_a); free(global_a); }";
     const char* local_allocation_cannot_escape_to_outer_binding =
         "f:main() { v:outer = area(32); "
         "{ v:inner = area(64); outer = inner; } echo(outer); }";
@@ -4319,6 +4323,7 @@ static int check_intrinsic_semantics(void) {
         check_source(invalid_count, 7) &&
         check_source(halt_does_not_release_global_allocation, 0) &&
         check_source(function_analysis_does_not_consume_global_allocation, 0) &&
+        check_source(function_analysis_does_not_commit_global_relocation, 0) &&
         check_source(local_allocation_cannot_escape_to_outer_binding, 1) &&
         check_source(function_local_allocation_cannot_escape_to_global, 1) &&
         check_source(halt_stops_current_table, 0) &&
