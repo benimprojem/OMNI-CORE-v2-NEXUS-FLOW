@@ -4241,10 +4241,12 @@ static int check_allocation_snapshot_oom_failures(void) {
 
 static int check_borrow_snapshot_oom_failures(void) {
     const char* source =
-        "f:main(cond!bool) { v:first!i32 = 1; v:second!i32 = 2; "
-        "v:third!i32 = 3; &reference!i32 = &first; "
-        "if (cond) { reference = &second; } "
-        "els { reference = &third; } "
+        "f:read(left!&i32,right!&i32) {} "
+        "f:main(cond!bool) { struct:Point { v:x!i32, v:y!i32 } "
+        "v:first!Point; v:second!Point; "
+        "read(&first.x,&first.y); &reference!i32 = &first.x; "
+        "if (cond) { reference = &second.x; } "
+        "els { reference = &first.y; } "
         "v:value!i32 = *reference; }";
     ParserContext* parser = parser_init_source(
         "borrow-snapshot-oom.nxf",
