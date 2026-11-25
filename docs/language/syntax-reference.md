@@ -2310,6 +2310,8 @@ Semantic resolves the qualifier to an enum declaration and the member to one of 
 - `?;` and `}?;` terminate the current execution context and invalidate its active allocation identities. Code after the terminating Halt is unreachable.
 - An allocation identity is never reused during one SemanticContext. Identity-counter exhaustion or metadata-allocation failure must fail closed.
 - The active-allocation registry is the authoritative liveness source. Absence from the registry means the identity is not live; diagnostics may later distinguish never-created, released, and Halt-invalidated cases using optional history, but this distinction is not required for safety.
+- Control-flow joins use the intersection of active allocation identities from all reachable incoming paths. An identity released on any incoming path is not live after the join. If a binding carries different allocation identities on different paths, Semantic rejects the merge rather than choosing one identity.
+- A function's local allocation identities end when its execution context returns normally, as well as when `?;` or `}?;` terminates that context.
 - This contract does not yet claim complete tracking for pointer derivation, address arithmetic, aggregate projections, or branch joins. Those paths remain SEM-005 implementation and verification work.
 
 
