@@ -57,6 +57,7 @@ struct Slot {
     uint8_t is_nullable;    /* Binding may currently contain null (pointer/callback values). */
     uint64_t borrow_identity; /* Stable for this Slot across rebinding and branch snapshots. */
     uint64_t allocation_identity; /* Allocation provenance; zero means no tracked allocation. */
+    uint8_t allocation_is_base; /* True only for the allocation's releasable base handle/address. */
     uint64_t borrow_suspended_by_identity; /* Active exclusive child; zero when accessible. */
     BorrowOrigin* borrow_origins; /* Conservative set of possible active borrow origins. */
     struct Slot* borrowed_from; /* Compatibility view of the first origin during migration. */
