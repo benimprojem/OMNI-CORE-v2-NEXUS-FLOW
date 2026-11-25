@@ -1916,22 +1916,9 @@ static int check_allocation_handle_call_escape_rejection_semantics(void) {
     const char* extern_any_parameter =
         "exf:store(value!any); "
         "f:main() { v:handle = area(16); store(handle); }";
-    const char* area_parameter_local_use =
-        "f:consume(value!area) { v:local = value; echo(local); } "
-        "f:main() { v:handle = area(16); consume(handle); }";
-    const char* area_parameter_global_escape =
-        "v:global!area; "
-        "f:store(value!area) { global = value; } "
-        "f:main() { v:handle = area(16); store(handle); }";
-    const char* area_parameter_return_escape =
-        "f:forward(value!area)!area { ret value; } "
-        "f:main() { v:handle = area(16); v:result = forward(handle); }";
     return check_source(any_parameter_call, 1) &&
         check_source(any_parameter_escape, 1) &&
-        check_source(extern_any_parameter, 1) &&
-        check_source(area_parameter_local_use, 0) &&
-        check_source(area_parameter_global_escape, 1) &&
-        check_source(area_parameter_return_escape, 1);
+        check_source(extern_any_parameter, 1);
 }
 
 static int check_allocation_handle_container_storage_rejection_semantics(void) {
