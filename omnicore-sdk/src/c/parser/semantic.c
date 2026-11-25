@@ -2020,6 +2020,7 @@ static int semantic_reference_init_snapshot_capture(
         if (slot->kind == SLOT_VAR) {
             if (count == SIZE_MAX) {
                 semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                semantic_reference_init_snapshot_destroy(snapshot);
                 return 0;
             }
             ++count;
@@ -2028,12 +2029,14 @@ static int semantic_reference_init_snapshot_capture(
     if (count == 0u) return 1;
     if (count > SIZE_MAX / sizeof(*snapshot->entries)) {
         semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        semantic_reference_init_snapshot_destroy(snapshot);
         return 0;
     }
     snapshot->entries = (SemanticReferenceInitEntry*)semantic_callocate(
         ctx, count, sizeof(*snapshot->entries));
     if (!snapshot->entries) {
         semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        semantic_reference_init_snapshot_destroy(snapshot);
         return 0;
     }
     snapshot->count = count;
