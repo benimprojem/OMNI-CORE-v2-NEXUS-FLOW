@@ -7513,7 +7513,7 @@ static void semantic_returned_reference_alias_restore(
 }
 
 static int semantic_scan_returned_reference_parameter(
-    const ASTNode* node, const ASTNode* params, int* selected, int* saw_return,
+    ctx, SemanticContext* ctx, const ASTNode* node, const ASTNode* params, int* selected, int* saw_return,
     SemanticReturnedReferenceAlias** aliases
 ) {
     const ASTNode* current;
@@ -7543,8 +7543,11 @@ static int semantic_scan_returned_reference_parameter(
                     params, aliases ? *aliases : NULL);
                 if (origin >= 0) {
                     SemanticReturnedReferenceAlias* alias =
-                        (SemanticReturnedReferenceAlias*)malloc(sizeof(*alias));
-                    if (!alias) return 0;
+                        (SemanticReturnedReferenceAlias*)semantic_allocate(ctx, sizeof(*alias));
+                    if (!alias) {
+                        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                        return 0;
+                    }
                     alias->name = declaration->name;
                     alias->parameter_index = origin;
                     alias->next = aliases ? *aliases : NULL;
@@ -7571,7 +7574,7 @@ static int semantic_scan_returned_reference_parameter(
         } else if (current->type == AST_BLOCK) {
             SemanticReturnedReferenceAlias* marker = aliases ? *aliases : NULL;
             int ok = semantic_scan_returned_reference_parameter(
-                ((const ASTBlock*)current)->statements,
+                ctx, ((const ASTBlock*)current)->statements,
                 params, selected, saw_return, aliases);
             if (aliases)
                 semantic_returned_reference_alias_restore(aliases, marker);
@@ -7580,12 +7583,12 @@ static int semantic_scan_returned_reference_parameter(
             const ASTIf* branch = (const ASTIf*)current;
             SemanticReturnedReferenceAlias* marker = aliases ? *aliases : NULL;
             int then_ok = semantic_scan_returned_reference_parameter(
-                branch->then_branch, params, selected, saw_return, aliases);
+                ctx, branch->then_branch, params, selected, saw_return, aliases);
             if (aliases)
                 semantic_returned_reference_alias_restore(aliases, marker);
             if (!then_ok) return 0;
             if (!semantic_scan_returned_reference_parameter(
-                    branch->else_branch, params, selected, saw_return, aliases))
+                    ctx, branch->else_branch, params, selected, saw_return, aliases))
                 return 0;
             if (aliases)
                 semantic_returned_reference_alias_restore(aliases, marker);
@@ -7593,7 +7596,7 @@ static int semantic_scan_returned_reference_parameter(
             const ASTLoop* loop = (const ASTLoop*)current;
             SemanticReturnedReferenceAlias* marker = aliases ? *aliases : NULL;
             int ok = semantic_scan_returned_reference_parameter(
-                loop->body, params, selected, saw_return, aliases);
+                ctx, loop->body, params, selected, saw_return, aliases);
             if (aliases)
                 semantic_returned_reference_alias_restore(aliases, marker);
             if (!ok) return 0;
@@ -7603,7 +7606,7 @@ static int semantic_scan_returned_reference_parameter(
                 SemanticReturnedReferenceAlias* marker = aliases ? *aliases : NULL;
                 int ok = arm->type == AST_SELECT_ARM &&
                     semantic_scan_returned_reference_parameter(
-                        ((const ASTSelectArm*)arm)->body,
+                        ctx, ((const ASTSelectArm*)arm)->body,
                         params, selected, saw_return, aliases);
                 if (aliases)
                     semantic_returned_reference_alias_restore(aliases, marker);
@@ -7615,7 +7618,7 @@ static int semantic_scan_returned_reference_parameter(
                 SemanticReturnedReferenceAlias* marker = aliases ? *aliases : NULL;
                 int ok = arm->type == AST_SCAN_ARM &&
                     semantic_scan_returned_reference_parameter(
-                        ((const ASTScanArm*)arm)->body,
+                        ctx, ((const ASTScanArm*)arm)->body,
                         params, selected, saw_return, aliases);
                 if (aliases)
                     semantic_returned_reference_alias_restore(aliases, marker);
@@ -7624,11 +7627,11 @@ static int semantic_scan_returned_reference_parameter(
         } else if (current->type == AST_NEXUS_FLOW) {
             const ASTNexusFlow* flow = (const ASTNexusFlow*)current;
             if (!semantic_scan_returned_reference_parameter(
-                    flow->right, params, selected, saw_return, aliases)) return 0;
+                    ctx, flow->right, params, selected, saw_return, aliases)) return 0;
         } else if (current->type == AST_DEFER) {
             SemanticReturnedReferenceAlias* marker = aliases ? *aliases : NULL;
             int ok = semantic_scan_returned_reference_parameter(
-                ((const ASTDefer*)current)->body,
+                ctx, ((const ASTDefer*)current)->body,
                 params, selected, saw_return, aliases);
             if (aliases)
                 semantic_returned_reference_alias_restore(aliases, marker);
@@ -7636,7 +7639,7 @@ static int semantic_scan_returned_reference_parameter(
         } else if (current->type == AST_ON_BLOCK) {
             SemanticReturnedReferenceAlias* marker = aliases ? *aliases : NULL;
             int ok = semantic_scan_returned_reference_parameter(
-                ((const ASTOnBlock*)current)->body,
+                ctx, ((const ASTOnBlock*)current)->body,
                 params, selected, saw_return, aliases);
             if (aliases)
                 semantic_returned_reference_alias_restore(aliases, marker);
@@ -7644,7 +7647,7 @@ static int semantic_scan_returned_reference_parameter(
         } else if (current->type == AST_THREAD_BLOCK) {
             SemanticReturnedReferenceAlias* marker = aliases ? *aliases : NULL;
             int ok = semantic_scan_returned_reference_parameter(
-                ((const ASTThreadBlock*)current)->body,
+                ctx, ((const ASTThreadBlock*)current)->body,
                 params, selected, saw_return, aliases);
             if (aliases)
                 semantic_returned_reference_alias_restore(aliases, marker);
@@ -7652,7 +7655,7 @@ static int semantic_scan_returned_reference_parameter(
         } else if (current->type == AST_UNROLL) {
             SemanticReturnedReferenceAlias* marker = aliases ? *aliases : NULL;
             int ok = semantic_scan_returned_reference_parameter(
-                ((const ASTUnroll*)current)->loop,
+                ctx, ((const ASTUnroll*)current)->loop,
                 params, selected, saw_return, aliases);
             if (aliases)
                 semantic_returned_reference_alias_restore(aliases, marker);
@@ -7680,7 +7683,7 @@ static int semantic_returned_reference_parameter(
     int ok;
     if (!declaration || !declaration->body) return -1;
     ok = semantic_scan_returned_reference_parameter(
-        declaration->body, declaration->params, &selected, &saw_return, &aliases);
+        ctx, declaration->body, declaration->params, &selected, &saw_return, &aliases);
     semantic_returned_reference_alias_restore(&aliases, NULL);
     if (!ok || !saw_return) return -1;
     return selected;
