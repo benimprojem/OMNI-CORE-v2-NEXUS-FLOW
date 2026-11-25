@@ -4941,16 +4941,11 @@ static int semantic_expression_contains_allocation_handle_depth(
         case AST_RELOCATE:
             return semantic_expression_contains_allocation_handle_depth(
                 ctx, ((const ASTRelocate*)expression)->source, depth + 1u);
-        case AST_CAST: {
-            const ASTCast* cast = (const ASTCast*)expression;
-            if (cast->target_type &&
-                cast->target_type->type == AST_IDENTIFIER &&
-                semantic_is_raw_pointer_type_name(
-                    ((const ASTIdentifier*)cast->target_type)->name))
-                return 0;
+        case AST_CAST:
+            /* Allocation identity survives explicit pointer casts in the
+               Semantic provenance model; do not erase it at storage checks. */
             return semantic_expression_contains_allocation_handle_depth(
-                ctx, cast->value, depth + 1u);
-        }
+                ctx, ((const ASTCast*)expression)->value, depth + 1u);
         default:
             return semantic_expression_allocation_identity(
                 ctx, (ASTNode*)expression) != 0u;
