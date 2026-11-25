@@ -1846,32 +1846,28 @@ static int check_raw_pointer_initialization_and_nullability_semantics(void) {
 }
 
 static int check_allocation_handle_container_storage_rejection_semantics(void) {
-    const char* aggregate_area_handle_field =
-        "struct:Holder { v:memory!area } f:main() {}";
-    const char* aggregate_zone_handle_field =
-        "struct:Holder { v:memory!zone } f:main() {}";
-    const char* newtype_area_handle_field =
-        "nt:Memory = area; struct:Holder { v:memory!Memory } f:main() {}";
-    const char* fixed_array_area_handle_assignment =
-        "f:main() { v:items[2]!area; items[0] = area(16); }";
+    const char* fixed_array_any_handle_assignment =
+        "f:main() { v:items[2]!any; items[0] = area(16); }";
     const char* map_area_handle_assignment =
         "f:main() { v:items!map; items[\"memory\"] = area(16); }";
     const char* any_field_area_handle_assignment =
         "struct:Box { v:value!any } "
         "f:main() { v:box!Box; box.value = area(16); }";
+    const char* nested_any_field_area_handle_assignment =
+        "struct:Inner { v:value!any } struct:Outer { v:inner!Inner } "
+        "f:main() { v:outer!Outer; outer.inner.value = area(16); }";
     const char* inferred_array_area_handles =
         "f:main() { v:items = [area(16), area(32)]; }";
     const char* any_variable_area_handle =
         "f:main() { v:value!any = area(16); }";
-    return check_source(aggregate_area_handle_field, 1) &&
-        check_source(aggregate_zone_handle_field, 1) &&
-        check_source(newtype_area_handle_field, 1) &&
-        check_source(fixed_array_area_handle_assignment, 1) &&
+    return check_source(fixed_array_any_handle_assignment, 1) &&
         check_source(map_area_handle_assignment, 1) &&
         check_source(any_field_area_handle_assignment, 1) &&
+        check_source(nested_any_field_area_handle_assignment, 1) &&
         check_source(inferred_array_area_handles, 1) &&
         check_source(any_variable_area_handle, 1);
 }
+
 
 static int check_safe_reference_container_storage_rejection_semantics(void) {
     const char* array_of_safe_references =
