@@ -2303,9 +2303,10 @@ static void semantic_reference_init_snapshot_merge(
                 report_error(ctx, slot->declaration_node,
                     ERR_SEMANTIC_TYPE_MISMATCH,
                     "Allocation handle identity differs across control-flow paths; use a single allocation identity on every path before accessing this binding.");
-                if (left->entries[index].allocation_identity == 0u)
-                    left->entries[index].allocation_identity =
-                        right->entries[index].allocation_identity;
+                /* The merge diagnostic already rejects this program. Clear
+                   the ambiguous provenance so the later read does not emit a
+                   second, misleading use-after-release diagnostic. */
+                left->entries[index].allocation_identity = 0u;
             }
             slot->allocation_identity =
                 left->entries[index].allocation_identity;
