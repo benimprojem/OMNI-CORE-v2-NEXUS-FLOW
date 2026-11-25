@@ -9080,6 +9080,7 @@ static void semantic_check_node(
                 }
             } else {
                 if (ctx->assignment_target_depth == 0u &&
+                    ctx->relocation_source_depth == 0u &&
                     resolved->relocation_origin)
                     resolved->relocation_used = 1u;
                 semantic_record_annotation(
@@ -10243,7 +10244,9 @@ static void semantic_check_node(
             Slot* target_slot=NULL;
             const char* source_type;
             const char* target_type;
+            ++ctx->relocation_source_depth;
             semantic_check(ctx,relocate->source);
+            --ctx->relocation_source_depth;
             ++ctx->assignment_target_depth;
             ++ctx->allocation_write_target_depth;
             semantic_check(ctx,relocate->target);
