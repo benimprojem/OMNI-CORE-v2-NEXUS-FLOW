@@ -4210,6 +4210,8 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_handle_reference_dereference_use_after_free =
         "f:main() { v:a = area(64); v:p = &a; v:old = *p; "
         "free(a); echo(old); }";
+    const char* allocation_handle_reference_direct_dereference_after_free =
+        "f:main() { v:a = area(64); v:p = &a; free(a); echo(*p); }";
     const char* allocation_offset_alias_use_after_free =
         "f:main() { v:a = area(64); v:p = addr(a); v:q = p + 4; "
         "free(a); echo(q); }";
@@ -4271,6 +4273,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_address_alias_use_after_free, 1) &&
         check_source(allocation_pointer_copy_use_after_free, 1) &&
         check_source(allocation_handle_reference_dereference_use_after_free, 1) &&
+        check_source(allocation_handle_reference_direct_dereference_after_free, 1) &&
         check_source(allocation_offset_alias_use_after_free, 1) &&
         check_source(allocation_return_escape_rejected, 1) &&
         check_source(allocation_double_free, 1) &&
