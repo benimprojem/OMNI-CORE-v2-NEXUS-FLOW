@@ -5054,38 +5054,6 @@ static int semantic_expression_contains_allocation_handle_depth(
     }
 }
 
-static int semantic_slot_is_current_function_parameter(
-    const SemanticContext* ctx, const Slot* slot
-) {
-    const ASTFuncDecl* function;
-    const ASTNode* parameter;
-    if (!ctx || !slot || !ctx->current_function_slot ||
-        !ctx->current_function_slot->declaration_node ||
-        ctx->current_function_slot->declaration_node->type != AST_FUNC_DECL)
-        return 0;
-    function = (const ASTFuncDecl*)
-        ctx->current_function_slot->declaration_node;
-    for (parameter = function->params; parameter; parameter = parameter->next) {
-        if (parameter->type == AST_VAR_DECL &&
-            parameter == slot->declaration_node) return 1;
-    }
-    return 0;
-}
-
-static Slot* semantic_untracked_allocation_parameter(
-    SemanticContext* ctx, const ASTNode* expression
-) {
-    Slot* slot;
-    if (!ctx || !expression || expression->type != AST_IDENTIFIER)
-        return NULL;
-    slot = find_slot(ctx, ((const ASTIdentifier*)expression)->name);
-    if (!slot || slot->allocation_identity != 0u ||
-        !semantic_slot_is_current_function_parameter(ctx, slot) ||
-        !semantic_type_contains_allocation_handle(
-            ctx, slot->type_name, 0u)) return NULL;
-    return slot;
-}
-
 static int semantic_expression_contains_allocation_handle(
     SemanticContext* ctx, const ASTNode* expression
 ) {
@@ -10099,21 +10067,6 @@ static void semantic_check_node(
                         Slot* assigned_slot = find_slot(
                             ctx, ((ASTIdentifier*)assign->left)->name);
                         if (assigned_slot) {
-                            Slot* source_parameter =
-                                semantic_untracked_allocation_parameter(
-                                    ctx, assign->right);
-                            if (source_parameter &&
-                                assigned_slot->depth >= 0 &&
-                                source_parameter->depth >= 0 &&
-                                assigned_slot->depth <
-                                    source_parameter->depth) {
-                                report_issue(ctx, assign->right,
-                                    ERR_SEMANTIC_TYPE_MISMATCH,
-                                    "An allocation-handle parameter with unknown caller identity cannot escape into a longer-lived binding.",
-                                    "Keep the handle within the function frame or pass a verified lifetime-aware reference; returning or storing it outside requires an explicit allocation-origin contract.",
-                                    "Keep the handle within the function frame or pass a verified lifetime-aware reference; returning or storing it outside requires an explicit allocation-origin contract.",
-                                    0, 0);
-                            }
                             uint64_t assigned_identity =
                                 semantic_expression_allocation_identity(
                                     ctx, assign->right);
@@ -11402,15 +11355,6 @@ static void semantic_check_node(
             if (ret->operand) semantic_check(ctx, ret->operand);
 
             if (ret->operand) {
-                if (semantic_untracked_allocation_parameter(
-                        ctx, ret->operand)) {
-                    report_issue(ctx, ret->operand,
-                        ERR_SEMANTIC_TYPE_MISMATCH,
-                        "A function cannot return an allocation-handle parameter because its caller allocation identity is not propagated through this return contract.",
-                        "Keep the handle within the caller's ownership path or use a separately verified ownership-transfer/return-origin contract.",
-                        "Keep the handle within the caller's ownership path or use a separately verified ownership-transfer/return-origin contract.",
-                        0, 0);
-                }
                 uint64_t returned_allocation_identity =
                     semantic_expression_allocation_identity(ctx, ret->operand);
                 ActiveAllocation* returned_allocation =
