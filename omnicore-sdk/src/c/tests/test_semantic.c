@@ -142,11 +142,16 @@ static int check_relocation_borrow_state_transfer(void) {
     const char* destination_with_live_borrow_is_rejected =
         "f:main() { v:source!i32 = 2; v:owner!i32 = 1; "
         "&borrow!i32 = &owner; source _> (owner); }";
+    const char* moved_destination_can_receive_new_owner =
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "first _> (target); echo(target); target _> (next); "
+        "second _> (target); echo(target); }";
     return check_source(shared_reference_binding_move, 0) &&
         check_source(shared_borrowed_owner_move, 0) &&
         check_source(mutable_reference_binding_move, 0) &&
         check_source(existing_destination_borrow_is_replaced, 0) &&
-        check_source(destination_with_live_borrow_is_rejected, 1);
+        check_source(destination_with_live_borrow_is_rejected, 1) &&
+        check_source(moved_destination_can_receive_new_owner, 0);
 }
 
 
