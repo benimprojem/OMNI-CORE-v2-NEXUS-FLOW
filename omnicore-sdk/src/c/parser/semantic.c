@@ -11,6 +11,9 @@
 static int semantic_slot_is_nominal_type(const Slot* slot);
 static void semantic_validate_intr_intrinsic(SemanticContext* ctx, ASTNode* node);
 static void semantic_release_all_allocations(SemanticContext* ctx);
+static void semantic_release_scope_allocations(
+    SemanticContext* ctx, uint32_t scope_depth
+);
 static void semantic_snapshot_allocations_destroy(ActiveAllocation* allocations);
 static int semantic_snapshot_allocations_clone(
     SemanticContext* ctx, const ActiveAllocation* source,
@@ -1290,6 +1293,10 @@ static void exit_scope(SemanticContext* ctx) {
                 semantic_release_borrow_binding(ctx, current);
         }
     }
+
+    /* Allocation-backed storage ends with its lexical owner scope. */
+    semantic_release_scope_allocations(
+        ctx, (uint32_t)(ctx->current_depth < 0 ? 0 : ctx->current_depth));
 
     Slot** link = &ctx->head;
     while (*link) {
@@ -4569,6 +4576,23 @@ static void semantic_release_all_allocations(SemanticContext* ctx) {
         ActiveAllocation* next = current->next;
         free(current);
         current = next;
+    }
+}
+
+static void semantic_release_scope_allocations(
+    SemanticContext* ctx, uint32_t scope_depth
+) {
+    ActiveAllocation** link;
+    if (!ctx) return;
+    link = &ctx->active_allocations;
+    while (*link) {
+        ActiveAllocation* current = *link;
+        if (current->scope_depth == scope_depth) {
+            *link = current->next;
+            free(current);
+        } else {
+            link = &current->next;
+        }
     }
 }
 
