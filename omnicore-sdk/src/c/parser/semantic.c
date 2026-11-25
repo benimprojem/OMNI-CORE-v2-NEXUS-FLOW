@@ -48,6 +48,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->active_thread_block = NULL;
     ctx->thread_capture_copy_depth = 0u;
     ctx->next_borrow_identity = 0u;
+    ctx->next_slot_identity = 0u;
     ctx->active_allocations = NULL;
     ctx->next_allocation_identity = 0u;
     ctx->thread_block_depth = 0u;
@@ -984,6 +985,14 @@ static Slot* add_slot(
     s->param_types = NULL;
     s->fields = NULL;
     s->is_packed = is_packed;
+    if (ctx->next_slot_identity == UINT64_MAX) {
+        free(s->name);
+        free(s->type_name);
+        free(s);
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+        return NULL;
+    }
+    s->semantic_identity = ++ctx->next_slot_identity;
     s->scope_id = ctx->current_scope_id;
     s->group_owner = ctx->current_group_owner;
     s->fast_exec_owner = ctx->current_fast_exec_owner;
