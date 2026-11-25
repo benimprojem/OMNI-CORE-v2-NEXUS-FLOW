@@ -679,12 +679,12 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 - **Borrow:** Başka bir bloktan gelen ödünç kaynak, açık sahiplik devri olmadan iç blok tarafından serbest bırakılamaz veya sahiplenilemez.
 - **Use-after-move / use-after-halt:** Taşınmış ya da sonlandırılmış masa üzerinden sonraki erişim Semantic hatasıdır.
 
-Relocate yazımı kaynak masadan ileri hedefe doğrudur: `(h) _> (hand)`. `(hand)` kaynak noktadan sonra, kendi gerçek kapsamı ve kod konumunda `(hand) -> ...` biçiminde bir işlem hedefine bağlanabilir. Hedef bir fonksiyon çağrısı (`(hand) -> process(hand);`), çağrıya bağlı işlem bloğu (`(hand) -> process(hand) { ... }`) veya uygun callable/lambda biçimi olabilir. Bu bildirim hedef masayı o kod konumunda oluşturur/etkinleştirir; önceden `_>` ile yönlendirilmiş veri ve sahiplik masaya bağlanır. Bu durumda hedef için yeniden bir `<- expression` ile kaynak üretilmez. Eski `(h)` üzerinden aynı kaynağı kullanmak mümkün değildir.
+Relocate yazımı kaynak masadan yeni hedef masaya doğrudur: `(h) _> (hand)`. Her iki tarafta da parantez zorunludur. `(hand)`, `_>` noktasında oluşturulur; hedef daha önce tanımlanmış veya ileride etkinleştirilecek bir Handler değildir. Sonraki `(hand) -> ...` ifadesi mevcut adres içeriğini fonksiyona ya da bloğa girdi yapar. Örneğin `(hand) -> process(hand);` veya `(hand) -> process(hand) { ... }`. `->` yeni masa oluşturmaz ve sahipliği yeniden devretmez.
 
-Yeni kaynak üretilecekse masa `(h) <- expression` ile oluşturulur. Sağ taraftaki ifade doğrudan bir değer de olabilir: `(a) <- "bu string testi.";` örneğinde `a`, string verisinin adresini tutan masadır. Başarılı üretimden sonra `(h) -> process(h);` biçimiyle masa bir işlem/akışa verilebilir. Bu kullanım, önceden `_>` ile yönlendirilmiş bir hedef masanın etkinleştirilmesinden farklıdır.
+Yeni kaynak üretilecekse masa `(h) <- expression` ile oluşturulur. Sağ taraftaki ifade doğrudan bir değer de olabilir: `(a) <- "bu string testi."` örneğinde `a`, string verisinin adresini tutan masadır. Başarılı üretimden sonra `(h) -> process(h);` biçimiyle masa bir işlem/akışa verilebilir. Kopyalama gerekiyorsa açık `copy` işlemi kullanılmalıdır; `_>` ve `->` örtük kopyalama yapmaz.
 
 
-**İleri kapsam yönlendirme örneği**
+**Adres sahipliği devri örneği**
 
 ```nexus
 f:main() {
