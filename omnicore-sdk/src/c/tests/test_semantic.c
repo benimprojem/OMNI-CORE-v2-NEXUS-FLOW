@@ -1851,6 +1851,22 @@ static int check_raw_pointer_initialization_and_nullability_semantics(void) {
         check_source(raw_pointer_parameter_accepts_null, 0);
 }
 
+static int check_allocation_handle_call_escape_rejection_semantics(void) {
+    const char* any_parameter_call =
+        "f:consume(value!any) {} "
+        "f:main() { v:handle = area(16); consume(handle); }";
+    const char* any_parameter_escape =
+        "v:global!any; "
+        "f:store(value!any) { global = value; } "
+        "f:main() { v:handle = area(16); store(handle); }";
+    const char* extern_any_parameter =
+        "exf:store(value!any); "
+        "f:main() { v:handle = area(16); store(handle); }";
+    return check_source(any_parameter_call, 1) &&
+        check_source(any_parameter_escape, 1) &&
+        check_source(extern_any_parameter, 1);
+}
+
 static int check_allocation_handle_container_storage_rejection_semantics(void) {
     const char* fixed_array_any_handle_assignment =
         "f:main() { v:items[2]!any; items[0] = area(16); }";
@@ -4930,6 +4946,10 @@ int main(int argc, char** argv) {
     }
     if (!check_raw_pointer_initialization_and_nullability_semantics()) {
         fprintf(stderr, "Raw-pointer initialization/nullability checks failed.\\n");
+        return 1;
+    }
+    if (!check_allocation_handle_call_escape_rejection_semantics()) {
+        fprintf(stderr, "Allocation-handle call escape checks failed.\\n");
         return 1;
     }
     if (!check_allocation_handle_container_storage_rejection_semantics()) {
