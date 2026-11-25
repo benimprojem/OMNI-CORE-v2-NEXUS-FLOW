@@ -4733,12 +4733,19 @@ static uint64_t semantic_expression_allocation_identity_depth(
             ASTBinaryExpr* binary = (ASTBinaryExpr*)expression;
             uint64_t left;
             uint64_t right;
-            if (binary->op != TOKEN_PLUS && binary->op != TOKEN_MINUS)
-                return 0u;
             left = semantic_expression_allocation_identity_depth(
                 ctx, binary->left, depth + 1u, 0);
             right = semantic_expression_allocation_identity_depth(
                 ctx, binary->right, depth + 1u, 0);
+            if (binary->op != TOKEN_PLUS && binary->op != TOKEN_MINUS) {
+                const char* result_type = get_expr_type(ctx, expression);
+                if (left == 0u && right == 0u) return 0u;
+                if (result_type && strcmp(result_type, "bool") == 0)
+                    return 0u;
+                report_error(ctx, expression, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Unsupported arithmetic/bitwise transformation of an allocation-derived address; lifetime provenance cannot be proven.");
+                return 0u;
+            }
             /* Pointer subtraction produces a numeric distance, not an alias. */
             if (binary->op == TOKEN_MINUS && left != 0u && right != 0u)
                 return 0u;
