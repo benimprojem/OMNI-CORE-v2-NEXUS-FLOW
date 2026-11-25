@@ -1518,3 +1518,14 @@ Status: **VERIFIED — Handler relocation slice**. This does not close the remai
 - Added deterministic allocation-failure injection regressions for branch borrow snapshots (including member projections and call temporaries) and returned-reference alias-origin analysis.
 - Exact-head commit `e6982ba55706beef08d0c3231b28efb357f94951`, workflow run [45556265200](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45556265200): all five jobs passed — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
 - This closes the snapshot/borrow-metadata OOM verification slice only. SEM-005 remains open for the remaining pointer provenance and interprocedural escape/effect audit; OIR remains gated.
+
+
+### SEM-005 — Allocation-handle storage, thread capture and free-through-reference audit (2026-11-25)
+
+- Allocation-derived `area`/`zone` identities are now detected recursively through array/tuple/struct initializer expressions and pointer casts. Where per-field/per-element provenance is not represented, Semantic rejects storing those handles in aggregate/container fields, arrays, tuples, Maps, Vecs and `any`, rather than assigning the containing allocation's identity to the nested value.
+- Direct assignments into aggregate/container bindings and member/index/pointer storage targets are checked after RHS semantic analysis, so the provenance is available before the storage decision.
+- Thread-block `copy(...)` capture rejects safe references and allocation-backed handles: copying the handle value alone does not extend or transfer the backing allocation lifetime. Ordinary value captures remain supported and deduplicated.
+- Corrected the `free(*p)` regression narrowly: release is allowed through the sole shared reference to the allocation-handle variable itself; another live alias/reborrow still blocks release. Added a paired negative test for the extra alias case.
+- Earlier CI failure: run [45560964429](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45560964429), test `semantic_checks_valid_and_undefined_symbols`, showed the valid `free(*p)` case was rejected because the handle-variable borrow was counted as a borrow of the allocated region. Fixed without weakening the general active-borrow gate.
+- Exact-head commit `2abeaedd551d33ed82c9b4ac218cf8bd8e2e4a6b`, run [45574152654](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45574152654): all five jobs passed — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- Status: this pointer/handle storage and thread-capture slice is VERIFIED. SEM-005 remains IN_PROGRESS pending the remaining pointer expression/projection audit, interprocedural handle escape/effect contracts, control-flow lifetime joins and diagnostic coverage. OIR remains gated.
