@@ -9469,7 +9469,6 @@ static void semantic_check_node(
                             ActiveAllocation* assigned_allocation =
                                 semantic_find_active_allocation(
                                     ctx, assigned_identity);
-                            assigned_slot->allocation_identity = assigned_identity;
                             if (assigned_allocation &&
                                 assigned_slot->depth >= 0 &&
                                 (uint32_t)assigned_slot->depth <
@@ -9480,6 +9479,8 @@ static void semantic_check_node(
                                     "Keep the handle within the allocation's lexical scope, or allocate in a scope that outlives the destination binding.",
                                     "Keep the handle within the allocation's lexical scope, or allocate in a scope that outlives the destination binding.",
                                     0, 0);
+                            } else {
+                                assigned_slot->allocation_identity = assigned_identity;
                             }
                         }
                     }
