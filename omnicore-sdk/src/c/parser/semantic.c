@@ -10649,6 +10649,7 @@ static void semantic_check_node(
                     semantic_release_borrow_binding(ctx, target_slot);
                     semantic_transfer_slot_borrow_state(
                         ctx, source_slot, target_slot);
+                    target_slot->is_moved = 0u;
                     if (target_slot->relocation_origin &&
                         !target_slot->relocation_used) {
                         report_issue(ctx, target_slot->relocation_origin,
