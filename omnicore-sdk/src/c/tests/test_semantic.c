@@ -4150,6 +4150,15 @@ static int check_intrinsic_semantics(void) {
         "f:main() { v:a = area(64); v:p = addr(a); free(a); echo(p); }";
     const char* allocation_double_free =
         "f:main() { v:a = area(64); free(a); free(a); }";
+    const char* allocation_branch_release_is_not_live_after_join =
+        "f:main(cond!bool) { v:a = area(64); "
+        "if cond { free(a); } els { } echo(a); }";
+    const char* allocation_branch_live_on_all_paths =
+        "f:main(cond!bool) { v:a = area(64); "
+        "if cond { echo(a); } els { echo(a); } echo(a); }";
+    const char* allocation_branch_identity_mismatch =
+        "f:main(cond!bool) { v:a = area(64); "
+        "if cond { a = area(32); } els { a = area(128); } echo(a); }";
     const char* invalid_area =
         "f:main() { v:a = area(0); }";
     const char* invalid_zone_type =
@@ -4182,6 +4191,9 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_old_alias_stays_invalid, 1) &&
         check_source(allocation_address_alias_use_after_free, 1) &&
         check_source(allocation_double_free, 1) &&
+        check_source(allocation_branch_release_is_not_live_after_join, 1) &&
+        check_source(allocation_branch_live_on_all_paths, 0) &&
+        check_source(allocation_branch_identity_mismatch, 1) &&
         check_source(invalid_area, 1) &&
         check_source(invalid_zone_type, 1) &&
         check_source(invalid_free, 1) &&
@@ -4279,6 +4291,10 @@ int main(int argc, char** argv) {
     }
     if (!check_irq_reg_semantics()) {
         fprintf(stderr, "IRQ/register semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_function_allocation_cleanup()) {
+        fprintf(stderr, "Function allocation lifetime cleanup checks failed.\\n");
         return 1;
     }
     if (!check_intrinsic_semantics()) {
