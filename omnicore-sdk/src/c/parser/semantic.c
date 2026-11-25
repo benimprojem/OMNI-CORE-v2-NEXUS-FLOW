@@ -6622,6 +6622,38 @@ static int semantic_allocation_has_active_borrows(
     return 0;
 }
 
+/* free(*reference) may consume the allocation handle through the
+   sole shared borrow of the handle variable itself. This is not a borrow of
+   the allocated region; any additional alias/reborrow still blocks release. */
+static int semantic_free_uses_sole_handle_reference_borrow(
+    const SemanticContext* ctx, uint64_t identity, const ASTNode* value
+) {
+    const ASTUnaryExpr* dereference;
+    const Slot* borrower;
+    const BorrowOrigin* origin;
+    const Slot* owner;
+    if (!ctx || identity == 0u || !value ||
+        value->type != AST_UNARY_EXPR) return 0;
+    dereference = (const ASTUnaryExpr*)value;
+    if (dereference->op != TOKEN_STAR || !dereference->operand ||
+        dereference->operand->type != AST_IDENTIFIER) return 0;
+    borrower = find_slot((SemanticContext*)ctx,
+        ((const ASTIdentifier*)dereference->operand)->name);
+    if (!borrower || borrower->borrow_kind != 1u ||
+        borrower->borrowed_from == NULL ||
+        borrower->borrow_origins == NULL ||
+        borrower->borrow_origins->next != NULL) return 0;
+    origin = borrower->borrow_origins;
+    owner = origin->owner;
+    if (!owner || owner != borrower->borrowed_from ||
+        origin->kind != 1u || origin->parent_identity != 0u ||
+        owner->allocation_identity != identity ||
+        owner->shared_borrow_count != 1u ||
+        owner->mutable_borrow_active ||
+        owner->borrow_suspended_by_identity != 0u) return 0;
+    return 1;
+}
+
 static void semantic_apply_function_allocation_effects(
     SemanticContext* ctx, ASTNode* call_node, Slot* function_slot
 ) {
@@ -12704,7 +12736,9 @@ static void semantic_check_node(
                         ActiveAllocation* active =
                             semantic_find_active_allocation(ctx, identity);
                         if (active &&
-                            semantic_allocation_has_active_borrows(ctx, identity)) {
+                            semantic_allocation_has_active_borrows(ctx, identity) &&
+                            !semantic_free_uses_sole_handle_reference_borrow(
+                                ctx, identity, value)) {
                             report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
                                 "free() cannot release an allocation while any live shared, mutable, or reborrow relationship still refers to it.");
                         } else if (active &&
