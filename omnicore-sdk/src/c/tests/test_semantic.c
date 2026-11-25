@@ -4234,6 +4234,15 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_loop_backedge_identity_mismatch =
         "f:main() { v:a = area(64); v:b = area(32); "
         "loop (true) { a = b; break; } echo(a); }";
+    const char* allocation_relocate_to_outer_scope =
+        "f:main() { v:outer = area(32); free(outer); "
+        "{ v:inner = area(64); v:moved = inner _> outer; echo(outer); } "
+        "free(outer); }";
+    const char* allocation_relocate_into_owned_destination_rejected =
+        "f:main() { v:a = area(64); v:b = area(32); v:moved = a _> b; }";
+    const char* allocation_relocate_across_function_frame_rejected =
+        "v:global_area = area(64); "
+        "f:move() { v:local = area(32); v:moved = local _> global_area; }";
     const char* invalid_area =
         "f:main() { v:a = area(0); }";
     const char* invalid_zone_type =
@@ -4285,6 +4294,9 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_branch_live_on_all_paths, 0) &&
         check_source(allocation_branch_identity_mismatch, 1) &&
         check_source(allocation_loop_backedge_identity_mismatch, 1) &&
+        check_source(allocation_relocate_to_outer_scope, 0) &&
+        check_source(allocation_relocate_into_owned_destination_rejected, 1) &&
+        check_source(allocation_relocate_across_function_frame_rejected, 1) &&
         check_source(invalid_area, 1) &&
         check_source(invalid_zone_type, 1) &&
         check_source(invalid_free, 1) &&
