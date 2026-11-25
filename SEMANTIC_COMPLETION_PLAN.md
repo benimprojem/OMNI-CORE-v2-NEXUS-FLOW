@@ -917,6 +917,15 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 
 ### SEM-005 — Halt lexical traversal implementation checkpoint (2026-11-25)
 
+### SEM-005 — allocation frame cleanup and branch liveness joins (2026-11-25)
+
+- Active allocation identities are now included in Semantic branch snapshots. Snapshot restore reinstates the path-specific active set; branch merge intersects active identities, so an allocation released on any incoming path is not considered live after the join.
+- Every variable Slot is included in the branch snapshot so allocation provenance assigned inside a branch is not omitted merely because the binding had no allocation identity before entering the branch.
+- If a binding carries different allocation identities on different paths, Semantic emits a diagnostic at the merge rather than silently selecting one identity.
+- Function-local allocations are removed when a function body exits normally; block-form Group handlers are also cleaned at their execution-context boundary. Halt continues to remove only identities owned by its current execution depth.
+- Added regressions for branch release-vs-live joins, allocations live on all paths, differing branch identities, and normal function-frame cleanup.
+- Not yet verified: exact-head CI for these commits; loop back-edge allocation-state invariants; propagation through all pointer/member/index/deref expression shapes; return/call/relocate/capture escape paths; OOM atomicity of allocation snapshot/restore; exact diagnostic locations. SEM-005 remains IN_PROGRESS and OIR remains gated.
+
 - Added `SemanticContext.halted_depth`, initialized to `UINT32_MAX` (no active Halt).
 - `AST_NEXUS_HALT` and `AST_BLOCK_HALT` now terminate semantic traversal of the current lexical table. `exit_scope()` clears the marker when leaving that table, allowing the enclosing scope to continue.
 - Added parser/Semantic regression fixtures for `?;` stopping the current execution context, including when nested, and `}?;` stopping the enclosing execution context as required by the normative syntax contract.
