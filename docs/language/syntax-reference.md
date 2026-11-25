@@ -2321,7 +2321,7 @@ Semantic resolves the qualifier to an enum declaration and the member to one of 
 - Relocation may not shorten the allocation lifetime below another live alias; every alias that outlives the destination must first be invalidated or moved under a compatible ownership contract.
 - Relocation across function execution-frame boundaries is rejected until a verified interprocedural ownership-effect contract exists. Relocation within one execution frame may transfer an allocation from an inner lexical scope to an outer binding.
 - Function and Group method declarations are analyzed in an isolated state snapshot. Their hypothetical body effects do not mutate the enclosing declaration-time allocation state; call-site effects require separate verified interprocedural contracts.
-- This contract does not yet claim complete tracking for pointer derivation, address arithmetic, aggregate projections, or branch joins. Those paths remain SEM-005 implementation and verification work.
+- Semantic currently tracks allocation identity through direct handle copies, `addr()` aliases, pointer copies, supported dereference/reborrow forms, member/index projections, pointer `+`/`-` offset expressions, and control-flow joins. Pointer subtraction produces a plain numeric distance; unsupported arithmetic/bitwise transformations that would erase provenance are rejected. These guarantees apply only to expression forms covered by the implementation and regression suite; untested or opaque provenance must not be assumed safe.
 
 
 **Tür kimliği ve uyumluluk**
