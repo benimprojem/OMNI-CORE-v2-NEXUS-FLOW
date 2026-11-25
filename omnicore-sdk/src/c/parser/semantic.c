@@ -52,6 +52,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->thread_block_depth = 0u;
     ctx->borrow_operand_depth = 0u;
     ctx->assignment_target_depth = 0u;
+    ctx->relocation_source_depth = 0u;
     ctx->allocation_write_target_depth = 0u;
     ctx->assignment_borrow_guard_owner = NULL;
     ctx->initializing_slot = NULL;
