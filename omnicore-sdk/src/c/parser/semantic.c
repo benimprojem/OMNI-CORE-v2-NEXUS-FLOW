@@ -12058,13 +12058,20 @@ static void semantic_check_node(
                         /* A stale identifier already receives its primary
                            source-located diagnostic in the argument traversal. */
                         (void)semantic_release_allocation(ctx, identity);
-                    } else if (value && value->type == AST_IDENTIFIER) {
-                        Slot* handle = find_slot(ctx, ((ASTIdentifier*)value)->name);
-                        if (handle && handle->type_name &&
-                            (strcmp(handle->type_name, "area") == 0 ||
-                             strcmp(handle->type_name, "zone") == 0))
+                    } else if (value) {
+                        const char* value_type = get_expr_type(ctx, value);
+                        Slot* handle = value->type == AST_IDENTIFIER
+                            ? find_slot(ctx, ((ASTIdentifier*)value)->name) : NULL;
+                        if (!(handle && handle->is_moved) &&
+                            value_type &&
+                            (strcmp(value_type, "any") == 0 ||
+                             strcmp(value_type, "area") == 0 ||
+                             strcmp(value_type, "zone") == 0 ||
+                             semantic_is_raw_pointer_type_name(value_type) ||
+                             semantic_is_integer_or_address_type(ctx, value_type))) {
                             report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
-                                "free() cannot release this handle because its allocation identity is not active.");
+                                "free() requires an active allocation identity; untracked raw addresses and unknown-provenance pointers cannot be released.");
+                        }
                     }
                 }
             }
