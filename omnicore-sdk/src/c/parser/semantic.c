@@ -4589,8 +4589,20 @@ static void semantic_release_function_allocations(
     }
 }
 
+static int semantic_expression_is_pointer_like(
+    SemanticContext* ctx, ASTNode* expression
+) {
+    const char* type_name = expression ? get_expr_type(ctx, expression) : NULL;
+    return type_name &&
+        (semantic_is_raw_pointer_type_name(type_name) ||
+         semantic_is_reference_type_name(type_name) ||
+         strcmp(type_name, "area") == 0 ||
+         strcmp(type_name, "zone") == 0);
+}
+
 static uint64_t semantic_expression_allocation_identity_depth(
-    SemanticContext* ctx, ASTNode* expression, unsigned int depth
+    SemanticContext* ctx, ASTNode* expression, unsigned int depth,
+    int address_context
 ) {
     Slot* slot;
     if (!ctx || !expression || depth > 64u) return 0u;
@@ -4603,42 +4615,65 @@ static uint64_t semantic_expression_allocation_identity_depth(
         if (direct != 0u) return direct;
     }
     switch (expression->type) {
-        case AST_ADDR:
-        case AST_LEN:
-        case AST_FREE:
-        case AST_AREA:
-        case AST_ZONE: {
+        case AST_ADDR: {
             ASTNode* argument = semantic_intrinsic_argument_value(
                 ((ASTCall*)expression)->args);
-            if (expression->type == AST_ADDR || expression->type == AST_FREE)
-                return semantic_expression_allocation_identity_depth(
-                    ctx, argument, depth + 1u);
-            return 0u;
+            return semantic_expression_allocation_identity_depth(
+                ctx, argument, depth + 1u, 1);
         }
+        case AST_FREE:
+        case AST_LEN:
+        case AST_AREA:
+        case AST_ZONE:
+            return 0u;
         case AST_UNARY_EXPR: {
             ASTUnaryExpr* unary = (ASTUnaryExpr*)expression;
-            if (unary->op == TOKEN_STAR || unary->op == TOKEN_BIT_AND ||
+            if (unary->op == TOKEN_BIT_AND ||
                 unary->op == TOKEN_BORROW_MUT)
                 return semantic_expression_allocation_identity_depth(
-                    ctx, unary->operand, depth + 1u);
+                    ctx, unary->operand, depth + 1u, 1);
+            if (unary->op == TOKEN_STAR &&
+                (address_context ||
+                 semantic_expression_is_pointer_like(ctx, expression)))
+                return semantic_expression_allocation_identity_depth(
+                    ctx, unary->operand, depth + 1u, address_context);
             return 0u;
         }
         case AST_MEMBER_ACCESS:
-            return semantic_expression_allocation_identity_depth(
-                ctx, ((ASTMemberAccess*)expression)->object, depth + 1u);
+            if (address_context ||
+                semantic_expression_is_pointer_like(ctx, expression))
+                return semantic_expression_allocation_identity_depth(
+                    ctx, ((ASTMemberAccess*)expression)->object,
+                    depth + 1u, address_context);
+            return 0u;
         case AST_INDEX_ACCESS:
-            return semantic_expression_allocation_identity_depth(
-                ctx, ((ASTIndexAccess*)expression)->target, depth + 1u);
+            if (address_context ||
+                semantic_expression_is_pointer_like(ctx, expression))
+                return semantic_expression_allocation_identity_depth(
+                    ctx, ((ASTIndexAccess*)expression)->target,
+                    depth + 1u, address_context);
+            return 0u;
         case AST_CAST:
-            return semantic_expression_allocation_identity_depth(
-                ctx, ((ASTCast*)expression)->value, depth + 1u);
+            if (semantic_expression_is_pointer_like(ctx, expression))
+                return semantic_expression_allocation_identity_depth(
+                    ctx, ((ASTCast*)expression)->value, depth + 1u, 0);
+            return 0u;
         case AST_BINARY_EXPR: {
             ASTBinaryExpr* binary = (ASTBinaryExpr*)expression;
-            uint64_t left = semantic_expression_allocation_identity_depth(
-                ctx, binary->left, depth + 1u);
-            return left != 0u ? left :
-                semantic_expression_allocation_identity_depth(
-                    ctx, binary->right, depth + 1u);
+            uint64_t left;
+            uint64_t right;
+            if (!semantic_expression_is_pointer_like(ctx, expression))
+                return 0u;
+            left = semantic_expression_allocation_identity_depth(
+                ctx, binary->left, depth + 1u, 0);
+            right = semantic_expression_allocation_identity_depth(
+                ctx, binary->right, depth + 1u, 0);
+            if (left != 0u && right != 0u && left != right) {
+                report_error(ctx, expression, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Pointer expression combines different allocation identities; its lifetime provenance is ambiguous.");
+                return 0u;
+            }
+            return left != 0u ? left : right;
         }
         default:
             return 0u;
@@ -4648,7 +4683,7 @@ static uint64_t semantic_expression_allocation_identity_depth(
 static uint64_t semantic_expression_allocation_identity(
     SemanticContext* ctx, ASTNode* expression
 ) {
-    return semantic_expression_allocation_identity_depth(ctx, expression, 0u);
+    return semantic_expression_allocation_identity_depth(ctx, expression, 0u, 0);
 }
 
 static void semantic_validate_allocation_intrinsic(
