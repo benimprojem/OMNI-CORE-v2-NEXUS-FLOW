@@ -4263,7 +4263,7 @@ static int check_borrow_snapshot_oom_failures(void) {
         semantic_test_fail_allocation_at(&semantic, fail_at);
         semantic_check(&semantic, (ASTNode*)parser->ast_root);
         attempts = semantic_test_get_allocation_attempts(&semantic);
-        if (attempts == fail_at &&
+        if (attempts >= fail_at &&
             semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY) {
             fprintf(stderr,
                 "Borrow snapshot fault injection %u did not fail closed (status=%d, errors=%d).\\n",
@@ -4300,7 +4300,7 @@ static int check_returned_borrow_origin_oom_failures(void) {
         semantic_test_fail_allocation_at(&semantic, fail_at);
         semantic_check(&semantic, (ASTNode*)parser->ast_root);
         attempts = semantic_test_get_allocation_attempts(&semantic);
-        if (attempts == fail_at &&
+        if (attempts >= fail_at &&
             semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY) {
             fprintf(stderr,
                 "Returned borrow-origin fault injection %u did not fail closed (status=%d, errors=%d).\\n",
