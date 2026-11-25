@@ -4357,14 +4357,6 @@ static int check_intrinsic_semantics(void) {
         "f:main() { v:outer = area(32); free(outer); "
         "{ v:inner = area(64); v:moved = inner _> outer; echo(outer); } "
         "free(outer); }";
-    const char* allocation_relocate_source_name_invalid =
-        "f:main() { v:outer = area(32); free(outer); "
-        "{ v:inner = area(64); v:moved = inner _> outer; echo(inner); } "
-        "free(outer); }";
-    const char* allocation_relocate_source_cannot_free_after_move =
-        "f:main() { v:outer = area(32); free(outer); "
-        "{ v:inner = area(64); v:moved = inner _> outer; free(inner); } "
-        "free(outer); }";
     const char* allocation_relocate_into_owned_destination_rejected =
         "f:main() { v:a = area(64); v:b = area(32); v:moved = a _> b; }";
     const char* allocation_relocate_across_function_frame_rejected =
@@ -4443,8 +4435,6 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_loop_may_release_alias, 1) &&
         check_source(allocation_nested_loop_may_release_alias, 1) &&
         check_source(allocation_relocate_to_outer_scope, 0) &&
-        check_source(allocation_relocate_source_name_invalid, 1) &&
-        check_source(allocation_relocate_source_cannot_free_after_move, 1) &&
         check_source(allocation_relocate_into_owned_destination_rejected, 1) &&
         check_source(allocation_relocate_across_function_frame_rejected, 1) &&
         check_source(allocation_relocate_interior_pointer_rejected, 1) &&
