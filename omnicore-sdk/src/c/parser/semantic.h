@@ -156,6 +156,7 @@ typedef struct {
     uint32_t borrow_operand_depth;
     /* Assignment targets are writes; do not diagnose their identifier walk as a read. */
     uint32_t assignment_target_depth;
+    uint32_t relocation_source_depth; /* A move source is not a value consumption. */
     uint32_t allocation_write_target_depth; /* Suppresses stale read only for direct rebinding targets. */
     /* Avoid a duplicate read diagnostic when the same borrowed owner is also the assignment target. */
     Slot* assignment_borrow_guard_owner;
