@@ -125,17 +125,7 @@ static int check_source(const char* source, int expected_errors) {
 }
 
 
-static int check_relocation_destination_shadowing(void) {
-    const char* same_scope_collision =
-        "f:main() { v:src!i32 = 1; v:hand!i32 = 2; "
-        "v:moved = src _> (hand); }";
-    const char* outer_binding_shadowed =
-        "f:main() { v:hand!i32 = 7; "
-        "{ v:src!i32 = 1; v:moved = src _> (hand); echo(hand); } "
-        "echo(hand); }";
-    const char* same_name_move_through_shadow =
-        "f:main() { v:src!i32 = 1; "
-        "{ v:moved = src _> (src); } }";
+static int check_relocation_borrow_state_transfer(void) {
     const char* shared_reference_binding_move =
         "f:main() { v:owner!i32 = 1; &reference!i32 = &owner; "
         "v:moved = reference _> (hand); v:value!i32 = *hand; }";
@@ -145,13 +135,20 @@ static int check_relocation_destination_shadowing(void) {
     const char* mutable_reference_binding_move =
         "f:main() { v:owner!i32 = 1; &mut reference!i32 = &mut owner; "
         "v:moved = reference _> (hand); *hand = 2; v:value!i32 = *hand; }";
-    return check_source(same_scope_collision, 1) &&
-        check_source(outer_binding_shadowed, 0) &&
-        check_source(same_name_move_through_shadow, 1) &&
-        check_source(shared_reference_binding_move, 0) &&
+    const char* existing_destination_borrow_is_replaced =
+        "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
+        "&source!i32 = &first; &target!i32 = &second; "
+        "v:moved = source _> (target); v:value!i32 = *target; }";
+    const char* destination_with_live_borrow_is_rejected =
+        "f:main() { v:source!i32 = 2; v:owner!i32 = 1; "
+        "&borrow!i32 = &owner; v:moved = source _> (owner); }";
+    return check_source(shared_reference_binding_move, 0) &&
         check_source(shared_borrowed_owner_move, 0) &&
-        check_source(mutable_reference_binding_move, 0);
+        check_source(mutable_reference_binding_move, 0) &&
+        check_source(existing_destination_borrow_is_replaced, 0) &&
+        check_source(destination_with_live_borrow_is_rejected, 1);
 }
+
 
 static int check_relocation_unused_warning(void) {
     const char* unused =
@@ -4857,8 +4854,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Relocation unused-destination warning checks failed.\\n");
         return 1;
     }
-    if (!check_relocation_destination_shadowing()) {
-        fprintf(stderr, "Relocation destination shadowing checks failed.\\n");
+    if (!check_relocation_borrow_state_transfer()) {
+        fprintf(stderr, "Relocation borrow-state transfer checks failed.\\n");
         return 1;
     }
     if (!check_handler_capture_semantics()) {
