@@ -6606,6 +6606,22 @@ static int semantic_record_function_allocation_effect(
     return 1;
 }
 
+static int semantic_allocation_has_active_borrows(
+    const SemanticContext* ctx, uint64_t identity
+) {
+    const Slot* slot;
+    if (!ctx || identity == 0u) return 0;
+    for (slot = ctx->head; slot; slot = slot->next) {
+        if (slot->allocation_identity != identity) continue;
+        if (slot->shared_borrow_count != 0u ||
+            slot->mutable_borrow_active ||
+            slot->borrow_suspended_by_identity != 0u ||
+            slot->borrow_origins || slot->borrowed_from ||
+            slot->borrow_origin) return 1;
+    }
+    return 0;
+}
+
 static void semantic_apply_function_allocation_effects(
     SemanticContext* ctx, ASTNode* call_node, Slot* function_slot
 ) {
@@ -6627,6 +6643,11 @@ static void semantic_apply_function_allocation_effects(
             !semantic_find_active_allocation(ctx, identity)) {
             report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
                 "A called function may free an allocation handle that is moved, already released, or no longer active.");
+            continue;
+        }
+        if (semantic_allocation_has_active_borrows(ctx, identity)) {
+            report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "A called function may free an allocation that is still borrowed at this call site.");
             continue;
         }
         /* Propagate only effects on storage owned outside the current
@@ -7006,6 +7027,10 @@ static void semantic_validate_call_arguments(
         }
     }
 
+    /* Apply callee free effects while temporary argument borrows are still
+       active, so a callee cannot invalidate storage borrowed for this call. */
+    semantic_apply_function_allocation_effects(ctx, call_node, function_slot);
+
     /* Release in reverse acquisition order, including after argument errors. */
     while (temporary_borrow_count > 0u) {
         SemanticCallBorrow* borrow =
@@ -7013,7 +7038,6 @@ static void semantic_validate_call_arguments(
         free(borrow->path);
     }
     free(temporary_borrows);
-    semantic_apply_function_allocation_effects(ctx, call_node, function_slot);
 }
  
 /* Imported function return types must not hide safe-reference storage or
