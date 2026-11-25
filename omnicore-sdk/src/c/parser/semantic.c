@@ -10212,6 +10212,8 @@ static void semantic_check_node(
             } else {
                 uint64_t source_allocation_identity =
                     source_slot->allocation_identity;
+                uint8_t source_allocation_is_base =
+                    source_slot->allocation_is_base;
                 ActiveAllocation* source_allocation =
                     semantic_find_active_allocation(
                         ctx, source_allocation_identity);
@@ -10245,8 +10247,7 @@ static void semantic_check_node(
                     target_slot->allocation_identity =
                         source_allocation_identity;
                     target_slot->allocation_is_base =
-                        source_slot->allocation_is_base ||
-                        (source_allocation != NULL);
+                        source_allocation_is_base;
                     if (source_allocation) {
                         source_allocation->scope_depth =
                             (uint32_t)(target_slot->depth < 0 ? 0 :
