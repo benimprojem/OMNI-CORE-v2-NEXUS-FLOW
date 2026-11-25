@@ -10,6 +10,16 @@
 
 static int semantic_slot_is_nominal_type(const Slot* slot);
 static void semantic_validate_intr_intrinsic(SemanticContext* ctx, ASTNode* node);
+static void semantic_release_all_allocations(SemanticContext* ctx);
+static void semantic_snapshot_allocations_destroy(ActiveAllocation* allocations);
+static int semantic_snapshot_allocations_clone(
+    SemanticContext* ctx, const ActiveAllocation* source,
+    ActiveAllocation** output
+);
+static int semantic_snapshot_allocations_intersection(
+    SemanticContext* ctx, const ActiveAllocation* left,
+    const ActiveAllocation* right, ActiveAllocation** output
+);
 
 void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path) {
     (void)lang_file_path; /* Reserved for the shared diagnostics localization API. */
