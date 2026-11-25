@@ -2312,6 +2312,8 @@ Semantic resolves the qualifier to an enum declaration and the member to one of 
 - The active-allocation registry is the authoritative liveness source. Absence from the registry means the identity is not live; diagnostics may later distinguish never-created, released, and Halt-invalidated cases using optional history, but this distinction is not required for safety.
 - Control-flow joins use the intersection of active allocation identities from all reachable incoming paths. An identity released on any incoming path is not live after the join. If a binding carries different allocation identities on different paths, Semantic rejects the merge rather than choosing one identity.
 - A function's local allocation identities end when its execution context returns normally, as well as when `?;` or `}?;` terminates that context.
+- An allocation-derived handle or pointer cannot be stored in a binding whose lexical scope outlives the allocation's owning scope. Returning a frame-owned allocation handle or derived pointer is likewise invalid; ownership transfer requires an explicit lifetime/ownership contract.
+- Function and Group method declarations are analyzed in an isolated state snapshot. Their hypothetical body effects do not mutate the enclosing declaration-time allocation state; call-site effects require separate verified interprocedural contracts.
 - This contract does not yet claim complete tracking for pointer derivation, address arithmetic, aggregate projections, or branch joins. Those paths remain SEM-005 implementation and verification work.
 
 
