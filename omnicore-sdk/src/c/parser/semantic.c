@@ -6560,6 +6560,77 @@ static const char* semantic_substitute_type_variable(
     return result;
 }
 
+static Slot* semantic_find_slot_by_symbol_id(
+    SemanticContext* ctx, uint32_t symbol_id
+) {
+    Slot* slot;
+    if (!ctx || symbol_id == 0u) return NULL;
+    for (slot = ctx->head; slot; slot = slot->next)
+        if (slot->symbol_id == symbol_id) return slot;
+    return NULL;
+}
+
+static int semantic_record_function_allocation_effect(
+    SemanticContext* ctx, Slot* function_slot, Slot* target_slot,
+    const ASTNode* free_origin
+) {
+    SemanticFunctionAllocationEffect* effect;
+    if (!ctx || !function_slot || !target_slot ||
+        target_slot->symbol_id == 0u) {
+        if (ctx) semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
+        return 0;
+    }
+    for (effect = function_slot->allocation_effects; effect;
+         effect = effect->next) {
+        if (effect->target_symbol_id == target_slot->symbol_id) return 1;
+    }
+    effect = (SemanticFunctionAllocationEffect*)semantic_allocate(
+        ctx, sizeof(*effect));
+    if (!effect) {
+        semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        return 0;
+    }
+    effect->target_symbol_id = target_slot->symbol_id;
+    effect->free_origin = free_origin;
+    effect->next = function_slot->allocation_effects;
+    function_slot->allocation_effects = effect;
+    return 1;
+}
+
+static void semantic_apply_function_allocation_effects(
+    SemanticContext* ctx, ASTNode* call_node, Slot* function_slot
+) {
+    SemanticFunctionAllocationEffect* effect;
+    if (!ctx || !function_slot || !function_slot->declaration_node ||
+        function_slot->declaration_node->type != AST_FUNC_DECL) return;
+    for (effect = function_slot->allocation_effects; effect;
+         effect = effect->next) {
+        Slot* target = semantic_find_slot_by_symbol_id(
+            ctx, effect->target_symbol_id);
+        uint64_t identity;
+        if (!target) {
+            report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "A called function may free an outer allocation whose owner binding is no longer in scope.");
+            continue;
+        }
+        identity = target->allocation_identity;
+        if (identity == 0u ||
+            !semantic_find_active_allocation(ctx, identity)) {
+            report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                "A called function may free an allocation handle that is moved, already released, or no longer active.");
+            continue;
+        }
+        /* Propagate only effects on storage owned outside the current
+           function frame. Function-local allocations do not escape upward. */
+        if (ctx->current_function_slot &&
+            target->function_depth < ctx->function_depth) {
+            (void)semantic_record_function_allocation_effect(
+                ctx, ctx->current_function_slot, target, call_node);
+        }
+        (void)semantic_release_allocation(ctx, identity);
+    }
+}
+
 static void semantic_validate_call_arguments(
     SemanticContext* ctx, ASTNode* call_node, Slot* function_slot,
     ASTNode* arguments, uint32_t parameter_offset
@@ -6933,6 +7004,7 @@ static void semantic_validate_call_arguments(
         free(borrow->path);
     }
     free(temporary_borrows);
+    semantic_apply_function_allocation_effects(ctx, call_node, function_slot);
 }
  
 /* Imported function return types must not hide safe-reference storage or
