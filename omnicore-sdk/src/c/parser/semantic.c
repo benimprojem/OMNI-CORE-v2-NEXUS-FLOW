@@ -6603,6 +6603,8 @@ static void semantic_validate_call_arguments(
                     ? function_slot->param_types[parameter_index] : NULL;
 
             if (expected_type && semantic_type_is_any(ctx, expected_type) &&
+                !(function_slot->declaration_node &&
+                  function_slot->declaration_node->type == AST_EXTERN_DECL) &&
                 semantic_expression_contains_allocation_handle(
                     ctx, argument_value)) {
                 report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
