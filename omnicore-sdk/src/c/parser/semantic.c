@@ -7675,7 +7675,7 @@ static int semantic_scan_returned_reference_parameter(
 }
 
 static int semantic_returned_reference_parameter(
-    const ASTFuncDecl* declaration
+    SemanticContext* ctx, const ASTFuncDecl* declaration
 ) {
     int selected = -1;
     int saw_return = 0;
@@ -7764,7 +7764,7 @@ static int semantic_bind_returned_call_reference(
             function->declaration_node->type != AST_FUNC_DECL) return 0;
         declaration = (ASTFuncDecl*)function->declaration_node;
     }
-    parameter_index = semantic_returned_reference_parameter(declaration);
+    parameter_index = semantic_returned_reference_parameter(ctx, declaration);
     if (parameter_index < 0 || (uint32_t)parameter_index < parameter_offset)
         return 0;
     source_argument = semantic_call_argument_for_parameter(
@@ -11378,7 +11378,7 @@ static void semantic_check_node(
                                     (!function_slot->callable_declaration ||
                                      function_slot->callable_declaration->type != AST_FUNC_DECL ||
                                      semantic_returned_reference_parameter(
-                                        (ASTFuncDecl*)function_slot->callable_declaration) < 0)) {
+                                        ctx, (ASTFuncDecl*)function_slot->callable_declaration) < 0)) {
                                     report_issue(ctx, node,
                                         ERR_SEMANTIC_TYPE_MISMATCH,
                                         "Function-value callback returns a safe reference but its target has no verifiable, consistent reference-parameter return origin.",
