@@ -6569,13 +6569,13 @@ static const char* semantic_substitute_type_variable(
     return result;
 }
 
-static Slot* semantic_find_slot_by_symbol_id(
-    SemanticContext* ctx, uint32_t symbol_id
+static Slot* semantic_find_slot_by_identity(
+    SemanticContext* ctx, uint64_t semantic_identity
 ) {
     Slot* slot;
-    if (!ctx || symbol_id == 0u) return NULL;
+    if (!ctx || semantic_identity == 0u) return NULL;
     for (slot = ctx->head; slot; slot = slot->next)
-        if (slot->symbol_id == symbol_id) return slot;
+        if (slot->semantic_identity == semantic_identity) return slot;
     return NULL;
 }
 
@@ -6585,13 +6585,13 @@ static int semantic_record_function_allocation_effect(
 ) {
     SemanticFunctionAllocationEffect* effect;
     if (!ctx || !function_slot || !target_slot ||
-        target_slot->symbol_id == 0u) {
+        target_slot->semantic_identity == 0u) {
         if (ctx) semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
         return 0;
     }
     for (effect = function_slot->allocation_effects; effect;
          effect = effect->next) {
-        if (effect->target_symbol_id == target_slot->symbol_id) return 1;
+        if (effect->target_slot_identity == target_slot->semantic_identity) return 1;
     }
     effect = (SemanticFunctionAllocationEffect*)semantic_allocate(
         ctx, sizeof(*effect));
@@ -6599,7 +6599,7 @@ static int semantic_record_function_allocation_effect(
         semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
         return 0;
     }
-    effect->target_symbol_id = target_slot->symbol_id;
+    effect->target_slot_identity = target_slot->semantic_identity;
     effect->free_origin = free_origin;
     effect->next = function_slot->allocation_effects;
     function_slot->allocation_effects = effect;
@@ -6614,8 +6614,8 @@ static void semantic_apply_function_allocation_effects(
         function_slot->declaration_node->type != AST_FUNC_DECL) return;
     for (effect = function_slot->allocation_effects; effect;
          effect = effect->next) {
-        Slot* target = semantic_find_slot_by_symbol_id(
-            ctx, effect->target_symbol_id);
+        Slot* target = semantic_find_slot_by_identity(
+            ctx, effect->target_slot_identity);
         uint64_t identity;
         if (!target) {
             report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
