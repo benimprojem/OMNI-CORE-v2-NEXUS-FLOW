@@ -4268,8 +4268,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_double_free, 1) &&
         check_source(allocation_branch_release_is_not_live_after_join, 1) &&
         check_source(allocation_branch_live_on_all_paths, 0) &&
-        check_source(allocation_branch_identity_mismatch, 1) &&
-        check_source(allocation_loop_backedge_identity_mismatch, 1) &&
+        check_source(allocation_branch_identity_mismatch, 3) &&
+        check_source(allocation_loop_backedge_identity_mismatch, 2) &&
         check_source(invalid_area, 1) &&
         check_source(invalid_zone_type, 1) &&
         check_source(invalid_free, 1) &&
