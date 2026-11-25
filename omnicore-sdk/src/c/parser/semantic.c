@@ -2007,11 +2007,7 @@ static int semantic_reference_init_snapshot_capture(
             ctx, ctx->active_allocations, &snapshot->allocations))
         return 0;
     for (slot = ctx->head; slot; slot = slot->next) {
-        if (slot->kind == SLOT_VAR &&
-            (slot->allocation_identity != 0u ||
-             semantic_is_reference_type_name(slot->type_name) ||
-             semantic_is_raw_pointer_type_name(slot->type_name) ||
-             semantic_is_function_type_name(ctx, slot->type_name))) {
+        if (slot->kind == SLOT_VAR) {
             if (count == SIZE_MAX) {
                 semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                 return 0;
@@ -2032,11 +2028,7 @@ static int semantic_reference_init_snapshot_capture(
     }
     snapshot->count = count;
     for (slot = ctx->head; slot; slot = slot->next) {
-        if (slot->kind == SLOT_VAR &&
-            (slot->allocation_identity != 0u ||
-             semantic_is_reference_type_name(slot->type_name) ||
-             semantic_is_raw_pointer_type_name(slot->type_name) ||
-             semantic_is_function_type_name(ctx, slot->type_name))) {
+        if (slot->kind == SLOT_VAR) {
             snapshot->entries[index].slot = slot;
             snapshot->entries[index].allocation_identity =
                 slot->allocation_identity;
