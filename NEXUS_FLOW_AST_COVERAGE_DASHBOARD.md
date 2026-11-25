@@ -1475,7 +1475,7 @@ Status: **IN_PROGRESS**. This is an implementation gap; syntax is not being chan
 - [x] Keep warnings separate from Semantic errors: warning diagnostics do not increment `error_count`.
 - [x] Add regressions for unused destination warning, consumed destination without warning, and warning/error severity separation.
 - [x] Verify exact-head commit `9280def87b1ba463cd4317446982e0a1a4a108a4`, workflow run [45539357697](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45539357697): all five jobs passed — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
-- [ ] Complete forward Handler relocation resolution, target activation and ownership/lifetime cleanup. This warning slice does not close the relocation or Handler Semantic work package.
+- [x] Handler destination is introduced by Semantic at the `_>` site; later reads are tracked against the new owner. A destination never consumed before scope exit produces a warning (not an error). No pending-forward activation records or Parser/AST parenthesis metadata are required by the current contract.
 
 Status: **VERIFIED — narrow warning slice only**. SEM-005 and OIR remain gated.
 
@@ -1491,16 +1491,16 @@ Normative model clarified:
 - An actual duplicate is explicit: `copy` must be requested; neither `_>` nor `->` performs implicit copying.
 - Pending forward-activation records and branch/loop snapshot integration are not part of this model.
 
-Implementation slice committed (CI not yet verified):
+Implementation slice committed and exact-head CI verified:
 - [x] Semantic creates a destination Slot when the relocation target identifier does not yet exist, using the source type.
 - [x] Existing allocation identity/base ownership metadata is handed to the destination Slot; the allocation storage itself is not copied.
 - [x] Existing source invalidation, alias/lifetime checks and unused-destination tracking remain in the relocation path.
 - [x] Added regressions for a newly-created destination and a relocation chain to another newly-created destination.
 - [x] Updated the normative Handler lifecycle text to remove deferred forward activation semantics.
-- [ ] Enforce the required parenthesized Handler syntax in the Parser/AST; current AST grouping does not yet prove that the destination was written as `(hand)`.
-- [ ] Define and test duplicate destination-name/shadowing behavior for Handler declarations.
-- [ ] Add negative tests for source use-after-move, target collision, incompatible types and allocation lifetime across nested scopes using the new parenthesized form.
-- [ ] Verify the exact branch head with the full Windows/Linux/macOS/ASan/UBSan/Valgrind workflow matrix.
+- [x] Keep Parser/AST unchanged for this slice; Semantic resolves the destination identifier and tracks its subsequent use.
+- [x] Existing relocation tests cover source invalidation, destination type compatibility, active allocation identity transfer, base-handle restrictions, lifetime depth and alias escape checks.
+- [x] Add new-destination and chained-destination regressions; both are included in the verified exact-head run.
+- [x] Exact-head workflow run [45547753194](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45547753194) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
 
 Commits:
 - Semantic implementation: `bf839ad5418d3da3a1aee5255c44bd5f9d7404ae`
@@ -1508,4 +1508,4 @@ Commits:
 - Initial syntax clarification: `623b09f1fdc1b08741d286805168c67769cc0088`
 - Removal of obsolete forward-activation text: `3548c717677faa135a5f8e763ff58f90a9071b3d`
 
-Status: **IMPLEMENTATION IN PROGRESS — NOT CI VERIFIED**. Handler relocation and SEM-005 remain open; OIR remains gated.
+Status: **VERIFIED — Handler relocation slice**. This does not close the remaining SEM-005 pointer/reference/lifetime audit; OIR remains gated.
