@@ -945,3 +945,12 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Added parser/Semantic regression fixtures for `?;` stopping the current execution context, including when nested, and `}?;` stopping the enclosing execution context as required by the normative syntax contract.
 - Commits: `672fe3d2` (state), `4e8391cc` (traversal), `5138244a` (initialization), `6fd942a5` (tests). The first test attempt exposed a parser mismatch: `TOKEN_HALT` already represents the complete `?;` token, but the Parser incorrectly attempted to parse a following statement as an optional Halt expression. The parser now treats it as a complete statement token. Exact-head CI for the corrected tests is running; do not treat this checkpoint as passed until all jobs are green.
 - Resource release and alias invalidation on either Halt form remain unimplemented. Next implementation step is allocation identity/generation metadata on `Slot`, propagation through aliases/address expressions, and invalidation on `free()` and scope Halt.
+
+
+### SEM-005 — Handler ownership handoff exact-head verification (2026-11-25)
+
+- Confirmed the language contract: `_>` transfers ownership of the same allocation identity/address; it does not copy or physically move the data. `->` consumes the current Handler value and does not perform another ownership transfer. Explicit duplication requires `copy`.
+- Semantic creates the destination binding at the relocation site, transfers the active allocation identity and lifetime metadata, and invalidates the source binding. Subsequent destination reads are tracked; an unconsumed relocated value emits a warning at scope exit without incrementing the semantic error count.
+- Added regression coverage for a newly created destination and chained relocation to a second new destination. The syntax reference and root coverage dashboard now reflect this model. Parser/AST parenthesis metadata is intentionally not part of this work item.
+- Exact-head commit `4a3407bc0456424f7f81979e96ff384196b4e1e5`, workflow run [45547753194](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45547753194): all five jobs passed — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- This verifies the Handler ownership-handoff slice only. SEM-005 remains IN_PROGRESS pending the remaining pointer/reference provenance, escape, lifetime and initialization cross-audit; OIR remains gated.
