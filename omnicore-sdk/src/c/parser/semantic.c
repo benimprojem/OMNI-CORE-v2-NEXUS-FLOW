@@ -9510,17 +9510,6 @@ static void semantic_check_node(
                 if (slot && slot->type_name) {
                     const char* right_type = get_expr_type(ctx, assign->right);
                     int named_function_assignment = 0;
-                    if (semantic_type_is_container_storage(
-                            ctx, slot->type_name) &&
-                        semantic_expression_contains_allocation_handle(
-                            ctx, assign->right)) {
-                        report_issue(ctx, assign->right,
-                            ERR_SEMANTIC_TYPE_MISMATCH,
-                            "Allocation handles cannot be assigned into aggregate/container bindings because per-element/per-field allocation identity tracking is unavailable.",
-                            "Keep area/zone handles in direct bindings; do not place them inside any, arrays, tuples, Maps, Vecs, or aggregate values.",
-                            "Keep area/zone handles in direct bindings; do not place them inside any, arrays, tuples, Maps, Vecs, or aggregate values.",
-                            0, 0);
-                    }
                     if (semantic_type_is_any(ctx, slot->type_name) &&
                         semantic_expression_contains_safe_reference(
                             ctx, assign->right, 0u)) {
@@ -9681,14 +9670,6 @@ static void semantic_check_node(
                   ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR))) {
                 const char* stored_type = get_expr_type(ctx, assign->right);
                 const char* target_type = get_expr_type(ctx, assign->left);
-                if (semantic_expression_contains_allocation_handle(
-                        ctx, assign->right)) {
-                    report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Allocation handles or allocation-derived addresses cannot be stored through member/index/pointer targets because per-field/per-element allocation identity tracking is unavailable.",
-                        "Keep the handle in a direct binding, or use an explicitly converted raw pointer only when accepting the unsafe provenance boundary.",
-                        "Keep the handle in a direct binding, or use an explicitly converted raw pointer only when accepting the unsafe provenance boundary.",
-                        0, 0);
-                }
                 if (semantic_expression_contains_safe_reference(
                         ctx, assign->right, 0u) &&
                     !semantic_type_contains_safe_reference(ctx, target_type, 0u)) {
@@ -9797,6 +9778,34 @@ static void semantic_check_node(
                 {
                     int right_error_baseline = ctx->error_count;
                     semantic_check(ctx, assign->right);
+                    if ((assign->op == TOKEN_ASSIGN ||
+                         assign->op == TOKEN_FORCE_ASSIGN) &&
+                        semantic_expression_contains_allocation_handle(
+                            ctx, assign->right)) {
+                        if (assign->left->type == AST_IDENTIFIER) {
+                            Slot* destination = find_slot(
+                                ctx, ((ASTIdentifier*)assign->left)->name);
+                            if (destination &&
+                                semantic_type_is_container_storage(
+                                    ctx, destination->type_name)) {
+                                report_issue(ctx, assign->right,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "Allocation handles cannot be assigned into aggregate/container bindings because per-element/per-field allocation identity tracking is unavailable.",
+                                    "Keep area/zone handles in direct bindings; do not place them inside any, arrays, tuples, Maps, Vecs, or aggregate values.",
+                                    "Keep area/zone handles in direct bindings; do not place them inside any, arrays, tuples, Maps, Vecs, or aggregate values.",
+                                    0, 0);
+                            }
+                        } else if (assign->left->type == AST_MEMBER_ACCESS ||
+                                   assign->left->type == AST_INDEX_ACCESS ||
+                                   (assign->left->type == AST_UNARY_EXPR &&
+                                    ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR)) {
+                            report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "Allocation handles or allocation-derived addresses cannot be stored through member/index/pointer targets because per-field/per-element allocation identity tracking is unavailable.",
+                                "Keep the handle in a direct binding, or use an explicitly converted raw pointer only when accepting the unsafe provenance boundary.",
+                                "Keep the handle in a direct binding, or use an explicitly converted raw pointer only when accepting the unsafe provenance boundary.",
+                                0, 0);
+                        }
+                    }
                     if (ctx->error_count == right_error_baseline &&
                         assign->left->type == AST_IDENTIFIER) {
                         Slot* assigned_slot = find_slot(
