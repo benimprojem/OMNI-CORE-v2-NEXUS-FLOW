@@ -4143,6 +4143,58 @@ static int check_function_allocation_cleanup(void) {
     return ok;
 }
 
+static int check_allocation_identity_never_reused(void) {
+    const char* source =
+        "v:a = area(64); free(a); v:b = area(64);";
+    ParserContext* parser = parser_init_source(
+        "allocation-identity.nxf", (const uint8_t*)source, strlen(source));
+    SemanticContext semantic;
+    Slot* a = NULL;
+    Slot* b = NULL;
+    Slot* slot;
+    ActiveAllocation* active;
+    int old_identity_is_inactive = 1;
+    int new_identity_is_active = 0;
+    int ok;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    semantic_init(&semantic, "allocation-identity.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    for (slot = semantic.head; slot; slot = slot->next) {
+        if (slot->name && strcmp(slot->name, "a") == 0) a = slot;
+        if (slot->name && strcmp(slot->name, "b") == 0) b = slot;
+    }
+    if (a && a->allocation_identity != 0u) {
+        for (active = semantic.active_allocations; active; active = active->next)
+            if (active->identity == a->allocation_identity)
+                old_identity_is_inactive = 0;
+    } else {
+        old_identity_is_inactive = 0;
+    }
+    if (b && b->allocation_identity != 0u) {
+        for (active = semantic.active_allocations; active; active = active->next)
+            if (active->identity == b->allocation_identity)
+                new_identity_is_active = 1;
+    }
+    ok = semantic.error_count == 0 && a && b &&
+        a->allocation_identity != b->allocation_identity &&
+        old_identity_is_inactive && new_identity_is_active;
+    if (!ok) {
+        fprintf(stderr,
+            "Allocation identity reuse check failed: errors=%d old=%llu new=%llu old_inactive=%d new_active=%d\\n",
+            semantic.error_count,
+            (unsigned long long)(a ? a->allocation_identity : 0u),
+            (unsigned long long)(b ? b->allocation_identity : 0u),
+            old_identity_is_inactive, new_identity_is_active);
+    }
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_allocation_diagnostic_location(void) {
     const char* source = "f:main() { v:a = area(64); free(a); echo(a); }";
     const char* access = strstr(source, "echo(a)") + 5;
@@ -4447,6 +4499,10 @@ int main(int argc, char** argv) {
     }
     if (!check_allocation_diagnostic_location()) {
         fprintf(stderr, "Allocation diagnostic source location checks failed.\\n");
+        return 1;
+    }
+    if (!check_allocation_identity_never_reused()) {
+        fprintf(stderr, "Allocation identity non-reuse checks failed.\\n");
         return 1;
     }
     if (!check_function_allocation_cleanup()) {
