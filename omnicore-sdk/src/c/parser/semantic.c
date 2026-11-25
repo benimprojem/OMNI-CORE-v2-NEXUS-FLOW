@@ -1877,6 +1877,7 @@ typedef struct SemanticReferenceInitEntry {
     uint8_t is_initialized;
     uint8_t is_nullable;
     uint8_t is_moved;
+    uint8_t allocation_is_base;
     ASTNode* callable_declaration;
     Slot* borrow_origin;
     uint64_t borrow_suspended_by_identity;
@@ -2058,6 +2059,7 @@ static int semantic_reference_init_snapshot_capture(
             snapshot->entries[index].is_initialized = slot->is_initialized;
             snapshot->entries[index].is_nullable = slot->is_nullable;
             snapshot->entries[index].is_moved = slot->is_moved;
+            snapshot->entries[index].allocation_is_base = slot->allocation_is_base;
             snapshot->entries[index].callable_declaration =
                 slot->callable_declaration;
             snapshot->entries[index].borrow_origin = slot->borrow_origin;
@@ -2208,6 +2210,7 @@ static void semantic_reference_init_snapshot_restore(
         slot->is_initialized = snapshot->entries[index].is_initialized;
         slot->is_nullable = snapshot->entries[index].is_nullable;
         slot->is_moved = snapshot->entries[index].is_moved;
+        slot->allocation_is_base = snapshot->entries[index].allocation_is_base;
         slot->allocation_identity =
             snapshot->entries[index].allocation_identity;
         slot->callable_declaration =
@@ -2314,6 +2317,10 @@ static void semantic_reference_init_snapshot_merge(
                 left->entries[index].is_moved ||
                 right->entries[index].is_moved);
             left->entries[index].is_moved = slot->is_moved;
+            slot->allocation_is_base = (uint8_t)(
+                left->entries[index].allocation_is_base &&
+                right->entries[index].allocation_is_base);
+            left->entries[index].allocation_is_base = slot->allocation_is_base;
             if (left->entries[index].allocation_identity !=
                 right->entries[index].allocation_identity) {
                 report_error(ctx, slot->declaration_node,
@@ -4784,6 +4791,72 @@ static uint64_t semantic_expression_allocation_identity(
     SemanticContext* ctx, ASTNode* expression
 ) {
     return semantic_expression_allocation_identity_depth(ctx, expression, 0u, 0);
+}
+
+static int semantic_expression_allocation_is_base_depth(
+    SemanticContext* ctx, ASTNode* expression, unsigned int depth
+) {
+    Slot* slot;
+    if (!ctx || !expression || depth > 64u) return 0;
+    if (expression->type == AST_IDENTIFIER) {
+        slot = find_slot(ctx, ((ASTIdentifier*)expression)->name);
+        return slot && slot->allocation_identity != 0u &&
+            slot->allocation_is_base;
+    }
+    if (expression->type == AST_AREA || expression->type == AST_ZONE)
+        return semantic_find_allocation_expression_identity(ctx, expression) != 0u;
+    if (expression->type == AST_ADDR) {
+        ASTNode* argument = semantic_intrinsic_argument_value(
+            ((ASTCall*)expression)->args);
+        return semantic_expression_allocation_is_base_depth(
+            ctx, argument, depth + 1u);
+    }
+    if (expression->type == AST_RELOCATE)
+        return semantic_expression_allocation_is_base_depth(
+            ctx, ((ASTRelocate*)expression)->target, depth + 1u);
+    if (expression->type == AST_CAST)
+        return semantic_expression_allocation_is_base_depth(
+            ctx, ((ASTCast*)expression)->value, depth + 1u);
+    if (expression->type == AST_UNARY_EXPR) {
+        ASTUnaryExpr* unary = (ASTUnaryExpr*)expression;
+        if (unary->op == TOKEN_BIT_AND && unary->operand &&
+            unary->operand->type == AST_UNARY_EXPR &&
+            ((ASTUnaryExpr*)unary->operand)->op == TOKEN_STAR)
+            return semantic_expression_allocation_is_base_depth(
+                ctx, ((ASTUnaryExpr*)unary->operand)->operand, depth + 1u);
+        if (unary->op == TOKEN_STAR && unary->operand &&
+            unary->operand->type == AST_IDENTIFIER) {
+            const BorrowOrigin* origin;
+            uint64_t identity = 0u;
+            slot = find_slot(ctx, ((ASTIdentifier*)unary->operand)->name);
+            if (!slot) return 0;
+            if (slot->allocation_identity != 0u)
+                return slot->allocation_is_base;
+            if (slot->borrow_origin &&
+                slot->borrow_origin->allocation_identity != 0u)
+                identity = slot->borrow_origin->allocation_identity;
+            for (origin = slot->borrow_origins; origin; origin = origin->next) {
+                uint64_t candidate = origin->owner
+                    ? origin->owner->allocation_identity : 0u;
+                if (candidate == 0u) continue;
+                if (identity != 0u && identity != candidate) return 0;
+                identity = candidate;
+                if (!origin->owner->allocation_is_base) return 0;
+            }
+            if (identity == 0u) return 0;
+            if (slot->borrow_origin &&
+                slot->borrow_origin->allocation_identity == identity)
+                return slot->borrow_origin->allocation_is_base;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int semantic_expression_allocation_is_base(
+    SemanticContext* ctx, ASTNode* expression
+) {
+    return semantic_expression_allocation_is_base_depth(ctx, expression, 0u);
 }
 
 static void semantic_validate_allocation_intrinsic(
@@ -8481,9 +8554,13 @@ static void semantic_check_node(
                         "Initializer for c: must be a compile-time constant expression; runtime calls and non-constant values are not allowed.");
                 }
                 init_type = get_expr_type(ctx, decl->initializer);
-                if (declared_slot && ctx->error_count == initializer_error_baseline)
+                if (declared_slot && ctx->error_count == initializer_error_baseline) {
                     declared_slot->allocation_identity =
                         semantic_expression_allocation_identity(ctx, decl->initializer);
+                    declared_slot->allocation_is_base =
+                        (uint8_t)semantic_expression_allocation_is_base(
+                            ctx, decl->initializer);
+                }
                 if (((declared_slot && semantic_type_is_any(
                         ctx, declared_slot->type_name)) ||
                      (declared_slot && semantic_is_array_type_name(
@@ -9524,6 +9601,9 @@ static void semantic_check_node(
                                     0, 0);
                             } else {
                                 assigned_slot->allocation_identity = assigned_identity;
+                                assigned_slot->allocation_is_base =
+                                    (uint8_t)semantic_expression_allocation_is_base(
+                                        ctx, assign->right);
                             }
                         }
                     }
@@ -10161,8 +10241,12 @@ static void semantic_check_node(
                 } else {
                     source_slot->is_moved=1;
                     source_slot->allocation_identity = 0u;
+                    source_slot->allocation_is_base = 0u;
                     target_slot->allocation_identity =
                         source_allocation_identity;
+                    target_slot->allocation_is_base =
+                        source_slot->allocation_is_base ||
+                        (source_allocation != NULL);
                     if (source_allocation) {
                         source_allocation->scope_depth =
                             (uint32_t)(target_slot->depth < 0 ? 0 :
@@ -12055,9 +12139,15 @@ static void semantic_check_node(
                     ASTNode* value = semantic_intrinsic_argument_value(call->args);
                     uint64_t identity = semantic_expression_allocation_identity(ctx, value);
                     if (identity != 0u) {
-                        /* A stale identifier already receives its primary
-                           source-located diagnostic in the argument traversal. */
-                        (void)semantic_release_allocation(ctx, identity);
+                        if (semantic_find_active_allocation(ctx, identity) &&
+                            !semantic_expression_allocation_is_base(ctx, value)) {
+                            report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "free() requires the allocation's base handle/address; an interior or offset pointer cannot release the allocation.");
+                        } else {
+                            /* A stale identifier already receives its primary
+                               source-located diagnostic in the argument traversal. */
+                            (void)semantic_release_allocation(ctx, identity);
+                        }
                     } else if (value) {
                         const char* value_type = get_expr_type(ctx, value);
                         Slot* handle = value->type == AST_IDENTIFIER
