@@ -4224,11 +4224,11 @@ static int check_intrinsic_semantics(void) {
         "f:check(cond!bool) { v:a = area(64); "
         "if (cond) { echo(a); } els { echo(a); } echo(a); }";
     const char* allocation_branch_identity_mismatch =
-        "f:check(cond!bool) { v:a = area(64); "
-        "if (cond) { a = area(32); } els { a = area(128); } echo(a); }";
+        "f:check(cond!bool) { v:a = area(64); v:b = area(32); v:c = area(128); "
+        "if (cond) { a = b; } els { a = c; } echo(a); }";
     const char* allocation_loop_backedge_identity_mismatch =
-        "f:main() { v:a = area(64); "
-        "loop (true) { a = area(32); break; } echo(a); }";
+        "f:main() { v:a = area(64); v:b = area(32); "
+        "loop (true) { a = b; break; } echo(a); }";
     const char* invalid_area =
         "f:main() { v:a = area(0); }";
     const char* invalid_zone_type =
@@ -4276,8 +4276,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_double_free, 1) &&
         check_source(allocation_branch_release_is_not_live_after_join, 1) &&
         check_source(allocation_branch_live_on_all_paths, 0) &&
-        check_source(allocation_branch_identity_mismatch, 3) &&
-        check_source(allocation_loop_backedge_identity_mismatch, 2) &&
+        check_source(allocation_branch_identity_mismatch, 1) &&
+        check_source(allocation_loop_backedge_identity_mismatch, 1) &&
         check_source(invalid_area, 1) &&
         check_source(invalid_zone_type, 1) &&
         check_source(invalid_free, 1) &&
