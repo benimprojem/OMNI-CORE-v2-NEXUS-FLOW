@@ -1873,6 +1873,35 @@ static int semantic_type_contains_allocation_handle(
     return 0;
 }
 
+static int semantic_type_is_container_storage_depth(
+    SemanticContext* ctx, const char* type_name, unsigned int depth
+) {
+    const char* raw_type = type_name;
+    Slot* type_slot;
+    if (!ctx || !raw_type) return 0;
+    if (depth > 64u) return 1;
+    while (*raw_type == '!') ++raw_type;
+    if (semantic_is_any(ctx, raw_type) ||
+        semantic_is_array_type_name(raw_type) ||
+        strcmp(raw_type, "tuple") == 0 ||
+        strcmp(raw_type, "map") == 0 ||
+        strcmp(raw_type, "vec") == 0) return 1;
+    type_slot = find_slot(ctx, raw_type);
+    if (!type_slot) return 0;
+    if (type_slot->kind == SLOT_STRUCT || type_slot->kind == SLOT_UNION)
+        return 1;
+    if (type_slot->kind == SLOT_NEWTYPE)
+        return semantic_type_is_container_storage_depth(
+            ctx, type_slot->type_name, depth + 1u);
+    return 0;
+}
+
+static int semantic_type_is_container_storage(
+    SemanticContext* ctx, const char* type_name
+) {
+    return semantic_type_is_container_storage_depth(ctx, type_name, 0u);
+}
+
 /* A callback signature is not reference storage, but exposing that
    signature through an untyped/extern/variadic boundary erases its lifetime
    contract. Keep that ABI rule separate from aggregate-storage inspection. */
@@ -9481,6 +9510,17 @@ static void semantic_check_node(
                 if (slot && slot->type_name) {
                     const char* right_type = get_expr_type(ctx, assign->right);
                     int named_function_assignment = 0;
+                    if (semantic_type_is_container_storage(
+                            ctx, slot->type_name) &&
+                        semantic_expression_contains_allocation_handle(
+                            ctx, assign->right)) {
+                        report_issue(ctx, assign->right,
+                            ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Allocation handles cannot be assigned into aggregate/container bindings because per-element/per-field allocation identity tracking is unavailable.",
+                            "Keep area/zone handles in direct bindings; do not place them inside any, arrays, tuples, Maps, Vecs, or aggregate values.",
+                            "Keep area/zone handles in direct bindings; do not place them inside any, arrays, tuples, Maps, Vecs, or aggregate values.",
+                            0, 0);
+                    }
                     if (semantic_type_is_any(ctx, slot->type_name) &&
                         semantic_expression_contains_safe_reference(
                             ctx, assign->right, 0u)) {
