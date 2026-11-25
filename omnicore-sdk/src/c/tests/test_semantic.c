@@ -4265,6 +4265,9 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_relocate_across_function_frame_rejected =
         "v:global_area = area(64); "
         "f:move() { v:local = area(32); v:moved = local _> global_area; }";
+    const char* allocation_relocate_interior_pointer_rejected =
+        "f:main() { v:a = area(64); v:base = addr(a); "
+        "v:interior = base + 4; v:moved = interior _> base; }";
     const char* invalid_area =
         "f:main() { v:a = area(0); }";
     const char* invalid_zone_type =
@@ -4331,6 +4334,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_relocate_to_outer_scope, 0) &&
         check_source(allocation_relocate_into_owned_destination_rejected, 1) &&
         check_source(allocation_relocate_across_function_frame_rejected, 1) &&
+        check_source(allocation_relocate_interior_pointer_rejected, 1) &&
         check_source(invalid_area, 1) &&
         check_source(invalid_zone_type, 1) &&
         check_source(invalid_free, 1) &&
