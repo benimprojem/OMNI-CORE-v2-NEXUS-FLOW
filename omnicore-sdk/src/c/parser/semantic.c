@@ -52,6 +52,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->thread_block_depth = 0u;
     ctx->borrow_operand_depth = 0u;
     ctx->assignment_target_depth = 0u;
+    ctx->allocation_write_target_depth = 0u;
     ctx->assignment_borrow_guard_owner = NULL;
     ctx->initializing_slot = NULL;
     memset(&ctx->lang, 0, sizeof(ctx->lang));
@@ -8837,7 +8838,7 @@ static void semantic_check_node(
             Slot* resolved = find_slot(ctx, id->name);
             if (resolved && resolved->allocation_identity != 0u &&
                 !semantic_find_active_allocation(ctx, resolved->allocation_identity) &&
-                ctx->assignment_target_depth == 0u) {
+                ctx->allocation_write_target_depth == 0u) {
                 char allocation_message[320];
                 (void)snprintf(allocation_message, sizeof(allocation_message),
                     "Allocation handle '%s' is no longer valid; its allocation was released or its lifetime was terminated.",
@@ -9449,7 +9450,11 @@ static void semantic_check_node(
                 Slot* previous_guard_owner = ctx->assignment_borrow_guard_owner;
                 Slot* target_owner = semantic_lvalue_root_slot(ctx, assign->left);
                 ++ctx->assignment_target_depth;
+                if (assign->left->type == AST_IDENTIFIER)
+                    ++ctx->allocation_write_target_depth;
                 semantic_check(ctx, assign->left);
+                if (assign->left->type == AST_IDENTIFIER)
+                    --ctx->allocation_write_target_depth;
                 --ctx->assignment_target_depth;
                 {
                     char* target_path = semantic_lvalue_path(ctx, assign->left);
@@ -10068,7 +10073,9 @@ static void semantic_check_node(
             const char* target_type;
             semantic_check(ctx,relocate->source);
             ++ctx->assignment_target_depth;
+            ++ctx->allocation_write_target_depth;
             semantic_check(ctx,relocate->target);
+            --ctx->allocation_write_target_depth;
             --ctx->assignment_target_depth;
             source_type=get_expr_type(ctx,relocate->source);
             target_type=get_expr_type(ctx,relocate->target);
