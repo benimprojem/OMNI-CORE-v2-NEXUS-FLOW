@@ -131,8 +131,16 @@ static int check_relocation_unused_warning(void) {
     const char* consumed =
         "f:main() { v:src!i32 = 1; v:dst!i32 = 0; "
         "v:moved = src _> dst; echo(dst); }";
+    const char* chained_unused =
+        "f:main() { v:src!i32 = 1; v:dst!i32 = 0; v:dst2!i32 = 0; "
+        "v:first = src _> dst; v:second = dst _> dst2; }";
+    const char* chained_consumed =
+        "f:main() { v:src!i32 = 1; v:dst!i32 = 0; v:dst2!i32 = 0; "
+        "v:first = src _> dst; echo(dst); v:second = dst _> dst2; }";
     return check_source_warning_expectation(unused, 1) &&
-        check_source_warning_expectation(consumed, 0);
+        check_source_warning_expectation(consumed, 0) &&
+        check_source_warning_expectation(chained_unused, 1) &&
+        check_source_warning_expectation(chained_consumed, 0);
 }
 
 static int check_imported_function_call_semantics(void) {
