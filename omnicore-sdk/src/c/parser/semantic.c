@@ -10556,7 +10556,8 @@ static void semantic_check_node(
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation source and destination names must differ.");
                 } else if (existing_target &&
-                           existing_target->scope_id == ctx->current_scope_id) {
+                           existing_target->depth == ctx->current_depth &&
+                           existing_target->function_depth == ctx->function_depth) {
                     target_slot = existing_target;
                     target_collision = 1;
                     report_error(ctx, relocate->target,
