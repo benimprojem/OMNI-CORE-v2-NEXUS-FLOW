@@ -10484,6 +10484,7 @@ static void semantic_check_node(
                     target_slot = add_slot(
                         ctx, target_name, SLOT_VAR, 0, source_type,
                         relocate->target, 1, 0, 0, 0u);
+                    if (!target_slot) target_collision = 1;
                 }
             }
             ++ctx->assignment_target_depth;
