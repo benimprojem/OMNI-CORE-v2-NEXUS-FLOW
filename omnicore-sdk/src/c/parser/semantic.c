@@ -976,6 +976,7 @@ static Slot* add_slot(
     s->declaration_node = declaration_node;
     s->is_const = is_const;
     s->depth = ctx->current_depth;
+    s->function_depth = ctx->function_depth;
     s->param_count = 0;
     s->param_types = NULL;
     s->fields = NULL;
@@ -4646,6 +4647,9 @@ static uint64_t semantic_expression_allocation_identity_depth(
             return semantic_expression_allocation_identity_depth(
                 ctx, argument, depth + 1u, 2);
         }
+        case AST_RELOCATE:
+            return semantic_expression_allocation_identity_depth(
+                ctx, ((ASTRelocate*)expression)->target, depth + 1u, 0);
         case AST_FREE:
         case AST_LEN:
         case AST_AREA:
@@ -10083,9 +10087,41 @@ static void semantic_check_node(
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                     "Relocate source and destination types must match.");
             } else {
-                source_slot->is_moved=1;
-                semantic_record_annotation(ctx,node,target_slot,
-                    target_type?target_type:"any",SEMANTIC_RESULT_VALUE_RVALUE);
+                uint64_t source_allocation_identity =
+                    source_slot->allocation_identity;
+                ActiveAllocation* source_allocation =
+                    semantic_find_active_allocation(
+                        ctx, source_allocation_identity);
+                ActiveAllocation* target_allocation =
+                    semantic_find_active_allocation(
+                        ctx, target_slot->allocation_identity);
+                if ((source_slot->type_name &&
+                     (strcmp(source_slot->type_name, "area") == 0 ||
+                      strcmp(source_slot->type_name, "zone") == 0) &&
+                    (!source_allocation || source_allocation_identity == 0u)) ||
+                    (source_allocation_identity != 0u && !source_allocation)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation source carries an allocation identity that is no longer active.");
+                } else if (target_allocation &&
+                           target_slot->allocation_identity !=
+                               source_allocation_identity) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation destination already owns a different active allocation; release or relocate it first.");
+                } else {
+                    source_slot->is_moved=1;
+                    source_slot->allocation_identity = 0u;
+                    target_slot->allocation_identity =
+                        source_allocation_identity;
+                    if (source_allocation) {
+                        source_allocation->scope_depth =
+                            (uint32_t)(target_slot->depth < 0 ? 0 :
+                                       target_slot->depth);
+                        source_allocation->function_depth =
+                            target_slot->function_depth;
+                    }
+                    semantic_record_annotation(ctx,node,target_slot,
+                        target_type?target_type:"any",SEMANTIC_RESULT_VALUE_RVALUE);
+                }
             }
             break;
         }
