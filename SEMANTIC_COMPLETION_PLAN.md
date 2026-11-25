@@ -963,3 +963,13 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Added deterministic fault-injection coverage for borrow snapshots with member projections and call temporaries, plus returned-reference local-alias origin analysis. Existing allocation snapshot OOM coverage remains in place.
 - Exact-head commit `e6982ba55706beef08d0c3231b28efb357f94951`, workflow run [45556265200](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45556265200): Ubuntu, Windows, macOS, ASan/UBSan and Valgrind all passed.
 - Status: this OOM-safety slice is VERIFIED; SEM-005 as a whole remains IN_PROGRESS because pointer provenance through every expression form and call/relocate/thread-capture escape plus interprocedural effects still require audit. OIR remains gated.
+
+
+### SEM-005 — Allocation-handle storage, thread capture and free-through-reference audit (2026-11-25)
+
+- Added recursive allocation-handle detection through array, tuple, struct initializer and cast expressions. Aggregate/container storage is rejected where field/element-level allocation identity is not represented; direct assignment checks run after RHS semantic analysis to avoid checking before provenance is known.
+- Thread-block `copy(...)` rejects allocation-backed handles and safe references because value-copying the handle does not preserve the backing allocation's lifetime. Ordinary scalar/value captures continue to be accepted.
+- Failure record `SEM-005-F01`: run [45560964429](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45560964429), Ubuntu/Windows/macOS/ASan test `semantic_checks_valid_and_undefined_symbols`. The valid `free(*p)` handle-reference case was rejected because the owner borrow count treated a borrow of the handle variable as a borrow of the allocated region.
+- Fix: permit `free(*p)` only when `p` is the sole direct shared borrow of the allocation-handle binding (one origin, one shared borrow, no mutable/suspended parent); all other live aliases/reborrows continue to block release. Added a negative regression with a second live handle reference.
+- Exact-head commit `2abeaedd551d33ed82c9b4ac218cf8bd8e2e4a6b`, CI run [45574152654](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45574152654): all five jobs passed — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- This audit slice is VERIFIED. It does not close SEM-005: remaining work includes exhaustive pointer-expression provenance, parameter/call/return escape contracts, control-flow lifetime/borrow merges and stable diagnostics. OIR remains gated.
