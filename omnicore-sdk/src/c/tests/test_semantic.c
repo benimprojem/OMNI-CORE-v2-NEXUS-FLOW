@@ -4143,6 +4143,42 @@ static int check_function_allocation_cleanup(void) {
     return ok;
 }
 
+static int check_allocation_snapshot_oom_failures(void) {
+    const char* source =
+        "f:main(cond!bool) { v:a = area(64); "
+        "if (cond) { v:left = area(16); } "
+        "els { v:right = area(32); } echo(a); }";
+    ParserContext* parser = parser_init_source(
+        "allocation-snapshot-oom.nxf",
+        (const uint8_t*)source, strlen(source));
+    uint32_t fail_at;
+    int ok = 1;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    for (fail_at = 1u; fail_at <= 48u; ++fail_at) {
+        SemanticContext semantic;
+        uint32_t attempts;
+        semantic_init(&semantic, "allocation-snapshot-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&semantic, fail_at);
+        semantic_check(&semantic, (ASTNode*)parser->ast_root);
+        attempts = semantic_test_get_allocation_attempts(&semantic);
+        if (attempts == fail_at &&
+            semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY) {
+            fprintf(stderr,
+                "Allocation snapshot fault injection %u did not fail closed (status=%d, errors=%d).\\n",
+                fail_at, (int)semantic.result_status, semantic.error_count);
+            ok = 0;
+        }
+        semantic_destroy(&semantic);
+        if (!ok) break;
+    }
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_allocation_identity_never_reused(void) {
     const char* source =
         "v:a = area(64); free(a); v:b = area(64);";
@@ -4499,6 +4535,10 @@ int main(int argc, char** argv) {
     }
     if (!check_allocation_diagnostic_location()) {
         fprintf(stderr, "Allocation diagnostic source location checks failed.\\n");
+        return 1;
+    }
+    if (!check_allocation_snapshot_oom_failures()) {
+        fprintf(stderr, "Allocation snapshot OOM fail-closed checks failed.\\n");
         return 1;
     }
     if (!check_allocation_identity_never_reused()) {
