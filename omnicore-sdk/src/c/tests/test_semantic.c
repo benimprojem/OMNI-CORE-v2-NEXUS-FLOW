@@ -4143,6 +4143,38 @@ static int check_function_allocation_cleanup(void) {
     return ok;
 }
 
+static int check_allocation_diagnostic_location(void) {
+    const char* source = "f:main() { v:a = area(64); free(a); echo(a); }";
+    const char* access = strstr(source, "echo(a)") + 5;
+    int expected_column = (int)(access - source) + 1;
+    ParserContext* parser = parser_init_source(
+        "allocation-location.nxf", (const uint8_t*)source, strlen(source));
+    SemanticContext semantic;
+    Error* error;
+    int found = 0;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    semantic_init(&semantic, "allocation-location.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    for (error = semantic.error_head; error; error = error->next) {
+        if (error->message && strstr(error->message, "Allocation handle") != NULL) {
+            found = error->line == 1 && error->col == expected_column;
+            break;
+        }
+    }
+    if (!found) {
+        fprintf(stderr,
+            "Use-after-release diagnostic location mismatch; expected 1:%d.\\n",
+            expected_column);
+    }
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return found;
+}
+
 static int check_intrinsic_semantics(void) {
     const char* valid_memory =
         "f:main() { v:x!i32 = 1; v:p = addr(x); v:n!u64 = len(\"abc\"); "
@@ -4315,6 +4347,10 @@ int main(int argc, char** argv) {
     }
     if (!check_irq_reg_semantics()) {
         fprintf(stderr, "IRQ/register semantic checks failed.\n");
+        return 1;
+    }
+    if (!check_allocation_diagnostic_location()) {
+        fprintf(stderr, "Allocation diagnostic source location checks failed.\\n");
         return 1;
     }
     if (!check_function_allocation_cleanup()) {
