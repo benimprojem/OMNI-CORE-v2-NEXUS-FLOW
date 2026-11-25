@@ -10625,6 +10625,11 @@ static void semantic_check_node(
                                ctx, source_slot, target_slot)) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation would violate an active borrow's owner lifetime; keep the destination within the owner's and borrowers' compatible scopes.");
+                } else if (target_slot->borrow_suspended_by_identity != 0u ||
+                           target_slot->shared_borrow_count != 0u ||
+                           target_slot->mutable_borrow_active) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation destination has active borrow relationships and cannot be overwritten.");
                 } else if (source_allocation &&
                            target_slot->function_depth !=
                                source_allocation->function_depth) {
@@ -10636,6 +10641,9 @@ static void semantic_check_node(
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation destination already owns a different active allocation; release or relocate it first.");
                 } else {
+                    /* Replacing an existing borrowed destination releases its
+                       old outgoing borrow only after the new transfer validates. */
+                    semantic_release_borrow_binding(ctx, target_slot);
                     semantic_transfer_slot_borrow_state(
                         ctx, source_slot, target_slot);
                     if (target_slot->relocation_origin &&
