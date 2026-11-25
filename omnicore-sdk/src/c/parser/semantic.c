@@ -10660,6 +10660,24 @@ static void semantic_check_node(
                         0, 0);
                 }
             }
+            if (unary->op == TOKEN_STAR && unary->operand &&
+                unary->operand->type == AST_IDENTIFIER) {
+                Slot* pointer_slot = find_slot(
+                    ctx, ((ASTIdentifier*)unary->operand)->name);
+                if (pointer_slot && pointer_slot->allocation_identity == 0u) {
+                    uint64_t dereferenced_identity =
+                        semantic_expression_allocation_identity(ctx, node);
+                    if (dereferenced_identity != 0u &&
+                        !semantic_find_active_allocation(
+                            ctx, dereferenced_identity)) {
+                        report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Dereference reads an allocation handle whose backing allocation has already been released.",
+                            "Create a new allocation and obtain a new handle; do not read the stale handle through a reference.",
+                            "Create a new allocation and obtain a new handle; do not read the stale handle through a reference.",
+                            0, 0);
+                    }
+                }
+            }
             operand_type = get_expr_type(ctx, unary->operand);
             if (operand_type && unary->op == TOKEN_NOT &&
                 !semantic_is_boolean_condition(ctx, unary->operand)) {
