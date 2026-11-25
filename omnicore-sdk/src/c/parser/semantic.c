@@ -10227,6 +10227,25 @@ static void semantic_check_node(
                 ActiveAllocation* target_allocation =
                     semantic_find_active_allocation(
                         ctx, target_slot->allocation_identity);
+                int alias_outlives_target = 0;
+                Slot* alias_slot;
+                if (source_allocation) {
+                    for (alias_slot = ctx->head; alias_slot;
+                         alias_slot = alias_slot->next) {
+                        if (alias_slot != source_slot &&
+                            alias_slot != target_slot &&
+                            alias_slot->allocation_identity ==
+                                source_allocation_identity &&
+                            (alias_slot->function_depth <
+                                 target_slot->function_depth ||
+                             (alias_slot->function_depth ==
+                                  target_slot->function_depth &&
+                              alias_slot->depth < target_slot->depth))) {
+                            alias_outlives_target = 1;
+                            break;
+                        }
+                    }
+                }
                 if (source_allocation_identity != 0u &&
                     !source_allocation) {
                     /* The source identifier traversal already reported the
@@ -10241,6 +10260,9 @@ static void semantic_check_node(
                            !source_allocation_is_base) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation requires the allocation's base handle; an interior or offset pointer cannot transfer ownership.");
+                } else if (alias_outlives_target) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation would shorten allocation lifetime below another live alias; invalidate or relocate the longer-lived alias first.");
                 } else if (source_allocation &&
                            target_slot->function_depth !=
                                source_allocation->function_depth) {
