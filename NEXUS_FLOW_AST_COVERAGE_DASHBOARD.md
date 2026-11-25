@@ -1509,3 +1509,12 @@ Commits:
 - Removal of obsolete forward-activation text: `3548c717677faa135a5f8e763ff58f90a9071b3d`
 
 Status: **VERIFIED — Handler relocation slice**. This does not close the remaining SEM-005 pointer/reference/lifetime audit; OIR remains gated.
+
+
+### SEM-005 — Borrow snapshot and returned-reference OOM safety (2026-11-25)
+
+- Borrow-origin snapshot capture/restore and branch merge prepare cloned state before publishing it. Allocation failures set `SEMANTIC_RESULT_OUT_OF_MEMORY`; partial borrow-graph replacement is avoided.
+- Returned-reference origin analysis now uses the SemanticContext allocator for alias records and copied borrow paths. Lvalue projection-path construction and temporary call-borrow tracking also use the controlled allocator and report OOM explicitly.
+- Added deterministic allocation-failure injection regressions for branch borrow snapshots (including member projections and call temporaries) and returned-reference alias-origin analysis.
+- Exact-head commit `e6982ba55706beef08d0c3231b28efb357f94951`, workflow run [45556265200](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45556265200): all five jobs passed — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
+- This closes the snapshot/borrow-metadata OOM verification slice only. SEM-005 remains open for the remaining pointer provenance and interprocedural escape/effect audit; OIR remains gated.
